@@ -21,6 +21,7 @@ namespace {
 
 using openswd3::compat::u8;
 using openswd3::resource_io::LegacyEnvironmentCodecStatus;
+using openswd3::resource_io::LegacyEnvironmentCacheSessionMarker;
 using openswd3::resource_io::LegacyEnvironmentLayout;
 using openswd3::resource_io::LegacyEnvironmentLoadStatus;
 using openswd3::resource_io::LegacyEnvironmentRecord;
@@ -29,6 +30,7 @@ using openswd3::resource_io::encode_legacy_environment;
 using openswd3::resource_io::kLegacyEnvironmentWindowSize;
 using openswd3::resource_io::load_legacy_environment;
 using openswd3::resource_io::migrate_unmarked_environment;
+using openswd3::resource_io::write_legacy_environment_cache_session_marker;
 
 constexpr std::array<u8, 63> kCurrentEnvironment{
     0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xC8U, 0xD0U, 0xCBU, 0xCDU,
@@ -544,6 +546,63 @@ void test_failed_migrated_reopen_keeps_old_window(
     );
 }
 
+void test_cache_session_marker_writers(openswd3::test::Context& test) {
+    const TestTree tree;
+    constexpr std::array<u8, 4> kInitialBytes{
+        0x10U, 0x20U, 0x02U, 0x7FU,
+    };
+    tree.write("Env.dat", kInitialBytes);
+
+    test.expect_true(
+        write_legacy_environment_cache_session_marker(
+            tree.path("Env.dat"),
+            LegacyEnvironmentCacheSessionMarker::active
+        ),
+        "0x004259B0 writes the active-session marker"
+    );
+    test.expect_equal(
+        tree.read("Env.dat"),
+        std::vector<u8>{0x10U, 0x20U, 0x02U, 0x01U},
+        "active marker replaces only the physical final byte"
+    );
+
+    test.expect_true(
+        write_legacy_environment_cache_session_marker(
+            tree.path("Env.dat"),
+            LegacyEnvironmentCacheSessionMarker::clean
+        ),
+        "0x004258E0 writes the clean-shutdown marker"
+    );
+    test.expect_equal(
+        tree.read("Env.dat"),
+        std::vector<u8>{0x10U, 0x20U, 0x02U, 0x00U},
+        "clean marker preserves the prefix and file length"
+    );
+
+    test.expect_false(
+        write_legacy_environment_cache_session_marker(
+            tree.path("missing.dat"),
+            LegacyEnvironmentCacheSessionMarker::active
+        ),
+        "OPEN_EXISTING does not create a missing environment file"
+    );
+
+    constexpr std::array<u8, 0> kEmpty{};
+    tree.write("empty.dat", kEmpty);
+    test.expect_true(
+        write_legacy_environment_cache_session_marker(
+            tree.path("empty.dat"),
+            LegacyEnvironmentCacheSessionMarker::active
+        ),
+        "ignored negative end seek still writes an existing empty file"
+    );
+    test.expect_equal(
+        tree.read("empty.dat"),
+        std::vector<u8>{0x01U},
+        "empty file receives one marker byte at its unchanged position"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -555,5 +614,6 @@ int main() {
     test_file_loader_current_and_missing(test);
     test_file_loader_migration_and_no_truncate(test);
     test_failed_migrated_reopen_keeps_old_window(test);
+    test_cache_session_marker_writers(test);
     return test.exit_code();
 }

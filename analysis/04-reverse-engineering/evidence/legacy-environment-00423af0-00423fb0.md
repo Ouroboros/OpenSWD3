@@ -84,7 +84,7 @@ secondary directory = ""
 post-string bytes = 02 01
 ```
 
-实现对完整 63 字节样本解码后，读取的尾随模式为 2；重新编码的前 62 字节逐字节相同，最后一字节按写入器变为 0。原文件末字节 1 不在读取路径消费，不能拿它覆盖写入器的固定零。
+实现对完整 63 字节样本解码后，读取的尾随模式为 2；重新编码的前 62 字节逐字节相同，最后一字节按记录写入器变为 0。`0x00423FB0` 不消费原文件末字节 1，但 `0x00425570` 会独立读取它；`0x004259B0` 在游戏会话开始时写 1，`0x004258E0` 在正常退出时写 0。完整生命周期见 [`environment-cache-session-marker-00425570-004259b0.md`](environment-cache-session-marker-00425570-004259b0.md)。
 
 ## 5. C++20 映射与现代边界
 
@@ -92,10 +92,11 @@ post-string bytes = 02 01
 - `migrate_unmarked_environment`：锁定默认按键、清零保留区和七个硬编码迁移值。
 - `encode_legacy_environment`：生成 `0x00423AF0` 写出的带标记前缀，并按 `lstrlenA` 在输入内第一个 NUL 截止。
 - `load_legacy_environment`：保留首次打开、迁移写回、按旧第一路径重开、第二次失败仍解析旧窗口、原始 1/0 返回值和不截断文件的调用顺序；原始 ANSI 路径通过显式平台 resolver 映射。
+- `write_legacy_environment_cache_session_marker`：按 `0x004258E0/0x004259B0` 只覆盖物理末字节，分别写正常退出零和会话活动一。
 
 原程序在超 0x1000 文件、无终止 NUL、尾随字节越过窗口以及过长写入时会越界。现代实现分别返回明确的 codec 状态；这些状态是 `platform_adapted` 内存安全边界，不能冒充原程序的可恢复错误语义。
 
-UT 覆盖当前完整样本、合成无标记记录、迁移默认按键、短文件零填充、两条字符串、尾随模式、`lstrlenA` 前缀、首次打开失败、迁移写回不截断、按存储路径重开、第二次失败继续解析旧窗口，以及现代越界隔离。Windows LLVM `core`/`app` 均通过 30/30 CTest，`openswd3.exe` 已重新链接。原程序动态差分仍登记为 `blocked_runtime_oracle`。
+UT 覆盖当前完整样本、合成无标记记录、迁移默认按键、短文件零填充、两条字符串、尾随模式、`lstrlenA` 前缀、首次打开失败、迁移写回不截断、按存储路径重开、第二次失败继续解析旧窗口、会话标记写入，以及现代越界隔离。Windows LLVM `core`/`app` 的 32/32 CTest 均已通过，`openswd3.exe` 已重新链接。原程序动态差分仍登记为 `blocked_runtime_oracle`。
 
 ## 6. B2.7b 文件级边界
 

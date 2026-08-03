@@ -6,7 +6,8 @@ Env.dat	environment_field	six_option_bytes	00000018	6	06063C00020A		six byte-siz
 Env.dat	environment_field	preserved_or_migration_area	0000001E	16	00F8E0071F0000000000000000000000		zeroed only during unmarked-layout migration
 Env.dat	environment_field	string_1	0000002E	14	453A5C47616D655C737764335C00	E:\Game\swd3\	first NUL-terminated string
 Env.dat	environment_field	string_2	0000003C	1	00		second NUL-terminated string
-Env.dat	environment_field	post_string_bytes	0000003D	2	0201		first byte is read as byte_4C97F4 value; remaining byte is not consumed by sub_423FB0
+Env.dat	environment_field	trailing_mode	0000003D	1	02	2	read by sub_423FB0 into byte_4C97F4
+Env.dat	environment_field	cache_session_marker	0000003E	1	01	1	written active by sub_4259B0, written clean by sub_4258E0, nonzero invalidates CM cache in sub_425570
 Fame.dat	fame_u16_slot	0	00000000	2	0000	0	outside sub_409CE0/sub_409DD0 id loop
 Fame.dat	fame_u16_slot	1	00000002	2	0000	0	fame id 1..500 raw u16 value
 Fame.dat	fame_u16_slot	2	00000004	2	0000	0	fame id 1..500 raw u16 value

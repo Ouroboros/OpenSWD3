@@ -36,6 +36,11 @@ enum class LegacyEnvironmentLoadStatus {
     unsafe_record,
 };
 
+enum class LegacyEnvironmentCacheSessionMarker : compat::u8 {
+    clean = 0U,
+    active = 1U,
+};
+
 struct LegacyEnvironmentRecord {
     std::array<compat::u8, 16> binding_bytes{};
     compat::u32 integer_parameter{};
@@ -101,6 +106,11 @@ using LegacyEnvironmentDirectoryResolver =
     const std::filesystem::path& initial_file,
     const LegacyEnvironmentDirectoryResolver& resolve_stored_directory,
     LegacyEnvironmentRecord& in_out_record
+);
+
+[[nodiscard]] bool write_legacy_environment_cache_session_marker(
+    const std::filesystem::path& environment_file,
+    LegacyEnvironmentCacheSessionMarker marker
 );
 
 }  // namespace openswd3::resource_io

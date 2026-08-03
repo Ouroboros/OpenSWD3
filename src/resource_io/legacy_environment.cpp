@@ -357,4 +357,23 @@ LegacyEnvironmentLoadResult load_legacy_environment(
     return result;
 }
 
+bool write_legacy_environment_cache_session_marker(
+    const std::filesystem::path& environment_file,
+    const LegacyEnvironmentCacheSessionMarker marker
+) {
+    LegacyFile file;
+    if (!file.open(
+            environment_file,
+            LegacyFileCreation::open_existing,
+            LegacyFileAccess::write
+        )) {
+        return false;
+    }
+
+    static_cast<void>(file.seek_end_one_based(-1));
+    const bool written = file.write_u8(static_cast<compat::u8>(marker));
+    static_cast<void>(file.close());
+    return written;
+}
+
 }  // namespace openswd3::resource_io
