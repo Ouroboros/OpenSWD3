@@ -220,6 +220,36 @@ struct LegacyLmfIndexedObjectDirectory {
     std::vector<LegacyLmfIndexedObject> objects;
 };
 
+enum class LegacyLmfOffset1cDirectoryStatus {
+    ready,
+    invalid_header,
+    file_open_failed,
+    directory_seek_failed,
+    directory_window_read_failed,
+    record_count_out_of_range,
+    record_data_out_of_range,
+    unterminated_name,
+};
+
+struct LegacyLmfOffset1cRecord {
+    compat::u32 relative_offset{};
+    compat::u16 field_00{};
+    compat::u16 field_02{};
+    compat::u16 field_04{};
+    compat::u16 field_06{};
+    compat::u16 packed_field_08{};
+    std::vector<compat::u8> name_bytes_with_terminator;
+};
+
+struct LegacyLmfOffset1cDirectory {
+    LegacyLmfOffset1cDirectoryStatus status{
+        LegacyLmfOffset1cDirectoryStatus::invalid_header
+    };
+    std::vector<compat::u32> declared_relative_offsets;
+    std::vector<LegacyLmfOffset1cRecord> records;
+    compat::u32 end_offset{};
+};
+
 [[nodiscard]] LegacyLmfMapLookupResult legacy_lmf_lookup_map(
     const std::filesystem::path& archive_path,
     compat::u32 map_id
@@ -257,6 +287,12 @@ legacy_lmf_read_referenced_record_directory(
 
 [[nodiscard]] LegacyLmfIndexedObjectDirectory
 legacy_lmf_read_indexed_object_directory(
+    const std::filesystem::path& archive_path,
+    compat::u32 map_offset,
+    const LegacyLmfMapHeader& header
+);
+
+[[nodiscard]] LegacyLmfOffset1cDirectory legacy_lmf_read_offset1c_directory(
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
     const LegacyLmfMapHeader& header
