@@ -6,6 +6,7 @@
 #include <array>
 #include <bit>
 #include <cstddef>
+#include <limits>
 #include <span>
 #include <vector>
 
@@ -42,6 +43,32 @@ constexpr compat::u32 kMsf2Signature = 0x3246534DU;
 ) noexcept {
     compat::u32 requested = static_cast<compat::u32>(buffer.size());
     return file.read(buffer, requested) && requested == buffer.size();
+}
+
+[[nodiscard]] bool checked_multiply(
+    const compat::u32 left,
+    const compat::u32 right,
+    compat::u32& result
+) noexcept {
+    if (right != 0U && left > std::numeric_limits<compat::u32>::max() / right) {
+        return false;
+    }
+
+    result = left * right;
+    return true;
+}
+
+[[nodiscard]] bool checked_add(
+    const compat::u32 left,
+    const compat::u32 right,
+    compat::u32& result
+) noexcept {
+    if (left > std::numeric_limits<compat::u32>::max() - right) {
+        return false;
+    }
+
+    result = left + right;
+    return true;
 }
 
 }  // namespace
@@ -183,6 +210,116 @@ LegacyLmfMapHeader legacy_lmf_read_map_header(
         std::distance(header.cbegin(), name_end + 1)
     );
     result.status = LegacyLmfMapHeaderStatus::ready;
+    return result;
+}
+
+LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
+    const std::filesystem::path& archive_path,
+    const compat::u32 map_offset,
+    const LegacyLmfMapHeader& header
+) {
+    LegacyLmfSurfaceGrid result;
+    if (header.status != LegacyLmfMapHeaderStatus::ready ||
+        header.format == LegacyLmfMapFormat::unknown) {
+        return result;
+    }
+
+    compat::u32 raw_entry_count{};
+    compat::u32 raw_table_bytes{};
+    compat::u32 surface_grid_bytes{};
+    if (!checked_multiply(header.width, header.height, raw_entry_count) ||
+        !checked_multiply(raw_entry_count, header.layers, raw_entry_count) ||
+        !checked_multiply(raw_entry_count, 4U, raw_table_bytes) ||
+        !checked_add(raw_table_bytes, 4U, raw_table_bytes) ||
+        !checked_multiply(header.width, header.height, surface_grid_bytes) ||
+        !checked_multiply(surface_grid_bytes, 4U, surface_grid_bytes)) {
+        result.status = LegacyLmfSurfaceGridStatus::size_overflow;
+        return result;
+    }
+
+    LegacyFile file;
+    if (!file.open(
+            archive_path,
+            LegacyFileCreation::open_existing,
+            LegacyFileAccess::read
+        )) {
+        result.status = LegacyLmfSurfaceGridStatus::file_open_failed;
+        return result;
+    }
+
+    const compat::u32 raw_table_position =
+        map_offset + header.raw_table_offset;
+    if (file.seek_begin_one_based(
+            std::bit_cast<compat::i32>(raw_table_position)
+        ) == 0U) {
+        result.status = LegacyLmfSurfaceGridStatus::raw_table_seek_failed;
+        return result;
+    }
+
+    std::vector<compat::u8> raw_table(raw_table_bytes);
+    if (!read_exact(file, raw_table)) {
+        result.status = LegacyLmfSurfaceGridStatus::raw_table_read_failed;
+        return result;
+    }
+
+    result.raw_table_values.reserve(raw_entry_count);
+    for (compat::u32 entry = 0U; entry < raw_entry_count; ++entry) {
+        result.raw_table_values.push_back(static_cast<compat::u16>(
+            read_u16(raw_table, static_cast<std::size_t>(entry) * 4U)
+        ));
+    }
+
+    compat::u32 compressed_size = read_u32(
+        raw_table,
+        static_cast<std::size_t>(raw_entry_count) * 4U
+    );
+    if (header.format == LegacyLmfMapFormat::msfp) {
+        if (file.seek_current_one_based(
+                std::bit_cast<compat::i32>(compressed_size)
+            ) == 0U) {
+            result.status =
+                LegacyLmfSurfaceGridStatus::legacy_payload_skip_failed;
+            return result;
+        }
+
+        std::array<compat::u8, 4> compressed_size_bytes{};
+        if (!read_exact(file, compressed_size_bytes)) {
+            result.status =
+                LegacyLmfSurfaceGridStatus::compressed_size_read_failed;
+            return result;
+        }
+        compressed_size = read_u32(compressed_size_bytes, 0U);
+    }
+
+    compat::u32 compressed_block_size{};
+    if (!checked_add(compressed_size, 4U, compressed_block_size)) {
+        result.status = LegacyLmfSurfaceGridStatus::size_overflow;
+        return result;
+    }
+
+    std::vector<compat::u8> compressed_block(compressed_block_size);
+    if (!read_exact(file, compressed_block)) {
+        result.status =
+            LegacyLmfSurfaceGridStatus::compressed_block_read_failed;
+        return result;
+    }
+
+    result.post_surface_record_count = read_u32(
+        compressed_block,
+        compressed_size
+    );
+    result.surface_grid.resize(surface_grid_bytes);
+    result.decompression_status = decompress_legacy_resource_block(
+        std::span<const compat::u8>{compressed_block}.first(compressed_size),
+        result.surface_grid,
+        result.actual_surface_grid_size
+    );
+    if (result.decompression_status != LegacyLzo1xStatus::success) {
+        result.status = LegacyLmfSurfaceGridStatus::decompression_failed;
+        return result;
+    }
+
+    result.status = LegacyLmfSurfaceGridStatus::ready;
     return result;
 }
 

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <span>
@@ -24,8 +25,10 @@ using openswd3::compat::u32;
 using openswd3::resource_io::LegacyLmfMapFormat;
 using openswd3::resource_io::LegacyLmfMapHeaderStatus;
 using openswd3::resource_io::LegacyLmfMapLookupStatus;
+using openswd3::resource_io::LegacyLmfSurfaceGridStatus;
 using openswd3::resource_io::legacy_lmf_lookup_map;
 using openswd3::resource_io::legacy_lmf_read_map_header;
+using openswd3::resource_io::legacy_lmf_read_surface_grid;
 
 class TestTree {
 public:
@@ -129,6 +132,42 @@ void append_record(
     write_u16(bytes, 0x8CU, 2U);
     constexpr std::array<u8, 4> kName{'m', 'a', 'p', 0U};
     std::copy(kName.begin(), kName.end(), bytes.begin() + 0x96);
+    return bytes;
+}
+
+[[nodiscard]] std::vector<u8> make_surface_archive(const u32 signature) {
+    std::vector<u8> bytes = make_map_header(signature);
+    write_u16(bytes, 0x84U, 2U);
+    write_u16(bytes, 0x86U, 1U);
+    write_u16(bytes, 0x8CU, 1U);
+
+    constexpr std::array<u8, 12> kCompressedSurface{
+        0x19U,
+        1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U,
+        0x11U, 0x00U, 0x00U,
+    };
+    constexpr std::size_t kRawTableOffset = 0x9AU;
+    write_u32(bytes, kRawTableOffset, 0xAAAA1234U);
+    write_u32(bytes, kRawTableOffset + 4U, 0xBBBB5678U);
+
+    std::size_t cursor = kRawTableOffset + 8U;
+    if (signature == 0x7046534DU) {
+        write_u32(bytes, cursor, 3U);
+        cursor += 4U;
+        bytes[cursor++] = 0xDEU;
+        bytes[cursor++] = 0xADU;
+        bytes[cursor++] = 0xBEU;
+        write_u32(bytes, cursor, static_cast<u32>(kCompressedSurface.size()));
+        cursor += 4U;
+    } else {
+        write_u32(bytes, cursor, static_cast<u32>(kCompressedSurface.size()));
+        cursor += 4U;
+    }
+
+    std::copy(kCompressedSurface.begin(), kCompressedSurface.end(),
+              bytes.begin() + static_cast<std::ptrdiff_t>(cursor));
+    cursor += kCompressedSurface.size();
+    write_u32(bytes, cursor, 3U);
     return bytes;
 }
 
@@ -315,6 +354,102 @@ void test_map_header_failures(openswd3::test::Context& test) {
     );
 }
 
+void test_surface_grid_framing(openswd3::test::Context& test) {
+    const TestTree tree;
+    for (const u32 signature : {0x7046534DU, 0x3246534DU}) {
+        const std::vector<u8> bytes = make_surface_archive(signature);
+        tree.write("surface.lmf", bytes);
+        const auto header = legacy_lmf_read_map_header(
+            tree.path("surface.lmf"),
+            0U
+        );
+        const auto surface = legacy_lmf_read_surface_grid(
+            tree.path("surface.lmf"),
+            0U,
+            header
+        );
+
+        test.expect_equal(
+            surface.status,
+            LegacyLmfSurfaceGridStatus::ready,
+            "MSFp and MSF2 surface framing both reach decompression"
+        );
+        test.expect_equal(
+            surface.raw_table_values,
+            std::vector<openswd3::compat::u16>{0x1234U, 0x5678U},
+            "raw dwords compact to their low words"
+        );
+        test.expect_equal(
+            surface.surface_grid,
+            std::vector<u8>{1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U},
+            "surface payload is decompressed into width times height times four"
+        );
+        test.expect_equal(
+            surface.actual_surface_grid_size,
+            8U,
+            "actual surface output size is retained"
+        );
+        test.expect_equal(
+            surface.post_surface_record_count,
+            3U,
+            "trailing dword is excluded from compressed input"
+        );
+    }
+}
+
+void test_surface_grid_failures(openswd3::test::Context& test) {
+    const TestTree tree;
+    auto invalid_header = legacy_lmf_read_map_header(
+        tree.path("missing.lmf"),
+        0U
+    );
+    test.expect_equal(
+        legacy_lmf_read_surface_grid(
+            tree.path("missing.lmf"),
+            0U,
+            invalid_header
+        ).status,
+        LegacyLmfSurfaceGridStatus::invalid_header,
+        "failed map header is rejected before reopening the archive"
+    );
+
+    auto overflow_header = invalid_header;
+    overflow_header.status = LegacyLmfMapHeaderStatus::ready;
+    overflow_header.format = LegacyLmfMapFormat::msf2;
+    overflow_header.width = 0xFFFFU;
+    overflow_header.height = 0xFFFFU;
+    overflow_header.layers = 0xFFFFU;
+    test.expect_equal(
+        legacy_lmf_read_surface_grid(
+            tree.path("missing.lmf"),
+            0U,
+            overflow_header
+        ).status,
+        LegacyLmfSurfaceGridStatus::size_overflow,
+        "legacy multiplication overflow is isolated before allocation"
+    );
+
+    std::vector<u8> bytes = make_surface_archive(0x3246534DU);
+    const std::size_t payload_offset = 0x9AU + 12U;
+    bytes[payload_offset] = 0x11U;
+    write_u32(bytes, 0x9AU + 8U, 1U);
+    write_u32(bytes, payload_offset + 1U, 0U);
+    tree.write("bad-stream.lmf", bytes);
+    const auto header = legacy_lmf_read_map_header(
+        tree.path("bad-stream.lmf"),
+        0U
+    );
+    test.expect_equal(
+        legacy_lmf_read_surface_grid(
+            tree.path("bad-stream.lmf"),
+            0U,
+            header
+        ).status,
+        LegacyLmfSurfaceGridStatus::decompression_failed,
+        "invalid compressed stream enters the modern safe decoder boundary"
+    );
+}
+
 [[nodiscard]] u32 read_stream_u32(std::ifstream& input) {
     std::array<u8, 4> bytes{};
     input.read(
@@ -356,6 +491,8 @@ void test_all_current_map_headers(
 
     bool all_lookups_match = true;
     bool all_headers_match = true;
+    bool all_surface_grids_match = true;
+    std::uint64_t total_surface_grid_bytes{};
     for (const IndexedMap& map : maps) {
         const auto lookup = legacy_lmf_lookup_map(archive_path, map.id);
         all_lookups_match = all_lookups_match &&
@@ -373,11 +510,37 @@ void test_all_current_map_headers(
             header.name_bytes_with_terminator.back() == 0U &&
             header.raw_table_offset >= 0x98U &&
             header.raw_table_offset <= 0xA5U;
+
+        const auto surface = legacy_lmf_read_surface_grid(
+            archive_path,
+            map.offset,
+            header
+        );
+        const std::uint64_t expected_raw_values =
+            static_cast<std::uint64_t>(header.width) * header.height *
+            header.layers;
+        const std::uint64_t expected_surface_size =
+            static_cast<std::uint64_t>(header.width) * header.height * 4U;
+        all_surface_grids_match = all_surface_grids_match &&
+            surface.status == LegacyLmfSurfaceGridStatus::ready &&
+            surface.raw_table_values.size() == expected_raw_values &&
+            surface.surface_grid.size() == expected_surface_size &&
+            surface.actual_surface_grid_size == expected_surface_size;
+        total_surface_grid_bytes += surface.actual_surface_grid_size;
     }
 
     test.expect_equal(record_count, 309U, "current archive has 309 searchable maps");
     test.expect_true(all_lookups_match, "all current map ids resolve to their indexed offsets");
     test.expect_true(all_headers_match, "all current map headers satisfy the recovered contract");
+    test.expect_true(
+        all_surface_grids_match,
+        "all current surface grids satisfy framing and output-size contracts"
+    );
+    test.expect_equal(
+        total_surface_grid_bytes,
+        std::uint64_t{9'830'932U},
+        "all current surface grids reproduce the inventory output total"
+    );
 }
 
 void test_current_archive(
@@ -426,6 +589,8 @@ int main(const int argument_count, char** arguments) {
     test_last_physical_record_is_excluded(test);
     test_map_header_fields_and_formats(test);
     test_map_header_failures(test);
+    test_surface_grid_framing(test);
+    test_surface_grid_failures(test);
 
     test.expect_true(
         argument_count == 1 || argument_count == 2,

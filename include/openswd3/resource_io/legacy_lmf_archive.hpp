@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/compat/types.hpp"
+#include "openswd3/resource_io/legacy_lzo1x.hpp"
 
 #include <filesystem>
 #include <vector>
@@ -59,6 +60,32 @@ struct LegacyLmfMapHeader {
     compat::u32 raw_table_offset{};
 };
 
+enum class LegacyLmfSurfaceGridStatus {
+    ready,
+    invalid_header,
+    file_open_failed,
+    size_overflow,
+    raw_table_seek_failed,
+    raw_table_read_failed,
+    legacy_payload_skip_failed,
+    compressed_size_read_failed,
+    compressed_block_read_failed,
+    decompression_failed,
+};
+
+struct LegacyLmfSurfaceGrid {
+    LegacyLmfSurfaceGridStatus status{
+        LegacyLmfSurfaceGridStatus::invalid_header
+    };
+    std::vector<compat::u16> raw_table_values;
+    std::vector<compat::u8> surface_grid;
+    compat::u32 actual_surface_grid_size{};
+    compat::u32 post_surface_record_count{};
+    LegacyLzo1xStatus decompression_status{
+        LegacyLzo1xStatus::source_exhausted
+    };
+};
+
 [[nodiscard]] LegacyLmfMapLookupResult legacy_lmf_lookup_map(
     const std::filesystem::path& archive_path,
     compat::u32 map_id
@@ -67,6 +94,12 @@ struct LegacyLmfMapHeader {
 [[nodiscard]] LegacyLmfMapHeader legacy_lmf_read_map_header(
     const std::filesystem::path& archive_path,
     compat::u32 map_offset
+);
+
+[[nodiscard]] LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
+    const std::filesystem::path& archive_path,
+    compat::u32 map_offset,
+    const LegacyLmfMapHeader& header
 );
 
 }  // namespace openswd3::resource_io
