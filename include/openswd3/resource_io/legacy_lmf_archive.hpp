@@ -70,6 +70,7 @@ enum class LegacyLmfSurfaceGridStatus {
     legacy_payload_skip_failed,
     compressed_size_read_failed,
     compressed_block_read_failed,
+    post_surface_position_failed,
     decompression_failed,
 };
 
@@ -81,9 +82,39 @@ struct LegacyLmfSurfaceGrid {
     std::vector<compat::u8> surface_grid;
     compat::u32 actual_surface_grid_size{};
     compat::u32 post_surface_record_count{};
+    compat::u32 post_surface_records_offset{};
     LegacyLzo1xStatus decompression_status{
         LegacyLzo1xStatus::source_exhausted
     };
+};
+
+enum class LegacyLmfPostSurfaceRecordsStatus {
+    ready,
+    invalid_surface_grid,
+    file_open_failed,
+    record_window_seek_failed,
+    record_window_read_failed,
+    record_count_out_of_range,
+    record_data_out_of_range,
+    unterminated_name,
+};
+
+struct LegacyLmfPostSurfaceRecord {
+    compat::u32 relative_offset{};
+    compat::u16 field_00{};
+    compat::u32 field_02{};
+    compat::u32 field_06{};
+    compat::u32 field_0a{};
+    std::vector<compat::u8> name_bytes_with_terminator;
+};
+
+struct LegacyLmfPostSurfaceRecords {
+    LegacyLmfPostSurfaceRecordsStatus status{
+        LegacyLmfPostSurfaceRecordsStatus::invalid_surface_grid
+    };
+    std::vector<compat::u32> declared_relative_offsets;
+    std::vector<LegacyLmfPostSurfaceRecord> records;
+    compat::u32 following_directory_offset{};
 };
 
 [[nodiscard]] LegacyLmfMapLookupResult legacy_lmf_lookup_map(
@@ -100,6 +131,12 @@ struct LegacyLmfSurfaceGrid {
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
     const LegacyLmfMapHeader& header
+);
+
+[[nodiscard]] LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
+    const std::filesystem::path& archive_path,
+    compat::u32 map_offset,
+    const LegacyLmfSurfaceGrid& surface_grid
 );
 
 }  // namespace openswd3::resource_io

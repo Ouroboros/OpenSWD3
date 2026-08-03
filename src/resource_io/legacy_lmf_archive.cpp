@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <limits>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace openswd3::resource_io {
@@ -15,6 +16,8 @@ namespace {
 
 constexpr compat::u32 kIndexRecordSize = 16U;
 constexpr compat::u32 kMapHeaderReadSize = 0x2000U;
+constexpr compat::u32 kPostSurfaceRecordWindowSize = 0x10000U;
+constexpr compat::u32 kPostSurfaceRecordFixedSize = 14U;
 constexpr std::size_t kMapNameOffset = 0x96U;
 constexpr compat::u32 kMsfpSignature = 0x7046534DU;
 constexpr compat::u32 kMsf2Signature = 0x3246534DU;
@@ -308,6 +311,15 @@ LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
         compressed_block,
         compressed_size
     );
+    compat::u32 post_surface_position{};
+    if (!file.current_position(post_surface_position) ||
+        post_surface_position < map_offset) {
+        result.status =
+            LegacyLmfSurfaceGridStatus::post_surface_position_failed;
+        return result;
+    }
+    result.post_surface_records_offset = post_surface_position - map_offset;
+
     result.surface_grid.resize(surface_grid_bytes);
     result.decompression_status = decompress_legacy_resource_block(
         std::span<const compat::u8>{compressed_block}.first(compressed_size),
@@ -320,6 +332,142 @@ LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
     }
 
     result.status = LegacyLmfSurfaceGridStatus::ready;
+    return result;
+}
+
+LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
+    const std::filesystem::path& archive_path,
+    const compat::u32 map_offset,
+    const LegacyLmfSurfaceGrid& surface_grid
+) {
+    LegacyLmfPostSurfaceRecords result;
+    if (surface_grid.status != LegacyLmfSurfaceGridStatus::ready) {
+        return result;
+    }
+
+    if (surface_grid.post_surface_record_count >
+        static_cast<compat::u32>(std::numeric_limits<compat::i32>::max())) {
+        result.status =
+            LegacyLmfPostSurfaceRecordsStatus::record_count_out_of_range;
+        return result;
+    }
+
+    LegacyFile file;
+    if (!file.open(
+            archive_path,
+            LegacyFileCreation::open_existing,
+            LegacyFileAccess::read
+        )) {
+        result.status = LegacyLmfPostSurfaceRecordsStatus::file_open_failed;
+        return result;
+    }
+
+    const compat::u32 record_window_position =
+        map_offset + surface_grid.post_surface_records_offset;
+    if (file.seek_begin_one_based(
+            std::bit_cast<compat::i32>(record_window_position)
+        ) == 0U) {
+        result.status =
+            LegacyLmfPostSurfaceRecordsStatus::record_window_seek_failed;
+        return result;
+    }
+
+    std::vector<compat::u8> record_window(kPostSurfaceRecordWindowSize);
+    compat::u32 actual_window_size = kPostSurfaceRecordWindowSize;
+    if (!file.read(record_window, actual_window_size)) {
+        result.status =
+            LegacyLmfPostSurfaceRecordsStatus::record_window_read_failed;
+        return result;
+    }
+    record_window.resize(actual_window_size);
+
+    compat::u32 offset_table_bytes{};
+    if (!checked_multiply(
+            surface_grid.post_surface_record_count,
+            4U,
+            offset_table_bytes
+        ) ||
+        offset_table_bytes > record_window.size()) {
+        result.status =
+            LegacyLmfPostSurfaceRecordsStatus::record_count_out_of_range;
+        return result;
+    }
+
+    result.declared_relative_offsets.reserve(
+        surface_grid.post_surface_record_count
+    );
+    for (compat::u32 record = 0U;
+         record < surface_grid.post_surface_record_count;
+         ++record) {
+        result.declared_relative_offsets.push_back(read_u32(
+            record_window,
+            static_cast<std::size_t>(record) * 4U
+        ));
+    }
+
+    std::size_t cursor = offset_table_bytes;
+    result.records.reserve(surface_grid.post_surface_record_count);
+    for (compat::u32 record = 0U;
+         record < surface_grid.post_surface_record_count;
+         ++record) {
+        if (record_window.size() - cursor < kPostSurfaceRecordFixedSize) {
+            result.status =
+                LegacyLmfPostSurfaceRecordsStatus::record_data_out_of_range;
+            return result;
+        }
+
+        LegacyLmfPostSurfaceRecord parsed;
+        const compat::u32 cursor_u32 = static_cast<compat::u32>(cursor);
+        if (!checked_add(
+                surface_grid.post_surface_records_offset,
+                cursor_u32,
+                parsed.relative_offset
+            )) {
+            result.status =
+                LegacyLmfPostSurfaceRecordsStatus::record_data_out_of_range;
+            return result;
+        }
+        parsed.field_00 = static_cast<compat::u16>(read_u16(
+            record_window,
+            cursor
+        ));
+        parsed.field_02 = read_u32(record_window, cursor + 2U);
+        parsed.field_06 = read_u32(record_window, cursor + 6U);
+        parsed.field_0a = read_u32(record_window, cursor + 10U);
+        cursor += kPostSurfaceRecordFixedSize;
+
+        const auto name_end = std::find(
+            record_window.cbegin() + static_cast<std::ptrdiff_t>(cursor),
+            record_window.cend(),
+            compat::u8{0U}
+        );
+        if (name_end == record_window.cend()) {
+            result.status =
+                LegacyLmfPostSurfaceRecordsStatus::unterminated_name;
+            return result;
+        }
+        parsed.name_bytes_with_terminator.assign(
+            record_window.cbegin() + static_cast<std::ptrdiff_t>(cursor),
+            name_end + 1
+        );
+        cursor = static_cast<std::size_t>(
+            std::distance(record_window.cbegin(), name_end + 1)
+        );
+        result.records.push_back(std::move(parsed));
+    }
+
+    const compat::u32 cursor_u32 = static_cast<compat::u32>(cursor);
+    if (!checked_add(
+            surface_grid.post_surface_records_offset,
+            cursor_u32,
+            result.following_directory_offset
+        )) {
+        result.status =
+            LegacyLmfPostSurfaceRecordsStatus::record_data_out_of_range;
+        return result;
+    }
+
+    result.status = LegacyLmfPostSurfaceRecordsStatus::ready;
     return result;
 }
 

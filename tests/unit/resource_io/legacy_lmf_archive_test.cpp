@@ -25,9 +25,11 @@ using openswd3::compat::u32;
 using openswd3::resource_io::LegacyLmfMapFormat;
 using openswd3::resource_io::LegacyLmfMapHeaderStatus;
 using openswd3::resource_io::LegacyLmfMapLookupStatus;
+using openswd3::resource_io::LegacyLmfPostSurfaceRecordsStatus;
 using openswd3::resource_io::LegacyLmfSurfaceGridStatus;
 using openswd3::resource_io::legacy_lmf_lookup_map;
 using openswd3::resource_io::legacy_lmf_read_map_header;
+using openswd3::resource_io::legacy_lmf_read_post_surface_records;
 using openswd3::resource_io::legacy_lmf_read_surface_grid;
 
 class TestTree {
@@ -168,6 +170,47 @@ void append_record(
               bytes.begin() + static_cast<std::ptrdiff_t>(cursor));
     cursor += kCompressedSurface.size();
     write_u32(bytes, cursor, 3U);
+    cursor += 4U;
+
+    const std::size_t offset_table = cursor;
+    cursor += 12U;
+    const auto write_post_surface_record = [&bytes, &cursor, offset_table](
+        const std::size_t index,
+        const u32 field_00,
+        const u32 field_02,
+        const u32 field_06,
+        const u32 field_0a,
+        const std::span<const u8> name
+    ) {
+        write_u32(bytes, offset_table + index * 4U, static_cast<u32>(cursor));
+        write_u16(bytes, cursor, field_00);
+        write_u32(bytes, cursor + 2U, field_02);
+        write_u32(bytes, cursor + 6U, field_06);
+        write_u32(bytes, cursor + 10U, field_0a);
+        cursor += 14U;
+        std::copy(
+            name.begin(),
+            name.end(),
+            bytes.begin() + static_cast<std::ptrdiff_t>(cursor)
+        );
+        cursor += name.size();
+        bytes[cursor++] = 0U;
+    };
+
+    constexpr std::array<u8, 3> kFirstName{'o', 'n', 'e'};
+    constexpr std::array<u8, 2> kSecondName{0xA4U, 0x40U};
+    constexpr std::array<u8, 1> kThirdName{'3'};
+    write_post_surface_record(
+        0U,
+        0x1234U,
+        0x11223344U,
+        0x55667788U,
+        0x99AABBCCU,
+        kFirstName
+    );
+    write_post_surface_record(1U, 2U, 3U, 4U, 5U, kSecondName);
+    write_post_surface_record(2U, 6U, 7U, 8U, 9U, kThirdName);
+    write_u32(bytes, cursor, 0U);
     return bytes;
 }
 
@@ -394,6 +437,10 @@ void test_surface_grid_framing(openswd3::test::Context& test) {
             3U,
             "trailing dword is excluded from compressed input"
         );
+        test.expect_true(
+            surface.post_surface_records_offset > 0U,
+            "the position after the compressed trailer is retained"
+        );
     }
 }
 
@@ -450,6 +497,151 @@ void test_surface_grid_failures(openswd3::test::Context& test) {
     );
 }
 
+void test_post_surface_record_directory(openswd3::test::Context& test) {
+    const TestTree tree;
+    for (const u32 signature : {0x7046534DU, 0x3246534DU}) {
+        std::vector<u8> bytes = make_surface_archive(signature);
+        tree.write("records.lmf", bytes);
+        const auto header = legacy_lmf_read_map_header(
+            tree.path("records.lmf"),
+            0U
+        );
+        const auto surface = legacy_lmf_read_surface_grid(
+            tree.path("records.lmf"),
+            0U,
+            header
+        );
+        const auto records = legacy_lmf_read_post_surface_records(
+            tree.path("records.lmf"),
+            0U,
+            surface
+        );
+
+        test.expect_equal(
+            records.status,
+            LegacyLmfPostSurfaceRecordsStatus::ready,
+            "both map formats reach the post-surface record directory"
+        );
+        test.expect_equal(
+            records.records.size(),
+            std::size_t{3U},
+            "surface trailer count controls the record loop"
+        );
+        test.expect_true(
+            records.declared_relative_offsets.size() == 3U &&
+                records.declared_relative_offsets[0] ==
+                    records.records[0].relative_offset &&
+                records.declared_relative_offsets[1] ==
+                    records.records[1].relative_offset &&
+                records.declared_relative_offsets[2] ==
+                    records.records[2].relative_offset,
+            "declared offsets match sequential record positions"
+        );
+        test.expect_true(
+            records.records[0].field_00 == 0x1234U &&
+                records.records[0].field_02 == 0x11223344U &&
+                records.records[0].field_06 == 0x55667788U &&
+                records.records[0].field_0a == 0x99AABBCCU,
+            "unaligned fixed fields retain their exact widths"
+        );
+        test.expect_equal(
+            records.records[1].name_bytes_with_terminator,
+            std::vector<u8>{0xA4U, 0x40U, 0U},
+            "record names remain raw bytes and include NUL"
+        );
+        test.expect_true(
+            records.following_directory_offset >
+                records.records.back().relative_offset,
+            "cursor after the final NUL identifies the following directory"
+        );
+
+        write_u32(
+            bytes,
+            surface.post_surface_records_offset,
+            0xDEADBEEFU
+        );
+        tree.write("mismatched-offset.lmf", bytes);
+        const auto mismatched = legacy_lmf_read_post_surface_records(
+            tree.path("mismatched-offset.lmf"),
+            0U,
+            surface
+        );
+        test.expect_true(
+            mismatched.status == LegacyLmfPostSurfaceRecordsStatus::ready &&
+                mismatched.declared_relative_offsets[0] == 0xDEADBEEFU &&
+                mismatched.records[0].field_00 == 0x1234U,
+            "physical offsets are exposed while legacy parsing follows the sequential cursor"
+        );
+    }
+}
+
+void test_post_surface_record_failures(openswd3::test::Context& test) {
+    const TestTree tree;
+    openswd3::resource_io::LegacyLmfSurfaceGrid invalid_surface;
+    test.expect_equal(
+        legacy_lmf_read_post_surface_records(
+            tree.path("missing.lmf"),
+            0U,
+            invalid_surface
+        ).status,
+        LegacyLmfPostSurfaceRecordsStatus::invalid_surface_grid,
+        "failed surface result is rejected before opening the archive"
+    );
+
+    auto count_overflow = invalid_surface;
+    count_overflow.status = LegacyLmfSurfaceGridStatus::ready;
+    count_overflow.post_surface_record_count = 0x80000000U;
+    test.expect_equal(
+        legacy_lmf_read_post_surface_records(
+            tree.path("missing.lmf"),
+            0U,
+            count_overflow
+        ).status,
+        LegacyLmfPostSurfaceRecordsStatus::record_count_out_of_range,
+        "negative legacy record count is isolated before pointer arithmetic"
+    );
+
+    std::vector<u8> bytes = make_surface_archive(0x3246534DU);
+    tree.write("records.lmf", bytes);
+    const auto header = legacy_lmf_read_map_header(
+        tree.path("records.lmf"),
+        0U
+    );
+    auto surface = legacy_lmf_read_surface_grid(
+        tree.path("records.lmf"),
+        0U,
+        header
+    );
+    surface.post_surface_record_count = 0x10000U;
+    test.expect_equal(
+        legacy_lmf_read_post_surface_records(
+            tree.path("records.lmf"),
+            0U,
+            surface
+        ).status,
+        LegacyLmfPostSurfaceRecordsStatus::record_count_out_of_range,
+        "offset table larger than the fixed read window is isolated"
+    );
+
+    surface.post_surface_record_count = 1U;
+    std::fill(
+        bytes.begin() +
+            static_cast<std::ptrdiff_t>(surface.post_surface_records_offset + 4U + 14U),
+        bytes.end(),
+        0x41U
+    );
+    tree.write("unterminated-record.lmf", bytes);
+    test.expect_equal(
+        legacy_lmf_read_post_surface_records(
+            tree.path("unterminated-record.lmf"),
+            0U,
+            surface
+        ).status,
+        LegacyLmfPostSurfaceRecordsStatus::unterminated_name,
+        "unterminated record name is isolated at the actual read boundary"
+    );
+}
+
 [[nodiscard]] u32 read_stream_u32(std::ifstream& input) {
     std::array<u8, 4> bytes{};
     input.read(
@@ -492,7 +684,9 @@ void test_all_current_map_headers(
     bool all_lookups_match = true;
     bool all_headers_match = true;
     bool all_surface_grids_match = true;
+    bool all_post_surface_records_match = true;
     std::uint64_t total_surface_grid_bytes{};
+    std::uint64_t total_post_surface_records{};
     for (const IndexedMap& map : maps) {
         const auto lookup = legacy_lmf_lookup_map(archive_path, map.id);
         all_lookups_match = all_lookups_match &&
@@ -527,6 +721,26 @@ void test_all_current_map_headers(
             surface.surface_grid.size() == expected_surface_size &&
             surface.actual_surface_grid_size == expected_surface_size;
         total_surface_grid_bytes += surface.actual_surface_grid_size;
+
+        const auto records = legacy_lmf_read_post_surface_records(
+            archive_path,
+            map.offset,
+            surface
+        );
+        bool offsets_match = records.declared_relative_offsets.size() ==
+            records.records.size();
+        for (std::size_t index = 0U;
+             index < records.records.size() && offsets_match;
+             ++index) {
+            offsets_match = records.declared_relative_offsets[index] ==
+                records.records[index].relative_offset;
+        }
+        all_post_surface_records_match =
+            all_post_surface_records_match &&
+            records.status == LegacyLmfPostSurfaceRecordsStatus::ready &&
+            records.records.size() == surface.post_surface_record_count &&
+            offsets_match;
+        total_post_surface_records += records.records.size();
     }
 
     test.expect_equal(record_count, 309U, "current archive has 309 searchable maps");
@@ -540,6 +754,15 @@ void test_all_current_map_headers(
         total_surface_grid_bytes,
         std::uint64_t{9'830'932U},
         "all current surface grids reproduce the inventory output total"
+    );
+    test.expect_true(
+        all_post_surface_records_match,
+        "all current post-surface records satisfy directory and cursor contracts"
+    );
+    test.expect_equal(
+        total_post_surface_records,
+        std::uint64_t{813U},
+        "all current maps expose 813 post-surface records"
     );
 }
 
@@ -591,6 +814,8 @@ int main(const int argument_count, char** arguments) {
     test_map_header_failures(test);
     test_surface_grid_framing(test);
     test_surface_grid_failures(test);
+    test_post_surface_record_directory(test);
+    test_post_surface_record_failures(test);
 
     test.expect_true(
         argument_count == 1 || argument_count == 2,
