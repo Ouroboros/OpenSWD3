@@ -8,6 +8,7 @@ add_library(
         legacy_file.cpp
         legacy_lzo1x.cpp
         legacy_lzo1x_compressor.cpp
+        legacy_lmf_archive.cpp
         legacy_memory_manager.cpp
 )
 target_include_directories(
