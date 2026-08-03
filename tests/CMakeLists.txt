@@ -395,6 +395,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_resource_io_legacy_lzo1x_compression_tests
+    unit/resource_io/legacy_lzo1x_compression_test.cpp
+)
+target_include_directories(
+    openswd3_resource_io_legacy_lzo1x_compression_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_resource_io_legacy_lzo1x_compression_tests
+    PRIVATE openswd3_resource_io
+)
+
+add_test(
+    NAME resource_io.legacy_lzo1x_compression
+    COMMAND openswd3_resource_io_legacy_lzo1x_compression_tests
+)
+
+add_executable(
     openswd3_resource_io_data_directory_tests
     unit/resource_io/data_directory_test.cpp
 )

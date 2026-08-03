@@ -20,6 +20,16 @@ struct LegacyLzo1xResult {
     compat::u32 bytes_written{};
 };
 
+[[nodiscard]] LegacyLzo1xResult compress_legacy_lzo1x_14(
+    std::span<const compat::u8> source,
+    std::span<compat::u8> destination
+) noexcept;
+
+[[nodiscard]] LegacyLzo1xResult compress_legacy_lzo1x_15(
+    std::span<const compat::u8> source,
+    std::span<compat::u8> destination
+) noexcept;
+
 [[nodiscard]] LegacyLzo1xResult decompress_legacy_lzo1x(
     std::span<const compat::u8> source,
     std::span<compat::u8> destination
