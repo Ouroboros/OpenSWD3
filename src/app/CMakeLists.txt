@@ -1,0 +1,23 @@
+add_library(
+    openswd3_app
+    STATIC
+        auxiliary_text_dialog.cpp
+        display_lifecycle.cpp
+        battle_transition.cpp
+        command_line.cpp
+        frame_dispatch.cpp
+        frame_preparation.cpp
+        frame_runtime.cpp
+        external_launch.cpp
+        host_window_event.cpp
+        idle_runtime.cpp
+        initialization.cpp
+        platform_backend_initialization.cpp
+        process_startup.cpp
+        screenshot.cpp
+        startup.cpp
+        startup_dialog.cpp
+        window_events.cpp
+)
+target_link_libraries(openswd3_app PUBLIC openswd3_compat)
+target_include_directories(openswd3_app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

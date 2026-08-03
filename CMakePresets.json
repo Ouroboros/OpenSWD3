@@ -1,0 +1,59 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "core",
+      "displayName": "Core and unit tests",
+      "inherits": "base",
+      "cacheVariables": {
+        "OPENSWD3_BUILD_APP": "OFF"
+      }
+    },
+    {
+      "name": "app",
+      "displayName": "SDL3 application",
+      "inherits": "base",
+      "cacheVariables": {
+        "OPENSWD3_BUILD_APP": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "core-debug",
+      "configurePreset": "core",
+      "configuration": "Debug"
+    },
+    {
+      "name": "app-debug",
+      "configurePreset": "app",
+      "configuration": "Debug"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "core-test-debug",
+      "configurePreset": "core",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

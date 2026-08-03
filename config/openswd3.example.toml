@@ -1,0 +1,7 @@
+[paths]
+
+# Windows paths can use TOML literal strings, so backslashes need no escaping.
+# data_dir = 'E:\Game\swd3'
+
+# Linux and macOS example:
+# data_dir = '/home/user/games/swd3'
