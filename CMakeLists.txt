@@ -58,6 +58,7 @@ else()
     message(FATAL_ERROR "OpenSWD3 supports MSVC and LLVM Clang compilers")
 endif()
 
+add_subdirectory(src/diagnostics)
 add_subdirectory(src/compat)
 add_subdirectory(src/resource_io)
 add_subdirectory(src/app)

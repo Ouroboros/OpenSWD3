@@ -13,6 +13,7 @@
 #include "openswd3/app/process_startup.hpp"
 #include "openswd3/app/startup.hpp"
 #include "openswd3/app/window_events.hpp"
+#include "openswd3/diagnostics/log.hpp"
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
 
@@ -20,9 +21,9 @@
 #include <SDL3/SDL_main.h>
 
 #include <cstdint>
-#include <cstdio>
 #include <ctime>
 #include <filesystem>
+#include <source_location>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -39,9 +40,30 @@ constexpr openswd3::compat::u32 kInitialFrameIntervalMilliseconds = 35U;
 
 openswd3::resource_io::LegacyMemoryManager legacy_memory_manager;
 
-int report_sdl_error(const char* operation) {
-    std::fprintf(stderr, "%s: %s\n", operation, SDL_GetError());
+class LoggingShutdownGuard {
+public:
+    ~LoggingShutdownGuard() {
+        openswd3::diagnostics::log_info("OpenSWD3 process stopped");
+        openswd3::diagnostics::shutdown_logging();
+    }
+};
+
+int report_error(
+    const std::string_view message,
+    const std::source_location location = std::source_location::current()
+) {
+    openswd3::diagnostics::log_error(message, location);
     return 1;
+}
+
+int report_sdl_error(
+    const char* operation,
+    const std::source_location location = std::source_location::current()
+) {
+    std::string message{operation};
+    message.append(": ");
+    message.append(SDL_GetError());
+    return report_error(message, location);
 }
 
 [[nodiscard]] bool present_framebuffer(
@@ -479,7 +501,9 @@ public:
 private:
     void present() {
         if (texture_ == nullptr) {
-            std::fputs("framebuffer presentation: missing texture\n", stderr);
+            static_cast<void>(report_error(
+                "framebuffer presentation: missing texture"
+            ));
             ok_ = false;
             running_ = false;
             return;
@@ -513,16 +537,22 @@ int main(const int argument_count, char** arguments) {
         return report_sdl_error("SDL_GetBasePath");
     }
 
+    const std::filesystem::path executable_directory =
+        openswd3::resource_io::path_from_utf8(base_path);
+    static_cast<void>(openswd3::diagnostics::initialize_logging(
+        executable_directory / "logs" / "openswd3.log"
+    ));
+    LoggingShutdownGuard logging_shutdown_guard;
+    openswd3::diagnostics::log_info("OpenSWD3 process started");
+
     std::error_code directory_error;
     const std::filesystem::path launch_directory =
         std::filesystem::current_path(directory_error);
     if (directory_error) {
-        std::fprintf(
-            stderr,
-            "game data directory: cannot read launch directory: %s\n",
-            directory_error.message().c_str()
+        return report_error(
+            std::string{"game data directory: cannot read launch directory: "} +
+            directory_error.message()
         );
-        return 1;
     }
 
     std::vector<std::string_view> command_arguments;
@@ -536,7 +566,7 @@ int main(const int argument_count, char** arguments) {
     const openswd3::resource_io::DataDirectoryResolution data_directory =
         openswd3::resource_io::resolve_data_directory(
             command_arguments,
-            openswd3::resource_io::path_from_utf8(base_path),
+            executable_directory,
             launch_directory
         );
     if (data_directory.status !=
@@ -545,30 +575,29 @@ int main(const int argument_count, char** arguments) {
             openswd3::resource_io::data_directory_status_message(
                 data_directory.status
             );
-        std::fprintf(
-            stderr,
-            "game data directory: %.*s",
-            static_cast<int>(message.size()),
-            message.data()
-        );
+        std::string error_message{"game data directory: "};
+        error_message.append(message);
         if (!data_directory.detail.empty()) {
-            std::fprintf(stderr, ": %s", data_directory.detail.c_str());
+            error_message.append(": ");
+            error_message.append(data_directory.detail);
         }
-        std::fputc('\n', stderr);
-        return 1;
+
+        return report_error(error_message);
     }
 
     if (!openswd3::resource_io::activate_data_directory(
             data_directory.directory,
             directory_error
         )) {
-        std::fprintf(
-            stderr,
-            "game data directory: cannot activate directory: %s\n",
-            directory_error.message().c_str()
+        return report_error(
+            std::string{"game data directory: cannot activate directory: "} +
+            directory_error.message()
         );
-        return 1;
     }
+    openswd3::diagnostics::log_info(
+        std::string{"game data directory activated: "} +
+        data_directory.directory.string()
+    );
 
     openswd3::platform_sdl3::SingleInstanceGuard single_instance;
     SmokeCommandLinePorts command_line_ports;
@@ -578,17 +607,24 @@ int main(const int argument_count, char** arguments) {
             arguments,
             1 + static_cast<int>(data_directory.consumed_argument_count)
         );
-    if (openswd3::app::run_process_startup_gates(
+    const openswd3::app::ProcessStartupGateResult startup_gate_result =
+        openswd3::app::run_process_startup_gates(
             legacy_command_line,
             single_instance,
             command_line_ports
-        ) != openswd3::app::ProcessStartupGateResult::continue_normal_startup) {
+        );
+    if (startup_gate_result !=
+        openswd3::app::ProcessStartupGateResult::continue_normal_startup) {
+        openswd3::diagnostics::log_info(
+            "process startup exited before SDL initialization"
+        );
         return 0;
     }
 
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         return report_sdl_error("SDL_Init");
     }
+    openswd3::diagnostics::log_debug("SDL video subsystem initialized");
 
     SDL_Window* window = SDL_CreateWindow(
         "OpenSWD3",
@@ -601,6 +637,7 @@ int main(const int argument_count, char** arguments) {
         SDL_Quit();
         return result;
     }
+    openswd3::diagnostics::log_info("main window created");
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
     if (renderer == nullptr) {

@@ -1,4 +1,26 @@
 add_executable(
+    openswd3_diagnostics_log_tests
+    unit/diagnostics/log_test.cpp
+)
+target_compile_definitions(
+    openswd3_diagnostics_log_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_diagnostics_log_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_diagnostics_log_tests
+    PRIVATE openswd3_diagnostics
+)
+
+add_test(
+    NAME diagnostics.log
+    COMMAND openswd3_diagnostics_log_tests
+)
+
+add_executable(
     openswd3_app_frame_dispatch_tests
     unit/app/frame_dispatch_test.cpp
 )

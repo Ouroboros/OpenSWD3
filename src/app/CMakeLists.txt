@@ -19,5 +19,8 @@ add_library(
         startup_dialog.cpp
         window_events.cpp
 )
-target_link_libraries(openswd3_app PUBLIC openswd3_compat)
+target_link_libraries(
+    openswd3_app
+    PUBLIC openswd3_compat openswd3_diagnostics
+)
 target_include_directories(openswd3_app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
