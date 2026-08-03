@@ -4,19 +4,31 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <string>
+#include <string_view>
+#include <system_error>
 #include <vector>
+
+#ifndef OPENSWD3_TEST_ARTIFACT_ROOT
+#error OPENSWD3_TEST_ARTIFACT_ROOT must name a build-tree directory
+#endif
 
 namespace {
 
 using openswd3::compat::u8;
 using openswd3::resource_io::LegacyEnvironmentCodecStatus;
 using openswd3::resource_io::LegacyEnvironmentLayout;
+using openswd3::resource_io::LegacyEnvironmentLoadStatus;
 using openswd3::resource_io::LegacyEnvironmentRecord;
 using openswd3::resource_io::decode_legacy_environment;
 using openswd3::resource_io::encode_legacy_environment;
 using openswd3::resource_io::kLegacyEnvironmentWindowSize;
-using openswd3::resource_io::migrate_legacy_environment;
+using openswd3::resource_io::load_legacy_environment;
+using openswd3::resource_io::migrate_unmarked_environment;
 
 constexpr std::array<u8, 63> kCurrentEnvironment{
     0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xC8U, 0xD0U, 0xCBU, 0xCDU,
@@ -29,6 +41,48 @@ constexpr std::array<u8, 63> kCurrentEnvironment{
     0x64U, 0x33U, 0x5CU, 0x00U, 0x00U, 0x02U, 0x01U,
 };
 
+class TestTree {
+public:
+    TestTree() {
+        const auto unique_value =
+            std::chrono::steady_clock::now().time_since_epoch().count();
+        root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
+                ("legacy-environment-" + std::to_string(unique_value));
+        std::filesystem::create_directories(root_);
+    }
+
+    ~TestTree() {
+        std::error_code ignored;
+        std::filesystem::remove_all(root_, ignored);
+    }
+
+    [[nodiscard]] const std::filesystem::path& root() const noexcept {
+        return root_;
+    }
+
+    [[nodiscard]] std::filesystem::path path(const char* name) const {
+        return root_ / name;
+    }
+
+    void write(const char* name, const std::span<const u8> bytes) const {
+        std::ofstream output{path(name), std::ios::binary | std::ios::trunc};
+        for (const u8 byte : bytes) {
+            output.put(static_cast<char>(byte));
+        }
+    }
+
+    [[nodiscard]] std::vector<u8> read(const char* name) const {
+        std::ifstream input{path(name), std::ios::binary};
+        return std::vector<u8>{
+            std::istreambuf_iterator<char>{input},
+            std::istreambuf_iterator<char>{}
+        };
+    }
+
+private:
+    std::filesystem::path root_;
+};
+
 void test_current_asset_record(openswd3::test::Context& test) {
     const auto decoded = decode_legacy_environment(kCurrentEnvironment);
     test.expect_equal(
@@ -38,8 +92,8 @@ void test_current_asset_record(openswd3::test::Context& test) {
     );
     test.expect_equal(
         decoded.layout,
-        LegacyEnvironmentLayout::current,
-        "0xFFFFFFFF selects the current layout"
+        LegacyEnvironmentLayout::marked,
+        "0xFFFFFFFF selects the marked layout"
     );
 
     constexpr std::array<u8, 16> kBindings{
@@ -114,12 +168,12 @@ void test_current_asset_record(openswd3::test::Context& test) {
     );
 }
 
-void test_legacy_layout_migration(openswd3::test::Context& test) {
-    const std::vector<u8> legacy(
+void test_unmarked_layout_migration(openswd3::test::Context& test) {
+    const std::vector<u8> unmarked(
         kCurrentEnvironment.begin() + 4,
         kCurrentEnvironment.end()
     );
-    const auto decoded = decode_legacy_environment(legacy);
+    const auto decoded = decode_legacy_environment(unmarked);
     test.expect_equal(
         decoded.status,
         LegacyEnvironmentCodecStatus::ok,
@@ -127,32 +181,37 @@ void test_legacy_layout_migration(openswd3::test::Context& test) {
     );
     test.expect_equal(
         decoded.layout,
-        LegacyEnvironmentLayout::legacy_without_marker,
-        "a non-marker prefix selects the legacy layout"
+        LegacyEnvironmentLayout::unmarked,
+        "a non-marker prefix selects the unmarked layout"
     );
     test.expect_equal(
         decoded.record.primary_directory,
         std::string{"E:\\Game\\swd3\\"},
-        "legacy strings begin four bytes earlier"
+        "unmarked strings begin four bytes earlier"
     );
     test.expect_equal(
         decoded.record.trailing_mode,
         u8{2U},
-        "legacy trailing mode is captured before rewriting"
+        "unmarked trailing mode is captured before rewriting"
     );
 
-    const LegacyEnvironmentRecord migrated = migrate_legacy_environment(
+    const LegacyEnvironmentRecord migrated = migrate_unmarked_environment(
         decoded.record
     );
-    constexpr std::array<u8, 16> kZeroBindings{};
+    constexpr std::array<u8, 16> kDefaultBindings{
+        0xC8U, 0xD0U, 0xCBU, 0xCDU,
+        0x39U, 0x1CU, 0x9DU, 0x01U,
+        0xCFU, 0x36U, 0x13U, 0x1EU,
+        0x22U, 0x3BU, 0xC9U, 0xD1U,
+    };
     constexpr std::array<u8, 16> kZeroPreserved{};
     constexpr std::array<u8, 6> kMigrationOptions{
         6U, 6U, 0x3CU, 1U, 2U, 0x0AU,
     };
     test.expect_equal(
         migrated.binding_bytes,
-        kZeroBindings,
-        "loader clears all binding globals before the migration writer"
+        kDefaultBindings,
+        "0x00424390 restores the sixteen default bindings before writing"
     );
     test.expect_equal(
         migrated.integer_parameter,
@@ -167,18 +226,18 @@ void test_legacy_layout_migration(openswd3::test::Context& test) {
     test.expect_equal(
         migrated.preserved_bytes,
         kZeroPreserved,
-        "old-layout migration clears the sixteen preserved bytes"
+        "unmarked-layout migration clears the sixteen preserved bytes"
     );
     test.expect_equal(
         migrated.primary_directory,
         decoded.record.primary_directory,
-        "migration retains the first legacy string"
+        "migration retains the first unmarked string"
     );
 }
 
 void test_zero_padding_and_string_bounds(openswd3::test::Context& test) {
-    const std::array<u8, 4> empty_legacy{};
-    const auto padded = decode_legacy_environment(empty_legacy);
+    const std::array<u8, 4> empty_unmarked{};
+    const auto padded = decode_legacy_environment(empty_unmarked);
     test.expect_equal(
         padded.status,
         LegacyEnvironmentCodecStatus::ok,
@@ -186,7 +245,7 @@ void test_zero_padding_and_string_bounds(openswd3::test::Context& test) {
     );
     test.expect_equal(
         padded.layout,
-        LegacyEnvironmentLayout::legacy_without_marker,
+        LegacyEnvironmentLayout::unmarked,
         "a zero prefix is markerless"
     );
     test.expect_true(
@@ -293,13 +352,208 @@ void test_encoder_bounds_and_lstrlen_prefix(openswd3::test::Context& test) {
     );
 }
 
+void test_file_loader_current_and_missing(openswd3::test::Context& test) {
+    const TestTree tree;
+    tree.write("Env.dat", kCurrentEnvironment);
+
+    LegacyEnvironmentRecord state;
+    state.primary_directory = "unchanged";
+    int resolver_calls = 0;
+    const auto resolver = [&resolver_calls](const std::string_view) {
+        ++resolver_calls;
+        return std::filesystem::path{};
+    };
+    const auto loaded = load_legacy_environment(
+        tree.path("Env.dat"),
+        resolver,
+        state
+    );
+    test.expect_equal(
+        loaded.status,
+        LegacyEnvironmentLoadStatus::marked_layout_loaded,
+        "current file follows the direct load path"
+    );
+    test.expect_true(
+        loaded.original_return_value,
+        "marked initial layout reproduces EAX one"
+    );
+    test.expect_equal(
+        resolver_calls,
+        0,
+        "marked layout never resolves the stored directory"
+    );
+    test.expect_equal(
+        state.primary_directory,
+        std::string{"E:\\Game\\swd3\\"},
+        "current file replaces the output state"
+    );
+
+    LegacyEnvironmentRecord unchanged;
+    unchanged.integer_parameter = 0xAABBCCDDU;
+    unchanged.primary_directory = "sentinel";
+    const LegacyEnvironmentRecord expected = unchanged;
+    const auto missing = load_legacy_environment(
+        tree.path("missing.dat"),
+        resolver,
+        unchanged
+    );
+    test.expect_equal(
+        missing.status,
+        LegacyEnvironmentLoadStatus::initial_open_failed,
+        "missing initial file follows the zero-return path"
+    );
+    test.expect_false(
+        missing.original_return_value,
+        "missing initial file reproduces EAX zero"
+    );
+    test.expect_equal(
+        unchanged,
+        expected,
+        "failed initial open leaves all output state untouched"
+    );
+}
+
+void test_file_loader_migration_and_no_truncate(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+    std::vector<u8> unmarked(
+        kCurrentEnvironment.begin() + 4,
+        kCurrentEnvironment.end()
+    );
+    constexpr std::array<u8, 8> kStaleTail{
+        0xA0U, 0xA1U, 0xA2U, 0xA3U,
+        0xA4U, 0xA5U, 0xA6U, 0xA7U,
+    };
+    unmarked.insert(unmarked.end(), kStaleTail.begin(), kStaleTail.end());
+    tree.write("Env.dat", unmarked);
+
+    std::string resolved_raw_path;
+    const auto resolver = [&tree, &resolved_raw_path](
+        const std::string_view raw_path
+    ) {
+        resolved_raw_path.assign(raw_path);
+        return tree.root();
+    };
+    LegacyEnvironmentRecord state;
+    const auto loaded = load_legacy_environment(
+        tree.path("Env.dat"),
+        resolver,
+        state
+    );
+    test.expect_equal(
+        loaded.status,
+        LegacyEnvironmentLoadStatus::unmarked_layout_migrated,
+        "markerless file follows the migration path"
+    );
+    test.expect_false(
+        loaded.original_return_value,
+        "successful migration still reproduces EAX zero"
+    );
+    test.expect_true(
+        loaded.migration_write_succeeded,
+        "migration writes its marked-layout prefix"
+    );
+    test.expect_true(
+        loaded.migrated_reopen_succeeded,
+        "migration reopens Env.dat through the stored directory"
+    );
+    test.expect_equal(
+        resolved_raw_path,
+        std::string{"E:\\Game\\swd3\\"},
+        "resolver receives unmodified stored ANSI path bytes"
+    );
+
+    const auto decoded_unmarked = decode_legacy_environment(unmarked);
+    const LegacyEnvironmentRecord expected = migrate_unmarked_environment(
+        decoded_unmarked.record
+    );
+    test.expect_equal(
+        state,
+        expected,
+        "reopened migrated file yields the hard-coded migration state"
+    );
+
+    const auto expected_prefix = encode_legacy_environment(expected);
+    const std::vector<u8> file_bytes = tree.read("Env.dat");
+    test.expect_equal(
+        file_bytes.size(),
+        unmarked.size(),
+        "migration writer does not truncate stale file tail bytes"
+    );
+    test.expect_true(
+        std::equal(
+            expected_prefix.bytes.begin(),
+            expected_prefix.bytes.end(),
+            file_bytes.begin()
+        ),
+        "migration writes the exact marked-layout prefix"
+    );
+    test.expect_true(
+        std::equal(
+            kStaleTail.end() - 4,
+            kStaleTail.end(),
+            file_bytes.end() - 4
+        ),
+        "bytes beyond the rewritten prefix remain physically stale"
+    );
+}
+
+void test_failed_migrated_reopen_keeps_old_window(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+    LegacyEnvironmentRecord old_record;
+    old_record.binding_bytes.fill(0x11U);
+    old_record.integer_parameter = 0x12345678U;
+    old_record.option_bytes.fill(0x22U);
+    old_record.primary_directory = "Z:\\missing\\";
+    old_record.secondary_directory.clear();
+    old_record.trailing_mode = 5U;
+    auto current = encode_legacy_environment(old_record).bytes;
+    std::vector<u8> unmarked(current.begin() + 4, current.end());
+    tree.write("Env.dat", unmarked);
+
+    const auto resolver = [&tree](const std::string_view) {
+        return tree.path("absent-directory");
+    };
+    LegacyEnvironmentRecord state;
+    const auto loaded = load_legacy_environment(
+        tree.path("Env.dat"),
+        resolver,
+        state
+    );
+    test.expect_equal(
+        loaded.status,
+        LegacyEnvironmentLoadStatus::unmarked_layout_migrated,
+        "failed second open does not turn migration into a new error return"
+    );
+    test.expect_false(
+        loaded.migrated_reopen_succeeded,
+        "missing stored directory is recorded by the platform port"
+    );
+    test.expect_equal(
+        state.primary_directory,
+        std::string{"issing\\"},
+        "old buffer is forcibly decoded at the current +0x2E offset"
+    );
+    test.expect_equal(
+        state.trailing_mode,
+        u8{5U},
+        "failed reopen retains the old window trailing byte"
+    );
+}
+
 }  // namespace
 
 int main() {
     openswd3::test::Context test;
     test_current_asset_record(test);
-    test_legacy_layout_migration(test);
+    test_unmarked_layout_migration(test);
     test_zero_padding_and_string_bounds(test);
     test_encoder_bounds_and_lstrlen_prefix(test);
+    test_file_loader_current_and_missing(test);
+    test_file_loader_migration_and_no_truncate(test);
+    test_failed_migrated_reopen_keeps_old_window(test);
     return test.exit_code();
 }

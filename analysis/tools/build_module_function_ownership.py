@@ -32,15 +32,15 @@ BOUNDARY_FUNCTION_OUTPUT_PATH = (
 )
 
 EXPECTED_SHA256 = {
-    ASM_PATH: "d902f6dfd47d7033bf8a971c4ccc3a4d8d037b5b577035041113329363cab052",
+    ASM_PATH: "f1ee7f32a79c156b75837e176abb733df7a2143d134252e507343e36857affb4",
     CATALOG_PATH: "d8b707b5550c64dee539f25c7032fc700f48ae70fa0661e50faabf7a45df5c73",
     ABI_PATH: "cd85c44a4b03f395199d7de82f1e520263fe3aec0d9a8528657624484b681bda",
     CRITICAL_PATH: "0f3329f36be47ef897660df17fd723455c9c65231386385bedcc1a32a20475ef",
 }
 
-EXPECTED_REVIEWED_GAME_BOUNDARY_COUNT = 307
+EXPECTED_REVIEWED_GAME_BOUNDARY_COUNT = 308
 EXPECTED_REVIEWED_GAME_BOUNDARY_SHA256 = (
-    "8d5abed4ebfd4e0ca97bd65e79d97de3e160a1580edac85b5765304824cf7938"
+    "c535c57b5e8258d6345215b4b456d6cd365e51e6e707da009e7288388ea09b94"
 )
 
 GAME_MODULES = (
@@ -57,6 +57,10 @@ GAME_MODULES = (
     "persistence",
 )
 EXTERNAL_MODULES = ("external_crt", "external_third_party")
+
+NAVIGATION_NAME_OVERRIDES = {
+    0x00424390: "sub_424390",
+}
 
 PROC_RE = re.compile(r"^([0-9A-F]{8})\s+(\S+)\s+proc\s+(?:near|far)\b")
 ENDP_RE = re.compile(r"^[0-9A-F]{8}\s+(\S+)\s+endp\b")
@@ -107,7 +111,10 @@ def load_functions() -> list[FunctionRow]:
     functions = [
         FunctionRow(
             address=int(row["address"], 16),
-            ida_name=row["ida_name"],
+            ida_name=NAVIGATION_NAME_OVERRIDES.get(
+                int(row["address"], 16),
+                row["ida_name"],
+            ),
             export_status=row["export_status"],
             asm_body_status=row["asm_body_status"],
             exported_file=catalog_files.get(int(row["address"], 16), ""),
@@ -192,14 +199,14 @@ def parse_assembly_graph(
         if raw_target in proc_names:
             proc_target_call_count += 1
 
-    if all_proc_target_call_count != 7159 or proc_target_call_count != 7151:
+    if all_proc_target_call_count != 8233 or proc_target_call_count != 8213:
         raise SystemExit(
             "unexpected direct calls to expanded PROC targets: "
             f"all={all_proc_target_call_count}, owned={proc_target_call_count}"
         )
 
     function_by_address = {row.address: row for row in functions}
-    expected_top_sub_counts = {0x00409EC0: 8, 0x0040A0D0: 20, 0x0040A570: 37}
+    expected_top_sub_counts = {0x00409EC0: 8, 0x0040A0D0: 21, 0x0040A570: 37}
     for root, expected in expected_top_sub_counts.items():
         actual = sum(
             function_by_address[target].ida_name.startswith("sub_")
@@ -327,7 +334,8 @@ RANGE_HINTS: tuple[tuple[int, int, str, str], ...] = (
     (0x004154A0, 0x00416D30, "asset_runtime", "ani_runtime_cluster"),
     (0x00416D30, 0x00423A10, "rendering", "software_render_cluster"),
     (0x00423A10, 0x00424390, "resource_io", "configuration_and_path_cluster"),
-    (0x00424390, 0x00425570, "runtime_platform", "startup_init_release_cluster"),
+    (0x00424390, 0x00424440, "input_time_rng", "default_key_binding_initializer"),
+    (0x00424440, 0x00425570, "runtime_platform", "startup_init_release_cluster"),
     (0x00425570, 0x00425BE0, "resource_io", "resource_initialization_cluster"),
     (0x00425BE0, 0x00427920, "world_map", "map_loader_and_cache_cluster"),
     (0x00427920, 0x004303D0, "story_scene", "story_vm_cluster"),
@@ -452,6 +460,7 @@ MANUAL_OWNERSHIP_SEEDS: dict[int, str] = {
     0x00420490: "rendering",  # packed-pixel RGB channel adjustment
     0x004238B0: "rendering",  # selected pixel-format conversion wrapper
     0x004239D0: "rendering",  # packed 16-bit color conversion/update
+    0x00424390: "input_time_rng",  # initializes sixteen configurable DIK binding dwords
     0x00424EF0: "runtime_platform",  # input/audio/display subsystem initialization coordinator
     0x00425150: "resource_io",  # ensure and select resource directory
     0x00425570: "resource_io",  # env.dat and CM/mcache cache invalidation/rebuild
@@ -527,7 +536,6 @@ MANUAL_OWNERSHIP_SEEDS: dict[int, str] = {
 # External routines whose generic contract and actual game consumer groups were
 # checked during A2.  They remain external; this set only records review state.
 MANUAL_EXTERNAL_BOUNDARY_REVIEWS: set[int] = {
-    0x00424390,  # compiler floating-conversion initialization glue
     0x004272D0,  # compiler global file-object constructor thunk
     0x00451870,  # compiler global battle-object constructor thunk
     0x004518B0,  # compiler global asset-object constructor thunk
@@ -553,6 +561,12 @@ MANUAL_EXTERNAL_BOUNDARY_REVIEWS: set[int] = {
     0x0048A6C0,  # strstr
 }
 
+# The old export catalog called this __cfltcvt_init. The current FLIRT-free
+# assembly exposes a game routine that only writes the key-binding dwords.
+MANUAL_GAME_ORIGIN_OVERRIDES: set[int] = {
+    0x00424390,
+}
+
 
 def range_hint(address: int) -> tuple[str, str] | None:
     for start, end, module, label in RANGE_HINTS:
@@ -576,6 +590,8 @@ def code_origin(row: FunctionRow) -> str:
         0x00401450,
         0x004014B0,
     }
+    if row.address in MANUAL_GAME_ORIGIN_OVERRIDES:
+        return "game"
     if row.address in compiler_glue:
         return "crt"
     if row.export_status == "skipped" or "unknown_libname" in row.ida_name:

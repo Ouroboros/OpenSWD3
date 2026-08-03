@@ -496,6 +496,10 @@ add_executable(
     openswd3_resource_io_legacy_environment_tests
     unit/resource_io/legacy_environment_test.cpp
 )
+target_compile_definitions(
+    openswd3_resource_io_legacy_environment_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
 target_include_directories(
     openswd3_resource_io_legacy_environment_tests
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support

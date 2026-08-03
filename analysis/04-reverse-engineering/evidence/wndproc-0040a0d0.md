@@ -190,7 +190,7 @@ PostQuitMessage(0)
 按顺序执行：
 
 1. `PlaySoundA` 播放资源 `0x78`，标志为 `0x42007`。
-2. 调用静态运行库 `__cfltcvt_init`。
+2. 调用 `0x00424390` 写入 16 个默认按键 dword。旧 IDA/FLIRT 名称把它误识别为 `__cfltcvt_init`；完整函数体和四个游戏调用者证明该名称错误。
 3. 调用 `0x00425040` 初始化工作目录、路径配置，并创建 `Save`、`Data`、`Music`、`ScrnShot`、`Video` 目录。
 4. 清除内部位编号 `0x12`。
 5. `0x00409C10` 扫描 `save\0.sav` 至 `save\98.sav`。

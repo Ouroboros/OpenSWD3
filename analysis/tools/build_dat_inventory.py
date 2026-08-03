@@ -150,7 +150,7 @@ LOADER_ROWS = (
         "00423AF0 / 00423FB0",
         "Env.dat",
         "rewrite_or_read_environment_record",
-        "raw record begins with optional 0xFFFFFFFF current-layout marker",
+        "raw record begins with optional 0xFFFFFFFF marked-layout marker",
         "up to 0x1000 temporary buffer",
         "none",
         "00423B74-00423DB7; 00423FB0 reader",
@@ -492,13 +492,13 @@ def main() -> None:
     first_end = env.find(b"\0", 0x2E)
     second_end = env.find(b"\0", first_end + 1)
     if first_end < 0 or second_end < 0:
-        raise SystemExit("Env.dat current strings are not NUL terminated")
+        raise SystemExit("Env.dat marked-layout strings are not NUL terminated")
     env_fields = (
-        ("current_layout_marker", 0x00, 4, env[0x00:0x04], "0xFFFFFFFF selects current layout"),
+        ("marked_layout_marker", 0x00, 4, env[0x00:0x04], "0xFFFFFFFF selects marked layout"),
         ("sixteen_global_bytes", 0x04, 16, env[0x04:0x14], "copied to/from sixteen byte globals"),
         ("integer_parameter", 0x14, 4, env[0x14:0x18], "32-bit caller parameter"),
         ("six_option_bytes", 0x18, 6, env[0x18:0x1E], "six byte-sized caller parameters"),
-        ("preserved_or_legacy_area", 0x1E, 16, env[0x1E:0x2E], "zeroed only during old-layout migration"),
+        ("preserved_or_migration_area", 0x1E, 16, env[0x1E:0x2E], "zeroed only during unmarked-layout migration"),
         ("string_1", 0x2E, first_end - 0x2E + 1, env[0x2E:first_end + 1], "first NUL-terminated string"),
         (
             "string_2",

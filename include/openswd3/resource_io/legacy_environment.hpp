@@ -4,8 +4,11 @@
 
 #include <array>
 #include <cstddef>
+#include <filesystem>
+#include <functional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace openswd3::resource_io {
@@ -13,8 +16,8 @@ namespace openswd3::resource_io {
 inline constexpr std::size_t kLegacyEnvironmentWindowSize = 0x1000U;
 
 enum class LegacyEnvironmentLayout {
-    current,
-    legacy_without_marker,
+    marked,
+    unmarked,
 };
 
 enum class LegacyEnvironmentCodecStatus {
@@ -26,6 +29,13 @@ enum class LegacyEnvironmentCodecStatus {
     output_too_large,
 };
 
+enum class LegacyEnvironmentLoadStatus {
+    marked_layout_loaded,
+    unmarked_layout_migrated,
+    initial_open_failed,
+    unsafe_record,
+};
+
 struct LegacyEnvironmentRecord {
     std::array<compat::u8, 16> binding_bytes{};
     compat::u32 integer_parameter{};
@@ -34,13 +44,17 @@ struct LegacyEnvironmentRecord {
     std::string primary_directory;
     std::string secondary_directory;
     compat::u8 trailing_mode{};
+
+    [[nodiscard]] bool operator==(
+        const LegacyEnvironmentRecord& other
+    ) const = default;
 };
 
 struct LegacyEnvironmentDecodeResult {
     LegacyEnvironmentCodecStatus status{
         LegacyEnvironmentCodecStatus::ok
     };
-    LegacyEnvironmentLayout layout{LegacyEnvironmentLayout::current};
+    LegacyEnvironmentLayout layout{LegacyEnvironmentLayout::marked};
     LegacyEnvironmentRecord record;
 };
 
@@ -51,16 +65,42 @@ struct LegacyEnvironmentEncodeResult {
     std::vector<compat::u8> bytes;
 };
 
+struct LegacyEnvironmentLoadResult {
+    LegacyEnvironmentLoadStatus status{
+        LegacyEnvironmentLoadStatus::initial_open_failed
+    };
+    LegacyEnvironmentCodecStatus codec_status{
+        LegacyEnvironmentCodecStatus::ok
+    };
+    bool original_return_value{};
+    bool migration_write_succeeded{};
+    bool migrated_reopen_succeeded{};
+};
+
+using LegacyEnvironmentDirectoryResolver =
+    std::function<std::filesystem::path(std::string_view)>;
+
 [[nodiscard]] LegacyEnvironmentDecodeResult decode_legacy_environment(
     std::span<const compat::u8> bytes
 );
 
-[[nodiscard]] LegacyEnvironmentRecord migrate_legacy_environment(
-    const LegacyEnvironmentRecord& legacy_record
+[[nodiscard]] LegacyEnvironmentDecodeResult decode_legacy_environment_as(
+    std::span<const compat::u8> bytes,
+    LegacyEnvironmentLayout layout
+);
+
+[[nodiscard]] LegacyEnvironmentRecord migrate_unmarked_environment(
+    const LegacyEnvironmentRecord& unmarked_record
 );
 
 [[nodiscard]] LegacyEnvironmentEncodeResult encode_legacy_environment(
     const LegacyEnvironmentRecord& record
+);
+
+[[nodiscard]] LegacyEnvironmentLoadResult load_legacy_environment(
+    const std::filesystem::path& initial_file,
+    const LegacyEnvironmentDirectoryResolver& resolve_stored_directory,
+    LegacyEnvironmentRecord& in_out_record
 );
 
 }  // namespace openswd3::resource_io

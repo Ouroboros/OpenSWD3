@@ -99,6 +99,7 @@ IDA 伪码只用于定位函数、辅助阅读和提出假设。任何类型、�
 - [21 个 primary presentation 路径目录](04-reverse-engineering/inventory/primary-presentation-paths.tsv)
 - [15 个显示生命周期阶段目录](04-reverse-engineering/inventory/display-lifecycle-stages.tsv)
 - [输入归一化、连按与重复语义](04-reverse-engineering/evidence/input-normalization-and-repeat-semantics.md)
+- [`0x00424390` 默认按键与 0x80 字节运行时兼容块](04-reverse-engineering/evidence/default-key-bindings-00424390.md)
 - [20 条归一化输入记录与当前绑定](04-reverse-engineering/inventory/input-normalized-records.tsv)
 - [输入状态转移矩阵](04-reverse-engineering/inventory/input-state-transitions.tsv)
 - [242 条归一化记录直接访问目录](04-reverse-engineering/inventory/input-state-direct-accesses.tsv)

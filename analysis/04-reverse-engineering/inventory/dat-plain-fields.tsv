@@ -1,9 +1,9 @@
 file	record_kind	logical_index_or_field	file_offset_hex	size_bytes	value_hex_or_hash	value_text_or_integer	assembly_use
-Env.dat	environment_field	current_layout_marker	00000000	4	FFFFFFFF		0xFFFFFFFF selects current layout
+Env.dat	environment_field	marked_layout_marker	00000000	4	FFFFFFFF		0xFFFFFFFF selects marked layout
 Env.dat	environment_field	sixteen_global_bytes	00000004	16	C8D0CBCD391C9D01CF36131E223BC9D1		copied to/from sixteen byte globals
 Env.dat	environment_field	integer_parameter	00000014	4	64000000		32-bit caller parameter
 Env.dat	environment_field	six_option_bytes	00000018	6	06063C00020A		six byte-sized caller parameters
-Env.dat	environment_field	preserved_or_legacy_area	0000001E	16	00F8E0071F0000000000000000000000		zeroed only during old-layout migration
+Env.dat	environment_field	preserved_or_migration_area	0000001E	16	00F8E0071F0000000000000000000000		zeroed only during unmarked-layout migration
 Env.dat	environment_field	string_1	0000002E	14	453A5C47616D655C737764335C00	E:\Game\swd3\	first NUL-terminated string
 Env.dat	environment_field	string_2	0000003C	1	00		second NUL-terminated string
 Env.dat	environment_field	post_string_bytes	0000003D	2	0201		first byte is read as byte_4C97F4 value; remaining byte is not consumed by sub_423FB0
