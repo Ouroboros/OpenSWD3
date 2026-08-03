@@ -40,6 +40,15 @@ constexpr compat::u32 kMsf2Signature = 0x3246534DU;
         (static_cast<compat::u32>(bytes[offset + 1U]) << 8U);
 }
 
+[[nodiscard]] compat::i16 read_i16(
+    const std::span<const compat::u8> bytes,
+    const std::size_t offset
+) noexcept {
+    return std::bit_cast<compat::i16>(
+        static_cast<compat::u16>(read_u16(bytes, offset))
+    );
+}
+
 [[nodiscard]] bool read_exact(
     LegacyFile& file,
     const std::span<compat::u8> buffer
@@ -573,6 +582,138 @@ legacy_lmf_read_referenced_record_directory(
     }
 
     result.status = LegacyLmfReferencedRecordDirectoryStatus::ready;
+    return result;
+}
+
+LegacyLmfOffset14Directory legacy_lmf_read_offset14_directory(
+    const std::filesystem::path& archive_path,
+    const compat::u32 map_offset,
+    const LegacyLmfMapHeader& header
+) {
+    LegacyLmfOffset14Directory result;
+    if (header.status != LegacyLmfMapHeaderStatus::ready) {
+        return result;
+    }
+
+    LegacyFile file;
+    if (!file.open(
+            archive_path,
+            LegacyFileCreation::open_existing,
+            LegacyFileAccess::read
+        )) {
+        result.status = LegacyLmfOffset14DirectoryStatus::file_open_failed;
+        return result;
+    }
+
+    const compat::u32 directory_position = map_offset + header.offset_14;
+    if (file.seek_begin_one_based(
+            std::bit_cast<compat::i32>(directory_position)
+        ) == 0U) {
+        result.status = LegacyLmfOffset14DirectoryStatus::directory_seek_failed;
+        return result;
+    }
+
+    std::vector<compat::u8> directory_window(kPostSurfaceRecordWindowSize);
+    compat::u32 actual_window_size = kPostSurfaceRecordWindowSize;
+    if (!file.read(directory_window, actual_window_size)) {
+        result.status =
+            LegacyLmfOffset14DirectoryStatus::directory_window_read_failed;
+        return result;
+    }
+    directory_window.resize(actual_window_size);
+    if (directory_window.size() < 4U) {
+        result.status =
+            LegacyLmfOffset14DirectoryStatus::record_data_out_of_range;
+        return result;
+    }
+
+    const compat::u32 record_count = read_u32(directory_window, 0U);
+    compat::u32 offset_table_bytes{};
+    compat::u32 first_record_offset{};
+    if (!checked_multiply(record_count, 4U, offset_table_bytes) ||
+        !checked_add(4U, offset_table_bytes, first_record_offset) ||
+        first_record_offset > directory_window.size()) {
+        result.status =
+            LegacyLmfOffset14DirectoryStatus::record_count_out_of_range;
+        return result;
+    }
+
+    result.declared_relative_offsets.reserve(record_count);
+    for (compat::u32 record = 0U; record < record_count; ++record) {
+        result.declared_relative_offsets.push_back(read_u32(
+            directory_window,
+            4U + static_cast<std::size_t>(record) * 4U
+        ));
+    }
+
+    std::size_t cursor = first_record_offset;
+    result.records.reserve(record_count);
+    for (compat::u32 record = 0U; record < record_count; ++record) {
+        constexpr std::size_t kFixedRecordSize = 12U;
+        if (directory_window.size() - cursor < kFixedRecordSize) {
+            result.status =
+                LegacyLmfOffset14DirectoryStatus::record_data_out_of_range;
+            return result;
+        }
+
+        LegacyLmfOffset14Record parsed;
+        const compat::u32 cursor_u32 = static_cast<compat::u32>(cursor);
+        if (!checked_add(
+                header.offset_14,
+                cursor_u32,
+                parsed.relative_offset
+            )) {
+            result.status =
+                LegacyLmfOffset14DirectoryStatus::record_data_out_of_range;
+            return result;
+        }
+        parsed.field_00 = static_cast<compat::u16>(read_u16(
+            directory_window,
+            cursor
+        ));
+        parsed.field_02 = read_i16(directory_window, cursor + 2U);
+        parsed.field_04 = static_cast<compat::u16>(read_u16(
+            directory_window,
+            cursor + 4U
+        ));
+        parsed.field_06 = static_cast<compat::u16>(read_u16(
+            directory_window,
+            cursor + 6U
+        ));
+        parsed.field_08 = read_i16(directory_window, cursor + 8U);
+        parsed.field_0a = static_cast<compat::u16>(read_u16(
+            directory_window,
+            cursor + 10U
+        ));
+        cursor += kFixedRecordSize;
+
+        const auto name_end = std::find(
+            directory_window.cbegin() + static_cast<std::ptrdiff_t>(cursor),
+            directory_window.cend(),
+            compat::u8{0U}
+        );
+        if (name_end == directory_window.cend()) {
+            result.status = LegacyLmfOffset14DirectoryStatus::unterminated_name;
+            return result;
+        }
+        parsed.name_bytes_with_terminator.assign(
+            directory_window.cbegin() + static_cast<std::ptrdiff_t>(cursor),
+            name_end + 1
+        );
+        cursor = static_cast<std::size_t>(
+            std::distance(directory_window.cbegin(), name_end + 1)
+        );
+        result.records.push_back(std::move(parsed));
+    }
+
+    const compat::u32 cursor_u32 = static_cast<compat::u32>(cursor);
+    if (!checked_add(header.offset_14, cursor_u32, result.end_offset)) {
+        result.status =
+            LegacyLmfOffset14DirectoryStatus::record_data_out_of_range;
+        return result;
+    }
+
+    result.status = LegacyLmfOffset14DirectoryStatus::ready;
     return result;
 }
 

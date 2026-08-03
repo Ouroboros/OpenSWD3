@@ -1,6 +1,6 @@
 # `huge.lmf` 容器、地图块与公共解压边界
 
-状态：P3 外层、B2.13 尾索引查找、B2.14 固定地图头、B2.15 地表网格、B2.16 地表后变长记录和 B2.17 相对引用目录已闭环；全部当前压缩流及边界已验证；地图业务字段留给 P6。
+状态：P3 外层、B2.13 至 B2.18 已沿地图主读取链推进到地图头 `+0x14` 记录目录；全部当前压缩流及边界已验证；地图业务字段留给 P6。
 
 ## 证据口径
 
@@ -186,7 +186,7 @@ min(remaining_total, chunk_output_size)
 - `../inventory/lmf-compressed-blocks.tsv`：1,094 条流的源/目标/写入/丢弃长度、分支轨迹和双哈希。
 - `../inventory/lmf-container-summary.tsv`：全包总量、分类哈希和分支命中。
 
-B2.13 的 C++20 查找入口、损坏文件安全边界、合成 UT 与当前归档偏移验证见 [`lmf-tail-index-00425cfa.md`](lmf-tail-index-00425cfa.md)。B2.14 的固定 0x2000 字节头、格式门、字段和名称实现见 [`lmf-map-header-00425dfd.md`](lmf-map-header-00425dfd.md)。B2.15 的原样表压紧、两种格式定位、地表解压与尾随记录数实现见 [`lmf-surface-grid-0042605b.md`](lmf-surface-grid-0042605b.md)。B2.16 的偏移表、顺序变长记录和下一目录边界实现见 [`lmf-post-surface-records-00426195.md`](lmf-post-surface-records-00426195.md)。B2.17 的第二偏移目录和目标 `+0x0C` 探测实现见 [`lmf-referenced-record-directory-00426256.md`](lmf-referenced-record-directory-00426256.md)。
+B2.13 的 C++20 查找入口、损坏文件安全边界、合成 UT 与当前归档偏移验证见 [`lmf-tail-index-00425cfa.md`](lmf-tail-index-00425cfa.md)。B2.14 的固定 0x2000 字节头、格式门、字段和名称实现见 [`lmf-map-header-00425dfd.md`](lmf-map-header-00425dfd.md)。B2.15 的原样表压紧、两种格式定位、地表解压与尾随记录数实现见 [`lmf-surface-grid-0042605b.md`](lmf-surface-grid-0042605b.md)。B2.16 的偏移表、顺序变长记录和下一目录边界实现见 [`lmf-post-surface-records-00426195.md`](lmf-post-surface-records-00426195.md)。B2.17 的第二偏移目录和目标 `+0x0C` 探测实现见 [`lmf-referenced-record-directory-00426256.md`](lmf-referenced-record-directory-00426256.md)。B2.18 的地图头 `+0x14` 目录、六个 word 和 NUL 名称实现见 [`lmf-offset14-directory-004262cc.md`](lmf-offset14-directory-004262cc.md)。
 
 ## 1:1 重写约束
 
