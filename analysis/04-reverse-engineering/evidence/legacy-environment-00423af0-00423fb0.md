@@ -28,7 +28,8 @@ layout marker                +0x00 u32    absent
 16 binding bytes             +0x04        +0x00
 integer parameter            +0x14 u32    +0x10
 six option bytes             +0x18        +0x14
-preserved/migration area     +0x1E[16]    +0x1A[16]
+cache pixel masks            +0x1E[6]     +0x1A[6]
+remaining migration area     +0x24[10]    +0x20[10]
 primary NUL string           +0x2E        +0x2A
 secondary NUL string         variable     variable
 consumed trailing mode       next byte    next byte
@@ -41,7 +42,7 @@ consumed trailing mode       next byte    next byte
 4B73AC 4B738C 4B73C4 4B73C8 4B73CC 4B73D0 4B73A0 4B73A4
 ```
 
-带标记记录的 `+0x14` 写入第七个输出指针；`+0x18..+0x1D` 分别写入第四、第五、第六、第八、第九和第十个输出指针。`+0x1E/+0x20/+0x22` 的三个小端 word 写入 `0x0049E0B4/0x0049E0B6/0x0049E0B8`；`+0x24` 只取最低位写入 `0x004CAE98`。
+带标记记录的 `+0x14` 写入第七个输出指针；`+0x18..+0x1D` 分别写入第四、第五、第六、第八、第九和第十个输出指针。`+0x1E/+0x20/+0x22` 的三个小端 word 写入 `0x0049E0B4/0x0049E0B6/0x0049E0B8`，并由 `0x00425570(1)` 与当前 surface 的三个 32 位 RGB mask 比较；`+0x24` 只取最低位写入 `0x004CAE98`。因此最前六字节已确定为 CM 缓存像素格式签名，只有 `+0x24..+0x2D` 的完整业务命名仍未闭环。
 
 两条字符串按原始 ANSI 字节复制，没有容量参数。第二个 NUL 后的第一字节同时写回第一个输出指针；再后面的字节不消费。
 
@@ -60,7 +61,7 @@ C8 D0 CB CD 39 1C 9D 01 CF 36 13 1E 22 3B C9 D1
 ```text
 integer parameter = 100
 six option bytes  = 6, 6, 0x3C, 1, 2, 0x0A
-preserved area    = 16 zero bytes
+pixel masks and remaining migration area = 16 zero bytes
 directories       = legacy record strings
 trailing mode     = legacy record trailing byte
 ```

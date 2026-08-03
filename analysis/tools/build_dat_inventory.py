@@ -498,7 +498,20 @@ def main() -> None:
         ("sixteen_global_bytes", 0x04, 16, env[0x04:0x14], "copied to/from sixteen byte globals"),
         ("integer_parameter", 0x14, 4, env[0x14:0x18], "32-bit caller parameter"),
         ("six_option_bytes", 0x18, 6, env[0x18:0x1E], "six byte-sized caller parameters"),
-        ("preserved_or_migration_area", 0x1E, 16, env[0x1E:0x2E], "zeroed only during unmarked-layout migration"),
+        (
+            "cm_cache_pixel_masks",
+            0x1E,
+            6,
+            env[0x1E:0x24],
+            "three little-endian u16 masks compared against current surface u32 masks by sub_425570",
+        ),
+        (
+            "remaining_migration_area",
+            0x24,
+            10,
+            env[0x24:0x2E],
+            "zeroed during unmarked-layout migration; byte at +0x24 also supplies the low-bit runtime option",
+        ),
         ("string_1", 0x2E, first_end - 0x2E + 1, env[0x2E:first_end + 1], "first NUL-terminated string"),
         (
             "string_2",
@@ -508,17 +521,30 @@ def main() -> None:
             "second NUL-terminated string",
         ),
         (
-            "post_string_bytes",
+            "trailing_mode",
             second_end + 1,
-            len(env) - second_end - 1,
-            env[second_end + 1:],
-            "first byte is read as byte_4C97F4 value; remaining byte is not consumed by sub_423FB0",
+            1,
+            env[second_end + 1:second_end + 2],
+            "read by sub_423FB0 into byte_4C97F4",
+        ),
+        (
+            "cache_session_marker",
+            second_end + 2,
+            1,
+            env[second_end + 2:second_end + 3],
+            "written active by sub_4259B0, written clean by sub_4258E0, nonzero invalidates CM cache in sub_425570",
         ),
     )
     for name, offset, size, value, use in env_fields:
         text_value = ""
         if name.startswith("string_"):
             text_value = value[:-1].decode("cp950", errors="replace")
+        elif name == "cm_cache_pixel_masks":
+            text_value = "/".join(
+                f"{u16(value, offset):04X}" for offset in (0, 2, 4)
+            )
+        elif name in {"trailing_mode", "cache_session_marker"}:
+            text_value = str(value[0])
         plain_field_rows.append(
             ("Env.dat", "environment_field", name, f"{offset:08X}", size, value.hex().upper(), text_value, use)
         )

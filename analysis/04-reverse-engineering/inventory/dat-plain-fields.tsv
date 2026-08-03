@@ -3,7 +3,8 @@ Env.dat	environment_field	marked_layout_marker	00000000	4	FFFFFFFF		0xFFFFFFFF s
 Env.dat	environment_field	sixteen_global_bytes	00000004	16	C8D0CBCD391C9D01CF36131E223BC9D1		copied to/from sixteen byte globals
 Env.dat	environment_field	integer_parameter	00000014	4	64000000		32-bit caller parameter
 Env.dat	environment_field	six_option_bytes	00000018	6	06063C00020A		six byte-sized caller parameters
-Env.dat	environment_field	preserved_or_migration_area	0000001E	16	00F8E0071F0000000000000000000000		zeroed only during unmarked-layout migration
+Env.dat	environment_field	cm_cache_pixel_masks	0000001E	6	00F8E0071F00	F800/07E0/001F	three little-endian u16 masks compared against current surface u32 masks by sub_425570
+Env.dat	environment_field	remaining_migration_area	00000024	10	00000000000000000000		zeroed during unmarked-layout migration; byte at +0x24 also supplies the low-bit runtime option
 Env.dat	environment_field	string_1	0000002E	14	453A5C47616D655C737764335C00	E:\Game\swd3\	first NUL-terminated string
 Env.dat	environment_field	string_2	0000003C	1	00		second NUL-terminated string
 Env.dat	environment_field	trailing_mode	0000003D	1	02	2	read by sub_423FB0 into byte_4C97F4

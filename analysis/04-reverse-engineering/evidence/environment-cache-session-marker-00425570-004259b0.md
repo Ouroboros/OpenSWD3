@@ -1,6 +1,6 @@
 # `Env.dat` 缓存会话标记 `0x00425570/0x004258E0/0x004259B0`
 
-状态：B2.10 已实现；`assembly_exact` 文件行为，显式路径和可观察返回值为 `platform_adapted`
+状态：B2.10/B2.11 已实现；`assembly_exact` 文件行为，显式路径和损坏文件安全边界为 `platform_adapted`
 
 完整汇编是唯一行为真值。IDA 伪码和符号名只用于定位。
 
@@ -40,4 +40,4 @@ swd3.exe.lst sha256 = 701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4b
 
 `write_legacy_environment_cache_session_marker` 显式接收环境文件路径和 `clean/active` 枚举，复用已按汇编实现的 `LegacyFile`：`OPEN_EXISTING + write`、忽略末尾负一定位结果、精确写一字节、关闭。返回写入是否成功只是现代可观测边界；旧调用者没有消费原函数返回值。
 
-UT 覆盖活动一、正常退出零、只替换末字节、不截断、缺失文件不创建，以及空文件定位失败后仍写一个字节。Windows LLVM `core`/`app` 的 32/32 CTest 均已通过，`openswd3.exe` 已重新链接。缓存截断和 `mcache.dat` 重置属于 `0x00425570` 的下一个独立实现单元，不在本单元伪造未完成的组合行为。
+UT 覆盖活动一、正常退出零、只替换末字节、不截断、缺失文件不创建，以及空文件定位失败后仍写一个字节。Windows LLVM `core`/`app` 的 32/32 CTest 均已通过，`openswd3.exe` 已重新链接。`0x00425570` 的缓存截断和 `mcache.dat` 重置已在 B2.11 实现，完整证据见 [`cm-cache-validation-00425570.md`](cm-cache-validation-00425570.md)。
