@@ -173,6 +173,53 @@ struct LegacyLmfOffset14Directory {
     compat::u32 end_offset{};
 };
 
+enum class LegacyLmfIndexedObjectDirectoryStatus {
+    ready,
+    invalid_header,
+    file_open_failed,
+    directory_seek_failed,
+    directory_window_read_failed,
+    directory_data_out_of_range,
+    object_header_seek_failed,
+    object_header_read_failed,
+    object_header_data_out_of_range,
+    compressed_allocation_failed,
+    destination_allocation_failed,
+    compressed_payload_seek_failed,
+    compressed_payload_read_failed,
+    decompression_failed,
+};
+
+struct LegacyLmfIndexedObject {
+    compat::u32 relative_offset{};
+    compat::u16 field_00{};
+    compat::u16 field_02{};
+    compat::u16 field_04{};
+    compat::u16 field_06{};
+    compat::u16 field_08{};
+    compat::u16 field_0a{};
+    compat::u16 field_0c{};
+    compat::u8 field_0e{};
+    compat::u8 field_0f{};
+    compat::u8 field_10{};
+    compat::u8 field_11{};
+    compat::u32 destination_size{};
+    compat::u32 declared_compressed_size{};
+    compat::u32 actual_compressed_size{};
+    std::vector<compat::u8> decompressed_payload;
+    compat::u32 actual_decompressed_size{};
+    LegacyLzo1xStatus decompression_status{
+        LegacyLzo1xStatus::source_exhausted
+    };
+};
+
+struct LegacyLmfIndexedObjectDirectory {
+    LegacyLmfIndexedObjectDirectoryStatus status{
+        LegacyLmfIndexedObjectDirectoryStatus::invalid_header
+    };
+    std::vector<LegacyLmfIndexedObject> objects;
+};
+
 [[nodiscard]] LegacyLmfMapLookupResult legacy_lmf_lookup_map(
     const std::filesystem::path& archive_path,
     compat::u32 map_id
@@ -203,6 +250,13 @@ legacy_lmf_read_referenced_record_directory(
 );
 
 [[nodiscard]] LegacyLmfOffset14Directory legacy_lmf_read_offset14_directory(
+    const std::filesystem::path& archive_path,
+    compat::u32 map_offset,
+    const LegacyLmfMapHeader& header
+);
+
+[[nodiscard]] LegacyLmfIndexedObjectDirectory
+legacy_lmf_read_indexed_object_directory(
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
     const LegacyLmfMapHeader& header

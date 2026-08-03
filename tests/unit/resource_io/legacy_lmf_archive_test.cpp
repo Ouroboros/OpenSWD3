@@ -26,11 +26,13 @@ using openswd3::compat::u32;
 using openswd3::resource_io::LegacyLmfMapFormat;
 using openswd3::resource_io::LegacyLmfMapHeaderStatus;
 using openswd3::resource_io::LegacyLmfMapLookupStatus;
+using openswd3::resource_io::LegacyLmfIndexedObjectDirectoryStatus;
 using openswd3::resource_io::LegacyLmfOffset14DirectoryStatus;
 using openswd3::resource_io::LegacyLmfPostSurfaceRecordsStatus;
 using openswd3::resource_io::LegacyLmfReferencedRecordDirectoryStatus;
 using openswd3::resource_io::LegacyLmfSurfaceGridStatus;
 using openswd3::resource_io::legacy_lmf_lookup_map;
+using openswd3::resource_io::legacy_lmf_read_indexed_object_directory;
 using openswd3::resource_io::legacy_lmf_read_map_header;
 using openswd3::resource_io::legacy_lmf_read_offset14_directory;
 using openswd3::resource_io::legacy_lmf_read_post_surface_records;
@@ -263,6 +265,52 @@ void append_record(
         kOffset14SecondName
     );
     write_u32(bytes, 0x18U, static_cast<u32>(cursor));
+
+    constexpr std::array<u8, 12> kCompressedObject{
+        0x19U,
+        1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U,
+        0x11U, 0x00U, 0x00U,
+    };
+    const std::size_t object_directory = cursor;
+    write_u32(bytes, object_directory, 2U);
+    write_u32(bytes, object_directory + 4U, 0x800U);
+    write_u32(bytes, object_directory + 8U, 0x900U);
+    const auto write_indexed_object = [&bytes, &kCompressedObject](
+        const std::size_t object_offset,
+        const u32 field_base,
+        const bool trailing_byte
+    ) {
+        for (std::size_t field = 0U; field < 7U; ++field) {
+            write_u16(
+                bytes,
+                object_offset + field * 2U,
+                field_base + static_cast<u32>(field)
+            );
+        }
+        bytes[object_offset + 0x0EU] = static_cast<u8>(field_base + 7U);
+        bytes[object_offset + 0x0FU] = static_cast<u8>(field_base + 8U);
+        bytes[object_offset + 0x10U] = static_cast<u8>(field_base + 9U);
+        bytes[object_offset + 0x11U] = static_cast<u8>(field_base + 10U);
+        write_u32(bytes, object_offset + 0x12U, 8U);
+        write_u32(
+            bytes,
+            object_offset + 0x16U,
+            static_cast<u32>(kCompressedObject.size()) +
+                static_cast<u32>(trailing_byte)
+        );
+        std::copy(
+            kCompressedObject.begin(),
+            kCompressedObject.end(),
+            bytes.begin() +
+                static_cast<std::ptrdiff_t>(object_offset + 0x1AU)
+        );
+        if (trailing_byte) {
+            bytes[object_offset + 0x1AU + kCompressedObject.size()] = 0xAAU;
+        }
+    };
+    write_indexed_object(0x800U, 0x10U, false);
+    write_indexed_object(0x900U, 0x20U, true);
+    write_u32(bytes, 0x1CU, 0xA00U);
     return bytes;
 }
 
@@ -435,6 +483,12 @@ void fnv1a64_u16(std::uint64_t& hash, const openswd3::compat::u16 value) {
     }
 }
 
+void fnv1a64_u8(std::uint64_t& hash, const u8 value) {
+    constexpr std::uint64_t kPrime = 0x100000001B3ULL;
+    hash ^= value;
+    hash *= kPrime;
+}
+
 void test_offset14_directory(openswd3::test::Context& test) {
     const TestTree tree;
     std::vector<u8> bytes = make_surface_archive(0x3246534DU);
@@ -547,6 +601,143 @@ void test_offset14_directory_failures(openswd3::test::Context& test) {
         ).status,
         LegacyLmfOffset14DirectoryStatus::unterminated_name,
         "unterminated offset14 name is isolated at the actual read boundary"
+    );
+}
+
+void test_indexed_object_directory(openswd3::test::Context& test) {
+    const TestTree tree;
+    std::vector<u8> bytes = make_surface_archive(0x3246534DU);
+    tree.write("indexed-objects.lmf", bytes);
+    const auto header = legacy_lmf_read_map_header(
+        tree.path("indexed-objects.lmf"),
+        0U
+    );
+    const auto directory = legacy_lmf_read_indexed_object_directory(
+        tree.path("indexed-objects.lmf"),
+        0U,
+        header
+    );
+
+    test.expect_equal(
+        directory.status,
+        LegacyLmfIndexedObjectDirectoryStatus::ready,
+        "header +0x18 selects the indexed-object directory"
+    );
+    test.expect_equal(
+        directory.objects.size(),
+        std::size_t{2U},
+        "indexed-object count controls the offset loop"
+    );
+    test.expect_true(
+        directory.objects[0].relative_offset == 0x800U &&
+            directory.objects[0].field_00 == 0x10U &&
+            directory.objects[0].field_04 == 0x12U &&
+            directory.objects[0].field_0c == 0x16U &&
+            directory.objects[0].field_0e == 0x17U &&
+            directory.objects[0].field_11 == 0x1AU,
+        "fixed object header retains consumed and unconsumed physical fields"
+    );
+    test.expect_equal(
+        directory.objects[0].decompressed_payload,
+        std::vector<u8>{1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U},
+        "indexed-object payload uses the common legacy decompressor"
+    );
+    test.expect_true(
+        directory.objects[0].declared_compressed_size == 12U &&
+            directory.objects[0].actual_compressed_size == 12U &&
+            directory.objects[0].destination_size == 8U &&
+            directory.objects[0].actual_decompressed_size == 8U &&
+            directory.objects[0].decompression_status ==
+                openswd3::resource_io::LegacyLzo1xStatus::success,
+        "declared and actual sizes remain distinct object fields"
+    );
+    test.expect_true(
+        directory.objects[1].actual_compressed_size == 13U &&
+            directory.objects[1].actual_decompressed_size == 8U &&
+            directory.objects[1].decompression_status ==
+                openswd3::resource_io::LegacyLzo1xStatus::input_not_consumed,
+        "ignored decoder input-not-consumed result still reaches the caller"
+    );
+
+    write_u32(bytes, header.offset_18, 0U);
+    tree.write("empty-indexed-objects.lmf", bytes);
+    const auto empty = legacy_lmf_read_indexed_object_directory(
+        tree.path("empty-indexed-objects.lmf"),
+        0U,
+        header
+    );
+    test.expect_true(
+        empty.status == LegacyLmfIndexedObjectDirectoryStatus::ready &&
+            empty.objects.empty(),
+        "zero indexed-object count skips allocation and object reads"
+    );
+}
+
+void test_indexed_object_directory_failures(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+    openswd3::resource_io::LegacyLmfMapHeader invalid_header;
+    test.expect_equal(
+        legacy_lmf_read_indexed_object_directory(
+            tree.path("missing.lmf"),
+            0U,
+            invalid_header
+        ).status,
+        LegacyLmfIndexedObjectDirectoryStatus::invalid_header,
+        "failed map header is rejected before indexed-object I/O"
+    );
+
+    std::vector<u8> bytes = make_surface_archive(0x3246534DU);
+    tree.write("indexed-objects.lmf", bytes);
+    const auto header = legacy_lmf_read_map_header(
+        tree.path("indexed-objects.lmf"),
+        0U
+    );
+    write_u32(bytes, header.offset_18, 0x10000U);
+    tree.write("indexed-count.lmf", bytes);
+    test.expect_equal(
+        legacy_lmf_read_indexed_object_directory(
+            tree.path("indexed-count.lmf"),
+            0U,
+            header
+        ).status,
+        LegacyLmfIndexedObjectDirectoryStatus::directory_data_out_of_range,
+        "indexed-object offsets cannot exceed the fixed directory window"
+    );
+
+    bytes = make_surface_archive(0x3246534DU);
+    write_u32(bytes, header.offset_18, 1U);
+    write_u32(bytes, header.offset_18 + 4U, 0x80000000U);
+    tree.write("indexed-seek.lmf", bytes);
+    test.expect_equal(
+        legacy_lmf_read_indexed_object_directory(
+            tree.path("indexed-seek.lmf"),
+            0U,
+            header
+        ).status,
+        LegacyLmfIndexedObjectDirectoryStatus::object_header_seek_failed,
+        "indexed-object offset retains signed legacy seek failure"
+    );
+
+    bytes = make_surface_archive(0x3246534DU);
+    write_u32(bytes, header.offset_18, 1U);
+    write_u32(bytes, header.offset_18 + 4U, 0x1FE0U);
+    std::copy_n(bytes.begin() + 0x800, 0x1AU, bytes.begin() + 0x1FE0);
+    std::copy_n(bytes.begin() + 0x81A, 6U, bytes.begin() + 0x1FFA);
+    tree.write("indexed-short-payload.lmf", bytes);
+    const auto short_payload = legacy_lmf_read_indexed_object_directory(
+        tree.path("indexed-short-payload.lmf"),
+        0U,
+        header
+    );
+    test.expect_true(
+        short_payload.status ==
+                LegacyLmfIndexedObjectDirectoryStatus::decompression_failed &&
+            short_payload.objects.size() == 1U &&
+            short_payload.objects[0].declared_compressed_size == 12U &&
+            short_payload.objects[0].actual_compressed_size == 6U,
+        "successful short read passes its actual byte count to the decoder"
     );
 }
 
@@ -998,12 +1189,18 @@ void test_all_current_map_headers(
     bool all_post_surface_records_match = true;
     bool all_referenced_record_directories_match = true;
     bool all_offset14_directories_match = true;
+    bool all_indexed_object_directories_match = true;
     std::uint64_t total_surface_grid_bytes{};
     std::uint64_t total_post_surface_records{};
     std::uint64_t total_referenced_records{};
     std::uint64_t referenced_records_hash = 0xCBF29CE484222325ULL;
     std::uint64_t total_offset14_records{};
     std::uint64_t offset14_records_hash = 0xCBF29CE484222325ULL;
+    std::uint64_t total_indexed_objects{};
+    std::uint64_t total_indexed_object_compressed_bytes{};
+    std::uint64_t total_indexed_object_output_bytes{};
+    std::uint64_t indexed_object_header_hash = 0xCBF29CE484222325ULL;
+    std::uint64_t indexed_object_output_hash = 0xCBF29CE484222325ULL;
     for (const IndexedMap& map : maps) {
         const auto lookup = legacy_lmf_lookup_map(archive_path, map.id);
         all_lookups_match = all_lookups_match &&
@@ -1109,6 +1306,59 @@ void test_all_current_map_headers(
             );
             fnv1a64_u16(offset14_records_hash, record.field_0a);
         }
+
+        const auto indexed_objects =
+            legacy_lmf_read_indexed_object_directory(
+                archive_path,
+                map.offset,
+                header
+            );
+        all_indexed_object_directories_match =
+            all_indexed_object_directories_match &&
+            indexed_objects.status ==
+                LegacyLmfIndexedObjectDirectoryStatus::ready;
+        total_indexed_objects += indexed_objects.objects.size();
+        for (const auto& object : indexed_objects.objects) {
+            all_indexed_object_directories_match =
+                all_indexed_object_directories_match &&
+                object.actual_compressed_size ==
+                    object.declared_compressed_size &&
+                object.actual_decompressed_size == object.destination_size &&
+                object.decompressed_payload.size() == object.destination_size &&
+                object.decompression_status ==
+                    openswd3::resource_io::LegacyLzo1xStatus::success;
+            total_indexed_object_compressed_bytes +=
+                object.actual_compressed_size;
+            total_indexed_object_output_bytes +=
+                object.actual_decompressed_size;
+
+            fnv1a64_u32(
+                indexed_object_header_hash,
+                object.relative_offset
+            );
+            fnv1a64_u16(indexed_object_header_hash, object.field_00);
+            fnv1a64_u16(indexed_object_header_hash, object.field_02);
+            fnv1a64_u16(indexed_object_header_hash, object.field_04);
+            fnv1a64_u16(indexed_object_header_hash, object.field_06);
+            fnv1a64_u16(indexed_object_header_hash, object.field_08);
+            fnv1a64_u16(indexed_object_header_hash, object.field_0a);
+            fnv1a64_u16(indexed_object_header_hash, object.field_0c);
+            fnv1a64_u8(indexed_object_header_hash, object.field_0e);
+            fnv1a64_u8(indexed_object_header_hash, object.field_0f);
+            fnv1a64_u8(indexed_object_header_hash, object.field_10);
+            fnv1a64_u8(indexed_object_header_hash, object.field_11);
+            fnv1a64_u32(
+                indexed_object_header_hash,
+                object.destination_size
+            );
+            fnv1a64_u32(
+                indexed_object_header_hash,
+                object.declared_compressed_size
+            );
+            for (const u8 byte : object.decompressed_payload) {
+                fnv1a64_u8(indexed_object_output_hash, byte);
+            }
+        }
     }
 
     test.expect_equal(record_count, 309U, "current archive has 309 searchable maps");
@@ -1159,6 +1409,35 @@ void test_all_current_map_headers(
         offset14_records_hash,
         std::uint64_t{0xA984705A3EDEE9FDULL},
         "current offset14 physical fields retain their aggregate hash"
+    );
+    test.expect_true(
+        all_indexed_object_directories_match,
+        "all current indexed-object directories and streams satisfy their contracts"
+    );
+    test.expect_equal(
+        total_indexed_objects,
+        std::uint64_t{16U},
+        "all current maps expose 16 indexed objects"
+    );
+    test.expect_equal(
+        total_indexed_object_compressed_bytes,
+        std::uint64_t{6'887'901U},
+        "indexed-object compressed byte total matches the inventory"
+    );
+    test.expect_equal(
+        total_indexed_object_output_bytes,
+        std::uint64_t{40'741'028U},
+        "indexed-object output byte total matches the inventory"
+    );
+    test.expect_equal(
+        indexed_object_header_hash,
+        std::uint64_t{0x2E8AFA07B54A528EULL},
+        "indexed-object physical headers retain their aggregate hash"
+    );
+    test.expect_equal(
+        indexed_object_output_hash,
+        std::uint64_t{0xC2843348C085C2A2ULL},
+        "indexed-object decompressed bytes retain their aggregate hash"
     );
 }
 
@@ -1216,6 +1495,8 @@ int main(const int argument_count, char** arguments) {
     test_referenced_record_directory_failures(test);
     test_offset14_directory(test);
     test_offset14_directory_failures(test);
+    test_indexed_object_directory(test);
+    test_indexed_object_directory_failures(test);
 
     test.expect_true(
         argument_count == 1 || argument_count == 2,

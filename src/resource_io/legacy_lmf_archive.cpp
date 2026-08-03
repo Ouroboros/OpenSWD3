@@ -7,6 +7,7 @@
 #include <bit>
 #include <cstddef>
 #include <limits>
+#include <new>
 #include <span>
 #include <utility>
 #include <vector>
@@ -714,6 +715,186 @@ LegacyLmfOffset14Directory legacy_lmf_read_offset14_directory(
     }
 
     result.status = LegacyLmfOffset14DirectoryStatus::ready;
+    return result;
+}
+
+LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
+    const std::filesystem::path& archive_path,
+    const compat::u32 map_offset,
+    const LegacyLmfMapHeader& header
+) {
+    LegacyLmfIndexedObjectDirectory result;
+    if (header.status != LegacyLmfMapHeaderStatus::ready) {
+        return result;
+    }
+
+    LegacyFile file;
+    if (!file.open(
+            archive_path,
+            LegacyFileCreation::open_existing,
+            LegacyFileAccess::read
+        )) {
+        result.status =
+            LegacyLmfIndexedObjectDirectoryStatus::file_open_failed;
+        return result;
+    }
+
+    const compat::u32 directory_position = map_offset + header.offset_18;
+    if (file.seek_begin_one_based(
+            std::bit_cast<compat::i32>(directory_position)
+        ) == 0U) {
+        result.status =
+            LegacyLmfIndexedObjectDirectoryStatus::directory_seek_failed;
+        return result;
+    }
+
+    std::vector<compat::u8> directory_window(kMapHeaderReadSize);
+    compat::u32 actual_directory_size = kMapHeaderReadSize;
+    if (!file.read(directory_window, actual_directory_size)) {
+        result.status = LegacyLmfIndexedObjectDirectoryStatus::
+            directory_window_read_failed;
+        return result;
+    }
+    directory_window.resize(actual_directory_size);
+    if (directory_window.size() < 4U) {
+        result.status = LegacyLmfIndexedObjectDirectoryStatus::
+            directory_data_out_of_range;
+        return result;
+    }
+
+    const compat::u32 object_count = read_u32(directory_window, 0U);
+    compat::u32 offsets_size{};
+    compat::u32 directory_size{};
+    if (!checked_multiply(object_count, 4U, offsets_size) ||
+        !checked_add(4U, offsets_size, directory_size) ||
+        directory_size > directory_window.size()) {
+        result.status = LegacyLmfIndexedObjectDirectoryStatus::
+            directory_data_out_of_range;
+        return result;
+    }
+
+    result.objects.reserve(object_count);
+    for (compat::u32 object = 0U; object < object_count; ++object) {
+        LegacyLmfIndexedObject parsed;
+        parsed.relative_offset = read_u32(
+            directory_window,
+            4U + static_cast<std::size_t>(object) * 4U
+        );
+
+        const compat::u32 object_header_position =
+            map_offset + parsed.relative_offset;
+        if (file.seek_begin_one_based(
+                std::bit_cast<compat::i32>(object_header_position)
+            ) == 0U) {
+            result.status = LegacyLmfIndexedObjectDirectoryStatus::
+                object_header_seek_failed;
+            return result;
+        }
+
+        std::array<compat::u8, kMapHeaderReadSize> object_header{};
+        compat::u32 actual_object_header_size = kMapHeaderReadSize;
+        if (!file.read(object_header, actual_object_header_size)) {
+            result.status = LegacyLmfIndexedObjectDirectoryStatus::
+                object_header_read_failed;
+            return result;
+        }
+        if (actual_object_header_size < 0x1AU) {
+            result.status = LegacyLmfIndexedObjectDirectoryStatus::
+                object_header_data_out_of_range;
+            return result;
+        }
+
+        parsed.field_00 = static_cast<compat::u16>(read_u16(
+            object_header,
+            0x00U
+        ));
+        parsed.field_02 = static_cast<compat::u16>(read_u16(
+            object_header,
+            0x02U
+        ));
+        parsed.field_04 = static_cast<compat::u16>(read_u16(
+            object_header,
+            0x04U
+        ));
+        parsed.field_06 = static_cast<compat::u16>(read_u16(
+            object_header,
+            0x06U
+        ));
+        parsed.field_08 = static_cast<compat::u16>(read_u16(
+            object_header,
+            0x08U
+        ));
+        parsed.field_0a = static_cast<compat::u16>(read_u16(
+            object_header,
+            0x0AU
+        ));
+        parsed.field_0c = static_cast<compat::u16>(read_u16(
+            object_header,
+            0x0CU
+        ));
+        parsed.field_0e = object_header[0x0EU];
+        parsed.field_0f = object_header[0x0FU];
+        parsed.field_10 = object_header[0x10U];
+        parsed.field_11 = object_header[0x11U];
+        parsed.destination_size = read_u32(object_header, 0x12U);
+        parsed.declared_compressed_size = read_u32(object_header, 0x16U);
+
+        std::vector<compat::u8> compressed_payload;
+        try {
+            compressed_payload.resize(parsed.declared_compressed_size);
+        } catch (const std::bad_alloc&) {
+            result.status = LegacyLmfIndexedObjectDirectoryStatus::
+                compressed_allocation_failed;
+            return result;
+        }
+
+        try {
+            parsed.decompressed_payload.resize(parsed.destination_size);
+        } catch (const std::bad_alloc&) {
+            result.status = LegacyLmfIndexedObjectDirectoryStatus::
+                destination_allocation_failed;
+            return result;
+        }
+
+        const compat::u32 compressed_payload_position =
+            map_offset + parsed.relative_offset + 0x1AU;
+        if (file.seek_begin_one_based(
+                std::bit_cast<compat::i32>(compressed_payload_position)
+            ) == 0U) {
+            result.status = LegacyLmfIndexedObjectDirectoryStatus::
+                compressed_payload_seek_failed;
+            return result;
+        }
+
+        parsed.actual_compressed_size = parsed.declared_compressed_size;
+        if (!file.read(
+                compressed_payload,
+                parsed.actual_compressed_size
+            )) {
+            result.status = LegacyLmfIndexedObjectDirectoryStatus::
+                compressed_payload_read_failed;
+            return result;
+        }
+        compressed_payload.resize(parsed.actual_compressed_size);
+
+        parsed.decompression_status = decompress_legacy_resource_block(
+            compressed_payload,
+            parsed.decompressed_payload,
+            parsed.actual_decompressed_size
+        );
+        if (parsed.decompression_status != LegacyLzo1xStatus::success &&
+            parsed.decompression_status !=
+                LegacyLzo1xStatus::input_not_consumed) {
+            result.objects.push_back(std::move(parsed));
+            result.status = LegacyLmfIndexedObjectDirectoryStatus::
+                decompression_failed;
+            return result;
+        }
+
+        result.objects.push_back(std::move(parsed));
+    }
+
+    result.status = LegacyLmfIndexedObjectDirectoryStatus::ready;
     return result;
 }
 
