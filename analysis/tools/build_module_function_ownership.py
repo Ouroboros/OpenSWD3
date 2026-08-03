@@ -464,6 +464,7 @@ MANUAL_OWNERSHIP_SEEDS: dict[int, str] = {
     0x00424EF0: "runtime_platform",  # input/audio/display subsystem initialization coordinator
     0x00425150: "resource_io",  # ensure and select resource directory
     0x00425570: "resource_io",  # env.dat and CM/mcache cache invalidation/rebuild
+    0x00425A70: "resource_io",  # total byte size of Data/0.cm through Data/23.cm
     0x004267E0: "resource_io",  # allocated-buffer decompression wrapper
     0x0042E850: "rendering",  # tiled/nine-slice panel drawing
     0x00430BE0: "runtime_platform",  # shared signed decimal parser

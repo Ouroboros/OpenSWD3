@@ -479,6 +479,28 @@ add_test(
 )
 
 add_executable(
+    openswd3_resource_io_legacy_cm_cache_tests
+    unit/resource_io/legacy_cm_cache_test.cpp
+)
+target_compile_definitions(
+    openswd3_resource_io_legacy_cm_cache_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_resource_io_legacy_cm_cache_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_resource_io_legacy_cm_cache_tests
+    PRIVATE openswd3_resource_io
+)
+
+add_test(
+    NAME resource_io.legacy_cm_cache
+    COMMAND openswd3_resource_io_legacy_cm_cache_tests
+)
+
+add_executable(
     openswd3_resource_io_legacy_memory_manager_tests
     unit/resource_io/legacy_memory_manager_test.cpp
 )
