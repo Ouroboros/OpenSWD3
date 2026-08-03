@@ -2,6 +2,7 @@ add_library(
     openswd3_resource_io
     STATIC
         data_directory.cpp
+        legacy_dbcs_text_buffer.cpp
         legacy_file.cpp
         legacy_lzo1x.cpp
         legacy_memory_manager.cpp

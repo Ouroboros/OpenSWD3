@@ -8,6 +8,7 @@
 - 旧程序 11 个逻辑模块全部处于一个依赖强连通分量，不能按旧 `call` 边建立 CMake target 依赖。
 - 每份可变状态只有一个业务所有者。跨模块写入改为所有者 API、同步请求/结果或显式可变参数；`persistence` 只运输状态。
 - SDL3 只存在于平台后端。游戏核心不得包含 Win32、DirectDraw、DirectInput、Miles、Bink 或 GDI 类型。
+- 剧情脚本的控制流、操作数、长度和跳转仍保留原始字节域；只有 handler 已确认的文本载荷在载入边界按配置解码。解码后的内核文本统一为显式 UTF-16（`char16_t`/`std::u16string`），不使用 Windows `wchar_t` 作为跨平台 ABI。
 - 本基线只冻结第一轮接口边界和工程结构，不提前建立无汇编证据的实体层次或通用 ECS。
 
 逐模块输入、输出、所有权、允许依赖和首个验证入口见 [`rewrite-module-map.tsv`](inventory/rewrite-module-map.tsv)。
@@ -66,6 +67,21 @@ world/story/modes/battle 按各自行实际需要依赖上述服务模块。
 - `modes`：高优先级 UI、菜单、商店、数字模式、文本输入和 ItemNode 操作语义。
 - `battle`：战斗对象、VM/帧状态机、AI/数值和四值返回合同。
 - `persistence`：配置、槽、存档物理容器和 owner-mediated 装卸；不取得玩法状态所有权。
+
+### 剧情文本编码边界
+
+OpenSWD3 自有配置从 EXE 同目录的 `openswd3.toml` 读取：
+
+```toml
+[scripts]
+encoding = "big5"
+```
+
+`encoding` 首版只接受 `big5` 和 `gbk`，分别采用 Windows CP950 与 CP936 兼容映射；字段缺失时默认为 `big5`，未知值必须报告配置错误，不回退到宿主区域设置，也不做启发式自动检测。配置文件本身仍是 UTF-8 TOML。
+
+`resource` 只交付 Talk 文件原始字节，`app` 在任何剧情文本载入前读取配置并把编码枚举注入 `story`。`story` 继续以原始字节执行 opcode framing、指令长度、跳转和字节偏移，只在具体 handler 已确认某段是文本时解码；解码结果进入 `std::u16string`，之后 `story`、`modes`、`render` 等内核接口不得继续传递窄字符脚本文本。
+
+原程序依赖 DBCS 字节数的固定缓冲、截断、光标和存档字段必须在兼容边界保留原始字节或显式的字节位置映射，不能把 UTF-16 code unit 数冒充旧字节数。无效源字节的处理要在对应脚本单元根据真实资产和汇编调用域冻结，不得无记录地替换字符或吞掉字节。编码门的 UT 至少覆盖同一文本的 CP950/CP936 输入、配置缺省与非法值、DBCS 字节边界到 UTF-16 的映射，以及跨内核接口不泄漏宿主 `wchar_t`。
 
 ## 4. 正式工程目录
 

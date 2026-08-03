@@ -61,7 +61,7 @@ text_input_object	004389D0	32	000C	4	maximum_text_bytes	confirmed	004389D0,00438
 text_input_object	004389D0	32	0010	4	cursor_byte_offset	confirmed	004389D0,00438AE0
 text_input_object	004389D0	32	0014	4	input_result_state	enum-name-pending	00438A60,00438B50
 text_input_object	004389D0	32	0018	4	is_ime_layout	confirmed	00438B50
-text_input_object	004389D0	32	001C	4	constructor_one_unknown	business-name-pending	004389D0
+text_input_object	004389D0	32	001C	4	input_enabled_state	confirmed-original-always-one-bug	004389D0,00438DC0,00438DD0,00438E50
 item_node	0044D0F0	176	0000	4	next_pointer	confirmed-32-bit-layout	0044D1B6,0044D2B7,0044D5AC,0044F770
 item_node	0044D0F0	176	0004	2	item_id	confirmed	0044D18C,0044D2A0,0044E3B1
 item_node	0044D0F0	176	0006	2	shop_selected_count	confirmed	0044E2BC,0044E38D,0044E531
