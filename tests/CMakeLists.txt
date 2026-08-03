@@ -491,3 +491,21 @@ add_test(
     NAME resource_io.legacy_dbcs_text_buffer
     COMMAND openswd3_resource_io_legacy_dbcs_text_buffer_tests
 )
+
+add_executable(
+    openswd3_resource_io_legacy_environment_tests
+    unit/resource_io/legacy_environment_test.cpp
+)
+target_include_directories(
+    openswd3_resource_io_legacy_environment_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_resource_io_legacy_environment_tests
+    PRIVATE openswd3_resource_io
+)
+
+add_test(
+    NAME resource_io.legacy_environment
+    COMMAND openswd3_resource_io_legacy_environment_tests
+)

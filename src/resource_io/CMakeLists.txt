@@ -3,6 +3,7 @@ add_library(
     STATIC
         data_directory.cpp
         legacy_dbcs_text_buffer.cpp
+        legacy_environment.cpp
         legacy_file.cpp
         legacy_lzo1x.cpp
         legacy_lzo1x_compressor.cpp
