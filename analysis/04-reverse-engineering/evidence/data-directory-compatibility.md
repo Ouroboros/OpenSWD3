@@ -44,9 +44,10 @@ openswd3.exe --data-dir="E:\Game\swd3"
 
 - `include/openswd3/resource_io/data_directory.hpp`：选择来源、状态、UTF-8 路径和激活接口。
 - `src/resource_io/data_directory.cpp`：命令行优先级、TOML 读取、相对路径解析、目录验证和工作目录切换。
+- `src/resource_io/data_directory.cpp`：同时保留 `0x00425150` 的旧目录探测、单层创建、失败忽略和恒返回一合同；证据见 [`legacy-directory-selection-00425150.md`](legacy-directory-selection-00425150.md)。
 - `src/platform/sdl3/main.cpp`：在启动门和 `SDL_Init` 前选择并激活数据目录。
 - `src/platform/sdl3/legacy_command_line.cpp`：跳过现代前缀并保留剩余旧命令行尾。
-- `tests/unit/resource_io/data_directory_test.cpp`：回退、优先级、两种命令行形式、TOML、错误路径与目录激活 UT。
+- `tests/unit/resource_io/data_directory_test.cpp`：回退、优先级、两种命令行形式、TOML、错误路径、目录激活和旧目录 helper 控制流 UT。
 - `tests/unit/app/platform_startup_adapters_test.cpp`：Windows 原始命令行前缀剥离边界 UT。
 
 TOML 解析使用固定提交 `30172438cee64926dc41fdd9c11fb3ba5b2ba9de`，对应 toml++ v3.4.0。CMake 优先使用已安装的 toml++ 3.4+，缺失时才获取固定源码。
@@ -55,8 +56,8 @@ TOML 解析使用固定提交 `30172438cee64926dc41fdd9c11fb3ba5b2ba9de`，对�
 
 ## 5. 验证结果
 
-- Windows LLVM `core-debug`：构建通过，25/25 CTest 通过，无新增编译警告。
-- Windows LLVM `app-debug`：构建通过，25/25 CTest 通过，生成 `openswd3.exe`。
+- Windows LLVM `core-debug`：构建通过，32/32 CTest 通过，无新增编译警告。
+- Windows LLVM `app-debug`：构建通过，32/32 CTest 通过，生成 `openswd3.exe`。
 - 命令行窗口 smoke：EXE 位于 `build/app/src/platform/sdl3/Debug`，启动目录位于 `build/runtime-smoke/launch`，参数为 `--data-dir E:\Game\swd3`；成功出现标题为 `OpenSWD3` 的窗口并正常退出。
 - TOML 窗口 smoke：隔离 EXE 与配置位于 `build/runtime-smoke/toml`，启动目录位于 `build/runtime-smoke/launch`，未传命令行参数；成功从 EXE 同目录 TOML 选择数据目录、显示窗口并正常退出。
 

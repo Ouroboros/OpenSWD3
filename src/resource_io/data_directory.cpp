@@ -328,6 +328,20 @@ bool activate_data_directory(
     return !error;
 }
 
+bool legacy_select_or_create_directory(
+    const std::filesystem::path& directory
+) noexcept {
+    std::error_code error;
+    std::filesystem::current_path(directory, error);
+    if (!error) {
+        return true;
+    }
+
+    error.clear();
+    static_cast<void>(std::filesystem::create_directory(directory, error));
+    return true;
+}
+
 std::string_view data_directory_status_message(
     const DataDirectoryStatus status
 ) noexcept {

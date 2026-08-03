@@ -39,6 +39,10 @@ public:
         return executable_directory_;
     }
 
+    [[nodiscard]] const std::filesystem::path& root() const {
+        return root_;
+    }
+
     [[nodiscard]] const std::filesystem::path& launch_directory() const {
         return launch_directory_;
     }
@@ -66,6 +70,21 @@ private:
     std::filesystem::path launch_directory_;
     std::filesystem::path configuration_directory_;
     std::filesystem::path command_line_directory_;
+};
+
+class CurrentDirectoryGuard {
+public:
+    CurrentDirectoryGuard()
+        : original_directory_{std::filesystem::current_path()} {
+    }
+
+    ~CurrentDirectoryGuard() {
+        std::error_code ignored;
+        std::filesystem::current_path(original_directory_, ignored);
+    }
+
+private:
+    std::filesystem::path original_directory_;
 };
 
 void test_launch_directory_fallback(openswd3::test::Context& test) {
@@ -267,6 +286,86 @@ void test_activation(openswd3::test::Context& test) {
     test.expect_false(static_cast<bool>(error), "test restores working directory");
 }
 
+void test_legacy_existing_directory_is_selected(
+    openswd3::test::Context& test
+) {
+    const TemporaryTree tree;
+    const CurrentDirectoryGuard directory_guard;
+    const std::filesystem::path directory = tree.root() / "Save";
+    std::filesystem::create_directory(directory);
+    std::filesystem::current_path(tree.launch_directory());
+
+    test.expect_true(
+        openswd3::resource_io::legacy_select_or_create_directory(
+            directory
+        ),
+        "legacy directory helper always reports success"
+    );
+    test.expect_equal(
+        std::filesystem::current_path(),
+        directory,
+        "an existing directory becomes the process working directory"
+    );
+}
+
+void test_legacy_missing_directory_is_created_without_selection(
+    openswd3::test::Context& test
+) {
+    const TemporaryTree tree;
+    const CurrentDirectoryGuard directory_guard;
+    const std::filesystem::path directory = tree.root() / "Music";
+    std::filesystem::current_path(tree.launch_directory());
+
+    test.expect_true(
+        openswd3::resource_io::legacy_select_or_create_directory(
+            directory
+        ),
+        "legacy directory helper reports success after creation"
+    );
+    test.expect_true(
+        std::filesystem::is_directory(directory),
+        "missing target now exists as a directory"
+    );
+    test.expect_equal(
+        std::filesystem::current_path(),
+        tree.launch_directory(),
+        "newly created directory is not selected"
+    );
+}
+
+void test_legacy_directory_failures_are_ignored(
+    openswd3::test::Context& test
+) {
+    const TemporaryTree tree;
+    const CurrentDirectoryGuard directory_guard;
+    const std::filesystem::path file = tree.root() / "Video";
+    std::ofstream{file, std::ios::binary} << "not a directory";
+    std::filesystem::current_path(tree.launch_directory());
+
+    test.expect_true(
+        openswd3::resource_io::legacy_select_or_create_directory(file),
+        "legacy directory helper hides selection and creation failure"
+    );
+    test.expect_equal(
+        std::filesystem::current_path(),
+        tree.launch_directory(),
+        "failed target leaves the working directory unchanged"
+    );
+
+    const std::filesystem::path nested_directory =
+        tree.root() / "missing-parent" / "Data";
+    test.expect_true(
+        openswd3::resource_io::legacy_select_or_create_directory(
+            nested_directory
+        ),
+        "legacy directory helper also hides missing-parent failure"
+    );
+    test.expect_false(
+        std::filesystem::exists(nested_directory),
+        "legacy helper creates only one directory level"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -277,5 +376,8 @@ int main() {
     test_equals_command_line_form(test);
     test_invalid_inputs(test);
     test_activation(test);
+    test_legacy_existing_directory_is_selected(test);
+    test_legacy_missing_directory_is_created_without_selection(test);
+    test_legacy_directory_failures_are_ignored(test);
     return test.exit_code();
 }
