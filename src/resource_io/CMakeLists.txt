@@ -4,6 +4,7 @@ add_library(
         data_directory.cpp
         legacy_file.cpp
         legacy_lzo1x.cpp
+        legacy_memory_manager.cpp
 )
 target_include_directories(
     openswd3_resource_io

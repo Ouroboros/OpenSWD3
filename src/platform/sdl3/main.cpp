@@ -14,6 +14,7 @@
 #include "openswd3/app/startup.hpp"
 #include "openswd3/app/window_events.hpp"
 #include "openswd3/resource_io/data_directory.hpp"
+#include "openswd3/resource_io/legacy_memory_manager.hpp"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -35,6 +36,8 @@ constexpr int kInitialWindowWidth = kFrameWidth * 3 / 2;
 constexpr int kInitialWindowHeight = kFrameHeight * 3 / 2;
 constexpr int kFramePitch = kFrameWidth * static_cast<int>(sizeof(std::uint16_t));
 constexpr openswd3::compat::u32 kInitialFrameIntervalMilliseconds = 35U;
+
+openswd3::resource_io::LegacyMemoryManager legacy_memory_manager;
 
 int report_sdl_error(const char* operation) {
     std::fprintf(stderr, "%s: %s\n", operation, SDL_GetError());
