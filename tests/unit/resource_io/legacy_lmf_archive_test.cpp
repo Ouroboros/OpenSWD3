@@ -26,10 +26,12 @@ using openswd3::resource_io::LegacyLmfMapFormat;
 using openswd3::resource_io::LegacyLmfMapHeaderStatus;
 using openswd3::resource_io::LegacyLmfMapLookupStatus;
 using openswd3::resource_io::LegacyLmfPostSurfaceRecordsStatus;
+using openswd3::resource_io::LegacyLmfReferencedRecordDirectoryStatus;
 using openswd3::resource_io::LegacyLmfSurfaceGridStatus;
 using openswd3::resource_io::legacy_lmf_lookup_map;
 using openswd3::resource_io::legacy_lmf_read_map_header;
 using openswd3::resource_io::legacy_lmf_read_post_surface_records;
+using openswd3::resource_io::legacy_lmf_read_referenced_record_directory;
 using openswd3::resource_io::legacy_lmf_read_surface_grid;
 
 class TestTree {
@@ -210,7 +212,16 @@ void append_record(
     );
     write_post_surface_record(1U, 2U, 3U, 4U, 5U, kSecondName);
     write_post_surface_record(2U, 6U, 7U, 8U, 9U, kThirdName);
-    write_u32(bytes, cursor, 0U);
+    write_u32(bytes, cursor, 3U);
+    cursor += 4U;
+    constexpr std::array<u32, 3> kReferencedOffsets{0x500U, 0x520U, 0x540U};
+    for (const u32 offset : kReferencedOffsets) {
+        write_u32(bytes, cursor, offset);
+        cursor += 4U;
+    }
+    write_u32(bytes, kReferencedOffsets[0] + 0x0CU, 0x10203040U);
+    write_u32(bytes, kReferencedOffsets[1] + 0x0CU, 0x50607080U);
+    write_u32(bytes, kReferencedOffsets[2] + 0x0CU, 0x90A0B0C0U);
     return bytes;
 }
 
@@ -237,6 +248,142 @@ void test_open_and_header_failures(openswd3::test::Context& test) {
         LegacyLmfMapLookupStatus::index_offset_out_of_range,
         "tail offset beyond EOF is isolated"
     );
+}
+
+void test_referenced_record_directory(openswd3::test::Context& test) {
+    const TestTree tree;
+    std::vector<u8> bytes = make_surface_archive(0x3246534DU);
+    tree.write("referenced.lmf", bytes);
+    const auto header = legacy_lmf_read_map_header(
+        tree.path("referenced.lmf"),
+        0U
+    );
+    const auto surface = legacy_lmf_read_surface_grid(
+        tree.path("referenced.lmf"),
+        0U,
+        header
+    );
+    const auto post_surface = legacy_lmf_read_post_surface_records(
+        tree.path("referenced.lmf"),
+        0U,
+        surface
+    );
+    const auto directory = legacy_lmf_read_referenced_record_directory(
+        tree.path("referenced.lmf"),
+        0U,
+        post_surface
+    );
+
+    test.expect_equal(
+        directory.status,
+        LegacyLmfReferencedRecordDirectoryStatus::ready,
+        "following relative-offset directory is parsed"
+    );
+    test.expect_equal(
+        directory.records.size(),
+        std::size_t{3U},
+        "directory count controls referenced-record probes"
+    );
+    test.expect_true(
+        directory.records[0].relative_offset == 0x500U &&
+            directory.records[0].field_0c == 0x10203040U &&
+            directory.records[1].relative_offset == 0x520U &&
+            directory.records[1].field_0c == 0x50607080U &&
+            directory.records[2].relative_offset == 0x540U &&
+            directory.records[2].field_0c == 0x90A0B0C0U,
+        "each relative offset selects the dword at record +0x0C"
+    );
+
+    write_u32(bytes, post_surface.following_directory_offset, 0U);
+    tree.write("empty-referenced.lmf", bytes);
+    const auto empty_directory = legacy_lmf_read_referenced_record_directory(
+        tree.path("empty-referenced.lmf"),
+        0U,
+        post_surface
+    );
+    test.expect_true(
+        empty_directory.status ==
+                LegacyLmfReferencedRecordDirectoryStatus::ready &&
+            empty_directory.records.empty(),
+        "zero directory count performs no zero-byte file read"
+    );
+}
+
+void test_referenced_record_directory_failures(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+    openswd3::resource_io::LegacyLmfPostSurfaceRecords invalid_records;
+    test.expect_equal(
+        legacy_lmf_read_referenced_record_directory(
+            tree.path("missing.lmf"),
+            0U,
+            invalid_records
+        ).status,
+        LegacyLmfReferencedRecordDirectoryStatus::
+            invalid_post_surface_records,
+        "failed preceding records are rejected before opening the archive"
+    );
+
+    std::vector<u8> bytes = make_surface_archive(0x3246534DU);
+    tree.write("referenced.lmf", bytes);
+    const auto header = legacy_lmf_read_map_header(
+        tree.path("referenced.lmf"),
+        0U
+    );
+    const auto surface = legacy_lmf_read_surface_grid(
+        tree.path("referenced.lmf"),
+        0U,
+        header
+    );
+    auto post_surface = legacy_lmf_read_post_surface_records(
+        tree.path("referenced.lmf"),
+        0U,
+        surface
+    );
+
+    post_surface.record_window_end_offset =
+        post_surface.following_directory_offset + 4U;
+    test.expect_equal(
+        legacy_lmf_read_referenced_record_directory(
+            tree.path("referenced.lmf"),
+            0U,
+            post_surface
+        ).status,
+        LegacyLmfReferencedRecordDirectoryStatus::
+            directory_count_out_of_range,
+        "directory table cannot exceed the original fixed read window"
+    );
+
+    post_surface = legacy_lmf_read_post_surface_records(
+        tree.path("referenced.lmf"),
+        0U,
+        surface
+    );
+    write_u32(
+        bytes,
+        post_surface.following_directory_offset + 4U,
+        0x80000000U
+    );
+    tree.write("bad-reference.lmf", bytes);
+    test.expect_equal(
+        legacy_lmf_read_referenced_record_directory(
+            tree.path("bad-reference.lmf"),
+            0U,
+            post_surface
+        ).status,
+        LegacyLmfReferencedRecordDirectoryStatus::
+            referenced_record_seek_failed,
+        "signed seek failure for a referenced record is retained"
+    );
+}
+
+void fnv1a64_u32(std::uint64_t& hash, const u32 value) {
+    constexpr std::uint64_t kPrime = 0x100000001B3ULL;
+    for (unsigned int shift = 0U; shift < 32U; shift += 8U) {
+        hash ^= static_cast<u8>(value >> shift);
+        hash *= kPrime;
+    }
 }
 
 void test_lookup_uses_full_map_id_and_first_match(
@@ -685,8 +832,11 @@ void test_all_current_map_headers(
     bool all_headers_match = true;
     bool all_surface_grids_match = true;
     bool all_post_surface_records_match = true;
+    bool all_referenced_record_directories_match = true;
     std::uint64_t total_surface_grid_bytes{};
     std::uint64_t total_post_surface_records{};
+    std::uint64_t total_referenced_records{};
+    std::uint64_t referenced_records_hash = 0xCBF29CE484222325ULL;
     for (const IndexedMap& map : maps) {
         const auto lookup = legacy_lmf_lookup_map(archive_path, map.id);
         all_lookups_match = all_lookups_match &&
@@ -741,6 +891,21 @@ void test_all_current_map_headers(
             records.records.size() == surface.post_surface_record_count &&
             offsets_match;
         total_post_surface_records += records.records.size();
+
+        const auto referenced = legacy_lmf_read_referenced_record_directory(
+            archive_path,
+            map.offset,
+            records
+        );
+        all_referenced_record_directories_match =
+            all_referenced_record_directories_match &&
+            referenced.status ==
+                LegacyLmfReferencedRecordDirectoryStatus::ready;
+        total_referenced_records += referenced.records.size();
+        for (const auto& record : referenced.records) {
+            fnv1a64_u32(referenced_records_hash, record.relative_offset);
+            fnv1a64_u32(referenced_records_hash, record.field_0c);
+        }
     }
 
     test.expect_equal(record_count, 309U, "current archive has 309 searchable maps");
@@ -763,6 +928,20 @@ void test_all_current_map_headers(
         total_post_surface_records,
         std::uint64_t{813U},
         "all current maps expose 813 post-surface records"
+    );
+    test.expect_true(
+        all_referenced_record_directories_match,
+        "all current referenced-record directories satisfy seek and read contracts"
+    );
+    test.expect_equal(
+        total_referenced_records,
+        std::uint64_t{5'376U},
+        "all current maps expose 5376 referenced records"
+    );
+    test.expect_equal(
+        referenced_records_hash,
+        std::uint64_t{0xCCEF13F8B2CB5BC7ULL},
+        "current referenced offsets and +0x0C fields retain their aggregate hash"
     );
 }
 
@@ -816,6 +995,8 @@ int main(const int argument_count, char** arguments) {
     test_surface_grid_failures(test);
     test_post_surface_record_directory(test);
     test_post_surface_record_failures(test);
+    test_referenced_record_directory(test);
+    test_referenced_record_directory_failures(test);
 
     test.expect_true(
         argument_count == 1 || argument_count == 2,

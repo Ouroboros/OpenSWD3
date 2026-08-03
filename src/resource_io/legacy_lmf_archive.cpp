@@ -380,6 +380,15 @@ LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
         return result;
     }
     record_window.resize(actual_window_size);
+    if (!checked_add(
+            surface_grid.post_surface_records_offset,
+            actual_window_size,
+            result.record_window_end_offset
+        )) {
+        result.status =
+            LegacyLmfPostSurfaceRecordsStatus::record_data_out_of_range;
+        return result;
+    }
 
     compat::u32 offset_table_bytes{};
     if (!checked_multiply(
@@ -468,6 +477,102 @@ LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
     }
 
     result.status = LegacyLmfPostSurfaceRecordsStatus::ready;
+    return result;
+}
+
+LegacyLmfReferencedRecordDirectory
+legacy_lmf_read_referenced_record_directory(
+    const std::filesystem::path& archive_path,
+    const compat::u32 map_offset,
+    const LegacyLmfPostSurfaceRecords& post_surface_records
+) {
+    LegacyLmfReferencedRecordDirectory result;
+    if (post_surface_records.status !=
+        LegacyLmfPostSurfaceRecordsStatus::ready) {
+        return result;
+    }
+
+    LegacyFile file;
+    if (!file.open(
+            archive_path,
+            LegacyFileCreation::open_existing,
+            LegacyFileAccess::read
+        )) {
+        result.status =
+            LegacyLmfReferencedRecordDirectoryStatus::file_open_failed;
+        return result;
+    }
+
+    const compat::u32 directory_position =
+        map_offset + post_surface_records.following_directory_offset;
+    if (file.seek_begin_one_based(
+            std::bit_cast<compat::i32>(directory_position)
+        ) == 0U) {
+        result.status =
+            LegacyLmfReferencedRecordDirectoryStatus::directory_seek_failed;
+        return result;
+    }
+
+    std::array<compat::u8, 4> count_bytes{};
+    if (!read_exact(file, count_bytes)) {
+        result.status = LegacyLmfReferencedRecordDirectoryStatus::
+            directory_count_read_failed;
+        return result;
+    }
+    const compat::u32 record_count = read_u32(count_bytes, 0U);
+
+    compat::u32 offsets_size{};
+    compat::u32 directory_end_offset{};
+    if (!checked_multiply(record_count, 4U, offsets_size) ||
+        !checked_add(
+            post_surface_records.following_directory_offset,
+            4U,
+            directory_end_offset
+        ) ||
+        !checked_add(directory_end_offset, offsets_size, directory_end_offset) ||
+        directory_end_offset >
+            post_surface_records.record_window_end_offset) {
+        result.status = LegacyLmfReferencedRecordDirectoryStatus::
+            directory_count_out_of_range;
+        return result;
+    }
+
+    std::vector<compat::u8> offset_bytes(offsets_size);
+    if (offsets_size != 0U && !read_exact(file, offset_bytes)) {
+        result.status = LegacyLmfReferencedRecordDirectoryStatus::
+            directory_offsets_read_failed;
+        return result;
+    }
+
+    result.records.reserve(record_count);
+    for (compat::u32 record = 0U; record < record_count; ++record) {
+        LegacyLmfReferencedRecord parsed;
+        parsed.relative_offset = read_u32(
+            offset_bytes,
+            static_cast<std::size_t>(record) * 4U
+        );
+
+        const compat::u32 field_position =
+            map_offset + parsed.relative_offset + 0x0CU;
+        if (file.seek_begin_one_based(
+                std::bit_cast<compat::i32>(field_position)
+            ) == 0U) {
+            result.status = LegacyLmfReferencedRecordDirectoryStatus::
+                referenced_record_seek_failed;
+            return result;
+        }
+
+        std::array<compat::u8, 4> field_bytes{};
+        if (!read_exact(file, field_bytes)) {
+            result.status = LegacyLmfReferencedRecordDirectoryStatus::
+                referenced_record_read_failed;
+            return result;
+        }
+        parsed.field_0c = read_u32(field_bytes, 0U);
+        result.records.push_back(parsed);
+    }
+
+    result.status = LegacyLmfReferencedRecordDirectoryStatus::ready;
     return result;
 }
 

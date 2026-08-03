@@ -115,6 +115,31 @@ struct LegacyLmfPostSurfaceRecords {
     std::vector<compat::u32> declared_relative_offsets;
     std::vector<LegacyLmfPostSurfaceRecord> records;
     compat::u32 following_directory_offset{};
+    compat::u32 record_window_end_offset{};
+};
+
+enum class LegacyLmfReferencedRecordDirectoryStatus {
+    ready,
+    invalid_post_surface_records,
+    file_open_failed,
+    directory_seek_failed,
+    directory_count_read_failed,
+    directory_count_out_of_range,
+    directory_offsets_read_failed,
+    referenced_record_seek_failed,
+    referenced_record_read_failed,
+};
+
+struct LegacyLmfReferencedRecord {
+    compat::u32 relative_offset{};
+    compat::u32 field_0c{};
+};
+
+struct LegacyLmfReferencedRecordDirectory {
+    LegacyLmfReferencedRecordDirectoryStatus status{
+        LegacyLmfReferencedRecordDirectoryStatus::invalid_post_surface_records
+    };
+    std::vector<LegacyLmfReferencedRecord> records;
 };
 
 [[nodiscard]] LegacyLmfMapLookupResult legacy_lmf_lookup_map(
@@ -137,6 +162,13 @@ struct LegacyLmfPostSurfaceRecords {
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
     const LegacyLmfSurfaceGrid& surface_grid
+);
+
+[[nodiscard]] LegacyLmfReferencedRecordDirectory
+legacy_lmf_read_referenced_record_directory(
+    const std::filesystem::path& archive_path,
+    compat::u32 map_offset,
+    const LegacyLmfPostSurfaceRecords& post_surface_records
 );
 
 }  // namespace openswd3::resource_io
