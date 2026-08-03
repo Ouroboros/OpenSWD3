@@ -59,20 +59,20 @@
 | 模块 | 函数候选 |
 |---|---:|
 | `runtime_platform` | 17 |
-| `resource_io` | 65 |
+| `resource_io` | 63 |
 | `input_time_rng` | 26 |
 | `rendering` | 151 |
 | `audio_video` | 75 |
-| `asset_runtime` | 77 |
+| `asset_runtime` | 78 |
 | `story_scene` | 23 |
 | `world_map` | 112 |
-| `special_modes` | 226 |
+| `special_modes` | 227 |
 | `battle` | 404 |
 | `persistence` | 16 |
 | `external_crt` | 311 |
 | `external_third_party` | 7 |
 
-置信度为：405 个 `confirmed_boundary`、813 个 `medium`、292 个 `mechanical_boundary`。这里的 `medium` 大多表示“连续实现簇明确但函数内部语义未展开”；`mechanical_boundary` 是没有成为实际游戏调用合同的其余外部入口。两者都符合 A2 不逐函数展开语义的停止线。
+置信度为：406 个 `confirmed_boundary`、812 个 `medium`、292 个 `mechanical_boundary`。这里的 `medium` 大多表示“连续实现簇明确但函数内部语义未展开”；`mechanical_boundary` 是没有成为实际游戏调用合同的其余外部入口。两者都符合 A2 不逐函数展开语义的停止线。
 
 ## 6. 人工复核状态与停止线
 
@@ -81,12 +81,12 @@
 - 39 项关键 ABI 的模块归属，沿用各 ABI 证据中的汇编参数、清栈、返回和调用者策略。
 - 59 个顶层去重直接目标的模块归属，沿用 [`top-level-direct-call-coverage.md`](top-level-direct-call-coverage.md) 的逐汇编分类。
 - 游戏、CRT/编译器和 DirectX/系统链接桩三类来源边界；1,510 项没有 `unresolved`。
-- 1,648 个 `game_cross_module` caller/callee 对，汇总为 308 个唯一游戏被调入口，已按实现簇、完整函数体和调用环境复核。
+- 1,646 个 `game_cross_module` caller/callee 对，汇总为 306 个唯一游戏被调入口，已按实现簇、完整函数体和调用环境复核。
 - 400 个 `game_to_external` caller/callee 对，汇总为 25 个实际外部被调入口，已复核其游戏消费者合同；外部实现本身不进入游戏逻辑重写范围。
 - 1 个 `external_to_game` 对：展开后的 CRT 入口 `0x0048A740` 调用 `WinMain 0x00409EC0`。它只记录进程入口边界，不把 CRT 实现纳入游戏逻辑重写。
 
-复核中纠正了地址簇和 token 导致的错误，包括：图像命令流编解码归 `rendering`，游戏内角色/物品模态对话框归 `special_modes`，压缩器内部阶段与文件探测归 `resource_io`，Fame 存档块编解码归 `persistence`，`0x0044FFC0..0x004515E0` 的战斗表现/状态簇归 `battle`。B1 逐函数复核又确认 `0x0040DCE0` 只是“第二参数精确等于一则设置、否则清除”的剧情位包装器，随三个剧情位访问器归 `story_scene`。新汇编还证明旧导出目录误把 `0x00424390` 标成 `__cfltcvt_init`；其函数体实际写入 16 个按键全局，并有启动、配置创建、`Env.dat` 迁移和按键重置四类游戏调用者，现已改归 `input_time_rng`。旧符号名只保留为历史导航信息，不能覆盖函数体。
+复核中纠正了地址簇和 token 导致的错误，包括：图像命令流编解码归 `rendering`，游戏内角色/物品模态对话框归 `special_modes`，压缩器内部阶段与文件探测归 `resource_io`，Fame 存档块编解码归 `persistence`，`0x0044FFC0..0x004515E0` 的战斗表现/状态簇归 `battle`。B1 逐函数复核又确认 `0x0040DCE0` 只是“第二参数精确等于一则设置、否则清除”的剧情位包装器，随三个剧情位访问器归 `story_scene`。新汇编还证明旧导出目录误把 `0x00424390` 标成 `__cfltcvt_init`；其函数体实际写入 16 个按键全局，并有启动、配置创建、`Env.dat` 迁移和按键重置四类游戏调用者，现已改归 `input_time_rng`。B2 进一步按状态消费者把资产缓存容量策略 `0x00424330` 改归 `asset_runtime`，并把特殊模式 Act 初始化器 `0x00439DE0` 改归 `special_modes`。旧符号名和地址相邻关系只保留为历史导航信息，不能覆盖函数体。
 
-生成器把 308 个游戏边界入口的地址、最终模块和 caller 模块集合规范化后锁定为 SHA-256 `c535c57b5e8258d6345215b4b456d6cd365e51e6e707da009e7288388ea09b94`。数量或摘要变化会停止生成，不能把新边界自动继承为已复核。当前 `module-boundary-functions.tsv` 共 334 项，全部是 `priority_reviewed`。
+生成器把 306 个游戏边界入口的地址、最终模块和 caller 模块集合规范化后锁定为 SHA-256 `a3463129ea60bae9ade2f8260dc26971aca9402a1c5d64390730e69ac8c946bb`。数量或摘要变化会停止生成，不能把新边界自动继承为已复核。当前 `module-boundary-functions.tsv` 共 332 项，全部是 `priority_reviewed`。
 
-A2 到此停止。813 个模块内部 `medium` 候选不在本阶段逐函数恢复业务语义；函数命名、opcode、地图字段、战斗算法和存档字段留到对应模块的“逆向—UT—实现—汇编复核”循环。
+A2 到此停止。812 个模块内部 `medium` 候选不在本阶段逐函数恢复业务语义；函数命名、opcode、地图字段、战斗算法和存档字段留到对应模块的“逆向—UT—实现—汇编复核”循环。

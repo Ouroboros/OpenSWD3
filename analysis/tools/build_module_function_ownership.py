@@ -38,9 +38,9 @@ EXPECTED_SHA256 = {
     CRITICAL_PATH: "0f3329f36be47ef897660df17fd723455c9c65231386385bedcc1a32a20475ef",
 }
 
-EXPECTED_REVIEWED_GAME_BOUNDARY_COUNT = 308
+EXPECTED_REVIEWED_GAME_BOUNDARY_COUNT = 306
 EXPECTED_REVIEWED_GAME_BOUNDARY_SHA256 = (
-    "c535c57b5e8258d6345215b4b456d6cd365e51e6e707da009e7288388ea09b94"
+    "a3463129ea60bae9ade2f8260dc26971aca9402a1c5d64390730e69ac8c946bb"
 )
 
 GAME_MODULES = (
@@ -460,6 +460,7 @@ MANUAL_OWNERSHIP_SEEDS: dict[int, str] = {
     0x00420490: "rendering",  # packed-pixel RGB channel adjustment
     0x004238B0: "rendering",  # selected pixel-format conversion wrapper
     0x004239D0: "rendering",  # packed 16-bit color conversion/update
+    0x00424330: "asset_runtime",  # derives TSW/ACT cache limits from physical memory
     0x00424390: "input_time_rng",  # initializes sixteen configurable DIK binding dwords
     0x00424EF0: "runtime_platform",  # input/audio/display subsystem initialization coordinator
     0x00425150: "resource_io",  # ensure and select resource directory
@@ -468,6 +469,8 @@ MANUAL_OWNERSHIP_SEEDS: dict[int, str] = {
     0x004267E0: "resource_io",  # allocated-buffer decompression wrapper
     0x0042E850: "rendering",  # tiled/nine-slice panel drawing
     0x00430BE0: "runtime_platform",  # shared signed decimal parser
+    0x004315C0: "asset_runtime",  # publishes the TSW cache byte limit
+    0x00432010: "asset_runtime",  # publishes the ACT cache byte limit
     0x00435160: "rendering",  # font renderer object initialization
     0x00435660: "rendering",  # font renderer state setter
     0x00435670: "rendering",  # font renderer state setter
@@ -484,6 +487,7 @@ MANUAL_OWNERSHIP_SEEDS: dict[int, str] = {
     0x00439210: "resource_io",  # compressor match-search stage
     0x00439580: "resource_io",  # compressor implementation used by Fame persistence
     0x00439670: "resource_io",  # compressor match-search stage
+    0x00439DE0: "special_modes",  # initializes special-mode Act state and callbacks
     0x0043B110: "rendering",  # clipped framebuffer rectangle/effect fill
     0x0043BAB0: "rendering",  # generic bordered-panel drawing composition
     0x0044A240: "runtime_platform",  # one-byte retn diagnostic/no-op sink
