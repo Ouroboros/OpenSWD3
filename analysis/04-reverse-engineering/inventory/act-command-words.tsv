@@ -1,0 +1,78 @@
+command_word_hex	file_bytes_ascii	parameter_words	action_field_effect	all_char.act_occurrences	all_item.act_occurrences	all_magic.act_occurrences	all_sys.act_occurrences	all_map1.act_occurrences	all_map2.act_occurrences	total_occurrences	status
+0000	..	0	default/no-op word	5030	984	168	290	184	41	6697	assembly-default-zero
+0042	B.			0	0	0	0	0	0	1	assembly-default-word
+0A00	..			0	0	0	0	0	0	1	assembly-default-word
+0C18	..			0	0	0	0	0	0	1	assembly-default-word
+0DFE	..			0	0	0	0	0	0	1	assembly-default-word
+12C0	..			0	0	0	0	0	0	1	assembly-default-word
+1313	..			0	0	0	0	0	0	1	assembly-default-word
+1400	..			0	0	0	0	0	0	1	assembly-default-word
+17C8	..			0	0	0	0	0	0	1	assembly-default-word
+1969	i.			0	0	0	0	0	0	1	assembly-default-word
+1B26	&.			0	0	0	0	0	0	1	assembly-default-word
+1D1D	..			0	0	0	0	0	0	2	assembly-default-word
+1D1F	..			0	0	0	0	0	0	1	assembly-default-word
+1F36	6.			0	0	0	0	0	0	1	assembly-default-word
+1F8A	..			0	0	0	0	0	0	1	assembly-default-word
+2020	  			0	0	0	0	0	0	7	assembly-default-word
+2029	) 			0	0	0	0	0	0	1	assembly-default-word
+251F	.%			0	0	0	0	0	0	1	assembly-default-word
+34CC	.4			0	0	0	0	0	0	1	assembly-default-word
+3C33	3<			0	0	0	0	0	0	1	assembly-default-word
+4145	EA	1	write action+0x24	93	0	13	0	0	0	106	assembly-recognized
+4148	HA	0	set action+0x18 mode bits to 0x08	0	0	0	0	0	0	0	assembly-recognized
+414D	MA	0	set action+0x18 mode bits to 0x04	199	0	6604	142	26	0	6971	assembly-recognized
+414E	NA	0	set action+0x18 mode bits to 0x2C	109	0	0	0	0	0	109	assembly-recognized
+4154	TA	1	write action+0x5A	639	0	201	0	1	0	841	assembly-recognized
+4158	XA	1	write action+0x76	287	0	8	0	0	0	295	assembly-recognized
+4159	YA	1	write action+0x78	287	0	8	0	0	0	295	assembly-recognized
+4342	BC	2	write action+0x68 and action+0x74	1	0	107	0	0	0	108	assembly-recognized
+4347	GC	2	write action+0x66 and action+0x72	1	0	103	0	0	0	104	assembly-recognized
+434C	LC	0	clear action+0x70/+0x72/+0x74	4	0	96	0	0	0	100	assembly-recognized
+4352	RC	2	write action+0x64 and action+0x70	1	0	106	0	0	0	107	assembly-recognized
+4544	DE	0	conditional stream wait/end marker	13003	0	7091	432	139	75	20740	assembly-recognized
+4599	.E			0	0	0	0	0	0	3	assembly-default-word
+464C	LF	7	write action+0x7A..+0x86	5	0	3	0	0	0	8	assembly-recognized
+4753	SG	1	set mode 0x14 and write low byte to action+0x8A	1091	0	5	43	25	0	1164	assembly-recognized
+4AE7	.J			0	0	0	0	0	0	1	assembly-default-word
+4C44	DL	1	set mode 0x10 and write low byte to action+0x62	29	0	12	0	0	0	41	assembly-recognized
+4C54	TL			0	0	0	0	0	0	1	assembly-default-word
+4E4F	ON	0	clear action+0x18 bit 0	2405	366	142	195	144	27	3279	assembly-recognized
+4F32	2O	0	rewind marker; set action+0x8C when action+0x44 is zero	773	0	134	3	14	0	924	assembly-recognized
+4F41	AO	1	write action+0x50	450	0	0	0	0	0	450	assembly-recognized
+4F56	VO	0	conditional rewind or reset stream cursor	2672	366	10	197	130	27	3402	assembly-recognized
+4F58	XO	1	write action+0x5E	450	0	0	0	0	0	450	assembly-recognized
+4F59	YO	1	write action+0x60	450	0	0	0	0	0	450	assembly-recognized
+5041	AP	1	write action+0x4C and advance packed action+0x40 counter	16448	366	7235	632	283	102	25066	assembly-recognized
+5145	EQ	1	write action+0x28	93	0	13	0	0	0	106	assembly-recognized
+5246	FR	1	write action+0x4A	3462	366	144	200	144	27	4343	assembly-recognized
+524F	OR	1	write action+0x4E	53	0	0	0	0	0	53	assembly-recognized
+5344	DS	1	write action+0x46 and refresh action+0x44	4215	0	44	79	46	26	4410	assembly-recognized
+534D	MS	0	set action+0x94 to one	429	0	0	0	0	0	429	assembly-recognized
+544E	NT	1	write packed action+0x40	3445	366	144	200	144	27	4326	assembly-recognized
+5457	WT	1	write low byte to action+0x88	114	0	0	0	0	3	117	assembly-recognized
+5649	IV	0	set action+0x18 bit 0	1073	0	2	5	0	0	1080	assembly-recognized
+5748	HW	2	write action+0x2C and action+0x30	3994	0	115	227	154	0	4490	assembly-recognized
+5756	VW	1	write action+0x58	1601	0	568	3	10	0	2182	assembly-recognized
+5859	YX	2	write action+0x10 and action+0x14	3992	0	114	141	153	0	4400	assembly-recognized
+6900	.i			0	0	0	0	0	0	1	assembly-default-word
+695B	[i			0	0	0	0	0	0	1	assembly-default-word
+7575	uu			0	0	0	0	0	0	1	assembly-default-word
+9898	..			0	0	0	0	0	0	1	assembly-default-word
+9CBD	..			0	0	0	0	0	0	1	assembly-default-word
+A39E	..			0	0	0	0	0	0	1	assembly-default-word
+A4A8	..			0	0	0	0	0	0	1	assembly-default-word
+AAAA	..			0	0	0	0	0	0	1	assembly-default-word
+B1AD	..			0	0	0	0	0	0	1	assembly-default-word
+B4BA	..			0	0	0	0	0	0	1	assembly-default-word
+B589	..			0	0	0	0	0	0	1	assembly-default-word
+C46F	o.			0	0	0	0	0	0	1	assembly-default-word
+C4B2	..			0	0	0	0	0	0	1	assembly-default-word
+C4D3	..			0	0	0	0	0	0	1	assembly-default-word
+CFAA	..			0	0	0	0	0	0	1	assembly-default-word
+D39B	..			0	0	0	0	0	0	1	assembly-default-word
+D79A	..			0	0	0	0	0	0	1	assembly-default-word
+E83A	:.			0	0	0	0	0	0	1	assembly-default-word
+ED34	4.			0	0	0	0	0	0	1	assembly-default-word
+F130	0.			0	0	0	0	0	0	1	assembly-default-word
+F5F2	..			0	0	0	0	0	0	1	assembly-default-word

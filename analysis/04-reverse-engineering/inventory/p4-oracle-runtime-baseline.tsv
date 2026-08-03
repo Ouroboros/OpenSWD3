@@ -1,0 +1,12 @@
+component	size_or_value	sha256	oracle_role
+swd3.exe	1122304	0bac897a7557735b22607d8c8f0a79a3e7ae7729deb56593fd91c21e10baee0c	sole behavioral binary
+swd3.exe_export_for_ai/swd3.exe.asm	28198933	d902f6dfd47d7033bf8a971c4ccc3a4d8d037b5b577035041113329363cab052	sole static behavioral truth
+binkw32.dll	261120	545f402be018bc905c03305322072e194d77b1a5ec20b62c34cdbc4c81c961fa	legacy Bink decoder used by the Bink oracle
+Mss32.dll	352256	9e41e1bd3b38d7ac43354bb83310210dd9e105b228b57e07af305cd160b7bf8f	legacy Miles runtime; screenshot loop calls AIL_serve
+Mp3dec.asi	126976	f059d7d8b2bc6f732a6e44938726311415c1e1e0cf4fb17a6137403841085e89	Miles MP3 provider in the captured runtime set
+Env.dat	63	2c55dddc9a6808afda5d69688f2c27ac268caf2b9155ae82b18596ed593ed9a4	current key-binding/environment input
+Video/opening.bik	53726248	8fd6e53923ca235cbc7b780780106c87caac319d021c7559a10a495de95a60ee	selected deterministic Bink asset candidate
+PE.ImageBase	0x00400000	n/a	fixed probe-address base
+PE.SizeOfImage	0x001A7000	n/a	fixed image span
+PE.DllCharacteristics	0x0000	n/a	zero; no dynamic-base flag
+PE.BaseRelocationDirectory	rva=0x00000000,size=0x0	n/a	empty and COFF relocations-stripped bit is set

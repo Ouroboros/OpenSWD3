@@ -1,0 +1,16 @@
+stage	assembly_addresses	exact_contract	compatibility_consequence
+win32_window	0x00409F96-0x00409FCF	popup 640x480 window: exStyle=0x00040000, style=0x86000000, initial position=(-1800,0)	window object precedes DirectDraw exclusive initialization
+current_init_arguments	0x00424F96-0x00424FB2	sub_437570(hwnd,0x4E22,640,480,16)	only call in the complete assembly
+directdraw_interface	0x00437610-0x00437671	DirectDrawCreate then QueryInterface to the wrapper's active interface at +0x00	failures return zero after message/release
+cooperative_level	0x00437598-0x004376C5	0x4E21 would select 0x08; current 0x4E22 selects flags 0x13	current executable enters exclusive/full-screen cooperative mode; alternate branch has no caller
+display_mode	0x004376D0-0x00437719	SetDisplayMode(640,480,16,0,1)	failure releases DirectDraw and aborts initialization
+primary_and_clipper	0x004377D0-0x004379AE	create primary caps=0x200 at +0x04; create HWND clipper at +0x10 and attach it	current full-screen branch records primary dimensions in both geometry pairs
+alternate_normal_surface	0x004379AE-0x00437A3C	only cooperative flags==0x08: create GetSystemMetrics-sized 0x2840 surface at +0x08	physically present but unreachable from the sole 0x4E22 initializer
+game_software_surface	0x00424FF2-0x00425010,0x00437B60-0x00437BF4	create 640x480 surface with desc flags=7 and caps=0x2840; store at 0x004ACBA0	creation result is not checked before later use
+pixel_geometry	0x00423400-0x0042347A,0x00416D30-0x00416D81	Lock once; store actual pitch bytes/width/height; build per-row byte offsets	static defaults are 0x500/640/480, but queried values become active
+framebuffer_pointer	0x00416F10-0x00416F72	common Lock returns lpSurface, stores pitch/2 shadow, then common Unlock takes that pointer	19 paths publish 0x004CD76C and Unlock before later software writes; failure is generally unchecked
+primary_commits	21 callsites in primary-presentation-paths.tsv	18 whole-surface NULL-RECT commits; two dynamic battle displacement commits; one Bink 639x479 commit	nine use DDBLT_WAIT, twelve use flags zero; only Bink interprets normal commit HRESULT
+deactivate	0x0040AB50-0x0040ABDD	maintain audio/battle state, destroy three font renderers, set active=0 and suppression=1, ShowWindow(SW_MINIMIZE=6)	does not destroy DirectDraw wrapper objects and does not call the DirectInput wrapper
+reactivate	0x0040ABDE-0x0040ACBE	ShowWindow(SW_RESTORE=9), SetWindowPos(0,0,640,480), Restore primary/game surfaces, rebuild row offsets and three font renderers, then battle state	does not call SetCooperativeLevel, SetDisplayMode, or the DirectInput wrapper again
+recovery_loop	0x0040ACBE-0x0040ACFA,0x00437AE0-0x00437B59	loop until GetGDISurface equals selector 0x2711; current bit0 path waits for vertical blank and calls Flip	alternate normal path retries Blt forever and restores both surfaces only on DDERR_SURFACELOST
+teardown	0x004252DD-0x004252FA,0x00437A50-0x00437ADC	release game surface; release wrapper surfaces/clipper/primary; if flags&0x10 RestoreDisplayMode; release DirectDraw	release order is fixed; globals are not uniformly zeroed before process exit

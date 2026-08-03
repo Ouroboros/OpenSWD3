@@ -1,0 +1,32 @@
+effective_opcode	branch_kind	target_shape	target_offset	sequential_possible	selector_behavior	call_site	assembly_evidence
+15	unconditional_same_file_reload	u32	+2	no	single target	0x0042CCDB	0x00428310-0x00428313;0x0042CCD5-0x0042CCDB
+16	conditional_same_file_reload	u32	+4	yes	role presence/state predicate	0x00428388/0x0042841D	0x00428318-0x00428447
+17	conditional_same_file_reload	u32	+4	yes	role presence/state predicate	0x00428388/0x0042841D	0x00428318-0x00428447
+21	conditional_same_file_reload	u32	+4	yes	flag predicate, inverted between opcodes	0x0042CCDB	0x00428533-0x00428576
+22	conditional_same_file_reload	u32	+4	yes	flag predicate, inverted between opcodes	0x0042CCDB	0x00428533-0x00428576
+23	conditional_same_file_reload	u32_after_ff00	after list sentinel	yes	all/any flag-list predicate	0x0042CCDB	0x0042857F-0x00428656
+24	conditional_same_file_reload	u32_after_ff00	after list sentinel	yes	all/any flag-list predicate	0x0042CCDB	0x0042857F-0x00428656
+32	conditional_same_file_reload	u32	+6	yes	global numeric >= / <= predicate	0x0042B1AB	0x0042B13D-0x0042B1E4
+33	conditional_same_file_reload	u32	+6	yes	global numeric >= / <= predicate	0x0042B1AB	0x0042B13D-0x0042B1E4
+35	conditional_same_file_reload	u32	+4	yes	global index range predicate	0x00428956/0x00428994	0x00428934-0x004289AB
+36	conditional_same_file_reload	u32	+4	yes	global index range predicate	0x00428956/0x00428994	0x00428934-0x004289AB
+41	indexed_same_file_reload	u32_list_ff00ff00	+2	no	global selector; selector==count reads sentinel as target; selector>count falls back to zero	0x00428CF2	0x00428C9F-0x00428D13
+87	random_same_file_reload	u32_list_ff00ff00	+2	no	sub_439070(count) returns 0..count-1; count zero divides by zero	0x0042A70B	0x0042A6CB-0x0042A722;0x00439070-0x004390E0
+110	conditional_same_file_reload	u32	+2	yes	party-state predicate, inverted for opcode 111	0x0042CCDB	0x0042B6A5-0x0042B703
+111	conditional_same_file_reload	u32	+2	yes	party-state predicate, inverted for opcode 111	0x0042CCDB	0x0042B6A5-0x0042B703
+126	conditional_same_file_reload	u32	+6	yes	role field equality predicate, inverted for opcode 127	0x0042BE4D	0x0042BDBC-0x0042BE85
+127	conditional_same_file_reload	u32	+6	yes	role field equality predicate, inverted for opcode 127	0x0042BE4D	0x0042BDBC-0x0042BE85
+129	conditional_same_file_reload	u32	+4	yes	role lookup/existence predicate refined by opcode	0x0042CCDB	0x0042BEFE-0x0042BF6D
+130	conditional_same_file_reload	u32	+4	yes	role lookup/existence predicate refined by opcode	0x0042CCDB	0x0042BEFE-0x0042BF6D
+138	conditional_same_file_reload	u32	+10	yes	distance threshold predicate	0x0042CCDB	0x0042C49E-0x0042C554
+161	unconditional_story_reload	s16_story_id	+2	no	sign-extended operand passed to unsigned file/slot arithmetic	0x0042CBE3	0x0042CBCC-0x0042CBFA;0x0042E480-0x0042E594
+163	conditional_same_file_reload	u32	+4	yes	argument/global equality predicate, inverted between opcodes	0x0042CCDB	0x0042CBFF-0x0042CC30
+164	conditional_same_file_reload	u32	+4	yes	argument/global equality predicate, inverted between opcodes	0x0042CCDB	0x0042CBFF-0x0042CC30
+165	conditional_same_file_reload	u32	+6	yes	combined role statistic threshold predicate	0x0042CCDB	0x0042CC35-0x0042CCF2
+166	conditional_same_file_reload	u32	+6	yes	combined role statistic threshold predicate	0x0042CCDB	0x0042CC35-0x0042CCF2
+167	conditional_same_file_reload	u32	+4	yes	role lookup/existence predicate refined by opcode	0x0042CCDB	0x0042BEFE-0x0042BF6D
+168	conditional_same_file_reload	u32	+4	yes	role lookup/existence predicate refined by opcode	0x0042CCDB	0x0042BEFE-0x0042BF6D
+184	conditional_same_file_reload	u32	+8	yes	32-bit global numeric >= / <= predicate	0x0042B1AB	0x0042B13D-0x0042B1E4
+185	conditional_same_file_reload	u32	+8	yes	32-bit global numeric >= / <= predicate	0x0042B1AB	0x0042B13D-0x0042B1E4
+186	conditional_same_file_reload	u32	+6	yes	sub_4112B0 result threshold predicate	0x0042D0C1	0x0042D05C-0x0042D0D3
+187	conditional_same_file_reload	u32	+6	yes	sub_4112B0 result threshold predicate	0x0042D0C1	0x0042D05C-0x0042D0D3

@@ -1,0 +1,6 @@
+case	input_hex	destination_capacity	lzo1x_safe_return	actual_output_size
+empty_exact_end_marker	110000	16	0	0
+end_marker_with_one_tail_byte	11000058	16	-8	0
+truncated_end_marker	1100	16	-4	0
+four_literals_output_capacity_three	0141424344110000	3	-5	0
+lookbehind_before_output	014142434440ff110000	64	-6	4

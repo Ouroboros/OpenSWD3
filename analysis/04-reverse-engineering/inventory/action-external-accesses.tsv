@@ -1,0 +1,202 @@
+action_offset_hex	access_width_bytes	access_kind	instruction_address	owner_function	base_register	proof_anchor	proof_note	assembly_instruction
+00	4	read	0040EC08	0040EBF0:sub_40EBF0	ESI	0040EBF1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040EC08                 mov     edx, [esi]
+00	4	read	0040ECD8	0040ECC0:sub_40ECC0	ESI	0040ECC1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040ECD8                 mov     edx, [esi]
+00	4	read	0040F83A	0040F6D0:sub_40F6D0	EDI	0040F805	EDI 由 0x004BABE8 加角色索引乘 0xD8 形成角色内嵌 ActionRecord 基址	0040F83A                 mov     eax, [edi]
+00	4	read	0043B098	0043B080:sub_43B080	ESI	0043B081	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0043B098                 mov     edx, [esi]
+00	4	read	00449C4B	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449C4B                 mov     edx, [edi]
+00	4	write	0045145D	00451420:sub_451420	EDI	00451436	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；EDI 保持对象起点，扫描严格截断于 0x98	0045145D                 mov     [edi], eax
+00	4	write	0045150F	00451420:sub_451420	EDI	00451436	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；EDI 保持对象起点，扫描严格截断于 0x98	0045150F                 mov     [edi], ecx
+00	4	write	00451559	00451540:sub_451540	ESI	00451541	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	00451559                 mov     [esi], eax
+00	4	write	00451627	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	00451627                 mov     [esi], ecx
+00	4	write	004516EA	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	004516EA                 mov     [esi], edx
+00	4	write	0047F95A	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047F95A                 mov     [ebp+0], ecx
+08	4	read	0040EC05	0040EBF0:sub_40EBF0	ESI	0040EBF1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040EC05                 mov     ecx, [esi+8]
+08	4	read	0040ECD5	0040ECC0:sub_40ECC0	ESI	0040ECC1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040ECD5                 mov     ecx, [esi+8]
+08	4	write	0040F814	0040F6D0:sub_40F6D0	EDI	0040F805	EDI 由 0x004BABE8 加角色索引乘 0xD8 形成角色内嵌 ActionRecord 基址	0040F814                 mov     [edi+8], eax
+08	4	read	0040F837	0040F6D0:sub_40F6D0	EDI	0040F805	EDI 由 0x004BABE8 加角色索引乘 0xD8 形成角色内嵌 ActionRecord 基址	0040F837                 mov     edx, [edi+8]
+08	4	read	0043B095	0043B080:sub_43B080	ESI	0043B081	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0043B095                 mov     ecx, [esi+8]
+08	4	read	00449C48	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449C48                 mov     ecx, [edi+8]
+08	4	write	0045145F	00451420:sub_451420	EDI	00451436	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；EDI 保持对象起点，扫描严格截断于 0x98	0045145F                 mov     dword ptr [edi+8], 0
+08	4	write	00451508	00451420:sub_451420	EDI	00451436	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；EDI 保持对象起点，扫描严格截断于 0x98	00451508                 mov     dword ptr [edi+8], 0
+08	4	write	0045155B	00451540:sub_451540	ESI	00451541	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	0045155B                 mov     dword ptr [esi+8], 0
+08	4	write	0045161D	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	0045161D                 mov     [esi+8], ebp
+08	4	write	004516E7	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	004516E7                 mov     [esi+8], ebp
+08	4	write	0047F95D	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047F95D                 mov     [ebp+8], eax
+10	4	read	0040EC66	0040EBF0:sub_40EBF0	ESI	0040EBF1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040EC66                 mov     eax, [esi+10h]
+10	4	read	0040ED44	0040ECC0:sub_40ECC0	ESI	0040ECC1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040ED44                 mov     eax, [esi+10h]
+10	4	read	0043B0FD	0043B080:sub_43B080	ESI	0043B081	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0043B0FD                 mov     eax, [esi+10h]
+10	4	read	00449CB3	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449CB3                 mov     ecx, [edi+10h]
+10	4	read	00449D07	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449D07                 mov     edx, [edi+10h]
+10	4	read	00449D53	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449D53                 mov     eax, [edi+10h]
+10	4	read	004515B8	00451540:sub_451540	ESI	00451541	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	004515B8                 mov     eax, [esi+10h]
+10	4	read	004516C1	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	004516C1                 mov     eax, [esi+10h]
+10	2	read	0047F9B7	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047F9B7                 mov     di, [ebp+10h]
+10	4	read	0047F9ED	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047F9ED                 cmp     dword ptr [ebp+10h], 0
+10	2	read	0047FA01	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047FA01                 sub     di, [ebp+10h]
+10	4	read	0047FA4E	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047FA4E                 mov     ecx, [ebp+10h]
+10	2	read	0047FA58	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047FA58                 sub     di, [ebp+10h]
+10	2	read	0048320E	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048320E                 mov     cx, [edi+10h]
+10	2	read	00483271	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483271                 sub     cx, [edi+10h]
+10	2	read	004832DD	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004832DD                 sub     cx, [edi+10h]
+10	2	read	0048393F	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048393F                 mov     cx, [edi+10h]
+10	4	read	0048398C	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048398C                 mov     eax, [edi+10h]
+10	2	read	0048399D	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048399D                 sub     dx, [edi+10h]
+10	4	read	004839EF	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004839EF                 mov     eax, [edi+10h]
+10	2	read	00483A00	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483A00                 sub     cx, [edi+10h]
+10	2	read	00483BA2	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483BA2                 mov     cx, [edi+10h]
+10	4	read	00483BE5	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483BE5                 mov     eax, [edi+10h]
+10	2	read	00483BF6	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483BF6                 sub     ax, [edi+10h]
+10	4	read	00483C2D	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483C2D                 mov     eax, [edi+10h]
+10	2	read	00483E17	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483E17                 mov     cx, [edi+10h]
+10	2	read	00483E56	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483E56                 sub     cx, [edi+10h]
+10	2	read	00484269	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00484269                 mov     cx, [edi+10h]
+10	2	read	004842BC	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004842BC                 sub     cx, [edi+10h]
+10	2	read	0048431A	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048431A                 sub     dx, [edi+10h]
+14	4	read	0040EC62	0040EBF0:sub_40EBF0	ESI	0040EBF1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040EC62                 sub     eax, [esi+14h]
+14	4	read	0040ED3E	0040ECC0:sub_40ECC0	ESI	0040ECC1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040ED3E                 mov     edx, [esi+14h]
+14	4	read	0043B0F7	0043B080:sub_43B080	ESI	0043B081	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0043B0F7                 mov     edx, [esi+14h]
+14	4	read	00449CAF	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449CAF                 mov     eax, [edi+14h]
+14	4	read	00449D00	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449D00                 mov     edx, [edi+14h]
+14	4	read	00449D41	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449D41                 mov     eax, [edi+14h]
+14	4	read	004515B4	00451540:sub_451540	ESI	00451541	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	004515B4                 sub     eax, [esi+14h]
+14	4	read	004516BD	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	004516BD                 sub     eax, [esi+14h]
+14	2	read	0047FA8A	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047FA8A                 sub     ax, [ebp+14h]
+14	2	read	0048337F	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048337F                 sub     cx, [edi+14h]
+14	2	read	004833F3	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004833F3                 sub     ax, [edi+14h]
+14	4	read	004834F8	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004834F8                 mov     ecx, [edi+14h]
+14	2	read	00483A57	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483A57                 sub     dx, [edi+14h]
+14	4	read	00483CBA	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483CBA                 mov     ecx, [edi+14h]
+14	4	read	00483D4D	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483D4D                 mov     ebx, [edi+14h]
+14	2	read	00483EAC	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483EAC                 sub     ax, [edi+14h]
+14	2	read	00484354	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00484354                 sub     dx, [edi+14h]
+14	4	read	00484447	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00484447                 mov     ebp, [edi+14h]
+18	4	read	0040EC46	0040EBF0:sub_40EBF0	ESI	0040EBF1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040EC46                 mov     edx, [esi+18h]
+18	4	read	0040ED16	0040ECC0:sub_40ECC0	ESI	0040ECC1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040ED16                 mov     edx, [esi+18h]
+18	4	read	0043B0D2	0043B080:sub_43B080	ESI	0043B081	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0043B0D2                 mov     edx, [esi+18h]
+18	4	read	0045158F	00451540:sub_451540	ESI	00451541	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	0045158F                 mov     edx, [esi+18h]
+18	4	read	00451698	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	00451698                 mov     edx, [esi+18h]
+18	4	read	0047F9B4	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047F9B4                 mov     ecx, [ebp+18h]
+18	4	read	00483205	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483205                 mov     eax, [edi+18h]
+18	4	read	00483936	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483936                 mov     eax, [edi+18h]
+18	4	read	00483B93	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483B93                 mov     eax, [edi+18h]
+18	4	read	00483E0E	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483E0E                 mov     edx, [edi+18h]
+18	4	read	00484260	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00484260                 mov     edx, [edi+18h]
+20	4	read	0040F80D	0040F6D0:sub_40F6D0	EDI	0040F805	EDI 由 0x004BABE8 加角色索引乘 0xD8 形成角色内嵌 ActionRecord 基址	0040F80D                 mov     eax, [edi+20h]
+20	4	write	0040F822	0040F6D0:sub_40F6D0	EDI	0040F805	EDI 由 0x004BABE8 加角色索引乘 0xD8 形成角色内嵌 ActionRecord 基址	0040F822                 mov     [edi+20h], ebx
+34	4	read	0040EC02	0040EBF0:sub_40EBF0	ESI	0040EBF1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040EC02                 mov     eax, [esi+34h]
+34	4	read	0040ECD2	0040ECC0:sub_40ECC0	ESI	0040ECC1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040ECD2                 mov     eax, [esi+34h]
+34	4	write	0040F81E	0040F6D0:sub_40F6D0	EDI	0040F805	EDI 由 0x004BABE8 加角色索引乘 0xD8 形成角色内嵌 ActionRecord 基址	0040F81E                 mov     [edi+34h], eax
+34	4	read	0040F834	0040F6D0:sub_40F6D0	EDI	0040F805	EDI 由 0x004BABE8 加角色索引乘 0xD8 形成角色内嵌 ActionRecord 基址	0040F834                 mov     ecx, [edi+34h]
+34	4	read	0043B092	0043B080:sub_43B080	ESI	0043B081	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0043B092                 mov     eax, [esi+34h]
+34	4	read	00449C45	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449C45                 mov     eax, [edi+34h]
+3C	4	read	0040F817	0040F6D0:sub_40F6D0	EDI	0040F805	EDI 由 0x004BABE8 加角色索引乘 0xD8 形成角色内嵌 ActionRecord 基址	0040F817                 mov     eax, [edi+3Ch]
+3C	4	write	0040F825	0040F6D0:sub_40F6D0	EDI	0040F805	EDI 由 0x004BABE8 加角色索引乘 0xD8 形成角色内嵌 ActionRecord 基址	0040F825                 mov     [edi+3Ch], ebx
+42	2	read	004514F7	00451420:sub_451420	EDI	00451436	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；EDI 保持对象起点，扫描严格截断于 0x98	004514F7                 cmp     word ptr [edi+42h], 0
+42	2	read	004516CF	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	004516CF                 cmp     [esi+42h], bp
+44	2	write	004516D3	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	004516D3                 mov     [esi+44h], bp
+46	2	write	004516D7	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	004516D7                 mov     [esi+46h], bp
+4A	2	read	0040EC25	0040EBF0:sub_40EBF0	ESI	0040EBF1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040EC25                 mov     cx, [esi+4Ah]
+4A	2	read	0040ECF5	0040ECC0:sub_40ECC0	ESI	0040ECC1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040ECF5                 mov     cx, [esi+4Ah]
+4A	2	read	0043B0B5	0043B080:sub_43B080	ESI	0043B081	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0043B0B5                 mov     cx, [esi+4Ah]
+4A	2	read	00449C6B	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449C6B                 mov     cx, [edi+4Ah]
+4A	2	read	004514A7	00451420:sub_451420	EDI	00451436	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；EDI 保持对象起点，扫描严格截断于 0x98	004514A7                 mov     dx, [edi+4Ah]
+4A	2	read	0047F991	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047F991                 mov     ax, [ebp+4Ah]
+4A	2	read	004831EC	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004831EC                 mov     cx, [edi+4Ah]
+4A	2	read	0048391D	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048391D                 mov     cx, [edi+4Ah]
+4A	2	read	00483B4E	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483B4E                 mov     cx, [edi+4Ah]
+4A	2	read	00483DFD	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483DFD                 mov     cx, [edi+4Ah]
+4A	2	read	0048424D	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048424D                 mov     cx, [edi+4Ah]
+4C	2	read	0040EC21	0040EBF0:sub_40EBF0	ESI	0040EBF1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040EC21                 mov     ax, [esi+4Ch]
+4C	2	read	0040ECF1	0040ECC0:sub_40ECC0	ESI	0040ECC1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040ECF1                 mov     ax, [esi+4Ch]
+4C	2	read	0043B0B1	0043B080:sub_43B080	ESI	0043B081	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0043B0B1                 mov     ax, [esi+4Ch]
+4C	2	read	00449C67	00449C30:sub_449C30	EDI	00449C34	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00449C67                 mov     ax, [edi+4Ch]
+4C	2	read	00451493	00451420:sub_451420	EDI	00451436	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；EDI 保持对象起点，扫描严格截断于 0x98	00451493                 mov     ax, [edi+4Ch]
+4C	2	read	004514B6	00451420:sub_451420	EDI	00451436	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；EDI 保持对象起点，扫描严格截断于 0x98	004514B6                 mov     cx, [edi+4Ch]
+4C	2	read	004514CA	00451420:sub_451420	EDI	00451436	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；EDI 保持对象起点，扫描严格截断于 0x98	004514CA                 mov     ax, [edi+4Ch]
+4C	2	read	0045156B	00451540:sub_451540	ESI	00451541	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	0045156B                 mov     ax, [esi+4Ch]
+4C	2	read	0045158B	00451540:sub_451540	ESI	00451541	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	0045158B                 mov     cx, [esi+4Ch]
+4C	2	read	00451641	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	00451641                 mov     cx, [esi+4Ch]
+4C	2	read	00451680	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	00451680                 mov     cx, [esi+4Ch]
+4C	2	read	00451694	004515E0:sub_4515E0	ESI	004515E9	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	00451694                 mov     cx, [esi+4Ch]
+4C	2	read	0047F98D	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047F98D                 mov     dx, [ebp+4Ch]
+4C	2	read	004831E8	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004831E8                 mov     ax, [edi+4Ch]
+4C	2	read	00483919	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483919                 mov     ax, [edi+4Ch]
+4C	2	read	00483B4A	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483B4A                 mov     ax, [edi+4Ch]
+4C	2	read	00483DF9	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483DF9                 mov     ax, [edi+4Ch]
+4C	2	read	00484249	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00484249                 mov     ax, [edi+4Ch]
+4E	2	read	004835CF	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004835CF                 mov     cx, [edi+4Eh]
+4E	2	write	004836E0	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004836E0                 mov     [edi+4Eh], bx
+50	2	read	004835DC	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004835DC                 mov     ax, [edi+50h]
+50	2	write	004836E4	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004836E4                 mov     [edi+50h], bx
+58	2	read	0047FBB1	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047FBB1                 mov     ax, [ebp+58h]
+58	2	write	0047FBC0	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047FBC0                 mov     word ptr [ebp+58h], 0
+58	2	read	00483404	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483404                 mov     dx, [edi+58h]
+58	2	read	00483429	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483429                 mov     dx, [edi+58h]
+58	2	read	00483432	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483432                 mov     ax, [edi+58h]
+58	2	write	0048343E	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048343E                 mov     [edi+58h], bx
+58	2	read	00483AB8	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483AB8                 mov     cx, [edi+58h]
+58	2	read	00483ACF	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483ACF                 mov     dx, [edi+58h]
+58	2	read	00483AD8	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483AD8                 mov     ax, [edi+58h]
+58	2	write	00483AE7	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483AE7                 mov     [edi+58h], bx
+58	2	read	00483B65	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483B65                 mov     ax, [edi+58h]
+58	2	read	00483B7E	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483B7E                 mov     cx, [edi+58h]
+58	2	read	00483B87	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483B87                 mov     dx, [edi+58h]
+58	2	write	00483B96	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483B96                 mov     word ptr [edi+58h], 0
+58	2	read	00483F09	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483F09                 mov     cx, [edi+58h]
+58	2	read	00483F20	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483F20                 mov     dx, [edi+58h]
+58	2	read	00483F29	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483F29                 mov     ax, [edi+58h]
+58	2	write	00483F3E	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483F3E                 mov     [edi+58h], ax
+58	2	read	00484364	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00484364                 mov     cx, [edi+58h]
+58	2	read	0048438A	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048438A                 mov     cx, [edi+58h]
+58	2	read	00484393	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00484393                 mov     dx, [edi+58h]
+58	2	write	0048439F	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048439F                 mov     word ptr [edi+58h], 0
+5A	1	read	00483B01	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483B01                 test    byte ptr [edi+5Ah], 4
+5A	2	write	00483B09	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483B09                 mov     [edi+5Ah], bx
+5A	1	read	00483F53	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483F53                 test    byte ptr [edi+5Ah], 4
+5A	2	write	00483F5D	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483F5D                 mov     [edi+5Ah], ax
+5B	1	read	00483AEB	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483AEB                 test    byte ptr [edi+5Bh], 80h
+5B	1	read	00483F3A	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483F3A                 test    byte ptr [edi+5Bh], 80h
+5E	2	read	0048322A	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048322A                 mov     ax, [edi+5Eh]
+5E	2	read	00483620	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483620                 mov     cx, [edi+5Eh]
+5E	2	read	00483662	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483662                 mov     cx, [edi+5Eh]
+5E	2	write	004836E8	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004836E8                 mov     [edi+5Eh], bx
+60	2	read	004836B5	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004836B5                 movsx   ecx, word ptr [edi+60h]
+60	2	write	004836EC	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004836EC                 mov     [edi+60h], bx
+76	2	read	0047F9AA	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047F9AA                 mov     bx, [ebp+76h]
+76	2	read	0047FA16	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047FA16                 movsx   edx, word ptr [ebp+76h]
+76	2	read	0047FA5C	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047FA5C                 cmp     word ptr [ebp+76h], 0
+76	2	read	00483219	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483219                 mov     dx, [edi+76h]
+76	2	read	0048327C	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	0048327C                 mov     cx, [edi+76h]
+76	2	read	004832E8	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004832E8                 mov     cx, [edi+76h]
+76	2	read	00483950	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483950                 mov     dx, [edi+76h]
+76	2	read	004839A8	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004839A8                 mov     ax, [edi+76h]
+76	2	read	00483A0B	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483A0B                 mov     ax, [edi+76h]
+76	2	read	00483A64	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483A64                 cmp     [edi+76h], bx
+76	2	read	00483E28	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483E28                 mov     dx, [edi+76h]
+76	2	read	00483E61	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483E61                 mov     cx, [edi+76h]
+76	2	read	00483EB3	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483EB3                 cmp     word ptr [edi+76h], 0
+76	2	read	00484274	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00484274                 mov     dx, [edi+76h]
+76	2	read	004842C7	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004842C7                 mov     cx, [edi+76h]
+76	2	read	00484325	00484230:sub_484230	EDI	00484232	函数第三参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00484325                 mov     cx, [edi+76h]
+78	2	read	0047FAB5	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047FAB5                 movsx   ecx, word ptr [ebp+78h]
+78	2	read	0047FAF2	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047FAF2                 movsx   eax, word ptr [ebp+78h]
+78	2	read	00483A6A	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483A6A                 cmp     [edi+78h], bx
+78	2	read	00483A9F	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483A9F                 sub     bx, [edi+78h]
+78	2	read	00483EBA	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483EBA                 cmp     word ptr [edi+78h], 0
+78	2	read	00483EF2	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483EF2                 sub     dx, [edi+78h]
+88	1	read	0045147E	00451420:sub_451420	EDI	00451436	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；EDI 保持对象起点，扫描严格截断于 0x98	0045147E                 mov     al, [edi+88h]
+8A	1	read	0040EC3A	0040EBF0:sub_40EBF0	ESI	0040EBF1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040EC3A                 mov     cl, [esi+8Ah]
+8A	1	read	0040ED0A	0040ECC0:sub_40ECC0	ESI	0040ECC1	函数参数已由全调用点目录确认是 ActionRecord*；ESI 到函数结束前未改写	0040ED0A                 mov     cl, [esi+8Ah]
+8A	1	read	00483533	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483533                 mov     al, [edi+8Ah]
+8A	1	read	00483D35	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483D35                 mov     dl, [edi+8Ah]
+8C	4	read	004515D0	00451540:sub_451540	ESI	00451541	ECX 指向以 ActionRecord 为首成员、至少使用到 +0xC0 的包装记录；ESI 保持对象起点，扫描严格截断于 0x98	004515D0                 mov     eax, [esi+8Ch]
+8C	4	read	004836D3	004831C0:sub_4831C0	EDI	004831C7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004836D3                 mov     eax, [edi+8Ch]
+8C	4	read	00483B12	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483B12                 mov     ecx, [edi+8Ch]
+8C	4	read	00483C56	00483B30:sub_483B30	EDI	00483B33	函数参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483C56                 mov     eax, [edi+8Ch]
+8C	4	read	00483FA7	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483FA7                 mov     ecx, [edi+8Ch]
+90	4	write	0047F960	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047F960                 mov     [ebp+90h], eax
+90	4	write	0047F976	0047F940:sub_47F940	EBP	0047F945	函数第二参数已由全调用点目录确认是 ActionRecord*；EBP 到函数结束前未改写	0047F976                 mov     [ebp+90h], eax
+90	4	write	004838E4	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004838E4                 mov     [edi+90h], ebx
+90	4	write	004838FC	004838D0:sub_4838D0	EDI	004838D7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	004838FC                 mov     [edi+90h], ebp
+90	4	write	00483DC4	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483DC4                 mov     [edi+90h], ebp
+90	4	write	00483DDC	00483DB0:sub_483DB0	EDI	00483DB7	函数第二参数已由全调用点目录确认是 ActionRecord*；EDI 到函数结束前未改写	00483DDC                 mov     [edi+90h], ebx

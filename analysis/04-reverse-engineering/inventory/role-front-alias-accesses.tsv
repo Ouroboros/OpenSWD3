@@ -1,0 +1,222 @@
+role_offset_hex	access_width_bytes	access_kind	instruction_address	owner_function	base_register	register_role_delta_hex	proof_anchor	proof_note	assembly_instruction
+00		address	004054C0	00405430:sub_405430	ESI	+0x10	00405445	ESI 从第二条角色记录 +0x10 开始并按 0xD8 遍历；字段偏移需加上该基址偏移	004054C0                 lea     ecx, [esi-10h]
+00		address	004054D2	00405430:sub_405430	ESI	+0x10	00405445	ESI 从第二条角色记录 +0x10 开始并按 0xD8 遍历；字段偏移需加上该基址偏移	004054D2                 lea     edx, [esi-10h]
+04	4	read	0040356D	00402F80:sub_402F80	EBX	+0x0	00402FA8	角色索引先乘 0xD8，再由 0x004BABA8 形成精确角色基址；到 0x00403763 改写 EBX 前为止	0040356D                 mov     ecx, [ebx+4]
+04	4	read	004035A3	00402F80:sub_402F80	EBX	+0x0	00402FA8	角色索引先乘 0xD8，再由 0x004BABA8 形成精确角色基址；到 0x00403763 改写 EBX 前为止	004035A3                 mov     ecx, [ebx+4]
+04	4	read	0040360C	00402F80:sub_402F80	EBX	+0x0	00402FA8	角色索引先乘 0xD8，再由 0x004BABA8 形成精确角色基址；到 0x00403763 改写 EBX 前为止	0040360C                 mov     esi, [ebx+4]
+04	4	read	0040361D	00402F80:sub_402F80	EBX	+0x0	00402FA8	角色索引先乘 0xD8，再由 0x004BABA8 形成精确角色基址；到 0x00403763 改写 EBX 前为止	0040361D                 mov     edx, [ebx+4]
+04	1	read	0040559F	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040559F                 test    byte ptr [ebp+4], 0Fh
+04	4	read	00405E00	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405E00                 mov     edx, [ebp+4]
+04	4	write	0040603D	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040603D                 mov     [ebp+4], eax
+04	4	read	00406046	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00406046                 mov     ecx, [ebp+4]
+04	4	read	00406192	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00406192                 mov     ecx, [ebp+4]
+04	1	read	0040D668	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D668                 mov     al, [esi+4]
+04	1	read	0040D682	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D682                 mov     al, [esi+4]
+04	4	read_write	0040D6AE	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D6AE                 sub     [esi+4], edx
+04	1	read	0040D6B1	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D6B1                 mov     dl, [esi+4]
+04	4	read	0040F2CC	0040F280:sub_40F280	ESI	+0x0	0040F281	函数参数直接装入 ESI；调用者传入角色记录，且 ESI 在函数内保持不变	0040F2CC                 mov     edx, [esi+4]
+04	4	read	0041212C	004120B0:sub_4120B0	EBX	+0x0	00412121	主角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041212C                 mov     eax, [ebx+4]
+04	4	write	00412134	004120B0:sub_4120B0	EBX	+0x0	00412121	主角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412134                 mov     [ebx+4], eax
+04	4	read	00412278	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412278                 mov     eax, [esi+4]
+04	4	write	00412280	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412280                 mov     [esi+4], eax
+04	4	read	004122B3	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004122B3                 mov     eax, [esi+4]
+04	4	read	0041256D	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041256D                 mov     edx, [esi+4]
+04	4	write	00412572	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412572                 mov     [esi+4], edx
+04	1	read	00412719	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	00412719                 test    byte ptr [ebx+4], 0Fh
+04	4	read	004127A0	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	004127A0                 mov     eax, [ebx+4]
+04	4	read	004127EA	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	004127EA                 mov     eax, [ebx+4]
+04	4	read	0042738F	00427300:sub_427300	EDI	+0x1e	00427366	EDI 从第二条角色记录 +0x1E 开始并按 0xD8 遍历；字段偏移需减去该基址偏移	0042738F                 mov     ecx, [edi-1Ah]
+04	4	read	00427538	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	00427538                 mov     edx, [edi+4]
+04	4	read	00427622	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	00427622                 mov     edx, [edi+4]
+04	4	read	00427813	00427300:sub_427300	ESI	+0x0	0042732D	主角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	00427813                 mov     ebp, [esi+4]
+04	4	read	0042785C	00427300:sub_427300	ESI	+0x0	0042732D	主角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0042785C                 mov     edi, [esi+4]
+08	4	read	004035CD	00402F80:sub_402F80	EBX	+0x0	00402FA8	角色索引先乘 0xD8，再由 0x004BABA8 形成精确角色基址；到 0x00403763 改写 EBX 前为止	004035CD                 mov     edx, [ebx+8]
+08	4	read	004035F3	00402F80:sub_402F80	EBX	+0x0	00402FA8	角色索引先乘 0xD8，再由 0x004BABA8 形成精确角色基址；到 0x00403763 改写 EBX 前为止	004035F3                 mov     esi, [ebx+8]
+08	4	read	00403633	00402F80:sub_402F80	EBX	+0x0	00402FA8	角色索引先乘 0xD8，再由 0x004BABA8 形成精确角色基址；到 0x00403763 改写 EBX 前为止	00403633                 mov     eax, [ebx+8]
+08	4	read	00403641	00402F80:sub_402F80	EBX	+0x0	00402FA8	角色索引先乘 0xD8，再由 0x004BABA8 形成精确角色基址；到 0x00403763 改写 EBX 前为止	00403641                 mov     edx, [ebx+8]
+08	1	read	004055A9	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004055A9                 test    byte ptr [ebp+8], 0Fh
+08	4	read	00405DFD	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405DFD                 mov     ecx, [ebp+8]
+08	4	write	0040604C	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040604C                 mov     [ebp+8], eax
+08	4	read	0040618F	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040618F                 mov     eax, [ebp+8]
+08	1	read	0040D66F	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D66F                 test    [esi+8], bl
+08	1	read	0040D6B8	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D6B8                 test    [esi+8], bl
+08	4	read	0040D6CC	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D6CC                 mov     edx, [esi+8]
+08	4	write	0040D6D3	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D6D3                 mov     [esi+8], edx
+08	4	read	0040D6DA	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D6DA                 mov     edx, [esi+8]
+08	4	read	0040F2C4	0040F280:sub_40F280	ESI	+0x0	0040F281	函数参数直接装入 ESI；调用者传入角色记录，且 ESI 在函数内保持不变	0040F2C4                 mov     ecx, [esi+8]
+08	4	read	0041212F	004120B0:sub_4120B0	EBX	+0x0	00412121	主角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041212F                 mov     ebp, [ebx+8]
+08	4	write	0041214D	004120B0:sub_4120B0	EBX	+0x0	00412121	主角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041214D                 mov     [ebx+8], ebp
+08	4	read	0041227D	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041227D                 mov     ebx, [esi+8]
+08	4	write	0041228B	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041228B                 mov     [esi+8], ebx
+08	4	read	004122C7	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004122C7                 mov     eax, [esi+8]
+08	4	read	00412577	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412577                 mov     edx, [esi+8]
+08	4	write	0041257E	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041257E                 mov     [esi+8], edx
+08	4	read	00412723	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	00412723                 mov     eax, [ebx+8]
+08	4	read	004127B0	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	004127B0                 mov     eax, [ebx+8]
+08	4	read	004127F5	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	004127F5                 mov     ecx, [ebx+8]
+08	4	read	004273A0	00427300:sub_427300	EDI	+0x1e	00427366	EDI 从第二条角色记录 +0x1E 开始并按 0xD8 遍历；字段偏移需减去该基址偏移	004273A0                 mov     edx, [edi-16h]
+08	4	read	0042752F	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	0042752F                 mov     edx, [edi+8]
+08	4	read	0042762B	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	0042762B                 mov     eax, [edi+8]
+08	4	read	00427825	00427300:sub_427300	ESI	+0x0	0042732D	主角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	00427825                 mov     ebp, [esi+8]
+08	4	read	00427859	00427300:sub_427300	ESI	+0x0	0042732D	主角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	00427859                 mov     edx, [esi+8]
+0C	4	write	00406067	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00406067                 mov     [ebp+0Ch], eax
+0C	4	write	0040F2ED	0040F280:sub_40F280	ESI	+0x0	0040F281	函数参数直接装入 ESI；调用者传入角色记录，且 ESI 在函数内保持不变	0040F2ED                 mov     [esi+0Ch], ecx
+0C	4	read	004123B6	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004123B6                 mov     eax, [esi+0Ch]
+0C	4	write	004123C0	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004123C0                 mov     [esi+0Ch], eax
+0C	4	read	004123E1	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004123E1                 mov     ecx, [esi+0Ch]
+0C	4	read	00412427	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412427                 mov     ecx, [esi+0Ch]
+0C	4	read	004125BC	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004125BC                 mov     edi, [esi+0Ch]
+0C	4	write	004125C7	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004125C7                 mov     [esi+0Ch], edi
+0C	4	read	004125E7	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004125E7                 mov     ecx, [esi+0Ch]
+0C	4	read	0041276F	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	0041276F                 mov     esi, [ebx+0Ch]
+0C	4	write	0041277A	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	0041277A                 mov     [ebx+0Ch], esi
+0C	4	read	0041280F	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	0041280F                 mov     ecx, [ebx+0Ch]
+10	4	read	0040544A	00405430:sub_405430	ESI	+0x10	00405445	ESI 从第二条角色记录 +0x10 开始并按 0xD8 遍历；字段偏移需加上该基址偏移	0040544A                 mov     eax, [esi]
+10	4	read	004055D7	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004055D7                 mov     eax, [ebp+10h]
+10	4	write	004055E7	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004055E7                 mov     [ebp+10h], eax
+10	4	read	00405613	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405613                 mov     eax, [ebp+10h]
+10	4	read_write	00405E72	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405E72                 or      dword ptr [ebp+10h], 4000000h
+10	4	read	004060B4	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004060B4                 mov     edx, [ebp+10h]
+10	4	read	0040D6DD	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D6DD                 mov     eax, [esi+10h]
+10	4	read	0040D763	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D763                 mov     edx, [esi+10h]
+10	4	write	0040D772	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D772                 mov     [esi+10h], edx
+10	4	read	0040F2C1	0040F280:sub_40F280	ESI	+0x0	0040F281	函数参数直接装入 ESI；调用者传入角色记录，且 ESI 在函数内保持不变	0040F2C1                 mov     eax, [esi+10h]
+10	4	write	0040F2D2	0040F280:sub_40F280	ESI	+0x0	0040F281	函数参数直接装入 ESI；调用者传入角色记录，且 ESI 在函数内保持不变	0040F2D2                 mov     [esi+10h], eax
+10	4	write	0040F2FE	0040F280:sub_40F280	ESI	+0x0	0040F281	函数参数直接装入 ESI；调用者传入角色记录，且 ESI 在函数内保持不变	0040F2FE                 mov     [esi+10h], eax
+10	4	read	0040F30A	0040F280:sub_40F280	ESI	+0x0	0040F281	函数参数直接装入 ESI；调用者传入角色记录，且 ESI 在函数内保持不变	0040F30A                 mov     ecx, [esi+10h]
+10	4	write	0040F318	0040F280:sub_40F280	ESI	+0x0	0040F281	函数参数直接装入 ESI；调用者传入角色记录，且 ESI 在函数内保持不变	0040F318                 mov     [esi+10h], eax
+10	4	read	0040F320	0040F280:sub_40F280	ESI	+0x0	0040F281	函数参数直接装入 ESI；调用者传入角色记录，且 ESI 在函数内保持不变	0040F320                 mov     edx, [esi+10h]
+10	4	read	004122D8	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004122D8                 mov     eax, [esi+10h]
+10	4	write	004122EC	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004122EC                 mov     [esi+10h], eax
+10	4	read	0041232F	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041232F                 mov     eax, [esi+10h]
+10	4	write	00412341	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412341                 mov     [esi+10h], eax
+10	4	read_write	0041237F	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041237F                 and     dword ptr [esi+10h], 0FFFBFFFFh
+10	4	read	004123D9	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004123D9                 mov     eax, [esi+10h]
+10	4	write	004123E9	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004123E9                 mov     [esi+10h], eax
+10	4	write	004123F8	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004123F8                 mov     [esi+10h], eax
+10	4	read	00412403	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412403                 mov     eax, [esi+10h]
+10	4	write	0041240B	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041240B                 mov     [esi+10h], eax
+10	4	read	00412419	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412419                 mov     eax, [esi+10h]
+10	4	read	00412467	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412467                 mov     eax, [esi+10h]
+10	4	read	0041258C	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041258C                 mov     edx, [esi+10h]
+10	4	read	004125DF	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004125DF                 mov     eax, [esi+10h]
+10	4	write	004125EF	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004125EF                 mov     [esi+10h], eax
+10	4	write	004125FE	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004125FE                 mov     [esi+10h], eax
+10	4	read	00412609	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412609                 mov     eax, [esi+10h]
+10	4	write	00412611	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412611                 mov     [esi+10h], eax
+10	4	read	00412734	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	00412734                 mov     eax, [ebx+10h]
+10	4	read	00412807	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	00412807                 mov     eax, [ebx+10h]
+10	4	write	00412817	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	00412817                 mov     [ebx+10h], eax
+10	4	write	00412826	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	00412826                 mov     [ebx+10h], eax
+10	4	read	00412831	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	00412831                 mov     eax, [ebx+10h]
+10	4	write	00412839	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	00412839                 mov     [ebx+10h], eax
+10	4	read	0041283C	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	0041283C                 mov     eax, [ebx+10h]
+10	4	read	0042736B	00427300:sub_427300	EDI	+0x1e	00427366	EDI 从第二条角色记录 +0x1E 开始并按 0xD8 遍历；字段偏移需减去该基址偏移	0042736B                 mov     eax, [edi-0Eh]
+10	1	read	004273F8	00427300:sub_427300	EDI	+0x1e	00427366	EDI 从第二条角色记录 +0x1E 开始并按 0xD8 遍历；字段偏移需减去该基址偏移	004273F8                 test    byte ptr [edi-0Eh], 20h
+10	1	read	00427408	00427300:sub_427300	EDI	+0x1e	00427366	EDI 从第二条角色记录 +0x1E 开始并按 0xD8 遍历；字段偏移需减去该基址偏移	00427408                 mov     al, [edi-0Eh]
+10	4	read	00427547	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	00427547                 mov     eax, [edi+10h]
+10	4	read	00427619	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	00427619                 mov     ecx, [edi+10h]
+10	4	read	0042764D	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	0042764D                 mov     edx, [edi+10h]
+14	4	read	0041243E	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041243E                 mov     edx, [esi+14h]
+14	4	read	004275F1	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	004275F1                 mov     eax, [edi+14h]
+18	4	read	0040553C	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040553C                 mov     eax, [ebp+18h]
+18	4	read	0040558A	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040558A                 mov     eax, [ebp+18h]
+18	4	write	0040559A	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040559A                 mov     [ebp+18h], eax
+18	4	read	004055D2	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004055D2                 mov     ecx, [ebp+18h]
+18	4	write	004055E4	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004055E4                 mov     [ebp+18h], ecx
+18	4	read	004055FE	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004055FE                 mov     eax, [ebp+18h]
+18	4	write	0040560B	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040560B                 mov     [ebp+18h], eax
+18	4	read	004056A3	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004056A3                 mov     eax, [ebp+18h]
+18	4	write	004056AE	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004056AE                 mov     [ebp+18h], eax
+18	4	read	00405717	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405717                 mov     eax, [ebp+18h]
+18	4	write	00405724	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405724                 mov     [ebp+18h], eax
+18	4	read	00405775	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405775                 mov     eax, [ebp+18h]
+18	4	write	00405785	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405785                 mov     [ebp+18h], eax
+18	4	read	004059A5	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004059A5                 mov     ecx, [ebp+18h]
+18	4	write	004059B2	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004059B2                 mov     [ebp+18h], ecx
+18	4	read	00405BA9	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405BA9                 mov     ecx, [ebp+18h]
+18	4	write	00405BB6	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405BB6                 mov     [ebp+18h], ecx
+18	4	read	00405BD1	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405BD1                 mov     eax, [ebp+18h]
+18	4	write	00405BD9	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405BD9                 mov     [ebp+18h], eax
+18	4	read	00405C1F	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405C1F                 mov     eax, [ebp+18h]
+18	4	write	00405C2F	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405C2F                 mov     [ebp+18h], eax
+18	4	read	00405C68	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405C68                 mov     eax, [ebp+18h]
+18	4	write	00405C75	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405C75                 mov     [ebp+18h], eax
+18	4	read	00405DD1	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405DD1                 mov     edx, [ebp+18h]
+18	4	write	00405DE5	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405DE5                 mov     [ebp+18h], edx
+18	4	write	00405DF6	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405DF6                 mov     [ebp+18h], eax
+18	4	read	00405E9A	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405E9A                 mov     eax, [ebp+18h]
+18	4	write	00405EA5	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405EA5                 mov     [ebp+18h], eax
+18	4	write	00405EB2	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405EB2                 mov     [ebp+18h], ecx
+18	4	read	00405EBC	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405EBC                 mov     ebx, [ebp+18h]
+18	4	write	00405ED6	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405ED6                 mov     [ebp+18h], ebx
+18	4	read	00405F15	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405F15                 mov     ebx, [ebp+18h]
+18	4	write	00405F2F	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405F2F                 mov     [ebp+18h], ebx
+18	4	read	00405F84	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405F84                 mov     eax, [ebp+18h]
+18	4	write	00405F8A	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405F8A                 mov     [ebp+18h], eax
+18	4	read	00405FA3	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405FA3                 mov     eax, [ebp+18h]
+18	4	write	00405FAE	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405FAE                 mov     [ebp+18h], eax
+18	4	read	004060A4	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004060A4                 mov     ecx, [ebp+18h]
+18	4	write	004060C3	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004060C3                 mov     [ebp+18h], ecx
+18	4	read	0040613F	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040613F                 mov     ebx, [ebp+18h]
+18	4	write	00406150	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00406150                 mov     [ebp+18h], ebx
+18	4	read	004061A3	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004061A3                 mov     eax, [ebp+18h]
+18	4	write	004061AD	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004061AD                 mov     [ebp+18h], eax
+18	4	read	004061D1	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004061D1                 mov     eax, [ebp+18h]
+18	4	write	004061DB	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004061DB                 mov     [ebp+18h], eax
+18	4	read	0040622C	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040622C                 mov     ebx, [ebp+18h]
+18	4	write	0040623E	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040623E                 mov     [ebp+18h], ebx
+1C	2	read	0040546B	00405430:sub_405430	ESI	+0x10	00405445	ESI 从第二条角色记录 +0x10 开始并按 0xD8 遍历；字段偏移需加上该基址偏移	0040546B                 cmp     word ptr [esi+0Ch], 0
+1C	2	write	00405EAD	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405EAD                 mov     [ebp+1Ch], cx
+1E	2	write	0040D766	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D766                 mov     word ptr [esi+1Eh], 0
+1E	2	read	00412451	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412451                 mov     cx, [esi+1Eh]
+1E	2	read	00427373	00427300:sub_427300	EDI	+0x1e	00427366	EDI 从第二条角色记录 +0x1E 开始并按 0xD8 遍历；字段偏移需减去该基址偏移	00427373                 cmp     word ptr [edi], 0
+1E	2	read	00427604	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	00427604                 mov     dx, [edi+1Eh]
+1E	2	read	00427660	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	00427660                 mov     cx, [edi+1Eh]
+20	2	read	00412447	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412447                 mov     ax, [esi+20h]
+20	2	read	004275F9	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	004275F9                 mov     cx, [edi+20h]
+22	2	write	00405572	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405572                 mov     [ebp+22h], cx
+22	2	read	00405F6E	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405F6E                 mov     ax, [ebp+22h]
+22	2	write	00405F79	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405F79                 mov     [ebp+22h], ax
+22	2	read	00405F93	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405F93                 mov     ax, [ebp+22h]
+22	2	write	00405F9D	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405F9D                 mov     [ebp+22h], ax
+24	2	read	004037FC	00402F80:sub_402F80	EDI	+0x0	004037BF	从已保存的受控角色指针 var_B4 恢复精确角色基址	004037FC                 mov     ax, [edi+24h]
+24	2	read	004054A3	00405430:sub_405430	ESI	+0x10	00405445	ESI 从第二条角色记录 +0x10 开始并按 0xD8 遍历；字段偏移需加上该基址偏移	004054A3                 mov     ax, [esi+14h]
+24	2	read	00405637	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405637                 mov     dx, [ebp+24h]
+24	2	read	00405EF5	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405EF5                 mov     dx, [ebp+24h]
+24	2	read	00405F4E	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405F4E                 mov     cx, [ebp+24h]
+24	2	read	00405FD1	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405FD1                 mov     dx, [ebp+24h]
+24	2	read	00406082	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00406082                 mov     cx, [ebp+24h]
+24	2	read	004060AC	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004060AC                 mov     ax, [ebp+24h]
+24	2	read	0040616F	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040616F                 mov     dx, [ebp+24h]
+24	2	read	0040D6E6	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D6E6                 mov     cx, [esi+24h]
+24	2	read	0040D6FF	0040D610:sub_40D610	ESI	+0x0	0040D626	角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	0040D6FF                 mov     dx, [esi+24h]
+24	2	read	0040F2A9	0040F280:sub_40F280	ESI	+0x0	0040F281	函数参数直接装入 ESI；调用者传入角色记录，且 ESI 在函数内保持不变	0040F2A9                 mov     ax, [esi+24h]
+24	2	read	004121E4	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	004121E4                 mov     di, [esi+24h]
+24	2	read	00412344	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412344                 cmp     word ptr [esi+24h], 1
+24	2	read	0041245C	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041245C                 mov     dx, [esi+24h]
+24	2	read	0041248F	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	0041248F                 mov     cx, [esi+24h]
+24	2	read	00412591	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412591                 mov     ax, [esi+24h]
+24	2	read	00412630	004120B0:sub_4120B0	ESI	+0x0	00412542	队友角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412630                 mov     dx, [esi+24h]
+24	2	read	0041273C	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	0041273C                 mov     cx, [ebx+24h]
+24	2	read	00412867	004120B0:sub_4120B0	EBX	+0x0	0041246F	从 var_C 恢复 0x00412121 保存的主角色基址，后续无 EBX 改写	00412867                 mov     dx, [ebx+24h]
+24	2	read	00427588	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	00427588                 mov     ax, [edi+24h]
+24	2	read	004275D9	00427300:sub_427300	ESI	+0x0	0042732D	主角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	004275D9                 mov     dx, [esi+24h]
+24	2	read	0042760F	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	0042760F                 mov     ax, [edi+24h]
+24	2	read	00427650	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	00427650                 mov     ax, [edi+24h]
+24	2	read	00427666	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	00427666                 mov     dx, [edi+24h]
+24	2	read	004277CC	00427300:sub_427300	ESI	+0x0	0042732D	主角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址，ESI 保持到函数尾	004277CC                 mov     ax, [esi+24h]
+26	2	read	00405464	00405430:sub_405430	ESI	+0x10	00405445	ESI 从第二条角色记录 +0x10 开始并按 0xD8 遍历；字段偏移需加上该基址偏移	00405464                 cmp     word ptr [esi+16h], 1
+26	2	read	00412203	004120B0:sub_4120B0	ESI	+0x0	004121D4	事件角色编号乘 0xD8 后由 0x004BABA8 形成精确角色基址	00412203                 cmp     word ptr [esi+26h], 1
+26	2	read	00427379	00427300:sub_427300	EDI	+0x1e	00427366	EDI 从第二条角色记录 +0x1E 开始并按 0xD8 遍历；字段偏移需减去该基址偏移	00427379                 cmp     word ptr [edi+8], 0
+26	2	read	00427509	00427300:sub_427300	EDI	+0x0	004274D2	候选角色索引乘 0xD8 后由 0x004BABA8 形成精确角色基址；到返回或 0x00427682 改写前为止	00427509                 cmp     [edi+26h], bp
+34	4	write	00405E97	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405E97                 mov     [ebp+34h], eax
+34	4	write	004061FE	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004061FE                 mov     [ebp+34h], eax
+34	4	write	0040620C	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040620C                 mov     [ebp+34h], eax
+34	4	write	00406211	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00406211                 mov     [ebp+34h], ecx
+38	4	read	00405E7E	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405E7E                 mov     eax, [ebp+38h]
+38	4	write	00405E94	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00405E94                 mov     [ebp+38h], eax
+38	4	read	004061E5	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004061E5                 mov     eax, [ebp+38h]
+38	4	write	004061FB	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	004061FB                 mov     [ebp+38h], eax
+38	4	write	0040625D	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	0040625D                 mov     [ebp+38h], edx
+38	4	read	00406275	00405500:sub_405500	EBP	+0x0	00405521	角色索引先乘 0xD8，再加 0x004BABA8；函数内没有后续 EBP 赋值	00406275                 mov     edi, [ebp+38h]

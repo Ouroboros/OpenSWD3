@@ -1,0 +1,13 @@
+call_address	owner	helper	stack_operand	resulting_interval_ms	stack_contract	role
+0x00403135	sub_402F80	sub_40DD30	edx	0	preceding push is not consumed; helper has plain retn	world/debug shutdown path; clear throttle before close request
+0x0040AB6D	sub_40AB50	sub_40DD30	eax	0	preceding push is not consumed; helper has plain retn	display deactivate/reactivate entry; old value push is discarded
+0x0040ACFC	sub_40AB50	sub_40DD20	23h	35	one u32 argument; helper has plain retn and caller cleans stack	display reactivation completion restores literal 35
+0x0040C147	sub_40C130	sub_40DD30	ecx	0	preceding push is not consumed; helper has plain retn	map/session synchronous setup entry; old value push is discarded
+0x0040CDBB	sub_40C130	sub_40DD20	23h	35	one u32 argument; helper has plain retn and caller cleans stack	map/session synchronous setup completion restores literal 35
+0x00415737	sub_4154A0	sub_40DD20	23h	35	one u32 argument; helper has plain retn and caller cleans stack	state cleanup completion writes literal 35
+0x00424E0C	sub_424B90	sub_40DD20	23h	35	one u32 argument; helper has plain retn and caller cleans stack	main initialization writes literal 35; helper always returns 1
+0x0042A815	sub_427920	sub_40DD30	edx	0	preceding push is not consumed; helper has plain retn	story opcode 96 clears before changing interval
+0x0042A81C	sub_427920	sub_40DD20	46h	70	one u32 argument; helper has plain retn and caller cleans stack	story opcode 96 writes literal 70
+0x0042AD61	sub_427920	sub_40DD30	ecx	0	preceding push is not consumed; helper has plain retn	story opcode 97 clears before changing interval
+0x0042AD68	sub_427920	sub_40DD20	23h	35	one u32 argument; helper has plain retn and caller cleans stack	story opcode 97 writes literal 35
+0x0044CBA7	sub_44C160	sub_40DD30	edx	0	preceding push is not consumed; helper has plain retn	special-mode exit clears throttle; old value push is discarded

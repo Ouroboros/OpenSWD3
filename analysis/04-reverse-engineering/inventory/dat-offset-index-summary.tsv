@@ -1,0 +1,10 @@
+file	table_name	table_payload_offset_hex	sample_slots	sample_range_basis	in_file_targets	out_of_file_or_sentinel_targets	unique_in_file_targets	minimum_in_file_payload_offset_hex	maximum_in_file_payload_offset_hex
+FIGTALK.dat	figtalk_primary	00000000	301	payload[0]/4	301	0	301	000004B4	00004D0F
+LEVEL.DAT	level_grouped_100	00000000	402	payload[0]/4	401	1	398	00000000	00001E0C
+PATH.DAT	path_primary	00000000	802	payload[1]/4	801	1	800	00000064	0000582E
+TALK1.DAT	talk_remainder	00000000	1202	payload[1]/4	1201	1	1201	00000064	0005A8F2
+TALK2.DAT	talk_remainder	00000000	701	payload[1]/4	700	1	700	00000AF4	00032F2E
+TALK3.DAT	talk_remainder	00000000	2000	assembly_modulo_2000_contract	1018	982	1009	00000FA4	00033290
+TALK4.DAT	talk_remainder	00000000	1101	payload[1]/4	1100	1	1100	00001134	000363B4
+MON.DAT	mon_primary_before_aux_root	00000000	1723	payload[1]/4	1723	0	1092	00000000	00027D24
+MON.DAT	mon_auxiliary	00001AEC	470	(payload[0x1AEC]-0x1AEC)/4	470	0	470	00002244	000050EA

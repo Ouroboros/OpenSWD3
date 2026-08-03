@@ -1,0 +1,43 @@
+instruction_address	owner	symbol	role	access	instruction
+0x00403128	sub_402F80	dword_4B7BCC	frame interval threshold	read	mov edx, dword_4B7BCC
+0x004050E0	sub_4050E0	dword_4AAECC	current timeGetTime sample	read	mov eax, dword_4AAECC
+0x004050F5	sub_4050E0	dword_4CB224	input normalization clock snapshot	write	mov dword_4CB224, eax
+0x0040530E	sub_4050E0	dword_4CB224	input normalization clock snapshot	read	mov ecx, dword_4CB224
+0x00405317	sub_4050E0	dword_4CB23C	last normalized input clock mirror	write	mov dword_4CB23C, ecx
+0x004053D8	sub_4053C0	dword_4CB224	input normalization clock snapshot	read	mov ecx, dword_4CB224
+0x004053E7	sub_4053C0	dword_4CB224	input normalization clock snapshot	read	mov esi, dword_4CB224
+0x0040A59E	sub_40A570	dword_4A99FC	current CRT epoch-second sample	write	mov dword_4A99FC, eax
+0x0040A5A9	sub_40A570	dword_4CC2B0	previous accepted-frame gate time	read	mov esi, dword_4CC2B0
+0x0040A5AF	sub_40A570	dword_4B7BCC	frame interval threshold	read	mov edx, dword_4B7BCC
+0x0040A5B7	sub_40A570	dword_4AAECC	current timeGetTime sample	write	mov dword_4AAECC, eax
+0x0040A5CC	sub_40A570	dword_4CC2B0	previous accepted-frame gate time	write	mov dword_4CC2B0, eax
+0x0040A5E4	sub_40A570	dword_4AAECC	current timeGetTime sample	read	mov eax, dword_4AAECC
+0x0040A720	sub_40A570	dword_4AAECC	current timeGetTime sample	read	mov eax, dword_4AAECC
+0x0040A725	sub_40A570	dword_4C8444	previous accepted-frame time sample for delta	read	mov edx, dword_4C8444
+0x0040A72F	sub_40A570	dword_4C844C	current accepted-frame time snapshot	write	mov dword_4C844C, eax
+0x0040A734	sub_40A570	dword_49E1C8	accepted-frame delta used by debug FPS division	write	mov dword_49E1C8, ecx
+0x0040A73F	sub_40A570	dword_4C8444	previous accepted-frame time sample for delta	write	mov dword_4C8444, eax
+0x0040AA95	sub_40A570	dword_4AAECC	current timeGetTime sample	read	mov ecx, dword_4AAECC
+0x0040AA9B	sub_40A570	dword_4C844C	current accepted-frame time snapshot	read	mov eax, dword_4C844C
+0x0040AAA2	sub_40A570	dword_4C8448	ordinary-world end subtraction result	write	mov dword_4C8448, ecx
+0x0040AB67	sub_40AB50	dword_4B7BCC	frame interval threshold	read	mov eax, dword_4B7BCC
+0x0040C133	sub_40C130	dword_4B7BCC	frame interval threshold	read	mov ecx, dword_4B7BCC
+0x0040DD24	sub_40DD20	dword_4B7BCC	frame interval threshold	write	mov dword_4B7BCC, eax
+0x0040DD30	sub_40DD30	dword_4B7BCC	frame interval threshold	write	mov dword_4B7BCC, 0
+0x004141DC	sub_413FE0	dword_4C8448	ordinary-world end subtraction result	read	mov eax, dword_4C8448
+0x004141F1	sub_413FE0	dword_49E1C8	accepted-frame delta used by debug FPS division	read_write	div dword_49E1C8
+0x00429B71	sub_427920	dword_4CF6B0	story wait duration	write	mov dword_4CF6B0, eax
+0x00429B7A	sub_427920	dword_4AAECC	current timeGetTime sample	read	mov ecx, dword_4AAECC
+0x00429B80	sub_427920	dword_4CF6B4	story wait start time	write	mov dword_4CF6B4, ecx
+0x00429B8B	sub_427920	dword_4AAECC	current timeGetTime sample	read	mov edx, dword_4AAECC
+0x00429B91	sub_427920	dword_4CF6B4	story wait start time	read	mov ecx, dword_4CF6B4
+0x00429B97	sub_427920	dword_4CF6B0	story wait duration	read	mov eax, dword_4CF6B0
+0x0042A80E	sub_427920	dword_4B7BCC	frame interval threshold	read	mov edx, dword_4B7BCC
+0x0042AD4E	sub_427920	dword_4B7BCC	frame interval threshold	read	mov ecx, dword_4B7BCC
+0x0042F25D	sub_42ED40	dword_4AAECC	current timeGetTime sample	read	mov edx, dword_4AAECC
+0x0042F2D7	sub_42ED40	dword_4AAECC	current timeGetTime sample	read	mov edx, dword_4AAECC
+0x0042F31A	sub_42ED40	dword_4AAECC	current timeGetTime sample	read	mov ecx, dword_4AAECC
+0x0042FC47	sub_42ED40	dword_4AAECC	current timeGetTime sample	read	mov ecx, dword_4AAECC
+0x0042FD42	sub_42ED40	dword_4AAECC	current timeGetTime sample	read	mov edx, dword_4AAECC
+0x0042FDD2	sub_42ED40	dword_4AAECC	current timeGetTime sample	read	mov edx, dword_4AAECC
+0x0044CBA0	sub_44C160	dword_4B7BCC	frame interval threshold	read	mov edx, dword_4B7BCC

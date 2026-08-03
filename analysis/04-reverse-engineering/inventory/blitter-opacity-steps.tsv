@@ -1,0 +1,17 @@
+step	jump_target	source_binary_units	destination_binary_units	combined_weight_sixteenths	operation	term_sequence	rounding
+0	loc_41DAAA	0	16	16	leave destination unchanged		none
+1	loc_41D790	1	14	15	sum independently shifted and component-masked packed fields	dst>>1&dword_4CD788;dst>>2&dword_4CD78C;dst>>3&dword_4CD790;src>>4&dword_4CD794	none
+2	loc_41D7C9	2	13	15	sum independently shifted and component-masked packed fields	dst>>1&dword_4CD788;dst>>2&dword_4CD78C;src>>3&dword_4CD790;dst>>4&dword_4CD794	none
+3	loc_41D802	3	12	15	sum independently shifted and component-masked packed fields	dst>>1&dword_4CD788;dst>>2&dword_4CD78C;src>>3&dword_4CD790;src>>4&dword_4CD794	none
+4	loc_41D83B	4	11	15	sum independently shifted and component-masked packed fields	dst>>1&dword_4CD788;src>>2&dword_4CD78C;dst>>3&dword_4CD790;dst>>4&dword_4CD794	none
+5	loc_41D874	5	10	15	sum independently shifted and component-masked packed fields	dst>>1&dword_4CD788;src>>2&dword_4CD78C;dst>>3&dword_4CD790;src>>4&dword_4CD794	none
+6	loc_41D8AD	6	9	15	sum independently shifted and component-masked packed fields	dst>>1&dword_4CD788;src>>2&dword_4CD78C;src>>3&dword_4CD790;dst>>4&dword_4CD794	none
+7	loc_41D8E6	7	8	15	sum independently shifted and component-masked packed fields	dst>>1&dword_4CD788;src>>2&dword_4CD78C;src>>3&dword_4CD790;src>>4&dword_4CD794	none
+8	loc_41D91F	8	7	15	sum independently shifted and component-masked packed fields	src>>1&dword_4CD788;dst>>2&dword_4CD78C;dst>>3&dword_4CD790;dst>>4&dword_4CD794	none
+9	loc_41D958	9	6	15	sum independently shifted and component-masked packed fields	src>>1&dword_4CD788;dst>>2&dword_4CD78C;dst>>3&dword_4CD790;src>>4&dword_4CD794	none
+10	loc_41D991	10	5	15	sum independently shifted and component-masked packed fields	src>>1&dword_4CD788;dst>>2&dword_4CD78C;src>>3&dword_4CD790;dst>>4&dword_4CD794	none
+11	loc_41D9CA	11	4	15	sum independently shifted and component-masked packed fields	src>>1&dword_4CD788;dst>>2&dword_4CD78C;src>>3&dword_4CD790;src>>4&dword_4CD794	none
+12	loc_41DA03	12	3	15	sum independently shifted and component-masked packed fields	src>>1&dword_4CD788;src>>2&dword_4CD78C;dst>>3&dword_4CD790;dst>>4&dword_4CD794	none
+13	loc_41DA39	13	2	15	sum independently shifted and component-masked packed fields	src>>1&dword_4CD788;src>>2&dword_4CD78C;dst>>3&dword_4CD790;src>>4&dword_4CD794	none
+14	loc_41DA6F	14	1	15	sum independently shifted and component-masked packed fields	src>>1&dword_4CD788;src>>2&dword_4CD78C;src>>3&dword_4CD790;dst>>4&dword_4CD794	none
+15	loc_41DAA5	16	0	16	copy source exactly	src exact	none

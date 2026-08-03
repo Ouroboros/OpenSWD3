@@ -1,0 +1,15 @@
+stage	state	source_or_transform	bit1_effect	assembly_addresses	normal_reachability_conclusion
+initialization	battle actor storage	PE .data zero-fill 0x004AA000..0x0053E7DC	initial bit1 = 0	PE section table	both static battle actor arrays and runtime +0x2694 start at zero
+initialization	role ActionRecord+0x18	explicit zero immediately before updater	bit1 cleared	0x0040F286,0x0040F289,0x0040F291	role path cannot seed bit1
+initialization	battle ActionRecord[0]+0x18	whole-record exact clears	bit1 cleared	0x004786FA-0x00478700,0x0047D35C-0x0047D362,0x0047D916-0x0047D91C,0x0048204F-0x00482055	primary battle draw source starts/restarts with bit1 zero
+initialization	battle ActionRecord[3]+0x18	whole-record exact clears	bit1 cleared	0x004789D9-0x004789DF,0x0047D383-0x0047D389,0x0047CC1B-0x0047CC21	secondary battle draw source starts/restarts with bit1 zero
+copy	ActionRecord[0] -> ActionRecord[3]	copy exactly 0x26 dwords	preserves source bit1	0x00478FB5-0x00478FC6	cannot create bit1 because source invariant is zero
+copy	ActionRecord[0] -> ActionRecord[17]	copy exactly 0x26 dwords; updater then receives slot 17	preserves source bit1	0x00478625-0x0047863B	slot 17 is a sink, not an unknown source feeding slot 0
+action update	lookup-key resets	old&0x80000000 or old&0x80000003	clears or preserves bit1; never sets it	0x0043224D-0x00432404	zero bit1 remains zero across all three reset paths
+action update	HA/MA/NA/DL/SG/ON/IV commands	seven exact in-place transforms	all preserve bit1; none sets it	0x0043250C-0x004328EA	ACT command execution cannot create bit1 from zero
+external audit	proven ActionRecord+0x18 external accesses	11 reads, zero writes	no external producer found in proven base intervals	action-external-accesses.tsv	no legitimate external bit1 setter is currently known
+runtime source	battle actor +0x2694 from ActionRecord[0]+0x18	direct dword copy from +0x2B8	preserves bit1	0x00479019-0x00479024	normal source bit1 is zero
+runtime source	battle actor +0x2694 from ActionRecord[3]+0x18	two direct dword copies from +0x480	preserves bit1	0x0047C7C8-0x0047C7D0,0x0047CA81-0x0047CA94	normal source bit1 is zero
+runtime transform	all 15 direct +0x2694 writes	source copies, bit0 toggles, mode-4 ORs, and masks	no writer introduces bit1	0x00479024,0x00479064,0x004790B8,0x004790EC,0x00479996,0x00479AA1,0x0047BF15,0x0047C7D0,0x0047C7ED,0x0047C80B,0x0047C82E,0x0047CA94,0x0047CAB9,0x0047CAD7,0x0047CAFA	runtime bit1 remains zero from PE initialization and action sources
+mode 0x20 dispatch	sub_479850 dynamic flag build	(runtime_flags & 0x80000023) | 0x20	retains bit1 but does not set it	0x00479A92-0x00479AEC	normal initialized execution reaches only slots 0x20/0x21; 0x22/0x23 are unreachable
+malformed state	forced runtime bit1 = 1	memory corruption, injected state, or deliberately non-equivalent initialization	would select 0x22/0x23	dispatcher table contract	original empty-slot/null-call behavior must not be replaced by a fallback

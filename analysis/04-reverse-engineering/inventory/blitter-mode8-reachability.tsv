@@ -1,0 +1,9 @@
+evidence_class	scope	observed_count	evidence	status
+tsw_primary_family	six current TSW archives	20091	all current decompressed primary streams begin with 0xFFFF and select the RLE/span family when dword_4CD764 is zero	closed_current_assets
+tsw_auxiliary_metadata	six current TSW archives	7316	7316 descriptors advertise width*height auxiliary extent; 7148 have physical bytes after the primary stream	present_but_not_consumed_by_current_loader
+tsw_runtime_auxiliary	sub_433380 and sub_433720	0	runtime record +0x04 is copied from zero-initialized temporary +0x08; both low-level loaders only write zero there	closed_always_zero
+act_explicit_mode8_producer	command 0x4148/HA	0	per-archive occurrences=0,0,0,0,0,0	closed_absent_current_assets
+action_mode_external_accesses	currently proven ActionRecord +0x18 external set	11	all are reads: 0040EC46,0040ED16,0043B0D2,0045158F,00451698,0047F9B4,00483205,00483936,00483B93,00483E0E,00484260	closed_no_external_writer_in_proven_set
+immediate_mode8_path	sub_450A50 -> sub_4170E0	1	uses address of its own argument slot as source and therefore takes raw +0x88 constant-color fade, not RLE coverage	closed_safe_noncoverage_path
+reverse_special_table	dword_4CDC00	1	the PE contains exactly one encoded 0x004CDC00 address, the reverse RLE 0x8000-run read; adjacent table initialization starts at 0x004CDC04 and writes forward	no_normal_producer_dangerous_only_if_malformed_state_forces_it
+current_asset_driven_rle_mode8	TSW + ACT combined contract	0	no current ACT command selects mode 0x08 and current TSW loaders cannot supply its required byte plane	not_reachable_from_demonstrated_asset_path

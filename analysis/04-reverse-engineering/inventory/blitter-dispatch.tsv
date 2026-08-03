@@ -1,0 +1,44 @@
+slot	slot_hex	raw_family	mode	mode_hex	flip_bits	direction	function	assignment_address	semantic_family	semantic_status	special_run_0x8000
+0	0x00	0	0	0x00	0	horizontal forward	sub_418350	0x00416D9A	literal copy	closed	skip
+1	0x01	0	0	0x00	1	horizontal reverse	sub_4185C0	0x00416DA0	literal copy	closed	skip
+2	0x02	0	0	0x00	2	horizontal forward	sub_418350	0x00416DA5	literal copy	closed	skip
+3	0x03	0	0	0x00	3	horizontal reverse	sub_4185C0	0x00416DAB	literal copy	closed	skip
+4	0x04	0	4	0x04	0	horizontal forward	sub_418840	0x00416E3A	per-channel saturated add	closed	skip
+5	0x05	0	4	0x04	1	horizontal reverse	sub_418EB0	0x00416E44	per-channel saturated add	closed	skip
+8	0x08	0	8	0x08	0	horizontal forward	sub_419570	0x00416E4E	coverage composite or raw constant vertical fade	partial	0x8000 is processed
+9	0x09	0	8	0x08	1	horizontal reverse	sub_41A3B0	0x00416E58	coverage composite or raw constant vertical fade	partial	0x8000 is processed
+12	0x0C	0	12	0x0C	0	horizontal forward	sub_41F8D0	0x00416DBA	row-resampled and row-shifted destination RGB offset under source coverage	closed	skip
+13	0x0D	0	12	0x0C	1	horizontal reverse	sub_41FEA0	0x00416DC0	row-resampled and row-shifted destination RGB offset under source coverage	closed	skip
+14	0x0E	0	12	0x0C	2	horizontal forward	sub_41F8D0	0x00416DC5	row-resampled and row-shifted destination RGB offset under source coverage	closed	skip
+15	0x0F	0	12	0x0C	3	horizontal reverse	sub_41FEA0	0x00416DCB	row-resampled and row-shifted destination RGB offset under source coverage	closed	skip
+16	0x10	0	16	0x10	0	horizontal forward	sub_41B280	0x00416E62	destination RGB offset under source coverage	closed	skip
+17	0x11	0	16	0x10	1	horizontal reverse	sub_41B620	0x00416E6C	destination RGB offset under source coverage	closed	skip
+20	0x14	0	20	0x14	0	horizontal forward	sub_41D340	0x00416DDA	15-step packed-field opacity	closed	skip
+21	0x15	0	20	0x14	1	horizontal reverse	sub_41E5C0	0x00416DE0	15-step packed-field opacity	closed	skip
+22	0x16	0	20	0x14	2	horizontal forward	sub_41D340	0x00416DE5	15-step packed-field opacity	closed	skip
+23	0x17	0	20	0x14	3	horizontal reverse	sub_41E5C0	0x00416DEB	15-step packed-field opacity	closed	skip
+24	0x18	0	24	0x18	0	horizontal forward	sub_41CCF0	0x00416E76	literal copy with run-edge green-mask replacement	closed	skip
+25	0x19	0	24	0x18	1	horizontal reverse	sub_41D010	0x00416E80	literal copy with run-edge green-mask replacement	closed	skip
+28	0x1C	0	28	0x1C	0	horizontal forward	sub_41B9F0	0x00416E8A	RLE vertical opacity fade	closed	skip
+32	0x20	0	32	0x20	0	horizontal forward	sub_4208D0	0x00416E94	vertically row-resampled per-channel saturated add	closed	skip
+33	0x21	0	32	0x20	1	horizontal reverse	sub_420D70	0x00416E9E	vertically row-resampled per-channel saturated add	closed	skip
+36	0x24	0	36	0x24	0	horizontal forward	sub_421230	0x00416DFA	constant-color fill under source coverage	closed	skip
+37	0x25	0	36	0x24	1	horizontal reverse	sub_421540	0x00416E00	constant-color fill under source coverage	closed	skip
+38	0x26	0	36	0x24	2	horizontal forward	sub_421230	0x00416E05	constant-color fill under source coverage	closed	skip
+39	0x27	0	36	0x24	3	horizontal reverse	sub_421540	0x00416E0B	constant-color fill under source coverage	closed	skip
+40	0x28	0	40	0x28	0	horizontal forward	sub_421850	0x00416E1A	destination grayscale under source coverage	closed	skip
+41	0x29	0	40	0x28	1	horizontal reverse	sub_421BE0	0x00416E20	destination grayscale under source coverage	closed	skip
+42	0x2A	0	40	0x28	2	horizontal forward	sub_421850	0x00416E25	destination grayscale under source coverage	closed	skip
+43	0x2B	0	40	0x28	3	horizontal reverse	sub_421BE0	0x00416E2B	destination grayscale under source coverage	closed	skip
+44	0x2C	0	44	0x2C	0	horizontal forward	sub_422030	0x00416EA8	per-channel saturated subtract	closed	skip
+45	0x2D	0	44	0x2C	1	horizontal reverse	sub_4223A0	0x00416EB2	per-channel saturated subtract	closed	skip
+48	0x30	0	48	0x30	0	horizontal forward	sub_422730	0x00416EBC	16-step destination-neighbor smear	closed	skip
+49	0x31	0	48	0x30	1	horizontal reverse	sub_4229C0	0x00416EC2	16-step destination-neighbor smear	closed	skip
+50	0x32	0	48	0x30	2	horizontal forward	sub_422730	0x00416EC7	16-step destination-neighbor smear	closed	skip
+51	0x33	0	48	0x30	3	horizontal reverse	sub_4229C0	0x00416ECD	16-step destination-neighbor smear	closed	skip
+128	0x80	1	0	0x00	0	horizontal forward	sub_4176D0	0x00416ED2	raw/uncompressed literal copy	closed	not RLE
+129	0x81	1	0	0x00	1	horizontal reverse	sub_4177D0	0x00416EDC	raw/uncompressed literal copy	closed	not RLE
+132	0x84	1	4	0x04	0	horizontal forward	sub_417840	0x00416EE6	raw/uncompressed per-channel saturated add	closed	not RLE
+133	0x85	1	4	0x04	1	horizontal reverse	sub_417E40	0x00416EF0	raw/uncompressed per-channel saturated add	closed	not RLE
+136	0x88	1	8	0x08	0	horizontal forward	sub_417EC0	0x00416EFA	raw/uncompressed coverage composite or raw constant vertical fade	partial	not RLE
+148	0x94	1	20	0x14	0	horizontal forward	sub_417950	0x00416F04	raw/uncompressed 15-step packed-field opacity	closed	not RLE

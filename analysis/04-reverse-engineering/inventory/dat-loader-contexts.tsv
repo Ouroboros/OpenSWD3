@@ -1,0 +1,12 @@
+function	function_address	files	operation	lookup_or_layout	read_or_mapping_window	decoder_call	assembly_evidence
+sub_40F160	0040F160	MAPS.DAT	read_payload_whole	file_size-0x200; seek 0x200; read unchanged tail	exact remaining file size	none	0040F174-0040F1B5
+sub_40F040 / path consumers	0040F040	PATH.DAT	map_whole_file_then_index	base + 0x200 + u32(base+0x200+4*path_id)	whole-file mapping	none	0040F094-0040F0F3; 00405529-00405535
+sub_42E480	0042E480	TALK1.DAT..TALK4.DAT	select_file_and_read_script_window	file=(story_id/2000)+1; slot=story_id%2000; target=0x200+u32(0x200+4*slot)	0x8000 requested	none	0042E490-0042E582
+sub_46E0B0	0046E0B0	FIGTALK.dat	read_battle_talk_window	target=0x200+u32(0x200+4*id)	0x8000 zero-filled allocation then fixed read	none	0046E129-0046E1C6
+sub_476DB0	00476DB0	MON.DAT	read_definition_tag_stream	target=0x200+u32(0x200+4*id)	0x400 zero-filled allocation then fixed read	none	00476E68-00476EFA
+sub_476A80	00476A80	MON.DAT	read_auxiliary_tag_stream	root=u32(0x204); target=0x200+u32(0x200+root+4*id)	0x400 zero-filled allocation then fixed read	none	00476AF0-00476B78
+sub_477290 / sub_477400	00477290 / 00477400	LEVEL.DAT	read_grouped_level_tag_stream	entry=0x70+4*(level+100*group); target=0x200+u32(entry)	0x400 zero-filled allocation then fixed read	none	00477300-00477387; 00477472-004774F9
+sub_423AF0 / sub_423FB0	00423AF0 / 00423FB0	Env.dat	rewrite_or_read_environment_record	raw record begins with optional 0xFFFFFFFF current-layout marker	up to 0x1000 temporary buffer	none	00423B74-00423DB7; 00423FB0 reader
+sub_409CE0 / sub_409DD0	00409CE0 / 00409DD0	Fame.dat	write_or_read_fixed_table	u16 value for ids 1..500 at byte offset 2*id	exactly 0x400 bytes	none	00409D03-00409D97; 00409DF3-00409E92
+sub_426840	00426840	Data/mcache.dat	read_update_cache_directory	file_size/16 records; each record is 16 bytes	whole file, normally 24 records / 0x180 bytes	none	004268B9-0042699D
+sub_4118B0	004118B0	swd3_dvd.dat	presence_check_only	construct drive path and test existence; file bytes are never read	none	none	0041197C-004119E5

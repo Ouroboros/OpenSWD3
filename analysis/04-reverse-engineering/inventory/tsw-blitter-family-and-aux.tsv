@@ -1,0 +1,15 @@
+archive	storage_bpp	frame_count	decompressed_first_word_ffff_count	decompressed_other_first_word_count	descriptor_aux_metadata_frame_count	physical_aux_payload_frame_count	physical_aux_payload_bytes	metadata_14_equals_width_times_height_count	runtime_record_plus_04_contract	assembly_basis
+all_char.tsw	8	8196	8196	0	0	0	0	0	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_char.tsw	16	323	323	0	105	105	1144674	105	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_item.tsw	16	458	458	0	1	0	0	1	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_magic.tsw	16	9783	9783	0	7028	6865	7065368	7028	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_magic.tsw	24	12	12	0	4	0	0	4	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_map1.tsw	8	16	16	0	0	0	0	0	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_map1.tsw	16	173	173	0	22	22	71385	22	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_map1.tsw	24	18	18	0	0	0	0	0	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_map2.tsw	16	138	138	0	0	0	0	0	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_map2.tsw	24	1	1	0	0	0	0	0	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_sys.tsw	8	738	738	0	0	0	0	0	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_sys.tsw	16	209	209	0	156	156	182402	156	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+all_sys.tsw	24	26	26	0	0	0	0	0	always_zero	sub_433380/sub_433720 runtime +0x04 <- zero-initialized temporary +0x08
+TOTAL	all	20091	20091	0	7316	7148	8463829	7316	always_zero	descriptor auxiliary metadata and bytes are not loaded into runtime +0x04

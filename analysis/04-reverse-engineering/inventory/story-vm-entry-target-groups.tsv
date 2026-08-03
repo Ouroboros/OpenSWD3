@@ -1,0 +1,147 @@
+entry_target	effective_opcode_count	effective_opcodes	route_sources	first_instruction	interpretation_limit
+0x00427B8F	8	1-6,89-90	main_table	mov [esp+60h+var_4C], 0FFFDh	shared first entry only; handler may redispatch on opcode or use different operands
+0x00427E72	1	7	main_table	mov edx, dword_4A1360	single primary entry
+0x00427E9A	1	8	main_table	xor edx, edx	single primary entry
+0x00427EC2	1	9	main_table	mov edx, dword_4A1360	single primary entry
+0x00427ED0	1	10	main_table	mov bx, [ebx+2]	single primary entry
+0x00427FEB	1	11	main_table	mov bx, [ebx+2]	single primary entry
+0x0042811F	1	12	main_table	mov bx, [ebx+2]	single primary entry
+0x0042822A	1	13	main_table	mov bx, [ebx+2]	single primary entry
+0x0042829C	1	14	main_table	mov ax, [ebx+2]	single primary entry
+0x00428310	1	15	main_table	mov ecx, [ebx+2]	single primary entry
+0x00428318	1	16	main_table	mov ax, [ebx+2]	single primary entry
+0x004283AC	1	17	main_table	mov dx, [ebx+2]	single primary entry
+0x0042845A	1	18	main_table	mov dx, [ebx+2]	single primary entry
+0x004284C2	1	19	main_table	mov eax, dword_49E0C4	single primary entry
+0x00428533	2	21-22	main_table	xor eax, eax	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042857F	1	23	main_table	xor edi, edi	single primary entry
+0x004285ED	1	24	main_table	xor edx, edx	single primary entry
+0x0042865B	1	25	main_table	xor ecx, ecx	single primary entry
+0x00428679	1	26	main_table	xor ecx, ecx	single primary entry
+0x004286C5	1	27	main_table	xor ecx, ecx	single primary entry
+0x00428713	1	28	main_table	mov dx, [ebx+2]	single primary entry
+0x0042890F	1	34	main_table	xor eax, eax	single primary entry
+0x00428934	1	35	main_table	mov ecx, dword_4ACDB0	single primary entry
+0x0042896C	1	36	main_table	mov ecx, dword_4BA42C	single primary entry
+0x004289BE	1	37	main_table	mov eax, dword_4ACDB0	single primary entry
+0x004289DE	1	38	main_table	mov bx, [ebx+2]	single primary entry
+0x00428ADC	1	39	main_table	mov bx, [ebx+2]	single primary entry
+0x00428BA0	1	40	main_table	mov dx, [ebx+2]	single primary entry
+0x00428C9F	1	41	main_table	mov eax, dword_4CAE7C	single primary entry
+0x00428D18	2	42-43	main_table	cmp word ptr [esp+60h+var_3C], 2Ah	shared first entry only; handler may redispatch on opcode or use different operands
+0x00428DB8	1	44	main_table	mov bx, [ebx+2]	single primary entry
+0x00428E52	1	45	main_table	mov bx, [ebx+2]	single primary entry
+0x00428F7B	4	46-49	main_table	mov dx, [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x00429066	3	50,70,73	main_table	mov ecx, dword_4A98C0	shared first entry only; handler may redispatch on opcode or use different operands
+0x00429362	1	51	main_table	mov eax, dword_4A99F0	single primary entry
+0x004293AC	1	52	main_table	movsx ecx, word ptr [ebx+2]	single primary entry
+0x0042949D	1	53	main_table	mov eax, dword_4A9934	single primary entry
+0x004294C0	1	54	main_table	mov bx, [ebx+2]	single primary entry
+0x004295F3	3	55-57	main_table	mov bx, [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042967B	1	59	main_table	mov eax, dword_4AB784	single primary entry
+0x00429693	2	60-61	main_table	mov ecx, dword_4C9A18	shared first entry only; handler may redispatch on opcode or use different operands
+0x004296DE	1	62	main_table	mov bx, [ebx+2]	single primary entry
+0x00429A1B	1	63	main_table	lea edx, [ebx+4]	single primary entry
+0x00429AD2	1	64	main_table	mov ecx, 20h	single primary entry
+0x00429AE8	1	65	main_table	mov cx, [ebx+2]	single primary entry
+0x00429B14	1	66	main_table	xor eax, eax	single primary entry
+0x00429B62	1	67	main_table	xor eax, eax	single primary entry
+0x00429BB5	1	68	main_table	mov bx, [ebx+2]	single primary entry
+0x00429C37	1	69	main_table	mov bx, [ebx+2]	single primary entry
+0x00429CBC	1	71	main_table	mov dx, [ebx+2]	single primary entry
+0x00429D0F	1	72	main_table	mov dx, [ebx+2]	single primary entry
+0x00429D43	1	74	main_table	mov dword_4A9A00, 0	single primary entry
+0x00429D70	1	75	main_table	mov dx, [ebx+2]	single primary entry
+0x00429DA6	1	76	main_table	mov bx, [ebx+2]	single primary entry
+0x00429F7B	2	77-78	main_table	mov bx, [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042A0A6	1	79	main_table	push 0B4h	single primary entry
+0x0042A1EF	1	80	main_table	mov edx, dword_4A1360	single primary entry
+0x0042A200	1	81	main_table	push 0B4h	single primary entry
+0x0042A2C6	1	82	main_table	mov eax, dword_4BA6E0	single primary entry
+0x0042A341	1	83	main_table	mov ax, [ebx+2]	single primary entry
+0x0042A54C	1	84	main_table	mov ax, [ebx+2]	single primary entry
+0x0042A611	1	85	main_table	mov ecx, dword_4A0E7C	single primary entry
+0x0042A673	1	86	main_table	mov eax, dword_4BA6E0	single primary entry
+0x0042A6CB	1	87	main_table	xor eax, eax	single primary entry
+0x0042A727	1	88	main_table	call sub_40F500	single primary entry
+0x0042A756	1	92	main_table	xor eax, eax	single primary entry
+0x0042A792	1	93	main_table	xor eax, eax	single primary entry
+0x0042A7CE	1	94	main_table	mov edx, dword_4C9A18	single primary entry
+0x0042A7EE	1	95	main_table	mov edx, dword_4C9A18	single primary entry
+0x0042A80E	1	96	main_table	mov edx, dword_4B7BCC	single primary entry
+0x0042AD3C	1	97	main_table	mov eax, dword_4CAE8C	single primary entry
+0x0042AD75	1	99	special_eq_99	mov ecx, dword_4B7AC8	single primary entry
+0x0042ADB7	2	20,169	main_table,secondary_table	mov ax, [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042B070	5	181-185	secondary_table	mov edx, [esp+60h+lpString2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042B074	5	29-33	main_table	movsx edi, word ptr [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042B1F1	2	58,153	main_table,secondary_table	push 0A4h	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042B287	2	91,162	main_table,secondary_table	cmp word ptr [esp+60h+var_3C], 5Bh	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042B3B0	1	100	secondary_table	mov si, [ebx+2]	single primary entry
+0x0042B43B	1	101	secondary_table	mov bx, [ebx+2]	single primary entry
+0x0042B47E	1	104	secondary_table	mov edx, dword_4A1360	single primary entry
+0x0042B4B9	1	105	secondary_table	mov edx, dword_4A1360	single primary entry
+0x0042B4CA	2	106,154	secondary_table	cmp word ptr [esp+60h+var_3C], 9Ah	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042B50F	1	107	secondary_table	mov bx, [ebx+2]	single primary entry
+0x0042B5F2	1	108	secondary_table	mov ax, [ebx+2]	single primary entry
+0x0042B63C	1	109	secondary_table	xor eax, eax	single primary entry
+0x0042B6A5	2	110-111	secondary_table	mov edx, dword_49E0C4	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042B70C	1	112	secondary_table	mov eax, dword_4BAB9C	single primary entry
+0x0042B723	1	113	secondary_table	mov edx, dword_4AB784	single primary entry
+0x0042B739	1	114	secondary_table	mov eax, dword_4B7380	single primary entry
+0x0042B7FC	1	115	secondary_table	xor eax, eax	single primary entry
+0x0042B83A	1	116	secondary_table	xor eax, eax	single primary entry
+0x0042B8E6	1	118	secondary_table	mov ax, [ebx+2]	single primary entry
+0x0042B9C2	2	119,139	secondary_table	mov di, [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042BAB8	1	120	secondary_table	mov bx, [ebx+2]	single primary entry
+0x0042BC2C	1	121	secondary_table	mov edx, dword_4A1360	single primary entry
+0x0042BC3D	1	122	secondary_table	mov dword_4CAEB8, 0	single primary entry
+0x0042BC4C	1	123	secondary_table	mov si, [ebx+2]	single primary entry
+0x0042BCF5	1	124	secondary_table	mov edx, dword_4A1360	single primary entry
+0x0042BD06	1	125	secondary_table	mov eax, dword_4C99FC	single primary entry
+0x0042BDBC	2	126-127	secondary_table	mov bx, [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042BE8A	1	128	secondary_table	mov ax, [ebx+4]	single primary entry
+0x0042BEFE	4	129-130,167-168	secondary_table	mov dx, [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042BF72	1	131	secondary_table	xor eax, eax	single primary entry
+0x0042C033	1	132	secondary_table	xor eax, eax	single primary entry
+0x0042C234	1	133	secondary_table	mov edx, dword_4B7928	single primary entry
+0x0042C2C6	1	134	secondary_table	mov ax, [ebx+2]	single primary entry
+0x0042C3B0	1	135	secondary_table	mov dword_4FBAB0, 4	single primary entry
+0x0042C3F7	1	137	secondary_table	test dword_4ACDBC, 800000h	single primary entry
+0x0042C49E	1	138	secondary_table	mov bx, [ebx+6]	single primary entry
+0x0042C567	8	102-103,117,136,140,145-146,174	secondary_table	mov ecx, [esp+60h+lpString2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042C6DD	1	141	secondary_table	xor eax, eax	single primary entry
+0x0042C732	1	142	secondary_table	xor ecx, ecx	single primary entry
+0x0042C766	1	143	secondary_table	push 10h	single primary entry
+0x0042C79D	1	144	secondary_table	mov ecx, 80000004h	single primary entry
+0x0042C7EA	1	98	main_table	add ebx, 4	single primary entry
+0x0042C7FB	1	147	secondary_table	push 46h	single primary entry
+0x0042C81A	1	148	secondary_table	push 13h	single primary entry
+0x0042C839	1	149	secondary_table	push 13h	single primary entry
+0x0042C858	1	150	secondary_table	movsx eax, word ptr [ebx+2]	single primary entry
+0x0042C8F8	1	151	secondary_table	movsx ecx, word ptr [ebx+2]	single primary entry
+0x0042C936	1	152	secondary_table	mov edx, dword_4B9EF8	single primary entry
+0x0042C95B	1	155	secondary_table	mov ecx, ArgList	single primary entry
+0x0042C9CE	1	156	secondary_table	mov ecx, dword_4CAE88	single primary entry
+0x0042CA3A	1	157	secondary_table	mov ax, [ebx+2]	single primary entry
+0x0042CA7C	2	158-159	secondary_table	xor ecx, ecx	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042CBB0	1	160	secondary_table	mov esi, 1	single primary entry
+0x0042CBCC	1	161	secondary_table	call _AIL_serve@0	single primary entry
+0x0042CBFF	2	163-164	secondary_table	movsx esi, word ptr [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042CC35	2	165-166	secondary_table	mov [esp+60h+var_40], 0	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042CCF7	4	170-173	secondary_table	mov edx, [esp+60h+lpString2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042CDED	1	175	secondary_table	mov edx, dword_4B7AA0	single primary entry
+0x0042CE12	1	176	secondary_table	mov edx, dword_4B7AA0	single primary entry
+0x0042CE32	1	177	secondary_table	test ch, 80h	single primary entry
+0x0042CF7C	1	178	secondary_table	mov bx, [ebx+2]	single primary entry
+0x0042CFBD	1	179	secondary_table	movsx eax, word ptr [ebx+4]	single primary entry
+0x0042D041	1	180	secondary_table	add ebx, 2	single primary entry
+0x0042D05C	2	186-187	secondary_table	movsx eax, word ptr [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042D0D8	3	188-190	secondary_table	movsx eax, word ptr [ebx+2]	shared first entry only; handler may redispatch on opcode or use different operands
+0x0042D170	1	191	secondary_table	mov eax, dword_4A99F0	single primary entry
+0x0042D1AA	1	192	secondary_table	cmp dword_4B7380, 2	single primary entry
+0x0042D1D5	1	193	secondary_table	call sub_484DA0	single primary entry
+0x0042D1EA	1	1026	special_eq_1026	add ebx, 2	single primary entry
+0x0042D200	1	1024	special_eq_1024	add ebx, 2	single primary entry
+0x0042D230	16187	0,194-1023,1027-16382	default	push 0	all unmapped effective opcodes; no instruction-pointer advance
+0x0042D24E	1	16383	special_eq_16383	mov eax, [esp+60h+arg_0]	single primary entry
+0x0042D49F	1	1025	special_eq_1025	add word ptr [ebp+0], 2	single primary entry

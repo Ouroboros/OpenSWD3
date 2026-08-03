@@ -1,0 +1,14 @@
+file	file_size_bytes	sha256	container_class	mz_magic_hex	mz_e_cblp	mz_e_cp	mz_e_crlc	mz_e_cparhdr_paragraphs	payload_base_hex	mz_e_minalloc	mz_e_maxalloc_hex	mz_e_ss	mz_e_sp	mz_e_csum	mz_e_ip	mz_e_cs	mz_e_lfarlc_hex	mz_e_ovno	mz_e_res0_custom_value	size_reconstructed_from_mz_pages	payload_size_bytes	sub_4399e0_used_by_file_loader
+FIGTALK.dat	20612	1ace07e58ed09f6875f5d9cacaa5a7be0bf8b83af4e0668d2a26cc421d873d1c	mz_wrapped_raw_payload	5A4D	132	41	0	32	00000200	0	FFFF	0	0	0	0	0	001E	0	1	20612	20100	none
+LEVEL.DAT	8206	858faceb6778d8d4612e134fb8514e5aacf45039ff417fd44d0464ebf447492b	mz_wrapped_raw_payload	5A4D	14	17	0	32	00000200	0	FFFF	0	0	0	0	0	001E	0	1	8206	7694	none
+MAPS.DAT	162929	a6faee71c0cb41c1be94f29152deed12ed19eb3e1842fb0f10e13e00132a20ba	mz_wrapped_raw_payload	5A4D	113	319	0	32	00000200	0	FFFF	0	0	0	0	0	001E	0	1	162929	162417	none
+MON.DAT	163731	05abe60f3e3c0a92d0c345835014271019b6d1bdac6a9bb7e33e3009290a4980	mz_wrapped_raw_payload	5A4D	403	320	0	32	00000200	0	FFFF	0	0	0	0	0	001E	0	1	163731	163219	none
+PATH.DAT	23114	8b295815fc2e311fde2caf0557cfe3de137b12105339fc797428f99ddfae47a3	mz_wrapped_raw_payload	5A4D	74	46	0	32	00000200	0	FFFF	0	0	0	0	0	001E	0	1	23114	22602	none
+TALK1.DAT	371450	e85520a8158ec9d01364f3b00dde7965f3dd07c5d34829f380ce8d446cf38b6f	mz_wrapped_raw_payload	5A4D	250	726	0	32	00000200	0	FFFF	0	0	0	0	0	001E	0	1	371450	370938	none
+TALK2.DAT	209206	cfe8059f8899eb5bd255885510e4b26fb3ec35793fb386b270e1b9e97dd5880e	mz_wrapped_raw_payload	5A4D	310	409	0	32	00000200	0	FFFF	0	0	0	0	0	001E	0	1	209206	208694	none
+TALK3.DAT	211381	369d5c03b63957c4c240a465d5cb9dba8dc7290a36ad8a480f28d41af9398959	mz_wrapped_raw_payload	5A4D	437	413	0	32	00000200	0	FFFF	0	0	0	0	0	001E	0	1	211381	210869	none
+TALK4.DAT	222652	5f6cf8d31d7b25fba78797b28c64f33f3c1ffbdc16b70930c083140bd90929a7	mz_wrapped_raw_payload	5A4D	444	435	0	32	00000200	0	FFFF	0	0	0	0	0	001E	0	1	222652	222140	none
+Env.dat	63	2c55dddc9a6808afda5d69688f2c27ac268caf2b9155ae82b18596ed593ed9a4	environment_record																		63	none
+Fame.dat	1024	52047d64faba2cca72bcfa872ba455144eca5d750bbd9f249b6bd877c3b49ff9	fixed_512_u16_table																		1024	none
+Data/mcache.dat	384	998599462e4f8828ef4e8da4143b980c346613e426331be4a809070d559f0472	fixed_24_x_16_cache_table																		384	none
+swd3_dvd.dat	384	21d50c950c93e82e9619eaef1e1d7d27ad20dc77266bde4565ffc0afe2e82351	presence_marker_content_not_read																		384	none

@@ -1,0 +1,22 @@
+lock_address	unlock_address	owner	surface_operand	instructions_between	refreshes_global_0x004CD76C	contract
+0x00407AB2	0x00407AC4	sub_4070A0	eax	4	yes	store returned pointer, then Unlock before later software writes
+0x00408CF6	0x00408D08	sub_408CF0	eax	4	yes	store returned pointer, then Unlock before later software writes
+0x0040EDE7	0x0040EDF9	sub_40ED60	eax	4	yes	store returned pointer, then Unlock before later software writes
+0x00411A0F	0x00411A21	sub_4118B0	eax	4	yes	store returned pointer, then Unlock before later software writes
+0x00411B5F	0x00411B71	sub_4118B0	ecx	4	yes	store returned pointer, then Unlock before later software writes
+0x004126A2	0x004126B3	sub_4120B0	edx	4	yes	store returned pointer, then Unlock before later software writes
+0x00424C8D	0x00424C9F	sub_424B90	ecx	4	yes	store returned pointer, then Unlock before later software writes
+0x00424DF3	0x00424E05	sub_424B90	ecx	4	yes	store returned pointer, then Unlock before later software writes
+0x0042EDAC	0x0042EDBD	sub_42ED40	edi	4	no	local surface read/copy path
+0x00436851	0x004368C0	sub_436840	eax	37	no	local surface read/copy path
+0x0043A667	0x0043A679	sub_43A610	eax	4	yes	store returned pointer, then Unlock before later software writes
+0x0044D93B	0x0044D94D	sub_44D920	eax	4	yes	store returned pointer, then Unlock before later software writes
+0x0044EAF4	0x0044EB06	sub_44EA60	eax	4	yes	store returned pointer, then Unlock before later software writes
+0x00452870	0x00452882	sub_4527E0	ecx	4	yes	store returned pointer, then Unlock before later software writes
+0x004528E7	0x004528F9	sub_4527E0	ecx	4	yes	store returned pointer, then Unlock before later software writes
+0x0045295D	0x0045296E	sub_4527E0	edx	4	yes	store returned pointer, then Unlock before later software writes
+0x004529D6	0x004529E8	sub_4527E0	ecx	4	yes	store returned pointer, then Unlock before later software writes
+0x00452C0C	0x00452C1E	sub_4527E0	eax	4	yes	store returned pointer, then Unlock before later software writes
+0x00453265	0x00453277	sub_453200	ecx	4	yes	store returned pointer, then Unlock before later software writes
+0x0045AFD7	0x0045AFE5	sub_45AF90	eax	4	yes	store returned pointer, then Unlock before later software writes
+0x0045B0BB	0x0045B0CD	sub_45AF90	ecx	4	yes	store returned pointer, then Unlock before later software writes

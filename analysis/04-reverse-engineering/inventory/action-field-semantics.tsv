@@ -1,0 +1,53 @@
+action_offset_hex	role_offset_hex	access_width_bytes	provisional_semantic_name	status	act_command_producers	command_effect_count	reset_or_persistence_rule	updater_read_instruction_addresses	updater_write_instruction_addresses	updater_read_write_instruction_addresses	initializer_write_instruction_addresses	proven_external_read_instruction_addresses	proven_external_write_instruction_addresses	proven_external_read_write_instruction_addresses	proven_external_access_count
+00	0040	4	requested_action_id	external-producer-pending		0	external request; not reset here	00432203,00432365,0043241B,0043242E				0040EC08,0040ECD8,0040F83A,0043B098,00449C4B	0045145D,0045150F,00451559,00451627,004516EA,0047F95A		11
+04	0044	4	cached_action_id	confirmed-cache-key		0	updated from +0x00 when action id changes	00432367	00432390						0
+08	0048	4	requested_base_variant_index	external-producer-pending		0	external request; not reset here	004322B7,00432418,0043242B				0040EC05,0040ECD5,0040F837,0043B095,00449C48	0040F814,0045145F,00451508,0045155B,0045161D,004516E7,0047F95D		12
+0C	004C	4	cached_base_variant_index	confirmed-cache-key		0	updated from +0x08 when base variant changes	004322BA	004322E8						0
+10	0050	4	yx_parameter_1_draw_x_offset	producer-consumer-confirmed	5859	1	cleared on action/base/delta key change		00432231,004322DC,00432384,0043297E			0040EC66,0040ED44,0043B0FD,00449CB3,00449D07,00449D53,004515B8,004516C1,0047F9B7,0047F9ED,0047FA01,0047FA4E,0047FA58,0048320E,00483271,004832DD,0048393F,0048398C,0048399D,004839EF,00483A00,00483BA2,00483BE5,00483BF6,00483C2D,00483E17,00483E56,00484269,004842BC,0048431A			30
+14	0054	4	yx_parameter_2_draw_y_offset	producer-consumer-confirmed	5859	1	cleared on action/base/delta key change		00432234,004322DF,00432387,00432995			0040EC62,0040ED3E,0043B0F7,00449CAF,00449D00,00449D41,004515B4,004516BD,0047FA8A,0048337F,004833F3,004834F8,00483A57,00483CBA,00483D4D,00483EAC,00484354,00484447			18
+18	0058	4	action_mode_flags	bit-semantics-pending	4148,414D,414E,4753,4C44,4E4F,5649	7	masked, not uniformly cleared, on key change	00432228,004322EB,00432393,0043250C,00432520,00432534,004326E5,00432713	004322AE,0043235C,00432404,00432518,0043252C,00432540,004326F5,00432725	004326DC,004328EA		0040EC46,0040ED16,0043B0D2,0045158F,00451698,0047F9B4,00483205,00483936,00483B93,00483E0E,00484260			11
+1C	005C	4	initialized_minus_one_field_1c	consumer-pending		0	initializer writes 0xFFFFFFFF; updater does not access				0040DC07				0
+20	0060	4	pending_base_variant_override_or_minus_one	role-consumer-confirmed		0	role path copies non-minus-one value to +0x08, then restores 0xFFFFFFFF; updater does not access				0040DC0A	0040F80D	0040F822		2
+24	0064	4	ea_parameter	command-producer-confirmed	4145	1	cleared on action/base/delta key change		0043222B,004322D6,0043237E,0043256B						0
+28	0068	4	eq_parameter	command-producer-confirmed	5145	1	cleared on action/base/delta key change		0043222E,004322D9,00432381,00432825						0
+2C	006C	4	hw_parameter_1	command-producer-confirmed	5748	1	cleared on action/base/delta key change		00432237,004322E2,0043238A,0043293F						0
+30	0070	4	hw_parameter_2	command-producer-confirmed	5748	1	cleared on action/base/delta key change		0043223A,004322E5,0043238D,00432956						0
+34	0074	4	requested_variant_delta	confirmed-lookup-key		0	external request; not reset here	0043220B,00432415,00432428				0040EC02,0040ECD2,0040F834,0043B092,00449C45	0040F81E		6
+38	0078	4	cached_variant_delta	confirmed-cache-key		0	updated from +0x34 when delta changes	0043220E	00432219						0
+3C	007C	4	pending_variant_delta_override_or_minus_one	role-consumer-confirmed		0	role path copies non-minus-one value to +0x34, then restores 0xFFFFFFFF; updater does not access				0040DC0D	0040F817	0040F825		2
+40	0080	2	packed_ap_count_and_current_index	cross-frame-rule-confirmed	5041,544E	2	low byte is AP count; high byte is current 1-based index; not cleared on key change	00432797	004327C3,004327D4,00432915,0043292A						0
+42	0082	2	command_word_cursor	confirmed	4544,4F32,4F56	3	cleared on action/base/delta key change	004321F9,00432464,0043254A,00432563,00432579,00432590,004325A5,004325F5,00432632,0043265E,004326E8,00432718,0043273A,00432793,004327DD,004327FB,0043281D,0043284C,0043287C,0043289A,004328F2,00432911,00432937,00432946,00432976,00432985,0043299F	00432224,004322D2,0043237A,00432475,004325B6,00432606,00432643,004326B7,0043270A,0043274B,004327A8,004327EE,0043280C,0043288D,004328AB,00432902,00432926,004329BE,004329D2,004329DC,004329EF,00432A00	00432556,0043256E,00432585,0043259C,00432731,00432828,00432858,00432942,00432981,004329AB	0040DC1E	004514F7,004516CF			2
+44	0084	2	wait_countdown	cross-frame-rule-confirmed	5344	1	cleared on key change; decremented when nonzero	00432450,004329E7	0043221C,004322CA,00432372,0043249E,004324BB,00432863,00432873,00432A0C		0040DC1A		004516D3		1
+46	0086	2	ds_wait_value	command-producer-confirmed	5344	1	cleared on action/base/delta key change	0043249A,0043285C	00432220,004322CE,00432376,00432854		0040DC16		004516D7		1
+48	0088	2	wait_override_valid_low15	producer-and-mask-confirmed		0	not cleared here; bit 15 enables low-15 override	004324A2			0040DC12				0
+4A	008A	2	render_lookup_key_a_fr_parameter	producer-consumer-confirmed	5246	1	not cleared on lookup-key change		004328AF			0040EC25,0040ECF5,0043B0B5,00449C6B,004514A7,0047F991,004831EC,0048391D,00483B4E,00483DFD,0048424D			11
+4C	008C	2	render_lookup_key_b_ap_parameter	producer-consumer-confirmed	5041	1	not cleared on lookup-key change		004327AC			0040EC21,0040ECF1,0043B0B1,00449C67,00451493,004514B6,004514CA,0045156B,0045158B,00451641,00451680,00451694,0047F98D,004831E8,00483919,00483B4A,00483DF9,00484249			18
+4E	008E	2	or_parameter	command-producer-confirmed	524F	1	not cleared on lookup-key change		00432891			004835CF	004836E0		2
+50	0090	2	ao_parameter	command-producer-confirmed	4F41	1	cleared before each command parse pass		00432460,0043274F			004835DC	004836E4		2
+54	0094	4	selected_command_stream_pointer	borrowed-pointer-confirmed		0	refreshed after ACT lookup on every parsing call	0043245D	0043243E						0
+58	0098	2	vw_parameter	command-producer-confirmed	5756	1	cleared on action/base/delta key change		0043223D,004322EE,00432396,004329A7			0047FBB1,00483404,00483429,00483432,00483AB8,00483ACF,00483AD8,00483B65,00483B7E,00483B87,00483F09,00483F20,00483F29,00484364,0048438A,00484393	0047FBC0,0048343E,00483AE7,00483B96,00483F3E,0048439F		22
+5A	009A	2	ta_parameter	command-producer-confirmed	4154	1	cleared on action/base/delta key change		00432241,004322F2,0043239A,00432552			00483AEB,00483B01,00483F3A,00483F53	00483B09,00483F5D		6
+5E	009E	2	xo_parameter	command-producer-confirmed	4F58	1	not cleared on lookup-key change		00432810			0048322A,00483620,00483662	004836E8		4
+60	00A0	2	yo_parameter	command-producer-confirmed	4F59	1	not cleared on lookup-key change		004327F2			004836B5	004836EC		2
+62	00A2	2	dl_low_byte_value	command-producer-confirmed	4C44	1	cleared on action/base/delta key change		00432264,00432312,004323BA,00432706						0
+64	00A4	2	rc_parameter_1	command-producer-confirmed	4352	1	cleared on action/base/delta key change		00432268,00432316,004323BE,00432610						0
+66	00A6	2	gc_parameter_1	command-producer-confirmed	4347	1	cleared on action/base/delta key change		0043226C,0043231A,004323C2,0043264D						0
+68	00A8	2	bc_parameter_1	command-producer-confirmed	4342	1	cleared on action/base/delta key change		00432270,0043231E,004323C6,004325C0						0
+70	00B0	2	rc_parameter_2_or_lc_zero	command-producer-confirmed	434C,4352	2	not cleared on lookup-key change		00432618,00432621						0
+72	00B2	2	gc_parameter_2_or_lc_zero	command-producer-confirmed	4347,434C	2	not cleared on lookup-key change		00432625,00432655						0
+74	00B4	2	bc_parameter_2_or_lc_zero	command-producer-confirmed	4342,434C	2	not cleared on lookup-key change		004325C8,00432629						0
+76	00B6	2	xa_parameter	command-producer-confirmed	4158	1	cleared on action/base/delta key change		00432245,004322F6,0043239E,00432581			0047F9AA,0047FA16,0047FA5C,00483219,0048327C,004832E8,00483950,004839A8,00483A0B,00483A64,00483E28,00483E61,00483EB3,00484274,004842C7,00484325			16
+78	00B8	2	ya_parameter	command-producer-confirmed	4159	1	cleared on action/base/delta key change		00432249,004322FA,004323A2,00432598			0047FAB5,0047FAF2,00483A6A,00483A9F,00483EBA,00483EF2			6
+7A	00BA	2	lf_parameter_1	command-producer-confirmed	464C	1	cleared on action/base/delta key change		00432274,00432322,004323CA,00432671						0
+7C	00BC	2	lf_parameter_2	command-producer-confirmed	464C	1	cleared on action/base/delta key change		00432278,00432326,004323CE,0043267A						0
+7E	00BE	2	lf_parameter_3	command-producer-confirmed	464C	1	cleared on action/base/delta key change		0043227C,0043232A,004323D2,00432683						0
+80	00C0	2	lf_parameter_4	command-producer-confirmed	464C	1	cleared on action/base/delta key change		00432280,0043232E,004323D6,0043268C						0
+82	00C2	2	lf_parameter_5	command-producer-confirmed	464C	1	cleared on action/base/delta key change		00432287,00432335,004323DD,00432698						0
+84	00C4	2	lf_parameter_6	command-producer-confirmed	464C	1	cleared on action/base/delta key change		0043228E,0043233C,004323E4,004326A4						0
+86	00C6	2	lf_parameter_7	command-producer-confirmed	464C	1	cleared on action/base/delta key change		00432295,00432343,004323EB,004326B0						0
+88	00C8	1	wt_low_byte_value	command-producer-confirmed	5457	1	cleared on action/base/delta key change		00432258,00432306,004323AE,00432906			0045147E			1
+89	00C9	1	reset_only_unknown_byte	external-producer-pending		0	cleared on action/base/delta key change		0043225E,0043230C,004323B4						0
+8A	00CA	1	sg_low_byte_value	command-producer-confirmed	4753	1	cleared on action/base/delta key change		00432252,00432300,004323A8,0043272B			0040EC3A,0040ED0A,00483533,00483D35			4
+8C	00CC	4	command_2o_latched_state	condition-confirmed-business-name-pending	4F32	1	cleared on action/base/delta key change		0043229C,0043234A,004323F2,004329FA			004515D0,004836D3,00483B12,00483C56,00483FA7			5
+90	00D0	4	external_stream_control_mode	battle-producer-confirmed		0	battle render paths write 0/1 immediately before update; updater key changes clear it	004321EE,004329B4,004329C8	004322A2,00432350,004323F8		0040DC22		0047F960,0047F976,004838E4,004838FC,00483DC4,00483DDC		6
+94	00D4	4	ms_latched_state	condition-confirmed-business-name-pending	534D	1	cleared on action/base/delta key change		004322A8,00432356,004323FE,004328B8						0

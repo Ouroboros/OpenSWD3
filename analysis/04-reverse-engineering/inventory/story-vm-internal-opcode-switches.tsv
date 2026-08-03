@@ -1,0 +1,3 @@
+switch	dispatch_address	selector	input_domain	jump_table	byte_selector_table	nondefault_opcodes	default_opcodes	role
+shared_numeric_operation_refinement	0x0042B0E4	effective opcode retained in EDX	29..185	0x0042D7F4/6 dwords	0x0042D80C/157 bytes	29,30,31,32,33,181,182,183,184,185	34..180	refines shared primary targets 0x0042B074/0x0042B070; not a third primary table
+shared_flag_selection_refinement	0x0042C57B	effective opcode reloaded from stack into ECX	102..174	0x0042D8AC/9 dwords	0x0042D8D0/73 bytes	102,103,117,136,140,145,146,174	104..116,118..135,137..139,141..144,147..173	refines shared primary target 0x0042C567; not a third primary table

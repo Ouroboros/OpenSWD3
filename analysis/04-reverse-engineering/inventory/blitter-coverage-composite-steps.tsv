@@ -1,0 +1,17 @@
+coverage_byte	jump_target	source_operation	destination_binary_units	destination_weight_sixteenths	operation	destination_term_sequence	rounding
+0	loc_419BE0	not read	16	16/16	leave destination unchanged		none
+1	loc_4199F9	add exact packed source	14	14/16	add exact source to independently shifted and masked destination fields	dst>>1&dword_4CD788;dst>>2&dword_4CD78C;dst>>3&dword_4CD790	none
+2	loc_419A29	add exact packed source	13	13/16	add exact source to independently shifted and masked destination fields	dst>>1&dword_4CD788;dst>>2&dword_4CD78C;dst>>4&dword_4CD794	none
+3	loc_419A59	add exact packed source	12	12/16	add exact source to independently shifted and masked destination fields	dst>>1&dword_4CD788;dst>>2&dword_4CD78C	none
+4	loc_419A7C	add exact packed source	11	11/16	add exact source to independently shifted and masked destination fields	dst>>1&dword_4CD788;dst>>3&dword_4CD790;dst>>4&dword_4CD794	none
+5	loc_419AAC	add exact packed source	10	10/16	add exact source to independently shifted and masked destination fields	dst>>1&dword_4CD788;dst>>3&dword_4CD790	none
+6	loc_419ACF	add exact packed source	9	9/16	add exact source to independently shifted and masked destination fields	dst>>1&dword_4CD788;dst>>4&dword_4CD794	none
+7	loc_419AF2	add exact packed source	8	8/16	add exact source to independently shifted and masked destination fields	dst>>1&dword_4CD788	none
+8	loc_419B08	add exact packed source	7	7/16	add exact source to independently shifted and masked destination fields	dst>>2&dword_4CD78C;dst>>3&dword_4CD790;dst>>4&dword_4CD794	none
+9	loc_419B39	add exact packed source	6	6/16	add exact source to independently shifted and masked destination fields	dst>>2&dword_4CD78C;dst>>3&dword_4CD790	none
+10	loc_419B5D	add exact packed source	5	5/16	add exact source to independently shifted and masked destination fields	dst>>2&dword_4CD78C;dst>>4&dword_4CD794	none
+11	loc_419B7E	add exact packed source	4	4/16	add exact source to independently shifted and masked destination fields	dst>>2&dword_4CD78C	none
+12	loc_419B92	add exact packed source	3	3/16	add exact source to independently shifted and masked destination fields	dst>>3&dword_4CD790;dst>>4&dword_4CD794	none
+13	loc_419BB3	add exact packed source	2	2/16	add exact source to independently shifted and masked destination fields	dst>>3&dword_4CD790	none
+14	loc_419BC7	add exact packed source	1	1/16	add exact source to independently shifted and masked destination fields	dst>>4&dword_4CD794	none
+15	loc_419BDB	copy exact	0	0/16	copy source exactly		none

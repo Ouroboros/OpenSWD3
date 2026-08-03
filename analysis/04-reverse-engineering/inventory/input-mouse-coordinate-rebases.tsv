@@ -1,0 +1,9 @@
+call_address	owner	x_operand	y_operand	contract
+0x00424BD8	sub_424B90	1E0h	168h	clamp requested logical x/y to 0..639/0..479, then change absolute-axis baseline; does not write normalized records
+0x00451E44	sub_451B10	ecx	eax	clamp requested logical x/y to 0..639/0..479, then change absolute-axis baseline; does not write normalized records
+0x0046287E	sub_462740	0F0h	0C6h	clamp requested logical x/y to 0..639/0..479, then change absolute-axis baseline; does not write normalized records
+0x004628D1	sub_462740	0F0h	0C6h	clamp requested logical x/y to 0..639/0..479, then change absolute-axis baseline; does not write normalized records
+0x00462996	sub_462740	0F0h	0C6h	clamp requested logical x/y to 0..639/0..479, then change absolute-axis baseline; does not write normalized records
+0x00462AA6	sub_462740	0F0h	0C6h	clamp requested logical x/y to 0..639/0..479, then change absolute-axis baseline; does not write normalized records
+0x00462ACF	sub_462740	0F0h	0C6h	clamp requested logical x/y to 0..639/0..479, then change absolute-axis baseline; does not write normalized records
+0x004644D5	sub_464270	edi	edx	clamp requested logical x/y to 0..639/0..479, then change absolute-axis baseline; does not write normalized records

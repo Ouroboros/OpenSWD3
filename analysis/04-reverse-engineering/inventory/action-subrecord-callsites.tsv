@@ -1,0 +1,162 @@
+call_address	owner_function_address	owner_function_name	argument_push_address	argument_expression	register_origin_address	register_origin_instruction	syntactic_origin_class
+0040378C	00402F80	sub_402F80	0040377E	edi	00403744	lea edi, dword_4BABE8[esi]	confirmed_role_action_base
+004037E4	00402F80	sub_402F80	004037D6	ebx	004037D1	lea ebx, [edi+40h]	confirmed_role_parent_plus_40
+00403CB5	00402F80	sub_402F80	00403CA4	esi	00403C64	lea esi, dword_4BABE8[eax]	confirmed_role_action_base
+00403D0F	00402F80	sub_402F80	00403CFF	esi	00403C64	lea esi, dword_4BABE8[eax]	confirmed_role_action_base
+0040548B	00405430	sub_405430	0040548A	edi	00405487	lea edi, [esi+30h]	confirmed_role_shifted_parent
+0040561F	00405500	sub_405500	0040561E	edi	0040561B	lea edi, [ebp+40h]	confirmed_role_parent_plus_40
+00405ED9	00405500	sub_405500	00405ECE	esi	00405EC5	lea esi, [ebp+40h]	confirmed_role_parent_plus_40
+00405F32	00405500	sub_405500	00405F27	esi	00405F1E	lea esi, [ebp+40h]	confirmed_role_parent_plus_40
+00405FB5	00405500	sub_405500	00405FB4	esi	00405FB1	lea esi, [ebp+40h]	confirmed_role_parent_plus_40
+0040606A	00405500	sub_405500	00406039	esi	00406032	lea esi, [ebp+40h]	confirmed_role_parent_plus_40
+00406153	00405500	sub_405500	0040614B	esi	00406142	lea esi, [ebp+40h]	confirmed_role_parent_plus_40
+00408F8D	00408E70	sub_408E70	00408F88	offset dword_4FC5B0			static_action_object
+0040941D	00408E70	sub_408E70	00409418	offset dword_4ACD18			static_action_object
+0040B30B	0040AFF0	sub_40AFF0	0040B307	eax	0040B301	lea eax, dword_4CAA78[esi]	confirmed_dialog_action_pool
+0040B362	0040AFF0	sub_40AFF0	0040B361	ecx	0040B35E	mov ecx, [ebp+4]	confirmed_dialog_action_pool
+0040E329	0040E0B0	sub_40E0B0	0040E324	offset dword_4ACD18			static_action_object
+0040E3C5	0040E0B0	sub_40E0B0	0040E394	offset dword_4C9708			static_action_object
+0040E409	0040E0B0	sub_40E0B0	0040E404	offset dword_4CADE0			static_action_object
+0040EBF6	0040EBF0	sub_40EBF0	0040EBF5	esi	0040EBF1	mov esi, [esp+4+arg_0]	confirmed_action_pointer_parameter
+0040ECC6	0040ECC0	sub_40ECC0	0040ECC5	esi	0040ECC1	mov esi, [esp+4+arg_0]	confirmed_action_pointer_parameter
+0040F291	0040F280	sub_40F280	0040F290	edi	0040F286	lea edi, [esi+40h]	confirmed_role_parent_plus_40
+0040F828	0040F6D0	sub_40F6D0	0040F821	edi	0040F805	lea edi, dword_4BABE8[esi]	confirmed_role_action_base
+004120C2	004120B0	sub_4120B0	004120C1	esi	004120B7	mov esi, offset unk_4BA390	static_action_object
+00412477	004120B0	sub_4120B0	00412476	edi	00412473	lea edi, [esi+40h]	confirmed_role_parent_plus_40
+00412618	004120B0	sub_4120B0	00412617	edi	00412614	lea edi, [esi+40h]	confirmed_role_parent_plus_40
+00412663	004120B0	sub_4120B0	00412662	ecx	0041265B	lea ecx, ds:4BABE8h[eax*8]	confirmed_role_action_base
+0041284F	004120B0	sub_4120B0	0041284E	esi	0041284B	lea esi, [ebx+40h]	confirmed_role_parent_plus_40
+004147FB	004147E0	sub_4147E0	004147FA	edi	004147F7	lea edi, [esi+8]	confirmed_picture_action_list_node
+00414AB1	004149B0	sub_4149B0	00414AA7	offset dword_4ACD18			static_action_object
+00414BA3	00414B60	sub_414B60	00414BA0	esi	00414B63	mov esi, dword_4AD3E8	confirmed_picpaint_action_list_node
+00414CF7	00414CE0	sub_414CE0	00414CF6	esi	00414CE2	mov esi, dword_4BA6E0	confirmed_picpaint_action_list_node
+00415CD0	00415B70	sub_415B70	00415CBC	offset dword_4ACAF8			static_action_object
+00415F56	00415EE0	sub_415EE0	00415F39	offset dword_4ACAF8			static_action_object
+00416325	004161C0	sub_4161C0	00416324	edx	00416321	lea edx, [edi-8]	confirmed_shifted_static_action_pool
+00416B5D	00416B30	sub_416B30	00416B44	offset dword_4AD3F0			static_action_object
+00416BE9	00416B30	sub_416B30	00416BDA	offset dword_4AD3F0			static_action_object
+0042756F	00427300	sub_427300	00427568	ebp	00427562	lea ebp, [edi+40h]	confirmed_role_parent_plus_40
+004275C1	00427300	sub_427300	004275B3	ebx	004275B0	lea ebx, [esi+40h]	confirmed_role_parent_plus_40
+004277B4	00427300	sub_427300	004277A6	edi	0042779F	lea edi, [esi+40h]	confirmed_role_parent_plus_40
+00427AD8	00427920	sub_427920	00427AD7	ecx	00427AD0	lea ecx, ds:4BABE8h[eax*8]	confirmed_role_action_base
+00427F4D	00427920	sub_427920	00427F4C	eax	00427F45	lea eax, ds:4BABE8h[edx*8]	confirmed_role_action_base
+00428053	00427920	sub_427920	00428052	esi	00428029	lea esi, ds:4BABE8h[ecx*8]	confirmed_role_action_base
+00428D52	00427920	sub_427920	00428D51	edx	00428D41	lea edx, dword_4BABE8[eax]	confirmed_role_action_base
+00428DFA	00427920	sub_427920	00428DEF	esi	00428DE8	lea esi, ds:4BABE8h[edx*8]	confirmed_role_action_base
+00428ED9	00427920	sub_427920	00428ED8	esi	00428EB6	lea esi, ds:4BABE8h[ecx*8]	confirmed_role_action_base
+0042900E	00427920	sub_427920	0042900D	esi	00428F97	lea esi, ds:4BABE8h[eax*8]	confirmed_role_action_base
+0042950E	00427920	sub_427920	0042950D	eax	00429507	lea eax, dword_4BABE8[eax]	confirmed_role_action_base
+00429585	00427920	sub_427920	00429584	eax	0042957E	lea eax, dword_4BABE8[eax]	confirmed_role_action_base
+00429F0A	00427920	sub_427920	00429F09	edx	00429F03	lea edx, dword_4BABE8[ecx]	confirmed_role_action_base
+0042A00C	00427920	sub_427920	0042A00B	eax	0042A005	lea eax, dword_4BABE8[eax]	confirmed_role_action_base
+0042BB54	00427920	sub_427920	0042BB53	eax	0042BB4D	lea eax, dword_4BABE8[eax]	confirmed_role_action_base
+0042D2FD	00427920	sub_427920	0042D2F6	edi	0042D2CA	lea edi, dword_4BABE8[eax]	confirmed_role_action_base
+0042FAEE	0042ED40	sub_42ED40	0042FAED	edx	0042FAE7	lea edx, dword_4BABE8[eax]	confirmed_role_action_base
+004300D8	0042ED40	sub_42ED40	004300D3	offset dword_4C9708			static_action_object
+0043011F	0042ED40	sub_42ED40	0043011A	offset dword_4CADE0			static_action_object
+00430985	004308C0	sub_4308C0	0043097A	offset dword_4A9A30			static_action_object
+004309F6	004308C0	sub_4308C0	004309D3	offset dword_4A9A30			static_action_object
+00430A49	004308C0	sub_4308C0	00430A34	offset dword_4A9A30			static_action_object
+00430AB8	004308C0	sub_4308C0	00430A9F	offset dword_4A9A30			static_action_object
+00430B11	004308C0	sub_4308C0	00430AFF	offset dword_4A9A30			static_action_object
+0043A9FC	0043A880	sub_43A880	0043A9F7	offset dword_4FBEE0			static_action_object
+0043AE93	0043AE40	sub_43AE40	0043AE86	offset dword_4FC328			static_action_object
+0043AF62	0043AE40	sub_43AE40	0043AF5D	offset dword_4FC6E8			static_action_object
+0043B086	0043B080	sub_43B080	0043B085	esi	0043B081	mov esi, [esp+4+arg_0]	confirmed_action_pointer_parameter
+0043BB06	0043BAB0	sub_43BAB0	0043BAED	offset dword_4FC5B0			static_action_object
+0043FE70	0043FDE0	sub_43FDE0	0043FE51	offset dword_4FC650			static_action_object
+0043FF10	0043FDE0	sub_43FDE0	0043FEF9	offset dword_4FC650			static_action_object
+0043FF98	0043FDE0	sub_43FDE0	0043FF82	offset dword_4FC650			static_action_object
+00440021	0043FDE0	sub_43FDE0	0044000B	offset dword_4FC650			static_action_object
+004417E2	00441680	sub_441680	004417D5	offset dword_4FC5B0			static_action_object
+004419C2	00441680	sub_441680	004419B2	offset dword_4FC5B0			static_action_object
+0044286D	004425C0	sub_4425C0	00442854	offset dword_4FC650			static_action_object
+00444446	004442B0	sub_4442B0	0044443D	offset dword_4FC5B0			static_action_object
+00447220	00447100	sub_447100	0044721B	offset dword_4FC5B0			static_action_object
+00447867	00447100	sub_447100	0044785D	offset dword_4FC5B0			static_action_object
+00447B64	00447100	sub_447100	00447B5F	offset dword_4FC650			static_action_object
+00448F4D	00448EE0	sub_448EE0	00448F48	offset dword_4FC5B0			static_action_object
+00449C39	00449C30	sub_449C30	00449C38	edi	00449C34	mov edi, [esp+10h+arg_0]	confirmed_action_pointer_parameter
+0044C236	0044C160	sub_44C160	0044C22D	offset dword_4FC5B0			static_action_object
+004502E3	004502B0	sub_4502B0	004502D6	eax	004502CC	lea eax, [esp+0A4h+var_98]	confirmed_stack_action_record
+00450425	00450400	sub_450400	00450414	eax	0045040E	lea eax, unk_4FDD10[esi]	indexed_static_action_pool
+004509F5	004509D0	sub_4509D0	004509E8	eax	004509E2	lea eax, unk_4FD798[esi]	indexed_static_action_pool
+00450A98	00450A80	sub_450A80	00450A88	offset dword_4FD6D0			static_action_object
+00450B78	00450B60	sub_450B60	00450B64	offset dword_4FDC70			static_action_object
+00450C8F	00450C50	sub_450C50	00450C8A	offset dword_4FD638			static_action_object
+00450D12	00450C50	sub_450C50	00450CEF	offset dword_4FD638			static_action_object
+00450DC6	00450C50	sub_450C50	00450DB1	offset dword_4FD638			static_action_object
+00450F3A	00450C50	sub_450C50	00450F35	offset dword_4FD638			static_action_object
+00450FF8	00450F90	sub_450F90	00450FF3	offset dword_4FD638			static_action_object
+00451466	00451420	sub_451420	00451450	edi	00451436	mov edi, ecx	confirmed_action_wrapper_record
+00451511	00451420	sub_451420	00451500	edi	00451436	mov edi, ecx	confirmed_action_wrapper_record
+00451562	00451540	sub_451540	00451558	esi			confirmed_action_wrapper_record
+00451629	004515E0	sub_4515E0	00451618	esi			confirmed_action_wrapper_record
+004516EC	004515E0	sub_4515E0	004516DF	esi			confirmed_action_wrapper_record
+004533A3	00453200	sub_453200	0045338E	offset dword_4FC5B0			static_action_object
+004585DA	004582B0	sub_4582B0	004585D9	eax	004585B5	lea eax, unk_5202A8[esi]	indexed_static_action_pool
+0045896C	004582B0	sub_4582B0	0045896B	edi	0045893E	lea edi, unk_4FE600[esi]	indexed_static_action_pool
+00458E50	00458DE0	sub_458DE0	00458E4F	eax	00458E2B	lea eax, unk_5202A8[edi]	indexed_static_action_pool
+004591AB	00458DE0	sub_458DE0	004591A2	eax	0045919C	lea eax, unk_4FE600[edi]	indexed_static_action_pool
+00459A2B	004599B0	sub_4599B0	00459A2A	eax	00459A07	lea eax, unk_5202A8[esi]	indexed_static_action_pool
+00459C5E	00459BF0	sub_459BF0	00459C5D	eax	00459C36	lea eax, unk_524980[esi]	indexed_static_action_pool
+00465535	00465480	sub_465480	00465515	offset dword_4FC5B0			static_action_object
+00465ACF	004659C0	sub_4659C0	00465ABA	offset dword_4FC5B0			static_action_object
+00465ED4	00465E50	sub_465E50	00465EBF	offset dword_4FC5B0			static_action_object
+004661F5	00466190	sub_466190	004661E0	offset dword_4FC5B0			static_action_object
+00466533	00466500	sub_466500	0046651E	offset dword_4FC5B0			static_action_object
+004667CC	004667B0	sub_4667B0	004667B3	offset dword_4FC5B0			static_action_object
+00466A2C	00466950	sub_466950	00466A17	offset dword_4FC5B0			static_action_object
+00467746	00467710	sub_467710	00467730	offset dword_4FC5B0			static_action_object
+00467B0D	00467AC0	sub_467AC0	00467AF4	offset dword_4FC5B0			static_action_object
+00467F43	00467F00	sub_467F00	00467F2E	offset dword_4FC5B0			static_action_object
+004689B7	00468930	sub_468930	0046899A	offset dword_4FC5B0			static_action_object
+00468B73	00468AD0	sub_468AD0	00468B56	offset dword_4FC5B0			static_action_object
+004690D4	00469080	sub_469080	004690BF	offset dword_4FC5B0			static_action_object
+00469239	00469220	sub_469220	00469220	offset dword_4FC5B0			static_action_object
+00469376	00469340	sub_469340	0046935C	offset dword_4FC5B0			static_action_object
+0046956D	00469550	sub_469550	00469554	offset dword_4FC5B0			static_action_object
+00469695	00469650	sub_469650	00469680	offset dword_4FC5B0			static_action_object
+0046999F	00469960	sub_469960	0046998A	offset dword_4FC5B0			static_action_object
+00471610	00471540	sub_471540	0047160F	eax	004715DA	lea eax, [esi+468h]	confirmed_battle_actor_action_array
+0047183D	004717F0	sub_4717F0	0047183C	eax	00471804	lea eax, [esi+500h]	confirmed_battle_actor_action_array
+00471B1D	00471AD0	sub_471AD0	00471B1C	eax	00471AE5	lea eax, [esi+500h]	confirmed_battle_actor_action_array
+00471D9F	00471D60	sub_471D60	00471D9E	ebx	00471D6F	lea ebx, [esi+500h]	confirmed_battle_actor_action_array
+0047200B	00471FC0	sub_471FC0	0047200A	eax	00471FDD	lea eax, [ebx+2BC8h]	confirmed_battle_group_a_action_array
+00472231	004721F0	sub_4721F0	00472230	edi	00472204	lea edi, [esi+338h]	confirmed_battle_actor_action_array
+00472515	004724D0	sub_4724D0	00472514	edi	004724DF	lea edi, [esi+338h]	confirmed_battle_actor_action_array
+00472934	004728E0	sub_4728E0	00472933	eax	004728F2	lea eax, [esi+338h]	confirmed_battle_actor_action_array
+00472D14	00472CE0	sub_472CE0	00472CFD	eax	00472CF2	lea eax, [esi+338h]	confirmed_battle_actor_action_array
+00472EF3	00472CE0	sub_472CE0	00472EE6	eax	00472EE0	lea eax, [esi+630h]	confirmed_battle_actor_action_array
+004731E9	004731A0	sub_4731A0	004731CE	eax	004731BB	lea eax, [esi+0AF0h]	confirmed_battle_actor_action_array
+004735EB	004735B0	sub_4735B0	004735DB	eax	004735CF	lea eax, [esi+0AF0h]	confirmed_battle_actor_action_array
+00473892	004735B0	sub_4735B0	0047388B	eax	0047387B	lea eax, [esi+0B88h]	confirmed_battle_actor_action_array
+00473D2F	00473C10	sub_473C10	00473D2E	edi	00473D04	lea edi, [esi+500h]	confirmed_battle_actor_action_array
+00473EA7	00473C10	sub_473C10	00473E94	eax	00473E7F	lea eax, [esi+500h]	confirmed_battle_actor_action_array
+004740DB	00473C10	sub_473C10	004740DA	eax	004740A7	lea eax, [esi+6C8h]	confirmed_battle_actor_action_array
+004751F4	004751C0	sub_4751C0	004751DD	eax	004751D2	lea eax, [esi+338h]	confirmed_battle_actor_action_array
+00476440	004763D0	sub_4763D0	0047643F	eax	00476408	lea eax, [esi+468h]	confirmed_battle_actor_action_array
+00478511	004784A0	sub_4784A0	00478510	eax	0047850C	lea eax, [esp+0A0h+var_98]	confirmed_stack_action_record
+0047863B	00478620	sub_478620	0047863A	eax	00478625	lea eax, [ebx+0CB8h]	confirmed_battle_actor_action_array
+00478FD1	00478B60	sub_478B60	00478FD0	eax	00478FCA	lea eax, [ebp+2A0h]	confirmed_battle_actor_action_array
+00479675	00478B60	sub_478B60	0047966E	eax	00479662	lea eax, [ebp+468h]	confirmed_battle_actor_action_array
+00479921	00479850	sub_479850	00479920	edi			confirmed_battle_actor_action_array
+0047BB21	0047BA80	sub_47BA80	0047BB20	edi	0047BA8F	lea edi, [ebp+500h]	confirmed_battle_actor_action_array
+0047C043	0047BA80	sub_47BA80	0047C040	eax	0047C034	lea eax, [ebp+3D0h]	confirmed_battle_actor_action_array
+0047C71C	0047C6B0	sub_47C6B0	0047C71B	eax	0047C6E1	lea eax, [esi+468h]	confirmed_battle_actor_action_array
+0047C9D4	0047C950	sub_47C950	0047C9D3	ecx	0047C988	lea ecx, [esi+468h]	confirmed_battle_actor_action_array
+0047E6A3	0047E650	sub_47E650	0047E6A2	eax	0047E69F	lea eax, [edi+4]	confirmed_battle_status_action_node
+0047F97D	0047F940	sub_47F940	0047F97C	ebp	0047F945	mov ebp, [esp+10h+arg_4]	confirmed_action_pointer_parameter
+0047FC8C	0047FC40	sub_47FC40	0047FC8B	eax	0047FC88	lea eax, [esi+4]	confirmed_battle_effect_action_pair
+0047FF38	0047FC40	sub_47FC40	0047FF37	eax	0047FF29	lea eax, [esi+9Ch]	confirmed_battle_effect_action_pair
+00480B70	00480AE0	sub_480AE0	00480B6D	edi	00480B61	lea edi, [esi+3D0h]	confirmed_battle_actor_action_array
+00480D6F	00480D40	sub_480D40	00480D66	edi	00480D57	lea edi, [esi+500h]	confirmed_battle_actor_action_array
+004823C4	00482310	sub_482310	004823C3	eax	00482383	lea eax, [esi+500h]	confirmed_battle_actor_action_array
+00482459	00482310	sub_482310	00482458	ecx	0048241C	lea ecx, [esi+468h]	confirmed_battle_actor_action_array
+00482903	00482840	sub_482840	00482902	eax	004828BE	lea eax, [esi+500h]	confirmed_battle_actor_action_array
+00482988	00482840	sub_482840	00482987	eax	00482941	lea eax, [esi+468h]	confirmed_battle_actor_action_array
+004831D8	004831C0	sub_4831C0	004831CF	edi	004831C7	mov edi, [esp+18h+arg_4]	confirmed_action_pointer_parameter
+00483903	004838D0	sub_4838D0	00483902	edi	004838D7	mov edi, [esp+18h+arg_4]	confirmed_action_pointer_parameter
+00483B3A	00483B30	sub_483B30	00483B39	edi	00483B33	mov edi, [esp+0Ch+arg_0]	confirmed_action_pointer_parameter
+00483DE3	00483DB0	sub_483DB0	00483DE2	edi	00483DB7	mov edi, [esp+18h+arg_4]	confirmed_action_pointer_parameter
+00484239	00484230	sub_484230	00484238	edi	00484232	mov edi, [esp+8+arg_8]	confirmed_action_pointer_parameter

@@ -1,0 +1,5 @@
+file	window_relative	ip	file_offset	issue	detail	root_slots
+TALK3.DAT	65535	0	0x000101FF	decode_error	unmapped effective opcode 12800	1756,1814,1817
+TALK3.DAT	65556	0	0x00010214	decode_error	unmapped effective opcode 370	1738,1767
+TALK3.DAT	65705	0	0x000102A9	decode_error	unmapped effective opcode 547	1657
+TALK3.DAT	69637	0	0x00011205	decode_error	unmapped effective opcode 16128	1296,1407

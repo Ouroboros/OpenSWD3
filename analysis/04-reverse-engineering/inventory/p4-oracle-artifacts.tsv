@@ -1,0 +1,12 @@
+artifact	physical_extent	content	requirement	purpose
+run-manifest.tsv	one row per run	EXE/DLL/asset/font/OS/display hashes and versions	required	without it a pixel mismatch cannot be attributed
+frame-events.tsv	one row per accepted frame	sequence,u32 clock,interval,mode,input hashes,artifact hashes	required	authoritative join key for deterministic replay
+framebuffer-physical.bin	pitch*480 bytes	raw bytes from 0x004CD76C including row padding	required per selected frame	preserves actual DirectDraw surface layout
+framebuffer-logical.bin	480 rows of 640*2 bytes	canonical packed-16 visible rows plus masks	required per selected frame	primary pixel oracle before platform upload
+builtin-preconvert.bin	width*height*2 bytes	sub_4303D0 private copy before sub_4238D0	required when P capture is used	proves what the original screenshot writer consumed
+builtin-rgb555.bin	width*height*2 bytes	private copy after reverse conversion	recommended	separates conversion differences from BMP serialization
+builtin-screenshot.bmp	original file bytes	24-bit bottom-up BMP	recommended	visual and original-writer corroboration; not the sole pixel oracle
+glyph-mask.bin	font_height*mask_row_bytes per cache miss	raw MSB-first 1-bit cache slot	required for selected CP950 glyph set	freezes host GDI/font-dependent input to software footprint writers
+bink-source.bin	pitch*480 bytes	software framebuffer immediately after BinkCopyToBuffer	required for Bink case	separates decoder output from DirectDraw RECT behavior
+bink-primary.bin	640*480 visible packed pixels	primary surface after the 639x479 Blt	required for Bink case	settles right-column/bottom-row behavior
+time-input-trace.tsv	one row per sampled call/frame	three timeGetTime callsites; raw keyboard/mouse; normalized records	required for replay	replay must inject recorded u32 values and device samples in original order

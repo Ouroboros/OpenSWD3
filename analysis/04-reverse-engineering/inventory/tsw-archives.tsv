@@ -1,0 +1,7 @@
+archive	group	file_size_bytes	declared_record_count	physical_index_position_count	nonempty_record_count	nonempty_beyond_declared_count	frame_count	record_count_8bpp	record_count_16bpp	record_count_other_bpp	compressed_payload_bytes	declared_decompressed_bytes	descriptor_10_trailing_span_bytes	minimum_block_offset_hex	maximum_block_end_hex	blocks_reach_exact_eof	bytes_between_fixed_index_and_first_block	inter_block_gap_bytes
+all_char.tsw	0	62112201	1578	3000	1573	0	8519	1363	210	0	59747360	82124116	1144674	000203BC	03B3C1C9	1	0	64723
+all_item.tsw	1	12458349	461	3000	458	0	458	0	458	0	12223586	24791544	0	0002DC4D	00BE196D	1	55441	25310
+all_magic.tsw	2	448004719	354	3000	354	0	9795	0	352	2	440442506	1126295440	7065368	000203BC	1AB4026F	1	0	7949
+all_sys.tsw	3	16870486	348	3000	348	0	973	274	69	5	16376564	91196814	182402	000203BC	01016C56	1	0	0
+all_map1.tsw	4	5113255	114	3000	114	0	207	1	112	1	4900510	7691503	71385	000203BC	004E05A7	1	0	0
+all_map2.tsw	5	25086796	82	3000	81	1	139	0	80	1	24660979	46899156	0	000203BC	017ECB4C	1	0	287813

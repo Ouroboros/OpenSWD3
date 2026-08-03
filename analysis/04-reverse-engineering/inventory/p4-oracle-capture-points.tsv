@@ -1,0 +1,20 @@
+probe	address	timing	capture	purpose
+accepted_frame_clock	0x0040A5A3	before/after call	timeGetTime return; then 0x004AAECC and interval gate	log u32 return and callsite; do not substitute host floating time
+accepted_frame_start	0x0040A5D1	after accepted-time store	accepted u32 time in 0x004CC2B0/0x004AAECC	frame sequence number begins only after the interval gate accepts
+keyboard_snapshot	0x0040A749	before mouse/normalizer call	0x004B8748, 256 bytes	captures the successful DirectInput scan-code snapshot before mouse sampling
+mouse_raw_state	0x00437334	after virtual GetDeviceState returns	stack-local 0x1C-byte mouse state	record X/Y and button bytes before baseline/scaling logic; failed HRESULT is not checked
+normalized_input	0x0040A74E	after sub_4050E0 returns	0x004B7CB0, 20*16 bytes plus logical mouse globals	pairs one accepted frame with the exact post-normalization state
+world_precommit	0x00412716	before DirectDraw Blt	0x004CD76C plus pitch/masks	representative ordinary-world final software framebuffer
+special_mode_precommit	0x0043A854	before DirectDraw Blt	0x004CD76C plus pitch/masks	representative menu/special-mode final software framebuffer
+battle_precommit	0x0045350A	before DirectDraw Blt	0x004CD76C plus pitch/masks	representative battle final software framebuffer
+p_screenshot_gate	0x0040A285	conditional branch	WM_KEYDOWN wParam 0x50 and surrounding state	documents whether the built-in P capture was actually eligible
+screenshot_preconvert_copy	0x00430490	before sub_4238D0 call	top stack pointer to width*height*2 heap copy; next stack dword is pixel count	exact contiguous packed-16 bytes before screenshot reverse conversion
+screenshot_rgb555_copy	0x00430495	after sub_4238D0 returns	heap copy saved in local var_AC	canonical screenshot intermediate; may have lost narrowed surface bits
+screenshot_complete	0x00430693	success return	written 24-bit bottom-up BMP	visual corroboration only; preserve file hash and byte length
+glyph_mask_entry	0x004368D0	function entry	ECX renderer; [ESP+4] string; [ESP+8] destination mask slot	save face/size/object fields and destination address before GDI rasterization
+glyph_mask_complete	0x00436974	before retn 8	destination captured at entry; size=(object+0xFD4)*(object+0x1C)	raw MSB-first 1-bit glyph mask after nonzero thresholding
+bink_copy_complete	0x00484686	after BinkCopyToBuffer	0x004CD76C physical surface rows and Bink frame number	decoder output before any DirectDraw RECT interpretation
+bink_precommit	0x00484A11	before DirectDraw Blt	source and destination RECT {0,0,639,479}; software framebuffer	locks the exact inclusive-looking values passed to legacy DirectDraw
+bink_postcommit	0x00484A14	after DirectDraw Blt	visible primary pixels plus HRESULT	only dynamic comparison can settle the last-column/last-row visible result
+cd_poll_clock	0x00411958	before/after call	timeGetTime return in CD/file poll loop	log separately from accepted-frame clock
+cd_hold_clock	0x00411C10	before/after call	timeGetTime return in 500ms hold loop	log separately from accepted-frame clock

@@ -1,0 +1,33 @@
+blt_address	owner	role	destination	source	rectangle_contract	flags	result_policy
+0x00408276	sub_4070A0	transient_save_or_load_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x00408D5E	sub_408CF0	steady_high_priority_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	DDBLT_WAIT(0x01000000)	ignored
+0x0040EFAE	sub_40ED60	transient_game_ui_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x00411B05	sub_4118B0	media_check_status_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	DDBLT_WAIT(0x01000000)	ignored
+0x00411C02	sub_4118B0	media_check_result_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	DDBLT_WAIT(0x01000000)	ignored
+0x00412046	sub_411FA0	pause_overlay_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	0	HRESULT left in EAX; caller ignores
+0x00412716	sub_4120B0	steady_world_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	DDBLT_WAIT(0x01000000)	ignored
+0x0042A658	sub_427920	story_video_preclear_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	DDBLT_WAIT(0x01000000)	ignored
+0x0042AD00	sub_427920	story_vm_conditional_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x00437B39	sub_437AE0	windowed_recovery_copy	primary(+0x04)	wrapper_surface(+0x08)	both NULL/full surfaces	DDBLT_WAIT(0x01000000)	retry forever; Restore both only on DDERR_SURFACELOST
+0x00437C32	sub_437C00	surface_color_fill	argument_surface	NULL	destination NULL/full	DDBLT_WAIT|DDBLT_COLORFILL(0x01000400)	returned to caller
+0x00437C6C	sub_437C40	surface_color_fill_member_color	argument_surface	NULL	destination NULL/full	DDBLT_WAIT|DDBLT_COLORFILL(0x01000400)	returned to caller
+0x0043A854	sub_43A610	steady_special_modes_1_3_4_5_6_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	DDBLT_WAIT(0x01000000)	ignored
+0x0043BFF1	sub_43BFC0	special_transition_clear_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x00446A46	sub_446700	world_or_story_transition_clear_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x0044F765	sub_44EA60	steady_special_mode_2_shop_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x0045283D	sub_4527E0	battle_primary_snapshot	battle_surface_0x005244C8	primary(+0x04)	both NULL/full surfaces	0	ignored
+0x0045294B	sub_4527E0	battle_game_surface_snapshot	battle_surface_0x005244C4	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x00452BE7	sub_4527E0	battle_transition_commit_loop_A	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x00452D2F	sub_4527E0	battle_transition_commit_loop_B	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x00452D6B	sub_4527E0	battle_primary_to_snapshot	battle_surface_0x005244C8	primary(+0x04)	both NULL/full surfaces	0	ignored
+0x00452DBC	sub_4527E0	battle_game_surface_to_snapshot	battle_surface_0x005244C4	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x00452DE0	sub_4527E0	battle_snapshot_commit	primary(+0x04)	battle_surface_0x005244C8	both NULL/full surfaces	0	ignored
+0x0045311C	sub_4530A0	battle_random_wipe_seed_copy	temporary_screen_surface	function_arg_surface	both NULL/full surfaces	0	ignored
+0x004531A1	sub_4530A0	battle_random_wipe_row_copy	temporary_screen_surface	function_arg_surface	one-row dynamic matching rectangles	0	ignored
+0x004531CF	sub_4530A0	battle_random_wipe_commit	primary(+0x04)	temporary_screen_surface	both NULL/full surfaces	0	ignored
+0x0045350A	sub_453200	steady_battle_commit	primary(+0x04)	game_surface_0x004ACBA0	both NULL/full surfaces	0	ignored
+0x00453808	sub_453580	battle_layer_to_game_surface	game_surface_0x004ACBA0	battle_surface_table	both NULL/full surfaces	DDBLT_WAIT(0x01000000)	ignored
+0x0045393B	sub_453580	battle_layer_to_game_surface_reverse	game_surface_0x004ACBA0	battle_surface_table	both NULL/full surfaces	0	ignored
+0x0045E898	sub_45E7D0	battle_vertical_displacement_part_1	primary(+0x04)	game_surface_0x004ACBA0	dynamic source/destination rectangles from state/table	DDBLT_WAIT(0x01000000)	ignored
+0x0045E946	sub_45E7D0	battle_vertical_displacement_part_2	primary(+0x04)	game_surface_0x004ACBA0	dynamic exposed-band rectangles after black clear	DDBLT_WAIT(0x01000000)	ignored
+0x00484A11	sub_484950	bink_video_commit	primary(+0x04)	game_surface_0x004ACBA0	same RECT {0,0,639,479} for source and destination	DDBLT_WAIT(0x01000000)	branches over an explicit DDERR table; success advances video

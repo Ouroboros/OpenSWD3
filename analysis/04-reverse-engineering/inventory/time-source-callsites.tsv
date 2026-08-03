@@ -1,0 +1,12 @@
+call_address	owner	source	unit	contract
+0x00407EF3	sub_4070A0	CRT time	epoch seconds	save path difftime against Time2 and accumulate play seconds
+0x00407F26	sub_4070A0	CRT time	epoch seconds	save path refreshes Time2 after accumulation
+0x004089B2	sub_4070A0	CRT time	epoch seconds	load path initializes Time2
+0x0040A00C	sub_409DD0	CRT time	epoch seconds	seed CRT-compatible random state
+0x0040A018	sub_409DD0	CRT time	epoch seconds	seed independent 250-dword xor random state
+0x0040A596	sub_40A570	CRT time	epoch seconds	main-frame attempt writes 0x004A99FC before millisecond gate
+0x0040A5A3	sub_40A570	timeGetTime	u32 milliseconds	main-frame attempt; stored in 0x004AAECC before interval gate
+0x00411958	sub_4118B0	timeGetTime	u32 milliseconds	CD/file checker polling loop and AIL service cadence
+0x00411C10	sub_4118B0	timeGetTime	u32 milliseconds	CD/file checker success hold busy-wait
+0x004347BA	sub_434790	CRT time	epoch seconds	reseed CRT-compatible random state on resource path
+0x004492C3	sub_4490C0	CRT time	epoch seconds	mode path resets play-time origin Time2

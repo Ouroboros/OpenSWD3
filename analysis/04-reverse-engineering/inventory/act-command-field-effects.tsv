@@ -1,0 +1,52 @@
+command_word_hex	file_bytes_ascii	action_offset_hex	write_width_bytes	parameter_ordinal	write_transform	producer_instruction_addresses	condition_or_note
+4145	EA	24	4	1	zero_extend_u16	0043256B	
+4148	HA	18	4		(old & 0x8000000B) | 0x08	0043250C-00432518	
+414D	MA	18	4		(old & 0x80000007) | 0x04	00432520-0043252C	
+414E	NA	18	4		(old & 0x8000002F) | 0x2C	00432534-00432540	
+4154	TA	5A	2	1	copy_u16	00432552	
+4158	XA	76	2	1	copy_u16	00432581	
+4159	YA	78	2	1	copy_u16	00432598	
+4342	BC	68	2	1	copy_u16	004325C0	
+4342	BC	74	2	2	copy_u16	004325C8	parameter 2 is reprocessed next loop
+4347	GC	66	2	1	copy_u16	0043264D	
+4347	GC	72	2	2	copy_u16	00432655	parameter 2 is reprocessed next loop
+434C	LC	70	2		constant_0	00432621	
+434C	LC	72	2		constant_0	00432625	
+434C	LC	74	2		constant_0	00432629	
+4352	RC	64	2	1	copy_u16	00432610	
+4352	RC	70	2	2	copy_u16	00432618	parameter 2 is reprocessed next loop
+4544	DE	42	2		rewind_one_word	004329BC-004329C2	only when action+0x90 == 1
+464C	LF	7A	2	1	copy_u16	00432671	
+464C	LF	7C	2	2	copy_u16	0043267A	
+464C	LF	7E	2	3	copy_u16	00432683	
+464C	LF	80	2	4	copy_u16	0043268C	
+464C	LF	82	2	5	copy_u16	00432698	
+464C	LF	84	2	6	copy_u16	004326A4	
+464C	LF	86	2	7	copy_u16	004326B0	
+4753	SG	18	4		(old & 0x80000017) | 0x14	00432713-00432725	
+4753	SG	8A	1	1	copy_low_u8	00432728-0043272B	
+4C44	DL	18	4		(old & 0x80000013) | 0x10	004326E5-004326F5	
+4C44	DL	62	2	1	zero_extend_low_u8	00432701-00432706	
+4E4F	ON	18	4		old & ~0x01	004326DC	
+4F32	2O	42	2		rewind_one_word	004329ED-00432A00	always
+4F32	2O	8C	4		constant_1	004329FA	only when action+0x44 == 0
+4F41	AO	50	2	1	copy_u16	0043274F	
+4F56	VO	42	2		rewind_one_word_or_zero	004329D0-004329DC	rewind when action+0x90 == 1; otherwise zero
+4F58	XO	5E	2	1	copy_u16	00432810	
+4F59	YO	60	2	1	copy_u16	004327F2	
+5041	AP	40	2		increment_high_u8_wrap_to_1_after_low_u8	00432793-004327D4	
+5041	AP	4C	2	1	copy_u16	004327AC	
+5145	EQ	28	4	1	zero_extend_u16	00432825	
+5246	FR	4A	2	1	copy_u16	004328AF	
+524F	OR	4E	2	1	copy_u16	00432891	
+5344	DS	44	2	1	copy_u16_or_action_0x48_low15_override	0043285C-00432873	override when action+0x48 bit 15 is set
+5344	DS	46	2	1	copy_u16	00432854	
+534D	MS	94	4		constant_1	004328B8	
+544E	NT	40	2	1	copy_u16	0043292A	
+5457	WT	88	1	1	copy_low_u8	004328FF-00432906	
+5649	IV	18	4		old | 0x01	004328EA	
+5748	HW	2C	4	1	zero_extend_u16	0043293F	
+5748	HW	30	4	2	zero_extend_u16	00432956	parameter 2 is reprocessed next loop
+5756	VW	58	2	1	copy_u16	004329A7	
+5859	YX	10	4	1	zero_extend_u16	0043297E	
+5859	YX	14	4	2	zero_extend_u16	00432995	parameter 2 is reprocessed next loop

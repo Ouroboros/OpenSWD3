@@ -1,0 +1,249 @@
+caller	call_address	first_argument_push	push_span_bytes	arg_0_x	arg_4_y	arg_8_width	arg_C_height	arg_10_flags	arg_14_auxiliary	flags_immediate	low_flags	mode	flip_bits	family_selection
+sub_40EBF0	0x0040EC6C	0x0040EC6B	35	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_40EC80	0x0040ECB3	0x0040ECB2	20	ecx	eax	edx	ecx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_40ECC0	0x0040ED4A	0x0040ED49	37	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_411700	0x0041174F	0x0041174E	20	eax	edx	ecx	edx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4117F0	0x00411850	0x0041184F	44	edi	ebx	ecx	edx	14h	0	0x00000014	0x0014	0x14	0	source header selects RLE/span or raw/+0x80
+sub_4117F0	0x004118A0	0x0041189F	14	edi	ebp	ecx	edx	14h	0	0x00000014	0x0014	0x14	0	source header selects RLE/span or raw/+0x80
+sub_412D30	0x00412F3F	0x00412F3E	9	esi	ecx	10h	10h	eax	0					runtime/unresolved
+sub_412D30	0x00412F8E	0x00412F8D	11	esi	ecx	10h	10h	eax	0					runtime/unresolved
+sub_412D30	0x00413082	0x00413081	16	eax	edx	10h	10h	eax	0					runtime/unresolved
+sub_412D30	0x004130DB	0x004130DA	20	eax	eax	10h	10h	eax	0					runtime/unresolved
+sub_413370	0x00413587	0x00413586	9	esi	ecx	10h	10h	eax	0					runtime/unresolved
+sub_413370	0x004135D9	0x004135D8	11	esi	ecx	10h	10h	eax	0					runtime/unresolved
+sub_413370	0x004136D0	0x004136CF	16	eax	edx	10h	10h	eax	0					runtime/unresolved
+sub_413370	0x0041372C	0x0041372B	20	eax	eax	10h	10h	eax	0					runtime/unresolved
+sub_413910	0x00413A91	0x00413A90	46	ecx	eax	edx	ecx	ebx	eax					runtime/unresolved
+sub_413910	0x00413B7F	0x00413B7E	61	edx	ecx	eax	edx	ebx	ecx					runtime/unresolved
+sub_413910	0x00413BEF	0x00413BEE	70	eax	edx	edx	edx	edx	0					runtime/unresolved
+sub_413F00	0x00413FCB	0x00413FCA	42	eax	edx	edx	ecx	edi	0					runtime/unresolved
+sub_4145F0	0x004146D6	0x004146D5	29	eax	ecx	edx	edx	esi	0					runtime/unresolved
+sub_4147E0	0x00414874	0x00414873	63	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_4149B0	0x00414B50	0x00414B4F	45	eax	edx	ecx	edx	ecx	edx					runtime/unresolved
+sub_414B60	0x00414C2D	0x00414C2C	28	edi	ebx	ecx	edx	ecx	edx					runtime/unresolved
+sub_414CE0	0x00414D73	0x00414D72	66	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_4151F0	0x00415397	0x00415396	16	ebp	edi	edx	ecx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_415B70	0x00415D6A	0x00415D69	91	eax	edx	ecx	edx	edx	ebp					runtime/unresolved
+sub_415EE0	0x0041617F	0x0041617E	61	eax	edx	ecx	eax	edx	0					runtime/unresolved
+sub_4161C0	0x00416377	0x00416376	51	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_416B30	0x00416BD5	0x00416BD4	25	eax	edx	ecx	eax	edi	edi					runtime/unresolved
+sub_416B30	0x00416C60	0x00416C5F	26	eax	edx	ecx	eax	2Ch	edi	0x0000002C	0x002C	0x2C	0	source header selects RLE/span or raw/+0x80
+sub_417050	0x00417080	0x00417077	16	ecx	eax	ebp	ebx	esi	edi					runtime/unresolved
+sub_417050	0x0041709F	0x00417096	18	ecx	eax	ebp	ebx	esi	edi					runtime/unresolved
+sub_417050	0x004170B2	0x004170B1	6	eax	edx	ebp	ebx	esi	edi					runtime/unresolved
+sub_417050	0x004170C8	0x004170C7	6	edx	ecx	ebp	ebx	esi	edi					runtime/unresolved
+sub_42E850	0x0042E8F9	0x0042E8F8	52	ecx	eax	edx	edx	edx	0					runtime/unresolved
+sub_42E850	0x0042E966	0x0042E965	33	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_42E850	0x0042EA00	0x0042E9FF	33	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_42E850	0x0042EA75	0x0042EA74	37	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_42E850	0x0042EAF2	0x0042EAF1	49	ecx	eax	edx	edx	edx	0					runtime/unresolved
+sub_42E850	0x0042EB52	0x0042EB51	29	ebx	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_42E850	0x0042EBB6	0x0042EBB5	53	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_42E850	0x0042EC33	0x0042EC32	49	eax	ecx	edx	edx	edx	0					runtime/unresolved
+sub_42E850	0x0042ECA7	0x0042ECA6	25	ebx	ecx	edx	edx	edx	0					runtime/unresolved
+sub_42E850	0x0042ED1B	0x0042ED1A	31	esi	edi	edx	ecx	edx	0					runtime/unresolved
+sub_42ED40	0x0042FE71	0x0042FE70	36	edx	ecx	eax	edx	eax	0					runtime/unresolved
+sub_42ED40	0x0042FF49	0x0042FF48	42	eax	eax	edx	ecx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4308C0	0x004309BC	0x004309BB	23	edi	ebx	edx	ecx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4308C0	0x00430A2D	0x00430A2C	24	esi	ebx	eax	edx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4308C0	0x00430A80	0x00430A7F	24	esi	ebx	eax	edx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4308C0	0x00430AEF	0x00430AEE	23	esi	ebx	edx	ecx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4308C0	0x00430B46	0x00430B45	12	esi	ebx	ecx	edx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_43A880	0x0043AA87	0x0043AA86	88	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_43AE40	0x0043AF07	0x0043AF06	11	esi	edx	ecx	eax	edx	0					runtime/unresolved
+sub_43AE40	0x0043AFDA	0x0043AFD9	10	eax	edi	ecx	eax	edx	0					runtime/unresolved
+sub_43B080	0x0043B103	0x0043B102	46	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_43D470	0x0043D4D1	0x0043D4D0	13	edi	3Dh	edx	ecx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_43D470	0x0043D512	0x0043D510	14	56h	3Ah	edx	ecx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_43E800	0x0043ECBE	0x0043ECBD	22	edi	1A9h	edx	ecx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_442130	0x00442248	0x00442247	30	edx	152h	ecx	edx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_442130	0x00442377	0x00442376	26	eax	166h	edx	ecx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_442130	0x0044249B	0x0044249A	30	edx	17Ah	ecx	edx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_442960	0x00442998	0x00442997	12	ecx	eax	edx	ecx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4442B0	0x0044477E	0x0044477D	29	ecx	edx	ecx	edx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_449C30	0x00449CC0	0x00449CBF	63	eax	edx	ecx	eax	4	0	0x00000004	0x0004	0x04	0	source header selects RLE/span or raw/+0x80
+sub_449C30	0x00449D14	0x00449D13	30	ecx	eax	edx	ecx	4	0	0x00000004	0x0004	0x04	0	source header selects RLE/span or raw/+0x80
+sub_449C30	0x00449D5A	0x00449D59	35	edx	ecx	eax	edx	4	0	0x00000004	0x0004	0x04	0	source header selects RLE/span or raw/+0x80
+sub_44FFE0	0x00450053	0x00450052	19	esi	edi	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_44FFE0	0x004500A0	0x0045009F	13	esi	edi	ecx	edx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_44FFE0	0x004500EB	0x004500EA	19	esi	edi	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_44FFE0	0x0045013C	0x0045013B	19	ebp	edi	ecx	edx	0	ecx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_44FFE0	0x00450182	0x00450181	19	esi	edi	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_44FFE0	0x004501D2	0x004501D1	19	ebp	edi	ecx	edx	0	ecx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_44FFE0	0x0045021B	0x0045021A	13	esi	edi	ecx	edx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_44FFE0	0x0045025E	0x0045025D	19	esi	edi	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_450270	0x004502A5	0x004502A4	22	eax	edx	ecx	edx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4502B0	0x0045038D	0x0045038C	29	ecx	eax	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4502B0	0x004503E7	0x004503E6	30	edi	esi	ecx	edx	ecx	edx					runtime/unresolved
+sub_450400	0x00450486	0x00450485	42	eax	edx	ecx	edx	ecx	edx					runtime/unresolved
+sub_450490	0x004504CF	0x004504CE	21	ecx	eax	ecx	edx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4504E0	0x0045051A	0x00450519	25	eax	edx	ecx	edx	0	ecx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_450530	0x0045056A	0x00450569	19	ebx	edi	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_450530	0x0045059F	0x0045059E	13	ebx	edi	ecx	edx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4505B0	0x004505EA	0x004505E9	19	ebx	edi	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4505B0	0x0045061F	0x0045061E	13	ebx	edi	ecx	edx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_450630	0x0045066A	0x00450669	19	ebx	edi	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_450630	0x004506A1	0x004506A0	26	ebx	edi	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4506B0	0x0045077C	0x0045077B	23	ebx	eax	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_450900	0x00450991	0x00450990	35	ecx	eax	edx	ecx	0	eax	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4509D0	0x00450A3F	0x00450A3E	27	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_450A50	0x00450A71	0x00450A70	21	ecx	eax	edx	ecx	8	0	0x00000008	0x0008	0x08	0	source header selects RLE/span or raw/+0x80
+sub_450A80	0x00450B19	0x00450B18	46	edx	eax	ecx	ecx	ecx	0					runtime/unresolved
+sub_450B60	0x00450BC2	0x00450BC1	27	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_450BD0	0x00450C39	0x00450C38	30	eax	edx	ecx	edx	0	20h	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_450C50	0x00450CDD	0x00450CDC	27	eax	edi	edx	ecx	eax	0					runtime/unresolved
+sub_450C50	0x00450D78	0x00450D77	31	eax	eax	ecx	eax	edx	0					runtime/unresolved
+sub_450C50	0x00450ECE	0x00450ECD	27	eax	eax	edx	eax	ecx	0					runtime/unresolved
+sub_450C50	0x00450F81	0x00450F80	19	ebp	ebx	ecx	edx	ecx	0					runtime/unresolved
+sub_450F90	0x00451052	0x00451051	52	ecx	0C8h	edx	ecx	edx	0					runtime/unresolved
+sub_451100	0x0045113B	0x0045113A	18	ebx	esi	edx	ecx	ebp	edx					runtime/unresolved
+sub_451100	0x0045119F	0x0045119E	19	ebx	esi	ecx	edx	0	ecx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_451100	0x0045125B	0x0045125A	19	ebx	esi	ecx	edx	0	ecx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4512B0	0x00451319	0x00451318	19	ebx	esi	edx	ecx	0	edx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4512B0	0x0045137C	0x0045137B	22	edx	esi	ecx	edx	0	ecx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4512B0	0x004513C0	0x004513BF	19	ecx	eax	edx	ecx	14h	edx	0x00000014	0x0014	0x14	0	source header selects RLE/span or raw/+0x80
+sub_4512B0	0x0045140C	0x0045140B	21	ebx	edi	ecx	edx	0	ecx	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_451540	0x004515BE	0x004515BD	85	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_4515E0	0x004516C7	0x004516C6	72	ecx	eax	edx	ecx	edx	ebp					runtime/unresolved
+sub_4527E0	0x00452A08	0x00452A01	23	0	0	280h	1E0h	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_4527E0	0x00452B95	0x00452B7F	48	esi	edx	280h	1E0h	20h	0	0x00000020	0x0020	0x20	0	source header selects RLE/span or raw/+0x80
+sub_453580	0x004535E8	0x004535E7	12	edi	edi	edx	ecx	edi	edi					runtime/unresolved
+sub_453580	0x0045366A	0x00453664	25	edi	edi	edx	ecx	28h	edi	0x00000028	0x0028	0x28	0	source header selects RLE/span or raw/+0x80
+sub_453580	0x004536B3	0x004536AC	25	edi	edi	eax	edx	28h	edi	0x00000028	0x0028	0x28	0	source header selects RLE/span or raw/+0x80
+sub_453580	0x004536FE	0x004536FD	12	edi	edi	edx	ecx	edi	edi					runtime/unresolved
+sub_453580	0x0045386B	0x0045386A	12	edi	edi	edx	ecx	edi	edi					runtime/unresolved
+sub_453580	0x0045395D	0x0045395C	12	edi	edi	edx	ecx	edi	edi					runtime/unresolved
+sub_4582B0	0x004588A9	0x004588A8	30	edx	ecx	eax	edx	ecx	eax					runtime/unresolved
+sub_4582B0	0x00458A68	0x00458A67	23	eax	edx	ecx	eax	eax	ebp					runtime/unresolved
+sub_458DE0	0x00459112	0x00459111	19	edx	ecx	eax	edx	ecx	0					runtime/unresolved
+sub_458DE0	0x0045924D	0x0045924C	23	eax	edx	ecx	eax	eax	ebp					runtime/unresolved
+sub_4599B0	0x00459B91	0x00459B90	22	ecx	eax	edx	ecx	ebx	eax					runtime/unresolved
+sub_459BF0	0x00459CD9	0x00459CD8	38	eax	edx	ecx	edx	ecx	edx					runtime/unresolved
+sub_45AF90	0x0045B008	0x0045B000	24	0	0	280h	1E0h	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_46F8C0	0x0046FDAC	0x0046FDAB	32	ecx	eax	edx	ecx	edx	ecx					runtime/unresolved
+sub_46F8C0	0x0046FEE0	0x0046FEDF	32	ecx	eax	edx	ecx	edx	ebx					runtime/unresolved
+sub_471540	0x0047177F	0x0047177E	43	ecx	eax	edx	ecx	edx	ecx					runtime/unresolved
+sub_4717F0	0x00471A58	0x00471A57	30	eax	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_4717F0	0x00471AB4	0x00471AB3	94	eax	edx	ecx	edx	eax	edx					runtime/unresolved
+sub_471AD0	0x00471CEA	0x00471CE9	32	ecx	eax	edx	ecx	edx	ebp					runtime/unresolved
+sub_471AD0	0x00471D45	0x00471D44	93	ecx	eax	edx	ecx	ecx	eax					runtime/unresolved
+sub_471D60	0x00471F40	0x00471F3F	65	eax	edx	ecx	edx	ecx	ebp					runtime/unresolved
+sub_471FC0	0x0047217B	0x0047217A	25	eax	ecx	edx	edx	edx	0					runtime/unresolved
+sub_471FC0	0x004721D0	0x004721CF	33	ecx	eax	edx	edx	edx	0					runtime/unresolved
+sub_4721F0	0x004723E3	0x004723E2	58	edx	ecx	eax	edx	eax	0					runtime/unresolved
+sub_4721F0	0x00472407	0x00472406	19	edi	ebp	ecx	edx	ecx	0					runtime/unresolved
+sub_4724D0	0x00472676	0x00472675	61	ecx	eax	edx	eax	eax	ebp					runtime/unresolved
+sub_4724D0	0x004726B7	0x004726B6	48	ecx	eax	edx	ecx	edx	ebp					runtime/unresolved
+sub_4728E0	0x00472AFC	0x00472AFB	62	edx	ecx	eax	edx	eax	ebx					runtime/unresolved
+sub_4728E0	0x00472B3E	0x00472B3D	47	eax	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_4728E0	0x00472C1B	0x00472C1A	51	eax	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_472CE0	0x00472E91	0x00472E90	55	ecx	eax	edx	eax	eax	ebp					runtime/unresolved
+sub_472CE0	0x00472EC6	0x00472EC5	40	eax	edx	ecx	edx	ebx	ebp					runtime/unresolved
+sub_472CE0	0x00472FC5	0x00472FC4	41	edx	eax	ecx	edx	ebx	0					runtime/unresolved
+sub_4731A0	0x00473383	0x00473382	58	ecx	eax	edx	eax	eax	ebp					runtime/unresolved
+sub_4731A0	0x004733BF	0x004733BE	45	ecx	eax	edx	ecx	ebx	ebp					runtime/unresolved
+sub_4735B0	0x0047379C	0x0047379B	119	ecx	eax	edx	eax	eax	0					runtime/unresolved
+sub_4735B0	0x004737D2	0x004737D1	41	eax	edx	ecx	edx	ebx	0					runtime/unresolved
+sub_4735B0	0x00473855	0x00473854	46	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_4735B0	0x00473A08	0x00473A07	114	eax	edx	ecx	edx	ecx	ecx					runtime/unresolved
+sub_4735B0	0x00473BA2	0x00473BA1	79	ecx	eax	edx	ecx	ebx	ecx					runtime/unresolved
+sub_473C10	0x00473D8A	0x00473D89	40	eax	edx	ecx	edx	ecx	ebp					runtime/unresolved
+sub_473C10	0x00473DD1	0x00473DD0	61	eax	edx	ecx	edx	ecx	ebp					runtime/unresolved
+sub_473C10	0x0047405C	0x0047405B	19	ebp	edi	edx	ecx	edx	0					runtime/unresolved
+sub_473C10	0x00474272	0x00474271	42	ecx	eax	edi	edi	edi	ebp					runtime/unresolved
+sub_473C10	0x00474497	0x00474496	40	eax	edx	ecx	edx	ecx	ebp					runtime/unresolved
+sub_473C10	0x004744DE	0x004744DD	61	eax	edx	ecx	edx	ecx	ebp					runtime/unresolved
+sub_473C10	0x00474593	0x00474592	32	eax	edx	ecx	edx	ecx	edx					runtime/unresolved
+sub_4745B0	0x00474A26	0x00474A25	32	ecx	eax	edx	ecx	edx	ecx					runtime/unresolved
+sub_4745B0	0x00474B44	0x00474B43	32	eax	edx	ecx	edx	ecx	edx					runtime/unresolved
+sub_4751C0	0x0047539B	0x0047539A	62	ecx	eax	edx	eax	eax	ebp					runtime/unresolved
+sub_4751C0	0x004753DD	0x004753DC	49	eax	edx	ecx	edx	ecx	ebp					runtime/unresolved
+sub_4758A0	0x00475F57	0x00475F56	32	ecx	eax	edx	ecx	edx	ecx					runtime/unresolved
+sub_4758A0	0x00476067	0x00476066	32	ecx	eax	edx	ecx	edx	ecx					runtime/unresolved
+sub_4763D0	0x004765C0	0x004765BF	49	eax	edx	ecx	edx	ecx	edx					runtime/unresolved
+sub_478B60	0x004792A9	0x004792A8	56	edx	ecx	eax	edx	eax	edi					runtime/unresolved
+sub_478B60	0x00479444	0x00479443	53	eax	edx	ecx	edx	ecx	edi					runtime/unresolved
+sub_478B60	0x004794C2	0x004794C1	59	edx	ecx	eax	edx	eax	edi					runtime/unresolved
+sub_478B60	0x0047952D	0x0047952C	59	edx	ecx	eax	edx	eax	edi					runtime/unresolved
+sub_478B60	0x004795AB	0x004795AA	102	ecx	eax	edx	ecx	edx	edi					runtime/unresolved
+sub_478B60	0x00479706	0x00479705	75	ecx	edx	ecx	edx	ecx	edi					runtime/unresolved
+sub_478B60	0x004797F7	0x004797F6	74	ecx	ecx	edx	edx	edx	edi					runtime/unresolved
+sub_479850	0x00479AEC	0x00479AEB	223	eax	ecx	eax	edx	eax	ebx					runtime/unresolved
+sub_479850	0x00479DAE	0x00479DAD	98	ecx	eax	ecx	edx	ecx	ebx					runtime/unresolved
+sub_479850	0x00479E7C	0x00479E7B	97	edx	eax	edx	ecx	edx	ebx					runtime/unresolved
+sub_479850	0x00479FAA	0x00479FA9	95	ecx	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_479850	0x0047A0FB	0x0047A0FA	62	ecx	eax	edx	ecx	edx	ebx					runtime/unresolved
+sub_479850	0x0047A175	0x0047A174	72	edx	ecx	eax	ecx	eax	ebx					runtime/unresolved
+sub_479850	0x0047A23A	0x0047A239	110	ecx	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_479850	0x0047A368	0x0047A367	100	edx	eax	edx	edx	edx	0					runtime/unresolved
+sub_479850	0x0047A441	0x0047A440	99	edx	eax	edx	edx	edx	0					runtime/unresolved
+sub_479850	0x0047A511	0x0047A510	54	edx	eax	edx	edx	edx	0					runtime/unresolved
+sub_479850	0x0047A5EA	0x0047A5E9	101	eax	edx	edx	edx	edx	0					runtime/unresolved
+sub_479850	0x0047A7F0	0x0047A7EF	113	edx	eax	edx	ecx	edx	ebx					runtime/unresolved
+sub_479850	0x0047A88D	0x0047A88C	62	ecx	eax	edx	ecx	edx	ebx					runtime/unresolved
+sub_479850	0x0047A90A	0x0047A909	31	edx	ecx	eax	ecx	eax	ebx					runtime/unresolved
+sub_479850	0x0047A9E3	0x0047A9E2	49	ecx	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_479850	0x0047AA62	0x0047AA61	116	eax	eax	edx	ecx	edx	ebx					runtime/unresolved
+sub_479850	0x0047ACA3	0x0047ACA2	96	ecx	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_479850	0x0047AD5C	0x0047AD5B	99	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_479850	0x0047AE2E	0x0047AE2D	99	ecx	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_479850	0x0047AEF4	0x0047AEF3	98	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_479850	0x0047B01B	0x0047B01A	84	edx	eax	edx	edx	edx	ebx					runtime/unresolved
+sub_479850	0x0047B0D9	0x0047B0D8	42	eax	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_479850	0x0047B1E7	0x0047B1E6	95	ecx	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_479850	0x0047B2BB	0x0047B2BA	97	ecx	eax	edx	ecx	edx	ebx					runtime/unresolved
+sub_479850	0x0047B374	0x0047B373	49	ecx	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_479850	0x0047B3F0	0x0047B3EF	113	ecx	eax	edx	ecx	edx	ebx					runtime/unresolved
+sub_479850	0x0047B4C0	0x0047B4BF	109	ecx	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_479850	0x0047B7E8	0x0047B7E7	101	edx	ecx	edx	ecx	edx	ebx					runtime/unresolved
+sub_47BA80	0x0047BD45	0x0047BD44	78	eax	ecx	eax	edx	eax	ebx					runtime/unresolved
+sub_47BA80	0x0047BDB4	0x0047BDB3	112	eax	ecx	eax	edx	eax	eax					runtime/unresolved
+sub_47BA80	0x0047BE2C	0x0047BE2B	66	eax	edx	eax	edx	eax	ebx					runtime/unresolved
+sub_47BA80	0x0047BF00	0x0047BEFF	39	esi	eax	edx	eax	eax	ebx					runtime/unresolved
+sub_47BA80	0x0047BF30	0x0047BF2F	37	esi	edi	edx	ecx	ecx	ebx					runtime/unresolved
+sub_47BA80	0x0047BF76	0x0047BF75	18	esi	edi	ecx	edx	ecx	ebx					runtime/unresolved
+sub_47BA80	0x0047C013	0x0047C012	60	ecx	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_47BA80	0x0047C128	0x0047C127	46	edx	eax	edx	edx	edx	ebx					runtime/unresolved
+sub_47C6B0	0x0047C8A8	0x0047C8A7	49	edx	eax	edx	ecx	edx	ecx					runtime/unresolved
+sub_47C6B0	0x0047C919	0x0047C918	49	edx	eax	edx	ecx	edx	ecx					runtime/unresolved
+sub_47C950	0x0047CB87	0x0047CB86	46	ecx	edx	edi	edi	edi	0					runtime/unresolved
+sub_47C950	0x0047CBD8	0x0047CBD7	27	ecx	edx	edi	edi	edi	edi					runtime/unresolved
+sub_47CC60	0x0047CD46	0x0047CD45	83	ecx	edx	eax	eax	eax	0					runtime/unresolved
+sub_47E650	0x0047E71A	0x0047E719	50	edx	ecx	edx	eax	edx	0					runtime/unresolved
+sub_47E650	0x0047E76E	0x0047E76D	60	edx	ecx	eax	edx	eax	0					runtime/unresolved
+sub_47E650	0x0047E7E2	0x0047E7E1	92	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_47E7F0	0x0047E860	0x0047E85F	17	eax	ebp	eax	edx	0	0	0x00000000	0x0000	0x00	0	source header selects RLE/span or raw/+0x80
+sub_47F3C0	0x0047F46C	0x0047F46B	103	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_47F3C0	0x0047F52E	0x0047F52D	68	edx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_47F580	0x0047F61B	0x0047F61A	50	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_47F580	0x0047F6CC	0x0047F6CB	68	edx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_47F710	0x0047F860	0x0047F85F	60	edx	ecx	eax	edx	eax	0					runtime/unresolved
+sub_47F710	0x0047F8EC	0x0047F8EB	58	edx	ecx	eax	edx	eax	0					runtime/unresolved
+sub_47F940	0x0047FBF7	0x0047FBF6	43	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_47FC40	0x0047FF12	0x0047FF11	56	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_47FC40	0x00480010	0x0048000F	43	ecx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_480AE0	0x00480C87	0x00480C86	91	edx	eax	edx	edx	edx	ebp					runtime/unresolved
+sub_480AE0	0x00480D22	0x00480D21	177	edx	eax	edx	edx	edx	eax					runtime/unresolved
+sub_480D40	0x00480E58	0x00480E57	53	eax	ecx	eax	eax	eax	ebp					runtime/unresolved
+sub_480D40	0x00480EC8	0x00480EC7	114	eax	ecx	eax	eax	eax	ecx					runtime/unresolved
+sub_4820A0	0x00482224	0x00482223	31	ecx	eax	edx	ecx	ecx	0					runtime/unresolved
+sub_4820A0	0x00482285	0x00482284	77	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_4820A0	0x00482302	0x00482301	73	edx	eax	edx	ecx	ecx	0					runtime/unresolved
+sub_482310	0x00482676	0x00482675	44	ecx	edx	ecx	edx	ecx	eax					runtime/unresolved
+sub_482310	0x004827A4	0x004827A3	67	ecx	eax	edx	eax	eax	edi					runtime/unresolved
+sub_482310	0x004827E0	0x004827DF	37	ecx	eax	edx	ecx	edx	edi					runtime/unresolved
+sub_482310	0x0048282C	0x0048282B	37	ecx	eax	edx	ecx	edx	edi					runtime/unresolved
+sub_482840	0x00482BA6	0x00482BA5	46	eax	edx	ecx	edx	ecx	edi					runtime/unresolved
+sub_482840	0x00482CBC	0x00482CBB	67	ecx	eax	edx	eax	eax	edi					runtime/unresolved
+sub_482840	0x00482CF8	0x00482CF7	43	ecx	eax	edx	ecx	edx	edi					runtime/unresolved
+sub_482840	0x00482D3C	0x00482D3B	43	ecx	eax	edx	ecx	edx	edi					runtime/unresolved
+sub_4831C0	0x00483508	0x00483507	72	eax	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_4831C0	0x0048357E	0x0048357D	30	eax	edx	ecx	edx	ecx	ebx					runtime/unresolved
+sub_4831C0	0x004835C7	0x004835C6	40	edx	ecx	eax	edx	eax	ebx					runtime/unresolved
+sub_4831C0	0x004836CE	0x004836CD	47	edx	eax	edx	ecx	edx	ebx					runtime/unresolved
+sub_483700	0x004837FE	0x004837FD	42	edx	ecx	edx	ecx	edx	0					runtime/unresolved
+sub_483B30	0x00483CE2	0x00483CE1	100	edx	eax	edx	ecx	edx	0					runtime/unresolved
+sub_483B30	0x00483D8C	0x00483D8B	54	ecx	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_483DB0	0x00483FA2	0x00483FA1	25	eax	edx	ecx	edx	ecx	edx					runtime/unresolved
+sub_484230	0x0048446C	0x0048446B	73	eax	edx	ecx	edx	ecx	0					runtime/unresolved
+sub_484230	0x004844E9	0x004844E8	36	ecx	eax	edx	ecx	edx	0					runtime/unresolved

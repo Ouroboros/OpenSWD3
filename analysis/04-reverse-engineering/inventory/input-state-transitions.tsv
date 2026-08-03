@@ -1,0 +1,9 @@
+condition	exact_writes	observable_semantics	return_value
+raw=0 and +4=0	+0x0C=0; +4=current_input_clock; preserve +0/+8	release is represented immediately by hold_count=0; click multiplicity can survive this first released sample	0
+raw=0 and +4!=0 and elapsed<=150	+0x0C=0; +0=0; preserve +4/+8	second and later released samples clear current multiplicity but keep the rapid-press chain	0
+raw=0 and +4!=0 and elapsed>150	+0x0C=0; +0=0; +8=0; preserve +4	rapid-press window expires only when elapsed is strictly greater than 150	0
+raw!=0 and +4!=0	v=table[+8] where table={1,2,3,3}; +0=v; +8=v; +4=0; +0x0C=1	new press/re-press; multiplicity caps at three	new +0x0C value
+raw!=0 and +4=0	+0x0C += 1; preserve +0/+8	continuous hold; no centralized repeat pulse	new +0x0C value
+left suppression counter old value >0	counter -= 1; clear all four dwords of record 15 after it was updated	exactly the next N normalization calls suppress left click; a still-held raw button is erased each time	record update return is discarded
+x/y unchanged and raw mouse button mask=0	clear bit 9; increment inactivity counter; set bit 9 only when new counter>0x1C2	bit 9 first becomes set on stable sample 451 and is cleared/re-set on later stable samples	not applicable
+x/y changed or raw mouse button mask!=0	clear bit 9; inactivity counter=0; save current x/y	raw mouse activity resets inactivity even when left normalized record is suppressed	not applicable

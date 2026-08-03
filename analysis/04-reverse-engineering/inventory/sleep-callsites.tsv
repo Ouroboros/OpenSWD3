@@ -1,0 +1,28 @@
+call_address	owner	stack_operand	milliseconds	contract	instruction
+0x00403050	sub_402F80	1F4h	500	blocking wall-clock delay	call ds:Sleep
+0x004030D8	sub_402F80	15Eh	350	blocking wall-clock delay	call ds:Sleep
+0x0040318F	sub_402F80	1F4h	500	blocking wall-clock delay	call ds:Sleep
+0x004031E7	sub_402F80	1F4h	500	blocking wall-clock delay	call ds:Sleep
+0x00403263	sub_402F80	12Ch	300	blocking wall-clock delay	call ds:Sleep
+0x004032C6	sub_402F80	12Ch	300	blocking wall-clock delay	call ds:Sleep
+0x004033CF	sub_402F80	0FAh	250	blocking wall-clock delay	call ds:Sleep
+0x004034B7	sub_402F80	1F4h	500	blocking wall-clock delay	call ds:Sleep
+0x004034FC	sub_402F80	0C8h	200	blocking wall-clock delay	call ds:Sleep
+0x00406EF3	sub_406EB0	1F4h	500	blocking wall-clock delay	call esi
+0x00406F1D	sub_406EB0	1F4h	500	blocking wall-clock delay	call esi
+0x00408190	sub_4070A0	258h	600	blocking wall-clock delay	call ds:Sleep
+0x00409565	sub_409540	96h	150	blocking wall-clock delay	call ds:Sleep
+0x0040A09C	sub_409DD0	ebp	0	scheduler yield; zero delay	call esi
+0x0040A58C	sub_40A570	ebp	0	scheduler yield; zero delay	call ds:Sleep
+0x00424C53	sub_424B90	400h	1024	blocking wall-clock delay	call ds:Sleep
+0x0042AAA2	sub_427920	0FAh	250	blocking wall-clock delay	call ds:Sleep
+0x0045D95F	sub_45D8F0	0C8h	200	blocking wall-clock delay	call ebp
+0x0045D988	sub_45D8F0	0C8h	200	blocking wall-clock delay	call ebp
+0x0045D9E7	sub_45D8F0	0C8h	200	blocking wall-clock delay	call ebp
+0x0045DA65	sub_45D8F0	0C8h	200	blocking wall-clock delay	call ebp
+0x0045DAB5	sub_45D8F0	64h	100	blocking wall-clock delay	call ebp
+0x0045DB0B	sub_45D8F0	0C8h	200	blocking wall-clock delay	call ebp
+0x0045DB4D	sub_45D8F0	0C8h	200	blocking wall-clock delay	call ebp
+0x0045DC9C	sub_45D8F0	0C8h	200	blocking wall-clock delay	call ebp
+0x0045F72E	sub_45F2A0	32h	50	blocking wall-clock delay	call ds:Sleep
+0x0045F7CD	sub_45F2A0	14h	20	blocking wall-clock delay	call ds:Sleep

@@ -1,0 +1,53 @@
+archive	lookup_action_id	stored_action_id	variant_index	stream_word_index	word_hex	file_bytes_ascii	absolute_file_offset_hex
+all_char.act	2	2	56	0	1969	i.	00077E68
+all_char.act	2	2	57	0	0C18	..	00077E80
+all_char.act	2	2	58	0	17C8	..	00077ECE
+all_char.act	2	2	59	0	F130	0.	00077F00
+all_char.act	2	2	60	0	E83A	:.	00077F30
+all_char.act	2	2	61	0	0DFE	..	00077F7A
+all_char.act	2	2	62	0	F5F2	..	00077FC4
+all_char.act	2	2	63	0	1B26	&.	0007800E
+all_char.act	2	2	64	0	1F8A	..	00078058
+all_char.act	15	15	59	0	C4D3	..	00043130
+all_char.act	15	15	60	0	1400	..	00043152
+all_char.act	15	15	61	0	C46F	o.	00043174
+all_char.act	15	15	62	0	B4BA	..	000431AC
+all_char.act	15	15	63	0	6900	.i	000431EA
+all_char.act	96	96	7	0	1D1D	..	0003566C
+all_char.act	96	96	8	0	1F36	6.	00035692
+all_char.act	96	96	9	0	1D1F	..	000356E2
+all_char.act	96	96	10	0	1313	..	00035732
+all_char.act	96	96	11	0	251F	.%	00035782
+all_char.act	96	96	12	0	1D1D	..	000357D2
+all_char.act	96	96	13	0	3C33	3<	00035822
+all_char.act	96	96	60	11	4C54	TL	00035CB8
+all_char.act	98	98	27	0	B1AD	..	0008AFB0
+all_char.act	98	98	28	0	2029	) 	0008AFD2
+all_char.act	98	98	29	0	2020	  	0008B030
+all_char.act	98	98	30	0	2020	  	0008B052
+all_char.act	98	98	31	0	C4B2	..	0008B086
+all_char.act	98	98	32	0	A4A8	..	0008B0A8
+all_char.act	98	98	33	0	2020	  	0008B0D4
+all_char.act	98	98	34	0	2020	  	0008B0F2
+all_char.act	98	98	35	0	2020	  	0008B110
+all_char.act	98	98	36	0	2020	  	0008B12E
+all_char.act	98	98	37	0	2020	  	0008B186
+all_char.act	380	380	7	0	9CBD	..	0007F010
+all_char.act	380	380	8	0	12C0	..	0007F032
+all_char.act	380	380	9	0	CFAA	..	0007F066
+all_char.act	380	380	10	0	D39B	..	0007F09A
+all_char.act	380	380	11	0	B589	..	0007F0CE
+all_char.act	380	380	12	0	4AE7	.J	0007F102
+all_char.act	380	380	13	0	AAAA	..	0007F136
+all_char.act	380	380	14	0	0042	B.	0007F16A
+all_char.act	380	380	15	0	9898	..	0007F19E
+all_char.act	380	380	16	0	7575	uu	0007F1D2
+all_char.act	380	380	17	0	A39E	..	0007F206
+all_char.act	393	393	68	0	695B	[i	0005E366
+all_char.act	402	402	7	0	4599	.E	0007BE0A
+all_char.act	402	402	9	0	D79A	..	0007BE78
+all_char.act	402	402	10	0	0A00	..	0007BEC4
+all_char.act	402	402	11	0	ED34	4.	0007BF10
+all_char.act	402	402	12	0	34CC	.4	0007BF5C
+all_char.act	402	402	13	0	4599	.E	0007BFA8
+all_char.act	402	402	14	0	4599	.E	0007BFF4

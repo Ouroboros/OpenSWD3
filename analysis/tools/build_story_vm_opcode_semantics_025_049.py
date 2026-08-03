@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+"""Emit the assembly-audited story VM semantic batch for opcodes 25..49."""
+
+from __future__ import annotations
+
+import csv
+import hashlib
+from pathlib import Path
+
+
+RESEARCH_ROOT = Path(__file__).resolve().parents[1]
+WORKSPACE_ROOT = RESEARCH_ROOT.parents[1]
+INVENTORY_ROOT = RESEARCH_ROOT / "04-reverse-engineering" / "inventory"
+ASM_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.asm"
+DISPATCH_INPUT = INVENTORY_ROOT / "story-vm-opcode-dispatch.tsv"
+LENGTH_INPUT = INVENTORY_ROOT / "story-vm-opcode-length-rules.tsv"
+OUTPUT = INVENTORY_ROOT / "story-vm-opcode-semantics-025-049.tsv"
+
+EXPECTED_ASM_SHA256 = "d902f6dfd47d7033bf8a971c4ccc3a4d8d037b5b577035041113329363cab052"
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def row(
+    opcode: int, operation: str, operands: str, state_reads: str,
+    state_writes: str, flow: str, quirk: str, helpers: str, evidence: str,
+) -> tuple[object, ...]:
+    return (
+        opcode, operation, operands, state_reads, state_writes, flow, quirk,
+        helpers, evidence, "assembly_audited_business_name_neutral",
+    )
+
+
+def curated_rows() -> list[tuple[object, ...]]:
+    return [
+        row(25, "set_global_bit", "+2 u16 bit id", "none",
+            "sub_40DC80 sets the addressed bit in byte_4AB384",
+            "advance 4; ESI=1; continue in same call",
+            "bit id is not range checked; diagnostic fON is emitted through nullsub_1",
+            "sub_40DC80; wsprintfA; nullsub_1", "0x0042865B-0x004286C0"),
+        row(26, "clear_global_bit", "+2 u16 bit id", "none",
+            "sub_40DCB0 clears the addressed bit in byte_4AB384",
+            "advance 4; ESI=1; continue in same call",
+            "bit id is not range checked; diagnostic fOFF is emitted through nullsub_1",
+            "sub_40DCB0; wsprintfA; nullsub_1", "0x00428679-0x004286C0"),
+        row(27, "reset_and_load_map_session",
+            "+2 u16 map/session id; +4 u16 component A; +6 u16 component B; +8 u16 requested action id; +10 u16 requested base variant; +12 u16 requested variant delta",
+            "controlled role index; for each of the last three operands, FFFF inherits controlled role action +0x00/+0x08/+0x34",
+            "clears scene working arrays/globals through sub_42E790, toggles dword_4C9A18 bit 0 around map/role loader sub_40C130; sub_40C130 rebuilds map/session and controlled role state",
+            "advance 14; ESI=1; continue in same call after synchronous setup",
+            "all six script operands are zero-extended u16; helper's seventh argument is literal 1; FFFF inheritance applies only to operands +8/+10/+12",
+            "sub_42E790; sub_40C130", "0x004286C5-0x0042870E;0x0042E790-0x0042E845"),
+        row(28, "change_role_path_id", "+2 u16 role selector; +4 u16 path id",
+            "role lookup; role +0x18/+0x1C/+0x34/+0x38 and +0x10; matching object among 72 slots; object type low nibble; role coordinates/action state",
+            "found role: release old +0x38 payload, clear +0x34/+0x38, reconcile matching object, write role+0x1C=path id and +0x18=0, set role+0x10 bit 0x1000; missing role: fallback sub_40D460 request",
+            "advance 6; ESI=0; yield after operation",
+            "does not translate FFF0 to current role; type-1 object path can align role coordinates down to 16-pixel grid; fixed scan is 72 objects",
+            "sub_40C0D0; sub_4885A0; sub_40AE20; sub_411530; sub_40DD40; sub_40D460",
+            "0x00428713-0x0042890A;0x0042BEE9-0x0042BEF9"),
+        row(29, "set_global_integer", "+2 s16 index; +4 s16 value",
+            "dword_4ACBD0[0] sign bit in shared tail",
+            "dword_4ACBD0[index]=sign_extend(value); shared tail clamps element 0 to zero if its sign bit is set",
+            "valid signed index (<64): advance 6, ESI=1, continue; index >=64: no advance, ESI=0, yield/retry",
+            "signed lower bound is unchecked, so negative indices write before the 64-element array; high-index diagnostic path repeats on later frames",
+            "nullsub_1 on high index", "0x0042B074-0x0042B0B2;0x0042B0CD-0x0042B1EC"),
+        row(30, "add_global_integer", "+2 s16 index; +4 s16 value",
+            "dword_4ACBD0[index]; dword_4ACBD0[0] sign bit",
+            "adds sign-extended value with 32-bit wrap; shared tail clamps element 0 to zero if negative",
+            "valid signed index (<64): advance 6, ESI=1, continue; index >=64: no advance, ESI=0, yield/retry",
+            "negative indices are accepted and address before the array; no overflow protection",
+            "nullsub_1 on high index", "0x0042B074-0x0042B0B2;0x0042B0F4-0x0042B1EC"),
+        row(31, "subtract_global_integer_clamp_zero", "+2 s16 index; +4 s16 value",
+            "dword_4ACBD0[index]; dword_4ACBD0[0] sign bit",
+            "subtracts sign-extended value with 32-bit wrap; if result sign bit is set writes zero to selected element; shared tail also clamps element 0",
+            "valid signed index (<64): advance 6, ESI=1, continue; index >=64: no advance, ESI=0, yield/retry",
+            "negative indices are accepted and address before the array; sign-bit clamp is not a saturating arithmetic implementation",
+            "nullsub_1 on high index", "0x0042B074-0x0042B0B2;0x0042B0FD-0x0042B1EC"),
+        row(32, "branch_if_global_integer_unsigned_ge", "+2 s16 index; +4 s16 threshold; +6 u32 target",
+            "dword_4ACBD0[index] and sign-extended threshold compared as unsigned 32-bit; element 0 sign bit in shared tail",
+            "taken path reloads same TALK window; shared tail can clamp element 0",
+            "unsigned value >= unsigned(sign_extend(threshold)): transfer; otherwise advance 10; ESI=1 in both; index >=64 does not advance and yields",
+            "negative index is accepted; threshold is sign-extended before unsigned comparison; high-index diagnostic repeats",
+            "sub_42E430; nullsub_1 on high index", "0x0042B074-0x0042B0B2;0x0042B13D-0x0042B1EC"),
+        row(33, "branch_if_global_integer_unsigned_le", "+2 s16 index; +4 s16 threshold; +6 u32 target",
+            "dword_4ACBD0[index] and sign-extended threshold compared as unsigned 32-bit; element 0 sign bit in shared tail",
+            "taken path reloads same TALK window; shared tail can clamp element 0",
+            "unsigned value <= unsigned(sign_extend(threshold)): transfer; otherwise advance 10; ESI=1 in both; index >=64 does not advance and yields",
+            "negative index is accepted; threshold is sign-extended before unsigned comparison; high-index diagnostic repeats",
+            "sub_42E430; nullsub_1 on high index", "0x0042B074-0x0042B0B2;0x0042B172-0x0042B1EC"),
+        row(34, "set_bounded_counter", "+2 u16 value", "none",
+            "dword_4ACDB0=value when value<=1000, otherwise dword_4ACDB0=0",
+            "advance 4; ESI=1; continue in same call",
+            "out-of-range input resets to zero instead of clamping to 1000",
+            "none", "0x0042890F-0x0042892F;0x0042D182-0x0042D193"),
+        row(35, "branch_if_byte_le_bounded_counter", "+2 u8 value; +3 unread byte; +4 u32 target",
+            "low 16 bits of dword_4ACDB0", "taken path reloads same TALK window",
+            "u8 value <= u16 counter: transfer; otherwise advance 8; ESI=1 in both",
+            "instruction length is 8 but byte +3 is not read by this handler",
+            "sub_42E430", "0x00428934-0x00428967;0x004289A8-0x004289B9"),
+        row(36, "branch_if_counter_exceeds_snapshot_plus_delta", "+2 u16 delta; +4 u32 target",
+            "dword_4ACDB0; dword_4BA42C", "taken path reloads same TALK window",
+            "unsigned dword_4ACDB0 > unsigned(dword_4BA42C + u16 delta with 32-bit wrap): transfer; otherwise advance 8; ESI=1",
+            "addition and comparison are unsigned machine operations with no overflow handling",
+            "sub_42E430", "0x0042896C-0x004289B9"),
+        row(37, "snapshot_bounded_counter", "none", "dword_4ACDB0",
+            "dword_4BA42C=dword_4ACDB0", "advance 2; ESI=1; continue in same call",
+            "none", "none", "0x004289BE-0x004289D9"),
+        row(38, "clear_role_flag_range_and_reconcile_object", "+2 u16 role selector; FFF0=current state+24",
+            "role lookup; role+0x10; role identifier; 72 object slots",
+            "found role: role+0x10 &= 0x00007FFF, refresh role, then reset every object whose role id matches; missing role: fallback sub_40D460 request with 0x7FFF",
+            "advance 4; ESI=1; continue in same call",
+            "mask clears every bit above bit14, not only bit15",
+            "sub_40C0D0; sub_40AE20; sub_40C020; sub_40DD40; sub_40D460", "0x004289DE-0x00428AD7;0x0042D182-0x0042D193"),
+        row(39, "set_role_flag_8000_and_clear_pending_fields", "+2 u16 role selector; FFF0=current state+24",
+            "role lookup; role+0x10", "found role: role+0x10 |= 0x8000, refresh role, write role+0x60=-1 and role+0x7C=-1; missing role: fallback sub_40D460 request with 0x8000",
+            "advance 4; ESI=1; continue in same call", "none",
+            "sub_40C0D0; sub_40AE20; sub_40D460", "0x00428ADC-0x00428B9B;0x0042D182-0x0042D193"),
+        row(40, "schedule_role_components_then_release", "+2 u16 role selector; +4 u16 component A; +6 u16 component B",
+            "role lookup; state+24; role+0x10 and action fields",
+            "found role: sub_42DAF0(role,A<<4,B<<4,1,-1,-1,-1), sub_42D920(role), clear role+0x10 bit31; if selector==state+24 also role+0x4C=-1 and role+0x78=-1; missing role: fallback sub_40D460",
+            "advance 8; ESI=1; continue in same call",
+            "does not translate FFF0 before lookup; the current-context extra reset compares raw selector to state+24",
+            "sub_40C0D0; sub_42DAF0; sub_42D920; sub_40D460", "0x00428BA0-0x00428C9A"),
+        row(41, "indexed_target_transfer", "+2 sequence of u32 targets terminated by u32 FF00FF00",
+            "dword_4CAE7C selector; target count from unbounded terminator scan",
+            "reloads same TALK window at selected target; dword_4CAE7C=0",
+            "always transfers and ESI=1; no sequential advance",
+            "selector>count diagnoses and falls back to index 0, but selector==count is accepted and transfers to sentinel FF00FF00; unbounded terminator scan",
+            "sub_42E430; nullsub_1 on selector>count", "0x00428C9F-0x00428D13"),
+        row(42, "set_global_lock_and_reset_controlled_action_variant", "none",
+            "controlled role index and action fields; dword_4A9920",
+            "dword_4A9920 |= 0x8000; controlled role action+0x08=0; attempts action refresh",
+            "advance 2; ESI=1; continue in same call",
+            "refresh failure only emits Act Err(Talk:Rmlock) diagnostic",
+            "sub_4321E0; nullsub_1", "0x00428D18-0x00428DA1;0x0042D1E6-0x0042D1FB"),
+        row(43, "clear_global_lock", "none", "dword_4A9920",
+            "dword_4A9920 &= 0xFFFF7FFF", "advance 2; ESI=1; continue in same call",
+            "does not refresh the controlled role action", "none", "0x00428D18-0x00428D1E;0x00428DA6-0x00428DB3;0x0042D1EA-0x0042D1FB"),
+        row(44, "change_action_wait_override", "+2 u16 role selector; FFF0=current state+24; +4 u16 value",
+            "role lookup result and embedded action record",
+            "role action+0x48=value; role action+0x44=0; attempts action refresh",
+            "advance 6; ESI=1; continue in same call",
+            "lookup return is unchecked: a missing role leaves index FFFFFFFF and forms an out-of-bounds action pointer before the role array; raw diagnostic label ChangSpd",
+            "sub_40C0D0; sub_4321E0; nullsub_1", "0x00428DB8-0x00428E4D;0x0040C0D0-0x0040C125"),
+        row(45, "change_requested_action_id", "+2 u16 role selector; FFF0=current state+24; +4 u16 requested action id",
+            "role lookup; next instruction opcode/selector; role embedded action fields and role+0x10",
+            "found role: action+0x00=u16 value and role+0x10 |=0x1000; refresh now unless next instruction is opcode 10, 11 or 45 for the same resolved role; missing role: fallback sub_40D460",
+            "advance 6; ESI=1; continue in same call",
+            "zero action id emits a diagnostic but is still written; lookahead reads the next instruction before current IP is advanced",
+            "sub_40C0D0; sub_42E740; sub_4321E0; sub_40D460; nullsub_1", "0x00428E52-0x00428F76;0x0042E740-0x0042E783"),
+        row(46, "restore_all_pending_action_overrides", "+2 u16 role selector",
+            "role action+0x1C/+0x20/+0x3C", "copy action+0x1C to +0x00, +0x20 to +0x08, +0x3C to +0x34; sub_40DC00 then resets pending fields/timers; attempts action refresh",
+            "advance 4; ESI=1; continue in same call",
+            "role lookup return is unchecked; missing selector computes action pointer for index -1; no FFF0 substitution",
+            "sub_40C0D0; sub_40DC00; sub_4321E0; nullsub_1", "0x00428F7B-0x00428FC2;0x0042900D-0x00429061"),
+        row(47, "apply_pending_base_variant_override", "+2 u16 role selector",
+            "role action+0x20", "if action+0x20 != FFFFFFFF, copy it to action+0x08 and set action+0x20=FFFFFFFF; attempts action refresh",
+            "advance 4; ESI=1; continue in same call",
+            "role lookup return is unchecked; missing selector computes action pointer for index -1; no FFF0 substitution",
+            "sub_40C0D0; sub_4321E0; nullsub_1", "0x00428F7B-0x00428FDC;0x0042900D-0x00429061"),
+        row(48, "apply_pending_variant_delta_override", "+2 u16 role selector",
+            "role action+0x3C", "if action+0x3C != FFFFFFFF, copy it to action+0x34 and set action+0x3C=FFFFFFFF; attempts action refresh",
+            "advance 4; ESI=1; continue in same call",
+            "role lookup return is unchecked; missing selector computes action pointer for index -1; no FFF0 substitution",
+            "sub_40C0D0; sub_4321E0; nullsub_1", "0x00428F7B-0x00428FF6;0x0042900D-0x00429061"),
+        row(49, "set_action_wait_override_ffff", "+2 u16 role selector",
+            "role action+0x48 low word", "if action+0x48 low word != FFFF, write FFFF; attempts action refresh",
+            "advance 4; ESI=1; continue in same call",
+            "role lookup return is unchecked; missing selector computes action pointer for index -1; no FFF0 substitution; write is exactly 16 bits",
+            "sub_40C0D0; sub_4321E0; nullsub_1", "0x00428F7B-0x00429061"),
+    ]
+
+
+def load_map(path: Path, key: str) -> dict[int, dict[str, str]]:
+    with path.open(encoding="utf-8", newline="") as source:
+        rows = list(csv.DictReader(source, delimiter="\t"))
+    return {int(item[key]): item for item in rows}
+
+
+def main() -> None:
+    if sha256(ASM_PATH) != EXPECTED_ASM_SHA256:
+        raise SystemExit("locked full assembly input changed")
+    dispatch = load_map(DISPATCH_INPUT, "effective_opcode_dec")
+    lengths = load_map(LENGTH_INPUT, "effective_opcode")
+    curated = curated_rows()
+    if [int(item[0]) for item in curated] != list(range(25, 50)):
+        raise SystemExit("semantic batch must contain exactly opcodes 25..49 in order")
+
+    output_rows = []
+    for item in curated:
+        opcode = int(item[0])
+        dispatch_row = dispatch[opcode]
+        length_row = lengths[opcode]
+        output_rows.append((
+            opcode, dispatch_row["entry_target"], item[1], item[2],
+            length_row["sequential_length_rule"], item[3], item[4], item[5],
+            item[6], item[7], item[8], item[9],
+        ))
+
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    with OUTPUT.open("w", encoding="utf-8", newline="") as output:
+        writer = csv.writer(output, delimiter="\t", lineterminator="\n")
+        writer.writerow((
+            "effective_opcode", "entry_target", "working_operation", "operand_layout",
+            "physical_length_rule", "state_reads", "state_writes", "flow_and_timing",
+            "error_or_quirk", "helper_calls", "assembly_evidence", "audit_status",
+        ))
+        writer.writerows(output_rows)
+    print(f"wrote {OUTPUT.relative_to(RESEARCH_ROOT)} ({len(output_rows)} rows)")
+
+
+if __name__ == "__main__":
+    main()

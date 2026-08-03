@@ -1,0 +1,10 @@
+instruction_address	owner	clock	calculation	predicate	effect
+0x0040A5BC	sub_40A570	timeGetTime	u32(now - previous_gate)	>= frame_interval	accept exactly one frame; previous_gate=now; no catch-up
+0x004053ED	sub_4053C0	accepted-frame time sample	u32(now - release_time)	> 150	reset rapid-press chain only while raw remains released
+0x00429B9C	sub_427920 opcode 67	accepted-frame time sample	u32(now - wait_start)	> u16 duration	clear in-stream active bit and advance story instruction
+0x0042F266	sub_42ED40	accepted-frame time sample	floor(u32(now - object_start) / 100)	> object threshold	advance object/UI timed state; 0xFFFF is sentinel
+0x0041196A	sub_4118B0	direct timeGetTime	u32(now - last_scan)	> 1000 or > 3000	perform next CD/file scan; threshold depends on sequence length
+0x00411B19	sub_4118B0	direct timeGetTime	u32(now - last_AIL_service)	> 100	call AIL_serve while waiting between scans
+0x00411C18	sub_4118B0	direct timeGetTime	u32(now - success_start)	> 500	leave success-message busy-wait
+0x00411C24	sub_4118B0	direct timeGetTime	u32(now - last_AIL_service)	> 90	call AIL_serve during success-message busy-wait
+0x00405372	sub_4050E0	normalization sample count	counter += 1 when x/y stable and raw mouse mask zero	> 450	set inactivity bit 9 first on sample 451; not wall-clock based

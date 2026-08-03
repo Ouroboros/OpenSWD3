@@ -1,0 +1,22 @@
+offset	width_or_extent	physical_role	producer_or_consumer	fidelity_note
+0x000	4	DirectDraw owner/interface	sub_435160; sub_437B60	physical pointer; final C++ ownership model not yet named
+0x004	4	64x64 temporary DirectDraw surface	sub_435240/sub_4352C0	released through surface vtable +0x08
+0x008	4	destination width in 16-bit pixels	sub_4355B0; sub_436EA0	not a byte stride
+0x00C	4	destination height in rows	sub_4355B0; sub_436EA0	full-buffer clamp bound
+0x010	4	destination allocation size width*height*2	sub_4355B0	stored even though draw loops use row offsets
+0x014	height*4	row offset table; entry[y]=y*width	sub_4355B0; all glyph writers	offset unit is 16-bit pixels
+0x018	font_width*font_height*2	temporary copied 16-bit GDI raster	sub_4353C0/sub_436840/sub_4368D0	copies only configured font rectangle from 64x64 surface
+0x01C	4	glyph mask bytes per row ceil(font_width/8)	sub_435430	signed arithmetic sequence must remain exact for invalid widths
+0x020	0xFA0 = 2000*u16	sorted raw one/two-byte character keys	sub_436980/sub_4369C0	unsigned u16 ordering; no Unicode normalization
+0xFC0	4	packed glyph-mask cache pointer	sub_435430/sub_4369C0	allocation is 2000*font_height*mask_row_bytes
+0xFC4	4	current sorted cache count	sub_436AD0	when increment reaches 1999 it is forced to 1998 and slot 1998 is cleared
+0xFC8	2+implicit NUL	current raw character byte string	sub_436AD0/sub_4368D0	+0xFCA has no writer and relies on static PE zero-fill as terminator
+0xFCC	4	HFONT	sub_435500/sub_4351F0	created with CreateFontIndirectA and deleted with DeleteObject
+0xFD0	4	configured glyph rectangle width	sub_4353C0/sub_435500	normally equals clamped font size
+0xFD4	4	configured glyph rectangle height	sub_4353C0/sub_435500	normally equals clamped font size
+0xFD8	4	temporary surface pitch/2 in pixels	sub_435240/sub_436840	derived by signed arithmetic shift from reported byte pitch
+0xFDC	4	temporary surface reported height	sub_435240	stored physical field; no later direct consumer found
+0xFE0	4	double-byte horizontal advance	sub_435650/sub_436AD0	ASCII advance is arithmetic half; raw high-bit character uses full value
+0xFE4	2	secondary shadow/outline color	sub_435670; style 0x02..0x10	packed 16-bit value, sometimes duplicated into dword writes
+0xFE6	2	background rectangle color or 0xFFFE disable sentinel	sub_435660/sub_436AD0	background fill clamps to full destination, not glyph clip rectangle
+0xFE8..0xFF4	4*4	clip left, top, width, height	sub_435620; glyph writers	right=left+width and bottom=top+height with style-specific strict comparisons

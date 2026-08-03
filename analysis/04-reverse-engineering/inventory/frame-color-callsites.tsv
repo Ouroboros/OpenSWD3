@@ -1,0 +1,51 @@
+call_address	caller	target	count_operand	physical_scope	argument_contract	return_contract
+0x004147D6	sub_4146F0	sub_420490	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0041564A	sub_4154A0	sub_420490	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00416723	sub_416590	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x004169CA	sub_4167B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x004169E1	sub_4167B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x004169F7	sub_4167B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00416A1B	sub_4167B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00416A36	sub_4167B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00416A4E	sub_4167B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00416A60	sub_4167B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00416A72	sub_4167B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00416A81	sub_4167B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x004346F7	sub_4344E0	sub_4207E0	1	single u16 pixel	source,destination,count; destination is overwritten	direct cdecl call; caller does not branch on a return value
+0x00434942	sub_434790	sub_4207E0	1	single u16 pixel	source,destination,count; destination is overwritten	direct cdecl call; caller does not branch on a return value
+0x00434A29	sub_434790	sub_4207E0	1	single u16 pixel	source,destination,count; destination is overwritten	direct cdecl call; caller does not branch on a return value
+0x00434B79	sub_434790	sub_4207E0	1	single u16 pixel	source,destination,count; destination is overwritten	direct cdecl call; caller does not branch on a return value
+0x00434BA8	sub_434790	sub_4207E0	1	single u16 pixel	source,destination,count; destination is overwritten	direct cdecl call; caller does not branch on a return value
+0x00434C1E	sub_434790	sub_4207E0	1	single u16 pixel	source,destination,count; destination is overwritten	direct cdecl call; caller does not branch on a return value
+0x00434C53	sub_434790	sub_4207E0	1	single u16 pixel	source,destination,count; destination is overwritten	direct cdecl call; caller does not branch on a return value
+0x0043A81E	sub_43A610	sub_420490	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0043B257	sub_43B110	sub_420490	EBP	caller-controlled positive row/buffer span	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0043B2E4	sub_43B110	sub_421FB0	EBP	caller-controlled positive row/buffer span	buffer,count	direct cdecl call; caller does not branch on a return value
+0x0043B3FC	sub_43B110	sub_420490	EBP	caller-controlled positive row/buffer span	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0043B40A	sub_43B110	sub_420490	EBP	caller-controlled positive row/buffer span	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00441A4F	sub_441680	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00441A9F	sub_441680	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x004427A0	sub_4425C0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0044450C	sub_4442B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x004445E3	sub_4442B0	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00447330	sub_447100	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x004475DE	sub_447100	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0044923A	sub_4490C0	sub_420490	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x004496A3	sub_4490C0	sub_420490	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x00449AD9	sub_4490C0	sub_421FB0	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,count	direct cdecl call; caller does not branch on a return value
+0x00449B35	sub_4490C0	sub_420490	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0044C2A0	sub_44C160	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0044C85C	sub_44C160	sub_420490	1	single u16 pixel	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0044D995	sub_44D920	sub_420490	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0044D9A5	sub_44D920	sub_421FB0	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,count	direct cdecl call; caller does not branch on a return value
+0x00453747	sub_453580	sub_420560	0x3C000	245760-pixel framebuffer prefix	buffer,count,red_delta	direct cdecl call; caller does not branch on a return value
+0x0045375F	sub_453580	sub_420600	0x3C000	245760-pixel framebuffer prefix	buffer,even_count,green_delta	direct cdecl call; caller does not branch on a return value
+0x00453776	sub_453580	sub_4206F0	0x3C000	245760-pixel framebuffer prefix	buffer,even_count,blue_delta	direct cdecl call; caller does not branch on a return value
+0x004538AA	sub_453580	sub_420490	0x3C000	245760-pixel framebuffer prefix	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0045B026	sub_45AF90	sub_420560	0x3C000	245760-pixel framebuffer prefix	buffer,count,red_delta	direct cdecl call; caller does not branch on a return value
+0x0045B043	sub_45AF90	sub_420600	0x3C000	245760-pixel framebuffer prefix	buffer,even_count,green_delta	direct cdecl call; caller does not branch on a return value
+0x0045B061	sub_45AF90	sub_4206F0	0x3C000	245760-pixel framebuffer prefix	buffer,even_count,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0045BD30	sub_45BD10	sub_420560	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,count,red_delta	direct cdecl call; caller does not branch on a return value
+0x0045BD48	sub_45BD10	sub_420600	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,even_count,green_delta	direct cdecl call; caller does not branch on a return value
+0x0045BD5F	sub_45BD10	sub_4206F0	0x4B000	full 640x480 logical frame (307200 u16 pixels)	buffer,even_count,blue_delta	direct cdecl call; caller does not branch on a return value
+0x0045D3D6	sub_45D2F0	sub_420490	0x3C000	245760-pixel framebuffer prefix	buffer,count,red_delta,green_delta,blue_delta	direct cdecl call; caller does not branch on a return value

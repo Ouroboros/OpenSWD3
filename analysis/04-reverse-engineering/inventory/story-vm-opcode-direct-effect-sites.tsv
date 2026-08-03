@@ -1,0 +1,1450 @@
+effective_opcode	entry_target	instruction_address	access	symbol	instruction	scope
+0	0x0042D230	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+0	0x0042D230	0x0042D238	read	dword_4CF6D8	mov ecx, dword_4CF6D8	direct access in opcode-specific conservative CFG
+0	0x0042D230	0x0042D244	address_ref	unk_4A1430	push offset unk_4A1430	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427BFE	address_ref	byte_4A1BBC	push offset byte_4A1BBC	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427C03	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427C10	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427C2D	read	dword_4A135C	cmp word ptr dword_4A135C, 8000h	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427C42	read	dword_4A135C	mov ecx, dword_4A135C	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427C54	read	dword_4A135C	add ax, word ptr dword_4A135C+2	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427CAD	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427CC1	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427CC6	read	dword_4CF738	cmp dword_4CF738, edx	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427CCE	read	dword_4A1364	mov eax, dword_4A1364	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427CDE	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427CF3	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427D07	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427D1B	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427D50	read	dword_4CF73C	cmp dword_4CF73C, edx	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427D65	read	dword_4CF734	mov ecx, dword_4CF734	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427D6B	read	dword_4CF730	mov edx, dword_4CF730	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427D7F	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427D9F	write	word_4BABCE	mov word_4BABCE[edx*8], 2	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427DD6	write	word_4BABCE	mov word_4BABCE[ecx*8], 1	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427DEC	read_write	dword_4A9920	inc dword_4A9920	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427E11	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427E2E	write	dword_4A135C	mov word ptr dword_4A135C+2, ax	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427E34	write	dword_4A135C	mov word ptr dword_4A135C, ax	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427E3A	write	dword_4A1360	mov dword_4A1360, 0FFFFFFFFh	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427E44	write	dword_4A1364	mov dword_4A1364, 3Ch	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427E4E	write	dword_4CF738	mov dword_4CF738, edi	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427E54	write	word_4CF6B8	mov byte ptr word_4CF6B8, 0	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427E5B	write	dword_4CF734	mov dword_4CF734, edi	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427E61	write	dword_4CF730	mov dword_4CF730, edi	direct access in opcode-specific conservative CFG
+1	0x00427B8F	0x00427E67	write	dword_4CF73C	mov dword_4CF73C, edi	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427BFE	address_ref	byte_4A1BBC	push offset byte_4A1BBC	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427C03	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427C10	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427C2D	read	dword_4A135C	cmp word ptr dword_4A135C, 8000h	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427C42	read	dword_4A135C	mov ecx, dword_4A135C	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427C54	read	dword_4A135C	add ax, word ptr dword_4A135C+2	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427CAD	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427CC1	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427CC6	read	dword_4CF738	cmp dword_4CF738, edx	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427CCE	read	dword_4A1364	mov eax, dword_4A1364	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427CDE	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427CF3	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427D07	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427D1B	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427D50	read	dword_4CF73C	cmp dword_4CF73C, edx	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427D65	read	dword_4CF734	mov ecx, dword_4CF734	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427D6B	read	dword_4CF730	mov edx, dword_4CF730	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427D7F	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427D9F	write	word_4BABCE	mov word_4BABCE[edx*8], 2	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427DD6	write	word_4BABCE	mov word_4BABCE[ecx*8], 1	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427DEC	read_write	dword_4A9920	inc dword_4A9920	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427E11	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427E2E	write	dword_4A135C	mov word ptr dword_4A135C+2, ax	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427E34	write	dword_4A135C	mov word ptr dword_4A135C, ax	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427E3A	write	dword_4A1360	mov dword_4A1360, 0FFFFFFFFh	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427E44	write	dword_4A1364	mov dword_4A1364, 3Ch	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427E4E	write	dword_4CF738	mov dword_4CF738, edi	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427E54	write	word_4CF6B8	mov byte ptr word_4CF6B8, 0	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427E5B	write	dword_4CF734	mov dword_4CF734, edi	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427E61	write	dword_4CF730	mov dword_4CF730, edi	direct access in opcode-specific conservative CFG
+2	0x00427B8F	0x00427E67	write	dword_4CF73C	mov dword_4CF73C, edi	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427BFE	address_ref	byte_4A1BBC	push offset byte_4A1BBC	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427C03	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427C10	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427C2D	read	dword_4A135C	cmp word ptr dword_4A135C, 8000h	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427C42	read	dword_4A135C	mov ecx, dword_4A135C	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427C54	read	dword_4A135C	add ax, word ptr dword_4A135C+2	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427CAD	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427CC1	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427CC6	read	dword_4CF738	cmp dword_4CF738, edx	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427CCE	read	dword_4A1364	mov eax, dword_4A1364	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427CDE	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427CF3	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427D07	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427D1B	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427D50	read	dword_4CF73C	cmp dword_4CF73C, edx	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427D65	read	dword_4CF734	mov ecx, dword_4CF734	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427D6B	read	dword_4CF730	mov edx, dword_4CF730	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427D7F	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427D9F	write	word_4BABCE	mov word_4BABCE[edx*8], 2	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427DD6	write	word_4BABCE	mov word_4BABCE[ecx*8], 1	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427DEC	read_write	dword_4A9920	inc dword_4A9920	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427E11	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427E2E	write	dword_4A135C	mov word ptr dword_4A135C+2, ax	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427E34	write	dword_4A135C	mov word ptr dword_4A135C, ax	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427E3A	write	dword_4A1360	mov dword_4A1360, 0FFFFFFFFh	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427E44	write	dword_4A1364	mov dword_4A1364, 3Ch	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427E4E	write	dword_4CF738	mov dword_4CF738, edi	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427E54	write	word_4CF6B8	mov byte ptr word_4CF6B8, 0	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427E5B	write	dword_4CF734	mov dword_4CF734, edi	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427E61	write	dword_4CF730	mov dword_4CF730, edi	direct access in opcode-specific conservative CFG
+3	0x00427B8F	0x00427E67	write	dword_4CF73C	mov dword_4CF73C, edi	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427BFE	address_ref	byte_4A1BBC	push offset byte_4A1BBC	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427C03	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427C10	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427C2D	read	dword_4A135C	cmp word ptr dword_4A135C, 8000h	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427C42	read	dword_4A135C	mov ecx, dword_4A135C	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427C54	read	dword_4A135C	add ax, word ptr dword_4A135C+2	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427CAD	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427CC1	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427CC6	read	dword_4CF738	cmp dword_4CF738, edx	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427CCE	read	dword_4A1364	mov eax, dword_4A1364	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427CDE	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427CF3	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427D07	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427D1B	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427D50	read	dword_4CF73C	cmp dword_4CF73C, edx	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427D65	read	dword_4CF734	mov ecx, dword_4CF734	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427D6B	read	dword_4CF730	mov edx, dword_4CF730	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427D7F	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427D9F	write	word_4BABCE	mov word_4BABCE[edx*8], 2	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427DD6	write	word_4BABCE	mov word_4BABCE[ecx*8], 1	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427DEC	read_write	dword_4A9920	inc dword_4A9920	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427E11	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427E2E	write	dword_4A135C	mov word ptr dword_4A135C+2, ax	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427E34	write	dword_4A135C	mov word ptr dword_4A135C, ax	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427E3A	write	dword_4A1360	mov dword_4A1360, 0FFFFFFFFh	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427E44	write	dword_4A1364	mov dword_4A1364, 3Ch	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427E4E	write	dword_4CF738	mov dword_4CF738, edi	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427E54	write	word_4CF6B8	mov byte ptr word_4CF6B8, 0	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427E5B	write	dword_4CF734	mov dword_4CF734, edi	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427E61	write	dword_4CF730	mov dword_4CF730, edi	direct access in opcode-specific conservative CFG
+4	0x00427B8F	0x00427E67	write	dword_4CF73C	mov dword_4CF73C, edi	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427BFE	address_ref	byte_4A1BBC	push offset byte_4A1BBC	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427C03	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427C10	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427C2D	read	dword_4A135C	cmp word ptr dword_4A135C, 8000h	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427C42	read	dword_4A135C	mov ecx, dword_4A135C	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427C54	read	dword_4A135C	add ax, word ptr dword_4A135C+2	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427CAD	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427CC1	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427CC6	read	dword_4CF738	cmp dword_4CF738, edx	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427CCE	read	dword_4A1364	mov eax, dword_4A1364	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427CDE	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427CF3	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427D07	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427D1B	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427D50	read	dword_4CF73C	cmp dword_4CF73C, edx	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427D65	read	dword_4CF734	mov ecx, dword_4CF734	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427D6B	read	dword_4CF730	mov edx, dword_4CF730	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427D7F	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427D9F	write	word_4BABCE	mov word_4BABCE[edx*8], 2	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427DD6	write	word_4BABCE	mov word_4BABCE[ecx*8], 1	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427DEC	read_write	dword_4A9920	inc dword_4A9920	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427E11	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427E2E	write	dword_4A135C	mov word ptr dword_4A135C+2, ax	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427E34	write	dword_4A135C	mov word ptr dword_4A135C, ax	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427E3A	write	dword_4A1360	mov dword_4A1360, 0FFFFFFFFh	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427E44	write	dword_4A1364	mov dword_4A1364, 3Ch	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427E4E	write	dword_4CF738	mov dword_4CF738, edi	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427E54	write	word_4CF6B8	mov byte ptr word_4CF6B8, 0	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427E5B	write	dword_4CF734	mov dword_4CF734, edi	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427E61	write	dword_4CF730	mov dword_4CF730, edi	direct access in opcode-specific conservative CFG
+5	0x00427B8F	0x00427E67	write	dword_4CF73C	mov dword_4CF73C, edi	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427BFE	address_ref	byte_4A1BBC	push offset byte_4A1BBC	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427C03	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427C10	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427C2D	read	dword_4A135C	cmp word ptr dword_4A135C, 8000h	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427C42	read	dword_4A135C	mov ecx, dword_4A135C	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427C54	read	dword_4A135C	add ax, word ptr dword_4A135C+2	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427CAD	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427CC1	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427CC6	read	dword_4CF738	cmp dword_4CF738, edx	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427CCE	read	dword_4A1364	mov eax, dword_4A1364	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427CDE	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427CF3	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427D07	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427D1B	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427D50	read	dword_4CF73C	cmp dword_4CF73C, edx	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427D65	read	dword_4CF734	mov ecx, dword_4CF734	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427D6B	read	dword_4CF730	mov edx, dword_4CF730	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427D7F	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427D9F	write	word_4BABCE	mov word_4BABCE[edx*8], 2	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427DD6	write	word_4BABCE	mov word_4BABCE[ecx*8], 1	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427DEC	read_write	dword_4A9920	inc dword_4A9920	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427E11	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427E2E	write	dword_4A135C	mov word ptr dword_4A135C+2, ax	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427E34	write	dword_4A135C	mov word ptr dword_4A135C, ax	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427E3A	write	dword_4A1360	mov dword_4A1360, 0FFFFFFFFh	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427E44	write	dword_4A1364	mov dword_4A1364, 3Ch	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427E4E	write	dword_4CF738	mov dword_4CF738, edi	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427E54	write	word_4CF6B8	mov byte ptr word_4CF6B8, 0	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427E5B	write	dword_4CF734	mov dword_4CF734, edi	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427E61	write	dword_4CF730	mov dword_4CF730, edi	direct access in opcode-specific conservative CFG
+6	0x00427B8F	0x00427E67	write	dword_4CF73C	mov dword_4CF73C, edi	direct access in opcode-specific conservative CFG
+7	0x00427E72	0x00427E72	read	dword_4A1360	mov edx, dword_4A1360	direct access in opcode-specific conservative CFG
+7	0x00427E72	0x00427E7E	write	dword_4A1360	mov dword_4A1360, edx	direct access in opcode-specific conservative CFG
+8	0x00427E9A	0x00427EA5	write	dword_4CF738	mov dword_4CF738, esi	direct access in opcode-specific conservative CFG
+8	0x00427E9A	0x00427EAB	write	dword_4A1364	mov dword_4A1364, edx	direct access in opcode-specific conservative CFG
+9	0x00427EC2	0x00427E7E	write	dword_4A1360	mov dword_4A1360, edx	direct access in opcode-specific conservative CFG
+9	0x00427EC2	0x00427EC2	read	dword_4A1360	mov edx, dword_4A1360	direct access in opcode-specific conservative CFG
+10	0x00427ED0	0x00427F6A	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+10	0x00427ED0	0x00427F70	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+10	0x00427ED0	0x00427F77	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+10	0x00427ED0	0x00427F80	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+10	0x00427ED0	0x00427F89	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+10	0x00427ED0	0x00427F8E	address_ref	aActErrTalkChan	push offset aActErrTalkChan	direct access in opcode-specific conservative CFG
+11	0x00427FEB	0x00428076	read	word_4BABCC	mov cx, word_4BABCC[eax*8]	direct access in opcode-specific conservative CFG
+11	0x00427FEB	0x0042807F	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+11	0x00427FEB	0x00428084	address_ref	aActErrTalkChan_0	push offset aActErrTalkChan_0	direct access in opcode-specific conservative CFG
+11	0x00427FEB	0x004280A4	read	dword_4BABB8	mov ecx, dword_4BABB8[eax*8]	direct access in opcode-specific conservative CFG
+11	0x00427FEB	0x004280AE	write	dword_4BABB8	mov dword_4BABB8[eax*8], ecx	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x0042814B	address_ref	unk_4A1B78	push offset unk_4A1B78	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x00428150	address_ref	aSetpos	push offset aSetpos	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x00428167	read	dword_4AB378	mov ecx, dword_4AB378	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x0042817F	read	dword_4A9920	mov eax, dword_4A9920	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x0042818C	write	dword_4A9920	mov dword_4A9920, eax	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x004281B8	write	dword_4BABF4	mov dword_4BABF4[eax], esi	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x004281BE	write	dword_4BAC20	mov dword_4BAC20[eax], esi	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x004281C4	read_write	dword_4BABB8	and dword_4BABB8[eax], 0FFF7FFFFh	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x004281FB	read	dword_4AB378	mov ecx, dword_4AB378	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x00428213	read	dword_4A9920	mov eax, dword_4A9920	direct access in opcode-specific conservative CFG
+12	0x0042811F	0x00428220	write	dword_4A9920	mov dword_4A9920, eax	direct access in opcode-specific conservative CFG
+13	0x0042822A	0x0042824F	read	ArgList	mov eax, ArgList	direct access in opcode-specific conservative CFG
+13	0x0042822A	0x0042825C	address_ref	unk_4A1B4C	push offset unk_4A1B4C	direct access in opcode-specific conservative CFG
+13	0x0042822A	0x00428261	address_ref	aTalkStep	push offset aTalkStep	direct access in opcode-specific conservative CFG
+13	0x0042822A	0x0042827D	read	dword_4BABB8	test dword_4BABB8[edx*8], 2000000h	direct access in opcode-specific conservative CFG
+14	0x0042829C	0x004282CC	read	word_4BABCE	cmp word_4BABCE[edx*8], 0	direct access in opcode-specific conservative CFG
+15	0x00428310	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+15	0x00428310	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+16	0x00428318	0x00428330	address_ref	byte_4AD4AB	mov eax, offset byte_4AD4AB	direct access in opcode-specific conservative CFG
+16	0x00428318	0x00428358	read	dword_4BABB8	test dword_4BABB8[ecx*8], edi	direct access in opcode-specific conservative CFG
+16	0x00428318	0x00428367	address_ref	byte_4B6C8B	cmp eax, offset byte_4B6C8B	direct access in opcode-specific conservative CFG
+16	0x00428318	0x00428383	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+16	0x00428318	0x0042838D	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+17	0x004283AC	0x004283C4	address_ref	byte_4AD4AB	mov eax, offset byte_4AD4AB	direct access in opcode-specific conservative CFG
+17	0x004283AC	0x004283EC	read	dword_4BABB8	test dword_4BABB8[ecx*8], edi	direct access in opcode-specific conservative CFG
+17	0x004283AC	0x004283FB	address_ref	byte_4B6C8B	cmp eax, offset byte_4B6C8B	direct access in opcode-specific conservative CFG
+17	0x004283AC	0x00428418	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+17	0x004283AC	0x00428422	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+18	0x0042845A	0x004284A2	read	dword_4BABB8	mov ecx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+18	0x0042845A	0x004284AE	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+18	0x0042845A	0x004284B4	write	word_4BAC2C	mov word_4BAC2C[eax], 0	direct access in opcode-specific conservative CFG
+19	0x004284C2	0x004284C2	read	dword_49E0C4	mov eax, dword_49E0C4	direct access in opcode-specific conservative CFG
+19	0x004284C2	0x004284DE	read	dword_4BABB8	test dword_4BABB8[edx*8], 80000000h	direct access in opcode-specific conservative CFG
+19	0x004284C2	0x00428505	read	dword_4BABB8	mov edx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+19	0x004284C2	0x00428511	write	dword_4BABB8	mov dword_4BABB8[eax], edx	direct access in opcode-specific conservative CFG
+19	0x004284C2	0x00428517	write	word_4BAC2C	mov word_4BAC2C[eax], 0	direct access in opcode-specific conservative CFG
+19	0x004284C2	0x00428520	read	dword_49E0C4	mov eax, dword_49E0C4	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AE02	address_ref	unk_4A174C	push offset unk_4A174C	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AE07	address_ref	aBmove	push offset aBmove	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AE43	read_write	dword_4BABB8	and dword_4BABB8[eax*8], 0FFF7FFFFh	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AE63	write	dword_4BABF4	mov dword_4BABF4[eax], ecx	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AE69	write	dword_4BAC20	mov dword_4BAC20[eax], ecx	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AE75	read	word_4BAC30	cmp word_4BAC30[eax*8], 0	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AE80	write	word_4BAC30	mov word_4BAC30[eax*8], 8001h	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AE96	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AEB1	read	dword_4BABB0	mov ecx, dword_4BABB0[ecx*8]	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AED2	read	dword_4BABAC	mov eax, dword_4BABAC[eax*8]	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AEFD	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AF18	read	dword_4BABB0	mov ecx, dword_4BABB0[ecx*8]	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AF39	read	dword_4BABAC	mov eax, dword_4BABAC[eax*8]	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AF6F	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AF78	read	dword_4A9920	mov eax, dword_4A9920	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AF80	write	dword_4A9920	mov dword_4A9920, eax	direct access in opcode-specific conservative CFG
+20	0x0042ADB7	0x0042AFE7	read	dword_4BABB8	test dword_4BABB8[edx*8], ebx	direct access in opcode-specific conservative CFG
+21	0x00428533	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+21	0x00428533	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+22	0x00428533	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+22	0x00428533	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+23	0x0042857F	0x004285A0	read	byte_49969C	movzx cx, ds:byte_49969C[ecx]	direct access in opcode-specific conservative CFG
+23	0x0042857F	0x004285A8	read	byte_4AB384	test byte_4AB384[eax], cl	direct access in opcode-specific conservative CFG
+23	0x0042857F	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+23	0x0042857F	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+24	0x004285ED	0x0042860E	read	byte_49969C	movzx cx, ds:byte_49969C[ecx]	direct access in opcode-specific conservative CFG
+24	0x004285ED	0x00428616	read	byte_4AB384	test byte_4AB384[eax], cl	direct access in opcode-specific conservative CFG
+24	0x004285ED	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+24	0x004285ED	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+25	0x0042865B	0x00428672	address_ref	aFonD	push offset aFonD	direct access in opcode-specific conservative CFG
+25	0x0042865B	0x00428695	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+25	0x0042865B	0x0042869E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+26	0x00428679	0x00428690	address_ref	aFoffD	push offset aFoffD	direct access in opcode-specific conservative CFG
+26	0x00428679	0x00428695	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+26	0x00428679	0x0042869E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+28	0x00428713	0x00428740	read	dword_4BABE0	mov eax, dword_4BABE0[eax*8]	direct access in opcode-specific conservative CFG
+28	0x00428713	0x00428760	address_ref	word_4AD490	mov ecx, offset word_4AD490	direct access in opcode-specific conservative CFG
+28	0x00428713	0x0042879A	read	byte_4AD4AB	mov dl, byte_4AD4AB[ecx]	direct access in opcode-specific conservative CFG
+28	0x00428713	0x004287AD	write	word_4AD498	mov word_4AD498[ecx], dx	direct access in opcode-specific conservative CFG
+28	0x00428713	0x004287B4	write	word_4AD49A	mov word_4AD49A[ecx], dx	direct access in opcode-specific conservative CFG
+28	0x00428713	0x004287BB	write	word_4AD49C	mov word_4AD49C[ecx], dx	direct access in opcode-specific conservative CFG
+28	0x00428713	0x004287C2	write	word_4AD49E	mov word_4AD49E[ecx], dx	direct access in opcode-specific conservative CFG
+28	0x00428713	0x004287C9	read	byte_4AD4AB	mov cl, byte_4AD4AB[ecx]	direct access in opcode-specific conservative CFG
+28	0x00428713	0x00428816	read	word_4AD492	mov dx, word_4AD492[eax]	direct access in opcode-specific conservative CFG
+28	0x00428713	0x00428826	read	byte_4AD4AC	movzx ax, byte_4AD4AC[edx+eax]	direct access in opcode-specific conservative CFG
+29	0x0042B074	0x0042B098	address_ref	byte_49F7C4	push offset byte_49F7C4	direct access in opcode-specific conservative CFG
+29	0x0042B074	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+29	0x0042B074	0x0042B0DE	read	byte_42D80C	mov dl, ds:byte_42D80C[esi]	direct access in opcode-specific conservative CFG
+29	0x0042B074	0x0042B0E4	read	jpt_42B0E4	jmp ds:jpt_42B0E4[edx*4]	direct access in opcode-specific conservative CFG
+29	0x0042B074	0x0042B0EB	write	dword_4ACBD0	mov dword_4ACBD0[edi*4], ecx	direct access in opcode-specific conservative CFG
+29	0x0042B074	0x0042B1BF	read	dword_4ACBD0	test dword_4ACBD0, 80000000h	direct access in opcode-specific conservative CFG
+29	0x0042B074	0x0042B1CB	write	dword_4ACBD0	mov dword_4ACBD0, 0	direct access in opcode-specific conservative CFG
+30	0x0042B074	0x0042B098	address_ref	byte_49F7C4	push offset byte_49F7C4	direct access in opcode-specific conservative CFG
+30	0x0042B074	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+30	0x0042B074	0x0042B0DE	read	byte_42D80C	mov dl, ds:byte_42D80C[esi]	direct access in opcode-specific conservative CFG
+30	0x0042B074	0x0042B0E4	read	jpt_42B0E4	jmp ds:jpt_42B0E4[edx*4]	direct access in opcode-specific conservative CFG
+30	0x0042B074	0x0042B0F4	read_write	dword_4ACBD0	add dword_4ACBD0[edi*4], ecx	direct access in opcode-specific conservative CFG
+30	0x0042B074	0x0042B1BF	read	dword_4ACBD0	test dword_4ACBD0, 80000000h	direct access in opcode-specific conservative CFG
+30	0x0042B074	0x0042B1CB	write	dword_4ACBD0	mov dword_4ACBD0, 0	direct access in opcode-specific conservative CFG
+31	0x0042B074	0x0042B098	address_ref	byte_49F7C4	push offset byte_49F7C4	direct access in opcode-specific conservative CFG
+31	0x0042B074	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+31	0x0042B074	0x0042B0DE	read	byte_42D80C	mov dl, ds:byte_42D80C[esi]	direct access in opcode-specific conservative CFG
+31	0x0042B074	0x0042B0E4	read	jpt_42B0E4	jmp ds:jpt_42B0E4[edx*4]	direct access in opcode-specific conservative CFG
+31	0x0042B074	0x0042B0FD	read	dword_4ACBD0	mov edx, dword_4ACBD0[edi*4]	direct access in opcode-specific conservative CFG
+31	0x0042B074	0x0042B108	write	dword_4ACBD0	mov dword_4ACBD0[edi*4], edx	direct access in opcode-specific conservative CFG
+31	0x0042B074	0x0042B116	write	dword_4ACBD0	mov dword_4ACBD0[edi*4], 0	direct access in opcode-specific conservative CFG
+31	0x0042B074	0x0042B1BF	read	dword_4ACBD0	test dword_4ACBD0, 80000000h	direct access in opcode-specific conservative CFG
+31	0x0042B074	0x0042B1CB	write	dword_4ACBD0	mov dword_4ACBD0, 0	direct access in opcode-specific conservative CFG
+32	0x0042B074	0x0042B098	address_ref	byte_49F7C4	push offset byte_49F7C4	direct access in opcode-specific conservative CFG
+32	0x0042B074	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+32	0x0042B074	0x0042B0DE	read	byte_42D80C	mov dl, ds:byte_42D80C[esi]	direct access in opcode-specific conservative CFG
+32	0x0042B074	0x0042B0E4	read	jpt_42B0E4	jmp ds:jpt_42B0E4[edx*4]	direct access in opcode-specific conservative CFG
+32	0x0042B074	0x0042B167	read	dword_4ACBD0	cmp dword_4ACBD0[edi*4], ecx	direct access in opcode-specific conservative CFG
+32	0x0042B074	0x0042B1A6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+32	0x0042B074	0x0042B1B0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+32	0x0042B074	0x0042B1BF	read	dword_4ACBD0	test dword_4ACBD0, 80000000h	direct access in opcode-specific conservative CFG
+32	0x0042B074	0x0042B1CB	write	dword_4ACBD0	mov dword_4ACBD0, 0	direct access in opcode-specific conservative CFG
+33	0x0042B074	0x0042B098	address_ref	byte_49F7C4	push offset byte_49F7C4	direct access in opcode-specific conservative CFG
+33	0x0042B074	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+33	0x0042B074	0x0042B0DE	read	byte_42D80C	mov dl, ds:byte_42D80C[esi]	direct access in opcode-specific conservative CFG
+33	0x0042B074	0x0042B0E4	read	jpt_42B0E4	jmp ds:jpt_42B0E4[edx*4]	direct access in opcode-specific conservative CFG
+33	0x0042B074	0x0042B19C	read	dword_4ACBD0	cmp dword_4ACBD0[edi*4], ecx	direct access in opcode-specific conservative CFG
+33	0x0042B074	0x0042B1A6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+33	0x0042B074	0x0042B1B0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+33	0x0042B074	0x0042B1BF	read	dword_4ACBD0	test dword_4ACBD0, 80000000h	direct access in opcode-specific conservative CFG
+33	0x0042B074	0x0042B1CB	write	dword_4ACBD0	mov dword_4ACBD0, 0	direct access in opcode-specific conservative CFG
+34	0x0042890F	0x0042891A	write	dword_4ACDB0	mov dword_4ACDB0, eax	direct access in opcode-specific conservative CFG
+34	0x0042890F	0x00428925	write	dword_4ACDB0	mov dword_4ACDB0, 0	direct access in opcode-specific conservative CFG
+35	0x00428934	0x00428934	read	dword_4ACDB0	mov ecx, dword_4ACDB0	direct access in opcode-specific conservative CFG
+35	0x00428934	0x00428951	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+36	0x0042896C	0x0042896C	read	dword_4BA42C	mov ecx, dword_4BA42C	direct access in opcode-specific conservative CFG
+36	0x0042896C	0x00428982	read	dword_4ACDB0	mov eax, dword_4ACDB0	direct access in opcode-specific conservative CFG
+36	0x0042896C	0x0042898F	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+37	0x004289BE	0x004289BE	read	dword_4ACDB0	mov eax, dword_4ACDB0	direct access in opcode-specific conservative CFG
+37	0x004289BE	0x004289C6	write	dword_4BA42C	mov dword_4BA42C, eax	direct access in opcode-specific conservative CFG
+38	0x004289DE	0x00428A14	read	dword_4BABB8	mov ecx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+38	0x004289DE	0x00428A20	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+38	0x004289DE	0x00428A26	address_ref	unk_4BABA8	lea eax, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+38	0x004289DE	0x00428A3C	read	word_4BABCC	mov dx, word_4BABCC[ecx*8]	direct access in opcode-specific conservative CFG
+38	0x004289DE	0x00428A60	read	word_4AD490	mov dx, word_4AD490[ecx*4]	direct access in opcode-specific conservative CFG
+39	0x00428ADC	0x00428B0E	read	dword_4BABB8	mov edi, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+39	0x00428ADC	0x00428B14	address_ref	unk_4BABA8	lea ecx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+39	0x00428ADC	0x00428B21	write	dword_4BABB8	mov dword_4BABB8[eax], edi	direct access in opcode-specific conservative CFG
+39	0x00428ADC	0x00428B43	write	dword_4BAC08	mov dword_4BAC08[eax], ecx	direct access in opcode-specific conservative CFG
+39	0x00428ADC	0x00428B49	write	dword_4BAC24	mov dword_4BAC24[eax], ecx	direct access in opcode-specific conservative CFG
+40	0x00428BA0	0x00428C03	read	dword_4BABB8	mov ebx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+40	0x00428BA0	0x00428C0F	write	dword_4BABB8	mov dword_4BABB8[eax], ebx	direct access in opcode-specific conservative CFG
+40	0x00428BA0	0x00428C23	write	dword_4BABF4	mov dword_4BABF4[eax], esi	direct access in opcode-specific conservative CFG
+40	0x00428BA0	0x00428C29	write	dword_4BAC20	mov dword_4BAC20[eax], esi	direct access in opcode-specific conservative CFG
+41	0x00428C9F	0x00428C9F	read	dword_4CAE7C	mov eax, dword_4CAE7C	direct access in opcode-specific conservative CFG
+41	0x00428C9F	0x00428CD0	address_ref	unk_4A1B08	push offset unk_4A1B08	direct access in opcode-specific conservative CFG
+41	0x00428C9F	0x00428CD5	address_ref	unk_4A1AF4	push offset unk_4A1AF4	direct access in opcode-specific conservative CFG
+41	0x00428C9F	0x00428CED	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+41	0x00428C9F	0x00428CF7	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+41	0x00428C9F	0x00428D04	write	dword_4CAE7C	mov dword_4CAE7C, 0	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D24	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D29	read	dword_4A9920	mov ebx, dword_4A9920	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D35	write	dword_4A9920	mov dword_4A9920, ebx	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D41	address_ref	dword_4BABE8	lea edx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D47	write	dword_4BABF0	mov dword_4BABF0[eax], 0	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D62	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D70	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D76	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D7D	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D86	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D8F	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428D94	address_ref	aActErrTalkRmlo	push offset aActErrTalkRmlo	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428DA6	read	dword_4A9920	mov eax, dword_4A9920	direct access in opcode-specific conservative CFG
+42	0x00428D18	0x00428DAE	write	dword_4A9920	mov dword_4A9920, eax	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D24	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D29	read	dword_4A9920	mov ebx, dword_4A9920	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D35	write	dword_4A9920	mov dword_4A9920, ebx	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D41	address_ref	dword_4BABE8	lea edx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D47	write	dword_4BABF0	mov dword_4BABF0[eax], 0	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D62	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D70	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D76	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D7D	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D86	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D8F	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428D94	address_ref	aActErrTalkRmlo	push offset aActErrTalkRmlo	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428DA6	read	dword_4A9920	mov eax, dword_4A9920	direct access in opcode-specific conservative CFG
+43	0x00428D18	0x00428DAE	write	dword_4A9920	mov dword_4A9920, eax	direct access in opcode-specific conservative CFG
+44	0x00428DB8	0x00428E1D	read	word_4BABCC	mov ax, word_4BABCC[edx*8]	direct access in opcode-specific conservative CFG
+44	0x00428DB8	0x00428E26	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+44	0x00428DB8	0x00428E2B	address_ref	aActErrTalkChan_1	push offset aActErrTalkChan_1	direct access in opcode-specific conservative CFG
+45	0x00428E52	0x00428E90	address_ref	unk_4A1AA0	push offset unk_4A1AA0	direct access in opcode-specific conservative CFG
+45	0x00428E52	0x00428E95	address_ref	unk_4A1A88	push offset unk_4A1A88	direct access in opcode-specific conservative CFG
+45	0x00428E52	0x00428EFC	read	word_4BABCC	mov cx, word_4BABCC[eax*8]	direct access in opcode-specific conservative CFG
+45	0x00428E52	0x00428F05	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+45	0x00428E52	0x00428F0A	address_ref	aActErrTalkChan_2	push offset aActErrTalkChan_2	direct access in opcode-specific conservative CFG
+45	0x00428E52	0x00428F21	read	dword_4BABB8	mov ecx, dword_4BABB8[eax*8]	direct access in opcode-specific conservative CFG
+45	0x00428E52	0x00428F2B	write	dword_4BABB8	mov dword_4BABB8[eax*8], ecx	direct access in opcode-specific conservative CFG
+46	0x00428F7B	0x00429031	read	word_4BABCC	mov dx, word_4BABCC[ecx*8]	direct access in opcode-specific conservative CFG
+46	0x00428F7B	0x0042903A	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+46	0x00428F7B	0x0042903F	address_ref	aActErrTalkRest	push offset aActErrTalkRest	direct access in opcode-specific conservative CFG
+47	0x00428F7B	0x00429031	read	word_4BABCC	mov dx, word_4BABCC[ecx*8]	direct access in opcode-specific conservative CFG
+47	0x00428F7B	0x0042903A	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+47	0x00428F7B	0x0042903F	address_ref	aActErrTalkRest	push offset aActErrTalkRest	direct access in opcode-specific conservative CFG
+48	0x00428F7B	0x00429031	read	word_4BABCC	mov dx, word_4BABCC[ecx*8]	direct access in opcode-specific conservative CFG
+48	0x00428F7B	0x0042903A	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+48	0x00428F7B	0x0042903F	address_ref	aActErrTalkRest	push offset aActErrTalkRest	direct access in opcode-specific conservative CFG
+49	0x00428F7B	0x00429031	read	word_4BABCC	mov dx, word_4BABCC[ecx*8]	direct access in opcode-specific conservative CFG
+49	0x00428F7B	0x0042903A	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+49	0x00428F7B	0x0042903F	address_ref	aActErrTalkRest	push offset aActErrTalkRest	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429066	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+50	0x00429066	0x0042906C	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429077	address_ref	unk_4A1A38	push offset unk_4A1A38	direct access in opcode-specific conservative CFG
+50	0x00429066	0x0042907C	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+50	0x00429066	0x0042908A	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+50	0x00429066	0x0042908F	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004290FF	read	dword_4BABB0	mov edx, dword_4BABB0[eax]	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429105	read	dword_4BABAC	mov eax, dword_4BABAC[eax]	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429137	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+50	0x00429066	0x0042913C	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+50	0x00429066	0x0042916C	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429179	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429182	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+50	0x00429066	0x0042919C	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004291A9	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004291B3	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004291BF	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004291CD	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004291D2	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004291E2	address_ref	unk_4A1A00	push offset unk_4A1A00	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004291E7	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004291F5	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004291FB	read	dword_4A93D8	mov edi, dword_4A93D8	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429209	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+50	0x00429066	0x0042921D	address_ref	unk_4A19E0	push offset unk_4A19E0	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429222	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429230	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429236	read	dword_4A9480	mov esi, dword_4A9480	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429244	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+50	0x00429066	0x0042924A	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429255	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429261	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429288	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429296	read	dword_4B7930	mov eax, dword_4B7930	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004292B1	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004292CF	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004292DA	read	dword_4B7934	mov edi, dword_4B7934	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004292E9	read	dword_4B7934	mov ecx, dword_4B7934	direct access in opcode-specific conservative CFG
+50	0x00429066	0x004292F4	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+50	0x00429066	0x0042932C	address_ref	unk_4A1994	push offset unk_4A1994	direct access in opcode-specific conservative CFG
+50	0x00429066	0x00429331	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+51	0x00429362	0x00429362	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+51	0x00429362	0x0042936F	read	dword_4A98C0	mov eax, dword_4A98C0	direct access in opcode-specific conservative CFG
+51	0x00429362	0x0042937C	read	dword_4A9480	mov eax, dword_4A9480	direct access in opcode-specific conservative CFG
+51	0x00429362	0x00429389	read	dword_4A93D8	mov eax, dword_4A93D8	direct access in opcode-specific conservative CFG
+52	0x004293AC	0x004293FC	write	dword_4A93DC	fstp dword_4A93DC	direct access in opcode-specific conservative CFG
+52	0x004293AC	0x0042940A	write	dword_4B6C74	fstp dword_4B6C74	direct access in opcode-specific conservative CFG
+52	0x004293AC	0x00429414	write	dword_4C9A04	fstp dword_4C9A04	direct access in opcode-specific conservative CFG
+52	0x004293AC	0x0042941E	write	dword_4A9934	mov dword_4A9934, edx	direct access in opcode-specific conservative CFG
+52	0x004293AC	0x00429424	read	dword_4A9934	fild dword_4A9934	direct access in opcode-specific conservative CFG
+52	0x004293AC	0x00429441	write	dword_4A9A00	fstp dword_4A9A00	direct access in opcode-specific conservative CFG
+52	0x004293AC	0x0042945E	write	dword_4A94B8	fstp dword_4A94B8	direct access in opcode-specific conservative CFG
+52	0x004293AC	0x00429484	write	dword_4C97F0	fstp dword_4C97F0	direct access in opcode-specific conservative CFG
+53	0x0042949D	0x0042949D	read	dword_4A9934	mov eax, dword_4A9934	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x004294F9	write	word_4BAC2C	mov word_4BAC2C[eax], di	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x00429500	write	word_4BAC2A	mov word_4BAC2A[eax], di	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x00429507	address_ref	dword_4BABE8	lea eax, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x00429527	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x0042952D	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x00429534	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x0042953D	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x00429546	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x0042954B	address_ref	aActErrTalkSeek	push offset aActErrTalkSeek	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x00429577	write	word_4BAC2C	mov word_4BAC2C[eax], di	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x0042957E	address_ref	dword_4BABE8	lea eax, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x0042959E	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x004295A4	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x004295AB	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x004295B4	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x004295BD	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x004295C2	address_ref	aActErrTalkSeek_0	push offset aActErrTalkSeek_0	direct access in opcode-specific conservative CFG
+54	0x004294C0	0x004295DA	write	word_4BAC40	mov word_4BAC40[ecx*8], di	direct access in opcode-specific conservative CFG
+55	0x004295F3	0x00429625	read	dword_4BABB8	mov ecx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+55	0x004295F3	0x0042963A	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+55	0x004295F3	0x00429650	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+55	0x004295F3	0x00429656	read	dword_4BABB0	mov ecx, dword_4BABB0[eax]	direct access in opcode-specific conservative CFG
+55	0x004295F3	0x00429666	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+56	0x004295F3	0x00429625	read	dword_4BABB8	mov ecx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+56	0x004295F3	0x0042963A	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+56	0x004295F3	0x00429650	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+56	0x004295F3	0x00429656	read	dword_4BABB0	mov ecx, dword_4BABB0[eax]	direct access in opcode-specific conservative CFG
+56	0x004295F3	0x00429666	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+57	0x004295F3	0x00429625	read	dword_4BABB8	mov ecx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+57	0x004295F3	0x0042963A	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+57	0x004295F3	0x00429650	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+57	0x004295F3	0x00429656	read	dword_4BABB0	mov ecx, dword_4BABB0[eax]	direct access in opcode-specific conservative CFG
+57	0x004295F3	0x00429666	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+58	0x0042B1F1	0x0042B24C	read	dword_4B7C70	mov ecx, dword_4B7C70	direct access in opcode-specific conservative CFG
+58	0x0042B1F1	0x0042B258	write	dword_4B7C70	mov dword_4B7C70, ebx	direct access in opcode-specific conservative CFG
+58	0x0042B1F1	0x0042B260	read	dword_4B8968	mov edx, dword_4B8968	direct access in opcode-specific conservative CFG
+58	0x0042B1F1	0x0042B26C	write	dword_4B8968	mov dword_4B8968, ebx	direct access in opcode-specific conservative CFG
+59	0x0042967B	0x0042967B	read	dword_4AB784	mov eax, dword_4AB784	direct access in opcode-specific conservative CFG
+60	0x00429693	0x00429693	read	dword_4C9A18	mov ecx, dword_4C9A18	direct access in opcode-specific conservative CFG
+60	0x00429693	0x004296A2	write	dword_4C9A18	mov dword_4C9A18, ecx	direct access in opcode-specific conservative CFG
+60	0x00429693	0x004296AE	read	dword_4CD76C	mov edi, dword_4CD76C	direct access in opcode-specific conservative CFG
+60	0x00429693	0x004296BD	read	dword_4C9A18	mov eax, dword_4C9A18	direct access in opcode-specific conservative CFG
+60	0x00429693	0x004296CB	write	dword_4C9A18	mov dword_4C9A18, eax	direct access in opcode-specific conservative CFG
+61	0x00429693	0x00429693	read	dword_4C9A18	mov ecx, dword_4C9A18	direct access in opcode-specific conservative CFG
+61	0x00429693	0x004296A2	write	dword_4C9A18	mov dword_4C9A18, ecx	direct access in opcode-specific conservative CFG
+61	0x00429693	0x004296AE	read	dword_4CD76C	mov edi, dword_4CD76C	direct access in opcode-specific conservative CFG
+61	0x00429693	0x004296BD	read	dword_4C9A18	mov eax, dword_4C9A18	direct access in opcode-specific conservative CFG
+61	0x00429693	0x004296CB	write	dword_4C9A18	mov dword_4C9A18, eax	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429725	read	word_4AD490	mov si, word_4AD490[eax*4]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429764	read	dword_4BABB8	mov cx, word ptr dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x0042976B	address_ref	unk_4BABA8	lea edx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429776	read	dword_4BABB8	mov ecx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429780	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x0042979B	read	dword_4BABB8	mov ecx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x004297A7	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x004297AF	read	word_4BABC6	mov cx, word_4BABC6[eax]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x004297DE	read	ArgList	mov edx, ArgList	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x004297EC	read	dword_4AB378	mov edx, dword_4AB378	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x004297FF	read	dword_4BABB0	mov esi, dword_4BABB0[esi*8]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x0042981E	read	dword_4BABAC	mov edx, dword_4BABAC[edx*8]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x0042986A	address_ref	aMaps	push offset aMaps	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x0042986F	address_ref	asc_49FF9C	push offset asc_49FF9C	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429884	address_ref	aMaps	push offset aMaps	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429889	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429892	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x004298A8	read	ArgList	mov ecx, ArgList	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x004298F3	read	dword_49E0C4	mov eax, dword_49E0C4	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429912	read	word_4BABCC	cmp di, word_4BABCC[edx*8]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x0042993B	address_ref	unk_4BABA8	lea edx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429945	read	dword_4BABB8	mov eax, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429955	read	dword_49E0C4	mov eax, dword_49E0C4	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429961	write	dword_49E0C4	mov dword_49E0C4, eax	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x00429978	address_ref	unk_4CACEC	mov eax, offset unk_4CACEC	direct access in opcode-specific conservative CFG
+62	0x004296DE	0x004299B2	address_ref	dword_4CAD2C	cmp eax, offset dword_4CAD2C	direct access in opcode-specific conservative CFG
+63	0x00429A1B	0x00429A41	address_ref	unk_4A1940	push offset unk_4A1940	direct access in opcode-specific conservative CFG
+63	0x00429A1B	0x00429A46	address_ref	unk_4A1928	push offset unk_4A1928	direct access in opcode-specific conservative CFG
+63	0x00429A1B	0x00429A62	address_ref	word_4ACE70	mov edi, offset word_4ACE70	direct access in opcode-specific conservative CFG
+63	0x00429A1B	0x00429A6F	address_ref	word_4ACE70	mov edi, offset word_4ACE70	direct access in opcode-specific conservative CFG
+63	0x00429A1B	0x00429AA7	write	dword_4AD0D0	mov dword_4AD0D0, ecx	direct access in opcode-specific conservative CFG
+63	0x00429A1B	0x00429AAD	write	dword_4A94A4	mov dword_4A94A4, ecx	direct access in opcode-specific conservative CFG
+63	0x00429A1B	0x00429AB9	write	dword_4A992C	mov dword_4A992C, edx	direct access in opcode-specific conservative CFG
+63	0x00429A1B	0x00429ABF	write	dword_4A93E4	mov dword_4A93E4, ecx	direct access in opcode-specific conservative CFG
+64	0x00429AD2	0x00429ADC	address_ref	word_4ACE70	mov edi, offset word_4ACE70	direct access in opcode-specific conservative CFG
+67	0x00429B62	0x00429B71	write	dword_4CF6B0	mov dword_4CF6B0, eax	direct access in opcode-specific conservative CFG
+67	0x00429B62	0x00429B7A	read	dword_4AAECC	mov ecx, dword_4AAECC	direct access in opcode-specific conservative CFG
+67	0x00429B62	0x00429B80	write	dword_4CF6B4	mov dword_4CF6B4, ecx	direct access in opcode-specific conservative CFG
+67	0x00429B62	0x00429B8B	read	dword_4AAECC	mov edx, dword_4AAECC	direct access in opcode-specific conservative CFG
+67	0x00429B62	0x00429B91	read	dword_4CF6B4	mov ecx, dword_4CF6B4	direct access in opcode-specific conservative CFG
+67	0x00429B62	0x00429B97	read	dword_4CF6B0	mov eax, dword_4CF6B0	direct access in opcode-specific conservative CFG
+68	0x00429BB5	0x00429BE4	read	dword_4BABB8	mov ecx, dword_4BABB8[eax*8]	direct access in opcode-specific conservative CFG
+68	0x00429BB5	0x00429BEE	write	dword_4BABB8	mov dword_4BABB8[eax*8], ecx	direct access in opcode-specific conservative CFG
+69	0x00429C37	0x00429C66	read	dword_4BABB8	mov ecx, dword_4BABB8[eax*8]	direct access in opcode-specific conservative CFG
+69	0x00429C37	0x00429C70	write	dword_4BABB8	mov dword_4BABB8[eax*8], ecx	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429066	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+70	0x00429066	0x0042906C	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429077	address_ref	unk_4A1A38	push offset unk_4A1A38	direct access in opcode-specific conservative CFG
+70	0x00429066	0x0042907C	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+70	0x00429066	0x0042908A	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+70	0x00429066	0x0042908F	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004290FF	read	dword_4BABB0	mov edx, dword_4BABB0[eax]	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429105	read	dword_4BABAC	mov eax, dword_4BABAC[eax]	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429137	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+70	0x00429066	0x0042913C	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+70	0x00429066	0x0042916C	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429179	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429182	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+70	0x00429066	0x0042919C	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004291A9	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004291B3	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004291BF	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004291CD	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004291D2	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004291E2	address_ref	unk_4A1A00	push offset unk_4A1A00	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004291E7	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004291F5	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004291FB	read	dword_4A93D8	mov edi, dword_4A93D8	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429209	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+70	0x00429066	0x0042921D	address_ref	unk_4A19E0	push offset unk_4A19E0	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429222	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429230	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429236	read	dword_4A9480	mov esi, dword_4A9480	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429244	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+70	0x00429066	0x0042924A	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429255	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429261	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429288	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429296	read	dword_4B7930	mov eax, dword_4B7930	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004292B1	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004292CF	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004292DA	read	dword_4B7934	mov edi, dword_4B7934	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004292E9	read	dword_4B7934	mov ecx, dword_4B7934	direct access in opcode-specific conservative CFG
+70	0x00429066	0x004292F4	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+70	0x00429066	0x0042932C	address_ref	unk_4A1994	push offset unk_4A1994	direct access in opcode-specific conservative CFG
+70	0x00429066	0x00429331	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+71	0x00429CBC	0x00429CFE	write	dword_4BABE4	mov dword_4BABE4[eax*8], edx	direct access in opcode-specific conservative CFG
+72	0x00429D0F	0x00429D33	write	dword_4BABE4	mov dword_4BABE4[eax*8], 0	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429066	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+73	0x00429066	0x0042906C	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429077	address_ref	unk_4A1A38	push offset unk_4A1A38	direct access in opcode-specific conservative CFG
+73	0x00429066	0x0042907C	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+73	0x00429066	0x0042908A	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+73	0x00429066	0x0042908F	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004290FF	read	dword_4BABB0	mov edx, dword_4BABB0[eax]	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429105	read	dword_4BABAC	mov eax, dword_4BABAC[eax]	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429137	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+73	0x00429066	0x0042913C	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+73	0x00429066	0x0042916C	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429179	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429182	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+73	0x00429066	0x0042919C	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004291A9	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004291B3	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004291BF	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004291CD	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004291D2	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004291E2	address_ref	unk_4A1A00	push offset unk_4A1A00	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004291E7	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004291F5	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004291FB	read	dword_4A93D8	mov edi, dword_4A93D8	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429209	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+73	0x00429066	0x0042921D	address_ref	unk_4A19E0	push offset unk_4A19E0	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429222	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429230	read	dword_4A98C0	mov ecx, dword_4A98C0	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429236	read	dword_4A9480	mov esi, dword_4A9480	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429244	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+73	0x00429066	0x0042924A	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429255	write	dword_4A9480	mov dword_4A9480, esi	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429261	write	dword_4A93D8	mov dword_4A93D8, edi	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429288	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429296	read	dword_4B7930	mov eax, dword_4B7930	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004292B1	write	dword_4A99F0	mov dword_4A99F0, eax	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004292CF	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004292DA	read	dword_4B7934	mov edi, dword_4B7934	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004292E9	read	dword_4B7934	mov ecx, dword_4B7934	direct access in opcode-specific conservative CFG
+73	0x00429066	0x004292F4	write	dword_4A98C0	mov dword_4A98C0, ecx	direct access in opcode-specific conservative CFG
+73	0x00429066	0x0042932C	address_ref	unk_4A1994	push offset unk_4A1994	direct access in opcode-specific conservative CFG
+73	0x00429066	0x00429331	address_ref	unk_4A1A20	push offset unk_4A1A20	direct access in opcode-specific conservative CFG
+74	0x00429D43	0x00429D43	write	dword_4A9A00	mov dword_4A9A00, 0	direct access in opcode-specific conservative CFG
+74	0x00429D43	0x00429D4D	write	dword_4A94B8	mov dword_4A94B8, 0	direct access in opcode-specific conservative CFG
+74	0x00429D43	0x00429D57	write	dword_4C97F0	mov dword_4C97F0, 0	direct access in opcode-specific conservative CFG
+74	0x00429D43	0x00429D61	write	dword_4A9934	mov dword_4A9934, 0	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429DD8	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429DDE	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429DE5	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429DEE	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429DF7	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429DFC	address_ref	aActErrTalkTurn	push offset aActErrTalkTurn	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E30	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E36	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E3D	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E46	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E4F	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E54	address_ref	aActErrTalkTurn_0	push offset aActErrTalkTurn_0	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E7D	read	dword_4BAC18	mov edx, dword_4BAC18[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E83	read	dword_4BABB0	mov esi, dword_4BABB0[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E90	read	dword_4BAC14	mov edx, dword_4BAC14[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E96	read	dword_4BABAC	mov eax, dword_4BABAC[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429E9F	read	dword_4BAC18	mov eax, dword_4BAC18[ecx]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429EA6	read	dword_4BABB0	mov edx, dword_4BABB0[ecx]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429EAF	read	dword_4BAC14	mov edx, dword_4BAC14[ecx]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429EB6	read	dword_4BABAC	mov eax, dword_4BABAC[ecx]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429EE8	write	dword_4BABF0	mov dword_4BABF0[ecx], edx	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429EEE	write	dword_4BAC1C	mov dword_4BAC1C[ecx], edx	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429EF6	write	dword_4BAC1C	mov dword_4BAC1C[ecx], eax	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429EFC	write	word_4BAC2C	mov word_4BAC2C[ecx], dx	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429F03	address_ref	dword_4BABE8	lea edx, dword_4BABE8[ecx]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429F23	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429F29	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429F30	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429F39	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429F42	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+76	0x00429DA6	0x00429F47	address_ref	aActErrTalkTurn_1	push offset aActErrTalkTurn_1	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x00429FCB	write	word_4BAC30	mov word_4BAC30[ecx*8], dx	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x00429FE9	write	word_4BAC30	mov word_4BAC30[edx*8], 0	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x00429FFC	write	word_4BAC2C	mov word_4BAC2C[eax], 0	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A005	address_ref	dword_4BABE8	lea eax, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A025	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A02B	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A032	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A03B	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A044	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A049	address_ref	aActErrTalkSetr	push offset aActErrTalkSetr	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A05F	address_ref	byte_4A1898	push offset byte_4A1898	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A064	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A06B	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+77	0x00429F7B	0x0042A073	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x00429FCB	write	word_4BAC30	mov word_4BAC30[ecx*8], dx	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x00429FE9	write	word_4BAC30	mov word_4BAC30[edx*8], 0	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x00429FFC	write	word_4BAC2C	mov word_4BAC2C[eax], 0	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A005	address_ref	dword_4BABE8	lea eax, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A025	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A02B	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A032	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A03B	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A044	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A049	address_ref	aActErrTalkSetr	push offset aActErrTalkSetr	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A05F	address_ref	byte_4A1898	push offset byte_4A1898	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A064	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A06B	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+78	0x00429F7B	0x0042A073	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+79	0x0042A0A6	0x0042A1C3	read	dword_4AD3E8	mov ecx, dword_4AD3E8	direct access in opcode-specific conservative CFG
+79	0x0042A0A6	0x0042A1CF	write	dword_4AD3E8	mov dword_4AD3E8, esi	direct access in opcode-specific conservative CFG
+80	0x0042A1EF	0x00427E7E	write	dword_4A1360	mov dword_4A1360, edx	direct access in opcode-specific conservative CFG
+80	0x0042A1EF	0x0042A1EF	read	dword_4A1360	mov edx, dword_4A1360	direct access in opcode-specific conservative CFG
+81	0x0042A200	0x0042A29A	read	dword_4BA6E0	mov edx, dword_4BA6E0	direct access in opcode-specific conservative CFG
+81	0x0042A200	0x0042A2A6	write	dword_4BA6E0	mov dword_4BA6E0, esi	direct access in opcode-specific conservative CFG
+82	0x0042A2C6	0x0042A2C6	read	dword_4BA6E0	mov eax, dword_4BA6E0	direct access in opcode-specific conservative CFG
+82	0x0042A2C6	0x0042A2CB	address_ref	unk_4BA630	mov ecx, offset unk_4BA630	direct access in opcode-specific conservative CFG
+83	0x0042A341	0x0042A35C	address_ref	unk_4A187C	push offset unk_4A187C	direct access in opcode-specific conservative CFG
+83	0x0042A341	0x0042A361	address_ref	unk_4A186C	push offset unk_4A186C	direct access in opcode-specific conservative CFG
+83	0x0042A341	0x0042A373	read	dword_4BAB9C	mov edi, dword_4BAB9C	direct access in opcode-specific conservative CFG
+83	0x0042A341	0x0042A379	address_ref	unk_4BAB88	mov esi, offset unk_4BAB88	direct access in opcode-specific conservative CFG
+83	0x0042A341	0x0042A509	read	dword_4BAB9C	mov eax, dword_4BAB9C	direct access in opcode-specific conservative CFG
+83	0x0042A341	0x0042A511	write	dword_4BAB9C	mov dword_4BAB9C, esi	direct access in opcode-specific conservative CFG
+83	0x0042A341	0x0042A535	address_ref	unk_4A1840	push offset unk_4A1840	direct access in opcode-specific conservative CFG
+83	0x0042A341	0x0042A53A	address_ref	unk_4A186C	push offset unk_4A186C	direct access in opcode-specific conservative CFG
+84	0x0042A54C	0x0042A567	address_ref	unk_4A1828	push offset unk_4A1828	direct access in opcode-specific conservative CFG
+84	0x0042A54C	0x0042A56C	address_ref	unk_4A1810	push offset unk_4A1810	direct access in opcode-specific conservative CFG
+84	0x0042A54C	0x0042A57E	read	dword_4BAB9C	mov edi, dword_4BAB9C	direct access in opcode-specific conservative CFG
+84	0x0042A54C	0x0042A584	address_ref	unk_4BAB88	mov esi, offset unk_4BAB88	direct access in opcode-specific conservative CFG
+85	0x0042A611	0x0042A611	read	dword_4A0E7C	mov ecx, dword_4A0E7C	direct access in opcode-specific conservative CFG
+85	0x0042A611	0x0042A617	read	dword_4CD76C	mov edi, dword_4CD76C	direct access in opcode-specific conservative CFG
+85	0x0042A611	0x0042A61D	read	dword_4A0E74	imul ecx, dword_4A0E74	direct access in opcode-specific conservative CFG
+85	0x0042A611	0x0042A639	address_ref	dword_4AB870	mov ecx, offset dword_4AB870	direct access in opcode-specific conservative CFG
+85	0x0042A611	0x0042A643	read	dword_4ACBA0	mov edx, dword_4ACBA0	direct access in opcode-specific conservative CFG
+86	0x0042A673	0x0042A673	read	dword_4BA6E0	mov eax, dword_4BA6E0	direct access in opcode-specific conservative CFG
+86	0x0042A673	0x0042A678	address_ref	unk_4BA630	mov ecx, offset unk_4BA630	direct access in opcode-specific conservative CFG
+87	0x0042A6CB	0x0042A706	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+87	0x0042A6CB	0x0042A710	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+88	0x0042A727	0x0042A742	write	dword_4A94AC	mov dword_4A94AC, ecx	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427BFE	address_ref	byte_4A1BBC	push offset byte_4A1BBC	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427C03	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427C10	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427C2D	read	dword_4A135C	cmp word ptr dword_4A135C, 8000h	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427C42	read	dword_4A135C	mov ecx, dword_4A135C	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427C54	read	dword_4A135C	add ax, word ptr dword_4A135C+2	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427CAD	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427CC1	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427CC6	read	dword_4CF738	cmp dword_4CF738, edx	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427CCE	read	dword_4A1364	mov eax, dword_4A1364	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427CDE	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427CF3	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427D07	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427D1B	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427D50	read	dword_4CF73C	cmp dword_4CF73C, edx	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427D65	read	dword_4CF734	mov ecx, dword_4CF734	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427D6B	read	dword_4CF730	mov edx, dword_4CF730	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427D7F	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427D9F	write	word_4BABCE	mov word_4BABCE[edx*8], 2	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427DD6	write	word_4BABCE	mov word_4BABCE[ecx*8], 1	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427DEC	read_write	dword_4A9920	inc dword_4A9920	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427E11	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427E2E	write	dword_4A135C	mov word ptr dword_4A135C+2, ax	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427E34	write	dword_4A135C	mov word ptr dword_4A135C, ax	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427E3A	write	dword_4A1360	mov dword_4A1360, 0FFFFFFFFh	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427E44	write	dword_4A1364	mov dword_4A1364, 3Ch	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427E4E	write	dword_4CF738	mov dword_4CF738, edi	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427E54	write	word_4CF6B8	mov byte ptr word_4CF6B8, 0	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427E5B	write	dword_4CF734	mov dword_4CF734, edi	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427E61	write	dword_4CF730	mov dword_4CF730, edi	direct access in opcode-specific conservative CFG
+89	0x00427B8F	0x00427E67	write	dword_4CF73C	mov dword_4CF73C, edi	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427BFE	address_ref	byte_4A1BBC	push offset byte_4A1BBC	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427C03	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427C10	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427C2D	read	dword_4A135C	cmp word ptr dword_4A135C, 8000h	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427C42	read	dword_4A135C	mov ecx, dword_4A135C	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427C54	read	dword_4A135C	add ax, word ptr dword_4A135C+2	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427CAD	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427CC1	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427CC6	read	dword_4CF738	cmp dword_4CF738, edx	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427CCE	read	dword_4A1364	mov eax, dword_4A1364	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427CDE	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427CF3	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427D07	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427D1B	read	dword_4A1360	mov eax, dword_4A1360	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427D50	read	dword_4CF73C	cmp dword_4CF73C, edx	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427D65	read	dword_4CF734	mov ecx, dword_4CF734	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427D6B	read	dword_4CF730	mov edx, dword_4CF730	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427D7F	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427D9F	write	word_4BABCE	mov word_4BABCE[edx*8], 2	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427DD6	write	word_4BABCE	mov word_4BABCE[ecx*8], 1	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427DEC	read_write	dword_4A9920	inc dword_4A9920	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427E11	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427E2E	write	dword_4A135C	mov word ptr dword_4A135C+2, ax	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427E34	write	dword_4A135C	mov word ptr dword_4A135C, ax	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427E3A	write	dword_4A1360	mov dword_4A1360, 0FFFFFFFFh	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427E44	write	dword_4A1364	mov dword_4A1364, 3Ch	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427E4E	write	dword_4CF738	mov dword_4CF738, edi	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427E54	write	word_4CF6B8	mov byte ptr word_4CF6B8, 0	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427E5B	write	dword_4CF734	mov dword_4CF734, edi	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427E61	write	dword_4CF730	mov dword_4CF730, edi	direct access in opcode-specific conservative CFG
+90	0x00427B8F	0x00427E67	write	dword_4CF73C	mov dword_4CF73C, edi	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B2B2	read	dword_4C9A10	mov ecx, dword_4C9A10	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B2B8	address_ref	word_4CF6B8	mov edi, offset word_4CF6B8	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B2C6	address_ref	word_4CF6B8	mov eax, offset word_4CF6B8	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B2D4	read	word_4CF6B8	cmp word_4CF6B8, 5125h	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B2F3	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B302	address_ref	byte_49E158	push offset byte_49E158	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B307	address_ref	byte_49E198	push offset byte_49E198	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B30C	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B34F	address_ref	byte_4A171C	push offset byte_4A171C	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B354	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B35B	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B360	address_ref	unk_4A1708	push offset unk_4A1708	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B376	read	dword_4ACBD0	mov eax, dword_4ACBD0[eax*4]	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B389	address_ref	byte_4A16F0	push offset byte_4A16F0	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B38E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B395	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+91	0x0042B287	0x0042B39A	address_ref	unk_4A1708	push offset unk_4A1708	direct access in opcode-specific conservative CFG
+92	0x0042A756	0x0042A767	address_ref	unk_4A1800	push offset unk_4A1800	direct access in opcode-specific conservative CFG
+92	0x0042A756	0x0042A76C	address_ref	unk_4A17EC	push offset unk_4A17EC	direct access in opcode-specific conservative CFG
+93	0x0042A792	0x0042A7A3	address_ref	unk_4A1800	push offset unk_4A1800	direct access in opcode-specific conservative CFG
+93	0x0042A792	0x0042A7A8	address_ref	unk_4A17EC	push offset unk_4A17EC	direct access in opcode-specific conservative CFG
+94	0x0042A7CE	0x0042A7CE	read	dword_4C9A18	mov edx, dword_4C9A18	direct access in opcode-specific conservative CFG
+94	0x0042A7CE	0x0042A7DE	write	dword_4C9A18	mov dword_4C9A18, edx	direct access in opcode-specific conservative CFG
+95	0x0042A7EE	0x0042A7EE	read	dword_4C9A18	mov edx, dword_4C9A18	direct access in opcode-specific conservative CFG
+95	0x0042A7EE	0x0042A7FE	write	dword_4C9A18	mov dword_4C9A18, edx	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A80E	read	dword_4B7BCC	mov edx, dword_4B7BCC	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A851	write	dword_4B7AA0	mov dword_4B7AA0, eax	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A86F	read	dword_4B7AA0	mov edi, dword_4B7AA0	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A879	write	dword_4B7AA0	mov dword_4B7AA0, edi	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A88C	read	dword_4B7AA0	mov edi, dword_4B7AA0	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A896	write	dword_4B7AA0	mov dword_4B7AA0, edi	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A8DF	address_ref	byte_4B82F8	push offset byte_4B82F8	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A8E8	address_ref	aTalkAniOpenCdS	push offset aTalkAniOpenCdS	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A8F8	address_ref	Buffer	push offset Buffer	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A90A	address_ref	aVideo	push offset aVideo	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A981	address_ref	Buffer	push offset Buffer	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A98D	address_ref	aVideo	push offset aVideo	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A9B6	address_ref	byte_4B82F8	push offset byte_4B82F8	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A9CC	address_ref	byte_4B82F8	push offset byte_4B82F8	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A9D8	address_ref	aSwd3Video	push offset aSwd3Video	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042A9F3	address_ref	aTalkAniOpenS	push offset aTalkAniOpenS	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AA0D	address_ref	dword_4A9380	mov ecx, offset dword_4A9380	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AA1C	address_ref	aManiFileErrorS	push offset aManiFileErrorS	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AA21	address_ref	aManiOpenFailur	push offset aManiOpenFailur	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AA3B	read	dword_4CAD48	mov eax, dword_4CAD48	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AA4A	write	dword_4CAD48	mov dword_4CAD48, ecx	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AA55	read	dword_4CAD48	mov eax, dword_4CAD48	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AA71	address_ref	dword_4A9380	mov ecx, offset dword_4A9380	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AA85	address_ref	dword_4A9380	mov ecx, offset dword_4A9380	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AA90	address_ref	aTalkAniOpenHea	push offset aTalkAniOpenHea	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AAAD	write	dword_4CAD28	mov dword_4CAD28, esi	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AAB3	write	dword_4CAD34	mov dword_4CAD34, eax	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AAB8	write	dword_4CAD30	mov dword_4CAD30, 1	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AAC2	write	dword_4CAD2C	mov dword_4CAD2C, eax	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AACA	write	dword_4CAD40	mov dword_4CAD40, eax	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AAD2	write	dword_4CAD3C	mov dword_4CAD3C, ecx	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AADB	write	dword_4CAD38	mov dword_4CAD38, edx	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AAE1	write	dword_4CAD44	mov dword_4CAD44, esi	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AAE7	write	dword_4CAD48	mov dword_4CAD48, esi	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AAF2	write	dword_4B729C	mov dword_4B729C, eax	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AAFD	write	dword_4CAE8C	mov dword_4CAE8C, ecx	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB0C	write	dword_4C97E0	mov dword_4C97E0, edx	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB1C	write	dword_4B8738	mov dword_4B8738, eax	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB26	read	dword_4B8738	mov edi, dword_4B8738	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB2C	write	dword_4B7924	mov dword_4B7924, eax	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB3A	read	dword_4B7924	mov edi, dword_4B7924	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB47	read	dword_4B89F8	mov eax, dword_4B89F8	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB52	read	dword_4AB37C	mov ecx, dword_4AB37C	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB5E	write	dword_4AB37C	mov dword_4AB37C, esi	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB64	write	dword_4B89F8	mov dword_4B89F8, esi	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB71	write	word_4B7994	mov word_4B7994, ax	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AB77	write	word_4ACBBC	mov word_4ACBBC, si	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ABA0	address_ref	dword_4A9380	mov ecx, offset dword_4A9380	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ABA5	write	dword_4AB37C	mov dword_4AB37C, eax	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ABBC	read	dword_4AB37C	mov eax, dword_4AB37C	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ABC7	address_ref	dword_4A9380	mov ecx, offset dword_4A9380	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ABD1	read	word_4B7994	mov ax, word_4B7994	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ABE5	read	word_4ACBBC	mov cx, word_4ACBBC	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AC06	write	word_4ACBBC	mov word_4ACBBC, cx	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AC1F	address_ref	dword_4A9380	mov ecx, offset dword_4A9380	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AC32	address_ref	dword_4A9380	mov ecx, offset dword_4A9380	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AC4D	write	dword_4B89F8	mov dword_4B89F8, eax	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AC9F	read	dword_4B89F8	mov eax, dword_4B89F8	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ACBF	write	dword_4B7AC8	mov dword_4B7AC8, edi	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ACCA	read	dword_4B7AA0	mov al, byte ptr dword_4B7AA0	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ACCF	write	dword_4B7AC8	mov dword_4B7AC8, 0FFFFFFF3h	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ACE2	address_ref	dword_4AB870	mov ecx, offset dword_4AB870	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ACE7	write	dword_4B7AC8	mov dword_4B7AC8, edi	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042ACF2	read	dword_4ACBA0	mov edx, dword_4ACBA0	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AD03	read	dword_4B7A9C	mov edi, dword_4B7A9C	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AD0D	write	dword_4B88B8	mov dword_4B88B8, 0	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042AD17	write	dword_4B7A9C	mov dword_4B7A9C, edi	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042D4B6	read	dword_4B7A9C	mov eax, dword_4B7A9C	direct access in opcode-specific conservative CFG
+96	0x0042A80E	0x0042D4BF	write	dword_4B7A9C	mov dword_4B7A9C, eax	direct access in opcode-specific conservative CFG
+97	0x0042AD3C	0x0042AD3C	read	dword_4CAE8C	mov eax, dword_4CAE8C	direct access in opcode-specific conservative CFG
+97	0x0042AD3C	0x0042AD4E	read	dword_4B7BCC	mov ecx, dword_4B7BCC	direct access in opcode-specific conservative CFG
+99	0x0042AD75	0x0042AD75	read	dword_4B7AC8	mov ecx, dword_4B7AC8	direct access in opcode-specific conservative CFG
+100	0x0042B3B0	0x0042B3E3	write	word_4BABC6	mov word_4BABC6[eax*8], bx	direct access in opcode-specific conservative CFG
+101	0x0042B43B	0x0042B46A	read_write	dword_4BABB8	or dword_4BABB8[eax*8], 4000000h	direct access in opcode-specific conservative CFG
+102	0x0042C567	0x0042C575	read	byte_42D8D0	mov dl, ds:byte_42D8D0[eax]	direct access in opcode-specific conservative CFG
+102	0x0042C567	0x0042C57B	read	jpt_42C57B	jmp ds:jpt_42C57B[edx*4]	direct access in opcode-specific conservative CFG
+102	0x0042C567	0x0042C5DB	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+102	0x0042C567	0x0042C60D	read	dword_4BABB8	mov ebx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+102	0x0042C567	0x0042C615	write	dword_4BABB8	mov dword_4BABB8[eax], ebx	direct access in opcode-specific conservative CFG
+102	0x0042C567	0x0042C626	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+102	0x0042C567	0x0042C62C	address_ref	unk_4BABA8	lea edx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+102	0x0042C567	0x0042C660	address_ref	aSar	push offset aSar	direct access in opcode-specific conservative CFG
+102	0x0042C567	0x0042C665	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+102	0x0042C567	0x0042C66E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+103	0x0042C567	0x0042C575	read	byte_42D8D0	mov dl, ds:byte_42D8D0[eax]	direct access in opcode-specific conservative CFG
+103	0x0042C567	0x0042C57B	read	jpt_42C57B	jmp ds:jpt_42C57B[edx*4]	direct access in opcode-specific conservative CFG
+103	0x0042C567	0x0042C5DB	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+103	0x0042C567	0x0042C60D	read	dword_4BABB8	mov ebx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+103	0x0042C567	0x0042C615	write	dword_4BABB8	mov dword_4BABB8[eax], ebx	direct access in opcode-specific conservative CFG
+103	0x0042C567	0x0042C626	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+103	0x0042C567	0x0042C62C	address_ref	unk_4BABA8	lea edx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+103	0x0042C567	0x0042C660	address_ref	aSar	push offset aSar	direct access in opcode-specific conservative CFG
+103	0x0042C567	0x0042C665	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+103	0x0042C567	0x0042C66E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+104	0x0042B47E	0x0042B47E	read	dword_4A1360	mov edx, dword_4A1360	direct access in opcode-specific conservative CFG
+104	0x0042B47E	0x0042B48F	write	dword_4A1360	mov dword_4A1360, edx	direct access in opcode-specific conservative CFG
+104	0x0042B47E	0x0042B499	write	dword_4CF730	mov dword_4CF730, eax	direct access in opcode-specific conservative CFG
+104	0x0042B47E	0x0042B4A2	write	dword_4CF734	mov dword_4CF734, ecx	direct access in opcode-specific conservative CFG
+105	0x0042B4B9	0x00427E7E	write	dword_4A1360	mov dword_4A1360, edx	direct access in opcode-specific conservative CFG
+105	0x0042B4B9	0x0042B4B9	read	dword_4A1360	mov edx, dword_4A1360	direct access in opcode-specific conservative CFG
+106	0x0042B4CA	0x0042B4D5	address_ref	unk_4B7BD0	mov eax, offset unk_4B7BD0	direct access in opcode-specific conservative CFG
+106	0x0042B4CA	0x0042B4DC	address_ref	unk_4B88C8	mov eax, offset unk_4B88C8	direct access in opcode-specific conservative CFG
+107	0x0042B50F	0x0042B54A	read	word_4BAC28	mov ax, word_4BAC28[edx*8]	direct access in opcode-specific conservative CFG
+107	0x0042B50F	0x0042B56C	address_ref	unk_4A16D0	push offset unk_4A16D0	direct access in opcode-specific conservative CFG
+107	0x0042B50F	0x0042B571	address_ref	aTalkTilpa1	push offset aTalkTilpa1	direct access in opcode-specific conservative CFG
+107	0x0042B50F	0x0042B5C6	address_ref	unk_4A16A4	push offset unk_4A16A4	direct access in opcode-specific conservative CFG
+107	0x0042B50F	0x0042B5CB	address_ref	aTalkTilpa1	push offset aTalkTilpa1	direct access in opcode-specific conservative CFG
+108	0x0042B5F2	0x0042B5F6	write	dword_4A135C	mov word ptr dword_4A135C, ax	direct access in opcode-specific conservative CFG
+108	0x0042B5F2	0x0042B604	write	dword_4A135C	mov word ptr dword_4A135C+2, cx	direct access in opcode-specific conservative CFG
+108	0x0042B5F2	0x0042B60D	write	dword_4A135C	mov word ptr dword_4A135C, 10h	direct access in opcode-specific conservative CFG
+108	0x0042B5F2	0x0042B61D	write	dword_4A135C	mov word ptr dword_4A135C+2, 10h	direct access in opcode-specific conservative CFG
+110	0x0042B6A5	0x0042B6A5	read	dword_49E0C4	mov edx, dword_49E0C4	direct access in opcode-specific conservative CFG
+110	0x0042B6A5	0x0042B6BA	address_ref	unk_4BAC90	mov ecx, offset unk_4BAC90	direct access in opcode-specific conservative CFG
+110	0x0042B6A5	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+110	0x0042B6A5	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+111	0x0042B6A5	0x0042B6A5	read	dword_49E0C4	mov edx, dword_49E0C4	direct access in opcode-specific conservative CFG
+111	0x0042B6A5	0x0042B6BA	address_ref	unk_4BAC90	mov ecx, offset unk_4BAC90	direct access in opcode-specific conservative CFG
+111	0x0042B6A5	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+111	0x0042B6A5	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+112	0x0042B70C	0x0042B70C	read	dword_4BAB9C	mov eax, dword_4BAB9C	direct access in opcode-specific conservative CFG
+112	0x0042B70C	0x0042B719	read	dword_4BA6E0	mov eax, dword_4BA6E0	direct access in opcode-specific conservative CFG
+113	0x0042B723	0x0042B723	read	dword_4AB784	mov edx, dword_4AB784	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B739	read	dword_4B7380	mov eax, dword_4B7380	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B740	write	dword_4B7C80	mov dword_4B7C80, 80000001h	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B750	write	dword_4B7C84	mov dword_4B7C84, ecx	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B75C	write	dword_4B7C88	mov dword_4B7C88, edx	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B764	write	dword_4B7380	mov dword_4B7380, 1	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B773	address_ref	aStreamstartout	push offset aStreamstartout	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B778	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B781	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B78B	read	dword_4ACDBC	mov eax, dword_4ACDBC	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B79B	write	dword_4ACDBC	mov dword_4ACDBC, eax	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B7CF	write	dword_4ACDBC	mov dword_4ACDBC, eax	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B7DC	read	dword_4B7C88	mov eax, dword_4B7C88	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B7E5	read	dword_4B7C84	mov ecx, dword_4B7C84	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042B7F2	address_ref	aSMDD	push offset aSMDD	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042C717	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+114	0x0042B739	0x0042C720	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+116	0x0042B83A	0x0042B899	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+116	0x0042B83A	0x0042B8A5	read	dword_4A9920	mov eax, dword_4A9920	direct access in opcode-specific conservative CFG
+116	0x0042B83A	0x0042B8AD	write	dword_4A9920	mov dword_4A9920, eax	direct access in opcode-specific conservative CFG
+117	0x0042C567	0x0042C575	read	byte_42D8D0	mov dl, ds:byte_42D8D0[eax]	direct access in opcode-specific conservative CFG
+117	0x0042C567	0x0042C57B	read	jpt_42C57B	jmp ds:jpt_42C57B[edx*4]	direct access in opcode-specific conservative CFG
+117	0x0042C567	0x0042C5DB	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+117	0x0042C567	0x0042C60D	read	dword_4BABB8	mov ebx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+117	0x0042C567	0x0042C615	write	dword_4BABB8	mov dword_4BABB8[eax], ebx	direct access in opcode-specific conservative CFG
+117	0x0042C567	0x0042C626	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+117	0x0042C567	0x0042C62C	address_ref	unk_4BABA8	lea edx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+117	0x0042C567	0x0042C660	address_ref	aSar	push offset aSar	direct access in opcode-specific conservative CFG
+117	0x0042C567	0x0042C665	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+117	0x0042C567	0x0042C66E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+118	0x0042B8E6	0x0042B8F8	read	dword_4ACF48	mov edi, dword_4ACF48	direct access in opcode-specific conservative CFG
+118	0x0042B8E6	0x0042B8FE	address_ref	unk_4ACF00	mov esi, offset unk_4ACF00	direct access in opcode-specific conservative CFG
+118	0x0042B8E6	0x0042B948	write	word_4BABCE	mov word_4BABCE[edx*8], bx	direct access in opcode-specific conservative CFG
+118	0x0042B8E6	0x0042B968	read	dword_4A9920	mov eax, dword_4A9920	direct access in opcode-specific conservative CFG
+118	0x0042B8E6	0x0042B993	write	dword_4A9920	mov dword_4A9920, eax	direct access in opcode-specific conservative CFG
+119	0x0042B9C2	0x0042B9F6	read	ArgList	mov ecx, ArgList	direct access in opcode-specific conservative CFG
+119	0x0042B9C2	0x0042BA04	address_ref	unk_4A1B4C	push offset unk_4A1B4C	direct access in opcode-specific conservative CFG
+119	0x0042B9C2	0x0042BA09	address_ref	aTalkWaitDlg2	push offset aTalkWaitDlg2	direct access in opcode-specific conservative CFG
+119	0x0042B9C2	0x0042BA34	read	dword_4ACF48	mov eax, dword_4ACF48	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BAFC	write	dword_4BABE8	mov dword_4BABE8[ecx*8], esi	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BB16	write	dword_4BABF0	mov dword_4BABF0[ecx*8], esi	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BB34	write	dword_4BAC1C	mov dword_4BAC1C[edx*8], ecx	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BB44	write	word_4BAC2C	mov word_4BAC2C[eax], 0	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BB4D	address_ref	dword_4BABE8	lea eax, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BB6D	read	dword_4BAC1C	mov ecx, dword_4BAC1C[eax]	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BB73	read	dword_4BABF0	mov edx, dword_4BABF0[eax]	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BB7A	read	dword_4BABE8	mov ecx, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BB83	read	word_4BABCC	mov dx, word_4BABCC[eax]	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BB8C	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BB91	address_ref	aTakeactdataTal	push offset aTakeactdataTal	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BBB1	read	dword_4BABB8	mov ecx, dword_4BABB8[eax*8]	direct access in opcode-specific conservative CFG
+120	0x0042BAB8	0x0042BBBB	write	dword_4BABB8	mov dword_4BABB8[eax*8], ecx	direct access in opcode-specific conservative CFG
+121	0x0042BC2C	0x00427E7E	write	dword_4A1360	mov dword_4A1360, edx	direct access in opcode-specific conservative CFG
+121	0x0042BC2C	0x0042BC2C	read	dword_4A1360	mov edx, dword_4A1360	direct access in opcode-specific conservative CFG
+122	0x0042BC3D	0x0042BC3D	write	dword_4CAEB8	mov dword_4CAEB8, 0	direct access in opcode-specific conservative CFG
+123	0x0042BC4C	0x0042BC5A	read	ArgList	mov esi, ArgList	direct access in opcode-specific conservative CFG
+123	0x0042BC4C	0x0042BC60	read	dword_4C9A10	mov ecx, dword_4C9A10	direct access in opcode-specific conservative CFG
+123	0x0042BC4C	0x0042BCC9	address_ref	unk_4A1644	push offset unk_4A1644	direct access in opcode-specific conservative CFG
+123	0x0042BC4C	0x0042BCCE	address_ref	aTalkopSceneMus	push offset aTalkopSceneMus	direct access in opcode-specific conservative CFG
+124	0x0042BCF5	0x00427E7E	write	dword_4A1360	mov dword_4A1360, edx	direct access in opcode-specific conservative CFG
+124	0x0042BCF5	0x0042BCF5	read	dword_4A1360	mov edx, dword_4A1360	direct access in opcode-specific conservative CFG
+125	0x0042BD06	0x0042BD06	read	dword_4C99FC	mov eax, dword_4C99FC	direct access in opcode-specific conservative CFG
+125	0x0042BD06	0x0042BD0B	address_ref	unk_4C99F8	mov ebx, offset unk_4C99F8	direct access in opcode-specific conservative CFG
+125	0x0042BD06	0x0042BD7E	read	dword_4B8860	mov edi, dword_4B8860	direct access in opcode-specific conservative CFG
+126	0x0042BDBC	0x0042BDC7	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+126	0x0042BDBC	0x0042BE48	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+126	0x0042BDBC	0x0042BE52	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+127	0x0042BDBC	0x0042BDC7	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+127	0x0042BDBC	0x0042BE48	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+127	0x0042BDBC	0x0042BE52	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+128	0x0042BE8A	0x0042BE96	address_ref	dword_4A9940	push offset dword_4A9940	direct access in opcode-specific conservative CFG
+128	0x0042BE8A	0x0042BEB4	address_ref	aSD	push offset aSD	direct access in opcode-specific conservative CFG
+128	0x0042BE8A	0x0042BECB	address_ref	aDD	push offset aDD	direct access in opcode-specific conservative CFG
+128	0x0042BE8A	0x0042BED0	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+128	0x0042BE8A	0x0042BEDC	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+129	0x0042BEFE	0x0042BF03	address_ref	dword_4A9940	push offset dword_4A9940	direct access in opcode-specific conservative CFG
+129	0x0042BEFE	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+129	0x0042BEFE	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+130	0x0042BEFE	0x0042BF03	address_ref	dword_4A9940	push offset dword_4A9940	direct access in opcode-specific conservative CFG
+130	0x0042BEFE	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+130	0x0042BEFE	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+131	0x0042BF72	0x0042BF8C	address_ref	unk_4A160C	push offset unk_4A160C	direct access in opcode-specific conservative CFG
+131	0x0042BF72	0x0042BF91	address_ref	unk_4A15F8	push offset unk_4A15F8	direct access in opcode-specific conservative CFG
+131	0x0042BF72	0x0042BFA4	read	dword_4A9490	mov ecx, dword_4A9490[eax*4]	direct access in opcode-specific conservative CFG
+131	0x0042BF72	0x0042BFC8	read	dword_4A9490	mov ecx, dword_4A9490[eax*4]	direct access in opcode-specific conservative CFG
+131	0x0042BF72	0x0042C002	address_ref	unk_4A15D8	push offset unk_4A15D8	direct access in opcode-specific conservative CFG
+131	0x0042BF72	0x0042C007	address_ref	unk_4A15F8	push offset unk_4A15F8	direct access in opcode-specific conservative CFG
+131	0x0042BF72	0x0042C01D	read	dword_4A9490	mov edx, dword_4A9490[ecx*4]	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C05E	address_ref	dword_4A9940	push offset dword_4A9940	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C097	read	dword_4C8AD0	mov esi, dword_4C8AD0[edx*4]	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C0B4	read	dword_4C8AD0	mov ecx, dword_4C8AD0[eax*4]	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C0EB	read	dword_4C8AD0	mov edx, dword_4C8AD0[ecx*4]	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C114	read	dword_4C8AD0	mov edi, dword_4C8AD0[edx*4]	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C12C	read	dword_4C8AD0	mov edx, dword_4C8AD0[ecx*4]	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C146	read	dword_4C8AD0	mov edx, dword_4C8AD0[ecx*4]	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C15E	read	dword_4C8AD0	mov edx, dword_4C8AD0[ecx*4]	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C191	read	dword_4C8AD0	mov edx, dword_4C8AD0[ecx*4]	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C1B2	read	dword_4C8AD0	mov edx, dword_4C8AD0[ecx*4]	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C1CE	address_ref	dword_4A9940	push offset dword_4A9940	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C1E1	address_ref	dword_4A9940	push offset dword_4A9940	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C204	address_ref	unk_4A15C4	push offset unk_4A15C4	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C209	address_ref	unk_4A15B4	push offset unk_4A15B4	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C21D	address_ref	unk_4A1588	push offset unk_4A1588	direct access in opcode-specific conservative CFG
+132	0x0042C033	0x0042C222	address_ref	unk_4A15F8	push offset unk_4A15F8	direct access in opcode-specific conservative CFG
+133	0x0042C234	0x0042C234	read	dword_4B7928	mov edx, dword_4B7928	direct access in opcode-specific conservative CFG
+133	0x0042C234	0x0042C253	write	dword_4B7928	mov dword_4B7928, eax	direct access in opcode-specific conservative CFG
+133	0x0042C234	0x0042C28F	read	dword_4B7928	mov ecx, dword_4B7928	direct access in opcode-specific conservative CFG
+133	0x0042C234	0x0042C2A7	write	dword_4B8740	mov dword_4B8740, 80000002h	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C2D8	address_ref	unk_4A156C	push offset unk_4A156C	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C2DD	address_ref	unk_4A1558	push offset unk_4A1558	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C306	read_write	word_4AB794	add word_4AB794[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C311	read_write	word_4AB796	add word_4AB796[eax], dx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C31C	read_write	word_4AB798	add word_4AB798[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C323	read	word_4AB79A	mov cx, word_4AB79A[eax]	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C32A	read	word_4AB794	cmp word_4AB794[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C333	write	word_4AB794	mov word_4AB794[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C33A	read	word_4AB79C	mov cx, word_4AB79C[eax]	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C341	read	word_4AB796	cmp word_4AB796[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C34A	write	word_4AB796	mov word_4AB796[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C351	read	word_4AB79E	mov cx, word_4AB79E[eax]	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C358	read	word_4AB798	cmp word_4AB798[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C361	write	word_4AB798	mov word_4AB798[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C36A	read	word_4AB794	cmp word_4AB794[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C373	write	word_4AB794	mov word_4AB794[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C384	read	word_4AB796	cmp word_4AB796[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C38D	write	word_4AB796	mov word_4AB796[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C394	read	word_4AB798	cmp word_4AB798[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C39D	write	word_4AB798	mov word_4AB798[eax], cx	direct access in opcode-specific conservative CFG
+134	0x0042C2C6	0x0042C3A4	write	word_4AB7B4	mov word_4AB7B4[eax], cx	direct access in opcode-specific conservative CFG
+135	0x0042C3B0	0x0042C3B0	write	dword_4FBAB0	mov dword_4FBAB0, 4	direct access in opcode-specific conservative CFG
+135	0x0042C3B0	0x0042C3BA	write	dword_4CAEBC	mov dword_4CAEBC, 1	direct access in opcode-specific conservative CFG
+135	0x0042C3B0	0x0042C3C4	write	dword_4CAEC0	mov dword_4CAEC0, 0	direct access in opcode-specific conservative CFG
+135	0x0042C3B0	0x0042C3CE	write	dword_4CAEB0	mov dword_4CAEB0, 3	direct access in opcode-specific conservative CFG
+136	0x0042C567	0x0042C575	read	byte_42D8D0	mov dl, ds:byte_42D8D0[eax]	direct access in opcode-specific conservative CFG
+136	0x0042C567	0x0042C57B	read	jpt_42C57B	jmp ds:jpt_42C57B[edx*4]	direct access in opcode-specific conservative CFG
+136	0x0042C567	0x0042C5DB	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+136	0x0042C567	0x0042C60D	read	dword_4BABB8	mov ebx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+136	0x0042C567	0x0042C615	write	dword_4BABB8	mov dword_4BABB8[eax], ebx	direct access in opcode-specific conservative CFG
+136	0x0042C567	0x0042C626	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+136	0x0042C567	0x0042C62C	address_ref	unk_4BABA8	lea edx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+136	0x0042C567	0x0042C660	address_ref	aSar	push offset aSar	direct access in opcode-specific conservative CFG
+136	0x0042C567	0x0042C665	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+136	0x0042C567	0x0042C66E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C3F7	read	dword_4ACDBC	test dword_4ACDBC, 800000h	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C40C	write	dword_4B7380	mov dword_4B7380, eax	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C411	write	dword_4B74F0	mov dword_4B74F0, eax	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C416	address_ref	aStreamstartout	push offset aStreamstartout	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C41B	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C425	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C42F	read	dword_4ACDBC	mov esi, dword_4ACDBC	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C442	write	dword_4B7C74	mov dword_4B7C74, 80000001h	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C44C	write	dword_4B7C80	mov dword_4B7C80, ebx	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C452	write	dword_4B7C84	mov dword_4B7C84, ebx	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C458	write	dword_4B7C88	mov dword_4B7C88, ebx	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C45E	write	dword_4ACDBC	mov dword_4ACDBC, esi	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C469	read	dword_4B7C78	mov eax, dword_4B7C78	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C472	read	dword_4B7C7C	mov edx, dword_4B7C7C	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C47F	address_ref	aSMOffDD	push offset aSMOffDD	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C484	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+137	0x0042C3F7	0x0042C48C	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+138	0x0042C49E	0x0042C4A9	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+138	0x0042C49E	0x0042C4DB	read	dword_4BABAC	mov eax, dword_4BABAC[ecx]	direct access in opcode-specific conservative CFG
+138	0x0042C49E	0x0042C4E1	read	dword_4BABB0	mov ecx, dword_4BABB0[ecx]	direct access in opcode-specific conservative CFG
+138	0x0042C49E	0x0042C53B	address_ref	unk_4A1534	push offset unk_4A1534	direct access in opcode-specific conservative CFG
+138	0x0042C49E	0x0042C540	address_ref	unk_4A1520	push offset unk_4A1520	direct access in opcode-specific conservative CFG
+138	0x0042C49E	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+138	0x0042C49E	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+139	0x0042B9C2	0x0042B9F6	read	ArgList	mov ecx, ArgList	direct access in opcode-specific conservative CFG
+139	0x0042B9C2	0x0042BA04	address_ref	unk_4A1B4C	push offset unk_4A1B4C	direct access in opcode-specific conservative CFG
+139	0x0042B9C2	0x0042BA09	address_ref	aTalkWaitDlg2	push offset aTalkWaitDlg2	direct access in opcode-specific conservative CFG
+139	0x0042B9C2	0x0042BA34	read	dword_4ACF48	mov eax, dword_4ACF48	direct access in opcode-specific conservative CFG
+140	0x0042C567	0x0042C575	read	byte_42D8D0	mov dl, ds:byte_42D8D0[eax]	direct access in opcode-specific conservative CFG
+140	0x0042C567	0x0042C57B	read	jpt_42C57B	jmp ds:jpt_42C57B[edx*4]	direct access in opcode-specific conservative CFG
+140	0x0042C567	0x0042C5DB	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+140	0x0042C567	0x0042C60D	read	dword_4BABB8	mov ebx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+140	0x0042C567	0x0042C615	write	dword_4BABB8	mov dword_4BABB8[eax], ebx	direct access in opcode-specific conservative CFG
+140	0x0042C567	0x0042C626	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+140	0x0042C567	0x0042C62C	address_ref	unk_4BABA8	lea edx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+140	0x0042C567	0x0042C660	address_ref	aSar	push offset aSar	direct access in opcode-specific conservative CFG
+140	0x0042C567	0x0042C665	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+140	0x0042C567	0x0042C66E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+141	0x0042C6DD	0x0042C6E8	write	dword_4B7380	mov dword_4B7380, eax	direct access in opcode-specific conservative CFG
+141	0x0042C6DD	0x0042C6F1	write	dword_4B74F0	mov dword_4B74F0, ecx	direct access in opcode-specific conservative CFG
+141	0x0042C6DD	0x0042C6FC	read	dword_4B74F0	mov edx, dword_4B74F0	direct access in opcode-specific conservative CFG
+141	0x0042C6DD	0x0042C702	read	dword_4B7380	mov eax, dword_4B7380	direct access in opcode-specific conservative CFG
+141	0x0042C6DD	0x0042C712	address_ref	aFmodeDD	push offset aFmodeDD	direct access in opcode-specific conservative CFG
+141	0x0042C6DD	0x0042C717	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+141	0x0042C6DD	0x0042C720	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+143	0x0042C766	0x0042C768	write	dword_4CAD20	mov dword_4CAD20, 0FFFFFFFFh	direct access in opcode-specific conservative CFG
+144	0x0042C79D	0x0042C7A4	write	dword_4B8740	mov dword_4B8740, ecx	direct access in opcode-specific conservative CFG
+144	0x0042C79D	0x0042C7B5	write	dword_4B8740	mov dword_4B8740, 80000005h	direct access in opcode-specific conservative CFG
+144	0x0042C79D	0x0042C7C1	write	dword_4B8740	mov dword_4B8740, ecx	direct access in opcode-specific conservative CFG
+144	0x0042C79D	0x0042C7C9	write	dword_4CAEB0	mov dword_4CAEB0, edi	direct access in opcode-specific conservative CFG
+144	0x0042C79D	0x0042C7D4	write	dword_4CAEBC	mov dword_4CAEBC, edi	direct access in opcode-specific conservative CFG
+144	0x0042C79D	0x0042C7DA	write	dword_4CAEC0	mov dword_4CAEC0, edi	direct access in opcode-specific conservative CFG
+144	0x0042C79D	0x0042C7E0	write	dword_4FBAB0	mov dword_4FBAB0, edi	direct access in opcode-specific conservative CFG
+145	0x0042C567	0x0042C575	read	byte_42D8D0	mov dl, ds:byte_42D8D0[eax]	direct access in opcode-specific conservative CFG
+145	0x0042C567	0x0042C57B	read	jpt_42C57B	jmp ds:jpt_42C57B[edx*4]	direct access in opcode-specific conservative CFG
+145	0x0042C567	0x0042C5DB	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+145	0x0042C567	0x0042C60D	read	dword_4BABB8	mov ebx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+145	0x0042C567	0x0042C615	write	dword_4BABB8	mov dword_4BABB8[eax], ebx	direct access in opcode-specific conservative CFG
+145	0x0042C567	0x0042C626	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+145	0x0042C567	0x0042C62C	address_ref	unk_4BABA8	lea edx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+145	0x0042C567	0x0042C660	address_ref	aSar	push offset aSar	direct access in opcode-specific conservative CFG
+145	0x0042C567	0x0042C665	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+145	0x0042C567	0x0042C66E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+146	0x0042C567	0x0042C575	read	byte_42D8D0	mov dl, ds:byte_42D8D0[eax]	direct access in opcode-specific conservative CFG
+146	0x0042C567	0x0042C57B	read	jpt_42C57B	jmp ds:jpt_42C57B[edx*4]	direct access in opcode-specific conservative CFG
+146	0x0042C567	0x0042C5DB	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+146	0x0042C567	0x0042C60D	read	dword_4BABB8	mov ebx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+146	0x0042C567	0x0042C615	write	dword_4BABB8	mov dword_4BABB8[eax], ebx	direct access in opcode-specific conservative CFG
+146	0x0042C567	0x0042C626	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+146	0x0042C567	0x0042C62C	address_ref	unk_4BABA8	lea edx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+146	0x0042C567	0x0042C660	address_ref	aSar	push offset aSar	direct access in opcode-specific conservative CFG
+146	0x0042C567	0x0042C665	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+146	0x0042C567	0x0042C66E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+150	0x0042C858	0x0042C85F	write	dword_4B9EF8	mov dword_4B9EF8, eax	direct access in opcode-specific conservative CFG
+150	0x0042C858	0x0042C86E	write	dword_4B9EFC	mov dword_4B9EFC, ecx	direct access in opcode-specific conservative CFG
+150	0x0042C858	0x0042C87B	write	dword_4B9EF8	mov dword_4B9EF8, eax	direct access in opcode-specific conservative CFG
+150	0x0042C858	0x0042C88A	write	dword_4B9EF8	mov dword_4B9EF8, eax	direct access in opcode-specific conservative CFG
+150	0x0042C858	0x0042C8AB	write	dword_4B9EF8	mov dword_4B9EF8, eax	direct access in opcode-specific conservative CFG
+150	0x0042C858	0x0042C8B8	write	dword_4B9EFC	mov dword_4B9EFC, 110h	direct access in opcode-specific conservative CFG
+150	0x0042C858	0x0042C8CC	write	dword_4B9EFC	mov dword_4B9EFC, 0D0h	direct access in opcode-specific conservative CFG
+150	0x0042C858	0x0042C8D6	write	dword_4A94A8	mov dword_4A94A8, eax	direct access in opcode-specific conservative CFG
+150	0x0042C858	0x0042C8E0	write	dword_4ACE58	mov dword_4ACE58, eax	direct access in opcode-specific conservative CFG
+150	0x0042C858	0x0042C8E5	write	dword_4ACE5C	mov dword_4ACE5C, eax	direct access in opcode-specific conservative CFG
+151	0x0042C8F8	0x0042C8FF	write	dword_4A94A8	mov dword_4A94A8, ecx	direct access in opcode-specific conservative CFG
+151	0x0042C8F8	0x0042C90C	write	dword_4CAE80	mov dword_4CAE80, edx	direct access in opcode-specific conservative CFG
+151	0x0042C8F8	0x0042C916	write	dword_4ACE58	mov dword_4ACE58, eax	direct access in opcode-specific conservative CFG
+151	0x0042C8F8	0x0042C922	write	dword_4ACE5C	mov dword_4ACE5C, ecx	direct access in opcode-specific conservative CFG
+152	0x0042C936	0x0042C936	read	dword_4B9EF8	mov edx, dword_4B9EF8	direct access in opcode-specific conservative CFG
+152	0x0042C936	0x0042C93C	read	dword_4A94A8	mov eax, dword_4A94A8	direct access in opcode-specific conservative CFG
+152	0x0042C936	0x0042C949	read	dword_4B9EFC	mov eax, dword_4B9EFC	direct access in opcode-specific conservative CFG
+152	0x0042C936	0x0042C94E	read	dword_4CAE80	mov ecx, dword_4CAE80	direct access in opcode-specific conservative CFG
+153	0x0042B1F1	0x0042B24C	read	dword_4B7C70	mov ecx, dword_4B7C70	direct access in opcode-specific conservative CFG
+153	0x0042B1F1	0x0042B258	write	dword_4B7C70	mov dword_4B7C70, ebx	direct access in opcode-specific conservative CFG
+153	0x0042B1F1	0x0042B260	read	dword_4B8968	mov edx, dword_4B8968	direct access in opcode-specific conservative CFG
+153	0x0042B1F1	0x0042B26C	write	dword_4B8968	mov dword_4B8968, ebx	direct access in opcode-specific conservative CFG
+154	0x0042B4CA	0x0042B4D5	address_ref	unk_4B7BD0	mov eax, offset unk_4B7BD0	direct access in opcode-specific conservative CFG
+154	0x0042B4CA	0x0042B4DC	address_ref	unk_4B88C8	mov eax, offset unk_4B88C8	direct access in opcode-specific conservative CFG
+155	0x0042C95B	0x0042C95B	read	ArgList	mov ecx, ArgList	direct access in opcode-specific conservative CFG
+155	0x0042C95B	0x0042C966	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+155	0x0042C95B	0x0042C97E	read	dword_4BABAC	mov edx, dword_4BABAC[edx*8]	direct access in opcode-specific conservative CFG
+155	0x0042C95B	0x0042C988	write	dword_4A9930	mov dword_4A9930, edx	direct access in opcode-specific conservative CFG
+155	0x0042C95B	0x0042C994	write	dword_4A9938	mov dword_4A9938, edx	direct access in opcode-specific conservative CFG
+155	0x0042C95B	0x0042C99A	write	dword_4CAE88	mov dword_4CAE88, ecx	direct access in opcode-specific conservative CFG
+155	0x0042C95B	0x0042C9B7	address_ref	unk_4A14DC	push offset unk_4A14DC	direct access in opcode-specific conservative CFG
+155	0x0042C95B	0x0042C9BC	address_ref	unk_4A14C8	push offset unk_4A14C8	direct access in opcode-specific conservative CFG
+156	0x0042C9CE	0x0042C9CE	read	dword_4CAE88	mov ecx, dword_4CAE88	direct access in opcode-specific conservative CFG
+156	0x0042C9CE	0x0042C9D8	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+156	0x0042C9CE	0x0042C9E9	read	dword_4BABE8	mov eax, dword_4BABE8[edx*8]	direct access in opcode-specific conservative CFG
+156	0x0042C9CE	0x0042C9F0	read	dword_4A9938	mov edx, dword_4A9938	direct access in opcode-specific conservative CFG
+156	0x0042C9CE	0x0042C9F7	read	dword_4A9930	mov eax, dword_4A9930	direct access in opcode-specific conservative CFG
+156	0x0042C9CE	0x0042CA0A	write	dword_4A9930	mov dword_4A9930, eax	direct access in opcode-specific conservative CFG
+156	0x0042C9CE	0x0042CA0F	write	dword_4A9938	mov dword_4A9938, eax	direct access in opcode-specific conservative CFG
+156	0x0042C9CE	0x0042CA14	write	dword_4CAE88	mov dword_4CAE88, 0	direct access in opcode-specific conservative CFG
+156	0x0042C9CE	0x0042CA23	address_ref	unk_4A14B0	push offset unk_4A14B0	direct access in opcode-specific conservative CFG
+156	0x0042C9CE	0x0042CA28	address_ref	unk_4A149C	push offset unk_4A149C	direct access in opcode-specific conservative CFG
+157	0x0042CA3A	0x0042CA44	address_ref	unk_4A1484	push offset unk_4A1484	direct access in opcode-specific conservative CFG
+157	0x0042CA3A	0x0042CA49	address_ref	unk_4A146C	push offset unk_4A146C	direct access in opcode-specific conservative CFG
+157	0x0042CA3A	0x0042CA5E	write	dword_4CAE88	mov dword_4CAE88, ecx	direct access in opcode-specific conservative CFG
+157	0x0042CA3A	0x0042CA68	write	dword_4A9930	mov dword_4A9930, edx	direct access in opcode-specific conservative CFG
+157	0x0042CA3A	0x0042CA72	write	dword_4A9938	mov dword_4A9938, eax	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CA81	write	FileName	mov byte ptr FileName, cl	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CA92	address_ref	FileName	mov esi, offset FileName	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CAAB	read	dword_4B8860	mov edx, dword_4B8860	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CAB5	write	dword_4BABA4	mov dword_4BABA4, 1	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CAD2	write	FileName	mov byte ptr FileName[ecx], 0	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CAF1	address_ref	byte_4B82F8	push offset byte_4B82F8	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CAF6	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CAFD	address_ref	Buffer	push offset Buffer	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB17	address_ref	aMusic	push offset aMusic	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB1C	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB23	address_ref	aMusic	push offset aMusic	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB33	address_ref	aVideo	push offset aVideo	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB38	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB3F	address_ref	aVideo	push offset aVideo	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB4F	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB54	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB5B	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB71	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+158	0x0042CA7C	0x0042CB92	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CA81	write	FileName	mov byte ptr FileName, cl	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CA92	address_ref	FileName	mov esi, offset FileName	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CAAB	read	dword_4B8860	mov edx, dword_4B8860	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CAB5	write	dword_4BABA4	mov dword_4BABA4, 1	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CAD2	write	FileName	mov byte ptr FileName[ecx], 0	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CAF1	address_ref	byte_4B82F8	push offset byte_4B82F8	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CAF6	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CAFD	address_ref	Buffer	push offset Buffer	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB17	address_ref	aMusic	push offset aMusic	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB1C	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB23	address_ref	aMusic	push offset aMusic	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB33	address_ref	aVideo	push offset aVideo	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB38	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB3F	address_ref	aVideo	push offset aVideo	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB4F	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB54	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB5B	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB71	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+159	0x0042CA7C	0x0042CB92	address_ref	ExistingFileName	push offset ExistingFileName	direct access in opcode-specific conservative CFG
+160	0x0042CBB0	0x0042CBB8	write	dword_4CF73C	mov dword_4CF73C, esi	direct access in opcode-specific conservative CFG
+161	0x0042CBCC	0x0042CBDA	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+161	0x0042CBCC	0x0042CBE8	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B2B2	read	dword_4C9A10	mov ecx, dword_4C9A10	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B2B8	address_ref	word_4CF6B8	mov edi, offset word_4CF6B8	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B2C6	address_ref	word_4CF6B8	mov eax, offset word_4CF6B8	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B2D4	read	word_4CF6B8	cmp word_4CF6B8, 5125h	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B2F3	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B302	address_ref	byte_49E158	push offset byte_49E158	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B307	address_ref	byte_49E198	push offset byte_49E198	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B30C	address_ref	word_4CF6B8	push offset word_4CF6B8	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B34F	address_ref	byte_4A171C	push offset byte_4A171C	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B354	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B35B	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B360	address_ref	unk_4A1708	push offset unk_4A1708	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B376	read	dword_4ACBD0	mov eax, dword_4ACBD0[eax*4]	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B389	address_ref	byte_4A16F0	push offset byte_4A16F0	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B38E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B395	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+162	0x0042B287	0x0042B39A	address_ref	unk_4A1708	push offset unk_4A1708	direct access in opcode-specific conservative CFG
+163	0x0042CBFF	0x0042CC17	read	ArgList	mov edi, ArgList	direct access in opcode-specific conservative CFG
+163	0x0042CBFF	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+163	0x0042CBFF	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+164	0x0042CBFF	0x0042CC17	read	ArgList	mov edi, ArgList	direct access in opcode-specific conservative CFG
+164	0x0042CBFF	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+164	0x0042CBFF	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+165	0x0042CC35	0x0042CC42	address_ref	dword_4A9940	push offset dword_4A9940	direct access in opcode-specific conservative CFG
+165	0x0042CC35	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+165	0x0042CC35	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+166	0x0042CC35	0x0042CC42	address_ref	dword_4A9940	push offset dword_4A9940	direct access in opcode-specific conservative CFG
+166	0x0042CC35	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+166	0x0042CC35	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+167	0x0042BEFE	0x0042BF03	address_ref	dword_4A9940	push offset dword_4A9940	direct access in opcode-specific conservative CFG
+167	0x0042BEFE	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+167	0x0042BEFE	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+168	0x0042BEFE	0x0042BF03	address_ref	dword_4A9940	push offset dword_4A9940	direct access in opcode-specific conservative CFG
+168	0x0042BEFE	0x0042CCD6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+168	0x0042BEFE	0x0042CCE0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AE02	address_ref	unk_4A174C	push offset unk_4A174C	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AE07	address_ref	aBmove	push offset aBmove	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AE43	read_write	dword_4BABB8	and dword_4BABB8[eax*8], 0FFF7FFFFh	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AE63	write	dword_4BABF4	mov dword_4BABF4[eax], ecx	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AE69	write	dword_4BAC20	mov dword_4BAC20[eax], ecx	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AE75	read	word_4BAC30	cmp word_4BAC30[eax*8], 0	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AE80	write	word_4BAC30	mov word_4BAC30[eax*8], 8001h	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AE96	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AEB1	read	dword_4BABB0	mov ecx, dword_4BABB0[ecx*8]	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AED2	read	dword_4BABAC	mov eax, dword_4BABAC[eax*8]	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AEFD	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AF18	read	dword_4BABB0	mov ecx, dword_4BABB0[ecx*8]	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AF39	read	dword_4BABAC	mov eax, dword_4BABAC[eax*8]	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AF6F	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AF78	read	dword_4A9920	mov eax, dword_4A9920	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AF80	write	dword_4A9920	mov dword_4A9920, eax	direct access in opcode-specific conservative CFG
+169	0x0042ADB7	0x0042AFE7	read	dword_4BABB8	test dword_4BABB8[edx*8], ebx	direct access in opcode-specific conservative CFG
+170	0x0042CCF7	0x0042CD12	write	FileName	mov byte ptr FileName, al	direct access in opcode-specific conservative CFG
+170	0x0042CCF7	0x0042CD1E	address_ref	FileName	mov edi, offset FileName	direct access in opcode-specific conservative CFG
+170	0x0042CCF7	0x0042CD33	read	dword_4B8860	mov edi, dword_4B8860	direct access in opcode-specific conservative CFG
+170	0x0042CCF7	0x0042CD4B	write	FileName	mov byte ptr FileName[eax], 0	direct access in opcode-specific conservative CFG
+170	0x0042CCF7	0x0042CD6D	address_ref	dword_4B74F4	mov ebx, offset dword_4B74F4	direct access in opcode-specific conservative CFG
+170	0x0042CCF7	0x0042CD7A	address_ref	dword_4B751C	mov ebx, offset dword_4B751C	direct access in opcode-specific conservative CFG
+170	0x0042CCF7	0x0042CDCC	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+171	0x0042CCF7	0x0042CD12	write	FileName	mov byte ptr FileName, al	direct access in opcode-specific conservative CFG
+171	0x0042CCF7	0x0042CD1E	address_ref	FileName	mov edi, offset FileName	direct access in opcode-specific conservative CFG
+171	0x0042CCF7	0x0042CD33	read	dword_4B8860	mov edi, dword_4B8860	direct access in opcode-specific conservative CFG
+171	0x0042CCF7	0x0042CD4B	write	FileName	mov byte ptr FileName[eax], 0	direct access in opcode-specific conservative CFG
+171	0x0042CCF7	0x0042CD6D	address_ref	dword_4B74F4	mov ebx, offset dword_4B74F4	direct access in opcode-specific conservative CFG
+171	0x0042CCF7	0x0042CD7A	address_ref	dword_4B751C	mov ebx, offset dword_4B751C	direct access in opcode-specific conservative CFG
+171	0x0042CCF7	0x0042CDCC	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+172	0x0042CCF7	0x0042CD12	write	FileName	mov byte ptr FileName, al	direct access in opcode-specific conservative CFG
+172	0x0042CCF7	0x0042CD1E	address_ref	FileName	mov edi, offset FileName	direct access in opcode-specific conservative CFG
+172	0x0042CCF7	0x0042CD33	read	dword_4B8860	mov edi, dword_4B8860	direct access in opcode-specific conservative CFG
+172	0x0042CCF7	0x0042CD4B	write	FileName	mov byte ptr FileName[eax], 0	direct access in opcode-specific conservative CFG
+172	0x0042CCF7	0x0042CD6D	address_ref	dword_4B74F4	mov ebx, offset dword_4B74F4	direct access in opcode-specific conservative CFG
+172	0x0042CCF7	0x0042CD7A	address_ref	dword_4B751C	mov ebx, offset dword_4B751C	direct access in opcode-specific conservative CFG
+172	0x0042CCF7	0x0042CDCC	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+173	0x0042CCF7	0x0042CD12	write	FileName	mov byte ptr FileName, al	direct access in opcode-specific conservative CFG
+173	0x0042CCF7	0x0042CD1E	address_ref	FileName	mov edi, offset FileName	direct access in opcode-specific conservative CFG
+173	0x0042CCF7	0x0042CD33	read	dword_4B8860	mov edi, dword_4B8860	direct access in opcode-specific conservative CFG
+173	0x0042CCF7	0x0042CD4B	write	FileName	mov byte ptr FileName[eax], 0	direct access in opcode-specific conservative CFG
+173	0x0042CCF7	0x0042CD6D	address_ref	dword_4B74F4	mov ebx, offset dword_4B74F4	direct access in opcode-specific conservative CFG
+173	0x0042CCF7	0x0042CD7A	address_ref	dword_4B751C	mov ebx, offset dword_4B751C	direct access in opcode-specific conservative CFG
+173	0x0042CCF7	0x0042CDCC	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+174	0x0042C567	0x0042C575	read	byte_42D8D0	mov dl, ds:byte_42D8D0[eax]	direct access in opcode-specific conservative CFG
+174	0x0042C567	0x0042C57B	read	jpt_42C57B	jmp ds:jpt_42C57B[edx*4]	direct access in opcode-specific conservative CFG
+174	0x0042C567	0x0042C5DB	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+174	0x0042C567	0x0042C60D	read	dword_4BABB8	mov ebx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+174	0x0042C567	0x0042C615	write	dword_4BABB8	mov dword_4BABB8[eax], ebx	direct access in opcode-specific conservative CFG
+174	0x0042C567	0x0042C626	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+174	0x0042C567	0x0042C62C	address_ref	unk_4BABA8	lea edx, unk_4BABA8[eax]	direct access in opcode-specific conservative CFG
+174	0x0042C567	0x0042C660	address_ref	aSar	push offset aSar	direct access in opcode-specific conservative CFG
+174	0x0042C567	0x0042C665	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+174	0x0042C567	0x0042C66E	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+175	0x0042CDED	0x0042CDED	read	dword_4B7AA0	mov edx, dword_4B7AA0	direct access in opcode-specific conservative CFG
+175	0x0042CDED	0x0042CDFD	write	dword_4B7AA0	mov dword_4B7AA0, edx	direct access in opcode-specific conservative CFG
+176	0x0042CE12	0x0042CE12	read	dword_4B7AA0	mov edx, dword_4B7AA0	direct access in opcode-specific conservative CFG
+176	0x0042CE12	0x0042CE22	write	dword_4B7AA0	mov dword_4B7AA0, edx	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CE40	address_ref	dword_4B7998	mov edi, offset dword_4B7998	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CE52	read	dword_4A9920	mov ebx, dword_4A9920	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CE58	read	dword_4AB378	mov eax, dword_4AB378	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CE5F	write	dword_4A9920	mov dword_4A9920, ebx	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CE73	write	dword_4BABF0	mov dword_4BABF0[ebx], 0	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CE7D	read	dword_4BABB0	mov eax, dword_4BABB0[ebx]	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CE85	read	dword_4BABAC	mov eax, dword_4BABAC[ebx]	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CE90	address_ref	dword_4B7A18	mov edi, offset dword_4B7A18	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CE97	read	dword_49E0C4	mov eax, dword_49E0C4	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CEA8	address_ref	unk_4BAC90	mov ecx, offset unk_4BAC90	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CED3	read	dword_49E0C4	mov ecx, dword_49E0C4	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CEEF	address_ref	unk_4BAC90	mov eax, offset unk_4BAC90	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CF04	read	dword_4AB378	mov ecx, dword_4AB378	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CF16	read	dword_4BABAC	cmp edi, dword_4BABAC[ecx]	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CF21	read	dword_4BABB0	cmp edi, dword_4BABB0[ecx]	direct access in opcode-specific conservative CFG
+177	0x0042CE32	0x0042CF54	read	dword_4BABA0	mov eax, dword_4BABA0	direct access in opcode-specific conservative CFG
+178	0x0042CF7C	0x0042CF87	read	dword_4AB378	mov ebx, dword_4AB378	direct access in opcode-specific conservative CFG
+178	0x0042CF7C	0x0042CFA9	read_write	dword_4BABB8	or dword_4BABB8[eax*8], 40000h	direct access in opcode-specific conservative CFG
+179	0x0042CFBD	0x0042D02D	read	dword_4AC9B8	mov edx, dword_4AC9B8	direct access in opcode-specific conservative CFG
+179	0x0042CFBD	0x0042D036	write	dword_4AC9B8	mov dword_4AC9B8, esi	direct access in opcode-specific conservative CFG
+180	0x0042D041	0x0042D044	write	dword_4CC2AC	mov dword_4CC2AC, 0	direct access in opcode-specific conservative CFG
+181	0x0042B070	0x0042B098	address_ref	byte_49F7C4	push offset byte_49F7C4	direct access in opcode-specific conservative CFG
+181	0x0042B070	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+181	0x0042B070	0x0042B0DE	read	byte_42D80C	mov dl, ds:byte_42D80C[esi]	direct access in opcode-specific conservative CFG
+181	0x0042B070	0x0042B0E4	read	jpt_42B0E4	jmp ds:jpt_42B0E4[edx*4]	direct access in opcode-specific conservative CFG
+181	0x0042B070	0x0042B0EB	write	dword_4ACBD0	mov dword_4ACBD0[edi*4], ecx	direct access in opcode-specific conservative CFG
+181	0x0042B070	0x0042B1BF	read	dword_4ACBD0	test dword_4ACBD0, 80000000h	direct access in opcode-specific conservative CFG
+181	0x0042B070	0x0042B1CB	write	dword_4ACBD0	mov dword_4ACBD0, 0	direct access in opcode-specific conservative CFG
+182	0x0042B070	0x0042B098	address_ref	byte_49F7C4	push offset byte_49F7C4	direct access in opcode-specific conservative CFG
+182	0x0042B070	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+182	0x0042B070	0x0042B0DE	read	byte_42D80C	mov dl, ds:byte_42D80C[esi]	direct access in opcode-specific conservative CFG
+182	0x0042B070	0x0042B0E4	read	jpt_42B0E4	jmp ds:jpt_42B0E4[edx*4]	direct access in opcode-specific conservative CFG
+182	0x0042B070	0x0042B0F4	read_write	dword_4ACBD0	add dword_4ACBD0[edi*4], ecx	direct access in opcode-specific conservative CFG
+182	0x0042B070	0x0042B1BF	read	dword_4ACBD0	test dword_4ACBD0, 80000000h	direct access in opcode-specific conservative CFG
+182	0x0042B070	0x0042B1CB	write	dword_4ACBD0	mov dword_4ACBD0, 0	direct access in opcode-specific conservative CFG
+183	0x0042B070	0x0042B098	address_ref	byte_49F7C4	push offset byte_49F7C4	direct access in opcode-specific conservative CFG
+183	0x0042B070	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+183	0x0042B070	0x0042B0DE	read	byte_42D80C	mov dl, ds:byte_42D80C[esi]	direct access in opcode-specific conservative CFG
+183	0x0042B070	0x0042B0E4	read	jpt_42B0E4	jmp ds:jpt_42B0E4[edx*4]	direct access in opcode-specific conservative CFG
+183	0x0042B070	0x0042B0FD	read	dword_4ACBD0	mov edx, dword_4ACBD0[edi*4]	direct access in opcode-specific conservative CFG
+183	0x0042B070	0x0042B108	write	dword_4ACBD0	mov dword_4ACBD0[edi*4], edx	direct access in opcode-specific conservative CFG
+183	0x0042B070	0x0042B116	write	dword_4ACBD0	mov dword_4ACBD0[edi*4], 0	direct access in opcode-specific conservative CFG
+183	0x0042B070	0x0042B1BF	read	dword_4ACBD0	test dword_4ACBD0, 80000000h	direct access in opcode-specific conservative CFG
+183	0x0042B070	0x0042B1CB	write	dword_4ACBD0	mov dword_4ACBD0, 0	direct access in opcode-specific conservative CFG
+184	0x0042B070	0x0042B098	address_ref	byte_49F7C4	push offset byte_49F7C4	direct access in opcode-specific conservative CFG
+184	0x0042B070	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+184	0x0042B070	0x0042B0DE	read	byte_42D80C	mov dl, ds:byte_42D80C[esi]	direct access in opcode-specific conservative CFG
+184	0x0042B070	0x0042B0E4	read	jpt_42B0E4	jmp ds:jpt_42B0E4[edx*4]	direct access in opcode-specific conservative CFG
+184	0x0042B070	0x0042B167	read	dword_4ACBD0	cmp dword_4ACBD0[edi*4], ecx	direct access in opcode-specific conservative CFG
+184	0x0042B070	0x0042B1A6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+184	0x0042B070	0x0042B1B0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+184	0x0042B070	0x0042B1BF	read	dword_4ACBD0	test dword_4ACBD0, 80000000h	direct access in opcode-specific conservative CFG
+184	0x0042B070	0x0042B1CB	write	dword_4ACBD0	mov dword_4ACBD0, 0	direct access in opcode-specific conservative CFG
+185	0x0042B070	0x0042B098	address_ref	byte_49F7C4	push offset byte_49F7C4	direct access in opcode-specific conservative CFG
+185	0x0042B070	0x0042B09D	address_ref	unk_4A1738	push offset unk_4A1738	direct access in opcode-specific conservative CFG
+185	0x0042B070	0x0042B0DE	read	byte_42D80C	mov dl, ds:byte_42D80C[esi]	direct access in opcode-specific conservative CFG
+185	0x0042B070	0x0042B0E4	read	jpt_42B0E4	jmp ds:jpt_42B0E4[edx*4]	direct access in opcode-specific conservative CFG
+185	0x0042B070	0x0042B19C	read	dword_4ACBD0	cmp dword_4ACBD0[edi*4], ecx	direct access in opcode-specific conservative CFG
+185	0x0042B070	0x0042B1A6	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+185	0x0042B070	0x0042B1B0	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+185	0x0042B070	0x0042B1BF	read	dword_4ACBD0	test dword_4ACBD0, 80000000h	direct access in opcode-specific conservative CFG
+185	0x0042B070	0x0042B1CB	write	dword_4ACBD0	mov dword_4ACBD0, 0	direct access in opcode-specific conservative CFG
+186	0x0042D05C	0x0042D0BC	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+186	0x0042D05C	0x0042D0C6	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+186	0x0042D05C	0x0042D0EE	address_ref	unk_4A1458	push offset unk_4A1458	direct access in opcode-specific conservative CFG
+186	0x0042D05C	0x0042D0F3	address_ref	unk_4A1448	push offset unk_4A1448	direct access in opcode-specific conservative CFG
+187	0x0042D05C	0x0042D0BC	address_ref	unk_4B72A0	push offset unk_4B72A0	direct access in opcode-specific conservative CFG
+187	0x0042D05C	0x0042D0C6	read	dword_4B8860	mov ebx, dword_4B8860	direct access in opcode-specific conservative CFG
+187	0x0042D05C	0x0042D0EE	address_ref	unk_4A1458	push offset unk_4A1458	direct access in opcode-specific conservative CFG
+187	0x0042D05C	0x0042D0F3	address_ref	unk_4A1448	push offset unk_4A1448	direct access in opcode-specific conservative CFG
+188	0x0042D0D8	0x0042D0EE	address_ref	unk_4A1458	push offset unk_4A1458	direct access in opcode-specific conservative CFG
+188	0x0042D0D8	0x0042D0F3	address_ref	unk_4A1448	push offset unk_4A1448	direct access in opcode-specific conservative CFG
+189	0x0042D0D8	0x0042D0EE	address_ref	unk_4A1458	push offset unk_4A1458	direct access in opcode-specific conservative CFG
+189	0x0042D0D8	0x0042D0F3	address_ref	unk_4A1448	push offset unk_4A1448	direct access in opcode-specific conservative CFG
+190	0x0042D0D8	0x0042D0EE	address_ref	unk_4A1458	push offset unk_4A1458	direct access in opcode-specific conservative CFG
+190	0x0042D0D8	0x0042D0F3	address_ref	unk_4A1448	push offset unk_4A1448	direct access in opcode-specific conservative CFG
+191	0x0042D170	0x0042D170	read	dword_4A99F0	mov eax, dword_4A99F0	direct access in opcode-specific conservative CFG
+191	0x0042D170	0x0042D179	read	dword_4A98C0	mov eax, dword_4A98C0	direct access in opcode-specific conservative CFG
+192	0x0042D1AA	0x0042D1AA	read	dword_4B7380	cmp dword_4B7380, 2	direct access in opcode-specific conservative CFG
+192	0x0042D1AA	0x0042D1B7	read	dword_4B7378	mov eax, dword_4B7378	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D28B	read	dword_49E0C4	mov edx, dword_49E0C4	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D293	address_ref	unk_4A01C8	push offset unk_4A01C8	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D298	address_ref	byte_4A01B4	push offset byte_4A01B4	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D2C4	read	dword_4BABB8	mov ecx, dword_4BABB8[eax]	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D2CA	address_ref	dword_4BABE8	lea edi, dword_4BABE8[eax]	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D2D5	write	dword_4BABB8	mov dword_4BABB8[eax], ecx	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D320	read	word_4BABCC	mov cx, word_4BABCC[eax*8]	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D329	address_ref	unk_49F66C	push offset unk_49F66C	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D32E	address_ref	aActErrTalkTalk	push offset aActErrTalkTalk	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D345	read	dword_4BABB8	test dword_4BABB8[edx*8], 80000h	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D365	read_write	dword_4BABB8	and dword_4BABB8[eax*8], ebx	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D38A	read	ArgList	mov eax, ArgList	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D397	address_ref	aGD	push offset aGD	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D39C	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D3A5	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D3B2	read	dword_49E0C4	mov ecx, dword_49E0C4	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D3BE	address_ref	dword_4BAC24	mov eax, offset dword_4BAC24	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D3E7	read	word_4AD490	mov cx, word_4AD490[eax]	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D3EE	address_ref	word_4AD490	lea edx, word_4AD490[eax]	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D400	read	byte_4AD4AB	mov al, byte_4AD4AB[eax]	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D426	write	word_4BABC4	mov word_4BABC4[eax], bx	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D42D	write	dword_4BABC0	mov dword_4BABC0[eax], ebx	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D448	address_ref	aTalkendD	push offset aTalkendD	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D44D	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D45B	address_ref	FileName	push offset FileName	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D465	read	dword_4A9920	mov eax, dword_4A9920	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D475	write	dword_4A9920	mov dword_4A9920, eax	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D47A	read	dword_4B8860	mov eax, dword_4B8860	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D47F	address_ref	unk_4B72A0	mov edi, offset unk_4B72A0	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D48E	write	dword_4CAD24	mov dword_4CAD24, ebx	direct access in opcode-specific conservative CFG
+16383	0x0042D24E	0x0042D494	write	dword_4C9A24	mov dword_4C9A24, ebx	direct access in opcode-specific conservative CFG

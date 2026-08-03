@@ -1,0 +1,17 @@
+branch	assembly_range	logical_length	state_or_offset	lzo1x_2_10_relation	tsw_hit_count	synthetic_hit_count	combined_covered
+initial_literal_1_to_3	0x004399FC-0x00439ACD	first_byte-0x11	initial literal then match-next	same	0	2	1
+initial_literal_4_plus	0x004399FC-0x00439A1E	first_byte-0x11	initial literal run then first-literal state	same	0	1	1
+literal_run_short	0x00439A20-0x00439A89	token+3	ordinary literal run	same	14615921	0	1
+literal_run_extended	0x00439A2E-0x00439A49	255*zero_count+next+0x12	zero-extended literal run	same	2085150	1	1
+short_match_after_literal_len3	0x00439A89-0x00439AC1	3	offset=0x801+4*next+(token>>2)	same	0	1	1
+short_match_after_match_len2	0x00439B13-0x00439AC1	2	offset=1+4*next+(token>>2)	same	0	1	1
+match_40_to_ff	0x00439ADB-0x00439B11	(token>>5)+1	one-byte short-offset match	same	72098622	0	1
+match_20_to_3f_short	0x00439B48-0x00439BCB	(token&0x1f)+2	two-byte medium-offset match	same	44694699	0	1
+match_20_to_3f_extended	0x00439B4D-0x00439BCB	255*zero_count+next+0x21	extended medium-offset match	same	2319174	0	1
+match_10_to_1f_short	0x00439B7F-0x00439BCB	(token&7)+2	two-range long-offset match or end marker	same	9829819	4	1
+match_10_to_1f_extended	0x00439B84-0x00439BCB	255*zero_count+next+9	extended long-offset match	same	403387	0	1
+end_marker	0x00439BB0-0x00439B47	0	zero M4 offset terminates and compares input end	same valid-stream marker	20091	4	1
+trailing_literal_0	0x00439AC1-0x00439A20	0	return to ordinary literal token	same	102271489	2	1
+trailing_literal_1	0x00439AC1-0x00439ADA	1	copy low-two-bit literal tail then next match	same	14078462	0	1
+trailing_literal_2	0x00439AC1-0x00439ADA	2	copy low-two-bit literal tail then next match	same	8258219	0	1
+trailing_literal_3	0x00439AC1-0x00439ADA	3	copy low-two-bit literal tail then next match	same	4717440	0	1

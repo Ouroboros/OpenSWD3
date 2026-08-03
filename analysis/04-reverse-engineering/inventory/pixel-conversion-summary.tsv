@@ -1,0 +1,14 @@
+metric	value
+comparison_library_version	2.10
+active_cache_files	2
+candidate_transforms_per_file	4
+comparison_rows	8
+source_compressed_bytes	2914377
+caller_written_bytes	4420608
+exact_match_rows	2
+exact_transform	rgb555_to_rgb565
+surface_masks	R=0xF800,G=0x07E0,B=0x001F
+assembly_forward_converter	00423920
+assembly_reverse_converter	00423950
+concatenated_raw_written_prefix_sha256	a06498ea55f63b4b6cee6a76c268d2651b0492f81f70e9d14fe06b9aa665e1c9
+concatenated_current_cache_sha256	a568153450c6633a2c2b80781adc94c79ea99f6749e09f0a4f1e144a430c9184

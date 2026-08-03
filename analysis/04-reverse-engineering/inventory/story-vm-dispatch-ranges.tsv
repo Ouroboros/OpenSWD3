@@ -1,0 +1,12 @@
+class	predicate	route	assembly_branch	behavior
+decode	raw_word 0..65535	raw_word & 0x3FFF	0x00427B4F	upper two bits do not select the primary route; four raw words alias each effective opcode
+default	opcode == 0	0x0042D230	0x00427B7C-0x00427B82	unsigned index underflow takes JA; beep/diagnostic, no advance, return 1
+main_table	1 <= opcode <= 98	jpt_427B88[opcode-1]	0x00427B7C-0x00427B88	98 PE dwords at 0x0042D4F4
+special	opcode == 99	0x0042AD75	0x00427B69-0x00427B76	operand-gated wait; instruction is four bytes when accepted
+secondary_table	100 <= opcode <= 193	jpt_42ADB0[opcode-100]	0x0042ADA4-0x0042ADB0	94 PE dwords at 0x0042D67C
+default	194 <= opcode <= 1023	0x0042D230	0x0042AD92-0x0042ADAA	secondary unsigned index is above 93
+special	opcode == 1024	0x0042D200	0x0042AD92-0x0042AD9E	advance two and continue in same interpreter call
+special	opcode == 1025	0x0042D49F	0x0042D219-0x0042D21F	advance two and yield
+special	opcode == 1026	0x0042D1EA	0x0042D225-0x0042D226	advance two and continue in same interpreter call
+default	1027 <= opcode <= 16382	0x0042D230	0x0042D228-0x0042D230	post-special arithmetic misses 0x3FFF case
+special	opcode == 16383	0x0042D24E	0x0042D228-0x0042D22E	TalkEnd cleanup path

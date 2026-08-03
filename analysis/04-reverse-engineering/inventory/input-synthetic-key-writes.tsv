@@ -1,0 +1,6 @@
+call_address	owner	key_operand	instruction
+0x00406EC9	sub_406EB0	1	call sub_437300
+0x00440A7D	sub_4407F0	edx	call sub_437300
+0x00443013	sub_442F40	edx	call sub_437300
+0x0044580B	sub_4455E0	eax	call sub_437300
+0x0044B149	sub_44B070	0Eh	call sub_437300

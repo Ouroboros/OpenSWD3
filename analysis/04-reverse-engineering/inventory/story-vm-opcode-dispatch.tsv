@@ -1,0 +1,199 @@
+effective_opcode_dec	effective_opcode_hex	raw_word_aliases	dispatch_kind	table_index	slot_address	entry_target	explicit_entry_group_size	first_instruction	initial_behavior
+0	0x0000	0x0000|0x4000|0x8000|0xC000	default_exact_0	n/a	n/a	0x0042D230	1	push 0	MessageBeep; diagnostic call; no advance; yield with return 1
+1	0x0001	0x0001|0x4001|0x8001|0xC001	main_table	0	0x0042D4F4	0x00427B8F	8	mov [esp+60h+var_4C], 0FFFDh	entry target only; parameters/length/state pending semantic pass
+2	0x0002	0x0002|0x4002|0x8002|0xC002	main_table	1	0x0042D4F8	0x00427B8F	8	mov [esp+60h+var_4C], 0FFFDh	entry target only; parameters/length/state pending semantic pass
+3	0x0003	0x0003|0x4003|0x8003|0xC003	main_table	2	0x0042D4FC	0x00427B8F	8	mov [esp+60h+var_4C], 0FFFDh	entry target only; parameters/length/state pending semantic pass
+4	0x0004	0x0004|0x4004|0x8004|0xC004	main_table	3	0x0042D500	0x00427B8F	8	mov [esp+60h+var_4C], 0FFFDh	entry target only; parameters/length/state pending semantic pass
+5	0x0005	0x0005|0x4005|0x8005|0xC005	main_table	4	0x0042D504	0x00427B8F	8	mov [esp+60h+var_4C], 0FFFDh	entry target only; parameters/length/state pending semantic pass
+6	0x0006	0x0006|0x4006|0x8006|0xC006	main_table	5	0x0042D508	0x00427B8F	8	mov [esp+60h+var_4C], 0FFFDh	entry target only; parameters/length/state pending semantic pass
+7	0x0007	0x0007|0x4007|0x8007|0xC007	main_table	6	0x0042D50C	0x00427E72	1	mov edx, dword_4A1360	entry target only; parameters/length/state pending semantic pass
+8	0x0008	0x0008|0x4008|0x8008|0xC008	main_table	7	0x0042D510	0x00427E9A	1	xor edx, edx	entry target only; parameters/length/state pending semantic pass
+9	0x0009	0x0009|0x4009|0x8009|0xC009	main_table	8	0x0042D514	0x00427EC2	1	mov edx, dword_4A1360	entry target only; parameters/length/state pending semantic pass
+10	0x000A	0x000A|0x400A|0x800A|0xC00A	main_table	9	0x0042D518	0x00427ED0	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+11	0x000B	0x000B|0x400B|0x800B|0xC00B	main_table	10	0x0042D51C	0x00427FEB	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+12	0x000C	0x000C|0x400C|0x800C|0xC00C	main_table	11	0x0042D520	0x0042811F	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+13	0x000D	0x000D|0x400D|0x800D|0xC00D	main_table	12	0x0042D524	0x0042822A	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+14	0x000E	0x000E|0x400E|0x800E|0xC00E	main_table	13	0x0042D528	0x0042829C	1	mov ax, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+15	0x000F	0x000F|0x400F|0x800F|0xC00F	main_table	14	0x0042D52C	0x00428310	1	mov ecx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+16	0x0010	0x0010|0x4010|0x8010|0xC010	main_table	15	0x0042D530	0x00428318	1	mov ax, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+17	0x0011	0x0011|0x4011|0x8011|0xC011	main_table	16	0x0042D534	0x004283AC	1	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+18	0x0012	0x0012|0x4012|0x8012|0xC012	main_table	17	0x0042D538	0x0042845A	1	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+19	0x0013	0x0013|0x4013|0x8013|0xC013	main_table	18	0x0042D53C	0x004284C2	1	mov eax, dword_49E0C4	entry target only; parameters/length/state pending semantic pass
+20	0x0014	0x0014|0x4014|0x8014|0xC014	main_table	19	0x0042D540	0x0042ADB7	2	mov ax, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+21	0x0015	0x0015|0x4015|0x8015|0xC015	main_table	20	0x0042D544	0x00428533	2	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+22	0x0016	0x0016|0x4016|0x8016|0xC016	main_table	21	0x0042D548	0x00428533	2	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+23	0x0017	0x0017|0x4017|0x8017|0xC017	main_table	22	0x0042D54C	0x0042857F	1	xor edi, edi	entry target only; parameters/length/state pending semantic pass
+24	0x0018	0x0018|0x4018|0x8018|0xC018	main_table	23	0x0042D550	0x004285ED	1	xor edx, edx	entry target only; parameters/length/state pending semantic pass
+25	0x0019	0x0019|0x4019|0x8019|0xC019	main_table	24	0x0042D554	0x0042865B	1	xor ecx, ecx	entry target only; parameters/length/state pending semantic pass
+26	0x001A	0x001A|0x401A|0x801A|0xC01A	main_table	25	0x0042D558	0x00428679	1	xor ecx, ecx	entry target only; parameters/length/state pending semantic pass
+27	0x001B	0x001B|0x401B|0x801B|0xC01B	main_table	26	0x0042D55C	0x004286C5	1	xor ecx, ecx	entry target only; parameters/length/state pending semantic pass
+28	0x001C	0x001C|0x401C|0x801C|0xC01C	main_table	27	0x0042D560	0x00428713	1	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+29	0x001D	0x001D|0x401D|0x801D|0xC01D	main_table	28	0x0042D564	0x0042B074	5	movsx edi, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+30	0x001E	0x001E|0x401E|0x801E|0xC01E	main_table	29	0x0042D568	0x0042B074	5	movsx edi, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+31	0x001F	0x001F|0x401F|0x801F|0xC01F	main_table	30	0x0042D56C	0x0042B074	5	movsx edi, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+32	0x0020	0x0020|0x4020|0x8020|0xC020	main_table	31	0x0042D570	0x0042B074	5	movsx edi, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+33	0x0021	0x0021|0x4021|0x8021|0xC021	main_table	32	0x0042D574	0x0042B074	5	movsx edi, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+34	0x0022	0x0022|0x4022|0x8022|0xC022	main_table	33	0x0042D578	0x0042890F	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+35	0x0023	0x0023|0x4023|0x8023|0xC023	main_table	34	0x0042D57C	0x00428934	1	mov ecx, dword_4ACDB0	entry target only; parameters/length/state pending semantic pass
+36	0x0024	0x0024|0x4024|0x8024|0xC024	main_table	35	0x0042D580	0x0042896C	1	mov ecx, dword_4BA42C	entry target only; parameters/length/state pending semantic pass
+37	0x0025	0x0025|0x4025|0x8025|0xC025	main_table	36	0x0042D584	0x004289BE	1	mov eax, dword_4ACDB0	entry target only; parameters/length/state pending semantic pass
+38	0x0026	0x0026|0x4026|0x8026|0xC026	main_table	37	0x0042D588	0x004289DE	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+39	0x0027	0x0027|0x4027|0x8027|0xC027	main_table	38	0x0042D58C	0x00428ADC	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+40	0x0028	0x0028|0x4028|0x8028|0xC028	main_table	39	0x0042D590	0x00428BA0	1	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+41	0x0029	0x0029|0x4029|0x8029|0xC029	main_table	40	0x0042D594	0x00428C9F	1	mov eax, dword_4CAE7C	entry target only; parameters/length/state pending semantic pass
+42	0x002A	0x002A|0x402A|0x802A|0xC02A	main_table	41	0x0042D598	0x00428D18	2	cmp word ptr [esp+60h+var_3C], 2Ah	entry target only; parameters/length/state pending semantic pass
+43	0x002B	0x002B|0x402B|0x802B|0xC02B	main_table	42	0x0042D59C	0x00428D18	2	cmp word ptr [esp+60h+var_3C], 2Ah	entry target only; parameters/length/state pending semantic pass
+44	0x002C	0x002C|0x402C|0x802C|0xC02C	main_table	43	0x0042D5A0	0x00428DB8	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+45	0x002D	0x002D|0x402D|0x802D|0xC02D	main_table	44	0x0042D5A4	0x00428E52	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+46	0x002E	0x002E|0x402E|0x802E|0xC02E	main_table	45	0x0042D5A8	0x00428F7B	4	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+47	0x002F	0x002F|0x402F|0x802F|0xC02F	main_table	46	0x0042D5AC	0x00428F7B	4	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+48	0x0030	0x0030|0x4030|0x8030|0xC030	main_table	47	0x0042D5B0	0x00428F7B	4	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+49	0x0031	0x0031|0x4031|0x8031|0xC031	main_table	48	0x0042D5B4	0x00428F7B	4	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+50	0x0032	0x0032|0x4032|0x8032|0xC032	main_table	49	0x0042D5B8	0x00429066	3	mov ecx, dword_4A98C0	entry target only; parameters/length/state pending semantic pass
+51	0x0033	0x0033|0x4033|0x8033|0xC033	main_table	50	0x0042D5BC	0x00429362	1	mov eax, dword_4A99F0	entry target only; parameters/length/state pending semantic pass
+52	0x0034	0x0034|0x4034|0x8034|0xC034	main_table	51	0x0042D5C0	0x004293AC	1	movsx ecx, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+53	0x0035	0x0035|0x4035|0x8035|0xC035	main_table	52	0x0042D5C4	0x0042949D	1	mov eax, dword_4A9934	entry target only; parameters/length/state pending semantic pass
+54	0x0036	0x0036|0x4036|0x8036|0xC036	main_table	53	0x0042D5C8	0x004294C0	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+55	0x0037	0x0037|0x4037|0x8037|0xC037	main_table	54	0x0042D5CC	0x004295F3	3	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+56	0x0038	0x0038|0x4038|0x8038|0xC038	main_table	55	0x0042D5D0	0x004295F3	3	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+57	0x0039	0x0039|0x4039|0x8039|0xC039	main_table	56	0x0042D5D4	0x004295F3	3	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+58	0x003A	0x003A|0x403A|0x803A|0xC03A	main_table	57	0x0042D5D8	0x0042B1F1	2	push 0A4h	entry target only; parameters/length/state pending semantic pass
+59	0x003B	0x003B|0x403B|0x803B|0xC03B	main_table	58	0x0042D5DC	0x0042967B	1	mov eax, dword_4AB784	entry target only; parameters/length/state pending semantic pass
+60	0x003C	0x003C|0x403C|0x803C|0xC03C	main_table	59	0x0042D5E0	0x00429693	2	mov ecx, dword_4C9A18	entry target only; parameters/length/state pending semantic pass
+61	0x003D	0x003D|0x403D|0x803D|0xC03D	main_table	60	0x0042D5E4	0x00429693	2	mov ecx, dword_4C9A18	entry target only; parameters/length/state pending semantic pass
+62	0x003E	0x003E|0x403E|0x803E|0xC03E	main_table	61	0x0042D5E8	0x004296DE	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+63	0x003F	0x003F|0x403F|0x803F|0xC03F	main_table	62	0x0042D5EC	0x00429A1B	1	lea edx, [ebx+4]	entry target only; parameters/length/state pending semantic pass
+64	0x0040	0x0040|0x4040|0x8040|0xC040	main_table	63	0x0042D5F0	0x00429AD2	1	mov ecx, 20h	entry target only; parameters/length/state pending semantic pass
+65	0x0041	0x0041|0x4041|0x8041|0xC041	main_table	64	0x0042D5F4	0x00429AE8	1	mov cx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+66	0x0042	0x0042|0x4042|0x8042|0xC042	main_table	65	0x0042D5F8	0x00429B14	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+67	0x0043	0x0043|0x4043|0x8043|0xC043	main_table	66	0x0042D5FC	0x00429B62	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+68	0x0044	0x0044|0x4044|0x8044|0xC044	main_table	67	0x0042D600	0x00429BB5	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+69	0x0045	0x0045|0x4045|0x8045|0xC045	main_table	68	0x0042D604	0x00429C37	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+70	0x0046	0x0046|0x4046|0x8046|0xC046	main_table	69	0x0042D608	0x00429066	3	mov ecx, dword_4A98C0	entry target only; parameters/length/state pending semantic pass
+71	0x0047	0x0047|0x4047|0x8047|0xC047	main_table	70	0x0042D60C	0x00429CBC	1	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+72	0x0048	0x0048|0x4048|0x8048|0xC048	main_table	71	0x0042D610	0x00429D0F	1	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+73	0x0049	0x0049|0x4049|0x8049|0xC049	main_table	72	0x0042D614	0x00429066	3	mov ecx, dword_4A98C0	entry target only; parameters/length/state pending semantic pass
+74	0x004A	0x004A|0x404A|0x804A|0xC04A	main_table	73	0x0042D618	0x00429D43	1	mov dword_4A9A00, 0	entry target only; parameters/length/state pending semantic pass
+75	0x004B	0x004B|0x404B|0x804B|0xC04B	main_table	74	0x0042D61C	0x00429D70	1	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+76	0x004C	0x004C|0x404C|0x804C|0xC04C	main_table	75	0x0042D620	0x00429DA6	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+77	0x004D	0x004D|0x404D|0x804D|0xC04D	main_table	76	0x0042D624	0x00429F7B	2	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+78	0x004E	0x004E|0x404E|0x804E|0xC04E	main_table	77	0x0042D628	0x00429F7B	2	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+79	0x004F	0x004F|0x404F|0x804F|0xC04F	main_table	78	0x0042D62C	0x0042A0A6	1	push 0B4h	entry target only; parameters/length/state pending semantic pass
+80	0x0050	0x0050|0x4050|0x8050|0xC050	main_table	79	0x0042D630	0x0042A1EF	1	mov edx, dword_4A1360	entry target only; parameters/length/state pending semantic pass
+81	0x0051	0x0051|0x4051|0x8051|0xC051	main_table	80	0x0042D634	0x0042A200	1	push 0B4h	entry target only; parameters/length/state pending semantic pass
+82	0x0052	0x0052|0x4052|0x8052|0xC052	main_table	81	0x0042D638	0x0042A2C6	1	mov eax, dword_4BA6E0	entry target only; parameters/length/state pending semantic pass
+83	0x0053	0x0053|0x4053|0x8053|0xC053	main_table	82	0x0042D63C	0x0042A341	1	mov ax, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+84	0x0054	0x0054|0x4054|0x8054|0xC054	main_table	83	0x0042D640	0x0042A54C	1	mov ax, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+85	0x0055	0x0055|0x4055|0x8055|0xC055	main_table	84	0x0042D644	0x0042A611	1	mov ecx, dword_4A0E7C	entry target only; parameters/length/state pending semantic pass
+86	0x0056	0x0056|0x4056|0x8056|0xC056	main_table	85	0x0042D648	0x0042A673	1	mov eax, dword_4BA6E0	entry target only; parameters/length/state pending semantic pass
+87	0x0057	0x0057|0x4057|0x8057|0xC057	main_table	86	0x0042D64C	0x0042A6CB	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+88	0x0058	0x0058|0x4058|0x8058|0xC058	main_table	87	0x0042D650	0x0042A727	1	call sub_40F500	entry target only; parameters/length/state pending semantic pass
+89	0x0059	0x0059|0x4059|0x8059|0xC059	main_table	88	0x0042D654	0x00427B8F	8	mov [esp+60h+var_4C], 0FFFDh	entry target only; parameters/length/state pending semantic pass
+90	0x005A	0x005A|0x405A|0x805A|0xC05A	main_table	89	0x0042D658	0x00427B8F	8	mov [esp+60h+var_4C], 0FFFDh	entry target only; parameters/length/state pending semantic pass
+91	0x005B	0x005B|0x405B|0x805B|0xC05B	main_table	90	0x0042D65C	0x0042B287	2	cmp word ptr [esp+60h+var_3C], 5Bh	entry target only; parameters/length/state pending semantic pass
+92	0x005C	0x005C|0x405C|0x805C|0xC05C	main_table	91	0x0042D660	0x0042A756	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+93	0x005D	0x005D|0x405D|0x805D|0xC05D	main_table	92	0x0042D664	0x0042A792	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+94	0x005E	0x005E|0x405E|0x805E|0xC05E	main_table	93	0x0042D668	0x0042A7CE	1	mov edx, dword_4C9A18	entry target only; parameters/length/state pending semantic pass
+95	0x005F	0x005F|0x405F|0x805F|0xC05F	main_table	94	0x0042D66C	0x0042A7EE	1	mov edx, dword_4C9A18	entry target only; parameters/length/state pending semantic pass
+96	0x0060	0x0060|0x4060|0x8060|0xC060	main_table	95	0x0042D670	0x0042A80E	1	mov edx, dword_4B7BCC	entry target only; parameters/length/state pending semantic pass
+97	0x0061	0x0061|0x4061|0x8061|0xC061	main_table	96	0x0042D674	0x0042AD3C	1	mov eax, dword_4CAE8C	entry target only; parameters/length/state pending semantic pass
+98	0x0062	0x0062|0x4062|0x8062|0xC062	main_table	97	0x0042D678	0x0042C7EA	1	add ebx, 4	entry target only; parameters/length/state pending semantic pass
+99	0x0063	0x0063|0x4063|0x8063|0xC063	special_eq_99	n/a	n/a	0x0042AD75	1	mov ecx, dword_4B7AC8	compare global 0x004B7AC8 with u16 operand; wait without advance or advance 4
+100	0x0064	0x0064|0x4064|0x8064|0xC064	secondary_table	0	0x0042D67C	0x0042B3B0	1	mov si, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+101	0x0065	0x0065|0x4065|0x8065|0xC065	secondary_table	1	0x0042D680	0x0042B43B	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+102	0x0066	0x0066|0x4066|0x8066|0xC066	secondary_table	2	0x0042D684	0x0042C567	8	mov ecx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+103	0x0067	0x0067|0x4067|0x8067|0xC067	secondary_table	3	0x0042D688	0x0042C567	8	mov ecx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+104	0x0068	0x0068|0x4068|0x8068|0xC068	secondary_table	4	0x0042D68C	0x0042B47E	1	mov edx, dword_4A1360	entry target only; parameters/length/state pending semantic pass
+105	0x0069	0x0069|0x4069|0x8069|0xC069	secondary_table	5	0x0042D690	0x0042B4B9	1	mov edx, dword_4A1360	entry target only; parameters/length/state pending semantic pass
+106	0x006A	0x006A|0x406A|0x806A|0xC06A	secondary_table	6	0x0042D694	0x0042B4CA	2	cmp word ptr [esp+60h+var_3C], 9Ah	entry target only; parameters/length/state pending semantic pass
+107	0x006B	0x006B|0x406B|0x806B|0xC06B	secondary_table	7	0x0042D698	0x0042B50F	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+108	0x006C	0x006C|0x406C|0x806C|0xC06C	secondary_table	8	0x0042D69C	0x0042B5F2	1	mov ax, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+109	0x006D	0x006D|0x406D|0x806D|0xC06D	secondary_table	9	0x0042D6A0	0x0042B63C	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+110	0x006E	0x006E|0x406E|0x806E|0xC06E	secondary_table	10	0x0042D6A4	0x0042B6A5	2	mov edx, dword_49E0C4	entry target only; parameters/length/state pending semantic pass
+111	0x006F	0x006F|0x406F|0x806F|0xC06F	secondary_table	11	0x0042D6A8	0x0042B6A5	2	mov edx, dword_49E0C4	entry target only; parameters/length/state pending semantic pass
+112	0x0070	0x0070|0x4070|0x8070|0xC070	secondary_table	12	0x0042D6AC	0x0042B70C	1	mov eax, dword_4BAB9C	entry target only; parameters/length/state pending semantic pass
+113	0x0071	0x0071|0x4071|0x8071|0xC071	secondary_table	13	0x0042D6B0	0x0042B723	1	mov edx, dword_4AB784	entry target only; parameters/length/state pending semantic pass
+114	0x0072	0x0072|0x4072|0x8072|0xC072	secondary_table	14	0x0042D6B4	0x0042B739	1	mov eax, dword_4B7380	entry target only; parameters/length/state pending semantic pass
+115	0x0073	0x0073|0x4073|0x8073|0xC073	secondary_table	15	0x0042D6B8	0x0042B7FC	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+116	0x0074	0x0074|0x4074|0x8074|0xC074	secondary_table	16	0x0042D6BC	0x0042B83A	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+117	0x0075	0x0075|0x4075|0x8075|0xC075	secondary_table	17	0x0042D6C0	0x0042C567	8	mov ecx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+118	0x0076	0x0076|0x4076|0x8076|0xC076	secondary_table	18	0x0042D6C4	0x0042B8E6	1	mov ax, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+119	0x0077	0x0077|0x4077|0x8077|0xC077	secondary_table	19	0x0042D6C8	0x0042B9C2	2	mov di, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+120	0x0078	0x0078|0x4078|0x8078|0xC078	secondary_table	20	0x0042D6CC	0x0042BAB8	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+121	0x0079	0x0079|0x4079|0x8079|0xC079	secondary_table	21	0x0042D6D0	0x0042BC2C	1	mov edx, dword_4A1360	entry target only; parameters/length/state pending semantic pass
+122	0x007A	0x007A|0x407A|0x807A|0xC07A	secondary_table	22	0x0042D6D4	0x0042BC3D	1	mov dword_4CAEB8, 0	entry target only; parameters/length/state pending semantic pass
+123	0x007B	0x007B|0x407B|0x807B|0xC07B	secondary_table	23	0x0042D6D8	0x0042BC4C	1	mov si, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+124	0x007C	0x007C|0x407C|0x807C|0xC07C	secondary_table	24	0x0042D6DC	0x0042BCF5	1	mov edx, dword_4A1360	entry target only; parameters/length/state pending semantic pass
+125	0x007D	0x007D|0x407D|0x807D|0xC07D	secondary_table	25	0x0042D6E0	0x0042BD06	1	mov eax, dword_4C99FC	entry target only; parameters/length/state pending semantic pass
+126	0x007E	0x007E|0x407E|0x807E|0xC07E	secondary_table	26	0x0042D6E4	0x0042BDBC	2	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+127	0x007F	0x007F|0x407F|0x807F|0xC07F	secondary_table	27	0x0042D6E8	0x0042BDBC	2	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+128	0x0080	0x0080|0x4080|0x8080|0xC080	secondary_table	28	0x0042D6EC	0x0042BE8A	1	mov ax, [ebx+4]	entry target only; parameters/length/state pending semantic pass
+129	0x0081	0x0081|0x4081|0x8081|0xC081	secondary_table	29	0x0042D6F0	0x0042BEFE	4	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+130	0x0082	0x0082|0x4082|0x8082|0xC082	secondary_table	30	0x0042D6F4	0x0042BEFE	4	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+131	0x0083	0x0083|0x4083|0x8083|0xC083	secondary_table	31	0x0042D6F8	0x0042BF72	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+132	0x0084	0x0084|0x4084|0x8084|0xC084	secondary_table	32	0x0042D6FC	0x0042C033	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+133	0x0085	0x0085|0x4085|0x8085|0xC085	secondary_table	33	0x0042D700	0x0042C234	1	mov edx, dword_4B7928	entry target only; parameters/length/state pending semantic pass
+134	0x0086	0x0086|0x4086|0x8086|0xC086	secondary_table	34	0x0042D704	0x0042C2C6	1	mov ax, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+135	0x0087	0x0087|0x4087|0x8087|0xC087	secondary_table	35	0x0042D708	0x0042C3B0	1	mov dword_4FBAB0, 4	entry target only; parameters/length/state pending semantic pass
+136	0x0088	0x0088|0x4088|0x8088|0xC088	secondary_table	36	0x0042D70C	0x0042C567	8	mov ecx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+137	0x0089	0x0089|0x4089|0x8089|0xC089	secondary_table	37	0x0042D710	0x0042C3F7	1	test dword_4ACDBC, 800000h	entry target only; parameters/length/state pending semantic pass
+138	0x008A	0x008A|0x408A|0x808A|0xC08A	secondary_table	38	0x0042D714	0x0042C49E	1	mov bx, [ebx+6]	entry target only; parameters/length/state pending semantic pass
+139	0x008B	0x008B|0x408B|0x808B|0xC08B	secondary_table	39	0x0042D718	0x0042B9C2	2	mov di, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+140	0x008C	0x008C|0x408C|0x808C|0xC08C	secondary_table	40	0x0042D71C	0x0042C567	8	mov ecx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+141	0x008D	0x008D|0x408D|0x808D|0xC08D	secondary_table	41	0x0042D720	0x0042C6DD	1	xor eax, eax	entry target only; parameters/length/state pending semantic pass
+142	0x008E	0x008E|0x408E|0x808E|0xC08E	secondary_table	42	0x0042D724	0x0042C732	1	xor ecx, ecx	entry target only; parameters/length/state pending semantic pass
+143	0x008F	0x008F|0x408F|0x808F|0xC08F	secondary_table	43	0x0042D728	0x0042C766	1	push 10h	entry target only; parameters/length/state pending semantic pass
+144	0x0090	0x0090|0x4090|0x8090|0xC090	secondary_table	44	0x0042D72C	0x0042C79D	1	mov ecx, 80000004h	entry target only; parameters/length/state pending semantic pass
+145	0x0091	0x0091|0x4091|0x8091|0xC091	secondary_table	45	0x0042D730	0x0042C567	8	mov ecx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+146	0x0092	0x0092|0x4092|0x8092|0xC092	secondary_table	46	0x0042D734	0x0042C567	8	mov ecx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+147	0x0093	0x0093|0x4093|0x8093|0xC093	secondary_table	47	0x0042D738	0x0042C7FB	1	push 46h	entry target only; parameters/length/state pending semantic pass
+148	0x0094	0x0094|0x4094|0x8094|0xC094	secondary_table	48	0x0042D73C	0x0042C81A	1	push 13h	entry target only; parameters/length/state pending semantic pass
+149	0x0095	0x0095|0x4095|0x8095|0xC095	secondary_table	49	0x0042D740	0x0042C839	1	push 13h	entry target only; parameters/length/state pending semantic pass
+150	0x0096	0x0096|0x4096|0x8096|0xC096	secondary_table	50	0x0042D744	0x0042C858	1	movsx eax, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+151	0x0097	0x0097|0x4097|0x8097|0xC097	secondary_table	51	0x0042D748	0x0042C8F8	1	movsx ecx, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+152	0x0098	0x0098|0x4098|0x8098|0xC098	secondary_table	52	0x0042D74C	0x0042C936	1	mov edx, dword_4B9EF8	entry target only; parameters/length/state pending semantic pass
+153	0x0099	0x0099|0x4099|0x8099|0xC099	secondary_table	53	0x0042D750	0x0042B1F1	2	push 0A4h	entry target only; parameters/length/state pending semantic pass
+154	0x009A	0x009A|0x409A|0x809A|0xC09A	secondary_table	54	0x0042D754	0x0042B4CA	2	cmp word ptr [esp+60h+var_3C], 9Ah	entry target only; parameters/length/state pending semantic pass
+155	0x009B	0x009B|0x409B|0x809B|0xC09B	secondary_table	55	0x0042D758	0x0042C95B	1	mov ecx, ArgList	entry target only; parameters/length/state pending semantic pass
+156	0x009C	0x009C|0x409C|0x809C|0xC09C	secondary_table	56	0x0042D75C	0x0042C9CE	1	mov ecx, dword_4CAE88	entry target only; parameters/length/state pending semantic pass
+157	0x009D	0x009D|0x409D|0x809D|0xC09D	secondary_table	57	0x0042D760	0x0042CA3A	1	mov ax, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+158	0x009E	0x009E|0x409E|0x809E|0xC09E	secondary_table	58	0x0042D764	0x0042CA7C	2	xor ecx, ecx	entry target only; parameters/length/state pending semantic pass
+159	0x009F	0x009F|0x409F|0x809F|0xC09F	secondary_table	59	0x0042D768	0x0042CA7C	2	xor ecx, ecx	entry target only; parameters/length/state pending semantic pass
+160	0x00A0	0x00A0|0x40A0|0x80A0|0xC0A0	secondary_table	60	0x0042D76C	0x0042CBB0	1	mov esi, 1	entry target only; parameters/length/state pending semantic pass
+161	0x00A1	0x00A1|0x40A1|0x80A1|0xC0A1	secondary_table	61	0x0042D770	0x0042CBCC	1	call _AIL_serve@0	entry target only; parameters/length/state pending semantic pass
+162	0x00A2	0x00A2|0x40A2|0x80A2|0xC0A2	secondary_table	62	0x0042D774	0x0042B287	2	cmp word ptr [esp+60h+var_3C], 5Bh	entry target only; parameters/length/state pending semantic pass
+163	0x00A3	0x00A3|0x40A3|0x80A3|0xC0A3	secondary_table	63	0x0042D778	0x0042CBFF	2	movsx esi, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+164	0x00A4	0x00A4|0x40A4|0x80A4|0xC0A4	secondary_table	64	0x0042D77C	0x0042CBFF	2	movsx esi, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+165	0x00A5	0x00A5|0x40A5|0x80A5|0xC0A5	secondary_table	65	0x0042D780	0x0042CC35	2	mov [esp+60h+var_40], 0	entry target only; parameters/length/state pending semantic pass
+166	0x00A6	0x00A6|0x40A6|0x80A6|0xC0A6	secondary_table	66	0x0042D784	0x0042CC35	2	mov [esp+60h+var_40], 0	entry target only; parameters/length/state pending semantic pass
+167	0x00A7	0x00A7|0x40A7|0x80A7|0xC0A7	secondary_table	67	0x0042D788	0x0042BEFE	4	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+168	0x00A8	0x00A8|0x40A8|0x80A8|0xC0A8	secondary_table	68	0x0042D78C	0x0042BEFE	4	mov dx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+169	0x00A9	0x00A9|0x40A9|0x80A9|0xC0A9	secondary_table	69	0x0042D790	0x0042ADB7	2	mov ax, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+170	0x00AA	0x00AA|0x40AA|0x80AA|0xC0AA	secondary_table	70	0x0042D794	0x0042CCF7	4	mov edx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+171	0x00AB	0x00AB|0x40AB|0x80AB|0xC0AB	secondary_table	71	0x0042D798	0x0042CCF7	4	mov edx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+172	0x00AC	0x00AC|0x40AC|0x80AC|0xC0AC	secondary_table	72	0x0042D79C	0x0042CCF7	4	mov edx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+173	0x00AD	0x00AD|0x40AD|0x80AD|0xC0AD	secondary_table	73	0x0042D7A0	0x0042CCF7	4	mov edx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+174	0x00AE	0x00AE|0x40AE|0x80AE|0xC0AE	secondary_table	74	0x0042D7A4	0x0042C567	8	mov ecx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+175	0x00AF	0x00AF|0x40AF|0x80AF|0xC0AF	secondary_table	75	0x0042D7A8	0x0042CDED	1	mov edx, dword_4B7AA0	entry target only; parameters/length/state pending semantic pass
+176	0x00B0	0x00B0|0x40B0|0x80B0|0xC0B0	secondary_table	76	0x0042D7AC	0x0042CE12	1	mov edx, dword_4B7AA0	entry target only; parameters/length/state pending semantic pass
+177	0x00B1	0x00B1|0x40B1|0x80B1|0xC0B1	secondary_table	77	0x0042D7B0	0x0042CE32	1	test ch, 80h	entry target only; parameters/length/state pending semantic pass
+178	0x00B2	0x00B2|0x40B2|0x80B2|0xC0B2	secondary_table	78	0x0042D7B4	0x0042CF7C	1	mov bx, [ebx+2]	entry target only; parameters/length/state pending semantic pass
+179	0x00B3	0x00B3|0x40B3|0x80B3|0xC0B3	secondary_table	79	0x0042D7B8	0x0042CFBD	1	movsx eax, word ptr [ebx+4]	entry target only; parameters/length/state pending semantic pass
+180	0x00B4	0x00B4|0x40B4|0x80B4|0xC0B4	secondary_table	80	0x0042D7BC	0x0042D041	1	add ebx, 2	entry target only; parameters/length/state pending semantic pass
+181	0x00B5	0x00B5|0x40B5|0x80B5|0xC0B5	secondary_table	81	0x0042D7C0	0x0042B070	5	mov edx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+182	0x00B6	0x00B6|0x40B6|0x80B6|0xC0B6	secondary_table	82	0x0042D7C4	0x0042B070	5	mov edx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+183	0x00B7	0x00B7|0x40B7|0x80B7|0xC0B7	secondary_table	83	0x0042D7C8	0x0042B070	5	mov edx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+184	0x00B8	0x00B8|0x40B8|0x80B8|0xC0B8	secondary_table	84	0x0042D7CC	0x0042B070	5	mov edx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+185	0x00B9	0x00B9|0x40B9|0x80B9|0xC0B9	secondary_table	85	0x0042D7D0	0x0042B070	5	mov edx, [esp+60h+lpString2]	entry target only; parameters/length/state pending semantic pass
+186	0x00BA	0x00BA|0x40BA|0x80BA|0xC0BA	secondary_table	86	0x0042D7D4	0x0042D05C	2	movsx eax, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+187	0x00BB	0x00BB|0x40BB|0x80BB|0xC0BB	secondary_table	87	0x0042D7D8	0x0042D05C	2	movsx eax, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+188	0x00BC	0x00BC|0x40BC|0x80BC|0xC0BC	secondary_table	88	0x0042D7DC	0x0042D0D8	3	movsx eax, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+189	0x00BD	0x00BD|0x40BD|0x80BD|0xC0BD	secondary_table	89	0x0042D7E0	0x0042D0D8	3	movsx eax, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+190	0x00BE	0x00BE|0x40BE|0x80BE|0xC0BE	secondary_table	90	0x0042D7E4	0x0042D0D8	3	movsx eax, word ptr [ebx+2]	entry target only; parameters/length/state pending semantic pass
+191	0x00BF	0x00BF|0x40BF|0x80BF|0xC0BF	secondary_table	91	0x0042D7E8	0x0042D170	1	mov eax, dword_4A99F0	entry target only; parameters/length/state pending semantic pass
+192	0x00C0	0x00C0|0x40C0|0x80C0|0xC0C0	secondary_table	92	0x0042D7EC	0x0042D1AA	1	cmp dword_4B7380, 2	entry target only; parameters/length/state pending semantic pass
+193	0x00C1	0x00C1|0x40C1|0x80C1|0xC0C1	secondary_table	93	0x0042D7F0	0x0042D1D5	1	call sub_484DA0	entry target only; parameters/length/state pending semantic pass
+1024	0x0400	0x0400|0x4400|0x8400|0xC400	special_eq_1024	n/a	n/a	0x0042D200	1	add ebx, 2	advance 2; set local continue flag; redispatch in same call
+1025	0x0401	0x0401|0x4401|0x8401|0xC401	special_eq_1025	n/a	n/a	0x0042D49F	1	add word ptr [ebp+0], 2	advance 2; clear continue flags; yield with return 1
+1026	0x0402	0x0402|0x4402|0x8402|0xC402	special_eq_1026	n/a	n/a	0x0042D1EA	1	add ebx, 2	advance 2; set ESI continue flag; redispatch in same call
+16383	0x3FFF	0x3FFF|0x7FFF|0xBFFF|0xFFFF	special_eq_16383	n/a	n/a	0x0042D24E	1	mov eax, [esp+60h+arg_0]	enter TalkEnd cleanup path; full state effects require opcode semantics pass
