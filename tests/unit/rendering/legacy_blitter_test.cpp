@@ -798,6 +798,195 @@ void test_rle_spans_and_horizontal_direction(
     );
 }
 
+void test_rle_run_edge_copy(openswd3::test::Context& test) {
+    constexpr u16 kRgb555Edge = 0x03E0U;
+    const std::array<std::vector<u16>, 1> split_rows{
+        std::vector<u16>{
+            0x0004U,
+            0x1111U,
+            0x2222U,
+            0x3333U,
+            0x4444U,
+            0x4002U,
+            0x0003U,
+            0x5555U,
+            0x6666U,
+            0x7777U,
+            0x0000U,
+        },
+    };
+    const std::vector<u8> split_source = make_rle(9U, 1U, split_rows);
+    LegacyFramebuffer forward(LegacySurfaceGeometry{
+        .pitch_bytes = 18,
+        .width = 9,
+        .height = 1,
+    });
+    std::array<i32, 33> zero_offsets{};
+    LegacyRleRowJitterState jitter{
+        .group = 1,
+        .offsets = zero_offsets,
+    };
+    test.expect_equal(
+        blit(
+            forward,
+            LegacyBlitSource{.bytes = split_source},
+            LegacyBlitRequest{
+                .source_width = 9,
+                .source_height = 1,
+                .flags = 0x18U,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "RLE run-edge copy forward"
+    );
+    constexpr std::array<u16, 9> kExpectedForward{
+        kRgb555Edge,
+        0x2222U,
+        0x3333U,
+        kRgb555Edge,
+        0x0000U,
+        0x0000U,
+        kRgb555Edge,
+        0x6666U,
+        kRgb555Edge,
+    };
+    test.expect_true(
+        std::ranges::equal(forward.physical_pixels(), kExpectedForward),
+        "forward mode replaces both visible ends of every literal run"
+    );
+    test.expect_equal(
+        jitter.phase_bytes,
+        4U,
+        "forward run-edge copy advances the 0x84-byte jitter phase"
+    );
+
+    const std::array<std::vector<u16>, 1> clipped_rows{
+        std::vector<u16>{
+            0x0004U,
+            0x1111U,
+            0x2222U,
+            0x3333U,
+            0x4444U,
+            0x0000U,
+        },
+    };
+    const std::vector<u8> clipped_source = make_rle(
+        4U,
+        1U,
+        clipped_rows
+    );
+    LegacyFramebuffer clipped(LegacySurfaceGeometry{
+        .pitch_bytes = 6,
+        .width = 3,
+        .height = 1,
+    });
+    test.expect_equal(
+        blit(
+            clipped,
+            LegacyBlitSource{.bytes = clipped_source},
+            LegacyBlitRequest{
+                .destination_x = -1,
+                .source_width = 4,
+                .source_height = 1,
+                .flags = 0x18U,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "clipped RLE run-edge copy"
+    );
+    constexpr std::array<u16, 3> kExpectedClipped{
+        kRgb555Edge, 0x3333U, kRgb555Edge,
+    };
+    test.expect_true(
+        std::ranges::equal(clipped.physical_pixels(), kExpectedClipped),
+        "a clipped literal prefix makes the first actually written pixel the edge"
+    );
+
+    const std::array<std::vector<u16>, 1> reverse_rows{
+        std::vector<u16>{
+            0x0003U,
+            0x1111U,
+            0x2222U,
+            0x3333U,
+            0x0000U,
+        },
+    };
+    const std::vector<u8> reverse_source = make_rle(
+        3U,
+        1U,
+        reverse_rows
+    );
+    LegacyFramebuffer reverse(LegacySurfaceGeometry{
+        .pitch_bytes = 10,
+        .width = 5,
+        .height = 1,
+    });
+    std::ranges::fill(reverse.physical_pixels(), 0xA55AU);
+    jitter.phase_bytes = 0U;
+    test.expect_equal(
+        blit(
+            reverse,
+            LegacyBlitSource{.bytes = reverse_source},
+            LegacyBlitRequest{
+                .destination_x = 1,
+                .source_width = 3,
+                .source_height = 1,
+                .flags = 0x19U,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "RLE run-edge copy reverse"
+    );
+    constexpr std::array<u16, 5> kExpectedReverse{
+        kRgb555Edge, 0x3333U, 0x2222U, kRgb555Edge, 0xA55AU,
+    };
+    test.expect_true(
+        std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
+        "reverse mode preserves the original off-by-one edge write to the pixel left of the literal run"
+    );
+    test.expect_equal(
+        jitter.phase_bytes,
+        0U,
+        "reverse run-edge copy preserves the jitter phase"
+    );
+
+    LegacyBlitEffectState rgb565_effects{};
+    openswd3::rendering::select_legacy_pixel_conversion(
+        rgb565_effects.pixel_conversion,
+        LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU}
+    );
+    LegacyFramebuffer rgb565(LegacySurfaceGeometry{
+        .pitch_bytes = 6,
+        .width = 3,
+        .height = 1,
+    });
+    test.expect_equal(
+        blit(
+            rgb565,
+            LegacyBlitSource{.bytes = reverse_source},
+            LegacyBlitRequest{
+                .source_width = 3,
+                .source_height = 1,
+                .flags = 0x18U,
+            },
+            rgb565_effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "RGB565 RLE run-edge copy"
+    );
+    constexpr std::array<u16, 3> kExpectedRgb565{
+        0x0F80U, 0x2222U, 0x0F80U,
+    };
+    test.expect_true(
+        std::ranges::equal(rgb565.physical_pixels(), kExpectedRgb565),
+        "run-edge color applies the selected forward conversion to the effective green mask"
+    );
+}
+
 void test_rle_vertical_flip_row_base(openswd3::test::Context& test) {
     const std::array<std::vector<u16>, 2> rows{
         std::vector<u16>{0x0002U, 0x1111U, 0x2222U, 0x0000U},
@@ -1888,6 +2077,27 @@ void test_safe_abnormal_boundaries(openswd3::test::Context& test) {
         "active jitter requires its exact offset table"
     );
 
+    std::ranges::fill(framebuffer.physical_pixels(), 0xA55AU);
+    test.expect_equal(
+        blit(
+            framebuffer,
+            LegacyBlitSource{.bytes = rle},
+            LegacyBlitRequest{
+                .source_width = 1,
+                .source_height = 1,
+                .flags = 0x19U,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::destination_out_of_bounds,
+        "reverse run-edge BUG is isolated when its extra write precedes the framebuffer"
+    );
+    test.expect_equal(
+        framebuffer.physical_pixels().front(),
+        static_cast<u16>(0x03E0U),
+        "reverse run-edge boundary preserves the in-range write before rejecting the extra write"
+    );
+
     constexpr std::array<u16, 2> kPixels{1U, 2U};
     const std::vector<u8> direct = direct_pixels(kPixels);
     test.expect_equal(
@@ -1975,6 +2185,37 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         std::ranges::count(framebuffer.physical_pixels(), 0x0000U),
         static_cast<std::ptrdiff_t>(54),
         "literal zeroes in the real frame are copied rather than keyed"
+    );
+
+    LegacyFramebuffer edged(LegacySurfaceGeometry{
+        .pitch_bytes = 32,
+        .width = 16,
+        .height = 16,
+    });
+    std::ranges::fill(edged.physical_pixels(), 0xA55AU);
+    test.expect_equal(
+        blit(
+            edged,
+            LegacyBlitSource{.bytes = decompressed},
+            LegacyBlitRequest{
+                .source_width = 16,
+                .source_height = 16,
+                .flags = 0x18U,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "real TSW RLE run-edge copy"
+    );
+    test.expect_equal(
+        framebuffer_fnv1a(edged.physical_pixels()),
+        0x28FED51BD6E4E461ULL,
+        "real TSW run-edge copy produces the independently parsed hash"
+    );
+    test.expect_equal(
+        std::ranges::count(edged.physical_pixels(), 0x03E0U),
+        static_cast<std::ptrdiff_t>(12),
+        "six real literal runs receive two RGB555 edge pixels each"
     );
 
     constexpr std::array<u8, 4> kFillBytes{0x34U, 0x12U, 0x00U, 0x00U};
@@ -2157,6 +2398,7 @@ int main() {
     test_raw_color_key_copy(test);
     test_sparse_and_unsupported_execution(test);
     test_rle_spans_and_horizontal_direction(test);
+    test_rle_run_edge_copy(test);
     test_rle_vertical_flip_row_base(test);
     test_rle_jitter_and_header_gate(test);
     test_rle_destination_offset(test);

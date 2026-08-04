@@ -88,7 +88,8 @@ EXPECTED_DISPATCH = {
     148: "sub_417950",
 }
 
-RAW_SEMANTIC_OVERRIDES = {
+SEMANTIC_OVERRIDES = {
+    25: "literal copy with right edge plus one pixel left of the copied run (original reverse off-by-one bug)",
     132: "raw/uncompressed color-key copy",
     133: "raw/uncompressed color-key copy with 16/32-bit reverse comparison bug",
 }
@@ -379,7 +380,7 @@ def write_dispatch(recovered: dict[int, tuple[str, int]]) -> None:
                 "direction": direction_for_slot(visible_slot),
                 "function": function,
                 "assignment_address": f"0x{assignment_address:08X}",
-                "semantic_family": RAW_SEMANTIC_OVERRIDES.get(
+                "semantic_family": SEMANTIC_OVERRIDES.get(
                     slot,
                     mode.name if not raw_family else f"raw/uncompressed {mode.name}",
                 ),

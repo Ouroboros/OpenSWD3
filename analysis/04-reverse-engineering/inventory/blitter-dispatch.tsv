@@ -18,7 +18,7 @@ slot	slot_hex	raw_family	mode	mode_hex	flip_bits	direction	function	assignment_a
 22	0x16	0	20	0x14	2	horizontal forward	sub_41D340	0x00416DE5	15-step packed-field opacity	closed	skip
 23	0x17	0	20	0x14	3	horizontal reverse	sub_41E5C0	0x00416DEB	15-step packed-field opacity	closed	skip
 24	0x18	0	24	0x18	0	horizontal forward	sub_41CCF0	0x00416E76	literal copy with run-edge green-mask replacement	closed	skip
-25	0x19	0	24	0x18	1	horizontal reverse	sub_41D010	0x00416E80	literal copy with run-edge green-mask replacement	closed	skip
+25	0x19	0	24	0x18	1	horizontal reverse	sub_41D010	0x00416E80	literal copy with right edge plus one pixel left of the copied run (original reverse off-by-one bug)	closed	skip
 28	0x1C	0	28	0x1C	0	horizontal forward	sub_41B9F0	0x00416E8A	RLE vertical opacity fade	closed	skip
 32	0x20	0	32	0x20	0	horizontal forward	sub_4208D0	0x00416E94	vertically row-resampled per-channel saturated add	closed	skip
 33	0x21	0	32	0x20	1	horizontal reverse	sub_420D70	0x00416E9E	vertically row-resampled per-channel saturated add	closed	skip
