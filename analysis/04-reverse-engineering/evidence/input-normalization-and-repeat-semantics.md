@@ -1,6 +1,6 @@
 # 输入归一化、连按与重复语义
 
-最后更新：2026-08-02
+最后更新：2026-08-04
 
 状态：核心状态机、当前绑定、鼠标坐标、左键抑制、静止检测、原始键查询与合成写入已闭环
 
@@ -190,3 +190,9 @@ DirectInput 初始化返回值、设备失败时未检查 HRESULT 等旧错误�
 - `inventory/input-mouse-coordinate-rebases.tsv`
 
 生成器锁定原 EXE、完整汇编和当前 `Env.dat` 哈希，并硬校验 18 个记录更新调用、20 条记录、8 类状态转移、242 条直接访问、77 个 raw query、5 个合成写入和 8 个坐标重基准。伪码不参与生成。
+
+## B3.4 实现验证
+
+`LegacyInputRecord` 以四个 32 位字段直接保持 0x10 字节布局，`update_input_record` 按 `0x004053C0` 的分支顺序实现。UT 覆盖八类转移、严格 `>150`、释放时钟回绕、按住计数回绕，以及全零记录首帧已按下时 multiplicity 仍为零的原始异常。
+
+Windows LLVM `core` 与 `app` 均完成构建并通过 38/38 CTest。当前状态为 `assembly_exact`、`blocked_runtime_oracle`；整帧 20 条组合尚属 B3.7，未以单记录测试冒充完成。

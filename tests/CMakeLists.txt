@@ -655,3 +655,21 @@ add_test(
     NAME input_time_rng.legacy_frame_clock
     COMMAND openswd3_input_time_rng_legacy_frame_clock_tests
 )
+
+add_executable(
+    openswd3_input_time_rng_legacy_input_tests
+    unit/input_time_rng/legacy_input_test.cpp
+)
+target_include_directories(
+    openswd3_input_time_rng_legacy_input_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_input_time_rng_legacy_input_tests
+    PRIVATE openswd3_input_time_rng
+)
+
+add_test(
+    NAME input_time_rng.legacy_input
+    COMMAND openswd3_input_time_rng_legacy_input_tests
+)

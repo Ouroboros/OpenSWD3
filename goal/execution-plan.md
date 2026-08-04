@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v46
+版本：v47
 
 最后更新：2026-08-04
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：B3.4 · 默认绑定与单条 16 字节输入记录状态机
+当前步骤：B3.5 · DIK 快照与 SDL scancode 适配
 
 ## 1. 目标
 
@@ -212,6 +212,6 @@
 6. `[x]` B1：`compat + platform_sdl3 + app` 已完成接口级逆向、实现、逐基本块复核、Windows LLVM `core`/`app` 构建、23 项 CTest 和真实 SDL3 窗口创建/关闭 smoke；状态为 `module_closed_pending_oracle`，只保留已登记的原程序动态差分阻塞。
 7. `[x]` B2：历史 63 项范围已完成有限收口审计；修正 5 项模块归属并补齐 6 个真实缺口后，当前 58 项为 57 项实现与 1 项不可达。Windows LLVM `core`/`app`、34/34 CTest 和全套真实资产回归通过；状态为 `module_closed_pending_oracle`。
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
-9. `[>]` B3：26 项函数范围、状态所有权、平台端口与确定性测试策略已经建立；两套 RNG、两次独立播种顺序、帧间隔 helper 和 32 位毫秒门控已实现，Windows LLVM `core`/`app` 为 37/37 CTest。当前实现默认绑定与单条 16 字节输入记录状态机。
+9. `[>]` B3：26 项函数范围、状态所有权、平台端口与确定性测试策略已经建立；两套 RNG、帧时钟、0x80 字节默认绑定块和单条 16 字节输入记录状态机已实现，Windows LLVM `core`/`app` 为 38/38 CTest。当前实现 DIK 快照 query/synthetic write 与 SDL scancode 适配。
 
 当前只执行 B3，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B3 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。

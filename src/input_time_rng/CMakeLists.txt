@@ -2,6 +2,7 @@ add_library(
     openswd3_input_time_rng
     STATIC
         legacy_frame_clock.cpp
+        legacy_input.cpp
         legacy_crt_rng.cpp
         legacy_secondary_rng.cpp
 )

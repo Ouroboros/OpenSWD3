@@ -53,3 +53,9 @@ C8 D0 CB CD 39 1C 9D 01 CF 36 13 1E 22 3B C9 D1
 ```
 
 当前 63 字节 `Env.dat` 的 16 个绑定字节与该序列逐字节一致。B2 的 `LegacyEnvironmentRecord::binding_bytes` 只表示物理文件顺序；后续输入运行时实现必须保留 0x80 字节兼容块的字段和复制语义，不能把两种布局混为一个数组。
+
+## 3. B3.4 实现验证
+
+`LegacyKeyBindingBlock` 明确保留 0x20 个 dword、总长 0x80 字节；默认初始化只写相对 word 索引 `0..10,12,16..19`。UT 先以哨兵填满整块，再验证 16 个物理位置的完整 dword 和其余间隙不变。
+
+Windows LLVM `core` 与 `app` 均完成构建并通过 38/38 CTest；验证状态仍为 `assembly_exact`、`asset_verified`。
