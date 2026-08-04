@@ -1,5 +1,6 @@
 #include "event_translation.hpp"
 #include "external_launch_sdl3.hpp"
+#include "keyboard_snapshot_sdl3.hpp"
 #include "legacy_command_line.hpp"
 #include "single_instance.hpp"
 #include "startup_dialog_sdl3.hpp"
@@ -509,7 +510,11 @@ public:
         openswd3::compat::u32
     ) override {}
 
-    void sample_input_device() override {}
+    void sample_input_device() override {
+        static_cast<void>(openswd3::platform_sdl3::sample_sdl_keyboard_state(
+            keyboard_snapshot_
+        ));
+    }
     void normalize_input() override {}
 
     void release_display_and_world_for_battle_entry() override {}
@@ -579,6 +584,7 @@ private:
     const openswd3::app::DisplayLifecycleState& display_state_;
     openswd3::app::FramePreparationState& frame_preparation_state_;
     openswd3::app::FrameCoordinatorState& frame_coordinator_state_;
+    openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard_snapshot_{};
     openswd3::app::ShutdownPorts& shutdown_ports_;
     openswd3::app::ProcessExitPorts& exit_ports_;
     bool& ok_;

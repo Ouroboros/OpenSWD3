@@ -10,6 +10,7 @@ using openswd3::compat::u32;
 using openswd3::input_time_rng::LegacyInputRecord;
 using openswd3::input_time_rng::LegacyKeyBinding;
 using openswd3::input_time_rng::LegacyKeyBindingBlock;
+using openswd3::input_time_rng::LegacyKeyboardSnapshot;
 
 void test_default_bindings(openswd3::test::Context& test) {
     constexpr u32 kUntouched = 0xA5A5A5A5U;
@@ -192,6 +193,46 @@ void test_zero_clock_release_quirk(openswd3::test::Context& test) {
     );
 }
 
+void test_raw_keyboard_snapshot(openswd3::test::Context& test) {
+    LegacyKeyboardSnapshot snapshot{};
+    snapshot[0x1EU] = 0x7FU;
+    test.expect_equal(
+        openswd3::input_time_rng::read_raw_key(snapshot, 0x1EU),
+        0U,
+        "raw query ignores every bit except 0x80"
+    );
+
+    openswd3::input_time_rng::synthesize_raw_key(snapshot, 0x1EU);
+    test.expect_equal(
+        snapshot[0x1EU],
+        static_cast<openswd3::compat::u8>(0xFFU),
+        "synthetic write preserves existing low bits"
+    );
+    test.expect_equal(
+        openswd3::input_time_rng::read_raw_key(snapshot, 0x1EU),
+        0x80U,
+        "raw query returns exactly 0x80"
+    );
+    test.expect_equal(
+        openswd3::input_time_rng::find_first_pressed_key(snapshot),
+        0x1EU,
+        "first-key query returns the lowest pressed DIK code"
+    );
+
+    snapshot.fill(0U);
+    test.expect_equal(
+        openswd3::input_time_rng::find_first_pressed_key(snapshot),
+        0U,
+        "first-key query returns zero when no key is pressed"
+    );
+    snapshot[0U] = 0x80U;
+    test.expect_equal(
+        openswd3::input_time_rng::find_first_pressed_key(snapshot),
+        0U,
+        "pressed DIK zero is indistinguishable from no pressed key"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -200,5 +241,6 @@ int main() {
     test_release_transitions(test);
     test_press_transitions(test);
     test_zero_clock_release_quirk(test);
+    test_raw_keyboard_snapshot(test);
     return test.exit_code();
 }

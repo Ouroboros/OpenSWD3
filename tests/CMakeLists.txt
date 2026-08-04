@@ -673,3 +673,26 @@ add_test(
     NAME input_time_rng.legacy_input
     COMMAND openswd3_input_time_rng_legacy_input_tests
 )
+
+if(TARGET SDL3::SDL3)
+    add_executable(
+        openswd3_platform_keyboard_snapshot_sdl3_tests
+        unit/app/keyboard_snapshot_sdl3_test.cpp
+        ${PROJECT_SOURCE_DIR}/src/platform/sdl3/keyboard_snapshot_sdl3.cpp
+    )
+    target_include_directories(
+        openswd3_platform_keyboard_snapshot_sdl3_tests
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/support
+            ${PROJECT_SOURCE_DIR}/src/platform/sdl3
+    )
+    target_link_libraries(
+        openswd3_platform_keyboard_snapshot_sdl3_tests
+        PRIVATE openswd3_input_time_rng SDL3::SDL3
+    )
+
+    add_test(
+        NAME platform.keyboard_snapshot_sdl3
+        COMMAND openswd3_platform_keyboard_snapshot_sdl3_tests
+    )
+endif()

@@ -86,4 +86,30 @@ compat::u32 update_input_record(
     return record.held_sample_count;
 }
 
+compat::u32 read_raw_key(
+    const LegacyKeyboardSnapshot& snapshot,
+    const compat::u32 dik_code
+) noexcept {
+    return static_cast<compat::u32>(snapshot[dik_code] & 0x80U);
+}
+
+void synthesize_raw_key(
+    LegacyKeyboardSnapshot& snapshot,
+    const compat::u32 dik_code
+) noexcept {
+    snapshot[dik_code] |= 0x80U;
+}
+
+compat::u32 find_first_pressed_key(
+    const LegacyKeyboardSnapshot& snapshot
+) noexcept {
+    for (std::size_t index = 0U; index < snapshot.size(); ++index) {
+        if ((snapshot[index] & 0x80U) != 0U) {
+            return static_cast<compat::u32>(index);
+        }
+    }
+
+    return 0U;
+}
+
 }  // namespace openswd3::input_time_rng

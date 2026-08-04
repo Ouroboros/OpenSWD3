@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B3.5 DIK 快照 query/synthetic write 与 SDL scancode 适配
+当前单元：B3.6 鼠标采样、坐标夹取、rebase 和灵敏度合同
 
 ## 1. 范围与非范围
 
@@ -57,8 +57,8 @@ SDL3 只在平台层产生键盘、鼠标、时钟和文字输入样本。兼容
 3. `[x]` B3.2：恢复 CRT-compatible seed/rand 输出合同和两次独立 `time(NULL)` 注入顺序；SDL3 空播种端口已替换为真实两套 RNG，Windows LLVM `core`/`app` 为 36/36 CTest。
 4. `[x]` B3.3：复用并下沉既有帧门控，补齐 `0x0040DD20/0x0040DD30` 恒返回一合同；阈值等号、拒绝快照、`u32` 回绕、零间隔和不补帧已通过独立 UT，Windows LLVM `core`/`app` 为 37/37 CTest。
 5. `[x]` B3.4：实现 0x80 字节稀疏默认绑定块和单条 16 字节输入记录状态机；物理间隙、字段偏移、八类转移、严格 `>150`、回绕和全零首按异常均有固定 UT，Windows LLVM `core`/`app` 为 38/38 CTest。
-6. `[>]` B3.5：实现 DIK 快照 query/synthetic write 与 SDL scancode 适配表。
-7. `[ ]` B3.6：实现鼠标采样、坐标夹取、rebase 和灵敏度合同。
+6. `[x]` B3.5：实现 256 字节 DIK 快照、raw query、synthetic write、首键扫描和 SDL scancode 显式适配；默认绑定与扩展键映射有固定 UT，Windows LLVM `core` 为 38/38、`app` 为 39/39 CTest。
+7. `[>]` B3.6：实现鼠标采样、坐标夹取、rebase 和灵敏度合同。
 8. `[ ]` B3.7：组合单帧输入归一化，逐记录验证完整状态快照。
 9. `[ ]` B3.8：实现 DBCS/IME 编辑驱动并接入 UTF-16 边界前的旧字节缓冲。
 

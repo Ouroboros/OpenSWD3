@@ -10,6 +10,10 @@ namespace openswd3::input_time_rng {
 inline constexpr std::size_t kLegacyKeyBindingBlockSize = 0x80U;
 inline constexpr std::size_t kLegacyKeyBindingWordCount =
     kLegacyKeyBindingBlockSize / sizeof(compat::u32);
+inline constexpr std::size_t kLegacyKeyboardSnapshotSize = 0x100U;
+
+using LegacyKeyboardSnapshot =
+    std::array<compat::u8, kLegacyKeyboardSnapshotSize>;
 
 enum class LegacyKeyBinding : std::size_t {
     cancel,
@@ -63,7 +67,22 @@ struct LegacyInputRecord {
     compat::u32 current_input_milliseconds
 ) noexcept;
 
+[[nodiscard]] compat::u32 read_raw_key(
+    const LegacyKeyboardSnapshot& snapshot,
+    compat::u32 dik_code
+) noexcept;
+
+void synthesize_raw_key(
+    LegacyKeyboardSnapshot& snapshot,
+    compat::u32 dik_code
+) noexcept;
+
+[[nodiscard]] compat::u32 find_first_pressed_key(
+    const LegacyKeyboardSnapshot& snapshot
+) noexcept;
+
 static_assert(sizeof(LegacyKeyBindingBlock) == kLegacyKeyBindingBlockSize);
+static_assert(sizeof(LegacyKeyboardSnapshot) == kLegacyKeyboardSnapshotSize);
 static_assert(sizeof(LegacyInputRecord) == 0x10U);
 static_assert(offsetof(LegacyInputRecord, rapid_press_multiplicity) == 0x00U);
 static_assert(offsetof(LegacyInputRecord, release_milliseconds) == 0x04U);

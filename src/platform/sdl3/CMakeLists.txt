@@ -3,6 +3,7 @@ add_executable(
     event_translation.cpp
     external_launch_sdl3.cpp
     external_uri.cpp
+    keyboard_snapshot_sdl3.cpp
     legacy_command_line.cpp
     main.cpp
     single_instance.cpp
