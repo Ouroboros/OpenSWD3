@@ -21,6 +21,63 @@
 
 namespace openswd3::resource_io {
 
+bool legacy_exclusive_file_probe(
+    const std::filesystem::path& path,
+    const std::span<char> error_buffer
+) noexcept {
+#ifdef _WIN32
+    const HANDLE file = CreateFileW(
+        path.c_str(),
+        0U,
+        0U,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
+        nullptr
+    );
+    if (file == INVALID_HANDLE_VALUE) {
+        if (!error_buffer.empty()) {
+            const DWORD capacity = static_cast<DWORD>(std::min<std::size_t>(
+                error_buffer.size(),
+                0x80U
+            ));
+            static_cast<void>(FormatMessageA(
+                FORMAT_MESSAGE_FROM_SYSTEM,
+                nullptr,
+                GetLastError(),
+                0U,
+                error_buffer.data(),
+                capacity,
+                nullptr
+            ));
+        }
+
+        return false;
+    }
+
+    static_cast<void>(CloseHandle(file));
+    return true;
+#else
+    const int file = ::open(path.c_str(), O_RDONLY);
+    if (file == -1) {
+        if (!error_buffer.empty()) {
+            const char* const message = std::strerror(errno);
+            const std::size_t copied = std::min(
+                error_buffer.size() - 1U,
+                std::strlen(message)
+            );
+            std::copy_n(message, copied, error_buffer.begin());
+            error_buffer[copied] = '\0';
+        }
+
+        return false;
+    }
+
+    static_cast<void>(::close(file));
+    return true;
+#endif
+}
+
 struct LegacyFile::State {
 #ifdef _WIN32
     HANDLE file{INVALID_HANDLE_VALUE};

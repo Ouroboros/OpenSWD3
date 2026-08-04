@@ -16,6 +16,7 @@ using openswd3::compat::u8;
 using openswd3::compat::u32;
 using openswd3::resource_io::LegacyLzo1xResult;
 using openswd3::resource_io::LegacyLzo1xStatus;
+using openswd3::resource_io::compress_legacy_save_block;
 
 using Compressor = LegacyLzo1xResult (*)(
     std::span<const u8>,
@@ -393,6 +394,42 @@ void test_destination_boundary(openswd3::test::Context& test) {
     }
 }
 
+void test_save_allocation_wrapper(openswd3::test::Context& test) {
+    constexpr std::array<u8, 19> kSource{
+        'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
+        'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
+    };
+    constexpr std::array<u8, 12> kExpected{
+        0x02U, 'A', 'A', 'A', 'A', 'A',
+        0x2CU, 0x00U, 0x00U, 0x11U, 0x00U, 0x00U,
+    };
+
+    const auto block = compress_legacy_save_block(kSource);
+    test.expect_equal(
+        block.status,
+        LegacyLzo1xStatus::success,
+        "0x004267E0 save wrapper compression status"
+    );
+    test.expect_equal(
+        block.storage.size(),
+        kSource.size() + 0x20U,
+        "save wrapper allocates source length plus 0x20 bytes"
+    );
+    test.expect_equal(
+        block.bytes_written,
+        static_cast<u32>(kExpected.size()),
+        "save wrapper writes the compressed length output"
+    );
+    test.expect_true(
+        std::equal(
+            kExpected.begin(),
+            kExpected.end(),
+            block.storage.begin()
+        ),
+        "save wrapper returns the exact 14-bit compressed prefix"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -402,5 +439,6 @@ int main() {
     test_distance_boundaries(test);
     test_dictionary_widths(test);
     test_destination_boundary(test);
+    test_save_allocation_wrapper(test);
     return test.exit_code();
 }

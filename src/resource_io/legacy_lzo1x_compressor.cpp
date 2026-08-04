@@ -400,4 +400,26 @@ LegacyLzo1xResult compress_legacy_lzo1x_15(
     return compress_legacy_lzo1x_impl<15U>(source, destination);
 }
 
+LegacyLzo1xOwnedBlock compress_legacy_save_block(
+    const std::span<const compat::u8> source
+) {
+    LegacyLzo1xOwnedBlock block;
+    if (source.size() >
+        static_cast<std::size_t>(
+            std::numeric_limits<compat::u32>::max() - 0x20U
+        )) {
+        block.status = LegacyLzo1xStatus::size_overflow;
+        return block;
+    }
+
+    block.storage.resize(source.size() + 0x20U);
+    const LegacyLzo1xResult compressed = compress_legacy_lzo1x_14(
+        source,
+        block.storage
+    );
+    block.status = compressed.status;
+    block.bytes_written = compressed.bytes_written;
+    return block;
+}
+
 }  // namespace openswd3::resource_io

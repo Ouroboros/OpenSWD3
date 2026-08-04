@@ -282,6 +282,95 @@ LegacyEnvironmentEncodeResult encode_legacy_environment(
     return result;
 }
 
+bool rewrite_legacy_environment(
+    const std::filesystem::path& environment_file,
+    const LegacyEnvironmentRecord& record
+) {
+    LegacyFile file;
+    if (!file.open(
+            environment_file,
+            LegacyFileCreation::open_existing,
+            LegacyFileAccess::read_write
+        )) {
+        return false;
+    }
+
+    EnvironmentWindow window{};
+    const compat::u32 file_size = file.size();
+    if (file_size == std::numeric_limits<compat::u32>::max() ||
+        file_size > kLegacyEnvironmentWindowSize) {
+        static_cast<void>(file.close());
+        return false;
+    }
+    if (file_size != 0U) {
+        compat::u32 requested = file_size;
+        static_cast<void>(file.read(
+            std::span<compat::u8>{window}.first(file_size),
+            requested
+        ));
+    }
+
+    LegacyEnvironmentRecord rewritten = record;
+    if (read_u32(window, 0U) == kMarkedLayoutMarker) {
+        std::ranges::copy_n(
+            window.begin() + 0x1E,
+            rewritten.preserved_bytes.size(),
+            rewritten.preserved_bytes.begin()
+        );
+    } else {
+        rewritten.preserved_bytes.fill(0U);
+    }
+
+    const LegacyEnvironmentEncodeResult encoded =
+        encode_legacy_environment(rewritten);
+    if (encoded.status != LegacyEnvironmentCodecStatus::ok) {
+        static_cast<void>(file.close());
+        return false;
+    }
+
+    static_cast<void>(file.seek_begin_one_based(0));
+    compat::u32 requested = static_cast<compat::u32>(encoded.bytes.size());
+    const bool written = file.write(encoded.bytes, requested);
+    static_cast<void>(file.close());
+    return written;
+}
+
+bool initialize_legacy_environment(
+    const std::filesystem::path& environment_file,
+    const LegacyEnvironmentRecord& record
+) {
+    LegacyFile file;
+    if (!file.open(
+            environment_file,
+            LegacyFileCreation::open_always,
+            LegacyFileAccess::write
+        )) {
+        return false;
+    }
+
+    static_cast<void>(file.close());
+    return rewrite_legacy_environment(environment_file, record);
+}
+
+bool write_legacy_environment_binding_prefix(
+    const std::filesystem::path& environment_file,
+    const std::array<compat::u8, 16>& binding_bytes
+) {
+    LegacyFile file;
+    if (!file.open(
+            environment_file,
+            LegacyFileCreation::open_existing,
+            LegacyFileAccess::write
+        )) {
+        return false;
+    }
+
+    compat::u32 requested = static_cast<compat::u32>(binding_bytes.size());
+    const bool written = file.write(binding_bytes, requested);
+    static_cast<void>(file.close());
+    return written && requested == binding_bytes.size();
+}
+
 LegacyEnvironmentLoadResult load_legacy_environment(
     const std::filesystem::path& initial_file,
     const LegacyEnvironmentDirectoryResolver& resolve_stored_directory,

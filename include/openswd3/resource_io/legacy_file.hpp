@@ -9,6 +9,11 @@
 
 namespace openswd3::resource_io {
 
+[[nodiscard]] bool legacy_exclusive_file_probe(
+    const std::filesystem::path& path,
+    std::span<char> error_buffer = {}
+) noexcept;
+
 enum class LegacyFileCreation {
     open_existing,
     open_always,

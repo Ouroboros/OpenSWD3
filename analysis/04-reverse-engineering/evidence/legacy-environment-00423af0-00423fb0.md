@@ -1,8 +1,8 @@
 # `Env.dat` 带标记/无标记记录与迁移
 
-状态：B2.7a/B2.7b 闭环；`assembly_exact`、`asset_verified`、`platform_adapted`、`blocked_runtime_oracle`
+状态：B2.7a/B2.7b 与收口写入入口闭环；`assembly_exact`、`asset_verified`、`platform_adapted`、`blocked_runtime_oracle`
 
-范围：`0x00423AF0..0x00423DF4` 写入器、`0x00423E00..0x00423FAA` 按键前缀写入器、`0x00423FB0..0x004242A6` 读取器，以及 `0x00424390..0x00424430` 默认按键初始化器。调用者业务状态接线不属于本单元。
+范围：`0x00423A10..0x00423AE7` 创建包装、`0x00423AF0..0x00423DF4` 写入器、`0x00423E00..0x00423FAA` 按键前缀写入器、`0x00423FB0..0x004242A6` 读取器，以及 `0x00424390..0x00424430` 默认按键初始化器。调用者业务状态接线不属于本单元。
 
 来源：`swd3.exe`、去除 FLIRT 名称后的 `swd3.exe.asm`、IDA 反汇编视图 1:1 导出的 `swd3.exe.lst`、内置 CRT `memcpy` 的机器码、唯一读取调用者 `0x00425040`、当前 63 字节 `Env.dat`。ASM SHA-256 为 `f1ee7f32a79c156b75837e176abb733df7a2143d134252e507343e36857affb4`，LST SHA-256 为 `701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b`。IDA 伪码只辅助定位。
 
@@ -92,13 +92,16 @@ post-string bytes = 02 01
 - `decode_legacy_environment`：按 0x1000 预清零窗口解析带标记或无标记布局，保留物理文件字节顺序。
 - `migrate_unmarked_environment`：锁定默认按键、清零保留区和七个硬编码迁移值。
 - `encode_legacy_environment`：生成 `0x00423AF0` 写出的带标记前缀，并按 `lstrlenA` 在输入内第一个 NUL 截止。
+- `rewrite_legacy_environment`：以同一 `OPEN_EXISTING + GENERIC_READ|GENERIC_WRITE` 句柄读取原记录；带标记时只从现有文件保留 `+0x1E..+0x2D`，无标记时清零该区，随后回到偏移零写新前缀且不截断。
+- `initialize_legacy_environment`：对应 `0x00423A10`，先以 `OPEN_ALWAYS + GENERIC_WRITE` 确保文件存在并关闭，再调用上述重写器重新打开。
+- `write_legacy_environment_binding_prefix`：对应 `0x00423E00`，以 `OPEN_EXISTING + GENERIC_WRITE` 从偏移零写 16 字节，不截断；因此它会覆盖四字节标记及随后的 12 字节，而不是只写带标记布局的 `+0x04` 绑定区。
 - `load_legacy_environment`：保留首次打开、迁移写回、按旧第一路径重开、第二次失败仍解析旧窗口、原始 1/0 返回值和不截断文件的调用顺序；原始 ANSI 路径通过显式平台 resolver 映射。
 - `write_legacy_environment_cache_session_marker`：按 `0x004258E0/0x004259B0` 只覆盖物理末字节，分别写正常退出零和会话活动一。
 
 原程序在超 0x1000 文件、无终止 NUL、尾随字节越过窗口以及过长写入时会越界。现代实现分别返回明确的 codec 状态；这些状态是 `platform_adapted` 内存安全边界，不能冒充原程序的可恢复错误语义。
 
-UT 覆盖当前完整样本、合成无标记记录、迁移默认按键、短文件零填充、两条字符串、尾随模式、`lstrlenA` 前缀、首次打开失败、迁移写回不截断、按存储路径重开、第二次失败继续解析旧窗口、会话标记写入，以及现代越界隔离。Windows LLVM `core`/`app` 的 32/32 CTest 均已通过，`openswd3.exe` 已重新链接。原程序动态差分仍登记为 `blocked_runtime_oracle`。
+UT 覆盖当前完整样本、合成无标记记录、迁移默认按键、短文件零填充、两条字符串、尾随模式、`lstrlenA` 前缀、首次打开失败、迁移写回不截断、按存储路径重开、第二次失败继续解析旧窗口、带标记时保留现有 16 字节、无标记时清零、缺文件创建包装、偏移零的 16 字节覆盖、会话标记写入，以及现代越界隔离。Windows LLVM `core`/`app` 的 34/34 CTest 均已通过，`openswd3.exe` 已重新链接。原程序动态差分仍登记为 `blocked_runtime_oracle`。
 
 ## 6. B2.7b 文件级边界
 
-文件级实现已经覆盖首次 `OPEN_EXISTING`、首次失败不写输出、无标记布局写回、按无标记记录第一路径重开、第二次失败仍继续解析、返回 1/0，以及写前缀但不截断。原始 ANSI 路径如何映射到非 Windows 文件系统由调用者提供平台 resolver；物理 codec 不改写分隔符或编码。
+文件级实现已经覆盖首次 `OPEN_EXISTING`、首次失败不写输出、无标记布局写回、按无标记记录第一路径重开、第二次失败仍继续解析、返回 1/0，以及写前缀但不截断。收口审计另外补齐 `0x00423A10` 的“创建后重开”顺序、`0x00423AF0` 对原文件保留区的来源规则和 `0x00423E00` 的文件起点覆盖语义。原始 ANSI 路径如何映射到非 Windows 文件系统由调用者提供平台 resolver；物理 codec 不改写分隔符或编码。

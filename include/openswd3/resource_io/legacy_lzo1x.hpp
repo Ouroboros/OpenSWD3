@@ -3,6 +3,7 @@
 #include "openswd3/compat/types.hpp"
 
 #include <span>
+#include <vector>
 
 namespace openswd3::resource_io {
 
@@ -20,6 +21,12 @@ struct LegacyLzo1xResult {
     compat::u32 bytes_written{};
 };
 
+struct LegacyLzo1xOwnedBlock {
+    LegacyLzo1xStatus status{};
+    compat::u32 bytes_written{};
+    std::vector<compat::u8> storage;
+};
+
 [[nodiscard]] LegacyLzo1xResult compress_legacy_lzo1x_14(
     std::span<const compat::u8> source,
     std::span<compat::u8> destination
@@ -29,6 +36,10 @@ struct LegacyLzo1xResult {
     std::span<const compat::u8> source,
     std::span<compat::u8> destination
 ) noexcept;
+
+[[nodiscard]] LegacyLzo1xOwnedBlock compress_legacy_save_block(
+    std::span<const compat::u8> source
+);
 
 [[nodiscard]] LegacyLzo1xResult decompress_legacy_lzo1x(
     std::span<const compat::u8> source,

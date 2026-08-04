@@ -25,6 +25,7 @@ using openswd3::resource_io::LegacyFile;
 using openswd3::resource_io::LegacyFileAccess;
 using openswd3::resource_io::LegacyFileCreation;
 using openswd3::resource_io::LegacyFileTime;
+using openswd3::resource_io::legacy_exclusive_file_probe;
 
 class TestTree {
 public:
@@ -311,6 +312,31 @@ void test_last_write_time(openswd3::test::Context& test) {
     test.expect_true(file.close(), "timestamp fixture closes");
 }
 
+void test_exclusive_file_probe(openswd3::test::Context& test) {
+    const TestTree tree;
+    constexpr std::array<u8, 1> kByte{0x7FU};
+    tree.write("probe.bin", kByte);
+    std::array<char, 128> error{};
+
+    test.expect_true(
+        legacy_exclusive_file_probe(tree.path("probe.bin"), error),
+        "existing file probe succeeds"
+    );
+    test.expect_equal(
+        error[0],
+        '\0',
+        "successful probe leaves the error buffer unchanged"
+    );
+    test.expect_false(
+        legacy_exclusive_file_probe(tree.path("missing.bin"), error),
+        "missing file probe fails"
+    );
+    test.expect_true(
+        error[0] != '\0',
+        "failed probe formats the platform error into the caller buffer"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -320,5 +346,6 @@ int main() {
     test_seek_size_and_truncate(test);
     test_mapping_lifecycle(test);
     test_last_write_time(test);
+    test_exclusive_file_probe(test);
     return test.exit_code();
 }

@@ -10,6 +10,7 @@ add_library(
         legacy_lzo1x_compressor.cpp
         legacy_lmf_archive.cpp
         legacy_memory_manager.cpp
+        legacy_resource_databases.cpp
 )
 target_include_directories(
     openswd3_resource_io

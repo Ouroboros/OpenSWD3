@@ -579,3 +579,25 @@ add_test(
     NAME resource_io.legacy_environment
     COMMAND openswd3_resource_io_legacy_environment_tests
 )
+
+add_executable(
+    openswd3_resource_io_legacy_resource_databases_tests
+    unit/resource_io/legacy_resource_databases_test.cpp
+)
+target_compile_definitions(
+    openswd3_resource_io_legacy_resource_databases_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_resource_io_legacy_resource_databases_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_resource_io_legacy_resource_databases_tests
+    PRIVATE openswd3_resource_io
+)
+
+add_test(
+    NAME resource_io.legacy_resource_databases
+    COMMAND openswd3_resource_io_legacy_resource_databases_tests
+)

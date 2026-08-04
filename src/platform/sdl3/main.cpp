@@ -16,6 +16,7 @@
 #include "openswd3/diagnostics/log.hpp"
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
+#include "openswd3/resource_io/legacy_resource_databases.hpp"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -185,11 +186,15 @@ public:
     SdlSmokeInitializationPorts(
         openswd3::app::PlatformBackendState& backend_state,
         openswd3::app::PlatformBackendInitializationPorts& backend_ports,
+        openswd3::resource_io::LegacyResourceDatabases& resource_databases,
+        const std::filesystem::path& data_directory,
         openswd3::compat::u32& frame_interval,
         bool& destroy_requested
     )
         : backend_state_(backend_state),
           backend_ports_(backend_ports),
+          resource_databases_(resource_databases),
+          data_directory_(data_directory),
           frame_interval_(frame_interval),
           destroy_requested_(destroy_requested) {}
 
@@ -210,7 +215,26 @@ public:
     bool initialize_software_drawing() override { return true; }
     void report_software_drawing_failure() override {}
     void check_legacy_memory_capacity() override {}
-    void initialize_resource_database() override {}
+    void initialize_resource_database() override {
+        const auto result = resource_databases_.initialize(data_directory_);
+        using Status =
+            openswd3::resource_io::LegacyResourceDatabaseStatus;
+        switch (result.status) {
+        case Status::ready:
+            return;
+        case Status::maps_open_failed:
+            openswd3::diagnostics::log_error("RoleDataBase init Failed.");
+            break;
+        case Status::path_open_failed:
+            openswd3::diagnostics::log_error("PathDataBase init Failed.");
+            break;
+        case Status::talk_open_failed:
+            openswd3::diagnostics::log_error("StoryDataBase init Failed.");
+            break;
+        }
+
+        destroy_requested_ = true;
+    }
     void initialize_render_resources() override {}
     bool initialize_frame_interval_35() override {
         frame_interval_ = kInitialFrameIntervalMilliseconds;
@@ -225,6 +249,8 @@ public:
 private:
     openswd3::app::PlatformBackendState& backend_state_;
     openswd3::app::PlatformBackendInitializationPorts& backend_ports_;
+    openswd3::resource_io::LegacyResourceDatabases& resource_databases_;
+    const std::filesystem::path& data_directory_;
     openswd3::compat::u32& frame_interval_;
     bool& destroy_requested_;
 };
@@ -667,6 +693,7 @@ int main(const int argument_count, char** arguments) {
         kInitialFrameIntervalMilliseconds;
     openswd3::app::InitializationState initialization_state{};
     openswd3::app::PlatformBackendState backend_state{};
+    openswd3::resource_io::LegacyResourceDatabases resource_databases;
     SdlSmokePlatformBackendPorts backend_ports(
         *renderer,
         texture,
@@ -675,6 +702,8 @@ int main(const int argument_count, char** arguments) {
     SdlSmokeInitializationPorts initialization_ports(
         backend_state,
         backend_ports,
+        resource_databases,
+        data_directory.directory,
         frame_interval,
         startup_destroy_requested
     );

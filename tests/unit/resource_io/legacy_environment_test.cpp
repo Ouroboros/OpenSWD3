@@ -27,9 +27,12 @@ using openswd3::resource_io::LegacyEnvironmentLoadStatus;
 using openswd3::resource_io::LegacyEnvironmentRecord;
 using openswd3::resource_io::decode_legacy_environment;
 using openswd3::resource_io::encode_legacy_environment;
+using openswd3::resource_io::initialize_legacy_environment;
 using openswd3::resource_io::kLegacyEnvironmentWindowSize;
 using openswd3::resource_io::load_legacy_environment;
 using openswd3::resource_io::migrate_unmarked_environment;
+using openswd3::resource_io::rewrite_legacy_environment;
+using openswd3::resource_io::write_legacy_environment_binding_prefix;
 using openswd3::resource_io::write_legacy_environment_cache_session_marker;
 
 constexpr std::array<u8, 63> kCurrentEnvironment{
@@ -603,6 +606,130 @@ void test_cache_session_marker_writers(openswd3::test::Context& test) {
     );
 }
 
+void test_environment_rewrite_preservation(openswd3::test::Context& test) {
+    const TestTree tree;
+    tree.write("Env.dat", kCurrentEnvironment);
+
+    LegacyEnvironmentRecord replacement;
+    replacement.binding_bytes.fill(0x31U);
+    replacement.integer_parameter = 0x12345678U;
+    replacement.option_bytes.fill(0x42U);
+    replacement.preserved_bytes.fill(0xAAU);
+    replacement.primary_directory = "primary";
+    replacement.secondary_directory = "secondary";
+    replacement.trailing_mode = 9U;
+
+    test.expect_true(
+        rewrite_legacy_environment(tree.path("Env.dat"), replacement),
+        "0x00423AF0 rewrites an existing marked record"
+    );
+    const std::vector<u8> rewritten_bytes = tree.read("Env.dat");
+    const auto rewritten = decode_legacy_environment(rewritten_bytes);
+    test.expect_equal(
+        rewritten.status,
+        LegacyEnvironmentCodecStatus::ok,
+        "rewritten marked record decodes"
+    );
+    test.expect_equal(
+        rewritten.record.preserved_bytes,
+        decode_legacy_environment(kCurrentEnvironment).record.preserved_bytes,
+        "marked rewrite preserves the file's existing sixteen-byte region"
+    );
+    test.expect_equal(
+        rewritten.record.integer_parameter,
+        replacement.integer_parameter,
+        "marked rewrite replaces caller-owned fields"
+    );
+    test.expect_equal(
+        rewritten.record.primary_directory,
+        replacement.primary_directory,
+        "marked rewrite replaces the first string"
+    );
+
+    const auto marked = encode_legacy_environment(replacement).bytes;
+    const std::vector<u8> unmarked(marked.begin() + 4, marked.end());
+    tree.write("Env.dat", unmarked);
+    test.expect_true(
+        rewrite_legacy_environment(tree.path("Env.dat"), replacement),
+        "0x00423AF0 rewrites an existing unmarked record"
+    );
+    const std::vector<u8> migrated_bytes = tree.read("Env.dat");
+    const auto migrated = decode_legacy_environment(migrated_bytes);
+    constexpr std::array<u8, 16> kZeroPreserved{};
+    test.expect_equal(
+        migrated.record.preserved_bytes,
+        kZeroPreserved,
+        "unmarked rewrite clears the sixteen-byte migration region"
+    );
+
+    test.expect_false(
+        rewrite_legacy_environment(tree.path("missing.dat"), replacement),
+        "0x00423AF0 OPEN_EXISTING does not create a file"
+    );
+}
+
+void test_environment_initialize_and_binding_prefix(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+    LegacyEnvironmentRecord record;
+    record.binding_bytes.fill(0x11U);
+    record.integer_parameter = 100U;
+    record.option_bytes = {6U, 6U, 0x3CU, 0U, 2U, 0x0AU};
+    record.preserved_bytes.fill(0xBBU);
+    record.primary_directory = "root";
+    record.secondary_directory.clear();
+    record.trailing_mode = 2U;
+
+    test.expect_true(
+        initialize_legacy_environment(tree.path("Env.dat"), record),
+        "0x00423A10 creates a missing Env.dat before rewriting it"
+    );
+    const std::vector<u8> initialized_bytes = tree.read("Env.dat");
+    const auto initialized = decode_legacy_environment(initialized_bytes);
+    constexpr std::array<u8, 16> kZeroPreserved{};
+    test.expect_equal(
+        initialized.record.preserved_bytes,
+        kZeroPreserved,
+        "newly created environment follows the unmarked clear path"
+    );
+
+    constexpr std::array<u8, 16> kBindings{
+        0x00U, 0x01U, 0x02U, 0x03U,
+        0x04U, 0x05U, 0x06U, 0x07U,
+        0x08U, 0x09U, 0x0AU, 0x0BU,
+        0x0CU, 0x0DU, 0x0EU, 0x0FU,
+    };
+    const std::vector<u8> before_prefix = tree.read("Env.dat");
+    test.expect_true(
+        write_legacy_environment_binding_prefix(
+            tree.path("Env.dat"),
+            kBindings
+        ),
+        "0x00423E00 writes the sixteen binding bytes at file offset zero"
+    );
+    const std::vector<u8> after_prefix = tree.read("Env.dat");
+    test.expect_true(
+        std::equal(kBindings.begin(), kBindings.end(), after_prefix.begin()),
+        "binding prefix replaces the marker and following twelve bytes"
+    );
+    test.expect_true(
+        std::equal(
+            before_prefix.begin() + 16,
+            before_prefix.end(),
+            after_prefix.begin() + 16
+        ),
+        "binding prefix preserves all bytes after offset sixteen"
+    );
+    test.expect_false(
+        write_legacy_environment_binding_prefix(
+            tree.path("missing.dat"),
+            kBindings
+        ),
+        "binding prefix OPEN_EXISTING does not create a missing file"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -615,5 +742,7 @@ int main() {
     test_file_loader_migration_and_no_truncate(test);
     test_failed_migrated_reopen_keeps_old_window(test);
     test_cache_session_marker_writers(test);
+    test_environment_rewrite_preservation(test);
+    test_environment_initialize_and_binding_prefix(test);
     return test.exit_code();
 }

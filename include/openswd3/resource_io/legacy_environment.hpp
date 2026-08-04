@@ -102,6 +102,21 @@ using LegacyEnvironmentDirectoryResolver =
     const LegacyEnvironmentRecord& record
 );
 
+[[nodiscard]] bool rewrite_legacy_environment(
+    const std::filesystem::path& environment_file,
+    const LegacyEnvironmentRecord& record
+);
+
+[[nodiscard]] bool initialize_legacy_environment(
+    const std::filesystem::path& environment_file,
+    const LegacyEnvironmentRecord& record
+);
+
+[[nodiscard]] bool write_legacy_environment_binding_prefix(
+    const std::filesystem::path& environment_file,
+    const std::array<compat::u8, 16>& binding_bytes
+);
+
 [[nodiscard]] LegacyEnvironmentLoadResult load_legacy_environment(
     const std::filesystem::path& initial_file,
     const LegacyEnvironmentDirectoryResolver& resolve_stored_directory,
