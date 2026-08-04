@@ -131,6 +131,14 @@ void test_selector_state(openswd3::test::Context& test) {
         LegacyPixelTransform::rgb565_to_rgb555,
         "RGB565 selects the reverse converter"
     );
+    test.expect_equal(
+        state.effective_masks.green,
+        0x07C0U,
+        "RGB565 narrows the six-bit green field to five effective bits"
+    );
+    test.expect_equal(state.red_shift, 11U, "RGB565 red shift");
+    test.expect_equal(state.green_shift, 6U, "RGB565 green shift");
+    test.expect_equal(state.blue_shift, 0U, "RGB565 blue shift");
 
     u16 forward_pixel = 0x7C1FU;
     openswd3::rendering::legacy_convert_pixels_forward(
@@ -168,6 +176,14 @@ void test_selector_state(openswd3::test::Context& test) {
         LegacyPixelTransform::rgb565_to_rgb555,
         "six-bit-blue format inherits the previous reverse converter"
     );
+    test.expect_equal(
+        state.effective_masks.blue,
+        0x003EU,
+        "six-bit-blue format drops the low blue bit"
+    );
+    test.expect_equal(state.red_shift, 11U, "six-bit-blue red shift");
+    test.expect_equal(state.green_shift, 6U, "six-bit-blue green shift");
+    test.expect_equal(state.blue_shift, 1U, "six-bit-blue blue shift");
 
     const LegacyPixelMasks unsupported{0x1111U, 0x2222U, 0x3333U};
     openswd3::rendering::select_legacy_pixel_conversion(state, unsupported);
@@ -186,6 +202,26 @@ void test_selector_state(openswd3::test::Context& test) {
         0x1111U,
         "unsupported masks are still published as the reported format"
     );
+    test.expect_equal(
+        state.effective_masks.green,
+        0x2222U,
+        "unsupported masks become the active arithmetic masks"
+    );
+    test.expect_equal(
+        state.red_shift,
+        11U,
+        "unsupported masks inherit the previous red shift"
+    );
+    test.expect_equal(
+        state.green_shift,
+        6U,
+        "unsupported masks inherit the previous green shift"
+    );
+    test.expect_equal(
+        state.blue_shift,
+        1U,
+        "unsupported masks inherit the previous blue shift"
+    );
 
     const LegacyPixelMasks shifted_red{0xFC00U, 0x03E0U, 0x001FU};
     openswd3::rendering::select_legacy_pixel_conversion(state, shifted_red);
@@ -199,6 +235,14 @@ void test_selector_state(openswd3::test::Context& test) {
         LegacyPixelTransform::rgb565_to_rgb555,
         "six-bit-red format inherits the previous reverse converter"
     );
+    test.expect_equal(
+        state.effective_masks.red,
+        0xF800U,
+        "six-bit-red format drops the low red bit"
+    );
+    test.expect_equal(state.red_shift, 11U, "six-bit-red red shift");
+    test.expect_equal(state.green_shift, 5U, "six-bit-red green shift");
+    test.expect_equal(state.blue_shift, 0U, "six-bit-red blue shift");
 
     const LegacyPixelMasks rgb555{0x7C00U, 0x03E0U, 0x001FU};
     openswd3::rendering::select_legacy_pixel_conversion(state, rgb555);
@@ -212,6 +256,14 @@ void test_selector_state(openswd3::test::Context& test) {
         LegacyPixelTransform::identity,
         "RGB555 resets the reverse converter"
     );
+    test.expect_equal(
+        state.effective_masks.red,
+        0x7C00U,
+        "RGB555 restores the exact red mask"
+    );
+    test.expect_equal(state.red_shift, 10U, "RGB555 red shift");
+    test.expect_equal(state.green_shift, 5U, "RGB555 green shift");
+    test.expect_equal(state.blue_shift, 0U, "RGB555 blue shift");
 
     std::array<u16, 2> pixels{0x1234U, 0x5678U};
     openswd3::rendering::legacy_convert_pixels_forward(

@@ -19,7 +19,11 @@ enum class LegacyPixelTransform {
 };
 
 struct LegacyPixelConversionState {
-    LegacyPixelMasks reported_masks{};
+    LegacyPixelMasks reported_masks{0x7C00U, 0x03E0U, 0x001FU};
+    LegacyPixelMasks effective_masks{0x7C00U, 0x03E0U, 0x001FU};
+    compat::u32 red_shift{10U};
+    compat::u32 green_shift{5U};
+    compat::u32 blue_shift{};
     LegacyPixelTransform forward{LegacyPixelTransform::identity};
     LegacyPixelTransform reverse{LegacyPixelTransform::identity};
 };

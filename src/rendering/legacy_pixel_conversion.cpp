@@ -65,25 +65,41 @@ void select_legacy_pixel_conversion(
     const LegacyPixelMasks& masks
 ) noexcept {
     state.reported_masks = masks;
+    state.effective_masks = masks;
 
     if (masks_equal(masks, kRgb555Masks)) {
+        state.red_shift = 10U;
+        state.green_shift = 5U;
+        state.blue_shift = 0U;
         state.forward = LegacyPixelTransform::identity;
         state.reverse = LegacyPixelTransform::identity;
         return;
     }
 
     if (masks_equal(masks, kShiftedWholeWordMasks)) {
+        state.effective_masks.blue = 0x003EU;
+        state.red_shift = 11U;
+        state.green_shift = 6U;
+        state.blue_shift = 1U;
         state.forward = LegacyPixelTransform::shift_whole_word_left;
         return;
     }
 
     if (masks_equal(masks, kRgb565Masks)) {
+        state.effective_masks.green = 0x07C0U;
+        state.red_shift = 11U;
+        state.green_shift = 6U;
+        state.blue_shift = 0U;
         state.forward = LegacyPixelTransform::rgb555_to_rgb565;
         state.reverse = LegacyPixelTransform::rgb565_to_rgb555;
         return;
     }
 
     if (masks_equal(masks, kShiftedRedMasks)) {
+        state.effective_masks.red = 0xF800U;
+        state.red_shift = 11U;
+        state.green_shift = 5U;
+        state.blue_shift = 0U;
         state.forward = LegacyPixelTransform::shift_red_field_left;
     }
 }

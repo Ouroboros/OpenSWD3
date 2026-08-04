@@ -2,6 +2,7 @@
 
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
+#include "openswd3/rendering/legacy_pixel_conversion.hpp"
 
 #include <span>
 
@@ -103,6 +104,13 @@ struct LegacyRleRowJitterState {
     std::span<const compat::i32> offsets{};
 };
 
+struct LegacyBlitEffectState {
+    LegacyPixelConversionState pixel_conversion{};
+    compat::i32 red_offset{};
+    compat::i32 green_offset{};
+    compat::i32 blue_offset{};
+};
+
 enum class LegacyBlitExecutionStatus : compat::u8 {
     completed,
     clipped_out,
@@ -110,6 +118,7 @@ enum class LegacyBlitExecutionStatus : compat::u8 {
     unassigned_routine,
     unsupported_routine,
     malformed_source,
+    auxiliary_out_of_bounds,
     palette_out_of_bounds,
     destination_out_of_bounds,
     invalid_geometry,
@@ -128,6 +137,7 @@ struct LegacyBlitResult {
     const LegacyBlitClipRectangle& clip,
     const LegacyBlitSource& source,
     const LegacyBlitRequest& request,
+    const LegacyBlitEffectState& effects,
     LegacyRleRowJitterState& jitter
 ) noexcept;
 

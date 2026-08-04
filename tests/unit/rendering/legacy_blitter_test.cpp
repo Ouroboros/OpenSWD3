@@ -20,12 +20,14 @@ using openswd3::compat::u32;
 using openswd3::compat::u8;
 using openswd3::rendering::LegacyBlitClipRectangle;
 using openswd3::rendering::LegacyBlitExecutionStatus;
+using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitRequest;
 using openswd3::rendering::LegacyBlitSource;
 using openswd3::rendering::LegacyBlitSourceLayout;
 using openswd3::rendering::LegacyBlitterRoutine;
 using openswd3::rendering::LegacyBlitterSelectionStatus;
 using openswd3::rendering::LegacyFramebuffer;
+using openswd3::rendering::LegacyPixelMasks;
 using openswd3::rendering::LegacyRleRowJitterState;
 using openswd3::rendering::LegacySurfaceGeometry;
 
@@ -87,6 +89,7 @@ void append_u16(std::vector<u8>& bytes, const u16 value) {
     LegacyFramebuffer& framebuffer,
     const LegacyBlitSource& source,
     const LegacyBlitRequest& request,
+    const LegacyBlitEffectState& effects,
     LegacyRleRowJitterState& jitter
 ) {
     return openswd3::rendering::blit_legacy_copy_paths(
@@ -94,8 +97,24 @@ void append_u16(std::vector<u8>& bytes, const u16 value) {
         full_clip(framebuffer),
         source,
         request,
+        effects,
         jitter
     ).status;
+}
+
+[[nodiscard]] LegacyBlitExecutionStatus blit(
+    LegacyFramebuffer& framebuffer,
+    const LegacyBlitSource& source,
+    const LegacyBlitRequest& request,
+    LegacyRleRowJitterState& jitter
+) {
+    return blit(
+        framebuffer,
+        source,
+        request,
+        LegacyBlitEffectState{},
+        jitter
+    );
 }
 
 void test_sparse_dispatch_table(openswd3::test::Context& test) {
@@ -475,6 +494,7 @@ void test_sparse_and_unsupported_execution(openswd3::test::Context& test) {
             .source_height = 2,
             .flags = 6U,
         },
+        LegacyBlitEffectState{},
         jitter
     );
     test.expect_equal(
@@ -758,6 +778,530 @@ void test_rle_jitter_and_header_gate(openswd3::test::Context& test) {
     );
 }
 
+void test_rle_destination_offset(openswd3::test::Context& test) {
+    const std::vector<u8> source = synthetic_rle_copy_source();
+    LegacyBlitEffectState effects{
+        .red_offset = 2,
+        .green_offset = -3,
+        .blue_offset = 4,
+    };
+    LegacyRleRowJitterState jitter{};
+    LegacyFramebuffer forward(LegacySurfaceGeometry{
+        .pitch_bytes = 16,
+        .width = 8,
+        .height = 1,
+    });
+    constexpr std::array<u16, 8> kInitial{
+        0xA55AU, 0x0000U, 0x7FFFU, 0x1441U,
+        0xA55AU, 0xA55AU, 0x4210U, 0x001EU,
+    };
+    std::ranges::copy(kInitial, forward.physical_pixels().begin());
+    test.expect_equal(
+        blit(
+            forward,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .source_width = 8,
+                .source_height = 1,
+                .flags = 0x10U,
+            },
+            effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "RLE destination offset forward"
+    );
+    constexpr std::array<u16, 8> kExpectedForward{
+        0xA55AU, 0x0804U, 0x7F9FU, 0x1C05U,
+        0xA55AU, 0xA55AU, 0x49B4U, 0x081FU,
+    };
+    test.expect_true(
+        std::ranges::equal(forward.physical_pixels(), kExpectedForward),
+        "destination offset clamps each five-bit channel and ignores source colors"
+    );
+
+    LegacyFramebuffer reverse(LegacySurfaceGeometry{
+        .pitch_bytes = 16,
+        .width = 8,
+        .height = 1,
+    });
+    effects.red_offset = 1;
+    effects.green_offset = 1;
+    effects.blue_offset = 1;
+    test.expect_equal(
+        blit(
+            reverse,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .source_width = 8,
+                .source_height = 1,
+                .flags = 0x11U,
+            },
+            effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "RLE destination offset reverse"
+    );
+    constexpr std::array<u16, 8> kExpectedReverse{
+        0x0421U, 0x0421U, 0x0000U, 0x0000U,
+        0x0421U, 0x0421U, 0x0421U, 0x0000U,
+    };
+    test.expect_true(
+        std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
+        "reverse offset follows source coverage while walking the target backwards"
+    );
+
+    LegacyFramebuffer clipped_forward(LegacySurfaceGeometry{
+        .pitch_bytes = 8,
+        .width = 4,
+        .height = 1,
+    });
+    test.expect_equal(
+        blit(
+            clipped_forward,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .destination_x = -2,
+                .source_width = 8,
+                .source_height = 1,
+                .flags = 0x10U,
+            },
+            effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "clipped forward destination offset"
+    );
+    constexpr std::array<u16, 4> kExpectedClippedForward{
+        0x0421U, 0x0421U, 0x0000U, 0x0000U,
+    };
+    test.expect_true(
+        std::ranges::equal(
+            clipped_forward.physical_pixels(),
+            kExpectedClippedForward
+        ),
+        "forward effect clipping consumes the literal source prefix"
+    );
+
+    LegacyFramebuffer clipped_reverse(LegacySurfaceGeometry{
+        .pitch_bytes = 8,
+        .width = 4,
+        .height = 1,
+    });
+    test.expect_equal(
+        blit(
+            clipped_reverse,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .destination_x = -2,
+                .source_width = 8,
+                .source_height = 1,
+                .flags = 0x11U,
+            },
+            effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "clipped reverse destination offset"
+    );
+    constexpr std::array<u16, 4> kExpectedClippedReverse{
+        0x0000U, 0x0000U, 0x0421U, 0x0421U,
+    };
+    test.expect_true(
+        std::ranges::equal(
+            clipped_reverse.physical_pixels(),
+            kExpectedClippedReverse
+        ),
+        "reverse effect clipping applies the source window backwards"
+    );
+
+    constexpr std::array<u8, 2> kMarkerOnly{0xFFU, 0xFFU};
+    LegacyFramebuffer zero_offset(LegacySurfaceGeometry{
+        .pitch_bytes = 2,
+        .width = 1,
+        .height = 1,
+    });
+    zero_offset.physical_pixels().front() = 0xBEEFU;
+    LegacyRleRowJitterState inaccessible_jitter{
+        .group = 1,
+        .phase_bytes = 20U,
+    };
+    test.expect_equal(
+        blit(
+            zero_offset,
+            LegacyBlitSource{.bytes = kMarkerOnly},
+            LegacyBlitRequest{
+                .source_width = 1,
+                .source_height = 1,
+                .flags = 0x10U,
+            },
+            LegacyBlitEffectState{},
+            inaccessible_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "all-zero destination offset exits before the RLE header"
+    );
+    test.expect_equal(
+        zero_offset.physical_pixels().front(),
+        static_cast<u16>(0xBEEFU),
+        "all-zero destination offset touches no target pixel"
+    );
+    test.expect_equal(
+        inaccessible_jitter.phase_bytes,
+        20U,
+        "all-zero destination offset does not advance jitter phase"
+    );
+}
+
+void test_rle_constant_fill(openswd3::test::Context& test) {
+    const std::vector<u8> source = synthetic_rle_copy_source();
+    constexpr std::array<u8, 4> kFillBytes{0x34U, 0x12U, 0x78U, 0x56U};
+    LegacyBlitEffectState effects{};
+    LegacyRleRowJitterState jitter{};
+    LegacyFramebuffer forward(LegacySurfaceGeometry{
+        .pitch_bytes = 16,
+        .width = 8,
+        .height = 1,
+    });
+    std::ranges::fill(forward.physical_pixels(), 0xA55AU);
+    test.expect_equal(
+        blit(
+            forward,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .source_width = 8,
+                .source_height = 1,
+                .flags = 0x24U,
+                .auxiliary = kFillBytes,
+            },
+            effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "RLE constant fill forward"
+    );
+    constexpr std::array<u16, 8> kExpectedForward{
+        0xA55AU, 0x1234U, 0x1234U, 0x1234U,
+        0xA55AU, 0xA55AU, 0x1234U, 0x1234U,
+    };
+    test.expect_true(
+        std::ranges::equal(forward.physical_pixels(), kExpectedForward),
+        "constant fill uses the low word of the four-byte auxiliary value"
+    );
+
+    LegacyFramebuffer reverse(LegacySurfaceGeometry{
+        .pitch_bytes = 16,
+        .width = 8,
+        .height = 1,
+    });
+    std::ranges::fill(reverse.physical_pixels(), 0xA55AU);
+    test.expect_equal(
+        blit(
+            reverse,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .source_width = 8,
+                .source_height = 1,
+                .flags = 0x25U,
+                .auxiliary = kFillBytes,
+            },
+            effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "RLE constant fill reverse"
+    );
+    constexpr std::array<u16, 8> kExpectedReverse{
+        0x1234U, 0x1234U, 0xA55AU, 0xA55AU,
+        0x1234U, 0x1234U, 0x1234U, 0xA55AU,
+    };
+    test.expect_true(
+        std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
+        "reverse constant fill preserves sparse source coverage"
+    );
+
+    constexpr std::array<u8, 2> kShortAuxiliary{0x34U, 0x12U};
+    test.expect_equal(
+        blit(
+            forward,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .source_width = 8,
+                .source_height = 1,
+                .flags = 0x24U,
+                .auxiliary = kShortAuxiliary,
+            },
+            effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::auxiliary_out_of_bounds,
+        "constant fill exposes the original four-byte auxiliary read boundary"
+    );
+}
+
+void test_rle_grayscale(openswd3::test::Context& test) {
+    const std::array<std::vector<u16>, 1> rows{
+        std::vector<u16>{
+            0x0005U,
+            0x1111U,
+            0x2222U,
+            0x3333U,
+            0x4444U,
+            0x5555U,
+            0x0000U,
+        },
+    };
+    const std::vector<u8> source = make_rle(5U, 1U, rows);
+    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
+        .pitch_bytes = 10,
+        .width = 5,
+        .height = 1,
+    });
+    constexpr std::array<u16, 5> kInitial{
+        0x0000U, 0x7FFFU, 0x7C00U, 0x03E0U, 0x001FU,
+    };
+    std::ranges::copy(kInitial, framebuffer.physical_pixels().begin());
+    LegacyBlitEffectState effects{};
+    LegacyRleRowJitterState jitter{};
+    test.expect_equal(
+        blit(
+            framebuffer,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .source_width = 5,
+                .source_height = 1,
+                .flags = 0x28U,
+            },
+            effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "RLE grayscale forward"
+    );
+    constexpr std::array<u16, 5> kExpected{
+        0x0000U, 0x5EF7U, 0x1CE7U, 0x1CE7U, 0x1CE7U,
+    };
+    test.expect_true(
+        std::ranges::equal(framebuffer.physical_pixels(), kExpected),
+        "grayscale sums three five-bit target channels and divides by four"
+    );
+
+    const std::vector<u8> sparse_source = synthetic_rle_copy_source();
+    LegacyFramebuffer reverse(LegacySurfaceGeometry{
+        .pitch_bytes = 16,
+        .width = 8,
+        .height = 1,
+    });
+    std::ranges::fill(reverse.physical_pixels(), 0x7FFFU);
+    test.expect_equal(
+        blit(
+            reverse,
+            LegacyBlitSource{.bytes = sparse_source},
+            LegacyBlitRequest{
+                .source_width = 8,
+                .source_height = 1,
+                .flags = 0x29U,
+            },
+            effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "RLE grayscale reverse"
+    );
+    constexpr std::array<u16, 8> kExpectedReverse{
+        0x5EF7U, 0x5EF7U, 0x7FFFU, 0x7FFFU,
+        0x5EF7U, 0x5EF7U, 0x5EF7U, 0x7FFFU,
+    };
+    test.expect_true(
+        std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
+        "reverse grayscale changes only the reversed literal footprint"
+    );
+
+    const std::array<std::vector<u16>, 1> one_row{
+        std::vector<u16>{0x0001U, 0x0000U, 0x0000U},
+    };
+    const std::vector<u8> one_pixel_source = make_rle(1U, 1U, one_row);
+    struct FormatCase {
+        LegacyPixelMasks masks;
+        u16 expected;
+    };
+    constexpr std::array<FormatCase, 3> kFormats{
+        FormatCase{
+            LegacyPixelMasks{0xF800U, 0x07C0U, 0x003FU},
+            0xBDEEU,
+        },
+        FormatCase{
+            LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU},
+            0xBDD7U,
+        },
+        FormatCase{
+            LegacyPixelMasks{0xFC00U, 0x03E0U, 0x001FU},
+            0xBAF7U,
+        },
+    };
+    for (const FormatCase& format : kFormats) {
+        LegacyFramebuffer formatted(LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        });
+        formatted.physical_pixels().front() = 0xFFFFU;
+        openswd3::rendering::select_legacy_pixel_conversion(
+            effects.pixel_conversion,
+            format.masks
+        );
+        test.expect_equal(
+            blit(
+                formatted,
+                LegacyBlitSource{.bytes = one_pixel_source},
+                LegacyBlitRequest{
+                    .source_width = 1,
+                    .source_height = 1,
+                    .flags = 0x28U,
+                },
+                effects,
+                jitter
+            ),
+            LegacyBlitExecutionStatus::completed,
+            "grayscale supported pixel format"
+        );
+        test.expect_equal(
+            formatted.physical_pixels().front(),
+            format.expected,
+            "grayscale uses the selected effective masks and shifts"
+        );
+    }
+}
+
+void test_effect_jitter_policies(openswd3::test::Context& test) {
+    const std::array<std::vector<u16>, 1> rows{
+        std::vector<u16>{0x0001U, 0xCAFEU, 0x0000U},
+    };
+    const std::vector<u8> source = make_rle(1U, 1U, rows);
+    std::array<i32, 400> offsets{};
+    offsets[34] = -1;
+    offsets[331] = 1;
+    constexpr std::array<u8, 4> kFillBytes{0x34U, 0x12U, 0x00U, 0x00U};
+    LegacyBlitEffectState effects{.red_offset = 1};
+
+    struct JitterRun {
+        LegacyBlitExecutionStatus status;
+        std::array<u16, 4> pixels;
+        u32 phase_bytes;
+    };
+    const auto run = [&](const u32 flags, const u16 initial) {
+        LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 1,
+        });
+        std::ranges::fill(framebuffer.physical_pixels(), initial);
+        LegacyRleRowJitterState jitter{
+            .group = 2,
+            .phase_bytes = 0U,
+            .offsets = offsets,
+        };
+        const LegacyBlitExecutionStatus status = blit(
+            framebuffer,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .destination_x = 1,
+                .source_width = 1,
+                .source_height = 1,
+                .flags = flags,
+                .auxiliary = kFillBytes,
+            },
+            effects,
+            jitter
+        );
+        std::array<u16, 4> pixels{};
+        std::ranges::copy(framebuffer.physical_pixels(), pixels.begin());
+        return JitterRun{
+            .status = status,
+            .pixels = pixels,
+            .phase_bytes = jitter.phase_bytes,
+        };
+    };
+
+    const JitterRun offset_forward = run(0x10U, 0U);
+    test.expect_equal(
+        offset_forward.status,
+        LegacyBlitExecutionStatus::completed,
+        "jittered forward destination offset"
+    );
+    test.expect_equal(
+        offset_forward.pixels[2],
+        static_cast<u16>(0x0400U),
+        "forward destination offset uses the 0x528-byte jitter group stride"
+    );
+    test.expect_equal(
+        offset_forward.phase_bytes,
+        4U,
+        "forward destination offset advances jitter phase"
+    );
+
+    const JitterRun offset_reverse = run(0x11U, 0U);
+    test.expect_equal(
+        offset_reverse.pixels[0],
+        static_cast<u16>(0x0400U),
+        "reverse destination offset uses the 0x84-byte jitter group stride"
+    );
+    test.expect_equal(
+        offset_reverse.phase_bytes,
+        4U,
+        "reverse destination offset advances jitter phase"
+    );
+
+    const JitterRun fill_forward = run(0x24U, 0U);
+    test.expect_equal(
+        fill_forward.pixels[0],
+        static_cast<u16>(0x1234U),
+        "forward constant fill uses the 0x84-byte jitter group stride"
+    );
+    test.expect_equal(
+        fill_forward.phase_bytes,
+        4U,
+        "forward constant fill advances jitter phase"
+    );
+
+    const JitterRun fill_reverse = run(0x25U, 0U);
+    test.expect_equal(
+        fill_reverse.pixels[0],
+        static_cast<u16>(0x1234U),
+        "reverse constant fill uses the 0x84-byte jitter group stride"
+    );
+    test.expect_equal(
+        fill_reverse.phase_bytes,
+        0U,
+        "reverse constant fill preserves jitter phase"
+    );
+
+    const JitterRun gray_forward = run(0x28U, 0x7FFFU);
+    test.expect_equal(
+        gray_forward.pixels[2],
+        static_cast<u16>(0x5EF7U),
+        "forward grayscale uses the 0x528-byte jitter group stride"
+    );
+    test.expect_equal(
+        gray_forward.phase_bytes,
+        4U,
+        "forward grayscale advances jitter phase"
+    );
+
+    const JitterRun gray_reverse = run(0x29U, 0x7FFFU);
+    test.expect_equal(
+        gray_reverse.pixels[0],
+        static_cast<u16>(0x5EF7U),
+        "reverse grayscale uses the 0x84-byte jitter group stride"
+    );
+    test.expect_equal(
+        gray_reverse.phase_bytes,
+        4U,
+        "reverse grayscale advances jitter phase"
+    );
+}
+
 void test_safe_abnormal_boundaries(openswd3::test::Context& test) {
     LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
         .pitch_bytes = 4,
@@ -926,6 +1470,72 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         static_cast<std::ptrdiff_t>(54),
         "literal zeroes in the real frame are copied rather than keyed"
     );
+
+    constexpr std::array<u8, 4> kFillBytes{0x34U, 0x12U, 0x00U, 0x00U};
+    LegacyFramebuffer filled(LegacySurfaceGeometry{
+        .pitch_bytes = 32,
+        .width = 16,
+        .height = 16,
+    });
+    std::ranges::fill(filled.physical_pixels(), 0xA55AU);
+    test.expect_equal(
+        blit(
+            filled,
+            LegacyBlitSource{.bytes = decompressed},
+            LegacyBlitRequest{
+                .source_width = 16,
+                .source_height = 16,
+                .flags = 0x24U,
+                .auxiliary = kFillBytes,
+            },
+            LegacyBlitEffectState{},
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "real TSW RLE constant fill"
+    );
+    test.expect_equal(
+        framebuffer_fnv1a(filled.physical_pixels()),
+        0x96240FB8764F3C39ULL,
+        "real TSW literal footprint produces the fixed fill hash"
+    );
+    test.expect_equal(
+        std::ranges::count(filled.physical_pixels(), 0x1234U),
+        static_cast<std::ptrdiff_t>(54),
+        "real TSW fill changes exactly the independently parsed literal pixels"
+    );
+
+    LegacyFramebuffer grayscale(LegacySurfaceGeometry{
+        .pitch_bytes = 32,
+        .width = 16,
+        .height = 16,
+    });
+    std::ranges::fill(grayscale.physical_pixels(), 0x7FFFU);
+    test.expect_equal(
+        blit(
+            grayscale,
+            LegacyBlitSource{.bytes = decompressed},
+            LegacyBlitRequest{
+                .source_width = 16,
+                .source_height = 16,
+                .flags = 0x28U,
+            },
+            LegacyBlitEffectState{},
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "real TSW RLE grayscale"
+    );
+    test.expect_equal(
+        framebuffer_fnv1a(grayscale.physical_pixels()),
+        0xCE3B416A93211135ULL,
+        "real TSW literal footprint produces the fixed grayscale hash"
+    );
+    test.expect_equal(
+        std::ranges::count(grayscale.physical_pixels(), 0x5EF7U),
+        static_cast<std::ptrdiff_t>(54),
+        "real TSW grayscale changes exactly the independently parsed literal pixels"
+    );
 }
 
 }  // namespace
@@ -940,6 +1550,10 @@ int main() {
     test_rle_spans_and_horizontal_direction(test);
     test_rle_vertical_flip_row_base(test);
     test_rle_jitter_and_header_gate(test);
+    test_rle_destination_offset(test);
+    test_rle_constant_fill(test);
+    test_rle_grayscale(test);
+    test_effect_jitter_policies(test);
     test_safe_abnormal_boundaries(test);
     test_real_tsw_frame(test);
     return test.exit_code();
