@@ -11,6 +11,7 @@ inline constexpr std::size_t kLegacyKeyBindingBlockSize = 0x80U;
 inline constexpr std::size_t kLegacyKeyBindingWordCount =
     kLegacyKeyBindingBlockSize / sizeof(compat::u32);
 inline constexpr std::size_t kLegacyKeyboardSnapshotSize = 0x100U;
+inline constexpr std::size_t kLegacyInputRecordCount = 20U;
 
 using LegacyKeyboardSnapshot =
     std::array<compat::u8, kLegacyKeyboardSnapshotSize>;
@@ -82,6 +83,19 @@ struct LegacyMouseFrame {
     bool operator==(const LegacyMouseFrame&) const = default;
 };
 
+struct LegacyInputNormalizationState {
+    LegacyKeyBindingBlock key_bindings{};
+    std::array<LegacyInputRecord, kLegacyInputRecordCount> records{};
+    LegacyMouseFrame current_mouse{};
+    compat::i32 previous_mouse_x{};
+    compat::i32 previous_mouse_y{};
+    compat::u32 current_input_milliseconds{};
+    compat::u32 last_normalized_input_milliseconds{};
+    compat::u32 left_button_suppression_count{};
+    compat::u32 mouse_inactivity_sample_count{};
+    bool mouse_inactive_flag_9{};
+};
+
 [[nodiscard]] compat::u32 update_input_record(
     LegacyInputRecord& record,
     compat::u32 raw_state,
@@ -119,9 +133,24 @@ void rebase_mouse_coordinates(
     const LegacyMouseDeviceSample& sample
 ) noexcept;
 
+void begin_input_normalization(
+    LegacyInputNormalizationState& state,
+    compat::u32 current_milliseconds
+) noexcept;
+
+void normalize_input_frame(
+    LegacyInputNormalizationState& state,
+    LegacyMouseState& mouse_state,
+    const LegacyKeyboardSnapshot& keyboard_snapshot,
+    const LegacyMouseDeviceSample& mouse_sample
+) noexcept;
+
 static_assert(sizeof(LegacyKeyBindingBlock) == kLegacyKeyBindingBlockSize);
 static_assert(sizeof(LegacyKeyboardSnapshot) == kLegacyKeyboardSnapshotSize);
 static_assert(sizeof(LegacyInputRecord) == 0x10U);
+static_assert(
+    sizeof(std::array<LegacyInputRecord, kLegacyInputRecordCount>) == 0x140U
+);
 static_assert(offsetof(LegacyInputRecord, rapid_press_multiplicity) == 0x00U);
 static_assert(offsetof(LegacyInputRecord, release_milliseconds) == 0x04U);
 static_assert(offsetof(LegacyInputRecord, rapid_press_stage) == 0x08U);

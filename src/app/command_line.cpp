@@ -10,7 +10,7 @@ bool run_nonempty_command_line_path(
         return false;
     }
 
-    ports.initialize_float_conversion();
+    ports.initialize_default_key_bindings();
     const compat::u8 selector = static_cast<compat::u8>(
         static_cast<compat::u8>((*command_line)[0]) -
         static_cast<compat::u8>('0')

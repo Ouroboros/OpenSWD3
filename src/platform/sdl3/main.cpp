@@ -103,12 +103,23 @@ public:
 
 class SmokeCommandLinePorts final : public openswd3::app::CommandLinePorts {
 public:
-    void initialize_float_conversion() override {}
+    explicit SmokeCommandLinePorts(
+        openswd3::input_time_rng::LegacyKeyBindingBlock& key_bindings
+    ) : key_bindings_(key_bindings) {}
+
+    void initialize_default_key_bindings() override {
+        openswd3::input_time_rng::initialize_default_key_bindings(
+            key_bindings_
+        );
+    }
 
     void run_legacy_command(
         openswd3::compat::u8,
         std::string_view
     ) override {}
+
+private:
+    openswd3::input_time_rng::LegacyKeyBindingBlock& key_bindings_;
 };
 
 class SdlRngSeedPorts final : public openswd3::app::RngSeedPorts {
@@ -304,17 +315,24 @@ public:
         openswd3::platform_sdl3::SdlStartupDialog& dialog,
         openswd3::app::InitializationState& initialization_state,
         openswd3::app::InitializationPorts& initialization_ports,
+        openswd3::input_time_rng::LegacyKeyBindingBlock& key_bindings,
         bool& game_initialized,
         bool& destroy_requested
     )
         : dialog_(dialog),
           initialization_state_(initialization_state),
           initialization_ports_(initialization_ports),
+          key_bindings_(key_bindings),
           game_initialized_(game_initialized),
           destroy_requested_(destroy_requested) {}
 
     void play_startup_sound() override {}
-    void initialize_float_conversion() override {}
+    void initialize_default_key_bindings() override {
+        openswd3::input_time_rng::initialize_default_key_bindings(
+            key_bindings_
+        );
+    }
+
     void initialize_paths_and_directories() override {}
     bool scan_save_slots() override { return false; }
     openswd3::compat::i32 show_startup_dialog() override {
@@ -340,6 +358,7 @@ private:
     openswd3::platform_sdl3::SdlStartupDialog& dialog_;
     openswd3::app::InitializationState& initialization_state_;
     openswd3::app::InitializationPorts& initialization_ports_;
+    openswd3::input_time_rng::LegacyKeyBindingBlock& key_bindings_;
     bool& game_initialized_;
     bool& destroy_requested_;
 };
@@ -452,6 +471,7 @@ public:
         const openswd3::app::DisplayLifecycleState& display_state,
         openswd3::app::FramePreparationState& frame_preparation_state,
         openswd3::app::FrameCoordinatorState& frame_coordinator_state,
+        openswd3::input_time_rng::LegacyInputNormalizationState& input_state,
         openswd3::input_time_rng::LegacyMouseState& mouse_state,
         openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state,
         openswd3::app::ShutdownPorts& shutdown_ports,
@@ -467,6 +487,7 @@ public:
           display_state_(display_state),
           frame_preparation_state_(frame_preparation_state),
           frame_coordinator_state_(frame_coordinator_state),
+          input_state_(input_state),
           mouse_state_(mouse_state),
           mouse_device_state_(mouse_device_state),
           shutdown_ports_(shutdown_ports),
@@ -522,12 +543,21 @@ public:
         return static_cast<openswd3::compat::u32>(SDL_GetTicks());
     }
 
-    bool query_internal_flag(openswd3::compat::u32) override {
-        return false;
+    bool query_internal_flag(const openswd3::compat::u32 index) override {
+        return index == 9U && input_state_.mouse_inactive_flag_9;
     }
 
-    void clear_internal_flag(openswd3::compat::u32) override {}
-    void set_internal_flag(openswd3::compat::u32) override {}
+    void clear_internal_flag(const openswd3::compat::u32 index) override {
+        if (index == 9U) {
+            input_state_.mouse_inactive_flag_9 = false;
+        }
+    }
+
+    void set_internal_flag(const openswd3::compat::u32 index) override {
+        if (index == 9U) {
+            input_state_.mouse_inactive_flag_9 = true;
+        }
+    }
 
     void perform_primary_transition_operation(
         openswd3::app::PrimaryTransitionOperation
@@ -542,14 +572,21 @@ public:
             keyboard_snapshot_
         ));
     }
+
     void normalize_input() override {
+        openswd3::input_time_rng::begin_input_normalization(
+            input_state_,
+            frame_preparation_state_.frame_clock.sampled_milliseconds
+        );
         const auto sample =
             openswd3::platform_sdl3::sample_sdl_mouse_state(
                 renderer_,
                 mouse_device_state_
             );
-        mouse_frame_ = openswd3::input_time_rng::normalize_mouse_sample(
+        openswd3::input_time_rng::normalize_input_frame(
+            input_state_,
             mouse_state_,
+            keyboard_snapshot_,
             sample
         );
     }
@@ -622,9 +659,9 @@ private:
     openswd3::app::FramePreparationState& frame_preparation_state_;
     openswd3::app::FrameCoordinatorState& frame_coordinator_state_;
     openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard_snapshot_{};
+    openswd3::input_time_rng::LegacyInputNormalizationState& input_state_;
     openswd3::input_time_rng::LegacyMouseState& mouse_state_;
     openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state_;
-    openswd3::input_time_rng::LegacyMouseFrame mouse_frame_{};
     openswd3::app::ShutdownPorts& shutdown_ports_;
     openswd3::app::ProcessExitPorts& exit_ports_;
     bool& ok_;
@@ -646,6 +683,7 @@ int main(const int argument_count, char** arguments) {
     ));
     LoggingShutdownGuard logging_shutdown_guard;
     openswd3::diagnostics::log_info("OpenSWD3 process started");
+    openswd3::input_time_rng::LegacyInputNormalizationState input_state{};
 
     std::error_code directory_error;
     const std::filesystem::path launch_directory =
@@ -702,7 +740,7 @@ int main(const int argument_count, char** arguments) {
     );
 
     openswd3::platform_sdl3::SingleInstanceGuard single_instance;
-    SmokeCommandLinePorts command_line_ports;
+    SmokeCommandLinePorts command_line_ports(input_state.key_bindings);
     const std::string legacy_command_line =
         openswd3::platform_sdl3::reconstruct_legacy_command_line_tail(
             argument_count,
@@ -799,6 +837,7 @@ int main(const int argument_count, char** arguments) {
             startup_dialog,
             initialization_state,
             initialization_ports,
+            input_state.key_bindings,
             game_initialized,
             startup_destroy_requested
         );
@@ -887,6 +926,7 @@ int main(const int argument_count, char** arguments) {
         display_state,
         frame_preparation_state,
         frame_coordinator_state,
+        input_state,
         mouse_state,
         mouse_device_state,
         shutdown_ports,

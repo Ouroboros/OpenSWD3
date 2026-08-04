@@ -8,7 +8,7 @@ namespace {
 
 enum class Call {
     startup_sound,
-    float_conversion,
+    default_key_bindings,
     paths,
     scan_saves,
     dialog,
@@ -27,8 +27,8 @@ public:
     void play_startup_sound() override {
         calls.push_back(Call::startup_sound);
     }
-    void initialize_float_conversion() override {
-        calls.push_back(Call::float_conversion);
+    void initialize_default_key_bindings() override {
+        calls.push_back(Call::default_key_bindings);
     }
     void initialize_paths_and_directories() override {
         calls.push_back(Call::paths);
@@ -91,7 +91,7 @@ int main() {
     openswd3::test::Context test;
     const std::vector<Call> prefix{
         Call::startup_sound,
-        Call::float_conversion,
+        Call::default_key_bindings,
         Call::paths,
         Call::scan_saves,
         Call::dialog,

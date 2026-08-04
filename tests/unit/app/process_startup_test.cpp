@@ -10,7 +10,7 @@ namespace {
 
 enum class Call {
     check_instance,
-    initialize_float,
+    initialize_default_key_bindings,
     command,
 };
 
@@ -34,8 +34,8 @@ class RecordingCommandLinePorts final : public openswd3::app::CommandLinePorts {
 public:
     explicit RecordingCommandLinePorts(std::vector<Call>& calls) : calls_(calls) {}
 
-    void initialize_float_conversion() override {
-        calls_.push_back(Call::initialize_float);
+    void initialize_default_key_bindings() override {
+        calls_.push_back(Call::initialize_default_key_bindings);
     }
 
     void run_legacy_command(
@@ -85,7 +85,7 @@ void test_gates(openswd3::test::Context& test) {
         calls,
         std::vector<Call>{
             Call::check_instance,
-            Call::initialize_float,
+            Call::initialize_default_key_bindings,
             Call::command,
         },
         "command-line path runs only after instance check"

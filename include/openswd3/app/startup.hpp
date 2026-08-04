@@ -13,7 +13,7 @@ public:
     virtual ~StartupPorts() = default;
 
     virtual void play_startup_sound() = 0;
-    virtual void initialize_float_conversion() = 0;
+    virtual void initialize_default_key_bindings() = 0;
     virtual void initialize_paths_and_directories() = 0;
     virtual bool scan_save_slots() = 0;
     virtual compat::i32 show_startup_dialog() = 0;

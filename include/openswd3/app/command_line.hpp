@@ -11,7 +11,7 @@ class CommandLinePorts {
 public:
     virtual ~CommandLinePorts() = default;
 
-    virtual void initialize_float_conversion() = 0;
+    virtual void initialize_default_key_bindings() = 0;
     virtual void run_legacy_command(
         compat::u8 selector,
         std::string_view payload

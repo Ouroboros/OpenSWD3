@@ -8,7 +8,7 @@
 namespace {
 
 enum class Call {
-    float_conversion,
+    default_key_bindings,
     legacy_command,
     read_time,
     seed_crt,
@@ -25,8 +25,8 @@ struct Event {
 
 class RecordingCommandLinePorts final : public openswd3::app::CommandLinePorts {
 public:
-    void initialize_float_conversion() override {
-        events.push_back({Call::float_conversion, 0, {}});
+    void initialize_default_key_bindings() override {
+        events.push_back({Call::default_key_bindings, 0, {}});
     }
     void run_legacy_command(
         const openswd3::compat::u8 selector,
@@ -78,7 +78,7 @@ int main() {
         "nonempty command line consumes normal startup"
     );
     const std::vector<Event> command_expected{
-        {Call::float_conversion, 0, {}},
+        {Call::default_key_bindings, 0, {}},
         {Call::legacy_command, 5, "payload"},
     };
     test.expect_equal(command_ports.events, command_expected, "command byte order");

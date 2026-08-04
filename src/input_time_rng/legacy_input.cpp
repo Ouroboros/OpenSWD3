@@ -27,6 +27,30 @@ constexpr std::array<compat::u32, 4> kRapidPressMultiplicity{
     3U,
 };
 
+struct KeyboardRecordBinding {
+    std::size_t record_index;
+    LegacyKeyBinding binding;
+};
+
+constexpr std::array<KeyboardRecordBinding, 16> kKeyboardRecordUpdateOrder{
+    KeyboardRecordBinding{0U, LegacyKeyBinding::cancel},
+    KeyboardRecordBinding{1U, LegacyKeyBinding::primary_action},
+    KeyboardRecordBinding{12U, LegacyKeyBinding::alternate_action},
+    KeyboardRecordBinding{2U, LegacyKeyBinding::configurable_2},
+    KeyboardRecordBinding{3U, LegacyKeyBinding::left},
+    KeyboardRecordBinding{4U, LegacyKeyBinding::up},
+    KeyboardRecordBinding{5U, LegacyKeyBinding::right},
+    KeyboardRecordBinding{6U, LegacyKeyBinding::down},
+    KeyboardRecordBinding{9U, LegacyKeyBinding::configurable_9},
+    KeyboardRecordBinding{10U, LegacyKeyBinding::configurable_10},
+    KeyboardRecordBinding{8U, LegacyKeyBinding::page_down},
+    KeyboardRecordBinding{7U, LegacyKeyBinding::page_up},
+    KeyboardRecordBinding{16U, LegacyKeyBinding::configurable_16},
+    KeyboardRecordBinding{17U, LegacyKeyBinding::configurable_17},
+    KeyboardRecordBinding{18U, LegacyKeyBinding::configurable_18},
+    KeyboardRecordBinding{19U, LegacyKeyBinding::configurable_19},
+};
+
 [[nodiscard]] constexpr std::size_t binding_index(
     const LegacyKeyBinding binding
 ) noexcept {
@@ -249,6 +273,67 @@ LegacyMouseFrame normalize_mouse_sample(
         479
     );
     return {logical_x, logical_y, button_mask};
+}
+
+void begin_input_normalization(
+    LegacyInputNormalizationState& state,
+    const compat::u32 current_milliseconds
+) noexcept {
+    state.current_input_milliseconds = current_milliseconds;
+}
+
+void normalize_input_frame(
+    LegacyInputNormalizationState& state,
+    LegacyMouseState& mouse_state,
+    const LegacyKeyboardSnapshot& keyboard_snapshot,
+    const LegacyMouseDeviceSample& mouse_sample
+) noexcept {
+    state.current_mouse = normalize_mouse_sample(mouse_state, mouse_sample);
+
+    for (const auto& item : kKeyboardRecordUpdateOrder) {
+        const compat::u32 raw_state = read_raw_key(
+            keyboard_snapshot,
+            key_binding(state.key_bindings, item.binding)
+        );
+        static_cast<void>(update_input_record(
+            state.records[item.record_index],
+            raw_state,
+            state.current_input_milliseconds
+        ));
+    }
+
+    static_cast<void>(update_input_record(
+        state.records[15U],
+        state.current_mouse.button_mask & 1U,
+        state.current_input_milliseconds
+    ));
+    static_cast<void>(update_input_record(
+        state.records[14U],
+        state.current_mouse.button_mask & 2U,
+        state.current_input_milliseconds
+    ));
+
+    state.last_normalized_input_milliseconds =
+        state.current_input_milliseconds;
+    if (state.left_button_suppression_count != 0U) {
+        state.left_button_suppression_count -= 1U;
+        state.records[15U] = {};
+    }
+
+    state.mouse_inactive_flag_9 = false;
+    if (state.current_mouse.logical_x == state.previous_mouse_x &&
+        state.current_mouse.logical_y == state.previous_mouse_y &&
+        state.current_mouse.button_mask == 0U) {
+        state.mouse_inactivity_sample_count += 1U;
+        if (state.mouse_inactivity_sample_count > 450U) {
+            state.mouse_inactive_flag_9 = true;
+        }
+    } else {
+        state.mouse_inactivity_sample_count = 0U;
+    }
+
+    state.previous_mouse_x = state.current_mouse.logical_x;
+    state.previous_mouse_y = state.current_mouse.logical_y;
 }
 
 }  // namespace openswd3::input_time_rng

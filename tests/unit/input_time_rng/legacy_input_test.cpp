@@ -4,11 +4,13 @@
 
 #include <array>
 #include <limits>
+#include <utility>
 
 namespace {
 
 using openswd3::compat::u32;
 using openswd3::input_time_rng::LegacyInputRecord;
+using openswd3::input_time_rng::LegacyInputNormalizationState;
 using openswd3::input_time_rng::LegacyKeyBinding;
 using openswd3::input_time_rng::LegacyKeyBindingBlock;
 using openswd3::input_time_rng::LegacyKeyboardSnapshot;
@@ -372,6 +374,309 @@ void test_mouse_rebase_clamps_and_wraps(openswd3::test::Context& test) {
     );
 }
 
+void prepare_released_records(LegacyInputNormalizationState& state) {
+    for (auto& record : state.records) {
+        record = LegacyInputRecord{9U, 100U, 0U, 7U};
+    }
+
+    state.records[11U] = LegacyInputRecord{11U, 12U, 13U, 14U};
+    state.records[13U] = LegacyInputRecord{21U, 22U, 23U, 24U};
+}
+
+void normalize_test_frame(
+    LegacyInputNormalizationState& state,
+    LegacyMouseState& mouse_state,
+    const LegacyKeyboardSnapshot& keyboard,
+    const LegacyMouseDeviceSample& mouse_sample,
+    const u32 current_milliseconds
+) {
+    openswd3::input_time_rng::begin_input_normalization(
+        state,
+        current_milliseconds
+    );
+    openswd3::input_time_rng::normalize_input_frame(
+        state,
+        mouse_state,
+        keyboard,
+        mouse_sample
+    );
+}
+
+void test_full_frame_keyboard_record_mapping(
+    openswd3::test::Context& test
+) {
+    using Binding = openswd3::input_time_rng::LegacyKeyBinding;
+    constexpr std::array<std::pair<std::size_t, Binding>, 16>
+        kExpectedRecordBindings{
+            std::pair{0U, Binding::cancel},
+            std::pair{1U, Binding::primary_action},
+            std::pair{12U, Binding::alternate_action},
+            std::pair{2U, Binding::configurable_2},
+            std::pair{3U, Binding::left},
+            std::pair{4U, Binding::up},
+            std::pair{5U, Binding::right},
+            std::pair{6U, Binding::down},
+            std::pair{9U, Binding::configurable_9},
+            std::pair{10U, Binding::configurable_10},
+            std::pair{8U, Binding::page_down},
+            std::pair{7U, Binding::page_up},
+            std::pair{16U, Binding::configurable_16},
+            std::pair{17U, Binding::configurable_17},
+            std::pair{18U, Binding::configurable_18},
+            std::pair{19U, Binding::configurable_19},
+        };
+
+    for (const auto& [pressed_record, binding] : kExpectedRecordBindings) {
+        LegacyInputNormalizationState state{};
+        openswd3::input_time_rng::initialize_default_key_bindings(
+            state.key_bindings
+        );
+        prepare_released_records(state);
+        LegacyKeyboardSnapshot keyboard{};
+        keyboard[openswd3::input_time_rng::key_binding(
+            state.key_bindings,
+            binding
+        )] = 0x80U;
+        LegacyMouseState mouse_state{0, 0, 20};
+
+        normalize_test_frame(
+            state,
+            mouse_state,
+            keyboard,
+            LegacyMouseDeviceSample{},
+            200U
+        );
+
+        for (const auto& [record_index, unused] : kExpectedRecordBindings) {
+            static_cast<void>(unused);
+            const LegacyInputRecord expected = record_index == pressed_record
+                ? LegacyInputRecord{1U, 0U, 1U, 1U}
+                : LegacyInputRecord{0U, 100U, 0U, 0U};
+            test.expect_equal(
+                state.records[record_index],
+                expected,
+                "each keyboard binding updates only its assembly record"
+            );
+        }
+
+        test.expect_equal(
+            state.records[11U],
+            LegacyInputRecord{11U, 12U, 13U, 14U},
+            "reserved record 11 remains byte-for-byte unchanged"
+        );
+        test.expect_equal(
+            state.records[13U],
+            LegacyInputRecord{21U, 22U, 23U, 24U},
+            "reserved record 13 remains byte-for-byte unchanged"
+        );
+        test.expect_equal(
+            state.records[14U],
+            LegacyInputRecord{0U, 100U, 0U, 0U},
+            "released right mouse record is still normalized"
+        );
+        test.expect_equal(
+            state.records[15U],
+            LegacyInputRecord{0U, 100U, 0U, 0U},
+            "released left mouse record is still normalized"
+        );
+        test.expect_equal(
+            state.current_input_milliseconds,
+            200U,
+            "frame time is mirrored before record updates"
+        );
+        test.expect_equal(
+            state.last_normalized_input_milliseconds,
+            200U,
+            "the second input clock mirror follows record updates"
+        );
+    }
+}
+
+void test_full_frame_left_suppression(openswd3::test::Context& test) {
+    LegacyInputNormalizationState state{};
+    openswd3::input_time_rng::initialize_default_key_bindings(
+        state.key_bindings
+    );
+    state.records[14U].release_milliseconds = 100U;
+    state.records[15U].release_milliseconds = 100U;
+    state.left_button_suppression_count = 2U;
+    state.mouse_inactivity_sample_count = 123U;
+    LegacyMouseState mouse_state{0, 0, 20};
+    const LegacyMouseDeviceSample both_buttons{0, 0, 0x80U, 0x80U};
+
+    normalize_test_frame(
+        state,
+        mouse_state,
+        {},
+        both_buttons,
+        250U
+    );
+    test.expect_equal(
+        state.records[15U],
+        LegacyInputRecord{},
+        "left suppression clears all four fields after normal updating"
+    );
+    test.expect_equal(
+        state.records[14U],
+        LegacyInputRecord{1U, 0U, 1U, 1U},
+        "left suppression does not affect the right mouse record"
+    );
+    test.expect_equal(
+        state.left_button_suppression_count,
+        1U,
+        "left suppression decrements once per normalized frame"
+    );
+    test.expect_equal(
+        state.mouse_inactivity_sample_count,
+        0U,
+        "raw mouse buttons reset inactivity even when left is suppressed"
+    );
+
+    normalize_test_frame(
+        state,
+        mouse_state,
+        {},
+        both_buttons,
+        251U
+    );
+    normalize_test_frame(
+        state,
+        mouse_state,
+        {},
+        both_buttons,
+        252U
+    );
+    test.expect_equal(
+        state.left_button_suppression_count,
+        0U,
+        "suppression reaches zero after exactly two normalization calls"
+    );
+    test.expect_equal(
+        state.records[15U],
+        LegacyInputRecord{0U, 0U, 0U, 1U},
+        "held left resumes through the original all-zero first-press quirk"
+    );
+    test.expect_equal(
+        state.records[14U].held_sample_count,
+        3U,
+        "right mouse continues counting through left suppression"
+    );
+}
+
+void test_full_frame_mouse_inactivity(openswd3::test::Context& test) {
+    LegacyInputNormalizationState state{};
+    openswd3::input_time_rng::initialize_default_key_bindings(
+        state.key_bindings
+    );
+    state.mouse_inactivity_sample_count = 449U;
+    state.mouse_inactive_flag_9 = true;
+    LegacyMouseState mouse_state{0, 0, 20};
+
+    normalize_test_frame(
+        state,
+        mouse_state,
+        {},
+        {},
+        300U
+    );
+    test.expect_equal(
+        state.mouse_inactivity_sample_count,
+        450U,
+        "stable sample 450 does not cross the strict inactivity threshold"
+    );
+    test.expect_equal(
+        state.mouse_inactive_flag_9,
+        false,
+        "inactivity flag 9 is cleared before the threshold comparison"
+    );
+
+    normalize_test_frame(
+        state,
+        mouse_state,
+        {},
+        {},
+        301U
+    );
+    test.expect_equal(
+        state.mouse_inactivity_sample_count,
+        451U,
+        "stable sample 451 is the first count above 450"
+    );
+    test.expect_equal(
+        state.mouse_inactive_flag_9,
+        true,
+        "stable sample 451 sets inactivity flag 9"
+    );
+
+    normalize_test_frame(
+        state,
+        mouse_state,
+        {},
+        LegacyMouseDeviceSample{0, 0, 0U, 0x80U},
+        302U
+    );
+    test.expect_equal(
+        state.mouse_inactivity_sample_count,
+        0U,
+        "any raw mouse button resets the inactivity count"
+    );
+    test.expect_equal(
+        state.mouse_inactive_flag_9,
+        false,
+        "mouse activity leaves inactivity flag 9 clear"
+    );
+
+    normalize_test_frame(
+        state,
+        mouse_state,
+        {},
+        LegacyMouseDeviceSample{1, 0, 0U, 0U},
+        303U
+    );
+    test.expect_equal(
+        state.mouse_inactivity_sample_count,
+        0U,
+        "coordinate movement resets the inactivity count"
+    );
+    test.expect_equal(
+        state.previous_mouse_x,
+        2,
+        "the current logical x becomes the next frame comparison value"
+    );
+
+    normalize_test_frame(
+        state,
+        mouse_state,
+        {},
+        LegacyMouseDeviceSample{1, 0, 0U, 0U},
+        304U
+    );
+    test.expect_equal(
+        state.mouse_inactivity_sample_count,
+        1U,
+        "an unchanged coordinate is stable against the stored previous frame"
+    );
+
+    state.mouse_inactivity_sample_count = 0xFFFFFFFFU;
+    normalize_test_frame(
+        state,
+        mouse_state,
+        {},
+        LegacyMouseDeviceSample{1, 0, 0U, 0U},
+        305U
+    );
+    test.expect_equal(
+        state.mouse_inactivity_sample_count,
+        0U,
+        "inactivity counter increment wraps as an unsigned dword"
+    );
+    test.expect_equal(
+        state.mouse_inactive_flag_9,
+        false,
+        "wrapped inactivity count no longer exceeds the threshold"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -384,5 +689,8 @@ int main() {
     test_mouse_sensitivity_and_rebase(test);
     test_mouse_clamp_baseline_quirks(test);
     test_mouse_rebase_clamps_and_wraps(test);
+    test_full_frame_keyboard_record_mapping(test);
+    test_full_frame_left_suppression(test);
+    test_full_frame_mouse_inactivity(test);
     return test.exit_code();
 }

@@ -7,7 +7,7 @@ compat::i32 run_startup_custom_message(
     StartupPorts& ports
 ) {
     ports.play_startup_sound();
-    ports.initialize_float_conversion();
+    ports.initialize_default_key_bindings();
     ports.initialize_paths_and_directories();
     state.any_save_exists = false;
     if (ports.scan_save_slots()) {

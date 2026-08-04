@@ -37,7 +37,7 @@ public:
         return false;
     }
 
-    void initialize_float_conversion() override {}
+    void initialize_default_key_bindings() override {}
     void run_legacy_command(openswd3::compat::u8, std::string_view) override {}
 
     openswd3::compat::u32 read_time_seconds() override {

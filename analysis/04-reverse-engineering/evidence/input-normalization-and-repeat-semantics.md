@@ -214,3 +214,13 @@ Windows LLVM `core` 完成 38/38 CTest，`app` 完成 39/39 CTest 和最终 EXE 
 SDL3 平台层累加相对鼠标位移，先通过 renderer 将宿主窗口位移换算到 640×480 逻辑域，再向兼容核心提供绝对轴样本；可拉伸窗口只影响这个平台映射。启动仍按原顺序设置 `2.0` 灵敏度并 rebase 到 `(480,360)`。
 
 Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。兼容核心状态为 `assembly_exact`，SDL3 坐标转换为 `platform_adapted`，原程序运行时鼠标轨迹仍为 `blocked_runtime_oracle`。
+
+## B3.7 实现验证
+
+`LegacyInputNormalizationState` 显式持有 0x80 字节绑定块、20 条连续 0x10 字节记录、当前/前帧鼠标坐标、两个输入时钟镜像、左键抑制计数和鼠标静止计数。`begin_input_normalization` 先镜像 accepted-frame 的同一份 32 位毫秒样本，SDL3 随后轮询鼠标，`normalize_input_frame` 再完成记录更新，保留 `0x004050E0` 的先时钟、后鼠标顺序。
+
+键盘记录调用顺序固定为 `0,1,12,2,3,4,5,6,9,10,8,7,16,17,18,19`，随后依次更新左键 15 和右键 14；记录 11 与 13 完全不写。左键抑制在正常更新后递减并清零记录 15 四字段，因此持续按住在抑制结束后仍从全零记录的原始异常起步路径恢复。静止位 9 每帧先清除，只有坐标不变且原始鼠标 mask 为零时才增加计数，第 451 份稳定样本首次置位。
+
+UT 逐个验证 16 个键盘绑定到记录的映射、两条保留记录、鼠标左右键、两帧抑制、450/451 严格边界、按钮/坐标活动重置、前帧坐标更新和 `u32` 回绕。启动与非空命令行接口中残留的 `initialize_float_conversion` 旧 FLIRT 误名已纠正为 `initialize_default_key_bindings`，两条路径均连接到同一运行时绑定块。
+
+Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。整帧兼容核心为 `assembly_exact`，原程序输入轨迹仍为 `blocked_runtime_oracle`。
