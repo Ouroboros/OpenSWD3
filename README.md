@@ -72,6 +72,25 @@ build.bat app
 
 该脚本顶部保存了本机工具路径；其他环境应修改这些变量，或直接使用上面的标准 CMake 命令。
 
+### Linux + LLVM
+
+确保 `cmake`、`ctest`、`make`、`clang` 和 `clang++` 位于 `PATH`，然后使用仓库配套脚本：
+
+```console
+./build.sh core
+./build.sh app
+```
+
+脚本使用独立的 `build/linux-core` 和 `build/linux-app`，不会覆盖 Windows 构建目录。也可以通过 `CC`、`CXX`、`OPENSWD3_CMAKE` 和 `OPENSWD3_CTEST` 指定工具。
+
+Linux 脚本保留基本 X11 后端，并关闭当前工程不依赖的 Xcursor、Xfixes、XInput、XRandR 和 XTest 可选扩展，因此仅编译和运行现有启动骨架不要求安装这些开发包。
+
+Linux 应用程序生成于：
+
+```text
+build/linux-app/src/platform/sdl3/openswd3
+```
+
 ### MSVC
 
 在已配置 MSVC 环境变量的终端中使用相同 CMake preset，并省略 Clang 编译器参数即可。工程不要求打开 Visual Studio 工程或解决方案。
