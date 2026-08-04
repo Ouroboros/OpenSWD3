@@ -12,9 +12,9 @@ enum class LegacyBlitterRoutine : compat::u32 {
     unassigned = 0U,
     raw_copy_forward = 0x004176D0U,
     raw_copy_reverse = 0x004177D0U,
-    raw_saturated_add_forward = 0x00417840U,
+    raw_color_key_copy_forward = 0x00417840U,
     raw_opacity_forward = 0x00417950U,
-    raw_saturated_add_reverse = 0x00417E40U,
+    raw_color_key_copy_reverse = 0x00417E40U,
     raw_constant_vertical_fade = 0x00417EC0U,
     rle_copy_forward = 0x00418350U,
     rle_copy_reverse = 0x004185C0U,
@@ -109,6 +109,7 @@ struct LegacyBlitEffectState {
     compat::i32 red_offset{};
     compat::i32 green_offset{};
     compat::i32 blue_offset{};
+    bool skip_every_third_row{};
 };
 
 enum class LegacyBlitExecutionStatus : compat::u8 {

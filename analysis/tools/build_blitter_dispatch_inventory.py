@@ -88,6 +88,11 @@ EXPECTED_DISPATCH = {
     148: "sub_417950",
 }
 
+RAW_SEMANTIC_OVERRIDES = {
+    132: "raw/uncompressed color-key copy",
+    133: "raw/uncompressed color-key copy with 16/32-bit reverse comparison bug",
+}
+
 EXPECTED_ALPHA_TARGETS = [
     "loc_41DAAA", "loc_41D790", "loc_41D7C9", "loc_41D802",
     "loc_41D83B", "loc_41D874", "loc_41D8AD", "loc_41D8E6",
@@ -374,7 +379,10 @@ def write_dispatch(recovered: dict[int, tuple[str, int]]) -> None:
                 "direction": direction_for_slot(visible_slot),
                 "function": function,
                 "assignment_address": f"0x{assignment_address:08X}",
-                "semantic_family": mode.name if not raw_family else f"raw/uncompressed {mode.name}",
+                "semantic_family": RAW_SEMANTIC_OVERRIDES.get(
+                    slot,
+                    mode.name if not raw_family else f"raw/uncompressed {mode.name}",
+                ),
                 "semantic_status": mode.status,
                 "special_run_0x8000": mode.special_run if not raw_family else "not RLE",
             })

@@ -56,8 +56,8 @@ constexpr std::array<LegacyBlitterRoutine, 256> make_blitter_table() {
     table[0x33] = LegacyBlitterRoutine::rle_smear_reverse;
     table[0x80] = LegacyBlitterRoutine::raw_copy_forward;
     table[0x81] = LegacyBlitterRoutine::raw_copy_reverse;
-    table[0x84] = LegacyBlitterRoutine::raw_saturated_add_forward;
-    table[0x85] = LegacyBlitterRoutine::raw_saturated_add_reverse;
+    table[0x84] = LegacyBlitterRoutine::raw_color_key_copy_forward;
+    table[0x85] = LegacyBlitterRoutine::raw_color_key_copy_reverse;
     table[0x88] = LegacyBlitterRoutine::raw_constant_vertical_fade;
     table[0x94] = LegacyBlitterRoutine::raw_opacity_forward;
 
@@ -253,6 +253,15 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
     );
 }
 
+[[nodiscard]] u32 duplicated_transparent_pixel(
+    const LegacyPixelConversionState& format
+) noexcept {
+    u16 pixel = 0x026BU;
+    legacy_convert_pixels_forward(format, &pixel, 1);
+    return static_cast<u32>(pixel) |
+        (static_cast<u32>(pixel) << 16U);
+}
+
 struct ClippedBlit {
     i32 destination_x{};
     i32 destination_y{};
@@ -403,7 +412,9 @@ enum class ClipStatus : u8 {
     LegacyFramebuffer& framebuffer,
     const LegacyBlitSource& source,
     const LegacyBlitRequest& request,
-    const ClippedBlit& clipped
+    const ClippedBlit& clipped,
+    const LegacyPixelConversionState& format,
+    const bool color_key_copy
 ) noexcept {
     const i32 source_pixel = wrapping_add(
         clipped.source_left_skip,
@@ -413,12 +424,16 @@ enum class ClipStatus : u8 {
         (source.layout == LegacyBlitSourceLayout::direct_16 ? 2U : 1U);
     u32 destination_row = clipped.destination_start_bytes;
     u32 source_row = initial_source_offset;
+    const u16 transparent_pixel = static_cast<u16>(
+        duplicated_transparent_pixel(format)
+    );
 
     for (i32 row = 0; row < clipped.visible_height; ++row) {
         u32 destination = destination_row;
         u32 source_offset = source_row;
         for (i32 column = 0; column < clipped.visible_width; ++column) {
             u16 pixel{};
+            bool write_pixel = true;
             if (source.layout == LegacyBlitSourceLayout::direct_16) {
                 if (!read_u16(
                         source.bytes,
@@ -429,6 +444,8 @@ enum class ClipStatus : u8 {
                 }
 
                 source_offset += 2U;
+                write_pixel = !color_key_copy ||
+                    pixel != transparent_pixel;
             } else {
                 u8 palette_index{};
                 if (!read_u8(
@@ -439,16 +456,21 @@ enum class ClipStatus : u8 {
                     return LegacyBlitExecutionStatus::malformed_source;
                 }
 
-                if (static_cast<std::size_t>(palette_index) >=
-                    source.palette.size()) {
-                    return LegacyBlitExecutionStatus::palette_out_of_bounds;
-                }
-
-                pixel = source.palette[palette_index];
                 source_offset += 1U;
+                if (color_key_copy && palette_index == 1U) {
+                    write_pixel = false;
+                } else {
+                    if (static_cast<std::size_t>(palette_index) >=
+                        source.palette.size()) {
+                        return LegacyBlitExecutionStatus::palette_out_of_bounds;
+                    }
+
+                    pixel = source.palette[palette_index];
+                }
             }
 
-            if (!write_u16(framebuffer, destination, pixel)) {
+            if (write_pixel &&
+                !write_u16(framebuffer, destination, pixel)) {
                 return LegacyBlitExecutionStatus::destination_out_of_bounds;
             }
 
@@ -467,7 +489,9 @@ enum class ClipStatus : u8 {
     LegacyFramebuffer& framebuffer,
     const LegacyBlitSource& source,
     const LegacyBlitRequest& request,
-    const ClippedBlit& clipped
+    const ClippedBlit& clipped,
+    const LegacyPixelConversionState& format,
+    const bool color_key_copy
 ) noexcept {
     const i32 reverse_source_x = wrapping_subtract(
         wrapping_subtract(request.source_width, clipped.source_left_skip),
@@ -481,6 +505,7 @@ enum class ClipStatus : u8 {
         (source.layout == LegacyBlitSourceLayout::direct_16 ? 2U : 1U);
     u32 destination_row = clipped.destination_start_bytes;
     u32 source_row = initial_source_offset;
+    const u32 transparent_pixel = duplicated_transparent_pixel(format);
 
     for (i32 row = 0; row < clipped.visible_height; ++row) {
         u32 destination = destination_row;
@@ -495,7 +520,9 @@ enum class ClipStatus : u8 {
                 return LegacyBlitExecutionStatus::malformed_source;
             }
 
-            if (!write_u16(framebuffer, destination, pixel)) {
+            if ((!color_key_copy ||
+                    static_cast<u32>(pixel) != transparent_pixel) &&
+                !write_u16(framebuffer, destination, pixel)) {
                 return LegacyBlitExecutionStatus::destination_out_of_bounds;
             }
 
@@ -579,14 +606,123 @@ enum class RlePixelOperation : u8 {
     destination_offset,
     constant_fill,
     grayscale,
+    saturated_add,
+    saturated_subtract,
 };
 
 struct RleRoutinePolicy {
     RlePixelOperation operation{RlePixelOperation::copy};
     bool reverse{};
     bool advance_phase_on_exit{};
+    bool supports_third_row_skip{};
     u32 jitter_group_stride_bytes{0x84U};
 };
+
+[[nodiscard]] constexpr u32 saturated_add_channel(
+    const u32 source,
+    const u32 destination,
+    const u32 mask
+) noexcept {
+    const u32 sum = source + destination;
+    return ((~mask) & sum) != 0U ? mask : sum;
+}
+
+[[nodiscard]] constexpr u32 saturated_subtract_channel(
+    const u32 minuend,
+    const u32 subtrahend,
+    const u32 mask
+) noexcept {
+    const u32 difference = minuend - subtrahend;
+    return (difference & 0x80000000U) != 0U
+        ? 0U
+        : difference & mask;
+}
+
+[[nodiscard]] constexpr u16 saturated_add_pixel(
+    const u16 source,
+    const u16 destination,
+    const LegacyBlitEffectState& effects
+) noexcept {
+    const LegacyPixelConversionState& format = effects.pixel_conversion;
+    return static_cast<u16>(
+        saturated_add_channel(
+            adjusted_channel(
+                source,
+                format.effective_masks.red,
+                format.red_shift,
+                effects.red_offset
+            ),
+            static_cast<u32>(destination) & format.effective_masks.red,
+            format.effective_masks.red
+        ) |
+        saturated_add_channel(
+            adjusted_channel(
+                source,
+                format.effective_masks.green,
+                format.green_shift,
+                effects.green_offset
+            ),
+            static_cast<u32>(destination) & format.effective_masks.green,
+            format.effective_masks.green
+        ) |
+        saturated_add_channel(
+            adjusted_channel(
+                source,
+                format.effective_masks.blue,
+                format.blue_shift,
+                effects.blue_offset
+            ),
+            static_cast<u32>(destination) & format.effective_masks.blue,
+            format.effective_masks.blue
+        )
+    );
+}
+
+[[nodiscard]] constexpr u16 saturated_subtract_pixel(
+    const u16 source,
+    const u16 destination,
+    const LegacyBlitEffectState& effects,
+    const bool reverse
+) noexcept {
+    const LegacyPixelConversionState& format = effects.pixel_conversion;
+    const auto channel = [&](
+        const u32 mask,
+        const u32 shift,
+        const i32 offset
+    ) constexpr {
+        if (reverse) {
+            return saturated_subtract_channel(
+                adjusted_channel(destination, mask, shift, offset),
+                static_cast<u32>(source) & mask,
+                mask
+            );
+        }
+
+        return saturated_subtract_channel(
+            static_cast<u32>(destination) & mask,
+            adjusted_channel(source, mask, shift, offset),
+            mask
+        );
+    };
+
+    return static_cast<u16>(
+        channel(
+            format.effective_masks.red,
+            format.red_shift,
+            effects.red_offset
+        ) |
+        channel(
+            format.effective_masks.green,
+            format.green_shift,
+            effects.green_offset
+        ) |
+        channel(
+            format.effective_masks.blue,
+            format.blue_shift,
+            effects.blue_offset
+        )
+    );
+}
 
 [[nodiscard]] LegacyBlitExecutionStatus apply_rle_literal_pixel(
     LegacyFramebuffer& framebuffer,
@@ -594,11 +730,11 @@ struct RleRoutinePolicy {
     const std::size_t source_offset,
     const u32 destination,
     const LegacyBlitEffectState& effects,
-    const RlePixelOperation operation,
+    const RleRoutinePolicy& policy,
     const u16 constant_fill
 ) noexcept {
     u16 pixel{};
-    switch (operation) {
+    switch (policy.operation) {
     case RlePixelOperation::copy:
         if (!read_u16(source.bytes, source_offset, pixel)) {
             return LegacyBlitExecutionStatus::malformed_source;
@@ -624,6 +760,45 @@ struct RleRoutinePolicy {
 
         pixel = grayscale_pixel(pixel, effects.pixel_conversion);
         break;
+
+    case RlePixelOperation::saturated_add: {
+        u16 destination_pixel{};
+        if (!read_u16(source.bytes, source_offset, pixel)) {
+            return LegacyBlitExecutionStatus::malformed_source;
+        }
+        if (!read_framebuffer_u16(
+                framebuffer,
+                destination,
+                destination_pixel
+            )) {
+            return LegacyBlitExecutionStatus::destination_out_of_bounds;
+        }
+
+        pixel = saturated_add_pixel(pixel, destination_pixel, effects);
+        break;
+    }
+
+    case RlePixelOperation::saturated_subtract: {
+        u16 destination_pixel{};
+        if (!read_u16(source.bytes, source_offset, pixel)) {
+            return LegacyBlitExecutionStatus::malformed_source;
+        }
+        if (!read_framebuffer_u16(
+                framebuffer,
+                destination,
+                destination_pixel
+            )) {
+            return LegacyBlitExecutionStatus::destination_out_of_bounds;
+        }
+
+        pixel = saturated_subtract_pixel(
+            pixel,
+            destination_pixel,
+            effects,
+            policy.reverse
+        );
+        break;
+    }
     }
 
     if (!write_u16(framebuffer, destination, pixel)) {
@@ -714,6 +889,7 @@ void finish_rle_success(
     );
     u32 destination_row = clipped.destination_start_bytes;
     i32 processed_rows{};
+    i32 third_row_phase = wrapping_add(clipped.destination_y, 480) % 3;
 
     while (true) {
         u16 row_length{};
@@ -739,9 +915,19 @@ void finish_rle_success(
             return LegacyBlitExecutionStatus::completed;
         }
 
+        bool skip_row{};
+        if (policy.supports_third_row_skip &&
+            effects.skip_every_third_row) {
+            third_row_phase = wrapping_add(third_row_phase, 1);
+            if (third_row_phase >= 3) {
+                third_row_phase = 0;
+                skip_row = true;
+            }
+        }
+
         std::size_t command_pointer = row_pointer + 2U;
         std::uint64_t source_x{};
-        while (true) {
+        while (!skip_row) {
             u16 command{};
             if (!read_u16(source.bytes, command_pointer, command)) {
                 return LegacyBlitExecutionStatus::malformed_source;
@@ -826,7 +1012,7 @@ void finish_rle_success(
                             static_cast<std::size_t>(source_offset),
                             destination,
                             effects,
-                            policy.operation,
+                            policy,
                             constant_fill
                         );
                     if (pixel_status != LegacyBlitExecutionStatus::completed) {
@@ -994,11 +1180,47 @@ LegacyBlitResult blit_legacy_copy_paths(
     LegacyBlitExecutionStatus status{};
     switch (selection.routine) {
     case LegacyBlitterRoutine::raw_copy_forward:
-        status = blit_raw_forward(framebuffer, source, request, clipped);
+        status = blit_raw_forward(
+            framebuffer,
+            source,
+            request,
+            clipped,
+            effects.pixel_conversion,
+            false
+        );
         break;
 
     case LegacyBlitterRoutine::raw_copy_reverse:
-        status = blit_raw_reverse(framebuffer, source, request, clipped);
+        status = blit_raw_reverse(
+            framebuffer,
+            source,
+            request,
+            clipped,
+            effects.pixel_conversion,
+            false
+        );
+        break;
+
+    case LegacyBlitterRoutine::raw_color_key_copy_forward:
+        status = blit_raw_forward(
+            framebuffer,
+            source,
+            request,
+            clipped,
+            effects.pixel_conversion,
+            true
+        );
+        break;
+
+    case LegacyBlitterRoutine::raw_color_key_copy_reverse:
+        status = blit_raw_reverse(
+            framebuffer,
+            source,
+            request,
+            clipped,
+            effects.pixel_conversion,
+            true
+        );
         break;
 
     case LegacyBlitterRoutine::rle_copy_forward:
@@ -1012,6 +1234,23 @@ LegacyBlitResult blit_legacy_copy_paths(
         status = run_rle(RleRoutinePolicy{
             .operation = RlePixelOperation::copy,
             .reverse = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_saturated_add_forward:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::saturated_add,
+            .advance_phase_on_exit = true,
+            .supports_third_row_skip = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_saturated_add_reverse:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::saturated_add,
+            .reverse = true,
+            .advance_phase_on_exit = true,
+            .supports_third_row_skip = true,
         });
         break;
 
@@ -1058,6 +1297,23 @@ LegacyBlitResult blit_legacy_copy_paths(
             .operation = RlePixelOperation::grayscale,
             .reverse = true,
             .advance_phase_on_exit = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_saturated_subtract_forward:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::saturated_subtract,
+            .advance_phase_on_exit = true,
+            .supports_third_row_skip = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_saturated_subtract_reverse:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::saturated_subtract,
+            .reverse = true,
+            .advance_phase_on_exit = true,
+            .supports_third_row_skip = true,
         });
         break;
 

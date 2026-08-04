@@ -38,7 +38,7 @@ slot	slot_hex	raw_family	mode	mode_hex	flip_bits	direction	function	assignment_a
 51	0x33	0	48	0x30	3	horizontal reverse	sub_4229C0	0x00416ECD	16-step destination-neighbor smear	closed	skip
 128	0x80	1	0	0x00	0	horizontal forward	sub_4176D0	0x00416ED2	raw/uncompressed literal copy	closed	not RLE
 129	0x81	1	0	0x00	1	horizontal reverse	sub_4177D0	0x00416EDC	raw/uncompressed literal copy	closed	not RLE
-132	0x84	1	4	0x04	0	horizontal forward	sub_417840	0x00416EE6	raw/uncompressed per-channel saturated add	closed	not RLE
-133	0x85	1	4	0x04	1	horizontal reverse	sub_417E40	0x00416EF0	raw/uncompressed per-channel saturated add	closed	not RLE
+132	0x84	1	4	0x04	0	horizontal forward	sub_417840	0x00416EE6	raw/uncompressed color-key copy	closed	not RLE
+133	0x85	1	4	0x04	1	horizontal reverse	sub_417E40	0x00416EF0	raw/uncompressed color-key copy with 16/32-bit reverse comparison bug	closed	not RLE
 136	0x88	1	8	0x08	0	horizontal forward	sub_417EC0	0x00416EFA	raw/uncompressed coverage composite or raw constant vertical fade	partial	not RLE
 148	0x94	1	20	0x14	0	horizontal forward	sub_417950	0x00416F04	raw/uncompressed 15-step packed-field opacity	closed	not RLE
