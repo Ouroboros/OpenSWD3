@@ -1,0 +1,238 @@
+#include "test.hpp"
+
+#include "openswd3/rendering/legacy_pixel_conversion.hpp"
+
+#include <array>
+
+namespace {
+
+using openswd3::compat::i32;
+using openswd3::compat::u16;
+using openswd3::compat::u32;
+using openswd3::rendering::LegacyPixelConversionState;
+using openswd3::rendering::LegacyPixelMasks;
+using openswd3::rendering::LegacyPixelTransform;
+
+[[nodiscard]] constexpr u16 expected_transform(
+    const LegacyPixelTransform transform,
+    const u16 pixel
+) noexcept {
+    switch (transform) {
+    case LegacyPixelTransform::identity:
+        return pixel;
+
+    case LegacyPixelTransform::shift_whole_word_left:
+        return static_cast<u16>(static_cast<u32>(pixel) << 1U);
+
+    case LegacyPixelTransform::rgb555_to_rgb565:
+        return static_cast<u16>(
+            ((static_cast<u32>(pixel) & 0xFFE0U) << 1U) +
+            (static_cast<u32>(pixel) & 0x001FU)
+        );
+
+    case LegacyPixelTransform::rgb565_to_rgb555:
+        return static_cast<u16>(
+            ((static_cast<u32>(pixel) >> 1U) & 0xFFE0U) +
+            (static_cast<u32>(pixel) & 0x001FU)
+        );
+
+    case LegacyPixelTransform::shift_red_field_left:
+        return static_cast<u16>(
+            ((static_cast<u32>(pixel) & 0x7C00U) << 1U) |
+            (static_cast<u32>(pixel) & 0x03FFU)
+        );
+    }
+
+    return pixel;
+}
+
+void test_all_pixel_values(openswd3::test::Context& test) {
+    constexpr std::array<LegacyPixelTransform, 4> kTransforms{
+        LegacyPixelTransform::shift_whole_word_left,
+        LegacyPixelTransform::rgb555_to_rgb565,
+        LegacyPixelTransform::rgb565_to_rgb555,
+        LegacyPixelTransform::shift_red_field_left,
+    };
+
+    for (const LegacyPixelTransform transform : kTransforms) {
+        u32 mismatches{};
+        for (u32 value = 0U; value <= 0xFFFFU; ++value) {
+            u16 actual = static_cast<u16>(value);
+            openswd3::rendering::apply_legacy_pixel_transform(
+                transform,
+                &actual,
+                1
+            );
+            if (actual != expected_transform(
+                    transform,
+                    static_cast<u16>(value)
+                )) {
+                ++mismatches;
+            }
+        }
+
+        test.expect_equal(
+            mismatches,
+            0U,
+            "every possible packed u16 follows the assembly formula"
+        );
+    }
+}
+
+void test_nonpositive_count_bug(openswd3::test::Context& test) {
+    std::array<u16, 3> zero_count{0x1234U, 0x2345U, 0x3456U};
+    openswd3::rendering::apply_legacy_pixel_transform(
+        LegacyPixelTransform::shift_whole_word_left,
+        zero_count.data(),
+        0
+    );
+    constexpr std::array<u16, 3> kZeroExpected{0x2468U, 0x2345U, 0x3456U};
+    test.expect_equal(
+        zero_count,
+        kZeroExpected,
+        "zero count still converts the first pixel"
+    );
+
+    std::array<u16, 3> negative_count{0x7C1FU, 0x03E0U, 0x001FU};
+    openswd3::rendering::apply_legacy_pixel_transform(
+        LegacyPixelTransform::rgb555_to_rgb565,
+        negative_count.data(),
+        -1
+    );
+    constexpr std::array<u16, 3> kNegativeExpected{
+        0xF81FU,
+        0x03E0U,
+        0x001FU,
+    };
+    test.expect_equal(
+        negative_count,
+        kNegativeExpected,
+        "negative count still converts exactly the first pixel"
+    );
+
+    openswd3::rendering::apply_legacy_pixel_transform(
+        LegacyPixelTransform::identity,
+        nullptr,
+        0
+    );
+}
+
+void test_selector_state(openswd3::test::Context& test) {
+    LegacyPixelConversionState state;
+    const LegacyPixelMasks rgb565{0xF800U, 0x07E0U, 0x001FU};
+    openswd3::rendering::select_legacy_pixel_conversion(state, rgb565);
+    test.expect_equal(
+        state.forward,
+        LegacyPixelTransform::rgb555_to_rgb565,
+        "RGB565 selects the forward converter"
+    );
+    test.expect_equal(
+        state.reverse,
+        LegacyPixelTransform::rgb565_to_rgb555,
+        "RGB565 selects the reverse converter"
+    );
+
+    u16 forward_pixel = 0x7C1FU;
+    openswd3::rendering::legacy_convert_pixels_forward(
+        state,
+        &forward_pixel,
+        1
+    );
+    test.expect_equal(
+        forward_pixel,
+        static_cast<u16>(0xF81FU),
+        "forward wrapper dispatches through the selected RGB565 converter"
+    );
+
+    u16 reverse_pixel = 0x07E0U;
+    openswd3::rendering::legacy_convert_pixels_reverse(
+        state,
+        &reverse_pixel,
+        1
+    );
+    test.expect_equal(
+        reverse_pixel,
+        static_cast<u16>(0x03E0U),
+        "reverse wrapper dispatches through the selected RGB565 converter"
+    );
+
+    const LegacyPixelMasks whole_shift{0xF800U, 0x07C0U, 0x003FU};
+    openswd3::rendering::select_legacy_pixel_conversion(state, whole_shift);
+    test.expect_equal(
+        state.forward,
+        LegacyPixelTransform::shift_whole_word_left,
+        "six-bit-blue format replaces only the forward converter"
+    );
+    test.expect_equal(
+        state.reverse,
+        LegacyPixelTransform::rgb565_to_rgb555,
+        "six-bit-blue format inherits the previous reverse converter"
+    );
+
+    const LegacyPixelMasks unsupported{0x1111U, 0x2222U, 0x3333U};
+    openswd3::rendering::select_legacy_pixel_conversion(state, unsupported);
+    test.expect_equal(
+        state.forward,
+        LegacyPixelTransform::shift_whole_word_left,
+        "unsupported masks preserve the previous forward converter"
+    );
+    test.expect_equal(
+        state.reverse,
+        LegacyPixelTransform::rgb565_to_rgb555,
+        "unsupported masks preserve the previous reverse converter"
+    );
+    test.expect_equal(
+        state.reported_masks.red,
+        0x1111U,
+        "unsupported masks are still published as the reported format"
+    );
+
+    const LegacyPixelMasks shifted_red{0xFC00U, 0x03E0U, 0x001FU};
+    openswd3::rendering::select_legacy_pixel_conversion(state, shifted_red);
+    test.expect_equal(
+        state.forward,
+        LegacyPixelTransform::shift_red_field_left,
+        "six-bit-red format replaces only the forward converter"
+    );
+    test.expect_equal(
+        state.reverse,
+        LegacyPixelTransform::rgb565_to_rgb555,
+        "six-bit-red format inherits the previous reverse converter"
+    );
+
+    const LegacyPixelMasks rgb555{0x7C00U, 0x03E0U, 0x001FU};
+    openswd3::rendering::select_legacy_pixel_conversion(state, rgb555);
+    test.expect_equal(
+        state.forward,
+        LegacyPixelTransform::identity,
+        "RGB555 resets the forward converter"
+    );
+    test.expect_equal(
+        state.reverse,
+        LegacyPixelTransform::identity,
+        "RGB555 resets the reverse converter"
+    );
+
+    std::array<u16, 2> pixels{0x1234U, 0x5678U};
+    openswd3::rendering::legacy_convert_pixels_forward(
+        state,
+        pixels.data(),
+        2
+    );
+    constexpr std::array<u16, 2> kUnchanged{0x1234U, 0x5678U};
+    test.expect_equal(
+        pixels,
+        kUnchanged,
+        "forward wrapper dispatches through the selected identity transform"
+    );
+}
+
+}  // namespace
+
+int main() {
+    openswd3::test::Context test;
+    test_all_pixel_values(test);
+    test_nonpositive_count_bug(test);
+    test_selector_state(test);
+    return test.exit_code();
+}

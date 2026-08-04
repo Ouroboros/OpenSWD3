@@ -692,6 +692,24 @@ add_test(
     COMMAND openswd3_input_time_rng_legacy_text_input_tests
 )
 
+add_executable(
+    openswd3_rendering_legacy_pixel_conversion_tests
+    unit/rendering/legacy_pixel_conversion_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_pixel_conversion_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_pixel_conversion_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_pixel_conversion
+    COMMAND openswd3_rendering_legacy_pixel_conversion_tests
+)
+
 if(TARGET SDL3::SDL3)
     add_executable(
         openswd3_platform_keyboard_snapshot_sdl3_tests
