@@ -5,6 +5,7 @@ add_library(
     legacy_glyph_cache.cpp
     legacy_glyph_writer.cpp
     legacy_pixel_conversion.cpp
+    legacy_text_renderer.cpp
 )
 target_include_directories(
     openswd3_rendering

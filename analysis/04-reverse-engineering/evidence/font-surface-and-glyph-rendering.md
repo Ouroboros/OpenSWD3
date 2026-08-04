@@ -78,6 +78,12 @@
 - ASCII 前进量为 `FE0 - (FE0 >> 1)`；高位双字节前进量为完整 `FE0`；
 - 布局完全不查询 GDI 的实际 glyph advance、kerning 或 shaping。
 
+长度先按第一个 NUL 计算，循环上界是最后一个非 NUL byte 的索引。高位 byte
+分支会先把内部索引加一，再参与“是否为末字符”的比较。因此正常双字节字符
+末尾会命中末字符分支；若最后一个非零 byte 本身是高位 lead，则代码把紧随的
+NUL 盲取为第二 byte，内部索引越过最后非零 byte，反而不会命中末字符分支。
+这个畸形输入行为不是 Big5 校验器可以替换的。
+
 对象 `+0xFC8/+0xFC9` 保存当前一或二字节字符。紧邻的 `+0xFCA` 没有任何显式读写指令；两个静态 renderer 对象都位于 PE `.data` 零填充区，代码隐式依赖这里长期为 NUL 终止符。不能把它擅自解释成普通、每次都会显式写终止符的字符串缓冲。
 
 缓存是 2000 个固定槽：
@@ -97,6 +103,19 @@
 常规容器插入。UT 覆盖非零强度量化、MSB-first、行尾 padding、无符号 key
 顺序、整 mask 槽搬移，以及第 1999 次 miss 后 key 仍留在物理 slot 1998、
 mask 被清零且 live count 回到 1998 的状态。
+
+`sub_436AD0` 的 hit/miss 顺序也属于缓存合同。hit 直接执行背景和 writer，既不
+调用字形生产器，也不改变 count；miss 严格执行“插入并清空物理槽 → 生成
+mask → 背景 → writer → 累加固定 advance → count 加一及上限清槽”。不得把
+count 上限提前到绘制前，也不得在 hit 上重复生成 mask。
+
+当前确定性协调器位于
+`include/openswd3/rendering/legacy_text_renderer.hpp` 与
+`src/rendering/legacy_text_renderer.cpp`。它保留上述原始 byte scratch、无符号
+little-endian key、hit/miss 顺序和固定整数 advance，并只把 mask 生产交给
+`LegacyGlyphProvider`。有界 C++ 输入缺少 NUL 时返回显式异常；provider 失败
+则对应原 GDI 调用不检查返回值的路径：保留空/部分 mask，继续背景、布局和
+绘制后缓存计数，同时把平台失败报告给调用者。
 
 ## 五种软件 footprint
 
@@ -144,6 +163,11 @@ mask 行的全部 bit、上述严格比较、secondary/foreground 写入顺序�
 ## 背景矩形
 
 对象 `+0xFE6` 是背景色；`0xFFFE` 表示禁止背景。启用时，`sub_436EA0` 在 glyph writer 前填充矩形，并有末字符宽度修正。其裁剪边界是整个目标 framebuffer 的宽高，而不是对象 `+0xFE8..+0xFF4` 的 glyph clip。
+
+非末字符背景宽度固定为对象 `+0xFE0`；末字符宽度是
+`font_width - ASCII_advance_reduction + 2`。ASCII reduction 为
+`arithmetic_sar(FE0, 1)`，正常双字节字符为零。末字符判定发生在盲取第二
+byte 之后，所以前述悬空高位 lead 使用非末字符的 `FE0` 宽度。
 
 `sub_436EA0` 先用原始 `x+width`、`y+height` 算出右下边界，再分别把左、上
 钳到零，把右、下钳到 framebuffer 宽高。随后它只检查 `left < right`，便在
