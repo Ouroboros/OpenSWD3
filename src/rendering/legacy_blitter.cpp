@@ -96,6 +96,24 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
     return from_bits(to_bits(left) * to_bits(right));
 }
 
+[[nodiscard]] constexpr i32 arithmetic_shift_right(
+    const i32 value,
+    const u32 count
+) noexcept {
+    const u32 masked_count = count & 31U;
+    if (masked_count == 0U) {
+        return value;
+    }
+
+    const u32 bits = to_bits(value);
+    u32 shifted = bits >> masked_count;
+    if ((bits & 0x80000000U) != 0U) {
+        shifted |= 0xFFFFFFFFU << (32U - masked_count);
+    }
+
+    return from_bits(shifted);
+}
+
 [[nodiscard]] constexpr u32 wrapping_byte_offset(
     const i32 value
 ) noexcept {
@@ -645,6 +663,64 @@ enum class ClipStatus : u8 {
 
         source_row += to_bits(request.source_width) * 2U;
         destination_row += clipped.destination_row_step_bytes;
+    }
+
+    return LegacyBlitExecutionStatus::completed;
+}
+
+[[nodiscard]] LegacyBlitExecutionStatus blit_raw_constant_vertical_fade(
+    LegacyFramebuffer& framebuffer,
+    const LegacyBlitSource& source,
+    const LegacyBlitRequest& request,
+    const ClippedBlit& clipped,
+    const LegacyPixelConversionState& format
+) noexcept {
+    u16 source_pixel{};
+    if (!read_u16(source.bytes, 0U, source_pixel)) {
+        return LegacyBlitExecutionStatus::malformed_source;
+    }
+
+    const i32 fade_limit = arithmetic_shift_right(
+        request.source_height,
+        4U
+    );
+    i32 fade_counter{};
+    i32 opacity_step = 15;
+    u32 destination_row = clipped.destination_start_bytes;
+
+    for (i32 row = 0; row < clipped.visible_height; ++row) {
+        u32 destination = destination_row;
+        for (i32 column = 0; column < clipped.visible_width; ++column) {
+            u16 destination_pixel{};
+            if (!read_framebuffer_u16(
+                    framebuffer,
+                    destination,
+                    destination_pixel
+                )) {
+                return LegacyBlitExecutionStatus::destination_out_of_bounds;
+            }
+            if (!write_u16(
+                    framebuffer,
+                    destination,
+                    opacity_pixel(
+                        source_pixel,
+                        destination_pixel,
+                        opacity_step,
+                        format
+                    )
+                )) {
+                return LegacyBlitExecutionStatus::destination_out_of_bounds;
+            }
+
+            destination += 2U;
+        }
+
+        destination_row += clipped.destination_row_step_bytes;
+        fade_counter = wrapping_add(fade_counter, 1);
+        if (fade_counter > fade_limit) {
+            fade_counter = 0;
+            opacity_step = wrapping_subtract(opacity_step, 1);
+        }
     }
 
     return LegacyBlitExecutionStatus::completed;
@@ -1464,6 +1540,16 @@ LegacyBlitResult blit_legacy_copy_paths(
 
     case LegacyBlitterRoutine::raw_opacity_forward:
         status = blit_raw_opacity_forward(
+            framebuffer,
+            source,
+            request,
+            clipped,
+            effects.pixel_conversion
+        );
+        break;
+
+    case LegacyBlitterRoutine::raw_constant_vertical_fade:
+        status = blit_raw_constant_vertical_fade(
             framebuffer,
             source,
             request,

@@ -457,6 +457,52 @@ def verify_smear_routines(lines: list[tuple[int, str]]) -> None:
             )
 
 
+def verify_raw_constant_fade_state(lines: list[tuple[int, str]]) -> None:
+    normalized = {
+        address: re.sub(r"\s+", " ", instruction).strip()
+        for address, instruction in lines
+    }
+    expected = {
+        0x00417EC9: "mov eax, dword_4CD730",
+        0x00417ED0: "mov cx, [eax]",
+        0x00417ED3: "mov [ebp+var_4], ecx",
+        0x00417ED6: "mov edx, [ebp+arg_C]",
+        0x00417ED9: "sar edx, 4",
+        0x00417EDC: "mov [ebp+var_C], edx",
+        0x00417EDF: "mov [ebp+var_8], 3Ch",
+        0x00417EE6: "mov [ebp+var_10], 0",
+        0x00417FC5: "lea esi, [ebp+var_4]",
+        0x0041830E: "dec edx",
+        0x0041830F: "add edi, 2",
+        0x0041831A: "dec ecx",
+        0x00418321: "inc dword ptr [ebp-10h]",
+        0x00418324: "mov eax, [ebp-0Ch]",
+        0x00418327: "cmp eax, [ebp-10h]",
+        0x0041832A: "jge short loc_418337",
+        0x0041832C: "mov dword ptr [ebp-10h], 0",
+        0x00418333: "sub dword ptr [ebp-8], 4",
+    }
+    for address, instruction in expected.items():
+        actual = normalized.get(address)
+        if actual != instruction:
+            raise SystemExit(
+                f"raw constant-fade state mismatch at 0x{address:08X}: "
+                f"expected {instruction!r}, got {actual!r}"
+            )
+
+    source_pointer_updates = [
+        (address, instruction)
+        for address, instruction in lines
+        if 0x00417FC5 < address <= 0x00418345
+        and re.match(r"(?:add|sub|inc|dec|mov|lea)\s+esi(?:,|$)", instruction)
+    ]
+    if source_pointer_updates:
+        raise SystemExit(
+            "raw constant-fade unexpectedly advances its local constant source: "
+            f"{source_pointer_updates}"
+        )
+
+
 def direction_for_slot(slot: int) -> str:
     if slot & 1:
         return "horizontal reverse"
@@ -610,6 +656,7 @@ def main() -> None:
         raise SystemExit("raw 0x94 opacity formulas differ from the RLE 0x14 formulas")
     if reverse_alpha_terms != terms:
         raise SystemExit("reverse RLE opacity formulas differ from forward RLE opacity")
+    verify_raw_constant_fade_state(lines)
     verify_smear_routines(lines)
     INVENTORY_ROOT.mkdir(parents=True, exist_ok=True)
     write_dispatch(recovered)
@@ -619,7 +666,7 @@ def main() -> None:
         f"wrote {len(recovered)} dispatch slots, {len(targets)} opacity steps, and "
         f"{len(coverage_targets)} coverage-composite steps; opacity steps 1..14 preserve "
         "the original 15/16 combined packed-field weight; raw/reverse opacity and both "
-        "vertical-fade tables match; both smear routines preserve the 17-beat fixed-offset cycle"
+        "vertical-fade tables match; raw constant-fade state and both smear routines match"
     )
 
 

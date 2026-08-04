@@ -866,6 +866,84 @@ void test_raw_and_rle_opacity_steps(openswd3::test::Context& test) {
     );
 }
 
+void test_raw_constant_vertical_fade(openswd3::test::Context& test) {
+    constexpr u16 kSourcePixel = 0x621DU;
+    constexpr u16 kDestinationPixel = 0x1CE3U;
+    constexpr std::array<u16, 16> kRgb555Steps{
+        0x1CE3U, 0x14A2U, 0x1CC4U, 0x20E5U,
+        0x24E8U, 0x2909U, 0x312BU, 0x354CU,
+        0x352EU, 0x394FU, 0x4171U, 0x4592U,
+        0x4995U, 0x4DB6U, 0x55D8U, 0x621DU,
+    };
+    const std::vector<u8> source = direct_pixels(
+        std::array<u16, 1>{kSourcePixel}
+    );
+    LegacyFramebuffer full(LegacySurfaceGeometry{
+        .pitch_bytes = 6,
+        .width = 3,
+        .height = 16,
+    });
+    std::ranges::fill(full.physical_pixels(), kDestinationPixel);
+    LegacyRleRowJitterState jitter{};
+    test.expect_equal(
+        blit(
+            full,
+            LegacyBlitSource{
+                .bytes = source,
+                .layout = LegacyBlitSourceLayout::indexed_8,
+            },
+            LegacyBlitRequest{
+                .source_width = 3,
+                .source_height = 16,
+                .flags = 0x08U,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "raw constant vertical fade"
+    );
+    for (std::size_t row = 0U; row < 16U; ++row) {
+        const std::size_t step = 15U - row / 2U;
+        for (const u16 pixel : full.row_pixels(static_cast<u32>(row))) {
+            test.expect_equal(
+                pixel,
+                kRgb555Steps[step],
+                "height 16 keeps each opacity step for q+1 rows"
+            );
+        }
+    }
+
+    LegacyFramebuffer clipped(LegacySurfaceGeometry{
+        .pitch_bytes = 2,
+        .width = 1,
+        .height = 12,
+    });
+    std::ranges::fill(clipped.physical_pixels(), kDestinationPixel);
+    test.expect_equal(
+        blit(
+            clipped,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .destination_y = -4,
+                .source_width = 1,
+                .source_height = 16,
+                .flags = 0x08U,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "top-clipped raw constant fade"
+    );
+    for (std::size_t row = 0U; row < 12U; ++row) {
+        const std::size_t step = 15U - row / 2U;
+        test.expect_equal(
+            clipped.physical_pixels()[row],
+            kRgb555Steps[step],
+            "top clipping does not pre-advance the raw fade step"
+        );
+    }
+}
+
 void test_rle_vertical_opacity_fade(openswd3::test::Context& test) {
     constexpr u16 kSourcePixel = 0x621DU;
     constexpr u16 kDestinationPixel = 0x1CE3U;
@@ -1266,10 +1344,19 @@ void test_sparse_and_unsupported_execution(openswd3::test::Context& test) {
         "clipped result still reports the selected sparse hole"
     );
 
+    const std::array<std::vector<u16>, 2> unsupported_rows{
+        std::vector<u16>{0x0002U, 1U, 2U, 0x0000U},
+        std::vector<u16>{0x0002U, 3U, 4U, 0x0000U},
+    };
+    const std::vector<u8> unsupported_source = make_rle(
+        2U,
+        2U,
+        unsupported_rows
+    );
     test.expect_equal(
         blit(
             framebuffer,
-            LegacyBlitSource{.bytes = source_bytes},
+            LegacyBlitSource{.bytes = unsupported_source},
             LegacyBlitRequest{
                 .source_width = 2,
                 .source_height = 2,
@@ -3038,6 +3125,7 @@ int main() {
     test_raw_reverse_and_indexed_paths(test);
     test_raw_color_key_copy(test);
     test_raw_and_rle_opacity_steps(test);
+    test_raw_constant_vertical_fade(test);
     test_rle_vertical_opacity_fade(test);
     test_rle_smear(test);
     test_sparse_and_unsupported_execution(test);
