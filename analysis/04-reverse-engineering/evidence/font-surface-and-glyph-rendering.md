@@ -2,7 +2,7 @@
 
 ## 证据边界
 
-本结论只以 `swd3.exe_export_for_ai/swd3.exe.asm` 的完整汇编为逻辑真值。IDA 伪码只可用于定位，不参与证明；默认字体名和两个静态对象的初始零值另由锁定哈希的原始 `swd3.exe` 字节验证。
+本结论只以 `swd3.exe_export_for_ai/swd3.exe.lst` 的完整反汇编为逻辑真值。ASM 与 IDA 伪码不参与范围或行为证明；默认字体名和两个静态对象的初始零值另由锁定哈希的原始 `swd3.exe` 字节验证。
 
 本轮恢复的是文字从 Windows 字体到 16 位帧缓冲的完整物理链。结论不是“字体完全由 GDI 绘制”，也不是“EXE 内置位图字体”，而是混合管线：
 
@@ -89,6 +89,15 @@
 
 最后一条是原始淘汰/上限异常，不能用无界 map、LRU 或“修正后的 2000 槽”替换。它属于要保留的游戏行为。
 
+当前确定性兼容核心已经把这一段落实为
+`include/openswd3/rendering/legacy_glyph_cache.hpp` 与
+`src/rendering/legacy_glyph_cache.cpp`：`pack_legacy_glyph_mask` 保留
+`sub_4368D0` 的“只 OR 置位、不负责清空目标槽”合同，缓存则明确拆开
+`insert_empty` 和绘制后的 `finish_miss_after_draw`，没有把原调用顺序折叠成
+常规容器插入。UT 覆盖非零强度量化、MSB-first、行尾 padding、无符号 key
+顺序、整 mask 槽搬移，以及第 1999 次 miss 后 key 仍留在物理 slot 1998、
+mask 被清零且 live count 回到 1998 的状态。
+
 ## 五种软件 footprint
 
 以下以字形 mask 中的置位像素为 `p=(x+gx,y+gy)`，offset 表示最终帧缓冲相对 `p` 的写入位置。`foreground` 是调用参数中的 16 位前景色，`secondary` 是对象 `+0xFE4` 的 16 位阴影/轮廓色。
@@ -155,6 +164,10 @@ SDL3 在 Windows、Linux、macOS 等平台都能承接窗口、事件、输入�
 - `0xFFFE` 背景禁用值和背景只按 framebuffer 边界裁剪。
 - `+0xFCA` 隐式零终止依赖；初步还原不得用“更安全”行为改变可观察结果。
 
+当前实现只对无法形成原 64×64 正常字体对象的非正 geometry 建立显式安全
+边界；正常执行的 mask、排序、搬移、绘制后计数与清槽顺序均按完整 LST
+保留。该边界不改变任何已确认游戏路径。
+
 ## 可复现产物
 
 - 生成器：`tools/build_font_glyph_inventory.py`
@@ -163,4 +176,4 @@ SDL3 在 Windows、Linux、macOS 等平台都能承接窗口、事件、输入�
 - 五种 footprint：`inventory/font-glyph-style-footprints.tsv`
 - 291 个直接调用点：`inventory/font-render-callsites.tsv`
 
-生成器同时锁定原 EXE 与完整汇编 SHA-256、默认字体原始字节、PE `.data` 零填充边界、关键指令、两个字体设置调用点、291 个文字调用点及 style operand 分布。任一锁定事实变化都会停止生成，而不是静默沿用旧结论。
+生成器同时锁定原 EXE 与完整 LST SHA-256、默认字体原始字节、PE `.data` 零填充边界、关键指令、两个字体设置调用点、291 个文字调用点及 style operand 分布。任一锁定事实变化都会停止生成，而不是静默沿用旧结论。

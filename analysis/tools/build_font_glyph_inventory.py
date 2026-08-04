@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Build assembly-locked inventories for the GDI-backed glyph renderer.
+"""Build LST-locked inventories for the GDI-backed glyph renderer.
 
-IDA pseudocode is deliberately not consumed.  The complete assembly is the
-behavioral authority; the PE is read only to lock the default Big5 face name
-and the zero-filled storage relied on by the two static renderer objects.
+IDA pseudocode and the generated ASM file are deliberately not consumed.  The
+complete IDA LST is the only disassembly authority; the PE is read only to lock
+the default Big5 face name and the zero-filled storage relied on by the two
+static renderer objects.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from pathlib import Path
 RESEARCH_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = RESEARCH_ROOT.parents[1]
 EXE_PATH = WORKSPACE_ROOT / "swd3.exe"
-ASM_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.asm"
+LST_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.lst"
 INVENTORY_ROOT = RESEARCH_ROOT / "04-reverse-engineering" / "inventory"
 FIELDS_OUTPUT = INVENTORY_ROOT / "font-renderer-object-fields.tsv"
 PIPELINE_OUTPUT = INVENTORY_ROOT / "font-glyph-pipeline.tsv"
@@ -29,10 +30,10 @@ CALLSITES_OUTPUT = INVENTORY_ROOT / "font-render-callsites.tsv"
 
 EXPECTED_SHA256 = {
     EXE_PATH: "0bac897a7557735b22607d8c8f0a79a3e7ae7729deb56593fd91c21e10baee0c",
-    ASM_PATH: "d902f6dfd47d7033bf8a971c4ccc3a4d8d037b5b577035041113329363cab052",
+    LST_PATH: "701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b",
 }
 
-ASM_LINE_RE = re.compile(r"^([0-9A-F]{8})\s+(.+?)\s*$")
+LST_LINE_RE = re.compile(r"^\.[^:]+:([0-9A-F]{8})\s")
 
 EXPECTED_SNIPPETS = {
     # Renderer object, fixed scratch surface, and measured pitch.
@@ -231,19 +232,27 @@ def normalize(instruction: str) -> str:
     return " ".join(instruction.split())
 
 
-def load_assembly() -> tuple[list[Instruction], dict[int, str]]:
+def load_listing() -> tuple[list[Instruction], dict[int, str]]:
     ordered: list[Instruction] = []
     by_address: dict[int, str] = {}
     owner = ""
-    for raw in ASM_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
+    for raw in LST_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
         owner_match = re.search(r"\b(sub_[0-9A-F]{6})\s+proc near\b", raw)
         if owner_match:
             owner = owner_match.group(1)
-        match = ASM_LINE_RE.match(raw)
-        if not match:
+        match = LST_LINE_RE.match(raw)
+        if not match or len(raw) <= 43:
             continue
-        instruction = match.group(2).split(";", 1)[0].rstrip()
-        if not instruction or instruction.endswith(":"):
+
+        byte_field = raw[15:43].strip()
+        if not byte_field or not re.match(
+            r"^[0-9A-F?]{2}(?:\s|$)",
+            byte_field,
+        ):
+            continue
+
+        instruction = raw[43:].split(";", 1)[0].rstrip()
+        if not instruction:
             continue
         address = int(match.group(1), 16)
         text = normalize(instruction)
@@ -316,7 +325,7 @@ def verify_pe_contract() -> str:
     return face
 
 
-def verify_assembly(by_address: dict[int, str]) -> None:
+def verify_listing(by_address: dict[int, str]) -> None:
     for address, expected in EXPECTED_SNIPPETS.items():
         actual = by_address.get(address)
         if actual != expected:
@@ -517,9 +526,9 @@ def write_outputs(
 
 def main() -> None:
     verify_locked_inputs()
-    ordered, by_address = load_assembly()
+    ordered, by_address = load_listing()
     face = verify_pe_contract()
-    verify_assembly(by_address)
+    verify_listing(by_address)
     callsites = build_callsites(ordered)
     fields = field_rows()
     pipeline = pipeline_rows(face)

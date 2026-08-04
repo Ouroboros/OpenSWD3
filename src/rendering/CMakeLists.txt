@@ -2,6 +2,7 @@ add_library(
     openswd3_rendering STATIC
     legacy_blitter.cpp
     legacy_framebuffer.cpp
+    legacy_glyph_cache.cpp
     legacy_pixel_conversion.cpp
 )
 target_include_directories(
