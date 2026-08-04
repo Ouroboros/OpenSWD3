@@ -59,6 +59,7 @@ B4 拥有：
 - [`legacy-blitter-assigned-effects-0041b280.md`](../evidence/legacy-blitter-assigned-effects-0041b280.md)
 - [`legacy-blitter-color-key-and-saturated-arithmetic.md`](../evidence/legacy-blitter-color-key-and-saturated-arithmetic.md)
 - [`legacy-blitter-run-edge-copy-0041ccf0.md`](../evidence/legacy-blitter-run-edge-copy-0041ccf0.md)
+- [`legacy-blitter-opacity-00417950-0041d340.md`](../evidence/legacy-blitter-opacity-00417950-0041d340.md)
 - [`pixel-format-selection-and-cm-cache.md`](../evidence/pixel-format-selection-and-cm-cache.md)
 - [`software-blitter-dispatch-and-pixel-effects.md`](../evidence/software-blitter-dispatch-and-pixel-effects.md)
 - [`font-surface-and-glyph-rendering.md`](../evidence/font-surface-and-glyph-rendering.md)
@@ -71,7 +72,7 @@ B4 拥有：
 2. `[x]` B4.2：实现 `0x004238B0..0x004239C1` 正反转换与 `0x00423400` 的转换选择子状态；四条公式穷举 262,144 个输入组合，当前 CM 缓存 4,420,608 字节验证通过。
 3. `[x]` B4.3：实现 owned framebuffer、显式 pitch、1024 项旧行表与固定画布常量；Linux `core` 41/41、Linux/Windows `app` 43/43 CTest 通过。
 4. `[x]` B4.4：43 个稀疏槽、普通裁剪、四条 raw/RLE copy、异常边界与真实 TSW 固定帧已闭环；Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过。
-5. `[>]` B4.5：按效果族逐单元实现其余已赋值 blitter；`0x10/0x24/0x28` 目标颜色偏移、常量填充和灰度，raw `0x84/0x85` 色键复制、RLE `0x04/0x2C` 饱和加减色，以及 `0x18` literal run 边缘覆盖单元已闭环；下一单元处理 raw `0x94` 与 RLE `0x14/0x1C` 透明度效果族。
+5. `[>]` B4.5：按效果族逐单元实现其余已赋值 blitter；`0x10/0x24/0x28` 目标颜色偏移、常量填充和灰度，raw `0x84/0x85` 色键复制、RLE `0x04/0x2C` 饱和加减色，`0x18` literal run 边缘覆盖，以及 raw `0x94`、RLE `0x14/0x1C` 透明度单元已闭环；下一单元处理 `0x30` 的 17 拍邻像素涂抹。
 6. `[ ]` B4.6：实现 glyph mask/cache、五种文字 footprint 与背景。
 7. `[ ]` B4.7：恢复画面动作/effect 更新和原分支 present 请求。
 8. `[ ]` B4.8：接入 SDL3 上传、恢复生命周期与 framebuffer 哈希回放。

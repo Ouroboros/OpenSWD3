@@ -270,6 +270,45 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
     return pixel;
 }
 
+[[nodiscard]] constexpr u32 opacity_shift_mask(
+    const LegacyPixelConversionState& format,
+    const u32 shift
+) noexcept {
+    return ((format.effective_masks.red >> shift) &
+            format.effective_masks.red) |
+        ((format.effective_masks.green >> shift) &
+         format.effective_masks.green) |
+        ((format.effective_masks.blue >> shift) &
+         format.effective_masks.blue);
+}
+
+[[nodiscard]] constexpr u16 opacity_pixel(
+    const u16 source,
+    const u16 destination,
+    const i32 step,
+    const LegacyPixelConversionState& format
+) noexcept {
+    if (step <= 0) {
+        return destination;
+    }
+    if (step >= 15) {
+        return source;
+    }
+
+    u32 result{};
+    for (u32 shift = 1U; shift <= 4U; ++shift) {
+        const u32 unit = 1U << (4U - shift);
+        const u16 selected =
+            (static_cast<u32>(step) & unit) != 0U
+            ? source
+            : destination;
+        result += (static_cast<u32>(selected) >> shift) &
+            opacity_shift_mask(format, shift);
+    }
+
+    return static_cast<u16>(result);
+}
+
 struct ClippedBlit {
     i32 destination_x{};
     i32 destination_y{};
@@ -545,6 +584,72 @@ enum class ClipStatus : u8 {
     return LegacyBlitExecutionStatus::completed;
 }
 
+[[nodiscard]] LegacyBlitExecutionStatus blit_raw_opacity_forward(
+    LegacyFramebuffer& framebuffer,
+    const LegacyBlitSource& source,
+    const LegacyBlitRequest& request,
+    const ClippedBlit& clipped,
+    const LegacyPixelConversionState& format
+) noexcept {
+    const i32 source_pixel = wrapping_add(
+        clipped.source_left_skip,
+        wrapping_multiply(request.source_width, clipped.source_top_skip)
+    );
+    u32 source_row = wrapping_byte_offset(source_pixel) * 2U;
+    u32 destination_row = clipped.destination_start_bytes;
+    const u16 transparent_pixel = static_cast<u16>(
+        duplicated_transparent_pixel(format)
+    );
+    const i32 internal_step = wrapping_subtract(request.opacity_step, 1);
+
+    for (i32 row = 0; row < clipped.visible_height; ++row) {
+        u32 source_offset = source_row;
+        u32 destination = destination_row;
+        for (i32 column = 0; column < clipped.visible_width; ++column) {
+            u16 source_pixel_value{};
+            if (!read_u16(
+                    source.bytes,
+                    static_cast<std::size_t>(source_offset),
+                    source_pixel_value
+                )) {
+                return LegacyBlitExecutionStatus::malformed_source;
+            }
+
+            if (source_pixel_value != transparent_pixel) {
+                u16 destination_pixel{};
+                if (!read_framebuffer_u16(
+                        framebuffer,
+                        destination,
+                        destination_pixel
+                    )) {
+                    return LegacyBlitExecutionStatus::destination_out_of_bounds;
+                }
+
+                if (!write_u16(
+                        framebuffer,
+                        destination,
+                        opacity_pixel(
+                            source_pixel_value,
+                            destination_pixel,
+                            internal_step,
+                            format
+                        )
+                    )) {
+                    return LegacyBlitExecutionStatus::destination_out_of_bounds;
+                }
+            }
+
+            source_offset += 2U;
+            destination += 2U;
+        }
+
+        source_row += to_bits(request.source_width) * 2U;
+        destination_row += clipped.destination_row_step_bytes;
+    }
+
+    return LegacyBlitExecutionStatus::completed;
+}
+
 struct JitterCursor {
     bool active{};
     u32 base_bytes{};
@@ -612,6 +717,8 @@ void advance_jitter_phase(LegacyRleRowJitterState& state) noexcept {
 enum class RlePixelOperation : u8 {
     copy,
     copy_with_edges,
+    opacity,
+    vertical_opacity_fade,
     destination_offset,
     constant_fill,
     grayscale,
@@ -740,7 +847,8 @@ struct RleRoutinePolicy {
     const u32 destination,
     const LegacyBlitEffectState& effects,
     const RleRoutinePolicy& policy,
-    const u16 constant_fill
+    const u16 constant_fill,
+    const i32 opacity_step
 ) noexcept {
     u16 pixel{};
     switch (policy.operation) {
@@ -750,6 +858,29 @@ struct RleRoutinePolicy {
             return LegacyBlitExecutionStatus::malformed_source;
         }
         break;
+
+    case RlePixelOperation::opacity:
+    case RlePixelOperation::vertical_opacity_fade: {
+        u16 destination_pixel{};
+        if (!read_u16(source.bytes, source_offset, pixel)) {
+            return LegacyBlitExecutionStatus::malformed_source;
+        }
+        if (!read_framebuffer_u16(
+                framebuffer,
+                destination,
+                destination_pixel
+            )) {
+            return LegacyBlitExecutionStatus::destination_out_of_bounds;
+        }
+
+        pixel = opacity_pixel(
+            pixel,
+            destination_pixel,
+            opacity_step,
+            effects.pixel_conversion
+        );
+        break;
+    }
 
     case RlePixelOperation::destination_offset:
         if (!read_framebuffer_u16(framebuffer, destination, pixel)) {
@@ -877,6 +1008,25 @@ void finish_rle_success(
         }
     }
 
+    const bool vertical_opacity_fade =
+        policy.operation == RlePixelOperation::vertical_opacity_fade;
+    const i32 fade_group = vertical_opacity_fade
+        ? from_bits((to_bits(request.source_height) + 16U)) >> 4
+        : 0;
+    i32 fade_remaining = fade_group;
+    i32 opacity_step = vertical_opacity_fade ? 15 : request.opacity_step;
+    const auto advance_vertical_opacity = [&]() noexcept {
+        if (!vertical_opacity_fade) {
+            return;
+        }
+
+        fade_remaining = wrapping_subtract(fade_remaining, 1);
+        if (fade_remaining == 0) {
+            fade_remaining = fade_group;
+            opacity_step = wrapping_subtract(opacity_step, 1);
+        }
+    };
+
     u16 source_flags{};
     if (!read_u16(source.bytes, 6U, source_flags)) {
         return LegacyBlitExecutionStatus::malformed_source;
@@ -898,6 +1048,8 @@ void finish_rle_success(
         if (row_pointer > source.bytes.size()) {
             return LegacyBlitExecutionStatus::malformed_source;
         }
+
+        advance_vertical_opacity();
     }
 
     i32 source_window_start = clipped.source_left_skip;
@@ -937,6 +1089,8 @@ void finish_rle_success(
         if (!next_jitter_offset(jitter_cursor, jitter, jitter_pixels)) {
             return LegacyBlitExecutionStatus::jitter_table_out_of_bounds;
         }
+
+        advance_vertical_opacity();
 
         const u32 jitter_bytes = to_bits(jitter_pixels) * 2U;
         const u32 jittered_destination_row = destination_row + jitter_bytes;
@@ -1057,7 +1211,8 @@ void finish_rle_success(
                             destination,
                             effects,
                             policy,
-                            constant_fill
+                            constant_fill,
+                            opacity_step
                         );
                     if (pixel_status != LegacyBlitExecutionStatus::completed) {
                         return pixel_status;
@@ -1279,6 +1434,16 @@ LegacyBlitResult blit_legacy_copy_paths(
         );
         break;
 
+    case LegacyBlitterRoutine::raw_opacity_forward:
+        status = blit_raw_opacity_forward(
+            framebuffer,
+            source,
+            request,
+            clipped,
+            effects.pixel_conversion
+        );
+        break;
+
     case LegacyBlitterRoutine::rle_copy_forward:
         status = run_rle(RleRoutinePolicy{
             .operation = RlePixelOperation::copy,
@@ -1307,6 +1472,28 @@ LegacyBlitResult blit_legacy_copy_paths(
             .reverse = true,
             .advance_phase_on_exit = true,
             .supports_third_row_skip = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_opacity_forward:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::opacity,
+            .advance_phase_on_exit = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_opacity_reverse:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::opacity,
+            .reverse = true,
+            .advance_phase_on_exit = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_vertical_opacity_fade:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::vertical_opacity_fade,
+            .advance_phase_on_exit = true,
         });
         break;
 

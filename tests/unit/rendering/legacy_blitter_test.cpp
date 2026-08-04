@@ -621,6 +621,313 @@ void test_raw_color_key_copy(openswd3::test::Context& test) {
     );
 }
 
+void test_raw_and_rle_opacity_steps(openswd3::test::Context& test) {
+    constexpr u16 kSourcePixel = 0x621DU;
+    constexpr u16 kDestinationPixel = 0x1CE3U;
+    constexpr std::array<u16, 16> kRgb555Steps{
+        0x1CE3U, 0x14A2U, 0x1CC4U, 0x20E5U,
+        0x24E8U, 0x2909U, 0x312BU, 0x354CU,
+        0x352EU, 0x394FU, 0x4171U, 0x4592U,
+        0x4995U, 0x4DB6U, 0x55D8U, 0x621DU,
+    };
+    const std::vector<u8> raw_source = direct_pixels(
+        std::array<u16, 1>{kSourcePixel}
+    );
+    const std::array<std::vector<u16>, 1> rle_rows{
+        std::vector<u16>{0x0001U, kSourcePixel, 0x0000U},
+    };
+    const std::vector<u8> rle_source = make_rle(1U, 1U, rle_rows);
+
+    for (i32 external_step = 1; external_step <= 15; ++external_step) {
+        LegacyFramebuffer raw(LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        });
+        raw.physical_pixels().front() = kDestinationPixel;
+        LegacyRleRowJitterState jitter{};
+        test.expect_equal(
+            blit(
+                raw,
+                LegacyBlitSource{.bytes = raw_source},
+                LegacyBlitRequest{
+                    .source_width = 1,
+                    .source_height = 1,
+                    .flags = 0x14U,
+                    .opacity_step = external_step,
+                },
+                jitter
+            ),
+            LegacyBlitExecutionStatus::completed,
+            "raw opacity step executes"
+        );
+        test.expect_equal(
+            raw.physical_pixels().front(),
+            kRgb555Steps[static_cast<std::size_t>(external_step - 1)],
+            "raw 0x94 decrements the external step before table lookup"
+        );
+
+        LegacyFramebuffer rle(LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        });
+        rle.physical_pixels().front() = kDestinationPixel;
+        test.expect_equal(
+            blit(
+                rle,
+                LegacyBlitSource{.bytes = rle_source},
+                LegacyBlitRequest{
+                    .source_width = 1,
+                    .source_height = 1,
+                    .flags = 0x14U,
+                    .opacity_step = external_step,
+                },
+                jitter
+            ),
+            LegacyBlitExecutionStatus::completed,
+            "RLE opacity step executes"
+        );
+        test.expect_equal(
+            rle.physical_pixels().front(),
+            kRgb555Steps[static_cast<std::size_t>(external_step)],
+            "RLE 0x14 uses the external step without raw's decrement"
+        );
+    }
+
+    constexpr std::array<u16, 2> kRawKeyedPixels{0x026BU, kSourcePixel};
+    const std::vector<u8> raw_keyed_source = direct_pixels(kRawKeyedPixels);
+    LegacyFramebuffer keyed(LegacySurfaceGeometry{
+        .pitch_bytes = 4,
+        .width = 2,
+        .height = 1,
+    });
+    std::ranges::fill(keyed.physical_pixels(), kDestinationPixel);
+    LegacyRleRowJitterState jitter{};
+    test.expect_equal(
+        blit(
+            keyed,
+            LegacyBlitSource{.bytes = raw_keyed_source},
+            LegacyBlitRequest{
+                .source_width = 2,
+                .source_height = 1,
+                .flags = 0x14U,
+                .opacity_step = 15,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "raw opacity color key"
+    );
+    test.expect_equal(
+        keyed.physical_pixels()[0],
+        kDestinationPixel,
+        "raw opacity skips the converted low-16 color key"
+    );
+    test.expect_equal(
+        keyed.physical_pixels()[1],
+        kRgb555Steps[14],
+        "raw external step 15 remains internal step 14"
+    );
+
+    constexpr std::array<u16, 1> kUnusedPalette{0x7FFFU};
+    LegacyFramebuffer indexed(LegacySurfaceGeometry{
+        .pitch_bytes = 2,
+        .width = 1,
+        .height = 1,
+    });
+    indexed.physical_pixels().front() = kDestinationPixel;
+    test.expect_equal(
+        blit(
+            indexed,
+            LegacyBlitSource{
+                .bytes = raw_source,
+                .layout = LegacyBlitSourceLayout::indexed_8,
+                .palette = kUnusedPalette,
+            },
+            LegacyBlitRequest{
+                .source_width = 1,
+                .source_height = 1,
+                .flags = 0x14U,
+                .opacity_step = 15,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "raw opacity indexed-layout reachability"
+    );
+    test.expect_equal(
+        indexed.physical_pixels().front(),
+        kRgb555Steps[14],
+        "raw opacity still consumes u16 source words and ignores the palette"
+    );
+
+    struct FormatCase {
+        LegacyPixelMasks masks;
+        u16 expected_step_7;
+    };
+    constexpr std::array<FormatCase, 4> kFormats{
+        FormatCase{
+            LegacyPixelMasks{0x7C00U, 0x03E0U, 0x001FU},
+            0x354CU,
+        },
+        FormatCase{
+            LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU},
+            0x2B0CU,
+        },
+        FormatCase{
+            LegacyPixelMasks{0xF800U, 0x07C0U, 0x003FU},
+            0x2B18U,
+        },
+        FormatCase{
+            LegacyPixelMasks{0xFC00U, 0x03E0U, 0x001FU},
+            0x294CU,
+        },
+    };
+    for (const FormatCase& format_case : kFormats) {
+        LegacyBlitEffectState effects{};
+        openswd3::rendering::select_legacy_pixel_conversion(
+            effects.pixel_conversion,
+            format_case.masks
+        );
+        LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        });
+        framebuffer.physical_pixels().front() = kDestinationPixel;
+        test.expect_equal(
+            blit(
+                framebuffer,
+                LegacyBlitSource{.bytes = rle_source},
+                LegacyBlitRequest{
+                    .source_width = 1,
+                    .source_height = 1,
+                    .flags = 0x14U,
+                    .opacity_step = 7,
+                },
+                effects,
+                jitter
+            ),
+            LegacyBlitExecutionStatus::completed,
+            "surface-specific opacity masks"
+        );
+        test.expect_equal(
+            framebuffer.physical_pixels().front(),
+            format_case.expected_step_7,
+            "opacity uses the four masks built from effective surface channels"
+        );
+    }
+
+    const std::array<std::vector<u16>, 1> reverse_rows{
+        std::vector<u16>{
+            0x0002U, 0x1111U, 0x2222U, 0x0000U,
+        },
+    };
+    const std::vector<u8> reverse_source = make_rle(
+        2U,
+        1U,
+        reverse_rows
+    );
+    std::array<i32, 33> offsets{};
+    LegacyRleRowJitterState reverse_jitter{
+        .group = 1,
+        .offsets = offsets,
+    };
+    LegacyFramebuffer reverse(LegacySurfaceGeometry{
+        .pitch_bytes = 4,
+        .width = 2,
+        .height = 1,
+    });
+    test.expect_equal(
+        blit(
+            reverse,
+            LegacyBlitSource{.bytes = reverse_source},
+            LegacyBlitRequest{
+                .source_width = 2,
+                .source_height = 1,
+                .flags = 0x15U,
+                .opacity_step = 15,
+            },
+            reverse_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "reverse RLE opacity"
+    );
+    constexpr std::array<u16, 2> kExpectedReverse{0x2222U, 0x1111U};
+    test.expect_true(
+        std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
+        "reverse RLE opacity changes target direction but not source order"
+    );
+    test.expect_equal(
+        reverse_jitter.phase_bytes,
+        4U,
+        "reverse RLE opacity advances the shared jitter phase"
+    );
+}
+
+void test_rle_vertical_opacity_fade(openswd3::test::Context& test) {
+    constexpr u16 kSourcePixel = 0x621DU;
+    constexpr u16 kDestinationPixel = 0x1CE3U;
+    constexpr std::array<u16, 16> kRgb555Steps{
+        0x1CE3U, 0x14A2U, 0x1CC4U, 0x20E5U,
+        0x24E8U, 0x2909U, 0x312BU, 0x354CU,
+        0x352EU, 0x394FU, 0x4171U, 0x4592U,
+        0x4995U, 0x4DB6U, 0x55D8U, 0x621DU,
+    };
+    std::array<std::vector<u16>, 16> rows{};
+    for (std::vector<u16>& row : rows) {
+        row = std::vector<u16>{0x0001U, kSourcePixel, 0x0000U};
+    }
+    const std::vector<u8> source = make_rle(1U, 16U, rows);
+    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
+        .pitch_bytes = 2,
+        .width = 1,
+        .height = 12,
+    });
+    std::ranges::fill(framebuffer.physical_pixels(), kDestinationPixel);
+    std::array<i32, 33> offsets{};
+    LegacyRleRowJitterState jitter{
+        .group = 1,
+        .offsets = offsets,
+    };
+    const auto result =
+        openswd3::rendering::blit_legacy_copy_paths(
+            framebuffer,
+            full_clip(framebuffer),
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .destination_y = -4,
+                .source_width = 1,
+                .source_height = 16,
+                .flags = 0x1CU,
+                .opacity_step = 999,
+            },
+            LegacyBlitEffectState{},
+            jitter
+        );
+    test.expect_equal(
+        result.status,
+        LegacyBlitExecutionStatus::completed,
+        "RLE vertical opacity fade"
+    );
+    constexpr std::array<i32, 12> kExpectedSteps{
+        13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8, 7,
+    };
+    for (std::size_t row = 0U; row < kExpectedSteps.size(); ++row) {
+        test.expect_equal(
+            framebuffer.physical_pixels()[row],
+            kRgb555Steps[static_cast<std::size_t>(kExpectedSteps[row])],
+            "vertical fade advances before each full source row, including top-clipped rows"
+        );
+    }
+    test.expect_equal(
+        jitter.phase_bytes,
+        4U,
+        "vertical opacity fade advances the shared jitter phase"
+    );
+}
+
 void test_sparse_and_unsupported_execution(openswd3::test::Context& test) {
     constexpr std::array<u16, 4> kPixels{1U, 2U, 3U, 4U};
     const std::vector<u8> source_bytes = direct_pixels(kPixels);
@@ -2187,6 +2494,59 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         "literal zeroes in the real frame are copied rather than keyed"
     );
 
+    LegacyFramebuffer opacity(LegacySurfaceGeometry{
+        .pitch_bytes = 32,
+        .width = 16,
+        .height = 16,
+    });
+    std::ranges::fill(opacity.physical_pixels(), 0xA55AU);
+    test.expect_equal(
+        blit(
+            opacity,
+            LegacyBlitSource{.bytes = decompressed},
+            LegacyBlitRequest{
+                .source_width = 16,
+                .source_height = 16,
+                .flags = 0x14U,
+                .opacity_step = 8,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "real TSW RLE opacity"
+    );
+    test.expect_equal(
+        framebuffer_fnv1a(opacity.physical_pixels()),
+        0x5AE112E4DCD510C5ULL,
+        "real TSW opacity step 8 matches the independent LST formula parser"
+    );
+
+    LegacyFramebuffer vertical_opacity(LegacySurfaceGeometry{
+        .pitch_bytes = 32,
+        .width = 16,
+        .height = 16,
+    });
+    std::ranges::fill(vertical_opacity.physical_pixels(), 0xA55AU);
+    test.expect_equal(
+        blit(
+            vertical_opacity,
+            LegacyBlitSource{.bytes = decompressed},
+            LegacyBlitRequest{
+                .source_width = 16,
+                .source_height = 16,
+                .flags = 0x1CU,
+            },
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "real TSW RLE vertical opacity fade"
+    );
+    test.expect_equal(
+        framebuffer_fnv1a(vertical_opacity.physical_pixels()),
+        0xBB1BFBA032BF4485ULL,
+        "real TSW vertical fade matches the independent row-phase parser"
+    );
+
     LegacyFramebuffer edged(LegacySurfaceGeometry{
         .pitch_bytes = 32,
         .width = 16,
@@ -2396,6 +2756,8 @@ int main() {
     test_raw_direct_copy_and_clipping(test);
     test_raw_reverse_and_indexed_paths(test);
     test_raw_color_key_copy(test);
+    test_raw_and_rle_opacity_steps(test);
+    test_rle_vertical_opacity_fade(test);
     test_sparse_and_unsupported_execution(test);
     test_rle_spans_and_horizontal_direction(test);
     test_rle_run_edge_copy(test);

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Build assembly-first inventories for the 16-bit software blitter.
+"""Build LST-first inventories for the 16-bit software blitter.
 
 The dispatch slots are recovered from sub_416D90.  The 16 opacity steps are
 recovered from the scalar forward jump table in sub_41D340 and from the
-instructions in each selected basic block.  Pseudocode is intentionally not
-used as evidence.
+instructions in each selected basic block.  The complete IDA LST is the only
+disassembly input; pseudocode and the generated ASM file are not used.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from pathlib import Path
 RESEARCH_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = RESEARCH_ROOT.parents[1]
 EXE_PATH = WORKSPACE_ROOT / "swd3.exe"
-ASM_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.asm"
+LST_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.lst"
 INVENTORY_ROOT = RESEARCH_ROOT / "04-reverse-engineering" / "inventory"
 DISPATCH_PATH = INVENTORY_ROOT / "blitter-dispatch.tsv"
 ALPHA_PATH = INVENTORY_ROOT / "blitter-opacity-steps.tsv"
@@ -27,10 +27,10 @@ COVERAGE_PATH = INVENTORY_ROOT / "blitter-coverage-composite-steps.tsv"
 
 EXPECTED_SHA256 = {
     EXE_PATH: "0bac897a7557735b22607d8c8f0a79a3e7ae7729deb56593fd91c21e10baee0c",
-    ASM_PATH: "d902f6dfd47d7033bf8a971c4ccc3a4d8d037b5b577035041113329363cab052",
+    LST_PATH: "701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b",
 }
 
-ASM_LINE_RE = re.compile(r"^([0-9A-F]{8})\s+(.+?)\s*$")
+LST_LINE_RE = re.compile(r"^\.[^:]+:([0-9A-F]{8})\s")
 MOV_REG_TARGET_RE = re.compile(r"mov\s+(eax|ecx),\s+offset\s+(sub_[0-9A-F]{6})$")
 MOV_SLOT_REG_RE = re.compile(r"mov\s+(dword_[0-9A-F]{6}),\s+(eax|ecx)$")
 MOV_SLOT_TARGET_RE = re.compile(
@@ -101,6 +101,20 @@ EXPECTED_ALPHA_TARGETS = [
     "loc_41DA03", "loc_41DA39", "loc_41DA6F", "loc_41DAA5",
 ]
 
+EXPECTED_RAW_ALPHA_TARGETS = [
+    "loc_417DA7", "loc_417A8D", "loc_417AC6", "loc_417AFF",
+    "loc_417B38", "loc_417B71", "loc_417BAA", "loc_417BE3",
+    "loc_417C1C", "loc_417C55", "loc_417C8E", "loc_417CC7",
+    "loc_417D00", "loc_417D36", "loc_417D6C", "loc_417DA2",
+]
+
+EXPECTED_REVERSE_ALPHA_TARGETS = [
+    "loc_41ED4B", "loc_41EA31", "loc_41EA6A", "loc_41EAA3",
+    "loc_41EADC", "loc_41EB15", "loc_41EB4E", "loc_41EB87",
+    "loc_41EBC0", "loc_41EBF9", "loc_41EC32", "loc_41EC6B",
+    "loc_41ECA4", "loc_41ECDA", "loc_41ED10", "loc_41ED46",
+]
+
 EXPECTED_COVERAGE_TARGETS = [
     "loc_419BE0", "loc_4199F9", "loc_419A29", "loc_419A59",
     "loc_419A7C", "loc_419AAC", "loc_419ACF", "loc_419AF2",
@@ -138,12 +152,19 @@ def verify_inputs() -> None:
             raise SystemExit(f"locked input changed: {path} expected {expected}, got {actual}")
 
 
-def assembly_lines() -> list[tuple[int, str]]:
+def listing_lines() -> list[tuple[int, str]]:
     rows: list[tuple[int, str]] = []
-    for raw in ASM_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
-        match = ASM_LINE_RE.match(raw)
-        if match:
-            instruction = match.group(2).split(";", 1)[0].rstrip()
+    for raw in LST_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
+        match = LST_LINE_RE.match(raw)
+        if not match or len(raw) <= 43:
+            continue
+
+        byte_field = raw[15:43].strip()
+        if not byte_field or not re.match(r"^[0-9A-F?]{2}(?:\s|$)", byte_field):
+            continue
+
+        instruction = raw[43:].split(";", 1)[0].rstrip()
+        if instruction:
             rows.append((int(match.group(1), 16), instruction))
     return rows
 
@@ -469,10 +490,20 @@ def write_coverage(
 
 def main() -> None:
     verify_inputs()
-    lines = assembly_lines()
+    lines = listing_lines()
     recovered = recover_dispatch(lines)
     targets = recover_alpha_targets(lines)
     terms = recover_alpha_terms(lines, targets)
+    raw_alpha_targets = recover_target_table(
+        lines, 0x00417973, 0x00417A1B,
+        EXPECTED_RAW_ALPHA_TARGETS, "raw 0x94 opacity",
+    )
+    raw_alpha_terms = recover_alpha_terms(lines, raw_alpha_targets)
+    reverse_alpha_targets = recover_target_table(
+        lines, 0x0041E6AF, 0x0041E757,
+        EXPECTED_REVERSE_ALPHA_TARGETS, "reverse RLE opacity",
+    )
+    reverse_alpha_terms = recover_alpha_terms(lines, reverse_alpha_targets)
     coverage_targets = recover_coverage_targets(lines)
     coverage_terms = recover_coverage_destination_terms(lines, coverage_targets)
     raw_fade_targets = recover_target_table(
@@ -489,6 +520,10 @@ def main() -> None:
         raise SystemExit("raw vertical-fade formulas differ from the 0x14 opacity formulas")
     if rle_fade_terms != terms:
         raise SystemExit("RLE vertical-fade formulas differ from the 0x14 opacity formulas")
+    if raw_alpha_terms != terms:
+        raise SystemExit("raw 0x94 opacity formulas differ from the RLE 0x14 formulas")
+    if reverse_alpha_terms != terms:
+        raise SystemExit("reverse RLE opacity formulas differ from forward RLE opacity")
     INVENTORY_ROOT.mkdir(parents=True, exist_ok=True)
     write_dispatch(recovered)
     write_alpha(targets, terms)
@@ -496,7 +531,8 @@ def main() -> None:
     print(
         f"wrote {len(recovered)} dispatch slots, {len(targets)} opacity steps, and "
         f"{len(coverage_targets)} coverage-composite steps; opacity steps 1..14 preserve "
-        "the original 15/16 combined packed-field weight; both vertical-fade tables match"
+        "the original 15/16 combined packed-field weight; raw/reverse opacity and both "
+        "vertical-fade tables match"
     )
 
 
