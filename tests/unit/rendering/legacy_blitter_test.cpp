@@ -928,6 +928,287 @@ void test_rle_vertical_opacity_fade(openswd3::test::Context& test) {
     );
 }
 
+void test_rle_smear(openswd3::test::Context& test) {
+    std::vector<u16> literal_row{0x0012U};
+    for (u16 pixel = 0U; pixel < 18U; ++pixel) {
+        literal_row.push_back(static_cast<u16>(0x7000U + pixel));
+    }
+    literal_row.push_back(0x0000U);
+    const std::array<std::vector<u16>, 1> rows{literal_row};
+    const std::vector<u8> source = make_rle(18U, 1U, rows);
+
+    const auto initialize = [](LegacyFramebuffer& framebuffer) {
+        for (std::size_t row = 0U; row < 4U; ++row) {
+            for (std::size_t column = 0U; column < 640U; ++column) {
+                framebuffer.physical_pixels()[row * 640U + column] =
+                    static_cast<u16>((row + 1U) * 0x1000U + column);
+            }
+        }
+    };
+    std::array<i32, 33> offsets{};
+
+    LegacyFramebuffer forward;
+    initialize(forward);
+    LegacyRleRowJitterState forward_jitter{
+        .group = 1,
+        .offsets = offsets,
+    };
+    test.expect_equal(
+        blit(
+            forward,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .destination_x = 10,
+                .destination_y = 1,
+                .source_width = 18,
+                .source_height = 1,
+                .flags = 0x30U,
+            },
+            forward_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "forward RLE smear"
+    );
+    constexpr std::array<u16, 18> kExpectedForward{
+        0x2009U, 0x2009U, 0x2009U, 0x2009U,
+        0x300EU, 0x300FU, 0x3010U, 0x3011U, 0x3012U, 0x3013U,
+        0x1014U, 0x1015U, 0x1016U,
+        0x2018U, 0x2019U, 0x201AU,
+        0x201AU, 0x201AU,
+    };
+    test.expect_true(
+        std::ranges::equal(
+            forward.row_pixels(1U).subspan(10U, 18U),
+            kExpectedForward
+        ),
+        "forward smear preserves the 4/6/3/3/write-skip beat sequence"
+    );
+    test.expect_equal(
+        forward_jitter.phase_bytes,
+        4U,
+        "forward smear advances the shared jitter phase"
+    );
+
+    LegacyFramebuffer reverse;
+    initialize(reverse);
+    LegacyRleRowJitterState reverse_jitter{
+        .group = 1,
+        .offsets = offsets,
+    };
+    test.expect_equal(
+        blit(
+            reverse,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .destination_x = 10,
+                .destination_y = 1,
+                .source_width = 18,
+                .source_height = 1,
+                .flags = 0x31U,
+            },
+            reverse_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "reverse RLE smear"
+    );
+    constexpr std::array<u16, 18> kExpectedReverse{
+        0x2009U, 0x200BU,
+        0x100FU, 0x100FU, 0x100FU, 0x100FU, 0x1010U, 0x1011U,
+        0x3012U, 0x3013U, 0x3014U, 0x3015U, 0x3016U, 0x3017U,
+        0x2017U, 0x2018U, 0x2019U, 0x201AU,
+    };
+    test.expect_true(
+        std::ranges::equal(
+            reverse.row_pixels(1U).subspan(10U, 18U),
+            kExpectedReverse
+        ),
+        "reverse traversal does not exchange any neighbor displacement"
+    );
+    test.expect_equal(
+        reverse_jitter.phase_bytes,
+        0U,
+        "reverse smear preserves the original no-phase-advance exit"
+    );
+
+    const std::array<std::vector<u16>, 1> split_rows{
+        std::vector<u16>{
+            0x0002U, 0xAAAAU, 0xBBBBU,
+            0x4002U,
+            0x0003U, 0xCCCCU, 0xDDDDU, 0xEEEEU,
+            0x0000U,
+        },
+    };
+    const std::vector<u8> split_source = make_rle(7U, 1U, split_rows);
+    LegacyFramebuffer split;
+    initialize(split);
+    LegacyRleRowJitterState no_jitter{};
+    test.expect_equal(
+        blit(
+            split,
+            LegacyBlitSource{.bytes = split_source},
+            LegacyBlitRequest{
+                .destination_x = 10,
+                .destination_y = 1,
+                .source_width = 7,
+                .source_height = 1,
+                .flags = 0x30U,
+            },
+            no_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "smear split literal runs"
+    );
+    constexpr std::array<u16, 7> kExpectedSplit{
+        0x2009U, 0x2009U, 0x200CU, 0x200DU,
+        0x200DU, 0x200DU, 0x3010U,
+    };
+    test.expect_true(
+        std::ranges::equal(
+            split.row_pixels(1U).subspan(10U, 7U),
+            kExpectedSplit
+        ),
+        "transparent runs do not advance the counter and literal colors are ignored"
+    );
+
+    const std::array<std::vector<u16>, 2> multi_rows{
+        std::vector<u16>{0x0003U, 1U, 2U, 3U, 0x0000U},
+        std::vector<u16>{0x0003U, 4U, 5U, 6U, 0x0000U},
+    };
+    const std::vector<u8> multi_source = make_rle(3U, 2U, multi_rows);
+    LegacyFramebuffer multi;
+    initialize(multi);
+    test.expect_equal(
+        blit(
+            multi,
+            LegacyBlitSource{.bytes = multi_source},
+            LegacyBlitRequest{
+                .destination_x = 10,
+                .destination_y = 1,
+                .source_width = 3,
+                .source_height = 2,
+                .flags = 0x30U,
+            },
+            no_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "smear counter across rows"
+    );
+    constexpr std::array<u16, 3> kExpectedSecondRow{
+        0x3009U, 0x400BU, 0x400CU,
+    };
+    test.expect_true(
+        std::ranges::equal(
+            multi.row_pixels(2U).subspan(10U, 3U),
+            kExpectedSecondRow
+        ),
+        "the counter continues from beat four to beat five at the row boundary"
+    );
+
+    const std::array<std::vector<u16>, 1> clipped_rows{
+        std::vector<u16>{
+            0x0005U, 1U, 2U, 3U, 4U, 5U, 0x0000U,
+        },
+    };
+    const std::vector<u8> clipped_source = make_rle(5U, 1U, clipped_rows);
+    LegacyFramebuffer clipped;
+    initialize(clipped);
+    const auto clipped_result =
+        openswd3::rendering::blit_legacy_copy_paths(
+            clipped,
+            LegacyBlitClipRectangle{
+                .left = 10,
+                .top = 0,
+                .width = 630,
+                .height = 480,
+            },
+            LegacyBlitSource{.bytes = clipped_source},
+            LegacyBlitRequest{
+                .destination_x = 7,
+                .destination_y = 1,
+                .source_width = 5,
+                .source_height = 1,
+                .flags = 0x30U,
+            },
+            LegacyBlitEffectState{},
+            no_jitter
+        );
+    test.expect_equal(
+        clipped_result.status,
+        LegacyBlitExecutionStatus::completed,
+        "left-clipped smear"
+    );
+    test.expect_equal(
+        clipped.row_pixels(1U)[10U],
+        0x2009U,
+        "clipped literal prefix does not advance the smear counter"
+    );
+    test.expect_equal(
+        clipped.row_pixels(1U)[11U],
+        0x2009U,
+        "the second visible literal remains beat two"
+    );
+
+    const std::array<std::vector<u16>, 1> five_rows{
+        std::vector<u16>{0x0005U, 1U, 2U, 3U, 4U, 5U, 0x0000U},
+    };
+    const std::vector<u8> five_source = make_rle(5U, 1U, five_rows);
+    LegacyFramebuffer nonstandard_pitch(LegacySurfaceGeometry{
+        .pitch_bytes = 0x600,
+        .width = 16,
+        .height = 2,
+    });
+    std::ranges::fill(nonstandard_pitch.physical_pixels(), 0xAAAAU);
+    nonstandard_pitch.physical_pixels()[0U] = 0x1111U;
+    nonstandard_pitch.physical_pixels()[0x50AU / 2U] = 0x5555U;
+    nonstandard_pitch.physical_pixels()[0x600U / 2U + 5U] = 0x6666U;
+    test.expect_equal(
+        blit(
+            nonstandard_pitch,
+            LegacyBlitSource{.bytes = five_source},
+            LegacyBlitRequest{
+                .destination_x = 1,
+                .source_width = 5,
+                .source_height = 1,
+                .flags = 0x30U,
+            },
+            no_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "smear with nonstandard pitch"
+    );
+    test.expect_equal(
+        nonstandard_pitch.row_pixels(0U)[5U],
+        0x5555U,
+        "beat five reads hard-coded +0x500 rather than the configured pitch"
+    );
+
+    const std::array<std::vector<u16>, 1> one_rows{
+        std::vector<u16>{0x0001U, 0x7777U, 0x0000U},
+    };
+    const std::vector<u8> one_source = make_rle(1U, 1U, one_rows);
+    LegacyFramebuffer boundary;
+    boundary.physical_pixels().front() = 0x2222U;
+    test.expect_equal(
+        blit(
+            boundary,
+            LegacyBlitSource{.bytes = one_source},
+            LegacyBlitRequest{
+                .source_width = 1,
+                .source_height = 1,
+                .flags = 0x30U,
+            },
+            no_jitter
+        ),
+        LegacyBlitExecutionStatus::destination_out_of_bounds,
+        "unsafe smear neighbor is contained by the owned framebuffer"
+    );
+    test.expect_equal(
+        boundary.physical_pixels().front(),
+        0x2222U,
+        "failed legacy neighbor read does not invent process-adjacent memory"
+    );
+}
+
 void test_sparse_and_unsupported_execution(openswd3::test::Context& test) {
     constexpr std::array<u16, 4> kPixels{1U, 2U, 3U, 4U};
     const std::vector<u8> source_bytes = direct_pixels(kPixels);
@@ -2758,6 +3039,7 @@ int main() {
     test_raw_color_key_copy(test);
     test_raw_and_rle_opacity_steps(test);
     test_rle_vertical_opacity_fade(test);
+    test_rle_smear(test);
     test_sparse_and_unsupported_execution(test);
     test_rle_spans_and_horizontal_direction(test);
     test_rle_run_edge_copy(test);

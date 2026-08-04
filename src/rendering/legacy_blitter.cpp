@@ -719,6 +719,7 @@ enum class RlePixelOperation : u8 {
     copy_with_edges,
     opacity,
     vertical_opacity_fade,
+    smear,
     destination_offset,
     constant_fill,
     grayscale,
@@ -848,7 +849,8 @@ struct RleRoutinePolicy {
     const LegacyBlitEffectState& effects,
     const RleRoutinePolicy& policy,
     const u16 constant_fill,
-    const i32 opacity_step
+    const i32 opacity_step,
+    u32& smear_phase
 ) noexcept {
     u16 pixel{};
     switch (policy.operation) {
@@ -879,6 +881,30 @@ struct RleRoutinePolicy {
             opacity_step,
             effects.pixel_conversion
         );
+        break;
+    }
+
+    case RlePixelOperation::smear: {
+        smear_phase += 1U;
+        if (smear_phase > 16U) {
+            smear_phase = 0U;
+            return LegacyBlitExecutionStatus::completed;
+        }
+
+        u32 neighbor = destination;
+        if (smear_phase <= 4U) {
+            neighbor -= 2U;
+        } else if (smear_phase <= 10U) {
+            neighbor += 0x500U;
+        } else if (smear_phase <= 13U) {
+            neighbor -= 0x500U;
+        } else {
+            neighbor += 2U;
+        }
+
+        if (!read_framebuffer_u16(framebuffer, neighbor, pixel)) {
+            return LegacyBlitExecutionStatus::destination_out_of_bounds;
+        }
         break;
     }
 
@@ -1015,6 +1041,7 @@ void finish_rle_success(
         : 0;
     i32 fade_remaining = fade_group;
     i32 opacity_step = vertical_opacity_fade ? 15 : request.opacity_step;
+    u32 smear_phase{};
     const auto advance_vertical_opacity = [&]() noexcept {
         if (!vertical_opacity_fade) {
             return;
@@ -1212,7 +1239,8 @@ void finish_rle_success(
                             effects,
                             policy,
                             constant_fill,
-                            opacity_step
+                            opacity_step,
+                            smear_phase
                         );
                     if (pixel_status != LegacyBlitExecutionStatus::completed) {
                         return pixel_status;
@@ -1571,6 +1599,20 @@ LegacyBlitResult blit_legacy_copy_paths(
             .reverse = true,
             .advance_phase_on_exit = true,
             .supports_third_row_skip = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_smear_forward:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::smear,
+            .advance_phase_on_exit = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_smear_reverse:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::smear,
+            .reverse = true,
         });
         break;
 

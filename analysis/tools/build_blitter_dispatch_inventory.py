@@ -371,6 +371,92 @@ def recover_coverage_destination_terms(
     return terms
 
 
+def verify_smear_routines(lines: list[tuple[int, str]]) -> None:
+    normalized = {
+        address: re.sub(r"\s+", " ", instruction).strip()
+        for address, instruction in lines
+    }
+    expected = {
+        0x00422739: "mov dword_4CD314, 0",
+        0x00422893: "mov edx, dword_4CD314",
+        0x00422899: "inc edx",
+        0x0042289A: "cmp edx, 4",
+        0x0042289F: "mov ax, [edi-2]",
+        0x004228A3: "mov dword_4CD314, edx",
+        0x004228A9: "mov [edi], ax",
+        0x004228AE: "cmp edx, 0Ah",
+        0x004228B3: "mov ax, [edi+500h]",
+        0x004228BA: "mov dword_4CD314, edx",
+        0x004228C0: "mov [edi], ax",
+        0x004228C5: "cmp edx, 0Dh",
+        0x004228CA: "mov ax, [edi-500h]",
+        0x004228D1: "mov dword_4CD314, edx",
+        0x004228D7: "mov [edi], ax",
+        0x004228DC: "cmp edx, 10h",
+        0x004228E1: "mov ax, [edi+2]",
+        0x004228E5: "mov dword_4CD314, edx",
+        0x004228EB: "mov [edi], ax",
+        0x004228F0: "mov dword_4CD314, 0",
+        0x004228FA: "add esi, 2",
+        0x004228FD: "add edi, 2",
+        0x0042299B: "add dword_4CD758, 4",
+        0x004229C9: "mov dword_4CD314, 0",
+        0x00422B42: "mov edx, dword_4CD314",
+        0x00422B48: "inc edx",
+        0x00422B49: "cmp edx, 4",
+        0x00422B4E: "mov ax, [edi-2]",
+        0x00422B52: "mov dword_4CD314, edx",
+        0x00422B58: "mov [edi], ax",
+        0x00422B5D: "cmp edx, 0Ah",
+        0x00422B62: "mov ax, [edi+500h]",
+        0x00422B69: "mov dword_4CD314, edx",
+        0x00422B6F: "mov [edi], ax",
+        0x00422B74: "cmp edx, 0Dh",
+        0x00422B79: "mov ax, [edi-500h]",
+        0x00422B80: "mov dword_4CD314, edx",
+        0x00422B86: "mov [edi], ax",
+        0x00422B8B: "cmp edx, 10h",
+        0x00422B90: "mov ax, [edi+2]",
+        0x00422B94: "mov dword_4CD314, edx",
+        0x00422B9A: "mov [edi], ax",
+        0x00422B9F: "mov dword_4CD314, 0",
+        0x00422BA9: "add esi, 2",
+        0x00422BAC: "sub edi, 2",
+    }
+    for address, instruction in expected.items():
+        actual = normalized.get(address)
+        if actual != instruction:
+            raise SystemExit(
+                f"smear instruction mismatch at 0x{address:08X}: "
+                f"expected {instruction!r}, got {actual!r}"
+            )
+
+    reverse_phase_writes = [
+        (address, instruction)
+        for address, instruction in lines
+        if 0x004229C0 <= address <= 0x00422C61
+        and re.match(r"(?:add|mov)\s+dword_4CD758(?:,|$)", instruction)
+    ]
+    if reverse_phase_writes:
+        raise SystemExit(
+            f"reverse smear unexpectedly updates jitter phase: {reverse_phase_writes}"
+        )
+
+    for start, end, name in (
+        (0x00422893, 0x00422905, "forward"),
+        (0x00422B42, 0x00422BB4, "reverse"),
+    ):
+        source_reads = [
+            (address, instruction)
+            for address, instruction in lines
+            if start <= address < end and "[esi]" in instruction
+        ]
+        if source_reads:
+            raise SystemExit(
+                f"{name} smear unexpectedly reads literal colors: {source_reads}"
+            )
+
+
 def direction_for_slot(slot: int) -> str:
     if slot & 1:
         return "horizontal reverse"
@@ -524,6 +610,7 @@ def main() -> None:
         raise SystemExit("raw 0x94 opacity formulas differ from the RLE 0x14 formulas")
     if reverse_alpha_terms != terms:
         raise SystemExit("reverse RLE opacity formulas differ from forward RLE opacity")
+    verify_smear_routines(lines)
     INVENTORY_ROOT.mkdir(parents=True, exist_ok=True)
     write_dispatch(recovered)
     write_alpha(targets, terms)
@@ -532,7 +619,7 @@ def main() -> None:
         f"wrote {len(recovered)} dispatch slots, {len(targets)} opacity steps, and "
         f"{len(coverage_targets)} coverage-composite steps; opacity steps 1..14 preserve "
         "the original 15/16 combined packed-field weight; raw/reverse opacity and both "
-        "vertical-fade tables match"
+        "vertical-fade tables match; both smear routines preserve the 17-beat fixed-offset cycle"
     )
 
 
