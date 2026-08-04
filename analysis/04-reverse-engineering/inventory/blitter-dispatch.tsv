@@ -5,8 +5,8 @@ slot	slot_hex	raw_family	mode	mode_hex	flip_bits	direction	function	assignment_a
 3	0x03	0	0	0x00	3	horizontal reverse	sub_4185C0	0x00416DAB	literal copy	closed	skip
 4	0x04	0	4	0x04	0	horizontal forward	sub_418840	0x00416E3A	per-channel saturated add	closed	skip
 5	0x05	0	4	0x04	1	horizontal reverse	sub_418EB0	0x00416E44	per-channel saturated add	closed	skip
-8	0x08	0	8	0x08	0	horizontal forward	sub_419570	0x00416E4E	coverage composite or raw constant vertical fade	partial	0x8000 is processed
-9	0x09	0	8	0x08	1	horizontal reverse	sub_41A3B0	0x00416E58	coverage composite or raw constant vertical fade	partial	0x8000 is processed
+8	0x08	0	8	0x08	0	horizontal forward	sub_419570	0x00416E4E	coverage composite or raw constant vertical fade	unreachable_current_assets	0x8000 is processed
+9	0x09	0	8	0x08	1	horizontal reverse	sub_41A3B0	0x00416E58	coverage composite or raw constant vertical fade	unreachable_current_assets	0x8000 is processed
 12	0x0C	0	12	0x0C	0	horizontal forward	sub_41F8D0	0x00416DBA	row-resampled and row-shifted destination RGB offset under source coverage	closed	skip
 13	0x0D	0	12	0x0C	1	horizontal reverse	sub_41FEA0	0x00416DC0	row-resampled and row-shifted destination RGB offset under source coverage	closed	skip
 14	0x0E	0	12	0x0C	2	horizontal forward	sub_41F8D0	0x00416DC5	row-resampled and row-shifted destination RGB offset under source coverage	closed	skip
@@ -40,5 +40,5 @@ slot	slot_hex	raw_family	mode	mode_hex	flip_bits	direction	function	assignment_a
 129	0x81	1	0	0x00	1	horizontal reverse	sub_4177D0	0x00416EDC	raw/uncompressed literal copy	closed	not RLE
 132	0x84	1	4	0x04	0	horizontal forward	sub_417840	0x00416EE6	raw/uncompressed color-key copy	closed	not RLE
 133	0x85	1	4	0x04	1	horizontal reverse	sub_417E40	0x00416EF0	raw/uncompressed color-key copy with 16/32-bit reverse comparison bug	closed	not RLE
-136	0x88	1	8	0x08	0	horizontal forward	sub_417EC0	0x00416EFA	raw/uncompressed coverage composite or raw constant vertical fade	partial	not RLE
+136	0x88	1	8	0x08	0	horizontal forward	sub_417EC0	0x00416EFA	raw/uncompressed coverage composite or raw constant vertical fade	closed	not RLE
 148	0x94	1	20	0x14	0	horizontal forward	sub_417950	0x00416F04	raw/uncompressed 15-step packed-field opacity	closed	not RLE

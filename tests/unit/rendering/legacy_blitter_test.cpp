@@ -1254,6 +1254,335 @@ void test_rle_saturated_vertical_resample(
     );
 }
 
+void test_rle_shifted_vertical_resample(
+    openswd3::test::Context& test
+) {
+    const auto coverage_row = [](const u16 prefix, const u16 payload) {
+        std::vector<u16> row;
+        if (prefix != 0U) {
+            row.push_back(static_cast<u16>(0x4000U | prefix));
+        }
+        row.push_back(1U);
+        row.push_back(payload);
+        row.push_back(0U);
+        return row;
+    };
+    const std::array<std::vector<u16>, 5> rows{
+        coverage_row(4U, 0x7C00U),
+        coverage_row(0U, 0x03E0U),
+        coverage_row(1U, 0x001FU),
+        coverage_row(2U, 0x7FFFU),
+        coverage_row(3U, 0x1234U),
+    };
+    const std::vector<u8> source = make_rle(5U, 5U, rows);
+    std::array<i32, 33> discarded_jitter{};
+    std::ranges::fill(discarded_jitter, 100);
+    const LegacyBlitEffectState effects{
+        .red_offset = 1,
+        .green_offset = 1,
+        .blue_offset = 1,
+    };
+
+    using Coordinate = std::pair<std::size_t, std::size_t>;
+    const auto run_case = [&test, &source, &discarded_jitter, &effects](
+        const u32 flags,
+        const std::span<const Coordinate> coordinates,
+        const u32 expected_phase,
+        const char* const message
+    ) {
+        LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 7,
+        });
+        LegacyRleRowJitterState jitter{
+            .group = 1,
+            .offsets = discarded_jitter,
+        };
+        test.expect_equal(
+            blit(
+                framebuffer,
+                LegacyBlitSource{.bytes = source},
+                LegacyBlitRequest{
+                    .source_width = 5,
+                    .source_height = 5,
+                    .target_height = 5,
+                    .horizontal_resample_displacement = 5,
+                    .flags = flags,
+                },
+                effects,
+                jitter
+            ),
+            LegacyBlitExecutionStatus::completed,
+            message
+        );
+
+        std::array<u16, 56> expected{};
+        for (const auto& [row, column] : coordinates) {
+            expected[row * 8U + column] = 0x0421U;
+        }
+        test.expect_true(
+            std::ranges::equal(framebuffer.physical_pixels(), expected),
+            message
+        );
+        test.expect_equal(jitter.phase_bytes, expected_phase, message);
+    };
+
+    constexpr std::array<Coordinate, 4> kForward{
+        Coordinate{1U, 3U},
+        Coordinate{2U, 3U},
+        Coordinate{3U, 3U},
+        Coordinate{4U, 3U},
+    };
+    constexpr std::array<Coordinate, 4> kReverse{
+        Coordinate{1U, 7U},
+        Coordinate{2U, 5U},
+        Coordinate{3U, 3U},
+        Coordinate{4U, 1U},
+    };
+    constexpr std::array<Coordinate, 4> kVerticalFlip{
+        Coordinate{4U, 3U},
+        Coordinate{3U, 3U},
+        Coordinate{2U, 3U},
+        Coordinate{1U, 3U},
+    };
+    constexpr std::array<Coordinate, 4> kBothDirections{
+        Coordinate{4U, 7U},
+        Coordinate{3U, 5U},
+        Coordinate{2U, 3U},
+        Coordinate{1U, 1U},
+    };
+    run_case(0x0CU, kForward, 4U, "shifted-resample forward slot");
+    run_case(0x0DU, kReverse, 0U, "shifted-resample reverse slot");
+    run_case(0x0EU, kVerticalFlip, 4U, "shifted-resample vertical slot");
+    run_case(0x0FU, kBothDirections, 0U, "shifted-resample both directions");
+
+    LegacyFramebuffer top_clipped(LegacySurfaceGeometry{
+        .pitch_bytes = 16,
+        .width = 8,
+        .height = 7,
+    });
+    LegacyRleRowJitterState top_clipped_jitter{
+        .group = 1,
+        .offsets = discarded_jitter,
+    };
+    test.expect_equal(
+        blit(
+            top_clipped,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .destination_y = -1,
+                .source_width = 5,
+                .source_height = 5,
+                .target_height = 5,
+                .horizontal_resample_displacement = 5,
+                .flags = 0x0CU,
+            },
+            effects,
+            top_clipped_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "shifted-resample top clipping"
+    );
+    std::array<u16, 56> expected_top_clipped{};
+    expected_top_clipped[1U * 8U + 3U] = 0x0421U;
+    expected_top_clipped[2U * 8U + 3U] = 0x0421U;
+    expected_top_clipped[3U * 8U + 3U] = 0x0421U;
+    test.expect_true(
+        std::ranges::equal(
+            top_clipped.physical_pixels(),
+            expected_top_clipped
+        ),
+        "top clip keeps the original top+1 source prepasses"
+    );
+
+    LegacyFramebuffer forced_displacement(LegacySurfaceGeometry{
+        .pitch_bytes = 16,
+        .width = 8,
+        .height = 7,
+    });
+    LegacyRleRowJitterState forced_jitter{};
+    test.expect_equal(
+        blit(
+            forced_displacement,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .source_width = 5,
+                .source_height = 5,
+                .target_height = 5,
+                .flags = 0x0CU,
+            },
+            effects,
+            forced_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "shifted-resample zero displacement substitution"
+    );
+    std::array<u16, 56> expected_forced{};
+    expected_forced[1U * 8U + 1U] = 0x0421U;
+    expected_forced[2U * 8U + 2U] = 0x0421U;
+    expected_forced[3U * 8U + 3U] = 0x0421U;
+    expected_forced[4U * 8U + 4U] = 0x0421U;
+    test.expect_true(
+        std::ranges::equal(
+            forced_displacement.physical_pixels(),
+            expected_forced
+        ),
+        "target-height path forces zero row displacement to positive one"
+    );
+
+    LegacyFramebuffer zero_effect(LegacySurfaceGeometry{
+        .pitch_bytes = 16,
+        .width = 8,
+        .height = 7,
+    });
+    LegacyRleRowJitterState zero_effect_jitter{
+        .group = 1,
+        .offsets = discarded_jitter,
+    };
+    test.expect_equal(
+        blit(
+            zero_effect,
+            LegacyBlitSource{.bytes = source},
+            LegacyBlitRequest{
+                .source_width = 5,
+                .source_height = 5,
+                .target_height = 5,
+                .horizontal_resample_displacement = 5,
+                .flags = 0x0CU,
+            },
+            LegacyBlitEffectState{},
+            zero_effect_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "shifted-resample zero color offsets"
+    );
+    test.expect_equal(
+        zero_effect_jitter.phase_bytes,
+        4U,
+        "shifted resample does not take the 0x10 zero-offset early exit"
+    );
+
+    std::array<std::vector<u16>, 7> shrink_rows{};
+    for (u16 row = 0U; row < shrink_rows.size(); ++row) {
+        shrink_rows[row] = coverage_row(
+            row,
+            static_cast<u16>(0x7000U + row)
+        );
+    }
+    const std::vector<u8> shrink_source = make_rle(
+        7U,
+        7U,
+        shrink_rows
+    );
+    LegacyFramebuffer shrunk(LegacySurfaceGeometry{
+        .pitch_bytes = 16,
+        .width = 8,
+        .height = 5,
+    });
+    LegacyRleRowJitterState shrink_jitter{};
+    test.expect_equal(
+        blit(
+            shrunk,
+            LegacyBlitSource{.bytes = shrink_source},
+            LegacyBlitRequest{
+                .source_width = 7,
+                .source_height = 7,
+                .target_height = 3,
+                .horizontal_resample_displacement = 3,
+                .flags = 0x0CU,
+            },
+            effects,
+            shrink_jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "shifted-resample vertical shrink"
+    );
+    std::array<u16, 40> expected_shrunk{};
+    expected_shrunk[1U * 8U + 3U] = 0x0421U;
+    expected_shrunk[2U * 8U + 4U] = 0x0421U;
+    expected_shrunk[3U * 8U + 5U] = 0x0421U;
+    test.expect_true(
+        std::ranges::equal(shrunk.physical_pixels(), expected_shrunk),
+        "7-to-3 mapping selects source rows 2, 4 and 6"
+    );
+
+    const std::array<std::vector<u16>, 3> zero_target_rows{
+        coverage_row(0U, 0x1111U),
+        coverage_row(1U, 0x2222U),
+        coverage_row(2U, 0x3333U),
+    };
+    const std::vector<u8> zero_target_source = make_rle(
+        3U,
+        3U,
+        zero_target_rows
+    );
+    const auto run_zero_target_case = [
+        &test,
+        &zero_target_source,
+        &discarded_jitter,
+        &effects
+    ](
+        const u32 inherited_mode,
+        const std::span<const Coordinate> coordinates,
+        const char* const message
+    ) {
+        LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 5,
+        });
+        LegacyRleRowJitterState jitter{
+            .group = 1,
+            .offsets = discarded_jitter,
+        };
+        test.expect_equal(
+            blit(
+                framebuffer,
+                LegacyBlitSource{.bytes = zero_target_source},
+                LegacyBlitRequest{
+                    .source_width = 3,
+                    .source_height = 3,
+                    .vertical_resample_enlarge_state = inherited_mode,
+                    .flags = 0x0CU,
+                },
+                effects,
+                jitter
+            ),
+            LegacyBlitExecutionStatus::completed,
+            message
+        );
+
+        std::array<u16, 20> expected{};
+        for (const auto& [row, column] : coordinates) {
+            expected[row * 4U + column] = 0x0421U;
+        }
+        test.expect_true(
+            std::ranges::equal(framebuffer.physical_pixels(), expected),
+            message
+        );
+    };
+    constexpr std::array<Coordinate, 2> kInheritedShrink{
+        Coordinate{1U, 1U},
+        Coordinate{2U, 2U},
+    };
+    constexpr std::array<Coordinate, 3> kInheritedEnlarge{
+        Coordinate{1U, 1U},
+        Coordinate{2U, 1U},
+        Coordinate{3U, 1U},
+    };
+    run_zero_target_case(
+        0U,
+        kInheritedShrink,
+        "zero target height inherits shrink-mode source advancement"
+    );
+    run_zero_target_case(
+        1U,
+        kInheritedEnlarge,
+        "zero target height inherits enlarge-mode source repetition"
+    );
+}
+
 void test_rle_vertical_opacity_fade(openswd3::test::Context& test) {
     constexpr u16 kSourcePixel = 0x621DU;
     constexpr u16 kDestinationPixel = 0x1CE3U;
@@ -1675,7 +2004,7 @@ void test_sparse_and_unsupported_execution(openswd3::test::Context& test) {
             jitter
         ),
         LegacyBlitExecutionStatus::unsupported_routine,
-        "a still-unimplemented assigned effect remains explicit"
+        "current-asset-unreachable RLE coverage remains an explicit boundary"
     );
 }
 
@@ -3327,6 +3656,49 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         .green_offset = -2,
         .blue_offset = 3,
     };
+    LegacyFramebuffer shifted(LegacySurfaceGeometry{
+        .pitch_bytes = 48,
+        .width = 24,
+        .height = 10,
+    });
+    std::ranges::fill(shifted.physical_pixels(), 0x4210U);
+    test.expect_equal(
+        blit(
+            shifted,
+            LegacyBlitSource{.bytes = decompressed},
+            LegacyBlitRequest{
+                .destination_x = 4,
+                .source_width = 16,
+                .source_height = 16,
+                .target_height = 8,
+                .horizontal_resample_displacement = 4,
+                .flags = 0x0CU,
+            },
+            color_effects,
+            jitter
+        ),
+        LegacyBlitExecutionStatus::completed,
+        "real TSW shifted vertical resample"
+    );
+    const std::uint64_t shifted_hash = framebuffer_fnv1a(
+        shifted.physical_pixels()
+    );
+    test.expect_equal(
+        shifted_hash,
+        0x197E513708F44317ULL,
+        "real TSW shifted resample fixed framebuffer hash"
+    );
+    test.expect_equal(
+        std::ranges::count(shifted.row_pixels(0U), 0x4210U),
+        static_cast<std::ptrdiff_t>(24),
+        "shifted resample keeps the original first destination row gap"
+    );
+    test.expect_equal(
+        std::ranges::count(shifted.row_pixels(8U), 0x4210U),
+        static_cast<std::ptrdiff_t>(24),
+        "shifted resample stops when the mapped RLE source terminates"
+    );
+
     LegacyFramebuffer resampled(LegacySurfaceGeometry{
         .pitch_bytes = 32,
         .width = 16,
@@ -3512,6 +3884,7 @@ int main() {
     test_raw_and_rle_opacity_steps(test);
     test_raw_constant_vertical_fade(test);
     test_rle_saturated_vertical_resample(test);
+    test_rle_shifted_vertical_resample(test);
     test_rle_vertical_opacity_fade(test);
     test_rle_smear(test);
     test_sparse_and_unsupported_execution(test);

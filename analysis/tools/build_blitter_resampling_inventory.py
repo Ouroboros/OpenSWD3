@@ -65,8 +65,29 @@ MODE_0C_CALLS = [
     ("sub_484230", 0x0048441D, "and ecx, 8000000Fh", 0x00484425, "or ecx, 0Ch", 0x0048446C),
 ]
 
+MODE_0C_REGULAR_SCALE_WRITES = {
+    "sub_4721F0": (0x00472313, 0x0047232D),
+    "sub_4724D0": (0x004725DC, 0x00472605),
+    "sub_4728E0": (0x00472A14, 0x00472A27),
+    "sub_472CE0": (0x00472DB9, 0x00472DCC),
+    "sub_4731A0": (0x004732A1, 0x004732BB),
+    "sub_4735B0": (0x00473731, 0x0047375E),
+    "sub_4751C0": (0x004752B6, 0x004752D0),
+    "sub_478B60": (0x004791FD, 0x00479210),
+    "sub_47BA80": (0x0047BE81, 0x0047BE9B),
+    "sub_47F710": (0x0047F7CF, 0x0047F7E2),
+    "sub_482310": (0x00482709, 0x00482723),
+    "sub_482840": (0x00482C21, 0x00482C3B),
+    "sub_4831C0": (0x00483469, 0x00483483),
+    "sub_484230": (0x004843C9, 0x004843DC),
+}
+
 EXPECTED_SNIPPETS = {
     # Dispatcher target-height and vertical 10.10 setup.
+    0x00417136: "mov dword_4CD744, ebp",
+    0x0041713E: "mov dword_4CD738, ebp",
+    0x00417144: "jnz loc_417239",
+    0x0041723D: "mov dword_4CD2FC, ebp",
     0x00417243: "cmp edi, eax",
     0x00417247: "shl eax, 0Ah",
     0x0041724B: "idiv edi",
@@ -84,6 +105,10 @@ EXPECTED_SNIPPETS = {
     0x004172BB: "jl short loc_4172DF",
     0x004172C5: "lea edi, [ecx+eax-1]",
     # Dispatcher per-row X displacement setup used by mode 0x0C.
+    0x004171C2: "mov eax, dword_4CD718",
+    0x004171C9: "jnz loc_4172F2",
+    0x004172DF: "mov eax, dword_4CD718",
+    0x004172E4: "test eax, eax",
     0x004172E8: "mov eax, 1",
     0x004172ED: "mov dword_4CD718, eax",
     0x004172F4: "mov dword_4CC2F4, 1",
@@ -91,8 +116,24 @@ EXPECTED_SNIPPETS = {
     0x00417332: "shl eax, 0Ah",
     0x00417336: "idiv ecx",
     0x0041733C: "mov dword_4CD738, eax",
+    # The special mode 0x0C caller uses height/2, optionally height/4,
+    # and a signed direction choice around height/4 displacement.
+    0x0041460D: "mov di, [ebp+0Eh]",
+    0x00414611: "shr edi, 1",
+    0x00414615: "mov dword_4CD75C, edi",
+    0x0041461B: "mov cx, [ebp+0Eh]",
+    0x00414625: "shr ecx, 2",
+    0x0041462D: "neg ecx",
+    0x00414632: "mov dword_4CD718, ecx",
+    0x0041463E: "neg ecx",
+    0x00414640: "mov dword_4CD718, ecx",
+    0x0041465D: "test bl, 8",
+    0x00414666: "mov eax, edi",
+    0x0041466B: "sar eax, 1",
+    0x0041466D: "mov dword_4CD75C, eax",
     # Mode 0x0C forward: unconditional prepass and per-output X phase.
     0x0041F9F2: "mov eax, [esi]",
+    0x0041F9F4: "test ax, ax",
     0x0041F963: "mov [ebp+var_8], 0",
     0x0041FA02: "add esi, eax",
     0x0041FA0D: "add eax, dword_4CD744",
@@ -102,10 +143,28 @@ EXPECTED_SNIPPETS = {
     0x0041FA84: "imul ebx",
     0x0041FA89: "add dword_4CD718, eax",
     0x0041FA95: "cmp ebx, ecx",
+    0x0041FA99: "inc ebx",
+    0x0041FAD5: "add edi, dword_4A06A8[ebx]",
     0x0041FB0F: "add ecx, dword_4CD738",
     0x0041FB2A: "add dword_4CD718, eax",
     0x0041FB46: "add edx, dword_4CD718",
+    0x0041FBCD: "mov ecx, [ebp+arg_4]",
+    0x0041FBD0: "add ecx, [ebp+var_38]",
+    0x0041FBE2: "add edx, dword_4CD740",
+    0x0041FC0C: "mov edi, dword_4CD768",
+    0x0041FC95: "mov eax, [edi]",
     0x0041FDF9: "add eax, dword_4CD744",
+    0x0041FE6C: "add dword_4CD758, 4",
+    # Mode 0x0C reverse: explicit zero chain, row base, and target traversal.
+    0x0041FF33: "mov [ebp+var_20], 0",
+    0x0041FF3A: "mov eax, [ebp+var_20]",
+    0x0041FF4F: "mov [ebp+var_8], eax",
+    0x004200C6: "add edi, dword_4A06A8[ebx]",
+    0x004201B7: "mov ecx, [ebp+arg_4]",
+    0x004201BA: "add ecx, [ebp+var_3C]",
+    0x004201EA: "add ecx, dword_4CD740",
+    0x00420212: "mov edi, dword_4CD768",
+    0x0042029D: "sub edi, 2",
     # Mode 0x20 forward: top clip is checked before source-row advance.
     0x004209BE: "cmp ebx, ecx",
     0x004209C2: "mov eax, [esi]",
@@ -202,6 +261,15 @@ def verify_vertical_fraction_initialization(
             f"mode 0x0C vertical fraction is not explicitly zeroed: {shifted_forward[:2]}"
         )
 
+    shifted_reverse = accesses(0x0041FEA0, 0x0042048E)
+    if not shifted_reverse or shifted_reverse[0] != (
+        0x0041FF4F,
+        "mov [ebp+var_8], eax",
+    ):
+        raise SystemExit(
+            f"mode 0x0C reverse vertical fraction zero-chain changed: {shifted_reverse[:2]}"
+        )
+
     expected_first_accesses = {
         (0x004208D0, 0x00420D61): [
             (0x004209D2, "mov eax, [ebp+var_8]"),
@@ -219,6 +287,136 @@ def verify_vertical_fraction_initialization(
                 f"mode 0x20 vertical-fraction first-access mismatch at "
                 f"0x{start:08X}: expected={expected}, actual={actual[:2]}"
             )
+
+
+def verify_shifted_phase_asymmetry(instructions: dict[int, str]) -> None:
+    def phase_writes(start: int, end: int) -> list[tuple[int, str]]:
+        return [
+            (address, instruction)
+            for address, instruction in instructions.items()
+            if start <= address <= end
+            and instruction.startswith(
+                ("add dword_4CD758", "mov dword_4CD758")
+            )
+        ]
+
+    forward = phase_writes(0x0041F8D0, 0x0041FE9A)
+    reverse = phase_writes(0x0041FEA0, 0x0042048E)
+    expected_forward = [
+        (0x0041FE6C, "add dword_4CD758, 4"),
+        (0x0041FE7F, "mov dword_4CD758, 0"),
+    ]
+    if forward != expected_forward or reverse:
+        raise SystemExit(
+            "mode 0x0C jitter-phase write asymmetry changed: "
+            f"forward={forward}, reverse={reverse}"
+        )
+
+
+def verify_shifted_dispatch_state(instructions: dict[int, str]) -> None:
+    writes = [
+        (address, instruction)
+        for address, instruction in instructions.items()
+        if 0x004170E0 <= address <= 0x004174B5
+        and instruction.startswith("mov dword_4CD2FC")
+    ]
+    expected = [
+        (0x0041723D, "mov dword_4CD2FC, ebp"),
+        (0x0041724D, "mov dword_4CD2FC, 1"),
+    ]
+    if writes != expected:
+        raise SystemExit(
+            "dispatcher enlarge-state writes changed: "
+            f"expected={expected}, actual={writes}"
+        )
+
+
+def verify_regular_shifted_scales(
+    instructions: dict[int, str], owners: dict[int, str]
+) -> None:
+    expected_callers = {row[0] for row in MODE_0C_CALLS[1:]}
+    if set(MODE_0C_REGULAR_SCALE_WRITES) != expected_callers:
+        raise SystemExit("mode 0x0C regular scale caller set changed")
+
+    def window(start: int, end: int) -> list[str]:
+        return [
+            instruction
+            for address, instruction in instructions.items()
+            if start <= address <= end
+        ]
+
+    def require_pattern(
+        values: list[str], pattern: str, caller: str, concern: str
+    ) -> None:
+        if not any(re.fullmatch(pattern, value) for value in values):
+            raise SystemExit(
+                f"{caller} {concern} pattern missing: {pattern!r}; "
+                f"window={values}"
+            )
+
+    for caller, (target_write, displacement_write) in (
+        MODE_0C_REGULAR_SCALE_WRITES.items()
+    ):
+        expect(instructions, target_write, "mov dword_4CD75C, edx")
+        displacement_instruction = instructions.get(displacement_write, "")
+        if not re.fullmatch(
+            r"mov dword_4CD718, (?:eax|edx)",
+            displacement_instruction,
+        ):
+            raise SystemExit(
+                f"{caller} displacement write mismatch at "
+                f"0x{displacement_write:08X}: {displacement_instruction!r}"
+            )
+        if owners[target_write] != caller or owners[displacement_write] != caller:
+            raise SystemExit(f"mode 0x0C scale owner mismatch for {caller}")
+
+        target_window = window(target_write - 0x40, target_write)
+        require_pattern(target_window, r"xor ecx, ecx", caller, "Ht")
+        require_pattern(
+            target_window,
+            r"mov eax, 55555556h",
+            caller,
+            "Ht",
+        )
+        require_pattern(
+            target_window,
+            r"mov cx, \[(?:eax|edx)\+0Eh\]",
+            caller,
+            "Ht source height",
+        )
+        require_pattern(target_window, r"imul ecx", caller, "Ht")
+        require_pattern(
+            target_window,
+            r"shr (?:eax|ecx), 1Fh",
+            caller,
+            "Ht sign correction",
+        )
+        require_pattern(
+            target_window,
+            r"add edx, (?:eax|ecx)",
+            caller,
+            "Ht quotient",
+        )
+
+        displacement_window = window(target_write - 0x20, displacement_write)
+        require_pattern(
+            displacement_window,
+            r"xor (eax|edx), \1",
+            caller,
+            "D zero extension",
+        )
+        require_pattern(
+            displacement_window,
+            r"mov (?:ax|dx), \[(?:eax|ecx|edx)\+0Eh\]",
+            caller,
+            "D source height",
+        )
+        require_pattern(
+            displacement_window,
+            r"shr (?:eax|edx), 2",
+            caller,
+            "D quotient",
+        )
 
 
 def build_transform_calls(
@@ -243,6 +441,12 @@ def build_transform_calls(
         expect(instructions, call_address, "call sub_4170E0")
         if owners[mask_address] != caller or owners[build_address] != caller or owners[call_address] != caller:
             raise SystemExit(f"mode 0x0C owner mismatch for {caller}")
+        scale_contract = (
+            "Ht=u16 source height/2, optionally /4 when arg10 bit3 is set; "
+            "D=-u16 source height/4, or +height/4 when arg10 bit0 is set"
+            if caller == "sub_4145F0"
+            else "Ht=u16 source height/3; D=u16 source height/4"
+        )
         rows.append(
             TransformCall(
                 mode=0x0C,
@@ -255,7 +459,7 @@ def build_transform_calls(
                 flag_contract="(runtime_flags & 0x8000000F) | 0x0C",
                 possible_slots="0x0C,0x0D,0x0E,0x0F",
                 slot_status="all four assigned",
-                scale_contract="target height and initial per-row X displacement are written before call",
+                scale_contract=scale_contract,
             )
         )
 
@@ -339,8 +543,8 @@ def write_row_mapping() -> None:
             "sub_4170E0",
             "target-height gate",
             "0x00417130-0x00417243",
-            "Ht=dword_4CD75C; Hs=arg_C; zero Ht uses the ordinary non-resampled clipping path",
-            "Ht is reset to zero after every dispatcher call",
+            "Ht=dword_4CD75C; Hs=arg_C; zero Ht uses ordinary rectangle clipping and zeros vstep/xstep, but does not rewrite the prior enlarge-state dword",
+            "Ht is reset after every call; the inherited state remains observable inside resampling RLE functions when a caller supplies zero Ht",
         ),
         (
             "both",
@@ -370,16 +574,32 @@ def write_row_mapping() -> None:
             "0x0C",
             "sub_4170E0",
             "X displacement setup",
-            "0x004172DF-0x0041733C",
-            "zero displacement is forced to +1; xdir=-1 when displacement>0 else +1; xstep=(abs(displacement)<<10)/(Ht!=0?Ht:Hs)",
-            "the original +1 substitution is observable and must not be normalized back to zero",
+            "0x004171C2-0x0041733C",
+            "when Ht!=0, zero displacement is forced to +1; xdir=-1 when displacement>0 else +1; xstep=(abs(displacement)<<10)/(Ht!=0?Ht:Hs)",
+            "Ht=0 with zero displacement stays on the ordinary horizontal path; the target-height +1 substitution is observable",
+        ),
+        (
+            "0x0C",
+            "sub_41F8D0/sub_41FEA0",
+            "initialized fractions",
+            "0x0041F963-0x0041F96A / 0x0041FF33-0x0041FF4F",
+            "both vertical and horizontal 10.10 fractions start at zero in both forward and reverse routines",
+            "unlike mode 0x20, mode 0x0C has no stack-residue input",
+        ),
+        (
+            "0x0C",
+            "sub_4170E0 + sub_41F8D0/sub_41FEA0",
+            "zero-Ht inherited enlarge state",
+            "0x00417136-0x0041724D; 0x0041FA0D-0x0041FA5F / 0x0041FFFA-0x00420052; 0x0041FDF9-0x0041FE4B / 0x00420412-0x00420464",
+            "Ht=0 leaves dword_4CD2FC unchanged while vstep remains zero; bit0 clear advances one source row after every output, bit0 set repeats the current source row",
+            "BSS starts clear, but any earlier nonzero-Ht enlargement can leak bit0 into the special caller path whose height/4 target truncates to zero",
         ),
         (
             "0x0C",
             "sub_41F8D0/sub_41FEA0",
             "initial prepass",
             "0x0041F9F2-0x0041FA9F / 0x0041FFDF-0x0042008C",
-            "runs top_clip+1 iterations unconditionally; each advances one source row plus the vertical quotient and advances the X fraction once",
+            "runs top_clip+1 iterations unconditionally; each first advances one source row, then shrink adds q rows while enlarge adds one iff q!=0, and advances X once",
             "even top_clip=0 discards/moves past at least one RLE row before the first output",
         ),
         (
@@ -389,6 +609,22 @@ def write_row_mapping() -> None:
             "0x0041FB06-0x0041FB46 / 0x004200F0-0x00420130",
             "xfrac=(xfrac+xstep)&0x3FF; displacement += xdir*floor((old_xfrac+xstep)/1024); row X=arg_0+displacement",
             "X is recomputed and clipped independently for every output row; source pixels are not horizontally resampled",
+        ),
+        (
+            "0x0C",
+            "sub_41F8D0/sub_41FEA0",
+            "per-output destination Y",
+            "0x0041FBCD-0x0041FC0C / 0x004201B7-0x00420212",
+            "normal slots use destination_y+processed_count, so the first write is y+1; bit1 slots use destination_y+visible_height-processed_count",
+            "the per-row recomputation overrides the dispatcher's ordinary row base and gives 0x0E/0x0F their distinct vertical footprint",
+        ),
+        (
+            "0x0C",
+            "sub_41F8D0/sub_41FEA0",
+            "jitter and exit phase",
+            "0x0041FAB0-0x0041FC0C / 0x004200A1-0x00420212; 0x0041FE63-0x0041FE89 / 0x0042047C-0x00420488",
+            "both routines consume the 0x84-byte jitter cursor, but per-row destination recomputation discards the loaded pixel offset; only forward advances shared phase by four on exit",
+            "reverse preserves shared phase; the read-but-overwritten jitter value must not move output pixels",
         ),
         (
             "0x0C",
@@ -445,11 +681,14 @@ def main() -> None:
     for address, expected in EXPECTED_SNIPPETS.items():
         expect(instructions, address, expected)
     verify_vertical_fraction_initialization(instructions)
+    verify_shifted_phase_asymmetry(instructions)
+    verify_shifted_dispatch_state(instructions)
+    verify_regular_shifted_scales(instructions, owners)
     rows = build_transform_calls(instructions, owners)
     write_transform_calls(rows)
     write_row_mapping()
     print(
-        "wrote 17 transform call paths and 12 row-mapping contracts; "
+        "wrote 17 transform call paths and 16 row-mapping contracts; "
         "mode 0x0C has 15 safe low-slot constructions; dynamic mode 0x20 "
         "retains bit1, which the normal initialized caller chain proves clear"
     )

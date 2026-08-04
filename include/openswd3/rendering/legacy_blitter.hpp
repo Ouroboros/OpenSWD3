@@ -94,6 +94,8 @@ struct LegacyBlitRequest {
     compat::i32 source_width{};
     compat::i32 source_height{};
     compat::i32 target_height{};
+    compat::i32 horizontal_resample_displacement{};
+    compat::u32 vertical_resample_enlarge_state{};
     compat::u32 vertical_resample_phase_10_10{};
     compat::u32 flags{};
     compat::i32 opacity_step{};

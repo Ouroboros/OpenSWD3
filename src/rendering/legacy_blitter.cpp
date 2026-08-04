@@ -824,6 +824,7 @@ struct RleRoutinePolicy {
     bool advance_phase_on_exit{};
     bool supports_third_row_skip{};
     bool vertical_resample{};
+    bool shifted_resample{};
     u32 jitter_group_stride_bytes{0x84U};
 };
 
@@ -1106,12 +1107,14 @@ void finish_rle_success(
     LegacyFramebuffer& framebuffer,
     const LegacyBlitSource& source,
     const LegacyBlitRequest& request,
+    const LegacyBlitClipRectangle& clip,
     const ClippedBlit& clipped,
     const LegacyBlitEffectState& effects,
     LegacyRleRowJitterState& jitter,
     const RleRoutinePolicy& policy
 ) noexcept {
     if (policy.operation == RlePixelOperation::destination_offset &&
+        !policy.shifted_resample &&
         effects.red_offset == 0 &&
         effects.green_offset == 0 &&
         effects.blue_offset == 0) {
@@ -1134,22 +1137,55 @@ void finish_rle_success(
     i32 fade_remaining = fade_group;
     i32 opacity_step = vertical_opacity_fade ? 15 : request.opacity_step;
     u32 smear_phase{};
-    const bool vertical_resample =
-        policy.vertical_resample && request.target_height != 0;
-    const bool resample_enlarges =
-        vertical_resample && request.target_height > request.source_height;
-    const i32 vertical_step = vertical_resample
+    const bool vertical_resample = policy.vertical_resample &&
+        (request.target_height != 0 || policy.shifted_resample);
+    const bool resample_enlarges = vertical_resample &&
+        (request.target_height != 0
+             ? request.target_height > request.source_height
+             : (request.vertical_resample_enlarge_state & 1U) != 0U);
+    const i32 vertical_step =
+        vertical_resample && request.target_height != 0
         ? wrapping_subtract(
               from_bits(to_bits(request.source_height) << 10U) /
                   request.target_height,
               resample_enlarges ? 0 : 0x400
           )
         : 0;
-    u32 vertical_fraction = request.vertical_resample_phase_10_10;
+    u32 vertical_fraction = policy.shifted_resample
+        ? 0U
+        : request.vertical_resample_phase_10_10;
     const auto advance_vertical_fraction = [&]() noexcept {
         const u32 sum = vertical_fraction + to_bits(vertical_step);
         vertical_fraction = sum & 0x3FFU;
         return sum >> 10U;
+    };
+    i32 horizontal_displacement =
+        request.horizontal_resample_displacement;
+    if (policy.shifted_resample &&
+        request.target_height != 0 &&
+        horizontal_displacement == 0) {
+        horizontal_displacement = 1;
+    }
+    const i32 horizontal_direction = horizontal_displacement > 0 ? -1 : 1;
+    i32 horizontal_step{};
+    if (policy.shifted_resample && horizontal_displacement != 0) {
+        const u32 magnitude = horizontal_displacement < 0
+            ? 0U - to_bits(horizontal_displacement)
+            : to_bits(horizontal_displacement);
+        const i32 denominator = request.target_height != 0
+            ? request.target_height
+            : request.source_height;
+        horizontal_step = from_bits(magnitude << 10U) / denominator;
+    }
+    u32 horizontal_fraction{};
+    const auto advance_horizontal_fraction = [&]() noexcept {
+        const u32 sum = horizontal_fraction + to_bits(horizontal_step);
+        horizontal_fraction = sum & 0x3FFU;
+        const i32 quotient = from_bits(sum >> 10U);
+        horizontal_displacement = wrapping_add(
+            horizontal_displacement,
+            wrapping_multiply(horizontal_direction, quotient)
+        );
     };
     const auto advance_vertical_opacity = [&]() noexcept {
         if (!vertical_opacity_fade) {
@@ -1174,47 +1210,96 @@ void finish_rle_success(
     }
 
     std::size_t row_pointer = 8U;
-    i32 skipped_rows{};
-    while (skipped_rows != clipped.source_top_skip) {
-        u16 row_length{};
-        if (!read_u16(source.bytes, row_pointer, row_length)) {
-            return LegacyBlitExecutionStatus::malformed_source;
-        }
+    if (policy.shifted_resample) {
+        i32 skipped_rows{};
+        while (true) {
+            u16 row_length{};
+            if (!read_u16(source.bytes, row_pointer, row_length)) {
+                return LegacyBlitExecutionStatus::malformed_source;
+            }
+            if (row_length == 0U) {
+                finish_rle_success(jitter, policy);
+                return LegacyBlitExecutionStatus::completed;
+            }
 
-        row_pointer += static_cast<std::size_t>(row_length & 0x7FFFU);
-        if (row_pointer > source.bytes.size()) {
-            return LegacyBlitExecutionStatus::malformed_source;
-        }
+            row_pointer +=
+                static_cast<std::size_t>(row_length & 0x7FFFU);
+            if (row_pointer > source.bytes.size()) {
+                return LegacyBlitExecutionStatus::malformed_source;
+            }
 
-        if (vertical_resample) {
-            skipped_rows = wrapping_add(skipped_rows, 1);
-            const u32 quotient = advance_vertical_fraction();
-            const u32 extra_rows = resample_enlarges
-                ? static_cast<u32>(quotient != 0U)
-                : quotient;
-            for (u32 extra = 0U; extra < extra_rows; ++extra) {
-                if (!read_u16(source.bytes, row_pointer, row_length)) {
-                    return LegacyBlitExecutionStatus::malformed_source;
-                }
-                if (row_length == 0U) {
-                    finish_rle_success(jitter, policy);
-                    return LegacyBlitExecutionStatus::completed;
-                }
+            if (vertical_resample) {
+                const u32 quotient = advance_vertical_fraction();
+                const u32 extra_rows = resample_enlarges
+                    ? static_cast<u32>(quotient != 0U)
+                    : quotient;
+                for (u32 extra = 0U; extra < extra_rows; ++extra) {
+                    if (!read_u16(source.bytes, row_pointer, row_length)) {
+                        return LegacyBlitExecutionStatus::malformed_source;
+                    }
+                    if (row_length == 0U) {
+                        finish_rle_success(jitter, policy);
+                        return LegacyBlitExecutionStatus::completed;
+                    }
 
-                row_pointer +=
-                    static_cast<std::size_t>(row_length & 0x7FFFU);
-                if (row_pointer > source.bytes.size()) {
-                    return LegacyBlitExecutionStatus::malformed_source;
+                    row_pointer +=
+                        static_cast<std::size_t>(row_length & 0x7FFFU);
+                    if (row_pointer > source.bytes.size()) {
+                        return LegacyBlitExecutionStatus::malformed_source;
+                    }
                 }
             }
-            if (skipped_rows != clipped.source_top_skip) {
+
+            advance_horizontal_fraction();
+            if (skipped_rows == clipped.source_top_skip) {
+                break;
+            }
+            skipped_rows = wrapping_add(skipped_rows, 1);
+        }
+    } else {
+        i32 skipped_rows{};
+        while (skipped_rows != clipped.source_top_skip) {
+            u16 row_length{};
+            if (!read_u16(source.bytes, row_pointer, row_length)) {
+                return LegacyBlitExecutionStatus::malformed_source;
+            }
+
+            row_pointer +=
+                static_cast<std::size_t>(row_length & 0x7FFFU);
+            if (row_pointer > source.bytes.size()) {
+                return LegacyBlitExecutionStatus::malformed_source;
+            }
+
+            if (vertical_resample) {
+                skipped_rows = wrapping_add(skipped_rows, 1);
+                const u32 quotient = advance_vertical_fraction();
+                const u32 extra_rows = resample_enlarges
+                    ? static_cast<u32>(quotient != 0U)
+                    : quotient;
+                for (u32 extra = 0U; extra < extra_rows; ++extra) {
+                    if (!read_u16(source.bytes, row_pointer, row_length)) {
+                        return LegacyBlitExecutionStatus::malformed_source;
+                    }
+                    if (row_length == 0U) {
+                        finish_rle_success(jitter, policy);
+                        return LegacyBlitExecutionStatus::completed;
+                    }
+
+                    row_pointer +=
+                        static_cast<std::size_t>(row_length & 0x7FFFU);
+                    if (row_pointer > source.bytes.size()) {
+                        return LegacyBlitExecutionStatus::malformed_source;
+                    }
+                }
+                if (skipped_rows != clipped.source_top_skip) {
+                    skipped_rows = wrapping_add(skipped_rows, 1);
+                }
+            } else {
                 skipped_rows = wrapping_add(skipped_rows, 1);
             }
-        } else {
-            skipped_rows = wrapping_add(skipped_rows, 1);
-        }
 
-        advance_vertical_opacity();
+            advance_vertical_opacity();
+        }
     }
 
     i32 source_window_start = clipped.source_left_skip;
@@ -1228,19 +1313,17 @@ void finish_rle_success(
         );
     }
 
-    if (source_window_start < 0) {
+    if (!policy.shifted_resample && source_window_start < 0) {
         return LegacyBlitExecutionStatus::malformed_source;
     }
-
-    const std::uint64_t window_start =
-        static_cast<std::uint64_t>(source_window_start);
-    const std::uint64_t window_end = window_start +
-        static_cast<std::uint64_t>(clipped.visible_width);
     JitterCursor jitter_cursor = make_jitter_cursor(
         jitter,
         policy.jitter_group_stride_bytes
     );
     u32 destination_row = clipped.destination_start_bytes;
+    const i32 shifted_base_x = clipped.source_left_skip != 0
+        ? wrapping_subtract(0, clipped.source_left_skip)
+        : request.destination_x;
     i32 processed_rows{};
     i32 third_row_phase = wrapping_add(clipped.destination_y, 480) % 3;
 
@@ -1270,7 +1353,90 @@ void finish_rle_success(
             return LegacyBlitExecutionStatus::completed;
         }
 
+        i32 row_visible_width = clipped.visible_width;
+        i32 row_window_start = source_window_start;
+        u32 row_destination = jittered_destination_row;
         bool skip_row{};
+        if (policy.shifted_resample) {
+            advance_horizontal_fraction();
+            i32 row_x = wrapping_add(
+                shifted_base_x,
+                horizontal_displacement
+            );
+            i32 row_left_skip{};
+            row_visible_width = request.source_width;
+            if (clip.left > row_x) {
+                row_visible_width = wrapping_add(
+                    wrapping_subtract(row_x, clip.left),
+                    request.source_width
+                );
+                if (row_visible_width <= 0) {
+                    skip_row = true;
+                } else {
+                    row_left_skip = wrapping_subtract(clip.left, row_x);
+                    row_x = clip.left;
+                }
+            }
+
+            if (!skip_row) {
+                const i32 row_right = wrapping_add(
+                    row_x,
+                    row_visible_width
+                );
+                const i32 clip_right = wrapping_add(
+                    clip.left,
+                    clip.width
+                );
+                if (row_right >= clip_right) {
+                    row_visible_width = wrapping_subtract(
+                        clip_right,
+                        row_x
+                    );
+                    if (row_visible_width <= 0) {
+                        skip_row = true;
+                    }
+                }
+            }
+
+            if (!skip_row) {
+                row_window_start = policy.reverse
+                    ? wrapping_subtract(
+                          wrapping_subtract(
+                              request.source_width,
+                              row_visible_width
+                          ),
+                          row_left_skip
+                      )
+                    : row_left_skip;
+                if (row_window_start < 0) {
+                    return LegacyBlitExecutionStatus::malformed_source;
+                }
+
+                const i32 destination_y = (request.flags & 2U) != 0U
+                    ? wrapping_subtract(
+                          wrapping_add(
+                              clipped.destination_y,
+                              clipped.visible_height
+                          ),
+                          processed_rows
+                      )
+                    : wrapping_add(
+                          clipped.destination_y,
+                          processed_rows
+                      );
+                u32 destination_y_bytes{};
+                if (!row_offset(
+                        framebuffer.geometry(),
+                        destination_y,
+                        destination_y_bytes
+                    )) {
+                    return LegacyBlitExecutionStatus::destination_out_of_bounds;
+                }
+                row_destination = destination_y_bytes +
+                    to_bits(row_x) * static_cast<u32>(sizeof(u16));
+            }
+        }
+
         if (policy.supports_third_row_skip &&
             effects.skip_every_third_row) {
             third_row_phase = wrapping_add(third_row_phase, 1);
@@ -1279,6 +1445,11 @@ void finish_rle_success(
                 skip_row = true;
             }
         }
+
+        const std::uint64_t window_start =
+            static_cast<std::uint64_t>(row_window_start);
+        const std::uint64_t window_end = window_start +
+            static_cast<std::uint64_t>(row_visible_width);
 
         std::size_t command_pointer = row_pointer + 2U;
         std::uint64_t source_x{};
@@ -1346,10 +1517,10 @@ void finish_rle_success(
                     const std::uint64_t logical_x =
                         visible_start - window_start + index;
                     const std::uint64_t destination_x = policy.reverse
-                        ? static_cast<std::uint64_t>(clipped.visible_width) -
+                        ? static_cast<std::uint64_t>(row_visible_width) -
                               logical_x - 1U
                         : logical_x;
-                    return jittered_destination_row +
+                    return row_destination +
                         static_cast<u32>(destination_x * 2U);
                 };
                 const u32 first_destination = destination_for(0U);
@@ -1590,6 +1761,7 @@ LegacyBlitResult blit_legacy_copy_paths(
             framebuffer,
             source,
             request,
+            clip,
             clipped,
             effects,
             jitter,
@@ -1691,6 +1863,24 @@ LegacyBlitResult blit_legacy_copy_paths(
             .reverse = true,
             .advance_phase_on_exit = true,
             .supports_third_row_skip = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_shifted_resample_forward:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::destination_offset,
+            .advance_phase_on_exit = true,
+            .vertical_resample = true,
+            .shifted_resample = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_shifted_resample_reverse:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::destination_offset,
+            .reverse = true,
+            .vertical_resample = true,
+            .shifted_resample = true,
         });
         break;
 

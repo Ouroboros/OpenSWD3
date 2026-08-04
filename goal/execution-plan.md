@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v58
+版本：v59
 
 最后更新：2026-08-04
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：B4.5 · 已赋值 blitter 效果族
+当前步骤：B4.6 · glyph mask/cache 与文字 writer
 
 ## 1. 目标
 
@@ -213,6 +213,6 @@
 7. `[x]` B2：历史 63 项范围已完成有限收口审计；修正 5 项模块归属并补齐 6 个真实缺口后，当前 58 项为 57 项实现与 1 项不可达。Windows LLVM `core`/`app`、34/34 CTest 和全套真实资产回归通过；状态为 `module_closed_pending_oracle`。
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
-10. `[>]` B4：B4.2 像素转换、B4.3 owned framebuffer 与 B4.4 稀疏分派及四条基础 copy 已闭环；B4.5 已继续闭环颜色运算、run 边缘、raw/RLE 透明度、`0x30` 的 17 拍邻像素涂抹、raw `0x88` 常量纵向淡出和 RLE `0x20/0x21` 纵向重采样饱和加色，现转入 15 条真实构造路径可达的 RLE `0x0C..0x0F` 纵向重采样、逐行横移目标颜色偏移；当前 Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 保持通过。
+10. `[>]` B4：B4.2 像素转换、B4.3 owned framebuffer、B4.4 稀疏分派与基础 copy、B4.5 正常资产可达的全部已赋值 blitter 效果族均已闭环；RLE `0x08/0x09` 具有当前资产不可达证据和显式异常安全边界。现进入 B4.6 glyph mask/cache、五种文字 footprint 与背景；当前 Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过。
 
 当前只执行 B4，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B4 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。
