@@ -119,6 +119,69 @@ void test_cp950_char_next_contract(openswd3::test::Context& test) {
     }
 }
 
+void test_cp950_character_offsets(openswd3::test::Context& test) {
+    constexpr std::array<u8, 6> kMixed{
+        0xA9U, 0x67U, 0x41U, 0xA5U, 0x69U, 0x00U,
+    };
+
+    test.expect_equal(
+        openswd3::resource_io::legacy_cp950_next_character_offset(
+            kMixed.data(),
+            0
+        ),
+        2,
+        "next offset advances over a CP950 pair"
+    );
+    test.expect_equal(
+        openswd3::resource_io::legacy_cp950_next_character_offset(
+            kMixed.data(),
+            2
+        ),
+        3,
+        "next offset advances over ASCII"
+    );
+    test.expect_equal(
+        openswd3::resource_io::legacy_cp950_next_character_offset(
+            kMixed.data(),
+            5
+        ),
+        5,
+        "next offset does not advance at NUL"
+    );
+    test.expect_equal(
+        openswd3::resource_io::legacy_cp950_previous_character_offset(
+            kMixed.data(),
+            0
+        ),
+        0,
+        "previous offset remains at the beginning"
+    );
+    test.expect_equal(
+        openswd3::resource_io::legacy_cp950_previous_character_offset(
+            kMixed.data(),
+            2
+        ),
+        0,
+        "previous offset crosses the first CP950 pair"
+    );
+    test.expect_equal(
+        openswd3::resource_io::legacy_cp950_previous_character_offset(
+            kMixed.data(),
+            3
+        ),
+        2,
+        "previous offset crosses ASCII"
+    );
+    test.expect_equal(
+        openswd3::resource_io::legacy_cp950_previous_character_offset(
+            kMixed.data(),
+            5
+        ),
+        3,
+        "previous offset crosses the final CP950 pair"
+    );
+}
+
 void test_constructor_and_real_names(openswd3::test::Context& test) {
     constexpr std::array<u8, 5> kSet{0xC1U, 0xC9U, 0xAFU, 0x53U, 0x00U};
     constexpr std::array<u8, 5> kNicole{0xA9U, 0x67U, 0xA5U, 0x69U, 0x00U};
@@ -260,6 +323,7 @@ int main() {
     openswd3::test::Context test;
     test_bounded_length(test);
     test_cp950_char_next_contract(test);
+    test_cp950_character_offsets(test);
     test_constructor_and_real_names(test);
     test_constructor_truncation(test);
     test_copy_contract(test);

@@ -1,8 +1,8 @@
 # B3 `input_time_rng` 工作包
 
-状态：实施中
+状态：`module_closed_pending_oracle`
 
-当前单元：B3.8 DBCS/IME 编辑驱动
+当前单元：B3.8 DBCS/IME 编辑驱动已闭环
 
 ## 1. 范围与非范围
 
@@ -28,6 +28,7 @@ B3 拥有：
 - 0x80 字节稀疏按键绑定兼容块；B2 只按明确文件顺序序列化其 16 个低字节。
 - `previous/current` 32 位毫秒样本和帧间隔门槛。
 - CRT-compatible seed 及第二套 250-word RNG 状态。
+- ANSI 文本输入的进程级 DBCS 前导字节锁存；旧文本缓冲本体仍由 `resource_io` 拥有，B3 只借用编辑视图。
 
 SDL3 只在平台层产生键盘、鼠标、时钟和文字输入样本。兼容核心不读取 SDL repeat，不让宿主刷新率决定逻辑推进次数，也不使用 `std::uniform_int_distribution` 替代原随机流。
 
@@ -49,6 +50,7 @@ SDL3 只在平台层产生键盘、鼠标、时钟和文字输入样本。兼容
 - [`frame-clock-and-wait-semantics.md`](../evidence/frame-clock-and-wait-semantics.md)：帧门槛、时间快照、等待、Sleep 和双种子顺序。
 - [`legacy-secondary-rng-00438fa0.md`](../evidence/legacy-secondary-rng-00438fa0.md)：第二套 RNG 的初始化、xor 流与拒绝采样。
 - [`legacy-crt-rng-00489b10.md`](../evidence/legacy-crt-rng-00489b10.md)：CRT-compatible RNG、两次独立时间采样和真实 SDL3 播种接线。
+- [`legacy-text-input-00438b50.md`](../evidence/legacy-text-input-00438b50.md)：四类消息、八个编辑键、DBCS 锁存、插入/删除、保留缺陷和平台隔离。
 
 ## 5. 当前执行顺序
 
@@ -60,6 +62,6 @@ SDL3 只在平台层产生键盘、鼠标、时钟和文字输入样本。兼容
 6. `[x]` B3.5：实现 256 字节 DIK 快照、raw query、synthetic write、首键扫描和 SDL scancode 显式适配；默认绑定与扩展键映射有固定 UT，Windows LLVM `core` 为 38/38、`app` 为 39/39 CTest。
 7. `[x]` B3.6：实现鼠标采样、坐标夹取、rebase 和灵敏度合同；保留有符号回绕、除法截断、上边界 baseline 偏移及按钮高位语义，Windows LLVM `core` 为 38/38、`app` 为 40/40 CTest。
 8. `[x]` B3.7：按 `0x004050E0` 组合整帧输入；时钟镜像、鼠标采样、18 条更新顺序、11/13 保留、左键抑制、451 次静止阈值和回绕均有固定 UT；旧 FLIRT 误名的默认绑定启动接口也已按 LST 纠正，Windows LLVM `core` 为 38/38、`app` 为 40/40 CTest。
-9. `[>]` B3.8：实现 DBCS/IME 编辑驱动并接入 UTF-16 边界前的旧字节缓冲。
+9. `[x]` B3.8：七个编辑入口、四类消息、进程级 DBCS 锁存和 B2 缓冲借用接口已实现；保留 Insert 恒启用、Backspace 在零删除首字符、高位 trail 丢弃和百分号声音分支，重叠删除按 `0x00489EB0` 的真实 memmove 指令合同恢复。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest。
 
-每项达到既定测试门后立即实现，不等待 B3 全部细节逆向完成。原程序动态 oracle 缺失统一登记为 `blocked_runtime_oracle`，不阻止已静态闭环且确定性测试通过的单元继续移交。
+26 项范围现已全部具有实现映射并通过逐基本块静态复核。当前唯一缺口是已登记的原程序动态 oracle，因此 B3 按执行计划移交为 `module_closed_pending_oracle`。

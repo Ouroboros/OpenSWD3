@@ -31,6 +31,46 @@ constexpr compat::u8 kCp950LeadLast = 0xFEU;
 
 }  // namespace
 
+compat::i32 legacy_cp950_next_character_offset(
+    const compat::u8* const text,
+    const compat::i32 current_offset
+) noexcept {
+    if (text == nullptr || current_offset < 0) {
+        terminate_legacy_fault();
+    }
+
+    const compat::u8* const current = text + current_offset;
+    return static_cast<compat::i32>(cp950_char_next(current) - text);
+}
+
+compat::i32 legacy_cp950_previous_character_offset(
+    const compat::u8* const text,
+    const compat::i32 current_offset
+) noexcept {
+    if (text == nullptr) {
+        terminate_legacy_fault();
+    }
+
+    if (current_offset <= 0) {
+        return 0;
+    }
+
+    compat::i32 previous_offset = 0;
+    compat::i32 scan_offset = 0;
+    while (scan_offset < current_offset) {
+        previous_offset = scan_offset;
+        const compat::i32 next_offset =
+            legacy_cp950_next_character_offset(text, scan_offset);
+        if (next_offset >= current_offset || next_offset == scan_offset) {
+            return previous_offset;
+        }
+
+        scan_offset = next_offset;
+    }
+
+    return previous_offset;
+}
+
 compat::i32 legacy_cp950_bounded_length(
     const compat::u8* const text,
     const compat::i32 maximum_bytes
@@ -171,6 +211,18 @@ LegacyDbcsTextBufferSnapshot LegacyDbcsTextBuffer::snapshot() const noexcept {
         .result = result_,
         .ime_state = ime_state_,
         .input_enabled_state = input_enabled_state_,
+    };
+}
+
+LegacyDbcsTextBufferEditView
+LegacyDbcsTextBuffer::borrow_edit_view() noexcept {
+    return LegacyDbcsTextBufferEditView{
+        .bytes = buffer_,
+        .capacity = capacity_,
+        .cursor_byte_offset = &cursor_byte_offset_,
+        .result = &result_,
+        .ime_state = &ime_state_,
+        .input_enabled_state = &input_enabled_state_,
     };
 }
 

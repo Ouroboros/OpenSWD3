@@ -3,6 +3,7 @@ add_library(
     STATIC
         legacy_frame_clock.cpp
         legacy_input.cpp
+        legacy_text_input.cpp
         legacy_crt_rng.cpp
         legacy_secondary_rng.cpp
 )
@@ -15,4 +16,5 @@ target_include_directories(
 target_link_libraries(
     openswd3_input_time_rng
     PUBLIC openswd3_compat openswd3_project_options openswd3_project_warnings
+    PRIVATE openswd3_resource_io
 )

@@ -674,6 +674,24 @@ add_test(
     COMMAND openswd3_input_time_rng_legacy_input_tests
 )
 
+add_executable(
+    openswd3_input_time_rng_legacy_text_input_tests
+    unit/input_time_rng/legacy_text_input_test.cpp
+)
+target_include_directories(
+    openswd3_input_time_rng_legacy_text_input_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_input_time_rng_legacy_text_input_tests
+    PRIVATE openswd3_input_time_rng openswd3_resource_io
+)
+
+add_test(
+    NAME input_time_rng.legacy_text_input
+    COMMAND openswd3_input_time_rng_legacy_text_input_tests
+)
+
 if(TARGET SDL3::SDL3)
     add_executable(
         openswd3_platform_keyboard_snapshot_sdl3_tests
