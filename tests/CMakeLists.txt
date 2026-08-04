@@ -747,6 +747,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_rendering_legacy_glyph_writer_tests
+    unit/rendering/legacy_glyph_writer_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_glyph_writer_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_glyph_writer_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_glyph_writer
+    COMMAND openswd3_rendering_legacy_glyph_writer_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_blitter_tests
     unit/rendering/legacy_blitter_test.cpp
 )

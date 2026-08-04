@@ -3,6 +3,7 @@ add_library(
     legacy_blitter.cpp
     legacy_framebuffer.cpp
     legacy_glyph_cache.cpp
+    legacy_glyph_writer.cpp
     legacy_pixel_conversion.cpp
 )
 target_include_directories(

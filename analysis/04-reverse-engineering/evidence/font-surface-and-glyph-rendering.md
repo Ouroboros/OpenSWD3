@@ -114,6 +114,14 @@ mask 被清零且 live count 回到 1998 的状态。
 
 style 参数的低五位不是互斥枚举。`sub_436AD0` 按 `0x01 → 0x02 → 0x04 → 0x08 → 0x10` 的优先级依次测试，第一个置位 bit 获胜；低五位没有任何已知 selector 时不会调用 glyph-pixel writer。
 
+当前确定性兼容核心已在
+`include/openswd3/rendering/legacy_glyph_writer.hpp` 与
+`src/rendering/legacy_glyph_writer.cpp` 落实这五种 writer。实现逐个保留物理
+mask 行的全部 bit、上述严格比较、secondary/foreground 写入顺序和 selector
+优先级；超出 framebuffer 的原始危险写入只在异常输入状态返回显式边界，
+正常 clip 内路径不增加逐写入点裁剪。UT 分别锁定五种 footprint、左右/下侧
+严格边界、行尾 padding bit 仍被消费，以及 outline 两阶段覆盖顺序。
+
 ## 行颜色变化与两阶段旧行为
 
 每条 mask 行结束后，前景 packed `u16` 做原始整数加法：
@@ -136,6 +144,19 @@ style 参数的低五位不是互斥枚举。`sub_436AD0` 按 `0x01 → 0x02 →
 ## 背景矩形
 
 对象 `+0xFE6` 是背景色；`0xFFFE` 表示禁止背景。启用时，`sub_436EA0` 在 glyph writer 前填充矩形，并有末字符宽度修正。其裁剪边界是整个目标 framebuffer 的宽高，而不是对象 `+0xFE8..+0xFF4` 的 glyph clip。
+
+`sub_436EA0` 先用原始 `x+width`、`y+height` 算出右下边界，再分别把左、上
+钳到零，把右、下钳到 framebuffer 宽高。随后它只检查 `left < right`，便在
+钳后的 `top` 写第一行；并没有先检查 `top < bottom`。只有复制后续行的循环
+才测试 `top+1 < bottom`。因此以下旧行为都必须保留：
+
+- `height == 0` 且横向非空时仍写第一行；
+- 矩形完全位于 framebuffer 上方时，仍可能写第零行一次；
+- 第一行按色值逐像素写入，后续行从第一行按物理字节复制，不是重新填色。
+
+若钳后的 `top` 仍位于 framebuffer 下方而横向非空，原汇编会通过行指针表
+访问正常 surface 之外；当前实现把这一异常状态隔离为显式
+`destination_out_of_bounds`，不改变正常游戏输入及上述两个可观察 BUG。
 
 背景、glyph clip 和最终 footprint 是三个不同边界，重写时不能合成一个 rectangle API 后期待等价结果。
 
@@ -161,7 +182,7 @@ SDL3 在 Windows、Linux、macOS 等平台都能承接窗口、事件、输入�
 - selector bit 优先级，而不是互斥 style enum。
 - 五种严格且不对称的 clip、footprint 和写入顺序。
 - packed `u16` 每行 `-1/+1`，以及 `0x08/0x10` prepass 后 overlay 再次推进的异常。
-- `0xFFFE` 背景禁用值和背景只按 framebuffer 边界裁剪。
+- `0xFFFE` 背景禁用值、背景只按 framebuffer 边界裁剪，以及纵向空矩形仍写第一行的异常。
 - `+0xFCA` 隐式零终止依赖；初步还原不得用“更安全”行为改变可观察结果。
 
 当前实现只对无法形成原 64×64 正常字体对象的非正 geometry 建立显式安全
