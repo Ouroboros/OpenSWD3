@@ -362,9 +362,11 @@ enum class ClipStatus : u8 {
     const LegacyRasterGeometryState& geometry,
     const LegacyBlitClipRectangle& clip,
     const LegacyBlitRequest& request,
+    const i32 output_height,
     ClippedBlit& result
 ) noexcept {
-    i32 visible_height = request.source_height;
+    const bool target_height_active = request.target_height != 0;
+    i32 visible_height = output_height;
     i32 destination_y = request.destination_y;
     i32 source_top_skip{};
     i32 source_bottom_skip{};
@@ -372,16 +374,18 @@ enum class ClipStatus : u8 {
     if (clip.top > destination_y) {
         visible_height = wrapping_add(
             wrapping_subtract(destination_y, clip.top),
-            request.source_height
+            output_height
         );
+        if (target_height_active) {
+            visible_height = wrapping_subtract(visible_height, 1);
+        }
         if (visible_height <= 0) {
             return ClipStatus::clipped_out;
         }
 
-        source_top_skip = wrapping_subtract(
-            request.source_height,
-            visible_height
-        );
+        source_top_skip = target_height_active
+            ? wrapping_subtract(clip.top, destination_y)
+            : wrapping_subtract(output_height, visible_height);
         destination_y = clip.top;
     }
 
@@ -391,17 +395,28 @@ enum class ClipStatus : u8 {
     );
     const i32 clip_bottom = wrapping_add(clip.top, clip.height);
     if (destination_bottom >= clip_bottom) {
-        source_bottom_skip = wrapping_add(
-            wrapping_subtract(
-                wrapping_subtract(destination_y, clip.height),
-                clip.top
-            ),
-            request.source_height
-        );
+        source_bottom_skip = target_height_active
+            ? wrapping_add(
+                  wrapping_subtract(
+                      wrapping_subtract(visible_height, clip.height),
+                      clip.top
+                  ),
+                  destination_y
+              )
+            : wrapping_add(
+                  wrapping_subtract(
+                      wrapping_subtract(destination_y, clip.height),
+                      clip.top
+                  ),
+                  output_height
+              );
         visible_height = wrapping_add(
             wrapping_subtract(clip.height, destination_y),
             clip.top
         );
+        if (target_height_active) {
+            visible_height = wrapping_subtract(visible_height, 1);
+        }
         if (visible_height <= 0) {
             return ClipStatus::clipped_out;
         }
@@ -808,6 +823,7 @@ struct RleRoutinePolicy {
     bool reverse{};
     bool advance_phase_on_exit{};
     bool supports_third_row_skip{};
+    bool vertical_resample{};
     u32 jitter_group_stride_bytes{0x84U};
 };
 
@@ -1118,6 +1134,23 @@ void finish_rle_success(
     i32 fade_remaining = fade_group;
     i32 opacity_step = vertical_opacity_fade ? 15 : request.opacity_step;
     u32 smear_phase{};
+    const bool vertical_resample =
+        policy.vertical_resample && request.target_height != 0;
+    const bool resample_enlarges =
+        vertical_resample && request.target_height > request.source_height;
+    const i32 vertical_step = vertical_resample
+        ? wrapping_subtract(
+              from_bits(to_bits(request.source_height) << 10U) /
+                  request.target_height,
+              resample_enlarges ? 0 : 0x400
+          )
+        : 0;
+    u32 vertical_fraction = request.vertical_resample_phase_10_10;
+    const auto advance_vertical_fraction = [&]() noexcept {
+        const u32 sum = vertical_fraction + to_bits(vertical_step);
+        vertical_fraction = sum & 0x3FFU;
+        return sum >> 10U;
+    };
     const auto advance_vertical_opacity = [&]() noexcept {
         if (!vertical_opacity_fade) {
             return;
@@ -1141,7 +1174,8 @@ void finish_rle_success(
     }
 
     std::size_t row_pointer = 8U;
-    for (i32 skipped = 0; skipped < clipped.source_top_skip; ++skipped) {
+    i32 skipped_rows{};
+    while (skipped_rows != clipped.source_top_skip) {
         u16 row_length{};
         if (!read_u16(source.bytes, row_pointer, row_length)) {
             return LegacyBlitExecutionStatus::malformed_source;
@@ -1150,6 +1184,34 @@ void finish_rle_success(
         row_pointer += static_cast<std::size_t>(row_length & 0x7FFFU);
         if (row_pointer > source.bytes.size()) {
             return LegacyBlitExecutionStatus::malformed_source;
+        }
+
+        if (vertical_resample) {
+            skipped_rows = wrapping_add(skipped_rows, 1);
+            const u32 quotient = advance_vertical_fraction();
+            const u32 extra_rows = resample_enlarges
+                ? static_cast<u32>(quotient != 0U)
+                : quotient;
+            for (u32 extra = 0U; extra < extra_rows; ++extra) {
+                if (!read_u16(source.bytes, row_pointer, row_length)) {
+                    return LegacyBlitExecutionStatus::malformed_source;
+                }
+                if (row_length == 0U) {
+                    finish_rle_success(jitter, policy);
+                    return LegacyBlitExecutionStatus::completed;
+                }
+
+                row_pointer +=
+                    static_cast<std::size_t>(row_length & 0x7FFFU);
+                if (row_pointer > source.bytes.size()) {
+                    return LegacyBlitExecutionStatus::malformed_source;
+                }
+            }
+            if (skipped_rows != clipped.source_top_skip) {
+                skipped_rows = wrapping_add(skipped_rows, 1);
+            }
+        } else {
+            skipped_rows = wrapping_add(skipped_rows, 1);
         }
 
         advance_vertical_opacity();
@@ -1363,8 +1425,47 @@ void finish_rle_success(
             return LegacyBlitExecutionStatus::malformed_source;
         }
 
-        row_pointer = next_row;
         destination_row += clipped.destination_row_step_bytes;
+        if (!vertical_resample) {
+            row_pointer = next_row;
+            continue;
+        }
+
+        const u32 extra_rows = advance_vertical_fraction();
+        if (resample_enlarges) {
+            if (extra_rows == 0U) {
+                continue;
+            }
+
+            row_pointer = next_row;
+            u16 next_row_length{};
+            if (!read_u16(source.bytes, row_pointer, next_row_length)) {
+                return LegacyBlitExecutionStatus::malformed_source;
+            }
+            if (next_row_length == 0U) {
+                finish_rle_success(jitter, policy);
+                return LegacyBlitExecutionStatus::completed;
+            }
+            continue;
+        }
+
+        row_pointer = next_row;
+        for (u32 extra = 0U; extra < extra_rows; ++extra) {
+            u16 next_row_length{};
+            if (!read_u16(source.bytes, row_pointer, next_row_length)) {
+                return LegacyBlitExecutionStatus::malformed_source;
+            }
+            if (next_row_length == 0U) {
+                finish_rle_success(jitter, policy);
+                return LegacyBlitExecutionStatus::completed;
+            }
+
+            row_pointer +=
+                static_cast<std::size_t>(next_row_length & 0x7FFFU);
+            if (row_pointer > source.bytes.size()) {
+                return LegacyBlitExecutionStatus::malformed_source;
+            }
+        }
     }
 }
 
@@ -1453,10 +1554,14 @@ LegacyBlitResult blit_legacy_copy_paths(
     }
 
     ClippedBlit clipped{};
+    const i32 output_height = request.target_height != 0
+        ? request.target_height
+        : request.source_height;
     const ClipStatus clip_status = clip_request(
         framebuffer.geometry(),
         clip,
         request,
+        output_height,
         clipped
     );
     if (clip_status == ClipStatus::clipped_out) {
@@ -1586,6 +1691,23 @@ LegacyBlitResult blit_legacy_copy_paths(
             .reverse = true,
             .advance_phase_on_exit = true,
             .supports_third_row_skip = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_saturated_resample_forward:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::saturated_add,
+            .advance_phase_on_exit = true,
+            .vertical_resample = true,
+        });
+        break;
+
+    case LegacyBlitterRoutine::rle_saturated_resample_reverse:
+        status = run_rle(RleRoutinePolicy{
+            .operation = RlePixelOperation::saturated_add,
+            .reverse = true,
+            .advance_phase_on_exit = true,
+            .vertical_resample = true,
         });
         break;
 

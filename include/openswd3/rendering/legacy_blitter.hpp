@@ -93,6 +93,8 @@ struct LegacyBlitRequest {
     compat::i32 destination_y{};
     compat::i32 source_width{};
     compat::i32 source_height{};
+    compat::i32 target_height{};
+    compat::u32 vertical_resample_phase_10_10{};
     compat::u32 flags{};
     compat::i32 opacity_step{};
     std::span<const compat::u8> auxiliary{};

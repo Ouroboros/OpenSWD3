@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Build assembly-locked inventories for blitter modes 0x0C and 0x20.
+"""Build LST-locked inventories for blitter modes 0x0C and 0x20.
 
 The output records the complete direct flag-construction set for these two
 transform modes and the exact 10.10 row-mapping contracts used by their RLE
-kernels.  Pseudocode is not read or used as evidence.
+kernels.  The complete IDA LST is the only disassembly input; pseudocode and
+the generated ASM file are not read or used as evidence.
 """
 
 from __future__ import annotations
@@ -18,17 +19,17 @@ from pathlib import Path
 RESEARCH_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = RESEARCH_ROOT.parents[1]
 EXE_PATH = WORKSPACE_ROOT / "swd3.exe"
-ASM_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.asm"
+LST_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.lst"
 INVENTORY_ROOT = RESEARCH_ROOT / "04-reverse-engineering" / "inventory"
 CALLSITE_PATH = INVENTORY_ROOT / "blitter-transform-callsites.tsv"
 ROW_MAPPING_PATH = INVENTORY_ROOT / "blitter-row-resampling.tsv"
 
 EXPECTED_SHA256 = {
     EXE_PATH: "0bac897a7557735b22607d8c8f0a79a3e7ae7729deb56593fd91c21e10baee0c",
-    ASM_PATH: "d902f6dfd47d7033bf8a971c4ccc3a4d8d037b5b577035041113329363cab052",
+    LST_PATH: "701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b",
 }
 
-ASM_LINE_RE = re.compile(r"^([0-9A-F]{8})\s+(.+?)\s*$")
+LST_LINE_RE = re.compile(r"^\.[^:]+:([0-9A-F]{8})\s")
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,13 @@ EXPECTED_SNIPPETS = {
     0x00417262: "idiv edi",
     0x00417264: "sub eax, 400h",
     0x00417269: "mov dword_4CD744, eax",
+    # Target-height clipping keeps the original minus-one boundaries.
+    0x0041728F: "lea edi, [edi+esi-1]",
+    0x004172A3: "sub ecx, esi",
+    0x004172A7: "mov dword_4CD754, ecx",
+    0x004172B9: "cmp ebx, edx",
+    0x004172BB: "jl short loc_4172DF",
+    0x004172C5: "lea edi, [ecx+eax-1]",
     # Dispatcher per-row X displacement setup used by mode 0x0C.
     0x004172E8: "mov eax, 1",
     0x004172ED: "mov dword_4CD718, eax",
@@ -85,6 +93,7 @@ EXPECTED_SNIPPETS = {
     0x0041733C: "mov dword_4CD738, eax",
     # Mode 0x0C forward: unconditional prepass and per-output X phase.
     0x0041F9F2: "mov eax, [esi]",
+    0x0041F963: "mov [ebp+var_8], 0",
     0x0041FA02: "add esi, eax",
     0x0041FA0D: "add eax, dword_4CD744",
     0x0041FA68: "mov edx, dword_4CD718",
@@ -100,9 +109,17 @@ EXPECTED_SNIPPETS = {
     # Mode 0x20 forward: top clip is checked before source-row advance.
     0x004209BE: "cmp ebx, ecx",
     0x004209C2: "mov eax, [esi]",
+    0x004209C4: "inc ebx",
     0x004209CA: "add esi, eax",
+    0x004209D2: "mov eax, [ebp+var_8]",
     0x004209D5: "add eax, dword_4CD744",
+    0x004209E5: "mov [ebp+var_8], eax",
+    0x00420A37: "inc ebx",
     0x00420CCB: "add eax, dword_4CD744",
+    0x00420E83: "inc ebx",
+    0x00420E91: "mov eax, [ebp+var_8]",
+    0x00420EA4: "mov [ebp+var_8], eax",
+    0x00420EF6: "inc ebx",
     # Mode 0x20 call paths.
     0x00452B67: "push 20h",
     0x00452B8F: "mov dword_4CD75C, ecx",
@@ -126,20 +143,25 @@ def normalize(instruction: str) -> str:
     return " ".join(instruction.split())
 
 
-def load_assembly() -> tuple[dict[int, str], dict[int, str]]:
+def load_listing() -> tuple[dict[int, str], dict[int, str]]:
     instructions: dict[int, str] = {}
     owners: dict[int, str] = {}
     current_owner = ""
-    for raw in ASM_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
+    for raw in LST_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
         owner_match = re.search(r"\b(sub_[0-9A-F]{6})\s+proc near\b", raw)
         if owner_match:
             current_owner = owner_match.group(1)
-        match = ASM_LINE_RE.match(raw)
-        if not match:
+        match = LST_LINE_RE.match(raw)
+        if not match or len(raw) <= 43:
             continue
+
+        byte_field = raw[15:43].strip()
+        if not byte_field or not re.match(r"^[0-9A-F?]{2}(?:\s|$)", byte_field):
+            continue
+
         address = int(match.group(1), 16)
-        instruction = match.group(2).split(";", 1)[0].rstrip()
-        if not instruction or instruction.endswith(":"):
+        instruction = raw[43:].split(";", 1)[0].rstrip()
+        if not instruction:
             continue
         instructions[address] = normalize(instruction)
         owners[address] = current_owner
@@ -159,6 +181,44 @@ def expect(instructions: dict[int, str], address: int, expected: str) -> None:
         raise SystemExit(
             f"instruction mismatch at 0x{address:08X}: expected {expected!r}, got {actual!r}"
         )
+
+
+def verify_vertical_fraction_initialization(
+    instructions: dict[int, str]
+) -> None:
+    def accesses(start: int, end: int) -> list[tuple[int, str]]:
+        return [
+            (address, instruction)
+            for address, instruction in instructions.items()
+            if start <= address <= end and "[ebp+var_8]" in instruction
+        ]
+
+    shifted_forward = accesses(0x0041F8D0, 0x0041FE9A)
+    if not shifted_forward or shifted_forward[0] != (
+        0x0041F963,
+        "mov [ebp+var_8], 0",
+    ):
+        raise SystemExit(
+            f"mode 0x0C vertical fraction is not explicitly zeroed: {shifted_forward[:2]}"
+        )
+
+    expected_first_accesses = {
+        (0x004208D0, 0x00420D61): [
+            (0x004209D2, "mov eax, [ebp+var_8]"),
+            (0x004209E5, "mov [ebp+var_8], eax"),
+        ],
+        (0x00420D70, 0x0042122B): [
+            (0x00420E91, "mov eax, [ebp+var_8]"),
+            (0x00420EA4, "mov [ebp+var_8], eax"),
+        ],
+    }
+    for (start, end), expected in expected_first_accesses.items():
+        actual = accesses(start, end)
+        if actual[:2] != expected:
+            raise SystemExit(
+                f"mode 0x20 vertical-fraction first-access mismatch at "
+                f"0x{start:08X}: expected={expected}, actual={actual[:2]}"
+            )
 
 
 def build_transform_calls(
@@ -285,6 +345,14 @@ def write_row_mapping() -> None:
         (
             "both",
             "sub_4170E0",
+            "target-height vertical clipping",
+            "0x0041726E-0x004172D9",
+            "top overlap uses visible=Ht+destination_y-clip_top-1 with top_skip=clip_top-destination_y; bottom overlap uses visible=clip_height-destination_y+clip_top-1 and equality enters clipping",
+            "an exact target-height fit against the clip bottom draws Ht-1 rows; this minus-one behavior is not shared by the zero-target path",
+        ),
+        (
+            "both",
+            "sub_4170E0",
             "vertical step when Ht>Hs",
             "0x00417243-0x00417257",
             "enlarge=1; vstep=(Hs<<10)/Ht using signed idiv",
@@ -333,17 +401,25 @@ def write_row_mapping() -> None:
         (
             "0x20",
             "sub_4208D0/sub_420D70",
+            "initial vertical fraction",
+            "0x004208D0-0x004209E5 / 0x00420D70-0x00420EA4",
+            "the first [ebp-8] access is a read; neither function initializes the full-width fraction before adding vstep and retaining its low 10 bits",
+            "unlike mode 0x0C, zero is not assembly-proven; a deterministic port must expose or explicitly isolate the original stack residue",
+        ),
+        (
+            "0x20",
+            "sub_4208D0/sub_420D70",
             "top clipping",
             "0x004209BE-0x00420A3A / 0x00420E7D-0x00420EF9",
-            "checks skipped_count==top_clip before advancing; each skipped output advances one source row plus the vertical quotient",
-            "unlike 0x0C, top_clip=0 starts from the first RLE row",
+            "checks skipped_count==top_clip before advancing; each prepass first advances one row, then shrink adds q rows while enlarge adds one iff q!=0; the counter increments once before mapping and again when the post-map value does not equal top_clip",
+            "top_clip=0 starts at the first RLE row; positive top clipping runs ceil(top_clip/2) prepasses, an original double-increment bug",
         ),
         (
             "0x20",
             "sub_4208D0/sub_420D70",
             "processed-row mapping",
             "0x00420CB1-0x00420D30 / 0x0042117B-0x004211FA",
-            "same enlarge/shrink 10.10 rule as dispatcher setup; destination X and literal run lengths are not resampled",
+            "after drawing, shrink advances 1+q rows while enlarge repeats for q=0 and advances exactly one row for any nonzero q; destination X and literal run lengths are not resampled",
             "only source RLE row selection changes",
         ),
         (
@@ -365,14 +441,15 @@ def write_row_mapping() -> None:
 
 def main() -> None:
     verify_inputs()
-    instructions, owners = load_assembly()
+    instructions, owners = load_listing()
     for address, expected in EXPECTED_SNIPPETS.items():
         expect(instructions, address, expected)
+    verify_vertical_fraction_initialization(instructions)
     rows = build_transform_calls(instructions, owners)
     write_transform_calls(rows)
     write_row_mapping()
     print(
-        "wrote 17 transform call paths and 10 row-mapping contracts; "
+        "wrote 17 transform call paths and 12 row-mapping contracts; "
         "mode 0x0C has 15 safe low-slot constructions; dynamic mode 0x20 "
         "retains bit1, which the normal initialized caller chain proves clear"
     )

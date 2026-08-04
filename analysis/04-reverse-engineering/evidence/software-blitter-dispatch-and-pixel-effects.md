@@ -175,7 +175,7 @@ Ht > Hs:   enlarge = 1; vstep = signed_idiv(Hs << 10, Ht)
 Ht <= Hs:  enlarge = 0; vstep = signed_idiv(Hs << 10, Ht) - 0x400
 ```
 
-对正常已绘制输出行，余数 `vfrac` 初始为零并保留低十位：
+`0x0C` 正向函数在 `0x0041F963` 明确把余数 `vfrac` 初始化为零，随后保留低十位：
 
 ```text
 q = floor((vfrac + vstep) / 1024)
@@ -210,7 +210,11 @@ s'c  = clamp(sc + offset_c * channel_unit_c, 0, channel_max_c)
 outc = clamp(dc + s'c,                         0, channel_max_c)
 ```
 
-顶部裁剪与 `0x0C` 不同。`0x004209BE` 在推进源行之前先比较 `skipped_count==top_clip`；所以 `top_clip==0` 会从第一条 RLE 行开始，其他被裁输出行各按一次纵向规则推进。高位 run 全部透明跳过。
+`Ht != 0` 的分派器纵向裁剪不是普通公式：顶部可见高度为 `Ht+destination_y-clip_top-1`，底部可见高度为 `clip_height-destination_y+clip_top-1`，而且底边相等也进入裁剪。因此目标高度刚好贴住 clip 底边时只处理 `Ht-1` 行；这两个减一必须与后续行选择共同保留。
+
+本族不能沿用上节的零初值：正向 `0x004209D2` 和反向 `0x00420E91` 对 `[ebp-8]` 的首次访问都是读取，入口到这里没有初始化；第一次 `vfrac+vstep` 使用完整 32 位栈残值，之后才保留低十位。重写用显式 `vertical_resample_phase_10_10` 输入隔离 C++ UB，不能把默认零误写成原汇编事实。放大分支只测试商是否非零并最多推进一条源行；缩小分支才循环推进全部商值。
+
+顶部裁剪与 `0x0C` 也不同。`0x004209BE` 在推进源行之前先比较 `skipped_count==top_clip`，所以 `top_clip==0` 从第一条 RLE 行开始；每轮预处理先无条件推进一条源行，再按商追加推进。计数器在映射前加一，未命中 `top_clip` 时在 `0x00420A37` 又加一，因此正数裁剪只运行 `ceil(top_clip/2)` 轮；`top_clip=2` 和 `1` 都只处理一轮。这不等价于正常输出行映射，是原始双递增 BUG。完整合同与 UT 见 `legacy-blitter-rle-saturated-resample-004208d0.md`。高位 run 全部透明跳过。
 
 当前有两条明确构造路径：
 
