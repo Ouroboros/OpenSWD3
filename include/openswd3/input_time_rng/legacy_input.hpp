@@ -61,6 +61,27 @@ struct LegacyInputRecord {
     bool operator==(const LegacyInputRecord&) const = default;
 };
 
+struct LegacyMouseState {
+    compat::i32 absolute_x_baseline{};
+    compat::i32 absolute_y_baseline{};
+    compat::i32 sensitivity_scale{};
+};
+
+struct LegacyMouseDeviceSample {
+    compat::i32 absolute_x{};
+    compat::i32 absolute_y{};
+    compat::u8 button_0{};
+    compat::u8 button_1{};
+};
+
+struct LegacyMouseFrame {
+    compat::i32 logical_x{};
+    compat::i32 logical_y{};
+    compat::u32 button_mask{};
+
+    bool operator==(const LegacyMouseFrame&) const = default;
+};
+
 [[nodiscard]] compat::u32 update_input_record(
     LegacyInputRecord& record,
     compat::u32 raw_state,
@@ -79,6 +100,23 @@ void synthesize_raw_key(
 
 [[nodiscard]] compat::u32 find_first_pressed_key(
     const LegacyKeyboardSnapshot& snapshot
+) noexcept;
+
+void set_mouse_sensitivity(
+    LegacyMouseState& state,
+    double sensitivity
+) noexcept;
+
+void rebase_mouse_coordinates(
+    LegacyMouseState& state,
+    const LegacyMouseDeviceSample& sample,
+    compat::i32 target_x,
+    compat::i32 target_y
+) noexcept;
+
+[[nodiscard]] LegacyMouseFrame normalize_mouse_sample(
+    LegacyMouseState& state,
+    const LegacyMouseDeviceSample& sample
 ) noexcept;
 
 static_assert(sizeof(LegacyKeyBindingBlock) == kLegacyKeyBindingBlockSize);

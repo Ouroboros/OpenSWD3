@@ -2,6 +2,7 @@
 #include "external_launch_sdl3.hpp"
 #include "keyboard_snapshot_sdl3.hpp"
 #include "legacy_command_line.hpp"
+#include "mouse_sdl3.hpp"
 #include "single_instance.hpp"
 #include "startup_dialog_sdl3.hpp"
 
@@ -206,6 +207,9 @@ public:
         openswd3::app::PlatformBackendInitializationPorts& backend_ports,
         openswd3::resource_io::LegacyResourceDatabases& resource_databases,
         const std::filesystem::path& data_directory,
+        SDL_Renderer& renderer,
+        openswd3::input_time_rng::LegacyMouseState& mouse_state,
+        openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state,
         openswd3::compat::u32& frame_interval,
         bool& destroy_requested
     )
@@ -213,6 +217,9 @@ public:
           backend_ports_(backend_ports),
           resource_databases_(resource_databases),
           data_directory_(data_directory),
+          renderer_(renderer),
+          mouse_state_(mouse_state),
+          mouse_device_state_(mouse_device_state),
           frame_interval_(frame_interval),
           destroy_requested_(destroy_requested) {}
 
@@ -229,7 +236,20 @@ public:
         );
     }
 
-    void configure_input_and_audio_paths() override {}
+    void configure_input_and_audio_paths() override {
+        openswd3::input_time_rng::set_mouse_sensitivity(mouse_state_, 2.0);
+        const auto sample =
+            openswd3::platform_sdl3::sample_sdl_mouse_state(
+                renderer_,
+                mouse_device_state_
+            );
+        openswd3::input_time_rng::rebase_mouse_coordinates(
+            mouse_state_,
+            sample,
+            480,
+            360
+        );
+    }
     bool initialize_software_drawing() override { return true; }
     void report_software_drawing_failure() override {}
     void check_legacy_memory_capacity() override {}
@@ -271,6 +291,9 @@ private:
     openswd3::app::PlatformBackendInitializationPorts& backend_ports_;
     openswd3::resource_io::LegacyResourceDatabases& resource_databases_;
     const std::filesystem::path& data_directory_;
+    SDL_Renderer& renderer_;
+    openswd3::input_time_rng::LegacyMouseState& mouse_state_;
+    openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state_;
     openswd3::compat::u32& frame_interval_;
     bool& destroy_requested_;
 };
@@ -429,6 +452,8 @@ public:
         const openswd3::app::DisplayLifecycleState& display_state,
         openswd3::app::FramePreparationState& frame_preparation_state,
         openswd3::app::FrameCoordinatorState& frame_coordinator_state,
+        openswd3::input_time_rng::LegacyMouseState& mouse_state,
+        openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state,
         openswd3::app::ShutdownPorts& shutdown_ports,
         openswd3::app::ProcessExitPorts& exit_ports,
         bool& ok,
@@ -442,6 +467,8 @@ public:
           display_state_(display_state),
           frame_preparation_state_(frame_preparation_state),
           frame_coordinator_state_(frame_coordinator_state),
+          mouse_state_(mouse_state),
+          mouse_device_state_(mouse_device_state),
           shutdown_ports_(shutdown_ports),
           exit_ports_(exit_ports),
           ok_(ok),
@@ -515,7 +542,17 @@ public:
             keyboard_snapshot_
         ));
     }
-    void normalize_input() override {}
+    void normalize_input() override {
+        const auto sample =
+            openswd3::platform_sdl3::sample_sdl_mouse_state(
+                renderer_,
+                mouse_device_state_
+            );
+        mouse_frame_ = openswd3::input_time_rng::normalize_mouse_sample(
+            mouse_state_,
+            sample
+        );
+    }
 
     void release_display_and_world_for_battle_entry() override {}
     void close_world_map_view() override {}
@@ -585,6 +622,9 @@ private:
     openswd3::app::FramePreparationState& frame_preparation_state_;
     openswd3::app::FrameCoordinatorState& frame_coordinator_state_;
     openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard_snapshot_{};
+    openswd3::input_time_rng::LegacyMouseState& mouse_state_;
+    openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state_;
+    openswd3::input_time_rng::LegacyMouseFrame mouse_frame_{};
     openswd3::app::ShutdownPorts& shutdown_ports_;
     openswd3::app::ProcessExitPorts& exit_ports_;
     bool& ok_;
@@ -730,6 +770,8 @@ int main(const int argument_count, char** arguments) {
     openswd3::app::InitializationState initialization_state{};
     openswd3::app::PlatformBackendState backend_state{};
     openswd3::resource_io::LegacyResourceDatabases resource_databases;
+    openswd3::input_time_rng::LegacyMouseState mouse_state{};
+    openswd3::platform_sdl3::SdlMouseDeviceState mouse_device_state{};
     SdlSmokePlatformBackendPorts backend_ports(
         *renderer,
         texture,
@@ -740,6 +782,9 @@ int main(const int argument_count, char** arguments) {
         backend_ports,
         resource_databases,
         data_directory.directory,
+        *renderer,
+        mouse_state,
+        mouse_device_state,
         frame_interval,
         startup_destroy_requested
     );
@@ -842,6 +887,8 @@ int main(const int argument_count, char** arguments) {
         display_state,
         frame_preparation_state,
         frame_coordinator_state,
+        mouse_state,
+        mouse_device_state,
         shutdown_ports,
         exit_ports,
         ok,

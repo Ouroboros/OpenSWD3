@@ -3,6 +3,7 @@
 #include "openswd3/input_time_rng/legacy_input.hpp"
 
 #include <array>
+#include <limits>
 
 namespace {
 
@@ -11,6 +12,9 @@ using openswd3::input_time_rng::LegacyInputRecord;
 using openswd3::input_time_rng::LegacyKeyBinding;
 using openswd3::input_time_rng::LegacyKeyBindingBlock;
 using openswd3::input_time_rng::LegacyKeyboardSnapshot;
+using openswd3::input_time_rng::LegacyMouseDeviceSample;
+using openswd3::input_time_rng::LegacyMouseFrame;
+using openswd3::input_time_rng::LegacyMouseState;
 
 void test_default_bindings(openswd3::test::Context& test) {
     constexpr u32 kUntouched = 0xA5A5A5A5U;
@@ -233,6 +237,141 @@ void test_raw_keyboard_snapshot(openswd3::test::Context& test) {
     );
 }
 
+void test_mouse_sensitivity_and_rebase(openswd3::test::Context& test) {
+    LegacyMouseState state{};
+    openswd3::input_time_rng::set_mouse_sensitivity(state, 2.0);
+    test.expect_equal(
+        state.sensitivity_scale,
+        20,
+        "startup sensitivity 2.0 stores integer scale 20"
+    );
+
+    const LegacyMouseDeviceSample sample{1000, 2000, 0U, 0U};
+    openswd3::input_time_rng::rebase_mouse_coordinates(
+        state,
+        sample,
+        480,
+        360
+    );
+    test.expect_equal(
+        state.absolute_x_baseline,
+        760,
+        "x rebase divides target by scale before multiplying by ten"
+    );
+    test.expect_equal(
+        state.absolute_y_baseline,
+        1820,
+        "y rebase divides target by scale before multiplying by ten"
+    );
+    test.expect_equal(
+        openswd3::input_time_rng::normalize_mouse_sample(state, sample),
+        LegacyMouseFrame{480, 360, 0U},
+        "unchanged absolute axes reproduce the requested common coordinates"
+    );
+
+    openswd3::input_time_rng::set_mouse_sensitivity(state, 1.99);
+    test.expect_equal(
+        state.sensitivity_scale,
+        19,
+        "sensitivity conversion truncates toward zero"
+    );
+    openswd3::input_time_rng::set_mouse_sensitivity(state, -1.99);
+    test.expect_equal(
+        state.sensitivity_scale,
+        -19,
+        "negative sensitivity conversion also truncates toward zero"
+    );
+}
+
+void test_mouse_clamp_baseline_quirks(openswd3::test::Context& test) {
+    LegacyMouseState state{0, 0, 20};
+    const LegacyMouseDeviceSample upper{320, 240, 0x80U, 0x80U};
+    test.expect_equal(
+        openswd3::input_time_rng::normalize_mouse_sample(state, upper),
+        LegacyMouseFrame{639, 479, 3U},
+        "upper overflow clamps the current frame and combines both buttons"
+    );
+    test.expect_equal(
+        state.absolute_x_baseline,
+        1,
+        "x upper clamp uses truncated 6390 divided by scale"
+    );
+    test.expect_equal(
+        state.absolute_y_baseline,
+        1,
+        "y upper clamp uses truncated 4790 divided by scale"
+    );
+    test.expect_equal(
+        openswd3::input_time_rng::normalize_mouse_sample(state, upper),
+        LegacyMouseFrame{638, 478, 3U},
+        "next unchanged sample exposes the original upper-edge fallback"
+    );
+
+    state = LegacyMouseState{100, 200, 20};
+    const LegacyMouseDeviceSample lower{99, 199, 0x7FU, 0xFFU};
+    test.expect_equal(
+        openswd3::input_time_rng::normalize_mouse_sample(state, lower),
+        LegacyMouseFrame{0, 0, 2U},
+        "negative logical coordinates clamp and only high button bits count"
+    );
+    test.expect_equal(
+        state.absolute_x_baseline,
+        99,
+        "lower x clamp stores the current absolute axis"
+    );
+    test.expect_equal(
+        state.absolute_y_baseline,
+        199,
+        "lower y clamp stores the current absolute axis"
+    );
+}
+
+void test_mouse_rebase_clamps_and_wraps(openswd3::test::Context& test) {
+    LegacyMouseState state{0, 0, 20};
+    const LegacyMouseDeviceSample sample{1000, 2000, 0U, 0U};
+    openswd3::input_time_rng::rebase_mouse_coordinates(
+        state,
+        sample,
+        640,
+        -1
+    );
+    test.expect_equal(
+        state.absolute_x_baseline,
+        690,
+        "rebase clamps x to 639 then performs divide-before-multiply"
+    );
+    test.expect_equal(
+        state.absolute_y_baseline,
+        2000,
+        "rebase clamps nonpositive y to zero"
+    );
+    test.expect_equal(
+        openswd3::input_time_rng::normalize_mouse_sample(state, sample),
+        LegacyMouseFrame{620, 0, 0U},
+        "rebase retains its original integer truncation"
+    );
+
+    state = LegacyMouseState{0x7FFFFFFF, 0, 20};
+    const LegacyMouseDeviceSample wrapped{
+        std::numeric_limits<openswd3::compat::i32>::min(),
+        0,
+        0U,
+        0U,
+    };
+    test.expect_equal(
+        openswd3::input_time_rng::normalize_mouse_sample(state, wrapped),
+        LegacyMouseFrame{2, 0, 0U},
+        "axis subtraction and multiplication use 32-bit wrapping"
+    );
+
+    state = LegacyMouseState{123, 456, 0};
+    test.expect_equal(
+        openswd3::input_time_rng::normalize_mouse_sample(state, sample),
+        LegacyMouseFrame{0, 0, 0U},
+        "zero scale remains observable until a dividing path is reached"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -242,5 +381,8 @@ int main() {
     test_press_transitions(test);
     test_zero_clock_release_quirk(test);
     test_raw_keyboard_snapshot(test);
+    test_mouse_sensitivity_and_rebase(test);
+    test_mouse_clamp_baseline_quirks(test);
+    test_mouse_rebase_clamps_and_wraps(test);
     return test.exit_code();
 }

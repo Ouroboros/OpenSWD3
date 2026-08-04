@@ -6,6 +6,7 @@ add_executable(
     keyboard_snapshot_sdl3.cpp
     legacy_command_line.cpp
     main.cpp
+    mouse_sdl3.cpp
     single_instance.cpp
     startup_dialog_sdl3.cpp
 )

@@ -204,3 +204,13 @@ Windows LLVM `core` 与 `app` 均完成构建并通过 38/38 CTest。当前状�
 SDL3 平台层以显式物理 scancode 表生成 DIK 域快照，不使用字符键码或 SDL repeat；标准 PC 键、当前 16 个默认绑定、扩展键和部分国际键有固定映射测试。无法对应 DirectInput DIK 的 SDL 专用键保持未映射，属于 `platform_adapted`，不向核心虚构新键值。
 
 Windows LLVM `core` 完成 38/38 CTest，`app` 完成 39/39 CTest 和最终 EXE 链接。原程序运行时键盘轨迹仍为 `blocked_runtime_oracle`。
+
+## B3.6 实现验证
+
+`LegacyMouseState` 保留两个 32 位绝对轴 baseline 和 32 位整数灵敏度；`normalize_mouse_sample` 按 `0x00437310` 实现带回绕减法与乘法、向零截断除以十、0..639/0..479 夹取和按钮高位 mask。上边界的 baseline 更新使下一份未移动样本成为 638/478，实现与 UT 均保留这一原始整数偏移，没有将其“修正”为连续边界。
+
+`set_mouse_sensitivity` 按 `0x004374C0` 将宿主浮点值乘十后向零截断；`rebase_mouse_coordinates` 按 `0x00437430` 保留先除后乘的整数顺序。UT 覆盖正负截断、上下边界、带符号回绕、按钮 0/1 高位和零灵敏度可观测状态。
+
+SDL3 平台层累加相对鼠标位移，先通过 renderer 将宿主窗口位移换算到 640×480 逻辑域，再向兼容核心提供绝对轴样本；可拉伸窗口只影响这个平台映射。启动仍按原顺序设置 `2.0` 灵敏度并 rebase 到 `(480,360)`。
+
+Windows LLVM `core` 完成 38/38 CTest，`app` 完成 40/40 CTest 和最终 EXE 链接。兼容核心状态为 `assembly_exact`，SDL3 坐标转换为 `platform_adapted`，原程序运行时鼠标轨迹仍为 `blocked_runtime_oracle`。

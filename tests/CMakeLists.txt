@@ -695,4 +695,25 @@ if(TARGET SDL3::SDL3)
         NAME platform.keyboard_snapshot_sdl3
         COMMAND openswd3_platform_keyboard_snapshot_sdl3_tests
     )
+
+    add_executable(
+        openswd3_platform_mouse_sdl3_tests
+        unit/app/mouse_sdl3_test.cpp
+        ${PROJECT_SOURCE_DIR}/src/platform/sdl3/mouse_sdl3.cpp
+    )
+    target_include_directories(
+        openswd3_platform_mouse_sdl3_tests
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/support
+            ${PROJECT_SOURCE_DIR}/src/platform/sdl3
+    )
+    target_link_libraries(
+        openswd3_platform_mouse_sdl3_tests
+        PRIVATE openswd3_input_time_rng SDL3::SDL3
+    )
+
+    add_test(
+        NAME platform.mouse_sdl3
+        COMMAND openswd3_platform_mouse_sdl3_tests
+    )
 endif()
