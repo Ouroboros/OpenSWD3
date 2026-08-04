@@ -21,6 +21,9 @@ add_library(
 )
 target_link_libraries(
     openswd3_app
-    PUBLIC openswd3_compat openswd3_diagnostics
+    PUBLIC
+        openswd3_compat
+        openswd3_diagnostics
+        openswd3_input_time_rng
 )
 target_include_directories(openswd3_app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

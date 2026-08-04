@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/compat/types.hpp"
+#include "openswd3/input_time_rng/legacy_frame_clock.hpp"
 
 namespace openswd3::app {
 
@@ -14,10 +15,7 @@ struct FramePreparationState {
     compat::u32 process_flags{};
     compat::u32 display_active{};
 
-    compat::u32 sampled_seconds{};
-    compat::u32 sampled_milliseconds{};
-    compat::u32 previous_accepted_frame_milliseconds{};
-    compat::u32 frame_interval_milliseconds{};
+    input_time_rng::LegacyFrameClockState frame_clock{};
 
     compat::u32 input_backend_flags{};
     compat::u32 special_mode_state{};
@@ -35,9 +33,6 @@ struct FramePreparationState {
     compat::u32 value_004b72a8{};
     compat::u32 secondary_countdown{};
 
-    compat::u32 current_frame_milliseconds{};
-    compat::u32 frame_delta_milliseconds{};
-    compat::u32 previous_input_milliseconds{};
 };
 
 enum class PrimaryTransitionOperation {

@@ -10,7 +10,11 @@ add_executable(
 )
 target_link_libraries(
     openswd3
-    PRIVATE openswd3_app openswd3_resource_io SDL3::SDL3
+    PRIVATE
+        openswd3_app
+        openswd3_input_time_rng
+        openswd3_resource_io
+        SDL3::SDL3
 )
 
 add_custom_command(

@@ -14,6 +14,9 @@
 #include "openswd3/app/startup.hpp"
 #include "openswd3/app/window_events.hpp"
 #include "openswd3/diagnostics/log.hpp"
+#include "openswd3/input_time_rng/legacy_crt_rng.hpp"
+#include "openswd3/input_time_rng/legacy_frame_clock.hpp"
+#include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
@@ -106,14 +109,28 @@ public:
     ) override {}
 };
 
-class PendingRngSeedPorts final : public openswd3::app::RngSeedPorts {
+class SdlRngSeedPorts final : public openswd3::app::RngSeedPorts {
 public:
+    SdlRngSeedPorts(
+        openswd3::input_time_rng::LegacyCrtRng& crt_rng,
+        openswd3::input_time_rng::LegacySecondaryRng& secondary_rng
+    ) : crt_rng_(crt_rng), secondary_rng_(secondary_rng) {}
+
     openswd3::compat::u32 read_time_seconds() override {
         return static_cast<openswd3::compat::u32>(std::time(nullptr));
     }
 
-    void seed_crt_rng(openswd3::compat::u32) override {}
-    void seed_secondary_rng(openswd3::compat::u32) override {}
+    void seed_crt_rng(const openswd3::compat::u32 seed) override {
+        crt_rng_.seed(seed);
+    }
+
+    void seed_secondary_rng(const openswd3::compat::u32 seed) override {
+        secondary_rng_.seed(seed);
+    }
+
+private:
+    openswd3::input_time_rng::LegacyCrtRng& crt_rng_;
+    openswd3::input_time_rng::LegacySecondaryRng& secondary_rng_;
 };
 
 class SdlSmokePlatformBackendPorts final
@@ -237,8 +254,10 @@ public:
     }
     void initialize_render_resources() override {}
     bool initialize_frame_interval_35() override {
-        frame_interval_ = kInitialFrameIntervalMilliseconds;
-        return true;
+        return openswd3::input_time_rng::set_frame_interval(
+                   frame_interval_,
+                   kInitialFrameIntervalMilliseconds
+               ) != 0;
     }
     void report_frame_clock_failure() override {}
     void request_synchronous_destroy() override {
@@ -320,7 +339,17 @@ public:
     void set_frame_interval(
         const openswd3::compat::u32 milliseconds
     ) override {
-        frame_interval_ = milliseconds;
+        if (milliseconds == 0U) {
+            static_cast<void>(
+                openswd3::input_time_rng::clear_frame_interval(frame_interval_)
+            );
+            return;
+        }
+
+        static_cast<void>(openswd3::input_time_rng::set_frame_interval(
+            frame_interval_,
+            milliseconds
+        ));
     }
 
     void suspend_audio_output() override {}
@@ -427,7 +456,8 @@ public:
     void step_game_frame() override {
         frame_preparation_state_.process_flags = window_state_.process_flags;
         frame_preparation_state_.display_active = display_state_.display_active;
-        frame_preparation_state_.frame_interval_milliseconds = frame_interval_;
+        frame_preparation_state_.frame_clock.frame_interval_milliseconds =
+            frame_interval_;
         frame_preparation_state_.special_mode_state =
             frame_coordinator_state_.battle.special_mode_state;
         frame_preparation_state_.high_priority_state =
@@ -730,8 +760,10 @@ int main(const int argument_count, char** arguments) {
         );
     }
 
+    openswd3::input_time_rng::LegacyCrtRng crt_rng;
+    openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
+    SdlRngSeedPorts rng_seed_ports(crt_rng, secondary_rng);
     if (startup_destroy_requested) {
-        PendingRngSeedPorts rng_seed_ports;
         openswd3::app::seed_two_rng_streams(rng_seed_ports);
         if (texture != nullptr) {
             SDL_DestroyTexture(texture);
@@ -746,7 +778,6 @@ int main(const int argument_count, char** arguments) {
         static_cast<std::size_t>(kFrameWidth * kFrameHeight)
     );
 
-    PendingRngSeedPorts rng_seed_ports;
     openswd3::app::seed_two_rng_streams(rng_seed_ports);
 
     const bool runtime_ready =

@@ -95,7 +95,7 @@ public:
 openswd3::app::FramePreparationState make_state() {
     openswd3::app::FramePreparationState state{};
     state.display_active = 1U;
-    state.frame_interval_milliseconds = 35U;
+    state.frame_clock.frame_interval_milliseconds = 35U;
     return state;
 }
 
@@ -130,17 +130,29 @@ void test_interval_gate_and_wrap(openswd3::test::Context& test) {
     using openswd3::app::FramePreparationOutcome;
 
     auto state = make_state();
-    state.previous_accepted_frame_milliseconds = 90U;
-    state.frame_interval_milliseconds = 11U;
+    state.frame_clock.previous_accepted_frame_milliseconds = 90U;
+    state.frame_clock.frame_interval_milliseconds = 11U;
     RecordingPorts ports;
     test.expect_equal(
         openswd3::app::run_frame_preparation(state, ports),
         FramePreparationOutcome::interval_not_elapsed,
         "elapsed below threshold rejects the frame"
     );
-    test.expect_equal(state.sampled_seconds, 77U, "seconds are stored before rejection");
-    test.expect_equal(state.sampled_milliseconds, 100U, "milliseconds are stored before rejection");
-    test.expect_equal(state.previous_accepted_frame_milliseconds, 90U, "rejection preserves previous accepted time");
+    test.expect_equal(
+        state.frame_clock.sampled_seconds,
+        77U,
+        "seconds are stored before rejection"
+    );
+    test.expect_equal(
+        state.frame_clock.sampled_milliseconds,
+        100U,
+        "milliseconds are stored before rejection"
+    );
+    test.expect_equal(
+        state.frame_clock.previous_accepted_frame_milliseconds,
+        90U,
+        "rejection preserves previous accepted time"
+    );
     test.expect_equal(
         ports.calls,
         std::vector<Call>{
@@ -151,8 +163,8 @@ void test_interval_gate_and_wrap(openswd3::test::Context& test) {
     );
 
     state = make_state();
-    state.previous_accepted_frame_milliseconds = 0xFFFFFFF0U;
-    state.frame_interval_milliseconds = 0x20U;
+    state.frame_clock.previous_accepted_frame_milliseconds = 0xFFFFFFF0U;
+    state.frame_clock.frame_interval_milliseconds = 0x20U;
     ports.calls.clear();
     ports.milliseconds = 0x10U;
     test.expect_equal(
@@ -160,12 +172,20 @@ void test_interval_gate_and_wrap(openswd3::test::Context& test) {
         FramePreparationOutcome::accepted,
         "unsigned wrap difference equal to threshold accepts"
     );
-    test.expect_equal(state.previous_accepted_frame_milliseconds, 0x10U, "accepted frame stores now, not previous plus interval");
-    test.expect_equal(state.frame_delta_milliseconds, 0x10U, "input delta uses independent previous value");
+    test.expect_equal(
+        state.frame_clock.previous_accepted_frame_milliseconds,
+        0x10U,
+        "accepted frame stores now, not previous plus interval"
+    );
+    test.expect_equal(
+        state.frame_clock.frame_delta_milliseconds,
+        0x10U,
+        "input delta uses independent previous value"
+    );
 
     state = make_state();
-    state.previous_accepted_frame_milliseconds = 100U;
-    state.frame_interval_milliseconds = 0U;
+    state.frame_clock.previous_accepted_frame_milliseconds = 100U;
+    state.frame_clock.frame_interval_milliseconds = 0U;
     ports.calls.clear();
     ports.milliseconds = 100U;
     test.expect_equal(
@@ -177,10 +197,10 @@ void test_interval_gate_and_wrap(openswd3::test::Context& test) {
 
 void test_input_prefix_and_sample_order(openswd3::test::Context& test) {
     auto state = make_state();
-    state.frame_interval_milliseconds = 0U;
+    state.frame_clock.frame_interval_milliseconds = 0U;
     state.input_backend_flags = 1U;
     state.special_mode_state = 7U;
-    state.previous_input_milliseconds = 40U;
+    state.frame_clock.previous_input_milliseconds = 40U;
     RecordingPorts ports;
 
     static_cast<void>(openswd3::app::run_frame_preparation(state, ports));
@@ -193,16 +213,24 @@ void test_input_prefix_and_sample_order(openswd3::test::Context& test) {
         {CallKind::normalize_input, 0U},
     };
     test.expect_equal(ports.calls, expected, "accepted frame prefix call order");
-    test.expect_equal(state.current_frame_milliseconds, 100U, "current frame time");
-    test.expect_equal(state.frame_delta_milliseconds, 60U, "delta precedes input sampling");
-    test.expect_equal(state.previous_input_milliseconds, 100U, "input previous time advances to now");
+    test.expect_equal(state.frame_clock.current_frame_milliseconds, 100U, "current frame time");
+    test.expect_equal(
+        state.frame_clock.frame_delta_milliseconds,
+        60U,
+        "delta precedes input sampling"
+    );
+    test.expect_equal(
+        state.frame_clock.previous_input_milliseconds,
+        100U,
+        "input previous time advances to now"
+    );
 }
 
 void test_primary_transition(openswd3::test::Context& test) {
     using enum openswd3::app::PrimaryTransitionOperation;
 
     auto state = make_state();
-    state.frame_interval_milliseconds = 0U;
+    state.frame_clock.frame_interval_milliseconds = 0U;
     state.primary_countdown = 0U;
     state.value_004b72c4 = 0xFFFFU;
     state.party_member_count = 3U;
@@ -250,7 +278,7 @@ void test_primary_transition(openswd3::test::Context& test) {
 
 void test_transition_guards_and_secondary(openswd3::test::Context& test) {
     auto state = make_state();
-    state.frame_interval_milliseconds = 0U;
+    state.frame_clock.frame_interval_milliseconds = 0U;
     state.primary_countdown = 0U;
     state.value_004b72c4 = 0xFFFFU;
     state.high_priority_state = 1U;
@@ -277,7 +305,7 @@ void test_transition_guards_and_secondary(openswd3::test::Context& test) {
     );
 
     state = make_state();
-    state.frame_interval_milliseconds = 0U;
+    state.frame_clock.frame_interval_milliseconds = 0U;
     state.special_mode_state = 1U;
     ports.calls.clear();
     static_cast<void>(openswd3::app::run_frame_preparation(state, ports));

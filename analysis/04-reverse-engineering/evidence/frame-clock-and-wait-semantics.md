@@ -1,6 +1,6 @@
 # 帧时钟、等待与阻塞语义
 
-最后更新：2026-08-02
+最后更新：2026-08-04
 
 状态：主帧门控、间隔变更、`timeGetTime`/CRT `time` 调用、显式等待与 Sleep 调用已闭环
 
@@ -170,3 +170,9 @@ Sleep 阻塞整个游戏主线程；在此期间没有主帧输入、剧情、�
 - `inventory/time-wait-rules.tsv`
 
 生成器锁定原 EXE、完整汇编和导入表哈希，硬校验 11 个时间源调用、12 个 interval 变更、42 条时间全局访问、27 个 Sleep 和 9 类关键等待规则。伪码不参与生成。
+
+## B3.3 实现验证
+
+`LegacyFrameClockState` 及纯门控逻辑由 `input_time_rng` 所有，`app` 只保留原帧内编排位置。`0x0040DD20/0x0040DD30`、阈值等号、拒绝帧仍刷新共享毫秒样本、接受后直接保存 `now`、`u32` 回绕、零间隔和独立输入 delta 均有固定 UT。
+
+Windows LLVM `core` 与 `app` 均完成构建并通过 37/37 CTest；SDL3 应用完成最终链接。当前验证等级为 `assembly_exact`，原程序动态捕获仍为 `blocked_runtime_oracle`，没有升级为 `original_diff_verified`。

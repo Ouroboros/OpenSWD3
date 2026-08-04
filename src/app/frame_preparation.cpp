@@ -98,22 +98,18 @@ FramePreparationOutcome run_frame_preparation(
             break;
     }
 
-    state.sampled_seconds = ports.read_seconds();
+    state.frame_clock.sampled_seconds = ports.read_seconds();
     const compat::u32 now = ports.read_milliseconds();
-    state.sampled_milliseconds = now;
-    const compat::u32 elapsed =
-        now - state.previous_accepted_frame_milliseconds;
-    if (elapsed < state.frame_interval_milliseconds) {
+    if (!input_time_rng::try_accept_frame_milliseconds(
+            state.frame_clock,
+            now
+        )) {
         return FramePreparationOutcome::interval_not_elapsed;
     }
-    state.previous_accepted_frame_milliseconds = now;
 
     run_pre_frame_migrations(state, ports);
 
-    state.current_frame_milliseconds = now;
-    state.frame_delta_milliseconds =
-        now - state.previous_input_milliseconds;
-    state.previous_input_milliseconds = now;
+    input_time_rng::finish_accepted_frame_time(state.frame_clock);
     ports.sample_input_device();
     ports.normalize_input();
     return FramePreparationOutcome::accepted;

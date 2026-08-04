@@ -601,3 +601,57 @@ add_test(
     NAME resource_io.legacy_resource_databases
     COMMAND openswd3_resource_io_legacy_resource_databases_tests
 )
+
+add_executable(
+    openswd3_input_time_rng_legacy_secondary_rng_tests
+    unit/input_time_rng/legacy_secondary_rng_test.cpp
+)
+target_include_directories(
+    openswd3_input_time_rng_legacy_secondary_rng_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_input_time_rng_legacy_secondary_rng_tests
+    PRIVATE openswd3_input_time_rng
+)
+
+add_test(
+    NAME input_time_rng.legacy_secondary_rng
+    COMMAND openswd3_input_time_rng_legacy_secondary_rng_tests
+)
+
+add_executable(
+    openswd3_input_time_rng_legacy_crt_rng_tests
+    unit/input_time_rng/legacy_crt_rng_test.cpp
+)
+target_include_directories(
+    openswd3_input_time_rng_legacy_crt_rng_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_input_time_rng_legacy_crt_rng_tests
+    PRIVATE openswd3_input_time_rng
+)
+
+add_test(
+    NAME input_time_rng.legacy_crt_rng
+    COMMAND openswd3_input_time_rng_legacy_crt_rng_tests
+)
+
+add_executable(
+    openswd3_input_time_rng_legacy_frame_clock_tests
+    unit/input_time_rng/legacy_frame_clock_test.cpp
+)
+target_include_directories(
+    openswd3_input_time_rng_legacy_frame_clock_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_input_time_rng_legacy_frame_clock_tests
+    PRIVATE openswd3_input_time_rng
+)
+
+add_test(
+    NAME input_time_rng.legacy_frame_clock
+    COMMAND openswd3_input_time_rng_legacy_frame_clock_tests
+)
