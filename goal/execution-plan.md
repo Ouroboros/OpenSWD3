@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v52
+版本：v53
 
 最后更新：2026-08-04
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：B4.3 · owned framebuffer、显式 pitch 与行偏移
+当前步骤：B4.4 · 稀疏 blitter 分派与基础 copy 路径
 
 ## 1. 目标
 
@@ -213,6 +213,6 @@
 7. `[x]` B2：历史 63 项范围已完成有限收口审计；修正 5 项模块归属并补齐 6 个真实缺口后，当前 58 项为 57 项实现与 1 项不可达。Windows LLVM `core`/`app`、34/34 CTest 和全套真实资产回归通过；状态为 `module_closed_pending_oracle`。
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
-10. `[>]` B4：接口级逆向已满足单模块开始条件；B4.2 的 16 位像素转换、选择状态、穷举 UT 和当前 CM 真实资产验证已经静态闭环，现执行 B4.3 owned framebuffer、显式 pitch 与行偏移。
+10. `[>]` B4：B4.2 像素转换和 B4.3 owned framebuffer、显式 pitch、行偏移已经静态闭环；Linux `core` 41/41、Linux/Windows `app` 43/43 CTest 通过，现执行 B4.4 稀疏 blitter 分派与基础 copy 路径。
 
 当前只执行 B4，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B4 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。

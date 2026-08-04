@@ -1,4 +1,8 @@
-add_library(openswd3_rendering STATIC legacy_pixel_conversion.cpp)
+add_library(
+    openswd3_rendering STATIC
+    legacy_framebuffer.cpp
+    legacy_pixel_conversion.cpp
+)
 target_include_directories(
     openswd3_rendering
     PUBLIC

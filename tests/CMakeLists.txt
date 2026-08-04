@@ -710,6 +710,24 @@ add_test(
     COMMAND openswd3_rendering_legacy_pixel_conversion_tests
 )
 
+add_executable(
+    openswd3_rendering_legacy_framebuffer_tests
+    unit/rendering/legacy_framebuffer_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_framebuffer_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_framebuffer_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_framebuffer
+    COMMAND openswd3_rendering_legacy_framebuffer_tests
+)
+
 if(TARGET SDL3::SDL3)
     add_executable(
         openswd3_platform_keyboard_snapshot_sdl3_tests
