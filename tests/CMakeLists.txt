@@ -728,6 +728,24 @@ add_test(
     COMMAND openswd3_rendering_legacy_framebuffer_tests
 )
 
+add_executable(
+    openswd3_rendering_legacy_blitter_tests
+    unit/rendering/legacy_blitter_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_blitter_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_blitter_tests
+    PRIVATE openswd3_rendering openswd3_resource_io
+)
+
+add_test(
+    NAME rendering.legacy_blitter
+    COMMAND openswd3_rendering_legacy_blitter_tests
+)
+
 if(TARGET SDL3::SDL3)
     add_executable(
         openswd3_platform_keyboard_snapshot_sdl3_tests
