@@ -49,6 +49,7 @@ def write_run_manifest(
     game_directory: Path,
     agent_path: Path,
     frida_version: str,
+    process_id: int,
 ) -> None:
     rows = [
         ("field", "value"),
@@ -59,10 +60,11 @@ def write_run_manifest(
         ("python_version", platform.python_version()),
         ("python_encoding", locale.getencoding()),
         ("frida_version", frida_version),
+        ("target_pid", process_id),
         ("agent_sha256", sha256_file(agent_path)),
         ("glyph_entry", "0x004368D0"),
         ("glyph_return", "0x00436974"),
-        ("capture_method", "frida_interceptor_on_enter_on_leave"),
+        ("capture_method", "frida_attach_interceptor_on_enter_on_leave"),
     ]
 
     for file_name in RUNTIME_FILES:
@@ -179,22 +181,14 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument("--game-dir", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument(
-        "--confirm-run-original",
-        action="store_true",
-        help="明确确认本次命令将启动原版 swd3.exe",
-    )
+    parser.add_argument("--pid", required=True, type=int)
     return parser.parse_args()
 
 
 def main() -> int:
     arguments = parse_arguments()
-    if not arguments.confirm_run_original:
-        print(
-            "拒绝启动：必须显式传入 --confirm-run-original",
-            file=sys.stderr,
-        )
-        return 2
+    if arguments.pid <= 0:
+        raise RuntimeError(f"PID 必须为正整数：{arguments.pid}")
 
     game_directory = arguments.game_dir.resolve()
     output_directory = arguments.output.resolve()
@@ -222,6 +216,7 @@ def main() -> int:
         game_directory,
         agent_path,
         frida.__version__,
+        arguments.pid,
     )
     writer = CaptureWriter(output_directory)
     detached = threading.Event()
@@ -261,12 +256,9 @@ def main() -> int:
         detached.set()
 
     device = frida.get_local_device()
-    process_id: int | None = None
     session = None
-    process_resumed = False
     try:
-        process_id = device.spawn([str(executable)], cwd=str(game_directory))
-        session = device.attach(process_id)
+        session = device.attach(arguments.pid)
         session.on("detached", on_detached)
         script = session.create_script(agent_path.read_text(encoding="utf-8"))
         script.on("message", on_message)
@@ -274,10 +266,8 @@ def main() -> int:
         if not ready.wait(timeout=10.0):
             raise RuntimeError("Frida agent 在 10 秒内没有报告就绪")
 
-        device.resume(process_id)
-        process_resumed = True
         print(
-            "[运行] 原版已启动；请按 README 的场景操作，完成后正常退出游戏。",
+            f"[已附加] PID={arguments.pid}；请继续操作原版。",
             flush=True,
         )
         while not detached.wait(timeout=0.25):
@@ -288,9 +278,6 @@ def main() -> int:
     finally:
         if session is not None and not detached.is_set():
             session.detach()
-
-        if process_id is not None and not process_resumed:
-            device.kill(process_id)
 
         writer.close()
 

@@ -22,9 +22,9 @@
 - 没有既有 BMP/PNG/log 动态捕获产物；
 - 原 EXE、`binkw32.dll`、Miles DLL/ASI、当前 `Env.dat` 和视频资产齐全；
 - `swd3.exe` 是固定 `ImageBase=0x00400000` 的 PE32，COFF 标记 relocations stripped，Base Relocation Directory 为空，`DllCharacteristics=0`。
-- `analysis/tools/glyph-oracle/` 已提供 Windows Frida host 与 agent；Python/JavaScript 语法、拒绝未确认启动和 Windows 路径说明已静态验证，尚未用原版做动态验证。
+- `analysis/tools/glyph-oracle/` 已提供 Windows Frida host 与 agent；Python/JavaScript 语法、attach 参数和 Windows 路径说明已静态验证，尚未用原版做动态验证。
 
-glyph-mask 捕获现由用户在 Windows 上执行，Codex 不自行启动原版。用户明确执行后，Frida 在进程恢复前安装 hook，用户正常操作游戏，host 把每次 cache miss 的 mask 写入仓库分类目录。旧参考环境的 framebuffer、DirectDraw 与时钟样本仍需要对应的可运行环境和探针；缺少这些样本不阻止后续静态逆向继续进行。
+glyph-mask 捕获现由用户在 Windows 上执行，Codex 不自行启动原版。用户先手动启动原版并停留在启动界面，host 再按 PID attach 和安装 hook；用户正常操作游戏后，host 把每次 cache miss 的 mask 写入仓库分类目录。旧参考环境的 framebuffer、DirectDraw 与时钟样本仍需要对应的可运行环境和探针；缺少这些样本不阻止后续静态逆向继续进行。
 
 固定地址和运行文件哈希见 `../inventory/p4-oracle-runtime-baseline.tsv`。生成器同时解析 PE 头验证无重定位/无动态基址条件，因此表中地址可以直接用作该 EXE 版本的调试断点。
 
@@ -129,10 +129,10 @@ row bytes = [renderer+0x1C]
 当前捕获实现为：
 
 - `analysis/tools/glyph-oracle/agent.js`：校验 IA-32、固定 image base 和两个 LST 指令字节，在 `0x004368D0` 用 `Interceptor` 保存入口参数，并在 `onLeave` 发送最终 mask；
-- `analysis/tools/glyph-oracle/capture.py`：锁定原 EXE SHA-256，使用 Frida spawn→attach→load→resume 顺序，接收二进制并生成 `run.tsv`、`glyph-masks.tsv` 与 `masks/*.bin`；
+- `analysis/tools/glyph-oracle/capture.py`：锁定原 EXE SHA-256，按用户提供的 PID attach，接收二进制并生成 `run.tsv`、`glyph-masks.tsv` 与 `masks/*.bin`；
 - `analysis/tools/glyph-oracle/README.md`：给出用户执行命令、首轮操作路径和完整回传目录。
 
-host 必须显式收到 `--confirm-run-original` 才会启动原版；工具不点击界面、不注入输入。当前只证明捕获代码和格式已经静态建立，未取得用户执行结果前不得把它标记为动态验证通过。
+host 不包含启动、恢复或结束原版的代码路径，也不点击界面、不注入输入。为避免漏掉首次 cache miss，用户必须在启动界面阶段完成 attach，再进入游戏。当前只证明捕获代码和格式已经静态建立，未取得用户执行结果前不得把它标记为动态验证通过。
 
 首轮至少覆盖：
 

@@ -10,9 +10,8 @@
 0x00436974  返回：目标槽已有 height*row_bytes 字节的最终 mask
 ```
 
-`capture.py` 会先校验原 EXE SHA-256，再通过 Frida spawn 挂起启动、装入
-`agent.js`，最后恢复进程。没有显式的 `--confirm-run-original` 时，脚本拒绝
-启动原版。
+`capture.py` 会先校验原 EXE SHA-256，再 attach 到你已经启动的原版进程并
+装入 `agent.js`。host 不包含 spawn、resume、kill 或自动点击逻辑。
 
 ## 1. 安装 Frida
 
@@ -22,7 +21,17 @@
 py -3 -m pip install frida==17.16.0
 ```
 
-## 2. 建立一次全新的输出目录名
+## 2. 手动启动原版并取得 PID
+
+手动运行原版，停留在启动界面，不要先进入游戏。然后在 Windows CMD 查询：
+
+```bat
+tasklist /FI "IMAGENAME eq swd3.exe" /FO LIST
+```
+
+记下输出中的 PID。下面用 `12345` 作为示例。
+
+## 3. 建立一次全新的输出目录名
 
 每次运行必须使用不同且不存在或为空的目录。例如：
 
@@ -32,7 +41,7 @@ analysis\04-reverse-engineering\artifacts\glyph-oracle\win-modern-20260808-01
 
 脚本不会清空或覆盖已有捕获目录。
 
-## 3. 从仓库根目录运行
+## 4. 从仓库根目录运行
 
 先进入 OpenSWD3 仓库：
 
@@ -43,12 +52,13 @@ cd /d E:\Game\swd3\OpenSWD3
 再执行一条命令：
 
 ```bat
-py -3 -B analysis\tools\glyph-oracle\capture.py --game-dir E:\Game\swd3 --output analysis\04-reverse-engineering\artifacts\glyph-oracle\win-modern-20260808-01 --confirm-run-original
+py -3 -B analysis\tools\glyph-oracle\capture.py --pid 12345 --game-dir E:\Game\swd3 --output analysis\04-reverse-engineering\artifacts\glyph-oracle\win-modern-20260808-01
 ```
 
-终端出现 `[运行]` 后，由你正常操作原版。工具不会点击按钮或注入输入。
+终端出现 `[已附加]` 后，再回到原版启动界面继续操作。工具不会启动、结束、
+点击或注入输入。
 
-## 4. 首轮操作路径
+## 5. 首轮操作路径
 
 首轮目标不是通关，而是让三个 renderer 和两类字符都发生 cache miss：
 
@@ -64,10 +74,10 @@ py -3 -B analysis\tools\glyph-oracle\capture.py --game-dir E:\Game\swd3 --output
 - 单字节 ASCII/数字；
 - CP950 双字节中文。
 
-如果不想退出原版，可以在捕获终端按 `Ctrl+C`。工具会 detach，不会强制结束
-已经恢复运行的原版进程；之后需要你自行关闭游戏。
+如果不想退出原版，可以在捕获终端按 `Ctrl+C`。工具只会 detach，原版继续
+运行；之后需要你自行关闭游戏。
 
-## 5. 回传内容
+## 6. 回传内容
 
 把整个本次输出目录保留并告知我路径。目录结构为：
 
