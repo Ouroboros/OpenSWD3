@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import argparse
 import hashlib
 import locale
@@ -87,6 +89,26 @@ def write_run_manifest(
     ) as stream:
         for key, value in rows:
             stream.write(f"{tsv_value(key)}\t{tsv_value(value)}\n")
+
+
+def resolve_process_id(device, requested_process_id: int | None) -> int:
+    if requested_process_id is not None:
+        if requested_process_id <= 0:
+            raise RuntimeError(f"PID 必须为正整数：{requested_process_id}")
+
+        return requested_process_id
+
+    matches = [
+        process.pid
+        for process in device.enumerate_processes()
+        if process.name.casefold() == "swd3.exe"
+    ]
+    if not matches:
+        raise RuntimeError("没有找到正在运行的 swd3.exe")
+    if len(matches) != 1:
+        raise RuntimeError(f"找到 {len(matches)} 个 swd3.exe，请只保留一个")
+
+    return matches[0]
 
 
 class CaptureWriter:
@@ -179,23 +201,54 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="捕获原版 swd3.exe 在 sub_4368D0 生成的字形 mask"
     )
-    parser.add_argument("--game-dir", required=True, type=Path)
-    parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--pid", required=True, type=int)
+    parser.add_argument("--game-dir", type=Path)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--pid", type=int)
+    parser.add_argument("--self-test", action="store_true")
     return parser.parse_args()
 
 
 def main() -> int:
     arguments = parse_arguments()
-    if arguments.pid <= 0:
-        raise RuntimeError(f"PID 必须为正整数：{arguments.pid}")
+    if arguments.self_test:
+        try:
+            import frida
+        except ImportError as error:
+            raise RuntimeError("缺少 frida Python 包") from error
 
-    game_directory = arguments.game_dir.resolve()
-    output_directory = arguments.output.resolve()
+        agent_path = Path(__file__).with_name("agent.js")
+        if not agent_path.is_file():
+            raise RuntimeError(f"找不到 Frida agent：{agent_path}")
+
+        device = frida.get_local_device()
+        print(f"Frida {frida.__version__}; device={device.id}; self-test=ok")
+        return 0
+
+    if arguments.game_dir is None:
+        if not getattr(sys, "frozen", False):
+            raise RuntimeError("源码运行时必须传入 --game-dir")
+
+        executable_directory = Path(sys.executable).resolve().parent
+        if (executable_directory / "swd3.exe").is_file():
+            game_directory = executable_directory
+        else:
+            game_directory = executable_directory.parent
+    else:
+        game_directory = arguments.game_dir.resolve()
+
+    if arguments.output is None:
+        run_name = datetime.now().strftime("run-%Y%m%d-%H%M%S")
+        run_name += f"-{os.getpid()}"
+        output_directory = game_directory / "glyph-oracle-output" / run_name
+    else:
+        output_directory = arguments.output.resolve()
+
     executable = game_directory / "swd3.exe"
     agent_path = Path(__file__).with_name("agent.js")
     if not executable.is_file():
         raise RuntimeError(f"找不到原版 EXE：{executable}")
+    if not agent_path.is_file():
+        raise RuntimeError(f"找不到 Frida agent：{agent_path}")
 
     actual_exe_sha256 = sha256_file(executable)
     if actual_exe_sha256 != EXPECTED_EXE_SHA256:
@@ -204,19 +257,21 @@ def main() -> int:
             f"{actual_exe_sha256} != {EXPECTED_EXE_SHA256}"
         )
 
-    require_fresh_output(output_directory)
-
     try:
         import frida
     except ImportError as error:
         raise RuntimeError("缺少 frida Python 包") from error
+
+    device = frida.get_local_device()
+    process_id = resolve_process_id(device, arguments.pid)
+    require_fresh_output(output_directory)
 
     write_run_manifest(
         output_directory,
         game_directory,
         agent_path,
         frida.__version__,
-        arguments.pid,
+        process_id,
     )
     writer = CaptureWriter(output_directory)
     detached = threading.Event()
@@ -255,10 +310,9 @@ def main() -> int:
 
         detached.set()
 
-    device = frida.get_local_device()
     session = None
     try:
-        session = device.attach(arguments.pid)
+        session = device.attach(process_id)
         session.on("detached", on_detached)
         script = session.create_script(agent_path.read_text(encoding="utf-8"))
         script.on("message", on_message)
@@ -267,7 +321,7 @@ def main() -> int:
             raise RuntimeError("Frida agent 在 10 秒内没有报告就绪")
 
         print(
-            f"[已附加] PID={arguments.pid}；请继续操作原版。",
+            f"[已附加] PID={process_id}；请继续操作原版。",
             flush=True,
         )
         while not detached.wait(timeout=0.25):
@@ -290,4 +344,14 @@ if __name__ == "__main__":
         raise SystemExit(main())
     except RuntimeError as error:
         print(f"错误：{error}", file=sys.stderr)
+        if getattr(sys, "frozen", False) and sys.platform == "win32":
+            import ctypes
+
+            ctypes.windll.user32.MessageBoxW(
+                None,
+                str(error),
+                "OpenSWD3 Glyph Oracle",
+                0x10,
+            )
+
         raise SystemExit(1) from None

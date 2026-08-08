@@ -13,15 +13,31 @@
 `capture.py` 会先校验原 EXE SHA-256，再 attach 到你已经启动的原版进程并
 装入 `agent.js`。host 不包含 spawn、resume、kill 或自动点击逻辑。
 
-## 1. 安装 Frida
+## 1. 一键 EXE
 
-在 Windows CMD 中执行：
+`build/vm/glyph-oracle/` 是完整的 Windows 便携目录，入口为
+`glyph-oracle.exe`。目录中包含 Python 运行时、Frida 16.5.1 和
+`agent.js`；目标 Windows 不需要安装任何依赖。
+
+把整个 `glyph-oracle` 目录复制到原版游戏目录下。先手动启动原版并停留在
+启动界面，再双击目录内的 `glyph-oracle.exe`。工具会：
+
+- 以便携目录的父目录作为游戏目录；
+- 自动查找唯一的 `swd3.exe` PID；
+- 校验原版 EXE 后 attach；
+- 自动建立 `glyph-oracle-output\run-*` 输出目录。
+
+它不启动或结束原版，也不点击或注入输入。
+
+## 2. 源码运行环境
+
+只有直接运行 `capture.py` 时，才需要在开发机执行：
 
 ```bat
-py -3 -m pip install frida==17.16.0
+py -3 -m pip install frida==16.5.1
 ```
 
-## 2. 手动启动原版并取得 PID
+## 3. 手动启动原版并取得 PID
 
 手动运行原版，停留在启动界面，不要先进入游戏。然后在 Windows CMD 查询：
 
@@ -31,7 +47,7 @@ tasklist /FI "IMAGENAME eq swd3.exe" /FO LIST
 
 记下输出中的 PID。下面用 `12345` 作为示例。
 
-## 3. 建立一次全新的输出目录名
+## 4. 建立一次全新的输出目录名
 
 每次运行必须使用不同且不存在或为空的目录。例如：
 
@@ -41,7 +57,7 @@ analysis\04-reverse-engineering\artifacts\glyph-oracle\win-modern-20260808-01
 
 脚本不会清空或覆盖已有捕获目录。
 
-## 4. 从仓库根目录运行
+## 5. 从仓库根目录运行
 
 先进入 OpenSWD3 仓库：
 
@@ -58,7 +74,7 @@ py -3 -B analysis\tools\glyph-oracle\capture.py --pid 12345 --game-dir E:\Game\s
 终端出现 `[已附加]` 后，再回到原版启动界面继续操作。工具不会启动、结束、
 点击或注入输入。
 
-## 5. 首轮操作路径
+## 6. 首轮操作路径
 
 首轮目标不是通关，而是让三个 renderer 和两类字符都发生 cache miss：
 
@@ -77,7 +93,7 @@ py -3 -B analysis\tools\glyph-oracle\capture.py --pid 12345 --game-dir E:\Game\s
 如果不想退出原版，可以在捕获终端按 `Ctrl+C`。工具只会 detach，原版继续
 运行；之后需要你自行关闭游戏。
 
-## 6. 回传内容
+## 7. 回传内容
 
 把整个本次输出目录保留并告知我路径。目录结构为：
 
