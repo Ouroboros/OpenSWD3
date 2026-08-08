@@ -1,7 +1,8 @@
 # P4 原程序动态 oracle 捕获协议
 
-状态：静态捕获点和产物合同已建立；glyph-mask Frida 捕获已在原程序上动态
-验证并归档三种字号样本。framebuffer、DirectDraw RECT 与时间探针仍待捕获。
+状态：静态捕获点和产物合同已建立；glyph-mask Frida 捕获链已在正确的
+Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境完成动态基准捕获。
+framebuffer、DirectDraw RECT 与时间探针仍待捕获。
 
 ## 原则
 
@@ -24,14 +25,22 @@
 - 原 EXE、`binkw32.dll`、Miles DLL/ASI、当前 `Env.dat` 和视频资产齐全；
 - `swd3.exe` 是固定 `ImageBase=0x00400000` 的 PE32，COFF 标记 relocations stripped，Base Relocation Directory 为空，`DllCharacteristics=0`。
 - `analysis/tools/glyph-oracle/` 已提供 Windows Frida host 与 agent，并在 Windows
-  `10.0.26200`、Frida `16.5.1`、Python `3.8.10` 环境完成两次实际 attach。
+  `10.0.26200`、Frida `16.5.1`、Python `3.8.10` 环境完成实际 attach。
 
 glyph-mask 捕获由用户在 Windows 上执行，Codex 不自行启动原版。用户先手动
 启动原版并停留在启动界面，host 再按 PID attach 和安装 hook；用户正常操作
-游戏后，host 把每次 cache miss 的 mask 写入输出目录。两次原始输出已经归档
-到 `../artifacts/glyph-oracle/win-modern-20260808/`。旧参考环境的 framebuffer、
-DirectDraw 与时钟样本仍需要对应的可运行环境和探针；缺少这些样本不阻止
-后续静态逆向继续进行。
+游戏后，host 把每次 cache miss 的 mask 写入输出目录。当前唯一输出已经归档
+到 `../artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/`。旧参考环境的
+framebuffer、DirectDraw 与时钟样本仍需要对应的可运行环境和探针；缺少这些
+样本不阻止后续静态逆向继续进行。
+
+唯一基准位于
+`../artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/run-20260809-014152-8496/`。
+其 `run.tsv` 记录宿主编码 `cp950`、`mingliu.ttc` 与 `mingliub.ttc` 哈希，用户
+确认原版显示效果与游戏原本一致。此前错误字体环境的运行输出已经删除。
+增强后的 agent 仍会在未来捕获中把实际 face 与 metrics 写入
+`font-selections.tsv`；本次旧 agent 未生成该附加表，后续由独立 GDI 对照探针
+补充并同时验证离线生成结果。
 
 固定地址和运行文件哈希见 `../inventory/p4-oracle-runtime-baseline.tsv`。生成器同时解析 PE 头验证无重定位/无动态基址条件，因此表中地址可以直接用作该 EXE 版本的调试断点。
 
@@ -136,7 +145,7 @@ row bytes = [renderer+0x1C]
 当前捕获实现为：
 
 - `analysis/tools/glyph-oracle/agent.js`：校验 IA-32、固定 image base 和两个 LST 指令字节，在 `0x004368D0` 用 `Interceptor` 保存入口参数，并在 `onLeave` 发送最终 mask；
-- `analysis/tools/glyph-oracle/capture.py`：锁定原 EXE SHA-256，按用户提供的 PID attach，接收二进制并生成 `run.tsv`、`glyph-masks.tsv` 与 `masks/*.bin`；
+- `analysis/tools/glyph-oracle/capture.py`：锁定原 EXE SHA-256，按用户提供的 PID attach，接收二进制并生成 `run.tsv`、`font-selections.tsv`、`glyph-masks.tsv` 与 `masks/*.bin`；
 - `analysis/tools/glyph-oracle/README.md`：给出用户执行命令、首轮操作路径和完整回传目录。
 
 host 不包含启动、恢复或结束原版的代码路径，也不点击界面、不注入输入。为
@@ -150,12 +159,11 @@ host 不包含启动、恢复或结束原版的代码路径，也不点击界面
 - 菜单、存档、地图和战斗选定画面实际出现的所有 cache miss；
 - 能触发五种 footprint 的文字调用环境。
 
-规范运行共取得 180 个 mask：`12x12=17`、`16x16=95`、`20x20=68`；全部
-原始字符字节可按 CP950 解码，三个字号的空格 mask 均为全零。另一独立运行
-与规范运行重叠 39 个字形，其 mask 全部逐字节一致。校验器为
-`../../tools/verify_glyph_oracle_capture.py`。如果以后同一字符在相同 manifest
-环境产生不同 mask，先检查字体文件、系统 hinting、surface 像素格式和
-renderer 配置，不能在重写中用模糊容差掩盖。
+当前唯一基准共取得 157 个 mask：`12x12=16`、`16x16=90`、`20x20=51`；
+全部原始字符字节可按 CP950 解码，三个字号的空格 mask 均为全零。校验器为
+`../../tools/verify_glyph_oracle_capture.py`。离线 GDI 生成器必须对全部 157 个
+样本零差异后才可产生正式 atlas；如果存在一个 bit 差异，先检查字体文件、
+系统 hinting、surface 像素格式和 renderer 配置，不能用模糊容差掩盖。
 
 ## Bink RECT oracle
 
@@ -234,7 +242,8 @@ O5/O6 的强制输入/时钟是研究回放，不是修改正式游戏。强制�
 - 哈希/地址/PE 校验生成器：`../../tools/build_p4_oracle_inventory.py`
 - glyph-mask Frida 工具：`../../tools/glyph-oracle/`
 
-glyph-mask 动态样本已归档并完成哈希、尺寸、padding、空格和跨运行重复性
-审计，可以作为该 Windows/font manifest 下的逐字节 oracle。当前缺口收窄为
-framebuffer、DirectDraw 和时间探针的真实样本，以及用规范 mask 验证
-跨平台 GlyphProvider；这些缺口不由 glyph 捕获已完成而自动视为通过。
+glyph-mask 唯一动态基准已在正确的 Windows 11 台湾繁体中文、
+CP950 和经典細明體环境归档。受控 GDI 生成器对全部 157 个动态
+样本零差异，正式 atlas 与跨平台 GlyphProvider 已通过独立校验，
+glyph 动态缺口关闭。framebuffer、DirectDraw 和时间探针的真实样本
+仍是各自独立缺口。

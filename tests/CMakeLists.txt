@@ -747,6 +747,31 @@ add_test(
 )
 
 add_executable(
+    openswd3_rendering_legacy_glyph_atlas_tests
+    unit/rendering/legacy_glyph_atlas_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_glyph_atlas_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_glyph_atlas_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_glyph_atlas
+    COMMAND openswd3_rendering_legacy_glyph_atlas_tests
+)
+
+add_test(
+    NAME rendering.legacy_glyph_atlas_asset
+    COMMAND
+        openswd3_rendering_legacy_glyph_atlas_tests
+        "${PROJECT_SOURCE_DIR}/assets/fonts/legacy-glyph-atlas.bin"
+)
+
+add_executable(
     openswd3_rendering_legacy_glyph_writer_tests
     unit/rendering/legacy_glyph_writer_test.cpp
 )

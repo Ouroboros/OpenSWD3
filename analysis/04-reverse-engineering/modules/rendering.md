@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B4.6 glyph mask/cache 与文字 writer
+当前单元：B4.7 画面动作、effect 更新与 present 请求
 
 ## 1. 范围与非范围
 
@@ -46,14 +46,17 @@ B4 拥有：
 - 像素转换：穷举全部 65536 个 `u16` 输入，验证四条汇编公式、零/负计数首像素缺陷和选择器重入状态；两份当前 CM 缓存继续提供 4,420,608 字节真实资产佐证。
 - framebuffer：固定不同 pitch、padding、裁剪边界和硬编码 `0x500/0x96000` 路径，比较物理/逻辑缓冲哈希。
 - blitter：按 43 个已赋值槽和未赋值槽建立固定 RLE/span、原始矩形、方向、裁剪、透明档位与颜色运算向量；真实 TSW 帧提供资源样本。
-- 字体：compat 核心使用固定 mask 测五种 footprint、cache 插入/淘汰、字节 advance 和背景；宿主 glyph provider 另以旧环境捕获的 mask 做 oracle。
+- 字体：compat 核心使用固定 mask 测五种 footprint、cache 插入/淘汰、字节 advance 和背景；glyph provider 以正确 CP950/細明體环境捕获的唯一 mask 基准做逐字节 oracle。
 - 呈现：记录每次 present 的调用点、rectangle、wait 语义和 framebuffer hash，不用“最终图片看起来相似”代替逐像素比较。
 
-原程序 GDI glyph 捕获已经解除 `blocked_runtime_oracle`：两次运行分别取得 39
-和 180 个 mask，规范运行覆盖 `12x12`、`16x16`、`20x20`，39 个跨运行重叠
-字形逐字节一致。当前文字实现尚未与这些 mask 完成 provider 差分，因此 B4.6
-仍不能整体标记 `original_diff_verified`。framebuffer 和 DirectDraw RECT 捕获仍
-是各自的 `blocked_runtime_oracle`。
+原程序 GDI glyph 捕获链已经在正确环境动态验证。唯一基准位于
+`../artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/`，包含 157 个 mask：
+`12x12=16`、`16x16=90`、`20x20=51`。manifest 记录 `cp950` 与经典
+`mingliu.ttc`，用户同时确认原版显示与游戏原本效果一致。此前英文/错误字体
+环境的运行输出已删除。受控 GDI 生成器已在 RGB555、RGB565
+和 BGRA32 三种临时 surface 上对 157 个样本全部逐字节匹配，正式
+atlas 及跨平台 `LegacyGlyphAtlasProvider` 已接入，B4.6 闭环。
+framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`。
 
 ## 5. 已有证据
 
@@ -73,7 +76,7 @@ B4 拥有：
 - [`font-surface-and-glyph-rendering.md`](../evidence/font-surface-and-glyph-rendering.md)
 - [`presentation-lifecycle.md`](../evidence/presentation-lifecycle.md)
 - [`p4-dynamic-oracle-capture-protocol.md`](../evidence/p4-dynamic-oracle-capture-protocol.md)
-- [`Windows glyph-mask 动态样本`](../artifacts/glyph-oracle/win-modern-20260808/README.md)
+- [`Windows glyph-mask 动态基准`](../artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/README.md)
 
 ## 6. 当前执行顺序
 
@@ -82,11 +85,8 @@ B4 拥有：
 3. `[x]` B4.3：实现 owned framebuffer、显式 pitch、1024 项旧行表与固定画布常量；Linux `core` 41/41、Linux/Windows `app` 43/43 CTest 通过。
 4. `[x]` B4.4：43 个稀疏槽、普通裁剪、四条 raw/RLE copy、异常边界与真实 TSW 固定帧已闭环；Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过。
 5. `[x]` B4.5：全部正常资产可达的已赋值 blitter 已按效果族实现；最后闭环的 RLE `0x0C..0x0F` 保留纵向 10.10 行选择、逐行横移、`top_clip+1` 首行丢弃、目标 `y+1`、零目标高度的跨调用放大状态和正反 phase 不对称，真实 `all_sys.tsw` 哈希通过。RLE `0x08/0x09` 已证明当前 TSW/ACT 资产链不可达，强制异常状态保留显式安全边界；raw `0x88` 已实现。Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过，原程序 framebuffer 差分仍为 `blocked_runtime_oracle`。
-6. `[>]` B4.6：mask/cache、五种 writer、背景和原始文字调用链已实现；
-   glyph-mask Frida 工具已完成原程序动态验证，三字号规范样本和独立重复运行
-   已归档并通过机械审计。下一单元是以这批逐字节 oracle 选择并验证跨平台
-   GlyphProvider，不以图片相似度或未冻结的宿主默认字体代替。
-7. `[ ]` B4.7：恢复画面动作/effect 更新和原分支 present 请求。
+6. `[x]` B4.6：唯一动态基准、受控 GDI 生成器、32,896-key 正式 atlas、跨平台 Provider、EXE 旁资源部署和运行时校验已闭环；独立验证为 `157/157` 零差异，Linux `core` 47/47、Windows `app` 49/49 CTest 通过。
+7. `[>]` B4.7：恢复画面动作/effect 更新和原分支 present 请求。
 8. `[ ]` B4.8：接入 SDL3 上传、恢复生命周期与 framebuffer 哈希回放。
 
 每项达到自己的汇编、UT 和资产门后立即进入下一项，不等待 B4 全部细节重新调研。

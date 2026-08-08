@@ -7,6 +7,19 @@ const RENDERER_ROW_BYTES = 0x1c;
 const RENDERER_WIDTH = 0xfd0;
 const RENDERER_HEIGHT = 0xfd4;
 const MAXIMUM_GLYPH_DIMENSION = 64;
+const activeGlyphs = new Map();
+const reportedFonts = new Set();
+
+const getTextFaceW = new NativeFunction(
+    Module.getExportByName('gdi32.dll', 'GetTextFaceW'),
+    'int',
+    ['pointer', 'int', 'pointer']
+);
+const getTextMetricsA = new NativeFunction(
+    Module.getExportByName('gdi32.dll', 'GetTextMetricsA'),
+    'int',
+    ['pointer', 'pointer']
+);
 
 function hexByte(value) {
     return value.toString(16).padStart(2, '0');
@@ -38,6 +51,54 @@ if (!Process.mainModule.base.equals(EXPECTED_IMAGE_BASE)) {
 
 verifyBytes(GLYPH_ENTRY, [0x8b, 0x44, 0x24, 0x04]);
 verifyBytes(ptr('0x00436974'), [0xc2, 0x08, 0x00]);
+
+Interceptor.attach(Module.getExportByName('gdi32.dll', 'TextOutA'), {
+    onEnter(args) {
+        const glyph = activeGlyphs.get(this.threadId);
+        if (glyph === undefined) {
+            return;
+        }
+
+        try {
+            const faceBuffer = Memory.alloc(64 * 2);
+            const metrics = Memory.alloc(56);
+            const faceLength = getTextFaceW(args[0], 64, faceBuffer);
+            const metricsValid = getTextMetricsA(args[0], metrics) !== 0;
+            if (faceLength <= 0 || !metricsValid) {
+                throw new Error('GetTextFaceW/GetTextMetricsA failed');
+            }
+
+            const selection = {
+                type: 'font-selection',
+                renderer: glyph.renderer.toString(),
+                width: glyph.width,
+                height: glyph.height,
+                face_name: faceBuffer.readUtf16String(),
+                tm_height: metrics.readS32(),
+                tm_ascent: metrics.add(4).readS32(),
+                tm_descent: metrics.add(8).readS32(),
+                tm_internal_leading: metrics.add(12).readS32(),
+                tm_external_leading: metrics.add(16).readS32(),
+                tm_average_char_width: metrics.add(20).readS32(),
+                tm_maximum_char_width: metrics.add(24).readS32(),
+                tm_weight: metrics.add(28).readS32(),
+                tm_overhang: metrics.add(32).readS32(),
+                tm_pitch_and_family: metrics.add(51).readU8(),
+                tm_charset: metrics.add(52).readU8(),
+            };
+            const selectionKey = JSON.stringify(selection);
+            if (!reportedFonts.has(selectionKey)) {
+                reportedFonts.add(selectionKey);
+                send(selection);
+            }
+        } catch (error) {
+            send({
+                type: 'capture-error',
+                message: `cannot query selected GDI font: ${error}`,
+            });
+        }
+    },
+});
 
 Interceptor.attach(GLYPH_ENTRY, {
     onEnter(args) {
@@ -76,9 +137,11 @@ Interceptor.attach(GLYPH_ENTRY, {
             height,
             rowBytes,
         };
+        activeGlyphs.set(this.threadId, this.glyph);
     },
 
     onLeave() {
+        activeGlyphs.delete(this.threadId);
         const glyph = this.glyph;
         if (glyph === null) {
             return;

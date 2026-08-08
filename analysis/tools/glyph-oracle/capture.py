@@ -125,12 +125,25 @@ class CaptureWriter:
             "width\theight\trow_bytes\tmask_bytes\tsha256\tmask_file\n"
         )
         self._manifest.flush()
+        self._font_manifest = (output_directory / "font-selections.tsv").open(
+            "w", encoding="utf-8", newline=""
+        )
+        self._font_manifest.write(
+            "index\trenderer\twidth\theight\tface_name\ttm_height\t"
+            "tm_ascent\ttm_descent\ttm_internal_leading\t"
+            "tm_external_leading\ttm_average_char_width\t"
+            "tm_maximum_char_width\ttm_weight\ttm_overhang\t"
+            "tm_pitch_and_family\ttm_charset\n"
+        )
+        self._font_manifest.flush()
         self._lock = threading.Lock()
         self.capture_count = 0
+        self.font_selection_count = 0
         self.error_message: str | None = None
 
     def close(self) -> None:
         self._manifest.close()
+        self._font_manifest.close()
 
     def record_error(self, message: str) -> None:
         with self._lock:
@@ -199,6 +212,45 @@ class CaptureWriter:
 
         print(
             f"[捕获] #{index} key=0x{key} size={width}x{height}",
+            flush=True,
+        )
+
+    def record_font_selection(self, payload: dict[str, object]) -> None:
+        fields = (
+            "renderer",
+            "width",
+            "height",
+            "face_name",
+            "tm_height",
+            "tm_ascent",
+            "tm_descent",
+            "tm_internal_leading",
+            "tm_external_leading",
+            "tm_average_char_width",
+            "tm_maximum_char_width",
+            "tm_weight",
+            "tm_overhang",
+            "tm_pitch_and_family",
+            "tm_charset",
+        )
+        if any(field not in payload for field in fields):
+            self.record_error("Frida font-selection 消息缺少字段")
+            return
+
+        with self._lock:
+            self.font_selection_count += 1
+            values = (self.font_selection_count,) + tuple(
+                payload[field] for field in fields
+            )
+            self._font_manifest.write(
+                "\t".join(tsv_value(value) for value in values)
+            )
+            self._font_manifest.write("\n")
+            self._font_manifest.flush()
+
+        print(
+            f"[字体] size={payload['width']}x{payload['height']} "
+            f"face={payload['face_name']}",
             flush=True,
         )
 
@@ -303,6 +355,8 @@ def main() -> int:
             ready.set()
         elif message_type == "glyph-mask":
             writer.record_mask(payload, data)
+        elif message_type == "font-selection":
+            writer.record_font_selection(payload)
         elif message_type == "capture-error":
             writer.record_error(str(payload))
         else:
@@ -341,7 +395,11 @@ def main() -> int:
 
         writer.close()
 
-    print(f"[完成] 共捕获 {writer.capture_count} 个 glyph mask", flush=True)
+    print(
+        f"[完成] 共捕获 {writer.capture_count} 个 glyph mask，"
+        f"{writer.font_selection_count} 条字体选择",
+        flush=True,
+    )
     return 1 if writer.error_message is not None else 0
 
 

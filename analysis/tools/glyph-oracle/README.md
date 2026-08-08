@@ -52,7 +52,7 @@ tasklist /FI "IMAGENAME eq swd3_nodvd.exe" /FO LIST
 每次运行必须使用不同且不存在或为空的目录。例如：
 
 ```text
-analysis\04-reverse-engineering\artifacts\glyph-oracle\win-modern-20260808-01
+build\vm\glyph-oracle-output\manual-run-01
 ```
 
 脚本不会清空或覆盖已有捕获目录。
@@ -68,7 +68,7 @@ cd /d E:\Game\swd3\OpenSWD3
 再执行一条命令：
 
 ```bat
-py -3 -B analysis\tools\glyph-oracle\capture.py --pid 12345 --game-dir E:\Game\swd3 --output analysis\04-reverse-engineering\artifacts\glyph-oracle\win-modern-20260808-01
+py -3 -B analysis\tools\glyph-oracle\capture.py --pid 12345 --game-dir E:\Game\swd3 --output build\vm\glyph-oracle-output\manual-run-01
 ```
 
 终端出现 `[已附加]` 后，再回到原版启动界面继续操作。工具不会启动、结束、
@@ -99,6 +99,7 @@ py -3 -B analysis\tools\glyph-oracle\capture.py --pid 12345 --game-dir E:\Game\s
 
 ```text
 run.tsv
+font-selections.tsv
 glyph-masks.tsv
 masks/
   glyph-000001-20x20-key-XXXX.bin
@@ -107,12 +108,16 @@ masks/
 
 `run.tsv` 保存 EXE、DLL、`Env.dat`、Frida agent 和候选細明體字体文件的哈希；
 `glyph-masks.tsv` 保存每次 miss 的 renderer、原始字节、尺寸、mask 文件及
-SHA-256。收到目录后，再做尺寸覆盖审计、mask 可视化和跨平台 provider 差分。
+SHA-256；`font-selections.tsv` 保存 GDI 实际选中的 face 与三个 renderer 的
+`TEXTMETRIC`。收到目录后，再做尺寸覆盖审计、字体选择确认、mask 可视化和
+跨平台 provider 差分。
 
 ## 8. 已归档样本
 
-两次实际捕获已归档到
-`analysis/04-reverse-engineering/artifacts/glyph-oracle/win-modern-20260808/`。
-规范运行包含 `12x12=17`、`16x16=95`、`20x20=68` 共 180 个 mask；另一
-运行与其重叠的 39 个字形逐字节一致。完整性与重复性由
-`analysis/tools/verify_glyph_oracle_capture.py` 校验。
+当前唯一基准归档到
+`analysis/04-reverse-engineering/artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/`。
+它包含 `12x12=16`、`16x16=90`、`20x20=51` 共 157 个 mask，运行环境为
+Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc`，且用户确认原版显示
+效果正确。此前错误字体环境的输出已经删除。完整性由
+`analysis/tools/verify_glyph_oracle_capture.py` 校验；未来使用新版 agent 的运行
+还可通过 `--require-font-selection` 额外要求实际 GDI face 记录。

@@ -19,6 +19,7 @@
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
 #include "openswd3/input_time_rng/legacy_frame_clock.hpp"
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
+#include "openswd3/rendering/legacy_glyph_atlas.hpp"
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
@@ -29,6 +30,7 @@
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
 #include <source_location>
 #include <string>
 #include <string_view>
@@ -70,6 +72,31 @@ int report_sdl_error(
     message.append(": ");
     message.append(SDL_GetError());
     return report_error(message, location);
+}
+
+[[nodiscard]] std::vector<openswd3::compat::u8> read_binary_file(
+    const std::filesystem::path& path
+) {
+    std::ifstream stream(path, std::ios::binary | std::ios::ate);
+    if (!stream) {
+        return {};
+    }
+    const std::streamoff size = stream.tellg();
+    if (size <= 0) {
+        return {};
+    }
+    std::vector<openswd3::compat::u8> bytes(
+        static_cast<std::size_t>(size)
+    );
+    stream.seekg(0);
+    stream.read(
+        reinterpret_cast<char*>(bytes.data()),
+        static_cast<std::streamsize>(bytes.size())
+    );
+    if (!stream) {
+        return {};
+    }
+    return bytes;
 }
 
 [[nodiscard]] bool present_framebuffer(
@@ -217,6 +244,7 @@ public:
         openswd3::app::PlatformBackendState& backend_state,
         openswd3::app::PlatformBackendInitializationPorts& backend_ports,
         openswd3::resource_io::LegacyResourceDatabases& resource_databases,
+        openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider,
         const std::filesystem::path& data_directory,
         SDL_Renderer& renderer,
         openswd3::input_time_rng::LegacyMouseState& mouse_state,
@@ -227,6 +255,7 @@ public:
         : backend_state_(backend_state),
           backend_ports_(backend_ports),
           resource_databases_(resource_databases),
+          glyph_provider_(glyph_provider),
           data_directory_(data_directory),
           renderer_(renderer),
           mouse_state_(mouse_state),
@@ -261,8 +290,12 @@ public:
             360
         );
     }
-    bool initialize_software_drawing() override { return true; }
-    void report_software_drawing_failure() override {}
+    bool initialize_software_drawing() override {
+        return glyph_provider_.valid();
+    }
+    void report_software_drawing_failure() override {
+        openswd3::diagnostics::log_error("legacy glyph atlas is invalid");
+    }
     void check_legacy_memory_capacity() override {}
     void initialize_resource_database() override {
         const auto result = resource_databases_.initialize(data_directory_);
@@ -301,6 +334,7 @@ private:
     openswd3::app::PlatformBackendState& backend_state_;
     openswd3::app::PlatformBackendInitializationPorts& backend_ports_;
     openswd3::resource_io::LegacyResourceDatabases& resource_databases_;
+    openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider_;
     const std::filesystem::path& data_directory_;
     SDL_Renderer& renderer_;
     openswd3::input_time_rng::LegacyMouseState& mouse_state_;
@@ -761,6 +795,24 @@ int main(const int argument_count, char** arguments) {
         return 0;
     }
 
+    const std::filesystem::path glyph_atlas_path = executable_directory
+        / "assets" / "fonts" / "legacy-glyph-atlas.bin";
+    const std::vector<openswd3::compat::u8> glyph_atlas_bytes =
+        read_binary_file(glyph_atlas_path);
+    openswd3::rendering::LegacyGlyphAtlasProvider glyph_provider(
+        glyph_atlas_bytes
+    );
+    if (!glyph_provider.valid()) {
+        return report_error(
+            std::string{"legacy glyph atlas: cannot load valid asset: "}
+            + glyph_atlas_path.string()
+        );
+    }
+    openswd3::diagnostics::log_info(
+        std::string{"legacy glyph atlas loaded: "}
+        + std::to_string(glyph_atlas_bytes.size()) + " bytes"
+    );
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         return report_sdl_error("SDL_Init");
     }
@@ -819,6 +871,7 @@ int main(const int argument_count, char** arguments) {
         backend_state,
         backend_ports,
         resource_databases,
+        glyph_provider,
         data_directory.directory,
         *renderer,
         mouse_state,

@@ -188,17 +188,33 @@ byte 之后，所以前述悬空高位 lead 使用非末字符的 `FE0` 宽度�
 
 SDL3 在 Windows、Linux、macOS 等平台都能承接窗口、事件、输入和最终纹理呈现，但这里还需要独立的 `GlyphProvider` 边界。该边界只能负责产生原程序定义的 MSB-first 1-bit mask；字符解析、固定 advance、缓存插入/淘汰、style priority、footprint、裁剪和 packed-color 行变化仍属于确定性的兼容核心。
 
-为了 1:1，不能直接让各平台自由选择系统字体或默认 FreeType 参数，因为 host font、hinting、fallback 和 rasterizer 差异会改变“非零即一”后的 mask。原程序在已记录 Windows/font manifest 下的 glyph-mask oracle 已归档到
-`../artifacts/glyph-oracle/win-modern-20260808/`，规范运行覆盖三个字号共 180 个
-mask，另一次运行提供 39 个逐字节一致的重复样本。接下来只评估两条可验证
-路线：
+为了 1:1，不能直接让各平台自由选择系统字体或默认 FreeType 参数，因为 host
+font、hinting、fallback 和 rasterizer 差异会改变“非零即一”后的 mask。当前
+唯一原程序 glyph 基准归档到
+`../artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/`，覆盖三个字号共 157 个
+mask。该运行使用 Windows 11 台湾繁体中文语言环境、CP950 与经典
+`mingliu.ttc`；用户确认原版文字显示与游戏原本效果一致。此前错误字体环境的
+输出已经删除，不能再作为实现或测试输入。
 
-1. 冻结已验证字体文件、栅格器版本和全部参数，并逐 glyph 与 oracle 比较；
-2. 对确定字符域预生成原始 1-bit mask，同时为运行时动态输入定义不改变旧 byte 协议的补充策略。
+跨平台正式后端采用预生成的原始 1-bit mask，不在玩家机器上自由选择系统
+字体。Windows GDI 只用于受控生成和 oracle 对照；生成器必须先对上述 157 个
+动态样本全部逐字节匹配，随后覆盖原始一字节和盲取二字节协议可产生的完整
+key 域。这样 Windows、Linux 和 macOS 共用同一份 mask，GDI 不成为运行时硬
+依赖，SDL3 路线也不改为 DirectX 路线。
 
-路线选择必须先在这 180 个 mask 上逐字节比较；没有通过前不把近似轮廓当成
-1:1。GDI 不作为跨平台硬依赖。Windows GDI 路径可以作为研究期 oracle 或
-兼容后端；SDL3 路线不因此改为 DirectX 路线。
+该门已完成：`analysis/tools/probe_gdi_glyph_oracle.cpp` 在 RGB555、
+RGB565 和 BGRA32 三种输出上均对动态基准达到 `157/157`
+逐字节匹配。157 是原版运行样本数，不是 atlas 字符数。生成的
+`assets/fonts/legacy-glyph-atlas.bin` 长 3,816,016 字节，SHA-256 为
+`0a530284a3ff5fa5c426376571bd31acc8c4443f2237526273c5aefe10708df4`。
+
+atlas 包含 80 字节头和 12×12、16×16、20×20 三个直接索引段，每段均
+覆盖 32,896 个原始字节 key：`0x00..0x7F` 的 128 个单字节键，
+以及 `0x80..0xFF` 首字节与任意次字节组成的 32,768 个双字节
+键。这是原程序字节协议的完整输入域，包含非法 CP950 组合；文件不是
+带 Unicode `cmap` 的字体。`LegacyGlyphAtlasProvider` 校验整个布局后按
+原始字节直接取 mask；应用构建把资源复制到 EXE 旁的
+`assets/fonts/` 并在软件绘制初始化前强制校验。
 
 ## 必须保留的 1:1 行为
 

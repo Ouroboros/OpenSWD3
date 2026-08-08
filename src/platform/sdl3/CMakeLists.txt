@@ -15,6 +15,7 @@ target_link_libraries(
     PRIVATE
         openswd3_app
         openswd3_input_time_rng
+        openswd3_rendering
         openswd3_resource_io
         SDL3::SDL3
 )
@@ -26,6 +27,10 @@ add_custom_command(
         ${CMAKE_COMMAND} -E copy_directory
         "${PROJECT_SOURCE_DIR}/assets/ui/startup"
         "$<TARGET_FILE_DIR:openswd3>/assets/ui/startup"
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_directory
+        "${PROJECT_SOURCE_DIR}/assets/fonts"
+        "$<TARGET_FILE_DIR:openswd3>/assets/fonts"
     COMMAND
         ${CMAKE_COMMAND} -E copy_if_different
         "${PROJECT_SOURCE_DIR}/config/openswd3.example.toml"

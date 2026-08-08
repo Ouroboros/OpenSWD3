@@ -12,18 +12,18 @@ from pathlib import Path
 EXPECTED_EXE_SHA256 = (
     "78ddd0acf752dde32bbc4ea5a12256954878342899309c33516efd6dace0508a"
 )
-EXPECTED_AGENT_SHA256 = (
-    "fa045bc4b6621fcd6ae792d1cb89c72a134d59d5c9bdff17572a1db28db1a1f6"
-)
+LEGACY_AGENT_SHA256S = {
+    "fa045bc4b6621fcd6ae792d1cb89c72a134d59d5c9bdff17572a1db28db1a1f6",
+}
 EXPECTED_RENDERERS = {
     0x004A9ED0: (12, 12),
     0x004C9A28: (16, 16),
     0x004AB998: (20, 20),
 }
 CANONICAL_COUNTS = {
-    (12, 12): 17,
-    (16, 16): 95,
-    (20, 20): 68,
+    (12, 12): 16,
+    (16, 16): 90,
+    (20, 20): 51,
 }
 
 
@@ -36,6 +36,14 @@ def sha256_file(path: Path) -> str:
                 break
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def expected_agent_sha256s() -> set[str]:
+    hashes = set(LEGACY_AGENT_SHA256S)
+    current_agent = Path(__file__).with_name("glyph-oracle") / "agent.js"
+    if current_agent.is_file():
+        hashes.add(sha256_file(current_agent))
+    return hashes
 
 
 def read_table(path: Path) -> list[dict[str, str]]:
@@ -61,7 +69,11 @@ def require(condition: bool, message: str) -> None:
 
 def verify_run(
     run_directory: Path,
-) -> tuple[dict[tuple[int, int, int], set[str]], Counter[tuple[int, int]]]:
+) -> tuple[
+    dict[tuple[int, int, int], set[str]],
+    Counter[tuple[int, int]],
+    set[tuple[int, int]],
+]:
     manifest = read_run_manifest(run_directory)
     require(manifest.get("glyph_entry") == "0x004368D0", "glyph 入口不匹配")
     require(manifest.get("glyph_return") == "0x00436974", "glyph 返回点不匹配")
@@ -71,7 +83,7 @@ def verify_run(
         "原版 EXE SHA-256 不匹配",
     )
     require(
-        manifest.get("agent_sha256") == EXPECTED_AGENT_SHA256,
+        manifest.get("agent_sha256") in expected_agent_sha256s(),
         "Frida agent SHA-256 不匹配",
     )
 
@@ -165,24 +177,75 @@ def verify_run(
         f"{run_directory.name}: glyphs={len(rows)}; {count_text}; "
         f"cp950_invalid={cp950_invalid}; spaces={len(spaces)}"
     )
-    return hashes, counts
+    font_geometries: set[tuple[int, int]] = set()
+    font_manifest_path = run_directory / "font-selections.tsv"
+    if font_manifest_path.is_file():
+        font_rows = read_table(font_manifest_path)
+        require(bool(font_rows), "font-selections.tsv 没有记录")
+        font_indices = [int(row["index"]) for row in font_rows]
+        require(
+            font_indices == list(range(1, len(font_rows) + 1)),
+            "字体选择索引不连续",
+        )
+        for row in font_rows:
+            renderer = int(row["renderer"], 16)
+            width = int(row["width"])
+            height = int(row["height"])
+            require(
+                renderer in EXPECTED_RENDERERS,
+                f"字体选择包含未知 renderer：0x{renderer:08X}",
+            )
+            require(
+                (width, height) == EXPECTED_RENDERERS[renderer],
+                "字体选择的 renderer geometry 不匹配",
+            )
+            require(bool(row["face_name"]), "GDI 实际 face 为空")
+            for field in (
+                "tm_height",
+                "tm_ascent",
+                "tm_descent",
+                "tm_internal_leading",
+                "tm_external_leading",
+                "tm_average_char_width",
+                "tm_maximum_char_width",
+                "tm_weight",
+                "tm_overhang",
+                "tm_pitch_and_family",
+                "tm_charset",
+            ):
+                int(row[field])
+            font_geometries.add((width, height))
+        faces = sorted({row["face_name"] for row in font_rows})
+        print(f"selected_faces={faces}; font_geometries={sorted(font_geometries)}")
+
+    return hashes, counts, font_geometries
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="校验原版 glyph-mask 捕获目录")
     parser.add_argument("run", type=Path, nargs="+")
     parser.add_argument(
-        "--expect-canonical",
+        "--expect-archived-counts",
         action="store_true",
-        help="要求最后一次运行包含已归档的 17/95/68 个三字号样本",
+        help="要求最后一次运行包含当前基准的 16/90/51 个三字号样本",
+    )
+    parser.add_argument(
+        "--require-font-selection",
+        action="store_true",
+        help="要求最后一次运行记录三个 renderer 的实际 GDI face",
     )
     arguments = parser.parse_args()
 
     verified = [verify_run(path.resolve()) for path in arguments.run]
-    if arguments.expect_canonical:
+    if arguments.expect_archived_counts:
         require(
             verified[-1][1] == CANONICAL_COUNTS,
-            "规范样本的三字号数量不匹配",
+            "当前基准的三字号数量不匹配",
+        )
+    if arguments.require_font_selection:
+        require(
+            verified[-1][2] == set(EXPECTED_RENDERERS.values()),
+            "没有记录三个 renderer 的实际 GDI face",
         )
 
     if len(verified) > 1:
