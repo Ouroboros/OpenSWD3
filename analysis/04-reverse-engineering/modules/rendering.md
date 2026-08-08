@@ -49,7 +49,11 @@ B4 拥有：
 - 字体：compat 核心使用固定 mask 测五种 footprint、cache 插入/淘汰、字节 advance 和背景；宿主 glyph provider 另以旧环境捕获的 mask 做 oracle。
 - 呈现：记录每次 present 的调用点、rectangle、wait 语义和 framebuffer hash，不用“最终图片看起来相似”代替逐像素比较。
 
-原程序动态 framebuffer、GDI glyph 和 DirectDraw RECT 捕获仍是 `blocked_runtime_oracle`。固定捕获点与产物格式已经定义；glyph-mask Frida host/agent 已交付并等待用户执行。缺样本不阻止静态闭环单元继续实现，但不能标记 `original_diff_verified`。
+原程序 GDI glyph 捕获已经解除 `blocked_runtime_oracle`：两次运行分别取得 39
+和 180 个 mask，规范运行覆盖 `12x12`、`16x16`、`20x20`，39 个跨运行重叠
+字形逐字节一致。当前文字实现尚未与这些 mask 完成 provider 差分，因此 B4.6
+仍不能整体标记 `original_diff_verified`。framebuffer 和 DirectDraw RECT 捕获仍
+是各自的 `blocked_runtime_oracle`。
 
 ## 5. 已有证据
 
@@ -69,6 +73,7 @@ B4 拥有：
 - [`font-surface-and-glyph-rendering.md`](../evidence/font-surface-and-glyph-rendering.md)
 - [`presentation-lifecycle.md`](../evidence/presentation-lifecycle.md)
 - [`p4-dynamic-oracle-capture-protocol.md`](../evidence/p4-dynamic-oracle-capture-protocol.md)
+- [`Windows glyph-mask 动态样本`](../artifacts/glyph-oracle/win-modern-20260808/README.md)
 
 ## 6. 当前执行顺序
 
@@ -77,7 +82,10 @@ B4 拥有：
 3. `[x]` B4.3：实现 owned framebuffer、显式 pitch、1024 项旧行表与固定画布常量；Linux `core` 41/41、Linux/Windows `app` 43/43 CTest 通过。
 4. `[x]` B4.4：43 个稀疏槽、普通裁剪、四条 raw/RLE copy、异常边界与真实 TSW 固定帧已闭环；Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过。
 5. `[x]` B4.5：全部正常资产可达的已赋值 blitter 已按效果族实现；最后闭环的 RLE `0x0C..0x0F` 保留纵向 10.10 行选择、逐行横移、`top_clip+1` 首行丢弃、目标 `y+1`、零目标高度的跨调用放大状态和正反 phase 不对称，真实 `all_sys.tsw` 哈希通过。RLE `0x08/0x09` 已证明当前 TSW/ACT 资产链不可达，强制异常状态保留显式安全边界；raw `0x88` 已实现。Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过，原程序 framebuffer 差分仍为 `blocked_runtime_oracle`。
-6. `[>]` B4.6：mask/cache、五种 writer、背景和原始文字调用链已实现；glyph-mask Frida 捕获工具已静态验证并交付用户执行。真实 mask 尚未回传，跨平台 GlyphProvider 不在无 oracle 时猜测实现。
+6. `[>]` B4.6：mask/cache、五种 writer、背景和原始文字调用链已实现；
+   glyph-mask Frida 工具已完成原程序动态验证，三字号规范样本和独立重复运行
+   已归档并通过机械审计。下一单元是以这批逐字节 oracle 选择并验证跨平台
+   GlyphProvider，不以图片相似度或未冻结的宿主默认字体代替。
 7. `[ ]` B4.7：恢复画面动作/effect 更新和原分支 present 请求。
 8. `[ ]` B4.8：接入 SDL3 上传、恢复生命周期与 framebuffer 哈希回放。
 

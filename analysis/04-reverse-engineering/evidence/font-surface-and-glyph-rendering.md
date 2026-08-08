@@ -188,12 +188,17 @@ byte 之后，所以前述悬空高位 lead 使用非末字符的 `FE0` 宽度�
 
 SDL3 在 Windows、Linux、macOS 等平台都能承接窗口、事件、输入和最终纹理呈现，但这里还需要独立的 `GlyphProvider` 边界。该边界只能负责产生原程序定义的 MSB-first 1-bit mask；字符解析、固定 advance、缓存插入/淘汰、style priority、footprint、裁剪和 packed-color 行变化仍属于确定性的兼容核心。
 
-为了 1:1，不能直接让各平台自由选择系统字体或默认 FreeType 参数，因为 host font、hinting、fallback 和 rasterizer 差异会改变“非零即一”后的 mask。后续需用原程序/目标旧 Windows 环境建立 glyph-mask oracle，再评估两条可验证路线：
+为了 1:1，不能直接让各平台自由选择系统字体或默认 FreeType 参数，因为 host font、hinting、fallback 和 rasterizer 差异会改变“非零即一”后的 mask。原程序在已记录 Windows/font manifest 下的 glyph-mask oracle 已归档到
+`../artifacts/glyph-oracle/win-modern-20260808/`，规范运行覆盖三个字号共 180 个
+mask，另一次运行提供 39 个逐字节一致的重复样本。接下来只评估两条可验证
+路线：
 
 1. 冻结已验证字体文件、栅格器版本和全部参数，并逐 glyph 与 oracle 比较；
 2. 对确定字符域预生成原始 1-bit mask，同时为运行时动态输入定义不改变旧 byte 协议的补充策略。
 
-目前不提前决定二者，也不把 GDI 继续作为跨平台硬依赖。Windows GDI 路径可以作为研究期 oracle 或兼容后端；SDL3 路线不因此改为 DirectX 路线。
+路线选择必须先在这 180 个 mask 上逐字节比较；没有通过前不把近似轮廓当成
+1:1。GDI 不作为跨平台硬依赖。Windows GDI 路径可以作为研究期 oracle 或
+兼容后端；SDL3 路线不因此改为 DirectX 路线。
 
 ## 必须保留的 1:1 行为
 

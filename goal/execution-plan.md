@@ -1,8 +1,8 @@
 # OpenSWD3 执行 GOAL
 
-版本：v63
+版本：v64
 
-最后更新：2026-08-08
+最后更新：2026-08-09
 
 当前阶段：B · 按模块逆向、实现与验证
 
@@ -31,7 +31,7 @@
 
 - 进程入口、消息泵、单帧调度、世界/特殊模式/战斗分支和退出顶层流程已有汇编证据。
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
-- 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；glyph-mask Frida 捕获工具已交付用户执行，实际原程序动态样本仍未取得。
+- 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；glyph-mask Frida 工具已在原程序上取得两次动态样本，规范运行覆盖三个字号共 180 个 mask，39 个跨运行重叠字形逐字节一致。
 - 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..124`；其余 opcode 与 Ani 播放语义尚未完成。
 - 309 张地图的物理容器、40 份存档的压缩边界和战斗顶层入口已经恢复；地图内部、存档业务字段和战斗内部状态机仍待对应模块处理。
 
@@ -213,6 +213,6 @@
 7. `[x]` B2：历史 63 项范围已完成有限收口审计；修正 5 项模块归属并补齐 6 个真实缺口后，当前 58 项为 57 项实现与 1 项不可达。Windows LLVM `core`/`app`、34/34 CTest 和全套真实资产回归通过；状态为 `module_closed_pending_oracle`。
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
-10. `[>]` B4：B4.2 像素转换、B4.3 owned framebuffer、B4.4 稀疏分派与基础 copy、B4.5 正常资产可达的全部已赋值 blitter 效果族均已闭环；RLE `0x08/0x09` 具有当前资产不可达证据和显式异常安全边界。B4.6 的 mask/cache、五种 writer、背景，以及原始一/二字节解析、固定 advance、末字符宽度、GlyphProvider 边界和 miss/背景/writer/计数调用顺序均已按完整 LST 实现并由 UT 锁定。旧 GDI mask 的 Frida host/agent 已完成静态验证并交付用户执行；收到真实 mask 前不猜测跨平台 GlyphProvider。当前 Linux `core` 45/45、Linux/Windows `app` 47/47 CTest 通过。
+10. `[>]` B4：B4.2 像素转换、B4.3 owned framebuffer、B4.4 稀疏分派与基础 copy、B4.5 正常资产可达的全部已赋值 blitter 效果族均已闭环；RLE `0x08/0x09` 具有当前资产不可达证据和显式异常安全边界。B4.6 的 mask/cache、五种 writer、背景，以及原始一/二字节解析、固定 advance、末字符宽度、GlyphProvider 边界和 miss/背景/writer/计数调用顺序均已按完整 LST 实现并由 UT 锁定。旧 GDI mask 的 Frida host/agent 已完成原程序动态验证；两次原始输出已归档，规范运行的 `12x12=17`、`16x16=95`、`20x20=68` 共 180 个 mask 及 39 个跨运行重叠样本通过机械审计。当前任务是用该逐字节 oracle 选择并验证跨平台 GlyphProvider。当前 Linux `core` 45/45、Linux/Windows `app` 47/47 CTest 通过。
 
 当前只执行 B4，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B4 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。

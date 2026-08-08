@@ -1,6 +1,7 @@
 # P4 原程序动态 oracle 捕获协议
 
-状态：静态捕获点、产物合同和 glyph-mask Frida 捕获工具已建立；实际原程序动态样本尚未捕获，不能标记为已验证结果。
+状态：静态捕获点和产物合同已建立；glyph-mask Frida 捕获已在原程序上动态
+验证并归档三种字号样本。framebuffer、DirectDraw RECT 与时间探针仍待捕获。
 
 ## 原则
 
@@ -22,9 +23,15 @@
 - 没有既有 BMP/PNG/log 动态捕获产物；
 - 原 EXE、`binkw32.dll`、Miles DLL/ASI、当前 `Env.dat` 和视频资产齐全；
 - `swd3.exe` 是固定 `ImageBase=0x00400000` 的 PE32，COFF 标记 relocations stripped，Base Relocation Directory 为空，`DllCharacteristics=0`。
-- `analysis/tools/glyph-oracle/` 已提供 Windows Frida host 与 agent；Python/JavaScript 语法、attach 参数和 Windows 路径说明已静态验证，尚未用原版做动态验证。
+- `analysis/tools/glyph-oracle/` 已提供 Windows Frida host 与 agent，并在 Windows
+  `10.0.26200`、Frida `16.5.1`、Python `3.8.10` 环境完成两次实际 attach。
 
-glyph-mask 捕获现由用户在 Windows 上执行，Codex 不自行启动原版。用户先手动启动原版并停留在启动界面，host 再按 PID attach 和安装 hook；用户正常操作游戏后，host 把每次 cache miss 的 mask 写入仓库分类目录。旧参考环境的 framebuffer、DirectDraw 与时钟样本仍需要对应的可运行环境和探针；缺少这些样本不阻止后续静态逆向继续进行。
+glyph-mask 捕获由用户在 Windows 上执行，Codex 不自行启动原版。用户先手动
+启动原版并停留在启动界面，host 再按 PID attach 和安装 hook；用户正常操作
+游戏后，host 把每次 cache miss 的 mask 写入输出目录。两次原始输出已经归档
+到 `../artifacts/glyph-oracle/win-modern-20260808/`。旧参考环境的 framebuffer、
+DirectDraw 与时钟样本仍需要对应的可运行环境和探针；缺少这些样本不阻止
+后续静态逆向继续进行。
 
 固定地址和运行文件哈希见 `../inventory/p4-oracle-runtime-baseline.tsv`。生成器同时解析 PE 头验证无重定位/无动态基址条件，因此表中地址可以直接用作该 EXE 版本的调试断点。
 
@@ -132,7 +139,9 @@ row bytes = [renderer+0x1C]
 - `analysis/tools/glyph-oracle/capture.py`：锁定原 EXE SHA-256，按用户提供的 PID attach，接收二进制并生成 `run.tsv`、`glyph-masks.tsv` 与 `masks/*.bin`；
 - `analysis/tools/glyph-oracle/README.md`：给出用户执行命令、首轮操作路径和完整回传目录。
 
-host 不包含启动、恢复或结束原版的代码路径，也不点击界面、不注入输入。为避免漏掉首次 cache miss，用户必须在启动界面阶段完成 attach，再进入游戏。当前只证明捕获代码和格式已经静态建立，未取得用户执行结果前不得把它标记为动态验证通过。
+host 不包含启动、恢复或结束原版的代码路径，也不点击界面、不注入输入。为
+避免漏掉首次 cache miss，用户在启动界面阶段完成 attach，再进入游戏。本次
+实际捕获确认 hook、二进制传输、TSV 清单和 mask 落盘路径均可工作。
 
 首轮至少覆盖：
 
@@ -141,7 +150,12 @@ host 不包含启动、恢复或结束原版的代码路径，也不点击界面
 - 菜单、存档、地图和战斗选定画面实际出现的所有 cache miss；
 - 能触发五种 footprint 的文字调用环境。
 
-如果同一字符在旧参考环境多次生成的 mask 不同，先检查字体文件、系统 hinting、surface 像素格式和 renderer 配置，不能在重写中用模糊容差掩盖。
+规范运行共取得 180 个 mask：`12x12=17`、`16x16=95`、`20x20=68`；全部
+原始字符字节可按 CP950 解码，三个字号的空格 mask 均为全零。另一独立运行
+与规范运行重叠 39 个字形，其 mask 全部逐字节一致。校验器为
+`../../tools/verify_glyph_oracle_capture.py`。如果以后同一字符在相同 manifest
+环境产生不同 mask，先检查字体文件、系统 hinting、surface 像素格式和
+renderer 配置，不能在重写中用模糊容差掩盖。
 
 ## Bink RECT oracle
 
@@ -220,4 +234,7 @@ O5/O6 的强制输入/时钟是研究回放，不是修改正式游戏。强制�
 - 哈希/地址/PE 校验生成器：`../../tools/build_p4_oracle_inventory.py`
 - glyph-mask Frida 工具：`../../tools/glyph-oracle/`
 
-当前缺口是用户实际执行所得的 glyph-mask 目录，以及 framebuffer、DirectDraw 和时间探针的真实样本。当前目录没有伪造占位的 `.bin/.bmp/.tsv` 动态结果；收到用户回传产物并完成哈希、尺寸和逐字节审计之前，P4 动态验证保持待完成。
+glyph-mask 动态样本已归档并完成哈希、尺寸、padding、空格和跨运行重复性
+审计，可以作为该 Windows/font manifest 下的逐字节 oracle。当前缺口收窄为
+framebuffer、DirectDraw 和时间探针的真实样本，以及用规范 mask 验证
+跨平台 GlyphProvider；这些缺口不由 glyph 捕获已完成而自动视为通过。

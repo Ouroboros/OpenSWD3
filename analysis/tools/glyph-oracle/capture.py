@@ -13,10 +13,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 EXPECTED_EXE_SHA256 = (
-    "0bac897a7557735b22607d8c8f0a79a3e7ae7729deb56593fd91c21e10baee0c"
+    "78ddd0acf752dde32bbc4ea5a12256954878342899309c33516efd6dace0508a"
 )
 RUNTIME_FILES = (
-    "swd3.exe",
+    "swd3_nodvd.exe",
     "binkw32.dll",
     "Mss32.dll",
     "Mp3dec.asi",
@@ -60,7 +60,7 @@ def write_run_manifest(
         ("host_platform", platform.platform()),
         ("host_machine", platform.machine()),
         ("python_version", platform.python_version()),
-        ("python_encoding", locale.getencoding()),
+        ("python_encoding", locale.getpreferredencoding(False)),
         ("frida_version", frida_version),
         ("target_pid", process_id),
         ("agent_sha256", sha256_file(agent_path)),
@@ -101,12 +101,14 @@ def resolve_process_id(device, requested_process_id: int | None) -> int:
     matches = [
         process.pid
         for process in device.enumerate_processes()
-        if process.name.casefold() == "swd3.exe"
+        if process.name.casefold() == "swd3_nodvd.exe"
     ]
     if not matches:
-        raise RuntimeError("没有找到正在运行的 swd3.exe")
+        raise RuntimeError("没有找到正在运行的 swd3_nodvd.exe")
     if len(matches) != 1:
-        raise RuntimeError(f"找到 {len(matches)} 个 swd3.exe，请只保留一个")
+        raise RuntimeError(
+            f"找到 {len(matches)} 个 swd3_nodvd.exe，请只保留一个"
+        )
 
     return matches[0]
 
@@ -168,7 +170,11 @@ class CaptureWriter:
         with self._lock:
             self.capture_count += 1
             index = self.capture_count
-            key = str(payload["cache_key"]).removeprefix("0x").upper()
+            key = str(payload["cache_key"])
+            if key.startswith("0x"):
+                key = key[2:]
+
+            key = key.upper()
             file_name = (
                 f"glyph-{index:06d}-{width}x{height}-key-{key}.bin"
             )
@@ -199,7 +205,7 @@ class CaptureWriter:
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="捕获原版 swd3.exe 在 sub_4368D0 生成的字形 mask"
+        description="捕获 swd3_nodvd.exe 在 sub_4368D0 生成的字形 mask"
     )
     parser.add_argument("--game-dir", type=Path)
     parser.add_argument("--output", type=Path)
@@ -229,7 +235,7 @@ def main() -> int:
             raise RuntimeError("源码运行时必须传入 --game-dir")
 
         executable_directory = Path(sys.executable).resolve().parent
-        if (executable_directory / "swd3.exe").is_file():
+        if (executable_directory / "swd3_nodvd.exe").is_file():
             game_directory = executable_directory
         else:
             game_directory = executable_directory.parent
@@ -243,7 +249,7 @@ def main() -> int:
     else:
         output_directory = arguments.output.resolve()
 
-    executable = game_directory / "swd3.exe"
+    executable = game_directory / "swd3_nodvd.exe"
     agent_path = Path(__file__).with_name("agent.js")
     if not executable.is_file():
         raise RuntimeError(f"找不到原版 EXE：{executable}")
@@ -253,7 +259,7 @@ def main() -> int:
     actual_exe_sha256 = sha256_file(executable)
     if actual_exe_sha256 != EXPECTED_EXE_SHA256:
         raise RuntimeError(
-            "swd3.exe SHA-256 不匹配："
+            "swd3_nodvd.exe SHA-256 不匹配："
             f"{actual_exe_sha256} != {EXPECTED_EXE_SHA256}"
         )
 

@@ -1,6 +1,6 @@
 # 原版 glyph-mask 捕获
 
-本工具只捕获原版 `swd3.exe` 在 `sub_4368D0` 返回时已经生成的 1-bit
+本工具只捕获 `swd3_nodvd.exe` 在 `sub_4368D0` 返回时已经生成的 1-bit
 字形 mask，不修改磁盘上的 EXE，不替换游戏逻辑，也不自动操作游戏界面。
 
 完整 LST 固定的捕获边界为：
@@ -23,7 +23,7 @@
 启动界面，再双击目录内的 `glyph-oracle.exe`。工具会：
 
 - 以便携目录的父目录作为游戏目录；
-- 自动查找唯一的 `swd3.exe` PID；
+- 自动查找唯一的 `swd3_nodvd.exe` PID；
 - 校验原版 EXE 后 attach；
 - 自动建立 `glyph-oracle-output\run-*` 输出目录。
 
@@ -42,7 +42,7 @@ py -3 -m pip install frida==16.5.1
 手动运行原版，停留在启动界面，不要先进入游戏。然后在 Windows CMD 查询：
 
 ```bat
-tasklist /FI "IMAGENAME eq swd3.exe" /FO LIST
+tasklist /FI "IMAGENAME eq swd3_nodvd.exe" /FO LIST
 ```
 
 记下输出中的 PID。下面用 `12345` 作为示例。
@@ -108,3 +108,11 @@ masks/
 `run.tsv` 保存 EXE、DLL、`Env.dat`、Frida agent 和候选細明體字体文件的哈希；
 `glyph-masks.tsv` 保存每次 miss 的 renderer、原始字节、尺寸、mask 文件及
 SHA-256。收到目录后，再做尺寸覆盖审计、mask 可视化和跨平台 provider 差分。
+
+## 8. 已归档样本
+
+两次实际捕获已归档到
+`analysis/04-reverse-engineering/artifacts/glyph-oracle/win-modern-20260808/`。
+规范运行包含 `12x12=17`、`16x16=95`、`20x20=68` 共 180 个 mask；另一
+运行与其重叠的 39 个字形逐字节一致。完整性与重复性由
+`analysis/tools/verify_glyph_oracle_capture.py` 校验。
