@@ -74,6 +74,8 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 - [`pixel-format-selection-and-cm-cache.md`](../evidence/pixel-format-selection-and-cm-cache.md)
 - [`software-blitter-dispatch-and-pixel-effects.md`](../evidence/software-blitter-dispatch-and-pixel-effects.md)
 - [`font-surface-and-glyph-rendering.md`](../evidence/font-surface-and-glyph-rendering.md)
+- [`legacy-rectangle-effect-0043b110.md`](../evidence/legacy-rectangle-effect-0043b110.md)
+- [`legacy-tiled-frame-and-effect-panel-0042e850-0043bab0.md`](../evidence/legacy-tiled-frame-and-effect-panel-0042e850-0043bab0.md)
 - [`presentation-lifecycle.md`](../evidence/presentation-lifecycle.md)
 - [`p4-dynamic-oracle-capture-protocol.md`](../evidence/p4-dynamic-oracle-capture-protocol.md)
 - [`Windows glyph-mask 动态基准`](../artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/README.md)
@@ -86,7 +88,7 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 4. `[x]` B4.4：43 个稀疏槽、普通裁剪、四条 raw/RLE copy、异常边界与真实 TSW 固定帧已闭环；Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过。
 5. `[x]` B4.5：全部正常资产可达的已赋值 blitter 已按效果族实现；最后闭环的 RLE `0x0C..0x0F` 保留纵向 10.10 行选择、逐行横移、`top_clip+1` 首行丢弃、目标 `y+1`、零目标高度的跨调用放大状态和正反 phase 不对称，真实 `all_sys.tsw` 哈希通过。RLE `0x08/0x09` 已证明当前 TSW/ACT 资产链不可达，强制异常状态保留显式安全边界；raw `0x88` 已实现。Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过，原程序 framebuffer 差分仍为 `blocked_runtime_oracle`。
 6. `[x]` B4.6：唯一动态基准、受控 GDI 生成器、32,896-key 正式 atlas、跨平台 Provider、EXE 旁资源部署和运行时校验已闭环；独立验证为 `157/157` 零差异，Linux `core` 47/47、Windows `app` 49/49 CTest 通过。
-7. `[>]` B4.7：恢复画面动作/effect 更新和原分支 present 请求。
+7. `[>]` B4.7：`sub_43B110` 六模式矩形效果、`sub_42E850` 九宫格绘制和 `sub_43BAB0` 效果面板组合已按完整 LST 实现并逐基本块复核；Linux `core` 50/50、Windows `app` 52/52 CTest 通过，下一单元继续原分支 present 请求。
 8. `[ ]` B4.8：接入 SDL3 上传、恢复生命周期与 framebuffer 哈希回放。
 
 每项达到自己的汇编、UT 和资产门后立即进入下一项，不等待 B4 全部细节重新调研。

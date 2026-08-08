@@ -729,6 +729,60 @@ add_test(
 )
 
 add_executable(
+    openswd3_rendering_legacy_rectangle_effect_tests
+    unit/rendering/legacy_rectangle_effect_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_rectangle_effect_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_rectangle_effect_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_rectangle_effect
+    COMMAND openswd3_rendering_legacy_rectangle_effect_tests
+)
+
+add_executable(
+    openswd3_rendering_legacy_tiled_frame_tests
+    unit/rendering/legacy_tiled_frame_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_tiled_frame_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_tiled_frame_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_tiled_frame
+    COMMAND openswd3_rendering_legacy_tiled_frame_tests
+)
+
+add_executable(
+    openswd3_rendering_legacy_effect_panel_tests
+    unit/rendering/legacy_effect_panel_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_effect_panel_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_effect_panel_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_effect_panel
+    COMMAND openswd3_rendering_legacy_effect_panel_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_glyph_cache_tests
     unit/rendering/legacy_glyph_cache_test.cpp
 )
