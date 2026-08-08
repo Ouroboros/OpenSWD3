@@ -1,6 +1,6 @@
 # P4 原程序动态 oracle 捕获协议
 
-状态：静态捕获点、产物合同和当前运行环境能力已闭环；实际原程序动态样本尚未捕获，不能标记为已验证结果。
+状态：静态捕获点、产物合同和 glyph-mask Frida 捕获工具已建立；实际原程序动态样本尚未捕获，不能标记为已验证结果。
 
 ## 原则
 
@@ -16,15 +16,15 @@
 
 ## 当前环境结论
 
-2026-08-02 对当前工作区做了只读能力盘点：
+2026-08-08 对当前工作区和可交付捕获路径复核：
 
 - 没有可执行的 Wine/Wine64/WineDbg；
-- 没有可执行的 GDB/LLDB 或 Windows 调试器；
 - 没有既有 BMP/PNG/log 动态捕获产物；
 - 原 EXE、`binkw32.dll`、Miles DLL/ASI、当前 `Env.dat` 和视频资产齐全；
 - `swd3.exe` 是固定 `ImageBase=0x00400000` 的 PE32，COFF 标记 relocations stripped，Base Relocation Directory 为空，`DllCharacteristics=0`。
+- `analysis/tools/glyph-oracle/` 已提供 Windows Frida host 与 agent；Python/JavaScript 语法、拒绝未确认启动和 Windows 路径说明已静态验证，尚未用原版做动态验证。
 
-所以本工作区现在能完成捕获规格和静态探针复核，却不能诚实地产出“原程序已经运行得到”的像素、字形或时钟样本。实际捕获需要一套可运行原 EXE 的 32 位 Windows/旧系统 VM 或另行提供的 Windows 调试执行后端。缺少执行后端不阻止后续静态逆向继续进行。
+glyph-mask 捕获现由用户在 Windows 上执行，Codex 不自行启动原版。用户明确执行后，Frida 在进程恢复前安装 hook，用户正常操作游戏，host 把每次 cache miss 的 mask 写入仓库分类目录。旧参考环境的 framebuffer、DirectDraw 与时钟样本仍需要对应的可运行环境和探针；缺少这些样本不阻止后续静态逆向继续进行。
 
 固定地址和运行文件哈希见 `../inventory/p4-oracle-runtime-baseline.tsv`。生成器同时解析 PE 头验证无重定位/无动态基址条件，因此表中地址可以直接用作该 EXE 版本的调试断点。
 
@@ -126,6 +126,14 @@ row bytes = [renderer+0x1C]
 
 在唯一返回点 `0x00436974` 前保存 `height×row_bytes` 字节。mask 是 MSB-first；每个 GDI 临时像素只判断是否为零，不保留灰度。
 
+当前捕获实现为：
+
+- `analysis/tools/glyph-oracle/agent.js`：校验 IA-32、固定 image base 和两个 LST 指令字节，在 `0x004368D0` 用 `Interceptor` 保存入口参数，并在 `onLeave` 发送最终 mask；
+- `analysis/tools/glyph-oracle/capture.py`：锁定原 EXE SHA-256，使用 Frida spawn→attach→load→resume 顺序，接收二进制并生成 `run.tsv`、`glyph-masks.tsv` 与 `masks/*.bin`；
+- `analysis/tools/glyph-oracle/README.md`：给出用户执行命令、首轮操作路径和完整回传目录。
+
+host 必须显式收到 `--confirm-run-original` 才会启动原版；工具不点击界面、不注入输入。当前只证明捕获代码和格式已经静态建立，未取得用户执行结果前不得把它标记为动态验证通过。
+
 首轮至少覆盖：
 
 - 三个 renderer size 20/16/12；
@@ -210,5 +218,6 @@ O5/O6 的强制输入/时钟是研究回放，不是修改正式游戏。强制�
 - 产物合同：`../inventory/p4-oracle-artifacts.tsv`
 - 固定运行基线：`../inventory/p4-oracle-runtime-baseline.tsv`
 - 哈希/地址/PE 校验生成器：`../../tools/build_p4_oracle_inventory.py`
+- glyph-mask Frida 工具：`../../tools/glyph-oracle/`
 
-当前缺口只有实际执行所得样本和宿主 manifest。当前目录尚无任何伪造占位的 `.bin/.bmp/.tsv` 动态结果；在取得可运行旧 EXE 的 Windows 后端之前，P4 动态验证保持待完成。
+当前缺口是用户实际执行所得的 glyph-mask 目录，以及 framebuffer、DirectDraw 和时间探针的真实样本。当前目录没有伪造占位的 `.bin/.bmp/.tsv` 动态结果；收到用户回传产物并完成哈希、尺寸和逐字节审计之前，P4 动态验证保持待完成。
