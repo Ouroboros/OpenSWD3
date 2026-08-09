@@ -49,7 +49,7 @@ public:
     virtual void initialize_audio_output(std::string_view legacy_base_path) = 0;
     [[nodiscard]] virtual BackendToken query_audio_driver() = 0;
     virtual void initialize_midi_output(BackendToken driver) = 0;
-    virtual void initialize_audio_sequence_nodes(BackendToken driver) = 0;
+    virtual void initialize_audio_stream_nodes(BackendToken driver) = 0;
 
     [[nodiscard]] virtual bool initialize_display_backend(
         DisplayInitializationRequest request

@@ -17,7 +17,7 @@ enum class Call {
     audio_output,
     query_driver,
     midi,
-    sequence_nodes,
+    stream_nodes,
     display,
     report_display,
     source_surface,
@@ -67,11 +67,11 @@ public:
         midi_driver = driver;
     }
 
-    void initialize_audio_sequence_nodes(
+    void initialize_audio_stream_nodes(
         const openswd3::app::BackendToken driver
     ) override {
-        calls.push_back(Call::sequence_nodes);
-        sequence_driver = driver;
+        calls.push_back(Call::stream_nodes);
+        stream_driver = driver;
     }
 
     bool initialize_display_backend(
@@ -129,7 +129,7 @@ public:
     openswd3::compat::u32 input_flags_when_reported{};
     openswd3::compat::u32 process_flags_when_reported{};
     openswd3::app::BackendToken midi_driver{};
-    openswd3::app::BackendToken sequence_driver{};
+    openswd3::app::BackendToken stream_driver{};
     openswd3::app::DisplayInitializationRequest display_request{};
     openswd3::compat::u32 source_width{};
     openswd3::compat::u32 source_height{};
@@ -159,7 +159,7 @@ void test_success(openswd3::test::Context& test) {
         Call::query_driver,
         Call::midi,
         Call::query_driver,
-        Call::sequence_nodes,
+        Call::stream_nodes,
         Call::display,
         Call::source_surface,
         Call::query_driver,
@@ -175,7 +175,11 @@ void test_success(openswd3::test::Context& test) {
     test.expect_equal(ports.second_path, std::string_view{"legacy-root"}, "audio output path");
     test.expect_equal(ports.driver_query_count, std::size_t{3}, "driver is queried three times");
     test.expect_equal(ports.midi_driver, 11U, "first driver query feeds MIDI");
-    test.expect_equal(ports.sequence_driver, 22U, "second driver query feeds sequence nodes");
+    test.expect_equal(
+        ports.stream_driver,
+        22U,
+        "second driver query feeds stream nodes"
+    );
     test.expect_equal(
         ports.display_request,
         openswd3::app::DisplayInitializationRequest{0x4E22U, 640U, 480U, 16U},
@@ -226,7 +230,7 @@ void test_display_failure(openswd3::test::Context& test) {
         Call::query_driver,
         Call::midi,
         Call::query_driver,
-        Call::sequence_nodes,
+        Call::stream_nodes,
         Call::display,
         Call::report_display,
         Call::destroy,

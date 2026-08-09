@@ -18,7 +18,7 @@ bool run_platform_backend_initialization(
     ports.start_audio_runtime(legacy_base_path);
     ports.initialize_audio_output(legacy_base_path);
     ports.initialize_midi_output(ports.query_audio_driver());
-    ports.initialize_audio_sequence_nodes(ports.query_audio_driver());
+    ports.initialize_audio_stream_nodes(ports.query_audio_driver());
 
     const DisplayInitializationRequest request{
         kLegacyDisplayMode,

@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B5.8 stream 平台输出与生命周期接线
+当前单元：B5.9 sequence/queue 与公共音频协调
 
 ## 1. 范围与移交
 
@@ -89,8 +89,9 @@ sequence、sample。文件/提示忙等中的 `AIL_serve` 映射到同一个显�
 
 新依赖方向固定为：`audio_video` 依赖 `compat` 与 `resource_io` 的只读文件接口；
 framebuffer/present、时钟/让出和生命周期都通过调用端口注入。SDL3 只负责最终音频
-设备输出；具体音频/视频解码器通过独立端口接入，不把 Miles/Bink 或 SDL 类型放入
-兼容核心。
+设备输出；MP3、Bink 容器、视频、压缩音频、重采样和像素转换最终统一封装在一个基于
+FFmpeg 的动态媒体适配库中。主程序和兼容核心只依赖既定 stream/video 端口，不直接
+暴露 FFmpeg、Miles、Bink 或 SDL 类型。
 
 ## 4. 验证入口与开始条件
 
@@ -108,9 +109,9 @@ framebuffer/present、时钟/让出和生命周期都通过调用端口注入。
 
 73 个 B5 地址、跨模块接口、状态 owner、启动/帧/停用/退出顺序、首批 UT 边界和真实
 资产入口已经固定，达到单模块开始条件。sample 参数、SND、manager、输出 backend 和
-游戏侧 sample wrapper、stream manager 与剩余 stream wrapper 已逐层完成；当前接入
-stream 平台解码输出和启动/帧/停用/退出生命周期，不等待 sequence 与 Bink backend
-一次性调研完毕。
+游戏侧 sample wrapper、stream manager、剩余 stream wrapper 与 stream 生命周期接线
+已逐层完成；当前恢复 sequence/queue 与公共音频协调，不等待 FFmpeg 动态媒体适配库
+和 Bink backend 一次性完成。
 
 ## 5. 已有证据
 
@@ -154,5 +155,14 @@ stream 平台解码输出和启动/帧/停用/退出生命周期，不等待 seq
    两节点 active/free 链表、fixed-point fade、status 2 双写零、4/8/16 保留、默认
    status 级联回收缺陷和过渡 mode 返回。Linux `core` 71/71、Linux/Windows `app`
    75/75 CTest 通过。
-8. `[>]` B5.8：实现 stream 平台解码输出，并把 manager 接入第二次 driver 查询、公共
-   音频维护、显示停用和退出生命周期；不扩展 sequence 或 Bink。
+8. `[x]` B5.8：第二次 driver 查询已接入 stream manager；窗口事件、显示停用和普通
+   idle 的公共音频维护均固定为 stream→sample，显示停用与总退出按原顺序执行 stream
+   fade、sample stop，最终退出回收两个 manager。压缩 stream 使用明确的未接入后端，
+   不引入一次性 MP3 解码器；Linux/Windows `app` 75/75 CTest 通过。
+9. `[ ]` B5.video-TODO：当前只保留既定 open/wait/decode/copy/advance/service/close
+   视频端口和活动状态迁移；暂不实现 Bink 解码，播放请求先通过可替换占位后端立即完成，
+   不阻塞进入游戏。现有 12 份视频资产均为 Bink 1 `BIKh/BIKi`；后续由统一 FFmpeg
+   动态媒体适配库提供 Bink video、Bink audio 与容器解复用，不自行实现编解码器，再以
+   framebuffer/audio 时序和原版动态 oracle 验收。
+10. `[>]` B5.9：恢复 sequence/queue manager，并接入公共音频协调顺序；不提前实现
+    FFmpeg 动态媒体适配库。
