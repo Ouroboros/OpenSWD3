@@ -1,8 +1,8 @@
 # asset_runtime 工作包
 
-最后更新：2026-08-09
+最后更新：2026-08-10
 
-状态：B6 单模块开始条件已满足；TSW、ACT、通用动作记录与 ANI 活动主时间线已实现
+状态：B6 单模块开始条件已满足；TSW、ACT、通用动作记录、ANI 主时间线与变形节点已实现
 
 唯一行为真值：`swd3.exe.lst`。IDA 名称和伪码只用于定位。
 
@@ -13,10 +13,12 @@
 
 | 地址集合 | 数量 | 当前职责 |
 |---|---:|---|
-| `0x00401190`、`0x0040AD10`、`0x0040DC00`、`0x0040EBF0`、`0x0040EC80`、`0x0040ECC0` | 6 | 公共动作记录初始化及跨模块查询/绘制适配 |
+| `0x00401190` | 1 | 全局 framebuffer 变形链哨兵初始化 |
+| `0x0040AD10`、`0x0040DC00`、`0x0040EBF0`、`0x0040EC80`、`0x0040ECC0` | 5 | 公共动作记录初始化及跨模块查询/绘制适配 |
 | `0x004154A0..0x00416CC0` 的 11 个自有入口 | 11 | ANI 活动对象、帧链、调色板、span 提交和相关动作记录 |
 | `0x00424330` | 1 | TSW/ACT 缓存容量发布策略 |
-| `0x00430C60..0x004311C0` 的 9 个入口 | 9 | 资产命令流使用的公共数值/缓冲变换 |
+| `0x00430C60..0x0043114C` 的 7 个入口 | 7 | 双工作场 framebuffer 变形节点的建立、采样、推进和注入 |
+| `0x00431150`、`0x004311C0` | 2 | 调试中断与 DirectDraw 失败报告平台边界 |
 | `0x004315C0..0x00431F80` 的 11 个入口 | 11 | 六包 TSW 延迟打开、帧查询、缓存命中/装载/淘汰与关闭 |
 | `0x00432010..0x00433220` 的 16 个入口 | 16 | 六包 ACT 延迟打开、两级缓存、变体切片和 `0x98` 动作更新器 |
 | `0x00433270..0x00433BF0` 的 9 个入口 | 9 | TSW/ACT 物理文件对象与帧主流装载边界 |
@@ -58,6 +60,14 @@
 - 一基帧号、首次载荷排除尾 12 字节、缓存重读包含尾 12 字节、零载荷保持帧及声明
   span 数停止线都保留。
 
+### framebuffer 变形节点
+
+- 节点拥有两个连续 `i16` 工作场与一份完整 16 位 framebuffer 快照；剧情、世界和战斗
+  只借用节点方法，不拥有这些存储。
+- `0x004AC990 + 0x28` 就是链头 `0x004AC9B8`。重写的 `1×1` 哨兵直接拥有首节点，
+  不复制成两个可能失同步的全局变量。
+- 径向注入的负坐标分支借用 B3 的 CRT RNG，调用次数和先 x 后 y 的顺序固定。
+
 ### SND 借用边界
 
 SND 的 3000 项索引、载荷 buffer、引用计数和播放生命周期已经由 `audio_video` 持有。
@@ -70,14 +80,16 @@ sample buffer，也不建立第二套 SND cache。后期 `libffmpeg` 同样不�
 
 ```text
 resource_io/file/decompress  → asset_runtime owned storage
+input_time_rng CRT rand       → deformation injection
 runtime_platform memory port → cache-limit policy
 asset_runtime borrowed view  → rendering/world/story/special/battle
 asset_runtime sound request  → audio_video port
 ```
 
-启动时先发布缓存上限；TSW/ACT 六包仍按首次查询延迟打开。场景或剧情建立 ANI 活动对象，
-每帧由 owner 推进，结束时释放。通用动作记录随父对象建立和销毁；记录本身不得释放借用的
-ACT 缓存流。总退出按 owner 顺序先停止消费者，再关闭 ANI、清 ACT/TSW 节点和文件。
+静态初始化先建立 `1×1` 变形链哨兵。启动时发布缓存上限；TSW/ACT 六包仍按首次查询
+延迟打开。场景或剧情建立 ANI 活动对象，每帧由 owner 推进，结束时释放。通用动作记录随
+父对象建立和销毁；记录本身不得释放借用的 ACT 缓存流。总退出按 owner 顺序先停止
+消费者，再清变形节点、关闭 ANI、清 ACT/TSW 节点和文件。
 
 ## 4. 实施顺序
 
@@ -100,9 +112,12 @@ ACT 缓存流。总退出按 owner 顺序先停止消费者，再关闭 ANI、�
    RGB 调色板、零载荷保持和 span 写入已实现；19 个真实文件的 5,312 帧、
    6,057,767 个 span、178,426,082 个索引像素及每文件首帧哈希通过。
    `0x004154A0` 的冻结快照、`-13` 揭幕、逐帧推进、两种结束阈值、释放顺序和三个
-   外部端口已实现。Linux `core` 88/88、Windows LLVM `app` 92/92 CTest 通过；
-   当前继续收口 ANI 组剩余自有入口。
-6. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
+   外部端口已实现；`0x00416CC0` 的逐节点 framebuffer 快照、变形、推进、完成摘链和
+   继续遍历也已闭环。当前继续收口 ANI 组剩余 7 个自有入口。
+6. `[x]` `0x00430C60..0x0043114C`：`0x2C` 变形节点、双 `i16` 工作场、固定场 0
+   warp、跨行 carry 更新、16 位衰减、径向注入、CRT 随机坐标与哨兵链表调度已实现。
+   Linux `core` 89/89、Windows LLVM `app` 93/93 CTest 通过。
+7. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
 
 只有当前一项占执行位。每一项达到可独立验证边界就实现，不等待后面各项全部逆向。
 
@@ -115,6 +130,8 @@ ACT 缓存流。总退出按 owner 顺序先停止消费者，再关闭 ANI、�
 - ANI：19 个真实文件、5,312 帧、首次/重读返回差异、6,057,767 span 和拼接哈希。
 - 动作记录：固定字节快照、fake ACT stream、跨帧等待、重置保留字段、全部命令小组，
   以及六个真实 ACT 包的更新器集成测试。
+- 变形节点：字段/容量、原点上界、成对 warp、30-word 跨行 carry 固定向量、径向注入、
+  CRT 随机坐标、哨兵头插以及完成/保留两种摘链路径。
 - 原程序差分：需要时准备 Frida spawn 工具，由用户运行；OpenSWD3 不自行启动原 EXE。
 
 当前不需要新的原程序动态捕获即可开始缓存策略、TSW/ACT 有效资产路径和动作状态机实现。
@@ -131,4 +148,5 @@ ACT 缓存流。总退出按 owner 顺序先停止消费者，再关闭 ANI、�
 - [`action-object-families.md`](../evidence/action-object-families.md)
 - [`action-external-consumers.md`](../evidence/action-external-consumers.md)
 - [`ani-container-and-lzo-boundary.md`](../evidence/ani-container-and-lzo-boundary.md)
+- [`frame-deformation-00430c60.md`](../evidence/frame-deformation-00430c60.md)
 - [`legacy-snd-runtime-004862b0-00486490.md`](../evidence/legacy-snd-runtime-004862b0-00486490.md)
