@@ -6,8 +6,10 @@ add_library(
         legacy_cm_cache_runtime.cpp
         legacy_movement_collision.cpp
         legacy_role_spatial_query.cpp
+        legacy_world_direction_input.cpp
         legacy_world_map_business.cpp
         legacy_world_map_session.cpp
+        legacy_world_player_motion.cpp
 )
 target_include_directories(
     openswd3_world_map
@@ -20,6 +22,7 @@ target_link_libraries(
     PUBLIC
         openswd3_asset_runtime
         openswd3_compat
+        openswd3_input_time_rng
         openswd3_project_options
         openswd3_project_warnings
         openswd3_rendering
