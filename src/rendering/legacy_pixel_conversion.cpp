@@ -1,5 +1,6 @@
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 
+#include <array>
 #include <bit>
 
 namespace openswd3::rendering {
@@ -135,6 +136,23 @@ void legacy_convert_pixels_reverse(
     const compat::i32 pixel_count
 ) noexcept {
     apply_legacy_pixel_transform(state.reverse, pixels, pixel_count);
+}
+
+compat::u32 legacy_pack_color_pair(
+    const LegacyPixelConversionState& state,
+    const compat::i32 red,
+    const compat::i32 green,
+    const compat::i32 blue
+) noexcept {
+    const compat::u16 rgb555 = static_cast<compat::u16>(
+        ((std::bit_cast<compat::u32>(red) & 0x1FU) << 10U) |
+        ((std::bit_cast<compat::u32>(green) & 0x1FU) << 5U) |
+        (std::bit_cast<compat::u32>(blue) & 0x1FU)
+    );
+    std::array<compat::u16, 2> pixels{rgb555, rgb555};
+    legacy_convert_pixels_forward(state, pixels.data(), 2);
+    return static_cast<compat::u32>(pixels[0]) |
+        (static_cast<compat::u32>(pixels[1]) << 16U);
 }
 
 }  // namespace openswd3::rendering

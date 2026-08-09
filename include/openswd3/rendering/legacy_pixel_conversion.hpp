@@ -51,4 +51,13 @@ void legacy_convert_pixels_reverse(
     compat::i32 pixel_count
 ) noexcept;
 
+// Mirrors sub_4239D0: compose a low-five-bit RGB555 color, duplicate it into
+// two 16-bit lanes, then run the currently selected forward conversion.
+[[nodiscard]] compat::u32 legacy_pack_color_pair(
+    const LegacyPixelConversionState& state,
+    compat::i32 red,
+    compat::i32 green,
+    compat::i32 blue
+) noexcept;
+
 }  // namespace openswd3::rendering

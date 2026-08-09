@@ -1,6 +1,5 @@
 #include "openswd3/rendering/legacy_rectangle_effect.hpp"
 
-#include <array>
 #include <bit>
 #include <cstddef>
 #include <span>
@@ -133,23 +132,6 @@ struct ClippedRectangle {
         shift_count
     );
     return lane | (lane << 16U);
-}
-
-[[nodiscard]] u32 packed_effect_color(
-    const LegacyPixelConversionState& format,
-    const i32 red,
-    const i32 green,
-    const i32 blue
-) noexcept {
-    const u16 rgb555 = static_cast<u16>(
-        ((to_bits(red) & 0x1FU) << 10U) |
-        ((to_bits(green) & 0x1FU) << 5U) |
-        (to_bits(blue) & 0x1FU)
-    );
-    std::array<u16, 2> pixels{rgb555, rgb555};
-    legacy_convert_pixels_forward(format, pixels.data(), 2);
-    return static_cast<u32>(pixels[0]) |
-        (static_cast<u32>(pixels[1]) << 16U);
 }
 
 [[nodiscard]] constexpr u32 read_pair(
@@ -310,7 +292,7 @@ LegacyRectangleEffectStatus apply_legacy_rectangle_effect(
         return LegacyRectangleEffectStatus::clipped_out;
     }
 
-    const u32 color = packed_effect_color(
+    const u32 color = legacy_pack_color_pair(
         format,
         request.red,
         request.green,

@@ -3,6 +3,7 @@ add_library(
     legacy_blitter.cpp
     legacy_bmp_writer.cpp
     legacy_effect_panel.cpp
+    legacy_formatted_text.cpp
     legacy_framebuffer.cpp
     legacy_glyph_atlas.cpp
     legacy_glyph_cache.cpp

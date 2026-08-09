@@ -279,6 +279,30 @@ void test_selector_state(openswd3::test::Context& test) {
     );
 }
 
+void test_color_pair_packing(openswd3::test::Context& test) {
+    LegacyPixelConversionState state;
+    test.expect_equal(
+        openswd3::rendering::legacy_pack_color_pair(state, 25, 23, 17),
+        0x66F166F1U,
+        "sub_4239D0 RGB555 pair"
+    );
+    test.expect_equal(
+        openswd3::rendering::legacy_pack_color_pair(state, -1, 32, 33),
+        0x7C017C01U,
+        "sub_4239D0 masks every input to five bits"
+    );
+
+    openswd3::rendering::select_legacy_pixel_conversion(
+        state,
+        LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU}
+    );
+    test.expect_equal(
+        openswd3::rendering::legacy_pack_color_pair(state, 25, 23, 17),
+        0xCDD1CDD1U,
+        "sub_4239D0 applies the selected forward conversion to both lanes"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -286,5 +310,6 @@ int main() {
     test_all_pixel_values(test);
     test_nonpositive_count_bug(test);
     test_selector_state(test);
+    test_color_pair_packing(test);
     return test.exit_code();
 }
