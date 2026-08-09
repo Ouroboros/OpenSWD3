@@ -3,6 +3,7 @@ add_library(
     legacy_blitter.cpp
     legacy_bmp_writer.cpp
     legacy_countdown.cpp
+    legacy_drawing_helpers.cpp
     legacy_effect_panel.cpp
     legacy_formatted_text.cpp
     legacy_framebuffer.cpp

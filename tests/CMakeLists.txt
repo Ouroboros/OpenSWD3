@@ -738,6 +738,24 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
 endif()
 
 add_executable(
+    openswd3_rendering_legacy_drawing_helpers_tests
+    unit/rendering/legacy_drawing_helpers_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_drawing_helpers_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_drawing_helpers_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_drawing_helpers
+    COMMAND openswd3_rendering_legacy_drawing_helpers_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_framebuffer_tests
     unit/rendering/legacy_framebuffer_test.cpp
 )

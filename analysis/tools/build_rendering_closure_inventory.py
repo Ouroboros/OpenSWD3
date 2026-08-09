@@ -47,10 +47,12 @@ IMPLEMENTED_STREAM_CONVERSION = {
     0x00401C70,
     0x00401E50,
 }
-PENDING_STANDALONE_HELPERS = {
+IMPLEMENTED_DRAWING_HELPERS = {
     0x0040DE50,
     0x0040E080,
     0x004117F0,
+}
+PENDING_STANDALONE_HELPERS = {
     0x00417050,
     0x004174D0,
     0x00417530,
@@ -228,6 +230,14 @@ def policy_for(address: int) -> Policy:
             "rendering",
             "legacy image command-stream encode/decode/pixel-conversion family",
             "legacy-image-command-stream-004014f0-00401e50.md",
+            "none",
+        )
+    if address in IMPLEMENTED_DRAWING_HELPERS:
+        return Policy(
+            "implemented",
+            "rendering",
+            "legacy animated border/thumbnail/decorated-number helpers",
+            "legacy-drawing-helpers-0040de50-004117f0.md",
             "none",
         )
     if address in PENDING_STANDALONE_HELPERS:
