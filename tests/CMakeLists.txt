@@ -1698,6 +1698,45 @@ add_test(
     NAME asset_runtime.legacy_action_record
     COMMAND openswd3_asset_runtime_legacy_action_record_tests
 )
+
+add_executable(
+    openswd3_asset_runtime_legacy_action_draw_bridge_tests
+    unit/asset_runtime/legacy_action_draw_bridge_test.cpp
+)
+target_include_directories(
+    openswd3_asset_runtime_legacy_action_draw_bridge_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_asset_runtime_legacy_action_draw_bridge_tests
+    PRIVATE openswd3_asset_runtime
+)
+
+add_test(
+    NAME asset_runtime.legacy_action_draw_bridge
+    COMMAND openswd3_asset_runtime_legacy_action_draw_bridge_tests
+)
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.tsw"
+)
+    add_test(
+        NAME asset_runtime.legacy_action_draw_bridge_real
+        COMMAND
+            openswd3_asset_runtime_legacy_action_draw_bridge_tests
+            "${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
 if(
     EXISTS "${PROJECT_SOURCE_DIR}/../all_char.act" AND
     EXISTS "${PROJECT_SOURCE_DIR}/../all_item.act" AND

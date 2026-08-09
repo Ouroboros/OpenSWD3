@@ -2,32 +2,31 @@
 
 最后更新：2026-08-10
 
-状态：B6 单模块开始条件已满足；TSW、ACT、通用动作记录与 ANI 已按行为单元持续闭环
+状态：B6 已完成有限收口；59 个自有地址均有实现/端口映射，进入 B7
 
 唯一行为真值：`swd3.exe.lst`。IDA 名称和伪码只用于定位。
 
 ## 1. 范围与停止线
 
-总所有权表中 `code_origin=game` 且 `module_candidate=asset_runtime` 的 78 个地址是 B6
-当前有限范围。它们按地址和已经确认的数据流形成以下工作分组：
+早期按地址簇得到的 78 个候选已经逐项核对完整汇编和调用者。19 个机械误归属已转交
+真实 owner，B6 的最终有限范围为 59 个地址：
 
 | 地址集合 | 数量 | 当前职责 |
 |---|---:|---|
 | `0x00401190` | 1 | 全局 framebuffer 变形链哨兵初始化 |
-| `0x0040AD10`、`0x0040DC00`、`0x0040EBF0`、`0x0040EC80`、`0x0040ECC0` | 5 | 公共动作记录初始化及跨模块查询/绘制适配 |
+| `0x0040DC00`、`0x0040EBF0`、`0x0040EC80`、`0x0040ECC0` | 4 | 公共动作记录初始化及跨模块查询/绘制适配 |
 | `0x004154A0..0x00416CC0` 的 11 个自有入口 | 11 | ANI 活动对象、帧链、调色板、span 提交和相关动作记录 |
 | `0x00424330` | 1 | TSW/ACT 缓存容量发布策略 |
 | `0x00430C60..0x0043114C` 的 7 个入口 | 7 | 双工作场 framebuffer 变形节点的建立、采样、推进和注入 |
-| `0x00431150`、`0x004311C0` | 2 | 调试中断与 DirectDraw 失败报告平台边界 |
 | `0x004315C0..0x00431F80` 的 11 个入口 | 11 | 六包 TSW 延迟打开、帧查询、缓存命中/装载/淘汰与关闭 |
 | `0x00432010..0x00433220` 的 16 个入口 | 16 | 六包 ACT 延迟打开、两级缓存、变体切片和 `0x98` 动作更新器 |
-| `0x00433270..0x00433BF0` 的 9 个入口 | 9 | TSW/ACT 物理文件对象与帧主流装载边界 |
-| `0x00433C40..0x004342E0` 的 9 个入口 | 9 | 资产视图建立、释放及调用侧桥接 |
-| `0x00434350..0x00434DD0` 的 5 个入口 | 5 | 动作/图像运行时的提交与复合处理 |
-| `0x004350E0` | 1 | 当前范围末端的公共资产 helper |
+| `0x00433270..0x00433BF0` 的 8 个入口 | 8 | TSW 物理文件对象、普通/特殊帧装载边界与特殊 loader 端口 |
 
-合计严格为 78。分组只决定实施顺序，不把尚未逐基本块闭环的 helper 提前命成最终
-玩法概念。实施中发现内部 helper 时仍留在本工作包，不扩大成新的总体调研阶段。
+合计严格为 59。原 78 候选中另有 19 项按汇编转交：`0x0040AD10` 给 `world_map`，
+`0x00431150/0x004311C0` 给 `runtime_platform`，`0x00433AA0` 和
+`0x00433C40..0x00434DD0` 的 14 项给 `battle`，`0x004350E0` 给 `rendering`。
+逐地址处置见 `asset-runtime-closure.tsv`，所有权依据见
+`asset-runtime-closure-audit.md`。
 
 不属于 B6 的内容：地图碰撞和寻路、剧情 opcode、特殊模式 owner、战斗状态机、音频
 设备与媒体解码、最终 SDL 呈现。它们只通过端口借用 B6 的视图或动作记录。
@@ -51,6 +50,17 @@
   初始化、三段键变化、选择性重置、游标、等待和 33 个命令字的更新语义。
 - 不用 C++ 整结构 value-initialize 替代汇编的局部清零，也不修复两参数命令的第二参数
   再分派行为。
+
+### 通用动作绘制桥
+
+- `0x0040EBF0` 先更新动作，再读取更新后的 TSW 键、偏移、完整 flags 和 opacity 字节；
+  目标坐标使用 32 位回绕减法。
+- `0x0040EC80` 不更新动作，两个四字节参数槽各截取低 16 位，按原坐标以零 flags/opacity
+  绘制。
+- `0x0040ECC0` 同样先更新动作，最终 flags 为调用者 flags 与更新后动作 flags 的
+  `0x80000003` 掩码结果按位或。
+- 三个入口统一映射到 `legacy_action_draw_bridge.cpp`；现代 TSW 失败隔离只保护非法宿主
+  边界，有效路径顺序不变，旧调用者忽略 blit 返回值的行为也保留。
 
 ### ANI
 
@@ -219,7 +229,12 @@ asset_runtime sound request  → audio_video port
     重置、service 5、同一概率值驱动范围内目标更新与范围外 variant 分桶、四向重生、
     ACT→TSW→blitter 和 `i32` 回绕已实现；真实 variant 0 framebuffer 哈希为
     `0xE216591950463029`，Linux `core` 100/100、Windows LLVM `app` 104/104 CTest 通过。
-14. `[>]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
+14. `[x]` `0x0040EBF0/0x0040EC80/0x0040ECC0` 公共动作绘制桥已实现；更新后字段读取、
+    32 位回绕坐标、低 16 位 TSW 键、flags 掩码和被忽略的 blit 错误均由 UT 固定。
+    原 78 地址候选完成逐项审计，59 项 B6 自有映射与 19 项跨模块转交记录在
+    `asset-runtime-closure.tsv`；真实 ACT→TSW→blitter 哈希为
+    `0xE216591950463029`，Linux `core` 102/102、Windows LLVM `app` 106/106
+    CTest 通过。B6 状态为 `module_closed_pending_oracle`，不再继续扩张。
 
 只有当前一项占执行位。每一项达到可独立验证边界就实现，不等待后面各项全部逆向。
 
@@ -256,6 +271,8 @@ asset_runtime sound request  → audio_video port
 - ANI 双槽方向状态：三组四槽物理布局、motion-only 重置、四初始化/二更新、包含边界、
   同 roll 概率与 variant 分桶、四向 RNG 顺序、无效方向、两套 flags、`i32` 回绕和
   blit 失败隔离；真实 variant 0 framebuffer 哈希 `0xE216591950463029`。
+- 通用动作绘制桥：更新成功/失败边界、更新后读取全部字段、32 位回绕减法、直接入口
+  低 16 位截断、`0x80000003` 掩码、TSW 失败隔离和 blit 诊断保留。
 - 原程序差分：需要时准备 Frida spawn 工具，由用户运行；OpenSWD3 不自行启动原 EXE。
 
 当前不需要新的原程序动态捕获即可开始缓存策略、TSW/ACT 有效资产路径和动作状态机实现。
@@ -281,3 +298,5 @@ asset_runtime sound request  → audio_video port
 - [`frame-deformation-00430c60.md`](../evidence/frame-deformation-00430c60.md)
 - [`ani-row-copy-effect-004163c0.md`](../evidence/ani-row-copy-effect-004163c0.md)
 - [`legacy-snd-runtime-004862b0-00486490.md`](../evidence/legacy-snd-runtime-004862b0-00486490.md)
+- [`asset-runtime-closure-audit.md`](../evidence/asset-runtime-closure-audit.md)
+- [`asset-runtime-closure.tsv`](../inventory/asset-runtime-closure.tsv)

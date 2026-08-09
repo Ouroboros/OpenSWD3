@@ -3,6 +3,7 @@ add_library(
     STATIC
         legacy_act_archive.cpp
         legacy_act_runtime.cpp
+        legacy_action_draw_bridge.cpp
         legacy_action_record.cpp
         legacy_ani_activity.cpp
         legacy_ani_archive.cpp

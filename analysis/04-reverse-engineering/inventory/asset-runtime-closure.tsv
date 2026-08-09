@@ -1,0 +1,79 @@
+address	closure_disposition	target_owner	implementation_mapping	evidence	remaining_work
+0x00401190	implemented	asset_runtime	LegacyDeformationList::LegacyDeformationList	frame-deformation-00430c60.md	original_diff
+0x0040AD10	transferred	world_map	current-map private directory and special TSW producer	asset-runtime-closure-audit.md	B7
+0x0040DC00	implemented	asset_runtime	initialize_legacy_action_record	action-field-state-machine.md	original_diff
+0x0040EBF0	implemented	asset_runtime	update_draw_legacy_action	asset-runtime-closure-audit.md	original_diff
+0x0040EC80	implemented	asset_runtime	draw_legacy_tsw_frame	asset-runtime-closure-audit.md	original_diff
+0x0040ECC0	implemented	asset_runtime	update_draw_legacy_action_with_flags	asset-runtime-closure-audit.md	original_diff
+0x004154A0	implemented	asset_runtime	LegacyAniActivity::update	ani-container-and-lzo-boundary.md	original_diff
+0x004157D0	implemented	asset_runtime	apply_legacy_ani_spans	ani-container-and-lzo-boundary.md	original_diff
+0x004158C0	implemented	asset_runtime	LegacyAniArchive::load_frame	ani-container-and-lzo-boundary.md	original_diff
+0x00415B70	implemented	asset_runtime	LegacyAniDirectionalEffect::update	ani-directional-effect-00415b70.md	original_diff
+0x00415EE0	implemented	asset_runtime	LegacyAniRoleParticleEffect::update	ani-role-particle-effect-00415ee0.md	original_diff
+0x004161C0	implemented	asset_runtime	LegacyAniDriftEffect::update	ani-drift-effect-004161c0.md	original_diff
+0x004163C0	implemented	asset_runtime	LegacyAniRowCopyEffect::update	ani-row-copy-effect-004163c0.md	original_diff
+0x00416590	implemented	asset_runtime	LegacyAniStreakEffect::update	ani-streak-effect-00416590.md	original_diff
+0x004167B0	implemented	asset_runtime	LegacyAniSparkEffect::update	ani-spark-effect-004167b0.md	original_diff
+0x00416B30	implemented	asset_runtime	update_draw_legacy_ani_follower	ani-follower-effect-00416b30.md	original_diff
+0x00416CC0	implemented	asset_runtime	LegacyDeformationList::update	frame-deformation-00430c60.md	original_diff
+0x00424330	implemented	asset_runtime	configure_legacy_asset_cache_limits	asset-cache-limits-00424330.md	original_diff
+0x00430C60	implemented	asset_runtime	LegacyDeformationNode::LegacyDeformationNode	frame-deformation-00430c60.md	original_diff
+0x00430CF0	implemented	asset_runtime	LegacyDeformationNode owned-storage destructor	frame-deformation-00430c60.md	original_diff
+0x00430D10	implemented	asset_runtime	LegacyDeformationNode::set_origin	frame-deformation-00430c60.md	original_diff
+0x00430D50	implemented	asset_runtime	LegacyDeformationNode::capture	frame-deformation-00430c60.md	original_diff
+0x00430D80	implemented	asset_runtime	LegacyDeformationNode::apply	frame-deformation-00430c60.md	original_diff
+0x00430EB0	implemented	asset_runtime	LegacyDeformationNode::advance	frame-deformation-00430c60.md	original_diff
+0x00430FF0	implemented	asset_runtime	LegacyDeformationNode::inject	frame-deformation-00430c60.md	original_diff
+0x00431150	transferred	runtime_platform	legacy diagnostic interruption adapter	asset-runtime-closure-audit.md	platform_adapter
+0x004311C0	transferred	runtime_platform	legacy DirectDraw HRESULT diagnostic adapter	asset-runtime-closure-audit.md	platform_adapter
+0x004315C0	implemented	asset_runtime	LegacyTswRuntime::set_cache_limit	asset-cache-limits-00424330.md	original_diff
+0x004315D0	implemented	asset_runtime	LegacyTswRuntime::query_cached	tsw-archive-format.md	original_diff
+0x00431760	implemented	asset_runtime	LegacyTswRuntime::load_direct	tsw-archive-format.md	original_diff
+0x00431960	implemented	asset_runtime	LegacyTswRuntime::close	tsw-archive-format.md	original_diff
+0x00431A20	implemented	asset_runtime	LegacyTswRuntime::find_cached	tsw-archive-format.md	original_diff
+0x00431A50	implemented_internal_optimization	asset_runtime	LegacyTswArchive indexed descriptor read	tsw-archive-format.md	original_diff
+0x00431AA0	implemented_internal_optimization	asset_runtime	LegacyTswArchive indexed descriptor read	tsw-archive-format.md	original_diff
+0x00431C50	implemented	asset_runtime	LegacyTswRuntime::query_cached ordinary-resource path	tsw-archive-format.md	original_diff
+0x00431DF0	implemented	asset_runtime	LegacyTswRuntime::find_low16	tsw-archive-format.md	original_diff
+0x00431EA0	implemented	asset_runtime	LegacyTswRuntime::evict_before_lookup	tsw-archive-format.md	original_diff
+0x00431F80	implemented	asset_runtime	LegacyTswRuntime::clear_cache	tsw-archive-format.md	original_diff
+0x00432010	implemented	asset_runtime	LegacyActRuntime::set_cache_limit	asset-cache-limits-00424330.md	original_diff
+0x00432020	implemented	asset_runtime	LegacyActArchive::open exclusive-read policy	act-action-stream-format.md	original_diff
+0x00432050	implemented	asset_runtime	LegacyActArchive::read_variant slice selection	act-action-stream-format.md	original_diff
+0x004320E0	implemented	asset_runtime	LegacyActRuntime index-to-variant load path	act-action-stream-format.md	original_diff
+0x004321E0	implemented	asset_runtime	LegacyActionUpdater::update	action-subrecord-004321e0.md	original_diff
+0x00432A50	implemented	asset_runtime	LegacyActRuntime::query_cached	act-action-stream-format.md	original_diff
+0x00432BC0	implemented	asset_runtime	LegacyActRuntime::load_direct	act-action-stream-format.md	original_diff
+0x00432D30	implemented	asset_runtime	LegacyActRuntime selected-stream cache insertion	act-action-stream-format.md	original_diff
+0x00432E40	implemented	asset_runtime	LegacyActRuntime::find_cached	act-action-stream-format.md	original_diff
+0x00432EE0	implemented	asset_runtime	LegacyActRuntime::evict_before_lookup	act-action-stream-format.md	original_diff
+0x00432FA0	implemented	asset_runtime	LegacyActRuntime::clear_stream_cache	act-action-stream-format.md	original_diff
+0x00433010	implemented	asset_runtime	LegacyActRuntime::close	act-action-stream-format.md	original_diff
+0x00433080	implemented	asset_runtime	LegacyActionUpdater::set_stream_cache_mode	action-field-state-machine.md	original_diff
+0x00433090	implemented	asset_runtime	LegacyActRuntime index-cache insertion and physical read	act-action-stream-format.md	original_diff
+0x00433190	implemented	asset_runtime	LegacyActRuntime index-cache lookup and move-to-front	act-action-stream-format.md	original_diff
+0x00433220	implemented	asset_runtime	LegacyActRuntime::clear_index_cache	act-action-stream-format.md	original_diff
+0x00433270	implemented	asset_runtime	LegacyTswArchive::open shared-read policy	tsw-archive-format.md	original_diff
+0x004332A0	implemented	asset_runtime	LegacyTswArchive physical block read	tsw-archive-format.md	original_diff
+0x00433320	external_loader_port	asset_runtime	LegacyTswSpecialFrameLoader	tsw-archive-format.md	owner_wiring
+0x00433380	implemented	asset_runtime	LegacyTswArchive::read_frame index and descriptor path	tsw-archive-format.md	original_diff
+0x00433540	implemented	asset_runtime	LegacyTswArchive::read_frame payload and decompression path	tsw-archive-format.md	original_diff
+0x00433720	implemented	asset_runtime	LegacyTswArchive::read_frame alternate descriptor path	tsw-archive-format.md	original_diff
+0x004338F0	implemented	asset_runtime	LegacyTswArchive::read_frame alternate payload path	tsw-archive-format.md	original_diff
+0x00433AA0	transferred	battle	TSW command-stream pixel hit test	asset-runtime-closure-audit.md	B10
+0x00433BF0	implemented	asset_runtime	LegacyTswRuntime::close temporary buffer release	tsw-archive-format.md	original_diff
+0x00433C40	transferred	battle	battle drawing-state initialization	asset-runtime-closure-audit.md	B10
+0x00433D70	transferred	battle	battle particle-state owner bridge	asset-runtime-closure-audit.md	B10
+0x00433DC0	transferred	battle	battle drawing-state reset	asset-runtime-closure-audit.md	B10
+0x00433E20	transferred	battle	battle trigonometric table helper	asset-runtime-closure-audit.md	B10
+0x00433E90	transferred	battle	battle trigonometric table helper	asset-runtime-closure-audit.md	B10
+0x00433F00	transferred	battle	battle row-offset helper	asset-runtime-closure-audit.md	B10
+0x00433F30	transferred	battle	battle clip-state helper	asset-runtime-closure-audit.md	B10
+0x00433F70	transferred	battle	battle line and particle simulation helper	asset-runtime-closure-audit.md	B10
+0x004342E0	transferred	battle	battle trigonometric table cleanup	asset-runtime-closure-audit.md	B10
+0x00434350	transferred	battle	battle line-state setup	asset-runtime-closure-audit.md	B10
+0x00434420	transferred	battle	battle particle coordinate helper	asset-runtime-closure-audit.md	B10
+0x004344E0	transferred	battle	battle particle spawn helper	asset-runtime-closure-audit.md	B10
+0x00434790	transferred	battle	battle particle simulation and draw helper	asset-runtime-closure-audit.md	B10
+0x00434DD0	transferred	battle	battle particle draw helper	asset-runtime-closure-audit.md	B10
+0x004350E0	transferred	rendering	shared rendering/font/framebuffer object constructor	asset-runtime-closure-audit.md	rendering_adapter
