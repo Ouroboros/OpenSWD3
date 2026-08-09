@@ -13,13 +13,17 @@
 #include "openswd3/app/initialization.hpp"
 #include "openswd3/app/platform_backend_initialization.hpp"
 #include "openswd3/app/process_startup.hpp"
+#include "openswd3/app/screenshot.hpp"
 #include "openswd3/app/startup.hpp"
 #include "openswd3/app/window_events.hpp"
 #include "openswd3/diagnostics/log.hpp"
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
 #include "openswd3/input_time_rng/legacy_frame_clock.hpp"
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
+#include "openswd3/rendering/legacy_bmp_writer.hpp"
 #include "openswd3/rendering/legacy_glyph_atlas.hpp"
+#include "openswd3/rendering/legacy_pixel_conversion.hpp"
+#include "openswd3/rendering/legacy_presentation.hpp"
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
@@ -27,11 +31,15 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <limits>
+#include <optional>
 #include <source_location>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -117,15 +125,169 @@ int report_sdl_error(
 }
 
 class SmokeWindowEventPorts final
-    : public openswd3::app::WindowEventPorts {
+    : public openswd3::app::WindowEventPorts,
+      public openswd3::app::ScreenshotPorts,
+      public openswd3::rendering::LegacyBmpWriterPorts {
 public:
+    SmokeWindowEventPorts(
+        const std::vector<std::uint16_t>& framebuffer,
+        const openswd3::rendering::LegacyPixelConversionState&
+            pixel_conversion
+    )
+        : framebuffer_(framebuffer),
+          pixel_conversion_(pixel_conversion) {}
+
     void release_active_video() override {}
 
     openswd3::compat::u32 free_disk_space_mebibytes() override {
-        return 0U;
+        std::error_code error;
+        const std::filesystem::path directory =
+            std::filesystem::current_path(error);
+        if (error) {
+            return 0U;
+        }
+        const std::filesystem::space_info information =
+            std::filesystem::space(directory, error);
+        if (error) {
+            return 0U;
+        }
+        constexpr std::uintmax_t bytes_per_mebibyte = 1024U * 1024U;
+        const std::uintmax_t available =
+            information.available / bytes_per_mebibyte;
+        return static_cast<openswd3::compat::u32>(std::min(
+            available,
+            static_cast<std::uintmax_t>(
+                std::numeric_limits<openswd3::compat::u32>::max()
+            )
+        ));
     }
 
-    void capture_legacy_screenshot() override {}
+    void capture_legacy_screenshot() override {
+        openswd3::app::capture_legacy_screenshot(*this);
+    }
+
+    void beep() override {}
+
+    void maintain_audio() override {}
+
+    bool open_existing_numbered_bmp(
+        const openswd3::compat::u32 sequence
+    ) override {
+        existing_stream_.close();
+        existing_stream_.clear();
+        existing_stream_.open(
+            numbered_screenshot_path(sequence),
+            std::ios::binary
+        );
+        return static_cast<bool>(existing_stream_);
+    }
+
+    void close_existing_numbered_bmp() override {
+        existing_stream_.close();
+        existing_stream_.clear();
+    }
+
+    void save_framebuffer_as_numbered_bmp(
+        const openswd3::compat::u32 sequence
+    ) override {
+        const std::string filename =
+            numbered_screenshot_path(sequence).string();
+        const auto result =
+            openswd3::rendering::write_legacy_16bit_framebuffer_bmp(
+                framebuffer_,
+                kFrameWidth,
+                kFrameHeight,
+                filename,
+                pixel_conversion_,
+                *this
+            );
+        if (result.status !=
+            openswd3::rendering::LegacyBmpWriteStatus::completed) {
+            static_cast<void>(report_error(
+                std::string{"legacy screenshot write failed: "} + filename
+            ));
+        }
+    }
+
+    bool open_or_create_without_truncation(
+        const std::string_view filename
+    ) override {
+        output_stream_.close();
+        output_stream_.clear();
+        const std::filesystem::path path =
+            std::filesystem::path{std::string{filename}};
+        output_stream_.open(
+            path,
+            std::ios::binary | std::ios::in | std::ios::out
+        );
+        if (output_stream_) {
+            return true;
+        }
+
+        output_stream_.clear();
+        std::error_code existence_error;
+        if (std::filesystem::exists(path, existence_error) ||
+            existence_error) {
+            return false;
+        }
+        {
+            std::ofstream create(path, std::ios::binary);
+            if (!create) {
+                return false;
+            }
+        }
+        output_stream_.open(
+            path,
+            std::ios::binary | std::ios::in | std::ios::out
+        );
+        return static_cast<bool>(output_stream_);
+    }
+
+    bool seek_absolute(const openswd3::compat::u32 offset) override {
+        output_stream_.seekp(
+            static_cast<std::streamoff>(offset),
+            std::ios::beg
+        );
+        return static_cast<bool>(output_stream_);
+    }
+
+    bool write_bytes(
+        const std::span<const openswd3::compat::u8> bytes
+    ) override {
+        output_stream_.write(
+            reinterpret_cast<const char*>(bytes.data()),
+            static_cast<std::streamsize>(bytes.size())
+        );
+        return static_cast<bool>(output_stream_);
+    }
+
+    std::optional<openswd3::compat::u32> current_position() override {
+        const std::streampos position = output_stream_.tellp();
+        if (position < 0 ||
+            static_cast<std::uintmax_t>(position) >
+                std::numeric_limits<openswd3::compat::u32>::max()) {
+            return std::nullopt;
+        }
+        return static_cast<openswd3::compat::u32>(position);
+    }
+
+    void close() override {
+        output_stream_.close();
+        output_stream_.clear();
+    }
+
+private:
+    [[nodiscard]] static std::filesystem::path numbered_screenshot_path(
+        const openswd3::compat::u32 sequence
+    ) {
+        return std::filesystem::path{"ScrnShot"} /
+            openswd3::app::make_legacy_screenshot_filename(sequence);
+    }
+
+    const std::vector<std::uint16_t>& framebuffer_;
+    const openswd3::rendering::LegacyPixelConversionState& pixel_conversion_;
+    std::ifstream existing_stream_;
+    std::fstream output_stream_;
 };
 
 class SmokeCommandLinePorts final : public openswd3::app::CommandLinePorts {
@@ -494,7 +656,8 @@ private:
 class SdlSmokeIdlePorts final
     : public openswd3::app::IdleRuntimePorts,
       public openswd3::app::FramePreparationPorts,
-      public openswd3::app::FrameRuntimePorts {
+      public openswd3::app::FrameRuntimePorts,
+      public openswd3::rendering::LegacyPresentationPorts {
 public:
     SdlSmokeIdlePorts(
         SDL_Renderer& renderer,
@@ -559,14 +722,13 @@ public:
                 *this
             ));
             window_state_.process_flags = frame_coordinator_state_.process_flags;
-            if (running_) {
-                present();
-            }
         }
     }
 
     void present_pause() override {
-        present();
+        request_presentation(
+            openswd3::rendering::LegacyPresentationSite::pause_overlay
+        );
     }
 
     openswd3::compat::u32 read_seconds() override {
@@ -629,7 +791,12 @@ public:
     void close_world_map_view() override {}
     void initialize_battle(openswd3::compat::u16) override {}
     void clear_party_battle_entry_bits() override {}
-    openswd3::compat::i32 step_battle() override { return 1; }
+    openswd3::compat::i32 step_battle() override {
+        request_presentation(
+            openswd3::rendering::LegacyPresentationSite::steady_battle
+        );
+        return 1;
+    }
     void rebuild_display_after_result_zero() override {}
     void set_result_zero_world_state() override {}
     void reopen_world_map_after_result_zero() override {}
@@ -640,7 +807,11 @@ public:
     void clear_result_three_internal_state() override {}
     void remap_world_after_result_three() override {}
 
-    void step_high_priority(openswd3::app::FrameCoordinatorState&) override {}
+    void step_high_priority(openswd3::app::FrameCoordinatorState&) override {
+        request_presentation(
+            openswd3::rendering::LegacyPresentationSite::steady_high_priority
+        );
+    }
     void update_background_music(
         openswd3::app::FrameCoordinatorState&
     ) override {}
@@ -649,14 +820,59 @@ public:
     ) override {}
     void step_world_player(openswd3::app::FrameCoordinatorState&) override {}
     void step_story(openswd3::app::FrameCoordinatorState&) override {}
-    void finish_world_frame(openswd3::app::FrameCoordinatorState&) override {}
+    void finish_world_frame(openswd3::app::FrameCoordinatorState&) override {
+        request_presentation(
+            openswd3::rendering::LegacyPresentationSite::steady_world
+        );
+    }
     void prepare_special_mode_objects(
         openswd3::app::FrameCoordinatorState&
     ) override {}
     void step_standard_special_mode(
         openswd3::app::FrameCoordinatorState&
-    ) override {}
-    void step_shop_mode(openswd3::app::FrameCoordinatorState&) override {}
+    ) override {
+        request_presentation(
+            openswd3::rendering::LegacyPresentationSite::
+                steady_special_modes_1_3_4_5_6
+        );
+    }
+    void step_shop_mode(openswd3::app::FrameCoordinatorState&) override {
+        request_presentation(
+            openswd3::rendering::LegacyPresentationSite::steady_shop_mode_2
+        );
+    }
+
+    [[nodiscard]] bool present_legacy_frame(
+        const openswd3::rendering::LegacyPresentationRequest& request
+    ) override {
+        if (request.source !=
+                openswd3::rendering::LegacyPresentationSource::
+                    game_framebuffer ||
+            request.has_source_rectangle ||
+            request.has_destination_rectangle) {
+            static_cast<void>(report_error(
+                "framebuffer presentation: unsupported smoke request"
+            ));
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+        if (texture_ == nullptr) {
+            static_cast<void>(report_error(
+                "framebuffer presentation: missing texture"
+            ));
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+        if (!present_framebuffer(renderer_, *texture_, framebuffer_)) {
+            static_cast<void>(report_sdl_error("framebuffer presentation"));
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+        return true;
+    }
 
     void request_synchronous_close() override {
         window_state_.process_flags = frame_coordinator_state_.process_flags;
@@ -668,17 +884,20 @@ public:
     }
 
 private:
-    void present() {
-        if (texture_ == nullptr) {
+    void request_presentation(
+        const openswd3::rendering::LegacyPresentationSite site
+    ) {
+        const auto result =
+            openswd3::rendering::submit_legacy_presentation(site, *this);
+        if (result.status !=
+                openswd3::rendering::LegacyPresentationDispatchStatus::
+                    completed &&
+            result.status !=
+                openswd3::rendering::LegacyPresentationDispatchStatus::
+                    backend_failed) {
             static_cast<void>(report_error(
-                "framebuffer presentation: missing texture"
+                "framebuffer presentation: invalid legacy request"
             ));
-            ok_ = false;
-            running_ = false;
-            return;
-        }
-        if (!present_framebuffer(renderer_, *texture_, framebuffer_)) {
-            report_sdl_error("framebuffer presentation");
             ok_ = false;
             running_ = false;
         }
@@ -920,6 +1139,11 @@ int main(const int argument_count, char** arguments) {
     std::vector<std::uint16_t> framebuffer(
         static_cast<std::size_t>(kFrameWidth * kFrameHeight)
     );
+    openswd3::rendering::LegacyPixelConversionState pixel_conversion;
+    openswd3::rendering::select_legacy_pixel_conversion(
+        pixel_conversion,
+        {0xF800U, 0x07E0U, 0x001FU}
+    );
 
     openswd3::app::seed_two_rng_streams(rng_seed_ports);
 
@@ -936,7 +1160,7 @@ int main(const int argument_count, char** arguments) {
         initialization_state.transition_suppression,
         0U,
     };
-    SmokeWindowEventPorts window_ports;
+    SmokeWindowEventPorts window_ports(framebuffer, pixel_conversion);
     SdlDisplayLifecyclePorts display_ports(
         *window,
         frame_interval,

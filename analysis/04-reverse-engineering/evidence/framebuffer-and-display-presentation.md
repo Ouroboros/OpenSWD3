@@ -2,7 +2,7 @@
 
 ## 证据边界
 
-本结论只以 `swd3.exe_export_for_ai/swd3.exe.asm` 的完整汇编为逻辑真值。汇编是唯一真实；IDA 伪码只可用于定位和临时命名，不能覆盖指令、参数、分支或内存访问。
+本结论只以 `swd3.exe_export_for_ai/swd3.exe.lst` 的完整反汇编为逻辑真值。LST 中的机器码字节和指令是唯一真实；IDA 伪码只可用于定位和临时命名，不能覆盖指令、参数、分支或内存访问。
 
 本轮锁定的是软件画面从内存到显示器的物理边界。当前 EXE 不是用 DirectDraw/GPU 逐精灵渲染，而是先在一块 `640×480`、16 位的游戏 surface 上完成软件绘制，再通过 DirectDraw `Blt` 把整幅或局部画面提交到 primary surface。现代重写可以用 SDL3 texture/upload/present 替换 DirectDraw，但不能改变兼容核心产生的 16 位像素、pitch 规则、提交位置和分支时序。
 
