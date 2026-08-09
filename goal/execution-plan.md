@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v97
+版本：v98
 
 最后更新：2026-08-09
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：B6.1 · `asset_runtime` 接口级逆向与工作包
+当前步骤：B6.2 · TSW 查询最小闭环
 
 ## 1. 目标
 
@@ -216,6 +216,10 @@
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
 10. `[x]` B4：151 项有限收口矩阵现为 95 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项归属修正；没有 B4 自有缺口。20/16/12 字体 renderer 已接入启动、显示停用/恢复和总退出，Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过。原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，状态为 `module_closed_pending_oracle`。
 11. `[~]` B5：73 个自有地址已经有限收口，逐地址表与总所有权表零差异；43 项核心实现、2 项资产验证实现、3 项平台替代、1 项外部 service 端口、23 项核心状态机已实现但媒体后端延期、1 项剧情调用边界拆分，没有未映射项。Linux `core` 76/76、Linux/Windows `app` 80/80 CTest 通过。按用户决定，压缩音频与 Bink 解码最终统一放入项目自有 `libffmpeg` 动态库；原版动态差分仍为 `blocked_runtime_oracle`。B5 当前不占执行位，最终后端完成后再升级为正式 `module_closed_pending_oracle` 或 `module_closed`。
-12. `[>]` B6：开始 `asset_runtime` 的唯一工作包，只先固定 TSW/ACT/ANI 运行时、公共动作记录、缓存状态、SND 借用边界和验证入口；达到单模块开始条件后立即进入首个可验证实现单元，不先全量深挖资产内部。
+12. `[>]` B6：78 个自有函数、TSW/ACT/ANI 运行时、公共动作记录、缓存状态、SND
+    借用边界、生命周期和验证入口已形成唯一工作包，单模块开始条件满足；首个缓存容量
+    策略单元已按 `0x00424330/0x004315C0/0x00432010` 实现并通过 Linux `core`
+    77/77、Windows LLVM `app` 81/81 CTest。当前只进入 TSW 查询最小闭环，不先
+    全量深挖资产内部。
 
 当前只执行 B6，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。B6 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。

@@ -1,6 +1,6 @@
 # 资产缓存容量策略 `0x00424330`
 
-状态：B2.9 归属闭环；`assembly_exact`、`platform_adapted`，实现延后至 B6 `asset_runtime`
+状态：B6.1 已实现；`assembly_exact`、`platform_adapted`
 
 完整汇编是唯一行为真值。IDA 伪码和符号名只用于定位。
 
@@ -37,6 +37,11 @@ EDX >>= 2
 
 ## 3. 现代实现边界
 
-B6 实现时把行为拆成两个明确边界：平台层提供与旧 `MEMORYSTATUS.dwTotalPhys` 对应的 32 位物理内存样本，`asset_runtime` 保留除以 6、4–16 MiB 夹取、512 KiB 固定上限、发布顺序和恒成功返回值。
+B6 实现把行为拆成两个明确边界：平台层提供与旧 `MEMORYSTATUS.dwTotalPhys` 对应的
+32 位物理内存样本，`asset_runtime` 保留除以 6、4–16 MiB 夹取、512 KiB 固定上限、
+发布顺序和恒成功返回值。
 
-当前只修正函数归属和后续实现合同，不在 B2 创建无消费者的容量状态，也不提前实现 TSW/ACT 淘汰器。原程序动态差分待 B6 一并完成。
+实现映射为 `legacy_asset_cache_limits.*`，UT 覆盖零值、24/48/96 MiB 临界、
+`UINT32_MAX` 和 memory→TSW→ACT 端口顺序。Linux `core` 77/77、Windows LLVM
+`app` 81/81 CTest 通过。
+本单元只发布上限，不提前实现 TSW/ACT 淘汰器；原程序动态差分随对应 cache owner 完成。

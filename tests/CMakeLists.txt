@@ -1309,6 +1309,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_asset_runtime_legacy_asset_cache_limits_tests
+    unit/asset_runtime/legacy_asset_cache_limits_test.cpp
+)
+target_include_directories(
+    openswd3_asset_runtime_legacy_asset_cache_limits_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_asset_runtime_legacy_asset_cache_limits_tests
+    PRIVATE openswd3_asset_runtime
+)
+
+add_test(
+    NAME asset_runtime.legacy_asset_cache_limits
+    COMMAND openswd3_asset_runtime_legacy_asset_cache_limits_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_formatted_text_tests
     unit/rendering/legacy_formatted_text_test.cpp
 )
