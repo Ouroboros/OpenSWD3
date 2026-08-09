@@ -70,8 +70,18 @@ padding 无关，直接对应动态捕获协议中的 `framebuffer-logical.bin`�
 `blocked_runtime_oracle`；需要捕获时由用户运行 Frida spawn 工具，Codex 不
 自行启动原版。
 
+SDL 恢复适配保留同一份 owned framebuffer，不在失焦时销毁它。恢复阶段若
+纹理句柄缺失则以当前 geometry 重建 RGB565 streaming texture，随后重新上传
+现有帧；idle presenter 持有纹理槽引用，因此不会继续使用重建前的旧指针。
+任一 SDL 恢复或重新呈现失败都会令外壳停止主循环并记录错误，不能静默推进
+游戏帧。
+
+原版恢复会强制 `SetWindowPos(...,640,480)`，现代可缩放窗口则只执行 restore，
+保留用户拖拽得到的窗口尺寸；逻辑画布、letterbox 和输入坐标仍固定为
+`640×480`。这是满足现代窗口缩放需求的平台层扩展，不改变兼容核心像素。
+
 ## 5. 验证入口
 
-UT 覆盖默认 `640×480×16`、带 padding 的 pitch、稳定物理地址、逻辑行不包含 padding、固定小端 logical hash、短高度重建保留旧尾部、非正高度不写行表、32 位 pitch 回绕、1024 项物理边界和 owned storage 的平台输入约束。当前 Linux Clang `core` 54/54、Windows LLVM `app` 56/56 CTest 全部通过。
+UT 覆盖默认 `640×480×16`、带 padding 的 pitch、稳定物理地址、逻辑行不包含 padding、固定小端 logical hash、短高度重建保留旧尾部、非正高度不写行表、32 位 pitch 回绕、1024 项物理边界和 owned storage 的平台输入约束。Linux Clang `core` 54/54，Linux/Windows LLVM `app` 56/56 CTest 全部通过；实际窗口最小化/恢复仍待平台 smoke，未标记为动态验证。
 
 原程序 framebuffer 动态捕获仍不可用，因此本单元不能标记 `original_diff_verified`。

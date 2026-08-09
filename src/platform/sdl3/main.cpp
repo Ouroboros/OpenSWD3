@@ -566,12 +566,22 @@ class SdlDisplayLifecyclePorts final
 public:
     SdlDisplayLifecyclePorts(
         SDL_Window& window,
+        SDL_Renderer& renderer,
+        SDL_Texture*& texture,
+        const openswd3::rendering::LegacyFramebuffer& framebuffer,
         openswd3::compat::u32& frame_interval,
-        const bool backend_available
+        const bool backend_available,
+        bool& ok,
+        bool& running
     )
         : window_(window),
+          renderer_(renderer),
+          texture_(texture),
+          framebuffer_(framebuffer),
           frame_interval_(frame_interval),
-          backend_available_(backend_available) {}
+          backend_available_(backend_available),
+          ok_(ok),
+          running_(running) {}
 
     bool display_backend_available() override {
         return backend_available_;
@@ -604,20 +614,55 @@ public:
     }
 
     void show_and_position_window() override {
-        static_cast<void>(SDL_RestoreWindow(&window_));
-        static_cast<void>(SDL_SetWindowSize(&window_, kFrameWidth, kFrameHeight));
+        if (!SDL_RestoreWindow(&window_)) {
+            fail_recovery("SDL_RestoreWindow");
+        }
     }
 
-    void restore_surfaces() override {}
+    void restore_surfaces() override {
+        if (texture_ != nullptr || !running_) {
+            return;
+        }
+        const openswd3::rendering::LegacySurfaceGeometry& geometry =
+            framebuffer_.geometry().surface;
+        texture_ = SDL_CreateTexture(
+            &renderer_,
+            SDL_PIXELFORMAT_RGB565,
+            SDL_TEXTUREACCESS_STREAMING,
+            geometry.width,
+            geometry.height
+        );
+        if (texture_ == nullptr) {
+            fail_recovery("SDL_CreateTexture during display recovery");
+        }
+    }
     void rebuild_framebuffer_binding() override {}
     void rebuild_font(openswd3::compat::u32) override {}
     void resume_battle_display() override {}
-    void finish_display_recovery() override {}
+    void finish_display_recovery() override {
+        if (!running_ || texture_ == nullptr) {
+            return;
+        }
+        if (!present_framebuffer(renderer_, *texture_, framebuffer_)) {
+            fail_recovery("framebuffer presentation during display recovery");
+        }
+    }
 
 private:
+    void fail_recovery(const char* operation) {
+        static_cast<void>(report_sdl_error(operation));
+        ok_ = false;
+        running_ = false;
+    }
+
     SDL_Window& window_;
+    SDL_Renderer& renderer_;
+    SDL_Texture*& texture_;
+    const openswd3::rendering::LegacyFramebuffer& framebuffer_;
     openswd3::compat::u32& frame_interval_;
     bool backend_available_{};
+    bool& ok_;
+    bool& running_;
 };
 
 class SmokeShutdownPorts final : public openswd3::app::ShutdownPorts {
@@ -663,7 +708,7 @@ class SdlSmokeIdlePorts final
 public:
     SdlSmokeIdlePorts(
         SDL_Renderer& renderer,
-        SDL_Texture* texture,
+        SDL_Texture*& texture,
         const openswd3::rendering::LegacyFramebuffer& framebuffer,
         const openswd3::compat::u32& frame_interval,
         openswd3::app::WindowEventState& window_state,
@@ -906,7 +951,7 @@ private:
     }
 
     SDL_Renderer& renderer_;
-    SDL_Texture* texture_{};
+    SDL_Texture*& texture_;
     const openswd3::rendering::LegacyFramebuffer& framebuffer_;
     const openswd3::compat::u32& frame_interval_;
     openswd3::app::WindowEventState& window_state_;
@@ -1160,16 +1205,21 @@ int main(const int argument_count, char** arguments) {
         initialization_state.transition_suppression,
         0U,
     };
+    bool ok = true;
+    bool running = true;
     SmokeWindowEventPorts window_ports(framebuffer, pixel_conversion);
     SdlDisplayLifecyclePorts display_ports(
         *window,
+        *renderer,
+        texture,
+        framebuffer,
         frame_interval,
-        runtime_ready
+        runtime_ready,
+        ok,
+        running
     );
     SmokeShutdownPorts shutdown_ports;
 
-    bool ok = true;
-    bool running = true;
     SdlProcessExitPorts exit_ports(running);
     if (runtime_ready &&
         !present_framebuffer(*renderer, *texture, framebuffer)) {
