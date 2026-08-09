@@ -2,7 +2,7 @@
 
 最后更新：2026-08-09
 
-状态：`assembly_exact`、核心实现已完成；旧 waveOut 协商与 SDL3 输出接线归下一单元
+状态：`assembly_exact`、核心实现及 SDL3 输出接线已完成
 
 完整 LST 是唯一行为真值；IDA 伪码只用于定位。
 
@@ -25,8 +25,8 @@
 `0x00485C08` 仍返回一，且已建立的节点继续有效。
 
 重写以 32 位 node index 和 backend token 代替宿主指针；active/free 头插、弹出和遍历
-顺序不变。`initialize_pool()` 接收 waveOut 协商后已经得到的 handle 数；旧采样格式回退
-循环仍归下一单元。
+顺序不变。`initialize_pool()` 接收 waveOut 协商后已经得到的 handle 数；采样格式回退
+状态机见 [`legacy-audio-output-004859b0-00485ca6.md`](legacy-audio-output-004859b0-00485ca6.md)。
 
 ## 2. 播放 `0x00485CE0`
 
@@ -61,7 +61,7 @@
 
 销毁时，`0x00485C20` 先按 active 头顺序 end/release 节点，再按 free 头顺序做同样
 操作；它不对 active 节点逐项减少 SND 引用。随后 `0x00486430` 释放 3000 槽中每个非零
-的最后 buffer，再释放表并关闭 SND 文件。
+的最后 buffer，再释放表并关闭 SND 文件，最后关闭输出 driver。
 
 ## 4. 必须保留的遗留结果
 
@@ -79,7 +79,7 @@
 ## 5. UT 锁定项
 
 fake backend 记录并比较每次 allocate、initialize、file setup、user-data、volume、pan、
-loop、start、status、end 和 release：
+loop、start、status、end、release 和最终 output close：
 
 - 16 handle 上限、负数跳过、部分分配仍成功及二次初始化早退；
 - RIFF 与固定 `.mp3` 两条 setup 路径及完整参数顺序；
@@ -88,7 +88,7 @@ loop、start、status、end 和 release：
 - 无效 sound ID 安全隔离和失配 user-data 导致的无符号引用下溢；
 - 单项停止、全部停止、音量/声像未命中返回；
 - status 1/2 回收、其他 status 保留；
-- 销毁时 active 先于 free 的 end/release 顺序。
+- 销毁时 active 先于 free 的 end/release、SND close、output close 顺序。
 
-Linux Clang core 为 68/68、Windows LLVM app 为 70/70 CTest 通过。测试未启动原版
-EXE。
+当前总回归为 Linux Clang core 69/69、Linux Clang app 与 Windows LLVM app 73/73
+CTest 通过。测试未启动原版 EXE。

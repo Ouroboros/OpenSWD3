@@ -1105,6 +1105,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_audio_video_legacy_audio_output_tests
+    unit/audio_video/legacy_audio_output_test.cpp
+)
+target_include_directories(
+    openswd3_audio_video_legacy_audio_output_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_audio_video_legacy_audio_output_tests
+    PRIVATE openswd3_audio_video
+)
+
+add_test(
+    NAME audio_video.legacy_audio_output
+    COMMAND openswd3_audio_video_legacy_audio_output_tests
+)
+
+add_executable(
     openswd3_audio_video_legacy_snd_archive_tests
     unit/audio_video/legacy_snd_archive_test.cpp
 )
@@ -1193,6 +1211,32 @@ add_test(
 )
 
 if(TARGET SDL3::SDL3)
+    add_executable(
+        openswd3_platform_legacy_sample_backend_sdl3_tests
+        unit/audio_video/legacy_sample_backend_sdl3_test.cpp
+    )
+    target_include_directories(
+        openswd3_platform_legacy_sample_backend_sdl3_tests
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+    )
+    target_link_libraries(
+        openswd3_platform_legacy_sample_backend_sdl3_tests
+        PRIVATE openswd3_platform_sdl3_audio
+    )
+
+    add_test(
+        NAME platform.legacy_sample_backend_sdl3
+        COMMAND openswd3_platform_legacy_sample_backend_sdl3_tests
+    )
+    if(EXISTS "${PROJECT_SOURCE_DIR}/../all.snd")
+        add_test(
+            NAME platform.legacy_sample_backend_sdl3_real
+            COMMAND
+                openswd3_platform_legacy_sample_backend_sdl3_tests
+                "${PROJECT_SOURCE_DIR}/../all.snd"
+        )
+    endif()
+
     add_executable(
         openswd3_platform_keyboard_snapshot_sdl3_tests
         unit/app/keyboard_snapshot_sdl3_test.cpp

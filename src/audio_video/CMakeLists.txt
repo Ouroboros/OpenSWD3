@@ -1,6 +1,7 @@
 add_library(
     openswd3_audio_video
     STATIC
+        legacy_audio_output.cpp
         legacy_audio_parameters.cpp
         legacy_sample_manager.cpp
         legacy_snd_archive.cpp

@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B5.5 旧音频输出协商与 SDL3 sample backend
+当前单元：B5.6 游戏侧 sample wrapper 与真实播放请求接线
 
 ## 1. 范围与移交
 
@@ -122,6 +122,7 @@ status 或 Bink backend 细节一次性调研完毕。
 - [`legacy-audio-parameters-00486260-00486280.md`](../evidence/legacy-audio-parameters-00486260-00486280.md)
 - [`legacy-snd-runtime-004862b0-00486490.md`](../evidence/legacy-snd-runtime-004862b0-00486490.md)
 - [`legacy-sample-manager-004859b0-00486430.md`](../evidence/legacy-sample-manager-004859b0-00486430.md)
+- [`legacy-audio-output-004859b0-00485ca6.md`](../evidence/legacy-audio-output-004859b0-00485ca6.md)
 
 ## 6. 当前执行顺序
 
@@ -136,5 +137,10 @@ status 或 Bink backend 细节一次性调研完毕。
    `0x004862A0/0x00486430` 的 sample manager 核心已实现；fake backend 锁定两条单链表、
    播放/停止顺序、status 1/2、返回值及原始 buffer 泄漏语义。Linux `core` 68/68、
    Windows LLVM `app` 70/70 CTest 通过。
-5. `[>]` B5.5：恢复 `0x004859B0` 的 wave 格式协商/回退，把 sample backend 接到 SDL3
-   音频设备，并补齐 `0x00485C20` 的设备关闭边界。
+5. `[x]` B5.5：`0x004859B0` 的 wave 格式协商/回退已按 LST 恢复；SDL3 backend 已
+   接通逻辑设备、PCM 转换、动态混音、loop/status 与 `0x00485C20` 设备关闭边界。真实
+   `all.snd` 的 13 种 PCM 组合及异常 data 标签通过，Linux `core` 69/69、Linux/Windows
+   `app` 73/73 CTest 通过。
+6. `[>]` B5.6：恢复 `0x00485610/0x00485650/0x00485670/0x00485720/`
+   `0x00485740/0x00485750` 游戏侧 sample wrapper，并把已恢复调用点接到 manager；不在
+   本单元扩展 sequence、stream 或 Bink。

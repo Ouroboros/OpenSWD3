@@ -2,6 +2,7 @@
 #include "external_launch_sdl3.hpp"
 #include "keyboard_snapshot_sdl3.hpp"
 #include "legacy_command_line.hpp"
+#include "legacy_sample_backend_sdl3.hpp"
 #include "mouse_sdl3.hpp"
 #include "single_instance.hpp"
 #include "startup_dialog_sdl3.hpp"
@@ -16,6 +17,9 @@
 #include "openswd3/app/screenshot.hpp"
 #include "openswd3/app/startup.hpp"
 #include "openswd3/app/window_events.hpp"
+#include "openswd3/audio_video/legacy_audio_output.hpp"
+#include "openswd3/audio_video/legacy_sample_manager.hpp"
+#include "openswd3/audio_video/legacy_snd_archive.hpp"
 #include "openswd3/diagnostics/log.hpp"
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
 #include "openswd3/input_time_rng/legacy_frame_clock.hpp"
@@ -127,6 +131,19 @@ int report_sdl_error(
            SDL_RenderPresent(&renderer);
 }
 
+void shutdown_sample_output(
+    openswd3::audio_video::LegacySampleManager& manager,
+    openswd3::audio_video::LegacySndArchive& archive,
+    openswd3::platform_sdl3::SdlLegacySampleBackend& backend
+) {
+    if (manager.initialized()) {
+        static_cast<void>(manager.shutdown());
+        return;
+    }
+    archive.close();
+    backend.close_output();
+}
+
 class SmokeWindowEventPorts final
     : public openswd3::app::WindowEventPorts,
       public openswd3::app::ScreenshotPorts,
@@ -134,11 +151,12 @@ class SmokeWindowEventPorts final
 public:
     SmokeWindowEventPorts(
         const openswd3::rendering::LegacyFramebuffer& framebuffer,
-        const openswd3::rendering::LegacyPixelConversionState&
-            pixel_conversion
+        const openswd3::rendering::LegacyPixelConversionState& pixel_conversion,
+        openswd3::audio_video::LegacySampleManager& sample_manager
     )
         : framebuffer_(framebuffer),
-          pixel_conversion_(pixel_conversion) {}
+          pixel_conversion_(pixel_conversion),
+          sample_manager_(sample_manager) {}
 
     void release_active_video() override {}
 
@@ -171,7 +189,9 @@ public:
 
     void beep() override {}
 
-    void maintain_audio() override {}
+    void maintain_audio() override {
+        static_cast<void>(sample_manager_.service_completed_samples());
+    }
 
     bool open_existing_numbered_bmp(
         const openswd3::compat::u32 sequence
@@ -289,6 +309,7 @@ private:
 
     const openswd3::rendering::LegacyFramebuffer& framebuffer_;
     const openswd3::rendering::LegacyPixelConversionState& pixel_conversion_;
+    openswd3::audio_video::LegacySampleManager& sample_manager_;
     std::ifstream existing_stream_;
     std::fstream output_stream_;
 };
@@ -344,11 +365,17 @@ public:
     SdlSmokePlatformBackendPorts(
         SDL_Renderer& renderer,
         SDL_Texture*& texture,
-        bool& destroy_requested
+        bool& destroy_requested,
+        openswd3::audio_video::LegacySndArchive& snd_archive,
+        openswd3::platform_sdl3::SdlLegacySampleBackend& sample_backend,
+        openswd3::audio_video::LegacySampleManager& sample_manager
     )
         : renderer_(renderer),
           texture_(texture),
-          destroy_requested_(destroy_requested) {}
+          destroy_requested_(destroy_requested),
+          snd_archive_(snd_archive),
+          sample_backend_(sample_backend),
+          sample_manager_(sample_manager) {}
 
     bool initialize_input_backend() override { return true; }
     void report_input_initialization_failure() override {}
@@ -357,8 +384,53 @@ public:
     }
 
     void start_audio_runtime(std::string_view) override {}
-    void initialize_audio_output(std::string_view) override {}
-    openswd3::app::BackendToken query_audio_driver() override { return 0U; }
+    void initialize_audio_output(std::string_view) override {
+        const auto archive_status = snd_archive_.open("all.snd");
+        if (archive_status !=
+            openswd3::audio_video::LegacySndOpenStatus::ready) {
+            openswd3::diagnostics::log_error(
+                "sample output: cannot open all.snd"
+            );
+            return;
+        }
+
+        const auto output =
+            openswd3::audio_video::initialize_legacy_audio_output(
+                sample_backend_
+            );
+        if (output.status !=
+            openswd3::audio_video::LegacyAudioOutputStatus::ready) {
+            std::string message{"sample output: SDL3 device open failed"};
+            if (!output.last_error.empty()) {
+                message.append(": ");
+                message.append(output.last_error);
+            }
+            openswd3::diagnostics::log_error(message);
+            return;
+        }
+
+        const auto manager_status = sample_manager_.initialize_pool(
+            output.sample_handle_count
+        );
+        if (manager_status != openswd3::audio_video::
+                LegacySampleManagerInitializeStatus::ready) {
+            openswd3::diagnostics::log_error(
+                "sample output: sample handle pool initialization failed"
+            );
+            return;
+        }
+
+        openswd3::diagnostics::log_info(
+            std::string{"sample output initialized: "} +
+            std::to_string(output.selected_format.sample_rate) + " Hz, " +
+            std::to_string(output.selected_format.bits_per_sample) +
+            "-bit, handles=" +
+            std::to_string(output.sample_handle_count)
+        );
+    }
+    openswd3::app::BackendToken query_audio_driver() override {
+        return sample_backend_.driver_token();
+    }
     void initialize_midi_output(openswd3::app::BackendToken) override {}
     void initialize_audio_sequence_nodes(
         openswd3::app::BackendToken
@@ -400,6 +472,9 @@ private:
     SDL_Renderer& renderer_;
     SDL_Texture*& texture_;
     bool& destroy_requested_;
+    openswd3::audio_video::LegacySndArchive& snd_archive_;
+    openswd3::platform_sdl3::SdlLegacySampleBackend& sample_backend_;
+    openswd3::audio_video::LegacySampleManager& sample_manager_;
 };
 
 class SdlSmokeInitializationPorts final
@@ -595,6 +670,7 @@ public:
         openswd3::rendering::LegacyFramebuffer& game_framebuffer,
         openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider,
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
+        openswd3::audio_video::LegacySampleManager& sample_manager,
         openswd3::compat::u32& frame_interval,
         const bool backend_available,
         bool& ok,
@@ -607,6 +683,7 @@ public:
           game_framebuffer_(game_framebuffer),
           glyph_provider_(glyph_provider),
           text_renderers_(text_renderers),
+          sample_manager_(sample_manager),
           frame_interval_(frame_interval),
           backend_available_(backend_available),
           ok_(ok),
@@ -633,8 +710,12 @@ public:
     }
 
     void suspend_audio_output() override {}
-    void suspend_audio_streams() override {}
-    void maintain_audio() override {}
+    void suspend_audio_streams() override {
+        static_cast<void>(sample_manager_.stop_all());
+    }
+    void maintain_audio() override {
+        static_cast<void>(sample_manager_.service_completed_samples());
+    }
     void suspend_battle_display() override {}
     void release_font(const openswd3::compat::u32 point_size) override {
         static_cast<void>(text_renderers_.release(point_size));
@@ -709,6 +790,7 @@ private:
     openswd3::rendering::LegacyFramebuffer& game_framebuffer_;
     openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider_;
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
+    openswd3::audio_video::LegacySampleManager& sample_manager_;
     openswd3::compat::u32& frame_interval_;
     bool backend_available_{};
     bool& ok_;
@@ -717,9 +799,10 @@ private:
 
 class SmokeShutdownPorts final : public openswd3::app::ShutdownPorts {
 public:
-    explicit SmokeShutdownPorts(
-        openswd3::rendering::LegacyTextRendererRuntime& text_renderers
-    ) : text_renderers_(text_renderers) {}
+    SmokeShutdownPorts(
+        openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
+        openswd3::audio_video::LegacySampleManager& sample_manager
+    ) : text_renderers_(text_renderers), sample_manager_(sample_manager) {}
 
     void perform_shutdown_operation(
         const openswd3::app::ShutdownOperation operation
@@ -731,6 +814,10 @@ public:
             static_cast<void>(text_renderers_.release(16U));
         } else if (operation == Operation::release_font_12) {
             static_cast<void>(text_renderers_.release(12U));
+        } else if (
+            operation == Operation::suspend_audio_streams_00485740
+        ) {
+            static_cast<void>(sample_manager_.stop_all());
         }
         if (operation == openswd3::app::ShutdownOperation::show_cursor) {
             static_cast<void>(SDL_ShowCursor());
@@ -749,6 +836,7 @@ public:
 
 private:
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
+    openswd3::audio_video::LegacySampleManager& sample_manager_;
 };
 
 class SdlProcessExitPorts final : public openswd3::app::ProcessExitPorts {
@@ -784,6 +872,7 @@ public:
         openswd3::input_time_rng::LegacyInputNormalizationState& input_state,
         openswd3::input_time_rng::LegacyMouseState& mouse_state,
         openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state,
+        openswd3::audio_video::LegacySampleManager& sample_manager,
         openswd3::app::ShutdownPorts& shutdown_ports,
         openswd3::app::ProcessExitPorts& exit_ports,
         bool& ok,
@@ -801,13 +890,16 @@ public:
           input_state_(input_state),
           mouse_state_(mouse_state),
           mouse_device_state_(mouse_device_state),
+          sample_manager_(sample_manager),
           shutdown_ports_(shutdown_ports),
           exit_ports_(exit_ports),
           ok_(ok),
           running_(running) {}
 
     void step_video() override {}
-    void maintain_audio() override {}
+    void maintain_audio() override {
+        static_cast<void>(sample_manager_.service_completed_samples());
+    }
 
     void yield() override {
         SDL_Delay(0U);
@@ -1035,6 +1127,7 @@ private:
     openswd3::input_time_rng::LegacyInputNormalizationState& input_state_;
     openswd3::input_time_rng::LegacyMouseState& mouse_state_;
     openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state_;
+    openswd3::audio_video::LegacySampleManager& sample_manager_;
     openswd3::app::ShutdownPorts& shutdown_ports_;
     openswd3::app::ProcessExitPorts& exit_ports_;
     bool& ok_;
@@ -1203,10 +1296,19 @@ int main(const int argument_count, char** arguments) {
     openswd3::rendering::LegacyTextRendererRuntime text_renderers;
     openswd3::input_time_rng::LegacyMouseState mouse_state{};
     openswd3::platform_sdl3::SdlMouseDeviceState mouse_device_state{};
+    openswd3::platform_sdl3::SdlLegacySampleBackend sample_backend;
+    openswd3::audio_video::LegacySndArchive snd_archive;
+    openswd3::audio_video::LegacySampleManager sample_manager(
+        sample_backend,
+        snd_archive
+    );
     SdlSmokePlatformBackendPorts backend_ports(
         *renderer,
         texture,
-        startup_destroy_requested
+        startup_destroy_requested,
+        snd_archive,
+        sample_backend,
+        sample_manager
     );
     SdlSmokeInitializationPorts initialization_ports(
         backend_state,
@@ -1251,6 +1353,7 @@ int main(const int argument_count, char** arguments) {
     SdlRngSeedPorts rng_seed_ports(crt_rng, secondary_rng);
     if (startup_destroy_requested) {
         openswd3::app::seed_two_rng_streams(rng_seed_ports);
+        shutdown_sample_output(sample_manager, snd_archive, sample_backend);
         if (texture != nullptr) {
             SDL_DestroyTexture(texture);
         }
@@ -1286,7 +1389,11 @@ int main(const int argument_count, char** arguments) {
     };
     bool ok = true;
     bool running = true;
-    SmokeWindowEventPorts window_ports(framebuffer, pixel_conversion);
+    SmokeWindowEventPorts window_ports(
+        framebuffer,
+        pixel_conversion,
+        sample_manager
+    );
     SdlDisplayLifecyclePorts display_ports(
         *window,
         *renderer,
@@ -1295,12 +1402,13 @@ int main(const int argument_count, char** arguments) {
         framebuffer,
         glyph_provider,
         text_renderers,
+        sample_manager,
         frame_interval,
         runtime_ready,
         ok,
         running
     );
-    SmokeShutdownPorts shutdown_ports(text_renderers);
+    SmokeShutdownPorts shutdown_ports(text_renderers, sample_manager);
 
     SdlProcessExitPorts exit_ports(running);
     if (runtime_ready &&
@@ -1339,6 +1447,7 @@ int main(const int argument_count, char** arguments) {
         input_state,
         mouse_state,
         mouse_device_state,
+        sample_manager,
         shutdown_ports,
         exit_ports,
         ok,
@@ -1383,6 +1492,7 @@ int main(const int argument_count, char** arguments) {
         );
     }
 
+    shutdown_sample_output(sample_manager, snd_archive, sample_backend);
     if (texture != nullptr) {
         SDL_DestroyTexture(texture);
     }

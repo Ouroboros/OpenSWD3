@@ -103,6 +103,7 @@ bool LegacySampleManager::shutdown() {
     initialized_ = false;
     sample_enabled_ = false;
     archive_.close();
+    backend_.close_output();
     return true;
 }
 

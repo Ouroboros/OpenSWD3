@@ -59,6 +59,7 @@ public:
     [[nodiscard]] virtual compat::u32 sample_status(
         LegacySampleHandle handle
     ) = 0;
+    virtual void close_output() = 0;
 };
 
 enum class LegacySampleManagerInitializeStatus {

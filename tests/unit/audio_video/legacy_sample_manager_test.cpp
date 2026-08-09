@@ -125,6 +125,7 @@ enum class BackendCall {
     start,
     end,
     status,
+    close_output,
 };
 
 struct BackendEvent {
@@ -235,6 +236,10 @@ public:
     u32 sample_status(const LegacySampleHandle handle) override {
         events.push_back({BackendCall::status, handle});
         return statuses[handle];
+    }
+
+    void close_output() override {
+        events.push_back({BackendCall::close_output, 0U});
     }
 
     void clear_events() {
@@ -767,11 +772,12 @@ void test_disabled_and_shutdown(openswd3::test::Context& test) {
         {BackendCall::release, 2U},
         {BackendCall::end, 1U},
         {BackendCall::release, 1U},
+        {BackendCall::close_output, 0U},
     };
     test.expect_equal(
         fixture.backend.events,
         expected,
-        "shutdown releases active list before free list"
+        "shutdown releases active list, free list, then output"
     );
     test.expect_false(fixture.manager.initialized(), "shutdown clears state");
     test.expect_false(fixture.archive.is_open(), "shutdown closes SND archive");
