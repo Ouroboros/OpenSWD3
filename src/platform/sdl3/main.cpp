@@ -17,9 +17,11 @@
 #include "openswd3/app/screenshot.hpp"
 #include "openswd3/app/startup.hpp"
 #include "openswd3/app/window_events.hpp"
+#include "openswd3/audio_video/legacy_audio_coordination.hpp"
 #include "openswd3/audio_video/legacy_audio_output.hpp"
 #include "openswd3/audio_video/legacy_sample_commands.hpp"
 #include "openswd3/audio_video/legacy_sample_manager.hpp"
+#include "openswd3/audio_video/legacy_sequence_manager.hpp"
 #include "openswd3/audio_video/legacy_snd_archive.hpp"
 #include "openswd3/audio_video/legacy_stream_commands.hpp"
 #include "openswd3/audio_video/legacy_stream_manager.hpp"
@@ -205,22 +207,175 @@ public:
     }
 };
 
+class UnavailableLegacySequenceBackend final
+    : public openswd3::audio_video::LegacySequenceBackend {
+public:
+    bool open_midi_output(
+        openswd3::compat::i32,
+        openswd3::audio_video::LegacyMidiDriverHandle& driver
+    ) override {
+        driver = 0U;
+        return false;
+    }
+
+    std::string_view last_error() const override {
+        return "MIDI backend is not available";
+    }
+
+    void close_midi_output(
+        openswd3::audio_video::LegacyMidiDriverHandle
+    ) override {}
+    openswd3::audio_video::LegacySequenceHandle allocate_sequence_handle(
+        openswd3::audio_video::LegacyMidiDriverHandle
+    ) override {
+        return 0U;
+    }
+    void release_sequence_handle(
+        openswd3::audio_video::LegacySequenceHandle
+    ) override {}
+    openswd3::compat::i32 initialize_sequence(
+        openswd3::audio_video::LegacySequenceHandle,
+        std::span<const openswd3::compat::u8>,
+        openswd3::compat::u32
+    ) override {
+        return 0;
+    }
+    void set_sequence_user_data(
+        openswd3::audio_video::LegacySequenceHandle,
+        openswd3::compat::u32,
+        openswd3::compat::i32
+    ) override {}
+    openswd3::compat::i32 sequence_user_data(
+        openswd3::audio_video::LegacySequenceHandle,
+        openswd3::compat::u32
+    ) override {
+        return 0;
+    }
+    void set_sequence_volume(
+        openswd3::audio_video::LegacySequenceHandle,
+        openswd3::compat::i32,
+        openswd3::compat::i32
+    ) override {}
+    void set_sequence_loop_count(
+        openswd3::audio_video::LegacySequenceHandle,
+        openswd3::compat::i32
+    ) override {}
+    void start_sequence(
+        openswd3::audio_video::LegacySequenceHandle
+    ) override {}
+    openswd3::compat::u32 sequence_status(
+        openswd3::audio_video::LegacySequenceHandle
+    ) override {
+        return 2U;
+    }
+    void end_sequence(
+        openswd3::audio_video::LegacySequenceHandle
+    ) override {}
+};
+
+class SdlLegacyAudioQueuePorts final
+    : public openswd3::audio_video::LegacyAudioQueuePorts {
+public:
+    SdlLegacyAudioQueuePorts(
+        openswd3::audio_video::LegacySequenceManager& sequence_manager,
+        openswd3::audio_video::LegacyStreamManager& stream_manager
+    ) noexcept
+        : sequence_manager_(sequence_manager),
+          stream_manager_(stream_manager) {}
+
+    bool sequence_absent(const openswd3::compat::i32 sequence_id) override {
+        return sequence_manager_.sequence_absent(sequence_id);
+    }
+    bool stream_absent(const openswd3::compat::i32 stream_id) override {
+        return stream_manager_.stream_absent(stream_id);
+    }
+    void play_sequence(
+        const std::string_view filename,
+        const openswd3::compat::i32 sequence_id,
+        const openswd3::compat::i32 volume,
+        const openswd3::compat::i32 loop_count
+    ) override {
+        static_cast<void>(sequence_manager_.play(
+            filename,
+            sequence_id,
+            volume,
+            loop_count
+        ));
+    }
+    void play_stream(
+        const std::string_view filename,
+        const openswd3::compat::i32 stream_id,
+        const openswd3::compat::i32 volume,
+        const openswd3::compat::i32 loop_count
+    ) override {
+        static_cast<void>(stream_manager_.play(
+            filename,
+            stream_id,
+            volume,
+            loop_count
+        ));
+    }
+    void beep() override {}
+
+private:
+    openswd3::audio_video::LegacySequenceManager& sequence_manager_;
+    openswd3::audio_video::LegacyStreamManager& stream_manager_;
+};
+
+class SdlLegacyAudioMaintenancePorts final
+    : public openswd3::audio_video::LegacyAudioMaintenancePorts {
+public:
+    SdlLegacyAudioMaintenancePorts(
+        openswd3::audio_video::LegacyAudioQueueCoordinator& queue,
+        openswd3::audio_video::LegacyStreamManager& stream_manager,
+        openswd3::audio_video::LegacySequenceManager& sequence_manager,
+        openswd3::audio_video::LegacySampleManager& sample_manager
+    ) noexcept
+        : queue_(queue),
+          stream_manager_(stream_manager),
+          sequence_manager_(sequence_manager),
+          sample_manager_(sample_manager) {}
+
+    void service_queue() override {
+        static_cast<void>(queue_.service());
+    }
+    void service_streams() override {
+        static_cast<void>(stream_manager_.service());
+    }
+    void service_sequences() override {
+        static_cast<void>(sequence_manager_.service());
+    }
+    void service_samples() override {
+        static_cast<void>(sample_manager_.service_completed_samples());
+    }
+
+private:
+    openswd3::audio_video::LegacyAudioQueueCoordinator& queue_;
+    openswd3::audio_video::LegacyStreamManager& stream_manager_;
+    openswd3::audio_video::LegacySequenceManager& sequence_manager_;
+    openswd3::audio_video::LegacySampleManager& sample_manager_;
+};
+
 void service_audio(
-    openswd3::audio_video::LegacyStreamManager& stream_manager,
-    openswd3::audio_video::LegacySampleManager& sample_manager
+    openswd3::audio_video::LegacyAudioMaintenancePorts& ports
 ) {
-    static_cast<void>(stream_manager.service());
-    static_cast<void>(sample_manager.service_completed_samples());
+    static_cast<void>(openswd3::audio_video::maintain_legacy_audio(ports));
 }
 
 void shutdown_audio_output(
+    openswd3::audio_video::LegacyAudioQueueCoordinator& queue,
     openswd3::audio_video::LegacyStreamManager& stream_manager,
+    openswd3::audio_video::LegacySequenceManager& sequence_manager,
     openswd3::audio_video::LegacySampleManager& sample_manager,
     openswd3::audio_video::LegacySndArchive& archive,
     openswd3::platform_sdl3::SdlLegacySampleBackend& backend
 ) {
+    static_cast<void>(queue.shutdown());
     if (stream_manager.initialized()) {
         static_cast<void>(stream_manager.shutdown());
+    }
+    if (sequence_manager.initialized()) {
+        static_cast<void>(sequence_manager.shutdown());
     }
     shutdown_sample_output(sample_manager, archive, backend);
 }
@@ -233,13 +388,11 @@ public:
     SmokeWindowEventPorts(
         const openswd3::rendering::LegacyFramebuffer& framebuffer,
         const openswd3::rendering::LegacyPixelConversionState& pixel_conversion,
-        openswd3::audio_video::LegacyStreamManager& stream_manager,
-        openswd3::audio_video::LegacySampleManager& sample_manager
+        openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance
     )
         : framebuffer_(framebuffer),
           pixel_conversion_(pixel_conversion),
-          stream_manager_(stream_manager),
-          sample_manager_(sample_manager) {}
+          audio_maintenance_(audio_maintenance) {}
 
     void release_active_video() override {}
 
@@ -273,7 +426,7 @@ public:
     void beep() override {}
 
     void maintain_audio() override {
-        service_audio(stream_manager_, sample_manager_);
+        service_audio(audio_maintenance_);
     }
 
     bool open_existing_numbered_bmp(
@@ -392,8 +545,7 @@ private:
 
     const openswd3::rendering::LegacyFramebuffer& framebuffer_;
     const openswd3::rendering::LegacyPixelConversionState& pixel_conversion_;
-    openswd3::audio_video::LegacyStreamManager& stream_manager_;
-    openswd3::audio_video::LegacySampleManager& sample_manager_;
+    openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance_;
     std::ifstream existing_stream_;
     std::fstream output_stream_;
 };
@@ -453,6 +605,7 @@ public:
         openswd3::audio_video::LegacySndArchive& snd_archive,
         openswd3::platform_sdl3::SdlLegacySampleBackend& sample_backend,
         openswd3::audio_video::LegacySampleManager& sample_manager,
+        openswd3::audio_video::LegacySequenceManager& sequence_manager,
         openswd3::audio_video::LegacyStreamManager& stream_manager
     )
         : renderer_(renderer),
@@ -461,6 +614,7 @@ public:
           snd_archive_(snd_archive),
           sample_backend_(sample_backend),
           sample_manager_(sample_manager),
+          sequence_manager_(sequence_manager),
           stream_manager_(stream_manager) {}
 
     bool initialize_input_backend() override { return true; }
@@ -517,7 +671,20 @@ public:
     openswd3::app::BackendToken query_audio_driver() override {
         return sample_backend_.driver_token();
     }
-    void initialize_midi_output(openswd3::app::BackendToken) override {}
+    void initialize_midi_output(
+        const openswd3::app::BackendToken driver
+    ) override {
+        const auto status = sequence_manager_.initialize_output(
+            static_cast<openswd3::compat::u32>(driver)
+        );
+        if (status != openswd3::audio_video::
+                LegacySequenceManagerInitializeStatus::ready) {
+            openswd3::diagnostics::log_error(
+                std::string{"sequence output: MIDI initialization failed: "} +
+                std::string{sequence_manager_.last_error()}
+            );
+        }
+    }
     void initialize_audio_stream_nodes(
         const openswd3::app::BackendToken driver
     ) override {
@@ -571,6 +738,7 @@ private:
     openswd3::audio_video::LegacySndArchive& snd_archive_;
     openswd3::platform_sdl3::SdlLegacySampleBackend& sample_backend_;
     openswd3::audio_video::LegacySampleManager& sample_manager_;
+    openswd3::audio_video::LegacySequenceManager& sequence_manager_;
     openswd3::audio_video::LegacyStreamManager& stream_manager_;
 };
 
@@ -769,6 +937,7 @@ public:
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
         openswd3::audio_video::LegacyStreamManager& stream_manager,
         openswd3::audio_video::LegacySampleManager& sample_manager,
+        openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance,
         openswd3::compat::u32& frame_interval,
         const bool backend_available,
         bool& ok,
@@ -783,6 +952,7 @@ public:
           text_renderers_(text_renderers),
           stream_manager_(stream_manager),
           sample_manager_(sample_manager),
+          audio_maintenance_(audio_maintenance),
           frame_interval_(frame_interval),
           backend_available_(backend_available),
           ok_(ok),
@@ -819,7 +989,7 @@ public:
         );
     }
     void maintain_audio() override {
-        service_audio(stream_manager_, sample_manager_);
+        service_audio(audio_maintenance_);
     }
     void suspend_battle_display() override {}
     void release_font(const openswd3::compat::u32 point_size) override {
@@ -897,6 +1067,7 @@ private:
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
     openswd3::audio_video::LegacyStreamManager& stream_manager_;
     openswd3::audio_video::LegacySampleManager& sample_manager_;
+    openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance_;
     openswd3::compat::u32& frame_interval_;
     bool backend_available_{};
     bool& ok_;
@@ -993,8 +1164,7 @@ public:
         openswd3::input_time_rng::LegacyInputNormalizationState& input_state,
         openswd3::input_time_rng::LegacyMouseState& mouse_state,
         openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state,
-        openswd3::audio_video::LegacyStreamManager& stream_manager,
-        openswd3::audio_video::LegacySampleManager& sample_manager,
+        openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance,
         openswd3::app::ShutdownPorts& shutdown_ports,
         openswd3::app::ProcessExitPorts& exit_ports,
         bool& ok,
@@ -1012,8 +1182,7 @@ public:
           input_state_(input_state),
           mouse_state_(mouse_state),
           mouse_device_state_(mouse_device_state),
-          stream_manager_(stream_manager),
-          sample_manager_(sample_manager),
+          audio_maintenance_(audio_maintenance),
           shutdown_ports_(shutdown_ports),
           exit_ports_(exit_ports),
           ok_(ok),
@@ -1021,7 +1190,7 @@ public:
 
     void step_video() override {}
     void maintain_audio() override {
-        service_audio(stream_manager_, sample_manager_);
+        service_audio(audio_maintenance_);
     }
 
     void yield() override {
@@ -1250,8 +1419,7 @@ private:
     openswd3::input_time_rng::LegacyInputNormalizationState& input_state_;
     openswd3::input_time_rng::LegacyMouseState& mouse_state_;
     openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state_;
-    openswd3::audio_video::LegacyStreamManager& stream_manager_;
-    openswd3::audio_video::LegacySampleManager& sample_manager_;
+    openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance_;
     openswd3::app::ShutdownPorts& shutdown_ports_;
     openswd3::app::ProcessExitPorts& exit_ports_;
     bool& ok_;
@@ -1426,8 +1594,25 @@ int main(const int argument_count, char** arguments) {
         sample_backend,
         snd_archive
     );
+    UnavailableLegacySequenceBackend sequence_backend;
+    openswd3::audio_video::LegacySequenceManager sequence_manager(
+        sequence_backend
+    );
     UnavailableLegacyStreamBackend stream_backend;
     openswd3::audio_video::LegacyStreamManager stream_manager(stream_backend);
+    SdlLegacyAudioQueuePorts audio_queue_ports(
+        sequence_manager,
+        stream_manager
+    );
+    openswd3::audio_video::LegacyAudioQueueCoordinator audio_queue(
+        audio_queue_ports
+    );
+    SdlLegacyAudioMaintenancePorts audio_maintenance(
+        audio_queue,
+        stream_manager,
+        sequence_manager,
+        sample_manager
+    );
     SdlSmokePlatformBackendPorts backend_ports(
         *renderer,
         texture,
@@ -1435,6 +1620,7 @@ int main(const int argument_count, char** arguments) {
         snd_archive,
         sample_backend,
         sample_manager,
+        sequence_manager,
         stream_manager
     );
     SdlSmokeInitializationPorts initialization_ports(
@@ -1481,7 +1667,9 @@ int main(const int argument_count, char** arguments) {
     if (startup_destroy_requested) {
         openswd3::app::seed_two_rng_streams(rng_seed_ports);
         shutdown_audio_output(
+            audio_queue,
             stream_manager,
+            sequence_manager,
             sample_manager,
             snd_archive,
             sample_backend
@@ -1524,8 +1712,7 @@ int main(const int argument_count, char** arguments) {
     SmokeWindowEventPorts window_ports(
         framebuffer,
         pixel_conversion,
-        stream_manager,
-        sample_manager
+        audio_maintenance
     );
     SdlDisplayLifecyclePorts display_ports(
         *window,
@@ -1537,6 +1724,7 @@ int main(const int argument_count, char** arguments) {
         text_renderers,
         stream_manager,
         sample_manager,
+        audio_maintenance,
         frame_interval,
         runtime_ready,
         ok,
@@ -1585,8 +1773,7 @@ int main(const int argument_count, char** arguments) {
         input_state,
         mouse_state,
         mouse_device_state,
-        stream_manager,
-        sample_manager,
+        audio_maintenance,
         shutdown_ports,
         exit_ports,
         ok,
@@ -1632,7 +1819,9 @@ int main(const int argument_count, char** arguments) {
     }
 
     shutdown_audio_output(
+        audio_queue,
         stream_manager,
+        sequence_manager,
         sample_manager,
         snd_archive,
         sample_backend

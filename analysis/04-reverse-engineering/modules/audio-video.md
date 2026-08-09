@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B5.9 sequence/queue 与公共音频协调
+当前单元：B5.10 世界音乐请求与媒体协调
 
 ## 1. 范围与移交
 
@@ -89,9 +89,9 @@ sequence、sample。文件/提示忙等中的 `AIL_serve` 映射到同一个显�
 
 新依赖方向固定为：`audio_video` 依赖 `compat` 与 `resource_io` 的只读文件接口；
 framebuffer/present、时钟/让出和生命周期都通过调用端口注入。SDL3 只负责最终音频
-设备输出；MP3、Bink 容器、视频、压缩音频、重采样和像素转换最终统一封装在一个基于
-FFmpeg 的动态媒体适配库中。主程序和兼容核心只依赖既定 stream/video 端口，不直接
-暴露 FFmpeg、Miles、Bink 或 SDL 类型。
+设备输出；MP3、Bink 容器、视频、压缩音频、重采样和像素转换最终统一封装在项目自有
+`libffmpeg` 动态库中。主程序和兼容核心只依赖既定 stream/video 端口，不直接暴露
+FFmpeg、Miles、Bink 或 SDL 类型。
 
 ## 4. 验证入口与开始条件
 
@@ -110,8 +110,8 @@ FFmpeg 的动态媒体适配库中。主程序和兼容核心只依赖既定 str
 73 个 B5 地址、跨模块接口、状态 owner、启动/帧/停用/退出顺序、首批 UT 边界和真实
 资产入口已经固定，达到单模块开始条件。sample 参数、SND、manager、输出 backend 和
 游戏侧 sample wrapper、stream manager、剩余 stream wrapper 与 stream 生命周期接线
-已逐层完成；当前恢复 sequence/queue 与公共音频协调，不等待 FFmpeg 动态媒体适配库
-和 Bink backend 一次性完成。
+已逐层完成；sequence/queue 与公共 queue→stream→sequence→sample 维护顺序也已接通。
+当前恢复世界音乐请求与媒体协调，不等待 `libffmpeg` 和 Bink backend 一次性完成。
 
 ## 5. 已有证据
 
@@ -161,8 +161,12 @@ FFmpeg 的动态媒体适配库中。主程序和兼容核心只依赖既定 str
    不引入一次性 MP3 解码器；Linux/Windows `app` 75/75 CTest 通过。
 9. `[ ]` B5.video-TODO：当前只保留既定 open/wait/decode/copy/advance/service/close
    视频端口和活动状态迁移；暂不实现 Bink 解码，播放请求先通过可替换占位后端立即完成，
-   不阻塞进入游戏。现有 12 份视频资产均为 Bink 1 `BIKh/BIKi`；后续由统一 FFmpeg
-   动态媒体适配库提供 Bink video、Bink audio 与容器解复用，不自行实现编解码器，再以
-   framebuffer/audio 时序和原版动态 oracle 验收。
-10. `[>]` B5.9：恢复 sequence/queue manager，并接入公共音频协调顺序；不提前实现
-    FFmpeg 动态媒体适配库。
+   不阻塞进入游戏。现有 12 份视频资产均为 Bink 1 `BIKh/BIKi`；后续由项目自有
+   `libffmpeg` 动态库提供 Bink video、Bink audio 与容器解复用，不自行实现编解码器，
+   再以 framebuffer/audio 时序和原版动态 oracle 验收。
+10. `[x]` B5.9：`0x00484DD0–0x004855EA` 的 sequence/queue manager 已按 LST 恢复；
+    单 sequence 节点、两组各两条 20 字节 queue 记录、Miles init `-1/0` 差异、重复
+    user-data 查询、status 分支及 queue→stream→sequence→sample 顺序均由 fake backend
+    和 UT 锁定。Linux `core` 73/73、Linux/Windows `app` 77/77 CTest 通过。
+11. `[>]` B5.10：恢复 `0x0040CDD0/0x0040CF40/0x0040EB60/0x004118B0` 的世界音乐
+    请求、路径生成和媒体协调；不提前实现 `libffmpeg`。

@@ -3,8 +3,10 @@ add_library(
     STATIC
         legacy_audio_output.cpp
         legacy_audio_parameters.cpp
+        legacy_audio_coordination.cpp
         legacy_sample_commands.cpp
         legacy_sample_manager.cpp
+        legacy_sequence_manager.cpp
         legacy_snd_archive.cpp
         legacy_stream_commands.cpp
         legacy_stream_manager.cpp

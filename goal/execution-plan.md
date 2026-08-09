@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v93
+版本：v94
 
 最后更新：2026-08-09
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：B5.9 · sequence/queue 与公共音频协调
+当前步骤：B5.10 · 世界音乐请求与媒体协调
 
 ## 1. 目标
 
@@ -22,6 +22,7 @@
 - 构建：CMake 命令行，默认 Ninja Multi-Config；不依赖 Visual Studio IDE。
 - 编译器：MSVC 或 LLVM，工程文件不硬编码本机编译器路径。
 - 平台边界：SDL3；业务核心不直接依赖 DirectDraw、DirectInput 或其他旧 Windows 图形输入接口。
+- 音视频解码：最终统一放入项目自有 `libffmpeg` 动态库；主程序只依赖 OpenSWD3 的 stream/video ABI，不直接散布 FFmpeg API。当前阶段保留接口与 TODO，不阻塞其他模块恢复。
 - 诊断基础设施：在继续扩大业务模块前建立线程安全日志系统；每条日志至少含毫秒时间、级别、源文件与行号、消息，正常落盘，并在日志初始化失败时回退到控制台/调试输出。日志只观测行为，不改变原逻辑时序和返回合同。
 - 文本内核：剧情脚本仍按汇编以原始字节和字节偏移解析，文本载荷在边界按 EXE 同目录 `openswd3.toml` 的 `[scripts].encoding` 解码；`big5` 对应 CP950、`gbk` 对应 CP936，缺省为 `big5`，不自动猜测。解码后的内核公共接口统一使用 `char16_t`/UTF-16，不使用平台宽度不同的 `wchar_t`。
 - 汇编优先级：完整 LST 中的机器码字节与指令是唯一汇编主证据，高于 IDA 伪码、符号名、字符串解释和主观推断；ASM 不提供 LST 缺失的行为信息，不作为范围判定前置输入。
@@ -214,6 +215,6 @@
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
 10. `[x]` B4：151 项有限收口矩阵现为 95 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项归属修正；没有 B4 自有缺口。20/16/12 字体 renderer 已接入启动、显示停用/恢复和总退出，Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过。原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，状态为 `module_closed_pending_oracle`。
-11. `[>]` B5：机械候选 76 项中已确认 73 项属于 B5，`0x004841B0/0x00484230/0x00484500` 三项 battle helper 移交 B10；唯一工作包已固定接口、状态和生命周期并达到开始条件。参数转换、SND 固定索引/sample buffer、sample manager、旧 wave 格式协商、SDL3 PCM sample backend、游戏侧 sample wrapper、stream manager 与剩余 stream wrapper 已按 LST 与平台边界实现；真实 `all.snd` 的全部 loader view、13 种 PCM 组合和异常 data 标签通过，stream fake backend 锁定 fixed-point fade、status 分支和原始级联回收缺陷。第二次 driver 查询、公共 stream→sample 维护、显示停用和退出生命周期已接线，Linux `core` 71/71、Linux/Windows `app` 75/75 CTest 通过；压缩音频与 Bink 统一延后到 FFmpeg 动态媒体适配库，当前恢复 sequence/queue 与公共音频协调。
+11. `[>]` B5：机械候选 76 项中已确认 73 项属于 B5，`0x004841B0/0x00484230/0x00484500` 三项 battle helper 移交 B10；唯一工作包已固定接口、状态和生命周期并达到开始条件。参数转换、SND 固定索引/sample buffer、sample manager、旧 wave 格式协商、SDL3 PCM sample backend、游戏侧 sample/stream wrapper、stream manager、单节点 sequence manager 与两组 queue coordinator 已按 LST 与平台边界实现。公共维护顺序已接通为 queue→stream→sequence→sample，Linux `core` 73/73、Linux/Windows `app` 77/77 CTest 通过；压缩音频与 Bink 统一延后到项目自有 `libffmpeg` 动态库，当前恢复世界音乐请求与媒体协调。
 
 当前只执行 B5，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B5 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。
