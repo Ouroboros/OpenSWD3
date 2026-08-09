@@ -2,7 +2,7 @@
 
 最后更新：2026-08-10
 
-状态：B6 单模块开始条件已满足；TSW、ACT、通用动作记录、ANI 主时间线与变形节点已实现
+状态：B6 单模块开始条件已满足；TSW、ACT、通用动作记录与 ANI 已按行为单元持续闭环
 
 唯一行为真值：`swd3.exe.lst`。IDA 名称和伪码只用于定位。
 
@@ -68,6 +68,15 @@
   不复制成两个可能失同步的全局变量。
 - 径向注入的负坐标分支借用 B3 的 CRT RNG，调用次数和先 x 后 y 的顺序固定。
 
+### ANI framebuffer 逐行复制效果
+
+- `0x004163C0` 的参数状态由 64 项行数、64 项字节宽度、64 项像素偏移和一个 `u16`
+  帧计数器组成；实际 framebuffer 拷贝只遍历前 48 项。
+- 零计数器只初始化前 48 项；周期刷新却分别写 64 项宽度、48 项偏移和 64 项行数。
+  后 16 项虽不参与拷贝，仍必须保留其写入和第二套 RNG 消耗。
+- 每段把下一条 `0x500` 字节物理行的指定字节范围前向复制到当前行；调用者拥有
+  service 7，asset runtime 只接收启用结果并借用固定 16 位 framebuffer。
+
 ### SND 借用边界
 
 SND 的 3000 项索引、载荷 buffer、引用计数和播放生命周期已经由 `audio_video` 持有。
@@ -81,6 +90,7 @@ sample buffer，也不建立第二套 SND cache。后期 `libffmpeg` 同样不�
 ```text
 resource_io/file/decompress  → asset_runtime owned storage
 input_time_rng CRT rand       → deformation injection
+input_time_rng secondary RNG  → ANI row-copy parameters
 runtime_platform memory port → cache-limit policy
 asset_runtime borrowed view  → rendering/world/story/special/battle
 asset_runtime sound request  → audio_video port
@@ -113,11 +123,15 @@ asset_runtime sound request  → audio_video port
    6,057,767 个 span、178,426,082 个索引像素及每文件首帧哈希通过。
    `0x004154A0` 的冻结快照、`-13` 揭幕、逐帧推进、两种结束阈值、释放顺序和三个
    外部端口已实现；`0x00416CC0` 的逐节点 framebuffer 快照、变形、推进、完成摘链和
-   继续遍历也已闭环。当前继续收口 ANI 组剩余 7 个自有入口。
+   继续遍历也已闭环。`0x004163C0` 的 64 项状态、48 项有效块、16 帧刷新周期、第二套
+   RNG 顺序和下一物理行前向复制也已实现。当前继续收口 ANI 组剩余 6 个自有入口。
 6. `[x]` `0x00430C60..0x0043114C`：`0x2C` 变形节点、双 `i16` 工作场、固定场 0
    warp、跨行 carry 更新、16 位衰减、径向注入、CRT 随机坐标与哨兵链表调度已实现。
    Linux `core` 89/89、Windows LLVM `app` 93/93 CTest 通过。
-7. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
+7. `[x]` `0x004163C0`：service 7 启用门、64 项初始状态、48 项首次生成和实际拷贝、
+   64/48/64 项周期刷新、第二套无偏 RNG 顺序、`u16` 计数回绕及下一物理行复制已实现。
+   Linux `core` 90/90、Windows LLVM `app` 94/94 CTest 通过。
+8. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
 
 只有当前一项占执行位。每一项达到可独立验证边界就实现，不等待后面各项全部逆向。
 
@@ -132,6 +146,8 @@ asset_runtime sound request  → audio_video port
   以及六个真实 ACT 包的更新器集成测试。
 - 变形节点：字段/容量、原点上界、成对 warp、30-word 跨行 carry 固定向量、径向注入、
   CRT 随机坐标、哨兵头插以及完成/保留两种摘链路径。
+- ANI 逐行复制：固定 RNG 参数向量、64/48 项刷新差异、16 帧周期、计数回绕、逐字节
+  前向复制和 framebuffer 哈希 `0x8ED9811DCD93C1F1`。
 - 原程序差分：需要时准备 Frida spawn 工具，由用户运行；OpenSWD3 不自行启动原 EXE。
 
 当前不需要新的原程序动态捕获即可开始缓存策略、TSW/ACT 有效资产路径和动作状态机实现。
@@ -149,4 +165,5 @@ asset_runtime sound request  → audio_video port
 - [`action-external-consumers.md`](../evidence/action-external-consumers.md)
 - [`ani-container-and-lzo-boundary.md`](../evidence/ani-container-and-lzo-boundary.md)
 - [`frame-deformation-00430c60.md`](../evidence/frame-deformation-00430c60.md)
+- [`ani-row-copy-effect-004163c0.md`](../evidence/ani-row-copy-effect-004163c0.md)
 - [`legacy-snd-runtime-004862b0-00486490.md`](../evidence/legacy-snd-runtime-004862b0-00486490.md)

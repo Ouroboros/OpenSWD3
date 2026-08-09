@@ -1495,6 +1495,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_asset_runtime_legacy_ani_row_copy_effect_tests
+    unit/asset_runtime/legacy_ani_row_copy_effect_test.cpp
+)
+target_include_directories(
+    openswd3_asset_runtime_legacy_ani_row_copy_effect_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_asset_runtime_legacy_ani_row_copy_effect_tests
+    PRIVATE openswd3_asset_runtime
+)
+
+add_test(
+    NAME asset_runtime.legacy_ani_row_copy_effect
+    COMMAND openswd3_asset_runtime_legacy_ani_row_copy_effect_tests
+)
+
+add_executable(
     openswd3_asset_runtime_legacy_act_runtime_tests
     unit/asset_runtime/legacy_act_runtime_test.cpp
 )
