@@ -96,6 +96,17 @@
 - 拖尾从第 1 行开始，通过现有 `0x004239D0/0x00420490` 对应像素 helper 饱和
   增加灰度通道；越底边清 active 后仍可因寿命非零增加存活计数。
 
+### ANI 九点星芒效果
+
+- `0x004167B0` 拥有 96 个 `0x10` 字节槽；进程 loader 首次零填充，但场景初始化
+  只清上一帧存活数和每帧创建目标两个 `i16`，不清槽池。
+- 每帧无条件消耗 `random(1000)`，严格大于 900 才查 service `0x16`；新槽按
+  x、水平步进、垂直步进、剩余高度四步 RNG 建立，创建帧不绘制。
+- 每点以相位表偏移中心，对中心、四邻点和四对角执行九次饱和增亮；硬编码可绘制
+  行为 2..478，x 不裁剪并允许在平坦 framebuffer 上跨行。
+- 越过 479 行清 active 后仍会执行 16 位状态更新，并可能因剩余高度为正增加存活
+  计数；该一帧不一致按汇编保留。
+
 ### SND 借用边界
 
 SND 的 3000 项索引、载荷 buffer、引用计数和播放生命周期已经由 `audio_video` 持有。
@@ -145,8 +156,9 @@ asset_runtime sound request  → audio_video port
    继续遍历也已闭环。`0x004163C0` 的 64 项状态、48 项有效块、16 帧刷新周期、第二套
    RNG 顺序和下一物理行前向复制也已实现。`0x00416B30` 的 service
    门、变体 78/79 双帧、裁剪 BUG 和目标跟随状态也已闭环。`0x00416590` 的
-   48/64 槽差异、概率 service 门、拖尾像素和存活计数异常已闭环。当前继续
-   收口 ANI 组剩余 4 个自有入口。
+   48/64 槽差异、概率 service 门、拖尾像素和存活计数异常已闭环。`0x004167B0`
+   的 96 槽、仅计数器重置、九点星芒核、跨行 x 和存活计数异常也已闭环。当前继续
+   收口 ANI 组剩余 3 个自有入口。
 6. `[x]` `0x00430C60..0x0043114C`：`0x2C` 变形节点、双 `i16` 工作场、固定场 0
    warp、跨行 carry 更新、16 位衰减、径向注入、CRT 随机坐标与哨兵链表调度已实现。
    Linux `core` 89/89、Windows LLVM `app` 93/93 CTest 通过。
@@ -159,7 +171,11 @@ asset_runtime sound request  → audio_video port
 9. `[x]` `0x00416590`：48/64 槽重置差异、条件 service 8、四步 RNG 创建、第 0 行跳过、
    包含上界拖尾、逐点饱和增亮、`i16` 乘加回绕及越底边计数异常已实现；
    Linux `core` 93/93、Windows LLVM `app` 97/97 CTest 通过。
-10. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
+10. `[x]` `0x004167B0`：96 槽与只清计数器的重置差异、条件 service `0x16`、
+    四步 RNG 创建、八段相位、九点饱和增亮、硬编码上下边界、横向跨扫描线、
+    `i16` 状态推进及越底边计数异常已实现；Linux `core` 94/94、Windows LLVM
+    `app` 98/98 CTest 通过。
+11. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
 
 只有当前一项占执行位。每一项达到可独立验证边界就实现，不等待后面各项全部逆向。
 
@@ -182,6 +198,9 @@ asset_runtime sound request  → audio_video port
 - ANI 下落拖尾：前 48/全 64 槽、概率门与条件 service 调用、四个创建 RNG、
   bit 0 活动判定、第 0 行跳过、包含上界、逐点灰度增亮、底边与寿命计数异常，
   以及固定 framebuffer 哈希 `0x7403975F3AB69BDD`。
+- ANI 九点星芒：loader 零填充与只清计数器、96 槽、service `0x16`、四个创建 RNG、
+  相位表、强度除法、九次像素调用、横向跨扫描线、上下硬边界、底边与存活计数异常，
+  以及固定 framebuffer 哈希 `0xF7080E84910EFC5B`。
 - 原程序差分：需要时准备 Frida spawn 工具，由用户运行；OpenSWD3 不自行启动原 EXE。
 
 当前不需要新的原程序动态捕获即可开始缓存策略、TSW/ACT 有效资产路径和动作状态机实现。
@@ -199,6 +218,7 @@ asset_runtime sound request  → audio_video port
 - [`action-external-consumers.md`](../evidence/action-external-consumers.md)
 - [`ani-follower-effect-00416b30.md`](../evidence/ani-follower-effect-00416b30.md)
 - [`ani-streak-effect-00416590.md`](../evidence/ani-streak-effect-00416590.md)
+- [`ani-spark-effect-004167b0.md`](../evidence/ani-spark-effect-004167b0.md)
 - [`ani-container-and-lzo-boundary.md`](../evidence/ani-container-and-lzo-boundary.md)
 - [`frame-deformation-00430c60.md`](../evidence/frame-deformation-00430c60.md)
 - [`ani-row-copy-effect-004163c0.md`](../evidence/ani-row-copy-effect-004163c0.md)
