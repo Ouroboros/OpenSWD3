@@ -1,6 +1,7 @@
 # 普通世界音频状态协调汇编证据：0x0040CDD0
 
-状态：P2.2 顶层职责已确认
+状态：B5.10 已实现；完整实现证据见
+[`legacy-world-music-media-0040cdd0-00411c8b.md`](legacy-world-music-media-0040cdd0-00411c8b.md)
 
 来源：`swd3.exe` 完整汇编
 

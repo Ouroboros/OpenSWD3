@@ -25,6 +25,7 @@
 #include "openswd3/audio_video/legacy_snd_archive.hpp"
 #include "openswd3/audio_video/legacy_stream_commands.hpp"
 #include "openswd3/audio_video/legacy_stream_manager.hpp"
+#include "openswd3/audio_video/legacy_video.hpp"
 #include "openswd3/diagnostics/log.hpp"
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
 #include "openswd3/input_time_rng/legacy_frame_clock.hpp"
@@ -388,13 +389,17 @@ public:
     SmokeWindowEventPorts(
         const openswd3::rendering::LegacyFramebuffer& framebuffer,
         const openswd3::rendering::LegacyPixelConversionState& pixel_conversion,
-        openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance
+        openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance,
+        openswd3::audio_video::LegacyVideoPlayer& video_player
     )
         : framebuffer_(framebuffer),
           pixel_conversion_(pixel_conversion),
-          audio_maintenance_(audio_maintenance) {}
+          audio_maintenance_(audio_maintenance),
+          video_player_(video_player) {}
 
-    void release_active_video() override {}
+    void release_active_video() override {
+        static_cast<void>(video_player_.close());
+    }
 
     openswd3::compat::u32 free_disk_space_mebibytes() override {
         std::error_code error;
@@ -546,6 +551,7 @@ private:
     const openswd3::rendering::LegacyFramebuffer& framebuffer_;
     const openswd3::rendering::LegacyPixelConversionState& pixel_conversion_;
     openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance_;
+    openswd3::audio_video::LegacyVideoPlayer& video_player_;
     std::ifstream existing_stream_;
     std::fstream output_stream_;
 };
@@ -1149,12 +1155,13 @@ class SdlSmokeIdlePorts final
     : public openswd3::app::IdleRuntimePorts,
       public openswd3::app::FramePreparationPorts,
       public openswd3::app::FrameRuntimePorts,
-      public openswd3::rendering::LegacyPresentationPorts {
+      public openswd3::rendering::LegacyPresentationPorts,
+      public openswd3::audio_video::LegacyVideoFramePorts {
 public:
     SdlSmokeIdlePorts(
         SDL_Renderer& renderer,
         SDL_Texture*& texture,
-        const openswd3::rendering::LegacyFramebuffer& game_framebuffer,
+        openswd3::rendering::LegacyFramebuffer& game_framebuffer,
         openswd3::rendering::LegacyFramebuffer& primary_surface,
         const openswd3::compat::u32& frame_interval,
         openswd3::app::WindowEventState& window_state,
@@ -1165,6 +1172,7 @@ public:
         openswd3::input_time_rng::LegacyMouseState& mouse_state,
         openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state,
         openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance,
+        openswd3::audio_video::LegacyVideoPlayer& video_player,
         openswd3::app::ShutdownPorts& shutdown_ports,
         openswd3::app::ProcessExitPorts& exit_ports,
         bool& ok,
@@ -1183,12 +1191,20 @@ public:
           mouse_state_(mouse_state),
           mouse_device_state_(mouse_device_state),
           audio_maintenance_(audio_maintenance),
+          video_player_(video_player),
           shutdown_ports_(shutdown_ports),
           exit_ports_(exit_ports),
           ok_(ok),
           running_(running) {}
 
-    void step_video() override {}
+    void step_video() override {
+        const auto result = video_player_.step(*this);
+        if (result.status ==
+            openswd3::audio_video::LegacyVideoStepStatus::completed) {
+            window_state_.process_flags &=
+                ~openswd3::app::kProcessVideoActive;
+        }
+    }
     void maintain_audio() override {
         service_audio(audio_maintenance_);
     }
@@ -1377,6 +1393,30 @@ public:
         return true;
     }
 
+    std::span<openswd3::compat::u16>
+    video_destination_pixels() override {
+        return game_framebuffer_.physical_pixels();
+    }
+
+    openswd3::compat::i32 video_destination_pitch_bytes() override {
+        return game_framebuffer_.geometry().surface.pitch_bytes;
+    }
+
+    openswd3::audio_video::LegacyVideoPixelFormat
+    video_pixel_format() override {
+        return openswd3::audio_video::LegacyVideoPixelFormat::rgb565;
+    }
+
+    void report_video_copy_failure() override {
+        openswd3::diagnostics::log_error("legacy video frame copy failed");
+    }
+
+    bool present_video_frame() override {
+        return request_presentation(
+            openswd3::rendering::LegacyPresentationSite::bink_video
+        );
+    }
+
     void request_synchronous_close() override {
         window_state_.process_flags = frame_coordinator_state_.process_flags;
         openswd3::app::handle_window_destroy(
@@ -1387,7 +1427,7 @@ public:
     }
 
 private:
-    void request_presentation(
+    bool request_presentation(
         const openswd3::rendering::LegacyPresentationSite site
     ) {
         const auto result =
@@ -1404,11 +1444,13 @@ private:
             ok_ = false;
             running_ = false;
         }
+        return result.status ==
+            openswd3::rendering::LegacyPresentationDispatchStatus::completed;
     }
 
     SDL_Renderer& renderer_;
     SDL_Texture*& texture_;
-    const openswd3::rendering::LegacyFramebuffer& game_framebuffer_;
+    openswd3::rendering::LegacyFramebuffer& game_framebuffer_;
     openswd3::rendering::LegacyFramebuffer& primary_surface_;
     const openswd3::compat::u32& frame_interval_;
     openswd3::app::WindowEventState& window_state_;
@@ -1420,6 +1462,7 @@ private:
     openswd3::input_time_rng::LegacyMouseState& mouse_state_;
     openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state_;
     openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance_;
+    openswd3::audio_video::LegacyVideoPlayer& video_player_;
     openswd3::app::ShutdownPorts& shutdown_ports_;
     openswd3::app::ProcessExitPorts& exit_ports_;
     bool& ok_;
@@ -1600,6 +1643,8 @@ int main(const int argument_count, char** arguments) {
     );
     UnavailableLegacyStreamBackend stream_backend;
     openswd3::audio_video::LegacyStreamManager stream_manager(stream_backend);
+    openswd3::audio_video::ImmediateCompleteLegacyVideoBackend video_backend;
+    openswd3::audio_video::LegacyVideoPlayer video_player(video_backend);
     SdlLegacyAudioQueuePorts audio_queue_ports(
         sequence_manager,
         stream_manager
@@ -1712,7 +1757,8 @@ int main(const int argument_count, char** arguments) {
     SmokeWindowEventPorts window_ports(
         framebuffer,
         pixel_conversion,
-        audio_maintenance
+        audio_maintenance,
+        video_player
     );
     SdlDisplayLifecyclePorts display_ports(
         *window,
@@ -1774,6 +1820,7 @@ int main(const int argument_count, char** arguments) {
         mouse_state,
         mouse_device_state,
         audio_maintenance,
+        video_player,
         shutdown_ports,
         exit_ports,
         ok,

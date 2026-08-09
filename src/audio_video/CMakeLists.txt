@@ -4,12 +4,15 @@ add_library(
         legacy_audio_output.cpp
         legacy_audio_parameters.cpp
         legacy_audio_coordination.cpp
+        legacy_media_acquisition.cpp
         legacy_sample_commands.cpp
         legacy_sample_manager.cpp
         legacy_sequence_manager.cpp
         legacy_snd_archive.cpp
         legacy_stream_commands.cpp
         legacy_stream_manager.cpp
+        legacy_video.cpp
+        legacy_world_music.cpp
 )
 target_include_directories(
     openswd3_audio_video

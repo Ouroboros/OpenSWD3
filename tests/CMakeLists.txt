@@ -1255,6 +1255,60 @@ add_test(
 )
 
 add_executable(
+    openswd3_audio_video_legacy_world_music_tests
+    unit/audio_video/legacy_world_music_test.cpp
+)
+target_include_directories(
+    openswd3_audio_video_legacy_world_music_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_audio_video_legacy_world_music_tests
+    PRIVATE openswd3_audio_video
+)
+
+add_test(
+    NAME audio_video.legacy_world_music
+    COMMAND openswd3_audio_video_legacy_world_music_tests
+)
+
+add_executable(
+    openswd3_audio_video_legacy_media_acquisition_tests
+    unit/audio_video/legacy_media_acquisition_test.cpp
+)
+target_include_directories(
+    openswd3_audio_video_legacy_media_acquisition_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_audio_video_legacy_media_acquisition_tests
+    PRIVATE openswd3_audio_video
+)
+
+add_test(
+    NAME audio_video.legacy_media_acquisition
+    COMMAND openswd3_audio_video_legacy_media_acquisition_tests
+)
+
+add_executable(
+    openswd3_audio_video_legacy_video_tests
+    unit/audio_video/legacy_video_test.cpp
+)
+target_include_directories(
+    openswd3_audio_video_legacy_video_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_audio_video_legacy_video_tests
+    PRIVATE openswd3_audio_video
+)
+
+add_test(
+    NAME audio_video.legacy_video
+    COMMAND openswd3_audio_video_legacy_video_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_formatted_text_tests
     unit/rendering/legacy_formatted_text_test.cpp
 )

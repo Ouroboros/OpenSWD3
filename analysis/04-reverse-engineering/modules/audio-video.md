@@ -1,8 +1,8 @@
 # B5 `audio_video` 工作包
 
-状态：实施中
+状态：核心已有限收口；最终 `libffmpeg` 后端与原版动态差分延期
 
-当前单元：B5.10 世界音乐请求与媒体协调
+当前单元：无；B5 已让出执行位，最终媒体后端按用户决定在后期统一完成
 
 ## 1. 范围与移交
 
@@ -111,12 +111,22 @@ FFmpeg、Miles、Bink 或 SDL 类型。
 资产入口已经固定，达到单模块开始条件。sample 参数、SND、manager、输出 backend 和
 游戏侧 sample wrapper、stream manager、剩余 stream wrapper 与 stream 生命周期接线
 已逐层完成；sequence/queue 与公共 queue→stream→sequence→sample 维护顺序也已接通。
-当前恢复世界音乐请求与媒体协调，不等待 `libffmpeg` 和 Bink backend 一次性完成。
+世界音乐请求、路径生成和现代数据目录介质定位已经恢复；11 个视频地址已映射到可替换
+端口、逐帧状态机与立即完成占位。当前只做 73 地址有限收口审计，不等待 `libffmpeg`
+和 Bink backend 一次性完成。
+
+有限收口表与总所有权表的 game/audio_video 地址集合逐项一致，均为 73 项：43 项核心
+实现、2 项真实资产验证实现、3 项平台替代、1 项外部 service 端口、23 项“核心状态机
+已实现但实际媒体后端延期”，以及 1 项剧情调用边界拆分。没有未映射地址。此前确认的
+`0x004841B0/0x00484230/0x00484500` 已在总所有权表正式改归 battle，不再只停留在本文
+说明中。剩余工作只有最终 `libffmpeg`、后续 owner 调用点接线和 `blocked_runtime_oracle`，
+不构成继续占用 B5 执行位的理由。
 
 ## 5. 已有证据
 
 - [`audio-video-entry-abi.md`](../evidence/audio-video-entry-abi.md)
 - [`audio-frame-0040cdd0.md`](../evidence/audio-frame-0040cdd0.md)
+- [`legacy-world-music-media-0040cdd0-00411c8b.md`](../evidence/legacy-world-music-media-0040cdd0-00411c8b.md)
 - [`snd-archive-format.md`](../evidence/snd-archive-format.md)
 - [`presentation-lifecycle.md`](../evidence/presentation-lifecycle.md)
 - [`platform-backend-initialization-00424ef0.md`](../evidence/platform-backend-initialization-00424ef0.md)
@@ -127,6 +137,8 @@ FFmpeg、Miles、Bink 或 SDL 类型。
 - [`legacy-audio-output-004859b0-00485ca6.md`](../evidence/legacy-audio-output-004859b0-00485ca6.md)
 - [`legacy-sample-commands-00485610-00485828.md`](../evidence/legacy-sample-commands-00485610-00485828.md)
 - [`legacy-stream-manager-004865b0-00486a70.md`](../evidence/legacy-stream-manager-004865b0-00486a70.md)
+- [`legacy-video-00484550-00484da0.md`](../evidence/legacy-video-00484550-00484da0.md)
+- [`b5-closure.tsv`](../inventory/b5-closure.tsv)
 
 ## 6. 当前执行顺序
 
@@ -159,14 +171,20 @@ FFmpeg、Miles、Bink 或 SDL 类型。
    idle 的公共音频维护均固定为 stream→sample，显示停用与总退出按原顺序执行 stream
    fade、sample stop，最终退出回收两个 manager。压缩 stream 使用明确的未接入后端，
    不引入一次性 MP3 解码器；Linux/Windows `app` 75/75 CTest 通过。
-9. `[ ]` B5.video-TODO：当前只保留既定 open/wait/decode/copy/advance/service/close
-   视频端口和活动状态迁移；暂不实现 Bink 解码，播放请求先通过可替换占位后端立即完成，
-   不阻塞进入游戏。现有 12 份视频资产均为 Bink 1 `BIKh/BIKi`；后续由项目自有
-   `libffmpeg` 动态库提供 Bink video、Bink audio 与容器解复用，不自行实现编解码器，
-   再以 framebuffer/audio 时序和原版动态 oracle 验收。
+9. `[x]` B5.video-TODO：`0x00484550–0x00484DA0` 的 11 个视频地址已映射到稳定的
+   open/wait/decode/copy/advance/service/close 端口、活动 player、进度正负语义和固定
+   Bink present；fake backend 锁定逐帧顺序、320×200 居中、终止帧先 present 后 close。
+   当前立即完成后端不设置活动位、不产生假帧；实际 Bink 解码由最终项目自有
+   `libffmpeg` 动态库统一提供。
 10. `[x]` B5.9：`0x00484DD0–0x004855EA` 的 sequence/queue manager 已按 LST 恢复；
     单 sequence 节点、两组各两条 20 字节 queue 记录、Miles init `-1/0` 差异、重复
     user-data 查询、status 分支及 queue→stream→sequence→sample 顺序均由 fake backend
     和 UT 锁定。Linux `core` 73/73、Linux/Windows `app` 77/77 CTest 通过。
-11. `[>]` B5.10：恢复 `0x0040CDD0/0x0040CF40/0x0040EB60/0x004118B0` 的世界音乐
-    请求、路径生成和媒体协调；不提前实现 `libffmpeg`。
+11. `[x]` B5.10：`0x0040CDD0/0x0040CF40/0x0040EB60` 的世界音乐请求、8 字节映射
+    表、两组七槽状态和首句点 MP3 路径已按 LST 恢复；`0x004118B0` 的 wait/close 位与
+    原光盘路径已锁定，正常路径以配置数据目录做确定性替代。Linux `core` 75/75、
+    Linux/Windows `app` 79/79 CTest 通过；没有提前实现 `libffmpeg`。
+12. `[x]` B5.close：73 地址收口表与总所有权表集合零差异；审计结果为 43 核心实现、
+    2 资产验证实现、3 平台替代、1 外部 service 端口、23 核心已实现/后端延期、1 剧情
+    边界拆分，没有未映射地址。Linux `core` 76/76、Linux/Windows `app` 80/80 CTest
+    通过。B5 让出执行位；最终 `libffmpeg` 与原版差分保留为明确后期项。
