@@ -115,6 +115,31 @@ void test_padded_pitch(openswd3::test::Context& test) {
     );
 }
 
+void test_logical_hash_excludes_pitch_padding(
+    openswd3::test::Context& test
+) {
+    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
+        .pitch_bytes = 8,
+        .width = 3,
+        .height = 2,
+    });
+    framebuffer.row_pixels(0U)[0] = 0x0000U;
+    framebuffer.row_pixels(0U)[1] = 0x1234U;
+    framebuffer.row_pixels(0U)[2] = 0xABCDU;
+    framebuffer.row_pixels(1U)[0] = 0x00FFU;
+    framebuffer.row_pixels(1U)[1] = 0xFF00U;
+    framebuffer.row_pixels(1U)[2] = 0x5555U;
+
+    framebuffer.physical_pixels()[3] = 0x1111U;
+    framebuffer.physical_pixels()[7] = 0xEEEEU;
+
+    test.expect_equal(
+        openswd3::rendering::legacy_framebuffer_logical_fnv1a64(framebuffer),
+        UINT64_C(0x8109C18FE56669D3),
+        "logical framebuffer replay hash excludes physical row padding"
+    );
+}
+
 void test_assembly_row_state(openswd3::test::Context& test) {
     LegacyRasterGeometryState state;
     state.row_byte_offsets.fill(0xDEADBEEFU);
@@ -238,6 +263,7 @@ int main() {
     openswd3::test::Context test;
     test_default_owned_framebuffer(test);
     test_padded_pitch(test);
+    test_logical_hash_excludes_pitch_padding(test);
     test_assembly_row_state(test);
     test_row_offset_wrapping_and_guard(test);
     return test.exit_code();

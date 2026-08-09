@@ -111,4 +111,25 @@ std::span<const compat::u16> LegacyFramebuffer::row_pixels(
     );
 }
 
+std::uint64_t legacy_framebuffer_logical_fnv1a64(
+    const LegacyFramebuffer& framebuffer
+) noexcept {
+    constexpr std::uint64_t kOffsetBasis = 0xCBF29CE484222325ULL;
+    constexpr std::uint64_t kPrime = 0x100000001B3ULL;
+
+    std::uint64_t hash = kOffsetBasis;
+    const compat::i32 height = framebuffer.geometry().surface.height;
+    for (compat::i32 row = 0; row < height; ++row) {
+        for (const compat::u16 pixel : framebuffer.row_pixels(
+                 static_cast<compat::u32>(row)
+             )) {
+            hash ^= static_cast<compat::u8>(pixel);
+            hash *= kPrime;
+            hash ^= static_cast<compat::u8>(pixel >> 8U);
+            hash *= kPrime;
+        }
+    }
+    return hash;
+}
+
 }  // namespace openswd3::rendering

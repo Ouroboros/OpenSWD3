@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <vector>
 
@@ -60,5 +61,9 @@ private:
     LegacyRasterGeometryState geometry_{};
     std::vector<compat::u16> pixels_{};
 };
+
+[[nodiscard]] std::uint64_t legacy_framebuffer_logical_fnv1a64(
+    const LegacyFramebuffer& framebuffer
+) noexcept;
 
 }  // namespace openswd3::rendering

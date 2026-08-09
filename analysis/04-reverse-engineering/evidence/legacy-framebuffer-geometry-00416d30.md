@@ -53,8 +53,25 @@ for each row while signed height > 0:
 
 因此 padding-aware 行算法与固定紧凑画布算法不会被错误合并。
 
-## 4. 验证入口
+## 4. SDL3 上传与回放哈希
 
-UT 覆盖默认 `640×480×16`、带 padding 的 pitch、稳定物理地址、逻辑行不包含 padding、短高度重建保留旧尾部、非正高度不写行表、32 位 pitch 回绕、1024 项物理边界和 owned storage 的平台输入约束。Linux Clang 22.1.8 `core` 为 41/41、`app` 为 43/43，Windows LLVM `app` 为 43/43 CTest。
+SDL3 主程序不再另建一份紧凑 `std::vector<u16>` 作为画面。截图和呈现都直接
+借用 `LegacyFramebuffer` 的稳定 owned storage；`SDL_UpdateTexture` 的地址来自
+`physical_pixels().data()`，pitch 来自当前 surface geometry，而不是重新写死
+`640×2`。因此带 padding 的现代 surface 描述不会在平台上传边界被压平。
+
+帧回放使用 logical framebuffer 的 FNV-1a 64：逐行只取 width 个像素，每个
+16 位像素严格按低 byte、再高 byte 输入哈希。该定义与宿主大小端和物理行
+padding 无关，直接对应动态捕获协议中的 `framebuffer-logical.bin`。合成
+`3×2`、8-byte pitch 向量的固定值为 `0x8109C18FE56669D3`；修改两行 padding
+后结果不变。
+
+这里没有伪造原版 framebuffer 样本。原版动态哈希仍为
+`blocked_runtime_oracle`；需要捕获时由用户运行 Frida spawn 工具，Codex 不
+自行启动原版。
+
+## 5. 验证入口
+
+UT 覆盖默认 `640×480×16`、带 padding 的 pitch、稳定物理地址、逻辑行不包含 padding、固定小端 logical hash、短高度重建保留旧尾部、非正高度不写行表、32 位 pitch 回绕、1024 项物理边界和 owned storage 的平台输入约束。当前 Linux Clang `core` 54/54、Windows LLVM `app` 56/56 CTest 全部通过。
 
 原程序 framebuffer 动态捕获仍不可用，因此本单元不能标记 `original_diff_verified`。

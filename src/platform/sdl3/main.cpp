@@ -21,6 +21,7 @@
 #include "openswd3/input_time_rng/legacy_frame_clock.hpp"
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/rendering/legacy_bmp_writer.hpp"
+#include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_glyph_atlas.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 #include "openswd3/rendering/legacy_presentation.hpp"
@@ -51,7 +52,6 @@ constexpr int kFrameWidth = 640;
 constexpr int kFrameHeight = 480;
 constexpr int kInitialWindowWidth = kFrameWidth * 3 / 2;
 constexpr int kInitialWindowHeight = kFrameHeight * 3 / 2;
-constexpr int kFramePitch = kFrameWidth * static_cast<int>(sizeof(std::uint16_t));
 constexpr openswd3::compat::u32 kInitialFrameIntervalMilliseconds = 35U;
 
 openswd3::resource_io::LegacyMemoryManager legacy_memory_manager;
@@ -110,13 +110,15 @@ int report_sdl_error(
 [[nodiscard]] bool present_framebuffer(
     SDL_Renderer& renderer,
     SDL_Texture& texture,
-    const std::vector<std::uint16_t>& framebuffer
+    const openswd3::rendering::LegacyFramebuffer& framebuffer
 ) {
+    const openswd3::rendering::LegacySurfaceGeometry& geometry =
+        framebuffer.geometry().surface;
     return SDL_UpdateTexture(
                &texture,
                nullptr,
-               framebuffer.data(),
-               kFramePitch
+               framebuffer.physical_pixels().data(),
+               geometry.pitch_bytes
            ) &&
            SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255) &&
            SDL_RenderClear(&renderer) &&
@@ -130,7 +132,7 @@ class SmokeWindowEventPorts final
       public openswd3::rendering::LegacyBmpWriterPorts {
 public:
     SmokeWindowEventPorts(
-        const std::vector<std::uint16_t>& framebuffer,
+        const openswd3::rendering::LegacyFramebuffer& framebuffer,
         const openswd3::rendering::LegacyPixelConversionState&
             pixel_conversion
     )
@@ -194,7 +196,7 @@ public:
             numbered_screenshot_path(sequence).string();
         const auto result =
             openswd3::rendering::write_legacy_16bit_framebuffer_bmp(
-                framebuffer_,
+                framebuffer_.physical_pixels(),
                 kFrameWidth,
                 kFrameHeight,
                 filename,
@@ -284,7 +286,7 @@ private:
             openswd3::app::make_legacy_screenshot_filename(sequence);
     }
 
-    const std::vector<std::uint16_t>& framebuffer_;
+    const openswd3::rendering::LegacyFramebuffer& framebuffer_;
     const openswd3::rendering::LegacyPixelConversionState& pixel_conversion_;
     std::ifstream existing_stream_;
     std::fstream output_stream_;
@@ -662,7 +664,7 @@ public:
     SdlSmokeIdlePorts(
         SDL_Renderer& renderer,
         SDL_Texture* texture,
-        const std::vector<std::uint16_t>& framebuffer,
+        const openswd3::rendering::LegacyFramebuffer& framebuffer,
         const openswd3::compat::u32& frame_interval,
         openswd3::app::WindowEventState& window_state,
         const openswd3::app::DisplayLifecycleState& display_state,
@@ -905,7 +907,7 @@ private:
 
     SDL_Renderer& renderer_;
     SDL_Texture* texture_{};
-    const std::vector<std::uint16_t>& framebuffer_;
+    const openswd3::rendering::LegacyFramebuffer& framebuffer_;
     const openswd3::compat::u32& frame_interval_;
     openswd3::app::WindowEventState& window_state_;
     const openswd3::app::DisplayLifecycleState& display_state_;
@@ -1136,9 +1138,7 @@ int main(const int argument_count, char** arguments) {
         return 0;
     }
 
-    std::vector<std::uint16_t> framebuffer(
-        static_cast<std::size_t>(kFrameWidth * kFrameHeight)
-    );
+    openswd3::rendering::LegacyFramebuffer framebuffer;
     openswd3::rendering::LegacyPixelConversionState pixel_conversion;
     openswd3::rendering::select_legacy_pixel_conversion(
         pixel_conversion,
