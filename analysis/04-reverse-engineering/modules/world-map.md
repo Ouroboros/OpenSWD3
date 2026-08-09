@@ -43,9 +43,10 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    Windows LLVM `app` 116/116 CTest 通过。
 4. `[~]` 接入 `0x00402F80` 输入/移动、`0x004120B0` 世界更新绘制和软件 framebuffer；
    四方向输入、八方向覆盖顺序、列表重复、移动边界、动作/速度状态和
-   `0x004120F9..0x00412197` 坐标更新已实现，Linux `core` 114/114、Windows LLVM
-   `app` 118/118 CTest 通过。当前继续 `0x004040B0` 对角阻挡修正，再组合碰撞、
-   Talk 与遇敌协调。
+   `0x004120F9..0x00412197` 坐标更新已实现；`0x0040BB50` 八方向占位、
+   `0x00404510` 三带可通行扫描和 `0x004040B0` 单轴绕行/对角裁剪也已闭环。
+   Linux `core` 115/115、Windows LLVM `app` 119/119 CTest 通过。当前继续组合
+   `0x00402F80` 的碰撞、Talk 与遇敌协调。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -62,4 +63,5 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`lmf-world-map-session-00425be0.md`](../evidence/lmf-world-map-session-00425be0.md)、
 [`cm-cache-runtime-00426840-004272b8.md`](../evidence/cm-cache-runtime-00426840-004272b8.md)、
 [`movement-collision-00404610.md`](../evidence/movement-collision-00404610.md) 和
-[`lmf-map-business-004261ce-00426798.md`](../evidence/lmf-map-business-004261ce-00426798.md)。
+[`lmf-map-business-004261ce-00426798.md`](../evidence/lmf-map-business-004261ce-00426798.md)、
+[`world-direction-adjustment-004040b0.md`](../evidence/world-direction-adjustment-004040b0.md)。
