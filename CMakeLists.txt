@@ -63,6 +63,7 @@ add_subdirectory(src/compat)
 add_subdirectory(src/resource_io)
 add_subdirectory(src/input_time_rng)
 add_subdirectory(src/rendering)
+add_subdirectory(src/audio_video)
 add_subdirectory(src/app)
 add_subdirectory(analysis/tools)
 

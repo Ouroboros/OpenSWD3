@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v86
+版本：v87
 
 最后更新：2026-08-09
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：B5.1 · `audio_video` 接口级逆向与工作包建立
+当前步骤：B5.3 · SND 运行时索引与 sample buffer
 
 ## 1. 目标
 
@@ -214,6 +214,6 @@
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
 10. `[x]` B4：151 项有限收口矩阵现为 95 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项归属修正；没有 B4 自有缺口。20/16/12 字体 renderer 已接入启动、显示停用/恢复和总退出，Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过。原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，状态为 `module_closed_pending_oracle`。
-11. `[>]` B5：先按完整 LST 恢复 `audio_video` 的 Miles 音频、Bink 视频、媒体 gate、状态所有权和生命周期，建立唯一模块工作包及有限函数清单；达到单模块开始条件后立即按行为单元边逆向边实现，不等待全模块细节调研完毕。
+11. `[>]` B5：机械候选 76 项中已确认 73 项属于 B5，`0x004841B0/0x00484230/0x00484500` 三项 battle helper 移交 B10；唯一工作包已固定接口、状态和生命周期并达到开始条件。`0x00486260/0x00486280` 音量/声像转换已按 LST 实现，Linux `core` 65/65、Windows LLVM `app` 67/67 CTest 通过。当前实现 SND 的 3000 项索引、一基查找和原样 sample buffer。
 
 当前只执行 B5，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B5 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。
