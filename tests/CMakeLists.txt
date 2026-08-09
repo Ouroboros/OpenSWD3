@@ -1423,6 +1423,37 @@ if(
 endif()
 
 add_executable(
+    openswd3_asset_runtime_legacy_ani_archive_tests
+    unit/asset_runtime/legacy_ani_archive_test.cpp
+)
+target_include_directories(
+    openswd3_asset_runtime_legacy_ani_archive_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_compile_definitions(
+    openswd3_asset_runtime_legacy_ani_archive_tests
+    PRIVATE
+        OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_BINARY_DIR}/test-artifacts"
+)
+target_link_libraries(
+    openswd3_asset_runtime_legacy_ani_archive_tests
+    PRIVATE openswd3_asset_runtime
+)
+
+add_test(
+    NAME asset_runtime.legacy_ani_archive
+    COMMAND openswd3_asset_runtime_legacy_ani_archive_tests
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../Video/Bd2Dh2.Ani")
+    add_test(
+        NAME asset_runtime.legacy_ani_archive_real
+        COMMAND
+            openswd3_asset_runtime_legacy_ani_archive_tests
+            "${PROJECT_SOURCE_DIR}/../Video"
+    )
+endif()
+
+add_executable(
     openswd3_asset_runtime_legacy_act_runtime_tests
     unit/asset_runtime/legacy_act_runtime_test.cpp
 )

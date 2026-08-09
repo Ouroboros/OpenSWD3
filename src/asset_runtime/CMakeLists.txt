@@ -4,6 +4,7 @@ add_library(
         legacy_act_archive.cpp
         legacy_act_runtime.cpp
         legacy_action_record.cpp
+        legacy_ani_archive.cpp
         legacy_asset_cache_limits.cpp
         legacy_tsw_archive.cpp
         legacy_tsw_runtime.cpp
