@@ -1,5 +1,7 @@
 #include "openswd3/rendering/legacy_rectangle_effect.hpp"
 
+#include "openswd3/rendering/legacy_packed_row.hpp"
+
 #include <bit>
 #include <cstddef>
 #include <span>
@@ -325,25 +327,23 @@ LegacyRectangleEffectStatus apply_legacy_rectangle_effect(
 
     switch (request.mode) {
     case 0U: {
-        const u32 mask_1 = duplicated_shift_mask(format, 1U);
-        const u32 mask_2 = duplicated_shift_mask(format, 2U);
-        const u32 mask_3 = duplicated_shift_mask(format, 3U);
-        const u32 mask_4 = duplicated_shift_mask(format, 4U);
-        const i32 pair_count = rectangle.width / 2;
         for (i32 row = 0; row < rectangle.height; ++row) {
             const std::size_t row_offset = first_offset +
                 static_cast<std::size_t>(row) *
                     static_cast<std::size_t>(pitch_words);
-            for (i32 pair = 0; pair < pair_count; ++pair) {
-                const std::size_t offset = row_offset +
-                    static_cast<std::size_t>(pair) * 2U;
-                const u32 destination = read_pair(pixels, offset);
-                const u32 output =
-                    ((destination >> 1U) & mask_1) +
-                    ((color >> 2U) & mask_2) +
-                    ((destination >> 3U) & mask_3) +
-                    ((destination >> 4U) & mask_4);
-                write_pair(pixels, offset, output);
+            const LegacyPackedRowBlendStatus status =
+                blend_legacy_packed_row(
+                    pixels.subspan(row_offset),
+                    color,
+                    rectangle.width,
+                    format
+                );
+            if (status == LegacyPackedRowBlendStatus::invalid_geometry) {
+                return LegacyRectangleEffectStatus::invalid_geometry;
+            }
+            if (status ==
+                LegacyPackedRowBlendStatus::destination_out_of_bounds) {
+                return LegacyRectangleEffectStatus::destination_out_of_bounds;
             }
         }
         break;

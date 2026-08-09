@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B4.9d 固定 writer 与 packed-row 像素 helper
+当前单元：B4.9e 整帧 packed-16 颜色函数
 
 ## 1. 范围与非范围
 
@@ -83,6 +83,7 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 - [`legacy-image-command-stream-004014f0-00401e50.md`](../evidence/legacy-image-command-stream-004014f0-00401e50.md)
 - [`legacy-drawing-helpers-0040de50-004117f0.md`](../evidence/legacy-drawing-helpers-0040de50-004117f0.md)
 - [`legacy-pause-action-and-message-renderers-00411fa0-004153d0.md`](../evidence/legacy-pause-action-and-message-renderers-00411fa0-004153d0.md)
+- [`legacy-outline-fixed-tile-and-packed-row-00417050-00417de0.md`](../evidence/legacy-outline-fixed-tile-and-packed-row-00417050-00417de0.md)
 - [`presentation-lifecycle.md`](../evidence/presentation-lifecycle.md)
 - [`p4-dynamic-oracle-capture-protocol.md`](../evidence/p4-dynamic-oracle-capture-protocol.md)
 - [`rendering-closure-audit.md`](../evidence/rendering-closure-audit.md)
@@ -98,6 +99,6 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 6. `[x]` B4.6：唯一动态基准、受控 GDI 生成器、32,896-key 正式 atlas、跨平台 Provider、EXE 旁资源部署和运行时校验已闭环；独立验证为 `157/157` 零差异，Linux `core` 47/47、Windows `app` 49/49 CTest 通过。
 7. `[x]` B4.7：`sub_43B110` 六模式矩形效果、`sub_42E850` 九宫格绘制和 `sub_43BAB0` 效果面板组合已按完整 LST 实现并逐基本块复核；21 个 primary 提交点已形成完整请求合同，SDL smoke 的错误统一帧尾 present 已改为六条稳定分支内请求。`sub_4303D0` BMP 写入器、`sub_4306C0` 格式化原始字节文字及 `sub_4308C0/sub_430B60` 30 Hz 倒计时绘制与初始化均已闭环。Linux `core` 54/54、Windows LLVM `app` 56/56 CTest 通过。
 8. `[x]` B4.8：SDL3 上传已直接使用 owned framebuffer 的稳定地址和实际 pitch，logical hash 已固定为跨平台小端 FNV-1a；恢复路径可重建纹理并重新上传现有 primary，失败会停止外壳，现代可缩放窗口恢复时保留用户尺寸。独立 primary surface 与 full/partial RECT 合成已接通，矩形外保留旧 primary 状态，快照/临时 source 缺失时显式失败。Linux `core` 54/54、Linux/Windows LLVM `app` 56/56 CTest 通过；Windows OpenSWD3 在 `1000×750` 下完成最小化、恢复、尺寸保持和零退出 smoke。
-9. `[>]` B4 范围闭环审计：151 项矩阵现为 78 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、5 项延后接线、14 项真实缺口和 1 项移交。`0x00411FA0/0x00414B60/0x00414CE0/0x00414E50/0x004153D0` 已按完整 LST 闭环暂停层、动作精灵、五模式行特效和限时消息队列；Linux `core` 60/60、Windows LLVM `app` 62/62 CTest 通过。下一组立即处理 `0x00417050/0x004174D0..0x00417650/0x00417DE0`。
+9. `[>]` B4 范围闭环审计：151 项矩阵现为 84 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、5 项延后接线、8 项真实缺口和 1 项移交。`0x00417050/0x004174D0/0x00417530/0x004175B0/0x00417650/0x00417DE0` 已按完整 LST 闭环四向描边、四种固定 16×16 tile writer 和 packed-row 混合；Linux `core` 61/61、Windows LLVM `app` 63/63 CTest 通过。下一组立即处理 `0x00420490..0x004207E0/0x00421FB0` 六项整帧颜色函数。
 
 每项达到自己的汇编、UT 和资产门后立即进入下一项，不等待 B4 全部细节重新调研。

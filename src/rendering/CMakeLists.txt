@@ -6,6 +6,7 @@ add_library(
     legacy_action_renderers.cpp
     legacy_drawing_helpers.cpp
     legacy_effect_panel.cpp
+    legacy_fixed_tile_writer.cpp
     legacy_formatted_text.cpp
     legacy_framebuffer.cpp
     legacy_glyph_atlas.cpp
@@ -14,6 +15,7 @@ add_library(
     legacy_image_command_stream.cpp
     legacy_pixel_conversion.cpp
     legacy_pause_overlay.cpp
+    legacy_packed_row.cpp
     legacy_presentation.cpp
     legacy_rectangle_effect.cpp
     legacy_text_renderer.cpp

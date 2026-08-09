@@ -170,7 +170,7 @@ void draw_effect_row(
     LegacyPackedRowDrawPorts& draw_ports,
     LegacyPackedRowEffectResult& result
 ) noexcept {
-    draw_ports.draw_legacy_packed_row(
+    result.last_draw_status = draw_ports.draw_legacy_packed_row(
         static_cast<i32>(effect.base_x) +
             static_cast<i32>(effect.row_offsets[static_cast<std::size_t>(row)]),
         static_cast<i32>(effect.base_y) + row,
@@ -178,9 +178,47 @@ void draw_effect_row(
         static_cast<i32>(effect.row_lengths[static_cast<std::size_t>(row)])
     );
     ++result.draw_count;
+    if (result.last_draw_status != LegacyPackedRowBlendStatus::completed) {
+        ++result.draw_failure_count;
+    }
 }
 
 }  // namespace
+
+LegacyFramebufferPackedRowDrawPorts::LegacyFramebufferPackedRowDrawPorts(
+    LegacyFramebuffer& framebuffer,
+    const LegacyPixelConversionState& format
+) noexcept
+    : framebuffer_(framebuffer), format_(format) {}
+
+LegacyPackedRowBlendStatus
+LegacyFramebufferPackedRowDrawPorts::draw_legacy_packed_row(
+    const i32 destination_x,
+    const i32 destination_y,
+    const u32 color_pattern,
+    const i32 length
+) noexcept {
+    const LegacySurfaceGeometry& surface = framebuffer_.geometry().surface;
+    if (destination_x < 0 || destination_y < 0 ||
+        destination_x >= surface.width || destination_y >= surface.height) {
+        return LegacyPackedRowBlendStatus::destination_out_of_bounds;
+    }
+
+    std::span<compat::u16> row = framebuffer_.row_pixels(
+        static_cast<u32>(destination_y)
+    );
+    const auto x = static_cast<std::size_t>(destination_x);
+    const auto logical_width = static_cast<std::size_t>(surface.width);
+    if (x >= row.size() || logical_width > row.size()) {
+        return LegacyPackedRowBlendStatus::destination_out_of_bounds;
+    }
+    return blend_legacy_packed_row(
+        row.subspan(x, logical_width - x),
+        color_pattern,
+        length,
+        format_
+    );
+}
 
 LegacyActionRenderResult update_draw_legacy_moving_action_sprites(
     std::list<LegacyActionSpriteRecord>& records,
@@ -351,13 +389,17 @@ LegacyPackedRowEffectResult update_draw_legacy_packed_row_effects(
 
         if (mode == 0x0800U) {
             for (i32 row = 0; row < count; ++row) {
-                draw_ports.draw_legacy_packed_row(
+                result.last_draw_status = draw_ports.draw_legacy_packed_row(
                     static_cast<i32>(current->base_x),
                     static_cast<i32>(current->base_y) + row,
                     color,
                     static_cast<i32>(current->limit)
                 );
                 ++result.draw_count;
+                if (result.last_draw_status !=
+                    LegacyPackedRowBlendStatus::completed) {
+                    ++result.draw_failure_count;
+                }
             }
         } else if (mode == 0x8000U) {
             i32 completed = 0;

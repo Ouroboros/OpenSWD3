@@ -4,6 +4,7 @@
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 
+#include <array>
 #include <span>
 
 namespace openswd3::rendering {
@@ -138,6 +139,21 @@ struct LegacyBlitResult {
 };
 
 [[nodiscard]] LegacyBlitResult blit_legacy_copy_paths(
+    LegacyFramebuffer& framebuffer,
+    const LegacyBlitClipRectangle& clip,
+    const LegacyBlitSource& source,
+    const LegacyBlitRequest& request,
+    const LegacyBlitEffectState& effects,
+    LegacyRleRowJitterState& jitter
+) noexcept;
+
+struct LegacyOutlineBlitResult {
+    std::array<LegacyBlitResult, 4> passes{};
+};
+
+// sub_417050. The original wrapper forces mode 0x24 and invokes the common
+// blitter at (+1,+1), (-1,-1), (-1,+1), then (+1,-1).
+[[nodiscard]] LegacyOutlineBlitResult blit_legacy_outline_copy_paths(
     LegacyFramebuffer& framebuffer,
     const LegacyBlitClipRectangle& clip,
     const LegacyBlitSource& source,

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
+#include "openswd3/rendering/legacy_packed_row.hpp"
 #include "openswd3/rendering/legacy_tiled_frame.hpp"
 
 #include <list>
@@ -90,7 +91,7 @@ class LegacyPackedRowDrawPorts {
 public:
     virtual ~LegacyPackedRowDrawPorts() = default;
 
-    virtual void draw_legacy_packed_row(
+    [[nodiscard]] virtual LegacyPackedRowBlendStatus draw_legacy_packed_row(
         compat::i32 destination_x,
         compat::i32 destination_y,
         compat::u32 color_pattern,
@@ -98,13 +99,37 @@ public:
     ) noexcept = 0;
 };
 
+class LegacyFramebufferPackedRowDrawPorts final
+    : public LegacyPackedRowDrawPorts {
+public:
+    LegacyFramebufferPackedRowDrawPorts(
+        LegacyFramebuffer& framebuffer,
+        const LegacyPixelConversionState& format
+    ) noexcept;
+
+    [[nodiscard]] LegacyPackedRowBlendStatus draw_legacy_packed_row(
+        compat::i32 destination_x,
+        compat::i32 destination_y,
+        compat::u32 color_pattern,
+        compat::i32 length
+    ) noexcept override;
+
+private:
+    LegacyFramebuffer& framebuffer_;
+    const LegacyPixelConversionState& format_;
+};
+
 struct LegacyPackedRowEffectResult {
     compat::u32 visited_count{};
     compat::u32 invalid_record_count{};
     compat::u32 random_request_count{};
     compat::u32 draw_count{};
+    compat::u32 draw_failure_count{};
     compat::u32 transitioned_to_simple_count{};
     compat::u32 removed_count{};
+    LegacyPackedRowBlendStatus last_draw_status{
+        LegacyPackedRowBlendStatus::completed
+    };
 };
 
 // sub_414E50. Pixel-row execution remains a port until sub_417DE0 is closed;

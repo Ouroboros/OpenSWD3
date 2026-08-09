@@ -53,14 +53,16 @@ IMPLEMENTED_DRAWING_HELPERS = {
     0x004117F0,
 }
 PENDING_STANDALONE_HELPERS = {
+    0x00422C70,
+    0x00423020,
+}
+IMPLEMENTED_SOFTWARE_HELPERS = {
     0x00417050,
     0x004174D0,
     0x00417530,
     0x004175B0,
     0x00417650,
     0x00417DE0,
-    0x00422C70,
-    0x00423020,
 }
 IMPLEMENTED_ACTION_RENDERERS = {
     0x00411FA0,
@@ -247,6 +249,14 @@ def policy_for(address: int) -> Policy:
             "",
             f"swd3.exe.lst:0x{address:08X}",
             "recover and implement the standalone software drawing helper",
+        )
+    if address in IMPLEMENTED_SOFTWARE_HELPERS:
+        return Policy(
+            "implemented",
+            "rendering",
+            "legacy outline/fixed-tile/packed-row software helpers",
+            "legacy-outline-fixed-tile-and-packed-row-00417050-00417de0.md",
+            "none",
         )
     if address in IMPLEMENTED_ACTION_RENDERERS:
         return Policy(

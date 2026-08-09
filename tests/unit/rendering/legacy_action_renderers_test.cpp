@@ -21,11 +21,13 @@ using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitSource;
 using openswd3::rendering::LegacyBlitSourceLayout;
 using openswd3::rendering::LegacyFramebuffer;
+using openswd3::rendering::LegacyFramebufferPackedRowDrawPorts;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::rendering::LegacyFramePieceProvider;
 using openswd3::rendering::LegacyPackedRowDrawPorts;
 using openswd3::rendering::LegacyPackedRowEffect;
 using openswd3::rendering::LegacyPackedRowEffectResult;
+using openswd3::rendering::LegacyPixelConversionState;
 using openswd3::rendering::LegacyRleRowJitterState;
 
 class RecordingActionPorts final : public LegacyActionSpritePorts {
@@ -81,7 +83,8 @@ struct PackedRowCall {
 
 class RecordingPackedRowPorts final : public LegacyPackedRowDrawPorts {
 public:
-    void draw_legacy_packed_row(
+    [[nodiscard]] openswd3::rendering::LegacyPackedRowBlendStatus
+    draw_legacy_packed_row(
         const i32 destination_x,
         const i32 destination_y,
         const u32 color_pattern,
@@ -93,6 +96,7 @@ public:
             .color = color_pattern,
             .length = length,
         });
+        return openswd3::rendering::LegacyPackedRowBlendStatus::completed;
     }
 
     std::vector<PackedRowCall> calls;
@@ -290,6 +294,36 @@ void test_packed_row_modes(openswd3::test::Context& test) {
     test.expect_equal(transitioned->mode, static_cast<u16>(0x08AAU), "transition preserves low mode byte");
 }
 
+void test_packed_row_framebuffer_port(openswd3::test::Context& test) {
+    LegacyFramebuffer framebuffer;
+    std::span<u16> row = framebuffer.row_pixels(7U);
+    row[5U] = 0x7FFFU;
+    row[6U] = 0x001FU;
+    row[7U] = 0x1234U;
+    const LegacyPixelConversionState format;
+    LegacyFramebufferPackedRowDrawPorts draw_ports{framebuffer, format};
+    const u32 color = openswd3::rendering::legacy_pack_color_pair(
+        format,
+        31,
+        0,
+        0
+    );
+
+    test.expect_equal(
+        draw_ports.draw_legacy_packed_row(5, 7, color, 3),
+        openswd3::rendering::LegacyPackedRowBlendStatus::completed,
+        "framebuffer row port completes"
+    );
+    test.expect_equal(row[5U], static_cast<u16>(0x6A73U), "row port first pixel");
+    test.expect_equal(row[6U], static_cast<u16>(0x1C13U), "row port second pixel");
+    test.expect_equal(row[7U], static_cast<u16>(0x1234U), "row port keeps odd tail");
+    test.expect_equal(
+        draw_ports.draw_legacy_packed_row(-1, 7, color, 2),
+        openswd3::rendering::LegacyPackedRowBlendStatus::destination_out_of_bounds,
+        "framebuffer row port isolates negative destination"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -297,5 +331,6 @@ int main() {
     test_moving_action_visibility_update_and_removal(test);
     test_role_head_easing_ballistic_and_direct_source(test);
     test_packed_row_modes(test);
+    test_packed_row_framebuffer_port(test);
     return test.exit_code();
 }

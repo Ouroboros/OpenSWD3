@@ -774,6 +774,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_rendering_legacy_software_helpers_tests
+    unit/rendering/legacy_software_helpers_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_software_helpers_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_software_helpers_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_software_helpers
+    COMMAND openswd3_rendering_legacy_software_helpers_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_pause_overlay_tests
     unit/rendering/legacy_pause_overlay_test.cpp
 )

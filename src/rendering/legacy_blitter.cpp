@@ -2025,4 +2025,43 @@ LegacyBlitResult blit_legacy_copy_paths(
     };
 }
 
+LegacyOutlineBlitResult blit_legacy_outline_copy_paths(
+    LegacyFramebuffer& framebuffer,
+    const LegacyBlitClipRectangle& clip,
+    const LegacyBlitSource& source,
+    const LegacyBlitRequest& request,
+    const LegacyBlitEffectState& effects,
+    LegacyRleRowJitterState& jitter
+) noexcept {
+    LegacyOutlineBlitResult result;
+    LegacyBlitRequest pass = request;
+    pass.flags |= 0x24U;
+
+    constexpr std::array<std::array<i32, 2>, 4> kOffsets{
+        std::array<i32, 2>{1, 1},
+        std::array<i32, 2>{-1, -1},
+        std::array<i32, 2>{-1, 1},
+        std::array<i32, 2>{1, -1},
+    };
+    for (std::size_t index = 0U; index < kOffsets.size(); ++index) {
+        pass.destination_x = wrapping_add(
+            request.destination_x,
+            kOffsets[index][0]
+        );
+        pass.destination_y = wrapping_add(
+            request.destination_y,
+            kOffsets[index][1]
+        );
+        result.passes[index] = blit_legacy_copy_paths(
+            framebuffer,
+            clip,
+            source,
+            pass,
+            effects,
+            jitter
+        );
+    }
+    return result;
+}
+
 }  // namespace openswd3::rendering
