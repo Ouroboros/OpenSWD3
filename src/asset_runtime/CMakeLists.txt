@@ -6,6 +6,7 @@ add_library(
         legacy_action_record.cpp
         legacy_ani_activity.cpp
         legacy_ani_archive.cpp
+        legacy_ani_drift_effect.cpp
         legacy_ani_follower_effect.cpp
         legacy_ani_row_copy_effect.cpp
         legacy_ani_spark_effect.cpp

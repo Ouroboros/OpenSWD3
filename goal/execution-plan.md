@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v108
+版本：v109
 
 最后更新：2026-08-10
 
@@ -239,7 +239,10 @@
     异常已形成闭环；Linux `core` 93/93、Windows LLVM `app` 97/97 CTest 通过。
     `0x004167B0` 的 96 槽、只清计数器、条件 service `0x16`、四步 RNG、八段
     相位、九点饱和增亮、横向跨扫描线和越底边计数异常已形成闭环；Linux `core`
-    94/94、Windows LLVM `app` 98/98 CTest 通过。当前继续收口 ANI 组剩余 3 个
-    自有入口。
+    94/94、Windows LLVM `app` 98/98 CTest 通过。`0x004161C0` 的四槽/四动作记录、
+    只写 x 的重置、service 6、重生与扰动 RNG、八字节变体表、ACT→TSW→blitter
+    及帧尾移动已形成闭环；真实四变体 framebuffer 哈希为 `0x53695F8D8D2219DF`，
+    Linux `core` 96/96、Windows LLVM `app` 100/100 CTest 通过。当前继续收口 ANI
+    组剩余 2 个自有入口。
 
 当前只执行 B6，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。B6 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。
