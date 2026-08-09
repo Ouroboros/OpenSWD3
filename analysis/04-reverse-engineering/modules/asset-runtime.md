@@ -125,6 +125,15 @@
 - 非尾过期节点复制完整后继、释放后继并在同帧重新处理；跨平台实现以一基 `u32`
   token 保持原始 32 位链字段和 `0x10` 物理布局。
 
+### ANI 双槽方向状态效果
+
+- `0x00415B70` 保留 motion、color、timing 三组物理分离的四槽 `0x10` 数组；地图装载
+  初始化四槽，但每帧只更新前两槽。场景重置只覆盖 motion，不清另外两组。
+- service 5 关闭时零副作用；范围内槽复用同一个概率值控制间隔和颜色逼近，范围外槽
+  只在 1% 门命中时按四个方向重生，variant 也复用该概率值分桶而不另取 RNG。
+- 共享动作固定使用 `0x232B`，variant count 为 4 时绘制 flags 为 4，否则为 `0x2C`；
+  ACT→TSW→blitter 和全部 `i32` 回绕均已按汇编闭环。
+
 ### SND 借用边界
 
 SND 的 3000 项索引、载荷 buffer、引用计数和播放生命周期已经由 `audio_video` 持有。
@@ -166,7 +175,7 @@ asset_runtime sound request  → audio_video port
    跨帧等待、33 个命令字和原版第二参数再分派均已实现；六包真实 ACT 已经由
    runtime→provider→updater 执行。Linux `core` 85/85、Windows LLVM `app` 89/89
    CTest 通过。
-5. `[~]` ANI：`0x24` 头、独占打开、一基帧节点链、首次排除/缓存包含 12 字节、
+5. `[x]` ANI：`0x24` 头、独占打开、一基帧节点链、首次排除/缓存包含 12 字节、
    RGB 调色板、零载荷保持和 span 写入已实现；19 个真实文件的 5,312 帧、
    6,057,767 个 span、178,426,082 个索引像素及每文件首帧哈希通过。
    `0x004154A0` 的冻结快照、`-13` 揭幕、逐帧推进、两种结束阈值、释放顺序和三个
@@ -178,7 +187,8 @@ asset_runtime sound request  → audio_video port
    的 96 槽、仅计数器重置、九点星芒核、跨行 x 和存活计数异常也已闭环。
    `0x004161C0` 的四槽/四动作记录、包含边界、重生与扰动 RNG、变体表、ACT→TSW
    绘制和帧尾移动也已闭环。`0x00415EE0` 的四发射器、角色绑定、节点链、创建与
-   删除异常也已闭环。当前继续收口 ANI 组最后 1 个自有入口。
+   删除异常也已闭环。`0x00415B70` 的三组四槽状态、双槽更新、同值概率门、四向
+   重生和共享动作绘制也已闭环；ANI 组的 11 个自有入口已全部完成实现映射。
 6. `[x]` `0x00430C60..0x0043114C`：`0x2C` 变形节点、双 `i16` 工作场、固定场 0
    warp、跨行 carry 更新、16 位衰减、径向注入、CRT 随机坐标与哨兵链表调度已实现。
    Linux `core` 89/89、Windows LLVM `app` 93/93 CTest 通过。
@@ -205,7 +215,11 @@ asset_runtime sound request  → audio_video port
     复制后继删除异常和 ACT→TSW→blitter 已实现；真实 variant 59 framebuffer
     哈希为 `0xFA22737232A60CF6`，Linux `core` 98/98、Windows LLVM `app` 102/102
     CTest 通过。
-13. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
+13. `[x]` `0x00415B70`：三组分离的四槽状态、四槽初始化/双槽更新差异、motion-only
+    重置、service 5、同一概率值驱动范围内目标更新与范围外 variant 分桶、四向重生、
+    ACT→TSW→blitter 和 `i32` 回绕已实现；真实 variant 0 framebuffer 哈希为
+    `0xE216591950463029`，Linux `core` 100/100、Windows LLVM `app` 104/104 CTest 通过。
+14. `[>]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
 
 只有当前一项占执行位。每一项达到可独立验证边界就实现，不等待后面各项全部逆向。
 
@@ -239,6 +253,9 @@ asset_runtime sound request  → audio_video port
   bit 0 概率门、完整创建/更新 RNG 顺序、`i16` 回绕、两套颜色公式、复制后继删除、
   被忽略的 blit 错误和现代失败隔离；真实 variant 59 framebuffer 哈希
   `0xFA22737232A60CF6`。
+- ANI 双槽方向状态：三组四槽物理布局、motion-only 重置、四初始化/二更新、包含边界、
+  同 roll 概率与 variant 分桶、四向 RNG 顺序、无效方向、两套 flags、`i32` 回绕和
+  blit 失败隔离；真实 variant 0 framebuffer 哈希 `0xE216591950463029`。
 - 原程序差分：需要时准备 Frida spawn 工具，由用户运行；OpenSWD3 不自行启动原 EXE。
 
 当前不需要新的原程序动态捕获即可开始缓存策略、TSW/ACT 有效资产路径和动作状态机实现。
@@ -259,6 +276,7 @@ asset_runtime sound request  → audio_video port
 - [`ani-spark-effect-004167b0.md`](../evidence/ani-spark-effect-004167b0.md)
 - [`ani-drift-effect-004161c0.md`](../evidence/ani-drift-effect-004161c0.md)
 - [`ani-role-particle-effect-00415ee0.md`](../evidence/ani-role-particle-effect-00415ee0.md)
+- [`ani-directional-effect-00415b70.md`](../evidence/ani-directional-effect-00415b70.md)
 - [`ani-container-and-lzo-boundary.md`](../evidence/ani-container-and-lzo-boundary.md)
 - [`frame-deformation-00430c60.md`](../evidence/frame-deformation-00430c60.md)
 - [`ani-row-copy-effect-004163c0.md`](../evidence/ani-row-copy-effect-004163c0.md)

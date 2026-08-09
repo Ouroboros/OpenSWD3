@@ -1549,6 +1549,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_asset_runtime_legacy_ani_directional_effect_tests
+    unit/asset_runtime/legacy_ani_directional_effect_test.cpp
+)
+target_include_directories(
+    openswd3_asset_runtime_legacy_ani_directional_effect_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_asset_runtime_legacy_ani_directional_effect_tests
+    PRIVATE openswd3_asset_runtime
+)
+
+add_test(
+    NAME asset_runtime.legacy_ani_directional_effect
+    COMMAND openswd3_asset_runtime_legacy_ani_directional_effect_tests
+)
+
+add_executable(
     openswd3_asset_runtime_legacy_ani_role_particle_effect_tests
     unit/asset_runtime/legacy_ani_role_particle_effect_test.cpp
 )
@@ -1625,6 +1643,12 @@ if(
         NAME asset_runtime.legacy_ani_drift_effect_real
         COMMAND
             openswd3_asset_runtime_legacy_ani_drift_effect_tests
+            "${PROJECT_SOURCE_DIR}/.."
+    )
+    add_test(
+        NAME asset_runtime.legacy_ani_directional_effect_real
+        COMMAND
+            openswd3_asset_runtime_legacy_ani_directional_effect_tests
             "${PROJECT_SOURCE_DIR}/.."
     )
     add_test(
