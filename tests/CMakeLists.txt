@@ -1197,6 +1197,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_audio_video_legacy_stream_manager_tests
+    unit/audio_video/legacy_stream_manager_test.cpp
+)
+target_include_directories(
+    openswd3_audio_video_legacy_stream_manager_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_audio_video_legacy_stream_manager_tests
+    PRIVATE openswd3_audio_video
+)
+
+add_test(
+    NAME audio_video.legacy_stream_manager
+    COMMAND openswd3_audio_video_legacy_stream_manager_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_formatted_text_tests
     unit/rendering/legacy_formatted_text_test.cpp
 )

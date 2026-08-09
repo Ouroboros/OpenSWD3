@@ -6,6 +6,8 @@ add_library(
         legacy_sample_commands.cpp
         legacy_sample_manager.cpp
         legacy_snd_archive.cpp
+        legacy_stream_commands.cpp
+        legacy_stream_manager.cpp
 )
 target_include_directories(
     openswd3_audio_video

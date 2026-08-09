@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B5.7 stream manager 与剩余游戏侧 stream wrapper
+当前单元：B5.8 stream 平台输出与生命周期接线
 
 ## 1. 范围与移交
 
@@ -108,8 +108,9 @@ framebuffer/present、时钟/让出和生命周期都通过调用端口注入。
 
 73 个 B5 地址、跨模块接口、状态 owner、启动/帧/停用/退出顺序、首批 UT 边界和真实
 资产入口已经固定，达到单模块开始条件。sample 参数、SND、manager、输出 backend 和
-游戏侧 sample wrapper 已逐层完成；当前沿相同依赖方向恢复 stream manager，不等待
-sequence 与 Bink backend 一次性调研完毕。
+游戏侧 sample wrapper、stream manager 与剩余 stream wrapper 已逐层完成；当前接入
+stream 平台解码输出和启动/帧/停用/退出生命周期，不等待 sequence 与 Bink backend
+一次性调研完毕。
 
 ## 5. 已有证据
 
@@ -124,6 +125,7 @@ sequence 与 Bink backend 一次性调研完毕。
 - [`legacy-sample-manager-004859b0-00486430.md`](../evidence/legacy-sample-manager-004859b0-00486430.md)
 - [`legacy-audio-output-004859b0-00485ca6.md`](../evidence/legacy-audio-output-004859b0-00485ca6.md)
 - [`legacy-sample-commands-00485610-00485828.md`](../evidence/legacy-sample-commands-00485610-00485828.md)
+- [`legacy-stream-manager-004865b0-00486a70.md`](../evidence/legacy-stream-manager-004865b0-00486a70.md)
 
 ## 6. 当前执行顺序
 
@@ -146,6 +148,11 @@ sequence 与 Bink backend 一次性调研完毕。
    `0x00485740/0x00485750` 已按 LST 恢复；锁定 ID 截断差异、固定返回、signed 缩放、
    512 距离门槛和空间 play→volume→pan 顺序。已恢复的两处 stop-all 调用点接入同一
    manager，Linux `core` 70/70、Linux/Windows `app` 74/74 CTest 通过。
-7. `[>]` B5.7：恢复 `0x004865B0–0x00486A70` stream manager 核心，以及
+7. `[x]` B5.7：`0x004865B0–0x00486A70` stream manager 核心，以及
    `0x004856C0/0x00485710/0x00485830/0x00485850/0x00485880/0x004858D0/`
-   `0x00485910` 的剩余 stream wrapper 和过渡状态；不扩展 sequence 或 Bink。
+   `0x00485910` 的剩余 stream wrapper 和过渡状态已按 LST 恢复；fake backend 锁定
+   两节点 active/free 链表、fixed-point fade、status 2 双写零、4/8/16 保留、默认
+   status 级联回收缺陷和过渡 mode 返回。Linux `core` 71/71、Linux/Windows `app`
+   75/75 CTest 通过。
+8. `[>]` B5.8：实现 stream 平台解码输出，并把 manager 接入第二次 driver 查询、公共
+   音频维护、显示停用和退出生命周期；不扩展 sequence 或 Bink。
