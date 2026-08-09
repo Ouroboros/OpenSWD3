@@ -25,6 +25,11 @@ enum class LegacyFileAccess {
     read_write,
 };
 
+enum class LegacyFileSharing {
+    exclusive,
+    read,
+};
+
 struct LegacyFileTime {
     compat::u32 low{};
     compat::u32 high{};
@@ -43,7 +48,8 @@ public:
     [[nodiscard]] bool open(
         const std::filesystem::path& path,
         LegacyFileCreation creation,
-        LegacyFileAccess access
+        LegacyFileAccess access,
+        LegacyFileSharing sharing = LegacyFileSharing::exclusive
     );
     [[nodiscard]] bool close() noexcept;
 

@@ -2,6 +2,8 @@ add_library(
     openswd3_asset_runtime
     STATIC
         legacy_asset_cache_limits.cpp
+        legacy_tsw_archive.cpp
+        legacy_tsw_runtime.cpp
 )
 target_include_directories(
     openswd3_asset_runtime
@@ -13,6 +15,8 @@ target_link_libraries(
     openswd3_asset_runtime
     PUBLIC
         openswd3_compat
+        openswd3_resource_io
+        openswd3_rendering
         openswd3_project_options
         openswd3_project_warnings
 )

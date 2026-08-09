@@ -1327,6 +1327,65 @@ add_test(
 )
 
 add_executable(
+    openswd3_asset_runtime_legacy_tsw_archive_tests
+    unit/asset_runtime/legacy_tsw_archive_test.cpp
+)
+target_compile_definitions(
+    openswd3_asset_runtime_legacy_tsw_archive_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_asset_runtime_legacy_tsw_archive_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_asset_runtime_legacy_tsw_archive_tests
+    PRIVATE openswd3_asset_runtime
+)
+
+add_test(
+    NAME asset_runtime.legacy_tsw_archive
+    COMMAND openswd3_asset_runtime_legacy_tsw_archive_tests
+)
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.tsw"
+)
+    add_test(
+        NAME asset_runtime.legacy_tsw_archive_real
+        COMMAND
+            openswd3_asset_runtime_legacy_tsw_archive_tests
+            "${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+
+add_executable(
+    openswd3_asset_runtime_legacy_tsw_runtime_tests
+    unit/asset_runtime/legacy_tsw_runtime_test.cpp
+)
+target_compile_definitions(
+    openswd3_asset_runtime_legacy_tsw_runtime_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_asset_runtime_legacy_tsw_runtime_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_asset_runtime_legacy_tsw_runtime_tests
+    PRIVATE openswd3_asset_runtime
+)
+
+add_test(
+    NAME asset_runtime.legacy_tsw_runtime
+    COMMAND openswd3_asset_runtime_legacy_tsw_runtime_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_formatted_text_tests
     unit/rendering/legacy_formatted_text_test.cpp
 )

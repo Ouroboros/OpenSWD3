@@ -102,7 +102,8 @@ LegacyFile::~LegacyFile() {
 bool LegacyFile::open(
     const std::filesystem::path& path,
     const LegacyFileCreation creation,
-    const LegacyFileAccess access
+    const LegacyFileAccess access,
+    const LegacyFileSharing sharing
 ) {
 #ifdef _WIN32
     if (state_->file != INVALID_HANDLE_VALUE) {
@@ -130,7 +131,7 @@ bool LegacyFile::open(
     state_->file = CreateFileW(
         path.c_str(),
         desired_access,
-        0U,
+        sharing == LegacyFileSharing::read ? FILE_SHARE_READ : 0U,
         nullptr,
         creation_disposition,
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
@@ -145,6 +146,7 @@ bool LegacyFile::open(
     state_->access = access;
     static_cast<void>(SetFilePointer(state_->file, 0, nullptr, FILE_BEGIN));
 #else
+    static_cast<void>(sharing);
     if (state_->file != -1) {
         static_cast<void>(::close(state_->file));
     }
