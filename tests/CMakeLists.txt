@@ -711,6 +711,33 @@ add_test(
 )
 
 add_executable(
+    openswd3_rendering_legacy_image_command_stream_tests
+    unit/rendering/legacy_image_command_stream_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_image_command_stream_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_image_command_stream_tests
+    PRIVATE openswd3_rendering openswd3_resource_io
+)
+
+add_test(
+    NAME rendering.legacy_image_command_stream
+    COMMAND openswd3_rendering_legacy_image_command_stream_tests
+)
+
+if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
+    add_test(
+        NAME rendering.legacy_image_command_stream_asset
+        COMMAND
+            openswd3_rendering_legacy_image_command_stream_tests
+            "${PROJECT_SOURCE_DIR}/../huge.lmf"
+    )
+endif()
+
+add_executable(
     openswd3_rendering_legacy_framebuffer_tests
     unit/rendering/legacy_framebuffer_test.cpp
 )

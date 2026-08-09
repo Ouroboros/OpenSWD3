@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B4 范围闭环审计
+当前单元：B4.9b 边框、缩略图与数字绘制 helper
 
 ## 1. 范围与非范围
 
@@ -80,8 +80,10 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 - [`legacy-bmp-writer-004303d0.md`](../evidence/legacy-bmp-writer-004303d0.md)
 - [`legacy-formatted-text-004306c0.md`](../evidence/legacy-formatted-text-004306c0.md)
 - [`legacy-countdown-004308c0-00430b60.md`](../evidence/legacy-countdown-004308c0-00430b60.md)
+- [`legacy-image-command-stream-004014f0-00401e50.md`](../evidence/legacy-image-command-stream-004014f0-00401e50.md)
 - [`presentation-lifecycle.md`](../evidence/presentation-lifecycle.md)
 - [`p4-dynamic-oracle-capture-protocol.md`](../evidence/p4-dynamic-oracle-capture-protocol.md)
+- [`rendering-closure-audit.md`](../evidence/rendering-closure-audit.md)
 - [`Windows glyph-mask 动态基准`](../artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/README.md)
 
 ## 6. 当前执行顺序
@@ -94,6 +96,6 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 6. `[x]` B4.6：唯一动态基准、受控 GDI 生成器、32,896-key 正式 atlas、跨平台 Provider、EXE 旁资源部署和运行时校验已闭环；独立验证为 `157/157` 零差异，Linux `core` 47/47、Windows `app` 49/49 CTest 通过。
 7. `[x]` B4.7：`sub_43B110` 六模式矩形效果、`sub_42E850` 九宫格绘制和 `sub_43BAB0` 效果面板组合已按完整 LST 实现并逐基本块复核；21 个 primary 提交点已形成完整请求合同，SDL smoke 的错误统一帧尾 present 已改为六条稳定分支内请求。`sub_4303D0` BMP 写入器、`sub_4306C0` 格式化原始字节文字及 `sub_4308C0/sub_430B60` 30 Hz 倒计时绘制与初始化均已闭环。Linux `core` 54/54、Windows LLVM `app` 56/56 CTest 通过。
 8. `[x]` B4.8：SDL3 上传已直接使用 owned framebuffer 的稳定地址和实际 pitch，logical hash 已固定为跨平台小端 FNV-1a；恢复路径可重建纹理并重新上传现有 primary，失败会停止外壳，现代可缩放窗口恢复时保留用户尺寸。独立 primary surface 与 full/partial RECT 合成已接通，矩形外保留旧 primary 状态，快照/临时 source 缺失时显式失败。Linux `core` 54/54、Linux/Windows LLVM `app` 56/56 CTest 通过；Windows OpenSWD3 在 `1000×750` 下完成最小化、恢复、尺寸保持和零退出 smoke。
-9. `[>]` B4 范围闭环审计：逐项核对 151 个 `rendering` 函数的实现映射、不可达证据或后续业务所有者边界，只补齐真实缺口，不把 B5 以后业务实现提前并入 B4。
+9. `[>]` B4 范围闭环审计：151 项矩阵现为 70 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、5 项延后接线、22 项真实缺口和 1 项移交。`0x004014F0..0x00401E50` 五个 command-stream 函数已按完整 LST、独立字节向量和 `huge.lmf` 真实流闭环；下一组立即处理 `0x0040DE50/0x0040E080/0x004117F0`。
 
 每项达到自己的汇编、UT 和资产门后立即进入下一项，不等待 B4 全部细节重新调研。

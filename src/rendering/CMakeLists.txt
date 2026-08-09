@@ -9,6 +9,7 @@ add_library(
     legacy_glyph_atlas.cpp
     legacy_glyph_cache.cpp
     legacy_glyph_writer.cpp
+    legacy_image_command_stream.cpp
     legacy_pixel_conversion.cpp
     legacy_presentation.cpp
     legacy_rectangle_effect.cpp

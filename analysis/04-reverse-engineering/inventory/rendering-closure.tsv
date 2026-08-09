@@ -1,0 +1,152 @@
+address	closure_disposition	target_owner	implementation_mapping	evidence	remaining_work
+0x004014F0	implemented	rendering	legacy image command-stream encode/decode/pixel-conversion family	legacy-image-command-stream-004014f0-00401e50.md	none
+0x004019A0	implemented	rendering	legacy image command-stream encode/decode/pixel-conversion family	legacy-image-command-stream-004014f0-00401e50.md	none
+0x00401B70	implemented	rendering	legacy image command-stream encode/decode/pixel-conversion family	legacy-image-command-stream-004014f0-00401e50.md	none
+0x00401C70	implemented	rendering	legacy image command-stream encode/decode/pixel-conversion family	legacy-image-command-stream-004014f0-00401e50.md	none
+0x00401E50	implemented	rendering	legacy image command-stream encode/decode/pixel-conversion family	legacy-image-command-stream-004014f0-00401e50.md	none
+0x0040DE50	pending	rendering		swd3.exe.lst:0x0040DE50	recover and implement the standalone software drawing helper
+0x0040E080	pending	rendering		swd3.exe.lst:0x0040E080	recover and implement the standalone software drawing helper
+0x0040F340	implemented_with_deferred_binding	rendering;platform_sdl3	LegacyGlyphCache;LegacyTextRendererState;LegacyGlyphAtlasProvider	font-surface-and-glyph-rendering.md	bind persistent 20/16/12 renderer instances into startup and display recovery
+0x004117F0	pending	rendering		swd3.exe.lst:0x004117F0	recover and implement the standalone software drawing helper
+0x00411FA0	pending	rendering;story_scene		swd3.exe.lst:0x00411FA0	implement B4 drawing/update semantics against later-owner borrowed state
+0x00414B60	pending	rendering;story_scene		swd3.exe.lst:0x00414B60	implement B4 drawing/update semantics against later-owner borrowed state
+0x00414CE0	pending	rendering;story_scene		swd3.exe.lst:0x00414CE0	implement B4 drawing/update semantics against later-owner borrowed state
+0x00414E50	pending	rendering;story_scene		swd3.exe.lst:0x00414E50	implement B4 drawing/update semantics against later-owner borrowed state
+0x004153D0	pending	rendering;story_scene		swd3.exe.lst:0x004153D0	implement B4 drawing/update semantics against later-owner borrowed state
+0x00416D30	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
+0x00416D90	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00416F10	platform_adapted	rendering;platform_sdl3	LegacyFramebuffer stable owned storage	legacy-framebuffer-geometry-00416d30.md	none
+0x00416F60	platform_adapted	rendering;platform_sdl3	LegacyFramebuffer stable owned storage	legacy-framebuffer-geometry-00416d30.md	none
+0x00416F80	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00416FF0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00417050	pending	rendering		swd3.exe.lst:0x00417050	recover and implement the standalone software drawing helper
+0x004170E0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x004174D0	pending	rendering		swd3.exe.lst:0x004174D0	recover and implement the standalone software drawing helper
+0x00417530	pending	rendering		swd3.exe.lst:0x00417530	recover and implement the standalone software drawing helper
+0x004175B0	pending	rendering		swd3.exe.lst:0x004175B0	recover and implement the standalone software drawing helper
+0x00417650	pending	rendering		swd3.exe.lst:0x00417650	recover and implement the standalone software drawing helper
+0x004176D0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x004177D0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00417840	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00417950	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00417DE0	pending	rendering		swd3.exe.lst:0x00417DE0	recover and implement the standalone software drawing helper
+0x00417E40	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00417EC0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00417FF4	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x0041802D	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x00418066	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x0041809F	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x004180D8	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x00418111	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x0041814A	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x00418183	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x004181BC	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x004181F5	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x0041822E	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x00418267	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x0041829D	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x004182D3	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x00418309	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x0041830E	implemented_internal_branch	rendering	blit_legacy_copy_paths/raw_constant_vertical_fade	legacy-blitter-raw-constant-fade-00417ec0.md	none
+0x00418350	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x004185C0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00418840	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00418EB0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00419570	unreachable_current_assets	rendering	explicit unsupported_routine boundary	software-blitter-dispatch-and-pixel-effects.md	preserve the original dangerous forced-state boundary; no normal-path implementation
+0x0041A3B0	unreachable_current_assets	rendering	explicit unsupported_routine boundary	software-blitter-dispatch-and-pixel-effects.md	preserve the original dangerous forced-state boundary; no normal-path implementation
+0x0041B280	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x0041B620	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x0041B9F0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x0041CCF0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x0041D010	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x0041D340	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x0041E5C0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x0041F8D0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x0041FEA0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00420490	pending	rendering		frame-color-adjustment-and-combine.md	transcribe the already-closed packed-16 formulas and boundary vectors
+0x00420560	pending	rendering		frame-color-adjustment-and-combine.md	transcribe the already-closed packed-16 formulas and boundary vectors
+0x00420600	pending	rendering		frame-color-adjustment-and-combine.md	transcribe the already-closed packed-16 formulas and boundary vectors
+0x004206F0	pending	rendering		frame-color-adjustment-and-combine.md	transcribe the already-closed packed-16 formulas and boundary vectors
+0x004207E0	pending	rendering		frame-color-adjustment-and-combine.md	transcribe the already-closed packed-16 formulas and boundary vectors
+0x004208D0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00420D70	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00421230	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00421540	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00421850	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00421BE0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00421FB0	pending	rendering		frame-color-adjustment-and-combine.md	transcribe the already-closed packed-16 formulas and boundary vectors
+0x00422030	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x004223A0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00422730	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x004229C0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
+0x00422C70	pending	rendering		swd3.exe.lst:0x00422C70	recover and implement the standalone software drawing helper
+0x00423020	pending	rendering		swd3.exe.lst:0x00423020	recover and implement the standalone software drawing helper
+0x004233D0	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
+0x00423400	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
+0x004238B0	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
+0x004238D0	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
+0x004238F0	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
+0x00423920	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
+0x00423950	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
+0x00423990	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
+0x004239D0	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
+0x0042E850	implemented	rendering	legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units	rendering.md:B4.7	none
+0x004303D0	implemented	rendering	legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units	rendering.md:B4.7	none
+0x004306C0	implemented	rendering	legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units	rendering.md:B4.7	none
+0x004308C0	implemented	rendering	legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units	rendering.md:B4.7	none
+0x00430B60	implemented	rendering	legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units	rendering.md:B4.7	none
+0x00435160	implemented_with_deferred_binding	rendering;platform_sdl3	LegacyGlyphCache;LegacyTextRendererState;LegacyGlyphAtlasProvider	font-surface-and-glyph-rendering.md	bind persistent 20/16/12 renderer instances into startup and display recovery
+0x004351F0	implemented_with_deferred_binding	rendering;platform_sdl3	LegacyGlyphCache;LegacyTextRendererState;LegacyGlyphAtlasProvider	font-surface-and-glyph-rendering.md	bind persistent 20/16/12 renderer instances into startup and display recovery
+0x00435240	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
+0x004352C0	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
+0x004352E0	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
+0x004353C0	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
+0x00435410	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
+0x00435430	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
+0x004354D0	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
+0x00435500	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
+0x004355B0	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
+0x00435620	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00435650	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00435660	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00435670	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00435680	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x004358C0	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00435AF0	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00435D80	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00436030	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00436410	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00436840	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
+0x004368D0	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00436980	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x004369C0	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00436AD0	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00436EA0	implemented	rendering	LegacyTextRendererState;LegacyGlyphCache;draw_legacy_text;legacy glyph writers	font-surface-and-glyph-rendering.md	none
+0x00436FA0	transferred	input_time_rng	legacy input-device release boundary	swd3.exe.lst:0x00436FA0 -> 0x004374E0	B3/runtime integration; remove the stale rendering ownership
+0x00437570	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437610	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437680	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x004376D0	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437720	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x004377D0	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437A50	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437AD0	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437AE0	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437B60	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437C00	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437C40	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437C80	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437D80	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437DC0	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437DF0	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437E20	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437E30	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437E90	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437EB0	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437EF0	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437F40	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x00437F90	platform_adapted	rendering;platform_sdl3	SDL backend lifecycle;LegacyFramebuffer;LegacyPrimaryCompositionStatus	framebuffer-and-display-presentation.md;legacy-primary-presentation-requests.md	none
+0x0043B110	implemented	rendering	legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units	rendering.md:B4.7	none
+0x0043BAB0	implemented	rendering	legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units	rendering.md:B4.7	none
+0x00451A90	implemented_with_deferred_binding	rendering;battle	LegacyPresentationSources battle surface roles	legacy-primary-presentation-requests.md	B10 supplies the owned battle surfaces at the existing lifecycle ports
+0x00451AE0	implemented_with_deferred_binding	rendering;battle	LegacyPresentationSources battle surface roles	legacy-primary-presentation-requests.md	B10 supplies the owned battle surfaces at the existing lifecycle ports
