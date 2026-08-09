@@ -9,6 +9,8 @@
 
 namespace openswd3::audio_video {
 
+class LegacySampleManager;
+
 inline constexpr compat::u32 kLegacySndSlotCount = 3000U;
 inline constexpr compat::u32 kLegacySndRuntimeSizeMask = 0x03FFFFFFU;
 
@@ -62,6 +64,8 @@ public:
     load_sample(compat::u32 one_based_sound_id) noexcept;
 
 private:
+    friend class LegacySampleManager;
+
     resource_io::LegacyFile file_;
     std::array<LegacySndRuntimeEntry, kLegacySndSlotCount> entries_{};
     compat::u32 file_size_{};

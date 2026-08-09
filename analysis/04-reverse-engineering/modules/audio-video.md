@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B5.4 sample manager 槽位、引用计数与回收
+当前单元：B5.5 旧音频输出协商与 SDL3 sample backend
 
 ## 1. 范围与移交
 
@@ -121,6 +121,7 @@ status 或 Bink backend 细节一次性调研完毕。
 - [`p4-dynamic-oracle-capture-protocol.md`](../evidence/p4-dynamic-oracle-capture-protocol.md)
 - [`legacy-audio-parameters-00486260-00486280.md`](../evidence/legacy-audio-parameters-00486260-00486280.md)
 - [`legacy-snd-runtime-004862b0-00486490.md`](../evidence/legacy-snd-runtime-004862b0-00486490.md)
+- [`legacy-sample-manager-004859b0-00486430.md`](../evidence/legacy-sample-manager-004859b0-00486430.md)
 
 ## 6. 当前执行顺序
 
@@ -131,6 +132,9 @@ status 或 Bink backend 细节一次性调研完毕。
 3. `[x]` B5.3：`0x004862B0/0x00486490` 的 3000 项索引、一基查找和四类 sample
    buffer 已实现；真实 `all.snd` 的 664 个 view 拼接 SHA-256 精确匹配既有证据，Linux
    `core` 67/67、Windows LLVM `app` 69/69 CTest 通过。
-4. `[>]` B5.4：沿 `0x00485960–0x00486210`、`0x004862A0` 和 `0x00486430` 恢复
-   sample manager 的固定槽、播放/停止事件、单槽引用计数、最后 buffer 与回收顺序，
-   用 fake backend 逐调用验证。
+4. `[x]` B5.4：`0x004859B0` 的 pool 部分及 `0x00485C20–0x00486210`、
+   `0x004862A0/0x00486430` 的 sample manager 核心已实现；fake backend 锁定两条单链表、
+   播放/停止顺序、status 1/2、返回值及原始 buffer 泄漏语义。Linux `core` 68/68、
+   Windows LLVM `app` 70/70 CTest 通过。
+5. `[>]` B5.5：恢复 `0x004859B0` 的 wave 格式协商/回退，把 sample backend 接到 SDL3
+   音频设备，并补齐 `0x00485C20` 的设备关闭边界。

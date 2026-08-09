@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v88
+版本：v89
 
 最后更新：2026-08-09
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：B5.4 · sample manager 槽位、引用计数与回收
+当前步骤：B5.5 · 旧音频输出协商与 SDL3 sample backend
 
 ## 1. 目标
 
@@ -214,6 +214,6 @@
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
 10. `[x]` B4：151 项有限收口矩阵现为 95 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项归属修正；没有 B4 自有缺口。20/16/12 字体 renderer 已接入启动、显示停用/恢复和总退出，Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过。原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，状态为 `module_closed_pending_oracle`。
-11. `[>]` B5：机械候选 76 项中已确认 73 项属于 B5，`0x004841B0/0x00484230/0x00484500` 三项 battle helper 移交 B10；唯一工作包已固定接口、状态和生命周期并达到开始条件。参数转换及 `0x004862B0/0x00486490` 的固定 3000 项 SND 索引、一基查找、四类 sample buffer 已按 LST 实现；真实 `all.snd` 全 664 个 view 的返回拼接 SHA-256 精确匹配既有证据，Linux `core` 67/67、Windows LLVM `app` 69/69 CTest 通过。当前恢复 sample manager 的固定槽、引用计数与回收顺序。
+11. `[>]` B5：机械候选 76 项中已确认 73 项属于 B5，`0x004841B0/0x00484230/0x00484500` 三项 battle helper 移交 B10；唯一工作包已固定接口、状态和生命周期并达到开始条件。参数转换、SND 固定索引/sample buffer 及 sample manager 两条单链表、播放/停止、引用计数和遗留 buffer 泄漏语义已按 LST 实现；真实 `all.snd` 全量回归、Linux `core` 68/68 与 Windows LLVM `app` 70/70 CTest 通过。当前恢复旧 wave 格式协商，并把 sample backend 接到 SDL3 音频设备。
 
 当前只执行 B5，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B5 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。
