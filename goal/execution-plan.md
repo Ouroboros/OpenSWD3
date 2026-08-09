@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v73
+版本：v74
 
 最后更新：2026-08-09
 
@@ -213,6 +213,6 @@
 7. `[x]` B2：历史 63 项范围已完成有限收口审计；修正 5 项模块归属并补齐 6 个真实缺口后，当前 58 项为 57 项实现与 1 项不可达。Windows LLVM `core`/`app`、34/34 CTest 和全套真实资产回归通过；状态为 `module_closed_pending_oracle`。
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
-10. `[>]` B4：B4.2 像素转换、B4.3 owned framebuffer、B4.4 稀疏分派与基础 copy、B4.5 正常资产可达的全部已赋值 blitter 效果族均已闭环；RLE `0x08/0x09` 具有当前资产不可达证据和显式异常安全边界。B4.6 的 mask/cache、五种 writer、背景、原始字节文字链和确定性 GlyphProvider 已按完整 LST 实现。受控 GDI 生成器对唯一动态基准的 157 个三字号 mask 全部零差异，正式 atlas 覆盖 32,896 个原始 key，Windows/Linux/macOS 共用同一份数据；运行时已从 EXE 同目录资源加载并校验。B4.7 已闭环 `sub_43B110` 六模式矩形效果、`sub_42E850` 九宫格绘制、`sub_43BAB0` 效果面板组合、21 个 primary 提交请求合同、`sub_4303D0` BMP 写入器/P 键截图后端和 `sub_4306C0` 格式化原始字节文字。当前 Linux `core` 53/53、Windows LLVM `app` 55/55 CTest 通过；继续 `sub_4308C0..sub_430B60`。
+10. `[>]` B4：B4.2 像素转换、B4.3 owned framebuffer、B4.4 稀疏分派与基础 copy、B4.5 正常资产可达的全部已赋值 blitter 效果族均已闭环；RLE `0x08/0x09` 具有当前资产不可达证据和显式异常安全边界。B4.6 的 mask/cache、五种 writer、背景、原始字节文字链和确定性 GlyphProvider 已按完整 LST 实现。受控 GDI 生成器对唯一动态基准的 157 个三字号 mask 全部零差异，正式 atlas 覆盖 32,896 个原始 key，Windows/Linux/macOS 共用同一份数据；运行时已从 EXE 同目录资源加载并校验。B4.7 已闭环 `sub_43B110` 六模式矩形效果、`sub_42E850` 九宫格绘制、`sub_43BAB0` 效果面板组合、21 个 primary 提交请求合同、`sub_4303D0` BMP 写入器/P 键截图后端、`sub_4306C0` 格式化原始字节文字，以及 `sub_4308C0/sub_430B60` 倒计时绘制与初始化。当前 Linux `core` 54/54、Windows LLVM `app` 56/56 CTest 通过；继续 `sub_430BE0`。
 
 当前只执行 B4，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B4 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。

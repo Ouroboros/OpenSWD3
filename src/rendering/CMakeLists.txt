@@ -2,6 +2,7 @@ add_library(
     openswd3_rendering STATIC
     legacy_blitter.cpp
     legacy_bmp_writer.cpp
+    legacy_countdown.cpp
     legacy_effect_panel.cpp
     legacy_formatted_text.cpp
     legacy_framebuffer.cpp

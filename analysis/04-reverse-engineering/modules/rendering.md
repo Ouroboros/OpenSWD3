@@ -78,6 +78,8 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 - [`legacy-tiled-frame-and-effect-panel-0042e850-0043bab0.md`](../evidence/legacy-tiled-frame-and-effect-panel-0042e850-0043bab0.md)
 - [`legacy-primary-presentation-requests.md`](../evidence/legacy-primary-presentation-requests.md)
 - [`legacy-bmp-writer-004303d0.md`](../evidence/legacy-bmp-writer-004303d0.md)
+- [`legacy-formatted-text-004306c0.md`](../evidence/legacy-formatted-text-004306c0.md)
+- [`legacy-countdown-004308c0-00430b60.md`](../evidence/legacy-countdown-004308c0-00430b60.md)
 - [`presentation-lifecycle.md`](../evidence/presentation-lifecycle.md)
 - [`p4-dynamic-oracle-capture-protocol.md`](../evidence/p4-dynamic-oracle-capture-protocol.md)
 - [`Windows glyph-mask 动态基准`](../artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/README.md)
@@ -90,7 +92,7 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 4. `[x]` B4.4：43 个稀疏槽、普通裁剪、四条 raw/RLE copy、异常边界与真实 TSW 固定帧已闭环；Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过。
 5. `[x]` B4.5：全部正常资产可达的已赋值 blitter 已按效果族实现；最后闭环的 RLE `0x0C..0x0F` 保留纵向 10.10 行选择、逐行横移、`top_clip+1` 首行丢弃、目标 `y+1`、零目标高度的跨调用放大状态和正反 phase 不对称，真实 `all_sys.tsw` 哈希通过。RLE `0x08/0x09` 已证明当前 TSW/ACT 资产链不可达，强制异常状态保留显式安全边界；raw `0x88` 已实现。Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过，原程序 framebuffer 差分仍为 `blocked_runtime_oracle`。
 6. `[x]` B4.6：唯一动态基准、受控 GDI 生成器、32,896-key 正式 atlas、跨平台 Provider、EXE 旁资源部署和运行时校验已闭环；独立验证为 `157/157` 零差异，Linux `core` 47/47、Windows `app` 49/49 CTest 通过。
-7. `[>]` B4.7：`sub_43B110` 六模式矩形效果、`sub_42E850` 九宫格绘制和 `sub_43BAB0` 效果面板组合已按完整 LST 实现并逐基本块复核；21 个 primary 提交点已形成完整请求合同，SDL smoke 的错误统一帧尾 present 已改为六条稳定分支内请求。`sub_4303D0` 共用 BMP 写入器及 P 键截图后端已闭环，保留 reverse conversion、bottom-up BGR、DWORD 行对齐、`OPEN_ALWAYS` 尾部和 Miles 维护节奏。Linux `core` 52/52、Linux/Windows `app` 54/54 CTest 通过，下一单元继续 `sub_4306C0..sub_430B60`。
+7. `[>]` B4.7：`sub_43B110` 六模式矩形效果、`sub_42E850` 九宫格绘制和 `sub_43BAB0` 效果面板组合已按完整 LST 实现并逐基本块复核；21 个 primary 提交点已形成完整请求合同，SDL smoke 的错误统一帧尾 present 已改为六条稳定分支内请求。`sub_4303D0` BMP 写入器、`sub_4306C0` 格式化原始字节文字及 `sub_4308C0/sub_430B60` 30 Hz 倒计时绘制与初始化均已闭环。Linux `core` 54/54、Windows LLVM `app` 56/56 CTest 通过，下一单元从 `sub_430BE0` 继续。
 8. `[ ]` B4.8：接入 SDL3 上传、恢复生命周期与 framebuffer 哈希回放。
 
 每项达到自己的汇编、UT 和资产门后立即进入下一项，不等待 B4 全部细节重新调研。

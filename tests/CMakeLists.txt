@@ -747,6 +747,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_rendering_legacy_countdown_tests
+    unit/rendering/legacy_countdown_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_countdown_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_countdown_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_countdown
+    COMMAND openswd3_rendering_legacy_countdown_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_rectangle_effect_tests
     unit/rendering/legacy_rectangle_effect_test.cpp
 )
