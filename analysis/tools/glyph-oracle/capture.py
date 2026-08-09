@@ -66,7 +66,7 @@ def write_run_manifest(
         ("agent_sha256", sha256_file(agent_path)),
         ("glyph_entry", "0x004368D0"),
         ("glyph_return", "0x00436974"),
-        ("capture_method", "frida_attach_interceptor_on_enter_on_leave"),
+        ("capture_method", "frida_spawn_attach_hook_resume"),
     ]
 
     for file_name in RUNTIME_FILES:
@@ -89,28 +89,6 @@ def write_run_manifest(
     ) as stream:
         for key, value in rows:
             stream.write(f"{tsv_value(key)}\t{tsv_value(value)}\n")
-
-
-def resolve_process_id(device, requested_process_id: int | None) -> int:
-    if requested_process_id is not None:
-        if requested_process_id <= 0:
-            raise RuntimeError(f"PID 必须为正整数：{requested_process_id}")
-
-        return requested_process_id
-
-    matches = [
-        process.pid
-        for process in device.enumerate_processes()
-        if process.name.casefold() == "swd3_nodvd.exe"
-    ]
-    if not matches:
-        raise RuntimeError("没有找到正在运行的 swd3_nodvd.exe")
-    if len(matches) != 1:
-        raise RuntimeError(
-            f"找到 {len(matches)} 个 swd3_nodvd.exe，请只保留一个"
-        )
-
-    return matches[0]
 
 
 class CaptureWriter:
@@ -261,7 +239,6 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument("--game-dir", type=Path)
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--pid", type=int)
     parser.add_argument("--self-test", action="store_true")
     return parser.parse_args()
 
@@ -279,6 +256,10 @@ def main() -> int:
             raise RuntimeError(f"找不到 Frida agent：{agent_path}")
 
         device = frida.get_local_device()
+        if not callable(getattr(device, "spawn", None)) or not callable(
+            getattr(device, "resume", None)
+        ):
+            raise RuntimeError("当前 Frida device 不支持 spawn/resume")
         print(f"Frida {frida.__version__}; device={device.id}; self-test=ok")
         return 0
 
@@ -321,16 +302,7 @@ def main() -> int:
         raise RuntimeError("缺少 frida Python 包") from error
 
     device = frida.get_local_device()
-    process_id = resolve_process_id(device, arguments.pid)
     require_fresh_output(output_directory)
-
-    write_run_manifest(
-        output_directory,
-        game_directory,
-        agent_path,
-        frida.__version__,
-        process_id,
-    )
     writer = CaptureWriter(output_directory)
     detached = threading.Event()
     ready = threading.Event()
@@ -370,8 +342,22 @@ def main() -> int:
 
         detached.set()
 
+    process_id = None
+    process_resumed = False
     session = None
     try:
+        process_id = device.spawn(
+            str(executable),
+            argv=[str(executable)],
+            cwd=str(game_directory),
+        )
+        write_run_manifest(
+            output_directory,
+            game_directory,
+            agent_path,
+            frida.__version__,
+            process_id,
+        )
         session = device.attach(process_id)
         session.on("detached", on_detached)
         script = session.create_script(agent_path.read_text(encoding="utf-8"))
@@ -380,8 +366,10 @@ def main() -> int:
         if not ready.wait(timeout=10.0):
             raise RuntimeError("Frida agent 在 10 秒内没有报告就绪")
 
+        device.resume(process_id)
+        process_resumed = True
         print(
-            f"[已附加] PID={process_id}；请继续操作原版。",
+            f"[已启动] PID={process_id}；hook 已装入，请操作原版。",
             flush=True,
         )
         while not detached.wait(timeout=0.25):
@@ -392,6 +380,12 @@ def main() -> int:
     finally:
         if session is not None and not detached.is_set():
             session.detach()
+
+        if process_id is not None and not process_resumed:
+            try:
+                device.kill(process_id)
+            except frida.ProcessNotFoundError:
+                pass
 
         writer.close()
 

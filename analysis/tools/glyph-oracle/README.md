@@ -10,8 +10,9 @@
 0x00436974  返回：目标槽已有 height*row_bytes 字节的最终 mask
 ```
 
-`capture.py` 会先校验原 EXE SHA-256，再 attach 到你已经启动的原版进程并
-装入 `agent.js`。host 不包含 spawn、resume、kill 或自动点击逻辑。
+`capture.py` 会先校验原 EXE SHA-256，再以 Frida spawn 创建暂停态进程，装入
+`agent.js` 后 resume。这样不会漏掉启动阶段的首次 cache miss，也不再要求
+用户先启动原版再按 PID attach。
 
 ## 1. 一键 EXE
 
@@ -19,15 +20,16 @@
 `glyph-oracle.exe`。目录中包含 Python 运行时、Frida 16.5.1 和
 `agent.js`；目标 Windows 不需要安装任何依赖。
 
-把整个 `glyph-oracle` 目录复制到原版游戏目录下。先手动启动原版并停留在
-启动界面，再双击目录内的 `glyph-oracle.exe`。工具会：
+把整个 `glyph-oracle` 目录复制到原版游戏目录下，确认原版尚未运行，再双击
+目录内的 `glyph-oracle.exe`。工具会：
 
 - 以便携目录的父目录作为游戏目录；
-- 自动查找唯一的 `swd3_nodvd.exe` PID；
-- 校验原版 EXE 后 attach；
+- 校验 `swd3_nodvd.exe` 后以该目录作为工作目录 spawn；
+- 在目标恢复执行前 attach、安装 hook；
 - 自动建立 `glyph-oracle-output\run-*` 输出目录。
 
-它不启动或结束原版，也不点击或注入输入。
+工具不会点击或注入输入。只有在 hook 安装完成前失败时，才会清理自己创建的
+暂停态进程；成功 resume 后，停止捕获只会 detach，不会强制结束原版。
 
 ## 2. 源码运行环境
 
@@ -37,17 +39,7 @@
 py -3 -m pip install frida==16.5.1
 ```
 
-## 3. 手动启动原版并取得 PID
-
-手动运行原版，停留在启动界面，不要先进入游戏。然后在 Windows CMD 查询：
-
-```bat
-tasklist /FI "IMAGENAME eq swd3_nodvd.exe" /FO LIST
-```
-
-记下输出中的 PID。下面用 `12345` 作为示例。
-
-## 4. 建立一次全新的输出目录名
+## 3. 建立一次全新的输出目录名
 
 每次运行必须使用不同且不存在或为空的目录。例如：
 
@@ -57,7 +49,7 @@ build\vm\glyph-oracle-output\manual-run-01
 
 脚本不会清空或覆盖已有捕获目录。
 
-## 5. 从仓库根目录运行
+## 4. 从仓库根目录运行
 
 先进入 OpenSWD3 仓库：
 
@@ -68,13 +60,12 @@ cd /d E:\Game\swd3\OpenSWD3
 再执行一条命令：
 
 ```bat
-py -3 -B analysis\tools\glyph-oracle\capture.py --pid 12345 --game-dir E:\Game\swd3 --output build\vm\glyph-oracle-output\manual-run-01
+py -3 -B analysis\tools\glyph-oracle\capture.py --game-dir E:\Game\swd3 --output build\vm\glyph-oracle-output\manual-run-01
 ```
 
-终端出现 `[已附加]` 后，再回到原版启动界面继续操作。工具不会启动、结束、
-点击或注入输入。
+终端出现 `[已启动]` 后，再切换到原版窗口操作。工具不会点击或注入输入。
 
-## 6. 首轮操作路径
+## 5. 首轮操作路径
 
 首轮目标不是通关，而是让三个 renderer 和两类字符都发生 cache miss：
 
@@ -93,7 +84,7 @@ py -3 -B analysis\tools\glyph-oracle\capture.py --pid 12345 --game-dir E:\Game\s
 如果不想退出原版，可以在捕获终端按 `Ctrl+C`。工具只会 detach，原版继续
 运行；之后需要你自行关闭游戏。
 
-## 7. 回传内容
+## 6. 回传内容
 
 把整个本次输出目录保留并告知我路径。目录结构为：
 
@@ -112,7 +103,7 @@ SHA-256；`font-selections.tsv` 保存 GDI 实际选中的 face 与三个 render
 `TEXTMETRIC`。收到目录后，再做尺寸覆盖审计、字体选择确认、mask 可视化和
 跨平台 provider 差分。
 
-## 8. 已归档样本
+## 7. 已归档样本
 
 当前唯一基准归档到
 `analysis/04-reverse-engineering/artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/`。

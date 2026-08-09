@@ -25,11 +25,12 @@ framebuffer、DirectDraw RECT 与时间探针仍待捕获。
 - 原 EXE、`binkw32.dll`、Miles DLL/ASI、当前 `Env.dat` 和视频资产齐全；
 - `swd3.exe` 是固定 `ImageBase=0x00400000` 的 PE32，COFF 标记 relocations stripped，Base Relocation Directory 为空，`DllCharacteristics=0`。
 - `analysis/tools/glyph-oracle/` 已提供 Windows Frida host 与 agent，并在 Windows
-  `10.0.26200`、Frida `16.5.1`、Python `3.8.10` 环境完成实际 attach。
+  `10.0.26200`、Frida `16.5.1`、Python `3.8.10` 环境完成过实际 attach；该历史
+  基准保留原 manifest，后续工具已切换为 spawn。
 
-glyph-mask 捕获由用户在 Windows 上执行，Codex 不自行启动原版。用户先手动
-启动原版并停留在启动界面，host 再按 PID attach 和安装 hook；用户正常操作
-游戏后，host 把每次 cache miss 的 mask 写入输出目录。当前唯一输出已经归档
+glyph-mask 捕获由用户在 Windows 上执行，Codex 不自行启动原版。用户执行
+一键 host；host 以 Frida spawn 创建暂停态原版，在 resume 前安装 hook，用户
+随后正常操作游戏。每次 cache miss 的 mask 写入输出目录。当前唯一输出已经归档
 到 `../artifacts/glyph-oracle/win11-zh-tw-cp950-20260809/`。旧参考环境的
 framebuffer、DirectDraw 与时钟样本仍需要对应的可运行环境和探针；缺少这些
 样本不阻止后续静态逆向继续进行。
@@ -145,12 +146,13 @@ row bytes = [renderer+0x1C]
 当前捕获实现为：
 
 - `analysis/tools/glyph-oracle/agent.js`：校验 IA-32、固定 image base 和两个 LST 指令字节，在 `0x004368D0` 用 `Interceptor` 保存入口参数，并在 `onLeave` 发送最终 mask；
-- `analysis/tools/glyph-oracle/capture.py`：锁定原 EXE SHA-256，按用户提供的 PID attach，接收二进制并生成 `run.tsv`、`font-selections.tsv`、`glyph-masks.tsv` 与 `masks/*.bin`；
+- `analysis/tools/glyph-oracle/capture.py`：锁定原 EXE SHA-256，以目标游戏目录为工作目录 spawn，在 resume 前装入 hook，接收二进制并生成 `run.tsv`、`font-selections.tsv`、`glyph-masks.tsv` 与 `masks/*.bin`；
 - `analysis/tools/glyph-oracle/README.md`：给出用户执行命令、首轮操作路径和完整回传目录。
 
-host 不包含启动、恢复或结束原版的代码路径，也不点击界面、不注入输入。为
-避免漏掉首次 cache miss，用户在启动界面阶段完成 attach，再进入游戏。本次
-实际捕获确认 hook、二进制传输、TSV 清单和 mask 落盘路径均可工作。
+host 不点击界面、不注入输入。它只在 hook 安装完成前发生错误时清理自己创建
+的暂停态进程；成功 resume 后，停止捕获只 detach，不强制结束原版。这样可从
+进程入口前安装 hook，避免漏掉启动阶段首次 cache miss。已归档样本仍是切换
+spawn 前的实际 attach 结果，不能改写其历史 manifest。
 
 首轮至少覆盖：
 
