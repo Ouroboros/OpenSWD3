@@ -33,13 +33,15 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 
 1. `[x]` 建立精确 `0xD8` 角色记录前部与 `+0x40` 动作子记录组合。
 2. `[x]` 实现 `0x00404FD0/0x004050B0` 角色格占用查询，作为碰撞的可验证底座。
-3. `[~]` 用 B2 LMF API 建立一张真实地图会话和格表，再恢复 `0x00404610` 碰撞；
+3. `[x]` 用 B2 LMF API 建立一张真实地图会话和格表，再恢复 `0x00404610` 碰撞；
    LMF 子链和地图 22/24/500 已通过；`0x00426840..0x004272B8` 的 CM 命中、miss、
    淘汰、生成和完整读取也已闭环，Linux `core` 110/110、Windows LLVM `app`
    114/114 CTest 通过；`0x00404610` 九分支碰撞、原版异常足迹步长、事件/角色提前
-   返回和受检 session grid 适配已经闭环，Linux `core` 111/111 CTest 通过；当前
-   继续地图业务对象转换。Windows LLVM `app` 为 115/115 CTest。
-4. 接入 `0x00402F80` 输入/移动、`0x004120B0` 世界更新绘制和软件 framebuffer。
+   返回和受检 session grid 适配已经闭环；`0x004261CE..0x00426798` 的事件、两种
+   地图角色、三组空间链，以及 `0x0040F2C1..0x0040F31B` 的受检格索引和 flags
+   投影也已闭环。地图 22/24/500 的业务角色数为 49/29/1，Linux `core` 112/112、
+   Windows LLVM `app` 116/116 CTest 通过。
+4. `[~]` 接入 `0x00402F80` 输入/移动、`0x004120B0` 世界更新绘制和软件 framebuffer。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -52,7 +54,8 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 - 需要原程序动态值时准备 Frida spawn 工具并等待用户执行；Codex 不启动原版。
 - 地址范围全部有实现/转交/不可达映射且真实地图纵向闭环通过后，B7 才能收口。
 
-当前单元证据见 [`role-spatial-query-00404fd0.md`](../evidence/role-spatial-query-00404fd0.md)
-、[`lmf-world-map-session-00425be0.md`](../evidence/lmf-world-map-session-00425be0.md) 和
-[`cm-cache-runtime-00426840-004272b8.md`](../evidence/cm-cache-runtime-00426840-004272b8.md)
-、[`movement-collision-00404610.md`](../evidence/movement-collision-00404610.md)。
+当前单元证据见 [`role-spatial-query-00404fd0.md`](../evidence/role-spatial-query-00404fd0.md)、
+[`lmf-world-map-session-00425be0.md`](../evidence/lmf-world-map-session-00425be0.md)、
+[`cm-cache-runtime-00426840-004272b8.md`](../evidence/cm-cache-runtime-00426840-004272b8.md)、
+[`movement-collision-00404610.md`](../evidence/movement-collision-00404610.md) 和
+[`lmf-map-business-004261ce-00426798.md`](../evidence/lmf-map-business-004261ce-00426798.md)。

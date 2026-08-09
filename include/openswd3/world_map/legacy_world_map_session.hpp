@@ -2,6 +2,7 @@
 
 #include "openswd3/compat/types.hpp"
 #include "openswd3/resource_io/legacy_lmf_archive.hpp"
+#include "openswd3/world_map/legacy_world_map_business.hpp"
 
 #include <filesystem>
 
@@ -17,6 +18,8 @@ enum class LegacyWorldMapLoadStatus {
     offset14_directory_failed,
     indexed_object_directory_failed,
     offset1c_directory_failed,
+    business_state_failed,
+    role_cell_binding_failed,
 };
 
 struct LegacyWorldMapSession {
@@ -29,6 +32,8 @@ struct LegacyWorldMapSession {
     resource_io::LegacyLmfOffset14Directory offset14_directory;
     resource_io::LegacyLmfIndexedObjectDirectory indexed_objects;
     resource_io::LegacyLmfOffset1cDirectory offset1c_directory;
+    LegacyWorldMapBusinessResult business;
+    LegacyWorldRoleCellBindingResult role_cell_binding;
 };
 
 struct LegacyWorldMapLoadResult {

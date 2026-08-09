@@ -250,11 +250,12 @@ void test_current_maps(
         u32 height;
         u32 surface_size;
         u32 post_surface_count;
+        u32 business_role_count;
     };
     constexpr std::array expected_maps{
-        Expected{22U, 0x00000004U, 120U, 90U, 43'200U, 3U},
-        Expected{24U, 0x026698A3U, 120U, 136U, 65'280U, 7U},
-        Expected{500U, 0x1C16E962U, 40U, 457U, 73'120U, 0U},
+        Expected{22U, 0x00000004U, 120U, 90U, 43'200U, 3U, 49U},
+        Expected{24U, 0x026698A3U, 120U, 136U, 65'280U, 7U, 29U},
+        Expected{500U, 0x1C16E962U, 40U, 457U, 73'120U, 0U, 1U},
     };
 
     for (const auto& expected : expected_maps) {
@@ -280,6 +281,21 @@ void test_current_maps(
             result.session.surface_grid.post_surface_record_count,
             expected.post_surface_count,
             "fixed map trailing record count matches the inventory"
+        );
+        test.expect_true(
+            result.session.business.state.events.size() ==
+                    expected.post_surface_count &&
+                result.session.business.state.roles.size() ==
+                    expected.business_role_count &&
+                result.session.business.state.offset14_role_count + 1U ==
+                    expected.business_role_count,
+            "fixed map event and offset14 role conversion counts are stable"
+        );
+        test.expect_true(
+            result.session.role_cell_binding.roles_bound + 1U ==
+                    expected.business_role_count &&
+                result.session.role_cell_binding.out_of_bounds_indices == 0U,
+            "fixed map roles receive valid checked surface-grid indices"
         );
     }
 }

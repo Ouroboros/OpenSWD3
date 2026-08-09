@@ -168,6 +168,32 @@ LegacyWorldMapLoadResult load_legacy_world_map(
         return result;
     }
 
+    result.session.business = build_legacy_world_map_business_state(
+        result.session.header,
+        result.session.post_surface_records,
+        result.session.offset14_directory,
+        result.session.offset1c_directory
+    );
+    if (result.session.business.status !=
+        LegacyWorldMapBusinessStatus::ready) {
+        result.status = LegacyWorldMapLoadStatus::business_state_failed;
+        return result;
+    }
+
+    auto& roles = result.session.business.state.roles;
+    result.session.role_cell_binding = bind_legacy_world_role_cells(
+        roles,
+        1U,
+        static_cast<compat::u32>(roles.size()),
+        result.session.header.width,
+        result.session.surface_grid.surface_grid
+    );
+    if (result.session.role_cell_binding.status !=
+        LegacyWorldRoleCellBindingStatus::ready) {
+        result.status = LegacyWorldMapLoadStatus::role_cell_binding_failed;
+        return result;
+    }
+
     result.status = LegacyWorldMapLoadStatus::ready;
     return result;
 }

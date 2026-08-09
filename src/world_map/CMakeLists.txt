@@ -6,6 +6,7 @@ add_library(
         legacy_cm_cache_runtime.cpp
         legacy_movement_collision.cpp
         legacy_role_spatial_query.cpp
+        legacy_world_map_business.cpp
         legacy_world_map_session.cpp
 )
 target_include_directories(
