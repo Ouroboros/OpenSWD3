@@ -1700,6 +1700,50 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_role_spatial_query_tests
+    unit/world_map/legacy_role_spatial_query_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_role_spatial_query_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_role_spatial_query_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_role_spatial_query
+    COMMAND openswd3_world_map_legacy_role_spatial_query_tests
+)
+
+add_executable(
+    openswd3_world_map_legacy_world_map_session_tests
+    unit/world_map/legacy_world_map_session_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_map_session_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_map_session_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_map_session
+    COMMAND openswd3_world_map_legacy_world_map_session_tests
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
+    add_test(
+        NAME world_map.legacy_world_map_session_real
+        COMMAND
+            openswd3_world_map_legacy_world_map_session_tests
+            "${PROJECT_SOURCE_DIR}/../huge.lmf"
+    )
+endif()
+
+add_executable(
     openswd3_asset_runtime_legacy_action_draw_bridge_tests
     unit/asset_runtime/legacy_action_draw_bridge_test.cpp
 )

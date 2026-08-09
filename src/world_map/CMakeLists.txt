@@ -1,0 +1,21 @@
+add_library(
+    openswd3_world_map
+    STATIC
+        legacy_role_spatial_query.cpp
+        legacy_world_map_session.cpp
+)
+target_include_directories(
+    openswd3_world_map
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(
+    openswd3_world_map
+    PUBLIC
+        openswd3_asset_runtime
+        openswd3_compat
+        openswd3_project_options
+        openswd3_project_warnings
+        openswd3_resource_io
+)
