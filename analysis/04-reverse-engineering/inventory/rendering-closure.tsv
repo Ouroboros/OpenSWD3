@@ -79,8 +79,8 @@ address	closure_disposition	target_owner	implementation_mapping	evidence	remaini
 0x004223A0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
 0x00422730	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
 0x004229C0	implemented	rendering	select_legacy_blitter;blit_legacy_copy_paths	software-blitter-dispatch-and-pixel-effects.md	none
-0x00422C70	pending	rendering		swd3.exe.lst:0x00422C70	recover and implement the standalone software drawing helper
-0x00423020	pending	rendering		swd3.exe.lst:0x00423020	recover and implement the standalone software drawing helper
+0x00422C70	implemented	rendering	LegacyScaledRleSource;LegacyScaledRleTransform;write_legacy_scaled_rle_forward/reverse	legacy-scaled-rle-writers-00422c70-00423020.md	none
+0x00423020	implemented	rendering	LegacyScaledRleSource;LegacyScaledRleTransform;write_legacy_scaled_rle_forward/reverse	legacy-scaled-rle-writers-00422c70-00423020.md	none
 0x004233D0	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
 0x00423400	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none
 0x004238B0	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none

@@ -52,7 +52,7 @@ IMPLEMENTED_DRAWING_HELPERS = {
     0x0040E080,
     0x004117F0,
 }
-PENDING_STANDALONE_HELPERS = {
+IMPLEMENTED_SCALED_RLE_WRITERS = {
     0x00422C70,
     0x00423020,
 }
@@ -242,13 +242,14 @@ def policy_for(address: int) -> Policy:
             "legacy-drawing-helpers-0040de50-004117f0.md",
             "none",
         )
-    if address in PENDING_STANDALONE_HELPERS:
+    if address in IMPLEMENTED_SCALED_RLE_WRITERS:
         return Policy(
-            "pending",
+            "implemented",
             "rendering",
-            "",
-            f"swd3.exe.lst:0x{address:08X}",
-            "recover and implement the standalone software drawing helper",
+            "LegacyScaledRleSource;LegacyScaledRleTransform;"
+            "write_legacy_scaled_rle_forward/reverse",
+            "legacy-scaled-rle-writers-00422c70-00423020.md",
+            "none",
         )
     if address in IMPLEMENTED_SOFTWARE_HELPERS:
         return Policy(

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v84
+版本：v85
 
 最后更新：2026-08-09
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：B4.9f · 10.10 缩放 RLE writer
+当前步骤：B4.9g · 20/16/12 字体 renderer 生命周期绑定
 
 ## 1. 目标
 
@@ -213,6 +213,6 @@
 7. `[x]` B2：历史 63 项范围已完成有限收口审计；修正 5 项模块归属并补齐 6 个真实缺口后，当前 58 项为 57 项实现与 1 项不可达。Windows LLVM `core`/`app`、34/34 CTest 和全套真实资产回归通过；状态为 `module_closed_pending_oracle`。
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
-10. `[>]` B4：B4.2–B4.8 已闭环；五个 packed image command-stream 函数、三个基础绘制 helper、五项暂停/动作协调器、六项描边/固定 tile/packed-row helper，以及 `0x00420490..0x004207E0/0x00421FB0` 六项 packed-16 颜色函数均已通过完整 LST 与独立 UT；Linux `core` 62/62、Windows LLVM `app` 64/64 CTest 通过。151 项有限收口矩阵现有 2 项真实缺口、5 项延后接线和 1 项归属修正；当前实现 `0x00422C70/0x00423020` 两条 10.10 缩放 RLE writer。`sub_430BE0` 属于 `runtime_platform`，不插入 B4。
+10. `[>]` B4：B4.2–B4.8 已闭环；151 项有限收口矩阵现为 92 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、5 项延后接线、0 项真实缺口和 1 项归属修正。`0x00422C70/0x00423020` 两条 10.10 缩放 RLE writer 已通过完整 LST、独立 UT、Linux `core` 63/63 与 Windows LLVM `app` 65/65 CTest。当前只接通 B4 自有的 20/16/12 字体 renderer 生命周期；另两项战斗 surface 等待 B10 owner。`sub_430BE0` 属于 `runtime_platform`，不插入 B4。
 
 当前只执行 B4，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B4 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。

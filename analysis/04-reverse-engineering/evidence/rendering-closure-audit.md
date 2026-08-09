@@ -10,30 +10,31 @@
 
 ## 1. 当前结果
 
-- 90 项已有独立实现映射，16 项是已实现函数内部由跳转表选择的物理 PROC 分支；
+- 92 项已有独立实现映射，16 项是已实现函数内部由跳转表选择的物理 PROC 分支；
 - 35 项旧 DirectDraw/GDI/Lock 生命周期由 owned framebuffer、glyph atlas 和 SDL3
   平台边界替代；
 - 2 项 RLE coverage 路径具有当前资产不可达证据，强制异常状态只保留显式边界；
 - 5 项已有公共合同但等待运行时 owner 接线，其中三项是 B4 自己必须完成的
   20/16/12 字体实例绑定，另两项等待 B10 提供战斗 surface；
-- 2 项仍是没有实现映射的真实 B4 缺口；
+- 没有仍为 `pending` 的真实实现缺口；
 - `0x00436FA0` 并非字体函数，而是直接跳到 `0x004374E0` 输入设备释放函数，移交
   `input_time_rng`，不在 B4 重复实现。
 
-这些数字只表示当前逐地址 disposition，不代表 B4 已闭环。`pending` 和 B4 自有的
+这些数字只表示当前逐地址 disposition，不代表 B4 已闭环。B4 自有的三项字体
 deferred binding 清零前，模块不能移交。
 
 ## 2. 有限缺口分组
 
-五个 command-stream 函数、三项绘制 helper、暂停层、四项动作/消息协调器，以及
-六项描边/固定 tile/packed-row helper 和六项 packed-16 颜色函数已经完成。剩余
-2 项只有一个紧密行为单元：`0x00422C70/0x00423020` 两条 10.10 缩放 RLE
-writer。
+五个 command-stream 函数、三项绘制 helper、暂停层、四项动作/消息协调器、
+六项描边/固定 tile/packed-row helper、六项 packed-16 颜色函数，以及
+`0x00422C70/0x00423020` 两条 10.10 缩放 RLE writer 已经完成。纯函数与
+软件像素 writer 不再有 `pending` 地址。
 
 字体运行时绑定单独在上述纯函数完成后接入启动与显示恢复。战斗辅助 surface 只保留
 B4 的 source/lifecycle 合同，不提前实现 B10 业务状态。
 
 ## 3. 下一执行单元
 
-下一组是 `0x00422C70/0x00423020`。只恢复这两条 10.10 缩放 RLE writer 的
-行列步进、裁剪和状态合同，不重新展开已经闭环的 blitter 或颜色函数。
+下一组只接通 `0x0040F340/0x00435160/0x004351F0` 对应的 20/16/12 字体
+renderer 生命周期：启动时建立，显示恢复时重新绑定 framebuffer/provider，停用时
+按原顺序撤销。既有 glyph mask、cache 和五种 writer 不重新展开。

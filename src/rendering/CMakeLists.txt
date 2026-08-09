@@ -19,6 +19,7 @@ add_library(
     legacy_packed_row.cpp
     legacy_presentation.cpp
     legacy_rectangle_effect.cpp
+    legacy_scaled_rle_writer.cpp
     legacy_text_renderer.cpp
     legacy_timed_messages.cpp
     legacy_tiled_frame.cpp
