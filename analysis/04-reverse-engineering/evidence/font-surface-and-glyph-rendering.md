@@ -117,6 +117,29 @@ little-endian key、hit/miss 顺序和固定整数 advance，并只把 mask 生�
 则对应原 GDI 调用不检查返回值的路径：保留空/部分 mask，继续背景、布局和
 绘制后缓存计数，同时把平台失败报告给调用者。
 
+## 三套 renderer 的运行时生命周期
+
+`sub_40F340`、`sub_435160` 与 `sub_4351F0` 共同管理三个静态 renderer 对象，
+已知调用只使用 20、16、12 三个字号。统一重建入口始终先调用释放，再建立目标
+surface/行表/cache/font，最后把背景设为 `0xFFFE`、secondary 设为零。初始
+horizontal advance 不是简单等于字号：20 为 24，16 为 18；12 没有自己的覆盖
+分支，保留 `sub_435160` 先建立的 16。后续调用点可以继续通过 `sub_435650`
+修改这些值。
+
+启动初始化按 20→16→12 建立三套对象。显示停用和总退出均按 20→16→12 幂等
+释放；显示恢复在 framebuffer 重绑后按相同顺序重建，因此旧 glyph cache 不跨
+display-lost 周期保留。原程序用 `GetSystemMetrics(0/1)` 重建整屏 clip；现代
+SDL3 使用 owned 逻辑 framebuffer 的实际 width/height，这是 fullscreen
+DirectDraw 被固定 `640×480` 软件画布替代后的平台边界，不改变文字像素算法。
+
+当前实现位于 `LegacyTextRendererRuntime`。每个槽持有独立
+`LegacyGlyphCache`、`LegacyTextRendererState` 以及 framebuffer/atlas provider
+绑定；`SdlSmokeInitializationPorts`、`SdlDisplayLifecyclePorts` 和
+`SmokeShutdownPorts` 分别接通启动、停用/恢复与总退出。重建会先释放旧槽、清空
+cache、恢复上述默认状态并重绑 provider。分配失败只停止现代宿主，不修改正常
+路径。独立 UT 锁定三套 geometry、24/18/16 advance、状态复位、cache 清空、
+provider/framebuffer 重绑、幂等释放与未知字号隔离。
+
 ## 五种软件 footprint
 
 以下以字形 mask 中的置位像素为 `p=(x+gx,y+gy)`，offset 表示最终帧缓冲相对 `p` 的写入位置。`foreground` 是调用参数中的 16 位前景色，`secondary` 是对象 `+0xFE4` 的 16 位阴影/轮廓色。

@@ -79,7 +79,7 @@ IMPLEMENTED_FRAME_COLOR = {
     0x004207E0,
     0x00421FB0,
 }
-DEFERRED_FONT_BINDING = {
+IMPLEMENTED_FONT_RUNTIME = {
     0x0040F340,
     0x00435160,
     0x004351F0,
@@ -275,13 +275,14 @@ def policy_for(address: int) -> Policy:
             "frame-color-adjustment-and-combine.md",
             "none",
         )
-    if address in DEFERRED_FONT_BINDING:
+    if address in IMPLEMENTED_FONT_RUNTIME:
         return Policy(
-            "implemented_with_deferred_binding",
+            "implemented",
             "rendering;platform_sdl3",
-            "LegacyGlyphCache;LegacyTextRendererState;LegacyGlyphAtlasProvider",
+            "LegacyTextRendererRuntime;SdlSmokeInitializationPorts;"
+            "SdlDisplayLifecyclePorts;SmokeShutdownPorts",
             "font-surface-and-glyph-rendering.md",
-            "bind persistent 20/16/12 renderer instances into startup and display recovery",
+            "none",
         )
     if address in INTERNAL_RAW_FADE_STEPS:
         return Policy(

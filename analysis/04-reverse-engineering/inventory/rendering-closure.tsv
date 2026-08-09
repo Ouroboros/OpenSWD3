@@ -6,7 +6,7 @@ address	closure_disposition	target_owner	implementation_mapping	evidence	remaini
 0x00401E50	implemented	rendering	legacy image command-stream encode/decode/pixel-conversion family	legacy-image-command-stream-004014f0-00401e50.md	none
 0x0040DE50	implemented	rendering	legacy animated border/thumbnail/decorated-number helpers	legacy-drawing-helpers-0040de50-004117f0.md	none
 0x0040E080	implemented	rendering	legacy animated border/thumbnail/decorated-number helpers	legacy-drawing-helpers-0040de50-004117f0.md	none
-0x0040F340	implemented_with_deferred_binding	rendering;platform_sdl3	LegacyGlyphCache;LegacyTextRendererState;LegacyGlyphAtlasProvider	font-surface-and-glyph-rendering.md	bind persistent 20/16/12 renderer instances into startup and display recovery
+0x0040F340	implemented	rendering;platform_sdl3	LegacyTextRendererRuntime;SdlSmokeInitializationPorts;SdlDisplayLifecyclePorts;SmokeShutdownPorts	font-surface-and-glyph-rendering.md	none
 0x004117F0	implemented	rendering	legacy animated border/thumbnail/decorated-number helpers	legacy-drawing-helpers-0040de50-004117f0.md	none
 0x00411FA0	implemented	rendering;story_scene	legacy pause/action/packed-row/timed-message coordinators	legacy-pause-action-and-message-renderers-00411fa0-004153d0.md	none
 0x00414B60	implemented	rendering;story_scene	legacy pause/action/packed-row/timed-message coordinators	legacy-pause-action-and-message-renderers-00411fa0-004153d0.md	none
@@ -95,8 +95,8 @@ address	closure_disposition	target_owner	implementation_mapping	evidence	remaini
 0x004306C0	implemented	rendering	legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units	rendering.md:B4.7	none
 0x004308C0	implemented	rendering	legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units	rendering.md:B4.7	none
 0x00430B60	implemented	rendering	legacy tiled frame/BMP/formatted text/countdown/rectangle/effect panel units	rendering.md:B4.7	none
-0x00435160	implemented_with_deferred_binding	rendering;platform_sdl3	LegacyGlyphCache;LegacyTextRendererState;LegacyGlyphAtlasProvider	font-surface-and-glyph-rendering.md	bind persistent 20/16/12 renderer instances into startup and display recovery
-0x004351F0	implemented_with_deferred_binding	rendering;platform_sdl3	LegacyGlyphCache;LegacyTextRendererState;LegacyGlyphAtlasProvider	font-surface-and-glyph-rendering.md	bind persistent 20/16/12 renderer instances into startup and display recovery
+0x00435160	implemented	rendering;platform_sdl3	LegacyTextRendererRuntime;SdlSmokeInitializationPorts;SdlDisplayLifecyclePorts;SmokeShutdownPorts	font-surface-and-glyph-rendering.md	none
+0x004351F0	implemented	rendering;platform_sdl3	LegacyTextRendererRuntime;SdlSmokeInitializationPorts;SdlDisplayLifecyclePorts;SmokeShutdownPorts	font-surface-and-glyph-rendering.md	none
 0x00435240	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
 0x004352C0	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none
 0x004352E0	platform_adapted	rendering;platform_sdl3	LegacyGlyphAtlasProvider;legacy-glyph-atlas.bin	font-surface-and-glyph-rendering.md	none

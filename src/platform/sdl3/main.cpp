@@ -25,6 +25,7 @@
 #include "openswd3/rendering/legacy_glyph_atlas.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 #include "openswd3/rendering/legacy_presentation.hpp"
+#include "openswd3/rendering/legacy_text_renderer_runtime.hpp"
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
@@ -409,6 +410,8 @@ public:
         openswd3::app::PlatformBackendInitializationPorts& backend_ports,
         openswd3::resource_io::LegacyResourceDatabases& resource_databases,
         openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider,
+        openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
+        openswd3::rendering::LegacyFramebuffer& framebuffer,
         const std::filesystem::path& data_directory,
         SDL_Renderer& renderer,
         openswd3::input_time_rng::LegacyMouseState& mouse_state,
@@ -420,6 +423,8 @@ public:
           backend_ports_(backend_ports),
           resource_databases_(resource_databases),
           glyph_provider_(glyph_provider),
+          text_renderers_(text_renderers),
+          framebuffer_(framebuffer),
           data_directory_(data_directory),
           renderer_(renderer),
           mouse_state_(mouse_state),
@@ -481,7 +486,23 @@ public:
 
         destroy_requested_ = true;
     }
-    void initialize_render_resources() override {}
+    void initialize_render_resources() override {
+        for (const auto point_size :
+             openswd3::rendering::kLegacyTextRendererPointSizes) {
+            if (text_renderers_.rebuild(
+                    point_size,
+                    framebuffer_,
+                    glyph_provider_
+                ) != openswd3::rendering::
+                         LegacyTextRendererRuntimeStatus::completed) {
+                openswd3::diagnostics::log_error(
+                    "legacy text renderer initialization failed"
+                );
+                destroy_requested_ = true;
+                return;
+            }
+        }
+    }
     bool initialize_frame_interval_35() override {
         return openswd3::input_time_rng::set_frame_interval(
                    frame_interval_,
@@ -499,6 +520,8 @@ private:
     openswd3::app::PlatformBackendInitializationPorts& backend_ports_;
     openswd3::resource_io::LegacyResourceDatabases& resource_databases_;
     openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider_;
+    openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
+    openswd3::rendering::LegacyFramebuffer& framebuffer_;
     const std::filesystem::path& data_directory_;
     SDL_Renderer& renderer_;
     openswd3::input_time_rng::LegacyMouseState& mouse_state_;
@@ -568,7 +591,10 @@ public:
         SDL_Window& window,
         SDL_Renderer& renderer,
         SDL_Texture*& texture,
-        const openswd3::rendering::LegacyFramebuffer& framebuffer,
+        const openswd3::rendering::LegacyFramebuffer& primary_surface,
+        openswd3::rendering::LegacyFramebuffer& game_framebuffer,
+        openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider,
+        openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
         openswd3::compat::u32& frame_interval,
         const bool backend_available,
         bool& ok,
@@ -577,7 +603,10 @@ public:
         : window_(window),
           renderer_(renderer),
           texture_(texture),
-          framebuffer_(framebuffer),
+          primary_surface_(primary_surface),
+          game_framebuffer_(game_framebuffer),
+          glyph_provider_(glyph_provider),
+          text_renderers_(text_renderers),
           frame_interval_(frame_interval),
           backend_available_(backend_available),
           ok_(ok),
@@ -607,7 +636,9 @@ public:
     void suspend_audio_streams() override {}
     void maintain_audio() override {}
     void suspend_battle_display() override {}
-    void release_font(openswd3::compat::u32) override {}
+    void release_font(const openswd3::compat::u32 point_size) override {
+        static_cast<void>(text_renderers_.release(point_size));
+    }
 
     void minimize_window() override {
         static_cast<void>(SDL_MinimizeWindow(&window_));
@@ -624,7 +655,7 @@ public:
             return;
         }
         const openswd3::rendering::LegacySurfaceGeometry& geometry =
-            framebuffer_.geometry().surface;
+            primary_surface_.geometry().surface;
         texture_ = SDL_CreateTexture(
             &renderer_,
             SDL_PIXELFORMAT_RGB565,
@@ -637,13 +668,29 @@ public:
         }
     }
     void rebuild_framebuffer_binding() override {}
-    void rebuild_font(openswd3::compat::u32) override {}
+    void rebuild_font(const openswd3::compat::u32 point_size) override {
+        if (!running_) {
+            return;
+        }
+        if (text_renderers_.rebuild(
+                point_size,
+                game_framebuffer_,
+                glyph_provider_
+            ) != openswd3::rendering::
+                     LegacyTextRendererRuntimeStatus::completed) {
+            openswd3::diagnostics::log_error(
+                "legacy text renderer display recovery failed"
+            );
+            ok_ = false;
+            running_ = false;
+        }
+    }
     void resume_battle_display() override {}
     void finish_display_recovery() override {
         if (!running_ || texture_ == nullptr) {
             return;
         }
-        if (!present_framebuffer(renderer_, *texture_, framebuffer_)) {
+        if (!present_framebuffer(renderer_, *texture_, primary_surface_)) {
             fail_recovery("framebuffer presentation during display recovery");
         }
     }
@@ -658,7 +705,10 @@ private:
     SDL_Window& window_;
     SDL_Renderer& renderer_;
     SDL_Texture*& texture_;
-    const openswd3::rendering::LegacyFramebuffer& framebuffer_;
+    const openswd3::rendering::LegacyFramebuffer& primary_surface_;
+    openswd3::rendering::LegacyFramebuffer& game_framebuffer_;
+    openswd3::rendering::LegacyGlyphAtlasProvider& glyph_provider_;
+    openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
     openswd3::compat::u32& frame_interval_;
     bool backend_available_{};
     bool& ok_;
@@ -667,9 +717,21 @@ private:
 
 class SmokeShutdownPorts final : public openswd3::app::ShutdownPorts {
 public:
+    explicit SmokeShutdownPorts(
+        openswd3::rendering::LegacyTextRendererRuntime& text_renderers
+    ) : text_renderers_(text_renderers) {}
+
     void perform_shutdown_operation(
         const openswd3::app::ShutdownOperation operation
     ) override {
+        using Operation = openswd3::app::ShutdownOperation;
+        if (operation == Operation::release_font_20) {
+            static_cast<void>(text_renderers_.release(20U));
+        } else if (operation == Operation::release_font_16) {
+            static_cast<void>(text_renderers_.release(16U));
+        } else if (operation == Operation::release_font_12) {
+            static_cast<void>(text_renderers_.release(12U));
+        }
         if (operation == openswd3::app::ShutdownOperation::show_cursor) {
             static_cast<void>(SDL_ShowCursor());
         }
@@ -684,6 +746,9 @@ public:
     void report_shutdown_close_failure(
         openswd3::app::ShutdownCloseOperation
     ) override {}
+
+private:
+    openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
 };
 
 class SdlProcessExitPorts final : public openswd3::app::ProcessExitPorts {
@@ -1134,6 +1199,8 @@ int main(const int argument_count, char** arguments) {
     openswd3::app::InitializationState initialization_state{};
     openswd3::app::PlatformBackendState backend_state{};
     openswd3::resource_io::LegacyResourceDatabases resource_databases;
+    openswd3::rendering::LegacyFramebuffer framebuffer;
+    openswd3::rendering::LegacyTextRendererRuntime text_renderers;
     openswd3::input_time_rng::LegacyMouseState mouse_state{};
     openswd3::platform_sdl3::SdlMouseDeviceState mouse_device_state{};
     SdlSmokePlatformBackendPorts backend_ports(
@@ -1146,6 +1213,8 @@ int main(const int argument_count, char** arguments) {
         backend_ports,
         resource_databases,
         glyph_provider,
+        text_renderers,
+        framebuffer,
         data_directory.directory,
         *renderer,
         mouse_state,
@@ -1191,7 +1260,6 @@ int main(const int argument_count, char** arguments) {
         return 0;
     }
 
-    openswd3::rendering::LegacyFramebuffer framebuffer;
     openswd3::rendering::LegacyFramebuffer primary_surface(
         framebuffer.geometry().surface
     );
@@ -1224,12 +1292,15 @@ int main(const int argument_count, char** arguments) {
         *renderer,
         texture,
         primary_surface,
+        framebuffer,
+        glyph_provider,
+        text_renderers,
         frame_interval,
         runtime_ready,
         ok,
         running
     );
-    SmokeShutdownPorts shutdown_ports;
+    SmokeShutdownPorts shutdown_ports(text_renderers);
 
     SdlProcessExitPorts exit_ports(running);
     if (runtime_ready &&

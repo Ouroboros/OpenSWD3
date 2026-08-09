@@ -21,6 +21,7 @@ add_library(
     legacy_rectangle_effect.cpp
     legacy_scaled_rle_writer.cpp
     legacy_text_renderer.cpp
+    legacy_text_renderer_runtime.cpp
     legacy_timed_messages.cpp
     legacy_tiled_frame.cpp
 )

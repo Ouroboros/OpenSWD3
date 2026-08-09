@@ -1,8 +1,8 @@
 # B4 `rendering` 工作包
 
-状态：实施中
+状态：`module_closed_pending_oracle`
 
-当前单元：B4.9g 20/16/12 字体 renderer 生命周期绑定
+当前单元：B4 已移交；仅保留已登记动态 oracle 与 B10 battle surface 接线
 
 ## 1. 范围与非范围
 
@@ -100,6 +100,6 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 6. `[x]` B4.6：唯一动态基准、受控 GDI 生成器、32,896-key 正式 atlas、跨平台 Provider、EXE 旁资源部署和运行时校验已闭环；独立验证为 `157/157` 零差异，Linux `core` 47/47、Windows `app` 49/49 CTest 通过。
 7. `[x]` B4.7：`sub_43B110` 六模式矩形效果、`sub_42E850` 九宫格绘制和 `sub_43BAB0` 效果面板组合已按完整 LST 实现并逐基本块复核；21 个 primary 提交点已形成完整请求合同，SDL smoke 的错误统一帧尾 present 已改为六条稳定分支内请求。`sub_4303D0` BMP 写入器、`sub_4306C0` 格式化原始字节文字及 `sub_4308C0/sub_430B60` 30 Hz 倒计时绘制与初始化均已闭环。Linux `core` 54/54、Windows LLVM `app` 56/56 CTest 通过。
 8. `[x]` B4.8：SDL3 上传已直接使用 owned framebuffer 的稳定地址和实际 pitch，logical hash 已固定为跨平台小端 FNV-1a；恢复路径可重建纹理并重新上传现有 primary，失败会停止外壳，现代可缩放窗口恢复时保留用户尺寸。独立 primary surface 与 full/partial RECT 合成已接通，矩形外保留旧 primary 状态，快照/临时 source 缺失时显式失败。Linux `core` 54/54、Linux/Windows LLVM `app` 56/56 CTest 通过；Windows OpenSWD3 在 `1000×750` 下完成最小化、恢复、尺寸保持和零退出 smoke。
-9. `[>]` B4 范围闭环审计：151 项矩阵现为 92 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、5 项延后接线、0 项真实缺口和 1 项移交。`0x00422C70/0x00423020` 两条 10.10 缩放 RLE writer 已按完整 LST 实现，正反顺序、二维 phase、裁剪不对称、完全裁掉的命令、带标志零 run、one-past 原始缺陷与异常隔离均有独立 UT；Linux `core` 63/63、Windows LLVM `app` 65/65 CTest 通过。下一组只接通 B4 自有的 20/16/12 字体 renderer 生命周期，另两项战斗 surface 继续等待 B10 owner。
+9. `[x]` B4 范围闭环审计：151 项矩阵现为 95 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项移交；没有 B4 自有的实现或接线缺口。`0x0040F340/0x00435160/0x004351F0` 三项生命周期已建立独立 20/16/12 cache/state/framebuffer/provider 绑定，锁定 24/18/16 advance，并接入启动、显示停用/恢复和总退出。Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过；原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，模块状态为 `module_closed_pending_oracle`。
 
 每项达到自己的汇编、UT 和资产门后立即进入下一项，不等待 B4 全部细节重新调研。

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v85
+版本：v86
 
 最后更新：2026-08-09
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：B4.9g · 20/16/12 字体 renderer 生命周期绑定
+当前步骤：B5.1 · `audio_video` 接口级逆向与工作包建立
 
 ## 1. 目标
 
@@ -213,6 +213,7 @@
 7. `[x]` B2：历史 63 项范围已完成有限收口审计；修正 5 项模块归属并补齐 6 个真实缺口后，当前 58 项为 57 项实现与 1 项不可达。Windows LLVM `core`/`app`、34/34 CTest 和全套真实资产回归通过；状态为 `module_closed_pending_oracle`。
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
-10. `[>]` B4：B4.2–B4.8 已闭环；151 项有限收口矩阵现为 92 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、5 项延后接线、0 项真实缺口和 1 项归属修正。`0x00422C70/0x00423020` 两条 10.10 缩放 RLE writer 已通过完整 LST、独立 UT、Linux `core` 63/63 与 Windows LLVM `app` 65/65 CTest。当前只接通 B4 自有的 20/16/12 字体 renderer 生命周期；另两项战斗 surface 等待 B10 owner。`sub_430BE0` 属于 `runtime_platform`，不插入 B4。
+10. `[x]` B4：151 项有限收口矩阵现为 95 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项归属修正；没有 B4 自有缺口。20/16/12 字体 renderer 已接入启动、显示停用/恢复和总退出，Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过。原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，状态为 `module_closed_pending_oracle`。
+11. `[>]` B5：先按完整 LST 恢复 `audio_video` 的 Miles 音频、Bink 视频、媒体 gate、状态所有权和生命周期，建立唯一模块工作包及有限函数清单；达到单模块开始条件后立即按行为单元边逆向边实现，不等待全模块细节调研完毕。
 
-当前只执行 B4，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B4 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。
+当前只执行 B5，不切换到其他模块，也不继续 opcode 125 起的逐值恢复。B5 的接口级逆向达到单模块开始条件后立即实现首个行为单元，不等待模块全部内部逻辑恢复。
