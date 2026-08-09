@@ -1,6 +1,9 @@
 add_library(
     openswd3_world_map
     STATIC
+        legacy_cm_cache_generator.cpp
+        legacy_cm_cache_loader.cpp
+        legacy_cm_cache_runtime.cpp
         legacy_role_spatial_query.cpp
         legacy_world_map_session.cpp
 )
@@ -17,5 +20,6 @@ target_link_libraries(
         openswd3_compat
         openswd3_project_options
         openswd3_project_warnings
+        openswd3_rendering
         openswd3_resource_io
 )

@@ -1718,6 +1718,84 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_cm_cache_runtime_tests
+    unit/world_map/legacy_cm_cache_runtime_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_cm_cache_runtime_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_cm_cache_runtime_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_cm_cache_runtime
+    COMMAND openswd3_world_map_legacy_cm_cache_runtime_tests
+)
+
+add_executable(
+    openswd3_world_map_legacy_cm_cache_generator_tests
+    unit/world_map/legacy_cm_cache_generator_test.cpp
+)
+target_compile_definitions(
+    openswd3_world_map_legacy_cm_cache_generator_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_world_map_legacy_cm_cache_generator_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_cm_cache_generator_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_cm_cache_generator
+    COMMAND openswd3_world_map_legacy_cm_cache_generator_tests
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
+    add_test(
+        NAME world_map.legacy_cm_cache_generator_real
+        COMMAND
+            openswd3_world_map_legacy_cm_cache_generator_tests
+            "${PROJECT_SOURCE_DIR}/../huge.lmf"
+    )
+endif()
+
+add_executable(
+    openswd3_world_map_legacy_cm_cache_loader_tests
+    unit/world_map/legacy_cm_cache_loader_test.cpp
+)
+target_compile_definitions(
+    openswd3_world_map_legacy_cm_cache_loader_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_world_map_legacy_cm_cache_loader_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_cm_cache_loader_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_cm_cache_loader
+    COMMAND openswd3_world_map_legacy_cm_cache_loader_tests
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
+    add_test(
+        NAME world_map.legacy_cm_cache_loader_real
+        COMMAND
+            openswd3_world_map_legacy_cm_cache_loader_tests
+            "${PROJECT_SOURCE_DIR}/../huge.lmf"
+    )
+endif()
+
+add_executable(
     openswd3_world_map_legacy_world_map_session_tests
     unit/world_map/legacy_world_map_session_test.cpp
 )
