@@ -77,6 +77,16 @@
 - 每段把下一条 `0x500` 字节物理行的指定字节范围前向复制到当前行；调用者拥有
   service 7，asset runtime 只接收启用结果并借用固定 16 位 framebuffer。
 
+### ANI 目标跟随双帧效果
+
+- `0x00416B30` 由 service `0x13` 启用，共用一份 `0x98` 动作记录依次执行
+  动作 `0x232B` 的变体 78 和 79，再以更新后的 `+0x4A/+0x4C` 查询
+  TSW 并绘制两帧。
+- 第一帧裁剪矩形保留原指令宽高交叉 BUG，第二帧使用中心周围 `384×384`
+  裁剪和 `0x2C` flags；两帧都按自身宽高正常居中。
+- 两帧之后才按 `i32` 回绕加法移动坐标，只在加法后精确命中目标时清除
+  对应速度；不做越过夹取。剧情 owner 持有 service 和六个坐标/速度字段。
+
 ### SND 借用边界
 
 SND 的 3000 项索引、载荷 buffer、引用计数和播放生命周期已经由 `audio_video` 持有。
@@ -124,14 +134,19 @@ asset_runtime sound request  → audio_video port
    `0x004154A0` 的冻结快照、`-13` 揭幕、逐帧推进、两种结束阈值、释放顺序和三个
    外部端口已实现；`0x00416CC0` 的逐节点 framebuffer 快照、变形、推进、完成摘链和
    继续遍历也已闭环。`0x004163C0` 的 64 项状态、48 项有效块、16 帧刷新周期、第二套
-   RNG 顺序和下一物理行前向复制也已实现。当前继续收口 ANI 组剩余 6 个自有入口。
+   RNG 顺序和下一物理行前向复制也已实现。`0x00416B30` 的 service
+   门、变体 78/79 双帧、裁剪 BUG 和目标跟随状态也已闭环。当前继续收口 ANI
+   组剩余 5 个自有入口。
 6. `[x]` `0x00430C60..0x0043114C`：`0x2C` 变形节点、双 `i16` 工作场、固定场 0
    warp、跨行 carry 更新、16 位衰减、径向注入、CRT 随机坐标与哨兵链表调度已实现。
    Linux `core` 89/89、Windows LLVM `app` 93/93 CTest 通过。
 7. `[x]` `0x004163C0`：service 7 启用门、64 项初始状态、48 项首次生成和实际拷贝、
    64/48/64 项周期刷新、第二套无偏 RNG 顺序、`u16` 计数回绕及下一物理行复制已实现。
    Linux `core` 90/90、Windows LLVM `app` 94/94 CTest 通过。
-8. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
+8. `[x]` `0x00416B30`：service `0x13` 门、变体 78/79 的 ACT→TSW 查询、双帧绘制、
+   宽高交叉裁剪 BUG、`0x2C` 标志、绘制后目标跟随及 `i32` 回绕已实现；
+   真实 ACT/TSW 路径通过，Linux `core` 92/92、Windows LLVM `app` 96/96 CTest 通过。
+9. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
 
 只有当前一项占执行位。每一项达到可独立验证边界就实现，不等待后面各项全部逆向。
 
@@ -148,6 +163,9 @@ asset_runtime sound request  → audio_video port
   CRT 随机坐标、哨兵头插以及完成/保留两种摘链路径。
 - ANI 逐行复制：固定 RNG 参数向量、64/48 项刷新差异、16 帧周期、计数回绕、逐字节
   前向复制和 framebuffer 哈希 `0x8ED9811DCD93C1F1`。
+- ANI 目标跟随：双变体顺序、TSW 键传递、两组裁剪/绘制坐标、非方形宽高交叉、
+  service 早退、blit 返回值忽略、单轴等值、越过目标和 32 位回绕；真实变体
+  79 最终键 `(9225, 0)` 并完成 blit。
 - 原程序差分：需要时准备 Frida spawn 工具，由用户运行；OpenSWD3 不自行启动原 EXE。
 
 当前不需要新的原程序动态捕获即可开始缓存策略、TSW/ACT 有效资产路径和动作状态机实现。
@@ -163,6 +181,7 @@ asset_runtime sound request  → audio_video port
 - [`action-subrecord-004321e0.md`](../evidence/action-subrecord-004321e0.md)
 - [`action-object-families.md`](../evidence/action-object-families.md)
 - [`action-external-consumers.md`](../evidence/action-external-consumers.md)
+- [`ani-follower-effect-00416b30.md`](../evidence/ani-follower-effect-00416b30.md)
 - [`ani-container-and-lzo-boundary.md`](../evidence/ani-container-and-lzo-boundary.md)
 - [`frame-deformation-00430c60.md`](../evidence/frame-deformation-00430c60.md)
 - [`ani-row-copy-effect-004163c0.md`](../evidence/ani-row-copy-effect-004163c0.md)

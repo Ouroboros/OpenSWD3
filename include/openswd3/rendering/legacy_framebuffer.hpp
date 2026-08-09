@@ -38,6 +38,14 @@ struct LegacyRasterGeometryState {
     const LegacySurfaceGeometry& surface
 ) noexcept;
 
+void set_legacy_clip_rectangle(
+    LegacyRasterGeometryState& state,
+    compat::i32 left,
+    compat::i32 top,
+    compat::i32 right,
+    compat::i32 bottom
+) noexcept;
+
 class LegacyFramebuffer final {
 public:
     LegacyFramebuffer();

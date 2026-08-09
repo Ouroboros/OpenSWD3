@@ -63,6 +63,38 @@ bool initialize_legacy_raster_geometry(
     return true;
 }
 
+void set_legacy_clip_rectangle(
+    LegacyRasterGeometryState& state,
+    compat::i32 left,
+    compat::i32 top,
+    compat::i32 right,
+    compat::i32 bottom
+) noexcept {
+    if (left < 0) {
+        left = 0;
+    }
+    if (top < 0) {
+        top = 0;
+    }
+    if (right > state.surface.width) {
+        right = state.surface.width;
+    }
+    if (bottom > state.surface.height) {
+        bottom = state.surface.height;
+    }
+
+    state.clip_left = left;
+    state.clip_top = top;
+    state.clip_width = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(right) -
+        std::bit_cast<compat::u32>(left)
+    );
+    state.clip_height = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(bottom) -
+        std::bit_cast<compat::u32>(top)
+    );
+}
+
 LegacyFramebuffer::LegacyFramebuffer()
     : LegacyFramebuffer(LegacySurfaceGeometry{}) {}
 

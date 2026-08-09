@@ -47,23 +47,7 @@ void set_clip_rectangle(
     i32 right,
     i32 bottom
 ) noexcept {
-    if (left < 0) {
-        left = 0;
-    }
-    if (top < 0) {
-        top = 0;
-    }
-    if (right > raster.surface.width) {
-        right = raster.surface.width;
-    }
-    if (bottom > raster.surface.height) {
-        bottom = raster.surface.height;
-    }
-
-    raster.clip_left = left;
-    raster.clip_top = top;
-    raster.clip_width = wrapping_subtract(right, left);
-    raster.clip_height = wrapping_subtract(bottom, top);
+    set_legacy_clip_rectangle(raster, left, top, right, bottom);
 }
 
 [[nodiscard]] LegacyBlitClipRectangle current_clip(
