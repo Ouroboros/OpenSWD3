@@ -8,6 +8,7 @@ add_library(
         legacy_ani_archive.cpp
         legacy_ani_follower_effect.cpp
         legacy_ani_row_copy_effect.cpp
+        legacy_ani_streak_effect.cpp
         legacy_asset_cache_limits.cpp
         legacy_frame_deformation.cpp
         legacy_tsw_archive.cpp

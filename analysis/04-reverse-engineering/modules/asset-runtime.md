@@ -87,6 +87,15 @@
 - 两帧之后才按 `i32` 回绕加法移动坐标，只在加法后精确命中目标时清除
   对应速度；不做越过夹取。剧情 owner 持有 service 和六个坐标/速度字段。
 
+### ANI 下落拖尾效果
+
+- `0x00416590` 持有 64 个 `0x10` 字节槽，但初始化只清前 48 个；每槽保留
+  1/16 像素坐标、步进、包含上界、寿命和完整 active word。
+- 每帧先无条件消耗 `random(1000)`，严格大于 900 才查 service 8；新槽依次
+  消耗 x、水平步进、纵向步进和拖尾长度四个有界 RNG。
+- 拖尾从第 1 行开始，通过现有 `0x004239D0/0x00420490` 对应像素 helper 饱和
+  增加灰度通道；越底边清 active 后仍可因寿命非零增加存活计数。
+
 ### SND 借用边界
 
 SND 的 3000 项索引、载荷 buffer、引用计数和播放生命周期已经由 `audio_video` 持有。
@@ -135,8 +144,9 @@ asset_runtime sound request  → audio_video port
    外部端口已实现；`0x00416CC0` 的逐节点 framebuffer 快照、变形、推进、完成摘链和
    继续遍历也已闭环。`0x004163C0` 的 64 项状态、48 项有效块、16 帧刷新周期、第二套
    RNG 顺序和下一物理行前向复制也已实现。`0x00416B30` 的 service
-   门、变体 78/79 双帧、裁剪 BUG 和目标跟随状态也已闭环。当前继续收口 ANI
-   组剩余 5 个自有入口。
+   门、变体 78/79 双帧、裁剪 BUG 和目标跟随状态也已闭环。`0x00416590` 的
+   48/64 槽差异、概率 service 门、拖尾像素和存活计数异常已闭环。当前继续
+   收口 ANI 组剩余 4 个自有入口。
 6. `[x]` `0x00430C60..0x0043114C`：`0x2C` 变形节点、双 `i16` 工作场、固定场 0
    warp、跨行 carry 更新、16 位衰减、径向注入、CRT 随机坐标与哨兵链表调度已实现。
    Linux `core` 89/89、Windows LLVM `app` 93/93 CTest 通过。
@@ -146,7 +156,10 @@ asset_runtime sound request  → audio_video port
 8. `[x]` `0x00416B30`：service `0x13` 门、变体 78/79 的 ACT→TSW 查询、双帧绘制、
    宽高交叉裁剪 BUG、`0x2C` 标志、绘制后目标跟随及 `i32` 回绕已实现；
    真实 ACT/TSW 路径通过，Linux `core` 92/92、Windows LLVM `app` 96/96 CTest 通过。
-9. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
+9. `[x]` `0x00416590`：48/64 槽重置差异、条件 service 8、四步 RNG 创建、第 0 行跳过、
+   包含上界拖尾、逐点饱和增亮、`i16` 乘加回绕及越底边计数异常已实现；
+   Linux `core` 93/93、Windows LLVM `app` 97/97 CTest 通过。
+10. `[ ]` 其余公共变换和调用桥接，最后做 78 地址有限收口。
 
 只有当前一项占执行位。每一项达到可独立验证边界就实现，不等待后面各项全部逆向。
 
@@ -166,6 +179,9 @@ asset_runtime sound request  → audio_video port
 - ANI 目标跟随：双变体顺序、TSW 键传递、两组裁剪/绘制坐标、非方形宽高交叉、
   service 早退、blit 返回值忽略、单轴等值、越过目标和 32 位回绕；真实变体
   79 最终键 `(9225, 0)` 并完成 blit。
+- ANI 下落拖尾：前 48/全 64 槽、概率门与条件 service 调用、四个创建 RNG、
+  bit 0 活动判定、第 0 行跳过、包含上界、逐点灰度增亮、底边与寿命计数异常，
+  以及固定 framebuffer 哈希 `0x7403975F3AB69BDD`。
 - 原程序差分：需要时准备 Frida spawn 工具，由用户运行；OpenSWD3 不自行启动原 EXE。
 
 当前不需要新的原程序动态捕获即可开始缓存策略、TSW/ACT 有效资产路径和动作状态机实现。
@@ -182,6 +198,7 @@ asset_runtime sound request  → audio_video port
 - [`action-object-families.md`](../evidence/action-object-families.md)
 - [`action-external-consumers.md`](../evidence/action-external-consumers.md)
 - [`ani-follower-effect-00416b30.md`](../evidence/ani-follower-effect-00416b30.md)
+- [`ani-streak-effect-00416590.md`](../evidence/ani-streak-effect-00416590.md)
 - [`ani-container-and-lzo-boundary.md`](../evidence/ani-container-and-lzo-boundary.md)
 - [`frame-deformation-00430c60.md`](../evidence/frame-deformation-00430c60.md)
 - [`ani-row-copy-effect-004163c0.md`](../evidence/ani-row-copy-effect-004163c0.md)
