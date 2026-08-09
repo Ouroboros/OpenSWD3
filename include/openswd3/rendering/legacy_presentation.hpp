@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/compat/types.hpp"
+#include "openswd3/rendering/legacy_framebuffer.hpp"
 
 #include <span>
 
@@ -109,6 +110,22 @@ struct LegacyPresentationDispatchResult {
     LegacyPresentationRequest request{};
 };
 
+struct LegacyPresentationSources {
+    const LegacyFramebuffer* game_framebuffer{};
+    const LegacyFramebuffer* battle_snapshot_surface{};
+    const LegacyFramebuffer* temporary_screen_surface{};
+};
+
+enum class LegacyPrimaryCompositionStatus : compat::u8 {
+    completed,
+    source_unavailable,
+    rectangle_presence_mismatch,
+    invalid_source_rectangle,
+    invalid_destination_rectangle,
+    rectangle_size_mismatch,
+    full_surface_geometry_mismatch,
+};
+
 [[nodiscard]] std::span<const LegacyPresentationContract>
 legacy_primary_presentation_contracts() noexcept;
 
@@ -120,5 +137,11 @@ find_legacy_presentation_contract(LegacyPresentationSite site) noexcept;
     LegacyPresentationPorts& ports,
     const LegacyPresentationDynamicRectangles* dynamic_rectangles = nullptr
 );
+
+[[nodiscard]] LegacyPrimaryCompositionStatus compose_legacy_primary_surface(
+    LegacyFramebuffer& primary_surface,
+    const LegacyPresentationRequest& request,
+    const LegacyPresentationSources& sources
+) noexcept;
 
 }  // namespace openswd3::rendering

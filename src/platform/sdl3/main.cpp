@@ -709,7 +709,8 @@ public:
     SdlSmokeIdlePorts(
         SDL_Renderer& renderer,
         SDL_Texture*& texture,
-        const openswd3::rendering::LegacyFramebuffer& framebuffer,
+        const openswd3::rendering::LegacyFramebuffer& game_framebuffer,
+        openswd3::rendering::LegacyFramebuffer& primary_surface,
         const openswd3::compat::u32& frame_interval,
         openswd3::app::WindowEventState& window_state,
         const openswd3::app::DisplayLifecycleState& display_state,
@@ -725,7 +726,8 @@ public:
     )
         : renderer_(renderer),
           texture_(texture),
-          framebuffer_(framebuffer),
+          game_framebuffer_(game_framebuffer),
+          primary_surface_(primary_surface),
           frame_interval_(frame_interval),
           window_state_(window_state),
           display_state_(display_state),
@@ -892,13 +894,18 @@ public:
     [[nodiscard]] bool present_legacy_frame(
         const openswd3::rendering::LegacyPresentationRequest& request
     ) override {
-        if (request.source !=
-                openswd3::rendering::LegacyPresentationSource::
-                    game_framebuffer ||
-            request.has_source_rectangle ||
-            request.has_destination_rectangle) {
+        const auto composition_status =
+            openswd3::rendering::compose_legacy_primary_surface(
+                primary_surface_,
+                request,
+                openswd3::rendering::LegacyPresentationSources{
+                    .game_framebuffer = &game_framebuffer_,
+                }
+            );
+        if (composition_status !=
+            openswd3::rendering::LegacyPrimaryCompositionStatus::completed) {
             static_cast<void>(report_error(
-                "framebuffer presentation: unsupported smoke request"
+                "framebuffer presentation: primary composition failed"
             ));
             ok_ = false;
             running_ = false;
@@ -912,7 +919,7 @@ public:
             running_ = false;
             return false;
         }
-        if (!present_framebuffer(renderer_, *texture_, framebuffer_)) {
+        if (!present_framebuffer(renderer_, *texture_, primary_surface_)) {
             static_cast<void>(report_sdl_error("framebuffer presentation"));
             ok_ = false;
             running_ = false;
@@ -952,7 +959,8 @@ private:
 
     SDL_Renderer& renderer_;
     SDL_Texture*& texture_;
-    const openswd3::rendering::LegacyFramebuffer& framebuffer_;
+    const openswd3::rendering::LegacyFramebuffer& game_framebuffer_;
+    openswd3::rendering::LegacyFramebuffer& primary_surface_;
     const openswd3::compat::u32& frame_interval_;
     openswd3::app::WindowEventState& window_state_;
     const openswd3::app::DisplayLifecycleState& display_state_;
@@ -1184,6 +1192,9 @@ int main(const int argument_count, char** arguments) {
     }
 
     openswd3::rendering::LegacyFramebuffer framebuffer;
+    openswd3::rendering::LegacyFramebuffer primary_surface(
+        framebuffer.geometry().surface
+    );
     openswd3::rendering::LegacyPixelConversionState pixel_conversion;
     openswd3::rendering::select_legacy_pixel_conversion(
         pixel_conversion,
@@ -1212,7 +1223,7 @@ int main(const int argument_count, char** arguments) {
         *window,
         *renderer,
         texture,
-        framebuffer,
+        primary_surface,
         frame_interval,
         runtime_ready,
         ok,
@@ -1222,7 +1233,7 @@ int main(const int argument_count, char** arguments) {
 
     SdlProcessExitPorts exit_ports(running);
     if (runtime_ready &&
-        !present_framebuffer(*renderer, *texture, framebuffer)) {
+        !present_framebuffer(*renderer, *texture, primary_surface)) {
         static_cast<void>(report_sdl_error("initial framebuffer presentation"));
         ok = false;
         openswd3::app::handle_window_destroy(
@@ -1248,6 +1259,7 @@ int main(const int argument_count, char** arguments) {
         *renderer,
         texture,
         framebuffer,
+        primary_surface,
         frame_interval,
         window_state,
         display_state,

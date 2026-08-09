@@ -1,5 +1,6 @@
 #include "openswd3/rendering/legacy_presentation.hpp"
 
+#include <algorithm>
 #include <array>
 
 namespace openswd3::rendering {
@@ -64,6 +65,33 @@ constexpr LegacyPresentationRectangle kBinkRectangle{
     .bottom = 479,
 };
 
+[[nodiscard]] const LegacyFramebuffer* select_source(
+    const LegacyPresentationSource source,
+    const LegacyPresentationSources& sources
+) noexcept {
+    switch (source) {
+    case LegacyPresentationSource::game_framebuffer:
+        return sources.game_framebuffer;
+    case LegacyPresentationSource::battle_snapshot_surface:
+        return sources.battle_snapshot_surface;
+    case LegacyPresentationSource::temporary_screen_surface:
+        return sources.temporary_screen_surface;
+    }
+    return nullptr;
+}
+
+[[nodiscard]] bool rectangle_fits(
+    const LegacyPresentationRectangle& rectangle,
+    const LegacySurfaceGeometry& surface
+) noexcept {
+    return rectangle.left >= 0 &&
+        rectangle.top >= 0 &&
+        rectangle.right >= rectangle.left &&
+        rectangle.bottom >= rectangle.top &&
+        rectangle.right <= surface.width &&
+        rectangle.bottom <= surface.height;
+}
+
 }  // namespace
 
 std::span<const LegacyPresentationContract>
@@ -127,6 +155,82 @@ LegacyPresentationDispatchResult submit_legacy_presentation(
         ? LegacyPresentationDispatchStatus::completed
         : LegacyPresentationDispatchStatus::backend_failed;
     return result;
+}
+
+LegacyPrimaryCompositionStatus compose_legacy_primary_surface(
+    LegacyFramebuffer& primary_surface,
+    const LegacyPresentationRequest& request,
+    const LegacyPresentationSources& sources
+) noexcept {
+    const LegacyFramebuffer* const source = select_source(
+        request.source,
+        sources
+    );
+    if (source == nullptr) {
+        return LegacyPrimaryCompositionStatus::source_unavailable;
+    }
+
+    if (request.has_source_rectangle != request.has_destination_rectangle) {
+        return LegacyPrimaryCompositionStatus::rectangle_presence_mismatch;
+    }
+
+    const LegacySurfaceGeometry& source_geometry =
+        source->geometry().surface;
+    const LegacySurfaceGeometry& destination_geometry =
+        primary_surface.geometry().surface;
+    if (!request.has_source_rectangle) {
+        if (source_geometry.width != destination_geometry.width ||
+            source_geometry.height != destination_geometry.height) {
+            return LegacyPrimaryCompositionStatus::
+                full_surface_geometry_mismatch;
+        }
+        for (compat::i32 row = 0; row < source_geometry.height; ++row) {
+            const auto row_index = static_cast<compat::u32>(row);
+            std::ranges::copy(
+                source->row_pixels(row_index),
+                primary_surface.row_pixels(row_index).begin()
+            );
+        }
+        return LegacyPrimaryCompositionStatus::completed;
+    }
+
+    if (!rectangle_fits(request.source_rectangle, source_geometry)) {
+        return LegacyPrimaryCompositionStatus::invalid_source_rectangle;
+    }
+    if (!rectangle_fits(
+            request.destination_rectangle,
+            destination_geometry
+        )) {
+        return LegacyPrimaryCompositionStatus::invalid_destination_rectangle;
+    }
+
+    const compat::i32 source_width =
+        request.source_rectangle.right - request.source_rectangle.left;
+    const compat::i32 source_height =
+        request.source_rectangle.bottom - request.source_rectangle.top;
+    if (source_width != request.destination_rectangle.right -
+            request.destination_rectangle.left ||
+        source_height != request.destination_rectangle.bottom -
+            request.destination_rectangle.top) {
+        return LegacyPrimaryCompositionStatus::rectangle_size_mismatch;
+    }
+
+    for (compat::i32 row = 0; row < source_height; ++row) {
+        const std::span<const compat::u16> source_row = source->row_pixels(
+            static_cast<compat::u32>(request.source_rectangle.top + row)
+        );
+        std::span<compat::u16> destination_row = primary_surface.row_pixels(
+            static_cast<compat::u32>(
+                request.destination_rectangle.top + row
+            )
+        );
+        std::ranges::copy_n(
+            source_row.begin() + request.source_rectangle.left,
+            source_width,
+            destination_row.begin() + request.destination_rectangle.left
+        );
+    }
+    return LegacyPrimaryCompositionStatus::completed;
 }
 
 }  // namespace openswd3::rendering
