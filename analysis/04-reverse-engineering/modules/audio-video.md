@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B5.3 `0x004862B0/0x00486490` SND 运行时索引与 sample buffer
+当前单元：B5.4 sample manager 槽位、引用计数与回收
 
 ## 1. 范围与移交
 
@@ -107,9 +107,9 @@ framebuffer/present、时钟/让出和生命周期都通过调用端口注入。
   判定。
 
 73 个 B5 地址、跨模块接口、状态 owner、启动/帧/停用/退出顺序、首批 UT 边界和真实
-资产入口已经固定，达到单模块开始条件。首个参数转换单元已经完成，当前进入 SND
-运行时索引与 sample buffer；不等待全部 Miles status 或 Bink backend 细节一次性调研
-完毕。
+资产入口已经固定，达到单模块开始条件。参数转换和 SND 运行时索引/sample buffer 已
+完成；当前沿其调用者继续恢复 sample manager 槽位、引用计数与回收，不等待全部 Miles
+status 或 Bink backend 细节一次性调研完毕。
 
 ## 5. 已有证据
 
@@ -120,6 +120,7 @@ framebuffer/present、时钟/让出和生命周期都通过调用端口注入。
 - [`platform-backend-initialization-00424ef0.md`](../evidence/platform-backend-initialization-00424ef0.md)
 - [`p4-dynamic-oracle-capture-protocol.md`](../evidence/p4-dynamic-oracle-capture-protocol.md)
 - [`legacy-audio-parameters-00486260-00486280.md`](../evidence/legacy-audio-parameters-00486260-00486280.md)
+- [`legacy-snd-runtime-004862b0-00486490.md`](../evidence/legacy-snd-runtime-004862b0-00486490.md)
 
 ## 6. 当前执行顺序
 
@@ -127,5 +128,9 @@ framebuffer/present、时钟/让出和生命周期都通过调用端口注入。
    入口已固定，达到单模块开始条件。
 2. `[x]` B5.2：`0x00486260/0x00486280` 已按完整 LST 实现 signed clamp 与 32 位
    回绕声像偏移；Linux `core` 65/65、Windows LLVM `app` 67/67 CTest 通过。
-3. `[>]` B5.3：按现有全量资产证据实现 `0x004862B0/0x00486490` 的 3000 项索引、
-   一基查找和四类 sample buffer，不修改原 RIFF 缺陷。
+3. `[x]` B5.3：`0x004862B0/0x00486490` 的 3000 项索引、一基查找和四类 sample
+   buffer 已实现；真实 `all.snd` 的 664 个 view 拼接 SHA-256 精确匹配既有证据，Linux
+   `core` 67/67、Windows LLVM `app` 69/69 CTest 通过。
+4. `[>]` B5.4：沿 `0x00485960–0x00486210`、`0x004862A0` 和 `0x00486430` 恢复
+   sample manager 的固定槽、播放/停止事件、单槽引用计数、最后 buffer 与回收顺序，
+   用 fake backend 逐调用验证。

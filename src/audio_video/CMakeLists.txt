@@ -2,6 +2,7 @@ add_library(
     openswd3_audio_video
     STATIC
         legacy_audio_parameters.cpp
+        legacy_snd_archive.cpp
 )
 target_include_directories(
     openswd3_audio_video
@@ -11,5 +12,9 @@ target_include_directories(
 )
 target_link_libraries(
     openswd3_audio_video
-    PUBLIC openswd3_compat openswd3_project_options openswd3_project_warnings
+    PUBLIC
+        openswd3_compat
+        openswd3_resource_io
+        openswd3_project_options
+        openswd3_project_warnings
 )
