@@ -182,7 +182,7 @@ RoleEventByCollision.GUID[%d].Talk[%d].Ridx[%d]
 
 这些整数是原始动作状态，P2 不把它们提前改名为走、跑或待机动画枚举。
 
-当前实现把该区间拆为两个可组合单元：
+当前实现把该区间拆为可组合单元：
 
 - `legacy_world_direction_input` 严格按左、右、上、下顺序消费输入记录 3、5、4、6，
   保留同时按键的覆盖结果、`held == 1 || (held & 7) == 7` 重复门和列表索引回绕。
@@ -190,9 +190,14 @@ RoleEventByCollision.GUID[%d].Talk[%d].Ridx[%d]
   步长翻倍/固定覆盖、空闲计数和 `0x004120F9..0x00412197` 的角色/相机坐标更新。
 - `legacy_world_direction_adjustment` 恢复 `0x0040BB50` 八方向占位折叠、`0x00404510`
   三带可通行掩码和 `0x004040B0` 的单轴绕行/对角裁剪顺序。
+- `legacy_world_facing` 恢复 `0x00411E20/0x00411F00` 的回绕距离、整数正弦查表与
+  十六扇区折叠。
+- `legacy_world_collision_talk` 恢复修正/原始方向两次碰撞、地图 bit 先于 Talk 门、
+  地图/角色上下文构造，以及写玩家朝向后仍第二次刷新目标 action 的原始不对称。
 
-Linux Clang 全套 115/115、Windows LLVM `app` 119/119 CTest 通过。Talk 建立和
-随机遇敌仍属于本入口后续单元，因此不能把整个 `0x00402F80` 标为完成。
+Linux Clang `core` 117/117、Windows LLVM `app` 121/121 CTest 通过。随机遇敌仍属于
+本入口后续单元，因此不能把整个 `0x00402F80` 标为完成。碰撞 Talk 单元的逐基本块
+证据见 `world-collision-talk-00403ad7.md`。
 
 ## 10. 随机遇敌选择
 

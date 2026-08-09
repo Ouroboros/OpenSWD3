@@ -45,8 +45,10 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    四方向输入、八方向覆盖顺序、列表重复、移动边界、动作/速度状态和
    `0x004120F9..0x00412197` 坐标更新已实现；`0x0040BB50` 八方向占位、
    `0x00404510` 三带可通行扫描和 `0x004040B0` 单轴绕行/对角裁剪也已闭环。
-   Linux `core` 115/115、Windows LLVM `app` 119/119 CTest 通过。当前继续组合
-   `0x00402F80` 的碰撞、Talk 与遇敌协调。
+   `0x00403AD7..0x00403DB6` 的两次碰撞回退、`0xD8` Talk 布局、地图事件副作用、
+   角色相向和 `0x00411E20/0x00411F00` 朝向查表也已实现；Linux `core` 117/117、
+   Windows LLVM `app` 121/121 CTest 通过。当前继续组合 `0x00402F80` 的随机遇敌
+   协调。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -64,4 +66,5 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`cm-cache-runtime-00426840-004272b8.md`](../evidence/cm-cache-runtime-00426840-004272b8.md)、
 [`movement-collision-00404610.md`](../evidence/movement-collision-00404610.md) 和
 [`lmf-map-business-004261ce-00426798.md`](../evidence/lmf-map-business-004261ce-00426798.md)、
-[`world-direction-adjustment-004040b0.md`](../evidence/world-direction-adjustment-004040b0.md)。
+[`world-direction-adjustment-004040b0.md`](../evidence/world-direction-adjustment-004040b0.md)、
+[`world-collision-talk-00403ad7.md`](../evidence/world-collision-talk-00403ad7.md)。

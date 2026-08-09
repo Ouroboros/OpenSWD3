@@ -6,8 +6,10 @@ add_library(
         legacy_cm_cache_runtime.cpp
         legacy_movement_collision.cpp
         legacy_role_spatial_query.cpp
+        legacy_world_collision_talk.cpp
         legacy_world_direction_adjustment.cpp
         legacy_world_direction_input.cpp
+        legacy_world_facing.cpp
         legacy_world_map_business.cpp
         legacy_world_map_session.cpp
         legacy_world_player_motion.cpp
