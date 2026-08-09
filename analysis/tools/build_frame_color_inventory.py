@@ -19,7 +19,7 @@ from pathlib import Path
 RESEARCH_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = RESEARCH_ROOT.parents[1]
 EXE_PATH = WORKSPACE_ROOT / "swd3.exe"
-ASM_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.asm"
+LST_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.lst"
 INVENTORY_ROOT = RESEARCH_ROOT / "04-reverse-engineering" / "inventory"
 
 FUNCTION_OUTPUT = INVENTORY_ROOT / "frame-color-functions.tsv"
@@ -28,10 +28,13 @@ VECTOR_OUTPUT = INVENTORY_ROOT / "frame-color-format-vectors.tsv"
 
 EXPECTED_SHA256 = {
     EXE_PATH: "0bac897a7557735b22607d8c8f0a79a3e7ae7729deb56593fd91c21e10baee0c",
-    ASM_PATH: "d902f6dfd47d7033bf8a971c4ccc3a4d8d037b5b577035041113329363cab052",
+    LST_PATH: "701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b",
 }
 
-ASM_LINE_RE = re.compile(r"^([0-9A-F]{8})\s+(.+?)\s*$")
+LST_INSTRUCTION_RE = re.compile(
+    r"^\.[^:]+:([0-9A-F]{8}) "
+    r"(?:[0-9A-F?]{2}(?: [0-9A-F?]{2})*)\s{2,}(.+?)\s*$"
+)
 
 TARGET_CALLS = {
     "sub_420490": (
@@ -150,7 +153,7 @@ class PixelFormat:
 
 FORMATS = (
     PixelFormat("R7C00_G03E0_B001F", 0x7C00, 0x03E0, 0x001F, 10, 5, 0),
-    PixelFormat("RF800_G07E0_B003F_narrow_B003E", 0xF800, 0x07E0, 0x003E, 11, 6, 1),
+    PixelFormat("RF800_G07C0_B003F_narrow_B003E", 0xF800, 0x07C0, 0x003E, 11, 6, 1),
     PixelFormat("RF800_G07E0_B001F_narrow_G07C0", 0xF800, 0x07C0, 0x001F, 11, 6, 0),
     PixelFormat("RFC00_G03E0_B001F_narrow_R_F800", 0xF800, 0x03E0, 0x001F, 11, 5, 0),
 )
@@ -172,11 +175,11 @@ def load_assembly() -> tuple[list[Instruction], dict[int, str]]:
     instructions: list[Instruction] = []
     by_address: dict[int, str] = {}
     owner = ""
-    for raw in ASM_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
+    for raw in LST_PATH.read_text(encoding="utf-8", errors="replace").splitlines():
         owner_match = re.search(r"\b(sub_[0-9A-F]{6}|WinMain)\s+proc near\b", raw)
         if owner_match:
             owner = owner_match.group(1)
-        match = ASM_LINE_RE.match(raw)
+        match = LST_INSTRUCTION_RE.match(raw)
         if not match:
             continue
         text = match.group(2).split(";", 1)[0].rstrip()

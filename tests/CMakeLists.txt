@@ -792,6 +792,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_rendering_legacy_frame_color_tests
+    unit/rendering/legacy_frame_color_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_frame_color_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_frame_color_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_frame_color
+    COMMAND openswd3_rendering_legacy_frame_color_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_pause_overlay_tests
     unit/rendering/legacy_pause_overlay_test.cpp
 )

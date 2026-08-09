@@ -71,7 +71,7 @@ IMPLEMENTED_ACTION_RENDERERS = {
     0x00414E50,
     0x004153D0,
 }
-PENDING_FRAME_COLOR = {
+IMPLEMENTED_FRAME_COLOR = {
     0x00420490,
     0x00420560,
     0x00420600,
@@ -266,13 +266,13 @@ def policy_for(address: int) -> Policy:
             "legacy-pause-action-and-message-renderers-00411fa0-004153d0.md",
             "none",
         )
-    if address in PENDING_FRAME_COLOR:
+    if address in IMPLEMENTED_FRAME_COLOR:
         return Policy(
-            "pending",
+            "implemented",
             "rendering",
-            "",
+            "legacy_frame_color signed-offset/pair/combine/grayscale helpers",
             "frame-color-adjustment-and-combine.md",
-            "transcribe the already-closed packed-16 formulas and boundary vectors",
+            "none",
         )
     if address in DEFERRED_FONT_BINDING:
         return Policy(
