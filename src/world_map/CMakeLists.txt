@@ -4,6 +4,7 @@ add_library(
         legacy_cm_cache_generator.cpp
         legacy_cm_cache_loader.cpp
         legacy_cm_cache_runtime.cpp
+        legacy_movement_collision.cpp
         legacy_role_spatial_query.cpp
         legacy_world_map_session.cpp
 )

@@ -36,7 +36,9 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 3. `[~]` 用 B2 LMF API 建立一张真实地图会话和格表，再恢复 `0x00404610` 碰撞；
    LMF 子链和地图 22/24/500 已通过；`0x00426840..0x004272B8` 的 CM 命中、miss、
    淘汰、生成和完整读取也已闭环，Linux `core` 110/110、Windows LLVM `app`
-   114/114 CTest 通过；当前继续地图业务对象转换。
+   114/114 CTest 通过；`0x00404610` 九分支碰撞、原版异常足迹步长、事件/角色提前
+   返回和受检 session grid 适配已经闭环，Linux `core` 111/111 CTest 通过；当前
+   继续地图业务对象转换。Windows LLVM `app` 为 115/115 CTest。
 4. 接入 `0x00402F80` 输入/移动、`0x004120B0` 世界更新绘制和软件 framebuffer。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
@@ -52,4 +54,5 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 
 当前单元证据见 [`role-spatial-query-00404fd0.md`](../evidence/role-spatial-query-00404fd0.md)
 、[`lmf-world-map-session-00425be0.md`](../evidence/lmf-world-map-session-00425be0.md) 和
-[`cm-cache-runtime-00426840-004272b8.md`](../evidence/cm-cache-runtime-00426840-004272b8.md)。
+[`cm-cache-runtime-00426840-004272b8.md`](../evidence/cm-cache-runtime-00426840-004272b8.md)
+、[`movement-collision-00404610.md`](../evidence/movement-collision-00404610.md)。
