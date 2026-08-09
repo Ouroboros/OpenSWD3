@@ -5,6 +5,7 @@ add_library(
         legacy_cm_cache_loader.cpp
         legacy_cm_cache_runtime.cpp
         legacy_movement_collision.cpp
+        legacy_random_encounter.cpp
         legacy_role_spatial_query.cpp
         legacy_world_collision_talk.cpp
         legacy_world_direction_adjustment.cpp

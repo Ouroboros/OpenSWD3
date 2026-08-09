@@ -197,6 +197,7 @@ IDA 伪码只用于定位函数、辅助阅读和提出假设。任何类型、�
 - [普通世界音频状态协调汇编证据](04-reverse-engineering/evidence/audio-frame-0040cdd0.md)
 - [普通世界鼠标交互汇编证据](04-reverse-engineering/evidence/world-interaction-00427300.md)
 - [普通世界玩家控制与遇敌协调汇编证据](04-reverse-engineering/evidence/world-player-control-00402f80.md)
+- [随机遇敌物理布局、选择与战斗切入汇编证据](04-reverse-engineering/evidence/random-encounter-0040d9e0-0040db39.md)
 - [战斗建立入口汇编证据](04-reverse-engineering/evidence/battle-setup-00451b10.md)
 - [游戏内菜单/特殊模式共同驱动器汇编证据](04-reverse-engineering/evidence/special-menu-modes-00439fd0.md)
 - [商店交易模式汇编证据](04-reverse-engineering/evidence/shop-mode-0044ea60.md)

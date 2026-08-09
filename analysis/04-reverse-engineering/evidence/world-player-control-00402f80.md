@@ -194,10 +194,15 @@ RoleEventByCollision.GUID[%d].Talk[%d].Ridx[%d]
   十六扇区折叠。
 - `legacy_world_collision_talk` 恢复修正/原始方向两次碰撞、地图 bit 先于 Talk 门、
   地图/角色上下文构造，以及写玩家朝向后仍第二次刷新目标 action 的原始不对称。
+- `legacy_random_encounter` 恢复 MAPS 阈值/区域物理源、四段累计概率、force 恰好为一、
+  两次 RNG、候选选择、全部遇敌门和立即战斗切入顺序。
 
-Linux Clang `core` 117/117、Windows LLVM `app` 121/121 CTest 通过。随机遇敌仍属于
-本入口后续单元，因此不能把整个 `0x00402F80` 标为完成。碰撞 Talk 单元的逐基本块
-证据见 `world-collision-talk-00403ad7.md`。
+`0x00402F80` 的玩家输入、移动、碰撞 Talk 与随机遇敌主链已经实现；函数尾部独立的
+动画计数仍随世界绘制单元组合。碰撞 Talk 的逐基本块证据见
+`world-collision-talk-00403ad7.md`，遇敌物理布局、选择和切战斗顺序见
+`random-encounter-0040d9e0-0040db39.md`。
+
+Linux Clang `core` 119/119、Windows LLVM `app` 123/123 CTest 通过。
 
 ## 10. 随机遇敌选择
 
