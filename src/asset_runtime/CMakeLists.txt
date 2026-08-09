@@ -8,6 +8,7 @@ add_library(
         legacy_ani_archive.cpp
         legacy_ani_drift_effect.cpp
         legacy_ani_follower_effect.cpp
+        legacy_ani_role_particle_effect.cpp
         legacy_ani_row_copy_effect.cpp
         legacy_ani_spark_effect.cpp
         legacy_ani_streak_effect.cpp
