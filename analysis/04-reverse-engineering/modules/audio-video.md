@@ -2,7 +2,7 @@
 
 状态：实施中
 
-当前单元：B5.6 游戏侧 sample wrapper 与真实播放请求接线
+当前单元：B5.7 stream manager 与剩余游戏侧 stream wrapper
 
 ## 1. 范围与移交
 
@@ -107,9 +107,9 @@ framebuffer/present、时钟/让出和生命周期都通过调用端口注入。
   判定。
 
 73 个 B5 地址、跨模块接口、状态 owner、启动/帧/停用/退出顺序、首批 UT 边界和真实
-资产入口已经固定，达到单模块开始条件。参数转换和 SND 运行时索引/sample buffer 已
-完成；当前沿其调用者继续恢复 sample manager 槽位、引用计数与回收，不等待全部 Miles
-status 或 Bink backend 细节一次性调研完毕。
+资产入口已经固定，达到单模块开始条件。sample 参数、SND、manager、输出 backend 和
+游戏侧 sample wrapper 已逐层完成；当前沿相同依赖方向恢复 stream manager，不等待
+sequence 与 Bink backend 一次性调研完毕。
 
 ## 5. 已有证据
 
@@ -123,6 +123,7 @@ status 或 Bink backend 细节一次性调研完毕。
 - [`legacy-snd-runtime-004862b0-00486490.md`](../evidence/legacy-snd-runtime-004862b0-00486490.md)
 - [`legacy-sample-manager-004859b0-00486430.md`](../evidence/legacy-sample-manager-004859b0-00486430.md)
 - [`legacy-audio-output-004859b0-00485ca6.md`](../evidence/legacy-audio-output-004859b0-00485ca6.md)
+- [`legacy-sample-commands-00485610-00485828.md`](../evidence/legacy-sample-commands-00485610-00485828.md)
 
 ## 6. 当前执行顺序
 
@@ -141,6 +142,10 @@ status 或 Bink backend 细节一次性调研完毕。
    接通逻辑设备、PCM 转换、动态混音、loop/status 与 `0x00485C20` 设备关闭边界。真实
    `all.snd` 的 13 种 PCM 组合及异常 data 标签通过，Linux `core` 69/69、Linux/Windows
    `app` 73/73 CTest 通过。
-6. `[>]` B5.6：恢复 `0x00485610/0x00485650/0x00485670/0x00485720/`
-   `0x00485740/0x00485750` 游戏侧 sample wrapper，并把已恢复调用点接到 manager；不在
-   本单元扩展 sequence、stream 或 Bink。
+6. `[x]` B5.6：`0x00485610/0x00485650/0x00485670/0x00485720/`
+   `0x00485740/0x00485750` 已按 LST 恢复；锁定 ID 截断差异、固定返回、signed 缩放、
+   512 距离门槛和空间 play→volume→pan 顺序。已恢复的两处 stop-all 调用点接入同一
+   manager，Linux `core` 70/70、Linux/Windows `app` 74/74 CTest 通过。
+7. `[>]` B5.7：恢复 `0x004865B0–0x00486A70` stream manager 核心，以及
+   `0x004856C0/0x00485710/0x00485830/0x00485850/0x00485880/0x004858D0/`
+   `0x00485910` 的剩余 stream wrapper 和过渡状态；不扩展 sequence 或 Bink。

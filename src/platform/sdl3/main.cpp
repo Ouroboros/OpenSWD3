@@ -18,6 +18,7 @@
 #include "openswd3/app/startup.hpp"
 #include "openswd3/app/window_events.hpp"
 #include "openswd3/audio_video/legacy_audio_output.hpp"
+#include "openswd3/audio_video/legacy_sample_commands.hpp"
 #include "openswd3/audio_video/legacy_sample_manager.hpp"
 #include "openswd3/audio_video/legacy_snd_archive.hpp"
 #include "openswd3/diagnostics/log.hpp"
@@ -711,7 +712,9 @@ public:
 
     void suspend_audio_output() override {}
     void suspend_audio_streams() override {
-        static_cast<void>(sample_manager_.stop_all());
+        static_cast<void>(
+            openswd3::audio_video::stop_all_legacy_samples(sample_manager_)
+        );
     }
     void maintain_audio() override {
         static_cast<void>(sample_manager_.service_completed_samples());
@@ -817,7 +820,11 @@ public:
         } else if (
             operation == Operation::suspend_audio_streams_00485740
         ) {
-            static_cast<void>(sample_manager_.stop_all());
+            static_cast<void>(
+                openswd3::audio_video::stop_all_legacy_samples(
+                    sample_manager_
+                )
+            );
         }
         if (operation == openswd3::app::ShutdownOperation::show_cursor) {
             static_cast<void>(SDL_ShowCursor());

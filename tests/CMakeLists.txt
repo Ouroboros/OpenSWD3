@@ -1175,6 +1175,28 @@ add_test(
 )
 
 add_executable(
+    openswd3_audio_video_legacy_sample_commands_tests
+    unit/audio_video/legacy_sample_commands_test.cpp
+)
+target_compile_definitions(
+    openswd3_audio_video_legacy_sample_commands_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_audio_video_legacy_sample_commands_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_audio_video_legacy_sample_commands_tests
+    PRIVATE openswd3_audio_video
+)
+
+add_test(
+    NAME audio_video.legacy_sample_commands
+    COMMAND openswd3_audio_video_legacy_sample_commands_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_formatted_text_tests
     unit/rendering/legacy_formatted_text_test.cpp
 )
