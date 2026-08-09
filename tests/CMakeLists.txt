@@ -756,6 +756,60 @@ add_test(
 )
 
 add_executable(
+    openswd3_rendering_legacy_action_renderers_tests
+    unit/rendering/legacy_action_renderers_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_action_renderers_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_action_renderers_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_action_renderers
+    COMMAND openswd3_rendering_legacy_action_renderers_tests
+)
+
+add_executable(
+    openswd3_rendering_legacy_pause_overlay_tests
+    unit/rendering/legacy_pause_overlay_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_pause_overlay_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_pause_overlay_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_pause_overlay
+    COMMAND openswd3_rendering_legacy_pause_overlay_tests
+)
+
+add_executable(
+    openswd3_rendering_legacy_timed_messages_tests
+    unit/rendering/legacy_timed_messages_test.cpp
+)
+target_include_directories(
+    openswd3_rendering_legacy_timed_messages_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_rendering_legacy_timed_messages_tests
+    PRIVATE openswd3_rendering
+)
+
+add_test(
+    NAME rendering.legacy_timed_messages
+    COMMAND openswd3_rendering_legacy_timed_messages_tests
+)
+
+add_executable(
     openswd3_rendering_legacy_framebuffer_tests
     unit/rendering/legacy_framebuffer_test.cpp
 )

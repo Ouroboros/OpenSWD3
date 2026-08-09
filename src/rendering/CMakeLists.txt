@@ -3,6 +3,7 @@ add_library(
     legacy_blitter.cpp
     legacy_bmp_writer.cpp
     legacy_countdown.cpp
+    legacy_action_renderers.cpp
     legacy_drawing_helpers.cpp
     legacy_effect_panel.cpp
     legacy_formatted_text.cpp
@@ -12,9 +13,11 @@ add_library(
     legacy_glyph_writer.cpp
     legacy_image_command_stream.cpp
     legacy_pixel_conversion.cpp
+    legacy_pause_overlay.cpp
     legacy_presentation.cpp
     legacy_rectangle_effect.cpp
     legacy_text_renderer.cpp
+    legacy_timed_messages.cpp
     legacy_tiled_frame.cpp
 )
 target_include_directories(
@@ -25,5 +28,9 @@ target_include_directories(
 )
 target_link_libraries(
     openswd3_rendering
-    PUBLIC openswd3_compat openswd3_project_options openswd3_project_warnings
+    PUBLIC
+        openswd3_compat
+        openswd3_input_time_rng
+        openswd3_project_options
+        openswd3_project_warnings
 )

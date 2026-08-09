@@ -62,7 +62,7 @@ PENDING_STANDALONE_HELPERS = {
     0x00422C70,
     0x00423020,
 }
-PENDING_ACTION_RENDERERS = {
+IMPLEMENTED_ACTION_RENDERERS = {
     0x00411FA0,
     0x00414B60,
     0x00414CE0,
@@ -248,13 +248,13 @@ def policy_for(address: int) -> Policy:
             f"swd3.exe.lst:0x{address:08X}",
             "recover and implement the standalone software drawing helper",
         )
-    if address in PENDING_ACTION_RENDERERS:
+    if address in IMPLEMENTED_ACTION_RENDERERS:
         return Policy(
-            "pending",
+            "implemented",
             "rendering;story_scene",
-            "",
-            f"swd3.exe.lst:0x{address:08X}",
-            "implement B4 drawing/update semantics against later-owner borrowed state",
+            "legacy pause/action/packed-row/timed-message coordinators",
+            "legacy-pause-action-and-message-renderers-00411fa0-004153d0.md",
+            "none",
         )
     if address in PENDING_FRAME_COLOR:
         return Policy(
