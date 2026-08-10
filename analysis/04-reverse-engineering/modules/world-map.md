@@ -50,8 +50,12 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    区域源、`0x0040E672` 的 16 字节阈值组、`0x0040DA60` 两次 RNG 选择，以及
    `0x00403F43..0x0040406F` 的全部门控和立即战斗切入已经闭环；当前 DVD MAPS 的
    11 个阈值组、115 条区域和全部候选列表通过。Linux `core` 119/119、Windows LLVM
-   `app` 123/123 CTest 通过。当前进入 `0x004120B0` 世界绘制与软件 framebuffer
-   组合。
+   `app` 123/123 CTest 通过。`0x00412930` 的三条主体路径、清屏、局部 clip、service /
+   control 短路、公共尾部和四条底图路径已经闭环；地图 24 的真实
+   `LMF → CM → frame composition` RGB565 framebuffer 哈希为
+   `0x947C15A53487BF9A`，Linux `core` 123/123、Windows LLVM `app` 127/127 CTest
+   通过。当前继续恢复 `0x00413EA0/0x00413870` 空间对象层，并把已有 B4/B6 renderer
+   接入 world runtime adapter；最终呈现仍留在 `0x004120B0` 的原位置。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -70,5 +74,6 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`movement-collision-00404610.md`](../evidence/movement-collision-00404610.md) 和
 [`lmf-map-business-004261ce-00426798.md`](../evidence/lmf-map-business-004261ce-00426798.md)、
 [`world-direction-adjustment-004040b0.md`](../evidence/world-direction-adjustment-004040b0.md)、
-[`world-collision-talk-00403ad7.md`](../evidence/world-collision-talk-00403ad7.md) 和
-[`random-encounter-0040d9e0-0040db39.md`](../evidence/random-encounter-0040d9e0-0040db39.md)。
+[`world-collision-talk-00403ad7.md`](../evidence/world-collision-talk-00403ad7.md)、
+[`random-encounter-0040d9e0-0040db39.md`](../evidence/random-encounter-0040d9e0-0040db39.md) 和
+[`world-frame-composition-004120b0-00413370.md`](../evidence/world-frame-composition-004120b0-00413370.md)。

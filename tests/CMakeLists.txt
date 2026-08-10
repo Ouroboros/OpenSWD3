@@ -1870,6 +1870,66 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT")
 endif()
 
 add_executable(
+    openswd3_world_map_legacy_world_background_tests
+    unit/world_map/legacy_world_background_test.cpp
+)
+target_compile_definitions(
+    openswd3_world_map_legacy_world_background_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_background_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_background_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_background
+    COMMAND openswd3_world_map_legacy_world_background_tests
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
+    add_test(
+        NAME world_map.legacy_world_background_real
+        COMMAND
+            openswd3_world_map_legacy_world_background_tests
+            "${PROJECT_SOURCE_DIR}/../huge.lmf"
+    )
+endif()
+
+add_executable(
+    openswd3_world_map_legacy_world_frame_composition_tests
+    unit/world_map/legacy_world_frame_composition_test.cpp
+)
+target_compile_definitions(
+    openswd3_world_map_legacy_world_frame_composition_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_frame_composition_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_frame_composition_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_frame_composition
+    COMMAND openswd3_world_map_legacy_world_frame_composition_tests
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
+    add_test(
+        NAME world_map.legacy_world_frame_composition_real
+        COMMAND
+            openswd3_world_map_legacy_world_frame_composition_tests
+            "${PROJECT_SOURCE_DIR}/../huge.lmf"
+    )
+endif()
+
+add_executable(
     openswd3_world_map_legacy_cm_cache_runtime_tests
     unit/world_map/legacy_cm_cache_runtime_test.cpp
 )

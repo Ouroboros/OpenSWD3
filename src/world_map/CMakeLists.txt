@@ -8,6 +8,8 @@ add_library(
         legacy_random_encounter.cpp
         legacy_role_spatial_query.cpp
         legacy_world_collision_talk.cpp
+        legacy_world_background.cpp
+        legacy_world_frame_composition.cpp
         legacy_world_direction_adjustment.cpp
         legacy_world_direction_input.cpp
         legacy_world_facing.cpp

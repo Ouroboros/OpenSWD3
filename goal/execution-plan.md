@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v121
+版本：v122
 
 最后更新：2026-08-10
 
@@ -271,7 +271,10 @@
     不对称也已实现。`0x0040D9E0/0x0040E672/0x0040DA60` 的 MAPS 区域、阈值、
     两次 RNG 选择，以及 `0x00403F43..0x0040406F` 的全部遇敌门和立即战斗切入也已
     闭环；当前 DVD 的 11 个阈值组、115 条区域和全部候选列表验证通过。Linux `core`
-    119/119、Windows LLVM `app` 123/123 CTest 通过。当前进入 `0x004120B0` 世界绘制
-    和软件 framebuffer 组合；不等待 B7 全部内部函数逆向完毕。
+    119/119、Windows LLVM `app` 123/123 CTest 通过。`0x00412930` 的三条主体路径、
+    清屏/clip、service/control 短路、公共尾部与四条地图底图路径已经实现，地图 24 的
+    真实组合哈希为 `0x947C15A53487BF9A`，Linux `core` 123/123、Windows LLVM `app`
+    127/127 CTest 通过。当前继续空间对象层和 world runtime adapter，不等待 B7 全部
+    内部函数逆向完毕。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。
