@@ -82,21 +82,31 @@ void clear_fixed_canvas(rendering::LegacyFramebuffer &framebuffer,
   return ports.query_control(control_index);
 }
 
-void execute_stage(LegacyWorldFramePorts &ports,
-                   LegacyWorldFrameCompositionResult &result,
-                   const LegacyWorldFrameStage stage) noexcept {
+[[nodiscard]] bool execute_stage(LegacyWorldFramePorts &ports,
+                                 LegacyWorldFrameCompositionResult &result,
+                                 const LegacyWorldFrameStage stage) noexcept {
   ++result.stage_call_count;
-  ports.execute_stage(stage);
+  if (ports.execute_stage(stage)) {
+    return true;
+  }
+  result.status = LegacyWorldFrameCompositionStatus::stage_failed;
+  result.stage_failure_recorded = true;
+  result.failed_stage = stage;
+  return false;
 }
 
-void execute_common_tail(const LegacyWorldFrameState &state,
-                         LegacyWorldFramePorts &ports,
-                         LegacyWorldFrameCompositionResult &result) noexcept {
-  execute_stage(ports, result,
-                LegacyWorldFrameStage::packed_row_effects_00414e50);
-  execute_stage(ports, result, LegacyWorldFrameStage::timed_ui_update_0042ed40);
-  execute_stage(ports, result,
-                LegacyWorldFrameStage::role_head_sprites_00414ce0);
+[[nodiscard]] bool
+execute_common_tail(const LegacyWorldFrameState &state,
+                    LegacyWorldFramePorts &ports,
+                    LegacyWorldFrameCompositionResult &result) noexcept {
+  if (!execute_stage(ports, result,
+                     LegacyWorldFrameStage::packed_row_effects_00414e50) ||
+      !execute_stage(ports, result,
+                     LegacyWorldFrameStage::timed_ui_update_0042ed40) ||
+      !execute_stage(ports, result,
+                     LegacyWorldFrameStage::role_head_sprites_00414ce0)) {
+    return false;
+  }
 
   if ((state.talk_target == kLegacyWorldNoTalkTarget ||
        state.talk_phase < 8U) &&
@@ -115,14 +125,17 @@ void execute_common_tail(const LegacyWorldFrameState &state,
   }
 
   if (!indicator_requires_control || query_control(ports, result, 0x2EU)) {
-    execute_stage(ports, result,
-                  LegacyWorldFrameStage::world_indicator_004149b0);
+    if (!execute_stage(ports, result,
+                       LegacyWorldFrameStage::world_indicator_004149b0)) {
+      return false;
+    }
     result.world_indicator_updated = true;
   }
 
-  execute_stage(ports, result,
-                LegacyWorldFrameStage::frame_color_update_004146f0);
-  execute_stage(ports, result, LegacyWorldFrameStage::timed_messages_004153d0);
+  return execute_stage(ports, result,
+                       LegacyWorldFrameStage::frame_color_update_004146f0) &&
+         execute_stage(ports, result,
+                       LegacyWorldFrameStage::timed_messages_004153d0);
 }
 
 } // namespace
@@ -145,7 +158,11 @@ compose_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
 
   if (state.ani_activity_active) {
     result.path = LegacyWorldFramePath::ani_activity;
-    execute_stage(ports, result, LegacyWorldFrameStage::ani_activity_004154a0);
+    if (!execute_stage(ports, result,
+                       LegacyWorldFrameStage::ani_activity_004154a0)) {
+      set_full_clip(raster, result);
+      return result;
+    }
   } else {
     const bool clear_for_service = query_service(ports, result, 0x0FU) ||
                                    query_service(ports, result, 0x13U);
@@ -156,11 +173,19 @@ compose_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
     if ((state.runtime_flags & kLegacyWorldFrameClearOnly) != 0U) {
       result.path = LegacyWorldFramePath::clear_only;
       clear_fixed_canvas(framebuffer, result);
-      execute_stage(ports, result,
-                    LegacyWorldFrameStage::secondary_picture_actions_004147e0);
+      if (!execute_stage(
+              ports, result,
+              LegacyWorldFrameStage::secondary_picture_actions_004147e0)) {
+        set_full_clip(raster, result);
+        return result;
+      }
     } else {
-      execute_stage(ports, result,
-                    LegacyWorldFrameStage::pre_background_records_004151f0);
+      if (!execute_stage(
+              ports, result,
+              LegacyWorldFrameStage::pre_background_records_004151f0)) {
+        set_full_clip(raster, result);
+        return result;
+      }
 
       if (!query_service(ports, result, 0x48U) &&
           query_service(ports, result, 0x13U)) {
@@ -188,41 +213,67 @@ compose_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
       }
 
       if (!query_service(ports, result, 0x0BU)) {
-        execute_stage(ports, result,
-                      LegacyWorldFrameStage::flagged_spatial_objects_00413ea0);
+        if (!execute_stage(
+                ports, result,
+                LegacyWorldFrameStage::flagged_spatial_objects_00413ea0)) {
+          set_full_clip(raster, result);
+          return result;
+        }
       }
-      execute_stage(ports, result,
-                    LegacyWorldFrameStage::world_spatial_objects_00413870);
-      execute_stage(ports, result,
-                    LegacyWorldFrameStage::primary_picture_actions_004147e0);
-      execute_stage(ports, result,
-                    LegacyWorldFrameStage::moving_action_sprites_00414b60);
+      if (!execute_stage(
+              ports, result,
+              LegacyWorldFrameStage::world_spatial_objects_00413870) ||
+          !execute_stage(
+              ports, result,
+              LegacyWorldFrameStage::primary_picture_actions_004147e0) ||
+          !execute_stage(
+              ports, result,
+              LegacyWorldFrameStage::moving_action_sprites_00414b60)) {
+        set_full_clip(raster, result);
+        return result;
+      }
 
       if (!query_service(ports, result, 0x48U) &&
           (state.runtime_flags & kLegacyWorldFrameClearOnly) == 0U) {
-        execute_stage(ports, result, LegacyWorldFrameStage::ani_drift_004161c0);
-        execute_stage(ports, result,
-                      LegacyWorldFrameStage::ani_streak_00416590);
-        execute_stage(ports, result, LegacyWorldFrameStage::ani_spark_004167b0);
-        execute_stage(ports, result,
-                      LegacyWorldFrameStage::ani_directional_00415b70);
-        execute_stage(ports, result,
-                      LegacyWorldFrameStage::ani_row_copy_004163c0);
-        execute_stage(ports, result,
-                      LegacyWorldFrameStage::framebuffer_deformation_00416cc0);
+        if (!execute_stage(ports, result,
+                           LegacyWorldFrameStage::ani_drift_004161c0) ||
+            !execute_stage(ports, result,
+                           LegacyWorldFrameStage::ani_streak_00416590) ||
+            !execute_stage(ports, result,
+                           LegacyWorldFrameStage::ani_spark_004167b0) ||
+            !execute_stage(ports, result,
+                           LegacyWorldFrameStage::ani_directional_00415b70) ||
+            !execute_stage(ports, result,
+                           LegacyWorldFrameStage::ani_row_copy_004163c0) ||
+            !execute_stage(
+                ports, result,
+                LegacyWorldFrameStage::framebuffer_deformation_00416cc0)) {
+          set_full_clip(raster, result);
+          return result;
+        }
       }
 
       if (!query_service(ports, result, 0x48U)) {
-        execute_stage(ports, result,
-                      LegacyWorldFrameStage::ani_follower_00416b30);
+        if (!execute_stage(ports, result,
+                           LegacyWorldFrameStage::ani_follower_00416b30)) {
+          set_full_clip(raster, result);
+          return result;
+        }
       }
-      execute_stage(ports, result,
-                    LegacyWorldFrameStage::secondary_picture_actions_004147e0);
+      if (!execute_stage(
+              ports, result,
+              LegacyWorldFrameStage::secondary_picture_actions_004147e0)) {
+        set_full_clip(raster, result);
+        return result;
+      }
     }
   }
 
   set_full_clip(raster, result);
-  execute_common_tail(state, ports, result);
+  if (!execute_common_tail(state, ports, result)) {
+    set_full_clip(raster, result);
+    return result;
+  }
   result.status = LegacyWorldFrameCompositionStatus::completed;
   return result;
 }

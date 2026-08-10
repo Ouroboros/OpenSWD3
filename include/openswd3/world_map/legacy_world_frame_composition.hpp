@@ -52,7 +52,8 @@ public:
   [[nodiscard]] virtual bool query_service(compat::u32 service_id) noexcept = 0;
   [[nodiscard]] virtual bool
   query_control(compat::u32 control_index) noexcept = 0;
-  virtual void execute_stage(LegacyWorldFrameStage stage) noexcept = 0;
+  [[nodiscard]] virtual bool
+  execute_stage(LegacyWorldFrameStage stage) noexcept = 0;
   virtual void draw_decorated_number(compat::i32 right, compat::i32 bottom,
                                      compat::u32 style,
                                      compat::u32 value) noexcept = 0;
@@ -68,6 +69,7 @@ enum class LegacyWorldFrameCompositionStatus : compat::u8 {
   completed,
   invalid_framebuffer,
   background_failed,
+  stage_failed,
 };
 
 struct LegacyWorldFrameCompositionResult {
@@ -83,6 +85,9 @@ struct LegacyWorldFrameCompositionResult {
   bool background_attempted{};
   bool decorated_number_drawn{};
   bool world_indicator_updated{};
+  bool stage_failure_recorded{};
+  LegacyWorldFrameStage failed_stage{
+      LegacyWorldFrameStage::ani_activity_004154a0};
 };
 
 // Ordinary-world software-frame composition at 0x00412930. Presentation is

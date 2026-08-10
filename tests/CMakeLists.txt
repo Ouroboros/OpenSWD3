@@ -2020,6 +2020,39 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
 endif()
 
 add_executable(
+    openswd3_world_map_legacy_world_frame_runtime_tests
+    unit/world_map/legacy_world_frame_runtime_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_frame_runtime_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_frame_runtime_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_frame_runtime
+    COMMAND openswd3_world_map_legacy_world_frame_runtime_tests
+)
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.tsw"
+)
+    add_test(
+        NAME world_map.legacy_world_frame_runtime_real
+        COMMAND
+            openswd3_world_map_legacy_world_frame_runtime_tests
+            "${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+
+add_executable(
     openswd3_world_map_legacy_cm_cache_runtime_tests
     unit/world_map/legacy_cm_cache_runtime_test.cpp
 )

@@ -11,6 +11,7 @@ add_library(
         legacy_world_background.cpp
         legacy_world_flagged_roles.cpp
         legacy_world_frame_composition.cpp
+        legacy_world_frame_runtime.cpp
         legacy_world_direction_adjustment.cpp
         legacy_world_direction_input.cpp
         legacy_world_facing.cpp

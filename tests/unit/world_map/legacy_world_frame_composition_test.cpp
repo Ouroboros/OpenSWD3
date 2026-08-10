@@ -73,9 +73,11 @@ public:
     return control_index < controls.size() && controls[control_index];
   }
 
-  void execute_stage(const LegacyWorldFrameStage stage) noexcept override {
+  [[nodiscard]] bool
+  execute_stage(const LegacyWorldFrameStage stage) noexcept override {
     stages.push_back(stage);
     stage_clips.push_back(current_clip());
+    return true;
   }
 
   void draw_decorated_number(const i32 right, const i32 bottom, const u32 style,

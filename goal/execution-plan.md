@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v123
+版本：v124
 
 最后更新：2026-08-10
 
@@ -279,7 +279,11 @@
     距离音频已按汇编闭环；共享 jitter 保留残影继承上一笔绘制状态的原始顺序，普通
     角色 runtime adapter 已接入真实 TSW 与软件 framebuffer。两个角色路径哈希为
     `0xA6C3E08156F06060`、`0xA4766C928B05DC88`，Linux `core` 128/128、Windows LLVM
-    `app` 132/132 CTest 通过。当前继续把这些结果接入 `0x00412930` 的实际 world
-    runtime，不等待 B7 全部内部函数逆向完毕。
+    `app` 132/132 CTest 通过。两条空间 stage 现已在 `0x00412930` 的实际 runtime
+    原槽接线，共用角色数组、clip、framebuffer 与 jitter；真实 TSW 双路径叠加底图的
+    整帧哈希为 `0xA6144A91E57939F9`。其余十七个 stage 保持显式转交，任何受检失败
+    都在原 stage 停止而不伪报完成。Linux `core` 130/130、Windows LLVM `app`
+    134/134 CTest 通过。下一步恢复 `0x004120B0` 的世界更新/绘制外层协调，不等待 B7
+    全部内部函数逆向完毕。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

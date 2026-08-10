@@ -128,6 +128,9 @@ pan             = trunc_toward_zero(((role_x-listener_x) << 6) / 512)
 - `LegacyWorldRoleRenderRuntimePorts` 把 TSW runtime、当前 clip、效果状态、共享 jitter 和
   RGB565 framebuffer 接到普通角色路径；service、音频、覆盖 action、粒子和标签继续由
   窄外部端口提供，不引入平台依赖。
+- `compose_legacy_world_runtime_frame` 在 `0x00412930` 的原 stage 槽实际调用上述两条
+  空间路径；相机、talk target、角色数组、clip、framebuffer 与 jitter 不再由测试各自
+  拼接。
 
 合成测试覆盖严格/包含裁剪边界、三个空间组顺序、负行与底部 padding、链环、调度低字
 回绕、512 距离边界、无限循环、被忽略的 blitter 失败及所有现代隔离门。当前真实 TSW
@@ -135,7 +138,8 @@ pan             = trunc_toward_zero(((role_x-listener_x) << 6) / 512)
 
 - bit 29 角色：`0xA6C3E08156F06060`；
 - 普通角色：`0xA4766C928B05DC88`。
+- 底图叠加 bit-29 与普通角色的整帧纵向切片：`0xA6144A91E57939F9`。
 
-Linux Clang `core` 128/128、Windows LLVM `app` 132/132 CTest 均通过。原程序逐帧
+Linux Clang `core` 130/130、Windows LLVM `app` 134/134 CTest 均通过。原程序逐帧
 framebuffer、音频调用和 jitter 状态差分仍登记为 `blocked_runtime_oracle`；如需验证只
 准备 Frida spawn 工具并等待用户执行，不由开发流程自行启动原版。
