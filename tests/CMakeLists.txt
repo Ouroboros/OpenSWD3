@@ -2053,6 +2053,24 @@ if(
 endif()
 
 add_executable(
+    openswd3_world_map_legacy_world_frame_tail_tests
+    unit/world_map/legacy_world_frame_tail_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_frame_tail_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_frame_tail_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_frame_tail
+    COMMAND openswd3_world_map_legacy_world_frame_tail_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_cm_cache_runtime_tests
     unit/world_map/legacy_cm_cache_runtime_test.cpp
 )

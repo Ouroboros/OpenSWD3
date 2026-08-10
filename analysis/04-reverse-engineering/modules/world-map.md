@@ -61,8 +61,10 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    `0xA4766C928B05DC88`。空间 stage 已在 `0x00412930` 的实际 runtime 原槽接线，
    共用角色数组、clip、framebuffer 和 jitter；真实 TSW 双路径叠加底图的整帧哈希为
    `0xA6144A91E57939F9`。其余十七个 stage 仍明确转交，失败不会伪报整帧完成。
-   Linux `core` 130/130、Windows LLVM `app` 134/134 CTest 通过。下一步继续恢复
-   `0x004120B0` 的世界更新/绘制外层协调；最终呈现仍留在该函数的原位置。
+   `0x0041287F..0x00412923` 的地图 tile 层折返动画、单帧计数器不清零、零帧异常、
+   32 位回绕，以及选择序列结束后的条件视口恢复也已闭环。Linux `core` 131/131、
+   Windows LLVM `app` 135/135 CTest 通过。下一步继续恢复 `0x004120B0` 的世界更新/
+   绘制外层协调；最终呈现仍留在该函数的原位置。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -84,5 +86,6 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-collision-talk-00403ad7.md`](../evidence/world-collision-talk-00403ad7.md)、
 [`random-encounter-0040d9e0-0040db39.md`](../evidence/random-encounter-0040d9e0-0040db39.md) 和
 [`world-frame-composition-004120b0-00413370.md`](../evidence/world-frame-composition-004120b0-00413370.md)、
-[`world-spatial-roles-00413870-00413f00.md`](../evidence/world-spatial-roles-00413870-00413f00.md) 和
-[`world-frame-runtime-integration-00412930.md`](../evidence/world-frame-runtime-integration-00412930.md)。
+[`world-spatial-roles-00413870-00413f00.md`](../evidence/world-spatial-roles-00413870-00413f00.md)、
+[`world-frame-runtime-integration-00412930.md`](../evidence/world-frame-runtime-integration-00412930.md) 和
+[`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)。
