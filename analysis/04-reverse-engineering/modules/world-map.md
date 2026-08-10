@@ -75,8 +75,15 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    新游戏由记录自身选择逻辑/归档地图 81，不在 SDL 层硬编码；9 条既有角色加迁入的
    GUID `1/10000/10001` 共 12 条，真实 `MAPS + LMF + ACT` 集成通过。load flags bit 0
    需要的 `sub_40D200` 和 `0x0040CAD3..0x0040CCBC` 的状态相关角色附加分支仍保持显式
-   后续范围，尚未据此宣称任意地图切换完整。该 owner 下一步接入实际特殊模式“新游戏”
-   事件槽，而不是在进程初始化时提前载图。
+   后续范围，尚未据此宣称任意地图切换完整。`0x004492BA..0x00449311` 的实际“新游戏”
+   最终提交槽现已建立应用层端口：只有特殊模式名称输入和 `>104` 退场门完成后才发出，
+   并保留计时、清 framebuffer、`sub_40F160(1)`、模式状态、菜单预览、名称覆盖及
+   `Fame.dat` 的顺序。B7 owner 已接入该端口，并在会话建立后把 `sub_40AD10` 当前
+   地图私有 TSW 加载器绑定到资源号 `0xFFFF`；地图 81 的真实
+   `MAPS + LMF + ACT + TSW + framebuffer` owner 已完成一帧普通世界组合，抵达
+   唯一画面提交槽和两次音频维护槽。未恢复的世界 stage 仍在原槽显式转交；完整
+   模式 3 UI 仍属于 B9，不在进程初始化或 SDL 层伪造快捷触发。Linux `core`
+   142/142、Windows LLVM `app` 146/146 CTest 通过。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -103,4 +110,6 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-frame-runtime-integration-00412930.md`](../evidence/world-frame-runtime-integration-00412930.md) 和
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、
 [`world-selection-scroll-004148f0.md`](../evidence/world-selection-scroll-004148f0.md)、
-[`maps-world-load-0040c130-0040f160.md`](../evidence/maps-world-load-0040c130-0040f160.md)。
+[`maps-world-load-0040c130-0040f160.md`](../evidence/maps-world-load-0040c130-0040f160.md) 和
+[`initial-new-game-transition-00448840-00449311.md`](../evidence/initial-new-game-transition-00448840-00449311.md)、
+[`world-special-tsw-frame-0040ad10.md`](../evidence/world-special-tsw-frame-0040ad10.md)。

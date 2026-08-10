@@ -62,7 +62,13 @@ FrameRunOutcome run_accepted_frame(
             case SpecialModeHandler::none:
                 break;
             case SpecialModeHandler::standard_modes_1_3_4_5_6:
-                ports.step_standard_special_mode(state);
+                if (ports.step_standard_special_mode(state) ==
+                    StandardSpecialModeEvent::commit_new_game_004492ba) {
+                    static_cast<void>(run_legacy_new_game_transition(
+                        state.battle,
+                        ports
+                    ));
+                }
                 break;
             case SpecialModeHandler::shop_mode_2:
                 ports.step_shop_mode(state);

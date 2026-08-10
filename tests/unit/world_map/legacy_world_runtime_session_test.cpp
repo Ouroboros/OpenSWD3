@@ -1,10 +1,16 @@
 #include "test.hpp"
 
+#include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/asset_runtime/legacy_act_runtime.hpp"
+#include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
+#include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
+#include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
+#include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
 
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <chrono>
 #include <cstddef>
@@ -294,6 +300,104 @@ private:
     std::vector<std::string>& stages_;
 };
 
+class RealInitialFramePorts final
+    : public openswd3::world_map::LegacyWorldFramePorts,
+      public openswd3::world_map::LegacyWorldRoleExternalPorts,
+      public openswd3::world_map::LegacyWorldSpatialAudioPorts,
+      public openswd3::world_map::LegacyWorldOuterFramePorts {
+public:
+    bool query_service(u32) noexcept override {
+        return false;
+    }
+
+    bool query_control(u32) noexcept override {
+        return false;
+    }
+
+    bool execute_stage(
+        openswd3::world_map::LegacyWorldFrameStage
+    ) noexcept override {
+        ++deferred_frame_stages;
+        return true;
+    }
+
+    void draw_decorated_number(
+        openswd3::compat::i32,
+        openswd3::compat::i32,
+        u32,
+        u32
+    ) noexcept override {}
+
+    void play_positional_sample(
+        u16,
+        openswd3::compat::i32,
+        openswd3::compat::i32
+    ) noexcept override {}
+
+    const openswd3::asset_runtime::LegacyActionRecord*
+    resolve_overlay_action(u32) noexcept override {
+        return nullptr;
+    }
+
+    void emit_role_particles(
+        openswd3::compat::i32,
+        openswd3::compat::i32,
+        u16
+    ) noexcept override {}
+
+    std::span<const u8> resolve_label_bytes(u32) noexcept override {
+        return {};
+    }
+
+    u16 label_color(u32) noexcept override {
+        return 0U;
+    }
+
+    void draw_label(
+        std::span<const u8>,
+        openswd3::compat::i32,
+        openswd3::compat::i32,
+        u16,
+        u32
+    ) noexcept override {}
+
+    void play_sample(
+        u16,
+        openswd3::compat::i32,
+        openswd3::compat::i32,
+        openswd3::compat::i32
+    ) noexcept override {}
+
+    void stop_sample(u16) noexcept override {}
+
+    void set_sample_volume(
+        u16,
+        openswd3::compat::i32
+    ) noexcept override {}
+
+    void set_sample_pan(u16, openswd3::compat::i32) noexcept override {}
+
+    bool execute_stage(
+        const openswd3::world_map::LegacyWorldOuterFrameStageRequest&
+    ) noexcept override {
+        ++deferred_outer_stages;
+        return true;
+    }
+
+    void maintain_audio() noexcept override {
+        ++audio_services;
+    }
+
+    void request_world_presentation() noexcept override {
+        ++presentations;
+    }
+
+    u32 deferred_frame_stages{};
+    u32 deferred_outer_stages{};
+    u32 audio_services{};
+    u32 presentations{};
+};
+
 openswd3::rendering::LegacyPixelConversionState rgb565_conversion() {
     openswd3::rendering::LegacyPixelConversionState conversion;
     openswd3::rendering::select_legacy_pixel_conversion(
@@ -315,7 +419,7 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
     FakeMapSource map_source{stages};
     FakeCmSource cm_source{stages};
     RecordingActionInitializer action_initializer{stages};
-    const auto result = load_legacy_world_runtime_session(
+    auto result = load_legacy_world_runtime_session(
         payload,
         LegacyWorldRuntimeSessionRequest{
             .archive_path = "huge.lmf",
@@ -355,8 +459,8 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
         "both migrated roles are retained and action failure is nonfatal"
     );
 
-    const auto& map_session = result.session.render.map_load.session;
-    const auto& roles = map_session.business.state.roles;
+    auto& map_session = result.session.render.map_load.session;
+    auto& roles = map_session.business.state.roles;
     test.expect_true(
         roles.size() == 3U && roles[1].guid == 10000U &&
             roles[1].map_cell_pointer_32 == 245U && roles[2].guid == 7U &&
@@ -474,7 +578,7 @@ void test_real_initial_world(
     };
     openswd3::asset_runtime::LegacyActionUpdater updater{provider};
     LegacyWorldActionUpdaterInitializer action_initializer{updater};
-    const auto result = load_legacy_world_runtime_session(
+    auto result = load_legacy_world_runtime_session(
         payload,
         LegacyWorldRuntimeSessionRequest{
             .archive_path = data_root / "huge.lmf",
@@ -494,8 +598,8 @@ void test_real_initial_world(
         return;
     }
 
-    const auto& map_session = result.session.render.map_load.session;
-    const auto& roles = map_session.business.state.roles;
+    auto& map_session = result.session.render.map_load.session;
+    auto& roles = map_session.business.state.roles;
     const auto& selected = roles[result.session.selected_role_index];
     test.expect_true(
         result.session.logical_map_id == 81U &&
@@ -520,6 +624,115 @@ void test_real_initial_world(
             result.session.camera.right - result.session.camera.left == 640U &&
             result.session.camera.bottom - result.session.camera.top == 480U,
         "all physical and MAPS roles bind before the 640x480 camera is fixed"
+    );
+
+    openswd3::rendering::LegacyFramebuffer framebuffer;
+    openswd3::rendering::LegacyRasterGeometryState raster =
+        framebuffer.geometry();
+    openswd3::rendering::LegacyRleRowJitterState jitter;
+    const openswd3::rendering::LegacyBlitEffectState effects{
+        .pixel_conversion = rgb565_conversion(),
+    };
+    openswd3::world_map::LegacyWorldSpecialFrameLoader special_frame_loader{
+        data_root / "huge.lmf",
+        map_session.lookup.map_offset,
+        map_session.referenced_records.records,
+        rgb565_conversion(),
+    };
+    openswd3::asset_runtime::LegacyTswRuntime tsw_runtime{
+        data_root,
+        rgb565_conversion(),
+        &special_frame_loader
+    };
+    tsw_runtime.set_cache_limit(0x01000000U);
+    openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
+        updater,
+        tsw_runtime,
+        framebuffer,
+        raster,
+        effects,
+        jitter,
+    };
+    RealInitialFramePorts deferred_ports;
+    openswd3::world_map::LegacyWorldRoleRenderRuntimePorts role_ports{
+        tsw_runtime,
+        framebuffer,
+        raster,
+        effects,
+        deferred_ports,
+    };
+    std::vector<i16> distances(roles.size());
+    std::vector<i16> vertical_offsets(roles.size());
+    std::array<i16, 1U> selection_words{
+        std::bit_cast<i16>(
+            openswd3::world_map::kLegacyWorldSelectionSentinel
+        )
+    };
+    openswd3::world_map::LegacyWorldFrameCoordinatorState frame_state;
+    frame_state.map_id = result.session.logical_map_id;
+    frame_state.player_role_index = result.session.selected_role_index;
+    frame_state.company_role_count = 1U;
+    frame_state.tile_animation = {
+        .cycle_counter = 1,
+        .cycle_interval = std::max(
+            static_cast<openswd3::compat::i32>(
+                result.session.map_descriptor.field_08
+            ),
+            1
+        ),
+        .frame_count = map_session.header.layers,
+        .frame_index = 0U,
+        .frame_direction = 1,
+        .tile_layer_stride =
+            map_session.header.width * map_session.header.height,
+        .tile_layer_offset = 0U,
+    };
+    frame_state.frame_runtime.spatial_audio = {
+        .controlled_role_index = result.session.selected_role_index,
+        .mix_level = 0,
+        .distance_by_role = distances,
+        .vertical_offset_by_role = vertical_offsets,
+    };
+    frame_state.selection_scroll.saved_left = result.session.camera.left;
+    frame_state.selection_scroll.saved_top = result.session.camera.top;
+
+    const auto first_frame = openswd3::world_map::run_legacy_world_frame(
+        framebuffer,
+        raster,
+        result.session.render.background_source(),
+        map_session.business.state.spatial_index,
+        roles,
+        selection_words,
+        result.session.camera,
+        frame_state,
+        jitter,
+        {
+            deferred_ports,
+            action_ports,
+            role_ports,
+            deferred_ports,
+        },
+        deferred_ports
+    );
+    test.expect_equal(
+        first_frame.status,
+        openswd3::world_map::LegacyWorldFrameCoordinatorStatus::completed,
+        "the exact initial MAPS/LMF/ACT owner completes one ordinary world frame"
+    );
+    test.expect_equal(
+        first_frame.frame.status,
+        openswd3::world_map::LegacyWorldFrameRuntimeStatus::completed,
+        "the exact initial owner completes the inner composition"
+    );
+    test.expect_equal(
+        deferred_ports.presentations,
+        1U,
+        "the exact initial owner reaches the original presentation slot"
+    );
+    test.expect_equal(
+        deferred_ports.audio_services,
+        2U,
+        "the exact initial owner services audio at both original slots"
     );
 }
 

@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v128
+版本：v129
 
 最后更新：2026-08-10
 
@@ -301,8 +301,12 @@
     `sub_40D0C0` 相机的顺序已经形成初始世界 owner。当前 DVD 记录自身选择逻辑/归档
     地图 81，9 条既有角色加迁入的 GUID `1/10000/10001` 共 12 条；真实
     `MAPS + LMF + ACT` 集成通过。Linux `core` 140/140、Windows LLVM `app`
-    144/144 CTest 通过。load flags bit 0 的 `sub_40D200` 和状态相关角色附加分支仍在
-    B7 后续范围；下一步把 owner 接入实际特殊模式“新游戏”事件槽，不在进程初始化或
-    SDL 层硬编码地图。
+    144/144 CTest 通过。`0x004492BA..0x00449311` 的实际新游戏提交事件现已按原顺序
+    接到该 owner；`sub_40AD10` 当前地图私有 TSW 帧加载器也已接入资源号 `0xFFFF`，
+    覆盖 direct-16 与内嵌调色板两条转换路径。地图 81 的真实
+    `MAPS + LMF + ACT + TSW + framebuffer` owner 已完成一帧普通世界组合，并抵达
+    唯一画面提交槽及两次音频维护槽；Linux `core` 142/142、Windows LLVM `app`
+    146/146 CTest 通过。load flags bit 0 的 `sub_40D200`、状态相关角色附加分支和
+    仍显式转交的世界 stage 保留为 B7 后续范围，不据此宣称任意地图切换完整。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

@@ -34,6 +34,7 @@ target_link_libraries(
         openswd3_input_time_rng
         openswd3_rendering
         openswd3_resource_io
+        openswd3_world_map
         SDL3::SDL3
 )
 

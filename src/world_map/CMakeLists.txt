@@ -26,6 +26,7 @@ add_library(
         legacy_world_roles.cpp
         legacy_world_selection_scroll.cpp
         legacy_world_spatial_audio.cpp
+        legacy_world_special_frame_loader.cpp
 )
 target_include_directories(
     openswd3_world_map

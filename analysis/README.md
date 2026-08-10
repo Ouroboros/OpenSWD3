@@ -140,6 +140,8 @@ IDA 伪码只用于定位函数、辅助阅读和提出假设。任何类型、�
 - [剧情 VM opcode 50–74 汇编语义批次](04-reverse-engineering/evidence/story-vm-opcodes-050-074.md)
 - [剧情 VM opcode 75–99 汇编语义批次](04-reverse-engineering/evidence/story-vm-opcodes-075-099.md)
 - [剧情 VM opcode 100–124 汇编语义批次](04-reverse-engineering/evidence/story-vm-opcodes-100-124.md)
+- [初始菜单“新游戏”提交与世界切换顺序](04-reverse-engineering/evidence/initial-new-game-transition-00448840-00449311.md)
+- [当前地图私有 TSW 帧与首帧接线](04-reverse-engineering/evidence/world-special-tsw-frame-0040ad10.md)
 - [198 行 opcode 直接状态访问底稿](04-reverse-engineering/inventory/story-vm-opcode-direct-effects.tsv)
 - [1449 个 opcode 直接状态访问证据点](04-reverse-engineering/inventory/story-vm-opcode-direct-effect-sites.tsv)
 - [opcode 0–24 的 25 行逐值语义规格](04-reverse-engineering/inventory/story-vm-opcode-semantics-000-024.tsv)

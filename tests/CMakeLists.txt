@@ -162,6 +162,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_app_legacy_new_game_transition_tests
+    unit/app/legacy_new_game_transition_test.cpp
+)
+target_include_directories(
+    openswd3_app_legacy_new_game_transition_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_app_legacy_new_game_transition_tests
+    PRIVATE openswd3_app
+)
+
+add_test(
+    NAME app.legacy_new_game_transition
+    COMMAND openswd3_app_legacy_new_game_transition_tests
+)
+
+add_executable(
     openswd3_compat_legacy_stubs_tests
     unit/compat/legacy_stubs_test.cpp
 )
@@ -1928,6 +1946,29 @@ add_test(
     NAME world_map.legacy_world_runtime_session
     COMMAND openswd3_world_map_legacy_world_runtime_session_tests
 )
+
+add_executable(
+    openswd3_world_map_legacy_world_special_frame_loader_tests
+    unit/world_map/legacy_world_special_frame_loader_test.cpp
+)
+target_compile_definitions(
+    openswd3_world_map_legacy_world_special_frame_loader_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_special_frame_loader_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_special_frame_loader_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_special_frame_loader
+    COMMAND openswd3_world_map_legacy_world_special_frame_loader_tests
+)
+
 if(
     EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT" AND
     EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf" AND
@@ -1936,7 +1977,13 @@ if(
     EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.act" AND
     EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.act" AND
     EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.act" AND
-    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.act"
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.tsw"
 )
     add_test(
         NAME world_map.legacy_world_runtime_session_real

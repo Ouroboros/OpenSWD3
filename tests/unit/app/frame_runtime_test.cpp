@@ -34,6 +34,17 @@ enum class Call {
     finish_world,
     prepare_special,
     standard_special,
+    clear_play_time,
+    sample_seconds,
+    set_play_time_origin,
+    set_menu_phase,
+    clear_framebuffer,
+    initialize_new_game,
+    set_high_priority_submode,
+    set_high_priority_auxiliary,
+    reset_menu_previews,
+    apply_name_overrides,
+    load_fame,
     shop,
     close,
 };
@@ -113,9 +124,12 @@ public:
     void prepare_special_mode_objects(FrameCoordinatorState&) override {
         calls.push_back(Call::prepare_special);
     }
-    void step_standard_special_mode(FrameCoordinatorState& state) override {
+    openswd3::app::StandardSpecialModeEvent step_standard_special_mode(
+        FrameCoordinatorState& state
+    ) override {
         calls.push_back(Call::standard_special);
         state.process_flags |= flags_set_by_special;
+        return special_mode_event;
     }
     void step_shop_mode(FrameCoordinatorState& state) override {
         calls.push_back(Call::shop);
@@ -125,10 +139,49 @@ public:
         calls.push_back(Call::close);
     }
 
+    void clear_accumulated_play_time() override {
+        calls.push_back(Call::clear_play_time);
+    }
+    openswd3::compat::u32 sample_epoch_seconds() override {
+        calls.push_back(Call::sample_seconds);
+        return 123U;
+    }
+    void set_play_time_origin(openswd3::compat::u32) override {
+        calls.push_back(Call::set_play_time_origin);
+    }
+    void set_initial_menu_phase(openswd3::compat::u32) override {
+        calls.push_back(Call::set_menu_phase);
+    }
+    void clear_game_framebuffer() override {
+        calls.push_back(Call::clear_framebuffer);
+    }
+    bool initialize_new_game_state_and_world() override {
+        calls.push_back(Call::initialize_new_game);
+        return true;
+    }
+    void set_high_priority_submode(openswd3::compat::u32) override {
+        calls.push_back(Call::set_high_priority_submode);
+    }
+    void set_high_priority_auxiliary(openswd3::compat::u32) override {
+        calls.push_back(Call::set_high_priority_auxiliary);
+    }
+    void reset_input_menu_and_save_previews() override {
+        calls.push_back(Call::reset_menu_previews);
+    }
+    void apply_new_game_name_overrides() override {
+        calls.push_back(Call::apply_name_overrides);
+    }
+    void load_fame_table() override {
+        calls.push_back(Call::load_fame);
+    }
+
     openswd3::compat::u32 flags_set_by_high_priority{};
     openswd3::compat::u32 flags_set_by_story{};
     openswd3::compat::u32 flags_set_by_special{};
     openswd3::compat::u32 special_mode_set_by_world_player{};
+    openswd3::app::StandardSpecialModeEvent special_mode_event{
+        openswd3::app::StandardSpecialModeEvent::none
+    };
     std::vector<Call> calls;
 
 private:
@@ -288,6 +341,45 @@ void test_special_modes(openswd3::test::Context& test) {
             Call::audio,
         },
         "unknown low mode calls no handler but still reaches common tail"
+    );
+
+    state = make_state();
+    state.battle.special_mode_state = 3U;
+    RecordingPorts new_game_ports;
+    new_game_ports.special_mode_event =
+        openswd3::app::StandardSpecialModeEvent::
+            commit_new_game_004492ba;
+    test.expect_equal(
+        openswd3::app::run_accepted_frame(state, new_game_ports),
+        openswd3::app::FrameRunOutcome::common_tail_completed,
+        "committed new game reaches the common frame tail"
+    );
+    test.expect_equal(
+        new_game_ports.calls,
+        std::vector{
+            Call::background_music,
+            Call::audio,
+            Call::prepare_special,
+            Call::standard_special,
+            Call::clear_play_time,
+            Call::sample_seconds,
+            Call::set_play_time_origin,
+            Call::set_menu_phase,
+            Call::clear_framebuffer,
+            Call::initialize_new_game,
+            Call::set_high_priority_submode,
+            Call::set_high_priority_auxiliary,
+            Call::reset_menu_previews,
+            Call::apply_name_overrides,
+            Call::load_fame,
+            Call::audio,
+        },
+        "special-mode event commits the transition before the common tail"
+    );
+    test.expect_equal(
+        state.battle.special_mode_state,
+        0U,
+        "new-game commit releases ordinary world execution next frame"
     );
 }
 

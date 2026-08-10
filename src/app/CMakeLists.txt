@@ -12,6 +12,7 @@ add_library(
         host_window_event.cpp
         idle_runtime.cpp
         initialization.cpp
+        legacy_new_game_transition.cpp
         platform_backend_initialization.cpp
         process_startup.cpp
         screenshot.cpp
