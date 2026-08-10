@@ -95,6 +95,14 @@ LegacyWorldMapLoadResult load_legacy_world_map(
     const compat::u32 map_id,
     LegacyWorldMapSource& source
 ) {
+    return load_legacy_world_map(map_id, source, {});
+}
+
+LegacyWorldMapLoadResult load_legacy_world_map(
+    const compat::u32 map_id,
+    LegacyWorldMapSource& source,
+    const LegacyWorldMapPreSurfaceStage& pre_surface_stage
+) {
     LegacyWorldMapLoadResult result;
     result.session.map_id = map_id;
 
@@ -109,6 +117,11 @@ LegacyWorldMapLoadResult load_legacy_world_map(
     if (result.session.header.status !=
         resource_io::LegacyLmfMapHeaderStatus::ready) {
         result.status = LegacyWorldMapLoadStatus::map_header_failed;
+        return result;
+    }
+
+    if (pre_surface_stage && !pre_surface_stage(result.session)) {
+        result.status = LegacyWorldMapLoadStatus::pre_surface_stage_failed;
         return result;
     }
 

@@ -2212,6 +2212,36 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
 endif()
 
 add_executable(
+    openswd3_world_map_legacy_world_render_session_tests
+    unit/world_map/legacy_world_render_session_test.cpp
+)
+target_compile_definitions(
+    openswd3_world_map_legacy_world_render_session_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_render_session_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_render_session_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_render_session
+    COMMAND openswd3_world_map_legacy_world_render_session_tests
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
+    add_test(
+        NAME world_map.legacy_world_render_session_real
+        COMMAND
+            openswd3_world_map_legacy_world_render_session_tests
+            "${PROJECT_SOURCE_DIR}/../huge.lmf"
+    )
+endif()
+
+add_executable(
     openswd3_asset_runtime_legacy_action_draw_bridge_tests
     unit/asset_runtime/legacy_action_draw_bridge_test.cpp
 )

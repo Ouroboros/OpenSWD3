@@ -19,6 +19,7 @@ add_library(
         legacy_world_facing.cpp
         legacy_world_map_business.cpp
         legacy_world_map_session.cpp
+        legacy_world_render_session.cpp
         legacy_world_player_motion.cpp
         legacy_world_roles.cpp
         legacy_world_selection_scroll.cpp

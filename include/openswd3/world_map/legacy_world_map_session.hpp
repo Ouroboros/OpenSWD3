@@ -5,6 +5,7 @@
 #include "openswd3/world_map/legacy_world_map_business.hpp"
 
 #include <filesystem>
+#include <functional>
 
 namespace openswd3::world_map {
 
@@ -12,6 +13,7 @@ enum class LegacyWorldMapLoadStatus {
     ready,
     map_lookup_failed,
     map_header_failed,
+    pre_surface_stage_failed,
     surface_grid_failed,
     post_surface_records_failed,
     referenced_record_directory_failed,
@@ -40,6 +42,16 @@ struct LegacyWorldMapLoadResult {
     LegacyWorldMapLoadStatus status{LegacyWorldMapLoadStatus::map_lookup_failed};
     LegacyWorldMapSession session;
 };
+
+// sub_425BE0 does not read the LMF body in one uninterrupted pass.  After the
+// map header has been copied into runtime state, and before the surface-grid
+// stream is read, 0x00426044 calls sub_426840 to acquire the CM tile cache.
+// The hook preserves that externally observable slot without coupling the LMF
+// parser to cache storage policy.  Returning false stops before the surface
+// read.  Other operations in that interval, including sub_411620's workspace
+// allocation, remain owned by their corresponding runtime components.
+using LegacyWorldMapPreSurfaceStage =
+    std::function<bool(const LegacyWorldMapSession& session)>;
 
 class LegacyWorldMapSource {
 public:
@@ -140,6 +152,12 @@ private:
 [[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(
     compat::u32 map_id,
     LegacyWorldMapSource& source
+);
+
+[[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(
+    compat::u32 map_id,
+    LegacyWorldMapSource& source,
+    const LegacyWorldMapPreSurfaceStage& pre_surface_stage
 );
 
 [[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(

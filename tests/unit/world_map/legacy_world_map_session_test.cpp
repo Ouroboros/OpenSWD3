@@ -33,6 +33,7 @@ using openswd3::world_map::load_legacy_world_map;
 enum class Call {
     lookup,
     header,
+    pre_surface_stage,
     surface,
     post_surface,
     referenced,
@@ -169,6 +170,59 @@ void test_ready_sequence(openswd3::test::Context& test) {
     );
 }
 
+void test_pre_surface_stage_slot(openswd3::test::Context& test) {
+    FakeSource source;
+    source.make_ready();
+    const auto result = load_legacy_world_map(
+        24U,
+        source,
+        [&](const auto& session) {
+            source.calls.push_back(Call::pre_surface_stage);
+            return session.lookup.map_offset == 0x12345678U &&
+                session.header.status == LegacyLmfMapHeaderStatus::ready;
+        }
+    );
+
+    test.expect_equal(result.status, LegacyWorldMapLoadStatus::ready,
+                      "successful pre-surface stage resumes physical loading");
+    test.expect_equal(
+        source.calls,
+        std::vector<Call>{
+            Call::lookup,
+            Call::header,
+            Call::pre_surface_stage,
+            Call::surface,
+            Call::post_surface,
+            Call::referenced,
+            Call::offset14,
+            Call::indexed,
+            Call::offset1c,
+        },
+        "pre-surface stage occupies the original sub_426840 slot"
+    );
+
+    FakeSource stopped;
+    stopped.make_ready();
+    const auto failed = load_legacy_world_map(
+        24U,
+        stopped,
+        [&](const auto&) {
+            stopped.calls.push_back(Call::pre_surface_stage);
+            return false;
+        }
+    );
+    test.expect_equal(
+        failed.status,
+        LegacyWorldMapLoadStatus::pre_surface_stage_failed,
+        "failed pre-surface stage has a distinct load status"
+    );
+    test.expect_equal(
+        stopped.calls,
+        std::vector<Call>{Call::lookup, Call::header, Call::pre_surface_stage},
+        "failed pre-surface stage stops before the surface stream"
+    );
+}
+
 void test_first_failure_stops(openswd3::test::Context& test) {
     struct FailureCase {
         Call call;
@@ -204,6 +258,8 @@ void test_first_failure_stops(openswd3::test::Context& test) {
         case Call::header:
             source.header.status =
                 LegacyLmfMapHeaderStatus::unsupported_signature;
+            break;
+        case Call::pre_surface_stage:
             break;
         case Call::surface:
             source.surface.status =
@@ -305,6 +361,7 @@ void test_current_maps(
 int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
     test_ready_sequence(test);
+    test_pre_surface_stage_slot(test);
     test_first_failure_stops(test);
 
     test.expect_true(argument_count == 1 || argument_count == 2,

@@ -290,7 +290,13 @@
     Linux `core` 132/132、Windows LLVM `app` 136/136 CTest 通过。`0x004120B0` 外层
     coordinator 已按原槽接起玩家/相机位移、选择滚动、两次 audio service、世界组合与
     唯一呈现、对齐门控的帧后 transition、tile 动画及视口恢复；未恢复的动作/角色 stage
-    继续显式转交。Linux `core` 133/133、Windows LLVM `app` 137/137 CTest 通过；随后
-    接入真实 world session。
+    继续显式转交。Linux `core` 133/133、Windows LLVM `app` 137/137 CTest 通过。
+    `LegacyWorldRenderSession` 现已按 `header → 0x00426044/sub_426840 CM → surface`
+    的外部数据顺序共同拥有 LMF 会话、CM 字节和底图 source；同时纠正 `sub_411620`
+    为地图高度空间工作区而非 CM。8 位地图从 CM 首 `0x200` 字节建立并 forward 转换
+    256 项 palette，地图 4/24 的真实整帧哈希固定为 `0xF00691829E9FE2D5`、
+    `0x947C15A53487BF9A`。Linux `core` 135/135、Windows LLVM `app` 139/139 CTest
+    通过；下一步把该 owner 接入 SDL 世界运行时，并只在汇编确定实际地图号/状态来源后
+    建立首个真实世界会话，不拿测试地图硬编码启动。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。
