@@ -65,8 +65,10 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    32 位回绕，以及选择序列结束后的条件视口恢复也已闭环。其前置 `0x004148F0` 选择
    序列状态机也已恢复：保留入口门、游标回零、到期帧顺序、有符号增量和 countdown
    回绕，并已与帧尾恢复组合验证。Linux `core` 132/132、Windows LLVM `app` 136/136
-   CTest 通过。下一步继续恢复 `0x004120B0` 的世界更新/绘制外层协调；最终呈现仍留在
-   该函数的原位置。
+   CTest 通过。`0x004120B0` 外层 coordinator 现已接起玩家/相机位移、选择滚动、两次
+   audio service、`0x00412930` runtime composition、唯一世界呈现、对齐门控的帧后
+   transition 清零、tile 动画和视口恢复；其余动作/角色 stage 仍在原槽显式转交，未伪报
+   SDL runtime 已接通。Linux `core` 133/133、Windows LLVM `app` 137/137 CTest 通过。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -88,6 +90,7 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-collision-talk-00403ad7.md`](../evidence/world-collision-talk-00403ad7.md)、
 [`random-encounter-0040d9e0-0040db39.md`](../evidence/random-encounter-0040d9e0-0040db39.md) 和
 [`world-frame-composition-004120b0-00413370.md`](../evidence/world-frame-composition-004120b0-00413370.md)、
+[`world-frame-coordinator-004120b0.md`](../evidence/world-frame-coordinator-004120b0.md)、
 [`world-spatial-roles-00413870-00413f00.md`](../evidence/world-spatial-roles-00413870-00413f00.md)、
 [`world-frame-runtime-integration-00412930.md`](../evidence/world-frame-runtime-integration-00412930.md) 和
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、

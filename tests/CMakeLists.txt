@@ -2010,6 +2010,25 @@ add_test(
     NAME world_map.legacy_world_frame_composition
     COMMAND openswd3_world_map_legacy_world_frame_composition_tests
 )
+
+add_executable(
+    openswd3_world_map_legacy_world_frame_coordinator_tests
+    unit/world_map/legacy_world_frame_coordinator_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_frame_coordinator_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_frame_coordinator_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_frame_coordinator
+    COMMAND openswd3_world_map_legacy_world_frame_coordinator_tests
+)
+
 if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
     add_test(
         NAME world_map.legacy_world_frame_composition_real

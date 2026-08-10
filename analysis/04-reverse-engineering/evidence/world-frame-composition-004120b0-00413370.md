@@ -33,7 +33,8 @@
 ```
 
 因此 OpenSWD3 的 `compose_legacy_world_frame` 只映射 `0x00412930`；最终提交仍必须留在
-`0x004120B0` 的对应位置，不能挪成统一帧尾。
+`0x004120B0` 的对应位置，不能挪成统一帧尾。外层顺序现由
+[`world-frame-coordinator-004120b0.md`](world-frame-coordinator-004120b0.md) 单独固定。
 
 ## 2. `0x00412930` 的三条主体路径
 

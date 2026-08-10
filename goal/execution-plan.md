@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v126
+版本：v127
 
 最后更新：2026-08-10
 
@@ -287,7 +287,10 @@
     counter 保留、零帧异常、32 位回绕和选择序列视口恢复已按汇编实现；Linux `core`
     131/131、Windows LLVM `app` 135/135 CTest 通过。前置 `0x004148F0` 的选择序列
     入口门、游标/计数器、有符号相机增量及回绕也已实现，并和帧尾恢复形成组合 UT；
-    Linux `core` 132/132、Windows LLVM `app` 136/136 CTest 通过。下一步继续恢复
-    `0x004120B0` 的世界更新/绘制外层协调，不等待 B7 全部内部函数逆向完毕。
+    Linux `core` 132/132、Windows LLVM `app` 136/136 CTest 通过。`0x004120B0` 外层
+    coordinator 已按原槽接起玩家/相机位移、选择滚动、两次 audio service、世界组合与
+    唯一呈现、对齐门控的帧后 transition、tile 动画及视口恢复；未恢复的动作/角色 stage
+    继续显式转交。Linux `core` 133/133、Windows LLVM `app` 137/137 CTest 通过；随后
+    接入真实 world session。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。
