@@ -1,12 +1,17 @@
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
 
 #include <cctype>
+#include <limits>
+#include <new>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <system_error>
 
 namespace openswd3::resource_io {
 namespace {
+
+constexpr compat::u32 kLegacyMapsFilePrefixSize = 0x200U;
 
 [[nodiscard]] bool ascii_case_equal(
     const std::string_view left,
@@ -58,6 +63,7 @@ LegacyResourceDatabaseInitialization LegacyResourceDatabases::initialize(
     static_cast<void>(maps_file_.close());
     static_cast<void>(path_file_.close());
     static_cast<void>(talk_file_.close());
+    maps_payload_.clear();
     path_view_ = nullptr;
     path_size_ = 0U;
 
@@ -107,6 +113,69 @@ LegacyFile& LegacyResourceDatabases::path_file() noexcept {
 
 LegacyFile& LegacyResourceDatabases::talk_file() noexcept {
     return talk_file_;
+}
+
+LegacyMapsPayloadLoadResult LegacyResourceDatabases::reload_maps_payload() {
+    LegacyMapsPayloadLoadResult result;
+    maps_payload_.clear();
+
+    const compat::u32 file_size = maps_file_.size();
+    if (file_size == std::numeric_limits<compat::u32>::max()) {
+        return result;
+    }
+    if (file_size < kLegacyMapsFilePrefixSize) {
+        result.status = LegacyMapsPayloadStatus::file_smaller_than_prefix;
+        return result;
+    }
+
+    result.requested_size = file_size - kLegacyMapsFilePrefixSize;
+    if (result.requested_size == 0U) {
+        result.status = LegacyMapsPayloadStatus::ready;
+        return result;
+    }
+
+    try {
+        maps_payload_.resize(result.requested_size);
+    } catch (const std::bad_alloc&) {
+        result.status = LegacyMapsPayloadStatus::allocation_failed;
+        return result;
+    } catch (const std::length_error&) {
+        result.status = LegacyMapsPayloadStatus::allocation_failed;
+        return result;
+    }
+
+    if (maps_file_.seek_begin_one_based(
+            static_cast<compat::i32>(kLegacyMapsFilePrefixSize)
+        ) != kLegacyMapsFilePrefixSize + 1U) {
+        maps_payload_.clear();
+        result.status = LegacyMapsPayloadStatus::seek_failed;
+        return result;
+    }
+
+    result.actual_size = result.requested_size;
+    if (!maps_file_.read(maps_payload_, result.actual_size)) {
+        maps_payload_.clear();
+        result.status = LegacyMapsPayloadStatus::read_failed;
+        return result;
+    }
+    if (result.actual_size != result.requested_size) {
+        maps_payload_.clear();
+        result.status = LegacyMapsPayloadStatus::short_read;
+        return result;
+    }
+
+    result.status = LegacyMapsPayloadStatus::ready;
+    return result;
+}
+
+std::span<const compat::u8>
+LegacyResourceDatabases::maps_payload_bytes() const noexcept {
+    return maps_payload_;
+}
+
+std::span<compat::u8>
+LegacyResourceDatabases::mutable_maps_payload_bytes() noexcept {
+    return maps_payload_;
 }
 
 std::span<const compat::u8> LegacyResourceDatabases::path_bytes() const noexcept {

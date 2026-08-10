@@ -69,6 +69,14 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    audio service、`0x00412930` runtime composition、唯一世界呈现、对齐门控的帧后
    transition 清零、tile 动画和视口恢复；其余动作/角色 stage 仍在原槽显式转交，未伪报
    SDL runtime 已接通。Linux `core` 133/133、Windows LLVM `app` 137/137 CTest 通过。
+   `sub_40F160` 的 MAPS 去前 `0x200` 字节载入、头部四个目录、七 word 初始记录，
+   以及 `sub_40C130` 的逻辑地图描述、保留/选中 GUID 改写、22 字节角色物化、默认值、
+   ACT 更新、最终格绑定和 `sub_40D0C0` 相机顺序现已形成真实初始世界 owner。当前 DVD
+   新游戏由记录自身选择逻辑/归档地图 81，不在 SDL 层硬编码；9 条既有角色加迁入的
+   GUID `1/10000/10001` 共 12 条，真实 `MAPS + LMF + ACT` 集成通过。load flags bit 0
+   需要的 `sub_40D200` 和 `0x0040CAD3..0x0040CCBC` 的状态相关角色附加分支仍保持显式
+   后续范围，尚未据此宣称任意地图切换完整。该 owner 下一步接入实际特殊模式“新游戏”
+   事件槽，而不是在进程初始化时提前载图。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -94,4 +102,5 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-spatial-roles-00413870-00413f00.md`](../evidence/world-spatial-roles-00413870-00413f00.md)、
 [`world-frame-runtime-integration-00412930.md`](../evidence/world-frame-runtime-integration-00412930.md) 和
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、
-[`world-selection-scroll-004148f0.md`](../evidence/world-selection-scroll-004148f0.md)。
+[`world-selection-scroll-004148f0.md`](../evidence/world-selection-scroll-004148f0.md)、
+[`maps-world-load-0040c130-0040f160.md`](../evidence/maps-world-load-0040c130-0040f160.md)。

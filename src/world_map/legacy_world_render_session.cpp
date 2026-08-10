@@ -89,6 +89,20 @@ LegacyWorldRenderSessionResult load_legacy_world_render_session(
     LegacyWorldMapSource& map_source,
     LegacyWorldCmCacheSource& cm_cache_source
 ) {
+    return load_legacy_world_render_session(
+        request,
+        map_source,
+        cm_cache_source,
+        {}
+    );
+}
+
+LegacyWorldRenderSessionResult load_legacy_world_render_session(
+    const LegacyWorldRenderSessionRequest& request,
+    LegacyWorldMapSource& map_source,
+    LegacyWorldCmCacheSource& cm_cache_source,
+    const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage
+) {
     LegacyWorldRenderSessionResult result;
     bool cache_directory_failed = false;
     bool cm_cache_attempted = false;
@@ -116,7 +130,8 @@ LegacyWorldRenderSessionResult load_legacy_world_render_session(
                 }
             );
             return cm_cache_is_ready(result.session.cm_cache.status);
-        }
+        },
+        pre_role_binding_stage
     );
 
     if (result.session.map_load.status != LegacyWorldMapLoadStatus::ready) {

@@ -21,6 +21,7 @@ enum class LegacyWorldMapLoadStatus {
     indexed_object_directory_failed,
     offset1c_directory_failed,
     business_state_failed,
+    pre_role_binding_stage_failed,
     role_cell_binding_failed,
 };
 
@@ -52,6 +53,11 @@ struct LegacyWorldMapLoadResult {
 // allocation, remain owned by their corresponding runtime components.
 using LegacyWorldMapPreSurfaceStage =
     std::function<bool(const LegacyWorldMapSession& session)>;
+
+// sub_40C130 appends MAPS.DAT roles and runs sub_40F280 after sub_425BE0 has
+// assembled the LMF business state but before the final cell projection.
+using LegacyWorldMapPreRoleBindingStage =
+    std::function<bool(LegacyWorldMapSession& session)>;
 
 class LegacyWorldMapSource {
 public:
@@ -158,6 +164,13 @@ private:
     compat::u32 map_id,
     LegacyWorldMapSource& source,
     const LegacyWorldMapPreSurfaceStage& pre_surface_stage
+);
+
+[[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(
+    compat::u32 map_id,
+    LegacyWorldMapSource& source,
+    const LegacyWorldMapPreSurfaceStage& pre_surface_stage,
+    const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage
 );
 
 [[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(

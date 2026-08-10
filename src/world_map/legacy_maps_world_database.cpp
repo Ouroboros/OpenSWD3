@@ -1,0 +1,312 @@
+#include "openswd3/world_map/legacy_maps_world_database.hpp"
+
+#include <algorithm>
+#include <bit>
+#include <limits>
+#include <new>
+#include <stdexcept>
+
+namespace openswd3::world_map {
+namespace {
+
+using compat::i16;
+using compat::u16;
+using compat::u32;
+using compat::u8;
+
+constexpr std::size_t kRoleDirectoryOffsetField = 0x04U;
+constexpr std::size_t kMapDescriptorDirectoryOffsetField = 0x0CU;
+constexpr std::size_t kInitialLoadOffsetField = 0x10U;
+constexpr std::size_t kRoleDefaultsDirectoryOffsetField = 0x54U;
+constexpr u16 kDirectoryTerminator = 0xFFFFU;
+constexpr u16 kRoleDefaultsTerminator = 0U;
+constexpr u16 kLegacySelectedRoleFlags = 0xD100U;
+
+[[nodiscard]] bool range_available(const std::span<const u8> bytes,
+                                   const std::size_t offset,
+                                   const std::size_t size) noexcept {
+  return offset <= bytes.size() && size <= bytes.size() - offset;
+}
+
+[[nodiscard]] u16 read_u16_le(const std::span<const u8> bytes,
+                              const std::size_t offset) noexcept {
+  return static_cast<u16>(bytes[offset]) |
+         static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
+}
+
+[[nodiscard]] u32 read_u32_le(const std::span<const u8> bytes,
+                              const std::size_t offset) noexcept {
+  return static_cast<u32>(bytes[offset]) |
+         (static_cast<u32>(bytes[offset + 1U]) << 8U) |
+         (static_cast<u32>(bytes[offset + 2U]) << 16U) |
+         (static_cast<u32>(bytes[offset + 3U]) << 24U);
+}
+
+void write_u16_le(const std::span<u8> bytes, const std::size_t offset,
+                  const u16 value) noexcept {
+  bytes[offset] = static_cast<u8>(value & 0xFFU);
+  bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+}
+
+[[nodiscard]] bool
+decode_map_descriptors(const std::span<const u8> payload,
+                       const u32 source_offset,
+                       LegacyMapsWorldDatabaseResult &result) {
+  std::size_t offset = source_offset;
+  if (!range_available(payload, offset, sizeof(u16))) {
+    result.status =
+        LegacyMapsWorldDatabaseStatus::map_descriptor_offset_out_of_range;
+    return false;
+  }
+
+  while (range_available(payload, offset, sizeof(u16))) {
+    const u16 logical_map_id = read_u16_le(payload, offset);
+    if (logical_map_id == kDirectoryTerminator) {
+      return true;
+    }
+    if (!range_available(payload, offset, kLegacyMapsMapDescriptorRecordSize)) {
+      result.status =
+          LegacyMapsWorldDatabaseStatus::map_descriptor_record_truncated;
+      return false;
+    }
+
+    result.database.map_descriptors.push_back({
+        static_cast<u32>(offset),
+        logical_map_id,
+        read_u16_le(payload, offset + 0x02U),
+        read_u16_le(payload, offset + 0x04U),
+        read_u16_le(payload, offset + 0x06U),
+        read_u16_le(payload, offset + 0x08U),
+        read_u16_le(payload, offset + 0x0AU),
+        read_u16_le(payload, offset + 0x0CU),
+    });
+    offset += kLegacyMapsMapDescriptorRecordSize;
+  }
+
+  result.status =
+      LegacyMapsWorldDatabaseStatus::map_descriptor_directory_unterminated;
+  return false;
+}
+
+[[nodiscard]] bool decode_role_sources(const std::span<const u8> payload,
+                                       const u32 source_offset,
+                                       LegacyMapsWorldDatabaseResult &result) {
+  std::size_t offset = source_offset;
+  if (!range_available(payload, offset, sizeof(u16))) {
+    result.status =
+        LegacyMapsWorldDatabaseStatus::role_source_offset_out_of_range;
+    return false;
+  }
+
+  while (range_available(payload, offset, sizeof(u16))) {
+    const u16 logical_map_id = read_u16_le(payload, offset);
+    if (logical_map_id == kDirectoryTerminator) {
+      return true;
+    }
+    if (!range_available(payload, offset, kLegacyMapsRoleSourceRecordSize)) {
+      result.status =
+          LegacyMapsWorldDatabaseStatus::role_source_record_truncated;
+      return false;
+    }
+
+    result.database.role_sources.push_back({
+        static_cast<u32>(offset),
+        logical_map_id,
+        read_u16_le(payload, offset + 0x02U),
+        read_u16_le(payload, offset + 0x04U),
+        read_u16_le(payload, offset + 0x06U),
+        read_u16_le(payload, offset + 0x08U),
+        read_u16_le(payload, offset + 0x0AU),
+        read_u16_le(payload, offset + 0x0CU),
+        read_u16_le(payload, offset + 0x0EU),
+        read_u16_le(payload, offset + 0x10U),
+        std::bit_cast<i16>(read_u16_le(payload, offset + 0x12U)),
+        read_u16_le(payload, offset + 0x14U),
+    });
+    offset += kLegacyMapsRoleSourceRecordSize;
+  }
+
+  result.status =
+      LegacyMapsWorldDatabaseStatus::role_source_directory_unterminated;
+  return false;
+}
+
+[[nodiscard]] bool decode_role_defaults(const std::span<const u8> payload,
+                                        const u32 source_offset,
+                                        LegacyMapsWorldDatabaseResult &result) {
+  std::size_t offset = source_offset;
+  if (!range_available(payload, offset, sizeof(u16))) {
+    result.status =
+        LegacyMapsWorldDatabaseStatus::role_defaults_offset_out_of_range;
+    return false;
+  }
+
+  while (range_available(payload, offset, sizeof(u16))) {
+    const u16 guid = read_u16_le(payload, offset);
+    if (guid == kRoleDefaultsTerminator) {
+      return true;
+    }
+    if (!range_available(payload, offset, kLegacyMapsRoleDefaultsRecordSize)) {
+      result.status =
+          LegacyMapsWorldDatabaseStatus::role_defaults_record_truncated;
+      return false;
+    }
+
+    result.database.role_defaults.push_back({
+        guid,
+        read_u16_le(payload, offset + 0x02U),
+        read_u16_le(payload, offset + 0x04U),
+    });
+    offset += kLegacyMapsRoleDefaultsRecordSize;
+  }
+
+  result.status =
+      LegacyMapsWorldDatabaseStatus::role_defaults_directory_unterminated;
+  return false;
+}
+
+} // namespace
+
+LegacyMapsWorldDatabaseResult
+decode_legacy_maps_world_database(const std::span<const u8> payload) {
+  LegacyMapsWorldDatabaseResult result;
+  if (payload.size() < kLegacyMapsWorldHeaderMinimumSize) {
+    return result;
+  }
+
+  result.database.header = {
+      read_u32_le(payload, kRoleDirectoryOffsetField),
+      read_u32_le(payload, kMapDescriptorDirectoryOffsetField),
+      read_u32_le(payload, kInitialLoadOffsetField),
+      read_u32_le(payload, kRoleDefaultsDirectoryOffsetField),
+  };
+
+  const std::size_t initial_offset = result.database.header.initial_load_offset;
+  if (!range_available(payload, initial_offset,
+                       kLegacyMapsInitialLoadRecordSize)) {
+    result.status =
+        LegacyMapsWorldDatabaseStatus::initial_load_record_out_of_range;
+    return result;
+  }
+  result.database.initial_load = {
+      read_u16_le(payload, initial_offset + 0x00U),
+      read_u16_le(payload, initial_offset + 0x02U),
+      read_u16_le(payload, initial_offset + 0x04U),
+      read_u16_le(payload, initial_offset + 0x06U),
+      read_u16_le(payload, initial_offset + 0x08U),
+      read_u16_le(payload, initial_offset + 0x0AU),
+      read_u16_le(payload, initial_offset + 0x0CU),
+      0U,
+  };
+
+  try {
+    if (!decode_map_descriptors(
+            payload, result.database.header.map_descriptor_directory_offset,
+            result) ||
+        !decode_role_sources(
+            payload, result.database.header.role_directory_offset, result) ||
+        !decode_role_defaults(
+            payload, result.database.header.role_defaults_directory_offset,
+            result)) {
+      return result;
+    }
+  } catch (const std::bad_alloc &) {
+    result.status = LegacyMapsWorldDatabaseStatus::allocation_failed;
+    return result;
+  } catch (const std::length_error &) {
+    result.status = LegacyMapsWorldDatabaseStatus::allocation_failed;
+    return result;
+  }
+
+  result.status = LegacyMapsWorldDatabaseStatus::ready;
+  return result;
+}
+
+const LegacyMapsMapDescriptor *
+find_legacy_maps_map_descriptor(const LegacyMapsWorldDatabase &database,
+                                const u16 logical_map_id) noexcept {
+  const auto found =
+      std::ranges::find(database.map_descriptors, logical_map_id,
+                        &LegacyMapsMapDescriptor::logical_map_id);
+  return found == database.map_descriptors.end() ? nullptr : &*found;
+}
+
+const LegacyMapsRoleDefaultsRecord *
+find_legacy_maps_role_defaults(const LegacyMapsWorldDatabase &database,
+                               const u16 guid) noexcept {
+  const auto found = std::ranges::find(database.role_defaults, guid,
+                                       &LegacyMapsRoleDefaultsRecord::guid);
+  return found == database.role_defaults.end() ? nullptr : &*found;
+}
+
+LegacyMapsWorldLoadApplyResult
+apply_legacy_maps_world_load(const std::span<u8> payload,
+                             LegacyMapsWorldDatabase &database,
+                             const LegacyWorldLoadRequest &request) noexcept {
+  LegacyMapsWorldLoadApplyResult result;
+  const auto selected =
+      std::ranges::find(database.role_sources, request.selected_guid,
+                        &LegacyMapsRoleSourceRecord::guid);
+  if (selected == database.role_sources.end()) {
+    return result;
+  }
+
+  for (const auto &role : database.role_sources) {
+    if (!range_available(payload, role.payload_offset,
+                         kLegacyMapsRoleSourceRecordSize)) {
+      result.status =
+          LegacyMapsWorldLoadApplyStatus::source_record_out_of_range;
+      return result;
+    }
+  }
+
+  result.selected_source_index =
+      static_cast<u32>(std::distance(database.role_sources.begin(), selected));
+  for (auto &role : database.role_sources) {
+    if (role.guid == 0U || role.guid == 10000U || role.guid == 10001U) {
+      role.logical_map_id = request.logical_map_id;
+      ++result.reserved_records_moved;
+    }
+    if (role.guid == request.selected_guid) {
+      role.logical_map_id = request.logical_map_id;
+      role.action_id = request.action_id;
+      role.base_variant = request.base_variant;
+      role.variant_delta = request.variant_delta;
+      role.tile_x = request.tile_x;
+      role.tile_y = request.tile_y;
+      role.talk_script_id = 0U;
+      role.path_data_id = 0U;
+      role.path_word_index = 0;
+      role.flags = kLegacySelectedRoleFlags;
+    }
+    static_cast<void>(write_legacy_maps_role_source_record(payload, role));
+  }
+
+  result.status = LegacyMapsWorldLoadApplyStatus::ready;
+  return result;
+}
+
+bool write_legacy_maps_role_source_record(
+    const std::span<u8> payload,
+    const LegacyMapsRoleSourceRecord &role) noexcept {
+  const std::size_t offset = role.payload_offset;
+  if (!range_available(payload, offset, kLegacyMapsRoleSourceRecordSize)) {
+    return false;
+  }
+
+  write_u16_le(payload, offset + 0x00U, role.logical_map_id);
+  write_u16_le(payload, offset + 0x02U, role.guid);
+  write_u16_le(payload, offset + 0x04U, role.action_id);
+  write_u16_le(payload, offset + 0x06U, role.base_variant);
+  write_u16_le(payload, offset + 0x08U, role.variant_delta);
+  write_u16_le(payload, offset + 0x0AU, role.tile_x);
+  write_u16_le(payload, offset + 0x0CU, role.tile_y);
+  write_u16_le(payload, offset + 0x0EU, role.talk_script_id);
+  write_u16_le(payload, offset + 0x10U, role.path_data_id);
+  write_u16_le(payload, offset + 0x12U,
+               std::bit_cast<u16>(role.path_word_index));
+  write_u16_le(payload, offset + 0x14U, role.flags);
+  return true;
+}
+
+} // namespace openswd3::world_map

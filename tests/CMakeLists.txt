@@ -601,6 +601,18 @@ add_test(
     NAME resource_io.legacy_resource_databases
     COMMAND openswd3_resource_io_legacy_resource_databases_tests
 )
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../PATH.DAT" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../TALK1.DAT"
+)
+    add_test(
+        NAME resource_io.legacy_resource_databases_real
+        COMMAND
+            openswd3_resource_io_legacy_resource_databases_tests
+            "${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
 
 add_executable(
     openswd3_input_time_rng_legacy_secondary_rng_tests
@@ -1866,6 +1878,71 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT")
         COMMAND
             openswd3_world_map_legacy_random_encounter_tests
             "${PROJECT_SOURCE_DIR}/../MAPS.DAT"
+    )
+endif()
+
+add_executable(
+    openswd3_world_map_legacy_maps_world_database_tests
+    unit/world_map/legacy_maps_world_database_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_maps_world_database_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_maps_world_database_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_maps_world_database
+    COMMAND openswd3_world_map_legacy_maps_world_database_tests
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT")
+    add_test(
+        NAME world_map.legacy_maps_world_database_real
+        COMMAND
+            openswd3_world_map_legacy_maps_world_database_tests
+            "${PROJECT_SOURCE_DIR}/../MAPS.DAT"
+    )
+endif()
+
+add_executable(
+    openswd3_world_map_legacy_world_runtime_session_tests
+    unit/world_map/legacy_world_runtime_session_test.cpp
+)
+target_compile_definitions(
+    openswd3_world_map_legacy_world_runtime_session_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_runtime_session_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_runtime_session_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_runtime_session
+    COMMAND openswd3_world_map_legacy_world_runtime_session_tests
+)
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.act"
+)
+    add_test(
+        NAME world_map.legacy_world_runtime_session_real
+        COMMAND
+            openswd3_world_map_legacy_world_runtime_session_tests
+            "${PROJECT_SOURCE_DIR}/.."
     )
 endif()
 

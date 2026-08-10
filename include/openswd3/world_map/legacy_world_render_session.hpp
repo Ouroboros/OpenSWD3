@@ -73,6 +73,14 @@ load_legacy_world_render_session(
 
 [[nodiscard]] LegacyWorldRenderSessionResult
 load_legacy_world_render_session(
+    const LegacyWorldRenderSessionRequest& request,
+    LegacyWorldMapSource& map_source,
+    LegacyWorldCmCacheSource& cm_cache_source,
+    const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage
+);
+
+[[nodiscard]] LegacyWorldRenderSessionResult
+load_legacy_world_render_session(
     const LegacyWorldRenderSessionRequest& request
 );
 
