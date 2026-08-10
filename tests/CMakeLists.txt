@@ -2071,6 +2071,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_selection_scroll_tests
+    unit/world_map/legacy_world_selection_scroll_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_selection_scroll_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_selection_scroll_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_selection_scroll
+    COMMAND openswd3_world_map_legacy_world_selection_scroll_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_cm_cache_runtime_tests
     unit/world_map/legacy_cm_cache_runtime_test.cpp
 )

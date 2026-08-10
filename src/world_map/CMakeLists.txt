@@ -20,6 +20,7 @@ add_library(
         legacy_world_map_session.cpp
         legacy_world_player_motion.cpp
         legacy_world_roles.cpp
+        legacy_world_selection_scroll.cpp
         legacy_world_spatial_audio.cpp
 )
 target_include_directories(

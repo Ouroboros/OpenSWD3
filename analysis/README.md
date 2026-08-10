@@ -200,6 +200,7 @@ IDA 伪码只用于定位函数、辅助阅读和提出假设。任何类型、�
 - [随机遇敌物理布局、选择与战斗切入汇编证据](04-reverse-engineering/evidence/random-encounter-0040d9e0-0040db39.md)
 - [普通世界帧组合与地图底图汇编证据](04-reverse-engineering/evidence/world-frame-composition-004120b0-00413370.md)
 - [世界帧动画层与选择序列视口恢复](04-reverse-engineering/evidence/world-frame-tail-0041287f-00412923.md)
+- [世界选择序列相机滚动状态机](04-reverse-engineering/evidence/world-selection-scroll-004148f0.md)
 - [战斗建立入口汇编证据](04-reverse-engineering/evidence/battle-setup-00451b10.md)
 - [游戏内菜单/特殊模式共同驱动器汇编证据](04-reverse-engineering/evidence/special-menu-modes-00439fd0.md)
 - [商店交易模式汇编证据](04-reverse-engineering/evidence/shop-mode-0044ea60.md)
