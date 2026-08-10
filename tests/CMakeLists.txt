@@ -1900,6 +1900,96 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
 endif()
 
 add_executable(
+    openswd3_world_map_legacy_world_flagged_roles_tests
+    unit/world_map/legacy_world_flagged_roles_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_flagged_roles_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_flagged_roles_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_flagged_roles
+    COMMAND openswd3_world_map_legacy_world_flagged_roles_tests
+)
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.tsw"
+)
+    add_test(
+        NAME world_map.legacy_world_flagged_roles_real
+        COMMAND
+            openswd3_world_map_legacy_world_flagged_roles_tests
+            "${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+
+add_executable(
+    openswd3_world_map_legacy_world_spatial_audio_tests
+    unit/world_map/legacy_world_spatial_audio_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_spatial_audio_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_spatial_audio_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_spatial_audio
+    COMMAND openswd3_world_map_legacy_world_spatial_audio_tests
+)
+
+add_executable(
+    openswd3_world_map_legacy_world_roles_tests
+    unit/world_map/legacy_world_roles_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_roles_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_roles_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_roles
+    COMMAND openswd3_world_map_legacy_world_roles_tests
+)
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.tsw" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.tsw"
+)
+    add_test(
+        NAME world_map.legacy_world_roles_real
+        COMMAND
+            openswd3_world_map_legacy_world_roles_tests
+            "${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+
+add_executable(
     openswd3_world_map_legacy_world_frame_composition_tests
     unit/world_map/legacy_world_frame_composition_test.cpp
 )

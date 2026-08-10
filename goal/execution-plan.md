@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v122
+版本：v123
 
 最后更新：2026-08-10
 
@@ -274,7 +274,12 @@
     119/119、Windows LLVM `app` 123/123 CTest 通过。`0x00412930` 的三条主体路径、
     清屏/clip、service/control 短路、公共尾部与四条地图底图路径已经实现，地图 24 的
     真实组合哈希为 `0x947C15A53487BF9A`，Linux `core` 123/123、Windows LLVM `app`
-    127/127 CTest 通过。当前继续空间对象层和 world runtime adapter，不等待 B7 全部
-    内部函数逆向完毕。
+    127/127 CTest 通过。`0x00413EA0/0x00413F00` 的 group 0 bit-29 扫描、
+    `0x00413870/0x00413910` 的 group `2→0→1` 普通角色绘制，以及 `0x00413CA0`
+    距离音频已按汇编闭环；共享 jitter 保留残影继承上一笔绘制状态的原始顺序，普通
+    角色 runtime adapter 已接入真实 TSW 与软件 framebuffer。两个角色路径哈希为
+    `0xA6C3E08156F06060`、`0xA4766C928B05DC88`，Linux `core` 128/128、Windows LLVM
+    `app` 132/132 CTest 通过。当前继续把这些结果接入 `0x00412930` 的实际 world
+    runtime，不等待 B7 全部内部函数逆向完毕。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

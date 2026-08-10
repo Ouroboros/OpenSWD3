@@ -54,8 +54,13 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    control 短路、公共尾部和四条底图路径已经闭环；地图 24 的真实
    `LMF → CM → frame composition` RGB565 framebuffer 哈希为
    `0x947C15A53487BF9A`，Linux `core` 123/123、Windows LLVM `app` 127/127 CTest
-   通过。当前继续恢复 `0x00413EA0/0x00413870` 空间对象层，并把已有 B4/B6 renderer
-   接入 world runtime adapter；最终呈现仍留在 `0x004120B0` 的原位置。
+   通过。`0x00413EA0/0x00413F00` 的 group 0 bit-29 扫描与固定透明绘制、
+   `0x00413870/0x00413910` 的 group `2→0→1` 普通角色扫描、残影/主图/颜色叠加/
+   覆盖层/粒子/标签，以及 `0x00413CA0` 距离音频已经闭环；普通角色 runtime adapter
+   已接入真实 TSW 和软件 framebuffer，两个固定哈希分别为 `0xA6C3E08156F06060` 与
+   `0xA4766C928B05DC88`。Linux `core` 128/128、Windows LLVM `app` 132/132 CTest
+   通过。当前继续把空间对象结果接入 `0x00412930` 的实际 world runtime；最终呈现仍
+   留在 `0x004120B0` 的原位置。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -76,4 +81,5 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-direction-adjustment-004040b0.md`](../evidence/world-direction-adjustment-004040b0.md)、
 [`world-collision-talk-00403ad7.md`](../evidence/world-collision-talk-00403ad7.md)、
 [`random-encounter-0040d9e0-0040db39.md`](../evidence/random-encounter-0040d9e0-0040db39.md) 和
-[`world-frame-composition-004120b0-00413370.md`](../evidence/world-frame-composition-004120b0-00413370.md)。
+[`world-frame-composition-004120b0-00413370.md`](../evidence/world-frame-composition-004120b0-00413370.md)、
+[`world-spatial-roles-00413870-00413f00.md`](../evidence/world-spatial-roles-00413870-00413f00.md)。

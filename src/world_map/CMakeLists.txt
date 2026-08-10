@@ -9,6 +9,7 @@ add_library(
         legacy_role_spatial_query.cpp
         legacy_world_collision_talk.cpp
         legacy_world_background.cpp
+        legacy_world_flagged_roles.cpp
         legacy_world_frame_composition.cpp
         legacy_world_direction_adjustment.cpp
         legacy_world_direction_input.cpp
@@ -16,6 +17,8 @@ add_library(
         legacy_world_map_business.cpp
         legacy_world_map_session.cpp
         legacy_world_player_motion.cpp
+        legacy_world_roles.cpp
+        legacy_world_spatial_audio.cpp
 )
 target_include_directories(
     openswd3_world_map
