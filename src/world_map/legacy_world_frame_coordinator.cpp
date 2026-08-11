@@ -64,10 +64,13 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
     result.status = LegacyWorldFrameCoordinatorStatus::map_role_paths_failed;
     return result;
   }
-  if (state.company_role_count > 1U &&
-      !execute_outer_stage(
-          outer_ports, result,
-          {LegacyWorldOuterFrameStage::company_role_actions_004124ef})) {
+  result.party_role_actions = advance_legacy_world_party_role_actions(
+      roles, spatial_index, role_surface, state.party_role_count,
+      state.party_object_slots, frame_ports.flagged_roles);
+  if (result.party_role_actions.status !=
+      LegacyWorldPartyRoleActionsStatus::completed) {
+    result.status =
+        LegacyWorldFrameCoordinatorStatus::party_role_actions_failed;
     return result;
   }
   if (!execute_outer_stage(outer_ports, result,

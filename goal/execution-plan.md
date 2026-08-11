@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v135
+版本：v136
 
 最后更新：2026-08-11
 
@@ -335,5 +335,9 @@
     三个有符号 action 覆盖、`sub_42D920` 后游标重读、GUID 1 清理、自动 Talk、非致命
     action 更新和 `sub_40D0C0` 镜头重定位；剧情路径完成仍保留为明确跨模块端口。
     Linux `core` 151/151、Windows LLVM `app` 155/155 CTest 通过。
+    紧随其后的 `0x004124DC..0x00412681` 队伍角色循环也已替代外部占位：只遍历槽
+    `1..count-1`，保留停用路径/等待状态仍更新 action、步长不翻倍、对齐后空间链只移除
+    不重插、表面迁移、游标门位和 flags 投影；首图角色物化产生的队伍数量与槽已接入
+    实际 frame state。Linux `core` 152/152、Windows LLVM `app` 156/156 CTest 通过。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

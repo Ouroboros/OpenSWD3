@@ -714,7 +714,8 @@ void test_real_initial_world(
     openswd3::world_map::LegacyWorldFrameCoordinatorState frame_state;
     frame_state.map_id = result.session.logical_map_id;
     frame_state.player_role_index = result.session.selected_role_index;
-    frame_state.company_role_count = 1U;
+    frame_state.party_role_count = post_state.party_role_count;
+    frame_state.party_object_slots = post_state.party_object_slots;
     frame_state.tile_animation = {
         .cycle_counter = 1,
         .cycle_interval = std::max(

@@ -1711,7 +1711,10 @@ public:
         world_frame_state_ = {};
         world_frame_state_.map_id = world.logical_map_id;
         world_frame_state_.player_role_index = world.selected_role_index;
-        world_frame_state_.company_role_count = 1U;
+        world_frame_state_.party_role_count =
+            world.role_post_materialization.party_role_count;
+        world_frame_state_.party_object_slots =
+            world.role_post_materialization.party_object_slots;
         world_frame_state_.selection_scroll.saved_left = world.camera.left;
         world_frame_state_.selection_scroll.saved_top = world.camera.top;
         world_frame_state_.tile_animation = {

@@ -5,16 +5,17 @@
 #include "openswd3/world_map/legacy_world_frame_tail.hpp"
 #include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
 #include "openswd3/world_map/legacy_world_map_role_paths.hpp"
+#include "openswd3/world_map/legacy_world_party_role_actions.hpp"
 #include "openswd3/world_map/legacy_world_player_motion.hpp"
 #include "openswd3/world_map/legacy_world_player_post_frame.hpp"
 #include "openswd3/world_map/legacy_world_selection_scroll.hpp"
 
+#include <array>
 #include <span>
 
 namespace openswd3::world_map {
 
 enum class LegacyWorldOuterFrameStage : compat::u8 {
-  company_role_actions_004124ef,
   precompose_00414570,
   fixed_ui_004308c0,
   optional_map_marker_00413fe0,
@@ -22,7 +23,7 @@ enum class LegacyWorldOuterFrameStage : compat::u8 {
 
 struct LegacyWorldOuterFrameStageRequest {
   LegacyWorldOuterFrameStage stage{
-      LegacyWorldOuterFrameStage::company_role_actions_004124ef};
+      LegacyWorldOuterFrameStage::precompose_00414570};
   compat::i32 argument_0{};
   compat::i32 argument_1{};
   compat::u32 argument_2{};
@@ -41,8 +42,10 @@ public:
 struct LegacyWorldFrameCoordinatorState {
   compat::u32 map_id{};
   compat::u32 player_role_index{};
-  compat::u32 company_role_count{};
+  compat::u32 party_role_count{1U};
   compat::u32 map_marker_state{};
+  std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>
+      party_object_slots;
   LegacyWorldMovementRuntimeState movement;
   LegacyWorldSelectionScrollState selection_scroll;
   LegacyWorldTileLayerAnimationState tile_animation;
@@ -57,6 +60,7 @@ enum class LegacyWorldFrameCoordinatorStatus : compat::u8 {
   invalid_player_index,
   invalid_selection_window,
   map_role_paths_failed,
+  party_role_actions_failed,
   outer_stage_failed,
   composition_failed,
   player_post_frame_failed,
@@ -70,6 +74,7 @@ struct LegacyWorldFrameCoordinatorResult {
   LegacyWorldFrameRuntimeResult frame;
   LegacyWorldHeadSignActionsResult head_sign_actions;
   LegacyWorldMapRolePathResult map_role_paths;
+  LegacyWorldPartyRoleActionsResult party_role_actions;
   LegacyWorldPlayerPostFrameResult player_post_frame;
   compat::u32 outer_stage_call_count{};
   compat::u32 audio_service_count{};
@@ -83,7 +88,7 @@ struct LegacyWorldFrameCoordinatorResult {
   bool viewport_restored{};
   bool failed_outer_stage_recorded{};
   LegacyWorldOuterFrameStage failed_outer_stage{
-      LegacyWorldOuterFrameStage::company_role_actions_004124ef};
+      LegacyWorldOuterFrameStage::precompose_00414570};
 };
 
 // Ordinary-world outer frame at 0x004120B0. The framebuffer is the modern

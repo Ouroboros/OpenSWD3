@@ -15,7 +15,7 @@
 | `0x004120B7..0x004120F7` | [倒序维护八个 HeadSgn 动作记录](world-head-sign-actions-004120b7-004120f7.md) | 已接入真实 action updater |
 | `0x004120F9..0x00412197` | 玩家与相机按四个 transition 和步长移动 | 已接入真实 helper |
 | `0x004121A1..0x004124D1` | [地图角色动作/路径账本](world-map-role-paths-004121a1-004124d1.md) | 已接入真实 owner |
-| `0x004124DC..0x00412681` | 队伍角色动作账本 | `count > 1` 时 delegated |
+| `0x004124DC..0x00412681` | [队伍角色动作账本](world-party-role-actions-004124dc-00412681.md) | 已接入真实 owner |
 | `0x0041268C` | `sub_414570` 帧前维护 | 显式 delegated stage |
 | `0x00412691` | `sub_4148F0` 选择序列临时滚动 | 已接入真实状态机 |
 | `0x00412696` | 第一次 `AIL_serve` | audio port 原槽调用 |
@@ -37,8 +37,8 @@
 ### 2.1 队伍角色数量
 
 `0x004124DC` 把 `EBP` 设为 1，随后用无符号 `JBE` 判断队伍角色数。数量为 0 或 1 都
-直接跳到 `0x0041268C`，只有 `count > 1` 才进入 `0x004124EF` 循环。coordinator 不会
-为了统一 stage 表而无条件调用该循环。
+直接跳到 `0x0041268C`，只有 `count > 1` 才进入 `0x004124EF` 循环。真实 owner 保留
+这个门，并只扫描队伍槽 `1..count-1`；索引 0 的当前主角不进入该循环。
 
 ### 2.2 条件地图标记
 
@@ -86,15 +86,17 @@
 - HeadSgn 的八槽遍历、四槽倒序更新及非致命失败；
 - 地图角色固定 72 槽空态扫描已在 coordinator 中执行；活动路径的门、移动、到达、
   空间/表面账本、自动 Talk 和动作更新由独立 UT 固定；
+- 队伍数量 `0/1` 的直接跳过，以及多队员槽的等待/停用 action 更新、单次步长、对齐后
+  只从空间链移除、表面迁移和非致命 action 失败；
 - 玩家与相机位移后，选择滚动使用同一临时相机完成 `0x00412930`；
 - 固定 UI 和地图标记的实参；
-- company count `0/1` 跳过、marker state `2` 跳过；
+- party count `0/1` 跳过、marker state `2` 跳过；
 - 玩家对齐时完成空间链、格占用、transition 和历史账本，未对齐时保留这些状态但仍
   执行动作校验；
 - 无效玩家索引、缺失选择 Y word、outer stage 失败和 composition 失败的原槽停止。
 
-Linux LLVM `core` 151/151、Windows LLVM `app` 155/155 CTest 通过。SDL app 已用真实
+Linux LLVM `core` 152/152、Windows LLVM `app` 156/156 CTest 通过。SDL app 已用真实
 地图 session、ACT/TSW runtime、软件 framebuffer 和 audio/presentation ports 调用该
-coordinator；地图角色路径 owner 已替代外部占位，尚未恢复的队伍角色/界面 stage 仍
-显式转交。需要原程序动态差分时，只准备
+coordinator；地图角色和队伍角色两个 owner 均已替代外部占位，尚未恢复的界面 stage
+仍显式转交。需要原程序动态差分时，只准备
 Frida spawn 工具并等待用户执行，不由开发流程启动原版。

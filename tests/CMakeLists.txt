@@ -1892,6 +1892,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_party_role_actions_tests
+    unit/world_map/legacy_world_party_role_actions_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_party_role_actions_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_party_role_actions_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_party_role_actions
+    COMMAND openswd3_world_map_legacy_world_party_role_actions_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_world_player_post_frame_tests
     unit/world_map/legacy_world_player_post_frame_test.cpp
 )

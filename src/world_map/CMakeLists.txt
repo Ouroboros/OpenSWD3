@@ -22,6 +22,7 @@ add_library(
         legacy_world_map_business.cpp
         legacy_world_map_role_paths.cpp
         legacy_world_map_session.cpp
+        legacy_world_party_role_actions.cpp
         legacy_world_render_session.cpp
         legacy_world_role_post_materialization.cpp
         legacy_world_role_preload.cpp
