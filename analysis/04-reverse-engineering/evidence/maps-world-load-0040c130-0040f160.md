@@ -12,8 +12,9 @@
 
 本文收敛 `sub_40F160` 建立 MAPS 载荷和 `sub_40C130` 建立地图会话的主链。
 `0x0040CAD3..0x0040CCBC` 的角色物化后附加状态已经由
-`maps-role-post-materialization-0040cad3-0040ccbc.md` 独立锁定。`sub_40D610` 供剧情
-运行时调用的非整格坐标通用路径仍属 B7 后续单元；不能用本文宣称任意地图切换完整。
+`maps-role-post-materialization-0040cad3-0040ccbc.md` 独立锁定。它调用的 `sub_40D610`
+共享角色转移 owner 也已覆盖非整格坐标、表面占用清理和空间链重排；剧情解释器仍未
+接线，因此不能用本文宣称任意地图切换或 opcode 65 完整。
 
 ## MAPS 物理载入
 

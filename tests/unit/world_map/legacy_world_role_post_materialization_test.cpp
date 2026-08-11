@@ -128,6 +128,9 @@ void test_guid_one_action_overrides(openswd3::test::Context& test) {
         .previous_logical_map_id = 22U,
         .guid_one_action_override = 0x77U,
         .active_object_slots = {},
+        .spatial_index = nullptr,
+        .surface_grid = {},
+        .map_width = 0U,
     };
     test.expect_equal(
         previous_map.run(&previous_context),
@@ -148,6 +151,9 @@ void test_guid_one_action_overrides(openswd3::test::Context& test) {
     const LegacyWorldRolePostMaterializationContext story_context{
         .has_story_state_0x0192 = true,
         .active_object_slots = {},
+        .spatial_index = nullptr,
+        .surface_grid = {},
+        .map_width = 0U,
     };
     test.expect_equal(
         descriptor_override.run(&story_context),
@@ -264,6 +270,9 @@ void test_object_slot_and_maps_patch(openswd3::test::Context& test) {
     write_u16(active_slots[5].bytes, 0U, 1U);
     const LegacyWorldRolePostMaterializationContext context{
         .active_object_slots = active_slots,
+        .spatial_index = nullptr,
+        .surface_grid = {},
+        .map_width = 0U,
     };
     test.expect_equal(
         matched_slot.run(&context),
@@ -291,12 +300,20 @@ void test_object_slot_and_maps_patch(openswd3::test::Context& test) {
     write_u16(unaligned_slots[0].bytes, 0U, 1U);
     const LegacyWorldRolePostMaterializationContext unaligned_context{
         .active_object_slots = unaligned_slots,
+        .spatial_index = nullptr,
+        .surface_grid = {},
+        .map_width = 0U,
     };
     test.expect_equal(
         unaligned.run(&unaligned_context),
-        LegacyWorldRolePostMaterializationStatus::
-            materialized_role_not_tile_aligned,
-        "the post-materialization owner rejects a broken tile-shift invariant"
+        LegacyWorldRolePostMaterializationStatus::role_transfer_failed,
+        "the post-materialization owner reports missing runtime map state"
+    );
+    test.expect_equal(
+        unaligned.state.last_transfer_status,
+        openswd3::world_map::LegacyWorldRoleTransferStatus::
+            surface_grid_required,
+        "a nonaligned D610 path requires the surface grid before mutation"
     );
 }
 

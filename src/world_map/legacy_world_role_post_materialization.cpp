@@ -1,7 +1,5 @@
 #include "openswd3/world_map/legacy_world_role_post_materialization.hpp"
 
-#include <algorithm>
-
 namespace openswd3::world_map {
 namespace {
 
@@ -15,7 +13,6 @@ constexpr std::size_t kGateStateCount = 8U;
 constexpr u16 kGateDirectoryTerminator = 0xFFFFU;
 constexpr u32 kRoleTransferFlag = 0x00000080U;
 constexpr u32 kFlaggedRoleRecordFlag = 0x00000200U;
-constexpr u32 kRolePartyClearFlag = 0x00004000U;
 constexpr u32 kRoleMapMarkerFlag = 0x00008000U;
 
 struct GateEvaluation {
@@ -151,80 +148,49 @@ void apply_guid_one_action_override(
     }
 }
 
-[[nodiscard]] LegacyWorldObjectSlot* find_active_object_slot(
-    const std::span<LegacyWorldObjectSlot> slots,
-    const u32 role_index
-) noexcept {
-    const u16 target = static_cast<u16>(role_index);
-    const auto found = std::ranges::find_if(
-        slots.first(kLegacyWorldActiveObjectSlotCount),
-        [target](const LegacyWorldObjectSlot& slot) {
-            return read_u16_le(slot.bytes, 0U) == target;
-        }
-    );
-    return found == slots.first(kLegacyWorldActiveObjectSlotCount).end() ?
-        nullptr : &*found;
-}
-
 [[nodiscard]] LegacyWorldRolePostMaterializationStatus transfer_role(
     const std::span<u8> maps_payload,
     LegacyMapsWorldDatabase& maps_database,
     const std::span<LegacyWorldRoleRecord> roles,
     const u32 role_index,
+    const u16 selected_guid,
     const LegacyWorldRolePostMaterializationContext* const context,
     LegacyWorldRolePostMaterializationState& state
 ) noexcept {
-    if (state.party_role_count >= kLegacyWorldPartySlotCount) {
+    LegacyWorldRoleTransferContext transfer_context;
+    const LegacyWorldRoleTransferContext* transfer_context_pointer = nullptr;
+    if (context != nullptr) {
+        transfer_context.active_object_slots = context->active_object_slots;
+        transfer_context.spatial_index = context->spatial_index;
+        transfer_context.surface_grid = context->surface_grid;
+        transfer_context.map_width = context->map_width;
+        transfer_context.selected_guid = selected_guid;
+        transfer_context_pointer = &transfer_context;
+    }
+
+    state.last_transfer_status = transfer_legacy_world_role(
+        maps_payload,
+        maps_database,
+        roles,
+        role_index,
+        transfer_context_pointer,
+        state
+    );
+    switch (state.last_transfer_status) {
+    case LegacyWorldRoleTransferStatus::ready:
+        return LegacyWorldRolePostMaterializationStatus::ready;
+    case LegacyWorldRoleTransferStatus::party_capacity_exceeded:
         return LegacyWorldRolePostMaterializationStatus::
             party_capacity_exceeded;
+    case LegacyWorldRoleTransferStatus::active_object_slots_required:
+        return LegacyWorldRolePostMaterializationStatus::
+            active_object_slots_required;
+    case LegacyWorldRoleTransferStatus::role_source_patch_failed:
+        return LegacyWorldRolePostMaterializationStatus::
+            role_source_patch_failed;
+    default:
+        return LegacyWorldRolePostMaterializationStatus::role_transfer_failed;
     }
-
-    LegacyWorldRoleRecord& role = roles[role_index];
-    if (role.path_data_id != 0U) {
-        if (context == nullptr ||
-            context->active_object_slots.size() <
-                kLegacyWorldActiveObjectSlotCount) {
-            return LegacyWorldRolePostMaterializationStatus::
-                active_object_slots_required;
-        }
-
-        LegacyWorldObjectSlot* const slot = find_active_object_slot(
-            context->active_object_slots,
-            role_index
-        );
-        if (slot != nullptr) {
-            if (((role.world_x | role.world_y) & 0x0FU) != 0U) {
-                return LegacyWorldRolePostMaterializationStatus::
-                    materialized_role_not_tile_aligned;
-            }
-
-            const auto patch_status = patch_legacy_maps_role_source_record(
-                maps_payload,
-                maps_database,
-                LegacyMapsRolePatchRequest{
-                    .guid = role.guid,
-                    .flags_or_mask = 0x0080U,
-                    .flags_and_mask = 0xFFFFU,
-                }
-            );
-            if (patch_status != LegacyMapsRolePatchStatus::ready) {
-                return LegacyWorldRolePostMaterializationStatus::
-                    role_source_patch_failed;
-            }
-
-            slot->bytes.fill(0xFFU);
-            ++state.active_object_slots_reset;
-        }
-    }
-
-    const std::size_t party_index = state.party_role_count;
-    state.party_role_indices[party_index] = role_index;
-    state.party_object_slots[party_index].bytes.fill(0xFFU);
-    role.talk_script_id = 0U;
-    role.flags = (role.flags & ~kRolePartyClearFlag) | kRoleTransferFlag;
-    ++state.party_role_count;
-    ++state.roles_transferred;
-    return LegacyWorldRolePostMaterializationStatus::ready;
 }
 
 void append_flagged_role_record(
@@ -301,6 +267,7 @@ post_materialize_legacy_world_role(
                 maps_database,
                 roles,
                 role_index,
+                request.selected_guid,
                 context,
                 state
             );

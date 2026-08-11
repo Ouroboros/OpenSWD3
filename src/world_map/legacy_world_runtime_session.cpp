@@ -92,6 +92,13 @@ void initialize_maps_role(
 ) {
     auto& business = map_session.business.state;
     auto& roles = business.roles;
+    LegacyWorldRolePostMaterializationContext effective_post_context;
+    if (post_materialization_context != nullptr) {
+        effective_post_context = *post_materialization_context;
+    }
+    effective_post_context.spatial_index = &business.spatial_index;
+    effective_post_context.surface_grid = map_session.surface_grid.surface_grid;
+    effective_post_context.map_width = map_session.header.width;
 
     try {
         for (std::size_t source_index = 0U;
@@ -153,7 +160,7 @@ void initialize_maps_role(
                 request,
                 roles,
                 role_index,
-                post_materialization_context,
+                &effective_post_context,
                 post_materialization_state
             );
             if (post_materialization_status !=

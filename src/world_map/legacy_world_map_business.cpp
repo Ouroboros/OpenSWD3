@@ -213,6 +213,68 @@ bool insert_legacy_role_spatially(
     }
 }
 
+LegacyRoleSpatialRelocationStatus relocate_legacy_role_spatially_by_guid(
+    LegacyRoleSpatialIndex& spatial_index,
+    const std::span<LegacyWorldRoleRecord> roles,
+    const u16 guid,
+    const u32 group,
+    const i32 first_row,
+    const bool reinsert
+) noexcept {
+    if (group >= kLegacySpatialGroupCount) {
+        return LegacyRoleSpatialRelocationStatus::invalid_group;
+    }
+
+    const i32 first_padded_row =
+        first_row + static_cast<i32>(kLegacySpatialRowPadding);
+    if (first_padded_row < 0 ||
+        static_cast<std::size_t>(first_padded_row) >=
+            spatial_index.row_heads[group].size()) {
+        return LegacyRoleSpatialRelocationStatus::first_row_out_of_range;
+    }
+
+    for (i32 row = first_row;
+         row < static_cast<i32>(spatial_index.map_height);
+         ++row) {
+        const i32 padded_row =
+            row + static_cast<i32>(kLegacySpatialRowPadding);
+        if (padded_row < 0 ||
+            static_cast<std::size_t>(padded_row) >=
+                spatial_index.row_heads[group].size()) {
+            return LegacyRoleSpatialRelocationStatus::broken_link;
+        }
+
+        u32* link = &spatial_index.row_heads[group][
+            static_cast<std::size_t>(padded_row)
+        ];
+        std::size_t traversed = 0U;
+        while (*link != kLegacySpatialNoRole) {
+            if (*link >= roles.size() || traversed++ >= roles.size()) {
+                return LegacyRoleSpatialRelocationStatus::broken_link;
+            }
+
+            const u32 role_index = *link;
+            LegacyWorldRoleRecord& role = roles[role_index];
+            if (role.guid == guid) {
+                *link = role.spatial_next_link_32;
+                role.spatial_next_link_32 = kLegacySpatialNoRole;
+                if (reinsert && !insert_legacy_role_spatially(
+                                    spatial_index,
+                                    roles,
+                                    role_index
+                                )) {
+                    return LegacyRoleSpatialRelocationStatus::
+                        reinsertion_failed;
+                }
+                return LegacyRoleSpatialRelocationStatus::ready;
+            }
+            link = &role.spatial_next_link_32;
+        }
+    }
+
+    return LegacyRoleSpatialRelocationStatus::role_not_found;
+}
+
 LegacyWorldMapBusinessResult build_legacy_world_map_business_state(
     const resource_io::LegacyLmfMapHeader& header,
     const resource_io::LegacyLmfPostSurfaceRecords& post_surface_records,

@@ -62,6 +62,25 @@ struct LegacyWorldMapBusinessResult {
     compat::u32 role_index
 ) noexcept;
 
+enum class LegacyRoleSpatialRelocationStatus {
+    ready,
+    invalid_group,
+    first_row_out_of_range,
+    broken_link,
+    role_not_found,
+    reinsertion_failed,
+};
+
+[[nodiscard]] LegacyRoleSpatialRelocationStatus
+relocate_legacy_role_spatially_by_guid(
+    LegacyRoleSpatialIndex& spatial_index,
+    std::span<LegacyWorldRoleRecord> roles,
+    compat::u16 guid,
+    compat::u32 group,
+    compat::i32 first_row,
+    bool reinsert
+) noexcept;
+
 [[nodiscard]] LegacyWorldMapBusinessResult
 build_legacy_world_map_business_state(
     const resource_io::LegacyLmfMapHeader& header,

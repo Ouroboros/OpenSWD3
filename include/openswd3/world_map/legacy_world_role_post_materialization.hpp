@@ -2,6 +2,7 @@
 
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_world_role_record.hpp"
+#include "openswd3/world_map/legacy_world_role_transfer.hpp"
 
 #include <array>
 #include <cstddef>
@@ -9,20 +10,7 @@
 
 namespace openswd3::world_map {
 
-inline constexpr std::size_t kLegacyWorldObjectSlotSize = 0x21CU;
-inline constexpr std::size_t kLegacyWorldActiveObjectSlotCount = 72U;
-inline constexpr std::size_t kLegacyWorldPartySlotCount = 8U;
 inline constexpr std::size_t kLegacyWorldFlaggedRoleRecordCount = 4U;
-
-struct LegacyWorldObjectSlot {
-    std::array<compat::u8, kLegacyWorldObjectSlotSize> bytes = [] {
-        std::array<compat::u8, kLegacyWorldObjectSlotSize> value{};
-        value.fill(0xFFU);
-        return value;
-    }();
-};
-
-static_assert(sizeof(LegacyWorldObjectSlot) == kLegacyWorldObjectSlotSize);
 
 struct LegacyWorldFlaggedRoleRecord {
     compat::u16 world_x{};
@@ -47,29 +35,25 @@ struct LegacyWorldRolePostMaterializationContext {
     compat::u32 guid_one_action_override{};
     bool has_story_state_0x0192{};
     std::span<LegacyWorldObjectSlot> active_object_slots;
+    LegacyRoleSpatialIndex* spatial_index{};
+    std::span<compat::u8> surface_grid;
+    compat::u32 map_width{};
 };
 
-struct LegacyWorldRolePostMaterializationState {
-    std::array<compat::u32, kLegacyWorldPartySlotCount>
-        party_role_indices = [] {
-            std::array<compat::u32, kLegacyWorldPartySlotCount> value{};
-            value.fill(0xFFFFFFFFU);
-            return value;
-        }();
-    std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>
-        party_object_slots;
+struct LegacyWorldRolePostMaterializationState
+    : LegacyWorldRoleTransferState {
     std::array<
         LegacyWorldFlaggedRoleRecord,
         kLegacyWorldFlaggedRoleRecordCount
     > flagged_role_records;
-    compat::u32 party_role_count{1U};
     compat::u32 flagged_role_record_count{};
     compat::u32 flagged_role_overflow_count{};
     compat::u32 guid_one_roles_overridden{};
     compat::u32 gated_roles_scanned{};
-    compat::u32 roles_transferred{};
     compat::u32 roles_suppressed{};
-    compat::u32 active_object_slots_reset{};
+    LegacyWorldRoleTransferStatus last_transfer_status{
+        LegacyWorldRoleTransferStatus::ready
+    };
 };
 
 enum class LegacyWorldRolePostMaterializationStatus {
@@ -80,9 +64,9 @@ enum class LegacyWorldRolePostMaterializationStatus {
     gate_record_truncated,
     gate_directory_unterminated,
     active_object_slots_required,
-    materialized_role_not_tile_aligned,
     role_source_patch_failed,
     party_capacity_exceeded,
+    role_transfer_failed,
 };
 
 [[nodiscard]] LegacyWorldRolePostMaterializationStatus

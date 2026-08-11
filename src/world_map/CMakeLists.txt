@@ -23,6 +23,7 @@ add_library(
         legacy_world_render_session.cpp
         legacy_world_role_post_materialization.cpp
         legacy_world_role_preload.cpp
+        legacy_world_role_transfer.cpp
         legacy_world_runtime_session.cpp
         legacy_world_player_motion.cpp
         legacy_world_roles.cpp
