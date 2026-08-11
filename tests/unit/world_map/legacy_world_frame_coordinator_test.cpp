@@ -344,6 +344,7 @@ struct Fixture {
                                       .remaining_stages = frame_ports,
                                       .picture_actions = picture_actions,
                                       .moving_actions = moving_actions,
+                                      .role_head_actions = role_head_actions,
                                       .flagged_roles = action_ports,
                                       .world_roles = role_ports,
                                       .spatial_audio = audio_ports,
@@ -353,6 +354,7 @@ struct Fixture {
 
   LegacyPictureActionLists picture_actions;
   LegacyMovingActionList moving_actions;
+  openswd3::world_map::LegacyRoleHeadActionList role_head_actions;
 };
 
 [[nodiscard]] std::vector<u32> expected_normal_events() {
@@ -373,7 +375,6 @@ struct Fixture {
       frame_event(Inner::ani_follower_00416b30),
       frame_event(Inner::packed_row_effects_00414e50),
       frame_event(Inner::timed_ui_update_0042ed40),
-      frame_event(Inner::role_head_sprites_00414ce0),
       frame_event(Inner::world_indicator_004149b0),
       frame_event(Inner::frame_color_update_004146f0),
       frame_event(Inner::timed_messages_004153d0),

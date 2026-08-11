@@ -11,15 +11,6 @@ using compat::i32;
 using compat::u16;
 using compat::u32;
 
-[[nodiscard]] constexpr i32 wrapping_subtract(
-    const i32 left,
-    const i32 right
-) noexcept {
-    return std::bit_cast<i32>(
-        std::bit_cast<u32>(left) - std::bit_cast<u32>(right)
-    );
-}
-
 [[nodiscard]] constexpr i16 wrapping_add_word(
     const i16 left,
     const i32 right
@@ -38,85 +29,6 @@ using compat::u32;
         static_cast<u32>(std::bit_cast<u16>(left)) -
         static_cast<u32>(std::bit_cast<u16>(right))
     ));
-}
-
-[[nodiscard]] constexpr i16 wrapping_multiply_word(
-    const i16 value,
-    const u32 multiplier
-) noexcept {
-    return std::bit_cast<i16>(static_cast<u16>(
-        static_cast<u32>(std::bit_cast<u16>(value)) * multiplier
-    ));
-}
-
-[[nodiscard]] constexpr LegacyBlitClipRectangle current_clip(
-    const LegacyRasterGeometryState& raster
-) noexcept {
-    return LegacyBlitClipRectangle{
-        .left = raster.clip_left,
-        .top = raster.clip_top,
-        .width = raster.clip_width,
-        .height = raster.clip_height,
-    };
-}
-
-[[nodiscard]] constexpr bool accepted_blit_status(
-    const LegacyBlitExecutionStatus status
-) noexcept {
-    return status == LegacyBlitExecutionStatus::completed ||
-        status == LegacyBlitExecutionStatus::clipped_out ||
-        status == LegacyBlitExecutionStatus::opacity_disabled;
-}
-
-void draw_action_piece(
-    LegacyActionSpriteRecord& record,
-    const i32 destination_x,
-    const i32 destination_y,
-    const bool force_direct_source,
-    LegacyFramePieceProvider& frame_provider,
-    LegacyFramebuffer& framebuffer,
-    const LegacyRasterGeometryState& raster,
-    const LegacyBlitEffectState& effects,
-    LegacyRleRowJitterState& jitter,
-    LegacyActionRenderResult& result
-) noexcept {
-    LegacyFramePiece piece;
-    ++result.frame_request_count;
-    if (!frame_provider.load_frame_piece(
-            record.resource_id,
-            record.frame_index,
-            piece
-        ) || piece.width == 0U || piece.height == 0U) {
-        ++result.frame_failure_count;
-        return;
-    }
-
-    LegacyBlitSource source = piece.source;
-    if (force_direct_source) {
-        source.layout = LegacyBlitSourceLayout::direct_16;
-        source.palette = {};
-    }
-
-    const LegacyBlitResult blit = blit_legacy_copy_paths(
-        framebuffer,
-        current_clip(raster),
-        source,
-        LegacyBlitRequest{
-            .destination_x = destination_x,
-            .destination_y = destination_y,
-            .source_width = static_cast<i32>(piece.width),
-            .source_height = static_cast<i32>(piece.height),
-            .flags = record.draw_flags,
-            .opacity_step = static_cast<i32>(record.opacity_step),
-        },
-        effects,
-        jitter
-    );
-    ++result.draw_count;
-    result.last_blit_status = blit.status;
-    if (!accepted_blit_status(blit.status)) {
-        ++result.blit_failure_count;
-    }
 }
 
 [[nodiscard]] constexpr u16 high_mode(const u16 mode) noexcept {
@@ -197,74 +109,6 @@ LegacyFramebufferPackedRowDrawPorts::draw_legacy_packed_row(
         length,
         format_
     );
-}
-
-LegacyActionRenderResult update_draw_legacy_role_head_sprites(
-    std::list<LegacyActionSpriteRecord>& records,
-    LegacyActionSpritePorts& action_ports,
-    LegacyFramePieceProvider& frame_provider,
-    LegacyFramebuffer& framebuffer,
-    const LegacyRasterGeometryState& raster,
-    const LegacyBlitEffectState& effects,
-    LegacyRleRowJitterState& jitter
-) noexcept {
-    LegacyActionRenderResult result;
-    for (auto current = records.begin(); current != records.end();) {
-        ++result.visited_count;
-        if (!action_ports.update_action_frame(*current)) {
-            ++result.action_update_failure_count;
-        }
-
-        draw_action_piece(
-            *current,
-            wrapping_subtract(
-                static_cast<i32>(current->integer_x),
-                current->draw_offset_x
-            ),
-            wrapping_subtract(
-                static_cast<i32>(current->integer_y),
-                current->draw_offset_y
-            ),
-            true,
-            frame_provider,
-            framebuffer,
-            raster,
-            effects,
-            jitter,
-            result
-        );
-
-        const u16 velocity_bits = std::bit_cast<u16>(
-            current->horizontal_velocity
-        );
-        if ((velocity_bits & 0x7FFFU) == 0U) {
-            const i32 distance = static_cast<i32>(current->target_x) -
-                static_cast<i32>(current->integer_x);
-            const i32 step = (distance * 2) / 3;
-            current->integer_x = wrapping_add_word(current->integer_x, step);
-            if (step >= -1 && step <= 1) {
-                current->integer_x = current->target_x;
-            }
-            ++current;
-            continue;
-        }
-
-        current->integer_x = wrapping_add_word(
-            current->integer_x,
-            static_cast<i32>(current->horizontal_velocity)
-        );
-        current->horizontal_velocity = wrapping_multiply_word(
-            current->horizontal_velocity,
-            3U
-        );
-        if (current->integer_x <= -120 || current->integer_x >= 760) {
-            current = records.erase(current);
-            ++result.removed_count;
-        } else {
-            ++current;
-        }
-    }
-    return result;
 }
 
 LegacyPackedRowEffectResult update_draw_legacy_packed_row_effects(

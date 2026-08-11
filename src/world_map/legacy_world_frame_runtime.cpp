@@ -38,6 +38,8 @@ public:
         return execute_moving_actions();
       case LegacyWorldFrameStage::secondary_picture_actions_004147e0:
         return execute_picture_actions(false);
+      case LegacyWorldFrameStage::role_head_sprites_00414ce0:
+        return execute_role_head_actions();
       default:
         ++result_.delegated_stage_count;
         if (ports_.remaining_stages.execute_stage(stage)) {
@@ -124,6 +126,13 @@ private:
     result_.moving_actions = update_draw_legacy_moving_actions(
         ports_.moving_actions, state_.frame.camera_left,
         state_.frame.camera_top, ports_.flagged_roles);
+    return true;
+  }
+
+  [[nodiscard]] bool execute_role_head_actions() {
+    result_.role_head_actions_executed = true;
+    result_.role_head_actions = update_draw_legacy_role_head_actions(
+        ports_.role_head_actions, ports_.flagged_roles);
     return true;
   }
 

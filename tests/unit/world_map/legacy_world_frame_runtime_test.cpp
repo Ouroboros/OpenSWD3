@@ -47,6 +47,8 @@ using openswd3::world_map::LegacyPictureActionNode;
 using openswd3::world_map::LegacyPictureActionLists;
 using openswd3::world_map::LegacyMovingActionList;
 using openswd3::world_map::LegacyMovingActionNode;
+using openswd3::world_map::LegacyRoleHeadActionList;
+using openswd3::world_map::LegacyRoleHeadActionNode;
 using openswd3::world_map::LegacyWorldBackgroundPixelLayout;
 using openswd3::world_map::LegacyWorldBackgroundSource;
 using openswd3::world_map::LegacyWorldFrameCompositionStatus;
@@ -281,6 +283,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
   secondary_picture.action.field_4c = 6U;
   picture_actions.secondary.push_back(secondary_picture);
   LegacyMovingActionList moving_actions;
+  LegacyRoleHeadActionList role_head_actions;
   LegacyMovingActionNode moving_action{};
   moving_action.action.field_4a = 9U;
   moving_action.action.field_4c = 10U;
@@ -288,6 +291,13 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
   moving_action.position_x = 70.0F;
   moving_action.position_y = 100.0F;
   moving_actions.push_back(moving_action);
+  LegacyRoleHeadActionNode role_head_action{};
+  role_head_action.action.field_4a = 11U;
+  role_head_action.action.field_4c = 12U;
+  role_head_action.current_x = 90;
+  role_head_action.target_x = 90;
+  role_head_action.y = 120;
+  role_head_actions.push_back(role_head_action);
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
@@ -302,6 +312,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           .remaining_stages = remaining,
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
+          .role_head_actions = role_head_actions,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -315,17 +326,19 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           result.primary_picture_actions_executed &&
           result.moving_actions_executed &&
           result.secondary_picture_actions_executed &&
+          result.role_head_actions_executed &&
           result.flagged_roles.draw_count == 1U &&
           result.primary_picture_actions.draw_count == 1U &&
           result.moving_actions.draw_count == 1U &&
           result.secondary_picture_actions.draw_count == 1U &&
+          result.role_head_actions.draw_count == 1U &&
           result.world_roles.status == LegacyWorldRolesStatus::completed &&
           result.world_roles.visited_roles == 2U &&
           result.world_roles.draw_count == 2U,
-      "0x00412930 executes both recovered spatial stages at their real slots");
+      "0x00412930 executes recovered spatial and action stages at real slots");
   test.expect_true(
       result.composition.stage_call_count == 19U &&
-          result.delegated_stage_count == 14U && flagged.draws == 4U &&
+          result.delegated_stage_count == 13U && flagged.draws == 5U &&
           ordinary.draws == 2U &&
           ordinary.samples ==
               std::vector<std::tuple<u16, i32, i32>>{{7U, 10, 20}} &&
@@ -348,6 +361,10 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           std::ranges::find(
               remaining.stages,
               LegacyWorldFrameStage::secondary_picture_actions_004147e0) ==
+              remaining.stages.end() &&
+          std::ranges::find(
+              remaining.stages,
+              LegacyWorldFrameStage::role_head_sprites_00414ce0) ==
               remaining.stages.end(),
       "runtime adapter delegates only the still-unwired frame stages");
 }
@@ -364,6 +381,7 @@ void test_spatial_failure_stops_at_original_stage(
       make_runtime_state(distances, vertical_offsets);
   LegacyPictureActionLists picture_actions;
   LegacyMovingActionList moving_actions;
+  LegacyRoleHeadActionList role_head_actions;
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
@@ -378,6 +396,7 @@ void test_spatial_failure_stops_at_original_stage(
           .remaining_stages = remaining,
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
+          .role_head_actions = role_head_actions,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -411,6 +430,7 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
       make_runtime_state(distances, vertical_offsets);
   LegacyPictureActionLists picture_actions;
   LegacyMovingActionList moving_actions;
+  LegacyRoleHeadActionList role_head_actions;
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
@@ -426,6 +446,7 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
           .remaining_stages = remaining,
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
+          .role_head_actions = role_head_actions,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -486,6 +507,7 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
       make_runtime_state(distances, vertical_offsets);
   LegacyPictureActionLists picture_actions;
   LegacyMovingActionList moving_actions;
+  LegacyRoleHeadActionList role_head_actions;
   LegacyMovingActionNode moving_action{};
   moving_action.action.field_4a = 1U;
   moving_action.action.field_4c = 0U;
@@ -493,6 +515,13 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
   moving_action.position_x = 400.0F;
   moving_action.position_y = 240.0F;
   moving_actions.push_back(moving_action);
+  LegacyRoleHeadActionNode role_head_action{};
+  role_head_action.action.field_4a = 1U;
+  role_head_action.action.field_4c = 0U;
+  role_head_action.current_x = 500;
+  role_head_action.target_x = 500;
+  role_head_action.y = 240;
+  role_head_actions.push_back(role_head_action);
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
@@ -515,6 +544,7 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
           .remaining_stages = external,
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
+          .role_head_actions = role_head_actions,
           .flagged_roles = flagged_ports,
           .world_roles = ordinary_ports,
           .spatial_audio = audio,
@@ -523,14 +553,15 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
       result.status == LegacyWorldFrameRuntimeStatus::completed &&
           result.flagged_roles.draw_count == 1U &&
           result.moving_actions.draw_count == 1U &&
+          result.role_head_actions.draw_count == 1U &&
           result.world_roles.draw_count == 1U &&
           result.flagged_roles.blit_failure_count == 0U &&
           result.world_roles.blit_failure_count == 0U,
-      "real TSW reaches both spatial draw paths inside one world frame");
+      "real TSW reaches roles and both recovered 0xB4 action lists");
   const auto combined_hash = legacy_framebuffer_logical_fnv1a64(framebuffer);
   test.expect_equal(
-      combined_hash, std::uint64_t{0x990CD049E2EE092AULL},
-      "combined background, real roles and moving action vector is stable");
+      combined_hash, std::uint64_t{0x3EAF7C3143994E65ULL},
+      "combined background, roles and both 0xB4 action lists are stable");
 }
 
 } // namespace

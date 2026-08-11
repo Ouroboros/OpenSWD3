@@ -4,6 +4,7 @@
 #include "openswd3/compat/types.hpp"
 #include "openswd3/world_map/legacy_moving_actions.hpp"
 #include "openswd3/world_map/legacy_picture_actions.hpp"
+#include "openswd3/world_map/legacy_role_head_actions.hpp"
 #include "openswd3/world_map/legacy_world_frame_composition.hpp"
 #include "openswd3/world_map/legacy_world_roles.hpp"
 
@@ -26,6 +27,7 @@ struct LegacyWorldFrameRuntimePorts {
   LegacyWorldFramePorts &remaining_stages;
   LegacyPictureActionLists &picture_actions;
   LegacyMovingActionList &moving_actions;
+  LegacyRoleHeadActionList &role_head_actions;
   asset_runtime::LegacyActionDrawPorts &flagged_roles;
   LegacyWorldRoleRenderPorts &world_roles;
   LegacyWorldSpatialAudioPorts &spatial_audio;
@@ -49,12 +51,14 @@ struct LegacyWorldFrameRuntimeResult {
   LegacyPictureActionResult primary_picture_actions;
   LegacyMovingActionResult moving_actions;
   LegacyPictureActionResult secondary_picture_actions;
+  LegacyRoleHeadActionResult role_head_actions;
   compat::u32 delegated_stage_count{};
   bool flagged_stage_executed{};
   bool world_roles_stage_executed{};
   bool primary_picture_actions_executed{};
   bool moving_actions_executed{};
   bool secondary_picture_actions_executed{};
+  bool role_head_actions_executed{};
   bool failed_stage_recorded{};
   LegacyWorldFrameStage failed_stage{
       LegacyWorldFrameStage::ani_activity_004154a0};

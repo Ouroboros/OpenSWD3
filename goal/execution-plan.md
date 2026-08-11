@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v143
+版本：v144
 
 最后更新：2026-08-11
 
@@ -365,6 +365,15 @@
     `+0xB0` 旧 next 槽；动作更新失败继续、严格可见边界、hold 门、移动前绘制、移动后
     严格目标窗口删除均按 LST 保留。真实 TSW 路径已进入同一世界帧，generic inner stage
     从十五项减为十四项。Linux `core` 156/156、Windows LLVM `app` 160/160 CTest
+    通过，Windows app 成功链接且未启动任何 EXE。
+    `sub_414CE0` 角色头顶动作链也已从早期中性精灵视图替换为独立精确 owner：固定
+    `0xB4` 节点、`+0x98 current_x`、`+0x9A horizontal_motion`、`+0x9C target_x`、
+    `+0x9E y`、16 字节保留段和 `+0xB0` next；动作更新失败继续、运动前绘制、
+    `0/0x8000` 趋近分支、低 16 位三倍飞出和 `-120/760` 包含边界删除均按 LST 保留。
+    opcode 81 创建、82 驱离和 86 改键的生产/变更合同已经反向锁定，最终 VM 接线仍留在
+    `story_scene`。本链已接入 `0x00412930` 会合后的原帧槽，generic inner stage 从十四项
+    减为十三项；两条 `0xB4` 链共同进入真实 TSW 后的逻辑 framebuffer 哈希为
+    `0x3EAF7C3143994E65`。Linux `core` 157/157、Windows LLVM `app` 161/161 CTest
     通过，Windows app 成功链接且未启动任何 EXE。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

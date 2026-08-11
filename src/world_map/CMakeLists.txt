@@ -9,6 +9,7 @@ add_library(
         legacy_moving_actions.cpp
         legacy_random_encounter.cpp
         legacy_picture_actions.cpp
+        legacy_role_head_actions.cpp
         legacy_role_spatial_query.cpp
         legacy_world_collision_talk.cpp
         legacy_world_camera_pan.cpp

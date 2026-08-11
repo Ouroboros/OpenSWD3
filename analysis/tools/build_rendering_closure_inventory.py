@@ -277,6 +277,15 @@ def policy_for(address: int) -> Policy:
             "moving-actions-00414b60.md",
             "none",
         )
+    if address == 0x00414CE0:
+        return Policy(
+            "implemented",
+            "rendering;story_scene;world_map",
+            "LegacyRoleHeadActionNode; update_draw_legacy_role_head_actions; "
+            "LegacyWorldFrameRuntimePorts",
+            "role-head-actions-00414ce0.md",
+            "none",
+        )
     if address in IMPLEMENTED_ACTION_RENDERERS:
         return Policy(
             "implemented",

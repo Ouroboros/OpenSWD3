@@ -125,7 +125,8 @@ focus clip”和“底图 16 对齐 tile 区域”两套边界；实现与 UT �
 - `compose_legacy_world_frame`：映射 `0x00412930` 的 clip、清屏、service/control 短路、
   三条主体路径和全部绘制阶段顺序；
 - stage port 为已有 B4/B6 renderer 和尚待恢复的调用保留原位置；实际 runtime adapter
-  已在原槽接入 `0x00413EA0`、`0x00413870`、两处 `0x004147E0` 和 `0x00414B60`，其余十四个 stage
+  已在原槽接入 `0x00413EA0`、`0x00413870`、两处 `0x004147E0`、`0x00414B60` 和
+  `0x00414CE0`，其余十三个 stage
   继续逐项显式转交，
   不把空 stage 误报成已经绘制；
 - stage 端口会报告成功与失败；现代受检失败停在原调用点、恢复全屏 clip，并返回
@@ -135,10 +136,10 @@ focus clip”和“底图 16 对齐 tile 区域”两套边界；实现与 UT �
 - 当前游戏数据地图 24 的 `LMF → CM → frame composition` RGB565 逻辑 framebuffer
   FNV-1a64 固定为 `0x947C15A53487BF9A`。
 
-空间、图片动作和 moving action runtime 接线后，真实 TSW 路径叠加底图的 framebuffer
-哈希为 `0x990CD049E2EE092A`；Linux Clang `core` 为 156/156、Windows LLVM `app`
-为 160/160 CTest。真实资产结果证明当前数据链可用，但尚未与原程序逐帧 framebuffer
-差分，所以验证等级不能写成 `original_diff_verified`。
+空间、图片动作、moving action 和 role-head action runtime 接线后，真实 TSW 路径叠加
+底图的 framebuffer 哈希为 `0x3EAF7C3143994E65`。真实资产结果证明当前数据链可用；
+Linux Clang `core` 157/157、Windows LLVM `app` 161/161 CTest 通过。但尚未与原程序逐帧
+framebuffer 差分，所以验证等级不能写成 `original_diff_verified`。
 
 正常原始资产不会触发现代受检错误。短 tile/grid/palette 或不可能的 framebuffer 几何
 只在访问前返回并恢复全屏 clip，用于隔离旧程序会发生的越界/无效指针行为；这不改写

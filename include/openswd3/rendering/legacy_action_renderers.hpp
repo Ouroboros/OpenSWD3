@@ -1,66 +1,14 @@
 #pragma once
 
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
+#include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_packed_row.hpp"
-#include "openswd3/rendering/legacy_tiled_frame.hpp"
 
 #include <list>
 #include <span>
 #include <vector>
 
 namespace openswd3::rendering {
-
-struct LegacyActionSpriteRecord {
-    compat::i32 draw_offset_x{};
-    compat::i32 draw_offset_y{};
-    compat::u32 draw_flags{};
-    compat::u16 movement_hold{};
-    compat::u16 resource_id{};
-    compat::u16 frame_index{};
-    compat::u8 opacity_step{};
-    compat::i16 integer_x{};
-    compat::i16 horizontal_velocity{};
-    compat::i16 target_x{};
-    compat::i16 integer_y{};
-    float velocity_x{};
-    float velocity_y{};
-    float position_x{};
-    float position_y{};
-};
-
-class LegacyActionSpritePorts {
-public:
-    virtual ~LegacyActionSpritePorts() = default;
-
-    [[nodiscard]] virtual bool update_action_frame(
-        LegacyActionSpriteRecord& record
-    ) noexcept = 0;
-};
-
-struct LegacyActionRenderResult {
-    compat::u32 visited_count{};
-    compat::u32 action_update_failure_count{};
-    compat::u32 frame_request_count{};
-    compat::u32 frame_failure_count{};
-    compat::u32 draw_count{};
-    compat::u32 blit_failure_count{};
-    compat::u32 removed_count{};
-    LegacyBlitExecutionStatus last_blit_status{
-        LegacyBlitExecutionStatus::completed
-    };
-};
-
-// sub_414CE0.
-[[nodiscard]] LegacyActionRenderResult
-update_draw_legacy_role_head_sprites(
-    std::list<LegacyActionSpriteRecord>& records,
-    LegacyActionSpritePorts& action_ports,
-    LegacyFramePieceProvider& frame_provider,
-    LegacyFramebuffer& framebuffer,
-    const LegacyRasterGeometryState& raster,
-    const LegacyBlitEffectState& effects,
-    LegacyRleRowJitterState& jitter
-) noexcept;
 
 struct LegacyPackedRowEffect {
     compat::i16 base_x{};

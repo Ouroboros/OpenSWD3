@@ -10,7 +10,7 @@ address	closure_disposition	target_owner	implementation_mapping	evidence	remaini
 0x004117F0	implemented	rendering	legacy animated border/thumbnail/decorated-number helpers	legacy-drawing-helpers-0040de50-004117f0.md	none
 0x00411FA0	implemented	rendering;story_scene	legacy pause/action/packed-row/timed-message coordinators	legacy-pause-action-and-message-renderers-00411fa0-004153d0.md	none
 0x00414B60	implemented	rendering;story_scene;world_map	LegacyMovingActionNode; update_draw_legacy_moving_actions; LegacyWorldFrameRuntimePorts	moving-actions-00414b60.md	none
-0x00414CE0	implemented	rendering;story_scene	legacy pause/action/packed-row/timed-message coordinators	legacy-pause-action-and-message-renderers-00411fa0-004153d0.md	none
+0x00414CE0	implemented	rendering;story_scene;world_map	LegacyRoleHeadActionNode; update_draw_legacy_role_head_actions; LegacyWorldFrameRuntimePorts	role-head-actions-00414ce0.md	none
 0x00414E50	implemented	rendering;story_scene	legacy pause/action/packed-row/timed-message coordinators	legacy-pause-action-and-message-renderers-00411fa0-004153d0.md	none
 0x004153D0	implemented	rendering;story_scene	legacy pause/action/packed-row/timed-message coordinators	legacy-pause-action-and-message-renderers-00411fa0-004153d0.md	none
 0x00416D30	implemented	rendering	LegacyFramebuffer;LegacyPixelConversionState;legacy pixel converters	legacy-framebuffer-geometry-00416d30.md;pixel-format-selection-and-cm-cache.md	none

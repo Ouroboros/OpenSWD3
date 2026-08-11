@@ -1581,6 +1581,7 @@ public:
                 .remaining_stages = deferred_ports,
                 .picture_actions = world_picture_actions_,
                 .moving_actions = world_moving_actions_,
+                .role_head_actions = world_role_head_actions_,
                 .flagged_roles = action_ports,
                 .world_roles = role_ports,
                 .spatial_audio = deferred_ports,
@@ -1740,6 +1741,7 @@ public:
         world_frame_state_ = {};
         world_picture_actions_ = {};
         world_moving_actions_ = {};
+        world_role_head_actions_ = {};
         world_frame_state_.map_id = world.logical_map_id;
         world_frame_state_.player_role_index = world.selected_role_index;
         world_frame_state_.party_role_count =
@@ -1926,6 +1928,7 @@ private:
     openswd3::world_map::LegacyWorldFrameCoordinatorState world_frame_state_;
     openswd3::world_map::LegacyPictureActionLists world_picture_actions_;
     openswd3::world_map::LegacyMovingActionList world_moving_actions_;
+    openswd3::world_map::LegacyRoleHeadActionList world_role_head_actions_;
     std::vector<openswd3::compat::i16> world_audio_distances_;
     std::vector<openswd3::compat::i16> world_audio_vertical_offsets_;
     std::array<openswd3::compat::i16, 1U> world_selection_words_{

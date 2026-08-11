@@ -84,6 +84,8 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 - [`legacy-image-command-stream-004014f0-00401e50.md`](../evidence/legacy-image-command-stream-004014f0-00401e50.md)
 - [`legacy-drawing-helpers-0040de50-004117f0.md`](../evidence/legacy-drawing-helpers-0040de50-004117f0.md)
 - [`legacy-pause-action-and-message-renderers-00411fa0-004153d0.md`](../evidence/legacy-pause-action-and-message-renderers-00411fa0-004153d0.md)
+- [`moving-actions-00414b60.md`](../evidence/moving-actions-00414b60.md)
+- [`role-head-actions-00414ce0.md`](../evidence/role-head-actions-00414ce0.md)
 - [`legacy-outline-fixed-tile-and-packed-row-00417050-00417de0.md`](../evidence/legacy-outline-fixed-tile-and-packed-row-00417050-00417de0.md)
 - [`legacy-scaled-rle-writers-00422c70-00423020.md`](../evidence/legacy-scaled-rle-writers-00422c70-00423020.md)
 - [`presentation-lifecycle.md`](../evidence/presentation-lifecycle.md)

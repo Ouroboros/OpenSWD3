@@ -9,13 +9,13 @@
 |---|---|---|
 | `0x00411FA0` | 暂停面板、文字及立即提交 | `draw_legacy_pause_overlay` |
 | `0x00414B60` | 世界坐标动作精灵更新、绘制与退休 | `update_draw_legacy_moving_actions`；精确布局另见 `moving-actions-00414b60.md` |
-| `0x00414CE0` | 角色头像动作、缓动/弹道与退休 | `update_draw_legacy_role_head_sprites` |
+| `0x00414CE0` | 角色头像动作、缓动/弹道与退休 | `update_draw_legacy_role_head_actions`；精确布局另见 `role-head-actions-00414ce0.md` |
 | `0x00414E50` | 五模式 packed-row 特效队列 | `update_draw_legacy_packed_row_effects` |
 | `0x004153D0` | 右对齐限时消息队列 | `update_and_draw_legacy_timed_messages` |
 
 动作记录仍由后续 `asset_runtime/story_scene` 生产和拥有。`0x00414B60` 在 B7 已从早期
-中性字段视图升级为精确 `0xB4` 物理节点；`0x00414CE0` 的另一条同尺寸链仍保持独立
-业务视图，不能因尺寸相同而复用。现代 `std::list` 只替代旧节点的主机链接，遍历顺序、
+中性字段视图升级为精确 `0xB4` 物理节点；`0x00414CE0` 的另一条同尺寸链也已固定为
+独立精确类型，不能因尺寸相同而复用。现代 `std::list` 只替代旧节点的主机链接，遍历顺序、
 当前/前驱推进和删除时机仍由以下汇编合同决定。
 
 ## 1. `0x00411FA0` 暂停层
@@ -69,6 +69,9 @@ x87 rounding control 设为向零截断、`fistp qword`，调用者使用低 32 
 恰好等于四条边界不删除。绘制使用移动前坐标，退休判断使用移动后坐标。
 
 ## 3. `0x00414CE0` 角色头像动作
+
+完整节点、生产/变更路径和世界原帧槽接线见
+[`role-head-actions-00414ce0.md`](role-head-actions-00414ce0.md)。本节保留消费者摘要。
 
 每个节点无条件按以下顺序执行：动作更新、取帧、以 palette=null 直接源绘制、再更新
 横坐标。绘制点是两个有符号 word：

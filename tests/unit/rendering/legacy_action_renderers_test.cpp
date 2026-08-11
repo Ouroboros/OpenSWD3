@@ -12,67 +12,13 @@ namespace {
 using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
-using openswd3::compat::u8;
 using openswd3::input_time_rng::LegacySecondaryRng;
-using openswd3::rendering::LegacyActionRenderResult;
-using openswd3::rendering::LegacyActionSpritePorts;
-using openswd3::rendering::LegacyActionSpriteRecord;
-using openswd3::rendering::LegacyBlitEffectState;
-using openswd3::rendering::LegacyBlitSource;
-using openswd3::rendering::LegacyBlitSourceLayout;
 using openswd3::rendering::LegacyFramebuffer;
 using openswd3::rendering::LegacyFramebufferPackedRowDrawPorts;
-using openswd3::rendering::LegacyFramePiece;
-using openswd3::rendering::LegacyFramePieceProvider;
 using openswd3::rendering::LegacyPackedRowDrawPorts;
 using openswd3::rendering::LegacyPackedRowEffect;
 using openswd3::rendering::LegacyPackedRowEffectResult;
 using openswd3::rendering::LegacyPixelConversionState;
-using openswd3::rendering::LegacyRleRowJitterState;
-
-class RecordingActionPorts final : public LegacyActionSpritePorts {
-public:
-    [[nodiscard]] bool update_action_frame(
-        LegacyActionSpriteRecord&
-    ) noexcept override {
-        ++calls;
-        return calls != failure_call;
-    }
-
-    u32 calls{};
-    u32 failure_call{};
-};
-
-class RecordingFrameProvider final : public LegacyFramePieceProvider {
-public:
-    RecordingFrameProvider() {
-        palette[0x34U] = 0x1234U;
-    }
-
-    [[nodiscard]] bool load_frame_piece(
-        const u32 resource_id,
-        const u32 piece_index,
-        LegacyFramePiece& piece
-    ) noexcept override {
-        resource_ids.push_back(resource_id);
-        piece_indices.push_back(piece_index);
-        piece = LegacyFramePiece{
-            .source = LegacyBlitSource{
-                .bytes = bytes,
-                .layout = LegacyBlitSourceLayout::indexed_8,
-                .palette = palette,
-            },
-            .width = 1U,
-            .height = 1U,
-        };
-        return true;
-    }
-
-    std::array<u8, 2> bytes{0x34U, 0x12U};
-    std::array<u16, 256> palette{};
-    std::vector<u32> resource_ids;
-    std::vector<u32> piece_indices;
-};
 
 struct PackedRowCall {
     i32 x{};
@@ -101,65 +47,6 @@ public:
 
     std::vector<PackedRowCall> calls;
 };
-
-void test_role_head_easing_ballistic_and_direct_source(
-    openswd3::test::Context& test
-) {
-    LegacyFramebuffer framebuffer;
-    const auto raster = framebuffer.geometry();
-    RecordingActionPorts action_ports;
-    RecordingFrameProvider frame_provider;
-    frame_provider.palette[0x34U] = 0x7777U;
-    const LegacyBlitEffectState effects;
-    LegacyRleRowJitterState jitter;
-    std::list<LegacyActionSpriteRecord> records{
-        LegacyActionSpriteRecord{
-            .resource_id = 1U,
-            .integer_x = 0,
-            .target_x = 2,
-            .integer_y = 20,
-        },
-        LegacyActionSpriteRecord{
-            .resource_id = 2U,
-            .integer_x = 759,
-            .horizontal_velocity = 2,
-            .integer_y = 21,
-        },
-        LegacyActionSpriteRecord{
-            .resource_id = 3U,
-            .integer_x = 10,
-            .horizontal_velocity = static_cast<openswd3::compat::i16>(
-                0x8000U
-            ),
-            .target_x = 13,
-            .integer_y = 22,
-        },
-    };
-
-    const LegacyActionRenderResult result =
-        openswd3::rendering::update_draw_legacy_role_head_sprites(
-            records,
-            action_ports,
-            frame_provider,
-            framebuffer,
-            raster,
-            effects,
-            jitter
-        );
-
-    test.expect_equal(result.draw_count, 3U, "all heads draw before movement");
-    test.expect_equal(result.removed_count, 1U, "ballistic head leaves bounds");
-    test.expect_equal(records.size(), std::size_t{2U}, "easing heads remain");
-    auto current = records.begin();
-    test.expect_equal(current->integer_x, static_cast<openswd3::compat::i16>(2), "small easing step snaps");
-    ++current;
-    test.expect_equal(current->integer_x, static_cast<openswd3::compat::i16>(12), "0x8000 velocity selects easing");
-    test.expect_equal(
-        framebuffer.row_pixels(20U)[0U],
-        static_cast<u16>(0x1234U),
-        "role head forces direct source instead of palette lookup"
-    );
-}
 
 void test_packed_row_modes(openswd3::test::Context& test) {
     std::list<LegacyPackedRowEffect> effects{
@@ -264,7 +151,6 @@ void test_packed_row_framebuffer_port(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
-    test_role_head_easing_ballistic_and_direct_source(test);
     test_packed_row_modes(test);
     test_packed_row_framebuffer_port(test);
     return test.exit_code();
