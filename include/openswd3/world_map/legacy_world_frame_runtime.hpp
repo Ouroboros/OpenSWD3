@@ -14,6 +14,7 @@
 #include "openswd3/rendering/legacy_frame_color.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 #include "openswd3/rendering/legacy_timed_messages.hpp"
+#include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_moving_actions.hpp"
 #include "openswd3/world_map/legacy_picture_actions.hpp"
 #include "openswd3/world_map/legacy_role_head_actions.hpp"
@@ -86,6 +87,9 @@ struct LegacyWorldFrameRuntimePorts {
   asset_runtime::LegacyActionDrawPorts &flagged_roles;
   LegacyWorldRoleRenderPorts &world_roles;
   LegacyWorldSpatialAudioPorts &spatial_audio;
+  story_scene::LegacyDialogRuntimeState *dialogs{};
+  story_scene::LegacyDialogRuntimePorts *dialog_runtime{};
+  story_scene::LegacyDialogRuntimeInput dialog_input{};
 };
 
 enum class LegacyWorldFrameRuntimeStatus : compat::u8 {
@@ -98,6 +102,7 @@ enum class LegacyWorldFrameRuntimeStatus : compat::u8 {
   flagged_roles_failed,
   world_roles_failed,
   cursor_frame_failed,
+  dialog_failed,
   stage_exception,
 };
 
@@ -123,6 +128,7 @@ struct LegacyWorldFrameRuntimeResult {
   rendering::LegacyPackedRowEffectResult packed_rows;
   rendering::LegacyFrameColorTransitionResult frame_color;
   rendering::LegacyTimedMessageResult timed_messages;
+  story_scene::LegacyDialogRuntimeResult dialogs;
   compat::u32 delegated_stage_count{};
   bool indexed_objects_executed{};
   bool flagged_stage_executed{};
@@ -142,6 +148,7 @@ struct LegacyWorldFrameRuntimeResult {
   bool packed_rows_executed{};
   bool frame_color_executed{};
   bool timed_messages_executed{};
+  bool dialogs_executed{};
   bool failed_stage_recorded{};
   LegacyWorldFrameStage failed_stage{
       LegacyWorldFrameStage::ani_activity_004154a0};

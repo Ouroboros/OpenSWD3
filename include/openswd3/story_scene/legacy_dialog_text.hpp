@@ -8,6 +8,10 @@
 #include <span>
 #include <vector>
 
+namespace openswd3::asset_runtime {
+struct LegacyActionRecord;
+}
+
 namespace openswd3::story_scene {
 
 enum class LegacyDialogTextTokenKind : compat::u8 {
@@ -67,10 +71,17 @@ struct LegacyDialogChoiceHotspot {
 
 struct LegacyDialogMessage {
   LegacyDialogRecord32 record;
+  // The physical record keeps the two original IA-32 pointer tokens. Live
+  // owners are carried separately so a 64-bit build can still resolve the
+  // exact current TSW resource without changing the 0x4C layout.
+  asset_runtime::LegacyActionRecord *frame_action{};
+  asset_runtime::LegacyActionRecord *caption_action{};
   std::vector<compat::u8> text;
+  std::vector<compat::u8> caption;
   std::size_t text_cursor_index{};
   std::size_t page_stop_index{};
   std::vector<LegacyDialogChoiceHotspot> choices;
+  bool active{true};
 };
 
 struct LegacyDialogSegmentDrawRequest {

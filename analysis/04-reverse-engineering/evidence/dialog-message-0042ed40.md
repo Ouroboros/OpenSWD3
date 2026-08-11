@@ -8,14 +8,16 @@
 `0x00412B43` 调用它，其他场景也复用同一函数；它不是 world-map 私有的“限时 UI”，
 而是 `story_scene` 拥有的对话消息链驱动。普通世界只在原帧槽借用该 owner。
 
-本轮先闭环两个可以独立按汇编验证的内核：
+实现先闭环两个可以独立按汇编验证的内核：
 
 - `0x0042EDCF..0x0042F11E` 的开窗几何、四步过渡、边框请求与文字 clip；
 - `0x0042F43A..0x0042FE14` 的逐字显示、分页和控制码协议。
 
-`0x0042F11E..0x0042F43A` 的输入/超时门、临时文字表面与最终合成、标题绘制、
-`0x0043004D..0x0043017C` 的链清理和两个 action 更新仍属于下一实现检查点。因此目前
-不能把整个 `0x0042ED40` 从普通世界的外部 stage 列表中删除。
+随后完成 `0x0042F11E..0x0042F43A` 的输入/超时门、临时文字表面与最终合成、标题
+绘制，以及 `0x0043004D..0x0043017C` 的链清理和两个 action 更新。普通世界原帧槽
+现在借用同一个 `story_scene` owner 与真实 framebuffer 适配层；`0x0042ED40` 已从
+normal 世界的外部 stage 列表删除。剧情 VM 创建消息与选择链输入仍由后续
+`story_scene` 调用者接线，不在本函数 owner 内伪造。
 
 ## 2. 物理记录
 
@@ -65,12 +67,33 @@ bit `0x800`、alternate direct transition bit `0x8000`。普通 role、`0xFFFD`
 样式是对 `+0x35` 做 OR，不是赋值。宽度溢出导致的满页也不会在非 fast 路径擅自更新
 `+0x40`；只有 `%N` 分支消费换行并写入对应边界。
 
-## 5. 现代安全边界与验证
+## 5. 受检缓冲边界
 
 原函数使用 256 字节文字/选择临时栈缓冲区和 16 字节音效参数缓冲区。正常输入的顺序、
 计数和原地改写完全保留；会造成越界的输入在现代边界返回明确状态。选择热点向量分配
 失败也从 `noexcept` 边界转成状态，不触发隐式终止。空音效参数仍通过
 `parse_legacy_decimal_or_terminate` 保留原版无数字故障合同。
+
+## 6. 外层驱动与真实绘制端口
+
+- 空链头在分配临时 surface 前直接返回；非空链复用固定 `40*11 × 11*11 = 440×121`
+  的 16 位文字 surface，每帧先清零，每条消息合成后再次清零，链结束后释放借用。
+- 面板资源来自消息 `+0x00` action 当前的 `field_4a`，以 margin `0x10` 调用已闭环的
+  tiled-frame renderer；物理记录继续只保留 32 位 pointer token，64 位 live action
+  owner 放在记录外，未破坏 `0x4C` ABI。
+- 正文使用 20 点字形，caption 使用 16 点字形；两套 `0x0049E0C8` 与
+  `0x0049E108` 各 16 项 BGR888 表按 `0x00424D50..0x00424DE6` 转为当前 16 位像素。
+  `sub_430350` 的背景 `0xFFFE`、副色、前景与 style 设置顺序保留。
+- 选择框调用已闭环的 `sub_40DE50` 动画边框；caption 先按 `sub_417DE0` 混合 15 行，
+  再绘制 action frame 和文字。临时 surface 首像素为 `0xFFFF` 时先改为 `0xFFFE`，
+  避免被公共 blitter 误判为 RLE 源，保留原分支。
+- end/next 两个持久 action 均为 `0x2329`，base variant 分别为 `0x0C/0x0E`；图标位置
+  使用 panel 右下角减 action draw offset 再减 `4/8`。帧尾严格先更新 end 再更新 next，
+  两次失败都只计数而不终止整帧。
+- 关闭消息时保留 role flags bit `0x800` 的 action 更新门、`0xFFFD` 分离 owner、
+  flagged counter 的 bit `0x8000`、`interaction_gate` 清理和先合成后删链顺序。
+
+## 7. 实现与验证
 
 实现与测试：
 
@@ -78,12 +101,23 @@ bit `0x800`、alternate direct transition bit `0x8000`。普通 role、`0xFFFD`
 - `src/story_scene/legacy_dialog_geometry.cpp`
 - `include/openswd3/story_scene/legacy_dialog_text.hpp`
 - `src/story_scene/legacy_dialog_text.cpp`
+- `include/openswd3/story_scene/legacy_dialog_control.hpp`
+- `src/story_scene/legacy_dialog_control.cpp`
+- `include/openswd3/story_scene/legacy_dialog_runtime.hpp`
+- `src/story_scene/legacy_dialog_runtime.cpp`
+- `include/openswd3/world_map/legacy_world_dialog_runtime.hpp`
+- `src/world_map/legacy_world_dialog_runtime.cpp`
 - `tests/unit/story_scene/legacy_dialog_geometry_test.cpp`
 - `tests/unit/story_scene/legacy_dialog_text_test.cpp`
+- `tests/unit/story_scene/legacy_dialog_control_test.cpp`
+- `tests/unit/story_scene/legacy_dialog_runtime_test.cpp`
+- `tests/unit/world_map/legacy_world_dialog_runtime_test.cpp`
 
 UT 覆盖物理布局、四种几何路径、role/分离锚点、回绕、全部控制码拼写、DBCS、逐字显示、
-颜色/样式/速度、选择热点与原地改写、两类分页差异、`%L` 倒计数和固定缓冲区边界。
-Linux Clang `core` 161/161、Windows LLVM `app` 165/165 CTest 通过；Windows 应用
-成功链接，未启动任何 EXE。
+颜色/样式/速度、选择热点与原地改写、两类分页差异、`%L` 倒计数、固定缓冲区边界、
+输入/超时/关闭门、surface 生命周期、外层调用顺序、真实文字/合成端口、caption、
+持久 action 以及 role owner 清理。Linux Clang `core` 164/164、Windows LLVM `app`
+168/168 CTest 通过；Windows 应用成功链接，未启动任何 EXE。
 
-当前验证等级为 `assembly_exact`；待外层驱动接线及原程序动态差分后才能提升。
+当前函数 owner 与普通世界调用槽验证等级为 `assembly_exact`；剧情 VM 消息生产接线不在
+本函数范围，原程序像素动态差分仍为 `blocked_runtime_oracle`。

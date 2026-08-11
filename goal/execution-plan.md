@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v147
+版本：v148
 
 最后更新：2026-08-11
 
@@ -403,7 +403,12 @@
     `%Q/%N/%L/%P/%S/%C/D%/%G/%B/%A/%K`、DBCS、逐字显示、分页、选择热点和原地
     marker 变更均按 LST 固定，原 256/16 字节栈缓冲区只在越界点增加现代受检边界。
     Linux `core` 161/161、Windows LLVM `app` 165/165 CTest 通过，Windows 应用成功
-    链接且未启动。外层输入/超时门、临时表面合成、caption、链清理和 end/next action
-    尚未接回，因此 normal 世界帧仍保留该一项显式转交，不伪报完成。
+    链接且未启动。随后 `0x0042F11E..0x0042F43A` 的输入/超时/分页/关闭门和
+    `0x0042FA7C..0x0043017C` 的外层驱动全部闭环；固定 `440×121` 临时文字 surface、
+    20/16 点字形、两套 16 色表、ACT/TSW 面板与 end/next action、caption 混色、
+    合成、角色 owner 清理及链尾顺序已经接到实际 framebuffer。normal 世界帧不再有
+    外部 stage；剧情 VM 的消息生产与选择输入仍按 owner 边界留给后续接线。Linux
+    `core` 164/164、Windows LLVM `app` 168/168 CTest 通过，Windows应用成功链接且
+    未启动任何 EXE。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

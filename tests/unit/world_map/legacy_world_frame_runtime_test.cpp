@@ -299,6 +299,55 @@ public:
   u16 last_foreground_color{};
 };
 
+class EmptyDialogPorts final
+    : public openswd3::story_scene::LegacyDialogRuntimePorts {
+public:
+  [[nodiscard]] bool begin_text_surface(i32, i32) noexcept override {
+    return true;
+  }
+  void clear_text_surface() noexcept override {}
+  void end_text_surface() noexcept override {}
+  [[nodiscard]] bool resolve_role_anchor(u16, i32 &, i32 &) noexcept override {
+    return false;
+  }
+  void set_dialog_clip(
+      const openswd3::story_scene::LegacyDialogRectangle &) noexcept override {
+  }
+  void draw_dialog_panel(
+      const openswd3::story_scene::LegacyDialogPanelDrawRequest &)
+      noexcept override {}
+  void composite_text_surface(
+      const openswd3::story_scene::LegacyDialogCompositeRequest &)
+      noexcept override {}
+  void draw_dialog_indicator(
+      const openswd3::story_scene::LegacyDialogIndicatorRequest &)
+      noexcept override {}
+  void draw_dialog_caption(
+      const openswd3::story_scene::LegacyDialogCaptionRequest &)
+      noexcept override {}
+  void release_message_owner(u16) noexcept override {}
+  [[nodiscard]] bool update_end_dialog_action() noexcept override {
+    return true;
+  }
+  [[nodiscard]] bool update_next_page_action() noexcept override {
+    return true;
+  }
+  void restore_text_destination(i32, i32) noexcept override {}
+  [[nodiscard]] bool draw_segment(
+      const openswd3::story_scene::LegacyDialogSegmentDrawRequest &)
+      noexcept override {
+    return true;
+  }
+  void draw_selected_choice_background(
+      const openswd3::story_scene::LegacyDialogChoiceBackgroundRequest &)
+      noexcept override {}
+  void play_choice_sound() noexcept override {}
+  [[nodiscard]] bool close_role_dialog_action(u16) noexcept override {
+    return true;
+  }
+  void close_detached_dialog() noexcept override {}
+};
+
 [[nodiscard]] LegacyWorldFrameRuntimeState
 make_runtime_state(std::vector<openswd3::compat::i16> &distances,
                    std::vector<openswd3::compat::i16> &vertical_offsets) {
@@ -381,6 +430,8 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
   RecordingAudioPorts audio;
   RecordingAniPorts ani;
   RecordingTimedMessageRuntimePorts timed_messages;
+  openswd3::story_scene::LegacyDialogRuntimeState dialogs;
+  EmptyDialogPorts dialog_ports;
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
@@ -406,6 +457,8 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
+          .dialogs = &dialogs,
+          .dialog_runtime = &dialog_ports,
       });
 
   test.expect_true(
@@ -423,6 +476,9 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           result.framebuffer_deformation_executed &&
           result.ani_follower_executed && result.packed_rows_executed &&
           result.frame_color_executed && result.timed_messages_executed &&
+          result.dialogs_executed &&
+          result.dialogs.status ==
+              openswd3::story_scene::LegacyDialogRuntimeStatus::idle &&
           result.cursor_executed && result.cursor.cursor_draw_count == 1U &&
           result.flagged_roles.draw_count == 1U &&
           result.primary_picture_actions.draw_count == 1U &&
@@ -435,7 +491,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
       "0x00412930 executes recovered spatial and action stages at real slots");
   test.expect_true(
       result.composition.stage_call_count == 19U &&
-          result.delegated_stage_count == 1U && flagged.draws == 7U &&
+          result.delegated_stage_count == 0U && flagged.draws == 7U &&
           ordinary.draws == 2U &&
           result.packed_rows.visited_count == 1U &&
           result.packed_rows.draw_count == 1U &&
@@ -487,6 +543,10 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           std::ranges::find(
               remaining.stages,
               LegacyWorldFrameStage::timed_messages_004153d0) ==
+              remaining.stages.end() &&
+          std::ranges::find(
+              remaining.stages,
+              LegacyWorldFrameStage::timed_ui_update_0042ed40) ==
               remaining.stages.end() &&
           std::ranges::find(
               remaining.stages,

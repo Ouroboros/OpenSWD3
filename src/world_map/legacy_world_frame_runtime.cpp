@@ -127,6 +127,16 @@ public:
         return execute_frame_color(stage);
       case LegacyWorldFrameStage::timed_messages_004153d0:
         return execute_timed_messages();
+      case LegacyWorldFrameStage::timed_ui_update_0042ed40:
+        if (ports_.dialogs != nullptr && ports_.dialog_runtime != nullptr) {
+          return execute_dialogs(stage);
+        }
+        ++result_.delegated_stage_count;
+        if (ports_.remaining_stages.execute_stage(stage)) {
+          return true;
+        }
+        fail(LegacyWorldFrameRuntimeStatus::delegated_stage_failed, stage);
+        return false;
       case LegacyWorldFrameStage::world_indicator_004149b0:
         return execute_cursor(stage);
       default:
@@ -283,6 +293,23 @@ private:
         ports_.environment_effects.timed_messages,
         static_cast<compat::u16>(colors[3U]));
     return true;
+  }
+
+  [[nodiscard]] bool execute_dialogs(const LegacyWorldFrameStage stage) {
+    result_.dialogs_executed = true;
+    auto input = ports_.dialog_input;
+    input.camera_left = state_.frame.camera_left;
+    input.camera_top = state_.frame.camera_top;
+    result_.dialogs = story_scene::update_draw_legacy_dialogs(
+        *ports_.dialogs, input, *ports_.dialog_runtime);
+    if (result_.dialogs.status ==
+            story_scene::LegacyDialogRuntimeStatus::idle ||
+        result_.dialogs.status ==
+            story_scene::LegacyDialogRuntimeStatus::completed) {
+      return true;
+    }
+    fail(LegacyWorldFrameRuntimeStatus::dialog_failed, stage);
+    return false;
   }
 
   [[nodiscard]] bool execute_cursor(const LegacyWorldFrameStage stage) {

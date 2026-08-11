@@ -25,6 +25,7 @@ add_library(
         legacy_world_indexed_objects.cpp
         legacy_world_direction_adjustment.cpp
         legacy_world_direction_input.cpp
+        legacy_world_dialog_runtime.cpp
         legacy_world_facing.cpp
         legacy_world_map_business.cpp
         legacy_world_map_role_paths.cpp

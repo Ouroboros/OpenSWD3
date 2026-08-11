@@ -1,7 +1,9 @@
 add_library(
     openswd3_story_scene
     STATIC
+        legacy_dialog_control.cpp
         legacy_dialog_geometry.cpp
+        legacy_dialog_runtime.cpp
         legacy_dialog_text.cpp
 )
 target_include_directories(

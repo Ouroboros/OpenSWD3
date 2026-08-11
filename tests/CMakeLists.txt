@@ -57,6 +57,42 @@ add_test(
 )
 
 add_executable(
+    openswd3_story_scene_legacy_dialog_control_tests
+    unit/story_scene/legacy_dialog_control_test.cpp
+)
+target_include_directories(
+    openswd3_story_scene_legacy_dialog_control_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_story_scene_legacy_dialog_control_tests
+    PRIVATE openswd3_story_scene
+)
+
+add_test(
+    NAME story_scene.legacy_dialog_control
+    COMMAND openswd3_story_scene_legacy_dialog_control_tests
+)
+
+add_executable(
+    openswd3_story_scene_legacy_dialog_runtime_tests
+    unit/story_scene/legacy_dialog_runtime_test.cpp
+)
+target_include_directories(
+    openswd3_story_scene_legacy_dialog_runtime_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_story_scene_legacy_dialog_runtime_tests
+    PRIVATE openswd3_story_scene
+)
+
+add_test(
+    NAME story_scene.legacy_dialog_runtime
+    COMMAND openswd3_story_scene_legacy_dialog_runtime_tests
+)
+
+add_executable(
     openswd3_app_frame_dispatch_tests
     unit/app/frame_dispatch_test.cpp
 )
@@ -2466,6 +2502,24 @@ target_link_libraries(
 add_test(
     NAME world_map.legacy_world_frame_runtime
     COMMAND openswd3_world_map_legacy_world_frame_runtime_tests
+)
+
+add_executable(
+    openswd3_world_map_legacy_world_dialog_runtime_tests
+    unit/world_map/legacy_world_dialog_runtime_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_dialog_runtime_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_dialog_runtime_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_dialog_runtime
+    COMMAND openswd3_world_map_legacy_world_dialog_runtime_tests
 )
 
 add_executable(

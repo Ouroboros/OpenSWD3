@@ -49,6 +49,7 @@
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
+#include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
 
@@ -1171,6 +1172,7 @@ class SdlDeferredWorldFramePorts final
       public openswd3::world_map::LegacyWorldRoleExternalPorts,
       public openswd3::world_map::LegacyWorldSpatialAudioPorts,
       public openswd3::world_map::LegacyWorldOuterFramePorts,
+      public openswd3::world_map::LegacyWorldDialogExternalPorts,
       public openswd3::rendering::LegacyTimedMessageInputPorts {
 public:
     SdlDeferredWorldFramePorts(
@@ -1199,6 +1201,8 @@ public:
     ) noexcept override {
         return query_control(control_index);
     }
+
+    void play_dialog_choice_sound() noexcept override {}
 
     bool execute_stage(
         openswd3::world_map::LegacyWorldFrameStage
@@ -1419,6 +1423,14 @@ public:
                 "initial cursor action update failed"
             );
         }
+        const auto dialog_prime =
+            openswd3::world_map::prime_legacy_world_dialog_runtime(
+                world_dialog_runtime_state_, action_ports);
+        if (dialog_prime.action_update_failure_count != 0U) {
+            openswd3::diagnostics::log_warning(
+                "initial dialog indicator action update failed"
+            );
+        }
     }
 
     void step_video() override {
@@ -1577,9 +1589,12 @@ public:
             text_renderers_,
         };
         const auto timed_message_binding = text_renderers_.binding(12U);
-        if (!timed_message_binding.ready()) {
+        const auto dialog_text_20 = text_renderers_.binding(20U);
+        const auto dialog_text_16 = text_renderers_.binding(16U);
+        if (!timed_message_binding.ready() || !dialog_text_20.ready() ||
+            !dialog_text_16.ready()) {
             static_cast<void>(report_error(
-                "ordinary world frame: 12-point text renderer is unavailable"
+                "ordinary world frame: legacy text renderer is unavailable"
             ));
             ok_ = false;
             running_ = false;
@@ -1600,6 +1615,19 @@ public:
             world_raster_,
             world_effects_,
             world_jitter_,
+        };
+        openswd3::world_map::LegacyWorldDialogRuntimePorts dialog_ports{
+            world_dialog_runtime_state_,
+            game_framebuffer_,
+            world_raster_,
+            pixel_conversion_,
+            world_effects_,
+            world_jitter_,
+            roles,
+            action_ports,
+            dialog_text_20,
+            dialog_text_16,
+            &deferred_ports,
         };
         openswd3::world_map::LegacyWorldRoleRenderRuntimePorts role_ports{
             tsw_runtime_,
@@ -1679,6 +1707,13 @@ public:
                 .flagged_roles = action_ports,
                 .world_roles = role_ports,
                 .spatial_audio = deferred_ports,
+                .dialogs = &world_dialogs_,
+                .dialog_runtime = &dialog_ports,
+                .dialog_input = {
+                    .current_tick = frame_preparation_state_.frame_clock
+                                        .sampled_milliseconds,
+                    .selected_choice_index = -1,
+                },
             },
             deferred_ports
         );
@@ -1836,6 +1871,7 @@ public:
         world_picture_actions_ = {};
         world_moving_actions_ = {};
         world_role_head_actions_ = {};
+        world_dialogs_ = {};
         world_frame_state_.map_id = world.logical_map_id;
         world_frame_state_.player_role_index = world.selected_role_index;
         world_frame_state_.party_role_count =
@@ -2025,6 +2061,9 @@ private:
     openswd3::world_map::LegacyMovingActionList world_moving_actions_;
     openswd3::world_map::LegacyRoleHeadActionList world_role_head_actions_;
     openswd3::world_map::LegacyWorldFrameEffectState world_frame_effects_;
+    openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
+    openswd3::world_map::LegacyWorldDialogRuntimeState
+        world_dialog_runtime_state_;
     std::vector<openswd3::compat::i16> world_audio_distances_;
     std::vector<openswd3::compat::i16> world_audio_vertical_offsets_;
     std::array<openswd3::compat::i16, 1U> world_selection_words_{
