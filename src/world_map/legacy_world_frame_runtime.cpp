@@ -32,6 +32,10 @@ public:
         return execute_flagged_roles(stage);
       case LegacyWorldFrameStage::world_spatial_objects_00413870:
         return execute_world_roles(stage);
+      case LegacyWorldFrameStage::primary_picture_actions_004147e0:
+        return execute_picture_actions(true);
+      case LegacyWorldFrameStage::secondary_picture_actions_004147e0:
+        return execute_picture_actions(false);
       default:
         ++result_.delegated_stage_count;
         if (ports_.remaining_stages.execute_stage(stage)) {
@@ -93,6 +97,24 @@ private:
     }
     fail(LegacyWorldFrameRuntimeStatus::world_roles_failed, stage);
     return false;
+  }
+
+  [[nodiscard]] bool execute_picture_actions(const bool primary) {
+    std::list<LegacyPictureActionNode> &nodes =
+        primary ? ports_.picture_actions.primary
+                : ports_.picture_actions.secondary;
+    LegacyPictureActionResult &picture_result =
+        primary ? result_.primary_picture_actions
+                : result_.secondary_picture_actions;
+    if (primary) {
+      result_.primary_picture_actions_executed = true;
+    } else {
+      result_.secondary_picture_actions_executed = true;
+    }
+    picture_result = update_draw_legacy_picture_actions(
+        nodes, state_.frame.camera_left, state_.frame.camera_top,
+        ports_.flagged_roles, ports_.world_roles);
+    return true;
   }
 
   void fail(const LegacyWorldFrameRuntimeStatus status,

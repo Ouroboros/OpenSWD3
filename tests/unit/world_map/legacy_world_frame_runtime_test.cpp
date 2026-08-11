@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <span>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -42,6 +43,8 @@ using openswd3::world_map::kLegacySpatialNoRole;
 using openswd3::world_map::kLegacySpatialRowPadding;
 using openswd3::world_map::kLegacyWorldFlaggedRoleBit;
 using openswd3::world_map::LegacyRoleSpatialIndex;
+using openswd3::world_map::LegacyPictureActionNode;
+using openswd3::world_map::LegacyPictureActionLists;
 using openswd3::world_map::LegacyWorldBackgroundPixelLayout;
 using openswd3::world_map::LegacyWorldBackgroundSource;
 using openswd3::world_map::LegacyWorldFrameCompositionStatus;
@@ -179,8 +182,10 @@ public:
     return false;
   }
 
-  void play_positional_sample(const u16, const i32,
-                              const i32) noexcept override {}
+  void play_positional_sample(const u16 sound_id, const i32 world_x,
+                              const i32 world_y) noexcept override {
+    samples.emplace_back(sound_id, world_x, world_y);
+  }
 
   [[nodiscard]] bool load_frame(const u16 resource_id, const u16 frame_index,
                                 LegacyWorldRoleFrame &frame) override {
@@ -217,6 +222,7 @@ public:
                   const u32) noexcept override {}
 
   std::vector<std::pair<u16, u16>> loads;
+  std::vector<std::tuple<u16, i32, i32>> samples;
   u32 draws{};
 };
 
@@ -258,6 +264,20 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
   std::vector<openswd3::compat::i16> vertical_offsets(roles.size());
   const LegacyWorldFrameRuntimeState state =
       make_runtime_state(distances, vertical_offsets);
+  LegacyPictureActionLists picture_actions;
+  LegacyPictureActionNode primary_picture{};
+  primary_picture.screen_x = 10U;
+  primary_picture.screen_y = 20U;
+  primary_picture.action.field_4a = 3U;
+  primary_picture.action.field_4c = 4U;
+  primary_picture.action.field_58 = 7U;
+  picture_actions.primary.push_back(primary_picture);
+  LegacyPictureActionNode secondary_picture{};
+  secondary_picture.screen_x = 30U;
+  secondary_picture.screen_y = 40U;
+  secondary_picture.action.field_4a = 5U;
+  secondary_picture.action.field_4c = 6U;
+  picture_actions.secondary.push_back(secondary_picture);
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
@@ -270,6 +290,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
       LegacyWorldFrameRuntimePorts{
           .remaining_stages = remaining,
+          .picture_actions = picture_actions,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -280,15 +301,21 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           result.composition.status ==
               LegacyWorldFrameCompositionStatus::completed &&
           result.flagged_stage_executed && result.world_roles_stage_executed &&
+          result.primary_picture_actions_executed &&
+          result.secondary_picture_actions_executed &&
           result.flagged_roles.draw_count == 1U &&
+          result.primary_picture_actions.draw_count == 1U &&
+          result.secondary_picture_actions.draw_count == 1U &&
           result.world_roles.status == LegacyWorldRolesStatus::completed &&
           result.world_roles.visited_roles == 2U &&
           result.world_roles.draw_count == 2U,
       "0x00412930 executes both recovered spatial stages at their real slots");
   test.expect_true(
       result.composition.stage_call_count == 19U &&
-          result.delegated_stage_count == 17U && flagged.draws == 1U &&
+          result.delegated_stage_count == 15U && flagged.draws == 3U &&
           ordinary.draws == 2U &&
+          ordinary.samples ==
+              std::vector<std::tuple<u16, i32, i32>>{{7U, 10, 20}} &&
           std::ranges::find(
               remaining.stages,
               LegacyWorldFrameStage::flagged_spatial_objects_00413ea0) ==
@@ -296,6 +323,14 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           std::ranges::find(
               remaining.stages,
               LegacyWorldFrameStage::world_spatial_objects_00413870) ==
+              remaining.stages.end() &&
+          std::ranges::find(
+              remaining.stages,
+              LegacyWorldFrameStage::primary_picture_actions_004147e0) ==
+              remaining.stages.end() &&
+          std::ranges::find(
+              remaining.stages,
+              LegacyWorldFrameStage::secondary_picture_actions_004147e0) ==
               remaining.stages.end(),
       "runtime adapter delegates only the still-unwired frame stages");
 }
@@ -310,6 +345,7 @@ void test_spatial_failure_stops_at_original_stage(
   std::vector<openswd3::compat::i16> vertical_offsets(roles.size());
   const LegacyWorldFrameRuntimeState state =
       make_runtime_state(distances, vertical_offsets);
+  LegacyPictureActionLists picture_actions;
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
@@ -320,7 +356,13 @@ void test_spatial_failure_stops_at_original_stage(
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
-      LegacyWorldFrameRuntimePorts{remaining, flagged, ordinary, audio});
+      LegacyWorldFrameRuntimePorts{
+          .remaining_stages = remaining,
+          .picture_actions = picture_actions,
+          .flagged_roles = flagged,
+          .world_roles = ordinary,
+          .spatial_audio = audio,
+      });
 
   test.expect_true(
       result.status == LegacyWorldFrameRuntimeStatus::flagged_roles_failed &&
@@ -348,6 +390,7 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
   std::vector<openswd3::compat::i16> vertical_offsets(roles.size());
   const LegacyWorldFrameRuntimeState state =
       make_runtime_state(distances, vertical_offsets);
+  LegacyPictureActionLists picture_actions;
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
@@ -359,7 +402,13 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
-      LegacyWorldFrameRuntimePorts{remaining, flagged, ordinary, audio});
+      LegacyWorldFrameRuntimePorts{
+          .remaining_stages = remaining,
+          .picture_actions = picture_actions,
+          .flagged_roles = flagged,
+          .world_roles = ordinary,
+          .spatial_audio = audio,
+      });
   test.expect_true(
       result.status == LegacyWorldFrameRuntimeStatus::delegated_stage_failed &&
           result.composition.status ==
@@ -414,6 +463,7 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
   std::vector<openswd3::compat::i16> vertical_offsets(roles.size());
   const LegacyWorldFrameRuntimeState state =
       make_runtime_state(distances, vertical_offsets);
+  LegacyPictureActionLists picture_actions;
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
@@ -432,8 +482,13 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
-      LegacyWorldFrameRuntimePorts{external, flagged_ports, ordinary_ports,
-                                   audio});
+      LegacyWorldFrameRuntimePorts{
+          .remaining_stages = external,
+          .picture_actions = picture_actions,
+          .flagged_roles = flagged_ports,
+          .world_roles = ordinary_ports,
+          .spatial_audio = audio,
+      });
   test.expect_true(
       result.status == LegacyWorldFrameRuntimeStatus::completed &&
           result.flagged_roles.draw_count == 1U &&

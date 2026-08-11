@@ -39,6 +39,7 @@ using openswd3::world_map::LegacyWorldFramePorts;
 using openswd3::world_map::LegacyWorldFrameRuntimePorts;
 using openswd3::world_map::LegacyWorldFrameRuntimeStatus;
 using openswd3::world_map::LegacyWorldFrameStage;
+using openswd3::world_map::LegacyPictureActionLists;
 using openswd3::world_map::LegacyWorldHeadSignActionsStatus;
 using openswd3::world_map::LegacyWorldOuterFramePorts;
 using openswd3::world_map::LegacyWorldRoleBlitRequest;
@@ -340,12 +341,15 @@ struct Fixture {
                                   selection, camera, state, jitter, effects,
                                   LegacyWorldFrameRuntimePorts{
                                       .remaining_stages = frame_ports,
+                                      .picture_actions = picture_actions,
                                       .flagged_roles = action_ports,
                                       .world_roles = role_ports,
                                       .spatial_audio = audio_ports,
                                   },
                                   outer_ports);
   }
+
+  LegacyPictureActionLists picture_actions;
 };
 
 [[nodiscard]] std::vector<u32> expected_normal_events() {
@@ -357,7 +361,6 @@ struct Fixture {
       kHeadSignEventBase + 0U,
       kAudioEvent,
       frame_event(Inner::pre_background_records_004151f0),
-      frame_event(Inner::primary_picture_actions_004147e0),
       frame_event(Inner::moving_action_sprites_00414b60),
       frame_event(Inner::ani_drift_004161c0),
       frame_event(Inner::ani_streak_00416590),
@@ -366,7 +369,6 @@ struct Fixture {
       frame_event(Inner::ani_row_copy_004163c0),
       frame_event(Inner::framebuffer_deformation_00416cc0),
       frame_event(Inner::ani_follower_00416b30),
-      frame_event(Inner::secondary_picture_actions_004147e0),
       frame_event(Inner::packed_row_effects_00414e50),
       frame_event(Inner::timed_ui_update_0042ed40),
       frame_event(Inner::role_head_sprites_00414ce0),
@@ -392,6 +394,8 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
   test.expect_true(
       result.status == LegacyWorldFrameCoordinatorStatus::completed &&
           result.frame.status == LegacyWorldFrameRuntimeStatus::completed &&
+          result.frame.primary_picture_actions_executed &&
+          result.frame.secondary_picture_actions_executed &&
           result.selection_scroll ==
               LegacyWorldSelectionScrollStatus::completed &&
           result.debug_overlay_executed &&

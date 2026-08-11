@@ -60,7 +60,10 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    已接入真实 TSW 和软件 framebuffer，两个固定哈希分别为 `0xA6C3E08156F06060` 与
    `0xA4766C928B05DC88`。空间 stage 已在 `0x00412930` 的实际 runtime 原槽接线，
    共用角色数组、clip、framebuffer 和 jitter；真实 TSW 双路径叠加底图的整帧哈希为
-   `0xA6144A91E57939F9`。其余十七个 stage 仍明确转交，失败不会伪报整帧完成。
+   `0xA6144A91E57939F9`。`0x004147E0` 的主/副图片动作链也已在各自原槽接入，保留
+   `0xA4` 节点、非致命更新诊断、位置音效单次消费和精确等一摘链；其余十五个 stage
+   仍明确转交，失败不会伪报整帧完成。Linux `core` 155/155、Windows LLVM `app`
+   159/159 CTest 通过。
    `0x0041287F..0x00412923` 的地图 tile 层折返动画、单帧计数器不清零、零帧异常、
    32 位回绕，以及选择序列结束后的条件视口恢复也已闭环。其前置 `0x004148F0` 选择
    序列状态机也已恢复：保留入口门、游标回零、到期帧顺序、有符号增量和 countdown
@@ -117,3 +120,5 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`maps-role-preload-0040d200-0040d552.md`](../evidence/maps-role-preload-0040d200-0040d552.md)、
 [`initial-new-game-transition-00448840-00449311.md`](../evidence/initial-new-game-transition-00448840-00449311.md)、
 [`world-special-tsw-frame-0040ad10.md`](../evidence/world-special-tsw-frame-0040ad10.md)。
+图片动作链见
+[`picture-actions-004147e0.md`](../evidence/picture-actions-004147e0.md)。

@@ -7,6 +7,7 @@ add_library(
         legacy_maps_world_database.cpp
         legacy_movement_collision.cpp
         legacy_random_encounter.cpp
+        legacy_picture_actions.cpp
         legacy_role_spatial_query.cpp
         legacy_world_collision_talk.cpp
         legacy_world_camera_pan.cpp

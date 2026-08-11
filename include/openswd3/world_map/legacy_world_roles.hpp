@@ -6,6 +6,7 @@
 #include "openswd3/rendering/legacy_blitter.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/world_map/legacy_world_flagged_roles.hpp"
+#include "openswd3/world_map/legacy_picture_actions.hpp"
 #include "openswd3/world_map/legacy_world_role_record.hpp"
 #include "openswd3/world_map/legacy_world_spatial_audio.hpp"
 
@@ -36,13 +37,11 @@ struct LegacyWorldRoleBlitRequest {
   std::span<const compat::u8> auxiliary;
 };
 
-class LegacyWorldRoleExternalPorts {
+class LegacyWorldRoleExternalPorts : public LegacyPictureActionAudioPorts {
 public:
   virtual ~LegacyWorldRoleExternalPorts() = default;
 
   [[nodiscard]] virtual bool query_service(compat::u32 service_id) noexcept = 0;
-  virtual void play_positional_sample(compat::u16 sound_id, compat::i32 world_x,
-                                      compat::i32 world_y) noexcept = 0;
   [[nodiscard]] virtual const asset_runtime::LegacyActionRecord *
   resolve_overlay_action(compat::u32 token) noexcept = 0;
   virtual void emit_role_particles(compat::i32 world_x, compat::i32 world_y,

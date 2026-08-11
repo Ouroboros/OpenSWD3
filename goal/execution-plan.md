@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v139
+版本：v140
 
 最后更新：2026-08-11
 
@@ -281,7 +281,7 @@
     `0xA6C3E08156F06060`、`0xA4766C928B05DC88`，Linux `core` 128/128、Windows LLVM
     `app` 132/132 CTest 通过。两条空间 stage 现已在 `0x00412930` 的实际 runtime
     原槽接线，共用角色数组、clip、framebuffer 与 jitter；真实 TSW 双路径叠加底图的
-    整帧哈希为 `0xA6144A91E57939F9`。其余十七个 stage 保持显式转交，任何受检失败
+    整帧哈希为 `0xA6144A91E57939F9`。其余十五个 stage 保持显式转交，任何受检失败
     都在原 stage 停止而不伪报完成。Linux `core` 130/130、Windows LLVM `app`
     134/134 CTest 通过。`0x0041287F..0x00412923` 的地图 tile 层折返动画、单帧
     counter 保留、零帧异常、32 位回绕和选择序列视口恢复已按汇编实现；Linux `core`
@@ -354,5 +354,11 @@
     被调函数读取，不再伪装成第三参数；最后一个 generic outer stage 已删除，SDL 文字
     端口接到 legacy glyph renderer。Linux `core` 154/154、Windows LLVM `app`
     158/158 CTest 通过。
+    `sub_4147E0` 图片动作链随后在主/副两个原帧槽完成闭环：`0xA4` 节点继续固定
+    `+0x08` 动作记录和 `+0xA0` 旧 next 槽，动作更新失败仍继续取帧/绘制，`+0x58`
+    位置音效按 `screen + camera` 播放后清零，只有 `+0x8C == 1` 才摘链。两条链由
+    `story_scene` 端口借出而非转成 world-map 全局状态；generic inner stage 从十七项
+    减为十五项。Linux `core` 155/155、Windows LLVM `app` 159/159 CTest 通过，
+    Windows app 成功链接且未启动任何 EXE。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。
