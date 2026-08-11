@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/compat/types.hpp"
+#include "openswd3/world_map/legacy_world_camera_pan.hpp"
 #include "openswd3/world_map/legacy_world_frame_runtime.hpp"
 #include "openswd3/world_map/legacy_world_frame_tail.hpp"
 #include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
@@ -16,14 +17,13 @@
 namespace openswd3::world_map {
 
 enum class LegacyWorldOuterFrameStage : compat::u8 {
-  precompose_00414570,
   fixed_ui_004308c0,
   optional_map_marker_00413fe0,
 };
 
 struct LegacyWorldOuterFrameStageRequest {
   LegacyWorldOuterFrameStage stage{
-      LegacyWorldOuterFrameStage::precompose_00414570};
+      LegacyWorldOuterFrameStage::fixed_ui_004308c0};
   compat::i32 argument_0{};
   compat::i32 argument_1{};
   compat::u32 argument_2{};
@@ -47,6 +47,7 @@ struct LegacyWorldFrameCoordinatorState {
   std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>
       party_object_slots;
   LegacyWorldMovementRuntimeState movement;
+  LegacyWorldCameraPanState camera_pan;
   LegacyWorldSelectionScrollState selection_scroll;
   LegacyWorldTileLayerAnimationState tile_animation;
   LegacyWorldFrameRuntimeState frame_runtime;
@@ -81,6 +82,7 @@ struct LegacyWorldFrameCoordinatorResult {
   compat::i32 composition_camera_left{};
   compat::i32 composition_camera_top{};
   bool player_motion_applied{};
+  bool camera_pan_advanced{};
   bool presentation_requested{};
   bool post_present_player_aligned{};
   bool movement_transitions_cleared{};
@@ -88,7 +90,7 @@ struct LegacyWorldFrameCoordinatorResult {
   bool viewport_restored{};
   bool failed_outer_stage_recorded{};
   LegacyWorldOuterFrameStage failed_outer_stage{
-      LegacyWorldOuterFrameStage::precompose_00414570};
+      LegacyWorldOuterFrameStage::fixed_ui_004308c0};
 };
 
 // Ordinary-world outer frame at 0x004120B0. The framebuffer is the modern

@@ -59,8 +59,7 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
       state.map_role_paths, frame_ports.flagged_roles, outer_ports);
   state.frame_runtime.frame.talk_target =
       state.map_role_paths.talk_context.source_guid;
-  if (result.map_role_paths.status !=
-      LegacyWorldMapRolePathStatus::completed) {
+  if (result.map_role_paths.status != LegacyWorldMapRolePathStatus::completed) {
     result.status = LegacyWorldFrameCoordinatorStatus::map_role_paths_failed;
     return result;
   }
@@ -73,10 +72,8 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
         LegacyWorldFrameCoordinatorStatus::party_role_actions_failed;
     return result;
   }
-  if (!execute_outer_stage(outer_ports, result,
-                           {LegacyWorldOuterFrameStage::precompose_00414570})) {
-    return result;
-  }
+  result.camera_pan_advanced =
+      advance_legacy_world_camera_pan(camera, state.camera_pan);
 
   result.selection_scroll = advance_legacy_world_selection_scroll(
       selection_words, state.map_id, camera, state.selection_scroll);
