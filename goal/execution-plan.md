@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v133
+版本：v134
 
 最后更新：2026-08-11
 
@@ -326,6 +326,9 @@
     真实 owner：启动时按原布局初始化动作 `0x232E` 的变体 `0..3`，每帧从槽 7 倒序
     到槽 0 跳过零 action id，并保留单次更新失败只诊断、不终止后续槽或整帧的行为；
     真实初始世界 ACT 路径通过。Linux `core` 148/148、Windows LLVM `app` 152/152
-    CTest 通过。
+    CTest 通过。呈现后的 `0x00412719..0x0041287C` 也已从三个 delegated stage 收敛为
+    真实 owner，按原顺序完成玩家空间链重插、表面格清除/重标、格索引移动、transition
+    清零、三组 32 项历史、地图格 flags 投影和非致命动作校验；表面足迹 owner 同时由
+    角色转移复用。Linux `core` 150/150、Windows LLVM `app` 154/154 CTest 通过。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

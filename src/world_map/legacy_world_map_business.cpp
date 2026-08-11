@@ -1,4 +1,5 @@
 #include "openswd3/world_map/legacy_world_map_business.hpp"
+#include "openswd3/world_map/legacy_world_role_surface_occupancy.hpp"
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 
@@ -17,10 +18,6 @@ using compat::u32;
 using compat::u8;
 
 constexpr u32 kLegacyRoleMapFlagMask = 0xDF0FFFFFU;
-constexpr u32 kLegacyRoleMapNibbleMask = 0x0000F000U;
-constexpr u32 kLegacyRoleMappedNibbleClearMask = 0xFF0FFFFFU;
-constexpr u32 kLegacyRoleCellBit11 = 0x00000800U;
-constexpr u32 kLegacyRoleMappedBit11 = 0x20000000U;
 constexpr u32 kLegacyRoleReadsMapCellFlag = 0x00000100U;
 
 [[nodiscard]] u32 shift_signed_coordinate(const compat::i16 value) noexcept {
@@ -29,16 +26,6 @@ constexpr u32 kLegacyRoleReadsMapCellFlag = 0x00000100U;
 
 [[nodiscard]] u16 shift_word_coordinate(const u16 value) noexcept {
     return static_cast<u16>(static_cast<u32>(value) << 4U);
-}
-
-[[nodiscard]] u32 read_u32_le(
-    const std::span<const u8> bytes,
-    const std::size_t offset
-) noexcept {
-    return static_cast<u32>(bytes[offset]) |
-        (static_cast<u32>(bytes[offset + 1U]) << 8U) |
-        (static_cast<u32>(bytes[offset + 2U]) << 16U) |
-        (static_cast<u32>(bytes[offset + 3U]) << 24U);
 }
 
 void initialize_role(LegacyWorldRoleRecord& role) noexcept {
@@ -406,16 +393,11 @@ LegacyWorldRoleCellBindingResult bind_legacy_world_role_cells(
             continue;
         }
 
-        const std::size_t byte_offset =
-            static_cast<std::size_t>(cell_index) * 4U;
-        const u32 cell = read_u32_le(surface_grid, byte_offset);
-        if ((cell & kLegacyRoleCellBit11) != 0U) {
-            role.flags |= kLegacyRoleMappedBit11;
-        }
-        const u32 cell_nibble = cell & kLegacyRoleMapNibbleMask;
-        if (cell_nibble != 0U) {
-            role.flags = (role.flags & kLegacyRoleMappedNibbleClearMask) |
-                (cell_nibble << 8U);
+        if (refresh_legacy_world_role_cell_flags(role, surface_grid) !=
+            LegacyWorldRoleCellFlagRefreshStatus::ready) {
+            ++result.out_of_bounds_indices;
+            result.status =
+                LegacyWorldRoleCellBindingStatus::flagged_cell_out_of_bounds;
         }
     }
     return result;

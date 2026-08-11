@@ -25,7 +25,7 @@
 | `0x004126CC..0x004126E8` | 状态恰为 1 时 `sub_413FE0(left, top, 2)` | delegated，门和实参已固定 |
 | `0x004126F0` | 第二次 `AIL_serve` | audio port 原槽调用 |
 | `0x004126FF..0x00412716` | 普通世界唯一一次 `Blt` | world presentation port |
-| `0x00412719..0x0041287C` | 玩家格指针、transition、快照与动作校验 | 见第 2 节 |
+| `0x00412719..0x0041287C` | [玩家格指针、transition、快照与动作校验](world-player-post-frame-00412719-0041287c.md) | 已接入真实 helper |
 | `0x0041287F..0x004128DA` | tile 层折返动画和 layer offset | 已接入真实状态机 |
 | `0x004128DF..0x0041291D` | 条件恢复选择滚动前视口 | 已接入真实状态机 |
 
@@ -49,17 +49,21 @@
 
 `0x00412719` 与 `0x00412726` 分别检查玩家 X/Y 的低四位。任一未对齐便直接跳到
 `0x0041283C`，因此原程序不会清除四个 movement transition，也不会更新格指针和玩家
-快照。两轴都对齐时的顺序才是：
+快照。两轴都对齐时才执行空间链重插、旧格清除、格指针移动、新格标记、transition
+清零、三组历史移动和地图格 flags 投影。精确顺序、mask 和历史布局见
+[`world-player-post-frame-00412719-0041287c.md`](world-player-post-frame-00412719-0041287c.md)。
+随后 `0x0041283C..0x0041287C` 的动作校验不受对齐门限制；更新失败只诊断，不终止
+整帧。
 
 ```text
-0041272E..0041277D  更新 tile/action 指针（delegated）
-00412788..0041279A  清零 camera/player 的 X/Y transition（已实现）
-004127A0..00412839  条件复制三个 0x7C 快照并更新动作 flags（delegated）
-0041283C..0041287C  无条件动作校验（delegated）
+0041272E..0041277D  重插空间链，清旧占用，移动格索引并标记新占用
+00412788..0041279A  清零 camera/player 的 X/Y transition
+004127A0..00412839  条件移动三个 0x7C 历史并更新地图格投影 flags
+0041283C..0041287C  不受对齐门限制的动作校验
 ```
 
-因此实现把帧后逻辑拆成三个 stage；不能用一个“post present”回调把 transition 清零的
-相对位置藏起来。
+实现把这段紧耦合状态变更放进一个真实 owner，但 owner 内部仍逐槽保留以上物理顺序；
+原先三个 delegated stage 已删除。
 
 ## 3. 共享状态与现代边界
 
@@ -70,8 +74,8 @@
   账本之后推进，供下一帧使用。
 - 原程序假定玩家索引和 64-word 选择表永远有效。OpenSWD3 只在现代 span 所有权无效时
   于首次访问前返回；有效输入的调用、修改与门控顺序不变。
-- 仍 delegated 的 stage 返回失败时停在对应原槽并报告失败，不把尚未恢复的行为伪装成
-  完整帧；HeadSgn 更新失败按原汇编只记录诊断并继续。
+- 仍 delegated 的角色/界面 stage 返回失败时停在对应原槽并报告失败，不把尚未恢复的
+  行为伪装成完整帧；HeadSgn 和帧后玩家动作更新失败都按原汇编只记录诊断并继续。
 
 ## 4. 验证边界
 
@@ -81,10 +85,11 @@
 - 玩家与相机位移后，选择滚动使用同一临时相机完成 `0x00412930`；
 - 固定 UI 和地图标记的实参；
 - company count `0/1` 跳过、marker state `2` 跳过；
-- 玩家对齐时清 transition、未对齐时保留 transition；
+- 玩家对齐时完成空间链、格占用、transition 和历史账本，未对齐时保留这些状态但仍
+  执行动作校验；
 - 无效玩家索引、缺失选择 Y word、outer stage 失败和 composition 失败的原槽停止。
 
-Linux LLVM `core` 148/148、Windows LLVM `app` 152/152 CTest 通过。SDL app 已用真实
+Linux LLVM `core` 150/150、Windows LLVM `app` 154/154 CTest 通过。SDL app 已用真实
 地图 session、ACT/TSW runtime、软件 framebuffer 和 audio/presentation ports 调用该
 coordinator；尚未恢复的角色/界面 stage 仍显式转交。需要原程序动态差分时，只准备
 Frida spawn 工具并等待用户执行，不由开发流程启动原版。

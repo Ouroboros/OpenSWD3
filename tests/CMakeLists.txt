@@ -1874,6 +1874,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_player_post_frame_tests
+    unit/world_map/legacy_world_player_post_frame_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_player_post_frame_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_player_post_frame_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_player_post_frame
+    COMMAND openswd3_world_map_legacy_world_player_post_frame_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_random_encounter_tests
     unit/world_map/legacy_random_encounter_test.cpp
 )
@@ -1941,6 +1959,24 @@ target_link_libraries(
 add_test(
     NAME world_map.legacy_world_role_transfer
     COMMAND openswd3_world_map_legacy_world_role_transfer_tests
+)
+
+add_executable(
+    openswd3_world_map_legacy_world_role_surface_occupancy_tests
+    unit/world_map/legacy_world_role_surface_occupancy_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_role_surface_occupancy_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_role_surface_occupancy_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_role_surface_occupancy
+    COMMAND openswd3_world_map_legacy_world_role_surface_occupancy_tests
 )
 
 add_executable(

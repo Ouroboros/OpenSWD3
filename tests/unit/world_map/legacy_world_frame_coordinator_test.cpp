@@ -26,6 +26,7 @@ using openswd3::rendering::LegacyRasterGeometryState;
 using openswd3::rendering::LegacyRleRowJitterState;
 using openswd3::world_map::kLegacySpatialNoRole;
 using openswd3::world_map::kLegacySpatialRowPadding;
+using openswd3::world_map::initialize_legacy_world_player_position_history;
 using openswd3::world_map::LegacyRoleSpatialIndex;
 using openswd3::world_map::LegacyWorldBackgroundPixelLayout;
 using openswd3::world_map::LegacyWorldBackgroundSource;
@@ -45,6 +46,7 @@ using openswd3::world_map::LegacyWorldRoleBlitRequest;
 using openswd3::world_map::LegacyWorldRoleFrame;
 using openswd3::world_map::LegacyWorldRoleRecord;
 using openswd3::world_map::LegacyWorldRoleRenderPorts;
+using openswd3::world_map::LegacyWorldRoleSurfaceContext;
 using openswd3::world_map::LegacyWorldSelectionScrollStatus;
 using openswd3::world_map::LegacyWorldSpatialAudioPorts;
 using openswd3::world_map::LegacyWorldSpatialAudioState;
@@ -210,10 +212,10 @@ struct Fixture {
   std::vector<u8> cell_flags = std::vector<u8>(
       static_cast<std::size_t>(map_width) * map_height * 4U, 0U);
   std::vector<u8> tile_bytes = std::vector<u8>(0x200U, 0x11U);
-  std::array<LegacyWorldRoleRecord, 1U> roles{};
+  std::array<LegacyWorldRoleRecord, 2U> roles{};
   LegacyRoleSpatialIndex spatial;
-  std::array<i16, 1U> distances{};
-  std::array<i16, 1U> vertical_offsets{};
+  std::array<i16, 2U> distances{};
+  std::array<i16, 2U> vertical_offsets{};
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster{framebuffer.geometry()};
   LegacyRleRowJitterState jitter;
@@ -226,21 +228,24 @@ struct Fixture {
   EmptyAudioPorts audio_ports;
 
   Fixture() {
-    roles[0].world_x = 120U;
-    roles[0].world_y = 196U;
+    roles[1].world_x = 124U;
+    roles[1].world_y = 196U;
+    roles[1].map_cell_pointer_32 = 13U * map_width + 7U;
+    roles[1].guid = 1U;
     spatial.map_height = map_height;
     const std::size_t spatial_rows =
         static_cast<std::size_t>(map_height) + 2U * kLegacySpatialRowPadding;
     for (auto &rows : spatial.row_heads) {
       rows.assign(spatial_rows, kLegacySpatialNoRole);
     }
+    spatial.row_heads[0][13U + kLegacySpatialRowPadding] = 1U;
     state.map_id = 24U;
-    state.player_role_index = 0U;
+    state.player_role_index = 1U;
     state.company_role_count = 2U;
     state.map_marker_state = 1U;
     state.movement = {
         .camera_x_transition = 1,
-        .player_x_transition = 1,
+        .player_x_transition = 0,
         .camera_y_transition = -1,
         .player_y_transition = 0,
         .movement_step = 4U,
@@ -259,10 +264,12 @@ struct Fixture {
         .tile_layer_offset = 0U,
     };
     state.frame_runtime.spatial_audio = LegacyWorldSpatialAudioState{
-        .controlled_role_index = 0U,
+        .controlled_role_index = 1U,
         .distance_by_role = distances,
         .vertical_offset_by_role = vertical_offsets,
     };
+    initialize_legacy_world_player_position_history(
+        state.player_post_frame, roles[1]);
   }
 
   [[nodiscard]] LegacyWorldBackgroundSource background() const noexcept {
@@ -279,7 +286,13 @@ struct Fixture {
   [[nodiscard]] LegacyWorldFrameCoordinatorResult
   run(const std::span<const i16> selection) noexcept {
     return run_legacy_world_frame(framebuffer, raster, background(), spatial,
-                                  roles, selection, camera, state, jitter,
+                                  roles,
+                                  LegacyWorldRoleSurfaceContext{
+                                      .map_width = map_width,
+                                      .selected_guid = roles[1].guid,
+                                      .surface_grid = cell_flags,
+                                  },
+                                  selection, camera, state, jitter,
                                   LegacyWorldFrameRuntimePorts{
                                       .remaining_stages = frame_ports,
                                       .flagged_roles = action_ports,
@@ -323,9 +336,6 @@ struct Fixture {
       outer_event(Outer::optional_map_marker_00413fe0),
       kAudioEvent,
       kPresentEvent,
-      outer_event(Outer::post_present_player_action_0041272e),
-      outer_event(Outer::post_present_player_snapshot_004127a0),
-      outer_event(Outer::post_present_player_validation_0041283c),
   };
 }
 
@@ -339,7 +349,7 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           result.frame.status == LegacyWorldFrameRuntimeStatus::completed &&
           result.selection_scroll ==
               LegacyWorldSelectionScrollStatus::completed &&
-          result.outer_stage_call_count == 8U &&
+          result.outer_stage_call_count == 5U &&
           result.audio_service_count == 2U && result.player_motion_applied &&
           result.presentation_requested && result.post_present_player_aligned &&
           result.movement_transitions_cleared &&
@@ -348,7 +358,7 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
   test.expect_equal(fixture.events, expected_normal_events(),
                     "outer, composition, audio and presentation order");
   test.expect_true(
-      fixture.roles[0].world_x == 128U && fixture.roles[0].world_y == 192U &&
+      fixture.roles[1].world_x == 128U && fixture.roles[1].world_y == 192U &&
           result.composition_camera_left == 17 &&
           result.composition_camera_top == 14 && fixture.camera.left == 14U &&
           fixture.camera.top == 16U && fixture.camera.right == 654U &&
@@ -363,6 +373,19 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           fixture.state.frame_runtime.frame.camera_left == 14 &&
           fixture.state.frame_runtime.frame.camera_top == 16,
       "post-present animation and viewport restoration persist final state");
+  test.expect_true(
+      result.player_post_frame.status ==
+              openswd3::world_map::LegacyWorldPlayerPostFrameStatus::
+                  completed &&
+          result.player_post_frame.spatially_relocated &&
+          result.player_post_frame.old_occupancy_cleared &&
+          result.player_post_frame.new_occupancy_marked &&
+          result.player_post_frame.history_shifted &&
+          result.player_post_frame.map_cell_delta == 0xFFFFFFD4U &&
+          fixture.roles[1].map_cell_pointer_32 == 548U &&
+          fixture.state.player_post_frame.world_x_history[0] == 128U &&
+          fixture.state.player_post_frame.world_y_history[0] == 192U,
+      "post-present player bookkeeping owns the moved cell and histories");
   test.expect_true(
       fixture.outer_ports.requests[3].stage ==
               LegacyWorldOuterFrameStage::fixed_ui_004308c0 &&
@@ -391,7 +414,7 @@ void test_marker_requires_exact_one(openswd3::test::Context &test) {
 
   test.expect_true(
       result.status == LegacyWorldFrameCoordinatorStatus::completed &&
-          result.outer_stage_call_count == 7U,
+          result.outer_stage_call_count == 4U,
       "noncanonical marker state two does not alias equality with one");
   test.expect_true(
       std::ranges::find(
@@ -410,7 +433,7 @@ void test_company_and_alignment_gates(openswd3::test::Context &test) {
     const auto result = fixture.run(selection);
     test.expect_true(
         result.status == LegacyWorldFrameCoordinatorStatus::completed &&
-            result.outer_stage_call_count == 7U &&
+            result.outer_stage_call_count == 4U &&
             std::ranges::find(fixture.events,
                               outer_event(LegacyWorldOuterFrameStage::
                                               company_role_actions_004124ef)) ==
@@ -420,35 +443,23 @@ void test_company_and_alignment_gates(openswd3::test::Context &test) {
 
   {
     Fixture fixture;
-    fixture.roles[0].world_x = 121U;
+    fixture.roles[1].world_x = 125U;
     const std::array<i16, 1U> selection{-12337};
     const auto result = fixture.run(selection);
     test.expect_true(
         result.status == LegacyWorldFrameCoordinatorStatus::completed &&
             !result.post_present_player_aligned &&
             !result.movement_transitions_cleared &&
-            result.outer_stage_call_count == 6U &&
+            result.outer_stage_call_count == 5U &&
             fixture.state.movement.camera_x_transition == 1 &&
-            fixture.state.movement.player_x_transition == 1 &&
+            fixture.state.movement.player_x_transition == 0 &&
             fixture.state.movement.camera_y_transition == -1,
         "unaligned player skips action, snapshots and transition clears");
-    test.expect_true(
-        std::ranges::find(
-            fixture.events,
-            outer_event(LegacyWorldOuterFrameStage::
-                            post_present_player_action_0041272e)) ==
-                fixture.events.end() &&
-            std::ranges::find(
-                fixture.events,
-                outer_event(LegacyWorldOuterFrameStage::
-                                post_present_player_snapshot_004127a0)) ==
-                fixture.events.end() &&
-            std::ranges::find(
-                fixture.events,
-                outer_event(LegacyWorldOuterFrameStage::
-                                post_present_player_validation_0041283c)) !=
-                fixture.events.end(),
-        "the unconditional 0041283C validation remains after alignment skip");
+    test.expect_true(!result.player_post_frame.spatially_relocated &&
+                         !result.player_post_frame.history_shifted &&
+                         !result.player_post_frame.action_validation_requested,
+                     "unaligned player skips aligned bookkeeping while the "
+                     "unconditional validation gate still executes");
   }
 }
 
@@ -456,7 +467,7 @@ void test_checked_failures_stop_at_the_original_slot(
     openswd3::test::Context &test) {
   {
     Fixture fixture;
-    fixture.state.player_role_index = 1U;
+    fixture.state.player_role_index = 2U;
     const std::array<i16, 1U> selection{-12337};
     const auto result = fixture.run(selection);
     test.expect_true(
@@ -479,7 +490,7 @@ void test_checked_failures_stop_at_the_original_slot(
                 LegacyWorldOuterFrameStage::map_role_actions_004121a1 &&
             result.outer_stage_call_count == 1U &&
             result.player_motion_applied && result.audio_service_count == 0U &&
-            !result.presentation_requested && fixture.roles[0].world_x == 128U,
+            !result.presentation_requested && fixture.roles[1].world_x == 128U,
         "outer stage failure preserves all earlier state and stops in place");
   }
 

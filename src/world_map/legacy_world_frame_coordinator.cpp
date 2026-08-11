@@ -26,22 +26,15 @@ void sync_frame_camera(LegacyWorldFrameCoordinatorState &state,
   state.frame_runtime.frame.camera_top = std::bit_cast<compat::i32>(camera.top);
 }
 
-void clear_movement_transitions(
-    LegacyWorldMovementRuntimeState &movement) noexcept {
-  movement.camera_x_transition = 0;
-  movement.player_x_transition = 0;
-  movement.camera_y_transition = 0;
-  movement.player_y_transition = 0;
-}
-
 } // namespace
 
 LegacyWorldFrameCoordinatorResult
 run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
                        rendering::LegacyRasterGeometryState &raster,
                        const LegacyWorldBackgroundSource &background_source,
-                       const LegacyRoleSpatialIndex &spatial_index,
+                       LegacyRoleSpatialIndex &spatial_index,
                        const std::span<LegacyWorldRoleRecord> roles,
+                       const LegacyWorldRoleSurfaceContext role_surface,
                        const std::span<const compat::i16> selection_words,
                        LegacyWorldCameraRect &camera,
                        LegacyWorldFrameCoordinatorState &state,
@@ -127,28 +120,15 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
   outer_ports.request_world_presentation();
   result.presentation_requested = true;
 
-  const LegacyWorldRoleRecord &player = roles[state.player_role_index];
-  result.post_present_player_aligned =
-      ((player.world_x | player.world_y) & 0x0FU) == 0U;
-  if (result.post_present_player_aligned) {
-    if (!execute_outer_stage(outer_ports, result,
-                             {LegacyWorldOuterFrameStage::
-                                  post_present_player_action_0041272e})) {
-      return result;
-    }
-
-    clear_movement_transitions(state.movement);
-    result.movement_transitions_cleared = true;
-
-    if (!execute_outer_stage(outer_ports, result,
-                             {LegacyWorldOuterFrameStage::
-                                  post_present_player_snapshot_004127a0})) {
-      return result;
-    }
-  }
-  if (!execute_outer_stage(outer_ports, result,
-                           {LegacyWorldOuterFrameStage::
-                                post_present_player_validation_0041283c})) {
+  result.player_post_frame = advance_legacy_world_player_post_frame(
+      roles[state.player_role_index], roles, spatial_index, state.movement,
+      state.player_post_frame, role_surface, frame_ports.flagged_roles);
+  result.post_present_player_aligned = result.player_post_frame.aligned;
+  result.movement_transitions_cleared =
+      result.player_post_frame.transitions_cleared;
+  if (result.player_post_frame.status !=
+      LegacyWorldPlayerPostFrameStatus::completed) {
+    result.status = LegacyWorldFrameCoordinatorStatus::player_post_frame_failed;
     return result;
   }
 

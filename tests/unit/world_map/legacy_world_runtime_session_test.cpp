@@ -734,6 +734,10 @@ void test_real_initial_world(
     };
     frame_state.selection_scroll.saved_left = result.session.camera.left;
     frame_state.selection_scroll.saved_top = result.session.camera.top;
+    openswd3::world_map::initialize_legacy_world_player_position_history(
+        frame_state.player_post_frame,
+        roles[result.session.selected_role_index]
+    );
 
     const auto first_frame = openswd3::world_map::run_legacy_world_frame(
         framebuffer,
@@ -741,6 +745,11 @@ void test_real_initial_world(
         result.session.render.background_source(),
         map_session.business.state.spatial_index,
         roles,
+        openswd3::world_map::LegacyWorldRoleSurfaceContext{
+            .map_width = map_session.header.width,
+            .selected_guid = roles[result.session.selected_role_index].guid,
+            .surface_grid = map_session.surface_grid.surface_grid,
+        },
         selection_words,
         result.session.camera,
         frame_state,
@@ -770,6 +779,19 @@ void test_real_initial_world(
             first_frame.head_sign_actions.update_count == 4U &&
             first_frame.head_sign_actions.update_failure_count == 0U,
         "the exact initial ACT owner advances all four HeadSgn variants"
+    );
+    test.expect_true(
+        first_frame.player_post_frame.status ==
+                openswd3::world_map::LegacyWorldPlayerPostFrameStatus::
+                    completed &&
+            first_frame.player_post_frame.aligned &&
+            first_frame.player_post_frame.spatially_relocated &&
+            first_frame.player_post_frame.old_occupancy_cleared &&
+            first_frame.player_post_frame.new_occupancy_marked &&
+            first_frame.player_post_frame.transitions_cleared &&
+            !first_frame.player_post_frame.history_shifted &&
+            first_frame.player_post_frame.map_cell_delta == 0U,
+        "the exact initial owner completes post-present player bookkeeping"
     );
     test.expect_equal(
         deferred_ports.presentations,

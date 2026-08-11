@@ -1533,6 +1533,11 @@ public:
             world.render.background_source(),
             map.business.state.spatial_index,
             roles,
+            openswd3::world_map::LegacyWorldRoleSurfaceContext{
+                .map_width = map.header.width,
+                .selected_guid = roles[world.selected_role_index].guid,
+                .surface_grid = map.surface_grid.surface_grid,
+            },
             world_selection_words_,
             world.camera,
             world_frame_state_,
@@ -1723,6 +1728,10 @@ public:
             .distance_by_role = world_audio_distances_,
             .vertical_offset_by_role = world_audio_vertical_offsets_,
         };
+        openswd3::world_map::initialize_legacy_world_player_position_history(
+            world_frame_state_.player_post_frame,
+            map.business.state.roles[world.selected_role_index]
+        );
         deferred_world_stage_notice_logged_ = false;
 
         std::string message{"initial world ready: logical_map="};

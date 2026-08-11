@@ -5,6 +5,7 @@
 #include "openswd3/world_map/legacy_world_frame_tail.hpp"
 #include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
 #include "openswd3/world_map/legacy_world_player_motion.hpp"
+#include "openswd3/world_map/legacy_world_player_post_frame.hpp"
 #include "openswd3/world_map/legacy_world_selection_scroll.hpp"
 
 #include <span>
@@ -17,9 +18,6 @@ enum class LegacyWorldOuterFrameStage : compat::u8 {
   precompose_00414570,
   fixed_ui_004308c0,
   optional_map_marker_00413fe0,
-  post_present_player_action_0041272e,
-  post_present_player_snapshot_004127a0,
-  post_present_player_validation_0041283c,
 };
 
 struct LegacyWorldOuterFrameStageRequest {
@@ -50,6 +48,7 @@ struct LegacyWorldFrameCoordinatorState {
   LegacyWorldTileLayerAnimationState tile_animation;
   LegacyWorldFrameRuntimeState frame_runtime;
   LegacyWorldHeadSignActionsState head_sign_actions;
+  LegacyWorldPlayerPostFrameState player_post_frame;
 };
 
 enum class LegacyWorldFrameCoordinatorStatus : compat::u8 {
@@ -58,6 +57,7 @@ enum class LegacyWorldFrameCoordinatorStatus : compat::u8 {
   invalid_selection_window,
   outer_stage_failed,
   composition_failed,
+  player_post_frame_failed,
 };
 
 struct LegacyWorldFrameCoordinatorResult {
@@ -67,6 +67,7 @@ struct LegacyWorldFrameCoordinatorResult {
       LegacyWorldSelectionScrollStatus::invalid_selection_window};
   LegacyWorldFrameRuntimeResult frame;
   LegacyWorldHeadSignActionsResult head_sign_actions;
+  LegacyWorldPlayerPostFrameResult player_post_frame;
   compat::u32 outer_stage_call_count{};
   compat::u32 audio_service_count{};
   compat::i32 composition_camera_left{};
@@ -90,8 +91,9 @@ struct LegacyWorldFrameCoordinatorResult {
 run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
                        rendering::LegacyRasterGeometryState &raster,
                        const LegacyWorldBackgroundSource &background_source,
-                       const LegacyRoleSpatialIndex &spatial_index,
+                       LegacyRoleSpatialIndex &spatial_index,
                        std::span<LegacyWorldRoleRecord> roles,
+                       LegacyWorldRoleSurfaceContext role_surface,
                        std::span<const compat::i16> selection_words,
                        LegacyWorldCameraRect &camera,
                        LegacyWorldFrameCoordinatorState &state,
