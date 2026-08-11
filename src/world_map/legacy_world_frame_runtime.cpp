@@ -1,18 +1,56 @@
 #include "openswd3/world_map/legacy_world_frame_runtime.hpp"
 
+#include <bit>
+
 namespace openswd3::world_map {
 namespace {
 
-class RuntimeStagePorts final : public LegacyWorldFramePorts {
+[[nodiscard]] bool
+accepted(const asset_runtime::LegacyAniDriftStatus status) noexcept {
+  return status == asset_runtime::LegacyAniDriftStatus::ready ||
+         status == asset_runtime::LegacyAniDriftStatus::disabled;
+}
+
+[[nodiscard]] bool
+accepted(const asset_runtime::LegacyAniDirectionalStatus status) noexcept {
+  return status == asset_runtime::LegacyAniDirectionalStatus::ready ||
+         status == asset_runtime::LegacyAniDirectionalStatus::disabled;
+}
+
+[[nodiscard]] bool
+accepted(const asset_runtime::LegacyAniRowCopyStatus status) noexcept {
+  return status == asset_runtime::LegacyAniRowCopyStatus::ready ||
+         status == asset_runtime::LegacyAniRowCopyStatus::disabled;
+}
+
+[[nodiscard]] bool
+accepted(const asset_runtime::LegacyAniFollowerStatus status) noexcept {
+  return status == asset_runtime::LegacyAniFollowerStatus::ready ||
+         status == asset_runtime::LegacyAniFollowerStatus::disabled;
+}
+
+class RuntimeStagePorts final
+    : public LegacyWorldFramePorts,
+      public asset_runtime::LegacyAniDriftServicePort,
+      public asset_runtime::LegacyAniStreakServicePort,
+      public asset_runtime::LegacyAniSparkServicePort,
+      public asset_runtime::LegacyAniDirectionalServicePort {
 public:
-  RuntimeStagePorts(const LegacyRoleSpatialIndex &spatial_index,
+  RuntimeStagePorts(rendering::LegacyFramebuffer &framebuffer,
+                    const LegacyWorldBackgroundSource &background_source,
+                    const LegacyRoleSpatialIndex &spatial_index,
                     const std::span<LegacyWorldRoleRecord> roles,
                     const LegacyWorldFrameRuntimeState &state,
                     rendering::LegacyRleRowJitterState &jitter,
                     LegacyWorldFrameRuntimePorts ports,
                     LegacyWorldFrameRuntimeResult &result) noexcept
-      : spatial_index_(spatial_index), roles_(roles), state_(state),
+      : framebuffer_(framebuffer), background_source_(background_source),
+        spatial_index_(spatial_index), roles_(roles), state_(state),
         jitter_(jitter), ports_(ports), result_(result) {}
+
+  [[nodiscard]] bool service_enabled(const compat::u32 service_id) override {
+    return ports_.remaining_stages.query_service(service_id);
+  }
 
   [[nodiscard]] bool
   query_service(const compat::u32 service_id) noexcept override {
@@ -36,6 +74,20 @@ public:
         return execute_picture_actions(true);
       case LegacyWorldFrameStage::moving_action_sprites_00414b60:
         return execute_moving_actions();
+      case LegacyWorldFrameStage::ani_drift_004161c0:
+        return execute_ani_drift(stage);
+      case LegacyWorldFrameStage::ani_streak_00416590:
+        return execute_ani_streak(stage);
+      case LegacyWorldFrameStage::ani_spark_004167b0:
+        return execute_ani_spark(stage);
+      case LegacyWorldFrameStage::ani_directional_00415b70:
+        return execute_ani_directional(stage);
+      case LegacyWorldFrameStage::ani_row_copy_004163c0:
+        return execute_ani_row_copy(stage);
+      case LegacyWorldFrameStage::framebuffer_deformation_00416cc0:
+        return execute_framebuffer_deformation(stage);
+      case LegacyWorldFrameStage::ani_follower_00416b30:
+        return execute_ani_follower(stage);
       case LegacyWorldFrameStage::secondary_picture_actions_004147e0:
         return execute_picture_actions(false);
       case LegacyWorldFrameStage::role_head_sprites_00414ce0:
@@ -136,6 +188,98 @@ private:
     return true;
   }
 
+  [[nodiscard]] bool execute_ani_drift(const LegacyWorldFrameStage stage) {
+    result_.ani_drift_executed = true;
+    result_.ani_drift = ports_.environment_effects.drift.update(
+        std::bit_cast<compat::i32>(background_source_.map_width),
+        std::bit_cast<compat::i32>(background_source_.map_height),
+        state_.frame.camera_left, state_.frame.camera_top, ports_.secondary_rng,
+        *this, ports_.ani_drift);
+    return accept_or_fail(accepted(result_.ani_drift.status), stage);
+  }
+
+  [[nodiscard]] bool execute_ani_streak(const LegacyWorldFrameStage stage) {
+    result_.ani_streak_executed = true;
+    result_.ani_streak = ports_.environment_effects.streak.update(
+        ports_.secondary_rng, framebuffer_, ports_.pixel_conversion, *this);
+    return accept_or_fail(result_.ani_streak.status ==
+                              asset_runtime::LegacyAniStreakStatus::ready,
+                          stage);
+  }
+
+  [[nodiscard]] bool execute_ani_spark(const LegacyWorldFrameStage stage) {
+    result_.ani_spark_executed = true;
+    result_.ani_spark = ports_.environment_effects.spark.update(
+        ports_.secondary_rng, framebuffer_, ports_.pixel_conversion, *this);
+    return accept_or_fail(result_.ani_spark.status ==
+                              asset_runtime::LegacyAniSparkStatus::ready,
+                          stage);
+  }
+
+  [[nodiscard]] bool
+  execute_ani_directional(const LegacyWorldFrameStage stage) {
+    result_.ani_directional_executed = true;
+    auto configuration = ports_.environment_effects.directional_configuration;
+    configuration.map_width_tiles =
+        std::bit_cast<compat::i32>(background_source_.map_width);
+    configuration.map_height_tiles =
+        std::bit_cast<compat::i32>(background_source_.map_height);
+    result_.ani_directional = ports_.environment_effects.directional.update(
+        configuration,
+        asset_runtime::LegacyAniDirectionalFrameInput{
+            .movement_scale = state_.directional_movement_scale,
+            .player_delta_x = state_.directional_player_delta_x,
+            .player_delta_y = state_.directional_player_delta_y,
+            .camera_x = state_.frame.camera_left,
+            .camera_y = state_.frame.camera_top,
+        },
+        ports_.secondary_rng, *this,
+        ports_.environment_effects.directional_action, ports_.ani_directional);
+    return accept_or_fail(accepted(result_.ani_directional.status), stage);
+  }
+
+  [[nodiscard]] bool execute_ani_row_copy(const LegacyWorldFrameStage stage) {
+    result_.ani_row_copy_executed = true;
+    auto pixels = framebuffer_.physical_pixels();
+    auto bytes = std::span<compat::u8>{
+        reinterpret_cast<compat::u8 *>(pixels.data()), pixels.size_bytes()};
+    result_.ani_row_copy = ports_.environment_effects.row_copy.update(
+        ports_.remaining_stages.query_service(
+            asset_runtime::kLegacyAniRowCopyServiceId),
+        bytes, ports_.secondary_rng);
+    return accept_or_fail(accepted(result_.ani_row_copy.status), stage);
+  }
+
+  [[nodiscard]] bool
+  execute_framebuffer_deformation(const LegacyWorldFrameStage stage) {
+    result_.framebuffer_deformation_executed = true;
+    result_.framebuffer_deformation =
+        ports_.environment_effects.deformation.update(
+            framebuffer_.physical_pixels());
+    return accept_or_fail(result_.framebuffer_deformation.status ==
+                              asset_runtime::LegacyDeformationStatus::ready,
+                          stage);
+  }
+
+  [[nodiscard]] bool execute_ani_follower(const LegacyWorldFrameStage stage) {
+    result_.ani_follower_executed = true;
+    result_.ani_follower = asset_runtime::update_draw_legacy_ani_follower(
+        ports_.remaining_stages.query_service(
+            asset_runtime::kLegacyAniFollowerServiceId),
+        ports_.environment_effects.follower,
+        ports_.environment_effects.follower_action, ports_.ani_follower);
+    return accept_or_fail(accepted(result_.ani_follower.status), stage);
+  }
+
+  [[nodiscard]] bool accept_or_fail(const bool accepted_result,
+                                    const LegacyWorldFrameStage stage) {
+    if (accepted_result) {
+      return true;
+    }
+    fail(LegacyWorldFrameRuntimeStatus::environment_effect_failed, stage);
+    return false;
+  }
+
   void fail(const LegacyWorldFrameRuntimeStatus status,
             const LegacyWorldFrameStage stage) noexcept {
     result_.status = status;
@@ -143,6 +287,8 @@ private:
     result_.failed_stage = stage;
   }
 
+  rendering::LegacyFramebuffer &framebuffer_;
+  const LegacyWorldBackgroundSource &background_source_;
   const LegacyRoleSpatialIndex &spatial_index_;
   std::span<LegacyWorldRoleRecord> roles_;
   const LegacyWorldFrameRuntimeState &state_;
@@ -152,6 +298,11 @@ private:
 };
 
 } // namespace
+
+LegacyWorldFrameEffectState::LegacyWorldFrameEffectState() noexcept {
+  asset_runtime::initialize_legacy_action_record(directional_action);
+  asset_runtime::initialize_legacy_action_record(follower_action);
+}
 
 LegacyWorldFrameRuntimeResult compose_legacy_world_runtime_frame(
     rendering::LegacyFramebuffer &framebuffer,
@@ -164,8 +315,10 @@ LegacyWorldFrameRuntimeResult compose_legacy_world_runtime_frame(
     const LegacyWorldFrameRuntimePorts ports) noexcept {
   LegacyWorldFrameRuntimeResult result;
   result.status = LegacyWorldFrameRuntimeStatus::completed;
-  RuntimeStagePorts runtime_ports{spatial_index, roles, state,
-                                  jitter,        ports, result};
+  RuntimeStagePorts runtime_ports{framebuffer,   background_source,
+                                  spatial_index, roles,
+                                  state,         jitter,
+                                  ports,         result};
   result.composition = compose_legacy_world_frame(
       framebuffer, raster, background_source, state.frame, runtime_ports);
   if (result.composition.status !=

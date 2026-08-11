@@ -30,6 +30,9 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_act_runtime.hpp"
 #include "openswd3/asset_runtime/legacy_asset_cache_limits.hpp"
+#include "openswd3/asset_runtime/legacy_ani_directional_effect.hpp"
+#include "openswd3/asset_runtime/legacy_ani_drift_effect.hpp"
+#include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/diagnostics/log.hpp"
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
@@ -1358,6 +1361,7 @@ public:
             world_action_initializer,
         openswd3::asset_runtime::LegacyActionUpdater& action_updater,
         openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime,
+        openswd3::input_time_rng::LegacySecondaryRng& secondary_rng,
         openswd3::app::ShutdownPorts& shutdown_ports,
         openswd3::app::ProcessExitPorts& exit_ports,
         bool& ok,
@@ -1385,6 +1389,7 @@ public:
           world_action_initializer_(world_action_initializer),
           action_updater_(action_updater),
           tsw_runtime_(tsw_runtime),
+          secondary_rng_(secondary_rng),
           world_raster_(game_framebuffer.geometry()),
           world_effects_{.pixel_conversion = pixel_conversion},
           shutdown_ports_(shutdown_ports),
@@ -1560,6 +1565,32 @@ public:
             world_effects_,
             deferred_ports,
         };
+        openswd3::asset_runtime::LegacyAniDriftRuntimePorts ani_drift_ports{
+            action_updater_,
+            tsw_runtime_,
+            game_framebuffer_,
+            world_raster_,
+            world_effects_,
+            world_jitter_,
+        };
+        openswd3::asset_runtime::LegacyAniDirectionalRuntimePorts
+            ani_directional_ports{
+                action_updater_,
+                tsw_runtime_,
+                game_framebuffer_,
+                world_raster_,
+                world_effects_,
+                world_jitter_,
+            };
+        openswd3::asset_runtime::LegacyAniFollowerRuntimePorts
+            ani_follower_ports{
+                action_updater_,
+                tsw_runtime_,
+                game_framebuffer_,
+                world_raster_,
+                world_effects_,
+                world_jitter_,
+            };
         const auto result = openswd3::world_map::run_legacy_world_frame(
             game_framebuffer_,
             world_raster_,
@@ -1582,6 +1613,12 @@ public:
                 .picture_actions = world_picture_actions_,
                 .moving_actions = world_moving_actions_,
                 .role_head_actions = world_role_head_actions_,
+                .environment_effects = world_frame_effects_,
+                .secondary_rng = secondary_rng_,
+                .pixel_conversion = pixel_conversion_,
+                .ani_drift = ani_drift_ports,
+                .ani_directional = ani_directional_ports,
+                .ani_follower = ani_follower_ports,
                 .flagged_roles = action_ports,
                 .world_roles = role_ports,
                 .spatial_audio = deferred_ports,
@@ -1918,6 +1955,7 @@ private:
         world_action_initializer_;
     openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
     openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime_;
+    openswd3::input_time_rng::LegacySecondaryRng& secondary_rng_;
     openswd3::rendering::LegacyRasterGeometryState world_raster_;
     openswd3::rendering::LegacyBlitEffectState world_effects_;
     openswd3::rendering::LegacyRleRowJitterState world_jitter_;
@@ -1929,6 +1967,7 @@ private:
     openswd3::world_map::LegacyPictureActionLists world_picture_actions_;
     openswd3::world_map::LegacyMovingActionList world_moving_actions_;
     openswd3::world_map::LegacyRoleHeadActionList world_role_head_actions_;
+    openswd3::world_map::LegacyWorldFrameEffectState world_frame_effects_;
     std::vector<openswd3::compat::i16> world_audio_distances_;
     std::vector<openswd3::compat::i16> world_audio_vertical_offsets_;
     std::array<openswd3::compat::i16, 1U> world_selection_words_{
@@ -2329,6 +2368,7 @@ int main(const int argument_count, char** arguments) {
         world_action_initializer,
         action_updater,
         tsw_runtime,
+        secondary_rng,
         shutdown_ports,
         exit_ports,
         ok,

@@ -375,5 +375,12 @@
     减为十三项；两条 `0xB4` 链共同进入真实 TSW 后的逻辑 framebuffer 哈希为
     `0x3EAF7C3143994E65`。Linux `core` 157/157、Windows LLVM `app` 161/161 CTest
     通过，Windows app 成功链接且未启动任何 EXE。
+    normal 世界帧中的七个连续环境效果 stage 随后一次性完成运行时接线：
+    `sub_4161C0` drift、`sub_416590` streak、`sub_4167B0` spark、`sub_415B70`
+    directional、`sub_4163C0` row-copy、`sub_416CC0` deformation 和 `sub_416B30`
+    follower 现在共用实际地图尺寸、相机、16 位 framebuffer、pixel conversion、
+    ACT/TSW 绘制端口及启动时播种的同一 secondary RNG。禁用门、streak/spark 的无条件
+    概率 RNG 消耗、形变空链和启用后的 drift/row-copy 路径均由 runtime UT 固定；generic
+    inner stage 从十三项降为六项，activity 分支另保留一项外部边界。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

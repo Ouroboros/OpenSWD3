@@ -1,7 +1,12 @@
 #include "test.hpp"
 
 #include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
+#include "openswd3/asset_runtime/legacy_ani_directional_effect.hpp"
+#include "openswd3/asset_runtime/legacy_ani_drift_effect.hpp"
+#include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
+#include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
+#include "openswd3/rendering/legacy_pixel_conversion.hpp"
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
 
 #include <algorithm>
@@ -144,7 +149,11 @@ private:
   std::vector<u32> &events_;
 };
 
-class EmptyActionPorts final : public LegacyActionDrawPorts {
+class EmptyActionPorts final
+    : public LegacyActionDrawPorts,
+      public openswd3::asset_runtime::LegacyAniDriftPorts,
+      public openswd3::asset_runtime::LegacyAniDirectionalPorts,
+      public openswd3::asset_runtime::LegacyAniFollowerPorts {
 public:
   explicit EmptyActionPorts(std::vector<u32> &events) noexcept
       : events_(events) {}
@@ -185,6 +194,21 @@ public:
                    const i32) noexcept override {
     return LegacyBlitExecutionStatus::completed;
   }
+
+  [[nodiscard]] LegacyBlitExecutionStatus
+  draw_frame_piece(const LegacyFramePiece &, const i32, const i32,
+                   const u32) noexcept override {
+    return LegacyBlitExecutionStatus::completed;
+  }
+
+  [[nodiscard]] LegacyBlitExecutionStatus
+  draw_frame_piece(const LegacyFramePiece &, const i32, const i32, const u32,
+                   const i32, const i32) noexcept override {
+    return LegacyBlitExecutionStatus::completed;
+  }
+
+  void set_clip_rectangle(const i32, const i32, const i32,
+                          const i32) noexcept override {}
 
   u32 failed_variant{0xFFFFFFFFU};
   u16 unavailable_frame_index{0xFFFFU};
@@ -258,6 +282,9 @@ struct Fixture {
   LegacyRasterGeometryState raster{framebuffer.geometry()};
   LegacyRleRowJitterState jitter;
   LegacyBlitEffectState effects;
+  openswd3::world_map::LegacyWorldFrameEffectState frame_effects;
+  openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
+  openswd3::rendering::LegacyPixelConversionState pixel_conversion;
   LegacyWorldCameraRect camera{10U, 20U, 650U, 500U};
   LegacyWorldFrameCoordinatorState state;
   RecordingFramePorts frame_ports{events};
@@ -345,6 +372,12 @@ struct Fixture {
                                       .picture_actions = picture_actions,
                                       .moving_actions = moving_actions,
                                       .role_head_actions = role_head_actions,
+                                      .environment_effects = frame_effects,
+                                      .secondary_rng = secondary_rng,
+                                      .pixel_conversion = pixel_conversion,
+                                      .ani_drift = action_ports,
+                                      .ani_directional = action_ports,
+                                      .ani_follower = action_ports,
                                       .flagged_roles = action_ports,
                                       .world_roles = role_ports,
                                       .spatial_audio = audio_ports,
@@ -366,13 +399,6 @@ struct Fixture {
       kHeadSignEventBase + 0U,
       kAudioEvent,
       frame_event(Inner::pre_background_records_004151f0),
-      frame_event(Inner::ani_drift_004161c0),
-      frame_event(Inner::ani_streak_00416590),
-      frame_event(Inner::ani_spark_004167b0),
-      frame_event(Inner::ani_directional_00415b70),
-      frame_event(Inner::ani_row_copy_004163c0),
-      frame_event(Inner::framebuffer_deformation_00416cc0),
-      frame_event(Inner::ani_follower_00416b30),
       frame_event(Inner::packed_row_effects_00414e50),
       frame_event(Inner::timed_ui_update_0042ed40),
       frame_event(Inner::world_indicator_004149b0),

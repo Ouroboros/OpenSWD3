@@ -3,8 +3,13 @@
 #include "openswd3/asset_runtime/legacy_act_runtime.hpp"
 #include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
+#include "openswd3/asset_runtime/legacy_ani_directional_effect.hpp"
+#include "openswd3/asset_runtime/legacy_ani_drift_effect.hpp"
+#include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
+#include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
+#include "openswd3/rendering/legacy_pixel_conversion.hpp"
 #include "openswd3/world_map/legacy_world_frame_runtime.hpp"
 
 #include <algorithm>
@@ -26,6 +31,9 @@ using openswd3::asset_runtime::LegacyActionRecord;
 using openswd3::asset_runtime::LegacyActionUpdater;
 using openswd3::asset_runtime::LegacyActionUpdateStatus;
 using openswd3::asset_runtime::LegacyActRuntime;
+using openswd3::asset_runtime::LegacyAniDirectionalPorts;
+using openswd3::asset_runtime::LegacyAniDriftPorts;
+using openswd3::asset_runtime::LegacyAniFollowerPorts;
 using openswd3::asset_runtime::LegacyTswRuntime;
 using openswd3::compat::i32;
 using openswd3::compat::u16;
@@ -36,22 +44,24 @@ using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramebuffer;
 using openswd3::rendering::LegacyFramePiece;
+using openswd3::rendering::LegacyPixelConversionState;
 using openswd3::rendering::LegacyRasterGeometryState;
 using openswd3::rendering::LegacyRleRowJitterState;
 using openswd3::world_map::compose_legacy_world_runtime_frame;
 using openswd3::world_map::kLegacySpatialNoRole;
 using openswd3::world_map::kLegacySpatialRowPadding;
 using openswd3::world_map::kLegacyWorldFlaggedRoleBit;
-using openswd3::world_map::LegacyRoleSpatialIndex;
-using openswd3::world_map::LegacyPictureActionNode;
-using openswd3::world_map::LegacyPictureActionLists;
 using openswd3::world_map::LegacyMovingActionList;
 using openswd3::world_map::LegacyMovingActionNode;
+using openswd3::world_map::LegacyPictureActionLists;
+using openswd3::world_map::LegacyPictureActionNode;
 using openswd3::world_map::LegacyRoleHeadActionList;
 using openswd3::world_map::LegacyRoleHeadActionNode;
+using openswd3::world_map::LegacyRoleSpatialIndex;
 using openswd3::world_map::LegacyWorldBackgroundPixelLayout;
 using openswd3::world_map::LegacyWorldBackgroundSource;
 using openswd3::world_map::LegacyWorldFrameCompositionStatus;
+using openswd3::world_map::LegacyWorldFrameEffectState;
 using openswd3::world_map::LegacyWorldFramePorts;
 using openswd3::world_map::LegacyWorldFrameRuntimePorts;
 using openswd3::world_map::LegacyWorldFrameRuntimeState;
@@ -239,6 +249,38 @@ public:
   void set_sample_pan(const u16, const i32) noexcept override {}
 };
 
+class RecordingAniPorts final : public LegacyAniDriftPorts,
+                                public LegacyAniDirectionalPorts,
+                                public LegacyAniFollowerPorts {
+public:
+  [[nodiscard]] LegacyActionUpdateStatus
+  update_action_record(LegacyActionRecord &) override {
+    return LegacyActionUpdateStatus::completed;
+  }
+
+  [[nodiscard]] bool load_frame_piece(const u16, const u16,
+                                      LegacyFramePiece &piece) override {
+    piece.width = 16U;
+    piece.height = 16U;
+    return true;
+  }
+
+  [[nodiscard]] LegacyBlitExecutionStatus
+  draw_frame_piece(const LegacyFramePiece &, const i32, const i32,
+                   const u32) noexcept override {
+    return LegacyBlitExecutionStatus::completed;
+  }
+
+  [[nodiscard]] LegacyBlitExecutionStatus
+  draw_frame_piece(const LegacyFramePiece &, const i32, const i32, const u32,
+                   const i32, const i32) noexcept override {
+    return LegacyBlitExecutionStatus::completed;
+  }
+
+  void set_clip_rectangle(const i32, const i32, const i32,
+                          const i32) noexcept override {}
+};
+
 [[nodiscard]] LegacyWorldFrameRuntimeState
 make_runtime_state(std::vector<openswd3::compat::i16> &distances,
                    std::vector<openswd3::compat::i16> &vertical_offsets) {
@@ -284,6 +326,9 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
   picture_actions.secondary.push_back(secondary_picture);
   LegacyMovingActionList moving_actions;
   LegacyRoleHeadActionList role_head_actions;
+  LegacyWorldFrameEffectState environment_effects;
+  openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
+  LegacyPixelConversionState pixel_conversion;
   LegacyMovingActionNode moving_action{};
   moving_action.action.field_4a = 9U;
   moving_action.action.field_4c = 10U;
@@ -305,6 +350,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
   RecordingFlaggedPorts flagged;
   RecordingRolePorts ordinary;
   RecordingAudioPorts audio;
+  RecordingAniPorts ani;
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
@@ -313,6 +359,12 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
           .role_head_actions = role_head_actions,
+          .environment_effects = environment_effects,
+          .secondary_rng = secondary_rng,
+          .pixel_conversion = pixel_conversion,
+          .ani_drift = ani,
+          .ani_directional = ani,
+          .ani_follower = ani,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -326,7 +378,11 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           result.primary_picture_actions_executed &&
           result.moving_actions_executed &&
           result.secondary_picture_actions_executed &&
-          result.role_head_actions_executed &&
+          result.role_head_actions_executed && result.ani_drift_executed &&
+          result.ani_streak_executed && result.ani_spark_executed &&
+          result.ani_directional_executed && result.ani_row_copy_executed &&
+          result.framebuffer_deformation_executed &&
+          result.ani_follower_executed &&
           result.flagged_roles.draw_count == 1U &&
           result.primary_picture_actions.draw_count == 1U &&
           result.moving_actions.draw_count == 1U &&
@@ -338,7 +394,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
       "0x00412930 executes recovered spatial and action stages at real slots");
   test.expect_true(
       result.composition.stage_call_count == 19U &&
-          result.delegated_stage_count == 13U && flagged.draws == 5U &&
+          result.delegated_stage_count == 6U && flagged.draws == 5U &&
           ordinary.draws == 2U &&
           ordinary.samples ==
               std::vector<std::tuple<u16, i32, i32>>{{7U, 10, 20}} &&
@@ -382,6 +438,9 @@ void test_spatial_failure_stops_at_original_stage(
   LegacyPictureActionLists picture_actions;
   LegacyMovingActionList moving_actions;
   LegacyRoleHeadActionList role_head_actions;
+  LegacyWorldFrameEffectState environment_effects;
+  openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
+  LegacyPixelConversionState pixel_conversion;
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
@@ -389,6 +448,7 @@ void test_spatial_failure_stops_at_original_stage(
   RecordingFlaggedPorts flagged;
   RecordingRolePorts ordinary;
   RecordingAudioPorts audio;
+  RecordingAniPorts ani;
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
@@ -397,6 +457,12 @@ void test_spatial_failure_stops_at_original_stage(
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
           .role_head_actions = role_head_actions,
+          .environment_effects = environment_effects,
+          .secondary_rng = secondary_rng,
+          .pixel_conversion = pixel_conversion,
+          .ani_drift = ani,
+          .ani_directional = ani,
+          .ani_follower = ani,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -431,6 +497,9 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
   LegacyPictureActionLists picture_actions;
   LegacyMovingActionList moving_actions;
   LegacyRoleHeadActionList role_head_actions;
+  LegacyWorldFrameEffectState environment_effects;
+  openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
+  LegacyPixelConversionState pixel_conversion;
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
@@ -439,6 +508,7 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
   RecordingFlaggedPorts flagged;
   RecordingRolePorts ordinary;
   RecordingAudioPorts audio;
+  RecordingAniPorts ani;
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
@@ -447,6 +517,12 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
           .role_head_actions = role_head_actions,
+          .environment_effects = environment_effects,
+          .secondary_rng = secondary_rng,
+          .pixel_conversion = pixel_conversion,
+          .ani_drift = ani,
+          .ani_directional = ani,
+          .ani_follower = ani,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -459,6 +535,66 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
               LegacyWorldFrameStage::pre_background_records_004151f0 &&
           !result.flagged_stage_executed && !result.world_roles_stage_executed,
       "an incomplete external stage has an explicit non-success boundary");
+}
+
+void test_environment_effects_use_live_frame_dependencies(
+    openswd3::test::Context &test) {
+  BackgroundFixture background;
+  LegacyRoleSpatialIndex spatial = make_spatial_index(background.height);
+  std::array<LegacyWorldRoleRecord, 1U> roles{};
+  std::vector<openswd3::compat::i16> distances(roles.size());
+  std::vector<openswd3::compat::i16> vertical_offsets(roles.size());
+  const LegacyWorldFrameRuntimeState state =
+      make_runtime_state(distances, vertical_offsets);
+  LegacyPictureActionLists picture_actions;
+  LegacyMovingActionList moving_actions;
+  LegacyRoleHeadActionList role_head_actions;
+  LegacyWorldFrameEffectState environment_effects;
+  openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
+  secondary_rng.seed(39U);
+  LegacyPixelConversionState pixel_conversion;
+  LegacyFramebuffer framebuffer;
+  LegacyRasterGeometryState raster = framebuffer.geometry();
+  LegacyRleRowJitterState jitter;
+  RemainingPorts remaining;
+  remaining.services[openswd3::asset_runtime::kLegacyAniDriftServiceId] = true;
+  remaining.services[openswd3::asset_runtime::kLegacyAniRowCopyServiceId] =
+      true;
+  RecordingFlaggedPorts flagged;
+  RecordingRolePorts ordinary;
+  RecordingAudioPorts audio;
+  RecordingAniPorts ani;
+
+  const auto result = compose_legacy_world_runtime_frame(
+      framebuffer, raster, background.source(), spatial, roles, state, jitter,
+      LegacyWorldFrameRuntimePorts{
+          .remaining_stages = remaining,
+          .picture_actions = picture_actions,
+          .moving_actions = moving_actions,
+          .role_head_actions = role_head_actions,
+          .environment_effects = environment_effects,
+          .secondary_rng = secondary_rng,
+          .pixel_conversion = pixel_conversion,
+          .ani_drift = ani,
+          .ani_directional = ani,
+          .ani_follower = ani,
+          .flagged_roles = flagged,
+          .world_roles = ordinary,
+          .spatial_audio = audio,
+      });
+
+  test.expect_true(
+      result.status == LegacyWorldFrameRuntimeStatus::completed &&
+          result.ani_drift.status ==
+              openswd3::asset_runtime::LegacyAniDriftStatus::ready &&
+          result.ani_drift.respawn_count == 4U &&
+          result.ani_drift.draw_count == 4U &&
+          result.ani_row_copy.status ==
+              openswd3::asset_runtime::LegacyAniRowCopyStatus::ready &&
+          result.ani_row_copy.refresh ==
+              openswd3::asset_runtime::LegacyAniRowCopyRefresh::initialized &&
+          result.ani_row_copy.copied_rows != 0U && secondary_rng.index() != 0U,
+      "wired ANI stages consume the live map, framebuffer and RNG stream");
 }
 
 class RealExternalPorts final : public LegacyWorldFramePorts,
@@ -508,6 +644,10 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
   LegacyPictureActionLists picture_actions;
   LegacyMovingActionList moving_actions;
   LegacyRoleHeadActionList role_head_actions;
+  LegacyWorldFrameEffectState environment_effects;
+  openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
+  secondary_rng.seed(39U);
+  LegacyPixelConversionState pixel_conversion;
   LegacyMovingActionNode moving_action{};
   moving_action.action.field_4a = 1U;
   moving_action.action.field_4c = 0U;
@@ -525,7 +665,7 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster = framebuffer.geometry();
   LegacyRleRowJitterState jitter;
-  const LegacyBlitEffectState effects;
+  LegacyBlitEffectState effects;
   LegacyActRuntime act_runtime{data_root};
   LegacyActActionStreamProvider stream_provider{act_runtime};
   LegacyActionUpdater action_updater{stream_provider};
@@ -537,6 +677,12 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
   LegacyWorldRoleRenderRuntimePorts ordinary_ports{tsw_runtime, framebuffer,
                                                    raster, effects, external};
   RecordingAudioPorts audio;
+  openswd3::asset_runtime::LegacyAniDriftRuntimePorts drift_ports{
+      action_updater, tsw_runtime, framebuffer, raster, effects, jitter};
+  openswd3::asset_runtime::LegacyAniDirectionalRuntimePorts directional_ports{
+      action_updater, tsw_runtime, framebuffer, raster, effects, jitter};
+  openswd3::asset_runtime::LegacyAniFollowerRuntimePorts follower_ports{
+      action_updater, tsw_runtime, framebuffer, raster, effects, jitter};
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
@@ -545,6 +691,12 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
           .role_head_actions = role_head_actions,
+          .environment_effects = environment_effects,
+          .secondary_rng = secondary_rng,
+          .pixel_conversion = pixel_conversion,
+          .ani_drift = drift_ports,
+          .ani_directional = directional_ports,
+          .ani_follower = follower_ports,
           .flagged_roles = flagged_ports,
           .world_roles = ordinary_ports,
           .spatial_audio = audio,
@@ -571,6 +723,7 @@ int main(const int argument_count, char **arguments) {
   test_spatial_stages_execute_in_frame_order(test);
   test_spatial_failure_stops_at_original_stage(test);
   test_delegated_failure_is_visible(test);
+  test_environment_effects_use_live_frame_dependencies(test);
   if (argument_count == 2 && arguments != nullptr && arguments[1] != nullptr) {
     test_real_tsw_combined_frame(test, std::filesystem::path{arguments[1]});
   }

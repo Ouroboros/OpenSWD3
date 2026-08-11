@@ -65,9 +65,12 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    moving action 随后以完整 `0xB4` 节点接入下一原槽；真实 TSW 三条绘制路径的整帧
    哈希为 `0x990CD049E2EE092A`。`0x00414CE0` role-head action 继续以独立 `0xB4`
    节点接入会合后的原帧槽，固定 current/motion/target/y、趋近与三倍加速飞出两条路径；
-   两条动作链共同进入真实 TSW 后的整帧哈希为 `0x3EAF7C3143994E65`。其余十三个 stage
-   仍明确转交，失败不会伪报整帧完成。Linux `core` 157/157、Windows LLVM `app`
-   161/161 CTest 通过。
+   两条动作链共同进入真实 TSW 后的整帧哈希为 `0x3EAF7C3143994E65`。紧随 moving
+   action 的七个环境阶段也已接入原槽：drift、streak、spark、directional、row-copy、
+   framebuffer deformation 和 follower 共用实际地图尺寸、相机、framebuffer、
+   pixel conversion、ACT/TSW 端口与同一 secondary RNG。normal 路径的显式转交由十三项
+   降为六项；activity 分支另保留一项外部边界。失败不会伪报整帧完成。Linux `core`
+   157/157、Windows LLVM `app` 161/161 CTest 通过。
    `0x0041287F..0x00412923` 的地图 tile 层折返动画、单帧计数器不清零、零帧异常、
    32 位回绕，以及选择序列结束后的条件视口恢复也已闭环。其前置 `0x004148F0` 选择
    序列状态机也已恢复：保留入口门、游标回零、到期帧顺序、有符号增量和 countdown

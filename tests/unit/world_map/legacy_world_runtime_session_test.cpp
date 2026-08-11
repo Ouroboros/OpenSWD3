@@ -677,7 +677,7 @@ void test_real_initial_world(
     openswd3::rendering::LegacyRasterGeometryState raster =
         framebuffer.geometry();
     openswd3::rendering::LegacyRleRowJitterState jitter;
-    const openswd3::rendering::LegacyBlitEffectState effects{
+    openswd3::rendering::LegacyBlitEffectState effects{
         .pixel_conversion = rgb565_conversion(),
     };
     openswd3::world_map::LegacyWorldSpecialFrameLoader special_frame_loader{
@@ -750,6 +750,35 @@ void test_real_initial_world(
     openswd3::world_map::LegacyPictureActionLists picture_actions;
     openswd3::world_map::LegacyMovingActionList moving_actions;
     openswd3::world_map::LegacyRoleHeadActionList role_head_actions;
+    openswd3::world_map::LegacyWorldFrameEffectState environment_effects;
+    openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
+    secondary_rng.seed(39U);
+    const auto pixel_conversion = rgb565_conversion();
+    openswd3::asset_runtime::LegacyAniDriftRuntimePorts ani_drift_ports{
+        updater,
+        tsw_runtime,
+        framebuffer,
+        raster,
+        effects,
+        jitter,
+    };
+    openswd3::asset_runtime::LegacyAniDirectionalRuntimePorts
+        ani_directional_ports{
+            updater,
+            tsw_runtime,
+            framebuffer,
+            raster,
+            effects,
+            jitter,
+        };
+    openswd3::asset_runtime::LegacyAniFollowerRuntimePorts ani_follower_ports{
+        updater,
+        tsw_runtime,
+        framebuffer,
+        raster,
+        effects,
+        jitter,
+    };
 
     const auto first_frame = openswd3::world_map::run_legacy_world_frame(
         framebuffer,
@@ -773,6 +802,12 @@ void test_real_initial_world(
             .picture_actions = picture_actions,
             .moving_actions = moving_actions,
             .role_head_actions = role_head_actions,
+            .environment_effects = environment_effects,
+            .secondary_rng = secondary_rng,
+            .pixel_conversion = pixel_conversion,
+            .ani_drift = ani_drift_ports,
+            .ani_directional = ani_directional_ports,
+            .ani_follower = ani_follower_ports,
             .flagged_roles = action_ports,
             .world_roles = role_ports,
             .spatial_audio = deferred_ports,
