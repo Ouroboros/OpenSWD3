@@ -1,10 +1,7 @@
 #include "openswd3/rendering/legacy_action_renderers.hpp"
 
 #include <bit>
-#include <cmath>
 #include <cstddef>
-#include <cstdint>
-#include <limits>
 
 namespace openswd3::rendering {
 namespace {
@@ -50,24 +47,6 @@ using compat::u32;
     return std::bit_cast<i16>(static_cast<u16>(
         static_cast<u32>(std::bit_cast<u16>(value)) * multiplier
     ));
-}
-
-[[nodiscard]] i32 truncate_x87_float_to_low_i32(const float value) noexcept {
-    if (!std::isfinite(value)) {
-        return 0;
-    }
-    const double truncated = std::trunc(static_cast<double>(value));
-    constexpr double kMinimum = static_cast<double>(
-        std::numeric_limits<std::int64_t>::min()
-    );
-    constexpr double kMaximum = static_cast<double>(
-        std::numeric_limits<std::int64_t>::max()
-    );
-    if (truncated < kMinimum || truncated >= kMaximum) {
-        return 0;
-    }
-    const auto integer = static_cast<std::int64_t>(truncated);
-    return std::bit_cast<i32>(static_cast<u32>(integer));
 }
 
 [[nodiscard]] constexpr LegacyBlitClipRectangle current_clip(
@@ -218,75 +197,6 @@ LegacyFramebufferPackedRowDrawPorts::draw_legacy_packed_row(
         length,
         format_
     );
-}
-
-LegacyActionRenderResult update_draw_legacy_moving_action_sprites(
-    std::list<LegacyActionSpriteRecord>& records,
-    const i32 camera_x,
-    const i32 camera_y,
-    LegacyActionSpritePorts& action_ports,
-    LegacyFramePieceProvider& frame_provider,
-    LegacyFramebuffer& framebuffer,
-    const LegacyRasterGeometryState& raster,
-    const LegacyBlitEffectState& effects,
-    LegacyRleRowJitterState& jitter
-) noexcept {
-    LegacyActionRenderResult result;
-    for (auto current = records.begin(); current != records.end();) {
-        ++result.visited_count;
-        const i32 screen_x = wrapping_subtract(
-            truncate_x87_float_to_low_i32(current->position_x),
-            camera_x
-        );
-        const i32 screen_y = wrapping_subtract(
-            truncate_x87_float_to_low_i32(current->position_y),
-            camera_y
-        );
-
-        if (!action_ports.update_action_frame(*current)) {
-            ++result.action_update_failure_count;
-        }
-
-        if (screen_x > -72 && screen_x < 712 &&
-            screen_y > -72 && screen_y < 552) {
-            draw_action_piece(
-                *current,
-                wrapping_subtract(screen_x, current->draw_offset_x),
-                wrapping_subtract(screen_y, current->draw_offset_y),
-                false,
-                frame_provider,
-                framebuffer,
-                raster,
-                effects,
-                jitter,
-                result
-            );
-        }
-
-        if (current->movement_hold != 0U) {
-            ++current;
-            continue;
-        }
-
-        current->position_x = current->position_x + current->velocity_x;
-        current->position_y = current->position_y + current->velocity_y;
-        const i32 position_x = truncate_x87_float_to_low_i32(
-            current->position_x
-        );
-        const i32 position_y = truncate_x87_float_to_low_i32(
-            current->position_y
-        );
-        const i32 target_x = static_cast<i32>(current->target_x);
-        const i32 target_y = static_cast<i32>(current->integer_y);
-        if (position_x > target_x - 32 && position_x < target_x + 32 &&
-            position_y > target_y - 32 && position_y < target_y + 32) {
-            current = records.erase(current);
-            ++result.removed_count;
-        } else {
-            ++current;
-        }
-    }
-    return result;
 }
 
 LegacyActionRenderResult update_draw_legacy_role_head_sprites(

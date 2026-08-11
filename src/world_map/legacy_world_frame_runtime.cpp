@@ -34,6 +34,8 @@ public:
         return execute_world_roles(stage);
       case LegacyWorldFrameStage::primary_picture_actions_004147e0:
         return execute_picture_actions(true);
+      case LegacyWorldFrameStage::moving_action_sprites_00414b60:
+        return execute_moving_actions();
       case LegacyWorldFrameStage::secondary_picture_actions_004147e0:
         return execute_picture_actions(false);
       default:
@@ -114,6 +116,14 @@ private:
     picture_result = update_draw_legacy_picture_actions(
         nodes, state_.frame.camera_left, state_.frame.camera_top,
         ports_.flagged_roles, ports_.world_roles);
+    return true;
+  }
+
+  [[nodiscard]] bool execute_moving_actions() {
+    result_.moving_actions_executed = true;
+    result_.moving_actions = update_draw_legacy_moving_actions(
+        ports_.moving_actions, state_.frame.camera_left,
+        state_.frame.camera_top, ports_.flagged_roles);
     return true;
   }
 

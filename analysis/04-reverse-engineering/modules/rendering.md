@@ -8,7 +8,8 @@
 
 B4 负责稳定的 `640×480` 16 位软件 framebuffer、实际 pitch 行寻址、RGB mask 与像素转换、RLE/原始图像 blitter、文字 mask/cache/writer、画面效果，以及在原分支位置产生最终呈现请求。
 
-当前机器目录中 `module_candidate = rendering` 的 151 项函数是本模块的函数范围。完整逐项地址保留在 [`module-function-ownership.tsv`](../inventory/module-function-ownership.tsv)，接口级分组为：
+当前机器目录中 `module_candidate = rendering` 的 152 项函数是本模块的函数范围；其中
+`0x004350E0` 由 B6 归属复核转入。完整逐项地址保留在 [`module-function-ownership.tsv`](../inventory/module-function-ownership.tsv)，接口级分组为：
 
 - framebuffer、行偏移和通用绘制入口：`0x004014F0..0x00417050` 中目录明确归属 B4 的函数。
 - 软件 blitter 分派、裁剪和全部已赋值像素循环：`0x00416D90..0x00423020`。
@@ -92,7 +93,7 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 
 ## 6. 当前执行顺序
 
-1. `[x]` B4.1：建立 151 项函数范围、六个接口族、核心状态所有权、生命周期、依赖和自动化验证入口。
+1. `[x]` B4.1：建立函数范围、六个接口族、核心状态所有权、生命周期、依赖和自动化验证入口；B6 复核后最终范围为 152 项。
 2. `[x]` B4.2：实现 `0x004238B0..0x004239C1` 正反转换与 `0x00423400` 的转换选择子状态；四条公式穷举 262,144 个输入组合，当前 CM 缓存 4,420,608 字节验证通过。
 3. `[x]` B4.3：实现 owned framebuffer、显式 pitch、1024 项旧行表与固定画布常量；Linux `core` 41/41、Linux/Windows `app` 43/43 CTest 通过。
 4. `[x]` B4.4：43 个稀疏槽、普通裁剪、四条 raw/RLE copy、异常边界与真实 TSW 固定帧已闭环；Linux `core` 42/42、Linux/Windows `app` 44/44 CTest 通过。
@@ -100,6 +101,6 @@ framebuffer 和 DirectDraw RECT 捕获仍是各自的 `blocked_runtime_oracle`�
 6. `[x]` B4.6：唯一动态基准、受控 GDI 生成器、32,896-key 正式 atlas、跨平台 Provider、EXE 旁资源部署和运行时校验已闭环；独立验证为 `157/157` 零差异，Linux `core` 47/47、Windows `app` 49/49 CTest 通过。
 7. `[x]` B4.7：`sub_43B110` 六模式矩形效果、`sub_42E850` 九宫格绘制和 `sub_43BAB0` 效果面板组合已按完整 LST 实现并逐基本块复核；21 个 primary 提交点已形成完整请求合同，SDL smoke 的错误统一帧尾 present 已改为六条稳定分支内请求。`sub_4303D0` BMP 写入器、`sub_4306C0` 格式化原始字节文字及 `sub_4308C0/sub_430B60` 30 Hz 倒计时绘制与初始化均已闭环。Linux `core` 54/54、Windows LLVM `app` 56/56 CTest 通过。
 8. `[x]` B4.8：SDL3 上传已直接使用 owned framebuffer 的稳定地址和实际 pitch，logical hash 已固定为跨平台小端 FNV-1a；恢复路径可重建纹理并重新上传现有 primary，失败会停止外壳，现代可缩放窗口恢复时保留用户尺寸。独立 primary surface 与 full/partial RECT 合成已接通，矩形外保留旧 primary 状态，快照/临时 source 缺失时显式失败。Linux `core` 54/54、Linux/Windows LLVM `app` 56/56 CTest 通过；Windows OpenSWD3 在 `1000×750` 下完成最小化、恢复、尺寸保持和零退出 smoke。
-9. `[x]` B4 范围闭环审计：151 项矩阵现为 95 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项移交；没有 B4 自有的实现或接线缺口。`0x0040F340/0x00435160/0x004351F0` 三项生命周期已建立独立 20/16/12 cache/state/framebuffer/provider 绑定，锁定 24/18/16 advance，并接入启动、显示停用/恢复和总退出。Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过；原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，模块状态为 `module_closed_pending_oracle`。
+9. `[x]` B4 范围闭环审计：B6 归属复核转入 `0x004350E0` 后，152 项矩阵现为 95 项实现、16 项内部物理分支、36 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项移交；没有 B4 自有的实现或接线缺口。`0x0040F340/0x00435160/0x004351F0` 三项生命周期已建立独立 20/16/12 cache/state/framebuffer/provider 绑定，锁定 24/18/16 advance，并接入启动、显示停用/恢复和总退出。Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过；原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，模块状态为 `module_closed_pending_oracle`。
 
 每项达到自己的汇编、UT 和资产门后立即进入下一项，不等待 B4 全部细节重新调研。

@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v140
+版本：v143
 
 最后更新：2026-08-11
 
@@ -214,7 +214,7 @@
 7. `[x]` B2：历史 63 项范围已完成有限收口审计；修正 5 项模块归属并补齐 6 个真实缺口后，当前 58 项为 57 项实现与 1 项不可达。Windows LLVM `core`/`app`、34/34 CTest 和全套真实资产回归通过；状态为 `module_closed_pending_oracle`。
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
-10. `[x]` B4：151 项有限收口矩阵现为 95 项实现、16 项内部物理分支、35 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项归属修正；没有 B4 自有缺口。20/16/12 字体 renderer 已接入启动、显示停用/恢复和总退出，Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过。原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，状态为 `module_closed_pending_oracle`。
+10. `[x]` B4：B6 归属复核转入 `0x004350E0` 后，152 项有限收口矩阵现为 95 项实现、16 项内部物理分支、36 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项归属修正；没有 B4 自有缺口。20/16/12 字体 renderer 已接入启动、显示停用/恢复和总退出，Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过。原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，状态为 `module_closed_pending_oracle`。
 11. `[~]` B5：73 个自有地址已经有限收口，逐地址表与总所有权表零差异；43 项核心实现、2 项资产验证实现、3 项平台替代、1 项外部 service 端口、23 项核心状态机已实现但媒体后端延期、1 项剧情调用边界拆分，没有未映射项。Linux `core` 76/76、Linux/Windows `app` 80/80 CTest 通过。按用户决定，压缩音频与 Bink 解码最终统一放入项目自有 `libffmpeg` 动态库；原版动态差分仍为 `blocked_runtime_oracle`。B5 当前不占执行位，最终后端完成后再升级为正式 `module_closed_pending_oracle` 或 `module_closed`。
 12. `[x]` B6：78 个候选函数、TSW/ACT/ANI 运行时、公共动作记录、缓存状态、SND
     借用边界、生命周期和验证入口已形成唯一工作包，单模块开始条件满足；首个缓存容量
@@ -281,7 +281,7 @@
     `0xA6C3E08156F06060`、`0xA4766C928B05DC88`，Linux `core` 128/128、Windows LLVM
     `app` 132/132 CTest 通过。两条空间 stage 现已在 `0x00412930` 的实际 runtime
     原槽接线，共用角色数组、clip、framebuffer 与 jitter；真实 TSW 双路径叠加底图的
-    整帧哈希为 `0xA6144A91E57939F9`。其余十五个 stage 保持显式转交，任何受检失败
+    整帧哈希为 `0xA6144A91E57939F9`。其余十七个 stage 保持显式转交，任何受检失败
     都在原 stage 停止而不伪报完成。Linux `core` 130/130、Windows LLVM `app`
     134/134 CTest 通过。`0x0041287F..0x00412923` 的地图 tile 层折返动画、单帧
     counter 保留、零帧异常、32 位回绕和选择序列视口恢复已按汇编实现；Linux `core`
@@ -360,5 +360,11 @@
     `story_scene` 端口借出而非转成 world-map 全局状态；generic inner stage 从十七项
     减为十五项。Linux `core` 155/155、Windows LLVM `app` 159/159 CTest 通过，
     Windows app 成功链接且未启动任何 EXE。
+    `sub_414B60` 世界移动动作链进一步完成精确布局与原帧槽闭环：早期语义子集已替换为
+    完整 `0xB4` 节点，固定 `0x98` 动作记录、四个 i16 坐标、四个 float 运动字段和
+    `+0xB0` 旧 next 槽；动作更新失败继续、严格可见边界、hold 门、移动前绘制、移动后
+    严格目标窗口删除均按 LST 保留。真实 TSW 路径已进入同一世界帧，generic inner stage
+    从十五项减为十四项。Linux `core` 156/156、Windows LLVM `app` 160/160 CTest
+    通过，Windows app 成功链接且未启动任何 EXE。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

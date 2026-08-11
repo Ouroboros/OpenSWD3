@@ -50,20 +50,6 @@ struct LegacyActionRenderResult {
     };
 };
 
-// sub_414B60.
-[[nodiscard]] LegacyActionRenderResult
-update_draw_legacy_moving_action_sprites(
-    std::list<LegacyActionSpriteRecord>& records,
-    compat::i32 camera_x,
-    compat::i32 camera_y,
-    LegacyActionSpritePorts& action_ports,
-    LegacyFramePieceProvider& frame_provider,
-    LegacyFramebuffer& framebuffer,
-    const LegacyRasterGeometryState& raster,
-    const LegacyBlitEffectState& effects,
-    LegacyRleRowJitterState& jitter
-) noexcept;
-
 // sub_414CE0.
 [[nodiscard]] LegacyActionRenderResult
 update_draw_legacy_role_head_sprites(

@@ -1,8 +1,9 @@
 # B4 `rendering` 有限收口审计
 
-状态：`module_closed_pending_oracle`；151 项全集已完成逐地址处置并移交
+状态：`module_closed_pending_oracle`；152 项全集已完成逐地址处置并移交
 
-审计对象是机器目录中 `module_candidate = rendering` 的 151 个地址。逐项结果见
+审计对象是机器目录中 `module_candidate = rendering` 的 152 个地址。B6 归属复核后，
+共享 framebuffer/font/rendering 构造器 `0x004350E0` 从 asset runtime 转入本范围。逐项结果见
 [`rendering-closure.tsv`](../inventory/rendering-closure.tsv)，生成器为
 [`build_rendering_closure_inventory.py`](../../tools/build_rendering_closure_inventory.py)。
 生成器锁定完整 LST 与模块所有权目录的哈希，任何地址未分类都会失败。本审计只核对
@@ -11,7 +12,7 @@
 ## 1. 当前结果
 
 - 95 项已有独立实现映射，16 项是已实现函数内部由跳转表选择的物理 PROC 分支；
-- 35 项旧 DirectDraw/GDI/Lock 生命周期由 owned framebuffer、glyph atlas 和 SDL3
+- 36 项旧 DirectDraw/GDI/Lock 生命周期由 owned framebuffer、glyph atlas 和 SDL3
   平台边界替代；
 - 2 项 RLE coverage 路径具有当前资产不可达证据，强制异常状态只保留显式边界；
 - 2 项已有 B4 公共合同但等待 B10 提供 owned battle surface；

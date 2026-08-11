@@ -27,7 +27,7 @@ OUTPUT_PATH = (
 
 EXPECTED_SHA256 = {
     LST_PATH: "701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b",
-    OWNERSHIP_PATH: "5f2e36492fd811d41b8b8e613181365fba1d9be6140da3a47926adf506ee1681",
+    OWNERSHIP_PATH: "a17f41539cc2d740d0eb71561ca19624d10244d8220b7e0dbdc8a603b9b49101",
 }
 
 
@@ -226,6 +226,15 @@ def sha256(path: Path) -> str:
 
 
 def policy_for(address: int) -> Policy:
+    if address == 0x004350E0:
+        return Policy(
+            "platform_adapted",
+            "rendering;platform_sdl3",
+            "LegacyFramebuffer and LegacyTextRendererRuntime construction",
+            "asset-runtime-closure-audit.md;"
+            "font-surface-and-glyph-rendering.md",
+            "none",
+        )
     if address in IMPLEMENTED_STREAM_CONVERSION:
         return Policy(
             "implemented",
@@ -257,6 +266,15 @@ def policy_for(address: int) -> Policy:
             "rendering",
             "legacy outline/fixed-tile/packed-row software helpers",
             "legacy-outline-fixed-tile-and-packed-row-00417050-00417de0.md",
+            "none",
+        )
+    if address == 0x00414B60:
+        return Policy(
+            "implemented",
+            "rendering;story_scene;world_map",
+            "LegacyMovingActionNode; update_draw_legacy_moving_actions; "
+            "LegacyWorldFrameRuntimePorts",
+            "moving-actions-00414b60.md",
             "none",
         )
     if address in IMPLEMENTED_ACTION_RENDERERS:
@@ -389,8 +407,8 @@ def main() -> None:
             for row in csv.DictReader(source, delimiter="\t")
             if row["module_candidate"] == "rendering"
         ]
-    if len(rows) != 151:
-        raise SystemExit(f"expected 151 rendering entries, got {len(rows)}")
+    if len(rows) != 152:
+        raise SystemExit(f"expected 152 rendering entries, got {len(rows)}")
 
     output_rows = []
     for row in rows:

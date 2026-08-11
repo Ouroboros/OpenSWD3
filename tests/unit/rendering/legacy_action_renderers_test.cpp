@@ -102,70 +102,6 @@ public:
     std::vector<PackedRowCall> calls;
 };
 
-void test_moving_action_visibility_update_and_removal(
-    openswd3::test::Context& test
-) {
-    LegacyFramebuffer framebuffer;
-    const auto raster = framebuffer.geometry();
-    RecordingActionPorts action_ports;
-    action_ports.failure_call = 2U;
-    RecordingFrameProvider frame_provider;
-    const LegacyBlitEffectState effects;
-    LegacyRleRowJitterState jitter;
-    std::list<LegacyActionSpriteRecord> records{
-        LegacyActionSpriteRecord{
-            .draw_offset_x = 2,
-            .draw_offset_y = 3,
-            .resource_id = 0x1234U,
-            .frame_index = 7U,
-            .target_x = 101,
-            .integer_y = 101,
-            .velocity_x = 1.0F,
-            .velocity_y = 1.0F,
-            .position_x = 100.0F,
-            .position_y = 100.0F,
-        },
-        LegacyActionSpriteRecord{
-            .movement_hold = 1U,
-            .position_x = -72.0F,
-            .position_y = 0.0F,
-        },
-    };
-
-    const LegacyActionRenderResult result =
-        openswd3::rendering::update_draw_legacy_moving_action_sprites(
-            records,
-            0,
-            0,
-            action_ports,
-            frame_provider,
-            framebuffer,
-            raster,
-            effects,
-            jitter
-        );
-
-    test.expect_equal(result.visited_count, 2U, "both records update");
-    test.expect_equal(
-        result.action_update_failure_count,
-        1U,
-        "action failure is reported without stopping"
-    );
-    test.expect_equal(result.draw_count, 1U, "strict -72 edge is invisible");
-    test.expect_equal(result.removed_count, 1U, "target window removes mover");
-    test.expect_equal(records.size(), std::size_t{1U}, "one record remains");
-    test.expect_equal(
-        frame_provider.resource_ids.front(),
-        0x1234U,
-        "resource id is forwarded"
-    );
-    test.expect_equal(
-        framebuffer.row_pixels(97U)[98U],
-        static_cast<u16>(0x1234U),
-        "draw uses pre-movement coordinates and offsets"
-    );
-}
-
 void test_role_head_easing_ballistic_and_direct_source(
     openswd3::test::Context& test
 ) {
@@ -328,7 +264,6 @@ void test_packed_row_framebuffer_port(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
-    test_moving_action_visibility_update_and_removal(test);
     test_role_head_easing_ballistic_and_direct_source(test);
     test_packed_row_modes(test);
     test_packed_row_framebuffer_port(test);

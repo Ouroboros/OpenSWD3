@@ -40,6 +40,7 @@ using openswd3::world_map::LegacyWorldFrameRuntimePorts;
 using openswd3::world_map::LegacyWorldFrameRuntimeStatus;
 using openswd3::world_map::LegacyWorldFrameStage;
 using openswd3::world_map::LegacyPictureActionLists;
+using openswd3::world_map::LegacyMovingActionList;
 using openswd3::world_map::LegacyWorldHeadSignActionsStatus;
 using openswd3::world_map::LegacyWorldOuterFramePorts;
 using openswd3::world_map::LegacyWorldRoleBlitRequest;
@@ -342,6 +343,7 @@ struct Fixture {
                                   LegacyWorldFrameRuntimePorts{
                                       .remaining_stages = frame_ports,
                                       .picture_actions = picture_actions,
+                                      .moving_actions = moving_actions,
                                       .flagged_roles = action_ports,
                                       .world_roles = role_ports,
                                       .spatial_audio = audio_ports,
@@ -350,6 +352,7 @@ struct Fixture {
   }
 
   LegacyPictureActionLists picture_actions;
+  LegacyMovingActionList moving_actions;
 };
 
 [[nodiscard]] std::vector<u32> expected_normal_events() {
@@ -361,7 +364,6 @@ struct Fixture {
       kHeadSignEventBase + 0U,
       kAudioEvent,
       frame_event(Inner::pre_background_records_004151f0),
-      frame_event(Inner::moving_action_sprites_00414b60),
       frame_event(Inner::ani_drift_004161c0),
       frame_event(Inner::ani_streak_00416590),
       frame_event(Inner::ani_spark_004167b0),

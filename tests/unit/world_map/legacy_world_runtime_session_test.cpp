@@ -748,6 +748,7 @@ void test_real_initial_world(
         roles[result.session.selected_role_index]
     );
     openswd3::world_map::LegacyPictureActionLists picture_actions;
+    openswd3::world_map::LegacyMovingActionList moving_actions;
 
     const auto first_frame = openswd3::world_map::run_legacy_world_frame(
         framebuffer,
@@ -769,6 +770,7 @@ void test_real_initial_world(
         openswd3::world_map::LegacyWorldFrameRuntimePorts{
             .remaining_stages = deferred_ports,
             .picture_actions = picture_actions,
+            .moving_actions = moving_actions,
             .flagged_roles = action_ports,
             .world_roles = role_ports,
             .spatial_audio = deferred_ports,

@@ -8,14 +8,15 @@
 | 地址 | 行为 | OpenSWD3 映射 |
 |---|---|---|
 | `0x00411FA0` | 暂停面板、文字及立即提交 | `draw_legacy_pause_overlay` |
-| `0x00414B60` | 世界坐标动作精灵更新、绘制与退休 | `update_draw_legacy_moving_action_sprites` |
+| `0x00414B60` | 世界坐标动作精灵更新、绘制与退休 | `update_draw_legacy_moving_actions`；精确布局另见 `moving-actions-00414b60.md` |
 | `0x00414CE0` | 角色头像动作、缓动/弹道与退休 | `update_draw_legacy_role_head_sprites` |
 | `0x00414E50` | 五模式 packed-row 特效队列 | `update_draw_legacy_packed_row_effects` |
 | `0x004153D0` | 右对齐限时消息队列 | `update_and_draw_legacy_timed_messages` |
 
-动作记录仍由后续 `asset_runtime/story_scene` 生产和拥有；B4 使用中性定宽字段视图及
-端口，不复制尚未恢复的旧全局对象布局。现代 `std::list` 只替代旧节点的分配与链接，
-遍历顺序、当前/前驱推进和删除时机仍由以下汇编合同决定。
+动作记录仍由后续 `asset_runtime/story_scene` 生产和拥有。`0x00414B60` 在 B7 已从早期
+中性字段视图升级为精确 `0xB4` 物理节点；`0x00414CE0` 的另一条同尺寸链仍保持独立
+业务视图，不能因尺寸相同而复用。现代 `std::list` 只替代旧节点的主机链接，遍历顺序、
+当前/前驱推进和删除时机仍由以下汇编合同决定。
 
 ## 1. `0x00411FA0` 暂停层
 
