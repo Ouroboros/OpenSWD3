@@ -153,7 +153,7 @@ public:
   bool fail_stage{};
   std::array<bool, 128U> service_flags{};
   LegacyWorldFrameStage failed_stage{
-      LegacyWorldFrameStage::pre_background_records_004151f0};
+      LegacyWorldFrameStage::timed_ui_update_0042ed40};
 
 private:
   std::vector<u32> &events_;
@@ -379,12 +379,14 @@ struct Fixture {
                                   selection, camera, state, jitter, effects,
                                   LegacyWorldFrameRuntimePorts{
                                       .remaining_stages = frame_ports,
+                                      .indexed_objects = {},
                                       .picture_actions = picture_actions,
                                       .moving_actions = moving_actions,
                                       .role_head_actions = role_head_actions,
                                       .environment_effects = frame_effects,
                                       .secondary_rng = secondary_rng,
                                       .pixel_conversion = pixel_conversion,
+                                      .blit_effects = &effects,
                                       .ani_drift = action_ports,
                                       .ani_directional = action_ports,
                                       .ani_follower = action_ports,
@@ -409,7 +411,6 @@ struct Fixture {
       kHeadSignEventBase + 1U,
       kHeadSignEventBase + 0U,
       kAudioEvent,
-      frame_event(Inner::pre_background_records_004151f0),
       frame_event(Inner::timed_ui_update_0042ed40),
       frame_event(Inner::world_indicator_004149b0),
       kCountdownEventBase + 1U,

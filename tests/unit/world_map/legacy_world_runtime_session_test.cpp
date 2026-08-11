@@ -809,12 +809,15 @@ void test_real_initial_world(
         effects,
         openswd3::world_map::LegacyWorldFrameRuntimePorts{
             .remaining_stages = deferred_ports,
+            .indexed_objects =
+                result.session.render.prepared_indexed_objects.objects,
             .picture_actions = picture_actions,
             .moving_actions = moving_actions,
             .role_head_actions = role_head_actions,
             .environment_effects = environment_effects,
             .secondary_rng = secondary_rng,
             .pixel_conversion = pixel_conversion,
+            .blit_effects = &effects,
             .ani_drift = ani_drift_ports,
             .ani_directional = ani_directional_ports,
             .ani_follower = ani_follower_ports,

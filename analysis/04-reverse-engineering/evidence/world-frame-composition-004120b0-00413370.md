@@ -125,11 +125,11 @@ focus clip”和“底图 16 对齐 tile 区域”两套边界；实现与 UT �
 - `compose_legacy_world_frame`：映射 `0x00412930` 的 clip、清屏、service/control 短路、
   三条主体路径和全部绘制阶段顺序；
 - stage port 为已有 B4/B6 renderer 和尚待恢复的调用保留原位置；实际 runtime adapter
-  已在原槽接入 `0x00413EA0`、`0x00413870`、两处 `0x004147E0`、`0x00414B60` 和
+  已在原槽接入 `0x004151F0`、`0x00413EA0`、`0x00413870`、两处 `0x004147E0`、`0x00414B60` 和
   `0x00414CE0`，以及 normal 路径连续的 `0x004161C0`、`0x00416590`、`0x004167B0`、
   `0x00415B70`、`0x004163C0`、`0x00416CC0`、`0x00416B30`，以及公共尾部的
-  `0x00414E50`、`0x004146F0`、`0x004153D0`。normal 路径只剩 `0x004151F0`、
-  `0x0042ED40`、`0x004149B0` 三个 stage 继续逐项显式转交，activity 分支另有
+  `0x00414E50`、`0x004146F0`、`0x004153D0`。normal 路径只剩 `0x0042ED40`、
+  `0x004149B0` 两个 stage 继续逐项显式转交，activity 分支另有
   `0x004154A0` 一个外部边界；不把空 stage 误报成已经绘制；
 - stage 端口会报告成功与失败；现代受检失败停在原调用点、恢复全屏 clip，并返回
   `stage_failed`，正常资产下不改变汇编顺序；
@@ -142,7 +142,7 @@ focus clip”和“底图 16 对齐 tile 区域”两套边界；实现与 UT �
 真实 TSW 路径叠加底图的 framebuffer 哈希在对应 service 全关闭时仍为
 `0x3EAF7C3143994E65`。这同时证明禁用门和空队列没有引入像素副作用；service 6/7 的
 合成集成另行验证实际效果路径。真实资产结果证明当前数据链可用；
-Linux Clang `core` 157/157、Windows LLVM `app` 161/161 CTest 通过。但尚未与原程序逐帧
+Linux Clang `core` 158/158、Windows LLVM `app` 162/162 CTest 通过。但尚未与原程序逐帧
 framebuffer 差分，所以验证等级不能写成 `original_diff_verified`。
 
 正常原始资产不会触发现代受检错误。短 tile/grid/palette 或不可能的 framebuffer 几何

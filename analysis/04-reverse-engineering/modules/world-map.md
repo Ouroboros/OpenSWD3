@@ -70,9 +70,12 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    framebuffer deformation 和 follower 共用实际地图尺寸、相机、framebuffer、
    pixel conversion、ACT/TSW 端口与同一 secondary RNG。normal 路径的显式转交由十三项
    降为六项。会合后的 packed-row、三通道全帧颜色过渡和 12 点限时消息也已接回原槽，
-   共用真实 framebuffer、16 项启动颜色表、secondary RNG 与 legacy glyph runtime；
-   normal 路径现在只剩三项显式转交，activity 分支另保留一项外部边界。失败不会伪报
-   整帧完成。Linux `core` 157/157、Windows LLVM `app` 161/161 CTest 通过。
+   共用真实 framebuffer、16 项启动颜色表、secondary RNG 与 legacy glyph runtime。
+   `0x004151F0` 的 LMF indexed object 也已从载入期原地 literal 转换一路接到原帧槽：
+   保留 `0..30` 序号扫描、头插链反序、每序号首个相交对象、两种位移公式和逐对象 clip
+   恢复；地图 72 的 `1072x1024x16` 真实流已进入 runtime blitter。normal 路径现在只剩
+   两项显式转交，activity 分支另保留一项外部边界。失败不会伪报整帧完成。Linux
+   `core` 158/158、Windows LLVM `app` 162/162 CTest 通过。
    `0x0041287F..0x00412923` 的地图 tile 层折返动画、单帧计数器不清零、零帧异常、
    32 位回绕，以及选择序列结束后的条件视口恢复也已闭环。其前置 `0x004148F0` 选择
    序列状态机也已恢复：保留入口门、游标回零、到期帧顺序、有符号增量和 countdown
@@ -123,6 +126,7 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-frame-coordinator-004120b0.md`](../evidence/world-frame-coordinator-004120b0.md)、
 [`world-spatial-roles-00413870-00413f00.md`](../evidence/world-spatial-roles-00413870-00413f00.md)、
 [`world-frame-runtime-integration-00412930.md`](../evidence/world-frame-runtime-integration-00412930.md) 和
+[`world-indexed-objects-004151f0.md`](../evidence/world-indexed-objects-004151f0.md)、
 [`world-frame-color-transition-004146f0.md`](../evidence/world-frame-color-transition-004146f0.md)、
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、
 [`world-selection-scroll-004148f0.md`](../evidence/world-selection-scroll-004148f0.md)、

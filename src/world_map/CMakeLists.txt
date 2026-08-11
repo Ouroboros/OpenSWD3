@@ -21,6 +21,7 @@ add_library(
         legacy_world_frame_runtime.cpp
         legacy_world_frame_tail.cpp
         legacy_world_head_sign_actions.cpp
+        legacy_world_indexed_objects.cpp
         legacy_world_direction_adjustment.cpp
         legacy_world_direction_input.cpp
         legacy_world_facing.cpp

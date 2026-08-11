@@ -60,6 +60,7 @@ class RuntimeStagePorts final
       public asset_runtime::LegacyAniDirectionalServicePort {
 public:
   RuntimeStagePorts(rendering::LegacyFramebuffer &framebuffer,
+                    rendering::LegacyRasterGeometryState &raster,
                     const LegacyWorldBackgroundSource &background_source,
                     const LegacyRoleSpatialIndex &spatial_index,
                     const std::span<LegacyWorldRoleRecord> roles,
@@ -67,9 +68,12 @@ public:
                     rendering::LegacyRleRowJitterState &jitter,
                     LegacyWorldFrameRuntimePorts ports,
                     LegacyWorldFrameRuntimeResult &result) noexcept
-      : framebuffer_(framebuffer), background_source_(background_source),
+      : framebuffer_(framebuffer), raster_(raster),
+        background_source_(background_source),
         spatial_index_(spatial_index), roles_(roles), state_(state),
-        jitter_(jitter), ports_(ports), result_(result) {}
+        jitter_(jitter), ports_(ports), result_(result) {
+    fallback_blit_effects_.pixel_conversion = ports.pixel_conversion;
+  }
 
   [[nodiscard]] bool service_enabled(const compat::u32 service_id) override {
     return ports_.remaining_stages.query_service(service_id);
@@ -89,6 +93,8 @@ public:
   execute_stage(const LegacyWorldFrameStage stage) noexcept override {
     try {
       switch (stage) {
+      case LegacyWorldFrameStage::pre_background_records_004151f0:
+        return execute_indexed_objects(stage);
       case LegacyWorldFrameStage::flagged_spatial_objects_00413ea0:
         return execute_flagged_roles(stage);
       case LegacyWorldFrameStage::world_spatial_objects_00413870:
@@ -142,6 +148,31 @@ public:
   }
 
 private:
+  [[nodiscard]] bool
+  execute_indexed_objects(const LegacyWorldFrameStage stage) {
+    result_.indexed_objects_executed = true;
+    LegacyWorldIndexedObjectRuntimeDrawPorts draw_ports{
+        framebuffer_, raster_,
+        ports_.blit_effects != nullptr ? *ports_.blit_effects
+                                       : fallback_blit_effects_,
+        jitter_};
+    result_.indexed_objects = draw_legacy_world_indexed_objects(
+        ports_.indexed_objects,
+        LegacyWorldIndexedObjectViewport{
+            .left = state_.frame.camera_left,
+            .top = state_.frame.camera_top,
+            .right = state_.frame.camera_right,
+            .bottom = state_.frame.camera_bottom,
+        },
+        draw_ports);
+    if (result_.indexed_objects.status ==
+        LegacyWorldIndexedObjectDrawStatus::completed) {
+      return true;
+    }
+    fail(LegacyWorldFrameRuntimeStatus::indexed_objects_failed, stage);
+    return false;
+  }
+
   [[nodiscard]] bool execute_flagged_roles(const LegacyWorldFrameStage stage) {
     result_.flagged_stage_executed = true;
     result_.flagged_roles = draw_legacy_world_flagged_roles(
@@ -352,6 +383,7 @@ private:
   }
 
   rendering::LegacyFramebuffer &framebuffer_;
+  rendering::LegacyRasterGeometryState &raster_;
   const LegacyWorldBackgroundSource &background_source_;
   const LegacyRoleSpatialIndex &spatial_index_;
   std::span<LegacyWorldRoleRecord> roles_;
@@ -359,6 +391,7 @@ private:
   rendering::LegacyRleRowJitterState &jitter_;
   LegacyWorldFrameRuntimePorts ports_;
   LegacyWorldFrameRuntimeResult &result_;
+  rendering::LegacyBlitEffectState fallback_blit_effects_{};
 };
 
 } // namespace
@@ -379,10 +412,9 @@ LegacyWorldFrameRuntimeResult compose_legacy_world_runtime_frame(
     const LegacyWorldFrameRuntimePorts ports) noexcept {
   LegacyWorldFrameRuntimeResult result;
   result.status = LegacyWorldFrameRuntimeStatus::completed;
-  RuntimeStagePorts runtime_ports{framebuffer,   background_source,
-                                  spatial_index, roles,
-                                  state,         jitter,
-                                  ports,         result};
+  RuntimeStagePorts runtime_ports{framebuffer, raster, background_source,
+                                  spatial_index, roles, state, jitter, ports,
+                                  result};
   result.composition = compose_legacy_world_frame(
       framebuffer, raster, background_source, state.frame, runtime_ports);
   if (result.composition.status !=

@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <span>
 #include <system_error>
 #include <vector>
 
@@ -16,13 +17,17 @@
 
 namespace {
 
+using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::compat::u8;
 using openswd3::rendering::legacy_convert_pixels_forward;
 using openswd3::rendering::legacy_framebuffer_logical_fnv1a64;
+using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyFramebuffer;
 using openswd3::rendering::LegacyPixelConversionState;
+using openswd3::rendering::LegacyRasterGeometryState;
+using openswd3::rendering::LegacyRleRowJitterState;
 using openswd3::rendering::select_legacy_pixel_conversion;
 using openswd3::resource_io::LegacyLmfIndexedObjectDirectory;
 using openswd3::resource_io::LegacyLmfIndexedObjectDirectoryStatus;
@@ -53,6 +58,10 @@ using openswd3::world_map::LegacyWorldMapLoadStatus;
 using openswd3::world_map::LegacyWorldMapSource;
 using openswd3::world_map::LegacyWorldRenderSessionRequest;
 using openswd3::world_map::LegacyWorldRenderSessionStatus;
+using openswd3::world_map::draw_legacy_world_indexed_objects;
+using openswd3::world_map::LegacyWorldIndexedObjectDrawStatus;
+using openswd3::world_map::LegacyWorldIndexedObjectRuntimeDrawPorts;
+using openswd3::world_map::LegacyWorldIndexedObjectViewport;
 
 enum class Stage {
     lookup,
@@ -224,6 +233,17 @@ private:
         }
     );
     return state;
+}
+
+[[nodiscard]] std::uint64_t fnv1a64(
+    const std::span<const u8> bytes
+) noexcept {
+    std::uint64_t hash = 0xCBF29CE484222325ULL;
+    for (const u8 byte : bytes) {
+        hash ^= byte;
+        hash *= 0x100000001B3ULL;
+    }
+    return hash;
 }
 
 void test_original_load_slot_and_direct_source(
@@ -458,6 +478,28 @@ void test_failures_stop_at_their_physical_stage(
                 LegacyWorldMapLoadStatus::ready,
         "non-8/16-bit map is not silently assigned a pixel layout"
     );
+
+    std::vector<Stage> object_stages;
+    FakeMapSource object_map{object_stages};
+    object_map.indexed.objects.emplace_back();
+    object_map.indexed.objects.front().decompressed_payload.assign(8U, 0U);
+    object_map.indexed.objects.front().actual_decompressed_size = 8U;
+    FakeCmCacheSource object_cm{object_stages};
+    const auto object_failed = load_legacy_world_render_session(
+        LegacyWorldRenderSessionRequest{
+            .archive_path = "huge.lmf",
+            .cache_directory = tree.root() / "object-cache",
+            .map_id = 24U,
+            .pixel_conversion = {},
+        },
+        object_map,
+        object_cm
+    );
+    test.expect_equal(
+        object_failed.status,
+        LegacyWorldRenderSessionStatus::indexed_object_prepare_failed,
+        "invalid indexed-object images stop after LMF load and before rendering"
+    );
 }
 
 void test_current_maps(
@@ -520,6 +562,71 @@ void test_current_maps(
                     0xF00691829E9FE2D5ULL,
             "owned indexed map preserves the fixed 40x30 viewport hash"
         );
+    }
+
+    TestTree object_tree;
+    const auto object_map = load_legacy_world_render_session(
+        LegacyWorldRenderSessionRequest{
+            .archive_path = archive_path,
+            .cache_directory = object_tree.root() / "maps",
+            .map_id = 72U,
+            .pixel_conversion = conversion,
+        }
+    );
+    test.expect_equal(
+        object_map.status,
+        LegacyWorldRenderSessionStatus::ready,
+        "current map 72 normalizes its embedded pre-background image"
+    );
+    if (object_map.status == LegacyWorldRenderSessionStatus::ready) {
+        test.expect_false(
+            object_map.session.prepared_indexed_objects.objects.empty(),
+            "current map 72 exposes a prepared indexed object"
+        );
+        if (!object_map.session.prepared_indexed_objects.objects.empty()) {
+            const auto& object =
+                object_map.session.prepared_indexed_objects.objects.front();
+            test.expect_true(
+                object.source_width == 1072U &&
+                    object.source_height == 1024U &&
+                    object.command_stream.size() == 1'790'338U,
+                "the render-session owner keeps the real sub_401B70 dimensions"
+            );
+            test.expect_equal(
+                fnv1a64(object.command_stream),
+                std::uint64_t{0xA70AE50B232B53DEULL},
+                "the render-session owner keeps the converted real stream bytes"
+            );
+
+            LegacyFramebuffer framebuffer;
+            LegacyRasterGeometryState raster = framebuffer.geometry();
+            LegacyBlitEffectState effects{.pixel_conversion = conversion};
+            LegacyRleRowJitterState jitter;
+            LegacyWorldIndexedObjectRuntimeDrawPorts draw_ports{
+                framebuffer,
+                raster,
+                effects,
+                jitter,
+            };
+            const i32 viewport_left = object.world_left;
+            const i32 viewport_top = object.world_top;
+            const auto drawn = draw_legacy_world_indexed_objects(
+                object_map.session.prepared_indexed_objects.objects,
+                LegacyWorldIndexedObjectViewport{
+                    .left = viewport_left,
+                    .top = viewport_top,
+                    .right = viewport_left + 640,
+                    .bottom = viewport_top + 480,
+                },
+                draw_ports
+            );
+            test.expect_true(
+                drawn.status ==
+                        LegacyWorldIndexedObjectDrawStatus::completed &&
+                    drawn.draw_count >= 1U,
+                "the real normalized stream reaches the 0x004151F0 blitter path"
+            );
+        }
     }
 }
 

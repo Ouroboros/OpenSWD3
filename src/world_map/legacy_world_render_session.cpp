@@ -148,6 +148,18 @@ LegacyWorldRenderSessionResult load_legacy_world_render_session(
         return result;
     }
 
+    result.session.prepared_indexed_objects =
+        prepare_legacy_world_indexed_objects(
+            result.session.map_load.session.indexed_objects,
+            request.pixel_conversion
+        );
+    if (result.session.prepared_indexed_objects.status !=
+        LegacyWorldIndexedObjectPreparationStatus::ready) {
+        result.status = LegacyWorldRenderSessionStatus::
+            indexed_object_prepare_failed;
+        return result;
+    }
+
     const compat::u32 pixel_bits =
         result.session.map_load.session.header.field_88;
     if (pixel_bits == 16U) {

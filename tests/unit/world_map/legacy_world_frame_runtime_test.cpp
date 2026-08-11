@@ -386,6 +386,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
       LegacyWorldFrameRuntimePorts{
           .remaining_stages = remaining,
+          .indexed_objects = {},
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
           .role_head_actions = role_head_actions,
@@ -405,6 +406,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
       result.status == LegacyWorldFrameRuntimeStatus::completed &&
           result.composition.status ==
               LegacyWorldFrameCompositionStatus::completed &&
+          result.indexed_objects_executed &&
           result.flagged_stage_executed && result.world_roles_stage_executed &&
           result.primary_picture_actions_executed &&
           result.moving_actions_executed &&
@@ -426,7 +428,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
       "0x00412930 executes recovered spatial and action stages at real slots");
   test.expect_true(
       result.composition.stage_call_count == 19U &&
-          result.delegated_stage_count == 3U && flagged.draws == 5U &&
+          result.delegated_stage_count == 2U && flagged.draws == 5U &&
           ordinary.draws == 2U &&
           result.packed_rows.visited_count == 1U &&
           result.packed_rows.draw_count == 1U &&
@@ -439,6 +441,10 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           result.timed_messages.visited_count == 1U &&
           ordinary.samples ==
               std::vector<std::tuple<u16, i32, i32>>{{7U, 10, 20}} &&
+          std::ranges::find(
+              remaining.stages,
+              LegacyWorldFrameStage::pre_background_records_004151f0) ==
+              remaining.stages.end() &&
           std::ranges::find(
               remaining.stages,
               LegacyWorldFrameStage::flagged_spatial_objects_00413ea0) ==
@@ -508,6 +514,7 @@ void test_spatial_failure_stops_at_original_stage(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
       LegacyWorldFrameRuntimePorts{
           .remaining_stages = remaining,
+          .indexed_objects = {},
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
           .role_head_actions = role_head_actions,
@@ -531,10 +538,7 @@ void test_spatial_failure_stops_at_original_stage(
               LegacyWorldFrameStage::flagged_spatial_objects_00413ea0 &&
           result.failed_stage_recorded && result.flagged_stage_executed &&
           !result.world_roles_stage_executed &&
-          remaining.stages ==
-              std::vector{
-                  LegacyWorldFrameStage::pre_background_records_004151f0,
-              },
+          remaining.stages.empty(),
       "checked spatial failure cannot be reported as a completed frame");
   test.expect_true(raster.clip_left == 0 && raster.clip_top == 0 &&
                        raster.clip_width == 640 && raster.clip_height == 480,
@@ -560,6 +564,7 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
   LegacyRleRowJitterState jitter;
   RemainingPorts remaining;
   remaining.fail_stage = true;
+  remaining.failed_stage = LegacyWorldFrameStage::timed_ui_update_0042ed40;
   RecordingFlaggedPorts flagged;
   RecordingRolePorts ordinary;
   RecordingAudioPorts audio;
@@ -570,6 +575,7 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
       LegacyWorldFrameRuntimePorts{
           .remaining_stages = remaining,
+          .indexed_objects = {},
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
           .role_head_actions = role_head_actions,
@@ -589,8 +595,9 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
           result.composition.status ==
               LegacyWorldFrameCompositionStatus::stage_failed &&
           result.failed_stage ==
-              LegacyWorldFrameStage::pre_background_records_004151f0 &&
-          !result.flagged_stage_executed && !result.world_roles_stage_executed,
+              LegacyWorldFrameStage::timed_ui_update_0042ed40 &&
+          result.indexed_objects_executed && result.flagged_stage_executed &&
+          result.world_roles_stage_executed,
       "an incomplete external stage has an explicit non-success boundary");
 }
 
@@ -627,6 +634,7 @@ void test_environment_effects_use_live_frame_dependencies(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
       LegacyWorldFrameRuntimePorts{
           .remaining_stages = remaining,
+          .indexed_objects = {},
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
           .role_head_actions = role_head_actions,
@@ -748,6 +756,7 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
       LegacyWorldFrameRuntimePorts{
           .remaining_stages = external,
+          .indexed_objects = {},
           .picture_actions = picture_actions,
           .moving_actions = moving_actions,
           .role_head_actions = role_head_actions,

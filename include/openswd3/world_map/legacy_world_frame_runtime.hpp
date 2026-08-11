@@ -18,6 +18,7 @@
 #include "openswd3/world_map/legacy_picture_actions.hpp"
 #include "openswd3/world_map/legacy_role_head_actions.hpp"
 #include "openswd3/world_map/legacy_world_frame_composition.hpp"
+#include "openswd3/world_map/legacy_world_indexed_objects.hpp"
 #include "openswd3/world_map/legacy_world_roles.hpp"
 
 #include <list>
@@ -63,12 +64,14 @@ struct LegacyWorldFrameRuntimePorts {
   // Stages without a concrete owner remain explicit here until their owning
   // module supplies a runtime implementation.
   LegacyWorldFramePorts &remaining_stages;
+  std::span<const LegacyWorldIndexedObject> indexed_objects;
   LegacyPictureActionLists &picture_actions;
   LegacyMovingActionList &moving_actions;
   LegacyRoleHeadActionList &role_head_actions;
   LegacyWorldFrameEffectState &environment_effects;
   input_time_rng::LegacySecondaryRng &secondary_rng;
   const rendering::LegacyPixelConversionState &pixel_conversion;
+  const rendering::LegacyBlitEffectState *blit_effects{};
   asset_runtime::LegacyAniDriftPorts &ani_drift;
   asset_runtime::LegacyAniDirectionalPorts &ani_directional;
   asset_runtime::LegacyAniFollowerPorts &ani_follower;
@@ -82,6 +85,7 @@ enum class LegacyWorldFrameRuntimeStatus : compat::u8 {
   completed,
   composition_failed,
   delegated_stage_failed,
+  indexed_objects_failed,
   environment_effect_failed,
   frame_color_failed,
   flagged_roles_failed,
@@ -94,6 +98,7 @@ struct LegacyWorldFrameRuntimeResult {
       LegacyWorldFrameRuntimeStatus::composition_failed};
   LegacyWorldFrameCompositionResult composition;
   LegacyWorldFlaggedRolesResult flagged_roles;
+  LegacyWorldIndexedObjectDrawResult indexed_objects;
   LegacyWorldRolesResult world_roles;
   LegacyPictureActionResult primary_picture_actions;
   LegacyMovingActionResult moving_actions;
@@ -110,6 +115,7 @@ struct LegacyWorldFrameRuntimeResult {
   rendering::LegacyFrameColorTransitionResult frame_color;
   rendering::LegacyTimedMessageResult timed_messages;
   compat::u32 delegated_stage_count{};
+  bool indexed_objects_executed{};
   bool flagged_stage_executed{};
   bool world_roles_stage_executed{};
   bool primary_picture_actions_executed{};

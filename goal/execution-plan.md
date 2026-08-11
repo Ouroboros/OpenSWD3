@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v145
+版本：v146
 
 最后更新：2026-08-11
 
@@ -386,6 +386,10 @@
     限时消息也已从 generic stage 接回真实 owner：共用 owned framebuffer、当前 pixel
     conversion、启动期 16 项颜色表、secondary RNG 与 12 点 legacy glyph runtime；
     `sub_420490` 最后像素的 dword 读取由不参与上传/哈希的单 word guard 精确承接。
-    normal 世界帧的外部 stage 由六项降为三项，activity 分支仍另有一项。
+    `sub_4151F0` 的 LMF indexed object 随后完成装载期规范化与原帧槽接线：保留
+    `0..30` 序号扫描、头插链反序、每序号首个相交对象、两种位移公式、16 位坐标回绕
+    和逐对象 clip 恢复；地图 72 的 `1072x1024x16` 真实 command stream 已进入 runtime
+    blitter。Linux `core` 158/158、Windows LLVM `app` 162/162 CTest 通过。normal 世界帧
+    的外部 stage 由六项降为两项，activity 分支仍另有一项。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

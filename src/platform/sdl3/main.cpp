@@ -1634,12 +1634,15 @@ public:
             world_effects_,
             openswd3::world_map::LegacyWorldFrameRuntimePorts{
                 .remaining_stages = deferred_ports,
+                .indexed_objects =
+                    world.render.prepared_indexed_objects.objects,
                 .picture_actions = world_picture_actions_,
                 .moving_actions = world_moving_actions_,
                 .role_head_actions = world_role_head_actions_,
                 .environment_effects = world_frame_effects_,
                 .secondary_rng = secondary_rng_,
                 .pixel_conversion = pixel_conversion_,
+                .blit_effects = &world_effects_,
                 .ani_drift = ani_drift_ports,
                 .ani_directional = ani_directional_ports,
                 .ani_follower = ani_follower_ports,

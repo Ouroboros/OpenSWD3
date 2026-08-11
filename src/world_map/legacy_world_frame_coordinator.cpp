@@ -62,6 +62,10 @@ void sync_frame_camera(LegacyWorldFrameCoordinatorState &state,
   state.frame_runtime.frame.camera_left =
       std::bit_cast<compat::i32>(camera.left);
   state.frame_runtime.frame.camera_top = std::bit_cast<compat::i32>(camera.top);
+  state.frame_runtime.frame.camera_right =
+      std::bit_cast<compat::i32>(camera.right);
+  state.frame_runtime.frame.camera_bottom =
+      std::bit_cast<compat::i32>(camera.bottom);
 }
 
 } // namespace

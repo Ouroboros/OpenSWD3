@@ -38,6 +38,8 @@ struct LegacyWorldFrameState {
   bool ani_activity_active{};
   compat::i32 camera_left{};
   compat::i32 camera_top{};
+  compat::i32 camera_right{};
+  compat::i32 camera_bottom{};
   compat::i32 partial_focus_x{};
   compat::i32 partial_focus_y{};
   compat::u16 talk_target{kLegacyWorldNoTalkTarget};

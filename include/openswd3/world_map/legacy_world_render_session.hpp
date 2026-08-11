@@ -3,6 +3,7 @@
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 #include "openswd3/world_map/legacy_cm_cache_loader.hpp"
 #include "openswd3/world_map/legacy_world_background.hpp"
+#include "openswd3/world_map/legacy_world_indexed_objects.hpp"
 #include "openswd3/world_map/legacy_world_map_session.hpp"
 
 #include <filesystem>
@@ -17,6 +18,7 @@ enum class LegacyWorldRenderSessionStatus {
     cm_cache_load_failed,
     indexed_palette_too_short,
     unsupported_pixel_bits,
+    indexed_object_prepare_failed,
 };
 
 struct LegacyWorldRenderSessionRequest {
@@ -31,6 +33,7 @@ struct LegacyWorldRenderSession {
     LegacyWorldMapLoadResult map_load;
     LegacyCmCacheLoadResult cm_cache;
     std::vector<compat::u16> indexed_palette;
+    LegacyWorldIndexedObjectPreparationResult prepared_indexed_objects;
     LegacyWorldBackgroundPixelLayout pixel_layout{
         LegacyWorldBackgroundPixelLayout::direct_16
     };
