@@ -93,6 +93,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_special_modes_legacy_initial_menu_tests
+    unit/special_modes/legacy_initial_menu_test.cpp
+)
+target_include_directories(
+    openswd3_special_modes_legacy_initial_menu_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_special_modes_legacy_initial_menu_tests
+    PRIVATE openswd3_special_modes
+)
+
+add_test(
+    NAME special_modes.legacy_initial_menu
+    COMMAND openswd3_special_modes_legacy_initial_menu_tests
+)
+
+add_executable(
     openswd3_app_frame_dispatch_tests
     unit/app/frame_dispatch_test.cpp
 )

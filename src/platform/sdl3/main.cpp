@@ -47,7 +47,10 @@
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
+#include "openswd3/special_modes/legacy_initial_menu.hpp"
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
+#include "openswd3/world_map/legacy_world_direction_adjustment.hpp"
+#include "openswd3/world_map/legacy_world_direction_input.hpp"
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
@@ -1568,7 +1571,107 @@ public:
     void step_world_interaction(
         openswd3::app::FrameCoordinatorState&
     ) override {}
-    void step_world_player(openswd3::app::FrameCoordinatorState&) override {}
+    void step_world_player(openswd3::app::FrameCoordinatorState&) override {
+        if (!active_world_session_.has_value()) {
+            return;
+        }
+
+        const auto& movement = world_frame_state_.movement;
+        if (movement.camera_x_transition != 0 ||
+            movement.player_x_transition != 0 ||
+            movement.camera_y_transition != 0 ||
+            movement.player_y_transition != 0) {
+            return;
+        }
+
+        auto& world = *active_world_session_;
+        auto& map = world.render.map_load.session;
+        auto& roles = map.business.state.roles;
+        if (world.selected_role_index >= roles.size()) {
+            static_cast<void>(report_error(
+                "world player input: selected role index is out of range"
+            ));
+            ok_ = false;
+            running_ = false;
+            return;
+        }
+
+        auto& player = roles[world.selected_role_index];
+        auto input = openswd3::world_map::apply_legacy_world_direction_input(
+            openswd3::world_map::LegacyWorldDirectionState{
+                .direction = player.action.variant_delta,
+                .auxiliary_selection_index =
+                    world_auxiliary_selection_index_,
+            },
+            input_state_.records,
+            false,
+            0U
+        );
+        if (input.status != openswd3::world_map::
+                                LegacyWorldDirectionInputStatus::completed) {
+            static_cast<void>(report_error(
+                "world player input: normalized input records are unavailable"
+            ));
+            ok_ = false;
+            running_ = false;
+            return;
+        }
+        world_auxiliary_selection_index_ =
+            input.state.auxiliary_selection_index;
+
+        if (input.delta_x != 0 || input.delta_y != 0) {
+            const auto adjusted = openswd3::world_map::
+                adjust_legacy_world_direction_for_obstacles(
+                    player,
+                    input.delta_x,
+                    input.delta_y,
+                    map.header.width,
+                    map.header.height,
+                    map.surface_grid.surface_grid
+                );
+            if (adjusted.status != openswd3::world_map::
+                                       LegacyWorldDirectionProbeStatus::
+                                           completed) {
+                std::string message{
+                    "world player input: obstacle adjustment failed: status="
+                };
+                message.append(std::to_string(
+                    static_cast<unsigned>(adjusted.status)
+                ));
+                static_cast<void>(report_error(message));
+                ok_ = false;
+                running_ = false;
+                return;
+            }
+            input.delta_x = adjusted.delta_x;
+            input.delta_y = adjusted.delta_y;
+        }
+
+        const auto bounds =
+            openswd3::world_map::compute_legacy_world_movement_bounds(
+                player,
+                world.camera,
+                map.header.width,
+                map.header.height
+            );
+        openswd3::compat::u32 base_step =
+            world.map_descriptor.field_06 & 0x0FU;
+        if (base_step != 1U && base_step != 2U && base_step != 4U &&
+            base_step != 8U && base_step != 0x10U) {
+            base_step = 4U;
+        }
+        openswd3::world_map::apply_legacy_world_player_motion_state(
+            player,
+            input,
+            bounds,
+            world_frame_state_.movement,
+            openswd3::world_map::LegacyWorldMovementOptions{
+                .base_movement_step = base_step,
+                .speed_override = false,
+                .fixed_debug_speed = false,
+            }
+        );
+    }
     void step_story(openswd3::app::FrameCoordinatorState&) override {}
     void finish_world_frame(
         openswd3::app::FrameCoordinatorState& frame_state
@@ -1746,8 +1849,68 @@ public:
         openswd3::app::FrameCoordinatorState&
     ) override {}
     openswd3::app::StandardSpecialModeEvent step_standard_special_mode(
-        openswd3::app::FrameCoordinatorState&
+        openswd3::app::FrameCoordinatorState& state
     ) override {
+        constexpr openswd3::compat::u32 kSpecialModeValueMask = 0x0FFFFFFFU;
+        if ((state.battle.special_mode_state & kSpecialModeValueMask) == 3U) {
+            openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
+                action_updater_,
+                tsw_runtime_,
+                game_framebuffer_,
+                world_raster_,
+                world_effects_,
+                world_jitter_,
+            };
+            const auto& records = input_state_.records;
+            const auto result =
+                openswd3::special_modes::run_legacy_initial_menu_frame(
+                    initial_menu_state_,
+                    openswd3::special_modes::LegacyInitialMenuInput{
+                        .mouse_x = input_state_.current_mouse.logical_x,
+                        .mouse_y = input_state_.current_mouse.logical_y,
+                        .mouse_button_mask =
+                            input_state_.current_mouse.button_mask,
+                        .cancel = &records[0U],
+                        .primary = &records[1U],
+                        .alternate_primary = &records[12U],
+                        .left = &records[3U],
+                        .up = &records[4U],
+                        .right = &records[5U],
+                        .down = &records[6U],
+                        .page_up = &records[7U],
+                        .page_down = &records[8U],
+                        .mouse_left = &records[15U],
+                        .mouse_right = &records[14U],
+                    },
+                    action_ports,
+                    world_effects_
+                );
+            if (result.draw_status != openswd3::special_modes::
+                                          LegacyInitialMenuDrawStatus::
+                                              completed) {
+                std::string message{"initial menu draw failed: status="};
+                message.append(std::to_string(
+                    static_cast<unsigned>(result.draw_status)
+                ));
+                message.append(", blit_failures=");
+                message.append(std::to_string(result.blit_failure_count));
+                static_cast<void>(report_error(message));
+                ok_ = false;
+                running_ = false;
+                return openswd3::app::StandardSpecialModeEvent::none;
+            }
+            if (result.event == openswd3::special_modes::
+                                    LegacyInitialMenuEvent::
+                                        commit_new_game_004492ba) {
+                return openswd3::app::StandardSpecialModeEvent::
+                    commit_new_game_004492ba;
+            }
+            static_cast<void>(request_presentation(
+                openswd3::rendering::LegacyPresentationSite::
+                    steady_special_modes_1_3_4_5_6
+            ));
+            return openswd3::app::StandardSpecialModeEvent::none;
+        }
         request_presentation(
             openswd3::rendering::LegacyPresentationSite::
                 steady_special_modes_1_3_4_5_6
@@ -1773,7 +1936,8 @@ public:
     }
 
     void set_initial_menu_phase(const openswd3::compat::u32 phase) override {
-        initial_menu_phase_ = phase;
+        initial_menu_state_.phase =
+            std::bit_cast<openswd3::compat::i32>(phase);
     }
 
     void clear_game_framebuffer() override {
@@ -1872,6 +2036,7 @@ public:
         world_moving_actions_ = {};
         world_role_head_actions_ = {};
         world_dialogs_ = {};
+        world_auxiliary_selection_index_ = 0U;
         world_frame_state_.map_id = world.logical_map_id;
         world_frame_state_.player_role_index = world.selected_role_index;
         world_frame_state_.party_role_count =
@@ -2064,6 +2229,7 @@ private:
     openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
     openswd3::world_map::LegacyWorldDialogRuntimeState
         world_dialog_runtime_state_;
+    openswd3::special_modes::LegacyInitialMenuState initial_menu_state_;
     std::vector<openswd3::compat::i16> world_audio_distances_;
     std::vector<openswd3::compat::i16> world_audio_vertical_offsets_;
     std::array<openswd3::compat::i16, 1U> world_selection_words_{
@@ -2071,12 +2237,12 @@ private:
             openswd3::world_map::kLegacyWorldSelectionSentinel
         )
     };
+    openswd3::compat::u32 world_auxiliary_selection_index_{};
     bool deferred_world_stage_notice_logged_{};
     openswd3::app::ShutdownPorts& shutdown_ports_;
     openswd3::app::ProcessExitPorts& exit_ports_;
     openswd3::compat::u32 accumulated_play_time_{};
     openswd3::compat::u32 play_time_origin_{};
-    openswd3::compat::u32 initial_menu_phase_{};
     openswd3::compat::u32 high_priority_submode_{};
     openswd3::compat::u32 high_priority_auxiliary_{};
     bool& ok_;

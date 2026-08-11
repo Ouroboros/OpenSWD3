@@ -1,0 +1,21 @@
+add_library(
+    openswd3_special_modes
+    STATIC
+        legacy_initial_menu.cpp
+)
+target_include_directories(
+    openswd3_special_modes
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(
+    openswd3_special_modes
+    PUBLIC
+        openswd3_asset_runtime
+        openswd3_compat
+        openswd3_input_time_rng
+        openswd3_project_options
+        openswd3_project_warnings
+        openswd3_rendering
+)

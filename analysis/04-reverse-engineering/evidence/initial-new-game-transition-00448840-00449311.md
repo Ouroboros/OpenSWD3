@@ -1,6 +1,6 @@
 # 初始菜单“新游戏”提交与世界切换证据
 
-状态：静态汇编顺序已确认；应用层提交边界已实现；完整菜单与剧情状态实现仍分别属于 B9、B8
+状态：静态汇编顺序已确认；模式 3 的主选择、默认姓名确认、退场计数和应用层提交边界已实现并接入；可编辑姓名 UI 与其余菜单分支仍属于 B9
 
 来源：`swd3.exe.lst` 完整汇编。汇编是唯一行为真值。
 
@@ -104,9 +104,18 @@ MAPS 去 0x200 前缀重新载入
 - `include/openswd3/app/legacy_new_game_transition.hpp`：提交事件和跨模块端口；
 - `src/app/legacy_new_game_transition.cpp`：`0x004492BA..0x00449311` 固定顺序；
 - `src/app/frame_runtime.cpp`：模式回调返回提交事件后、公共帧尾前立即消费；
+- `include/openswd3/special_modes/legacy_initial_menu.hpp` 与
+  `src/special_modes/legacy_initial_menu.cpp`：`-120 → 0` 入场、四个严格命中区、
+  键盘回调顺序、默认 Big5 姓名、`98/99` 两段确认及 `100 → 105` 退场门；
+- `src/platform/sdl3/main.cpp`：把归一化键盘/鼠标记录和真实 ACT→TSW→framebuffer
+  端口借给模式 3，并只把 `0x004492BA` 事件交回应用层；
 - `tests/unit/app/legacy_new_game_transition_test.cpp`：成功/失败两条顺序向量；
-- `tests/unit/app/frame_runtime_test.cpp`：模式事件到应用层转换的组合顺序。
+- `tests/unit/app/frame_runtime_test.cpp`：模式事件到应用层转换的组合顺序；
+- `tests/unit/special_modes/legacy_initial_menu_test.cpp`：入场计数、严格边界、键盘选择、
+  两段姓名确认、取消回退、第五个退场帧和 ACT 绘制合同。
 
-完整模式 3 绘制、名称输入对象和 hit-test 属于 B9，不在 B7 中用临时 Enter 键或启动
-对话框结果替代。原程序动态差分仍为 `blocked_runtime_oracle`；如需捕获，准备 Frida
-spawn 环境并等待用户执行，Codex 不自行启动原版。
+当前只恢复进入新游戏所需的模式 3 切片；名称仍使用汇编中的两组默认 Big5 字节并保留
+两次确认，尚未把 32 字节可编辑输入对象和对应叠层伪装成完成。这里没有临时快捷键，也
+没有用启动对话框结果替代模式状态机。Linux/Windows 完整应用均为 169/169 CTest
+通过。原程序动态差分仍为 `blocked_runtime_oracle`；如需捕获，准备 Frida spawn 环境并
+等待用户执行，Codex 不自行启动原版。

@@ -5,6 +5,8 @@
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
+#include "openswd3/world_map/legacy_world_direction_adjustment.hpp"
+#include "openswd3/world_map/legacy_world_direction_input.hpp"
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
@@ -650,7 +652,7 @@ void test_real_initial_world(
 
     auto& map_session = result.session.render.map_load.session;
     auto& roles = map_session.business.state.roles;
-    const auto& selected = roles[result.session.selected_role_index];
+    auto& selected = roles[result.session.selected_role_index];
     const auto& post_state = result.session.role_post_materialization;
     test.expect_true(
         result.session.logical_map_id == 81U &&
@@ -799,49 +801,53 @@ void test_real_initial_world(
     );
     openswd3::compat::u32 special_mode_state{};
 
-    const auto first_frame = openswd3::world_map::run_legacy_world_frame(
-        framebuffer,
-        raster,
-        result.session.render.background_source(),
-        map_session.business.state.events,
-        map_session.business.state.spatial_index,
-        roles,
-        openswd3::world_map::LegacyWorldRoleSurfaceContext{
-            .map_width = map_session.header.width,
-            .selected_guid = roles[result.session.selected_role_index].guid,
-            .surface_grid = map_session.surface_grid.surface_grid,
-        },
-        selection_words,
-        result.session.camera,
-        frame_state,
-        jitter,
-        effects,
-        openswd3::world_map::LegacyWorldFrameRuntimePorts{
-            .remaining_stages = deferred_ports,
-            .indexed_objects =
-                result.session.render.prepared_indexed_objects.objects,
-            .picture_actions = picture_actions,
-            .moving_actions = moving_actions,
-            .role_head_actions = role_head_actions,
-            .environment_effects = environment_effects,
-            .secondary_rng = secondary_rng,
-            .pixel_conversion = pixel_conversion,
-            .blit_effects = &effects,
-            .cursor_delete_key_pressed = false,
-            .cursor_mouse_x = 0,
-            .cursor_mouse_y = 0,
-            .cursor_left_press_multiplicity = 0U,
-            .special_mode_state = &special_mode_state,
-            .ani_drift = ani_drift_ports,
-            .ani_directional = ani_directional_ports,
-            .ani_follower = ani_follower_ports,
-            .timed_message_runtime = deferred_ports,
-            .flagged_roles = action_ports,
-            .world_roles = role_ports,
-            .spatial_audio = deferred_ports,
-        },
-        deferred_ports
-    );
+    const auto run_world_frame = [&] {
+        return openswd3::world_map::run_legacy_world_frame(
+            framebuffer,
+            raster,
+            result.session.render.background_source(),
+            map_session.business.state.events,
+            map_session.business.state.spatial_index,
+            roles,
+            openswd3::world_map::LegacyWorldRoleSurfaceContext{
+                .map_width = map_session.header.width,
+                .selected_guid =
+                    roles[result.session.selected_role_index].guid,
+                .surface_grid = map_session.surface_grid.surface_grid,
+            },
+            selection_words,
+            result.session.camera,
+            frame_state,
+            jitter,
+            effects,
+            openswd3::world_map::LegacyWorldFrameRuntimePorts{
+                .remaining_stages = deferred_ports,
+                .indexed_objects =
+                    result.session.render.prepared_indexed_objects.objects,
+                .picture_actions = picture_actions,
+                .moving_actions = moving_actions,
+                .role_head_actions = role_head_actions,
+                .environment_effects = environment_effects,
+                .secondary_rng = secondary_rng,
+                .pixel_conversion = pixel_conversion,
+                .blit_effects = &effects,
+                .cursor_delete_key_pressed = false,
+                .cursor_mouse_x = 0,
+                .cursor_mouse_y = 0,
+                .cursor_left_press_multiplicity = 0U,
+                .special_mode_state = &special_mode_state,
+                .ani_drift = ani_drift_ports,
+                .ani_directional = ani_directional_ports,
+                .ani_follower = ani_follower_ports,
+                .timed_message_runtime = deferred_ports,
+                .flagged_roles = action_ports,
+                .world_roles = role_ports,
+                .spatial_audio = deferred_ports,
+            },
+            deferred_ports
+        );
+    };
+    const auto first_frame = run_world_frame();
     test.expect_equal(
         first_frame.status,
         openswd3::world_map::LegacyWorldFrameCoordinatorStatus::completed,
@@ -889,6 +895,87 @@ void test_real_initial_world(
         deferred_ports.audio_services,
         2U,
         "the exact initial owner services audio at both original slots"
+    );
+
+    std::array<openswd3::input_time_rng::LegacyInputRecord, 20U>
+        movement_records{};
+    movement_records[5U].rapid_press_multiplicity = 1U;
+    movement_records[5U].held_sample_count = 1U;
+    auto direction =
+        openswd3::world_map::apply_legacy_world_direction_input(
+            openswd3::world_map::LegacyWorldDirectionState{
+                .direction = selected.action.variant_delta,
+            },
+            movement_records,
+            false,
+            0U
+        );
+    const auto adjusted =
+        openswd3::world_map::adjust_legacy_world_direction_for_obstacles(
+            selected,
+            direction.delta_x,
+            direction.delta_y,
+            map_session.header.width,
+            map_session.header.height,
+            map_session.surface_grid.surface_grid
+        );
+    direction.delta_x = adjusted.delta_x;
+    direction.delta_y = adjusted.delta_y;
+    const auto movement_bounds =
+        openswd3::world_map::compute_legacy_world_movement_bounds(
+            selected,
+            result.session.camera,
+            map_session.header.width,
+            map_session.header.height
+        );
+    openswd3::world_map::apply_legacy_world_player_motion_state(
+        selected,
+        direction,
+        movement_bounds,
+        frame_state.movement,
+        openswd3::world_map::LegacyWorldMovementOptions{
+            .base_movement_step =
+                result.session.map_descriptor.field_06 & 0x0FU,
+        }
+    );
+    test.expect_true(
+        direction.status == openswd3::world_map::
+                                LegacyWorldDirectionInputStatus::completed &&
+            adjusted.status == openswd3::world_map::
+                                   LegacyWorldDirectionProbeStatus::completed &&
+            direction.state.direction == 3U && direction.delta_x == 1 &&
+            direction.delta_y == 0 &&
+            frame_state.movement.player_x_transition == 1 &&
+            frame_state.movement.camera_x_transition == 0 &&
+            frame_state.movement.movement_step == 4U,
+        "the real map-81 start accepts the exact right-input movement chain"
+    );
+
+    const u32 player_x_before_input_frame = selected.world_x;
+    const auto input_frame = run_world_frame();
+    test.expect_true(
+        input_frame.status == openswd3::world_map::
+                                  LegacyWorldFrameCoordinatorStatus::completed &&
+            selected.world_x == player_x_before_input_frame + 4U &&
+            frame_state.movement.player_x_transition == 1 &&
+            frame_state.movement.camera_x_transition == 0,
+        "the first movement frame advances four pixels and keeps the tile transition"
+    );
+
+    openswd3::world_map::LegacyWorldFrameCoordinatorResult transition_frame;
+    for (u32 frame = 1U; frame < 4U; ++frame) {
+        transition_frame = run_world_frame();
+    }
+    test.expect_true(
+        transition_frame.status == openswd3::world_map::
+                                       LegacyWorldFrameCoordinatorStatus::
+                                           completed &&
+            selected.world_x == player_x_before_input_frame + 16U &&
+            transition_frame.player_post_frame.aligned &&
+            transition_frame.player_post_frame.transitions_cleared &&
+            frame_state.movement.player_x_transition == 0 &&
+            frame_state.movement.camera_x_transition == 0,
+        "four real frames complete one 16-pixel tile step and clear transitions"
     );
 }
 
