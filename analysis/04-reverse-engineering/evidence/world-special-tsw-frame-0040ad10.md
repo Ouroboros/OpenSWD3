@@ -41,7 +41,7 @@ read_u32(compressed_size)
 7. 两个转换函数都从命令流头重新发布最终宽高；函数返回 1。
 
 原版的 `index == count` 会继续访问全局数组下一槽。现代实现只在无效资产边界拒绝
-该越界访问，不改变当前 DVD 有效记录的结果。
+该越界访问，不改变当前游戏数据有效记录的结果。
 
 ## 4. 实现与验证
 
@@ -50,7 +50,7 @@ read_u32(compressed_size)
 - 新地图 owner 建立前先解除旧 loader 并清除 TSW 缓存，防止相同 `0xFFFF/variant`
   键跨地图错误复用；新会话稳定后再绑定 loader。
 - 合成 UT 覆盖 direct-16、512 字节内嵌调色板 indexed 路径以及无效变体边界。
-- 当前 DVD 新游戏地图 81 的真实 `MAPS + LMF + ACT + TSW + framebuffer` 会话已完成
+- 当前游戏数据的新游戏地图 81 真实 `MAPS + LMF + ACT + TSW + framebuffer` 会话已完成
   一次普通世界帧，抵达唯一画面提交槽和两次音频维护槽。初始地图角色使用的 20 个
   `0xFFFF` 私有帧均不再落入 `special_loader_unavailable`。
 

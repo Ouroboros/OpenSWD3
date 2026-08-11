@@ -616,7 +616,7 @@ void test_real_maps_dat(openswd3::test::Context &test,
     test.expect_equal(thresholds.status, LegacyEncounterSourceStatus::ready,
                       "current MAPS threshold source is structurally complete");
     test.expect_equal(thresholds.groups.size(), std::size_t{11U},
-                      "current DVD payload contains eleven encounter groups");
+                      "current game payload contains eleven encounter groups");
 
     std::size_t total_regions = 0U;
     bool every_candidate_list_valid = true;
@@ -658,7 +658,7 @@ void test_real_maps_dat(openswd3::test::Context &test,
                          map_37.regions[0].maximum_x == 105 &&
                          map_37.regions[0].maximum_y == 110 &&
                          map_37.regions[0].candidate_list_offset == 0x20CEU,
-                     "map 37 fixes a concrete current-DVD region vector");
+                     "map 37 fixes a concrete current-data region vector");
     if (thresholds.status != LegacyEncounterSourceStatus::ready ||
         map_37.status != LegacyEncounterSourceStatus::ready ||
         map_37.regions.empty()) {

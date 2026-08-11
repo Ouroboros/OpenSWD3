@@ -4,6 +4,7 @@
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_world_player_motion.hpp"
 #include "openswd3/world_map/legacy_world_render_session.hpp"
+#include "openswd3/world_map/legacy_world_role_preload.hpp"
 
 #include <filesystem>
 #include <span>
@@ -39,6 +40,7 @@ enum class LegacyWorldRuntimeSessionStatus {
     maps_database_failed,
     map_descriptor_not_found,
     preload_coordinate_stage_required,
+    preload_role_synchronization_failed,
     render_session_failed,
     maps_load_apply_failed,
     role_capacity_exceeded,
@@ -54,6 +56,7 @@ struct LegacyWorldRuntimeSessionRequest {
     LegacyWorldLoadRequest load;
     compat::u32 cache_limit_megabytes{60U};
     rendering::LegacyPixelConversionState pixel_conversion;
+    const LegacyWorldRolePreloadContext* preload_context{};
 };
 
 struct LegacyWorldRuntimeSession {
@@ -68,6 +71,8 @@ struct LegacyWorldRuntimeSession {
     compat::u32 duplicate_role_count{};
     compat::u32 out_of_bounds_role_count{};
     compat::u32 action_update_failure_count{};
+    LegacyWorldRolePreloadResult role_preload;
+    bool role_preload_applied{};
 };
 
 struct LegacyWorldRuntimeSessionResult {

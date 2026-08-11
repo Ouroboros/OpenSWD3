@@ -242,9 +242,25 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     result.session.map_descriptor = *descriptor;
 
     if ((request.load.load_flags & 1U) != 0U) {
-        result.status = LegacyWorldRuntimeSessionStatus::
-            preload_coordinate_stage_required;
-        return result;
+        if (request.preload_context == nullptr) {
+            result.status = LegacyWorldRuntimeSessionStatus::
+                preload_coordinate_stage_required;
+            return result;
+        }
+
+        result.session.role_preload = preload_legacy_world_roles_before_load(
+            maps_payload,
+            result.session.maps_database,
+            request.load,
+            *request.preload_context
+        );
+        result.session.role_preload_applied = true;
+        if (result.session.role_preload.status !=
+            LegacyWorldRolePreloadStatus::ready) {
+            result.status = LegacyWorldRuntimeSessionStatus::
+                preload_role_synchronization_failed;
+            return result;
+        }
     }
 
     RoleAssemblyState assembly;

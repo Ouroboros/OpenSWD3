@@ -21,6 +21,10 @@ using openswd3::world_map::apply_legacy_maps_world_load;
 using openswd3::world_map::decode_legacy_maps_world_database;
 using openswd3::world_map::find_legacy_maps_map_descriptor;
 using openswd3::world_map::find_legacy_maps_role_defaults;
+using openswd3::world_map::kLegacyMapsPreserveRoleField;
+using openswd3::world_map::patch_legacy_maps_role_source_record;
+using openswd3::world_map::LegacyMapsRolePatchRequest;
+using openswd3::world_map::LegacyMapsRolePatchStatus;
 using openswd3::world_map::LegacyMapsWorldDatabaseStatus;
 using openswd3::world_map::LegacyMapsWorldLoadApplyStatus;
 using openswd3::world_map::LegacyWorldLoadRequest;
@@ -173,6 +177,77 @@ void test_apply_load_mutates_owned_payload(openswd3::test::Context &test) {
       "the mutable payload remains authoritative after load preparation");
 }
 
+void test_role_patch_sentinel_and_mask_order(
+    openswd3::test::Context &test
+) {
+  std::vector<u8> bytes = make_database();
+  auto decoded = decode_legacy_maps_world_database(bytes);
+  const auto status = patch_legacy_maps_role_source_record(
+      bytes,
+      decoded.database,
+      LegacyMapsRolePatchRequest{
+          .guid = 7U,
+          .action_id = 0x1111U,
+          .base_variant = kLegacyMapsPreserveRoleField,
+          .variant_delta = 0x2222U,
+          .tile_x = 0x3333U,
+          .tile_y = 0x4444U,
+          .talk_script_id = 0x5555U,
+          .path_data_id = 0x6666U,
+          .flags_or_mask = 0x0F0FU,
+          .flags_and_mask = 0x00FFU,
+          .logical_map_id = 0x7777U,
+      }
+  );
+  const auto &role = decoded.database.role_sources[1U];
+  test.expect_true(
+      status == LegacyMapsRolePatchStatus::ready &&
+          role.logical_map_id == 0x7777U && role.action_id == 0x1111U &&
+          role.base_variant == 3U && role.variant_delta == 0x2222U &&
+          role.tile_x == 0x3333U && role.tile_y == 0x4444U &&
+          role.talk_script_id == 0x5555U &&
+          role.path_data_id == 0x6666U && role.path_word_index == 0 &&
+          role.flags == 0x0F0FU,
+      "sub_40D460 preserves FFFF and applies flags AND before OR"
+  );
+  test.expect_true(
+      read_u16(bytes, 0x96U) == 0x7777U &&
+          read_u16(bytes, 0x9AU) == 0x1111U &&
+          read_u16(bytes, 0x9CU) == 3U &&
+          read_u16(bytes, 0xA8U) == 0U &&
+          read_u16(bytes, 0xAAU) == 0x0F0FU,
+      "the selective patch updates the authoritative MAPS payload"
+  );
+
+  const auto preserved = role;
+  test.expect_equal(
+      patch_legacy_maps_role_source_record(
+          bytes,
+          decoded.database,
+          LegacyMapsRolePatchRequest{.guid = 7U}
+      ),
+      LegacyMapsRolePatchStatus::ready,
+      "all default patch operands retain their source fields"
+  );
+  test.expect_true(
+      decoded.database.role_sources[1U].logical_map_id ==
+              preserved.logical_map_id &&
+          decoded.database.role_sources[1U].path_word_index ==
+              preserved.path_word_index &&
+          decoded.database.role_sources[1U].flags == preserved.flags,
+      "FFFF path and flag operands also preserve coupled fields"
+  );
+  test.expect_equal(
+      patch_legacy_maps_role_source_record(
+          bytes,
+          decoded.database,
+          LegacyMapsRolePatchRequest{.guid = 99U}
+      ),
+      LegacyMapsRolePatchStatus::guid_not_found,
+      "a missing GUID retains the original helper failure"
+  );
+}
+
 void test_checked_boundaries(openswd3::test::Context &test) {
   const std::vector<u8> short_header(0x57U, 0U);
   test.expect_equal(decode_legacy_maps_world_database(short_header).status,
@@ -224,7 +299,7 @@ void test_real_maps_dat(openswd3::test::Context &test,
       decoded.status == LegacyMapsWorldDatabaseStatus::ready &&
           decoded.database.map_descriptors.size() == 345U &&
           decoded.database.role_sources.size() == 1371U,
-      "current DVD map and role directories are structurally complete");
+      "current game map and role directories are structurally complete");
   if (decoded.status != LegacyMapsWorldDatabaseStatus::ready) {
     return;
   }
@@ -240,7 +315,7 @@ void test_real_maps_dat(openswd3::test::Context &test,
           descriptor->archive_map_id == 81U && descriptor->field_04 == 16U &&
           descriptor->field_06 == 4U && descriptor->field_08 == 8U &&
           descriptor->field_0a == 0U && descriptor->field_0c == 10U,
-      "current DVD new game selects logical/archive map 81 at tile 13,28");
+      "current game data selects logical/archive map 81 at tile 13,28");
 
   const std::size_t before = static_cast<std::size_t>(std::count_if(
       decoded.database.role_sources.begin(),
@@ -264,6 +339,7 @@ int main(const int argc, char **argv) {
   openswd3::test::Context test;
   test_decode_and_lookup(test);
   test_apply_load_mutates_owned_payload(test);
+  test_role_patch_sentinel_and_mask_order(test);
   test_checked_boundaries(test);
   if (argc == 2) {
     test_real_maps_dat(test, argv[1]);

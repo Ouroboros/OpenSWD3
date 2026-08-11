@@ -272,7 +272,7 @@ void test_real_database_set(
         payload.size() >= 0x14U && payload[0] == 0x65U &&
             payload[4] == 0x28U && payload[5] == 0x36U &&
             payload[0x10U] == 0x38U && payload[0x11U] == 0x23U,
-        "real MAPS.DAT payload header matches the locked DVD bytes"
+        "real MAPS.DAT payload header matches the locked game-data bytes"
     );
 
     const auto path_bytes = databases.path_bytes();

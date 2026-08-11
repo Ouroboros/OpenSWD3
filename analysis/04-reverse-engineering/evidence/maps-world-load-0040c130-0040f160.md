@@ -1,7 +1,7 @@
 # MAPS 世界装载与初始会话
 
 状态：`assembly_exact`（本文覆盖的载入、目录、角色基础字段、动作刷新和相机顺序）、
-`asset_verified`（当前 DVD 新游戏路径）；原程序动态差分仍为 `blocked_runtime_oracle`。
+`asset_verified`（当前游戏数据的新游戏路径）；原程序动态差分仍为 `blocked_runtime_oracle`。
 
 ## 证据边界
 
@@ -74,7 +74,7 @@ selected_guid  = word +0x0C（通过全局传递）
 load_flags     = 0
 ```
 
-当前 DVD 记录为 `(81, 13, 28, 1, 0, 3, 1)`。逻辑地图 81 的描述记录把它映射到
+当前游戏数据记录为 `(81, 13, 28, 1, 0, 3, 1)`。逻辑地图 81 的描述记录把它映射到
 LMF 归档地图 81，其余五个 word 为 `(16, 4, 8, 0, 10)`。
 
 ## `sub_40C130` 的关键顺序
@@ -101,8 +101,10 @@ OpenSWD3 在 `LegacyWorldMapSession` 的 LMF 业务状态完成与最终格绑�
 受控回调槽。`LegacyWorldRuntimeSession` 在该槽内改写 MAPS、追加角色、建立空间链并
 调用 ACT updater，随后复用统一格绑定器，保持上述第 2、3–10、11 项的相对顺序。
 
-载入 flags 的 bit 0 会在原版调用 `sub_40D200` 执行额外坐标预处理；该单元尚未恢复，
-现代入口对此返回 `preload_coordinate_stage_required`，不能静默跳过后仍报告成功。
+载入 flags 的 bit 0 会在目标 LMF 载入前调用 `sub_40D200`，把旧运行时角色状态同步回
+MAPS。现代入口在请求提供旧世界上下文时执行已恢复的 `0x0040D200..0x0040D552` 单元；
+缺少上下文仍返回 `preload_coordinate_stage_required`，同步失败则返回
+`preload_role_synchronization_failed`，两种情况都不能静默跳过后报告成功。
 
 ## 相机
 
@@ -118,7 +120,7 @@ bottom = top  + 0x1E0
 左、上为负时钳到零；右、下达到或超过地图像素边界时，把对应轴移到最后一个
 `640×480` 视口。比较是 `jl`，等于边界也进入尾端钳制。
 
-## 当前 DVD 验证
+## 当前游戏数据验证
 
 真实 MAPS 载荷为 162,417 字节，解出 345 条地图描述和 1,371 条角色源记录。新游戏
 改写前地图 81 有 9 条角色；GUID `1/10000/10001` 迁入后为 12 条。当前十二条记录的

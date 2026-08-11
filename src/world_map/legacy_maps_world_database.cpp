@@ -239,6 +239,54 @@ find_legacy_maps_role_defaults(const LegacyMapsWorldDatabase &database,
   return found == database.role_defaults.end() ? nullptr : &*found;
 }
 
+LegacyMapsRolePatchStatus patch_legacy_maps_role_source_record(
+    const std::span<u8> payload,
+    LegacyMapsWorldDatabase &database,
+    const LegacyMapsRolePatchRequest &request) noexcept {
+  const auto found = std::ranges::find(database.role_sources, request.guid,
+                                       &LegacyMapsRoleSourceRecord::guid);
+  if (found == database.role_sources.end()) {
+    return LegacyMapsRolePatchStatus::guid_not_found;
+  }
+  if (!range_available(payload, found->payload_offset,
+                       kLegacyMapsRoleSourceRecordSize)) {
+    return LegacyMapsRolePatchStatus::source_record_out_of_range;
+  }
+
+  auto apply = [](u16 &field, const u16 value) noexcept {
+    if (value != kLegacyMapsPreserveRoleField) {
+      field = value;
+    }
+  };
+
+  apply(found->action_id, request.action_id);
+  apply(found->base_variant, request.base_variant);
+  apply(found->variant_delta, request.variant_delta);
+  apply(found->tile_x, request.tile_x);
+  apply(found->tile_y, request.tile_y);
+  apply(found->talk_script_id, request.talk_script_id);
+  if (request.path_data_id != kLegacyMapsPreserveRoleField) {
+    found->path_data_id = request.path_data_id;
+    found->path_word_index = 0;
+  }
+
+  if (request.flags_and_mask != kLegacyMapsPreserveRoleField) {
+    found->flags &= request.flags_and_mask;
+  }
+
+  if (request.flags_or_mask != kLegacyMapsPreserveRoleField) {
+    found->flags |= request.flags_or_mask;
+  }
+
+  apply(found->logical_map_id, request.logical_map_id);
+
+  if (!write_legacy_maps_role_source_record(payload, *found)) {
+    return LegacyMapsRolePatchStatus::source_record_out_of_range;
+  }
+
+  return LegacyMapsRolePatchStatus::ready;
+}
+
 LegacyMapsWorldLoadApplyResult
 apply_legacy_maps_world_load(const std::span<u8> payload,
                              LegacyMapsWorldDatabase &database,

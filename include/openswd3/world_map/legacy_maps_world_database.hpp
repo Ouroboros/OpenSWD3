@@ -13,6 +13,7 @@ inline constexpr std::size_t kLegacyMapsInitialLoadRecordSize = 0x0EU;
 inline constexpr std::size_t kLegacyMapsMapDescriptorRecordSize = 0x0EU;
 inline constexpr std::size_t kLegacyMapsRoleSourceRecordSize = 0x16U;
 inline constexpr std::size_t kLegacyMapsRoleDefaultsRecordSize = 0x06U;
+inline constexpr compat::u16 kLegacyMapsPreserveRoleField = 0xFFFFU;
 
 struct LegacyMapsWorldHeader {
   compat::u32 role_directory_offset{};
@@ -62,6 +63,20 @@ struct LegacyMapsRoleDefaultsRecord {
   compat::u16 guid{};
   compat::u16 field_2c{};
   compat::u16 repeated_field_30_word{};
+};
+
+struct LegacyMapsRolePatchRequest {
+  compat::u16 guid{};
+  compat::u16 action_id{kLegacyMapsPreserveRoleField};
+  compat::u16 base_variant{kLegacyMapsPreserveRoleField};
+  compat::u16 variant_delta{kLegacyMapsPreserveRoleField};
+  compat::u16 tile_x{kLegacyMapsPreserveRoleField};
+  compat::u16 tile_y{kLegacyMapsPreserveRoleField};
+  compat::u16 talk_script_id{kLegacyMapsPreserveRoleField};
+  compat::u16 path_data_id{kLegacyMapsPreserveRoleField};
+  compat::u16 flags_or_mask{kLegacyMapsPreserveRoleField};
+  compat::u16 flags_and_mask{kLegacyMapsPreserveRoleField};
+  compat::u16 logical_map_id{kLegacyMapsPreserveRoleField};
 };
 
 struct LegacyMapsWorldDatabase {
@@ -117,6 +132,17 @@ struct LegacyMapsWorldLoadApplyResult {
   compat::u32 selected_source_index{};
   compat::u32 reserved_records_moved{};
 };
+
+enum class LegacyMapsRolePatchStatus {
+  ready,
+  guid_not_found,
+  source_record_out_of_range,
+};
+
+[[nodiscard]] LegacyMapsRolePatchStatus patch_legacy_maps_role_source_record(
+    std::span<compat::u8> payload,
+    LegacyMapsWorldDatabase &database,
+    const LegacyMapsRolePatchRequest &request) noexcept;
 
 [[nodiscard]] LegacyMapsWorldLoadApplyResult
 apply_legacy_maps_world_load(std::span<compat::u8> payload,

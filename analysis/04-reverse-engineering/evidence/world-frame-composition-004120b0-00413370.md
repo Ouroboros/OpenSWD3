@@ -131,7 +131,7 @@ focus clip”和“底图 16 对齐 tile 区域”两套边界；实现与 UT �
   `stage_failed`，正常资产下不改变汇编顺序；
 - 正常、局部 clip、service `0x13/0x48/0x0B/0x51`、clear-only、ANI activity、
   control `0x2E` 和无效源隔离均有独立 UT；
-- 当前 DVD 地图 24 的 `LMF → CM → frame composition` RGB565 逻辑 framebuffer
+- 当前游戏数据地图 24 的 `LMF → CM → frame composition` RGB565 逻辑 framebuffer
   FNV-1a64 固定为 `0x947C15A53487BF9A`。
 
 空间 runtime 接线后，真实 TSW 双角色路径叠加底图的 framebuffer 哈希为

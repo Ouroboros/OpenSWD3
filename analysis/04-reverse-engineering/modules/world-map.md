@@ -48,7 +48,7 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    `0x00403AD7..0x00403DB6` 的两次碰撞回退、`0xD8` Talk 布局、地图事件副作用、
    角色相向和 `0x00411E20/0x00411F00` 朝向查表也已实现。`0x0040D9E0` 的 14 字节
    区域源、`0x0040E672` 的 16 字节阈值组、`0x0040DA60` 两次 RNG 选择，以及
-   `0x00403F43..0x0040406F` 的全部门控和立即战斗切入已经闭环；当前 DVD MAPS 的
+   `0x00403F43..0x0040406F` 的全部门控和立即战斗切入已经闭环；当前游戏数据 MAPS 的
    11 个阈值组、115 条区域和全部候选列表通过。Linux `core` 119/119、Windows LLVM
    `app` 123/123 CTest 通过。`0x00412930` 的三条主体路径、清屏、局部 clip、service /
    control 短路、公共尾部和四条底图路径已经闭环；地图 24 的真实
@@ -71,19 +71,22 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    SDL runtime 已接通。Linux `core` 133/133、Windows LLVM `app` 137/137 CTest 通过。
    `sub_40F160` 的 MAPS 去前 `0x200` 字节载入、头部四个目录、七 word 初始记录，
    以及 `sub_40C130` 的逻辑地图描述、保留/选中 GUID 改写、22 字节角色物化、默认值、
-   ACT 更新、最终格绑定和 `sub_40D0C0` 相机顺序现已形成真实初始世界 owner。当前 DVD
+   ACT 更新、最终格绑定和 `sub_40D0C0` 相机顺序现已形成真实初始世界 owner。当前游戏数据
    新游戏由记录自身选择逻辑/归档地图 81，不在 SDL 层硬编码；9 条既有角色加迁入的
    GUID `1/10000/10001` 共 12 条，真实 `MAPS + LMF + ACT` 集成通过。load flags bit 0
-   需要的 `sub_40D200` 和 `0x0040CAD3..0x0040CCBC` 的状态相关角色附加分支仍保持显式
-   后续范围，尚未据此宣称任意地图切换完整。`0x004492BA..0x00449311` 的实际“新游戏”
+   需要的 `0x0040D200..0x0040D552` 切换前角色同步已恢复：旧运行时角色在目标 LMF
+   载入前写回 MAPS，并保留 `0xFFFF` patch 哨兵、16 位坐标截断和 PATH type 8 固定
+   72 槽覆盖。`0x0040CAD3..0x0040CCBC` 的状态相关角色附加分支仍保持显式后续范围，
+   尚未据此宣称任意地图切换完整。`0x004492BA..0x00449311` 的实际“新游戏”
    最终提交槽现已建立应用层端口：只有特殊模式名称输入和 `>104` 退场门完成后才发出，
    并保留计时、清 framebuffer、`sub_40F160(1)`、模式状态、菜单预览、名称覆盖及
    `Fame.dat` 的顺序。B7 owner 已接入该端口，并在会话建立后把 `sub_40AD10` 当前
    地图私有 TSW 加载器绑定到资源号 `0xFFFF`；地图 81 的真实
    `MAPS + LMF + ACT + TSW + framebuffer` owner 已完成一帧普通世界组合，抵达
    唯一画面提交槽和两次音频维护槽。未恢复的世界 stage 仍在原槽显式转交；完整
-   模式 3 UI 仍属于 B9，不在进程初始化或 SDL 层伪造快捷触发。Linux `core`
-   142/142、Windows LLVM `app` 146/146 CTest 通过。
+   模式 3 UI 仍属于 B9，不在进程初始化或 SDL 层伪造快捷触发。当前游戏数据 1,371 条
+   角色源中 136 条初始 Path 非零，当前命令均为五；真实数据与合成边界回归通过。
+   Linux `core` 144/144、Windows LLVM `app` 148/148 CTest 通过。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -111,5 +114,6 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、
 [`world-selection-scroll-004148f0.md`](../evidence/world-selection-scroll-004148f0.md)、
 [`maps-world-load-0040c130-0040f160.md`](../evidence/maps-world-load-0040c130-0040f160.md) 和
+[`maps-role-preload-0040d200-0040d552.md`](../evidence/maps-role-preload-0040d200-0040d552.md)、
 [`initial-new-game-transition-00448840-00449311.md`](../evidence/initial-new-game-transition-00448840-00449311.md)、
 [`world-special-tsw-frame-0040ad10.md`](../evidence/world-special-tsw-frame-0040ad10.md)。

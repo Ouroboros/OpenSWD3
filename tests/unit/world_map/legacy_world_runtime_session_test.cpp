@@ -524,6 +524,32 @@ void test_explicit_failure_boundaries(openswd3::test::Context& test) {
         "bit-zero load requests cannot silently skip sub_40D200"
     );
 
+    const std::array<openswd3::world_map::LegacyWorldRoleRecord, 1U>
+        prior_roles{};
+    const openswd3::world_map::LegacyWorldRolePreloadContext
+        preload_context{
+            .path_database = {},
+            .roles = prior_roles,
+            .object_slots = {},
+            .controlled_role_index = 0U,
+            .current_map_width = 40U,
+            .current_map_height = 30U,
+        };
+    request.preload_context = &preload_context;
+    const auto preloaded = load_legacy_world_runtime_session(
+        payload,
+        request,
+        action_initializer,
+        map_source,
+        cm_source
+    );
+    test.expect_true(
+        preloaded.status == LegacyWorldRuntimeSessionStatus::ready &&
+            preloaded.session.role_preload_applied &&
+            preloaded.session.role_preload.roles_visited == 0U,
+        "bit-zero load requests run sub_40D200 when prior world state exists"
+    );
+
     request.load = decoded.database.initial_load;
     request.load.selected_guid = 99U;
     const auto missing = load_legacy_world_runtime_session(
@@ -592,7 +618,7 @@ void test_real_initial_world(
     test.expect_equal(
         result.status,
         LegacyWorldRuntimeSessionStatus::ready,
-        "current DVD assets create the first real world session"
+        "current game data creates the first real world session"
     );
     if (result.status != LegacyWorldRuntimeSessionStatus::ready) {
         return;
