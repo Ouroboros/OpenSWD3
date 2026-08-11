@@ -189,6 +189,7 @@ void initialize_maps_role(
     }
 
     for (std::size_t role_index = 1U; role_index < roles.size(); ++role_index) {
+        roles[role_index].action.mode_flags = 0U;
         if (action_initializer.initialize_action(roles[role_index].action) ==
             0U) {
             ++assembly.action_update_failure_count;

@@ -1,6 +1,7 @@
 # 世界空间角色绘制与距离音频（`0x00413870..0x00413FDD`）
 
-状态：`assembly_exact`、`asset_verified`；尚未 `original_diff_verified`
+状态：`assembly_exact`、`asset_verified`、`original_diff_verified`（GUID 248/249
+角色位置、动作帧与水平模式）；完整 framebuffer/audio/jitter 差分尚未完成。
 
 本文只以 `swd3.exe.lst` 的机器码与指令为行为真值。它固定普通世界画面组合中两次
 空间角色扫描、普通角色绘制和距离音频的调用顺序；IDA 伪码与符号名只用于定位。
@@ -140,6 +141,12 @@ pan             = trunc_toward_zero(((role_x-listener_x) << 6) / 512)
 - 普通角色：`0xA4766C928B05DC88`。
 - 底图叠加 bit-29 与普通角色的整帧纵向切片：`0xA6144A91E57939F9`。
 
-Linux Clang `core` 130/130、Windows LLVM `app` 134/134 CTest 均通过。原程序逐帧
-framebuffer、音频调用和 jitter 状态差分仍登记为 `blocked_runtime_oracle`；如需验证只
+原版 `0x00413910` 动态采集固定 GUID 248 使用 `TSW 188/4`、目标 `(309,240)` 和
+`mode_flags=1`，GUID 249 使用 `TSW 188/8`、目标 `(235,258)` 和 `mode_flags=0`。
+宽 63 的真实 188/4 帧在 bit 0 下由 `0x004185C0` 水平反转；这解释了蓝衣角色有效像素
+相对正向帧向右镜像 18 像素，而红衣角色保持正向。真实数据回归覆盖这两个模式位从地图
+初始化到首帧的保留。
+
+原程序完整逐帧 framebuffer、音频调用和 jitter 状态差分仍登记为
+`blocked_runtime_oracle`；如需验证只
 准备 Frida spawn 工具并等待用户执行，不由开发流程自行启动原版。

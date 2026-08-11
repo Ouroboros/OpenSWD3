@@ -496,8 +496,8 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
             roles[2].action.variant_delta == 15U &&
             roles[2].field_2c == 0x2468U &&
             roles[2].field_30 == 0xACE0ACE0U &&
-            roles[2].action.mode_flags == 0U,
-        "source fields/defaults are materialized before final cell binding"
+            roles[2].action.mode_flags == 99U,
+        "source fields/defaults and updater output survive final cell binding"
     );
     test.expect_true(
         result.session.camera.left == 0U && result.session.camera.top == 0U &&
@@ -654,6 +654,10 @@ void test_real_initial_world(
     auto& roles = map_session.business.state.roles;
     auto& selected = roles[result.session.selected_role_index];
     const auto& post_state = result.session.role_post_materialization;
+    const auto blue_role = std::ranges::find(roles, 248U, &
+        openswd3::world_map::LegacyWorldRoleRecord::guid);
+    const auto red_role = std::ranges::find(roles, 249U, &
+        openswd3::world_map::LegacyWorldRoleRecord::guid);
     test.expect_true(
         result.session.logical_map_id == 81U &&
             result.session.map_descriptor.archive_map_id == 81U &&
@@ -677,6 +681,24 @@ void test_real_initial_world(
             selected.action.base_variant == 0U &&
             selected.action.variant_delta == 3U,
         "selected GUID one materializes the seven-word initial record"
+    );
+    test.expect_true(
+        blue_role != roles.end() && red_role != roles.end() &&
+            blue_role->action.action_id == 623U &&
+            blue_role->action.variant_delta == 4U &&
+            blue_role->action.draw_offset_x == 27U &&
+            blue_role->action.draw_offset_y == 48U &&
+            blue_role->action.field_4a == 188U &&
+            blue_role->action.field_4c == 4U &&
+            blue_role->action.mode_flags == 1U &&
+            red_role->action.action_id == 623U &&
+            red_role->action.variant_delta == 5U &&
+            red_role->action.draw_offset_x == 5U &&
+            red_role->action.draw_offset_y == 46U &&
+            red_role->action.field_4a == 188U &&
+            red_role->action.field_4c == 8U &&
+            red_role->action.mode_flags == 0U,
+        "real ACT state matches the captured blue/reverse and red/forward roles"
     );
     test.expect_true(
         map_session.role_cell_binding.roles_bound == roles.size() - 1U &&
@@ -857,6 +879,11 @@ void test_real_initial_world(
         first_frame.frame.status,
         openswd3::world_map::LegacyWorldFrameRuntimeStatus::completed,
         "the exact initial owner completes the inner composition"
+    );
+    test.expect_true(
+        blue_role->action.mode_flags == 1U &&
+            red_role->action.mode_flags == 0U,
+        "the first role-path update preserves the captured horizontal directions"
     );
     test.expect_true(
         first_frame.countdown_stage_executed &&

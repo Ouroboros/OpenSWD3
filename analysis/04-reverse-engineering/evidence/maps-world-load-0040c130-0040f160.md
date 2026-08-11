@@ -1,7 +1,8 @@
 # MAPS 世界装载与初始会话
 
 状态：`assembly_exact`（本文覆盖的载入、目录、角色物化后附加状态、动作刷新和相机顺序）、
-`asset_verified`（当前游戏数据的新游戏路径）；原程序动态差分仍为 `blocked_runtime_oracle`。
+`asset_verified`（当前游戏数据的新游戏路径）、`original_diff_verified`（GUID 248/249
+初始角色绘制状态）；其余原程序动态差分仍为 `blocked_runtime_oracle`。
 
 ## 证据边界
 
@@ -98,13 +99,16 @@ LMF 归档地图 81，其余五个 word 为 `(16, 4, 8, 0, 10)`。
 10. `0x0040CAD3..0x0040CCBC` 在每条 MAPS 角色空间插入后执行 GUID 1 action 覆盖、
     状态门控、队伍转移和最多四条 flags bit 9 记录；
 11. 全部角色完成后，`0x0040CD61..0x0040CD78` 从角色一开始逐条调用
-    `sub_40F280`；动作载入失败只记录诊断，不中止循环；
-12. `sub_40F280` 在动作更新后清除/投影地图 flags，并绑定角色所在地图格；
+    `sub_40F280`；该函数先在 `0x0040F289` 清零 action `mode_flags`，再于
+    `0x0040F291` 调用 action updater，因此 `IV` 等命令产生的最终模式位必须保留；
+    动作载入失败只记录诊断，不中止循环；
+12. `sub_40F280` 随后清除/投影地图 flags，并绑定角色所在地图格；
 13. `0x0040CD7A` 最后调用 `sub_40D0C0` 生成选中角色相机。
 
 OpenSWD3 在 `LegacyWorldMapSession` 的 LMF 业务状态完成与最终格绑定之间增加了一个
 受控回调槽。`LegacyWorldRuntimeSession` 在该槽内改写 MAPS、追加角色、建立空间链并
-调用 ACT updater，随后复用统一格绑定器，保持上述第 2、3–10、11 项的相对顺序。
+在调用 ACT updater 前执行同一 action mode 清零，随后复用只处理地图 flags 与格索引的
+统一格绑定器，保持上述第 2、3–10、11 项的逐指令相对顺序。
 
 载入 flags 的 bit 0 会在目标 LMF 载入前调用 `sub_40D200`，把旧运行时角色状态同步回
 MAPS。现代入口在请求提供旧世界上下文时执行已恢复的 `0x0040D200..0x0040D552` 单元；
@@ -134,4 +138,10 @@ flags bit 7 与 bit 9 均为零，因此已恢复的状态门控和四记录分�
 真实集成测试使用 `MAPS.DAT + huge.lmf + 六个 ACT 包` 建立地图 81 会话：12 条 MAPS
 角色全部物化，GUID 1 位于 `(13×16, 28×16)`，动作更新失败数为零；队伍计数为一且
 索引零指向 GUID 1，门控扫描和附加记录数均为零。全部角色在动作更新之后完成格绑定。
-该结果是 `asset_verified`，还不是原程序运行状态差分。
+
+原版 `0x00413910` attach 采集进一步固定了地图 81 的两个静止角色：GUID 248 为
+`world=(416,416)`、`action=623/variant 4`、`offset=(27,48)`、`TSW=188/4`、
+`mode_flags=1`、`destination=(309,240)`；GUID 249 为 `world=(320,432)`、
+`action=623/variant 5`、`offset=(5,46)`、`TSW=188/8`、`mode_flags=0`、
+`destination=(235,258)`。真实集成回归同时固定初始化与首帧后的这两个 mode 值，防止把
+`0x0040F289` 的清零错误移到 updater 之后。

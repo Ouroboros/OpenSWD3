@@ -371,7 +371,6 @@ LegacyWorldRoleCellBindingResult bind_legacy_world_role_cells(
     result.status = LegacyWorldRoleCellBindingStatus::ready;
     for (u32 index = first_role_index; index < role_count; ++index) {
         LegacyWorldRoleRecord& role = roles[index];
-        role.action.mode_flags = 0U;
         role.flags &= kLegacyRoleMapFlagMask;
 
         const u32 cell_index =

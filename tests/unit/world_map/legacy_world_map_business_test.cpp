@@ -244,8 +244,8 @@ void test_cell_binding(openswd3::test::Context& test) {
         result.roles_bound == 2U && result.out_of_bounds_indices == 1U &&
             roles[1].map_cell_pointer_32 == 6U &&
             roles[1].flags == 0xFFAFFFFFU &&
-            roles[1].action.mode_flags == 0U,
-        "0x0040F2C1 cell index and flag projection preserve exact masks"
+            roles[1].action.mode_flags == 7U,
+        "0x0040F2C1 cell index and flag projection preserve exact masks without repeating the pre-update mode reset"
     );
 
     roles[2].flags |= 0x00000100U;
