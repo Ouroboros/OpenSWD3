@@ -763,6 +763,14 @@ void test_real_initial_world(
         openswd3::world_map::LegacyWorldFrameRuntimeStatus::completed,
         "the exact initial owner completes the inner composition"
     );
+    test.expect_true(
+        first_frame.head_sign_actions.status ==
+                openswd3::world_map::LegacyWorldHeadSignActionsStatus::
+                    completed &&
+            first_frame.head_sign_actions.update_count == 4U &&
+            first_frame.head_sign_actions.update_failure_count == 0U,
+        "the exact initial ACT owner advances all four HeadSgn variants"
+    );
     test.expect_equal(
         deferred_ports.presentations,
         1U,

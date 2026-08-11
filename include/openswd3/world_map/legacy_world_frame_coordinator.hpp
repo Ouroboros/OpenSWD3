@@ -3,6 +3,7 @@
 #include "openswd3/compat/types.hpp"
 #include "openswd3/world_map/legacy_world_frame_runtime.hpp"
 #include "openswd3/world_map/legacy_world_frame_tail.hpp"
+#include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
 #include "openswd3/world_map/legacy_world_player_motion.hpp"
 #include "openswd3/world_map/legacy_world_selection_scroll.hpp"
 
@@ -11,7 +12,6 @@
 namespace openswd3::world_map {
 
 enum class LegacyWorldOuterFrameStage : compat::u8 {
-  head_sign_actions_004120b7,
   map_role_actions_004121a1,
   company_role_actions_004124ef,
   precompose_00414570,
@@ -24,7 +24,7 @@ enum class LegacyWorldOuterFrameStage : compat::u8 {
 
 struct LegacyWorldOuterFrameStageRequest {
   LegacyWorldOuterFrameStage stage{
-      LegacyWorldOuterFrameStage::head_sign_actions_004120b7};
+      LegacyWorldOuterFrameStage::map_role_actions_004121a1};
   compat::i32 argument_0{};
   compat::i32 argument_1{};
   compat::u32 argument_2{};
@@ -49,6 +49,7 @@ struct LegacyWorldFrameCoordinatorState {
   LegacyWorldSelectionScrollState selection_scroll;
   LegacyWorldTileLayerAnimationState tile_animation;
   LegacyWorldFrameRuntimeState frame_runtime;
+  LegacyWorldHeadSignActionsState head_sign_actions;
 };
 
 enum class LegacyWorldFrameCoordinatorStatus : compat::u8 {
@@ -65,6 +66,7 @@ struct LegacyWorldFrameCoordinatorResult {
   LegacyWorldSelectionScrollStatus selection_scroll{
       LegacyWorldSelectionScrollStatus::invalid_selection_window};
   LegacyWorldFrameRuntimeResult frame;
+  LegacyWorldHeadSignActionsResult head_sign_actions;
   compat::u32 outer_stage_call_count{};
   compat::u32 audio_service_count{};
   compat::i32 composition_camera_left{};
@@ -77,7 +79,7 @@ struct LegacyWorldFrameCoordinatorResult {
   bool viewport_restored{};
   bool failed_outer_stage_recorded{};
   LegacyWorldOuterFrameStage failed_outer_stage{
-      LegacyWorldOuterFrameStage::head_sign_actions_004120b7};
+      LegacyWorldOuterFrameStage::map_role_actions_004121a1};
 };
 
 // Ordinary-world outer frame at 0x004120B0. The framebuffer is the modern

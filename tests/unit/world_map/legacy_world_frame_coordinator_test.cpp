@@ -37,6 +37,7 @@ using openswd3::world_map::LegacyWorldFramePorts;
 using openswd3::world_map::LegacyWorldFrameRuntimePorts;
 using openswd3::world_map::LegacyWorldFrameRuntimeStatus;
 using openswd3::world_map::LegacyWorldFrameStage;
+using openswd3::world_map::LegacyWorldHeadSignActionsStatus;
 using openswd3::world_map::LegacyWorldOuterFramePorts;
 using openswd3::world_map::LegacyWorldOuterFrameStage;
 using openswd3::world_map::LegacyWorldOuterFrameStageRequest;
@@ -53,6 +54,7 @@ constexpr u32 kOuterEventBase = 0x100U;
 constexpr u32 kFrameEventBase = 0x200U;
 constexpr u32 kAudioEvent = 0x300U;
 constexpr u32 kPresentEvent = 0x301U;
+constexpr u32 kHeadSignEventBase = 0x400U;
 
 [[nodiscard]] constexpr u32
 outer_event(const LegacyWorldOuterFrameStage stage) noexcept {
@@ -123,8 +125,15 @@ private:
 
 class EmptyActionPorts final : public LegacyActionDrawPorts {
 public:
+  explicit EmptyActionPorts(std::vector<u32> &events) noexcept
+      : events_(events) {}
+
   [[nodiscard]] LegacyActionUpdateStatus
-  update_action_record(LegacyActionRecord &) override {
+  update_action_record(LegacyActionRecord &record) override {
+    events_.push_back(kHeadSignEventBase + record.base_variant);
+    if (record.base_variant == failed_variant) {
+      return LegacyActionUpdateStatus::stream_load_failed;
+    }
     return LegacyActionUpdateStatus::completed;
   }
 
@@ -138,6 +147,11 @@ public:
                    const i32) noexcept override {
     return LegacyBlitExecutionStatus::completed;
   }
+
+  u32 failed_variant{0xFFFFFFFFU};
+
+private:
+  std::vector<u32> &events_;
 };
 
 class EmptyRolePorts final : public LegacyWorldRoleRenderPorts {
@@ -207,7 +221,7 @@ struct Fixture {
   LegacyWorldFrameCoordinatorState state;
   RecordingFramePorts frame_ports{events};
   RecordingOuterPorts outer_ports{events};
-  EmptyActionPorts action_ports;
+  EmptyActionPorts action_ports{events};
   EmptyRolePorts role_ports;
   EmptyAudioPorts audio_ports;
 
@@ -280,7 +294,10 @@ struct Fixture {
   using Outer = LegacyWorldOuterFrameStage;
   using Inner = LegacyWorldFrameStage;
   return {
-      outer_event(Outer::head_sign_actions_004120b7),
+      kHeadSignEventBase + 3U,
+      kHeadSignEventBase + 2U,
+      kHeadSignEventBase + 1U,
+      kHeadSignEventBase + 0U,
       outer_event(Outer::map_role_actions_004121a1),
       outer_event(Outer::company_role_actions_004124ef),
       outer_event(Outer::precompose_00414570),
@@ -322,7 +339,7 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           result.frame.status == LegacyWorldFrameRuntimeStatus::completed &&
           result.selection_scroll ==
               LegacyWorldSelectionScrollStatus::completed &&
-          result.outer_stage_call_count == 9U &&
+          result.outer_stage_call_count == 8U &&
           result.audio_service_count == 2U && result.player_motion_applied &&
           result.presentation_requested && result.post_present_player_aligned &&
           result.movement_transitions_cleared &&
@@ -347,16 +364,16 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           fixture.state.frame_runtime.frame.camera_top == 16,
       "post-present animation and viewport restoration persist final state");
   test.expect_true(
-      fixture.outer_ports.requests[4].stage ==
+      fixture.outer_ports.requests[3].stage ==
               LegacyWorldOuterFrameStage::fixed_ui_004308c0 &&
-          fixture.outer_ports.requests[4].argument_0 == 400 &&
-          fixture.outer_ports.requests[4].argument_1 == 8 &&
-          fixture.outer_ports.requests[4].argument_2 == 0U &&
-          fixture.outer_ports.requests[5].stage ==
+          fixture.outer_ports.requests[3].argument_0 == 400 &&
+          fixture.outer_ports.requests[3].argument_1 == 8 &&
+          fixture.outer_ports.requests[3].argument_2 == 0U &&
+          fixture.outer_ports.requests[4].stage ==
               LegacyWorldOuterFrameStage::optional_map_marker_00413fe0 &&
-          fixture.outer_ports.requests[5].argument_0 == 17 &&
-          fixture.outer_ports.requests[5].argument_1 == 14 &&
-          fixture.outer_ports.requests[5].argument_2 == 2U,
+          fixture.outer_ports.requests[4].argument_0 == 17 &&
+          fixture.outer_ports.requests[4].argument_1 == 14 &&
+          fixture.outer_ports.requests[4].argument_2 == 2U,
       "fixed UI and marker retain the exact stack arguments from assembly");
   test.expect_true(fixture.state.movement.camera_x_transition == 0 &&
                        fixture.state.movement.player_x_transition == 0 &&
@@ -374,7 +391,7 @@ void test_marker_requires_exact_one(openswd3::test::Context &test) {
 
   test.expect_true(
       result.status == LegacyWorldFrameCoordinatorStatus::completed &&
-          result.outer_stage_call_count == 8U,
+          result.outer_stage_call_count == 7U,
       "noncanonical marker state two does not alias equality with one");
   test.expect_true(
       std::ranges::find(
@@ -393,7 +410,7 @@ void test_company_and_alignment_gates(openswd3::test::Context &test) {
     const auto result = fixture.run(selection);
     test.expect_true(
         result.status == LegacyWorldFrameCoordinatorStatus::completed &&
-            result.outer_stage_call_count == 8U &&
+            result.outer_stage_call_count == 7U &&
             std::ranges::find(fixture.events,
                               outer_event(LegacyWorldOuterFrameStage::
                                               company_role_actions_004124ef)) ==
@@ -410,7 +427,7 @@ void test_company_and_alignment_gates(openswd3::test::Context &test) {
         result.status == LegacyWorldFrameCoordinatorStatus::completed &&
             !result.post_present_player_aligned &&
             !result.movement_transitions_cleared &&
-            result.outer_stage_call_count == 7U &&
+            result.outer_stage_call_count == 6U &&
             fixture.state.movement.camera_x_transition == 1 &&
             fixture.state.movement.player_x_transition == 1 &&
             fixture.state.movement.camera_y_transition == -1,
@@ -460,7 +477,7 @@ void test_checked_failures_stop_at_the_original_slot(
             result.failed_outer_stage_recorded &&
             result.failed_outer_stage ==
                 LegacyWorldOuterFrameStage::map_role_actions_004121a1 &&
-            result.outer_stage_call_count == 2U &&
+            result.outer_stage_call_count == 1U &&
             result.player_motion_applied && result.audio_service_count == 0U &&
             !result.presentation_requested && fixture.roles[0].world_x == 128U,
         "outer stage failure preserves all earlier state and stops in place");
@@ -473,7 +490,7 @@ void test_checked_failures_stop_at_the_original_slot(
     test.expect_true(
         result.status ==
                 LegacyWorldFrameCoordinatorStatus::invalid_selection_window &&
-            result.outer_stage_call_count == 4U &&
+            result.outer_stage_call_count == 3U &&
             result.audio_service_count == 0U && !result.presentation_requested,
         "invalid selection pair stops after 00414570 and before audio");
   }
@@ -489,11 +506,28 @@ void test_checked_failures_stop_at_the_original_slot(
             result.frame.status ==
                 LegacyWorldFrameRuntimeStatus::delegated_stage_failed &&
             result.audio_service_count == 1U &&
-            result.outer_stage_call_count == 4U &&
+            result.outer_stage_call_count == 3U &&
             !result.presentation_requested && !result.tile_animation_advanced &&
             fixture.camera.left == 17U && fixture.camera.top == 14U,
         "composition failure is visible at 00412930 and cannot fake a frame");
   }
+}
+
+void test_head_sign_update_failure_remains_nonfatal(
+    openswd3::test::Context &test) {
+  Fixture fixture;
+  fixture.action_ports.failed_variant = 2U;
+  const std::array<i16, 1U> selection{-12337};
+
+  const auto result = fixture.run(selection);
+  test.expect_true(
+      result.status == LegacyWorldFrameCoordinatorStatus::completed &&
+          result.head_sign_actions.status ==
+              LegacyWorldHeadSignActionsStatus::
+                  completed_with_update_failures &&
+          result.head_sign_actions.update_failure_count == 1U &&
+          fixture.events == expected_normal_events(),
+      "the original HeadSgn diagnostic branch does not stop the frame");
 }
 
 } // namespace
@@ -504,5 +538,6 @@ int main() {
   test_marker_requires_exact_one(test);
   test_company_and_alignment_gates(test);
   test_checked_failures_stop_at_the_original_slot(test);
+  test_head_sign_update_failure_remains_nonfatal(test);
   return test.exit_code();
 }

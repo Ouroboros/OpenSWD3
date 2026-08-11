@@ -53,11 +53,8 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
     return result;
   }
 
-  if (!execute_outer_stage(
-          outer_ports, result,
-          {LegacyWorldOuterFrameStage::head_sign_actions_004120b7})) {
-    return result;
-  }
+  result.head_sign_actions = advance_legacy_world_head_sign_actions(
+      state.head_sign_actions, frame_ports.flagged_roles);
 
   advance_legacy_world_player_and_camera(roles[state.player_role_index], camera,
                                          state.movement);

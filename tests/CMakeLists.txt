@@ -2227,6 +2227,24 @@ add_test(
     COMMAND openswd3_world_map_legacy_world_frame_coordinator_tests
 )
 
+add_executable(
+    openswd3_world_map_legacy_world_head_sign_actions_tests
+    unit/world_map/legacy_world_head_sign_actions_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_head_sign_actions_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_head_sign_actions_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_head_sign_actions
+    COMMAND openswd3_world_map_legacy_world_head_sign_actions_tests
+)
+
 if(EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf")
     add_test(
         NAME world_map.legacy_world_frame_composition_real

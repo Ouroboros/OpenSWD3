@@ -1,7 +1,7 @@
 # 普通世界帧外层协调器（`0x004120B0`）
 
-状态：`assembly_exact`、`unit_verified`；尚未 `sdl_runtime_integrated`、
-`original_diff_verified`
+状态：`assembly_exact`、`unit_verified`、`asset_verified`、
+`sdl_runtime_integrated`；尚未 `original_diff_verified`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。它恢复的是普通世界唯一主帧函数
 `sub_4120B0` 的外层控制顺序；`0x00412930` 内部画面组合的证据和实现仍由
@@ -12,7 +12,7 @@
 
 | LST 范围 | OpenSWD3 责任 | 当前状态 |
 |---|---|---|
-| `0x004120B7..0x004120F7` | 倒序维护 head-sign 动作记录 | 显式 delegated stage |
+| `0x004120B7..0x004120F7` | [倒序维护八个 HeadSgn 动作记录](world-head-sign-actions-004120b7-004120f7.md) | 已接入真实 action updater |
 | `0x004120F9..0x00412197` | 玩家与相机按四个 transition 和步长移动 | 已接入真实 helper |
 | `0x004121A1..0x004124D1` | 地图角色动作/路径账本 | 显式 delegated stage |
 | `0x004124DC..0x00412681` | 队伍角色动作账本 | `count > 1` 时 delegated |
@@ -70,19 +70,21 @@
   账本之后推进，供下一帧使用。
 - 原程序假定玩家索引和 64-word 选择表永远有效。OpenSWD3 只在现代 span 所有权无效时
   于首次访问前返回；有效输入的调用、修改与门控顺序不变。
-- delegated stage 返回失败时停在对应原槽并报告失败，不把尚未恢复的行为伪装成完整帧。
+- 仍 delegated 的 stage 返回失败时停在对应原槽并报告失败，不把尚未恢复的行为伪装成
+  完整帧；HeadSgn 更新失败按原汇编只记录诊断并继续。
 
 ## 4. 验证边界
 
 组合 UT 已固定完整 outer/inner/audio/presentation 事件序列，并覆盖：
 
+- HeadSgn 的八槽遍历、四槽倒序更新及非致命失败；
 - 玩家与相机位移后，选择滚动使用同一临时相机完成 `0x00412930`；
 - 固定 UI 和地图标记的实参；
 - company count `0/1` 跳过、marker state `2` 跳过；
 - 玩家对齐时清 transition、未对齐时保留 transition；
 - 无效玩家索引、缺失选择 Y word、outer stage 失败和 composition 失败的原槽停止。
 
-Linux Clang `core` 133/133、Windows LLVM `app` 137/137 CTest 通过。SDL app 目前仍未
-提供真实地图 session、角色/动作其余 stage 和 coordinator ports，因此本页不写
-`sdl_runtime_integrated`。需要原程序动态差分时，只准备 Frida spawn 工具并等待用户执行，
-不由开发流程启动原版。
+Linux LLVM `core` 148/148、Windows LLVM `app` 152/152 CTest 通过。SDL app 已用真实
+地图 session、ACT/TSW runtime、软件 framebuffer 和 audio/presentation ports 调用该
+coordinator；尚未恢复的角色/界面 stage 仍显式转交。需要原程序动态差分时，只准备
+Frida spawn 工具并等待用户执行，不由开发流程启动原版。
