@@ -64,6 +64,7 @@ constexpr u32 kAudioEvent = 0x300U;
 constexpr u32 kPresentEvent = 0x301U;
 constexpr u32 kHeadSignEventBase = 0x400U;
 constexpr u32 kCountdownEventBase = 0x500U;
+constexpr u32 kCursorEventBase = 0x600U;
 
 [[nodiscard]] constexpr u32
 frame_event(const LegacyWorldFrameStage stage) noexcept {
@@ -173,6 +174,12 @@ public:
     if (record.action_id == 0x232CU) {
       events_.push_back(kCountdownEventBase + record.base_variant);
       record.field_4a = 0x232CU;
+      record.field_4c = static_cast<u16>(record.base_variant);
+      return LegacyActionUpdateStatus::completed;
+    }
+    if (record.action_id == openswd3::world_map::kLegacyWorldCursorActionId) {
+      events_.push_back(kCursorEventBase + record.base_variant);
+      record.field_4a = static_cast<u16>(record.action_id);
       record.field_4c = static_cast<u16>(record.base_variant);
       return LegacyActionUpdateStatus::completed;
     }
@@ -302,6 +309,7 @@ struct Fixture {
   EmptyActionPorts action_ports{events};
   EmptyRolePorts role_ports;
   EmptyAudioPorts audio_ports;
+  u32 special_mode_state{};
 
   Fixture() {
     roles[1].world_x = 124U;
@@ -387,6 +395,12 @@ struct Fixture {
                                       .secondary_rng = secondary_rng,
                                       .pixel_conversion = pixel_conversion,
                                       .blit_effects = &effects,
+                                      .cursor_delete_key_pressed = false,
+                                      .cursor_mouse_x = 0,
+                                      .cursor_mouse_y = 0,
+                                      .cursor_left_press_multiplicity = 0U,
+                                      .special_mode_state =
+                                          &special_mode_state,
                                       .ani_drift = action_ports,
                                       .ani_directional = action_ports,
                                       .ani_follower = action_ports,
@@ -412,7 +426,8 @@ struct Fixture {
       kHeadSignEventBase + 0U,
       kAudioEvent,
       frame_event(Inner::timed_ui_update_0042ed40),
-      frame_event(Inner::world_indicator_004149b0),
+      kCursorEventBase + 8U,
+      kCursorEventBase,
       kCountdownEventBase + 1U,
       kCountdownEventBase + 2U,
       kCountdownEventBase + 10U,
@@ -437,6 +452,8 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           result.frame.packed_rows_executed &&
           result.frame.frame_color_executed &&
           result.frame.timed_messages_executed &&
+          result.frame.cursor_executed &&
+          result.frame.cursor.cursor_draw_count == 1U &&
           result.selection_scroll ==
               LegacyWorldSelectionScrollStatus::completed &&
           result.debug_overlay_executed &&

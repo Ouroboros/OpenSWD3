@@ -17,6 +17,7 @@
 #include "openswd3/world_map/legacy_moving_actions.hpp"
 #include "openswd3/world_map/legacy_picture_actions.hpp"
 #include "openswd3/world_map/legacy_role_head_actions.hpp"
+#include "openswd3/world_map/legacy_world_cursor.hpp"
 #include "openswd3/world_map/legacy_world_frame_composition.hpp"
 #include "openswd3/world_map/legacy_world_indexed_objects.hpp"
 #include "openswd3/world_map/legacy_world_roles.hpp"
@@ -46,6 +47,7 @@ struct LegacyWorldFrameEffectState {
   std::list<rendering::LegacyPackedRowEffect> packed_rows;
   rendering::LegacyFrameColorTransitionState frame_color;
   std::list<rendering::LegacyTimedMessage> timed_messages;
+  LegacyWorldCursorState cursor;
 };
 
 struct LegacyWorldFrameRuntimeState {
@@ -72,6 +74,11 @@ struct LegacyWorldFrameRuntimePorts {
   input_time_rng::LegacySecondaryRng &secondary_rng;
   const rendering::LegacyPixelConversionState &pixel_conversion;
   const rendering::LegacyBlitEffectState *blit_effects{};
+  bool cursor_delete_key_pressed{};
+  compat::i32 cursor_mouse_x{};
+  compat::i32 cursor_mouse_y{};
+  compat::u32 cursor_left_press_multiplicity{};
+  compat::u32 *special_mode_state{};
   asset_runtime::LegacyAniDriftPorts &ani_drift;
   asset_runtime::LegacyAniDirectionalPorts &ani_directional;
   asset_runtime::LegacyAniFollowerPorts &ani_follower;
@@ -90,6 +97,7 @@ enum class LegacyWorldFrameRuntimeStatus : compat::u8 {
   frame_color_failed,
   flagged_roles_failed,
   world_roles_failed,
+  cursor_frame_failed,
   stage_exception,
 };
 
@@ -100,6 +108,7 @@ struct LegacyWorldFrameRuntimeResult {
   LegacyWorldFlaggedRolesResult flagged_roles;
   LegacyWorldIndexedObjectDrawResult indexed_objects;
   LegacyWorldRolesResult world_roles;
+  LegacyWorldCursorResult cursor;
   LegacyPictureActionResult primary_picture_actions;
   LegacyMovingActionResult moving_actions;
   LegacyPictureActionResult secondary_picture_actions;
@@ -118,6 +127,7 @@ struct LegacyWorldFrameRuntimeResult {
   bool indexed_objects_executed{};
   bool flagged_stage_executed{};
   bool world_roles_stage_executed{};
+  bool cursor_executed{};
   bool primary_picture_actions_executed{};
   bool moving_actions_executed{};
   bool secondary_picture_actions_executed{};

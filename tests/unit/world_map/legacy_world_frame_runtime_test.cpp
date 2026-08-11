@@ -393,6 +393,12 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           .environment_effects = environment_effects,
           .secondary_rng = secondary_rng,
           .pixel_conversion = pixel_conversion,
+          .blit_effects = nullptr,
+          .cursor_delete_key_pressed = false,
+          .cursor_mouse_x = 0,
+          .cursor_mouse_y = 0,
+          .cursor_left_press_multiplicity = 0U,
+          .special_mode_state = nullptr,
           .ani_drift = ani,
           .ani_directional = ani,
           .ani_follower = ani,
@@ -417,6 +423,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           result.framebuffer_deformation_executed &&
           result.ani_follower_executed && result.packed_rows_executed &&
           result.frame_color_executed && result.timed_messages_executed &&
+          result.cursor_executed && result.cursor.cursor_draw_count == 1U &&
           result.flagged_roles.draw_count == 1U &&
           result.primary_picture_actions.draw_count == 1U &&
           result.moving_actions.draw_count == 1U &&
@@ -428,7 +435,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
       "0x00412930 executes recovered spatial and action stages at real slots");
   test.expect_true(
       result.composition.stage_call_count == 19U &&
-          result.delegated_stage_count == 2U && flagged.draws == 5U &&
+          result.delegated_stage_count == 1U && flagged.draws == 7U &&
           ordinary.draws == 2U &&
           result.packed_rows.visited_count == 1U &&
           result.packed_rows.draw_count == 1U &&
@@ -480,6 +487,10 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           std::ranges::find(
               remaining.stages,
               LegacyWorldFrameStage::timed_messages_004153d0) ==
+              remaining.stages.end() &&
+          std::ranges::find(
+              remaining.stages,
+              LegacyWorldFrameStage::world_indicator_004149b0) ==
               remaining.stages.end(),
       "runtime adapter delegates only the still-unwired frame stages");
 }
@@ -521,6 +532,12 @@ void test_spatial_failure_stops_at_original_stage(
           .environment_effects = environment_effects,
           .secondary_rng = secondary_rng,
           .pixel_conversion = pixel_conversion,
+          .blit_effects = nullptr,
+          .cursor_delete_key_pressed = false,
+          .cursor_mouse_x = 0,
+          .cursor_mouse_y = 0,
+          .cursor_left_press_multiplicity = 0U,
+          .special_mode_state = nullptr,
           .ani_drift = ani,
           .ani_directional = ani,
           .ani_follower = ani,
@@ -582,6 +599,12 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
           .environment_effects = environment_effects,
           .secondary_rng = secondary_rng,
           .pixel_conversion = pixel_conversion,
+          .blit_effects = nullptr,
+          .cursor_delete_key_pressed = false,
+          .cursor_mouse_x = 0,
+          .cursor_mouse_y = 0,
+          .cursor_left_press_multiplicity = 0U,
+          .special_mode_state = nullptr,
           .ani_drift = ani,
           .ani_directional = ani,
           .ani_follower = ani,
@@ -597,7 +620,7 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
           result.failed_stage ==
               LegacyWorldFrameStage::timed_ui_update_0042ed40 &&
           result.indexed_objects_executed && result.flagged_stage_executed &&
-          result.world_roles_stage_executed,
+          result.world_roles_stage_executed && !result.cursor_executed,
       "an incomplete external stage has an explicit non-success boundary");
 }
 
@@ -641,6 +664,12 @@ void test_environment_effects_use_live_frame_dependencies(
           .environment_effects = environment_effects,
           .secondary_rng = secondary_rng,
           .pixel_conversion = pixel_conversion,
+          .blit_effects = nullptr,
+          .cursor_delete_key_pressed = false,
+          .cursor_mouse_x = 0,
+          .cursor_mouse_y = 0,
+          .cursor_left_press_multiplicity = 0U,
+          .special_mode_state = nullptr,
           .ani_drift = ani,
           .ani_directional = ani,
           .ani_follower = ani,
@@ -752,6 +781,12 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
   openswd3::asset_runtime::LegacyAniFollowerRuntimePorts follower_ports{
       action_updater, tsw_runtime, framebuffer, raster, effects, jitter};
 
+  test.expect_equal(
+      openswd3::world_map::prime_legacy_world_cursor_state(
+          environment_effects.cursor, flagged_ports),
+      LegacyActionUpdateStatus::completed,
+      "the combined frame includes the cursor's startup ACT update");
+
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
       LegacyWorldFrameRuntimePorts{
@@ -763,6 +798,12 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
           .environment_effects = environment_effects,
           .secondary_rng = secondary_rng,
           .pixel_conversion = pixel_conversion,
+          .blit_effects = &effects,
+          .cursor_delete_key_pressed = false,
+          .cursor_mouse_x = 0,
+          .cursor_mouse_y = 0,
+          .cursor_left_press_multiplicity = 0U,
+          .special_mode_state = nullptr,
           .ani_drift = drift_ports,
           .ani_directional = directional_ports,
           .ani_follower = follower_ports,
@@ -776,14 +817,15 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
           result.flagged_roles.draw_count == 1U &&
           result.moving_actions.draw_count == 1U &&
           result.role_head_actions.draw_count == 1U &&
+          result.cursor.cursor_draw_count == 1U &&
           result.world_roles.draw_count == 1U &&
           result.flagged_roles.blit_failure_count == 0U &&
           result.world_roles.blit_failure_count == 0U,
       "real TSW reaches roles and both recovered 0xB4 action lists");
   const auto combined_hash = legacy_framebuffer_logical_fnv1a64(framebuffer);
   test.expect_equal(
-      combined_hash, std::uint64_t{0x3EAF7C3143994E65ULL},
-      "combined background, roles and both 0xB4 action lists are stable");
+      combined_hash, std::uint64_t{0x5889E0547682E179ULL},
+      "combined background, roles, action lists and cursor are stable");
 }
 
 } // namespace

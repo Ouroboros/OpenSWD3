@@ -1402,7 +1402,24 @@ public:
           shutdown_ports_(shutdown_ports),
           exit_ports_(exit_ports),
           ok_(ok),
-          running_(running) {}
+          running_(running) {
+        openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
+            action_updater_,
+            tsw_runtime_,
+            game_framebuffer_,
+            world_raster_,
+            world_effects_,
+            world_jitter_,
+        };
+        if (openswd3::world_map::prime_legacy_world_cursor_state(
+                world_frame_effects_.cursor,
+                action_ports
+            ) != openswd3::asset_runtime::LegacyActionUpdateStatus::completed) {
+            openswd3::diagnostics::log_warning(
+                "initial cursor action update failed"
+            );
+        }
+    }
 
     void step_video() override {
         const auto result = video_player_.step(*this);
@@ -1541,7 +1558,9 @@ public:
     ) override {}
     void step_world_player(openswd3::app::FrameCoordinatorState&) override {}
     void step_story(openswd3::app::FrameCoordinatorState&) override {}
-    void finish_world_frame(openswd3::app::FrameCoordinatorState&) override {
+    void finish_world_frame(
+        openswd3::app::FrameCoordinatorState& frame_state
+    ) override {
         if (!active_world_session_.has_value()) {
             request_presentation(
                 openswd3::rendering::LegacyPresentationSite::steady_world
@@ -1643,6 +1662,16 @@ public:
                 .secondary_rng = secondary_rng_,
                 .pixel_conversion = pixel_conversion_,
                 .blit_effects = &world_effects_,
+                .cursor_delete_key_pressed =
+                    openswd3::input_time_rng::read_raw_key(
+                        keyboard_snapshot_,
+                        0x2EU
+                    ) != 0U,
+                .cursor_mouse_x = input_state_.current_mouse.logical_x,
+                .cursor_mouse_y = input_state_.current_mouse.logical_y,
+                .cursor_left_press_multiplicity =
+                    input_state_.records[15U].rapid_press_multiplicity,
+                .special_mode_state = &frame_state.battle.special_mode_state,
                 .ani_drift = ani_drift_ports,
                 .ani_directional = ani_directional_ports,
                 .ani_follower = ani_follower_ports,

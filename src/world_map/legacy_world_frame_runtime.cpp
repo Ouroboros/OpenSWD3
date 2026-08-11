@@ -127,6 +127,8 @@ public:
         return execute_frame_color(stage);
       case LegacyWorldFrameStage::timed_messages_004153d0:
         return execute_timed_messages();
+      case LegacyWorldFrameStage::world_indicator_004149b0:
+        return execute_cursor(stage);
       default:
         ++result_.delegated_stage_count;
         if (ports_.remaining_stages.execute_stage(stage)) {
@@ -281,6 +283,33 @@ private:
         ports_.environment_effects.timed_messages,
         static_cast<compat::u16>(colors[3U]));
     return true;
+  }
+
+  [[nodiscard]] bool execute_cursor(const LegacyWorldFrameStage stage) {
+    result_.cursor_executed = true;
+    compat::u32 detached_special_mode_state{};
+    compat::u32 &special_mode_state =
+        ports_.special_mode_state != nullptr ? *ports_.special_mode_state
+                                             : detached_special_mode_state;
+    result_.cursor = update_draw_legacy_world_cursor(
+        ports_.environment_effects.cursor,
+        LegacyWorldCursorFrameInput{
+            .delete_key_pressed = ports_.cursor_delete_key_pressed,
+            .mouse_x = ports_.cursor_mouse_x,
+            .mouse_y = ports_.cursor_mouse_y,
+            .left_press_multiplicity =
+                ports_.cursor_left_press_multiplicity,
+            .movement_x = state_.directional_player_delta_x,
+            .movement_y = state_.directional_player_delta_y,
+            .talk_target = state_.frame.talk_target,
+            .talk_phase = state_.frame.talk_phase,
+        },
+        special_mode_state, ports_.flagged_roles);
+    if (result_.cursor.status == LegacyWorldCursorStatus::completed) {
+      return true;
+    }
+    fail(LegacyWorldFrameRuntimeStatus::cursor_frame_failed, stage);
+    return false;
   }
 
   [[nodiscard]] bool execute_ani_drift(const LegacyWorldFrameStage stage) {

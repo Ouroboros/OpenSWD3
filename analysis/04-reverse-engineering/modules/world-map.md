@@ -73,9 +73,13 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    共用真实 framebuffer、16 项启动颜色表、secondary RNG 与 legacy glyph runtime。
    `0x004151F0` 的 LMF indexed object 也已从载入期原地 literal 转换一路接到原帧槽：
    保留 `0..30` 序号扫描、头插链反序、每序号首个相交对象、两种位移公式和逐对象 clip
-   恢复；地图 72 的 `1072x1024x16` 真实流已进入 runtime blitter。normal 路径现在只剩
-   两项显式转交，activity 分支另保留一项外部边界。失败不会伪报整帧完成。Linux
-   `core` 158/158、Windows LLVM `app` 162/162 CTest 通过。
+   恢复；地图 72 的 `1072x1024x16` 真实流已进入 runtime blitter。`sub_4149B0` 的
+   软件鼠标与右边条也已接回原槽：两个 `0x2329` 动作记录、Delete 变体 15、移动/空闲
+   滑入滑出、右上角特殊模式请求、Talk 门和主动作更新失败后继续均按汇编保留；SDL
+   使用逻辑鼠标坐标、原始 DIK 快照和实际特殊模式状态。真实组合帧哈希更新为
+   `0x5889E0547682E179`。normal 路径现在只剩 `0x0042ED40` 一项显式转交，activity
+   分支另保留一项外部边界。失败不会伪报整帧完成。Linux `core` 159/159、Linux/Windows
+   `app` 163/163 CTest 通过，且未启动任何 EXE。
    `0x0041287F..0x00412923` 的地图 tile 层折返动画、单帧计数器不清零、零帧异常、
    32 位回绕，以及选择序列结束后的条件视口恢复也已闭环。其前置 `0x004148F0` 选择
    序列状态机也已恢复：保留入口门、游标回零、到期帧顺序、有符号增量和 countdown
@@ -127,6 +131,7 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-spatial-roles-00413870-00413f00.md`](../evidence/world-spatial-roles-00413870-00413f00.md)、
 [`world-frame-runtime-integration-00412930.md`](../evidence/world-frame-runtime-integration-00412930.md) 和
 [`world-indexed-objects-004151f0.md`](../evidence/world-indexed-objects-004151f0.md)、
+[`world-cursor-004149b0.md`](../evidence/world-cursor-004149b0.md)、
 [`world-frame-color-transition-004146f0.md`](../evidence/world-frame-color-transition-004146f0.md)、
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、
 [`world-selection-scroll-004148f0.md`](../evidence/world-selection-scroll-004148f0.md)、

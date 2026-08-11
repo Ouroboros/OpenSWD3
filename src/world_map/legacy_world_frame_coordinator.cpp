@@ -131,6 +131,10 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
   ++result.audio_service_count;
 
   sync_frame_camera(state, camera);
+  state.frame_runtime.directional_player_delta_x =
+      state.movement.player_x_transition;
+  state.frame_runtime.directional_player_delta_y =
+      state.movement.player_y_transition;
   result.composition_camera_left = state.frame_runtime.frame.camera_left;
   result.composition_camera_top = state.frame_runtime.frame.camera_top;
   LegacyWorldBackgroundSource frame_background = background_source;

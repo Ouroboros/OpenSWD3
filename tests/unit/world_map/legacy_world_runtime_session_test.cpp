@@ -789,6 +789,15 @@ void test_real_initial_world(
         effects,
         jitter,
     };
+    test.expect_equal(
+        openswd3::world_map::prime_legacy_world_cursor_state(
+            environment_effects.cursor,
+            action_ports
+        ),
+        openswd3::asset_runtime::LegacyActionUpdateStatus::completed,
+        "the initial process setup primes the 0x2329 cursor action"
+    );
+    openswd3::compat::u32 special_mode_state{};
 
     const auto first_frame = openswd3::world_map::run_legacy_world_frame(
         framebuffer,
@@ -818,6 +827,11 @@ void test_real_initial_world(
             .secondary_rng = secondary_rng,
             .pixel_conversion = pixel_conversion,
             .blit_effects = &effects,
+            .cursor_delete_key_pressed = false,
+            .cursor_mouse_x = 0,
+            .cursor_mouse_y = 0,
+            .cursor_left_press_multiplicity = 0U,
+            .special_mode_state = &special_mode_state,
             .ani_drift = ani_drift_ports,
             .ani_directional = ani_directional_ports,
             .ani_follower = ani_follower_ports,

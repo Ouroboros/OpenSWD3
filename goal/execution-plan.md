@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v146
+版本：v147
 
 最后更新：2026-08-11
 
@@ -390,6 +390,12 @@
     `0..30` 序号扫描、头插链反序、每序号首个相交对象、两种位移公式、16 位坐标回绕
     和逐对象 clip 恢复；地图 72 的 `1072x1024x16` 真实 command stream 已进入 runtime
     blitter。Linux `core` 158/158、Windows LLVM `app` 162/162 CTest 通过。normal 世界帧
-    的外部 stage 由六项降为两项，activity 分支仍另有一项。
+    的外部 stage 由六项降为两项，activity 分支仍另有一项。`sub_4149B0` 的两个
+    `0x2329` 动作记录随后接回软件鼠标/右边条原槽：Delete 变体 15、移动/空闲滑动、
+    右上角特殊模式请求、Talk 门、主动作更新失败后继续和完整 flags/opacity 均按 LST
+    保留；SDL 直接传入原始 DIK、逻辑鼠标和实际特殊模式状态。真实组合 framebuffer
+    哈希更新为 `0x5889E0547682E179`，normal 世界帧只剩 `0x0042ED40` 一个外部 stage。
+    Linux `core` 159/159、Linux/Windows `app` 163/163 CTest 通过，Windows app 成功
+    链接且未启动任何 EXE；activity 分支仍另有一项外部边界。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

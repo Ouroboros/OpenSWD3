@@ -2433,6 +2433,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_cursor_tests
+    unit/world_map/legacy_world_cursor_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_cursor_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_cursor_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_cursor
+    COMMAND openswd3_world_map_legacy_world_cursor_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_world_indexed_objects_tests
     unit/world_map/legacy_world_indexed_objects_test.cpp
 )
