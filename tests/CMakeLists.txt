@@ -2318,6 +2318,23 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_debug_overlay_tests
+    unit/world_map/legacy_world_debug_overlay_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_debug_overlay_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_debug_overlay_tests
+    PRIVATE openswd3_world_map
+)
+add_test(
+    NAME world_map.legacy_world_debug_overlay
+    COMMAND openswd3_world_map_legacy_world_debug_overlay_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_world_head_sign_actions_tests
     unit/world_map/legacy_world_head_sign_actions_test.cpp
 )

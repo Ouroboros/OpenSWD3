@@ -22,7 +22,7 @@
 | `0x004126A2..0x004126B3` | 锁定并绑定软件 source surface | 由传入 framebuffer 表达 |
 | `0x004126B8` | `sub_412930` 世界画面组合 | 已接入真实 runtime vertical slice |
 | `0x004126C7` | [`sub_4308C0(400, 8, 0)` 倒计时绘制](legacy-countdown-004308c0-00430b60.md) | 已接入真实 action/TSW/blit 路径 |
-| `0x004126CC..0x004126E8` | 状态恰为 1 时 `sub_413FE0(left, top, 2)` | delegated，门和实参已固定 |
+| `0x004126CC..0x004126E8` | [开发工具总门与 `sub_413FE0(left, top)` 调试叠层](world-debug-overlay-00413fe0.md) | 已接入真实 owner |
 | `0x004126F0` | 第二次 `AIL_serve` | audio port 原槽调用 |
 | `0x004126FF..0x00412716` | 普通世界唯一一次 `Blt` | world presentation port |
 | `0x00412719..0x0041287C` | [玩家格指针、transition、快照与动作校验](world-player-post-frame-00412719-0041287c.md) | 已接入真实 helper |
@@ -40,10 +40,13 @@
 直接跳到 `0x0041268C`，只有 `count > 1` 才进入 `0x004124EF` 循环。真实 owner 保留
 这个门，并只扫描队伍槽 `1..count-1`；索引 0 的当前主角不进入该循环。
 
-### 2.2 条件地图标记
+### 2.2 开发工具调试叠层
 
-`0x004126D4` 是 `CMP EAX, EBP` 后的 `JNZ`，所以只有状态**恰好等于 1**才调用标记；
-状态 2 不能按 truthy 处理。传入实参保留当时临时滚动后的 camera left/top 和常量 2。
+`0x004126D4` 是 `CMP EAX, EBP` 后的 `JNZ`，所以只有总门**恰好等于 1**才调用调试
+叠层；状态 2 不能按 truthy 处理。调用者压入当时临时滚动后的 camera left/top，另多压
+一个常量 2 并回收 12 字节；被调函数只读取前两个参数，所以常量 2 是未使用的调用者
+栈字，不是第三参数。完整碰撞格与诊断文字行为见
+[`world-debug-overlay-00413fe0.md`](world-debug-overlay-00413fe0.md)。
 
 ### 2.3 呈现后的玩家对齐
 
@@ -95,14 +98,14 @@
   更新体先推进同一相机，选择滚动随后叠加并完成 `0x00412930`；
 - `sub_4308C0` 的 primary flag、抑制门、`M:SS` piece 顺序、固定 `(400,8,0)` 请求、
   静态动作记录延迟写入和受检资源失败；
-- 地图标记的实参；
-- party count `0/1` 跳过、marker state `2` 跳过；
+- 调试叠层的两个真实参数、入口文字样式配置和原槽执行；
+- party count `0/1` 跳过、developer-tools state `2` 跳过；
 - 玩家对齐时完成空间链、格占用、transition 和历史账本，未对齐时保留这些状态但仍
   执行动作校验；
-- 无效玩家索引、缺失选择 Y word、outer stage 失败和 composition 失败的原槽停止。
+- 无效玩家索引、缺失选择 Y word、调试叠层失败和 composition 失败的原槽停止。
 
-Linux LLVM `core` 153/153、Windows LLVM `app` 157/157 CTest 通过。SDL app 已用真实
+Linux LLVM `core` 154/154、Windows LLVM `app` 158/158 CTest 通过。SDL app 已用真实
 地图 session、ACT/TSW runtime、软件 framebuffer 和 audio/presentation ports 调用该
-coordinator；地图角色、队伍角色、脚本相机平移和倒计时绘制均已替代外部占位，尚未恢复
-的条件地图标记仍显式转交。需要原程序动态差分时，只准备
+coordinator；地图角色、队伍角色、脚本相机平移、倒计时绘制和开发调试叠层均已替代
+outer 外部占位。需要原程序动态差分时，只准备
 Frida spawn 工具并等待用户执行，不由开发流程启动原版。

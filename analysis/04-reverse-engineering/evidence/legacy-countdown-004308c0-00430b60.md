@@ -90,7 +90,7 @@ ticks = 30 * (seconds + 60 * minutes)
 
 ## 普通世界原槽接线
 
-`run_legacy_world_frame` 已在世界组合 `sub_412930` 返回后、条件地图标记
+`run_legacy_world_frame` 已在世界组合 `sub_412930` 返回后、条件开发调试叠层
 `sub_413FE0` 之前的 `0x004126C7` 调用现有 `draw_legacy_countdown`，固定请求仍为
 `(400, 8, 0)`。它直接借用同一软件 framebuffer、raster clip、blit effect 与 row
 jitter；标志查询转发到原 `sub_40DC50` 对应的 world service port。
@@ -114,5 +114,5 @@ UT 覆盖 primary/secondary 初始化、32 位回绕、标志设置顺序、两�
 顺序、`(400,8)` 首尾像素、静态动作最终字段、未激活零修改，以及第三个 piece 缺失时
 在 `0x004308C0` 停止。真实初始世界则固定抵达该槽并命中未激活门。
 
-当前验证结果：Linux LLVM `core` 153/153、Windows LLVM `app` 157/157 CTest
+当前验证结果：Linux LLVM `core` 154/154、Windows LLVM `app` 158/158 CTest
 全部通过；验证过程没有启动原版或 OpenSWD3 EXE。

@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v138
+版本：v139
 
 最后更新：2026-08-11
 
@@ -348,5 +348,11 @@
     effect 与 jitter；primary/抑制门、静态动作延迟写入、`M:SS` 五片顺序及资源失败
     边界均由 coordinator 回归固定。原 fixed UI 占位已删除，Linux `core` 153/153、
     Windows LLVM `app` 157/157 CTest 通过。
+    `sub_413FE0` 开发调试叠层也已完成全函数闭环：入口 16 点文字样式、两个精确等一
+    内部门、五次 38×28 cell flags 扫描、原版奇数轮廓、七条诊断基线、地图事件高位后
+    低位 flag 查询及附近角色/重叠文字均按汇编保留。调用者多压入的常量 2 已确认从未被
+    被调函数读取，不再伪装成第三参数；最后一个 generic outer stage 已删除，SDL 文字
+    端口接到 legacy glyph renderer。Linux `core` 154/154、Windows LLVM `app`
+    158/158 CTest 通过。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

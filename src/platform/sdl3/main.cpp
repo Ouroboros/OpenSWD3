@@ -1171,8 +1171,12 @@ class SdlDeferredWorldFramePorts final
 public:
     SdlDeferredWorldFramePorts(
         openswd3::audio_video::LegacyAudioMaintenancePorts& audio,
-        openswd3::rendering::LegacyPresentationPorts& presentation
-    ) noexcept : audio_(audio), presentation_(presentation) {}
+        openswd3::rendering::LegacyPresentationPorts& presentation,
+        openswd3::rendering::LegacyTextRendererRuntime& text_renderers
+    ) noexcept
+        : audio_(audio),
+          presentation_(presentation),
+          text_renderers_(text_renderers) {}
 
     bool complete_role_path(openswd3::compat::u32) noexcept override {
         return false;
@@ -1257,11 +1261,38 @@ public:
         openswd3::compat::i32
     ) noexcept override {}
 
-    bool execute_stage(
-        const openswd3::world_map::LegacyWorldOuterFrameStageRequest&
+    void configure_debug_text(
+        const openswd3::compat::u16 background_color,
+        const openswd3::compat::u16 secondary_color
     ) noexcept override {
-        ++deferred_outer_stage_count_;
-        return true;
+        const auto binding = text_renderers_.binding(16U);
+        if (binding.ready()) {
+            binding.state->background_color = background_color;
+            binding.state->secondary_color = secondary_color;
+        }
+    }
+
+    openswd3::rendering::LegacyTextDrawResult draw_debug_text(
+        const openswd3::rendering::LegacyTextDrawRequest& request
+    ) noexcept override {
+        const auto binding = text_renderers_.binding(16U);
+        if (!binding.ready()) {
+            return {
+                .status = openswd3::rendering::LegacyTextDrawStatus::
+                    glyph_provider_failed,
+            };
+        }
+        return openswd3::rendering::draw_legacy_text(
+            *binding.framebuffer,
+            *binding.glyph_cache,
+            *binding.glyph_provider,
+            *binding.state,
+            request
+        );
+    }
+
+    bool query_debug_flag(openswd3::compat::u32) noexcept override {
+        return false;
     }
 
     void maintain_audio() noexcept override {
@@ -1287,16 +1318,11 @@ public:
         return deferred_frame_stage_count_;
     }
 
-    [[nodiscard]] openswd3::compat::u32 deferred_outer_stage_count()
-        const noexcept {
-        return deferred_outer_stage_count_;
-    }
-
 private:
     openswd3::audio_video::LegacyAudioMaintenancePorts& audio_;
     openswd3::rendering::LegacyPresentationPorts& presentation_;
+    openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
     openswd3::compat::u32 deferred_frame_stage_count_{};
-    openswd3::compat::u32 deferred_outer_stage_count_{};
     bool presentation_failed_{};
 };
 
@@ -1327,6 +1353,7 @@ public:
         std::filesystem::path world_cache_directory,
         const openswd3::rendering::LegacyPixelConversionState&
             pixel_conversion,
+        openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
         openswd3::world_map::LegacyWorldRoleActionInitializer&
             world_action_initializer,
         openswd3::asset_runtime::LegacyActionUpdater& action_updater,
@@ -1354,6 +1381,7 @@ public:
           data_directory_(std::move(data_directory)),
           world_cache_directory_(std::move(world_cache_directory)),
           pixel_conversion_(pixel_conversion),
+          text_renderers_(text_renderers),
           world_action_initializer_(world_action_initializer),
           action_updater_(action_updater),
           tsw_runtime_(tsw_runtime),
@@ -1515,6 +1543,7 @@ public:
         SdlDeferredWorldFramePorts deferred_ports{
             audio_maintenance_,
             *this,
+            text_renderers_,
         };
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
@@ -1535,6 +1564,7 @@ public:
             game_framebuffer_,
             world_raster_,
             world.render.background_source(),
+            map.business.state.events,
             map.business.state.spatial_index,
             roles,
             openswd3::world_map::LegacyWorldRoleSurfaceContext{
@@ -1575,10 +1605,6 @@ public:
             };
             message.append(std::to_string(
                 deferred_ports.deferred_frame_stage_count()
-            ));
-            message.append(", outer=");
-            message.append(std::to_string(
-                deferred_ports.deferred_outer_stage_count()
             ));
             openswd3::diagnostics::log_info(message);
             deferred_world_stage_notice_logged_ = true;
@@ -1881,6 +1907,7 @@ private:
     std::filesystem::path data_directory_;
     std::filesystem::path world_cache_directory_;
     openswd3::rendering::LegacyPixelConversionState pixel_conversion_;
+    openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
     openswd3::world_map::LegacyWorldRoleActionInitializer&
         world_action_initializer_;
     openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
@@ -2289,6 +2316,7 @@ int main(const int argument_count, char** arguments) {
         data_directory.directory,
         executable_directory / "cache" / "maps",
         pixel_conversion,
+        text_renderers,
         world_action_initializer,
         action_updater,
         tsw_runtime,

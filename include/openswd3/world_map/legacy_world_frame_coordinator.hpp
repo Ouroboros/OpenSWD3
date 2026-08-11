@@ -3,6 +3,7 @@
 #include "openswd3/compat/types.hpp"
 #include "openswd3/rendering/legacy_countdown.hpp"
 #include "openswd3/world_map/legacy_world_camera_pan.hpp"
+#include "openswd3/world_map/legacy_world_debug_overlay.hpp"
 #include "openswd3/world_map/legacy_world_frame_runtime.hpp"
 #include "openswd3/world_map/legacy_world_frame_tail.hpp"
 #include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
@@ -17,24 +18,11 @@
 
 namespace openswd3::world_map {
 
-enum class LegacyWorldOuterFrameStage : compat::u8 {
-  optional_map_marker_00413fe0,
-};
-
-struct LegacyWorldOuterFrameStageRequest {
-  LegacyWorldOuterFrameStage stage{
-      LegacyWorldOuterFrameStage::optional_map_marker_00413fe0};
-  compat::i32 argument_0{};
-  compat::i32 argument_1{};
-  compat::u32 argument_2{};
-};
-
-class LegacyWorldOuterFramePorts : public LegacyWorldMapRolePathPorts {
+class LegacyWorldOuterFramePorts : public LegacyWorldMapRolePathPorts,
+                                   public LegacyWorldDebugOverlayPorts {
 public:
   virtual ~LegacyWorldOuterFramePorts() = default;
 
-  [[nodiscard]] virtual bool
-  execute_stage(const LegacyWorldOuterFrameStageRequest &request) noexcept = 0;
   virtual void maintain_audio() noexcept = 0;
   virtual void request_world_presentation() noexcept = 0;
 };
@@ -43,11 +31,12 @@ struct LegacyWorldFrameCoordinatorState {
   compat::u32 map_id{};
   compat::u32 player_role_index{};
   compat::u32 party_role_count{1U};
-  compat::u32 map_marker_state{};
+  compat::u32 developer_tools_enabled{};
   std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>
       party_object_slots;
   LegacyWorldMovementRuntimeState movement;
   LegacyWorldCameraPanState camera_pan;
+  LegacyWorldDebugOverlayState debug_overlay;
   rendering::LegacyCountdownState countdown;
   asset_runtime::LegacyActionRecord countdown_action{};
   LegacyWorldSelectionScrollState selection_scroll;
@@ -65,7 +54,7 @@ enum class LegacyWorldFrameCoordinatorStatus : compat::u8 {
   map_role_paths_failed,
   party_role_actions_failed,
   countdown_failed,
-  outer_stage_failed,
+  debug_overlay_failed,
   composition_failed,
   player_post_frame_failed,
 };
@@ -80,22 +69,20 @@ struct LegacyWorldFrameCoordinatorResult {
   LegacyWorldMapRolePathResult map_role_paths;
   LegacyWorldPartyRoleActionsResult party_role_actions;
   rendering::LegacyCountdownDisplayResult countdown;
+  LegacyWorldDebugOverlayResult debug_overlay;
   LegacyWorldPlayerPostFrameResult player_post_frame;
-  compat::u32 outer_stage_call_count{};
   compat::u32 audio_service_count{};
   compat::i32 composition_camera_left{};
   compat::i32 composition_camera_top{};
   bool player_motion_applied{};
   bool camera_pan_advanced{};
   bool countdown_stage_executed{};
+  bool debug_overlay_executed{};
   bool presentation_requested{};
   bool post_present_player_aligned{};
   bool movement_transitions_cleared{};
   bool tile_animation_advanced{};
   bool viewport_restored{};
-  bool failed_outer_stage_recorded{};
-  LegacyWorldOuterFrameStage failed_outer_stage{
-      LegacyWorldOuterFrameStage::optional_map_marker_00413fe0};
 };
 
 // Ordinary-world outer frame at 0x004120B0. The framebuffer is the modern
@@ -106,6 +93,7 @@ struct LegacyWorldFrameCoordinatorResult {
 run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
                        rendering::LegacyRasterGeometryState &raster,
                        const LegacyWorldBackgroundSource &background_source,
+                       std::span<const LegacyWorldMapEvent> map_events,
                        LegacyRoleSpatialIndex &spatial_index,
                        std::span<LegacyWorldRoleRecord> roles,
                        LegacyWorldRoleSurfaceContext role_surface,

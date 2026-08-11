@@ -381,11 +381,16 @@ public:
 
     void set_sample_pan(u16, openswd3::compat::i32) noexcept override {}
 
-    bool execute_stage(
-        const openswd3::world_map::LegacyWorldOuterFrameStageRequest&
+    void configure_debug_text(u16, u16) noexcept override {}
+
+    openswd3::rendering::LegacyTextDrawResult draw_debug_text(
+        const openswd3::rendering::LegacyTextDrawRequest&
     ) noexcept override {
-        ++deferred_outer_stages;
-        return true;
+        return {};
+    }
+
+    bool query_debug_flag(u32) noexcept override {
+        return false;
     }
 
     void maintain_audio() noexcept override {
@@ -397,7 +402,6 @@ public:
     }
 
     u32 deferred_frame_stages{};
-    u32 deferred_outer_stages{};
     u32 audio_services{};
     u32 presentations{};
 };
@@ -748,6 +752,7 @@ void test_real_initial_world(
         framebuffer,
         raster,
         result.session.render.background_source(),
+        map_session.business.state.events,
         map_session.business.state.spatial_index,
         roles,
         openswd3::world_map::LegacyWorldRoleSurfaceContext{

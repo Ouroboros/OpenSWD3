@@ -57,20 +57,6 @@ private:
          status == rendering::LegacyCountdownDisplayStatus::hidden_suppressed;
 }
 
-[[nodiscard]] bool
-execute_outer_stage(LegacyWorldOuterFramePorts &ports,
-                    LegacyWorldFrameCoordinatorResult &result,
-                    const LegacyWorldOuterFrameStageRequest request) noexcept {
-  ++result.outer_stage_call_count;
-  if (ports.execute_stage(request)) {
-    return true;
-  }
-  result.status = LegacyWorldFrameCoordinatorStatus::outer_stage_failed;
-  result.failed_outer_stage_recorded = true;
-  result.failed_outer_stage = request.stage;
-  return false;
-}
-
 void sync_frame_camera(LegacyWorldFrameCoordinatorState &state,
                        const LegacyWorldCameraRect &camera) noexcept {
   state.frame_runtime.frame.camera_left =
@@ -84,6 +70,7 @@ LegacyWorldFrameCoordinatorResult
 run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
                        rendering::LegacyRasterGeometryState &raster,
                        const LegacyWorldBackgroundSource &background_source,
+                       const std::span<const LegacyWorldMapEvent> map_events,
                        LegacyRoleSpatialIndex &spatial_index,
                        const std::span<LegacyWorldRoleRecord> roles,
                        const LegacyWorldRoleSurfaceContext role_surface,
@@ -168,16 +155,21 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
     result.status = LegacyWorldFrameCoordinatorStatus::countdown_failed;
     return result;
   }
-  if (state.map_marker_state == 1U &&
-      !execute_outer_stage(
-          outer_ports, result,
-          {
-              .stage = LegacyWorldOuterFrameStage::optional_map_marker_00413fe0,
-              .argument_0 = std::bit_cast<compat::i32>(camera.left),
-              .argument_1 = std::bit_cast<compat::i32>(camera.top),
-              .argument_2 = 2U,
-          })) {
-    return result;
+  if (state.developer_tools_enabled == 1U) {
+    LegacyWorldDebugOverlayState debug_state = state.debug_overlay;
+    debug_state.controlled_role_index = state.player_role_index;
+    debug_state.map_id = state.map_id;
+    result.debug_overlay = draw_legacy_world_debug_overlay(
+        framebuffer, frame_background, map_events, roles,
+        std::bit_cast<compat::i32>(camera.left),
+        std::bit_cast<compat::i32>(camera.top), effects.pixel_conversion,
+        debug_state, outer_ports);
+    result.debug_overlay_executed = true;
+    if (result.debug_overlay.status !=
+        LegacyWorldDebugOverlayStatus::completed) {
+      result.status = LegacyWorldFrameCoordinatorStatus::debug_overlay_failed;
+      return result;
+    }
   }
 
   outer_ports.maintain_audio();

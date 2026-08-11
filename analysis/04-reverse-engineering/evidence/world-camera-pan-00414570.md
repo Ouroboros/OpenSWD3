@@ -51,11 +51,12 @@ X step 仍会移动视口并把 X remaining 减成负值。这在正常生产者
 `run_legacy_world_frame` 在队伍角色循环结束后调用
 `advance_legacy_world_camera_pan`，随后才执行 `sub_4148F0` 对应的临时选择滚动。因此
 玩家/相机 transition、脚本相机平移、选择序列滚动依次作用在同一个 camera 上；组合
-和可选地图标记读取三者叠加后的坐标，帧尾只撤销选择序列的临时增量，不撤销脚本平移。
+和可选开发调试叠层读取三者叠加后的坐标，帧尾只撤销选择序列的临时增量，不撤销脚本
+平移。
 
 原 `precompose_00414570` 外部占位和枚举项已经删除。紧随世界组合后的
-`sub_4308C0` 也已复用既有 countdown owner；剩余 outer stage 仅为尚未恢复的条件
-`sub_413FE0` 地图标记。
+`sub_4308C0` 也已复用既有 countdown owner；条件 `sub_413FE0` 现已由完整开发调试
+叠层 owner 接管，outer stage 不再保留 generic 占位。
 
 ## 4. 验证
 
@@ -68,5 +69,5 @@ X step 仍会移动视口并把 X remaining 减成负值。这在正常生产者
 
 coordinator UT 另以 active pan 固定物理顺序：玩家 transition 后 camera 为
 `(14,16)`，脚本平移后为 `(16,15)`，选择滚动后的组合坐标为 `(19,13)`，帧尾恢复到
-`(16,15)`。Linux LLVM `core` 153/153、Windows LLVM `app` 157/157 CTest 通过。
+`(16,15)`。Linux LLVM `core` 154/154、Windows LLVM `app` 158/158 CTest 通过。
 原程序动态差分若需要，只准备 Frida spawn 工具并等待用户执行，不由开发流程启动原版。

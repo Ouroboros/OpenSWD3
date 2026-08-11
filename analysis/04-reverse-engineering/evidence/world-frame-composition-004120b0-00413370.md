@@ -12,7 +12,7 @@
 
 1. `0x004120B7..0x00412687`：推进公共动作记录、玩家/相机、地图角色和队伍角色；
 2. `0x0041268C..0x004126E8`：准备 framebuffer，调用 `0x00412930` 组合世界画面，再处理
-   固定 UI 和条件地图标记；
+   固定 UI 和开发调试叠层；
 3. `0x004126F0..0x00412923`：再次维护 Miles，执行普通世界唯一一次 DirectDraw `Blt`，
    随后更新格指针、角色快照和帧后状态。
 
@@ -26,7 +26,7 @@
 004126B3  00416F60(source surface, framebuffer)
 004126B8  00412930
 004126C7  004308C0(400, 8, 0)
-004126E8  条件调用 00413FE0(camera_x, camera_y, 2)
+004126E8  条件调用 00413FE0(camera_left, camera_top)；调用者额外栈字 2 未被读取
 004126F0  AIL_serve
 004126FF  00437DF0(primary surface wrapper)
 00412716  DirectDraw::Blt(..., DDBLT_WAIT, ...)
