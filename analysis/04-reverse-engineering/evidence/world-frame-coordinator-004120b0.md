@@ -14,7 +14,7 @@
 |---|---|---|
 | `0x004120B7..0x004120F7` | [倒序维护八个 HeadSgn 动作记录](world-head-sign-actions-004120b7-004120f7.md) | 已接入真实 action updater |
 | `0x004120F9..0x00412197` | 玩家与相机按四个 transition 和步长移动 | 已接入真实 helper |
-| `0x004121A1..0x004124D1` | 地图角色动作/路径账本 | 显式 delegated stage |
+| `0x004121A1..0x004124D1` | [地图角色动作/路径账本](world-map-role-paths-004121a1-004124d1.md) | 已接入真实 owner |
 | `0x004124DC..0x00412681` | 队伍角色动作账本 | `count > 1` 时 delegated |
 | `0x0041268C` | `sub_414570` 帧前维护 | 显式 delegated stage |
 | `0x00412691` | `sub_4148F0` 选择序列临时滚动 | 已接入真实状态机 |
@@ -72,6 +72,8 @@
 - 帧尾恢复后再把 camera left/top 同步回 frame runtime，下一帧不会遗留临时滚动值。
 - 当前 tile layer offset 在组合前复制进 background source；动画只在呈现和玩家帧后
   账本之后推进，供下一帧使用。
+- 72 槽地图角色 owner 与 composition 共用 Talk source；地图角色循环中新建立的 Talk
+  context 会在同一帧进入角色组合门。`sub_42D920` 仍是显式 story/path 跨模块端口。
 - 原程序假定玩家索引和 64-word 选择表永远有效。OpenSWD3 只在现代 span 所有权无效时
   于首次访问前返回；有效输入的调用、修改与门控顺序不变。
 - 仍 delegated 的角色/界面 stage 返回失败时停在对应原槽并报告失败，不把尚未恢复的
@@ -82,6 +84,8 @@
 组合 UT 已固定完整 outer/inner/audio/presentation 事件序列，并覆盖：
 
 - HeadSgn 的八槽遍历、四槽倒序更新及非致命失败；
+- 地图角色固定 72 槽空态扫描已在 coordinator 中执行；活动路径的门、移动、到达、
+  空间/表面账本、自动 Talk 和动作更新由独立 UT 固定；
 - 玩家与相机位移后，选择滚动使用同一临时相机完成 `0x00412930`；
 - 固定 UI 和地图标记的实参；
 - company count `0/1` 跳过、marker state `2` 跳过；
@@ -89,7 +93,8 @@
   执行动作校验；
 - 无效玩家索引、缺失选择 Y word、outer stage 失败和 composition 失败的原槽停止。
 
-Linux LLVM `core` 150/150、Windows LLVM `app` 154/154 CTest 通过。SDL app 已用真实
+Linux LLVM `core` 151/151、Windows LLVM `app` 155/155 CTest 通过。SDL app 已用真实
 地图 session、ACT/TSW runtime、软件 framebuffer 和 audio/presentation ports 调用该
-coordinator；尚未恢复的角色/界面 stage 仍显式转交。需要原程序动态差分时，只准备
+coordinator；地图角色路径 owner 已替代外部占位，尚未恢复的队伍角色/界面 stage 仍
+显式转交。需要原程序动态差分时，只准备
 Frida spawn 工具并等待用户执行，不由开发流程启动原版。

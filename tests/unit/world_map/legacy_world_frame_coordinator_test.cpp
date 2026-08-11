@@ -80,6 +80,12 @@ public:
     return !fail_stage || request.stage != failed_stage;
   }
 
+  [[nodiscard]] bool complete_role_path(const u32 role_index) noexcept override {
+    ++path_completion_calls;
+    last_completed_role_index = role_index;
+    return path_completion_succeeds;
+  }
+
   void maintain_audio() noexcept override { events_.push_back(kAudioEvent); }
 
   void request_world_presentation() noexcept override {
@@ -88,7 +94,10 @@ public:
 
   bool fail_stage{};
   LegacyWorldOuterFrameStage failed_stage{
-      LegacyWorldOuterFrameStage::map_role_actions_004121a1};
+      LegacyWorldOuterFrameStage::company_role_actions_004124ef};
+  bool path_completion_succeeds{true};
+  u32 path_completion_calls{};
+  u32 last_completed_role_index{0xFFFFFFFFU};
   std::vector<LegacyWorldOuterFrameStageRequest> requests;
 
 private:
@@ -311,7 +320,6 @@ struct Fixture {
       kHeadSignEventBase + 2U,
       kHeadSignEventBase + 1U,
       kHeadSignEventBase + 0U,
-      outer_event(Outer::map_role_actions_004121a1),
       outer_event(Outer::company_role_actions_004124ef),
       outer_event(Outer::precompose_00414570),
       kAudioEvent,
@@ -349,7 +357,11 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           result.frame.status == LegacyWorldFrameRuntimeStatus::completed &&
           result.selection_scroll ==
               LegacyWorldSelectionScrollStatus::completed &&
-          result.outer_stage_call_count == 5U &&
+          result.outer_stage_call_count == 4U &&
+          result.map_role_paths.status ==
+              openswd3::world_map::LegacyWorldMapRolePathStatus::completed &&
+          result.map_role_paths.slots_scanned == 72U &&
+          result.map_role_paths.active_slots == 0U &&
           result.audio_service_count == 2U && result.player_motion_applied &&
           result.presentation_requested && result.post_present_player_aligned &&
           result.movement_transitions_cleared &&
@@ -387,16 +399,16 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           fixture.state.player_post_frame.world_y_history[0] == 192U,
       "post-present player bookkeeping owns the moved cell and histories");
   test.expect_true(
-      fixture.outer_ports.requests[3].stage ==
+      fixture.outer_ports.requests[2].stage ==
               LegacyWorldOuterFrameStage::fixed_ui_004308c0 &&
-          fixture.outer_ports.requests[3].argument_0 == 400 &&
-          fixture.outer_ports.requests[3].argument_1 == 8 &&
-          fixture.outer_ports.requests[3].argument_2 == 0U &&
-          fixture.outer_ports.requests[4].stage ==
+          fixture.outer_ports.requests[2].argument_0 == 400 &&
+          fixture.outer_ports.requests[2].argument_1 == 8 &&
+          fixture.outer_ports.requests[2].argument_2 == 0U &&
+          fixture.outer_ports.requests[3].stage ==
               LegacyWorldOuterFrameStage::optional_map_marker_00413fe0 &&
-          fixture.outer_ports.requests[4].argument_0 == 17 &&
-          fixture.outer_ports.requests[4].argument_1 == 14 &&
-          fixture.outer_ports.requests[4].argument_2 == 2U,
+          fixture.outer_ports.requests[3].argument_0 == 17 &&
+          fixture.outer_ports.requests[3].argument_1 == 14 &&
+          fixture.outer_ports.requests[3].argument_2 == 2U,
       "fixed UI and marker retain the exact stack arguments from assembly");
   test.expect_true(fixture.state.movement.camera_x_transition == 0 &&
                        fixture.state.movement.player_x_transition == 0 &&
@@ -414,7 +426,7 @@ void test_marker_requires_exact_one(openswd3::test::Context &test) {
 
   test.expect_true(
       result.status == LegacyWorldFrameCoordinatorStatus::completed &&
-          result.outer_stage_call_count == 4U,
+          result.outer_stage_call_count == 3U,
       "noncanonical marker state two does not alias equality with one");
   test.expect_true(
       std::ranges::find(
@@ -433,7 +445,7 @@ void test_company_and_alignment_gates(openswd3::test::Context &test) {
     const auto result = fixture.run(selection);
     test.expect_true(
         result.status == LegacyWorldFrameCoordinatorStatus::completed &&
-            result.outer_stage_call_count == 4U &&
+            result.outer_stage_call_count == 3U &&
             std::ranges::find(fixture.events,
                               outer_event(LegacyWorldOuterFrameStage::
                                               company_role_actions_004124ef)) ==
@@ -450,7 +462,7 @@ void test_company_and_alignment_gates(openswd3::test::Context &test) {
         result.status == LegacyWorldFrameCoordinatorStatus::completed &&
             !result.post_present_player_aligned &&
             !result.movement_transitions_cleared &&
-            result.outer_stage_call_count == 5U &&
+            result.outer_stage_call_count == 4U &&
             fixture.state.movement.camera_x_transition == 1 &&
             fixture.state.movement.player_x_transition == 0 &&
             fixture.state.movement.camera_y_transition == -1,
@@ -487,7 +499,7 @@ void test_checked_failures_stop_at_the_original_slot(
                 LegacyWorldFrameCoordinatorStatus::outer_stage_failed &&
             result.failed_outer_stage_recorded &&
             result.failed_outer_stage ==
-                LegacyWorldOuterFrameStage::map_role_actions_004121a1 &&
+                LegacyWorldOuterFrameStage::company_role_actions_004124ef &&
             result.outer_stage_call_count == 1U &&
             result.player_motion_applied && result.audio_service_count == 0U &&
             !result.presentation_requested && fixture.roles[1].world_x == 128U,
@@ -501,7 +513,7 @@ void test_checked_failures_stop_at_the_original_slot(
     test.expect_true(
         result.status ==
                 LegacyWorldFrameCoordinatorStatus::invalid_selection_window &&
-            result.outer_stage_call_count == 3U &&
+            result.outer_stage_call_count == 2U &&
             result.audio_service_count == 0U && !result.presentation_requested,
         "invalid selection pair stops after 00414570 and before audio");
   }
@@ -517,7 +529,7 @@ void test_checked_failures_stop_at_the_original_slot(
             result.frame.status ==
                 LegacyWorldFrameRuntimeStatus::delegated_stage_failed &&
             result.audio_service_count == 1U &&
-            result.outer_stage_call_count == 3U &&
+            result.outer_stage_call_count == 2U &&
             !result.presentation_requested && !result.tile_animation_advanced &&
             fixture.camera.left == 17U && fixture.camera.top == 14U,
         "composition failure is visible at 00412930 and cannot fake a frame");

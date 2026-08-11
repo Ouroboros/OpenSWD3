@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v134
+版本：v135
 
 最后更新：2026-08-11
 
@@ -330,5 +330,10 @@
     真实 owner，按原顺序完成玩家空间链重插、表面格清除/重标、格索引移动、transition
     清零、三组 32 项历史、地图格 flags 投影和非致命动作校验；表面足迹 owner 同时由
     角色转移复用。Linux `core` 150/150、Windows LLVM `app` 154/154 CTest 通过。
+    `0x004121A1..0x004124D1` 的固定 72 槽地图角色路径循环现已替代外部占位，按原槽
+    恢复整槽跳过门、action wait、两级步长翻倍、对齐后的空间/表面迁移、到达 flags、
+    三个有符号 action 覆盖、`sub_42D920` 后游标重读、GUID 1 清理、自动 Talk、非致命
+    action 更新和 `sub_40D0C0` 镜头重定位；剧情路径完成仍保留为明确跨模块端口。
+    Linux `core` 151/151、Windows LLVM `app` 155/155 CTest 通过。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

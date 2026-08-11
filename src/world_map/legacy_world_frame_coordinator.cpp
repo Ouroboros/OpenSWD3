@@ -53,9 +53,15 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
                                          state.movement);
   result.player_motion_applied = true;
 
-  if (!execute_outer_stage(
-          outer_ports, result,
-          {LegacyWorldOuterFrameStage::map_role_actions_004121a1})) {
+  result.map_role_paths = advance_legacy_world_map_role_paths(
+      roles, spatial_index, role_surface, state.player_role_index,
+      state.frame_runtime.frame.runtime_flags, state.movement, camera,
+      state.map_role_paths, frame_ports.flagged_roles, outer_ports);
+  state.frame_runtime.frame.talk_target =
+      state.map_role_paths.talk_context.source_guid;
+  if (result.map_role_paths.status !=
+      LegacyWorldMapRolePathStatus::completed) {
+    result.status = LegacyWorldFrameCoordinatorStatus::map_role_paths_failed;
     return result;
   }
   if (state.company_role_count > 1U &&

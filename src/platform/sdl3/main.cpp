@@ -1174,6 +1174,10 @@ public:
         openswd3::rendering::LegacyPresentationPorts& presentation
     ) noexcept : audio_(audio), presentation_(presentation) {}
 
+    bool complete_role_path(openswd3::compat::u32) noexcept override {
+        return false;
+    }
+
     bool query_service(openswd3::compat::u32) noexcept override {
         return false;
     }

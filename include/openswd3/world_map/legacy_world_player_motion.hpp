@@ -64,4 +64,13 @@ void advance_legacy_world_player_and_camera(
     const LegacyWorldMovementRuntimeState& state
 ) noexcept;
 
+// sub_40D0C0: center the 640x480 world viewport on a role and retain the
+// original signed clamp/order behavior at both map edges.
+void recenter_legacy_world_camera(
+    const LegacyWorldRoleRecord& role,
+    compat::u32 map_width_tiles,
+    compat::u32 map_height_tiles,
+    LegacyWorldCameraRect& camera
+) noexcept;
+
 }  // namespace openswd3::world_map

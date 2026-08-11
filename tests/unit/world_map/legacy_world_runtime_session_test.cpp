@@ -306,6 +306,10 @@ class RealInitialFramePorts final
       public openswd3::world_map::LegacyWorldSpatialAudioPorts,
       public openswd3::world_map::LegacyWorldOuterFramePorts {
 public:
+    bool complete_role_path(u32) noexcept override {
+        return false;
+    }
+
     bool query_service(u32) noexcept override {
         return false;
     }

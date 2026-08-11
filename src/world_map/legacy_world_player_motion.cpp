@@ -191,4 +191,36 @@ void advance_legacy_world_player_and_camera(
     camera.bottom += camera_y;
 }
 
+void recenter_legacy_world_camera(
+    const LegacyWorldRoleRecord& role,
+    const compat::u32 map_width_tiles,
+    const compat::u32 map_height_tiles,
+    LegacyWorldCameraRect& camera
+) noexcept {
+    const auto recenter_axis = [](
+        const compat::u32 position,
+        const compat::u32 leading_offset,
+        const compat::u32 viewport_size,
+        const compat::u32 map_tiles
+    ) noexcept {
+        compat::u32 start = position - leading_offset;
+        if (std::bit_cast<compat::i32>(start) < 0) {
+            start = 0U;
+        }
+        const compat::u32 map_extent = map_tiles << 4U;
+        if (std::bit_cast<compat::i32>(start + viewport_size) >=
+            std::bit_cast<compat::i32>(map_extent)) {
+            start = (map_tiles - viewport_size / 16U) << 4U;
+        }
+        return start;
+    };
+
+    camera.left = recenter_axis(role.world_x, 0x130U, 0x280U,
+                                map_width_tiles);
+    camera.top = recenter_axis(role.world_y, 0x0F0U, 0x1E0U,
+                               map_height_tiles);
+    camera.right = camera.left + 0x280U;
+    camera.bottom = camera.top + 0x1E0U;
+}
+
 }  // namespace openswd3::world_map

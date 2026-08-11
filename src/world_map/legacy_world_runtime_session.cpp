@@ -197,39 +197,6 @@ void initialize_maps_role(
     return true;
 }
 
-[[nodiscard]] u32 initial_camera_axis(
-    const u32 position,
-    const u32 leading_offset,
-    const u32 viewport_size,
-    const u32 map_tiles
-) noexcept {
-    u32 start = position - leading_offset;
-    if (std::bit_cast<i32>(start) < 0) {
-        start = 0U;
-    }
-    const u32 map_extent = map_tiles << 4U;
-    if (std::bit_cast<i32>(start + viewport_size) >=
-        std::bit_cast<i32>(map_extent)) {
-        start = (map_tiles - viewport_size / 16U) << 4U;
-    }
-    return start;
-}
-
-[[nodiscard]] LegacyWorldCameraRect make_initial_camera(
-    const LegacyWorldRoleRecord& selected,
-    const u32 map_width,
-    const u32 map_height
-) noexcept {
-    LegacyWorldCameraRect camera;
-    camera.left = initial_camera_axis(selected.world_x, 0x130U, 0x280U,
-                                      map_width);
-    camera.top = initial_camera_axis(selected.world_y, 0x0F0U, 0x1E0U,
-                                     map_height);
-    camera.right = camera.left + 0x280U;
-    camera.bottom = camera.top + 0x1E0U;
-    return camera;
-}
-
 }  // namespace
 
 LegacyWorldActionUpdaterInitializer::LegacyWorldActionUpdaterInitializer(
@@ -356,11 +323,9 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
             selected_role_not_materialized;
         return result;
     }
-    result.session.camera = make_initial_camera(
-        roles[result.session.selected_role_index],
-        map_session.header.width,
-        map_session.header.height
-    );
+    recenter_legacy_world_camera(
+        roles[result.session.selected_role_index], map_session.header.width,
+        map_session.header.height, result.session.camera);
 
     result.status = LegacyWorldRuntimeSessionStatus::ready;
     return result;
