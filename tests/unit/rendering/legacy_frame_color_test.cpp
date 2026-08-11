@@ -3,6 +3,7 @@
 #include "openswd3/rendering/legacy_frame_color.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 
+#include <algorithm>
 #include <array>
 #include <limits>
 #include <span>
@@ -13,6 +14,9 @@ using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::rendering::LegacyFrameColorStatus;
+using openswd3::rendering::LegacyFrameColorTransitionState;
+using openswd3::rendering::LegacyFrameColorTransitionStatus;
+using openswd3::rendering::LegacyFramebuffer;
 using openswd3::rendering::LegacyPixelConversionState;
 using openswd3::rendering::LegacyPixelMasks;
 
@@ -339,6 +343,104 @@ void test_safety_and_zero_count_side_effect(
     );
 }
 
+void test_full_frame_transition_wrapper(openswd3::test::Context& test) {
+    const LegacyPixelConversionState format;
+    LegacyFramebuffer framebuffer;
+    LegacyFrameColorTransitionState transition{
+        .countdown = 1,
+        .step_red = 1.75F,
+        .step_green = 2.9F,
+        .step_blue = 3.1F,
+    };
+
+    const auto active =
+        openswd3::rendering::update_legacy_frame_color_transition(
+            transition,
+            true,
+            framebuffer,
+            format
+        );
+    test.expect_true(
+        active.status == LegacyFrameColorTransitionStatus::completed &&
+            active.framebuffer_status == LegacyFrameColorStatus::completed &&
+            active.countdown_decremented &&
+            active.current_values_advanced &&
+            !active.steps_replaced_by_targets &&
+            active.applied_red == 1 && active.applied_green == 2 &&
+            active.applied_blue == 3 && transition.countdown == 0,
+        "0x004146F0 decrements, accumulates and truncates before sub_420490"
+    );
+    test.expect_equal(
+        framebuffer.physical_pixels().front(),
+        static_cast<u16>(0x0443U),
+        "first full-frame pixel receives the three channel deltas"
+    );
+    test.expect_equal(
+        framebuffer.physical_pixels().back(),
+        static_cast<u16>(0x0443U),
+        "the final full-frame pixel is processed through the read guard"
+    );
+    test.expect_equal(
+        framebuffer.physical_pixels_with_read_guard().back(),
+        static_cast<u16>(0U),
+        "the look-ahead guard remains read-only"
+    );
+
+    std::ranges::fill(framebuffer.physical_pixels(), 0U);
+    transition = LegacyFrameColorTransitionState{
+        .countdown = 0,
+        .current_red = 4.9F,
+        .current_green = 5.9F,
+        .current_blue = 6.9F,
+        .target_red = 9.0F,
+        .target_green = 10.0F,
+        .target_blue = 11.0F,
+        .step_red = 7.0F,
+        .step_green = 8.0F,
+        .step_blue = 9.0F,
+    };
+    const auto terminal =
+        openswd3::rendering::update_legacy_frame_color_transition(
+            transition,
+            true,
+            framebuffer,
+            format
+        );
+    test.expect_true(
+        terminal.status == LegacyFrameColorTransitionStatus::completed &&
+            terminal.countdown_decremented &&
+            !terminal.current_values_advanced &&
+            terminal.steps_replaced_by_targets && transition.countdown == -1 &&
+            transition.current_red == 4.9F && transition.current_green == 5.9F &&
+            transition.current_blue == 6.9F && transition.step_red == 9.0F &&
+            transition.step_green == 10.0F && transition.step_blue == 11.0F &&
+            terminal.applied_red == 4 && terminal.applied_green == 5 &&
+            terminal.applied_blue == 6,
+        "negative countdown replaces steps without advancing current values"
+    );
+
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    transition = LegacyFrameColorTransitionState{
+        .countdown = 7,
+        .step_red = nan,
+        .step_green = nan,
+        .step_blue = nan,
+    };
+    const auto unordered_idle =
+        openswd3::rendering::update_legacy_frame_color_transition(
+            transition,
+            true,
+            framebuffer,
+            format
+        );
+    test.expect_true(
+        unordered_idle.status == LegacyFrameColorTransitionStatus::idle &&
+            transition.countdown == 7 &&
+            !unordered_idle.countdown_decremented,
+        "x87 unordered zero comparisons preserve the original early return"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -347,5 +449,6 @@ int main() {
     test_single_channel_variants(test);
     test_wrapped_delta_and_lane_carry(test);
     test_safety_and_zero_count_side_effect(test);
+    test_full_frame_transition_wrapper(test);
     return test.exit_code();
 }

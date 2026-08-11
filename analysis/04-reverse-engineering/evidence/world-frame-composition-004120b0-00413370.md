@@ -127,9 +127,10 @@ focus clip”和“底图 16 对齐 tile 区域”两套边界；实现与 UT �
 - stage port 为已有 B4/B6 renderer 和尚待恢复的调用保留原位置；实际 runtime adapter
   已在原槽接入 `0x00413EA0`、`0x00413870`、两处 `0x004147E0`、`0x00414B60` 和
   `0x00414CE0`，以及 normal 路径连续的 `0x004161C0`、`0x00416590`、`0x004167B0`、
-  `0x00415B70`、`0x004163C0`、`0x00416CC0`、`0x00416B30`。normal 路径其余六个
-  stage 继续逐项显式转交，activity 分支的 `0x004154A0` 仍是第七个外部边界，
-  不把空 stage 误报成已经绘制；
+  `0x00415B70`、`0x004163C0`、`0x00416CC0`、`0x00416B30`，以及公共尾部的
+  `0x00414E50`、`0x004146F0`、`0x004153D0`。normal 路径只剩 `0x004151F0`、
+  `0x0042ED40`、`0x004149B0` 三个 stage 继续逐项显式转交，activity 分支另有
+  `0x004154A0` 一个外部边界；不把空 stage 误报成已经绘制；
 - stage 端口会报告成功与失败；现代受检失败停在原调用点、恢复全屏 clip，并返回
   `stage_failed`，正常资产下不改变汇编顺序；
 - 正常、局部 clip、service `0x13/0x48/0x0B/0x51`、clear-only、ANI activity、
@@ -137,10 +138,10 @@ focus clip”和“底图 16 对齐 tile 区域”两套边界；实现与 UT �
 - 当前游戏数据地图 24 的 `LMF → CM → frame composition` RGB565 逻辑 framebuffer
   FNV-1a64 固定为 `0x947C15A53487BF9A`。
 
-空间、图片动作、两条 `0xB4` 动作链和七个环境效果 runtime 接线后，真实 TSW 路径叠加
-底图的 framebuffer 哈希在对应 service 全关闭时仍为 `0x3EAF7C3143994E65`。这同时证明
-禁用门没有引入像素副作用；service 6/7 的合成集成另行验证实际效果路径。真实资产结果
-证明当前数据链可用；
+空间、图片动作、两条 `0xB4` 动作链、七个环境效果和三个公共尾部 runtime 接线后，
+真实 TSW 路径叠加底图的 framebuffer 哈希在对应 service 全关闭时仍为
+`0x3EAF7C3143994E65`。这同时证明禁用门和空队列没有引入像素副作用；service 6/7 的
+合成集成另行验证实际效果路径。真实资产结果证明当前数据链可用；
 Linux Clang `core` 157/157、Windows LLVM `app` 161/161 CTest 通过。但尚未与原程序逐帧
 framebuffer 差分，所以验证等级不能写成 `original_diff_verified`。
 

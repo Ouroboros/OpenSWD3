@@ -304,7 +304,8 @@ class RealInitialFramePorts final
     : public openswd3::world_map::LegacyWorldFramePorts,
       public openswd3::world_map::LegacyWorldRoleExternalPorts,
       public openswd3::world_map::LegacyWorldSpatialAudioPorts,
-      public openswd3::world_map::LegacyWorldOuterFramePorts {
+      public openswd3::world_map::LegacyWorldOuterFramePorts,
+      public openswd3::rendering::LegacyTimedMessageRuntimePorts {
 public:
     bool complete_role_path(u32) noexcept override {
         return false;
@@ -316,6 +317,15 @@ public:
 
     bool query_control(u32) noexcept override {
         return false;
+    }
+
+    openswd3::rendering::LegacyTimedMessageResult update_and_draw(
+        std::list<openswd3::rendering::LegacyTimedMessage>& messages,
+        u16
+    ) noexcept override {
+        return {
+            .visited_count = static_cast<u32>(messages.size()),
+        };
     }
 
     bool execute_stage(
@@ -808,6 +818,7 @@ void test_real_initial_world(
             .ani_drift = ani_drift_ports,
             .ani_directional = ani_directional_ports,
             .ani_follower = ani_follower_ports,
+            .timed_message_runtime = deferred_ports,
             .flagged_roles = action_ports,
             .world_roles = role_ports,
             .spatial_audio = deferred_ports,

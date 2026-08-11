@@ -66,8 +66,9 @@ struct LegacyPackedRowEffectResult {
     };
 };
 
-// sub_414E50. Pixel-row execution remains a port until sub_417DE0 is closed;
-// this function owns the exact list, mode, RNG and removal behavior.
+// sub_414E50. This function owns the exact list, mode, RNG and removal
+// behavior. The port keeps the coordinator independently testable; the live
+// runtime binds it to the closed sub_417DE0 framebuffer implementation.
 [[nodiscard]] LegacyPackedRowEffectResult
 update_draw_legacy_packed_row_effects(
     std::list<LegacyPackedRowEffect>& effects,

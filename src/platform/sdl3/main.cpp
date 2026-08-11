@@ -1170,7 +1170,8 @@ class SdlDeferredWorldFramePorts final
     : public openswd3::world_map::LegacyWorldFramePorts,
       public openswd3::world_map::LegacyWorldRoleExternalPorts,
       public openswd3::world_map::LegacyWorldSpatialAudioPorts,
-      public openswd3::world_map::LegacyWorldOuterFramePorts {
+      public openswd3::world_map::LegacyWorldOuterFramePorts,
+      public openswd3::rendering::LegacyTimedMessageInputPorts {
 public:
     SdlDeferredWorldFramePorts(
         openswd3::audio_video::LegacyAudioMaintenancePorts& audio,
@@ -1191,6 +1192,12 @@ public:
 
     bool query_control(openswd3::compat::u32) noexcept override {
         return false;
+    }
+
+    bool is_legacy_control_active(
+        const openswd3::compat::u32 control_index
+    ) noexcept override {
+        return query_control(control_index);
     }
 
     bool execute_stage(
@@ -1550,6 +1557,23 @@ public:
             *this,
             text_renderers_,
         };
+        const auto timed_message_binding = text_renderers_.binding(12U);
+        if (!timed_message_binding.ready()) {
+            static_cast<void>(report_error(
+                "ordinary world frame: 12-point text renderer is unavailable"
+            ));
+            ok_ = false;
+            running_ = false;
+            return;
+        }
+        openswd3::rendering::LegacyBoundTimedMessageRuntimePorts
+            timed_message_ports{
+                deferred_ports,
+                *timed_message_binding.framebuffer,
+                *timed_message_binding.glyph_cache,
+                *timed_message_binding.glyph_provider,
+                *timed_message_binding.state,
+            };
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
             tsw_runtime_,
@@ -1619,6 +1643,7 @@ public:
                 .ani_drift = ani_drift_ports,
                 .ani_directional = ani_directional_ports,
                 .ani_follower = ani_follower_ports,
+                .timed_message_runtime = timed_message_ports,
                 .flagged_roles = action_ports,
                 .world_roles = role_ports,
                 .spatial_audio = deferred_ports,

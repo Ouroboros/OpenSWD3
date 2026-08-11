@@ -17,6 +17,34 @@ namespace {
 
 }  // namespace
 
+LegacyBoundTimedMessageRuntimePorts::LegacyBoundTimedMessageRuntimePorts(
+    LegacyTimedMessageInputPorts& input_ports,
+    LegacyFramebuffer& framebuffer,
+    LegacyGlyphCache& glyph_cache,
+    LegacyGlyphProvider& glyph_provider,
+    LegacyTextRendererState& text_state
+) noexcept
+    : input_ports_(input_ports),
+      framebuffer_(framebuffer),
+      glyph_cache_(glyph_cache),
+      glyph_provider_(glyph_provider),
+      text_state_(text_state) {}
+
+LegacyTimedMessageResult LegacyBoundTimedMessageRuntimePorts::update_and_draw(
+    std::list<LegacyTimedMessage>& messages,
+    const compat::u16 foreground_color
+) noexcept {
+    return update_and_draw_legacy_timed_messages(
+        messages,
+        input_ports_,
+        framebuffer_,
+        glyph_cache_,
+        glyph_provider_,
+        text_state_,
+        foreground_color
+    );
+}
+
 LegacyTimedMessageResult update_and_draw_legacy_timed_messages(
     std::list<LegacyTimedMessage>& messages,
     LegacyTimedMessageInputPorts& input_ports,

@@ -3,7 +3,7 @@
 状态：`assembly_exact_order`、`asset_verified`；尚未 `original_diff_verified`
 
 本证据块记录 OpenSWD3 如何把世界帧协调器、两条空间角色路径、两条图片动作、两条
-`0xB4` 动作链和七个环境效果阶段链接成一个可执行纵向切片。原调用顺序仍只以
+`0xB4` 动作链、七个环境效果和三个公共尾部阶段链接成一个可执行纵向切片。原调用顺序仍只以
 `swd3.exe.lst` 为真值；运行时适配器本身是现代所有权边界，不被误写成原 EXE 内存在的类。
 
 ## 1. 接线边界
@@ -26,10 +26,13 @@
 | `framebuffer_deformation_00416cc0` | 变形节点链的快照、写回、推进和完成摘链 |
 | `ani_follower_00416b30` | service `0x13` 双帧目标跟随效果和原始裁剪行为 |
 | `secondary_picture_actions_004147e0` | 副图片动作链的同一 owner；clear-only 仍只执行此槽 |
+| `packed_row_effects_00414e50` | 五模式行特效队列；绑定真实 framebuffer、16 项内建颜色和 shared secondary RNG |
 | `role_head_sprites_00414ce0` | `0xB4` 角色头顶动作链的 `update_draw_legacy_role_head_actions` |
+| `frame_color_update_004146f0` | 跨帧三通道状态和全 `0x4B000` 像素饱和颜色偏移 |
+| `timed_messages_004153d0` | 12 点 legacy glyph renderer、control 14 门与右对齐寿命队列 |
 
-normal 路径的其余六个 stage 仍逐项转交 `remaining_stages`；另有只在 activity 分支出现的
-`0x004154A0` 尚未接线，因此整个 stage 枚举仍有七项外部边界。最终平台提交仍在
+normal 路径的其余三个 stage 仍逐项转交 `remaining_stages`；另有只在 activity 分支出现的
+`0x004154A0` 尚未接线，因此整个 stage 枚举仍有四项外部边界。最终平台提交仍在
 `0x004120B0` 的原位置；本适配器没有把 presentation 搬进 `0x00412930`。
 
 ## 2. 同一运行态
@@ -45,6 +48,8 @@ normal 路径的其余六个 stage 仍逐项转交 `remaining_stages`；另有�
   service 关闭，`0x00416590/0x004167B0` 仍按汇编先消耗概率 RNG。
 - 七种环境效果的跨帧状态、共享动作记录、地图方向配置、当前 pixel conversion 和
   framebuffer；地图宽高与相机逐帧取自本次组合输入，不保存第二份副本。
+- packed-row 队列、颜色过渡状态和限时消息队列；颜色表按 `sub_424B90` 的 16 项原始
+  `0x00BBGGRR` 数值转换，消息端口借用现有 12 点 glyph cache/provider/text state。
 - `story_scene` 借出的主/副图片动作链、动作 updater、TSW 绘制端口和位置音效端口。
 - `story_scene` 借出的 moving action 链；其物理节点仍保留完整动作记录、float 运动扩展
   和旧 `+0xB0` next 槽。
@@ -64,6 +69,7 @@ normal 路径的其余六个 stage 仍逐项转交 `remaining_stages`；另有�
 - 普通角色覆盖 action、标签或距离数组无效；
 - 尚未接线的外部 stage 主动报告失败；
 - 环境效果遇到非法现代存储边界、ACT/TSW 失败或无效 RNG 上界；
+- 全帧颜色处理遇到不可能的 framebuffer 存储边界；
 - stage 内部抛出异常。
 
 图片动作、moving action 和 role-head action 的动作更新或帧请求失败保留原函数的非致命诊断边界：继续后续音效、运动、摘链和节点，
@@ -77,8 +83,10 @@ normal 路径的其余六个 stage 仍逐项转交 `remaining_stages`；另有�
 
 合成 UT 固定了以下事实：
 
-- normal 路径仍有十九次 stage 调用，其中十三个 stage 实际执行、六个明确转交；
+- normal 路径仍有十九次 stage 调用，其中十六个 stage 实际执行、三个明确转交；
 - service 关闭时七个环境槽仍在原位置运行，且 streak/spark 保留无条件概率 RNG 消耗；
+- packed-row 使用同一 framebuffer/secondary RNG，颜色过渡在空 step 时不写像素，
+  限时消息从转换后的内建颜色表索引 3 取色并调用同一 12 点文字绑定；
 - service 6/7 开启的组合测试固定四槽 drift 同帧 ACT/TSW/draw 和 row-copy 首帧参数生成，
   证明接线使用真实地图尺寸、framebuffer 和同一 secondary RNG；
 - bit-29 路径先于 `2 → 0 → 1` 普通角色遍历；

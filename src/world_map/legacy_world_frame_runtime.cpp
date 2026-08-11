@@ -1,9 +1,32 @@
 #include "openswd3/world_map/legacy_world_frame_runtime.hpp"
 
+#include <array>
 #include <bit>
 
 namespace openswd3::world_map {
 namespace {
+
+// 0x0049E0C8..0x0049E107 before sub_424B90 converts the sixteen
+// little-endian BGR888 values in place and duplicates each 16-bit result.
+constexpr std::array<compat::u32, 16U> kLegacyBuiltinBgr888Colors{
+    0x00FFFFFFU, 0x00000000U, 0x000C31ECU, 0x000080FFU,
+    0x002C577BU, 0x00FFE6E6U, 0x00ACCFE9U, 0x00002CECU,
+    0x00FF0000U, 0x00800000U, 0x00606060U, 0x002C577BU,
+    0x00E9C8C0U, 0x00ACCFE9U, 0x000D31ECU, 0x00002CECU,
+};
+
+[[nodiscard]] std::array<compat::u32, 16U> legacy_builtin_color_pairs(
+    const rendering::LegacyPixelConversionState &format) noexcept {
+  std::array<compat::u32, 16U> pairs{};
+  for (std::size_t index = 0U; index < pairs.size(); ++index) {
+    const compat::u32 color = kLegacyBuiltinBgr888Colors[index];
+    pairs[index] = rendering::legacy_pack_color_pair(
+        format, static_cast<compat::i32>((color >> 3U) & 0x1FU),
+        static_cast<compat::i32>((color >> 11U) & 0x1FU),
+        static_cast<compat::i32>((color >> 19U) & 0x1FU));
+  }
+  return pairs;
+}
 
 [[nodiscard]] bool
 accepted(const asset_runtime::LegacyAniDriftStatus status) noexcept {
@@ -90,8 +113,14 @@ public:
         return execute_ani_follower(stage);
       case LegacyWorldFrameStage::secondary_picture_actions_004147e0:
         return execute_picture_actions(false);
+      case LegacyWorldFrameStage::packed_row_effects_00414e50:
+        return execute_packed_rows();
       case LegacyWorldFrameStage::role_head_sprites_00414ce0:
         return execute_role_head_actions();
+      case LegacyWorldFrameStage::frame_color_update_004146f0:
+        return execute_frame_color(stage);
+      case LegacyWorldFrameStage::timed_messages_004153d0:
+        return execute_timed_messages();
       default:
         ++result_.delegated_stage_count;
         if (ports_.remaining_stages.execute_stage(stage)) {
@@ -185,6 +214,41 @@ private:
     result_.role_head_actions_executed = true;
     result_.role_head_actions = update_draw_legacy_role_head_actions(
         ports_.role_head_actions, ports_.flagged_roles);
+    return true;
+  }
+
+  [[nodiscard]] bool execute_packed_rows() {
+    result_.packed_rows_executed = true;
+    const auto colors = legacy_builtin_color_pairs(ports_.pixel_conversion);
+    rendering::LegacyFramebufferPackedRowDrawPorts draw_ports{
+        framebuffer_, ports_.pixel_conversion};
+    result_.packed_rows = rendering::update_draw_legacy_packed_row_effects(
+        ports_.environment_effects.packed_rows, colors, ports_.secondary_rng,
+        draw_ports);
+    return true;
+  }
+
+  [[nodiscard]] bool execute_frame_color(const LegacyWorldFrameStage stage) {
+    result_.frame_color_executed = true;
+    result_.frame_color = rendering::update_legacy_frame_color_transition(
+        ports_.environment_effects.frame_color, true, framebuffer_,
+        ports_.pixel_conversion);
+    if (result_.frame_color.status ==
+            rendering::LegacyFrameColorTransitionStatus::idle ||
+        result_.frame_color.status ==
+            rendering::LegacyFrameColorTransitionStatus::completed) {
+      return true;
+    }
+    fail(LegacyWorldFrameRuntimeStatus::frame_color_failed, stage);
+    return false;
+  }
+
+  [[nodiscard]] bool execute_timed_messages() {
+    result_.timed_messages_executed = true;
+    const auto colors = legacy_builtin_color_pairs(ports_.pixel_conversion);
+    result_.timed_messages = ports_.timed_message_runtime.update_and_draw(
+        ports_.environment_effects.timed_messages,
+        static_cast<compat::u16>(colors[3U]));
     return true;
   }
 

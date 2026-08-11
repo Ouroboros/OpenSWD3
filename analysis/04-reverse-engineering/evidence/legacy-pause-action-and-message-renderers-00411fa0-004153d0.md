@@ -111,9 +111,10 @@ mode 转为 `0x08` 时保留原低 byte，而且不会在同一次调用补跑�
 `0x08`，才依次检查 `0x80/0x40/0x20/0x10`。随机源固定为已还原的
 `LegacySecondaryRng`，不能换成 CRT RNG。
 
-每行最终调用 `sub_417DE0(destination,color_pattern,length)`。该底层 packed 像素循环仍是
-下一组真实缺口，因此当前协调器通过 `LegacyPackedRowDrawPorts` 保留精确坐标、pattern、
-有符号长度和调用顺序；没有把它误报成已经恢复的像素公式。
+每行最终调用 `sub_417DE0(destination,color_pattern,length)`。该底层 packed 像素循环已由
+`blend_legacy_packed_row` 按汇编闭环；`LegacyPackedRowDrawPorts` 继续保留协调器的精确
+坐标、pattern、有符号长度和可独立测试边界，live runtime 则绑定同一 owned framebuffer、
+当前 pixel conversion 和 shared secondary RNG。该 stage 已在 `0x00412930` 原槽接线。
 
 ## 5. `0x004153D0` 限时消息
 
@@ -129,6 +130,10 @@ y = 8 + 24 * queue_index
 flags = 0x10
 foreground = word at 0x0049E0D4
 ```
+
+`0x0049E0D4` 是启动期 `sub_424B90` 转换后的 16 项内建颜色表索引 3，不是独立硬编码
+RGB 值。当前 TALK CFG 的 opcode 83 实际使用索引 `1/2/3/4/8/9/11`，因此运行时保留
+整张表并按当前 pixel conversion 建立成对颜色；限时消息只从该表借用索引 3 的低 word。
 
 随后 lifespan 做 32 位回绕减一；结果恰好为零时立即 unlink/free，否则保留。初值为零
 会变成 `-1` 而不是被删除。现代固定数组缺少 NUL 时只做安全隔离并报告
@@ -146,5 +151,9 @@ foreground = word at 0x0049E0D4
 - 五个 row mode 的正/逆行序、每行 RNG 次数、夹值、低 byte 保留、转简单与删除；
 - 消息 control 14 抑制、0x80-byte NUL 边界、每节点 y 前进、寿命减一后删除和文字状态。
 
-Linux Clang `core` 为 60/60 CTest，Windows LLVM `app` 为 62/62 CTest。原程序
-framebuffer 动态差分仍沿用 B4 已登记的 `blocked_runtime_oracle`，本轮没有启动原版程序。
+世界帧集成 UT 另固定 packed-row 使用真实 framebuffer 与共享 RNG、限时消息使用 12 点
+renderer 绑定及颜色表索引 3，并确认两者不再经过 generic stage。
+
+当前 Linux Clang `core` 为 157/157 CTest；Windows LLVM `app` 的当前检查点结果记录在
+世界帧运行时证据。原程序 framebuffer 动态差分仍沿用 B4 已登记的
+`blocked_runtime_oracle`，本轮没有启动原版程序。

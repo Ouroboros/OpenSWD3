@@ -118,7 +118,9 @@ private:
   std::vector<u32> &events_;
 };
 
-class RecordingFramePorts final : public LegacyWorldFramePorts {
+class RecordingFramePorts final
+    : public LegacyWorldFramePorts,
+      public openswd3::rendering::LegacyTimedMessageRuntimePorts {
 public:
   explicit RecordingFramePorts(std::vector<u32> &events) noexcept
       : events_(events) {}
@@ -139,6 +141,14 @@ public:
 
   void draw_decorated_number(const i32, const i32, const u32,
                              const u32) noexcept override {}
+
+  [[nodiscard]] openswd3::rendering::LegacyTimedMessageResult update_and_draw(
+      std::list<openswd3::rendering::LegacyTimedMessage> &messages,
+      const u16) noexcept override {
+    return {
+        .visited_count = static_cast<u32>(messages.size()),
+    };
+  }
 
   bool fail_stage{};
   std::array<bool, 128U> service_flags{};
@@ -378,6 +388,7 @@ struct Fixture {
                                       .ani_drift = action_ports,
                                       .ani_directional = action_ports,
                                       .ani_follower = action_ports,
+                                      .timed_message_runtime = frame_ports,
                                       .flagged_roles = action_ports,
                                       .world_roles = role_ports,
                                       .spatial_audio = audio_ports,
@@ -399,11 +410,8 @@ struct Fixture {
       kHeadSignEventBase + 0U,
       kAudioEvent,
       frame_event(Inner::pre_background_records_004151f0),
-      frame_event(Inner::packed_row_effects_00414e50),
       frame_event(Inner::timed_ui_update_0042ed40),
       frame_event(Inner::world_indicator_004149b0),
-      frame_event(Inner::frame_color_update_004146f0),
-      frame_event(Inner::timed_messages_004153d0),
       kCountdownEventBase + 1U,
       kCountdownEventBase + 2U,
       kCountdownEventBase + 10U,
@@ -425,6 +433,9 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           result.frame.status == LegacyWorldFrameRuntimeStatus::completed &&
           result.frame.primary_picture_actions_executed &&
           result.frame.secondary_picture_actions_executed &&
+          result.frame.packed_rows_executed &&
+          result.frame.frame_color_executed &&
+          result.frame.timed_messages_executed &&
           result.selection_scroll ==
               LegacyWorldSelectionScrollStatus::completed &&
           result.debug_overlay_executed &&

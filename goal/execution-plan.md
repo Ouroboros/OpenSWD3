@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v144
+版本：v145
 
 最后更新：2026-08-11
 
@@ -382,5 +382,10 @@
     ACT/TSW 绘制端口及启动时播种的同一 secondary RNG。禁用门、streak/spark 的无条件
     概率 RNG 消耗、形变空链和启用后的 drift/row-copy 路径均由 runtime UT 固定；generic
     inner stage 从十三项降为六项，activity 分支另保留一项外部边界。
+    公共尾部的 `sub_414E50` packed-row、`sub_4146F0` 全帧颜色过渡和 `sub_4153D0`
+    限时消息也已从 generic stage 接回真实 owner：共用 owned framebuffer、当前 pixel
+    conversion、启动期 16 项颜色表、secondary RNG 与 12 点 legacy glyph runtime；
+    `sub_420490` 最后像素的 dword 读取由不参与上传/哈希的单 word guard 精确承接。
+    normal 世界帧的外部 stage 由六项降为三项，activity 分支仍另有一项。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

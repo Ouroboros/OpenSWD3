@@ -51,6 +51,8 @@ void test_default_owned_framebuffer(openswd3::test::Context& test) {
     );
 
     const std::span<u16> physical = framebuffer.physical_pixels();
+    const std::span<u16> guarded =
+        framebuffer.physical_pixels_with_read_guard();
     test.expect_equal(
         framebuffer.physical_byte_size(),
         openswd3::rendering::kLegacyFixedCanvasBytes,
@@ -62,6 +64,17 @@ void test_default_owned_framebuffer(openswd3::test::Context& test) {
             openswd3::rendering::kLegacyFixedCanvasPixels
         ),
         "default physical pixel count"
+    );
+    test.expect_true(
+        guarded.data() == physical.data() &&
+            guarded.size() == physical.size() + 1U,
+        "owned framebuffer exposes one non-physical dword read guard"
+    );
+    guarded.back() = 0xA55AU;
+    test.expect_equal(
+        framebuffer.physical_pixels().size(),
+        physical.size(),
+        "read guard does not expand the physical surface"
     );
     test.expect_true(
         std::ranges::all_of(physical, [](const u16 pixel) {

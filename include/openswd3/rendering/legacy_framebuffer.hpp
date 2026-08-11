@@ -60,6 +60,13 @@ public:
     [[nodiscard]] compat::u32 physical_byte_size() const noexcept;
     [[nodiscard]] std::span<compat::u16> physical_pixels() noexcept;
     [[nodiscard]] std::span<const compat::u16> physical_pixels() const noexcept;
+    // sub_420490/sub_420560 load a dword at every logical u16 position,
+    // including the final pixel. The extra word is readable storage only and
+    // is excluded from physical_byte_size(), uploads, rows and logical hashes.
+    [[nodiscard]] std::span<compat::u16>
+    physical_pixels_with_read_guard() noexcept;
+    [[nodiscard]] std::span<const compat::u16>
+    physical_pixels_with_read_guard() const noexcept;
     [[nodiscard]] std::span<compat::u16> row_pixels(compat::u32 row) noexcept;
     [[nodiscard]] std::span<const compat::u16> row_pixels(
         compat::u32 row

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/compat/types.hpp"
+#include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 
 #include <span>
@@ -14,6 +15,51 @@ enum class LegacyFrameColorStatus : compat::u8 {
     source_out_of_bounds,
     destination_out_of_bounds,
 };
+
+struct LegacyFrameColorTransitionState {
+    compat::i32 countdown{};
+    float current_red{};
+    float current_green{};
+    float current_blue{};
+    float target_red{};
+    float target_green{};
+    float target_blue{};
+    float step_red{};
+    float step_green{};
+    float step_blue{};
+};
+
+enum class LegacyFrameColorTransitionStatus : compat::u8 {
+    idle,
+    completed,
+    framebuffer_failed,
+};
+
+struct LegacyFrameColorTransitionResult {
+    LegacyFrameColorTransitionStatus status{
+        LegacyFrameColorTransitionStatus::idle
+    };
+    LegacyFrameColorStatus framebuffer_status{
+        LegacyFrameColorStatus::completed
+    };
+    compat::i32 applied_red{};
+    compat::i32 applied_green{};
+    compat::i32 applied_blue{};
+    bool countdown_decremented{};
+    bool current_values_advanced{};
+    bool steps_replaced_by_targets{};
+};
+
+// sub_4146F0. The transition owns the exact early-out, optional countdown
+// decrement, float accumulation/terminal assignment and full 0x4B000-pixel
+// sub_420490 call used by the ordinary-world frame tail.
+[[nodiscard]] LegacyFrameColorTransitionResult
+update_legacy_frame_color_transition(
+    LegacyFrameColorTransitionState& state,
+    bool decrement_countdown,
+    LegacyFramebuffer& framebuffer,
+    const LegacyPixelConversionState& format
+) noexcept;
 
 // sub_420490. The original performs a dword read for every logical u16 pixel,
 // so the span must include one readable look-ahead pixel after the range.

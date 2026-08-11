@@ -33,6 +33,40 @@ struct LegacyTimedMessageResult {
     LegacyTextDrawStatus last_text_status{LegacyTextDrawStatus::completed};
 };
 
+class LegacyTimedMessageRuntimePorts {
+public:
+    virtual ~LegacyTimedMessageRuntimePorts() = default;
+
+    [[nodiscard]] virtual LegacyTimedMessageResult update_and_draw(
+        std::list<LegacyTimedMessage>& messages,
+        compat::u16 foreground_color
+    ) noexcept = 0;
+};
+
+class LegacyBoundTimedMessageRuntimePorts final
+    : public LegacyTimedMessageRuntimePorts {
+public:
+    LegacyBoundTimedMessageRuntimePorts(
+        LegacyTimedMessageInputPorts& input_ports,
+        LegacyFramebuffer& framebuffer,
+        LegacyGlyphCache& glyph_cache,
+        LegacyGlyphProvider& glyph_provider,
+        LegacyTextRendererState& text_state
+    ) noexcept;
+
+    [[nodiscard]] LegacyTimedMessageResult update_and_draw(
+        std::list<LegacyTimedMessage>& messages,
+        compat::u16 foreground_color
+    ) noexcept override;
+
+private:
+    LegacyTimedMessageInputPorts& input_ports_;
+    LegacyFramebuffer& framebuffer_;
+    LegacyGlyphCache& glyph_cache_;
+    LegacyGlyphProvider& glyph_provider_;
+    LegacyTextRendererState& text_state_;
+};
+
 // sub_4153D0. Messages retain their original fixed 0x80-byte text storage;
 // the std::list owns the modern allocation while preserving queue order.
 [[nodiscard]] LegacyTimedMessageResult

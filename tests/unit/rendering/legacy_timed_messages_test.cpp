@@ -14,6 +14,7 @@ using openswd3::compat::i32;
 using openswd3::compat::u32;
 using openswd3::compat::u8;
 using openswd3::rendering::LegacyFramebuffer;
+using openswd3::rendering::LegacyBoundTimedMessageRuntimePorts;
 using openswd3::rendering::LegacyGlyphCache;
 using openswd3::rendering::LegacyGlyphClipRectangle;
 using openswd3::rendering::LegacyGlyphProvider;
@@ -94,16 +95,15 @@ void test_queue_draw_suppression_and_expiry(
         },
     };
 
+    LegacyBoundTimedMessageRuntimePorts runtime_ports{
+        input_ports,
+        framebuffer,
+        glyph_cache,
+        glyph_provider,
+        text_state,
+    };
     const LegacyTimedMessageResult result =
-        openswd3::rendering::update_and_draw_legacy_timed_messages(
-            messages,
-            input_ports,
-            framebuffer,
-            glyph_cache,
-            glyph_provider,
-            text_state,
-            0x1234U
-        );
+        runtime_ports.update_and_draw(messages, 0x1234U);
 
     test.expect_equal(result.visited_count, 3U, "all queued messages visit");
     test.expect_equal(result.input_query_count, 3U, "control 14 queries per message");

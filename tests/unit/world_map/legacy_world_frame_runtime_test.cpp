@@ -281,6 +281,24 @@ public:
                           const i32) noexcept override {}
 };
 
+class RecordingTimedMessageRuntimePorts final
+    : public openswd3::rendering::LegacyTimedMessageRuntimePorts {
+public:
+  [[nodiscard]] openswd3::rendering::LegacyTimedMessageResult
+  update_and_draw(
+      std::list<openswd3::rendering::LegacyTimedMessage> &messages,
+      const u16 foreground_color) noexcept override {
+    ++calls;
+    last_foreground_color = foreground_color;
+    return {
+        .visited_count = static_cast<u32>(messages.size()),
+    };
+  }
+
+  u32 calls{};
+  u16 last_foreground_color{};
+};
+
 [[nodiscard]] LegacyWorldFrameRuntimeState
 make_runtime_state(std::vector<openswd3::compat::i16> &distances,
                    std::vector<openswd3::compat::i16> &vertical_offsets) {
@@ -327,6 +345,17 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
   LegacyMovingActionList moving_actions;
   LegacyRoleHeadActionList role_head_actions;
   LegacyWorldFrameEffectState environment_effects;
+  environment_effects.packed_rows.push_back(
+      openswd3::rendering::LegacyPackedRowEffect{
+          .base_x = 8,
+          .base_y = 8,
+          .limit = 2,
+          .row_count = 1,
+          .mode = 0x0800U,
+          .color_index = 3,
+      });
+  environment_effects.timed_messages.push_back(
+      openswd3::rendering::LegacyTimedMessage{.remaining_frames = 2});
   openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
   LegacyPixelConversionState pixel_conversion;
   LegacyMovingActionNode moving_action{};
@@ -351,6 +380,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
   RecordingRolePorts ordinary;
   RecordingAudioPorts audio;
   RecordingAniPorts ani;
+  RecordingTimedMessageRuntimePorts timed_messages;
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
@@ -365,6 +395,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           .ani_drift = ani,
           .ani_directional = ani,
           .ani_follower = ani,
+          .timed_message_runtime = timed_messages,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -382,7 +413,8 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           result.ani_streak_executed && result.ani_spark_executed &&
           result.ani_directional_executed && result.ani_row_copy_executed &&
           result.framebuffer_deformation_executed &&
-          result.ani_follower_executed &&
+          result.ani_follower_executed && result.packed_rows_executed &&
+          result.frame_color_executed && result.timed_messages_executed &&
           result.flagged_roles.draw_count == 1U &&
           result.primary_picture_actions.draw_count == 1U &&
           result.moving_actions.draw_count == 1U &&
@@ -394,8 +426,17 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
       "0x00412930 executes recovered spatial and action stages at real slots");
   test.expect_true(
       result.composition.stage_call_count == 19U &&
-          result.delegated_stage_count == 6U && flagged.draws == 5U &&
+          result.delegated_stage_count == 3U && flagged.draws == 5U &&
           ordinary.draws == 2U &&
+          result.packed_rows.visited_count == 1U &&
+          result.packed_rows.draw_count == 1U &&
+          result.frame_color.status ==
+              openswd3::rendering::LegacyFrameColorTransitionStatus::idle &&
+          timed_messages.calls == 1U &&
+          timed_messages.last_foreground_color ==
+              static_cast<u16>(openswd3::rendering::legacy_pack_color_pair(
+                  pixel_conversion, 31, 16, 0)) &&
+          result.timed_messages.visited_count == 1U &&
           ordinary.samples ==
               std::vector<std::tuple<u16, i32, i32>>{{7U, 10, 20}} &&
           std::ranges::find(
@@ -421,6 +462,18 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context &test) {
           std::ranges::find(
               remaining.stages,
               LegacyWorldFrameStage::role_head_sprites_00414ce0) ==
+              remaining.stages.end() &&
+          std::ranges::find(
+              remaining.stages,
+              LegacyWorldFrameStage::packed_row_effects_00414e50) ==
+              remaining.stages.end() &&
+          std::ranges::find(
+              remaining.stages,
+              LegacyWorldFrameStage::frame_color_update_004146f0) ==
+              remaining.stages.end() &&
+          std::ranges::find(
+              remaining.stages,
+              LegacyWorldFrameStage::timed_messages_004153d0) ==
               remaining.stages.end(),
       "runtime adapter delegates only the still-unwired frame stages");
 }
@@ -449,6 +502,7 @@ void test_spatial_failure_stops_at_original_stage(
   RecordingRolePorts ordinary;
   RecordingAudioPorts audio;
   RecordingAniPorts ani;
+  RecordingTimedMessageRuntimePorts timed_messages;
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
@@ -463,6 +517,7 @@ void test_spatial_failure_stops_at_original_stage(
           .ani_drift = ani,
           .ani_directional = ani,
           .ani_follower = ani,
+          .timed_message_runtime = timed_messages,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -509,6 +564,7 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
   RecordingRolePorts ordinary;
   RecordingAudioPorts audio;
   RecordingAniPorts ani;
+  RecordingTimedMessageRuntimePorts timed_messages;
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
@@ -523,6 +579,7 @@ void test_delegated_failure_is_visible(openswd3::test::Context &test) {
           .ani_drift = ani,
           .ani_directional = ani,
           .ani_follower = ani,
+          .timed_message_runtime = timed_messages,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -564,6 +621,7 @@ void test_environment_effects_use_live_frame_dependencies(
   RecordingRolePorts ordinary;
   RecordingAudioPorts audio;
   RecordingAniPorts ani;
+  RecordingTimedMessageRuntimePorts timed_messages;
 
   const auto result = compose_legacy_world_runtime_frame(
       framebuffer, raster, background.source(), spatial, roles, state, jitter,
@@ -578,6 +636,7 @@ void test_environment_effects_use_live_frame_dependencies(
           .ani_drift = ani,
           .ani_directional = ani,
           .ani_follower = ani,
+          .timed_message_runtime = timed_messages,
           .flagged_roles = flagged,
           .world_roles = ordinary,
           .spatial_audio = audio,
@@ -677,6 +736,7 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
   LegacyWorldRoleRenderRuntimePorts ordinary_ports{tsw_runtime, framebuffer,
                                                    raster, effects, external};
   RecordingAudioPorts audio;
+  RecordingTimedMessageRuntimePorts timed_messages;
   openswd3::asset_runtime::LegacyAniDriftRuntimePorts drift_ports{
       action_updater, tsw_runtime, framebuffer, raster, effects, jitter};
   openswd3::asset_runtime::LegacyAniDirectionalRuntimePorts directional_ports{
@@ -697,6 +757,7 @@ void test_real_tsw_combined_frame(openswd3::test::Context &test,
           .ani_drift = drift_ports,
           .ani_directional = directional_ports,
           .ani_follower = follower_ports,
+          .timed_message_runtime = timed_messages,
           .flagged_roles = flagged_ports,
           .world_roles = ordinary_ports,
           .spatial_audio = audio,

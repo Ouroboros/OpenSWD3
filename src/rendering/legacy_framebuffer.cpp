@@ -99,7 +99,7 @@ LegacyFramebuffer::LegacyFramebuffer()
     : LegacyFramebuffer(LegacySurfaceGeometry{}) {}
 
 LegacyFramebuffer::LegacyFramebuffer(const LegacySurfaceGeometry& surface)
-    : pixels_(checked_storage_word_count(surface)) {
+    : pixels_(checked_storage_word_count(surface) + 1U) {
     static_cast<void>(initialize_legacy_raster_geometry(geometry_, surface));
 }
 
@@ -108,14 +108,26 @@ const LegacyRasterGeometryState& LegacyFramebuffer::geometry() const noexcept {
 }
 
 compat::u32 LegacyFramebuffer::physical_byte_size() const noexcept {
-    return static_cast<compat::u32>(pixels_.size() * sizeof(compat::u16));
+    return static_cast<compat::u32>(
+        (pixels_.size() - 1U) * sizeof(compat::u16)
+    );
 }
 
 std::span<compat::u16> LegacyFramebuffer::physical_pixels() noexcept {
-    return pixels_;
+    return std::span<compat::u16>{pixels_}.first(pixels_.size() - 1U);
 }
 
 std::span<const compat::u16> LegacyFramebuffer::physical_pixels() const noexcept {
+    return std::span<const compat::u16>{pixels_}.first(pixels_.size() - 1U);
+}
+
+std::span<compat::u16>
+LegacyFramebuffer::physical_pixels_with_read_guard() noexcept {
+    return pixels_;
+}
+
+std::span<const compat::u16>
+LegacyFramebuffer::physical_pixels_with_read_guard() const noexcept {
     return pixels_;
 }
 
