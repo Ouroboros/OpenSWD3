@@ -4,6 +4,7 @@
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_world_player_motion.hpp"
 #include "openswd3/world_map/legacy_world_render_session.hpp"
+#include "openswd3/world_map/legacy_world_role_post_materialization.hpp"
 #include "openswd3/world_map/legacy_world_role_preload.hpp"
 
 #include <filesystem>
@@ -45,6 +46,7 @@ enum class LegacyWorldRuntimeSessionStatus {
     maps_load_apply_failed,
     role_capacity_exceeded,
     role_spatial_insertion_failed,
+    role_post_materialization_failed,
     role_source_write_failed,
     selected_role_not_materialized,
     allocation_failed,
@@ -57,6 +59,8 @@ struct LegacyWorldRuntimeSessionRequest {
     compat::u32 cache_limit_megabytes{60U};
     rendering::LegacyPixelConversionState pixel_conversion;
     const LegacyWorldRolePreloadContext* preload_context{};
+    const LegacyWorldRolePostMaterializationContext*
+        post_materialization_context{};
 };
 
 struct LegacyWorldRuntimeSession {
@@ -72,6 +76,11 @@ struct LegacyWorldRuntimeSession {
     compat::u32 out_of_bounds_role_count{};
     compat::u32 action_update_failure_count{};
     LegacyWorldRolePreloadResult role_preload;
+    LegacyWorldRolePostMaterializationState role_post_materialization;
+    LegacyWorldRolePostMaterializationStatus
+        role_post_materialization_status{
+            LegacyWorldRolePostMaterializationStatus::ready
+        };
     bool role_preload_applied{};
 };
 

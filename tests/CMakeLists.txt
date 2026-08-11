@@ -1900,6 +1900,32 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT")
 endif()
 
 add_executable(
+    openswd3_world_map_legacy_world_role_post_materialization_tests
+    unit/world_map/legacy_world_role_post_materialization_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_role_post_materialization_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_role_post_materialization_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_role_post_materialization
+    COMMAND openswd3_world_map_legacy_world_role_post_materialization_tests
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT")
+    add_test(
+        NAME world_map.legacy_world_role_post_materialization_real
+        COMMAND
+            openswd3_world_map_legacy_world_role_post_materialization_tests
+            "${PROJECT_SOURCE_DIR}/../MAPS.DAT"
+    )
+endif()
+
+add_executable(
     openswd3_world_map_legacy_maps_world_database_tests
     unit/world_map/legacy_maps_world_database_test.cpp
 )

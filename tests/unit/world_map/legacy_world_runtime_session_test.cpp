@@ -452,11 +452,17 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
         },
         "MAPS roles and action initialization occupy the pre-binding slot"
     );
+    const auto& post_state = result.session.role_post_materialization;
     test.expect_true(
         result.session.maps_role_count == 2U &&
             result.session.selected_role_index == 2U &&
-            result.session.action_update_failure_count == 1U,
-        "both migrated roles are retained and action failure is nonfatal"
+            result.session.action_update_failure_count == 1U &&
+            result.session.role_post_materialization_status ==
+                openswd3::world_map::
+                    LegacyWorldRolePostMaterializationStatus::ready &&
+            post_state.party_role_count == 1U &&
+            post_state.party_role_indices[0] == 2U,
+        "migrated roles retain action and selected-party post-load state"
     );
 
     auto& map_session = result.session.render.map_load.session;
@@ -627,6 +633,7 @@ void test_real_initial_world(
     auto& map_session = result.session.render.map_load.session;
     auto& roles = map_session.business.state.roles;
     const auto& selected = roles[result.session.selected_role_index];
+    const auto& post_state = result.session.role_post_materialization;
     test.expect_true(
         result.session.logical_map_id == 81U &&
             result.session.map_descriptor.archive_map_id == 81U &&
@@ -634,7 +641,13 @@ void test_real_initial_world(
             result.session.maps_load_apply.reserved_records_moved == 2U &&
             result.session.duplicate_role_count == 0U &&
             result.session.out_of_bounds_role_count == 0U &&
-            result.session.action_update_failure_count == 0U,
+            result.session.action_update_failure_count == 0U &&
+            post_state.party_role_count == 1U &&
+            post_state.party_role_indices[0] ==
+                result.session.selected_role_index &&
+            post_state.gated_roles_scanned == 0U &&
+            post_state.flagged_role_record_count == 0U &&
+            post_state.guid_one_roles_overridden == 0U,
         "real new game loads the exact twelve MAPS roles without repair"
     );
     test.expect_true(

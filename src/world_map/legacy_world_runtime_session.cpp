@@ -80,9 +80,14 @@ void initialize_maps_role(
 [[nodiscard]] bool assemble_maps_roles(
     const std::span<u8> payload,
     LegacyMapsWorldDatabase& database,
+    const LegacyMapsMapDescriptor& map_descriptor,
     const LegacyWorldLoadRequest& request,
     LegacyWorldMapSession& map_session,
     LegacyWorldRoleActionInitializer& action_initializer,
+    const LegacyWorldRolePostMaterializationContext*
+        post_materialization_context,
+    LegacyWorldRolePostMaterializationState& post_materialization_state,
+    LegacyWorldRolePostMaterializationStatus& post_materialization_status,
     RoleAssemblyState& assembly
 ) {
     auto& business = map_session.business.state;
@@ -139,6 +144,22 @@ void initialize_maps_role(
                 roles.pop_back();
                 assembly.status = LegacyWorldRuntimeSessionStatus::
                     role_spatial_insertion_failed;
+                return false;
+            }
+            post_materialization_status = post_materialize_legacy_world_role(
+                payload,
+                database,
+                map_descriptor,
+                request,
+                roles,
+                role_index,
+                post_materialization_context,
+                post_materialization_state
+            );
+            if (post_materialization_status !=
+                LegacyWorldRolePostMaterializationStatus::ready) {
+                assembly.status = LegacyWorldRuntimeSessionStatus::
+                    role_post_materialization_failed;
                 return false;
             }
             if (source.guid == request.selected_guid) {
@@ -289,9 +310,13 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
             return assemble_maps_roles(
                 maps_payload,
                 result.session.maps_database,
+                result.session.map_descriptor,
                 request.load,
                 map_session,
                 action_initializer,
+                request.post_materialization_context,
+                result.session.role_post_materialization,
+                result.session.role_post_materialization_status,
                 assembly
             );
         }
