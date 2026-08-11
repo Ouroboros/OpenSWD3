@@ -89,9 +89,11 @@ Windows LLVM/CMake/Ninja 已分别完成最新源码的 `core` 与 `app` 正式�
 
 SDL3 smoke 创建可调整大小的 960×720 初始窗口，而不是复刻旧 DirectDraw 独占 `640×480×16` 模式。这是只为现代系统启动的 `platform_adapted` 外壳；兼容核心仍持有 640×480 RGB565 framebuffer，SDL 以 4:3 letterbox 等比呈现并把鼠标转换回原逻辑坐标。Windows 模态拖拽缩放期间由 `SDL_EVENT_WINDOW_EXPOSED` event watcher 在主线程重绘。后续所有画面规则和分支提交时点继续按汇编实现；此适配不授权修改任何游戏逻辑 BUG。
 
+EXE 同目录 `openswd3.toml` 的 `[window].width/height` 保存取消最大化后的普通窗口客户区尺寸，`maximized` 单独保存最大化状态。最大化退出时不会以桌面客户区覆盖普通尺寸；下次启动以普通尺寸建立恢复位置，并通过 SDL 窗口标志恢复最大化。旧配置缺少 `maximized` 时按 `false` 处理。
+
 当前 SDL3 事件适配如下：
 
-- `SDL_EVENT_WINDOW_MINIMIZED/MAXIMIZED/RESTORED` 分别翻译为原尺寸值 `1/2/0`；焦点丢失/获得不再转入原激活分支，见下述现代后台运行例外。
+- `SDL_EVENT_WINDOW_MINIMIZED/RESTORED` 分别翻译为原尺寸值 `1/0`；最大化由 SDL 宿主独立维护，避免原 `SIZE_MAXIMIZED` 恢复分支调用 `SDL_RestoreWindow` 后立即退出最大化；焦点丢失/获得不再转入原激活分支，见下述现代后台运行例外。
 - `SDL_EVENT_KEY_UP` 只把 Esc、F8、P 翻译为原虚拟键值；Alt+Enter 的 key-down 翻译为原系统键分支。
 - 左键按下时从 SDL 当前鼠标键和 Shift/Ctrl 状态重建旧 `WM_LBUTTONDOWN.wParam` 位图，因此原程序要求精确值 `0x1B` 的异常分支没有被改成普通左键。
 - 原 `ShowWindow(..., 6)` 明确映射为 SDL 最小化请求；恢复映射为 SDL 恢复请求和 640×480 客户区尺寸请求。SDL 窗口操作是异步平台请求，不改变核心状态写入顺序。
@@ -114,7 +116,8 @@ SDL3 smoke 创建可调整大小的 960×720 初始窗口，而不是复刻旧 D
 该例外只存在于 `platform_sdl3`。`app` 中原 `WM_ACTIVATEAPP` 选择、停用/最小化顺序和
 恢复合同均保留，游戏逻辑与输入状态机没有修改。Linux 与 Windows LLVM `app` 均通过
 170/170 CTest；新增测试固定短按/短点击只补交一次、焦点变化不触发最小化、显式最小化
-和关闭仍可达。最终窗口行为及新游戏提交仍等待同一 Windows 实机复测。
+与恢复及关闭仍可达，而最大化不进入会立即调用 `SDL_RestoreWindow` 的旧生命周期。最终
+窗口行为及新游戏提交仍等待同一 Windows 实机复测。
 
 `src/platform/sdl3/main.cpp` 已在同步启动初始化返回后、事件循环前调用两次独立取秒的播种编排。两个实际 RNG 算法仍属于 B3，当前端口只保留调用位置而不伪装成算法实现。单实例探测、原始命令行尾、音频、字体、战斗、截图和各业务模块端口目前仍是 B1 smoke 占位或待接线；它们不表示对应模块已经实现。SDL3 翻译与空闲循环源已使用真实 SDL 3.4.12 头文件和 Windows LLVM 编译。应用配置优先使用已安装的 SDL3 3.4+；找不到时由 CMake `FetchContent` 获取固定的 `release-3.4.12`，只构建静态 SDL3 并关闭其测试、示例和安装规则，避免 smoke EXE 额外依赖未部署的 SDL3 动态库。`core` 配置不查找也不下载 SDL3。
 

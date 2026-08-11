@@ -118,6 +118,21 @@ data_dir = 'E:\Game\swd3'
 
 相对路径的解析规则和旧命令行兼容细节见 [`data-directory-compatibility.md`](analysis/04-reverse-engineering/evidence/data-directory-compatibility.md)。
 
+## 游戏内分辨率与窗口大小
+
+游戏内容继续使用固定的 `640×480` 游戏内分辨率。SDL3 只把最终画面等比缩放到可调整大小的宿主窗口；窗口比例不同时使用 letterbox，不拉伸游戏逻辑坐标。
+
+窗口正常关闭时，OpenSWD3 会把普通窗口客户区尺寸和最大化状态写入 EXE 同目录的 `openswd3.toml`，并在下次启动时恢复：
+
+```toml
+[window]
+width = 960
+height = 720
+maximized = false
+```
+
+`width` 和 `height` 是取消最大化后恢复的普通窗口尺寸，必须为正整数；`maximized` 必须为布尔值。旧配置没有 `maximized` 时按 `false` 处理。未配置或配置无效时使用默认普通窗口大小 `960×720`，不改变 `640×480` 游戏内分辨率。
+
 ## 日志
 
 程序从最早启动阶段开始写入 EXE 同目录的 `logs/openswd3.log`。日志以追加方式保存，每条记录包含 UTC 毫秒时间、级别、线程 ID、源码文件与行号和消息：

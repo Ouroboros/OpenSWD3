@@ -8,7 +8,6 @@ namespace {
 
 constexpr compat::u32 kLegacySizeRestored = 0U;
 constexpr compat::u32 kLegacySizeMinimized = 1U;
-constexpr compat::u32 kLegacySizeMaximized = 2U;
 
 constexpr compat::u32 kLegacyKeyEscape = 0x1BU;
 constexpr compat::u32 kLegacyKeyScreenshot = 0x50U;
@@ -94,10 +93,10 @@ std::optional<app::HostWindowEvent> translate_sdl_event(
             kLegacySizeMinimized,
         };
     case SDL_EVENT_WINDOW_MAXIMIZED:
-        return app::HostWindowEvent{
-            app::HostWindowEventKind::size,
-            kLegacySizeMaximized,
-        };
+        // The legacy SIZE_MAXIMIZED branch reactivates the display and calls
+        // SDL_RestoreWindow through the platform port.  Keep maximization
+        // under SDL ownership so the host window remains maximized.
+        return std::nullopt;
     case SDL_EVENT_WINDOW_RESTORED:
         return app::HostWindowEvent{
             app::HostWindowEventKind::size,

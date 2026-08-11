@@ -5,3 +5,11 @@
 
 # Linux and macOS example:
 # data_dir = '/home/user/games/swd3'
+
+[window]
+
+# The game always renders internally at 640x480. These values only control
+# the restored host window; game content keeps its aspect ratio.
+width = 960
+height = 720
+maximized = false

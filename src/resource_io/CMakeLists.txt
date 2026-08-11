@@ -11,6 +11,7 @@ add_library(
         legacy_lmf_archive.cpp
         legacy_memory_manager.cpp
         legacy_resource_databases.cpp
+        window_configuration.cpp
 )
 target_include_directories(
     openswd3_resource_io

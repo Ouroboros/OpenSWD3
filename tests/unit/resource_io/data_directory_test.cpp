@@ -1,10 +1,12 @@
 #include "test.hpp"
 
 #include "openswd3/resource_io/data_directory.hpp"
+#include "openswd3/resource_io/window_configuration.hpp"
 
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <string_view>
 #include <system_error>
 
@@ -53,6 +55,11 @@ public:
 
     [[nodiscard]] const std::filesystem::path& command_line_directory() const {
         return command_line_directory_;
+    }
+
+    [[nodiscard]] std::filesystem::path configuration_path() const {
+        return executable_directory_ /
+               openswd3::resource_io::kConfigurationFilename;
     }
 
     void write_configuration(const std::string_view contents) const {
@@ -286,6 +293,106 @@ void test_activation(openswd3::test::Context& test) {
     test.expect_false(static_cast<bool>(error), "test restores working directory");
 }
 
+void test_window_size_configuration(openswd3::test::Context& test) {
+    using openswd3::resource_io::WindowConfigurationStatus;
+    using openswd3::resource_io::WindowSize;
+
+    const TemporaryTree tree;
+    constexpr WindowSize fallback{960, 720};
+    const auto missing = openswd3::resource_io::load_window_configuration(
+        tree.configuration_path(),
+        fallback
+    );
+    test.expect_true(
+        missing.status == WindowConfigurationStatus::ready &&
+            missing.size == fallback && !missing.maximized &&
+            !missing.loaded_from_file,
+        "missing TOML keeps the default window placement"
+    );
+
+    tree.write_configuration(
+        "[paths]\n"
+        "data_dir = '../configured-data'\n"
+        "\n"
+        "[window]\n"
+        "width = 800\n"
+        "height = 600\n"
+    );
+    const auto loaded = openswd3::resource_io::load_window_configuration(
+        tree.configuration_path(),
+        fallback
+    );
+    test.expect_true(
+        loaded.status == WindowConfigurationStatus::ready &&
+            loaded.size == WindowSize{800, 600} && !loaded.maximized &&
+            loaded.loaded_from_file,
+        "existing [window] dimensions default to a restored state"
+    );
+
+    std::string detail;
+    test.expect_equal(
+        openswd3::resource_io::save_window_configuration(
+            tree.configuration_path(),
+            {1280, 900},
+            true,
+            detail
+        ),
+        WindowConfigurationStatus::ready,
+        "the last normal size and maximized state are written back to TOML"
+    );
+    const auto saved = openswd3::resource_io::load_window_configuration(
+        tree.configuration_path(),
+        fallback
+    );
+    test.expect_true(
+        saved.size == WindowSize{1280, 900} && saved.maximized,
+        "the written window placement is restored on the next load"
+    );
+    const auto paths = openswd3::resource_io::resolve_data_directory(
+        {},
+        tree.executable_directory(),
+        tree.launch_directory()
+    );
+    test.expect_equal(
+        paths.directory,
+        tree.configuration_directory(),
+        "saving [window] preserves the existing [paths] configuration"
+    );
+
+    tree.write_configuration(
+        "[window]\n"
+        "width = 0\n"
+        "height = 720\n"
+    );
+    const auto invalid = openswd3::resource_io::load_window_configuration(
+        tree.configuration_path(),
+        fallback
+    );
+    test.expect_true(
+        invalid.status == WindowConfigurationStatus::invalid_window_size &&
+            invalid.size == fallback,
+        "invalid dimensions are rejected without changing the fallback"
+    );
+
+    tree.write_configuration(
+        "[window]\n"
+        "width = 960\n"
+        "height = 720\n"
+        "maximized = 'yes'\n"
+    );
+    const auto invalid_state =
+        openswd3::resource_io::load_window_configuration(
+            tree.configuration_path(),
+            fallback
+        );
+    test.expect_true(
+        invalid_state.status ==
+                WindowConfigurationStatus::invalid_window_state &&
+            !invalid_state.maximized,
+        "a non-boolean maximized state is rejected"
+    );
+}
+
 void test_legacy_existing_directory_is_selected(
     openswd3::test::Context& test
 ) {
@@ -376,6 +483,7 @@ int main() {
     test_equals_command_line_form(test);
     test_invalid_inputs(test);
     test_activation(test);
+    test_window_size_configuration(test);
     test_legacy_existing_directory_is_selected(test);
     test_legacy_missing_directory_is_created_without_selection(test);
     test_legacy_directory_failures_are_ignored(test);

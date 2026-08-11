@@ -37,6 +37,22 @@ void test_explicit_window_actions_are_preserved(
         "explicit minimization still reaches the legacy display lifecycle"
     );
 
+    event.type = SDL_EVENT_WINDOW_MAXIMIZED;
+    test.expect_false(
+        openswd3::platform_sdl3::translate_sdl_event(event).has_value(),
+        "maximization remains under SDL ownership"
+    );
+
+    event.type = SDL_EVENT_WINDOW_RESTORED;
+    const auto restored =
+        openswd3::platform_sdl3::translate_sdl_event(event);
+    test.expect_true(
+        restored.has_value() &&
+            restored->kind == openswd3::app::HostWindowEventKind::size &&
+            restored->value == 0U,
+        "restore after explicit minimization reaches the legacy display lifecycle"
+    );
+
     event.type = SDL_EVENT_WINDOW_CLOSE_REQUESTED;
     const auto closed = openswd3::platform_sdl3::translate_sdl_event(event);
     test.expect_true(

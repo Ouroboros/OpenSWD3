@@ -50,6 +50,7 @@
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
+#include "openswd3/resource_io/window_configuration.hpp"
 #include "openswd3/special_modes/legacy_initial_menu.hpp"
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_world_direction_adjustment.hpp"
@@ -151,6 +152,50 @@ int report_sdl_error(
     message.append(": ");
     message.append(SDL_GetError());
     return report_error(message, location);
+}
+
+void persist_window_configuration(
+    SDL_Window& window,
+    const std::filesystem::path& configuration_path,
+    openswd3::resource_io::WindowSize normal_size
+) {
+    const bool maximized =
+        (SDL_GetWindowFlags(&window) & SDL_WINDOW_MAXIMIZED) != 0U;
+    if (!maximized &&
+        !SDL_GetWindowSize(&window, &normal_size.width, &normal_size.height)) {
+        openswd3::diagnostics::log_warning(
+            std::string{"window size: SDL_GetWindowSize: "} + SDL_GetError()
+        );
+        return;
+    }
+
+    std::string detail;
+    const auto status = openswd3::resource_io::save_window_configuration(
+        configuration_path,
+        normal_size,
+        maximized,
+        detail
+    );
+    if (status !=
+        openswd3::resource_io::WindowConfigurationStatus::ready) {
+        std::string message{"window size: "};
+        message.append(
+            openswd3::resource_io::window_configuration_status_message(status)
+        );
+        if (!detail.empty()) {
+            message.append(": ");
+            message.append(detail);
+        }
+        openswd3::diagnostics::log_warning(message);
+        return;
+    }
+
+    openswd3::diagnostics::log_info(
+        std::string{"window configuration saved: "} +
+        std::to_string(normal_size.width) + "x" +
+        std::to_string(normal_size.height) +
+        (maximized ? ", maximized" : ", restored")
+    );
 }
 
 [[nodiscard]] std::vector<openswd3::compat::u8> read_binary_file(
@@ -2604,16 +2649,47 @@ int main(const int argument_count, char** arguments) {
         + std::to_string(glyph_atlas_bytes.size()) + " bytes"
     );
 
+    const std::filesystem::path configuration_path =
+        executable_directory / openswd3::resource_io::kConfigurationFilename;
+    const openswd3::resource_io::WindowConfigurationLoadResult window_config =
+        openswd3::resource_io::load_window_configuration(
+            configuration_path,
+            {kInitialWindowWidth, kInitialWindowHeight}
+        );
+    if (window_config.status !=
+        openswd3::resource_io::WindowConfigurationStatus::ready) {
+        std::string message{"window size: "};
+        message.append(
+            openswd3::resource_io::window_configuration_status_message(
+                window_config.status
+            )
+        );
+        if (!window_config.detail.empty()) {
+            message.append(": ");
+            message.append(window_config.detail);
+        }
+        message.append("; using ");
+        message.append(std::to_string(window_config.size.width));
+        message.push_back('x');
+        message.append(std::to_string(window_config.size.height));
+        openswd3::diagnostics::log_warning(message);
+    }
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         return report_sdl_error("SDL_Init");
     }
     openswd3::diagnostics::log_debug("SDL video subsystem initialized");
 
+    openswd3::resource_io::WindowSize normal_window_size = window_config.size;
+    SDL_WindowFlags window_flags = SDL_WINDOW_RESIZABLE;
+    if (window_config.maximized) {
+        window_flags |= SDL_WINDOW_MAXIMIZED;
+    }
     SDL_Window* window = SDL_CreateWindow(
         "OpenSWD3",
-        kInitialWindowWidth,
-        kInitialWindowHeight,
-        SDL_WINDOW_RESIZABLE
+        window_config.size.width,
+        window_config.size.height,
+        window_flags
     );
     if (window == nullptr) {
         const int result = report_sdl_error("SDL_CreateWindow");
@@ -2625,6 +2701,11 @@ int main(const int argument_count, char** arguments) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
     if (renderer == nullptr) {
         const int result = report_sdl_error("SDL_CreateRenderer");
+        persist_window_configuration(
+            *window,
+            configuration_path,
+            normal_window_size
+        );
         SDL_DestroyWindow(window);
         SDL_Quit();
         return result;
@@ -2638,6 +2719,11 @@ int main(const int argument_count, char** arguments) {
         )) {
         const int result = report_sdl_error("SDL_SetRenderLogicalPresentation");
         SDL_DestroyRenderer(renderer);
+        persist_window_configuration(
+            *window,
+            configuration_path,
+            normal_window_size
+        );
         SDL_DestroyWindow(window);
         SDL_Quit();
         return result;
@@ -2747,6 +2833,11 @@ int main(const int argument_count, char** arguments) {
             SDL_DestroyTexture(texture);
         }
         SDL_DestroyRenderer(renderer);
+        persist_window_configuration(
+            *window,
+            configuration_path,
+            normal_window_size
+        );
         SDL_DestroyWindow(window);
         SDL_Quit();
         return 0;
@@ -2884,7 +2975,14 @@ int main(const int argument_count, char** arguments) {
     while (running) {
         SDL_Event event{};
         while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_KEY_DOWN) {
+            if (event.type == SDL_EVENT_WINDOW_RESIZED &&
+                (SDL_GetWindowFlags(window) & SDL_WINDOW_MAXIMIZED) == 0U &&
+                event.window.data1 > 0 && event.window.data2 > 0) {
+                normal_window_size = {
+                    event.window.data1,
+                    event.window.data2,
+                };
+            } else if (event.type == SDL_EVENT_KEY_DOWN) {
                 idle_ports.latch_keyboard_press(event.key.scancode);
                 idle_ports.dispatch_text_input_key(event.key.scancode);
             } else if (event.type == SDL_EVENT_TEXT_INPUT) {
@@ -2943,6 +3041,11 @@ int main(const int argument_count, char** arguments) {
         SDL_DestroyTexture(texture);
     }
     SDL_DestroyRenderer(renderer);
+    persist_window_configuration(
+        *window,
+        configuration_path,
+        normal_window_size
+    );
     SDL_DestroyWindow(window);
     SDL_Quit();
     return ok ? 0 : 1;
