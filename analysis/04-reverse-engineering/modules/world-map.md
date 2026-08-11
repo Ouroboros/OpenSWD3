@@ -80,6 +80,10 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    `0x5889E0547682E179`。normal 路径现在只剩 `0x0042ED40` 一项显式转交，activity
    分支另保留一项外部边界。失败不会伪报整帧完成。Linux `core` 159/159、Linux/Windows
    `app` 163/163 CTest 通过，且未启动任何 EXE。
+   `0x0042ED40` 已进一步确认属于共用 `story_scene` 对话消息 owner；其精确 `0x4C`
+   记录、开窗几何和文字控制协议已形成独立可测内核，Linux `core` 161/161、Windows
+   LLVM `app` 165/165 通过。外层门控、合成与链清理未完成前仍保留原 stage 转交，
+   world-map 不接管该状态。
    `0x0041287F..0x00412923` 的地图 tile 层折返动画、单帧计数器不清零、零帧异常、
    32 位回绕，以及选择序列结束后的条件视口恢复也已闭环。其前置 `0x004148F0` 选择
    序列状态机也已恢复：保留入口门、游标回零、到期帧顺序、有符号增量和 countdown
@@ -132,6 +136,7 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-frame-runtime-integration-00412930.md`](../evidence/world-frame-runtime-integration-00412930.md) 和
 [`world-indexed-objects-004151f0.md`](../evidence/world-indexed-objects-004151f0.md)、
 [`world-cursor-004149b0.md`](../evidence/world-cursor-004149b0.md)、
+[`dialog-message-0042ed40.md`](../evidence/dialog-message-0042ed40.md)、
 [`world-frame-color-transition-004146f0.md`](../evidence/world-frame-color-transition-004146f0.md)、
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、
 [`world-selection-scroll-004148f0.md`](../evidence/world-selection-scroll-004148f0.md)、

@@ -59,4 +59,5 @@ target_link_libraries(
         openswd3_project_warnings
         openswd3_rendering
         openswd3_resource_io
+        openswd3_story_scene
 )

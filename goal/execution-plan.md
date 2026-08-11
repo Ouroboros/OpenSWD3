@@ -397,5 +397,13 @@
     哈希更新为 `0x5889E0547682E179`，normal 世界帧只剩 `0x0042ED40` 一个外部 stage。
     Linux `core` 159/159、Linux/Windows `app` 163/163 CTest 通过，Windows app 成功
     链接且未启动任何 EXE；activity 分支仍另有一项外部边界。
+    `0x0042ED40..0x0043017C` 已确认不是 world-map 私有的限时 UI，而是世界/其他场景
+    共用的 `story_scene` 对话消息链驱动。首个有限检查点已完成精确 `0x4C` 物理记录、
+    `0x0042EDCF..0x0042F11E` 四路开窗几何和 `0x0042F43A..0x0042FE14` 文字字节协议：
+    `%Q/%N/%L/%P/%S/%C/D%/%G/%B/%A/%K`、DBCS、逐字显示、分页、选择热点和原地
+    marker 变更均按 LST 固定，原 256/16 字节栈缓冲区只在越界点增加现代受检边界。
+    Linux `core` 161/161、Windows LLVM `app` 165/165 CTest 通过，Windows 应用成功
+    链接且未启动。外层输入/超时门、临时表面合成、caption、链清理和 end/next action
+    尚未接回，因此 normal 世界帧仍保留该一项显式转交，不伪报完成。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

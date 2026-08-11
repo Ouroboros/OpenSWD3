@@ -1,0 +1,19 @@
+add_library(
+    openswd3_story_scene
+    STATIC
+        legacy_dialog_geometry.cpp
+        legacy_dialog_text.cpp
+)
+target_include_directories(
+    openswd3_story_scene
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(
+    openswd3_story_scene
+    PUBLIC
+        openswd3_compat
+        openswd3_project_options
+        openswd3_project_warnings
+)

@@ -21,6 +21,42 @@ add_test(
 )
 
 add_executable(
+    openswd3_story_scene_legacy_dialog_geometry_tests
+    unit/story_scene/legacy_dialog_geometry_test.cpp
+)
+target_include_directories(
+    openswd3_story_scene_legacy_dialog_geometry_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_story_scene_legacy_dialog_geometry_tests
+    PRIVATE openswd3_story_scene
+)
+
+add_test(
+    NAME story_scene.legacy_dialog_geometry
+    COMMAND openswd3_story_scene_legacy_dialog_geometry_tests
+)
+
+add_executable(
+    openswd3_story_scene_legacy_dialog_text_tests
+    unit/story_scene/legacy_dialog_text_test.cpp
+)
+target_include_directories(
+    openswd3_story_scene_legacy_dialog_text_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_story_scene_legacy_dialog_text_tests
+    PRIVATE openswd3_story_scene
+)
+
+add_test(
+    NAME story_scene.legacy_dialog_text
+    COMMAND openswd3_story_scene_legacy_dialog_text_tests
+)
+
+add_executable(
     openswd3_app_frame_dispatch_tests
     unit/app/frame_dispatch_test.cpp
 )
