@@ -114,7 +114,7 @@ void test_initialization_and_entry_counter(openswd3::test::Context& test) {
             state.choice_actions[0].base_variant == 0x2CU &&
             state.choice_actions[3].base_variant == 0x2FU &&
             first.event == LegacyInitialMenuEvent::none,
-        "tagged mode 3 initializes the exact action keys and -120 counter"
+        "normal mode 3 initializes the exact action keys and -10 counter"
     );
 
     for (i32 frame = 1; frame < -kLegacyInitialMenuEntryCounter; ++frame) {
@@ -129,7 +129,7 @@ void test_initialization_and_entry_counter(openswd3::test::Context& test) {
         state.phase == 1 && state.counter == 0 &&
             state.slide_offsets[0] == -30 &&
             state.slide_offsets[1] == -12,
-        "the 120th terminal callback enters phase one after slide animation"
+        "the 10th terminal callback enters phase one after slide animation"
     );
 }
 
@@ -146,8 +146,8 @@ void test_strict_hitbox_and_new_game_submit(
     static_cast<void>(run_legacy_initial_menu_frame(
         state,
         LegacyInitialMenuInput{
-            .mouse_x = 0x107,
-            .mouse_y = 0x80,
+            .mouse_x = 0x80,
+            .mouse_y = 0x107,
             .mouse_button_mask = 1U,
         },
         ports,
@@ -155,14 +155,14 @@ void test_strict_hitbox_and_new_game_submit(
     ));
     test.expect_true(
         state.phase == 1 && state.selected_choice == 0U,
-        "x equal to 0x107 is excluded by the second strict hit box"
+        "y equal to 0x107 is excluded by the second strict hit box"
     );
 
     const auto submitted = run_legacy_initial_menu_frame(
         state,
         LegacyInitialMenuInput{
-            .mouse_x = 0x108,
-            .mouse_y = 0x80,
+            .mouse_x = 0x80,
+            .mouse_y = 0x108,
             .mouse_button_mask = 1U,
         },
         ports,
@@ -172,9 +172,14 @@ void test_strict_hitbox_and_new_game_submit(
         submitted.event == LegacyInitialMenuEvent::none &&
             state.phase == 2 && state.selected_choice == 1U &&
             state.counter == kLegacyInitialMenuNameOneCounter &&
-            state.first_name[0] == 0xC1U && state.first_name[3] == 0x53U &&
-            state.second_name[0] == 0xA9U && state.second_name[3] == 0x69U,
-        "choice one click constructs the first name stage with Big5 defaults"
+            state.name_input.has_value() && state.name_input->x() == 0x12C &&
+            state.name_input->y() == 0xE6 &&
+            state.first_name[0] == 0xC1U &&
+            state.first_name[3] == 0x53U &&
+            state.second_name[0] == 0xA9U && state.second_name[3] == 0x69U &&
+            ports.loads[ports.loads.size() - 2U] ==
+                std::pair<u16, u16>{0x2449U, 0U},
+        "choice one creates the 8-byte name field and draws its 0x2449 panel"
     );
 }
 
@@ -203,7 +208,8 @@ void test_keyboard_name_gate_and_commit(openswd3::test::Context& test) {
     test.expect_true(
         state.phase == 2 && state.selected_choice == 1U &&
             state.counter == kLegacyInitialMenuNameOneCounter,
-        "direction and primary callbacks select new game without bypassing phase two"
+        "direction and primary callbacks select new game without bypassing "
+        "phase two"
     );
 
     static_cast<void>(run_legacy_initial_menu_frame(
@@ -215,7 +221,7 @@ void test_keyboard_name_gate_and_commit(openswd3::test::Context& test) {
     test.expect_equal(
         state.counter,
         kLegacyInitialMenuNameTwoCounter,
-        "first confirmation advances to the second 32-byte name object"
+        "first confirmation advances to the second 0x20-byte input object"
     );
     static_cast<void>(run_legacy_initial_menu_frame(
         state,
@@ -271,6 +277,68 @@ void test_name_cancel_returns_to_selection(openswd3::test::Context& test) {
     );
 }
 
+void test_name_mouse_accept_uses_recovered_axes(openswd3::test::Context& test) {
+    LegacyInitialMenuState state;
+    initialize_legacy_initial_menu(state);
+    state.phase = 2;
+    state.counter = kLegacyInitialMenuNameOneCounter;
+    LegacyBlitEffectState effects;
+    FakeActionPorts ports{effects};
+    LegacyInputRecord mouse_left = pressed();
+
+    static_cast<void>(run_legacy_initial_menu_frame(
+        state,
+        LegacyInitialMenuInput{
+            .mouse_x = 0x108,
+            .mouse_y = 0x170,
+            .mouse_left = &mouse_left,
+        },
+        ports,
+        effects
+    ));
+    test.expect_equal(
+        state.counter, kLegacyInitialMenuNameOneCounter,
+        "the old transposed name-button coordinates are rejected");
+
+    static_cast<void>(run_legacy_initial_menu_frame(
+        state,
+        LegacyInitialMenuInput{
+            .mouse_x = 0x170,
+            .mouse_y = 0x108,
+            .mouse_left = &mouse_left,
+        },
+        ports,
+        effects
+    ));
+    test.expect_equal(
+        state.counter, kLegacyInitialMenuNameTwoCounter,
+        "the name button accepts x 0x162..0x198 and y 0x101..0x112");
+}
+
+void test_text_object_result_and_edited_name(openswd3::test::Context& test) {
+    LegacyInitialMenuState state;
+    initialize_legacy_initial_menu(state);
+    state.phase = 2;
+    state.counter = kLegacyInitialMenuNameOneCounter;
+    LegacyBlitEffectState effects;
+    FakeActionPorts ports{effects};
+
+    static_cast<void>(run_legacy_initial_menu_frame(
+        state, LegacyInitialMenuInput{}, ports, effects));
+    auto view = state.name_input->borrow_edit_view();
+    view.bytes[0] = 0x41U;
+    view.bytes[1] = 0U;
+    *view.result = 1;
+
+    static_cast<void>(run_legacy_initial_menu_frame(
+        state, LegacyInitialMenuInput{}, ports, effects));
+    test.expect_true(
+        state.counter == kLegacyInitialMenuNameTwoCounter &&
+            state.first_name[0] == 0x41U && state.first_name[1] == 0U &&
+            state.name_input.has_value(),
+        "text result one commits the edit and creates the second input object");
+}
+
 void test_real_draw_contract(openswd3::test::Context& test) {
     LegacyInitialMenuState state;
     initialize_legacy_initial_menu(state);
@@ -293,9 +361,12 @@ void test_real_draw_contract(openswd3::test::Context& test) {
             ports.loads.front() == std::pair<u16, u16>{0x232AU, 0x4EU} &&
             ports.loads[2] == std::pair<u16, u16>{0x232BU, 0x2DU} &&
             ports.draws.front().flags == 0U &&
-            ports.draws[1].x == 0xD0 && ports.draws[1].y == 0x7A &&
+            ports.draws[1].x == 0x7B && ports.draws[1].y == 0xCF &&
+            ports.draws[2].x == 0x7B &&
+            ports.draws[2].y == 0x104 &&
             ports.draws[2].flags == 4U,
-        "background and four 0x232B choices use the recovered draw order and trail"
+        "the four 0x232B choices use common x and the recovered vertical "
+        "anchors"
     );
 }
 
@@ -307,6 +378,8 @@ int main() {
     test_strict_hitbox_and_new_game_submit(test);
     test_keyboard_name_gate_and_commit(test);
     test_name_cancel_returns_to_selection(test);
+    test_name_mouse_accept_uses_recovered_axes(test);
+    test_text_object_result_and_edited_name(test);
     test_real_draw_contract(test);
     return test.exit_code();
 }

@@ -2900,6 +2900,27 @@ if(TARGET SDL3::SDL3)
     )
 
     add_executable(
+        openswd3_platform_event_translation_sdl3_tests
+        unit/app/event_translation_sdl3_test.cpp
+        ${PROJECT_SOURCE_DIR}/src/platform/sdl3/event_translation.cpp
+    )
+    target_include_directories(
+        openswd3_platform_event_translation_sdl3_tests
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/support
+            ${PROJECT_SOURCE_DIR}/src/platform/sdl3
+    )
+    target_link_libraries(
+        openswd3_platform_event_translation_sdl3_tests
+        PRIVATE openswd3_app SDL3::SDL3
+    )
+
+    add_test(
+        NAME platform.event_translation_sdl3
+        COMMAND openswd3_platform_event_translation_sdl3_tests
+    )
+
+    add_executable(
         openswd3_platform_mouse_sdl3_tests
         unit/app/mouse_sdl3_test.cpp
         ${PROJECT_SOURCE_DIR}/src/platform/sdl3/mouse_sdl3.cpp

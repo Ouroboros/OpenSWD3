@@ -62,12 +62,18 @@ FrameRunOutcome run_accepted_frame(
             case SpecialModeHandler::none:
                 break;
             case SpecialModeHandler::standard_modes_1_3_4_5_6:
-                if (ports.step_standard_special_mode(state) ==
-                    StandardSpecialModeEvent::commit_new_game_004492ba) {
-                    static_cast<void>(run_legacy_new_game_transition(
-                        state.battle,
-                        ports
-                    ));
+                switch (ports.step_standard_special_mode(state)) {
+                    case StandardSpecialModeEvent::none:
+                        break;
+                    case StandardSpecialModeEvent::commit_new_game_004492ba:
+                        static_cast<void>(run_legacy_new_game_transition(
+                            state.battle,
+                            ports
+                        ));
+                        break;
+                    case StandardSpecialModeEvent::request_close_00449320:
+                        state.process_flags |= kProcessCloseRequested;
+                        break;
                 }
                 break;
             case SpecialModeHandler::shop_mode_2:

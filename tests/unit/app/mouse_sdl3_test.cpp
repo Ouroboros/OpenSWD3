@@ -68,10 +68,20 @@ void test_virtual_absolute_axes_and_buttons(
     );
 }
 
+void test_short_click_latches(openswd3::test::Context& test) {
+    openswd3::input_time_rng::LegacyMouseDeviceSample sample{};
+    openswd3::platform_sdl3::merge_sdl_mouse_press_latches(sample, 3U);
+    test.expect_true(
+        sample.button_0 == 0x80U && sample.button_1 == 0x80U,
+        "left and right clicks survive release before the next logical frame"
+    );
+}
+
 }  // namespace
 
 int main() {
     openswd3::test::Context test;
     test_virtual_absolute_axes_and_buttons(test);
+    test_short_click_latches(test);
     return test.exit_code();
 }

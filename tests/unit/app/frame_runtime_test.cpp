@@ -1,5 +1,6 @@
 #include "test.hpp"
 
+#include "openswd3/app/frame_dispatch.hpp"
 #include "openswd3/app/frame_runtime.hpp"
 
 #include <vector>
@@ -380,6 +381,34 @@ void test_special_modes(openswd3::test::Context& test) {
         state.battle.special_mode_state,
         0U,
         "new-game commit releases ordinary world execution next frame"
+    );
+
+    state = make_state();
+    state.battle.special_mode_state = 3U;
+    RecordingPorts close_ports;
+    close_ports.special_mode_event =
+        openswd3::app::StandardSpecialModeEvent::request_close_00449320;
+    test.expect_equal(
+        openswd3::app::run_accepted_frame(state, close_ports),
+        openswd3::app::FrameRunOutcome::common_tail_completed,
+        "initial-menu close request reaches the common frame tail"
+    );
+    test.expect_equal(
+        state.process_flags,
+        openswd3::app::kProcessCloseRequested,
+        "assembly case 3 sets process flag 0x04"
+    );
+    test.expect_equal(
+        close_ports.calls,
+        std::vector{
+            Call::background_music,
+            Call::audio,
+            Call::prepare_special,
+            Call::standard_special,
+            Call::audio,
+            Call::close,
+        },
+        "initial-menu close request is consumed synchronously in the same frame"
     );
 }
 

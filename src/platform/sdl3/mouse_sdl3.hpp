@@ -19,6 +19,11 @@ accumulate_sdl_mouse_sample(
     compat::u32 sdl_button_mask
 ) noexcept;
 
+void merge_sdl_mouse_press_latches(
+    input_time_rng::LegacyMouseDeviceSample& sample,
+    compat::u32 pending_button_mask
+) noexcept;
+
 [[nodiscard]] input_time_rng::LegacyMouseDeviceSample sample_sdl_mouse_state(
     SDL_Renderer& renderer,
     SdlMouseDeviceState& state

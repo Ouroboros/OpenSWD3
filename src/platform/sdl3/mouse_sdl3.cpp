@@ -36,6 +36,18 @@ input_time_rng::LegacyMouseDeviceSample accumulate_sdl_mouse_sample(
     };
 }
 
+void merge_sdl_mouse_press_latches(
+    input_time_rng::LegacyMouseDeviceSample& sample,
+    const compat::u32 pending_button_mask
+) noexcept {
+    if ((pending_button_mask & 1U) != 0U) {
+        sample.button_0 |= 0x80U;
+    }
+    if ((pending_button_mask & 2U) != 0U) {
+        sample.button_1 |= 0x80U;
+    }
+}
+
 input_time_rng::LegacyMouseDeviceSample sample_sdl_mouse_state(
     SDL_Renderer& renderer,
     SdlMouseDeviceState& state

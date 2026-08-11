@@ -13,10 +13,23 @@ using compat::u8;
 using compat::u16;
 using compat::u32;
 
-constexpr std::array<i32, 4U> kChoiceX{0xD2, 0x107, 0x140, 0x179};
-constexpr i32 kChoiceY = 0x7D;
-constexpr std::array<u8, 5U> kFirstDefaultName{0xC1U, 0xC9U, 0xAFU, 0x53U, 0U};
-constexpr std::array<u8, 5U> kSecondDefaultName{0xA9U, 0x67U, 0xA5U, 0x69U, 0U};
+constexpr i32 kChoiceX = 0x7D;
+
+constexpr std::array<i32, 4U> kChoiceY{0xD2, 0x107, 0x140, 0x179};
+constexpr i32 kNameInputX = 0x12C;
+constexpr i32 kNameInputY = 0xE6;
+constexpr i32 kNameInputCapacity = 8;
+constexpr u16 kNamePanelResourceId = 0x2449U;
+constexpr i32 kNamePanelX = kNameInputX - 0x6C;
+constexpr i32 kNamePanelY = kNameInputY - 0x2E;
+constexpr i32 kNameButtonX = 0xDC;
+constexpr i32 kNameButtonY = 0xFE;
+constexpr std::array<u8, 5U> kFirstDefaultName{
+    0xC1U, 0xC9U, 0xAFU, 0x53U, 0U
+};
+constexpr std::array<u8, 5U> kSecondDefaultName{
+    0xA9U, 0x67U, 0xA5U, 0x69U, 0U
+};
 
 [[nodiscard]] constexpr i32 from_bits(const u32 value) noexcept {
     return std::bit_cast<i32>(value);
@@ -69,6 +82,33 @@ void copy_default_names(LegacyInitialMenuState& state) noexcept {
     std::ranges::copy(kSecondDefaultName, state.second_name.begin());
 }
 
+void create_name_input(
+    LegacyInitialMenuState& state,
+    const std::array<u8, 16U>& initial_text
+) noexcept {
+    state.name_input.emplace(
+        initial_text.data(),
+        kNameInputCapacity,
+        kNameInputX,
+        kNameInputY
+    );
+    asset_runtime::initialize_legacy_action_record(state.name_button_action);
+    state.name_button_action.action_id =
+        state.counter == kLegacyInitialMenuNameOneCounter ? 1U : 2U;
+    state.name_button_action.base_variant = 0x46U;
+}
+
+void ensure_name_input(LegacyInitialMenuState& state) noexcept {
+    if (state.name_input.has_value() || state.phase != 2) {
+        return;
+    }
+    if (state.counter == kLegacyInitialMenuNameOneCounter) {
+        create_name_input(state, state.first_name);
+    } else if (state.counter == kLegacyInitialMenuNameTwoCounter) {
+        create_name_input(state, state.second_name);
+    }
+}
+
 void submit_current_choice(LegacyInitialMenuState& state) noexcept {
     if (state.phase != 1) {
         return;
@@ -82,6 +122,7 @@ void submit_current_choice(LegacyInitialMenuState& state) noexcept {
             // constructing the first 32-byte text-input object.
             state.counter = kLegacyInitialMenuNameOneCounter;
             copy_default_names(state);
+            create_name_input(state, state.first_name);
             break;
         case 2U:
             state.phase = 5;
@@ -104,10 +145,14 @@ void submit_current_choice(LegacyInitialMenuState& state) noexcept {
         return false;
     }
 
-    if (strict_between(input.mouse_y, 0x6E, 0x104)) {
+    if (strict_between(input.mouse_x, 0x6E, 0x104)) {
         constexpr std::array<i32, 4U> kHitHigh{0xE8, 0x11D, 0x156, 0x18F};
-        for (std::size_t index = 0U; index < kChoiceX.size(); ++index) {
-            if (!strict_between(input.mouse_x, kChoiceX[index], kHitHigh[index])) {
+        for (std::size_t index = 0U; index < kChoiceY.size(); ++index) {
+            if (!strict_between(
+                    input.mouse_y,
+                    kChoiceY[index],
+                    kHitHigh[index]
+                )) {
                 continue;
             }
             state.selected_choice = static_cast<u32>(index);
@@ -165,18 +210,32 @@ void submit_current_choice(LegacyInitialMenuState& state) noexcept {
     }
 
     const bool mouse_accept = first_press(input.mouse_left) &&
-                              strict_between(input.mouse_x, 0x101, 0x112) &&
-                              strict_between(input.mouse_y, 0x162, 0x198);
+                              strict_between(input.mouse_y, 0x101, 0x112) &&
+                              strict_between(input.mouse_x, 0x162, 0x198);
+    const i32 text_result =
+        state.name_input.has_value() ? state.name_input->result() : 0;
     const bool accepted = mouse_accept || first_press(input.primary) ||
-                          first_press(input.alternate_primary);
+                          first_press(input.alternate_primary) ||
+                          text_result == 1;
     const bool cancelled = first_press(input.mouse_right) ||
-                           first_press(input.cancel);
+                           first_press(input.cancel) || text_result == 2;
     if (cancelled) {
+        state.name_input.reset();
         state.phase = 1;
         return true;
     }
     if (accepted) {
+        if (state.name_input.has_value()) {
+            auto& destination =
+                state.counter == kLegacyInitialMenuNameOneCounter
+                    ? state.first_name
+                    : state.second_name;
+            static_cast<void>(
+                state.name_input->copy_to(destination.data(), 0x10));
+            state.name_input.reset();
+        }
         ++state.counter;
+        ensure_name_input(state);
         return true;
     }
     return false;
@@ -216,6 +275,7 @@ void accumulate_draw_result(
 [[nodiscard]] bool draw_choice(
     asset_runtime::LegacyActionRecord& action,
     const i32 x,
+    const i32 y,
     const i32 slide_offset,
     asset_runtime::LegacyActionDrawPorts& ports,
     rendering::LegacyBlitEffectState& effects,
@@ -235,7 +295,10 @@ void accumulate_draw_result(
 
     const u32 flags = 4U | (action.mode_flags & 0x80000003U);
     const i32 draw_x = wrapping_subtract(x, from_bits(action.draw_offset_x));
-    const i32 draw_y = wrapping_subtract(kChoiceY, from_bits(action.draw_offset_y));
+    const i32 draw_y = wrapping_subtract(
+        y,
+        from_bits(action.draw_offset_y)
+    );
     const auto draw = [&](const i32 destination_x) {
         const auto status = ports.draw_frame_piece(
             piece,
@@ -296,7 +359,8 @@ void draw_menu(
     for (std::size_t index = 0U; index < state.choice_actions.size(); ++index) {
         if (!draw_choice(
                 state.choice_actions[index],
-                kChoiceX[index],
+                kChoiceX,
+                kChoiceY[index],
                 state.slide_offsets[index],
                 action_ports,
                 effects,
@@ -305,6 +369,34 @@ void draw_menu(
             result.draw_status = LegacyInitialMenuDrawStatus::choice_failed;
             return;
         }
+    }
+
+    if (!state.name_input.has_value()) {
+        return;
+    }
+
+    const auto panel = asset_runtime::draw_legacy_tsw_frame(
+        kNamePanelResourceId,
+        0U,
+        kNamePanelX,
+        kNamePanelY,
+        action_ports
+    );
+    accumulate_draw_result(result, panel);
+    if (panel.status != asset_runtime::LegacyActionDrawStatus::ready) {
+        result.draw_status = LegacyInitialMenuDrawStatus::name_panel_failed;
+        return;
+    }
+
+    const auto button = asset_runtime::update_draw_legacy_action(
+        state.name_button_action,
+        kNameButtonX,
+        kNameButtonY,
+        action_ports
+    );
+    accumulate_draw_result(result, button);
+    if (button.status != asset_runtime::LegacyActionDrawStatus::ready) {
+        result.draw_status = LegacyInitialMenuDrawStatus::name_button_failed;
     }
 }
 
@@ -321,10 +413,11 @@ void draw_menu(
 }  // namespace
 
 void initialize_legacy_initial_menu(LegacyInitialMenuState& state) noexcept {
-    state = {};
+    state.name_input.reset();
     state.initialized = true;
     state.phase = 0;
     state.counter = kLegacyInitialMenuEntryCounter;
+    state.selected_choice = 0U;
     state.slide_offsets.fill(-16);
     copy_default_names(state);
 
@@ -337,6 +430,7 @@ void initialize_legacy_initial_menu(LegacyInitialMenuState& state) noexcept {
         action.action_id = 0x232BU;
         action.base_variant = static_cast<u32>(0x2CU + index);
     }
+    asset_runtime::initialize_legacy_action_record(state.name_button_action);
 }
 
 LegacyInitialMenuFrameResult run_legacy_initial_menu_frame(
@@ -351,6 +445,7 @@ LegacyInitialMenuFrameResult run_legacy_initial_menu_frame(
 
     LegacyInitialMenuFrameResult result;
     try {
+        ensure_name_input(state);
         const bool submitted = process_phase_one_input(state, input);
         const bool name_input_handled =
             !submitted && process_name_input(state, input);

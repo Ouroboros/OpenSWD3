@@ -25,6 +25,7 @@ add_executable(
     mouse_sdl3.cpp
     single_instance.cpp
     startup_dialog_sdl3.cpp
+    text_encoding_sdl3.cpp
 )
 target_link_libraries(
     openswd3
@@ -38,6 +39,11 @@ target_link_libraries(
         openswd3_world_map
         SDL3::SDL3
 )
+
+if(NOT WIN32)
+    find_package(Iconv REQUIRED)
+    target_link_libraries(openswd3 PRIVATE Iconv::Iconv)
+endif()
 
 add_custom_command(
     TARGET openswd3

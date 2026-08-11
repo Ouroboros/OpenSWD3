@@ -7,6 +7,7 @@ namespace openswd3::app {
 enum class StandardSpecialModeEvent : compat::u8 {
     none,
     commit_new_game_004492ba,
+    request_close_00449320,
 };
 
 class LegacyNewGameTransitionPorts {

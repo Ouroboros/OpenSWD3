@@ -6,6 +6,7 @@
 #include "mouse_sdl3.hpp"
 #include "single_instance.hpp"
 #include "startup_dialog_sdl3.hpp"
+#include "text_encoding_sdl3.hpp"
 
 #include "openswd3/app/host_window_event.hpp"
 #include "openswd3/app/idle_runtime.hpp"
@@ -38,11 +39,13 @@
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
 #include "openswd3/input_time_rng/legacy_frame_clock.hpp"
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
+#include "openswd3/input_time_rng/legacy_text_input.hpp"
 #include "openswd3/rendering/legacy_bmp_writer.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_glyph_atlas.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 #include "openswd3/rendering/legacy_presentation.hpp"
+#include "openswd3/rendering/legacy_rectangle_effect.hpp"
 #include "openswd3/rendering/legacy_text_renderer_runtime.hpp"
 #include "openswd3/resource_io/data_directory.hpp"
 #include "openswd3/resource_io/legacy_memory_manager.hpp"
@@ -83,6 +86,44 @@ constexpr int kFrameHeight = 480;
 constexpr int kInitialWindowWidth = kFrameWidth * 3 / 2;
 constexpr int kInitialWindowHeight = kFrameHeight * 3 / 2;
 constexpr openswd3::compat::u32 kInitialFrameIntervalMilliseconds = 35U;
+
+[[nodiscard]] std::optional<openswd3::compat::u32> legacy_text_virtual_key(
+    const SDL_Scancode scancode
+) noexcept {
+    switch (scancode) {
+    case SDL_SCANCODE_BACKSPACE:
+        return 0x08U;
+    case SDL_SCANCODE_RETURN:
+    case SDL_SCANCODE_KP_ENTER:
+        return 0x0DU;
+    case SDL_SCANCODE_ESCAPE:
+        return 0x1BU;
+    case SDL_SCANCODE_END:
+        return 0x23U;
+    case SDL_SCANCODE_HOME:
+        return 0x24U;
+    case SDL_SCANCODE_LEFT:
+        return 0x25U;
+    case SDL_SCANCODE_RIGHT:
+        return 0x27U;
+    case SDL_SCANCODE_INSERT:
+        return 0x2DU;
+    case SDL_SCANCODE_DELETE:
+        return 0x2EU;
+    default:
+        return std::nullopt;
+    }
+}
+
+class SdlLegacyTextInputPorts final
+    : public openswd3::input_time_rng::LegacyTextInputPorts {
+public:
+    bool is_ime_keyboard_layout(openswd3::compat::u32) override {
+        return false;
+    }
+
+    void play_sound_effect(openswd3::compat::u32) override {}
+};
 
 openswd3::resource_io::LegacyMemoryManager legacy_memory_manager;
 
@@ -1351,6 +1392,7 @@ class SdlSmokeIdlePorts final
       public openswd3::audio_video::LegacyVideoFramePorts {
 public:
     SdlSmokeIdlePorts(
+        SDL_Window& window,
         SDL_Renderer& renderer,
         SDL_Texture*& texture,
         openswd3::rendering::LegacyFramebuffer& game_framebuffer,
@@ -1381,7 +1423,8 @@ public:
         bool& ok,
         bool& running
     )
-        : renderer_(renderer),
+        : window_(window),
+          renderer_(renderer),
           texture_(texture),
           game_framebuffer_(game_framebuffer),
           primary_surface_(primary_surface),
@@ -1434,6 +1477,63 @@ public:
                 "initial dialog indicator action update failed"
             );
         }
+    }
+
+    void latch_keyboard_press(const SDL_Scancode scancode) noexcept {
+        static_cast<void>(openswd3::platform_sdl3::latch_sdl_keyboard_press(
+            pending_keyboard_presses_,
+            scancode
+        ));
+    }
+
+    void dispatch_text_input_key(const SDL_Scancode scancode) noexcept {
+        if (!initial_menu_state_.name_input.has_value()) {
+            return;
+        }
+        const auto virtual_key = legacy_text_virtual_key(scancode);
+        if (!virtual_key.has_value()) {
+            return;
+        }
+        static_cast<void>(openswd3::input_time_rng::
+            filter_legacy_text_input_message(
+                *initial_menu_state_.name_input,
+                text_input_driver_state_,
+                openswd3::input_time_rng::kLegacyKeyDownMessage,
+                *virtual_key,
+                0U,
+                text_input_ports_
+            ));
+    }
+
+    void dispatch_text_input_utf8(const char* const text) noexcept {
+        if (!initial_menu_state_.name_input.has_value() || text == nullptr) {
+            return;
+        }
+        const auto encoded = openswd3::platform_sdl3::utf8_to_cp950(text);
+        if (!encoded.has_value()) {
+            openswd3::diagnostics::log_warning(
+                "name input contains a character unavailable in CP950");
+            return;
+        }
+        const auto* bytes =
+            reinterpret_cast<const openswd3::compat::u8*>(encoded->c_str());
+        static_cast<void>(openswd3::input_time_rng::legacy_insert_text_bytes(
+            *initial_menu_state_.name_input,
+            bytes
+        ));
+    }
+
+    void latch_mouse_press(const Uint8 button) noexcept {
+        if (button == SDL_BUTTON_LEFT) {
+            pending_mouse_button_mask_ |= 1U;
+        } else if (button == SDL_BUTTON_RIGHT) {
+            pending_mouse_button_mask_ |= 2U;
+        }
+    }
+
+    void clear_input_latches() noexcept {
+        pending_keyboard_presses_.fill(0U);
+        pending_mouse_button_mask_ = 0U;
     }
 
     void step_video() override {
@@ -1520,6 +1620,9 @@ public:
         static_cast<void>(openswd3::platform_sdl3::sample_sdl_keyboard_state(
             keyboard_snapshot_
         ));
+        openswd3::platform_sdl3::merge_sdl_keyboard_press_latches(
+            keyboard_snapshot_, pending_keyboard_presses_);
+        pending_keyboard_presses_.fill(0U);
     }
 
     void normalize_input() override {
@@ -1527,11 +1630,14 @@ public:
             input_state_,
             frame_preparation_state_.frame_clock.sampled_milliseconds
         );
-        const auto sample =
+        auto sample =
             openswd3::platform_sdl3::sample_sdl_mouse_state(
                 renderer_,
                 mouse_device_state_
             );
+        openswd3::platform_sdl3::merge_sdl_mouse_press_latches(
+            sample, pending_mouse_button_mask_);
+        pending_mouse_button_mask_ = 0U;
         openswd3::input_time_rng::normalize_input_frame(
             input_state_,
             mouse_state_,
@@ -1862,6 +1968,9 @@ public:
                 world_jitter_,
             };
             const auto& records = input_state_.records;
+            const auto previous_phase = initial_menu_state_.phase;
+            const auto previous_counter = initial_menu_state_.counter;
+            const auto previous_choice = initial_menu_state_.selected_choice;
             const auto result =
                 openswd3::special_modes::run_legacy_initial_menu_frame(
                     initial_menu_state_,
@@ -1885,6 +1994,22 @@ public:
                     action_ports,
                     world_effects_
                 );
+            synchronize_text_input();
+            if (initial_menu_state_.phase != previous_phase ||
+                initial_menu_state_.selected_choice != previous_choice ||
+                (initial_menu_state_.counter != previous_counter &&
+                 initial_menu_state_.counter >=
+                     openswd3::special_modes::
+                         kLegacyInitialMenuNameOneCounter)) {
+                std::string message{"initial menu state: phase="};
+                message.append(std::to_string(initial_menu_state_.phase));
+                message.append(", counter=");
+                message.append(std::to_string(initial_menu_state_.counter));
+                message.append(", choice=");
+                message.append(
+                    std::to_string(initial_menu_state_.selected_choice));
+                openswd3::diagnostics::log_info(message);
+            }
             if (result.draw_status != openswd3::special_modes::
                                           LegacyInitialMenuDrawStatus::
                                               completed) {
@@ -1899,11 +2024,24 @@ public:
                 running_ = false;
                 return openswd3::app::StandardSpecialModeEvent::none;
             }
+            if (!draw_initial_menu_name_input()) {
+                return openswd3::app::StandardSpecialModeEvent::none;
+            }
             if (result.event == openswd3::special_modes::
                                     LegacyInitialMenuEvent::
                                         commit_new_game_004492ba) {
+                openswd3::diagnostics::log_info(
+                    "initial menu committed new game");
                 return openswd3::app::StandardSpecialModeEvent::
                     commit_new_game_004492ba;
+            }
+            if (result.event ==
+                openswd3::special_modes::LegacyInitialMenuEvent::
+                    commit_choice_3_00449320) {
+                openswd3::diagnostics::log_info(
+                    "initial menu requested process close");
+                return openswd3::app::StandardSpecialModeEvent::
+                    request_close_00449320;
             }
             static_cast<void>(request_presentation(
                 openswd3::rendering::LegacyPresentationSite::
@@ -2168,6 +2306,103 @@ public:
     }
 
 private:
+    void synchronize_text_input() noexcept {
+        const bool should_be_active =
+            initial_menu_state_.name_input.has_value();
+        if (should_be_active == text_input_active_) {
+            return;
+        }
+        if (should_be_active) {
+            const bool started = SDL_StartTextInput(&window_);
+            text_input_active_ = true;
+            if (!started) {
+                openswd3::diagnostics::log_warning(
+                    std::string{"SDL_StartTextInput: "} + SDL_GetError()
+                );
+            }
+            return;
+        }
+        static_cast<void>(SDL_StopTextInput(&window_));
+        text_input_active_ = false;
+    }
+
+    [[nodiscard]] bool draw_initial_menu_name_input() {
+        if (!initial_menu_state_.name_input.has_value()) {
+            return true;
+        }
+        const auto binding = text_renderers_.binding(20U);
+        if (!binding.ready()) {
+            static_cast<void>(report_error(
+                "initial menu name input: 20px text renderer unavailable"
+            ));
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+
+        std::array<openswd3::compat::u8, 0x40U> text{};
+        static_cast<void>(initial_menu_state_.name_input->copy_to(
+            text.data(),
+            static_cast<openswd3::compat::i32>(text.size())
+        ));
+        const auto color_pair = openswd3::rendering::legacy_pack_color_pair(
+            pixel_conversion_,
+            0x15,
+            0x0F,
+            0x08
+        );
+        const auto draw = openswd3::rendering::draw_legacy_text(
+            *binding.framebuffer,
+            *binding.glyph_cache,
+            *binding.glyph_provider,
+            *binding.state,
+            openswd3::rendering::LegacyTextDrawRequest{
+                .destination_x = initial_menu_state_.name_input->x(),
+                .destination_y = initial_menu_state_.name_input->y(),
+                .nul_terminated_text = text,
+                .foreground_color =
+                    static_cast<openswd3::compat::u16>(color_pair),
+                .flags = 4U,
+            }
+        );
+        if (draw.status !=
+            openswd3::rendering::LegacyTextDrawStatus::completed) {
+            static_cast<void>(
+                report_error("initial menu name input: text draw failed"));
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+
+        const auto cursor = openswd3::rendering::apply_legacy_rectangle_effect(
+            game_framebuffer_,
+            world_raster_,
+            pixel_conversion_,
+            openswd3::rendering::LegacyRectangleEffectRequest{
+                .x = initial_menu_state_.name_input->x() +
+                     initial_menu_state_.name_input->cursor_byte_offset() * 11,
+                .y = initial_menu_state_.name_input->y(),
+                .width = 0x0B,
+                .height = 0x16,
+                .red = 0x14,
+                .green = 0x0D,
+                .blue = 0,
+                .mode = 5U,
+            }
+        );
+        if (cursor !=
+                openswd3::rendering::LegacyRectangleEffectStatus::completed &&
+            cursor !=
+                openswd3::rendering::LegacyRectangleEffectStatus::clipped_out) {
+            static_cast<void>(
+                report_error("initial menu name input: cursor draw failed"));
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+        return true;
+    }
+
     bool request_presentation(
         const openswd3::rendering::LegacyPresentationSite site
     ) {
@@ -2189,6 +2424,8 @@ private:
             openswd3::rendering::LegacyPresentationDispatchStatus::completed;
     }
 
+    SDL_Window& window_;
+
     SDL_Renderer& renderer_;
     SDL_Texture*& texture_;
     openswd3::rendering::LegacyFramebuffer& game_framebuffer_;
@@ -2199,6 +2436,9 @@ private:
     openswd3::app::FramePreparationState& frame_preparation_state_;
     openswd3::app::FrameCoordinatorState& frame_coordinator_state_;
     openswd3::input_time_rng::LegacyKeyboardSnapshot keyboard_snapshot_{};
+    openswd3::input_time_rng::LegacyKeyboardSnapshot
+        pending_keyboard_presses_{};
+    openswd3::compat::u32 pending_mouse_button_mask_{};
     openswd3::input_time_rng::LegacyInputNormalizationState& input_state_;
     openswd3::input_time_rng::LegacyMouseState& mouse_state_;
     openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state_;
@@ -2230,6 +2470,10 @@ private:
     openswd3::world_map::LegacyWorldDialogRuntimeState
         world_dialog_runtime_state_;
     openswd3::special_modes::LegacyInitialMenuState initial_menu_state_;
+    openswd3::input_time_rng::LegacyTextInputDriverState
+        text_input_driver_state_{};
+    SdlLegacyTextInputPorts text_input_ports_{};
+    bool text_input_active_{};
     std::vector<openswd3::compat::i16> world_audio_distances_;
     std::vector<openswd3::compat::i16> world_audio_vertical_offsets_;
     std::array<openswd3::compat::i16, 1U> world_selection_words_{
@@ -2608,6 +2852,7 @@ int main(const int argument_count, char** arguments) {
         },
     };
     SdlSmokeIdlePorts idle_ports(
+        *window,
         *renderer,
         texture,
         framebuffer,
@@ -2639,6 +2884,16 @@ int main(const int argument_count, char** arguments) {
     while (running) {
         SDL_Event event{};
         while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_KEY_DOWN) {
+                idle_ports.latch_keyboard_press(event.key.scancode);
+                idle_ports.dispatch_text_input_key(event.key.scancode);
+            } else if (event.type == SDL_EVENT_TEXT_INPUT) {
+                idle_ports.dispatch_text_input_utf8(event.text.text);
+            } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                idle_ports.latch_mouse_press(event.button.button);
+            } else if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST) {
+                idle_ports.clear_input_latches();
+            }
             const auto translated =
                 openswd3::platform_sdl3::translate_sdl_event(event);
             if (!translated.has_value()) {
@@ -2673,6 +2928,7 @@ int main(const int argument_count, char** arguments) {
             },
             idle_ports
         );
+        SDL_DelayNS(100U);
     }
 
     shutdown_audio_output(

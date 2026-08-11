@@ -104,15 +104,11 @@ std::optional<app::HostWindowEvent> translate_sdl_event(
             kLegacySizeRestored,
         };
     case SDL_EVENT_WINDOW_FOCUS_LOST:
-        return app::HostWindowEvent{
-            app::HostWindowEventKind::activation,
-            0U,
-        };
     case SDL_EVENT_WINDOW_FOCUS_GAINED:
-        return app::HostWindowEvent{
-            app::HostWindowEventKind::activation,
-            1U,
-        };
+        // The original WM_ACTIVATEAPP path pauses and minimizes on focus
+        // loss.  A modern resizable window must remain live in the
+        // background, so SDL focus changes do not enter that legacy path.
+        return std::nullopt;
     case SDL_EVENT_KEY_UP:
         return translate_key_release(event.key.key);
     case SDL_EVENT_KEY_DOWN:

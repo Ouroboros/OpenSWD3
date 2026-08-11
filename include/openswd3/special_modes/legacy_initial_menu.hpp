@@ -4,12 +4,14 @@
 #include "openswd3/compat/types.hpp"
 #include "openswd3/input_time_rng/legacy_input.hpp"
 #include "openswd3/rendering/legacy_blitter.hpp"
+#include "openswd3/resource_io/legacy_dbcs_text_buffer.hpp"
 
 #include <array>
+#include <optional>
 
 namespace openswd3::special_modes {
 
-inline constexpr compat::i32 kLegacyInitialMenuEntryCounter = -120;
+inline constexpr compat::i32 kLegacyInitialMenuEntryCounter = -10;
 inline constexpr compat::i32 kLegacyInitialMenuNameOneCounter = 98;
 inline constexpr compat::i32 kLegacyInitialMenuNameTwoCounter = 99;
 inline constexpr compat::i32 kLegacyInitialMenuExitCounter = 100;
@@ -46,16 +48,20 @@ struct LegacyInitialMenuState {
     compat::i32 counter{};
     compat::u32 selected_choice{};
     std::array<compat::i32, 4U> slide_offsets{};
-    std::array<compat::u8, 32U> first_name{};
-    std::array<compat::u8, 32U> second_name{};
+    std::array<compat::u8, 16U> first_name{};
+    std::array<compat::u8, 16U> second_name{};
+    std::optional<resource_io::LegacyDbcsTextBuffer> name_input{};
     asset_runtime::LegacyActionRecord background_action{};
     std::array<asset_runtime::LegacyActionRecord, 4U> choice_actions{};
+    asset_runtime::LegacyActionRecord name_button_action{};
 };
 
 enum class LegacyInitialMenuDrawStatus : compat::u8 {
     completed,
     background_failed,
     choice_failed,
+    name_panel_failed,
+    name_button_failed,
 };
 
 struct LegacyInitialMenuFrameResult {

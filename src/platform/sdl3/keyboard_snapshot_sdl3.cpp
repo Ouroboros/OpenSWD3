@@ -188,6 +188,28 @@ void translate_sdl_keyboard_state(
     }
 }
 
+bool latch_sdl_keyboard_press(
+    input_time_rng::LegacyKeyboardSnapshot& pending_presses,
+    const SDL_Scancode scancode
+) noexcept {
+    const auto dik = map_sdl_scancode_to_dik(scancode);
+    if (!dik.has_value()) {
+        return false;
+    }
+
+    pending_presses[*dik] |= 0x80U;
+    return true;
+}
+
+void merge_sdl_keyboard_press_latches(
+    input_time_rng::LegacyKeyboardSnapshot& destination,
+    const input_time_rng::LegacyKeyboardSnapshot& pending_presses
+) noexcept {
+    for (std::size_t index = 0U; index < destination.size(); ++index) {
+        destination[index] |= pending_presses[index];
+    }
+}
+
 compat::i32 sample_sdl_keyboard_state(
     input_time_rng::LegacyKeyboardSnapshot& destination
 ) noexcept {
