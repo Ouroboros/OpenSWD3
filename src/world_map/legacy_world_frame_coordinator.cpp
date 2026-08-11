@@ -5,6 +5,58 @@
 namespace openswd3::world_map {
 namespace {
 
+class CountdownFlagQuery final
+    : public rendering::LegacyCountdownFlagQueryPorts {
+public:
+  explicit CountdownFlagQuery(LegacyWorldFramePorts &ports) noexcept
+      : ports_(ports) {}
+
+  [[nodiscard]] bool
+  query_internal_flag(const compat::u32 index) noexcept override {
+    return ports_.query_service(index);
+  }
+
+private:
+  LegacyWorldFramePorts &ports_;
+};
+
+class CountdownPieceProvider final
+    : public rendering::LegacyCountdownPieceProvider {
+public:
+  CountdownPieceProvider(asset_runtime::LegacyActionRecord &record,
+                         asset_runtime::LegacyActionDrawPorts &ports) noexcept
+      : record_(record), ports_(ports) {}
+
+  [[nodiscard]] bool
+  load_countdown_piece(const compat::u32 action_id,
+                       const compat::i32 action_index,
+                       rendering::LegacyFramePiece &piece) noexcept override {
+    if (!prepared_) {
+      record_.action_id = action_id;
+      record_.variant_delta = 0U;
+      prepared_ = true;
+    }
+    record_.base_variant = std::bit_cast<compat::u32>(action_index);
+    if (ports_.update_action_record(record_) !=
+        asset_runtime::LegacyActionUpdateStatus::completed) {
+      return false;
+    }
+    return ports_.load_frame_piece(record_.field_4a, record_.field_4c, piece);
+  }
+
+private:
+  asset_runtime::LegacyActionRecord &record_;
+  asset_runtime::LegacyActionDrawPorts &ports_;
+  bool prepared_{};
+};
+
+[[nodiscard]] bool accepted_countdown_status(
+    const rendering::LegacyCountdownDisplayStatus status) noexcept {
+  return status == rendering::LegacyCountdownDisplayStatus::completed ||
+         status == rendering::LegacyCountdownDisplayStatus::hidden_inactive ||
+         status == rendering::LegacyCountdownDisplayStatus::hidden_suppressed;
+}
+
 [[nodiscard]] bool
 execute_outer_stage(LegacyWorldOuterFramePorts &ports,
                     LegacyWorldFrameCoordinatorResult &result,
@@ -39,6 +91,7 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
                        LegacyWorldCameraRect &camera,
                        LegacyWorldFrameCoordinatorState &state,
                        rendering::LegacyRleRowJitterState &jitter,
+                       const rendering::LegacyBlitEffectState &effects,
                        const LegacyWorldFrameRuntimePorts frame_ports,
                        LegacyWorldOuterFramePorts &outer_ports) noexcept {
   LegacyWorldFrameCoordinatorResult result;
@@ -99,14 +152,20 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
     return result;
   }
 
-  if (!execute_outer_stage(
-          outer_ports, result,
-          {
-              .stage = LegacyWorldOuterFrameStage::fixed_ui_004308c0,
-              .argument_0 = 400,
-              .argument_1 = 8,
-              .argument_2 = 0U,
-          })) {
+  CountdownFlagQuery countdown_flags{frame_ports.remaining_stages};
+  CountdownPieceProvider countdown_pieces{state.countdown_action,
+                                          frame_ports.flagged_roles};
+  result.countdown = rendering::draw_legacy_countdown(
+      framebuffer, raster, state.countdown, countdown_flags, countdown_pieces,
+      rendering::LegacyCountdownDisplayRequest{
+          .destination_x = 400,
+          .destination_y = 8,
+          .mode = 0,
+      },
+      effects, jitter);
+  result.countdown_stage_executed = true;
+  if (!accepted_countdown_status(result.countdown.status)) {
+    result.status = LegacyWorldFrameCoordinatorStatus::countdown_failed;
     return result;
   }
   if (state.map_marker_state == 1U &&

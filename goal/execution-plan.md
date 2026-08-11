@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v137
+版本：v138
 
 最后更新：2026-08-11
 
@@ -343,5 +343,10 @@
     同步移动、逐轴精确归零清步长、共享更新体的非规范状态及全部 32 位回绕均按汇编
     保留；原 precompose 占位已删除。Linux `core` 153/153、Windows LLVM `app`
     157/157 CTest 通过。
+    已在 rendering 模块闭环的 `sub_4308C0` countdown 随后接回普通世界
+    `0x004126C7` 原槽，复用实际 action updater、TSW provider、framebuffer、clip、
+    effect 与 jitter；primary/抑制门、静态动作延迟写入、`M:SS` 五片顺序及资源失败
+    边界均由 coordinator 回归固定。原 fixed UI 占位已删除，Linux `core` 153/153、
+    Windows LLVM `app` 157/157 CTest 通过。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

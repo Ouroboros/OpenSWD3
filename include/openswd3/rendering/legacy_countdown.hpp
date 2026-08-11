@@ -21,13 +21,19 @@ struct LegacyCountdownState {
     compat::u32 secondary_value_004bab7c{};
 };
 
-class LegacyCountdownFlagPorts {
+class LegacyCountdownFlagQueryPorts {
 public:
-    virtual ~LegacyCountdownFlagPorts() = default;
+    virtual ~LegacyCountdownFlagQueryPorts() = default;
 
     [[nodiscard]] virtual bool query_internal_flag(
         compat::u32 index
     ) noexcept = 0;
+};
+
+class LegacyCountdownFlagPorts : public LegacyCountdownFlagQueryPorts {
+public:
+    ~LegacyCountdownFlagPorts() override = default;
+
     virtual void set_internal_flag(compat::u32 index) noexcept = 0;
 };
 
@@ -88,7 +94,7 @@ struct LegacyCountdownDisplayResult {
     LegacyFramebuffer& framebuffer,
     const LegacyRasterGeometryState& raster,
     const LegacyCountdownState& state,
-    LegacyCountdownFlagPorts& flags,
+    LegacyCountdownFlagQueryPorts& flags,
     LegacyCountdownPieceProvider& provider,
     const LegacyCountdownDisplayRequest& request,
     const LegacyBlitEffectState& effects,

@@ -19,6 +19,7 @@ using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::compat::u8;
+using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramebuffer;
 using openswd3::rendering::LegacyFramePiece;
@@ -57,6 +58,7 @@ constexpr u32 kFrameEventBase = 0x200U;
 constexpr u32 kAudioEvent = 0x300U;
 constexpr u32 kPresentEvent = 0x301U;
 constexpr u32 kHeadSignEventBase = 0x400U;
+constexpr u32 kCountdownEventBase = 0x500U;
 
 [[nodiscard]] constexpr u32
 outer_event(const LegacyWorldOuterFrameStage stage) noexcept {
@@ -95,7 +97,7 @@ public:
 
   bool fail_stage{};
   LegacyWorldOuterFrameStage failed_stage{
-      LegacyWorldOuterFrameStage::fixed_ui_004308c0};
+      LegacyWorldOuterFrameStage::optional_map_marker_00413fe0};
   bool path_completion_succeeds{true};
   u32 path_completion_calls{};
   u32 last_completed_role_index{0xFFFFFFFFU};
@@ -110,8 +112,8 @@ public:
   explicit RecordingFramePorts(std::vector<u32> &events) noexcept
       : events_(events) {}
 
-  [[nodiscard]] bool query_service(const u32) noexcept override {
-    return false;
+  [[nodiscard]] bool query_service(const u32 service_id) noexcept override {
+    return service_id < service_flags.size() && service_flags[service_id];
   }
 
   [[nodiscard]] bool query_control(const u32) noexcept override {
@@ -128,6 +130,7 @@ public:
                              const u32) noexcept override {}
 
   bool fail_stage{};
+  std::array<bool, 128U> service_flags{};
   LegacyWorldFrameStage failed_stage{
       LegacyWorldFrameStage::pre_background_records_004151f0};
 
@@ -142,6 +145,12 @@ public:
 
   [[nodiscard]] LegacyActionUpdateStatus
   update_action_record(LegacyActionRecord &record) override {
+    if (record.action_id == 0x232CU) {
+      events_.push_back(kCountdownEventBase + record.base_variant);
+      record.field_4a = 0x232CU;
+      record.field_4c = static_cast<u16>(record.base_variant);
+      return LegacyActionUpdateStatus::completed;
+    }
     events_.push_back(kHeadSignEventBase + record.base_variant);
     if (record.base_variant == failed_variant) {
       return LegacyActionUpdateStatus::stream_load_failed;
@@ -149,9 +158,20 @@ public:
     return LegacyActionUpdateStatus::completed;
   }
 
-  [[nodiscard]] bool load_frame_piece(const u16, const u16,
-                                      LegacyFramePiece &) override {
-    return false;
+  [[nodiscard]] bool load_frame_piece(const u16, const u16 frame_index,
+                                      LegacyFramePiece &piece) override {
+    if (frame_index == unavailable_frame_index) {
+      return false;
+    }
+    piece = LegacyFramePiece{
+        .source =
+            openswd3::rendering::LegacyBlitSource{
+                .bytes = countdown_pixel,
+            },
+        .width = 1U,
+        .height = 1U,
+    };
+    return true;
   }
 
   [[nodiscard]] LegacyBlitExecutionStatus
@@ -161,6 +181,8 @@ public:
   }
 
   u32 failed_variant{0xFFFFFFFFU};
+  u16 unavailable_frame_index{0xFFFFU};
+  std::array<u8, 2U> countdown_pixel{0x34U, 0x12U};
 
 private:
   std::vector<u32> &events_;
@@ -229,6 +251,7 @@ struct Fixture {
   LegacyFramebuffer framebuffer;
   LegacyRasterGeometryState raster{framebuffer.geometry()};
   LegacyRleRowJitterState jitter;
+  LegacyBlitEffectState effects;
   LegacyWorldCameraRect camera{10U, 20U, 650U, 500U};
   LegacyWorldFrameCoordinatorState state;
   RecordingFramePorts frame_ports{events};
@@ -270,6 +293,8 @@ struct Fixture {
         .step_x = 2,
         .step_y = -1,
     };
+    state.countdown.primary_ticks = 754U * 30U;
+    frame_ports.service_flags[0x10U] = true;
     state.tile_animation = {
         .cycle_counter = 0,
         .cycle_interval = 1,
@@ -308,7 +333,7 @@ struct Fixture {
                                       .selected_guid = roles[1].guid,
                                       .surface_grid = cell_flags,
                                   },
-                                  selection, camera, state, jitter,
+                                  selection, camera, state, jitter, effects,
                                   LegacyWorldFrameRuntimePorts{
                                       .remaining_stages = frame_ports,
                                       .flagged_roles = action_ports,
@@ -345,7 +370,11 @@ struct Fixture {
       frame_event(Inner::world_indicator_004149b0),
       frame_event(Inner::frame_color_update_004146f0),
       frame_event(Inner::timed_messages_004153d0),
-      outer_event(Outer::fixed_ui_004308c0),
+      kCountdownEventBase + 1U,
+      kCountdownEventBase + 2U,
+      kCountdownEventBase + 10U,
+      kCountdownEventBase + 3U,
+      kCountdownEventBase + 4U,
       outer_event(Outer::optional_map_marker_00413fe0),
       kAudioEvent,
       kPresentEvent,
@@ -362,7 +391,7 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           result.frame.status == LegacyWorldFrameRuntimeStatus::completed &&
           result.selection_scroll ==
               LegacyWorldSelectionScrollStatus::completed &&
-          result.outer_stage_call_count == 2U &&
+          result.outer_stage_call_count == 1U &&
           result.map_role_paths.status ==
               openswd3::world_map::LegacyWorldMapRolePathStatus::completed &&
           result.map_role_paths.slots_scanned == 72U &&
@@ -374,6 +403,11 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           result.party_role_actions.populated_slots == 0U &&
           result.audio_service_count == 2U && result.player_motion_applied &&
           result.camera_pan_advanced && result.presentation_requested &&
+          result.countdown_stage_executed &&
+          result.countdown.status ==
+              openswd3::rendering::LegacyCountdownDisplayStatus::completed &&
+          result.countdown.displayed_seconds == 754 &&
+          result.countdown.draw_call_count == 5U &&
           result.post_present_player_aligned &&
           result.movement_transitions_cleared &&
           result.tile_animation_advanced && result.viewport_restored,
@@ -392,6 +426,9 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
           fixture.state.camera_pan.remaining_y == -2 &&
           fixture.state.camera_pan.step_x == 2 &&
           fixture.state.camera_pan.step_y == -1 &&
+          fixture.state.countdown_action.action_id == 0x232CU &&
+          fixture.state.countdown_action.variant_delta == 0U &&
+          fixture.state.countdown_action.base_variant == 4U &&
           fixture.state.selection_scroll.saved_left == 16U &&
           fixture.state.selection_scroll.saved_top == 15U &&
           fixture.state.selection_scroll.frames_remaining == 1 &&
@@ -415,22 +452,50 @@ void test_complete_frame_exact_order_and_state(openswd3::test::Context &test) {
       "post-present player bookkeeping owns the moved cell and histories");
   test.expect_true(
       fixture.outer_ports.requests[0].stage ==
-              LegacyWorldOuterFrameStage::fixed_ui_004308c0 &&
-          fixture.outer_ports.requests[0].argument_0 == 400 &&
-          fixture.outer_ports.requests[0].argument_1 == 8 &&
-          fixture.outer_ports.requests[0].argument_2 == 0U &&
-          fixture.outer_ports.requests[1].stage ==
               LegacyWorldOuterFrameStage::optional_map_marker_00413fe0 &&
-          fixture.outer_ports.requests[1].argument_0 == 19 &&
-          fixture.outer_ports.requests[1].argument_1 == 13 &&
-          fixture.outer_ports.requests[1].argument_2 == 2U,
-      "fixed UI and marker retain the exact stack arguments from assembly");
+          fixture.outer_ports.requests[0].argument_0 == 19 &&
+          fixture.outer_ports.requests[0].argument_1 == 13 &&
+          fixture.outer_ports.requests[0].argument_2 == 2U,
+      "the marker retains the exact stack arguments from assembly");
   test.expect_true(fixture.state.movement.camera_x_transition == 0 &&
                        fixture.state.movement.player_x_transition == 0 &&
                        fixture.state.movement.camera_y_transition == 0 &&
                        fixture.state.movement.player_y_transition == 0,
                    "the four movement transitions clear only after "
                    "post-present bookkeeping");
+  test.expect_true(fixture.framebuffer.row_pixels(8U)[400U] == 0x1234U &&
+                       fixture.framebuffer.row_pixels(8U)[404U] == 0x1234U,
+                   "the countdown draws its first and last pieces at 400,8");
+}
+
+void test_hidden_countdown_preserves_action_state(
+    openswd3::test::Context &test) {
+  Fixture fixture;
+  fixture.frame_ports.service_flags[0x10U] = false;
+  fixture.state.countdown_action.action_id = 0x11223344U;
+  fixture.state.countdown_action.base_variant = 0x55667788U;
+  fixture.state.countdown_action.variant_delta = 0x99AABBCCU;
+  const std::array<i16, 1U> selection{-12337};
+
+  const auto result = fixture.run(selection);
+  test.expect_true(
+      result.status == LegacyWorldFrameCoordinatorStatus::completed &&
+          result.countdown_stage_executed &&
+          result.countdown.status ==
+              openswd3::rendering::LegacyCountdownDisplayStatus::
+                  hidden_inactive &&
+          result.countdown.piece_request_count == 0U &&
+          fixture.state.countdown_action.action_id == 0x11223344U &&
+          fixture.state.countdown_action.base_variant == 0x55667788U &&
+          fixture.state.countdown_action.variant_delta == 0x99AABBCCU,
+      "an inactive primary timer returns before touching the static action");
+  test.expect_true(std::ranges::none_of(fixture.events,
+                                        [](const u32 event) {
+                                          return event >= kCountdownEventBase &&
+                                                 event < kCountdownEventBase +
+                                                             0x100U;
+                                        }),
+                   "the inactive gate performs no countdown action update");
 }
 
 void test_marker_requires_exact_one(openswd3::test::Context &test) {
@@ -441,7 +506,7 @@ void test_marker_requires_exact_one(openswd3::test::Context &test) {
 
   test.expect_true(
       result.status == LegacyWorldFrameCoordinatorStatus::completed &&
-          result.outer_stage_call_count == 1U,
+          result.outer_stage_call_count == 0U,
       "noncanonical marker state two does not alias equality with one");
   test.expect_true(
       std::ranges::find(
@@ -460,7 +525,7 @@ void test_party_count_and_alignment_gates(openswd3::test::Context &test) {
     const auto result = fixture.run(selection);
     test.expect_true(
         result.status == LegacyWorldFrameCoordinatorStatus::completed &&
-            result.outer_stage_call_count == 2U &&
+            result.outer_stage_call_count == 1U &&
             result.party_role_actions.slots_scanned == 0U,
         "unsigned party count zero or one jumps directly to 0041268C");
   }
@@ -474,7 +539,7 @@ void test_party_count_and_alignment_gates(openswd3::test::Context &test) {
         result.status == LegacyWorldFrameCoordinatorStatus::completed &&
             !result.post_present_player_aligned &&
             !result.movement_transitions_cleared &&
-            result.outer_stage_call_count == 2U &&
+            result.outer_stage_call_count == 1U &&
             fixture.state.movement.camera_x_transition == 1 &&
             fixture.state.movement.player_x_transition == 0 &&
             fixture.state.movement.camera_y_transition == -1,
@@ -529,12 +594,31 @@ void test_checked_failures_stop_at_the_original_slot(
                 LegacyWorldFrameCoordinatorStatus::outer_stage_failed &&
             result.failed_outer_stage_recorded &&
             result.failed_outer_stage ==
-                LegacyWorldOuterFrameStage::fixed_ui_004308c0 &&
+                LegacyWorldOuterFrameStage::optional_map_marker_00413fe0 &&
             result.outer_stage_call_count == 1U &&
             result.player_motion_applied && result.camera_pan_advanced &&
+            result.countdown_stage_executed &&
             result.audio_service_count == 1U &&
             !result.presentation_requested && fixture.roles[1].world_x == 128U,
         "outer stage failure preserves all earlier state and stops in place");
+  }
+
+  {
+    Fixture fixture;
+    fixture.action_ports.unavailable_frame_index = 10U;
+    const std::array<i16, 1U> selection{-12337};
+    const auto result = fixture.run(selection);
+    test.expect_true(
+        result.status == LegacyWorldFrameCoordinatorStatus::countdown_failed &&
+            result.countdown.status ==
+                openswd3::rendering::LegacyCountdownDisplayStatus::
+                    piece_unavailable &&
+            result.countdown.piece_request_count == 3U &&
+            result.countdown.draw_call_count == 2U &&
+            result.countdown_stage_executed &&
+            result.outer_stage_call_count == 0U &&
+            result.audio_service_count == 1U && !result.presentation_requested,
+        "a missing countdown piece stops at 004308C0 after two prior draws");
   }
 
   {
@@ -589,6 +673,7 @@ void test_head_sign_update_failure_remains_nonfatal(
 int main() {
   openswd3::test::Context test;
   test_complete_frame_exact_order_and_state(test);
+  test_hidden_countdown_preserves_action_state(test);
   test_marker_requires_exact_one(test);
   test_party_count_and_alignment_gates(test);
   test_checked_failures_stop_at_the_original_slot(test);

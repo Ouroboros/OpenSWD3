@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/compat/types.hpp"
+#include "openswd3/rendering/legacy_countdown.hpp"
 #include "openswd3/world_map/legacy_world_camera_pan.hpp"
 #include "openswd3/world_map/legacy_world_frame_runtime.hpp"
 #include "openswd3/world_map/legacy_world_frame_tail.hpp"
@@ -17,13 +18,12 @@
 namespace openswd3::world_map {
 
 enum class LegacyWorldOuterFrameStage : compat::u8 {
-  fixed_ui_004308c0,
   optional_map_marker_00413fe0,
 };
 
 struct LegacyWorldOuterFrameStageRequest {
   LegacyWorldOuterFrameStage stage{
-      LegacyWorldOuterFrameStage::fixed_ui_004308c0};
+      LegacyWorldOuterFrameStage::optional_map_marker_00413fe0};
   compat::i32 argument_0{};
   compat::i32 argument_1{};
   compat::u32 argument_2{};
@@ -48,6 +48,8 @@ struct LegacyWorldFrameCoordinatorState {
       party_object_slots;
   LegacyWorldMovementRuntimeState movement;
   LegacyWorldCameraPanState camera_pan;
+  rendering::LegacyCountdownState countdown;
+  asset_runtime::LegacyActionRecord countdown_action{};
   LegacyWorldSelectionScrollState selection_scroll;
   LegacyWorldTileLayerAnimationState tile_animation;
   LegacyWorldFrameRuntimeState frame_runtime;
@@ -62,6 +64,7 @@ enum class LegacyWorldFrameCoordinatorStatus : compat::u8 {
   invalid_selection_window,
   map_role_paths_failed,
   party_role_actions_failed,
+  countdown_failed,
   outer_stage_failed,
   composition_failed,
   player_post_frame_failed,
@@ -76,6 +79,7 @@ struct LegacyWorldFrameCoordinatorResult {
   LegacyWorldHeadSignActionsResult head_sign_actions;
   LegacyWorldMapRolePathResult map_role_paths;
   LegacyWorldPartyRoleActionsResult party_role_actions;
+  rendering::LegacyCountdownDisplayResult countdown;
   LegacyWorldPlayerPostFrameResult player_post_frame;
   compat::u32 outer_stage_call_count{};
   compat::u32 audio_service_count{};
@@ -83,6 +87,7 @@ struct LegacyWorldFrameCoordinatorResult {
   compat::i32 composition_camera_top{};
   bool player_motion_applied{};
   bool camera_pan_advanced{};
+  bool countdown_stage_executed{};
   bool presentation_requested{};
   bool post_present_player_aligned{};
   bool movement_transitions_cleared{};
@@ -90,7 +95,7 @@ struct LegacyWorldFrameCoordinatorResult {
   bool viewport_restored{};
   bool failed_outer_stage_recorded{};
   LegacyWorldOuterFrameStage failed_outer_stage{
-      LegacyWorldOuterFrameStage::fixed_ui_004308c0};
+      LegacyWorldOuterFrameStage::optional_map_marker_00413fe0};
 };
 
 // Ordinary-world outer frame at 0x004120B0. The framebuffer is the modern
@@ -108,6 +113,7 @@ run_legacy_world_frame(rendering::LegacyFramebuffer &framebuffer,
                        LegacyWorldCameraRect &camera,
                        LegacyWorldFrameCoordinatorState &state,
                        rendering::LegacyRleRowJitterState &jitter,
+                       const rendering::LegacyBlitEffectState &effects,
                        LegacyWorldFrameRuntimePorts frame_ports,
                        LegacyWorldOuterFramePorts &outer_ports) noexcept;
 

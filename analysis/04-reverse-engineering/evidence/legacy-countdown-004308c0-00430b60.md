@@ -1,7 +1,7 @@
 # 倒计时绘制与初始化 `0x004308C0–0x00430B60`
 
 状态：两个函数已按完整 LST 逐基本块复核并实现；正常资源路径为
-`assembly_exact`，缺失或损坏动作帧由显式安全状态隔离。
+`assembly_exact`、`world_runtime_integrated`，缺失或损坏动作帧由显式安全状态隔离。
 
 ## 证据范围
 
@@ -88,6 +88,19 @@ ticks = 30 * (seconds + 60 * minutes)
 只在缺失帧、零宽高或 blitter 发现损坏源时返回独立错误状态。有效资源的动作
 顺序、坐标推进、裁剪和像素路径不变，没有借机修复任何游戏逻辑。
 
+## 普通世界原槽接线
+
+`run_legacy_world_frame` 已在世界组合 `sub_412930` 返回后、条件地图标记
+`sub_413FE0` 之前的 `0x004126C7` 调用现有 `draw_legacy_countdown`，固定请求仍为
+`(400, 8, 0)`。它直接借用同一软件 framebuffer、raster clip、blit effect 与 row
+jitter；标志查询转发到原 `sub_40DC50` 对应的 world service port。
+
+`LegacyWorldFrameCoordinatorState` 持有 primary/secondary tick 和原静态 `0x98`
+动作记录。动作记录只在可见性与 `0x4C` 抑制门全部通过后的首次 piece 请求时写入
+`action_id=0x232C`、`variant_delta=0`；未激活路径不会因现代适配器提前修改它。随后每个
+piece 依次写 `base_variant`，复用实际 action updater 与 TSW frame provider。原先的
+`fixed_ui_004308c0` 外部占位已删除。
+
 ## 实现与验证
 
 - `include/openswd3/rendering/legacy_countdown.hpp`；
@@ -97,5 +110,9 @@ ticks = 30 * (seconds + 60 * minutes)
 UT 覆盖 primary/secondary 初始化、32 位回绕、标志设置顺序、两种标准显示
 序列、负 tick 钳制、三个 mode 分支、`0x4C` 抑制，以及无效帧安全状态。
 
-当前验证结果：Linux Clang `core` 54/54、Windows LLVM `app` 56/56 CTest
+独立 countdown UT 之外，world coordinator UT 还固定了活动 `754` 秒的五 piece
+顺序、`(400,8)` 首尾像素、静态动作最终字段、未激活零修改，以及第三个 piece 缺失时
+在 `0x004308C0` 停止。真实初始世界则固定抵达该槽并命中未激活门。
+
+当前验证结果：Linux LLVM `core` 153/153、Windows LLVM `app` 157/157 CTest
 全部通过；验证过程没有启动原版或 OpenSWD3 EXE。

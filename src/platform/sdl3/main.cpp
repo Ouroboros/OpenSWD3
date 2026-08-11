@@ -1546,6 +1546,7 @@ public:
             world.camera,
             world_frame_state_,
             world_jitter_,
+            world_effects_,
             {
                 deferred_ports,
                 action_ports,

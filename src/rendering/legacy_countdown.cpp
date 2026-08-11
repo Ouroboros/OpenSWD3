@@ -176,7 +176,7 @@ LegacyCountdownDisplayResult draw_legacy_countdown(
     LegacyFramebuffer& framebuffer,
     const LegacyRasterGeometryState& raster,
     const LegacyCountdownState& state,
-    LegacyCountdownFlagPorts& flags,
+    LegacyCountdownFlagQueryPorts& flags,
     LegacyCountdownPieceProvider& provider,
     const LegacyCountdownDisplayRequest& request,
     const LegacyBlitEffectState& effects,

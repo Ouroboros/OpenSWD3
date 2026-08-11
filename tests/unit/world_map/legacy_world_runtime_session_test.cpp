@@ -759,6 +759,7 @@ void test_real_initial_world(
         result.session.camera,
         frame_state,
         jitter,
+        effects,
         {
             deferred_ports,
             action_ports,
@@ -776,6 +777,13 @@ void test_real_initial_world(
         first_frame.frame.status,
         openswd3::world_map::LegacyWorldFrameRuntimeStatus::completed,
         "the exact initial owner completes the inner composition"
+    );
+    test.expect_true(
+        first_frame.countdown_stage_executed &&
+            first_frame.countdown.status ==
+                openswd3::rendering::LegacyCountdownDisplayStatus::
+                    hidden_inactive,
+        "the initial world reaches 004308C0 and preserves its inactive gate"
     );
     test.expect_true(
         first_frame.head_sign_actions.status ==
