@@ -123,6 +123,13 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    第五纵向端点。控制/对话列表仲裁、菜单模式 1 消费、剧情 VM、持久剧情位和随机遇敌
    SDL 接线仍是显式后续范围，隐藏调试热键不在本切片。Linux/Windows LLVM 完整应用
    174/174 CTest 通过，Windows EXE 成功链接且未启动任何 EXE。
+   `0x00402030..0x00402F77` 的 23 函数 A* 内核现已形成独立 owner：八节点预热池、
+   反向终点搜索、open/closed 链、全方向单位代价、同代价后生成优先、closed 邻接传播、
+   `0x40800000` 默认掩码及路径字节反向映射均按 LST 保留；`sub_402AE0` 复用已逐汇编
+   核对的足迹外围折叠。每个函数完成后已再次对照汇编，首轮据此纠正路径消费者方向与
+   搜索展开方向不可混用；超 510 步只保留原警告观测，不擅自终止路径。四类调用者尚未接线，
+   不据此宣称剧情寻路已进入 SDL runtime。Linux/Windows LLVM 完整应用 175/175
+   CTest 通过，Windows EXE 成功链接且未启动任何 EXE。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -151,6 +158,7 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-cursor-004149b0.md`](../evidence/world-cursor-004149b0.md)、
 [`world-interaction-00427300.md`](../evidence/world-interaction-00427300.md)、
 [`world-player-control-00402f80.md`](../evidence/world-player-control-00402f80.md)、
+[`world-pathfinding-00402030-00402f70.md`](../evidence/world-pathfinding-00402030-00402f70.md)、
 [`dialog-message-0042ed40.md`](../evidence/dialog-message-0042ed40.md)、
 [`world-frame-color-transition-004146f0.md`](../evidence/world-frame-color-transition-004146f0.md)、
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、
