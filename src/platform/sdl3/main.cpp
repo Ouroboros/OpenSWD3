@@ -61,6 +61,7 @@
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_interaction.hpp"
+#include "openswd3/world_map/legacy_world_path_requests.hpp"
 #include "openswd3/world_map/legacy_world_player_control.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
@@ -2148,7 +2149,67 @@ public:
             }
         );
     }
-    void step_story(openswd3::app::FrameCoordinatorState&) override {}
+    void step_story(openswd3::app::FrameCoordinatorState&) override {
+        if (!active_world_session_.has_value()) {
+            return;
+        }
+
+        class PartyPathPorts final
+            : public openswd3::world_map::LegacyWorldPartyPathPorts {
+        public:
+            explicit PartyPathPorts(
+                SdlDeferredWorldFramePorts& ports
+            ) noexcept
+                : ports_(ports) {}
+
+            [[nodiscard]] bool
+            query_collision_disabled() noexcept override {
+                return ports_.query_service(0x4FU);
+            }
+
+        private:
+            SdlDeferredWorldFramePorts& ports_;
+        };
+
+        auto& world = *active_world_session_;
+        auto& map = world.render.map_load.session;
+        auto& roles = map.business.state.roles;
+        SdlDeferredWorldFramePorts deferred_ports{
+            audio_maintenance_,
+            *this,
+            text_renderers_,
+        };
+        PartyPathPorts path_ports{deferred_ports};
+        const auto result =
+            openswd3::world_map::prepare_legacy_world_party_paths(
+                roles,
+                map.business.state.spatial_index,
+                openswd3::world_map::LegacyWorldRoleSurfaceContext{
+                    .map_width = map.header.width,
+                    .selected_guid = roles[world.selected_role_index].guid,
+                    .surface_grid = map.surface_grid.surface_grid,
+                },
+                world.selected_role_index,
+                world.role_post_materialization.party_role_count,
+                world.role_post_materialization.party_role_indices,
+                world_frame_state_.party_object_slots,
+                world_frame_state_.player_post_frame,
+                world.camera,
+                world_path_node_pool_,
+                path_ports
+            );
+        if (result.status != openswd3::world_map::
+                                 LegacyWorldPartyPathPreparationStatus::
+                                     completed) {
+            std::string message{"party path preparation failed: status="};
+            message.append(
+                std::to_string(static_cast<unsigned>(result.status))
+            );
+            static_cast<void>(report_error(message));
+            ok_ = false;
+            running_ = false;
+        }
+    }
     void finish_world_frame(
         openswd3::app::FrameCoordinatorState& frame_state
     ) override {
@@ -2850,6 +2911,7 @@ private:
     std::optional<openswd3::world_map::LegacyWorldSpecialFrameLoader>
         world_special_frame_loader_;
     openswd3::world_map::LegacyWorldFrameCoordinatorState world_frame_state_;
+    openswd3::world_map::LegacyWorldPathNodePool world_path_node_pool_;
     openswd3::world_map::LegacyPictureActionLists world_picture_actions_;
     openswd3::world_map::LegacyMovingActionList world_moving_actions_;
     openswd3::world_map::LegacyRoleHeadActionList world_role_head_actions_;

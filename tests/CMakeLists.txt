@@ -1980,6 +1980,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_path_requests_tests
+    unit/world_map/legacy_world_path_requests_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_path_requests_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_path_requests_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_path_requests
+    COMMAND openswd3_world_map_legacy_world_path_requests_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_world_facing_tests
     unit/world_map/legacy_world_facing_test.cpp
 )

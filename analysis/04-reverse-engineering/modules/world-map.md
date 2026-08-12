@@ -130,6 +130,12 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    搜索展开方向不可混用；超 510 步只保留原警告观测，不擅自终止路径。四类调用者尚未接线，
    不据此宣称剧情寻路已进入 SDL runtime。Linux/Windows LLVM 完整应用 175/175
    CTest 通过，Windows EXE 成功链接且未启动任何 EXE。
+   `sub_406390/sub_406960` 两个角色路径请求随后完成：普通对象 72 槽扫描、槽 32 异常
+   返回、失败直接改坐标，队伍槽复用、历史目标、离屏四像素预推进、service `0x4F`
+   两次独立查询及当帧八像素步长均按 LST 保留。两个函数已各自第二次从入口核对到全部
+   出口；队伍请求接入 `sub_405430` 对应 app 槽并复用进程期节点池，普通角色请求等待
+   `sub_405500` PATH.DAT owner，两个剧情调用者仍未提前接线。Linux/Windows LLVM
+   完整应用 176/176 CTest 通过，Windows EXE 成功链接且未启动任何 EXE。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -159,6 +165,7 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-interaction-00427300.md`](../evidence/world-interaction-00427300.md)、
 [`world-player-control-00402f80.md`](../evidence/world-player-control-00402f80.md)、
 [`world-pathfinding-00402030-00402f70.md`](../evidence/world-pathfinding-00402030-00402f70.md)、
+[`world-path-requests-00406390-00406960.md`](../evidence/world-path-requests-00406390-00406960.md)、
 [`dialog-message-0042ed40.md`](../evidence/dialog-message-0042ed40.md)、
 [`world-frame-color-transition-004146f0.md`](../evidence/world-frame-color-transition-004146f0.md)、
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、
