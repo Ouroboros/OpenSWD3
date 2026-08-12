@@ -494,4 +494,41 @@ LegacyWorldPartyPathPreparationResult prepare_legacy_world_party_paths(
   return result;
 }
 
+LegacyWorldPartyPathPreparationResult prepare_legacy_world_party_path(
+    const u32 role_index, const std::span<LegacyWorldRoleRecord> roles,
+    LegacyRoleSpatialIndex &spatial_index,
+    const LegacyWorldRoleSurfaceContext &surface_context,
+    const u32 selected_role_index, const u32 party_role_count,
+    const std::span<const u32> party_role_indices,
+    const std::span<LegacyWorldObjectSlot> party_object_slots,
+    const LegacyWorldPlayerPostFrameState &player_history,
+    const LegacyWorldCameraRect &camera, LegacyWorldPathNodePool &node_pool,
+    LegacyWorldPartyPathPorts &ports) {
+  LegacyWorldPartyPathPreparationResult result;
+  if (selected_role_index >= roles.size()) {
+    result.status =
+        LegacyWorldPartyPathPreparationStatus::invalid_selected_role_index;
+    return result;
+  }
+  if (role_index >= roles.size()) {
+    result.status =
+        LegacyWorldPartyPathPreparationStatus::invalid_party_role_index;
+    return result;
+  }
+  if (party_role_count > party_role_indices.size() ||
+      party_role_count > party_object_slots.size()) {
+    result.status =
+        LegacyWorldPartyPathPreparationStatus::invalid_party_role_count;
+    return result;
+  }
+
+  result.roles_scanned = 1U;
+  result.eligible_roles = 1U;
+  static_cast<void>(prepare_one_party_path(
+      result, node_pool, role_index, party_role_count, party_role_indices,
+      party_object_slots, player_history, selected_role_index, camera, ports,
+      surface_context, spatial_index, roles));
+  return result;
+}
+
 } // namespace openswd3::world_map

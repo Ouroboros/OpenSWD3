@@ -1998,6 +1998,36 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_path_script_tests
+    unit/world_map/legacy_world_path_script_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_path_script_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_path_script_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_path_script
+    COMMAND openswd3_world_map_legacy_world_path_script_tests
+)
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../PATH.DAT"
+)
+    add_test(
+        NAME world_map.legacy_world_path_script_real
+        COMMAND
+            openswd3_world_map_legacy_world_path_script_tests
+            "${PROJECT_SOURCE_DIR}/../MAPS.DAT"
+            "${PROJECT_SOURCE_DIR}/../PATH.DAT"
+    )
+endif()
+
+add_executable(
     openswd3_world_map_legacy_world_facing_tests
     unit/world_map/legacy_world_facing_test.cpp
 )

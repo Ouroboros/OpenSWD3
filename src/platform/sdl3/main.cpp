@@ -62,6 +62,7 @@
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_interaction.hpp"
 #include "openswd3/world_map/legacy_world_path_requests.hpp"
+#include "openswd3/world_map/legacy_world_path_script.hpp"
 #include "openswd3/world_map/legacy_world_player_control.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
@@ -93,6 +94,9 @@ constexpr int kFrameHeight = 480;
 constexpr int kInitialWindowWidth = kFrameWidth * 3 / 2;
 constexpr int kInitialWindowHeight = kFrameHeight * 3 / 2;
 constexpr openswd3::compat::u32 kInitialFrameIntervalMilliseconds = 35U;
+constexpr openswd3::compat::u32 kLegacySpatialRoleFlag = 0x00008000U;
+constexpr openswd3::compat::u32 kLegacyPartyRoleFlag = 0x00000080U;
+constexpr openswd3::compat::u32 kLegacyInteractionSuspendedFlag = 0x80000000U;
 
 [[nodiscard]] std::optional<openswd3::compat::u32> legacy_text_virtual_key(
     const SDL_Scancode scancode
@@ -2180,34 +2184,89 @@ public:
             text_renderers_,
         };
         PartyPathPorts path_ports{deferred_ports};
-        const auto result =
-            openswd3::world_map::prepare_legacy_world_party_paths(
-                roles,
-                map.business.state.spatial_index,
-                openswd3::world_map::LegacyWorldRoleSurfaceContext{
-                    .map_width = map.header.width,
-                    .selected_guid = roles[world.selected_role_index].guid,
-                    .surface_grid = map.surface_grid.surface_grid,
-                },
-                world.selected_role_index,
-                world.role_post_materialization.party_role_count,
-                world.role_post_materialization.party_role_indices,
-                world_frame_state_.party_object_slots,
-                world_frame_state_.player_post_frame,
-                world.camera,
-                world_path_node_pool_,
-                path_ports
-            );
-        if (result.status != openswd3::world_map::
-                                 LegacyWorldPartyPathPreparationStatus::
-                                     completed) {
-            std::string message{"party path preparation failed: status="};
-            message.append(
-                std::to_string(static_cast<unsigned>(result.status))
-            );
-            static_cast<void>(report_error(message));
-            ok_ = false;
-            running_ = false;
+        const openswd3::world_map::LegacyWorldRoleSurfaceContext surface{
+            .map_width = map.header.width,
+            .selected_guid = roles[world.selected_role_index].guid,
+            .surface_grid = map.surface_grid.surface_grid,
+        };
+        openswd3::compat::u32 unsupported_scripts = 0U;
+        for (openswd3::compat::u32 role_index = 1U;
+             role_index < roles.size(); ++role_index) {
+            const auto& role = roles[role_index];
+            if ((role.flags & kLegacySpatialRoleFlag) == 0U) {
+                continue;
+            }
+            if ((role.flags & kLegacyPartyRoleFlag) != 0U) {
+                const auto result =
+                    openswd3::world_map::prepare_legacy_world_party_path(
+                        role_index,
+                        roles,
+                        map.business.state.spatial_index,
+                        surface,
+                        world.selected_role_index,
+                        world.role_post_materialization.party_role_count,
+                        world.role_post_materialization.party_role_indices,
+                        world_frame_state_.party_object_slots,
+                        world_frame_state_.player_post_frame,
+                        world.camera,
+                        world_path_node_pool_,
+                        path_ports
+                    );
+                if (result.status != openswd3::world_map::
+                                         LegacyWorldPartyPathPreparationStatus::
+                                             completed) {
+                    std::string message{
+                        "party path preparation failed: status="};
+                    message.append(
+                        std::to_string(static_cast<unsigned>(result.status))
+                    );
+                    static_cast<void>(report_error(message));
+                    ok_ = false;
+                    running_ = false;
+                    return;
+                }
+                continue;
+            }
+            if ((role.flags & kLegacyInteractionSuspendedFlag) != 0U ||
+                role.interaction_gate == 1U || role.path_data_id == 0U) {
+                continue;
+            }
+
+            const auto result =
+                openswd3::world_map::run_legacy_world_path_script(
+                    role_index,
+                    resource_databases_.path_bytes(),
+                    roles,
+                    surface,
+                    map.header.height,
+                    world_frame_state_.map_role_paths.active_object_slots,
+                    world_path_node_pool_
+                );
+            if (result.status == openswd3::world_map::
+                                     LegacyWorldPathScriptStatus::
+                                         unsupported_opcode) {
+                ++unsupported_scripts;
+                continue;
+            }
+            if (result.status != openswd3::world_map::
+                                     LegacyWorldPathScriptStatus::completed) {
+                std::string message{"world path script failed: status="};
+                message.append(
+                    std::to_string(static_cast<unsigned>(result.status))
+                );
+                static_cast<void>(report_error(message));
+                ok_ = false;
+                running_ = false;
+                return;
+            }
+        }
+        if (unsupported_scripts != 0U &&
+            !unsupported_world_path_opcode_notice_logged_) {
+            std::string message{
+                "world path script deferred unsupported opcodes: "};
+            message.append(std::to_string(unsupported_scripts));
+            openswd3::diagnostics::log_warning(message);
+            unsupported_world_path_opcode_notice_logged_ = true;
         }
     }
     void finish_world_frame(
@@ -2655,6 +2714,7 @@ public:
             map.business.state.roles[world.selected_role_index]
         );
         deferred_world_stage_notice_logged_ = false;
+        unsupported_world_path_opcode_notice_logged_ = false;
 
         std::string message{"initial world ready: logical_map="};
         message.append(std::to_string(world.logical_map_id));
@@ -2938,6 +2998,7 @@ private:
     };
     openswd3::compat::u32 world_auxiliary_selection_index_{};
     bool deferred_world_stage_notice_logged_{};
+    bool unsupported_world_path_opcode_notice_logged_{};
     openswd3::app::ShutdownPorts& shutdown_ports_;
     openswd3::app::ProcessExitPorts& exit_ports_;
     openswd3::compat::u32 accumulated_play_time_{};

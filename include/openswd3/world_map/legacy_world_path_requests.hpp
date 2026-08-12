@@ -94,6 +94,21 @@ public:
   [[nodiscard]] virtual bool query_collision_disabled() noexcept = 0;
 };
 
+// Direct 0x00406960 owner for one role after the 0x00405430 caller has
+// applied its spatial/party flag gates. This entry point lets the caller keep
+// the original per-role ordinary/party dispatch order.
+[[nodiscard]] LegacyWorldPartyPathPreparationResult
+prepare_legacy_world_party_path(
+    compat::u32 role_index, std::span<LegacyWorldRoleRecord> roles,
+    LegacyRoleSpatialIndex &spatial_index,
+    const LegacyWorldRoleSurfaceContext &surface_context,
+    compat::u32 selected_role_index, compat::u32 party_role_count,
+    std::span<const compat::u32> party_role_indices,
+    std::span<LegacyWorldObjectSlot> party_object_slots,
+    const LegacyWorldPlayerPostFrameState &player_history,
+    const LegacyWorldCameraRect &camera, LegacyWorldPathNodePool &node_pool,
+    LegacyWorldPartyPathPorts &ports);
+
 // Relevant 0x00405430 gate plus 0x00406960: before the ordinary-world outer
 // frame, prepare/reuse follower routes for roles carrying both legacy party
 // and spatial flags, preadvance off-screen followers, and arm their 0x21C

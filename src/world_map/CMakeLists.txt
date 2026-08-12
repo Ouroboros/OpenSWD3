@@ -36,6 +36,7 @@ add_library(
         legacy_world_party_role_actions.cpp
         legacy_world_pathfinding.cpp
         legacy_world_path_requests.cpp
+        legacy_world_path_script.cpp
         legacy_world_render_session.cpp
         legacy_world_role_post_materialization.cpp
         legacy_world_role_preload.cpp

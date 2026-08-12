@@ -27,6 +27,7 @@ using openswd3::world_map::LegacyWorldPlayerPostFrameState;
 using openswd3::world_map::LegacyWorldRolePathRequestStatus;
 using openswd3::world_map::LegacyWorldRoleRecord;
 using openswd3::world_map::LegacyWorldRoleSurfaceContext;
+using openswd3::world_map::prepare_legacy_world_party_path;
 using openswd3::world_map::prepare_legacy_world_party_paths;
 using openswd3::world_map::request_legacy_world_role_path;
 
@@ -285,6 +286,40 @@ void test_party_path_generation_and_reuse(openswd3::test::Context &test) {
   }
 }
 
+void test_single_party_role_entry_point(openswd3::test::Context &test) {
+  PartyPathFixture fixture;
+  const auto result = prepare_legacy_world_party_path(
+      2U, fixture.roles, fixture.spatial,
+      LegacyWorldRoleSurfaceContext{
+          .map_width = kMapWidth,
+          .selected_guid = fixture.roles[1].guid,
+          .surface_grid = fixture.surface,
+      },
+      1U, 2U, fixture.party_indices, fixture.slots, fixture.history,
+      fixture.camera, fixture.node_pool, fixture.ports);
+  test.expect_true(
+      result.status == LegacyWorldPartyPathPreparationStatus::completed &&
+          result.roles_scanned == 1U && result.eligible_roles == 1U &&
+          result.paths_generated == 1U &&
+          read_u16(fixture.slots[1], 0x00U) == 2U,
+      "the direct sub_406960 entry processes exactly the role selected by "
+      "the caller's per-role dispatcher");
+
+  const auto invalid = prepare_legacy_world_party_path(
+      3U, fixture.roles, fixture.spatial,
+      LegacyWorldRoleSurfaceContext{
+          .map_width = kMapWidth,
+          .selected_guid = fixture.roles[1].guid,
+          .surface_grid = fixture.surface,
+      },
+      1U, 2U, fixture.party_indices, fixture.slots, fixture.history,
+      fixture.camera, fixture.node_pool, fixture.ports);
+  test.expect_equal(
+      invalid.status,
+      LegacyWorldPartyPathPreparationStatus::invalid_party_role_index,
+      "the modern direct entry checks the caller-provided role boundary");
+}
+
 void test_party_offscreen_preadvance_and_terminal_action(
     openswd3::test::Context &test) {
   PartyPathFixture fixture;
@@ -346,6 +381,7 @@ int main() {
   test_ordinary_role_path_legacy_returns(test);
   test_ordinary_path_failure_writes_destination(test);
   test_party_path_generation_and_reuse(test);
+  test_single_party_role_entry_point(test);
   test_party_offscreen_preadvance_and_terminal_action(test);
   test_party_collision_gate_and_service_override(test);
   return test.exit_code();
