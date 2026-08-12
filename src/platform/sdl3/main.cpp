@@ -53,11 +53,15 @@
 #include "openswd3/resource_io/window_configuration.hpp"
 #include "openswd3/special_modes/legacy_initial_menu.hpp"
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
+#include "openswd3/world_map/legacy_movement_collision.hpp"
+#include "openswd3/world_map/legacy_world_collision_talk.hpp"
 #include "openswd3/world_map/legacy_world_direction_adjustment.hpp"
 #include "openswd3/world_map/legacy_world_direction_input.hpp"
+#include "openswd3/world_map/legacy_world_facing_talk.hpp"
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_interaction.hpp"
+#include "openswd3/world_map/legacy_world_player_control.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
 
@@ -1492,6 +1496,62 @@ public:
         openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime_;
     };
 
+    class WorldPlayerPorts final
+        : public openswd3::world_map::LegacyWorldFacingTalkPorts,
+          public openswd3::world_map::LegacyWorldCollisionTalkPorts {
+    public:
+        WorldPlayerPorts(
+            const std::span<
+                openswd3::world_map::LegacyWorldRoleRecord> roles,
+            const std::span<const openswd3::compat::u8> surface_grid,
+            const openswd3::compat::u32 map_width,
+            openswd3::input_time_rng::LegacyInputNormalizationState& input,
+            openswd3::asset_runtime::LegacyActionUpdater& action_updater
+        ) noexcept
+            : roles_(roles),
+              surface_grid_(surface_grid),
+              map_width_(map_width),
+              input_(input),
+              action_updater_(action_updater) {}
+
+        openswd3::world_map::LegacyMovementCollisionResult query_collision(
+            const openswd3::compat::u32 role_index,
+            const openswd3::compat::i32 delta_x,
+            const openswd3::compat::i32 delta_y
+        ) override {
+            return openswd3::world_map::check_legacy_movement_collision(
+                roles_,
+                static_cast<openswd3::compat::u32>(roles_.size()),
+                role_index,
+                delta_x,
+                delta_y,
+                surface_grid_,
+                map_width_
+            );
+        }
+
+        openswd3::compat::u32 query_internal_flag(
+            const openswd3::compat::u32 bit_index
+        ) override {
+            // Persistent story bits stay clear until the story VM owns its
+            // 1024-byte flag set. Bit 9 is the normalized mouse-idle bit.
+            return bit_index == 9U && input_.mouse_inactive_flag_9 ? 1U : 0U;
+        }
+
+        openswd3::compat::u32 update_action(
+            openswd3::asset_runtime::LegacyActionRecord& action
+        ) override {
+            return action_updater_.update(action).return_value;
+        }
+
+    private:
+        std::span<openswd3::world_map::LegacyWorldRoleRecord> roles_;
+        std::span<const openswd3::compat::u8> surface_grid_;
+        openswd3::compat::u32 map_width_{};
+        openswd3::input_time_rng::LegacyInputNormalizationState& input_;
+        openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
+    };
+
     SdlSmokeIdlePorts(
         SDL_Window& window,
         SDL_Renderer& renderer,
@@ -1848,16 +1908,10 @@ public:
             running_ = false;
         }
     }
-    void step_world_player(openswd3::app::FrameCoordinatorState&) override {
+    void step_world_player(
+        openswd3::app::FrameCoordinatorState& frame_state
+    ) override {
         if (!active_world_session_.has_value()) {
-            return;
-        }
-
-        const auto& movement = world_frame_state_.movement;
-        if (movement.camera_x_transition != 0 ||
-            movement.player_x_transition != 0 ||
-            movement.camera_y_transition != 0 ||
-            movement.player_y_transition != 0) {
             return;
         }
 
@@ -1873,7 +1927,119 @@ public:
             return;
         }
 
+        const auto& movement = world_frame_state_.movement;
+        const auto speed_binding = openswd3::input_time_rng::key_binding(
+            input_state_.key_bindings,
+            openswd3::input_time_rng::LegacyKeyBinding::configurable_16
+        );
+        const auto control =
+            openswd3::world_map::prepare_legacy_world_player_control(
+                {
+                    .raw_speed_toggle_state = openswd3::input_time_rng::
+                        read_raw_key(keyboard_snapshot_, speed_binding),
+                    .camera_x_transition =
+                        std::bit_cast<openswd3::compat::u32>(
+                            movement.camera_x_transition
+                        ),
+                    .player_x_transition =
+                        std::bit_cast<openswd3::compat::u32>(
+                            movement.player_x_transition
+                        ),
+                    .camera_y_transition =
+                        std::bit_cast<openswd3::compat::u32>(
+                            movement.camera_y_transition
+                        ),
+                    .player_y_transition =
+                        std::bit_cast<openswd3::compat::u32>(
+                            movement.player_y_transition
+                        ),
+                    .input_suppression =
+                        input_state_.left_button_suppression_count,
+                    .special_mode_state =
+                        frame_state.battle.special_mode_state,
+                },
+                input_state_.records,
+                world_player_control_state_
+            );
+        if (control.status != openswd3::world_map::
+                                  LegacyWorldPlayerControlStatus::completed) {
+            std::string message{"world player control failed: status="};
+            message.append(std::to_string(
+                static_cast<unsigned>(control.status)
+            ));
+            static_cast<void>(report_error(message));
+            ok_ = false;
+            running_ = false;
+            return;
+        }
+        if (control.delay_milliseconds != 0U) {
+            SDL_Delay(control.delay_milliseconds);
+        }
+        if (!control.control_allowed) {
+            return;
+        }
+
         auto& player = roles[world.selected_role_index];
+        WorldPlayerPorts ports{
+            roles,
+            map.surface_grid.surface_grid,
+            map.header.width,
+            input_state_,
+            action_updater_,
+        };
+        if (control.primary_fresh_press) {
+            constexpr std::array<openswd3::compat::i32, 8> kFacingDeltaX{
+                0, 0, -1, 1, -1, 1, -1, 1,
+            };
+            constexpr std::array<openswd3::compat::i32, 8> kFacingDeltaY{
+                -1, 1, 0, 0, -1, 1, 1, -1,
+            };
+            if (player.action.variant_delta >= kFacingDeltaX.size()) {
+                static_cast<void>(report_error(
+                    "world player facing direction is out of range"
+                ));
+                ok_ = false;
+                running_ = false;
+                return;
+            }
+            const auto facing_talk =
+                openswd3::world_map::coordinate_legacy_world_facing_talk(
+                    {
+                        .player_index = world.selected_role_index,
+                        .delta_x =
+                            kFacingDeltaX[player.action.variant_delta],
+                        .delta_y =
+                            kFacingDeltaY[player.action.variant_delta],
+                        .map_width = map.header.width,
+                        .map_height = map.header.height,
+                    },
+                    roles,
+                    world_frame_state_.map_role_paths.talk_context,
+                    world_player_control_state_.one_shot_interaction_state,
+                    ports
+                );
+            if (facing_talk.status != openswd3::world_map::
+                                          LegacyWorldFacingTalkStatus::
+                                              completed) {
+                static_cast<void>(report_error("world facing Talk failed"));
+                ok_ = false;
+                running_ = false;
+                return;
+            }
+            if (facing_talk.talk_created) {
+                return;
+            }
+        }
+
+        if (openswd3::world_map::should_request_legacy_world_menu(
+                control,
+                world_frame_state_.map_role_paths.talk_context
+            )) {
+            frame_state.battle.special_mode_state =
+                openswd3::world_map::kLegacyWorldMenuRequest;
+            return;
+        }
+
         auto input = openswd3::world_map::apply_legacy_world_direction_input(
             openswd3::world_map::LegacyWorldDirectionState{
                 .direction = player.action.variant_delta,
@@ -1895,6 +2061,9 @@ public:
         }
         world_auxiliary_selection_index_ =
             input.state.auxiliary_selection_index;
+
+        const openswd3::compat::i32 original_delta_x = input.delta_x;
+        const openswd3::compat::i32 original_delta_y = input.delta_y;
 
         if (input.delta_x != 0 || input.delta_y != 0) {
             const auto adjusted = openswd3::world_map::
@@ -1924,6 +2093,36 @@ public:
             input.delta_y = adjusted.delta_y;
         }
 
+        const auto collision_talk =
+            openswd3::world_map::coordinate_legacy_world_collision_talk(
+                {
+                    .player_index = world.selected_role_index,
+                    .adjusted_delta_x = input.delta_x,
+                    .adjusted_delta_y = input.delta_y,
+                    .original_delta_x = original_delta_x,
+                    .original_delta_y = original_delta_y,
+                },
+                roles,
+                map.business.state.events,
+                world_frame_state_.map_role_paths.talk_context,
+                world_player_control_state_.one_shot_interaction_state,
+                ports
+            );
+        if (collision_talk.status != openswd3::world_map::
+                                         LegacyWorldCollisionTalkStatus::
+                                             completed) {
+            std::string message{"world collision Talk failed: status="};
+            message.append(std::to_string(
+                static_cast<unsigned>(collision_talk.status)
+            ));
+            static_cast<void>(report_error(message));
+            ok_ = false;
+            running_ = false;
+            return;
+        }
+        input.delta_x = collision_talk.delta_x;
+        input.delta_y = collision_talk.delta_y;
+
         const auto bounds =
             openswd3::world_map::compute_legacy_world_movement_bounds(
                 player,
@@ -1944,7 +2143,7 @@ public:
             world_frame_state_.movement,
             openswd3::world_map::LegacyWorldMovementOptions{
                 .base_movement_step = base_step,
-                .speed_override = false,
+                .speed_override = world_player_control_state_.speed_mode != 0U,
                 .fixed_debug_speed = false,
             }
         );
@@ -2361,6 +2560,7 @@ public:
         world_role_head_actions_ = {};
         world_dialogs_ = {};
         world_interaction_state_ = {};
+        world_player_control_state_ = {};
         world_dialog_choice_pending_ = false;
         world_auxiliary_selection_index_ = 0U;
         world_frame_state_.map_id = world.logical_map_id;
@@ -2657,6 +2857,8 @@ private:
     openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
     openswd3::world_map::LegacyWorldInteractionState
         world_interaction_state_;
+    openswd3::world_map::LegacyWorldPlayerControlState
+        world_player_control_state_;
     bool world_dialog_choice_pending_{};
     openswd3::world_map::LegacyWorldDialogRuntimeState
         world_dialog_runtime_state_;

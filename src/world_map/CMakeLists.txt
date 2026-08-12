@@ -28,6 +28,8 @@ add_library(
         legacy_world_direction_input.cpp
         legacy_world_dialog_runtime.cpp
         legacy_world_facing.cpp
+        legacy_world_facing_role_query.cpp
+        legacy_world_facing_talk.cpp
         legacy_world_map_business.cpp
         legacy_world_map_role_paths.cpp
         legacy_world_map_session.cpp
@@ -39,6 +41,7 @@ add_library(
         legacy_world_role_transfer.cpp
         legacy_world_runtime_session.cpp
         legacy_world_player_motion.cpp
+        legacy_world_player_control.cpp
         legacy_world_player_post_frame.cpp
         legacy_world_roles.cpp
         legacy_world_selection_scroll.cpp

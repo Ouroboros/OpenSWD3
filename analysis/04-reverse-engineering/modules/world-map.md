@@ -116,6 +116,13 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    再次从入口到全部返回独立核对，期间纠正 TSW hover 查询不得 load-on-miss，纠正后无
    其余逻辑差异。剧情持久位和 Talk 脚本消费仍属于后续 owner，不伪报地图事件/对话已经
    完整可玩。Linux/Windows LLVM 完整应用 171/171 CTest 通过，未启动任何 EXE。
+   `sub_402F80` 的下一有限切片现已接入真实玩家入口：配置键 16（默认 R）的两项速度
+   切换和 200 ms 阻塞防抖、四 transition/输入抑制/特殊模式门、`sub_404C00` 八方向
+   不对称搜索、面向角色 Talk、模式 `0x80000001` 菜单请求，以及阻挡修正后的两次碰撞
+   Talk 均按 LST 顺序组合。实现后再次从各函数入口到全部返回核对，并纠正东北扫描遗漏
+   第五纵向端点。控制/对话列表仲裁、菜单模式 1 消费、剧情 VM、持久剧情位和随机遇敌
+   SDL 接线仍是显式后续范围，隐藏调试热键不在本切片。Linux/Windows LLVM 完整应用
+   174/174 CTest 通过，Windows EXE 成功链接且未启动任何 EXE。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -143,6 +150,7 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-indexed-objects-004151f0.md`](../evidence/world-indexed-objects-004151f0.md)、
 [`world-cursor-004149b0.md`](../evidence/world-cursor-004149b0.md)、
 [`world-interaction-00427300.md`](../evidence/world-interaction-00427300.md)、
+[`world-player-control-00402f80.md`](../evidence/world-player-control-00402f80.md)、
 [`dialog-message-0042ed40.md`](../evidence/dialog-message-0042ed40.md)、
 [`world-frame-color-transition-004146f0.md`](../evidence/world-frame-color-transition-004146f0.md)、
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、
