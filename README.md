@@ -12,7 +12,9 @@ OpenSWD3 是对《轩辕剑叁》旧版 Windows 可执行程序的现代 C++ 重
 - 只有阻断启动或现代系统兼容的问题，才允许在平台层进行隔离且可验证的最小适配。
 - 每个行为单元都按“逆向证据 → UT → C++ 实现 → 汇编逐块复核 → 真实数据验证”的顺序闭环。
 
-## 技术栈
+## 技术概览
+
+### 技术栈
 
 - C++20
 - CMake 3.25+
@@ -22,6 +24,17 @@ OpenSWD3 是对《轩辕剑叁》旧版 Windows 可执行程序的现代 C++ 重
 - toml++ 读取 OpenSWD3 自有配置
 
 工程不依赖 Visual Studio IDE。CMake 会优先使用系统安装的 SDL3 3.4+ 和 toml++ 3.4+，找不到时获取仓库固定的上游版本。
+
+### 仓库结构
+
+- `include/openswd3/`：公共 C++ 接口。
+- `src/`：诊断设施、兼容核心、资源 I/O、应用逻辑和 SDL3 平台后端。
+- `tests/`：按模块组织的单元测试和测试支持代码。
+- `analysis/04-reverse-engineering/`：架构、模块工作包、汇编证据和机器生成目录。
+- `analysis/tools/`：可重复生成或验证逆向结论的工具。
+- `assets/ui/startup/`：从原程序 PE 资源中提取并登记来源的启动界面位图。
+- `config/`：OpenSWD3 自有配置模板。
+- `goal/`：唯一执行计划。
 
 ## 当前进度
 
@@ -95,19 +108,28 @@ build/linux-app/src/platform/sdl3/openswd3
 
 在已配置 MSVC 环境变量的终端中使用相同 CMake preset，并省略 Clang 编译器参数即可。工程不要求打开 Visual Studio 工程或解决方案。
 
-## 指定游戏数据目录
+## 运行与配置
+
+### 配置文件
+
+OpenSWD3 的配置文件是 EXE 同目录的 `openswd3.toml`。可以复制 [`config/openswd3.example.toml`](config/openswd3.example.toml) 作为起点；当前配置分为游戏数据路径和宿主窗口两组：
+
+```toml
+[paths]
+data_dir = 'E:\Game\swd3'
+
+[window]
+width = 960
+height = 720
+maximized = false
+```
+
+### 游戏数据目录
 
 OpenSWD3 不把原始游戏数据复制进构建目录。运行时可以直接指定现有安装目录：
 
 ```console
 openswd3.exe --data-dir "E:\Game\swd3"
-```
-
-也可以把 [`config/openswd3.example.toml`](config/openswd3.example.toml) 复制到 EXE 同目录并改名为 `openswd3.toml`：
-
-```toml
-[paths]
-data_dir = 'E:\Game\swd3'
 ```
 
 数据目录选择优先级为：
@@ -118,22 +140,15 @@ data_dir = 'E:\Game\swd3'
 
 相对路径的解析规则和旧命令行兼容细节见 [`data-directory-compatibility.md`](analysis/04-reverse-engineering/evidence/data-directory-compatibility.md)。
 
-## 游戏内分辨率与窗口大小
+### 显示与窗口
 
 游戏内容继续使用固定的 `640×480` 游戏内分辨率。SDL3 只把最终画面等比缩放到可调整大小的宿主窗口；窗口比例不同时使用 letterbox，不拉伸游戏逻辑坐标。
 
-窗口正常关闭时，OpenSWD3 会把普通窗口客户区尺寸和最大化状态写入 EXE 同目录的 `openswd3.toml`，并在下次启动时恢复：
-
-```toml
-[window]
-width = 960
-height = 720
-maximized = false
-```
+窗口正常关闭时，OpenSWD3 会把普通窗口客户区尺寸和最大化状态写入 `openswd3.toml`，并在下次启动时恢复。
 
 `width` 和 `height` 是取消最大化后恢复的普通窗口尺寸，必须为正整数；`maximized` 必须为布尔值。旧配置没有 `maximized` 时按 `false` 处理。未配置或配置无效时使用默认普通窗口大小 `960×720`，不改变 `640×480` 游戏内分辨率。
 
-## 日志
+### 日志
 
 程序从最早启动阶段开始写入 EXE 同目录的 `logs/openswd3.log`。日志以追加方式保存，每条记录包含 UTC 毫秒时间、级别、线程 ID、源码文件与行号和消息：
 
@@ -142,17 +157,6 @@ maximized = false
 ```
 
 每条记录写入后立即刷新。日志文件无法建立或写入时，记录回退到标准错误输出；Windows 同时发送到调试器。`ERROR` 和 `CRITICAL` 在文件正常时也会镜像到这些可见通道。
-
-## 仓库结构
-
-- `include/openswd3/`：公共 C++ 接口。
-- `src/`：诊断设施、兼容核心、资源 I/O、应用逻辑和 SDL3 平台后端。
-- `tests/`：按模块组织的单元测试和测试支持代码。
-- `analysis/04-reverse-engineering/`：架构、模块工作包、汇编证据和机器生成目录。
-- `analysis/tools/`：可重复生成或验证逆向结论的工具。
-- `assets/ui/startup/`：从原程序 PE 资源中提取并登记来源的启动界面位图。
-- `config/`：OpenSWD3 自有配置模板。
-- `goal/`：唯一执行计划。
 
 ## 参与开发
 
