@@ -110,6 +110,12 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    模式 3 UI 仍属于 B9，不在进程初始化或 SDL 层伪造快捷触发。当前游戏数据 1,371 条
    角色源中 136 条初始 Path 非零，当前命令均为五；真实数据与合成边界回归通过。
    Linux `core` 144/144、Windows LLVM `app` 148/148 CTest 通过。
+   `sub_427300` 普通世界鼠标交互现已完成全函数闭环并接入真实世界帧：cache-only TSW
+   命中、选择链优先消费、NPC/地图 Talk 构造、角色相向、光标覆盖、右键八方向合成和
+   左键延迟复制均按 LST 保留；调用者 `0x0040A753` 的每帧光标重置也已接回。实现后已
+   再次从入口到全部返回独立核对，期间纠正 TSW hover 查询不得 load-on-miss，纠正后无
+   其余逻辑差异。剧情持久位和 Talk 脚本消费仍属于后续 owner，不伪报地图事件/对话已经
+   完整可玩。Linux/Windows LLVM 完整应用 171/171 CTest 通过，未启动任何 EXE。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
@@ -136,6 +142,7 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
 [`world-frame-runtime-integration-00412930.md`](../evidence/world-frame-runtime-integration-00412930.md) 和
 [`world-indexed-objects-004151f0.md`](../evidence/world-indexed-objects-004151f0.md)、
 [`world-cursor-004149b0.md`](../evidence/world-cursor-004149b0.md)、
+[`world-interaction-00427300.md`](../evidence/world-interaction-00427300.md)、
 [`dialog-message-0042ed40.md`](../evidence/dialog-message-0042ed40.md)、
 [`world-frame-color-transition-004146f0.md`](../evidence/world-frame-color-transition-004146f0.md)、
 [`world-frame-tail-0041287f-00412923.md`](../evidence/world-frame-tail-0041287f-00412923.md)、

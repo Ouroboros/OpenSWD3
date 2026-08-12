@@ -1946,6 +1946,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_interaction_tests
+    unit/world_map/legacy_world_interaction_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_interaction_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_interaction_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_interaction
+    COMMAND openswd3_world_map_legacy_world_interaction_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_world_player_motion_tests
     unit/world_map/legacy_world_player_motion_test.cpp
 )

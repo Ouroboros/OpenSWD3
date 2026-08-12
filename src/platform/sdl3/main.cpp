@@ -57,6 +57,7 @@
 #include "openswd3/world_map/legacy_world_direction_input.hpp"
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
+#include "openswd3/world_map/legacy_world_interaction.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
 
@@ -1436,6 +1437,61 @@ class SdlSmokeIdlePorts final
       public openswd3::rendering::LegacyPresentationPorts,
       public openswd3::audio_video::LegacyVideoFramePorts {
 public:
+    class WorldInteractionPorts final
+        : public openswd3::world_map::LegacyWorldInteractionPorts {
+    public:
+        WorldInteractionPorts(
+            openswd3::input_time_rng::LegacyInputNormalizationState& input,
+            openswd3::asset_runtime::LegacyActionUpdater& action_updater,
+            openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime
+        ) noexcept
+            : input_(input),
+              action_updater_(action_updater),
+              tsw_runtime_(tsw_runtime) {}
+
+        openswd3::compat::u32 query_internal_flag(
+            const openswd3::compat::u32 bit_index
+        ) override {
+            // Bit 9 belongs to normalized mouse inactivity. Persistent story
+            // flags remain clear until the story VM owns its 1024-byte set.
+            return bit_index == 9U && input_.mouse_inactive_flag_9 ? 1U : 0U;
+        }
+
+        bool load_role_frame_size(
+            const openswd3::compat::u16 resource_id,
+            const openswd3::compat::u16 frame_index,
+            openswd3::compat::u16& width,
+            openswd3::compat::u16& height
+        ) override {
+            // sub_431A20 is a cache-only lookup. A hover probe must not load
+            // or evict TSW data that the original frame had not drawn yet.
+            const auto loaded = tsw_runtime_.find_cached(
+                resource_id,
+                frame_index
+            );
+            if (loaded.status != openswd3::asset_runtime::
+                                     LegacyTswRuntimeStatus::ready) {
+                width = 0U;
+                height = 0U;
+                return false;
+            }
+            width = loaded.frame.width;
+            height = loaded.frame.height;
+            return true;
+        }
+
+        openswd3::compat::u32 update_action(
+            openswd3::asset_runtime::LegacyActionRecord& action
+        ) override {
+            return action_updater_.update(action).return_value;
+        }
+
+    private:
+        openswd3::input_time_rng::LegacyInputNormalizationState& input_;
+        openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
+        openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime_;
+    };
+
     SdlSmokeIdlePorts(
         SDL_Window& window,
         SDL_Renderer& renderer,
@@ -1721,7 +1777,77 @@ public:
     ) override {}
     void step_world_interaction(
         openswd3::app::FrameCoordinatorState&
-    ) override {}
+    ) override {
+        if (!active_world_session_.has_value()) {
+            return;
+        }
+
+        auto& world = *active_world_session_;
+        auto& map = world.render.map_load.session;
+        auto& roles = map.business.state.roles;
+        std::vector<openswd3::world_map::LegacyWorldInteractionHotspot>
+            hotspots;
+        for (const auto& message : world_dialogs_.messages) {
+            for (const auto& choice : message.choices) {
+                hotspots.push_back({
+                    .left = choice.left,
+                    .top = choice.top,
+                    .right = choice.right,
+                    .bottom = choice.bottom,
+                });
+            }
+        }
+
+        // sub_40A6B0 resets the cursor to 13 immediately before invoking
+        // sub_427300; the interaction routine only replaces that frame's
+        // value when a more specific target is active.
+        world_interaction_state_.cursor_variant =
+            openswd3::world_map::kLegacyWorldDefaultCursorVariant;
+        WorldInteractionPorts ports{input_state_, action_updater_, tsw_runtime_};
+        const auto result =
+            openswd3::world_map::coordinate_legacy_world_interaction(
+                {
+                    .player_index = world.selected_role_index,
+                    .mouse_x = std::bit_cast<openswd3::compat::u32>(
+                        input_state_.current_mouse.logical_x
+                    ),
+                    .mouse_y = std::bit_cast<openswd3::compat::u32>(
+                        input_state_.current_mouse.logical_y
+                    ),
+                    .map_width = map.header.width,
+                    .camera = world.camera,
+                    .choice_hotspots = hotspots,
+                    .dialog_chain_active = !world_dialogs_.messages.empty(),
+                },
+                roles,
+                map.business.state.events,
+                map.surface_grid.surface_grid,
+                input_state_.records,
+                world_frame_state_.map_role_paths.talk_context,
+                world_interaction_state_,
+                ports
+            );
+
+        if (result.choice_chain_clear_requested) {
+            for (auto& message : world_dialogs_.messages) {
+                message.choices.clear();
+            }
+            world_dialog_choice_pending_ = true;
+        }
+        world_frame_effects_.cursor.cursor_action.base_variant =
+            world_interaction_state_.cursor_variant;
+
+        if (result.status != openswd3::world_map::
+                                 LegacyWorldInteractionStatus::completed) {
+            std::string message{"world interaction failed: status="};
+            message.append(std::to_string(
+                static_cast<unsigned>(result.status)
+            ));
+            static_cast<void>(report_error(message));
+            ok_ = false;
+            running_ = false;
+        }
+    }
     void step_world_player(openswd3::app::FrameCoordinatorState&) override {
         if (!active_world_session_.has_value()) {
             return;
@@ -1966,7 +2092,21 @@ public:
                 .dialog_input = {
                     .current_tick = frame_preparation_state_.frame_clock
                                         .sampled_milliseconds,
-                    .selected_choice_index = -1,
+                    .primary_press_state =
+                        input_state_.records[1U].rapid_press_multiplicity,
+                    .selected_choice_index = world_dialog_choice_pending_
+                        ? std::bit_cast<openswd3::compat::i32>(
+                              world_interaction_state_.selected_choice_index
+                          )
+                        : -1,
+                    .choice_chain_active = [&]() {
+                        for (const auto& message : world_dialogs_.messages) {
+                            if (!message.choices.empty()) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    }(),
                 },
             },
             deferred_ports
@@ -1995,6 +2135,7 @@ public:
             openswd3::diagnostics::log_info(message);
             deferred_world_stage_notice_logged_ = true;
         }
+        world_dialog_choice_pending_ = false;
     }
     void prepare_special_mode_objects(
         openswd3::app::FrameCoordinatorState&
@@ -2219,6 +2360,8 @@ public:
         world_moving_actions_ = {};
         world_role_head_actions_ = {};
         world_dialogs_ = {};
+        world_interaction_state_ = {};
+        world_dialog_choice_pending_ = false;
         world_auxiliary_selection_index_ = 0U;
         world_frame_state_.map_id = world.logical_map_id;
         world_frame_state_.player_role_index = world.selected_role_index;
@@ -2512,6 +2655,9 @@ private:
     openswd3::world_map::LegacyRoleHeadActionList world_role_head_actions_;
     openswd3::world_map::LegacyWorldFrameEffectState world_frame_effects_;
     openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
+    openswd3::world_map::LegacyWorldInteractionState
+        world_interaction_state_;
+    bool world_dialog_choice_pending_{};
     openswd3::world_map::LegacyWorldDialogRuntimeState
         world_dialog_runtime_state_;
     openswd3::special_modes::LegacyInitialMenuState initial_menu_state_;

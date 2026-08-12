@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v159
+版本：v160
 
 最后更新：2026-08-12
 
@@ -455,5 +455,12 @@
     错放在 updater 之后，抹掉了 `IV` 产生的 bit 0；实现现已恢复为汇编的“清零→更新
     action→格绑定”顺序，并以真实 `MAPS + LMF + ACT` 固定初始化及首帧后的两个模式位。
     Linux/Windows 完整应用 170/170 CTest 通过，Windows EXE 已重新链接且未启动。
+    随后 `sub_427300` 普通世界鼠标交互完成全函数恢复并接入 `step_world_interaction`
+    原槽：选择链先于 NPC/地图 Talk、cache-only TSW 命中、双方朝向与动作刷新、地图格
+    事件、光标覆盖、右键八方向合成和左键延迟输入复制均按 LST 实现；选择结果同帧交给
+    已有对话 runtime。实现后已按新增规则再次从函数入口到全部返回独立核对，并据此纠正
+    hover 查询不得 load-on-miss 及调用者 `0x0040A753` 每帧光标重置。剧情持久位和 Talk
+    脚本解释仍是明确后续 owner，不据此伪报地图切换或对话已经完整。Linux/Windows LLVM
+    完整应用 171/171 CTest 通过，Windows EXE 已重新链接且未启动。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。
