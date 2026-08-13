@@ -2,13 +2,17 @@
 
 const EXPECTED_ARCH = 'ia32';
 const EXPECTED_IMAGE_BASE = ptr('0x00400000');
+const ROLE_DRAW_ENTRY = ptr('0x00413910');
 const GLYPH_ENTRY = ptr('0x004368D0');
 const RENDERER_ROW_BYTES = 0x1c;
 const RENDERER_WIDTH = 0xfd0;
 const RENDERER_HEIGHT = 0xfd4;
 const MAXIMUM_GLYPH_DIMENSION = 64;
+const TARGET_GUIDS = new Set([248, 249]);
+const SAMPLE_INTERVAL_MS = 100;
 const activeGlyphs = new Map();
 const reportedFonts = new Set();
+const lastSampleByGuid = new Map();
 
 const getTextFaceW = new NativeFunction(
     Module.getExportByName('gdi32.dll', 'GetTextFaceW'),
@@ -27,6 +31,14 @@ function hexByte(value) {
 
 function hexWord(value) {
     return `0x${value.toString(16).padStart(4, '0')}`;
+}
+
+function hex32(value) {
+    return `0x${value.toString(16).padStart(8, '0')}`;
+}
+
+function signed32(value) {
+    return value | 0;
 }
 
 function verifyBytes(address, expected) {
@@ -49,6 +61,7 @@ if (!Process.mainModule.base.equals(EXPECTED_IMAGE_BASE)) {
     throw new Error(`unexpected image base: ${Process.mainModule.base}`);
 }
 
+verifyBytes(ROLE_DRAW_ENTRY, [0x83, 0xec, 0x08, 0x53, 0x55, 0x56]);
 verifyBytes(GLYPH_ENTRY, [0x8b, 0x44, 0x24, 0x04]);
 verifyBytes(ptr('0x00436974'), [0xc2, 0x08, 0x00]);
 
@@ -174,8 +187,66 @@ Interceptor.attach(GLYPH_ENTRY, {
     },
 });
 
+Interceptor.attach(ROLE_DRAW_ENTRY, {
+    onEnter(args) {
+        const role = args[0];
+        const guid = role.add(0x24).readU16();
+        if (!TARGET_GUIDS.has(guid)) {
+            return;
+        }
+
+        const now = Date.now();
+        const previous = lastSampleByGuid.get(guid);
+        if (previous !== undefined && now - previous < SAMPLE_INTERVAL_MS) {
+            return;
+        }
+        lastSampleByGuid.set(guid, now);
+
+        const worldX = role.add(0x04).readU32();
+        const worldY = role.add(0x08).readU32();
+        const flags = role.add(0x10).readU32();
+        const roleOffsetX = role.add(0x28).readU16();
+        const roleOffsetY = role.add(0x2a).readU16();
+        const action = role.add(0x40);
+        const drawOffsetX = action.add(0x10).readU32();
+        const drawOffsetY = action.add(0x14).readU32();
+        const cameraLeft = ptr('0x004AB980').readS32();
+        const cameraTop = ptr('0x004AB984').readS32();
+
+        send({
+            type: 'role-placement',
+            sample_ms: now,
+            guid,
+            role_address: role.toString(),
+            world_x: signed32(worldX),
+            world_y: signed32(worldY),
+            role_offset_x: roleOffsetX,
+            role_offset_y: roleOffsetY,
+            flags: hex32(flags),
+            talk_script_id: role.add(0x1e).readU16(),
+            action_id: signed32(action.add(0x00).readU32()),
+            base_variant: signed32(action.add(0x08).readU32()),
+            variant_delta: signed32(action.add(0x34).readU32()),
+            draw_offset_x: signed32(drawOffsetX),
+            draw_offset_y: signed32(drawOffsetY),
+            resource_id: action.add(0x4a).readU16(),
+            frame_index: action.add(0x4c).readU16(),
+            mode_flags: hex32(action.add(0x18).readU32()),
+            camera_left: cameraLeft,
+            camera_top: cameraTop,
+            destination_x: signed32(
+                worldX + roleOffsetX - drawOffsetX - cameraLeft
+            ),
+            destination_y: signed32(
+                worldY + roleOffsetY - drawOffsetY - cameraTop
+            ),
+        });
+    },
+});
+
 send({
     type: 'ready',
     image_base: Process.mainModule.base.toString(),
     glyph_entry: GLYPH_ENTRY.toString(),
+    role_draw_entry: ROLE_DRAW_ENTRY.toString(),
 });

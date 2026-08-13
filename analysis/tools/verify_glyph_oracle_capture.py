@@ -9,11 +9,15 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 
-EXPECTED_EXE_SHA256 = (
+LEGACY_EXE_SHA256 = (
     "78ddd0acf752dde32bbc4ea5a12256954878342899309c33516efd6dace0508a"
+)
+CURRENT_EXE_SHA256 = (
+    "4c4c226876fd2f3169bfe62c58ede86bba59e0036b7cef4cfaf7d49475c03f2a"
 )
 LEGACY_AGENT_SHA256S = {
     "fa045bc4b6621fcd6ae792d1cb89c72a134d59d5c9bdff17572a1db28db1a1f6",
+    "3b68d1df29acad52ed0bc0590dc89a819e9742c73d210d1b7dbd7a4c4bac3e65",
 }
 EXPECTED_RENDERERS = {
     0x004A9ED0: (12, 12),
@@ -40,7 +44,7 @@ def sha256_file(path: Path) -> str:
 
 def expected_agent_sha256s() -> set[str]:
     hashes = set(LEGACY_AGENT_SHA256S)
-    current_agent = Path(__file__).with_name("glyph-oracle") / "agent.js"
+    current_agent = Path(__file__).with_name("swd3-oracle") / "agent.js"
     if current_agent.is_file():
         hashes.add(sha256_file(current_agent))
     return hashes
@@ -77,9 +81,13 @@ def verify_run(
     manifest = read_run_manifest(run_directory)
     require(manifest.get("glyph_entry") == "0x004368D0", "glyph 入口不匹配")
     require(manifest.get("glyph_return") == "0x00436974", "glyph 返回点不匹配")
+    executable_hashes = {
+        manifest.get("runtime_file.swd3_nodvd.exe.sha256"),
+        manifest.get("runtime_file.swd32.exe.sha256"),
+    }
     require(
-        manifest.get("runtime_file.swd3_nodvd.exe.sha256")
-        == EXPECTED_EXE_SHA256,
+        LEGACY_EXE_SHA256 in executable_hashes
+        or CURRENT_EXE_SHA256 in executable_hashes,
         "原版 EXE SHA-256 不匹配",
     )
     require(

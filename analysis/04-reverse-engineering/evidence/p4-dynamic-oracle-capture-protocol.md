@@ -24,7 +24,8 @@ framebuffer、DirectDraw RECT 与时间探针仍待捕获。
 - 没有既有 BMP/PNG/log 动态捕获产物；
 - 原 EXE、`binkw32.dll`、Miles DLL/ASI、当前 `Env.dat` 和视频资产齐全；
 - `swd3.exe` 是固定 `ImageBase=0x00400000` 的 PE32，COFF 标记 relocations stripped，Base Relocation Directory 为空，`DllCharacteristics=0`。
-- `analysis/tools/glyph-oracle/` 已提供 Windows Frida host 与 agent，并在 Windows
+- `analysis/tools/swd3-oracle/` 已提供统一的 Windows Frida host 与 agent；其字形
+  前身在 Windows
   `10.0.26200`、Frida `16.5.1`、Python `3.8.10` 环境完成过实际 attach；该历史
   基准保留原 manifest，后续工具已切换为 spawn。
 
@@ -143,11 +144,11 @@ row bytes = [renderer+0x1C]
 
 在唯一返回点 `0x00436974` 前保存 `height×row_bytes` 字节。mask 是 MSB-first；每个 GDI 临时像素只判断是否为零，不保留灰度。
 
-当前捕获实现为：
+当前统一捕获实现为：
 
-- `analysis/tools/glyph-oracle/agent.js`：校验 IA-32、固定 image base 和两个 LST 指令字节，在 `0x004368D0` 用 `Interceptor` 保存入口参数，并在 `onLeave` 发送最终 mask；
-- `analysis/tools/glyph-oracle/capture.py`：锁定原 EXE SHA-256，以目标游戏目录为工作目录 spawn，在 resume 前装入 hook，接收二进制并生成 `run.tsv`、`font-selections.tsv`、`glyph-masks.tsv` 与 `masks/*.bin`；
-- `analysis/tools/glyph-oracle/README.md`：给出用户执行命令、首轮操作路径和完整回传目录。
+- `analysis/tools/swd3-oracle/agent.js`：校验 IA-32、固定 image base 和 LST 指令字节，在 `0x004368D0` 捕获最终 mask，并同时在 `0x00413910` 采集 GUID 248/249 的角色位置；
+- `analysis/tools/swd3-oracle/capture.py`：锁定原 EXE SHA-256，以目标游戏目录为工作目录 spawn，在 resume 前一次性装入两个 hook，生成 `run.tsv`、`font-selections.tsv`、`glyph-masks.tsv`、`role-placement.tsv` 与 `masks/*.bin`；
+- `analysis/tools/swd3-oracle/README.md`：给出唯一便携入口、操作路径和完整回传目录。
 
 host 不点击界面、不注入输入。它只在 hook 安装完成前发生错误时清理自己创建
 的暂停态进程；成功 resume 后，停止捕获只 detach，不强制结束原版。这样可从
@@ -242,7 +243,7 @@ O5/O6 的强制输入/时钟是研究回放，不是修改正式游戏。强制�
 - 产物合同：`../inventory/p4-oracle-artifacts.tsv`
 - 固定运行基线：`../inventory/p4-oracle-runtime-baseline.tsv`
 - 哈希/地址/PE 校验生成器：`../../tools/build_p4_oracle_inventory.py`
-- glyph-mask Frida 工具：`../../tools/glyph-oracle/`
+- glyph-mask 与角色位置统一 Frida 工具：`../../tools/swd3-oracle/`
 
 glyph-mask 唯一动态基准已在正确的 Windows 11 台湾繁体中文、
 CP950 和经典細明體环境归档。受控 GDI 生成器对全部 157 个动态

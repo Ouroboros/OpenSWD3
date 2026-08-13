@@ -12,15 +12,40 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
+
 EXPECTED_EXE_SHA256 = (
     "4c4c226876fd2f3169bfe62c58ede86bba59e0036b7cef4cfaf7d49475c03f2a"
 )
+TARGET_EXE = "swd32.exe"
 RUNTIME_FILES = (
-    "swd32.exe",
+    TARGET_EXE,
     "binkw32.dll",
     "Mss32.dll",
     "Mp3dec.asi",
     "Env.dat",
+)
+ROLE_FIELDS = (
+    "sample_ms",
+    "guid",
+    "role_address",
+    "world_x",
+    "world_y",
+    "role_offset_x",
+    "role_offset_y",
+    "flags",
+    "talk_script_id",
+    "action_id",
+    "base_variant",
+    "variant_delta",
+    "draw_offset_x",
+    "draw_offset_y",
+    "resource_id",
+    "frame_index",
+    "mode_flags",
+    "camera_left",
+    "camera_top",
+    "destination_x",
+    "destination_y",
 )
 
 
@@ -62,10 +87,13 @@ def write_run_manifest(
         ("python_version", platform.python_version()),
         ("python_encoding", locale.getpreferredencoding(False)),
         ("frida_version", frida_version),
+        ("target_exe", TARGET_EXE),
         ("target_pid", process_id),
         ("agent_sha256", sha256_file(agent_path)),
+        ("glyph_entry", "0x004368D0"),
+        ("glyph_return", "0x00436974"),
         ("role_draw_entry", "0x00413910"),
-        ("capture_method", "frida_attach_existing_process"),
+        ("capture_method", "frida_spawn_attach_hooks_resume"),
     ]
 
     for file_name in RUNTIME_FILES:
@@ -94,14 +122,13 @@ class CaptureWriter:
     def __init__(self, output_directory: Path) -> None:
         self._mask_directory = output_directory / "masks"
         self._mask_directory.mkdir()
-        self._manifest = (output_directory / "glyph-masks.tsv").open(
+        self._glyph_manifest = (output_directory / "glyph-masks.tsv").open(
             "w", encoding="utf-8", newline=""
         )
-        self._manifest.write(
+        self._glyph_manifest.write(
             "index\trenderer\tcache_key\traw_bytes\tconsumed_bytes\t"
             "width\theight\trow_bytes\tmask_bytes\tsha256\tmask_file\n"
         )
-        self._manifest.flush()
         self._font_manifest = (output_directory / "font-selections.tsv").open(
             "w", encoding="utf-8", newline=""
         )
@@ -112,15 +139,23 @@ class CaptureWriter:
             "tm_maximum_char_width\ttm_weight\ttm_overhang\t"
             "tm_pitch_and_family\ttm_charset\n"
         )
+        self._role_manifest = (output_directory / "role-placement.tsv").open(
+            "w", encoding="utf-8", newline=""
+        )
+        self._role_manifest.write("\t".join(ROLE_FIELDS) + "\n")
+        self._glyph_manifest.flush()
         self._font_manifest.flush()
+        self._role_manifest.flush()
         self._lock = threading.Lock()
-        self.capture_count = 0
+        self.glyph_count = 0
         self.font_selection_count = 0
+        self.role_sample_count = 0
         self.error_message: str | None = None
 
     def close(self) -> None:
-        self._manifest.close()
+        self._glyph_manifest.close()
         self._font_manifest.close()
+        self._role_manifest.close()
 
     def record_error(self, message: str) -> None:
         with self._lock:
@@ -158,16 +193,13 @@ class CaptureWriter:
             return
 
         with self._lock:
-            self.capture_count += 1
-            index = self.capture_count
+            self.glyph_count += 1
+            index = self.glyph_count
             key = str(payload["cache_key"])
             if key.startswith("0x"):
                 key = key[2:]
-
             key = key.upper()
-            file_name = (
-                f"glyph-{index:06d}-{width}x{height}-key-{key}.bin"
-            )
+            file_name = f"glyph-{index:06d}-{width}x{height}-key-{key}.bin"
             relative_path = Path("masks") / file_name
             (self._mask_directory / file_name).write_bytes(data)
             values = (
@@ -183,14 +215,12 @@ class CaptureWriter:
                 hashlib.sha256(data).hexdigest(),
                 relative_path.as_posix(),
             )
-            self._manifest.write("\t".join(tsv_value(value) for value in values))
-            self._manifest.write("\n")
-            self._manifest.flush()
+            self._glyph_manifest.write(
+                "\t".join(tsv_value(value) for value in values) + "\n"
+            )
+            self._glyph_manifest.flush()
 
-        print(
-            f"[捕获] #{index} key=0x{key} size={width}x{height}",
-            flush=True,
-        )
+        print(f"[字形] #{index} key=0x{key} size={width}x{height}", flush=True)
 
     def record_font_selection(self, payload: dict[str, object]) -> None:
         fields = (
@@ -220,9 +250,8 @@ class CaptureWriter:
                 payload[field] for field in fields
             )
             self._font_manifest.write(
-                "\t".join(tsv_value(value) for value in values)
+                "\t".join(tsv_value(value) for value in values) + "\n"
             )
-            self._font_manifest.write("\n")
             self._font_manifest.flush()
 
         print(
@@ -231,10 +260,25 @@ class CaptureWriter:
             flush=True,
         )
 
+    def record_role_placement(self, payload: dict[str, object]) -> None:
+        if any(field not in payload for field in ROLE_FIELDS):
+            self.record_error("Frida role-placement 消息缺少字段")
+            return
+
+        with self._lock:
+            self.role_sample_count += 1
+            self._role_manifest.write(
+                "\t".join(tsv_value(payload[field]) for field in ROLE_FIELDS) + "\n"
+            )
+            self._role_manifest.flush()
+
+        if self.role_sample_count == 1:
+            print("[角色] 已开始记录 GUID 248/249", flush=True)
+
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="捕获 swd32.exe 普通世界角色位置"
+        description="同时捕获 swd32.exe 的字形 mask 与角色位置"
     )
     parser.add_argument("--game-dir", type=Path)
     parser.add_argument("--output", type=Path)
@@ -255,10 +299,10 @@ def main() -> int:
             raise RuntimeError(f"找不到 Frida agent：{agent_path}")
 
         device = frida.get_local_device()
-        if not callable(getattr(device, "enumerate_processes", None)) or not callable(
-            getattr(device, "attach", None)
+        if not callable(getattr(device, "spawn", None)) or not callable(
+            getattr(device, "resume", None)
         ):
-            raise RuntimeError("当前 Frida device 不支持进程枚举/attach")
+            raise RuntimeError("当前 Frida device 不支持 spawn/resume")
         print(f"Frida {frida.__version__}; device={device.id}; self-test=ok")
         return 0
 
@@ -267,7 +311,7 @@ def main() -> int:
             raise RuntimeError("源码运行时必须传入 --game-dir")
 
         executable_directory = Path(sys.executable).resolve().parent
-        if (executable_directory / "swd32.exe").is_file():
+        if (executable_directory / TARGET_EXE).is_file():
             game_directory = executable_directory
         else:
             game_directory = executable_directory.parent
@@ -277,11 +321,11 @@ def main() -> int:
     if arguments.output is None:
         run_name = datetime.now().strftime("run-%Y%m%d-%H%M%S")
         run_name += f"-{os.getpid()}"
-        output_directory = game_directory / "role-placement-oracle-output" / run_name
+        output_directory = game_directory / "swd3-oracle-output" / run_name
     else:
         output_directory = arguments.output.resolve()
 
-    executable = game_directory / "swd32.exe"
+    executable = game_directory / TARGET_EXE
     agent_path = Path(__file__).with_name("agent.js")
     if not executable.is_file():
         raise RuntimeError(f"找不到原版 EXE：{executable}")
@@ -291,7 +335,7 @@ def main() -> int:
     actual_exe_sha256 = sha256_file(executable)
     if actual_exe_sha256 != EXPECTED_EXE_SHA256:
         raise RuntimeError(
-            "swd32.exe SHA-256 不匹配："
+            f"{TARGET_EXE} SHA-256 不匹配："
             f"{actual_exe_sha256} != {EXPECTED_EXE_SHA256}"
         )
 
@@ -319,7 +363,8 @@ def main() -> int:
         message_type = payload.get("type")
         if message_type == "ready":
             print(
-                f"[就绪] hook={payload.get('glyph_entry')} "
+                f"[就绪] glyph={payload.get('glyph_entry')} "
+                f"role={payload.get('role_draw_entry')} "
                 f"image={payload.get('image_base')}",
                 flush=True,
             )
@@ -328,8 +373,10 @@ def main() -> int:
             writer.record_mask(payload, data)
         elif message_type == "font-selection":
             writer.record_font_selection(payload)
+        elif message_type == "role-placement":
+            writer.record_role_placement(payload)
         elif message_type == "capture-error":
-            writer.record_error(str(payload))
+            writer.record_error(str(payload.get("message", payload)))
         else:
             writer.record_error(f"未知 agent 消息：{payload}")
 
@@ -341,18 +388,15 @@ def main() -> int:
 
         detached.set()
 
+    process_id = None
+    process_resumed = False
     session = None
     try:
-        matches = [
-            process for process in device.enumerate_processes()
-            if process.name.casefold() == "swd32.exe"
-        ]
-        if not matches:
-            raise RuntimeError("没有找到正在运行的 swd32.exe；请先进入目标剧情画面")
-        if len(matches) != 1:
-            raise RuntimeError("找到多个 swd32.exe；请只保留一个原版进程")
-
-        process_id = matches[0].pid
+        process_id = device.spawn(
+            str(executable),
+            argv=[str(executable)],
+            cwd=str(game_directory),
+        )
         write_run_manifest(
             output_directory,
             game_directory,
@@ -368,8 +412,10 @@ def main() -> int:
         if not ready.wait(timeout=10.0):
             raise RuntimeError("Frida agent 在 10 秒内没有报告就绪")
 
+        device.resume(process_id)
+        process_resumed = True
         print(
-            f"[已附加] PID={process_id}；请让蓝衣角色保持可见数秒。",
+            f"[已启动] PID={process_id}；两个 hook 均已装入，请操作原版。",
             flush=True,
         )
         while not detached.wait(timeout=0.25):
@@ -381,10 +427,17 @@ def main() -> int:
         if session is not None and not detached.is_set():
             session.detach()
 
+        if process_id is not None and not process_resumed:
+            try:
+                device.kill(process_id)
+            except frida.ProcessNotFoundError:
+                pass
+
         writer.close()
 
     print(
-        "[完成] 角色位置采集已结束；原版进程未被工具关闭。",
+        f"[完成] glyph={writer.glyph_count}，字体={writer.font_selection_count}，"
+        f"角色样本={writer.role_sample_count}",
         flush=True,
     )
     return 1 if writer.error_message is not None else 0
@@ -401,7 +454,7 @@ if __name__ == "__main__":
             ctypes.windll.user32.MessageBoxW(
                 None,
                 str(error),
-                "OpenSWD3 Role Placement Oracle",
+                "OpenSWD3 Oracle",
                 0x10,
             )
 
