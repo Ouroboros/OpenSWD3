@@ -215,6 +215,49 @@ void test_apply_load_mutates_owned_payload(openswd3::test::Context &test) {
       "the mutable payload remains authoritative after load preparation");
 }
 
+void test_load_duplicate_scan_preserves_original_cursor(
+    openswd3::test::Context &test
+) {
+  std::vector<u8> bytes(0x110U, 0U);
+  write_u32(bytes, 0x04U, 0x80U);
+  write_u32(bytes, 0x0CU, 0x70U);
+  write_u32(bytes, 0x10U, 0x60U);
+  write_u32(bytes, 0x54U, 0xF0U);
+  write_u16(bytes, 0x60U, 5U);
+  write_u16(bytes, 0x6CU, 10U);
+  write_map_descriptor(bytes, 0x70U, 5U, 9U);
+  write_u16(bytes, 0x7EU, 0xFFFFU);
+  write_role_source(bytes, 0x80U, 5U, 10U);
+  write_role_source(bytes, 0x96U, 5U, 20U);
+  write_role_source(bytes, 0xACU, 5U, 20U);
+  write_role_source(bytes, 0xC2U, 5U, 10U);
+  write_u16(bytes, 0xD8U, 0xFFFFU);
+  write_u16(bytes, 0xF0U, 0U);
+
+  auto decoded = decode_legacy_maps_world_database(bytes);
+  const auto applied = apply_legacy_maps_world_load(
+      bytes,
+      decoded.database,
+      LegacyWorldLoadRequest{
+          5U, 31U, 32U, 41U, 42U, 43U, 10U, 0U,
+      }
+  );
+  test.expect_true(
+      applied.status == LegacyMapsWorldLoadApplyStatus::ready &&
+          applied.duplicate_records_skipped == 1U &&
+          applied.materialization_source_indices ==
+              std::vector<u32>{0U, 1U, 3U} &&
+          applied.selected_source_index == 3U,
+      "0x0040C8CD..0x0040C912 carries the comparison cursor after a duplicate"
+  );
+  test.expect_true(
+      decoded.database.role_sources[0U].action_id == 41U &&
+          decoded.database.role_sources[2U].action_id == 2U &&
+          decoded.database.role_sources[3U].action_id == 41U,
+      "only records reached by the original duplicate cursor receive load mutations"
+  );
+}
+
 void test_role_patch_sentinel_and_mask_order(
     openswd3::test::Context &test
 ) {
@@ -407,6 +450,7 @@ int main(const int argc, char **argv) {
   test_decode_and_lookup(test);
   test_role_defaults_and_source_materialization(test);
   test_apply_load_mutates_owned_payload(test);
+  test_load_duplicate_scan_preserves_original_cursor(test);
   test_role_patch_sentinel_and_mask_order(test);
   test_full_role_source_synchronization(test);
   test_checked_boundaries(test);

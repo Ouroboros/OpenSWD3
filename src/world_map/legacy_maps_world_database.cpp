@@ -356,13 +356,6 @@ apply_legacy_maps_world_load(const std::span<u8> payload,
                              LegacyMapsWorldDatabase &database,
                              const LegacyWorldLoadRequest &request) noexcept {
   LegacyMapsWorldLoadApplyResult result;
-  const auto selected =
-      std::ranges::find(database.role_sources, request.selected_guid,
-                        &LegacyMapsRoleSourceRecord::guid);
-  if (selected == database.role_sources.end()) {
-    return result;
-  }
-
   for (const auto &role : database.role_sources) {
     if (!range_available(payload, role.payload_offset,
                          kLegacyMapsRoleSourceRecordSize)) {
@@ -372,26 +365,69 @@ apply_legacy_maps_world_load(const std::span<u8> payload,
     }
   }
 
-  result.selected_source_index =
-      static_cast<u32>(std::distance(database.role_sources.begin(), selected));
-  for (auto &role : database.role_sources) {
-    if (role.guid == 0U || role.guid == 10000U || role.guid == 10001U) {
-      role.logical_map_id = request.logical_map_id;
-      ++result.reserved_records_moved;
+  bool selected_found = false;
+  std::size_t source_index = 0U;
+  try {
+    while (source_index < database.role_sources.size()) {
+      std::size_t comparison_index = 0U;
+      while (comparison_index < source_index) {
+        if (database.role_sources[comparison_index].guid ==
+            database.role_sources[source_index].guid) {
+          ++result.duplicate_records_skipped;
+          ++source_index;
+          ++comparison_index;
+          if (source_index >= database.role_sources.size()) {
+            break;
+          }
+          continue;
+        }
+        ++comparison_index;
+      }
+      if (source_index >= database.role_sources.size()) {
+        break;
+      }
+
+      result.materialization_source_indices.push_back(
+          static_cast<u32>(source_index));
+      auto &role = database.role_sources[source_index];
+      bool changed = false;
+      if (role.guid == 0U || role.guid == 10000U || role.guid == 10001U) {
+        role.logical_map_id = request.logical_map_id;
+        ++result.reserved_records_moved;
+        changed = true;
+      }
+      if (role.guid == request.selected_guid) {
+        role.logical_map_id = request.logical_map_id;
+        role.action_id = request.action_id;
+        role.base_variant = request.base_variant;
+        role.variant_delta = request.variant_delta;
+        role.tile_x = request.tile_x;
+        role.tile_y = request.tile_y;
+        role.talk_script_id = 0U;
+        role.path_data_id = 0U;
+        role.path_word_index = 0;
+        role.flags = kLegacySelectedRoleFlags;
+        result.selected_source_index = static_cast<u32>(source_index);
+        selected_found = true;
+        changed = true;
+      }
+      if (changed) {
+        static_cast<void>(write_legacy_maps_role_source_record(payload, role));
+      }
+      ++source_index;
     }
-    if (role.guid == request.selected_guid) {
-      role.logical_map_id = request.logical_map_id;
-      role.action_id = request.action_id;
-      role.base_variant = request.base_variant;
-      role.variant_delta = request.variant_delta;
-      role.tile_x = request.tile_x;
-      role.tile_y = request.tile_y;
-      role.talk_script_id = 0U;
-      role.path_data_id = 0U;
-      role.path_word_index = 0;
-      role.flags = kLegacySelectedRoleFlags;
-    }
-    static_cast<void>(write_legacy_maps_role_source_record(payload, role));
+  } catch (const std::bad_alloc &) {
+    result.materialization_source_indices.clear();
+    result.status = LegacyMapsWorldLoadApplyStatus::allocation_failed;
+    return result;
+  } catch (const std::length_error &) {
+    result.materialization_source_indices.clear();
+    result.status = LegacyMapsWorldLoadApplyStatus::allocation_failed;
+    return result;
+  }
+
+  if (!selected_found) {
+    return result;
   }
 
   result.status = LegacyMapsWorldLoadApplyStatus::ready;

@@ -119,6 +119,8 @@ std::vector<u8> make_maps_payload() {
     write_u32(bytes, 0x04U, 0x80U);
     write_u32(bytes, 0x0CU, 0x70U);
     write_u32(bytes, 0x10U, 0x60U);
+    write_u32(bytes, 0x1CU, 0xBAU);
+    write_u32(bytes, 0x48U, 0xB8U);
     write_u32(bytes, 0x54U, 0xB0U);
 
     write_u16(bytes, 0x60U, 5U);
@@ -139,6 +141,8 @@ std::vector<u8> make_maps_payload() {
     write_u16(bytes, 0xB2U, 0x2468U);
     write_u16(bytes, 0xB4U, 0xACE0U);
     write_u16(bytes, 0xB6U, 0U);
+    write_u16(bytes, 0xB8U, 0xFFFFU);
+    write_u16(bytes, 0xBAU, 0xFFFFU);
     return bytes;
 }
 
@@ -302,6 +306,19 @@ private:
     std::vector<std::string>& stages_;
 };
 
+class SequenceWorldRuntimeRandom final
+    : public openswd3::world_map::LegacyWorldRuntimeRandom {
+public:
+    u32 next_bounded(const u32 upper_bound) override {
+        bounds.push_back(upper_bound);
+        const u32 value = next_value++;
+        return upper_bound == 0U ? 0U : value % upper_bound;
+    }
+
+    std::vector<u32> bounds;
+    u32 next_value{};
+};
+
 class RealInitialFramePorts final
     : public openswd3::world_map::LegacyWorldFramePorts,
       public openswd3::world_map::LegacyWorldRoleExternalPorts,
@@ -434,11 +451,13 @@ openswd3::rendering::LegacyPixelConversionState rgb565_conversion() {
 void test_world_assembly_slot(openswd3::test::Context& test) {
     TestTree tree;
     std::vector<u8> payload = make_maps_payload();
+    write_u16(payload, 0x74U, 0x4000U);
     const auto decoded = decode_legacy_maps_world_database(payload);
     std::vector<std::string> stages;
     FakeMapSource map_source{stages};
     FakeCmSource cm_source{stages};
     RecordingActionInitializer action_initializer{stages};
+    SequenceWorldRuntimeRandom random;
     auto result = load_legacy_world_runtime_session(
         payload,
         LegacyWorldRuntimeSessionRequest{
@@ -447,6 +466,7 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
             .load = decoded.database.initial_load,
             .cache_limit_megabytes = 60U,
             .pixel_conversion = rgb565_conversion(),
+            .random = &random,
         },
         action_initializer,
         map_source,
@@ -463,6 +483,32 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
             result.session.logical_map_id == 5U &&
             result.session.map_descriptor.archive_map_id == 9U,
         "logical map five selects archive map nine without conflating IDs"
+    );
+    test.expect_true(
+        result.session.map_descriptor_runtime.base_movement_step == 4U &&
+            result.session.map_descriptor_runtime.tile_animation_interval ==
+                1U &&
+            result.session.map_descriptor_runtime.role_red_offset == 0 &&
+            result.session.map_descriptor_runtime.role_green_offset == 0 &&
+            result.session.map_descriptor_runtime.role_blue_offset == 0 &&
+            result.session.encounter_thresholds.groups.empty() &&
+            result.session.encounter_regions.regions.empty(),
+        "descriptor normalization and encounter sources run before roles"
+    );
+    test.expect_true(
+        random.bounds.size() == 24U &&
+            random.bounds[0U] == 3U && random.bounds[1U] == 4U &&
+            random.bounds[2U] == 640U && random.bounds[3U] == 480U &&
+            random.bounds[4U] == 2U && random.bounds[5U] == 2U &&
+            result.session.directional_points[0U].target_interval == 1U &&
+            result.session.directional_points[0U].variant == 65U &&
+            result.session.directional_points[0U].world_x == 2U &&
+            result.session.directional_points[0U].world_y == 3U &&
+            result.session.directional_points[0U].velocity_x == -2 &&
+            result.session.directional_points[0U].velocity_y == -1 &&
+            result.session.map_descriptor_runtime.enabled_service_bits ==
+                (1U << 5U),
+        "service-five directional points consume six RNG calls in order"
     );
     test.expect_equal(
         stages,
@@ -504,6 +550,129 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
             result.session.camera.right == 640U &&
             result.session.camera.bottom == 480U,
         "sub_40D0C0 centers then clamps the selected role camera"
+    );
+}
+
+void test_role_initialization_marks_surface_occupancy(
+    openswd3::test::Context& test
+) {
+    TestTree tree;
+    std::vector<u8> payload = make_maps_payload();
+    write_u16(payload, 0x74U, 0xFF17U);
+    write_u16(payload, 0x76U, 0xF9B3U);
+    write_u16(payload, 0x78U, 0U);
+    write_u16(payload, 0x7AU, 2U);
+    const auto decoded = decode_legacy_maps_world_database(payload);
+    std::vector<std::string> stages;
+    FakeMapSource map_source{stages};
+    FakeCmSource cm_source{stages};
+    RecordingActionInitializer action_initializer{stages};
+    map_source.surface.surface_grid[245U * 4U + 1U] = 0x08U;
+
+    auto result = load_legacy_world_runtime_session(
+        payload,
+        LegacyWorldRuntimeSessionRequest{
+            .archive_path = "huge.lmf",
+            .cache_directory = tree.root() / "cache" / "maps",
+            .load = decoded.database.initial_load,
+            .cache_limit_megabytes = 60U,
+            .pixel_conversion = rgb565_conversion(),
+        },
+        action_initializer,
+        map_source,
+        cm_source
+    );
+    test.expect_equal(
+        result.status,
+        LegacyWorldRuntimeSessionStatus::ready,
+        "sub_40F280 completes role binding and occupancy in the load slot"
+    );
+    if (result.status != LegacyWorldRuntimeSessionStatus::ready) {
+        return;
+    }
+
+    const auto& map_session = result.session.render.map_load.session;
+    const auto& roles = map_session.business.state.roles;
+    const auto& surface = map_session.surface_grid.surface_grid;
+    const u32 cell = static_cast<u32>(surface[245U * 4U]) |
+        (static_cast<u32>(surface[245U * 4U + 1U]) << 8U) |
+        (static_cast<u32>(surface[245U * 4U + 2U]) << 16U) |
+        (static_cast<u32>(surface[245U * 4U + 3U]) << 24U);
+    test.expect_true(
+        result.session.map_descriptor_runtime.behavior_index == 7U &&
+            result.session.map_descriptor_runtime.base_movement_step == 4U &&
+            result.session.map_descriptor_runtime.tile_animation_interval ==
+                1U &&
+            result.session.map_descriptor_runtime.encounter_table_index ==
+                1U &&
+            result.session.map_descriptor_runtime.role_red_offset == -1 &&
+            result.session.map_descriptor_runtime.role_green_offset == -7 &&
+            result.session.map_descriptor_runtime.role_blue_offset == -5 &&
+            result.session.map_descriptor_runtime.enabled_service_bits ==
+                ((1U << 5U) | (1U << 6U) | (1U << 7U) | (1U << 8U) |
+                 (1U << 15U) | (1U << 19U) | (1U << 22U)) &&
+            !result.session.map_descriptor_runtime.environment_enabled &&
+            result.session.map_descriptor_runtime.directional_effect_enabled &&
+            result.session.map_descriptor_runtime.directional_variant_count ==
+                8U &&
+            result.session.map_descriptor_runtime.
+                encounter_table_index_repaired,
+        "descriptor nibbles and invalid values follow 0x0040C32C..0x0040C514"
+    );
+    test.expect_true(
+        map_session.role_cell_binding_completed &&
+            map_session.role_cell_binding.roles_bound == roles.size() - 1U &&
+            (roles[1U].flags & 0x20000000U) != 0U &&
+            (cell & 0x10000000U) != 0U,
+        "action update is followed by cell-flag refresh and sub_40AEC0 marking"
+    );
+}
+
+void test_directional_initialization_obeys_service_gate(
+    openswd3::test::Context& test
+) {
+    TestTree tree;
+    std::vector<u8> payload = make_maps_payload();
+    const auto decoded = decode_legacy_maps_world_database(payload);
+    std::vector<std::string> stages;
+    FakeMapSource map_source{stages};
+    FakeCmSource cm_source{stages};
+    RecordingActionInitializer action_initializer{stages};
+    SequenceWorldRuntimeRandom random;
+
+    const auto result = load_legacy_world_runtime_session(
+        payload,
+        LegacyWorldRuntimeSessionRequest{
+            .archive_path = "huge.lmf",
+            .cache_directory = tree.root() / "cache" / "maps",
+            .load = decoded.database.initial_load,
+            .cache_limit_megabytes = 60U,
+            .pixel_conversion = rgb565_conversion(),
+            .random = &random,
+        },
+        action_initializer,
+        map_source,
+        cm_source
+    );
+    test.expect_equal(
+        result.status,
+        LegacyWorldRuntimeSessionStatus::ready,
+        "a map without service five still completes world assembly"
+    );
+    test.expect_true(
+        random.bounds.empty() &&
+            !result.session.map_descriptor_runtime.
+                directional_effect_enabled &&
+            std::ranges::all_of(
+                result.session.directional_points,
+                [](const auto& point) {
+                    return point.target_interval == 0U &&
+                        point.variant == 0U && point.world_x == 0U &&
+                        point.world_y == 0U && point.velocity_x == 0 &&
+                        point.velocity_y == 0;
+                }
+            ),
+        "the disabled directional branch consumes no random values"
     );
 }
 
@@ -758,7 +927,7 @@ void test_real_initial_world(
         .cycle_counter = 1,
         .cycle_interval = std::max(
             static_cast<openswd3::compat::i32>(
-                result.session.map_descriptor.field_08
+                result.session.map_descriptor_runtime.tile_animation_interval
             ),
             1
         ),
@@ -962,7 +1131,7 @@ void test_real_initial_world(
         frame_state.movement,
         openswd3::world_map::LegacyWorldMovementOptions{
             .base_movement_step =
-                result.session.map_descriptor.field_06 & 0x0FU,
+                result.session.map_descriptor_runtime.base_movement_step,
         }
     );
     test.expect_true(
@@ -1011,6 +1180,8 @@ void test_real_initial_world(
 int main(const int argc, char** argv) {
     openswd3::test::Context test;
     test_world_assembly_slot(test);
+    test_role_initialization_marks_surface_occupancy(test);
+    test_directional_initialization_obeys_service_gate(test);
     test_explicit_failure_boundaries(test);
     if (argc == 2) {
         test_real_initial_world(test, argv[1]);

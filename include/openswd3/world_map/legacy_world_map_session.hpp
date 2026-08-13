@@ -37,6 +37,7 @@ struct LegacyWorldMapSession {
     resource_io::LegacyLmfOffset1cDirectory offset1c_directory;
     LegacyWorldMapBusinessResult business;
     LegacyWorldRoleCellBindingResult role_cell_binding;
+    bool role_cell_binding_completed{};
 };
 
 struct LegacyWorldMapLoadResult {

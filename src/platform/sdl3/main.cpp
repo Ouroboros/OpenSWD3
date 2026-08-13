@@ -1283,14 +1283,16 @@ public:
             head_sign_actions = nullptr,
         openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths = nullptr,
         const openswd3::world_map::LegacyWorldPathScriptState*
-            path_script_state = nullptr
+            path_script_state = nullptr,
+        const std::array<bool, 128U>* service_flags = nullptr
     ) noexcept
         : audio_(audio),
           presentation_(presentation),
           text_renderers_(text_renderers),
           head_sign_actions_(head_sign_actions),
           story_paths_(story_paths),
-          path_script_state_(path_script_state) {}
+          path_script_state_(path_script_state),
+          service_flags_(service_flags) {}
 
     bool complete_role_path(
         const openswd3::compat::u32 role_index
@@ -1306,8 +1308,12 @@ public:
                                     LegacyWorldStoryPathStatus::completed;
     }
 
-    bool query_service(openswd3::compat::u32) noexcept override {
-        return false;
+    bool query_service(
+        const openswd3::compat::u32 service_id
+    ) noexcept override {
+        return service_flags_ != nullptr &&
+            service_id < service_flags_->size() &&
+            (*service_flags_)[service_id];
     }
 
     bool query_control(openswd3::compat::u32) noexcept override {
@@ -1469,6 +1475,7 @@ private:
     openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths_{};
     const openswd3::world_map::LegacyWorldPathScriptState*
         path_script_state_{};
+    const std::array<bool, 128U>* service_flags_{};
     openswd3::compat::u32 deferred_frame_stage_count_{};
     bool presentation_failed_{};
 };
@@ -2277,12 +2284,8 @@ public:
                 map.header.width,
                 map.header.height
             );
-        openswd3::compat::u32 base_step =
-            world.map_descriptor.field_06 & 0x0FU;
-        if (base_step != 1U && base_step != 2U && base_step != 4U &&
-            base_step != 8U && base_step != 0x10U) {
-            base_step = 4U;
-        }
+        const openswd3::compat::u32 base_step =
+            world.map_descriptor_runtime.base_movement_step;
         openswd3::world_map::apply_legacy_world_player_motion_state(
             player,
             input,
@@ -2516,6 +2519,7 @@ public:
             &world_frame_state_.head_sign_actions,
             &story_paths,
             &world_path_script_state_,
+            &world_service_flags_,
         };
         StoryVmPorts story_ports{
             resource_databases_,
@@ -2799,6 +2803,7 @@ public:
             &world_frame_state_.head_sign_actions,
             &story_paths,
             &world_path_script_state_,
+            &world_service_flags_,
         };
         // sub_40A570 0x0040AA6C..0x0040AA8B applies the gameplay advances
         // after the renderers were initially built as 24/18/16 by
@@ -3163,6 +3168,7 @@ public:
                 .load = decoded.database.initial_load,
                 .cache_limit_megabytes = 60U,
                 .pixel_conversion = pixel_conversion_,
+                .random = &world_runtime_random_,
             },
             world_action_initializer_
         );
@@ -3205,6 +3211,23 @@ public:
         world_picture_actions_ = {};
         world_moving_actions_ = {};
         world_role_head_actions_ = {};
+        world_frame_effects_.drift.reset_positions();
+        world_frame_effects_.streak.reset();
+        world_frame_effects_.spark.reset_counters();
+        world_frame_effects_.directional.reset_motion_block();
+        world_frame_effects_.row_copy.reset();
+        world_frame_effects_.deformation.clear();
+        world_frame_effects_.follower = {};
+        world_frame_effects_.packed_rows.clear();
+        world_frame_effects_.frame_color = {};
+        world_frame_effects_.timed_messages.clear();
+        world_frame_effects_.cursor = {};
+        openswd3::asset_runtime::initialize_legacy_action_record(
+            world_frame_effects_.directional_action
+        );
+        openswd3::asset_runtime::initialize_legacy_action_record(
+            world_frame_effects_.follower_action
+        );
         world_dialogs_ = {};
         world_path_script_state_ = {};
         openswd3::world_map::initialize_legacy_world_story_vm(
@@ -3214,7 +3237,59 @@ public:
         world_player_control_state_ = {};
         world_dialog_choice_pending_ = false;
         world_auxiliary_selection_index_ = 0U;
+        constexpr std::array<std::size_t, 7U> map_service_ids{
+            5U, 6U, 7U, 8U, 15U, 19U, 22U,
+        };
+        for (const std::size_t service_id : map_service_ids) {
+            world_service_flags_[service_id] =
+                (world.map_descriptor_runtime.enabled_service_bits &
+                 (1U << service_id)) != 0U;
+        }
+        world_frame_effects_.directional_configuration = {
+            .map_width_tiles = static_cast<openswd3::compat::i32>(
+                map.header.width
+            ),
+            .map_height_tiles = static_cast<openswd3::compat::i32>(
+                map.header.height
+            ),
+            .base_variant = static_cast<openswd3::compat::u16>(
+                world.map_descriptor_runtime.directional_base_variant
+            ),
+            .variant_count = static_cast<openswd3::compat::u16>(
+                world.map_descriptor_runtime.directional_variant_count
+            ),
+            .spawn_direction = world.map_descriptor_runtime.behavior_index,
+        };
+        auto& directional_state = world_frame_effects_.directional.state();
+        for (std::size_t index = 0U;
+             index < world.directional_points.size(); ++index) {
+            const auto& source = world.directional_points[index];
+            auto& motion = directional_state.motion[index];
+            auto& color = directional_state.color[index];
+            auto& timing = directional_state.timing[index];
+            motion.world_x = static_cast<openswd3::compat::i32>(
+                source.world_x
+            );
+            motion.world_y = static_cast<openswd3::compat::i32>(
+                source.world_y
+            );
+            motion.velocity_x = source.velocity_x;
+            motion.velocity_y = source.velocity_y;
+            color.target_offset = 0;
+            timing.target_interval = static_cast<openswd3::compat::i32>(
+                source.target_interval
+            );
+            timing.variant = static_cast<openswd3::compat::i32>(
+                source.variant
+            );
+        }
         world_frame_state_.map_id = world.logical_map_id;
+        world_frame_state_.frame_runtime.flash_red_offset =
+            world.map_descriptor_runtime.role_red_offset;
+        world_frame_state_.frame_runtime.flash_green_offset =
+            world.map_descriptor_runtime.role_green_offset;
+        world_frame_state_.frame_runtime.flash_blue_offset =
+            world.map_descriptor_runtime.role_blue_offset;
         world_frame_state_.player_role_index = world.selected_role_index;
         world_frame_state_.party_role_count =
             world.role_post_materialization.party_role_count;
@@ -3229,9 +3304,8 @@ public:
         world_frame_state_.selection_scroll.saved_top = world.camera.top;
         world_frame_state_.tile_animation = {
             .cycle_counter = 1,
-            .cycle_interval = std::max(
-                static_cast<openswd3::compat::i32>(world.map_descriptor.field_08),
-                1
+            .cycle_interval = static_cast<openswd3::compat::i32>(
+                world.map_descriptor_runtime.tile_animation_interval
             ),
             .frame_count = map.header.layers,
             .frame_index = 0U,
@@ -3502,6 +3576,22 @@ private:
     openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime_;
     openswd3::input_time_rng::LegacyCrtRng& crt_rng_;
     openswd3::input_time_rng::LegacySecondaryRng& secondary_rng_;
+    class SecondaryWorldRuntimeRandom final
+        : public openswd3::world_map::LegacyWorldRuntimeRandom {
+    public:
+        explicit SecondaryWorldRuntimeRandom(
+            openswd3::input_time_rng::LegacySecondaryRng& random
+        ) noexcept : random_{random} {}
+
+        openswd3::compat::u32 next_bounded(
+            const openswd3::compat::u32 upper_bound
+        ) override {
+            return random_.next_bounded(upper_bound);
+        }
+
+    private:
+        openswd3::input_time_rng::LegacySecondaryRng& random_;
+    } world_runtime_random_{secondary_rng_};
     openswd3::battle::LegacyBattleAssets battle_assets_;
     bool battle_assets_ready_{};
     openswd3::battle::LegacyBattleSetupState battle_setup_;
@@ -3520,6 +3610,7 @@ private:
     openswd3::world_map::LegacyMovingActionList world_moving_actions_;
     openswd3::world_map::LegacyRoleHeadActionList world_role_head_actions_;
     openswd3::world_map::LegacyWorldFrameEffectState world_frame_effects_;
+    std::array<bool, 128U> world_service_flags_{};
     openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
     openswd3::world_map::LegacyWorldStoryVmState world_story_vm_state_;
     openswd3::world_map::LegacyWorldInteractionState

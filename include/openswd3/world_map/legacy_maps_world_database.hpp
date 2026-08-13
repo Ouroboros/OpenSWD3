@@ -140,6 +140,7 @@ enum class LegacyMapsWorldLoadApplyStatus {
   ready,
   selected_guid_not_found,
   source_record_out_of_range,
+  allocation_failed,
 };
 
 struct LegacyMapsWorldLoadApplyResult {
@@ -147,6 +148,8 @@ struct LegacyMapsWorldLoadApplyResult {
       LegacyMapsWorldLoadApplyStatus::selected_guid_not_found};
   compat::u32 selected_source_index{};
   compat::u32 reserved_records_moved{};
+  compat::u32 duplicate_records_skipped{};
+  std::vector<compat::u32> materialization_source_indices;
 };
 
 enum class LegacyMapsRolePatchStatus {

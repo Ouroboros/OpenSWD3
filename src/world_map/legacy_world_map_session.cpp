@@ -210,13 +210,16 @@ LegacyWorldMapLoadResult load_legacy_world_map(
     }
 
     auto& roles = result.session.business.state.roles;
-    result.session.role_cell_binding = bind_legacy_world_role_cells(
-        roles,
-        1U,
-        static_cast<compat::u32>(roles.size()),
-        result.session.header.width,
-        result.session.surface_grid.surface_grid
-    );
+    if (!result.session.role_cell_binding_completed) {
+        result.session.role_cell_binding = bind_legacy_world_role_cells(
+            roles,
+            1U,
+            static_cast<compat::u32>(roles.size()),
+            result.session.header.width,
+            result.session.surface_grid.surface_grid
+        );
+        result.session.role_cell_binding_completed = true;
+    }
     if (result.session.role_cell_binding.status !=
         LegacyWorldRoleCellBindingStatus::ready) {
         result.status = LegacyWorldMapLoadStatus::role_cell_binding_failed;

@@ -44,7 +44,7 @@ address	ida_name_navigation_only	closure_disposition	implementation_mapping	evid
 0x0040C060	sub_40C060	platform_adapted	legacy_world_role_lookup.cpp	world-role-lookup-0040c020.md	assembly_exact;platform_adapted;unit_tested	original invalid-index MessageBox and out-of-array reads isolated; original runtime differential
 0x0040C0D0	sub_40C0D0	assembly_exact	legacy_world_role_lookup.cpp	world-role-lookup-0040c020.md	assembly_exact;unit_tested	original runtime differential
 0x0040C100	sub_40C100	assembly_exact	legacy_world_role_lookup.cpp	world-role-lookup-0040c020.md	assembly_exact;unit_tested	original runtime differential
-0x0040C130	sub_40C130	pending_audit			not_inherited	independent LST-to-C++ closure audit required
+0x0040C130	sub_40C130	platform_adapted	legacy_world_runtime_session.cpp:load_legacy_world_runtime_session;main.cpp:load_initial_world	maps-world-load-0040c130-0040f160.md	assembly_exact;asset_verified;platform_adapted	Win32 exit/progress/audio/resource teardown transferred to owning modules; original runtime differential
 0x0040D060	sub_40D060	platform_adapted	legacy_maps_world_database.cpp:apply_legacy_maps_role_defaults	world-maps-role-helpers-0040d060-0040d60f.md	assembly_exact;unit_tested;platform_adapted	bounded decoded defaults directory isolates unterminated scan; original runtime differential
 0x0040D0C0	sub_40D0C0	assembly_exact	legacy_world_player_motion.cpp:recenter_legacy_world_camera	world-maps-role-helpers-0040d060-0040d60f.md	assembly_exact;unit_tested	original runtime differential
 0x0040D160	sub_40D160	assembly_exact	legacy_world_player_motion.cpp:calculate_legacy_world_camera_rect	world-maps-role-helpers-0040d060-0040d60f.md	assembly_exact;unit_tested	story_scene caller integration transferred; original runtime differential
@@ -67,8 +67,8 @@ address	ida_name_navigation_only	closure_disposition	implementation_mapping	evid
 0x0040E0B0	sub_40E0B0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
 0x0040ED60	sub_40ED60	pending_audit			not_inherited	independent LST-to-C++ closure audit required
 0x0040EFD0	sub_40EFD0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040F160	sub_40F160	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040F280	sub_40F280	pending_audit			not_inherited	independent LST-to-C++ closure audit required
+0x0040F160	sub_40F160	platform_adapted	legacy_resource_databases.cpp:reload_maps_payload;legacy_world_runtime_session.cpp:load_legacy_world_runtime_session	maps-world-load-0040c130-0040f160.md	assembly_exact;asset_verified;platform_adapted	RAII buffer ownership and checked file I/O isolate malformed files; original runtime differential
+0x0040F280	sub_40F280	platform_adapted	legacy_world_runtime_session.cpp:assemble_maps_roles;legacy_world_map_business.cpp:bind_legacy_world_role_cells	maps-world-load-0040c130-0040f160.md	assembly_exact;asset_verified;platform_adapted	checked role/cell indices isolate invalid pointers; original runtime differential
 0x0040F3B0	sub_40F3B0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
 0x0040F410	sub_40F410	pending_audit			not_inherited	independent LST-to-C++ closure audit required
 0x0040F500	sub_40F500	pending_audit			not_inherited	independent LST-to-C++ closure audit required
