@@ -579,6 +579,60 @@ void test_change_requested_action_id(openswd3::test::Context &test) {
       "opcode 45 routes a missing role through the exact MAPS patch request");
 }
 
+void test_wait_for_role_action_position(openswd3::test::Context &test) {
+  Fixture waiting;
+  auto waiting_script = std::span<u8>{waiting.ports.initial_window};
+  write_u16(waiting_script, 0U, 107U);
+  write_u16(waiting_script, 2U, 0xFFF0U);
+  write_u16(waiting_script, 4U, 5U);
+  write_u16(waiting_script, 6U, 14U);
+  write_u16(waiting_script, 8U, 0x00F8U);
+  waiting.roles[1].action.packed_ap_state = 0x0405U;
+  const auto stalled = waiting.step();
+  const u16 stalled_offset = waiting.context.instruction_offset;
+  waiting.roles[1].action.packed_ap_state = 0x0505U;
+  const auto completed = waiting.step();
+
+  Fixture invalid_threshold;
+  auto invalid_script =
+      std::span<u8>{invalid_threshold.ports.initial_window};
+  write_u16(invalid_script, 0U, 107U);
+  write_u16(invalid_script, 2U, 0x00F8U);
+  write_u16(invalid_script, 4U, 5U);
+  write_u16(invalid_script, 6U, 14U);
+  write_u16(invalid_script, 8U, 0x00F8U);
+  invalid_threshold.roles[1].action.packed_ap_state = 0x0104U;
+  const auto invalid = invalid_threshold.step();
+
+  Fixture missing;
+  auto missing_script = std::span<u8>{missing.ports.initial_window};
+  write_u16(missing_script, 0U, 107U);
+  write_u16(missing_script, 2U, 0x7777U);
+  write_u16(missing_script, 4U, 5U);
+  write_u16(missing_script, 6U, 14U);
+  write_u16(missing_script, 8U, 0x00F8U);
+  const auto absent = missing.step();
+
+  test.expect_true(
+      stalled.status == LegacyWorldStoryVmStatus::yielded &&
+          stalled.opcode == 107U && stalled.executed_instruction_count == 1U &&
+          stalled_offset == 0U &&
+          completed.status == LegacyWorldStoryVmStatus::yielded &&
+          completed.opcode == 14U &&
+          completed.executed_instruction_count == 2U &&
+          waiting.context.instruction_offset == 10U,
+      "opcode 107 waits until the packed AP one-based index reaches its threshold");
+  test.expect_true(
+      invalid.status == LegacyWorldStoryVmStatus::yielded &&
+          invalid.opcode == 14U &&
+          invalid.executed_instruction_count == 2U &&
+          invalid_threshold.context.instruction_offset == 10U &&
+          absent.status == LegacyWorldStoryVmStatus::yielded &&
+          absent.opcode == 14U && absent.executed_instruction_count == 2U &&
+          missing.context.instruction_offset == 10U,
+      "opcode 107 consumes invalid thresholds and missing roles without waiting");
+}
+
 void test_turn_role_toward_role(openswd3::test::Context &test) {
   Fixture fixture;
   fixture.roles[1].action.base_variant = 7U;
@@ -1273,15 +1327,15 @@ void test_real_new_game_story_reaches_first_dialog(
                     "story 100 post-opcode-45 dialog count");
   test.expect_equal(post_opcode_45_path_frame_count, std::size_t{29U},
                     "story 100 post-opcode-45 path frame count");
-  test.expect_equal(next_unsupported.opcode, u16{107U},
+  test.expect_equal(next_unsupported.opcode, u16{59U},
                     "story 100 next unsupported opcode boundary");
   test.expect_equal(next_unsupported.status,
                     LegacyWorldStoryVmStatus::unsupported_opcode,
-                    "story 100 stops without consuming opcode 107");
+                    "story 100 stops without consuming opcode 59");
   test.expect_equal(state.loaded_data_offset, u32{17476U},
                     "story 100 branched window base through both paths");
-  test.expect_equal(context.instruction_offset, u16{3585U},
-                    "story 100 instruction boundary at opcode 107");
+  test.expect_equal(context.instruction_offset, u16{3591U},
+                    "story 100 instruction boundary at opcode 59");
   test.expect_true(
       initialized.status ==
               openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
@@ -1333,7 +1387,7 @@ void test_real_new_game_story_reaches_first_dialog(
           roles[10].action.wait_remaining == 0U &&
           roles[10].field_3c == 0U,
       "real story 100 crosses opcode 45 and all subsequent restored waits, "
-      "dialogs and paths before opcode 107");
+      "dialogs and paths through opcode 107 before opcode 59");
   test.expect_equal(roles[6].world_x, u32{37U * 16U},
                     "real story 100 relocates role 248 x");
   test.expect_equal(roles[6].world_y, u32{33U * 16U},
@@ -1380,6 +1434,7 @@ int main(const int argument_count, char **arguments) {
   test_role_action_operand_extension(test);
   test_role_action_chain_update_gate(test);
   test_change_requested_action_id(test);
+  test_wait_for_role_action_position(test);
   test_turn_role_toward_role(test);
   test_set_role_head_sign_action(test);
   test_set_and_clear_role_wait_override(test);

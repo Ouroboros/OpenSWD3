@@ -1432,6 +1432,34 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
       result.status = LegacyWorldStoryVmStatus::yielded;
       return result;
 
+    case 107U: {
+      if (!has_bytes(state.window, ip, 6U)) {
+        result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+        return result;
+      }
+      u16 selector = read_u16(state.window, ip + 2U);
+      if (selector == kCurrentSourceSelector) {
+        selector = context.source_guid;
+      }
+      const u16 threshold = read_u16(state.window, ip + 4U);
+      u32 role_index{};
+      if (resolve_role_index(roles, selector, controlled_role_index,
+                             role_index)) {
+        const u16 packed_state = roles[role_index].action.packed_ap_state;
+        const u16 item_count = static_cast<u8>(packed_state);
+        if (threshold <= item_count) {
+          const u16 one_based_index = static_cast<u8>(packed_state >> 8U);
+          if (one_based_index < threshold) {
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+          }
+        }
+      }
+      context.instruction_offset =
+          static_cast<u16>(context.instruction_offset + 6U);
+      continue;
+    }
+
     case 114U: {
       if (!has_bytes(state.window, ip, 8U)) {
         result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

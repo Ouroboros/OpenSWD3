@@ -125,10 +125,10 @@ struct LegacyWorldStoryVmResult {
 };
 
 // sub_427920, restricted to the assembly-audited opcode closure reachable
-// from the map-81 new-game entry through the current TALK100 opcode-45
+// from the map-81 new-game entry through the current TALK100 opcode-107
 // boundary:
 // 6,7,8,9,10,11,14,20,21,22,25,26,38,39,40,42,43,51,52,60,61,67,
-// 70,71,72,76,77,78,85,89,91,94,95,114,120,141,153,161,193,0x402 and
+// 70,71,72,76,77,78,85,89,91,94,95,107,114,120,141,153,161,193,0x402 and
 // 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.
