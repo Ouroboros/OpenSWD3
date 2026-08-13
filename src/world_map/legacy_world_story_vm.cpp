@@ -1196,6 +1196,19 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
       continue;
     }
 
+    case 53U:
+      if (runtime.frame_color == nullptr) {
+        result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+        return result;
+      }
+      if (runtime.frame_color->countdown > 0) {
+        result.status = LegacyWorldStoryVmStatus::yielded;
+        return result;
+      }
+      context.instruction_offset =
+          static_cast<u16>(context.instruction_offset + 2U);
+      continue;
+
     case 59U:
       if (!has_bytes(state.window, ip, 4U)) {
         result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
@@ -1292,6 +1305,19 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
           static_cast<u16>(context.instruction_offset + 4U);
       continue;
     }
+
+    case 74U:
+      if (runtime.frame_color == nullptr) {
+        result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+        return result;
+      }
+      runtime.frame_color->step_red = 0.0F;
+      runtime.frame_color->step_green = 0.0F;
+      runtime.frame_color->step_blue = 0.0F;
+      runtime.frame_color->countdown = 0;
+      context.instruction_offset =
+          static_cast<u16>(context.instruction_offset + 2U);
+      continue;
 
     case 77U:
     case 78U: {

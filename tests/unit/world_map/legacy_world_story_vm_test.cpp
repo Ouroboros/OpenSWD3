@@ -666,6 +666,68 @@ void test_play_sound_effect_request(openswd3::test::Context &test) {
       "opcode 59 submits the u16 sound id, advances four bytes and yields");
 }
 
+void test_wait_for_frame_color_transition(openswd3::test::Context &test) {
+  Fixture fixture;
+  openswd3::rendering::LegacyFrameColorTransitionState frame_color{
+      .countdown = 1,
+  };
+  fixture.runtime.frame_color = &frame_color;
+  auto script = std::span<u8>{fixture.ports.initial_window};
+  write_u16(script, 0U, 53U);
+  write_u16(script, 2U, 14U);
+  write_u16(script, 4U, 0x00F8U);
+
+  const auto waiting = fixture.step();
+  frame_color.countdown = 0;
+  const auto completed = fixture.step();
+
+  test.expect_true(
+      waiting.status == LegacyWorldStoryVmStatus::yielded &&
+          waiting.opcode == 53U &&
+          waiting.executed_instruction_count == 1U &&
+          completed.status == LegacyWorldStoryVmStatus::yielded &&
+          completed.opcode == 14U &&
+          completed.executed_instruction_count == 2U &&
+          fixture.context.instruction_offset == 6U,
+      "opcode 53 waits in place only while the signed color countdown is positive");
+
+  Fixture cancel_fixture;
+  openswd3::rendering::LegacyFrameColorTransitionState cancel_color{
+      .countdown = 7,
+      .current_red = 1.0F,
+      .current_green = 2.0F,
+      .current_blue = 3.0F,
+      .target_red = 4.0F,
+      .target_green = 5.0F,
+      .target_blue = 6.0F,
+      .step_red = 7.0F,
+      .step_green = 8.0F,
+      .step_blue = 9.0F,
+  };
+  cancel_fixture.runtime.frame_color = &cancel_color;
+  auto cancel_script = std::span<u8>{cancel_fixture.ports.initial_window};
+  write_u16(cancel_script, 0U, 74U);
+  write_u16(cancel_script, 2U, 14U);
+  write_u16(cancel_script, 4U, 0x00F8U);
+
+  const auto cancelled = cancel_fixture.step();
+
+  test.expect_true(
+      cancelled.status == LegacyWorldStoryVmStatus::yielded &&
+          cancelled.opcode == 14U &&
+          cancelled.executed_instruction_count == 2U &&
+          cancel_fixture.context.instruction_offset == 6U &&
+          cancel_color.countdown == 0 && cancel_color.step_red == 0.0F &&
+          cancel_color.step_green == 0.0F && cancel_color.step_blue == 0.0F &&
+          cancel_color.current_red == 1.0F &&
+          cancel_color.current_green == 2.0F &&
+          cancel_color.current_blue == 3.0F &&
+          cancel_color.target_red == 4.0F &&
+          cancel_color.target_green == 5.0F &&
+          cancel_color.target_blue == 6.0F,
+      "opcode 74 clears only the three color steps and countdown then continues");
+}
+
 void test_turn_role_toward_role(openswd3::test::Context &test) {
   Fixture fixture;
   fixture.roles[1].action.base_variant = 7U;
@@ -965,6 +1027,8 @@ void test_real_new_game_story_reaches_first_dialog(
   openswd3::world_map::LegacyWorldMovementRuntimeState movement{};
   openswd3::world_map::LegacyPictureActionLists picture_actions;
   openswd3::rendering::LegacyFrameColorTransitionState frame_color{};
+  openswd3::rendering::LegacyFramebuffer frame_color_framebuffer;
+  openswd3::rendering::LegacyPixelConversionState frame_color_format;
   u8 scene_render_flags{};
   openswd3::world_map::LegacyWorldPathNodePool path_node_pool;
   openswd3::world_map::LegacyWorldStoryPathRuntime story_paths{
@@ -1237,6 +1301,7 @@ void test_real_new_game_story_reaches_first_dialog(
   std::size_t post_opcode_45_wait_count{};
   std::size_t post_opcode_45_dialog_count{};
   std::size_t post_opcode_45_path_frame_count{};
+  std::size_t post_opcode_45_color_wait_count{};
   bool post_opcode_45_progression_completed = true;
   for (std::size_t boundary_count = 0U;
        boundary_count < 2048U &&
@@ -1258,6 +1323,19 @@ void test_real_new_game_story_reaches_first_dialog(
       while (openswd3::world_map::advance_legacy_world_camera_pan(
           camera, camera_pan)) {
       }
+      next_unsupported = step();
+      break;
+    case 53U:
+      if (const auto advanced =
+              openswd3::rendering::update_legacy_frame_color_transition(
+                  frame_color, true, frame_color_framebuffer,
+                  frame_color_format);
+          advanced.status != openswd3::rendering::
+                                 LegacyFrameColorTransitionStatus::completed) {
+        post_opcode_45_progression_completed = false;
+        break;
+      }
+      ++post_opcode_45_color_wait_count;
       next_unsupported = step();
       break;
     case 67U:
@@ -1354,21 +1432,23 @@ void test_real_new_game_story_reaches_first_dialog(
                     "story 100 final dialog count");
   test.expect_equal(fourth_path_frame_count, std::size_t{40U},
                     "story 100 fourth path frame count");
-  test.expect_equal(post_opcode_45_wait_count, std::size_t{6U},
+  test.expect_equal(post_opcode_45_wait_count, std::size_t{7U},
                     "story 100 post-opcode-45 wait count");
   test.expect_equal(post_opcode_45_dialog_count, std::size_t{6U},
                     "story 100 post-opcode-45 dialog count");
-  test.expect_equal(post_opcode_45_path_frame_count, std::size_t{29U},
+  test.expect_equal(post_opcode_45_path_frame_count, std::size_t{32U},
                     "story 100 post-opcode-45 path frame count");
-  test.expect_equal(next_unsupported.opcode, u16{53U},
+  test.expect_equal(post_opcode_45_color_wait_count, std::size_t{1U},
+                    "story 100 post-opcode-45 color wait count");
+  test.expect_equal(next_unsupported.opcode, u16{18U},
                     "story 100 next unsupported opcode boundary");
   test.expect_equal(next_unsupported.status,
                     LegacyWorldStoryVmStatus::unsupported_opcode,
-                    "story 100 stops without consuming opcode 53");
+                    "story 100 stops without consuming opcode 18");
   test.expect_equal(state.loaded_data_offset, u32{17476U},
                     "story 100 branched window base through both paths");
-  test.expect_equal(context.instruction_offset, u16{3611U},
-                    "story 100 instruction boundary at opcode 53");
+  test.expect_equal(context.instruction_offset, u16{3641U},
+                    "story 100 instruction boundary at opcode 18");
   test.expect_true(
       initialized.status ==
               openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
@@ -1412,7 +1492,7 @@ void test_real_new_game_story_reaches_first_dialog(
           dialogs.messages.size() == 46U &&
           (roles[9].flags & 0x00008000U) != 0U &&
           (roles[10].flags & 0x00008000U) != 0U &&
-          roles[9].action.base_variant == 0U &&
+          roles[9].action.base_variant == 33U &&
           roles[10].action.base_variant == 0U &&
           roles[9].action.wait_override == 0x8002U &&
           roles[10].action.wait_override == 0x8003U &&
@@ -1420,7 +1500,8 @@ void test_real_new_game_story_reaches_first_dialog(
           roles[10].action.wait_remaining == 0U &&
           roles[10].field_3c == 0U,
       "real story 100 crosses opcode 45 and all subsequent restored waits, "
-      "dialogs and paths through opcode 59 before opcode 53");
+      "dialogs, paths and color transition control through opcode 74 before "
+      "opcode 18");
   test.expect_true(
       ports.sound_effect_requests.size() == 1U &&
           ports.sound_effect_requests.front() == 0x73U,
@@ -1447,18 +1528,19 @@ void test_real_new_game_story_reaches_first_dialog(
                     "real story 100 relocates role 195 y");
   test.expect_true(
           picture_actions.secondary.size() == 2U &&
-          frame_color.current_red == 0.0F &&
-          frame_color.current_green == 0.0F &&
-          frame_color.current_blue == 0.0F &&
+          frame_color.current_red == 10.0F &&
+          frame_color.current_green == 10.0F &&
+          frame_color.current_blue == 10.0F &&
           frame_color.target_red == 10.0F &&
           frame_color.target_green == 10.0F &&
           frame_color.target_blue == 10.0F &&
-          frame_color.step_red == 10.0F &&
-          frame_color.step_green == 10.0F &&
-          frame_color.step_blue == 10.0F &&
-          frame_color.countdown == 1 && scene_render_flags == 0U &&
+          frame_color.step_red == 0.0F &&
+          frame_color.step_green == 0.0F &&
+          frame_color.step_blue == 0.0F &&
+          frame_color.countdown == 0 && scene_render_flags == 0U &&
           (roles[2].flags & 0x00001000U) != 0U,
-      "real story 100 creates two pictures and starts the later color transition");
+      "real story 100 creates two pictures then completes and cancels the "
+      "later color transition");
   test.expect_true(
           ports.framebuffer_clear_count == 3U &&
           ports.framebuffer_present_count == 1U &&
@@ -1482,6 +1564,7 @@ int main(const int argument_count, char **arguments) {
   test_change_requested_action_id(test);
   test_wait_for_role_action_position(test);
   test_play_sound_effect_request(test);
+  test_wait_for_frame_color_transition(test);
   test_turn_role_toward_role(test);
   test_set_role_head_sign_action(test);
   test_set_and_clear_role_wait_override(test);
