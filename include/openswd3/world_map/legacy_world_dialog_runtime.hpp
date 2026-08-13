@@ -4,8 +4,10 @@
 #include "openswd3/rendering/legacy_drawing_helpers.hpp"
 #include "openswd3/rendering/legacy_text_renderer_runtime.hpp"
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
+#include "openswd3/world_map/legacy_world_collision_talk.hpp"
 #include "openswd3/world_map/legacy_world_role_record.hpp"
 
+#include <array>
 #include <span>
 
 namespace openswd3::world_map {
@@ -26,6 +28,8 @@ struct LegacyWorldDialogRuntimeState {
   rendering::LegacyAnimatedBorderState choice_border;
   asset_runtime::LegacyActionRecord end_dialog_action{};
   asset_runtime::LegacyActionRecord next_page_action{};
+  std::array<asset_runtime::LegacyActionRecord, 4U> frame_actions{};
+  std::array<asset_runtime::LegacyActionRecord, 4U> caption_actions{};
   bool detached_dialog_active{};
 };
 
@@ -34,8 +38,10 @@ struct LegacyWorldDialogPrimeResult {
   compat::u32 action_update_failure_count{};
 };
 
-// Initialize the two global action records used by the end/next indicator.
-// 0x00424EC1..0x00424F6C establishes action 0x2329, variants 0x0C/0x0E.
+// Initialize the end/next indicators and the two four-record dialog pools.
+// 0x00424EC1..0x00424F6C establishes action 0x2329, variants 0x0C/0x0E;
+// 0x0040E528..0x0040E601 establishes frame ids 0x232D/0x232F..0x2331 and
+// caption ids 0x2337/0x2339..0x233B.
 [[nodiscard]] LegacyWorldDialogPrimeResult prime_legacy_world_dialog_runtime(
     LegacyWorldDialogRuntimeState &state,
     asset_runtime::LegacyActionDrawPorts &action_ports) noexcept;
@@ -57,7 +63,8 @@ public:
       asset_runtime::LegacyActionDrawPorts &action_ports,
       rendering::LegacyTextRendererBinding text_20,
       rendering::LegacyTextRendererBinding text_16,
-      LegacyWorldDialogExternalPorts *external_ports = nullptr) noexcept;
+      LegacyWorldDialogExternalPorts *external_ports = nullptr,
+      LegacyWorldTalkContext *talk_context = nullptr) noexcept;
 
   [[nodiscard]] bool begin_text_surface(compat::i32 width,
                                         compat::i32 height) noexcept override;
@@ -106,6 +113,7 @@ private:
   rendering::LegacyTextRendererBinding text_20_;
   rendering::LegacyTextRendererBinding text_16_;
   LegacyWorldDialogExternalPorts *external_ports_{};
+  LegacyWorldTalkContext *talk_context_{};
   bool surface_active_{};
 };
 

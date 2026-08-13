@@ -151,6 +151,21 @@ LegacyWorldDialogPrimeResult prime_legacy_world_dialog_runtime(
   state.next_page_action.action_id = 0x2329U;
   state.next_page_action.base_variant = 0x0EU;
 
+  constexpr std::array<u32, 4U> kFrameActionIds{
+      0x232DU, 0x232FU, 0x2330U, 0x2331U};
+  constexpr std::array<u32, 4U> kCaptionActionIds{
+      0x2337U, 0x2339U, 0x233AU, 0x233BU};
+  for (std::size_t index = 0U; index < state.frame_actions.size(); ++index) {
+    auto &frame = state.frame_actions[index];
+    auto &caption = state.caption_actions[index];
+    frame = {};
+    caption = {};
+    asset_runtime::initialize_legacy_action_record(frame);
+    asset_runtime::initialize_legacy_action_record(caption);
+    frame.action_id = kFrameActionIds[index];
+    caption.action_id = kCaptionActionIds[index];
+  }
+
   LegacyWorldDialogPrimeResult result;
   ++result.action_update_count;
   if (!update_action(state.end_dialog_action, action_ports)) {
@@ -159,6 +174,16 @@ LegacyWorldDialogPrimeResult prime_legacy_world_dialog_runtime(
   ++result.action_update_count;
   if (!update_action(state.next_page_action, action_ports)) {
     ++result.action_update_failure_count;
+  }
+  for (std::size_t index = 0U; index < state.frame_actions.size(); ++index) {
+    ++result.action_update_count;
+    if (!update_action(state.frame_actions[index], action_ports)) {
+      ++result.action_update_failure_count;
+    }
+    ++result.action_update_count;
+    if (!update_action(state.caption_actions[index], action_ports)) {
+      ++result.action_update_failure_count;
+    }
   }
   return result;
 }
@@ -174,11 +199,13 @@ LegacyWorldDialogRuntimePorts::LegacyWorldDialogRuntimePorts(
     asset_runtime::LegacyActionDrawPorts &action_ports,
     rendering::LegacyTextRendererBinding text_20,
     rendering::LegacyTextRendererBinding text_16,
-    LegacyWorldDialogExternalPorts *external_ports) noexcept
+    LegacyWorldDialogExternalPorts *external_ports,
+    LegacyWorldTalkContext *talk_context) noexcept
     : state_(state), framebuffer_(framebuffer), raster_(raster),
       pixel_conversion_(pixel_conversion), blit_effects_(blit_effects),
       jitter_(jitter), roles_(roles), action_ports_(action_ports),
-      text_20_(text_20), text_16_(text_16), external_ports_(external_ports) {}
+      text_20_(text_20), text_16_(text_16), external_ports_(external_ports),
+      talk_context_(talk_context) {}
 
 bool LegacyWorldDialogRuntimePorts::begin_text_surface(
     const i32 width, const i32 height) noexcept {
@@ -378,6 +405,9 @@ void LegacyWorldDialogRuntimePorts::release_message_owner(
     const u16 role_index) noexcept {
   if (role_index < roles_.size()) {
     roles_[role_index].interaction_gate = 0U;
+  } else if (role_index == kLegacyWorldTalkMapEventSource &&
+             talk_context_ != nullptr) {
+    talk_context_->field_26 = 0U;
   }
 }
 
@@ -471,6 +501,9 @@ bool LegacyWorldDialogRuntimePorts::close_role_dialog_action(
 
 void LegacyWorldDialogRuntimePorts::close_detached_dialog() noexcept {
   state_.detached_dialog_active = false;
+  if (talk_context_ != nullptr) {
+    talk_context_->field_26 = 0U;
+  }
 }
 
 } // namespace openswd3::world_map

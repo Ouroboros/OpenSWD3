@@ -2677,6 +2677,35 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_story_vm_tests
+    unit/world_map/legacy_world_story_vm_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_story_vm_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_story_vm_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_story_vm
+    COMMAND openswd3_world_map_legacy_world_story_vm_tests
+)
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../TALK1.DAT"
+)
+    add_test(
+        NAME world_map.legacy_world_story_vm_real
+        COMMAND
+            openswd3_world_map_legacy_world_story_vm_tests
+            "${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+
+add_executable(
     openswd3_world_map_legacy_world_cursor_tests
     unit/world_map/legacy_world_cursor_test.cpp
 )

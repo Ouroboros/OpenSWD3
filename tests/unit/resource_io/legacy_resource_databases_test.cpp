@@ -60,6 +60,25 @@ constexpr std::array<u8, 3> kMaps{0x10U, 0x20U, 0x30U};
 constexpr std::array<u8, 4> kPath{0x40U, 0x50U, 0x60U, 0x70U};
 constexpr std::array<u8, 2> kTalk{0x80U, 0x90U};
 
+std::vector<u8> talk_file_with_entry(
+    const std::size_t entry_index,
+    const openswd3::compat::u32 data_offset,
+    const std::span<const u8> payload
+) {
+    const std::size_t table = 0x200U + entry_index * 4U;
+    const std::size_t data = 0x200U + data_offset;
+    std::vector<u8> bytes(
+        std::max(table + 4U, data + payload.size()), 0U);
+    bytes[table] = static_cast<u8>(data_offset);
+    bytes[table + 1U] = static_cast<u8>(data_offset >> 8U);
+    bytes[table + 2U] = static_cast<u8>(data_offset >> 16U);
+    bytes[table + 3U] = static_cast<u8>(data_offset >> 24U);
+    std::ranges::copy(
+        payload,
+        bytes.begin() + static_cast<std::vector<u8>::difference_type>(data));
+    return bytes;
+}
+
 void test_failure_order(openswd3::test::Context& test) {
     {
         const TestTree tree;
@@ -228,6 +247,57 @@ void test_maps_payload_reload(openswd3::test::Context& test) {
     );
 }
 
+void test_talk_window_loading(openswd3::test::Context& test) {
+    const TestTree tree;
+    tree.write("MAPS.DAT", kMaps);
+    tree.write("PATH.DAT", kPath);
+    const std::array<u8, 4U> first_payload{0x02U, 0x04U, 0xFFU, 0xFFU};
+    const std::array<u8, 3U> second_payload{0xA1U, 0x00U, 0x2AU};
+    const auto talk1 = talk_file_with_entry(248U, 0x1000U, first_payload);
+    const auto talk2 = talk_file_with_entry(42U, 0x1100U, second_payload);
+    tree.write("TALK1.DAT", talk1);
+    tree.write("TALK2.DAT", talk2);
+
+    LegacyResourceDatabases databases;
+    test.expect_equal(
+        databases.initialize(tree.root()).status,
+        LegacyResourceDatabaseStatus::ready,
+        "TALK window fixture databases open");
+    std::array<u8, openswd3::resource_io::kLegacyTalkWindowSize> window{};
+    const auto first = databases.load_talk_story_window(248, window, true);
+    test.expect_true(
+        first.status == openswd3::resource_io::LegacyTalkWindowStatus::ready &&
+            first.file_number == 1U && first.entry_index == 248U &&
+            first.data_offset == 0x1000U && first.actual_size == 4U &&
+            std::ranges::equal(
+                first_payload,
+                std::span<const u8>{window}.first(first_payload.size())) &&
+            window[4] == 0x0CU,
+        "TALK1 entry table selects and pre-fills the exact 0x8000-byte window");
+
+    const auto second = databases.load_talk_story_window(2042, window, false);
+    test.expect_true(
+        second.status == openswd3::resource_io::LegacyTalkWindowStatus::ready &&
+            second.file_number == 2U && second.entry_index == 42U &&
+            second.data_offset == 0x1100U && second.actual_size == 3U &&
+            std::ranges::equal(
+                second_payload,
+                std::span<const u8>{window}.first(second_payload.size())) &&
+            window[3] == first_payload[3],
+        "TALK2 transfer retains the unread tail like sub_42E480");
+
+    const auto direct =
+        databases.load_talk_data_window(2U, 0x1100U, window, false);
+    test.expect_true(
+        direct.status == openswd3::resource_io::LegacyTalkWindowStatus::ready &&
+            direct.data_offset == 0x1100U && direct.actual_size == 3U,
+        "same-file branch reloads a direct TALK data offset");
+    test.expect_equal(
+        databases.load_talk_story_window(-1, window, true).status,
+        openswd3::resource_io::LegacyTalkWindowStatus::invalid_story_id,
+        "negative story ids cannot select a TALK file");
+}
+
 void test_real_database_set(
     openswd3::test::Context& test,
     const std::filesystem::path& root
@@ -282,6 +352,26 @@ void test_real_database_set(
             path_bytes[2] == 0x4AU && path_bytes[3] == 0x00U,
         "real PATH.DAT mapped prefix"
     );
+
+    std::array<u8, openswd3::resource_io::kLegacyTalkWindowSize> window{};
+    const auto talk1 = databases.load_talk_story_window(248, window, true);
+    test.expect_true(
+        talk1.status ==
+                openswd3::resource_io::LegacyTalkWindowStatus::ready &&
+            talk1.file_number == 1U && talk1.entry_index == 248U &&
+            talk1.data_offset == 34307U && window[0] == 0x02U &&
+            window[1] == 0x04U && window[2] == 0x5BU && window[3] == 0x00U,
+        "real TALK1 story 248 resolves to its exact table offset and bytes"
+    );
+    const auto talk2 = databases.load_talk_story_window(2042, window, false);
+    test.expect_true(
+        talk2.status ==
+                openswd3::resource_io::LegacyTalkWindowStatus::ready &&
+            talk2.file_number == 2U && talk2.entry_index == 42U &&
+            talk2.data_offset == 29414U && window[0] == 0x02U &&
+            window[1] == 0x04U && window[2] == 0x4CU && window[3] == 0x00U,
+        "real TALK2 story 2042 resolves to its exact table offset and bytes"
+    );
 }
 
 }  // namespace
@@ -292,6 +382,7 @@ int main(const int argument_count, char** arguments) {
     test_complete_database_set(test);
     test_mapping_failure_is_not_an_open_failure(test);
     test_maps_payload_reload(test);
+    test_talk_window_loading(test);
     if (argument_count == 2) {
         test_real_database_set(test, std::filesystem::path{arguments[1]});
     }

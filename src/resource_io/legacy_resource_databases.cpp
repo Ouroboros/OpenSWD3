@@ -1,5 +1,6 @@
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <limits>
 #include <new>
@@ -12,6 +13,8 @@ namespace openswd3::resource_io {
 namespace {
 
 constexpr compat::u32 kLegacyMapsFilePrefixSize = 0x200U;
+constexpr compat::u32 kLegacyTalkEntriesPerFile = 2000U;
+constexpr compat::u32 kLegacyTalkFileCount = 4U;
 
 [[nodiscard]] bool ascii_case_equal(
     const std::string_view left,
@@ -66,6 +69,7 @@ LegacyResourceDatabaseInitialization LegacyResourceDatabases::initialize(
     maps_payload_.clear();
     path_view_ = nullptr;
     path_size_ = 0U;
+    root_ = root;
 
     LegacyResourceDatabaseInitialization result;
     if (!maps_file_.open(
@@ -184,6 +188,125 @@ std::span<const compat::u8> LegacyResourceDatabases::path_bytes() const noexcept
     }
 
     return {path_view_, path_size_};
+}
+
+LegacyTalkWindowLoadResult LegacyResourceDatabases::read_talk_data_window(
+    LegacyFile& file,
+    const compat::u32 file_number,
+    const compat::u32 data_offset,
+    const std::span<compat::u8, kLegacyTalkWindowSize> destination,
+    const bool clear_before_read
+) {
+    LegacyTalkWindowLoadResult result{
+        .status = LegacyTalkWindowStatus::data_seek_failed,
+        .file_number = file_number,
+        .data_offset = data_offset,
+    };
+    if (clear_before_read) {
+        std::ranges::fill(destination, compat::u8{0x0CU});
+    }
+
+    const compat::u32 physical_offset = kLegacyMapsFilePrefixSize + data_offset;
+    if (file.seek_begin_one_based(static_cast<compat::i32>(physical_offset)) !=
+        physical_offset + 1U) {
+        return result;
+    }
+
+    result.actual_size = static_cast<compat::u32>(destination.size());
+    if (!file.read(destination, result.actual_size)) {
+        result.status = LegacyTalkWindowStatus::data_read_failed;
+        return result;
+    }
+    result.status = LegacyTalkWindowStatus::ready;
+    return result;
+}
+
+LegacyTalkWindowLoadResult LegacyResourceDatabases::load_talk_story_window(
+    const compat::i32 story_id,
+    const std::span<compat::u8, kLegacyTalkWindowSize> destination,
+    const bool clear_before_read
+) {
+    if (story_id < 0) {
+        return {};
+    }
+    const auto unsigned_id = static_cast<compat::u32>(story_id);
+    const compat::u32 file_number =
+        unsigned_id / kLegacyTalkEntriesPerFile + 1U;
+    const compat::u32 entry_index = unsigned_id % kLegacyTalkEntriesPerFile;
+    if (file_number == 0U || file_number > kLegacyTalkFileCount) {
+        return {};
+    }
+
+    LegacyFile alternate_file;
+    LegacyFile* file = &talk_file_;
+    if (file_number != 1U) {
+        const std::string filename =
+            "talk" + std::to_string(file_number) + ".dat";
+        if (!alternate_file.open(
+                resolve_legacy_filename(root_, filename),
+                LegacyFileCreation::open_existing,
+                LegacyFileAccess::read)) {
+            return LegacyTalkWindowLoadResult{
+                .status = LegacyTalkWindowStatus::open_failed,
+                .file_number = file_number,
+                .entry_index = entry_index,
+            };
+        }
+        file = &alternate_file;
+    }
+
+    LegacyTalkWindowLoadResult result{
+        .status = LegacyTalkWindowStatus::table_seek_failed,
+        .file_number = file_number,
+        .entry_index = entry_index,
+    };
+    const compat::u32 table_offset =
+        kLegacyMapsFilePrefixSize + entry_index * sizeof(compat::u32);
+    if (file->seek_begin_one_based(static_cast<compat::i32>(table_offset)) !=
+        table_offset + 1U) {
+        return result;
+    }
+    if (!file->read_u32(result.data_offset)) {
+        result.status = LegacyTalkWindowStatus::table_read_failed;
+        return result;
+    }
+
+    LegacyTalkWindowLoadResult loaded = read_talk_data_window(
+        *file, file_number, result.data_offset, destination,
+        clear_before_read);
+    loaded.entry_index = entry_index;
+    return loaded;
+}
+
+LegacyTalkWindowLoadResult LegacyResourceDatabases::load_talk_data_window(
+    const compat::u32 file_number,
+    const compat::u32 data_offset,
+    const std::span<compat::u8, kLegacyTalkWindowSize> destination,
+    const bool clear_before_read
+) {
+    if (file_number == 0U || file_number > kLegacyTalkFileCount) {
+        return {};
+    }
+
+    LegacyFile alternate_file;
+    LegacyFile* file = &talk_file_;
+    if (file_number != 1U) {
+        const std::string filename =
+            "talk" + std::to_string(file_number) + ".dat";
+        if (!alternate_file.open(
+                resolve_legacy_filename(root_, filename),
+                LegacyFileCreation::open_existing,
+                LegacyFileAccess::read)) {
+            return LegacyTalkWindowLoadResult{
+                .status = LegacyTalkWindowStatus::open_failed,
+                .file_number = file_number,
+                .data_offset = data_offset,
+            };
+        }
+        file = &alternate_file;
+    }
+    return read_talk_data_window(
+        *file, file_number, data_offset, destination, clear_before_read);
 }
 
 }  // namespace openswd3::resource_io

@@ -38,6 +38,26 @@ struct LegacyMapsPayloadLoadResult {
     compat::u32 actual_size{};
 };
 
+inline constexpr std::size_t kLegacyTalkWindowSize = 0x8000U;
+
+enum class LegacyTalkWindowStatus {
+    ready,
+    invalid_story_id,
+    open_failed,
+    table_seek_failed,
+    table_read_failed,
+    data_seek_failed,
+    data_read_failed,
+};
+
+struct LegacyTalkWindowLoadResult {
+    LegacyTalkWindowStatus status{LegacyTalkWindowStatus::invalid_story_id};
+    compat::u32 file_number{};
+    compat::u32 entry_index{};
+    compat::u32 data_offset{};
+    compat::u32 actual_size{};
+};
+
 class LegacyResourceDatabases final {
 public:
     LegacyResourceDatabases() = default;
@@ -58,8 +78,28 @@ public:
     [[nodiscard]] std::span<const compat::u8> maps_payload_bytes() const noexcept;
     [[nodiscard]] std::span<compat::u8> mutable_maps_payload_bytes() noexcept;
     [[nodiscard]] std::span<const compat::u8> path_bytes() const noexcept;
+    [[nodiscard]] LegacyTalkWindowLoadResult load_talk_story_window(
+        compat::i32 story_id,
+        std::span<compat::u8, kLegacyTalkWindowSize> destination,
+        bool clear_before_read
+    );
+    [[nodiscard]] LegacyTalkWindowLoadResult load_talk_data_window(
+        compat::u32 file_number,
+        compat::u32 data_offset,
+        std::span<compat::u8, kLegacyTalkWindowSize> destination,
+        bool clear_before_read
+    );
 
 private:
+    [[nodiscard]] LegacyTalkWindowLoadResult read_talk_data_window(
+        LegacyFile& file,
+        compat::u32 file_number,
+        compat::u32 data_offset,
+        std::span<compat::u8, kLegacyTalkWindowSize> destination,
+        bool clear_before_read
+    );
+
+    std::filesystem::path root_;
     LegacyFile maps_file_;
     LegacyFile path_file_;
     LegacyFile talk_file_;

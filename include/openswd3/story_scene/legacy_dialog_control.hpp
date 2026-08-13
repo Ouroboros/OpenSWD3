@@ -10,7 +10,7 @@ inline constexpr compat::u32 kLegacyDialogFlagInteractive = 0x00000020U;
 inline constexpr compat::u32 kLegacyDialogFlagSelectionAccepted = 0x00000200U;
 inline constexpr compat::u32 kLegacyDialogFlagPressResetsSelection =
     0x00000400U;
-inline constexpr compat::u32 kLegacyDialogFlagCloseRoleAction = 0x00001000U;
+inline constexpr compat::u32 kLegacyDialogFlagCloseRoleAction = 0x00000010U;
 inline constexpr compat::u32 kLegacyDialogFlagCloseInitialized =
     0x20000000U;
 inline constexpr compat::u32 kLegacyDialogFlagConfirmArmed = 0x80000000U;
