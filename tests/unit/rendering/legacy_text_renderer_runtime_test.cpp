@@ -169,6 +169,53 @@ void test_rebuild_rebinds_and_clears(openswd3::test::Context& test) {
     );
 }
 
+void test_gameplay_advance_override(openswd3::test::Context& test) {
+    LegacyTextRendererRuntime runtime;
+    LegacyFramebuffer framebuffer;
+    GlyphProvider provider;
+    for (const auto point_size :
+         openswd3::rendering::kLegacyTextRendererPointSizes) {
+        static_cast<void>(runtime.rebuild(point_size, framebuffer, provider));
+    }
+
+    test.expect_equal(
+        runtime.set_horizontal_advance(20U, 0x16),
+        LegacyTextRendererRuntimeStatus::completed,
+        "gameplay 20-point advance override is accepted"
+    );
+    test.expect_equal(
+        runtime.set_horizontal_advance(16U, 0x12),
+        LegacyTextRendererRuntimeStatus::completed,
+        "gameplay 16-point advance override is accepted"
+    );
+    test.expect_equal(
+        runtime.set_horizontal_advance(12U, 0x10),
+        LegacyTextRendererRuntimeStatus::completed,
+        "gameplay 12-point advance override is accepted"
+    );
+
+    test.expect_equal(
+        runtime.state(20U)->horizontal_advance,
+        22,
+        "sub_40A570 changes the gameplay dialogue advance to 22"
+    );
+    test.expect_equal(
+        runtime.state(16U)->horizontal_advance,
+        18,
+        "sub_40A570 keeps the gameplay 16-point advance at 18"
+    );
+    test.expect_equal(
+        runtime.state(12U)->horizontal_advance,
+        16,
+        "sub_40A570 keeps the gameplay 12-point advance at 16"
+    );
+    test.expect_equal(
+        runtime.set_horizontal_advance(14U, 14),
+        LegacyTextRendererRuntimeStatus::unsupported_point_size,
+        "unknown gameplay advance override is isolated"
+    );
+}
+
 void test_release_and_unknown_size(openswd3::test::Context& test) {
     LegacyTextRendererRuntime runtime;
     LegacyFramebuffer framebuffer;
@@ -213,6 +260,7 @@ int main() {
     openswd3::test::Context test;
     test_three_default_slots(test);
     test_rebuild_rebinds_and_clears(test);
+    test_gameplay_advance_override(test);
     test_release_and_unknown_size(test);
     return test.exit_code();
 }

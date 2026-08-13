@@ -216,7 +216,11 @@ bool LegacyWorldDialogRuntimePorts::begin_text_surface(
 
 void LegacyWorldDialogRuntimePorts::clear_text_surface() noexcept {
   if (surface_active_) {
-    std::ranges::fill(state_.text_surface.physical_pixels(), u16{});
+    u16 transparent_pixel = 0x026BU;
+    rendering::legacy_convert_pixels_forward(
+        pixel_conversion_, &transparent_pixel, 1U);
+    std::ranges::fill(state_.text_surface.physical_pixels(),
+                      transparent_pixel);
   }
 }
 

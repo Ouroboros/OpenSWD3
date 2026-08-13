@@ -49,6 +49,10 @@ public:
     [[nodiscard]] LegacyTextRendererRuntimeStatus release(
         compat::u32 point_size
     ) noexcept;
+    [[nodiscard]] LegacyTextRendererRuntimeStatus set_horizontal_advance(
+        compat::u32 point_size,
+        compat::i32 horizontal_advance
+    ) noexcept;
     void release_all() noexcept;
 
     [[nodiscard]] bool ready(compat::u32 point_size) const noexcept;

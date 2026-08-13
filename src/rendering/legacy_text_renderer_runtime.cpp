@@ -80,6 +80,19 @@ LegacyTextRendererRuntimeStatus LegacyTextRendererRuntime::release(
     return LegacyTextRendererRuntimeStatus::completed;
 }
 
+LegacyTextRendererRuntimeStatus
+LegacyTextRendererRuntime::set_horizontal_advance(
+    const compat::u32 point_size,
+    const compat::i32 horizontal_advance
+) noexcept {
+    Slot* const slot = find_slot(point_size);
+    if (slot == nullptr) {
+        return LegacyTextRendererRuntimeStatus::unsupported_point_size;
+    }
+    slot->state.horizontal_advance = horizontal_advance;
+    return LegacyTextRendererRuntimeStatus::completed;
+}
+
 void LegacyTextRendererRuntime::release_all() noexcept {
     for (Slot& slot : slots_) {
         release_slot(slot);

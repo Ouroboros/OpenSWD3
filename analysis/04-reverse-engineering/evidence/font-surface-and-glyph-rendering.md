@@ -132,6 +132,13 @@ display-lost 周期保留。原程序用 `GetSystemMetrics(0/1)` 重建整屏 cl
 SDL3 使用 owned 逻辑 framebuffer 的实际 width/height，这是 fullscreen
 DirectDraw 被固定 `640×480` 软件画布替代后的平台边界，不改变文字像素算法。
 
+构造值不是普通游戏态的最终值。`sub_40A570` 在
+`0x0040AA6C..0x0040AA8B`（另一条同值路径为
+`0x0040AAC3..0x0040AAE2`）依次把 20、16、12 点 renderer 的
+horizontal advance 写成 `0x16/0x12/0x10`，即 `22/18/16`。所以正文仍使用
+20×20 mask，但普通游戏帧中的双字节字符步进是 22；把构造期的 24 一直沿用到
+正文会让整行随字符数累计变宽。
+
 当前实现位于 `LegacyTextRendererRuntime`。每个槽持有独立
 `LegacyGlyphCache`、`LegacyTextRendererState` 以及 framebuffer/atlas provider
 绑定；`SdlSmokeInitializationPorts`、`SdlDisplayLifecyclePorts` 和

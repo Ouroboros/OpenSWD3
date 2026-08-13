@@ -91,6 +91,7 @@ public:
 
 void test_prime_and_live_surface_adapter(openswd3::test::Context &test) {
   openswd3::rendering::LegacyFramebuffer framebuffer;
+  std::ranges::fill(framebuffer.physical_pixels(), 0xA55AU);
   auto raster = framebuffer.geometry();
   openswd3::rendering::LegacyPixelConversionState pixel_conversion;
   openswd3::rendering::select_legacy_pixel_conversion(
@@ -141,6 +142,11 @@ void test_prime_and_live_surface_adapter(openswd3::test::Context &test) {
       openswd3::story_scene::kLegacyDialogSurfaceWidth,
       openswd3::story_scene::kLegacyDialogSurfaceHeight);
   ports.clear_text_surface();
+  const u16 transparent_text_pixel =
+      state.text_surface.physical_pixels()[1U];
+  u16 expected_transparent_text_pixel = 0x026BU;
+  openswd3::rendering::legacy_convert_pixels_forward(
+      pixel_conversion, &expected_transparent_text_pixel, 1U);
   const std::array<u8, 2U> text_bytes{'A', 0U};
   const bool text_drawn = ports.draw_segment(
       openswd3::story_scene::LegacyDialogSegmentDrawRequest{
@@ -215,6 +221,8 @@ void test_prime_and_live_surface_adapter(openswd3::test::Context &test) {
           text_drawn && state.choice_border.phase == 1U &&
           external_ports.sound_count == 1U &&
           framebuffer.row_pixels(10U)[10U] == 0x4321U &&
+          framebuffer.row_pixels(10U)[11U] == 0xA55AU &&
+          transparent_text_pixel == expected_transparent_text_pixel &&
           action_ports.last_flags == 0U && close_updated && end_updated &&
           next_updated && roles[1].interaction_gate == 0U &&
           action_ports.update_count == 13U && action_ports.load_count > 3U &&

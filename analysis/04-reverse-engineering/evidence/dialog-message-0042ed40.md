@@ -83,6 +83,8 @@ bit `0x800`、alternate direct transition bit `0x8000`。普通 role、`0xFFFD`
   owner 放在记录外，未破坏 `0x4C` ABI。
 - 正文使用 20 点字形，caption 使用 16 点字形；两套 `0x0049E0C8` 与
   `0x0049E108` 各 16 项 BGR888 表按 `0x00424D50..0x00424DE6` 转为当前 16 位像素。
+  20 点只描述 mask geometry；普通游戏循环已在 `0x0040AA6C..0x0040AA8B`
+  把三套 renderer 的步进覆盖为 `22/18/16`，因此正文双字节字符按 22 前进。
   `sub_430350` 的背景 `0xFFFE`、副色、前景与 style 设置顺序保留。
 - 选择框调用已闭环的 `sub_40DE50` 动画边框；caption 先按 `sub_417DE0` 混合 15 行，
   再绘制 action frame 和文字。临时 surface 首像素为 `0xFFFF` 时先改为 `0xFFFE`，

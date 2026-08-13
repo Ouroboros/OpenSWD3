@@ -2738,6 +2738,10 @@ add_executable(
     openswd3_world_map_legacy_world_story_vm_tests
     unit/world_map/legacy_world_story_vm_test.cpp
 )
+target_compile_definitions(
+    openswd3_world_map_legacy_world_story_vm_tests
+    PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+)
 target_include_directories(
     openswd3_world_map_legacy_world_story_vm_tests
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
@@ -2760,6 +2764,25 @@ if(
         COMMAND
             openswd3_world_map_legacy_world_story_vm_tests
             "${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../TALK1.DAT" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../huge.lmf" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_char.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_item.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_magic.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_sys.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map1.act" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../all_map2.act"
+)
+    add_test(
+        NAME world_map.legacy_world_story_vm_initial_session_real
+        COMMAND
+            openswd3_world_map_legacy_world_story_vm_tests
+            "${PROJECT_SOURCE_DIR}/.."
+            initial-session
     )
 endif()
 

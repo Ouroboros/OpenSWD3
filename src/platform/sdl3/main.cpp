@@ -2541,6 +2541,42 @@ public:
             ));
             message.append(", opcode=");
             message.append(std::to_string(story_result.opcode));
+            message.append(", raw_word=");
+            message.append(std::to_string(story_result.raw_word));
+            message.append(", story_id=");
+            message.append(std::to_string(
+                world_frame_state_.map_role_paths.talk_context.talk_script_id
+            ));
+            message.append(", source_guid=");
+            message.append(std::to_string(
+                world_frame_state_.map_role_paths.talk_context.source_guid
+            ));
+            message.append(", talk_data_offset=");
+            message.append(std::to_string(
+                world_frame_state_.map_role_paths.talk_context.talk_data_offset
+            ));
+            message.append(", window_file=");
+            message.append(std::to_string(
+                world_story_vm_state_.loaded_file_number
+            ));
+            message.append(", window_data_offset=");
+            message.append(std::to_string(
+                world_story_vm_state_.loaded_data_offset
+            ));
+            message.append(", ip=");
+            message.append(std::to_string(story_result.instruction_offset));
+            message.append(", operand0=");
+            message.append(story_result.first_operand_available
+                               ? std::to_string(story_result.first_operand_word)
+                               : std::string{"unavailable"});
+            message.append(", executed=");
+            message.append(std::to_string(
+                story_result.executed_instruction_count
+            ));
+            message.append(", controlled_role=");
+            message.append(std::to_string(world.selected_role_index));
+            message.append(", role_count=");
+            message.append(std::to_string(roles.size()));
             static_cast<void>(report_error(message));
             ok_ = false;
             running_ = false;
@@ -2672,6 +2708,13 @@ public:
             &world_frame_state_.head_sign_actions,
             &story_paths,
         };
+        // sub_40A570 0x0040AA6C..0x0040AA8B applies the gameplay advances
+        // after the renderers were initially built as 24/18/16 by
+        // sub_40F340.  Dialogue therefore uses a 20x20 mask with a 22-pixel
+        // advance; retaining the construction-time 24 stretches each line.
+        static_cast<void>(text_renderers_.set_horizontal_advance(20U, 0x16));
+        static_cast<void>(text_renderers_.set_horizontal_advance(16U, 0x12));
+        static_cast<void>(text_renderers_.set_horizontal_advance(12U, 0x10));
         const auto timed_message_binding = text_renderers_.binding(12U);
         const auto dialog_text_20 = text_renderers_.binding(20U);
         const auto dialog_text_16 = text_renderers_.binding(16U);

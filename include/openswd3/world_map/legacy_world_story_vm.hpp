@@ -122,8 +122,11 @@ struct LegacyWorldStoryVmResult {
   LegacyWorldStoryVmStatus status{LegacyWorldStoryVmStatus::idle};
   resource_io::LegacyTalkWindowStatus load_status{
       resource_io::LegacyTalkWindowStatus::ready};
+  compat::u16 instruction_offset{};
   compat::u16 raw_word{};
   compat::u16 opcode{};
+  compat::u16 first_operand_word{};
+  bool first_operand_available{};
   compat::u32 executed_instruction_count{};
   compat::u32 action_update_count{};
   compat::u32 action_update_failure_count{};

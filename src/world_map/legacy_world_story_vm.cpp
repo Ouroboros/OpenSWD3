@@ -793,8 +793,13 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
       result.status = LegacyWorldStoryVmStatus::instruction_out_of_range;
       return result;
     }
+    result.instruction_offset = context.instruction_offset;
     result.raw_word = read_u16(state.window, ip);
     result.opcode = static_cast<u16>(result.raw_word & 0x3FFFU);
+    result.first_operand_available = has_bytes(state.window, ip + 2U, 2U);
+    if (result.first_operand_available) {
+      result.first_operand_word = read_u16(state.window, ip + 2U);
+    }
     ++result.executed_instruction_count;
 
     switch (result.opcode) {
@@ -1139,11 +1144,22 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
         result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
         return result;
       }
+      const u16 selector = read_u16(state.window, ip + 2U);
+      const u16 tile_x = read_u16(state.window, ip + 4U);
+      const u16 tile_y = read_u16(state.window, ip + 6U);
       result.status = set_role_position_and_release(
           context, roles, controlled_role_index, active_object_slots, runtime,
-          read_u16(state.window, ip + 2U),
-          static_cast<u16>(read_u16(state.window, ip + 4U) << 4U),
-          static_cast<u16>(read_u16(state.window, ip + 6U) << 4U));
+          selector, static_cast<u16>(tile_x << 4U),
+          static_cast<u16>(tile_y << 4U));
+      if (result.status == LegacyWorldStoryVmStatus::role_not_found) {
+        ports.patch_role_source(LegacyMapsRolePatchRequest{
+            .guid = selector,
+            .tile_x = tile_x,
+            .tile_y = tile_y,
+            .flags_or_mask = 0U,
+        });
+        result.status = LegacyWorldStoryVmStatus::yielded;
+      }
       if (result.status != LegacyWorldStoryVmStatus::yielded) {
         return result;
       }
@@ -1652,28 +1668,35 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
         selector = context.source_guid;
       }
       u32 role_index{};
-      if (!resolve_role_index(roles, selector, controlled_role_index,
-                              role_index)) {
-        result.status = LegacyWorldStoryVmStatus::role_not_found;
-        return result;
-      }
-      auto &role = roles[role_index];
-      const i16 action_id = static_cast<i16>(read_u16(state.window, ip + 4U));
-      const i16 base_variant =
-          static_cast<i16>(read_u16(state.window, ip + 6U));
+      const u16 raw_action_id = read_u16(state.window, ip + 4U);
+      const u16 raw_base_variant = read_u16(state.window, ip + 6U);
       const u16 variant_delta = read_u16(state.window, ip + 8U);
-      if (action_id != -1) {
-        role.action.action_id = static_cast<u32>(action_id);
+      if (resolve_role_index(roles, selector, controlled_role_index,
+                             role_index)) {
+        auto &role = roles[role_index];
+        if (raw_action_id != 0xFFFFU) {
+          role.action.action_id =
+              static_cast<u32>(static_cast<i16>(raw_action_id));
+        }
+        if (raw_base_variant != 0xFFFFU) {
+          role.action.base_variant =
+              static_cast<u32>(static_cast<i16>(raw_base_variant));
+        }
+        if (variant_delta != 0xFFFFU) {
+          role.action.variant_delta = variant_delta;
+        }
+        role.action.wait_remaining = 0U;
+        record_action_update(result, role.action, ports);
+        role.flags |= 0x00001000U;
+      } else {
+        ports.patch_role_source(LegacyMapsRolePatchRequest{
+            .guid = selector,
+            .action_id = raw_action_id,
+            .base_variant = raw_base_variant,
+            .variant_delta = variant_delta,
+            .flags_or_mask = 0x1000U,
+        });
       }
-      if (base_variant != -1) {
-        role.action.base_variant = static_cast<u32>(base_variant);
-      }
-      if (variant_delta != 0xFFFFU) {
-        role.action.variant_delta = variant_delta;
-      }
-      role.action.wait_remaining = 0U;
-      record_action_update(result, role.action, ports);
-      role.flags |= 0x00001000U;
       context.instruction_offset =
           static_cast<u16>(context.instruction_offset + 10U);
       continue;

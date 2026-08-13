@@ -1,16 +1,24 @@
 #include "test.hpp"
 
+#include "openswd3/asset_runtime/legacy_act_runtime.hpp"
 #include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
 #include "openswd3/world_map/legacy_world_map_role_paths.hpp"
+#include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
 #include "openswd3/world_map/legacy_world_spatial_audio.hpp"
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <chrono>
 #include <filesystem>
 #include <span>
+#include <string_view>
 #include <tuple>
 #include <vector>
+
+#ifndef OPENSWD3_TEST_ARTIFACT_ROOT
+#error OPENSWD3_TEST_ARTIFACT_ROOT must name a build-tree directory
+#endif
 
 namespace {
 
@@ -39,6 +47,42 @@ void write_u32(const std::span<u8> bytes, const std::size_t offset,
   bytes[offset + 1U] = static_cast<u8>(value >> 8U);
   bytes[offset + 2U] = static_cast<u8>(value >> 16U);
   bytes[offset + 3U] = static_cast<u8>(value >> 24U);
+}
+
+class StoryTestTree final {
+public:
+  StoryTestTree() {
+    const auto unique =
+        std::chrono::steady_clock::now().time_since_epoch().count();
+    root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
+            ("legacy-world-story-" + std::to_string(unique));
+    std::filesystem::create_directories(root_);
+  }
+
+  ~StoryTestTree() {
+    std::error_code ignored;
+    std::filesystem::remove_all(root_, ignored);
+  }
+
+  [[nodiscard]] const std::filesystem::path &root() const noexcept {
+    return root_;
+  }
+
+private:
+  std::filesystem::path root_;
+};
+
+[[nodiscard]] openswd3::rendering::LegacyPixelConversionState
+rgb565_conversion() {
+  openswd3::rendering::LegacyPixelConversionState conversion;
+  openswd3::rendering::select_legacy_pixel_conversion(
+      conversion,
+      openswd3::rendering::LegacyPixelMasks{
+          .red = 0xF800U,
+          .green = 0x07E0U,
+          .blue = 0x001FU,
+      });
+  return conversion;
 }
 
 class RecordingPorts final : public LegacyWorldStoryVmPorts {
@@ -174,8 +218,10 @@ public:
   }
 
   void patch_role_source(
-      const openswd3::world_map::LegacyMapsRolePatchRequest &
-  ) noexcept override {}
+      const openswd3::world_map::LegacyMapsRolePatchRequest &request
+  ) noexcept override {
+    role_patch_requests.push_back(request);
+  }
 
   void play_sound_effect(const u16 sound_id) noexcept override {
     sound_effect_requests.push_back(sound_id);
@@ -205,6 +251,8 @@ public:
   u32 video_begin_count{};
   u32 video_progress_query_count{};
   std::vector<u8> last_video_filename;
+  std::vector<openswd3::world_map::LegacyMapsRolePatchRequest>
+      role_patch_requests;
   std::vector<u16> sound_effect_requests;
 
 private:
@@ -524,6 +572,36 @@ void test_role_action_operand_extension(openswd3::test::Context &test) {
   write_u16(script, 12U, 0x00F8U);
 
   const auto result = fixture.step();
+
+  Fixture missing;
+  auto missing_script = std::span<u8>{missing.ports.initial_window};
+  write_u16(missing_script, 0U, 120U);
+  write_u16(missing_script, 2U, 0x7777U);
+  write_u16(missing_script, 4U, 0x8000U);
+  write_u16(missing_script, 6U, 0xFFFEU);
+  write_u16(missing_script, 8U, 0x8123U);
+  write_u16(missing_script, 10U, 14U);
+  write_u16(missing_script, 12U, 0x00F8U);
+  const auto missing_result = missing.step();
+  const auto patch = missing.ports.role_patch_requests.empty()
+                         ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+                         : missing.ports.role_patch_requests.front();
+
+  Fixture preserved;
+  preserved.roles[1].action.action_id = 0x12345678U;
+  preserved.roles[1].action.base_variant = 0x87654321U;
+  preserved.roles[1].action.variant_delta = 0x10203040U;
+  preserved.roles[1].action.wait_remaining = 7U;
+  auto preserved_script = std::span<u8>{preserved.ports.initial_window};
+  write_u16(preserved_script, 0U, 120U);
+  write_u16(preserved_script, 2U, 0x00F8U);
+  write_u16(preserved_script, 4U, 0xFFFFU);
+  write_u16(preserved_script, 6U, 0xFFFFU);
+  write_u16(preserved_script, 8U, 0xFFFFU);
+  write_u16(preserved_script, 10U, 14U);
+  write_u16(preserved_script, 12U, 0x00F8U);
+  const auto preserved_result = preserved.step();
+
   test.expect_true(
       result.status == LegacyWorldStoryVmStatus::yielded &&
           result.opcode == 14U &&
@@ -531,6 +609,59 @@ void test_role_action_operand_extension(openswd3::test::Context &test) {
           fixture.roles[1].action.base_variant == 0xFFFFFFFEU &&
           fixture.roles[1].action.variant_delta == 0x00008000U,
       "opcode 120 sign-extends action and base while zero-extending variant");
+  test.expect_true(
+      missing_result.status == LegacyWorldStoryVmStatus::yielded &&
+          missing_result.opcode == 14U &&
+          missing_result.executed_instruction_count == 2U &&
+          missing.ports.role_patch_requests.size() == 1U &&
+          patch.guid == 0x7777U && patch.action_id == 0x8000U &&
+          patch.base_variant == 0xFFFEU &&
+          patch.variant_delta == 0x8123U &&
+          patch.flags_or_mask == 0x1000U &&
+          patch.flags_and_mask == 0xFFFFU,
+      "opcode 120 patches the MAPS role source and consumes ten bytes when "
+      "the runtime role is absent");
+  test.expect_true(
+      preserved_result.status == LegacyWorldStoryVmStatus::yielded &&
+          preserved_result.opcode == 14U &&
+          preserved.roles[1].action.action_id == 0x12345678U &&
+          preserved.roles[1].action.base_variant == 0x87654321U &&
+          preserved.roles[1].action.variant_delta == 0x10203040U &&
+          preserved.roles[1].action.wait_remaining == 0U &&
+          (preserved.roles[1].flags & 0x1000U) != 0U &&
+          preserved.ports.action_update_count == 2U,
+      "opcode 120 preserves FFFF action operands while refreshing and "
+      "marking the resolved role");
+}
+
+void test_missing_role_position_patch(openswd3::test::Context &test) {
+  Fixture fixture;
+  auto script = std::span<u8>{fixture.ports.initial_window};
+  write_u16(script, 0U, 40U);
+  write_u16(script, 2U, 0x7777U);
+  write_u16(script, 4U, 0x8123U);
+  write_u16(script, 6U, 0xFEDCU);
+  write_u16(script, 8U, 14U);
+  write_u16(script, 10U, 0x00F8U);
+
+  const auto result = fixture.step();
+  const auto patch = fixture.ports.role_patch_requests.empty()
+                         ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+                         : fixture.ports.role_patch_requests.front();
+
+  test.expect_true(
+      result.status == LegacyWorldStoryVmStatus::yielded &&
+          result.opcode == 14U && result.executed_instruction_count == 2U &&
+          fixture.context.instruction_offset == 12U &&
+          fixture.ports.role_patch_requests.size() == 1U &&
+          patch.guid == 0x7777U && patch.tile_x == 0x8123U &&
+          patch.tile_y == 0xFEDCU && patch.flags_or_mask == 0U &&
+          patch.flags_and_mask == 0xFFFFU &&
+          patch.action_id == 0xFFFFU && patch.base_variant == 0xFFFFU &&
+          patch.variant_delta == 0xFFFFU &&
+          patch.logical_map_id == 0xFFFFU,
+      "opcode 40 preserves raw tile words in the MAPS fallback and consumes "
+      "eight bytes when the role is absent");
 }
 
 void test_role_action_chain_update_gate(openswd3::test::Context &test) {
@@ -1042,6 +1173,9 @@ void test_set_and_clear_role_wait_override(openswd3::test::Context &test) {
           cleared.roles[1].action.wait_remaining == 0U &&
           cleared.context.instruction_offset == 8U &&
           missing_result.status == LegacyWorldStoryVmStatus::role_not_found &&
+          missing_result.instruction_offset == 0U &&
+          missing_result.first_operand_available &&
+          missing_result.first_operand_word == 0x7777U &&
           missing.context.instruction_offset == 0U,
       "opcodes 77 and 78 refresh the role wait override while an unresolved "
       "selector preserves the undefined-width instruction boundary");
@@ -1103,6 +1237,233 @@ void test_real_story_248_dialog(openswd3::test::Context &test,
           dialogs.messages.front().record.height == 88U &&
           roles[1].interaction_gate == 1U,
       "real story 248 executes 0x402, 91 and 89 into its first dialog");
+}
+
+void test_real_new_game_story_patches_unloaded_role(
+    openswd3::test::Context &test, const std::filesystem::path &root) {
+  openswd3::resource_io::LegacyResourceDatabases databases;
+  const auto initialized = databases.initialize(root);
+  const auto maps = databases.reload_maps_payload();
+  auto payload = databases.mutable_maps_payload_bytes();
+  const auto decoded =
+      openswd3::world_map::decode_legacy_maps_world_database(payload);
+  test.expect_true(
+      initialized.status ==
+              openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
+          maps.status ==
+              openswd3::resource_io::LegacyMapsPayloadStatus::ready &&
+          decoded.status == openswd3::world_map::
+                                LegacyMapsWorldDatabaseStatus::ready,
+      "real new-game patch test decodes the current MAPS database");
+  if (initialized.status !=
+          openswd3::resource_io::LegacyResourceDatabaseStatus::ready ||
+      maps.status != openswd3::resource_io::LegacyMapsPayloadStatus::ready ||
+      decoded.status !=
+          openswd3::world_map::LegacyMapsWorldDatabaseStatus::ready) {
+    return;
+  }
+
+  StoryTestTree tree;
+  openswd3::asset_runtime::LegacyActRuntime act_runtime{root};
+  openswd3::asset_runtime::LegacyActActionStreamProvider action_provider{
+      act_runtime};
+  openswd3::asset_runtime::LegacyActionUpdater action_updater{action_provider};
+  openswd3::world_map::LegacyWorldActionUpdaterInitializer action_initializer{
+      action_updater};
+  auto loaded = openswd3::world_map::load_legacy_world_runtime_session(
+      payload,
+      openswd3::world_map::LegacyWorldRuntimeSessionRequest{
+          .archive_path = root / "huge.lmf",
+          .cache_directory = tree.root() / "cache" / "maps",
+          .load = decoded.database.initial_load,
+          .cache_limit_megabytes = 60U,
+          .pixel_conversion = rgb565_conversion(),
+      },
+      action_initializer);
+  test.expect_equal(
+      loaded.status,
+      openswd3::world_map::LegacyWorldRuntimeSessionStatus::ready,
+      "real new-game patch test creates the exact initial world session");
+  if (loaded.status !=
+      openswd3::world_map::LegacyWorldRuntimeSessionStatus::ready) {
+    return;
+  }
+
+  auto &world = loaded.session;
+  auto &map = world.render.map_load.session;
+  auto &roles = map.business.state.roles;
+  LegacyWorldStoryVmState state{};
+  openswd3::world_map::initialize_legacy_world_story_vm(state);
+  LegacyWorldTalkContext context{};
+  context.source_guid = decoded.database.initial_load.selected_guid;
+  context.talk_script_id = 100U;
+  openswd3::world_map::LegacyWorldMapRolePathState map_role_paths{};
+  openswd3::story_scene::LegacyDialogRuntimeState dialogs;
+  openswd3::world_map::LegacyWorldDialogRuntimeState dialog_resources;
+  openswd3::world_map::LegacyWorldCameraPanState camera_pan{};
+  openswd3::world_map::LegacyWorldMovementRuntimeState movement{};
+  openswd3::world_map::LegacyPictureActionLists picture_actions;
+  std::list<openswd3::rendering::LegacyPackedRowEffect> packed_row_effects;
+  openswd3::world_map::LegacyRoleHeadActionList role_head_actions;
+  u32 battle_request_value{};
+  openswd3::rendering::LegacyFrameColorTransitionState frame_color{};
+  u8 scene_render_flags{};
+  openswd3::world_map::LegacyWorldPathNodePool path_node_pool;
+  openswd3::world_map::LegacyWorldStoryPathRuntime story_paths{
+      .roles = roles,
+      .active_object_slots = map_role_paths.active_object_slots,
+      .spatial_index = &map.business.state.spatial_index,
+      .role_surface = {
+          .map_width = map.header.width,
+          .selected_guid = roles[world.selected_role_index].guid,
+          .surface_grid = map.surface_grid.surface_grid,
+      },
+      .node_pool = &path_node_pool,
+      .movement = &movement,
+      .camera = &world.camera,
+      .selected_arrival_bytes = map_role_paths.guid_one_arrival_bytes,
+      .selected_role_index = world.selected_role_index,
+      .map_height = map.header.height,
+      .scene_render_flags = &scene_render_flags,
+  };
+  openswd3::world_map::LegacyWorldStoryVmRuntime runtime{
+      .spatial_index = &map.business.state.spatial_index,
+      .role_surface = {
+          .map_width = map.header.width,
+          .selected_guid = roles[world.selected_role_index].guid,
+          .surface_grid = map.surface_grid.surface_grid,
+      },
+      .camera = &world.camera,
+      .camera_pan = &camera_pan,
+      .movement = &movement,
+      .picture_actions = &picture_actions,
+      .packed_row_effects = &packed_row_effects,
+      .role_head_actions = &role_head_actions,
+      .battle_request_value = &battle_request_value,
+      .frame_color = &frame_color,
+      .story_paths = &story_paths,
+      .scene_render_flags = &scene_render_flags,
+      .map_height = map.header.height,
+  };
+  std::array<u8, 16U> first_name{};
+  std::array<u8, 16U> second_name{};
+  RealPorts ports{databases};
+  const auto step = [&] {
+    return openswd3::world_map::step_legacy_world_story_vm(
+        context, state, roles, world.selected_role_index,
+        map_role_paths.active_object_slots, databases.maps_payload_bytes(),
+        dialogs, dialog_resources, first_name, second_name, runtime, ports);
+  };
+
+  const auto first_clear = step();
+  const auto opening_wait = step();
+  runtime.current_tick =
+      state.wait_started_at + static_cast<u32>(state.wait_duration) + 1U;
+  const auto opening_video = step();
+  auto boundary = opening_video;
+  std::size_t boundary_count{};
+  for (; boundary_count < 64U && ports.role_patch_requests.size() < 3U;
+       ++boundary_count) {
+    if (boundary.opcode == 67U) {
+      runtime.current_tick =
+          state.wait_started_at + static_cast<u32>(state.wait_duration) + 1U;
+    } else if (boundary.opcode == 51U) {
+      while (openswd3::world_map::advance_legacy_world_camera_pan(
+          world.camera, camera_pan)) {
+      }
+    } else if (boundary.opcode == 89U ||
+               boundary.status != LegacyWorldStoryVmStatus::yielded) {
+      break;
+    }
+    boundary = step();
+  }
+  const auto missing_patch = ports.role_patch_requests.empty()
+                                 ? openswd3::world_map::
+                                       LegacyMapsRolePatchRequest{}
+                                 : ports.role_patch_requests.front();
+  const auto second_missing_patch = ports.role_patch_requests.size() < 2U
+                                        ? openswd3::world_map::
+                                              LegacyMapsRolePatchRequest{}
+                                        : ports.role_patch_requests[1U];
+  const auto position_patch = ports.role_patch_requests.size() < 3U
+                                  ? openswd3::world_map::
+                                        LegacyMapsRolePatchRequest{}
+                                  : ports.role_patch_requests[2U];
+  const auto runtime_role = std::ranges::find(
+      roles, missing_patch.guid,
+      &openswd3::world_map::LegacyWorldRoleRecord::guid);
+  const auto second_runtime_role = std::ranges::find(
+      roles, second_missing_patch.guid,
+      &openswd3::world_map::LegacyWorldRoleRecord::guid);
+  const auto position_runtime_role = std::ranges::find(
+      roles, position_patch.guid,
+      &openswd3::world_map::LegacyWorldRoleRecord::guid);
+  const auto source_role = std::ranges::find(
+      decoded.database.role_sources, missing_patch.guid,
+      &openswd3::world_map::LegacyMapsRoleSourceRecord::guid);
+  const auto second_source_role = std::ranges::find(
+      decoded.database.role_sources, second_missing_patch.guid,
+      &openswd3::world_map::LegacyMapsRoleSourceRecord::guid);
+  const auto position_source_role = std::ranges::find(
+      decoded.database.role_sources, position_patch.guid,
+      &openswd3::world_map::LegacyMapsRoleSourceRecord::guid);
+
+  test.expect_true(
+      first_clear.status == LegacyWorldStoryVmStatus::yielded &&
+          first_clear.opcode == 61U &&
+          opening_wait.status == LegacyWorldStoryVmStatus::yielded &&
+          opening_wait.opcode == 67U &&
+          opening_video.status == LegacyWorldStoryVmStatus::yielded &&
+          opening_video.opcode == 85U,
+      "real initial roles execute the opening story through its video boundary");
+  test.expect_equal(roles.size(), std::size_t{33U},
+                    "real initial world role count");
+  test.expect_equal(ports.role_patch_requests.size(), std::size_t{3U},
+                    "real opening TALK100 MAPS patch count");
+  test.expect_true(boundary_count < 64U,
+                   "real opening TALK100 reaches its MAPS patch boundary");
+  test.expect_true(boundary.status == LegacyWorldStoryVmStatus::yielded &&
+                       boundary.opcode == 61U,
+                   "real opening TALK100 continues past opcode 40");
+  test.expect_true(runtime_role == roles.end(),
+                   "first patched TALK100 role is absent from runtime");
+  test.expect_true(second_runtime_role == roles.end(),
+                   "second patched TALK100 role is absent from runtime");
+  test.expect_true(position_runtime_role == roles.end(),
+                   "position-patched TALK100 role is absent from runtime");
+  test.expect_true(source_role != decoded.database.role_sources.end(),
+                   "first patched TALK100 role exists in MAPS sources");
+  test.expect_true(second_source_role != decoded.database.role_sources.end(),
+                   "second patched TALK100 role exists in MAPS sources");
+  test.expect_true(position_source_role != decoded.database.role_sources.end(),
+                   "position-patched TALK100 role exists in MAPS sources");
+  test.expect_true(
+      missing_patch.guid == 123U && missing_patch.action_id == 561U &&
+          missing_patch.base_variant == 8U &&
+          missing_patch.variant_delta == 0U &&
+          second_missing_patch.guid == 240U &&
+          second_missing_patch.action_id == 561U &&
+          second_missing_patch.base_variant == 0U &&
+          second_missing_patch.variant_delta == 1U,
+      "real TALK100 preserves both unloaded-role action patch operands");
+  test.expect_equal(missing_patch.flags_or_mask, u16{0x1000U},
+                    "real opening TALK100 role patch OR mask");
+  test.expect_equal(missing_patch.flags_and_mask, u16{0xFFFFU},
+                    "real opening TALK100 role patch AND mask");
+  test.expect_equal(missing_patch.logical_map_id, u16{0xFFFFU},
+                    "real opening TALK100 role patch preserves map id");
+  test.expect_true(
+      second_missing_patch.flags_or_mask == 0x1000U &&
+          second_missing_patch.flags_and_mask == 0xFFFFU &&
+          second_missing_patch.logical_map_id == 0xFFFFU,
+      "second real TALK100 role patch preserves masks and map id");
+  test.expect_true(
+      position_patch.guid == 195U && position_patch.tile_x == 16U &&
+          position_patch.tile_y == 36U &&
+          position_patch.flags_or_mask == 0U &&
+          position_patch.flags_and_mask == 0xFFFFU &&
+          position_patch.logical_map_id == 0xFFFFU,
+      "real TALK100 preserves the missing GUID 195 opcode-40 patch");
 }
 
 void test_real_new_game_story_reaches_first_dialog(
@@ -1739,6 +2100,7 @@ int main(const int argument_count, char **arguments) {
   test_transfer_flags_and_terminal_cleanup(test);
   test_same_file_branch(test);
   test_role_action_operand_extension(test);
+  test_missing_role_position_patch(test);
   test_role_action_chain_update_gate(test);
   test_change_requested_action_id(test);
   test_wait_for_role_action_position(test);
@@ -1750,7 +2112,11 @@ int main(const int argument_count, char **arguments) {
   test_turn_role_toward_role(test);
   test_set_role_head_sign_action(test);
   test_set_and_clear_role_wait_override(test);
-  if (argument_count == 2) {
+  if (argument_count == 3 &&
+      std::string_view{arguments[2]} == "initial-session") {
+    test_real_new_game_story_patches_unloaded_role(
+        test, std::filesystem::path{arguments[1]});
+  } else if (argument_count == 2) {
     const std::filesystem::path root{arguments[1]};
     test_real_story_248_dialog(test, root);
     test_real_new_game_story_reaches_first_dialog(test, root);
