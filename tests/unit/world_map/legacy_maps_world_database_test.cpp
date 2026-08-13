@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <bit>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -23,7 +24,10 @@ using openswd3::world_map::decode_legacy_maps_world_database;
 using openswd3::world_map::find_legacy_maps_map_descriptor;
 using openswd3::world_map::find_legacy_maps_role_defaults;
 using openswd3::world_map::kLegacyMapsPreserveRoleField;
+using openswd3::world_map::kLegacyMapsPartyAttributeRuntimeRecordSize;
+using openswd3::world_map::kLegacyMapsPartyAttributeSourceRecordSize;
 using openswd3::world_map::load_legacy_maps_role_source_record;
+using openswd3::world_map::materialize_legacy_maps_party_attribute_record;
 using openswd3::world_map::patch_legacy_maps_role_source_record;
 using openswd3::world_map::synchronize_legacy_maps_role_source_record;
 using openswd3::world_map::LegacyMapsRolePatchRequest;
@@ -79,10 +83,11 @@ void write_role_source(const std::span<u8> bytes, const std::size_t offset,
 }
 
 std::vector<u8> make_database() {
-  std::vector<u8> bytes(0xC0U, 0U);
+  std::vector<u8> bytes(0x190U, 0U);
   write_u32(bytes, 0x04U, 0x80U);
   write_u32(bytes, 0x0CU, 0x70U);
   write_u32(bytes, 0x10U, 0x60U);
+  write_u32(bytes, 0x18U, 0xC0U);
   write_u32(bytes, 0x54U, 0xB0U);
 
   constexpr LegacyWorldLoadRequest initial{
@@ -113,6 +118,15 @@ u16 read_u16(const std::span<const u8> bytes, const std::size_t offset) {
          static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
 }
 
+std::uint64_t fnv1a64(const std::span<const u8> bytes) {
+  std::uint64_t value = 0xCBF29CE484222325ULL;
+  for (const u8 byte : bytes) {
+    value ^= byte;
+    value *= 0x100000001B3ULL;
+  }
+  return value;
+}
+
 void test_decode_and_lookup(openswd3::test::Context &test) {
   const std::vector<u8> bytes = make_database();
   const auto result = decode_legacy_maps_world_database(bytes);
@@ -122,8 +136,9 @@ void test_decode_and_lookup(openswd3::test::Context &test) {
       result.database.header.role_directory_offset == 0x80U &&
           result.database.header.map_descriptor_directory_offset == 0x70U &&
           result.database.header.initial_load_offset == 0x60U &&
+          result.database.header.party_attribute_directory_offset == 0xC0U &&
           result.database.header.role_defaults_directory_offset == 0xB0U,
-      "payload-relative pointers come from header +04/+0c/+10/+54");
+      "payload-relative pointers come from header +04/+0c/+10/+18/+54");
   const auto &initial = result.database.initial_load;
   test.expect_true(
       initial.logical_map_id == 5U && initial.tile_x == 11U &&
@@ -147,6 +162,43 @@ void test_decode_and_lookup(openswd3::test::Context &test) {
   test.expect_true(defaults != nullptr && defaults->field_2c == 0x2468U &&
                        defaults->repeated_field_30_word == 0xACE0U,
                    "the six-byte sub_40D060 directory is decoded by GUID");
+}
+
+void test_party_attribute_materialization(openswd3::test::Context &test) {
+  std::array<u8, kLegacyMapsPartyAttributeSourceRecordSize> source{};
+  for (std::size_t index = 0U; index < source.size(); ++index) {
+    source[index] = static_cast<u8>(index);
+  }
+  std::array<u8, kLegacyMapsPartyAttributeRuntimeRecordSize> destination{};
+  destination.fill(0xA5U);
+
+  const u8 returned = materialize_legacy_maps_party_attribute_record(
+      destination, source);
+  constexpr std::array<u8, kLegacyMapsPartyAttributeRuntimeRecordSize>
+      expected{
+          0x00U, 0x01U, 0x02U, 0x03U, 0x0AU, 0x0BU, 0x0CU, 0x0DU,
+          0x0EU, 0x0FU, 0x04U, 0x05U, 0x06U, 0x07U, 0x08U, 0x09U,
+          0x10U, 0x11U, 0x12U, 0x13U, 0x14U, 0x15U, 0x16U, 0x17U,
+          0x18U, 0x19U, 0x1AU, 0x1BU, 0x1CU, 0x1DU, 0x1EU, 0x1FU,
+          0x22U, 0x23U, 0x00U, 0x00U, 0x24U, 0x25U, 0x26U, 0x27U,
+          0x28U, 0x29U, 0x20U, 0x21U, 0x2AU, 0x2BU, 0x2CU, 0x2DU,
+          0x2EU, 0x2FU, 0x30U, 0x31U, 0x32U, 0x33U, 0xA5U, 0xA5U,
+      };
+
+  test.expect_equal(
+      destination,
+      expected,
+      "sub_40DD60 reproduces every selective source-to-destination write"
+  );
+  test.expect_true(
+      destination[0x36U] == 0xA5U && destination[0x37U] == 0xA5U,
+      "sub_40DD60 preserves the two unwritten runtime tail bytes"
+  );
+  test.expect_equal(
+      returned,
+      source[0x33U],
+      "sub_40DD60 returns the final byte left in AL"
+  );
 }
 
 void test_role_defaults_and_source_materialization(
@@ -218,10 +270,11 @@ void test_apply_load_mutates_owned_payload(openswd3::test::Context &test) {
 void test_load_duplicate_scan_preserves_original_cursor(
     openswd3::test::Context &test
 ) {
-  std::vector<u8> bytes(0x110U, 0U);
+  std::vector<u8> bytes(0x1E0U, 0U);
   write_u32(bytes, 0x04U, 0x80U);
   write_u32(bytes, 0x0CU, 0x70U);
   write_u32(bytes, 0x10U, 0x60U);
+  write_u32(bytes, 0x18U, 0x110U);
   write_u32(bytes, 0x54U, 0xF0U);
   write_u16(bytes, 0x60U, 5U);
   write_u16(bytes, 0x6CU, 10U);
@@ -372,8 +425,16 @@ void test_checked_boundaries(openswd3::test::Context &test) {
       "partial initial records stop at the modern ownership boundary");
 
   bytes = make_database();
-  write_u16(bytes, 0x7EU, 6U);
-  bytes.resize(0x85U);
+  write_u32(bytes, 0x18U, static_cast<u32>(bytes.size() - 0xCFU));
+  test.expect_equal(
+      decode_legacy_maps_world_database(bytes).status,
+      LegacyMapsWorldDatabaseStatus::party_attribute_records_out_of_range,
+      "all four 0x34-byte party templates are required"
+  );
+
+  bytes = make_database();
+  write_u32(bytes, 0x0CU, 0x188U);
+  write_u16(bytes, 0x188U, 6U);
   test.expect_equal(
       decode_legacy_maps_world_database(bytes).status,
       LegacyMapsWorldDatabaseStatus::map_descriptor_record_truncated,
@@ -408,11 +469,31 @@ void test_real_maps_dat(openswd3::test::Context &test,
   test.expect_true(
       decoded.status == LegacyMapsWorldDatabaseStatus::ready &&
           decoded.database.map_descriptors.size() == 345U &&
-          decoded.database.role_sources.size() == 1371U,
+          decoded.database.role_sources.size() == 1371U &&
+          decoded.database.header.party_attribute_directory_offset == 0x185AU,
       "current game map and role directories are structurally complete");
   if (decoded.status != LegacyMapsWorldDatabaseStatus::ready) {
     return;
   }
+
+  constexpr std::array<std::uint64_t, 4U> expected_party_hashes{
+      0xCC4B8CF1942788FBULL,
+      0xF4F20DE2292D8DA5ULL,
+      0x18C87379B4B15AF6ULL,
+      0xB3BDE5C0E26B9D24ULL,
+  };
+  std::array<std::uint64_t, 4U> actual_party_hashes{};
+  std::transform(
+      decoded.database.party_attributes.begin(),
+      decoded.database.party_attributes.end(),
+      actual_party_hashes.begin(),
+      [](const auto &record) { return fnv1a64(record); }
+  );
+  test.expect_equal(
+      actual_party_hashes,
+      expected_party_hashes,
+      "current MAPS.DAT materializes all four 0x38-byte party records"
+  );
 
   const auto &initial = decoded.database.initial_load;
   const auto *descriptor =
@@ -448,6 +529,7 @@ void test_real_maps_dat(openswd3::test::Context &test,
 int main(const int argc, char **argv) {
   openswd3::test::Context test;
   test_decode_and_lookup(test);
+  test_party_attribute_materialization(test);
   test_role_defaults_and_source_materialization(test);
   test_apply_load_mutates_owned_payload(test);
   test_load_duplicate_scan_preserves_original_cursor(test);

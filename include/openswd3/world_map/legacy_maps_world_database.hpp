@@ -3,6 +3,7 @@
 #include "openswd3/compat/types.hpp"
 #include "openswd3/world_map/legacy_world_role_record.hpp"
 
+#include <array>
 #include <cstddef>
 #include <span>
 #include <vector>
@@ -14,12 +15,21 @@ inline constexpr std::size_t kLegacyMapsInitialLoadRecordSize = 0x0EU;
 inline constexpr std::size_t kLegacyMapsMapDescriptorRecordSize = 0x0EU;
 inline constexpr std::size_t kLegacyMapsRoleSourceRecordSize = 0x16U;
 inline constexpr std::size_t kLegacyMapsRoleDefaultsRecordSize = 0x06U;
+inline constexpr std::size_t kLegacyMapsPartyAttributeSourceRecordSize = 0x34U;
+inline constexpr std::size_t kLegacyMapsPartyAttributeRuntimeRecordSize = 0x38U;
+inline constexpr std::size_t kLegacyMapsPartyAttributeRecordCount = 4U;
 inline constexpr compat::u16 kLegacyMapsPreserveRoleField = 0xFFFFU;
+
+using LegacyMapsPartyAttributeRecord = std::array<
+    compat::u8,
+    kLegacyMapsPartyAttributeRuntimeRecordSize
+>;
 
 struct LegacyMapsWorldHeader {
   compat::u32 role_directory_offset{};
   compat::u32 map_descriptor_directory_offset{};
   compat::u32 initial_load_offset{};
+  compat::u32 party_attribute_directory_offset{};
   compat::u32 role_defaults_directory_offset{};
 };
 
@@ -83,6 +93,10 @@ struct LegacyMapsRolePatchRequest {
 struct LegacyMapsWorldDatabase {
   LegacyMapsWorldHeader header;
   LegacyWorldLoadRequest initial_load;
+  std::array<
+      LegacyMapsPartyAttributeRecord,
+      kLegacyMapsPartyAttributeRecordCount
+  > party_attributes;
   std::vector<LegacyMapsMapDescriptor> map_descriptors;
   std::vector<LegacyMapsRoleSourceRecord> role_sources;
   std::vector<LegacyMapsRoleDefaultsRecord> role_defaults;
@@ -92,6 +106,7 @@ enum class LegacyMapsWorldDatabaseStatus {
   ready,
   payload_header_truncated,
   initial_load_record_out_of_range,
+  party_attribute_records_out_of_range,
   map_descriptor_offset_out_of_range,
   map_descriptor_record_truncated,
   map_descriptor_directory_unterminated,
@@ -112,6 +127,17 @@ struct LegacyMapsWorldDatabaseResult {
 
 [[nodiscard]] LegacyMapsWorldDatabaseResult
 decode_legacy_maps_world_database(std::span<const compat::u8> payload);
+
+// sub_40DD60 (0x0040DD60..0x0040DE41): selectively materialize one
+// 0x34-byte MAPS party template into its 0x38-byte runtime record. Bytes
+// +0x36/+0x37 are intentionally untouched. The return value is source +0x33,
+// matching AL even though all known callers ignore it.
+[[nodiscard]] compat::u8 materialize_legacy_maps_party_attribute_record(
+    std::span<compat::u8, kLegacyMapsPartyAttributeRuntimeRecordSize>
+        destination,
+    std::span<const compat::u8, kLegacyMapsPartyAttributeSourceRecordSize>
+        source
+) noexcept;
 
 [[nodiscard]] const LegacyMapsMapDescriptor *
 find_legacy_maps_map_descriptor(const LegacyMapsWorldDatabase &database,

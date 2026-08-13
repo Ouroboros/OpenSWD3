@@ -60,6 +60,14 @@ private:
 
 } // namespace
 
+void clear_legacy_dialog_choice_chain(
+    LegacyDialogRuntimeState &state
+) noexcept {
+  for (LegacyDialogMessage &message : state.messages) {
+    message.choices.clear();
+  }
+}
+
 LegacyDialogRuntimeResult update_draw_legacy_dialogs(
     LegacyDialogRuntimeState &state, const LegacyDialogRuntimeInput &input,
     LegacyDialogRuntimePorts &ports) noexcept {

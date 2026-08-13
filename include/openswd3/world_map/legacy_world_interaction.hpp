@@ -24,6 +24,26 @@ struct LegacyWorldInteractionHotspot {
     compat::u16 bottom{};
 };
 
+struct LegacyWorldChoiceHotspotHit {
+    compat::u32 index{};
+    const LegacyWorldInteractionHotspot* hotspot{};
+};
+
+// sub_40DB40: count the nodes in the legacy dialog-choice hotspot chain.
+// The modern owner stores the same ordered nodes in a bounded span.
+[[nodiscard]] compat::u32 count_legacy_world_choice_hotspots(
+    std::span<const LegacyWorldInteractionHotspot> hotspots
+) noexcept;
+
+// sub_40DB60: return the first strict-interior hit and its zero-based index.
+// A miss returns {hotspots.size(), nullptr}, matching the original terminal
+// list index and null output pointer.
+[[nodiscard]] LegacyWorldChoiceHotspotHit find_legacy_world_choice_hotspot(
+    std::span<const LegacyWorldInteractionHotspot> hotspots,
+    compat::u32 mouse_x,
+    compat::u32 mouse_y
+) noexcept;
+
 struct LegacyWorldInteractionState {
     compat::u32 cursor_variant{kLegacyWorldDefaultCursorVariant};
     compat::u32 global_lock{};

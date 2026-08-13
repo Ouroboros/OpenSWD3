@@ -2042,9 +2042,9 @@ public:
             );
 
         if (result.choice_chain_clear_requested) {
-            for (auto& message : world_dialogs_.messages) {
-                message.choices.clear();
-            }
+            openswd3::story_scene::clear_legacy_dialog_choice_chain(
+                world_dialogs_
+            );
             world_dialog_choice_pending_ = true;
         }
         world_frame_effects_.cursor.cursor_action.base_variant =

@@ -59,21 +59,6 @@ constexpr u32 kMapEventLock = 0x00008000U;
     return x > left && x < right && y > top && y < bottom;
 }
 
-[[nodiscard]] constexpr bool strict_hotspot_hit(
-    const u32 x,
-    const u32 y,
-    const LegacyWorldInteractionHotspot& hotspot
-) noexcept {
-    return strict_unsigned_hit(
-        x,
-        y,
-        hotspot.left,
-        hotspot.top,
-        hotspot.right,
-        hotspot.bottom
-    );
-}
-
 [[nodiscard]] const LegacyWorldMapEvent* find_map_event(
     const std::span<const LegacyWorldMapEvent> events,
     const u32 event_code
@@ -188,32 +173,29 @@ void update_action(
     const std::span<LegacyInputRecord> input_records,
     LegacyWorldInteractionState& state
 ) noexcept {
-    if (internal_flag_9 != 0U || request.choice_hotspots.empty() ||
+    const u32 hotspot_count = count_legacy_world_choice_hotspots(
+        request.choice_hotspots
+    );
+    if (internal_flag_9 != 0U || hotspot_count == 0U ||
         !player_state_allows_interaction(player)) {
         return false;
     }
 
     state.cursor_variant = kLegacyWorldDefaultCursorVariant;
-    std::size_t selected = request.choice_hotspots.size();
-    for (std::size_t index = 0U; index < request.choice_hotspots.size();
-         ++index) {
-        if (strict_hotspot_hit(
-                request.mouse_x,
-                request.mouse_y,
-                request.choice_hotspots[index]
-            )) {
-            selected = index;
-            break;
-        }
-    }
+    const LegacyWorldChoiceHotspotHit hit =
+        find_legacy_world_choice_hotspot(
+            request.choice_hotspots,
+            request.mouse_x,
+            request.mouse_y
+        );
 
     // With a live choice chain the original function returns here even when
     // the cursor is outside every node or the press is not its first sample.
-    if (selected == request.choice_hotspots.size()) {
+    if (hit.hotspot == nullptr) {
         return true;
     }
 
-    state.selected_choice_index = static_cast<u32>(selected);
+    state.selected_choice_index = hit.index;
     const LegacyInputRecord& click = input_records[kMouseLeftInputIndex];
     if (click.rapid_press_multiplicity == 0U ||
         click.held_sample_count != 1U) {
@@ -430,6 +412,34 @@ void coordinate_direction_tail(
 }
 
 }  // namespace
+
+u32 count_legacy_world_choice_hotspots(
+    const std::span<const LegacyWorldInteractionHotspot> hotspots
+) noexcept {
+    return static_cast<u32>(hotspots.size());
+}
+
+LegacyWorldChoiceHotspotHit find_legacy_world_choice_hotspot(
+    const std::span<const LegacyWorldInteractionHotspot> hotspots,
+    const u32 mouse_x,
+    const u32 mouse_y
+) noexcept {
+    u32 index = 0U;
+    for (const LegacyWorldInteractionHotspot& hotspot : hotspots) {
+        if (strict_unsigned_hit(
+                mouse_x,
+                mouse_y,
+                hotspot.left,
+                hotspot.top,
+                hotspot.right,
+                hotspot.bottom
+            )) {
+            return {index, &hotspot};
+        }
+        ++index;
+    }
+    return {index, nullptr};
+}
 
 LegacyWorldInteractionResult coordinate_legacy_world_interaction(
     const LegacyWorldInteractionRequest& request,

@@ -13,6 +13,8 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::input_time_rng::LegacyInputRecord;
 using openswd3::world_map::coordinate_legacy_world_interaction;
+using openswd3::world_map::count_legacy_world_choice_hotspots;
+using openswd3::world_map::find_legacy_world_choice_hotspot;
 using openswd3::world_map::kLegacyWorldDefaultCursorVariant;
 using openswd3::world_map::kLegacyWorldMapEventCursorVariant;
 using openswd3::world_map::kLegacyWorldTalkIdleSource;
@@ -243,6 +245,53 @@ void test_choice_chain_has_absolute_priority(openswd3::test::Context& test) {
                       "choice-chain miss still returns with variant thirteen");
 }
 
+void test_choice_hotspot_chain_helpers(openswd3::test::Context& test) {
+    const std::array hotspots{
+        LegacyWorldInteractionHotspot{10U, 20U, 30U, 40U},
+        LegacyWorldInteractionHotspot{50U, 60U, 70U, 80U},
+    };
+    test.expect_equal(
+        count_legacy_world_choice_hotspots(hotspots),
+        2U,
+        "sub_40DB40 returns the ordered hotspot-node count"
+    );
+    test.expect_equal(
+        count_legacy_world_choice_hotspots({}),
+        0U,
+        "sub_40DB40 returns zero for a null legacy chain"
+    );
+
+    const auto second = find_legacy_world_choice_hotspot(hotspots, 60U, 70U);
+    test.expect_true(
+        second.index == 1U && second.hotspot == &hotspots[1],
+        "sub_40DB60 returns the first hit node and zero-based index"
+    );
+
+    constexpr std::array border_points{
+        std::array<u32, 2U>{10U, 30U},
+        std::array<u32, 2U>{30U, 30U},
+        std::array<u32, 2U>{20U, 20U},
+        std::array<u32, 2U>{20U, 40U},
+    };
+    for (const auto& point : border_points) {
+        const auto border = find_legacy_world_choice_hotspot(
+            std::span{hotspots}.first(1U),
+            point[0],
+            point[1]
+        );
+        test.expect_true(
+            border.index == 1U && border.hotspot == nullptr,
+            "sub_40DB60 excludes every rectangle border"
+        );
+    }
+
+    const auto miss = find_legacy_world_choice_hotspot(hotspots, 90U, 90U);
+    test.expect_true(
+        miss.index == 2U && miss.hotspot == nullptr,
+        "sub_40DB60 miss returns terminal count and null node"
+    );
+}
+
 void test_map_event_activation(openswd3::test::Context& test) {
     std::vector roles{make_player()};
     roles[0].action.base_variant = 0x34U;
@@ -413,6 +462,7 @@ int main() {
     openswd3::test::Context test;
     test_role_hover_and_activation(test);
     test_choice_chain_has_absolute_priority(test);
+    test_choice_hotspot_chain_helpers(test);
     test_map_event_activation(test);
     test_direction_synthesis_and_delayed_primary_copy(test);
     test_safe_span_boundaries(test);

@@ -25,6 +25,7 @@ using openswd3::story_scene::LegacyDialogRuntimePorts;
 using openswd3::story_scene::LegacyDialogRuntimeState;
 using openswd3::story_scene::LegacyDialogRuntimeStatus;
 using openswd3::story_scene::LegacyDialogSegmentDrawRequest;
+using openswd3::story_scene::clear_legacy_dialog_choice_chain;
 using openswd3::story_scene::kLegacyDialogFlagTerminated;
 using openswd3::story_scene::kLegacyDialogSurfaceHeight;
 using openswd3::story_scene::kLegacyDialogSurfaceWidth;
@@ -206,6 +207,36 @@ void test_empty_chain_is_exact_early_return(openswd3::test::Context &test) {
       "a null legacy list head returns before allocating the text surface");
 }
 
+void test_choice_chain_release_preserves_unrelated_state(
+    openswd3::test::Context &test) {
+  LegacyDialogRuntimeState state;
+  state.messages.emplace_back();
+  state.messages.back().choices.push_back({1U, 2U, 3U, 4U, 5U});
+  state.messages.emplace_back();
+  state.messages.back().choices.push_back({1U, 6U, 7U, 8U, 9U});
+  state.control.selection_state = 11U;
+  state.control.advance_signal_state = 12U;
+  state.close.flagged_dialog_counter = 13U;
+  state.close.input_hold_state = 14U;
+  state.close.close_mode_state = 15U;
+
+  clear_legacy_dialog_choice_chain(state);
+
+  test.expect_true(
+      state.messages.front().choices.empty() &&
+          state.messages.back().choices.empty(),
+      "sub_40DBC0 releases every hotspot node across dialog owners"
+  );
+  test.expect_true(
+      state.control.selection_state == 11U &&
+          state.control.advance_signal_state == 12U &&
+          state.close.flagged_dialog_counter == 13U &&
+          state.close.input_hold_state == 14U &&
+          state.close.close_mode_state == 15U,
+      "sub_40DBC0 sentinel reset does not clear unrelated dialog state"
+  );
+}
+
 void test_complete_message_order_and_dimensions(
     openswd3::test::Context &test) {
   LegacyDialogRuntimeState state;
@@ -327,6 +358,7 @@ void test_surface_and_anchor_failures_release_correctly(
 int main() {
   openswd3::test::Context test;
   test_empty_chain_is_exact_early_return(test);
+  test_choice_chain_release_preserves_unrelated_state(test);
   test_complete_message_order_and_dimensions(test);
   test_close_is_composited_then_removed(test);
   test_surface_and_anchor_failures_release_correctly(test);

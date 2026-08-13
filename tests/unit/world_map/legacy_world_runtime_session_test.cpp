@@ -115,10 +115,11 @@ void write_role(
 }
 
 std::vector<u8> make_maps_payload() {
-    std::vector<u8> bytes(0xC0U, 0U);
+    std::vector<u8> bytes(0x190U, 0U);
     write_u32(bytes, 0x04U, 0x80U);
     write_u32(bytes, 0x0CU, 0x70U);
     write_u32(bytes, 0x10U, 0x60U);
+    write_u32(bytes, 0x18U, 0xC0U);
     write_u32(bytes, 0x1CU, 0xBAU);
     write_u32(bytes, 0x48U, 0xB8U);
     write_u32(bytes, 0x54U, 0xB0U);

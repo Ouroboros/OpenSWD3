@@ -17,6 +17,7 @@ using compat::u8;
 constexpr std::size_t kRoleDirectoryOffsetField = 0x04U;
 constexpr std::size_t kMapDescriptorDirectoryOffsetField = 0x0CU;
 constexpr std::size_t kInitialLoadOffsetField = 0x10U;
+constexpr std::size_t kPartyAttributeDirectoryOffsetField = 0x18U;
 constexpr std::size_t kRoleDefaultsDirectoryOffsetField = 0x54U;
 constexpr u16 kDirectoryTerminator = 0xFFFFU;
 constexpr u16 kRoleDefaultsTerminator = 0U;
@@ -167,6 +168,33 @@ decode_map_descriptors(const std::span<const u8> payload,
 
 } // namespace
 
+u8 materialize_legacy_maps_party_attribute_record(
+    const std::span<u8, kLegacyMapsPartyAttributeRuntimeRecordSize>
+        destination,
+    const std::span<const u8, kLegacyMapsPartyAttributeSourceRecordSize>
+        source
+) noexcept {
+  std::copy_n(source.begin() + 0x00U, 0x04U,
+              destination.begin() + 0x00U);
+  std::copy_n(source.begin() + 0x04U, 0x06U,
+              destination.begin() + 0x0AU);
+  std::copy_n(source.begin() + 0x0AU, 0x06U,
+              destination.begin() + 0x04U);
+  std::copy_n(source.begin() + 0x10U, 0x10U,
+              destination.begin() + 0x10U);
+  std::copy_n(source.begin() + 0x20U, 0x02U,
+              destination.begin() + 0x2AU);
+  destination[0x20U] = source[0x22U];
+  destination[0x21U] = source[0x23U];
+  destination[0x22U] = 0U;
+  destination[0x23U] = 0U;
+  std::copy_n(source.begin() + 0x24U, 0x06U,
+              destination.begin() + 0x24U);
+  std::copy_n(source.begin() + 0x2AU, 0x0AU,
+              destination.begin() + 0x2CU);
+  return source[0x33U];
+}
+
 LegacyMapsWorldDatabaseResult
 decode_legacy_maps_world_database(const std::span<const u8> payload) {
   LegacyMapsWorldDatabaseResult result;
@@ -178,6 +206,7 @@ decode_legacy_maps_world_database(const std::span<const u8> payload) {
       read_u32_le(payload, kRoleDirectoryOffsetField),
       read_u32_le(payload, kMapDescriptorDirectoryOffsetField),
       read_u32_le(payload, kInitialLoadOffsetField),
+      read_u32_le(payload, kPartyAttributeDirectoryOffsetField),
       read_u32_le(payload, kRoleDefaultsDirectoryOffsetField),
   };
 
@@ -198,6 +227,36 @@ decode_legacy_maps_world_database(const std::span<const u8> payload) {
       read_u16_le(payload, initial_offset + 0x0CU),
       0U,
   };
+
+  const std::size_t party_attribute_offset =
+      result.database.header.party_attribute_directory_offset;
+  constexpr std::size_t kPartyAttributeSourceBytes =
+      kLegacyMapsPartyAttributeRecordCount *
+      kLegacyMapsPartyAttributeSourceRecordSize;
+  if (!range_available(
+          payload,
+          party_attribute_offset,
+          kPartyAttributeSourceBytes
+      )) {
+    result.status =
+        LegacyMapsWorldDatabaseStatus::party_attribute_records_out_of_range;
+    return result;
+  }
+  for (std::size_t index = 0U;
+       index < kLegacyMapsPartyAttributeRecordCount;
+       ++index) {
+    const std::size_t source_offset = party_attribute_offset +
+        index * kLegacyMapsPartyAttributeSourceRecordSize;
+    static_cast<void>(materialize_legacy_maps_party_attribute_record(
+        result.database.party_attributes[index],
+        std::span<const u8, kLegacyMapsPartyAttributeSourceRecordSize>{
+            payload.subspan(
+                source_offset,
+                kLegacyMapsPartyAttributeSourceRecordSize
+            )
+        }
+    ));
+  }
 
   try {
     if (!decode_map_descriptors(

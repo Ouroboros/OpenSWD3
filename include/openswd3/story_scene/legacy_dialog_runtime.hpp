@@ -21,6 +21,13 @@ struct LegacyDialogRuntimeState {
   LegacyDialogCloseState close;
 };
 
+// sub_40DBC0: release the shared choice-hotspot chain and clear its five-dword
+// sentinel node. The modern owner has no raw sentinel; vector::clear supplies
+// the RAII ownership adaptation and unrelated dialog state remains untouched.
+void clear_legacy_dialog_choice_chain(
+    LegacyDialogRuntimeState &state
+) noexcept;
+
 struct LegacyDialogRuntimeInput {
   compat::u32 current_tick{};
   compat::u32 primary_press_state{};
