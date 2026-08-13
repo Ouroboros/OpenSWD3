@@ -36,6 +36,7 @@
 #include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
+#include "openswd3/battle/legacy_battle_setup.hpp"
 #include "openswd3/diagnostics/log.hpp"
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
 #include "openswd3/input_time_rng/legacy_frame_clock.hpp"
@@ -1893,6 +1894,33 @@ public:
         battle_assets_ready_ =
             loaded.status == openswd3::battle::LegacyBattleAssetStatus::ready;
 
+        if (battle_assets_ready_) {
+            std::array<openswd3::compat::u8, 4U> party_source_flags{};
+            for (std::size_t index = 0U;
+                 index < party_source_flags.size();
+                 ++index) {
+                party_source_flags[index] =
+                    openswd3::world_map::query_legacy_world_story_flag(
+                        world_story_vm_state_,
+                        static_cast<openswd3::compat::u16>(30U + index)
+                    )
+                        ? 1U
+                        : 0U;
+            }
+            const auto prepared =
+                openswd3::battle::prepare_legacy_battle_setup(
+                    battle_assets_,
+                    party_source_flags,
+                    false,
+                    battle_setup_
+                );
+            battle_setup_ready_ = prepared.status ==
+                openswd3::battle::LegacyBattleSetupStatus::ready;
+        } else {
+            battle_setup_ = {};
+            battle_setup_ready_ = false;
+        }
+
         std::string message{"battle initialization assets: id="};
         message.append(std::to_string(battle_id));
         message.append(", status=");
@@ -1905,7 +1933,15 @@ public:
             message.append(std::to_string(battle_assets_.record_index));
             message.append(", enemy_count=");
             message.append(std::to_string(battle_assets_.enemy_count()));
-            openswd3::diagnostics::log_info(message);
+            message.append(", party_count=");
+            message.append(std::to_string(battle_setup_.party_count));
+            message.append(", setup=");
+            message.append(battle_setup_ready_ ? "ready" : "failed");
+            if (battle_setup_ready_) {
+                openswd3::diagnostics::log_info(message);
+            } else {
+                openswd3::diagnostics::log_error(message);
+            }
         } else {
             openswd3::diagnostics::log_error(message);
         }
@@ -3331,6 +3367,8 @@ private:
     openswd3::input_time_rng::LegacySecondaryRng& secondary_rng_;
     openswd3::battle::LegacyBattleAssets battle_assets_;
     bool battle_assets_ready_{};
+    openswd3::battle::LegacyBattleSetupState battle_setup_;
+    bool battle_setup_ready_{};
     openswd3::rendering::LegacyRasterGeometryState world_raster_;
     openswd3::rendering::LegacyBlitEffectState world_effects_;
     openswd3::rendering::LegacyRleRowJitterState world_jitter_;

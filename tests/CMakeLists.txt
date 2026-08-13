@@ -220,6 +220,33 @@ add_test(
 )
 
 add_executable(
+    openswd3_battle_legacy_battle_setup_tests
+    unit/battle/legacy_battle_setup_test.cpp
+)
+if(
+    EXISTS "${PROJECT_SOURCE_DIR}/../FIGTALK.dat" AND
+    EXISTS "${PROJECT_SOURCE_DIR}/../battle.ffd"
+)
+    target_compile_definitions(
+        openswd3_battle_legacy_battle_setup_tests
+        PRIVATE OPENSWD3_GAME_DATA_ROOT="${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
+target_include_directories(
+    openswd3_battle_legacy_battle_setup_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_battle_legacy_battle_setup_tests
+    PRIVATE openswd3_battle
+)
+
+add_test(
+    NAME battle.legacy_battle_setup
+    COMMAND openswd3_battle_legacy_battle_setup_tests
+)
+
+add_executable(
     openswd3_app_startup_tests
     unit/app/startup_test.cpp
 )

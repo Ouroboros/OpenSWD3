@@ -2,6 +2,7 @@ add_library(
     openswd3_battle
     STATIC
         legacy_battle_assets.cpp
+        legacy_battle_setup.cpp
 )
 target_include_directories(
     openswd3_battle
