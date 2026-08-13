@@ -862,6 +862,36 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
       return result;
     }
 
+    case 18U: {
+      if (!has_bytes(state.window, ip, 4U)) {
+        result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+        return result;
+      }
+      if (runtime.story_paths == nullptr) {
+        result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+        return result;
+      }
+      u32 role_index{};
+      if (!resolve_role_index(roles, read_u16(state.window, ip + 2U),
+                              controlled_role_index, role_index)) {
+        result.status = LegacyWorldStoryVmStatus::role_not_found;
+        return result;
+      }
+      const auto completed = complete_legacy_world_story_path(
+          *runtime.story_paths, role_index);
+      if (completed.status != LegacyWorldStoryPathStatus::completed) {
+        result.status = LegacyWorldStoryVmStatus::role_path_failed;
+        return result;
+      }
+      roles[role_index].flags &= 0x7FFFFFFFU;
+      roles[role_index].action.wait_remaining = 0U;
+      if (completed.legacy_return_value != 0) {
+        context.instruction_offset =
+            static_cast<u16>(context.instruction_offset + 4U);
+      }
+      continue;
+    }
+
     case 20U: {
       if (!has_bytes(state.window, ip, 4U)) {
         result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
