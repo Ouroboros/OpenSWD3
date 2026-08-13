@@ -1,6 +1,8 @@
 # 随机遇敌数据、选择与战斗切入汇编证据
 
-状态：`assembly_exact`、`implemented`、`unit_tested`、`real_asset_verified`
+状态：有效输入行为为 `assembly_exact`，容器、显式输入与损坏资产隔离为
+`platform_adapted`；另有 `implemented`、`unit_tested`、`real_asset_verified`、
+`blocked_runtime_oracle`
 
 唯一行为真值：`swd3.exe.lst`。
 
@@ -159,6 +161,21 @@ UT 覆盖物理源解析、头插顺序、有符号累计和回绕、严格概�
 map view 失败以及从角色一开始的 flags 清理。真实资产测试使用当前 `MAPS.DAT` 验证
 11 个阈值组、115 条区域、全部候选列表和地图 37 的完整选择向量。
 
-Linux Clang `core` 119/119、Windows LLVM `app` 123/123 CTest 通过。
+纳入 114 项闭环矩阵前，`sub_40D9E0` 和 `sub_40DA60` 又分别完成了一轮不继承本文
+结论的独立复核。复核先从 LST 重建控制流，再把 C++ 逐块反向映射到
+`0x0040D9E0..0x0040DA53` 与 `0x0040DA60..0x0040DB39`。结果确认：
 
-本单元未启动原版 EXE。
+- 区域源每次前进 `0x0E`、仅匹配当前地图、四字段零扩展、候选偏移原样保存及头插反序
+  没有差异；
+- 禁用门、第一次 RNG 的时点、四个有符号 band、`force == 1`、严格概率比较、坐标逻辑
+  右移、链表首个矩形命中、第二次 RNG、计数清零和战斗号读取顺序没有差异；
+- 当前 `MAPS.DAT` 的 11 个阈值组、115 条区域以及全部非空候选列表继续满足原假设。
+
+现代实现用反序 `vector` 代替 24 字节裸分配链，并把全局地图号、玩家坐标和表指针改成
+显式输入；同时隔离缺失终止符、短记录、无效表号、候选偏移越界和候选数为零。原程序
+对这些状态会无界扫描、越界读取或整数除零，所以两个矩阵项最终均归类为
+`platform_adapted`，有效游戏数据路径仍为 `assembly_exact`。
+
+- 定向 Linux 测试与真实 `MAPS.DAT` 回归：通过；
+- 原程序动态差分：`blocked_runtime_oracle`；
+- 本单元未启动原版或重写版 EXE。
