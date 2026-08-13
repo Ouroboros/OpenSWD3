@@ -74,6 +74,11 @@ struct LegacyWorldStoryPathRequest {
   compat::i16 variant_delta{-1};
 };
 
+// sub_42E5A0: suspend one story-controlled role, preserving an ordinary
+// path for later restoration and reconciling sub-cell movement first.
+[[nodiscard]] LegacyWorldStoryPathResult suspend_legacy_world_story_role(
+    LegacyWorldStoryPathRuntime &runtime, compat::u32 role_index) noexcept;
+
 // sub_42DAF0: schedule one story-controlled role path, preserving the
 // ordinary 72-slot format consumed by advance_legacy_world_map_role_paths.
 [[nodiscard]] LegacyWorldStoryPathResult schedule_legacy_world_story_path(

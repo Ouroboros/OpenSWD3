@@ -515,6 +515,67 @@ void test_role_action_chain_update_gate(openswd3::test::Context &test) {
       "sub_42E740 compares the next raw opcode without masking flag bits");
 }
 
+void test_turn_role_toward_role(openswd3::test::Context &test) {
+  Fixture fixture;
+  fixture.roles[1].action.base_variant = 7U;
+  fixture.roles[1].action.variant_delta = 6U;
+  fixture.roles[1].action.wait_remaining = 9U;
+  fixture.roles[1].action.field_2c = 0U;
+  fixture.roles[1].action.field_30 = 0U;
+  fixture.roles[1].world_x = 100U;
+  fixture.roles[1].world_y = 100U;
+  fixture.roles[2].guid = 0x00F9U;
+  fixture.roles[2].flags =
+      openswd3::world_map::kLegacyWorldGuidLookupRoleBit;
+  fixture.roles[2].world_x = 200U;
+  fixture.roles[2].world_y = 100U;
+
+  openswd3::world_map::LegacyRoleSpatialIndex spatial_index;
+  std::vector<u8> surface_grid(16U * 16U * sizeof(u32), 0U);
+  openswd3::world_map::LegacyWorldPathNodePool node_pool;
+  openswd3::world_map::LegacyWorldMovementRuntimeState movement{};
+  u8 scene_render_flags{};
+  std::array<u8, openswd3::world_map::kLegacyWorldGuidOneArrivalByteCount>
+      selected_arrival_bytes{};
+  openswd3::world_map::LegacyWorldStoryPathRuntime story_paths{
+      .roles = fixture.roles,
+      .active_object_slots = fixture.active_object_slots,
+      .spatial_index = &spatial_index,
+      .role_surface = {
+          .map_width = 16U,
+          .selected_guid = 0U,
+          .surface_grid = surface_grid,
+      },
+      .node_pool = &node_pool,
+      .movement = &movement,
+      .camera = &fixture.camera,
+      .selected_arrival_bytes = selected_arrival_bytes,
+      .selected_role_index = 0U,
+      .map_height = 16U,
+      .scene_render_flags = &scene_render_flags,
+  };
+  fixture.runtime.story_paths = &story_paths;
+
+  auto script = std::span<u8>{fixture.ports.initial_window};
+  write_u16(script, 0U, 76U);
+  write_u16(script, 2U, 0x00F8U);
+  write_u16(script, 4U, 0x00F9U);
+  write_u16(script, 6U, 14U);
+  write_u16(script, 8U, 0x00F8U);
+  const auto result = fixture.step();
+
+  test.expect_true(
+      result.status == LegacyWorldStoryVmStatus::yielded &&
+          result.opcode == 14U && result.executed_instruction_count == 2U &&
+          result.action_update_count == 2U &&
+          fixture.roles[1].action.base_variant == 0U &&
+          fixture.roles[1].action.variant_delta == 3U &&
+          fixture.roles[1].action.wait_remaining == 0U &&
+          (fixture.roles[1].flags & 0x80000000U) != 0U &&
+          fixture.context.instruction_offset == 10U,
+      "opcode 76 turns the first role toward the second and suspends it");
+}
+
 void test_real_story_248_dialog(openswd3::test::Context &test,
                                 const std::filesystem::path &root) {
   openswd3::resource_io::LegacyResourceDatabases databases;
@@ -774,6 +835,33 @@ void test_real_new_game_story_reaches_first_dialog(
   runtime.current_tick =
       state.wait_started_at + static_cast<u32>(state.wait_duration) + 1U;
   const auto next_dialog = step();
+  const u32 path_final_facing = roles[2].action.variant_delta;
+  auto later_dialog = next_dialog;
+  bool later_dialog_chain_completed = true;
+  for (std::size_t dialog_index = 0U; dialog_index < 5U; ++dialog_index) {
+    for (auto &role : roles) {
+      role.interaction_gate = 0U;
+    }
+    context.field_26 = 0U;
+    const auto released_dialog = step();
+    if (released_dialog.opcode != 14U ||
+        released_dialog.status != LegacyWorldStoryVmStatus::yielded) {
+      later_dialog_chain_completed = false;
+      break;
+    }
+    later_dialog = step();
+    if (later_dialog.opcode != 89U ||
+        later_dialog.status != LegacyWorldStoryVmStatus::yielded) {
+      later_dialog_chain_completed = false;
+      break;
+    }
+  }
+  for (auto &role : roles) {
+    role.interaction_gate = 0U;
+  }
+  context.field_26 = 0U;
+  const auto released_later_dialog = step();
+  const auto next_unsupported = step();
 
   const std::string video_filename{
       ports.last_video_filename.begin(), ports.last_video_filename.end()};
@@ -823,10 +911,19 @@ void test_real_new_game_story_reaches_first_dialog(
                     "story 100 first facing wait boundary");
   test.expect_equal(next_dialog.opcode, u16{89U},
                     "story 100 next dialog boundary");
+  test.expect_equal(later_dialog.opcode, u16{89U},
+                    "story 100 fifth post-path dialog boundary");
+  test.expect_equal(released_later_dialog.opcode, u16{14U},
+                    "story 100 fifth post-path dialog release boundary");
+  test.expect_equal(next_unsupported.opcode, u16{71U},
+                    "story 100 next unsupported opcode boundary");
+  test.expect_equal(next_unsupported.status,
+                    LegacyWorldStoryVmStatus::unsupported_opcode,
+                    "story 100 stops without consuming opcode 71");
   test.expect_equal(state.loaded_data_offset, u32{17476U},
                     "story 100 branched window base through both paths");
-  test.expect_equal(context.instruction_offset, u16{1056U},
-                    "story 100 instruction boundary after the next dialog");
+  test.expect_equal(context.instruction_offset, u16{1369U},
+                    "story 100 instruction boundary at opcode 71");
   test.expect_true(
       initialized.status ==
               openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
@@ -847,19 +944,20 @@ void test_real_new_game_story_reaches_first_dialog(
           title_record.width == 132U && title_record.height == 22U &&
           first_dialog.opcode == 89U &&
           first_dialog.status == LegacyWorldStoryVmStatus::yielded &&
-          dialogs.messages.size() == 12U && first_dialog_has_caption &&
+          first_dialog_has_caption &&
           first_dialog_gate == 1U && first_path_frames_completed &&
           second_path_frames_completed && first_path_frame_count < 512U &&
           second_path_frame_count < 512U &&
-          next_dialog.status == LegacyWorldStoryVmStatus::yielded,
-      "real story 100 crosses both paths into its next spoken dialog");
+          next_dialog.status == LegacyWorldStoryVmStatus::yielded &&
+          later_dialog_chain_completed && dialogs.messages.size() == 17U,
+      "real story 100 crosses both paths and five more dialogs into opcode 71");
   test.expect_equal(roles[2].world_x, u32{13U * 16U},
                     "real story 100 completes visible GUID 1 second path x");
   test.expect_equal(roles[2].world_y, u32{28U * 16U},
                     "real story 100 completes visible GUID 1 second path y");
   test.expect_equal(roles[2].action.base_variant, u32{0U},
                     "real story 100 applies opcode 10 base variant");
-  test.expect_equal(roles[2].action.variant_delta, u32{7U},
+  test.expect_equal(path_final_facing, u32{7U},
                     "real story 100 applies the final opcode 11 facing");
   test.expect_equal(roles[5].world_x, u32{16U * 16U},
                     "real story 100 relocates role 195 x");
@@ -890,6 +988,7 @@ int main(const int argument_count, char **arguments) {
   test_same_file_branch(test);
   test_role_action_operand_extension(test);
   test_role_action_chain_update_gate(test);
+  test_turn_role_toward_role(test);
   if (argument_count == 2) {
     const std::filesystem::path root{arguments[1]};
     test_real_story_248_dialog(test, root);

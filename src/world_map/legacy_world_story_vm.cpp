@@ -1,5 +1,6 @@
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
 
+#include "openswd3/world_map/legacy_world_facing.hpp"
 #include "openswd3/world_map/legacy_world_spatial_audio.hpp"
 
 #include <algorithm>
@@ -1216,6 +1217,61 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
       context.instruction_offset =
           static_cast<u16>(context.instruction_offset + 10U);
       continue;
+
+    case 76U: {
+      if (!has_bytes(state.window, ip, 6U)) {
+        result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+        return result;
+      }
+      if (runtime.story_paths == nullptr) {
+        result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+        return result;
+      }
+
+      u16 first_selector = read_u16(state.window, ip + 2U);
+      if (first_selector == kCurrentSourceSelector) {
+        first_selector = context.source_guid;
+      }
+      u32 first_role_index{};
+      u32 second_role_index{};
+      if (!resolve_role_index(roles, first_selector, controlled_role_index,
+                              first_role_index) ||
+          !resolve_role_index(roles, read_u16(state.window, ip + 4U),
+                              controlled_role_index, second_role_index)) {
+        result.status = LegacyWorldStoryVmStatus::role_not_found;
+        return result;
+      }
+
+      auto &first = roles[first_role_index];
+      const auto &second = roles[second_role_index];
+      const u32 first_center_x =
+          first.world_x + first.action.field_2c * 8U;
+      const u32 first_center_y =
+          first.world_y + first.action.field_30 * 8U;
+      const u32 second_center_x =
+          second.world_x + second.action.field_2c * 8U;
+      const u32 second_center_y =
+          second.world_y + second.action.field_30 * 8U;
+      const auto facing = measure_legacy_world_facing(
+          second_center_x, second_center_y, first_center_x, first_center_y);
+      first.action.base_variant = 0U;
+      first.action.variant_delta = 0U;
+      if (facing.distance >= 4U) {
+        first.action.variant_delta = facing.direction;
+      }
+      first.action.wait_remaining = 0U;
+      record_action_update(result, first.action, ports);
+
+      const auto suspended = suspend_legacy_world_story_role(
+          *runtime.story_paths, first_role_index);
+      if (suspended.status != LegacyWorldStoryPathStatus::completed) {
+        result.status = LegacyWorldStoryVmStatus::role_path_failed;
+        return result;
+      }
+      context.instruction_offset =
+          static_cast<u16>(context.instruction_offset + 6U);
+      continue;
+    }
 
     case 85U: {
       const std::size_t end = find_dialog_end(state.window, ip + 2U);

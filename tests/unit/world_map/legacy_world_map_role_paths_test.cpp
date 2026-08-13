@@ -41,6 +41,9 @@ using openswd3::world_map::LegacyWorldStoryPathStatus;
 constexpr std::size_t kPathCursorOffset = 0x02U;
 constexpr std::size_t kDestinationXOffset = 0x04U;
 constexpr std::size_t kDestinationYOffset = 0x06U;
+constexpr std::size_t kSavedRoleIndexOffset = 0x08U;
+constexpr std::size_t kSavedDestinationXOffset = 0x0CU;
+constexpr std::size_t kSavedDestinationYOffset = 0x0EU;
 constexpr std::size_t kActionIdOffset = 0x10U;
 constexpr std::size_t kBaseVariantOffset = 0x12U;
 constexpr std::size_t kVariantDeltaOffset = 0x14U;
@@ -279,6 +282,47 @@ void test_story_path_offscreen_preadvance(openswd3::test::Context &test) {
       "sub_42DAF0 advances one full 16-pixel path tile while offscreen");
 }
 
+void test_story_role_suspension_preserves_selected_path(
+    openswd3::test::Context &test) {
+  Fixture fixture;
+  auto &role = fixture.roles[1];
+  auto &slot = fixture.state.active_object_slots[0];
+  role.world_x = 388U;
+  role.world_y = 308U;
+  fixture.movement.camera_x_transition = 0;
+  fixture.movement.player_x_transition = 4;
+  fixture.movement.camera_y_transition = 0;
+  fixture.movement.player_y_transition = 4;
+  fixture.state.guid_one_arrival_bytes.fill(0xCCU);
+  write_u16(slot, kDestinationXOffset, 432U);
+  write_u16(slot, kDestinationYOffset, 336U);
+  slot.bytes[kPathFlagsOffset] = 1U;
+  auto runtime = fixture.story_runtime();
+
+  const auto result =
+      openswd3::world_map::suspend_legacy_world_story_role(runtime, 1U);
+  test.expect_true(
+      result.status == LegacyWorldStoryPathStatus::completed &&
+          result.legacy_return_value == 1 && result.existing_slot_found &&
+          result.slot_index == 0U && role.world_x == 384U &&
+          role.world_y == 304U && (role.flags & 0x80000000U) != 0U &&
+          fixture.movement.camera_x_transition == 0 &&
+          fixture.movement.player_x_transition == 0 &&
+          fixture.movement.camera_y_transition == 0 &&
+          fixture.movement.player_y_transition == 0,
+      "sub_42E5A0 aligns and suspends the selected story role");
+  test.expect_true(
+      read_u16(slot, kPathCursorOffset) == 0x8000U &&
+          read_u16(slot, kSavedRoleIndexOffset) == 1U &&
+          read_u16(slot, kSavedDestinationXOffset) == 432U &&
+          read_u16(slot, kSavedDestinationYOffset) == 336U &&
+          std::ranges::all_of(fixture.state.guid_one_arrival_bytes,
+                              [](const u8 value) { return value == 0xCCU; }) &&
+          read_cell(fixture.surface, Fixture::kOldCell) == 0x10000100U,
+      "sub_42E5A0 preserves the ordinary path without clearing arrival or "
+      "surface state for the selected role");
+}
+
 void test_arrival_replays_exact_state_order(openswd3::test::Context &test) {
   Fixture fixture;
   LegacyWorldRoleRecord &role = fixture.roles[1];
@@ -491,6 +535,7 @@ int main() {
   openswd3::test::Context test;
   test_story_path_schedule_query_and_completion(test);
   test_story_path_offscreen_preadvance(test);
+  test_story_role_suspension_preserves_selected_path(test);
   test_arrival_replays_exact_state_order(test);
   test_wait_and_skip_gates_keep_their_slots(test);
   test_unaligned_motion_defers_cell_bookkeeping(test);

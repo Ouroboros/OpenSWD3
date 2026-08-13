@@ -347,6 +347,79 @@ finish_scheduled_path(LegacyWorldStoryPathResult &result, const u32 role_index,
 
 } // namespace
 
+LegacyWorldStoryPathResult suspend_legacy_world_story_role(
+    LegacyWorldStoryPathRuntime &runtime, const u32 role_index) noexcept {
+  LegacyWorldStoryPathResult result;
+  if (runtime.spatial_index == nullptr || runtime.movement == nullptr ||
+      runtime.role_surface.map_width == 0U ||
+      runtime.role_surface.surface_grid.empty() ||
+      runtime.active_object_slots.size() <
+          kLegacyWorldActiveObjectSlotCount) {
+    result.status = LegacyWorldStoryPathStatus::runtime_unavailable;
+    return result;
+  }
+  if (role_index >= runtime.roles.size()) {
+    result.status = LegacyWorldStoryPathStatus::invalid_role_index;
+    return result;
+  }
+  if (runtime.selected_role_index >= runtime.roles.size()) {
+    result.status = LegacyWorldStoryPathStatus::invalid_selected_role_index;
+    return result;
+  }
+
+  auto &role = runtime.roles[role_index];
+  if (role_index == runtime.selected_role_index) {
+    const i32 first_row = static_cast<i32>(role.world_y >> 4U) - 1;
+    const u32 step_x =
+        std::bit_cast<u32>(runtime.movement->camera_x_transition) +
+        std::bit_cast<u32>(runtime.movement->player_x_transition);
+    const u32 step_y =
+        std::bit_cast<u32>(runtime.movement->camera_y_transition) +
+        std::bit_cast<u32>(runtime.movement->player_y_transition);
+    while ((role.world_x & 0x0FU) != 0U) {
+      role.world_x -= step_x;
+    }
+    while ((role.world_y & 0x0FU) != 0U) {
+      role.world_y -= step_y;
+    }
+    runtime.movement->camera_x_transition = 0;
+    runtime.movement->player_x_transition = 0;
+    runtime.movement->camera_y_transition = 0;
+    runtime.movement->player_y_transition = 0;
+    if (!relocate_role(result, role, runtime, first_row)) {
+      return result;
+    }
+  }
+
+  const std::size_t slot_index = find_role_slot(runtime, role_index);
+  result.slot_index = static_cast<u32>(slot_index);
+  result.existing_slot_found =
+      slot_index != kLegacyWorldActiveObjectSlotCount;
+  if (result.existing_slot_found) {
+    auto &slot = runtime.active_object_slots[slot_index];
+    if ((slot.bytes[kPathFlagsOffset] & 0x0FU) == 1U) {
+      write_u16(slot, kPathCursorOffset,
+                static_cast<u16>(read_u16(slot, kPathCursorOffset) |
+                                 kPathCursorFrameGate));
+      write_u16(slot, kSavedRoleIndexOffset,
+                read_u16(slot, kRoleIndexOffset));
+      write_u16(slot, kSavedDestinationXOffset,
+                read_u16(slot, kDestinationXOffset));
+      write_u16(slot, kSavedDestinationYOffset,
+                read_u16(slot, kDestinationYOffset));
+    }
+    if (((role.world_x | role.world_y) & 0x0FU) != 0U &&
+        role_index != runtime.selected_role_index &&
+        !align_nonselected_role_from_slot(result, role, slot, runtime)) {
+      return result;
+    }
+  }
+
+  role.flags |= kPathOwnershipFlag;
+  result.legacy_return_value = 1;
+  return result;
+}
+
 LegacyWorldStoryPathResult schedule_legacy_world_story_path(
     LegacyWorldStoryPathRuntime &runtime,
     const LegacyWorldStoryPathRequest &request) noexcept {
