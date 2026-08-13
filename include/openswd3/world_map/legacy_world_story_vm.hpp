@@ -5,6 +5,7 @@
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_collision_talk.hpp"
 #include "openswd3/world_map/legacy_picture_actions.hpp"
+#include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_world_camera_pan.hpp"
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_map_business.hpp"
@@ -82,6 +83,8 @@ public:
       bool clear_before_read) = 0;
   [[nodiscard]] virtual compat::u32 update_action(
       asset_runtime::LegacyActionRecord &action) = 0;
+  virtual void patch_role_source(
+      const LegacyMapsRolePatchRequest &request) noexcept = 0;
   virtual void clear_story_framebuffer() noexcept = 0;
   virtual void present_story_framebuffer() noexcept = 0;
   virtual void begin_story_video(std::span<const compat::u8> filename) = 0;

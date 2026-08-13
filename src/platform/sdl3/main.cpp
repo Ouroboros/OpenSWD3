@@ -2251,6 +2251,7 @@ public:
         public:
             StoryVmPorts(
                 openswd3::resource_io::LegacyResourceDatabases& databases,
+                openswd3::world_map::LegacyMapsWorldDatabase& maps_database,
                 openswd3::asset_runtime::LegacyActionUpdater& action_updater,
                 openswd3::rendering::LegacyFramebuffer& framebuffer,
                 openswd3::rendering::LegacyPresentationPorts& presentation,
@@ -2259,6 +2260,7 @@ public:
                 openswd3::compat::u32& process_flags
             ) noexcept
                 : databases_(databases),
+                  maps_database_(maps_database),
                   action_updater_(action_updater),
                   framebuffer_(framebuffer),
                   presentation_(presentation),
@@ -2297,6 +2299,17 @@ public:
                 openswd3::asset_runtime::LegacyActionRecord& action
             ) override {
                 return action_updater_.update(action).return_value;
+            }
+
+            void patch_role_source(
+                const openswd3::world_map::LegacyMapsRolePatchRequest& request
+            ) noexcept override {
+                static_cast<void>(openswd3::world_map::
+                    patch_legacy_maps_role_source_record(
+                        databases_.mutable_maps_payload_bytes(),
+                        maps_database_,
+                        request
+                    ));
             }
 
             void clear_story_framebuffer() noexcept override {
@@ -2343,6 +2356,7 @@ public:
 
         private:
             openswd3::resource_io::LegacyResourceDatabases& databases_;
+            openswd3::world_map::LegacyMapsWorldDatabase& maps_database_;
             openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
             openswd3::rendering::LegacyFramebuffer& framebuffer_;
             openswd3::rendering::LegacyPresentationPorts& presentation_;
@@ -2383,6 +2397,7 @@ public:
         };
         StoryVmPorts story_ports{
             resource_databases_,
+            world.maps_database,
             action_updater_,
             game_framebuffer_,
             *this,

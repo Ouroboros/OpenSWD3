@@ -1116,6 +1116,38 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
           static_cast<u16>(context.instruction_offset + 2U);
       continue;
 
+    case 45U: {
+      if (!has_bytes(state.window, ip, 6U)) {
+        result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+        return result;
+      }
+      u16 selector = read_u16(state.window, ip + 2U);
+      if (selector == kCurrentSourceSelector) {
+        selector = context.source_guid;
+      }
+      const u16 action_id = read_u16(state.window, ip + 4U);
+      u32 role_index{};
+      if (resolve_role_index(roles, selector, controlled_role_index,
+                             role_index)) {
+        auto &role = roles[role_index];
+        role.action.action_id = action_id;
+        if (!next_action_targets_role(state.window, ip + 6U, roles,
+                                      controlled_role_index, role_index)) {
+          record_action_update(result, role.action, ports);
+        }
+        role.flags |= 0x00001000U;
+      } else {
+        ports.patch_role_source(LegacyMapsRolePatchRequest{
+            .guid = selector,
+            .action_id = action_id,
+            .flags_or_mask = 0x1000U,
+        });
+      }
+      context.instruction_offset =
+          static_cast<u16>(context.instruction_offset + 6U);
+      continue;
+    }
+
     case 51U:
       if (runtime.camera_pan == nullptr) {
         result.status = LegacyWorldStoryVmStatus::runtime_unavailable;

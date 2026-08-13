@@ -85,6 +85,12 @@ public:
     return 1U;
   }
 
+  void patch_role_source(
+      const openswd3::world_map::LegacyMapsRolePatchRequest &request
+  ) noexcept override {
+    role_patch_requests.push_back(request);
+  }
+
   void clear_story_framebuffer() noexcept override {
     ++framebuffer_clear_count;
   }
@@ -115,6 +121,8 @@ public:
   i32 last_story_id{};
   i32 video_progress{-1};
   std::vector<u8> last_video_filename;
+  std::vector<openswd3::world_map::LegacyMapsRolePatchRequest>
+      role_patch_requests;
 
 private:
   template <std::size_t Size>
@@ -159,6 +167,10 @@ public:
     ++action_update_count;
     return 1U;
   }
+
+  void patch_role_source(
+      const openswd3::world_map::LegacyMapsRolePatchRequest &
+  ) noexcept override {}
 
   void clear_story_framebuffer() noexcept override {
     ++framebuffer_clear_count;
@@ -516,6 +528,57 @@ void test_role_action_chain_update_gate(openswd3::test::Context &test) {
       "sub_42E740 compares the next raw opcode without masking flag bits");
 }
 
+void test_change_requested_action_id(openswd3::test::Context &test) {
+  Fixture chained;
+  auto chained_script = std::span<u8>{chained.ports.initial_window};
+  write_u16(chained_script, 0U, 45U);
+  write_u16(chained_script, 2U, 0xFFF0U);
+  write_u16(chained_script, 4U, 0x222U);
+  write_u16(chained_script, 6U, 45U);
+  write_u16(chained_script, 8U, 0x00F8U);
+  write_u16(chained_script, 10U, 0U);
+  write_u16(chained_script, 12U, 14U);
+  write_u16(chained_script, 14U, 0x00F8U);
+  const auto chained_result = chained.step();
+
+  Fixture missing;
+  auto missing_script = std::span<u8>{missing.ports.initial_window};
+  write_u16(missing_script, 0U, 45U);
+  write_u16(missing_script, 2U, 0x7777U);
+  write_u16(missing_script, 4U, 0x333U);
+  write_u16(missing_script, 6U, 14U);
+  write_u16(missing_script, 8U, 0x00F8U);
+  const auto missing_result = missing.step();
+  const auto patch = missing.ports.role_patch_requests.empty()
+                         ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+                         : missing.ports.role_patch_requests.front();
+
+  test.expect_true(
+      chained_result.status == LegacyWorldStoryVmStatus::yielded &&
+          chained_result.opcode == 14U &&
+          chained_result.executed_instruction_count == 3U &&
+          chained_result.action_update_count == 2U &&
+          chained.roles[1].action.action_id == 0U &&
+          (chained.roles[1].flags & 0x00001000U) != 0U &&
+          chained.context.instruction_offset == 16U,
+      "opcode 45 coalesces a same-role chain and still writes action id zero");
+  test.expect_true(
+      missing_result.status == LegacyWorldStoryVmStatus::yielded &&
+          missing_result.opcode == 14U &&
+          missing_result.executed_instruction_count == 2U &&
+          missing_result.action_update_count == 1U &&
+          missing.ports.role_patch_requests.size() == 1U &&
+          patch.guid == 0x7777U && patch.action_id == 0x333U &&
+          patch.base_variant == 0xFFFFU &&
+          patch.variant_delta == 0xFFFFU && patch.tile_x == 0xFFFFU &&
+          patch.tile_y == 0xFFFFU && patch.talk_script_id == 0xFFFFU &&
+          patch.path_data_id == 0xFFFFU &&
+          patch.flags_or_mask == 0x1000U &&
+          patch.flags_and_mask == 0xFFFFU &&
+          patch.logical_map_id == 0xFFFFU,
+      "opcode 45 routes a missing role through the exact MAPS patch request");
+}
+
 void test_turn_role_toward_role(openswd3::test::Context &test) {
   Fixture fixture;
   fixture.roles[1].action.base_variant = 7U;
@@ -734,6 +797,8 @@ void test_real_new_game_story_reaches_first_dialog(
   openswd3::resource_io::LegacyResourceDatabases databases;
   const auto initialized = databases.initialize(root);
   const auto maps = databases.reload_maps_payload();
+  const auto maps_world = openswd3::world_map::decode_legacy_maps_world_database(
+      databases.maps_payload_bytes());
   LegacyWorldStoryVmState state{};
   openswd3::world_map::initialize_legacy_world_story_vm(state);
   LegacyWorldTalkContext context{};
@@ -746,6 +811,12 @@ void test_real_new_game_story_reaches_first_dialog(
     auto &role = roles[index];
     role.guid = guid;
     role.flags = openswd3::world_map::kLegacyWorldGuidLookupRoleBit;
+    const auto source = std::ranges::find(
+        maps_world.database.role_sources, guid,
+        &openswd3::world_map::LegacyMapsRoleSourceRecord::guid);
+    if (source != maps_world.database.role_sources.end()) {
+      role.flags |= source->flags;
+    }
     role.world_x = tile_x << 4U;
     role.world_y = tile_y << 4U;
     role.map_cell_pointer_32 = tile_y * 80U + tile_x;
@@ -1059,7 +1130,77 @@ void test_real_new_game_story_reaches_first_dialog(
     next_unsupported = step();
     ++final_dialog_count;
   }
-
+  std::size_t fourth_path_frame_count{};
+  bool fourth_path_frames_completed = true;
+  if (next_unsupported.status == LegacyWorldStoryVmStatus::yielded &&
+      next_unsupported.opcode == 20U) {
+    for (; fourth_path_frame_count < 512U; ++fourth_path_frame_count) {
+      const auto advanced = advance_path_frame();
+      if (advanced.status != openswd3::world_map::
+                                 LegacyWorldMapRolePathStatus::completed) {
+        fourth_path_frames_completed = false;
+        break;
+      }
+      next_unsupported = step();
+      if (next_unsupported.opcode != 20U) {
+        break;
+      }
+    }
+  }
+  std::size_t post_opcode_45_wait_count{};
+  std::size_t post_opcode_45_dialog_count{};
+  std::size_t post_opcode_45_path_frame_count{};
+  bool post_opcode_45_progression_completed = true;
+  for (std::size_t boundary_count = 0U;
+       boundary_count < 2048U &&
+       next_unsupported.status == LegacyWorldStoryVmStatus::yielded;
+       ++boundary_count) {
+    switch (next_unsupported.opcode) {
+    case 20U: {
+      const auto advanced = advance_path_frame();
+      if (advanced.status != openswd3::world_map::
+                                 LegacyWorldMapRolePathStatus::completed) {
+        post_opcode_45_progression_completed = false;
+        break;
+      }
+      ++post_opcode_45_path_frame_count;
+      next_unsupported = step();
+      break;
+    }
+    case 51U:
+      while (openswd3::world_map::advance_legacy_world_camera_pan(
+          camera, camera_pan)) {
+      }
+      next_unsupported = step();
+      break;
+    case 67U:
+      runtime.current_tick =
+          state.wait_started_at + static_cast<u32>(state.wait_duration) + 1U;
+      ++post_opcode_45_wait_count;
+      next_unsupported = step();
+      break;
+    case 89U:
+      for (auto &role : roles) {
+        role.interaction_gate = 0U;
+      }
+      context.field_26 = 0U;
+      if (const auto released_dialog = step();
+          released_dialog.status != LegacyWorldStoryVmStatus::yielded ||
+          released_dialog.opcode != 14U) {
+        post_opcode_45_progression_completed = false;
+        break;
+      }
+      ++post_opcode_45_dialog_count;
+      next_unsupported = step();
+      break;
+    default:
+      next_unsupported = step();
+      break;
+    }
+    if (!post_opcode_45_progression_completed) {
+      break;
+    }
+  }
   const std::string video_filename{
       ports.last_video_filename.begin(), ports.last_video_filename.end()};
   test.expect_equal(first_clear.opcode, u16{61U},
@@ -1124,20 +1265,30 @@ void test_real_new_game_story_reaches_first_dialog(
                     "story 100 third path dialog count");
   test.expect_equal(final_dialog_count, std::size_t{7U},
                     "story 100 final dialog count");
-  test.expect_equal(next_unsupported.opcode, u16{45U},
+  test.expect_equal(fourth_path_frame_count, std::size_t{40U},
+                    "story 100 fourth path frame count");
+  test.expect_equal(post_opcode_45_wait_count, std::size_t{6U},
+                    "story 100 post-opcode-45 wait count");
+  test.expect_equal(post_opcode_45_dialog_count, std::size_t{6U},
+                    "story 100 post-opcode-45 dialog count");
+  test.expect_equal(post_opcode_45_path_frame_count, std::size_t{29U},
+                    "story 100 post-opcode-45 path frame count");
+  test.expect_equal(next_unsupported.opcode, u16{107U},
                     "story 100 next unsupported opcode boundary");
   test.expect_equal(next_unsupported.status,
                     LegacyWorldStoryVmStatus::unsupported_opcode,
-                    "story 100 stops without consuming opcode 45");
+                    "story 100 stops without consuming opcode 107");
   test.expect_equal(state.loaded_data_offset, u32{17476U},
                     "story 100 branched window base through both paths");
-  test.expect_equal(context.instruction_offset, u16{2949U},
-                    "story 100 instruction boundary at opcode 45");
+  test.expect_equal(context.instruction_offset, u16{3585U},
+                    "story 100 instruction boundary at opcode 107");
   test.expect_true(
       initialized.status ==
               openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
           maps.status ==
               openswd3::resource_io::LegacyMapsPayloadStatus::ready &&
+          maps_world.status == openswd3::world_map::
+                                   LegacyMapsWorldDatabaseStatus::ready &&
           inserted_role_one && inserted_role_195 && inserted_role_248 &&
           inserted_role_249 && inserted_role_250 && inserted_role_251,
       "real story 100 fixture uses the real databases and valid spatial roles");
@@ -1169,32 +1320,34 @@ void test_real_new_game_story_reaches_first_dialog(
           post_head_sign_dialog_releases_completed &&
           third_path_frames_completed && third_path_wait_completed &&
           third_path_dialog_releases_completed &&
-          dialogs.messages.size() == 40U &&
+          fourth_path_frames_completed &&
+          post_opcode_45_progression_completed &&
+          dialogs.messages.size() == 46U &&
           (roles[9].flags & 0x00008000U) != 0U &&
           (roles[10].flags & 0x00008000U) != 0U &&
           roles[9].action.base_variant == 0U &&
           roles[10].action.base_variant == 0U &&
-          roles[9].action.wait_override == 0x8003U &&
+          roles[9].action.wait_override == 0x8002U &&
           roles[10].action.wait_override == 0x8003U &&
           roles[9].action.wait_remaining == 0U &&
           roles[10].action.wait_remaining == 0U &&
           roles[10].field_3c == 0U,
-      "real story 100 crosses both head-sign chains, the third role path, "
-      "and the remaining dialogs before opcode 45");
-  test.expect_equal(roles[6].world_x, u32{24U * 16U},
+      "real story 100 crosses opcode 45 and all subsequent restored waits, "
+      "dialogs and paths before opcode 107");
+  test.expect_equal(roles[6].world_x, u32{37U * 16U},
                     "real story 100 relocates role 248 x");
-  test.expect_equal(roles[6].world_y, u32{28U * 16U},
+  test.expect_equal(roles[6].world_y, u32{33U * 16U},
                     "real story 100 relocates role 248 y");
-  test.expect_equal(roles[7].world_x, u32{19U * 16U},
+  test.expect_equal(roles[7].world_x, u32{39U * 16U},
                     "real story 100 relocates role 249 x");
-  test.expect_equal(roles[7].world_y, u32{29U * 16U},
+  test.expect_equal(roles[7].world_y, u32{33U * 16U},
                     "real story 100 relocates role 249 y");
   test.expect_equal(roles[2].world_x, u32{13U * 16U},
                     "real story 100 completes visible GUID 1 second path x");
   test.expect_equal(roles[2].world_y, u32{28U * 16U},
                     "real story 100 completes visible GUID 1 second path y");
-  test.expect_equal(roles[2].action.base_variant, u32{0U},
-                    "real story 100 applies opcode 10 base variant");
+  test.expect_equal(roles[2].action.base_variant, u32{68U},
+                    "real story 100 applies the later opcode 10 base variant");
   test.expect_equal(path_final_facing, u32{7U},
                     "real story 100 applies the final opcode 11 facing");
   test.expect_equal(roles[5].world_x, u32{16U * 16U},
@@ -1226,6 +1379,7 @@ int main(const int argument_count, char **arguments) {
   test_same_file_branch(test);
   test_role_action_operand_extension(test);
   test_role_action_chain_update_gate(test);
+  test_change_requested_action_id(test);
   test_turn_role_toward_role(test);
   test_set_role_head_sign_action(test);
   test_set_and_clear_role_wait_override(test);
