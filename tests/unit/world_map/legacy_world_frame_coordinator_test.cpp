@@ -63,6 +63,15 @@ constexpr u32 kFrameEventBase = 0x200U;
 constexpr u32 kAudioEvent = 0x300U;
 constexpr u32 kPresentEvent = 0x301U;
 constexpr u32 kHeadSignEventBase = 0x400U;
+
+void test_initial_movement_step(openswd3::test::Context& test) {
+    LegacyWorldFrameCoordinatorState state;
+    test.expect_equal(
+        state.movement.movement_step,
+        u32{0x10U},
+        "sub_40E0B0 initializes the sub_40DD10 movement-step slot to sixteen"
+    );
+}
 constexpr u32 kCountdownEventBase = 0x500U;
 constexpr u32 kCursorEventBase = 0x600U;
 
@@ -801,6 +810,7 @@ void test_head_sign_update_failure_remains_nonfatal(
 
 int main() {
     openswd3::test::Context test;
+    test_initial_movement_step(test);
     test_complete_frame_exact_order_and_state(test);
     test_hidden_countdown_preserves_action_state(test);
     test_developer_tools_require_exact_one(test);

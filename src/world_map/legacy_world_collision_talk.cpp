@@ -44,17 +44,6 @@ wrapping_scaled_add(const u32 value, const u32 scale) noexcept {
     return value + scale * 8U;
 }
 
-[[nodiscard]] const LegacyWorldMapEvent* find_map_event(
-    const std::span<const LegacyWorldMapEvent> events, const u32 event_code
-) noexcept {
-    for (const LegacyWorldMapEvent& event : events) {
-        if (event.field_04 == event_code) {
-            return &event;
-        }
-    }
-    return nullptr;
-}
-
 [[nodiscard]] bool run_collision_query(
     LegacyWorldCollisionTalkResult& result,
     const u32 player_index,
@@ -136,7 +125,7 @@ LegacyWorldCollisionTalkResult coordinate_legacy_world_collision_talk(
 
     const LegacyWorldMapEvent* map_event = nullptr;
     if (result.hit_role_index == kLegacyMovementCollisionNoRole) {
-        map_event = find_map_event(map_events, result.event_code);
+        map_event = find_legacy_world_map_event(map_events, result.event_code);
         if (map_event == nullptr) {
             result.status = LegacyWorldCollisionTalkStatus::missing_map_event;
             return result;

@@ -261,7 +261,7 @@ struct PathMovementResult {
         }
         const u8 direction = slot.bytes[direction_offset];
         if (direction == 0xFFU) {
-            slot.bytes.fill(0xFFU);
+            static_cast<void>(reset_legacy_world_object_slot(slot));
             return {PathMovementStatus::completed};
         }
         if (direction >= kDirectionCollisionBits.size()) {
@@ -982,7 +982,7 @@ LegacyWorldPathScriptResult run_legacy_world_path_script(
                             );
                         }
                     }
-                    slot->bytes.fill(0xFFU);
+                    static_cast<void>(reset_legacy_world_object_slot(*slot));
                 }
             }
 

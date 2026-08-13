@@ -271,17 +271,6 @@ template <typename... Arguments>
     return (flags & repeat_mask) != 0U ? kRepeat : kCycle;
 }
 
-[[nodiscard]] const LegacyWorldMapEvent* find_event(
-    const std::span<const LegacyWorldMapEvent> events, const u32 event_id
-) noexcept {
-    for (const auto& event : events) {
-        if (event.field_04 == event_id) {
-            return &event;
-        }
-    }
-    return nullptr;
-}
-
 [[nodiscard]] bool in_role_debug_rectangle(
     const u32 mouse_x, const u32 mouse_y, const LegacyWorldRoleRecord& role
 ) noexcept {
@@ -326,7 +315,7 @@ void draw_event_debug(
     }
 
     const LegacyWorldMapEvent* const event =
-        find_event(events, result.event_id);
+        find_legacy_world_map_event(events, result.event_id);
     if (event == nullptr) {
         static_cast<void>(format_and_draw(
             ports,

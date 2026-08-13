@@ -117,6 +117,17 @@ void apply_packed_role_fields(
 
 }  // namespace
 
+const LegacyWorldMapEvent* find_legacy_world_map_event(
+    const std::span<const LegacyWorldMapEvent> events, const u32 event_code
+) noexcept {
+    for (const LegacyWorldMapEvent& event : events) {
+        if (event.field_04 == event_code) {
+            return &event;
+        }
+    }
+    return nullptr;
+}
+
 bool insert_legacy_role_spatially(
     LegacyRoleSpatialIndex& spatial_index,
     const std::span<LegacyWorldRoleRecord> roles,

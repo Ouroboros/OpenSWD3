@@ -535,7 +535,7 @@ void replace_name_prefix(
         for (auto& slot : active_object_slots) {
             if (read_object_u16(slot, kObjectRoleIndexOffset) ==
                 static_cast<u16>(replacement_index)) {
-                slot.bytes.fill(0xFFU);
+                static_cast<void>(reset_legacy_world_object_slot(slot));
                 ++result.active_object_reset_count;
             }
         }
@@ -741,7 +741,7 @@ void finish_talk_global_cleanup(
             (slot.bytes[kObjectPathFlagsOffset] & 0x0FU) <= 1U) {
             continue;
         }
-        slot.bytes.fill(0xFFU);
+        static_cast<void>(reset_legacy_world_object_slot(slot));
         ++result.active_object_reset_count;
         if (role_index < roles.size()) {
             roles[role_index].path_data_id = 0U;

@@ -19,8 +19,11 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 62 项：38 项 `assembly_exact`、24 项 `platform_adapted`；其余
-52 项保持待审计。最新关闭 `sub_40DB40/sub_40DB60/sub_40DBC0/sub_40DD60`：前三项
+114 项全集复核当前已关闭 65 项：40 项 `assembly_exact`、25 项 `platform_adapted`；其余
+49 项保持待审计。最新关闭 `sub_40DC30/sub_40DD10/sub_40DD40`：分别恢复事件链首命中、
+完整 32 位移动步长写回，以及 135 个全一 dword 的 `0x21C` 对象槽重置；同时反查所有
+现代调用点并补回 `sub_40E0B0` 的初始步长 16。此前 `sub_40DB40/sub_40DB60/`
+`sub_40DBC0/sub_40DD60`：前三项
 恢复对话选择热点计数、严格开区间命中和全链释放，并确认五个相邻 dword 是一个
 sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化四条 `0x34 → 0x38`
 队伍属性记录，保留原汇编未写的尾部两字节。`sub_402F80` 仍有隐藏调试热键、完整入口
@@ -191,5 +194,7 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
 [`maps-role-preload-0040d200-0040d552.md`](../evidence/maps-role-preload-0040d200-0040d552.md)、
 [`initial-new-game-transition-00448840-00449311.md`](../evidence/initial-new-game-transition-00448840-00449311.md)、
 [`world-special-tsw-frame-0040ad10.md`](../evidence/world-special-tsw-frame-0040ad10.md)。
+三个短 helper 见
+[`world-utility-helpers-0040dc30-0040dd40.md`](../evidence/world-utility-helpers-0040dc30-0040dd40.md)。
 图片动作链见
 [`picture-actions-004147e0.md`](../evidence/picture-actions-004147e0.md)。

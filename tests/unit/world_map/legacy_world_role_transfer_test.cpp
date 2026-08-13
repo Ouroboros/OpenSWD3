@@ -24,6 +24,7 @@ using openswd3::world_map::LegacyWorldRoleRecord;
 using openswd3::world_map::LegacyWorldRoleTransferContext;
 using openswd3::world_map::LegacyWorldRoleTransferState;
 using openswd3::world_map::LegacyWorldRoleTransferStatus;
+using openswd3::world_map::reset_legacy_world_object_slot;
 using openswd3::world_map::transfer_legacy_world_role;
 using openswd3::world_map::write_legacy_maps_role_source_record;
 
@@ -72,6 +73,19 @@ struct Fixture {
     std::vector<LegacyWorldRoleRecord> roles;
     LegacyWorldRoleTransferState state;
 };
+
+void test_object_slot_reset(openswd3::test::Context& test) {
+    LegacyWorldObjectSlot slot;
+    slot.bytes.fill(0x5AU);
+    const u32 returned = reset_legacy_world_object_slot(slot);
+    test.expect_true(
+        returned == 0xFFFFFFFFU &&
+            std::ranges::all_of(
+                slot.bytes, [](const u8 value) { return value == 0xFFU; }
+            ),
+        "sub_40DD40 writes all 135 dwords and leaves EAX at 0xFFFFFFFF"
+    );
+}
 
 void test_common_and_aligned_object_paths(openswd3::test::Context& test) {
     Fixture without_path;
@@ -414,6 +428,7 @@ void test_checked_runtime_boundaries(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
+    test_object_slot_reset(test);
     test_common_and_aligned_object_paths(test);
     test_nonaligned_surface_and_spatial_path(test);
     test_surface_special_cases(test);

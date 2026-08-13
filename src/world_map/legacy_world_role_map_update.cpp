@@ -201,7 +201,7 @@ LegacyWorldRoleMapUpdateResult apply_legacy_world_role_map_update(
         }
     }
 
-    party_slot.bytes.fill(0xFFU);
+    static_cast<void>(reset_legacy_world_object_slot(party_slot));
     role.action.action_id = request.action_id;
     role.action.base_variant = request.base_variant;
     role.action.variant_delta = request.variant_delta;

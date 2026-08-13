@@ -23,6 +23,12 @@ struct LegacyWorldMapEvent {
     std::vector<compat::u8> name_bytes_with_terminator;
 };
 
+// sub_40DC30: return the first event whose id at +4 matches the requested
+// value. A miss returns null after preserving the original head-to-tail order.
+[[nodiscard]] const LegacyWorldMapEvent* find_legacy_world_map_event(
+    std::span<const LegacyWorldMapEvent> events, compat::u32 event_code
+) noexcept;
+
 struct LegacyRoleSpatialIndex {
     compat::u32 map_height{};
     std::array<

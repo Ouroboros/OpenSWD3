@@ -55,17 +55,6 @@ wrapping_scaled_add(const u32 value, const u32 scale) noexcept {
     return x > left && x < right && y > top && y < bottom;
 }
 
-[[nodiscard]] const LegacyWorldMapEvent* find_map_event(
-    const std::span<const LegacyWorldMapEvent> events, const u32 event_code
-) noexcept {
-    for (const LegacyWorldMapEvent& event : events) {
-        if (event.field_04 == event_code) {
-            return &event;
-        }
-    }
-    return nullptr;
-}
-
 void clear_input(LegacyInputRecord& input) noexcept {
     input = {};
 }
@@ -287,7 +276,8 @@ void update_action(
         return false;
     }
 
-    const LegacyWorldMapEvent* event = find_map_event(map_events, event_code);
+    const LegacyWorldMapEvent* event =
+        find_legacy_world_map_event(map_events, event_code);
     if (event == nullptr) {
         result.status = LegacyWorldInteractionStatus::missing_map_event;
         return true;

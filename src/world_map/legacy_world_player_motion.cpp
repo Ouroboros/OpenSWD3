@@ -92,11 +92,20 @@ void update_movement_action(
         if (options.fixed_debug_speed) {
             step = 0x10U;
         }
-        state.movement_step = step;
+        static_cast<void>(
+            set_legacy_world_movement_step(step, state.movement_step)
+        );
     }
 }
 
 }  // namespace
+
+compat::u32 set_legacy_world_movement_step(
+    const compat::u32 value, compat::u32& movement_step
+) noexcept {
+    movement_step = value;
+    return value;
+}
 
 LegacyWorldMovementBounds compute_legacy_world_movement_bounds(
     const LegacyWorldRoleRecord& player,

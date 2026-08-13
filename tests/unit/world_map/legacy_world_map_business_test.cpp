@@ -26,10 +26,12 @@ using openswd3::resource_io::LegacyLmfPostSurfaceRecords;
 using openswd3::resource_io::LegacyLmfPostSurfaceRecordsStatus;
 using openswd3::world_map::bind_legacy_world_role_cells;
 using openswd3::world_map::build_legacy_world_map_business_state;
+using openswd3::world_map::find_legacy_world_map_event;
 using openswd3::world_map::insert_legacy_role_spatially;
 using openswd3::world_map::kLegacySpatialRowPadding;
 using openswd3::world_map::LegacyRoleSpatialIndex;
 using openswd3::world_map::LegacyWorldMapBusinessStatus;
+using openswd3::world_map::LegacyWorldMapEvent;
 using openswd3::world_map::LegacyWorldRoleCellBindingStatus;
 using openswd3::world_map::LegacyWorldRoleRecord;
 
@@ -48,6 +50,37 @@ struct ReadyPhysicalState {
     LegacyLmfOffset14Directory offset14;
     LegacyLmfOffset1cDirectory offset1c;
 };
+
+void test_map_event_lookup(openswd3::test::Context& test) {
+    const std::array<LegacyWorldMapEvent, 3U> events{
+        LegacyWorldMapEvent{
+            .field_04 = 7U,
+            .field_08 = 10U,
+            .name_bytes_with_terminator = {},
+        },
+        LegacyWorldMapEvent{
+            .field_04 = 7U,
+            .field_08 = 20U,
+            .name_bytes_with_terminator = {},
+        },
+        LegacyWorldMapEvent{
+            .field_04 = 9U,
+            .field_08 = 30U,
+            .name_bytes_with_terminator = {},
+        },
+    };
+
+    test.expect_true(
+        find_legacy_world_map_event(events, 7U) == &events[0] &&
+            find_legacy_world_map_event(events, 9U) == &events[2],
+        "sub_40DC30 returns the first head-to-tail id match"
+    );
+    test.expect_true(
+        find_legacy_world_map_event(events, 8U) == nullptr &&
+            find_legacy_world_map_event({}, 7U) == nullptr,
+        "sub_40DC30 returns null for a miss or an empty head"
+    );
+}
 
 void test_business_conversion(openswd3::test::Context& test) {
     ReadyPhysicalState source;
@@ -324,6 +357,7 @@ void test_invalid_and_capacity_statuses(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
+    test_map_event_lookup(test);
     test_business_conversion(test);
     test_spatial_insertion_order(test);
     test_cell_binding(test);

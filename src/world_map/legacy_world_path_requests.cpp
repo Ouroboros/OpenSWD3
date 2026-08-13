@@ -113,7 +113,7 @@ clamped_view_start(const u32 value, const u32 margin) noexcept {
     LegacyWorldPartyPathPorts& ports,
     LegacyWorldObjectSlot& slot
 ) {
-    slot.bytes.fill(0xFFU);
+    static_cast<void>(reset_legacy_world_object_slot(slot));
     LegacyWorldPathfinder pathfinder{node_pool};
     ++result.collision_service_queries;
     if (ports.query_collision_disabled()) {

@@ -807,7 +807,7 @@ LegacyWorldStoryPathResult complete_legacy_world_story_path(
     const u16 saved_role_index = read_u16(slot, kSavedRoleIndexOffset);
     if (saved_role_index == kNoRole) {
         if ((slot.bytes[kPathFlagsOffset] & 0x0FU) != 1U) {
-            slot.bytes.fill(0xFFU);
+            static_cast<void>(reset_legacy_world_object_slot(slot));
             result.slot_cleared = true;
         }
         result.legacy_return_value = 1;

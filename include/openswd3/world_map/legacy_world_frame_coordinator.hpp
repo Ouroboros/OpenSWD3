@@ -34,7 +34,9 @@ struct LegacyWorldFrameCoordinatorState {
     compat::u32 developer_tools_enabled{};
     std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>
         party_object_slots;
-    LegacyWorldMovementRuntimeState movement;
+    // sub_40E0B0 initializes the process-wide sub_40DD10 movement-step slot
+    // to 0x10 before the first ordinary-world frame.
+    LegacyWorldMovementRuntimeState movement{.movement_step = 0x10U};
     LegacyWorldCameraPanState camera_pan;
     LegacyWorldDebugOverlayState debug_overlay;
     rendering::LegacyCountdownState countdown;

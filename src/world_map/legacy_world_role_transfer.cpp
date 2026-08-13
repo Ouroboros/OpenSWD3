@@ -147,6 +147,11 @@ constexpr std::array<i32, 8U> kDirectionStepY{
 
 }  // namespace
 
+u32 reset_legacy_world_object_slot(LegacyWorldObjectSlot& slot) noexcept {
+    slot.bytes.fill(0xFFU);
+    return 0xFFFFFFFFU;
+}
+
 LegacyWorldRoleTransferStatus transfer_legacy_world_role(
     const std::span<u8> maps_payload,
     LegacyMapsWorldDatabase& maps_database,
@@ -195,7 +200,7 @@ LegacyWorldRoleTransferStatus transfer_legacy_world_role(
                 return LegacyWorldRoleTransferStatus::role_source_patch_failed;
             }
 
-            slot->bytes.fill(0xFFU);
+            static_cast<void>(reset_legacy_world_object_slot(*slot));
             ++state.active_object_slots_reset;
         }
     }
@@ -206,7 +211,9 @@ LegacyWorldRoleTransferStatus transfer_legacy_world_role(
 
     const std::size_t party_index = state.party_role_count;
     state.party_role_indices[party_index] = role_index;
-    state.party_object_slots[party_index].bytes.fill(0xFFU);
+    static_cast<void>(
+        reset_legacy_world_object_slot(state.party_object_slots[party_index])
+    );
     role.talk_script_id = 0U;
     role.flags = (role.flags & ~kRolePartyClearFlag) | kRoleTransferFlag;
     ++state.party_role_count;

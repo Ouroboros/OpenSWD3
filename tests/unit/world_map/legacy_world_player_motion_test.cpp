@@ -12,6 +12,7 @@ using openswd3::world_map::advance_legacy_world_player_and_camera;
 using openswd3::world_map::apply_legacy_world_player_motion_state;
 using openswd3::world_map::calculate_legacy_world_camera_rect;
 using openswd3::world_map::compute_legacy_world_movement_bounds;
+using openswd3::world_map::set_legacy_world_movement_step;
 using openswd3::world_map::LegacyWorldCameraRect;
 using openswd3::world_map::LegacyWorldDirectionInputResult;
 using openswd3::world_map::LegacyWorldDirectionState;
@@ -29,6 +30,16 @@ LegacyWorldDirectionInputResult make_input(
         .delta_y = y,
         .multiplicity_bits = multiplicity,
     };
+}
+
+void test_movement_step_setter(openswd3::test::Context& test) {
+    u32 movement_step = 3U;
+    const u32 returned =
+        set_legacy_world_movement_step(0xFFFFFFFFU, movement_step);
+    test.expect_true(
+        returned == 0xFFFFFFFFU && movement_step == 0xFFFFFFFFU,
+        "sub_40DD10 stores and returns the complete unmodified dword"
+    );
 }
 
 void test_movement_bounds(openswd3::test::Context& test) {
@@ -259,6 +270,7 @@ void test_camera_recenter_helpers(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
+    test_movement_step_setter(test);
     test_movement_bounds(test);
     test_idle_state(test);
     test_transition_priority(test);

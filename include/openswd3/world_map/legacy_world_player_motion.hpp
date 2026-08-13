@@ -35,6 +35,11 @@ struct LegacyWorldMovementOptions {
     bool fixed_debug_speed{};
 };
 
+// sub_40DD10: store the exact 32-bit movement step and return the same value.
+[[nodiscard]] compat::u32 set_legacy_world_movement_step(
+    compat::u32 value, compat::u32& movement_step
+) noexcept;
+
 void apply_legacy_world_player_motion_state(
     LegacyWorldRoleRecord& player,
     const LegacyWorldDirectionInputResult& input,

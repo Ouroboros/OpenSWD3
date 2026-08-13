@@ -23,6 +23,11 @@ struct LegacyWorldObjectSlot {
 
 static_assert(sizeof(LegacyWorldObjectSlot) == kLegacyWorldObjectSlotSize);
 
+// sub_40DD40: overwrite all 135 dwords of a 0x21C-byte object slot with
+// 0xFFFFFFFF and return 0xFFFFFFFF, matching EAX after rep stosd.
+[[nodiscard]] compat::u32
+reset_legacy_world_object_slot(LegacyWorldObjectSlot& slot) noexcept;
+
 struct LegacyWorldRoleTransferContext {
     std::span<LegacyWorldObjectSlot> active_object_slots;
     LegacyRoleSpatialIndex* spatial_index{};
