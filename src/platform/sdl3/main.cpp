@@ -35,6 +35,7 @@
 #include "openswd3/asset_runtime/legacy_ani_drift_effect.hpp"
 #include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
+#include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/diagnostics/log.hpp"
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
 #include "openswd3/input_time_rng/legacy_frame_clock.hpp"
@@ -1886,7 +1887,29 @@ public:
 
     void release_display_and_world_for_battle_entry() override {}
     void close_world_map_view() override {}
-    void initialize_battle(openswd3::compat::u16) override {}
+    void initialize_battle(const openswd3::compat::u16 battle_id) override {
+        const auto loaded = openswd3::battle::load_legacy_battle_assets(
+            data_directory_, battle_id, 0, battle_assets_);
+        battle_assets_ready_ =
+            loaded.status == openswd3::battle::LegacyBattleAssetStatus::ready;
+
+        std::string message{"battle initialization assets: id="};
+        message.append(std::to_string(battle_id));
+        message.append(", status=");
+        message.append(openswd3::battle::legacy_battle_asset_status_message(
+            loaded.status));
+        if (battle_assets_ready_) {
+            message.append(", script_bytes=");
+            message.append(std::to_string(battle_assets_.figtalk_actual_size));
+            message.append(", record_index=");
+            message.append(std::to_string(battle_assets_.record_index));
+            message.append(", enemy_count=");
+            message.append(std::to_string(battle_assets_.enemy_count()));
+            openswd3::diagnostics::log_info(message);
+        } else {
+            openswd3::diagnostics::log_error(message);
+        }
+    }
     void clear_party_battle_entry_bits() override {}
     openswd3::compat::i32 step_battle() override {
         request_presentation(
@@ -3306,6 +3329,8 @@ private:
     openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
     openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime_;
     openswd3::input_time_rng::LegacySecondaryRng& secondary_rng_;
+    openswd3::battle::LegacyBattleAssets battle_assets_;
+    bool battle_assets_ready_{};
     openswd3::rendering::LegacyRasterGeometryState world_raster_;
     openswd3::rendering::LegacyBlitEffectState world_effects_;
     openswd3::rendering::LegacyRleRowJitterState world_jitter_;

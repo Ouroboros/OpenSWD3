@@ -31,6 +31,7 @@ target_link_libraries(
     openswd3
     PRIVATE
         openswd3_app
+        openswd3_battle
         openswd3_platform_sdl3_audio
         openswd3_input_time_rng
         openswd3_rendering

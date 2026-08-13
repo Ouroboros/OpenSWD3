@@ -68,6 +68,7 @@ add_subdirectory(src/story_scene)
 add_subdirectory(src/world_map)
 add_subdirectory(src/special_modes)
 add_subdirectory(src/audio_video)
+add_subdirectory(src/battle)
 add_subdirectory(src/app)
 add_subdirectory(analysis/tools)
 

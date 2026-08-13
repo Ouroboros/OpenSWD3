@@ -1,0 +1,19 @@
+add_library(
+    openswd3_battle
+    STATIC
+        legacy_battle_assets.cpp
+)
+target_include_directories(
+    openswd3_battle
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(
+    openswd3_battle
+    PUBLIC
+        openswd3_compat
+        openswd3_project_options
+        openswd3_project_warnings
+        openswd3_resource_io
+)
