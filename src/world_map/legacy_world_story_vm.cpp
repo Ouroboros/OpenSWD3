@@ -308,14 +308,31 @@ void replace_name_prefix(std::array<u8, 32U> &destination,
         top = 456 - static_cast<i32>(record.height);
       }
 
-      // sub_40AFF0 applies the facing offset a second time when the role's
-      // screen point still overlaps the expanded dialog rectangle.
+      const bool explicit_text_layout =
+          (state.text_control_flags & 0x10000000U) == 0U;
+      // sub_40AFF0 applies either opcode-104's explicit pair or the facing
+      // offset when the role's screen point still overlaps the expanded
+      // dialog rectangle.
       const i32 role_screen_x = std::bit_cast<i32>(role.world_x) - camera_left;
       const i32 role_screen_y = std::bit_cast<i32>(role.world_y) - camera_top;
-      if (role_screen_x > left - 16 &&
-          role_screen_x < left + static_cast<i32>(record.width) + 48 &&
-          role_screen_y > top - 16 &&
-          role_screen_y < top + static_cast<i32>(record.height) + 64) {
+      if (explicit_text_layout &&
+          (message.frame_action->mode_flags & 0x00000800U) == 0U) {
+        left = static_cast<i16>(static_cast<u16>(left) +
+                                static_cast<u16>(state.text_layout_first));
+        top = static_cast<i16>(static_cast<u16>(top) +
+                               static_cast<u16>(state.text_layout_second));
+        left = std::max(left, 24);
+        top = std::max(top, 32);
+        if (left + static_cast<i32>(record.width) >= 576) {
+          left = 576 - static_cast<i32>(record.width);
+        }
+        if (top + static_cast<i32>(record.height) >= 456) {
+          top = 456 - static_cast<i32>(record.height);
+        }
+      } else if (role_screen_x > left - 16 &&
+                 role_screen_x < left + static_cast<i32>(record.width) + 48 &&
+                 role_screen_y > top - 16 &&
+                 role_screen_y < top + static_cast<i32>(record.height) + 64) {
         if (facing < kDialogRoleOffsetX.size()) {
           left += kDialogRoleOffsetX[facing];
           top += kDialogRoleOffsetY[facing];
@@ -373,6 +390,8 @@ void replace_name_prefix(std::array<u8, 32U> &destination,
     ++result.dialog_enqueue_count;
     state.speaker_name.fill(0U);
     state.text_control_flags = 0xFFFFFFFFU;
+    state.text_layout_first = 0;
+    state.text_layout_second = 0;
     state.next_text_aux_value = 60U;
     state.next_text_aux_pending = false;
   } catch (const std::bad_alloc &) {
@@ -1239,6 +1258,38 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
           static_cast<u16>(context.instruction_offset + 2U);
       continue;
 
+    case 58U: {
+      if (!has_bytes(state.window, ip, 10U)) {
+        result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+        return result;
+      }
+      if (runtime.picture_actions == nullptr) {
+        result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+        return result;
+      }
+      try {
+        runtime.picture_actions->primary.emplace_front();
+        auto &node = runtime.picture_actions->primary.front();
+        asset_runtime::initialize_legacy_action_record(node.action);
+        node.screen_x = read_u16(state.window, ip + 2U);
+        node.screen_y = read_u16(state.window, ip + 4U);
+        node.action.action_id = read_u16(state.window, ip + 6U);
+        node.action.base_variant = read_u16(state.window, ip + 8U);
+      } catch (const std::bad_alloc &) {
+        result.status =
+            LegacyWorldStoryVmStatus::picture_action_allocation_failed;
+        return result;
+      } catch (const std::length_error &) {
+        result.status =
+            LegacyWorldStoryVmStatus::picture_action_allocation_failed;
+        return result;
+      }
+      context.instruction_offset =
+          static_cast<u16>(context.instruction_offset + 10U);
+      result.status = LegacyWorldStoryVmStatus::yielded;
+      return result;
+    }
+
     case 59U:
       if (!has_bytes(state.window, ip, 4U)) {
         result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
@@ -1450,6 +1501,28 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
       return result;
     }
 
+    case 88U:
+      if (!has_bytes(state.window, ip, 4U)) {
+        result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+        return result;
+      }
+      if (runtime.packed_row_effects == nullptr ||
+          runtime.role_head_actions == nullptr ||
+          runtime.battle_request_value == nullptr) {
+        result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+        return result;
+      }
+      runtime.packed_row_effects->clear();
+      runtime.role_head_actions->clear();
+      *runtime.battle_request_value =
+          static_cast<u32>(static_cast<i32>(
+              static_cast<i16>(read_u16(state.window, ip + 2U)))) |
+          0x80000000U;
+      context.instruction_offset =
+          static_cast<u16>(context.instruction_offset + 4U);
+      result.status = LegacyWorldStoryVmStatus::yielded;
+      return result;
+
     case 89U: {
       const i32 camera_left = runtime.camera == nullptr
                                   ? 0
@@ -1498,6 +1571,20 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
           static_cast<u16>(context.instruction_offset + 2U);
       result.status = LegacyWorldStoryVmStatus::yielded;
       return result;
+
+    case 104U:
+      if (!has_bytes(state.window, ip, 6U)) {
+        result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+        return result;
+      }
+      state.text_control_flags &= 0xEFFFFFFFU;
+      state.text_layout_first =
+          static_cast<i16>(read_u16(state.window, ip + 2U));
+      state.text_layout_second =
+          static_cast<i16>(read_u16(state.window, ip + 4U));
+      context.instruction_offset =
+          static_cast<u16>(context.instruction_offset + 6U);
+      continue;
 
     case 107U: {
       if (!has_bytes(state.window, ip, 6U)) {

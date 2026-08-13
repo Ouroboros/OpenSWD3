@@ -1,10 +1,12 @@
 #pragma once
 
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
+#include "openswd3/rendering/legacy_action_renderers.hpp"
 #include "openswd3/rendering/legacy_frame_color.hpp"
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_collision_talk.hpp"
 #include "openswd3/world_map/legacy_picture_actions.hpp"
+#include "openswd3/world_map/legacy_role_head_actions.hpp"
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_world_camera_pan.hpp"
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
@@ -28,6 +30,8 @@ struct LegacyWorldStoryVmState {
   std::array<compat::u8, kLegacyWorldStoryFlagBytes> flags{};
   std::array<compat::u8, 32U> speaker_name{};
   compat::u32 text_control_flags{0xFFFFFFFFU};
+  compat::i32 text_layout_first{};
+  compat::i32 text_layout_second{};
   compat::u32 next_text_aux_value{60U};
   compat::u32 music_request{0xFFFFFFFFU};
   compat::u32 music_first_stream{};
@@ -50,6 +54,9 @@ struct LegacyWorldStoryVmRuntime {
   LegacyWorldCameraPanState *camera_pan{};
   LegacyWorldMovementRuntimeState *movement{};
   LegacyPictureActionLists *picture_actions{};
+  std::list<rendering::LegacyPackedRowEffect> *packed_row_effects{};
+  LegacyRoleHeadActionList *role_head_actions{};
+  compat::u32 *battle_request_value{};
   rendering::LegacyFrameColorTransitionState *frame_color{};
   LegacyWorldStoryPathRuntime *story_paths{};
   compat::u8 *scene_render_flags{};
@@ -126,10 +133,9 @@ struct LegacyWorldStoryVmResult {
 };
 
 // sub_427920, restricted to the assembly-audited opcode closure reachable
-// from the map-81 new-game entry through the current TALK100 opcode-58
-// boundary:
-// 6,7,8,9,10,11,14,18,20,21,22,25,26,38,39,40,42,43,51,52,53,59,60,61,67,
-// 70,71,72,76,77,78,85,89,91,94,95,107,114,120,141,153,161,193,0x402 and
+// from the map-81 new-game entry through the current TALK100 battle request:
+// 6,7,8,9,10,11,14,18,20,21,22,25,26,38,39,40,42,43,51,52,53,58,59,60,61,67,
+// 70,71,72,76,77,78,85,88,89,91,94,95,104,107,114,120,141,153,161,193,0x402 and
 // 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.

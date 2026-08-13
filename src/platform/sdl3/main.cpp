@@ -2435,6 +2435,10 @@ public:
             .camera_pan = &world_frame_state_.camera_pan,
             .movement = &world_frame_state_.movement,
             .picture_actions = &world_picture_actions_,
+            .packed_row_effects = &world_frame_effects_.packed_rows,
+            .role_head_actions = &world_role_head_actions_,
+            .battle_request_value =
+                &frame_coordinator_state_.battle.battle_request_value,
             .frame_color = &world_frame_effects_.frame_color,
             .story_paths = &story_paths,
             .scene_render_flags =

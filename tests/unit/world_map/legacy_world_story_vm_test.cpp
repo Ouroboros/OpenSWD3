@@ -409,6 +409,36 @@ void test_dialog_role_overlap_avoidance(openswd3::test::Context &test) {
       "sub_40AFF0 repeats the facing offset when the first panel still overlaps its role");
 }
 
+void test_dialog_explicit_layout_pair(openswd3::test::Context &test) {
+  Fixture fixture;
+  auto script = std::span<u8>{fixture.ports.initial_window};
+  write_u16(script, 0U, 104U);
+  write_u16(script, 2U, 5U);
+  write_u16(script, 4U, static_cast<u16>(-7));
+  write_u16(script, 6U, 89U);
+  write_u16(script, 8U, 0x00F8U);
+  write_u16(script, 10U, 0x232DU);
+  write_u16(script, 12U, 14U);
+  write_u16(script, 14U, 8U);
+  script[16U] = '%';
+  script[17U] = 'Q';
+
+  const auto result = fixture.step();
+  const auto &record = fixture.dialogs.messages.front().record;
+
+  test.expect_true(
+      result.status == LegacyWorldStoryVmStatus::yielded &&
+          result.opcode == 89U && result.executed_instruction_count == 2U &&
+          fixture.context.instruction_offset == 18U && record.left == 248U &&
+          record.top == 285U,
+      "opcode 104 replaces the second role-facing offset with its signed pair");
+  test.expect_true(
+      fixture.state.text_control_flags == 0xFFFFFFFFU &&
+          fixture.state.text_layout_first == 0 &&
+          fixture.state.text_layout_second == 0,
+      "dialog enqueue resets opcode 104 text globals to their legacy defaults");
+}
+
 void test_transfer_flags_and_terminal_cleanup(openswd3::test::Context &test) {
   Fixture fixture;
   auto first = std::span<u8>{fixture.ports.initial_window};
@@ -715,6 +745,67 @@ void test_poll_role_path_release(openswd3::test::Context &test) {
           std::ranges::all_of(retried_slot,
                               [](const u8 value) { return value == 0xFFU; }),
       "opcode 18 retries the same instruction in-call after a zero helper result");
+}
+
+void test_enqueue_primary_picture_action(openswd3::test::Context &test) {
+  Fixture fixture;
+  openswd3::world_map::LegacyPictureActionLists picture_actions;
+  picture_actions.primary.emplace_back();
+  picture_actions.primary.back().screen_x = 0xFFFFU;
+  fixture.runtime.picture_actions = &picture_actions;
+  auto script = std::span<u8>{fixture.ports.initial_window};
+  write_u16(script, 0U, 58U);
+  write_u16(script, 2U, 123U);
+  write_u16(script, 4U, 234U);
+  write_u16(script, 6U, 345U);
+  write_u16(script, 8U, 456U);
+
+  const auto result = fixture.step();
+  const auto &node = picture_actions.primary.front();
+
+  test.expect_true(
+      result.status == LegacyWorldStoryVmStatus::yielded &&
+          result.opcode == 58U && result.executed_instruction_count == 1U &&
+          fixture.context.instruction_offset == 10U &&
+          picture_actions.primary.size() == 2U &&
+          picture_actions.secondary.empty(),
+      "opcode 58 prepends one primary picture-action node and yields");
+  test.expect_true(
+      node.screen_x == 123U && node.screen_y == 234U &&
+          node.field_04 == 0U && node.field_06 == 0U &&
+          node.action.action_id == 345U &&
+          node.action.base_variant == 456U &&
+          node.action.field_1c == 0xFFFFFFFFU &&
+          node.action.one_shot_base_variant == 0xFFFFFFFFU &&
+          node.action.one_shot_variant_delta == 0xFFFFFFFFU &&
+          node.next_pointer_32 == 0U,
+      "opcode 58 preserves the zeroed 0xA4 payload and action initializer");
+}
+
+void test_request_battle_after_clearing_overlay_lists(
+    openswd3::test::Context &test) {
+  Fixture fixture;
+  std::list<openswd3::rendering::LegacyPackedRowEffect> packed_rows(2U);
+  openswd3::world_map::LegacyRoleHeadActionList role_heads(3U);
+  u32 battle_request{};
+  fixture.runtime.packed_row_effects = &packed_rows;
+  fixture.runtime.role_head_actions = &role_heads;
+  fixture.runtime.battle_request_value = &battle_request;
+  auto script = std::span<u8>{fixture.ports.initial_window};
+  write_u16(script, 0U, 88U);
+  write_u16(script, 2U, 0xFFFEU);
+
+  const auto result = fixture.step();
+
+  test.expect_true(
+      result.status == LegacyWorldStoryVmStatus::yielded &&
+          result.opcode == 88U && result.executed_instruction_count == 1U &&
+          fixture.context.instruction_offset == 4U,
+      "opcode 88 consumes four bytes and yields immediately");
+  test.expect_true(
+      packed_rows.empty() && role_heads.empty() &&
+          battle_request == 0xFFFFFFFEU,
+      "opcode 88 clears only its two overlay owners and tags a sign-extended battle id");
 }
 
 void test_play_sound_effect_request(openswd3::test::Context &test) {
@@ -1100,6 +1191,9 @@ void test_real_new_game_story_reaches_first_dialog(
   openswd3::world_map::LegacyWorldCameraPanState camera_pan{};
   openswd3::world_map::LegacyWorldMovementRuntimeState movement{};
   openswd3::world_map::LegacyPictureActionLists picture_actions;
+  std::list<openswd3::rendering::LegacyPackedRowEffect> packed_row_effects;
+  openswd3::world_map::LegacyRoleHeadActionList role_head_actions;
+  u32 battle_request_value{};
   openswd3::rendering::LegacyFrameColorTransitionState frame_color{};
   openswd3::rendering::LegacyFramebuffer frame_color_framebuffer;
   openswd3::rendering::LegacyPixelConversionState frame_color_format;
@@ -1133,6 +1227,9 @@ void test_real_new_game_story_reaches_first_dialog(
       .camera_pan = &camera_pan,
       .movement = &movement,
       .picture_actions = &picture_actions,
+      .packed_row_effects = &packed_row_effects,
+      .role_head_actions = &role_head_actions,
+      .battle_request_value = &battle_request_value,
       .frame_color = &frame_color,
       .story_paths = &story_paths,
       .scene_render_flags = &scene_render_flags,
@@ -1377,6 +1474,7 @@ void test_real_new_game_story_reaches_first_dialog(
   std::size_t post_opcode_45_path_frame_count{};
   std::size_t post_opcode_45_color_wait_count{};
   bool post_opcode_45_progression_completed = true;
+  bool battle_request_submitted = false;
   for (std::size_t boundary_count = 0U;
        boundary_count < 2048U &&
        next_unsupported.status == LegacyWorldStoryVmStatus::yielded;
@@ -1432,11 +1530,14 @@ void test_real_new_game_story_reaches_first_dialog(
       ++post_opcode_45_dialog_count;
       next_unsupported = step();
       break;
+    case 88U:
+      battle_request_submitted = true;
+      break;
     default:
       next_unsupported = step();
       break;
     }
-    if (!post_opcode_45_progression_completed) {
+    if (!post_opcode_45_progression_completed || battle_request_submitted) {
       break;
     }
   }
@@ -1508,21 +1609,23 @@ void test_real_new_game_story_reaches_first_dialog(
                     "story 100 fourth path frame count");
   test.expect_equal(post_opcode_45_wait_count, std::size_t{8U},
                     "story 100 post-opcode-45 wait count");
-  test.expect_equal(post_opcode_45_dialog_count, std::size_t{6U},
+  test.expect_equal(post_opcode_45_dialog_count, std::size_t{8U},
                     "story 100 post-opcode-45 dialog count");
-  test.expect_equal(post_opcode_45_path_frame_count, std::size_t{32U},
+  test.expect_equal(post_opcode_45_path_frame_count, std::size_t{65U},
                     "story 100 post-opcode-45 path frame count");
   test.expect_equal(post_opcode_45_color_wait_count, std::size_t{1U},
                     "story 100 post-opcode-45 color wait count");
-  test.expect_equal(next_unsupported.opcode, u16{58U},
-                    "story 100 next unsupported opcode boundary");
+  test.expect_equal(next_unsupported.opcode, u16{88U},
+                    "story 100 battle request boundary");
   test.expect_equal(next_unsupported.status,
-                    LegacyWorldStoryVmStatus::unsupported_opcode,
-                    "story 100 stops without consuming opcode 58");
+                    LegacyWorldStoryVmStatus::yielded,
+                    "story 100 yields after consuming opcode 88");
   test.expect_equal(state.loaded_data_offset, u32{17476U},
                     "story 100 branched window base through both paths");
-  test.expect_equal(context.instruction_offset, u16{3675U},
-                    "story 100 instruction boundary at opcode 58");
+  test.expect_equal(context.instruction_offset, u16{3847U},
+                    "story 100 instruction boundary after opcode 88");
+  test.expect_equal(battle_request_value, u32{0x80000062U},
+                    "story 100 submits battle id 98 with the request tag");
   test.expect_true(
       initialized.status ==
               openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
@@ -1563,23 +1666,24 @@ void test_real_new_game_story_reaches_first_dialog(
           third_path_dialog_releases_completed &&
           fourth_path_frames_completed &&
           post_opcode_45_progression_completed &&
-          dialogs.messages.size() == 46U &&
+          battle_request_submitted &&
+          dialogs.messages.size() == 48U &&
           (roles[9].flags & 0x00008000U) != 0U &&
           (roles[10].flags & 0x00008000U) != 0U &&
           roles[9].action.base_variant == 33U &&
           roles[10].action.base_variant == 0U &&
           roles[9].action.wait_override == 0x8002U &&
-          roles[10].action.wait_override == 0x8003U &&
+          roles[10].action.wait_override == 0x8000U &&
           roles[9].action.wait_remaining == 0U &&
           roles[10].action.wait_remaining == 0U &&
           roles[10].field_3c == 0U,
       "real story 100 crosses opcode 45 and all subsequent restored waits, "
-      "dialogs, paths, color transition control and role-path release through "
-      "opcode 18 before opcode 58");
+      "dialogs, paths, color transition control, role-path release, primary "
+      "picture enqueue and explicit text layout through the opcode 88 battle "
+      "request");
   test.expect_true(
-      ports.sound_effect_requests.size() == 1U &&
-          ports.sound_effect_requests.front() == 0x73U,
-      "real story 100 submits the scripted opcode 59 sound id");
+      ports.sound_effect_requests == std::vector<u16>{0x73U, 0x3CU},
+      "real story 100 submits both scripted opcode 59 sound ids");
   test.expect_equal(roles[6].world_x, u32{37U * 16U},
                     "real story 100 relocates role 248 x");
   test.expect_equal(roles[6].world_y, u32{33U * 16U},
@@ -1601,6 +1705,7 @@ void test_real_new_game_story_reaches_first_dialog(
   test.expect_equal(roles[5].world_y, u32{36U * 16U},
                     "real story 100 relocates role 195 y");
   test.expect_true(
+          picture_actions.primary.size() == 1U &&
           picture_actions.secondary.size() == 2U &&
           frame_color.current_red == 10.0F &&
           frame_color.current_green == 10.0F &&
@@ -1631,6 +1736,7 @@ int main(const int argument_count, char **arguments) {
   test_initial_flags_and_alignment_gate(test);
   test_dialog_enqueue_and_wait_protocol(test);
   test_dialog_role_overlap_avoidance(test);
+  test_dialog_explicit_layout_pair(test);
   test_transfer_flags_and_terminal_cleanup(test);
   test_same_file_branch(test);
   test_role_action_operand_extension(test);
@@ -1638,6 +1744,8 @@ int main(const int argument_count, char **arguments) {
   test_change_requested_action_id(test);
   test_wait_for_role_action_position(test);
   test_poll_role_path_release(test);
+  test_enqueue_primary_picture_action(test);
+  test_request_battle_after_clearing_overlay_lists(test);
   test_play_sound_effect_request(test);
   test_wait_for_frame_color_transition(test);
   test_turn_role_toward_role(test);
