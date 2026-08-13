@@ -72,14 +72,11 @@ LegacyWorldFacingTalkResult coordinate_legacy_world_facing_talk(
         return result;
     }
     LegacyWorldRoleRecord& player = roles[request.player_index];
-    result.facing =
-        measure_legacy_world_facing(
-            wrapping_scaled_add(player.world_x, player.action.field_2c),
-            wrapping_scaled_add(player.world_y, player.action.field_30),
-            wrapping_scaled_add(target.world_x, target.action.field_2c),
-            wrapping_scaled_add(target.world_y, target.action.field_30)
-        )
-            .direction;
+    result.facing = measure_legacy_world_controlled_role_direction(
+        player,
+        wrapping_scaled_add(target.world_x, target.action.field_2c),
+        wrapping_scaled_add(target.world_y, target.action.field_30)
+    );
 
     if ((target.flags & kLegacyWorldTalkTurningRoleFlag) != 0U) {
         target.action.one_shot_base_variant = target.action.base_variant;

@@ -162,4 +162,18 @@ LegacyWorldFacingResult measure_legacy_world_facing(
     };
 }
 
+u32 measure_legacy_world_controlled_role_direction(
+    const LegacyWorldRoleRecord& controlled_role,
+    const u32 target_x,
+    const u32 target_y
+) noexcept {
+    return measure_legacy_world_facing(
+               controlled_role.world_x + controlled_role.action.field_2c * 8U,
+               controlled_role.world_y + controlled_role.action.field_30 * 8U,
+               target_x,
+               target_y
+    )
+        .direction;
+}
+
 }  // namespace openswd3::world_map

@@ -164,19 +164,13 @@ LegacyWorldCollisionTalkResult coordinate_legacy_world_collision_talk(
     }
 
     LegacyWorldRoleRecord& target = roles[result.hit_role_index];
-    const u32 player_center_x =
-        wrapping_scaled_add(player.world_x, player.action.field_2c);
-    const u32 player_center_y =
-        wrapping_scaled_add(player.world_y, player.action.field_30);
     const u32 target_center_x =
         wrapping_scaled_add(target.world_x, target.action.field_2c);
     const u32 target_center_y =
         wrapping_scaled_add(target.world_y, target.action.field_30);
-    const u32 facing =
-        measure_legacy_world_facing(
-            player_center_x, player_center_y, target_center_x, target_center_y
-        )
-            .direction;
+    const u32 facing = measure_legacy_world_controlled_role_direction(
+        player, target_center_x, target_center_y
+    );
 
     if ((target.flags & kLegacyWorldTalkTurningRoleFlag) != 0U) {
         LegacyActionRecord& action = target.action;

@@ -8,6 +8,8 @@ namespace {
 
 using openswd3::compat::u32;
 using openswd3::world_map::LegacyWorldFacingResult;
+using openswd3::world_map::LegacyWorldRoleRecord;
+using openswd3::world_map::measure_legacy_world_controlled_role_direction;
 using openswd3::world_map::measure_legacy_world_facing;
 
 struct FacingCase {
@@ -69,6 +71,29 @@ void test_wrapping_square_sum_invalid_result(openswd3::test::Context& test) {
     );
 }
 
+void test_controlled_role_center_wrapper(openswd3::test::Context& test) {
+    LegacyWorldRoleRecord role{};
+    role.world_x = 100U;
+    role.world_y = 200U;
+    role.field_2c = 1000U;
+    role.field_30 = 2000U;
+    role.action.field_2c = 3U;
+    role.action.field_30 = 5U;
+
+    test.expect_equal(
+        measure_legacy_world_controlled_role_direction(role, 124U, 140U),
+        1U,
+        "sub_40E030 reads embedded action extents, not same-named role fields"
+    );
+    test.expect_equal(
+        measure_legacy_world_controlled_role_direction(
+            role, 124U + 0xFFFFFFFFU, 240U
+        ),
+        measure_legacy_world_facing(124U, 240U, 123U, 240U).direction,
+        "sub_40E030 preserves unsigned coordinate wraparound"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -76,5 +101,6 @@ int main() {
     test_zero_and_cardinal_directions(test);
     test_diagonal_and_non_square_quantization(test);
     test_wrapping_square_sum_invalid_result(test);
+    test_controlled_role_center_wrapper(test);
     return test.exit_code();
 }

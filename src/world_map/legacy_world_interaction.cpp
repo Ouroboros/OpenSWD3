@@ -70,14 +70,11 @@ void update_action(
     }
 }
 
-[[nodiscard]] LegacyWorldFacingResult facing_from_player_to_target(
+[[nodiscard]] u32 facing_from_player_to_target(
     const LegacyWorldRoleRecord& player, const u32 target_x, const u32 target_y
 ) noexcept {
-    return measure_legacy_world_facing(
-        wrapping_scaled_add(player.world_x, player.action.field_2c),
-        wrapping_scaled_add(player.world_y, player.action.field_30),
-        target_x,
-        target_y
+    return measure_legacy_world_controlled_role_direction(
+        player, target_x, target_y
     );
 }
 
@@ -207,25 +204,24 @@ void update_action(
     }
 
     LegacyWorldRoleRecord& player = roles[request.player_index];
-    const LegacyWorldFacingResult target_facing = facing_from_player_to_target(
+    const u32 target_facing = facing_from_player_to_target(
         player,
         wrapping_scaled_add(target.world_x, target.action.field_2c),
         wrapping_scaled_add(target.world_y, target.action.field_30)
     );
-    result.facing = target_facing.direction;
+    result.facing = target_facing;
 
     if ((target.flags & kLegacyWorldTalkTurningRoleFlag) != 0U) {
         target.action.one_shot_base_variant = target.action.base_variant;
         target.action.one_shot_variant_delta = target.action.variant_delta;
         target.action.base_variant = 0U;
         target.action.wait_remaining = 0U;
-        target.action.variant_delta = target_facing.direction;
+        target.action.variant_delta = target_facing;
         update_action(result, target.action, ports);
     }
 
     player.action.base_variant = 0U;
-    player.action.variant_delta =
-        opposite_legacy_direction(target_facing.direction);
+    player.action.variant_delta = opposite_legacy_direction(target_facing);
     player.action.wait_remaining = 0U;
     update_action(result, player.action, ports);
 
@@ -303,17 +299,16 @@ void update_action(
         (request.mouse_x & 0xFFFFFFF0U) + request.camera.left;
     talk_context.world_y = (request.mouse_y & 0xFFFFFFF0U) + request.camera.top;
 
-    const LegacyWorldFacingResult target_facing = facing_from_player_to_target(
+    const u32 target_facing = facing_from_player_to_target(
         player,
         request.mouse_x + request.camera.left,
         request.mouse_y + request.camera.top
     );
-    result.facing = target_facing.direction;
+    result.facing = target_facing;
     player.action.one_shot_base_variant = player.action.base_variant;
     player.action.one_shot_variant_delta = player.action.variant_delta;
     player.action.base_variant = 0U;
-    player.action.variant_delta =
-        opposite_legacy_direction(target_facing.direction);
+    player.action.variant_delta = opposite_legacy_direction(target_facing);
     player.action.wait_remaining = 0U;
     update_action(result, player.action, ports);
 
