@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <bit>
 #include <cstddef>
+#include <cstdint>
 
 namespace openswd3::world_map {
 namespace {
@@ -119,16 +120,24 @@ struct PathCommandReadResult {
     }
 
     const u32 relative = read_u32_le(path_database, directory_offset);
-    const u32 word_offset = path_word_index * static_cast<u32>(sizeof(u16));
-    const u32 command_offset = relative + word_offset +
-        static_cast<u32>(kPathDirectoryOffset);
-    if (!range_available(path_database, command_offset, sizeof(u16))) {
+    const std::int64_t command_offset =
+        static_cast<std::int64_t>(relative) +
+        static_cast<std::int64_t>(kPathDirectoryOffset) +
+        static_cast<std::int64_t>(
+            std::bit_cast<compat::i32>(path_word_index)
+        ) * static_cast<std::int64_t>(sizeof(u16));
+    if (command_offset < 0 ||
+        !range_available(
+            path_database,
+            static_cast<std::size_t>(command_offset),
+            sizeof(u16)
+        )) {
         return {PathCommandReadStatus::command_out_of_range, 0U};
     }
 
     return {
         PathCommandReadStatus::ready,
-        read_u16_le(path_database, command_offset),
+        read_u16_le(path_database, static_cast<std::size_t>(command_offset)),
     };
 }
 

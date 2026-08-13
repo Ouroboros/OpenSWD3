@@ -136,14 +136,16 @@ B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、�
    出口；队伍请求接入 `sub_405430` 对应 app 槽并复用进程期节点池，普通角色请求等待
    `sub_405500` PATH.DAT owner，两个剧情调用者仍未提前接线。Linux/Windows LLVM
    完整应用 176/176 CTest 通过，Windows EXE 成功链接且未启动任何 EXE。
-   随后的 PATH.DAT 有限闭环恢复 `sub_405500` opcode `0/4/5/7/8` 以及完整
-   `sub_406580`：等待设置与逐帧递减、普通角色 A* 请求、72 槽路线运动准备、终点清槽
-   和脚本回绕现已按 `sub_405430` 的逐角色普通/队伍分派顺序接入同一 `step_story`
-   阶段。`sub_406580` 已从入口到全部出口再次完整
-   核对；`sub_405500` 只声明上述五个分支完成，其余 32 个分支遇到时保持原光标并记录
-   一次警告，不猜测副作用。真实 MAPS 的 136 个非零初始 Path 全部通过 opcode 5
-   光标规则回归；Linux/Windows LLVM 完整应用均为 178/178 CTest 通过，Windows EXE
-   成功链接且未启动任何原版或重写版 EXE。
+   PATH.DAT owner 随后完成全量闭环：`sub_405500` opcode `0..36`、`sub_405430`
+   全部分派门、`sub_406580` 路线运动、`sub_406710` 绝对跳转和 `sub_406770` 随机游走
+   均已实现，并按原帧顺序接入同一 `step_story` 阶段。汇编—C++ 双向收敛期间补正了
+   目标角色不存在时 opcode 36 只推进两个 word，以及绝对跳转产生的 32 位负 word
+   光标必须按有符号值寻址；真实 PATH 的 `169/170/171` 正好覆盖后一行为。动态标签的
+   `malloc/free` 以 owner vector/token 隔离；opcode 36 首次使用 direction `1/default`
+   的原版未初始化栈值显式报告为不确定状态，当前三处 opcode 36 均走已定义的 direction
+   2。真实 MAPS 的 136 个非零初始 Path、PATH 的 800 个有效非零目录项、当前资产使用的
+   20 种 opcode、全部目标边界与 word 对齐均通过离线回归；37 个 opcode 还分别具有
+   汇编独立边界 UT。原程序动态差分仍登记为 `blocked_runtime_oracle`，未启动任何 EXE。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。

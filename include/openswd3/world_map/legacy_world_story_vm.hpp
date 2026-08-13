@@ -24,10 +24,12 @@
 namespace openswd3::world_map {
 
 inline constexpr std::size_t kLegacyWorldStoryFlagBytes = 0x400U;
+inline constexpr std::size_t kLegacyWorldScriptVariableCount = 64U;
 
 struct LegacyWorldStoryVmState {
   std::array<compat::u8, resource_io::kLegacyTalkWindowSize> window{};
   std::array<compat::u8, kLegacyWorldStoryFlagBytes> flags{};
+  std::array<compat::u32, kLegacyWorldScriptVariableCount> script_variables{};
   std::array<compat::u8, 32U> speaker_name{};
   compat::u32 text_control_flags{0xFFFFFFFFU};
   compat::i32 text_layout_first{};
@@ -41,6 +43,9 @@ struct LegacyWorldStoryVmState {
   compat::u32 current_second_stream{};
   compat::u32 wait_duration{};
   compat::u32 wait_started_at{};
+  compat::u32 script_clock_frame_counter{};
+  compat::u32 script_clock{};
+  compat::u32 script_clock_origin{};
   compat::u32 loaded_file_number{};
   compat::u32 loaded_data_offset{};
   bool next_text_aux_pending{};
@@ -65,6 +70,8 @@ struct LegacyWorldStoryVmRuntime {
 };
 
 void initialize_legacy_world_story_vm(
+    LegacyWorldStoryVmState &state) noexcept;
+void advance_legacy_world_script_clock(
     LegacyWorldStoryVmState &state) noexcept;
 
 [[nodiscard]] bool query_legacy_world_story_flag(

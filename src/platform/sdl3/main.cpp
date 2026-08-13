@@ -98,9 +98,6 @@ constexpr int kInitialWindowWidth = kFrameWidth * 3 / 2;
 constexpr int kInitialWindowHeight = kFrameHeight * 3 / 2;
 constexpr openswd3::compat::u32 kInitialFrameIntervalMilliseconds = 35U;
 constexpr openswd3::compat::i32 kLegacyInitialSampleMixLevel = 6;
-constexpr openswd3::compat::u32 kLegacySpatialRoleFlag = 0x00008000U;
-constexpr openswd3::compat::u32 kLegacyPartyRoleFlag = 0x00000080U;
-constexpr openswd3::compat::u32 kLegacyInteractionSuspendedFlag = 0x80000000U;
 
 [[nodiscard]] std::optional<openswd3::compat::u32> legacy_text_virtual_key(
     const SDL_Scancode scancode
@@ -1284,13 +1281,16 @@ public:
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
         openswd3::world_map::LegacyWorldHeadSignActionsState*
             head_sign_actions = nullptr,
-        openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths = nullptr
+        openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths = nullptr,
+        const openswd3::world_map::LegacyWorldPathScriptState*
+            path_script_state = nullptr
     ) noexcept
         : audio_(audio),
           presentation_(presentation),
           text_renderers_(text_renderers),
           head_sign_actions_(head_sign_actions),
-          story_paths_(story_paths) {}
+          story_paths_(story_paths),
+          path_script_state_(path_script_state) {}
 
     bool complete_role_path(
         const openswd3::compat::u32 role_index
@@ -1360,9 +1360,14 @@ public:
     ) noexcept override {}
 
     std::span<const openswd3::compat::u8> resolve_label_bytes(
-        openswd3::compat::u32
+        const openswd3::compat::u32 token
     ) noexcept override {
-        return {};
+        if (path_script_state_ == nullptr) {
+            return {};
+        }
+        return openswd3::world_map::resolve_legacy_world_path_label(
+            *path_script_state_, token
+        );
     }
 
     openswd3::compat::u16 label_color(
@@ -1462,6 +1467,8 @@ private:
     openswd3::world_map::LegacyWorldHeadSignActionsState*
         head_sign_actions_{};
     openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths_{};
+    const openswd3::world_map::LegacyWorldPathScriptState*
+        path_script_state_{};
     openswd3::compat::u32 deferred_frame_stage_count_{};
     bool presentation_failed_{};
 };
@@ -1631,6 +1638,7 @@ public:
             world_action_initializer,
         openswd3::asset_runtime::LegacyActionUpdater& action_updater,
         openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime,
+        openswd3::input_time_rng::LegacyCrtRng& crt_rng,
         openswd3::input_time_rng::LegacySecondaryRng& secondary_rng,
         openswd3::app::ShutdownPorts& shutdown_ports,
         openswd3::app::ProcessExitPorts& exit_ports,
@@ -1661,6 +1669,7 @@ public:
           world_action_initializer_(world_action_initializer),
           action_updater_(action_updater),
           tsw_runtime_(tsw_runtime),
+          crt_rng_(crt_rng),
           secondary_rng_(secondary_rng),
           world_raster_(game_framebuffer.geometry()),
           world_effects_{.pixel_conversion = pixel_conversion},
@@ -2441,6 +2450,42 @@ public:
             openswd3::compat::u32& process_flags_;
         };
 
+        class PathScriptPorts final
+            : public openswd3::world_map::LegacyWorldPathScriptPorts {
+        public:
+            PathScriptPorts(
+                openswd3::asset_runtime::LegacyActionUpdater& action_updater,
+                openswd3::audio_video::LegacySampleManager& sample_manager,
+                const openswd3::audio_video::LegacySpatialSampleState audio
+            ) noexcept
+                : action_updater_(action_updater),
+                  sample_manager_(sample_manager),
+                  audio_(audio) {}
+
+            openswd3::compat::u32 update_action(
+                openswd3::asset_runtime::LegacyActionRecord& action
+            ) override {
+                return action_updater_.update(action).return_value;
+            }
+
+            void play_positional_sample(
+                const openswd3::compat::u16 sound_id,
+                const openswd3::compat::i32 world_x,
+                const openswd3::compat::i32 world_y
+            ) noexcept override {
+                static_cast<void>(
+                    openswd3::audio_video::play_legacy_spatial_sample(
+                        sample_manager_, sound_id, world_x, world_y, audio_
+                    )
+                );
+            }
+
+        private:
+            openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
+            openswd3::audio_video::LegacySampleManager& sample_manager_;
+            openswd3::audio_video::LegacySpatialSampleState audio_;
+        };
+
         auto& world = *active_world_session_;
         auto& map = world.render.map_load.session;
         auto& roles = map.business.state.roles;
@@ -2470,6 +2515,7 @@ public:
             text_renderers_,
             &world_frame_state_.head_sign_actions,
             &story_paths,
+            &world_path_script_state_,
         };
         StoryVmPorts story_ports{
             resource_databases_,
@@ -2506,6 +2552,9 @@ public:
             .current_tick =
                 frame_preparation_state_.frame_clock.sampled_milliseconds,
         };
+        openswd3::world_map::advance_legacy_world_script_clock(
+            world_story_vm_state_
+        );
         const auto story_result =
             openswd3::world_map::step_legacy_world_story_vm(
                 world_frame_state_.map_role_paths.talk_context,
@@ -2588,14 +2637,38 @@ public:
             .selected_guid = roles[world.selected_role_index].guid,
             .surface_grid = map.surface_grid.surface_grid,
         };
+        PathScriptPorts path_script_ports{
+            action_updater_,
+            sample_manager_,
+            openswd3::audio_video::LegacySpatialSampleState{
+                .listener_x = static_cast<openswd3::compat::i32>(
+                    roles[world.selected_role_index].world_x
+                ),
+                .listener_y = static_cast<openswd3::compat::i32>(
+                    roles[world.selected_role_index].world_y
+                ),
+                .mix_level =
+                    world_frame_state_.frame_runtime.spatial_audio.mix_level,
+            },
+        };
+        const openswd3::world_map::LegacyWorldPathScriptRuntime path_runtime{
+            .shared_script_state = &world_story_vm_state_,
+            .spatial_index = &map.business.state.spatial_index,
+            .crt_rng = &crt_rng_,
+            .secondary_rng = &secondary_rng_,
+            .controlled_role_index = world.selected_role_index,
+        };
         openswd3::compat::u32 unsupported_scripts = 0U;
         for (openswd3::compat::u32 role_index = 1U;
              role_index < roles.size(); ++role_index) {
-            const auto& role = roles[role_index];
-            if ((role.flags & kLegacySpatialRoleFlag) == 0U) {
-                continue;
-            }
-            if ((role.flags & kLegacyPartyRoleFlag) != 0U) {
+            auto& role = roles[role_index];
+            const auto path_action = openswd3::world_map::
+                select_legacy_world_path_role_frame_action(
+                    role, role_index, world.selected_role_index
+                );
+            using PathRoleAction = openswd3::world_map::
+                LegacyWorldPathRoleFrameAction;
+            if (path_action == PathRoleAction::run_party_path) {
                 const auto result =
                     openswd3::world_map::prepare_legacy_world_party_path(
                         role_index,
@@ -2626,8 +2699,23 @@ public:
                 }
                 continue;
             }
-            if ((role.flags & kLegacyInteractionSuspendedFlag) != 0U ||
-                role.interaction_gate == 1U || role.path_data_id == 0U) {
+            if (path_action == PathRoleAction::mark_surface) {
+                static_cast<void>(openswd3::world_map::
+                    mark_legacy_world_role_surface_occupancy(role, surface));
+                continue;
+            }
+            if (path_action ==
+                PathRoleAction::update_action_then_mark_surface) {
+                static_cast<void>(action_updater_.update(role.action));
+                if (role.action.action_id != 0U) {
+                    static_cast<void>(openswd3::world_map::
+                        mark_legacy_world_role_surface_occupancy(
+                            role, surface
+                        ));
+                }
+                continue;
+            }
+            if (path_action != PathRoleAction::run_path_script) {
                 continue;
             }
 
@@ -2639,7 +2727,10 @@ public:
                     surface,
                     map.header.height,
                     world_frame_state_.map_role_paths.active_object_slots,
-                    world_path_node_pool_
+                    world_path_node_pool_,
+                    world_path_script_state_,
+                    path_runtime,
+                    path_script_ports
                 );
             if (result.status == openswd3::world_map::
                                      LegacyWorldPathScriptStatus::
@@ -2707,6 +2798,7 @@ public:
             text_renderers_,
             &world_frame_state_.head_sign_actions,
             &story_paths,
+            &world_path_script_state_,
         };
         // sub_40A570 0x0040AA6C..0x0040AA8B applies the gameplay advances
         // after the renderers were initially built as 24/18/16 by
@@ -3114,6 +3206,7 @@ public:
         world_moving_actions_ = {};
         world_role_head_actions_ = {};
         world_dialogs_ = {};
+        world_path_script_state_ = {};
         openswd3::world_map::initialize_legacy_world_story_vm(
             world_story_vm_state_
         );
@@ -3407,6 +3500,7 @@ private:
         world_action_initializer_;
     openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
     openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime_;
+    openswd3::input_time_rng::LegacyCrtRng& crt_rng_;
     openswd3::input_time_rng::LegacySecondaryRng& secondary_rng_;
     openswd3::battle::LegacyBattleAssets battle_assets_;
     bool battle_assets_ready_{};
@@ -3421,6 +3515,7 @@ private:
         world_special_frame_loader_;
     openswd3::world_map::LegacyWorldFrameCoordinatorState world_frame_state_;
     openswd3::world_map::LegacyWorldPathNodePool world_path_node_pool_;
+    openswd3::world_map::LegacyWorldPathScriptState world_path_script_state_;
     openswd3::world_map::LegacyPictureActionLists world_picture_actions_;
     openswd3::world_map::LegacyMovingActionList world_moving_actions_;
     openswd3::world_map::LegacyRoleHeadActionList world_role_head_actions_;
@@ -3889,6 +3984,7 @@ int main(const int argument_count, char** arguments) {
         world_action_initializer,
         action_updater,
         tsw_runtime,
+        crt_rng,
         secondary_rng,
         shutdown_ports,
         exit_ports,

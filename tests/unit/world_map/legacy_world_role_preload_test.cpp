@@ -278,6 +278,16 @@ void test_checked_input_boundaries(openswd3::test::Context& test) {
         LegacyWorldRolePreloadStatus::object_slots_required,
         "type eight requires the original fixed 72 coordinate slots"
     );
+
+    roles[1U].path_word_index = 0xFFFFFFFFU;
+    std::vector<u8> signed_cursor(0x240U, 0U);
+    write_u32(signed_cursor, 0x204U, 0x22U);
+    write_u16(signed_cursor, 0x220U, 5U);
+    test.expect_equal(
+        run(signed_cursor, {}).status,
+        LegacyWorldRolePreloadStatus::ready,
+        "a negative PATH word cursor is resolved with signed 32-bit scaling"
+    );
 }
 
 void test_real_path_commands(

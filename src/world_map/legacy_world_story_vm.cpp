@@ -692,6 +692,19 @@ void initialize_legacy_world_story_vm(
   }
 }
 
+void advance_legacy_world_script_clock(
+    LegacyWorldStoryVmState &state) noexcept {
+  ++state.script_clock_frame_counter;
+  if (state.script_clock_frame_counter <= 20U) {
+    return;
+  }
+  state.script_clock_frame_counter = 0U;
+  ++state.script_clock;
+  if (state.script_clock > 1000U) {
+    state.script_clock = 0U;
+  }
+}
+
 bool query_legacy_world_story_flag(const LegacyWorldStoryVmState &state,
                                    const u16 bit_index) noexcept {
   const std::size_t byte_index = static_cast<std::size_t>(bit_index >> 3U);
