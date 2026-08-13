@@ -1,6 +1,7 @@
 #include "openswd3/world_map/legacy_world_player_motion.hpp"
 
 #include <bit>
+#include <utility>
 
 namespace openswd3::world_map {
 namespace {
@@ -221,6 +222,40 @@ void recenter_legacy_world_camera(
                                map_height_tiles);
     camera.right = camera.left + 0x280U;
     camera.bottom = camera.top + 0x1E0U;
+}
+
+LegacyWorldCameraRect calculate_legacy_world_camera_rect(
+    const compat::u32 world_x,
+    const compat::u32 world_y,
+    const compat::u32 map_width_tiles,
+    const compat::u32 map_height_tiles
+) noexcept {
+    const auto calculate_axis = [](
+        const compat::u32 position,
+        const compat::u32 leading_offset,
+        const compat::u32 viewport_size,
+        const compat::u32 map_tiles
+    ) noexcept {
+        compat::u32 start = position - leading_offset;
+        if (std::bit_cast<compat::i32>(start) < 0) {
+            start = 0U;
+        }
+        compat::u32 end = start + viewport_size;
+        const compat::u32 map_extent = map_tiles << 4U;
+        if (std::bit_cast<compat::i32>(end) >=
+            std::bit_cast<compat::i32>(map_extent)) {
+            start = (map_tiles - viewport_size / 16U) << 4U;
+            end = map_extent;
+        }
+        return std::pair{start, end};
+    };
+
+    const auto horizontal =
+        calculate_axis(world_x, 0x140U, 0x280U, map_width_tiles);
+    const auto vertical =
+        calculate_axis(world_y, 0x0F0U, 0x1E0U, map_height_tiles);
+    return {horizontal.first, vertical.first, horizontal.second,
+            vertical.second};
 }
 
 }  // namespace openswd3::world_map

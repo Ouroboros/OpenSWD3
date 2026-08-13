@@ -37,7 +37,7 @@ struct RoleAssemblyState {
 void initialize_maps_role(
     LegacyWorldRoleRecord& role,
     const LegacyMapsRoleSourceRecord& source,
-    const LegacyMapsRoleDefaultsRecord* const defaults
+    const LegacyMapsWorldDatabase& database
 ) noexcept {
     role = {};
     asset_runtime::initialize_legacy_action_record(role.action);
@@ -57,11 +57,7 @@ void initialize_maps_role(
     role.interaction_gate = 0U;
     role.talk_data_offset = 0U;
     role.talk_initial_offset = 0U;
-    if (defaults != nullptr) {
-        role.field_2c = defaults->field_2c;
-        const u32 repeated = defaults->repeated_field_30_word;
-        role.field_30 = repeated | (repeated << 16U);
-    }
+    static_cast<void>(apply_legacy_maps_role_defaults(database, role));
 }
 
 [[nodiscard]] bool guid_previously_seen(
@@ -139,7 +135,7 @@ void initialize_maps_role(
             initialize_maps_role(
                 role,
                 source,
-                find_legacy_maps_role_defaults(database, source.guid)
+                database
             );
             roles.push_back(role);
             const u32 role_index = static_cast<u32>(roles.size() - 1U);

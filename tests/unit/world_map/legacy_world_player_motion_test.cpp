@@ -10,6 +10,7 @@ using openswd3::compat::i32;
 using openswd3::compat::u32;
 using openswd3::world_map::advance_legacy_world_player_and_camera;
 using openswd3::world_map::apply_legacy_world_player_motion_state;
+using openswd3::world_map::calculate_legacy_world_camera_rect;
 using openswd3::world_map::compute_legacy_world_movement_bounds;
 using openswd3::world_map::LegacyWorldCameraRect;
 using openswd3::world_map::LegacyWorldDirectionInputResult;
@@ -268,6 +269,34 @@ void test_coordinate_advance(openswd3::test::Context& test) {
     );
 }
 
+void test_camera_recenter_helpers(openswd3::test::Context& test) {
+    LegacyWorldRoleRecord role{};
+    role.world_x = 0x200U;
+    role.world_y = 0x180U;
+    LegacyWorldCameraRect selected{};
+    openswd3::world_map::recenter_legacy_world_camera(
+        role,
+        100U,
+        80U,
+        selected
+    );
+    const auto explicit_position = calculate_legacy_world_camera_rect(
+        role.world_x,
+        role.world_y,
+        100U,
+        80U
+    );
+    test.expect_true(
+        selected.left == 0xD0U && selected.top == 0x90U &&
+            selected.right == 0x350U && selected.bottom == 0x270U &&
+            explicit_position.left == 0xC0U &&
+            explicit_position.top == 0x90U &&
+            explicit_position.right == 0x340U &&
+            explicit_position.bottom == 0x270U,
+        "sub_40D0C0 and sub_40D160 preserve their distinct x offsets"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -277,5 +306,6 @@ int main() {
     test_transition_priority(test);
     test_speed_and_cached_action_quirks(test);
     test_coordinate_advance(test);
+    test_camera_recenter_helpers(test);
     return test.exit_code();
 }

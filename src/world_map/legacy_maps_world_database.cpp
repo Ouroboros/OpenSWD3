@@ -239,6 +239,44 @@ find_legacy_maps_role_defaults(const LegacyMapsWorldDatabase &database,
   return found == database.role_defaults.end() ? nullptr : &*found;
 }
 
+bool apply_legacy_maps_role_defaults(
+    const LegacyMapsWorldDatabase &database,
+    LegacyWorldRoleRecord &role) noexcept {
+  const auto *const defaults =
+      find_legacy_maps_role_defaults(database, role.guid);
+  if (defaults == nullptr) {
+    return false;
+  }
+
+  role.field_2c = (role.field_2c & 0xFFFF0000U) | defaults->field_2c;
+  const u32 repeated = defaults->repeated_field_30_word;
+  role.field_30 = repeated | (repeated << 16U);
+  return true;
+}
+
+u32 load_legacy_maps_role_source_record(
+    const LegacyMapsWorldDatabase &database,
+    const u16 guid,
+    LegacyWorldRoleRecord &role) noexcept {
+  const auto found = std::ranges::find(database.role_sources, guid,
+                                       &LegacyMapsRoleSourceRecord::guid);
+  if (found == database.role_sources.end()) {
+    return std::numeric_limits<u32>::max();
+  }
+
+  role.guid = guid;
+  role.action.action_id = found->action_id;
+  role.action.base_variant = found->base_variant;
+  role.action.variant_delta = found->variant_delta;
+  role.world_x = static_cast<u32>(found->tile_x) << 4U;
+  role.world_y = static_cast<u32>(found->tile_y) << 4U;
+  role.talk_script_id = found->talk_script_id;
+  role.path_data_id = found->path_data_id;
+  role.path_word_index = 0U;
+  role.flags = found->flags;
+  return found->logical_map_id;
+}
+
 LegacyMapsRolePatchStatus patch_legacy_maps_role_source_record(
     const std::span<u8> payload,
     LegacyMapsWorldDatabase &database,
@@ -284,6 +322,32 @@ LegacyMapsRolePatchStatus patch_legacy_maps_role_source_record(
     return LegacyMapsRolePatchStatus::source_record_out_of_range;
   }
 
+  return LegacyMapsRolePatchStatus::ready;
+}
+
+LegacyMapsRolePatchStatus synchronize_legacy_maps_role_source_record(
+    const std::span<u8> payload,
+    LegacyMapsWorldDatabase &database,
+    const LegacyWorldRoleRecord &role) noexcept {
+  const auto found = std::ranges::find(database.role_sources, role.guid,
+                                       &LegacyMapsRoleSourceRecord::guid);
+  if (found == database.role_sources.end()) {
+    return LegacyMapsRolePatchStatus::guid_not_found;
+  }
+
+  found->action_id = static_cast<u16>(role.action.action_id);
+  found->base_variant = static_cast<u16>(role.action.base_variant);
+  found->variant_delta = static_cast<u16>(role.action.variant_delta);
+  found->tile_x = static_cast<u16>(role.world_x) >> 4U;
+  found->tile_y = static_cast<u16>(role.world_y) >> 4U;
+  found->talk_script_id = role.talk_script_id;
+  found->path_data_id = role.path_data_id;
+  found->path_word_index =
+      std::bit_cast<i16>(static_cast<u16>(role.path_word_index));
+  found->flags = static_cast<u16>(role.flags);
+  if (!write_legacy_maps_role_source_record(payload, *found)) {
+    return LegacyMapsRolePatchStatus::source_record_out_of_range;
+  }
   return LegacyMapsRolePatchStatus::ready;
 }
 

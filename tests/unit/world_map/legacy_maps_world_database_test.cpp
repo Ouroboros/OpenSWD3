@@ -18,16 +18,20 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::compat::u8;
 using openswd3::world_map::apply_legacy_maps_world_load;
+using openswd3::world_map::apply_legacy_maps_role_defaults;
 using openswd3::world_map::decode_legacy_maps_world_database;
 using openswd3::world_map::find_legacy_maps_map_descriptor;
 using openswd3::world_map::find_legacy_maps_role_defaults;
 using openswd3::world_map::kLegacyMapsPreserveRoleField;
+using openswd3::world_map::load_legacy_maps_role_source_record;
 using openswd3::world_map::patch_legacy_maps_role_source_record;
+using openswd3::world_map::synchronize_legacy_maps_role_source_record;
 using openswd3::world_map::LegacyMapsRolePatchRequest;
 using openswd3::world_map::LegacyMapsRolePatchStatus;
 using openswd3::world_map::LegacyMapsWorldDatabaseStatus;
 using openswd3::world_map::LegacyMapsWorldLoadApplyStatus;
 using openswd3::world_map::LegacyWorldLoadRequest;
+using openswd3::world_map::LegacyWorldRoleRecord;
 
 void write_u16(const std::span<u8> bytes, const std::size_t offset,
                const u16 value) {
@@ -145,6 +149,40 @@ void test_decode_and_lookup(openswd3::test::Context &test) {
                    "the six-byte sub_40D060 directory is decoded by GUID");
 }
 
+void test_role_defaults_and_source_materialization(
+    openswd3::test::Context &test) {
+  std::vector<u8> bytes = make_database();
+  auto decoded = decode_legacy_maps_world_database(bytes);
+  LegacyWorldRoleRecord role{};
+  role.guid = 7U;
+  role.field_2c = 0xDEAD0000U;
+  test.expect_true(
+      apply_legacy_maps_role_defaults(decoded.database, role) &&
+          role.field_2c == 0xDEAD2468U && role.field_30 == 0xACE0ACE0U,
+      "sub_40D060 writes only field_2c low16 and duplicates field_30");
+
+  role.path_word_index = 0x12345678U;
+  const u32 logical_map =
+      load_legacy_maps_role_source_record(decoded.database, 7U, role);
+  test.expect_true(
+      logical_map == 2U && role.guid == 7U &&
+          role.action.action_id == 2U && role.action.base_variant == 3U &&
+          role.action.variant_delta == 4U && role.world_x == 80U &&
+          role.world_y == 96U && role.talk_script_id == 7U &&
+          role.path_data_id == 8U && role.path_word_index == 0U &&
+          role.flags == 0xA100U,
+      "sub_40D560 copies exactly the MAPS-owned fields and resets path cursor");
+
+  const LegacyWorldRoleRecord before_missing = role;
+  test.expect_true(
+      load_legacy_maps_role_source_record(decoded.database, 99U, role) ==
+              0xFFFFFFFFU &&
+          role.guid == before_missing.guid &&
+          role.world_x == before_missing.world_x &&
+          role.flags == before_missing.flags,
+      "sub_40D560 reports a missing GUID without mutating the destination");
+}
+
 void test_apply_load_mutates_owned_payload(openswd3::test::Context &test) {
   std::vector<u8> bytes = make_database();
   auto decoded = decode_legacy_maps_world_database(bytes);
@@ -248,6 +286,35 @@ void test_role_patch_sentinel_and_mask_order(
   );
 }
 
+void test_full_role_source_synchronization(openswd3::test::Context &test) {
+  std::vector<u8> bytes = make_database();
+  auto decoded = decode_legacy_maps_world_database(bytes);
+  LegacyWorldRoleRecord role{};
+  role.guid = 7U;
+  role.action.action_id = 0x11112222U;
+  role.action.base_variant = 0x33334444U;
+  role.action.variant_delta = 0x55556666U;
+  role.world_x = 0xFFFFFFF0U;
+  role.world_y = 0x12345678U;
+  role.talk_script_id = 0x7777U;
+  role.path_data_id = 0x8888U;
+  role.path_word_index = 0x9999AAAAU;
+  role.flags = 0xBBBBCCCCU;
+
+  const auto status = synchronize_legacy_maps_role_source_record(
+      bytes, decoded.database, role);
+  const auto &source = decoded.database.role_sources[1U];
+  test.expect_true(
+      status == LegacyMapsRolePatchStatus::ready &&
+          source.action_id == 0x2222U && source.base_variant == 0x4444U &&
+          source.variant_delta == 0x6666U && source.tile_x == 0x0FFFU &&
+          source.tile_y == 0x0567U && source.talk_script_id == 0x7777U &&
+          source.path_data_id == 0x8888U &&
+          std::bit_cast<u16>(source.path_word_index) == 0xAAAAU &&
+          source.flags == 0xCCCCU,
+      "sub_40D3C0 truncates each field at the original write boundary");
+}
+
 void test_checked_boundaries(openswd3::test::Context &test) {
   const std::vector<u8> short_header(0x57U, 0U);
   test.expect_equal(decode_legacy_maps_world_database(short_header).status,
@@ -338,8 +405,10 @@ void test_real_maps_dat(openswd3::test::Context &test,
 int main(const int argc, char **argv) {
   openswd3::test::Context test;
   test_decode_and_lookup(test);
+  test_role_defaults_and_source_materialization(test);
   test_apply_load_mutates_owned_payload(test);
   test_role_patch_sentinel_and_mask_order(test);
+  test_full_role_source_synchronization(test);
   test_checked_boundaries(test);
   if (argc == 2) {
     test_real_maps_dat(test, argv[1]);

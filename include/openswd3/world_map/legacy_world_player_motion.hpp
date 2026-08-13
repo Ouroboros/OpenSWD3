@@ -73,4 +73,13 @@ void recenter_legacy_world_camera(
     LegacyWorldCameraRect& camera
 ) noexcept;
 
+// sub_40D160: calculate a 640x480 viewport for an explicit world position.
+// Unlike sub_40D0C0, the horizontal leading offset is 0x140.
+[[nodiscard]] LegacyWorldCameraRect calculate_legacy_world_camera_rect(
+    compat::u32 world_x,
+    compat::u32 world_y,
+    compat::u32 map_width_tiles,
+    compat::u32 map_height_tiles
+) noexcept;
+
 }  // namespace openswd3::world_map

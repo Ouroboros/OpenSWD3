@@ -46,47 +46,22 @@ constexpr std::size_t kPathDirectoryOffset = 0x200U;
         (static_cast<u32>(bytes[offset + 3U]) << 24U);
 }
 
-[[nodiscard]] u16 runtime_coordinate_to_maps_tile(const u32 value) noexcept {
-    return static_cast<u16>(value) >> 4U;
-}
-
-[[nodiscard]] LegacyMapsRoleSourceRecord* find_role_source(
-    LegacyMapsWorldDatabase& database,
-    const u16 guid
-) noexcept {
-    const auto found = std::ranges::find(
-        database.role_sources,
-        guid,
-        &LegacyMapsRoleSourceRecord::guid
-    );
-    return found == database.role_sources.end() ? nullptr : &*found;
-}
-
 [[nodiscard]] bool synchronize_ordinary_role(
     const std::span<u8> payload,
     LegacyMapsWorldDatabase& database,
     const LegacyWorldRoleRecord& role,
     LegacyWorldRolePreloadResult& result
 ) noexcept {
-    LegacyMapsRoleSourceRecord* const source =
-        find_role_source(database, role.guid);
-    if (source == nullptr) {
+    const auto status = synchronize_legacy_maps_role_source_record(
+        payload,
+        database,
+        role
+    );
+    if (status == LegacyMapsRolePatchStatus::guid_not_found) {
         ++result.missing_role_sources;
         return true;
     }
-
-    source->action_id = static_cast<u16>(role.action.action_id);
-    source->base_variant = static_cast<u16>(role.action.base_variant);
-    source->variant_delta = static_cast<u16>(role.action.variant_delta);
-    source->tile_x = runtime_coordinate_to_maps_tile(role.world_x);
-    source->tile_y = runtime_coordinate_to_maps_tile(role.world_y);
-    source->talk_script_id = role.talk_script_id;
-    source->path_data_id = role.path_data_id;
-    source->path_word_index = std::bit_cast<i16>(
-        static_cast<u16>(role.path_word_index)
-    );
-    source->flags = static_cast<u16>(role.flags);
-    if (!write_legacy_maps_role_source_record(payload, *source)) {
+    if (status != LegacyMapsRolePatchStatus::ready) {
         return false;
     }
 

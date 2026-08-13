@@ -45,13 +45,13 @@ address	ida_name_navigation_only	closure_disposition	implementation_mapping	evid
 0x0040C0D0	sub_40C0D0	assembly_exact	legacy_world_role_lookup.cpp	world-role-lookup-0040c020.md	assembly_exact;unit_tested	original runtime differential
 0x0040C100	sub_40C100	assembly_exact	legacy_world_role_lookup.cpp	world-role-lookup-0040c020.md	assembly_exact;unit_tested	original runtime differential
 0x0040C130	sub_40C130	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040D060	sub_40D060	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040D0C0	sub_40D0C0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040D160	sub_40D160	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040D200	sub_40D200	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040D3C0	sub_40D3C0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040D460	sub_40D460	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040D560	sub_40D560	pending_audit			not_inherited	independent LST-to-C++ closure audit required
+0x0040D060	sub_40D060	platform_adapted	legacy_maps_world_database.cpp:apply_legacy_maps_role_defaults	world-maps-role-helpers-0040d060-0040d60f.md	assembly_exact;unit_tested;platform_adapted	bounded decoded defaults directory isolates unterminated scan; original runtime differential
+0x0040D0C0	sub_40D0C0	assembly_exact	legacy_world_player_motion.cpp:recenter_legacy_world_camera	world-maps-role-helpers-0040d060-0040d60f.md	assembly_exact;unit_tested	original runtime differential
+0x0040D160	sub_40D160	assembly_exact	legacy_world_player_motion.cpp:calculate_legacy_world_camera_rect	world-maps-role-helpers-0040d060-0040d60f.md	assembly_exact;unit_tested	story_scene caller integration transferred; original runtime differential
+0x0040D200	sub_40D200	platform_adapted	legacy_world_role_preload.cpp:preload_legacy_world_roles_before_load	world-maps-role-helpers-0040d060-0040d60f.md	assembly_exact;asset_verified;platform_adapted	bounded role/PATH/object spans isolate invalid global counts and pointers; original runtime differential
+0x0040D3C0	sub_40D3C0	platform_adapted	legacy_maps_world_database.cpp:synchronize_legacy_maps_role_source_record	world-maps-role-helpers-0040d060-0040d60f.md	assembly_exact;unit_tested;platform_adapted	service-disabled unterminated scan isolated; original runtime differential
+0x0040D460	sub_40D460	platform_adapted	legacy_maps_world_database.cpp:patch_legacy_maps_role_source_record	world-maps-role-helpers-0040d060-0040d60f.md	assembly_exact;unit_tested;platform_adapted	bounded mutable payload isolates invalid source writes; original runtime differential
+0x0040D560	sub_40D560	platform_adapted	legacy_maps_world_database.cpp:load_legacy_maps_role_source_record	world-maps-role-helpers-0040d060-0040d60f.md	assembly_exact;unit_tested;platform_adapted	bounded decoded source directory isolates unterminated scan; story_scene/special_modes caller integration transferred; original runtime differential
 0x0040D610	sub_40D610	pending_audit			not_inherited	independent LST-to-C++ closure audit required
 0x0040D790	sub_40D790	pending_audit			not_inherited	independent LST-to-C++ closure audit required
 0x0040D9E0	sub_40D9E0	pending_audit			not_inherited	independent LST-to-C++ closure audit required

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/compat/types.hpp"
+#include "openswd3/world_map/legacy_world_role_record.hpp"
 
 #include <cstddef>
 #include <span>
@@ -120,6 +121,21 @@ find_legacy_maps_map_descriptor(const LegacyMapsWorldDatabase &database,
 find_legacy_maps_role_defaults(const LegacyMapsWorldDatabase &database,
                                compat::u16 guid) noexcept;
 
+// sub_40D060: apply the optional six-byte defaults record. The original
+// writes only the low word at role+0x2c and duplicates the other word into
+// both halves of role+0x30.
+[[nodiscard]] bool apply_legacy_maps_role_defaults(
+    const LegacyMapsWorldDatabase &database,
+    LegacyWorldRoleRecord &role) noexcept;
+
+// sub_40D560: materialize the fields owned by a 22-byte MAPS role source.
+// Returns its logical map id or 0xffffffff when the GUID is absent. A miss
+// leaves the destination record untouched.
+[[nodiscard]] compat::u32 load_legacy_maps_role_source_record(
+    const LegacyMapsWorldDatabase &database,
+    compat::u16 guid,
+    LegacyWorldRoleRecord &role) noexcept;
+
 enum class LegacyMapsWorldLoadApplyStatus {
   ready,
   selected_guid_not_found,
@@ -143,6 +159,14 @@ enum class LegacyMapsRolePatchStatus {
     std::span<compat::u8> payload,
     LegacyMapsWorldDatabase &database,
     const LegacyMapsRolePatchRequest &request) noexcept;
+
+// sub_40D3C0: write all persistent runtime-role fields back to the matching
+// MAPS role source.
+[[nodiscard]] LegacyMapsRolePatchStatus
+synchronize_legacy_maps_role_source_record(
+    std::span<compat::u8> payload,
+    LegacyMapsWorldDatabase &database,
+    const LegacyWorldRoleRecord &role) noexcept;
 
 [[nodiscard]] LegacyMapsWorldLoadApplyResult
 apply_legacy_maps_world_load(std::span<compat::u8> payload,
