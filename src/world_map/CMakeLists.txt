@@ -40,6 +40,7 @@ add_library(
         legacy_world_render_session.cpp
         legacy_world_role_post_materialization.cpp
         legacy_world_role_lookup.cpp
+        legacy_world_role_map_update.cpp
         legacy_world_role_preload.cpp
         legacy_world_role_surface_occupancy.cpp
         legacy_world_role_transfer.cpp

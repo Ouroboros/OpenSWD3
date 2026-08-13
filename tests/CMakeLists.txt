@@ -2282,6 +2282,32 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_role_map_update_tests
+    unit/world_map/legacy_world_role_map_update_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_role_map_update_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_role_map_update_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_role_map_update
+    COMMAND openswd3_world_map_legacy_world_role_map_update_tests
+)
+if(EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT")
+    add_test(
+        NAME world_map.legacy_world_role_map_update_real
+        COMMAND
+            openswd3_world_map_legacy_world_role_map_update_tests
+            "${PROJECT_SOURCE_DIR}/../MAPS.DAT"
+    )
+endif()
+
+add_executable(
     openswd3_world_map_legacy_world_role_surface_occupancy_tests
     unit/world_map/legacy_world_role_surface_occupancy_test.cpp
 )
