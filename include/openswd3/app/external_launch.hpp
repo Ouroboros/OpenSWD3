@@ -15,13 +15,11 @@ public:
 };
 
 [[nodiscard]] compat::i32 open_url_with_legacy_result(
-    std::string_view target,
-    ExternalLaunchPorts& ports
+    std::string_view target, ExternalLaunchPorts& ports
 );
 
 [[nodiscard]] compat::i32 open_document_with_legacy_result(
-    std::string_view path,
-    ExternalLaunchPorts& ports
+    std::string_view path, ExternalLaunchPorts& ports
 );
 
 }  // namespace openswd3::app

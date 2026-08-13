@@ -37,10 +37,7 @@ public:
     }
 
     bool load_role_frame_size(
-        const u16 resource_id,
-        const u16 frame_index,
-        u16& width,
-        u16& height
+        const u16 resource_id, const u16 frame_index, u16& width, u16& height
     ) override {
         frame_requests.push_back(
             (static_cast<u32>(resource_id) << 16U) | frame_index
@@ -129,46 +126,83 @@ void test_role_hover_and_activation(openswd3::test::Context& test) {
         ports
     );
 
-    test.expect_equal(result.status, LegacyWorldInteractionStatus::completed,
-                      "role interaction completes");
-    test.expect_equal(result.source, LegacyWorldInteractionSource::role,
-                      "first-sample left click activates hovered role");
-    test.expect_equal(result.hovered_role_index, 1U,
-                      "scan starts at role index one");
-    test.expect_equal(ports.frame_requests, std::vector<u32>{0x00120034U},
-                      "hover resolves current TSW resource and frame");
-    test.expect_equal(ports.flag_queries, std::vector<u32>{9U},
-                      "choice suppression flag remains in original slot");
-    test.expect_equal(ports.action_updates.size(), std::size_t{2U},
-                      "turning target and player each refresh once");
-    test.expect_true(ports.action_updates[0] == &roles[1].action,
-                     "first refresh owns the hovered target action");
-    test.expect_true(ports.action_updates[1] == &roles[0].action,
-                     "second refresh owns the player action, not target again");
-    test.expect_equal(roles[1].action.one_shot_base_variant, 9U,
-                      "target saves prior base variant");
-    test.expect_equal(roles[1].action.one_shot_variant_delta, 6U,
-                      "target saves prior facing");
-    test.expect_equal(roles[1].action.base_variant, 0U,
-                      "target enters base action zero");
-    test.expect_equal(roles[1].action.variant_delta, 2U,
-                      "target faces the player");
-    test.expect_equal(roles[0].action.variant_delta, 3U,
-                      "player uses exact opposite-direction fold");
-    test.expect_equal(talk.talk_data_offset, 0x11223344U,
-                      "role Talk copies data offset");
-    test.expect_equal(talk.instruction_offset, u16{0x42U},
-                      "role Talk copies initial instruction offset");
-    test.expect_equal(talk.talk_script_id, u16{0x1234U},
-                      "role Talk copies script id");
-    test.expect_equal(talk.source_guid, u16{0x77U},
-                      "role Talk copies GUID");
+    test.expect_equal(
+        result.status,
+        LegacyWorldInteractionStatus::completed,
+        "role interaction completes"
+    );
+    test.expect_equal(
+        result.source,
+        LegacyWorldInteractionSource::role,
+        "first-sample left click activates hovered role"
+    );
+    test.expect_equal(
+        result.hovered_role_index, 1U, "scan starts at role index one"
+    );
+    test.expect_equal(
+        ports.frame_requests,
+        std::vector<u32>{0x00120034U},
+        "hover resolves current TSW resource and frame"
+    );
+    test.expect_equal(
+        ports.flag_queries,
+        std::vector<u32>{9U},
+        "choice suppression flag remains in original slot"
+    );
+    test.expect_equal(
+        ports.action_updates.size(),
+        std::size_t{2U},
+        "turning target and player each refresh once"
+    );
+    test.expect_true(
+        ports.action_updates[0] == &roles[1].action,
+        "first refresh owns the hovered target action"
+    );
+    test.expect_true(
+        ports.action_updates[1] == &roles[0].action,
+        "second refresh owns the player action, not target again"
+    );
+    test.expect_equal(
+        roles[1].action.one_shot_base_variant,
+        9U,
+        "target saves prior base variant"
+    );
+    test.expect_equal(
+        roles[1].action.one_shot_variant_delta, 6U, "target saves prior facing"
+    );
+    test.expect_equal(
+        roles[1].action.base_variant, 0U, "target enters base action zero"
+    );
+    test.expect_equal(
+        roles[1].action.variant_delta, 2U, "target faces the player"
+    );
+    test.expect_equal(
+        roles[0].action.variant_delta,
+        3U,
+        "player uses exact opposite-direction fold"
+    );
+    test.expect_equal(
+        talk.talk_data_offset, 0x11223344U, "role Talk copies data offset"
+    );
+    test.expect_equal(
+        talk.instruction_offset,
+        u16{0x42U},
+        "role Talk copies initial instruction offset"
+    );
+    test.expect_equal(
+        talk.talk_script_id, u16{0x1234U}, "role Talk copies script id"
+    );
+    test.expect_equal(talk.source_guid, u16{0x77U}, "role Talk copies GUID");
     test.expect_equal(talk.world_x, 100U, "role Talk copies world X");
     test.expect_equal(talk.world_y, 50U, "role Talk copies world Y");
-    test.expect_equal(talk.field_18, 0xCAFEBABEU,
-                      "unwritten Talk fields retain their bytes");
-    test.expect_equal(inputs[15U], LegacyInputRecord{},
-                      "role activation clears all four left-input dwords");
+    test.expect_equal(
+        talk.field_18, 0xCAFEBABEU, "unwritten Talk fields retain their bytes"
+    );
+    test.expect_equal(
+        inputs[15U],
+        LegacyInputRecord{},
+        "role activation clears all four left-input dwords"
+    );
 }
 
 void test_choice_chain_has_absolute_priority(openswd3::test::Context& test) {
@@ -204,18 +238,33 @@ void test_choice_chain_has_absolute_priority(openswd3::test::Context& test) {
         ports
     );
 
-    test.expect_equal(result.source, LegacyWorldInteractionSource::choice,
-                      "choice click returns before role/map activation");
-    test.expect_equal(state.selected_choice_index, 1U,
-                      "choice index is zero based");
-    test.expect_equal(state.cursor_variant, kLegacyWorldDefaultCursorVariant,
-                      "live choice chain forces cursor variant thirteen");
-    test.expect_true(result.choice_chain_clear_requested,
-                     "accepted choice requests whole hotspot-chain release");
-    test.expect_equal(talk.source_guid, kLegacyWorldTalkIdleSource,
-                      "choice click does not create Talk context");
-    test.expect_equal(inputs[15U], LegacyInputRecord{},
-                      "choice click clears the left input record");
+    test.expect_equal(
+        result.source,
+        LegacyWorldInteractionSource::choice,
+        "choice click returns before role/map activation"
+    );
+    test.expect_equal(
+        state.selected_choice_index, 1U, "choice index is zero based"
+    );
+    test.expect_equal(
+        state.cursor_variant,
+        kLegacyWorldDefaultCursorVariant,
+        "live choice chain forces cursor variant thirteen"
+    );
+    test.expect_true(
+        result.choice_chain_clear_requested,
+        "accepted choice requests whole hotspot-chain release"
+    );
+    test.expect_equal(
+        talk.source_guid,
+        kLegacyWorldTalkIdleSource,
+        "choice click does not create Talk context"
+    );
+    test.expect_equal(
+        inputs[15U],
+        LegacyInputRecord{},
+        "choice click clears the left input record"
+    );
 
     inputs = first_left_click();
     talk = idle_talk();
@@ -237,12 +286,21 @@ void test_choice_chain_has_absolute_priority(openswd3::test::Context& test) {
         state,
         ports
     );
-    test.expect_equal(border.source, LegacyWorldInteractionSource::none,
-                      "hotspot left edge is excluded by strict comparison");
-    test.expect_equal(inputs[15U].rapid_press_multiplicity, 1U,
-                      "missed choice leaves the input record intact");
-    test.expect_equal(state.cursor_variant, kLegacyWorldDefaultCursorVariant,
-                      "choice-chain miss still returns with variant thirteen");
+    test.expect_equal(
+        border.source,
+        LegacyWorldInteractionSource::none,
+        "hotspot left edge is excluded by strict comparison"
+    );
+    test.expect_equal(
+        inputs[15U].rapid_press_multiplicity,
+        1U,
+        "missed choice leaves the input record intact"
+    );
+    test.expect_equal(
+        state.cursor_variant,
+        kLegacyWorldDefaultCursorVariant,
+        "choice-chain miss still returns with variant thirteen"
+    );
 }
 
 void test_choice_hotspot_chain_helpers(openswd3::test::Context& test) {
@@ -275,9 +333,7 @@ void test_choice_hotspot_chain_helpers(openswd3::test::Context& test) {
     };
     for (const auto& point : border_points) {
         const auto border = find_legacy_world_choice_hotspot(
-            std::span{hotspots}.first(1U),
-            point[0],
-            point[1]
+            std::span{hotspots}.first(1U), point[0], point[1]
         );
         test.expect_true(
             border.index == 1U && border.hotspot == nullptr,
@@ -330,35 +386,70 @@ void test_map_event_activation(openswd3::test::Context& test) {
         ports
     );
 
-    test.expect_equal(result.source, LegacyWorldInteractionSource::map_event,
-                      "enabled cell event creates a map Talk source");
-    test.expect_equal(ports.flag_queries, std::vector<u32>({9U, 0x22U}),
-                      "map event queries the low word of field 0C");
-    test.expect_equal(state.cursor_variant,
-                      kLegacyWorldMapEventCursorVariant,
-                      "enabled event selects cursor variant eleven");
-    test.expect_equal(state.global_lock, 0x8000U,
-                      "map event assigns, rather than ORs, global lock 8000");
-    test.expect_equal(talk.talk_data_offset, 0U,
-                      "map event clears Talk data offset");
-    test.expect_equal(talk.instruction_offset, u16{0U},
-                      "map event clears instruction offset");
-    test.expect_equal(talk.talk_script_id, u16{0x7123U},
-                      "map event masks script id with 7FFF");
-    test.expect_equal(talk.source_guid, kLegacyWorldTalkMapEventSource,
-                      "map event writes FFFD source sentinel");
-    test.expect_equal(talk.world_x, 48U,
-                      "map Talk X aligns screen coordinate before camera add");
-    test.expect_equal(talk.world_y, 32U,
-                      "map Talk Y aligns screen coordinate before camera add");
-    test.expect_equal(roles[0].action.one_shot_base_variant, 0x34U,
-                      "map click saves player base variant");
-    test.expect_equal(roles[0].action.one_shot_variant_delta, 6U,
-                      "map click saves player facing");
-    test.expect_equal(roles[0].action.variant_delta, 3U,
-                      "player faces the clicked point through opposite fold");
-    test.expect_equal(inputs[15U].rapid_press_multiplicity, 1U,
-                      "map activation intentionally does not clear left input");
+    test.expect_equal(
+        result.source,
+        LegacyWorldInteractionSource::map_event,
+        "enabled cell event creates a map Talk source"
+    );
+    test.expect_equal(
+        ports.flag_queries,
+        std::vector<u32>({9U, 0x22U}),
+        "map event queries the low word of field 0C"
+    );
+    test.expect_equal(
+        state.cursor_variant,
+        kLegacyWorldMapEventCursorVariant,
+        "enabled event selects cursor variant eleven"
+    );
+    test.expect_equal(
+        state.global_lock,
+        0x8000U,
+        "map event assigns, rather than ORs, global lock 8000"
+    );
+    test.expect_equal(
+        talk.talk_data_offset, 0U, "map event clears Talk data offset"
+    );
+    test.expect_equal(
+        talk.instruction_offset, u16{0U}, "map event clears instruction offset"
+    );
+    test.expect_equal(
+        talk.talk_script_id, u16{0x7123U}, "map event masks script id with 7FFF"
+    );
+    test.expect_equal(
+        talk.source_guid,
+        kLegacyWorldTalkMapEventSource,
+        "map event writes FFFD source sentinel"
+    );
+    test.expect_equal(
+        talk.world_x,
+        48U,
+        "map Talk X aligns screen coordinate before camera add"
+    );
+    test.expect_equal(
+        talk.world_y,
+        32U,
+        "map Talk Y aligns screen coordinate before camera add"
+    );
+    test.expect_equal(
+        roles[0].action.one_shot_base_variant,
+        0x34U,
+        "map click saves player base variant"
+    );
+    test.expect_equal(
+        roles[0].action.one_shot_variant_delta,
+        6U,
+        "map click saves player facing"
+    );
+    test.expect_equal(
+        roles[0].action.variant_delta,
+        3U,
+        "player faces the clicked point through opposite fold"
+    );
+    test.expect_equal(
+        inputs[15U].rapid_press_multiplicity,
+        1U,
+        "map activation intentionally does not clear left input"
+    );
 }
 
 void test_direction_synthesis_and_delayed_primary_copy(
@@ -393,20 +484,34 @@ void test_direction_synthesis_and_delayed_primary_copy(
         ports
     );
 
-    test.expect_equal(result.distance, 32U,
-                      "mouse-to-player center distance is retained");
-    test.expect_equal(result.facing, 0U,
-                      "mouse above player quantizes to direction zero");
-    test.expect_equal(state.cursor_variant, 0U,
-                      "variant thirteen is replaced by movement direction");
-    test.expect_equal(inputs[4U].rapid_press_multiplicity, 2U,
-                      "right mouse multiplicity synthesizes up input");
-    test.expect_equal(inputs[3U].rapid_press_multiplicity, 0U,
-                      "cardinal direction does not synthesize left input");
-    test.expect_equal(inputs[1U], inputs[15U],
-                      "live dialog copies all four left-input dwords");
-    test.expect_true(result.delayed_primary_input_copied,
-                     "delayed primary bridge is reported");
+    test.expect_equal(
+        result.distance, 32U, "mouse-to-player center distance is retained"
+    );
+    test.expect_equal(
+        result.facing, 0U, "mouse above player quantizes to direction zero"
+    );
+    test.expect_equal(
+        state.cursor_variant,
+        0U,
+        "variant thirteen is replaced by movement direction"
+    );
+    test.expect_equal(
+        inputs[4U].rapid_press_multiplicity,
+        2U,
+        "right mouse multiplicity synthesizes up input"
+    );
+    test.expect_equal(
+        inputs[3U].rapid_press_multiplicity,
+        0U,
+        "cardinal direction does not synthesize left input"
+    );
+    test.expect_equal(
+        inputs[1U], inputs[15U], "live dialog copies all four left-input dwords"
+    );
+    test.expect_true(
+        result.delayed_primary_input_copied,
+        "delayed primary bridge is reported"
+    );
 }
 
 void test_safe_span_boundaries(openswd3::test::Context& test) {
@@ -433,9 +538,11 @@ void test_safe_span_boundaries(openswd3::test::Context& test) {
         state,
         ports
     );
-    test.expect_equal(short_grid.status,
-                      LegacyWorldInteractionStatus::invalid_surface_grid,
-                      "modern span stops before original unchecked cell read");
+    test.expect_equal(
+        short_grid.status,
+        LegacyWorldInteractionStatus::invalid_surface_grid,
+        "modern span stops before original unchecked cell read"
+    );
 
     const auto short_inputs = coordinate_legacy_world_interaction(
         LegacyWorldInteractionRequest{
@@ -451,9 +558,11 @@ void test_safe_span_boundaries(openswd3::test::Context& test) {
         state,
         ports
     );
-    test.expect_equal(short_inputs.status,
-                      LegacyWorldInteractionStatus::missing_input_records,
-                      "all referenced normalized records are required");
+    test.expect_equal(
+        short_inputs.status,
+        LegacyWorldInteractionStatus::missing_input_records,
+        "all referenced normalized records are required"
+    );
 }
 
 }  // namespace

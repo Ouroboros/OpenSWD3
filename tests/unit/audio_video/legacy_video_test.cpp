@@ -49,9 +49,7 @@ struct BackendEvent {
 
 class RecordingBackend final : public LegacyVideoBackend {
 public:
-    LegacyVideoOpenResult open_video(
-        const std::string_view filename
-    ) override {
+    LegacyVideoOpenResult open_video(const std::string_view filename) override {
         last_filename = filename;
         events.push_back({BackendCall::open, open_result.handle});
         return open_result;
@@ -66,8 +64,7 @@ public:
     }
 
     void set_video_volume(
-        const LegacyVideoHandle handle,
-        const i32 volume
+        const LegacyVideoHandle handle, const i32 volume
     ) override {
         events.push_back({BackendCall::set_volume, handle, volume});
     }
@@ -82,8 +79,7 @@ public:
     }
 
     i32 copy_video_frame(
-        const LegacyVideoHandle handle,
-        const LegacyVideoCopyRequest& request
+        const LegacyVideoHandle handle, const LegacyVideoCopyRequest& request
     ) override {
         events.push_back({BackendCall::copy, handle, copy_result});
         last_copy_request = request;
@@ -270,9 +266,7 @@ void test_immediate_completion_placeholder(openswd3::test::Context& test) {
     );
     test.expect_false(player.active(), "placeholder never sets active video");
     test.expect_equal(
-        player.legacy_progress(),
-        -1,
-        "placeholder has no active progress"
+        player.legacy_progress(), -1, "placeholder has no active progress"
     );
     const auto step = player.step(ports);
     test.expect_equal(
@@ -327,9 +321,7 @@ void test_wait_and_active_progress(openswd3::test::Context& test) {
     static_cast<void>(player.close());
 }
 
-void test_decode_copy_advance_and_complete(
-    openswd3::test::Context& test
-) {
+void test_decode_copy_advance_and_complete(openswd3::test::Context& test) {
     RecordingBackend backend;
     LegacyVideoPlayer player(backend);
     RecordingFramePorts ports;

@@ -37,14 +37,16 @@ constexpr std::size_t kBlockHeaderSize = 12U;
 constexpr std::size_t kPaletteSize = 512U;
 constexpr std::size_t kDescriptorSize = 36U;
 
-void write_u16(const std::span<u8> bytes, const std::size_t offset,
-               const u16 value) {
+void write_u16(
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
+) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
-void write_u32(const std::span<u8> bytes, const std::size_t offset,
-               const u32 value) {
+void write_u32(
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
+) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
     bytes[offset + 2U] = static_cast<u8>(value >> 16U);
@@ -57,7 +59,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-tsw-archive-" + std::to_string(unique_value));
+            ("legacy-tsw-archive-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -91,22 +93,19 @@ struct SyntheticArchive {
 [[nodiscard]] SyntheticArchive make_synthetic_archive() {
     SyntheticArchive archive;
     archive.command_stream = {
-        0xFFU, 0xFFU, 0x06U, 0x00U, 0x02U, 0x00U, 0x08U, 0x00U,
-        0x0CU, 0x80U, 0x02U, 0x80U, 0x02U, 0x00U, 0x02U, 0x04U,
-        0x02U, 0xC0U, 0x00U, 0x00U, 0x10U, 0x80U, 0x01U, 0x00U,
-        0x05U, 0x01U, 0x80U, 0x01U, 0xC0U, 0x03U, 0x00U, 0x06U,
-        0x07U, 0x08U, 0x00U, 0x00U, 0x00U, 0x00U,
+        0xFFU, 0xFFU, 0x06U, 0x00U, 0x02U, 0x00U, 0x08U, 0x00U, 0x0CU, 0x80U,
+        0x02U, 0x80U, 0x02U, 0x00U, 0x02U, 0x04U, 0x02U, 0xC0U, 0x00U, 0x00U,
+        0x10U, 0x80U, 0x01U, 0x00U, 0x05U, 0x01U, 0x80U, 0x01U, 0xC0U, 0x03U,
+        0x00U, 0x06U, 0x07U, 0x08U, 0x00U, 0x00U, 0x00U, 0x00U,
     };
 
     std::vector<u8> compressed(
         archive.command_stream.size() + archive.command_stream.size() / 16U +
         67U
     );
-    const auto compression =
-        openswd3::resource_io::compress_legacy_lzo1x_14(
-            archive.command_stream,
-            compressed
-        );
+    const auto compression = openswd3::resource_io::compress_legacy_lzo1x_14(
+        archive.command_stream, compressed
+    );
     if (compression.status != LegacyLzo1xStatus::success) {
         compressed.clear();
     } else {
@@ -118,16 +117,25 @@ struct SyntheticArchive {
     archive.bytes.resize(archive.payload_offset + compressed.size(), 0U);
 
     constexpr std::array<u8, 9> kName{
-        'S', 'Y', 'N', 'T', 'H', 'E', 'T', 'I', 'C',
+        'S',
+        'Y',
+        'N',
+        'T',
+        'H',
+        'E',
+        'T',
+        'I',
+        'C',
     };
-    std::ranges::copy(kName, archive.bytes.begin() +
-                                 static_cast<std::ptrdiff_t>(kIndexOffset));
-    const u32 block_size = static_cast<u32>(
-        archive.bytes.size() - kBlockOffset
+    std::ranges::copy(
+        kName, archive.bytes.begin() + static_cast<std::ptrdiff_t>(kIndexOffset)
     );
+    const u32 block_size =
+        static_cast<u32>(archive.bytes.size() - kBlockOffset);
     write_u32(archive.bytes, kIndexOffset + 0x14U, block_size);
-    write_u32(archive.bytes, kIndexOffset + 0x18U,
-              static_cast<u32>(kBlockOffset));
+    write_u32(
+        archive.bytes, kIndexOffset + 0x18U, static_cast<u32>(kBlockOffset)
+    );
     write_u32(archive.bytes, kIndexOffset + 0x1CU, 1U);
     write_u32(archive.bytes, kIndexOffset + 0x20U, 0x10203040U);
     write_u32(archive.bytes, kIndexOffset + 0x24U, 0x50607080U);
@@ -143,15 +151,21 @@ struct SyntheticArchive {
             static_cast<u8>((index * 3U) & 0xFFU);
     }
 
-    const u32 payload_relative = static_cast<u32>(
-        archive.payload_offset - kBlockOffset
+    const u32 payload_relative =
+        static_cast<u32>(archive.payload_offset - kBlockOffset);
+    write_u32(
+        archive.bytes, archive.descriptor_offset + 0x00U, payload_relative
     );
-    write_u32(archive.bytes, archive.descriptor_offset + 0x00U,
-              payload_relative);
-    write_u32(archive.bytes, archive.descriptor_offset + 0x04U,
-              static_cast<u32>(compressed.size()));
-    write_u32(archive.bytes, archive.descriptor_offset + 0x08U,
-              static_cast<u32>(archive.command_stream.size()));
+    write_u32(
+        archive.bytes,
+        archive.descriptor_offset + 0x04U,
+        static_cast<u32>(compressed.size())
+    );
+    write_u32(
+        archive.bytes,
+        archive.descriptor_offset + 0x08U,
+        static_cast<u32>(archive.command_stream.size())
+    );
     write_u32(archive.bytes, archive.descriptor_offset + 0x0CU, 0x11111111U);
     write_u32(archive.bytes, archive.descriptor_offset + 0x10U, 0x22222222U);
     write_u32(archive.bytes, archive.descriptor_offset + 0x14U, 0x33333333U);
@@ -159,9 +173,11 @@ struct SyntheticArchive {
     write_u32(archive.bytes, archive.descriptor_offset + 0x1CU, 0x44444444U);
     write_u16(archive.bytes, archive.descriptor_offset + 0x20U, 47U);
     write_u16(archive.bytes, archive.descriptor_offset + 0x22U, 95U);
-    std::ranges::copy(compressed,
-                      archive.bytes.begin() + static_cast<std::ptrdiff_t>(
-                                                  archive.payload_offset));
+    std::ranges::copy(
+        compressed,
+        archive.bytes.begin() +
+            static_cast<std::ptrdiff_t>(archive.payload_offset)
+    );
     return archive;
 }
 
@@ -180,56 +196,84 @@ void test_synthetic_frame(openswd3::test::Context& test) {
     tree.write("synthetic.tsw", synthetic.bytes);
 
     LegacyTswArchive archive;
-    test.expect_equal(archive.open(tree.path("synthetic.tsw")),
-                      LegacyTswOpenStatus::ready, "synthetic TSW opens");
+    test.expect_equal(
+        archive.open(tree.path("synthetic.tsw")),
+        LegacyTswOpenStatus::ready,
+        "synthetic TSW opens"
+    );
     test.expect_true(archive.is_open(), "open state is recorded");
 
     LegacyTswArchive shared_reader;
-    test.expect_equal(shared_reader.open(tree.path("synthetic.tsw")),
-                      LegacyTswOpenStatus::ready,
-                      "TSW physical files allow concurrent read handles");
+    test.expect_equal(
+        shared_reader.open(tree.path("synthetic.tsw")),
+        LegacyTswOpenStatus::ready,
+        "TSW physical files allow concurrent read handles"
+    );
     shared_reader.close();
 
     const auto loaded = archive.read_frame(1U, 0U);
-    test.expect_equal(loaded.status, LegacyTswFrameStatus::ready,
-                      "synthetic frame loads");
-    test.expect_equal(loaded.frame.index.block_offset,
-                      static_cast<u32>(kBlockOffset), "index block offset");
-    test.expect_equal(loaded.frame.index.metadata_id, 1U,
-                      "index metadata ID");
-    test.expect_equal(loaded.frame.index.field_20, 0x10203040U,
-                      "index field 20 is preserved");
-    test.expect_equal(loaded.frame.block_value, 0x12345678U,
-                      "block field 00 is preserved");
+    test.expect_equal(
+        loaded.status, LegacyTswFrameStatus::ready, "synthetic frame loads"
+    );
+    test.expect_equal(
+        loaded.frame.index.block_offset,
+        static_cast<u32>(kBlockOffset),
+        "index block offset"
+    );
+    test.expect_equal(loaded.frame.index.metadata_id, 1U, "index metadata ID");
+    test.expect_equal(
+        loaded.frame.index.field_20, 0x10203040U, "index field 20 is preserved"
+    );
+    test.expect_equal(
+        loaded.frame.block_value, 0x12345678U, "block field 00 is preserved"
+    );
     test.expect_equal(loaded.frame.frame_count, u16{1U}, "frame count");
     test.expect_equal(loaded.frame.storage_bpp, u16{8U}, "storage bpp");
     test.expect_equal(loaded.frame.header_size, u16{12U}, "stored header size");
     test.expect_true(loaded.frame.has_palette, "8-bit block has palette");
     test.expect_equal(loaded.frame.palette[0U], u8{0U}, "palette byte zero");
-    test.expect_equal(loaded.frame.palette[511U], u8{253U},
-                      "palette byte 511");
-    test.expect_equal(loaded.frame.descriptor.auxiliary_presence,
-                      0x11111111U, "descriptor +0c is preserved");
-    test.expect_equal(loaded.frame.descriptor.auxiliary_trailing_span,
-                      0x22222222U, "descriptor +10 is preserved");
-    test.expect_equal(loaded.frame.descriptor.auxiliary_pixel_count,
-                      0x33333333U, "descriptor +14 is preserved");
-    test.expect_equal(loaded.frame.descriptor.auxiliary_type, 2U,
-                      "descriptor +18 is preserved");
-    test.expect_equal(loaded.frame.descriptor.field_1c, 0x44444444U,
-                      "descriptor +1c is preserved");
+    test.expect_equal(loaded.frame.palette[511U], u8{253U}, "palette byte 511");
+    test.expect_equal(
+        loaded.frame.descriptor.auxiliary_presence,
+        0x11111111U,
+        "descriptor +0c is preserved"
+    );
+    test.expect_equal(
+        loaded.frame.descriptor.auxiliary_trailing_span,
+        0x22222222U,
+        "descriptor +10 is preserved"
+    );
+    test.expect_equal(
+        loaded.frame.descriptor.auxiliary_pixel_count,
+        0x33333333U,
+        "descriptor +14 is preserved"
+    );
+    test.expect_equal(
+        loaded.frame.descriptor.auxiliary_type,
+        2U,
+        "descriptor +18 is preserved"
+    );
+    test.expect_equal(
+        loaded.frame.descriptor.field_1c,
+        0x44444444U,
+        "descriptor +1c is preserved"
+    );
     test.expect_equal(loaded.frame.descriptor.width, u16{47U}, "frame width");
-    test.expect_equal(loaded.frame.descriptor.height, u16{95U},
-                      "frame height");
-    test.expect_true(std::ranges::equal(loaded.frame.command_stream,
-                                        synthetic.command_stream),
-                     "decompressed command stream is exact");
+    test.expect_equal(loaded.frame.descriptor.height, u16{95U}, "frame height");
+    test.expect_true(
+        std::ranges::equal(
+            loaded.frame.command_stream, synthetic.command_stream
+        ),
+        "decompressed command stream is exact"
+    );
 
     archive.close();
     test.expect_false(archive.is_open(), "close clears open state");
-    test.expect_equal(archive.read_frame(1U, 0U).status,
-                      LegacyTswFrameStatus::archive_not_open,
-                      "closed archive rejects reads");
+    test.expect_equal(
+        archive.read_frame(1U, 0U).status,
+        LegacyTswFrameStatus::archive_not_open,
+        "closed archive rejects reads"
+    );
 }
 
 void test_safety_boundaries(openswd3::test::Context& test) {
@@ -239,63 +283,84 @@ void test_safety_boundaries(openswd3::test::Context& test) {
 
     LegacyTswArchive archive;
     static_cast<void>(archive.open(tree.path("base.tsw")));
-    test.expect_equal(archive.read_frame(0U, 0U).status,
-                      LegacyTswFrameStatus::physical_record_out_of_range,
-                      "record zero underflow is isolated");
-    test.expect_equal(archive.read_frame(3001U, 0U).status,
-                      LegacyTswFrameStatus::physical_record_out_of_range,
-                      "record above physical table is isolated");
-    test.expect_equal(archive.read_frame(2U, 0U).status,
-                      LegacyTswFrameStatus::empty_index_record,
-                      "zero index slot remains empty");
-    test.expect_equal(archive.read_frame(1U, 1U).status,
-                      LegacyTswFrameStatus::variant_out_of_range,
-                      "variant outside valid caller range is isolated");
+    test.expect_equal(
+        archive.read_frame(0U, 0U).status,
+        LegacyTswFrameStatus::physical_record_out_of_range,
+        "record zero underflow is isolated"
+    );
+    test.expect_equal(
+        archive.read_frame(3001U, 0U).status,
+        LegacyTswFrameStatus::physical_record_out_of_range,
+        "record above physical table is isolated"
+    );
+    test.expect_equal(
+        archive.read_frame(2U, 0U).status,
+        LegacyTswFrameStatus::empty_index_record,
+        "zero index slot remains empty"
+    );
+    test.expect_equal(
+        archive.read_frame(1U, 1U).status,
+        LegacyTswFrameStatus::variant_out_of_range,
+        "variant outside valid caller range is isolated"
+    );
     archive.close();
 
     std::vector<u8> bytes = synthetic.bytes;
     write_u16(bytes, kBlockOffset + 4U, 0U);
     tree.write("bad-magic.tsw", bytes);
     static_cast<void>(archive.open(tree.path("bad-magic.tsw")));
-    test.expect_equal(archive.read_frame(1U, 0U).status,
-                      LegacyTswFrameStatus::invalid_block_magic,
-                      "block magic is exact");
+    test.expect_equal(
+        archive.read_frame(1U, 0U).status,
+        LegacyTswFrameStatus::invalid_block_magic,
+        "block magic is exact"
+    );
     archive.close();
 
     bytes = synthetic.bytes;
     write_u32(bytes, kIndexOffset + 0x14U, 12U);
     tree.write("short-palette.tsw", bytes);
     static_cast<void>(archive.open(tree.path("short-palette.tsw")));
-    test.expect_equal(archive.read_frame(1U, 0U).status,
-                      LegacyTswFrameStatus::palette_read_failed,
-                      "8-bit palette must fit in the block");
+    test.expect_equal(
+        archive.read_frame(1U, 0U).status,
+        LegacyTswFrameStatus::palette_read_failed,
+        "8-bit palette must fit in the block"
+    );
     archive.close();
 
     bytes = synthetic.bytes;
-    write_u32(bytes, synthetic.descriptor_offset + 0x08U,
-              static_cast<u32>(synthetic.command_stream.size() + 1U));
+    write_u32(
+        bytes,
+        synthetic.descriptor_offset + 0x08U,
+        static_cast<u32>(synthetic.command_stream.size() + 1U)
+    );
     tree.write("size-mismatch.tsw", bytes);
     static_cast<void>(archive.open(tree.path("size-mismatch.tsw")));
-    test.expect_equal(archive.read_frame(1U, 0U).status,
-                      LegacyTswFrameStatus::decompressed_size_mismatch,
-                      "declared output size must match exactly");
+    test.expect_equal(
+        archive.read_frame(1U, 0U).status,
+        LegacyTswFrameStatus::decompressed_size_mismatch,
+        "declared output size must match exactly"
+    );
     archive.close();
 
     bytes = synthetic.bytes;
     write_u32(bytes, synthetic.descriptor_offset + 0x04U, 2U);
     tree.write("truncated-stream.tsw", bytes);
     static_cast<void>(archive.open(tree.path("truncated-stream.tsw")));
-    test.expect_equal(archive.read_frame(1U, 0U).status,
-                      LegacyTswFrameStatus::decompression_failed,
-                      "truncated compressed stream is rejected");
+    test.expect_equal(
+        archive.read_frame(1U, 0U).status,
+        LegacyTswFrameStatus::decompression_failed,
+        "truncated compressed stream is rejected"
+    );
     archive.close();
 
     constexpr std::array<u8, 16> kTinyFile{};
     tree.write("tiny.tsw", kTinyFile);
     static_cast<void>(archive.open(tree.path("tiny.tsw")));
-    test.expect_equal(archive.read_frame(1U, 0U).status,
-                      LegacyTswFrameStatus::index_out_of_file_range,
-                      "short physical index is isolated");
+    test.expect_equal(
+        archive.read_frame(1U, 0U).status,
+        LegacyTswFrameStatus::index_out_of_file_range,
+        "short physical index is isolated"
+    );
 }
 
 struct RealFrameExpectation {
@@ -316,47 +381,70 @@ constexpr std::array<RealFrameExpectation, 6> kRealFrames{{
     {"all_map2.tsw", 16U, 640U, 400U, 514410U, 0xF1B883B0F8A6EDA6ULL},
 }};
 
-void test_real_archives(openswd3::test::Context& test,
-                        const std::filesystem::path& root) {
+void test_real_archives(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
     for (const RealFrameExpectation& expected : kRealFrames) {
         LegacyTswArchive archive;
-        test.expect_equal(archive.open(root / expected.archive_name),
-                          LegacyTswOpenStatus::ready,
-                          "real TSW archive opens");
+        test.expect_equal(
+            archive.open(root / expected.archive_name),
+            LegacyTswOpenStatus::ready,
+            "real TSW archive opens"
+        );
         if (!archive.is_open()) {
             continue;
         }
 
         const auto loaded = archive.read_frame(1U, 0U);
-        test.expect_equal(loaded.status, LegacyTswFrameStatus::ready,
-                          "real first frame loads");
+        test.expect_equal(
+            loaded.status, LegacyTswFrameStatus::ready, "real first frame loads"
+        );
         if (loaded.status != LegacyTswFrameStatus::ready) {
             continue;
         }
-        test.expect_equal(loaded.frame.index.metadata_id, 1U,
-                          "real first slot metadata ID");
-        test.expect_equal(loaded.frame.storage_bpp, expected.storage_bpp,
-                          "real storage bpp");
-        test.expect_equal(loaded.frame.has_palette,
-                          expected.storage_bpp == 8U,
-                          "palette presence follows storage bpp");
-        test.expect_equal(loaded.frame.descriptor.width, expected.width,
-                          "real frame width");
-        test.expect_equal(loaded.frame.descriptor.height, expected.height,
-                          "real frame height");
-        test.expect_equal(loaded.frame.command_stream.size(),
-                          static_cast<std::size_t>(expected.decompressed_size),
-                          "real decompressed size");
-        test.expect_true(loaded.frame.command_stream.size() >= 2U,
-                         "real command stream has family word");
+        test.expect_equal(
+            loaded.frame.index.metadata_id, 1U, "real first slot metadata ID"
+        );
+        test.expect_equal(
+            loaded.frame.storage_bpp, expected.storage_bpp, "real storage bpp"
+        );
+        test.expect_equal(
+            loaded.frame.has_palette,
+            expected.storage_bpp == 8U,
+            "palette presence follows storage bpp"
+        );
+        test.expect_equal(
+            loaded.frame.descriptor.width, expected.width, "real frame width"
+        );
+        test.expect_equal(
+            loaded.frame.descriptor.height, expected.height, "real frame height"
+        );
+        test.expect_equal(
+            loaded.frame.command_stream.size(),
+            static_cast<std::size_t>(expected.decompressed_size),
+            "real decompressed size"
+        );
+        test.expect_true(
+            loaded.frame.command_stream.size() >= 2U,
+            "real command stream has family word"
+        );
         if (loaded.frame.command_stream.size() >= 2U) {
-            test.expect_equal(loaded.frame.command_stream[0U], u8{0xFFU},
-                              "real stream family low byte");
-            test.expect_equal(loaded.frame.command_stream[1U], u8{0xFFU},
-                              "real stream family high byte");
+            test.expect_equal(
+                loaded.frame.command_stream[0U],
+                u8{0xFFU},
+                "real stream family low byte"
+            );
+            test.expect_equal(
+                loaded.frame.command_stream[1U],
+                u8{0xFFU},
+                "real stream family high byte"
+            );
         }
-        test.expect_equal(fnv1a64(loaded.frame.command_stream), expected.fnv1a,
-                          "real decompressed bytes match evidence");
+        test.expect_equal(
+            fnv1a64(loaded.frame.command_stream),
+            expected.fnv1a,
+            "real decompressed bytes match evidence"
+        );
     }
 }
 

@@ -60,9 +60,8 @@ public:
         return driver_results.at(driver_query_count++);
     }
 
-    void initialize_midi_output(
-        const openswd3::app::BackendToken driver
-    ) override {
+    void
+    initialize_midi_output(const openswd3::app::BackendToken driver) override {
         calls.push_back(Call::midi);
         midi_driver = driver;
     }
@@ -88,8 +87,7 @@ public:
     }
 
     openswd3::app::BackendToken create_common_source_surface(
-        const openswd3::compat::u32 width,
-        const openswd3::compat::u32 height
+        const openswd3::compat::u32 width, const openswd3::compat::u32 height
     ) override {
         calls.push_back(Call::source_surface);
         source_width = width;
@@ -97,9 +95,8 @@ public:
         return source_surface_result;
     }
 
-    openswd3::app::BackendToken query_display_surface(
-        const openswd3::compat::u32 selector
-    ) override {
+    openswd3::app::BackendToken
+    query_display_surface(const openswd3::compat::u32 selector) override {
         calls.push_back(Call::query_surface);
         display_selector = selector;
         return display_surface_result;
@@ -145,9 +142,7 @@ void test_success(openswd3::test::Context& test) {
 
     test.expect_true(
         openswd3::app::run_platform_backend_initialization(
-            "legacy-root",
-            state,
-            ports
+            "legacy-root", state, ports
         ),
         "all successful backends return true"
     );
@@ -168,17 +163,29 @@ void test_success(openswd3::test::Context& test) {
     };
     test.expect_equal(ports.calls, expected, "successful assembly call order");
     test.expect_equal(state.input_backend_flags, 0U, "input flags clear first");
-    test.expect_equal(state.process_flags, 0x10U, "success preserves process flags");
-    test.expect_equal(state.display_active, 1U, "display activates after source creation");
-    test.expect_equal(state.common_source_surface, 44U, "source token is stored even opaquely");
-    test.expect_equal(ports.first_path, std::string_view{"legacy-root"}, "audio startup path");
-    test.expect_equal(ports.second_path, std::string_view{"legacy-root"}, "audio output path");
-    test.expect_equal(ports.driver_query_count, std::size_t{3}, "driver is queried three times");
+    test.expect_equal(
+        state.process_flags, 0x10U, "success preserves process flags"
+    );
+    test.expect_equal(
+        state.display_active, 1U, "display activates after source creation"
+    );
+    test.expect_equal(
+        state.common_source_surface, 44U, "source token is stored even opaquely"
+    );
+    test.expect_equal(
+        ports.first_path, std::string_view{"legacy-root"}, "audio startup path"
+    );
+    test.expect_equal(
+        ports.second_path, std::string_view{"legacy-root"}, "audio output path"
+    );
+    test.expect_equal(
+        ports.driver_query_count,
+        std::size_t{3},
+        "driver is queried three times"
+    );
     test.expect_equal(ports.midi_driver, 11U, "first driver query feeds MIDI");
     test.expect_equal(
-        ports.stream_driver,
-        22U,
-        "second driver query feeds stream nodes"
+        ports.stream_driver, 22U, "second driver query feeds stream nodes"
     );
     test.expect_equal(
         ports.display_request,
@@ -187,10 +194,16 @@ void test_success(openswd3::test::Context& test) {
     );
     test.expect_equal(ports.source_width, 640U, "source width");
     test.expect_equal(ports.source_height, 480U, "source height");
-    test.expect_equal(ports.display_selector, 0x2711U, "primary surface selector");
-    test.expect_equal(ports.video_display_surface, 55U, "surface feeds video setup");
+    test.expect_equal(
+        ports.display_selector, 0x2711U, "primary surface selector"
+    );
+    test.expect_equal(
+        ports.video_display_surface, 55U, "surface feeds video setup"
+    );
     test.expect_equal(ports.video_use_direct_sound, 0U, "Miles path selected");
-    test.expect_equal(ports.video_audio_driver, 33U, "third driver query feeds video");
+    test.expect_equal(
+        ports.video_audio_driver, 33U, "third driver query feeds video"
+    );
 }
 
 void test_input_failure(openswd3::test::Context& test) {
@@ -199,7 +212,9 @@ void test_input_failure(openswd3::test::Context& test) {
     ports.input_success = false;
 
     test.expect_false(
-        openswd3::app::run_platform_backend_initialization("root", state, ports),
+        openswd3::app::run_platform_backend_initialization(
+            "root", state, ports
+        ),
         "input failure returns false"
     );
     test.expect_equal(
@@ -207,11 +222,29 @@ void test_input_failure(openswd3::test::Context& test) {
         std::vector<Call>{Call::input, Call::report_input, Call::destroy},
         "input failure stops immediately"
     );
-    test.expect_equal(state.input_backend_flags, 0x02U, "input failure replaces old flags then sets bit two");
-    test.expect_equal(ports.input_flags_when_reported, 0x02U, "input bit is visible before report");
-    test.expect_equal(state.process_flags, 0x10U, "input failure does not set process bit four");
-    test.expect_equal(state.display_active, 7U, "input failure does not touch display state");
-    test.expect_equal(state.common_source_surface, 8U, "input failure does not touch source token");
+    test.expect_equal(
+        state.input_backend_flags,
+        0x02U,
+        "input failure replaces old flags then sets bit two"
+    );
+    test.expect_equal(
+        ports.input_flags_when_reported,
+        0x02U,
+        "input bit is visible before report"
+    );
+    test.expect_equal(
+        state.process_flags,
+        0x10U,
+        "input failure does not set process bit four"
+    );
+    test.expect_equal(
+        state.display_active, 7U, "input failure does not touch display state"
+    );
+    test.expect_equal(
+        state.common_source_surface,
+        8U,
+        "input failure does not touch source token"
+    );
 }
 
 void test_display_failure(openswd3::test::Context& test) {
@@ -220,7 +253,9 @@ void test_display_failure(openswd3::test::Context& test) {
     ports.display_success = false;
 
     test.expect_false(
-        openswd3::app::run_platform_backend_initialization("root", state, ports),
+        openswd3::app::run_platform_backend_initialization(
+            "root", state, ports
+        ),
         "display failure returns false"
     );
     const std::vector<Call> expected{
@@ -236,12 +271,28 @@ void test_display_failure(openswd3::test::Context& test) {
         Call::destroy,
     };
     test.expect_equal(ports.calls, expected, "display failure order");
-    test.expect_equal(state.input_backend_flags, 0U, "successful input leaves flags clear");
-    test.expect_equal(state.process_flags, 0x15U, "display failure ORs process bit four");
-    test.expect_equal(ports.process_flags_when_reported, 0x15U, "process bit is visible before report");
-    test.expect_equal(state.display_active, 7U, "display failure does not overwrite activity");
-    test.expect_equal(state.common_source_surface, 8U, "display failure creates no source");
-    test.expect_equal(ports.driver_query_count, std::size_t{2}, "display failure skips third driver query");
+    test.expect_equal(
+        state.input_backend_flags, 0U, "successful input leaves flags clear"
+    );
+    test.expect_equal(
+        state.process_flags, 0x15U, "display failure ORs process bit four"
+    );
+    test.expect_equal(
+        ports.process_flags_when_reported,
+        0x15U,
+        "process bit is visible before report"
+    );
+    test.expect_equal(
+        state.display_active, 7U, "display failure does not overwrite activity"
+    );
+    test.expect_equal(
+        state.common_source_surface, 8U, "display failure creates no source"
+    );
+    test.expect_equal(
+        ports.driver_query_count,
+        std::size_t{2},
+        "display failure skips third driver query"
+    );
 }
 
 }  // namespace

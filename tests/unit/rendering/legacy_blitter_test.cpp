@@ -36,9 +36,7 @@ void append_u16(std::vector<u8>& bytes, const u16 value) {
     bytes.push_back(static_cast<u8>(value >> 8U));
 }
 
-[[nodiscard]] std::vector<u8> direct_pixels(
-    const std::span<const u16> pixels
-) {
+[[nodiscard]] std::vector<u8> direct_pixels(const std::span<const u16> pixels) {
     std::vector<u8> bytes;
     bytes.reserve(pixels.size() * 2U);
     for (const u16 pixel : pixels) {
@@ -60,10 +58,7 @@ void append_u16(std::vector<u8>& bytes, const u16 value) {
     append_u16(bytes, height);
     append_u16(bytes, source_flags);
     for (const std::vector<u16>& row : rows) {
-        append_u16(
-            bytes,
-            static_cast<u16>(2U + row.size() * sizeof(u16))
-        );
+        append_u16(bytes, static_cast<u16>(2U + row.size() * sizeof(u16)));
         for (const u16 word : row) {
             append_u16(bytes, word);
         }
@@ -73,9 +68,8 @@ void append_u16(std::vector<u8>& bytes, const u16 value) {
     return bytes;
 }
 
-[[nodiscard]] LegacyBlitClipRectangle full_clip(
-    const LegacyFramebuffer& framebuffer
-) {
+[[nodiscard]] LegacyBlitClipRectangle
+full_clip(const LegacyFramebuffer& framebuffer) {
     const auto& geometry = framebuffer.geometry();
     return LegacyBlitClipRectangle{
         .left = geometry.clip_left,
@@ -93,13 +87,14 @@ void append_u16(std::vector<u8>& bytes, const u16 value) {
     LegacyRleRowJitterState& jitter
 ) {
     return openswd3::rendering::blit_legacy_copy_paths(
-        framebuffer,
-        full_clip(framebuffer),
-        source,
-        request,
-        effects,
-        jitter
-    ).status;
+               framebuffer,
+               full_clip(framebuffer),
+               source,
+               request,
+               effects,
+               jitter
+    )
+        .status;
 }
 
 [[nodiscard]] LegacyBlitExecutionStatus blit(
@@ -108,13 +103,7 @@ void append_u16(std::vector<u8>& bytes, const u16 value) {
     const LegacyBlitRequest& request,
     LegacyRleRowJitterState& jitter
 ) {
-    return blit(
-        framebuffer,
-        source,
-        request,
-        LegacyBlitEffectState{},
-        jitter
-    );
+    return blit(framebuffer, source, request, LegacyBlitEffectState{}, jitter);
 }
 
 void test_sparse_dispatch_table(openswd3::test::Context& test) {
@@ -228,12 +217,8 @@ void test_sparse_dispatch_table(openswd3::test::Context& test) {
 }
 
 void test_selection_rules(openswd3::test::Context& test) {
-    const auto rle = openswd3::rendering::select_legacy_blitter(
-        0xFFFFU,
-        false,
-        0U,
-        0
-    );
+    const auto rle =
+        openswd3::rendering::select_legacy_blitter(0xFFFFU, false, 0U, 0);
     test.expect_equal(
         rle.status,
         LegacyBlitterSelectionStatus::selected,
@@ -242,36 +227,24 @@ void test_selection_rules(openswd3::test::Context& test) {
     test.expect_true(rle.rle_family, "FFFF direct source selects RLE family");
     test.expect_equal(rle.table_slot, 0U, "RLE copy slot");
 
-    const auto indexed = openswd3::rendering::select_legacy_blitter(
-        0xFFFFU,
-        true,
-        0U,
-        0
-    );
+    const auto indexed =
+        openswd3::rendering::select_legacy_blitter(0xFFFFU, true, 0U, 0);
     test.expect_false(
         indexed.rle_family,
         "nonzero palette pointer suppresses automatic RLE marker"
     );
     test.expect_equal(indexed.table_slot, 0x80U, "indexed raw copy slot");
 
-    const auto disabled = openswd3::rendering::select_legacy_blitter(
-        0xFFFFU,
-        false,
-        0x14U,
-        0
-    );
+    const auto disabled =
+        openswd3::rendering::select_legacy_blitter(0xFFFFU, false, 0x14U, 0);
     test.expect_equal(
         disabled.status,
         LegacyBlitterSelectionStatus::opacity_disabled,
         "nonpositive opacity skips the complete draw"
     );
 
-    const auto copy = openswd3::rendering::select_legacy_blitter(
-        0xFFFFU,
-        false,
-        0x16U,
-        16
-    );
+    const auto copy =
+        openswd3::rendering::select_legacy_blitter(0xFFFFU, false, 0x16U, 16);
     test.expect_equal(copy.table_slot, 0x02U, "opacity above 15 keeps flips");
     test.expect_equal(
         copy.routine,
@@ -279,12 +252,8 @@ void test_selection_rules(openswd3::test::Context& test) {
         "opacity above 15 degrades to copy"
     );
 
-    const auto hole = openswd3::rendering::select_legacy_blitter(
-        0xFFFFU,
-        false,
-        0x06U,
-        0
-    );
+    const auto hole =
+        openswd3::rendering::select_legacy_blitter(0xFFFFU, false, 0x06U, 0);
     test.expect_equal(
         hole.status,
         LegacyBlitterSelectionStatus::unassigned,
@@ -293,11 +262,13 @@ void test_selection_rules(openswd3::test::Context& test) {
 }
 
 void test_raw_direct_copy_and_clipping(openswd3::test::Context& test) {
-    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 6,
-        .height = 5,
-    });
+    LegacyFramebuffer framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 6,
+            .height = 5,
+        }
+    );
     std::ranges::fill(framebuffer.physical_pixels(), 0xEEEEU);
 
     std::array<u16, 56> pixels{};
@@ -346,14 +317,23 @@ void test_raw_direct_copy_and_clipping(openswd3::test::Context& test) {
 
 void test_raw_reverse_and_indexed_paths(openswd3::test::Context& test) {
     constexpr std::array<u16, 8> kDirectPixels{
-        1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U,
+        1U,
+        2U,
+        3U,
+        4U,
+        5U,
+        6U,
+        7U,
+        8U,
     };
     const std::vector<u8> direct_source = direct_pixels(kDirectPixels);
-    LegacyFramebuffer reverse_framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 4,
-        .height = 2,
-    });
+    LegacyFramebuffer reverse_framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 2,
+        }
+    );
     LegacyRleRowJitterState jitter{};
     test.expect_equal(
         blit(
@@ -370,12 +350,18 @@ void test_raw_reverse_and_indexed_paths(openswd3::test::Context& test) {
         "raw reverse copy"
     );
     constexpr std::array<u16, 8> kExpectedReverse{
-        4U, 3U, 2U, 1U, 8U, 7U, 6U, 5U,
+        4U,
+        3U,
+        2U,
+        1U,
+        8U,
+        7U,
+        6U,
+        5U,
     };
     test.expect_true(
         std::ranges::equal(
-            reverse_framebuffer.physical_pixels(),
-            kExpectedReverse
+            reverse_framebuffer.physical_pixels(), kExpectedReverse
         ),
         "raw reverse reads each 16-bit row backwards"
     );
@@ -385,11 +371,13 @@ void test_raw_reverse_and_indexed_paths(openswd3::test::Context& test) {
     palette[2] = 0x2222U;
     palette[3] = 0x3333U;
     constexpr std::array<u8, 3> kIndices{1U, 2U, 3U};
-    LegacyFramebuffer indexed_framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 6,
-        .width = 3,
-        .height = 1,
-    });
+    LegacyFramebuffer indexed_framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 6,
+            .width = 3,
+            .height = 1,
+        }
+    );
     test.expect_equal(
         blit(
             indexed_framebuffer,
@@ -408,24 +396,34 @@ void test_raw_reverse_and_indexed_paths(openswd3::test::Context& test) {
         "indexed raw forward copy"
     );
     constexpr std::array<u16, 3> kExpectedIndexed{
-        0x1111U, 0x2222U, 0x3333U,
+        0x1111U,
+        0x2222U,
+        0x3333U,
     };
     test.expect_true(
         std::ranges::equal(
-            indexed_framebuffer.physical_pixels(),
-            kExpectedIndexed
+            indexed_framebuffer.physical_pixels(), kExpectedIndexed
         ),
         "indexed forward path performs palette lookup"
     );
 
     constexpr std::array<u8, 8> kIndexedReverseBytes{
-        1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U,
+        1U,
+        2U,
+        3U,
+        4U,
+        5U,
+        6U,
+        7U,
+        8U,
     };
-    LegacyFramebuffer indexed_reverse_framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 1,
-    });
+    LegacyFramebuffer indexed_reverse_framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        }
+    );
     test.expect_equal(
         blit(
             indexed_reverse_framebuffer,
@@ -453,14 +451,19 @@ void test_raw_reverse_and_indexed_paths(openswd3::test::Context& test) {
 
 void test_raw_color_key_copy(openswd3::test::Context& test) {
     constexpr std::array<u16, 4> kDirectPixels{
-        0x026BU, 0x1234U, 0x026BU, 0x7FFFU,
+        0x026BU,
+        0x1234U,
+        0x026BU,
+        0x7FFFU,
     };
     const std::vector<u8> direct_source = direct_pixels(kDirectPixels);
-    LegacyFramebuffer forward(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 4,
-        .height = 1,
-    });
+    LegacyFramebuffer forward(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 1,
+        }
+    );
     std::ranges::fill(forward.physical_pixels(), 0xAAAAU);
     LegacyRleRowJitterState jitter{};
     test.expect_equal(
@@ -478,7 +481,10 @@ void test_raw_color_key_copy(openswd3::test::Context& test) {
         "raw direct color-key copy"
     );
     constexpr std::array<u16, 4> kExpectedForward{
-        0xAAAAU, 0x1234U, 0xAAAAU, 0x7FFFU,
+        0xAAAAU,
+        0x1234U,
+        0xAAAAU,
+        0x7FFFU,
     };
     test.expect_true(
         std::ranges::equal(forward.physical_pixels(), kExpectedForward),
@@ -490,11 +496,13 @@ void test_raw_color_key_copy(openswd3::test::Context& test) {
     palette[2] = 0x2222U;
     palette[3] = 0x3333U;
     constexpr std::array<u8, 4> kIndices{1U, 2U, 1U, 3U};
-    LegacyFramebuffer indexed(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 4,
-        .height = 1,
-    });
+    LegacyFramebuffer indexed(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 1,
+        }
+    );
     std::ranges::fill(indexed.physical_pixels(), 0xBBBBU);
     test.expect_equal(
         blit(
@@ -515,7 +523,10 @@ void test_raw_color_key_copy(openswd3::test::Context& test) {
         "raw indexed color-key copy"
     );
     constexpr std::array<u16, 4> kExpectedIndexed{
-        0xBBBBU, 0x2222U, 0xBBBBU, 0x3333U,
+        0xBBBBU,
+        0x2222U,
+        0xBBBBU,
+        0x3333U,
     };
     test.expect_true(
         std::ranges::equal(indexed.physical_pixels(), kExpectedIndexed),
@@ -523,15 +534,14 @@ void test_raw_color_key_copy(openswd3::test::Context& test) {
     );
 
     constexpr std::array<u8, 2> kTransparentIndices{1U, 1U};
-    LegacyFramebuffer transparent_without_palette(LegacySurfaceGeometry{
-        .pitch_bytes = 4,
-        .width = 2,
-        .height = 1,
-    });
-    std::ranges::fill(
-        transparent_without_palette.physical_pixels(),
-        0xCAFEU
+    LegacyFramebuffer transparent_without_palette(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 4,
+            .width = 2,
+            .height = 1,
+        }
     );
+    std::ranges::fill(transparent_without_palette.physical_pixels(), 0xCAFEU);
     test.expect_equal(
         blit(
             transparent_without_palette,
@@ -552,17 +562,18 @@ void test_raw_color_key_copy(openswd3::test::Context& test) {
     constexpr std::array<u16, 2> kExpectedTransparent{0xCAFEU, 0xCAFEU};
     test.expect_true(
         std::ranges::equal(
-            transparent_without_palette.physical_pixels(),
-            kExpectedTransparent
+            transparent_without_palette.physical_pixels(), kExpectedTransparent
         ),
         "index one is discarded before palette lookup"
     );
 
-    LegacyFramebuffer reverse(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 4,
-        .height = 1,
-    });
+    LegacyFramebuffer reverse(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 1,
+        }
+    );
     std::ranges::fill(reverse.physical_pixels(), 0xCCCCU);
     test.expect_equal(
         blit(
@@ -579,7 +590,10 @@ void test_raw_color_key_copy(openswd3::test::Context& test) {
         "raw reverse color-key copy"
     );
     constexpr std::array<u16, 4> kExpectedReverse{
-        0x7FFFU, 0x026BU, 0x1234U, 0x026BU,
+        0x7FFFU,
+        0x026BU,
+        0x1234U,
+        0x026BU,
     };
     test.expect_true(
         std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
@@ -588,16 +602,17 @@ void test_raw_color_key_copy(openswd3::test::Context& test) {
 
     constexpr std::array<u16, 2> kRgb565Pixels{0x04CBU, 0x026BU};
     const std::vector<u8> rgb565_source = direct_pixels(kRgb565Pixels);
-    LegacyFramebuffer rgb565(LegacySurfaceGeometry{
-        .pitch_bytes = 4,
-        .width = 2,
-        .height = 1,
-    });
+    LegacyFramebuffer rgb565(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 4,
+            .width = 2,
+            .height = 1,
+        }
+    );
     std::ranges::fill(rgb565.physical_pixels(), 0xDDDDU);
     LegacyBlitEffectState effects{};
     openswd3::rendering::select_legacy_pixel_conversion(
-        effects.pixel_conversion,
-        LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU}
+        effects.pixel_conversion, LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU}
     );
     test.expect_equal(
         blit(
@@ -625,25 +640,38 @@ void test_raw_and_rle_opacity_steps(openswd3::test::Context& test) {
     constexpr u16 kSourcePixel = 0x621DU;
     constexpr u16 kDestinationPixel = 0x1CE3U;
     constexpr std::array<u16, 16> kRgb555Steps{
-        0x1CE3U, 0x14A2U, 0x1CC4U, 0x20E5U,
-        0x24E8U, 0x2909U, 0x312BU, 0x354CU,
-        0x352EU, 0x394FU, 0x4171U, 0x4592U,
-        0x4995U, 0x4DB6U, 0x55D8U, 0x621DU,
+        0x1CE3U,
+        0x14A2U,
+        0x1CC4U,
+        0x20E5U,
+        0x24E8U,
+        0x2909U,
+        0x312BU,
+        0x354CU,
+        0x352EU,
+        0x394FU,
+        0x4171U,
+        0x4592U,
+        0x4995U,
+        0x4DB6U,
+        0x55D8U,
+        0x621DU,
     };
-    const std::vector<u8> raw_source = direct_pixels(
-        std::array<u16, 1>{kSourcePixel}
-    );
+    const std::vector<u8> raw_source =
+        direct_pixels(std::array<u16, 1>{kSourcePixel});
     const std::array<std::vector<u16>, 1> rle_rows{
         std::vector<u16>{0x0001U, kSourcePixel, 0x0000U},
     };
     const std::vector<u8> rle_source = make_rle(1U, 1U, rle_rows);
 
     for (i32 external_step = 1; external_step <= 15; ++external_step) {
-        LegacyFramebuffer raw(LegacySurfaceGeometry{
-            .pitch_bytes = 2,
-            .width = 1,
-            .height = 1,
-        });
+        LegacyFramebuffer raw(
+            LegacySurfaceGeometry{
+                .pitch_bytes = 2,
+                .width = 1,
+                .height = 1,
+            }
+        );
         raw.physical_pixels().front() = kDestinationPixel;
         LegacyRleRowJitterState jitter{};
         test.expect_equal(
@@ -667,11 +695,13 @@ void test_raw_and_rle_opacity_steps(openswd3::test::Context& test) {
             "raw 0x94 decrements the external step before table lookup"
         );
 
-        LegacyFramebuffer rle(LegacySurfaceGeometry{
-            .pitch_bytes = 2,
-            .width = 1,
-            .height = 1,
-        });
+        LegacyFramebuffer rle(
+            LegacySurfaceGeometry{
+                .pitch_bytes = 2,
+                .width = 1,
+                .height = 1,
+            }
+        );
         rle.physical_pixels().front() = kDestinationPixel;
         test.expect_equal(
             blit(
@@ -697,11 +727,13 @@ void test_raw_and_rle_opacity_steps(openswd3::test::Context& test) {
 
     constexpr std::array<u16, 2> kRawKeyedPixels{0x026BU, kSourcePixel};
     const std::vector<u8> raw_keyed_source = direct_pixels(kRawKeyedPixels);
-    LegacyFramebuffer keyed(LegacySurfaceGeometry{
-        .pitch_bytes = 4,
-        .width = 2,
-        .height = 1,
-    });
+    LegacyFramebuffer keyed(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 4,
+            .width = 2,
+            .height = 1,
+        }
+    );
     std::ranges::fill(keyed.physical_pixels(), kDestinationPixel);
     LegacyRleRowJitterState jitter{};
     test.expect_equal(
@@ -731,11 +763,13 @@ void test_raw_and_rle_opacity_steps(openswd3::test::Context& test) {
     );
 
     constexpr std::array<u16, 1> kUnusedPalette{0x7FFFU};
-    LegacyFramebuffer indexed(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 1,
-    });
+    LegacyFramebuffer indexed(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        }
+    );
     indexed.physical_pixels().front() = kDestinationPixel;
     test.expect_equal(
         blit(
@@ -787,14 +821,15 @@ void test_raw_and_rle_opacity_steps(openswd3::test::Context& test) {
     for (const FormatCase& format_case : kFormats) {
         LegacyBlitEffectState effects{};
         openswd3::rendering::select_legacy_pixel_conversion(
-            effects.pixel_conversion,
-            format_case.masks
+            effects.pixel_conversion, format_case.masks
         );
-        LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-            .pitch_bytes = 2,
-            .width = 1,
-            .height = 1,
-        });
+        LegacyFramebuffer framebuffer(
+            LegacySurfaceGeometry{
+                .pitch_bytes = 2,
+                .width = 1,
+                .height = 1,
+            }
+        );
         framebuffer.physical_pixels().front() = kDestinationPixel;
         test.expect_equal(
             blit(
@@ -821,24 +856,25 @@ void test_raw_and_rle_opacity_steps(openswd3::test::Context& test) {
 
     const std::array<std::vector<u16>, 1> reverse_rows{
         std::vector<u16>{
-            0x0002U, 0x1111U, 0x2222U, 0x0000U,
+            0x0002U,
+            0x1111U,
+            0x2222U,
+            0x0000U,
         },
     };
-    const std::vector<u8> reverse_source = make_rle(
-        2U,
-        1U,
-        reverse_rows
-    );
+    const std::vector<u8> reverse_source = make_rle(2U, 1U, reverse_rows);
     std::array<i32, 33> offsets{};
     LegacyRleRowJitterState reverse_jitter{
         .group = 1,
         .offsets = offsets,
     };
-    LegacyFramebuffer reverse(LegacySurfaceGeometry{
-        .pitch_bytes = 4,
-        .width = 2,
-        .height = 1,
-    });
+    LegacyFramebuffer reverse(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 4,
+            .width = 2,
+            .height = 1,
+        }
+    );
     test.expect_equal(
         blit(
             reverse,
@@ -870,19 +906,32 @@ void test_raw_constant_vertical_fade(openswd3::test::Context& test) {
     constexpr u16 kSourcePixel = 0x621DU;
     constexpr u16 kDestinationPixel = 0x1CE3U;
     constexpr std::array<u16, 16> kRgb555Steps{
-        0x1CE3U, 0x14A2U, 0x1CC4U, 0x20E5U,
-        0x24E8U, 0x2909U, 0x312BU, 0x354CU,
-        0x352EU, 0x394FU, 0x4171U, 0x4592U,
-        0x4995U, 0x4DB6U, 0x55D8U, 0x621DU,
+        0x1CE3U,
+        0x14A2U,
+        0x1CC4U,
+        0x20E5U,
+        0x24E8U,
+        0x2909U,
+        0x312BU,
+        0x354CU,
+        0x352EU,
+        0x394FU,
+        0x4171U,
+        0x4592U,
+        0x4995U,
+        0x4DB6U,
+        0x55D8U,
+        0x621DU,
     };
-    const std::vector<u8> source = direct_pixels(
-        std::array<u16, 1>{kSourcePixel}
+    const std::vector<u8> source =
+        direct_pixels(std::array<u16, 1>{kSourcePixel});
+    LegacyFramebuffer full(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 6,
+            .width = 3,
+            .height = 16,
+        }
     );
-    LegacyFramebuffer full(LegacySurfaceGeometry{
-        .pitch_bytes = 6,
-        .width = 3,
-        .height = 16,
-    });
     std::ranges::fill(full.physical_pixels(), kDestinationPixel);
     LegacyRleRowJitterState jitter{};
     test.expect_equal(
@@ -913,11 +962,13 @@ void test_raw_constant_vertical_fade(openswd3::test::Context& test) {
         }
     }
 
-    LegacyFramebuffer clipped(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 12,
-    });
+    LegacyFramebuffer clipped(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 12,
+        }
+    );
     std::ranges::fill(clipped.physical_pixels(), kDestinationPixel);
     test.expect_equal(
         blit(
@@ -944,14 +995,12 @@ void test_raw_constant_vertical_fade(openswd3::test::Context& test) {
     }
 }
 
-void test_rle_saturated_vertical_resample(
-    openswd3::test::Context& test
-) {
+void test_rle_saturated_vertical_resample(openswd3::test::Context& test) {
     const auto expect_pixels = [&test](
-        const LegacyFramebuffer& framebuffer,
-        const std::span<const u16> expected,
-        const char* const message
-    ) {
+                                   const LegacyFramebuffer& framebuffer,
+                                   const std::span<const u16> expected,
+                                   const char* const message
+                               ) {
         const std::span<const u16> actual = framebuffer.physical_pixels();
         test.expect_equal(actual.size(), expected.size(), message);
         const std::size_t count = std::min(actual.size(), expected.size());
@@ -965,21 +1014,19 @@ void test_rle_saturated_vertical_resample(
         std::vector<u16>{1U, 0x0002U, 0U},
         std::vector<u16>{1U, 0x0004U, 0U},
     };
-    const std::vector<u8> enlarge_source = make_rle(
-        1U,
-        3U,
-        enlarge_rows
-    );
+    const std::vector<u8> enlarge_source = make_rle(1U, 3U, enlarge_rows);
     constexpr std::array<i32, 33> kZeroJitter{};
     LegacyRleRowJitterState enlarge_jitter{
         .group = 1,
         .offsets = kZeroJitter,
     };
-    LegacyFramebuffer enlarged(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 6,
-    });
+    LegacyFramebuffer enlarged(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 6,
+        }
+    );
     test.expect_equal(
         blit(
             enlarged,
@@ -996,7 +1043,12 @@ void test_rle_saturated_vertical_resample(
         "RLE saturated-add vertical enlargement"
     );
     constexpr std::array<u16, 6> kEnlargedRows{
-        0x0001U, 0x0001U, 0x0002U, 0x0002U, 0x0004U, 0x0000U,
+        0x0001U,
+        0x0001U,
+        0x0002U,
+        0x0002U,
+        0x0004U,
+        0x0000U,
     };
     expect_pixels(
         enlarged,
@@ -1009,11 +1061,13 @@ void test_rle_saturated_vertical_resample(
         "forward resample advances the shared jitter phase"
     );
 
-    LegacyFramebuffer exact_fit(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 5,
-    });
+    LegacyFramebuffer exact_fit(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 5,
+        }
+    );
     LegacyRleRowJitterState exact_fit_jitter{};
     test.expect_equal(
         blit(
@@ -1031,7 +1085,11 @@ void test_rle_saturated_vertical_resample(
         "exact-bottom RLE vertical enlargement"
     );
     constexpr std::array<u16, 5> kExactFitRows{
-        0x0001U, 0x0001U, 0x0002U, 0x0002U, 0x0000U,
+        0x0001U,
+        0x0001U,
+        0x0002U,
+        0x0002U,
+        0x0000U,
     };
     expect_pixels(
         exact_fit,
@@ -1046,16 +1104,14 @@ void test_rle_saturated_vertical_resample(
         std::vector<u16>{1U, 0x0008U, 0U},
         std::vector<u16>{1U, 0x0010U, 0U},
     };
-    const std::vector<u8> shrink_source = make_rle(
-        1U,
-        5U,
-        shrink_rows
+    const std::vector<u8> shrink_source = make_rle(1U, 5U, shrink_rows);
+    LegacyFramebuffer shrunk(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 4,
+        }
     );
-    LegacyFramebuffer shrunk(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 4,
-    });
     LegacyRleRowJitterState shrink_jitter{};
     test.expect_equal(
         blit(
@@ -1073,19 +1129,22 @@ void test_rle_saturated_vertical_resample(
         "RLE saturated-add vertical shrink"
     );
     constexpr std::array<u16, 4> kShrunkRows{
-        0x0001U, 0x0002U, 0x0008U, 0x0000U,
+        0x0001U,
+        0x0002U,
+        0x0008U,
+        0x0000U,
     };
     expect_pixels(
-        shrunk,
-        kShrunkRows,
-        "10.10 shrink skips the exact source rows"
+        shrunk, kShrunkRows, "10.10 shrink skips the exact source rows"
     );
 
-    LegacyFramebuffer clipped(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 5,
-    });
+    LegacyFramebuffer clipped(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 5,
+        }
+    );
     LegacyRleRowJitterState clipped_jitter{};
     test.expect_equal(
         blit(
@@ -1104,7 +1163,11 @@ void test_rle_saturated_vertical_resample(
         "top-clipped RLE vertical enlargement"
     );
     constexpr std::array<u16, 5> kTopClippedRows{
-        0x0002U, 0x0004U, 0x0004U, 0x0000U, 0x0000U,
+        0x0002U,
+        0x0004U,
+        0x0004U,
+        0x0000U,
+        0x0000U,
     };
     expect_pixels(
         clipped,
@@ -1112,11 +1175,13 @@ void test_rle_saturated_vertical_resample(
         "top clipping preserves the original unconditional row advance"
     );
 
-    LegacyFramebuffer double_clipped(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 5,
-    });
+    LegacyFramebuffer double_clipped(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 5,
+        }
+    );
     LegacyRleRowJitterState double_clipped_jitter{};
     test.expect_equal(
         blit(
@@ -1135,7 +1200,11 @@ void test_rle_saturated_vertical_resample(
         "two-row top-clipped RLE vertical enlargement"
     );
     constexpr std::array<u16, 5> kDoubleTopClippedRows{
-        0x0002U, 0x0004U, 0x0000U, 0x0000U, 0x0000U,
+        0x0002U,
+        0x0004U,
+        0x0000U,
+        0x0000U,
+        0x0000U,
     };
     expect_pixels(
         double_clipped,
@@ -1143,11 +1212,13 @@ void test_rle_saturated_vertical_resample(
         "top-clip counter advances twice after an unmatched prepass"
     );
 
-    LegacyFramebuffer phased(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 6,
-    });
+    LegacyFramebuffer phased(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 6,
+        }
+    );
     LegacyRleRowJitterState phased_jitter{};
     test.expect_equal(
         blit(
@@ -1166,7 +1237,12 @@ void test_rle_saturated_vertical_resample(
         "explicit original stack-residue resample phase"
     );
     constexpr std::array<u16, 6> kPhasedRows{
-        0x0001U, 0x0002U, 0x0002U, 0x0004U, 0x0000U, 0x0000U,
+        0x0001U,
+        0x0002U,
+        0x0002U,
+        0x0004U,
+        0x0000U,
+        0x0000U,
     };
     expect_pixels(
         phased,
@@ -1174,11 +1250,13 @@ void test_rle_saturated_vertical_resample(
         "nonzero initial stack residue changes the selected source rows"
     );
 
-    LegacyFramebuffer full_width_phased(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 6,
-    });
+    LegacyFramebuffer full_width_phased(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 6,
+        }
+    );
     LegacyRleRowJitterState full_width_phase_jitter{};
     test.expect_equal(
         blit(
@@ -1197,7 +1275,12 @@ void test_rle_saturated_vertical_resample(
         "full-width original stack-residue resample phase"
     );
     constexpr std::array<u16, 6> kFullWidthPhasedRows{
-        0x0001U, 0x0002U, 0x0004U, 0x0004U, 0x0000U, 0x0000U,
+        0x0001U,
+        0x0002U,
+        0x0004U,
+        0x0004U,
+        0x0000U,
+        0x0000U,
     };
     expect_pixels(
         full_width_phased,
@@ -1207,19 +1290,21 @@ void test_rle_saturated_vertical_resample(
 
     const std::array<std::vector<u16>, 1> reverse_rows{
         std::vector<u16>{
-            3U, 0x0001U, 0x0002U, 0x0004U, 0U,
+            3U,
+            0x0001U,
+            0x0002U,
+            0x0004U,
+            0U,
         },
     };
-    const std::vector<u8> reverse_source = make_rle(
-        3U,
-        1U,
-        reverse_rows
+    const std::vector<u8> reverse_source = make_rle(3U, 1U, reverse_rows);
+    LegacyFramebuffer reversed(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 6,
+            .width = 3,
+            .height = 2,
+        }
     );
-    LegacyFramebuffer reversed(LegacySurfaceGeometry{
-        .pitch_bytes = 6,
-        .width = 3,
-        .height = 2,
-    });
     LegacyRleRowJitterState reverse_jitter{
         .group = 1,
         .offsets = kZeroJitter,
@@ -1240,7 +1325,12 @@ void test_rle_saturated_vertical_resample(
         "reverse RLE saturated-add resample"
     );
     constexpr std::array<u16, 6> kReversedPixels{
-        0x0004U, 0x0002U, 0x0001U, 0x0000U, 0x0000U, 0x0000U,
+        0x0004U,
+        0x0002U,
+        0x0001U,
+        0x0000U,
+        0x0000U,
+        0x0000U,
     };
     expect_pixels(
         reversed,
@@ -1254,9 +1344,7 @@ void test_rle_saturated_vertical_resample(
     );
 }
 
-void test_rle_shifted_vertical_resample(
-    openswd3::test::Context& test
-) {
+void test_rle_shifted_vertical_resample(openswd3::test::Context& test) {
     const auto coverage_row = [](const u16 prefix, const u16 payload) {
         std::vector<u16> row;
         if (prefix != 0U) {
@@ -1285,16 +1373,18 @@ void test_rle_shifted_vertical_resample(
 
     using Coordinate = std::pair<std::size_t, std::size_t>;
     const auto run_case = [&test, &source, &discarded_jitter, &effects](
-        const u32 flags,
-        const std::span<const Coordinate> coordinates,
-        const u32 expected_phase,
-        const char* const message
-    ) {
-        LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-            .pitch_bytes = 16,
-            .width = 8,
-            .height = 7,
-        });
+                              const u32 flags,
+                              const std::span<const Coordinate> coordinates,
+                              const u32 expected_phase,
+                              const char* const message
+                          ) {
+        LegacyFramebuffer framebuffer(
+            LegacySurfaceGeometry{
+                .pitch_bytes = 16,
+                .width = 8,
+                .height = 7,
+            }
+        );
         LegacyRleRowJitterState jitter{
             .group = 1,
             .offsets = discarded_jitter,
@@ -1322,8 +1412,7 @@ void test_rle_shifted_vertical_resample(
             expected[row * 8U + column] = 0x0421U;
         }
         test.expect_true(
-            std::ranges::equal(framebuffer.physical_pixels(), expected),
-            message
+            std::ranges::equal(framebuffer.physical_pixels(), expected), message
         );
         test.expect_equal(jitter.phase_bytes, expected_phase, message);
     };
@@ -1357,11 +1446,13 @@ void test_rle_shifted_vertical_resample(
     run_case(0x0EU, kVerticalFlip, 4U, "shifted-resample vertical slot");
     run_case(0x0FU, kBothDirections, 0U, "shifted-resample both directions");
 
-    LegacyFramebuffer top_clipped(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 7,
-    });
+    LegacyFramebuffer top_clipped(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 7,
+        }
+    );
     LegacyRleRowJitterState top_clipped_jitter{
         .group = 1,
         .offsets = discarded_jitter,
@@ -1389,18 +1480,17 @@ void test_rle_shifted_vertical_resample(
     expected_top_clipped[2U * 8U + 3U] = 0x0421U;
     expected_top_clipped[3U * 8U + 3U] = 0x0421U;
     test.expect_true(
-        std::ranges::equal(
-            top_clipped.physical_pixels(),
-            expected_top_clipped
-        ),
+        std::ranges::equal(top_clipped.physical_pixels(), expected_top_clipped),
         "top clip keeps the original top+1 source prepasses"
     );
 
-    LegacyFramebuffer forced_displacement(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 7,
-    });
+    LegacyFramebuffer forced_displacement(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 7,
+        }
+    );
     LegacyRleRowJitterState forced_jitter{};
     test.expect_equal(
         blit(
@@ -1425,17 +1515,18 @@ void test_rle_shifted_vertical_resample(
     expected_forced[4U * 8U + 4U] = 0x0421U;
     test.expect_true(
         std::ranges::equal(
-            forced_displacement.physical_pixels(),
-            expected_forced
+            forced_displacement.physical_pixels(), expected_forced
         ),
         "target-height path forces zero row displacement to positive one"
     );
 
-    LegacyFramebuffer zero_effect(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 7,
-    });
+    LegacyFramebuffer zero_effect(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 7,
+        }
+    );
     LegacyRleRowJitterState zero_effect_jitter{
         .group = 1,
         .offsets = discarded_jitter,
@@ -1465,21 +1556,16 @@ void test_rle_shifted_vertical_resample(
 
     std::array<std::vector<u16>, 7> shrink_rows{};
     for (u16 row = 0U; row < shrink_rows.size(); ++row) {
-        shrink_rows[row] = coverage_row(
-            row,
-            static_cast<u16>(0x7000U + row)
-        );
+        shrink_rows[row] = coverage_row(row, static_cast<u16>(0x7000U + row));
     }
-    const std::vector<u8> shrink_source = make_rle(
-        7U,
-        7U,
-        shrink_rows
+    const std::vector<u8> shrink_source = make_rle(7U, 7U, shrink_rows);
+    LegacyFramebuffer shrunk(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 5,
+        }
     );
-    LegacyFramebuffer shrunk(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 5,
-    });
     LegacyRleRowJitterState shrink_jitter{};
     test.expect_equal(
         blit(
@@ -1512,56 +1598,51 @@ void test_rle_shifted_vertical_resample(
         coverage_row(1U, 0x2222U),
         coverage_row(2U, 0x3333U),
     };
-    const std::vector<u8> zero_target_source = make_rle(
-        3U,
-        3U,
-        zero_target_rows
-    );
-    const auto run_zero_target_case = [
-        &test,
-        &zero_target_source,
-        &discarded_jitter,
-        &effects
-    ](
-        const u32 inherited_mode,
-        const std::span<const Coordinate> coordinates,
-        const char* const message
-    ) {
-        LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-            .pitch_bytes = 8,
-            .width = 4,
-            .height = 5,
-        });
-        LegacyRleRowJitterState jitter{
-            .group = 1,
-            .offsets = discarded_jitter,
-        };
-        test.expect_equal(
-            blit(
-                framebuffer,
-                LegacyBlitSource{.bytes = zero_target_source},
-                LegacyBlitRequest{
-                    .source_width = 3,
-                    .source_height = 3,
-                    .vertical_resample_enlarge_state = inherited_mode,
-                    .flags = 0x0CU,
-                },
-                effects,
-                jitter
-            ),
-            LegacyBlitExecutionStatus::completed,
-            message
-        );
+    const std::vector<u8> zero_target_source =
+        make_rle(3U, 3U, zero_target_rows);
+    const auto run_zero_target_case =
+        [&test, &zero_target_source, &discarded_jitter, &effects](
+            const u32 inherited_mode,
+            const std::span<const Coordinate> coordinates,
+            const char* const message
+        ) {
+            LegacyFramebuffer framebuffer(
+                LegacySurfaceGeometry{
+                    .pitch_bytes = 8,
+                    .width = 4,
+                    .height = 5,
+                }
+            );
+            LegacyRleRowJitterState jitter{
+                .group = 1,
+                .offsets = discarded_jitter,
+            };
+            test.expect_equal(
+                blit(
+                    framebuffer,
+                    LegacyBlitSource{.bytes = zero_target_source},
+                    LegacyBlitRequest{
+                        .source_width = 3,
+                        .source_height = 3,
+                        .vertical_resample_enlarge_state = inherited_mode,
+                        .flags = 0x0CU,
+                    },
+                    effects,
+                    jitter
+                ),
+                LegacyBlitExecutionStatus::completed,
+                message
+            );
 
-        std::array<u16, 20> expected{};
-        for (const auto& [row, column] : coordinates) {
-            expected[row * 4U + column] = 0x0421U;
-        }
-        test.expect_true(
-            std::ranges::equal(framebuffer.physical_pixels(), expected),
-            message
-        );
-    };
+            std::array<u16, 20> expected{};
+            for (const auto& [row, column] : coordinates) {
+                expected[row * 4U + column] = 0x0421U;
+            }
+            test.expect_true(
+                std::ranges::equal(framebuffer.physical_pixels(), expected),
+                message
+            );
+        };
     constexpr std::array<Coordinate, 2> kInheritedShrink{
         Coordinate{1U, 1U},
         Coordinate{2U, 2U},
@@ -1587,49 +1668,73 @@ void test_rle_vertical_opacity_fade(openswd3::test::Context& test) {
     constexpr u16 kSourcePixel = 0x621DU;
     constexpr u16 kDestinationPixel = 0x1CE3U;
     constexpr std::array<u16, 16> kRgb555Steps{
-        0x1CE3U, 0x14A2U, 0x1CC4U, 0x20E5U,
-        0x24E8U, 0x2909U, 0x312BU, 0x354CU,
-        0x352EU, 0x394FU, 0x4171U, 0x4592U,
-        0x4995U, 0x4DB6U, 0x55D8U, 0x621DU,
+        0x1CE3U,
+        0x14A2U,
+        0x1CC4U,
+        0x20E5U,
+        0x24E8U,
+        0x2909U,
+        0x312BU,
+        0x354CU,
+        0x352EU,
+        0x394FU,
+        0x4171U,
+        0x4592U,
+        0x4995U,
+        0x4DB6U,
+        0x55D8U,
+        0x621DU,
     };
     std::array<std::vector<u16>, 16> rows{};
     for (std::vector<u16>& row : rows) {
         row = std::vector<u16>{0x0001U, kSourcePixel, 0x0000U};
     }
     const std::vector<u8> source = make_rle(1U, 16U, rows);
-    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 12,
-    });
+    LegacyFramebuffer framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 12,
+        }
+    );
     std::ranges::fill(framebuffer.physical_pixels(), kDestinationPixel);
     std::array<i32, 33> offsets{};
     LegacyRleRowJitterState jitter{
         .group = 1,
         .offsets = offsets,
     };
-    const auto result =
-        openswd3::rendering::blit_legacy_copy_paths(
-            framebuffer,
-            full_clip(framebuffer),
-            LegacyBlitSource{.bytes = source},
-            LegacyBlitRequest{
-                .destination_y = -4,
-                .source_width = 1,
-                .source_height = 16,
-                .flags = 0x1CU,
-                .opacity_step = 999,
-            },
-            LegacyBlitEffectState{},
-            jitter
-        );
+    const auto result = openswd3::rendering::blit_legacy_copy_paths(
+        framebuffer,
+        full_clip(framebuffer),
+        LegacyBlitSource{.bytes = source},
+        LegacyBlitRequest{
+            .destination_y = -4,
+            .source_width = 1,
+            .source_height = 16,
+            .flags = 0x1CU,
+            .opacity_step = 999,
+        },
+        LegacyBlitEffectState{},
+        jitter
+    );
     test.expect_equal(
         result.status,
         LegacyBlitExecutionStatus::completed,
         "RLE vertical opacity fade"
     );
     constexpr std::array<i32, 12> kExpectedSteps{
-        13, 12, 12, 11, 11, 10, 10, 9, 9, 8, 8, 7,
+        13,
+        12,
+        12,
+        11,
+        11,
+        10,
+        10,
+        9,
+        9,
+        8,
+        8,
+        7,
     };
     for (std::size_t row = 0U; row < kExpectedSteps.size(); ++row) {
         test.expect_equal(
@@ -1687,16 +1792,28 @@ void test_rle_smear(openswd3::test::Context& test) {
         "forward RLE smear"
     );
     constexpr std::array<u16, 18> kExpectedForward{
-        0x2009U, 0x2009U, 0x2009U, 0x2009U,
-        0x300EU, 0x300FU, 0x3010U, 0x3011U, 0x3012U, 0x3013U,
-        0x1014U, 0x1015U, 0x1016U,
-        0x2018U, 0x2019U, 0x201AU,
-        0x201AU, 0x201AU,
+        0x2009U,
+        0x2009U,
+        0x2009U,
+        0x2009U,
+        0x300EU,
+        0x300FU,
+        0x3010U,
+        0x3011U,
+        0x3012U,
+        0x3013U,
+        0x1014U,
+        0x1015U,
+        0x1016U,
+        0x2018U,
+        0x2019U,
+        0x201AU,
+        0x201AU,
+        0x201AU,
     };
     test.expect_true(
         std::ranges::equal(
-            forward.row_pixels(1U).subspan(10U, 18U),
-            kExpectedForward
+            forward.row_pixels(1U).subspan(10U, 18U), kExpectedForward
         ),
         "forward smear preserves the 4/6/3/3/write-skip beat sequence"
     );
@@ -1729,15 +1846,28 @@ void test_rle_smear(openswd3::test::Context& test) {
         "reverse RLE smear"
     );
     constexpr std::array<u16, 18> kExpectedReverse{
-        0x2009U, 0x200BU,
-        0x100FU, 0x100FU, 0x100FU, 0x100FU, 0x1010U, 0x1011U,
-        0x3012U, 0x3013U, 0x3014U, 0x3015U, 0x3016U, 0x3017U,
-        0x2017U, 0x2018U, 0x2019U, 0x201AU,
+        0x2009U,
+        0x200BU,
+        0x100FU,
+        0x100FU,
+        0x100FU,
+        0x100FU,
+        0x1010U,
+        0x1011U,
+        0x3012U,
+        0x3013U,
+        0x3014U,
+        0x3015U,
+        0x3016U,
+        0x3017U,
+        0x2017U,
+        0x2018U,
+        0x2019U,
+        0x201AU,
     };
     test.expect_true(
         std::ranges::equal(
-            reverse.row_pixels(1U).subspan(10U, 18U),
-            kExpectedReverse
+            reverse.row_pixels(1U).subspan(10U, 18U), kExpectedReverse
         ),
         "reverse traversal does not exchange any neighbor displacement"
     );
@@ -1749,9 +1879,14 @@ void test_rle_smear(openswd3::test::Context& test) {
 
     const std::array<std::vector<u16>, 1> split_rows{
         std::vector<u16>{
-            0x0002U, 0xAAAAU, 0xBBBBU,
+            0x0002U,
+            0xAAAAU,
+            0xBBBBU,
             0x4002U,
-            0x0003U, 0xCCCCU, 0xDDDDU, 0xEEEEU,
+            0x0003U,
+            0xCCCCU,
+            0xDDDDU,
+            0xEEEEU,
             0x0000U,
         },
     };
@@ -1776,13 +1911,17 @@ void test_rle_smear(openswd3::test::Context& test) {
         "smear split literal runs"
     );
     constexpr std::array<u16, 7> kExpectedSplit{
-        0x2009U, 0x2009U, 0x200CU, 0x200DU,
-        0x200DU, 0x200DU, 0x3010U,
+        0x2009U,
+        0x2009U,
+        0x200CU,
+        0x200DU,
+        0x200DU,
+        0x200DU,
+        0x3010U,
     };
     test.expect_true(
         std::ranges::equal(
-            split.row_pixels(1U).subspan(10U, 7U),
-            kExpectedSplit
+            split.row_pixels(1U).subspan(10U, 7U), kExpectedSplit
         ),
         "transparent runs do not advance the counter and literal colors are ignored"
     );
@@ -1811,44 +1950,50 @@ void test_rle_smear(openswd3::test::Context& test) {
         "smear counter across rows"
     );
     constexpr std::array<u16, 3> kExpectedSecondRow{
-        0x3009U, 0x400BU, 0x400CU,
+        0x3009U,
+        0x400BU,
+        0x400CU,
     };
     test.expect_true(
         std::ranges::equal(
-            multi.row_pixels(2U).subspan(10U, 3U),
-            kExpectedSecondRow
+            multi.row_pixels(2U).subspan(10U, 3U), kExpectedSecondRow
         ),
         "the counter continues from beat four to beat five at the row boundary"
     );
 
     const std::array<std::vector<u16>, 1> clipped_rows{
         std::vector<u16>{
-            0x0005U, 1U, 2U, 3U, 4U, 5U, 0x0000U,
+            0x0005U,
+            1U,
+            2U,
+            3U,
+            4U,
+            5U,
+            0x0000U,
         },
     };
     const std::vector<u8> clipped_source = make_rle(5U, 1U, clipped_rows);
     LegacyFramebuffer clipped;
     initialize(clipped);
-    const auto clipped_result =
-        openswd3::rendering::blit_legacy_copy_paths(
-            clipped,
-            LegacyBlitClipRectangle{
-                .left = 10,
-                .top = 0,
-                .width = 630,
-                .height = 480,
-            },
-            LegacyBlitSource{.bytes = clipped_source},
-            LegacyBlitRequest{
-                .destination_x = 7,
-                .destination_y = 1,
-                .source_width = 5,
-                .source_height = 1,
-                .flags = 0x30U,
-            },
-            LegacyBlitEffectState{},
-            no_jitter
-        );
+    const auto clipped_result = openswd3::rendering::blit_legacy_copy_paths(
+        clipped,
+        LegacyBlitClipRectangle{
+            .left = 10,
+            .top = 0,
+            .width = 630,
+            .height = 480,
+        },
+        LegacyBlitSource{.bytes = clipped_source},
+        LegacyBlitRequest{
+            .destination_x = 7,
+            .destination_y = 1,
+            .source_width = 5,
+            .source_height = 1,
+            .flags = 0x30U,
+        },
+        LegacyBlitEffectState{},
+        no_jitter
+    );
     test.expect_equal(
         clipped_result.status,
         LegacyBlitExecutionStatus::completed,
@@ -1869,11 +2014,13 @@ void test_rle_smear(openswd3::test::Context& test) {
         std::vector<u16>{0x0005U, 1U, 2U, 3U, 4U, 5U, 0x0000U},
     };
     const std::vector<u8> five_source = make_rle(5U, 1U, five_rows);
-    LegacyFramebuffer nonstandard_pitch(LegacySurfaceGeometry{
-        .pitch_bytes = 0x600,
-        .width = 16,
-        .height = 2,
-    });
+    LegacyFramebuffer nonstandard_pitch(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 0x600,
+            .width = 16,
+            .height = 2,
+        }
+    );
     std::ranges::fill(nonstandard_pitch.physical_pixels(), 0xAAAAU);
     nonstandard_pitch.physical_pixels()[0U] = 0x1111U;
     nonstandard_pitch.physical_pixels()[0x50AU / 2U] = 0x5555U;
@@ -1929,11 +2076,13 @@ void test_rle_smear(openswd3::test::Context& test) {
 void test_sparse_and_unsupported_execution(openswd3::test::Context& test) {
     constexpr std::array<u16, 4> kPixels{1U, 2U, 3U, 4U};
     const std::vector<u8> source_bytes = direct_pixels(kPixels);
-    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 4,
-        .width = 2,
-        .height = 2,
-    });
+    LegacyFramebuffer framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 4,
+            .width = 2,
+            .height = 2,
+        }
+    );
     std::ranges::fill(framebuffer.physical_pixels(), 0x7777U);
     LegacyRleRowJitterState jitter{};
 
@@ -1987,11 +2136,8 @@ void test_sparse_and_unsupported_execution(openswd3::test::Context& test) {
         std::vector<u16>{0x0002U, 1U, 2U, 0x0000U},
         std::vector<u16>{0x0002U, 3U, 4U, 0x0000U},
     };
-    const std::vector<u8> unsupported_source = make_rle(
-        2U,
-        2U,
-        unsupported_rows
-    );
+    const std::vector<u8> unsupported_source =
+        make_rle(2U, 2U, unsupported_rows);
     test.expect_equal(
         blit(
             framebuffer,
@@ -2011,26 +2157,31 @@ void test_sparse_and_unsupported_execution(openswd3::test::Context& test) {
 [[nodiscard]] std::vector<u8> synthetic_rle_copy_source() {
     const std::vector<u16> row{
         0x4001U,
-        0x0003U, 0x0000U, 0xFFFFU, 0x1234U,
+        0x0003U,
+        0x0000U,
+        0xFFFFU,
+        0x1234U,
         0x8001U,
         0xC001U,
-        0x0002U, 0x5678U, 0x9ABCU,
+        0x0002U,
+        0x5678U,
+        0x9ABCU,
         0x0000U,
     };
     const std::array<std::vector<u16>, 1> rows{row};
     return make_rle(8U, 1U, rows);
 }
 
-void test_rle_spans_and_horizontal_direction(
-    openswd3::test::Context& test
-) {
+void test_rle_spans_and_horizontal_direction(openswd3::test::Context& test) {
     const std::vector<u8> source = synthetic_rle_copy_source();
     LegacyRleRowJitterState jitter{};
-    LegacyFramebuffer forward(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 1,
-    });
+    LegacyFramebuffer forward(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 1,
+        }
+    );
     std::ranges::fill(forward.physical_pixels(), 0xA55AU);
     test.expect_equal(
         blit(
@@ -2046,19 +2197,27 @@ void test_rle_spans_and_horizontal_direction(
         "RLE forward copy"
     );
     constexpr std::array<u16, 8> kExpectedForward{
-        0xA55AU, 0x0000U, 0xFFFFU, 0x1234U,
-        0xA55AU, 0xA55AU, 0x5678U, 0x9ABCU,
+        0xA55AU,
+        0x0000U,
+        0xFFFFU,
+        0x1234U,
+        0xA55AU,
+        0xA55AU,
+        0x5678U,
+        0x9ABCU,
     };
     test.expect_true(
         std::ranges::equal(forward.physical_pixels(), kExpectedForward),
         "all three high command forms skip while literal zero and FFFF copy"
     );
 
-    LegacyFramebuffer reverse(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 1,
-    });
+    LegacyFramebuffer reverse(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 1,
+        }
+    );
     std::ranges::fill(reverse.physical_pixels(), 0xA55AU);
     test.expect_equal(
         blit(
@@ -2075,19 +2234,27 @@ void test_rle_spans_and_horizontal_direction(
         "RLE reverse copy"
     );
     constexpr std::array<u16, 8> kExpectedReverse{
-        0x9ABCU, 0x5678U, 0xA55AU, 0xA55AU,
-        0x1234U, 0xFFFFU, 0x0000U, 0xA55AU,
+        0x9ABCU,
+        0x5678U,
+        0xA55AU,
+        0xA55AU,
+        0x1234U,
+        0xFFFFU,
+        0x0000U,
+        0xA55AU,
     };
     test.expect_true(
         std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
         "RLE source stays forward while destination runs backwards"
     );
 
-    LegacyFramebuffer clipped(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 4,
-        .height = 1,
-    });
+    LegacyFramebuffer clipped(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 1,
+        }
+    );
     std::ranges::fill(clipped.physical_pixels(), 0xA55AU);
     test.expect_equal(
         blit(
@@ -2104,7 +2271,10 @@ void test_rle_spans_and_horizontal_direction(
         "clipped RLE copy"
     );
     constexpr std::array<u16, 4> kExpectedClipped{
-        0xFFFFU, 0x1234U, 0xA55AU, 0xA55AU,
+        0xFFFFU,
+        0x1234U,
+        0xA55AU,
+        0xA55AU,
     };
     test.expect_true(
         std::ranges::equal(clipped.physical_pixels(), kExpectedClipped),
@@ -2130,11 +2300,13 @@ void test_rle_run_edge_copy(openswd3::test::Context& test) {
         },
     };
     const std::vector<u8> split_source = make_rle(9U, 1U, split_rows);
-    LegacyFramebuffer forward(LegacySurfaceGeometry{
-        .pitch_bytes = 18,
-        .width = 9,
-        .height = 1,
-    });
+    LegacyFramebuffer forward(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 18,
+            .width = 9,
+            .height = 1,
+        }
+    );
     std::array<i32, 33> zero_offsets{};
     LegacyRleRowJitterState jitter{
         .group = 1,
@@ -2185,16 +2357,14 @@ void test_rle_run_edge_copy(openswd3::test::Context& test) {
             0x0000U,
         },
     };
-    const std::vector<u8> clipped_source = make_rle(
-        4U,
-        1U,
-        clipped_rows
+    const std::vector<u8> clipped_source = make_rle(4U, 1U, clipped_rows);
+    LegacyFramebuffer clipped(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 6,
+            .width = 3,
+            .height = 1,
+        }
     );
-    LegacyFramebuffer clipped(LegacySurfaceGeometry{
-        .pitch_bytes = 6,
-        .width = 3,
-        .height = 1,
-    });
     test.expect_equal(
         blit(
             clipped,
@@ -2211,7 +2381,9 @@ void test_rle_run_edge_copy(openswd3::test::Context& test) {
         "clipped RLE run-edge copy"
     );
     constexpr std::array<u16, 3> kExpectedClipped{
-        kRgb555Edge, 0x3333U, kRgb555Edge,
+        kRgb555Edge,
+        0x3333U,
+        kRgb555Edge,
     };
     test.expect_true(
         std::ranges::equal(clipped.physical_pixels(), kExpectedClipped),
@@ -2227,16 +2399,14 @@ void test_rle_run_edge_copy(openswd3::test::Context& test) {
             0x0000U,
         },
     };
-    const std::vector<u8> reverse_source = make_rle(
-        3U,
-        1U,
-        reverse_rows
+    const std::vector<u8> reverse_source = make_rle(3U, 1U, reverse_rows);
+    LegacyFramebuffer reverse(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 10,
+            .width = 5,
+            .height = 1,
+        }
     );
-    LegacyFramebuffer reverse(LegacySurfaceGeometry{
-        .pitch_bytes = 10,
-        .width = 5,
-        .height = 1,
-    });
     std::ranges::fill(reverse.physical_pixels(), 0xA55AU);
     jitter.phase_bytes = 0U;
     test.expect_equal(
@@ -2255,7 +2425,11 @@ void test_rle_run_edge_copy(openswd3::test::Context& test) {
         "RLE run-edge copy reverse"
     );
     constexpr std::array<u16, 5> kExpectedReverse{
-        kRgb555Edge, 0x3333U, 0x2222U, kRgb555Edge, 0xA55AU,
+        kRgb555Edge,
+        0x3333U,
+        0x2222U,
+        kRgb555Edge,
+        0xA55AU,
     };
     test.expect_true(
         std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
@@ -2272,11 +2446,13 @@ void test_rle_run_edge_copy(openswd3::test::Context& test) {
         rgb565_effects.pixel_conversion,
         LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU}
     );
-    LegacyFramebuffer rgb565(LegacySurfaceGeometry{
-        .pitch_bytes = 6,
-        .width = 3,
-        .height = 1,
-    });
+    LegacyFramebuffer rgb565(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 6,
+            .width = 3,
+            .height = 1,
+        }
+    );
     test.expect_equal(
         blit(
             rgb565,
@@ -2293,7 +2469,9 @@ void test_rle_run_edge_copy(openswd3::test::Context& test) {
         "RGB565 RLE run-edge copy"
     );
     constexpr std::array<u16, 3> kExpectedRgb565{
-        0x0F80U, 0x2222U, 0x0F80U,
+        0x0F80U,
+        0x2222U,
+        0x0F80U,
     };
     test.expect_true(
         std::ranges::equal(rgb565.physical_pixels(), kExpectedRgb565),
@@ -2307,11 +2485,13 @@ void test_rle_vertical_flip_row_base(openswd3::test::Context& test) {
         std::vector<u16>{0x0002U, 0x3333U, 0x4444U, 0x0000U},
     };
     const std::vector<u8> source = make_rle(2U, 2U, rows);
-    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 4,
-        .height = 4,
-    });
+    LegacyFramebuffer framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 4,
+        }
+    );
     std::ranges::fill(framebuffer.physical_pixels(), 0xA55AU);
     LegacyRleRowJitterState jitter{};
     test.expect_equal(
@@ -2361,11 +2541,13 @@ void test_rle_jitter_and_header_gate(openswd3::test::Context& test) {
         .phase_bytes = 0U,
         .offsets = offsets,
     };
-    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 4,
-        .height = 3,
-    });
+    LegacyFramebuffer framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 3,
+        }
+    );
     test.expect_equal(
         blit(
             framebuffer,
@@ -2416,12 +2598,7 @@ void test_rle_jitter_and_header_gate(openswd3::test::Context& test) {
     );
 
     const std::array<std::vector<u16>, 0> no_rows{};
-    const std::vector<u8> gated_source = make_rle(
-        1U,
-        1U,
-        no_rows,
-        0U
-    );
+    const std::vector<u8> gated_source = make_rle(1U, 1U, no_rows, 0U);
     std::ranges::fill(framebuffer.physical_pixels(), 0xBEEFU);
     jitter.phase_bytes = 0U;
     test.expect_equal(
@@ -2445,9 +2622,7 @@ void test_rle_jitter_and_header_gate(openswd3::test::Context& test) {
         "header without bit 0x10 writes no pixels"
     );
     test.expect_equal(
-        jitter.phase_bytes,
-        4U,
-        "forward gate exit still advances jitter phase"
+        jitter.phase_bytes, 4U, "forward gate exit still advances jitter phase"
     );
 }
 
@@ -2459,14 +2634,22 @@ void test_rle_destination_offset(openswd3::test::Context& test) {
         .blue_offset = 4,
     };
     LegacyRleRowJitterState jitter{};
-    LegacyFramebuffer forward(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 1,
-    });
+    LegacyFramebuffer forward(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 1,
+        }
+    );
     constexpr std::array<u16, 8> kInitial{
-        0xA55AU, 0x0000U, 0x7FFFU, 0x1441U,
-        0xA55AU, 0xA55AU, 0x4210U, 0x001EU,
+        0xA55AU,
+        0x0000U,
+        0x7FFFU,
+        0x1441U,
+        0xA55AU,
+        0xA55AU,
+        0x4210U,
+        0x001EU,
     };
     std::ranges::copy(kInitial, forward.physical_pixels().begin());
     test.expect_equal(
@@ -2485,19 +2668,27 @@ void test_rle_destination_offset(openswd3::test::Context& test) {
         "RLE destination offset forward"
     );
     constexpr std::array<u16, 8> kExpectedForward{
-        0xA55AU, 0x0804U, 0x7F9FU, 0x1C05U,
-        0xA55AU, 0xA55AU, 0x49B4U, 0x081FU,
+        0xA55AU,
+        0x0804U,
+        0x7F9FU,
+        0x1C05U,
+        0xA55AU,
+        0xA55AU,
+        0x49B4U,
+        0x081FU,
     };
     test.expect_true(
         std::ranges::equal(forward.physical_pixels(), kExpectedForward),
         "destination offset clamps each five-bit channel and ignores source colors"
     );
 
-    LegacyFramebuffer reverse(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 1,
-    });
+    LegacyFramebuffer reverse(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 1,
+        }
+    );
     effects.red_offset = 1;
     effects.green_offset = 1;
     effects.blue_offset = 1;
@@ -2517,19 +2708,27 @@ void test_rle_destination_offset(openswd3::test::Context& test) {
         "RLE destination offset reverse"
     );
     constexpr std::array<u16, 8> kExpectedReverse{
-        0x0421U, 0x0421U, 0x0000U, 0x0000U,
-        0x0421U, 0x0421U, 0x0421U, 0x0000U,
+        0x0421U,
+        0x0421U,
+        0x0000U,
+        0x0000U,
+        0x0421U,
+        0x0421U,
+        0x0421U,
+        0x0000U,
     };
     test.expect_true(
         std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
         "reverse offset follows source coverage while walking the target backwards"
     );
 
-    LegacyFramebuffer clipped_forward(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 4,
-        .height = 1,
-    });
+    LegacyFramebuffer clipped_forward(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 1,
+        }
+    );
     test.expect_equal(
         blit(
             clipped_forward,
@@ -2547,21 +2746,25 @@ void test_rle_destination_offset(openswd3::test::Context& test) {
         "clipped forward destination offset"
     );
     constexpr std::array<u16, 4> kExpectedClippedForward{
-        0x0421U, 0x0421U, 0x0000U, 0x0000U,
+        0x0421U,
+        0x0421U,
+        0x0000U,
+        0x0000U,
     };
     test.expect_true(
         std::ranges::equal(
-            clipped_forward.physical_pixels(),
-            kExpectedClippedForward
+            clipped_forward.physical_pixels(), kExpectedClippedForward
         ),
         "forward effect clipping consumes the literal source prefix"
     );
 
-    LegacyFramebuffer clipped_reverse(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 4,
-        .height = 1,
-    });
+    LegacyFramebuffer clipped_reverse(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 1,
+        }
+    );
     test.expect_equal(
         blit(
             clipped_reverse,
@@ -2579,22 +2782,26 @@ void test_rle_destination_offset(openswd3::test::Context& test) {
         "clipped reverse destination offset"
     );
     constexpr std::array<u16, 4> kExpectedClippedReverse{
-        0x0000U, 0x0000U, 0x0421U, 0x0421U,
+        0x0000U,
+        0x0000U,
+        0x0421U,
+        0x0421U,
     };
     test.expect_true(
         std::ranges::equal(
-            clipped_reverse.physical_pixels(),
-            kExpectedClippedReverse
+            clipped_reverse.physical_pixels(), kExpectedClippedReverse
         ),
         "reverse effect clipping applies the source window backwards"
     );
 
     constexpr std::array<u8, 2> kMarkerOnly{0xFFU, 0xFFU};
-    LegacyFramebuffer zero_offset(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 1,
-    });
+    LegacyFramebuffer zero_offset(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        }
+    );
     zero_offset.physical_pixels().front() = 0xBEEFU;
     LegacyRleRowJitterState inaccessible_jitter{
         .group = 1,
@@ -2632,11 +2839,13 @@ void test_rle_constant_fill(openswd3::test::Context& test) {
     constexpr std::array<u8, 4> kFillBytes{0x34U, 0x12U, 0x78U, 0x56U};
     LegacyBlitEffectState effects{};
     LegacyRleRowJitterState jitter{};
-    LegacyFramebuffer forward(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 1,
-    });
+    LegacyFramebuffer forward(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 1,
+        }
+    );
     std::ranges::fill(forward.physical_pixels(), 0xA55AU);
     test.expect_equal(
         blit(
@@ -2655,19 +2864,27 @@ void test_rle_constant_fill(openswd3::test::Context& test) {
         "RLE constant fill forward"
     );
     constexpr std::array<u16, 8> kExpectedForward{
-        0xA55AU, 0x1234U, 0x1234U, 0x1234U,
-        0xA55AU, 0xA55AU, 0x1234U, 0x1234U,
+        0xA55AU,
+        0x1234U,
+        0x1234U,
+        0x1234U,
+        0xA55AU,
+        0xA55AU,
+        0x1234U,
+        0x1234U,
     };
     test.expect_true(
         std::ranges::equal(forward.physical_pixels(), kExpectedForward),
         "constant fill uses the low word of the four-byte auxiliary value"
     );
 
-    LegacyFramebuffer reverse(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 1,
-    });
+    LegacyFramebuffer reverse(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 1,
+        }
+    );
     std::ranges::fill(reverse.physical_pixels(), 0xA55AU);
     test.expect_equal(
         blit(
@@ -2686,8 +2903,14 @@ void test_rle_constant_fill(openswd3::test::Context& test) {
         "RLE constant fill reverse"
     );
     constexpr std::array<u16, 8> kExpectedReverse{
-        0x1234U, 0x1234U, 0xA55AU, 0xA55AU,
-        0x1234U, 0x1234U, 0x1234U, 0xA55AU,
+        0x1234U,
+        0x1234U,
+        0xA55AU,
+        0xA55AU,
+        0x1234U,
+        0x1234U,
+        0x1234U,
+        0xA55AU,
     };
     test.expect_true(
         std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
@@ -2726,13 +2949,19 @@ void test_rle_grayscale(openswd3::test::Context& test) {
         },
     };
     const std::vector<u8> source = make_rle(5U, 1U, rows);
-    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 10,
-        .width = 5,
-        .height = 1,
-    });
+    LegacyFramebuffer framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 10,
+            .width = 5,
+            .height = 1,
+        }
+    );
     constexpr std::array<u16, 5> kInitial{
-        0x0000U, 0x7FFFU, 0x7C00U, 0x03E0U, 0x001FU,
+        0x0000U,
+        0x7FFFU,
+        0x7C00U,
+        0x03E0U,
+        0x001FU,
     };
     std::ranges::copy(kInitial, framebuffer.physical_pixels().begin());
     LegacyBlitEffectState effects{};
@@ -2753,7 +2982,11 @@ void test_rle_grayscale(openswd3::test::Context& test) {
         "RLE grayscale forward"
     );
     constexpr std::array<u16, 5> kExpected{
-        0x0000U, 0x5EF7U, 0x1CE7U, 0x1CE7U, 0x1CE7U,
+        0x0000U,
+        0x5EF7U,
+        0x1CE7U,
+        0x1CE7U,
+        0x1CE7U,
     };
     test.expect_true(
         std::ranges::equal(framebuffer.physical_pixels(), kExpected),
@@ -2761,11 +2994,13 @@ void test_rle_grayscale(openswd3::test::Context& test) {
     );
 
     const std::vector<u8> sparse_source = synthetic_rle_copy_source();
-    LegacyFramebuffer reverse(LegacySurfaceGeometry{
-        .pitch_bytes = 16,
-        .width = 8,
-        .height = 1,
-    });
+    LegacyFramebuffer reverse(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 16,
+            .width = 8,
+            .height = 1,
+        }
+    );
     std::ranges::fill(reverse.physical_pixels(), 0x7FFFU);
     test.expect_equal(
         blit(
@@ -2783,8 +3018,14 @@ void test_rle_grayscale(openswd3::test::Context& test) {
         "RLE grayscale reverse"
     );
     constexpr std::array<u16, 8> kExpectedReverse{
-        0x5EF7U, 0x5EF7U, 0x7FFFU, 0x7FFFU,
-        0x5EF7U, 0x5EF7U, 0x5EF7U, 0x7FFFU,
+        0x5EF7U,
+        0x5EF7U,
+        0x7FFFU,
+        0x7FFFU,
+        0x5EF7U,
+        0x5EF7U,
+        0x5EF7U,
+        0x7FFFU,
     };
     test.expect_true(
         std::ranges::equal(reverse.physical_pixels(), kExpectedReverse),
@@ -2814,15 +3055,16 @@ void test_rle_grayscale(openswd3::test::Context& test) {
         },
     };
     for (const FormatCase& format : kFormats) {
-        LegacyFramebuffer formatted(LegacySurfaceGeometry{
-            .pitch_bytes = 2,
-            .width = 1,
-            .height = 1,
-        });
+        LegacyFramebuffer formatted(
+            LegacySurfaceGeometry{
+                .pitch_bytes = 2,
+                .width = 1,
+                .height = 1,
+            }
+        );
         formatted.physical_pixels().front() = 0xFFFFU;
         openswd3::rendering::select_legacy_pixel_conversion(
-            effects.pixel_conversion,
-            format.masks
+            effects.pixel_conversion, format.masks
         );
         test.expect_equal(
             blit(
@@ -2847,9 +3089,7 @@ void test_rle_grayscale(openswd3::test::Context& test) {
     }
 }
 
-void test_rle_saturated_add_and_subtract(
-    openswd3::test::Context& test
-) {
+void test_rle_saturated_add_and_subtract(openswd3::test::Context& test) {
     const std::array<std::vector<u16>, 1> add_rows{
         std::vector<u16>{
             0x0004U,
@@ -2861,13 +3101,18 @@ void test_rle_saturated_add_and_subtract(
         },
     };
     const std::vector<u8> add_source = make_rle(4U, 1U, add_rows);
-    LegacyFramebuffer added(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 4,
-        .height = 1,
-    });
+    LegacyFramebuffer added(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 4,
+            .height = 1,
+        }
+    );
     constexpr std::array<u16, 4> kAddInitial{
-        0x0400U, 0x0020U, 0x0001U, 0x0842U,
+        0x0400U,
+        0x0020U,
+        0x0001U,
+        0x0842U,
     };
     std::ranges::copy(kAddInitial, added.physical_pixels().begin());
     LegacyRleRowJitterState jitter{};
@@ -2886,7 +3131,10 @@ void test_rle_saturated_add_and_subtract(
         "RLE saturated add forward"
     );
     constexpr std::array<u16, 4> kExpectedAdded{
-        0x7C00U, 0x03E0U, 0x001FU, 0x0C63U,
+        0x7C00U,
+        0x03E0U,
+        0x001FU,
+        0x0C63U,
     };
     test.expect_true(
         std::ranges::equal(added.physical_pixels(), kExpectedAdded),
@@ -2896,21 +3144,19 @@ void test_rle_saturated_add_and_subtract(
     const std::array<std::vector<u16>, 1> one_pixel_rows{
         std::vector<u16>{0x0001U, 0x0421U, 0x0000U},
     };
-    const std::vector<u8> one_pixel_source = make_rle(
-        1U,
-        1U,
-        one_pixel_rows
-    );
+    const std::vector<u8> one_pixel_source = make_rle(1U, 1U, one_pixel_rows);
     LegacyBlitEffectState effects{
         .red_offset = 1,
         .green_offset = -1,
         .blue_offset = 30,
     };
-    LegacyFramebuffer offset_add(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 1,
-    });
+    LegacyFramebuffer offset_add(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        }
+    );
     test.expect_equal(
         blit(
             offset_add,
@@ -2942,11 +3188,13 @@ void test_rle_saturated_add_and_subtract(
         },
     };
     const std::vector<u8> reverse_source = make_rle(3U, 1U, reverse_rows);
-    LegacyFramebuffer reverse_add(LegacySurfaceGeometry{
-        .pitch_bytes = 6,
-        .width = 3,
-        .height = 1,
-    });
+    LegacyFramebuffer reverse_add(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 6,
+            .width = 3,
+            .height = 1,
+        }
+    );
     test.expect_equal(
         blit(
             reverse_add,
@@ -2962,21 +3210,22 @@ void test_rle_saturated_add_and_subtract(
         "RLE saturated add reverse"
     );
     constexpr std::array<u16, 3> kExpectedReverseAdd{
-        0x0C63U, 0x0842U, 0x0421U,
+        0x0C63U,
+        0x0842U,
+        0x0421U,
     };
     test.expect_true(
-        std::ranges::equal(
-            reverse_add.physical_pixels(),
-            kExpectedReverseAdd
-        ),
+        std::ranges::equal(reverse_add.physical_pixels(), kExpectedReverseAdd),
         "reverse add reads the RLE payload forward and writes the target backward"
     );
 
-    LegacyFramebuffer forward_subtract(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 1,
-    });
+    LegacyFramebuffer forward_subtract(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        }
+    );
     forward_subtract.physical_pixels().front() = 0x0C63U;
     test.expect_equal(
         blit(
@@ -2999,11 +3248,13 @@ void test_rle_saturated_add_and_subtract(
         "forward subtract adjusts the source then clamps target minus source"
     );
 
-    LegacyFramebuffer reverse_subtract(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 1,
-    });
+    LegacyFramebuffer reverse_subtract(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        }
+    );
     reverse_subtract.physical_pixels().front() = 0x0C63U;
     test.expect_equal(
         blit(
@@ -3026,11 +3277,13 @@ void test_rle_saturated_add_and_subtract(
         "reverse subtract preserves the original bug that offsets the destination rather than the source"
     );
 
-    LegacyFramebuffer underflow(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 1,
-    });
+    LegacyFramebuffer underflow(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 1,
+        }
+    );
     test.expect_equal(
         blit(
             underflow,
@@ -3059,16 +3312,14 @@ void test_rle_every_third_row_skip(openswd3::test::Context& test) {
         std::vector<u16>{0x0001U, 0x0421U, 0x0000U},
         std::vector<u16>{0x0001U, 0x0421U, 0x0000U},
     };
-    const std::vector<u8> three_row_source = make_rle(
-        1U,
-        3U,
-        three_rows
+    const std::vector<u8> three_row_source = make_rle(1U, 3U, three_rows);
+    LegacyFramebuffer added(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 4,
+        }
     );
-    LegacyFramebuffer added(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 4,
-    });
     LegacyBlitEffectState effects{.skip_every_third_row = true};
     LegacyRleRowJitterState jitter{};
     test.expect_equal(
@@ -3088,7 +3339,10 @@ void test_rle_every_third_row_skip(openswd3::test::Context& test) {
         "RLE add every-third-row gate"
     );
     constexpr std::array<u16, 4> kExpectedAdded{
-        0x0000U, 0x0421U, 0x0000U, 0x0421U,
+        0x0000U,
+        0x0421U,
+        0x0000U,
+        0x0421U,
     };
     test.expect_true(
         std::ranges::equal(added.physical_pixels(), kExpectedAdded),
@@ -3101,16 +3355,14 @@ void test_rle_every_third_row_skip(openswd3::test::Context& test) {
         std::vector<u16>{0x0001U, 0x0421U, 0x0000U},
         std::vector<u16>{0x0001U, 0x0421U, 0x0000U},
     };
-    const std::vector<u8> four_row_source = make_rle(
-        1U,
-        4U,
-        four_rows
+    const std::vector<u8> four_row_source = make_rle(1U, 4U, four_rows);
+    LegacyFramebuffer subtracted(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 2,
+            .width = 1,
+            .height = 4,
+        }
     );
-    LegacyFramebuffer subtracted(LegacySurfaceGeometry{
-        .pitch_bytes = 2,
-        .width = 1,
-        .height = 4,
-    });
     std::ranges::fill(subtracted.physical_pixels(), 0x7FFFU);
     test.expect_equal(
         blit(
@@ -3128,13 +3380,13 @@ void test_rle_every_third_row_skip(openswd3::test::Context& test) {
         "RLE reverse subtract every-third-row gate"
     );
     constexpr std::array<u16, 4> kExpectedSubtracted{
-        0x7BDEU, 0x7BDEU, 0x7FFFU, 0x7BDEU,
+        0x7BDEU,
+        0x7BDEU,
+        0x7FFFU,
+        0x7BDEU,
     };
     test.expect_true(
-        std::ranges::equal(
-            subtracted.physical_pixels(),
-            kExpectedSubtracted
-        ),
+        std::ranges::equal(subtracted.physical_pixels(), kExpectedSubtracted),
         "third physical RLE row is consumed without touching the target"
     );
 }
@@ -3156,11 +3408,13 @@ void test_effect_jitter_policies(openswd3::test::Context& test) {
         u32 phase_bytes;
     };
     const auto run = [&](const u32 flags, const u16 initial) {
-        LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-            .pitch_bytes = 8,
-            .width = 4,
-            .height = 1,
-        });
+        LegacyFramebuffer framebuffer(
+            LegacySurfaceGeometry{
+                .pitch_bytes = 8,
+                .width = 4,
+                .height = 1,
+            }
+        );
         std::ranges::fill(framebuffer.physical_pixels(), initial);
         LegacyRleRowJitterState jitter{
             .group = 2,
@@ -3249,9 +3503,7 @@ void test_effect_jitter_policies(openswd3::test::Context& test) {
         "forward grayscale uses the 0x528-byte jitter group stride"
     );
     test.expect_equal(
-        gray_forward.phase_bytes,
-        4U,
-        "forward grayscale advances jitter phase"
+        gray_forward.phase_bytes, 4U, "forward grayscale advances jitter phase"
     );
 
     const JitterRun gray_reverse = run(0x29U, 0x7FFFU);
@@ -3261,9 +3513,7 @@ void test_effect_jitter_policies(openswd3::test::Context& test) {
         "reverse grayscale uses the 0x84-byte jitter group stride"
     );
     test.expect_equal(
-        gray_reverse.phase_bytes,
-        4U,
-        "reverse grayscale advances jitter phase"
+        gray_reverse.phase_bytes, 4U, "reverse grayscale advances jitter phase"
     );
 
     const JitterRun add_forward = run(0x04U, 0U);
@@ -3312,11 +3562,13 @@ void test_effect_jitter_policies(openswd3::test::Context& test) {
 }
 
 void test_safe_abnormal_boundaries(openswd3::test::Context& test) {
-    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 4,
-        .width = 2,
-        .height = 2,
-    });
+    LegacyFramebuffer framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 4,
+            .width = 2,
+            .height = 2,
+        }
+    );
     LegacyRleRowJitterState jitter{};
     constexpr std::array<u8, 1> kShortMarker{0xFFU};
     test.expect_equal(
@@ -3334,8 +3586,18 @@ void test_safe_abnormal_boundaries(openswd3::test::Context& test) {
     );
 
     constexpr std::array<u8, 12> kTruncatedLiteral{
-        0xFFU, 0xFFU, 0x01U, 0x00U, 0x01U, 0x00U,
-        0x10U, 0x00U, 0x08U, 0x00U, 0x01U, 0x00U,
+        0xFFU,
+        0xFFU,
+        0x01U,
+        0x00U,
+        0x01U,
+        0x00U,
+        0x10U,
+        0x00U,
+        0x08U,
+        0x00U,
+        0x01U,
+        0x00U,
     };
     test.expect_equal(
         blit(
@@ -3430,9 +3692,8 @@ void test_safe_abnormal_boundaries(openswd3::test::Context& test) {
     );
 }
 
-[[nodiscard]] std::uint64_t framebuffer_fnv1a(
-    const std::span<const u16> pixels
-) {
+[[nodiscard]] std::uint64_t
+framebuffer_fnv1a(const std::span<const u16> pixels) {
     std::uint64_t hash = 0xCBF29CE484222325ULL;
     for (const u16 pixel : pixels) {
         hash ^= static_cast<u8>(pixel & 0xFFU);
@@ -3446,35 +3707,33 @@ void test_safe_abnormal_boundaries(openswd3::test::Context& test) {
 
 void test_real_tsw_frame(openswd3::test::Context& test) {
     constexpr std::array<u8, 76> kCompressed{
-        0x0AU, 0xFFU, 0xFFU, 0x10U, 0x00U, 0x10U, 0x00U, 0x10U,
-        0x00U, 0x06U, 0x00U, 0x10U, 0xC0U, 0x00U, 0x37U, 0x14U,
-        0x00U, 0x03U, 0x18U, 0x00U, 0x05U, 0xC0U, 0x07U, 0x00U,
-        0x2CU, 0x00U, 0x00U, 0x06U, 0x04U, 0xC0U, 0x00U, 0x00U,
-        0x1CU, 0x00U, 0x04U, 0xC0U, 0x09U, 0x2CU, 0x58U, 0x00U,
-        0x94U, 0x01U, 0x06U, 0x03U, 0xC0U, 0x00U, 0x00U, 0x20U,
-        0x00U, 0x03U, 0xC0U, 0x0BU, 0x94U, 0x01U, 0x30U, 0x11U,
-        0x00U, 0x02U, 0x20U, 0x02U, 0x7CU, 0x00U, 0x3AU, 0x6CU,
-        0x01U, 0x36U, 0x3CU, 0x02U, 0x3CU, 0x16U, 0x03U, 0x00U,
-        0x00U, 0x11U, 0x00U, 0x00U,
+        0x0AU, 0xFFU, 0xFFU, 0x10U, 0x00U, 0x10U, 0x00U, 0x10U, 0x00U, 0x06U,
+        0x00U, 0x10U, 0xC0U, 0x00U, 0x37U, 0x14U, 0x00U, 0x03U, 0x18U, 0x00U,
+        0x05U, 0xC0U, 0x07U, 0x00U, 0x2CU, 0x00U, 0x00U, 0x06U, 0x04U, 0xC0U,
+        0x00U, 0x00U, 0x1CU, 0x00U, 0x04U, 0xC0U, 0x09U, 0x2CU, 0x58U, 0x00U,
+        0x94U, 0x01U, 0x06U, 0x03U, 0xC0U, 0x00U, 0x00U, 0x20U, 0x00U, 0x03U,
+        0xC0U, 0x0BU, 0x94U, 0x01U, 0x30U, 0x11U, 0x00U, 0x02U, 0x20U, 0x02U,
+        0x7CU, 0x00U, 0x3AU, 0x6CU, 0x01U, 0x36U, 0x3CU, 0x02U, 0x3CU, 0x16U,
+        0x03U, 0x00U, 0x00U, 0x11U, 0x00U, 0x00U,
     };
     std::vector<u8> decompressed(238U);
     u32 actual_size{};
     test.expect_equal(
         openswd3::resource_io::decompress_legacy_resource_block(
-            kCompressed,
-            decompressed,
-            actual_size
+            kCompressed, decompressed, actual_size
         ),
         openswd3::resource_io::LegacyLzo1xStatus::success,
         "real TSW frame decompresses"
     );
     test.expect_equal(actual_size, 238U, "real TSW decompressed byte count");
 
-    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 16,
-    });
+    LegacyFramebuffer framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 16,
+        }
+    );
     std::ranges::fill(framebuffer.physical_pixels(), 0xA55AU);
     LegacyRleRowJitterState jitter{};
     test.expect_equal(
@@ -3501,11 +3760,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         "literal zeroes in the real frame are copied rather than keyed"
     );
 
-    LegacyFramebuffer opacity(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 16,
-    });
+    LegacyFramebuffer opacity(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 16,
+        }
+    );
     std::ranges::fill(opacity.physical_pixels(), 0xA55AU);
     test.expect_equal(
         blit(
@@ -3528,11 +3789,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         "real TSW opacity step 8 matches the independent LST formula parser"
     );
 
-    LegacyFramebuffer vertical_opacity(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 16,
-    });
+    LegacyFramebuffer vertical_opacity(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 16,
+        }
+    );
     std::ranges::fill(vertical_opacity.physical_pixels(), 0xA55AU);
     test.expect_equal(
         blit(
@@ -3554,11 +3817,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         "real TSW vertical fade matches the independent row-phase parser"
     );
 
-    LegacyFramebuffer edged(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 16,
-    });
+    LegacyFramebuffer edged(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 16,
+        }
+    );
     std::ranges::fill(edged.physical_pixels(), 0xA55AU);
     test.expect_equal(
         blit(
@@ -3586,11 +3851,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
     );
 
     constexpr std::array<u8, 4> kFillBytes{0x34U, 0x12U, 0x00U, 0x00U};
-    LegacyFramebuffer filled(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 16,
-    });
+    LegacyFramebuffer filled(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 16,
+        }
+    );
     std::ranges::fill(filled.physical_pixels(), 0xA55AU);
     test.expect_equal(
         blit(
@@ -3619,11 +3886,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         "real TSW fill changes exactly the independently parsed literal pixels"
     );
 
-    LegacyFramebuffer grayscale(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 16,
-    });
+    LegacyFramebuffer grayscale(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 16,
+        }
+    );
     std::ranges::fill(grayscale.physical_pixels(), 0x7FFFU);
     test.expect_equal(
         blit(
@@ -3656,11 +3925,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         .green_offset = -2,
         .blue_offset = 3,
     };
-    LegacyFramebuffer shifted(LegacySurfaceGeometry{
-        .pitch_bytes = 48,
-        .width = 24,
-        .height = 10,
-    });
+    LegacyFramebuffer shifted(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 48,
+            .width = 24,
+            .height = 10,
+        }
+    );
     std::ranges::fill(shifted.physical_pixels(), 0x4210U);
     test.expect_equal(
         blit(
@@ -3680,9 +3951,8 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         LegacyBlitExecutionStatus::completed,
         "real TSW shifted vertical resample"
     );
-    const std::uint64_t shifted_hash = framebuffer_fnv1a(
-        shifted.physical_pixels()
-    );
+    const std::uint64_t shifted_hash =
+        framebuffer_fnv1a(shifted.physical_pixels());
     test.expect_equal(
         shifted_hash,
         0x197E513708F44317ULL,
@@ -3699,11 +3969,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         "shifted resample stops when the mapped RLE source terminates"
     );
 
-    LegacyFramebuffer resampled(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 21,
-    });
+    LegacyFramebuffer resampled(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 21,
+        }
+    );
     std::ranges::fill(resampled.physical_pixels(), 0x4210U);
     test.expect_equal(
         blit(
@@ -3722,17 +3994,11 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         "real TSW RLE saturated-add vertical resample"
     );
     test.expect_true(
-        std::ranges::equal(
-            resampled.row_pixels(0U),
-            resampled.row_pixels(1U)
-        ),
+        std::ranges::equal(resampled.row_pixels(0U), resampled.row_pixels(1U)),
         "real TSW enlargement repeats source row zero"
     );
     test.expect_true(
-        std::ranges::equal(
-            resampled.row_pixels(3U),
-            resampled.row_pixels(4U)
-        ),
+        std::ranges::equal(resampled.row_pixels(3U), resampled.row_pixels(4U)),
         "real TSW enlargement repeats source row three"
     );
     test.expect_equal(
@@ -3741,11 +4007,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         "target height leaves the following real framebuffer row untouched"
     );
 
-    LegacyFramebuffer reverse_resampled(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 21,
-    });
+    LegacyFramebuffer reverse_resampled(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 21,
+        }
+    );
     std::ranges::fill(reverse_resampled.physical_pixels(), 0x4210U);
     test.expect_equal(
         blit(
@@ -3774,11 +4042,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         );
     }
 
-    LegacyFramebuffer added(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 16,
-    });
+    LegacyFramebuffer added(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 16,
+        }
+    );
     std::ranges::fill(added.physical_pixels(), 0x4210U);
     test.expect_equal(
         blit(
@@ -3796,11 +4066,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         "real TSW RLE saturated add"
     );
 
-    LegacyFramebuffer subtracted(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 16,
-    });
+    LegacyFramebuffer subtracted(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 16,
+        }
+    );
     std::ranges::fill(subtracted.physical_pixels(), 0x4210U);
     test.expect_equal(
         blit(
@@ -3818,11 +4090,13 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         "real TSW RLE saturated subtract"
     );
 
-    LegacyFramebuffer reverse_subtracted(LegacySurfaceGeometry{
-        .pitch_bytes = 32,
-        .width = 16,
-        .height = 16,
-    });
+    LegacyFramebuffer reverse_subtracted(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 32,
+            .width = 16,
+            .height = 16,
+        }
+    );
     std::ranges::fill(reverse_subtracted.physical_pixels(), 0x4210U);
     test.expect_equal(
         blit(

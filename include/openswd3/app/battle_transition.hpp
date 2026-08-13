@@ -46,9 +46,7 @@ public:
     BattleTransitionPorts& ports
 );
 
-[[nodiscard]] compat::i32 run_battle_frame(
-    BattleTransitionState& state,
-    BattleTransitionPorts& ports
-);
+[[nodiscard]] compat::i32
+run_battle_frame(BattleTransitionState& state, BattleTransitionPorts& ports);
 
 }  // namespace openswd3::app

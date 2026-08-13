@@ -32,13 +32,11 @@ public:
 };
 
 void deactivate_display(
-    DisplayLifecycleState& state,
-    DisplayLifecyclePorts& ports
+    DisplayLifecycleState& state, DisplayLifecyclePorts& ports
 );
 
 void reactivate_display(
-    DisplayLifecycleState& state,
-    DisplayLifecyclePorts& ports
+    DisplayLifecycleState& state, DisplayLifecyclePorts& ports
 );
 
 enum class ShutdownOperation {
@@ -102,12 +100,10 @@ public:
     virtual ~ShutdownPorts() = default;
 
     virtual void perform_shutdown_operation(ShutdownOperation operation) = 0;
-    [[nodiscard]] virtual bool perform_shutdown_close(
-        ShutdownCloseOperation operation
-    ) = 0;
-    virtual void report_shutdown_close_failure(
-        ShutdownCloseOperation operation
-    ) = 0;
+    [[nodiscard]] virtual bool
+    perform_shutdown_close(ShutdownCloseOperation operation) = 0;
+    virtual void
+    report_shutdown_close_failure(ShutdownCloseOperation operation) = 0;
 };
 
 [[nodiscard]] compat::i32 run_total_shutdown(ShutdownPorts& ports);

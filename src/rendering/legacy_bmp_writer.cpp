@@ -53,16 +53,16 @@ LegacyBmpWriteResult write_legacy_16bit_framebuffer_bmp(
         return {};
     }
 
-    const auto pixel_count_64 = static_cast<std::uint64_t>(width) *
-        static_cast<std::uint64_t>(height);
+    const auto pixel_count_64 =
+        static_cast<std::uint64_t>(width) * static_cast<std::uint64_t>(height);
     const auto unpadded_row_bytes_64 = static_cast<std::uint64_t>(width) * 3U;
     const auto row_stride_64 = (unpadded_row_bytes_64 + 3U) & ~UINT64_C(3);
-    const auto file_size_64 = static_cast<std::uint64_t>(kLegacyBmpHeaderBytes) +
+    const auto file_size_64 =
+        static_cast<std::uint64_t>(kLegacyBmpHeaderBytes) +
         row_stride_64 * static_cast<std::uint64_t>(height);
-    if (pixel_count_64 >
-            static_cast<std::uint64_t>(
-                std::numeric_limits<compat::i32>::max()
-            ) ||
+    if (pixel_count_64 > static_cast<std::uint64_t>(
+                             std::numeric_limits<compat::i32>::max()
+                         ) ||
         pixel_count_64 > pixels.size() ||
         row_stride_64 > std::numeric_limits<compat::u32>::max() ||
         file_size_64 > std::numeric_limits<compat::u32>::max()) {
@@ -86,9 +86,7 @@ LegacyBmpWriteResult write_legacy_16bit_framebuffer_bmp(
     }
     if (!ports.seek_absolute(0U)) {
         return fail_after_open(
-            LegacyBmpWriteStatus::seek_failed,
-            row_stride,
-            ports
+            LegacyBmpWriteStatus::seek_failed, row_stride, ports
         );
     }
 
@@ -96,50 +94,33 @@ LegacyBmpWriteResult write_legacy_16bit_framebuffer_bmp(
     store_u16_le(file_header, 0U, 0x4D42U);
     if (!ports.write_bytes(file_header)) {
         return fail_after_open(
-            LegacyBmpWriteStatus::write_failed,
-            row_stride,
-            ports
+            LegacyBmpWriteStatus::write_failed, row_stride, ports
         );
     }
 
     std::array<compat::u8, 40U> information_header{};
     store_u32_le(information_header, 0U, 40U);
-    store_u32_le(
-        information_header,
-        4U,
-        static_cast<compat::u32>(width)
-    );
-    store_u32_le(
-        information_header,
-        8U,
-        static_cast<compat::u32>(height)
-    );
+    store_u32_le(information_header, 4U, static_cast<compat::u32>(width));
+    store_u32_le(information_header, 8U, static_cast<compat::u32>(height));
     store_u16_le(information_header, 12U, 1U);
     store_u16_le(information_header, 14U, 24U);
     if (!ports.write_bytes(information_header)) {
         return fail_after_open(
-            LegacyBmpWriteStatus::write_failed,
-            row_stride,
-            ports
+            LegacyBmpWriteStatus::write_failed, row_stride, ports
         );
     }
 
     std::vector<compat::u8> output_row(row_stride);
-    for (compat::i32 output_row_index = 0;
-         output_row_index < height;
+    for (compat::i32 output_row_index = 0; output_row_index < height;
          ++output_row_index) {
-        const auto source_row = static_cast<std::size_t>(
-            height - 1 - output_row_index
-        );
-        const auto source_offset =
-            source_row * static_cast<std::size_t>(width);
+        const auto source_row =
+            static_cast<std::size_t>(height - 1 - output_row_index);
+        const auto source_offset = source_row * static_cast<std::size_t>(width);
         for (compat::i32 column = 0; column < width; ++column) {
-            const compat::u16 pixel = rgb555_pixels[
-                source_offset + static_cast<std::size_t>(column)
-            ];
+            const compat::u16 pixel =
+                rgb555_pixels[source_offset + static_cast<std::size_t>(column)];
             const auto output_offset = static_cast<std::size_t>(column) * 3U;
-            output_row[output_offset] =
-                static_cast<compat::u8>(pixel << 3U);
+            output_row[output_offset] = static_cast<compat::u8>(pixel << 3U);
             output_row[output_offset + 1U] =
                 static_cast<compat::u8>((pixel >> 2U) & 0xF8U);
             output_row[output_offset + 2U] =
@@ -148,9 +129,7 @@ LegacyBmpWriteResult write_legacy_16bit_framebuffer_bmp(
 
         if (!ports.write_bytes(output_row)) {
             return fail_after_open(
-                LegacyBmpWriteStatus::write_failed,
-                row_stride,
-                ports
+                LegacyBmpWriteStatus::write_failed, row_stride, ports
             );
         }
         if (output_row_index % 15 == 0) {
@@ -162,9 +141,7 @@ LegacyBmpWriteResult write_legacy_16bit_framebuffer_bmp(
         ports.current_position();
     if (!logical_file_size.has_value()) {
         return fail_after_open(
-            LegacyBmpWriteStatus::position_failed,
-            row_stride,
-            ports
+            LegacyBmpWriteStatus::position_failed, row_stride, ports
         );
     }
 
@@ -172,31 +149,23 @@ LegacyBmpWriteResult write_legacy_16bit_framebuffer_bmp(
     store_u32_le(patch, 0U, *logical_file_size);
     if (!ports.seek_absolute(2U)) {
         return fail_after_open(
-            LegacyBmpWriteStatus::seek_failed,
-            row_stride,
-            ports
+            LegacyBmpWriteStatus::seek_failed, row_stride, ports
         );
     }
     if (!ports.write_bytes(patch)) {
         return fail_after_open(
-            LegacyBmpWriteStatus::write_failed,
-            row_stride,
-            ports
+            LegacyBmpWriteStatus::write_failed, row_stride, ports
         );
     }
     store_u32_le(patch, 0U, kLegacyBmpHeaderBytes);
     if (!ports.seek_absolute(10U)) {
         return fail_after_open(
-            LegacyBmpWriteStatus::seek_failed,
-            row_stride,
-            ports
+            LegacyBmpWriteStatus::seek_failed, row_stride, ports
         );
     }
     if (!ports.write_bytes(patch)) {
         return fail_after_open(
-            LegacyBmpWriteStatus::write_failed,
-            row_stride,
-            ports
+            LegacyBmpWriteStatus::write_failed, row_stride, ports
         );
     }
 

@@ -30,9 +30,8 @@ class LegacyFormattedTextSegmentSink {
 public:
     virtual ~LegacyFormattedTextSegmentSink() = default;
 
-    [[nodiscard]] virtual LegacyTextDrawResult draw_segment(
-        const LegacyFormattedTextSegmentRequest& request
-    ) noexcept = 0;
+    [[nodiscard]] virtual LegacyTextDrawResult
+    draw_segment(const LegacyFormattedTextSegmentRequest& request) noexcept = 0;
 };
 
 enum class LegacyFormattedTextStatus : compat::u8 {

@@ -30,28 +30,26 @@ struct LoggingState {
     return *state;
 }
 
-[[nodiscard]] bool level_is_enabled(
-    const LogLevel level,
-    const LogLevel minimum_level
-) noexcept {
+[[nodiscard]] bool
+level_is_enabled(const LogLevel level, const LogLevel minimum_level) noexcept {
     return static_cast<int>(level) >= static_cast<int>(minimum_level);
 }
 
-[[nodiscard]] std::string_view source_filename(
-    const std::string_view path
-) noexcept {
+[[nodiscard]] std::string_view
+source_filename(const std::string_view path) noexcept {
     const std::size_t separator = path.find_last_of("/\\");
-    return separator == std::string_view::npos
-        ? path
-        : path.substr(separator + 1U);
+    return separator == std::string_view::npos ? path
+                                               : path.substr(separator + 1U);
 }
 
 [[nodiscard]] std::string utc_timestamp() {
     const auto now = std::chrono::system_clock::now();
     const auto whole_seconds = std::chrono::floor<std::chrono::seconds>(now);
-    const auto milliseconds = std::chrono::duration_cast<
-        std::chrono::milliseconds
-    >(now - whole_seconds).count();
+    const auto milliseconds =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - whole_seconds
+        )
+            .count();
     const std::time_t seconds = std::chrono::system_clock::to_time_t(now);
 
     std::tm utc{};
@@ -81,8 +79,7 @@ struct LoggingState {
 }
 
 void append_escaped_message(
-    std::string& output,
-    const std::string_view message
+    std::string& output, const std::string_view message
 ) {
     for (const char character : message) {
         switch (character) {
@@ -111,11 +108,10 @@ void append_escaped_message(
     const std::source_location location
 ) {
     std::ostringstream prefix;
-    prefix << utc_timestamp()
-           << " [" << log_level_name(level) << ']'
-           << " [thread=" << std::this_thread::get_id() << ']'
-           << " [" << source_filename(location.file_name())
-           << ':' << location.line() << "] ";
+    prefix << utc_timestamp() << " [" << log_level_name(level) << ']'
+           << " [thread=" << std::this_thread::get_id() << ']' << " ["
+           << source_filename(location.file_name()) << ':' << location.line()
+           << "] ";
 
     std::string line = prefix.str();
     line.reserve(line.size() + message.size() + 1U);
@@ -125,12 +121,9 @@ void append_escaped_message(
 }
 
 void write_fallback(const std::string_view line) noexcept {
-    static_cast<void>(std::fwrite(
-        line.data(),
-        sizeof(char),
-        line.size(),
-        stderr
-    ));
+    static_cast<void>(
+        std::fwrite(line.data(), sizeof(char), line.size(), stderr)
+    );
     static_cast<void>(std::fflush(stderr));
 
 #if defined(_WIN32)
@@ -152,28 +145,27 @@ void report_initialization_failure(
         std::string message = "logging initialization failed (";
         message.append(
             status == LoggingInitializationStatus::directory_creation_failed
-            ? "cannot create log directory: "
-            : "cannot open log file: "
+                ? "cannot create log directory: "
+                : "cannot open log file: "
         );
         message.append(file_path.string());
         message.push_back(')');
         write_fallback(format_log_line(LogLevel::error, message, location));
     } catch (...) {
         write_fallback(
-            "0000-00-00T00:00:00.000Z [ERROR] [thread=unknown] "
-            "[log.cpp:0] logging initialization failed\n"
+            "0000-00-00T00:00:00.000Z [ERROR] [thread=unknown] " "[log.cpp:0] logging initialization failed\n"
         );
     }
 }
 
 void write_log_line(
-    LoggingState& state,
-    const LogLevel level,
-    const std::string& line
+    LoggingState& state, const LogLevel level, const std::string& line
 ) {
     bool file_write_succeeded = false;
     if (state.file.is_open()) {
-        state.file.write(line.data(), static_cast<std::streamsize>(line.size()));
+        state.file.write(
+            line.data(), static_cast<std::streamsize>(line.size())
+        );
         state.file.flush();
         file_write_succeeded = state.file.good();
         if (!file_write_succeeded) {
@@ -207,7 +199,9 @@ LoggingInitializationStatus initialize_logging(
     const std::filesystem::path directory = file_path.parent_path();
     if (!directory.empty()) {
         std::error_code error;
-        static_cast<void>(std::filesystem::create_directories(directory, error));
+        static_cast<void>(
+            std::filesystem::create_directories(directory, error)
+        );
         if (error) {
             report_initialization_failure(
                 LoggingInitializationStatus::directory_creation_failed,
@@ -218,12 +212,12 @@ LoggingInitializationStatus initialize_logging(
         }
     }
 
-    state.file.open(file_path, std::ios::binary | std::ios::out | std::ios::app);
+    state.file.open(
+        file_path, std::ios::binary | std::ios::out | std::ios::app
+    );
     if (!state.file.is_open()) {
         report_initialization_failure(
-            LoggingInitializationStatus::file_open_failed,
-            file_path,
-            location
+            LoggingInitializationStatus::file_open_failed, file_path, location
         );
         return LoggingInitializationStatus::file_open_failed;
     }
@@ -299,8 +293,7 @@ void log_message(
         write_log_line(state, level, format_log_line(level, message, location));
     } catch (...) {
         write_fallback(
-            "0000-00-00T00:00:00.000Z [ERROR] [thread=unknown] "
-            "[log.cpp:0] logging failed while formatting a message\n"
+            "0000-00-00T00:00:00.000Z [ERROR] [thread=unknown] " "[log.cpp:0] logging failed while formatting a message\n"
         );
     }
 }

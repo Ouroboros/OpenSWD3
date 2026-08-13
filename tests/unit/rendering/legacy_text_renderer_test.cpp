@@ -35,10 +35,11 @@ public:
         characters.push_back(character);
         widths.push_back(glyph_width);
         heights.push_back(glyph_height);
-        slots_were_clear.push_back(std::ranges::all_of(
-            destination,
-            [](const u8 value) { return value == 0U; }
-        ));
+        slots_were_clear.push_back(
+            std::ranges::all_of(destination, [](const u8 value) {
+                return value == 0U;
+            })
+        );
         if (fail) {
             return LegacyGlyphProviderStatus::failed;
         }
@@ -55,10 +56,8 @@ public:
     std::vector<bool> slots_were_clear;
 };
 
-[[nodiscard]] LegacyFramebuffer make_framebuffer(
-    const i32 width = 32,
-    const i32 height = 8
-) {
+[[nodiscard]] LegacyFramebuffer
+make_framebuffer(const i32 width = 32, const i32 height = 8) {
     return LegacyFramebuffer{LegacySurfaceGeometry{
         .pitch_bytes = width * 2,
         .width = width,
@@ -66,10 +65,8 @@ public:
     }};
 }
 
-[[nodiscard]] LegacyTextRendererState make_state(
-    const i32 width = 32,
-    const i32 height = 8
-) {
+[[nodiscard]] LegacyTextRendererState
+make_state(const i32 width = 32, const i32 height = 8) {
     return LegacyTextRendererState{
         .horizontal_advance = 10,
         .secondary_color = 0x2222U,
@@ -92,9 +89,9 @@ void expect_pixel(
     const char* message
 ) {
     test.expect_equal(
-        framebuffer.row_pixels(static_cast<unsigned int>(y))[
-            static_cast<std::size_t>(x)
-        ],
+        framebuffer.row_pixels(
+            static_cast<unsigned int>(y)
+        )[static_cast<std::size_t>(x)],
         expected,
         message
     );
@@ -120,25 +117,53 @@ void test_raw_parse_advance_and_cache_hits(openswd3::test::Context& test) {
         }
     );
 
-    test.expect_equal(result.status, LegacyTextDrawStatus::completed, "first draw");
-    test.expect_equal(result.next_byte_index, 3U, "three source bytes consumed");
+    test.expect_equal(
+        result.status, LegacyTextDrawStatus::completed, "first draw"
+    );
+    test.expect_equal(
+        result.next_byte_index, 3U, "three source bytes consumed"
+    );
     test.expect_equal(result.glyph_count, 2U, "one ASCII and one DBCS glyph");
-    test.expect_equal(result.horizontal_advance, 15, "ASCII half plus DBCS full advance");
+    test.expect_equal(
+        result.horizontal_advance, 15, "ASCII half plus DBCS full advance"
+    );
     test.expect_equal(cache.count(), 2U, "two misses become two live entries");
-    test.expect_equal(provider.characters.size(), 2U, "provider called on misses");
-    test.expect_equal(provider.characters[0].cache_key, static_cast<u16>(0x0041U), "ASCII key");
-    test.expect_equal(provider.characters[0].consumed_byte_count, static_cast<u8>(1U), "ASCII byte count");
-    test.expect_equal(provider.characters[0].nul_terminated_bytes[1], static_cast<u8>(0U), "ASCII second byte cleared");
-    test.expect_equal(provider.characters[1].cache_key, static_cast<u16>(0x4081U), "little-endian DBCS key");
-    test.expect_equal(provider.characters[1].consumed_byte_count, static_cast<u8>(2U), "DBCS byte count");
+    test.expect_equal(
+        provider.characters.size(), 2U, "provider called on misses"
+    );
+    test.expect_equal(
+        provider.characters[0].cache_key, static_cast<u16>(0x0041U), "ASCII key"
+    );
+    test.expect_equal(
+        provider.characters[0].consumed_byte_count,
+        static_cast<u8>(1U),
+        "ASCII byte count"
+    );
+    test.expect_equal(
+        provider.characters[0].nul_terminated_bytes[1],
+        static_cast<u8>(0U),
+        "ASCII second byte cleared"
+    );
+    test.expect_equal(
+        provider.characters[1].cache_key,
+        static_cast<u16>(0x4081U),
+        "little-endian DBCS key"
+    );
+    test.expect_equal(
+        provider.characters[1].consumed_byte_count,
+        static_cast<u8>(2U),
+        "DBCS byte count"
+    );
     test.expect_true(
-        std::ranges::all_of(provider.slots_were_clear, [](const bool value) {
-            return value;
-        }),
+        std::ranges::all_of(
+            provider.slots_were_clear, [](const bool value) { return value; }
+        ),
         "provider sees cleared insertion slots"
     );
     expect_pixel(test, framebuffer, 1, 2, 0x1111U, "ASCII draw position");
-    expect_pixel(test, framebuffer, 6, 2, 0x1111U, "DBCS draw follows half advance");
+    expect_pixel(
+        test, framebuffer, 6, 2, 0x1111U, "DBCS draw follows half advance"
+    );
 
     std::ranges::fill(framebuffer.physical_pixels(), 0U);
     result = openswd3::rendering::draw_legacy_text(
@@ -154,8 +179,12 @@ void test_raw_parse_advance_and_cache_hits(openswd3::test::Context& test) {
             .flags = 0x01U,
         }
     );
-    test.expect_equal(result.status, LegacyTextDrawStatus::completed, "cache-hit draw");
-    test.expect_equal(provider.characters.size(), 2U, "cache hits skip provider");
+    test.expect_equal(
+        result.status, LegacyTextDrawStatus::completed, "cache-hit draw"
+    );
+    test.expect_equal(
+        provider.characters.size(), 2U, "cache hits skip provider"
+    );
     test.expect_equal(cache.count(), 2U, "cache hits do not change count");
     expect_pixel(test, framebuffer, 1, 2, 0x3333U, "cached ASCII mask");
     expect_pixel(test, framebuffer, 6, 2, 0x3333U, "cached DBCS mask");
@@ -183,12 +212,34 @@ void test_background_width_and_order(openswd3::test::Context& test) {
             .flags = 0x01U,
         }
     );
-    test.expect_equal(result.status, LegacyTextDrawStatus::completed, "background draw");
-    expect_pixel(test, framebuffer, 1, 1, 0x1111U, "glyph overlays first background");
-    expect_pixel(test, framebuffer, 2, 1, 0x4444U, "first background remains beside glyph");
-    expect_pixel(test, framebuffer, 5, 1, 0x1111U, "last ASCII glyph starts after half advance");
-    expect_pixel(test, framebuffer, 8, 1, 0x4444U, "last ASCII special width reaches x+3");
-    expect_pixel(test, framebuffer, 9, 1, 0U, "last ASCII special width is exclusive");
+    test.expect_equal(
+        result.status, LegacyTextDrawStatus::completed, "background draw"
+    );
+    expect_pixel(
+        test, framebuffer, 1, 1, 0x1111U, "glyph overlays first background"
+    );
+    expect_pixel(
+        test,
+        framebuffer,
+        2,
+        1,
+        0x4444U,
+        "first background remains beside glyph"
+    );
+    expect_pixel(
+        test,
+        framebuffer,
+        5,
+        1,
+        0x1111U,
+        "last ASCII glyph starts after half advance"
+    );
+    expect_pixel(
+        test, framebuffer, 8, 1, 0x4444U, "last ASCII special width reaches x+3"
+    );
+    expect_pixel(
+        test, framebuffer, 9, 1, 0U, "last ASCII special width is exclusive"
+    );
 }
 
 void test_blind_high_byte_at_terminator(openswd3::test::Context& test) {
@@ -214,15 +265,47 @@ void test_blind_high_byte_at_terminator(openswd3::test::Context& test) {
         }
     );
 
-    test.expect_equal(result.status, LegacyTextDrawStatus::completed, "dangling lead draw");
-    test.expect_equal(result.next_byte_index, 2U, "blind parse consumes the NUL as byte two");
-    test.expect_equal(result.horizontal_advance, 7, "high lead keeps full advance");
-    test.expect_equal(provider.characters.size(), 1U, "one malformed raw character");
-    test.expect_equal(provider.characters[0].cache_key, static_cast<u16>(0x0081U), "NUL trail key");
-    test.expect_equal(provider.characters[0].nul_terminated_bytes[1], static_cast<u8>(0U), "NUL copied into scratch byte two");
-    expect_pixel(test, framebuffer, 2, 1, 0x1111U, "dangling lead glyph overlays background");
-    expect_pixel(test, framebuffer, 8, 1, 0x5555U, "non-last branch uses full advance width");
-    expect_pixel(test, framebuffer, 9, 1, 0U, "full advance width is exclusive");
+    test.expect_equal(
+        result.status, LegacyTextDrawStatus::completed, "dangling lead draw"
+    );
+    test.expect_equal(
+        result.next_byte_index, 2U, "blind parse consumes the NUL as byte two"
+    );
+    test.expect_equal(
+        result.horizontal_advance, 7, "high lead keeps full advance"
+    );
+    test.expect_equal(
+        provider.characters.size(), 1U, "one malformed raw character"
+    );
+    test.expect_equal(
+        provider.characters[0].cache_key,
+        static_cast<u16>(0x0081U),
+        "NUL trail key"
+    );
+    test.expect_equal(
+        provider.characters[0].nul_terminated_bytes[1],
+        static_cast<u8>(0U),
+        "NUL copied into scratch byte two"
+    );
+    expect_pixel(
+        test,
+        framebuffer,
+        2,
+        1,
+        0x1111U,
+        "dangling lead glyph overlays background"
+    );
+    expect_pixel(
+        test,
+        framebuffer,
+        8,
+        1,
+        0x5555U,
+        "non-last branch uses full advance width"
+    );
+    expect_pixel(
+        test, framebuffer, 9, 1, 0U, "full advance width is exclusive"
+    );
 
     std::ranges::fill(framebuffer.physical_pixels(), 0U);
     constexpr std::array<u8, 3> kCompleteDbcs{0x81U, 0x40U, 0U};
@@ -239,9 +322,15 @@ void test_blind_high_byte_at_terminator(openswd3::test::Context& test) {
             .flags = 0x01U,
         }
     );
-    test.expect_equal(result.status, LegacyTextDrawStatus::completed, "complete DBCS draw");
-    test.expect_equal(result.next_byte_index, 2U, "complete DBCS consumes two bytes");
-    expect_pixel(test, framebuffer, 7, 1, 0x5555U, "last DBCS uses glyph width plus two");
+    test.expect_equal(
+        result.status, LegacyTextDrawStatus::completed, "complete DBCS draw"
+    );
+    test.expect_equal(
+        result.next_byte_index, 2U, "complete DBCS consumes two bytes"
+    );
+    expect_pixel(
+        test, framebuffer, 7, 1, 0x5555U, "last DBCS uses glyph width plus two"
+    );
     expect_pixel(test, framebuffer, 8, 1, 0U, "last DBCS width is exclusive");
 }
 
@@ -273,11 +362,24 @@ void test_no_style_and_provider_failure(openswd3::test::Context& test) {
         LegacyTextDrawStatus::glyph_provider_failed,
         "provider failure is reported after preserving the original sequence"
     );
-    test.expect_equal(result.glyph_count, 1U, "failed provider character still advances");
-    test.expect_equal(result.horizontal_advance, 5, "ASCII advance remains observable");
+    test.expect_equal(
+        result.glyph_count, 1U, "failed provider character still advances"
+    );
+    test.expect_equal(
+        result.horizontal_advance, 5, "ASCII advance remains observable"
+    );
     test.expect_equal(cache.count(), 1U, "empty failed glyph is still cached");
-    test.expect_equal(cache.find(0x0041U), 0, "failed glyph key remains in cache");
-    expect_pixel(test, framebuffer, 1, 1, 0x6666U, "background still executes before absent writer");
+    test.expect_equal(
+        cache.find(0x0041U), 0, "failed glyph key remains in cache"
+    );
+    expect_pixel(
+        test,
+        framebuffer,
+        1,
+        1,
+        0x6666U,
+        "background still executes before absent writer"
+    );
 }
 
 void test_terminator_boundary(openswd3::test::Context& test) {
@@ -297,7 +399,9 @@ void test_terminator_boundary(openswd3::test::Context& test) {
         LegacyTextDrawStatus::missing_terminator,
         "bounded API isolates the original unbounded NUL scan"
     );
-    test.expect_equal(provider.characters.size(), 0U, "missing NUL does no work");
+    test.expect_equal(
+        provider.characters.size(), 0U, "missing NUL does no work"
+    );
     test.expect_equal(cache.count(), 0U, "missing NUL leaves cache empty");
 
     constexpr std::array<u8, 1> kEmpty{0U};
@@ -308,7 +412,9 @@ void test_terminator_boundary(openswd3::test::Context& test) {
         make_state(),
         LegacyTextDrawRequest{.nul_terminated_text = kEmpty}
     );
-    test.expect_equal(result.status, LegacyTextDrawStatus::completed, "empty text");
+    test.expect_equal(
+        result.status, LegacyTextDrawStatus::completed, "empty text"
+    );
     test.expect_equal(result.glyph_count, 0U, "empty text has no glyphs");
 }
 

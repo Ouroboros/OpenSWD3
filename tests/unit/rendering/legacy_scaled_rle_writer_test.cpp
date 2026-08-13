@@ -27,8 +27,7 @@ void append_u16(std::vector<u8>& bytes, const u16 value) {
 }
 
 void append_literal_row(
-    std::vector<u8>& bytes,
-    const std::initializer_list<u16> pixels
+    std::vector<u8>& bytes, const std::initializer_list<u16> pixels
 ) {
     const auto row_bytes = static_cast<u16>(6U + pixels.size() * 2U);
     append_u16(bytes, row_bytes);
@@ -99,34 +98,38 @@ void test_forward_and_reverse(openswd3::test::Context& test) {
     LegacyFramebuffer forward = make_framebuffer();
     test.expect_equal(
         openswd3::rendering::write_legacy_scaled_rle_forward(
-            forward,
-            kFullClip,
-            source,
-            request,
-            transform
+            forward, kFullClip, source, request, transform
         ),
         LegacyScaledRleWriteStatus::completed,
         "forward scaled RLE completes"
     );
     constexpr std::array<u16, 7> kForwardRow{
-        0U, 1U, 2U, 3U, 4U, 0U, 0U,
+        0U,
+        1U,
+        2U,
+        3U,
+        4U,
+        0U,
+        0U,
     };
     expect_row(test, forward, 1U, kForwardRow, "forward row order");
 
     LegacyFramebuffer reverse = make_framebuffer();
     test.expect_equal(
         openswd3::rendering::write_legacy_scaled_rle_reverse(
-            reverse,
-            kFullClip,
-            source,
-            request,
-            transform
+            reverse, kFullClip, source, request, transform
         ),
         LegacyScaledRleWriteStatus::completed,
         "reverse scaled RLE completes"
     );
     constexpr std::array<u16, 7> kReverseRow{
-        0U, 0U, 4U, 3U, 2U, 1U, 0U,
+        0U,
+        0U,
+        4U,
+        3U,
+        2U,
+        1U,
+        0U,
     };
     expect_row(
         test,
@@ -156,11 +159,7 @@ void test_vertical_phase_and_top_clip(openswd3::test::Context& test) {
     LegacyFramebuffer enlarged = make_framebuffer();
     test.expect_equal(
         openswd3::rendering::write_legacy_scaled_rle_forward(
-            enlarged,
-            kFullClip,
-            source,
-            request,
-            transform
+            enlarged, kFullClip, source, request, transform
         ),
         LegacyScaledRleWriteStatus::completed,
         "vertical enlargement completes"
@@ -179,11 +178,7 @@ void test_vertical_phase_and_top_clip(openswd3::test::Context& test) {
     LegacyFramebuffer top_clipped = make_framebuffer();
     test.expect_equal(
         openswd3::rendering::write_legacy_scaled_rle_forward(
-            top_clipped,
-            kFullClip,
-            source,
-            request,
-            transform
+            top_clipped, kFullClip, source, request, transform
         ),
         LegacyScaledRleWriteStatus::completed,
         "top-clipped scaled RLE completes"
@@ -197,9 +192,7 @@ void test_vertical_phase_and_top_clip(openswd3::test::Context& test) {
     );
 }
 
-void test_horizontal_phase_and_boundary_bug(
-    openswd3::test::Context& test
-) {
+void test_horizontal_phase_and_boundary_bug(openswd3::test::Context& test) {
     std::vector<u8> bytes(8U, 0U);
     append_u16(bytes, 14U);
     append_u16(bytes, 1U);
@@ -235,7 +228,13 @@ void test_horizontal_phase_and_boundary_bug(
         "transparent phase vector completes"
     );
     constexpr std::array<u16, 7> kExpected{
-        0x1111U, 0U, 0U, 0U, 0x2222U, 0U, 0U,
+        0x1111U,
+        0U,
+        0U,
+        0U,
+        0x2222U,
+        0U,
+        0U,
     };
     expect_row(
         test,
@@ -307,7 +306,11 @@ void test_horizontal_phase_and_boundary_bug(
         "wholly clipped command vector completes"
     );
     constexpr std::array<u16, 5> kClippedPhaseExpected{
-        0U, 0U, 6U, 7U, 0U,
+        0U,
+        0U,
+        6U,
+        7U,
+        0U,
     };
     expect_row(
         test,

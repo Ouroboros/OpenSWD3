@@ -19,8 +19,7 @@ constexpr std::size_t kChunkTableOffset = 0x1CU;
 constexpr std::size_t kChunkEntrySize = 8U;
 
 [[nodiscard]] compat::u32 read_u32(
-    const std::span<const compat::u8> bytes,
-    const std::size_t offset
+    const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u32>(bytes[offset]) |
         (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
@@ -28,10 +27,8 @@ constexpr std::size_t kChunkEntrySize = 8U;
         (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
 }
 
-[[nodiscard]] bool seek_absolute(
-    std::ifstream& input,
-    const compat::u32 offset
-) {
+[[nodiscard]] bool
+seek_absolute(std::ifstream& input, const compat::u32 offset) {
     if ((offset & 0x80000000U) != 0U) {
         return false;
     }
@@ -57,8 +54,7 @@ LegacyCmCacheSizeResult read_legacy_cm_cache_declared_size(
         return result;
     }
 
-    const compat::u32 size_offset =
-        map_offset + cm_relative_offset + 0x10U;
+    const compat::u32 size_offset = map_offset + cm_relative_offset + 0x10U;
     if (!seek_absolute(archive, size_offset)) {
         result.status = LegacyCmCacheSizeStatus::size_seek_failed;
         return result;
@@ -132,8 +128,8 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
         return result;
     }
 
-    const compat::u32 chunk_capacity = result.chunk_output_size +
-        (result.chunk_output_size >> 10U);
+    const compat::u32 chunk_capacity =
+        result.chunk_output_size + (result.chunk_output_size >> 10U);
     if (chunk_capacity < result.chunk_output_size) {
         result.status = LegacyCmCacheGenerationStatus::chunk_size_overflow;
         return result;
@@ -158,8 +154,7 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
     };
 
     compat::u32 remaining = result.declared_output_size;
-    for (compat::u32 chunk_index = 0U;
-         chunk_index < result.chunk_count;
+    for (compat::u32 chunk_index = 0U; chunk_index < result.chunk_count;
          ++chunk_index) {
         const std::size_t entry_offset = kChunkTableOffset +
             static_cast<std::size_t>(chunk_index) * kChunkEntrySize;
@@ -178,19 +173,16 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
         }
         result.compressed_bytes_read += compressed_size;
 
-        const auto decompressed = resource_io::decompress_legacy_lzo1x(
-            compressed,
-            output_bytes
-        );
+        const auto decompressed =
+            resource_io::decompress_legacy_lzo1x(compressed, output_bytes);
         if (decompressed.status != resource_io::LegacyLzo1xStatus::success) {
             result.status = LegacyCmCacheGenerationStatus::decompression_failed;
             return result;
         }
 
-        const compat::u32 bytes_to_write =
-            remaining > result.chunk_output_size
-                ? result.chunk_output_size
-                : remaining;
+        const compat::u32 bytes_to_write = remaining > result.chunk_output_size
+            ? result.chunk_output_size
+            : remaining;
         if (decompressed.bytes_written < bytes_to_write) {
             result.status =
                 LegacyCmCacheGenerationStatus::decompressed_output_too_short;
@@ -198,8 +190,9 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
         }
         if (map_pixel_bits == 16U) {
             const compat::u32 pixel_count = bytes_to_write >> 1U;
-            if (pixel_count >
-                static_cast<compat::u32>(std::numeric_limits<compat::i32>::max())) {
+            if (pixel_count > static_cast<compat::u32>(
+                                  std::numeric_limits<compat::i32>::max()
+                              )) {
                 result.status =
                     LegacyCmCacheGenerationStatus::pixel_count_out_of_range;
                 return result;
@@ -213,8 +206,11 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
 
         if (bytes_to_write != 0U) {
             compat::u32 requested_size = bytes_to_write;
-            if (!cache.write(output_bytes.first(bytes_to_write), requested_size)) {
-                result.status = LegacyCmCacheGenerationStatus::cache_write_failed;
+            if (!cache.write(
+                    output_bytes.first(bytes_to_write), requested_size
+                )) {
+                result.status =
+                    LegacyCmCacheGenerationStatus::cache_write_failed;
                 return result;
             }
         }

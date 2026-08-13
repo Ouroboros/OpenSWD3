@@ -3,8 +3,7 @@
 namespace openswd3::app {
 
 LegacyNewGameTransitionResult run_legacy_new_game_transition(
-    BattleTransitionState& state,
-    LegacyNewGameTransitionPorts& ports
+    BattleTransitionState& state, LegacyNewGameTransitionPorts& ports
 ) {
     LegacyNewGameTransitionResult result;
 
@@ -14,8 +13,7 @@ LegacyNewGameTransitionResult run_legacy_new_game_transition(
 
     ports.set_initial_menu_phase(5U);
     ports.clear_game_framebuffer();
-    result.initial_world_ready =
-        ports.initialize_new_game_state_and_world();
+    result.initial_world_ready = ports.initialize_new_game_state_and_world();
 
     // sub_4490C0 does not inspect the return from sub_40F160.  Preserve the
     // remaining state writes and calls even when a modern checked loader has

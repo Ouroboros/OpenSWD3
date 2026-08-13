@@ -228,15 +228,11 @@ struct DirectoryCandidate {
     );
 }
 
-[[nodiscard]] DataDirectoryResolution validate_candidate(
-    DirectoryCandidate candidate
-) {
+[[nodiscard]] DataDirectoryResolution
+validate_candidate(DirectoryCandidate candidate) {
     if (candidate.status != DataDirectoryStatus::ready) {
         return make_resolution(
-            candidate,
-            candidate.status,
-            {},
-            std::move(candidate.detail)
+            candidate, candidate.status, {}, std::move(candidate.detail)
         );
     }
 
@@ -284,9 +280,7 @@ struct DirectoryCandidate {
     }
 
     return make_resolution(
-        candidate,
-        DataDirectoryStatus::ready,
-        std::move(directory)
+        candidate, DataDirectoryStatus::ready, std::move(directory)
     );
 }
 
@@ -315,14 +309,12 @@ DataDirectoryResolution resolve_data_directory(
         return validate_candidate(std::move(candidate));
     }
 
-    candidate =
-        configuration_candidate(executable_directory, launch_directory);
+    candidate = configuration_candidate(executable_directory, launch_directory);
     return validate_candidate(std::move(candidate));
 }
 
 bool activate_data_directory(
-    const std::filesystem::path& directory,
-    std::error_code& error
+    const std::filesystem::path& directory, std::error_code& error
 ) noexcept {
     std::filesystem::current_path(directory, error);
     return !error;
@@ -342,9 +334,8 @@ bool legacy_select_or_create_directory(
     return true;
 }
 
-std::string_view data_directory_status_message(
-    const DataDirectoryStatus status
-) noexcept {
+std::string_view
+data_directory_status_message(const DataDirectoryStatus status) noexcept {
     switch (status) {
     case DataDirectoryStatus::ready:
         return "ready";

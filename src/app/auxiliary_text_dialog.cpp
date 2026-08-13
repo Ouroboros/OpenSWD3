@@ -7,9 +7,8 @@ namespace openswd3::app {
 
 namespace {
 
-[[nodiscard]] std::string copy_legacy_edit_bytes(
-    const std::string_view visible_edit_bytes
-) {
+[[nodiscard]] std::string
+copy_legacy_edit_bytes(const std::string_view visible_edit_bytes) {
     const std::size_t nul = visible_edit_bytes.find('\0');
     const std::size_t source_size =
         nul == std::string_view::npos ? visible_edit_bytes.size() : nul;
@@ -48,8 +47,7 @@ AuxiliaryTextDialogAction auxiliary_text_close_action() noexcept {
 }
 
 void execute_auxiliary_text_dialog_action(
-    const AuxiliaryTextDialogAction action,
-    AuxiliaryTextDialogPorts& ports
+    const AuxiliaryTextDialogAction action, AuxiliaryTextDialogPorts& ports
 ) {
     switch (action) {
     case AuxiliaryTextDialogAction::show_empty_warning:

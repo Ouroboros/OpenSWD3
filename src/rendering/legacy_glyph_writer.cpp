@@ -15,39 +15,29 @@ struct GlyphPixelWrite {
     compat::u16 color{};
 };
 
-[[nodiscard]] constexpr compat::i32 wrapping_add(
-    const compat::i32 left,
-    const compat::i32 right
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+wrapping_add(const compat::i32 left, const compat::i32 right) noexcept {
     return std::bit_cast<compat::i32>(
-        std::bit_cast<compat::u32>(left) +
-        std::bit_cast<compat::u32>(right)
+        std::bit_cast<compat::u32>(left) + std::bit_cast<compat::u32>(right)
     );
 }
 
-[[nodiscard]] constexpr compat::i32 wrapping_subtract(
-    const compat::i32 left,
-    const compat::i32 right
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+wrapping_subtract(const compat::i32 left, const compat::i32 right) noexcept {
     return std::bit_cast<compat::i32>(
-        std::bit_cast<compat::u32>(left) -
-        std::bit_cast<compat::u32>(right)
+        std::bit_cast<compat::u32>(left) - std::bit_cast<compat::u32>(right)
     );
 }
 
-[[nodiscard]] constexpr compat::u16 advance_row_color(
-    const compat::u16 color,
-    const compat::i32 delta
-) noexcept {
+[[nodiscard]] constexpr compat::u16
+advance_row_color(const compat::u16 color, const compat::i32 delta) noexcept {
     return static_cast<compat::u16>(
-        static_cast<compat::u32>(color) +
-        std::bit_cast<compat::u32>(delta)
+        static_cast<compat::u32>(color) + std::bit_cast<compat::u32>(delta)
     );
 }
 
-[[nodiscard]] constexpr compat::i32 row_color_delta(
-    const compat::u32 flags
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+row_color_delta(const compat::u32 flags) noexcept {
     if ((flags & 0x100U) != 0U) {
         return -1;
     }
@@ -55,22 +45,19 @@ struct GlyphPixelWrite {
 }
 
 [[nodiscard]] bool valid_mask_geometry(
-    const LegacyGlyphWriterState& state,
-    std::size_t& required_bytes
+    const LegacyGlyphWriterState& state, std::size_t& required_bytes
 ) noexcept {
     if (state.glyph_height < 0 ||
         state.mask_row_bytes >
-            static_cast<std::size_t>(
-                std::numeric_limits<compat::i32>::max()
-            ) / 8U) {
+            static_cast<std::size_t>(std::numeric_limits<compat::i32>::max()) /
+                8U) {
         return false;
     }
 
     const std::size_t height = static_cast<std::size_t>(state.glyph_height);
     if (state.mask_row_bytes != 0U &&
         height >
-            std::numeric_limits<std::size_t>::max() /
-                state.mask_row_bytes) {
+            std::numeric_limits<std::size_t>::max() / state.mask_row_bytes) {
         return false;
     }
 
@@ -120,9 +107,9 @@ template <std::size_t Size>
     for (const GlyphPixelWrite& write : writes) {
         const compat::i32 target_x = wrapping_add(x, write.x_offset);
         const compat::i32 target_y = wrapping_add(y, write.y_offset);
-        framebuffer.row_pixels(static_cast<compat::u32>(target_y))[
-            static_cast<std::size_t>(target_x)
-        ] = write.color;
+        framebuffer.row_pixels(
+            static_cast<compat::u32>(target_y)
+        )[static_cast<std::size_t>(target_x)] = write.color;
     }
     return true;
 }
@@ -152,11 +139,10 @@ template <std::size_t Size>
             }
 
             const compat::i32 x = wrapping_add(
-                request.destination_x,
-                static_cast<compat::i32>(column)
+                request.destination_x, static_cast<compat::i32>(column)
             );
-            if (y < state.clip.top || y >= bottom ||
-                x < state.clip.left || wrapping_add(x, 1) >= right) {
+            if (y < state.clip.top || y >= bottom || x < state.clip.left ||
+                wrapping_add(x, 1) >= right) {
                 continue;
             }
 
@@ -197,11 +183,10 @@ template <std::size_t Size>
             }
 
             const compat::i32 x = wrapping_add(
-                request.destination_x,
-                static_cast<compat::i32>(column)
+                request.destination_x, static_cast<compat::i32>(column)
             );
-            if (y < state.clip.top || y >= bottom ||
-                x < state.clip.left || wrapping_add(x, 2) >= right) {
+            if (y < state.clip.top || y >= bottom || x < state.clip.left ||
+                wrapping_add(x, 2) >= right) {
                 continue;
             }
 
@@ -243,8 +228,7 @@ template <std::size_t Size>
             }
 
             const compat::i32 x = wrapping_add(
-                request.destination_x,
-                static_cast<compat::i32>(column)
+                request.destination_x, static_cast<compat::i32>(column)
             );
             if (y < state.clip.top || wrapping_add(y, 1) >= bottom ||
                 x < state.clip.left || wrapping_add(x, 1) >= right) {
@@ -297,8 +281,7 @@ template <std::size_t Size>
             }
 
             const compat::i32 x = wrapping_add(
-                request.destination_x,
-                static_cast<compat::i32>(column)
+                request.destination_x, static_cast<compat::i32>(column)
             );
             if (y < state.clip.top || wrapping_add(y, 1) >= bottom ||
                 x < state.clip.left || wrapping_add(x, 2) >= right) {
@@ -352,8 +335,7 @@ template <std::size_t Size>
             }
 
             const compat::i32 x = wrapping_add(
-                request.destination_x,
-                static_cast<compat::i32>(column)
+                request.destination_x, static_cast<compat::i32>(column)
             );
             const compat::i32 required_right = doubled ? 2 : 1;
             if (y <= state.clip.top || wrapping_add(y, 1) >= bottom ||
@@ -436,9 +418,7 @@ template <std::size_t Size>
 }
 
 [[nodiscard]] compat::u16 foreground_after_prepass(
-    compat::u16 foreground,
-    const compat::i32 height,
-    const compat::i32 delta
+    compat::u16 foreground, const compat::i32 height, const compat::i32 delta
 ) noexcept {
     for (compat::i32 row = 0; row < height; ++row) {
         foreground = advance_row_color(foreground, delta);
@@ -496,11 +476,7 @@ LegacyGlyphWriteResult draw_legacy_glyph(
     switch (style) {
     case LegacyGlyphStyle::single:
         completed = draw_single_overlay(
-            framebuffer,
-            mask,
-            state,
-            request,
-            request.foreground_color
+            framebuffer, mask, state, request, request.foreground_color
         );
         break;
 
@@ -513,13 +489,8 @@ LegacyGlyphWriteResult draw_legacy_glyph(
         break;
 
     case LegacyGlyphStyle::outlined_single: {
-        completed = draw_outline_prepass(
-            framebuffer,
-            mask,
-            state,
-            request,
-            false
-        );
+        completed =
+            draw_outline_prepass(framebuffer, mask, state, request, false);
         if (completed) {
             completed = draw_single_overlay(
                 framebuffer,
@@ -537,13 +508,8 @@ LegacyGlyphWriteResult draw_legacy_glyph(
     }
 
     case LegacyGlyphStyle::outlined_double: {
-        completed = draw_outline_prepass(
-            framebuffer,
-            mask,
-            state,
-            request,
-            true
-        );
+        completed =
+            draw_outline_prepass(framebuffer, mask, state, request, true);
         if (completed) {
             completed = draw_double_overlay(
                 framebuffer,
@@ -565,16 +531,14 @@ LegacyGlyphWriteResult draw_legacy_glyph(
     }
 
     return LegacyGlyphWriteResult{
-        .status = completed
-            ? LegacyGlyphWriteStatus::completed
-            : LegacyGlyphWriteStatus::destination_out_of_bounds,
+        .status = completed ? LegacyGlyphWriteStatus::completed
+                            : LegacyGlyphWriteStatus::destination_out_of_bounds,
         .style = style,
     };
 }
 
 LegacyGlyphBackgroundStatus fill_legacy_glyph_background(
-    LegacyFramebuffer& framebuffer,
-    const LegacyGlyphBackgroundRequest& request
+    LegacyFramebuffer& framebuffer, const LegacyGlyphBackgroundRequest& request
 ) noexcept {
     if (request.color == 0xFFFEU) {
         return LegacyGlyphBackgroundStatus::disabled;
@@ -606,24 +570,24 @@ LegacyGlyphBackgroundStatus fill_legacy_glyph_background(
         return LegacyGlyphBackgroundStatus::destination_out_of_bounds;
     }
 
-    std::span<compat::u16> first_row = framebuffer.row_pixels(
-        static_cast<compat::u32>(top)
-    ).subspan(
-        static_cast<std::size_t>(left),
-        static_cast<std::size_t>(right - left)
-    );
+    std::span<compat::u16> first_row =
+        framebuffer.row_pixels(static_cast<compat::u32>(top))
+            .subspan(
+                static_cast<std::size_t>(left),
+                static_cast<std::size_t>(right - left)
+            );
     std::ranges::fill(first_row, request.color);
 
     for (compat::i32 row = wrapping_add(top, 1); row < bottom; ++row) {
         if (row < 0 || row >= surface.height) {
             return LegacyGlyphBackgroundStatus::destination_out_of_bounds;
         }
-        std::span<compat::u16> destination = framebuffer.row_pixels(
-            static_cast<compat::u32>(row)
-        ).subspan(
-            static_cast<std::size_t>(left),
-            static_cast<std::size_t>(right - left)
-        );
+        std::span<compat::u16> destination =
+            framebuffer.row_pixels(static_cast<compat::u32>(row))
+                .subspan(
+                    static_cast<std::size_t>(left),
+                    static_cast<std::size_t>(right - left)
+                );
         std::ranges::copy(first_row, destination.begin());
     }
 

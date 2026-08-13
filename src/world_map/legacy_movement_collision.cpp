@@ -41,11 +41,7 @@ namespace {
 ) {
     for (compat::u32 offset = 0U; offset < count; ++offset) {
         if (!probe_collision_cell(
-                cell_index,
-                tile_x + offset,
-                tile_y,
-                ports,
-                result
+                cell_index, tile_x + offset, tile_y, ports, result
             )) {
             return false;
         }
@@ -65,11 +61,7 @@ namespace {
 ) {
     for (compat::u32 offset = 0U; offset < count; ++offset) {
         if (!probe_collision_cell(
-                cell_index,
-                tile_x,
-                tile_y + offset,
-                ports,
-                result
+                cell_index, tile_x, tile_y + offset, ports, result
             )) {
             return false;
         }
@@ -88,9 +80,8 @@ public:
     ) noexcept
         : roles_(roles), role_count_(role_count), map_cells_(map_cells) {}
 
-    std::optional<compat::u32> read_map_cell(
-        const compat::u32 cell_index
-    ) override {
+    std::optional<compat::u32>
+    read_map_cell(const compat::u32 cell_index) override {
         const std::uint64_t byte_offset =
             static_cast<std::uint64_t>(cell_index) * 4U;
         if (byte_offset > map_cells_.size() ||
@@ -106,14 +97,10 @@ public:
     }
 
     compat::u32 find_collision_role_at_tile(
-        const compat::u32 tile_x,
-        const compat::u32 tile_y
+        const compat::u32 tile_x, const compat::u32 tile_y
     ) override {
         return find_legacy_collision_role_at_tile(
-            roles_,
-            role_count_,
-            tile_x,
-            tile_y
+            roles_, role_count_, tile_x, tile_y
         );
     }
 
@@ -139,8 +126,7 @@ LegacyMovementCollisionResult check_legacy_movement_collision(
     const compat::u32 width = role.action.field_2c;
     const compat::u32 height = role.action.field_30;
     const compat::u32 anchor = role.map_cell_pointer_32;
-    const compat::u32 selector =
-        std::bit_cast<compat::u32>(delta_x) +
+    const compat::u32 selector = std::bit_cast<compat::u32>(delta_x) +
         std::bit_cast<compat::u32>(delta_y) * 3U + 4U;
 
     switch (selector) {
@@ -168,12 +154,7 @@ LegacyMovementCollisionResult check_legacy_movement_collision(
 
     case 1U:
         static_cast<void>(scan_horizontal_edge(
-            anchor - map_row_stride,
-            tile_x,
-            tile_y - 1U,
-            width,
-            ports,
-            result
+            anchor - map_row_stride, tile_x, tile_y - 1U, width, ports, result
         ));
         return result;
 
@@ -201,13 +182,7 @@ LegacyMovementCollisionResult check_legacy_movement_collision(
 
     case 3U:
         static_cast<void>(scan_vertical_edge(
-            anchor - 1U,
-            tile_x - 1U,
-            tile_y,
-            height,
-            width,
-            ports,
-            result
+            anchor - 1U, tile_x - 1U, tile_y, height, width, ports, result
         ));
         return result;
 
@@ -216,13 +191,7 @@ LegacyMovementCollisionResult check_legacy_movement_collision(
 
     case 5U:
         static_cast<void>(scan_vertical_edge(
-            anchor + width,
-            tile_x + width,
-            tile_y,
-            height,
-            width,
-            ports,
-            result
+            anchor + width, tile_x + width, tile_y, height, width, ports, result
         ));
         return result;
 
@@ -295,10 +264,8 @@ LegacyMovementCollisionResult check_legacy_movement_collision(
     const std::span<const compat::u8> map_cells,
     const compat::u32 map_row_stride
 ) {
-    const std::size_t bounded_count = std::min(
-        roles.size(),
-        static_cast<std::size_t>(role_count)
-    );
+    const std::size_t bounded_count =
+        std::min(roles.size(), static_cast<std::size_t>(role_count));
     if (role_index >= bounded_count) {
         return LegacyMovementCollisionResult{
             .status = LegacyMovementCollisionStatus::invalid_role,
@@ -307,11 +274,7 @@ LegacyMovementCollisionResult check_legacy_movement_collision(
 
     SessionMovementCollisionPorts ports{roles, role_count, map_cells};
     return check_legacy_movement_collision(
-        roles[role_index],
-        delta_x,
-        delta_y,
-        map_row_stride,
-        ports
+        roles[role_index], delta_x, delta_y, map_row_stride, ports
     );
 }
 

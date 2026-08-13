@@ -26,9 +26,7 @@ static_assert(sizeof(LegacyWorldFlaggedRoleRecord) == 0x10U);
 static_assert(offsetof(LegacyWorldFlaggedRoleRecord, world_x) == 0x00U);
 static_assert(offsetof(LegacyWorldFlaggedRoleRecord, world_y) == 0x02U);
 static_assert(offsetof(LegacyWorldFlaggedRoleRecord, guid) == 0x08U);
-static_assert(
-    offsetof(LegacyWorldFlaggedRoleRecord, trailing_bytes) == 0x0CU
-);
+static_assert(offsetof(LegacyWorldFlaggedRoleRecord, trailing_bytes) == 0x0CU);
 
 struct LegacyWorldRolePostMaterializationContext {
     compat::u32 previous_logical_map_id{};
@@ -40,12 +38,9 @@ struct LegacyWorldRolePostMaterializationContext {
     compat::u32 map_width{};
 };
 
-struct LegacyWorldRolePostMaterializationState
-    : LegacyWorldRoleTransferState {
-    std::array<
-        LegacyWorldFlaggedRoleRecord,
-        kLegacyWorldFlaggedRoleRecordCount
-    > flagged_role_records;
+struct LegacyWorldRolePostMaterializationState : LegacyWorldRoleTransferState {
+    std::array<LegacyWorldFlaggedRoleRecord, kLegacyWorldFlaggedRoleRecordCount>
+        flagged_role_records;
     compat::u32 flagged_role_record_count{};
     compat::u32 flagged_role_overflow_count{};
     compat::u32 guid_one_roles_overridden{};

@@ -75,31 +75,23 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
     return std::bit_cast<i32>(value);
 }
 
-[[nodiscard]] constexpr i32 wrapping_add(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_add(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) + to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_subtract(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_subtract(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) - to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_multiply(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_multiply(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) * to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 arithmetic_shift_right(
-    const i32 value,
-    const u32 count
-) noexcept {
+[[nodiscard]] constexpr i32
+arithmetic_shift_right(const i32 value, const u32 count) noexcept {
     const u32 masked_count = count & 31U;
     if (masked_count == 0U) {
         return value;
@@ -114,16 +106,12 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
     return from_bits(shifted);
 }
 
-[[nodiscard]] constexpr u32 wrapping_byte_offset(
-    const i32 value
-) noexcept {
+[[nodiscard]] constexpr u32 wrapping_byte_offset(const i32 value) noexcept {
     return to_bits(value);
 }
 
 [[nodiscard]] bool read_u8(
-    const std::span<const u8> bytes,
-    const std::size_t offset,
-    u8& value
+    const std::span<const u8> bytes, const std::size_t offset, u8& value
 ) noexcept {
     if (offset >= bytes.size()) {
         return false;
@@ -134,9 +122,7 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
 }
 
 [[nodiscard]] bool read_u16(
-    const std::span<const u8> bytes,
-    const std::size_t offset,
-    u16& value
+    const std::span<const u8> bytes, const std::size_t offset, u16& value
 ) noexcept {
     if (offset > bytes.size() || bytes.size() - offset < 2U) {
         return false;
@@ -150,16 +136,13 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
 }
 
 [[nodiscard]] bool write_u16(
-    LegacyFramebuffer& framebuffer,
-    const u32 byte_offset,
-    const u16 value
+    LegacyFramebuffer& framebuffer, const u32 byte_offset, const u16 value
 ) noexcept {
     if ((byte_offset & 1U) != 0U) {
         return false;
     }
 
-    const std::size_t pixel_offset =
-        static_cast<std::size_t>(byte_offset / 2U);
+    const std::size_t pixel_offset = static_cast<std::size_t>(byte_offset / 2U);
     std::span<u16> pixels = framebuffer.physical_pixels();
     if (pixel_offset >= pixels.size()) {
         return false;
@@ -170,16 +153,13 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
 }
 
 [[nodiscard]] bool read_framebuffer_u16(
-    const LegacyFramebuffer& framebuffer,
-    const u32 byte_offset,
-    u16& value
+    const LegacyFramebuffer& framebuffer, const u32 byte_offset, u16& value
 ) noexcept {
     if ((byte_offset & 1U) != 0U) {
         return false;
     }
 
-    const std::size_t pixel_offset =
-        static_cast<std::size_t>(byte_offset / 2U);
+    const std::size_t pixel_offset = static_cast<std::size_t>(byte_offset / 2U);
     const std::span<const u16> pixels = framebuffer.physical_pixels();
     if (pixel_offset >= pixels.size()) {
         return false;
@@ -189,29 +169,22 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
     return true;
 }
 
-[[nodiscard]] constexpr u32 legacy_shift_left(
-    const u32 value,
-    const u32 count
-) noexcept {
+[[nodiscard]] constexpr u32
+legacy_shift_left(const u32 value, const u32 count) noexcept {
     return value << (count & 31U);
 }
 
-[[nodiscard]] constexpr u32 legacy_shift_right(
-    const u32 value,
-    const u32 count
-) noexcept {
+[[nodiscard]] constexpr u32
+legacy_shift_right(const u32 value, const u32 count) noexcept {
     return value >> (count & 31U);
 }
 
 [[nodiscard]] constexpr u32 adjusted_channel(
-    const u16 pixel,
-    const u32 mask,
-    const u32 shift,
-    const i32 offset
+    const u16 pixel, const u32 mask, const u32 shift, const i32 offset
 ) noexcept {
     const u32 step = legacy_shift_left(1U, shift);
-    const u32 candidate = (static_cast<u32>(pixel) & mask) +
-        step * to_bits(offset);
+    const u32 candidate =
+        (static_cast<u32>(pixel) & mask) + step * to_bits(offset);
     if (((~mask) & candidate) != 0U) {
         return offset >= 0 ? mask : 0U;
     }
@@ -220,8 +193,7 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
 }
 
 [[nodiscard]] constexpr u16 destination_offset_pixel(
-    const u16 pixel,
-    const LegacyBlitEffectState& effects
+    const u16 pixel, const LegacyBlitEffectState& effects
 ) noexcept {
     const LegacyPixelConversionState& format = effects.pixel_conversion;
     return static_cast<u16>(
@@ -247,20 +219,17 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
 }
 
 [[nodiscard]] constexpr u16 grayscale_pixel(
-    const u16 pixel,
-    const LegacyPixelConversionState& format
+    const u16 pixel, const LegacyPixelConversionState& format
 ) noexcept {
     u32 intensity = legacy_shift_right(
-        static_cast<u32>(pixel) & format.effective_masks.red,
-        format.red_shift
+        static_cast<u32>(pixel) & format.effective_masks.red, format.red_shift
     );
     intensity += legacy_shift_right(
         static_cast<u32>(pixel) & format.effective_masks.green,
         format.green_shift
     );
     intensity += legacy_shift_right(
-        static_cast<u32>(pixel) & format.effective_masks.blue,
-        format.blue_shift
+        static_cast<u32>(pixel) & format.effective_masks.blue, format.blue_shift
     );
     intensity >>= 2U;
 
@@ -276,28 +245,24 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
 ) noexcept {
     u16 pixel = 0x026BU;
     legacy_convert_pixels_forward(format, &pixel, 1);
-    return static_cast<u32>(pixel) |
-        (static_cast<u32>(pixel) << 16U);
+    return static_cast<u32>(pixel) | (static_cast<u32>(pixel) << 16U);
 }
 
-[[nodiscard]] u16 run_edge_pixel(
-    const LegacyPixelConversionState& format
-) noexcept {
+[[nodiscard]] u16
+run_edge_pixel(const LegacyPixelConversionState& format) noexcept {
     u16 pixel = static_cast<u16>(format.effective_masks.green);
     legacy_convert_pixels_forward(format, &pixel, 1);
     return pixel;
 }
 
 [[nodiscard]] constexpr u32 opacity_shift_mask(
-    const LegacyPixelConversionState& format,
-    const u32 shift
+    const LegacyPixelConversionState& format, const u32 shift
 ) noexcept {
     return ((format.effective_masks.red >> shift) &
             format.effective_masks.red) |
         ((format.effective_masks.green >> shift) &
          format.effective_masks.green) |
-        ((format.effective_masks.blue >> shift) &
-         format.effective_masks.blue);
+        ((format.effective_masks.blue >> shift) & format.effective_masks.blue);
 }
 
 [[nodiscard]] constexpr u16 opacity_pixel(
@@ -317,9 +282,7 @@ inline constexpr std::array<LegacyBlitterRoutine, 256> kBlitterTable =
     for (u32 shift = 1U; shift <= 4U; ++shift) {
         const u32 unit = 1U << (4U - shift);
         const u16 selected =
-            (static_cast<u32>(step) & unit) != 0U
-            ? source
-            : destination;
+            (static_cast<u32>(step) & unit) != 0U ? source : destination;
         result += (static_cast<u32>(selected) >> shift) &
             opacity_shift_mask(format, shift);
     }
@@ -345,12 +308,9 @@ enum class ClipStatus : u8 {
 };
 
 [[nodiscard]] bool row_offset(
-    const LegacyRasterGeometryState& geometry,
-    const i32 row,
-    u32& offset
+    const LegacyRasterGeometryState& geometry, const i32 row, u32& offset
 ) noexcept {
-    if (row < 0 ||
-        row >= static_cast<i32>(kLegacyRowOffsetCapacity)) {
+    if (row < 0 || row >= static_cast<i32>(kLegacyRowOffsetCapacity)) {
         return false;
     }
 
@@ -373,8 +333,7 @@ enum class ClipStatus : u8 {
 
     if (clip.top > destination_y) {
         visible_height = wrapping_add(
-            wrapping_subtract(destination_y, clip.top),
-            output_height
+            wrapping_subtract(destination_y, clip.top), output_height
         );
         if (target_height_active) {
             visible_height = wrapping_subtract(visible_height, 1);
@@ -389,30 +348,24 @@ enum class ClipStatus : u8 {
         destination_y = clip.top;
     }
 
-    const i32 destination_bottom = wrapping_add(
-        destination_y,
-        visible_height
-    );
+    const i32 destination_bottom = wrapping_add(destination_y, visible_height);
     const i32 clip_bottom = wrapping_add(clip.top, clip.height);
     if (destination_bottom >= clip_bottom) {
         source_bottom_skip = target_height_active
             ? wrapping_add(
                   wrapping_subtract(
-                      wrapping_subtract(visible_height, clip.height),
-                      clip.top
+                      wrapping_subtract(visible_height, clip.height), clip.top
                   ),
                   destination_y
               )
             : wrapping_add(
                   wrapping_subtract(
-                      wrapping_subtract(destination_y, clip.height),
-                      clip.top
+                      wrapping_subtract(destination_y, clip.height), clip.top
                   ),
                   output_height
               );
         visible_height = wrapping_add(
-            wrapping_subtract(clip.height, destination_y),
-            clip.top
+            wrapping_subtract(clip.height, destination_y), clip.top
         );
         if (target_height_active) {
             visible_height = wrapping_subtract(visible_height, 1);
@@ -427,29 +380,22 @@ enum class ClipStatus : u8 {
     i32 source_left_skip{};
     if (clip.left > destination_x) {
         visible_width = wrapping_add(
-            wrapping_subtract(destination_x, clip.left),
-            request.source_width
+            wrapping_subtract(destination_x, clip.left), request.source_width
         );
         if (visible_width <= 0) {
             return ClipStatus::clipped_out;
         }
 
-        source_left_skip = wrapping_subtract(
-            request.source_width,
-            visible_width
-        );
+        source_left_skip =
+            wrapping_subtract(request.source_width, visible_width);
         destination_x = clip.left;
     }
 
-    const i32 destination_right = wrapping_add(
-        destination_x,
-        visible_width
-    );
+    const i32 destination_right = wrapping_add(destination_x, visible_width);
     const i32 clip_right = wrapping_add(clip.left, clip.width);
     if (destination_right >= clip_right) {
         visible_width = wrapping_add(
-            wrapping_subtract(clip.width, destination_x),
-            clip.left
+            wrapping_subtract(clip.width, destination_x), clip.left
         );
         if (visible_width <= 0) {
             return ClipStatus::clipped_out;
@@ -479,8 +425,7 @@ enum class ClipStatus : u8 {
 
     if ((request.flags & 2U) != 0U) {
         result.source_top_skip = source_bottom_skip;
-        result.destination_start_bytes =
-            destination_start + visible_span_rows;
+        result.destination_start_bytes = destination_start + visible_span_rows;
         result.destination_row_step_bytes =
             0U - result.destination_row_step_bytes;
     }
@@ -504,9 +449,8 @@ enum class ClipStatus : u8 {
         (source.layout == LegacyBlitSourceLayout::direct_16 ? 2U : 1U);
     u32 destination_row = clipped.destination_start_bytes;
     u32 source_row = initial_source_offset;
-    const u16 transparent_pixel = static_cast<u16>(
-        duplicated_transparent_pixel(format)
-    );
+    const u16 transparent_pixel =
+        static_cast<u16>(duplicated_transparent_pixel(format));
 
     for (i32 row = 0; row < clipped.visible_height; ++row) {
         u32 destination = destination_row;
@@ -524,8 +468,7 @@ enum class ClipStatus : u8 {
                 }
 
                 source_offset += 2U;
-                write_pixel = !color_key_copy ||
-                    pixel != transparent_pixel;
+                write_pixel = !color_key_copy || pixel != transparent_pixel;
             } else {
                 u8 palette_index{};
                 if (!read_u8(
@@ -549,8 +492,7 @@ enum class ClipStatus : u8 {
                 }
             }
 
-            if (write_pixel &&
-                !write_u16(framebuffer, destination, pixel)) {
+            if (write_pixel && !write_u16(framebuffer, destination, pixel)) {
                 return LegacyBlitExecutionStatus::destination_out_of_bounds;
             }
 
@@ -574,8 +516,7 @@ enum class ClipStatus : u8 {
     const bool color_key_copy
 ) noexcept {
     const i32 reverse_source_x = wrapping_subtract(
-        wrapping_subtract(request.source_width, clipped.source_left_skip),
-        1
+        wrapping_subtract(request.source_width, clipped.source_left_skip), 1
     );
     const i32 source_pixel = wrapping_add(
         reverse_source_x,
@@ -593,15 +534,13 @@ enum class ClipStatus : u8 {
         for (i32 column = 0; column < clipped.visible_width; ++column) {
             u16 pixel{};
             if (!read_u16(
-                    source.bytes,
-                    static_cast<std::size_t>(source_offset),
-                    pixel
+                    source.bytes, static_cast<std::size_t>(source_offset), pixel
                 )) {
                 return LegacyBlitExecutionStatus::malformed_source;
             }
 
             if ((!color_key_copy ||
-                    static_cast<u32>(pixel) != transparent_pixel) &&
+                 static_cast<u32>(pixel) != transparent_pixel) &&
                 !write_u16(framebuffer, destination, pixel)) {
                 return LegacyBlitExecutionStatus::destination_out_of_bounds;
             }
@@ -630,9 +569,8 @@ enum class ClipStatus : u8 {
     );
     u32 source_row = wrapping_byte_offset(source_pixel) * 2U;
     u32 destination_row = clipped.destination_start_bytes;
-    const u16 transparent_pixel = static_cast<u16>(
-        duplicated_transparent_pixel(format)
-    );
+    const u16 transparent_pixel =
+        static_cast<u16>(duplicated_transparent_pixel(format));
     const i32 internal_step = wrapping_subtract(request.opacity_step, 1);
 
     for (i32 row = 0; row < clipped.visible_height; ++row) {
@@ -651,9 +589,7 @@ enum class ClipStatus : u8 {
             if (source_pixel_value != transparent_pixel) {
                 u16 destination_pixel{};
                 if (!read_framebuffer_u16(
-                        framebuffer,
-                        destination,
-                        destination_pixel
+                        framebuffer, destination, destination_pixel
                     )) {
                     return LegacyBlitExecutionStatus::destination_out_of_bounds;
                 }
@@ -695,10 +631,7 @@ enum class ClipStatus : u8 {
         return LegacyBlitExecutionStatus::malformed_source;
     }
 
-    const i32 fade_limit = arithmetic_shift_right(
-        request.source_height,
-        4U
-    );
+    const i32 fade_limit = arithmetic_shift_right(request.source_height, 4U);
     i32 fade_counter{};
     i32 opacity_step = 15;
     u32 destination_row = clipped.destination_start_bytes;
@@ -708,9 +641,7 @@ enum class ClipStatus : u8 {
         for (i32 column = 0; column < clipped.visible_width; ++column) {
             u16 destination_pixel{};
             if (!read_framebuffer_u16(
-                    framebuffer,
-                    destination,
-                    destination_pixel
+                    framebuffer, destination, destination_pixel
                 )) {
                 return LegacyBlitExecutionStatus::destination_out_of_bounds;
             }
@@ -718,10 +649,7 @@ enum class ClipStatus : u8 {
                     framebuffer,
                     destination,
                     opacity_pixel(
-                        source_pixel,
-                        destination_pixel,
-                        opacity_step,
-                        format
+                        source_pixel, destination_pixel, opacity_step, format
                     )
                 )) {
                 return LegacyBlitExecutionStatus::destination_out_of_bounds;
@@ -749,8 +677,7 @@ struct JitterCursor {
 };
 
 [[nodiscard]] JitterCursor make_jitter_cursor(
-    const LegacyRleRowJitterState& state,
-    const u32 group_stride_bytes
+    const LegacyRleRowJitterState& state, const u32 group_stride_bytes
 ) noexcept {
     if (state.group == 0) {
         return {};
@@ -829,23 +756,17 @@ struct RleRoutinePolicy {
 };
 
 [[nodiscard]] constexpr u32 saturated_add_channel(
-    const u32 source,
-    const u32 destination,
-    const u32 mask
+    const u32 source, const u32 destination, const u32 mask
 ) noexcept {
     const u32 sum = source + destination;
     return ((~mask) & sum) != 0U ? mask : sum;
 }
 
 [[nodiscard]] constexpr u32 saturated_subtract_channel(
-    const u32 minuend,
-    const u32 subtrahend,
-    const u32 mask
+    const u32 minuend, const u32 subtrahend, const u32 mask
 ) noexcept {
     const u32 difference = minuend - subtrahend;
-    return (difference & 0x80000000U) != 0U
-        ? 0U
-        : difference & mask;
+    return (difference & 0x80000000U) != 0U ? 0U : difference & mask;
 }
 
 [[nodiscard]] constexpr u16 saturated_add_pixel(
@@ -895,31 +816,26 @@ struct RleRoutinePolicy {
     const bool reverse
 ) noexcept {
     const LegacyPixelConversionState& format = effects.pixel_conversion;
-    const auto channel = [&](
-        const u32 mask,
-        const u32 shift,
-        const i32 offset
-    ) constexpr {
-        if (reverse) {
+    const auto channel =
+        [&](const u32 mask, const u32 shift, const i32 offset) constexpr {
+            if (reverse) {
+                return saturated_subtract_channel(
+                    adjusted_channel(destination, mask, shift, offset),
+                    static_cast<u32>(source) & mask,
+                    mask
+                );
+            }
+
             return saturated_subtract_channel(
-                adjusted_channel(destination, mask, shift, offset),
-                static_cast<u32>(source) & mask,
+                static_cast<u32>(destination) & mask,
+                adjusted_channel(source, mask, shift, offset),
                 mask
             );
-        }
-
-        return saturated_subtract_channel(
-            static_cast<u32>(destination) & mask,
-            adjusted_channel(source, mask, shift, offset),
-            mask
-        );
-    };
+        };
 
     return static_cast<u16>(
         channel(
-            format.effective_masks.red,
-            format.red_shift,
-            effects.red_offset
+            format.effective_masks.red, format.red_shift, effects.red_offset
         ) |
         channel(
             format.effective_masks.green,
@@ -927,9 +843,7 @@ struct RleRoutinePolicy {
             effects.green_offset
         ) |
         channel(
-            format.effective_masks.blue,
-            format.blue_shift,
-            effects.blue_offset
+            format.effective_masks.blue, format.blue_shift, effects.blue_offset
         )
     );
 }
@@ -961,18 +875,13 @@ struct RleRoutinePolicy {
             return LegacyBlitExecutionStatus::malformed_source;
         }
         if (!read_framebuffer_u16(
-                framebuffer,
-                destination,
-                destination_pixel
+                framebuffer, destination, destination_pixel
             )) {
             return LegacyBlitExecutionStatus::destination_out_of_bounds;
         }
 
         pixel = opacity_pixel(
-            pixel,
-            destination_pixel,
-            opacity_step,
-            effects.pixel_conversion
+            pixel, destination_pixel, opacity_step, effects.pixel_conversion
         );
         break;
     }
@@ -1027,9 +936,7 @@ struct RleRoutinePolicy {
             return LegacyBlitExecutionStatus::malformed_source;
         }
         if (!read_framebuffer_u16(
-                framebuffer,
-                destination,
-                destination_pixel
+                framebuffer, destination, destination_pixel
             )) {
             return LegacyBlitExecutionStatus::destination_out_of_bounds;
         }
@@ -1044,18 +951,13 @@ struct RleRoutinePolicy {
             return LegacyBlitExecutionStatus::malformed_source;
         }
         if (!read_framebuffer_u16(
-                framebuffer,
-                destination,
-                destination_pixel
+                framebuffer, destination, destination_pixel
             )) {
             return LegacyBlitExecutionStatus::destination_out_of_bounds;
         }
 
         pixel = saturated_subtract_pixel(
-            pixel,
-            destination_pixel,
-            effects,
-            policy.reverse
+            pixel, destination_pixel, effects, policy.reverse
         );
         break;
     }
@@ -1095,8 +997,7 @@ struct RleRoutinePolicy {
 }
 
 void finish_rle_success(
-    LegacyRleRowJitterState& jitter,
-    const RleRoutinePolicy& policy
+    LegacyRleRowJitterState& jitter, const RleRoutinePolicy& policy
 ) noexcept {
     if (policy.advance_phase_on_exit) {
         advance_jitter_phase(jitter);
@@ -1114,10 +1015,8 @@ void finish_rle_success(
     const RleRoutinePolicy& policy
 ) noexcept {
     if (policy.operation == RlePixelOperation::destination_offset &&
-        !policy.shifted_resample &&
-        effects.red_offset == 0 &&
-        effects.green_offset == 0 &&
-        effects.blue_offset == 0) {
+        !policy.shifted_resample && effects.red_offset == 0 &&
+        effects.green_offset == 0 && effects.blue_offset == 0) {
         return LegacyBlitExecutionStatus::completed;
     }
 
@@ -1143,26 +1042,22 @@ void finish_rle_success(
         (request.target_height != 0
              ? request.target_height > request.source_height
              : (request.vertical_resample_enlarge_state & 1U) != 0U);
-    const i32 vertical_step =
-        vertical_resample && request.target_height != 0
+    const i32 vertical_step = vertical_resample && request.target_height != 0
         ? wrapping_subtract(
               from_bits(to_bits(request.source_height) << 10U) /
                   request.target_height,
               resample_enlarges ? 0 : 0x400
           )
         : 0;
-    u32 vertical_fraction = policy.shifted_resample
-        ? 0U
-        : request.vertical_resample_phase_10_10;
+    u32 vertical_fraction =
+        policy.shifted_resample ? 0U : request.vertical_resample_phase_10_10;
     const auto advance_vertical_fraction = [&]() noexcept {
         const u32 sum = vertical_fraction + to_bits(vertical_step);
         vertical_fraction = sum & 0x3FFU;
         return sum >> 10U;
     };
-    i32 horizontal_displacement =
-        request.horizontal_resample_displacement;
-    if (policy.shifted_resample &&
-        request.target_height != 0 &&
+    i32 horizontal_displacement = request.horizontal_resample_displacement;
+    if (policy.shifted_resample && request.target_height != 0 &&
         horizontal_displacement == 0) {
         horizontal_displacement = 1;
     }
@@ -1222,8 +1117,7 @@ void finish_rle_success(
                 return LegacyBlitExecutionStatus::completed;
             }
 
-            row_pointer +=
-                static_cast<std::size_t>(row_length & 0x7FFFU);
+            row_pointer += static_cast<std::size_t>(row_length & 0x7FFFU);
             if (row_pointer > source.bytes.size()) {
                 return LegacyBlitExecutionStatus::malformed_source;
             }
@@ -1264,8 +1158,7 @@ void finish_rle_success(
                 return LegacyBlitExecutionStatus::malformed_source;
             }
 
-            row_pointer +=
-                static_cast<std::size_t>(row_length & 0x7FFFU);
+            row_pointer += static_cast<std::size_t>(row_length & 0x7FFFU);
             if (row_pointer > source.bytes.size()) {
                 return LegacyBlitExecutionStatus::malformed_source;
             }
@@ -1305,10 +1198,7 @@ void finish_rle_success(
     i32 source_window_start = clipped.source_left_skip;
     if (policy.reverse) {
         source_window_start = wrapping_subtract(
-            wrapping_subtract(
-                request.source_width,
-                clipped.visible_width
-            ),
+            wrapping_subtract(request.source_width, clipped.visible_width),
             clipped.source_left_skip
         );
     }
@@ -1316,10 +1206,8 @@ void finish_rle_success(
     if (!policy.shifted_resample && source_window_start < 0) {
         return LegacyBlitExecutionStatus::malformed_source;
     }
-    JitterCursor jitter_cursor = make_jitter_cursor(
-        jitter,
-        policy.jitter_group_stride_bytes
-    );
+    JitterCursor jitter_cursor =
+        make_jitter_cursor(jitter, policy.jitter_group_stride_bytes);
     u32 destination_row = clipped.destination_start_bytes;
     const i32 shifted_base_x = clipped.source_left_skip != 0
         ? wrapping_subtract(0, clipped.source_left_skip)
@@ -1359,16 +1247,12 @@ void finish_rle_success(
         bool skip_row{};
         if (policy.shifted_resample) {
             advance_horizontal_fraction();
-            i32 row_x = wrapping_add(
-                shifted_base_x,
-                horizontal_displacement
-            );
+            i32 row_x = wrapping_add(shifted_base_x, horizontal_displacement);
             i32 row_left_skip{};
             row_visible_width = request.source_width;
             if (clip.left > row_x) {
                 row_visible_width = wrapping_add(
-                    wrapping_subtract(row_x, clip.left),
-                    request.source_width
+                    wrapping_subtract(row_x, clip.left), request.source_width
                 );
                 if (row_visible_width <= 0) {
                     skip_row = true;
@@ -1379,19 +1263,10 @@ void finish_rle_success(
             }
 
             if (!skip_row) {
-                const i32 row_right = wrapping_add(
-                    row_x,
-                    row_visible_width
-                );
-                const i32 clip_right = wrapping_add(
-                    clip.left,
-                    clip.width
-                );
+                const i32 row_right = wrapping_add(row_x, row_visible_width);
+                const i32 clip_right = wrapping_add(clip.left, clip.width);
                 if (row_right >= clip_right) {
-                    row_visible_width = wrapping_subtract(
-                        clip_right,
-                        row_x
-                    );
+                    row_visible_width = wrapping_subtract(clip_right, row_x);
                     if (row_visible_width <= 0) {
                         skip_row = true;
                     }
@@ -1402,8 +1277,7 @@ void finish_rle_success(
                 row_window_start = policy.reverse
                     ? wrapping_subtract(
                           wrapping_subtract(
-                              request.source_width,
-                              row_visible_width
+                              request.source_width, row_visible_width
                           ),
                           row_left_skip
                       )
@@ -1415,15 +1289,11 @@ void finish_rle_success(
                 const i32 destination_y = (request.flags & 2U) != 0U
                     ? wrapping_subtract(
                           wrapping_add(
-                              clipped.destination_y,
-                              clipped.visible_height
+                              clipped.destination_y, clipped.visible_height
                           ),
                           processed_rows
                       )
-                    : wrapping_add(
-                          clipped.destination_y,
-                          processed_rows
-                      );
+                    : wrapping_add(clipped.destination_y, processed_rows);
                 u32 destination_y_bytes{};
                 if (!row_offset(
                         framebuffer.geometry(),
@@ -1437,8 +1307,7 @@ void finish_rle_success(
             }
         }
 
-        if (policy.supports_third_row_skip &&
-            effects.skip_every_third_row) {
+        if (policy.supports_third_row_skip && effects.skip_every_third_row) {
             third_row_phase = wrapping_add(third_row_phase, 1);
             if (third_row_phase >= 3) {
                 third_row_phase = 0;
@@ -1448,8 +1317,8 @@ void finish_rle_success(
 
         const std::uint64_t window_start =
             static_cast<std::uint64_t>(row_window_start);
-        const std::uint64_t window_end = window_start +
-            static_cast<std::uint64_t>(row_visible_width);
+        const std::uint64_t window_end =
+            window_start + static_cast<std::uint64_t>(row_visible_width);
 
         std::size_t command_pointer = row_pointer + 2U;
         std::uint64_t source_x{};
@@ -1479,8 +1348,7 @@ void finish_rle_success(
                         return LegacyBlitExecutionStatus::malformed_source;
                     }
 
-                    command_pointer +=
-                        static_cast<std::size_t>(skipped_bytes);
+                    command_pointer += static_cast<std::size_t>(skipped_bytes);
                     if (command_pointer > source.bytes.size()) {
                         return LegacyBlitExecutionStatus::malformed_source;
                     }
@@ -1498,17 +1366,15 @@ void finish_rle_success(
                 run_start < window_start ? window_start : run_start;
             const std::uint64_t visible_end =
                 run_end < window_end ? run_end : window_end;
-            const std::uint64_t visible_count =
-                visible_end - visible_start;
+            const std::uint64_t visible_count = visible_end - visible_start;
             const std::uint64_t prefix = visible_start - run_start;
 
             if (literal) {
                 const std::uint64_t payload_offset =
                     static_cast<std::uint64_t>(command_pointer) + prefix * 2U;
-                const std::uint64_t payload_end = payload_offset +
-                    visible_count * 2U;
-                if (payload_offset >
-                        std::numeric_limits<std::size_t>::max() ||
+                const std::uint64_t payload_end =
+                    payload_offset + visible_count * 2U;
+                if (payload_offset > std::numeric_limits<std::size_t>::max() ||
                     payload_end > source.bytes.size()) {
                     return LegacyBlitExecutionStatus::malformed_source;
                 }
@@ -1518,19 +1384,16 @@ void finish_rle_success(
                         visible_start - window_start + index;
                     const std::uint64_t destination_x = policy.reverse
                         ? static_cast<std::uint64_t>(row_visible_width) -
-                              logical_x - 1U
+                            logical_x - 1U
                         : logical_x;
                     return row_destination +
                         static_cast<u32>(destination_x * 2U);
                 };
                 const u32 first_destination = destination_for(0U);
-                const u32 last_destination = destination_for(
-                    visible_count - 1U
-                );
+                const u32 last_destination =
+                    destination_for(visible_count - 1U);
 
-                for (std::uint64_t index = 0U;
-                     index < visible_count;
-                     ++index) {
+                for (std::uint64_t index = 0U; index < visible_count; ++index) {
                     const std::uint64_t source_offset =
                         payload_offset + index * 2U;
                     if (source_offset >
@@ -1576,8 +1439,7 @@ void finish_rle_success(
             if (literal) {
                 const std::uint64_t payload_bytes = run * 2U;
                 if (payload_bytes >
-                    std::numeric_limits<std::size_t>::max() -
-                        command_pointer) {
+                    std::numeric_limits<std::size_t>::max() - command_pointer) {
                     return LegacyBlitExecutionStatus::malformed_source;
                 }
 
@@ -1590,8 +1452,8 @@ void finish_rle_success(
             source_x = run_end;
         }
 
-        const std::size_t next_row = row_pointer +
-            static_cast<std::size_t>(row_length & 0x7FFFU);
+        const std::size_t next_row =
+            row_pointer + static_cast<std::size_t>(row_length & 0x7FFFU);
         if (next_row > source.bytes.size()) {
             return LegacyBlitExecutionStatus::malformed_source;
         }
@@ -1631,8 +1493,7 @@ void finish_rle_success(
                 return LegacyBlitExecutionStatus::completed;
             }
 
-            row_pointer +=
-                static_cast<std::size_t>(next_row_length & 0x7FFFU);
+            row_pointer += static_cast<std::size_t>(next_row_length & 0x7FFFU);
             if (row_pointer > source.bytes.size()) {
                 return LegacyBlitExecutionStatus::malformed_source;
             }
@@ -1642,9 +1503,7 @@ void finish_rle_success(
 
 }  // namespace
 
-LegacyBlitterRoutine legacy_blitter_routine(
-    const u32 table_slot
-) noexcept {
+LegacyBlitterRoutine legacy_blitter_routine(const u32 table_slot) noexcept {
     if (table_slot >= kBlitterTable.size()) {
         return LegacyBlitterRoutine::unassigned;
     }
@@ -1679,8 +1538,7 @@ LegacyBlitterSelection select_legacy_blitter(
     }
 
     const bool rle_family = (flags & 0x80000000U) != 0U;
-    const u32 table_slot = (flags & 0xFFFFU) +
-        (rle_family ? 0U : 0x80U);
+    const u32 table_slot = (flags & 0xFFFFU) + (rle_family ? 0U : 0x80U);
     const LegacyBlitterRoutine routine = legacy_blitter_routine(table_slot);
     return LegacyBlitterSelection{
         .status = routine == LegacyBlitterRoutine::unassigned
@@ -1716,8 +1574,7 @@ LegacyBlitResult blit_legacy_copy_paths(
         request.flags,
         request.opacity_step
     );
-    if (selection.status ==
-        LegacyBlitterSelectionStatus::opacity_disabled) {
+    if (selection.status == LegacyBlitterSelectionStatus::opacity_disabled) {
         return LegacyBlitResult{
             .status = LegacyBlitExecutionStatus::opacity_disabled,
             .selection = selection,
@@ -1729,11 +1586,7 @@ LegacyBlitResult blit_legacy_copy_paths(
         ? request.target_height
         : request.source_height;
     const ClipStatus clip_status = clip_request(
-        framebuffer.geometry(),
-        clip,
-        request,
-        output_height,
-        clipped
+        framebuffer.geometry(), clip, request, output_height, clipped
     );
     if (clip_status == ClipStatus::clipped_out) {
         return LegacyBlitResult{
@@ -1758,14 +1611,7 @@ LegacyBlitResult blit_legacy_copy_paths(
 
     const auto run_rle = [&](const RleRoutinePolicy& policy) {
         return blit_rle(
-            framebuffer,
-            source,
-            request,
-            clip,
-            clipped,
-            effects,
-            jitter,
-            policy
+            framebuffer, source, request, clip, clipped, effects, jitter, policy
         );
     };
 
@@ -1817,201 +1663,239 @@ LegacyBlitResult blit_legacy_copy_paths(
 
     case LegacyBlitterRoutine::raw_opacity_forward:
         status = blit_raw_opacity_forward(
-            framebuffer,
-            source,
-            request,
-            clipped,
-            effects.pixel_conversion
+            framebuffer, source, request, clipped, effects.pixel_conversion
         );
         break;
 
     case LegacyBlitterRoutine::raw_constant_vertical_fade:
         status = blit_raw_constant_vertical_fade(
-            framebuffer,
-            source,
-            request,
-            clipped,
-            effects.pixel_conversion
+            framebuffer, source, request, clipped, effects.pixel_conversion
         );
         break;
 
     case LegacyBlitterRoutine::rle_copy_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::copy,
-            .advance_phase_on_exit = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::copy,
+                .advance_phase_on_exit = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_copy_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::copy,
-            .reverse = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::copy,
+                .reverse = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_saturated_add_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::saturated_add,
-            .advance_phase_on_exit = true,
-            .supports_third_row_skip = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::saturated_add,
+                .advance_phase_on_exit = true,
+                .supports_third_row_skip = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_saturated_add_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::saturated_add,
-            .reverse = true,
-            .advance_phase_on_exit = true,
-            .supports_third_row_skip = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::saturated_add,
+                .reverse = true,
+                .advance_phase_on_exit = true,
+                .supports_third_row_skip = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_shifted_resample_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::destination_offset,
-            .advance_phase_on_exit = true,
-            .vertical_resample = true,
-            .shifted_resample = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::destination_offset,
+                .advance_phase_on_exit = true,
+                .vertical_resample = true,
+                .shifted_resample = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_shifted_resample_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::destination_offset,
-            .reverse = true,
-            .vertical_resample = true,
-            .shifted_resample = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::destination_offset,
+                .reverse = true,
+                .vertical_resample = true,
+                .shifted_resample = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_saturated_resample_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::saturated_add,
-            .advance_phase_on_exit = true,
-            .vertical_resample = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::saturated_add,
+                .advance_phase_on_exit = true,
+                .vertical_resample = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_saturated_resample_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::saturated_add,
-            .reverse = true,
-            .advance_phase_on_exit = true,
-            .vertical_resample = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::saturated_add,
+                .reverse = true,
+                .advance_phase_on_exit = true,
+                .vertical_resample = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_opacity_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::opacity,
-            .advance_phase_on_exit = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::opacity,
+                .advance_phase_on_exit = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_opacity_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::opacity,
-            .reverse = true,
-            .advance_phase_on_exit = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::opacity,
+                .reverse = true,
+                .advance_phase_on_exit = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_vertical_opacity_fade:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::vertical_opacity_fade,
-            .advance_phase_on_exit = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::vertical_opacity_fade,
+                .advance_phase_on_exit = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_copy_with_edges_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::copy_with_edges,
-            .advance_phase_on_exit = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::copy_with_edges,
+                .advance_phase_on_exit = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_copy_with_edges_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::copy_with_edges,
-            .reverse = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::copy_with_edges,
+                .reverse = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_destination_offset_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::destination_offset,
-            .advance_phase_on_exit = true,
-            .jitter_group_stride_bytes = 0x528U,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::destination_offset,
+                .advance_phase_on_exit = true,
+                .jitter_group_stride_bytes = 0x528U,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_destination_offset_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::destination_offset,
-            .reverse = true,
-            .advance_phase_on_exit = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::destination_offset,
+                .reverse = true,
+                .advance_phase_on_exit = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_constant_fill_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::constant_fill,
-            .advance_phase_on_exit = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::constant_fill,
+                .advance_phase_on_exit = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_constant_fill_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::constant_fill,
-            .reverse = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::constant_fill,
+                .reverse = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_grayscale_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::grayscale,
-            .advance_phase_on_exit = true,
-            .jitter_group_stride_bytes = 0x528U,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::grayscale,
+                .advance_phase_on_exit = true,
+                .jitter_group_stride_bytes = 0x528U,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_grayscale_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::grayscale,
-            .reverse = true,
-            .advance_phase_on_exit = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::grayscale,
+                .reverse = true,
+                .advance_phase_on_exit = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_saturated_subtract_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::saturated_subtract,
-            .advance_phase_on_exit = true,
-            .supports_third_row_skip = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::saturated_subtract,
+                .advance_phase_on_exit = true,
+                .supports_third_row_skip = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_saturated_subtract_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::saturated_subtract,
-            .reverse = true,
-            .advance_phase_on_exit = true,
-            .supports_third_row_skip = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::saturated_subtract,
+                .reverse = true,
+                .advance_phase_on_exit = true,
+                .supports_third_row_skip = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_smear_forward:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::smear,
-            .advance_phase_on_exit = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::smear,
+                .advance_phase_on_exit = true,
+            }
+        );
         break;
 
     case LegacyBlitterRoutine::rle_smear_reverse:
-        status = run_rle(RleRoutinePolicy{
-            .operation = RlePixelOperation::smear,
-            .reverse = true,
-        });
+        status = run_rle(
+            RleRoutinePolicy{
+                .operation = RlePixelOperation::smear,
+                .reverse = true,
+            }
+        );
         break;
 
     default:
@@ -2044,21 +1928,12 @@ LegacyOutlineBlitResult blit_legacy_outline_copy_paths(
         std::array<i32, 2>{1, -1},
     };
     for (std::size_t index = 0U; index < kOffsets.size(); ++index) {
-        pass.destination_x = wrapping_add(
-            request.destination_x,
-            kOffsets[index][0]
-        );
-        pass.destination_y = wrapping_add(
-            request.destination_y,
-            kOffsets[index][1]
-        );
+        pass.destination_x =
+            wrapping_add(request.destination_x, kOffsets[index][0]);
+        pass.destination_y =
+            wrapping_add(request.destination_y, kOffsets[index][1]);
         result.passes[index] = blit_legacy_copy_paths(
-            framebuffer,
-            clip,
-            source,
-            pass,
-            effects,
-            jitter
+            framebuffer, clip, source, pass, effects, jitter
         );
     }
     return result;

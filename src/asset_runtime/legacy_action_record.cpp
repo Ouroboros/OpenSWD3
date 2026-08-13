@@ -42,23 +42,29 @@ constexpr compat::u16 kCommandHw = 0x5748U;
 constexpr compat::u16 kCommandVw = 0x5756U;
 constexpr compat::u16 kCommandYx = 0x5859U;
 
-[[nodiscard]] bool read_word(const std::span<const compat::u8> stream,
-                             const compat::u16 word_index,
-                             compat::u16& value) noexcept {
+[[nodiscard]] bool read_word(
+    const std::span<const compat::u8> stream,
+    const compat::u16 word_index,
+    compat::u16& value
+) noexcept {
     const std::size_t offset = static_cast<std::size_t>(word_index) * 2U;
     if (offset + 2U > stream.size()) {
         return false;
     }
     value = static_cast<compat::u16>(
         static_cast<compat::u16>(stream[offset]) |
-        static_cast<compat::u16>(static_cast<compat::u16>(stream[offset + 1U])
-                                 << 8U));
+        static_cast<compat::u16>(
+            static_cast<compat::u16>(stream[offset + 1U]) << 8U
+        )
+    );
     return true;
 }
 
-[[nodiscard]] bool consume_word(LegacyActionRecord& record,
-                                const std::span<const compat::u8> stream,
-                                compat::u16& value) noexcept {
+[[nodiscard]] bool consume_word(
+    LegacyActionRecord& record,
+    const std::span<const compat::u8> stream,
+    compat::u16& value
+) noexcept {
     if (!read_word(stream, record.command_cursor, value)) {
         return false;
     }
@@ -67,8 +73,9 @@ constexpr compat::u16 kCommandYx = 0x5859U;
     return true;
 }
 
-void reset_changed_key(LegacyActionRecord& record,
-                       const compat::u32 mode_mask) noexcept {
+void reset_changed_key(
+    LegacyActionRecord& record, const compat::u32 mode_mask
+) noexcept {
     record.wait_remaining = 0U;
     record.wait_default = 0U;
     record.command_cursor = 0U;
@@ -124,12 +131,15 @@ void initialize_legacy_action_record(LegacyActionRecord& record) noexcept {
 }
 
 LegacyActActionStreamProvider::LegacyActActionStreamProvider(
-    LegacyActRuntime& runtime) noexcept
+    LegacyActRuntime& runtime
+) noexcept
     : runtime_(runtime) {}
 
 LegacyActionStreamLoadResult LegacyActActionStreamProvider::load_action_stream(
-    const compat::u32 action_id, const compat::u32 variant_index,
-    const bool cached) {
+    const compat::u32 action_id,
+    const compat::u32 variant_index,
+    const bool cached
+) {
     LegacyActionStreamLoadResult result;
     if (cached) {
         const LegacyActQueryResult loaded =
@@ -156,11 +166,13 @@ LegacyActionStreamLoadResult LegacyActActionStreamProvider::load_action_stream(
 }
 
 LegacyActionUpdater::LegacyActionUpdater(
-    LegacyActionStreamProvider& provider) noexcept
+    LegacyActionStreamProvider& provider
+) noexcept
     : provider_(provider) {}
 
 void LegacyActionUpdater::set_stream_cache_mode(
-    const compat::u32 value) noexcept {
+    const compat::u32 value
+) noexcept {
     stream_cache_mode_ = value;
 }
 
@@ -197,7 +209,8 @@ LegacyActionUpdater::update(LegacyActionRecord& record) {
     const compat::u32 selected_variant =
         record.base_variant + record.variant_delta;
     const LegacyActionStreamLoadResult loaded = provider_.load_action_stream(
-        record.action_id, selected_variant, stream_cache_mode_ == 1U);
+        record.action_id, selected_variant, stream_cache_mode_ == 1U
+    );
     record.stream_pointer_32 =
         loaded.status == LegacyActionStreamStatus::ready ? 1U : 0U;
     result.cache_hit = loaded.cache_hit;
@@ -319,8 +332,12 @@ LegacyActionUpdater::update(LegacyActionRecord& record) {
             break;
         case kCommandLf: {
             std::array<compat::u16*, 7> fields{
-                &record.field_7a, &record.field_7c, &record.field_7e,
-                &record.field_80, &record.field_82, &record.field_84,
+                &record.field_7a,
+                &record.field_7c,
+                &record.field_7e,
+                &record.field_80,
+                &record.field_82,
+                &record.field_84,
                 &record.field_86,
             };
             for (compat::u16* const field : fields) {
@@ -374,7 +391,8 @@ LegacyActionUpdater::update(LegacyActionRecord& record) {
                 current = 1U;
             }
             record.packed_ap_state = static_cast<compat::u16>(
-                count | static_cast<compat::u16>(current << 8U));
+                count | static_cast<compat::u16>(current << 8U)
+            );
             break;
         }
         case kCommandEq:

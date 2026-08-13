@@ -25,7 +25,9 @@ struct ScreenshotEvent {
 
 class RecordingScreenshotPorts final : public openswd3::app::ScreenshotPorts {
 public:
-    void beep() override { events.push_back({ScreenshotCall::beep, 0U}); }
+    void beep() override {
+        events.push_back({ScreenshotCall::beep, 0U});
+    }
 
     void maintain_audio() override {
         events.push_back({ScreenshotCall::maintain_audio, 0U});

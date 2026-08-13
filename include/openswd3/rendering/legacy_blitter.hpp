@@ -60,9 +60,8 @@ struct LegacyBlitterSelection {
     bool rle_family{};
 };
 
-[[nodiscard]] LegacyBlitterRoutine legacy_blitter_routine(
-    compat::u32 table_slot
-) noexcept;
+[[nodiscard]] LegacyBlitterRoutine
+legacy_blitter_routine(compat::u32 table_slot) noexcept;
 
 [[nodiscard]] LegacyBlitterSelection select_legacy_blitter(
     compat::u16 source_first_word,

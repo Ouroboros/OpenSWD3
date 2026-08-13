@@ -33,18 +33,14 @@ using openswd3::world_map::LegacyWorldRoleSurfaceContext;
 using openswd3::world_map::write_legacy_maps_role_source_record;
 
 void write_u16(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u16 value
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
 ) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
-[[nodiscard]] u32 read_u32(
-    const std::span<const u8> bytes,
-    const std::size_t offset
-) {
+[[nodiscard]] u32
+read_u32(const std::span<const u8> bytes, const std::size_t offset) {
     return static_cast<u32>(bytes[offset]) |
         (static_cast<u32>(bytes[offset + 1U]) << 8U) |
         (static_cast<u32>(bytes[offset + 2U]) << 16U) |
@@ -65,8 +61,7 @@ struct Fixture {
         source.flags = 0x0181U;
         database.role_sources.push_back(source);
         static_cast<void>(write_legacy_maps_role_source_record(
-            payload,
-            database.role_sources.front()
+            payload, database.role_sources.front()
         ));
 
         roles.resize(4U);
@@ -119,8 +114,7 @@ struct Fixture {
     LegacyMapsWorldDatabase database;
     LegacyMapsRoleSourceRecord source;
     std::vector<LegacyWorldRoleRecord> roles;
-    std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>
-        party_objects;
+    std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount> party_objects;
     std::array<u32, kLegacyWorldPartySlotCount> party_indices;
     u32 party_count{5U};
     std::vector<u8> surface = std::vector<u8>(16U * sizeof(u32), 0U);
@@ -130,8 +124,7 @@ struct Fixture {
 void test_aligned_party_removal(openswd3::test::Context& test) {
     Fixture fixture;
     const auto result = apply_legacy_world_role_map_update(
-        fixture.request(),
-        fixture.context()
+        fixture.request(), fixture.context()
     );
     test.expect_equal(
         result.status,
@@ -150,8 +143,7 @@ void test_aligned_party_removal(openswd3::test::Context& test) {
             role.talk_script_id == 0x8002U &&
             role.action.action_id == 0x8003U &&
             role.action.base_variant == 0x8004U &&
-            role.action.variant_delta == 0x8005U &&
-            role.flags == 0xC000U,
+            role.action.variant_delta == 0x8005U && role.flags == 0xC000U,
         "all seven opcode operands reach their fields with zero extension"
     );
     test.expect_equal(
@@ -168,10 +160,8 @@ void test_aligned_party_removal(openswd3::test::Context& test) {
     const auto& source = fixture.database.role_sources.front();
     test.expect_true(
         source.action_id == 100U && source.base_variant == 101U &&
-            source.variant_delta == 102U &&
-            source.talk_script_id == 0x8002U &&
-            source.path_data_id == 0x8001U &&
-            source.path_word_index == 0 &&
+            source.variant_delta == 102U && source.talk_script_id == 0x8002U &&
+            source.path_data_id == 0x8001U && source.path_word_index == 0 &&
             source.flags == 0x0101U,
         "MAPS keeps action operands but writes Talk/Path and clears bit seven"
     );
@@ -204,8 +194,7 @@ void test_moving_role_alignment_and_spatial_removal(
     fixture.spatial_pointer = &spatial;
 
     const auto result = apply_legacy_world_role_map_update(
-        fixture.request(),
-        fixture.context()
+        fixture.request(), fixture.context()
     );
     test.expect_true(
         result.status == LegacyWorldRoleMapUpdateStatus::ready &&
@@ -241,8 +230,7 @@ void test_ff_direction_still_removes_spatial_role(
     fixture.spatial_pointer = &spatial;
 
     const auto result = apply_legacy_world_role_map_update(
-        fixture.request(),
-        fixture.context()
+        fixture.request(), fixture.context()
     );
     test.expect_true(
         result.status == LegacyWorldRoleMapUpdateStatus::ready &&
@@ -269,8 +257,7 @@ void test_negative_direction_alignment(openswd3::test::Context& test) {
     fixture.spatial_pointer = &spatial;
 
     const auto result = apply_legacy_world_role_map_update(
-        fixture.request(),
-        fixture.context()
+        fixture.request(), fixture.context()
     );
     test.expect_true(
         result.status == LegacyWorldRoleMapUpdateStatus::ready &&
@@ -280,14 +267,11 @@ void test_negative_direction_alignment(openswd3::test::Context& test) {
     );
 }
 
-void test_missing_and_stale_physical_paths(
-    openswd3::test::Context& test
-) {
+void test_missing_and_stale_physical_paths(openswd3::test::Context& test) {
     Fixture missing;
     missing.roles[1].guid = 8U;
     const auto missing_result = apply_legacy_world_role_map_update(
-        missing.request(),
-        missing.context()
+        missing.request(), missing.context()
     );
     test.expect_true(
         missing_result.status == LegacyWorldRoleMapUpdateStatus::ready &&
@@ -300,8 +284,7 @@ void test_missing_and_stale_physical_paths(
     Fixture not_party;
     not_party.party_indices.fill(99U);
     const auto not_party_result = apply_legacy_world_role_map_update(
-        not_party.request(),
-        not_party.context()
+        not_party.request(), not_party.context()
     );
     test.expect_equal(
         not_party_result.status,
@@ -313,10 +296,8 @@ void test_missing_and_stale_physical_paths(
     stale.party_count = 2U;
     stale.party_indices.fill(99U);
     stale.party_indices[6] = 1U;
-    const auto stale_result = apply_legacy_world_role_map_update(
-        stale.request(),
-        stale.context()
-    );
+    const auto stale_result =
+        apply_legacy_world_role_map_update(stale.request(), stale.context());
     test.expect_true(
         stale_result.status == LegacyWorldRoleMapUpdateStatus::ready &&
             stale_result.physical_party_index == 6U &&
@@ -327,8 +308,7 @@ void test_missing_and_stale_physical_paths(
     Fixture missing_source;
     missing_source.database.role_sources.clear();
     const auto missing_source_result = apply_legacy_world_role_map_update(
-        missing_source.request(),
-        missing_source.context()
+        missing_source.request(), missing_source.context()
     );
     test.expect_true(
         missing_source_result.status ==
@@ -347,12 +327,11 @@ void test_checked_invalid_direction(openswd3::test::Context& test) {
     write_u16(fixture.party_objects[2].bytes, 2U, 0U);
     fixture.party_objects[2].bytes[0x1CU] = 8U;
     const auto result = apply_legacy_world_role_map_update(
-        fixture.request(),
-        fixture.context()
+        fixture.request(), fixture.context()
     );
     test.expect_true(
-        result.status == LegacyWorldRoleMapUpdateStatus::
-                             path_direction_out_of_range &&
+        result.status ==
+                LegacyWorldRoleMapUpdateStatus::path_direction_out_of_range &&
             result.role_surface_cleared && fixture.party_count == 5U,
         "direction table overflow is isolated after the original clear point"
     );
@@ -364,21 +343,18 @@ void test_checked_invalid_direction(openswd3::test::Context& test) {
     write_u16(cannot_align.party_objects[2].bytes, 2U, 0U);
     cannot_align.party_objects[2].bytes[0x1CU] = 7U;
     const auto cannot_align_result = apply_legacy_world_role_map_update(
-        cannot_align.request(),
-        cannot_align.context()
+        cannot_align.request(), cannot_align.context()
     );
     test.expect_true(
-        cannot_align_result.status == LegacyWorldRoleMapUpdateStatus::
-                                          path_direction_cannot_align &&
+        cannot_align_result.status ==
+                LegacyWorldRoleMapUpdateStatus::path_direction_cannot_align &&
             cannot_align_result.role_surface_cleared &&
             cannot_align.party_count == 5U,
         "a nonaligned axis with zero step isolates the original infinite loop"
     );
 }
 
-void test_spatial_miss_keeps_later_side_effects(
-    openswd3::test::Context& test
-) {
+void test_spatial_miss_keeps_later_side_effects(openswd3::test::Context& test) {
     Fixture fixture;
     fixture.roles[1].world_x = 0x24U;
     fixture.roles[1].world_y = 0x20U;
@@ -394,12 +370,12 @@ void test_spatial_miss_keeps_later_side_effects(
     fixture.spatial_pointer = &spatial;
 
     const auto result = apply_legacy_world_role_map_update(
-        fixture.request(),
-        fixture.context()
+        fixture.request(), fixture.context()
     );
     test.expect_true(
-        result.status == LegacyWorldRoleMapUpdateStatus::
-                             role_spatial_relocation_failed &&
+        result.status ==
+                LegacyWorldRoleMapUpdateStatus::
+                    role_spatial_relocation_failed &&
             result.party_role_removed && result.maps_source_patched &&
             fixture.party_count == 4U &&
             fixture.roles[1].path_data_id == 0x8001U,
@@ -408,8 +384,7 @@ void test_spatial_miss_keeps_later_side_effects(
 }
 
 void test_real_maps_missing_runtime_role(
-    openswd3::test::Context& test,
-    const std::filesystem::path& path
+    openswd3::test::Context& test, const std::filesystem::path& path
 ) {
     std::ifstream input(path, std::ios::binary);
     const std::vector<u8> file_bytes{
@@ -459,8 +434,7 @@ void test_real_maps_missing_runtime_role(
         .role_surface = {},
     };
     const auto result = apply_legacy_world_role_map_update(
-        LegacyWorldRoleMapUpdateRequest{.role_selector = source.guid},
-        context
+        LegacyWorldRoleMapUpdateRequest{.role_selector = source.guid}, context
     );
     test.expect_true(
         result.status == LegacyWorldRoleMapUpdateStatus::ready &&

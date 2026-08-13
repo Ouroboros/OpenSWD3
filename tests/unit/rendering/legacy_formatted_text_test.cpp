@@ -42,16 +42,19 @@ public:
     [[nodiscard]] LegacyTextDrawResult draw_segment(
         const LegacyFormattedTextSegmentRequest& request
     ) noexcept override {
-        segments.push_back(RecordedSegment{
-            .x = request.destination_x,
-            .y = request.destination_y,
-            .text = std::vector<u8>{
-                request.nul_terminated_text.begin(),
-                request.nul_terminated_text.end(),
-            },
-            .color = request.foreground_color,
-            .flags = request.flags,
-        });
+        segments.push_back(
+            RecordedSegment{
+                .x = request.destination_x,
+                .y = request.destination_y,
+                .text =
+                    std::vector<u8>{
+                        request.nul_terminated_text.begin(),
+                        request.nul_terminated_text.end(),
+                    },
+                .color = request.foreground_color,
+                .flags = request.flags,
+            }
+        );
 
         LegacyTextDrawResult result{};
         if (fail_call != 0U && segments.size() == fail_call) {
@@ -112,19 +115,17 @@ void expect_segment(
     test.expect_equal(actual.flags, 4U, message);
 }
 
-void test_raw_bytes_and_explicit_terminator(
-    openswd3::test::Context& test
-) {
+void test_raw_bytes_and_explicit_terminator(openswd3::test::Context& test) {
     RecordingSegmentSink sink;
     constexpr std::array<u8, 4> kText{0x41U, 0xA4U, 0x40U, 0U};
     LegacyFormattedTextResult result =
         openswd3::rendering::layout_legacy_formatted_text(
-            sink,
-            0x66F1U,
-            make_request(kText)
+            sink, 0x66F1U, make_request(kText)
         );
 
-    test.expect_equal(result.status, LegacyFormattedTextStatus::completed, "raw status");
+    test.expect_equal(
+        result.status, LegacyFormattedTextStatus::completed, "raw status"
+    );
     test.expect_equal(result.next_byte_index, 3U, "raw terminator offset");
     test.expect_equal(result.draw_call_count, 1U, "raw final draw");
     test.expect_equal(sink.segments.size(), 1U, "raw segment count");
@@ -141,13 +142,15 @@ void test_raw_bytes_and_explicit_terminator(
     RecordingSegmentSink explicit_terminator_sink;
     constexpr std::array<u8, 2> kExplicitTerminator{'%', 'Q'};
     result = openswd3::rendering::layout_legacy_formatted_text(
-        explicit_terminator_sink,
-        0x1234U,
-        make_request(kExplicitTerminator)
+        explicit_terminator_sink, 0x1234U, make_request(kExplicitTerminator)
     );
-    test.expect_equal(result.status, LegacyFormattedTextStatus::completed, "%Q status");
+    test.expect_equal(
+        result.status, LegacyFormattedTextStatus::completed, "%Q status"
+    );
     test.expect_equal(result.next_byte_index, 0U, "%Q remains unconsumed");
-    test.expect_equal(explicit_terminator_sink.segments.size(), 1U, "%Q empty final draw");
+    test.expect_equal(
+        explicit_terminator_sink.segments.size(), 1U, "%Q empty final draw"
+    );
     expect_segment(
         test,
         explicit_terminator_sink.segments[0],
@@ -159,24 +162,32 @@ void test_raw_bytes_and_explicit_terminator(
     );
 }
 
-void test_color_segments_and_signed_color_byte(
-    openswd3::test::Context& test
-) {
+void test_color_segments_and_signed_color_byte(openswd3::test::Context& test) {
     RecordingSegmentSink sink;
     constexpr std::array<u8, 9> kText{
-        'A', 'B', '%', 'C', 0xFFU, 0xA4U, 0x40U, '%', 'Q',
+        'A',
+        'B',
+        '%',
+        'C',
+        0xFFU,
+        0xA4U,
+        0x40U,
+        '%',
+        'Q',
     };
     const LegacyFormattedTextResult result =
         openswd3::rendering::layout_legacy_formatted_text(
-            sink,
-            0x1234U,
-            make_request(kText)
+            sink, 0x1234U, make_request(kText)
         );
 
-    test.expect_equal(result.status, LegacyFormattedTextStatus::completed, "color status");
+    test.expect_equal(
+        result.status, LegacyFormattedTextStatus::completed, "color status"
+    );
     test.expect_equal(result.next_byte_index, 7U, "%Q offset after color");
     test.expect_equal(sink.segments.size(), 2U, "two color segments");
-    expect_segment(test, sink.segments[0], 10, 20, {'A', 'B', 0U}, 0x1234U, "first color");
+    expect_segment(
+        test, sink.segments[0], 10, 20, {'A', 'B', 0U}, 0x1234U, "first color"
+    );
     expect_segment(
         test,
         sink.segments[1],
@@ -193,21 +204,31 @@ void test_newline_and_delayed_width_wrap(openswd3::test::Context& test) {
     constexpr std::array<u8, 6> kNewline{'A', '%', 'N', 'B', 'C', 0U};
     LegacyFormattedTextResult result =
         openswd3::rendering::layout_legacy_formatted_text(
-            newline_sink,
-            0x1111U,
-            make_request(kNewline)
+            newline_sink, 0x1111U, make_request(kNewline)
         );
-    test.expect_equal(result.completed_line_break_count, 1, "explicit line count");
-    test.expect_equal(newline_sink.segments.size(), 2U, "explicit line segments");
-    expect_segment(test, newline_sink.segments[0], 10, 20, {'A', 0U}, 0x1111U, "line one");
-    expect_segment(test, newline_sink.segments[1], 10, 45, {'B', 'C', 0U}, 0x1111U, "line two");
+    test.expect_equal(
+        result.completed_line_break_count, 1, "explicit line count"
+    );
+    test.expect_equal(
+        newline_sink.segments.size(), 2U, "explicit line segments"
+    );
+    expect_segment(
+        test, newline_sink.segments[0], 10, 20, {'A', 0U}, 0x1111U, "line one"
+    );
+    expect_segment(
+        test,
+        newline_sink.segments[1],
+        10,
+        45,
+        {'B', 'C', 0U},
+        0x1111U,
+        "line two"
+    );
 
     RecordingSegmentSink width_sink;
     constexpr std::array<u8, 5> kWidth{'A', 'B', 'C', 'D', 0U};
     result = openswd3::rendering::layout_legacy_formatted_text(
-        width_sink,
-        0x2222U,
-        make_request(kWidth, 5, 22)
+        width_sink, 0x2222U, make_request(kWidth, 5, 22)
     );
     test.expect_equal(result.completed_line_break_count, 1, "width line count");
     test.expect_equal(width_sink.segments.size(), 2U, "width segments");
@@ -220,7 +241,15 @@ void test_newline_and_delayed_width_wrap(openswd3::test::Context& test) {
         0x2222U,
         "width permits one character past equality"
     );
-    expect_segment(test, width_sink.segments[1], 10, 45, {'D', 0U}, 0x2222U, "wrapped character is retried");
+    expect_segment(
+        test,
+        width_sink.segments[1],
+        10,
+        45,
+        {'D', 0U},
+        0x2222U,
+        "wrapped character is retried"
+    );
 }
 
 void test_line_limit_preserves_cleared_buffer_counter_bug(
@@ -228,21 +257,49 @@ void test_line_limit_preserves_cleared_buffer_counter_bug(
 ) {
     RecordingSegmentSink sink;
     constexpr std::array<u8, 9> kText{
-        'A', '%', 'N', '%', 'C', '7', 'B', 0U, 0U,
+        'A',
+        '%',
+        'N',
+        '%',
+        'C',
+        '7',
+        'B',
+        0U,
+        0U,
     };
     const LegacyFormattedTextResult result =
         openswd3::rendering::layout_legacy_formatted_text(
-            sink,
-            0x3333U,
-            make_request(kText, 1)
+            sink, 0x3333U, make_request(kText, 1)
         );
 
-    test.expect_equal(result.status, LegacyFormattedTextStatus::completed, "line-limit status");
-    test.expect_equal(result.completed_line_break_count, 0, "line limit blocks advance");
+    test.expect_equal(
+        result.status, LegacyFormattedTextStatus::completed, "line-limit status"
+    );
+    test.expect_equal(
+        result.completed_line_break_count, 0, "line limit blocks advance"
+    );
     test.expect_equal(sink.segments.size(), 3U, "line-limit draw sequence");
-    expect_segment(test, sink.segments[0], 10, 20, {'A', 0U}, 0x3333U, "pre-limit flush");
-    expect_segment(test, sink.segments[1], 10, 20, {'%', 'N', 0U}, 0x3333U, "newline becomes text");
-    expect_segment(test, sink.segments[2], 43, 20, {'B', 0U}, 7U, "stale byte counter shifts color tail");
+    expect_segment(
+        test, sink.segments[0], 10, 20, {'A', 0U}, 0x3333U, "pre-limit flush"
+    );
+    expect_segment(
+        test,
+        sink.segments[1],
+        10,
+        20,
+        {'%', 'N', 0U},
+        0x3333U,
+        "newline becomes text"
+    );
+    expect_segment(
+        test,
+        sink.segments[2],
+        43,
+        20,
+        {'B', 0U},
+        7U,
+        "stale byte counter shifts color tail"
+    );
 }
 
 void test_bounded_safety_states(openswd3::test::Context& test) {
@@ -252,43 +309,63 @@ void test_bounded_safety_states(openswd3::test::Context& test) {
 
     RecordingSegmentSink missing_sink;
     auto result = openswd3::rendering::layout_legacy_formatted_text(
-        missing_sink,
-        0U,
-        make_request(kMissingTerminator)
+        missing_sink, 0U, make_request(kMissingTerminator)
     );
-    test.expect_equal(result.status, LegacyFormattedTextStatus::missing_terminator, "missing terminator");
-    test.expect_equal(missing_sink.segments.size(), 0U, "missing terminator has no final draw");
+    test.expect_equal(
+        result.status,
+        LegacyFormattedTextStatus::missing_terminator,
+        "missing terminator"
+    );
+    test.expect_equal(
+        missing_sink.segments.size(), 0U, "missing terminator has no final draw"
+    );
 
     RecordingSegmentSink dangling_sink;
     result = openswd3::rendering::layout_legacy_formatted_text(
-        dangling_sink,
-        0U,
-        make_request(kDanglingDbcs)
+        dangling_sink, 0U, make_request(kDanglingDbcs)
     );
-    test.expect_equal(result.status, LegacyFormattedTextStatus::dangling_double_byte, "dangling DBCS");
-    test.expect_equal(dangling_sink.segments.size(), 0U, "dangling DBCS is isolated");
+    test.expect_equal(
+        result.status,
+        LegacyFormattedTextStatus::dangling_double_byte,
+        "dangling DBCS"
+    );
+    test.expect_equal(
+        dangling_sink.segments.size(), 0U, "dangling DBCS is isolated"
+    );
 
     RecordingSegmentSink color_sink;
     result = openswd3::rendering::layout_legacy_formatted_text(
-        color_sink,
-        0U,
-        make_request(kTruncatedColor)
+        color_sink, 0U, make_request(kTruncatedColor)
     );
-    test.expect_equal(result.status, LegacyFormattedTextStatus::truncated_color_control, "truncated color");
-    test.expect_equal(color_sink.segments.size(), 0U, "truncated color is isolated");
+    test.expect_equal(
+        result.status,
+        LegacyFormattedTextStatus::truncated_color_control,
+        "truncated color"
+    );
+    test.expect_equal(
+        color_sink.segments.size(), 0U, "truncated color is isolated"
+    );
 
     std::array<u8, 65> too_long{};
     too_long.fill(static_cast<u8>('A'));
     too_long.back() = 0U;
     RecordingSegmentSink overflow_sink;
     result = openswd3::rendering::layout_legacy_formatted_text(
-        overflow_sink,
-        0U,
-        make_request(too_long, 5, 0x7FFFFFFF)
+        overflow_sink, 0U, make_request(too_long, 5, 0x7FFFFFFF)
     );
-    test.expect_equal(result.status, LegacyFormattedTextStatus::segment_buffer_overflow, "64-byte stack overwrite isolated");
-    test.expect_equal(result.next_byte_index, 63U, "63 bytes plus NUL is maximum safe segment");
-    test.expect_equal(overflow_sink.segments.size(), 0U, "overflow is rejected before final draw");
+    test.expect_equal(
+        result.status,
+        LegacyFormattedTextStatus::segment_buffer_overflow,
+        "64-byte stack overwrite isolated"
+    );
+    test.expect_equal(
+        result.next_byte_index, 63U, "63 bytes plus NUL is maximum safe segment"
+    );
+    test.expect_equal(
+        overflow_sink.segments.size(),
+        0U,
+        "overflow is rejected before final draw"
+    );
 }
 
 void test_segment_failure_does_not_change_legacy_sequence(
@@ -299,15 +376,25 @@ void test_segment_failure_does_not_change_legacy_sequence(
     constexpr std::array<u8, 8> kText{'A', '%', 'C', '7', 'B', '%', 'Q', 0U};
     const LegacyFormattedTextResult result =
         openswd3::rendering::layout_legacy_formatted_text(
-            sink,
-            0x4444U,
-            make_request(kText)
+            sink, 0x4444U, make_request(kText)
         );
 
-    test.expect_equal(result.status, LegacyFormattedTextStatus::segment_draw_failed, "draw failure reported");
-    test.expect_equal(result.first_failed_draw_status, LegacyTextDrawStatus::glyph_provider_failed, "first draw failure retained");
-    test.expect_equal(result.draw_call_count, 2U, "draw failure does not stop second segment");
-    test.expect_equal(sink.segments.size(), 2U, "legacy draw sequence continues");
+    test.expect_equal(
+        result.status,
+        LegacyFormattedTextStatus::segment_draw_failed,
+        "draw failure reported"
+    );
+    test.expect_equal(
+        result.first_failed_draw_status,
+        LegacyTextDrawStatus::glyph_provider_failed,
+        "first draw failure retained"
+    );
+    test.expect_equal(
+        result.draw_call_count, 2U, "draw failure does not stop second segment"
+    );
+    test.expect_equal(
+        sink.segments.size(), 2U, "legacy draw sequence continues"
+    );
 }
 
 void test_full_adapter_colors_and_state(openswd3::test::Context& test) {
@@ -342,11 +429,29 @@ void test_full_adapter_colors_and_state(openswd3::test::Context& test) {
             make_request(kText)
         );
 
-    test.expect_equal(result.status, LegacyFormattedTextStatus::completed, "adapter draw");
-    test.expect_equal(renderer_state.background_color, static_cast<u16>(0xFFFEU), "adapter disables background");
-    test.expect_equal(renderer_state.secondary_color, static_cast<u16>(0x1883U), "adapter secondary RGB555");
-    test.expect_equal(framebuffer.row_pixels(20U)[10U], static_cast<u16>(0x66F1U), "adapter initial foreground RGB555");
-    test.expect_equal(framebuffer.row_pixels(21U)[11U], static_cast<u16>(0x1883U), "adapter style-four secondary pixel");
+    test.expect_equal(
+        result.status, LegacyFormattedTextStatus::completed, "adapter draw"
+    );
+    test.expect_equal(
+        renderer_state.background_color,
+        static_cast<u16>(0xFFFEU),
+        "adapter disables background"
+    );
+    test.expect_equal(
+        renderer_state.secondary_color,
+        static_cast<u16>(0x1883U),
+        "adapter secondary RGB555"
+    );
+    test.expect_equal(
+        framebuffer.row_pixels(20U)[10U],
+        static_cast<u16>(0x66F1U),
+        "adapter initial foreground RGB555"
+    );
+    test.expect_equal(
+        framebuffer.row_pixels(21U)[11U],
+        static_cast<u16>(0x1883U),
+        "adapter style-four secondary pixel"
+    );
 }
 
 }  // namespace

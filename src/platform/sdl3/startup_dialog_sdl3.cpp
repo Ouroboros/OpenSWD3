@@ -27,10 +27,12 @@ constexpr std::array<const char*, 6> kTextureFiles{
 }
 
 [[nodiscard]] compat::u32 pack_position(const float x, const float y) noexcept {
-    const auto legacy_x = static_cast<compat::u16>(static_cast<std::int32_t>(x));
-    const auto legacy_y = static_cast<compat::u16>(static_cast<std::int32_t>(y));
+    const auto legacy_x =
+        static_cast<compat::u16>(static_cast<std::int32_t>(x));
+    const auto legacy_y =
+        static_cast<compat::u16>(static_cast<std::int32_t>(y));
     return static_cast<compat::u32>(legacy_x) |
-           (static_cast<compat::u32>(legacy_y) << 16U);
+        (static_cast<compat::u32>(legacy_y) << 16U);
 }
 
 }  // namespace
@@ -40,8 +42,7 @@ SdlStartupDialog::SdlStartupDialog(
     app::ExternalLaunchPorts& external_launch_ports,
     std::function<void()> show_auxiliary_dialog
 )
-    : renderer_(renderer),
-      external_launch_ports_(external_launch_ports),
+    : renderer_(renderer), external_launch_ports_(external_launch_ports),
       show_auxiliary_dialog_(std::move(show_auxiliary_dialog)) {}
 
 SdlStartupDialog::~SdlStartupDialog() {
@@ -69,8 +70,7 @@ compat::i32 SdlStartupDialog::run(const bool any_save_exists) {
         if (event.type == SDL_EVENT_QUIT ||
             event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
             app::execute_startup_dialog_action(
-                app::startup_dialog_close_action(),
-                *this
+                app::startup_dialog_close_action(), *this
             );
             continue;
         }
@@ -93,8 +93,10 @@ compat::i32 SdlStartupDialog::run(const bool any_save_exists) {
             }
             message = app::StartupDialogPointerMessage::move;
             position = pack_position(event.motion.x, event.motion.y);
-        } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
-                   event.button.button == SDL_BUTTON_LEFT) {
+        } else if (
+            event.type == SDL_EVENT_MOUSE_BUTTON_DOWN &&
+            event.button.button == SDL_BUTTON_LEFT
+        ) {
             if (!SDL_ConvertEventToRenderCoordinates(&renderer_, &event)) {
                 end_dialog(6);
                 continue;
@@ -107,10 +109,7 @@ compat::i32 SdlStartupDialog::run(const bool any_save_exists) {
 
         const app::StartupDialogPointerResult pointer_result =
             app::update_startup_dialog_pointer(
-                state_,
-                any_save_exists,
-                message,
-                position
+                state_, any_save_exists, message, position
             );
         app::execute_startup_dialog_action(pointer_result.action, *this);
         if (!render()) {
@@ -122,10 +121,8 @@ compat::i32 SdlStartupDialog::run(const bool any_save_exists) {
     return result_;
 }
 
-bool SDLCALL SdlStartupDialog::render_on_expose(
-    void* userdata,
-    SDL_Event* event
-) {
+bool SDLCALL
+SdlStartupDialog::render_on_expose(void* userdata, SDL_Event* event) {
     auto& dialog = *static_cast<SdlStartupDialog*>(userdata);
     if (event->type == SDL_EVENT_WINDOW_EXPOSED &&
         event->window.windowID ==
@@ -145,15 +142,13 @@ void SdlStartupDialog::show_auxiliary_dialog() {
 
 void SdlStartupDialog::open_url() {
     static_cast<void>(app::open_url_with_legacy_result(
-        "www.softstar.com.tw",
-        external_launch_ports_
+        "www.softstar.com.tw", external_launch_ports_
     ));
 }
 
 void SdlStartupDialog::open_readme() {
     static_cast<void>(app::open_document_with_legacy_result(
-        "Readme.txt",
-        external_launch_ports_
+        "Readme.txt", external_launch_ports_
     ));
 }
 
@@ -213,10 +208,7 @@ bool SdlStartupDialog::render() {
             static_cast<float>(layout.height),
         };
         if (!SDL_RenderTexture(
-                &renderer_,
-                textures_[index + 1U],
-                nullptr,
-                &destination
+                &renderer_, textures_[index + 1U], nullptr, &destination
             )) {
             return false;
         }

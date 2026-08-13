@@ -25,24 +25,33 @@ constexpr std::size_t kEncodedFixedSize = 0x32U;
 // low bytes in this file order.
 constexpr std::array<compat::u8, kBindingBytesSize>
     kDefaultBindingBytesFileOrder{
-        0xC8U, 0xD0U, 0xCBU, 0xCDU,
-        0x39U, 0x1CU, 0x9DU, 0x01U,
-        0xCFU, 0x36U, 0x13U, 0x1EU,
-        0x22U, 0x3BU, 0xC9U, 0xD1U,
+        0xC8U,
+        0xD0U,
+        0xCBU,
+        0xCDU,
+        0x39U,
+        0x1CU,
+        0x9DU,
+        0x01U,
+        0xCFU,
+        0x36U,
+        0x13U,
+        0x1EU,
+        0x22U,
+        0x3BU,
+        0xC9U,
+        0xD1U,
     };
 
-using EnvironmentWindow =
-    std::array<compat::u8, kLegacyEnvironmentWindowSize>;
+using EnvironmentWindow = std::array<compat::u8, kLegacyEnvironmentWindowSize>;
 
 struct FileReadResult {
     bool opened{};
     LegacyEnvironmentCodecStatus status{LegacyEnvironmentCodecStatus::ok};
 };
 
-[[nodiscard]] compat::u32 read_u32(
-    const EnvironmentWindow& window,
-    const std::size_t offset
-) noexcept {
+[[nodiscard]] compat::u32
+read_u32(const EnvironmentWindow& window, const std::size_t offset) noexcept {
     return static_cast<compat::u32>(window[offset]) |
         (static_cast<compat::u32>(window[offset + 1U]) << 8U) |
         (static_cast<compat::u32>(window[offset + 2U]) << 16U) |
@@ -61,8 +70,7 @@ void write_u32(
 }
 
 [[nodiscard]] std::size_t find_terminator(
-    const EnvironmentWindow& window,
-    const std::size_t begin
+    const EnvironmentWindow& window, const std::size_t begin
 ) noexcept {
     const auto found = std::find(
         window.begin() + static_cast<std::ptrdiff_t>(begin),
@@ -72,21 +80,18 @@ void write_u32(
     return static_cast<std::size_t>(found - window.begin());
 }
 
-[[nodiscard]] std::string_view legacy_string_prefix(
-    const std::string& value
-) noexcept {
+[[nodiscard]] std::string_view
+legacy_string_prefix(const std::string& value) noexcept {
     const std::size_t terminator = value.find('\0');
     return std::string_view{value}.substr(0U, terminator);
 }
 
 [[nodiscard]] LegacyEnvironmentDecodeResult decode_window(
-    const EnvironmentWindow& window,
-    const LegacyEnvironmentLayout layout
+    const EnvironmentWindow& window, const LegacyEnvironmentLayout layout
 ) {
     LegacyEnvironmentDecodeResult result;
     result.layout = layout;
-    const std::size_t field_offset =
-        layout == LegacyEnvironmentLayout::marked
+    const std::size_t field_offset = layout == LegacyEnvironmentLayout::marked
         ? kMarkedFieldOffset
         : kUnmarkedFieldOffset;
 
@@ -95,21 +100,21 @@ void write_u32(
         kBindingBytesSize,
         result.record.binding_bytes.begin()
     );
-    result.record.integer_parameter = read_u32(
-        window,
-        field_offset + kIntegerParameterRelativeOffset
-    );
+    result.record.integer_parameter =
+        read_u32(window, field_offset + kIntegerParameterRelativeOffset);
     std::ranges::copy_n(
-        window.begin() + static_cast<std::ptrdiff_t>(
-            field_offset + kOptionBytesRelativeOffset
-        ),
+        window.begin() +
+            static_cast<std::ptrdiff_t>(
+                field_offset + kOptionBytesRelativeOffset
+            ),
         result.record.option_bytes.size(),
         result.record.option_bytes.begin()
     );
     std::ranges::copy_n(
-        window.begin() + static_cast<std::ptrdiff_t>(
-            field_offset + kPreservedBytesRelativeOffset
-        ),
+        window.begin() +
+            static_cast<std::ptrdiff_t>(
+                field_offset + kPreservedBytesRelativeOffset
+            ),
         result.record.preserved_bytes.size(),
         result.record.preserved_bytes.begin()
     );
@@ -147,14 +152,11 @@ void write_u32(
 }
 
 [[nodiscard]] FileReadResult read_environment_window(
-    const std::filesystem::path& path,
-    EnvironmentWindow& window
+    const std::filesystem::path& path, EnvironmentWindow& window
 ) {
     LegacyFile file;
     if (!file.open(
-            path,
-            LegacyFileCreation::open_existing,
-            LegacyFileAccess::read
+            path, LegacyFileCreation::open_existing, LegacyFileAccess::read
         )) {
         return {};
     }
@@ -169,17 +171,15 @@ void write_u32(
     }
 
     compat::u32 requested = file_size;
-    static_cast<void>(file.read(
-        std::span<compat::u8>{window}.first(file_size),
-        requested
-    ));
+    static_cast<void>(
+        file.read(std::span<compat::u8>{window}.first(file_size), requested)
+    );
     static_cast<void>(file.close());
     return result;
 }
 
 [[nodiscard]] bool write_environment_prefix(
-    const std::filesystem::path& path,
-    const std::span<const compat::u8> bytes
+    const std::filesystem::path& path, const std::span<const compat::u8> bytes
 ) {
     LegacyFile file;
     if (!file.open(
@@ -199,9 +199,8 @@ void write_u32(
 
 }  // namespace
 
-LegacyEnvironmentDecodeResult decode_legacy_environment(
-    const std::span<const compat::u8> bytes
-) {
+LegacyEnvironmentDecodeResult
+decode_legacy_environment(const std::span<const compat::u8> bytes) {
     if (bytes.size() > kLegacyEnvironmentWindowSize) {
         LegacyEnvironmentDecodeResult result;
         result.status = LegacyEnvironmentCodecStatus::input_too_large;
@@ -214,9 +213,8 @@ LegacyEnvironmentDecodeResult decode_legacy_environment(
     const bool has_marker = read_u32(window, 0U) == kMarkedLayoutMarker;
     return decode_window(
         window,
-        has_marker
-        ? LegacyEnvironmentLayout::marked
-        : LegacyEnvironmentLayout::unmarked
+        has_marker ? LegacyEnvironmentLayout::marked
+                   : LegacyEnvironmentLayout::unmarked
     );
 }
 
@@ -236,9 +234,8 @@ LegacyEnvironmentDecodeResult decode_legacy_environment_as(
     return decode_window(window, layout);
 }
 
-LegacyEnvironmentRecord migrate_unmarked_environment(
-    const LegacyEnvironmentRecord& unmarked_record
-) {
+LegacyEnvironmentRecord
+migrate_unmarked_environment(const LegacyEnvironmentRecord& unmarked_record) {
     LegacyEnvironmentRecord migrated;
     migrated.binding_bytes = kDefaultBindingBytesFileOrder;
     migrated.integer_parameter = 100U;
@@ -249,16 +246,13 @@ LegacyEnvironmentRecord migrate_unmarked_environment(
     return migrated;
 }
 
-LegacyEnvironmentEncodeResult encode_legacy_environment(
-    const LegacyEnvironmentRecord& record
-) {
+LegacyEnvironmentEncodeResult
+encode_legacy_environment(const LegacyEnvironmentRecord& record) {
     LegacyEnvironmentEncodeResult result;
-    const std::string_view primary = legacy_string_prefix(
-        record.primary_directory
-    );
-    const std::string_view secondary = legacy_string_prefix(
-        record.secondary_directory
-    );
+    const std::string_view primary =
+        legacy_string_prefix(record.primary_directory);
+    const std::string_view secondary =
+        legacy_string_prefix(record.secondary_directory);
     if (primary.size() + secondary.size() >
         kLegacyEnvironmentWindowSize - kEncodedFixedSize) {
         result.status = LegacyEnvironmentCodecStatus::output_too_large;
@@ -304,10 +298,9 @@ bool rewrite_legacy_environment(
     }
     if (file_size != 0U) {
         compat::u32 requested = file_size;
-        static_cast<void>(file.read(
-            std::span<compat::u8>{window}.first(file_size),
-            requested
-        ));
+        static_cast<void>(
+            file.read(std::span<compat::u8>{window}.first(file_size), requested)
+        );
     }
 
     LegacyEnvironmentRecord rewritten = record;
@@ -378,10 +371,8 @@ LegacyEnvironmentLoadResult load_legacy_environment(
 ) {
     LegacyEnvironmentLoadResult result;
     EnvironmentWindow window{};
-    const FileReadResult initial_read = read_environment_window(
-        initial_file,
-        window
-    );
+    const FileReadResult initial_read =
+        read_environment_window(initial_file, window);
     if (!initial_read.opened) {
         return result;
     }
@@ -404,29 +395,22 @@ LegacyEnvironmentLoadResult load_legacy_environment(
         return result;
     }
 
-    const LegacyEnvironmentRecord migrated = migrate_unmarked_environment(
-        decoded.record
-    );
-    const LegacyEnvironmentEncodeResult encoded = encode_legacy_environment(
-        migrated
-    );
+    const LegacyEnvironmentRecord migrated =
+        migrate_unmarked_environment(decoded.record);
+    const LegacyEnvironmentEncodeResult encoded =
+        encode_legacy_environment(migrated);
     if (encoded.status != LegacyEnvironmentCodecStatus::ok) {
         result.status = LegacyEnvironmentLoadStatus::unsafe_record;
         result.codec_status = encoded.status;
         return result;
     }
-    result.migration_write_succeeded = write_environment_prefix(
-        initial_file,
-        encoded.bytes
-    );
+    result.migration_write_succeeded =
+        write_environment_prefix(initial_file, encoded.bytes);
 
     const std::filesystem::path migrated_file =
-        resolve_stored_directory(decoded.record.primary_directory) /
-        "Env.dat";
-    const FileReadResult migrated_read = read_environment_window(
-        migrated_file,
-        window
-    );
+        resolve_stored_directory(decoded.record.primary_directory) / "Env.dat";
+    const FileReadResult migrated_read =
+        read_environment_window(migrated_file, window);
     result.migrated_reopen_succeeded = migrated_read.opened;
     if (migrated_read.opened &&
         migrated_read.status != LegacyEnvironmentCodecStatus::ok) {

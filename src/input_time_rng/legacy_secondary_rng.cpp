@@ -40,9 +40,8 @@ void LegacySecondaryRng::seed(const compat::u32 value) noexcept {
 }
 
 compat::u32 LegacySecondaryRng::next_raw() noexcept {
-    const std::size_t other = index_ >= kXorLag
-        ? index_ - kXorLag
-        : index_ + kXorForwardOffset;
+    const std::size_t other =
+        index_ >= kXorLag ? index_ - kXorLag : index_ + kXorForwardOffset;
     state_words_[index_] ^= state_words_[other];
     const compat::u32 value = state_words_[index_];
 
@@ -55,9 +54,8 @@ compat::u32 LegacySecondaryRng::next_raw() noexcept {
     return value;
 }
 
-compat::u32 LegacySecondaryRng::next_bounded(
-    const compat::u32 upper_bound
-) noexcept {
+compat::u32
+LegacySecondaryRng::next_bounded(const compat::u32 upper_bound) noexcept {
     if (upper_bound == 0U) {
         std::terminate();
     }

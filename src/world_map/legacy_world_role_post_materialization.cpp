@@ -31,16 +31,14 @@ struct GateEvaluation {
 }
 
 [[nodiscard]] u16 read_u16_le(
-    const std::span<const u8> bytes,
-    const std::size_t offset
+    const std::span<const u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<u16>(bytes[offset]) |
         static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
 }
 
 [[nodiscard]] u32 read_u32_le(
-    const std::span<const u8> bytes,
-    const std::size_t offset
+    const std::span<const u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<u32>(bytes[offset]) |
         (static_cast<u32>(bytes[offset + 1U]) << 8U) |
@@ -49,16 +47,10 @@ struct GateEvaluation {
 }
 
 [[nodiscard]] GateEvaluation evaluate_role_gate(
-    const std::span<const u8> payload,
-    const u16 role_guid,
-    const u16 map_state
+    const std::span<const u8> payload, const u16 role_guid, const u16 map_state
 ) noexcept {
     GateEvaluation result;
-    if (!range_available(
-            payload,
-            kGateDirectoryOffsetField,
-            sizeof(u32)
-        )) {
+    if (!range_available(payload, kGateDirectoryOffsetField, sizeof(u32))) {
         result.status = LegacyWorldRolePostMaterializationStatus::
             gate_offset_field_out_of_range;
         return result;
@@ -79,19 +71,16 @@ struct GateEvaluation {
             return result;
         }
         if (!range_available(payload, offset, kGateRecordSize)) {
-            result.status = LegacyWorldRolePostMaterializationStatus::
-                gate_record_truncated;
+            result.status =
+                LegacyWorldRolePostMaterializationStatus::gate_record_truncated;
             return result;
         }
 
         if (row_guid == role_guid) {
             decision &= ~1U;
-            for (std::size_t index = 0U;
-                 index < kGateStateCount;
-                 ++index) {
+            for (std::size_t index = 0U; index < kGateStateCount; ++index) {
                 if (read_u16_le(
-                        payload,
-                        offset + sizeof(u16) + index * sizeof(u16)
+                        payload, offset + sizeof(u16) + index * sizeof(u16)
                     ) == map_state) {
                     decision |= 2U;
                     break;
@@ -119,10 +108,10 @@ void apply_guid_one_action_override(
         return;
     }
 
-    const u32 previous_map = context == nullptr ?
-        0U : context->previous_logical_map_id;
-    const u32 action_override = context == nullptr ?
-        0U : context->guid_one_action_override;
+    const u32 previous_map =
+        context == nullptr ? 0U : context->previous_logical_map_id;
+    const u32 action_override =
+        context == nullptr ? 0U : context->guid_one_action_override;
     bool overridden = false;
     if (previous_map == 22U && request.logical_map_id != 22U &&
         action_override != 0U) {
@@ -133,10 +122,8 @@ void apply_guid_one_action_override(
     if ((descriptor.field_0c & 0x8000U) != 0U) {
         role.action.action_id = 0x60U;
         overridden = true;
-        const bool map_uses_story_override =
-            request.logical_map_id == 6U ||
-            request.logical_map_id == 8U ||
-            request.logical_map_id == 200U;
+        const bool map_uses_story_override = request.logical_map_id == 6U ||
+            request.logical_map_id == 8U || request.logical_map_id == 200U;
         if (map_uses_story_override && context != nullptr &&
             context->has_story_state_0x0192) {
             role.action.action_id = 0x5FU;
@@ -201,15 +188,12 @@ void append_flagged_role_record(
         return;
     }
 
-    if (state.flagged_role_record_count >=
-        kLegacyWorldFlaggedRoleRecordCount) {
+    if (state.flagged_role_record_count >= kLegacyWorldFlaggedRoleRecordCount) {
         ++state.flagged_role_overflow_count;
         return;
     }
 
-    auto& record = state.flagged_role_records[
-        state.flagged_role_record_count
-    ];
+    auto& record = state.flagged_role_records[state.flagged_role_record_count];
     record.world_x = static_cast<u16>(role.world_x);
     record.world_y = static_cast<u16>(role.world_y);
     record.field_04 = 0U;
@@ -221,8 +205,7 @@ void append_flagged_role_record(
 
 }  // namespace
 
-LegacyWorldRolePostMaterializationStatus
-post_materialize_legacy_world_role(
+LegacyWorldRolePostMaterializationStatus post_materialize_legacy_world_role(
     const std::span<u8> maps_payload,
     LegacyMapsWorldDatabase& maps_database,
     const LegacyMapsMapDescriptor& map_descriptor,
@@ -243,11 +226,7 @@ post_materialize_legacy_world_role(
     }
 
     apply_guid_one_action_override(
-        role,
-        map_descriptor,
-        request,
-        context,
-        state
+        role, map_descriptor, request, context, state
     );
 
     if ((role.flags & kRoleTransferFlag) != 0U) {

@@ -28,9 +28,8 @@ void initialize_startup_dialog(StartupDialogState& state) noexcept {
     state.control_visibility = {};
 }
 
-StartupDialogAction select_startup_dialog_command(
-    const compat::u32 command_value
-) noexcept {
+StartupDialogAction
+select_startup_dialog_command(const compat::u32 command_value) noexcept {
     switch (static_cast<compat::u16>(command_value)) {
     case 0x3FEU:
         return StartupDialogAction::show_auxiliary_then_end_dialog_2;
@@ -61,8 +60,7 @@ StartupDialogPointerResult update_startup_dialog_pointer(
     state.control_visibility = {};
 
     const compat::u16 x = static_cast<compat::u16>(packed_position);
-    const compat::u16 y =
-        static_cast<compat::u16>(packed_position >> 16U);
+    const compat::u16 y = static_cast<compat::u16>(packed_position >> 16U);
     if (y < kFirstHoverY || y > kLastHoverY) {
         return {};
     }
@@ -86,8 +84,7 @@ StartupDialogPointerResult update_startup_dialog_pointer(
 }
 
 void execute_startup_dialog_action(
-    const StartupDialogAction action,
-    StartupDialogPorts& ports
+    const StartupDialogAction action, StartupDialogPorts& ports
 ) {
     switch (action) {
     case StartupDialogAction::show_auxiliary_then_end_dialog_2:

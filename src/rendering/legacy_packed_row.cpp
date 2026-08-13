@@ -5,15 +5,12 @@
 namespace openswd3::rendering {
 namespace {
 
-[[nodiscard]] constexpr compat::u32 low_word(
-    const compat::u32 value
-) noexcept {
+[[nodiscard]] constexpr compat::u32 low_word(const compat::u32 value) noexcept {
     return value & 0xFFFFU;
 }
 
 [[nodiscard]] constexpr compat::u32 shifted_channel_mask(
-    const compat::u32 mask,
-    const compat::u32 shift_count
+    const compat::u32 mask, const compat::u32 shift_count
 ) noexcept {
     const compat::u32 base = low_word(mask);
     compat::u32 shifted = base;
@@ -24,25 +21,17 @@ namespace {
 }
 
 [[nodiscard]] constexpr compat::u32 duplicated_shift_mask(
-    const LegacyPixelConversionState& format,
-    const compat::u32 shift_count
+    const LegacyPixelConversionState& format, const compat::u32 shift_count
 ) noexcept {
-    const compat::u32 lane = shifted_channel_mask(
-        format.effective_masks.red,
-        shift_count
-    ) | shifted_channel_mask(
-        format.effective_masks.green,
-        shift_count
-    ) | shifted_channel_mask(
-        format.effective_masks.blue,
-        shift_count
-    );
+    const compat::u32 lane =
+        shifted_channel_mask(format.effective_masks.red, shift_count) |
+        shifted_channel_mask(format.effective_masks.green, shift_count) |
+        shifted_channel_mask(format.effective_masks.blue, shift_count);
     return lane | (lane << 16U);
 }
 
 [[nodiscard]] constexpr compat::u32 read_pair(
-    const std::span<const compat::u16> pixels,
-    const std::size_t offset
+    const std::span<const compat::u16> pixels, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u32>(pixels[offset]) |
         (static_cast<compat::u32>(pixels[offset + 1U]) << 16U);
@@ -87,8 +76,7 @@ LegacyPackedRowBlendStatus blend_legacy_packed_row(
             destination,
             offset,
             ((current >> 1U) & mask_1) + color_term +
-                ((current >> 3U) & mask_3) +
-                ((current >> 4U) & mask_4)
+                ((current >> 3U) & mask_3) + ((current >> 4U) & mask_4)
         );
     }
 

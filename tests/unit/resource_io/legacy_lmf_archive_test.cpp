@@ -47,7 +47,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-lmf-archive-" + std::to_string(unique_value));
+            ("legacy-lmf-archive-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -56,20 +56,12 @@ public:
         std::filesystem::remove_all(root_, ignored);
     }
 
-    [[nodiscard]] std::filesystem::path path(
-        const std::string& name
-    ) const {
+    [[nodiscard]] std::filesystem::path path(const std::string& name) const {
         return root_ / name;
     }
 
-    void write(
-        const std::string& name,
-        const std::span<const u8> bytes
-    ) const {
-        std::ofstream output{
-            root_ / name,
-            std::ios::binary | std::ios::trunc
-        };
+    void write(const std::string& name, const std::span<const u8> bytes) const {
+        std::ofstream output{root_ / name, std::ios::binary | std::ios::trunc};
         for (const u8 byte : bytes) {
             output.put(static_cast<char>(byte));
         }
@@ -87,18 +79,14 @@ void append_u32(std::vector<u8>& bytes, const u32 value) {
 }
 
 void write_u16(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
 void write_u32(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
@@ -154,8 +142,17 @@ void append_record(
 
     constexpr std::array<u8, 12> kCompressedSurface{
         0x19U,
-        1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U,
-        0x11U, 0x00U, 0x00U,
+        1U,
+        2U,
+        3U,
+        4U,
+        5U,
+        6U,
+        7U,
+        8U,
+        0x11U,
+        0x00U,
+        0x00U,
     };
     constexpr std::size_t kRawTableOffset = 0x9AU;
     write_u32(bytes, kRawTableOffset, 0xAAAA1234U);
@@ -175,8 +172,11 @@ void append_record(
         cursor += 4U;
     }
 
-    std::copy(kCompressedSurface.begin(), kCompressedSurface.end(),
-              bytes.begin() + static_cast<std::ptrdiff_t>(cursor));
+    std::copy(
+        kCompressedSurface.begin(),
+        kCompressedSurface.end(),
+        bytes.begin() + static_cast<std::ptrdiff_t>(cursor)
+    );
     cursor += kCompressedSurface.size();
     write_u32(bytes, cursor, 3U);
     cursor += 4U;
@@ -184,13 +184,13 @@ void append_record(
     const std::size_t offset_table = cursor;
     cursor += 12U;
     const auto write_post_surface_record = [&bytes, &cursor, offset_table](
-        const std::size_t index,
-        const u32 field_00,
-        const u32 field_02,
-        const u32 field_06,
-        const u32 field_0a,
-        const std::span<const u8> name
-    ) {
+                                               const std::size_t index,
+                                               const u32 field_00,
+                                               const u32 field_02,
+                                               const u32 field_06,
+                                               const u32 field_0a,
+                                               const std::span<const u8> name
+                                           ) {
         write_u32(bytes, offset_table + index * 4U, static_cast<u32>(cursor));
         write_u16(bytes, cursor, field_00);
         write_u32(bytes, cursor + 2U, field_02);
@@ -210,12 +210,7 @@ void append_record(
     constexpr std::array<u8, 2> kSecondName{0xA4U, 0x40U};
     constexpr std::array<u8, 1> kThirdName{'3'};
     write_post_surface_record(
-        0U,
-        0x1234U,
-        0x11223344U,
-        0x55667788U,
-        0x99AABBCCU,
-        kFirstName
+        0U, 0x1234U, 0x11223344U, 0x55667788U, 0x99AABBCCU, kFirstName
     );
     write_post_surface_record(1U, 2U, 3U, 4U, 5U, kSecondName);
     write_post_surface_record(2U, 6U, 7U, 8U, 9U, kThirdName);
@@ -237,10 +232,10 @@ void append_record(
     const std::size_t offset14_table = cursor;
     cursor += 8U;
     const auto write_offset14_record = [&bytes, &cursor, offset14_table](
-        const std::size_t index,
-        const std::array<u32, 6>& fields,
-        const std::span<const u8> name
-    ) {
+                                           const std::size_t index,
+                                           const std::array<u32, 6>& fields,
+                                           const std::span<const u8> name
+                                       ) {
         write_u32(bytes, offset14_table + index * 4U, static_cast<u32>(cursor));
         for (std::size_t field = 0U; field < fields.size(); ++field) {
             write_u16(bytes, cursor + field * 2U, fields[field]);
@@ -257,31 +252,34 @@ void append_record(
     constexpr std::array<u8, 2> kOffset14FirstName{'a', 'b'};
     constexpr std::array<u8, 2> kOffset14SecondName{0xA4U, 0x40U};
     write_offset14_record(
-        0U,
-        {1U, 0xFFFEU, 3U, 4U, 0x8001U, 0xABCDU},
-        kOffset14FirstName
+        0U, {1U, 0xFFFEU, 3U, 4U, 0x8001U, 0xABCDU}, kOffset14FirstName
     );
-    write_offset14_record(
-        1U,
-        {6U, 7U, 8U, 9U, 10U, 11U},
-        kOffset14SecondName
-    );
+    write_offset14_record(1U, {6U, 7U, 8U, 9U, 10U, 11U}, kOffset14SecondName);
     write_u32(bytes, 0x18U, static_cast<u32>(cursor));
 
     constexpr std::array<u8, 12> kCompressedObject{
         0x19U,
-        1U, 2U, 3U, 4U, 5U, 6U, 7U, 8U,
-        0x11U, 0x00U, 0x00U,
+        1U,
+        2U,
+        3U,
+        4U,
+        5U,
+        6U,
+        7U,
+        8U,
+        0x11U,
+        0x00U,
+        0x00U,
     };
     const std::size_t object_directory = cursor;
     write_u32(bytes, object_directory, 2U);
     write_u32(bytes, object_directory + 4U, 0x800U);
     write_u32(bytes, object_directory + 8U, 0x900U);
     const auto write_indexed_object = [&bytes, &kCompressedObject](
-        const std::size_t object_offset,
-        const u32 field_base,
-        const bool trailing_byte
-    ) {
+                                          const std::size_t object_offset,
+                                          const u32 field_base,
+                                          const bool trailing_byte
+                                      ) {
         for (std::size_t field = 0U; field < 7U; ++field) {
             write_u16(
                 bytes,
@@ -303,8 +301,7 @@ void append_record(
         std::copy(
             kCompressedObject.begin(),
             kCompressedObject.end(),
-            bytes.begin() +
-                static_cast<std::ptrdiff_t>(object_offset + 0x1AU)
+            bytes.begin() + static_cast<std::ptrdiff_t>(object_offset + 0x1AU)
         );
         if (trailing_byte) {
             bytes[object_offset + 0x1AU + kCompressedObject.size()] = 0xAAU;
@@ -320,10 +317,10 @@ void append_record(
     const std::size_t offset1c_table = cursor;
     cursor += 8U;
     const auto write_offset1c_record = [&bytes, &cursor, offset1c_table](
-        const std::size_t index,
-        const std::array<u32, 5>& fields,
-        const std::span<const u8> name
-    ) {
+                                           const std::size_t index,
+                                           const std::array<u32, 5>& fields,
+                                           const std::span<const u8> name
+                                       ) {
         write_u32(bytes, offset1c_table + index * 4U, static_cast<u32>(cursor));
         for (std::size_t field = 0U; field < fields.size(); ++field) {
             write_u16(bytes, cursor + field * 2U, fields[field]);
@@ -339,16 +336,8 @@ void append_record(
     };
     constexpr std::array<u8, 3> kOffset1cFirstName{'x', 'y', 'z'};
     constexpr std::array<u8, 2> kOffset1cSecondName{0xA4U, 0x40U};
-    write_offset1c_record(
-        0U,
-        {1U, 2U, 3U, 4U, 0xA3C2U},
-        kOffset1cFirstName
-    );
-    write_offset1c_record(
-        1U,
-        {5U, 6U, 7U, 8U, 0xB401U},
-        kOffset1cSecondName
-    );
+    write_offset1c_record(0U, {1U, 2U, 3U, 4U, 0xA3C2U}, kOffset1cFirstName);
+    write_offset1c_record(1U, {5U, 6U, 7U, 8U, 0xB401U}, kOffset1cSecondName);
     write_u32(bytes, 0x20U, static_cast<u32>(cursor));
     return bytes;
 }
@@ -382,24 +371,15 @@ void test_referenced_record_directory(openswd3::test::Context& test) {
     const TestTree tree;
     std::vector<u8> bytes = make_surface_archive(0x3246534DU);
     tree.write("referenced.lmf", bytes);
-    const auto header = legacy_lmf_read_map_header(
-        tree.path("referenced.lmf"),
-        0U
-    );
-    const auto surface = legacy_lmf_read_surface_grid(
-        tree.path("referenced.lmf"),
-        0U,
-        header
-    );
+    const auto header =
+        legacy_lmf_read_map_header(tree.path("referenced.lmf"), 0U);
+    const auto surface =
+        legacy_lmf_read_surface_grid(tree.path("referenced.lmf"), 0U, header);
     const auto post_surface = legacy_lmf_read_post_surface_records(
-        tree.path("referenced.lmf"),
-        0U,
-        surface
+        tree.path("referenced.lmf"), 0U, surface
     );
     const auto directory = legacy_lmf_read_referenced_record_directory(
-        tree.path("referenced.lmf"),
-        0U,
-        post_surface
+        tree.path("referenced.lmf"), 0U, post_surface
     );
 
     test.expect_equal(
@@ -425,9 +405,7 @@ void test_referenced_record_directory(openswd3::test::Context& test) {
     write_u32(bytes, post_surface.following_directory_offset, 0U);
     tree.write("empty-referenced.lmf", bytes);
     const auto empty_directory = legacy_lmf_read_referenced_record_directory(
-        tree.path("empty-referenced.lmf"),
-        0U,
-        post_surface
+        tree.path("empty-referenced.lmf"), 0U, post_surface
     );
     test.expect_true(
         empty_directory.status ==
@@ -437,71 +415,50 @@ void test_referenced_record_directory(openswd3::test::Context& test) {
     );
 }
 
-void test_referenced_record_directory_failures(
-    openswd3::test::Context& test
-) {
+void test_referenced_record_directory_failures(openswd3::test::Context& test) {
     const TestTree tree;
     openswd3::resource_io::LegacyLmfPostSurfaceRecords invalid_records;
     test.expect_equal(
         legacy_lmf_read_referenced_record_directory(
-            tree.path("missing.lmf"),
-            0U,
-            invalid_records
-        ).status,
-        LegacyLmfReferencedRecordDirectoryStatus::
-            invalid_post_surface_records,
+            tree.path("missing.lmf"), 0U, invalid_records
+        )
+            .status,
+        LegacyLmfReferencedRecordDirectoryStatus::invalid_post_surface_records,
         "failed preceding records are rejected before opening the archive"
     );
 
     std::vector<u8> bytes = make_surface_archive(0x3246534DU);
     tree.write("referenced.lmf", bytes);
-    const auto header = legacy_lmf_read_map_header(
-        tree.path("referenced.lmf"),
-        0U
-    );
-    const auto surface = legacy_lmf_read_surface_grid(
-        tree.path("referenced.lmf"),
-        0U,
-        header
-    );
+    const auto header =
+        legacy_lmf_read_map_header(tree.path("referenced.lmf"), 0U);
+    const auto surface =
+        legacy_lmf_read_surface_grid(tree.path("referenced.lmf"), 0U, header);
     auto post_surface = legacy_lmf_read_post_surface_records(
-        tree.path("referenced.lmf"),
-        0U,
-        surface
+        tree.path("referenced.lmf"), 0U, surface
     );
 
     post_surface.record_window_end_offset =
         post_surface.following_directory_offset + 4U;
     test.expect_equal(
         legacy_lmf_read_referenced_record_directory(
-            tree.path("referenced.lmf"),
-            0U,
-            post_surface
-        ).status,
-        LegacyLmfReferencedRecordDirectoryStatus::
-            directory_count_out_of_range,
+            tree.path("referenced.lmf"), 0U, post_surface
+        )
+            .status,
+        LegacyLmfReferencedRecordDirectoryStatus::directory_count_out_of_range,
         "directory table cannot exceed the original fixed read window"
     );
 
     post_surface = legacy_lmf_read_post_surface_records(
-        tree.path("referenced.lmf"),
-        0U,
-        surface
+        tree.path("referenced.lmf"), 0U, surface
     );
-    write_u32(
-        bytes,
-        post_surface.following_directory_offset + 4U,
-        0x80000000U
-    );
+    write_u32(bytes, post_surface.following_directory_offset + 4U, 0x80000000U);
     tree.write("bad-reference.lmf", bytes);
     test.expect_equal(
         legacy_lmf_read_referenced_record_directory(
-            tree.path("bad-reference.lmf"),
-            0U,
-            post_surface
-        ).status,
-        LegacyLmfReferencedRecordDirectoryStatus::
-            referenced_record_seek_failed,
+            tree.path("bad-reference.lmf"), 0U, post_surface
+        )
+            .status,
+        LegacyLmfReferencedRecordDirectoryStatus::referenced_record_seek_failed,
         "signed seek failure for a referenced record is retained"
     );
 }
@@ -532,14 +489,10 @@ void test_offset14_directory(openswd3::test::Context& test) {
     const TestTree tree;
     std::vector<u8> bytes = make_surface_archive(0x3246534DU);
     tree.write("offset14.lmf", bytes);
-    const auto header = legacy_lmf_read_map_header(
-        tree.path("offset14.lmf"),
-        0U
-    );
+    const auto header =
+        legacy_lmf_read_map_header(tree.path("offset14.lmf"), 0U);
     const auto directory = legacy_lmf_read_offset14_directory(
-        tree.path("offset14.lmf"),
-        0U,
-        header
+        tree.path("offset14.lmf"), 0U, header
     );
 
     test.expect_equal(
@@ -582,9 +535,7 @@ void test_offset14_directory(openswd3::test::Context& test) {
     write_u32(bytes, header.offset_14 + 4U, 0xDEADBEEFU);
     tree.write("offset14-mismatch.lmf", bytes);
     const auto mismatched = legacy_lmf_read_offset14_directory(
-        tree.path("offset14-mismatch.lmf"),
-        0U,
-        header
+        tree.path("offset14-mismatch.lmf"), 0U, header
     );
     test.expect_true(
         mismatched.status == LegacyLmfOffset14DirectoryStatus::ready &&
@@ -599,45 +550,41 @@ void test_offset14_directory_failures(openswd3::test::Context& test) {
     openswd3::resource_io::LegacyLmfMapHeader invalid_header;
     test.expect_equal(
         legacy_lmf_read_offset14_directory(
-            tree.path("missing.lmf"),
-            0U,
-            invalid_header
-        ).status,
+            tree.path("missing.lmf"), 0U, invalid_header
+        )
+            .status,
         LegacyLmfOffset14DirectoryStatus::invalid_header,
         "failed header is rejected before opening the archive"
     );
 
     std::vector<u8> bytes = make_surface_archive(0x3246534DU);
     tree.write("offset14.lmf", bytes);
-    const auto header = legacy_lmf_read_map_header(
-        tree.path("offset14.lmf"),
-        0U
-    );
+    const auto header =
+        legacy_lmf_read_map_header(tree.path("offset14.lmf"), 0U);
     write_u32(bytes, header.offset_14, 0x10000U);
     tree.write("offset14-count.lmf", bytes);
     test.expect_equal(
         legacy_lmf_read_offset14_directory(
-            tree.path("offset14-count.lmf"),
-            0U,
-            header
-        ).status,
+            tree.path("offset14-count.lmf"), 0U, header
+        )
+            .status,
         LegacyLmfOffset14DirectoryStatus::record_count_out_of_range,
         "offset table larger than the fixed read window is isolated"
     );
 
     bytes = make_surface_archive(0x3246534DU);
     std::fill(
-        bytes.begin() + static_cast<std::ptrdiff_t>(header.offset_14 + 12U + 12U),
+        bytes.begin() +
+            static_cast<std::ptrdiff_t>(header.offset_14 + 12U + 12U),
         bytes.end(),
         0x41U
     );
     tree.write("offset14-name.lmf", bytes);
     test.expect_equal(
         legacy_lmf_read_offset14_directory(
-            tree.path("offset14-name.lmf"),
-            0U,
-            header
-        ).status,
+            tree.path("offset14-name.lmf"), 0U, header
+        )
+            .status,
         LegacyLmfOffset14DirectoryStatus::unterminated_name,
         "unterminated offset14 name is isolated at the actual read boundary"
     );
@@ -647,14 +594,10 @@ void test_indexed_object_directory(openswd3::test::Context& test) {
     const TestTree tree;
     std::vector<u8> bytes = make_surface_archive(0x3246534DU);
     tree.write("indexed-objects.lmf", bytes);
-    const auto header = legacy_lmf_read_map_header(
-        tree.path("indexed-objects.lmf"),
-        0U
-    );
+    const auto header =
+        legacy_lmf_read_map_header(tree.path("indexed-objects.lmf"), 0U);
     const auto directory = legacy_lmf_read_indexed_object_directory(
-        tree.path("indexed-objects.lmf"),
-        0U,
-        header
+        tree.path("indexed-objects.lmf"), 0U, header
     );
 
     test.expect_equal(
@@ -701,9 +644,7 @@ void test_indexed_object_directory(openswd3::test::Context& test) {
     write_u32(bytes, header.offset_18, 0U);
     tree.write("empty-indexed-objects.lmf", bytes);
     const auto empty = legacy_lmf_read_indexed_object_directory(
-        tree.path("empty-indexed-objects.lmf"),
-        0U,
-        header
+        tree.path("empty-indexed-objects.lmf"), 0U, header
     );
     test.expect_true(
         empty.status == LegacyLmfIndexedObjectDirectoryStatus::ready &&
@@ -712,35 +653,29 @@ void test_indexed_object_directory(openswd3::test::Context& test) {
     );
 }
 
-void test_indexed_object_directory_failures(
-    openswd3::test::Context& test
-) {
+void test_indexed_object_directory_failures(openswd3::test::Context& test) {
     const TestTree tree;
     openswd3::resource_io::LegacyLmfMapHeader invalid_header;
     test.expect_equal(
         legacy_lmf_read_indexed_object_directory(
-            tree.path("missing.lmf"),
-            0U,
-            invalid_header
-        ).status,
+            tree.path("missing.lmf"), 0U, invalid_header
+        )
+            .status,
         LegacyLmfIndexedObjectDirectoryStatus::invalid_header,
         "failed map header is rejected before indexed-object I/O"
     );
 
     std::vector<u8> bytes = make_surface_archive(0x3246534DU);
     tree.write("indexed-objects.lmf", bytes);
-    const auto header = legacy_lmf_read_map_header(
-        tree.path("indexed-objects.lmf"),
-        0U
-    );
+    const auto header =
+        legacy_lmf_read_map_header(tree.path("indexed-objects.lmf"), 0U);
     write_u32(bytes, header.offset_18, 0x10000U);
     tree.write("indexed-count.lmf", bytes);
     test.expect_equal(
         legacy_lmf_read_indexed_object_directory(
-            tree.path("indexed-count.lmf"),
-            0U,
-            header
-        ).status,
+            tree.path("indexed-count.lmf"), 0U, header
+        )
+            .status,
         LegacyLmfIndexedObjectDirectoryStatus::directory_data_out_of_range,
         "indexed-object offsets cannot exceed the fixed directory window"
     );
@@ -751,10 +686,9 @@ void test_indexed_object_directory_failures(
     tree.write("indexed-seek.lmf", bytes);
     test.expect_equal(
         legacy_lmf_read_indexed_object_directory(
-            tree.path("indexed-seek.lmf"),
-            0U,
-            header
-        ).status,
+            tree.path("indexed-seek.lmf"), 0U, header
+        )
+            .status,
         LegacyLmfIndexedObjectDirectoryStatus::object_header_seek_failed,
         "indexed-object offset retains signed legacy seek failure"
     );
@@ -766,9 +700,7 @@ void test_indexed_object_directory_failures(
     std::copy_n(bytes.begin() + 0x81A, 6U, bytes.begin() + 0x1FFA);
     tree.write("indexed-short-payload.lmf", bytes);
     const auto short_payload = legacy_lmf_read_indexed_object_directory(
-        tree.path("indexed-short-payload.lmf"),
-        0U,
-        header
+        tree.path("indexed-short-payload.lmf"), 0U, header
     );
     test.expect_true(
         short_payload.status ==
@@ -784,14 +716,10 @@ void test_offset1c_directory(openswd3::test::Context& test) {
     const TestTree tree;
     std::vector<u8> bytes = make_surface_archive(0x3246534DU);
     tree.write("offset1c.lmf", bytes);
-    const auto header = legacy_lmf_read_map_header(
-        tree.path("offset1c.lmf"),
-        0U
-    );
+    const auto header =
+        legacy_lmf_read_map_header(tree.path("offset1c.lmf"), 0U);
     const auto directory = legacy_lmf_read_offset1c_directory(
-        tree.path("offset1c.lmf"),
-        0U,
-        header
+        tree.path("offset1c.lmf"), 0U, header
     );
 
     test.expect_equal(
@@ -838,9 +766,7 @@ void test_offset1c_directory(openswd3::test::Context& test) {
     );
     tree.write("offset1c-mismatch.lmf", bytes);
     const auto mismatched = legacy_lmf_read_offset1c_directory(
-        tree.path("offset1c-mismatch.lmf"),
-        0U,
-        header
+        tree.path("offset1c-mismatch.lmf"), 0U, header
     );
     test.expect_true(
         mismatched.status == LegacyLmfOffset1cDirectoryStatus::ready &&
@@ -853,9 +779,7 @@ void test_offset1c_directory(openswd3::test::Context& test) {
     write_u32(bytes, header.offset_1c, 0xFFFFFFFFU);
     tree.write("offset1c-negative-count.lmf", bytes);
     const auto negative_count = legacy_lmf_read_offset1c_directory(
-        tree.path("offset1c-negative-count.lmf"),
-        0U,
-        header
+        tree.path("offset1c-negative-count.lmf"), 0U, header
     );
     test.expect_true(
         negative_count.status == LegacyLmfOffset1cDirectoryStatus::ready &&
@@ -869,29 +793,25 @@ void test_offset1c_directory_failures(openswd3::test::Context& test) {
     openswd3::resource_io::LegacyLmfMapHeader invalid_header;
     test.expect_equal(
         legacy_lmf_read_offset1c_directory(
-            tree.path("missing.lmf"),
-            0U,
-            invalid_header
-        ).status,
+            tree.path("missing.lmf"), 0U, invalid_header
+        )
+            .status,
         LegacyLmfOffset1cDirectoryStatus::invalid_header,
         "failed map header is rejected before raw-record I/O"
     );
 
     std::vector<u8> bytes = make_surface_archive(0x3246534DU);
     tree.write("offset1c.lmf", bytes);
-    const auto header = legacy_lmf_read_map_header(
-        tree.path("offset1c.lmf"),
-        0U
-    );
+    const auto header =
+        legacy_lmf_read_map_header(tree.path("offset1c.lmf"), 0U);
 
     auto failed_seek_header = header;
     failed_seek_header.offset_1c = 0x80000000U;
     test.expect_equal(
         legacy_lmf_read_offset1c_directory(
-            tree.path("offset1c.lmf"),
-            0U,
-            failed_seek_header
-        ).status,
+            tree.path("offset1c.lmf"), 0U, failed_seek_header
+        )
+            .status,
         LegacyLmfOffset1cDirectoryStatus::directory_seek_failed,
         "invalid signed directory position enters the safe seek boundary"
     );
@@ -900,10 +820,9 @@ void test_offset1c_directory_failures(openswd3::test::Context& test) {
     tree.write("offset1c-count.lmf", bytes);
     test.expect_equal(
         legacy_lmf_read_offset1c_directory(
-            tree.path("offset1c-count.lmf"),
-            0U,
-            header
-        ).status,
+            tree.path("offset1c-count.lmf"), 0U, header
+        )
+            .status,
         LegacyLmfOffset1cDirectoryStatus::record_count_out_of_range,
         "wrapped offset-table size is isolated before record access"
     );
@@ -919,10 +838,9 @@ void test_offset1c_directory_failures(openswd3::test::Context& test) {
     tree.write("offset1c-name.lmf", bytes);
     test.expect_equal(
         legacy_lmf_read_offset1c_directory(
-            tree.path("offset1c-name.lmf"),
-            0U,
-            header
-        ).status,
+            tree.path("offset1c-name.lmf"), 0U, header
+        )
+            .status,
         LegacyLmfOffset1cDirectoryStatus::unterminated_name,
         "unterminated raw-record name is isolated at the read boundary"
     );
@@ -941,18 +859,20 @@ void test_lookup_uses_full_map_id_and_first_match(
         LegacyLmfMapLookupStatus::ready,
         "first searchable map is found"
     );
-    test.expect_equal(first.map_offset, 0x100U, "map offset comes from record +0");
-
-    const auto full_id = legacy_lmf_lookup_map(
-        tree.path("index.lmf"),
-        0xFFFF0001U
+    test.expect_equal(
+        first.map_offset, 0x100U, "map offset comes from record +0"
     );
+
+    const auto full_id =
+        legacy_lmf_lookup_map(tree.path("index.lmf"), 0xFFFF0001U);
     test.expect_equal(
         full_id.status,
         LegacyLmfMapLookupStatus::ready,
         "map id comparison uses the full dword"
     );
-    test.expect_equal(full_id.map_offset, 0x200U, "second map offset is returned");
+    test.expect_equal(
+        full_id.map_offset, 0x200U, "second map offset is returned"
+    );
 
     archive.insert(archive.end() - 16, 16U, 0U);
     archive[archive.size() - 32U] = 0x00U;
@@ -979,16 +899,16 @@ void test_last_physical_record_is_excluded(openswd3::test::Context& test) {
 
     archive.push_back(0xA5U);
     tree.write("extra-tail-byte.lmf", archive);
-    const auto included = legacy_lmf_lookup_map(
-        tree.path("extra-tail-byte.lmf"),
-        0U
-    );
+    const auto included =
+        legacy_lmf_lookup_map(tree.path("extra-tail-byte.lmf"), 0U);
     test.expect_equal(
         included.status,
         LegacyLmfMapLookupStatus::ready,
         "one trailing byte makes the former sentinel searchable"
     );
-    test.expect_equal(included.map_offset, 0U, "included sentinel offset is zero");
+    test.expect_equal(
+        included.map_offset, 0U, "included sentinel offset is zero"
+    );
 }
 
 void test_map_header_fields_and_formats(openswd3::test::Context& test) {
@@ -999,30 +919,27 @@ void test_map_header_fields_and_formats(openswd3::test::Context& test) {
          }) {
         const std::vector<u8> bytes = make_map_header(signature);
         tree.write("header.lmf", bytes);
-        const auto header = legacy_lmf_read_map_header(
-            tree.path("header.lmf"),
-            0U
-        );
+        const auto header =
+            legacy_lmf_read_map_header(tree.path("header.lmf"), 0U);
 
         test.expect_equal(
             header.status,
             LegacyLmfMapHeaderStatus::ready,
             "both original map signatures are accepted"
         );
-        test.expect_equal(header.format, format, "signature selects map format");
+        test.expect_equal(
+            header.format, format, "signature selects map format"
+        );
         test.expect_true(
-            header.offset_04 == 0x84U &&
-                header.offset_14 == 0x11111111U &&
+            header.offset_04 == 0x84U && header.offset_14 == 0x11111111U &&
                 header.offset_18 == 0x22222222U &&
                 header.offset_1c == 0x33333333U &&
                 header.offset_20 == 0x44444444U,
             "five directly consumed dword offsets retain their physical values"
         );
         test.expect_true(
-            header.width == 120U &&
-                header.height == 90U &&
-                header.field_88 == 16U &&
-                header.field_8a == 10247U &&
+            header.width == 120U && header.height == 90U &&
+                header.field_88 == 16U && header.field_8a == 10247U &&
                 header.layers == 2U,
             "five words are zero-extended into runtime dwords"
         );
@@ -1091,15 +1008,10 @@ void test_surface_grid_framing(openswd3::test::Context& test) {
     for (const u32 signature : {0x7046534DU, 0x3246534DU}) {
         const std::vector<u8> bytes = make_surface_archive(signature);
         tree.write("surface.lmf", bytes);
-        const auto header = legacy_lmf_read_map_header(
-            tree.path("surface.lmf"),
-            0U
-        );
-        const auto surface = legacy_lmf_read_surface_grid(
-            tree.path("surface.lmf"),
-            0U,
-            header
-        );
+        const auto header =
+            legacy_lmf_read_map_header(tree.path("surface.lmf"), 0U);
+        const auto surface =
+            legacy_lmf_read_surface_grid(tree.path("surface.lmf"), 0U, header);
 
         test.expect_equal(
             surface.status,
@@ -1135,16 +1047,13 @@ void test_surface_grid_framing(openswd3::test::Context& test) {
 
 void test_surface_grid_failures(openswd3::test::Context& test) {
     const TestTree tree;
-    auto invalid_header = legacy_lmf_read_map_header(
-        tree.path("missing.lmf"),
-        0U
-    );
+    auto invalid_header =
+        legacy_lmf_read_map_header(tree.path("missing.lmf"), 0U);
     test.expect_equal(
         legacy_lmf_read_surface_grid(
-            tree.path("missing.lmf"),
-            0U,
-            invalid_header
-        ).status,
+            tree.path("missing.lmf"), 0U, invalid_header
+        )
+            .status,
         LegacyLmfSurfaceGridStatus::invalid_header,
         "failed map header is rejected before reopening the archive"
     );
@@ -1157,10 +1066,9 @@ void test_surface_grid_failures(openswd3::test::Context& test) {
     overflow_header.layers = 0xFFFFU;
     test.expect_equal(
         legacy_lmf_read_surface_grid(
-            tree.path("missing.lmf"),
-            0U,
-            overflow_header
-        ).status,
+            tree.path("missing.lmf"), 0U, overflow_header
+        )
+            .status,
         LegacyLmfSurfaceGridStatus::size_overflow,
         "legacy multiplication overflow is isolated before allocation"
     );
@@ -1171,16 +1079,11 @@ void test_surface_grid_failures(openswd3::test::Context& test) {
     write_u32(bytes, 0x9AU + 8U, 1U);
     write_u32(bytes, payload_offset + 1U, 0U);
     tree.write("bad-stream.lmf", bytes);
-    const auto header = legacy_lmf_read_map_header(
-        tree.path("bad-stream.lmf"),
-        0U
-    );
+    const auto header =
+        legacy_lmf_read_map_header(tree.path("bad-stream.lmf"), 0U);
     test.expect_equal(
-        legacy_lmf_read_surface_grid(
-            tree.path("bad-stream.lmf"),
-            0U,
-            header
-        ).status,
+        legacy_lmf_read_surface_grid(tree.path("bad-stream.lmf"), 0U, header)
+            .status,
         LegacyLmfSurfaceGridStatus::decompression_failed,
         "invalid compressed stream enters the modern safe decoder boundary"
     );
@@ -1191,19 +1094,12 @@ void test_post_surface_record_directory(openswd3::test::Context& test) {
     for (const u32 signature : {0x7046534DU, 0x3246534DU}) {
         std::vector<u8> bytes = make_surface_archive(signature);
         tree.write("records.lmf", bytes);
-        const auto header = legacy_lmf_read_map_header(
-            tree.path("records.lmf"),
-            0U
-        );
-        const auto surface = legacy_lmf_read_surface_grid(
-            tree.path("records.lmf"),
-            0U,
-            header
-        );
+        const auto header =
+            legacy_lmf_read_map_header(tree.path("records.lmf"), 0U);
+        const auto surface =
+            legacy_lmf_read_surface_grid(tree.path("records.lmf"), 0U, header);
         const auto records = legacy_lmf_read_post_surface_records(
-            tree.path("records.lmf"),
-            0U,
-            surface
+            tree.path("records.lmf"), 0U, surface
         );
 
         test.expect_equal(
@@ -1244,16 +1140,10 @@ void test_post_surface_record_directory(openswd3::test::Context& test) {
             "cursor after the final NUL identifies the following directory"
         );
 
-        write_u32(
-            bytes,
-            surface.post_surface_records_offset,
-            0xDEADBEEFU
-        );
+        write_u32(bytes, surface.post_surface_records_offset, 0xDEADBEEFU);
         tree.write("mismatched-offset.lmf", bytes);
         const auto mismatched = legacy_lmf_read_post_surface_records(
-            tree.path("mismatched-offset.lmf"),
-            0U,
-            surface
+            tree.path("mismatched-offset.lmf"), 0U, surface
         );
         test.expect_true(
             mismatched.status == LegacyLmfPostSurfaceRecordsStatus::ready &&
@@ -1269,10 +1159,9 @@ void test_post_surface_record_failures(openswd3::test::Context& test) {
     openswd3::resource_io::LegacyLmfSurfaceGrid invalid_surface;
     test.expect_equal(
         legacy_lmf_read_post_surface_records(
-            tree.path("missing.lmf"),
-            0U,
-            invalid_surface
-        ).status,
+            tree.path("missing.lmf"), 0U, invalid_surface
+        )
+            .status,
         LegacyLmfPostSurfaceRecordsStatus::invalid_surface_grid,
         "failed surface result is rejected before opening the archive"
     );
@@ -1282,32 +1171,25 @@ void test_post_surface_record_failures(openswd3::test::Context& test) {
     count_overflow.post_surface_record_count = 0x80000000U;
     test.expect_equal(
         legacy_lmf_read_post_surface_records(
-            tree.path("missing.lmf"),
-            0U,
-            count_overflow
-        ).status,
+            tree.path("missing.lmf"), 0U, count_overflow
+        )
+            .status,
         LegacyLmfPostSurfaceRecordsStatus::record_count_out_of_range,
         "negative legacy record count is isolated before pointer arithmetic"
     );
 
     std::vector<u8> bytes = make_surface_archive(0x3246534DU);
     tree.write("records.lmf", bytes);
-    const auto header = legacy_lmf_read_map_header(
-        tree.path("records.lmf"),
-        0U
-    );
-    auto surface = legacy_lmf_read_surface_grid(
-        tree.path("records.lmf"),
-        0U,
-        header
-    );
+    const auto header =
+        legacy_lmf_read_map_header(tree.path("records.lmf"), 0U);
+    auto surface =
+        legacy_lmf_read_surface_grid(tree.path("records.lmf"), 0U, header);
     surface.post_surface_record_count = 0x10000U;
     test.expect_equal(
         legacy_lmf_read_post_surface_records(
-            tree.path("records.lmf"),
-            0U,
-            surface
-        ).status,
+            tree.path("records.lmf"), 0U, surface
+        )
+            .status,
         LegacyLmfPostSurfaceRecordsStatus::record_count_out_of_range,
         "offset table larger than the fixed read window is isolated"
     );
@@ -1315,17 +1197,18 @@ void test_post_surface_record_failures(openswd3::test::Context& test) {
     surface.post_surface_record_count = 1U;
     std::fill(
         bytes.begin() +
-            static_cast<std::ptrdiff_t>(surface.post_surface_records_offset + 4U + 14U),
+            static_cast<std::ptrdiff_t>(
+                surface.post_surface_records_offset + 4U + 14U
+            ),
         bytes.end(),
         0x41U
     );
     tree.write("unterminated-record.lmf", bytes);
     test.expect_equal(
         legacy_lmf_read_post_surface_records(
-            tree.path("unterminated-record.lmf"),
-            0U,
-            surface
-        ).status,
+            tree.path("unterminated-record.lmf"), 0U, surface
+        )
+            .status,
         LegacyLmfPostSurfaceRecordsStatus::unterminated_name,
         "unterminated record name is isolated at the actual read boundary"
     );
@@ -1337,15 +1220,13 @@ void test_post_surface_record_failures(openswd3::test::Context& test) {
         reinterpret_cast<char*>(bytes.data()),
         static_cast<std::streamsize>(bytes.size())
     );
-    return static_cast<u32>(bytes[0]) |
-        (static_cast<u32>(bytes[1]) << 8U) |
+    return static_cast<u32>(bytes[0]) | (static_cast<u32>(bytes[1]) << 8U) |
         (static_cast<u32>(bytes[2]) << 16U) |
         (static_cast<u32>(bytes[3]) << 24U);
 }
 
 void test_all_current_map_headers(
-    openswd3::test::Context& test,
-    const std::filesystem::path& archive_path
+    openswd3::test::Context& test, const std::filesystem::path& archive_path
 ) {
     struct IndexedMap {
         u32 id{};
@@ -1400,10 +1281,8 @@ void test_all_current_map_headers(
             lookup.status == LegacyLmfMapLookupStatus::ready &&
             lookup.map_offset == map.offset;
 
-        const auto header = legacy_lmf_read_map_header(
-            archive_path,
-            map.offset
-        );
+        const auto header =
+            legacy_lmf_read_map_header(archive_path, map.offset);
         all_headers_match = all_headers_match &&
             header.status == LegacyLmfMapHeaderStatus::ready &&
             header.format == LegacyLmfMapFormat::msf2 &&
@@ -1412,11 +1291,8 @@ void test_all_current_map_headers(
             header.raw_table_offset >= 0x98U &&
             header.raw_table_offset <= 0xA5U;
 
-        const auto surface = legacy_lmf_read_surface_grid(
-            archive_path,
-            map.offset,
-            header
-        );
+        const auto surface =
+            legacy_lmf_read_surface_grid(archive_path, map.offset, header);
         const std::uint64_t expected_raw_values =
             static_cast<std::uint64_t>(header.width) * header.height *
             header.layers;
@@ -1430,29 +1306,24 @@ void test_all_current_map_headers(
         total_surface_grid_bytes += surface.actual_surface_grid_size;
 
         const auto records = legacy_lmf_read_post_surface_records(
-            archive_path,
-            map.offset,
-            surface
+            archive_path, map.offset, surface
         );
-        bool offsets_match = records.declared_relative_offsets.size() ==
-            records.records.size();
+        bool offsets_match =
+            records.declared_relative_offsets.size() == records.records.size();
         for (std::size_t index = 0U;
              index < records.records.size() && offsets_match;
              ++index) {
             offsets_match = records.declared_relative_offsets[index] ==
                 records.records[index].relative_offset;
         }
-        all_post_surface_records_match =
-            all_post_surface_records_match &&
+        all_post_surface_records_match = all_post_surface_records_match &&
             records.status == LegacyLmfPostSurfaceRecordsStatus::ready &&
             records.records.size() == surface.post_surface_record_count &&
             offsets_match;
         total_post_surface_records += records.records.size();
 
         const auto referenced = legacy_lmf_read_referenced_record_directory(
-            archive_path,
-            map.offset,
-            records
+            archive_path, map.offset, records
         );
         all_referenced_record_directories_match =
             all_referenced_record_directories_match &&
@@ -1465,9 +1336,7 @@ void test_all_current_map_headers(
         }
 
         const auto offset14 = legacy_lmf_read_offset14_directory(
-            archive_path,
-            map.offset,
-            header
+            archive_path, map.offset, header
         );
         bool offset14_offsets_match =
             offset14.declared_relative_offsets.size() ==
@@ -1481,8 +1350,7 @@ void test_all_current_map_headers(
         }
         all_offset14_directories_match = all_offset14_directories_match &&
             offset14.status == LegacyLmfOffset14DirectoryStatus::ready &&
-            offset14_offsets_match &&
-            offset14.end_offset == header.offset_18;
+            offset14_offsets_match && offset14.end_offset == header.offset_18;
         total_offset14_records += offset14.records.size();
         for (const auto& record : offset14.records) {
             fnv1a64_u32(offset14_records_hash, record.relative_offset);
@@ -1500,12 +1368,9 @@ void test_all_current_map_headers(
             fnv1a64_u16(offset14_records_hash, record.field_0a);
         }
 
-        const auto indexed_objects =
-            legacy_lmf_read_indexed_object_directory(
-                archive_path,
-                map.offset,
-                header
-            );
+        const auto indexed_objects = legacy_lmf_read_indexed_object_directory(
+            archive_path, map.offset, header
+        );
         all_indexed_object_directories_match =
             all_indexed_object_directories_match &&
             indexed_objects.status ==
@@ -1525,10 +1390,7 @@ void test_all_current_map_headers(
             total_indexed_object_output_bytes +=
                 object.actual_decompressed_size;
 
-            fnv1a64_u32(
-                indexed_object_header_hash,
-                object.relative_offset
-            );
+            fnv1a64_u32(indexed_object_header_hash, object.relative_offset);
             fnv1a64_u16(indexed_object_header_hash, object.field_00);
             fnv1a64_u16(indexed_object_header_hash, object.field_02);
             fnv1a64_u16(indexed_object_header_hash, object.field_04);
@@ -1540,13 +1402,9 @@ void test_all_current_map_headers(
             fnv1a64_u8(indexed_object_header_hash, object.field_0f);
             fnv1a64_u8(indexed_object_header_hash, object.field_10);
             fnv1a64_u8(indexed_object_header_hash, object.field_11);
+            fnv1a64_u32(indexed_object_header_hash, object.destination_size);
             fnv1a64_u32(
-                indexed_object_header_hash,
-                object.destination_size
-            );
-            fnv1a64_u32(
-                indexed_object_header_hash,
-                object.declared_compressed_size
+                indexed_object_header_hash, object.declared_compressed_size
             );
             for (const u8 byte : object.decompressed_payload) {
                 fnv1a64_u8(indexed_object_output_hash, byte);
@@ -1554,9 +1412,7 @@ void test_all_current_map_headers(
         }
 
         const auto offset1c = legacy_lmf_read_offset1c_directory(
-            archive_path,
-            map.offset,
-            header
+            archive_path, map.offset, header
         );
         bool offset1c_offsets_match =
             offset1c.declared_relative_offsets.size() ==
@@ -1570,8 +1426,7 @@ void test_all_current_map_headers(
         }
         all_offset1c_directories_match = all_offset1c_directories_match &&
             offset1c.status == LegacyLmfOffset1cDirectoryStatus::ready &&
-            offset1c_offsets_match &&
-            offset1c.end_offset == header.offset_20;
+            offset1c_offsets_match && offset1c.end_offset == header.offset_20;
         total_offset1c_records += offset1c.records.size();
         nonempty_offset1c_directories += !offset1c.records.empty();
         maximum_offset1c_records = std::max(
@@ -1591,9 +1446,17 @@ void test_all_current_map_headers(
         }
     }
 
-    test.expect_equal(record_count, 309U, "current archive has 309 searchable maps");
-    test.expect_true(all_lookups_match, "all current map ids resolve to their indexed offsets");
-    test.expect_true(all_headers_match, "all current map headers satisfy the recovered contract");
+    test.expect_equal(
+        record_count, 309U, "current archive has 309 searchable maps"
+    );
+    test.expect_true(
+        all_lookups_match,
+        "all current map ids resolve to their indexed offsets"
+    );
+    test.expect_true(
+        all_headers_match,
+        "all current map headers satisfy the recovered contract"
+    );
     test.expect_true(
         all_surface_grids_match,
         "all current surface grids satisfy framing and output-size contracts"
@@ -1701,8 +1564,7 @@ void test_all_current_map_headers(
 }
 
 void test_current_archive(
-    openswd3::test::Context& test,
-    const std::filesystem::path& archive_path
+    openswd3::test::Context& test, const std::filesystem::path& archive_path
 ) {
     const auto first = legacy_lmf_lookup_map(archive_path, 22U);
     test.expect_equal(
@@ -1710,13 +1572,19 @@ void test_current_archive(
         LegacyLmfMapLookupStatus::ready,
         "current archive contains first map id 22"
     );
-    test.expect_equal(first.map_offset, 4U, "first current map starts at offset four");
+    test.expect_equal(
+        first.map_offset, 4U, "first current map starts at offset four"
+    );
 
     const auto cached = legacy_lmf_lookup_map(archive_path, 24U);
-    test.expect_equal(cached.map_offset, 0x026698A3U, "map 24 offset matches inventory");
+    test.expect_equal(
+        cached.map_offset, 0x026698A3U, "map 24 offset matches inventory"
+    );
 
     const auto last = legacy_lmf_lookup_map(archive_path, 500U);
-    test.expect_equal(last.map_offset, 0x1C16E962U, "last current map is searchable");
+    test.expect_equal(
+        last.map_offset, 0x1C16E962U, "last current map is searchable"
+    );
 
     test.expect_equal(
         legacy_lmf_lookup_map(archive_path, 0U).status,
@@ -1726,10 +1594,8 @@ void test_current_archive(
 
     const auto first_header = legacy_lmf_read_map_header(archive_path, 4U);
     test.expect_true(
-        first_header.width == 120U &&
-            first_header.height == 90U &&
-            first_header.field_88 == 16U &&
-            first_header.field_8a == 10247U &&
+        first_header.width == 120U && first_header.height == 90U &&
+            first_header.field_88 == 16U && first_header.field_8a == 10247U &&
             first_header.layers == 2U,
         "first current map runtime words match inventory"
     );
@@ -1763,7 +1629,8 @@ int main(const int argument_count, char** arguments) {
         argument_count == 1 || argument_count == 2,
         "the optional argument names the current huge.lmf"
     );
-    if (argument_count == 2 && arguments != nullptr && arguments[1] != nullptr) {
+    if (argument_count == 2 && arguments != nullptr &&
+        arguments[1] != nullptr) {
         test_current_archive(test, arguments[1]);
     }
 

@@ -32,8 +32,8 @@ struct LegacyWorldRoleTransferContext {
 };
 
 struct LegacyWorldRoleTransferState {
-    std::array<compat::u32, kLegacyWorldPartySlotCount>
-        party_role_indices = [] {
+    std::array<compat::u32, kLegacyWorldPartySlotCount> party_role_indices =
+        [] {
             std::array<compat::u32, kLegacyWorldPartySlotCount> value{};
             value.fill(0xFFFFFFFFU);
             return value;

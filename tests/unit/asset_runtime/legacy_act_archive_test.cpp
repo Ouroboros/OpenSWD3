@@ -34,7 +34,12 @@ constexpr std::size_t kBlockOffset =
     kIndexOffset + kIndexRecordSize * kSlotCount;
 
 constexpr std::array<u8, 6> kVariant0{
-    0x00U, 0x00U, 0x4EU, 0x54U, 0x01U, 0x00U,
+    0x00U,
+    0x00U,
+    0x4EU,
+    0x54U,
+    0x01U,
+    0x00U,
 };
 constexpr std::array<u8, 4> kVariant2{
     0x46U,
@@ -43,17 +48,24 @@ constexpr std::array<u8, 4> kVariant2{
     0x01U,
 };
 constexpr std::array<u8, 6> kVariant4{
-    0x44U, 0x53U, 0x00U, 0x00U, 0x4FU, 0x4EU,
+    0x44U,
+    0x53U,
+    0x00U,
+    0x00U,
+    0x4FU,
+    0x4EU,
 };
 
-void write_u16(const std::span<u8> bytes, const std::size_t offset,
-               const u16 value) {
+void write_u16(
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
+) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
-void write_u32(const std::span<u8> bytes, const std::size_t offset,
-               const u32 value) {
+void write_u32(
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
+) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
     bytes[offset + 2U] = static_cast<u8>(value >> 16U);
@@ -66,7 +78,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-act-archive-" + std::to_string(unique_value));
+            ("legacy-act-archive-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -92,15 +104,26 @@ private:
 
 [[nodiscard]] std::vector<u8> synthetic_archive() {
     constexpr std::size_t kVariantTableSize = 2U + 5U * 4U;
-    std::vector<u8> bytes(kBlockOffset + kVariantTableSize + kVariant0.size() +
-                              kVariant2.size() + kVariant4.size(),
-                          0U);
+    std::vector<u8> bytes(
+        kBlockOffset + kVariantTableSize + kVariant0.size() + kVariant2.size() +
+            kVariant4.size(),
+        0U
+    );
 
     constexpr std::array<u8, 9> kName{
-        'S', 'Y', 'N', 'T', 'H', 'E', 'T', 'I', 'C',
+        'S',
+        'Y',
+        'N',
+        'T',
+        'H',
+        'E',
+        'T',
+        'I',
+        'C',
     };
-    std::ranges::copy(kName, bytes.begin() +
-                                 static_cast<std::ptrdiff_t>(kIndexOffset));
+    std::ranges::copy(
+        kName, bytes.begin() + static_cast<std::ptrdiff_t>(kIndexOffset)
+    );
     const u32 block_size = static_cast<u32>(bytes.size() - kBlockOffset);
     write_u32(bytes, kIndexOffset + 0x14U, block_size);
     write_u32(bytes, kIndexOffset + 0x18U, static_cast<u32>(kBlockOffset));
@@ -120,14 +143,17 @@ private:
     write_u32(bytes, kBlockOffset + 18U, kVariant4Offset);
 
     std::size_t cursor = kBlockOffset + kVariantTableSize;
-    std::ranges::copy(kVariant0,
-                      bytes.begin() + static_cast<std::ptrdiff_t>(cursor));
+    std::ranges::copy(
+        kVariant0, bytes.begin() + static_cast<std::ptrdiff_t>(cursor)
+    );
     cursor += kVariant0.size();
-    std::ranges::copy(kVariant2,
-                      bytes.begin() + static_cast<std::ptrdiff_t>(cursor));
+    std::ranges::copy(
+        kVariant2, bytes.begin() + static_cast<std::ptrdiff_t>(cursor)
+    );
     cursor += kVariant2.size();
-    std::ranges::copy(kVariant4,
-                      bytes.begin() + static_cast<std::ptrdiff_t>(cursor));
+    std::ranges::copy(
+        kVariant4, bytes.begin() + static_cast<std::ptrdiff_t>(cursor)
+    );
     return bytes;
 }
 
@@ -146,80 +172,119 @@ void test_synthetic_variant_selection(openswd3::test::Context& test) {
     tree.write("synthetic.act", bytes);
 
     LegacyActArchive archive;
-    test.expect_equal(archive.open(tree.path("synthetic.act")),
-                      LegacyActOpenStatus::ready, "synthetic ACT opens");
+    test.expect_equal(
+        archive.open(tree.path("synthetic.act")),
+        LegacyActOpenStatus::ready,
+        "synthetic ACT opens"
+    );
     const auto index = archive.read_index(1U);
-    test.expect_equal(index.status, LegacyActVariantStatus::ready,
-                      "44-byte index reads");
-    test.expect_equal(index.index.block_size,
-                      static_cast<u32>(bytes.size() - kBlockOffset),
-                      "index +14 is block size");
-    test.expect_equal(index.index.block_offset, static_cast<u32>(kBlockOffset),
-                      "index +18 is block offset");
-    test.expect_equal(index.index.metadata_id, 0x10203040U,
-                      "unused metadata is preserved");
-    test.expect_equal(index.index.field_28, 0xD0E0F000U,
-                      "last unused field is preserved");
+    test.expect_equal(
+        index.status, LegacyActVariantStatus::ready, "44-byte index reads"
+    );
+    test.expect_equal(
+        index.index.block_size,
+        static_cast<u32>(bytes.size() - kBlockOffset),
+        "index +14 is block size"
+    );
+    test.expect_equal(
+        index.index.block_offset,
+        static_cast<u32>(kBlockOffset),
+        "index +18 is block offset"
+    );
+    test.expect_equal(
+        index.index.metadata_id, 0x10203040U, "unused metadata is preserved"
+    );
+    test.expect_equal(
+        index.index.field_28, 0xD0E0F000U, "last unused field is preserved"
+    );
 
     const auto variant0 = archive.read_variant(index.index, 0U);
-    test.expect_equal(variant0.status, LegacyActVariantStatus::ready,
-                      "variant zero loads");
-    test.expect_true(std::ranges::equal(variant0.variant.stream, kVariant0),
-                     "zero hole is skipped to variant two");
-    test.expect_equal(variant0.variant.variant_count, u16{5U},
-                      "variant count is little endian");
+    test.expect_equal(
+        variant0.status, LegacyActVariantStatus::ready, "variant zero loads"
+    );
+    test.expect_true(
+        std::ranges::equal(variant0.variant.stream, kVariant0),
+        "zero hole is skipped to variant two"
+    );
+    test.expect_equal(
+        variant0.variant.variant_count,
+        u16{5U},
+        "variant count is little endian"
+    );
 
     const auto variant2 = archive.read_variant(1U, 2U);
-    test.expect_equal(variant2.status, LegacyActVariantStatus::ready,
-                      "middle variant loads");
-    test.expect_true(std::ranges::equal(variant2.variant.stream, kVariant2),
-                     "second zero hole is skipped");
+    test.expect_equal(
+        variant2.status, LegacyActVariantStatus::ready, "middle variant loads"
+    );
+    test.expect_true(
+        std::ranges::equal(variant2.variant.stream, kVariant2),
+        "second zero hole is skipped"
+    );
 
     const auto variant4 = archive.read_variant(1U, 4U);
-    test.expect_equal(variant4.status, LegacyActVariantStatus::ready,
-                      "last variant loads");
-    test.expect_true(std::ranges::equal(variant4.variant.stream, kVariant4),
-                     "last variant ends at block size");
+    test.expect_equal(
+        variant4.status, LegacyActVariantStatus::ready, "last variant loads"
+    );
+    test.expect_true(
+        std::ranges::equal(variant4.variant.stream, kVariant4),
+        "last variant ends at block size"
+    );
 
-    test.expect_equal(archive.read_variant(1U, 1U).status,
-                      LegacyActVariantStatus::variant_absent,
-                      "zero offset is an absent variant");
-    test.expect_equal(archive.read_variant(1U, 5U).status,
-                      LegacyActVariantStatus::variant_out_of_range,
-                      "variant count boundary is isolated");
-    test.expect_equal(archive.read_variant(1U, 0xFFFFFFFFU).status,
-                      LegacyActVariantStatus::variant_out_of_range,
-                      "negative signed variant is isolated safely");
+    test.expect_equal(
+        archive.read_variant(1U, 1U).status,
+        LegacyActVariantStatus::variant_absent,
+        "zero offset is an absent variant"
+    );
+    test.expect_equal(
+        archive.read_variant(1U, 5U).status,
+        LegacyActVariantStatus::variant_out_of_range,
+        "variant count boundary is isolated"
+    );
+    test.expect_equal(
+        archive.read_variant(1U, 0xFFFFFFFFU).status,
+        LegacyActVariantStatus::variant_out_of_range,
+        "negative signed variant is isolated safely"
+    );
     archive.close();
 }
 
 void test_corrupt_boundaries(openswd3::test::Context& test) {
     const TestTree tree;
     LegacyActArchive archive;
-    test.expect_equal(archive.open(tree.path("missing.act")),
-                      LegacyActOpenStatus::file_open_failed,
-                      "missing ACT fails open");
+    test.expect_equal(
+        archive.open(tree.path("missing.act")),
+        LegacyActOpenStatus::file_open_failed,
+        "missing ACT fails open"
+    );
 
     std::vector<u8> bytes = synthetic_archive();
     tree.write("base.act", bytes);
     static_cast<void>(archive.open(tree.path("base.act")));
-    test.expect_equal(archive.read_index(0U).status,
-                      LegacyActVariantStatus::physical_record_out_of_range,
-                      "record zero underflow is isolated");
-    test.expect_equal(archive.read_index(3001U).status,
-                      LegacyActVariantStatus::physical_record_out_of_range,
-                      "record beyond 3000 is isolated");
-    test.expect_equal(archive.read_variant(2U, 0U).status,
-                      LegacyActVariantStatus::empty_index_record,
-                      "empty physical slot is explicit");
+    test.expect_equal(
+        archive.read_index(0U).status,
+        LegacyActVariantStatus::physical_record_out_of_range,
+        "record zero underflow is isolated"
+    );
+    test.expect_equal(
+        archive.read_index(3001U).status,
+        LegacyActVariantStatus::physical_record_out_of_range,
+        "record beyond 3000 is isolated"
+    );
+    test.expect_equal(
+        archive.read_variant(2U, 0U).status,
+        LegacyActVariantStatus::empty_index_record,
+        "empty physical slot is explicit"
+    );
     archive.close();
 
     write_u16(bytes, kBlockOffset, 0xFFFFU);
     tree.write("bad-table.act", bytes);
     static_cast<void>(archive.open(tree.path("bad-table.act")));
-    test.expect_equal(archive.read_variant(1U, 0U).status,
-                      LegacyActVariantStatus::invalid_variant_table,
-                      "variant table must fit the declared block");
+    test.expect_equal(
+        archive.read_variant(1U, 0U).status,
+        LegacyActVariantStatus::invalid_variant_table,
+        "variant table must fit the declared block"
+    );
     archive.close();
 
     bytes = synthetic_archive();
@@ -229,16 +294,19 @@ void test_corrupt_boundaries(openswd3::test::Context& test) {
     test.expect_equal(
         archive.read_variant(1U, 2U).status,
         LegacyActVariantStatus::following_variant_offset_not_found,
-        "unsafe original scan is bounded only for corrupt input");
+        "unsafe original scan is bounded only for corrupt input"
+    );
     archive.close();
 
     bytes = synthetic_archive();
     write_u32(bytes, kBlockOffset + 2U, 1U);
     tree.write("bad-slice.act", bytes);
     static_cast<void>(archive.open(tree.path("bad-slice.act")));
-    test.expect_equal(archive.read_variant(1U, 0U).status,
-                      LegacyActVariantStatus::variant_slice_out_of_block_range,
-                      "slice cannot point into its offset table");
+    test.expect_equal(
+        archive.read_variant(1U, 0U).status,
+        LegacyActVariantStatus::variant_slice_out_of_block_range,
+        "slice cannot point into its offset table"
+    );
 }
 
 struct RealVariantExpectation {
@@ -257,28 +325,42 @@ constexpr std::array<RealVariantExpectation, 6> kRealVariants{{
     {"all_map2.act", 0U, 22U, 0xCAF93AB8E20E6F53ULL},
 }};
 
-void test_real_archives(openswd3::test::Context& test,
-                        const std::filesystem::path& root) {
+void test_real_archives(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
     for (const RealVariantExpectation& expected : kRealVariants) {
         LegacyActArchive archive;
-        test.expect_equal(archive.open(root / expected.archive_name),
-                          LegacyActOpenStatus::ready, "real ACT archive opens");
+        test.expect_equal(
+            archive.open(root / expected.archive_name),
+            LegacyActOpenStatus::ready,
+            "real ACT archive opens"
+        );
         if (!archive.is_open()) {
             continue;
         }
         const auto loaded = archive.read_variant(1U, expected.variant_index);
-        test.expect_equal(loaded.status, LegacyActVariantStatus::ready,
-                          "real ACT variant loads");
+        test.expect_equal(
+            loaded.status,
+            LegacyActVariantStatus::ready,
+            "real ACT variant loads"
+        );
         if (loaded.status != LegacyActVariantStatus::ready) {
             continue;
         }
-        test.expect_equal(loaded.variant.stream.size(),
-                          static_cast<std::size_t>(expected.stream_size),
-                          "real selected stream size");
-        test.expect_equal(fnv1a64(loaded.variant.stream), expected.fnv1a,
-                          "real selected bytes match evidence");
-        test.expect_true((loaded.variant.stream.size() % 2U) == 0U,
-                         "action stream is a 16-bit word sequence");
+        test.expect_equal(
+            loaded.variant.stream.size(),
+            static_cast<std::size_t>(expected.stream_size),
+            "real selected stream size"
+        );
+        test.expect_equal(
+            fnv1a64(loaded.variant.stream),
+            expected.fnv1a,
+            "real selected bytes match evidence"
+        );
+        test.expect_true(
+            (loaded.variant.stream.size() % 2U) == 0U,
+            "action stream is a 16-bit word sequence"
+        );
         archive.close();
     }
 }

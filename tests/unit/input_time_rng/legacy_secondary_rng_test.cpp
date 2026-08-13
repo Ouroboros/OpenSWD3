@@ -10,9 +10,7 @@ namespace {
 using openswd3::compat::u32;
 using openswd3::input_time_rng::LegacySecondaryRng;
 
-[[nodiscard]] std::uint64_t state_hash(
-    const LegacySecondaryRng& rng
-) noexcept {
+[[nodiscard]] std::uint64_t state_hash(const LegacySecondaryRng& rng) noexcept {
     std::uint64_t hash = 0xCBF29CE484222325ULL;
     for (const u32 word : rng.state_words()) {
         for (const unsigned shift : {0U, 8U, 16U, 24U}) {
@@ -41,8 +39,16 @@ void test_seed_layout_and_raw_stream(openswd3::test::Context& test) {
     test.expect_equal(rng.index(), std::size_t{0U}, "seed resets xor index");
 
     constexpr std::array<u32, 10> kExpected{
-        0xA606U, 0xE086U, 0x549EU, 0x9B28U, 0x01BDU,
-        0xB7ABU, 0x703CU, 0x377AU, 0x3C79U, 0xFC46U,
+        0xA606U,
+        0xE086U,
+        0x549EU,
+        0x9B28U,
+        0x01BDU,
+        0xB7ABU,
+        0x703CU,
+        0x377AU,
+        0x3C79U,
+        0xFC46U,
     };
     for (const u32 expected : kExpected) {
         test.expect_equal(
@@ -51,21 +57,19 @@ void test_seed_layout_and_raw_stream(openswd3::test::Context& test) {
             "raw xor stream preserves the 147/103-word recurrence"
         );
     }
-    test.expect_equal(rng.index(), std::size_t{10U}, "raw stream advances once");
+    test.expect_equal(
+        rng.index(), std::size_t{10U}, "raw stream advances once"
+    );
 }
 
-void test_seed_reproducibility_and_index_wrap(
-    openswd3::test::Context& test
-) {
+void test_seed_reproducibility_and_index_wrap(openswd3::test::Context& test) {
     LegacySecondaryRng rng;
     rng.seed(1U);
     test.expect_equal(rng.next_raw(), 0x63E9U, "seed one first raw word");
 
     rng.seed(1U);
     test.expect_equal(
-        rng.next_raw(),
-        0x63E9U,
-        "reseeding reproduces the same first word"
+        rng.next_raw(), 0x63E9U, "reseeding reproduces the same first word"
     );
 
     rng.seed(0x12345678U);
@@ -74,15 +78,28 @@ void test_seed_reproducibility_and_index_wrap(
         value = rng.next_raw();
     }
     test.expect_equal(value, 0x57DBU, "word 249 uses the wrapped xor peer");
-    test.expect_equal(rng.index(), std::size_t{0U}, "word 249 wraps index to zero");
-    test.expect_equal(rng.next_raw(), 0x5720U, "next cycle mutates word zero again");
+    test.expect_equal(
+        rng.index(), std::size_t{0U}, "word 249 wraps index to zero"
+    );
+    test.expect_equal(
+        rng.next_raw(), 0x5720U, "next cycle mutates word zero again"
+    );
 }
 
 void test_bounded_stream_and_rejection(openswd3::test::Context& test) {
     LegacySecondaryRng rng;
     rng.seed(0x12345678U);
     constexpr std::array<u32, 10> kExpectedBound100{
-        78U, 20U, 19U, 2U, 82U, 45U, 73U, 24U, 95U, 89U,
+        78U,
+        20U,
+        19U,
+        2U,
+        82U,
+        45U,
+        73U,
+        24U,
+        95U,
+        89U,
     };
     for (const u32 expected : kExpectedBound100) {
         test.expect_equal(
@@ -110,7 +127,9 @@ void test_bounded_stream_and_rejection(openswd3::test::Context& test) {
     );
 
     rng.seed(0x12345678U);
-    test.expect_equal(rng.next_bounded(1U), 0U, "bound one always returns zero");
+    test.expect_equal(
+        rng.next_bounded(1U), 0U, "bound one always returns zero"
+    );
     test.expect_equal(
         rng.index(),
         std::size_t{2U},

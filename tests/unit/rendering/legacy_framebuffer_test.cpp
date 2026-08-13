@@ -40,14 +40,10 @@ void test_default_owned_framebuffer(openswd3::test::Context& test) {
     test.expect_equal(geometry.clip_height, 480, "default clip height");
     test.expect_equal(geometry.row_byte_offsets[0], 0U, "first row offset");
     test.expect_equal(
-        geometry.row_byte_offsets[1],
-        0x500U,
-        "second row offset"
+        geometry.row_byte_offsets[1], 0x500U, "second row offset"
     );
     test.expect_equal(
-        geometry.row_byte_offsets[479],
-        0x95B00U,
-        "last visible row offset"
+        geometry.row_byte_offsets[479], 0x95B00U, "last visible row offset"
     );
 
     const std::span<u16> physical = framebuffer.physical_pixels();
@@ -60,9 +56,7 @@ void test_default_owned_framebuffer(openswd3::test::Context& test) {
     );
     test.expect_equal(
         physical.size(),
-        static_cast<std::size_t>(
-            openswd3::rendering::kLegacyFixedCanvasPixels
-        ),
+        static_cast<std::size_t>(openswd3::rendering::kLegacyFixedCanvasPixels),
         "default physical pixel count"
     );
     test.expect_true(
@@ -77,9 +71,9 @@ void test_default_owned_framebuffer(openswd3::test::Context& test) {
         "read guard does not expand the physical surface"
     );
     test.expect_true(
-        std::ranges::all_of(physical, [](const u16 pixel) {
-            return pixel == 0U;
-        }),
+        std::ranges::all_of(
+            physical, [](const u16 pixel) { return pixel == 0U; }
+        ),
         "owned framebuffer starts cleared"
     );
 
@@ -97,16 +91,16 @@ void test_default_owned_framebuffer(openswd3::test::Context& test) {
 }
 
 void test_padded_pitch(openswd3::test::Context& test) {
-    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 1300,
-        .width = 640,
-        .height = 3,
-    });
+    LegacyFramebuffer framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 1300,
+            .width = 640,
+            .height = 3,
+        }
+    );
 
     test.expect_equal(
-        framebuffer.physical_byte_size(),
-        3900U,
-        "padded physical byte count"
+        framebuffer.physical_byte_size(), 3900U, "padded physical byte count"
     );
     test.expect_equal(
         framebuffer.geometry().row_byte_offsets[2],
@@ -128,14 +122,14 @@ void test_padded_pitch(openswd3::test::Context& test) {
     );
 }
 
-void test_logical_hash_excludes_pitch_padding(
-    openswd3::test::Context& test
-) {
-    LegacyFramebuffer framebuffer(LegacySurfaceGeometry{
-        .pitch_bytes = 8,
-        .width = 3,
-        .height = 2,
-    });
+void test_logical_hash_excludes_pitch_padding(openswd3::test::Context& test) {
+    LegacyFramebuffer framebuffer(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 8,
+            .width = 3,
+            .height = 2,
+        }
+    );
     framebuffer.row_pixels(0U)[0] = 0x0000U;
     framebuffer.row_pixels(0U)[1] = 0x1234U;
     framebuffer.row_pixels(0U)[2] = 0xABCDU;
@@ -183,9 +177,7 @@ void test_assembly_row_state(openswd3::test::Context& test) {
     test.expect_equal(state.row_byte_offsets[0], 0U, "rebuilt row zero");
     test.expect_equal(state.row_byte_offsets[1], 12U, "rebuilt row one");
     test.expect_equal(
-        state.row_byte_offsets[2],
-        16U,
-        "shorter rebuild preserves the old tail"
+        state.row_byte_offsets[2], 16U, "shorter rebuild preserves the old tail"
     );
 
     test.expect_true(
@@ -225,9 +217,7 @@ void test_row_offset_wrapping_and_guard(openswd3::test::Context& test) {
     );
     test.expect_equal(state.row_byte_offsets[0], 0U, "wrapped row zero");
     test.expect_equal(
-        state.row_byte_offsets[1],
-        0x7FFFFFFFU,
-        "wrapped row one"
+        state.row_byte_offsets[1], 0x7FFFFFFFU, "wrapped row one"
     );
     test.expect_equal(
         state.row_byte_offsets[2],

@@ -25,8 +25,7 @@ void merge_sdl_mouse_press_latches(
 ) noexcept;
 
 [[nodiscard]] input_time_rng::LegacyMouseDeviceSample sample_sdl_mouse_state(
-    SDL_Renderer& renderer,
-    SdlMouseDeviceState& state
+    SDL_Renderer& renderer, SdlMouseDeviceState& state
 ) noexcept;
 
 }  // namespace openswd3::platform_sdl3

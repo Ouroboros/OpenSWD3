@@ -34,10 +34,7 @@ void expect_direction(
     const char* message
 ) {
     const auto result = apply_legacy_world_direction_input(
-        LegacyWorldDirectionState{9U, 0U},
-        records,
-        false,
-        0U
+        LegacyWorldDirectionState{9U, 0U}, records, false, 0U
     );
     test.expect_true(
         result.status == LegacyWorldDirectionInputStatus::completed &&
@@ -47,9 +44,7 @@ void expect_direction(
     );
 }
 
-void test_cardinal_and_diagonal_directions(
-    openswd3::test::Context& test
-) {
+void test_cardinal_and_diagonal_directions(openswd3::test::Context& test) {
     struct Expected {
         std::size_t first;
         std::size_t second;
@@ -90,10 +85,7 @@ void test_conflicting_input_order(openswd3::test::Context& test) {
     press(horizontal, 3U, 2U);
     press(horizontal, 5U, 1U);
     const auto horizontal_result = apply_legacy_world_direction_input(
-        LegacyWorldDirectionState{9U, 0U},
-        horizontal,
-        false,
-        0U
+        LegacyWorldDirectionState{9U, 0U}, horizontal, false, 0U
     );
     test.expect_true(
         horizontal_result.state.direction == 3U &&
@@ -108,14 +100,11 @@ void test_conflicting_input_order(openswd3::test::Context& test) {
     press(all, 5U);
     press(all, 6U);
     const auto all_result = apply_legacy_world_direction_input(
-        LegacyWorldDirectionState{9U, 0U},
-        all,
-        false,
-        0U
+        LegacyWorldDirectionState{9U, 0U}, all, false, 0U
     );
     test.expect_true(
-        all_result.state.direction == 7U &&
-            all_result.delta_x == 1 && all_result.delta_y == 1,
+        all_result.state.direction == 7U && all_result.delta_x == 1 &&
+            all_result.delta_y == 1,
         "all four keys preserve the original left-right-up-down overwrite order"
     );
 
@@ -123,14 +112,10 @@ void test_conflicting_input_order(openswd3::test::Context& test) {
     press(vertical, 4U, 2U);
     press(vertical, 6U, 1U);
     const auto vertical_result = apply_legacy_world_direction_input(
-        LegacyWorldDirectionState{9U, 0U},
-        vertical,
-        false,
-        0U
+        LegacyWorldDirectionState{9U, 0U}, vertical, false, 0U
     );
     test.expect_true(
-        vertical_result.state.direction == 1U &&
-            vertical_result.delta_y == 1 &&
+        vertical_result.state.direction == 1U && vertical_result.delta_y == 1 &&
             vertical_result.multiplicity_bits == 3U,
         "down overwrites vertical movement but ORs its multiplicity after up"
     );
@@ -140,10 +125,7 @@ void test_auxiliary_selection(openswd3::test::Context& test) {
     InputRecords previous{};
     press(previous, 3U, 1U, 1U);
     auto result = apply_legacy_world_direction_input(
-        LegacyWorldDirectionState{6U, 0U},
-        previous,
-        true,
-        5U
+        LegacyWorldDirectionState{6U, 0U}, previous, true, 5U
     );
     test.expect_true(
         result.state.direction == 6U &&
@@ -156,10 +138,7 @@ void test_auxiliary_selection(openswd3::test::Context& test) {
     InputRecords next{};
     press(next, 5U, 1U, 7U);
     result = apply_legacy_world_direction_input(
-        LegacyWorldDirectionState{2U, 4U},
-        next,
-        true,
-        5U
+        LegacyWorldDirectionState{2U, 4U}, next, true, 5U
     );
     test.expect_true(
         result.state.direction == 2U &&
@@ -171,10 +150,7 @@ void test_auxiliary_selection(openswd3::test::Context& test) {
     InputRecords not_due{};
     press(not_due, 4U, 1U, 8U);
     result = apply_legacy_world_direction_input(
-        LegacyWorldDirectionState{3U, 2U},
-        not_due,
-        true,
-        5U
+        LegacyWorldDirectionState{3U, 2U}, not_due, true, 5U
     );
     test.expect_true(
         result.state.auxiliary_selection_index == 2U &&
@@ -186,10 +162,7 @@ void test_auxiliary_selection(openswd3::test::Context& test) {
     InputRecords empty_list{};
     press(empty_list, 3U);
     result = apply_legacy_world_direction_input(
-        LegacyWorldDirectionState{0U, 0U},
-        empty_list,
-        true,
-        0U
+        LegacyWorldDirectionState{0U, 0U}, empty_list, true, 0U
     );
     test.expect_equal(
         result.state.auxiliary_selection_index,
@@ -201,13 +174,11 @@ void test_auxiliary_selection(openswd3::test::Context& test) {
 void test_missing_input_records(openswd3::test::Context& test) {
     const std::array<LegacyInputRecord, 6U> incomplete{};
     const auto result = apply_legacy_world_direction_input(
-        LegacyWorldDirectionState{7U, 3U},
-        incomplete,
-        false,
-        4U
+        LegacyWorldDirectionState{7U, 3U}, incomplete, false, 4U
     );
     test.expect_true(
-        result.status == LegacyWorldDirectionInputStatus::missing_input_records &&
+        result.status ==
+                LegacyWorldDirectionInputStatus::missing_input_records &&
             result.state.direction == 7U &&
             result.state.auxiliary_selection_index == 3U,
         "modern boundary rejects a frame missing the four movement records"

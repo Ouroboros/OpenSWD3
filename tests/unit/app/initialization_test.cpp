@@ -90,9 +90,15 @@ void test_success_and_ignored_platform_result(openswd3::test::Context& test) {
             openswd3::app::run_total_initialization(state, ports),
             "platform return is ignored by the original caller"
         );
-        test.expect_equal(ports.calls, kSuccessfulCalls, "successful initialization order");
-        test.expect_equal(state.transition_suppression, 0U, "suppression starts cleared");
-        test.expect_equal(state.frame_counter, 0U, "frame counter starts cleared");
+        test.expect_equal(
+            ports.calls, kSuccessfulCalls, "successful initialization order"
+        );
+        test.expect_equal(
+            state.transition_suppression, 0U, "suppression starts cleared"
+        );
+        test.expect_equal(
+            state.frame_counter, 0U, "frame counter starts cleared"
+        );
         test.expect_equal(
             state.special_mode_state,
             0x80000003U,
@@ -117,7 +123,9 @@ void test_drawing_failure(openswd3::test::Context& test) {
         Call::report_drawing_failure,
         Call::synchronous_destroy,
     };
-    test.expect_equal(ports.calls, expected, "drawing failure destroys synchronously");
+    test.expect_equal(
+        ports.calls, expected, "drawing failure destroys synchronously"
+    );
 }
 
 void test_frame_clock_failure(openswd3::test::Context& test) {

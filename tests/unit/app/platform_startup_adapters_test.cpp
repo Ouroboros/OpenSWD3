@@ -36,8 +36,7 @@ void test_windows_tail_parser(openswd3::test::Context& test) {
     );
     test.expect_equal(
         extract_windows_command_line_tail(
-            "openswd3.exe --data-dir \"E:\\Game\\swd3 data\" 7payload raw",
-            3U
+            "openswd3.exe --data-dir \"E:\\Game\\swd3 data\" 7payload raw", 3U
         ),
         std::string_view{"7payload raw"},
         "modern prefix is removed without changing the legacy tail"
@@ -60,9 +59,7 @@ void test_argument_reconstruction(openswd3::test::Context& test) {
 #if !defined(_WIN32)
     test.expect_equal(
         openswd3::platform_sdl3::reconstruct_legacy_command_line_tail(
-            5,
-            arguments,
-            3
+            5, arguments, 3
         ),
         std::string{"7payload with spaces"},
         "non-Windows argv joins only the remaining legacy arguments"

@@ -32,8 +32,7 @@ struct WindowConfigurationLoadResult {
 };
 
 [[nodiscard]] WindowConfigurationLoadResult load_window_configuration(
-    const std::filesystem::path& configuration_path,
-    WindowSize fallback
+    const std::filesystem::path& configuration_path, WindowSize fallback
 );
 
 [[nodiscard]] WindowConfigurationStatus save_window_configuration(
@@ -43,8 +42,7 @@ struct WindowConfigurationLoadResult {
     std::string& detail
 );
 
-[[nodiscard]] std::string_view window_configuration_status_message(
-    WindowConfigurationStatus status
-) noexcept;
+[[nodiscard]] std::string_view
+window_configuration_status_message(WindowConfigurationStatus status) noexcept;
 
 }  // namespace openswd3::resource_io

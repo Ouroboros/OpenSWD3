@@ -92,9 +92,8 @@ struct ProbeResult {
     return result;
 }
 
-[[nodiscard]] std::vector<std::string_view> split_tabs(
-    const std::string_view line
-) {
+[[nodiscard]] std::vector<std::string_view>
+split_tabs(const std::string_view line) {
     std::vector<std::string_view> fields;
     std::size_t begin = 0;
     while (begin <= line.size()) {
@@ -111,16 +110,10 @@ struct ProbeResult {
 
 template <typename Integer>
 [[nodiscard]] bool parse_integer(
-    const std::string_view text,
-    Integer& value,
-    const int base = 10
+    const std::string_view text, Integer& value, const int base = 10
 ) {
-    const auto result = std::from_chars(
-        text.data(),
-        text.data() + text.size(),
-        value,
-        base
-    );
+    const auto result =
+        std::from_chars(text.data(), text.data() + text.size(), value, base);
     return result.ec == std::errc{} && result.ptr == text.data() + text.size();
 }
 
@@ -137,10 +130,8 @@ template <typename Integer>
     return -1;
 }
 
-[[nodiscard]] bool parse_character_bytes(
-    const std::string_view text,
-    std::array<char, 3>& bytes
-) {
+[[nodiscard]] bool
+parse_character_bytes(const std::string_view text, std::array<char, 3>& bytes) {
     if (text.size() != 6U) {
         return false;
     }
@@ -155,9 +146,8 @@ template <typename Integer>
     return true;
 }
 
-[[nodiscard]] std::vector<std::byte> read_binary(
-    const std::filesystem::path& path
-) {
+[[nodiscard]] std::vector<std::byte>
+read_binary(const std::filesystem::path& path) {
     std::ifstream stream(path, std::ios::binary | std::ios::ate);
     if (!stream) {
         return {};
@@ -178,9 +168,8 @@ template <typename Integer>
     return bytes;
 }
 
-[[nodiscard]] std::vector<GlyphSample> load_samples(
-    const std::filesystem::path& run_directory
-) {
+[[nodiscard]] std::vector<GlyphSample>
+load_samples(const std::filesystem::path& run_directory) {
     std::ifstream stream(run_directory / "glyph-masks.tsv");
     if (!stream) {
         throw std::runtime_error("cannot open glyph-masks.tsv");
@@ -196,11 +185,11 @@ template <typename Integer>
         }
 
         GlyphSample sample;
-        if (!parse_character_bytes(fields[3], sample.bytes)
-            || !parse_integer(fields[4], sample.consumed_bytes)
-            || !parse_integer(fields[5], sample.width)
-            || !parse_integer(fields[6], sample.height)
-            || !parse_integer(fields[7], sample.row_bytes)) {
+        if (!parse_character_bytes(fields[3], sample.bytes) ||
+            !parse_integer(fields[4], sample.consumed_bytes) ||
+            !parse_integer(fields[5], sample.width) ||
+            !parse_integer(fields[6], sample.height) ||
+            !parse_integer(fields[7], sample.row_bytes)) {
             throw std::runtime_error("invalid glyph sample field");
         }
         sample.mask_file = run_directory / std::filesystem::path(fields[10]);
@@ -223,7 +212,13 @@ public:
         font_description.lfWeight = FW_NORMAL;
         font_description.lfCharSet = CHINESEBIG5_CHARSET;
         constexpr std::array<unsigned char, 7> kFaceName{
-            0xB2U, 0xD3U, 0xA9U, 0xFAU, 0xC5U, 0xE9U, 0x00U,
+            0xB2U,
+            0xD3U,
+            0xA9U,
+            0xFAU,
+            0xC5U,
+            0xE9U,
+            0x00U,
         };
         for (std::size_t index = 0; index < kFaceName.size(); ++index) {
             font_description.lfFaceName[index] =
@@ -263,11 +258,9 @@ public:
         std::array<wchar_t, LF_FACESIZE> face_name{};
         TEXTMETRICW metrics{};
         if (GetTextFaceW(
-                dc_,
-                static_cast<int>(face_name.size()),
-                face_name.data()
-            ) <= 0
-            || GetTextMetricsW(dc_, &metrics) == FALSE) {
+                dc_, static_cast<int>(face_name.size()), face_name.data()
+            ) <= 0 ||
+            GetTextMetricsW(dc_, &metrics) == FALSE) {
             throw std::runtime_error("cannot query selected font");
         }
         selection_ = FontSelection{
@@ -307,10 +300,8 @@ public:
         }
     }
 
-    [[nodiscard]] std::vector<std::byte> render(
-        const std::array<char, 3>& character,
-        const int character_length
-    ) {
+    [[nodiscard]] std::vector<std::byte>
+    render(const std::array<char, 3>& character, const int character_length) {
         const int bytes_per_pixel = format_.bits_per_pixel / 8;
         const int pitch = ((kSurfaceSize * bytes_per_pixel) + 3) & ~3;
         std::memset(pixels_, 0, static_cast<std::size_t>(pitch * kSurfaceSize));
@@ -321,16 +312,16 @@ public:
 
         const int row_bytes = (size_ + 7) / 8;
         std::vector<std::byte> mask(
-            static_cast<std::size_t>(row_bytes * size_),
-            std::byte{0}
+            static_cast<std::size_t>(row_bytes * size_), std::byte{0}
         );
         const auto* source = static_cast<const std::byte*>(pixels_);
         for (int y = 0; y < size_; ++y) {
             for (int x = 0; x < size_; ++x) {
                 bool nonzero = false;
-                for (int component = 0; component < bytes_per_pixel; ++component) {
-                    nonzero = nonzero
-                        || source[static_cast<std::size_t>(
+                for (int component = 0; component < bytes_per_pixel;
+                     ++component) {
+                    nonzero = nonzero ||
+                        source[static_cast<std::size_t>(
                             y * pitch + x * bytes_per_pixel + component
                         )] != std::byte{0};
                 }
@@ -368,7 +359,8 @@ private:
     }
     int count = 0;
     for (std::size_t index = 0; index < left.size(); ++index) {
-        unsigned int value = std::to_integer<unsigned int>(left[index] ^ right[index]);
+        unsigned int value =
+            std::to_integer<unsigned int>(left[index] ^ right[index]);
         while (value != 0U) {
             count += static_cast<int>(value & 1U);
             value >>= 1U;
@@ -377,10 +369,8 @@ private:
     return count;
 }
 
-[[nodiscard]] ProbeResult probe_format(
-    const std::vector<GlyphSample>& samples,
-    const DibFormat& format
-) {
+[[nodiscard]] ProbeResult
+probe_format(const std::vector<GlyphSample>& samples, const DibFormat& format) {
     GdiGlyphSurface glyph12(12, format);
     GdiGlyphSurface glyph16(16, format);
     GdiGlyphSurface glyph20(20, format);
@@ -396,8 +386,8 @@ private:
                   << "; maximum_width=" << selection.maximum_char_width
                   << "; pitch_and_family="
                   << static_cast<unsigned int>(selection.pitch_and_family)
-                  << "; charset=" << static_cast<unsigned int>(selection.charset)
-                  << '\n';
+                  << "; charset="
+                  << static_cast<unsigned int>(selection.charset) << '\n';
     }
     ProbeResult result{};
     for (const GlyphSample& sample : samples) {
@@ -413,17 +403,15 @@ private:
         }
 
         const std::vector<std::byte> expected = read_binary(sample.mask_file);
-        const std::vector<std::byte> actual = surface->render(
-            sample.bytes,
-            sample.consumed_bytes
-        );
+        const std::vector<std::byte> actual =
+            surface->render(sample.bytes, sample.consumed_bytes);
         const int difference = count_different_bits(expected, actual);
         result.different_bits += difference;
         result.exact += difference == 0 ? 1 : 0;
     }
     std::cout << format.name << ": exact=" << result.exact << '/'
-              << samples.size() << "; different_bits="
-              << result.different_bits << '\n';
+              << samples.size() << "; different_bits=" << result.different_bits
+              << '\n';
     return result;
 }
 
@@ -447,10 +435,8 @@ void write_u32_le(
     bytes[offset + 3U] = static_cast<std::uint8_t>(value >> 24U);
 }
 
-[[nodiscard]] std::array<char, 3> character_for_atlas_index(
-    const std::uint32_t index,
-    int& character_length
-) {
+[[nodiscard]] std::array<char, 3>
+character_for_atlas_index(const std::uint32_t index, int& character_length) {
     std::array<char, 3> character{};
     if (index < 128U) {
         character[0] = static_cast<char>(index);
@@ -466,8 +452,7 @@ void write_u32_le(
 }
 
 void build_atlas(
-    const std::filesystem::path& output_file,
-    const DibFormat& format
+    const std::filesystem::path& output_file, const DibFormat& format
 ) {
     using openswd3::rendering::kLegacyGlyphAtlasGeometries;
     using openswd3::rendering::kLegacyGlyphAtlasHeaderSize;
@@ -483,8 +468,8 @@ void build_atlas(
     std::size_t total_size = kLegacyGlyphAtlasHeaderSize;
     for (const auto geometry : kLegacyGlyphAtlasGeometries) {
         const std::size_t row_bytes = (geometry[0] + 7U) / 8U;
-        total_size += static_cast<std::size_t>(kLegacyGlyphAtlasKeyCount)
-            * row_bytes * geometry[1];
+        total_size += static_cast<std::size_t>(kLegacyGlyphAtlasKeyCount) *
+            row_bytes * geometry[1];
     }
 
     std::vector<std::uint8_t> atlas(total_size, 0U);
@@ -499,12 +484,10 @@ void build_atlas(
          section_index < kLegacyGlyphAtlasGeometries.size();
          ++section_index) {
         const auto geometry = kLegacyGlyphAtlasGeometries[section_index];
-        const std::uint16_t row_bytes = static_cast<std::uint16_t>(
-            (geometry[0] + 7U) / 8U
-        );
-        const std::uint16_t mask_bytes = static_cast<std::uint16_t>(
-            row_bytes * geometry[1]
-        );
+        const std::uint16_t row_bytes =
+            static_cast<std::uint16_t>((geometry[0] + 7U) / 8U);
+        const std::uint16_t mask_bytes =
+            static_cast<std::uint16_t>(row_bytes * geometry[1]);
         const std::uint32_t data_size = kLegacyGlyphAtlasKeyCount * mask_bytes;
         const std::size_t descriptor_offset = 32U + section_index * 16U;
         write_u16_le(atlas, descriptor_offset, geometry[0]);
@@ -519,29 +502,26 @@ void build_atlas(
         write_u32_le(atlas, descriptor_offset + 12U, data_size);
 
         GdiGlyphSurface surface(geometry[0], format);
-        for (std::uint32_t key_index = 0;
-             key_index < kLegacyGlyphAtlasKeyCount;
+        for (std::uint32_t key_index = 0; key_index < kLegacyGlyphAtlasKeyCount;
              ++key_index) {
             int character_length = 0;
-            const auto character = character_for_atlas_index(
-                key_index, character_length
-            );
-            const std::vector<std::byte> mask = surface.render(
-                character, character_length
-            );
+            const auto character =
+                character_for_atlas_index(key_index, character_length);
+            const std::vector<std::byte> mask =
+                surface.render(character, character_length);
             if (mask.size() != mask_bytes) {
                 throw std::runtime_error("generated mask size mismatch");
             }
             std::memcpy(
-                atlas.data() + data_offset
-                    + static_cast<std::size_t>(key_index) * mask_bytes,
+                atlas.data() + data_offset +
+                    static_cast<std::size_t>(key_index) * mask_bytes,
                 mask.data(),
                 mask.size()
             );
         }
         data_offset += data_size;
-        std::cout << "atlas: generated " << geometry[0] << 'x'
-                  << geometry[1] << '\n';
+        std::cout << "atlas: generated " << geometry[0] << 'x' << geometry[1]
+                  << '\n';
     }
 
     std::ofstream stream(output_file, std::ios::binary | std::ios::trunc);
@@ -555,20 +535,19 @@ void build_atlas(
     if (!stream) {
         throw std::runtime_error("cannot write atlas output");
     }
-    std::cout << "atlas: wrote " << output_file.string() << "; bytes="
-              << atlas.size() << '\n';
+    std::cout << "atlas: wrote " << output_file.string()
+              << "; bytes=" << atlas.size() << '\n';
 }
 
 }  // namespace
 
 int main(const int argument_count, const char* const* arguments) {
-    const bool build_requested = argument_count == 4
-        && std::string_view(arguments[1]) == "--build-atlas";
+    const bool build_requested = argument_count == 4 &&
+        std::string_view(arguments[1]) == "--build-atlas";
     if (argument_count != 2 && !build_requested) {
         std::cerr
             << "usage: openswd3_probe_gdi_glyph_oracle <run-directory>\n"
-            << "       openswd3_probe_gdi_glyph_oracle --build-atlas "
-               "<run-directory> <atlas-file>\n";
+            << "       openswd3_probe_gdi_glyph_oracle --build-atlas " "<run-directory> <atlas-file>\n";
         return 2;
     }
     try {
@@ -584,8 +563,8 @@ int main(const int argument_count, const char* const* arguments) {
         bool all_exact = true;
         for (const DibFormat& format : kFormats) {
             const ProbeResult result = probe_format(samples, format);
-            all_exact = all_exact
-                && result.exact == static_cast<int>(samples.size());
+            all_exact =
+                all_exact && result.exact == static_cast<int>(samples.size());
         }
         if (!all_exact) {
             std::cerr << "GDI output does not exactly match the oracle\n";

@@ -15,10 +15,8 @@ void run_common_tail(FrameCoordinatorState& state, FrameRuntimePorts& ports) {
 
 }  // namespace
 
-FrameRunOutcome run_accepted_frame(
-    FrameCoordinatorState& state,
-    FrameRuntimePorts& ports
-) {
+FrameRunOutcome
+run_accepted_frame(FrameCoordinatorState& state, FrameRuntimePorts& ports) {
     if (state.battle.high_priority_state != 0U) {
         ports.step_high_priority(state);
         run_common_tail(state, ports);
@@ -26,11 +24,7 @@ FrameRunOutcome run_accepted_frame(
     }
 
     static_cast<void>(
-        consume_battle_request(
-            state.battle,
-            state.battle_entry_blocked,
-            ports
-        )
+        consume_battle_request(state.battle, state.battle_entry_blocked, ports)
     );
     if (state.battle.battle_active != 0U) {
         static_cast<void>(run_battle_frame(state.battle, ports));
@@ -41,15 +35,13 @@ FrameRunOutcome run_accepted_frame(
     if (state.battle.special_mode_state == 0U) {
         ports.step_world_interaction(state);
         ports.step_world_player(state);
-        if (should_step_story(
-                {
-                    state.frame_execution_gate,
-                    state.transition_suppression,
-                    state.battle.special_mode_state,
-                    state.battle.battle_active,
-                    state.battle.high_priority_state,
-                }
-            )) {
+        if (should_step_story({
+                state.frame_execution_gate,
+                state.transition_suppression,
+                state.battle.special_mode_state,
+                state.battle.battle_active,
+                state.battle.high_priority_state,
+            })) {
             ports.step_story(state);
             if ((state.process_flags & 0x05U) == 0U) {
                 ports.finish_world_frame(state);
@@ -59,26 +51,25 @@ FrameRunOutcome run_accepted_frame(
         ports.maintain_audio();
         ports.prepare_special_mode_objects(state);
         switch (select_special_mode_handler(state.battle.special_mode_state)) {
-            case SpecialModeHandler::none:
+        case SpecialModeHandler::none:
+            break;
+        case SpecialModeHandler::standard_modes_1_3_4_5_6:
+            switch (ports.step_standard_special_mode(state)) {
+            case StandardSpecialModeEvent::none:
                 break;
-            case SpecialModeHandler::standard_modes_1_3_4_5_6:
-                switch (ports.step_standard_special_mode(state)) {
-                    case StandardSpecialModeEvent::none:
-                        break;
-                    case StandardSpecialModeEvent::commit_new_game_004492ba:
-                        static_cast<void>(run_legacy_new_game_transition(
-                            state.battle,
-                            ports
-                        ));
-                        break;
-                    case StandardSpecialModeEvent::request_close_00449320:
-                        state.process_flags |= kProcessCloseRequested;
-                        break;
-                }
+            case StandardSpecialModeEvent::commit_new_game_004492ba:
+                static_cast<void>(
+                    run_legacy_new_game_transition(state.battle, ports)
+                );
                 break;
-            case SpecialModeHandler::shop_mode_2:
-                ports.step_shop_mode(state);
+            case StandardSpecialModeEvent::request_close_00449320:
+                state.process_flags |= kProcessCloseRequested;
                 break;
+            }
+            break;
+        case SpecialModeHandler::shop_mode_2:
+            ports.step_shop_mode(state);
+            break;
         }
     }
 

@@ -12,24 +12,19 @@
 namespace openswd3::audio_video {
 namespace {
 
-[[nodiscard]] constexpr compat::i32 from_bits(
-    const compat::u32 value
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+from_bits(const compat::u32 value) noexcept {
     return std::bit_cast<compat::i32>(value);
 }
 
-[[nodiscard]] constexpr compat::i32 wrapping_subtract(
-    const compat::i32 left,
-    const compat::i32 right
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+wrapping_subtract(const compat::i32 left, const compat::i32 right) noexcept {
     return from_bits(
         static_cast<compat::u32>(left) - static_cast<compat::u32>(right)
     );
 }
 
-[[nodiscard]] compat::i32 fixed_volume(
-    const compat::i32 volume
-) noexcept {
+[[nodiscard]] compat::i32 fixed_volume(const compat::i32 volume) noexcept {
     return from_bits(
         static_cast<compat::u32>(legacy_audio_volume_parameter(volume)) << 4U
     );
@@ -43,7 +38,8 @@ namespace {
 
 LegacySequenceManager::LegacySequenceManager(
     LegacySequenceBackend& backend
-) noexcept : backend_(backend) {}
+) noexcept
+    : backend_(backend) {}
 
 LegacySequenceManager::~LegacySequenceManager() {
     static_cast<void>(shutdown());
@@ -178,11 +174,8 @@ compat::i32 LegacySequenceManager::play(
     }
     static_cast<void>(file.close());
 
-    const compat::i32 initialize_result = backend_.initialize_sequence(
-        sequence.handle,
-        sequence.bytes,
-        0U
-    );
+    const compat::i32 initialize_result =
+        backend_.initialize_sequence(sequence.handle, sequence.bytes, 0U);
     if (initialize_result == 0) {
         copy_backend_error();
         std::vector<compat::u8>{}.swap(sequence.bytes);
@@ -194,11 +187,7 @@ compat::i32 LegacySequenceManager::play(
     }
 
     sequence.fixed_volume = fixed_volume(volume);
-    backend_.set_sequence_user_data(
-        sequence.handle,
-        0U,
-        sequence_id
-    );
+    backend_.set_sequence_user_data(sequence.handle, 0U, sequence_id);
     backend_.set_sequence_volume(
         sequence.handle,
         legacy_audio_volume_parameter(sequence.fixed_volume / 16),
@@ -223,19 +212,12 @@ bool LegacySequenceManager::service() {
         bool remove = false;
 
         if ((sequence.state_flags & kFadingFlag) != 0U) {
-            sequence.fixed_volume = wrapping_subtract(
-                sequence.fixed_volume,
-                sequence.fade_step
-            );
-            const compat::i32 converted = legacy_audio_volume_parameter(
-                sequence.fixed_volume / 16
-            );
+            sequence.fixed_volume =
+                wrapping_subtract(sequence.fixed_volume, sequence.fade_step);
+            const compat::i32 converted =
+                legacy_audio_volume_parameter(sequence.fixed_volume / 16);
             if (converted != 0) {
-                backend_.set_sequence_volume(
-                    sequence.handle,
-                    converted,
-                    0
-                );
+                backend_.set_sequence_volume(sequence.handle, converted, 0);
                 previous_was_removed = false;
                 previous = node;
                 node = sequence.next;
@@ -243,9 +225,8 @@ bool LegacySequenceManager::service() {
             }
             remove = true;
         } else {
-            const compat::u32 status = backend_.sequence_status(
-                sequence.handle
-            );
+            const compat::u32 status =
+                backend_.sequence_status(sequence.handle);
             if (status == 1U || status == 2U) {
                 remove = true;
             } else if (status_is_retained(status)) {
@@ -282,9 +263,7 @@ bool LegacySequenceManager::service() {
     return false;
 }
 
-bool LegacySequenceManager::sequence_absent(
-    const compat::i32 sequence_id
-) {
+bool LegacySequenceManager::sequence_absent(const compat::i32 sequence_id) {
     if (sequence_id == 0) {
         return active_head_ == kNoNode;
     }
@@ -332,14 +311,11 @@ void LegacySequenceManager::push_active_node(const compat::u32 node) noexcept {
     active_head_ = node;
 }
 
-compat::u32 LegacySequenceManager::find_active_node(
-    const compat::i32 sequence_id
-) {
+compat::u32
+LegacySequenceManager::find_active_node(const compat::i32 sequence_id) {
     compat::u32 node = active_head_;
     while (node != kNoNode) {
-        static_cast<void>(
-            backend_.sequence_user_data(nodes_[node].handle, 0U)
-        );
+        static_cast<void>(backend_.sequence_user_data(nodes_[node].handle, 0U));
         if (backend_.sequence_user_data(nodes_[node].handle, 0U) ==
             sequence_id) {
             return node;
@@ -349,9 +325,7 @@ compat::u32 LegacySequenceManager::find_active_node(
     return kNoNode;
 }
 
-std::size_t LegacySequenceManager::list_size(
-    compat::u32 head
-) const noexcept {
+std::size_t LegacySequenceManager::list_size(compat::u32 head) const noexcept {
     std::size_t count{};
     while (head != kNoNode) {
         ++count;

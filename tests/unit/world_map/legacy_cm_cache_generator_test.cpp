@@ -56,8 +56,7 @@ public:
         const std::span<const u8> bytes
     ) const {
         std::ofstream output{
-            root_ / relative_path,
-            std::ios::binary | std::ios::trunc
+            root_ / relative_path, std::ios::binary | std::ios::trunc
         };
         if (!bytes.empty()) {
             output.write(
@@ -67,9 +66,8 @@ public:
         }
     }
 
-    [[nodiscard]] std::vector<u8> read(
-        const std::filesystem::path& relative_path
-    ) const {
+    [[nodiscard]] std::vector<u8>
+    read(const std::filesystem::path& relative_path) const {
         std::ifstream input{root_ / relative_path, std::ios::binary};
         return std::vector<u8>{
             std::istreambuf_iterator<char>{input},
@@ -82,9 +80,7 @@ private:
 };
 
 void write_u32(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
@@ -93,9 +89,7 @@ void write_u32(
 }
 
 [[nodiscard]] std::vector<u8> make_archive(
-    const std::span<const u8> raw,
-    const u32 total_size,
-    const u32 chunk_size
+    const std::span<const u8> raw, const u32 total_size, const u32 chunk_size
 ) {
     std::vector<u8> compressed(raw.size() * 2U + 128U);
     const auto compression = compress_legacy_lzo1x_15(raw, compressed);
@@ -107,9 +101,7 @@ void write_u32(
     write_u32(bytes, kHeaderOffset + 0x10U, total_size);
     write_u32(bytes, kHeaderOffset + 0x14U, chunk_size);
     write_u32(
-        bytes,
-        kHeaderOffset + 0x1CU,
-        static_cast<u32>(compressed.size())
+        bytes, kHeaderOffset + 0x1CU, static_cast<u32>(compressed.size())
     );
     std::ranges::copy(
         compressed,
@@ -127,10 +119,14 @@ void write_u32(
 void test_decompress_convert_and_discard(openswd3::test::Context& test) {
     const TestTree tree;
     constexpr std::array<u8, 8> raw{
-        0x1FU, 0x00U,
-        0xE0U, 0x03U,
-        0x00U, 0x7CU,
-        0x34U, 0x12U,
+        0x1FU,
+        0x00U,
+        0xE0U,
+        0x03U,
+        0x00U,
+        0x7CU,
+        0x34U,
+        0x12U,
     };
     tree.write("huge.lmf", make_archive(raw, 6U, 8U));
     tree.write("0.cm", std::span<const u8>{});
@@ -146,9 +142,8 @@ void test_decompress_convert_and_discard(openswd3::test::Context& test) {
     test.expect_true(
         result.status == LegacyCmCacheGenerationStatus::ready &&
             result.declared_output_size == 6U &&
-            result.chunk_output_size == 8U &&
-            result.chunk_count == 1U && result.completed_chunks == 1U &&
-            result.cache_bytes_written == 6U &&
+            result.chunk_output_size == 8U && result.chunk_count == 1U &&
+            result.completed_chunks == 1U && result.cache_bytes_written == 6U &&
             result.decompressed_bytes_discarded == 2U,
         "single chunk retains the declared write prefix and discarded tail"
     );
@@ -162,7 +157,14 @@ void test_decompress_convert_and_discard(openswd3::test::Context& test) {
 void test_non_16_bit_map_skips_conversion(openswd3::test::Context& test) {
     const TestTree tree;
     constexpr std::array<u8, 8> raw{
-        0x1FU, 0x00U, 0xE0U, 0x03U, 0x00U, 0x7CU, 0x34U, 0x12U,
+        0x1FU,
+        0x00U,
+        0xE0U,
+        0x03U,
+        0x00U,
+        0x7CU,
+        0x34U,
+        0x12U,
     };
     tree.write("huge.lmf", make_archive(raw, 6U, 8U));
     tree.write("0.cm", std::span<const u8>{});
@@ -175,8 +177,11 @@ void test_non_16_bit_map_skips_conversion(openswd3::test::Context& test) {
         8U,
         rgb565_conversion()
     );
-    test.expect_equal(result.status, LegacyCmCacheGenerationStatus::ready,
-                      "non-16-bit map still writes the CM prefix");
+    test.expect_equal(
+        result.status,
+        LegacyCmCacheGenerationStatus::ready,
+        "non-16-bit map still writes the CM prefix"
+    );
     test.expect_equal(
         tree.read("0.cm"),
         std::vector<u8>{0x1FU, 0x00U, 0xE0U, 0x03U, 0x00U, 0x7CU},
@@ -187,14 +192,19 @@ void test_non_16_bit_map_skips_conversion(openswd3::test::Context& test) {
 void test_size_probe_and_existing_tail(openswd3::test::Context& test) {
     const TestTree tree;
     constexpr std::array<u8, 8> raw{
-        0x1FU, 0x00U, 0xE0U, 0x03U, 0x00U, 0x7CU, 0x34U, 0x12U,
+        0x1FU,
+        0x00U,
+        0xE0U,
+        0x03U,
+        0x00U,
+        0x7CU,
+        0x34U,
+        0x12U,
     };
     tree.write("huge.lmf", make_archive(raw, 6U, 8U));
 
     const auto size = read_legacy_cm_cache_declared_size(
-        tree.root() / "huge.lmf",
-        0x20U,
-        0x40U
+        tree.root() / "huge.lmf", 0x20U, 0x40U
     );
     test.expect_true(
         size.status == LegacyCmCacheSizeStatus::ready &&
@@ -205,8 +215,16 @@ void test_size_probe_and_existing_tail(openswd3::test::Context& test) {
     tree.write(
         "0.cm",
         std::array<u8, 10>{
-            0xAAU, 0xAAU, 0xAAU, 0xAAU, 0xAAU,
-            0xAAU, 0xEEU, 0xEEU, 0xEEU, 0xEEU,
+            0xAAU,
+            0xAAU,
+            0xAAU,
+            0xAAU,
+            0xAAU,
+            0xAAU,
+            0xEEU,
+            0xEEU,
+            0xEEU,
+            0xEEU,
         }
     );
     const auto generated = generate_legacy_cm_cache_unit(
@@ -225,8 +243,16 @@ void test_size_probe_and_existing_tail(openswd3::test::Context& test) {
     test.expect_equal(
         tree.read("0.cm"),
         std::vector<u8>{
-            0x1FU, 0x00U, 0xE0U, 0x03U, 0x00U,
-            0x7CU, 0xEEU, 0xEEU, 0xEEU, 0xEEU,
+            0x1FU,
+            0x00U,
+            0xE0U,
+            0x03U,
+            0x00U,
+            0x7CU,
+            0xEEU,
+            0xEEU,
+            0xEEU,
+            0xEEU,
         },
         "generator overwrites from offset zero without truncating the old tail"
     );
@@ -262,7 +288,7 @@ void test_early_failures_preserve_original_order(
     );
     test.expect_true(
         missing_cache.status ==
-            LegacyCmCacheGenerationStatus::archive_open_failed &&
+                LegacyCmCacheGenerationStatus::archive_open_failed &&
             std::filesystem::is_regular_file(tree.root() / "missing.cm") &&
             tree.read("missing.cm").empty(),
         "OPEN_ALWAYS creates the cache slot before the source open fails"
@@ -278,7 +304,7 @@ void test_early_failures_preserve_original_order(
     );
     test.expect_true(
         missing_archive.status ==
-            LegacyCmCacheGenerationStatus::archive_open_failed &&
+                LegacyCmCacheGenerationStatus::archive_open_failed &&
             tree.read("0.cm") == std::vector<u8>{1U, 2U, 3U},
         "opening an existing cache slot does not truncate it"
     );
@@ -308,8 +334,7 @@ void test_early_failures_preserve_original_order(
 }
 
 void test_current_map_24(
-    openswd3::test::Context& test,
-    const std::filesystem::path& archive_path
+    openswd3::test::Context& test, const std::filesystem::path& archive_path
 ) {
     const TestTree tree;
     tree.write("0.cm", std::span<const u8>{});
@@ -345,9 +370,12 @@ int main(const int argument_count, char** arguments) {
     test_size_probe_and_existing_tail(test);
     test_early_failures_preserve_original_order(test);
 
-    test.expect_true(argument_count == 1 || argument_count == 2,
-                     "optional argument names the current huge.lmf");
-    if (argument_count == 2 && arguments != nullptr && arguments[1] != nullptr) {
+    test.expect_true(
+        argument_count == 1 || argument_count == 2,
+        "optional argument names the current huge.lmf"
+    );
+    if (argument_count == 2 && arguments != nullptr &&
+        arguments[1] != nullptr) {
         test_current_map_24(test, arguments[1]);
     }
     return test.exit_code();

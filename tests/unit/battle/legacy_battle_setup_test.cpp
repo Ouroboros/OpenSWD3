@@ -36,7 +36,8 @@ void test_party_selection_and_three_member_formation(
     constexpr std::array<u8, 4U> flags{1U, 2U, 1U, 1U};
     LegacyBattleSetupState state;
     const auto result = openswd3::battle::prepare_legacy_battle_setup(
-        assets, flags, false, state);
+        assets, flags, false, state
+    );
 
     test.expect_equal(
         result.status,
@@ -63,10 +64,8 @@ void test_party_selection_and_three_member_formation(
     );
     test.expect_true(
         state.party[0].anchor_x == 514 && state.party[0].anchor_y == 127 &&
-            state.party[1].anchor_x == 570 &&
-            state.party[1].anchor_y == 183 &&
-            state.party[2].anchor_x == 472 &&
-            state.party[2].anchor_y == 69,
+            state.party[1].anchor_x == 570 && state.party[1].anchor_y == 183 &&
+            state.party[2].anchor_x == 472 && state.party[2].anchor_y == 69,
         "derived party anchors preserve signed word extension and offsets"
     );
 }
@@ -82,14 +81,14 @@ void test_all_formation_sizes_and_mirroring(openswd3::test::Context& test) {
         {{1U, 0U, 0U, 0U}, {527U, 0U, 0U, 0U}, {287U, 0U, 0U, 0U}},
         {{1U, 1U, 0U, 0U}, {490U, 555U, 0U, 0U}, {275U, 370U, 0U, 0U}},
         {{1U, 1U, 1U, 0U}, {504U, 565U, 462U, 0U}, {272U, 353U, 224U, 0U}},
-        {{1U, 1U, 1U, 1U}, {526U, 497U, 464U, 588U},
-                             {298U, 277U, 217U, 359U}},
+        {{1U, 1U, 1U, 1U}, {526U, 497U, 464U, 588U}, {298U, 277U, 217U, 359U}},
     }};
 
     for (const Expected& expected : cases) {
         LegacyBattleSetupState state;
         static_cast<void>(openswd3::battle::prepare_legacy_battle_setup(
-            assets, expected.flags, false, state));
+            assets, expected.flags, false, state
+        ));
         for (std::size_t index = 0U; index < state.party_count; ++index) {
             test.expect_true(
                 state.party[index].screen_x == expected.x[index] &&
@@ -101,7 +100,8 @@ void test_all_formation_sizes_and_mirroring(openswd3::test::Context& test) {
 
     LegacyBattleSetupState mirrored;
     static_cast<void>(openswd3::battle::prepare_legacy_battle_setup(
-        assets, cases[1].flags, true, mirrored));
+        assets, cases[1].flags, true, mirrored
+    ));
     test.expect_true(
         mirrored.party[0].screen_x == 150U &&
             mirrored.party[1].screen_x == 85U &&
@@ -125,25 +125,27 @@ void test_enemy_record_layout(openswd3::test::Context& test) {
     constexpr std::array<u8, 4U> flags{1U, 0U, 0U, 0U};
     LegacyBattleSetupState state;
     const auto result = openswd3::battle::prepare_legacy_battle_setup(
-        assets, flags, true, state);
+        assets, flags, true, state
+    );
     test.expect_true(
         result.status == LegacyBattleSetupStatus::ready &&
-            state.enemy_count == 2U && state.background_resource_id == 0x3456U &&
+            state.enemy_count == 2U &&
+            state.background_resource_id == 0x3456U &&
             state.enemies[0].resource_id == 400U &&
             state.enemies[0].screen_x == 465U &&
-            state.enemies[0].screen_y == 303U &&
-            state.enemies[0].record_flag &&
+            state.enemies[0].screen_y == 303U && state.enemies[0].record_flag &&
             state.enemies[1].resource_id == 401U &&
             state.enemies[1].screen_x == 420U &&
-            state.enemies[1].screen_y == 304U &&
-            !state.enemies[1].record_flag,
+            state.enemies[1].screen_y == 304U && !state.enemies[1].record_flag,
         "enemy records use 9C/BC/CC/EC arrays and mirror around 640"
     );
 
     write_u16(assets.ffd_record, 0x98U, 9U);
     test.expect_equal(
         openswd3::battle::prepare_legacy_battle_setup(
-            assets, flags, false, state).status,
+            assets, flags, false, state
+        )
+            .status,
         LegacyBattleSetupStatus::enemy_count_out_of_range,
         "modern storage rejects a record exceeding the physical eight slots"
     );
@@ -153,17 +155,18 @@ void test_enemy_record_layout(openswd3::test::Context& test) {
 void test_real_battle_98_enemy(openswd3::test::Context& test) {
     LegacyBattleAssets assets;
     const auto loaded = openswd3::battle::load_legacy_battle_assets(
-        std::filesystem::path{OPENSWD3_GAME_DATA_ROOT}, 98U, 0, assets);
+        std::filesystem::path{OPENSWD3_GAME_DATA_ROOT}, 98U, 0, assets
+    );
     constexpr std::array<u8, 4U> flags{1U, 0U, 0U, 0U};
     LegacyBattleSetupState state;
     const auto prepared = openswd3::battle::prepare_legacy_battle_setup(
-        assets, flags, false, state);
+        assets, flags, false, state
+    );
     test.expect_true(
         loaded.status == openswd3::battle::LegacyBattleAssetStatus::ready &&
             prepared.status == LegacyBattleSetupStatus::ready &&
             state.party_count == 1U && state.party[0].resource_id == 1U &&
-            state.enemy_count == 1U &&
-            state.enemies[0].resource_id == 400U &&
+            state.enemy_count == 1U && state.enemies[0].resource_id == 400U &&
             state.enemies[0].screen_x == 175U &&
             state.enemies[0].screen_y == 303U,
         "real battle 98 resolves its initial player and enemy placement"

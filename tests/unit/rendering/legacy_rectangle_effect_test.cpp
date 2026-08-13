@@ -66,21 +66,18 @@ void test_modes_zero_two_and_four(openswd3::test::Context& test) {
         row[0] = 0x7FFFU;
         row[1] = 0x1234U;
         row[2] = 0x6B5AU;
-        const auto status =
-            openswd3::rendering::apply_legacy_rectangle_effect(
-                framebuffer,
-                framebuffer.geometry(),
-                format,
-                LegacyRectangleEffectRequest{
-                    .width = 3,
-                    .height = 1,
-                    .mode = 2,
-                }
-            );
+        const auto status = openswd3::rendering::apply_legacy_rectangle_effect(
+            framebuffer,
+            framebuffer.geometry(),
+            format,
+            LegacyRectangleEffectRequest{
+                .width = 3,
+                .height = 1,
+                .mode = 2,
+            }
+        );
         test.expect_equal(
-            status,
-            LegacyRectangleEffectStatus::completed,
-            "mode two completes"
+            status, LegacyRectangleEffectStatus::completed, "mode two completes"
         );
         constexpr std::array<u16, 3> kExpected{0x1CE7U, 0x0485U, 0x6B5AU};
         test.expect_true(
@@ -95,17 +92,16 @@ void test_modes_zero_two_and_four(openswd3::test::Context& test) {
         row[0] = 0x7FFFU;
         row[1] = 0x1234U;
         row[2] = 0x55AAU;
-        const auto status =
-            openswd3::rendering::apply_legacy_rectangle_effect(
-                framebuffer,
-                framebuffer.geometry(),
-                format,
-                LegacyRectangleEffectRequest{
-                    .width = 3,
-                    .height = 1,
-                    .mode = 4,
-                }
-            );
+        const auto status = openswd3::rendering::apply_legacy_rectangle_effect(
+            framebuffer,
+            framebuffer.geometry(),
+            format,
+            LegacyRectangleEffectRequest{
+                .width = 3,
+                .height = 1,
+                .mode = 4,
+            }
+        );
         test.expect_equal(
             status,
             LegacyRectangleEffectStatus::completed,
@@ -140,9 +136,7 @@ void test_offset_and_grayscale_modes(openswd3::test::Context& test) {
         }
     );
     test.expect_equal(
-        status,
-        LegacyRectangleEffectStatus::completed,
-        "mode one completes"
+        status, LegacyRectangleEffectStatus::completed, "mode one completes"
     );
     test.expect_equal(
         first_row[0],
@@ -168,9 +162,7 @@ void test_offset_and_grayscale_modes(openswd3::test::Context& test) {
         }
     );
     test.expect_equal(
-        status,
-        LegacyRectangleEffectStatus::completed,
-        "mode three completes"
+        status, LegacyRectangleEffectStatus::completed, "mode three completes"
     );
     test.expect_equal(
         first_row[0],
@@ -185,8 +177,7 @@ void test_offset_and_grayscale_modes(openswd3::test::Context& test) {
 
     LegacyPixelConversionState rgb565;
     openswd3::rendering::select_legacy_pixel_conversion(
-        rgb565,
-        LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU}
+        rgb565, LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU}
     );
     first_row[0] = 0U;
     status = openswd3::rendering::apply_legacy_rectangle_effect(
@@ -311,8 +302,8 @@ void test_clipping_and_safety_boundaries(openswd3::test::Context& test) {
     );
     for (unsigned int row = 0U; row < 5U; ++row) {
         for (std::size_t column = 0U; column < 6U; ++column) {
-            const u16 expected = row >= 1U && row <= 3U &&
-                    column >= 1U && column <= 3U
+            const u16 expected =
+                row >= 1U && row <= 3U && column >= 1U && column <= 3U
                 ? 0x0400U
                 : 0x0000U;
             test.expect_equal(

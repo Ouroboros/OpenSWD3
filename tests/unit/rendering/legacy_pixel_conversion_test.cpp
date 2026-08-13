@@ -14,8 +14,7 @@ using openswd3::rendering::LegacyPixelMasks;
 using openswd3::rendering::LegacyPixelTransform;
 
 [[nodiscard]] constexpr u16 expected_transform(
-    const LegacyPixelTransform transform,
-    const u16 pixel
+    const LegacyPixelTransform transform, const u16 pixel
 ) noexcept {
     switch (transform) {
     case LegacyPixelTransform::identity:
@@ -59,14 +58,10 @@ void test_all_pixel_values(openswd3::test::Context& test) {
         for (u32 value = 0U; value <= 0xFFFFU; ++value) {
             u16 actual = static_cast<u16>(value);
             openswd3::rendering::apply_legacy_pixel_transform(
-                transform,
-                &actual,
-                1
+                transform, &actual, 1
             );
-            if (actual != expected_transform(
-                    transform,
-                    static_cast<u16>(value)
-                )) {
+            if (actual !=
+                expected_transform(transform, static_cast<u16>(value))) {
                 ++mismatches;
             }
         }
@@ -82,22 +77,16 @@ void test_all_pixel_values(openswd3::test::Context& test) {
 void test_nonpositive_count_bug(openswd3::test::Context& test) {
     std::array<u16, 3> zero_count{0x1234U, 0x2345U, 0x3456U};
     openswd3::rendering::apply_legacy_pixel_transform(
-        LegacyPixelTransform::shift_whole_word_left,
-        zero_count.data(),
-        0
+        LegacyPixelTransform::shift_whole_word_left, zero_count.data(), 0
     );
     constexpr std::array<u16, 3> kZeroExpected{0x2468U, 0x2345U, 0x3456U};
     test.expect_equal(
-        zero_count,
-        kZeroExpected,
-        "zero count still converts the first pixel"
+        zero_count, kZeroExpected, "zero count still converts the first pixel"
     );
 
     std::array<u16, 3> negative_count{0x7C1FU, 0x03E0U, 0x001FU};
     openswd3::rendering::apply_legacy_pixel_transform(
-        LegacyPixelTransform::rgb555_to_rgb565,
-        negative_count.data(),
-        -1
+        LegacyPixelTransform::rgb555_to_rgb565, negative_count.data(), -1
     );
     constexpr std::array<u16, 3> kNegativeExpected{
         0xF81FU,
@@ -111,9 +100,7 @@ void test_nonpositive_count_bug(openswd3::test::Context& test) {
     );
 
     openswd3::rendering::apply_legacy_pixel_transform(
-        LegacyPixelTransform::identity,
-        nullptr,
-        0
+        LegacyPixelTransform::identity, nullptr, 0
     );
 }
 
@@ -142,9 +129,7 @@ void test_selector_state(openswd3::test::Context& test) {
 
     u16 forward_pixel = 0x7C1FU;
     openswd3::rendering::legacy_convert_pixels_forward(
-        state,
-        &forward_pixel,
-        1
+        state, &forward_pixel, 1
     );
     test.expect_equal(
         forward_pixel,
@@ -154,9 +139,7 @@ void test_selector_state(openswd3::test::Context& test) {
 
     u16 reverse_pixel = 0x07E0U;
     openswd3::rendering::legacy_convert_pixels_reverse(
-        state,
-        &reverse_pixel,
-        1
+        state, &reverse_pixel, 1
     );
     test.expect_equal(
         reverse_pixel,
@@ -208,9 +191,7 @@ void test_selector_state(openswd3::test::Context& test) {
         "unsupported masks become the active arithmetic masks"
     );
     test.expect_equal(
-        state.red_shift,
-        11U,
-        "unsupported masks inherit the previous red shift"
+        state.red_shift, 11U, "unsupported masks inherit the previous red shift"
     );
     test.expect_equal(
         state.green_shift,
@@ -257,20 +238,14 @@ void test_selector_state(openswd3::test::Context& test) {
         "RGB555 resets the reverse converter"
     );
     test.expect_equal(
-        state.effective_masks.red,
-        0x7C00U,
-        "RGB555 restores the exact red mask"
+        state.effective_masks.red, 0x7C00U, "RGB555 restores the exact red mask"
     );
     test.expect_equal(state.red_shift, 10U, "RGB555 red shift");
     test.expect_equal(state.green_shift, 5U, "RGB555 green shift");
     test.expect_equal(state.blue_shift, 0U, "RGB555 blue shift");
 
     std::array<u16, 2> pixels{0x1234U, 0x5678U};
-    openswd3::rendering::legacy_convert_pixels_forward(
-        state,
-        pixels.data(),
-        2
-    );
+    openswd3::rendering::legacy_convert_pixels_forward(state, pixels.data(), 2);
     constexpr std::array<u16, 2> kUnchanged{0x1234U, 0x5678U};
     test.expect_equal(
         pixels,
@@ -293,8 +268,7 @@ void test_color_pair_packing(openswd3::test::Context& test) {
     );
 
     openswd3::rendering::select_legacy_pixel_conversion(
-        state,
-        LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU}
+        state, LegacyPixelMasks{0xF800U, 0x07E0U, 0x001FU}
     );
     test.expect_equal(
         openswd3::rendering::legacy_pack_color_pair(state, 25, 23, 17),

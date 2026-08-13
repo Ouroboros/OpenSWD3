@@ -11,19 +11,15 @@ using compat::u32;
 constexpr i32 kSecondClipRadius = 0xC0;
 constexpr u32 kSecondDrawFlags = 0x2CU;
 
-[[nodiscard]] constexpr i32 wrapping_add(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_add(const i32 left, const i32 right) noexcept {
     return std::bit_cast<i32>(
         std::bit_cast<u32>(left) + std::bit_cast<u32>(right)
     );
 }
 
-[[nodiscard]] constexpr i32 wrapping_subtract(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_subtract(const i32 left, const i32 right) noexcept {
     return std::bit_cast<i32>(
         std::bit_cast<u32>(left) - std::bit_cast<u32>(right)
     );
@@ -37,9 +33,8 @@ constexpr u32 kSecondDrawFlags = 0x2CU;
         status == rendering::LegacyBlitExecutionStatus::opacity_disabled;
 }
 
-[[nodiscard]] rendering::LegacyBlitClipRectangle current_clip(
-    const rendering::LegacyRasterGeometryState& raster
-) noexcept {
+[[nodiscard]] rendering::LegacyBlitClipRectangle
+current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
     return rendering::LegacyBlitClipRectangle{
         .left = raster.clip_left,
         .top = raster.clip_top,
@@ -58,11 +53,8 @@ LegacyAniFollowerRuntimePorts::LegacyAniFollowerRuntimePorts(
     const rendering::LegacyBlitEffectState& effects,
     rendering::LegacyRleRowJitterState& jitter
 ) noexcept
-    : action_updater_(action_updater),
-      tsw_runtime_(tsw_runtime),
-      framebuffer_(framebuffer),
-      raster_(raster),
-      effects_(effects),
+    : action_updater_(action_updater), tsw_runtime_(tsw_runtime),
+      framebuffer_(framebuffer), raster_(raster), effects_(effects),
       jitter_(jitter) {}
 
 LegacyActionUpdateStatus LegacyAniFollowerRuntimePorts::update_action_record(
@@ -76,20 +68,20 @@ bool LegacyAniFollowerRuntimePorts::load_frame_piece(
     const compat::u16 frame_index,
     rendering::LegacyFramePiece& piece
 ) {
-    const LegacyTswQueryResult loaded = tsw_runtime_.query_cached(
-        resource_id, frame_index
-    );
+    const LegacyTswQueryResult loaded =
+        tsw_runtime_.query_cached(resource_id, frame_index);
     if (loaded.status != LegacyTswRuntimeStatus::ready) {
         piece = rendering::LegacyFramePiece{};
         return false;
     }
 
     piece = rendering::LegacyFramePiece{
-        .source = rendering::LegacyBlitSource{
-            .bytes = loaded.frame.primary_stream,
-            .layout = rendering::LegacyBlitSourceLayout::direct_16,
-            .palette = {},
-        },
+        .source =
+            rendering::LegacyBlitSource{
+                .bytes = loaded.frame.primary_stream,
+                .layout = rendering::LegacyBlitSourceLayout::direct_16,
+                .palette = {},
+            },
         .width = loaded.frame.width,
         .height = loaded.frame.height,
     };
@@ -102,9 +94,7 @@ void LegacyAniFollowerRuntimePorts::set_clip_rectangle(
     const compat::i32 right,
     const compat::i32 bottom
 ) noexcept {
-    rendering::set_legacy_clip_rectangle(
-        raster_, left, top, right, bottom
-    );
+    rendering::set_legacy_clip_rectangle(raster_, left, top, right, bottom);
 }
 
 rendering::LegacyBlitExecutionStatus
@@ -115,20 +105,21 @@ LegacyAniFollowerRuntimePorts::draw_frame_piece(
     const compat::u32 flags
 ) noexcept {
     return rendering::blit_legacy_copy_paths(
-        framebuffer_,
-        current_clip(raster_),
-        piece.source,
-        rendering::LegacyBlitRequest{
-            .destination_x = destination_x,
-            .destination_y = destination_y,
-            .source_width = static_cast<compat::i32>(piece.width),
-            .source_height = static_cast<compat::i32>(piece.height),
-            .flags = flags,
-            .opacity_step = 0,
-        },
-        effects_,
-        jitter_
-    ).status;
+               framebuffer_,
+               current_clip(raster_),
+               piece.source,
+               rendering::LegacyBlitRequest{
+                   .destination_x = destination_x,
+                   .destination_y = destination_y,
+                   .source_width = static_cast<compat::i32>(piece.width),
+                   .source_height = static_cast<compat::i32>(piece.height),
+                   .flags = flags,
+                   .opacity_step = 0,
+               },
+               effects_,
+               jitter_
+    )
+        .status;
 }
 
 LegacyAniFollowerResult update_draw_legacy_ani_follower(
@@ -143,10 +134,8 @@ LegacyAniFollowerResult update_draw_legacy_ani_follower(
         return result;
     }
 
-    const auto prepare_frame = [&](
-        const u32 variant,
-        rendering::LegacyFramePiece& piece
-    ) -> bool {
+    const auto prepare_frame = [&](const u32 variant,
+                                   rendering::LegacyFramePiece& piece) -> bool {
         action_record.action_id = kLegacyAniFollowerActionId;
         action_record.base_variant = variant;
         ++result.action_update_count;
@@ -159,9 +148,7 @@ LegacyAniFollowerResult update_draw_legacy_ani_follower(
 
         ++result.frame_request_count;
         if (!ports.load_frame_piece(
-                action_record.field_4a,
-                action_record.field_4c,
-                piece
+                action_record.field_4a, action_record.field_4c, piece
             )) {
             result.status = LegacyAniFollowerStatus::frame_load_failed;
             result.failed_variant = variant;
@@ -170,10 +157,8 @@ LegacyAniFollowerResult update_draw_legacy_ani_follower(
         return true;
     };
 
-    const auto draw_frame = [&](
-        const rendering::LegacyFramePiece& piece,
-        const u32 flags
-    ) {
+    const auto draw_frame = [&](const rendering::LegacyFramePiece& piece,
+                                const u32 flags) {
         const i32 half_width = static_cast<i32>(piece.width >> 1U);
         const i32 half_height = static_cast<i32>(piece.height >> 1U);
         result.last_blit_status = ports.draw_frame_piece(

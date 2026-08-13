@@ -26,15 +26,13 @@ void refresh_widths(
 ) noexcept {
     for (std::size_t index = 0U; index < count; ++index) {
         state.copy_width_bytes[index] = static_cast<compat::i16>(
-            random.next_bounded(kWidthRandomBound) * 2U +
-            kMinimumWidthBytes
+            random.next_bounded(kWidthRandomBound) * 2U + kMinimumWidthBytes
         );
     }
 }
 
 void refresh_offsets(
-    LegacyAniRowCopyState& state,
-    input_time_rng::LegacySecondaryRng& random
+    LegacyAniRowCopyState& state, input_time_rng::LegacySecondaryRng& random
 ) noexcept {
     std::size_t index = 0U;
     for (std::size_t column = 0U; column < kColumnCount; ++column) {
@@ -62,15 +60,13 @@ void refresh_row_counts(
 }
 
 void initialize_active_state(
-    LegacyAniRowCopyState& state,
-    input_time_rng::LegacySecondaryRng& random
+    LegacyAniRowCopyState& state, input_time_rng::LegacySecondaryRng& random
 ) noexcept {
     std::size_t index = 0U;
     for (std::size_t column = 0U; column < kColumnCount; ++column) {
         for (std::size_t band = 0U; band < kBandCount; ++band) {
             state.copy_width_bytes[index] = static_cast<compat::i16>(
-                random.next_bounded(kWidthRandomBound) * 2U +
-                kMinimumWidthBytes
+                random.next_bounded(kWidthRandomBound) * 2U + kMinimumWidthBytes
             );
             state.pixel_offsets[index] =
                 random.next_bounded(kOffsetRandomBound) +
@@ -127,9 +123,7 @@ LegacyAniRowCopyResult LegacyAniRowCopyEffect::update(
             result.refresh = LegacyAniRowCopyRefresh::offsets;
             break;
         case 2U:
-            refresh_row_counts(
-                state_, random, kLegacyAniRowCopyStateCount
-            );
+            refresh_row_counts(state_, random, kLegacyAniRowCopyStateCount);
             result.refresh = LegacyAniRowCopyRefresh::row_counts;
             break;
         default:
@@ -141,8 +135,8 @@ LegacyAniRowCopyResult LegacyAniRowCopyEffect::update(
         static_cast<compat::u32>(state_.frame_counter) + 1U
     );
 
-    for (std::size_t index = 0U;
-         index < kLegacyAniRowCopyActiveCount; ++index) {
+    for (std::size_t index = 0U; index < kLegacyAniRowCopyActiveCount;
+         ++index) {
         const compat::i32 row_count = state_.copy_row_counts[index];
         if (row_count <= 0) {
             continue;
@@ -151,9 +145,8 @@ LegacyAniRowCopyResult LegacyAniRowCopyEffect::update(
         std::size_t destination =
             static_cast<std::size_t>(state_.pixel_offsets[index]) *
             kPixelSizeBytes;
-        const std::size_t width = static_cast<std::size_t>(
-            state_.copy_width_bytes[index]
-        );
+        const std::size_t width =
+            static_cast<std::size_t>(state_.copy_width_bytes[index]);
         for (compat::i32 row = 0; row < row_count; ++row) {
             std::memcpy(
                 framebuffer.data() + destination,

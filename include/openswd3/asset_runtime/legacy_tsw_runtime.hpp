@@ -36,8 +36,7 @@ public:
     virtual ~LegacyTswSpecialFrameLoader() = default;
 
     [[nodiscard]] virtual bool load_special_frame(
-        compat::u16 variant_index,
-        LegacyTswRuntimeFrame& frame
+        compat::u16 variant_index, LegacyTswRuntimeFrame& frame
     ) = 0;
 };
 
@@ -82,18 +81,13 @@ public:
     void set_cache_limit(compat::u32 bytes) noexcept;
     void set_special_loader(LegacyTswSpecialFrameLoader* loader) noexcept;
 
-    [[nodiscard]] LegacyTswQueryResult query_cached(
-        compat::u32 resource_id_slot,
-        compat::u32 variant_index_slot
-    );
+    [[nodiscard]] LegacyTswQueryResult
+    query_cached(compat::u32 resource_id_slot, compat::u32 variant_index_slot);
     [[nodiscard]] LegacyTswQueryResult find_cached(
-        compat::u32 resource_id_slot,
-        compat::u32 variant_index_slot
+        compat::u32 resource_id_slot, compat::u32 variant_index_slot
     ) noexcept;
-    [[nodiscard]] LegacyTswDirectResult load_direct(
-        compat::u32 resource_id_slot,
-        compat::u32 variant_index_slot
-    );
+    [[nodiscard]] LegacyTswDirectResult
+    load_direct(compat::u32 resource_id_slot, compat::u32 variant_index_slot);
 
     void clear_cache() noexcept;
     void close() noexcept;
@@ -115,24 +109,17 @@ private:
     using CacheBucket = std::list<CacheNode>;
 
     [[nodiscard]] LegacyTswRuntimeStatus ensure_initialized();
-    [[nodiscard]] LegacyTswDirectResult load_low16(
-        compat::u16 resource_id,
-        compat::u16 variant_index
-    );
+    [[nodiscard]] LegacyTswDirectResult
+    load_low16(compat::u16 resource_id, compat::u16 variant_index);
     [[nodiscard]] LegacyTswRuntimeStatus normalize_physical_frame(
-        LegacyTswFrame&& physical,
-        LegacyTswRuntimeFrame& runtime
+        LegacyTswFrame&& physical, LegacyTswRuntimeFrame& runtime
     );
-    [[nodiscard]] static std::size_t bucket_index(
-        compat::u16 resource_id,
-        compat::u16 variant_index
-    ) noexcept;
+    [[nodiscard]] static std::size_t
+    bucket_index(compat::u16 resource_id, compat::u16 variant_index) noexcept;
     [[nodiscard]] static LegacyTswFrameView
     view_of(const LegacyTswRuntimeFrame& frame) noexcept;
-    [[nodiscard]] LegacyTswQueryResult find_low16(
-        compat::u16 resource_id,
-        compat::u16 variant_index
-    ) noexcept;
+    [[nodiscard]] LegacyTswQueryResult
+    find_low16(compat::u16 resource_id, compat::u16 variant_index) noexcept;
     void evict_before_lookup() noexcept;
 
     std::filesystem::path data_root_;

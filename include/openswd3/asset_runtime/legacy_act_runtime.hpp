@@ -47,12 +47,12 @@ public:
 
     void set_cache_limit(compat::u32 bytes) noexcept;
 
-    [[nodiscard]] LegacyActQueryResult query_cached(compat::u32 action_id,
-                                                    compat::u32 variant_index);
+    [[nodiscard]] LegacyActQueryResult
+    query_cached(compat::u32 action_id, compat::u32 variant_index);
     [[nodiscard]] LegacyActQueryResult
     find_cached(compat::u32 action_id, compat::u32 variant_index) noexcept;
-    [[nodiscard]] LegacyActDirectResult load_direct(compat::u32 action_id,
-                                                    compat::u32 variant_index);
+    [[nodiscard]] LegacyActDirectResult
+    load_direct(compat::u32 action_id, compat::u32 variant_index);
 
     void clear_stream_cache() noexcept;
     void clear_index_cache() noexcept;
@@ -80,7 +80,8 @@ private:
         compat::u32 action_id{};
         compat::u32 variant_index{};
         LegacyActRuntimeStatus status{
-            LegacyActRuntimeStatus::physical_variant_failed};
+            LegacyActRuntimeStatus::physical_variant_failed
+        };
         LegacyActVariantStatus physical_status{LegacyActVariantStatus::ready};
         std::vector<compat::u8> stream;
     };
@@ -89,15 +90,17 @@ private:
     using StreamCacheBucket = std::list<StreamCacheNode>;
 
     [[nodiscard]] LegacyActRuntimeStatus ensure_initialized();
-    [[nodiscard]] LegacyActRuntimeStatus
-    load_index(compat::u32 archive_group, compat::u32 record_number,
-               LegacyActIndexRecord& index,
-               LegacyActVariantStatus& physical_status);
+    [[nodiscard]] LegacyActRuntimeStatus load_index(
+        compat::u32 archive_group,
+        compat::u32 record_number,
+        LegacyActIndexRecord& index,
+        LegacyActVariantStatus& physical_status
+    );
     [[nodiscard]] LegacyActDirectResult
     load_initialized(compat::u32 action_id, compat::u32 variant_index);
-    [[nodiscard]] static std::size_t
-    stream_bucket_index(compat::u32 action_id,
-                        compat::u32 variant_index) noexcept;
+    [[nodiscard]] static std::size_t stream_bucket_index(
+        compat::u32 action_id, compat::u32 variant_index
+    ) noexcept;
     [[nodiscard]] static std::size_t
     index_bucket_index(compat::u32 record_number) noexcept;
     void evict_before_lookup() noexcept;

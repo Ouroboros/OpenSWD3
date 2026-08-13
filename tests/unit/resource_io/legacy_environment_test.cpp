@@ -36,14 +36,12 @@ using openswd3::resource_io::write_legacy_environment_binding_prefix;
 using openswd3::resource_io::write_legacy_environment_cache_session_marker;
 
 constexpr std::array<u8, 63> kCurrentEnvironment{
-    0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xC8U, 0xD0U, 0xCBU, 0xCDU,
-    0x39U, 0x1CU, 0x9DU, 0x01U, 0xCFU, 0x36U, 0x13U, 0x1EU,
-    0x22U, 0x3BU, 0xC9U, 0xD1U, 0x64U, 0x00U, 0x00U, 0x00U,
-    0x06U, 0x06U, 0x3CU, 0x00U, 0x02U, 0x0AU, 0x00U, 0xF8U,
-    0xE0U, 0x07U, 0x1FU, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,
-    0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x45U, 0x3AU,
-    0x5CU, 0x47U, 0x61U, 0x6DU, 0x65U, 0x5CU, 0x73U, 0x77U,
-    0x64U, 0x33U, 0x5CU, 0x00U, 0x00U, 0x02U, 0x01U,
+    0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xC8U, 0xD0U, 0xCBU, 0xCDU, 0x39U, 0x1CU, 0x9DU,
+    0x01U, 0xCFU, 0x36U, 0x13U, 0x1EU, 0x22U, 0x3BU, 0xC9U, 0xD1U, 0x64U, 0x00U,
+    0x00U, 0x00U, 0x06U, 0x06U, 0x3CU, 0x00U, 0x02U, 0x0AU, 0x00U, 0xF8U, 0xE0U,
+    0x07U, 0x1FU, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U,
+    0x00U, 0x00U, 0x45U, 0x3AU, 0x5CU, 0x47U, 0x61U, 0x6DU, 0x65U, 0x5CU, 0x73U,
+    0x77U, 0x64U, 0x33U, 0x5CU, 0x00U, 0x00U, 0x02U, 0x01U,
 };
 
 class TestTree {
@@ -52,7 +50,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-environment-" + std::to_string(unique_value));
+            ("legacy-environment-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -102,19 +100,48 @@ void test_current_asset_record(openswd3::test::Context& test) {
     );
 
     constexpr std::array<u8, 16> kBindings{
-        0xC8U, 0xD0U, 0xCBU, 0xCDU,
-        0x39U, 0x1CU, 0x9DU, 0x01U,
-        0xCFU, 0x36U, 0x13U, 0x1EU,
-        0x22U, 0x3BU, 0xC9U, 0xD1U,
+        0xC8U,
+        0xD0U,
+        0xCBU,
+        0xCDU,
+        0x39U,
+        0x1CU,
+        0x9DU,
+        0x01U,
+        0xCFU,
+        0x36U,
+        0x13U,
+        0x1EU,
+        0x22U,
+        0x3BU,
+        0xC9U,
+        0xD1U,
     };
     constexpr std::array<u8, 6> kOptions{
-        0x06U, 0x06U, 0x3CU, 0x00U, 0x02U, 0x0AU,
+        0x06U,
+        0x06U,
+        0x3CU,
+        0x00U,
+        0x02U,
+        0x0AU,
     };
     constexpr std::array<u8, 16> kPreserved{
-        0x00U, 0xF8U, 0xE0U, 0x07U,
-        0x1FU, 0x00U, 0x00U, 0x00U,
-        0x00U, 0x00U, 0x00U, 0x00U,
-        0x00U, 0x00U, 0x00U, 0x00U,
+        0x00U,
+        0xF8U,
+        0xE0U,
+        0x07U,
+        0x1FU,
+        0x00U,
+        0x00U,
+        0x00U,
+        0x00U,
+        0x00U,
+        0x00U,
+        0x00U,
+        0x00U,
+        0x00U,
+        0x00U,
+        0x00U,
     };
     test.expect_equal(
         decoded.record.binding_bytes,
@@ -157,7 +184,9 @@ void test_current_asset_record(openswd3::test::Context& test) {
         LegacyEnvironmentCodecStatus::ok,
         "decoded record re-encodes"
     );
-    test.expect_equal(encoded.bytes.size(), 63U, "writer emits the exact prefix");
+    test.expect_equal(
+        encoded.bytes.size(), 63U, "writer emits the exact prefix"
+    );
     test.expect_true(
         std::equal(
             encoded.bytes.begin(),
@@ -175,8 +204,7 @@ void test_current_asset_record(openswd3::test::Context& test) {
 
 void test_unmarked_layout_migration(openswd3::test::Context& test) {
     const std::vector<u8> unmarked(
-        kCurrentEnvironment.begin() + 4,
-        kCurrentEnvironment.end()
+        kCurrentEnvironment.begin() + 4, kCurrentEnvironment.end()
     );
     const auto decoded = decode_legacy_environment(unmarked);
     test.expect_equal(
@@ -200,18 +228,34 @@ void test_unmarked_layout_migration(openswd3::test::Context& test) {
         "unmarked trailing mode is captured before rewriting"
     );
 
-    const LegacyEnvironmentRecord migrated = migrate_unmarked_environment(
-        decoded.record
-    );
+    const LegacyEnvironmentRecord migrated =
+        migrate_unmarked_environment(decoded.record);
     constexpr std::array<u8, 16> kDefaultBindings{
-        0xC8U, 0xD0U, 0xCBU, 0xCDU,
-        0x39U, 0x1CU, 0x9DU, 0x01U,
-        0xCFU, 0x36U, 0x13U, 0x1EU,
-        0x22U, 0x3BU, 0xC9U, 0xD1U,
+        0xC8U,
+        0xD0U,
+        0xCBU,
+        0xCDU,
+        0x39U,
+        0x1CU,
+        0x9DU,
+        0x01U,
+        0xCFU,
+        0x36U,
+        0x13U,
+        0x1EU,
+        0x22U,
+        0x3BU,
+        0xC9U,
+        0xD1U,
     };
     constexpr std::array<u8, 16> kZeroPreserved{};
     constexpr std::array<u8, 6> kMigrationOptions{
-        6U, 6U, 0x3CU, 1U, 2U, 0x0AU,
+        6U,
+        6U,
+        0x3CU,
+        1U,
+        2U,
+        0x0AU,
     };
     test.expect_equal(
         migrated.binding_bytes,
@@ -316,24 +360,16 @@ void test_encoder_bounds_and_lstrlen_prefix(openswd3::test::Context& test) {
         "encoder follows lstrlenA prefixes"
     );
     test.expect_equal(
-        encoded.bytes[0x2EU],
-        u8{'a'},
-        "first string starts at +0x2E"
+        encoded.bytes[0x2EU], u8{'a'}, "first string starts at +0x2E"
     );
     test.expect_equal(
-        encoded.bytes[0x31U],
-        u8{0U},
-        "first prefix is terminated"
+        encoded.bytes[0x31U], u8{0U}, "first prefix is terminated"
     );
     test.expect_equal(
-        encoded.bytes[0x35U],
-        u8{7U},
-        "trailing mode follows both strings"
+        encoded.bytes[0x35U], u8{7U}, "trailing mode follows both strings"
     );
     test.expect_equal(
-        encoded.bytes[0x36U],
-        u8{0U},
-        "writer appends a final zero"
+        encoded.bytes[0x36U], u8{0U}, "writer appends a final zero"
     );
 
     const auto round_trip = decode_legacy_environment(encoded.bytes);
@@ -368,24 +404,18 @@ void test_file_loader_current_and_missing(openswd3::test::Context& test) {
         ++resolver_calls;
         return std::filesystem::path{};
     };
-    const auto loaded = load_legacy_environment(
-        tree.path("Env.dat"),
-        resolver,
-        state
-    );
+    const auto loaded =
+        load_legacy_environment(tree.path("Env.dat"), resolver, state);
     test.expect_equal(
         loaded.status,
         LegacyEnvironmentLoadStatus::marked_layout_loaded,
         "current file follows the direct load path"
     );
     test.expect_true(
-        loaded.original_return_value,
-        "marked initial layout reproduces EAX one"
+        loaded.original_return_value, "marked initial layout reproduces EAX one"
     );
     test.expect_equal(
-        resolver_calls,
-        0,
-        "marked layout never resolves the stored directory"
+        resolver_calls, 0, "marked layout never resolves the stored directory"
     );
     test.expect_equal(
         state.primary_directory,
@@ -397,11 +427,8 @@ void test_file_loader_current_and_missing(openswd3::test::Context& test) {
     unchanged.integer_parameter = 0xAABBCCDDU;
     unchanged.primary_directory = "sentinel";
     const LegacyEnvironmentRecord expected = unchanged;
-    const auto missing = load_legacy_environment(
-        tree.path("missing.dat"),
-        resolver,
-        unchanged
-    );
+    const auto missing =
+        load_legacy_environment(tree.path("missing.dat"), resolver, unchanged);
     test.expect_equal(
         missing.status,
         LegacyEnvironmentLoadStatus::initial_open_failed,
@@ -418,34 +445,33 @@ void test_file_loader_current_and_missing(openswd3::test::Context& test) {
     );
 }
 
-void test_file_loader_migration_and_no_truncate(
-    openswd3::test::Context& test
-) {
+void test_file_loader_migration_and_no_truncate(openswd3::test::Context& test) {
     const TestTree tree;
     std::vector<u8> unmarked(
-        kCurrentEnvironment.begin() + 4,
-        kCurrentEnvironment.end()
+        kCurrentEnvironment.begin() + 4, kCurrentEnvironment.end()
     );
     constexpr std::array<u8, 8> kStaleTail{
-        0xA0U, 0xA1U, 0xA2U, 0xA3U,
-        0xA4U, 0xA5U, 0xA6U, 0xA7U,
+        0xA0U,
+        0xA1U,
+        0xA2U,
+        0xA3U,
+        0xA4U,
+        0xA5U,
+        0xA6U,
+        0xA7U,
     };
     unmarked.insert(unmarked.end(), kStaleTail.begin(), kStaleTail.end());
     tree.write("Env.dat", unmarked);
 
     std::string resolved_raw_path;
-    const auto resolver = [&tree, &resolved_raw_path](
-        const std::string_view raw_path
-    ) {
-        resolved_raw_path.assign(raw_path);
-        return tree.root();
-    };
+    const auto resolver =
+        [&tree, &resolved_raw_path](const std::string_view raw_path) {
+            resolved_raw_path.assign(raw_path);
+            return tree.root();
+        };
     LegacyEnvironmentRecord state;
-    const auto loaded = load_legacy_environment(
-        tree.path("Env.dat"),
-        resolver,
-        state
-    );
+    const auto loaded =
+        load_legacy_environment(tree.path("Env.dat"), resolver, state);
     test.expect_equal(
         loaded.status,
         LegacyEnvironmentLoadStatus::unmarked_layout_migrated,
@@ -470,9 +496,8 @@ void test_file_loader_migration_and_no_truncate(
     );
 
     const auto decoded_unmarked = decode_legacy_environment(unmarked);
-    const LegacyEnvironmentRecord expected = migrate_unmarked_environment(
-        decoded_unmarked.record
-    );
+    const LegacyEnvironmentRecord expected =
+        migrate_unmarked_environment(decoded_unmarked.record);
     test.expect_equal(
         state,
         expected,
@@ -496,9 +521,7 @@ void test_file_loader_migration_and_no_truncate(
     );
     test.expect_true(
         std::equal(
-            kStaleTail.end() - 4,
-            kStaleTail.end(),
-            file_bytes.end() - 4
+            kStaleTail.end() - 4, kStaleTail.end(), file_bytes.end() - 4
         ),
         "bytes beyond the rewritten prefix remain physically stale"
     );
@@ -523,11 +546,8 @@ void test_failed_migrated_reopen_keeps_old_window(
         return tree.path("absent-directory");
     };
     LegacyEnvironmentRecord state;
-    const auto loaded = load_legacy_environment(
-        tree.path("Env.dat"),
-        resolver,
-        state
-    );
+    const auto loaded =
+        load_legacy_environment(tree.path("Env.dat"), resolver, state);
     test.expect_equal(
         loaded.status,
         LegacyEnvironmentLoadStatus::unmarked_layout_migrated,
@@ -552,14 +572,16 @@ void test_failed_migrated_reopen_keeps_old_window(
 void test_cache_session_marker_writers(openswd3::test::Context& test) {
     const TestTree tree;
     constexpr std::array<u8, 4> kInitialBytes{
-        0x10U, 0x20U, 0x02U, 0x7FU,
+        0x10U,
+        0x20U,
+        0x02U,
+        0x7FU,
     };
     tree.write("Env.dat", kInitialBytes);
 
     test.expect_true(
         write_legacy_environment_cache_session_marker(
-            tree.path("Env.dat"),
-            LegacyEnvironmentCacheSessionMarker::active
+            tree.path("Env.dat"), LegacyEnvironmentCacheSessionMarker::active
         ),
         "0x004259B0 writes the active-session marker"
     );
@@ -571,8 +593,7 @@ void test_cache_session_marker_writers(openswd3::test::Context& test) {
 
     test.expect_true(
         write_legacy_environment_cache_session_marker(
-            tree.path("Env.dat"),
-            LegacyEnvironmentCacheSessionMarker::clean
+            tree.path("Env.dat"), LegacyEnvironmentCacheSessionMarker::clean
         ),
         "0x004258E0 writes the clean-shutdown marker"
     );
@@ -594,8 +615,7 @@ void test_cache_session_marker_writers(openswd3::test::Context& test) {
     tree.write("empty.dat", kEmpty);
     test.expect_true(
         write_legacy_environment_cache_session_marker(
-            tree.path("empty.dat"),
-            LegacyEnvironmentCacheSessionMarker::active
+            tree.path("empty.dat"), LegacyEnvironmentCacheSessionMarker::active
         ),
         "ignored negative end seek still writes an existing empty file"
     );
@@ -695,16 +715,27 @@ void test_environment_initialize_and_binding_prefix(
     );
 
     constexpr std::array<u8, 16> kBindings{
-        0x00U, 0x01U, 0x02U, 0x03U,
-        0x04U, 0x05U, 0x06U, 0x07U,
-        0x08U, 0x09U, 0x0AU, 0x0BU,
-        0x0CU, 0x0DU, 0x0EU, 0x0FU,
+        0x00U,
+        0x01U,
+        0x02U,
+        0x03U,
+        0x04U,
+        0x05U,
+        0x06U,
+        0x07U,
+        0x08U,
+        0x09U,
+        0x0AU,
+        0x0BU,
+        0x0CU,
+        0x0DU,
+        0x0EU,
+        0x0FU,
     };
     const std::vector<u8> before_prefix = tree.read("Env.dat");
     test.expect_true(
         write_legacy_environment_binding_prefix(
-            tree.path("Env.dat"),
-            kBindings
+            tree.path("Env.dat"), kBindings
         ),
         "0x00423E00 writes the sixteen binding bytes at file offset zero"
     );
@@ -723,8 +754,7 @@ void test_environment_initialize_and_binding_prefix(
     );
     test.expect_false(
         write_legacy_environment_binding_prefix(
-            tree.path("missing.dat"),
-            kBindings
+            tree.path("missing.dat"), kBindings
         ),
         "binding prefix OPEN_EXISTING does not create a missing file"
     );

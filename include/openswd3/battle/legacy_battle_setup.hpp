@@ -54,7 +54,8 @@ struct LegacyBattleSetupResult {
 
 [[nodiscard]] LegacyBattleSetupResult prepare_legacy_battle_setup(
     const LegacyBattleAssets& assets,
-    std::span<const compat::u8, kLegacyBattlePartySourceCount> party_source_flags,
+    std::span<const compat::u8, kLegacyBattlePartySourceCount>
+        party_source_flags,
     bool mirrored,
     LegacyBattleSetupState& state
 ) noexcept;

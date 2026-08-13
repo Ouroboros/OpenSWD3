@@ -88,9 +88,15 @@ void test_defaults_and_sequence_queue(openswd3::test::Context& test) {
     test.expect_equal(state.pending_mode, 3, "constructor pending mode");
     test.expect_equal(state.volume, 127, "constructor volume");
     test.expect_equal(coordinator.service(), 0, "idle service returns zero");
-    test.expect_true(ports.events.empty(), "default queue has no backend calls");
-    test.expect_equal(state.current_mode, 0, "pending mode three clears current");
-    test.expect_equal(state.pending_mode, 0, "pending mode three consumes itself");
+    test.expect_true(
+        ports.events.empty(), "default queue has no backend calls"
+    );
+    test.expect_equal(
+        state.current_mode, 0, "pending mode three clears current"
+    );
+    test.expect_equal(
+        state.pending_mode, 0, "pending mode three consumes itself"
+    );
 
     state.current_playback_type = kLegacySequencePlaybackType;
     state.current_playback_id = 42;
@@ -106,7 +112,9 @@ void test_defaults_and_sequence_queue(openswd3::test::Context& test) {
         {5U, 6U, 7U, 8U},
     };
 
-    test.expect_equal(coordinator.service(), 0, "sequence dispatch returns zero");
+    test.expect_equal(
+        coordinator.service(), 0, "sequence dispatch returns zero"
+    );
     test.expect_equal(
         ports.events,
         std::vector<QueueEvent>{
@@ -143,7 +151,9 @@ void test_defaults_and_sequence_queue(openswd3::test::Context& test) {
         },
         "second slot dispatches after completion"
     );
-    test.expect_equal(state.sequence_index, 0, "repeat one wraps after slot two");
+    test.expect_equal(
+        state.sequence_index, 0, "repeat one wraps after slot two"
+    );
 }
 
 void test_stream_queue_and_clear(openswd3::test::Context& test) {
@@ -168,9 +178,7 @@ void test_stream_queue_and_clear(openswd3::test::Context& test) {
     );
 
     test.expect_equal(
-        coordinator.clear_commands(99),
-        0,
-        "invalid clear selector returns zero"
+        coordinator.clear_commands(99), 0, "invalid clear selector returns zero"
     );
     test.expect_true(
         state.stream_commands[0].filename.has_value(),
@@ -185,10 +193,18 @@ void test_stream_queue_and_clear(openswd3::test::Context& test) {
 
 class RecordingMaintenancePorts final : public LegacyAudioMaintenancePorts {
 public:
-    void service_queue() override { calls.push_back("queue"); }
-    void service_streams() override { calls.push_back("stream"); }
-    void service_sequences() override { calls.push_back("sequence"); }
-    void service_samples() override { calls.push_back("sample"); }
+    void service_queue() override {
+        calls.push_back("queue");
+    }
+    void service_streams() override {
+        calls.push_back("stream");
+    }
+    void service_sequences() override {
+        calls.push_back("sequence");
+    }
+    void service_samples() override {
+        calls.push_back("sample");
+    }
 
     std::vector<std::string> calls;
 };

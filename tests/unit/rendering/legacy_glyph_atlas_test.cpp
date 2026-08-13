@@ -26,18 +26,14 @@ using openswd3::rendering::kLegacyGlyphAtlasVersion;
 using openswd3::rendering::legacy_glyph_atlas_key_index;
 
 void write_u16_le(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u16 value
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
 ) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
 void write_u32_le(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>((value >> 8U) & 0xFFU);
@@ -49,8 +45,8 @@ void write_u32_le(
     std::size_t total_size = kLegacyGlyphAtlasHeaderSize;
     for (const auto geometry : kLegacyGlyphAtlasGeometries) {
         const std::size_t row_bytes = (geometry[0] + 7U) / 8U;
-        total_size += static_cast<std::size_t>(kLegacyGlyphAtlasKeyCount)
-            * row_bytes * geometry[1];
+        total_size += static_cast<std::size_t>(kLegacyGlyphAtlasKeyCount) *
+            row_bytes * geometry[1];
     }
 
     std::vector<u8> atlas(total_size, 0U);
@@ -61,7 +57,8 @@ void write_u32_le(
     write_u32_le(atlas, 20U, kLegacyGlyphAtlasSectionCount);
 
     std::size_t data_offset = kLegacyGlyphAtlasHeaderSize;
-    for (std::size_t index = 0; index < kLegacyGlyphAtlasGeometries.size(); ++index) {
+    for (std::size_t index = 0; index < kLegacyGlyphAtlasGeometries.size();
+         ++index) {
         const auto geometry = kLegacyGlyphAtlasGeometries[index];
         const u16 row_bytes = static_cast<u16>((geometry[0] + 7U) / 8U);
         const u16 mask_bytes = static_cast<u16>(row_bytes * geometry[1]);
@@ -72,16 +69,14 @@ void write_u32_le(
         write_u16_le(atlas, descriptor_offset + 4U, row_bytes);
         write_u16_le(atlas, descriptor_offset + 6U, mask_bytes);
         write_u32_le(
-            atlas,
-            descriptor_offset + 8U,
-            static_cast<u32>(data_offset)
+            atlas, descriptor_offset + 8U, static_cast<u32>(data_offset)
         );
         write_u32_le(atlas, descriptor_offset + 12U, data_size);
 
-        const std::size_t ascii_offset = data_offset
-            + legacy_glyph_atlas_key_index(0x41U, 0U) * mask_bytes;
-        const std::size_t dbcs_offset = data_offset
-            + legacy_glyph_atlas_key_index(0xA4U, 0x40U) * mask_bytes;
+        const std::size_t ascii_offset =
+            data_offset + legacy_glyph_atlas_key_index(0x41U, 0U) * mask_bytes;
+        const std::size_t dbcs_offset = data_offset +
+            legacy_glyph_atlas_key_index(0xA4U, 0x40U) * mask_bytes;
         atlas[ascii_offset] = static_cast<u8>(0x80U >> index);
         atlas[dbcs_offset + mask_bytes - 1U] = static_cast<u8>(0x01U << index);
         data_offset += data_size;
@@ -110,10 +105,10 @@ void test_valid_atlas_and_lookup(openswd3::test::Context& test) {
     LegacyGlyphAtlasProvider provider(atlas);
     test.expect_true(provider.valid(), "valid atlas accepted");
 
-    for (std::size_t index = 0; index < kLegacyGlyphAtlasGeometries.size(); ++index) {
+    for (std::size_t index = 0; index < kLegacyGlyphAtlasGeometries.size();
+         ++index) {
         const auto geometry = kLegacyGlyphAtlasGeometries[index];
-        const std::size_t mask_bytes =
-            ((geometry[0] + 7U) / 8U) * geometry[1];
+        const std::size_t mask_bytes = ((geometry[0] + 7U) / 8U) * geometry[1];
         std::vector<u8> destination(mask_bytes, 0xFFU);
         test.expect_equal(
             provider.provide_glyph_mask(
@@ -234,8 +229,7 @@ void expect_real_mask(
 }
 
 void test_real_atlas_asset(
-    openswd3::test::Context& test,
-    const char* atlas_path
+    openswd3::test::Context& test, const char* atlas_path
 ) {
     const std::vector<u8> atlas = read_binary_file(atlas_path);
     LegacyGlyphAtlasProvider provider(atlas);
@@ -256,14 +250,12 @@ void test_real_atlas_asset(
         0x52U, 0x88U, 0x49U, 0x14U, 0x29U, 0x22U, 0x22U, 0x41U,
     };
     constexpr std::array<u8, 60> kMask20{
-        0x00U, 0x00U, 0x00U, 0x00U, 0xF0U, 0x00U, 0x01U, 0x08U,
-        0x00U, 0x02U, 0x06U, 0x00U, 0x05U, 0xFDU, 0x80U, 0x18U,
-        0x00U, 0x70U, 0x67U, 0xFFU, 0x20U, 0x04U, 0x01U, 0x00U,
-        0x07U, 0xFFU, 0x00U, 0x00U, 0x00U, 0x00U, 0x00U, 0x3FU,
-        0x00U, 0x0FU, 0xE0U, 0x00U, 0x00U, 0x20U, 0x00U, 0x1FU,
-        0xFFU, 0x80U, 0x00U, 0x20U, 0x20U, 0x7FU, 0xFFU, 0xF0U,
-        0x00U, 0x20U, 0x00U, 0x00U, 0x20U, 0x00U, 0x01U, 0xE0U,
-        0x00U, 0x00U, 0x40U, 0x00U,
+        0x00U, 0x00U, 0x00U, 0x00U, 0xF0U, 0x00U, 0x01U, 0x08U, 0x00U, 0x02U,
+        0x06U, 0x00U, 0x05U, 0xFDU, 0x80U, 0x18U, 0x00U, 0x70U, 0x67U, 0xFFU,
+        0x20U, 0x04U, 0x01U, 0x00U, 0x07U, 0xFFU, 0x00U, 0x00U, 0x00U, 0x00U,
+        0x00U, 0x3FU, 0x00U, 0x0FU, 0xE0U, 0x00U, 0x00U, 0x20U, 0x00U, 0x1FU,
+        0xFFU, 0x80U, 0x00U, 0x20U, 0x20U, 0x7FU, 0xFFU, 0xF0U, 0x00U, 0x20U,
+        0x00U, 0x00U, 0x20U, 0x00U, 0x01U, 0xE0U, 0x00U, 0x00U, 0x40U, 0x00U,
     };
 
     expect_real_mask(

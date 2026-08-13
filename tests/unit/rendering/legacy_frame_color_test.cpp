@@ -40,27 +40,67 @@ struct FormatVector {
 constexpr std::array<FormatVector, 4> kFormatVectors{{
     {
         {0x7C00U, 0x03E0U, 0x001FU},
-        0x1154U, 0x1DB7U, 0x1154U, 0x006DU,
-        0x783FU, 0x7C1FU, 0x14EBU, 0x0DB1U, 0x229CU,
-        0x50FFU, 0x3321U, 0x7DE0U, 0x2D6BU,
+        0x1154U,
+        0x1DB7U,
+        0x1154U,
+        0x006DU,
+        0x783FU,
+        0x7C1FU,
+        0x14EBU,
+        0x0DB1U,
+        0x229CU,
+        0x50FFU,
+        0x3321U,
+        0x7DE0U,
+        0x2D6BU,
     },
     {
         {0xF800U, 0x07C0U, 0x003FU},
-        0x22A8U, 0x3B6EU, 0x22A8U, 0x00DAU,
-        0xF07EU, 0xF83EU, 0x29D6U, 0x1B62U, 0x4538U,
-        0xA1FEU, 0x6642U, 0xFBC0U, 0x5AD6U,
+        0x22A8U,
+        0x3B6EU,
+        0x22A8U,
+        0x00DAU,
+        0xF07EU,
+        0xF83EU,
+        0x29D6U,
+        0x1B62U,
+        0x4538U,
+        0xA1FEU,
+        0x6642U,
+        0xFBC0U,
+        0x5AD6U,
     },
     {
         {0xF800U, 0x07E0U, 0x001FU},
-        0x2294U, 0x3B57U, 0x2294U, 0x00CDU,
-        0xF05FU, 0xF81FU, 0x29CBU, 0x1B51U, 0x451CU,
-        0xA1DFU, 0x6641U, 0xFBC0U, 0x5ACBU,
+        0x2294U,
+        0x3B57U,
+        0x2294U,
+        0x00CDU,
+        0xF05FU,
+        0xF81FU,
+        0x29CBU,
+        0x1B51U,
+        0x451CU,
+        0xA1DFU,
+        0x6641U,
+        0xFBC0U,
+        0x5ACBU,
     },
     {
         {0xFC00U, 0x03E0U, 0x001FU},
-        0x2154U, 0x39B7U, 0x2154U, 0x006DU,
-        0xF03FU, 0xF81FU, 0x28EBU, 0x19B1U, 0x429CU,
-        0xA0FFU, 0x6321U, 0xF9E0U, 0x596BU,
+        0x2154U,
+        0x39B7U,
+        0x2154U,
+        0x006DU,
+        0xF03FU,
+        0xF81FU,
+        0x28EBU,
+        0x19B1U,
+        0x429CU,
+        0xA0FFU,
+        0x6321U,
+        0xF9E0U,
+        0x596BU,
     },
 }};
 
@@ -77,12 +117,7 @@ void expect_rgb_adjustment(
     std::array<u16, 2> pixels{input, 0xA55AU};
     test.expect_equal(
         openswd3::rendering::adjust_legacy_rgb_channels(
-            pixels,
-            1,
-            red,
-            green,
-            blue,
-            format
+            pixels, 1, red, green, blue, format
         ),
         LegacyFrameColorStatus::completed,
         "RGB adjustment completes"
@@ -99,8 +134,7 @@ void test_closed_format_vectors(openswd3::test::Context& test) {
     for (const FormatVector& vector : kFormatVectors) {
         LegacyPixelConversionState format;
         openswd3::rendering::select_legacy_pixel_conversion(
-            format,
-            vector.reported_masks
+            format, vector.reported_masks
         );
 
         expect_rgb_adjustment(
@@ -138,27 +172,19 @@ void test_closed_format_vectors(openswd3::test::Context& test) {
         std::array<u16, 1> destination{vector.combine_destination};
         test.expect_equal(
             openswd3::rendering::combine_legacy_channels_overflow_to_zero(
-                source,
-                destination,
-                1,
-                format
+                source, destination, 1, format
             ),
             LegacyFrameColorStatus::completed,
             "two-input combine completes"
         );
         test.expect_equal(
-            destination[0],
-            vector.combine_output,
-            "two-input below-32 vector"
+            destination[0], vector.combine_output, "two-input below-32 vector"
         );
 
         source[0] = vector.overflow_source;
         destination[0] = vector.overflow_destination;
         (void)openswd3::rendering::combine_legacy_channels_overflow_to_zero(
-            source,
-            destination,
-            1,
-            format
+            source, destination, 1, format
         );
         test.expect_equal(
             destination[0],
@@ -169,9 +195,7 @@ void test_closed_format_vectors(openswd3::test::Context& test) {
         std::array<u16, 1> grayscale{vector.grayscale_input};
         test.expect_equal(
             openswd3::rendering::convert_legacy_quarter_sum_grayscale(
-                grayscale,
-                1,
-                format
+                grayscale, 1, format
             ),
             LegacyFrameColorStatus::completed,
             "quarter-sum grayscale completes"
@@ -189,12 +213,7 @@ void test_single_channel_variants(openswd3::test::Context& test) {
 
     std::array<u16, 3> red{0x1154U, 0x783FU, 0xA55AU};
     test.expect_equal(
-        openswd3::rendering::adjust_legacy_red_channel(
-            red,
-            2,
-            3,
-            format
-        ),
+        openswd3::rendering::adjust_legacy_red_channel(red, 2, 3, format),
         LegacyFrameColorStatus::completed,
         "red-only adjustment completes"
     );
@@ -208,10 +227,7 @@ void test_single_channel_variants(openswd3::test::Context& test) {
     std::array<u16, 2> green{0x1154U, 0x783FU};
     test.expect_equal(
         openswd3::rendering::adjust_legacy_green_channel_pairs(
-            green,
-            2,
-            -5,
-            format
+            green, 2, -5, format
         ),
         LegacyFrameColorStatus::completed,
         "green packed-pair adjustment completes"
@@ -222,10 +238,7 @@ void test_single_channel_variants(openswd3::test::Context& test) {
     std::array<u16, 2> blue{0x1154U, 0x783FU};
     test.expect_equal(
         openswd3::rendering::adjust_legacy_blue_channel_pairs(
-            blue,
-            2,
-            1,
-            format
+            blue, 2, 1, format
         ),
         LegacyFrameColorStatus::completed,
         "blue packed-pair adjustment completes"
@@ -258,10 +271,7 @@ void test_wrapped_delta_and_lane_carry(openswd3::test::Context& test) {
     std::array<u16, 2> green{};
     test.expect_equal(
         openswd3::rendering::adjust_legacy_green_channel_pairs(
-            green,
-            2,
-            2048,
-            format
+            green, 2, 2048, format
         ),
         LegacyFrameColorStatus::completed,
         "packed lane-carry vector completes"
@@ -274,38 +284,26 @@ void test_wrapped_delta_and_lane_carry(openswd3::test::Context& test) {
     );
 }
 
-void test_safety_and_zero_count_side_effect(
-    openswd3::test::Context& test
-) {
+void test_safety_and_zero_count_side_effect(openswd3::test::Context& test) {
     LegacyPixelConversionState format;
     std::array<u16, 1> one_pixel{0x1234U};
     test.expect_equal(
         openswd3::rendering::adjust_legacy_rgb_channels(
-            one_pixel,
-            1,
-            1,
-            1,
-            1,
-            format
+            one_pixel, 1, 1, 1, 1, format
         ),
         LegacyFrameColorStatus::buffer_out_of_bounds,
         "RGB dword look-ahead is checked"
     );
     test.expect_equal(
         openswd3::rendering::adjust_legacy_green_channel_pairs(
-            one_pixel,
-            1,
-            1,
-            format
+            one_pixel, 1, 1, format
         ),
         LegacyFrameColorStatus::invalid_count,
         "packed green rejects the unreachable odd-count domain"
     );
     test.expect_equal(
         openswd3::rendering::convert_legacy_quarter_sum_grayscale(
-            one_pixel,
-            0,
-            format
+            one_pixel, 0, format
         ),
         LegacyFrameColorStatus::invalid_count,
         "tail-tested grayscale zero-count runaway is isolated"
@@ -318,10 +316,7 @@ void test_safety_and_zero_count_side_effect(
     };
     test.expect_equal(
         openswd3::rendering::combine_legacy_channels_overflow_to_zero(
-            {},
-            {},
-            0,
-            format
+            {}, {}, 0, format
         ),
         LegacyFrameColorStatus::completed,
         "combine zero count returns normally"
@@ -355,19 +350,15 @@ void test_full_frame_transition_wrapper(openswd3::test::Context& test) {
 
     const auto active =
         openswd3::rendering::update_legacy_frame_color_transition(
-            transition,
-            true,
-            framebuffer,
-            format
+            transition, true, framebuffer, format
         );
     test.expect_true(
         active.status == LegacyFrameColorTransitionStatus::completed &&
             active.framebuffer_status == LegacyFrameColorStatus::completed &&
-            active.countdown_decremented &&
-            active.current_values_advanced &&
-            !active.steps_replaced_by_targets &&
-            active.applied_red == 1 && active.applied_green == 2 &&
-            active.applied_blue == 3 && transition.countdown == 0,
+            active.countdown_decremented && active.current_values_advanced &&
+            !active.steps_replaced_by_targets && active.applied_red == 1 &&
+            active.applied_green == 2 && active.applied_blue == 3 &&
+            transition.countdown == 0,
         "0x004146F0 decrements, accumulates and truncates before sub_420490"
     );
     test.expect_equal(
@@ -401,17 +392,15 @@ void test_full_frame_transition_wrapper(openswd3::test::Context& test) {
     };
     const auto terminal =
         openswd3::rendering::update_legacy_frame_color_transition(
-            transition,
-            true,
-            framebuffer,
-            format
+            transition, true, framebuffer, format
         );
     test.expect_true(
         terminal.status == LegacyFrameColorTransitionStatus::completed &&
             terminal.countdown_decremented &&
             !terminal.current_values_advanced &&
             terminal.steps_replaced_by_targets && transition.countdown == -1 &&
-            transition.current_red == 4.9F && transition.current_green == 5.9F &&
+            transition.current_red == 4.9F &&
+            transition.current_green == 5.9F &&
             transition.current_blue == 6.9F && transition.step_red == 9.0F &&
             transition.step_green == 10.0F && transition.step_blue == 11.0F &&
             terminal.applied_red == 4 && terminal.applied_green == 5 &&
@@ -428,15 +417,11 @@ void test_full_frame_transition_wrapper(openswd3::test::Context& test) {
     };
     const auto unordered_idle =
         openswd3::rendering::update_legacy_frame_color_transition(
-            transition,
-            true,
-            framebuffer,
-            format
+            transition, true, framebuffer, format
         );
     test.expect_true(
         unordered_idle.status == LegacyFrameColorTransitionStatus::idle &&
-            transition.countdown == 7 &&
-            !unordered_idle.countdown_decremented,
+            transition.countdown == 7 && !unordered_idle.countdown_decremented,
         "x87 unordered zero comparisons preserve the original early return"
     );
 }

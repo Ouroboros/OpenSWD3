@@ -13,7 +13,7 @@ namespace openswd3::input_time_rng {
 
 class LegacySecondaryRng;
 
-} // namespace openswd3::input_time_rng
+}  // namespace openswd3::input_time_rng
 
 namespace openswd3::world_map {
 
@@ -32,8 +32,9 @@ struct LegacyEncounterThresholdBand {
 };
 
 struct LegacyEncounterThresholdGroup {
-    std::array<LegacyEncounterThresholdBand,
-               static_cast<std::size_t>(kLegacyEncounterThresholdBandCount)>
+    std::array<
+        LegacyEncounterThresholdBand,
+        static_cast<std::size_t>(kLegacyEncounterThresholdBandCount)>
         bands{};
 };
 
@@ -60,25 +61,27 @@ enum class LegacyEncounterSourceStatus {
 
 struct LegacyEncounterRegionSourceResult {
     LegacyEncounterSourceStatus status{
-        LegacyEncounterSourceStatus::source_header_truncated};
+        LegacyEncounterSourceStatus::source_header_truncated
+    };
     std::vector<LegacyEncounterRegion> regions;
 };
 
 struct LegacyEncounterThresholdSourceResult {
     LegacyEncounterSourceStatus status{
-        LegacyEncounterSourceStatus::source_header_truncated};
+        LegacyEncounterSourceStatus::source_header_truncated
+    };
     std::vector<LegacyEncounterThresholdGroup> groups;
 };
 
-[[nodiscard]] LegacyEncounterRegionSourceResult
-load_legacy_encounter_regions(std::span<const compat::u8> game_data,
-                              compat::u32 map_id);
+[[nodiscard]] LegacyEncounterRegionSourceResult load_legacy_encounter_regions(
+    std::span<const compat::u8> game_data, compat::u32 map_id
+);
 
 [[nodiscard]] LegacyEncounterThresholdSourceResult
 load_legacy_encounter_thresholds(std::span<const compat::u8> game_data);
 
 class LegacyRandomEncounterRng {
-  public:
+public:
     virtual ~LegacyRandomEncounterRng() = default;
 
     [[nodiscard]] virtual compat::u32 next_bounded(compat::u32 upper_bound) = 0;
@@ -86,14 +89,15 @@ class LegacyRandomEncounterRng {
 
 class LegacySecondaryRandomEncounterRng final
     : public LegacyRandomEncounterRng {
-  public:
+public:
     explicit LegacySecondaryRandomEncounterRng(
-        input_time_rng::LegacySecondaryRng &random) noexcept;
+        input_time_rng::LegacySecondaryRng& random
+    ) noexcept;
 
     [[nodiscard]] compat::u32 next_bounded(compat::u32 upper_bound) override;
 
-  private:
-    input_time_rng::LegacySecondaryRng &random_;
+private:
+    input_time_rng::LegacySecondaryRng& random_;
 };
 
 enum class LegacyRandomEncounterStatus {
@@ -123,11 +127,13 @@ struct LegacyRandomEncounterResult {
 };
 
 [[nodiscard]] LegacyRandomEncounterResult select_legacy_random_encounter(
-    const LegacyRandomEncounterRequest &request,
-    compat::u32 &encounter_step_counter,
+    const LegacyRandomEncounterRequest& request,
+    compat::u32& encounter_step_counter,
     std::span<const LegacyEncounterThresholdGroup> threshold_groups,
     std::span<const LegacyEncounterRegion> regions,
-    std::span<const compat::u8> game_data, LegacyRandomEncounterRng &random);
+    std::span<const compat::u8> game_data,
+    LegacyRandomEncounterRng& random
+);
 
 struct LegacyWorldEncounterState {
     compat::u32 encounter_step_counter{};
@@ -140,15 +146,15 @@ struct LegacyWorldEncounterState {
 };
 
 class LegacyWorldEncounterPorts {
-  public:
+public:
     virtual ~LegacyWorldEncounterPorts() = default;
 
     [[nodiscard]] virtual compat::u32 query_encounter_suppression() = 0;
     [[nodiscard]] virtual compat::u32
     query_internal_flag(compat::u32 bit_index) = 0;
-    [[nodiscard]] virtual LegacyRandomEncounterResult
-    select_encounter(compat::u32 &encounter_step_counter,
-                     compat::u32 force_mode) = 0;
+    [[nodiscard]] virtual LegacyRandomEncounterResult select_encounter(
+        compat::u32& encounter_step_counter, compat::u32 force_mode
+    ) = 0;
     virtual void stop_legacy_stream() = 0;
     virtual void stop_all_legacy_samples() = 0;
     virtual void release_pre_battle_resource_433010() = 0;
@@ -172,17 +178,20 @@ enum class LegacyWorldEncounterOutcome {
 
 struct LegacyWorldEncounterResult {
     LegacyWorldEncounterOutcome outcome{
-        LegacyWorldEncounterOutcome::encounter_suppressed};
+        LegacyWorldEncounterOutcome::encounter_suppressed
+    };
     LegacyRandomEncounterStatus selection_status{
-        LegacyRandomEncounterStatus::completed};
+        LegacyRandomEncounterStatus::completed
+    };
     compat::u16 battle_id{};
     bool map_view_close_succeeded{};
 };
 
-[[nodiscard]] LegacyWorldEncounterResult
-coordinate_legacy_world_encounter(LegacyWorldEncounterState &state,
-                                  const LegacyWorldTalkContext &talk_context,
-                                  std::span<LegacyWorldRoleRecord> roles,
-                                  LegacyWorldEncounterPorts &ports);
+[[nodiscard]] LegacyWorldEncounterResult coordinate_legacy_world_encounter(
+    LegacyWorldEncounterState& state,
+    const LegacyWorldTalkContext& talk_context,
+    std::span<LegacyWorldRoleRecord> roles,
+    LegacyWorldEncounterPorts& ports
+);
 
-} // namespace openswd3::world_map
+}  // namespace openswd3::world_map

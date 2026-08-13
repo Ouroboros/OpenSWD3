@@ -27,8 +27,8 @@ struct LegacyRoleSpatialIndex {
     compat::u32 map_height{};
     std::array<
         std::vector<compat::u32>,
-        static_cast<std::size_t>(kLegacySpatialGroupCount)
-    > row_heads;
+        static_cast<std::size_t>(kLegacySpatialGroupCount)>
+        row_heads;
 };
 
 enum class LegacyWorldMapBusinessStatus {
@@ -103,8 +103,7 @@ struct LegacyWorldRoleCellBindingResult {
     compat::u32 out_of_bounds_indices{};
 };
 
-[[nodiscard]] LegacyWorldRoleCellBindingResult
-bind_legacy_world_role_cells(
+[[nodiscard]] LegacyWorldRoleCellBindingResult bind_legacy_world_role_cells(
     std::span<LegacyWorldRoleRecord> roles,
     compat::u32 first_role_index,
     compat::u32 role_count,

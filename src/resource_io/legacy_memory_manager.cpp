@@ -33,11 +33,7 @@ LegacyMemoryManager::LegacyMemoryManager() noexcept {
 #ifdef _WIN32
     SYSTEM_INFO system_info{};
     GetSystemInfo(&system_info);
-    private_heap_ = HeapCreate(
-        HEAP_NO_SERIALIZE,
-        system_info.dwPageSize,
-        0U
-    );
+    private_heap_ = HeapCreate(HEAP_NO_SERIALIZE, system_info.dwPageSize, 0U);
 #else
     const long queried_page_size = ::sysconf(_SC_PAGESIZE);
     const std::size_t page_size = queried_page_size > 0
@@ -169,10 +165,8 @@ bool LegacyMemoryManager::release_contained_block(Node* const node) noexcept {
 
     std::byte* const suffix =
         node->block + 8U + static_cast<std::size_t>(node->payload_size);
-    const bool guards_intact =
-        read_u32(node->block) == kGuard &&
-        read_u32(node->block + 4U) == kGuard &&
-        read_u32(suffix) == kGuard &&
+    const bool guards_intact = read_u32(node->block) == kGuard &&
+        read_u32(node->block + 4U) == kGuard && read_u32(suffix) == kGuard &&
         read_u32(suffix + 4U) == kGuard;
 
     if (!guards_intact) {
@@ -189,9 +183,7 @@ bool LegacyMemoryManager::release_contained_block(Node* const node) noexcept {
         static_cast<void>(std::snprintf(
             error_.data(),
             error_.size(),
-            "block[0x%x][%d] overwrited! "
-            "[%2X %2X %2X %2X %2X %2X %2X %2X "
-            "%2X %2X %2X %2X %2X %2X %2X %2X]",
+            "block[0x%x][%d] overwrited! " "[%2X %2X %2X %2X %2X %2X %2X %2X " "%2X %2X %2X %2X %2X %2X %2X %2X]",
             static_cast<unsigned int>(
                 reinterpret_cast<std::uintptr_t>(payload)
             ),
@@ -263,16 +255,10 @@ void LegacyMemoryManager::set_system_error() noexcept {
 }
 
 void LegacyMemoryManager::report_error(
-    const char* const caption,
-    const char* const message
+    const char* const caption, const char* const message
 ) noexcept {
 #ifdef _WIN32
-    static_cast<void>(MessageBoxA(
-        nullptr,
-        message,
-        caption,
-        MB_ICONERROR
-    ));
+    static_cast<void>(MessageBoxA(nullptr, message, caption, MB_ICONERROR));
 #else
     std::fprintf(stderr, "%s: %s\n", caption, message);
 #endif

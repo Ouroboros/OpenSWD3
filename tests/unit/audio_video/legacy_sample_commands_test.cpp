@@ -44,9 +44,7 @@ constexpr std::size_t kPayloadSize = 48U;
 constexpr u32 kSyntheticSoundCount = 8U;
 
 void write_u32(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
@@ -56,15 +54,13 @@ void write_u32(
 
 [[nodiscard]] std::vector<u8> synthetic_archive() {
     std::vector<u8> bytes(
-        kPayloadOffset + kSyntheticSoundCount * kPayloadSize,
-        0U
+        kPayloadOffset + kSyntheticSoundCount * kPayloadSize, 0U
     );
     for (u32 sound_id = 1U; sound_id <= kSyntheticSoundCount; ++sound_id) {
         const std::size_t record =
             kIndexOffset + (sound_id - 1U) * kDiskRecordSize;
-        const u32 payload = static_cast<u32>(
-            kPayloadOffset + (sound_id - 1U) * kPayloadSize
-        );
+        const u32 payload =
+            static_cast<u32>(kPayloadOffset + (sound_id - 1U) * kPayloadSize);
         write_u32(bytes, record + 0x14U, static_cast<u32>(kPayloadSize));
         write_u32(bytes, record + 0x18U, payload);
         write_u32(bytes, record + 0x20U, 0U);
@@ -81,7 +77,7 @@ public:
         const auto unique =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-sample-commands-" + std::to_string(unique));
+            ("legacy-sample-commands-" + std::to_string(unique));
         std::filesystem::create_directories(root_);
     }
 
@@ -106,7 +102,9 @@ private:
 
 class RecordingBackend final : public LegacySampleBackend {
 public:
-    [[nodiscard]] u32 driver_token() const override { return 1U; }
+    [[nodiscard]] u32 driver_token() const override {
+        return 1U;
+    }
 
     [[nodiscard]] LegacySampleHandle allocate_sample_handle() override {
         return ++allocated_count;
@@ -115,35 +113,26 @@ public:
     void initialize_sample(LegacySampleHandle) override {}
     void release_sample_handle(LegacySampleHandle) override {}
 
-    [[nodiscard]] bool set_sample_file(
-        LegacySampleHandle,
-        std::span<const u8>
-    ) override {
+    [[nodiscard]] bool
+    set_sample_file(LegacySampleHandle, std::span<const u8>) override {
         return true;
     }
 
     [[nodiscard]] bool set_named_sample_file(
-        LegacySampleHandle,
-        std::string_view,
-        std::span<const u8>,
-        u32
+        LegacySampleHandle, std::string_view, std::span<const u8>, u32
     ) override {
         return true;
     }
 
     void set_sample_user_data(
-        const LegacySampleHandle handle,
-        u32,
-        const u32 value
+        const LegacySampleHandle handle, u32, const u32 value
     ) override {
         user_data[handle] = value;
         last_sound_id = value;
     }
 
-    [[nodiscard]] u32 sample_user_data(
-        const LegacySampleHandle handle,
-        u32
-    ) override {
+    [[nodiscard]] u32
+    sample_user_data(const LegacySampleHandle handle, u32) override {
         return user_data[handle];
     }
 
@@ -159,8 +148,12 @@ public:
         last_loop_count = value;
     }
 
-    void start_sample(LegacySampleHandle) override { ++start_count; }
-    void end_sample(LegacySampleHandle) override { ++end_count; }
+    void start_sample(LegacySampleHandle) override {
+        ++start_count;
+    }
+    void end_sample(LegacySampleHandle) override {
+        ++end_count;
+    }
 
     [[nodiscard]] u32 sample_status(LegacySampleHandle) override {
         return 4U;
@@ -193,10 +186,7 @@ struct Fixture {
     LegacySampleManagerInitializeStatus initialize_status{};
 };
 
-void expect_ready(
-    openswd3::test::Context& test,
-    const Fixture& fixture
-) {
+void expect_ready(openswd3::test::Context& test, const Fixture& fixture) {
     test.expect_equal(
         fixture.open_status,
         LegacySndOpenStatus::ready,
@@ -231,11 +221,7 @@ void test_play_and_pan_wrappers(openswd3::test::Context& test) {
     test.expect_equal(fixture.backend.pans.back(), 47, "pan reaches backend");
 
     test.expect_equal(
-        play_legacy_sample_u16_level(
-            fixture.manager,
-            0xABCD0002U,
-            0x0001000BU
-        ),
+        play_legacy_sample_u16_level(fixture.manager, 0xABCD0002U, 0x0001000BU),
         1,
         "0x00485670 returns one"
     );
@@ -260,9 +246,7 @@ void test_stop_wrappers(openswd3::test::Context& test) {
     );
     test.expect_equal(fixture.manager.active_sample_count(), 1U, "one stopped");
     test.expect_equal(
-        stop_all_legacy_samples(fixture.manager),
-        1,
-        "0x00485740 returns one"
+        stop_all_legacy_samples(fixture.manager), 1, "0x00485740 returns one"
     );
     test.expect_equal(fixture.manager.active_sample_count(), 0U, "all stopped");
 
@@ -296,7 +280,9 @@ void test_spatial_wrapper(openswd3::test::Context& test) {
         "near-right sample returns converted pan"
     );
     test.expect_equal(fixture.backend.start_count, 1U, "near sample starts");
-    test.expect_equal(fixture.backend.volumes.back(), 1, "distance attenuation");
+    test.expect_equal(
+        fixture.backend.volumes.back(), 1, "distance attenuation"
+    );
     test.expect_equal(fixture.backend.pans.back(), 126, "right pan");
 
     test.expect_equal(
@@ -304,17 +290,13 @@ void test_spatial_wrapper(openswd3::test::Context& test) {
         63,
         "3-4-5 distance keeps centered integer pan"
     );
-    test.expect_equal(fixture.backend.volumes.back(), 127, "distance five volume");
+    test.expect_equal(
+        fixture.backend.volumes.back(), 127, "distance five volume"
+    );
 
     const u32 starts_before_unmasked_id = fixture.backend.start_count;
     test.expect_equal(
-        play_legacy_spatial_sample(
-            fixture.manager,
-            0x00010001U,
-            0,
-            0,
-            state
-        ),
+        play_legacy_spatial_sample(fixture.manager, 0x00010001U, 0, 0, state),
         63,
         "spatial wrapper returns manager pan conversion"
     );

@@ -3,8 +3,7 @@
 namespace openswd3::app {
 
 bool run_total_initialization(
-    InitializationState& state,
-    InitializationPorts& ports
+    InitializationState& state, InitializationPorts& ports
 ) {
     state.transition_suppression = 0U;
     state.frame_counter = 0U;
@@ -37,8 +36,7 @@ bool run_total_initialization(
 }
 
 compat::i32 run_initialization_dialog_wrapper(
-    InitializationState& state,
-    InitializationPorts& ports
+    InitializationState& state, InitializationPorts& ports
 ) {
     static_cast<void>(run_total_initialization(state, ports));
     return 1;

@@ -34,7 +34,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("logging-" + std::to_string(unique_value));
+            ("logging-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -75,14 +75,9 @@ void test_metadata_and_immediate_flush(openswd3::test::Context& test) {
     const std::string contents = tree.read(log_path);
 
     test.expect_true(
-        contents.size() > 24U &&
-            contents[4] == '-' &&
-            contents[7] == '-' &&
-            contents[10] == 'T' &&
-            contents[13] == ':' &&
-            contents[16] == ':' &&
-            contents[19] == '.' &&
-            contents[23] == 'Z',
+        contents.size() > 24U && contents[4] == '-' && contents[7] == '-' &&
+            contents[10] == 'T' && contents[13] == ':' && contents[16] == ':' &&
+            contents[19] == '.' && contents[23] == 'Z',
         "each record starts with an ISO-8601 UTC millisecond timestamp"
     );
     test.expect_true(
@@ -118,9 +113,7 @@ void test_level_filter(openswd3::test::Context& test) {
     );
 }
 
-void test_initialization_failure_and_recovery(
-    openswd3::test::Context& test
-) {
+void test_initialization_failure_and_recovery(openswd3::test::Context& test) {
     const TestTree tree;
     const std::filesystem::path blocker = tree.path("not-a-directory");
     {
@@ -134,8 +127,7 @@ void test_initialization_failure_and_recovery(
         "a regular file cannot be used as the log directory"
     );
     test.expect_false(
-        logging_to_file(),
-        "failed initialization leaves fallback output active"
+        logging_to_file(), "failed initialization leaves fallback output active"
     );
 
     const std::filesystem::path recovered = tree.path("recovered.log");
@@ -182,8 +174,7 @@ void test_concurrent_records_are_atomic(openswd3::test::Context& test) {
     bool every_record_is_complete = true;
     while (std::getline(input, line)) {
         ++record_count;
-        every_record_is_complete =
-            every_record_is_complete &&
+        every_record_is_complete = every_record_is_complete &&
             line.find(" [DEBUG] [thread=") != std::string::npos &&
             line.find("] [log_test.cpp:") != std::string::npos &&
             line.find("] concurrent worker=") != std::string::npos &&

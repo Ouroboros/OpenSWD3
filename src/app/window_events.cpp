@@ -17,10 +17,7 @@ constexpr compat::u32 kLegacyKeyPause = 0x77U;
 
 constexpr compat::u32 kMinimumScreenshotSpaceMebibytes = 0x40U;
 
-void release_active_video(
-    WindowEventState& state,
-    WindowEventPorts& ports
-) {
+void release_active_video(WindowEventState& state, WindowEventPorts& ports) {
     ports.release_active_video();
     state.process_flags &= ~kProcessVideoActive;
 }
@@ -28,8 +25,7 @@ void release_active_video(
 }  // namespace
 
 DisplayTransition select_size_display_transition(
-    const compat::u32 runtime_initialized,
-    const compat::u32 size_code
+    const compat::u32 runtime_initialized, const compat::u32 size_code
 ) noexcept {
     if (runtime_initialized == 0U) {
         return DisplayTransition::none;
@@ -49,20 +45,18 @@ DisplayTransition select_size_display_transition(
 }
 
 DisplayTransition select_activation_display_transition(
-    const compat::u32 runtime_initialized,
-    const compat::u32 activation_value
+    const compat::u32 runtime_initialized, const compat::u32 activation_value
 ) noexcept {
     if (runtime_initialized == 0U) {
         return DisplayTransition::none;
     }
     return static_cast<compat::u16>(activation_value) == 0U
-               ? DisplayTransition::deactivate
-               : DisplayTransition::reactivate;
+        ? DisplayTransition::deactivate
+        : DisplayTransition::reactivate;
 }
 
 DisplayTransition select_system_enter_display_transition(
-    const compat::u32 key_value,
-    const compat::u32 display_active
+    const compat::u32 key_value, const compat::u32 display_active
 ) noexcept {
     if (static_cast<compat::u8>(key_value) != kLegacyKeyEnter) {
         return DisplayTransition::none;
@@ -89,8 +83,8 @@ void apply_display_transition(
 }
 
 bool should_intercept_system_command(const compat::u32 command) noexcept {
-    return command == 0xF130U || command == 0xF140U ||
-           command == 0xF170U || command == 0xF090U;
+    return command == 0xF130U || command == 0xF140U || command == 0xF170U ||
+        command == 0xF090U;
 }
 
 WindowMessagePrefixResult run_window_message_prefix(
@@ -105,12 +99,10 @@ WindowMessagePrefixResult run_window_message_prefix(
     }
 
     return ports.filter_text_input_message(
-               message,
-               first_parameter,
-               second_parameter
+               message, first_parameter, second_parameter
            ) == 0U
-               ? WindowMessagePrefixResult::consume_and_return_one
-               : WindowMessagePrefixResult::continue_dispatch;
+        ? WindowMessagePrefixResult::consume_and_return_one
+        : WindowMessagePrefixResult::continue_dispatch;
 }
 
 void handle_key_release(
@@ -118,15 +110,13 @@ void handle_key_release(
     const compat::u32 key_value,
     WindowEventPorts& ports
 ) {
-    const bool video_active =
-        (state.process_flags & kProcessVideoActive) != 0U;
+    const bool video_active = (state.process_flags & kProcessVideoActive) != 0U;
 
     if (video_active && key_value == kLegacyKeyEscape) {
         release_active_video(state, ports);
     } else if (key_value == kLegacyKeyPause) {
         state.frame_execution_gate =
-            video_active ? 1U
-                         : (state.frame_execution_gate == 0U ? 1U : 0U);
+            video_active ? 1U : (state.frame_execution_gate == 0U ? 1U : 0U);
     }
 
     if (state.runtime_initialized == 0U ||
@@ -135,8 +125,7 @@ void handle_key_release(
         return;
     }
 
-    if (ports.free_disk_space_mebibytes() >
-        kMinimumScreenshotSpaceMebibytes) {
+    if (ports.free_disk_space_mebibytes() > kMinimumScreenshotSpaceMebibytes) {
         ports.capture_legacy_screenshot();
     }
 }

@@ -40,15 +40,12 @@ public:
         : framebuffer_(framebuffer) {}
 
     [[nodiscard]] bool update_action_frame(
-        const u32 action_id,
-        const i32 action_index,
-        u16& frame_resource_id
+        const u32 action_id, const i32 action_index, u16& frame_resource_id
     ) noexcept override {
         ++call_count_;
         action_id_ = action_id;
         action_index_ = action_index;
-        rectangle_was_applied_ =
-            framebuffer_.row_pixels(4U)[4U] == 0x0400U;
+        rectangle_was_applied_ = framebuffer_.row_pixels(4U)[4U] == 0x0400U;
         frame_resource_id = output_frame_resource_id_;
         return succeeds_;
     }
@@ -94,9 +91,7 @@ public:
     }
 
     [[nodiscard]] bool load_frame_piece(
-        const u32 resource_id,
-        const u32 piece_index,
-        LegacyFramePiece& piece
+        const u32 resource_id, const u32 piece_index, LegacyFramePiece& piece
     ) noexcept override {
         ++request_count_;
         last_resource_id_ = resource_id;
@@ -322,9 +317,7 @@ void test_rendering_failures_are_isolated(openswd3::test::Context& test) {
         test.expect_equal(raster.clip_top, 0, "failure restores clip top");
         test.expect_equal(raster.clip_width, 32, "failure restores clip width");
         test.expect_equal(
-            raster.clip_height,
-            32,
-            "failure restores clip height"
+            raster.clip_height, 32, "failure restores clip height"
         );
     }
 }

@@ -14,14 +14,10 @@ public:
     void seed(compat::u32 value) noexcept;
 
     [[nodiscard]] compat::u32 next_raw() noexcept;
-    [[nodiscard]] compat::u32 next_bounded(
-        compat::u32 upper_bound
-    ) noexcept;
+    [[nodiscard]] compat::u32 next_bounded(compat::u32 upper_bound) noexcept;
 
-    [[nodiscard]] const std::array<
-        compat::u32,
-        kLegacySecondaryRngWordCount
-    >& state_words() const noexcept;
+    [[nodiscard]] const std::array<compat::u32, kLegacySecondaryRngWordCount>&
+    state_words() const noexcept;
     [[nodiscard]] std::size_t index() const noexcept;
     [[nodiscard]] compat::u32 seed_generator_state() const noexcept;
 

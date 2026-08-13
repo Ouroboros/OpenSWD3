@@ -25,9 +25,7 @@ public:
     virtual void request_synchronous_destroy() = 0;
 };
 
-[[nodiscard]] compat::i32 run_startup_custom_message(
-    StartupState& state,
-    StartupPorts& ports
-);
+[[nodiscard]] compat::i32
+run_startup_custom_message(StartupState& state, StartupPorts& ports);
 
 }  // namespace openswd3::app

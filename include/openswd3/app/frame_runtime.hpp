@@ -23,9 +23,8 @@ public:
     virtual void step_story(FrameCoordinatorState& state) = 0;
     virtual void finish_world_frame(FrameCoordinatorState& state) = 0;
     virtual void prepare_special_mode_objects(FrameCoordinatorState& state) = 0;
-    [[nodiscard]] virtual StandardSpecialModeEvent step_standard_special_mode(
-        FrameCoordinatorState& state
-    ) = 0;
+    [[nodiscard]] virtual StandardSpecialModeEvent
+    step_standard_special_mode(FrameCoordinatorState& state) = 0;
     virtual void step_shop_mode(FrameCoordinatorState& state) = 0;
     virtual void request_synchronous_close() = 0;
 };
@@ -35,9 +34,7 @@ enum class FrameRunOutcome {
     battle_early_return,
 };
 
-[[nodiscard]] FrameRunOutcome run_accepted_frame(
-    FrameCoordinatorState& state,
-    FrameRuntimePorts& ports
-);
+[[nodiscard]] FrameRunOutcome
+run_accepted_frame(FrameCoordinatorState& state, FrameRuntimePorts& ports);
 
 }  // namespace openswd3::app

@@ -27,7 +27,7 @@ namespace {
 
 [[nodiscard]] bool valid_dimension(const std::int64_t value) noexcept {
     return value > 0 &&
-           value <= static_cast<std::int64_t>(std::numeric_limits<int>::max());
+        value <= static_cast<std::int64_t>(std::numeric_limits<int>::max());
 }
 
 [[nodiscard]] bool read_existing_document(
@@ -67,18 +67,12 @@ namespace {
 }  // namespace
 
 WindowConfigurationLoadResult load_window_configuration(
-    const std::filesystem::path& configuration_path,
-    const WindowSize fallback
+    const std::filesystem::path& configuration_path, const WindowSize fallback
 ) {
     toml::table document;
     WindowConfigurationStatus status = WindowConfigurationStatus::ready;
     std::string detail;
-    if (!read_existing_document(
-            configuration_path,
-            document,
-            status,
-            detail
-        )) {
+    if (!read_existing_document(configuration_path, document, status, detail)) {
         return load_error(status, fallback, std::move(detail));
     }
 
@@ -96,8 +90,7 @@ WindowConfigurationLoadResult load_window_configuration(
     const toml::table* window = window_node->as_table();
     if (window == nullptr) {
         return load_error(
-            WindowConfigurationStatus::invalid_window_table,
-            fallback
+            WindowConfigurationStatus::invalid_window_table, fallback
         );
     }
 
@@ -105,11 +98,10 @@ WindowConfigurationLoadResult load_window_configuration(
         (*window)["width"].value<std::int64_t>();
     const std::optional<std::int64_t> height =
         (*window)["height"].value<std::int64_t>();
-    if (!width.has_value() || !height.has_value() ||
-        !valid_dimension(*width) || !valid_dimension(*height)) {
+    if (!width.has_value() || !height.has_value() || !valid_dimension(*width) ||
+        !valid_dimension(*height)) {
         return load_error(
-            WindowConfigurationStatus::invalid_window_size,
-            fallback
+            WindowConfigurationStatus::invalid_window_size, fallback
         );
     }
 
@@ -119,8 +111,7 @@ WindowConfigurationLoadResult load_window_configuration(
         const std::optional<bool> value = maximized_node->value<bool>();
         if (!value.has_value()) {
             return load_error(
-                WindowConfigurationStatus::invalid_window_state,
-                fallback
+                WindowConfigurationStatus::invalid_window_state, fallback
             );
         }
         maximized = *value;
@@ -151,12 +142,7 @@ WindowConfigurationStatus save_window_configuration(
 
     toml::table document;
     WindowConfigurationStatus status = WindowConfigurationStatus::ready;
-    if (!read_existing_document(
-            configuration_path,
-            document,
-            status,
-            detail
-        )) {
+    if (!read_existing_document(configuration_path, document, status, detail)) {
         return status;
     }
 
@@ -170,8 +156,7 @@ WindowConfigurationStatus save_window_configuration(
     window->insert_or_assign("maximized", maximized);
 
     std::ofstream output{
-        configuration_path,
-        std::ios::binary | std::ios::trunc
+        configuration_path, std::ios::binary | std::ios::trunc
     };
     if (!output) {
         detail = configuration_path.string();

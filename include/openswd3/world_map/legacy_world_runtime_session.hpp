@@ -18,9 +18,8 @@ class LegacyWorldRoleActionInitializer {
 public:
     virtual ~LegacyWorldRoleActionInitializer() = default;
 
-    [[nodiscard]] virtual compat::u32 initialize_action(
-        asset_runtime::LegacyActionRecord& action
-    ) = 0;
+    [[nodiscard]] virtual compat::u32
+    initialize_action(asset_runtime::LegacyActionRecord& action) = 0;
 };
 
 class LegacyWorldActionUpdaterInitializer final
@@ -30,9 +29,8 @@ public:
         asset_runtime::LegacyActionUpdater& updater
     ) noexcept;
 
-    [[nodiscard]] compat::u32 initialize_action(
-        asset_runtime::LegacyActionRecord& action
-    ) override;
+    [[nodiscard]] compat::u32
+    initialize_action(asset_runtime::LegacyActionRecord& action) override;
 
 private:
     asset_runtime::LegacyActionUpdater& updater_;
@@ -42,9 +40,7 @@ class LegacyWorldRuntimeRandom {
 public:
     virtual ~LegacyWorldRuntimeRandom() = default;
 
-    [[nodiscard]] virtual compat::u32 next_bounded(
-        compat::u32 upper_bound
-    ) = 0;
+    [[nodiscard]] virtual compat::u32 next_bounded(compat::u32 upper_bound) = 0;
 };
 
 struct LegacyWorldDirectionalPoint {
@@ -123,10 +119,9 @@ struct LegacyWorldRuntimeSession {
     compat::u32 action_update_failure_count{};
     LegacyWorldRolePreloadResult role_preload;
     LegacyWorldRolePostMaterializationState role_post_materialization;
-    LegacyWorldRolePostMaterializationStatus
-        role_post_materialization_status{
-            LegacyWorldRolePostMaterializationStatus::ready
-        };
+    LegacyWorldRolePostMaterializationStatus role_post_materialization_status{
+        LegacyWorldRolePostMaterializationStatus::ready
+    };
     bool role_preload_applied{};
 };
 
@@ -143,8 +138,7 @@ struct LegacyWorldRuntimeSessionResult {
     LegacyWorldRuntimeSession session;
 };
 
-[[nodiscard]] LegacyWorldRuntimeSessionResult
-load_legacy_world_runtime_session(
+[[nodiscard]] LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     std::span<compat::u8> maps_payload,
     const LegacyWorldRuntimeSessionRequest& request,
     LegacyWorldRoleActionInitializer& action_initializer,
@@ -152,8 +146,7 @@ load_legacy_world_runtime_session(
     LegacyWorldCmCacheSource& cm_cache_source
 );
 
-[[nodiscard]] LegacyWorldRuntimeSessionResult
-load_legacy_world_runtime_session(
+[[nodiscard]] LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     std::span<compat::u8> maps_payload,
     const LegacyWorldRuntimeSessionRequest& request,
     LegacyWorldRoleActionInitializer& action_initializer

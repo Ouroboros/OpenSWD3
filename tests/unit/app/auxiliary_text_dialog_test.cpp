@@ -42,9 +42,7 @@ void test_submit_and_cancel(openswd3::test::Context& test) {
 
     test.expect_equal(
         openswd3::app::handle_auxiliary_text_command(
-            state,
-            0xBEEF0001U,
-            "12345678"
+            state, 0xBEEF0001U, "12345678"
         ),
         AuxiliaryTextDialogAction::end_dialog_1,
         "submit command uses its low word"
@@ -57,9 +55,7 @@ void test_submit_and_cancel(openswd3::test::Context& test) {
 
     test.expect_equal(
         openswd3::app::handle_auxiliary_text_command(
-            state,
-            openswd3::app::kAuxiliaryTextCancelControlId,
-            "ignored"
+            state, openswd3::app::kAuxiliaryTextCancelControlId, "ignored"
         ),
         AuxiliaryTextDialogAction::end_dialog_0,
         "cancel ends with numeric zero"
@@ -135,23 +131,22 @@ public:
 void test_action_execution(openswd3::test::Context& test) {
     RecordingPorts ports;
     openswd3::app::execute_auxiliary_text_dialog_action(
-        AuxiliaryTextDialogAction::show_empty_warning,
-        ports
+        AuxiliaryTextDialogAction::show_empty_warning, ports
     );
     openswd3::app::execute_auxiliary_text_dialog_action(
-        AuxiliaryTextDialogAction::end_dialog_1,
-        ports
+        AuxiliaryTextDialogAction::end_dialog_1, ports
     );
     openswd3::app::execute_auxiliary_text_dialog_action(
-        AuxiliaryTextDialogAction::end_dialog_0,
-        ports
+        AuxiliaryTextDialogAction::end_dialog_0, ports
     );
     const std::vector<PortEvent> expected{
         {PortCall::warning, 0},
         {PortCall::end_dialog, 1},
         {PortCall::end_dialog, 0},
     };
-    test.expect_equal(ports.events, expected, "auxiliary action execution order");
+    test.expect_equal(
+        ports.events, expected, "auxiliary action execution order"
+    );
 }
 
 }  // namespace

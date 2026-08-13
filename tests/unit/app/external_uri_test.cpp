@@ -22,7 +22,9 @@ int main() {
 
     const auto file_uri =
         openswd3::platform_sdl3::make_absolute_file_uri("Read me.txt");
-    test.expect_true(file_uri.has_value(), "relative document path becomes absolute");
+    test.expect_true(
+        file_uri.has_value(), "relative document path becomes absolute"
+    );
     if (file_uri.has_value()) {
         test.expect_true(
             file_uri->starts_with("file:///"),

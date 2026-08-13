@@ -71,9 +71,7 @@ struct LegacyTextDrawResult {
     LegacyGlyphBackgroundStatus background_status{
         LegacyGlyphBackgroundStatus::disabled
     };
-    LegacyGlyphWriteStatus glyph_write_status{
-        LegacyGlyphWriteStatus::no_style
-    };
+    LegacyGlyphWriteStatus glyph_write_status{LegacyGlyphWriteStatus::no_style};
 };
 
 [[nodiscard]] LegacyTextDrawResult draw_legacy_text(

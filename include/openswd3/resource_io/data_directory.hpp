@@ -47,16 +47,14 @@ struct DataDirectoryResolution {
 );
 
 [[nodiscard]] bool activate_data_directory(
-    const std::filesystem::path& directory,
-    std::error_code& error
+    const std::filesystem::path& directory, std::error_code& error
 ) noexcept;
 
 [[nodiscard]] bool legacy_select_or_create_directory(
     const std::filesystem::path& directory
 ) noexcept;
 
-[[nodiscard]] std::string_view data_directory_status_message(
-    DataDirectoryStatus status
-) noexcept;
+[[nodiscard]] std::string_view
+data_directory_status_message(DataDirectoryStatus status) noexcept;
 
 }  // namespace openswd3::resource_io

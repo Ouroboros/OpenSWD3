@@ -28,18 +28,14 @@ class LegacyMovementCollisionPorts {
 public:
     virtual ~LegacyMovementCollisionPorts() = default;
 
-    [[nodiscard]] virtual std::optional<compat::u32> read_map_cell(
-        compat::u32 cell_index
-    ) = 0;
+    [[nodiscard]] virtual std::optional<compat::u32>
+    read_map_cell(compat::u32 cell_index) = 0;
 
-    [[nodiscard]] virtual compat::u32 find_collision_role_at_tile(
-        compat::u32 tile_x,
-        compat::u32 tile_y
-    ) = 0;
+    [[nodiscard]] virtual compat::u32
+    find_collision_role_at_tile(compat::u32 tile_x, compat::u32 tile_y) = 0;
 };
 
-[[nodiscard]] LegacyMovementCollisionResult
-check_legacy_movement_collision(
+[[nodiscard]] LegacyMovementCollisionResult check_legacy_movement_collision(
     const LegacyWorldRoleRecord& role,
     compat::i32 delta_x,
     compat::i32 delta_y,
@@ -47,8 +43,7 @@ check_legacy_movement_collision(
     LegacyMovementCollisionPorts& ports
 );
 
-[[nodiscard]] LegacyMovementCollisionResult
-check_legacy_movement_collision(
+[[nodiscard]] LegacyMovementCollisionResult check_legacy_movement_collision(
     std::span<const LegacyWorldRoleRecord> roles,
     compat::u32 role_count,
     compat::u32 role_index,

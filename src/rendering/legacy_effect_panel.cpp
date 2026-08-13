@@ -8,27 +8,22 @@ namespace {
 using compat::i32;
 using compat::u32;
 
-[[nodiscard]] constexpr i32 wrapping_add(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_add(const i32 left, const i32 right) noexcept {
     return std::bit_cast<i32>(
         std::bit_cast<u32>(left) + std::bit_cast<u32>(right)
     );
 }
 
-[[nodiscard]] constexpr i32 wrapping_subtract(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_subtract(const i32 left, const i32 right) noexcept {
     return std::bit_cast<i32>(
         std::bit_cast<u32>(left) - std::bit_cast<u32>(right)
     );
 }
 
-[[nodiscard]] constexpr bool rectangle_effect_completed(
-    const LegacyRectangleEffectStatus status
-) noexcept {
+[[nodiscard]] constexpr bool
+rectangle_effect_completed(const LegacyRectangleEffectStatus status) noexcept {
     return status == LegacyRectangleEffectStatus::completed ||
         status == LegacyRectangleEffectStatus::clipped_out ||
         status == LegacyRectangleEffectStatus::unsupported_mode;
@@ -67,9 +62,7 @@ LegacyEffectPanelResult draw_legacy_effect_panel(
     }
 
     if (!action_ports.update_action_frame(
-            0x233BU,
-            0,
-            result.frame_resource_id
+            0x233BU, 0, result.frame_resource_id
         )) {
         result.status = LegacyEffectPanelStatus::action_update_failed;
         return result;

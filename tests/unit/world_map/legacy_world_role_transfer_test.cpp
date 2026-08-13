@@ -28,18 +28,14 @@ using openswd3::world_map::transfer_legacy_world_role;
 using openswd3::world_map::write_legacy_maps_role_source_record;
 
 void write_u16(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u16 value
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
 ) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
-[[nodiscard]] u32 read_u32(
-    const std::span<const u8> bytes,
-    const std::size_t offset
-) {
+[[nodiscard]] u32
+read_u32(const std::span<const u8> bytes, const std::size_t offset) {
     return static_cast<u32>(bytes[offset]) |
         (static_cast<u32>(bytes[offset + 1U]) << 8U) |
         (static_cast<u32>(bytes[offset + 2U]) << 16U) |
@@ -54,8 +50,7 @@ struct Fixture {
         source.flags = 0x0100U;
         database.role_sources.push_back(source);
         static_cast<void>(write_legacy_maps_role_source_record(
-            payload,
-            database.role_sources.front()
+            payload, database.role_sources.front()
         ));
 
         roles.resize(3U);
@@ -64,16 +59,10 @@ struct Fixture {
         roles[1].talk_script_id = 0x33U;
     }
 
-    [[nodiscard]] LegacyWorldRoleTransferStatus run(
-        const LegacyWorldRoleTransferContext* context
-    ) {
+    [[nodiscard]] LegacyWorldRoleTransferStatus
+    run(const LegacyWorldRoleTransferContext* context) {
         return transfer_legacy_world_role(
-            payload,
-            database,
-            roles,
-            1U,
-            context,
-            state
+            payload, database, roles, 1U, context, state
         );
     }
 
@@ -156,9 +145,7 @@ void test_common_and_aligned_object_paths(openswd3::test::Context& test) {
     );
 }
 
-void test_nonaligned_surface_and_spatial_path(
-    openswd3::test::Context& test
-) {
+void test_nonaligned_surface_and_spatial_path(openswd3::test::Context& test) {
     Fixture fixture;
     fixture.roles[1].path_data_id = 4U;
     fixture.roles[1].world_x = 0x24U;
@@ -256,9 +243,7 @@ void test_surface_special_cases(openswd3::test::Context& test) {
         };
 
         test.expect_equal(
-            fixture.run(&context),
-            LegacyWorldRoleTransferStatus::ready,
-            message
+            fixture.run(&context), LegacyWorldRoleTransferStatus::ready, message
         );
         test.expect_true(
             read_u32(surface_grid, 5U * 4U) == 0xCF7FFFFFU &&
@@ -287,8 +272,7 @@ void test_checked_runtime_boundaries(openswd3::test::Context& test) {
     bad_direction.roles[1].world_y = 0x20U;
     bad_direction.roles[1].map_cell_pointer_32 = 0U;
     std::vector<u8> surface_grid(4U * sizeof(u32), 0xFFU);
-    std::array<LegacyWorldObjectSlot, kLegacyWorldActiveObjectSlotCount>
-        slots;
+    std::array<LegacyWorldObjectSlot, kLegacyWorldActiveObjectSlotCount> slots;
     slots[0].bytes.fill(0U);
     write_u16(slots[0].bytes, 0U, 1U);
     slots[0].bytes[0x1CU] = 8U;

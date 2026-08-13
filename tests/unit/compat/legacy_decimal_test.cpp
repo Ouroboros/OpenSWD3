@@ -43,8 +43,7 @@ void test_valid(openswd3::test::Context& test) {
 }
 
 void expect_invalid_untouched(
-    openswd3::test::Context& test,
-    const std::string_view input
+    openswd3::test::Context& test, const std::string_view input
 ) {
     i32 output = 0x12345678;
     test.expect_equal(
@@ -53,9 +52,7 @@ void expect_invalid_untouched(
         "invalid legacy decimal returns invalid"
     );
     test.expect_equal(
-        output,
-        0x12345678,
-        "validation failure leaves output untouched"
+        output, 0x12345678, "validation failure leaves output untouched"
     );
 
     test.expect_false(
@@ -63,9 +60,7 @@ void expect_invalid_untouched(
         "invalid legacy wrapper returns false"
     );
     test.expect_equal(
-        output,
-        0x12345678,
-        "invalid wrapper also leaves output untouched"
+        output, 0x12345678, "invalid wrapper also leaves output untouched"
     );
 }
 
@@ -90,9 +85,7 @@ void test_no_digit_fault_contract(openswd3::test::Context& test) {
             "empty digit sequence enters the original non-returning fault path"
         );
         test.expect_equal(
-            output,
-            0,
-            "fault path writes output zero before reverse underflow"
+            output, 0, "fault path writes output zero before reverse underflow"
         );
     }
 }

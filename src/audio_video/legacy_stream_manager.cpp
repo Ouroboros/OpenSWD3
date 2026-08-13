@@ -9,33 +9,26 @@
 namespace openswd3::audio_video {
 namespace {
 
-[[nodiscard]] constexpr compat::i32 from_bits(
-    const compat::u32 value
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+from_bits(const compat::u32 value) noexcept {
     return std::bit_cast<compat::i32>(value);
 }
 
-[[nodiscard]] constexpr compat::i32 wrapping_subtract(
-    const compat::i32 left,
-    const compat::i32 right
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+wrapping_subtract(const compat::i32 left, const compat::i32 right) noexcept {
     return from_bits(
         static_cast<compat::u32>(left) - static_cast<compat::u32>(right)
     );
 }
 
-[[nodiscard]] compat::i32 fixed_volume(
-    const compat::i32 volume
-) noexcept {
+[[nodiscard]] compat::i32 fixed_volume(const compat::i32 volume) noexcept {
     return from_bits(
         static_cast<compat::u32>(legacy_audio_volume_parameter(volume)) << 4U
     );
 }
 
-[[nodiscard]] compat::i32 legacy_fade_step(
-    const compat::i32 volume,
-    const compat::i32 divisor
-) {
+[[nodiscard]] compat::i32
+legacy_fade_step(const compat::i32 volume, const compat::i32 divisor) {
     // 0x004868E8 raises the x86 integer-divide exception for a zero divisor.
     // Keep this an observable fatal error instead of silently repairing it.
     if (divisor == 0) {
@@ -52,17 +45,15 @@ namespace {
 
 }  // namespace
 
-LegacyStreamManager::LegacyStreamManager(
-    LegacyStreamBackend& backend
-) noexcept : backend_(backend) {}
+LegacyStreamManager::LegacyStreamManager(LegacyStreamBackend& backend) noexcept
+    : backend_(backend) {}
 
 LegacyStreamManager::~LegacyStreamManager() {
     static_cast<void>(shutdown());
 }
 
-LegacyStreamManagerInitializeStatus LegacyStreamManager::initialize_pool(
-    const compat::u32 driver_token
-) {
+LegacyStreamManagerInitializeStatus
+LegacyStreamManager::initialize_pool(const compat::u32 driver_token) {
     driver_token_ = driver_token;
     initialized_ = true;
     stream_enabled_ = true;
@@ -132,8 +123,7 @@ std::string_view LegacyStreamManager::last_error() const noexcept {
 }
 
 compat::i32 LegacyStreamManager::set_volume(
-    const compat::i32 stream_id,
-    const compat::i32 volume
+    const compat::i32 stream_id, const compat::i32 volume
 ) {
     if (!initialized_) {
         return 0;
@@ -147,8 +137,7 @@ compat::i32 LegacyStreamManager::set_volume(
     StreamNode& stream = nodes_[node];
     stream.fixed_volume = fixed_volume(volume);
     backend_.set_stream_volume(
-        stream.handle,
-        legacy_audio_volume_parameter(volume)
+        stream.handle, legacy_audio_volume_parameter(volume)
     );
     return backend_.stream_volume(stream.handle);
 }
@@ -195,8 +184,7 @@ compat::i32 LegacyStreamManager::play(
     stream.fixed_volume = fixed_volume(volume);
     backend_.set_stream_user_data(stream.handle, 0U, stream_id);
     backend_.set_stream_volume(
-        stream.handle,
-        legacy_audio_volume_parameter(volume)
+        stream.handle, legacy_audio_volume_parameter(volume)
     );
     backend_.set_stream_loop_count(stream.handle, loop_count);
     backend_.start_stream(stream.handle);
@@ -205,8 +193,7 @@ compat::i32 LegacyStreamManager::play(
 }
 
 compat::i32 LegacyStreamManager::begin_fade(
-    const compat::i32 stream_id,
-    const compat::i32 divisor
+    const compat::i32 stream_id, const compat::i32 divisor
 ) {
     if (!initialized_ || !stream_enabled_ || stream_id == 0) {
         return 0;
@@ -221,9 +208,7 @@ compat::i32 LegacyStreamManager::begin_fade(
     compat::i32 total_milliseconds{};
     compat::i32 current_milliseconds{};
     backend_.stream_ms_position(
-        stream.handle,
-        total_milliseconds,
-        current_milliseconds
+        stream.handle, total_milliseconds, current_milliseconds
     );
     stream.state_flags |= kFadingFlag;
     stream.fade_step = legacy_fade_step(stream.fixed_volume, divisor);
@@ -240,13 +225,10 @@ bool LegacyStreamManager::service() {
         bool remove = false;
 
         if ((stream.state_flags & kFadingFlag) != 0U) {
-            stream.fixed_volume = wrapping_subtract(
-                stream.fixed_volume,
-                stream.fade_step
-            );
-            const compat::i32 converted = legacy_audio_volume_parameter(
-                stream.fixed_volume / 16
-            );
+            stream.fixed_volume =
+                wrapping_subtract(stream.fixed_volume, stream.fade_step);
+            const compat::i32 converted =
+                legacy_audio_volume_parameter(stream.fixed_volume / 16);
             if (converted != 0) {
                 backend_.set_stream_volume(stream.handle, converted);
                 previous_was_removed = false;
@@ -333,9 +315,7 @@ void LegacyStreamManager::push_active_node(const compat::u32 node) noexcept {
     active_head_ = node;
 }
 
-compat::u32 LegacyStreamManager::find_active_node(
-    const compat::i32 stream_id
-) {
+compat::u32 LegacyStreamManager::find_active_node(const compat::i32 stream_id) {
     compat::u32 node = active_head_;
     while (node != kNoNode) {
         if (backend_.stream_user_data(nodes_[node].handle, 0U) == stream_id) {
@@ -346,9 +326,7 @@ compat::u32 LegacyStreamManager::find_active_node(
     return kNoNode;
 }
 
-std::size_t LegacyStreamManager::list_size(
-    compat::u32 head
-) const noexcept {
+std::size_t LegacyStreamManager::list_size(compat::u32 head) const noexcept {
     std::size_t count{};
     while (head != kNoNode) {
         ++count;

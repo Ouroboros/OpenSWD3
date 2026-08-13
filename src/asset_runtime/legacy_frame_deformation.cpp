@@ -25,39 +25,31 @@ using compat::u32;
     return std::bit_cast<i32>(value);
 }
 
-[[nodiscard]] constexpr i32 wrapping_add(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_add(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) + to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_subtract(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_subtract(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) - to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_multiply(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_multiply(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) * to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 arithmetic_shift_right(
-    const i32 value,
-    const u32 raw_count
-) noexcept {
+[[nodiscard]] constexpr i32
+arithmetic_shift_right(const i32 value, const u32 raw_count) noexcept {
     const u32 count = raw_count & 31U;
     if (count == 0U) {
         return value;
     }
     const u32 bits = to_bits(value);
     const u32 sign_fill = (bits & 0x80000000U) == 0U
-                              ? 0U
-                              : ~(std::numeric_limits<u32>::max() >> count);
+        ? 0U
+        : ~(std::numeric_limits<u32>::max() >> count);
     return from_bits((bits >> count) | sign_fill);
 }
 
@@ -65,26 +57,19 @@ using compat::u32;
     return std::bit_cast<i16>(static_cast<u16>(to_bits(value)));
 }
 
-[[nodiscard]] constexpr i16 wrapping_word_add(
-    const i16 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i16
+wrapping_word_add(const i16 left, const i32 right) noexcept {
     const u16 bits = static_cast<u16>(
         std::bit_cast<u16>(left) + static_cast<u16>(to_bits(right))
     );
     return std::bit_cast<i16>(bits);
 }
 
-[[nodiscard]] bool checked_product(
-    const u32 left,
-    const u32 right,
-    std::size_t& result
-) noexcept {
-    const std::uint64_t product =
-        static_cast<std::uint64_t>(left) * right;
+[[nodiscard]] bool
+checked_product(const u32 left, const u32 right, std::size_t& result) noexcept {
+    const std::uint64_t product = static_cast<std::uint64_t>(left) * right;
     if (product == 0U ||
-        product > static_cast<std::uint64_t>(
-                      std::numeric_limits<i32>::max()) ||
+        product > static_cast<std::uint64_t>(std::numeric_limits<i32>::max()) ||
         product > std::numeric_limits<std::size_t>::max()) {
         return false;
     }
@@ -93,9 +78,7 @@ using compat::u32;
 }
 
 [[nodiscard]] bool checked_index(
-    const i32 index,
-    const std::size_t size,
-    std::size_t& converted
+    const i32 index, const std::size_t size, std::size_t& converted
 ) noexcept {
     if (index < 0) {
         return false;
@@ -125,11 +108,14 @@ LegacyDeformationNode::LegacyDeformationNode(
       } {
     std::size_t field_pixels{};
     std::size_t framebuffer_pixels{};
-    if (!checked_product(state_.field_width, state_.field_height,
-                         field_pixels) ||
-        !checked_product(state_.framebuffer_width,
-                         state_.framebuffer_height,
-                         framebuffer_pixels) ||
+    if (!checked_product(
+            state_.field_width, state_.field_height, field_pixels
+        ) ||
+        !checked_product(
+            state_.framebuffer_width,
+            state_.framebuffer_height,
+            framebuffer_pixels
+        ) ||
         field_pixels > std::numeric_limits<std::size_t>::max() / 2U) {
         return;
     }
@@ -141,17 +127,15 @@ LegacyDeformationNode::LegacyDeformationNode(
 
 bool LegacyDeformationNode::geometry_is_usable() const noexcept {
     return storage_valid_ && state_.framebuffer_width != 0U &&
-           state_.framebuffer_height != 0U && state_.field_width != 0U &&
-           state_.field_height != 0U;
+        state_.framebuffer_height != 0U && state_.field_width != 0U &&
+        state_.field_height != 0U;
 }
 
 i32 LegacyDeformationNode::set_origin(
-    const i32 origin_x,
-    const i32 origin_y
+    const i32 origin_x, const i32 origin_y
 ) noexcept {
     const i32 framebuffer_width = signed_dimension(state_.framebuffer_width);
-    const i32 framebuffer_height =
-        signed_dimension(state_.framebuffer_height);
+    const i32 framebuffer_height = signed_dimension(state_.framebuffer_height);
     const i32 field_width = signed_dimension(state_.field_width);
     const i32 field_height = signed_dimension(state_.field_height);
 
@@ -182,14 +166,14 @@ LegacyDeformationStatus LegacyDeformationNode::capture(
     if (framebuffer.size() < source_snapshot_.size()) {
         return LegacyDeformationStatus::framebuffer_too_small;
     }
-    std::ranges::copy(framebuffer.first(source_snapshot_.size()),
-                      source_snapshot_.begin());
+    std::ranges::copy(
+        framebuffer.first(source_snapshot_.size()), source_snapshot_.begin()
+    );
     return LegacyDeformationStatus::ready;
 }
 
-LegacyDeformationStatus LegacyDeformationNode::apply(
-    const std::span<u16> framebuffer
-) const noexcept {
+LegacyDeformationStatus
+LegacyDeformationNode::apply(const std::span<u16> framebuffer) const noexcept {
     if (!geometry_is_usable()) {
         return LegacyDeformationStatus::invalid_geometry;
     }
@@ -203,19 +187,15 @@ LegacyDeformationStatus LegacyDeformationNode::apply(
     const std::size_t field_pixels = fields_.size() / 2U;
     const i32 origin_y_plus_one = wrapping_add(state_.origin_y, 1);
     i32 framebuffer_cursor = wrapping_add(
-        state_.origin_x,
-        wrapping_multiply(framebuffer_width, origin_y_plus_one)
+        state_.origin_x, wrapping_multiply(framebuffer_width, origin_y_plus_one)
     );
-    const i32 field_end = wrapping_multiply(
-        field_width,
-        wrapping_subtract(field_height, 1)
-    );
+    const i32 field_end =
+        wrapping_multiply(field_width, wrapping_subtract(field_height, 1));
     i32 field_cursor = wrapping_add(field_width, 1);
 
     while (field_cursor < field_end) {
-        const i32 row_end = wrapping_subtract(
-            wrapping_add(field_width, field_cursor), 2
-        );
+        const i32 row_end =
+            wrapping_subtract(wrapping_add(field_width, field_cursor), 2);
         if (field_cursor < row_end) {
             do {
                 for (u32 pair_index = 0U; pair_index < 2U; ++pair_index) {
@@ -226,13 +206,15 @@ LegacyDeformationStatus LegacyDeformationNode::apply(
                     if (!checked_index(field_cursor, field_pixels, center) ||
                         !checked_index(
                             wrapping_add(field_cursor, field_width),
-                            field_pixels, below
+                            field_pixels,
+                            below
                         ) ||
                         !checked_index(
                             wrapping_add(field_cursor, 1), field_pixels, right
                         ) ||
-                        !checked_index(framebuffer_cursor, framebuffer.size(),
-                                       destination)) {
+                        !checked_index(
+                            framebuffer_cursor, framebuffer.size(), destination
+                        )) {
                         return LegacyDeformationStatus::invalid_geometry;
                     }
 
@@ -251,9 +233,11 @@ LegacyDeformationStatus LegacyDeformationNode::apply(
                         horizontal
                     );
                     std::size_t source{};
-                    if (!checked_index(source_index, source_snapshot_.size(),
-                                       source)) {
-                        return LegacyDeformationStatus::source_sample_out_of_bounds;
+                    if (!checked_index(
+                            source_index, source_snapshot_.size(), source
+                        )) {
+                        return LegacyDeformationStatus::
+                            source_sample_out_of_bounds;
                     }
                     framebuffer[destination] = source_snapshot_[source];
                     field_cursor = wrapping_add(field_cursor, 1);
@@ -265,9 +249,7 @@ LegacyDeformationStatus LegacyDeformationNode::apply(
         field_cursor = wrapping_add(field_cursor, 2);
         framebuffer_cursor = wrapping_add(
             framebuffer_cursor,
-            wrapping_add(
-                wrapping_subtract(framebuffer_width, field_width), 2
-            )
+            wrapping_add(wrapping_subtract(framebuffer_width, field_width), 2)
         );
     }
     return LegacyDeformationStatus::ready;
@@ -307,10 +289,8 @@ LegacyDeformationAdvanceResult LegacyDeformationNode::advance() noexcept {
         return result;
     }
     i32 carried_vertical_sum = wrapping_add(first, second);
-    const i32 field_end = wrapping_multiply(
-        width,
-        wrapping_subtract(height, 1)
-    );
+    const i32 field_end =
+        wrapping_multiply(width, wrapping_subtract(height, 1));
     bool complete = true;
 
     while (cursor < field_end) {
@@ -321,9 +301,7 @@ LegacyDeformationAdvanceResult LegacyDeformationNode::advance() noexcept {
             return result;
         }
         carried_vertical_sum = wrapping_add(first, second);
-        const i32 row_end = wrapping_subtract(
-            wrapping_add(width, cursor), 2
-        );
+        const i32 row_end = wrapping_subtract(wrapping_add(width, cursor), 2);
         if (cursor < row_end) {
             while (true) {
                 const i32 current_vertical_sum = carried_vertical_sum;
@@ -349,8 +327,8 @@ LegacyDeformationAdvanceResult LegacyDeformationNode::advance() noexcept {
                     return result;
                 }
 
-                i32 sum = wrapping_add(previous_vertical_sum,
-                                       current_vertical_sum);
+                i32 sum =
+                    wrapping_add(previous_vertical_sum, current_vertical_sum);
                 sum = wrapping_add(sum, left);
                 sum = wrapping_add(sum, carried_vertical_sum);
                 sum = wrapping_add(sum, right);
@@ -359,8 +337,7 @@ LegacyDeformationAdvanceResult LegacyDeformationNode::advance() noexcept {
                     fields_[destination_base + destination]
                 );
                 value = wrapping_subtract(
-                    value,
-                    arithmetic_shift_right(value, state_.damping_shift)
+                    value, arithmetic_shift_right(value, state_.damping_shift)
                 );
                 const i16 stored = low_signed_word(value);
                 fields_[destination_base + destination] = stored;
@@ -399,9 +376,8 @@ LegacyDeformationInjectionResult LegacyDeformationNode::inject(
     const i32 height = signed_dimension(state_.field_height);
     const i32 doubled_radius = wrapping_add(radius, radius);
     if (x < 0) {
-        const i32 divisor = wrapping_subtract(
-            wrapping_subtract(width, doubled_radius), 1
-        );
+        const i32 divisor =
+            wrapping_subtract(wrapping_subtract(width, doubled_radius), 1);
         if (divisor <= 0) {
             result.status = LegacyDeformationStatus::random_range_invalid;
             return result;
@@ -412,9 +388,8 @@ LegacyDeformationInjectionResult LegacyDeformationNode::inject(
         );
     }
     if (y < 0) {
-        const i32 divisor = wrapping_subtract(
-            wrapping_subtract(height, doubled_radius), 1
-        );
+        const i32 divisor =
+            wrapping_subtract(wrapping_subtract(height, doubled_radius), 1);
         if (divisor <= 0) {
             result.status = LegacyDeformationStatus::random_range_invalid;
             return result;
@@ -446,16 +421,14 @@ LegacyDeformationInjectionResult LegacyDeformationNode::inject(
 
     const i32 radius_squared = wrapping_multiply(radius, radius);
     const std::size_t field_pixels = fields_.size() / 2U;
-    const std::size_t active_base =
-        field_pixels * state_.active_field_index;
+    const std::size_t active_base = field_pixels * state_.active_field_index;
     for (i32 offset_y = first_y; offset_y < end_y;
          offset_y = wrapping_add(offset_y, 1)) {
         const i32 y_squared = wrapping_multiply(offset_y, offset_y);
         for (i32 offset_x = first_x; offset_x < end_x;
              offset_x = wrapping_add(offset_x, 1)) {
-            const i32 squared_distance = wrapping_add(
-                wrapping_multiply(offset_x, offset_x), y_squared
-            );
+            const i32 squared_distance =
+                wrapping_add(wrapping_multiply(offset_x, offset_x), y_squared);
             if (squared_distance >= radius_squared) {
                 continue;
             }
@@ -476,9 +449,9 @@ LegacyDeformationInjectionResult LegacyDeformationNode::inject(
             const auto truncated = static_cast<std::int64_t>(delta);
             fields_[active_base + converted] = wrapping_word_add(
                 fields_[active_base + converted],
-                from_bits(static_cast<u32>(
-                    static_cast<std::uint64_t>(truncated)
-                ))
+                from_bits(
+                    static_cast<u32>(static_cast<std::uint64_t>(truncated))
+                )
             );
         }
     }
@@ -498,35 +471,35 @@ std::span<i16> LegacyDeformationNode::field(const u32 index) noexcept {
         return {};
     }
     const std::size_t field_pixels = fields_.size() / 2U;
-    return std::span<i16>{fields_}.subspan(field_pixels * index,
-                                           field_pixels);
+    return std::span<i16>{fields_}.subspan(field_pixels * index, field_pixels);
 }
 
-std::span<const i16> LegacyDeformationNode::field(
-    const u32 index
-) const noexcept {
+std::span<const i16>
+LegacyDeformationNode::field(const u32 index) const noexcept {
     if (!storage_valid_ || index > 1U) {
         return {};
     }
     const std::size_t field_pixels = fields_.size() / 2U;
-    return std::span<const i16>{fields_}.subspan(field_pixels * index,
-                                                 field_pixels);
+    return std::span<const i16>{fields_}.subspan(
+        field_pixels * index, field_pixels
+    );
 }
 
-std::span<const u16> LegacyDeformationNode::source_snapshot()
-    const noexcept {
+std::span<const u16> LegacyDeformationNode::source_snapshot() const noexcept {
     return source_snapshot_;
 }
 
 LegacyDeformationList::LegacyDeformationList()
-    : sentinel_(LegacyDeformationConfiguration{
-          .framebuffer_width = 1U,
-          .framebuffer_height = 1U,
-          .origin_x = 0,
-          .origin_y = 0,
-          .field_width = 1U,
-          .field_height = 1U,
-      }) {}
+    : sentinel_(
+          LegacyDeformationConfiguration{
+              .framebuffer_width = 1U,
+              .framebuffer_height = 1U,
+              .origin_x = 0,
+              .origin_y = 0,
+              .field_width = 1U,
+              .field_height = 1U,
+          }
+      ) {}
 
 LegacyDeformationList::~LegacyDeformationList() {
     clear();
@@ -550,9 +523,8 @@ void LegacyDeformationList::clear() noexcept {
     }
 }
 
-LegacyDeformationListUpdateResult LegacyDeformationList::update(
-    const std::span<u16> framebuffer
-) noexcept {
+LegacyDeformationListUpdateResult
+LegacyDeformationList::update(const std::span<u16> framebuffer) noexcept {
     LegacyDeformationListUpdateResult result;
     auto* link = &sentinel_.next_;
     while (*link) {

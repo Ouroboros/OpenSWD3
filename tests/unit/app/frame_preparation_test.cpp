@@ -71,9 +71,8 @@ public:
         );
     }
 
-    void release_and_clear_party_member_transition(
-        const u32 member_index
-    ) override {
+    void
+    release_and_clear_party_member_transition(const u32 member_index) override {
         calls.push_back({CallKind::party_member, member_index});
     }
 
@@ -110,7 +109,9 @@ void test_entry_gates(openswd3::test::Context& test) {
         FramePreparationOutcome::return_immediately,
         "process bit 0x10 returns before all ports"
     );
-    test.expect_true(ports.calls.empty(), "suppressed frame has no side effects");
+    test.expect_true(
+        ports.calls.empty(), "suppressed frame has no side effects"
+    );
 
     state = make_state();
     state.display_active = 0U;
@@ -212,8 +213,12 @@ void test_input_prefix_and_sample_order(openswd3::test::Context& test) {
         {CallKind::sample_input, 0U},
         {CallKind::normalize_input, 0U},
     };
-    test.expect_equal(ports.calls, expected, "accepted frame prefix call order");
-    test.expect_equal(state.frame_clock.current_frame_milliseconds, 100U, "current frame time");
+    test.expect_equal(
+        ports.calls, expected, "accepted frame prefix call order"
+    );
+    test.expect_equal(
+        state.frame_clock.current_frame_milliseconds, 100U, "current frame time"
+    );
     test.expect_equal(
         state.frame_clock.frame_delta_milliseconds,
         60U,
@@ -266,11 +271,19 @@ void test_primary_transition(openswd3::test::Context& test) {
         {CallKind::normalize_input, 0U},
     };
     test.expect_equal(ports.calls, expected, "primary transition exact order");
-    test.expect_equal(state.primary_countdown, 0xFFFFFFFFU, "primary countdown clamps to minus one");
+    test.expect_equal(
+        state.primary_countdown,
+        0xFFFFFFFFU,
+        "primary countdown clamps to minus one"
+    );
     test.expect_equal(state.value_004b72b4, 0U, "004b72b4 clears");
     test.expect_equal(state.value_004b72c0, 0U, "004b72c0 clears");
-    test.expect_equal(state.value_004b72be, 0x1234U, "004a93d4 copies to 004b72be");
-    test.expect_equal(state.value_004b72c4, 0x5678U, "004b7bc4 copies to 004b72c4");
+    test.expect_equal(
+        state.value_004b72be, 0x1234U, "004a93d4 copies to 004b72be"
+    );
+    test.expect_equal(
+        state.value_004b72c4, 0x5678U, "004b7bc4 copies to 004b72c4"
+    );
     test.expect_equal(state.value_004b72b0, 0U, "004b72b0 clears");
     test.expect_equal(state.value_004b72a4, 0U, "004b72a4 clears");
     test.expect_equal(state.value_004b72a8, 0U, "004b72a8 clears");
@@ -288,9 +301,21 @@ void test_transition_guards_and_secondary(openswd3::test::Context& test) {
     ports.secondary_flag = true;
 
     static_cast<void>(openswd3::app::run_frame_preparation(state, ports));
-    test.expect_equal(state.primary_countdown, 0xFFFFFFFFU, "blocked primary countdown still decrements");
-    test.expect_equal(state.value_004b72c4, 0xFFFFU, "high-priority gate blocks primary cleanup");
-    test.expect_equal(state.secondary_countdown, 0xFFFFFFFFU, "secondary transition still triggers");
+    test.expect_equal(
+        state.primary_countdown,
+        0xFFFFFFFFU,
+        "blocked primary countdown still decrements"
+    );
+    test.expect_equal(
+        state.value_004b72c4,
+        0xFFFFU,
+        "high-priority gate blocks primary cleanup"
+    );
+    test.expect_equal(
+        state.secondary_countdown,
+        0xFFFFFFFFU,
+        "secondary transition still triggers"
+    );
     const std::vector<Call> suffix{
         {CallKind::query_flag, 0x4AU},
         {CallKind::clear_flag, 0x4AU},

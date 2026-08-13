@@ -23,10 +23,11 @@ void clear_transitions(LegacyWorldMovementRuntimeState& movement) noexcept {
     movement.player_y_transition = 0;
 }
 
-void shift_history(LegacyWorldPlayerPostFrameState& state,
-                   const LegacyWorldRoleRecord& player) noexcept {
-    for (std::size_t index = kLegacyWorldPlayerHistoryCount - 1U;
-         index != 0U; --index) {
+void shift_history(
+    LegacyWorldPlayerPostFrameState& state, const LegacyWorldRoleRecord& player
+) noexcept {
+    for (std::size_t index = kLegacyWorldPlayerHistoryCount - 1U; index != 0U;
+         --index) {
         state.world_x_history[index] = state.world_x_history[index - 1U];
         state.world_y_history[index] = state.world_y_history[index - 1U];
         state.action_variant_history[index] =
@@ -40,8 +41,8 @@ void shift_history(LegacyWorldPlayerPostFrameState& state,
 }  // namespace
 
 void initialize_legacy_world_player_position_history(
-    LegacyWorldPlayerPostFrameState& state,
-    const LegacyWorldRoleRecord& player) noexcept {
+    LegacyWorldPlayerPostFrameState& state, const LegacyWorldRoleRecord& player
+) noexcept {
     state.world_x_history.fill(player.world_x);
     state.world_y_history.fill(player.world_y);
 }
@@ -53,14 +54,20 @@ LegacyWorldPlayerPostFrameResult advance_legacy_world_player_post_frame(
     LegacyWorldMovementRuntimeState& movement,
     LegacyWorldPlayerPostFrameState& state,
     const LegacyWorldRoleSurfaceContext& surface_context,
-    asset_runtime::LegacyActionDrawPorts& action_ports) {
+    asset_runtime::LegacyActionDrawPorts& action_ports
+) {
     LegacyWorldPlayerPostFrameResult result;
     result.aligned = ((player.world_x | player.world_y) & 0x0FU) == 0U;
     if (result.aligned) {
         const u32 first_row_bits = (player.world_y >> 4U) - 1U;
         result.spatial_status = relocate_legacy_role_spatially_by_guid(
-            spatial_index, roles, player.guid, player.flags & 3U,
-            std::bit_cast<i32>(first_row_bits), true);
+            spatial_index,
+            roles,
+            player.guid,
+            player.flags & 3U,
+            std::bit_cast<i32>(first_row_bits),
+            true
+        );
         if (result.spatial_status != LegacyRoleSpatialRelocationStatus::ready) {
             result.status =
                 LegacyWorldPlayerPostFrameStatus::spatial_relocation_failed;
@@ -68,8 +75,8 @@ LegacyWorldPlayerPostFrameResult advance_legacy_world_player_post_frame(
         }
         result.spatially_relocated = true;
 
-        const auto cleared = clear_legacy_world_role_surface_occupancy(
-            player, surface_context);
+        const auto cleared =
+            clear_legacy_world_role_surface_occupancy(player, surface_context);
         result.surface_status = cleared.status;
         result.cleared_cells = cleared.touched_cells;
         if (cleared.status != LegacyWorldRoleSurfaceStatus::ready) {
@@ -79,18 +86,16 @@ LegacyWorldPlayerPostFrameResult advance_legacy_world_player_post_frame(
         }
         result.old_occupancy_cleared = true;
 
-        const u32 vertical =
-            transition_bits(movement.camera_y_transition) +
+        const u32 vertical = transition_bits(movement.camera_y_transition) +
             transition_bits(movement.player_y_transition);
-        const u32 horizontal =
-            transition_bits(movement.player_x_transition) +
+        const u32 horizontal = transition_bits(movement.player_x_transition) +
             transition_bits(movement.camera_x_transition);
-        result.map_cell_delta = vertical * surface_context.map_width +
-                                horizontal;
+        result.map_cell_delta =
+            vertical * surface_context.map_width + horizontal;
         player.map_cell_pointer_32 += result.map_cell_delta;
 
-        const auto marked = mark_legacy_world_role_surface_occupancy(
-            player, surface_context);
+        const auto marked =
+            mark_legacy_world_role_surface_occupancy(player, surface_context);
         result.surface_status = marked.status;
         result.marked_cells = marked.touched_cells;
         if (marked.status != LegacyWorldRoleSurfaceStatus::ready) {
@@ -111,10 +116,10 @@ LegacyWorldPlayerPostFrameResult advance_legacy_world_player_post_frame(
 
         if ((player.flags & kRoleReadsMapCellFlag) != 0U) {
             if (refresh_legacy_world_role_cell_flags(
-                    player, surface_context.surface_grid) !=
-                LegacyWorldRoleCellFlagRefreshStatus::ready) {
-                result.status = LegacyWorldPlayerPostFrameStatus::
-                    cell_flag_refresh_failed;
+                    player, surface_context.surface_grid
+                ) != LegacyWorldRoleCellFlagRefreshStatus::ready) {
+                result.status =
+                    LegacyWorldPlayerPostFrameStatus::cell_flag_refresh_failed;
                 return result;
             }
             result.cell_flags_refreshed = true;

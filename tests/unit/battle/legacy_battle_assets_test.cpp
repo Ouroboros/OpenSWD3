@@ -30,7 +30,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-battle-assets-" + std::to_string(unique_value));
+            ("legacy-battle-assets-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -81,8 +81,7 @@ std::vector<u8> make_figtalk(const u16 battle_id) {
 std::vector<u8> make_ffd() {
     using namespace openswd3::battle;
     std::vector<u8> bytes(
-        kLegacyBattleFfdHeaderSize + 2U * kLegacyBattleFfdRecordSize,
-        0U
+        kLegacyBattleFfdHeaderSize + 2U * kLegacyBattleFfdRecordSize, 0U
     );
     bytes[kLegacyBattleFfdCountOffset + 1U] = 2U;
     bytes[kLegacyBattleFfdCountOffset + 2U] = 1U;
@@ -104,8 +103,8 @@ void test_load_sequence_and_offsets(openswd3::test::Context& test) {
     tree.write("BATTLE.FFD", make_ffd());
 
     LegacyBattleAssets assets;
-    const auto loaded = openswd3::battle::load_legacy_battle_assets(
-        tree.root(), 2U, 0, assets);
+    const auto loaded =
+        openswd3::battle::load_legacy_battle_assets(tree.root(), 2U, 0, assets);
     test.expect_equal(
         loaded.status,
         LegacyBattleAssetStatus::ready,
@@ -141,16 +140,16 @@ void test_variant_comparison_and_failure_order(openswd3::test::Context& test) {
     const TestTree tree;
     LegacyBattleAssets assets;
     test.expect_equal(
-        openswd3::battle::load_legacy_battle_assets(
-            tree.root(), 2U, 0, assets).status,
+        openswd3::battle::load_legacy_battle_assets(tree.root(), 2U, 0, assets)
+            .status,
         LegacyBattleAssetStatus::figtalk_open_failed,
         "FIGTALK failure precedes battle.ffd access"
     );
 
     tree.write("FIGTALK.dat", make_figtalk(1U));
     test.expect_equal(
-        openswd3::battle::load_legacy_battle_assets(
-            tree.root(), 1U, 0, assets).status,
+        openswd3::battle::load_legacy_battle_assets(tree.root(), 1U, 0, assets)
+            .status,
         LegacyBattleAssetStatus::ffd_header_open_failed,
         "battle.ffd header is the next physical access"
     );
@@ -158,19 +157,25 @@ void test_variant_comparison_and_failure_order(openswd3::test::Context& test) {
     tree.write("battle.ffd", make_ffd());
     test.expect_equal(
         openswd3::battle::load_legacy_battle_assets(
-            tree.root(), 1U, static_cast<i8>(1), assets).status,
+            tree.root(), 1U, static_cast<i8>(1), assets
+        )
+            .status,
         LegacyBattleAssetStatus::ready,
         "legacy comparison accepts a variant equal to the signed count"
     );
     test.expect_equal(
         openswd3::battle::load_legacy_battle_assets(
-            tree.root(), 1U, static_cast<i8>(3), assets).status,
+            tree.root(), 1U, static_cast<i8>(3), assets
+        )
+            .status,
         LegacyBattleAssetStatus::variant_out_of_range,
         "variant greater than the signed count is rejected"
     );
     test.expect_equal(
         openswd3::battle::load_legacy_battle_assets(
-            tree.root(), 2000U, 0, assets).status,
+            tree.root(), 2000U, 0, assets
+        )
+            .status,
         LegacyBattleAssetStatus::battle_id_out_of_range,
         "physical FFD count table bounds are explicit"
     );
@@ -180,17 +185,18 @@ void test_variant_comparison_and_failure_order(openswd3::test::Context& test) {
 void test_real_battle_98(openswd3::test::Context& test) {
     LegacyBattleAssets assets;
     const auto loaded = openswd3::battle::load_legacy_battle_assets(
-        std::filesystem::path{OPENSWD3_GAME_DATA_ROOT}, 98U, 0, assets);
+        std::filesystem::path{OPENSWD3_GAME_DATA_ROOT}, 98U, 0, assets
+    );
     test.expect_equal(
         loaded.status,
         LegacyBattleAssetStatus::ready,
         "real battle 98 assets load"
     );
     test.expect_true(
-        assets.figtalk_data_offset == 0x1914U &&
-            assets.script[0] == 45U && assets.script[1] == 0U &&
-            assets.variant_count == 1 && assets.record_index == 97 &&
-            assets.record_ordinal == 32U && assets.enemy_count() == 1U,
+        assets.figtalk_data_offset == 0x1914U && assets.script[0] == 45U &&
+            assets.script[1] == 0U && assets.variant_count == 1 &&
+            assets.record_index == 97 && assets.record_ordinal == 32U &&
+            assets.enemy_count() == 1U,
         "real TALK100 battle request resolves its exact script and FFD record"
     );
 }

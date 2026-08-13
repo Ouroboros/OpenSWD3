@@ -67,15 +67,15 @@ public:
     LegacyResourceDatabases(LegacyResourceDatabases&&) = delete;
     LegacyResourceDatabases& operator=(LegacyResourceDatabases&&) = delete;
 
-    [[nodiscard]] LegacyResourceDatabaseInitialization initialize(
-        const std::filesystem::path& root
-    );
+    [[nodiscard]] LegacyResourceDatabaseInitialization
+    initialize(const std::filesystem::path& root);
 
     [[nodiscard]] LegacyFile& maps_file() noexcept;
     [[nodiscard]] LegacyFile& path_file() noexcept;
     [[nodiscard]] LegacyFile& talk_file() noexcept;
     [[nodiscard]] LegacyMapsPayloadLoadResult reload_maps_payload();
-    [[nodiscard]] std::span<const compat::u8> maps_payload_bytes() const noexcept;
+    [[nodiscard]] std::span<const compat::u8>
+    maps_payload_bytes() const noexcept;
     [[nodiscard]] std::span<compat::u8> mutable_maps_payload_bytes() noexcept;
     [[nodiscard]] std::span<const compat::u8> path_bytes() const noexcept;
     [[nodiscard]] LegacyTalkWindowLoadResult load_talk_story_window(

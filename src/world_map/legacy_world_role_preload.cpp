@@ -29,16 +29,14 @@ constexpr std::size_t kPathDirectoryOffset = 0x200U;
 }
 
 [[nodiscard]] u16 read_u16_le(
-    const std::span<const u8> bytes,
-    const std::size_t offset
+    const std::span<const u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<u16>(bytes[offset]) |
         static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
 }
 
 [[nodiscard]] u32 read_u32_le(
-    const std::span<const u8> bytes,
-    const std::size_t offset
+    const std::span<const u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<u32>(bytes[offset]) |
         (static_cast<u32>(bytes[offset + 1U]) << 8U) |
@@ -52,11 +50,8 @@ constexpr std::size_t kPathDirectoryOffset = 0x200U;
     const LegacyWorldRoleRecord& role,
     LegacyWorldRolePreloadResult& result
 ) noexcept {
-    const auto status = synchronize_legacy_maps_role_source_record(
-        payload,
-        database,
-        role
-    );
+    const auto status =
+        synchronize_legacy_maps_role_source_record(payload, database, role);
     if (status == LegacyMapsRolePatchStatus::guid_not_found) {
         ++result.missing_role_sources;
         return true;
@@ -95,17 +90,13 @@ struct PathCommandReadResult {
     }
 
     const u32 relative = read_u32_le(path_database, directory_offset);
-    const std::int64_t command_offset =
-        static_cast<std::int64_t>(relative) +
+    const std::int64_t command_offset = static_cast<std::int64_t>(relative) +
         static_cast<std::int64_t>(kPathDirectoryOffset) +
-        static_cast<std::int64_t>(
-            std::bit_cast<compat::i32>(path_word_index)
-        ) * static_cast<std::int64_t>(sizeof(u16));
+        static_cast<std::int64_t>(std::bit_cast<compat::i32>(path_word_index)) *
+            static_cast<std::int64_t>(sizeof(u16));
     if (command_offset < 0 ||
         !range_available(
-            path_database,
-            static_cast<std::size_t>(command_offset),
-            sizeof(u16)
+            path_database, static_cast<std::size_t>(command_offset), sizeof(u16)
         )) {
         return {PathCommandReadStatus::command_out_of_range, 0U};
     }
@@ -195,8 +186,7 @@ LegacyWorldRolePreloadResult preload_legacy_world_roles_before_load(
     const LegacyWorldRolePreloadContext& context
 ) noexcept {
     LegacyWorldRolePreloadResult result;
-    for (std::size_t role_index = 1U;
-         role_index < context.roles.size();
+    for (std::size_t role_index = 1U; role_index < context.roles.size();
          ++role_index) {
         ++result.roles_visited;
         const LegacyWorldRoleRecord& source_role = context.roles[role_index];
@@ -210,11 +200,7 @@ LegacyWorldRolePreloadResult preload_legacy_world_roles_before_load(
         LegacyWorldRoleRecord role = source_role;
         if ((role.flags & kFlaggedRoleMask) != 0U) {
             if (!patch_flagged_role(
-                    maps_payload,
-                    maps_database,
-                    role,
-                    target,
-                    result
+                    maps_payload, maps_database, role, target, result
                 )) {
                 result.status =
                     LegacyWorldRolePreloadStatus::role_source_write_failed;
@@ -228,9 +214,7 @@ LegacyWorldRolePreloadResult preload_legacy_world_roles_before_load(
             role.world_x &= kCoordinateAlignmentMask;
             role.world_y &= kCoordinateAlignmentMask;
             const auto path = read_path_command(
-                context.path_database,
-                role.path_data_id,
-                role.path_word_index
+                context.path_database, role.path_data_id, role.path_word_index
             );
             if (path.status ==
                 PathCommandReadStatus::directory_entry_out_of_range) {
@@ -245,20 +229,14 @@ LegacyWorldRolePreloadResult preload_legacy_world_roles_before_load(
             }
             if (path.command == kPathCoordinateCommand &&
                 !apply_type_eight_coordinates(
-                    role,
-                    static_cast<u32>(role_index),
-                    context,
-                    result
+                    role, static_cast<u32>(role_index), context, result
                 )) {
                 return result;
             }
         }
 
         if (!synchronize_ordinary_role(
-                maps_payload,
-                maps_database,
-                role,
-                result
+                maps_payload, maps_database, role, result
             )) {
             result.status =
                 LegacyWorldRolePreloadStatus::role_source_write_failed;

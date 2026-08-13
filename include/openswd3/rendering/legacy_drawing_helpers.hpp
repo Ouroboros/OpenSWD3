@@ -47,9 +47,7 @@ enum class LegacyThumbnailDownsampleStatus : compat::u8 {
 };
 
 [[nodiscard]] LegacyThumbnailDownsampleStatus
-downsample_legacy_thumbnail_in_place(
-    std::span<compat::u16> pixels
-) noexcept;
+downsample_legacy_thumbnail_in_place(std::span<compat::u16> pixels) noexcept;
 
 inline constexpr compat::u32 kLegacyNumberDigitResourceId = 0x2354U;
 inline constexpr compat::u32 kLegacyNumberDecorationResourceId = 0x245EU;
@@ -70,9 +68,7 @@ enum class LegacyDecoratedNumberStatus : compat::u8 {
 };
 
 struct LegacyDecoratedNumberResult {
-    LegacyDecoratedNumberStatus status{
-        LegacyDecoratedNumberStatus::completed
-    };
+    LegacyDecoratedNumberStatus status{LegacyDecoratedNumberStatus::completed};
     compat::u32 requested_resource_id{};
     compat::u32 requested_piece_index{};
     compat::u32 piece_request_count{};
@@ -80,9 +76,7 @@ struct LegacyDecoratedNumberResult {
     compat::u32 draw_call_count{};
     compat::i32 final_x{};
     compat::i32 final_y{};
-    LegacyBlitExecutionStatus blit_status{
-        LegacyBlitExecutionStatus::completed
-    };
+    LegacyBlitExecutionStatus blit_status{LegacyBlitExecutionStatus::completed};
 };
 
 [[nodiscard]] LegacyDecoratedNumberResult draw_legacy_decorated_number(

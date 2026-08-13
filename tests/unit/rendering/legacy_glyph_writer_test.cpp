@@ -21,10 +21,8 @@ using openswd3::rendering::LegacyGlyphWriterState;
 using openswd3::rendering::LegacyGlyphWriteStatus;
 using openswd3::rendering::LegacySurfaceGeometry;
 
-[[nodiscard]] LegacyFramebuffer make_framebuffer(
-    const int width = 12,
-    const int height = 8
-) {
+[[nodiscard]] LegacyFramebuffer
+make_framebuffer(const int width = 12, const int height = 8) {
     return LegacyFramebuffer{LegacySurfaceGeometry{
         .pitch_bytes = width * 2,
         .width = width,
@@ -32,10 +30,8 @@ using openswd3::rendering::LegacySurfaceGeometry;
     }};
 }
 
-[[nodiscard]] LegacyGlyphWriterState make_state(
-    const int height = 1,
-    const std::size_t row_bytes = 1U
-) {
+[[nodiscard]] LegacyGlyphWriterState
+make_state(const int height = 1, const std::size_t row_bytes = 1U) {
     return LegacyGlyphWriterState{
         .glyph_height = height,
         .mask_row_bytes = row_bytes,
@@ -62,9 +58,9 @@ void expect_pixel(
     const std::string_view message
 ) {
     test.expect_equal(
-        framebuffer.row_pixels(static_cast<unsigned int>(y))[
-            static_cast<std::size_t>(x)
-        ],
+        framebuffer.row_pixels(
+            static_cast<unsigned int>(y)
+        )[static_cast<std::size_t>(x)],
         expected,
         message
     );
@@ -116,7 +112,9 @@ void test_direct_footprints(openswd3::test::Context& test) {
     );
     test.expect_equal(result.status, LegacyGlyphWriteStatus::completed, "0x01");
     expect_pixel(test, single, 3, 2, 0x1111U, "0x01 foreground");
-    expect_pixel(test, single, 4, 2, 0U, "0x01 reserves but does not write x+1");
+    expect_pixel(
+        test, single, 4, 2, 0U, "0x01 reserves but does not write x+1"
+    );
 
     LegacyFramebuffer shadow = make_framebuffer();
     result = openswd3::rendering::draw_legacy_glyph(
@@ -219,9 +217,13 @@ void test_packed_row_color(openswd3::test::Context& test) {
             .flags = 0x81U,
         }
     );
-    test.expect_equal(result.status, LegacyGlyphWriteStatus::completed, "+1 rows");
+    test.expect_equal(
+        result.status, LegacyGlyphWriteStatus::completed, "+1 rows"
+    );
     expect_pixel(test, incremented, 2, 1, 0x10FFU, "first packed +1 row");
-    expect_pixel(test, incremented, 2, 2, 0x1100U, "packed u16 carries as one value");
+    expect_pixel(
+        test, incremented, 2, 2, 0x1100U, "packed u16 carries as one value"
+    );
 
     LegacyFramebuffer decremented = make_framebuffer(10, 6);
     clear(decremented, 0x7777U);
@@ -236,9 +238,15 @@ void test_packed_row_color(openswd3::test::Context& test) {
             .flags = 0x181U,
         }
     );
-    test.expect_equal(result.status, LegacyGlyphWriteStatus::completed, "-1 rows");
-    expect_pixel(test, decremented, 2, 1, 0U, "0x100 takes precedence over 0x80");
-    expect_pixel(test, decremented, 2, 2, 0xFFFFU, "packed u16 decrements with wrap");
+    test.expect_equal(
+        result.status, LegacyGlyphWriteStatus::completed, "-1 rows"
+    );
+    expect_pixel(
+        test, decremented, 2, 1, 0U, "0x100 takes precedence over 0x80"
+    );
+    expect_pixel(
+        test, decremented, 2, 2, 0xFFFFU, "packed u16 decrements with wrap"
+    );
 
     LegacyFramebuffer outlined = make_framebuffer(10, 6);
     result = openswd3::rendering::draw_legacy_glyph(
@@ -252,9 +260,15 @@ void test_packed_row_color(openswd3::test::Context& test) {
             .flags = 0x88U,
         }
     );
-    test.expect_equal(result.status, LegacyGlyphWriteStatus::completed, "outline +1");
-    expect_pixel(test, outlined, 3, 1, 0x1002U, "overlay starts after prepass rows");
-    expect_pixel(test, outlined, 3, 2, 0x1003U, "overlay advances foreground again");
+    test.expect_equal(
+        result.status, LegacyGlyphWriteStatus::completed, "outline +1"
+    );
+    expect_pixel(
+        test, outlined, 3, 1, 0x1002U, "overlay starts after prepass rows"
+    );
+    expect_pixel(
+        test, outlined, 3, 2, 0x1003U, "overlay advances foreground again"
+    );
 }
 
 void test_strict_clip_and_padding(openswd3::test::Context& test) {
@@ -279,7 +293,9 @@ void test_strict_clip_and_padding(openswd3::test::Context& test) {
             .flags = 0x01U,
         }
     );
-    test.expect_equal(result.status, LegacyGlyphWriteStatus::completed, "right clip");
+    test.expect_equal(
+        result.status, LegacyGlyphWriteStatus::completed, "right clip"
+    );
     expect_pixel(test, right, 5, 2, 0x1111U, "x+1 below right is accepted");
     expect_pixel(test, right, 6, 2, 0U, "x+1 equal right is rejected");
 
@@ -297,10 +313,16 @@ void test_strict_clip_and_padding(openswd3::test::Context& test) {
             .flags = 0x02U,
         }
     );
-    test.expect_equal(result.status, LegacyGlyphWriteStatus::completed, "bottom clip");
-    expect_pixel(test, bottom, 3, 5, 0x1111U, "shadow row below bottom-1 is accepted");
+    test.expect_equal(
+        result.status, LegacyGlyphWriteStatus::completed, "bottom clip"
+    );
+    expect_pixel(
+        test, bottom, 3, 5, 0x1111U, "shadow row below bottom-1 is accepted"
+    );
     expect_pixel(test, bottom, 3, 6, 0x2222U, "accepted shadow row");
-    expect_pixel(test, bottom, 3, 7, 0U, "glyph at bottom-1 is rejected as a whole");
+    expect_pixel(
+        test, bottom, 3, 7, 0U, "glyph at bottom-1 is rejected as a whole"
+    );
 
     LegacyFramebuffer edge = make_framebuffer();
     state.glyph_height = 1;
@@ -316,9 +338,15 @@ void test_strict_clip_and_padding(openswd3::test::Context& test) {
             .flags = 0x08U,
         }
     );
-    test.expect_equal(result.status, LegacyGlyphWriteStatus::completed, "edge outline");
-    expect_pixel(test, edge, 1, 3, 0x2222U, "wider prepass leaves secondary center");
-    expect_pixel(test, edge, 1, 2, 0x2222U, "prepass reaches left-1 glyph position");
+    test.expect_equal(
+        result.status, LegacyGlyphWriteStatus::completed, "edge outline"
+    );
+    expect_pixel(
+        test, edge, 1, 3, 0x2222U, "wider prepass leaves secondary center"
+    );
+    expect_pixel(
+        test, edge, 1, 2, 0x2222U, "prepass reaches left-1 glyph position"
+    );
 
     LegacyFramebuffer padding = make_framebuffer(20, 4);
     LegacyGlyphWriterState padding_state = make_state(1, 2U);
@@ -336,8 +364,12 @@ void test_strict_clip_and_padding(openswd3::test::Context& test) {
             .flags = 0x01U,
         }
     );
-    test.expect_equal(result.status, LegacyGlyphWriteStatus::completed, "padding bit");
-    expect_pixel(test, padding, 15, 1, 0x1111U, "writer consumes all physical row bits");
+    test.expect_equal(
+        result.status, LegacyGlyphWriteStatus::completed, "padding bit"
+    );
+    expect_pixel(
+        test, padding, 15, 1, 0x1111U, "writer consumes all physical row bits"
+    );
 }
 
 void test_writer_safety_boundaries(openswd3::test::Context& test) {
@@ -345,10 +377,7 @@ void test_writer_safety_boundaries(openswd3::test::Context& test) {
     LegacyGlyphWriterState state = make_state(2);
     constexpr std::array<u8, 1> kShortMask{0x80U};
     auto result = openswd3::rendering::draw_legacy_glyph(
-        framebuffer,
-        kShortMask,
-        state,
-        LegacyGlyphDrawRequest{.flags = 0x01U}
+        framebuffer, kShortMask, state, LegacyGlyphDrawRequest{.flags = 0x01U}
     );
     test.expect_equal(
         result.status,
@@ -357,10 +386,7 @@ void test_writer_safety_boundaries(openswd3::test::Context& test) {
     );
 
     result = openswd3::rendering::draw_legacy_glyph(
-        framebuffer,
-        {},
-        state,
-        LegacyGlyphDrawRequest{.flags = 0U}
+        framebuffer, {}, state, LegacyGlyphDrawRequest{.flags = 0U}
     );
     test.expect_equal(
         result.status,
@@ -402,12 +428,18 @@ void test_background_fill(openswd3::test::Context& test) {
             .color = 0x3456U,
         }
     );
-    test.expect_equal(status, LegacyGlyphBackgroundStatus::completed, "background fill");
+    test.expect_equal(
+        status, LegacyGlyphBackgroundStatus::completed, "background fill"
+    );
     for (int y = 0; y < 2; ++y) {
         for (int x = 0; x < 3; ++x) {
-            expect_pixel(test, framebuffer, x, y, 0x3456U, "clamped background pixel");
+            expect_pixel(
+                test, framebuffer, x, y, 0x3456U, "clamped background pixel"
+            );
         }
-        expect_pixel(test, framebuffer, 3, y, 0U, "background right is exclusive");
+        expect_pixel(
+            test, framebuffer, 3, y, 0U, "background right is exclusive"
+        );
     }
     expect_pixel(test, framebuffer, 0, 2, 0U, "background bottom is exclusive");
 
@@ -422,9 +454,15 @@ void test_background_fill(openswd3::test::Context& test) {
             .color = 0x4567U,
         }
     );
-    test.expect_equal(status, LegacyGlyphBackgroundStatus::completed, "zero-height background");
-    expect_pixel(test, framebuffer, 1, 3, 0x4567U, "zero height still writes first row");
-    expect_pixel(test, framebuffer, 2, 3, 0x4567U, "zero-height first-row width");
+    test.expect_equal(
+        status, LegacyGlyphBackgroundStatus::completed, "zero-height background"
+    );
+    expect_pixel(
+        test, framebuffer, 1, 3, 0x4567U, "zero height still writes first row"
+    );
+    expect_pixel(
+        test, framebuffer, 2, 3, 0x4567U, "zero-height first-row width"
+    );
 
     clear(framebuffer);
     status = openswd3::rendering::fill_legacy_glyph_background(
@@ -437,9 +475,20 @@ void test_background_fill(openswd3::test::Context& test) {
             .color = 0x5678U,
         }
     );
-    test.expect_equal(status, LegacyGlyphBackgroundStatus::completed, "above background");
-    expect_pixel(test, framebuffer, 1, 0, 0x5678U, "fully above rectangle still writes row zero");
-    expect_pixel(test, framebuffer, 1, 1, 0U, "negative bottom prevents copied rows");
+    test.expect_equal(
+        status, LegacyGlyphBackgroundStatus::completed, "above background"
+    );
+    expect_pixel(
+        test,
+        framebuffer,
+        1,
+        0,
+        0x5678U,
+        "fully above rectangle still writes row zero"
+    );
+    expect_pixel(
+        test, framebuffer, 1, 1, 0U, "negative bottom prevents copied rows"
+    );
 
     clear(framebuffer, 0x7777U);
     status = openswd3::rendering::fill_legacy_glyph_background(
@@ -452,11 +501,14 @@ void test_background_fill(openswd3::test::Context& test) {
             .color = 0xFFFEU,
         }
     );
-    test.expect_equal(status, LegacyGlyphBackgroundStatus::disabled, "background sentinel");
+    test.expect_equal(
+        status, LegacyGlyphBackgroundStatus::disabled, "background sentinel"
+    );
     test.expect_true(
-        std::ranges::all_of(framebuffer.physical_pixels(), [](const u16 pixel) {
-            return pixel == 0x7777U;
-        }),
+        std::ranges::all_of(
+            framebuffer.physical_pixels(),
+            [](const u16 pixel) { return pixel == 0x7777U; }
+        ),
         "disabled background leaves framebuffer unchanged"
     );
 

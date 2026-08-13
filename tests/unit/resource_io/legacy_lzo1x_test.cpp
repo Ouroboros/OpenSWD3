@@ -20,16 +20,11 @@ struct DecodeOutput {
     std::vector<u8> bytes;
 };
 
-[[nodiscard]] DecodeOutput decode(
-    const std::span<const u8> source,
-    const std::size_t destination_size
-) {
+[[nodiscard]] DecodeOutput
+decode(const std::span<const u8> source, const std::size_t destination_size) {
     std::vector<u8> destination(destination_size);
     const LegacyLzo1xResult result =
-        openswd3::resource_io::decompress_legacy_lzo1x(
-            source,
-            destination
-        );
+        openswd3::resource_io::decompress_legacy_lzo1x(source, destination);
     destination.resize(result.bytes_written);
     return DecodeOutput{result, std::move(destination)};
 }
@@ -41,9 +36,7 @@ void expect_decode(
 ) {
     const DecodeOutput output = decode(source, expected.size());
     test.expect_equal(
-        output.result.status,
-        LegacyLzo1xStatus::success,
-        "valid stream status"
+        output.result.status, LegacyLzo1xStatus::success, "valid stream status"
     );
     test.expect_equal(
         output.result.bytes_written,
@@ -51,26 +44,42 @@ void expect_decode(
         "valid stream output size"
     );
     test.expect_true(
-        std::ranges::equal(output.bytes, expected),
-        "valid stream output bytes"
+        std::ranges::equal(output.bytes, expected), "valid stream output bytes"
     );
 }
 
 void test_valid_branch_vectors(openswd3::test::Context& test) {
     constexpr std::array<u8, 5> kInitialLiteralOne{
-        0x12U, 0x41U, 0x11U, 0x00U, 0x00U,
+        0x12U,
+        0x41U,
+        0x11U,
+        0x00U,
+        0x00U,
     };
     constexpr std::array<u8, 1> kOneA{0x41U};
     expect_decode(test, kInitialLiteralOne, kOneA);
 
     constexpr std::array<u8, 8> kInitialLiteralFour{
-        0x15U, 0x41U, 0x42U, 0x43U, 0x44U, 0x11U, 0x00U, 0x00U,
+        0x15U,
+        0x41U,
+        0x42U,
+        0x43U,
+        0x44U,
+        0x11U,
+        0x00U,
+        0x00U,
     };
     constexpr std::array<u8, 4> kAbcd{0x41U, 0x42U, 0x43U, 0x44U};
     expect_decode(test, kInitialLiteralFour, kAbcd);
 
     constexpr std::array<u8, 7> kShortMatchAfterMatch{
-        0x12U, 0x41U, 0x00U, 0x00U, 0x11U, 0x00U, 0x00U,
+        0x12U,
+        0x41U,
+        0x00U,
+        0x00U,
+        0x11U,
+        0x00U,
+        0x00U,
     };
     constexpr std::array<u8, 3> kThreeA{0x41U, 0x41U, 0x41U};
     expect_decode(test, kShortMatchAfterMatch, kThreeA);
@@ -97,8 +106,7 @@ void test_valid_branch_vectors(openswd3::test::Context& test) {
         long_literals.end()
     );
     short_match_after_literal.insert(
-        short_match_after_literal.end(),
-        {0x00U, 0x00U, 0x11U, 0x00U, 0x00U}
+        short_match_after_literal.end(), {0x00U, 0x00U, 0x11U, 0x00U, 0x00U}
     );
 
     std::vector<u8> long_expected = long_literals;
@@ -113,14 +121,15 @@ void test_end_and_safety_boundaries(openswd3::test::Context& test) {
     constexpr std::array<u8, 3> kExactEnd{0x11U, 0x00U, 0x00U};
     const DecodeOutput exact = decode(kExactEnd, 16U);
     test.expect_equal(
-        exact.result.status,
-        LegacyLzo1xStatus::success,
-        "exact end status"
+        exact.result.status, LegacyLzo1xStatus::success, "exact end status"
     );
     test.expect_equal(exact.result.bytes_written, 0U, "exact end output");
 
     constexpr std::array<u8, 4> kTrailingInput{
-        0x11U, 0x00U, 0x00U, 0x58U,
+        0x11U,
+        0x00U,
+        0x00U,
+        0x58U,
     };
     const DecodeOutput trailing = decode(kTrailingInput, 16U);
     test.expect_equal(
@@ -138,7 +147,14 @@ void test_end_and_safety_boundaries(openswd3::test::Context& test) {
     );
 
     constexpr std::array<u8, 8> kFourLiterals{
-        0x01U, 0x41U, 0x42U, 0x43U, 0x44U, 0x11U, 0x00U, 0x00U,
+        0x01U,
+        0x41U,
+        0x42U,
+        0x43U,
+        0x44U,
+        0x11U,
+        0x00U,
+        0x00U,
     };
     const DecodeOutput short_destination = decode(kFourLiterals, 3U);
     test.expect_equal(
@@ -174,15 +190,18 @@ void test_end_and_safety_boundaries(openswd3::test::Context& test) {
 
 void test_shared_wrapper_contract(openswd3::test::Context& test) {
     constexpr std::array<u8, 6> kTrailingInput{
-        0x12U, 0x41U, 0x11U, 0x00U, 0x00U, 0x58U,
+        0x12U,
+        0x41U,
+        0x11U,
+        0x00U,
+        0x00U,
+        0x58U,
     };
     std::array<u8, 8> destination{};
     openswd3::compat::u32 actual_output_size = 0xFFFFFFFFU;
     const LegacyLzo1xStatus trailing_status =
         openswd3::resource_io::decompress_legacy_resource_block(
-            kTrailingInput,
-            destination,
-            actual_output_size
+            kTrailingInput, destination, actual_output_size
         );
 
     test.expect_equal(
@@ -191,9 +210,7 @@ void test_shared_wrapper_contract(openswd3::test::Context& test) {
         "wrapper propagates the decoder status"
     );
     test.expect_equal(
-        actual_output_size,
-        1U,
-        "wrapper writes output size after an end marker"
+        actual_output_size, 1U, "wrapper writes output size after an end marker"
     );
     test.expect_equal(
         destination[0],
@@ -205,9 +222,7 @@ void test_shared_wrapper_contract(openswd3::test::Context& test) {
     actual_output_size = 0xFFFFFFFFU;
     const LegacyLzo1xStatus safety_status =
         openswd3::resource_io::decompress_legacy_resource_block(
-            kTruncatedEnd,
-            destination,
-            actual_output_size
+            kTruncatedEnd, destination, actual_output_size
         );
     test.expect_equal(
         safety_status,
@@ -244,7 +259,12 @@ void test_real_tsw_frame(openswd3::test::Context& test) {
         0x00U,
     };
     constexpr std::array<u8, 6> kRepeated{
-        0x00U, 0x06U, 0x00U, 0x20U, 0xC0U, 0x00U,
+        0x00U,
+        0x06U,
+        0x00U,
+        0x20U,
+        0xC0U,
+        0x00U,
     };
     for (std::size_t index = 0U; index < 187U; ++index) {
         expected.push_back(kRepeated[index % kRepeated.size()]);

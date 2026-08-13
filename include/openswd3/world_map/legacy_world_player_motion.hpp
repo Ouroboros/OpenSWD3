@@ -50,8 +50,7 @@ struct LegacyWorldCameraRect {
     compat::u32 bottom{};
 };
 
-[[nodiscard]] LegacyWorldMovementBounds
-compute_legacy_world_movement_bounds(
+[[nodiscard]] LegacyWorldMovementBounds compute_legacy_world_movement_bounds(
     const LegacyWorldRoleRecord& player,
     const LegacyWorldCameraRect& camera,
     compat::u32 map_width_tiles,

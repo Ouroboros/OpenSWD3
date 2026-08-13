@@ -72,25 +72,20 @@ public:
     }
 
     void set_stream_user_data(
-        const LegacyStreamHandle handle,
-        const u32 slot,
-        const i32 value
+        const LegacyStreamHandle handle, const u32 slot, const i32 value
     ) override {
         events.push_back({BackendCall::set_user_data, handle, value, slot});
         user_data[handle] = value;
     }
 
-    i32 stream_user_data(
-        const LegacyStreamHandle handle,
-        const u32 slot
-    ) override {
+    i32
+    stream_user_data(const LegacyStreamHandle handle, const u32 slot) override {
         events.push_back({BackendCall::get_user_data, handle, 0, slot});
         return user_data[handle];
     }
 
     void set_stream_volume(
-        const LegacyStreamHandle handle,
-        const i32 volume
+        const LegacyStreamHandle handle, const i32 volume
     ) override {
         events.push_back({BackendCall::set_volume, handle, volume});
         volumes[handle] = volume;
@@ -104,8 +99,7 @@ public:
     }
 
     void set_stream_loop_count(
-        const LegacyStreamHandle handle,
-        const i32 loop_count
+        const LegacyStreamHandle handle, const i32 loop_count
     ) override {
         events.push_back({BackendCall::set_loop_count, handle, loop_count});
         loops[handle] = loop_count;
@@ -202,9 +196,7 @@ void test_pool_play_and_volume(openswd3::test::Context& test) {
     );
     test.expect_equal(backend.last_driver_token, 0x12345678U, "open driver");
     test.expect_equal(
-        backend.last_filename,
-        std::string{"Music\\Battle.mp3"},
-        "open filename"
+        backend.last_filename, std::string{"Music\\Battle.mp3"}, "open filename"
     );
     test.expect_equal(backend.last_file_offset, 0, "open offset is zero");
     test.expect_equal(backend.user_data[1U], 100, "user data slot zero");
@@ -239,15 +231,11 @@ void test_pool_play_and_volume(openswd3::test::Context& test) {
     test.expect_equal(manager.active_stream_count(), 2U, "two active nodes");
 
     test.expect_equal(
-        manager.set_volume(100, -4),
-        0,
-        "set-volume returns backend readback"
+        manager.set_volume(100, -4), 0, "set-volume returns backend readback"
     );
     test.expect_equal(backend.volumes[1U], 0, "negative volume clamps zero");
     test.expect_equal(
-        manager.set_volume(999, 40),
-        -1,
-        "missing stream returns minus one"
+        manager.set_volume(999, 40), -1, "missing stream returns minus one"
     );
 
     backend.clear_events();
@@ -301,9 +289,7 @@ void test_fade_service(openswd3::test::Context& test) {
     backend.clear_events();
 
     test.expect_equal(
-        manager.begin_fade(100, 4),
-        100,
-        "fade returns the matching ID"
+        manager.begin_fade(100, 4), 100, "fade returns the matching ID"
     );
     test.expect_equal(
         backend.call_count(BackendCall::position),
@@ -338,9 +324,7 @@ void test_fade_service(openswd3::test::Context& test) {
     );
     backend.clear_events();
     test.expect_equal(
-        manager.begin_fade(100, 1),
-        0,
-        "disabled manager rejects fade"
+        manager.begin_fade(100, 1), 0, "disabled manager rejects fade"
     );
     test.expect_equal(
         backend.call_count(BackendCall::position),
@@ -367,9 +351,7 @@ void test_status_switch_and_cascade(openswd3::test::Context& test) {
             "status two cascades removal into following default status"
         );
         test.expect_equal(
-            backend.volume_set_counts[2U],
-            2U,
-            "status two writes zero twice"
+            backend.volume_set_counts[2U], 2U, "status two writes zero twice"
         );
         test.expect_equal(
             backend.volume_set_counts[1U],
@@ -431,7 +413,9 @@ void test_stream_wrappers(openswd3::test::Context& test) {
     test.expect_equal(backend.user_data[1U], 100, "wrapper stream ID is 100");
     test.expect_equal(backend.volumes[1U], 127, "11*128/11 clamps 127");
     test.expect_equal(backend.loops[1U], 1, "wrapper loops once");
-    test.expect_equal(legacy_stream_absent(manager), 0, "active stream present");
+    test.expect_equal(
+        legacy_stream_absent(manager), 0, "active stream present"
+    );
 
     test.expect_equal(
         set_legacy_stream_volume(manager, 5),
@@ -458,16 +442,22 @@ void test_stream_wrappers(openswd3::test::Context& test) {
         "mode two remains active while stream exists"
     );
 
-    test.expect_equal(stop_legacy_stream(manager), 100, "stop uses divisor one");
+    test.expect_equal(
+        stop_legacy_stream(manager), 100, "stop uses divisor one"
+    );
     static_cast<void>(manager.service());
-    test.expect_equal(legacy_stream_absent(manager), 1, "service removes stream");
+    test.expect_equal(
+        legacy_stream_absent(manager), 1, "service removes stream"
+    );
     test.expect_equal(
         poll_legacy_stream_transition(manager, state),
         1,
         "absent mode-two stream completes transition"
     );
     test.expect_equal(state.transition_mode, 0, "poll clears transition mode");
-    test.expect_equal(state.current_fade_divisor, 0, "poll clears current value");
+    test.expect_equal(
+        state.current_fade_divisor, 0, "poll clears current value"
+    );
 
     state.pending_fade_divisor = 7;
     test.expect_equal(

@@ -17,16 +17,13 @@ class LegacySequenceBackend {
 public:
     virtual ~LegacySequenceBackend() = default;
 
-    [[nodiscard]] virtual bool open_midi_output(
-        compat::i32 device_id,
-        LegacyMidiDriverHandle& driver
-    ) = 0;
+    [[nodiscard]] virtual bool
+    open_midi_output(compat::i32 device_id, LegacyMidiDriverHandle& driver) = 0;
     [[nodiscard]] virtual std::string_view last_error() const = 0;
     virtual void close_midi_output(LegacyMidiDriverHandle driver) = 0;
 
-    [[nodiscard]] virtual LegacySequenceHandle allocate_sequence_handle(
-        LegacyMidiDriverHandle driver
-    ) = 0;
+    [[nodiscard]] virtual LegacySequenceHandle
+    allocate_sequence_handle(LegacyMidiDriverHandle driver) = 0;
     virtual void release_sequence_handle(LegacySequenceHandle handle) = 0;
     [[nodiscard]] virtual compat::i32 initialize_sequence(
         LegacySequenceHandle handle,
@@ -34,27 +31,21 @@ public:
         compat::u32 start_offset
     ) = 0;
     virtual void set_sequence_user_data(
-        LegacySequenceHandle handle,
-        compat::u32 slot,
-        compat::i32 value
+        LegacySequenceHandle handle, compat::u32 slot, compat::i32 value
     ) = 0;
-    [[nodiscard]] virtual compat::i32 sequence_user_data(
-        LegacySequenceHandle handle,
-        compat::u32 slot
-    ) = 0;
+    [[nodiscard]] virtual compat::i32
+    sequence_user_data(LegacySequenceHandle handle, compat::u32 slot) = 0;
     virtual void set_sequence_volume(
         LegacySequenceHandle handle,
         compat::i32 volume,
         compat::i32 milliseconds
     ) = 0;
     virtual void set_sequence_loop_count(
-        LegacySequenceHandle handle,
-        compat::i32 loop_count
+        LegacySequenceHandle handle, compat::i32 loop_count
     ) = 0;
     virtual void start_sequence(LegacySequenceHandle handle) = 0;
-    [[nodiscard]] virtual compat::u32 sequence_status(
-        LegacySequenceHandle handle
-    ) = 0;
+    [[nodiscard]] virtual compat::u32
+    sequence_status(LegacySequenceHandle handle) = 0;
     virtual void end_sequence(LegacySequenceHandle handle) = 0;
 };
 
@@ -74,9 +65,8 @@ public:
     LegacySequenceManager(LegacySequenceManager&&) = delete;
     LegacySequenceManager& operator=(LegacySequenceManager&&) = delete;
 
-    [[nodiscard]] LegacySequenceManagerInitializeStatus initialize_output(
-        compat::u32 ignored_audio_driver
-    );
+    [[nodiscard]] LegacySequenceManagerInitializeStatus
+    initialize_output(compat::u32 ignored_audio_driver);
     [[nodiscard]] bool shutdown();
 
     [[nodiscard]] bool initialized() const noexcept;

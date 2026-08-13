@@ -39,9 +39,8 @@ struct LegacyWorldRenderSession {
     };
     compat::u16 transparent_pixel{};
 
-    [[nodiscard]] LegacyWorldBackgroundSource background_source(
-        compat::u32 tile_layer_offset = 0U
-    ) const noexcept;
+    [[nodiscard]] LegacyWorldBackgroundSource
+    background_source(compat::u32 tile_layer_offset = 0U) const noexcept;
 };
 
 struct LegacyWorldRenderSessionResult {
@@ -55,35 +54,30 @@ class LegacyWorldCmCacheSource {
 public:
     virtual ~LegacyWorldCmCacheSource() = default;
 
-    [[nodiscard]] virtual LegacyCmCacheLoadResult load_cm_cache(
-        const LegacyCmCacheRequest& request
-    ) = 0;
+    [[nodiscard]] virtual LegacyCmCacheLoadResult
+    load_cm_cache(const LegacyCmCacheRequest& request) = 0;
 };
 
 class LegacyFileWorldCmCacheSource final : public LegacyWorldCmCacheSource {
 public:
-    [[nodiscard]] LegacyCmCacheLoadResult load_cm_cache(
-        const LegacyCmCacheRequest& request
-    ) override;
+    [[nodiscard]] LegacyCmCacheLoadResult
+    load_cm_cache(const LegacyCmCacheRequest& request) override;
 };
 
-[[nodiscard]] LegacyWorldRenderSessionResult
-load_legacy_world_render_session(
+[[nodiscard]] LegacyWorldRenderSessionResult load_legacy_world_render_session(
     const LegacyWorldRenderSessionRequest& request,
     LegacyWorldMapSource& map_source,
     LegacyWorldCmCacheSource& cm_cache_source
 );
 
-[[nodiscard]] LegacyWorldRenderSessionResult
-load_legacy_world_render_session(
+[[nodiscard]] LegacyWorldRenderSessionResult load_legacy_world_render_session(
     const LegacyWorldRenderSessionRequest& request,
     LegacyWorldMapSource& map_source,
     LegacyWorldCmCacheSource& cm_cache_source,
     const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage
 );
 
-[[nodiscard]] LegacyWorldRenderSessionResult
-load_legacy_world_render_session(
+[[nodiscard]] LegacyWorldRenderSessionResult load_legacy_world_render_session(
     const LegacyWorldRenderSessionRequest& request
 );
 

@@ -37,20 +37,21 @@ constexpr std::size_t kPayloadOffset =
     kIndexOffset + kSlotCount * kDiskRecordSize;
 constexpr std::size_t kSyntheticPayloadSize = 48U;
 
-void write_u32(const std::span<u8> bytes, const std::size_t offset,
-               const u32 value) {
+void write_u32(
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
+) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
     bytes[offset + 2U] = static_cast<u8>(value >> 16U);
     bytes[offset + 3U] = static_cast<u8>(value >> 24U);
 }
 
-[[nodiscard]] u32 read_u32(const std::span<const u8> bytes,
-                           const std::size_t offset) {
+[[nodiscard]] u32
+read_u32(const std::span<const u8> bytes, const std::size_t offset) {
     return static_cast<u32>(bytes[offset]) |
-           (static_cast<u32>(bytes[offset + 1U]) << 8U) |
-           (static_cast<u32>(bytes[offset + 2U]) << 16U) |
-           (static_cast<u32>(bytes[offset + 3U]) << 24U);
+        (static_cast<u32>(bytes[offset + 1U]) << 8U) |
+        (static_cast<u32>(bytes[offset + 2U]) << 16U) |
+        (static_cast<u32>(bytes[offset + 3U]) << 24U);
 }
 
 class TestTree {
@@ -59,7 +60,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-snd-archive-" + std::to_string(unique_value));
+            ("legacy-snd-archive-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -83,9 +84,13 @@ private:
     std::filesystem::path root_;
 };
 
-void write_record(const std::span<u8> archive, const std::size_t slot,
-                  const u32 raw_size, const u32 payload_offset,
-                  const u32 raw_type) {
+void write_record(
+    const std::span<u8> archive,
+    const std::size_t slot,
+    const u32 raw_size,
+    const u32 payload_offset,
+    const u32 raw_type
+) {
     const std::size_t record = kIndexOffset + slot * kDiskRecordSize;
     write_u32(archive, record + 0x14U, raw_size);
     write_u32(archive, record + 0x18U, payload_offset);
@@ -100,9 +105,13 @@ void write_record(const std::span<u8> archive, const std::size_t slot,
     for (u32 type = 0U; type < 4U; ++type) {
         const u32 payload_offset =
             static_cast<u32>(kPayloadOffset + type * kSyntheticPayloadSize);
-        write_record(archive, type,
-                     0xC0000000U | static_cast<u32>(kSyntheticPayloadSize),
-                     payload_offset, 0xFFFFFFFCU | type);
+        write_record(
+            archive,
+            type,
+            0xC0000000U | static_cast<u32>(kSyntheticPayloadSize),
+            payload_offset,
+            0xFFFFFFFCU | type
+        );
         for (std::size_t index = 0U; index < kSyntheticPayloadSize; ++index) {
             archive[payload_offset + index] =
                 static_cast<u8>(0x20U * type + static_cast<u32>(index));
@@ -114,8 +123,8 @@ void write_record(const std::span<u8> archive, const std::size_t slot,
     return archive;
 }
 
-[[nodiscard]] bool bytes_equal(const std::span<const u8> left,
-                               const std::span<const u8> right) {
+[[nodiscard]] bool
+bytes_equal(const std::span<const u8> left, const std::span<const u8> right) {
     return std::ranges::equal(left, right);
 }
 
@@ -125,14 +134,22 @@ void test_open_and_runtime_index(openswd3::test::Context& test) {
     tree.write("all.snd", bytes);
 
     LegacySndArchive archive;
-    test.expect_equal(archive.open(tree.path("all.snd")),
-                      LegacySndOpenStatus::ready, "fixed SND index opens");
+    test.expect_equal(
+        archive.open(tree.path("all.snd")),
+        LegacySndOpenStatus::ready,
+        "fixed SND index opens"
+    );
     test.expect_true(archive.is_open(), "successful open records state");
-    test.expect_equal(archive.entries().size(), kSlotCount,
-                      "runtime index always contains 3000 slots");
+    test.expect_equal(
+        archive.entries().size(),
+        kSlotCount,
+        "runtime index always contains 3000 slots"
+    );
     test.expect_true(archive.entry(0U) == nullptr, "sound ID zero is unsafe");
-    test.expect_true(archive.entry(3001U) == nullptr,
-                     "sound ID above the fixed table is unsafe");
+    test.expect_true(
+        archive.entry(3001U) == nullptr,
+        "sound ID above the fixed table is unsafe"
+    );
 
     for (u32 type = 0U; type < 4U; ++type) {
         const auto* const entry = archive.entry(type + 1U);
@@ -143,22 +160,27 @@ void test_open_and_runtime_index(openswd3::test::Context& test) {
         test.expect_equal(
             entry->file_offset,
             static_cast<u32>(kPayloadOffset + type * kSyntheticPayloadSize),
-            "disk +0x18 becomes runtime file offset");
+            "disk +0x18 becomes runtime file offset"
+        );
         test.expect_equal(
             entry->packed_size_and_type,
             static_cast<u32>(kSyntheticPayloadSize) | (type << 26U),
-            "disk size and type are masked into the runtime word");
+            "disk size and type are masked into the runtime word"
+        );
         test.expect_equal(entry->reference_count, 0U, "reference starts zero");
         test.expect_equal(entry->buffer_token, 0U, "buffer token starts zero");
     }
     test.expect_equal(
-        archive.entry(7U)->file_offset, 0U,
-        "declared count does not shorten the fixed physical index");
+        archive.entry(7U)->file_offset,
+        0U,
+        "declared count does not shorten the fixed physical index"
+    );
 
     archive.close();
     test.expect_false(archive.is_open(), "close clears open state");
-    test.expect_equal(archive.entries()[0].file_offset, 0U,
-                      "close clears runtime entries");
+    test.expect_equal(
+        archive.entries()[0].file_offset, 0U, "close clears runtime entries"
+    );
 }
 
 void test_sample_reconstruction(openswd3::test::Context& test) {
@@ -170,60 +192,96 @@ void test_sample_reconstruction(openswd3::test::Context& test) {
     static_cast<void>(archive.open(tree.path("all.snd")));
 
     const auto type_zero = archive.load_sample(1U);
-    test.expect_equal(type_zero.status, LegacySndSampleStatus::ready,
-                      "type zero sample loads");
-    test.expect_equal(type_zero.bytes.size(), kSyntheticPayloadSize + 24U,
-                      "type zero adds the original 24-byte prefix");
+    test.expect_equal(
+        type_zero.status, LegacySndSampleStatus::ready, "type zero sample loads"
+    );
+    test.expect_equal(
+        type_zero.bytes.size(),
+        kSyntheticPayloadSize + 24U,
+        "type zero adds the original 24-byte prefix"
+    );
     constexpr std::array<u8, 4> kRiff{'R', 'I', 'F', 'F'};
-    test.expect_true(bytes_equal(std::span{type_zero.bytes}.first<4>(), kRiff),
-                     "type zero starts with RIFF");
-    test.expect_equal(read_u32(type_zero.bytes, 4U),
-                      static_cast<u32>(kSyntheticPayloadSize),
-                      "RIFF size keeps the source payload size");
+    test.expect_true(
+        bytes_equal(std::span{type_zero.bytes}.first<4>(), kRiff),
+        "type zero starts with RIFF"
+    );
+    test.expect_equal(
+        read_u32(type_zero.bytes, 4U),
+        static_cast<u32>(kSyntheticPayloadSize),
+        "RIFF size keeps the source payload size"
+    );
     test.expect_equal(read_u32(type_zero.bytes, 0x10U), 16U, "fmt size");
     test.expect_true(
-        bytes_equal(std::span{type_zero.bytes}.subspan(0x14U, 0x12U),
-                    std::span{bytes}.subspan(kPayloadOffset, 0x12U)),
-        "forward overlapping copy preserves source bytes zero through 17");
+        bytes_equal(
+            std::span{type_zero.bytes}.subspan(0x14U, 0x12U),
+            std::span{bytes}.subspan(kPayloadOffset, 0x12U)
+        ),
+        "forward overlapping copy preserves source bytes zero through 17"
+    );
     test.expect_equal(type_zero.bytes[0x26U], u8{'t'}, "chunk tag t");
     test.expect_equal(type_zero.bytes[0x27U], u8{'a'}, "chunk tag a");
-    test.expect_equal(read_u32(type_zero.bytes, 0x28U),
-                      static_cast<u32>(kSyntheticPayloadSize - 24U),
-                      "data size keeps the original subtraction bug");
+    test.expect_equal(
+        read_u32(type_zero.bytes, 0x28U),
+        static_cast<u32>(kSyntheticPayloadSize - 24U),
+        "data size keeps the original subtraction bug"
+    );
     test.expect_true(
-        bytes_equal(std::span{type_zero.bytes}.subspan(0x2CU),
-                    std::span{bytes}.subspan(kPayloadOffset + 20U,
-                                             kSyntheticPayloadSize - 20U)),
-        "type zero tail starts at source byte 20");
+        bytes_equal(
+            std::span{type_zero.bytes}.subspan(0x2CU),
+            std::span{bytes}.subspan(
+                kPayloadOffset + 20U, kSyntheticPayloadSize - 20U
+            )
+        ),
+        "type zero tail starts at source byte 20"
+    );
 
     const auto type_one = archive.load_sample(2U);
-    test.expect_equal(type_one.status, LegacySndSampleStatus::ready,
-                      "type one sample loads");
+    test.expect_equal(
+        type_one.status, LegacySndSampleStatus::ready, "type one sample loads"
+    );
     test.expect_true(
-        bytes_equal(type_one.bytes, std::span{bytes}.subspan(
-                                        kPayloadOffset + kSyntheticPayloadSize,
-                                        kSyntheticPayloadSize)),
-        "type one returns the raw payload without rewrite");
+        bytes_equal(
+            type_one.bytes,
+            std::span{bytes}.subspan(
+                kPayloadOffset + kSyntheticPayloadSize, kSyntheticPayloadSize
+            )
+        ),
+        "type one returns the raw payload without rewrite"
+    );
 
     for (u32 type = 2U; type <= 3U; ++type) {
         const auto sample = archive.load_sample(type + 1U);
         const std::size_t source_offset =
             kPayloadOffset + type * kSyntheticPayloadSize;
-        test.expect_equal(sample.status, LegacySndSampleStatus::ready,
-                          "type two/three sample loads");
-        test.expect_equal(sample.bytes.size(), kSyntheticPayloadSize,
-                          "type two/three does not add a prefix");
+        test.expect_equal(
+            sample.status,
+            LegacySndSampleStatus::ready,
+            "type two/three sample loads"
+        );
+        test.expect_equal(
+            sample.bytes.size(),
+            kSyntheticPayloadSize,
+            "type two/three does not add a prefix"
+        );
         test.expect_true(
-            bytes_equal(std::span{sample.bytes}.first<4>(),
-                        std::span{bytes}.subspan(source_offset, 4U)),
-            "type two/three keeps the raw first four bytes");
-        test.expect_equal(read_u32(sample.bytes, 4U),
-                          static_cast<u32>(kSyntheticPayloadSize),
-                          "type two/three rewrites size");
+            bytes_equal(
+                std::span{sample.bytes}.first<4>(),
+                std::span{bytes}.subspan(source_offset, 4U)
+            ),
+            "type two/three keeps the raw first four bytes"
+        );
+        test.expect_equal(
+            read_u32(sample.bytes, 4U),
+            static_cast<u32>(kSyntheticPayloadSize),
+            "type two/three rewrites size"
+        );
         test.expect_true(
-            bytes_equal(std::span{sample.bytes}.subspan(0x14U, 0x12U),
-                        std::span{bytes}.subspan(source_offset + 0x18U, 0x12U)),
-            "type two/three uses the same forward overlap result");
+            bytes_equal(
+                std::span{sample.bytes}.subspan(0x14U, 0x12U),
+                std::span{bytes}.subspan(source_offset + 0x18U, 0x12U)
+            ),
+            "type two/three uses the same forward overlap result"
+        );
         test.expect_equal(sample.bytes[0x26U], u8{'t'}, "type rewrite t");
         test.expect_equal(sample.bytes[0x27U], u8{'a'}, "type rewrite a");
     }
@@ -232,37 +290,53 @@ void test_sample_reconstruction(openswd3::test::Context& test) {
 void test_safety_boundaries(openswd3::test::Context& test) {
     const TestTree tree;
     LegacySndArchive archive;
-    test.expect_equal(archive.load_sample(1U).status,
-                      LegacySndSampleStatus::archive_not_open,
-                      "sample lookup before open is rejected");
-    test.expect_equal(archive.open(tree.path("missing.snd")),
-                      LegacySndOpenStatus::file_open_failed,
-                      "missing SND does not create an empty archive");
+    test.expect_equal(
+        archive.load_sample(1U).status,
+        LegacySndSampleStatus::archive_not_open,
+        "sample lookup before open is rejected"
+    );
+    test.expect_equal(
+        archive.open(tree.path("missing.snd")),
+        LegacySndOpenStatus::file_open_failed,
+        "missing SND does not create an empty archive"
+    );
 
     constexpr std::array<u8, 32> kShortArchive{};
     tree.write("short.snd", kShortArchive);
-    test.expect_equal(archive.open(tree.path("short.snd")),
-                      LegacySndOpenStatus::index_read_failed,
-                      "truncated fixed index is rejected");
+    test.expect_equal(
+        archive.open(tree.path("short.snd")),
+        LegacySndOpenStatus::index_read_failed,
+        "truncated fixed index is rejected"
+    );
 
     const std::vector<u8> bytes = synthetic_archive();
     tree.write("all.snd", bytes);
     static_cast<void>(archive.open(tree.path("all.snd")));
-    test.expect_equal(archive.load_sample(0U).status,
-                      LegacySndSampleStatus::invalid_sound_id,
-                      "zero ID is isolated before original table underflow");
-    test.expect_equal(archive.load_sample(3001U).status,
-                      LegacySndSampleStatus::invalid_sound_id,
-                      "large ID is isolated before original table overflow");
-    test.expect_equal(archive.load_sample(7U).status,
-                      LegacySndSampleStatus::empty_entry,
-                      "zero file offset remains an empty lookup");
-    test.expect_equal(archive.load_sample(5U).status,
-                      LegacySndSampleStatus::sample_out_of_file_range,
-                      "corrupt file window is isolated");
-    test.expect_equal(archive.load_sample(6U).status,
-                      LegacySndSampleStatus::unsafe_original_allocation,
-                      "original template overflow is isolated");
+    test.expect_equal(
+        archive.load_sample(0U).status,
+        LegacySndSampleStatus::invalid_sound_id,
+        "zero ID is isolated before original table underflow"
+    );
+    test.expect_equal(
+        archive.load_sample(3001U).status,
+        LegacySndSampleStatus::invalid_sound_id,
+        "large ID is isolated before original table overflow"
+    );
+    test.expect_equal(
+        archive.load_sample(7U).status,
+        LegacySndSampleStatus::empty_entry,
+        "zero file offset remains an empty lookup"
+    );
+    test.expect_equal(
+        archive.load_sample(5U).status,
+        LegacySndSampleStatus::sample_out_of_file_range,
+        "corrupt file window is isolated"
+    );
+    test.expect_equal(
+        archive.load_sample(6U).status,
+        LegacySndSampleStatus::unsafe_original_allocation,
+        "original template overflow is isolated"
+    );
 }
 
 class Sha256 {
@@ -282,13 +356,19 @@ public:
         const std::uint64_t bit_count = total_bytes_ * 8U;
         block_[block_size_++] = 0x80U;
         if (block_size_ > 56U) {
-            std::fill(block_.begin() + static_cast<std::ptrdiff_t>(block_size_),
-                      block_.end(), 0U);
+            std::fill(
+                block_.begin() + static_cast<std::ptrdiff_t>(block_size_),
+                block_.end(),
+                0U
+            );
             process_block();
             block_size_ = 0U;
         }
-        std::fill(block_.begin() + static_cast<std::ptrdiff_t>(block_size_),
-                  block_.begin() + 56, 0U);
+        std::fill(
+            block_.begin() + static_cast<std::ptrdiff_t>(block_size_),
+            block_.begin() + 56,
+            0U
+        );
         for (std::size_t index = 0U; index < 8U; ++index) {
             block_[63U - index] = static_cast<u8>(bit_count >> (index * 8U));
         }
@@ -303,8 +383,8 @@ public:
     }
 
 private:
-    [[nodiscard]] static constexpr u32 rotate_right(const u32 value,
-                                                    const u32 count) noexcept {
+    [[nodiscard]] static constexpr u32
+    rotate_right(const u32 value, const u32 count) noexcept {
         return std::rotr(value, static_cast<int>(count));
     }
 
@@ -313,17 +393,17 @@ private:
         for (std::size_t index = 0U; index < 16U; ++index) {
             const std::size_t offset = index * 4U;
             words[index] = (static_cast<u32>(block_[offset]) << 24U) |
-                           (static_cast<u32>(block_[offset + 1U]) << 16U) |
-                           (static_cast<u32>(block_[offset + 2U]) << 8U) |
-                           static_cast<u32>(block_[offset + 3U]);
+                (static_cast<u32>(block_[offset + 1U]) << 16U) |
+                (static_cast<u32>(block_[offset + 2U]) << 8U) |
+                static_cast<u32>(block_[offset + 3U]);
         }
         for (std::size_t index = 16U; index < words.size(); ++index) {
             const u32 s0 = rotate_right(words[index - 15U], 7U) ^
-                           rotate_right(words[index - 15U], 18U) ^
-                           (words[index - 15U] >> 3U);
+                rotate_right(words[index - 15U], 18U) ^
+                (words[index - 15U] >> 3U);
             const u32 s1 = rotate_right(words[index - 2U], 17U) ^
-                           rotate_right(words[index - 2U], 19U) ^
-                           (words[index - 2U] >> 10U);
+                rotate_right(words[index - 2U], 19U) ^
+                (words[index - 2U] >> 10U);
             words[index] = words[index - 16U] + s0 + words[index - 7U] + s1;
         }
 
@@ -337,12 +417,12 @@ private:
         u32 h = state_[7];
         for (std::size_t index = 0U; index < words.size(); ++index) {
             const u32 sum_one = rotate_right(e, 6U) ^ rotate_right(e, 11U) ^
-                                rotate_right(e, 25U);
+                rotate_right(e, 25U);
             const u32 choice = (e & f) ^ ((~e) & g);
             const u32 temporary_one =
                 h + sum_one + choice + kRoundConstants[index] + words[index];
             const u32 sum_zero = rotate_right(a, 2U) ^ rotate_right(a, 13U) ^
-                                 rotate_right(a, 22U);
+                rotate_right(a, 22U);
             const u32 majority = (a & b) ^ (a & c) ^ (b & c);
             const u32 temporary_two = sum_zero + majority;
             h = g;
@@ -381,19 +461,27 @@ private:
     };
 
     std::array<u32, 8> state_{
-        0x6A09E667U, 0xBB67AE85U, 0x3C6EF372U, 0xA54FF53AU,
-        0x510E527FU, 0x9B05688CU, 0x1F83D9ABU, 0x5BE0CD19U,
+        0x6A09E667U,
+        0xBB67AE85U,
+        0x3C6EF372U,
+        0xA54FF53AU,
+        0x510E527FU,
+        0x9B05688CU,
+        0x1F83D9ABU,
+        0x5BE0CD19U,
     };
     std::array<u8, 64> block_{};
     std::size_t block_size_{};
     std::uint64_t total_bytes_{};
 };
 
-void test_real_archive(openswd3::test::Context& test,
-                       const std::filesystem::path& path) {
+void test_real_archive(
+    openswd3::test::Context& test, const std::filesystem::path& path
+) {
     LegacySndArchive archive;
-    test.expect_equal(archive.open(path), LegacySndOpenStatus::ready,
-                      "real all.snd opens");
+    test.expect_equal(
+        archive.open(path), LegacySndOpenStatus::ready, "real all.snd opens"
+    );
     if (!archive.is_open()) {
         return;
     }
@@ -409,25 +497,42 @@ void test_real_archive(openswd3::test::Context& test,
         unique_offsets.insert(entry.file_offset);
         total_view_bytes +=
             entry.packed_size_and_type & kLegacySndRuntimeSizeMask;
-        test.expect_equal(entry.packed_size_and_type >> 26U, 0U,
-                          "current all.snd runtime type is zero");
+        test.expect_equal(
+            entry.packed_size_and_type >> 26U,
+            0U,
+            "current all.snd runtime type is zero"
+        );
     }
     test.expect_equal(nonempty_count, std::size_t{664U}, "real nonempty count");
-    test.expect_equal(unique_offsets.size(), std::size_t{662U},
-                      "real unique payload offsets");
-    test.expect_equal(total_view_bytes, std::uint64_t{117128703U},
-                      "real runtime view byte total");
+    test.expect_equal(
+        unique_offsets.size(), std::size_t{662U}, "real unique payload offsets"
+    );
+    test.expect_equal(
+        total_view_bytes,
+        std::uint64_t{117128703U},
+        "real runtime view byte total"
+    );
 
-    test.expect_equal(archive.entry(270U)->packed_size_and_type &
-                          kLegacySndRuntimeSizeMask,
-                      0x01DE1747U, "ID 270 keeps its spanning alias length");
-    test.expect_equal(archive.entry(270U)->file_offset, 0x0110B1E8U,
-                      "ID 270 keeps its alias offset");
-    test.expect_equal(archive.entry(277U)->packed_size_and_type &
-                          kLegacySndRuntimeSizeMask,
-                      0x01DE1747U, "ID 277 keeps its spanning alias length");
-    test.expect_equal(archive.entry(277U)->file_offset, 0x011D943EU,
-                      "ID 277 keeps its alias offset");
+    test.expect_equal(
+        archive.entry(270U)->packed_size_and_type & kLegacySndRuntimeSizeMask,
+        0x01DE1747U,
+        "ID 270 keeps its spanning alias length"
+    );
+    test.expect_equal(
+        archive.entry(270U)->file_offset,
+        0x0110B1E8U,
+        "ID 270 keeps its alias offset"
+    );
+    test.expect_equal(
+        archive.entry(277U)->packed_size_and_type & kLegacySndRuntimeSizeMask,
+        0x01DE1747U,
+        "ID 277 keeps its spanning alias length"
+    );
+    test.expect_equal(
+        archive.entry(277U)->file_offset,
+        0x011D943EU,
+        "ID 277 keeps its alias offset"
+    );
 
     Sha256 digest;
     std::uint64_t total_allocation_bytes{};
@@ -437,8 +542,9 @@ void test_real_archive(openswd3::test::Context& test,
             continue;
         }
         const auto sample = archive.load_sample(sound_id);
-        test.expect_equal(sample.status, LegacySndSampleStatus::ready,
-                          "real sample loads");
+        test.expect_equal(
+            sample.status, LegacySndSampleStatus::ready, "real sample loads"
+        );
         if (sample.status != LegacySndSampleStatus::ready) {
             continue;
         }
@@ -447,18 +553,25 @@ void test_real_archive(openswd3::test::Context& test,
         if (sound_id == 506U || sound_id == 507U) {
             constexpr std::array<u8, 4> kMalformedTag{0U, 0U, 't', 'a'};
             test.expect_true(
-                bytes_equal(std::span{sample.bytes}.subspan(0x24U, 4U),
-                            kMalformedTag),
-                "malformed original chunk tag remains unchanged");
+                bytes_equal(
+                    std::span{sample.bytes}.subspan(0x24U, 4U), kMalformedTag
+                ),
+                "malformed original chunk tag remains unchanged"
+            );
         }
     }
-    test.expect_equal(total_allocation_bytes, std::uint64_t{117144639U},
-                      "real loader allocation byte total");
+    test.expect_equal(
+        total_allocation_bytes,
+        std::uint64_t{117144639U},
+        "real loader allocation byte total"
+    );
     test.expect_equal(
         digest.finish(),
         std::string{
-            "38ecbbcbb7473ab8c8ec116837b8c472fa7ed274ad42e4a0e0f04aaef6241e27"},
-        "all returned sample buffers match the evidence SHA-256");
+            "38ecbbcbb7473ab8c8ec116837b8c472fa7ed274ad42e4a0e0f04aaef6241e27"
+        },
+        "all returned sample buffers match the evidence SHA-256"
+    );
 }
 
 }  // namespace

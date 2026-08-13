@@ -35,8 +35,7 @@ public:
     );
 
     [[nodiscard]] bool load_special_frame(
-        compat::u16 variant_index,
-        asset_runtime::LegacyTswRuntimeFrame& frame
+        compat::u16 variant_index, asset_runtime::LegacyTswRuntimeFrame& frame
     ) override;
 
     [[nodiscard]] LegacyWorldSpecialFrameStatus last_status() const noexcept;

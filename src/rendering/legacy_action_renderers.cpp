@@ -11,20 +11,15 @@ using compat::i32;
 using compat::u16;
 using compat::u32;
 
-[[nodiscard]] constexpr i16 wrapping_add_word(
-    const i16 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i16
+wrapping_add_word(const i16 left, const i32 right) noexcept {
     return std::bit_cast<i16>(static_cast<u16>(
-        static_cast<u32>(std::bit_cast<u16>(left)) +
-        static_cast<u32>(right)
+        static_cast<u32>(std::bit_cast<u16>(left)) + static_cast<u32>(right)
     ));
 }
 
-[[nodiscard]] constexpr i16 wrapping_subtract_word(
-    const i16 left,
-    const i16 right
-) noexcept {
+[[nodiscard]] constexpr i16
+wrapping_subtract_word(const i16 left, const i16 right) noexcept {
     return std::bit_cast<i16>(static_cast<u16>(
         static_cast<u32>(std::bit_cast<u16>(left)) -
         static_cast<u32>(std::bit_cast<u16>(right))
@@ -36,16 +31,14 @@ using compat::u32;
 }
 
 void transition_to_simple(
-    LegacyPackedRowEffect& effect,
-    LegacyPackedRowEffectResult& result
+    LegacyPackedRowEffect& effect, LegacyPackedRowEffectResult& result
 ) noexcept {
     effect.mode = static_cast<u16>((effect.mode & 0x00FFU) | 0x0800U);
     ++result.transitioned_to_simple_count;
 }
 
-[[nodiscard]] bool dynamic_rows_available(
-    const LegacyPackedRowEffect& effect
-) noexcept {
+[[nodiscard]] bool
+dynamic_rows_available(const LegacyPackedRowEffect& effect) noexcept {
     if (effect.row_count <= 0) {
         return true;
     }
@@ -77,8 +70,7 @@ void draw_effect_row(
 }  // namespace
 
 LegacyFramebufferPackedRowDrawPorts::LegacyFramebufferPackedRowDrawPorts(
-    LegacyFramebuffer& framebuffer,
-    const LegacyPixelConversionState& format
+    LegacyFramebuffer& framebuffer, const LegacyPixelConversionState& format
 ) noexcept
     : framebuffer_(framebuffer), format_(format) {}
 
@@ -95,19 +87,15 @@ LegacyFramebufferPackedRowDrawPorts::draw_legacy_packed_row(
         return LegacyPackedRowBlendStatus::destination_out_of_bounds;
     }
 
-    std::span<compat::u16> row = framebuffer_.row_pixels(
-        static_cast<u32>(destination_y)
-    );
+    std::span<compat::u16> row =
+        framebuffer_.row_pixels(static_cast<u32>(destination_y));
     const auto x = static_cast<std::size_t>(destination_x);
     const auto logical_width = static_cast<std::size_t>(surface.width);
     if (x >= row.size() || logical_width > row.size()) {
         return LegacyPackedRowBlendStatus::destination_out_of_bounds;
     }
     return blend_legacy_packed_row(
-        row.subspan(x, logical_width - x),
-        color_pattern,
-        length,
-        format_
+        row.subspan(x, logical_width - x), color_pattern, length, format_
     );
 }
 
@@ -135,9 +123,8 @@ LegacyPackedRowEffectResult update_draw_legacy_packed_row_effects(
             continue;
         }
 
-        const u32 color = color_patterns[
-            static_cast<std::size_t>(current->color_index)
-        ];
+        const u32 color =
+            color_patterns[static_cast<std::size_t>(current->color_index)];
         const i32 count = static_cast<i32>(current->row_count);
         bool remove = false;
 
@@ -158,13 +145,11 @@ LegacyPackedRowEffectResult update_draw_legacy_packed_row_effects(
         } else if (mode == 0x8000U) {
             i32 completed = 0;
             for (i32 row = count - 1; row >= 0; --row) {
-                const i32 step = 48 + static_cast<i32>(
-                    random.next_bounded(6U) * 2U
-                );
+                const i32 step =
+                    48 + static_cast<i32>(random.next_bounded(6U) * 2U);
                 ++result.random_request_count;
-                i16& length = current->row_lengths[
-                    static_cast<std::size_t>(row)
-                ];
+                i16& length =
+                    current->row_lengths[static_cast<std::size_t>(row)];
                 length = wrapping_add_word(length, step);
                 if (length >= current->limit) {
                     ++completed;
@@ -178,13 +163,11 @@ LegacyPackedRowEffectResult update_draw_legacy_packed_row_effects(
         } else if (mode == 0x4000U) {
             i32 completed = 0;
             for (i32 row = count - 1; row >= 0; --row) {
-                const i32 step = -48 - static_cast<i32>(
-                    random.next_bounded(24U) * 2U
-                );
+                const i32 step =
+                    -48 - static_cast<i32>(random.next_bounded(24U) * 2U);
                 ++result.random_request_count;
-                i16& offset = current->row_offsets[
-                    static_cast<std::size_t>(row)
-                ];
+                i16& offset =
+                    current->row_offsets[static_cast<std::size_t>(row)];
                 offset = wrapping_add_word(offset, step);
                 if (offset <= 0) {
                     ++completed;
@@ -200,21 +183,18 @@ LegacyPackedRowEffectResult update_draw_legacy_packed_row_effects(
         } else if (mode == 0x2000U) {
             i32 completed = 0;
             for (i32 row = count - 1; row >= 0; --row) {
-                const i32 step = 48 + static_cast<i32>(
-                    random.next_bounded(48U) * 2U
-                );
+                const i32 step =
+                    48 + static_cast<i32>(random.next_bounded(48U) * 2U);
                 ++result.random_request_count;
-                i16& offset = current->row_offsets[
-                    static_cast<std::size_t>(row)
-                ];
+                i16& offset =
+                    current->row_offsets[static_cast<std::size_t>(row)];
                 offset = wrapping_add_word(offset, step);
                 if (offset >= current->limit) {
                     ++completed;
                     offset = current->limit;
                 }
-                i16& length = current->row_lengths[
-                    static_cast<std::size_t>(row)
-                ];
+                i16& length =
+                    current->row_lengths[static_cast<std::size_t>(row)];
                 length = wrapping_subtract_word(current->limit, offset);
                 if (length <= 1) {
                     length = 2;
@@ -225,13 +205,11 @@ LegacyPackedRowEffectResult update_draw_legacy_packed_row_effects(
         } else if (mode == 0x1000U) {
             i32 completed = 0;
             for (i32 row = count - 1; row >= 0; --row) {
-                const i32 step = -48 - static_cast<i32>(
-                    random.next_bounded(48U) * 2U
-                );
+                const i32 step =
+                    -48 - static_cast<i32>(random.next_bounded(48U) * 2U);
                 ++result.random_request_count;
-                i16& length = current->row_lengths[
-                    static_cast<std::size_t>(row)
-                ];
+                i16& length =
+                    current->row_lengths[static_cast<std::size_t>(row)];
                 length = wrapping_add_word(length, step);
                 if (length <= 2) {
                     ++completed;

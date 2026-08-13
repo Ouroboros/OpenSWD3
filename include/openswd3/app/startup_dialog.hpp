@@ -47,9 +47,8 @@ enum class StartupDialogAction {
     end_dialog_6,
 };
 
-[[nodiscard]] StartupDialogAction select_startup_dialog_command(
-    compat::u32 command_value
-) noexcept;
+[[nodiscard]] StartupDialogAction
+select_startup_dialog_command(compat::u32 command_value) noexcept;
 
 [[nodiscard]] StartupDialogAction startup_dialog_close_action() noexcept;
 
@@ -81,8 +80,7 @@ public:
 };
 
 void execute_startup_dialog_action(
-    StartupDialogAction action,
-    StartupDialogPorts& ports
+    StartupDialogAction action, StartupDialogPorts& ports
 );
 
 }  // namespace openswd3::app

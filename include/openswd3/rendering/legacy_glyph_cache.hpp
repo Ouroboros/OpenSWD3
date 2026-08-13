@@ -49,14 +49,11 @@ public:
     [[nodiscard]] compat::i32 insert_empty(compat::u16 key) noexcept;
     void finish_miss_after_draw() noexcept;
 
-    [[nodiscard]] std::span<compat::u8> mask_slot(
-        compat::u32 slot
-    ) noexcept;
-    [[nodiscard]] std::span<const compat::u8> mask_slot(
-        compat::u32 slot
-    ) const noexcept;
-    [[nodiscard]] std::span<const compat::u16> physical_key_slots(
-    ) const noexcept;
+    [[nodiscard]] std::span<compat::u8> mask_slot(compat::u32 slot) noexcept;
+    [[nodiscard]] std::span<const compat::u8>
+    mask_slot(compat::u32 slot) const noexcept;
+    [[nodiscard]] std::span<const compat::u16>
+    physical_key_slots() const noexcept;
 
 private:
     compat::i32 glyph_width_{};

@@ -103,17 +103,13 @@ void test_exact_case_one_order(openswd3::test::Context& test) {
     BattleTransitionState state{7U, 8U, 0x80000003U, 9U};
     RecordingPorts ports;
 
-    const auto result = openswd3::app::run_legacy_new_game_transition(
-        state,
-        ports
-    );
+    const auto result =
+        openswd3::app::run_legacy_new_game_transition(state, ports);
 
     test.expect_equal(ports.calls, kExpectedCalls, "case one call order");
     test.expect_true(result.initial_world_ready, "world result is observable");
     test.expect_equal(
-        result.sampled_epoch_seconds,
-        0x12345678U,
-        "sampled time is returned"
+        result.sampled_epoch_seconds, 0x12345678U, "sampled time is returned"
     );
     test.expect_true(
         ports.received_seconds == 0x12345678U &&
@@ -124,8 +120,7 @@ void test_exact_case_one_order(openswd3::test::Context& test) {
     );
     test.expect_true(
         state.battle_request_value == 7U && state.battle_active == 8U &&
-            state.special_mode_state == 0U &&
-            state.high_priority_state == 0U,
+            state.special_mode_state == 0U && state.high_priority_state == 0U,
         "only the two directly written coordinator fields are changed"
     );
 }
@@ -137,14 +132,11 @@ void test_checked_world_failure_does_not_skip_legacy_tail(
     RecordingPorts ports;
     ports.world_ready = false;
 
-    const auto result = openswd3::app::run_legacy_new_game_transition(
-        state,
-        ports
-    );
+    const auto result =
+        openswd3::app::run_legacy_new_game_transition(state, ports);
 
     test.expect_false(
-        result.initial_world_ready,
-        "checked loader failure remains visible"
+        result.initial_world_ready, "checked loader failure remains visible"
     );
     test.expect_equal(
         ports.calls,

@@ -17,8 +17,7 @@ constexpr compat::u32 kLegacyTalkEntriesPerFile = 2000U;
 constexpr compat::u32 kLegacyTalkFileCount = 4U;
 
 [[nodiscard]] bool ascii_case_equal(
-    const std::string_view left,
-    const std::string_view right
+    const std::string_view left, const std::string_view right
 ) noexcept {
     if (left.size() != right.size()) {
         return false;
@@ -36,8 +35,7 @@ constexpr compat::u32 kLegacyTalkFileCount = 4U;
 }
 
 [[nodiscard]] std::filesystem::path resolve_legacy_filename(
-    const std::filesystem::path& root,
-    const std::string_view filename
+    const std::filesystem::path& root, const std::string_view filename
 ) {
     const std::filesystem::path direct = root / filename;
     std::error_code error;
@@ -60,9 +58,8 @@ constexpr compat::u32 kLegacyTalkFileCount = 4U;
 
 }  // namespace
 
-LegacyResourceDatabaseInitialization LegacyResourceDatabases::initialize(
-    const std::filesystem::path& root
-) {
+LegacyResourceDatabaseInitialization
+LegacyResourceDatabases::initialize(const std::filesystem::path& root) {
     static_cast<void>(maps_file_.close());
     static_cast<void>(path_file_.close());
     static_cast<void>(talk_file_.close());
@@ -182,7 +179,8 @@ LegacyResourceDatabases::mutable_maps_payload_bytes() noexcept {
     return maps_payload_;
 }
 
-std::span<const compat::u8> LegacyResourceDatabases::path_bytes() const noexcept {
+std::span<const compat::u8>
+LegacyResourceDatabases::path_bytes() const noexcept {
     if (path_view_ == nullptr || path_size_ == 0U) {
         return {};
     }
@@ -245,7 +243,8 @@ LegacyTalkWindowLoadResult LegacyResourceDatabases::load_talk_story_window(
         if (!alternate_file.open(
                 resolve_legacy_filename(root_, filename),
                 LegacyFileCreation::open_existing,
-                LegacyFileAccess::read)) {
+                LegacyFileAccess::read
+            )) {
             return LegacyTalkWindowLoadResult{
                 .status = LegacyTalkWindowStatus::open_failed,
                 .file_number = file_number,
@@ -272,8 +271,8 @@ LegacyTalkWindowLoadResult LegacyResourceDatabases::load_talk_story_window(
     }
 
     LegacyTalkWindowLoadResult loaded = read_talk_data_window(
-        *file, file_number, result.data_offset, destination,
-        clear_before_read);
+        *file, file_number, result.data_offset, destination, clear_before_read
+    );
     loaded.entry_index = entry_index;
     return loaded;
 }
@@ -296,7 +295,8 @@ LegacyTalkWindowLoadResult LegacyResourceDatabases::load_talk_data_window(
         if (!alternate_file.open(
                 resolve_legacy_filename(root_, filename),
                 LegacyFileCreation::open_existing,
-                LegacyFileAccess::read)) {
+                LegacyFileAccess::read
+            )) {
             return LegacyTalkWindowLoadResult{
                 .status = LegacyTalkWindowStatus::open_failed,
                 .file_number = file_number,
@@ -306,7 +306,8 @@ LegacyTalkWindowLoadResult LegacyResourceDatabases::load_talk_data_window(
         file = &alternate_file;
     }
     return read_talk_data_window(
-        *file, file_number, data_offset, destination, clear_before_read);
+        *file, file_number, data_offset, destination, clear_before_read
+    );
 }
 
 }  // namespace openswd3::resource_io

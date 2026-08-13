@@ -104,9 +104,7 @@ class RecordingTextInputPorts final
     : public openswd3::app::TextInputMessagePorts {
 public:
     u32 filter_text_input_message(
-        const u32 message,
-        const u32 first_parameter,
-        const u32 second_parameter
+        const u32 message, const u32 first_parameter, const u32 second_parameter
     ) override {
         calls.push_back({message, first_parameter, second_parameter});
         return result;
@@ -213,14 +211,10 @@ void test_key_release_video_and_pause(openswd3::test::Context& test) {
         "Escape releases video before clearing its process bit"
     );
     test.expect_equal(
-        state.process_flags,
-        0x80U,
-        "Escape clears only the video-active bit"
+        state.process_flags, 0x80U, "Escape clears only the video-active bit"
     );
     test.expect_equal(
-        state.frame_execution_gate,
-        7U,
-        "Escape does not change the frame gate"
+        state.frame_execution_gate, 7U, "Escape does not change the frame gate"
     );
 
     state = {0U, 0U, 0U};
@@ -228,7 +222,9 @@ void test_key_release_video_and_pause(openswd3::test::Context& test) {
     handle_key_release(state, 0x77U, ports);
     test.expect_equal(state.frame_execution_gate, 1U, "F8 turns zero gate on");
     handle_key_release(state, 0x77U, ports);
-    test.expect_equal(state.frame_execution_gate, 0U, "F8 turns nonzero gate off");
+    test.expect_equal(
+        state.frame_execution_gate, 0U, "F8 turns nonzero gate off"
+    );
 
     state = {0U, kProcessVideoActive, 9U};
     handle_key_release(state, 0x77U, ports);
@@ -268,9 +264,7 @@ void test_screenshot_gates(openswd3::test::Context& test) {
         {WindowPortCall::query_disk_space, 0U},
     };
     test.expect_equal(
-        ports.events,
-        threshold_events,
-        "exactly 64 MiB does not capture"
+        ports.events, threshold_events, "exactly 64 MiB does not capture"
     );
 
     ports.events.clear();
@@ -295,8 +289,7 @@ void test_left_button_legacy_comparison(openswd3::test::Context& test) {
     RecordingWindowPorts ports(state);
     handle_left_button_down(state, 1U, ports);
     test.expect_true(
-        ports.events.empty(),
-        "ordinary left-button state does not stop video"
+        ports.events.empty(), "ordinary left-button state does not stop video"
     );
     test.expect_equal(
         state.process_flags,
@@ -327,15 +320,12 @@ public:
     explicit RecordingShutdownPorts(std::vector<ExitCall>& calls)
         : calls_(calls) {}
 
-    void perform_shutdown_operation(
-        openswd3::app::ShutdownOperation
-    ) override {
+    void perform_shutdown_operation(openswd3::app::ShutdownOperation) override {
         record_once();
     }
 
-    bool perform_shutdown_close(
-        openswd3::app::ShutdownCloseOperation
-    ) override {
+    bool
+    perform_shutdown_close(openswd3::app::ShutdownCloseOperation) override {
         record_once();
         return true;
     }
@@ -402,7 +392,9 @@ void test_destroy_gate_and_order(openswd3::test::Context& test) {
     state.runtime_initialized = 0U;
     state.process_flags = openswd3::app::kProcessCloseRequested;
     openswd3::app::handle_window_destroy(state, shutdown_ports, exit_ports);
-    test.expect_equal(calls, expected, "close-request bit also enables shutdown");
+    test.expect_equal(
+        calls, expected, "close-request bit also enables shutdown"
+    );
 }
 
 }  // namespace

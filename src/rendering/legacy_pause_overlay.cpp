@@ -43,12 +43,7 @@ LegacyPauseOverlayResult draw_legacy_pause_overlay(
         .width = 22 * kHalfByteLength,
         .height = 22,
         .foreground_color = static_cast<compat::u16>(
-            legacy_pack_color_pair(
-                effects.pixel_conversion,
-                25,
-                23,
-                17
-            )
+            legacy_pack_color_pair(effects.pixel_conversion, 25, 23, 17)
         ),
     };
 
@@ -82,8 +77,7 @@ LegacyPauseOverlayResult draw_legacy_pause_overlay(
     );
 
     result.presentation = submit_legacy_presentation(
-        LegacyPresentationSite::pause_overlay,
-        presentation_ports
+        LegacyPresentationSite::pause_overlay, presentation_ports
     );
     return result;
 }

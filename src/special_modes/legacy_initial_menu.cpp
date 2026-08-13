@@ -24,55 +24,42 @@ constexpr i32 kNamePanelX = kNameInputX - 0x6C;
 constexpr i32 kNamePanelY = kNameInputY - 0x2E;
 constexpr i32 kNameButtonX = 0xDC;
 constexpr i32 kNameButtonY = 0xFE;
-constexpr std::array<u8, 5U> kFirstDefaultName{
-    0xC1U, 0xC9U, 0xAFU, 0x53U, 0U
-};
-constexpr std::array<u8, 5U> kSecondDefaultName{
-    0xA9U, 0x67U, 0xA5U, 0x69U, 0U
-};
+constexpr std::array<u8, 5U> kFirstDefaultName{0xC1U, 0xC9U, 0xAFU, 0x53U, 0U};
+constexpr std::array<u8, 5U> kSecondDefaultName{0xA9U, 0x67U, 0xA5U, 0x69U, 0U};
 
 [[nodiscard]] constexpr i32 from_bits(const u32 value) noexcept {
     return std::bit_cast<i32>(value);
 }
 
-[[nodiscard]] constexpr i32 wrapping_add(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_add(const i32 left, const i32 right) noexcept {
     return from_bits(std::bit_cast<u32>(left) + std::bit_cast<u32>(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_subtract(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_subtract(const i32 left, const i32 right) noexcept {
     return from_bits(std::bit_cast<u32>(left) - std::bit_cast<u32>(right));
 }
 
-[[nodiscard]] constexpr bool strict_between(
-    const i32 value,
-    const i32 low,
-    const i32 high
-) noexcept {
+[[nodiscard]] constexpr bool
+strict_between(const i32 value, const i32 low, const i32 high) noexcept {
     return value > low && value < high;
 }
 
-[[nodiscard]] bool first_press(
-    const input_time_rng::LegacyInputRecord* const record
-) noexcept {
+[[nodiscard]] bool
+first_press(const input_time_rng::LegacyInputRecord* const record) noexcept {
     return record != nullptr && record->rapid_press_multiplicity != 0U &&
-           record->held_sample_count == 1U;
+        record->held_sample_count == 1U;
 }
 
-[[nodiscard]] bool repeated_press(
-    const input_time_rng::LegacyInputRecord* const record
-) noexcept {
+[[nodiscard]] bool
+repeated_press(const input_time_rng::LegacyInputRecord* const record) noexcept {
     if (record == nullptr || record->rapid_press_multiplicity == 0U) {
         return false;
     }
     return record->held_sample_count == 1U ||
-           (record->held_sample_count > 7U &&
-            (record->held_sample_count & 1U) == 0U);
+        (record->held_sample_count > 7U &&
+         (record->held_sample_count & 1U) == 0U);
 }
 
 void copy_default_names(LegacyInitialMenuState& state) noexcept {
@@ -83,14 +70,10 @@ void copy_default_names(LegacyInitialMenuState& state) noexcept {
 }
 
 void create_name_input(
-    LegacyInitialMenuState& state,
-    const std::array<u8, 16U>& initial_text
+    LegacyInitialMenuState& state, const std::array<u8, 16U>& initial_text
 ) noexcept {
     state.name_input.emplace(
-        initial_text.data(),
-        kNameInputCapacity,
-        kNameInputX,
-        kNameInputY
+        initial_text.data(), kNameInputCapacity, kNameInputX, kNameInputY
     );
     asset_runtime::initialize_legacy_action_record(state.name_button_action);
     state.name_button_action.action_id =
@@ -117,29 +100,28 @@ void submit_current_choice(LegacyInitialMenuState& state) noexcept {
     state.phase = 2;
     state.counter = kLegacyInitialMenuExitCounter;
     switch (state.selected_choice) {
-        case 1U:
-            // sub_448EE0 stores 0x61 and then immediately increments it after
-            // constructing the first 32-byte text-input object.
-            state.counter = kLegacyInitialMenuNameOneCounter;
-            copy_default_names(state);
-            create_name_input(state, state.first_name);
-            break;
-        case 2U:
-            state.phase = 5;
-            state.counter = 0;
-            break;
-        case 3U:
-            // The original launches the external helper here and leaves phase
-            // two in place. Its platform owner is outside the new-game path.
-            break;
-        default:
-            break;
+    case 1U:
+        // sub_448EE0 stores 0x61 and then immediately increments it after
+        // constructing the first 32-byte text-input object.
+        state.counter = kLegacyInitialMenuNameOneCounter;
+        copy_default_names(state);
+        create_name_input(state, state.first_name);
+        break;
+    case 2U:
+        state.phase = 5;
+        state.counter = 0;
+        break;
+    case 3U:
+        // The original launches the external helper here and leaves phase
+        // two in place. Its platform owner is outside the new-game path.
+        break;
+    default:
+        break;
     }
 }
 
 [[nodiscard]] bool process_phase_one_input(
-    LegacyInitialMenuState& state,
-    const LegacyInitialMenuInput& input
+    LegacyInitialMenuState& state, const LegacyInitialMenuInput& input
 ) noexcept {
     if (state.phase != 1) {
         return false;
@@ -149,9 +131,7 @@ void submit_current_choice(LegacyInitialMenuState& state) noexcept {
         constexpr std::array<i32, 4U> kHitHigh{0xE8, 0x11D, 0x156, 0x18F};
         for (std::size_t index = 0U; index < kChoiceY.size(); ++index) {
             if (!strict_between(
-                    input.mouse_y,
-                    kChoiceY[index],
-                    kHitHigh[index]
+                    input.mouse_y, kChoiceY[index], kHitHigh[index]
                 )) {
                 continue;
             }
@@ -173,9 +153,8 @@ void submit_current_choice(LegacyInitialMenuState& state) noexcept {
         state.selected_choice = std::min(state.selected_choice + 1U, 3U);
     }
     if (state.phase == 1 && repeated_press(input.up)) {
-        state.selected_choice = state.selected_choice == 0U
-                                    ? 0U
-                                    : state.selected_choice - 1U;
+        state.selected_choice =
+            state.selected_choice == 0U ? 0U : state.selected_choice - 1U;
     }
     if (state.phase == 1 && repeated_press(input.page_down)) {
         state.selected_choice = 3U;
@@ -184,9 +163,8 @@ void submit_current_choice(LegacyInitialMenuState& state) noexcept {
         state.selected_choice = 0U;
     }
     if (state.phase == 1 && repeated_press(input.left)) {
-        state.selected_choice = state.selected_choice == 0U
-                                    ? 0U
-                                    : state.selected_choice - 1U;
+        state.selected_choice =
+            state.selected_choice == 0U ? 0U : state.selected_choice - 1U;
     }
     if (state.phase == 1 && repeated_press(input.right)) {
         state.selected_choice = std::min(state.selected_choice + 1U, 3U);
@@ -200,8 +178,7 @@ void submit_current_choice(LegacyInitialMenuState& state) noexcept {
 }
 
 [[nodiscard]] bool process_name_input(
-    LegacyInitialMenuState& state,
-    const LegacyInitialMenuInput& input
+    LegacyInitialMenuState& state, const LegacyInitialMenuInput& input
 ) noexcept {
     if (state.phase != 2 ||
         (state.counter != kLegacyInitialMenuNameOneCounter &&
@@ -210,15 +187,14 @@ void submit_current_choice(LegacyInitialMenuState& state) noexcept {
     }
 
     const bool mouse_accept = first_press(input.mouse_left) &&
-                              strict_between(input.mouse_y, 0x101, 0x112) &&
-                              strict_between(input.mouse_x, 0x162, 0x198);
+        strict_between(input.mouse_y, 0x101, 0x112) &&
+        strict_between(input.mouse_x, 0x162, 0x198);
     const i32 text_result =
         state.name_input.has_value() ? state.name_input->result() : 0;
     const bool accepted = mouse_accept || first_press(input.primary) ||
-                          first_press(input.alternate_primary) ||
-                          text_result == 1;
+        first_press(input.alternate_primary) || text_result == 1;
     const bool cancelled = first_press(input.mouse_right) ||
-                           first_press(input.cancel) || text_result == 2;
+        first_press(input.cancel) || text_result == 2;
     if (cancelled) {
         state.name_input.reset();
         state.phase = 1;
@@ -228,10 +204,11 @@ void submit_current_choice(LegacyInitialMenuState& state) noexcept {
         if (state.name_input.has_value()) {
             auto& destination =
                 state.counter == kLegacyInitialMenuNameOneCounter
-                    ? state.first_name
-                    : state.second_name;
+                ? state.first_name
+                : state.second_name;
             static_cast<void>(
-                state.name_input->copy_to(destination.data(), 0x10));
+                state.name_input->copy_to(destination.data(), 0x10)
+            );
             state.name_input.reset();
         }
         ++state.counter;
@@ -264,12 +241,11 @@ void accumulate_draw_result(
     destination.blit_failure_count += source.blit_failure_count;
 }
 
-[[nodiscard]] bool accepted_blit(
-    const rendering::LegacyBlitExecutionStatus status
-) noexcept {
+[[nodiscard]] bool
+accepted_blit(const rendering::LegacyBlitExecutionStatus status) noexcept {
     return status == rendering::LegacyBlitExecutionStatus::completed ||
-           status == rendering::LegacyBlitExecutionStatus::clipped_out ||
-           status == rendering::LegacyBlitExecutionStatus::opacity_disabled;
+        status == rendering::LegacyBlitExecutionStatus::clipped_out ||
+        status == rendering::LegacyBlitExecutionStatus::opacity_disabled;
 }
 
 [[nodiscard]] bool draw_choice(
@@ -295,18 +271,10 @@ void accumulate_draw_result(
 
     const u32 flags = 4U | (action.mode_flags & 0x80000003U);
     const i32 draw_x = wrapping_subtract(x, from_bits(action.draw_offset_x));
-    const i32 draw_y = wrapping_subtract(
-        y,
-        from_bits(action.draw_offset_y)
-    );
+    const i32 draw_y = wrapping_subtract(y, from_bits(action.draw_offset_y));
     const auto draw = [&](const i32 destination_x) {
-        const auto status = ports.draw_frame_piece(
-            piece,
-            destination_x,
-            draw_y,
-            flags,
-            0
-        );
+        const auto status =
+            ports.draw_frame_piece(piece, destination_x, draw_y, flags, 0);
         ++result.draw_count;
         if (!accepted_blit(status)) {
             ++result.blit_failure_count;
@@ -342,10 +310,7 @@ void draw_menu(
     LegacyInitialMenuFrameResult& result
 ) {
     const auto background = asset_runtime::update_draw_legacy_action(
-        state.background_action,
-        0,
-        0,
-        action_ports
+        state.background_action, 0, 0, action_ports
     );
     accumulate_draw_result(result, background);
     if (background.status != asset_runtime::LegacyActionDrawStatus::ready) {
@@ -376,11 +341,7 @@ void draw_menu(
     }
 
     const auto panel = asset_runtime::draw_legacy_tsw_frame(
-        kNamePanelResourceId,
-        0U,
-        kNamePanelX,
-        kNamePanelY,
-        action_ports
+        kNamePanelResourceId, 0U, kNamePanelX, kNamePanelY, action_ports
     );
     accumulate_draw_result(result, panel);
     if (panel.status != asset_runtime::LegacyActionDrawStatus::ready) {
@@ -389,10 +350,7 @@ void draw_menu(
     }
 
     const auto button = asset_runtime::update_draw_legacy_action(
-        state.name_button_action,
-        kNameButtonX,
-        kNameButtonY,
-        action_ports
+        state.name_button_action, kNameButtonX, kNameButtonY, action_ports
     );
     accumulate_draw_result(result, button);
     if (button.status != asset_runtime::LegacyActionDrawStatus::ready) {
@@ -402,11 +360,16 @@ void draw_menu(
 
 [[nodiscard]] LegacyInitialMenuEvent commit_event(const u32 choice) noexcept {
     switch (choice) {
-        case 0U: return LegacyInitialMenuEvent::commit_choice_0_00449291;
-        case 1U: return LegacyInitialMenuEvent::commit_new_game_004492ba;
-        case 2U: return LegacyInitialMenuEvent::commit_choice_2_00449318;
-        case 3U: return LegacyInitialMenuEvent::commit_choice_3_00449320;
-        default: return LegacyInitialMenuEvent::none;
+    case 0U:
+        return LegacyInitialMenuEvent::commit_choice_0_00449291;
+    case 1U:
+        return LegacyInitialMenuEvent::commit_new_game_004492ba;
+    case 2U:
+        return LegacyInitialMenuEvent::commit_choice_2_00449318;
+    case 3U:
+        return LegacyInitialMenuEvent::commit_choice_3_00449320;
+    default:
+        return LegacyInitialMenuEvent::none;
     }
 }
 
@@ -462,7 +425,8 @@ LegacyInitialMenuFrameResult run_legacy_initial_menu_frame(
             }
             return result;
         }
-        if (state.phase == 2 && state.counter >= kLegacyInitialMenuExitCounter) {
+        if (state.phase == 2 &&
+            state.counter >= kLegacyInitialMenuExitCounter) {
             ++state.counter;
             if (state.counter >= kLegacyInitialMenuCommitCounter) {
                 result.event = commit_event(state.selected_choice);

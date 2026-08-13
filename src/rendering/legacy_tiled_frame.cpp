@@ -19,40 +19,30 @@ using compat::u32;
     return std::bit_cast<i32>(value);
 }
 
-[[nodiscard]] constexpr i32 wrapping_add(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_add(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) + to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_subtract(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_subtract(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) - to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 arithmetic_shift_right_one(
-    const i32 value
-) noexcept {
+[[nodiscard]] constexpr i32
+arithmetic_shift_right_one(const i32 value) noexcept {
     const u32 bits = to_bits(value);
     return from_bits((bits >> 1U) | (bits & 0x80000000U));
 }
 
 void set_clip_rectangle(
-    LegacyRasterGeometryState& raster,
-    i32 left,
-    i32 top,
-    i32 right,
-    i32 bottom
+    LegacyRasterGeometryState& raster, i32 left, i32 top, i32 right, i32 bottom
 ) noexcept {
     set_legacy_clip_rectangle(raster, left, top, right, bottom);
 }
 
-[[nodiscard]] LegacyBlitClipRectangle current_clip(
-    const LegacyRasterGeometryState& raster
-) noexcept {
+[[nodiscard]] LegacyBlitClipRectangle
+current_clip(const LegacyRasterGeometryState& raster) noexcept {
     return LegacyBlitClipRectangle{
         .left = raster.clip_left,
         .top = raster.clip_top,
@@ -68,11 +58,7 @@ public:
 
     ~FullClipRestorer() {
         set_clip_rectangle(
-            raster_,
-            0,
-            0,
-            kLegacyFramebufferWidth,
-            kLegacyFramebufferHeight
+            raster_, 0, 0, kLegacyFramebufferWidth, kLegacyFramebufferHeight
         );
     }
 
@@ -80,15 +66,13 @@ private:
     LegacyRasterGeometryState& raster_;
 };
 
-[[nodiscard]] constexpr bool loop_range_is_safe(
-    const i32 first,
-    const i32 end
-) noexcept {
+[[nodiscard]] constexpr bool
+loop_range_is_safe(const i32 first, const i32 end) noexcept {
     if (first >= end) {
         return true;
     }
-    const std::int64_t distance = static_cast<std::int64_t>(end) -
-        static_cast<std::int64_t>(first);
+    const std::int64_t distance =
+        static_cast<std::int64_t>(end) - static_cast<std::int64_t>(first);
     return distance <= std::numeric_limits<i32>::max();
 }
 
@@ -102,31 +86,18 @@ public:
         const LegacyBlitEffectState& effects,
         LegacyRleRowJitterState& jitter
     ) noexcept
-        : framebuffer_(framebuffer),
-          raster_(raster),
-          provider_(provider),
-          request_(request),
-          effects_(effects),
-          jitter_(jitter),
+        : framebuffer_(framebuffer), raster_(raster), provider_(provider),
+          request_(request), effects_(effects), jitter_(jitter),
           draw_flags_(request.opacity_step != 0 ? 0x14U : 0U) {}
 
-    [[nodiscard]] bool load(
-        const u32 index,
-        LegacyFramePiece& piece
-    ) noexcept {
+    [[nodiscard]] bool load(const u32 index, LegacyFramePiece& piece) noexcept {
         return load_from_resource(request_.resource_id, index, piece);
     }
 
     [[nodiscard]] bool load_from_resource(
-        const u32 resource_id,
-        const u32 index,
-        LegacyFramePiece& piece
+        const u32 resource_id, const u32 index, LegacyFramePiece& piece
     ) noexcept {
-        if (!provider_.load_frame_piece(
-                resource_id,
-                index,
-                piece
-            )) {
+        if (!provider_.load_frame_piece(resource_id, index, piece)) {
             result_.status = LegacyTiledFrameStatus::frame_unavailable;
             result_.frame_index = index;
             return false;
@@ -140,10 +111,7 @@ public:
     }
 
     [[nodiscard]] bool draw(
-        const LegacyFramePiece& piece,
-        const u32 index,
-        const i32 x,
-        const i32 y
+        const LegacyFramePiece& piece, const u32 index, const i32 x, const i32 y
     ) noexcept {
         const LegacyBlitResult blit = blit_legacy_copy_paths(
             framebuffer_,
@@ -221,12 +189,7 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
 ) noexcept {
     FullClipRestorer restore_clip(raster);
     TiledFrameDrawer drawer(
-        framebuffer,
-        raster,
-        provider,
-        request,
-        effects,
-        jitter
+        framebuffer, raster, provider, request, effects, jitter
     );
 
     const i32 margin = from_bits(request.flags & 0x7FFFFFFFU);
@@ -244,10 +207,7 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
                 return drawer.result();
             }
             const i32 x = wrapping_subtract(
-                wrapping_add(
-                    request.right,
-                    static_cast<i32>(piece.width)
-                ),
+                wrapping_add(request.right, static_cast<i32>(piece.width)),
                 margin
             );
             const i32 y = wrapping_subtract(
@@ -262,11 +222,7 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
         }
 
         set_clip_rectangle(
-            raster,
-            request.left,
-            request.top,
-            request.right,
-            request.bottom
+            raster, request.left, request.top, request.right, request.bottom
         );
         if (!drawer.load(4U, piece)) {
             return drawer.result();
@@ -290,11 +246,7 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
     const i32 outer_bottom = wrapping_add(request.bottom, margin);
 
     set_clip_rectangle(
-        raster,
-        outer_left,
-        outer_top,
-        request.left,
-        request.top
+        raster, outer_left, outer_top, request.left, request.top
     );
     if (!drawer.load(0U, piece) ||
         !drawer.draw(piece, 0U, outer_left, outer_top)) {
@@ -302,11 +254,7 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
     }
 
     set_clip_rectangle(
-        raster,
-        request.left,
-        outer_top,
-        request.right,
-        request.top
+        raster, request.left, outer_top, request.right, request.top
     );
     if (!drawer.load(1U, piece)) {
         return drawer.result();
@@ -323,21 +271,13 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
     }
 
     set_clip_rectangle(
-        raster,
-        request.right,
-        outer_top,
-        outer_right,
-        request.top
+        raster, request.right, outer_top, outer_right, request.top
     );
     if (!drawer.load(2U, piece)) {
         return drawer.result();
     }
     const i32 top_right_x = wrapping_add(
-        wrapping_subtract(
-            request.right,
-            static_cast<i32>(piece.width)
-        ),
-        margin
+        wrapping_subtract(request.right, static_cast<i32>(piece.width)), margin
     );
     if (!drawer.draw(piece, 2U, top_right_x, outer_top)) {
         return drawer.result();
@@ -347,11 +287,7 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
         i32 y = request.top;
         while (y < request.bottom) {
             set_clip_rectangle(
-                raster,
-                outer_left,
-                y,
-                request.left,
-                request.bottom
+                raster, outer_left, y, request.left, request.bottom
             );
             if (!drawer.load(3U, piece) ||
                 !drawer.draw(piece, 3U, outer_left, y)) {
@@ -359,20 +295,13 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
             }
 
             set_clip_rectangle(
-                raster,
-                request.right,
-                request.top,
-                outer_right,
-                request.bottom
+                raster, request.right, request.top, outer_right, request.bottom
             );
             if (!drawer.load(5U, piece)) {
                 return drawer.result();
             }
             const i32 right_x = wrapping_add(
-                wrapping_subtract(
-                    request.right,
-                    static_cast<i32>(piece.width)
-                ),
+                wrapping_subtract(request.right, static_cast<i32>(piece.width)),
                 margin
             );
             if (!drawer.draw(piece, 5U, right_x, y) ||
@@ -385,20 +314,13 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
     edge_x = request.left;
 
     set_clip_rectangle(
-        raster,
-        outer_left,
-        request.bottom,
-        edge_x,
-        outer_bottom
+        raster, outer_left, request.bottom, edge_x, outer_bottom
     );
     if (!drawer.load(6U, piece)) {
         return drawer.result();
     }
     const i32 bottom_y = wrapping_add(
-        wrapping_subtract(
-            request.bottom,
-            static_cast<i32>(piece.height)
-        ),
+        wrapping_subtract(request.bottom, static_cast<i32>(piece.height)),
         margin
     );
     if (!drawer.draw(piece, 6U, outer_left, bottom_y)) {
@@ -406,20 +328,13 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
     }
 
     set_clip_rectangle(
-        raster,
-        edge_x,
-        request.bottom,
-        request.right,
-        outer_bottom
+        raster, edge_x, request.bottom, request.right, outer_bottom
     );
     if (!drawer.load(7U, piece)) {
         return drawer.result();
     }
     const i32 bottom_edge_y = wrapping_add(
-        wrapping_subtract(
-            request.bottom,
-            static_cast<i32>(piece.height)
-        ),
+        wrapping_subtract(request.bottom, static_cast<i32>(piece.height)),
         margin
     );
     while (edge_x < request.right) {
@@ -430,35 +345,19 @@ LegacyTiledFrameResult draw_legacy_tiled_frame(
     }
 
     set_clip_rectangle(
-        raster,
-        request.right,
-        request.bottom,
-        outer_right,
-        outer_bottom
+        raster, request.right, request.bottom, outer_right, outer_bottom
     );
     if (!drawer.load(8U, piece)) {
         return drawer.result();
     }
     const i32 bottom_right_x = wrapping_add(
-        wrapping_subtract(
-            request.right,
-            static_cast<i32>(piece.width)
-        ),
-        margin
+        wrapping_subtract(request.right, static_cast<i32>(piece.width)), margin
     );
     const i32 bottom_right_y = wrapping_add(
-        wrapping_subtract(
-            request.bottom,
-            static_cast<i32>(piece.height)
-        ),
+        wrapping_subtract(request.bottom, static_cast<i32>(piece.height)),
         margin
     );
-    static_cast<void>(drawer.draw(
-        piece,
-        8U,
-        bottom_right_x,
-        bottom_right_y
-    ));
+    static_cast<void>(drawer.draw(piece, 8U, bottom_right_x, bottom_right_y));
     return drawer.result();
 }
 

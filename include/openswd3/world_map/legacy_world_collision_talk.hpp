@@ -47,18 +47,14 @@ public:
     virtual ~LegacyWorldCollisionTalkPorts() = default;
 
     [[nodiscard]] virtual LegacyMovementCollisionResult query_collision(
-        compat::u32 role_index,
-        compat::i32 delta_x,
-        compat::i32 delta_y
+        compat::u32 role_index, compat::i32 delta_x, compat::i32 delta_y
     ) = 0;
 
-    [[nodiscard]] virtual compat::u32 query_internal_flag(
-        compat::u32 bit_index
-    ) = 0;
+    [[nodiscard]] virtual compat::u32
+    query_internal_flag(compat::u32 bit_index) = 0;
 
-    [[nodiscard]] virtual compat::u32 update_action(
-        asset_runtime::LegacyActionRecord& action
-    ) = 0;
+    [[nodiscard]] virtual compat::u32
+    update_action(asset_runtime::LegacyActionRecord& action) = 0;
 };
 
 enum class LegacyWorldCollisionTalkStatus {

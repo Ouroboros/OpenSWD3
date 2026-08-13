@@ -34,18 +34,14 @@ using openswd3::world_map::post_materialize_legacy_world_role;
 using openswd3::world_map::write_legacy_maps_role_source_record;
 
 void write_u16(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u16 value
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
 ) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
 void write_u32(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>((value >> 8U) & 0xFFU);
@@ -62,9 +58,7 @@ void write_gate_row(
     write_u16(bytes, offset, guid);
     for (std::size_t index = 0U; index < states.size(); ++index) {
         write_u16(
-            bytes,
-            offset + sizeof(u16) + index * sizeof(u16),
-            states[index]
+            bytes, offset + sizeof(u16) + index * sizeof(u16), states[index]
         );
     }
 }
@@ -80,8 +74,7 @@ struct Fixture {
         source.flags = 0x0100U;
         database.role_sources.push_back(source);
         static_cast<void>(write_legacy_maps_role_source_record(
-            payload,
-            database.role_sources.front()
+            payload, database.role_sources.front()
         ));
 
         descriptor.logical_map_id = 5U;
@@ -95,18 +88,10 @@ struct Fixture {
         roles[1].talk_script_id = 0x33U;
     }
 
-    [[nodiscard]] LegacyWorldRolePostMaterializationStatus run(
-        const LegacyWorldRolePostMaterializationContext* context = nullptr
-    ) {
+    [[nodiscard]] LegacyWorldRolePostMaterializationStatus
+    run(const LegacyWorldRolePostMaterializationContext* context = nullptr) {
         return post_materialize_legacy_world_role(
-            payload,
-            database,
-            descriptor,
-            request,
-            roles,
-            1U,
-            context,
-            state
+            payload, database, descriptor, request, roles, 1U, context, state
         );
     }
 
@@ -186,10 +171,7 @@ void test_gate_transfer_decisions(openswd3::test::Context& test) {
     Fixture no_guid_row;
     no_guid_row.roles[1].flags = 0x00004080U;
     write_gate_row(
-        no_guid_row.payload,
-        0x100U,
-        8U,
-        {7U, 0U, 0U, 0U, 0U, 0U, 0U, 0U}
+        no_guid_row.payload, 0x100U, 8U, {7U, 0U, 0U, 0U, 0U, 0U, 0U, 0U}
     );
     write_u16(no_guid_row.payload, 0x112U, 0xFFFFU);
     test.expect_equal(
@@ -209,10 +191,7 @@ void test_gate_transfer_decisions(openswd3::test::Context& test) {
     Fixture state_absent;
     state_absent.roles[1].flags = 0x00000080U;
     write_gate_row(
-        state_absent.payload,
-        0x100U,
-        9U,
-        {6U, 0U, 0U, 0U, 0U, 0U, 0U, 0U}
+        state_absent.payload, 0x100U, 9U, {6U, 0U, 0U, 0U, 0U, 0U, 0U, 0U}
     );
     write_u16(state_absent.payload, 0x112U, 0xFFFFU);
     test.expect_equal(
@@ -231,10 +210,7 @@ void test_gate_transfer_decisions(openswd3::test::Context& test) {
     Fixture state_present;
     state_present.roles[1].flags = 0x00000080U;
     write_gate_row(
-        state_present.payload,
-        0x100U,
-        9U,
-        {7U, 0U, 0U, 0U, 0U, 0U, 0U, 0U}
+        state_present.payload, 0x100U, 9U, {7U, 0U, 0U, 0U, 0U, 0U, 0U, 0U}
     );
     write_u16(state_present.payload, 0x112U, 0xFFFFU);
     state_present.request.logical_map_id = 22U;
@@ -256,8 +232,7 @@ void test_object_slot_and_maps_patch(openswd3::test::Context& test) {
     missing_slots.roles[1].path_data_id = 4U;
     test.expect_equal(
         missing_slots.run(),
-        LegacyWorldRolePostMaterializationStatus::
-            active_object_slots_required,
+        LegacyWorldRolePostMaterializationStatus::active_object_slots_required,
         "path-backed transfers require the exact 72-slot state"
     );
 
@@ -398,15 +373,11 @@ void test_checked_boundaries(openswd3::test::Context& test) {
     unterminated.roles[1].flags = 0x80U;
     write_u32(unterminated.payload, 0x64U, 0x16EU);
     write_gate_row(
-        unterminated.payload,
-        0x16EU,
-        8U,
-        {0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U}
+        unterminated.payload, 0x16EU, 8U, {0U, 0U, 0U, 0U, 0U, 0U, 0U, 0U}
     );
     test.expect_equal(
         unterminated.run(),
-        LegacyWorldRolePostMaterializationStatus::
-            gate_directory_unterminated,
+        LegacyWorldRolePostMaterializationStatus::gate_directory_unterminated,
         "gate directory without FFFF terminator is checked"
     );
 
@@ -421,8 +392,7 @@ void test_checked_boundaries(openswd3::test::Context& test) {
 }
 
 void test_real_gate_directory(
-    openswd3::test::Context& test,
-    const std::filesystem::path& maps_path
+    openswd3::test::Context& test, const std::filesystem::path& maps_path
 ) {
     std::ifstream input(maps_path, std::ios::binary);
     std::vector<u8> file_bytes{
@@ -449,12 +419,10 @@ void test_real_gate_directory(
     }
 
     const auto* const descriptor = find_legacy_maps_map_descriptor(
-        decoded.database,
-        decoded.database.initial_load.logical_map_id
+        decoded.database, decoded.database.initial_load.logical_map_id
     );
     test.expect_true(
-        descriptor != nullptr,
-        "current initial map descriptor exists"
+        descriptor != nullptr, "current initial map descriptor exists"
     );
     if (descriptor == nullptr) {
         return;
@@ -479,8 +447,7 @@ void test_real_gate_directory(
         "current +0x64 gate directory reaches its FFFF terminator"
     );
     test.expect_true(
-        state.gated_roles_scanned == 1U &&
-            state.roles_transferred == 1U,
+        state.gated_roles_scanned == 1U && state.roles_transferred == 1U,
         "an absent synthetic GUID preserves the original decision-one path"
     );
 }

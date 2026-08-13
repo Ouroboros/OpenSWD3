@@ -35,14 +35,14 @@ public:
         return LegacyActionUpdateStatus::completed;
     }
 
-    [[nodiscard]] bool load_frame_piece(const u16, const u16,
-                                        LegacyFramePiece&) override {
+    [[nodiscard]] bool
+    load_frame_piece(const u16, const u16, LegacyFramePiece&) override {
         return false;
     }
 
-    [[nodiscard]] LegacyBlitExecutionStatus
-    draw_frame_piece(const LegacyFramePiece&, const i32, const i32, const u32,
-                     const i32) noexcept override {
+    [[nodiscard]] LegacyBlitExecutionStatus draw_frame_piece(
+        const LegacyFramePiece&, const i32, const i32, const u32, const i32
+    ) noexcept override {
         return LegacyBlitExecutionStatus::completed;
     }
 
@@ -54,15 +54,13 @@ void test_initial_layout_and_reverse_update(openswd3::test::Context& test) {
     LegacyWorldHeadSignActionsState state;
     RecordingActionPorts ports;
 
-    bool layout_matches = state.records.size() ==
-                          kLegacyWorldHeadSignActionCount;
+    bool layout_matches =
+        state.records.size() == kLegacyWorldHeadSignActionCount;
     for (std::size_t index = 0U; index < state.records.size(); ++index) {
         const LegacyActionRecord& record = state.records[index];
         const bool active = index < 4U;
-        layout_matches =
-            layout_matches &&
-            record.action_id ==
-                (active ? kLegacyWorldHeadSignActionId : 0U) &&
+        layout_matches = layout_matches &&
+            record.action_id == (active ? kLegacyWorldHeadSignActionId : 0U) &&
             record.base_variant == (active ? static_cast<u32>(index) : 0U) &&
             record.field_1c == 0xFFFFFFFFU &&
             record.one_shot_base_variant == 0xFFFFFFFFU &&
@@ -70,15 +68,20 @@ void test_initial_layout_and_reverse_update(openswd3::test::Context& test) {
     }
 
     const auto result = advance_legacy_world_head_sign_actions(state, ports);
-    test.expect_true(layout_matches,
-                     "startup owns eight initialized records and four signs");
-    test.expect_equal(ports.variants, std::vector<u32>({3U, 2U, 1U, 0U}),
-                      "active head signs update from the highest slot down");
+    test.expect_true(
+        layout_matches, "startup owns eight initialized records and four signs"
+    );
+    test.expect_equal(
+        ports.variants,
+        std::vector<u32>({3U, 2U, 1U, 0U}),
+        "active head signs update from the highest slot down"
+    );
     test.expect_true(
         result.status == LegacyWorldHeadSignActionsStatus::completed &&
             result.visited_count == 8U && result.active_count == 4U &&
             result.update_count == 4U && result.update_failure_count == 0U,
-        "zero action ids are visited but do not call the updater");
+        "zero action ids are visited but do not call the updater"
+    );
 }
 
 void test_failure_is_diagnostic_only(openswd3::test::Context& test) {
@@ -87,18 +90,24 @@ void test_failure_is_diagnostic_only(openswd3::test::Context& test) {
     ports.failed_variant = 2U;
 
     const auto result = advance_legacy_world_head_sign_actions(state, ports);
-    test.expect_equal(ports.variants, std::vector<u32>({3U, 2U, 1U, 0U}),
-                      "a failed update does not stop lower-address records");
+    test.expect_equal(
+        ports.variants,
+        std::vector<u32>({3U, 2U, 1U, 0U}),
+        "a failed update does not stop lower-address records"
+    );
     test.expect_true(
         result.status ==
-                LegacyWorldHeadSignActionsStatus::completed_with_update_failures &&
+                LegacyWorldHeadSignActionsStatus::
+                    completed_with_update_failures &&
             result.visited_count == 8U && result.active_count == 4U &&
             result.update_count == 4U && result.update_failure_count == 1U,
-        "the nullsub diagnostic branch remains nonfatal and observable");
+        "the nullsub diagnostic branch remains nonfatal and observable"
+    );
 }
 
 void test_original_address_tokens_resolve_exact_slots(
-    openswd3::test::Context& test) {
+    openswd3::test::Context& test
+) {
     LegacyWorldHeadSignActionsState state;
 
     test.expect_true(
@@ -107,13 +116,16 @@ void test_original_address_tokens_resolve_exact_slots(
             legacy_world_head_sign_action_token(3U) ==
                 kLegacyWorldHeadSignActionBaseAddress + 3U * 0x98U &&
             resolve_legacy_world_head_sign_action(
-                state, legacy_world_head_sign_action_token(3U)) ==
-                &state.records[3] &&
+                state, legacy_world_head_sign_action_token(3U)
+            ) == &state.records[3] &&
             resolve_legacy_world_head_sign_action(
-                state, kLegacyWorldHeadSignActionBaseAddress + 1U) == nullptr &&
+                state, kLegacyWorldHeadSignActionBaseAddress + 1U
+            ) == nullptr &&
             resolve_legacy_world_head_sign_action(
-                state, legacy_world_head_sign_action_token(8U)) == nullptr,
-        "original head-sign addresses map only to the eight aligned slots");
+                state, legacy_world_head_sign_action_token(8U)
+            ) == nullptr,
+        "original head-sign addresses map only to the eight aligned slots"
+    );
 }
 
 }  // namespace

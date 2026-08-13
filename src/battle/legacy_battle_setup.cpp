@@ -33,10 +33,12 @@ constexpr std::array<FormationPoint, 4U> kFourMemberFormation{{
     {0x024CU, 0x0167U},
 }};
 
-constexpr std::array<compat::i32, kLegacyBattlePartySlotCount>
-    kAnchorXOffsets{10, 5, 10, -5};
-constexpr std::array<compat::i32, kLegacyBattlePartySlotCount>
-    kAnchorYOffsets{-0x91, -0xAA, -0x9B, -0xA3};
+constexpr std::array<compat::i32, kLegacyBattlePartySlotCount> kAnchorXOffsets{
+    10, 5, 10, -5
+};
+constexpr std::array<compat::i32, kLegacyBattlePartySlotCount> kAnchorYOffsets{
+    -0x91, -0xAA, -0x9B, -0xA3
+};
 
 template <std::size_t Size>
 void assign_formation(
@@ -105,8 +107,7 @@ void place_party(LegacyBattleSetupState& state) noexcept {
 }
 
 LegacyBattleSetupStatus place_enemies(
-    const LegacyBattleAssets& assets,
-    LegacyBattleSetupState& state
+    const LegacyBattleAssets& assets, LegacyBattleSetupState& state
 ) noexcept {
     state.enemy_count = assets.enemy_count();
     if (state.enemy_count > state.enemies.size()) {

@@ -17,34 +17,25 @@ using compat::u32;
     return std::bit_cast<i32>(value);
 }
 
-[[nodiscard]] constexpr i32 wrapping_add(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_add(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) + to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_multiply(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_multiply(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) * to_bits(right));
 }
 
-[[nodiscard]] constexpr u32 countdown_ticks(
-    const i32 minutes,
-    const i32 seconds
-) noexcept {
-    const i32 total_seconds = wrapping_add(
-        wrapping_multiply(minutes, 60),
-        seconds
-    );
+[[nodiscard]] constexpr u32
+countdown_ticks(const i32 minutes, const i32 seconds) noexcept {
+    const i32 total_seconds =
+        wrapping_add(wrapping_multiply(minutes, 60), seconds);
     return to_bits(wrapping_multiply(total_seconds, 30));
 }
 
-[[nodiscard]] constexpr LegacyBlitClipRectangle current_clip(
-    const LegacyRasterGeometryState& raster
-) noexcept {
+[[nodiscard]] constexpr LegacyBlitClipRectangle
+current_clip(const LegacyRasterGeometryState& raster) noexcept {
     return LegacyBlitClipRectangle{
         .left = raster.clip_left,
         .top = raster.clip_top,
@@ -53,9 +44,8 @@ using compat::u32;
     };
 }
 
-[[nodiscard]] constexpr bool accepted_blit_status(
-    const LegacyBlitExecutionStatus status
-) noexcept {
+[[nodiscard]] constexpr bool
+accepted_blit_status(const LegacyBlitExecutionStatus status) noexcept {
     return status == LegacyBlitExecutionStatus::completed ||
         status == LegacyBlitExecutionStatus::clipped_out ||
         status == LegacyBlitExecutionStatus::opacity_disabled;
@@ -72,12 +62,8 @@ public:
         const i32 destination_y,
         const i32 destination_x
     ) noexcept
-        : framebuffer_(framebuffer),
-          raster_(raster),
-          provider_(provider),
-          effects_(effects),
-          jitter_(jitter),
-          destination_y_(destination_y),
+        : framebuffer_(framebuffer), raster_(raster), provider_(provider),
+          effects_(effects), jitter_(jitter), destination_y_(destination_y),
           destination_x_(destination_x) {}
 
     [[nodiscard]] bool draw(const i32 action_index) noexcept {
@@ -86,12 +72,9 @@ public:
 
         LegacyFramePiece piece{};
         if (!provider_.load_countdown_piece(
-                kLegacyCountdownActionId,
-                action_index,
-                piece
+                kLegacyCountdownActionId, action_index, piece
             )) {
-            result_.status =
-                LegacyCountdownDisplayStatus::piece_unavailable;
+            result_.status = LegacyCountdownDisplayStatus::piece_unavailable;
             return false;
         }
         if (piece.width == 0U || piece.height == 0U) {
@@ -122,10 +105,8 @@ public:
             return false;
         }
 
-        destination_x_ = wrapping_add(
-            destination_x_,
-            static_cast<i32>(piece.width)
-        );
+        destination_x_ =
+            wrapping_add(destination_x_, static_cast<i32>(piece.width));
         return true;
     }
 
@@ -188,8 +169,10 @@ LegacyCountdownDisplayResult draw_legacy_countdown(
             result.status = LegacyCountdownDisplayStatus::hidden_inactive;
             return result;
         }
-    } else if (request.mode == 1 &&
-               !flags.query_internal_flag(kLegacySecondaryCountdownFlag)) {
+    } else if (
+        request.mode == 1 &&
+        !flags.query_internal_flag(kLegacySecondaryCountdownFlag)
+    ) {
         LegacyCountdownDisplayResult result;
         result.status = LegacyCountdownDisplayStatus::hidden_inactive;
         return result;
@@ -201,9 +184,8 @@ LegacyCountdownDisplayResult draw_legacy_countdown(
         return result;
     }
 
-    const u32 raw_ticks = request.mode == 0
-        ? state.primary_ticks
-        : state.secondary_ticks;
+    const u32 raw_ticks =
+        request.mode == 0 ? state.primary_ticks : state.secondary_ticks;
     i32 displayed_seconds = from_bits(raw_ticks) / 30;
     if (displayed_seconds < 0) {
         displayed_seconds = 0;
@@ -221,12 +203,10 @@ LegacyCountdownDisplayResult draw_legacy_countdown(
     drawer.set_displayed_seconds(displayed_seconds);
 
     const i32 leading_minutes_digit = displayed_seconds / 600;
-    if (leading_minutes_digit != 0 &&
-        !drawer.draw(leading_minutes_digit)) {
+    if (leading_minutes_digit != 0 && !drawer.draw(leading_minutes_digit)) {
         return drawer.result();
     }
-    if (!drawer.draw((displayed_seconds / 60) % 10) ||
-        !drawer.draw(10) ||
+    if (!drawer.draw((displayed_seconds / 60) % 10) || !drawer.draw(10) ||
         !drawer.draw((displayed_seconds % 60) / 10) ||
         !drawer.draw((displayed_seconds % 60) % 10)) {
         return drawer.result();

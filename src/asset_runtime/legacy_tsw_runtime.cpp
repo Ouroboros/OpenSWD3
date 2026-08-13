@@ -46,8 +46,7 @@ LegacyTswRuntime::LegacyTswRuntime(
     const rendering::LegacyPixelConversionState pixel_conversion,
     LegacyTswSpecialFrameLoader* const special_loader
 )
-    : data_root_(std::move(data_root)),
-      pixel_conversion_(pixel_conversion),
+    : data_root_(std::move(data_root)), pixel_conversion_(pixel_conversion),
       special_loader_(special_loader) {}
 
 void LegacyTswRuntime::set_cache_limit(const compat::u32 bytes) noexcept {
@@ -80,24 +79,20 @@ LegacyTswRuntimeStatus LegacyTswRuntime::ensure_initialized() {
 }
 
 LegacyTswRuntimeStatus LegacyTswRuntime::normalize_physical_frame(
-    LegacyTswFrame&& physical,
-    LegacyTswRuntimeFrame& runtime
+    LegacyTswFrame&& physical, LegacyTswRuntimeFrame& runtime
 ) {
     const std::array<compat::u16, 256> palette =
         decode_palette(physical.palette);
-    const std::span<const compat::u16> palette_view =
-        physical.has_palette ? std::span<const compat::u16>{palette}
-                             : std::span<const compat::u16>{};
+    const std::span<const compat::u16> palette_view = physical.has_palette
+        ? std::span<const compat::u16>{palette}
+        : std::span<const compat::u16>{};
     rendering::LegacyImageCommandStreamResult converted =
         rendering::convert_legacy_image_command_stream(
-            physical.command_stream,
-            palette_view,
-            pixel_conversion_
+            physical.command_stream, palette_view, pixel_conversion_
         );
     if (converted.status !=
             rendering::LegacyImageCommandStreamStatus::completed ||
-        converted.bytes.size() >
-            std::numeric_limits<compat::u32>::max()) {
+        converted.bytes.size() > std::numeric_limits<compat::u32>::max()) {
         return LegacyTswRuntimeStatus::conversion_failed;
     }
 
@@ -110,8 +105,7 @@ LegacyTswRuntimeStatus LegacyTswRuntime::normalize_physical_frame(
 }
 
 LegacyTswDirectResult LegacyTswRuntime::load_low16(
-    const compat::u16 resource_id,
-    const compat::u16 variant_index
+    const compat::u16 resource_id, const compat::u16 variant_index
 ) {
     LegacyTswDirectResult result;
     if (resource_id == kSpecialResourceId) {
@@ -135,26 +129,21 @@ LegacyTswDirectResult LegacyTswRuntime::load_low16(
         return result;
     }
     const compat::u32 physical_record = resource % kResourcesPerArchive;
-    LegacyTswFrameResult physical = archives_[archive_index].read_frame(
-        physical_record,
-        variant_index
-    );
+    LegacyTswFrameResult physical =
+        archives_[archive_index].read_frame(physical_record, variant_index);
     result.physical_status = physical.status;
     if (physical.status != LegacyTswFrameStatus::ready) {
         result.status = LegacyTswRuntimeStatus::physical_frame_failed;
         return result;
     }
 
-    result.status = normalize_physical_frame(
-        std::move(physical.frame),
-        result.frame
-    );
+    result.status =
+        normalize_physical_frame(std::move(physical.frame), result.frame);
     return result;
 }
 
 LegacyTswDirectResult LegacyTswRuntime::load_direct(
-    const compat::u32 resource_id_slot,
-    const compat::u32 variant_index_slot
+    const compat::u32 resource_id_slot, const compat::u32 variant_index_slot
 ) {
     LegacyTswDirectResult result;
     result.status = ensure_initialized();
@@ -168,17 +157,15 @@ LegacyTswDirectResult LegacyTswRuntime::load_direct(
 }
 
 std::size_t LegacyTswRuntime::bucket_index(
-    const compat::u16 resource_id,
-    const compat::u16 variant_index
+    const compat::u16 resource_id, const compat::u16 variant_index
 ) noexcept {
     const compat::u16 bucket_key =
         resource_id == kSpecialResourceId ? variant_index : resource_id;
     return static_cast<std::size_t>(bucket_key % kLegacyTswCacheBucketCount);
 }
 
-LegacyTswFrameView LegacyTswRuntime::view_of(
-    const LegacyTswRuntimeFrame& frame
-) noexcept {
+LegacyTswFrameView
+LegacyTswRuntime::view_of(const LegacyTswRuntimeFrame& frame) noexcept {
     return LegacyTswFrameView{
         frame.primary_stream,
         frame.auxiliary_stream,
@@ -189,8 +176,7 @@ LegacyTswFrameView LegacyTswRuntime::view_of(
 }
 
 LegacyTswQueryResult LegacyTswRuntime::find_low16(
-    const compat::u16 resource_id,
-    const compat::u16 variant_index
+    const compat::u16 resource_id, const compat::u16 variant_index
 ) noexcept {
     LegacyTswQueryResult result;
     result.status = LegacyTswRuntimeStatus::cache_miss;
@@ -212,8 +198,7 @@ LegacyTswQueryResult LegacyTswRuntime::find_low16(
 }
 
 LegacyTswQueryResult LegacyTswRuntime::find_cached(
-    const compat::u32 resource_id_slot,
-    const compat::u32 variant_index_slot
+    const compat::u32 resource_id_slot, const compat::u32 variant_index_slot
 ) noexcept {
     return find_low16(
         static_cast<compat::u16>(resource_id_slot),
@@ -243,8 +228,7 @@ void LegacyTswRuntime::evict_before_lookup() noexcept {
 }
 
 LegacyTswQueryResult LegacyTswRuntime::query_cached(
-    const compat::u32 resource_id_slot,
-    const compat::u32 variant_index_slot
+    const compat::u32 resource_id_slot, const compat::u32 variant_index_slot
 ) {
     LegacyTswQueryResult result;
     result.status = ensure_initialized();
@@ -254,8 +238,7 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
 
     evict_before_lookup();
 
-    const compat::u16 resource_id =
-        static_cast<compat::u16>(resource_id_slot);
+    const compat::u16 resource_id = static_cast<compat::u16>(resource_id_slot);
     const compat::u16 variant_index =
         static_cast<compat::u16>(variant_index_slot);
     LegacyTswQueryResult cached = find_low16(resource_id, variant_index);
@@ -273,11 +256,13 @@ LegacyTswQueryResult LegacyTswRuntime::query_cached(
     CacheBucket& bucket = buckets_[bucket_index(resource_id, variant_index)];
     const std::size_t primary_size = loaded.frame.primary_stream.size();
     try {
-        bucket.push_front(CacheNode{
-            resource_id,
-            variant_index,
-            std::move(loaded.frame),
-        });
+        bucket.push_front(
+            CacheNode{
+                resource_id,
+                variant_index,
+                std::move(loaded.frame),
+            }
+        );
     } catch (const std::bad_alloc&) {
         result.status = LegacyTswRuntimeStatus::allocation_failed;
         return result;
@@ -303,7 +288,9 @@ void LegacyTswRuntime::close() noexcept {
     initialized_ = false;
 }
 
-bool LegacyTswRuntime::is_initialized() const noexcept { return initialized_; }
+bool LegacyTswRuntime::is_initialized() const noexcept {
+    return initialized_;
+}
 
 compat::u32 LegacyTswRuntime::cache_limit() const noexcept {
     return cache_limit_;
@@ -325,8 +312,8 @@ std::size_t LegacyTswRuntime::bucket_entry_count(
     const std::size_t bucket_index_value
 ) const noexcept {
     return bucket_index_value < buckets_.size()
-               ? buckets_[bucket_index_value].size()
-               : 0U;
+        ? buckets_[bucket_index_value].size()
+        : 0U;
 }
 
 }  // namespace openswd3::asset_runtime

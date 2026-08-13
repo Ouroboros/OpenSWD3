@@ -50,23 +50,18 @@ struct LegacyEnvironmentRecord {
     std::string secondary_directory;
     compat::u8 trailing_mode{};
 
-    [[nodiscard]] bool operator==(
-        const LegacyEnvironmentRecord& other
-    ) const = default;
+    [[nodiscard]] bool
+    operator==(const LegacyEnvironmentRecord& other) const = default;
 };
 
 struct LegacyEnvironmentDecodeResult {
-    LegacyEnvironmentCodecStatus status{
-        LegacyEnvironmentCodecStatus::ok
-    };
+    LegacyEnvironmentCodecStatus status{LegacyEnvironmentCodecStatus::ok};
     LegacyEnvironmentLayout layout{LegacyEnvironmentLayout::marked};
     LegacyEnvironmentRecord record;
 };
 
 struct LegacyEnvironmentEncodeResult {
-    LegacyEnvironmentCodecStatus status{
-        LegacyEnvironmentCodecStatus::ok
-    };
+    LegacyEnvironmentCodecStatus status{LegacyEnvironmentCodecStatus::ok};
     std::vector<compat::u8> bytes;
 };
 
@@ -74,9 +69,7 @@ struct LegacyEnvironmentLoadResult {
     LegacyEnvironmentLoadStatus status{
         LegacyEnvironmentLoadStatus::initial_open_failed
     };
-    LegacyEnvironmentCodecStatus codec_status{
-        LegacyEnvironmentCodecStatus::ok
-    };
+    LegacyEnvironmentCodecStatus codec_status{LegacyEnvironmentCodecStatus::ok};
     bool original_return_value{};
     bool migration_write_succeeded{};
     bool migrated_reopen_succeeded{};
@@ -85,22 +78,18 @@ struct LegacyEnvironmentLoadResult {
 using LegacyEnvironmentDirectoryResolver =
     std::function<std::filesystem::path(std::string_view)>;
 
-[[nodiscard]] LegacyEnvironmentDecodeResult decode_legacy_environment(
-    std::span<const compat::u8> bytes
-);
+[[nodiscard]] LegacyEnvironmentDecodeResult
+decode_legacy_environment(std::span<const compat::u8> bytes);
 
 [[nodiscard]] LegacyEnvironmentDecodeResult decode_legacy_environment_as(
-    std::span<const compat::u8> bytes,
-    LegacyEnvironmentLayout layout
+    std::span<const compat::u8> bytes, LegacyEnvironmentLayout layout
 );
 
-[[nodiscard]] LegacyEnvironmentRecord migrate_unmarked_environment(
-    const LegacyEnvironmentRecord& unmarked_record
-);
+[[nodiscard]] LegacyEnvironmentRecord
+migrate_unmarked_environment(const LegacyEnvironmentRecord& unmarked_record);
 
-[[nodiscard]] LegacyEnvironmentEncodeResult encode_legacy_environment(
-    const LegacyEnvironmentRecord& record
-);
+[[nodiscard]] LegacyEnvironmentEncodeResult
+encode_legacy_environment(const LegacyEnvironmentRecord& record);
 
 [[nodiscard]] bool rewrite_legacy_environment(
     const std::filesystem::path& environment_file,

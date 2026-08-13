@@ -42,16 +42,14 @@ void test_ignored_host_result(openswd3::test::Context& test) {
         ports.result = host_result;
         test.expect_equal(
             openswd3::app::open_url_with_legacy_result(
-                "www.softstar.com.tw",
-                ports
+                "www.softstar.com.tw", ports
             ),
             0,
             "URL wrapper returns zero for either host result"
         );
         test.expect_equal(
             openswd3::app::open_document_with_legacy_result(
-                "Readme.txt",
-                ports
+                "Readme.txt", ports
             ),
             0,
             "document wrapper returns zero for either host result"

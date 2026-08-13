@@ -41,7 +41,9 @@ struct LegacyWorldMapSession {
 };
 
 struct LegacyWorldMapLoadResult {
-    LegacyWorldMapLoadStatus status{LegacyWorldMapLoadStatus::map_lookup_failed};
+    LegacyWorldMapLoadStatus status{
+        LegacyWorldMapLoadStatus::map_lookup_failed
+    };
     LegacyWorldMapSession session;
 };
 
@@ -70,10 +72,8 @@ public:
     [[nodiscard]] virtual resource_io::LegacyLmfMapHeader
     read_map_header(compat::u32 map_offset) = 0;
 
-    [[nodiscard]] virtual resource_io::LegacyLmfSurfaceGrid
-    read_surface_grid(
-        compat::u32 map_offset,
-        const resource_io::LegacyLmfMapHeader& header
+    [[nodiscard]] virtual resource_io::LegacyLmfSurfaceGrid read_surface_grid(
+        compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
     ) = 0;
 
     [[nodiscard]] virtual resource_io::LegacyLmfPostSurfaceRecords
@@ -90,20 +90,17 @@ public:
 
     [[nodiscard]] virtual resource_io::LegacyLmfOffset14Directory
     read_offset14_directory(
-        compat::u32 map_offset,
-        const resource_io::LegacyLmfMapHeader& header
+        compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
     ) = 0;
 
     [[nodiscard]] virtual resource_io::LegacyLmfIndexedObjectDirectory
     read_indexed_object_directory(
-        compat::u32 map_offset,
-        const resource_io::LegacyLmfMapHeader& header
+        compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
     ) = 0;
 
     [[nodiscard]] virtual resource_io::LegacyLmfOffset1cDirectory
     read_offset1c_directory(
-        compat::u32 map_offset,
-        const resource_io::LegacyLmfMapHeader& header
+        compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
     ) = 0;
 };
 
@@ -118,8 +115,7 @@ public:
     read_map_header(compat::u32 map_offset) override;
 
     [[nodiscard]] resource_io::LegacyLmfSurfaceGrid read_surface_grid(
-        compat::u32 map_offset,
-        const resource_io::LegacyLmfMapHeader& header
+        compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
     ) override;
 
     [[nodiscard]] resource_io::LegacyLmfPostSurfaceRecords
@@ -136,30 +132,25 @@ public:
 
     [[nodiscard]] resource_io::LegacyLmfOffset14Directory
     read_offset14_directory(
-        compat::u32 map_offset,
-        const resource_io::LegacyLmfMapHeader& header
+        compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
     ) override;
 
     [[nodiscard]] resource_io::LegacyLmfIndexedObjectDirectory
     read_indexed_object_directory(
-        compat::u32 map_offset,
-        const resource_io::LegacyLmfMapHeader& header
+        compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
     ) override;
 
     [[nodiscard]] resource_io::LegacyLmfOffset1cDirectory
     read_offset1c_directory(
-        compat::u32 map_offset,
-        const resource_io::LegacyLmfMapHeader& header
+        compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
     ) override;
 
 private:
     std::filesystem::path archive_path_;
 };
 
-[[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(
-    compat::u32 map_id,
-    LegacyWorldMapSource& source
-);
+[[nodiscard]] LegacyWorldMapLoadResult
+load_legacy_world_map(compat::u32 map_id, LegacyWorldMapSource& source);
 
 [[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(
     compat::u32 map_id,
@@ -175,8 +166,7 @@ private:
 );
 
 [[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(
-    const std::filesystem::path& archive_path,
-    compat::u32 map_id
+    const std::filesystem::path& archive_path, compat::u32 map_id
 );
 
 }  // namespace openswd3::world_map

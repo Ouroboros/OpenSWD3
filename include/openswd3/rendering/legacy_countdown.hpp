@@ -25,9 +25,8 @@ class LegacyCountdownFlagQueryPorts {
 public:
     virtual ~LegacyCountdownFlagQueryPorts() = default;
 
-    [[nodiscard]] virtual bool query_internal_flag(
-        compat::u32 index
-    ) noexcept = 0;
+    [[nodiscard]] virtual bool
+    query_internal_flag(compat::u32 index) noexcept = 0;
 };
 
 class LegacyCountdownFlagPorts : public LegacyCountdownFlagQueryPorts {
@@ -56,9 +55,7 @@ public:
 
     // Mirrors the static 0x232C action update followed by sub_4315D0.
     [[nodiscard]] virtual bool load_countdown_piece(
-        compat::u32 action_id,
-        compat::i32 action_index,
-        LegacyFramePiece& piece
+        compat::u32 action_id, compat::i32 action_index, LegacyFramePiece& piece
     ) noexcept = 0;
 };
 
@@ -85,9 +82,7 @@ struct LegacyCountdownDisplayResult {
     compat::i32 piece_index{};
     compat::u32 piece_request_count{};
     compat::u32 draw_call_count{};
-    LegacyBlitExecutionStatus blit_status{
-        LegacyBlitExecutionStatus::completed
-    };
+    LegacyBlitExecutionStatus blit_status{LegacyBlitExecutionStatus::completed};
 };
 
 [[nodiscard]] LegacyCountdownDisplayResult draw_legacy_countdown(

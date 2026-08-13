@@ -15,47 +15,55 @@ namespace {
 constexpr compat::u32 kIndexOffset = 0x1CU;
 constexpr compat::u32 kIndexRecordSize = 0x2CU;
 
-[[nodiscard]] compat::u16 read_u16(const std::span<const compat::u8> bytes,
-                                   const std::size_t offset) noexcept {
+[[nodiscard]] compat::u16 read_u16(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
     return static_cast<compat::u16>(
         static_cast<compat::u16>(bytes[offset]) |
-        static_cast<compat::u16>(static_cast<compat::u16>(bytes[offset + 1U])
-                                 << 8U));
+        static_cast<compat::u16>(
+            static_cast<compat::u16>(bytes[offset + 1U]) << 8U
+        )
+    );
 }
 
-[[nodiscard]] compat::u32 read_u32(const std::span<const compat::u8> bytes,
-                                   const std::size_t offset) noexcept {
+[[nodiscard]] compat::u32 read_u32(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
     return static_cast<compat::u32>(bytes[offset]) |
-           (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
-           (static_cast<compat::u32>(bytes[offset + 2U]) << 16U) |
-           (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
+        (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
+        (static_cast<compat::u32>(bytes[offset + 2U]) << 16U) |
+        (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
 }
 
-[[nodiscard]] bool read_exact(resource_io::LegacyFile& file,
-                              const std::span<compat::u8> bytes) noexcept {
+[[nodiscard]] bool read_exact(
+    resource_io::LegacyFile& file, const std::span<compat::u8> bytes
+) noexcept {
     compat::u32 requested = static_cast<compat::u32>(bytes.size());
     return file.read(bytes, requested) && requested == bytes.size();
 }
 
-[[nodiscard]] bool seek_exact(resource_io::LegacyFile& file,
-                              const compat::u32 offset) noexcept {
+[[nodiscard]] bool
+seek_exact(resource_io::LegacyFile& file, const compat::u32 offset) noexcept {
     if (offset >
         static_cast<compat::u32>(std::numeric_limits<compat::i32>::max())) {
         return false;
     }
     return file.seek_begin_one_based(static_cast<compat::i32>(offset)) ==
-           offset + 1U;
+        offset + 1U;
 }
 
-[[nodiscard]] bool range_fits(const compat::u32 offset, const compat::u32 size,
-                              const compat::u32 limit) noexcept {
+[[nodiscard]] bool range_fits(
+    const compat::u32 offset, const compat::u32 size, const compat::u32 limit
+) noexcept {
     return static_cast<std::uint64_t>(offset) + size <= limit;
 }
 
-void parse_index_record(const std::span<const compat::u8> bytes,
-                        LegacyActIndexRecord& record) noexcept {
-    std::ranges::copy(bytes.first(record.raw_name.size()),
-                      record.raw_name.begin());
+void parse_index_record(
+    const std::span<const compat::u8> bytes, LegacyActIndexRecord& record
+) noexcept {
+    std::ranges::copy(
+        bytes.first(record.raw_name.size()), record.raw_name.begin()
+    );
     record.block_size = read_u32(bytes, 0x14U);
     record.block_offset = read_u32(bytes, 0x18U);
     record.metadata_id = read_u32(bytes, 0x1CU);
@@ -64,10 +72,11 @@ void parse_index_record(const std::span<const compat::u8> bytes,
     record.field_28 = read_u32(bytes, 0x28U);
 }
 
-[[nodiscard]] LegacyActVariantResult
-select_variant(const LegacyActIndexRecord& index,
-               const std::span<const compat::u8> block,
-               const compat::u32 variant_index) {
+[[nodiscard]] LegacyActVariantResult select_variant(
+    const LegacyActIndexRecord& index,
+    const std::span<const compat::u8> block,
+    const compat::u32 variant_index
+) {
     LegacyActVariantResult result;
     result.variant.index = index;
     if (block.size() < sizeof(compat::u16)) {
@@ -105,7 +114,8 @@ select_variant(const LegacyActIndexRecord& index,
     } else {
         bool found_end = false;
         for (compat::u32 next = variant_index + 1U;
-             next < result.variant.variant_count; ++next) {
+             next < result.variant.variant_count;
+             ++next) {
             const compat::u32 candidate =
                 read_u32(block, 2U + static_cast<std::size_t>(next) * 4U);
             if (candidate != 0U) {
@@ -130,15 +140,17 @@ select_variant(const LegacyActIndexRecord& index,
     }
 
     try {
-        result.variant.stream.resize(result.variant.slice_end -
-                                     result.variant.slice_begin);
+        result.variant.stream.resize(
+            result.variant.slice_end - result.variant.slice_begin
+        );
     } catch (const std::bad_alloc&) {
         result.status = LegacyActVariantStatus::allocation_failed;
         return result;
     }
     std::ranges::copy(
         block.subspan(result.variant.slice_begin, result.variant.stream.size()),
-        result.variant.stream.begin());
+        result.variant.stream.begin()
+    );
     result.status = LegacyActVariantStatus::ready;
     return result;
 }
@@ -148,10 +160,12 @@ select_variant(const LegacyActIndexRecord& index,
 LegacyActOpenStatus
 LegacyActArchive::open(const std::filesystem::path& archive_path) {
     close();
-    if (!file_.open(archive_path,
-                    resource_io::LegacyFileCreation::open_existing,
-                    resource_io::LegacyFileAccess::read,
-                    resource_io::LegacyFileSharing::exclusive)) {
+    if (!file_.open(
+            archive_path,
+            resource_io::LegacyFileCreation::open_existing,
+            resource_io::LegacyFileAccess::read,
+            resource_io::LegacyFileSharing::exclusive
+        )) {
         return LegacyActOpenStatus::file_open_failed;
     }
     file_size_ = file_.size();
@@ -165,10 +179,13 @@ void LegacyActArchive::close() noexcept {
     open_ = false;
 }
 
-bool LegacyActArchive::is_open() const noexcept { return open_; }
+bool LegacyActArchive::is_open() const noexcept {
+    return open_;
+}
 
 LegacyActIndexResult LegacyActArchive::read_index(
-    const compat::u32 one_based_physical_record) noexcept {
+    const compat::u32 one_based_physical_record
+) noexcept {
     LegacyActIndexResult result;
     if (!open_) {
         return result;
@@ -200,9 +217,9 @@ LegacyActIndexResult LegacyActArchive::read_index(
     return result;
 }
 
-LegacyActVariantResult
-LegacyActArchive::read_variant(const compat::u32 one_based_physical_record,
-                               const compat::u32 variant_index) noexcept {
+LegacyActVariantResult LegacyActArchive::read_variant(
+    const compat::u32 one_based_physical_record, const compat::u32 variant_index
+) noexcept {
     const LegacyActIndexResult index = read_index(one_based_physical_record);
     if (index.status != LegacyActVariantStatus::ready) {
         LegacyActVariantResult result;
@@ -212,9 +229,9 @@ LegacyActArchive::read_variant(const compat::u32 one_based_physical_record,
     return read_variant(index.index, variant_index);
 }
 
-LegacyActVariantResult
-LegacyActArchive::read_variant(const LegacyActIndexRecord& index,
-                               const compat::u32 variant_index) noexcept {
+LegacyActVariantResult LegacyActArchive::read_variant(
+    const LegacyActIndexRecord& index, const compat::u32 variant_index
+) noexcept {
     LegacyActVariantResult result;
     result.variant.index = index;
     if (!open_) {

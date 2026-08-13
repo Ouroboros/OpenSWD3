@@ -9,8 +9,9 @@
 
 namespace openswd3::rendering {
 
-inline constexpr std::array<compat::u32, 3>
-    kLegacyTextRendererPointSizes{20U, 16U, 12U};
+inline constexpr std::array<compat::u32, 3> kLegacyTextRendererPointSizes{
+    20U, 16U, 12U
+};
 
 enum class LegacyTextRendererRuntimeStatus : compat::u8 {
     completed,
@@ -32,13 +33,10 @@ public:
     LegacyTextRendererRuntime() = default;
 
     LegacyTextRendererRuntime(const LegacyTextRendererRuntime&) = delete;
-    LegacyTextRendererRuntime& operator=(
-        const LegacyTextRendererRuntime&
-    ) = delete;
+    LegacyTextRendererRuntime&
+    operator=(const LegacyTextRendererRuntime&) = delete;
     LegacyTextRendererRuntime(LegacyTextRendererRuntime&&) = delete;
-    LegacyTextRendererRuntime& operator=(
-        LegacyTextRendererRuntime&&
-    ) = delete;
+    LegacyTextRendererRuntime& operator=(LegacyTextRendererRuntime&&) = delete;
 
     [[nodiscard]] LegacyTextRendererRuntimeStatus rebuild(
         compat::u32 point_size,
@@ -46,25 +44,20 @@ public:
         LegacyGlyphProvider& glyph_provider
     ) noexcept;
 
-    [[nodiscard]] LegacyTextRendererRuntimeStatus release(
-        compat::u32 point_size
-    ) noexcept;
+    [[nodiscard]] LegacyTextRendererRuntimeStatus
+    release(compat::u32 point_size) noexcept;
     [[nodiscard]] LegacyTextRendererRuntimeStatus set_horizontal_advance(
-        compat::u32 point_size,
-        compat::i32 horizontal_advance
+        compat::u32 point_size, compat::i32 horizontal_advance
     ) noexcept;
     void release_all() noexcept;
 
     [[nodiscard]] bool ready(compat::u32 point_size) const noexcept;
-    [[nodiscard]] LegacyTextRendererBinding binding(
-        compat::u32 point_size
-    ) noexcept;
-    [[nodiscard]] const LegacyTextRendererState* state(
-        compat::u32 point_size
-    ) const noexcept;
-    [[nodiscard]] const LegacyGlyphCache* glyph_cache(
-        compat::u32 point_size
-    ) const noexcept;
+    [[nodiscard]] LegacyTextRendererBinding
+    binding(compat::u32 point_size) noexcept;
+    [[nodiscard]] const LegacyTextRendererState*
+    state(compat::u32 point_size) const noexcept;
+    [[nodiscard]] const LegacyGlyphCache*
+    glyph_cache(compat::u32 point_size) const noexcept;
 
 private:
     struct Slot {
@@ -76,9 +69,7 @@ private:
     };
 
     [[nodiscard]] Slot* find_slot(compat::u32 point_size) noexcept;
-    [[nodiscard]] const Slot* find_slot(
-        compat::u32 point_size
-    ) const noexcept;
+    [[nodiscard]] const Slot* find_slot(compat::u32 point_size) const noexcept;
     static void release_slot(Slot& slot) noexcept;
 
     std::array<Slot, 3> slots_{

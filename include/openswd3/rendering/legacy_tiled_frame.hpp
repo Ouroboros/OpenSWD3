@@ -44,9 +44,7 @@ struct LegacyTiledFrameResult {
     LegacyTiledFrameStatus status{LegacyTiledFrameStatus::completed};
     compat::u32 frame_index{};
     compat::u32 draw_calls{};
-    LegacyBlitExecutionStatus blit_status{
-        LegacyBlitExecutionStatus::completed
-    };
+    LegacyBlitExecutionStatus blit_status{LegacyBlitExecutionStatus::completed};
 };
 
 [[nodiscard]] LegacyTiledFrameResult draw_legacy_tiled_frame(

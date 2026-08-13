@@ -16,26 +16,21 @@ constexpr LegacyPixelMasks kRgb565Masks{0xF800U, 0x07E0U, 0x001FU};
 constexpr LegacyPixelMasks kShiftedRedMasks{0xFC00U, 0x03E0U, 0x001FU};
 
 [[nodiscard]] bool masks_equal(
-    const LegacyPixelMasks& left,
-    const LegacyPixelMasks& right
+    const LegacyPixelMasks& left, const LegacyPixelMasks& right
 ) noexcept {
-    return left.red == right.red &&
-        left.green == right.green &&
+    return left.red == right.red && left.green == right.green &&
         left.blue == right.blue;
 }
 
 [[nodiscard]] compat::u16 transform_pixel(
-    const LegacyPixelTransform transform,
-    const compat::u16 pixel
+    const LegacyPixelTransform transform, const compat::u16 pixel
 ) noexcept {
     switch (transform) {
     case LegacyPixelTransform::identity:
         return pixel;
 
     case LegacyPixelTransform::shift_whole_word_left:
-        return static_cast<compat::u16>(
-            static_cast<compat::u32>(pixel) << 1U
-        );
+        return static_cast<compat::u16>(static_cast<compat::u32>(pixel) << 1U);
 
     case LegacyPixelTransform::rgb555_to_rgb565:
         return static_cast<compat::u16>(
@@ -62,8 +57,7 @@ constexpr LegacyPixelMasks kShiftedRedMasks{0xFC00U, 0x03E0U, 0x001FU};
 }  // namespace
 
 void select_legacy_pixel_conversion(
-    LegacyPixelConversionState& state,
-    const LegacyPixelMasks& masks
+    LegacyPixelConversionState& state, const LegacyPixelMasks& masks
 ) noexcept {
     state.reported_masks = masks;
     state.effective_masks = masks;

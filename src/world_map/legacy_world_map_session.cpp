@@ -6,28 +6,24 @@ namespace openswd3::world_map {
 
 LegacyLmfWorldMapSource::LegacyLmfWorldMapSource(
     std::filesystem::path archive_path
-) : archive_path_{std::move(archive_path)} {}
+)
+    : archive_path_{std::move(archive_path)} {}
 
-resource_io::LegacyLmfMapLookupResult LegacyLmfWorldMapSource::lookup_map(
-    const compat::u32 map_id
-) {
+resource_io::LegacyLmfMapLookupResult
+LegacyLmfWorldMapSource::lookup_map(const compat::u32 map_id) {
     return resource_io::legacy_lmf_lookup_map(archive_path_, map_id);
 }
 
-resource_io::LegacyLmfMapHeader LegacyLmfWorldMapSource::read_map_header(
-    const compat::u32 map_offset
-) {
+resource_io::LegacyLmfMapHeader
+LegacyLmfWorldMapSource::read_map_header(const compat::u32 map_offset) {
     return resource_io::legacy_lmf_read_map_header(archive_path_, map_offset);
 }
 
 resource_io::LegacyLmfSurfaceGrid LegacyLmfWorldMapSource::read_surface_grid(
-    const compat::u32 map_offset,
-    const resource_io::LegacyLmfMapHeader& header
+    const compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
 ) {
     return resource_io::legacy_lmf_read_surface_grid(
-        archive_path_,
-        map_offset,
-        header
+        archive_path_, map_offset, header
     );
 }
 
@@ -37,9 +33,7 @@ LegacyLmfWorldMapSource::read_post_surface_records(
     const resource_io::LegacyLmfSurfaceGrid& surface_grid
 ) {
     return resource_io::legacy_lmf_read_post_surface_records(
-        archive_path_,
-        map_offset,
-        surface_grid
+        archive_path_, map_offset, surface_grid
     );
 }
 
@@ -49,52 +43,39 @@ LegacyLmfWorldMapSource::read_referenced_record_directory(
     const resource_io::LegacyLmfPostSurfaceRecords& post_surface_records
 ) {
     return resource_io::legacy_lmf_read_referenced_record_directory(
-        archive_path_,
-        map_offset,
-        post_surface_records
+        archive_path_, map_offset, post_surface_records
     );
 }
 
 resource_io::LegacyLmfOffset14Directory
 LegacyLmfWorldMapSource::read_offset14_directory(
-    const compat::u32 map_offset,
-    const resource_io::LegacyLmfMapHeader& header
+    const compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
 ) {
     return resource_io::legacy_lmf_read_offset14_directory(
-        archive_path_,
-        map_offset,
-        header
+        archive_path_, map_offset, header
     );
 }
 
 resource_io::LegacyLmfIndexedObjectDirectory
 LegacyLmfWorldMapSource::read_indexed_object_directory(
-    const compat::u32 map_offset,
-    const resource_io::LegacyLmfMapHeader& header
+    const compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
 ) {
     return resource_io::legacy_lmf_read_indexed_object_directory(
-        archive_path_,
-        map_offset,
-        header
+        archive_path_, map_offset, header
     );
 }
 
 resource_io::LegacyLmfOffset1cDirectory
 LegacyLmfWorldMapSource::read_offset1c_directory(
-    const compat::u32 map_offset,
-    const resource_io::LegacyLmfMapHeader& header
+    const compat::u32 map_offset, const resource_io::LegacyLmfMapHeader& header
 ) {
     return resource_io::legacy_lmf_read_offset1c_directory(
-        archive_path_,
-        map_offset,
-        header
+        archive_path_, map_offset, header
     );
 }
 
-LegacyWorldMapLoadResult load_legacy_world_map(
-    const compat::u32 map_id,
-    LegacyWorldMapSource& source
-) {
+LegacyWorldMapLoadResult
+load_legacy_world_map(const compat::u32 map_id, LegacyWorldMapSource& source) {
     return load_legacy_world_map(map_id, source, {});
 }
 
@@ -143,21 +124,17 @@ LegacyWorldMapLoadResult load_legacy_world_map(
     }
 
     result.session.post_surface_records = source.read_post_surface_records(
-        map_offset,
-        result.session.surface_grid
+        map_offset, result.session.surface_grid
     );
     if (result.session.post_surface_records.status !=
         resource_io::LegacyLmfPostSurfaceRecordsStatus::ready) {
-        result.status =
-            LegacyWorldMapLoadStatus::post_surface_records_failed;
+        result.status = LegacyWorldMapLoadStatus::post_surface_records_failed;
         return result;
     }
 
-    result.session.referenced_records =
-        source.read_referenced_record_directory(
-            map_offset,
-            result.session.post_surface_records
-        );
+    result.session.referenced_records = source.read_referenced_record_directory(
+        map_offset, result.session.post_surface_records
+    );
     if (result.session.referenced_records.status !=
         resource_io::LegacyLmfReferencedRecordDirectoryStatus::ready) {
         result.status =
@@ -196,16 +173,13 @@ LegacyWorldMapLoadResult load_legacy_world_map(
         result.session.offset14_directory,
         result.session.offset1c_directory
     );
-    if (result.session.business.status !=
-        LegacyWorldMapBusinessStatus::ready) {
+    if (result.session.business.status != LegacyWorldMapBusinessStatus::ready) {
         result.status = LegacyWorldMapLoadStatus::business_state_failed;
         return result;
     }
 
-    if (pre_role_binding_stage &&
-        !pre_role_binding_stage(result.session)) {
-        result.status =
-            LegacyWorldMapLoadStatus::pre_role_binding_stage_failed;
+    if (pre_role_binding_stage && !pre_role_binding_stage(result.session)) {
+        result.status = LegacyWorldMapLoadStatus::pre_role_binding_stage_failed;
         return result;
     }
 
@@ -231,8 +205,7 @@ LegacyWorldMapLoadResult load_legacy_world_map(
 }
 
 LegacyWorldMapLoadResult load_legacy_world_map(
-    const std::filesystem::path& archive_path,
-    const compat::u32 map_id
+    const std::filesystem::path& archive_path, const compat::u32 map_id
 ) {
     LegacyLmfWorldMapSource source{archive_path};
     return load_legacy_world_map(map_id, source);

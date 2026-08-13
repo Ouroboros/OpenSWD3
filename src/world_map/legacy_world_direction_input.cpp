@@ -18,8 +18,7 @@ constexpr std::size_t kDownRecordIndex = 6U;
 }
 
 void select_previous(
-    LegacyWorldDirectionInputResult& result,
-    const compat::u32 item_count
+    LegacyWorldDirectionInputResult& result, const compat::u32 item_count
 ) noexcept {
     compat::u32 next = result.state.auxiliary_selection_index - 1U;
     if ((next & 0x80000000U) != 0U) {
@@ -30,8 +29,7 @@ void select_previous(
 }
 
 void select_next(
-    LegacyWorldDirectionInputResult& result,
-    const compat::u32 item_count
+    LegacyWorldDirectionInputResult& result, const compat::u32 item_count
 ) noexcept {
     compat::u32 next = result.state.auxiliary_selection_index + 1U;
     if (next >= item_count) {
@@ -51,8 +49,7 @@ LegacyWorldDirectionInputResult apply_legacy_world_direction_input(
 ) noexcept {
     LegacyWorldDirectionInputResult result{.state = state};
     if (input_records.size() <= kDownRecordIndex) {
-        result.status =
-            LegacyWorldDirectionInputStatus::missing_input_records;
+        result.status = LegacyWorldDirectionInputStatus::missing_input_records;
         return result;
     }
 

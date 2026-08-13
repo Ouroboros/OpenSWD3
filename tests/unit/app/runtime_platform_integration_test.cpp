@@ -22,15 +22,14 @@ enum class Call {
     post_quit,
 };
 
-class IntegrationPorts final
-    : public openswd3::app::ExistingInstancePorts,
-      public openswd3::app::CommandLinePorts,
-      public openswd3::app::RngSeedPorts,
-      public openswd3::app::IdleRuntimePorts,
-      public openswd3::app::WindowEventPorts,
-      public openswd3::app::DisplayLifecyclePorts,
-      public openswd3::app::ShutdownPorts,
-      public openswd3::app::ProcessExitPorts {
+class IntegrationPorts final : public openswd3::app::ExistingInstancePorts,
+                               public openswd3::app::CommandLinePorts,
+                               public openswd3::app::RngSeedPorts,
+                               public openswd3::app::IdleRuntimePorts,
+                               public openswd3::app::WindowEventPorts,
+                               public openswd3::app::DisplayLifecyclePorts,
+                               public openswd3::app::ShutdownPorts,
+                               public openswd3::app::ProcessExitPorts {
 public:
     bool matching_instance_exists() override {
         calls.push_back(Call::check_instance);
@@ -54,14 +53,20 @@ public:
     void step_video() override {}
     void maintain_audio() override {}
     void yield() override {}
-    void step_game_frame() override { calls.push_back(Call::game_frame); }
+    void step_game_frame() override {
+        calls.push_back(Call::game_frame);
+    }
     void present_pause() override {}
 
     void release_active_video() override {}
-    openswd3::compat::u32 free_disk_space_mebibytes() override { return 0U; }
+    openswd3::compat::u32 free_disk_space_mebibytes() override {
+        return 0U;
+    }
     void capture_legacy_screenshot() override {}
 
-    bool display_backend_available() override { return true; }
+    bool display_backend_available() override {
+        return true;
+    }
     void set_frame_interval(openswd3::compat::u32) override {}
     void suspend_audio_output() override {}
     void suspend_audio_streams() override {}
@@ -78,9 +83,8 @@ public:
     void perform_shutdown_operation(openswd3::app::ShutdownOperation) override {
         record_shutdown();
     }
-    bool perform_shutdown_close(
-        openswd3::app::ShutdownCloseOperation
-    ) override {
+    bool
+    perform_shutdown_close(openswd3::app::ShutdownCloseOperation) override {
         record_shutdown();
         return true;
     }
@@ -88,8 +92,12 @@ public:
         openswd3::app::ShutdownCloseOperation
     ) override {}
 
-    void uninitialize_com() override { calls.push_back(Call::uninitialize_com); }
-    void post_quit_message_zero() override { calls.push_back(Call::post_quit); }
+    void uninitialize_com() override {
+        calls.push_back(Call::uninitialize_com);
+    }
+    void post_quit_message_zero() override {
+        calls.push_back(Call::post_quit);
+    }
 
     openswd3::compat::u32 next_time{11U};
     openswd3::compat::u32 shutdown_calls{};
@@ -108,9 +116,7 @@ void test_normal_lifecycle(openswd3::test::Context& test) {
     IntegrationPorts ports;
     test.expect_equal(
         openswd3::app::run_process_startup_gates(
-            std::optional<std::string_view>{std::string_view{}},
-            ports,
-            ports
+            std::optional<std::string_view>{std::string_view{}}, ports, ports
         ),
         openswd3::app::ProcessStartupGateResult::continue_normal_startup,
         "normal process gates continue"

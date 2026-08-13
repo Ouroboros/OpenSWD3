@@ -57,10 +57,7 @@ void test_direct_fixed_tiles(openswd3::test::Context& test) {
     const std::array<u8, 512> source = direct_tile();
 
     auto status = openswd3::rendering::write_legacy_direct_16x16_tile(
-        framebuffer,
-        3,
-        4,
-        source
+        framebuffer, 3, 4, source
     );
     test.expect_equal(
         status,
@@ -94,11 +91,7 @@ void test_direct_fixed_tiles(openswd3::test::Context& test) {
     keyed[511] = 0x44U;
     std::ranges::fill(framebuffer.physical_pixels(), 0xA55AU);
     status = openswd3::rendering::write_legacy_direct_keyed_16x16_tile(
-        framebuffer,
-        2,
-        2,
-        keyed,
-        0x2222U
+        framebuffer, 2, 2, keyed, 0x2222U
     );
     test.expect_equal(
         status,
@@ -133,11 +126,7 @@ void test_indexed_fixed_tiles(openswd3::test::Context& test) {
     }
 
     auto status = openswd3::rendering::write_legacy_indexed_16x16_tile(
-        framebuffer,
-        1,
-        1,
-        source,
-        palette
+        framebuffer, 1, 1, source, palette
     );
     test.expect_equal(
         status,
@@ -159,14 +148,9 @@ void test_indexed_fixed_tiles(openswd3::test::Context& test) {
     source.front() = 2U;
     source.back() = 3U;
     std::ranges::fill(framebuffer.physical_pixels(), 0xA55AU);
-    status =
-        openswd3::rendering::write_legacy_indexed_keyed_16x16_tile(
-            framebuffer,
-            4,
-            3,
-            source,
-            palette
-        );
+    status = openswd3::rendering::write_legacy_indexed_keyed_16x16_tile(
+        framebuffer, 4, 3, source, palette
+    );
     test.expect_equal(
         status,
         LegacyFixedTileWriteStatus::completed,
@@ -197,32 +181,21 @@ void test_fixed_tile_safety(openswd3::test::Context& test) {
 
     test.expect_equal(
         openswd3::rendering::write_legacy_direct_16x16_tile(
-            framebuffer,
-            0,
-            0,
-            kShortSource
+            framebuffer, 0, 0, kShortSource
         ),
         LegacyFixedTileWriteStatus::source_out_of_bounds,
         "short direct source is isolated"
     );
     test.expect_equal(
         openswd3::rendering::write_legacy_indexed_16x16_tile(
-            framebuffer,
-            0,
-            0,
-            kIndexed,
-            kShortPalette
+            framebuffer, 0, 0, kIndexed, kShortPalette
         ),
         LegacyFixedTileWriteStatus::palette_out_of_bounds,
         "short indexed palette is isolated"
     );
     test.expect_equal(
         openswd3::rendering::write_legacy_indexed_16x16_tile(
-            framebuffer,
-            9,
-            0,
-            kIndexed,
-            std::array<u16, 256>{}
+            framebuffer, 9, 0, kIndexed, std::array<u16, 256>{}
         ),
         LegacyFixedTileWriteStatus::destination_out_of_bounds,
         "unclipped tile destination is isolated"
@@ -232,22 +205,12 @@ void test_fixed_tile_safety(openswd3::test::Context& test) {
 void test_packed_row_formula(openswd3::test::Context& test) {
     const LegacyPixelConversionState format;
     std::array<u16, 3> pixels{0x7FFFU, 0x001FU, 0x1234U};
-    const u32 color = openswd3::rendering::legacy_pack_color_pair(
-        format,
-        31,
-        0,
-        0
-    );
-    auto status = openswd3::rendering::blend_legacy_packed_row(
-        pixels,
-        color,
-        3,
-        format
-    );
+    const u32 color =
+        openswd3::rendering::legacy_pack_color_pair(format, 31, 0, 0);
+    auto status =
+        openswd3::rendering::blend_legacy_packed_row(pixels, color, 3, format);
     test.expect_equal(
-        status,
-        LegacyPackedRowBlendStatus::completed,
-        "packed row completes"
+        status, LegacyPackedRowBlendStatus::completed, "packed row completes"
     );
     constexpr std::array<u16, 3> kExpected{0x6A73U, 0x1C13U, 0x1234U};
     test.expect_true(
@@ -256,24 +219,19 @@ void test_packed_row_formula(openswd3::test::Context& test) {
     );
 
     pixels = {1U, 2U, 3U};
-    status = openswd3::rendering::blend_legacy_packed_row(
-        pixels,
-        color,
-        1,
-        format
-    );
+    status =
+        openswd3::rendering::blend_legacy_packed_row(pixels, color, 1, format);
     test.expect_equal(
         status,
         LegacyPackedRowBlendStatus::invalid_geometry,
         "one-pixel nonterminating legacy path is isolated"
     );
-    test.expect_equal(pixels[0], static_cast<u16>(1U), "invalid row does not write");
+    test.expect_equal(
+        pixels[0], static_cast<u16>(1U), "invalid row does not write"
+    );
 
     status = openswd3::rendering::blend_legacy_packed_row(
-        std::span<u16>{pixels}.first(2U),
-        color,
-        4,
-        format
+        std::span<u16>{pixels}.first(2U), color, 4, format
     );
     test.expect_equal(
         status,
@@ -311,21 +269,20 @@ void test_outline_wrapper(openswd3::test::Context& test) {
     };
     LegacyRleRowJitterState jitter;
 
-    const auto result =
-        openswd3::rendering::blit_legacy_outline_copy_paths(
-            framebuffer,
-            clip,
-            LegacyBlitSource{.bytes = source},
-            LegacyBlitRequest{
-                .destination_x = 3,
-                .destination_y = 3,
-                .source_width = 1,
-                .source_height = 1,
-                .auxiliary = kColor,
-            },
-            LegacyBlitEffectState{},
-            jitter
-        );
+    const auto result = openswd3::rendering::blit_legacy_outline_copy_paths(
+        framebuffer,
+        clip,
+        LegacyBlitSource{.bytes = source},
+        LegacyBlitRequest{
+            .destination_x = 3,
+            .destination_y = 3,
+            .source_width = 1,
+            .source_height = 1,
+            .auxiliary = kColor,
+        },
+        LegacyBlitEffectState{},
+        jitter
+    );
 
     for (const auto& pass : result.passes) {
         test.expect_equal(

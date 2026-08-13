@@ -59,7 +59,9 @@ struct LegacyBattleAssets {
 };
 
 struct LegacyBattleAssetLoadResult {
-    LegacyBattleAssetStatus status{LegacyBattleAssetStatus::figtalk_open_failed};
+    LegacyBattleAssetStatus status{
+        LegacyBattleAssetStatus::figtalk_open_failed
+    };
 };
 
 [[nodiscard]] LegacyBattleAssetLoadResult load_legacy_battle_assets(
@@ -69,8 +71,7 @@ struct LegacyBattleAssetLoadResult {
     LegacyBattleAssets& destination
 );
 
-[[nodiscard]] std::string_view legacy_battle_asset_status_message(
-    LegacyBattleAssetStatus status
-) noexcept;
+[[nodiscard]] std::string_view
+legacy_battle_asset_status_message(LegacyBattleAssetStatus status) noexcept;
 
 }  // namespace openswd3::battle

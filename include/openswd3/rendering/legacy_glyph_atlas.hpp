@@ -9,7 +9,14 @@
 namespace openswd3::rendering {
 
 inline constexpr std::array<compat::u8, 8> kLegacyGlyphAtlasMagic{
-    'O', 'S', 'W', '3', 'G', 'L', 'Y', 'F',
+    'O',
+    'S',
+    'W',
+    '3',
+    'G',
+    'L',
+    'Y',
+    'F',
 };
 inline constexpr compat::u32 kLegacyGlyphAtlasVersion = 1U;
 inline constexpr compat::u32 kLegacyGlyphAtlasHeaderSize = 80U;
@@ -19,15 +26,13 @@ inline constexpr std::array<std::array<compat::u16, 2>, 3>
     kLegacyGlyphAtlasGeometries{{{12U, 12U}, {16U, 16U}, {20U, 20U}}};
 
 [[nodiscard]] constexpr compat::u32 legacy_glyph_atlas_key_index(
-    const compat::u8 first_byte,
-    const compat::u8 second_byte
+    const compat::u8 first_byte, const compat::u8 second_byte
 ) noexcept {
     if (first_byte < 0x80U) {
         return first_byte;
     }
-    return 128U
-        + (static_cast<compat::u32>(first_byte) - 0x80U) * 256U
-        + second_byte;
+    return 128U + (static_cast<compat::u32>(first_byte) - 0x80U) * 256U +
+        second_byte;
 }
 
 class LegacyGlyphAtlasProvider final : public LegacyGlyphProvider {

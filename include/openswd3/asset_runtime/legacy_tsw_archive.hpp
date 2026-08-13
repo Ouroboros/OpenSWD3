@@ -91,8 +91,7 @@ public:
 
     [[nodiscard]] bool is_open() const noexcept;
     [[nodiscard]] LegacyTswFrameResult read_frame(
-        compat::u32 one_based_physical_record,
-        compat::u32 variant_index
+        compat::u32 one_based_physical_record, compat::u32 variant_index
     ) noexcept;
 
 private:

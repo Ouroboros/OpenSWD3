@@ -21,7 +21,9 @@ enum class Call {
 
 class RecordingPorts final : public openswd3::app::StartupPorts {
 public:
-    RecordingPorts(const bool saves_exist, const openswd3::compat::i32 dialog_result)
+    RecordingPorts(
+        const bool saves_exist, const openswd3::compat::i32 dialog_result
+    )
         : saves_exist_(saves_exist), dialog_result_(dialog_result) {}
 
     void play_startup_sound() override {
@@ -77,7 +79,9 @@ void run_case(
         dialog_result,
         "dialog result is preserved as an unnamed numeric contract"
     );
-    test.expect_equal(ports.calls, expected, "startup custom-message call order");
+    test.expect_equal(
+        ports.calls, expected, "startup custom-message call order"
+    );
     test.expect_equal(
         state.any_save_exists,
         saves_exist,

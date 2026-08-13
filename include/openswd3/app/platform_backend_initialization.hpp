@@ -31,8 +31,7 @@ struct DisplayInitializationRequest {
     compat::u32 depth_bits{};
 
     friend bool operator==(
-        const DisplayInitializationRequest&,
-        const DisplayInitializationRequest&
+        const DisplayInitializationRequest&, const DisplayInitializationRequest&
     ) = default;
 };
 
@@ -51,17 +50,13 @@ public:
     virtual void initialize_midi_output(BackendToken driver) = 0;
     virtual void initialize_audio_stream_nodes(BackendToken driver) = 0;
 
-    [[nodiscard]] virtual bool initialize_display_backend(
-        DisplayInitializationRequest request
-    ) = 0;
+    [[nodiscard]] virtual bool
+    initialize_display_backend(DisplayInitializationRequest request) = 0;
     virtual void report_display_initialization_failure() = 0;
-    [[nodiscard]] virtual BackendToken create_common_source_surface(
-        compat::u32 width,
-        compat::u32 height
-    ) = 0;
-    [[nodiscard]] virtual BackendToken query_display_surface(
-        compat::u32 selector
-    ) = 0;
+    [[nodiscard]] virtual BackendToken
+    create_common_source_surface(compat::u32 width, compat::u32 height) = 0;
+    [[nodiscard]] virtual BackendToken
+    query_display_surface(compat::u32 selector) = 0;
     virtual void configure_video_audio(
         BackendToken display_surface,
         compat::u8 use_direct_sound,

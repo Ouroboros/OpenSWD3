@@ -13,8 +13,12 @@ namespace {
 constexpr compat::u32 kSpecialActionId = 0xFFFFU;
 constexpr compat::i32 kActionsPerArchive = 3000;
 constexpr std::array<std::string_view, 6> kArchiveNames{
-    "all_char.act", "all_item.act", "all_magic.act",
-    "all_sys.act",  "all_map1.act", "all_map2.act",
+    "all_char.act",
+    "all_item.act",
+    "all_magic.act",
+    "all_sys.act",
+    "all_map1.act",
+    "all_map2.act",
 };
 
 }  // namespace
@@ -44,7 +48,8 @@ LegacyActRuntimeStatus LegacyActRuntime::ensure_initialized() {
 }
 
 std::size_t LegacyActRuntime::stream_bucket_index(
-    const compat::u32 action_id, const compat::u32 variant_index) noexcept {
+    const compat::u32 action_id, const compat::u32 variant_index
+) noexcept {
     const compat::u32 key =
         action_id == kSpecialActionId ? variant_index : action_id;
     return static_cast<std::size_t>(key % kLegacyActCacheBucketCount);
@@ -56,8 +61,11 @@ LegacyActRuntime::index_bucket_index(const compat::u32 record_number) noexcept {
 }
 
 LegacyActRuntimeStatus LegacyActRuntime::load_index(
-    const compat::u32 archive_group, const compat::u32 record_number,
-    LegacyActIndexRecord& index, LegacyActVariantStatus& physical_status) {
+    const compat::u32 archive_group,
+    const compat::u32 record_number,
+    LegacyActIndexRecord& index,
+    LegacyActVariantStatus& physical_status
+) {
     IndexCacheBucket& bucket =
         index_buckets_[index_bucket_index(record_number)];
     for (auto iterator = bucket.begin(); iterator != bucket.end(); ++iterator) {
@@ -85,12 +93,14 @@ LegacyActRuntimeStatus LegacyActRuntime::load_index(
     }
 
     try {
-        bucket.push_front(IndexCacheNode{
-            archive_group,
-            record_number,
-            loaded.index.block_offset,
-            loaded.index.block_size,
-        });
+        bucket.push_front(
+            IndexCacheNode{
+                archive_group,
+                record_number,
+                loaded.index.block_offset,
+                loaded.index.block_size,
+            }
+        );
     } catch (const std::bad_alloc&) {
         return LegacyActRuntimeStatus::allocation_failed;
     }
@@ -98,9 +108,9 @@ LegacyActRuntimeStatus LegacyActRuntime::load_index(
     return LegacyActRuntimeStatus::ready;
 }
 
-LegacyActDirectResult
-LegacyActRuntime::load_initialized(const compat::u32 action_id,
-                                   const compat::u32 variant_index) {
+LegacyActDirectResult LegacyActRuntime::load_initialized(
+    const compat::u32 action_id, const compat::u32 variant_index
+) {
     LegacyActDirectResult result;
     const compat::i32 signed_action = std::bit_cast<compat::i32>(action_id);
     if (signed_action <= 0) {
@@ -138,9 +148,9 @@ LegacyActRuntime::load_initialized(const compat::u32 action_id,
     return result;
 }
 
-LegacyActDirectResult
-LegacyActRuntime::load_direct(const compat::u32 action_id,
-                              const compat::u32 variant_index) {
+LegacyActDirectResult LegacyActRuntime::load_direct(
+    const compat::u32 action_id, const compat::u32 variant_index
+) {
     LegacyActDirectResult result;
     result.status = ensure_initialized();
     if (result.status != LegacyActRuntimeStatus::ready) {
@@ -149,9 +159,9 @@ LegacyActRuntime::load_direct(const compat::u32 action_id,
     return load_initialized(action_id, variant_index);
 }
 
-LegacyActQueryResult
-LegacyActRuntime::find_cached(const compat::u32 action_id,
-                              const compat::u32 variant_index) noexcept {
+LegacyActQueryResult LegacyActRuntime::find_cached(
+    const compat::u32 action_id, const compat::u32 variant_index
+) noexcept {
     LegacyActQueryResult result;
     result.status = LegacyActRuntimeStatus::cache_miss;
     StreamCacheBucket& bucket =
@@ -192,9 +202,9 @@ void LegacyActRuntime::evict_before_lookup() noexcept {
     }
 }
 
-LegacyActQueryResult
-LegacyActRuntime::query_cached(const compat::u32 action_id,
-                               const compat::u32 variant_index) {
+LegacyActQueryResult LegacyActRuntime::query_cached(
+    const compat::u32 action_id, const compat::u32 variant_index
+) {
     LegacyActQueryResult result;
     result.status = ensure_initialized();
     if (result.status != LegacyActRuntimeStatus::ready) {
@@ -253,7 +263,9 @@ void LegacyActRuntime::close() noexcept {
     initialized_ = false;
 }
 
-bool LegacyActRuntime::is_initialized() const noexcept { return initialized_; }
+bool LegacyActRuntime::is_initialized() const noexcept {
+    return initialized_;
+}
 
 compat::u32 LegacyActRuntime::cache_limit() const noexcept {
     return cache_limit_;
@@ -280,7 +292,8 @@ std::size_t LegacyActRuntime::index_cache_entry_count() const noexcept {
 }
 
 std::size_t LegacyActRuntime::stream_bucket_entry_count(
-    const std::size_t bucket_index_value) const noexcept {
+    const std::size_t bucket_index_value
+) const noexcept {
     if (bucket_index_value >= stream_buckets_.size()) {
         return 0U;
     }
@@ -288,7 +301,8 @@ std::size_t LegacyActRuntime::stream_bucket_entry_count(
 }
 
 std::size_t LegacyActRuntime::index_bucket_entry_count(
-    const std::size_t bucket_index_value) const noexcept {
+    const std::size_t bucket_index_value
+) const noexcept {
     if (bucket_index_value >= index_buckets_.size()) {
         return 0U;
     }

@@ -34,8 +34,7 @@ struct LegacyRasterGeometryState {
 };
 
 [[nodiscard]] bool initialize_legacy_raster_geometry(
-    LegacyRasterGeometryState& state,
-    const LegacySurfaceGeometry& surface
+    LegacyRasterGeometryState& state, const LegacySurfaceGeometry& surface
 ) noexcept;
 
 void set_legacy_clip_rectangle(
@@ -68,9 +67,8 @@ public:
     [[nodiscard]] std::span<const compat::u16>
     physical_pixels_with_read_guard() const noexcept;
     [[nodiscard]] std::span<compat::u16> row_pixels(compat::u32 row) noexcept;
-    [[nodiscard]] std::span<const compat::u16> row_pixels(
-        compat::u32 row
-    ) const noexcept;
+    [[nodiscard]] std::span<const compat::u16>
+    row_pixels(compat::u32 row) const noexcept;
 
 private:
     LegacyRasterGeometryState geometry_{};

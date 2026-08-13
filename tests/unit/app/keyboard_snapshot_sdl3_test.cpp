@@ -42,9 +42,7 @@ void test_default_game_bindings(openswd3::test::Context& test) {
 
     LegacyKeyboardSnapshot snapshot{};
     openswd3::platform_sdl3::translate_sdl_keyboard_state(
-        snapshot,
-        state.data(),
-        static_cast<int>(state.size())
+        snapshot, state.data(), static_cast<int>(state.size())
     );
     for (const auto mapping : kMappings) {
         test.expect_equal(
@@ -75,9 +73,7 @@ void test_extended_and_alias_mappings(openswd3::test::Context& test) {
 
     LegacyKeyboardSnapshot snapshot{};
     openswd3::platform_sdl3::translate_sdl_keyboard_state(
-        snapshot,
-        state.data(),
-        static_cast<int>(state.size())
+        snapshot, state.data(), static_cast<int>(state.size())
     );
     for (const auto mapping : kMappings) {
         test.expect_equal(
@@ -88,16 +84,10 @@ void test_extended_and_alias_mappings(openswd3::test::Context& test) {
     }
 }
 
-void test_translation_replaces_the_snapshot(
-    openswd3::test::Context& test
-) {
+void test_translation_replaces_the_snapshot(openswd3::test::Context& test) {
     LegacyKeyboardSnapshot snapshot{};
     snapshot.fill(0xFFU);
-    openswd3::platform_sdl3::translate_sdl_keyboard_state(
-        snapshot,
-        nullptr,
-        0
-    );
+    openswd3::platform_sdl3::translate_sdl_keyboard_state(snapshot, nullptr, 0);
 
     for (const u8 value : snapshot) {
         test.expect_equal(
@@ -117,27 +107,22 @@ void test_short_press_is_latched_until_the_next_sample(
 
     test.expect_true(
         openswd3::platform_sdl3::latch_sdl_keyboard_press(
-            pending,
-            SDL_SCANCODE_RETURN
+            pending, SDL_SCANCODE_RETURN
         ),
         "mapped SDL key-down event is accepted by the short-press latch"
     );
     test.expect_false(
         openswd3::platform_sdl3::latch_sdl_keyboard_press(
-            pending,
-            SDL_SCANCODE_UNKNOWN
+            pending, SDL_SCANCODE_UNKNOWN
         ),
         "unmapped SDL key-down event is not latched"
     );
 
     openswd3::platform_sdl3::translate_sdl_keyboard_state(
-        snapshot,
-        released_state.data(),
-        static_cast<int>(released_state.size())
+        snapshot, released_state.data(), static_cast<int>(released_state.size())
     );
     openswd3::platform_sdl3::merge_sdl_keyboard_press_latches(
-        snapshot,
-        pending
+        snapshot, pending
     );
     test.expect_equal(
         snapshot[0x1CU],

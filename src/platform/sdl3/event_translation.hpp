@@ -8,8 +8,7 @@
 
 namespace openswd3::platform_sdl3 {
 
-[[nodiscard]] std::optional<app::HostWindowEvent> translate_sdl_event(
-    const SDL_Event& event
-);
+[[nodiscard]] std::optional<app::HostWindowEvent>
+translate_sdl_event(const SDL_Event& event);
 
 }  // namespace openswd3::platform_sdl3

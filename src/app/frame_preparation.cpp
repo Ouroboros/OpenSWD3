@@ -13,13 +13,11 @@ namespace {
 }
 
 void run_primary_transition(
-    FramePreparationState& state,
-    FramePreparationPorts& ports
+    FramePreparationState& state, FramePreparationPorts& ports
 ) {
     state.primary_countdown -= 1U;
     if (!has_sign_bit(state.primary_countdown) ||
-        state.value_004b72c4 != 0xFFFFU ||
-        state.high_priority_state != 0U) {
+        state.value_004b72c4 != 0xFFFFU || state.high_priority_state != 0U) {
         return;
     }
 
@@ -41,7 +39,8 @@ void run_primary_transition(
 
     // The assembly compares this count as a signed dword and starts at one.
     if (!has_sign_bit(state.party_member_count)) {
-        for (compat::u32 index = 1U; index < state.party_member_count; ++index) {
+        for (compat::u32 index = 1U; index < state.party_member_count;
+             ++index) {
             ports.release_and_clear_party_member_transition(index);
         }
     }
@@ -56,8 +55,7 @@ void run_primary_transition(
 }
 
 void run_pre_frame_migrations(
-    FramePreparationState& state,
-    FramePreparationPorts& ports
+    FramePreparationState& state, FramePreparationPorts& ports
 ) {
     if ((state.input_backend_flags & 0x01U) != 0U) {
         ports.clear_internal_flag(3U);
@@ -85,24 +83,24 @@ void run_pre_frame_migrations(
 }  // namespace
 
 FramePreparationOutcome run_frame_preparation(
-    FramePreparationState& state,
-    FramePreparationPorts& ports
+    FramePreparationState& state, FramePreparationPorts& ports
 ) {
-    switch (select_frame_entry_action({state.process_flags, state.display_active})) {
-        case FrameEntryAction::return_immediately:
-            return FramePreparationOutcome::return_immediately;
-        case FrameEntryAction::yield:
-            ports.yield();
-            return FramePreparationOutcome::yielded_display_inactive;
-        case FrameEntryAction::sample_time:
-            break;
+    switch (
+        select_frame_entry_action({state.process_flags, state.display_active})
+    ) {
+    case FrameEntryAction::return_immediately:
+        return FramePreparationOutcome::return_immediately;
+    case FrameEntryAction::yield:
+        ports.yield();
+        return FramePreparationOutcome::yielded_display_inactive;
+    case FrameEntryAction::sample_time:
+        break;
     }
 
     state.frame_clock.sampled_seconds = ports.read_seconds();
     const compat::u32 now = ports.read_milliseconds();
     if (!input_time_rng::try_accept_frame_milliseconds(
-            state.frame_clock,
-            now
+            state.frame_clock, now
         )) {
         return FramePreparationOutcome::interval_not_elapsed;
     }

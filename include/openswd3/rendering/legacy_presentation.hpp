@@ -91,9 +91,8 @@ class LegacyPresentationPorts {
 public:
     virtual ~LegacyPresentationPorts() = default;
 
-    [[nodiscard]] virtual bool present_legacy_frame(
-        const LegacyPresentationRequest& request
-    ) = 0;
+    [[nodiscard]] virtual bool
+    present_legacy_frame(const LegacyPresentationRequest& request) = 0;
 };
 
 enum class LegacyPresentationDispatchStatus : compat::u8 {

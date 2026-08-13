@@ -29,8 +29,7 @@ struct LegacyDecodedPcm {
 };
 
 [[nodiscard]] LegacyDecodedPcm decode_legacy_riff_pcm(
-    std::span<const compat::u8> bytes,
-    compat::i32 target_sample_rate
+    std::span<const compat::u8> bytes, compat::i32 target_sample_rate
 );
 
 class SdlLegacySampleBackend final
@@ -47,9 +46,8 @@ public:
 
     void set_preference(compat::i32 index, compat::i32 value) override;
     [[nodiscard]] compat::i32 preference(compat::i32 index) override;
-    [[nodiscard]] bool open_output(
-        const audio_video::LegacyPcmOutputFormat& format
-    ) override;
+    [[nodiscard]] bool
+    open_output(const audio_video::LegacyPcmOutputFormat& format) override;
     [[nodiscard]] std::string_view output_configuration() override;
     [[nodiscard]] std::string_view last_error() const override;
 
@@ -57,9 +55,7 @@ public:
     [[nodiscard]] audio_video::LegacySampleHandle
     allocate_sample_handle() override;
     void initialize_sample(audio_video::LegacySampleHandle handle) override;
-    void release_sample_handle(
-        audio_video::LegacySampleHandle handle
-    ) override;
+    void release_sample_handle(audio_video::LegacySampleHandle handle) override;
     [[nodiscard]] bool set_sample_file(
         audio_video::LegacySampleHandle handle,
         std::span<const compat::u8> bytes
@@ -76,26 +72,21 @@ public:
         compat::u32 value
     ) override;
     [[nodiscard]] compat::u32 sample_user_data(
-        audio_video::LegacySampleHandle handle,
-        compat::u32 slot
+        audio_video::LegacySampleHandle handle, compat::u32 slot
     ) override;
     void set_sample_volume(
-        audio_video::LegacySampleHandle handle,
-        compat::i32 volume
+        audio_video::LegacySampleHandle handle, compat::i32 volume
     ) override;
     void set_sample_pan(
-        audio_video::LegacySampleHandle handle,
-        compat::i32 pan
+        audio_video::LegacySampleHandle handle, compat::i32 pan
     ) override;
     void set_sample_loop_count(
-        audio_video::LegacySampleHandle handle,
-        compat::i32 loop_count
+        audio_video::LegacySampleHandle handle, compat::i32 loop_count
     ) override;
     void start_sample(audio_video::LegacySampleHandle handle) override;
     void end_sample(audio_video::LegacySampleHandle handle) override;
-    [[nodiscard]] compat::u32 sample_status(
-        audio_video::LegacySampleHandle handle
-    ) override;
+    [[nodiscard]] compat::u32
+    sample_status(audio_video::LegacySampleHandle handle) override;
     void close_output() override;
 
 private:
@@ -117,12 +108,10 @@ private:
         bool playing{};
     };
 
-    [[nodiscard]] Sample* sample(
-        audio_video::LegacySampleHandle handle
-    ) noexcept;
-    [[nodiscard]] const Sample* sample(
-        audio_video::LegacySampleHandle handle
-    ) const noexcept;
+    [[nodiscard]] Sample*
+    sample(audio_video::LegacySampleHandle handle) noexcept;
+    [[nodiscard]] const Sample*
+    sample(audio_video::LegacySampleHandle handle) const noexcept;
     void reset_sample(Sample& sample, bool allocated);
     void set_sdl_error(std::string_view operation);
     static void SDLCALL audio_callback(

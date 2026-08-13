@@ -16,8 +16,7 @@ constexpr std::size_t kLegacyWaveHeaderSize = 44U;
 constexpr std::size_t kFloatStereoFrameSize = 2U * sizeof(float);
 
 [[nodiscard]] compat::u16 read_u16(
-    const std::span<const compat::u8> bytes,
-    const std::size_t offset
+    const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u16>(
         static_cast<compat::u16>(bytes[offset]) |
@@ -28,8 +27,7 @@ constexpr std::size_t kFloatStereoFrameSize = 2U * sizeof(float);
 }
 
 [[nodiscard]] compat::u32 read_u32(
-    const std::span<const compat::u8> bytes,
-    const std::size_t offset
+    const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u32>(bytes[offset]) |
         (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
@@ -53,11 +51,7 @@ constexpr std::size_t kFloatStereoFrameSize = 2U * sizeof(float);
     return static_cast<float>(std::clamp(volume, 0, 127)) / 127.0F;
 }
 
-void pan_gains(
-    const compat::i32 pan,
-    float& left,
-    float& right
-) noexcept {
+void pan_gains(const compat::i32 pan, float& left, float& right) noexcept {
     const compat::i32 clamped = std::clamp(pan, 0, 127);
     if (clamped <= 63) {
         left = 1.0F;
@@ -78,8 +72,7 @@ LegacyDecodedPcm decode_legacy_riff_pcm(
     if (bytes.size() < kLegacyWaveHeaderSize ||
         !has_signature(bytes, 0U, "RIFF") ||
         !has_signature(bytes, 8U, "WAVE") ||
-        !has_signature(bytes, 12U, "fmt ") ||
-        target_sample_rate <= 0) {
+        !has_signature(bytes, 12U, "fmt ") || target_sample_rate <= 0) {
         return result;
     }
 
@@ -108,9 +101,7 @@ LegacyDecodedPcm decode_legacy_riff_pcm(
     std::size_t pcm_size = std::min(declared_size, available_size);
     pcm_size -= pcm_size % block_align;
     if (pcm_size == 0U ||
-        pcm_size > static_cast<std::size_t>(
-            std::numeric_limits<int>::max()
-        )) {
+        pcm_size > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
         result.status = LegacyPcmDecodeStatus::unsupported_format;
         return result;
     }
@@ -140,8 +131,7 @@ LegacyDecodedPcm decode_legacy_riff_pcm(
     }
 
     if (converted_size <= 0 ||
-        static_cast<std::size_t>(converted_size) %
-                kFloatStereoFrameSize !=
+        static_cast<std::size_t>(converted_size) % kFloatStereoFrameSize !=
             0U) {
         SDL_free(converted);
         result.status = LegacyPcmDecodeStatus::conversion_failed;
@@ -154,8 +144,7 @@ LegacyDecodedPcm decode_legacy_riff_pcm(
         reinterpret_cast<const float*>(converted);
     try {
         result.stereo_frames.assign(
-            converted_floats,
-            converted_floats + float_count
+            converted_floats, converted_floats + float_count
         );
     } catch (const std::bad_alloc&) {
         SDL_free(converted);
@@ -176,19 +165,16 @@ SdlLegacySampleBackend::~SdlLegacySampleBackend() {
 }
 
 void SdlLegacySampleBackend::set_preference(
-    const compat::i32 index,
-    const compat::i32 value
+    const compat::i32 index, const compat::i32 value
 ) {
-    if (index < 0 ||
-        static_cast<std::size_t>(index) >= preferences_.size()) {
+    if (index < 0 || static_cast<std::size_t>(index) >= preferences_.size()) {
         return;
     }
     preferences_[static_cast<std::size_t>(index)] = value;
 }
 
 compat::i32 SdlLegacySampleBackend::preference(const compat::i32 index) {
-    if (index < 0 ||
-        static_cast<std::size_t>(index) >= preferences_.size()) {
+    if (index < 0 || static_cast<std::size_t>(index) >= preferences_.size()) {
         return 0;
     }
     return preferences_[static_cast<std::size_t>(index)];
@@ -216,10 +202,8 @@ bool SdlLegacySampleBackend::open_output(
         static_cast<int>(format.channels),
         static_cast<int>(format.sample_rate),
     };
-    const SDL_AudioDeviceID device = SDL_OpenAudioDevice(
-        SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-        &requested
-    );
+    const SDL_AudioDeviceID device =
+        SDL_OpenAudioDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &requested);
     if (device == 0U) {
         set_sdl_error("SDL_OpenAudioDevice");
         return false;
@@ -230,10 +214,7 @@ bool SdlLegacySampleBackend::open_output(
         2,
         static_cast<int>(format.sample_rate),
     };
-    SDL_AudioStream* const stream = SDL_CreateAudioStream(
-        &mixer_spec,
-        nullptr
-    );
+    SDL_AudioStream* const stream = SDL_CreateAudioStream(&mixer_spec, nullptr);
     if (stream == nullptr) {
         set_sdl_error("SDL_CreateAudioStream");
         SDL_CloseAudioDevice(device);
@@ -359,8 +340,7 @@ void SdlLegacySampleBackend::set_sample_user_data(
 }
 
 compat::u32 SdlLegacySampleBackend::sample_user_data(
-    const audio_video::LegacySampleHandle handle,
-    const compat::u32 slot
+    const audio_video::LegacySampleHandle handle, const compat::u32 slot
 ) {
     if (slot != 0U) {
         return 0U;
@@ -371,8 +351,7 @@ compat::u32 SdlLegacySampleBackend::sample_user_data(
 }
 
 void SdlLegacySampleBackend::set_sample_volume(
-    const audio_video::LegacySampleHandle handle,
-    const compat::i32 volume
+    const audio_video::LegacySampleHandle handle, const compat::i32 volume
 ) {
     std::lock_guard lock{mutex_};
     Sample* const target = sample(handle);
@@ -382,8 +361,7 @@ void SdlLegacySampleBackend::set_sample_volume(
 }
 
 void SdlLegacySampleBackend::set_sample_pan(
-    const audio_video::LegacySampleHandle handle,
-    const compat::i32 pan
+    const audio_video::LegacySampleHandle handle, const compat::i32 pan
 ) {
     std::lock_guard lock{mutex_};
     Sample* const target = sample(handle);
@@ -393,8 +371,7 @@ void SdlLegacySampleBackend::set_sample_pan(
 }
 
 void SdlLegacySampleBackend::set_sample_loop_count(
-    const audio_video::LegacySampleHandle handle,
-    const compat::i32 loop_count
+    const audio_video::LegacySampleHandle handle, const compat::i32 loop_count
 ) {
     std::lock_guard lock{mutex_};
     Sample* const target = sample(handle);
@@ -445,11 +422,9 @@ void SdlLegacySampleBackend::close_output() {
     output_sample_rate_ = 0;
 
     if (stream != nullptr && SDL_WasInit(SDL_INIT_AUDIO) != 0U) {
-        static_cast<void>(SDL_SetAudioStreamGetCallback(
-            stream,
-            nullptr,
-            nullptr
-        ));
+        static_cast<void>(
+            SDL_SetAudioStreamGetCallback(stream, nullptr, nullptr)
+        );
         SDL_DestroyAudioStream(stream);
     }
     if (device != 0U && SDL_WasInit(SDL_INIT_AUDIO) != 0U) {
@@ -482,8 +457,7 @@ const SdlLegacySampleBackend::Sample* SdlLegacySampleBackend::sample(
 }
 
 void SdlLegacySampleBackend::reset_sample(
-    Sample& target,
-    const bool allocated
+    Sample& target, const bool allocated
 ) {
     target.stereo_frames.clear();
     target.frame_cursor = 0U;
@@ -498,9 +472,7 @@ void SdlLegacySampleBackend::reset_sample(
     target.playing = false;
 }
 
-void SdlLegacySampleBackend::set_sdl_error(
-    const std::string_view operation
-) {
+void SdlLegacySampleBackend::set_sdl_error(const std::string_view operation) {
     last_error_.assign(operation);
     last_error_.append(": ");
     last_error_.append(SDL_GetError());
@@ -517,8 +489,7 @@ void SDLCALL SdlLegacySampleBackend::audio_callback(
     }
     try {
         static_cast<SdlLegacySampleBackend*>(userdata)->mix_and_queue(
-            *stream,
-            additional_amount
+            *stream, additional_amount
         );
     } catch (...) {
         // The audio callback cannot propagate allocation failures through SDL.
@@ -526,14 +497,12 @@ void SDLCALL SdlLegacySampleBackend::audio_callback(
 }
 
 void SdlLegacySampleBackend::mix_and_queue(
-    SDL_AudioStream& stream,
-    const int additional_amount
+    SDL_AudioStream& stream, const int additional_amount
 ) {
     const std::size_t requested_bytes =
         static_cast<std::size_t>(additional_amount);
     const std::size_t frame_count =
-        (requested_bytes + kFloatStereoFrameSize - 1U) /
-        kFloatStereoFrameSize;
+        (requested_bytes + kFloatStereoFrameSize - 1U) / kFloatStereoFrameSize;
     std::vector<float> mixed(frame_count * 2U, 0.0F);
 
     {
@@ -552,8 +521,7 @@ void SdlLegacySampleBackend::mix_and_queue(
 
             for (std::size_t frame = 0U; frame < frame_count; ++frame) {
                 if (source.frame_cursor >= source_frame_count) {
-                    if (source.loop_count == 0 ||
-                        source.loops_remaining > 1) {
+                    if (source.loop_count == 0 || source.loops_remaining > 1) {
                         if (source.loop_count != 0) {
                             --source.loops_remaining;
                         }
@@ -570,17 +538,14 @@ void SdlLegacySampleBackend::mix_and_queue(
                 mixed[target_offset] +=
                     source.stereo_frames[source_offset] * gain * left_pan;
                 mixed[target_offset + 1U] +=
-                    source.stereo_frames[source_offset + 1U] * gain *
-                    right_pan;
+                    source.stereo_frames[source_offset + 1U] * gain * right_pan;
                 ++source.frame_cursor;
             }
         }
     }
 
     static_cast<void>(SDL_PutAudioStreamData(
-        &stream,
-        mixed.data(),
-        static_cast<int>(mixed.size() * sizeof(float))
+        &stream, mixed.data(), static_cast<int>(mixed.size() * sizeof(float))
     ));
 }
 

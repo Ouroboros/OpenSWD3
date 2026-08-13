@@ -21,11 +21,9 @@ void cancel_legacy_media_wait(compat::u32& process_flags) noexcept {
     process_flags |= kLegacyCloseRequestFlag;
 }
 
-std::filesystem::path legacy_optical_media_marker_path(
-    const std::filesystem::path& media_root
-) {
-    return media_root / kLegacyDiscGameDirectory /
-           kLegacyMediaMarkerFilename;
+std::filesystem::path
+legacy_optical_media_marker_path(const std::filesystem::path& media_root) {
+    return media_root / kLegacyDiscGameDirectory / kLegacyMediaMarkerFilename;
 }
 
 LegacyMediaLocationResult resolve_configured_legacy_media(

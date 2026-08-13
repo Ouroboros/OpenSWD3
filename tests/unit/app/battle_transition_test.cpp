@@ -41,7 +41,9 @@ struct Event {
 
 class RecordingPorts final : public openswd3::app::BattleTransitionPorts {
 public:
-    RecordingPorts(openswd3::app::BattleTransitionState& state, const i32 result)
+    RecordingPorts(
+        openswd3::app::BattleTransitionState& state, const i32 result
+    )
         : state_(state), result_(result) {}
 
     void release_display_and_world_for_battle_entry() override {
@@ -95,16 +97,14 @@ public:
 
 private:
     void record(const Call call, const u32 argument = 0U) {
-        events.push_back(
-            {
-                call,
-                argument,
-                state_.battle_request_value,
-                state_.battle_active,
-                state_.special_mode_state,
-                state_.high_priority_state,
-            }
-        );
+        events.push_back({
+            call,
+            argument,
+            state_.battle_request_value,
+            state_.battle_active,
+            state_.special_mode_state,
+            state_.high_priority_state,
+        });
     }
 
     openswd3::app::BattleTransitionState& state_;
@@ -113,8 +113,14 @@ private:
 
 void test_entry_guards(openswd3::test::Context& test) {
     for (const auto& [state_value, blocked] : {
-             std::pair{openswd3::app::BattleTransitionState{0x80000005U, 1, 0, 0}, false},
-             std::pair{openswd3::app::BattleTransitionState{0x80000005U, 0, 0, 0}, true},
+             std::pair{
+                 openswd3::app::BattleTransitionState{0x80000005U, 1, 0, 0},
+                 false
+             },
+             std::pair{
+                 openswd3::app::BattleTransitionState{0x80000005U, 0, 0, 0},
+                 true
+             },
              std::pair{openswd3::app::BattleTransitionState{5, 0, 0, 0}, false},
          }) {
         auto state = state_value;
@@ -123,7 +129,9 @@ void test_entry_guards(openswd3::test::Context& test) {
             openswd3::app::consume_battle_request(state, blocked, ports),
             "inactive, unblocked and tagged are all required"
         );
-        test.expect_true(ports.events.empty(), "guarded requests call no entry port");
+        test.expect_true(
+            ports.events.empty(), "guarded requests call no entry port"
+        );
     }
 
     openswd3::app::BattleTransitionState tag_only{0x80000000U, 0, 0, 0};
@@ -132,7 +140,9 @@ void test_entry_guards(openswd3::test::Context& test) {
         openswd3::app::consume_battle_request(tag_only, false, tag_only_ports),
         "zero low request does not enter battle"
     );
-    test.expect_equal(tag_only.battle_request_value, 0U, "request tag is still cleared");
+    test.expect_equal(
+        tag_only.battle_request_value, 0U, "request tag is still cleared"
+    );
 }
 
 void test_entry_sequence(openswd3::test::Context& test) {
@@ -148,7 +158,9 @@ void test_entry_sequence(openswd3::test::Context& test) {
         {Call::initialize_battle, 0x2345U, 0x00012345U, 0, 0, 0},
         {Call::clear_party_bits, 0, 0x00012345U, 1, 0, 0},
     };
-    test.expect_equal(ports.events, expected, "battle entry sequence and state timing");
+    test.expect_equal(
+        ports.events, expected, "battle entry sequence and state timing"
+    );
 }
 
 void test_result_zero(openswd3::test::Context& test) {
@@ -217,8 +229,12 @@ void test_other_result(openswd3::test::Context& test) {
         {Call::step_battle, 0, 9, 1, 7, 8},
         {Call::maintain_audio, 0, 9, 1, 7, 8},
     };
-    test.expect_equal(ports.events, expected, "other results return after audio");
-    test.expect_equal(state.battle_active, 1U, "other results preserve battle activity");
+    test.expect_equal(
+        ports.events, expected, "other results return after audio"
+    );
+    test.expect_equal(
+        state.battle_active, 1U, "other results preserve battle activity"
+    );
 }
 
 }  // namespace

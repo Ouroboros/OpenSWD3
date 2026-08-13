@@ -21,7 +21,8 @@ enum class LegacyWorldRoleSurfaceStatus : compat::u8 {
 
 struct LegacyWorldRoleSurfaceResult {
     LegacyWorldRoleSurfaceStatus status{
-        LegacyWorldRoleSurfaceStatus::invalid_surface_grid};
+        LegacyWorldRoleSurfaceStatus::invalid_surface_grid
+    };
     compat::u32 touched_cells{};
     compat::u32 mask{};
 };
@@ -30,14 +31,16 @@ struct LegacyWorldRoleSurfaceResult {
 [[nodiscard]] LegacyWorldRoleSurfaceResult
 clear_legacy_world_role_surface_occupancy(
     const LegacyWorldRoleRecord& role,
-    const LegacyWorldRoleSurfaceContext& context) noexcept;
+    const LegacyWorldRoleSurfaceContext& context
+) noexcept;
 
 // sub_40AEC0: derive the footprint bits from role flags/selection and OR them
 // into this role's current map cell.
 [[nodiscard]] LegacyWorldRoleSurfaceResult
 mark_legacy_world_role_surface_occupancy(
     const LegacyWorldRoleRecord& role,
-    const LegacyWorldRoleSurfaceContext& context) noexcept;
+    const LegacyWorldRoleSurfaceContext& context
+) noexcept;
 
 enum class LegacyWorldRoleCellFlagRefreshStatus : compat::u8 {
     ready,
@@ -47,7 +50,7 @@ enum class LegacyWorldRoleCellFlagRefreshStatus : compat::u8 {
 // Shared body used by 0x00412807..0x00412839 and initial role binding.
 [[nodiscard]] LegacyWorldRoleCellFlagRefreshStatus
 refresh_legacy_world_role_cell_flags(
-    LegacyWorldRoleRecord& role,
-    std::span<const compat::u8> surface_grid) noexcept;
+    LegacyWorldRoleRecord& role, std::span<const compat::u8> surface_grid
+) noexcept;
 
 }  // namespace openswd3::world_map

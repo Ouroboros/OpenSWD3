@@ -38,9 +38,7 @@ using openswd3::rendering::LegacyTextRendererState;
 class ActionPorts final : public LegacyEffectPanelActionPorts {
 public:
     [[nodiscard]] bool update_action_frame(
-        const u32 action_id,
-        const i32 action_index,
-        u16& frame_resource_id
+        const u32 action_id, const i32 action_index, u16& frame_resource_id
     ) noexcept override {
         id = action_id;
         index = action_index;
@@ -63,9 +61,7 @@ public:
     }
 
     [[nodiscard]] bool load_frame_piece(
-        const u32 resource_id,
-        const u32 piece_index,
-        LegacyFramePiece& piece
+        const u32 resource_id, const u32 piece_index, LegacyFramePiece& piece
     ) noexcept override {
         resource_ids.push_back(resource_id);
         if (piece_index >= bytes.size()) {
@@ -106,9 +102,8 @@ public:
     explicit PresentationPorts(const LegacyGlyphCache& cache) noexcept
         : cache_(cache) {}
 
-    [[nodiscard]] bool present_legacy_frame(
-        const LegacyPresentationRequest& value
-    ) override {
+    [[nodiscard]] bool
+    present_legacy_frame(const LegacyPresentationRequest& value) override {
         request = value;
         text_was_drawn = cache_.count() != 0U;
         ++calls;
@@ -129,8 +124,7 @@ void test_exact_pause_composition(openswd3::test::Context& test) {
     };
     test.expect_true(
         std::ranges::equal(
-            openswd3::rendering::legacy_pause_overlay_text(),
-            kExpectedText
+            openswd3::rendering::legacy_pause_overlay_text(), kExpectedText
         ),
         "pause text preserves raw CP950 bytes"
     );
@@ -173,15 +167,35 @@ void test_exact_pause_composition(openswd3::test::Context& test) {
     test.expect_equal(result.layout.y, 229, "pause panel y is exact");
     test.expect_equal(result.layout.width, 242, "pause panel width is exact");
     test.expect_equal(result.layout.height, 22, "pause panel height is exact");
-    test.expect_equal(result.layout.foreground_color, static_cast<u16>(0x66F1U), "pause RGB555 color is exact");
-    test.expect_equal(result.panel.status, LegacyEffectPanelStatus::completed, "panel completes");
-    test.expect_equal(result.text.status, LegacyTextDrawStatus::completed, "text completes");
+    test.expect_equal(
+        result.layout.foreground_color,
+        static_cast<u16>(0x66F1U),
+        "pause RGB555 color is exact"
+    );
+    test.expect_equal(
+        result.panel.status,
+        LegacyEffectPanelStatus::completed,
+        "panel completes"
+    );
+    test.expect_equal(
+        result.text.status, LegacyTextDrawStatus::completed, "text completes"
+    );
     test.expect_equal(action_ports.id, 0x233BU, "panel action id is exact");
     test.expect_equal(action_ports.index, 0, "panel action index is zero");
     test.expect_equal(presentation_ports.calls, 1U, "pause presents once");
-    test.expect_true(presentation_ports.text_was_drawn, "presentation follows text draw");
-    test.expect_equal(presentation_ports.request.site, LegacyPresentationSite::pause_overlay, "pause presentation site is exact");
-    test.expect_equal(result.presentation.status, LegacyPresentationDispatchStatus::completed, "presentation succeeds");
+    test.expect_true(
+        presentation_ports.text_was_drawn, "presentation follows text draw"
+    );
+    test.expect_equal(
+        presentation_ports.request.site,
+        LegacyPresentationSite::pause_overlay,
+        "pause presentation site is exact"
+    );
+    test.expect_equal(
+        result.presentation.status,
+        LegacyPresentationDispatchStatus::completed,
+        "presentation succeeds"
+    );
 }
 
 }  // namespace

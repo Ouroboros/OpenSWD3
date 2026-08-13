@@ -12,8 +12,7 @@ namespace {
 constexpr std::size_t kRecordSize = 0x10U;
 
 [[nodiscard]] compat::u32 read_u32(
-    const std::span<const compat::u8> bytes,
-    const std::size_t offset
+    const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u32>(bytes[offset]) |
         (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
@@ -54,12 +53,14 @@ void decode_records(
     records.reserve(record_count);
     for (std::size_t index = 0U; index < record_count; ++index) {
         const std::size_t offset = index * kRecordSize;
-        records.push_back(LegacyCmCacheRecord{
-            .map_id = read_u32(bytes, offset),
-            .byte_size = read_u32(bytes, offset + 4U),
-            .use_counter = read_u32(bytes, offset + 8U),
-            .stored_slot = read_u32(bytes, offset + 12U),
-        });
+        records.push_back(
+            LegacyCmCacheRecord{
+                .map_id = read_u32(bytes, offset),
+                .byte_size = read_u32(bytes, offset + 4U),
+                .use_counter = read_u32(bytes, offset + 8U),
+                .stored_slot = read_u32(bytes, offset + 12U),
+            }
+        );
     }
 }
 
@@ -95,10 +96,12 @@ void encode_records(
     bool written = byte_count == 0U;
     if (byte_count != 0U) {
         compat::u32 requested = static_cast<compat::u32>(byte_count);
-        written = index.write(
-            std::span<const compat::u8>{index_bytes}.first(byte_count),
-            requested
-        ) && requested == byte_count;
+        written =
+            index.write(
+                std::span<const compat::u8>{index_bytes}.first(byte_count),
+                requested
+            ) &&
+            requested == byte_count;
     }
 
     if (truncate) {
@@ -139,8 +142,7 @@ enum class CacheUnitReadStatus {
 }
 
 void truncate_evicted_unit(
-    const std::filesystem::path& cache_directory,
-    const compat::u32 stored_slot
+    const std::filesystem::path& cache_directory, const compat::u32 stored_slot
 ) {
     resource_io::LegacyFile cache;
     if (!cache.open(
@@ -161,9 +163,8 @@ void set_cache_read_status(
 ) {
     switch (status) {
     case CacheUnitReadStatus::ready:
-        result.status = generated
-            ? LegacyCmCacheLoadStatus::ready_generated
-            : LegacyCmCacheLoadStatus::ready_hit;
+        result.status = generated ? LegacyCmCacheLoadStatus::ready_generated
+                                  : LegacyCmCacheLoadStatus::ready_hit;
         break;
     case CacheUnitReadStatus::open_failed:
         result.status = LegacyCmCacheLoadStatus::cache_file_open_failed;
@@ -189,9 +190,7 @@ void initialize_empty_directory(
         .use_counter = 0U,
         .stored_slot = 0U,
     };
-    for (compat::u32 index = 1U;
-         index < kLegacyCmCacheSlotCount;
-         ++index) {
+    for (compat::u32 index = 1U; index < kLegacyCmCacheSlotCount; ++index) {
         records[index] = LegacyCmCacheRecord{
             .map_id = kLegacyCmCacheInvalidMap,
             .byte_size = 0U,
@@ -203,9 +202,8 @@ void initialize_empty_directory(
 
 }  // namespace
 
-LegacyCmCacheLoadResult load_legacy_cm_cache(
-    const LegacyCmCacheRequest& request
-) {
+LegacyCmCacheLoadResult
+load_legacy_cm_cache(const LegacyCmCacheRequest& request) {
     LegacyCmCacheLoadResult result;
     resource_io::LegacyFile index;
     if (!index.open(
@@ -241,20 +239,12 @@ LegacyCmCacheLoadResult load_legacy_cm_cache(
             result.generation.declared_output_size
         );
         result.index_persisted = persist_records(
-            index,
-            result.records,
-            index_bytes,
-            true,
-            result.index_truncated
+            index, result.records, index_bytes, true, result.index_truncated
         );
-        const CacheUnitReadStatus cache_status = read_cache_unit(
-            request.cache_directory,
-            0U,
-            result.cache_bytes
-        );
+        const CacheUnitReadStatus cache_status =
+            read_cache_unit(request.cache_directory, 0U, result.cache_bytes);
         set_cache_read_status(result, cache_status, true);
-        if (result.generation.status !=
-            LegacyCmCacheGenerationStatus::ready) {
+        if (result.generation.status != LegacyCmCacheGenerationStatus::ready) {
             result.status = LegacyCmCacheLoadStatus::generation_failed;
         }
         return result;
@@ -266,25 +256,17 @@ LegacyCmCacheLoadResult load_legacy_cm_cache(
     if (lookup.found) {
         result.selected_slot = lookup.record.stored_slot;
         const CacheUnitReadStatus cache_status = read_cache_unit(
-            request.cache_directory,
-            result.selected_slot,
-            result.cache_bytes
+            request.cache_directory, result.selected_slot, result.cache_bytes
         );
         set_cache_read_status(result, cache_status, false);
         result.index_persisted = persist_records(
-            index,
-            result.records,
-            index_bytes,
-            false,
-            result.index_truncated
+            index, result.records, index_bytes, false, result.index_truncated
         );
         return result;
     }
 
     result.size_probe = read_legacy_cm_cache_declared_size(
-        request.archive_path,
-        request.map_offset,
-        request.cm_relative_offset
+        request.archive_path, request.map_offset, request.cm_relative_offset
     );
     if (result.size_probe.status != LegacyCmCacheSizeStatus::ready) {
         result.status = LegacyCmCacheLoadStatus::declared_size_failed;
@@ -308,11 +290,7 @@ LegacyCmCacheLoadResult load_legacy_cm_cache(
 
     result.selected_slot = plan.insertion_record_index;
     result.index_persisted = persist_records(
-        index,
-        result.records,
-        index_bytes,
-        true,
-        result.index_truncated
+        index, result.records, index_bytes, true, result.index_truncated
     );
     result.generation = generate_legacy_cm_cache_unit(
         request.archive_path,
@@ -324,9 +302,7 @@ LegacyCmCacheLoadResult load_legacy_cm_cache(
         request.pixel_conversion
     );
     const CacheUnitReadStatus cache_status = read_cache_unit(
-        request.cache_directory,
-        result.selected_slot,
-        result.cache_bytes
+        request.cache_directory, result.selected_slot, result.cache_bytes
     );
     set_cache_read_status(result, cache_status, true);
     if (result.generation.status != LegacyCmCacheGenerationStatus::ready) {

@@ -48,9 +48,7 @@ struct ActionSnapshot {
 class RecordingPorts final : public LegacyWorldCollisionTalkPorts {
 public:
     LegacyMovementCollisionResult query_collision(
-        const u32 role_index,
-        const i32 delta_x,
-        const i32 delta_y
+        const u32 role_index, const i32 delta_x, const i32 delta_y
     ) override {
         collision_calls.push_back({role_index, delta_x, delta_y});
         if (next_collision < collision_results.size()) {
@@ -65,15 +63,13 @@ public:
     }
 
     u32 update_action(LegacyActionRecord& action) override {
-        action_updates.push_back(
-            {
-                action.base_variant,
-                action.variant_delta,
-                action.one_shot_base_variant,
-                action.one_shot_variant_delta,
-                action.wait_remaining,
-            }
-        );
+        action_updates.push_back({
+            action.base_variant,
+            action.variant_delta,
+            action.one_shot_base_variant,
+            action.one_shot_variant_delta,
+            action.wait_remaining,
+        });
         const std::size_t index = action_updates.size() - 1U;
         return index < update_results.size() ? update_results[index] : 1U;
     }
@@ -88,8 +84,7 @@ public:
 };
 
 LegacyMovementCollisionResult collision(
-    const u32 event_code,
-    const u32 role_index = kLegacyMovementCollisionNoRole
+    const u32 event_code, const u32 role_index = kLegacyMovementCollisionNoRole
 ) {
     return {
         .status = LegacyMovementCollisionStatus::completed,
@@ -137,7 +132,9 @@ void test_collision_fallback_order(openswd3::test::Context& test) {
         "zero return retries the original direction even after a role hit"
     );
     test.expect_equal(result.collision_query_count, 2U, "two queries recorded");
-    test.expect_equal(result.event_code, 9U, "second query overwrites the event");
+    test.expect_equal(
+        result.event_code, 9U, "second query overwrites the event"
+    );
     test.expect_equal(
         result.hit_role_index,
         kLegacyMovementCollisionNoRole,
@@ -160,8 +157,12 @@ void test_collision_fallback_order(openswd3::test::Context& test) {
     const auto still = coordinate_legacy_world_collision_talk(
         {0U, 0, 0, 0, 0}, roles, events, talk, latch, still_ports
     );
-    test.expect_true(still_ports.collision_calls.empty(), "zero motion queries nothing");
-    test.expect_equal(still.event_code, 0U, "zero motion retains zero event state");
+    test.expect_true(
+        still_ports.collision_calls.empty(), "zero motion queries nothing"
+    );
+    test.expect_equal(
+        still.event_code, 0U, "zero motion retains zero event state"
+    );
 }
 
 void test_map_event_context_and_gate_order(openswd3::test::Context& test) {
@@ -187,30 +188,60 @@ void test_map_event_context_and_gate_order(openswd3::test::Context& test) {
     const auto result = coordinate_legacy_world_collision_talk(
         {0U, 1, 0, 1, 0}, roles, events, talk, latch, ports
     );
-    test.expect_equal(result.status, LegacyWorldCollisionTalkStatus::completed,
-                      "map event completes");
-    test.expect_equal(result.talk_source, LegacyWorldTalkSource::map_event,
-                      "map event creates its Talk source");
-    test.expect_true(result.map_event_stopped_motion,
-                     "flag result exactly one stops movement");
+    test.expect_equal(
+        result.status,
+        LegacyWorldCollisionTalkStatus::completed,
+        "map event completes"
+    );
+    test.expect_equal(
+        result.talk_source,
+        LegacyWorldTalkSource::map_event,
+        "map event creates its Talk source"
+    );
+    test.expect_true(
+        result.map_event_stopped_motion,
+        "flag result exactly one stops movement"
+    );
     test.expect_equal(result.delta_x, 0, "map event clears adjusted X");
     test.expect_equal(result.delta_y, 0, "map event clears adjusted Y");
-    test.expect_equal(ports.flag_queries, std::vector<u32>{42U},
-                      "event high word selects the internal flag");
-    test.expect_equal(talk.talk_data_offset, 0U, "map event clears data offset");
-    test.expect_equal(talk.instruction_offset, u16{0U},
-                      "map event clears instruction offset");
-    test.expect_equal(talk.talk_script_id, u16{0xABCDU},
-                      "map event copies low event Talk word");
-    test.expect_equal(talk.source_guid, kLegacyWorldTalkMapEventSource,
-                      "map event writes FFFD source sentinel");
+    test.expect_equal(
+        ports.flag_queries,
+        std::vector<u32>{42U},
+        "event high word selects the internal flag"
+    );
+    test.expect_equal(
+        talk.talk_data_offset, 0U, "map event clears data offset"
+    );
+    test.expect_equal(
+        talk.instruction_offset, u16{0U}, "map event clears instruction offset"
+    );
+    test.expect_equal(
+        talk.talk_script_id,
+        u16{0xABCDU},
+        "map event copies low event Talk word"
+    );
+    test.expect_equal(
+        talk.source_guid,
+        kLegacyWorldTalkMapEventSource,
+        "map event writes FFFD source sentinel"
+    );
     test.expect_equal(talk.source_flags, 0U, "map event clears source flags");
-    test.expect_equal(talk.world_x, 936U, "direction table subtracts X times 16");
-    test.expect_equal(talk.world_y, 1936U, "direction table subtracts Y times 16");
-    test.expect_equal(talk.field_18, 0xCAFEBABEU,
-                      "unwritten Talk fields retain their prior bytes");
-    test.expect_equal(latch, 0x11223344U,
-                      "map event does not clear the role interaction latch");
+    test.expect_equal(
+        talk.world_x, 936U, "direction table subtracts X times 16"
+    );
+    test.expect_equal(
+        talk.world_y, 1936U, "direction table subtracts Y times 16"
+    );
+    test.expect_equal(
+        talk.field_18,
+        0xCAFEBABEU,
+        "unwritten Talk fields retain their prior bytes"
+    );
+    test.expect_equal(
+        latch,
+        0x11223344U,
+        "map event does not clear the role interaction latch"
+    );
 
     LegacyWorldTalkContext busy{};
     busy.source_guid = 99U;
@@ -220,11 +251,18 @@ void test_map_event_context_and_gate_order(openswd3::test::Context& test) {
     const auto busy_result = coordinate_legacy_world_collision_talk(
         {0U, -1, 1, -1, 1}, roles, events, busy, latch, busy_ports
     );
-    test.expect_true(busy_result.map_event_stopped_motion,
-                     "map flag side effect precedes the occupied Talk gate");
-    test.expect_equal(busy_result.talk_source, LegacyWorldTalkSource::none,
-                      "occupied Talk prevents context replacement");
-    test.expect_equal(busy.source_guid, u16{99U}, "occupied context is unchanged");
+    test.expect_true(
+        busy_result.map_event_stopped_motion,
+        "map flag side effect precedes the occupied Talk gate"
+    );
+    test.expect_equal(
+        busy_result.talk_source,
+        LegacyWorldTalkSource::none,
+        "occupied Talk prevents context replacement"
+    );
+    test.expect_equal(
+        busy.source_guid, u16{99U}, "occupied context is unchanged"
+    );
 
     LegacyWorldTalkContext not_exact{};
     not_exact.source_guid = 4U;
@@ -234,8 +272,10 @@ void test_map_event_context_and_gate_order(openswd3::test::Context& test) {
     const auto not_exact_result = coordinate_legacy_world_collision_talk(
         {0U, 1, 1, 1, 1}, roles, events, not_exact, latch, not_exact_ports
     );
-    test.expect_false(not_exact_result.map_event_stopped_motion,
-                      "flag result two does not satisfy cmp eax,1");
+    test.expect_false(
+        not_exact_result.map_event_stopped_motion,
+        "flag result two does not satisfy cmp eax,1"
+    );
 }
 
 void test_all_map_event_direction_offsets(openswd3::test::Context& test) {
@@ -274,12 +314,21 @@ void test_all_map_event_direction_offsets(openswd3::test::Context& test) {
         const auto result = coordinate_legacy_world_collision_talk(
             {0U, 1, 0, 0, 0}, roles, events, talk, latch, ports
         );
-        test.expect_equal(result.talk_source, LegacyWorldTalkSource::map_event,
-                          "each valid direction builds map Talk");
-        test.expect_equal(talk.world_x, expected[direction].x,
-                          "map Talk X table matches .rdata 0x00499380");
-        test.expect_equal(talk.world_y, expected[direction].y,
-                          "map Talk Y table matches .rdata 0x004993A0");
+        test.expect_equal(
+            result.talk_source,
+            LegacyWorldTalkSource::map_event,
+            "each valid direction builds map Talk"
+        );
+        test.expect_equal(
+            talk.world_x,
+            expected[direction].x,
+            "map Talk X table matches .rdata 0x00499380"
+        );
+        test.expect_equal(
+            talk.world_y,
+            expected[direction].y,
+            "map Talk Y table matches .rdata 0x004993A0"
+        );
     }
 }
 
@@ -316,10 +365,14 @@ void test_role_talk_and_action_updates(openswd3::test::Context& test) {
     const auto result = coordinate_legacy_world_collision_talk(
         {0U, 1, -1, 1, 0}, roles, {}, talk, latch, ports
     );
-    test.expect_equal(result.talk_source, LegacyWorldTalkSource::role,
-                      "role collision creates role Talk context");
-    test.expect_equal(result.event_code, 0x3456U,
-                      "role Talk word replaces collision return");
+    test.expect_equal(
+        result.talk_source,
+        LegacyWorldTalkSource::role,
+        "role collision creates role Talk context"
+    );
+    test.expect_equal(
+        result.event_code, 0x3456U, "role Talk word replaces collision return"
+    );
     test.expect_equal(
         ports.action_updates,
         std::vector<ActionSnapshot>{
@@ -328,28 +381,48 @@ void test_role_talk_and_action_updates(openswd3::test::Context& test) {
         },
         "both refresh calls receive the target action pointer"
     );
-    test.expect_true(result.target_action_update_failed,
-                     "zero target update return is retained for diagnostics");
-    test.expect_true(result.post_player_turn_target_update_failed,
-                     "second target update failure is retained for diagnostics");
-    test.expect_equal(player.action.base_variant, 0U,
-                      "player base variant is still cleared before second refresh");
-    test.expect_equal(player.action.variant_delta, 0U,
-                      "player receives the exact opposite direction");
-    test.expect_equal(player.action.wait_remaining, u16{0U},
-                      "player wait is cleared without refreshing its own action");
-    test.expect_equal(talk.talk_data_offset, 0x10203040U,
-                      "role copies Talk data offset");
-    test.expect_equal(talk.instruction_offset, u16{0x789AU},
-                      "role copies initial Talk instruction offset");
+    test.expect_true(
+        result.target_action_update_failed,
+        "zero target update return is retained for diagnostics"
+    );
+    test.expect_true(
+        result.post_player_turn_target_update_failed,
+        "second target update failure is retained for diagnostics"
+    );
+    test.expect_equal(
+        player.action.base_variant,
+        0U,
+        "player base variant is still cleared before second refresh"
+    );
+    test.expect_equal(
+        player.action.variant_delta,
+        0U,
+        "player receives the exact opposite direction"
+    );
+    test.expect_equal(
+        player.action.wait_remaining,
+        u16{0U},
+        "player wait is cleared without refreshing its own action"
+    );
+    test.expect_equal(
+        talk.talk_data_offset, 0x10203040U, "role copies Talk data offset"
+    );
+    test.expect_equal(
+        talk.instruction_offset,
+        u16{0x789AU},
+        "role copies initial Talk instruction offset"
+    );
     test.expect_equal(talk.source_guid, u16{0x2468U}, "role copies GUID");
     test.expect_equal(talk.source_flags, target.flags, "role copies flags");
-    test.expect_equal(talk.talk_script_id, u16{0x3456U},
-                      "role copies Talk script id");
-    test.expect_equal(talk.world_x, 0xAAAAAAAAU,
-                      "collision role path leaves Talk X stale");
-    test.expect_equal(talk.world_y, 0xBBBBBBBBU,
-                      "collision role path leaves Talk Y stale");
+    test.expect_equal(
+        talk.talk_script_id, u16{0x3456U}, "role copies Talk script id"
+    );
+    test.expect_equal(
+        talk.world_x, 0xAAAAAAAAU, "collision role path leaves Talk X stale"
+    );
+    test.expect_equal(
+        talk.world_y, 0xBBBBBBBBU, "collision role path leaves Talk Y stale"
+    );
     test.expect_equal(latch, 0U, "role Talk clears one-shot interaction state");
 }
 
@@ -365,10 +438,15 @@ void test_role_gates_and_checked_failures(openswd3::test::Context& test) {
     const auto busy_result = coordinate_legacy_world_collision_talk(
         {0U, 1, 0, 0, 0}, roles, {}, busy, latch, busy_ports
     );
-    test.expect_equal(busy_result.talk_source, LegacyWorldTalkSource::none,
-                      "occupied Talk blocks role turning and copy");
-    test.expect_true(busy_ports.action_updates.empty(),
-                     "occupied Talk performs no action update");
+    test.expect_equal(
+        busy_result.talk_source,
+        LegacyWorldTalkSource::none,
+        "occupied Talk blocks role turning and copy"
+    );
+    test.expect_true(
+        busy_ports.action_updates.empty(),
+        "occupied Talk performs no action update"
+    );
     test.expect_equal(latch, 8U, "occupied Talk does not clear role latch");
 
     LegacyWorldTalkContext idle{};
@@ -378,28 +456,36 @@ void test_role_gates_and_checked_failures(openswd3::test::Context& test) {
     const auto missing = coordinate_legacy_world_collision_talk(
         {0U, 1, 0, 0, 0}, roles, {}, idle, latch, missing_event_ports
     );
-    test.expect_equal(missing.status,
-                      LegacyWorldCollisionTalkStatus::missing_map_event,
-                      "modern boundary exposes the original null-dereference path");
+    test.expect_equal(
+        missing.status,
+        LegacyWorldCollisionTalkStatus::missing_map_event,
+        "modern boundary exposes the original null-dereference path"
+    );
 
     RecordingPorts invalid_role_ports;
     invalid_role_ports.collision_results = {collision(0U, 99U)};
     const auto invalid_role = coordinate_legacy_world_collision_talk(
         {0U, 1, 0, 0, 0}, roles, {}, idle, latch, invalid_role_ports
     );
-    test.expect_equal(invalid_role.status,
-                      LegacyWorldCollisionTalkStatus::invalid_hit_role_index,
-                      "modern boundary exposes an invalid hit role index");
+    test.expect_equal(
+        invalid_role.status,
+        LegacyWorldCollisionTalkStatus::invalid_hit_role_index,
+        "modern boundary exposes an invalid hit role index"
+    );
 
     RecordingPorts invalid_player_ports;
     const auto invalid_player = coordinate_legacy_world_collision_talk(
         {9U, 1, 0, 0, 0}, roles, {}, idle, latch, invalid_player_ports
     );
-    test.expect_equal(invalid_player.status,
-                      LegacyWorldCollisionTalkStatus::invalid_player_index,
-                      "modern boundary exposes an invalid player index");
-    test.expect_true(invalid_player_ports.collision_calls.empty(),
-                     "invalid player is rejected before collision ports");
+    test.expect_equal(
+        invalid_player.status,
+        LegacyWorldCollisionTalkStatus::invalid_player_index,
+        "modern boundary exposes an invalid player index"
+    );
+    test.expect_true(
+        invalid_player_ports.collision_calls.empty(),
+        "invalid player is rejected before collision ports"
+    );
 
     RecordingPorts failed_query_ports;
     failed_query_ports.collision_results = {{
@@ -409,9 +495,11 @@ void test_role_gates_and_checked_failures(openswd3::test::Context& test) {
     const auto failed_query = coordinate_legacy_world_collision_talk(
         {0U, 1, 0, 0, 0}, roles, {}, idle, latch, failed_query_ports
     );
-    test.expect_equal(failed_query.status,
-                      LegacyWorldCollisionTalkStatus::collision_query_failed,
-                      "checked collision failure does not masquerade as Talk");
+    test.expect_equal(
+        failed_query.status,
+        LegacyWorldCollisionTalkStatus::collision_query_failed,
+        "checked collision failure does not masquerade as Talk"
+    );
 
     std::vector unflagged_roles{make_player(), LegacyWorldRoleRecord{}};
     unflagged_roles[1].world_x = 1000U;
@@ -424,18 +512,28 @@ void test_role_gates_and_checked_failures(openswd3::test::Context& test) {
     RecordingPorts unflagged_ports;
     unflagged_ports.collision_results = {collision(0U, 1U)};
     const auto unflagged = coordinate_legacy_world_collision_talk(
-        {0U, 1, 0, 0, 0}, unflagged_roles, {}, unflagged_talk, latch,
+        {0U, 1, 0, 0, 0},
+        unflagged_roles,
+        {},
+        unflagged_talk,
+        latch,
         unflagged_ports
     );
-    test.expect_equal(unflagged.talk_source, LegacyWorldTalkSource::role,
-                      "unflagged role still creates Talk");
+    test.expect_equal(
+        unflagged.talk_source,
+        LegacyWorldTalkSource::role,
+        "unflagged role still creates Talk"
+    );
     test.expect_equal(
         unflagged_ports.action_updates,
         std::vector<ActionSnapshot>{{12U, 5U, 0U, 0U, 0U}},
         "without bit 0x800 only the post-player-turn target refresh remains"
     );
-    test.expect_equal(unflagged_roles[0].action.variant_delta, 0U,
-                      "unflagged target still turns the player oppositely");
+    test.expect_equal(
+        unflagged_roles[0].action.variant_delta,
+        0U,
+        "unflagged target still turns the player oppositely"
+    );
 }
 
 void test_map_direction_boundary(openswd3::test::Context& test) {
@@ -458,11 +556,16 @@ void test_map_direction_boundary(openswd3::test::Context& test) {
     const auto result = coordinate_legacy_world_collision_talk(
         {0U, 1, 0, 0, 0}, roles, events, talk, latch, ports
     );
-    test.expect_equal(result.status,
-                      LegacyWorldCollisionTalkStatus::invalid_player_direction,
-                      "checked boundary rejects original direction-table overread");
-    test.expect_equal(talk.source_guid, kLegacyWorldTalkIdleSource,
-                      "invalid direction does not partially build Talk context");
+    test.expect_equal(
+        result.status,
+        LegacyWorldCollisionTalkStatus::invalid_player_direction,
+        "checked boundary rejects original direction-table overread"
+    );
+    test.expect_equal(
+        talk.source_guid,
+        kLegacyWorldTalkIdleSource,
+        "invalid direction does not partially build Talk context"
+    );
 }
 
 }  // namespace

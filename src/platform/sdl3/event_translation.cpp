@@ -51,9 +51,8 @@ constexpr compat::u32 kLegacyMouseX2 = 0x40U;
     return result;
 }
 
-[[nodiscard]] std::optional<app::HostWindowEvent> translate_key_release(
-    const SDL_Keycode key
-) {
+[[nodiscard]] std::optional<app::HostWindowEvent>
+translate_key_release(const SDL_Keycode key) {
     switch (key) {
     case SDLK_ESCAPE:
         return app::HostWindowEvent{
@@ -77,9 +76,8 @@ constexpr compat::u32 kLegacyMouseX2 = 0x40U;
 
 }  // namespace
 
-std::optional<app::HostWindowEvent> translate_sdl_event(
-    const SDL_Event& event
-) {
+std::optional<app::HostWindowEvent>
+translate_sdl_event(const SDL_Event& event) {
     switch (event.type) {
     case SDL_EVENT_QUIT:
     case SDL_EVENT_WINDOW_CLOSE_REQUESTED:

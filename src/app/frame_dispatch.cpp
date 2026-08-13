@@ -22,7 +22,8 @@ IdleAction select_idle_action(const IdleState& state) noexcept {
     return IdleAction::yield;
 }
 
-FrameEntryAction select_frame_entry_action(const FrameEntryState& state) noexcept {
+FrameEntryAction
+select_frame_entry_action(const FrameEntryState& state) noexcept {
     if ((state.process_flags & kProcessFrameEntrySuppression) != 0U) {
         return FrameEntryAction::return_immediately;
     }
@@ -32,9 +33,8 @@ FrameEntryAction select_frame_entry_action(const FrameEntryState& state) noexcep
     return FrameEntryAction::sample_time;
 }
 
-ActiveFrameBranch select_active_frame_branch(
-    const ActiveFrameState& state
-) noexcept {
+ActiveFrameBranch
+select_active_frame_branch(const ActiveFrameState& state) noexcept {
     if (state.high_priority_state != 0U) {
         return ActiveFrameBranch::high_priority;
     }
@@ -49,14 +49,12 @@ ActiveFrameBranch select_active_frame_branch(
 
 bool should_step_story(const StoryGateState& state) noexcept {
     return state.frame_execution_gate != 0U &&
-           state.transition_suppression == 0U &&
-           state.special_mode_state == 0U && state.battle_active == 0U &&
-           state.high_priority_state == 0U;
+        state.transition_suppression == 0U && state.special_mode_state == 0U &&
+        state.battle_active == 0U && state.high_priority_state == 0U;
 }
 
-SpecialModeHandler select_special_mode_handler(
-    const compat::u32 tagged_mode_value
-) noexcept {
+SpecialModeHandler
+select_special_mode_handler(const compat::u32 tagged_mode_value) noexcept {
     const compat::u32 mode = tagged_mode_value & kSpecialModeValueMask;
     if (mode == 2U) {
         return SpecialModeHandler::shop_mode_2;
@@ -69,14 +67,14 @@ SpecialModeHandler select_special_mode_handler(
 
 BattleExitAction select_battle_exit_action(const compat::i32 result) noexcept {
     switch (result) {
-        case 0:
-            return BattleExitAction::restore_world_for_result_0;
-        case 2:
-            return BattleExitAction::request_special_mode_4_for_result_2;
-        case 3:
-            return BattleExitAction::remap_world_for_result_3;
-        default:
-            return BattleExitAction::keep_battle_active_and_return;
+    case 0:
+        return BattleExitAction::restore_world_for_result_0;
+    case 2:
+        return BattleExitAction::request_special_mode_4_for_result_2;
+    case 3:
+        return BattleExitAction::remap_world_for_result_3;
+    default:
+        return BattleExitAction::keep_battle_active_and_return;
     }
 }
 

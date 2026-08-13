@@ -8,14 +8,11 @@
 namespace openswd3::rendering {
 namespace {
 
-[[nodiscard]] std::size_t checked_storage_word_count(
-    const LegacySurfaceGeometry& surface
-) {
-    if (surface.width <= 0 ||
-        surface.height <= 0 ||
+[[nodiscard]] std::size_t
+checked_storage_word_count(const LegacySurfaceGeometry& surface) {
+    if (surface.width <= 0 || surface.height <= 0 ||
         surface.height > static_cast<compat::i32>(kLegacyRowOffsetCapacity) ||
-        surface.pitch_bytes <= 0 ||
-        (surface.pitch_bytes & 1) != 0 ||
+        surface.pitch_bytes <= 0 || (surface.pitch_bytes & 1) != 0 ||
         surface.pitch_bytes / 2 < surface.width) {
         throw std::invalid_argument("invalid legacy framebuffer geometry");
     }
@@ -33,11 +30,9 @@ namespace {
 }  // namespace
 
 bool initialize_legacy_raster_geometry(
-    LegacyRasterGeometryState& state,
-    const LegacySurfaceGeometry& surface
+    LegacyRasterGeometryState& state, const LegacySurfaceGeometry& surface
 ) noexcept {
-    if (surface.height >
-        static_cast<compat::i32>(kLegacyRowOffsetCapacity)) {
+    if (surface.height > static_cast<compat::i32>(kLegacyRowOffsetCapacity)) {
         return false;
     }
 
@@ -52,9 +47,7 @@ bool initialize_legacy_raster_geometry(
     }
 
     compat::u32 byte_offset{};
-    const compat::u32 pitch = std::bit_cast<compat::u32>(
-        surface.pitch_bytes
-    );
+    const compat::u32 pitch = std::bit_cast<compat::u32>(surface.pitch_bytes);
     for (compat::i32 row = 0; row < surface.height; ++row) {
         state.row_byte_offsets[static_cast<std::size_t>(row)] = byte_offset;
         byte_offset += pitch;
@@ -86,12 +79,10 @@ void set_legacy_clip_rectangle(
     state.clip_left = left;
     state.clip_top = top;
     state.clip_width = std::bit_cast<compat::i32>(
-        std::bit_cast<compat::u32>(right) -
-        std::bit_cast<compat::u32>(left)
+        std::bit_cast<compat::u32>(right) - std::bit_cast<compat::u32>(left)
     );
     state.clip_height = std::bit_cast<compat::i32>(
-        std::bit_cast<compat::u32>(bottom) -
-        std::bit_cast<compat::u32>(top)
+        std::bit_cast<compat::u32>(bottom) - std::bit_cast<compat::u32>(top)
     );
 }
 
@@ -117,7 +108,8 @@ std::span<compat::u16> LegacyFramebuffer::physical_pixels() noexcept {
     return std::span<compat::u16>{pixels_}.first(pixels_.size() - 1U);
 }
 
-std::span<const compat::u16> LegacyFramebuffer::physical_pixels() const noexcept {
+std::span<const compat::u16>
+LegacyFramebuffer::physical_pixels() const noexcept {
     return std::span<const compat::u16>{pixels_}.first(pixels_.size() - 1U);
 }
 
@@ -131,27 +123,23 @@ LegacyFramebuffer::physical_pixels_with_read_guard() const noexcept {
     return pixels_;
 }
 
-std::span<compat::u16> LegacyFramebuffer::row_pixels(
-    const compat::u32 row
-) noexcept {
+std::span<compat::u16>
+LegacyFramebuffer::row_pixels(const compat::u32 row) noexcept {
     const std::size_t word_offset =
         geometry_.row_byte_offsets[static_cast<std::size_t>(row)] /
         sizeof(compat::u16);
     return std::span<compat::u16>{pixels_}.subspan(
-        word_offset,
-        static_cast<std::size_t>(geometry_.surface.width)
+        word_offset, static_cast<std::size_t>(geometry_.surface.width)
     );
 }
 
-std::span<const compat::u16> LegacyFramebuffer::row_pixels(
-    const compat::u32 row
-) const noexcept {
+std::span<const compat::u16>
+LegacyFramebuffer::row_pixels(const compat::u32 row) const noexcept {
     const std::size_t word_offset =
         geometry_.row_byte_offsets[static_cast<std::size_t>(row)] /
         sizeof(compat::u16);
     return std::span<const compat::u16>{pixels_}.subspan(
-        word_offset,
-        static_cast<std::size_t>(geometry_.surface.width)
+        word_offset, static_cast<std::size_t>(geometry_.surface.width)
     );
 }
 
@@ -164,9 +152,8 @@ std::uint64_t legacy_framebuffer_logical_fnv1a64(
     std::uint64_t hash = kOffsetBasis;
     const compat::i32 height = framebuffer.geometry().surface.height;
     for (compat::i32 row = 0; row < height; ++row) {
-        for (const compat::u16 pixel : framebuffer.row_pixels(
-                 static_cast<compat::u32>(row)
-             )) {
+        for (const compat::u16 pixel :
+             framebuffer.row_pixels(static_cast<compat::u32>(row))) {
             hash ^= static_cast<compat::u8>(pixel);
             hash *= kPrime;
             hash ^= static_cast<compat::u8>(pixel >> 8U);

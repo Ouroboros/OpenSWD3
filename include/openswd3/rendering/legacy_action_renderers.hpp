@@ -37,8 +37,7 @@ class LegacyFramebufferPackedRowDrawPorts final
     : public LegacyPackedRowDrawPorts {
 public:
     LegacyFramebufferPackedRowDrawPorts(
-        LegacyFramebuffer& framebuffer,
-        const LegacyPixelConversionState& format
+        LegacyFramebuffer& framebuffer, const LegacyPixelConversionState& format
     ) noexcept;
 
     [[nodiscard]] LegacyPackedRowBlendStatus draw_legacy_packed_row(
@@ -69,8 +68,7 @@ struct LegacyPackedRowEffectResult {
 // sub_414E50. This function owns the exact list, mode, RNG and removal
 // behavior. The port keeps the coordinator independently testable; the live
 // runtime binds it to the closed sub_417DE0 framebuffer implementation.
-[[nodiscard]] LegacyPackedRowEffectResult
-update_draw_legacy_packed_row_effects(
+[[nodiscard]] LegacyPackedRowEffectResult update_draw_legacy_packed_row_effects(
     std::list<LegacyPackedRowEffect>& effects,
     std::span<const compat::u32> color_patterns,
     input_time_rng::LegacySecondaryRng& random,

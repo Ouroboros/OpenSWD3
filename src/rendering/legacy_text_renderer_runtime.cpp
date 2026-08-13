@@ -5,9 +5,8 @@
 namespace openswd3::rendering {
 namespace {
 
-[[nodiscard]] constexpr compat::i32 initial_horizontal_advance(
-    const compat::u32 point_size
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+initial_horizontal_advance(const compat::u32 point_size) noexcept {
     if (point_size == 20U) {
         return 24;
     }
@@ -43,10 +42,8 @@ LegacyTextRendererRuntimeStatus LegacyTextRendererRuntime::rebuild(
     std::unique_ptr<LegacyGlyphCache> glyph_cache;
     try {
         const auto glyph_size = static_cast<compat::i32>(point_size);
-        glyph_cache = std::make_unique<LegacyGlyphCache>(
-            glyph_size,
-            glyph_size
-        );
+        glyph_cache =
+            std::make_unique<LegacyGlyphCache>(glyph_size, glyph_size);
     } catch (const std::bad_alloc&) {
         return LegacyTextRendererRuntimeStatus::allocation_failed;
     }
@@ -69,9 +66,8 @@ LegacyTextRendererRuntimeStatus LegacyTextRendererRuntime::rebuild(
     return LegacyTextRendererRuntimeStatus::completed;
 }
 
-LegacyTextRendererRuntimeStatus LegacyTextRendererRuntime::release(
-    const compat::u32 point_size
-) noexcept {
+LegacyTextRendererRuntimeStatus
+LegacyTextRendererRuntime::release(const compat::u32 point_size) noexcept {
     Slot* const slot = find_slot(point_size);
     if (slot == nullptr) {
         return LegacyTextRendererRuntimeStatus::unsupported_point_size;
@@ -82,8 +78,7 @@ LegacyTextRendererRuntimeStatus LegacyTextRendererRuntime::release(
 
 LegacyTextRendererRuntimeStatus
 LegacyTextRendererRuntime::set_horizontal_advance(
-    const compat::u32 point_size,
-    const compat::i32 horizontal_advance
+    const compat::u32 point_size, const compat::i32 horizontal_advance
 ) noexcept {
     Slot* const slot = find_slot(point_size);
     if (slot == nullptr) {
@@ -107,9 +102,8 @@ bool LegacyTextRendererRuntime::ready(
         slot->framebuffer != nullptr && slot->glyph_provider != nullptr;
 }
 
-LegacyTextRendererBinding LegacyTextRendererRuntime::binding(
-    const compat::u32 point_size
-) noexcept {
+LegacyTextRendererBinding
+LegacyTextRendererRuntime::binding(const compat::u32 point_size) noexcept {
     Slot* const slot = find_slot(point_size);
     if (slot == nullptr || !ready(point_size)) {
         return {};
@@ -122,9 +116,8 @@ LegacyTextRendererBinding LegacyTextRendererRuntime::binding(
     };
 }
 
-const LegacyTextRendererState* LegacyTextRendererRuntime::state(
-    const compat::u32 point_size
-) const noexcept {
+const LegacyTextRendererState*
+LegacyTextRendererRuntime::state(const compat::u32 point_size) const noexcept {
     const Slot* const slot = find_slot(point_size);
     return slot != nullptr && ready(point_size) ? &slot->state : nullptr;
 }
@@ -133,14 +126,12 @@ const LegacyGlyphCache* LegacyTextRendererRuntime::glyph_cache(
     const compat::u32 point_size
 ) const noexcept {
     const Slot* const slot = find_slot(point_size);
-    return slot != nullptr && ready(point_size)
-        ? slot->glyph_cache.get()
-        : nullptr;
+    return slot != nullptr && ready(point_size) ? slot->glyph_cache.get()
+                                                : nullptr;
 }
 
-LegacyTextRendererRuntime::Slot* LegacyTextRendererRuntime::find_slot(
-    const compat::u32 point_size
-) noexcept {
+LegacyTextRendererRuntime::Slot*
+LegacyTextRendererRuntime::find_slot(const compat::u32 point_size) noexcept {
     for (Slot& slot : slots_) {
         if (slot.point_size == point_size) {
             return &slot;

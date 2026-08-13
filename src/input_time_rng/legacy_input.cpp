@@ -9,15 +9,41 @@ namespace openswd3::input_time_rng {
 namespace {
 
 constexpr std::array<std::size_t, 16> kBindingWordIndices{
-    0U, 1U, 2U, 3U, 4U, 5U, 6U, 7U,
-    8U, 9U, 10U, 12U, 16U, 17U, 18U, 19U,
+    0U,
+    1U,
+    2U,
+    3U,
+    4U,
+    5U,
+    6U,
+    7U,
+    8U,
+    9U,
+    10U,
+    12U,
+    16U,
+    17U,
+    18U,
+    19U,
 };
 
 constexpr std::array<compat::u32, 16> kDefaultBindings{
-    0x01U, 0x39U, 0x36U, 0xCBU,
-    0xC8U, 0xCDU, 0xD0U, 0xC9U,
-    0xD1U, 0x9DU, 0xCFU, 0x1CU,
-    0x13U, 0x1EU, 0x22U, 0x3BU,
+    0x01U,
+    0x39U,
+    0x36U,
+    0xCBU,
+    0xC8U,
+    0xCDU,
+    0xD0U,
+    0xC9U,
+    0xD1U,
+    0x9DU,
+    0xCFU,
+    0x1CU,
+    0x13U,
+    0x1EU,
+    0x22U,
+    0x3BU,
 };
 
 constexpr std::array<compat::u32, 4> kRapidPressMultiplicity{
@@ -51,25 +77,20 @@ constexpr std::array<KeyboardRecordBinding, 16> kKeyboardRecordUpdateOrder{
     KeyboardRecordBinding{19U, LegacyKeyBinding::configurable_19},
 };
 
-[[nodiscard]] constexpr std::size_t binding_index(
-    const LegacyKeyBinding binding
-) noexcept {
+[[nodiscard]] constexpr std::size_t
+binding_index(const LegacyKeyBinding binding) noexcept {
     return kBindingWordIndices[static_cast<std::size_t>(binding)];
 }
 
-[[nodiscard]] compat::i32 wrap_subtract(
-    const compat::i32 left,
-    const compat::i32 right
-) noexcept {
+[[nodiscard]] compat::i32
+wrap_subtract(const compat::i32 left, const compat::i32 right) noexcept {
     return std::bit_cast<compat::i32>(
         std::bit_cast<compat::u32>(left) - std::bit_cast<compat::u32>(right)
     );
 }
 
-[[nodiscard]] compat::i32 wrap_multiply(
-    const compat::i32 left,
-    const compat::i32 right
-) noexcept {
+[[nodiscard]] compat::i32
+wrap_multiply(const compat::i32 left, const compat::i32 right) noexcept {
     return std::bit_cast<compat::i32>(
         std::bit_cast<compat::u32>(left) * std::bit_cast<compat::u32>(right)
     );
@@ -84,8 +105,7 @@ constexpr std::array<KeyboardRecordBinding, 16> kKeyboardRecordUpdateOrder{
 }
 
 [[nodiscard]] compat::i32 clamp_rebase_target(
-    const compat::i32 value,
-    const compat::i32 upper_bound
+    const compat::i32 value, const compat::i32 upper_bound
 ) noexcept {
     if (value >= upper_bound) {
         return upper_bound - 1;
@@ -144,15 +164,13 @@ void initialize_default_key_bindings(LegacyKeyBindingBlock& block) noexcept {
 }
 
 compat::u32& key_binding(
-    LegacyKeyBindingBlock& block,
-    const LegacyKeyBinding binding
+    LegacyKeyBindingBlock& block, const LegacyKeyBinding binding
 ) noexcept {
     return block.words[binding_index(binding)];
 }
 
 const compat::u32& key_binding(
-    const LegacyKeyBindingBlock& block,
-    const LegacyKeyBinding binding
+    const LegacyKeyBindingBlock& block, const LegacyKeyBinding binding
 ) noexcept {
     return block.words[binding_index(binding)];
 }
@@ -193,22 +211,19 @@ compat::u32 update_input_record(
 }
 
 compat::u32 read_raw_key(
-    const LegacyKeyboardSnapshot& snapshot,
-    const compat::u32 dik_code
+    const LegacyKeyboardSnapshot& snapshot, const compat::u32 dik_code
 ) noexcept {
     return static_cast<compat::u32>(snapshot[dik_code] & 0x80U);
 }
 
 void synthesize_raw_key(
-    LegacyKeyboardSnapshot& snapshot,
-    const compat::u32 dik_code
+    LegacyKeyboardSnapshot& snapshot, const compat::u32 dik_code
 ) noexcept {
     snapshot[dik_code] |= 0x80U;
 }
 
-compat::u32 find_first_pressed_key(
-    const LegacyKeyboardSnapshot& snapshot
-) noexcept {
+compat::u32
+find_first_pressed_key(const LegacyKeyboardSnapshot& snapshot) noexcept {
     for (std::size_t index = 0U; index < snapshot.size(); ++index) {
         if ((snapshot[index] & 0x80U) != 0U) {
             return static_cast<compat::u32>(index);
@@ -219,13 +234,11 @@ compat::u32 find_first_pressed_key(
 }
 
 void set_mouse_sensitivity(
-    LegacyMouseState& state,
-    const double sensitivity
+    LegacyMouseState& state, const double sensitivity
 ) noexcept {
     const auto scaled = static_cast<std::int64_t>(sensitivity * 10.0);
-    state.sensitivity_scale = std::bit_cast<compat::i32>(
-        static_cast<compat::u32>(scaled)
-    );
+    state.sensitivity_scale =
+        std::bit_cast<compat::i32>(static_cast<compat::u32>(scaled));
 }
 
 void rebase_mouse_coordinates(
@@ -236,21 +249,14 @@ void rebase_mouse_coordinates(
 ) noexcept {
     const compat::i32 clamped_x = clamp_rebase_target(target_x, 640);
     const compat::i32 clamped_y = clamp_rebase_target(target_y, 480);
-    state.absolute_x_baseline = rebase_axis(
-        sample.absolute_x,
-        clamped_x,
-        state.sensitivity_scale
-    );
-    state.absolute_y_baseline = rebase_axis(
-        sample.absolute_y,
-        clamped_y,
-        state.sensitivity_scale
-    );
+    state.absolute_x_baseline =
+        rebase_axis(sample.absolute_x, clamped_x, state.sensitivity_scale);
+    state.absolute_y_baseline =
+        rebase_axis(sample.absolute_y, clamped_y, state.sensitivity_scale);
 }
 
 LegacyMouseFrame normalize_mouse_sample(
-    LegacyMouseState& state,
-    const LegacyMouseDeviceSample& sample
+    LegacyMouseState& state, const LegacyMouseDeviceSample& sample
 ) noexcept {
     compat::u32 button_mask{};
     if ((sample.button_0 & 0x80U) != 0U) {
@@ -276,8 +282,7 @@ LegacyMouseFrame normalize_mouse_sample(
 }
 
 void begin_input_normalization(
-    LegacyInputNormalizationState& state,
-    const compat::u32 current_milliseconds
+    LegacyInputNormalizationState& state, const compat::u32 current_milliseconds
 ) noexcept {
     state.current_input_milliseconds = current_milliseconds;
 }
@@ -292,8 +297,7 @@ void normalize_input_frame(
 
     for (const auto& item : kKeyboardRecordUpdateOrder) {
         const compat::u32 raw_state = read_raw_key(
-            keyboard_snapshot,
-            key_binding(state.key_bindings, item.binding)
+            keyboard_snapshot, key_binding(state.key_bindings, item.binding)
         );
         static_cast<void>(update_input_record(
             state.records[item.record_index],
@@ -313,8 +317,7 @@ void normalize_input_frame(
         state.current_input_milliseconds
     ));
 
-    state.last_normalized_input_milliseconds =
-        state.current_input_milliseconds;
+    state.last_normalized_input_milliseconds = state.current_input_milliseconds;
     if (state.left_button_suppression_count != 0U) {
         state.left_button_suppression_count -= 1U;
         state.records[15U] = {};

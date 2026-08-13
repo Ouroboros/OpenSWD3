@@ -44,9 +44,7 @@ class LegacyAniStreakServicePort {
 public:
     virtual ~LegacyAniStreakServicePort() = default;
 
-    [[nodiscard]] virtual bool service_enabled(
-        compat::u32 service_id
-    ) = 0;
+    [[nodiscard]] virtual bool service_enabled(compat::u32 service_id) = 0;
 };
 
 enum class LegacyAniStreakStatus {

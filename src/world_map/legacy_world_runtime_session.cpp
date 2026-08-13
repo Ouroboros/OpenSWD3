@@ -19,7 +19,22 @@ using compat::u32;
 using compat::u8;
 
 constexpr std::array<i32, 16U> kDescriptorColorOffsets{
-    0, 1, 2, 3, 4, 5, 6, 7, 8, -7, -6, -5, -4, -3, -2, -1,
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3,
+    -2,
+    -1,
 };
 
 struct RoleAssemblyState {
@@ -77,25 +92,20 @@ make_descriptor_runtime_state(
 
     LegacyWorldMapDescriptorRuntimeState state{
         .behavior_index = descriptor_flags & 0x0FU,
-        .base_movement_step = normalize_movement_step(
-            descriptor.field_06 & 0x0FU
-        ),
+        .base_movement_step =
+            normalize_movement_step(descriptor.field_06 & 0x0FU),
         .tile_animation_interval = std::max<u32>(descriptor.field_08, 1U),
         .encounter_table_index = descriptor.field_0a,
         .map_state_flags = descriptor.field_0c,
-        .role_red_offset = kDescriptorColorOffsets[
-            (descriptor.field_06 >> 12U) & 0x0FU
-        ],
-        .role_green_offset = kDescriptorColorOffsets[
-            (descriptor.field_06 >> 8U) & 0x0FU
-        ],
-        .role_blue_offset = kDescriptorColorOffsets[
-            (descriptor.field_06 >> 4U) & 0x0FU
-        ],
+        .role_red_offset =
+            kDescriptorColorOffsets[(descriptor.field_06 >> 12U) & 0x0FU],
+        .role_green_offset =
+            kDescriptorColorOffsets[(descriptor.field_06 >> 8U) & 0x0FU],
+        .role_blue_offset =
+            kDescriptorColorOffsets[(descriptor.field_06 >> 4U) & 0x0FU],
         .enabled_service_bits = enabled_service_bits,
         .environment_enabled = (descriptor_flags & 0x0010U) == 0U,
-        .directional_effect_enabled =
-            (enabled_service_bits & (1U << 5U)) != 0U,
+        .directional_effect_enabled = (enabled_service_bits & (1U << 5U)) != 0U,
         .directional_variant_count =
             (descriptor_flags & 0x2000U) != 0U ? 8U : 4U,
     };
@@ -118,9 +128,9 @@ void initialize_directional_points(
     }
     for (auto& point : points) {
         point.target_interval = request.random->next_bounded(3U) + 1U;
-        point.variant = request.random->next_bounded(
-            descriptor.directional_variant_count
-        ) + descriptor.directional_base_variant;
+        point.variant =
+            request.random->next_bounded(descriptor.directional_variant_count) +
+            descriptor.directional_base_variant;
         point.world_x = request.random->next_bounded(map_width << 4U);
         point.world_y = request.random->next_bounded(map_height << 4U);
         point.velocity_x =
@@ -183,8 +193,8 @@ void initialize_maps_role(
     try {
         for (const u32 source_index : materialization_source_indices) {
             if (source_index >= database.role_sources.size()) {
-                assembly.status = LegacyWorldRuntimeSessionStatus::
-                    maps_load_apply_failed;
+                assembly.status =
+                    LegacyWorldRuntimeSessionStatus::maps_load_apply_failed;
                 return false;
             }
             auto& source = database.role_sources[source_index];
@@ -194,12 +204,9 @@ void initialize_maps_role(
 
             if (static_cast<u32>(source.tile_x) > map_session.header.width ||
                 static_cast<u32>(source.tile_y) > map_session.header.height) {
-                source.tile_x = static_cast<u16>(
-                    map_session.header.width - 1U
-                );
-                source.tile_y = static_cast<u16>(
-                    map_session.header.height - 1U
-                );
+                source.tile_x = static_cast<u16>(map_session.header.width - 1U);
+                source.tile_y =
+                    static_cast<u16>(map_session.header.height - 1U);
                 if (!write_legacy_maps_role_source_record(payload, source)) {
                     assembly.status = LegacyWorldRuntimeSessionStatus::
                         role_source_write_failed;
@@ -209,23 +216,17 @@ void initialize_maps_role(
                 continue;
             }
             if (roles.size() >= kLegacyWorldRoleCapacity) {
-                assembly.status = LegacyWorldRuntimeSessionStatus::
-                    role_capacity_exceeded;
+                assembly.status =
+                    LegacyWorldRuntimeSessionStatus::role_capacity_exceeded;
                 return false;
             }
 
             LegacyWorldRoleRecord role;
-            initialize_maps_role(
-                role,
-                source,
-                database
-            );
+            initialize_maps_role(role, source, database);
             roles.push_back(role);
             const u32 role_index = static_cast<u32>(roles.size() - 1U);
             if (!insert_legacy_role_spatially(
-                    business.spatial_index,
-                    roles,
-                    role_index
+                    business.spatial_index, roles, role_index
                 )) {
                 roles.pop_back();
                 assembly.status = LegacyWorldRuntimeSessionStatus::
@@ -262,8 +263,8 @@ void initialize_maps_role(
     }
 
     if (assembly.selected_role_index == 0U) {
-        assembly.status = LegacyWorldRuntimeSessionStatus::
-            selected_role_not_materialized;
+        assembly.status =
+            LegacyWorldRuntimeSessionStatus::selected_role_not_materialized;
         return false;
     }
 
@@ -294,17 +295,15 @@ void initialize_maps_role(
             binding.out_of_bounds_indices;
         if (binding.status != LegacyWorldRoleCellBindingStatus::ready) {
             map_session.role_cell_binding.status = binding.status;
-            assembly.status = LegacyWorldRuntimeSessionStatus::
-                role_cell_binding_failed;
+            assembly.status =
+                LegacyWorldRuntimeSessionStatus::role_cell_binding_failed;
             return false;
         }
 
         if (role.action.action_id != 0U &&
             (role.flags & 0x00008400U) == 0x00008000U) {
-            const auto occupancy = mark_legacy_world_role_surface_occupancy(
-                role,
-                surface_context
-            );
+            const auto occupancy =
+                mark_legacy_world_role_surface_occupancy(role, surface_context);
             if (occupancy.status != LegacyWorldRoleSurfaceStatus::ready) {
                 assembly.status = LegacyWorldRuntimeSessionStatus::
                     role_surface_occupancy_failed;
@@ -320,7 +319,8 @@ void initialize_maps_role(
 
 LegacyWorldActionUpdaterInitializer::LegacyWorldActionUpdaterInitializer(
     asset_runtime::LegacyActionUpdater& updater
-) noexcept : updater_{updater} {}
+) noexcept
+    : updater_{updater} {}
 
 u32 LegacyWorldActionUpdaterInitializer::initialize_action(
     asset_runtime::LegacyActionRecord& action
@@ -348,14 +348,13 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
         load_legacy_encounter_thresholds(maps_payload);
     if (result.session.encounter_thresholds.status !=
         LegacyEncounterSourceStatus::ready) {
-        result.status = LegacyWorldRuntimeSessionStatus::
-            encounter_thresholds_failed;
+        result.status =
+            LegacyWorldRuntimeSessionStatus::encounter_thresholds_failed;
         return result;
     }
 
     const auto* const descriptor = find_legacy_maps_map_descriptor(
-        result.session.maps_database,
-        request.load.logical_map_id
+        result.session.maps_database, request.load.logical_map_id
     );
     if (descriptor == nullptr) {
         result.status =
@@ -364,8 +363,7 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     }
     result.session.map_descriptor = *descriptor;
     result.session.map_descriptor_runtime = make_descriptor_runtime_state(
-        *descriptor,
-        result.session.encounter_thresholds.groups.size()
+        *descriptor, result.session.encounter_thresholds.groups.size()
     );
 
     if ((request.load.load_flags & 1U) != 0U) {
@@ -410,24 +408,21 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
                 result.session.directional_points
             );
             result.session.encounter_regions = load_legacy_encounter_regions(
-                maps_payload,
-                request.load.logical_map_id
+                maps_payload, request.load.logical_map_id
             );
             if (result.session.encounter_regions.status !=
                 LegacyEncounterSourceStatus::ready) {
-                assembly.status = LegacyWorldRuntimeSessionStatus::
-                    encounter_regions_failed;
+                assembly.status =
+                    LegacyWorldRuntimeSessionStatus::encounter_regions_failed;
                 return false;
             }
             result.session.maps_load_apply = apply_legacy_maps_world_load(
-                maps_payload,
-                result.session.maps_database,
-                request.load
+                maps_payload, result.session.maps_database, request.load
             );
             if (result.session.maps_load_apply.status !=
                 LegacyMapsWorldLoadApplyStatus::ready) {
-                assembly.status = LegacyWorldRuntimeSessionStatus::
-                    maps_load_apply_failed;
+                assembly.status =
+                    LegacyWorldRuntimeSessionStatus::maps_load_apply_failed;
                 return false;
             }
             return assemble_maps_roles(
@@ -452,8 +447,7 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     result.session.maps_role_count = assembly.maps_role_count;
     result.session.duplicate_role_count =
         result.session.maps_load_apply.duplicate_records_skipped;
-    result.session.out_of_bounds_role_count =
-        assembly.out_of_bounds_role_count;
+    result.session.out_of_bounds_role_count = assembly.out_of_bounds_role_count;
     result.session.action_update_failure_count =
         assembly.action_update_failure_count;
 
@@ -470,13 +464,16 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     const auto& roles = map_session.business.state.roles;
     if (result.session.selected_role_index == 0U ||
         result.session.selected_role_index >= roles.size()) {
-        result.status = LegacyWorldRuntimeSessionStatus::
-            selected_role_not_materialized;
+        result.status =
+            LegacyWorldRuntimeSessionStatus::selected_role_not_materialized;
         return result;
     }
     recenter_legacy_world_camera(
-        roles[result.session.selected_role_index], map_session.header.width,
-        map_session.header.height, result.session.camera);
+        roles[result.session.selected_role_index],
+        map_session.header.width,
+        map_session.header.height,
+        result.session.camera
+    );
 
     result.status = LegacyWorldRuntimeSessionStatus::ready;
     return result;
@@ -490,11 +487,7 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     LegacyLmfWorldMapSource map_source{request.archive_path};
     LegacyFileWorldCmCacheSource cm_cache_source;
     return load_legacy_world_runtime_session(
-        maps_payload,
-        request,
-        action_initializer,
-        map_source,
-        cm_cache_source
+        maps_payload, request, action_initializer, map_source, cm_cache_source
     );
 }
 

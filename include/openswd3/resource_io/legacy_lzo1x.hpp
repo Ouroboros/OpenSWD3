@@ -28,22 +28,18 @@ struct LegacyLzo1xOwnedBlock {
 };
 
 [[nodiscard]] LegacyLzo1xResult compress_legacy_lzo1x_14(
-    std::span<const compat::u8> source,
-    std::span<compat::u8> destination
+    std::span<const compat::u8> source, std::span<compat::u8> destination
 ) noexcept;
 
 [[nodiscard]] LegacyLzo1xResult compress_legacy_lzo1x_15(
-    std::span<const compat::u8> source,
-    std::span<compat::u8> destination
+    std::span<const compat::u8> source, std::span<compat::u8> destination
 ) noexcept;
 
-[[nodiscard]] LegacyLzo1xOwnedBlock compress_legacy_save_block(
-    std::span<const compat::u8> source
-);
+[[nodiscard]] LegacyLzo1xOwnedBlock
+compress_legacy_save_block(std::span<const compat::u8> source);
 
 [[nodiscard]] LegacyLzo1xResult decompress_legacy_lzo1x(
-    std::span<const compat::u8> source,
-    std::span<compat::u8> destination
+    std::span<const compat::u8> source, std::span<compat::u8> destination
 ) noexcept;
 
 [[nodiscard]] LegacyLzo1xStatus decompress_legacy_resource_block(

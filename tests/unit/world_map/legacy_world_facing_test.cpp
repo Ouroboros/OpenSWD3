@@ -30,10 +30,7 @@ void test_zero_and_cardinal_directions(openswd3::test::Context& test) {
     for (const FacingCase& item : cases) {
         test.expect_equal(
             measure_legacy_world_facing(
-                item.source_x,
-                item.source_y,
-                item.target_x,
-                item.target_y
+                item.source_x, item.source_y, item.target_x, item.target_y
             ),
             item.expected,
             "0x00411E20 and 0x00411F00 preserve cardinal quantization"
@@ -41,9 +38,7 @@ void test_zero_and_cardinal_directions(openswd3::test::Context& test) {
     }
 }
 
-void test_diagonal_and_non_square_quantization(
-    openswd3::test::Context& test
-) {
+void test_diagonal_and_non_square_quantization(openswd3::test::Context& test) {
     constexpr std::array cases{
         FacingCase{100U, 100U, 0U, 0U, {141U, 315U, 5U}},
         FacingCase{100U, 100U, 200U, 0U, {141U, 225U, 6U}},
@@ -55,10 +50,7 @@ void test_diagonal_and_non_square_quantization(
     for (const FacingCase& item : cases) {
         test.expect_equal(
             measure_legacy_world_facing(
-                item.source_x,
-                item.source_y,
-                item.target_x,
-                item.target_y
+                item.source_x, item.source_y, item.target_x, item.target_y
             ),
             item.expected,
             "five-degree sine lookup and sixteen-sector folding match"
@@ -66,14 +58,9 @@ void test_diagonal_and_non_square_quantization(
     }
 }
 
-void test_wrapping_square_sum_invalid_result(
-    openswd3::test::Context& test
-) {
+void test_wrapping_square_sum_invalid_result(openswd3::test::Context& test) {
     const auto result = measure_legacy_world_facing(
-        0x00000000U,
-        0x00000000U,
-        0x0000B505U,
-        0x00000000U
+        0x00000000U, 0x00000000U, 0x0000B505U, 0x00000000U
     );
     test.expect_equal(
         result,

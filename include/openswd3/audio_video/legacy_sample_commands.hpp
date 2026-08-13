@@ -12,15 +12,11 @@ struct LegacySpatialSampleState {
 };
 
 [[nodiscard]] compat::i32 play_legacy_sample(
-    LegacySampleManager& manager,
-    compat::u32 raw_sound_id,
-    compat::i32 level
+    LegacySampleManager& manager, compat::u32 raw_sound_id, compat::i32 level
 );
 
 [[nodiscard]] compat::i32 set_legacy_sample_pan(
-    LegacySampleManager& manager,
-    compat::u32 raw_sound_id,
-    compat::i32 pan
+    LegacySampleManager& manager, compat::u32 raw_sound_id, compat::i32 pan
 );
 
 [[nodiscard]] compat::i32 play_legacy_sample_u16_level(
@@ -29,14 +25,10 @@ struct LegacySpatialSampleState {
     compat::u32 raw_level
 );
 
-[[nodiscard]] compat::i32 stop_legacy_sample(
-    LegacySampleManager& manager,
-    compat::u32 raw_sound_id
-);
+[[nodiscard]] compat::i32
+stop_legacy_sample(LegacySampleManager& manager, compat::u32 raw_sound_id);
 
-[[nodiscard]] compat::i32 stop_all_legacy_samples(
-    LegacySampleManager& manager
-);
+[[nodiscard]] compat::i32 stop_all_legacy_samples(LegacySampleManager& manager);
 
 [[nodiscard]] compat::i32 play_legacy_spatial_sample(
     LegacySampleManager& manager,

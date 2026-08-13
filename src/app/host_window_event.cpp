@@ -15,8 +15,7 @@ HostWindowEventResult dispatch_host_window_event(
     case HostWindowEventKind::size:
         apply_display_transition(
             select_size_display_transition(
-                window_state.runtime_initialized,
-                event.value
+                window_state.runtime_initialized, event.value
             ),
             display_state,
             display_ports
@@ -25,8 +24,7 @@ HostWindowEventResult dispatch_host_window_event(
     case HostWindowEventKind::activation:
         apply_display_transition(
             select_activation_display_transition(
-                window_state.runtime_initialized,
-                event.value
+                window_state.runtime_initialized, event.value
             ),
             display_state,
             display_ports
@@ -35,8 +33,7 @@ HostWindowEventResult dispatch_host_window_event(
     case HostWindowEventKind::system_key_down:
         apply_display_transition(
             select_system_enter_display_transition(
-                event.value,
-                display_state.display_active
+                event.value, display_state.display_active
             ),
             display_state,
             display_ports

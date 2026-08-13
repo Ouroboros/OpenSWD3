@@ -7,33 +7,24 @@
 namespace openswd3::rendering {
 namespace {
 
-[[nodiscard]] constexpr compat::i32 wrapping_add(
-    const compat::i32 left,
-    const compat::i32 right
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+wrapping_add(const compat::i32 left, const compat::i32 right) noexcept {
     return std::bit_cast<compat::i32>(
-        std::bit_cast<compat::u32>(left) +
-        std::bit_cast<compat::u32>(right)
+        std::bit_cast<compat::u32>(left) + std::bit_cast<compat::u32>(right)
     );
 }
 
-[[nodiscard]] constexpr compat::i32 wrapping_subtract(
-    const compat::i32 left,
-    const compat::i32 right
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+wrapping_subtract(const compat::i32 left, const compat::i32 right) noexcept {
     return std::bit_cast<compat::i32>(
-        std::bit_cast<compat::u32>(left) -
-        std::bit_cast<compat::u32>(right)
+        std::bit_cast<compat::u32>(left) - std::bit_cast<compat::u32>(right)
     );
 }
 
-[[nodiscard]] constexpr compat::i32 arithmetic_shift_right_one(
-    const compat::i32 value
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+arithmetic_shift_right_one(const compat::i32 value) noexcept {
     const compat::u32 bits = std::bit_cast<compat::u32>(value);
-    return std::bit_cast<compat::i32>(
-        (bits >> 1U) | (bits & 0x80000000U)
-    );
+    return std::bit_cast<compat::i32>((bits >> 1U) | (bits & 0x80000000U));
 }
 
 [[nodiscard]] constexpr LegacyRawCharacter parse_character(
@@ -53,25 +44,21 @@ namespace {
         ascii_advance_reduction = 0;
     } else {
         character.consumed_byte_count = 1U;
-        ascii_advance_reduction = arithmetic_shift_right_one(
-            horizontal_advance
-        );
+        ascii_advance_reduction =
+            arithmetic_shift_right_one(horizontal_advance);
     }
 
     character.cache_key = static_cast<compat::u16>(
         static_cast<compat::u16>(character.nul_terminated_bytes[0]) |
         static_cast<compat::u16>(
-            static_cast<compat::u16>(
-                character.nul_terminated_bytes[1]
-            ) << 8U
+            static_cast<compat::u16>(character.nul_terminated_bytes[1]) << 8U
         )
     );
     return character;
 }
 
 void finish_inserted_miss(
-    LegacyGlyphCache& cache,
-    const bool cache_miss
+    LegacyGlyphCache& cache, const bool cache_miss
 ) noexcept {
     if (cache_miss) {
         cache.finish_miss_after_draw();
@@ -88,10 +75,8 @@ LegacyTextDrawResult draw_legacy_text(
     const LegacyTextDrawRequest& request
 ) noexcept {
     LegacyTextDrawResult result{};
-    const auto terminator = std::ranges::find(
-        request.nul_terminated_text,
-        compat::u8{}
-    );
+    const auto terminator =
+        std::ranges::find(request.nul_terminated_text, compat::u8{});
     if (terminator == request.nul_terminated_text.end()) {
         result.status = LegacyTextDrawStatus::missing_terminator;
         return result;
@@ -149,18 +134,13 @@ LegacyTextDrawResult draw_legacy_text(
             }
         }
 
-        const compat::i32 destination_x = wrapping_add(
-            request.destination_x,
-            accumulated_advance
-        );
+        const compat::i32 destination_x =
+            wrapping_add(request.destination_x, accumulated_advance);
         const bool last_character = byte_index == last_byte_index;
         compat::i32 background_width = state.horizontal_advance;
         if (last_character) {
             background_width = wrapping_add(
-                wrapping_subtract(
-                    cache.glyph_width(),
-                    ascii_advance_reduction
-                ),
+                wrapping_subtract(cache.glyph_width(), ascii_advance_reduction),
                 2
             );
         }
@@ -185,17 +165,19 @@ LegacyTextDrawResult draw_legacy_text(
             return result;
         }
 
-        result.glyph_write_status = draw_legacy_glyph(
-            framebuffer,
-            cache.mask_slot(static_cast<compat::u32>(slot)),
-            writer_state,
-            LegacyGlyphDrawRequest{
-                .destination_x = destination_x,
-                .destination_y = request.destination_y,
-                .foreground_color = request.foreground_color,
-                .flags = request.flags,
-            }
-        ).status;
+        result.glyph_write_status =
+            draw_legacy_glyph(
+                framebuffer,
+                cache.mask_slot(static_cast<compat::u32>(slot)),
+                writer_state,
+                LegacyGlyphDrawRequest{
+                    .destination_x = destination_x,
+                    .destination_y = request.destination_y,
+                    .foreground_color = request.foreground_color,
+                    .flags = request.flags,
+                }
+            )
+                .status;
         if (result.glyph_write_status != LegacyGlyphWriteStatus::completed &&
             result.glyph_write_status != LegacyGlyphWriteStatus::no_style) {
             finish_inserted_miss(cache, cache_miss);
@@ -207,10 +189,7 @@ LegacyTextDrawResult draw_legacy_text(
 
         accumulated_advance = wrapping_add(
             accumulated_advance,
-            wrapping_subtract(
-                state.horizontal_advance,
-                ascii_advance_reduction
-            )
+            wrapping_subtract(state.horizontal_advance, ascii_advance_reduction)
         );
         ++result.glyph_count;
         finish_inserted_miss(cache, cache_miss);

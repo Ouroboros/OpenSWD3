@@ -31,13 +31,11 @@ public:
 };
 
 [[nodiscard]] bool run_total_initialization(
-    InitializationState& state,
-    InitializationPorts& ports
+    InitializationState& state, InitializationPorts& ports
 );
 
 [[nodiscard]] compat::i32 run_initialization_dialog_wrapper(
-    InitializationState& state,
-    InitializationPorts& ports
+    InitializationState& state, InitializationPorts& ports
 );
 
 }  // namespace openswd3::app

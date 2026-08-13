@@ -28,9 +28,8 @@ struct DescriptorColumns {
     std::size_t decompressed_size{};
 };
 
-[[nodiscard]] std::vector<std::string_view> split_tsv(
-    const std::string_view line
-) {
+[[nodiscard]] std::vector<std::string_view>
+split_tsv(const std::string_view line) {
     std::vector<std::string_view> fields;
     std::size_t start = 0U;
     while (start <= line.size()) {
@@ -63,9 +62,7 @@ struct DescriptorColumns {
 }
 
 [[nodiscard]] bool parse_u32(
-    const std::string_view text,
-    const int base,
-    openswd3::compat::u32& value
+    const std::string_view text, const int base, openswd3::compat::u32& value
 ) {
     const char* const begin = text.data();
     const char* const end = begin + text.size();
@@ -73,27 +70,19 @@ struct DescriptorColumns {
     return result.ec == std::errc{} && result.ptr == end;
 }
 
-[[nodiscard]] bool read_columns(
-    const std::string_view header,
-    DescriptorColumns& columns
-) {
+[[nodiscard]] bool
+read_columns(const std::string_view header, DescriptorColumns& columns) {
     const std::vector<std::string_view> fields = split_tsv(header);
     return find_column(fields, "archive", columns.archive) &&
-           find_column(
-               fields,
-               "payload_absolute_offset_hex",
-               columns.payload_offset
-           ) &&
-           find_column(
-               fields,
-               "compressed_size_bytes",
-               columns.compressed_size
-           ) &&
-           find_column(
+        find_column(
+               fields, "payload_absolute_offset_hex", columns.payload_offset
+        ) &&
+        find_column(fields, "compressed_size_bytes", columns.compressed_size) &&
+        find_column(
                fields,
                "declared_decompressed_size_bytes",
                columns.decompressed_size
-           );
+        );
 }
 
 [[nodiscard]] bool set_binary_stdout() {
@@ -118,10 +107,8 @@ int main(const int argument_count, char** arguments) {
 
     const std::filesystem::path workspace_root = arguments[1];
     const std::string_view requested_archive = arguments[2];
-    const std::filesystem::path descriptor_path =
-        workspace_root /
-        "OpenSWD3/analysis/04-reverse-engineering/inventory/"
-        "tsw-frame-descriptors.tsv";
+    const std::filesystem::path descriptor_path = workspace_root /
+        "OpenSWD3/analysis/04-reverse-engineering/inventory/" "tsw-frame-descriptors.tsv";
     const std::filesystem::path archive_path =
         workspace_root / requested_archive;
 
@@ -154,11 +141,10 @@ int main(const int argument_count, char** arguments) {
     std::uint64_t decompressed_bytes = 0U;
     while (std::getline(descriptors, line)) {
         const std::vector<std::string_view> fields = split_tsv(line);
-        const std::size_t maximum_column =
-            std::max(
-                std::max(columns.archive, columns.payload_offset),
-                std::max(columns.compressed_size, columns.decompressed_size)
-            );
+        const std::size_t maximum_column = std::max(
+            std::max(columns.archive, columns.payload_offset),
+            std::max(columns.compressed_size, columns.decompressed_size)
+        );
         if (fields.size() <= maximum_column) {
             return report_error("malformed TSW descriptor row");
         }
@@ -173,9 +159,7 @@ int main(const int argument_count, char** arguments) {
         if (!parse_u32(fields[columns.payload_offset], 16, payload_offset) ||
             !parse_u32(fields[columns.compressed_size], 10, compressed_size) ||
             !parse_u32(
-                fields[columns.decompressed_size],
-                10,
-                decompressed_size
+                fields[columns.decompressed_size], 10, decompressed_size
             )) {
             return report_error("invalid numeric TSW descriptor field");
         }
@@ -196,12 +180,9 @@ int main(const int argument_count, char** arguments) {
         openswd3::compat::u32 actual_output_size{};
         const openswd3::resource_io::LegacyLzo1xStatus status =
             openswd3::resource_io::decompress_legacy_resource_block(
-                compressed,
-                decompressed,
-                actual_output_size
+                compressed, decompressed, actual_output_size
             );
-        if (status !=
-                openswd3::resource_io::LegacyLzo1xStatus::success ||
+        if (status != openswd3::resource_io::LegacyLzo1xStatus::success ||
             actual_output_size != decompressed_size) {
             return report_error("C++ wrapper rejected a declared TSW frame");
         }

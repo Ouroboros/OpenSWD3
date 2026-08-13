@@ -74,9 +74,7 @@ void test_tsw_clamp_boundaries(openswd3::test::Context& test) {
         "ninety-six MiB produces the exact maximum"
     );
     test.expect_equal(
-        calculate_legacy_asset_cache_limits(
-            std::numeric_limits<u32>::max()
-        ),
+        calculate_legacy_asset_cache_limits(std::numeric_limits<u32>::max()),
         LegacyAssetCacheLimits{16U * mebibyte, 512U * 1024U},
         "largest legacy dwTotalPhys sample clamps to sixteen MiB"
     );

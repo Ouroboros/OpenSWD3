@@ -31,8 +31,7 @@ struct CheckedGlyphGeometry {
     const std::uint64_t maximum_size =
         static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max());
 
-    if (row_bytes > maximum_size ||
-        raster_words > maximum_size ||
+    if (row_bytes > maximum_size || raster_words > maximum_size ||
         slot_bytes > maximum_size) {
         return false;
     }
@@ -51,8 +50,7 @@ struct CheckedGlyphGeometry {
     CheckedGlyphGeometry& geometry
 ) {
     if (!checked_glyph_geometry(glyph_width, glyph_height, geometry) ||
-        geometry.slot_bytes >
-            std::numeric_limits<std::size_t>::max() /
+        geometry.slot_bytes > std::numeric_limits<std::size_t>::max() /
                 kLegacyGlyphCacheSlotCapacity) {
         throw std::invalid_argument("invalid legacy glyph cache geometry");
     }
@@ -100,16 +98,12 @@ LegacyGlyphMaskPackStatus pack_legacy_glyph_mask(
 }
 
 LegacyGlyphCache::LegacyGlyphCache(
-    const compat::i32 glyph_width,
-    const compat::i32 glyph_height
-) : glyph_width_(glyph_width),
-    glyph_height_(glyph_height) {
+    const compat::i32 glyph_width, const compat::i32 glyph_height
+)
+    : glyph_width_(glyph_width), glyph_height_(glyph_height) {
     CheckedGlyphGeometry geometry{};
-    const std::size_t storage_bytes = checked_cache_storage_bytes(
-        glyph_width,
-        glyph_height,
-        geometry
-    );
+    const std::size_t storage_bytes =
+        checked_cache_storage_bytes(glyph_width, glyph_height, geometry);
     mask_row_bytes_ = geometry.row_bytes;
     mask_slot_bytes_ = geometry.slot_bytes;
     masks_.resize(storage_bytes);
@@ -173,8 +167,7 @@ compat::i32 LegacyGlyphCache::insert_empty(const compat::u16 key) noexcept {
     for (std::size_t cursor = live_count; cursor > insertion; --cursor) {
         keys_[cursor] = keys_[cursor - 1U];
         const std::size_t destination_offset = cursor * mask_slot_bytes_;
-        const std::size_t source_offset =
-            (cursor - 1U) * mask_slot_bytes_;
+        const std::size_t source_offset = (cursor - 1U) * mask_slot_bytes_;
         std::copy_n(
             masks_.begin() + static_cast<std::ptrdiff_t>(source_offset),
             static_cast<std::ptrdiff_t>(mask_slot_bytes_),
@@ -184,8 +177,7 @@ compat::i32 LegacyGlyphCache::insert_empty(const compat::u16 key) noexcept {
 
     keys_[insertion] = key;
     std::ranges::fill(
-        mask_slot(static_cast<compat::u32>(insertion)),
-        compat::u8{}
+        mask_slot(static_cast<compat::u32>(insertion)), compat::u8{}
     );
     return static_cast<compat::i32>(insertion);
 }
@@ -200,34 +192,30 @@ void LegacyGlyphCache::finish_miss_after_draw() noexcept {
     std::ranges::fill(mask_slot(count_), compat::u8{});
 }
 
-std::span<compat::u8> LegacyGlyphCache::mask_slot(
-    const compat::u32 slot
-) noexcept {
+std::span<compat::u8>
+LegacyGlyphCache::mask_slot(const compat::u32 slot) noexcept {
     if (slot >= kLegacyGlyphCacheSlotCapacity) {
         return {};
     }
 
     return std::span<compat::u8>{masks_}.subspan(
-        static_cast<std::size_t>(slot) * mask_slot_bytes_,
-        mask_slot_bytes_
+        static_cast<std::size_t>(slot) * mask_slot_bytes_, mask_slot_bytes_
     );
 }
 
-std::span<const compat::u8> LegacyGlyphCache::mask_slot(
-    const compat::u32 slot
-) const noexcept {
+std::span<const compat::u8>
+LegacyGlyphCache::mask_slot(const compat::u32 slot) const noexcept {
     if (slot >= kLegacyGlyphCacheSlotCapacity) {
         return {};
     }
 
     return std::span<const compat::u8>{masks_}.subspan(
-        static_cast<std::size_t>(slot) * mask_slot_bytes_,
-        mask_slot_bytes_
+        static_cast<std::size_t>(slot) * mask_slot_bytes_, mask_slot_bytes_
     );
 }
 
-std::span<const compat::u16> LegacyGlyphCache::physical_key_slots(
-) const noexcept {
+std::span<const compat::u16>
+LegacyGlyphCache::physical_key_slots() const noexcept {
     return keys_;
 }
 

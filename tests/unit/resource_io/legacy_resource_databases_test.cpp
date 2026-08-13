@@ -29,7 +29,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-resource-databases-" + std::to_string(unique_value));
+            ("legacy-resource-databases-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -42,10 +42,7 @@ public:
         return root_;
     }
 
-    void write(
-        const char* name,
-        const std::span<const u8> bytes
-    ) const {
+    void write(const char* name, const std::span<const u8> bytes) const {
         std::ofstream output{root_ / name, std::ios::binary | std::ios::trunc};
         for (const u8 byte : bytes) {
             output.put(static_cast<char>(byte));
@@ -67,15 +64,15 @@ std::vector<u8> talk_file_with_entry(
 ) {
     const std::size_t table = 0x200U + entry_index * 4U;
     const std::size_t data = 0x200U + data_offset;
-    std::vector<u8> bytes(
-        std::max(table + 4U, data + payload.size()), 0U);
+    std::vector<u8> bytes(std::max(table + 4U, data + payload.size()), 0U);
     bytes[table] = static_cast<u8>(data_offset);
     bytes[table + 1U] = static_cast<u8>(data_offset >> 8U);
     bytes[table + 2U] = static_cast<u8>(data_offset >> 16U);
     bytes[table + 3U] = static_cast<u8>(data_offset >> 24U);
     std::ranges::copy(
         payload,
-        bytes.begin() + static_cast<std::vector<u8>::difference_type>(data));
+        bytes.begin() + static_cast<std::vector<u8>::difference_type>(data)
+    );
     return bytes;
 }
 
@@ -183,8 +180,7 @@ void test_mapping_failure_is_not_an_open_failure(
         "failed mapping leaves the legacy path view null"
     );
     test.expect_true(
-        databases.path_bytes().empty(),
-        "null path view exports no bytes"
+        databases.path_bytes().empty(), "null path view exports no bytes"
     );
 }
 
@@ -214,7 +210,12 @@ void test_maps_payload_reload(openswd3::test::Context& test) {
         "MAPS reload skips exactly the original 0x200-byte prefix"
     );
     constexpr std::array<u8, 6U> kExpected{
-        0x10U, 0x20U, 0x30U, 0x40U, 0x50U, 0x60U,
+        0x10U,
+        0x20U,
+        0x30U,
+        0x40U,
+        0x50U,
+        0x60U,
     };
     test.expect_true(
         std::ranges::equal(databases.maps_payload_bytes(), kExpected),
@@ -262,7 +263,8 @@ void test_talk_window_loading(openswd3::test::Context& test) {
     test.expect_equal(
         databases.initialize(tree.root()).status,
         LegacyResourceDatabaseStatus::ready,
-        "TALK window fixture databases open");
+        "TALK window fixture databases open"
+    );
     std::array<u8, openswd3::resource_io::kLegacyTalkWindowSize> window{};
     const auto first = databases.load_talk_story_window(248, window, true);
     test.expect_true(
@@ -271,9 +273,11 @@ void test_talk_window_loading(openswd3::test::Context& test) {
             first.data_offset == 0x1000U && first.actual_size == 4U &&
             std::ranges::equal(
                 first_payload,
-                std::span<const u8>{window}.first(first_payload.size())) &&
+                std::span<const u8>{window}.first(first_payload.size())
+            ) &&
             window[4] == 0x0CU,
-        "TALK1 entry table selects and pre-fills the exact 0x8000-byte window");
+        "TALK1 entry table selects and pre-fills the exact 0x8000-byte window"
+    );
 
     const auto second = databases.load_talk_story_window(2042, window, false);
     test.expect_true(
@@ -282,25 +286,28 @@ void test_talk_window_loading(openswd3::test::Context& test) {
             second.data_offset == 0x1100U && second.actual_size == 3U &&
             std::ranges::equal(
                 second_payload,
-                std::span<const u8>{window}.first(second_payload.size())) &&
+                std::span<const u8>{window}.first(second_payload.size())
+            ) &&
             window[3] == first_payload[3],
-        "TALK2 transfer retains the unread tail like sub_42E480");
+        "TALK2 transfer retains the unread tail like sub_42E480"
+    );
 
     const auto direct =
         databases.load_talk_data_window(2U, 0x1100U, window, false);
     test.expect_true(
         direct.status == openswd3::resource_io::LegacyTalkWindowStatus::ready &&
             direct.data_offset == 0x1100U && direct.actual_size == 3U,
-        "same-file branch reloads a direct TALK data offset");
+        "same-file branch reloads a direct TALK data offset"
+    );
     test.expect_equal(
         databases.load_talk_story_window(-1, window, true).status,
         openswd3::resource_io::LegacyTalkWindowStatus::invalid_story_id,
-        "negative story ids cannot select a TALK file");
+        "negative story ids cannot select a TALK file"
+    );
 }
 
 void test_real_database_set(
-    openswd3::test::Context& test,
-    const std::filesystem::path& root
+    openswd3::test::Context& test, const std::filesystem::path& root
 ) {
     LegacyResourceDatabases databases;
     const auto result = databases.initialize(root);
@@ -314,19 +321,13 @@ void test_real_database_set(
         "real PATH.DAT whole-file view is established"
     );
     test.expect_equal(
-        databases.maps_file().size(),
-        162929U,
-        "real MAPS.DAT size"
+        databases.maps_file().size(), 162929U, "real MAPS.DAT size"
     );
     test.expect_equal(
-        databases.path_bytes().size(),
-        std::size_t{23114U},
-        "real PATH.DAT size"
+        databases.path_bytes().size(), std::size_t{23114U}, "real PATH.DAT size"
     );
     test.expect_equal(
-        databases.talk_file().size(),
-        371450U,
-        "real TALK1.DAT size"
+        databases.talk_file().size(), 371450U, "real TALK1.DAT size"
     );
 
     const auto maps_payload = databases.reload_maps_payload();
@@ -339,25 +340,24 @@ void test_real_database_set(
     );
     const auto payload = databases.maps_payload_bytes();
     test.expect_true(
-        payload.size() >= 0x14U && payload[0] == 0x65U &&
-            payload[4] == 0x28U && payload[5] == 0x36U &&
-            payload[0x10U] == 0x38U && payload[0x11U] == 0x23U,
+        payload.size() >= 0x14U && payload[0] == 0x65U && payload[4] == 0x28U &&
+            payload[5] == 0x36U && payload[0x10U] == 0x38U &&
+            payload[0x11U] == 0x23U,
         "real MAPS.DAT payload header matches the locked game-data bytes"
     );
 
     const auto path_bytes = databases.path_bytes();
     test.expect_true(
-        path_bytes.size() >= 4U &&
-            path_bytes[0] == 0x4DU && path_bytes[1] == 0x5AU &&
-            path_bytes[2] == 0x4AU && path_bytes[3] == 0x00U,
+        path_bytes.size() >= 4U && path_bytes[0] == 0x4DU &&
+            path_bytes[1] == 0x5AU && path_bytes[2] == 0x4AU &&
+            path_bytes[3] == 0x00U,
         "real PATH.DAT mapped prefix"
     );
 
     std::array<u8, openswd3::resource_io::kLegacyTalkWindowSize> window{};
     const auto talk1 = databases.load_talk_story_window(248, window, true);
     test.expect_true(
-        talk1.status ==
-                openswd3::resource_io::LegacyTalkWindowStatus::ready &&
+        talk1.status == openswd3::resource_io::LegacyTalkWindowStatus::ready &&
             talk1.file_number == 1U && talk1.entry_index == 248U &&
             talk1.data_offset == 34307U && window[0] == 0x02U &&
             window[1] == 0x04U && window[2] == 0x5BU && window[3] == 0x00U,
@@ -365,8 +365,7 @@ void test_real_database_set(
     );
     const auto talk2 = databases.load_talk_story_window(2042, window, false);
     test.expect_true(
-        talk2.status ==
-                openswd3::resource_io::LegacyTalkWindowStatus::ready &&
+        talk2.status == openswd3::resource_io::LegacyTalkWindowStatus::ready &&
             talk2.file_number == 2U && talk2.entry_index == 42U &&
             talk2.data_offset == 29414U && window[0] == 0x02U &&
             window[1] == 0x04U && window[2] == 0x4CU && window[3] == 0x00U,

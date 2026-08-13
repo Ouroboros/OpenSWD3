@@ -29,9 +29,7 @@ using openswd3::rendering::LegacySurfaceGeometry;
 
 class RecordingFlags final : public LegacyCountdownFlagPorts {
 public:
-    [[nodiscard]] bool query_internal_flag(
-        const u32 index
-    ) noexcept override {
+    [[nodiscard]] bool query_internal_flag(const u32 index) noexcept override {
         queried[query_count] = index;
         ++query_count;
         return enabled[index];
@@ -65,9 +63,7 @@ public:
     }
 
     [[nodiscard]] bool load_countdown_piece(
-        const u32 action_id,
-        const i32 action_index,
-        LegacyFramePiece& piece
+        const u32 action_id, const i32 action_index, LegacyFramePiece& piece
     ) noexcept override {
         action_ids[request_count] = action_id;
         action_indices[request_count] = action_index;
@@ -78,12 +74,12 @@ public:
         }
 
         piece = LegacyFramePiece{
-            .source = LegacyBlitSource{
-                .bytes = pixels[static_cast<std::size_t>(action_index)],
-            },
-            .width = static_cast<u16>(
-                action_index == zero_width_index ? 0U : 1U
-            ),
+            .source =
+                LegacyBlitSource{
+                    .bytes = pixels[static_cast<std::size_t>(action_index)],
+                },
+            .width =
+                static_cast<u16>(action_index == zero_width_index ? 0U : 1U),
             .height = 1U,
         };
         return true;
@@ -141,7 +137,9 @@ void expect_piece_order(
     test.expect_equal(provider.request_count, expected.size(), message);
     for (std::size_t index = 0U; index < expected.size(); ++index) {
         test.expect_equal(provider.action_ids[index], 0x232CU, message);
-        test.expect_equal(provider.action_indices[index], expected[index], message);
+        test.expect_equal(
+            provider.action_indices[index], expected[index], message
+        );
     }
 }
 
@@ -164,12 +162,20 @@ void test_initialization_modes_and_wrapping(openswd3::test::Context& test) {
         }
     );
     test.expect_equal(state.primary_ticks, 3690U, "primary ticks use 30 Hz");
-    test.expect_equal(state.primary_transition_value, 0x12345678U, "primary transition value");
-    test.expect_equal(state.primary_value_004c97e8, 0U, "primary auxiliary one clears");
-    test.expect_equal(state.primary_value_004c97ec, 0U, "primary auxiliary two clears");
+    test.expect_equal(
+        state.primary_transition_value, 0x12345678U, "primary transition value"
+    );
+    test.expect_equal(
+        state.primary_value_004c97e8, 0U, "primary auxiliary one clears"
+    );
+    test.expect_equal(
+        state.primary_value_004c97ec, 0U, "primary auxiliary two clears"
+    );
     test.expect_equal(flags.set_count, 2U, "primary sets two flags");
     test.expect_equal(flags.set_indices[0], 0x10U, "primary flag first");
-    test.expect_equal(flags.set_indices[1], 0x12U, "primary companion flag second");
+    test.expect_equal(
+        flags.set_indices[1], 0x12U, "primary companion flag second"
+    );
 
     const u32 old_transition = state.primary_transition_value;
     flags.set_count = 0U;
@@ -183,12 +189,23 @@ void test_initialization_modes_and_wrapping(openswd3::test::Context& test) {
             .mode = -1,
         }
     );
-    const u32 expected_ticks = 30U *
-        (7U + 60U * static_cast<u32>(0x40000000U));
-    test.expect_equal(state.secondary_ticks, expected_ticks, "secondary arithmetic wraps at 32 bits");
-    test.expect_equal(state.primary_transition_value, old_transition, "secondary ignores transition value");
-    test.expect_equal(state.secondary_value_004bab78, 0U, "secondary auxiliary one clears");
-    test.expect_equal(state.secondary_value_004bab7c, 0U, "secondary auxiliary two clears");
+    const u32 expected_ticks = 30U * (7U + 60U * static_cast<u32>(0x40000000U));
+    test.expect_equal(
+        state.secondary_ticks,
+        expected_ticks,
+        "secondary arithmetic wraps at 32 bits"
+    );
+    test.expect_equal(
+        state.primary_transition_value,
+        old_transition,
+        "secondary ignores transition value"
+    );
+    test.expect_equal(
+        state.secondary_value_004bab78, 0U, "secondary auxiliary one clears"
+    );
+    test.expect_equal(
+        state.secondary_value_004bab7c, 0U, "secondary auxiliary two clears"
+    );
     test.expect_equal(flags.set_count, 1U, "secondary sets one flag");
     test.expect_equal(flags.set_indices[0], 0x4AU, "secondary active flag");
 }
@@ -201,13 +218,11 @@ void test_five_piece_minutes_and_seconds(openswd3::test::Context& test) {
     RecordingPieceProvider provider;
     LegacyFramebuffer framebuffer = make_framebuffer();
 
-    const LegacyCountdownDisplayResult result = draw(
-        framebuffer,
-        state,
-        flags,
-        provider
+    const LegacyCountdownDisplayResult result =
+        draw(framebuffer, state, flags, provider);
+    test.expect_equal(
+        result.status, LegacyCountdownDisplayStatus::completed, "12:34 draw"
     );
-    test.expect_equal(result.status, LegacyCountdownDisplayStatus::completed, "12:34 draw");
     test.expect_equal(result.displayed_seconds, 754, "ticks divide by 30");
     test.expect_equal(result.draw_call_count, 5U, "five visible pieces");
     constexpr std::array<i32, 5> kExpected{1, 2, 10, 3, 4};
@@ -219,7 +234,9 @@ void test_five_piece_minutes_and_seconds(openswd3::test::Context& test) {
             "pieces advance by returned width"
         );
     }
-    test.expect_equal(flags.query_count, 2U, "primary queries active then suppression");
+    test.expect_equal(
+        flags.query_count, 2U, "primary queries active then suppression"
+    );
     test.expect_equal(flags.queried[0], 0x10U, "primary active query");
     test.expect_equal(flags.queried[1], 0x4CU, "suppression query");
 }
@@ -236,7 +253,9 @@ void test_omitted_leading_digit_and_negative_clamp(
     auto result = draw(framebuffer, state, flags, provider);
     constexpr std::array<i32, 4> kExpected{1, 10, 0, 5};
     expect_piece_order(test, provider, kExpected, "1:05 omits leading zero");
-    test.expect_equal(result.draw_call_count, 4U, "four pieces without minute tens");
+    test.expect_equal(
+        result.draw_call_count, 4U, "four pieces without minute tens"
+    );
 
     state.primary_ticks = 0xFFFFFFE1U;
     flags.query_count = 0U;
@@ -245,12 +264,12 @@ void test_omitted_leading_digit_and_negative_clamp(
     result = draw(negative_framebuffer, state, flags, provider);
     constexpr std::array<i32, 4> kZero{0, 10, 0, 0};
     expect_piece_order(test, provider, kZero, "negative seconds clamp to zero");
-    test.expect_equal(result.displayed_seconds, 0, "negative division result clamps");
+    test.expect_equal(
+        result.displayed_seconds, 0, "negative division result clamps"
+    );
 }
 
-void test_visibility_gates_and_nonstandard_mode(
-    openswd3::test::Context& test
-) {
+void test_visibility_gates_and_nonstandard_mode(openswd3::test::Context& test) {
     LegacyCountdownState state;
     state.secondary_ticks = 754U * 30U;
     RecordingFlags flags;
@@ -258,27 +277,51 @@ void test_visibility_gates_and_nonstandard_mode(
     LegacyFramebuffer framebuffer = make_framebuffer();
 
     auto result = draw(framebuffer, state, flags, provider, 0);
-    test.expect_equal(result.status, LegacyCountdownDisplayStatus::hidden_inactive, "primary inactive");
-    test.expect_equal(flags.query_count, 1U, "inactive primary returns before suppression");
+    test.expect_equal(
+        result.status,
+        LegacyCountdownDisplayStatus::hidden_inactive,
+        "primary inactive"
+    );
+    test.expect_equal(
+        flags.query_count, 1U, "inactive primary returns before suppression"
+    );
 
     flags = RecordingFlags{};
     result = draw(framebuffer, state, flags, provider, 1);
-    test.expect_equal(result.status, LegacyCountdownDisplayStatus::hidden_inactive, "secondary inactive");
-    test.expect_equal(flags.queried[0], 0x4AU, "mode one checks secondary flag");
+    test.expect_equal(
+        result.status,
+        LegacyCountdownDisplayStatus::hidden_inactive,
+        "secondary inactive"
+    );
+    test.expect_equal(
+        flags.queried[0], 0x4AU, "mode one checks secondary flag"
+    );
 
     flags = RecordingFlags{};
     flags.enable(0x10U);
     flags.enable(0x4CU);
     result = draw(framebuffer, state, flags, provider, 0);
-    test.expect_equal(result.status, LegacyCountdownDisplayStatus::hidden_suppressed, "global suppression");
-    test.expect_equal(flags.query_count, 2U, "suppression follows active query");
+    test.expect_equal(
+        result.status,
+        LegacyCountdownDisplayStatus::hidden_suppressed,
+        "global suppression"
+    );
+    test.expect_equal(
+        flags.query_count, 2U, "suppression follows active query"
+    );
 
     flags = RecordingFlags{};
     provider = RecordingPieceProvider{};
     LegacyFramebuffer nonstandard_framebuffer = make_framebuffer();
     result = draw(nonstandard_framebuffer, state, flags, provider, 2);
-    test.expect_equal(result.status, LegacyCountdownDisplayStatus::completed, "mode other than zero/one bypasses active gates");
-    test.expect_equal(flags.query_count, 1U, "nonstandard mode only queries suppression");
+    test.expect_equal(
+        result.status,
+        LegacyCountdownDisplayStatus::completed,
+        "mode other than zero/one bypasses active gates"
+    );
+    test.expect_equal(
+        flags.query_count, 1U, "nonstandard mode only queries suppression"
+    );
     test.expect_equal(flags.queried[0], 0x4CU, "nonstandard suppression query");
 }
 
@@ -292,15 +335,27 @@ void test_piece_and_geometry_failures(openswd3::test::Context& test) {
     RecordingPieceProvider unavailable;
     unavailable.unavailable_index = 10;
     auto result = draw(framebuffer, state, flags, unavailable);
-    test.expect_equal(result.status, LegacyCountdownDisplayStatus::piece_unavailable, "missing colon piece");
-    test.expect_equal(result.piece_request_count, 2U, "failure occurs on second request");
+    test.expect_equal(
+        result.status,
+        LegacyCountdownDisplayStatus::piece_unavailable,
+        "missing colon piece"
+    );
+    test.expect_equal(
+        result.piece_request_count, 2U, "failure occurs on second request"
+    );
     test.expect_equal(result.draw_call_count, 1U, "only first piece was drawn");
 
     RecordingPieceProvider invalid;
     invalid.zero_width_index = 1;
     result = draw(framebuffer, state, flags, invalid);
-    test.expect_equal(result.status, LegacyCountdownDisplayStatus::invalid_piece_geometry, "zero-width piece isolated");
-    test.expect_equal(result.draw_call_count, 0U, "invalid geometry is rejected before blit");
+    test.expect_equal(
+        result.status,
+        LegacyCountdownDisplayStatus::invalid_piece_geometry,
+        "zero-width piece isolated"
+    );
+    test.expect_equal(
+        result.draw_call_count, 0U, "invalid geometry is rejected before blit"
+    );
 }
 
 }  // namespace

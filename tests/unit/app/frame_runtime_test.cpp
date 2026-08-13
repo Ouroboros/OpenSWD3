@@ -125,9 +125,8 @@ public:
     void prepare_special_mode_objects(FrameCoordinatorState&) override {
         calls.push_back(Call::prepare_special);
     }
-    openswd3::app::StandardSpecialModeEvent step_standard_special_mode(
-        FrameCoordinatorState& state
-    ) override {
+    openswd3::app::StandardSpecialModeEvent
+    step_standard_special_mode(FrameCoordinatorState& state) override {
         calls.push_back(Call::standard_special);
         state.process_flags |= flags_set_by_special;
         return special_mode_event;
@@ -348,8 +347,7 @@ void test_special_modes(openswd3::test::Context& test) {
     state.battle.special_mode_state = 3U;
     RecordingPorts new_game_ports;
     new_game_ports.special_mode_event =
-        openswd3::app::StandardSpecialModeEvent::
-            commit_new_game_004492ba;
+        openswd3::app::StandardSpecialModeEvent::commit_new_game_004492ba;
     test.expect_equal(
         openswd3::app::run_accepted_frame(state, new_game_ports),
         openswd3::app::FrameRunOutcome::common_tail_completed,

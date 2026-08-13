@@ -28,24 +28,18 @@ struct ClippedRectangle {
     return std::bit_cast<i32>(value);
 }
 
-[[nodiscard]] constexpr i32 wrapping_add(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_add(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) + to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_subtract(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_subtract(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) - to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_multiply(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_multiply(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) * to_bits(right));
 }
 
@@ -61,42 +55,28 @@ struct ClippedRectangle {
     };
 
     if (clipped.x < raster.clip_left) {
-        const i32 displacement = wrapping_subtract(
-            clipped.x,
-            raster.clip_left
-        );
+        const i32 displacement = wrapping_subtract(clipped.x, raster.clip_left);
         clipped.width = wrapping_add(clipped.width, displacement);
         clipped.x = raster.clip_left;
     }
 
     if (clipped.y < raster.clip_top) {
-        const i32 displacement = wrapping_subtract(
-            clipped.y,
-            raster.clip_top
-        );
+        const i32 displacement = wrapping_subtract(clipped.y, raster.clip_top);
         clipped.height = wrapping_add(clipped.height, displacement);
         clipped.y = raster.clip_top;
     }
 
-    const i32 clip_right = wrapping_add(
-        raster.clip_left,
-        raster.clip_width
-    );
+    const i32 clip_right = wrapping_add(raster.clip_left, raster.clip_width);
     if (wrapping_add(clipped.x, clipped.width) > clip_right) {
         clipped.width = wrapping_add(
-            wrapping_subtract(raster.clip_width, clipped.x),
-            raster.clip_left
+            wrapping_subtract(raster.clip_width, clipped.x), raster.clip_left
         );
     }
 
-    const i32 clip_bottom = wrapping_add(
-        raster.clip_top,
-        raster.clip_height
-    );
+    const i32 clip_bottom = wrapping_add(raster.clip_top, raster.clip_height);
     if (wrapping_add(clipped.y, clipped.height) > clip_bottom) {
         clipped.height = wrapping_add(
-            wrapping_subtract(raster.clip_height, clipped.y),
-            raster.clip_top
+            wrapping_subtract(raster.clip_height, clipped.y), raster.clip_top
         );
     }
 
@@ -107,10 +87,8 @@ struct ClippedRectangle {
     return value & 0xFFFFU;
 }
 
-[[nodiscard]] constexpr u32 shifted_channel_mask(
-    const u32 mask,
-    const u32 shift_count
-) noexcept {
+[[nodiscard]] constexpr u32
+shifted_channel_mask(const u32 mask, const u32 shift_count) noexcept {
     const u32 base = low_word_mask(mask);
     u32 shifted = base;
     for (u32 index = 0U; index < shift_count; ++index) {
@@ -120,44 +98,31 @@ struct ClippedRectangle {
 }
 
 [[nodiscard]] constexpr u32 duplicated_shift_mask(
-    const LegacyPixelConversionState& format,
-    const u32 shift_count
+    const LegacyPixelConversionState& format, const u32 shift_count
 ) noexcept {
-    const u32 lane = shifted_channel_mask(
-        format.effective_masks.red,
-        shift_count
-    ) | shifted_channel_mask(
-        format.effective_masks.green,
-        shift_count
-    ) | shifted_channel_mask(
-        format.effective_masks.blue,
-        shift_count
-    );
+    const u32 lane =
+        shifted_channel_mask(format.effective_masks.red, shift_count) |
+        shifted_channel_mask(format.effective_masks.green, shift_count) |
+        shifted_channel_mask(format.effective_masks.blue, shift_count);
     return lane | (lane << 16U);
 }
 
 [[nodiscard]] constexpr u32 read_pair(
-    const std::span<const u16> pixels,
-    const std::size_t offset
+    const std::span<const u16> pixels, const std::size_t offset
 ) noexcept {
     return static_cast<u32>(pixels[offset]) |
         (static_cast<u32>(pixels[offset + 1U]) << 16U);
 }
 
 void write_pair(
-    const std::span<u16> pixels,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u16> pixels, const std::size_t offset, const u32 value
 ) noexcept {
     pixels[offset] = static_cast<u16>(value);
     pixels[offset + 1U] = static_cast<u16>(value >> 16U);
 }
 
 [[nodiscard]] constexpr u32 adjusted_channel(
-    const u16 pixel,
-    const u32 raw_mask,
-    const u32 shift,
-    const i32 delta
+    const u16 pixel, const u32 raw_mask, const u32 shift, const i32 delta
 ) noexcept {
     const u32 mask = low_word_mask(raw_mask);
     const u32 unit = 1U << (shift & 31U);
@@ -178,42 +143,29 @@ void write_pair(
 ) noexcept {
     return static_cast<u16>(
         adjusted_channel(
-            pixel,
-            format.effective_masks.red,
-            format.red_shift,
-            red
+            pixel, format.effective_masks.red, format.red_shift, red
         ) |
         adjusted_channel(
-            pixel,
-            format.effective_masks.green,
-            format.green_shift,
-            green
+            pixel, format.effective_masks.green, format.green_shift, green
         ) |
         adjusted_channel(
-            pixel,
-            format.effective_masks.blue,
-            format.blue_shift,
-            blue
+            pixel, format.effective_masks.blue, format.blue_shift, blue
         )
     );
 }
 
 [[nodiscard]] constexpr u16 grayscale_pixel(
-    const u16 pixel,
-    const LegacyPixelConversionState& format
+    const u16 pixel, const LegacyPixelConversionState& format
 ) noexcept {
     u32 intensity =
-        (static_cast<u32>(pixel) & low_word_mask(
-            format.effective_masks.red
-        )) >> (format.red_shift & 31U);
-    intensity +=
-        (static_cast<u32>(pixel) & low_word_mask(
-            format.effective_masks.green
-        )) >> (format.green_shift & 31U);
-    intensity +=
-        (static_cast<u32>(pixel) & low_word_mask(
-            format.effective_masks.blue
-        )) >> (format.blue_shift & 31U);
+        (static_cast<u32>(pixel) & low_word_mask(format.effective_masks.red)) >>
+        (format.red_shift & 31U);
+    intensity += (static_cast<u32>(pixel) &
+                  low_word_mask(format.effective_masks.green)) >>
+        (format.green_shift & 31U);
+    intensity += (static_cast<u32>(pixel) &
+                  low_word_mask(format.effective_masks.blue)) >>
+        (format.blue_shift & 31U);
     intensity >>= 2U;
 
     return static_cast<u16>(
@@ -233,15 +185,9 @@ void offset_row(
     const i32 blue
 ) noexcept {
     for (i32 column = 0; column < width; ++column) {
-        const std::size_t offset = row_offset +
-            static_cast<std::size_t>(column);
-        pixels[offset] = offset_pixel(
-            pixels[offset],
-            format,
-            red,
-            green,
-            blue
-        );
+        const std::size_t offset =
+            row_offset + static_cast<std::size_t>(column);
+        pixels[offset] = offset_pixel(pixels[offset], format, red, green, blue);
     }
 }
 
@@ -250,11 +196,8 @@ void offset_row(
     const ClippedRectangle& rectangle,
     const i32 pitch_words
 ) noexcept {
-    if (pitch_words <= 0 ||
-        rectangle.x < 0 ||
-        rectangle.y < 0 ||
-        rectangle.width <= 0 ||
-        rectangle.height <= 0) {
+    if (pitch_words <= 0 || rectangle.x < 0 || rectangle.y < 0 ||
+        rectangle.width <= 0 || rectangle.height <= 0) {
         return false;
     }
 
@@ -268,16 +211,12 @@ void offset_row(
     const auto width = static_cast<std::size_t>(rectangle.width);
     const auto height = static_cast<std::size_t>(rectangle.height);
     const std::size_t physical_rows = pixels.size() / pitch;
-    return x <= pitch &&
-        width <= pitch - x &&
-        y <= physical_rows &&
+    return x <= pitch && width <= pitch - x && y <= physical_rows &&
         height <= physical_rows - y;
 }
 
-[[nodiscard]] constexpr i32 fixed_increment(
-    const i32 component,
-    const i32 pair_count
-) noexcept {
+[[nodiscard]] constexpr i32
+fixed_increment(const i32 component, const i32 pair_count) noexcept {
     return wrapping_multiply(component, 0x400) / pair_count;
 }
 
@@ -295,10 +234,7 @@ LegacyRectangleEffectStatus apply_legacy_rectangle_effect(
     }
 
     const u32 color = legacy_pack_color_pair(
-        format,
-        request.red,
-        request.green,
-        request.blue
+        format, request.red, request.green, request.blue
     );
     if (request.mode > 5U) {
         return LegacyRectangleEffectStatus::unsupported_mode;
@@ -312,16 +248,11 @@ LegacyRectangleEffectStatus apply_legacy_rectangle_effect(
 
     const i32 pitch_words = raster.surface.pitch_bytes / 2;
     std::span<u16> pixels = framebuffer.physical_pixels();
-    if (!destination_is_addressable(
-            pixels,
-            rectangle,
-            pitch_words
-        )) {
+    if (!destination_is_addressable(pixels, rectangle, pitch_words)) {
         return LegacyRectangleEffectStatus::destination_out_of_bounds;
     }
 
-    const std::size_t first_offset =
-        static_cast<std::size_t>(rectangle.y) *
+    const std::size_t first_offset = static_cast<std::size_t>(rectangle.y) *
             static_cast<std::size_t>(pitch_words) +
         static_cast<std::size_t>(rectangle.x);
 
@@ -331,13 +262,9 @@ LegacyRectangleEffectStatus apply_legacy_rectangle_effect(
             const std::size_t row_offset = first_offset +
                 static_cast<std::size_t>(row) *
                     static_cast<std::size_t>(pitch_words);
-            const LegacyPackedRowBlendStatus status =
-                blend_legacy_packed_row(
-                    pixels.subspan(row_offset),
-                    color,
-                    rectangle.width,
-                    format
-                );
+            const LegacyPackedRowBlendStatus status = blend_legacy_packed_row(
+                pixels.subspan(row_offset), color, rectangle.width, format
+            );
             if (status == LegacyPackedRowBlendStatus::invalid_geometry) {
                 return LegacyRectangleEffectStatus::invalid_geometry;
             }
@@ -353,8 +280,9 @@ LegacyRectangleEffectStatus apply_legacy_rectangle_effect(
         for (i32 row = 0; row < rectangle.height; ++row) {
             offset_row(
                 pixels,
-                first_offset + static_cast<std::size_t>(row) *
-                    static_cast<std::size_t>(pitch_words),
+                first_offset +
+                    static_cast<std::size_t>(row) *
+                        static_cast<std::size_t>(pitch_words),
                 rectangle.width,
                 format,
                 request.red,
@@ -374,12 +302,10 @@ LegacyRectangleEffectStatus apply_legacy_rectangle_effect(
                 static_cast<std::size_t>(row) *
                     static_cast<std::size_t>(pitch_words);
             for (i32 pair = 0; pair < pair_count; ++pair) {
-                const std::size_t offset = row_offset +
-                    static_cast<std::size_t>(pair) * 2U;
+                const std::size_t offset =
+                    row_offset + static_cast<std::size_t>(pair) * 2U;
                 write_pair(
-                    pixels,
-                    offset,
-                    (read_pair(pixels, offset) >> shift) & mask
+                    pixels, offset, (read_pair(pixels, offset) >> shift) & mask
                 );
             }
         }
@@ -392,8 +318,8 @@ LegacyRectangleEffectStatus apply_legacy_rectangle_effect(
                 static_cast<std::size_t>(row) *
                     static_cast<std::size_t>(pitch_words);
             for (i32 column = 0; column < rectangle.width; ++column) {
-                const std::size_t offset = row_offset +
-                    static_cast<std::size_t>(column);
+                const std::size_t offset =
+                    row_offset + static_cast<std::size_t>(column);
                 pixels[offset] = grayscale_pixel(pixels[offset], format);
             }
         }
@@ -402,10 +328,7 @@ LegacyRectangleEffectStatus apply_legacy_rectangle_effect(
     case 5U: {
         const i32 pair_count = (rectangle.height + 1) / 2;
         const i32 red_increment = fixed_increment(request.red, pair_count);
-        const i32 green_increment = fixed_increment(
-            request.green,
-            pair_count
-        );
+        const i32 green_increment = fixed_increment(request.green, pair_count);
         const i32 blue_increment = fixed_increment(request.blue, pair_count);
         i32 red_fixed{};
         i32 green_fixed{};
@@ -420,22 +343,10 @@ LegacyRectangleEffectStatus apply_legacy_rectangle_effect(
             const i32 green = green_fixed / 0x400;
             const i32 blue = blue_fixed / 0x400;
             offset_row(
-                pixels,
-                top_offset,
-                rectangle.width,
-                format,
-                red,
-                green,
-                blue
+                pixels, top_offset, rectangle.width, format, red, green, blue
             );
             offset_row(
-                pixels,
-                bottom_offset,
-                rectangle.width,
-                format,
-                red,
-                green,
-                blue
+                pixels, bottom_offset, rectangle.width, format, red, green, blue
             );
 
             top_offset += static_cast<std::size_t>(pitch_words);

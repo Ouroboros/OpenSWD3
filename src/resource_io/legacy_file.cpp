@@ -22,8 +22,7 @@
 namespace openswd3::resource_io {
 
 bool legacy_exclusive_file_probe(
-    const std::filesystem::path& path,
-    const std::span<char> error_buffer
+    const std::filesystem::path& path, const std::span<char> error_buffer
 ) noexcept {
 #ifdef _WIN32
     const HANDLE file = CreateFileW(
@@ -37,10 +36,9 @@ bool legacy_exclusive_file_probe(
     );
     if (file == INVALID_HANDLE_VALUE) {
         if (!error_buffer.empty()) {
-            const DWORD capacity = static_cast<DWORD>(std::min<std::size_t>(
-                error_buffer.size(),
-                0x80U
-            ));
+            const DWORD capacity = static_cast<DWORD>(
+                std::min<std::size_t>(error_buffer.size(), 0x80U)
+            );
             static_cast<void>(FormatMessageA(
                 FORMAT_MESSAGE_FROM_SYSTEM,
                 nullptr,
@@ -62,10 +60,8 @@ bool legacy_exclusive_file_probe(
     if (file == -1) {
         if (!error_buffer.empty()) {
             const char* const message = std::strerror(errno);
-            const std::size_t copied = std::min(
-                error_buffer.size() - 1U,
-                std::strlen(message)
-            );
+            const std::size_t copied =
+                std::min(error_buffer.size() - 1U, std::strlen(message));
             std::copy_n(message, copied, error_buffer.begin());
             error_buffer[copied] = '\0';
         }
@@ -217,12 +213,7 @@ bool LegacyFile::create_read_only_mapping() noexcept {
     }
 
     state_->mapping = CreateFileMappingW(
-        state_->file,
-        nullptr,
-        PAGE_READONLY,
-        0U,
-        size(),
-        nullptr
+        state_->file, nullptr, PAGE_READONLY, 0U, size(), nullptr
     );
     if (state_->mapping == nullptr) {
         set_system_error();
@@ -239,7 +230,8 @@ bool LegacyFile::create_read_only_mapping() noexcept {
     }
 
     const compat::u32 file_size = size();
-    if (file_size == 0U || file_size == std::numeric_limits<compat::u32>::max()) {
+    if (file_size == 0U ||
+        file_size == std::numeric_limits<compat::u32>::max()) {
         errno = EINVAL;
         set_system_error();
         return false;
@@ -275,8 +267,7 @@ bool LegacyFile::close_mapping() noexcept {
 
     if (state_->view != nullptr) {
         if (::munmap(
-                const_cast<compat::u8*>(state_->view),
-                state_->view_size
+                const_cast<compat::u8*>(state_->view), state_->view_size
             ) != 0) {
             set_system_error();
             return false;
@@ -290,8 +281,7 @@ bool LegacyFile::close_mapping() noexcept {
 }
 
 const compat::u8* LegacyFile::map_view(
-    const compat::u32 offset,
-    const compat::u32 size_to_map
+    const compat::u32 offset, const compat::u32 size_to_map
 ) noexcept {
     if (state_->view != nullptr) {
 #ifdef _WIN32
@@ -301,8 +291,7 @@ const compat::u8* LegacyFile::map_view(
         }
 #else
         if (::munmap(
-                const_cast<compat::u8*>(state_->view),
-                state_->view_size
+                const_cast<compat::u8*>(state_->view), state_->view_size
             ) != 0) {
             set_system_error();
             return nullptr;
@@ -311,13 +300,9 @@ const compat::u8* LegacyFile::map_view(
     }
 
 #ifdef _WIN32
-    state_->view = static_cast<const compat::u8*>(MapViewOfFile(
-        state_->mapping,
-        FILE_MAP_READ,
-        0U,
-        offset,
-        size_to_map
-    ));
+    state_->view = static_cast<const compat::u8*>(
+        MapViewOfFile(state_->mapping, FILE_MAP_READ, 0U, offset, size_to_map)
+    );
     state_->view_size = size_to_map;
 #else
     state_->view = nullptr;
@@ -331,9 +316,9 @@ const compat::u8* LegacyFile::map_view(
         offset >= file_size) {
         return nullptr;
     }
-    const std::size_t mapped_size =
-        size_to_map == 0U ? static_cast<std::size_t>(file_size - offset)
-                          : static_cast<std::size_t>(size_to_map);
+    const std::size_t mapped_size = size_to_map == 0U
+        ? static_cast<std::size_t>(file_size - offset)
+        : static_cast<std::size_t>(size_to_map);
     void* const view = ::mmap(
         nullptr,
         mapped_size,
@@ -361,10 +346,7 @@ bool LegacyFile::close_view(const compat::u8* const view) noexcept {
             return false;
         }
 #else
-        if (::munmap(
-                const_cast<compat::u8*>(view),
-                state_->view_size
-            ) != 0) {
+        if (::munmap(const_cast<compat::u8*>(view), state_->view_size) != 0) {
             set_system_error();
             return false;
         }
@@ -385,7 +367,7 @@ compat::u32 LegacyFile::size() const noexcept {
     if (state_->file == -1) {
         return std::numeric_limits<compat::u32>::max();
     }
-    struct stat status {};
+    struct stat status{};
     if (::fstat(state_->file, &status) != 0) {
         return std::numeric_limits<compat::u32>::max();
     }
@@ -396,20 +378,19 @@ compat::u32 LegacyFile::size() const noexcept {
 bool LegacyFile::truncate_at_current_position() noexcept {
 #ifdef _WIN32
     return state_->file != INVALID_HANDLE_VALUE &&
-           SetEndOfFile(state_->file) != 0;
+        SetEndOfFile(state_->file) != 0;
 #else
     if (state_->file == -1) {
         return false;
     }
     const off_t position = ::lseek(state_->file, 0, SEEK_CUR);
     return position != static_cast<off_t>(-1) &&
-           ::ftruncate(state_->file, position) == 0;
+        ::ftruncate(state_->file, position) == 0;
 #endif
 }
 
 bool LegacyFile::read(
-    const std::span<compat::u8> buffer,
-    compat::u32& in_out_size
+    const std::span<compat::u8> buffer, compat::u32& in_out_size
 ) noexcept {
 #ifdef _WIN32
     if (state_->file == INVALID_HANDLE_VALUE || buffer.empty() ||
@@ -425,11 +406,7 @@ bool LegacyFile::read(
 #ifdef _WIN32
     DWORD actual_size{};
     if (ReadFile(
-            state_->file,
-            buffer.data(),
-            in_out_size,
-            &actual_size,
-            nullptr
+            state_->file, buffer.data(), in_out_size, &actual_size, nullptr
         ) == 0) {
         in_out_size = 0U;
         set_system_error();
@@ -450,8 +427,7 @@ bool LegacyFile::read(
 }
 
 bool LegacyFile::write(
-    const std::span<const compat::u8> buffer,
-    compat::u32& in_out_size
+    const std::span<const compat::u8> buffer, compat::u32& in_out_size
 ) noexcept {
 #ifdef _WIN32
     if (state_->file == INVALID_HANDLE_VALUE || buffer.empty() ||
@@ -467,11 +443,7 @@ bool LegacyFile::write(
 #ifdef _WIN32
     DWORD actual_size{};
     if (WriteFile(
-            state_->file,
-            buffer.data(),
-            in_out_size,
-            &actual_size,
-            nullptr
+            state_->file, buffer.data(), in_out_size, &actual_size, nullptr
         ) == 0) {
         in_out_size = 0U;
         set_system_error();
@@ -492,8 +464,7 @@ bool LegacyFile::write(
 }
 
 compat::u32 LegacyFile::seek_raw(
-    const SeekOrigin origin,
-    const compat::i32 distance
+    const SeekOrigin origin, const compat::i32 distance
 ) noexcept {
 #ifdef _WIN32
     if (state_->file == INVALID_HANDLE_VALUE) {
@@ -547,19 +518,18 @@ compat::u32 LegacyFile::seek_raw(
 #endif
 }
 
-compat::u32 LegacyFile::seek_current_one_based(
-    const compat::i32 distance
-) noexcept {
+compat::u32
+LegacyFile::seek_current_one_based(const compat::i32 distance) noexcept {
     return seek_raw(SeekOrigin::current, distance) + 1U;
 }
 
-compat::u32 LegacyFile::seek_begin_one_based(
-    const compat::i32 distance
-) noexcept {
+compat::u32
+LegacyFile::seek_begin_one_based(const compat::i32 distance) noexcept {
     return seek_raw(SeekOrigin::begin, distance) + 1U;
 }
 
-compat::u32 LegacyFile::seek_end_one_based(const compat::i32 distance) noexcept {
+compat::u32
+LegacyFile::seek_end_one_based(const compat::i32 distance) noexcept {
     return seek_raw(SeekOrigin::end, distance) + 1U;
 }
 
@@ -570,8 +540,7 @@ bool LegacyFile::current_position(compat::u32& position) noexcept {
         return false;
     }
     LONG high{};
-    const DWORD current =
-        SetFilePointer(state_->file, 0, &high, FILE_CURRENT);
+    const DWORD current = SetFilePointer(state_->file, 0, &high, FILE_CURRENT);
     if (current == INVALID_SET_FILE_POINTER) {
         set_system_error();
         return false;
@@ -649,9 +618,9 @@ bool LegacyFile::read_u32(compat::u32& value) noexcept {
         return false;
     }
     value = static_cast<compat::u32>(bytes[0]) |
-            (static_cast<compat::u32>(bytes[1]) << 8U) |
-            (static_cast<compat::u32>(bytes[2]) << 16U) |
-            (static_cast<compat::u32>(bytes[3]) << 24U);
+        (static_cast<compat::u32>(bytes[1]) << 8U) |
+        (static_cast<compat::u32>(bytes[2]) << 16U) |
+        (static_cast<compat::u32>(bytes[3]) << 24U);
     return true;
 }
 
@@ -670,7 +639,7 @@ bool LegacyFile::last_write_time(LegacyFileTime& time) const noexcept {
     if (state_->file == -1) {
         return false;
     }
-    struct stat status {};
+    struct stat status{};
     if (::fstat(state_->file, &status) != 0) {
         return false;
     }

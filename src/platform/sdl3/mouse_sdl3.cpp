@@ -49,15 +49,12 @@ void merge_sdl_mouse_press_latches(
 }
 
 input_time_rng::LegacyMouseDeviceSample sample_sdl_mouse_state(
-    SDL_Renderer& renderer,
-    SdlMouseDeviceState& state
+    SDL_Renderer& renderer, SdlMouseDeviceState& state
 ) noexcept {
     float window_delta_x{};
     float window_delta_y{};
-    const compat::u32 buttons = SDL_GetRelativeMouseState(
-        &window_delta_x,
-        &window_delta_y
-    );
+    const compat::u32 buttons =
+        SDL_GetRelativeMouseState(&window_delta_x, &window_delta_y);
 
     float origin_x{};
     float origin_y{};
@@ -66,28 +63,17 @@ input_time_rng::LegacyMouseDeviceSample sample_sdl_mouse_state(
     double logical_delta_x = window_delta_x;
     double logical_delta_y = window_delta_y;
     if (SDL_RenderCoordinatesFromWindow(
-            &renderer,
-            0.0F,
-            0.0F,
-            &origin_x,
-            &origin_y
+            &renderer, 0.0F, 0.0F, &origin_x, &origin_y
         ) &&
         SDL_RenderCoordinatesFromWindow(
-            &renderer,
-            window_delta_x,
-            window_delta_y,
-            &endpoint_x,
-            &endpoint_y
+            &renderer, window_delta_x, window_delta_y, &endpoint_x, &endpoint_y
         )) {
         logical_delta_x = static_cast<double>(endpoint_x - origin_x);
         logical_delta_y = static_cast<double>(endpoint_y - origin_y);
     }
 
     return accumulate_sdl_mouse_sample(
-        state,
-        logical_delta_x,
-        logical_delta_y,
-        buttons
+        state, logical_delta_x, logical_delta_y, buttons
     );
 }
 

@@ -25,19 +25,15 @@ constexpr compat::i16 kScreenCenterFixedX = 0x1400;
 constexpr compat::i16 kShortLifetime = 0x10;
 constexpr compat::i16 kLongLifetime = 0x20;
 
-[[nodiscard]] constexpr compat::i16 wrapping_add_i16(
-    const compat::i16 left,
-    const compat::i16 right
-) noexcept {
+[[nodiscard]] constexpr compat::i16
+wrapping_add_i16(const compat::i16 left, const compat::i16 right) noexcept {
     return std::bit_cast<compat::i16>(static_cast<compat::u16>(
-        static_cast<compat::u16>(left) +
-        static_cast<compat::u16>(right)
+        static_cast<compat::u16>(left) + static_cast<compat::u16>(right)
     ));
 }
 
 [[nodiscard]] constexpr compat::i16 wrapping_multiply_i16(
-    const compat::i16 left,
-    const compat::i16 right
+    const compat::i16 left, const compat::i16 right
 ) noexcept {
     return std::bit_cast<compat::i16>(static_cast<compat::u16>(
         static_cast<compat::u32>(static_cast<compat::u16>(left)) *
@@ -45,15 +41,12 @@ constexpr compat::i16 kLongLifetime = 0x20;
     ));
 }
 
-[[nodiscard]] constexpr bool active(
-    const LegacyAniStreakSlot& slot
-) noexcept {
+[[nodiscard]] constexpr bool active(const LegacyAniStreakSlot& slot) noexcept {
     return (static_cast<compat::u16>(slot.active_flags) & 1U) != 0U;
 }
 
 void initialize_slot(
-    LegacyAniStreakSlot& slot,
-    input_time_rng::LegacySecondaryRng& random
+    LegacyAniStreakSlot& slot, input_time_rng::LegacySecondaryRng& random
 ) noexcept {
     slot.fixed_x = static_cast<compat::i16>(
         random.next_bounded(kInitialXRandomBound) << 4U
@@ -69,12 +62,10 @@ void initialize_slot(
     slot.horizontal_step = static_cast<compat::i16>(horizontal);
 
     slot.vertical_step = static_cast<compat::i16>(
-        random.next_bounded(kVerticalStepRandomBound) +
-        kVerticalStepMinimum
+        random.next_bounded(kVerticalStepRandomBound) + kVerticalStepMinimum
     );
     slot.trail_limit = static_cast<compat::i16>(
-        random.next_bounded(kTrailLimitRandomBound) +
-        kTrailLimitMinimum
+        random.next_bounded(kTrailLimitRandomBound) + kTrailLimitMinimum
     );
     slot.remaining_frames = kShortLifetime;
     if (slot.vertical_step > 0x0F) {
@@ -107,8 +98,7 @@ LegacyAniStreakResult LegacyAniStreakEffect::update(
     LegacyAniStreakServicePort& services
 ) noexcept {
     LegacyAniStreakResult result;
-    if (framebuffer.physical_byte_size() <
-        rendering::kLegacyFixedCanvasBytes) {
+    if (framebuffer.physical_byte_size() < rendering::kLegacyFixedCanvasBytes) {
         result.status = LegacyAniStreakStatus::framebuffer_too_small;
         return result;
     }
@@ -116,25 +106,21 @@ LegacyAniStreakResult LegacyAniStreakEffect::update(
     if (random.next_bounded(kTriggerRandomBound) > kTriggerThreshold) {
         ++result.service_query_count;
         if (services.service_enabled(kLegacyAniStreakServiceId)) {
-            state_.target_spawn_count = wrapping_add_i16(
-                state_.target_spawn_count, 1
-            );
-            if (state_.target_spawn_count >
-                kLegacyAniStreakTargetMaximum) {
+            state_.target_spawn_count =
+                wrapping_add_i16(state_.target_spawn_count, 1);
+            if (state_.target_spawn_count > kLegacyAniStreakTargetMaximum) {
                 state_.target_spawn_count = kLegacyAniStreakTargetMaximum;
             }
         } else {
-            state_.target_spawn_count = wrapping_add_i16(
-                state_.target_spawn_count, -1
-            );
+            state_.target_spawn_count =
+                wrapping_add_i16(state_.target_spawn_count, -1);
             if (state_.target_spawn_count < 0) {
                 state_.target_spawn_count = 0;
             }
         }
     }
 
-    if (state_.target_spawn_count == 0 &&
-        state_.previous_live_count == 0) {
+    if (state_.target_spawn_count == 0 && state_.previous_live_count == 0) {
         return result;
     }
 
@@ -160,17 +146,14 @@ LegacyAniStreakResult LegacyAniStreakEffect::update(
 
         ++result.visited_active_count;
         std::int64_t row_byte_offset =
-            static_cast<std::int64_t>(slot.fixed_y) *
-            physical_row_step;
+            static_cast<std::int64_t>(slot.fixed_y) * physical_row_step;
         compat::i32 fixed_x = slot.fixed_x;
         compat::i32 intensity = 0;
 
         if (slot.trail_limit >= 0) {
-            for (compat::i32 trail = 0;
-                 trail <= slot.trail_limit; ++trail) {
+            for (compat::i32 trail = 0; trail <= slot.trail_limit; ++trail) {
                 if (row_byte_offset > 0 &&
-                    row_byte_offset <
-                        rendering::kLegacyFixedCanvasBytes) {
+                    row_byte_offset < rendering::kLegacyFixedCanvasBytes) {
                     static_cast<void>(rendering::legacy_pack_color_pair(
                         pixel_format, intensity, intensity, intensity
                     ));
@@ -195,8 +178,8 @@ LegacyAniStreakResult LegacyAniStreakEffect::update(
                                 intensity,
                                 pixel_format
                             );
-                        if (status == rendering::
-                                LegacyFrameColorStatus::completed) {
+                        if (status ==
+                            rendering::LegacyFrameColorStatus::completed) {
                             ++result.adjusted_pixel_count;
                         } else {
                             ++result.pixel_failure_count;
@@ -204,8 +187,7 @@ LegacyAniStreakResult LegacyAniStreakEffect::update(
                     }
                 }
 
-                if (row_byte_offset >=
-                    rendering::kLegacyFixedCanvasBytes) {
+                if (row_byte_offset >= rendering::kLegacyFixedCanvasBytes) {
                     slot.active_flags = 0;
                 }
                 fixed_x += slot.horizontal_step;
@@ -219,22 +201,15 @@ LegacyAniStreakResult LegacyAniStreakEffect::update(
 
         slot.fixed_x = wrapping_add_i16(
             slot.fixed_x,
-            wrapping_multiply_i16(
-                slot.horizontal_step, slot.vertical_step
-            )
+            wrapping_multiply_i16(slot.horizontal_step, slot.vertical_step)
         );
-        slot.fixed_y = wrapping_add_i16(
-            slot.fixed_y, slot.vertical_step
-        );
-        slot.remaining_frames = wrapping_add_i16(
-            slot.remaining_frames, -1
-        );
+        slot.fixed_y = wrapping_add_i16(slot.fixed_y, slot.vertical_step);
+        slot.remaining_frames = wrapping_add_i16(slot.remaining_frames, -1);
         if (slot.remaining_frames == 0) {
             slot.active_flags = 0;
         } else {
-            state_.previous_live_count = wrapping_add_i16(
-                state_.previous_live_count, 1
-            );
+            state_.previous_live_count =
+                wrapping_add_i16(state_.previous_live_count, 1);
         }
     }
 

@@ -34,21 +34,17 @@ public:
 
     virtual void poll_stream_transition() = 0;
     [[nodiscard]] virtual bool music_stream_absent() = 0;
-    virtual void configure_stream_transition(
-        compat::i32 mode,
-        compat::i32 value
-    ) = 0;
+    virtual void
+    configure_stream_transition(compat::i32 mode, compat::i32 value) = 0;
     virtual void apply_stream_transition() = 0;
-    [[nodiscard]] virtual std::string_view music_source_filename(
-        compat::u32 music_id
-    ) = 0;
+    [[nodiscard]] virtual std::string_view
+    music_source_filename(compat::u32 music_id) = 0;
     virtual void play_music_stream(std::string_view filename) = 0;
     virtual void set_music_stream_volume(compat::i32 mix_level) = 0;
 };
 
 [[nodiscard]] std::optional<std::string> build_legacy_music_path(
-    std::string_view base_prefix,
-    std::string_view source_filename
+    std::string_view base_prefix, std::string_view source_filename
 );
 
 void update_legacy_world_music_request(

@@ -5,8 +5,7 @@
 namespace openswd3::compat {
 
 LegacyDecimalParseResult parse_legacy_decimal_contract(
-    const std::string_view bytes,
-    i32& output
+    const std::string_view bytes, i32& output
 ) noexcept {
     const std::size_t nul = bytes.find('\0');
     const std::string_view text =
@@ -53,8 +52,7 @@ LegacyDecimalParseResult parse_legacy_decimal_contract(
 }
 
 bool parse_legacy_decimal_or_terminate(
-    const std::string_view bytes,
-    i32& output
+    const std::string_view bytes, i32& output
 ) noexcept {
     switch (parse_legacy_decimal_contract(bytes, output)) {
     case LegacyDecimalParseResult::success:

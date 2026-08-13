@@ -24,23 +24,20 @@ constexpr compat::u32 kLegacyKeyDelete = 0x2EU;
     std::abort();
 }
 
-[[nodiscard]] resource_io::LegacyDbcsTextBufferEditView edit_view(
-    resource_io::LegacyDbcsTextBuffer& buffer
-) noexcept {
+[[nodiscard]] resource_io::LegacyDbcsTextBufferEditView
+edit_view(resource_io::LegacyDbcsTextBuffer& buffer) noexcept {
     return buffer.borrow_edit_view();
 }
 
 [[nodiscard]] compat::u32 insert_single_byte(
-    resource_io::LegacyDbcsTextBuffer& buffer,
-    const compat::u8 byte
+    resource_io::LegacyDbcsTextBuffer& buffer, const compat::u8 byte
 ) {
     const compat::u8 text[2]{byte, 0U};
     return legacy_insert_text_bytes(buffer, text);
 }
 
 [[nodiscard]] compat::u32 handle_key_down(
-    resource_io::LegacyDbcsTextBuffer& buffer,
-    const compat::u32 key
+    resource_io::LegacyDbcsTextBuffer& buffer, const compat::u32 key
 ) {
     auto view = edit_view(buffer);
 
@@ -138,15 +135,13 @@ constexpr compat::u32 kLegacyKeyDelete = 0x2EU;
 
 }  // namespace
 
-compat::i32 legacy_text_input_enabled(
-    resource_io::LegacyDbcsTextBuffer& buffer
-) noexcept {
+compat::i32
+legacy_text_input_enabled(resource_io::LegacyDbcsTextBuffer& buffer) noexcept {
     return *edit_view(buffer).input_enabled_state;
 }
 
 compat::i32 legacy_set_text_input_enabled(
-    resource_io::LegacyDbcsTextBuffer& buffer,
-    const compat::i32 requested_state
+    resource_io::LegacyDbcsTextBuffer& buffer, const compat::i32 requested_state
 ) noexcept {
     static_cast<void>(requested_state);
     auto view = edit_view(buffer);
@@ -160,8 +155,7 @@ compat::u32 legacy_move_text_cursor_previous(
     auto view = edit_view(buffer);
     *view.cursor_byte_offset =
         resource_io::legacy_cp950_previous_character_offset(
-            view.bytes,
-            *view.cursor_byte_offset
+            view.bytes, *view.cursor_byte_offset
         );
     return *view.cursor_byte_offset != 0 ? 1U : 0U;
 }
@@ -173,8 +167,7 @@ compat::u32 legacy_move_text_cursor_next(
     const compat::i32 previous_offset = *view.cursor_byte_offset;
     const compat::i32 next_offset =
         resource_io::legacy_cp950_next_character_offset(
-            view.bytes,
-            previous_offset
+            view.bytes, previous_offset
         );
     if (next_offset == previous_offset) {
         return 0U;
@@ -185,8 +178,7 @@ compat::u32 legacy_move_text_cursor_next(
 }
 
 compat::u32 legacy_insert_text_bytes(
-    resource_io::LegacyDbcsTextBuffer& buffer,
-    const compat::u8* const text
+    resource_io::LegacyDbcsTextBuffer& buffer, const compat::u8* const text
 ) {
     auto view = edit_view(buffer);
     if (*view.input_enabled_state != 1) {
@@ -204,16 +196,13 @@ compat::u32 legacy_insert_text_bytes(
     const compat::i32 old_cursor = *view.cursor_byte_offset;
     if (old_cursor > 0) {
         std::memcpy(
-            temporary.data(),
-            view.bytes,
-            static_cast<std::size_t>(old_cursor)
+            temporary.data(), view.bytes, static_cast<std::size_t>(old_cursor)
         );
     }
 
     const compat::i32 inserted_length =
         resource_io::legacy_cp950_bounded_length(
-            text,
-            view.capacity - old_cursor
+            text, view.capacity - old_cursor
         );
     const compat::i32 new_cursor = old_cursor + inserted_length;
     if (inserted_length > 0) {
@@ -224,11 +213,9 @@ compat::u32 legacy_insert_text_bytes(
         );
     }
 
-    const compat::i32 suffix_length =
-        resource_io::legacy_cp950_bounded_length(
-            view.bytes + old_cursor,
-            view.capacity - new_cursor
-        );
+    const compat::i32 suffix_length = resource_io::legacy_cp950_bounded_length(
+        view.bytes + old_cursor, view.capacity - new_cursor
+    );
     if (suffix_length > 0) {
         std::memcpy(
             temporary.data() + new_cursor,
@@ -238,11 +225,7 @@ compat::u32 legacy_insert_text_bytes(
     }
 
     *view.cursor_byte_offset = new_cursor;
-    std::memset(
-        view.bytes,
-        0,
-        static_cast<std::size_t>(view.capacity) + 1U
-    );
+    std::memset(view.bytes, 0, static_cast<std::size_t>(view.capacity) + 1U);
     const compat::i32 copied_length = new_cursor + suffix_length;
     if (copied_length > 0) {
         std::memcpy(
@@ -263,8 +246,7 @@ compat::u32 legacy_delete_text_at_cursor(
     const compat::i32 next =
         resource_io::legacy_cp950_next_character_offset(view.bytes, cursor);
     static_cast<void>(resource_io::legacy_cp950_bounded_length(
-        view.bytes + next,
-        view.capacity
+        view.bytes + next, view.capacity
     ));
 
     const compat::i32 moved_size = view.capacity - next + 1;

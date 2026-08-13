@@ -21,8 +21,7 @@ constexpr compat::u32 kFrameDescriptorSize = 0x24U;
 constexpr compat::u16 kBlockMagic = 0xABCDU;
 
 [[nodiscard]] compat::u16 read_u16(
-    const std::span<const compat::u8> bytes,
-    const std::size_t offset
+    const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u16>(
         static_cast<compat::u16>(bytes[offset]) |
@@ -33,52 +32,45 @@ constexpr compat::u16 kBlockMagic = 0xABCDU;
 }
 
 [[nodiscard]] compat::u32 read_u32(
-    const std::span<const compat::u8> bytes,
-    const std::size_t offset
+    const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u32>(bytes[offset]) |
-           (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
-           (static_cast<compat::u32>(bytes[offset + 2U]) << 16U) |
-           (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
+        (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
+        (static_cast<compat::u32>(bytes[offset + 2U]) << 16U) |
+        (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
 }
 
 [[nodiscard]] bool read_exact(
-    resource_io::LegacyFile& file,
-    const std::span<compat::u8> bytes
+    resource_io::LegacyFile& file, const std::span<compat::u8> bytes
 ) noexcept {
     compat::u32 requested = static_cast<compat::u32>(bytes.size());
     return file.read(bytes, requested) && requested == bytes.size();
 }
 
 [[nodiscard]] bool can_seek(const compat::u32 offset) noexcept {
-    return offset <= static_cast<compat::u32>(
-                         std::numeric_limits<compat::i32>::max()
-                     );
+    return offset <=
+        static_cast<compat::u32>(std::numeric_limits<compat::i32>::max());
 }
 
-[[nodiscard]] bool seek_exact(
-    resource_io::LegacyFile& file,
-    const compat::u32 offset
-) noexcept {
+[[nodiscard]] bool
+seek_exact(resource_io::LegacyFile& file, const compat::u32 offset) noexcept {
     return can_seek(offset) &&
-           file.seek_begin_one_based(static_cast<compat::i32>(offset)) ==
-               offset + 1U;
+        file.seek_begin_one_based(static_cast<compat::i32>(offset)) ==
+        offset + 1U;
 }
 
 [[nodiscard]] bool range_fits(
-    const compat::u32 offset,
-    const compat::u32 size,
-    const compat::u32 limit
+    const compat::u32 offset, const compat::u32 size, const compat::u32 limit
 ) noexcept {
     return static_cast<std::uint64_t>(offset) + size <= limit;
 }
 
 void parse_index_record(
-    const std::span<const compat::u8> bytes,
-    LegacyTswIndexRecord& record
+    const std::span<const compat::u8> bytes, LegacyTswIndexRecord& record
 ) noexcept {
-    std::ranges::copy(bytes.first(record.raw_name.size()),
-                      record.raw_name.begin());
+    std::ranges::copy(
+        bytes.first(record.raw_name.size()), record.raw_name.begin()
+    );
     record.block_size = read_u32(bytes, 0x14U);
     record.block_offset = read_u32(bytes, 0x18U);
     record.metadata_id = read_u32(bytes, 0x1CU);
@@ -108,10 +100,12 @@ void parse_frame_descriptor(
 LegacyTswOpenStatus
 LegacyTswArchive::open(const std::filesystem::path& archive_path) {
     close();
-    if (!file_.open(archive_path,
-                    resource_io::LegacyFileCreation::open_existing,
-                    resource_io::LegacyFileAccess::read,
-                    resource_io::LegacyFileSharing::read)) {
+    if (!file_.open(
+            archive_path,
+            resource_io::LegacyFileCreation::open_existing,
+            resource_io::LegacyFileAccess::read,
+            resource_io::LegacyFileSharing::read
+        )) {
         return LegacyTswOpenStatus::file_open_failed;
     }
 
@@ -126,11 +120,12 @@ void LegacyTswArchive::close() noexcept {
     open_ = false;
 }
 
-bool LegacyTswArchive::is_open() const noexcept { return open_; }
+bool LegacyTswArchive::is_open() const noexcept {
+    return open_;
+}
 
 LegacyTswFrameResult LegacyTswArchive::read_frame(
-    const compat::u32 one_based_physical_record,
-    const compat::u32 variant_index
+    const compat::u32 one_based_physical_record, const compat::u32 variant_index
 ) noexcept {
     LegacyTswFrameResult result;
     if (!open_) {
@@ -143,8 +138,7 @@ LegacyTswFrameResult LegacyTswArchive::read_frame(
     }
 
     const compat::u32 index_offset =
-        kIndexOffset +
-        (one_based_physical_record - 1U) * kIndexRecordSize;
+        kIndexOffset + (one_based_physical_record - 1U) * kIndexRecordSize;
     if (!range_fits(index_offset, kIndexRecordSize, file_size_)) {
         result.status = LegacyTswFrameStatus::index_out_of_file_range;
         return result;
@@ -166,8 +160,11 @@ LegacyTswFrameResult LegacyTswArchive::read_frame(
         return result;
     }
     if (result.frame.index.block_size < kBlockHeaderSize ||
-        !range_fits(result.frame.index.block_offset,
-                    result.frame.index.block_size, file_size_)) {
+        !range_fits(
+            result.frame.index.block_offset,
+            result.frame.index.block_size,
+            file_size_
+        )) {
         result.status = LegacyTswFrameStatus::block_out_of_file_range;
         return result;
     }
@@ -192,8 +189,11 @@ LegacyTswFrameResult LegacyTswArchive::read_frame(
 
     compat::u32 descriptor_base = kBlockHeaderSize;
     if (result.frame.storage_bpp == 8U) {
-        if (!range_fits(descriptor_base, kLegacyTswPaletteSize,
-                        result.frame.index.block_size) ||
+        if (!range_fits(
+                descriptor_base,
+                kLegacyTswPaletteSize,
+                result.frame.index.block_size
+            ) ||
             !read_exact(file_, result.frame.palette)) {
             result.status = LegacyTswFrameStatus::palette_read_failed;
             return result;
@@ -209,15 +209,17 @@ LegacyTswFrameResult LegacyTswArchive::read_frame(
     const std::uint64_t descriptor_relative_64 =
         static_cast<std::uint64_t>(descriptor_base) +
         static_cast<std::uint64_t>(variant_index) * kFrameDescriptorSize;
-    if (descriptor_relative_64 >
-        std::numeric_limits<compat::u32>::max()) {
+    if (descriptor_relative_64 > std::numeric_limits<compat::u32>::max()) {
         result.status = LegacyTswFrameStatus::descriptor_out_of_block_range;
         return result;
     }
     const compat::u32 descriptor_relative =
         static_cast<compat::u32>(descriptor_relative_64);
-    if (!range_fits(descriptor_relative, kFrameDescriptorSize,
-                    result.frame.index.block_size)) {
+    if (!range_fits(
+            descriptor_relative,
+            kFrameDescriptorSize,
+            result.frame.index.block_size
+        )) {
         result.status = LegacyTswFrameStatus::descriptor_out_of_block_range;
         return result;
     }
@@ -236,11 +238,12 @@ LegacyTswFrameResult LegacyTswArchive::read_frame(
     parse_frame_descriptor(descriptor_bytes, result.frame.descriptor);
 
     const LegacyTswFrameDescriptor& descriptor = result.frame.descriptor;
-    if (!range_fits(descriptor.primary_relative_offset,
-                    descriptor.primary_compressed_size,
-                    result.frame.index.block_size)) {
-        result.status =
-            LegacyTswFrameStatus::primary_stream_out_of_block_range;
+    if (!range_fits(
+            descriptor.primary_relative_offset,
+            descriptor.primary_compressed_size,
+            result.frame.index.block_size
+        )) {
+        result.status = LegacyTswFrameStatus::primary_stream_out_of_block_range;
         return result;
     }
     if (descriptor.primary_compressed_size == 0U ||
@@ -276,8 +279,7 @@ LegacyTswFrameResult LegacyTswArchive::read_frame(
 
     const resource_io::LegacyLzo1xResult decompressed =
         resource_io::decompress_legacy_lzo1x(
-            compressed,
-            result.frame.command_stream
+            compressed, result.frame.command_stream
         );
     if (decompressed.status != resource_io::LegacyLzo1xStatus::success) {
         result.frame.command_stream.clear();

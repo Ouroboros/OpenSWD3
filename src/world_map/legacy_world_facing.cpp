@@ -12,26 +12,38 @@ using compat::u16;
 using compat::u32;
 
 constexpr std::array<u16, 91> kLegacySine8192{
-    0,    142,  285,  428,  571,  713,  856,  998,  1140, 1281,
-    1422, 1563, 1703, 1842, 1981, 2120, 2258, 2395, 2531, 2667,
-    2801, 2935, 3068, 3200, 3331, 3462, 3591, 3719, 3845, 3971,
-    4096, 4219, 4341, 4461, 4580, 4698, 4815, 4930, 5043, 5155,
-    5265, 5374, 5481, 5586, 5690, 5792, 5892, 5991, 6087, 6182,
-    6275, 6366, 6455, 6542, 6627, 6710, 6791, 6870, 6947, 7021,
-    7094, 7164, 7233, 7299, 7362, 7424, 7483, 7540, 7595, 7647,
-    7697, 7745, 7791, 7834, 7874, 7912, 7948, 7982, 8012, 8041,
-    8067, 8091, 8112, 8130, 8147, 8160, 8172, 8180, 8187, 8190,
-    8192,
+    0,    142,  285,  428,  571,  713,  856,  998,  1140, 1281, 1422, 1563,
+    1703, 1842, 1981, 2120, 2258, 2395, 2531, 2667, 2801, 2935, 3068, 3200,
+    3331, 3462, 3591, 3719, 3845, 3971, 4096, 4219, 4341, 4461, 4580, 4698,
+    4815, 4930, 5043, 5155, 5265, 5374, 5481, 5586, 5690, 5792, 5892, 5991,
+    6087, 6182, 6275, 6366, 6455, 6542, 6627, 6710, 6791, 6870, 6947, 7021,
+    7094, 7164, 7233, 7299, 7362, 7424, 7483, 7540, 7595, 7647, 7697, 7745,
+    7791, 7834, 7874, 7912, 7948, 7982, 8012, 8041, 8067, 8091, 8112, 8130,
+    8147, 8160, 8172, 8180, 8187, 8190, 8192,
 };
 
 constexpr std::array<u32, 17> kLegacyAngleSectors{
-    3, 7, 7, 0, 0, 4, 4, 2, 2, 6, 6, 1, 1, 5, 5, 3, 0,
+    3,
+    7,
+    7,
+    0,
+    0,
+    4,
+    4,
+    2,
+    2,
+    6,
+    6,
+    1,
+    1,
+    5,
+    5,
+    3,
+    0,
 };
 
-[[nodiscard]] constexpr i32 wrapping_subtract(
-    const u32 left,
-    const u32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_subtract(const u32 left, const u32 right) noexcept {
     return std::bit_cast<i32>(left - right);
 }
 
@@ -59,7 +71,8 @@ constexpr std::array<u32, 17> kLegacyAngleSectors{
     return root;
 }
 
-[[nodiscard]] u32 legacy_distance(const i32 delta_x, const i32 delta_y) noexcept {
+[[nodiscard]] u32
+legacy_distance(const i32 delta_x, const i32 delta_y) noexcept {
     const u32 square_sum =
         std::bit_cast<u32>(delta_x) * std::bit_cast<u32>(delta_x) +
         std::bit_cast<u32>(delta_y) * std::bit_cast<u32>(delta_y);
@@ -73,20 +86,16 @@ constexpr std::array<u32, 17> kLegacyAngleSectors{
 }
 
 [[nodiscard]] u32 quantize_legacy_angle(
-    const i32 delta_x,
-    const i32 delta_y,
-    const u32 distance
+    const i32 delta_x, const i32 delta_y, const u32 distance
 ) noexcept {
     if (distance == 0U) {
         return 0U;
     }
 
-    const i32 shifted_y = std::bit_cast<i32>(
-        std::bit_cast<u32>(delta_y) << 13U
-    );
-    const i32 normalized = wrapping_absolute(
-        shifted_y / static_cast<i32>(distance)
-    );
+    const i32 shifted_y =
+        std::bit_cast<i32>(std::bit_cast<u32>(delta_y) << 13U);
+    const i32 normalized =
+        wrapping_absolute(shifted_y / static_cast<i32>(distance));
 
     i32 start_angle = 180;
     i32 table_index = 0;
@@ -112,12 +121,14 @@ constexpr std::array<u32, 17> kLegacyAngleSectors{
     u32 best_angle = 0U;
     for (i32 angle = start_angle; angle < start_angle + 90;
          angle += 5, table_index += table_step) {
-        const i32 difference = wrapping_absolute(std::bit_cast<i32>(
-            std::bit_cast<u32>(normalized) -
-            static_cast<u32>(kLegacySine8192[static_cast<std::size_t>(
-                table_index
-            )])
-        ));
+        const i32 difference = wrapping_absolute(
+            std::bit_cast<i32>(
+                std::bit_cast<u32>(normalized) -
+                static_cast<u32>(
+                    kLegacySine8192[static_cast<std::size_t>(table_index)]
+                )
+            )
+        );
         if (difference <= best_difference) {
             best_difference = difference;
             best_angle = static_cast<u32>(angle);
@@ -126,9 +137,8 @@ constexpr std::array<u32, 17> kLegacyAngleSectors{
     return best_angle;
 }
 
-[[nodiscard]] constexpr u32 map_legacy_angle_to_direction(
-    const u32 angle_degrees
-) noexcept {
+[[nodiscard]] constexpr u32
+map_legacy_angle_to_direction(const u32 angle_degrees) noexcept {
     const u32 sector = (angle_degrees * 16U) / 360U;
     return kLegacyAngleSectors[sector];
 }

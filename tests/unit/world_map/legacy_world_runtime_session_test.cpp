@@ -64,26 +64,20 @@ using openswd3::world_map::LegacyWorldRuntimeSessionRequest;
 using openswd3::world_map::LegacyWorldRuntimeSessionStatus;
 
 void write_u16(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u16 value
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
 ) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
 void write_i16(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const i16 value
+    const std::span<u8> bytes, const std::size_t offset, const i16 value
 ) {
     write_u16(bytes, offset, std::bit_cast<u16>(value));
 }
 
 void write_u32(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>((value >> 8U) & 0xFFU);
@@ -172,8 +166,7 @@ private:
 
 class FakeMapSource final : public LegacyWorldMapSource {
 public:
-    explicit FakeMapSource(std::vector<std::string>& stages)
-        : stages_{stages} {
+    explicit FakeMapSource(std::vector<std::string>& stages) : stages_{stages} {
         lookup.status = LegacyLmfMapLookupStatus::ready;
         lookup.map_offset = 0x1234U;
         header.status = LegacyLmfMapHeaderStatus::ready;
@@ -185,8 +178,7 @@ public:
         surface.raw_table_values.assign(40U * 30U, 0U);
         surface.surface_grid.assign(40U * 30U * 4U, 0U);
         post.status = LegacyLmfPostSurfaceRecordsStatus::ready;
-        referenced.status =
-            LegacyLmfReferencedRecordDirectoryStatus::ready;
+        referenced.status = LegacyLmfReferencedRecordDirectoryStatus::ready;
         offset14.status = LegacyLmfOffset14DirectoryStatus::ready;
         indexed.status = LegacyLmfIndexedObjectDirectoryStatus::ready;
         offset1c.status = LegacyLmfOffset1cDirectoryStatus::ready;
@@ -203,50 +195,40 @@ public:
         return header;
     }
 
-    LegacyLmfSurfaceGrid read_surface_grid(
-        const u32,
-        const LegacyLmfMapHeader&
-    ) override {
+    LegacyLmfSurfaceGrid
+    read_surface_grid(const u32, const LegacyLmfMapHeader&) override {
         stages_.push_back("surface");
         return surface;
     }
 
-    LegacyLmfPostSurfaceRecords read_post_surface_records(
-        const u32,
-        const LegacyLmfSurfaceGrid&
-    ) override {
+    LegacyLmfPostSurfaceRecords
+    read_post_surface_records(const u32, const LegacyLmfSurfaceGrid&) override {
         stages_.push_back("post");
         return post;
     }
 
     LegacyLmfReferencedRecordDirectory read_referenced_record_directory(
-        const u32,
-        const LegacyLmfPostSurfaceRecords&
+        const u32, const LegacyLmfPostSurfaceRecords&
     ) override {
         stages_.push_back("referenced");
         return referenced;
     }
 
-    LegacyLmfOffset14Directory read_offset14_directory(
-        const u32,
-        const LegacyLmfMapHeader&
-    ) override {
+    LegacyLmfOffset14Directory
+    read_offset14_directory(const u32, const LegacyLmfMapHeader&) override {
         stages_.push_back("offset14");
         return offset14;
     }
 
     LegacyLmfIndexedObjectDirectory read_indexed_object_directory(
-        const u32,
-        const LegacyLmfMapHeader&
+        const u32, const LegacyLmfMapHeader&
     ) override {
         stages_.push_back("indexed");
         return indexed;
     }
 
-    LegacyLmfOffset1cDirectory read_offset1c_directory(
-        const u32,
-        const LegacyLmfMapHeader&
-    ) override {
+    LegacyLmfOffset1cDirectory
+    read_offset1c_directory(const u32, const LegacyLmfMapHeader&) override {
         stages_.push_back("offset1c");
         return offset1c;
     }
@@ -267,12 +249,10 @@ private:
 
 class FakeCmSource final : public LegacyWorldCmCacheSource {
 public:
-    explicit FakeCmSource(std::vector<std::string>& stages)
-        : stages_{stages} {}
+    explicit FakeCmSource(std::vector<std::string>& stages) : stages_{stages} {}
 
-    LegacyCmCacheLoadResult load_cm_cache(
-        const LegacyCmCacheRequest& request
-    ) override {
+    LegacyCmCacheLoadResult
+    load_cm_cache(const LegacyCmCacheRequest& request) override {
         stages_.push_back("cm");
         seen_map_id = request.map_id;
         LegacyCmCacheLoadResult result;
@@ -340,8 +320,7 @@ public:
     }
 
     openswd3::rendering::LegacyTimedMessageResult update_and_draw(
-        std::list<openswd3::rendering::LegacyTimedMessage>& messages,
-        u16
+        std::list<openswd3::rendering::LegacyTimedMessage>& messages, u16
     ) noexcept override {
         return {
             .visited_count = static_cast<u32>(messages.size()),
@@ -356,16 +335,11 @@ public:
     }
 
     void draw_decorated_number(
-        openswd3::compat::i32,
-        openswd3::compat::i32,
-        u32,
-        u32
+        openswd3::compat::i32, openswd3::compat::i32, u32, u32
     ) noexcept override {}
 
     void play_positional_sample(
-        u16,
-        openswd3::compat::i32,
-        openswd3::compat::i32
+        u16, openswd3::compat::i32, openswd3::compat::i32
     ) noexcept override {}
 
     const openswd3::asset_runtime::LegacyActionRecord*
@@ -374,9 +348,7 @@ public:
     }
 
     void emit_role_particles(
-        openswd3::compat::i32,
-        openswd3::compat::i32,
-        u16
+        openswd3::compat::i32, openswd3::compat::i32, u16
     ) noexcept override {}
 
     std::span<const u8> resolve_label_bytes(u32) noexcept override {
@@ -396,18 +368,12 @@ public:
     ) noexcept override {}
 
     void play_sample(
-        u16,
-        openswd3::compat::i32,
-        openswd3::compat::i32,
-        openswd3::compat::i32
+        u16, openswd3::compat::i32, openswd3::compat::i32, openswd3::compat::i32
     ) noexcept override {}
 
     void stop_sample(u16) noexcept override {}
 
-    void set_sample_volume(
-        u16,
-        openswd3::compat::i32
-    ) noexcept override {}
+    void set_sample_volume(u16, openswd3::compat::i32) noexcept override {}
 
     void set_sample_pan(u16, openswd3::compat::i32) noexcept override {}
 
@@ -497,10 +463,10 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
         "descriptor normalization and encounter sources run before roles"
     );
     test.expect_true(
-        random.bounds.size() == 24U &&
-            random.bounds[0U] == 3U && random.bounds[1U] == 4U &&
-            random.bounds[2U] == 640U && random.bounds[3U] == 480U &&
-            random.bounds[4U] == 2U && random.bounds[5U] == 2U &&
+        random.bounds.size() == 24U && random.bounds[0U] == 3U &&
+            random.bounds[1U] == 4U && random.bounds[2U] == 640U &&
+            random.bounds[3U] == 480U && random.bounds[4U] == 2U &&
+            random.bounds[5U] == 2U &&
             result.session.directional_points[0U].target_interval == 1U &&
             result.session.directional_points[0U].variant == 65U &&
             result.session.directional_points[0U].world_x == 2U &&
@@ -514,8 +480,17 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
     test.expect_equal(
         stages,
         std::vector<std::string>{
-            "lookup", "header", "cm", "surface", "post", "referenced",
-            "offset14", "indexed", "offset1c", "action-2", "action-13",
+            "lookup",
+            "header",
+            "cm",
+            "surface",
+            "post",
+            "referenced",
+            "offset14",
+            "indexed",
+            "offset1c",
+            "action-2",
+            "action-13",
         },
         "MAPS roles and action initialization occupy the pre-binding slot"
     );
@@ -525,8 +500,8 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
             result.session.selected_role_index == 2U &&
             result.session.action_update_failure_count == 1U &&
             result.session.role_post_materialization_status ==
-                openswd3::world_map::
-                    LegacyWorldRolePostMaterializationStatus::ready &&
+                openswd3::world_map::LegacyWorldRolePostMaterializationStatus::
+                    ready &&
             post_state.party_role_count == 1U &&
             post_state.party_role_indices[0] == 2U,
         "migrated roles retain action and selected-party post-load state"
@@ -541,8 +516,7 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
             roles[2].action.action_id == 13U &&
             roles[2].action.base_variant == 14U &&
             roles[2].action.variant_delta == 15U &&
-            roles[2].field_2c == 0x2468U &&
-            roles[2].field_30 == 0xACE0ACE0U &&
+            roles[2].field_2c == 0x2468U && roles[2].field_30 == 0xACE0ACE0U &&
             roles[2].action.mode_flags == 99U,
         "source fields/defaults and updater output survive final cell binding"
     );
@@ -604,8 +578,7 @@ void test_role_initialization_marks_surface_occupancy(
             result.session.map_descriptor_runtime.base_movement_step == 4U &&
             result.session.map_descriptor_runtime.tile_animation_interval ==
                 1U &&
-            result.session.map_descriptor_runtime.encounter_table_index ==
-                1U &&
+            result.session.map_descriptor_runtime.encounter_table_index == 1U &&
             result.session.map_descriptor_runtime.role_red_offset == -1 &&
             result.session.map_descriptor_runtime.role_green_offset == -7 &&
             result.session.map_descriptor_runtime.role_blue_offset == -5 &&
@@ -616,15 +589,14 @@ void test_role_initialization_marks_surface_occupancy(
             result.session.map_descriptor_runtime.directional_effect_enabled &&
             result.session.map_descriptor_runtime.directional_variant_count ==
                 8U &&
-            result.session.map_descriptor_runtime.
-                encounter_table_index_repaired,
+            result.session.map_descriptor_runtime
+                .encounter_table_index_repaired,
         "descriptor nibbles and invalid values follow 0x0040C32C..0x0040C514"
     );
     test.expect_true(
         map_session.role_cell_binding_completed &&
             map_session.role_cell_binding.roles_bound == roles.size() - 1U &&
-            (roles[1U].flags & 0x20000000U) != 0U &&
-            (cell & 0x10000000U) != 0U,
+            (roles[1U].flags & 0x20000000U) != 0U && (cell & 0x10000000U) != 0U,
         "action update is followed by cell-flag refresh and sub_40AEC0 marking"
     );
 }
@@ -662,15 +634,13 @@ void test_directional_initialization_obeys_service_gate(
     );
     test.expect_true(
         random.bounds.empty() &&
-            !result.session.map_descriptor_runtime.
-                directional_effect_enabled &&
+            !result.session.map_descriptor_runtime.directional_effect_enabled &&
             std::ranges::all_of(
                 result.session.directional_points,
                 [](const auto& point) {
-                    return point.target_interval == 0U &&
-                        point.variant == 0U && point.world_x == 0U &&
-                        point.world_y == 0U && point.velocity_x == 0 &&
-                        point.velocity_y == 0;
+                    return point.target_interval == 0U && point.variant == 0U &&
+                        point.world_x == 0U && point.world_y == 0U &&
+                        point.velocity_x == 0 && point.velocity_y == 0;
                 }
             ),
         "the disabled directional branch consumes no random values"
@@ -696,12 +666,9 @@ void test_explicit_failure_boundaries(openswd3::test::Context& test) {
     request.load.logical_map_id = 6U;
     test.expect_equal(
         load_legacy_world_runtime_session(
-            payload,
-            request,
-            action_initializer,
-            map_source,
-            cm_source
-        ).status,
+            payload, request, action_initializer, map_source, cm_source
+        )
+            .status,
         LegacyWorldRuntimeSessionStatus::map_descriptor_not_found,
         "an absent logical descriptor stops before LMF lookup"
     );
@@ -710,34 +677,26 @@ void test_explicit_failure_boundaries(openswd3::test::Context& test) {
     request.load.load_flags = 1U;
     test.expect_equal(
         load_legacy_world_runtime_session(
-            payload,
-            request,
-            action_initializer,
-            map_source,
-            cm_source
-        ).status,
+            payload, request, action_initializer, map_source, cm_source
+        )
+            .status,
         LegacyWorldRuntimeSessionStatus::preload_coordinate_stage_required,
         "bit-zero load requests cannot silently skip sub_40D200"
     );
 
     const std::array<openswd3::world_map::LegacyWorldRoleRecord, 1U>
         prior_roles{};
-    const openswd3::world_map::LegacyWorldRolePreloadContext
-        preload_context{
-            .path_database = {},
-            .roles = prior_roles,
-            .object_slots = {},
-            .controlled_role_index = 0U,
-            .current_map_width = 40U,
-            .current_map_height = 30U,
-        };
+    const openswd3::world_map::LegacyWorldRolePreloadContext preload_context{
+        .path_database = {},
+        .roles = prior_roles,
+        .object_slots = {},
+        .controlled_role_index = 0U,
+        .current_map_width = 40U,
+        .current_map_height = 30U,
+    };
     request.preload_context = &preload_context;
     const auto preloaded = load_legacy_world_runtime_session(
-        payload,
-        request,
-        action_initializer,
-        map_source,
-        cm_source
+        payload, request, action_initializer, map_source, cm_source
     );
     test.expect_true(
         preloaded.status == LegacyWorldRuntimeSessionStatus::ready &&
@@ -749,11 +708,7 @@ void test_explicit_failure_boundaries(openswd3::test::Context& test) {
     request.load = decoded.database.initial_load;
     request.load.selected_guid = 99U;
     const auto missing = load_legacy_world_runtime_session(
-        payload,
-        request,
-        action_initializer,
-        map_source,
-        cm_source
+        payload, request, action_initializer, map_source, cm_source
     );
     test.expect_equal(
         missing.status,
@@ -763,8 +718,7 @@ void test_explicit_failure_boundaries(openswd3::test::Context& test) {
 }
 
 void test_real_initial_world(
-    openswd3::test::Context& test,
-    const std::filesystem::path& data_root
+    openswd3::test::Context& test, const std::filesystem::path& data_root
 ) {
     std::ifstream input(data_root / "MAPS.DAT", std::ios::binary);
     std::vector<u8> file_bytes{
@@ -779,10 +733,7 @@ void test_real_initial_world(
         return;
     }
 
-    std::vector<u8> payload(
-        file_bytes.begin() + 0x200,
-        file_bytes.end()
-    );
+    std::vector<u8> payload(file_bytes.begin() + 0x200, file_bytes.end());
     const auto decoded = decode_legacy_maps_world_database(payload);
     test.expect_equal(
         decoded.status,
@@ -824,10 +775,12 @@ void test_real_initial_world(
     auto& roles = map_session.business.state.roles;
     auto& selected = roles[result.session.selected_role_index];
     const auto& post_state = result.session.role_post_materialization;
-    const auto blue_role = std::ranges::find(roles, 248U, &
-        openswd3::world_map::LegacyWorldRoleRecord::guid);
-    const auto red_role = std::ranges::find(roles, 249U, &
-        openswd3::world_map::LegacyWorldRoleRecord::guid);
+    const auto blue_role = std::ranges::find(
+        roles, 248U, &openswd3::world_map::LegacyWorldRoleRecord::guid
+    );
+    const auto red_role = std::ranges::find(
+        roles, 249U, &openswd3::world_map::LegacyWorldRoleRecord::guid
+    );
     test.expect_true(
         result.session.logical_map_id == 81U &&
             result.session.map_descriptor.archive_map_id == 81U &&
@@ -846,8 +799,7 @@ void test_real_initial_world(
     );
     test.expect_true(
         selected.guid == 1U && selected.world_x == 13U * 16U &&
-            selected.world_y == 28U * 16U &&
-            selected.action.action_id == 1U &&
+            selected.world_y == 28U * 16U && selected.action.action_id == 1U &&
             selected.action.base_variant == 0U &&
             selected.action.variant_delta == 3U,
         "selected GUID one materializes the seven-word initial record"
@@ -891,9 +843,7 @@ void test_real_initial_world(
         rgb565_conversion(),
     };
     openswd3::asset_runtime::LegacyTswRuntime tsw_runtime{
-        data_root,
-        rgb565_conversion(),
-        &special_frame_loader
+        data_root, rgb565_conversion(), &special_frame_loader
     };
     tsw_runtime.set_cache_limit(0x01000000U);
     openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
@@ -915,9 +865,7 @@ void test_real_initial_world(
     std::vector<i16> distances(roles.size());
     std::vector<i16> vertical_offsets(roles.size());
     std::array<i16, 1U> selection_words{
-        std::bit_cast<i16>(
-            openswd3::world_map::kLegacyWorldSelectionSentinel
-        )
+        std::bit_cast<i16>(openswd3::world_map::kLegacyWorldSelectionSentinel)
     };
     openswd3::world_map::LegacyWorldFrameCoordinatorState frame_state;
     frame_state.map_id = result.session.logical_map_id;
@@ -948,8 +896,7 @@ void test_real_initial_world(
     frame_state.selection_scroll.saved_left = result.session.camera.left;
     frame_state.selection_scroll.saved_top = result.session.camera.top;
     openswd3::world_map::initialize_legacy_world_player_position_history(
-        frame_state.player_post_frame,
-        roles[result.session.selected_role_index]
+        frame_state.player_post_frame, roles[result.session.selected_role_index]
     );
     openswd3::world_map::LegacyPictureActionLists picture_actions;
     openswd3::world_map::LegacyMovingActionList moving_actions;
@@ -985,8 +932,7 @@ void test_real_initial_world(
     };
     test.expect_equal(
         openswd3::world_map::prime_legacy_world_cursor_state(
-            environment_effects.cursor,
-            action_ports
+            environment_effects.cursor, action_ports
         ),
         openswd3::asset_runtime::LegacyActionUpdateStatus::completed,
         "the initial process setup primes the 0x2329 cursor action"
@@ -1003,8 +949,7 @@ void test_real_initial_world(
             roles,
             openswd3::world_map::LegacyWorldRoleSurfaceContext{
                 .map_width = map_session.header.width,
-                .selected_guid =
-                    roles[result.session.selected_role_index].guid,
+                .selected_guid = roles[result.session.selected_role_index].guid,
                 .surface_grid = map_session.surface_grid.surface_grid,
             },
             selection_words,
@@ -1051,8 +996,7 @@ void test_real_initial_world(
         "the exact initial owner completes the inner composition"
     );
     test.expect_true(
-        blue_role->action.mode_flags == 1U &&
-            red_role->action.mode_flags == 0U,
+        blue_role->action.mode_flags == 1U && red_role->action.mode_flags == 0U,
         "the first role-path update preserves the captured horizontal directions"
     );
     test.expect_true(
@@ -1098,15 +1042,14 @@ void test_real_initial_world(
         movement_records{};
     movement_records[5U].rapid_press_multiplicity = 1U;
     movement_records[5U].held_sample_count = 1U;
-    auto direction =
-        openswd3::world_map::apply_legacy_world_direction_input(
-            openswd3::world_map::LegacyWorldDirectionState{
-                .direction = selected.action.variant_delta,
-            },
-            movement_records,
-            false,
-            0U
-        );
+    auto direction = openswd3::world_map::apply_legacy_world_direction_input(
+        openswd3::world_map::LegacyWorldDirectionState{
+            .direction = selected.action.variant_delta,
+        },
+        movement_records,
+        false,
+        0U
+    );
     const auto adjusted =
         openswd3::world_map::adjust_legacy_world_direction_for_obstacles(
             selected,
@@ -1136,10 +1079,12 @@ void test_real_initial_world(
         }
     );
     test.expect_true(
-        direction.status == openswd3::world_map::
-                                LegacyWorldDirectionInputStatus::completed &&
-            adjusted.status == openswd3::world_map::
-                                   LegacyWorldDirectionProbeStatus::completed &&
+        direction.status ==
+                openswd3::world_map::LegacyWorldDirectionInputStatus::
+                    completed &&
+            adjusted.status ==
+                openswd3::world_map::LegacyWorldDirectionProbeStatus::
+                    completed &&
             direction.state.direction == 3U && direction.delta_x == 1 &&
             direction.delta_y == 0 &&
             frame_state.movement.player_x_transition == 1 &&
@@ -1151,8 +1096,9 @@ void test_real_initial_world(
     const u32 player_x_before_input_frame = selected.world_x;
     const auto input_frame = run_world_frame();
     test.expect_true(
-        input_frame.status == openswd3::world_map::
-                                  LegacyWorldFrameCoordinatorStatus::completed &&
+        input_frame.status ==
+                openswd3::world_map::LegacyWorldFrameCoordinatorStatus::
+                    completed &&
             selected.world_x == player_x_before_input_frame + 4U &&
             frame_state.movement.player_x_transition == 1 &&
             frame_state.movement.camera_x_transition == 0,
@@ -1164,9 +1110,9 @@ void test_real_initial_world(
         transition_frame = run_world_frame();
     }
     test.expect_true(
-        transition_frame.status == openswd3::world_map::
-                                       LegacyWorldFrameCoordinatorStatus::
-                                           completed &&
+        transition_frame.status ==
+                openswd3::world_map::LegacyWorldFrameCoordinatorStatus::
+                    completed &&
             selected.world_x == player_x_before_input_frame + 16U &&
             transition_frame.player_post_frame.aligned &&
             transition_frame.player_post_frame.transitions_cleared &&

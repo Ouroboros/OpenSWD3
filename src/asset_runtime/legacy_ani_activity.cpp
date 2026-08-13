@@ -13,16 +13,16 @@ namespace {
     const LegacyAniActivityBlockers& blockers
 ) noexcept {
     return blockers.first != 0U || blockers.second != 0U ||
-           blockers.third != 0U ||
-           (state.flags & kLegacyAniSuspendFlag) != 0U;
+        blockers.third != 0U || (state.flags & kLegacyAniSuspendFlag) != 0U;
 }
 
 void copy_framebuffer(
     const std::span<const compat::u8> source,
     const std::span<compat::u8> destination
 ) noexcept {
-    std::ranges::copy(source.first(kLegacyAniFramebufferBytes),
-                      destination.begin());
+    std::ranges::copy(
+        source.first(kLegacyAniFramebufferBytes), destination.begin()
+    );
 }
 
 void clear_edge_rows(
@@ -30,8 +30,7 @@ void clear_edge_rows(
     const compat::u32 pitch_bytes,
     const compat::u32 row_count
 ) noexcept {
-    const std::size_t bytes =
-        static_cast<std::size_t>(pitch_bytes) * row_count;
+    const std::size_t bytes = static_cast<std::size_t>(pitch_bytes) * row_count;
     std::ranges::fill(framebuffer.first(bytes), compat::u8{});
     const std::size_t bottom =
         static_cast<std::size_t>(kLegacyAniViewportHeight - row_count) *
@@ -74,9 +73,8 @@ LegacyAniActivityStartResult LegacyAniActivity::start(
 
     pixel_conversion_ = pixel_conversion;
     state_.active_extent = archive_.header().display_width;
-    state_.phase = (flags & kLegacyAniSkipRevealFlag) != 0U
-                       ? 1
-                       : kLegacyAniRevealStart;
+    state_.phase =
+        (flags & kLegacyAniSkipRevealFlag) != 0U ? 1 : kLegacyAniRevealStart;
     state_.process_flags = process_flags | kLegacyAniProcessActiveFlag;
     state_.scene_flags = scene_flags;
     state_.flags = flags;
@@ -86,8 +84,7 @@ LegacyAniActivityStartResult LegacyAniActivity::start(
 }
 
 LegacyAniActivityStatus LegacyAniActivity::validate_framebuffer(
-    const std::span<const compat::u8> framebuffer,
-    const compat::u32 pitch_bytes
+    const std::span<const compat::u8> framebuffer, const compat::u32 pitch_bytes
 ) const noexcept {
     if (pitch_bytes == 0U || (pitch_bytes & 1U) != 0U) {
         return LegacyAniActivityStatus::invalid_pitch;
@@ -103,8 +100,7 @@ LegacyAniActivityStatus LegacyAniActivity::validate_framebuffer(
 }
 
 LegacyAniSpanResult LegacyAniActivity::render_current_frame(
-    const std::span<compat::u8> framebuffer,
-    const compat::u32 pitch_bytes
+    const std::span<compat::u8> framebuffer, const compat::u32 pitch_bytes
 ) const noexcept {
     return apply_legacy_ani_spans(
         current_frame_.command_stream,
@@ -164,8 +160,8 @@ LegacyAniActivityResult LegacyAniActivity::update(
             return result;
         }
 
-        const compat::u32 reveal_rows = static_cast<compat::u32>(
-            state_.phase * 4 + 52);
+        const compat::u32 reveal_rows =
+            static_cast<compat::u32>(state_.phase * 4 + 52);
         clear_edge_rows(framebuffer, pitch_bytes, reveal_rows);
         ++state_.phase;
         result.phase_after = state_.phase;
@@ -214,11 +210,11 @@ LegacyAniActivityResult LegacyAniActivity::update(
         state_.active_extent = saved_active_extent;
 
         const compat::u32 ending_rows = static_cast<compat::u32>(
-            (kLegacyAniEndingDefaultLast - state_.phase) * 2);
+            (kLegacyAniEndingDefaultLast - state_.phase) * 2
+        );
         clear_edge_rows(framebuffer, pitch_bytes, ending_rows);
     } else {
-        result.ending_adjustment =
-            (kLegacyAniEndingStart - state_.phase) * 2;
+        result.ending_adjustment = (kLegacyAniEndingStart - state_.phase) * 2;
         ports.apply_ending_color_adjustment(
             framebuffer.first(kLegacyAniFramebufferBytes),
             kLegacyAniFramebufferPixels,
@@ -268,7 +264,9 @@ bool LegacyAniActivity::is_active() const noexcept {
     return state_.active_extent != 0U;
 }
 
-LegacyAniActivityState& LegacyAniActivity::state() noexcept { return state_; }
+LegacyAniActivityState& LegacyAniActivity::state() noexcept {
+    return state_;
+}
 
 const LegacyAniActivityState& LegacyAniActivity::state() const noexcept {
     return state_;

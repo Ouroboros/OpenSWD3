@@ -102,18 +102,18 @@ class LegacyActionStreamProvider {
 public:
     virtual ~LegacyActionStreamProvider() = default;
 
-    [[nodiscard]] virtual LegacyActionStreamLoadResult
-    load_action_stream(compat::u32 action_id, compat::u32 variant_index,
-                       bool cached) = 0;
+    [[nodiscard]] virtual LegacyActionStreamLoadResult load_action_stream(
+        compat::u32 action_id, compat::u32 variant_index, bool cached
+    ) = 0;
 };
 
 class LegacyActActionStreamProvider final : public LegacyActionStreamProvider {
 public:
     explicit LegacyActActionStreamProvider(LegacyActRuntime& runtime) noexcept;
 
-    [[nodiscard]] LegacyActionStreamLoadResult
-    load_action_stream(compat::u32 action_id, compat::u32 variant_index,
-                       bool cached) override;
+    [[nodiscard]] LegacyActionStreamLoadResult load_action_stream(
+        compat::u32 action_id, compat::u32 variant_index, bool cached
+    ) override;
 
 private:
     LegacyActRuntime& runtime_;

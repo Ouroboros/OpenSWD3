@@ -32,7 +32,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-cm-cache-" + std::to_string(unique_value));
+            ("legacy-cm-cache-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -52,10 +52,7 @@ public:
         }
     }
 
-    void write(
-        const std::string& name,
-        const std::span<const u8> bytes
-    ) const {
+    void write(const std::string& name, const std::span<const u8> bytes) const {
         std::ofstream output{root_ / name, std::ios::binary | std::ios::trunc};
         for (const u8 byte : bytes) {
             output.put(static_cast<char>(byte));
@@ -116,8 +113,7 @@ void test_only_exact_24_numbered_slots_are_counted(
 }
 
 void test_current_assets(
-    openswd3::test::Context& test,
-    const std::filesystem::path& cache_directory
+    openswd3::test::Context& test, const std::filesystem::path& cache_directory
 ) {
     test.expect_equal(
         legacy_cm_cache_total_size(cache_directory),
@@ -131,7 +127,10 @@ void test_clean_and_missing_environment_keep_cache(
 ) {
     const TestTree tree;
     constexpr std::array<u8, 4> kCleanEnvironment{
-        0x10U, 0x20U, 0x02U, 0x00U,
+        0x10U,
+        0x20U,
+        0x02U,
+        0x00U,
     };
     tree.write("Env.dat", kCleanEnvironment);
     tree.write("0.cm", 3U);
@@ -140,8 +139,7 @@ void test_clean_and_missing_environment_keep_cache(
 
     test.expect_equal(
         legacy_cm_cache_validate_session_marker(
-            tree.root() / "Env.dat",
-            tree.root()
+            tree.root() / "Env.dat", tree.root()
         ),
         8U,
         "clean session marker returns the existing cache total"
@@ -159,8 +157,7 @@ void test_clean_and_missing_environment_keep_cache(
 
     test.expect_equal(
         legacy_cm_cache_validate_session_marker(
-            tree.root() / "missing.dat",
-            tree.root()
+            tree.root() / "missing.dat", tree.root()
         ),
         8U,
         "missing environment file returns the existing cache total"
@@ -175,7 +172,10 @@ void test_clean_and_missing_environment_keep_cache(
 void test_active_session_resets_cache(openswd3::test::Context& test) {
     const TestTree tree;
     constexpr std::array<u8, 4> kActiveEnvironment{
-        0x10U, 0x20U, 0x02U, 0x01U,
+        0x10U,
+        0x20U,
+        0x02U,
+        0x01U,
     };
     tree.write("Env.dat", kActiveEnvironment);
     tree.write("0.cm", 3U);
@@ -185,8 +185,7 @@ void test_active_session_resets_cache(openswd3::test::Context& test) {
 
     test.expect_equal(
         legacy_cm_cache_validate_session_marker(
-            tree.root() / "Env.dat",
-            tree.root()
+            tree.root() / "Env.dat", tree.root()
         ),
         0U,
         "active session marker returns the post-reset cache total"
@@ -201,13 +200,13 @@ void test_active_session_resets_cache(openswd3::test::Context& test) {
         "all existing numbered cache slots are truncated"
     );
     test.expect_equal(
-        tree.read("24.cm").size(),
-        7U,
-        "slot 24 is outside the reset loop"
+        tree.read("24.cm").size(), 7U, "slot 24 is outside the reset loop"
     );
 
     const std::vector<u8> index = tree.read("mcache.dat");
-    test.expect_equal(index.size(), 0x180U, "cache index is exactly 24 records");
+    test.expect_equal(
+        index.size(), 0x180U, "cache index is exactly 24 records"
+    );
     for (std::size_t slot = 0U; slot < 24U; ++slot) {
         const std::size_t offset = slot * 16U;
         test.expect_true(
@@ -215,10 +214,20 @@ void test_active_session_resets_cache(openswd3::test::Context& test) {
                 index.begin() + static_cast<std::ptrdiff_t>(offset),
                 index.begin() + static_cast<std::ptrdiff_t>(offset + 12U),
                 std::array<u8, 12>{
-                    0xFFU, 0xFFU, 0xFFU, 0xFFU,
-                    0x00U, 0x00U, 0x00U, 0x00U,
-                    0x00U, 0x00U, 0x00U, 0x00U,
-                }.begin()
+                    0xFFU,
+                    0xFFU,
+                    0xFFU,
+                    0xFFU,
+                    0x00U,
+                    0x00U,
+                    0x00U,
+                    0x00U,
+                    0x00U,
+                    0x00U,
+                    0x00U,
+                    0x00U,
+                }
+                    .begin()
             ),
             "reset record starts with invalid map and two zero dwords"
         );
@@ -228,8 +237,7 @@ void test_active_session_resets_cache(openswd3::test::Context& test) {
             "reset record stores its slot index"
         );
         test.expect_true(
-            index[offset + 13U] == 0U &&
-                index[offset + 14U] == 0U &&
+            index[offset + 13U] == 0U && index[offset + 14U] == 0U &&
                 index[offset + 15U] == 0U,
             "reset slot index is a little-endian dword"
         );
@@ -255,10 +263,7 @@ void test_pixel_mask_validation(openswd3::test::Context& test) {
     };
     test.expect_equal(
         legacy_cm_cache_validate_pixel_masks(
-            tree.root() / "Env.dat",
-            tree.root(),
-            rgb555,
-            rgb555
+            tree.root() / "Env.dat", tree.root(), rgb555, rgb555
         ),
         3U,
         "matching full-width pixel masks keep the cache"
@@ -271,23 +276,23 @@ void test_pixel_mask_validation(openswd3::test::Context& test) {
     };
     test.expect_equal(
         legacy_cm_cache_validate_pixel_masks(
-            tree.root() / "Env.dat",
-            tree.root(),
-            rgb555,
-            rgb565
+            tree.root() / "Env.dat", tree.root(), rgb555, rgb565
         ),
         0U,
         "changed pixel masks invalidate the cache"
     );
     const std::vector<u8> updated = tree.read("Env.dat");
     constexpr std::array<u8, 6> kRgb565Bytes{
-        0x00U, 0xF8U, 0xE0U, 0x07U, 0x1FU, 0x00U,
+        0x00U,
+        0xF8U,
+        0xE0U,
+        0x07U,
+        0x1FU,
+        0x00U,
     };
     test.expect_true(
         std::equal(
-            kRgb565Bytes.begin(),
-            kRgb565Bytes.end(),
-            updated.begin() + 0x1E
+            kRgb565Bytes.begin(), kRgb565Bytes.end(), updated.begin() + 0x1E
         ),
         "changed masks overwrite six bytes at Env.dat +0x1E"
     );
@@ -297,17 +302,14 @@ void test_pixel_mask_validation(openswd3::test::Context& test) {
     );
 }
 
-void test_reset_does_not_create_missing_files(
-    openswd3::test::Context& test
-) {
+void test_reset_does_not_create_missing_files(openswd3::test::Context& test) {
     const TestTree tree;
     constexpr std::array<u8, 1> kActiveEnvironment{0x01U};
     tree.write("Env.dat", kActiveEnvironment);
 
     test.expect_equal(
         legacy_cm_cache_validate_session_marker(
-            tree.root() / "Env.dat",
-            tree.root()
+            tree.root() / "Env.dat", tree.root()
         ),
         0U,
         "reset with no cache files still returns zero"
@@ -338,10 +340,7 @@ void test_pixel_masks_compare_full_dwords_but_store_words(
     };
     test.expect_equal(
         legacy_cm_cache_validate_pixel_masks(
-            tree.root() / "Env.dat",
-            tree.root(),
-            stored,
-            current
+            tree.root() / "Env.dat", tree.root(), stored, current
         ),
         0U,
         "current masks are compared as full dwords"
@@ -370,7 +369,8 @@ int main(const int argument_count, char** arguments) {
         argument_count == 1 || argument_count == 2,
         "the optional argument names the current Data directory"
     );
-    if (argument_count == 2 && arguments != nullptr && arguments[1] != nullptr) {
+    if (argument_count == 2 && arguments != nullptr &&
+        arguments[1] != nullptr) {
         test_current_assets(test, arguments[1]);
     }
 

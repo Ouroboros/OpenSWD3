@@ -12,15 +12,12 @@ public:
     virtual ~CommandLinePorts() = default;
 
     virtual void initialize_default_key_bindings() = 0;
-    virtual void run_legacy_command(
-        compat::u8 selector,
-        std::string_view payload
-    ) = 0;
+    virtual void
+    run_legacy_command(compat::u8 selector, std::string_view payload) = 0;
 };
 
 [[nodiscard]] bool run_nonempty_command_line_path(
-    std::optional<std::string_view> command_line,
-    CommandLinePorts& ports
+    std::optional<std::string_view> command_line, CommandLinePorts& ports
 );
 
 class RngSeedPorts {

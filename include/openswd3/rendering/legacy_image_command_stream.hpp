@@ -41,8 +41,7 @@ struct LegacyImageCommandStreamResult {
 
 // sub_4014F0. A format value of 16 selects the word path; every other value
 // follows the original byte path and is copied unchanged into the header.
-[[nodiscard]] LegacyImageCommandStreamResult
-encode_legacy_image_command_stream(
+[[nodiscard]] LegacyImageCommandStreamResult encode_legacy_image_command_stream(
     std::span<const compat::u8> pixels,
     compat::u16 width,
     compat::u16 height,
@@ -51,9 +50,7 @@ encode_legacy_image_command_stream(
 
 // sub_4019A0. The decoder accepts depths 8 and 16 after masking with 0x3FFF.
 [[nodiscard]] LegacyImageCommandStreamResult
-decode_legacy_image_command_stream(
-    std::span<const compat::u8> command_stream
-);
+decode_legacy_image_command_stream(std::span<const compat::u8> command_stream);
 
 // sub_401B70. Only literal word runs are converted; command words and the
 // stream header remain unchanged.

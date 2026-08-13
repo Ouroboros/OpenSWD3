@@ -17,8 +17,7 @@ namespace {
 constexpr compat::u32 kLegacyDatPrefixSize = 0x0200U;
 
 [[nodiscard]] bool ascii_case_equal(
-    const std::string_view left,
-    const std::string_view right
+    const std::string_view left, const std::string_view right
 ) noexcept {
     if (left.size() != right.size()) {
         return false;
@@ -34,8 +33,7 @@ constexpr compat::u32 kLegacyDatPrefixSize = 0x0200U;
 }
 
 [[nodiscard]] std::filesystem::path resolve_legacy_filename(
-    const std::filesystem::path& root,
-    const std::string_view filename
+    const std::filesystem::path& root, const std::string_view filename
 ) {
     const std::filesystem::path direct = root / filename;
     std::error_code error;
@@ -56,23 +54,20 @@ constexpr compat::u32 kLegacyDatPrefixSize = 0x0200U;
 }
 
 [[nodiscard]] compat::u32 read_u32(
-    const std::span<const compat::u8> bytes,
-    const std::size_t offset
+    const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u32>(bytes[offset]) |
-           (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
-           (static_cast<compat::u32>(bytes[offset + 2U]) << 16U) |
-           (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
+        (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
+        (static_cast<compat::u32>(bytes[offset + 2U]) << 16U) |
+        (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
 }
 
-[[nodiscard]] bool seek_exact(
-    resource_io::LegacyFile& file,
-    const compat::u32 offset
-) noexcept {
+[[nodiscard]] bool
+seek_exact(resource_io::LegacyFile& file, const compat::u32 offset) noexcept {
     return offset <=
-               static_cast<compat::u32>(std::numeric_limits<compat::i32>::max()) &&
-           file.seek_begin_one_based(static_cast<compat::i32>(offset)) ==
-               offset + 1U;
+        static_cast<compat::u32>(std::numeric_limits<compat::i32>::max()) &&
+        file.seek_begin_one_based(static_cast<compat::i32>(offset)) ==
+        offset + 1U;
 }
 
 [[nodiscard]] LegacyBattleAssetStatus read_ffd_header(
@@ -95,14 +90,16 @@ constexpr compat::u32 kLegacyDatPrefixSize = 0x0200U;
     LegacyBattleAssets& destination
 ) {
     resource_io::LegacyFile file;
-    if (!file.open(path, resource_io::LegacyFileCreation::open_existing,
-                   resource_io::LegacyFileAccess::read,
-                   resource_io::LegacyFileSharing::read)) {
+    if (!file.open(
+            path,
+            resource_io::LegacyFileCreation::open_existing,
+            resource_io::LegacyFileAccess::read,
+            resource_io::LegacyFileSharing::read
+        )) {
         return LegacyBattleAssetStatus::figtalk_open_failed;
     }
 
-    const compat::u32 table_offset =
-        kLegacyDatPrefixSize +
+    const compat::u32 table_offset = kLegacyDatPrefixSize +
         static_cast<compat::u32>(battle_id) * sizeof(compat::u32);
     if (!seek_exact(file, table_offset)) {
         return LegacyBattleAssetStatus::figtalk_table_seek_failed;
@@ -141,9 +138,11 @@ constexpr compat::u32 kLegacyDatPrefixSize = 0x0200U;
 ) {
     {
         resource_io::LegacyFile header_file;
-        if (!header_file.open(path,
-                              resource_io::LegacyFileCreation::open_existing,
-                              resource_io::LegacyFileAccess::read)) {
+        if (!header_file.open(
+                path,
+                resource_io::LegacyFileCreation::open_existing,
+                resource_io::LegacyFileAccess::read
+            )) {
             return LegacyBattleAssetStatus::ffd_header_open_failed;
         }
         const LegacyBattleAssetStatus header_status = read_ffd_header(
@@ -158,9 +157,11 @@ constexpr compat::u32 kLegacyDatPrefixSize = 0x0200U;
     }
 
     resource_io::LegacyFile record_file;
-    if (!record_file.open(path,
-                          resource_io::LegacyFileCreation::open_existing,
-                          resource_io::LegacyFileAccess::read)) {
+    if (!record_file.open(
+            path,
+            resource_io::LegacyFileCreation::open_existing,
+            resource_io::LegacyFileAccess::read
+        )) {
         return LegacyBattleAssetStatus::ffd_record_open_failed;
     }
     const LegacyBattleAssetStatus repeated_header_status = read_ffd_header(
@@ -195,12 +196,10 @@ constexpr compat::u32 kLegacyDatPrefixSize = 0x0200U;
         return LegacyBattleAssetStatus::record_index_out_of_range;
     }
 
-    const std::size_t index_offset =
-        kLegacyBattleFfdIndexOffset +
+    const std::size_t index_offset = kLegacyBattleFfdIndexOffset +
         static_cast<std::size_t>(record_index) * sizeof(compat::u32);
     destination.record_ordinal = read_u32(destination.ffd_header, index_offset);
-    const std::uint64_t record_offset =
-        kLegacyBattleFfdHeaderSize +
+    const std::uint64_t record_offset = kLegacyBattleFfdHeaderSize +
         static_cast<std::uint64_t>(destination.record_ordinal) *
             kLegacyBattleFfdRecordSize;
     if (record_offset >
@@ -214,19 +213,21 @@ constexpr compat::u32 kLegacyDatPrefixSize = 0x0200U;
     std::ranges::fill(destination.ffd_record, compat::u8{});
     destination.record_actual_size =
         static_cast<compat::u32>(destination.ffd_record.size());
-    if (!record_file.read(destination.ffd_record,
-                          destination.record_actual_size)) {
+    if (!record_file.read(
+            destination.ffd_record, destination.record_actual_size
+        )) {
         destination.record_actual_size = 0U;
         return LegacyBattleAssetStatus::record_read_failed;
     }
     return destination.record_actual_size == destination.ffd_record.size()
-               ? LegacyBattleAssetStatus::ready
-               : LegacyBattleAssetStatus::record_short_read;
+        ? LegacyBattleAssetStatus::ready
+        : LegacyBattleAssetStatus::record_short_read;
 }
 
 }  // namespace
 
-compat::u16 LegacyBattleAssets::record_u16(const std::size_t offset) const noexcept {
+compat::u16
+LegacyBattleAssets::record_u16(const std::size_t offset) const noexcept {
     if (offset + 1U >= ffd_record.size()) {
         return 0U;
     }

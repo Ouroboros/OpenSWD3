@@ -26,18 +26,16 @@ public:
     virtual ~LegacyMediaAcquisitionPorts() = default;
 
     virtual void service_audio() = 0;
-    [[nodiscard]] virtual bool file_exists(
-        const std::filesystem::path& path
-    ) = 0;
+    [[nodiscard]] virtual bool
+    file_exists(const std::filesystem::path& path) = 0;
 };
 
 void begin_legacy_media_wait(compat::u32& process_flags) noexcept;
 void complete_legacy_media_wait(compat::u32& process_flags) noexcept;
 void cancel_legacy_media_wait(compat::u32& process_flags) noexcept;
 
-[[nodiscard]] std::filesystem::path legacy_optical_media_marker_path(
-    const std::filesystem::path& media_root
-);
+[[nodiscard]] std::filesystem::path
+legacy_optical_media_marker_path(const std::filesystem::path& media_root);
 
 [[nodiscard]] LegacyMediaLocationResult resolve_configured_legacy_media(
     const std::filesystem::path& configured_data_directory,

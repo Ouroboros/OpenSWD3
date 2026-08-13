@@ -59,10 +59,7 @@ public:
         return stream_absent;
     }
 
-    void configure_stream_transition(
-        const i32 mode,
-        const i32 value
-    ) override {
+    void configure_stream_transition(const i32 mode, const i32 value) override {
         events.push_back(event(PortCall::configure_transition, mode, value));
     }
 
@@ -71,21 +68,17 @@ public:
     }
 
     std::string_view music_source_filename(const u32 music_id) override {
-        events.push_back(event(
-            PortCall::source_filename,
-            static_cast<i32>(music_id)
-        ));
+        events.push_back(
+            event(PortCall::source_filename, static_cast<i32>(music_id))
+        );
         last_resolved_id = music_id;
         return source_filename;
     }
 
     void play_music_stream(const std::string_view filename) override {
-        events.push_back(event(
-            PortCall::play_stream,
-            0,
-            0,
-            std::string{filename}
-        ));
+        events.push_back(
+            event(PortCall::play_stream, 0, 0, std::string{filename})
+        );
     }
 
     void set_music_stream_volume(const i32 mix_level) override {
@@ -178,7 +171,9 @@ void test_map_request_update(openswd3::test::Context& test) {
 
         update_legacy_world_music_request(state, table, 99U, ports);
         test.expect_equal(state.music_slots[1U], 0U, "missing first slot zero");
-        test.expect_equal(state.music_slots[2U], 0U, "missing second slot zero");
+        test.expect_equal(
+            state.music_slots[2U], 0U, "missing second slot zero"
+        );
         test.expect_equal(
             state.request_flags,
             0x00000055U,
@@ -238,9 +233,7 @@ void test_world_music_service(openswd3::test::Context& test) {
             "slot zero pending mode overwrites slot three pending mode"
         );
         test.expect_equal(
-            state.music_slots[0U],
-            2U,
-            "slot zero pending bit is consumed"
+            state.music_slots[0U], 2U, "slot zero pending bit is consumed"
         );
         test.expect_equal(
             state.music_slots[3U],
@@ -248,19 +241,16 @@ void test_world_music_service(openswd3::test::Context& test) {
             "slot three pending bit is consumed first"
         );
         test.expect_equal(state.request_flags, 1U, "mode advances to one");
-        test.expect_equal(ports.last_resolved_id, 42U, "normal slot one chosen");
+        test.expect_equal(
+            ports.last_resolved_id, 42U, "normal slot one chosen"
+        );
         test.expect_equal(
             ports.events,
             std::vector<PortEvent>{
                 event(PortCall::poll_transition),
                 event(PortCall::stream_absent),
                 event(PortCall::source_filename, 42),
-                event(
-                    PortCall::play_stream,
-                    0,
-                    0,
-                    "R:\\Music\\Map_Ca00.mp3"
-                ),
+                event(PortCall::play_stream, 0, 0, "R:\\Music\\Map_Ca00.mp3"),
                 event(PortCall::set_volume, 9),
             },
             "resolve, play and volume order follows 0x0040CECD-0x0040CEE5"

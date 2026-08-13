@@ -39,18 +39,13 @@ struct LegacyKeyBindingBlock {
     std::array<compat::u32, kLegacyKeyBindingWordCount> words{};
 };
 
-void initialize_default_key_bindings(
-    LegacyKeyBindingBlock& block
-) noexcept;
+void initialize_default_key_bindings(LegacyKeyBindingBlock& block) noexcept;
 
-[[nodiscard]] compat::u32& key_binding(
-    LegacyKeyBindingBlock& block,
-    LegacyKeyBinding binding
-) noexcept;
+[[nodiscard]] compat::u32&
+key_binding(LegacyKeyBindingBlock& block, LegacyKeyBinding binding) noexcept;
 
 [[nodiscard]] const compat::u32& key_binding(
-    const LegacyKeyBindingBlock& block,
-    LegacyKeyBinding binding
+    const LegacyKeyBindingBlock& block, LegacyKeyBinding binding
 ) noexcept;
 
 struct LegacyInputRecord {
@@ -103,22 +98,18 @@ struct LegacyInputNormalizationState {
 ) noexcept;
 
 [[nodiscard]] compat::u32 read_raw_key(
-    const LegacyKeyboardSnapshot& snapshot,
-    compat::u32 dik_code
+    const LegacyKeyboardSnapshot& snapshot, compat::u32 dik_code
 ) noexcept;
 
 void synthesize_raw_key(
-    LegacyKeyboardSnapshot& snapshot,
-    compat::u32 dik_code
+    LegacyKeyboardSnapshot& snapshot, compat::u32 dik_code
 ) noexcept;
 
-[[nodiscard]] compat::u32 find_first_pressed_key(
-    const LegacyKeyboardSnapshot& snapshot
-) noexcept;
+[[nodiscard]] compat::u32
+find_first_pressed_key(const LegacyKeyboardSnapshot& snapshot) noexcept;
 
 void set_mouse_sensitivity(
-    LegacyMouseState& state,
-    double sensitivity
+    LegacyMouseState& state, double sensitivity
 ) noexcept;
 
 void rebase_mouse_coordinates(
@@ -129,13 +120,11 @@ void rebase_mouse_coordinates(
 ) noexcept;
 
 [[nodiscard]] LegacyMouseFrame normalize_mouse_sample(
-    LegacyMouseState& state,
-    const LegacyMouseDeviceSample& sample
+    LegacyMouseState& state, const LegacyMouseDeviceSample& sample
 ) noexcept;
 
 void begin_input_normalization(
-    LegacyInputNormalizationState& state,
-    compat::u32 current_milliseconds
+    LegacyInputNormalizationState& state, compat::u32 current_milliseconds
 ) noexcept;
 
 void normalize_input_frame(

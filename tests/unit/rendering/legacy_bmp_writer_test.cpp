@@ -19,8 +19,7 @@ using openswd3::compat::u32;
 using openswd3::rendering::LegacyBmpWriteStatus;
 using openswd3::rendering::LegacyPixelConversionState;
 
-class MemoryBmpPorts final
-    : public openswd3::rendering::LegacyBmpWriterPorts {
+class MemoryBmpPorts final : public openswd3::rendering::LegacyBmpWriterPorts {
 public:
     bool open_or_create_without_truncation(
         const std::string_view filename
@@ -49,8 +48,7 @@ public:
             file.resize(end);
         }
         std::ranges::copy(
-            bytes,
-            file.begin() + static_cast<std::ptrdiff_t>(position)
+            bytes, file.begin() + static_cast<std::ptrdiff_t>(position)
         );
         position = static_cast<u32>(end);
         return true;
@@ -68,7 +66,9 @@ public:
         ++close_calls;
     }
 
-    void maintain_audio() override { ++audio_calls; }
+    void maintain_audio() override {
+        ++audio_calls;
+    }
 
     bool open_succeeds{true};
     bool io_succeeds{true};
@@ -80,10 +80,8 @@ public:
     std::vector<u8> file;
 };
 
-[[nodiscard]] u32 read_u32_le(
-    const std::span<const u8> bytes,
-    const std::size_t offset
-) {
+[[nodiscard]] u32
+read_u32_le(const std::span<const u8> bytes, const std::size_t offset) {
     return static_cast<u32>(bytes[offset]) |
         (static_cast<u32>(bytes[offset + 1U]) << 8U) |
         (static_cast<u32>(bytes[offset + 2U]) << 16U) |
@@ -98,63 +96,62 @@ void test_exact_rgb555_bmp(openswd3::test::Context& test) {
         0x7FFFU,
     };
     MemoryBmpPorts ports;
-    const auto result =
-        openswd3::rendering::write_legacy_16bit_framebuffer_bmp(
-            pixels,
-            2,
-            2,
-            "ScrnShot/00000.bmp",
-            LegacyPixelConversionState{},
-            ports
-        );
+    const auto result = openswd3::rendering::write_legacy_16bit_framebuffer_bmp(
+        pixels, 2, 2, "ScrnShot/00000.bmp", LegacyPixelConversionState{}, ports
+    );
 
     test.expect_equal(
-        result.status,
-        LegacyBmpWriteStatus::completed,
-        "RGB555 BMP completes"
+        result.status, LegacyBmpWriteStatus::completed, "RGB555 BMP completes"
     );
     test.expect_equal(result.row_stride, 8U, "24-bit rows are DWORD aligned");
     test.expect_equal(result.logical_file_size, 70U, "logical BMP size");
     test.expect_equal(ports.file.size(), std::size_t{70U}, "physical size");
     test.expect_equal(
-        ports.opened_filename,
-        std::string{"ScrnShot/00000.bmp"},
-        "filename"
+        ports.opened_filename, std::string{"ScrnShot/00000.bmp"}, "filename"
     );
     test.expect_equal(ports.close_calls, 1U, "successful writer closes once");
     test.expect_equal(
-        ports.audio_calls,
-        2U,
-        "row zero and final cleanup service audio"
+        ports.audio_calls, 2U, "row zero and final cleanup service audio"
     );
 
     test.expect_equal(ports.file[0], u8{0x42U}, "BMP signature B");
     test.expect_equal(ports.file[1], u8{0x4DU}, "BMP signature M");
     test.expect_equal(read_u32_le(ports.file, 2U), 70U, "patched file size");
-    test.expect_equal(read_u32_le(ports.file, 10U), 54U, "patched pixel offset");
-    test.expect_equal(read_u32_le(ports.file, 14U), 40U, "BITMAPINFOHEADER size");
+    test.expect_equal(
+        read_u32_le(ports.file, 10U), 54U, "patched pixel offset"
+    );
+    test.expect_equal(
+        read_u32_le(ports.file, 14U), 40U, "BITMAPINFOHEADER size"
+    );
     test.expect_equal(read_u32_le(ports.file, 18U), 2U, "BMP width");
     test.expect_equal(read_u32_le(ports.file, 22U), 2U, "BMP height");
     test.expect_equal(ports.file[26U], u8{1U}, "one color plane");
     test.expect_equal(ports.file[28U], u8{24U}, "24 bits per pixel");
     test.expect_equal(
-        read_u32_le(ports.file, 34U),
-        0U,
-        "legacy image size remains zero"
+        read_u32_le(ports.file, 34U), 0U, "legacy image size remains zero"
     );
 
     constexpr std::array<u8, 16U> expected_pixels{
-        0xF8U, 0x00U, 0x00U,
-        0xF8U, 0xF8U, 0xF8U,
-        0x00U, 0x00U,
-        0x00U, 0x00U, 0xF8U,
-        0x00U, 0xF8U, 0x00U,
-        0x00U, 0x00U,
+        0xF8U,
+        0x00U,
+        0x00U,
+        0xF8U,
+        0xF8U,
+        0xF8U,
+        0x00U,
+        0x00U,
+        0x00U,
+        0x00U,
+        0xF8U,
+        0x00U,
+        0xF8U,
+        0x00U,
+        0x00U,
+        0x00U,
     };
     test.expect_true(
         std::ranges::equal(
-            std::span<const u8>{ports.file}.subspan(54U),
-            expected_pixels
+            std::span<const u8>{ports.file}.subspan(54U), expected_pixels
         ),
         "pixels are bottom-up BGR with zero row padding"
     );
@@ -163,20 +160,13 @@ void test_exact_rgb555_bmp(openswd3::test::Context& test) {
 void test_reverse_conversion(openswd3::test::Context& test) {
     LegacyPixelConversionState conversion;
     openswd3::rendering::select_legacy_pixel_conversion(
-        conversion,
-        {0xF800U, 0x07E0U, 0x001FU}
+        conversion, {0xF800U, 0x07E0U, 0x001FU}
     );
     constexpr std::array<u16, 1U> rgb565_green{0x07E0U};
     MemoryBmpPorts ports;
-    const auto result =
-        openswd3::rendering::write_legacy_16bit_framebuffer_bmp(
-            rgb565_green,
-            1,
-            1,
-            "green.bmp",
-            conversion,
-            ports
-        );
+    const auto result = openswd3::rendering::write_legacy_16bit_framebuffer_bmp(
+        rgb565_green, 1, 1, "green.bmp", conversion, ports
+    );
 
     test.expect_equal(
         result.status,
@@ -191,15 +181,9 @@ void test_reverse_conversion(openswd3::test::Context& test) {
 void test_audio_service_cadence(openswd3::test::Context& test) {
     std::vector<u16> pixels(16U);
     MemoryBmpPorts ports;
-    const auto result =
-        openswd3::rendering::write_legacy_16bit_framebuffer_bmp(
-            pixels,
-            1,
-            16,
-            "cadence.bmp",
-            LegacyPixelConversionState{},
-            ports
-        );
+    const auto result = openswd3::rendering::write_legacy_16bit_framebuffer_bmp(
+        pixels, 1, 16, "cadence.bmp", LegacyPixelConversionState{}, ports
+    );
 
     test.expect_equal(
         result.status,
@@ -217,20 +201,12 @@ void test_open_always_preserves_tail(openswd3::test::Context& test) {
     constexpr std::array<u16, 1U> pixels{0U};
     MemoryBmpPorts ports;
     ports.file.assign(80U, 0xAAU);
-    const auto result =
-        openswd3::rendering::write_legacy_16bit_framebuffer_bmp(
-            pixels,
-            1,
-            1,
-            "existing.bmp",
-            LegacyPixelConversionState{},
-            ports
-        );
+    const auto result = openswd3::rendering::write_legacy_16bit_framebuffer_bmp(
+        pixels, 1, 1, "existing.bmp", LegacyPixelConversionState{}, ports
+    );
 
     test.expect_equal(
-        result.logical_file_size,
-        58U,
-        "header records overwritten logical end"
+        result.logical_file_size, 58U, "header records overwritten logical end"
     );
     test.expect_equal(
         ports.file.size(),
@@ -263,7 +239,9 @@ void test_rejections(openswd3::test::Context& test) {
         LegacyBmpWriteStatus::invalid_request,
         "short source rejected"
     );
-    test.expect_false(invalid_ports.opened, "invalid request never opens output");
+    test.expect_false(
+        invalid_ports.opened, "invalid request never opens output"
+    );
 
     MemoryBmpPorts failed_open_ports;
     failed_open_ports.open_succeeds = false;
@@ -282,9 +260,7 @@ void test_rejections(openswd3::test::Context& test) {
         "open failure reported"
     );
     test.expect_equal(
-        failed_open_ports.close_calls,
-        0U,
-        "failed open is not closed"
+        failed_open_ports.close_calls, 0U, "failed open is not closed"
     );
     test.expect_equal(
         failed_open_ports.audio_calls,

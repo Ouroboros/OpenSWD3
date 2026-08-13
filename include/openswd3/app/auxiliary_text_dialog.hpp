@@ -43,8 +43,7 @@ public:
 };
 
 void execute_auxiliary_text_dialog_action(
-    AuxiliaryTextDialogAction action,
-    AuxiliaryTextDialogPorts& ports
+    AuxiliaryTextDialogAction action, AuxiliaryTextDialogPorts& ports
 );
 
 }  // namespace openswd3::app

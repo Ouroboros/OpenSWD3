@@ -24,29 +24,20 @@ public:
     virtual void close_stream(LegacyStreamHandle handle) = 0;
 
     virtual void set_stream_user_data(
-        LegacyStreamHandle handle,
-        compat::u32 slot,
-        compat::i32 value
+        LegacyStreamHandle handle, compat::u32 slot, compat::i32 value
     ) = 0;
-    [[nodiscard]] virtual compat::i32 stream_user_data(
-        LegacyStreamHandle handle,
-        compat::u32 slot
-    ) = 0;
-    virtual void set_stream_volume(
-        LegacyStreamHandle handle,
-        compat::i32 volume
-    ) = 0;
-    [[nodiscard]] virtual compat::i32 stream_volume(
-        LegacyStreamHandle handle
-    ) = 0;
+    [[nodiscard]] virtual compat::i32
+    stream_user_data(LegacyStreamHandle handle, compat::u32 slot) = 0;
+    virtual void
+    set_stream_volume(LegacyStreamHandle handle, compat::i32 volume) = 0;
+    [[nodiscard]] virtual compat::i32
+    stream_volume(LegacyStreamHandle handle) = 0;
     virtual void set_stream_loop_count(
-        LegacyStreamHandle handle,
-        compat::i32 loop_count
+        LegacyStreamHandle handle, compat::i32 loop_count
     ) = 0;
     virtual void start_stream(LegacyStreamHandle handle) = 0;
-    [[nodiscard]] virtual compat::u32 stream_status(
-        LegacyStreamHandle handle
-    ) = 0;
+    [[nodiscard]] virtual compat::u32
+    stream_status(LegacyStreamHandle handle) = 0;
     virtual void stream_ms_position(
         LegacyStreamHandle handle,
         compat::i32& total_milliseconds,
@@ -69,9 +60,8 @@ public:
     LegacyStreamManager(LegacyStreamManager&&) = delete;
     LegacyStreamManager& operator=(LegacyStreamManager&&) = delete;
 
-    [[nodiscard]] LegacyStreamManagerInitializeStatus initialize_pool(
-        compat::u32 driver_token
-    );
+    [[nodiscard]] LegacyStreamManagerInitializeStatus
+    initialize_pool(compat::u32 driver_token);
     [[nodiscard]] bool shutdown();
 
     [[nodiscard]] bool initialized() const noexcept;
@@ -80,20 +70,16 @@ public:
     [[nodiscard]] compat::u32 driver_token() const noexcept;
     [[nodiscard]] std::string_view last_error() const noexcept;
 
-    [[nodiscard]] compat::i32 set_volume(
-        compat::i32 stream_id,
-        compat::i32 volume
-    );
+    [[nodiscard]] compat::i32
+    set_volume(compat::i32 stream_id, compat::i32 volume);
     [[nodiscard]] compat::i32 play(
         std::string_view filename,
         compat::i32 stream_id,
         compat::i32 volume,
         compat::i32 loop_count
     );
-    [[nodiscard]] compat::i32 begin_fade(
-        compat::i32 stream_id,
-        compat::i32 divisor
-    );
+    [[nodiscard]] compat::i32
+    begin_fade(compat::i32 stream_id, compat::i32 divisor);
     [[nodiscard]] bool service();
     [[nodiscard]] bool stream_absent(compat::i32 stream_id);
 

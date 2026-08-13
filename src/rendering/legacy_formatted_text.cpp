@@ -26,54 +26,39 @@ constexpr u32 kTextFlags = 4U;
     return std::bit_cast<i32>(value);
 }
 
-[[nodiscard]] constexpr i32 wrapping_add(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_add(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) + to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_multiply(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_multiply(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) * to_bits(right));
 }
 
 [[nodiscard]] bool marker_at(
-    const std::span<const u8> text,
-    const std::size_t index,
-    const u8 marker
+    const std::span<const u8> text, const std::size_t index, const u8 marker
 ) noexcept {
-    return index < text.size() &&
-        text.size() - index >= 2U &&
-        text[index] == static_cast<u8>('%') &&
-        text[index + 1U] == marker;
+    return index < text.size() && text.size() - index >= 2U &&
+        text[index] == static_cast<u8>('%') && text[index + 1U] == marker;
 }
 
-[[nodiscard]] i32 segment_x(
-    const i32 base_x,
-    const i32 flushed_byte_count
-) noexcept {
+[[nodiscard]] i32
+segment_x(const i32 base_x, const i32 flushed_byte_count) noexcept {
     return wrapping_add(
-        base_x,
-        wrapping_multiply(flushed_byte_count, kByteAdvance)
+        base_x, wrapping_multiply(flushed_byte_count, kByteAdvance)
     );
 }
 
-[[nodiscard]] i32 final_y(
-    const i32 base_y,
-    const i32 completed_line_break_count
-) noexcept {
+[[nodiscard]] i32
+final_y(const i32 base_y, const i32 completed_line_break_count) noexcept {
     return wrapping_add(
-        base_y,
-        wrapping_multiply(completed_line_break_count, kLineAdvance)
+        base_y, wrapping_multiply(completed_line_break_count, kLineAdvance)
     );
 }
 
 void record_draw_result(
-    LegacyFormattedTextResult& result,
-    const LegacyTextDrawResult& draw_result
+    LegacyFormattedTextResult& result, const LegacyTextDrawResult& draw_result
 ) noexcept {
     ++result.draw_call_count;
     result.last_draw_result = draw_result;
@@ -91,9 +76,7 @@ public:
         LegacyGlyphProvider& provider,
         const LegacyTextRendererState& state
     ) noexcept
-        : framebuffer_(framebuffer),
-          cache_(cache),
-          provider_(provider),
+        : framebuffer_(framebuffer), cache_(cache), provider_(provider),
           state_(state) {}
 
     [[nodiscard]] LegacyTextDrawResult draw_segment(
@@ -142,15 +125,14 @@ LegacyFormattedTextResult layout_legacy_formatted_text(
         segment[segment_size] = 0U;
         const LegacyTextDrawResult draw_result = sink.draw_segment(
             LegacyFormattedTextSegmentRequest{
-                .destination_x = segment_x(
-                    request.destination_x,
-                    flushed_byte_count
-                ),
+                .destination_x =
+                    segment_x(request.destination_x, flushed_byte_count),
                 .destination_y = destination_y,
-                .nul_terminated_text = std::span<const u8>{
-                    segment.data(),
-                    segment_size + 1U,
-                },
+                .nul_terminated_text =
+                    std::span<const u8>{
+                        segment.data(),
+                        segment_size + 1U,
+                    },
                 .foreground_color = foreground_color,
                 .flags = kTextFlags,
             }
@@ -159,13 +141,12 @@ LegacyFormattedTextResult layout_legacy_formatted_text(
     };
 
     const auto finish = [&]() noexcept {
-        emit_segment(final_y(
-            request.destination_y,
-            result.completed_line_break_count
-        ));
+        emit_segment(
+            final_y(request.destination_y, result.completed_line_break_count)
+        );
         result.next_byte_index = source_index;
-        result.status = result.first_failed_draw_status ==
-                LegacyTextDrawStatus::completed
+        result.status =
+            result.first_failed_draw_status == LegacyTextDrawStatus::completed
             ? LegacyFormattedTextStatus::completed
             : LegacyFormattedTextStatus::segment_draw_failed;
         return result;
@@ -185,19 +166,13 @@ LegacyFormattedTextResult layout_legacy_formatted_text(
             return finish();
         }
 
-        const bool explicit_newline = marker_at(
-            request.text,
-            source_index,
-            static_cast<u8>('N')
-        );
-        const i32 occupied_byte_count = wrapping_add(
-            flushed_byte_count,
-            segment_byte_count
-        );
-        const bool width_overflow = wrapping_multiply(
-            occupied_byte_count,
-            kByteAdvance
-        ) > request.maximum_width;
+        const bool explicit_newline =
+            marker_at(request.text, source_index, static_cast<u8>('N'));
+        const i32 occupied_byte_count =
+            wrapping_add(flushed_byte_count, segment_byte_count);
+        const bool width_overflow =
+            wrapping_multiply(occupied_byte_count, kByteAdvance) >
+            request.maximum_width;
 
         if (explicit_newline || width_overflow) {
             emit_segment(current_y);
@@ -215,9 +190,7 @@ LegacyFormattedTextResult layout_legacy_formatted_text(
                 }
 
                 if (marker_at(
-                        request.text,
-                        source_index,
-                        static_cast<u8>('Q')
+                        request.text, source_index, static_cast<u8>('Q')
                     )) {
                     return finish();
                 }
@@ -225,11 +198,7 @@ LegacyFormattedTextResult layout_legacy_formatted_text(
             }
         }
 
-        if (marker_at(
-                request.text,
-                source_index,
-                static_cast<u8>('C')
-            )) {
+        if (marker_at(request.text, source_index, static_cast<u8>('C'))) {
             if (request.text.size() - source_index < 3U ||
                 request.text[source_index + 2U] == 0U) {
                 result.status =
@@ -241,15 +210,14 @@ LegacyFormattedTextResult layout_legacy_formatted_text(
             emit_segment(current_y);
             segment.fill(0U);
             segment_size = 0U;
-            flushed_byte_count = wrapping_add(
-                flushed_byte_count,
-                segment_byte_count
-            );
+            flushed_byte_count =
+                wrapping_add(flushed_byte_count, segment_byte_count);
             source_index += 3U;
             foreground_color = static_cast<u16>(
-                static_cast<i32>(static_cast<signed char>(
-                    request.text[source_index - 1U]
-                )) - static_cast<i32>('0')
+                static_cast<i32>(
+                    static_cast<signed char>(request.text[source_index - 1U])
+                ) -
+                static_cast<i32>('0')
             );
             segment_byte_count = 0;
         } else {
@@ -258,8 +226,7 @@ LegacyFormattedTextResult layout_legacy_formatted_text(
             if (byte_count == 2U &&
                 (request.text.size() - source_index < 2U ||
                  request.text[source_index + 1U] == 0U)) {
-                result.status =
-                    LegacyFormattedTextStatus::dangling_double_byte;
+                result.status = LegacyFormattedTextStatus::dangling_double_byte;
                 result.next_byte_index = source_index;
                 return result;
             }
@@ -278,11 +245,7 @@ LegacyFormattedTextResult layout_legacy_formatted_text(
             }
         }
 
-        if (marker_at(
-                request.text,
-                source_index,
-                static_cast<u8>('Q')
-            )) {
+        if (marker_at(request.text, source_index, static_cast<u8>('Q'))) {
             return finish();
         }
     }
@@ -296,16 +259,11 @@ LegacyFormattedTextResult draw_legacy_formatted_text(
     const LegacyPixelConversionState& pixel_format,
     const LegacyFormattedTextRequest& request
 ) noexcept {
-    const u32 initial_color_pair = legacy_pack_color_pair(
-        pixel_format,
-        25,
-        23,
-        17
-    );
+    const u32 initial_color_pair =
+        legacy_pack_color_pair(pixel_format, 25, 23, 17);
     renderer_state.background_color = 0xFFFEU;
-    renderer_state.secondary_color = static_cast<u16>(
-        legacy_pack_color_pair(pixel_format, 6, 4, 3)
-    );
+    renderer_state.secondary_color =
+        static_cast<u16>(legacy_pack_color_pair(pixel_format, 6, 4, 3));
 
     TextRendererSegmentSink sink{
         framebuffer,
@@ -314,9 +272,7 @@ LegacyFormattedTextResult draw_legacy_formatted_text(
         renderer_state,
     };
     return layout_legacy_formatted_text(
-        sink,
-        static_cast<u16>(initial_color_pair),
-        request
+        sink, static_cast<u16>(initial_color_pair), request
     );
 }
 

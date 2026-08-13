@@ -23,13 +23,10 @@ void test_focus_changes_remain_live_in_background(
     );
 }
 
-void test_explicit_window_actions_are_preserved(
-    openswd3::test::Context& test
-) {
+void test_explicit_window_actions_are_preserved(openswd3::test::Context& test) {
     SDL_Event event{};
     event.type = SDL_EVENT_WINDOW_MINIMIZED;
-    const auto minimized =
-        openswd3::platform_sdl3::translate_sdl_event(event);
+    const auto minimized = openswd3::platform_sdl3::translate_sdl_event(event);
     test.expect_true(
         minimized.has_value() &&
             minimized->kind == openswd3::app::HostWindowEventKind::size &&
@@ -44,8 +41,7 @@ void test_explicit_window_actions_are_preserved(
     );
 
     event.type = SDL_EVENT_WINDOW_RESTORED;
-    const auto restored =
-        openswd3::platform_sdl3::translate_sdl_event(event);
+    const auto restored = openswd3::platform_sdl3::translate_sdl_event(event);
     test.expect_true(
         restored.has_value() &&
             restored->kind == openswd3::app::HostWindowEventKind::size &&

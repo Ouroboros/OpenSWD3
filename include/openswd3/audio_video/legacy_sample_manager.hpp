@@ -23,8 +23,7 @@ public:
     virtual void release_sample_handle(LegacySampleHandle handle) = 0;
 
     [[nodiscard]] virtual bool set_sample_file(
-        LegacySampleHandle handle,
-        std::span<const compat::u8> bytes
+        LegacySampleHandle handle, std::span<const compat::u8> bytes
     ) = 0;
     [[nodiscard]] virtual bool set_named_sample_file(
         LegacySampleHandle handle,
@@ -34,31 +33,20 @@ public:
     ) = 0;
 
     virtual void set_sample_user_data(
-        LegacySampleHandle handle,
-        compat::u32 slot,
-        compat::u32 value
+        LegacySampleHandle handle, compat::u32 slot, compat::u32 value
     ) = 0;
-    [[nodiscard]] virtual compat::u32 sample_user_data(
-        LegacySampleHandle handle,
-        compat::u32 slot
-    ) = 0;
-    virtual void set_sample_volume(
-        LegacySampleHandle handle,
-        compat::i32 volume
-    ) = 0;
-    virtual void set_sample_pan(
-        LegacySampleHandle handle,
-        compat::i32 pan
-    ) = 0;
+    [[nodiscard]] virtual compat::u32
+    sample_user_data(LegacySampleHandle handle, compat::u32 slot) = 0;
+    virtual void
+    set_sample_volume(LegacySampleHandle handle, compat::i32 volume) = 0;
+    virtual void set_sample_pan(LegacySampleHandle handle, compat::i32 pan) = 0;
     virtual void set_sample_loop_count(
-        LegacySampleHandle handle,
-        compat::i32 loop_count
+        LegacySampleHandle handle, compat::i32 loop_count
     ) = 0;
     virtual void start_sample(LegacySampleHandle handle) = 0;
     virtual void end_sample(LegacySampleHandle handle) = 0;
-    [[nodiscard]] virtual compat::u32 sample_status(
-        LegacySampleHandle handle
-    ) = 0;
+    [[nodiscard]] virtual compat::u32
+    sample_status(LegacySampleHandle handle) = 0;
     virtual void close_output() = 0;
 };
 
@@ -80,8 +68,7 @@ struct LegacySamplePlayRequest {
 class LegacySampleManager final {
 public:
     LegacySampleManager(
-        LegacySampleBackend& backend,
-        LegacySndArchive& archive
+        LegacySampleBackend& backend, LegacySndArchive& archive
     ) noexcept;
     ~LegacySampleManager();
 
@@ -90,9 +77,8 @@ public:
     LegacySampleManager(LegacySampleManager&&) = delete;
     LegacySampleManager& operator=(LegacySampleManager&&) = delete;
 
-    [[nodiscard]] LegacySampleManagerInitializeStatus initialize_pool(
-        compat::i32 requested_handle_count
-    );
+    [[nodiscard]] LegacySampleManagerInitializeStatus
+    initialize_pool(compat::i32 requested_handle_count);
     [[nodiscard]] bool shutdown();
 
     [[nodiscard]] bool initialized() const noexcept;
@@ -104,14 +90,9 @@ public:
     [[nodiscard]] compat::i32 play(LegacySamplePlayRequest request);
     [[nodiscard]] compat::i32 stop(compat::u32 sound_id);
     [[nodiscard]] bool stop_all();
-    [[nodiscard]] compat::i32 set_volume(
-        compat::u32 sound_id,
-        compat::i32 volume
-    );
-    [[nodiscard]] compat::i32 set_pan(
-        compat::u32 sound_id,
-        compat::i32 pan
-    );
+    [[nodiscard]] compat::i32
+    set_volume(compat::u32 sound_id, compat::i32 volume);
+    [[nodiscard]] compat::i32 set_pan(compat::u32 sound_id, compat::i32 pan);
     [[nodiscard]] bool service_completed_samples();
 
     [[nodiscard]] std::size_t active_sample_count() const noexcept;
@@ -141,9 +122,8 @@ private:
 
     [[nodiscard]] compat::u32 retain_buffer(std::vector<compat::u8> bytes);
     void release_buffer(compat::u32 token) noexcept;
-    [[nodiscard]] std::span<const compat::u8> buffer_bytes(
-        compat::u32 token
-    ) const noexcept;
+    [[nodiscard]] std::span<const compat::u8>
+    buffer_bytes(compat::u32 token) const noexcept;
     void release_sample_reference(LegacySampleHandle handle);
 
     LegacySampleBackend& backend_;

@@ -28,9 +28,8 @@ LegacyCmCacheMissPlan prepare_legacy_cm_cache_miss(
     const compat::u32 byte_limit = cache_limit_megabytes << 20U;
     const compat::i32 signed_limit =
         std::bit_cast<compat::i32>(cache_limit_megabytes);
-    const compat::u32 age_threshold = std::bit_cast<compat::u32>(
-        signed_limit / 4
-    );
+    const compat::u32 age_threshold =
+        std::bit_cast<compat::u32>(signed_limit / 4);
 
     while (((result.total_size_after + new_byte_size) > byte_limit &&
             !records.empty()) ||
@@ -63,11 +62,13 @@ LegacyCmCacheMissPlan prepare_legacy_cm_cache_miss(
         }
 
         auto& record = records[selected_index];
-        result.evictions.push_back(LegacyCmCacheEviction{
-            .record_index = selected_index,
-            .stored_slot = record.stored_slot,
-            .byte_size = selected_size,
-        });
+        result.evictions.push_back(
+            LegacyCmCacheEviction{
+                .record_index = selected_index,
+                .stored_slot = record.stored_slot,
+                .byte_size = selected_size,
+            }
+        );
         record = LegacyCmCacheRecord{
             .map_id = kLegacyCmCacheInvalidMap,
             .byte_size = 0U,
@@ -98,8 +99,7 @@ LegacyCmCacheMissPlan prepare_legacy_cm_cache_miss(
 }
 
 LegacyCmCacheLookupResult age_and_find_legacy_cm_cache_record(
-    const std::span<LegacyCmCacheRecord> records,
-    const compat::u32 map_id
+    const std::span<LegacyCmCacheRecord> records, const compat::u32 map_id
 ) noexcept {
     for (auto& record : records) {
         ++record.use_counter;

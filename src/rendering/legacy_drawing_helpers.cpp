@@ -19,17 +19,13 @@ using compat::u32;
     return std::bit_cast<i32>(value);
 }
 
-[[nodiscard]] constexpr i32 wrapping_add(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_add(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) + to_bits(right));
 }
 
-[[nodiscard]] constexpr i32 wrapping_subtract(
-    const i32 left,
-    const i32 right
-) noexcept {
+[[nodiscard]] constexpr i32
+wrapping_subtract(const i32 left, const i32 right) noexcept {
     return from_bits(to_bits(left) - to_bits(right));
 }
 
@@ -39,10 +35,8 @@ using compat::u32;
     const i32 y,
     const i32 pitch_pixels
 ) noexcept {
-    const std::int64_t index =
-        static_cast<std::int64_t>(y) * pitch_pixels + x;
-    return index >= 0 &&
-        static_cast<std::uint64_t>(index) < destination.size();
+    const std::int64_t index = static_cast<std::int64_t>(y) * pitch_pixels + x;
+    return index >= 0 && static_cast<std::uint64_t>(index) < destination.size();
 }
 
 [[nodiscard]] bool border_destination_is_available(
@@ -63,8 +57,7 @@ using compat::u32;
             !pixel_is_available(
                 request.destination,
                 wrapping_subtract(
-                    wrapping_add(request.x, request.width),
-                    offset
+                    wrapping_add(request.x, request.width), offset
                 ),
                 wrapping_add(request.y, request.height),
                 request.pitch_pixels
@@ -84,8 +77,7 @@ using compat::u32;
                 request.destination,
                 request.x,
                 wrapping_subtract(
-                    wrapping_add(request.y, request.height),
-                    offset
+                    wrapping_add(request.y, request.height), offset
                 ),
                 request.pitch_pixels
             )) {
@@ -119,9 +111,8 @@ void write_border_pixel(
     ++result.pixel_writes;
 }
 
-[[nodiscard]] constexpr LegacyBlitClipRectangle current_clip(
-    const LegacyRasterGeometryState& raster
-) noexcept {
+[[nodiscard]] constexpr LegacyBlitClipRectangle
+current_clip(const LegacyRasterGeometryState& raster) noexcept {
     return LegacyBlitClipRectangle{
         .left = raster.clip_left,
         .top = raster.clip_top,
@@ -130,9 +121,8 @@ void write_border_pixel(
     };
 }
 
-[[nodiscard]] constexpr bool accepted_blit_status(
-    const LegacyBlitExecutionStatus status
-) noexcept {
+[[nodiscard]] constexpr bool
+accepted_blit_status(const LegacyBlitExecutionStatus status) noexcept {
     return status == LegacyBlitExecutionStatus::completed ||
         status == LegacyBlitExecutionStatus::clipped_out ||
         status == LegacyBlitExecutionStatus::opacity_disabled;
@@ -204,15 +194,13 @@ LegacyAnimatedBorderResult draw_legacy_animated_border(
     LegacyAnimatedBorderResult result;
     const i32 right = wrapping_add(request.x, request.width);
     const i32 bottom = wrapping_add(request.y, request.height);
-    if (request.x < 0 || request.y < 0 ||
-        right >= kLegacyFramebufferWidth ||
+    if (request.x < 0 || request.y < 0 || right >= kLegacyFramebufferWidth ||
         bottom >= kLegacyFramebufferHeight) {
         result.status = LegacyAnimatedBorderStatus::rejected_bounds;
         return result;
     }
     if (!border_destination_is_available(request)) {
-        result.status =
-            LegacyAnimatedBorderStatus::destination_out_of_bounds;
+        result.status = LegacyAnimatedBorderStatus::destination_out_of_bounds;
         return result;
     }
 
@@ -262,22 +250,19 @@ LegacyAnimatedBorderResult draw_legacy_animated_border(
     return result;
 }
 
-LegacyThumbnailDownsampleStatus downsample_legacy_thumbnail_in_place(
-    const std::span<u16> pixels
-) noexcept {
+LegacyThumbnailDownsampleStatus
+downsample_legacy_thumbnail_in_place(const std::span<u16> pixels) noexcept {
     if (pixels.size() < kLegacyFixedCanvasPixels) {
         return LegacyThumbnailDownsampleStatus::source_too_small;
     }
 
     std::size_t destination = 0U;
     for (i32 output_y = 0; output_y < kLegacyThumbnailHeight; ++output_y) {
-        const std::size_t source_y =
-            static_cast<std::size_t>(output_y) * 4U *
+        const std::size_t source_y = static_cast<std::size_t>(output_y) * 4U *
             static_cast<std::size_t>(kLegacyFramebufferWidth);
-        for (i32 output_x = 0; output_x < kLegacyThumbnailWidth;
-             ++output_x) {
-            const std::size_t source = source_y +
-                static_cast<std::size_t>(output_x) * 4U;
+        for (i32 output_x = 0; output_x < kLegacyThumbnailWidth; ++output_x) {
+            const std::size_t source =
+                source_y + static_cast<std::size_t>(output_x) * 4U;
             pixels[destination] = pixels[source];
             ++destination;
         }
@@ -305,19 +290,14 @@ LegacyDecoratedNumberResult draw_legacy_decorated_number(
         const u32 digit = remaining % 10U;
         LegacyFramePiece piece{};
         if (!load_number_piece(
-                provider,
-                kLegacyNumberDigitResourceId,
-                digit,
-                piece,
-                result
+                provider, kLegacyNumberDigitResourceId, digit, piece, result
             )) {
             result.final_x = x;
             return result;
         }
 
         x = wrapping_subtract(
-            wrapping_subtract(x, 2),
-            static_cast<i32>(piece.width)
+            wrapping_subtract(x, 2), static_cast<i32>(piece.width)
         );
         result.final_x = x;
         result.final_y = digit_y;
@@ -340,11 +320,7 @@ LegacyDecoratedNumberResult draw_legacy_decorated_number(
 
     LegacyFramePiece decoration{};
     if (!load_number_piece(
-            provider,
-            kLegacyNumberDecorationResourceId,
-            0U,
-            decoration,
-            result
+            provider, kLegacyNumberDecorationResourceId, 0U, decoration, result
         )) {
         result.final_x = x;
         return result;

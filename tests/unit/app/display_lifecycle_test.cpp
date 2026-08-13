@@ -90,7 +90,10 @@ public:
 private:
     void record(const DisplayCall call, const u32 argument = 0U) {
         events.push_back(
-            {call, argument, state_.display_active, state_.transition_suppression}
+            {call,
+             argument,
+             state_.display_active,
+             state_.transition_suppression}
         );
     }
 
@@ -123,14 +126,18 @@ public:
     bool perform_shutdown_close(
         const openswd3::app::ShutdownCloseOperation operation
     ) override {
-        events.push_back({ShutdownEventKind::close, static_cast<u32>(operation)});
+        events.push_back(
+            {ShutdownEventKind::close, static_cast<u32>(operation)}
+        );
         return !fail_close || operation != failed_close;
     }
 
     void report_shutdown_close_failure(
         const openswd3::app::ShutdownCloseOperation operation
     ) override {
-        events.push_back({ShutdownEventKind::report, static_cast<u32>(operation)});
+        events.push_back(
+            {ShutdownEventKind::report, static_cast<u32>(operation)}
+        );
     }
 
     bool fail_close{};
@@ -144,9 +151,7 @@ ShutdownEvent operation_event(const openswd3::app::ShutdownOperation value) {
     return {ShutdownEventKind::operation, static_cast<u32>(value)};
 }
 
-ShutdownEvent close_event(
-    const openswd3::app::ShutdownCloseOperation value
-) {
+ShutdownEvent close_event(const openswd3::app::ShutdownCloseOperation value) {
     return {ShutdownEventKind::close, static_cast<u32>(value)};
 }
 
@@ -167,8 +172,12 @@ void test_deactivate(openswd3::test::Context& test) {
         {DisplayCall::release_font, 12, 1, 0},
         {DisplayCall::minimize_window, 0, 0, 1},
     };
-    test.expect_equal(ports.events, expected, "display deactivation call order");
-    test.expect_equal(state.display_active, 0U, "deactivation clears display active");
+    test.expect_equal(
+        ports.events, expected, "display deactivation call order"
+    );
+    test.expect_equal(
+        state.display_active, 0U, "deactivation clears display active"
+    );
     test.expect_equal(
         state.transition_suppression,
         1U,
@@ -193,8 +202,12 @@ void test_reactivate(openswd3::test::Context& test) {
         {DisplayCall::finish_display_recovery, 0, 1, 0},
         {DisplayCall::set_frame_interval, 35, 1, 0},
     };
-    test.expect_equal(ports.events, expected, "display reactivation call order");
-    test.expect_equal(state.display_active, 1U, "reactivation sets display active");
+    test.expect_equal(
+        ports.events, expected, "display reactivation call order"
+    );
+    test.expect_equal(
+        state.display_active, 1U, "reactivation sets display active"
+    );
     test.expect_equal(
         state.transition_suppression,
         0U,
@@ -219,13 +232,17 @@ void test_missing_display_backend(openswd3::test::Context& test) {
         expected,
         "missing display backend returns before every lifecycle side effect"
     );
-    test.expect_equal(state.display_active, 7U, "missing backend preserves display");
+    test.expect_equal(
+        state.display_active, 7U, "missing backend preserves display"
+    );
     test.expect_equal(
         state.transition_suppression,
         8U,
         "missing backend preserves transition suppression"
     );
-    test.expect_equal(state.battle_active, 9U, "missing backend preserves battle");
+    test.expect_equal(
+        state.battle_active, 9U, "missing backend preserves battle"
+    );
 }
 
 void test_shutdown(openswd3::test::Context& test) {
@@ -308,7 +325,9 @@ void test_shutdown(openswd3::test::Context& test) {
     );
     test.expect_equal(
         failure_ports.events.at(36U),
-        ShutdownEvent{ShutdownEventKind::report, static_cast<u32>(path_mapping)},
+        ShutdownEvent{
+            ShutdownEventKind::report, static_cast<u32>(path_mapping)
+        },
         "failure report immediately follows its close"
     );
     test.expect_equal(

@@ -47,7 +47,8 @@ enum class LegacyWorldRoleMapUpdateStatus : compat::u8 {
 
 struct LegacyWorldRoleMapUpdateResult {
     LegacyWorldRoleMapUpdateStatus status{
-        LegacyWorldRoleMapUpdateStatus::ready};
+        LegacyWorldRoleMapUpdateStatus::ready
+    };
     compat::u32 resolved_role_index{kLegacyWorldRoleNotFound};
     compat::u32 physical_party_index{kLegacyWorldRoleNotFound};
     bool runtime_role_found{};
@@ -63,6 +64,7 @@ struct LegacyWorldRoleMapUpdateResult {
 // deliberately not cleared, matching the original fixed-array behavior.
 [[nodiscard]] LegacyWorldRoleMapUpdateResult apply_legacy_world_role_map_update(
     const LegacyWorldRoleMapUpdateRequest& request,
-    const LegacyWorldRoleMapUpdateContext& context) noexcept;
+    const LegacyWorldRoleMapUpdateContext& context
+) noexcept;
 
 }  // namespace openswd3::world_map

@@ -48,8 +48,7 @@ struct BackendEvent {
 class RecordingBackend final : public LegacySequenceBackend {
 public:
     bool open_midi_output(
-        const i32 device_id,
-        LegacyMidiDriverHandle& driver
+        const i32 device_id, LegacyMidiDriverHandle& driver
     ) override {
         const bool success = open_attempt < open_results.size()
             ? open_results[open_attempt]
@@ -71,9 +70,8 @@ public:
         events.push_back({BackendCall::close_output, driver});
     }
 
-    LegacySequenceHandle allocate_sequence_handle(
-        const LegacyMidiDriverHandle driver
-    ) override {
+    LegacySequenceHandle
+    allocate_sequence_handle(const LegacyMidiDriverHandle driver) override {
         events.push_back({BackendCall::allocate, driver});
         return sequence_handle;
     }
@@ -99,17 +97,14 @@ public:
     }
 
     void set_sequence_user_data(
-        const LegacySequenceHandle handle,
-        const u32 slot,
-        const i32 value
+        const LegacySequenceHandle handle, const u32 slot, const i32 value
     ) override {
         user_data = value;
         events.push_back({BackendCall::set_user_data, handle, value, slot});
     }
 
     i32 sequence_user_data(
-        const LegacySequenceHandle handle,
-        const u32 slot
+        const LegacySequenceHandle handle, const u32 slot
     ) override {
         events.push_back({BackendCall::get_user_data, handle, user_data, slot});
         return user_data;
@@ -129,8 +124,7 @@ public:
     }
 
     void set_sequence_loop_count(
-        const LegacySequenceHandle handle,
-        const i32 loop_count
+        const LegacySequenceHandle handle, const i32 loop_count
     ) override {
         events.push_back({BackendCall::set_loop_count, handle, loop_count});
     }
@@ -140,7 +134,9 @@ public:
     }
 
     u32 sequence_status(const LegacySequenceHandle handle) override {
-        events.push_back({BackendCall::status, handle, static_cast<i32>(status)});
+        events.push_back(
+            {BackendCall::status, handle, static_cast<i32>(status)}
+        );
         return status;
     }
 
@@ -176,17 +172,15 @@ public:
     std::vector<BackendEvent> events;
 };
 
-[[nodiscard]] std::filesystem::path artifact_path(
-    const std::string_view filename
-) {
+[[nodiscard]] std::filesystem::path
+artifact_path(const std::string_view filename) {
     const std::filesystem::path root{OPENSWD3_TEST_ARTIFACT_ROOT};
     std::filesystem::create_directories(root);
     return root / filename;
 }
 
 void write_file(
-    const std::filesystem::path& path,
-    const std::span<const u8> bytes
+    const std::filesystem::path& path, const std::span<const u8> bytes
 ) {
     std::ofstream stream(path, std::ios::binary | std::ios::trunc);
     stream.write(
@@ -205,8 +199,7 @@ void test_output_open_paths(openswd3::test::Context& test) {
     );
     test.expect_true(direct_manager.initialized(), "initialized flag is one");
     test.expect_true(
-        direct_manager.sequence_enabled(),
-        "sequence enabled flag is one"
+        direct_manager.sequence_enabled(), "sequence enabled flag is one"
     );
     test.expect_equal(
         direct_manager.midi_driver(),
@@ -315,7 +308,9 @@ void test_play_and_absent_query(openswd3::test::Context& test) {
         "ID lookup preserves the duplicate Miles user-data query"
     );
     backend.clear_events();
-    test.expect_false(manager.sequence_absent(0), "zero queries the active head");
+    test.expect_false(
+        manager.sequence_absent(0), "zero queries the active head"
+    );
     test.expect_equal(
         backend.call_count(BackendCall::get_user_data),
         0U,
@@ -363,7 +358,9 @@ void test_initialize_results_and_service(openswd3::test::Context& test) {
 
     minus_one_backend.status = 4U;
     minus_one_backend.clear_events();
-    test.expect_false(minus_one_manager.service(), "service always returns zero");
+    test.expect_false(
+        minus_one_manager.service(), "service always returns zero"
+    );
     test.expect_equal(
         minus_one_manager.active_sequence_count(),
         1U,

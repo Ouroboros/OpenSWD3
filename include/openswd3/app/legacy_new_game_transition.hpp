@@ -42,8 +42,7 @@ struct LegacyNewGameTransitionResult {
 // event remain owned by special_modes; this boundary starts only after that
 // state machine has selected case 1.
 [[nodiscard]] LegacyNewGameTransitionResult run_legacy_new_game_transition(
-    BattleTransitionState& state,
-    LegacyNewGameTransitionPorts& ports
+    BattleTransitionState& state, LegacyNewGameTransitionPorts& ports
 );
 
 }  // namespace openswd3::app

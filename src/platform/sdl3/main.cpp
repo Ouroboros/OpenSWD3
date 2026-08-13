@@ -99,9 +99,8 @@ constexpr int kInitialWindowHeight = kFrameHeight * 3 / 2;
 constexpr openswd3::compat::u32 kInitialFrameIntervalMilliseconds = 35U;
 constexpr openswd3::compat::i32 kLegacyInitialSampleMixLevel = 6;
 
-[[nodiscard]] std::optional<openswd3::compat::u32> legacy_text_virtual_key(
-    const SDL_Scancode scancode
-) noexcept {
+[[nodiscard]] std::optional<openswd3::compat::u32>
+legacy_text_virtual_key(const SDL_Scancode scancode) noexcept {
     switch (scancode) {
     case SDL_SCANCODE_BACKSPACE:
         return 0x08U;
@@ -182,13 +181,9 @@ void persist_window_configuration(
 
     std::string detail;
     const auto status = openswd3::resource_io::save_window_configuration(
-        configuration_path,
-        normal_size,
-        maximized,
-        detail
+        configuration_path, normal_size, maximized, detail
     );
-    if (status !=
-        openswd3::resource_io::WindowConfigurationStatus::ready) {
+    if (status != openswd3::resource_io::WindowConfigurationStatus::ready) {
         std::string message{"window size: "};
         message.append(
             openswd3::resource_io::window_configuration_status_message(status)
@@ -209,9 +204,8 @@ void persist_window_configuration(
     );
 }
 
-[[nodiscard]] std::vector<openswd3::compat::u8> read_binary_file(
-    const std::filesystem::path& path
-) {
+[[nodiscard]] std::vector<openswd3::compat::u8>
+read_binary_file(const std::filesystem::path& path) {
     std::ifstream stream(path, std::ios::binary | std::ios::ate);
     if (!stream) {
         return {};
@@ -220,9 +214,7 @@ void persist_window_configuration(
     if (size <= 0) {
         return {};
     }
-    std::vector<openswd3::compat::u8> bytes(
-        static_cast<std::size_t>(size)
-    );
+    std::vector<openswd3::compat::u8> bytes(static_cast<std::size_t>(size));
     stream.seekg(0);
     stream.read(
         reinterpret_cast<char*>(bytes.data()),
@@ -247,10 +239,10 @@ void persist_window_configuration(
                framebuffer.physical_pixels().data(),
                geometry.pitch_bytes
            ) &&
-           SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255) &&
-           SDL_RenderClear(&renderer) &&
-           SDL_RenderTexture(&renderer, &texture, nullptr, nullptr) &&
-           SDL_RenderPresent(&renderer);
+        SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255) &&
+        SDL_RenderClear(&renderer) &&
+        SDL_RenderTexture(&renderer, &texture, nullptr, nullptr) &&
+        SDL_RenderPresent(&renderer);
 }
 
 void shutdown_sample_output(
@@ -270,9 +262,7 @@ class UnavailableLegacyStreamBackend final
     : public openswd3::audio_video::LegacyStreamBackend {
 public:
     openswd3::audio_video::LegacyStreamHandle open_stream(
-        openswd3::compat::u32,
-        std::string_view,
-        openswd3::compat::i32
+        openswd3::compat::u32, std::string_view, openswd3::compat::i32
     ) override {
         return 0U;
     }
@@ -288,30 +278,23 @@ public:
         openswd3::compat::i32
     ) override {}
     openswd3::compat::i32 stream_user_data(
-        openswd3::audio_video::LegacyStreamHandle,
-        openswd3::compat::u32
+        openswd3::audio_video::LegacyStreamHandle, openswd3::compat::u32
     ) override {
         return 0;
     }
     void set_stream_volume(
-        openswd3::audio_video::LegacyStreamHandle,
-        openswd3::compat::i32
+        openswd3::audio_video::LegacyStreamHandle, openswd3::compat::i32
     ) override {}
-    openswd3::compat::i32 stream_volume(
-        openswd3::audio_video::LegacyStreamHandle
-    ) override {
+    openswd3::compat::i32
+    stream_volume(openswd3::audio_video::LegacyStreamHandle) override {
         return 0;
     }
     void set_stream_loop_count(
-        openswd3::audio_video::LegacyStreamHandle,
-        openswd3::compat::i32
+        openswd3::audio_video::LegacyStreamHandle, openswd3::compat::i32
     ) override {}
-    void start_stream(
-        openswd3::audio_video::LegacyStreamHandle
-    ) override {}
-    openswd3::compat::u32 stream_status(
-        openswd3::audio_video::LegacyStreamHandle
-    ) override {
+    void start_stream(openswd3::audio_video::LegacyStreamHandle) override {}
+    openswd3::compat::u32
+    stream_status(openswd3::audio_video::LegacyStreamHandle) override {
         return 2U;
     }
     void stream_ms_position(
@@ -339,9 +322,8 @@ public:
         return "MIDI backend is not available";
     }
 
-    void close_midi_output(
-        openswd3::audio_video::LegacyMidiDriverHandle
-    ) override {}
+    void
+    close_midi_output(openswd3::audio_video::LegacyMidiDriverHandle) override {}
     openswd3::audio_video::LegacySequenceHandle allocate_sequence_handle(
         openswd3::audio_video::LegacyMidiDriverHandle
     ) override {
@@ -363,8 +345,7 @@ public:
         openswd3::compat::i32
     ) override {}
     openswd3::compat::i32 sequence_user_data(
-        openswd3::audio_video::LegacySequenceHandle,
-        openswd3::compat::u32
+        openswd3::audio_video::LegacySequenceHandle, openswd3::compat::u32
     ) override {
         return 0;
     }
@@ -374,20 +355,14 @@ public:
         openswd3::compat::i32
     ) override {}
     void set_sequence_loop_count(
-        openswd3::audio_video::LegacySequenceHandle,
-        openswd3::compat::i32
+        openswd3::audio_video::LegacySequenceHandle, openswd3::compat::i32
     ) override {}
-    void start_sequence(
-        openswd3::audio_video::LegacySequenceHandle
-    ) override {}
-    openswd3::compat::u32 sequence_status(
-        openswd3::audio_video::LegacySequenceHandle
-    ) override {
+    void start_sequence(openswd3::audio_video::LegacySequenceHandle) override {}
+    openswd3::compat::u32
+    sequence_status(openswd3::audio_video::LegacySequenceHandle) override {
         return 2U;
     }
-    void end_sequence(
-        openswd3::audio_video::LegacySequenceHandle
-    ) override {}
+    void end_sequence(openswd3::audio_video::LegacySequenceHandle) override {}
 };
 
 class SdlLegacyAudioQueuePorts final
@@ -397,8 +372,8 @@ public:
         openswd3::audio_video::LegacySequenceManager& sequence_manager,
         openswd3::audio_video::LegacyStreamManager& stream_manager
     ) noexcept
-        : sequence_manager_(sequence_manager),
-          stream_manager_(stream_manager) {}
+        : sequence_manager_(sequence_manager), stream_manager_(stream_manager) {
+    }
 
     bool sequence_absent(const openswd3::compat::i32 sequence_id) override {
         return sequence_manager_.sequence_absent(sequence_id);
@@ -412,12 +387,9 @@ public:
         const openswd3::compat::i32 volume,
         const openswd3::compat::i32 loop_count
     ) override {
-        static_cast<void>(sequence_manager_.play(
-            filename,
-            sequence_id,
-            volume,
-            loop_count
-        ));
+        static_cast<void>(
+            sequence_manager_.play(filename, sequence_id, volume, loop_count)
+        );
     }
     void play_stream(
         const std::string_view filename,
@@ -425,12 +397,9 @@ public:
         const openswd3::compat::i32 volume,
         const openswd3::compat::i32 loop_count
     ) override {
-        static_cast<void>(stream_manager_.play(
-            filename,
-            stream_id,
-            volume,
-            loop_count
-        ));
+        static_cast<void>(
+            stream_manager_.play(filename, stream_id, volume, loop_count)
+        );
     }
     void beep() override {}
 
@@ -448,10 +417,9 @@ public:
         openswd3::audio_video::LegacySequenceManager& sequence_manager,
         openswd3::audio_video::LegacySampleManager& sample_manager
     ) noexcept
-        : queue_(queue),
-          stream_manager_(stream_manager),
-          sequence_manager_(sequence_manager),
-          sample_manager_(sample_manager) {}
+        : queue_(queue), stream_manager_(stream_manager),
+          sequence_manager_(sequence_manager), sample_manager_(sample_manager) {
+    }
 
     void service_queue() override {
         static_cast<void>(queue_.service());
@@ -473,9 +441,7 @@ private:
     openswd3::audio_video::LegacySampleManager& sample_manager_;
 };
 
-void service_audio(
-    openswd3::audio_video::LegacyAudioMaintenancePorts& ports
-) {
+void service_audio(openswd3::audio_video::LegacyAudioMaintenancePorts& ports) {
     static_cast<void>(openswd3::audio_video::maintain_legacy_audio(ports));
 }
 
@@ -508,10 +474,8 @@ public:
         openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance,
         openswd3::audio_video::LegacyVideoPlayer& video_player
     )
-        : framebuffer_(framebuffer),
-          pixel_conversion_(pixel_conversion),
-          audio_maintenance_(audio_maintenance),
-          video_player_(video_player) {}
+        : framebuffer_(framebuffer), pixel_conversion_(pixel_conversion),
+          audio_maintenance_(audio_maintenance), video_player_(video_player) {}
 
     void release_active_video() override {
         static_cast<void>(video_player_.close());
@@ -550,14 +514,12 @@ public:
         service_audio(audio_maintenance_);
     }
 
-    bool open_existing_numbered_bmp(
-        const openswd3::compat::u32 sequence
-    ) override {
+    bool
+    open_existing_numbered_bmp(const openswd3::compat::u32 sequence) override {
         existing_stream_.close();
         existing_stream_.clear();
         existing_stream_.open(
-            numbered_screenshot_path(sequence),
-            std::ios::binary
+            numbered_screenshot_path(sequence), std::ios::binary
         );
         return static_cast<bool>(existing_stream_);
     }
@@ -597,8 +559,7 @@ public:
         const std::filesystem::path path =
             std::filesystem::path{std::string{filename}};
         output_stream_.open(
-            path,
-            std::ios::binary | std::ios::in | std::ios::out
+            path, std::ios::binary | std::ios::in | std::ios::out
         );
         if (output_stream_) {
             return true;
@@ -606,8 +567,7 @@ public:
 
         output_stream_.clear();
         std::error_code existence_error;
-        if (std::filesystem::exists(path, existence_error) ||
-            existence_error) {
+        if (std::filesystem::exists(path, existence_error) || existence_error) {
             return false;
         }
         {
@@ -617,23 +577,20 @@ public:
             }
         }
         output_stream_.open(
-            path,
-            std::ios::binary | std::ios::in | std::ios::out
+            path, std::ios::binary | std::ios::in | std::ios::out
         );
         return static_cast<bool>(output_stream_);
     }
 
     bool seek_absolute(const openswd3::compat::u32 offset) override {
         output_stream_.seekp(
-            static_cast<std::streamoff>(offset),
-            std::ios::beg
+            static_cast<std::streamoff>(offset), std::ios::beg
         );
         return static_cast<bool>(output_stream_);
     }
 
-    bool write_bytes(
-        const std::span<const openswd3::compat::u8> bytes
-    ) override {
+    bool
+    write_bytes(const std::span<const openswd3::compat::u8> bytes) override {
         output_stream_.write(
             reinterpret_cast<const char*>(bytes.data()),
             static_cast<std::streamsize>(bytes.size())
@@ -657,9 +614,8 @@ public:
     }
 
 private:
-    [[nodiscard]] static std::filesystem::path numbered_screenshot_path(
-        const openswd3::compat::u32 sequence
-    ) {
+    [[nodiscard]] static std::filesystem::path
+    numbered_screenshot_path(const openswd3::compat::u32 sequence) {
         return std::filesystem::path{"ScrnShot"} /
             openswd3::app::make_legacy_screenshot_filename(sequence);
     }
@@ -676,7 +632,8 @@ class SmokeCommandLinePorts final : public openswd3::app::CommandLinePorts {
 public:
     explicit SmokeCommandLinePorts(
         openswd3::input_time_rng::LegacyKeyBindingBlock& key_bindings
-    ) : key_bindings_(key_bindings) {}
+    )
+        : key_bindings_(key_bindings) {}
 
     void initialize_default_key_bindings() override {
         openswd3::input_time_rng::initialize_default_key_bindings(
@@ -684,10 +641,7 @@ public:
         );
     }
 
-    void run_legacy_command(
-        openswd3::compat::u8,
-        std::string_view
-    ) override {}
+    void run_legacy_command(openswd3::compat::u8, std::string_view) override {}
 
 private:
     openswd3::input_time_rng::LegacyKeyBindingBlock& key_bindings_;
@@ -698,7 +652,8 @@ public:
     SdlRngSeedPorts(
         openswd3::input_time_rng::LegacyCrtRng& crt_rng,
         openswd3::input_time_rng::LegacySecondaryRng& secondary_rng
-    ) : crt_rng_(crt_rng), secondary_rng_(secondary_rng) {}
+    )
+        : crt_rng_(crt_rng), secondary_rng_(secondary_rng) {}
 
     openswd3::compat::u32 read_time_seconds() override {
         return static_cast<openswd3::compat::u32>(std::time(nullptr));
@@ -730,16 +685,15 @@ public:
         openswd3::audio_video::LegacySequenceManager& sequence_manager,
         openswd3::audio_video::LegacyStreamManager& stream_manager
     )
-        : renderer_(renderer),
-          texture_(texture),
-          destroy_requested_(destroy_requested),
-          snd_archive_(snd_archive),
-          sample_backend_(sample_backend),
-          sample_manager_(sample_manager),
-          sequence_manager_(sequence_manager),
-          stream_manager_(stream_manager) {}
+        : renderer_(renderer), texture_(texture),
+          destroy_requested_(destroy_requested), snd_archive_(snd_archive),
+          sample_backend_(sample_backend), sample_manager_(sample_manager),
+          sequence_manager_(sequence_manager), stream_manager_(stream_manager) {
+    }
 
-    bool initialize_input_backend() override { return true; }
+    bool initialize_input_backend() override {
+        return true;
+    }
     void report_input_initialization_failure() override {}
     void request_synchronous_destroy() override {
         destroy_requested_ = true;
@@ -771,11 +725,10 @@ public:
             return;
         }
 
-        const auto manager_status = sample_manager_.initialize_pool(
-            output.sample_handle_count
-        );
-        if (manager_status != openswd3::audio_video::
-                LegacySampleManagerInitializeStatus::ready) {
+        const auto manager_status =
+            sample_manager_.initialize_pool(output.sample_handle_count);
+        if (manager_status !=
+            openswd3::audio_video::LegacySampleManagerInitializeStatus::ready) {
             openswd3::diagnostics::log_error(
                 "sample output: sample handle pool initialization failed"
             );
@@ -786,21 +739,20 @@ public:
             std::string{"sample output initialized: "} +
             std::to_string(output.selected_format.sample_rate) + " Hz, " +
             std::to_string(output.selected_format.bits_per_sample) +
-            "-bit, handles=" +
-            std::to_string(output.sample_handle_count)
+            "-bit, handles=" + std::to_string(output.sample_handle_count)
         );
     }
     openswd3::app::BackendToken query_audio_driver() override {
         return sample_backend_.driver_token();
     }
-    void initialize_midi_output(
-        const openswd3::app::BackendToken driver
-    ) override {
+    void
+    initialize_midi_output(const openswd3::app::BackendToken driver) override {
         const auto status = sequence_manager_.initialize_output(
             static_cast<openswd3::compat::u32>(driver)
         );
-        if (status != openswd3::audio_video::
-                LegacySequenceManagerInitializeStatus::ready) {
+        if (status !=
+            openswd3::audio_video::LegacySequenceManagerInitializeStatus::
+                ready) {
             openswd3::diagnostics::log_error(
                 std::string{"sequence output: MIDI initialization failed: "} +
                 std::string{sequence_manager_.last_error()}
@@ -813,8 +765,8 @@ public:
         const auto status = stream_manager_.initialize_pool(
             static_cast<openswd3::compat::u32>(driver)
         );
-        if (status != openswd3::audio_video::
-                LegacyStreamManagerInitializeStatus::ready) {
+        if (status !=
+            openswd3::audio_video::LegacyStreamManagerInitializeStatus::ready) {
             openswd3::diagnostics::log_error(
                 "stream output: stream node pool initialization failed"
             );
@@ -837,14 +789,12 @@ public:
         static_cast<void>(report_sdl_error("SDL_CreateTexture"));
     }
     openswd3::app::BackendToken create_common_source_surface(
-        openswd3::compat::u32,
-        openswd3::compat::u32
+        openswd3::compat::u32, openswd3::compat::u32
     ) override {
         return reinterpret_cast<openswd3::app::BackendToken>(texture_);
     }
-    openswd3::app::BackendToken query_display_surface(
-        openswd3::compat::u32
-    ) override {
+    openswd3::app::BackendToken
+    query_display_surface(openswd3::compat::u32) override {
         return reinterpret_cast<openswd3::app::BackendToken>(texture_);
     }
     void configure_video_audio(
@@ -881,15 +831,11 @@ public:
         openswd3::compat::u32& frame_interval,
         bool& destroy_requested
     )
-        : backend_state_(backend_state),
-          backend_ports_(backend_ports),
+        : backend_state_(backend_state), backend_ports_(backend_ports),
           resource_databases_(resource_databases),
-          glyph_provider_(glyph_provider),
-          text_renderers_(text_renderers),
-          framebuffer_(framebuffer),
-          data_directory_(data_directory),
-          renderer_(renderer),
-          mouse_state_(mouse_state),
+          glyph_provider_(glyph_provider), text_renderers_(text_renderers),
+          framebuffer_(framebuffer), data_directory_(data_directory),
+          renderer_(renderer), mouse_state_(mouse_state),
           mouse_device_state_(mouse_device_state),
           frame_interval_(frame_interval),
           destroy_requested_(destroy_requested) {}
@@ -901,7 +847,8 @@ public:
     bool initialize_platform_backends() override {
         const char* base_path = SDL_GetBasePath();
         return openswd3::app::run_platform_backend_initialization(
-            base_path == nullptr ? std::string_view{} : std::string_view{base_path},
+            base_path == nullptr ? std::string_view{}
+                                 : std::string_view{base_path},
             backend_state_,
             backend_ports_
         );
@@ -909,16 +856,11 @@ public:
 
     void configure_input_and_audio_paths() override {
         openswd3::input_time_rng::set_mouse_sensitivity(mouse_state_, 2.0);
-        const auto sample =
-            openswd3::platform_sdl3::sample_sdl_mouse_state(
-                renderer_,
-                mouse_device_state_
-            );
+        const auto sample = openswd3::platform_sdl3::sample_sdl_mouse_state(
+            renderer_, mouse_device_state_
+        );
         openswd3::input_time_rng::rebase_mouse_coordinates(
-            mouse_state_,
-            sample,
-            480,
-            360
+            mouse_state_, sample, 480, 360
         );
     }
     bool initialize_software_drawing() override {
@@ -930,8 +872,7 @@ public:
     void check_legacy_memory_capacity() override {}
     void initialize_resource_database() override {
         const auto result = resource_databases_.initialize(data_directory_);
-        using Status =
-            openswd3::resource_io::LegacyResourceDatabaseStatus;
+        using Status = openswd3::resource_io::LegacyResourceDatabaseStatus;
         switch (result.status) {
         case Status::ready:
             return;
@@ -952,11 +893,10 @@ public:
         for (const auto point_size :
              openswd3::rendering::kLegacyTextRendererPointSizes) {
             if (text_renderers_.rebuild(
-                    point_size,
-                    framebuffer_,
-                    glyph_provider_
-                ) != openswd3::rendering::
-                         LegacyTextRendererRuntimeStatus::completed) {
+                    point_size, framebuffer_, glyph_provider_
+                ) !=
+                openswd3::rendering::LegacyTextRendererRuntimeStatus::
+                    completed) {
                 openswd3::diagnostics::log_error(
                     "legacy text renderer initialization failed"
                 );
@@ -967,8 +907,7 @@ public:
     }
     bool initialize_frame_interval_35() override {
         return openswd3::input_time_rng::set_frame_interval(
-                   frame_interval_,
-                   kInitialFrameIntervalMilliseconds
+                   frame_interval_, kInitialFrameIntervalMilliseconds
                ) != 0;
     }
     void report_frame_clock_failure() override {}
@@ -1002,11 +941,9 @@ public:
         bool& game_initialized,
         bool& destroy_requested
     )
-        : dialog_(dialog),
-          initialization_state_(initialization_state),
+        : dialog_(dialog), initialization_state_(initialization_state),
           initialization_ports_(initialization_ports),
-          key_bindings_(key_bindings),
-          game_initialized_(game_initialized),
+          key_bindings_(key_bindings), game_initialized_(game_initialized),
           destroy_requested_(destroy_requested) {}
 
     void play_startup_sound() override {}
@@ -1017,25 +954,27 @@ public:
     }
 
     void initialize_paths_and_directories() override {}
-    bool scan_save_slots() override { return false; }
+    bool scan_save_slots() override {
+        return false;
+    }
     openswd3::compat::i32 show_startup_dialog() override {
         return dialog_.run(false);
     }
 
     void initialize_game() override {
         static_cast<void>(openswd3::app::run_initialization_dialog_wrapper(
-            initialization_state_,
-            initialization_ports_
+            initialization_state_, initialization_ports_
         ));
-        game_initialized_ =
-            !destroy_requested_ &&
+        game_initialized_ = !destroy_requested_ &&
             initialization_state_.special_mode_state ==
                 openswd3::app::kInitialSpecialModeState;
     }
     void reset_result_one_game_state() override {}
     void rebuild_result_one_slot_previews() override {}
     void select_result_one_recent_save_group() override {}
-    void request_synchronous_destroy() override { destroy_requested_ = true; }
+    void request_synchronous_destroy() override {
+        destroy_requested_ = true;
+    }
 
 private:
     openswd3::platform_sdl3::SdlStartupDialog& dialog_;
@@ -1065,28 +1004,20 @@ public:
         bool& ok,
         bool& running
     )
-        : window_(window),
-          renderer_(renderer),
-          texture_(texture),
+        : window_(window), renderer_(renderer), texture_(texture),
           primary_surface_(primary_surface),
-          game_framebuffer_(game_framebuffer),
-          glyph_provider_(glyph_provider),
-          text_renderers_(text_renderers),
-          stream_manager_(stream_manager),
+          game_framebuffer_(game_framebuffer), glyph_provider_(glyph_provider),
+          text_renderers_(text_renderers), stream_manager_(stream_manager),
           sample_manager_(sample_manager),
           audio_maintenance_(audio_maintenance),
           frame_interval_(frame_interval),
-          backend_available_(backend_available),
-          ok_(ok),
-          running_(running) {}
+          backend_available_(backend_available), ok_(ok), running_(running) {}
 
     bool display_backend_available() override {
         return backend_available_;
     }
 
-    void set_frame_interval(
-        const openswd3::compat::u32 milliseconds
-    ) override {
+    void set_frame_interval(const openswd3::compat::u32 milliseconds) override {
         if (milliseconds == 0U) {
             static_cast<void>(
                 openswd3::input_time_rng::clear_frame_interval(frame_interval_)
@@ -1095,8 +1026,7 @@ public:
         }
 
         static_cast<void>(openswd3::input_time_rng::set_frame_interval(
-            frame_interval_,
-            milliseconds
+            frame_interval_, milliseconds
         ));
     }
 
@@ -1151,11 +1081,9 @@ public:
             return;
         }
         if (text_renderers_.rebuild(
-                point_size,
-                game_framebuffer_,
-                glyph_provider_
-            ) != openswd3::rendering::
-                     LegacyTextRendererRuntimeStatus::completed) {
+                point_size, game_framebuffer_, glyph_provider_
+            ) !=
+            openswd3::rendering::LegacyTextRendererRuntimeStatus::completed) {
             openswd3::diagnostics::log_error(
                 "legacy text renderer display recovery failed"
             );
@@ -1203,8 +1131,7 @@ public:
         openswd3::audio_video::LegacyStreamManager& stream_manager,
         openswd3::audio_video::LegacySampleManager& sample_manager
     )
-        : text_renderers_(text_renderers),
-          stream_manager_(stream_manager),
+        : text_renderers_(text_renderers), stream_manager_(stream_manager),
           sample_manager_(sample_manager) {}
 
     void perform_shutdown_operation(
@@ -1217,19 +1144,13 @@ public:
             static_cast<void>(text_renderers_.release(16U));
         } else if (operation == Operation::release_font_12) {
             static_cast<void>(text_renderers_.release(12U));
-        } else if (
-            operation == Operation::suspend_audio_output_00485710
-        ) {
+        } else if (operation == Operation::suspend_audio_output_00485710) {
             static_cast<void>(
                 openswd3::audio_video::stop_legacy_stream(stream_manager_)
             );
-        } else if (
-            operation == Operation::suspend_audio_streams_00485740
-        ) {
+        } else if (operation == Operation::suspend_audio_streams_00485740) {
             static_cast<void>(
-                openswd3::audio_video::stop_all_legacy_samples(
-                    sample_manager_
-                )
+                openswd3::audio_video::stop_all_legacy_samples(sample_manager_)
             );
         }
         if (operation == openswd3::app::ShutdownOperation::show_cursor) {
@@ -1237,9 +1158,8 @@ public:
         }
     }
 
-    bool perform_shutdown_close(
-        openswd3::app::ShutdownCloseOperation
-    ) override {
+    bool
+    perform_shutdown_close(openswd3::app::ShutdownCloseOperation) override {
         return true;
     }
 
@@ -1286,13 +1206,11 @@ public:
             path_script_state = nullptr,
         const std::array<bool, 128U>* service_flags = nullptr
     ) noexcept
-        : audio_(audio),
-          presentation_(presentation),
+        : audio_(audio), presentation_(presentation),
           text_renderers_(text_renderers),
-          head_sign_actions_(head_sign_actions),
-          story_paths_(story_paths),
-          path_script_state_(path_script_state),
-          service_flags_(service_flags) {}
+          head_sign_actions_(head_sign_actions), story_paths_(story_paths),
+          path_script_state_(path_script_state), service_flags_(service_flags) {
+    }
 
     bool complete_role_path(
         const openswd3::compat::u32 role_index
@@ -1304,13 +1222,12 @@ public:
             openswd3::world_map::complete_legacy_world_story_path(
                 *story_paths_, role_index
             );
-        return result.status == openswd3::world_map::
-                                    LegacyWorldStoryPathStatus::completed;
+        return result.status ==
+            openswd3::world_map::LegacyWorldStoryPathStatus::completed;
     }
 
-    bool query_service(
-        const openswd3::compat::u32 service_id
-    ) noexcept override {
+    bool
+    query_service(const openswd3::compat::u32 service_id) noexcept override {
         return service_flags_ != nullptr &&
             service_id < service_flags_->size() &&
             (*service_flags_)[service_id];
@@ -1343,9 +1260,7 @@ public:
     ) noexcept override {}
 
     void play_positional_sample(
-        openswd3::compat::u16,
-        openswd3::compat::i32,
-        openswd3::compat::i32
+        openswd3::compat::u16, openswd3::compat::i32, openswd3::compat::i32
     ) noexcept override {}
 
     const openswd3::asset_runtime::LegacyActionRecord* resolve_overlay_action(
@@ -1360,14 +1275,11 @@ public:
     }
 
     void emit_role_particles(
-        openswd3::compat::i32,
-        openswd3::compat::i32,
-        openswd3::compat::u16
+        openswd3::compat::i32, openswd3::compat::i32, openswd3::compat::u16
     ) noexcept override {}
 
-    std::span<const openswd3::compat::u8> resolve_label_bytes(
-        const openswd3::compat::u32 token
-    ) noexcept override {
+    std::span<const openswd3::compat::u8>
+    resolve_label_bytes(const openswd3::compat::u32 token) noexcept override {
         if (path_script_state_ == nullptr) {
             return {};
         }
@@ -1376,9 +1288,7 @@ public:
         );
     }
 
-    openswd3::compat::u16 label_color(
-        openswd3::compat::u32
-    ) noexcept override {
+    openswd3::compat::u16 label_color(openswd3::compat::u32) noexcept override {
         return 0U;
     }
 
@@ -1400,13 +1310,11 @@ public:
     void stop_sample(openswd3::compat::u16) noexcept override {}
 
     void set_sample_volume(
-        openswd3::compat::u16,
-        openswd3::compat::i32
+        openswd3::compat::u16, openswd3::compat::i32
     ) noexcept override {}
 
     void set_sample_pan(
-        openswd3::compat::u16,
-        openswd3::compat::i32
+        openswd3::compat::u16, openswd3::compat::i32
     ) noexcept override {}
 
     void configure_debug_text(
@@ -1452,17 +1360,16 @@ public:
             openswd3::rendering::LegacyPresentationSite::steady_world,
             presentation_
         );
-        presentation_failed_ =
-            result.status != openswd3::rendering::
-                                 LegacyPresentationDispatchStatus::completed;
+        presentation_failed_ = result.status !=
+            openswd3::rendering::LegacyPresentationDispatchStatus::completed;
     }
 
     [[nodiscard]] bool presentation_failed() const noexcept {
         return presentation_failed_;
     }
 
-    [[nodiscard]] openswd3::compat::u32 deferred_frame_stage_count()
-        const noexcept {
+    [[nodiscard]] openswd3::compat::u32
+    deferred_frame_stage_count() const noexcept {
         return deferred_frame_stage_count_;
     }
 
@@ -1470,11 +1377,9 @@ private:
     openswd3::audio_video::LegacyAudioMaintenancePorts& audio_;
     openswd3::rendering::LegacyPresentationPorts& presentation_;
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
-    openswd3::world_map::LegacyWorldHeadSignActionsState*
-        head_sign_actions_{};
+    openswd3::world_map::LegacyWorldHeadSignActionsState* head_sign_actions_{};
     openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths_{};
-    const openswd3::world_map::LegacyWorldPathScriptState*
-        path_script_state_{};
+    const openswd3::world_map::LegacyWorldPathScriptState* path_script_state_{};
     const std::array<bool, 128U>* service_flags_{};
     openswd3::compat::u32 deferred_frame_stage_count_{};
     bool presentation_failed_{};
@@ -1496,14 +1401,11 @@ public:
             openswd3::asset_runtime::LegacyActionUpdater& action_updater,
             openswd3::asset_runtime::LegacyTswRuntime& tsw_runtime
         ) noexcept
-            : input_(input),
-              story_(story),
-              action_updater_(action_updater),
+            : input_(input), story_(story), action_updater_(action_updater),
               tsw_runtime_(tsw_runtime) {}
 
-        openswd3::compat::u32 query_internal_flag(
-            const openswd3::compat::u32 bit_index
-        ) override {
+        openswd3::compat::u32
+        query_internal_flag(const openswd3::compat::u32 bit_index) override {
             if (bit_index == 9U) {
                 return input_.mouse_inactive_flag_9 ? 1U : 0U;
             }
@@ -1512,8 +1414,10 @@ public:
                 return 0U;
             }
             return openswd3::world_map::query_legacy_world_story_flag(
-                story_, static_cast<openswd3::compat::u16>(bit_index)
-            ) ? 1U : 0U;
+                       story_, static_cast<openswd3::compat::u16>(bit_index)
+                   )
+                ? 1U
+                : 0U;
         }
 
         bool load_role_frame_size(
@@ -1524,12 +1428,10 @@ public:
         ) override {
             // sub_431A20 is a cache-only lookup. A hover probe must not load
             // or evict TSW data that the original frame had not drawn yet.
-            const auto loaded = tsw_runtime_.find_cached(
-                resource_id,
-                frame_index
-            );
-            if (loaded.status != openswd3::asset_runtime::
-                                     LegacyTswRuntimeStatus::ready) {
+            const auto loaded =
+                tsw_runtime_.find_cached(resource_id, frame_index);
+            if (loaded.status !=
+                openswd3::asset_runtime::LegacyTswRuntimeStatus::ready) {
                 width = 0U;
                 height = 0U;
                 return false;
@@ -1557,20 +1459,15 @@ public:
           public openswd3::world_map::LegacyWorldCollisionTalkPorts {
     public:
         WorldPlayerPorts(
-            const std::span<
-                openswd3::world_map::LegacyWorldRoleRecord> roles,
+            const std::span<openswd3::world_map::LegacyWorldRoleRecord> roles,
             const std::span<const openswd3::compat::u8> surface_grid,
             const openswd3::compat::u32 map_width,
             openswd3::input_time_rng::LegacyInputNormalizationState& input,
             openswd3::world_map::LegacyWorldStoryVmState& story,
             openswd3::asset_runtime::LegacyActionUpdater& action_updater
         ) noexcept
-            : roles_(roles),
-              surface_grid_(surface_grid),
-              map_width_(map_width),
-              input_(input),
-              story_(story),
-              action_updater_(action_updater) {}
+            : roles_(roles), surface_grid_(surface_grid), map_width_(map_width),
+              input_(input), story_(story), action_updater_(action_updater) {}
 
         openswd3::world_map::LegacyMovementCollisionResult query_collision(
             const openswd3::compat::u32 role_index,
@@ -1588,9 +1485,8 @@ public:
             );
         }
 
-        openswd3::compat::u32 query_internal_flag(
-            const openswd3::compat::u32 bit_index
-        ) override {
+        openswd3::compat::u32
+        query_internal_flag(const openswd3::compat::u32 bit_index) override {
             if (bit_index == 9U) {
                 return input_.mouse_inactive_flag_9 ? 1U : 0U;
             }
@@ -1599,8 +1495,10 @@ public:
                 return 0U;
             }
             return openswd3::world_map::query_legacy_world_story_flag(
-                story_, static_cast<openswd3::compat::u16>(bit_index)
-            ) ? 1U : 0U;
+                       story_, static_cast<openswd3::compat::u16>(bit_index)
+                   )
+                ? 1U
+                : 0U;
         }
 
         openswd3::compat::u32 update_action(
@@ -1638,8 +1536,7 @@ public:
         openswd3::resource_io::LegacyResourceDatabases& resource_databases,
         std::filesystem::path data_directory,
         std::filesystem::path world_cache_directory,
-        const openswd3::rendering::LegacyPixelConversionState&
-            pixel_conversion,
+        const openswd3::rendering::LegacyPixelConversionState& pixel_conversion,
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
         openswd3::world_map::LegacyWorldRoleActionInitializer&
             world_action_initializer,
@@ -1652,37 +1549,26 @@ public:
         bool& ok,
         bool& running
     )
-        : window_(window),
-          renderer_(renderer),
-          texture_(texture),
+        : window_(window), renderer_(renderer), texture_(texture),
           game_framebuffer_(game_framebuffer),
-          primary_surface_(primary_surface),
-          frame_interval_(frame_interval),
-          window_state_(window_state),
-          display_state_(display_state),
+          primary_surface_(primary_surface), frame_interval_(frame_interval),
+          window_state_(window_state), display_state_(display_state),
           frame_preparation_state_(frame_preparation_state),
           frame_coordinator_state_(frame_coordinator_state),
-          input_state_(input_state),
-          mouse_state_(mouse_state),
+          input_state_(input_state), mouse_state_(mouse_state),
           mouse_device_state_(mouse_device_state),
           audio_maintenance_(audio_maintenance),
-          sample_manager_(sample_manager),
-          video_player_(video_player),
+          sample_manager_(sample_manager), video_player_(video_player),
           resource_databases_(resource_databases),
           data_directory_(std::move(data_directory)),
           world_cache_directory_(std::move(world_cache_directory)),
-          pixel_conversion_(pixel_conversion),
-          text_renderers_(text_renderers),
+          pixel_conversion_(pixel_conversion), text_renderers_(text_renderers),
           world_action_initializer_(world_action_initializer),
-          action_updater_(action_updater),
-          tsw_runtime_(tsw_runtime),
-          crt_rng_(crt_rng),
-          secondary_rng_(secondary_rng),
+          action_updater_(action_updater), tsw_runtime_(tsw_runtime),
+          crt_rng_(crt_rng), secondary_rng_(secondary_rng),
           world_raster_(game_framebuffer.geometry()),
           world_effects_{.pixel_conversion = pixel_conversion},
-          shutdown_ports_(shutdown_ports),
-          exit_ports_(exit_ports),
-          ok_(ok),
+          shutdown_ports_(shutdown_ports), exit_ports_(exit_ports), ok_(ok),
           running_(running) {
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
@@ -1693,8 +1579,7 @@ public:
             world_jitter_,
         };
         if (openswd3::world_map::prime_legacy_world_cursor_state(
-                world_frame_effects_.cursor,
-                action_ports
+                world_frame_effects_.cursor, action_ports
             ) != openswd3::asset_runtime::LegacyActionUpdateStatus::completed) {
             openswd3::diagnostics::log_warning(
                 "initial cursor action update failed"
@@ -1702,7 +1587,8 @@ public:
         }
         const auto dialog_prime =
             openswd3::world_map::prime_legacy_world_dialog_runtime(
-                world_dialog_runtime_state_, action_ports);
+                world_dialog_runtime_state_, action_ports
+            );
         if (dialog_prime.action_update_failure_count != 0U) {
             openswd3::diagnostics::log_warning(
                 "initial dialog indicator action update failed"
@@ -1715,8 +1601,7 @@ public:
 
     void latch_keyboard_press(const SDL_Scancode scancode) noexcept {
         static_cast<void>(openswd3::platform_sdl3::latch_sdl_keyboard_press(
-            pending_keyboard_presses_,
-            scancode
+            pending_keyboard_presses_, scancode
         ));
     }
 
@@ -1728,15 +1613,16 @@ public:
         if (!virtual_key.has_value()) {
             return;
         }
-        static_cast<void>(openswd3::input_time_rng::
-            filter_legacy_text_input_message(
+        static_cast<void>(
+            openswd3::input_time_rng::filter_legacy_text_input_message(
                 *initial_menu_state_.name_input,
                 text_input_driver_state_,
                 openswd3::input_time_rng::kLegacyKeyDownMessage,
                 *virtual_key,
                 0U,
                 text_input_ports_
-            ));
+            )
+        );
     }
 
     void dispatch_text_input_utf8(const char* const text) noexcept {
@@ -1746,14 +1632,14 @@ public:
         const auto encoded = openswd3::platform_sdl3::utf8_to_cp950(text);
         if (!encoded.has_value()) {
             openswd3::diagnostics::log_warning(
-                "name input contains a character unavailable in CP950");
+                "name input contains a character unavailable in CP950"
+            );
             return;
         }
         const auto* bytes =
             reinterpret_cast<const openswd3::compat::u8*>(encoded->c_str());
         static_cast<void>(openswd3::input_time_rng::legacy_insert_text_bytes(
-            *initial_menu_state_.name_input,
-            bytes
+            *initial_menu_state_.name_input, bytes
         ));
     }
 
@@ -1774,8 +1660,7 @@ public:
         const auto result = video_player_.step(*this);
         if (result.status ==
             openswd3::audio_video::LegacyVideoStepStatus::completed) {
-            window_state_.process_flags &=
-                ~openswd3::app::kProcessVideoActive;
+            window_state_.process_flags &= ~openswd3::app::kProcessVideoActive;
         }
     }
     void maintain_audio() override {
@@ -1796,19 +1681,19 @@ public:
         frame_preparation_state_.high_priority_state =
             frame_coordinator_state_.battle.high_priority_state;
         if (openswd3::app::run_frame_preparation(
-                frame_preparation_state_,
-                *this
+                frame_preparation_state_, *this
             ) == openswd3::app::FramePreparationOutcome::accepted) {
             frame_coordinator_state_.frame_execution_gate =
                 window_state_.frame_execution_gate;
-            frame_coordinator_state_.process_flags = window_state_.process_flags;
+            frame_coordinator_state_.process_flags =
+                window_state_.process_flags;
             frame_coordinator_state_.transition_suppression =
                 display_state_.transition_suppression;
             static_cast<void>(openswd3::app::run_accepted_frame(
-                frame_coordinator_state_,
-                *this
+                frame_coordinator_state_, *this
             ));
-            window_state_.process_flags = frame_coordinator_state_.process_flags;
+            window_state_.process_flags =
+                frame_coordinator_state_.process_flags;
         }
     }
 
@@ -1830,13 +1715,11 @@ public:
         if (index == 9U) {
             return input_state_.mouse_inactive_flag_9;
         }
-        if (index >=
-            openswd3::world_map::kLegacyWorldStoryFlagBytes * 8U) {
+        if (index >= openswd3::world_map::kLegacyWorldStoryFlagBytes * 8U) {
             return false;
         }
         return openswd3::world_map::query_legacy_world_story_flag(
-            world_story_vm_state_,
-            static_cast<openswd3::compat::u16>(index)
+            world_story_vm_state_, static_cast<openswd3::compat::u16>(index)
         );
     }
 
@@ -1846,8 +1729,7 @@ public:
         }
         if (index < openswd3::world_map::kLegacyWorldStoryFlagBytes * 8U) {
             openswd3::world_map::clear_legacy_world_story_flag(
-                world_story_vm_state_,
-                static_cast<openswd3::compat::u16>(index)
+                world_story_vm_state_, static_cast<openswd3::compat::u16>(index)
             );
         }
     }
@@ -1858,8 +1740,7 @@ public:
         }
         if (index < openswd3::world_map::kLegacyWorldStoryFlagBytes * 8U) {
             openswd3::world_map::set_legacy_world_story_flag(
-                world_story_vm_state_,
-                static_cast<openswd3::compat::u16>(index)
+                world_story_vm_state_, static_cast<openswd3::compat::u16>(index)
             );
         }
     }
@@ -1868,16 +1749,16 @@ public:
         openswd3::app::PrimaryTransitionOperation
     ) override {}
 
-    void release_and_clear_party_member_transition(
-        openswd3::compat::u32
-    ) override {}
+    void
+    release_and_clear_party_member_transition(openswd3::compat::u32) override {}
 
     void sample_input_device() override {
         static_cast<void>(openswd3::platform_sdl3::sample_sdl_keyboard_state(
             keyboard_snapshot_
         ));
         openswd3::platform_sdl3::merge_sdl_keyboard_press_latches(
-            keyboard_snapshot_, pending_keyboard_presses_);
+            keyboard_snapshot_, pending_keyboard_presses_
+        );
         pending_keyboard_presses_.fill(0U);
     }
 
@@ -1886,19 +1767,15 @@ public:
             input_state_,
             frame_preparation_state_.frame_clock.sampled_milliseconds
         );
-        auto sample =
-            openswd3::platform_sdl3::sample_sdl_mouse_state(
-                renderer_,
-                mouse_device_state_
-            );
+        auto sample = openswd3::platform_sdl3::sample_sdl_mouse_state(
+            renderer_, mouse_device_state_
+        );
         openswd3::platform_sdl3::merge_sdl_mouse_press_latches(
-            sample, pending_mouse_button_mask_);
+            sample, pending_mouse_button_mask_
+        );
         pending_mouse_button_mask_ = 0U;
         openswd3::input_time_rng::normalize_input_frame(
-            input_state_,
-            mouse_state_,
-            keyboard_snapshot_,
-            sample
+            input_state_, mouse_state_, keyboard_snapshot_, sample
         );
     }
 
@@ -1906,30 +1783,26 @@ public:
     void close_world_map_view() override {}
     void initialize_battle(const openswd3::compat::u16 battle_id) override {
         const auto loaded = openswd3::battle::load_legacy_battle_assets(
-            data_directory_, battle_id, 0, battle_assets_);
+            data_directory_, battle_id, 0, battle_assets_
+        );
         battle_assets_ready_ =
             loaded.status == openswd3::battle::LegacyBattleAssetStatus::ready;
 
         if (battle_assets_ready_) {
             std::array<openswd3::compat::u8, 4U> party_source_flags{};
-            for (std::size_t index = 0U;
-                 index < party_source_flags.size();
+            for (std::size_t index = 0U; index < party_source_flags.size();
                  ++index) {
                 party_source_flags[index] =
                     openswd3::world_map::query_legacy_world_story_flag(
                         world_story_vm_state_,
                         static_cast<openswd3::compat::u16>(30U + index)
                     )
-                        ? 1U
-                        : 0U;
+                    ? 1U
+                    : 0U;
             }
-            const auto prepared =
-                openswd3::battle::prepare_legacy_battle_setup(
-                    battle_assets_,
-                    party_source_flags,
-                    false,
-                    battle_setup_
-                );
+            const auto prepared = openswd3::battle::prepare_legacy_battle_setup(
+                battle_assets_, party_source_flags, false, battle_setup_
+            );
             battle_setup_ready_ = prepared.status ==
                 openswd3::battle::LegacyBattleSetupStatus::ready;
         } else {
@@ -1940,8 +1813,9 @@ public:
         std::string message{"battle initialization assets: id="};
         message.append(std::to_string(battle_id));
         message.append(", status=");
-        message.append(openswd3::battle::legacy_battle_asset_status_message(
-            loaded.status));
+        message.append(
+            openswd3::battle::legacy_battle_asset_status_message(loaded.status)
+        );
         if (battle_assets_ready_) {
             message.append(", script_bytes=");
             message.append(std::to_string(battle_assets_.figtalk_actual_size));
@@ -1984,12 +1858,10 @@ public:
             openswd3::rendering::LegacyPresentationSite::steady_high_priority
         );
     }
-    void update_background_music(
-        openswd3::app::FrameCoordinatorState&
-    ) override {}
-    void step_world_interaction(
-        openswd3::app::FrameCoordinatorState&
-    ) override {
+    void
+    update_background_music(openswd3::app::FrameCoordinatorState&) override {}
+    void
+    step_world_interaction(openswd3::app::FrameCoordinatorState&) override {
         if (!active_world_session_.has_value()) {
             return;
         }
@@ -2016,7 +1888,8 @@ public:
         world_interaction_state_.cursor_variant =
             openswd3::world_map::kLegacyWorldDefaultCursorVariant;
         WorldInteractionPorts ports{
-            input_state_, world_story_vm_state_, action_updater_, tsw_runtime_};
+            input_state_, world_story_vm_state_, action_updater_, tsw_runtime_
+        };
         const auto result =
             openswd3::world_map::coordinate_legacy_world_interaction(
                 {
@@ -2050,12 +1923,12 @@ public:
         world_frame_effects_.cursor.cursor_action.base_variant =
             world_interaction_state_.cursor_variant;
 
-        if (result.status != openswd3::world_map::
-                                 LegacyWorldInteractionStatus::completed) {
+        if (result.status !=
+            openswd3::world_map::LegacyWorldInteractionStatus::completed) {
             std::string message{"world interaction failed: status="};
-            message.append(std::to_string(
-                static_cast<unsigned>(result.status)
-            ));
+            message.append(
+                std::to_string(static_cast<unsigned>(result.status))
+            );
             static_cast<void>(report_error(message));
             ok_ = false;
             running_ = false;
@@ -2088,38 +1961,35 @@ public:
         const auto control =
             openswd3::world_map::prepare_legacy_world_player_control(
                 {
-                    .raw_speed_toggle_state = openswd3::input_time_rng::
-                        read_raw_key(keyboard_snapshot_, speed_binding),
-                    .camera_x_transition =
-                        std::bit_cast<openswd3::compat::u32>(
-                            movement.camera_x_transition
+                    .raw_speed_toggle_state =
+                        openswd3::input_time_rng::read_raw_key(
+                            keyboard_snapshot_, speed_binding
                         ),
-                    .player_x_transition =
-                        std::bit_cast<openswd3::compat::u32>(
-                            movement.player_x_transition
-                        ),
-                    .camera_y_transition =
-                        std::bit_cast<openswd3::compat::u32>(
-                            movement.camera_y_transition
-                        ),
-                    .player_y_transition =
-                        std::bit_cast<openswd3::compat::u32>(
-                            movement.player_y_transition
-                        ),
+                    .camera_x_transition = std::bit_cast<openswd3::compat::u32>(
+                        movement.camera_x_transition
+                    ),
+                    .player_x_transition = std::bit_cast<openswd3::compat::u32>(
+                        movement.player_x_transition
+                    ),
+                    .camera_y_transition = std::bit_cast<openswd3::compat::u32>(
+                        movement.camera_y_transition
+                    ),
+                    .player_y_transition = std::bit_cast<openswd3::compat::u32>(
+                        movement.player_y_transition
+                    ),
                     .input_suppression =
                         input_state_.left_button_suppression_count,
-                    .special_mode_state =
-                        frame_state.battle.special_mode_state,
+                    .special_mode_state = frame_state.battle.special_mode_state,
                 },
                 input_state_.records,
                 world_player_control_state_
             );
-        if (control.status != openswd3::world_map::
-                                  LegacyWorldPlayerControlStatus::completed) {
+        if (control.status !=
+            openswd3::world_map::LegacyWorldPlayerControlStatus::completed) {
             std::string message{"world player control failed: status="};
-            message.append(std::to_string(
-                static_cast<unsigned>(control.status)
-            ));
+            message.append(
+                std::to_string(static_cast<unsigned>(control.status))
+            );
             static_cast<void>(report_error(message));
             ok_ = false;
             running_ = false;
@@ -2143,10 +2013,24 @@ public:
         };
         if (control.primary_fresh_press) {
             constexpr std::array<openswd3::compat::i32, 8> kFacingDeltaX{
-                0, 0, -1, 1, -1, 1, -1, 1,
+                0,
+                0,
+                -1,
+                1,
+                -1,
+                1,
+                -1,
+                1,
             };
             constexpr std::array<openswd3::compat::i32, 8> kFacingDeltaY{
-                -1, 1, 0, 0, -1, 1, 1, -1,
+                -1,
+                1,
+                0,
+                0,
+                -1,
+                1,
+                1,
+                -1,
             };
             if (player.action.variant_delta >= kFacingDeltaX.size()) {
                 static_cast<void>(report_error(
@@ -2160,10 +2044,8 @@ public:
                 openswd3::world_map::coordinate_legacy_world_facing_talk(
                     {
                         .player_index = world.selected_role_index,
-                        .delta_x =
-                            kFacingDeltaX[player.action.variant_delta],
-                        .delta_y =
-                            kFacingDeltaY[player.action.variant_delta],
+                        .delta_x = kFacingDeltaX[player.action.variant_delta],
+                        .delta_y = kFacingDeltaY[player.action.variant_delta],
                         .map_width = map.header.width,
                         .map_height = map.header.height,
                     },
@@ -2172,9 +2054,8 @@ public:
                     world_player_control_state_.one_shot_interaction_state,
                     ports
                 );
-            if (facing_talk.status != openswd3::world_map::
-                                          LegacyWorldFacingTalkStatus::
-                                              completed) {
+            if (facing_talk.status !=
+                openswd3::world_map::LegacyWorldFacingTalkStatus::completed) {
                 static_cast<void>(report_error("world facing Talk failed"));
                 ok_ = false;
                 running_ = false;
@@ -2186,8 +2067,7 @@ public:
         }
 
         if (openswd3::world_map::should_request_legacy_world_menu(
-                control,
-                world_frame_state_.map_role_paths.talk_context
+                control, world_frame_state_.map_role_paths.talk_context
             )) {
             frame_state.battle.special_mode_state =
                 openswd3::world_map::kLegacyWorldMenuRequest;
@@ -2197,15 +2077,14 @@ public:
         auto input = openswd3::world_map::apply_legacy_world_direction_input(
             openswd3::world_map::LegacyWorldDirectionState{
                 .direction = player.action.variant_delta,
-                .auxiliary_selection_index =
-                    world_auxiliary_selection_index_,
+                .auxiliary_selection_index = world_auxiliary_selection_index_,
             },
             input_state_.records,
             false,
             0U
         );
-        if (input.status != openswd3::world_map::
-                                LegacyWorldDirectionInputStatus::completed) {
+        if (input.status !=
+            openswd3::world_map::LegacyWorldDirectionInputStatus::completed) {
             static_cast<void>(report_error(
                 "world player input: normalized input records are unavailable"
             ));
@@ -2229,15 +2108,15 @@ public:
                     map.header.height,
                     map.surface_grid.surface_grid
                 );
-            if (adjusted.status != openswd3::world_map::
-                                       LegacyWorldDirectionProbeStatus::
-                                           completed) {
+            if (adjusted.status !=
+                openswd3::world_map::LegacyWorldDirectionProbeStatus::
+                    completed) {
                 std::string message{
                     "world player input: obstacle adjustment failed: status="
                 };
-                message.append(std::to_string(
-                    static_cast<unsigned>(adjusted.status)
-                ));
+                message.append(
+                    std::to_string(static_cast<unsigned>(adjusted.status))
+                );
                 static_cast<void>(report_error(message));
                 ok_ = false;
                 running_ = false;
@@ -2262,13 +2141,12 @@ public:
                 world_player_control_state_.one_shot_interaction_state,
                 ports
             );
-        if (collision_talk.status != openswd3::world_map::
-                                         LegacyWorldCollisionTalkStatus::
-                                             completed) {
+        if (collision_talk.status !=
+            openswd3::world_map::LegacyWorldCollisionTalkStatus::completed) {
             std::string message{"world collision Talk failed: status="};
-            message.append(std::to_string(
-                static_cast<unsigned>(collision_talk.status)
-            ));
+            message.append(
+                std::to_string(static_cast<unsigned>(collision_talk.status))
+            );
             static_cast<void>(report_error(message));
             ok_ = false;
             running_ = false;
@@ -2279,10 +2157,7 @@ public:
 
         const auto bounds =
             openswd3::world_map::compute_legacy_world_movement_bounds(
-                player,
-                world.camera,
-                map.header.width,
-                map.header.height
+                player, world.camera, map.header.width, map.header.height
             );
         const openswd3::compat::u32 base_step =
             world.map_descriptor_runtime.base_movement_step;
@@ -2306,13 +2181,10 @@ public:
         class PartyPathPorts final
             : public openswd3::world_map::LegacyWorldPartyPathPorts {
         public:
-            explicit PartyPathPorts(
-                SdlDeferredWorldFramePorts& ports
-            ) noexcept
+            explicit PartyPathPorts(SdlDeferredWorldFramePorts& ports) noexcept
                 : ports_(ports) {}
 
-            [[nodiscard]] bool
-            query_collision_disabled() noexcept override {
+            [[nodiscard]] bool query_collision_disabled() noexcept override {
                 return ports_.query_service(0x4FU);
             }
 
@@ -2335,19 +2207,15 @@ public:
                 const std::filesystem::path& data_directory,
                 openswd3::compat::u32& process_flags
             ) noexcept
-                : databases_(databases),
-                  maps_database_(maps_database),
+                : databases_(databases), maps_database_(maps_database),
                   action_updater_(action_updater),
                   sample_manager_(sample_manager),
                   sample_mix_level_(sample_mix_level),
-                  framebuffer_(framebuffer),
-                  presentation_(presentation),
-                  video_player_(video_player),
-                  data_directory_(data_directory),
+                  framebuffer_(framebuffer), presentation_(presentation),
+                  video_player_(video_player), data_directory_(data_directory),
                   process_flags_(process_flags) {}
 
-            openswd3::resource_io::LegacyTalkWindowLoadResult
-            load_story_window(
+            openswd3::resource_io::LegacyTalkWindowLoadResult load_story_window(
                 const openswd3::compat::i32 story_id,
                 const std::span<
                     openswd3::compat::u8,
@@ -2359,8 +2227,7 @@ public:
                 );
             }
 
-            openswd3::resource_io::LegacyTalkWindowLoadResult
-            load_data_window(
+            openswd3::resource_io::LegacyTalkWindowLoadResult load_data_window(
                 const openswd3::compat::u32 file_number,
                 const openswd3::compat::u32 data_offset,
                 const std::span<
@@ -2382,12 +2249,13 @@ public:
             void patch_role_source(
                 const openswd3::world_map::LegacyMapsRolePatchRequest& request
             ) noexcept override {
-                static_cast<void>(openswd3::world_map::
-                    patch_legacy_maps_role_source_record(
+                static_cast<void>(
+                    openswd3::world_map::patch_legacy_maps_role_source_record(
                         databases_.mutable_maps_payload_bytes(),
                         maps_database_,
                         request
-                    ));
+                    )
+                );
             }
 
             void play_sound_effect(
@@ -2400,8 +2268,7 @@ public:
 
             void clear_story_framebuffer() noexcept override {
                 std::ranges::fill(
-                    framebuffer_.physical_pixels(),
-                    openswd3::compat::u16{0U}
+                    framebuffer_.physical_pixels(), openswd3::compat::u16{0U}
                 );
             }
 
@@ -2430,8 +2297,8 @@ public:
                     path.string(),
                     openswd3::audio_video::kLegacyVideoMaximumVolume
                 );
-                if (status == openswd3::audio_video::
-                                  LegacyVideoBeginStatus::playing) {
+                if (status ==
+                    openswd3::audio_video::LegacyVideoBeginStatus::playing) {
                     process_flags_ |= openswd3::app::kProcessVideoActive;
                 }
             }
@@ -2462,8 +2329,7 @@ public:
                 const openswd3::audio_video::LegacySpatialSampleState audio
             ) noexcept
                 : action_updater_(action_updater),
-                  sample_manager_(sample_manager),
-                  audio_(audio) {}
+                  sample_manager_(sample_manager), audio_(audio) {}
 
             openswd3::compat::u32 update_action(
                 openswd3::asset_runtime::LegacyActionRecord& action
@@ -2497,11 +2363,12 @@ public:
             .active_object_slots =
                 world_frame_state_.map_role_paths.active_object_slots,
             .spatial_index = &map.business.state.spatial_index,
-            .role_surface = {
-                .map_width = map.header.width,
-                .selected_guid = roles[world.selected_role_index].guid,
-                .surface_grid = map.surface_grid.surface_grid,
-            },
+            .role_surface =
+                {
+                    .map_width = map.header.width,
+                    .selected_guid = roles[world.selected_role_index].guid,
+                    .surface_grid = map.surface_grid.surface_grid,
+                },
             .node_pool = &world_path_node_pool_,
             .movement = &world_frame_state_.movement,
             .camera = &world.camera,
@@ -2535,11 +2402,12 @@ public:
         };
         const openswd3::world_map::LegacyWorldStoryVmRuntime story_runtime{
             .spatial_index = &map.business.state.spatial_index,
-            .role_surface = {
-                .map_width = map.header.width,
-                .selected_guid = roles[world.selected_role_index].guid,
-                .surface_grid = map.surface_grid.surface_grid,
-            },
+            .role_surface =
+                {
+                    .map_width = map.header.width,
+                    .selected_guid = roles[world.selected_role_index].guid,
+                    .surface_grid = map.surface_grid.surface_grid,
+                },
             .camera = &world.camera,
             .camera_pan = &world_frame_state_.camera_pan,
             .movement = &world_frame_state_.movement,
@@ -2574,8 +2442,7 @@ public:
                 story_runtime,
                 story_ports
             );
-        using StoryStatus =
-            openswd3::world_map::LegacyWorldStoryVmStatus;
+        using StoryStatus = openswd3::world_map::LegacyWorldStoryVmStatus;
         if (story_result.status == StoryStatus::unsupported_opcode) {
             if (!unsupported_world_story_opcode_notice_logged_) {
                 std::string message{"world story deferred opcode="};
@@ -2585,47 +2452,55 @@ public:
                 openswd3::diagnostics::log_warning(message);
                 unsupported_world_story_opcode_notice_logged_ = true;
             }
-        } else if (story_result.status != StoryStatus::idle &&
-                   story_result.status != StoryStatus::yielded &&
-                   story_result.status != StoryStatus::terminated) {
+        } else if (
+            story_result.status != StoryStatus::idle &&
+            story_result.status != StoryStatus::yielded &&
+            story_result.status != StoryStatus::terminated
+        ) {
             std::string message{"world story failed: status="};
-            message.append(std::to_string(
-                static_cast<unsigned>(story_result.status)
-            ));
+            message.append(
+                std::to_string(static_cast<unsigned>(story_result.status))
+            );
             message.append(", opcode=");
             message.append(std::to_string(story_result.opcode));
             message.append(", raw_word=");
             message.append(std::to_string(story_result.raw_word));
             message.append(", story_id=");
-            message.append(std::to_string(
-                world_frame_state_.map_role_paths.talk_context.talk_script_id
-            ));
+            message.append(
+                std::to_string(world_frame_state_.map_role_paths.talk_context
+                                   .talk_script_id)
+            );
             message.append(", source_guid=");
-            message.append(std::to_string(
-                world_frame_state_.map_role_paths.talk_context.source_guid
-            ));
+            message.append(
+                std::to_string(
+                    world_frame_state_.map_role_paths.talk_context.source_guid
+                )
+            );
             message.append(", talk_data_offset=");
-            message.append(std::to_string(
-                world_frame_state_.map_role_paths.talk_context.talk_data_offset
-            ));
+            message.append(
+                std::to_string(world_frame_state_.map_role_paths.talk_context
+                                   .talk_data_offset)
+            );
             message.append(", window_file=");
-            message.append(std::to_string(
-                world_story_vm_state_.loaded_file_number
-            ));
+            message.append(
+                std::to_string(world_story_vm_state_.loaded_file_number)
+            );
             message.append(", window_data_offset=");
-            message.append(std::to_string(
-                world_story_vm_state_.loaded_data_offset
-            ));
+            message.append(
+                std::to_string(world_story_vm_state_.loaded_data_offset)
+            );
             message.append(", ip=");
             message.append(std::to_string(story_result.instruction_offset));
             message.append(", operand0=");
-            message.append(story_result.first_operand_available
-                               ? std::to_string(story_result.first_operand_word)
-                               : std::string{"unavailable"});
+            message.append(
+                story_result.first_operand_available
+                    ? std::to_string(story_result.first_operand_word)
+                    : std::string{"unavailable"}
+            );
             message.append(", executed=");
-            message.append(std::to_string(
-                story_result.executed_instruction_count
-            ));
+            message.append(
+                std::to_string(story_result.executed_instruction_count)
+            );
             message.append(", controlled_role=");
             message.append(std::to_string(world.selected_role_index));
             message.append(", role_count=");
@@ -2663,15 +2538,15 @@ public:
             .controlled_role_index = world.selected_role_index,
         };
         openswd3::compat::u32 unsupported_scripts = 0U;
-        for (openswd3::compat::u32 role_index = 1U;
-             role_index < roles.size(); ++role_index) {
+        for (openswd3::compat::u32 role_index = 1U; role_index < roles.size();
+             ++role_index) {
             auto& role = roles[role_index];
-            const auto path_action = openswd3::world_map::
-                select_legacy_world_path_role_frame_action(
+            const auto path_action =
+                openswd3::world_map::select_legacy_world_path_role_frame_action(
                     role, role_index, world.selected_role_index
                 );
-            using PathRoleAction = openswd3::world_map::
-                LegacyWorldPathRoleFrameAction;
+            using PathRoleAction =
+                openswd3::world_map::LegacyWorldPathRoleFrameAction;
             if (path_action == PathRoleAction::run_party_path) {
                 const auto result =
                     openswd3::world_map::prepare_legacy_world_party_path(
@@ -2688,11 +2563,12 @@ public:
                         world_path_node_pool_,
                         path_ports
                     );
-                if (result.status != openswd3::world_map::
-                                         LegacyWorldPartyPathPreparationStatus::
-                                             completed) {
+                if (result.status !=
+                    openswd3::world_map::LegacyWorldPartyPathPreparationStatus::
+                        completed) {
                     std::string message{
-                        "party path preparation failed: status="};
+                        "party path preparation failed: status="
+                    };
                     message.append(
                         std::to_string(static_cast<unsigned>(result.status))
                     );
@@ -2704,18 +2580,22 @@ public:
                 continue;
             }
             if (path_action == PathRoleAction::mark_surface) {
-                static_cast<void>(openswd3::world_map::
-                    mark_legacy_world_role_surface_occupancy(role, surface));
+                static_cast<void>(
+                    openswd3::world_map::
+                        mark_legacy_world_role_surface_occupancy(role, surface)
+                );
                 continue;
             }
             if (path_action ==
                 PathRoleAction::update_action_then_mark_surface) {
                 static_cast<void>(action_updater_.update(role.action));
                 if (role.action.action_id != 0U) {
-                    static_cast<void>(openswd3::world_map::
-                        mark_legacy_world_role_surface_occupancy(
-                            role, surface
-                        ));
+                    static_cast<void>(
+                        openswd3::world_map::
+                            mark_legacy_world_role_surface_occupancy(
+                                role, surface
+                            )
+                    );
                 }
                 continue;
             }
@@ -2736,14 +2616,14 @@ public:
                     path_runtime,
                     path_script_ports
                 );
-            if (result.status == openswd3::world_map::
-                                     LegacyWorldPathScriptStatus::
-                                         unsupported_opcode) {
+            if (result.status ==
+                openswd3::world_map::LegacyWorldPathScriptStatus::
+                    unsupported_opcode) {
                 ++unsupported_scripts;
                 continue;
             }
-            if (result.status != openswd3::world_map::
-                                     LegacyWorldPathScriptStatus::completed) {
+            if (result.status !=
+                openswd3::world_map::LegacyWorldPathScriptStatus::completed) {
                 std::string message{"world path script failed: status="};
                 message.append(
                     std::to_string(static_cast<unsigned>(result.status))
@@ -2757,7 +2637,8 @@ public:
         if (unsupported_scripts != 0U &&
             !unsupported_world_path_opcode_notice_logged_) {
             std::string message{
-                "world path script deferred unsupported opcodes: "};
+                "world path script deferred unsupported opcodes: "
+            };
             message.append(std::to_string(unsupported_scripts));
             openswd3::diagnostics::log_warning(message);
             unsupported_world_path_opcode_notice_logged_ = true;
@@ -2781,11 +2662,12 @@ public:
             .active_object_slots =
                 world_frame_state_.map_role_paths.active_object_slots,
             .spatial_index = &map.business.state.spatial_index,
-            .role_surface = {
-                .map_width = map.header.width,
-                .selected_guid = roles[world.selected_role_index].guid,
-                .surface_grid = map.surface_grid.surface_grid,
-            },
+            .role_surface =
+                {
+                    .map_width = map.header.width,
+                    .selected_guid = roles[world.selected_role_index].guid,
+                    .surface_grid = map.surface_grid.surface_grid,
+                },
             .node_pool = &world_path_node_pool_,
             .movement = &world_frame_state_.movement,
             .camera = &world.camera,
@@ -2917,8 +2799,7 @@ public:
                 .blit_effects = &world_effects_,
                 .cursor_delete_key_pressed =
                     openswd3::input_time_rng::read_raw_key(
-                        keyboard_snapshot_,
-                        0x2EU
+                        keyboard_snapshot_, 0x2EU
                     ) != 0U,
                 .cursor_mouse_x = input_state_.current_mouse.logical_x,
                 .cursor_mouse_y = input_state_.current_mouse.logical_y,
@@ -2934,43 +2815,49 @@ public:
                 .spatial_audio = deferred_ports,
                 .dialogs = &world_dialogs_,
                 .dialog_runtime = &dialog_ports,
-                .dialog_input = {
-                    .current_tick = frame_preparation_state_.frame_clock
-                                        .sampled_milliseconds,
-                    .primary_press_state =
-                        input_state_.records[1U].rapid_press_multiplicity,
-                    .selected_choice_index = world_dialog_choice_pending_
-                        ? std::bit_cast<openswd3::compat::i32>(
-                              world_interaction_state_.selected_choice_index
-                          )
-                        : -1,
-                    .camera_left = std::bit_cast<openswd3::compat::i32>(
-                        world.camera.left
-                    ),
-                    .camera_top = std::bit_cast<openswd3::compat::i32>(
-                        world.camera.top
-                    ),
-                    .choice_chain_active = [&]() {
-                        for (const auto& message : world_dialogs_.messages) {
-                            if (!message.choices.empty()) {
-                                return true;
-                            }
-                        }
-                        return false;
-                    }(),
-                },
+                .dialog_input =
+                    {
+                        .current_tick = frame_preparation_state_.frame_clock
+                                            .sampled_milliseconds,
+                        .primary_press_state =
+                            input_state_.records[1U].rapid_press_multiplicity,
+                        .selected_choice_index = world_dialog_choice_pending_
+                            ? std::bit_cast<openswd3::compat::i32>(
+                                  world_interaction_state_.selected_choice_index
+                              )
+                            : -1,
+                        .camera_left = std::bit_cast<openswd3::compat::i32>(
+                            world.camera.left
+                        ),
+                        .camera_top = std::bit_cast<openswd3::compat::i32>(
+                            world.camera.top
+                        ),
+                        .choice_chain_active =
+                            [&]() {
+                                for (const auto& message :
+                                     world_dialogs_.messages) {
+                                    if (!message.choices.empty()) {
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            }(),
+                    },
             },
             deferred_ports
         );
-        if (result.status != openswd3::world_map::
-                                 LegacyWorldFrameCoordinatorStatus::completed ||
+        if (result.status !=
+                openswd3::world_map::LegacyWorldFrameCoordinatorStatus::
+                    completed ||
             deferred_ports.presentation_failed()) {
             std::string message{"ordinary world frame failed: status="};
-            message.append(std::to_string(static_cast<unsigned>(result.status)));
+            message.append(
+                std::to_string(static_cast<unsigned>(result.status))
+            );
             message.append(", inner_status=");
-            message.append(std::to_string(
-                static_cast<unsigned>(result.frame.status)
-            ));
+            message.append(
+                std::to_string(static_cast<unsigned>(result.frame.status))
+            );
             static_cast<void>(report_error(message));
             ok_ = false;
             running_ = false;
@@ -2980,9 +2867,9 @@ public:
             std::string message{
                 "ordinary world frame is live with deferred stages: inner="
             };
-            message.append(std::to_string(
-                deferred_ports.deferred_frame_stage_count()
-            ));
+            message.append(
+                std::to_string(deferred_ports.deferred_frame_stage_count())
+            );
             openswd3::diagnostics::log_info(message);
             deferred_world_stage_notice_logged_ = true;
         }
@@ -3044,16 +2931,17 @@ public:
                 message.append(std::to_string(initial_menu_state_.counter));
                 message.append(", choice=");
                 message.append(
-                    std::to_string(initial_menu_state_.selected_choice));
+                    std::to_string(initial_menu_state_.selected_choice)
+                );
                 openswd3::diagnostics::log_info(message);
             }
-            if (result.draw_status != openswd3::special_modes::
-                                          LegacyInitialMenuDrawStatus::
-                                              completed) {
+            if (result.draw_status !=
+                openswd3::special_modes::LegacyInitialMenuDrawStatus::
+                    completed) {
                 std::string message{"initial menu draw failed: status="};
-                message.append(std::to_string(
-                    static_cast<unsigned>(result.draw_status)
-                ));
+                message.append(
+                    std::to_string(static_cast<unsigned>(result.draw_status))
+                );
                 message.append(", blit_failures=");
                 message.append(std::to_string(result.blit_failure_count));
                 static_cast<void>(report_error(message));
@@ -3064,11 +2952,12 @@ public:
             if (!draw_initial_menu_name_input()) {
                 return openswd3::app::StandardSpecialModeEvent::none;
             }
-            if (result.event == openswd3::special_modes::
-                                    LegacyInitialMenuEvent::
-                                        commit_new_game_004492ba) {
+            if (result.event ==
+                openswd3::special_modes::LegacyInitialMenuEvent::
+                    commit_new_game_004492ba) {
                 openswd3::diagnostics::log_info(
-                    "initial menu committed new game");
+                    "initial menu committed new game"
+                );
                 return openswd3::app::StandardSpecialModeEvent::
                     commit_new_game_004492ba;
             }
@@ -3076,7 +2965,8 @@ public:
                 openswd3::special_modes::LegacyInitialMenuEvent::
                     commit_choice_3_00449320) {
                 openswd3::diagnostics::log_info(
-                    "initial menu requested process close");
+                    "initial menu requested process close"
+                );
                 return openswd3::app::StandardSpecialModeEvent::
                     request_close_00449320;
             }
@@ -3111,8 +3001,7 @@ public:
     }
 
     void set_initial_menu_phase(const openswd3::compat::u32 phase) override {
-        initial_menu_state_.phase =
-            std::bit_cast<openswd3::compat::i32>(phase);
+        initial_menu_state_.phase = std::bit_cast<openswd3::compat::i32>(phase);
     }
 
     void clear_game_framebuffer() override {
@@ -3136,9 +3025,9 @@ public:
         if (payload_load.status !=
             openswd3::resource_io::LegacyMapsPayloadStatus::ready) {
             std::string message{"initial world: MAPS payload reload failed: "};
-            message.append(std::to_string(
-                static_cast<unsigned>(payload_load.status)
-            ));
+            message.append(
+                std::to_string(static_cast<unsigned>(payload_load.status))
+            );
             static_cast<void>(report_error(message));
             ok_ = false;
             running_ = false;
@@ -3151,9 +3040,9 @@ public:
         if (decoded.status !=
             openswd3::world_map::LegacyMapsWorldDatabaseStatus::ready) {
             std::string message{"initial world: MAPS decode failed: "};
-            message.append(std::to_string(
-                static_cast<unsigned>(decoded.status)
-            ));
+            message.append(
+                std::to_string(static_cast<unsigned>(decoded.status))
+            );
             static_cast<void>(report_error(message));
             ok_ = false;
             running_ = false;
@@ -3172,20 +3061,22 @@ public:
             },
             world_action_initializer_
         );
-        if (loaded.status != openswd3::world_map::
-                                 LegacyWorldRuntimeSessionStatus::ready) {
+        if (loaded.status !=
+            openswd3::world_map::LegacyWorldRuntimeSessionStatus::ready) {
             std::string message{"initial world: session load failed: status="};
-            message.append(std::to_string(
-                static_cast<unsigned>(loaded.status)
-            ));
+            message.append(
+                std::to_string(static_cast<unsigned>(loaded.status))
+            );
             message.append(", maps_status=");
-            message.append(std::to_string(
-                static_cast<unsigned>(loaded.maps_database_status)
-            ));
+            message.append(
+                std::to_string(
+                    static_cast<unsigned>(loaded.maps_database_status)
+                )
+            );
             message.append(", render_status=");
-            message.append(std::to_string(
-                static_cast<unsigned>(loaded.render_status)
-            ));
+            message.append(
+                std::to_string(static_cast<unsigned>(loaded.render_status))
+            );
             static_cast<void>(report_error(message));
             ok_ = false;
             running_ = false;
@@ -3238,7 +3129,13 @@ public:
         world_dialog_choice_pending_ = false;
         world_auxiliary_selection_index_ = 0U;
         constexpr std::array<std::size_t, 7U> map_service_ids{
-            5U, 6U, 7U, 8U, 15U, 19U, 22U,
+            5U,
+            6U,
+            7U,
+            8U,
+            15U,
+            19U,
+            22U,
         };
         for (const std::size_t service_id : map_service_ids) {
             world_service_flags_[service_id] =
@@ -3246,12 +3143,10 @@ public:
                  (1U << service_id)) != 0U;
         }
         world_frame_effects_.directional_configuration = {
-            .map_width_tiles = static_cast<openswd3::compat::i32>(
-                map.header.width
-            ),
-            .map_height_tiles = static_cast<openswd3::compat::i32>(
-                map.header.height
-            ),
+            .map_width_tiles =
+                static_cast<openswd3::compat::i32>(map.header.width),
+            .map_height_tiles =
+                static_cast<openswd3::compat::i32>(map.header.height),
             .base_variant = static_cast<openswd3::compat::u16>(
                 world.map_descriptor_runtime.directional_base_variant
             ),
@@ -3261,27 +3156,20 @@ public:
             .spawn_direction = world.map_descriptor_runtime.behavior_index,
         };
         auto& directional_state = world_frame_effects_.directional.state();
-        for (std::size_t index = 0U;
-             index < world.directional_points.size(); ++index) {
+        for (std::size_t index = 0U; index < world.directional_points.size();
+             ++index) {
             const auto& source = world.directional_points[index];
             auto& motion = directional_state.motion[index];
             auto& color = directional_state.color[index];
             auto& timing = directional_state.timing[index];
-            motion.world_x = static_cast<openswd3::compat::i32>(
-                source.world_x
-            );
-            motion.world_y = static_cast<openswd3::compat::i32>(
-                source.world_y
-            );
+            motion.world_x = static_cast<openswd3::compat::i32>(source.world_x);
+            motion.world_y = static_cast<openswd3::compat::i32>(source.world_y);
             motion.velocity_x = source.velocity_x;
             motion.velocity_y = source.velocity_y;
             color.target_offset = 0;
-            timing.target_interval = static_cast<openswd3::compat::i32>(
-                source.target_interval
-            );
-            timing.variant = static_cast<openswd3::compat::i32>(
-                source.variant
-            );
+            timing.target_interval =
+                static_cast<openswd3::compat::i32>(source.target_interval);
+            timing.variant = static_cast<openswd3::compat::i32>(source.variant);
         }
         world_frame_state_.map_id = world.logical_map_id;
         world_frame_state_.frame_runtime.flash_red_offset =
@@ -3339,15 +3227,12 @@ public:
         return true;
     }
 
-    void set_high_priority_submode(
-        const openswd3::compat::u32 value
-    ) override {
+    void set_high_priority_submode(const openswd3::compat::u32 value) override {
         high_priority_submode_ = value;
     }
 
-    void set_high_priority_auxiliary(
-        const openswd3::compat::u32 value
-    ) override {
+    void
+    set_high_priority_auxiliary(const openswd3::compat::u32 value) override {
         high_priority_auxiliary_ = value;
     }
 
@@ -3376,9 +3261,9 @@ public:
             return false;
         }
         if (texture_ == nullptr) {
-            static_cast<void>(report_error(
-                "framebuffer presentation: missing texture"
-            ));
+            static_cast<void>(
+                report_error("framebuffer presentation: missing texture")
+            );
             ok_ = false;
             running_ = false;
             return false;
@@ -3392,8 +3277,7 @@ public:
         return true;
     }
 
-    std::span<openswd3::compat::u16>
-    video_destination_pixels() override {
+    std::span<openswd3::compat::u16> video_destination_pixels() override {
         return game_framebuffer_.physical_pixels();
     }
 
@@ -3419,9 +3303,7 @@ public:
     void request_synchronous_close() override {
         window_state_.process_flags = frame_coordinator_state_.process_flags;
         openswd3::app::handle_window_destroy(
-            window_state_,
-            shutdown_ports_,
-            exit_ports_
+            window_state_, shutdown_ports_, exit_ports_
         );
     }
 
@@ -3462,14 +3344,10 @@ private:
 
         std::array<openswd3::compat::u8, 0x40U> text{};
         static_cast<void>(initial_menu_state_.name_input->copy_to(
-            text.data(),
-            static_cast<openswd3::compat::i32>(text.size())
+            text.data(), static_cast<openswd3::compat::i32>(text.size())
         ));
         const auto color_pair = openswd3::rendering::legacy_pack_color_pair(
-            pixel_conversion_,
-            0x15,
-            0x0F,
-            0x08
+            pixel_conversion_, 0x15, 0x0F, 0x08
         );
         const auto draw = openswd3::rendering::draw_legacy_text(
             *binding.framebuffer,
@@ -3488,7 +3366,8 @@ private:
         if (draw.status !=
             openswd3::rendering::LegacyTextDrawStatus::completed) {
             static_cast<void>(
-                report_error("initial menu name input: text draw failed"));
+                report_error("initial menu name input: text draw failed")
+            );
             ok_ = false;
             running_ = false;
             return false;
@@ -3500,7 +3379,7 @@ private:
             pixel_conversion_,
             openswd3::rendering::LegacyRectangleEffectRequest{
                 .x = initial_menu_state_.name_input->x() +
-                     initial_menu_state_.name_input->cursor_byte_offset() * 11,
+                    initial_menu_state_.name_input->cursor_byte_offset() * 11,
                 .y = initial_menu_state_.name_input->y(),
                 .width = 0x0B,
                 .height = 0x16,
@@ -3515,7 +3394,8 @@ private:
             cursor !=
                 openswd3::rendering::LegacyRectangleEffectStatus::clipped_out) {
             static_cast<void>(
-                report_error("initial menu name input: cursor draw failed"));
+                report_error("initial menu name input: cursor draw failed")
+            );
             ok_ = false;
             running_ = false;
             return false;
@@ -3534,9 +3414,9 @@ private:
             result.status !=
                 openswd3::rendering::LegacyPresentationDispatchStatus::
                     backend_failed) {
-            static_cast<void>(report_error(
-                "framebuffer presentation: invalid legacy request"
-            ));
+            static_cast<void>(
+                report_error("framebuffer presentation: invalid legacy request")
+            );
             ok_ = false;
             running_ = false;
         }
@@ -3581,11 +3461,11 @@ private:
     public:
         explicit SecondaryWorldRuntimeRandom(
             openswd3::input_time_rng::LegacySecondaryRng& random
-        ) noexcept : random_{random} {}
+        ) noexcept
+            : random_{random} {}
 
-        openswd3::compat::u32 next_bounded(
-            const openswd3::compat::u32 upper_bound
-        ) override {
+        openswd3::compat::u32
+        next_bounded(const openswd3::compat::u32 upper_bound) override {
             return random_.next_bounded(upper_bound);
         }
 
@@ -3613,8 +3493,7 @@ private:
     std::array<bool, 128U> world_service_flags_{};
     openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
     openswd3::world_map::LegacyWorldStoryVmState world_story_vm_state_;
-    openswd3::world_map::LegacyWorldInteractionState
-        world_interaction_state_;
+    openswd3::world_map::LegacyWorldInteractionState world_interaction_state_;
     openswd3::world_map::LegacyWorldPlayerControlState
         world_player_control_state_;
     bool world_dialog_choice_pending_{};
@@ -3683,9 +3562,7 @@ int main(const int argument_count, char** arguments) {
 
     const openswd3::resource_io::DataDirectoryResolution data_directory =
         openswd3::resource_io::resolve_data_directory(
-            command_arguments,
-            executable_directory,
-            launch_directory
+            command_arguments, executable_directory, launch_directory
         );
     if (data_directory.status !=
         openswd3::resource_io::DataDirectoryStatus::ready) {
@@ -3704,8 +3581,7 @@ int main(const int argument_count, char** arguments) {
     }
 
     if (!openswd3::resource_io::activate_data_directory(
-            data_directory.directory,
-            directory_error
+            data_directory.directory, directory_error
         )) {
         return report_error(
             std::string{"game data directory: cannot activate directory: "} +
@@ -3727,9 +3603,7 @@ int main(const int argument_count, char** arguments) {
         );
     const openswd3::app::ProcessStartupGateResult startup_gate_result =
         openswd3::app::run_process_startup_gates(
-            legacy_command_line,
-            single_instance,
-            command_line_ports
+            legacy_command_line, single_instance, command_line_ports
         );
     if (startup_gate_result !=
         openswd3::app::ProcessStartupGateResult::continue_normal_startup) {
@@ -3739,8 +3613,8 @@ int main(const int argument_count, char** arguments) {
         return 0;
     }
 
-    const std::filesystem::path glyph_atlas_path = executable_directory
-        / "assets" / "fonts" / "legacy-glyph-atlas.bin";
+    const std::filesystem::path glyph_atlas_path =
+        executable_directory / "assets" / "fonts" / "legacy-glyph-atlas.bin";
     const std::vector<openswd3::compat::u8> glyph_atlas_bytes =
         read_binary_file(glyph_atlas_path);
     openswd3::rendering::LegacyGlyphAtlasProvider glyph_provider(
@@ -3748,21 +3622,20 @@ int main(const int argument_count, char** arguments) {
     );
     if (!glyph_provider.valid()) {
         return report_error(
-            std::string{"legacy glyph atlas: cannot load valid asset: "}
-            + glyph_atlas_path.string()
+            std::string{"legacy glyph atlas: cannot load valid asset: "} +
+            glyph_atlas_path.string()
         );
     }
     openswd3::diagnostics::log_info(
-        std::string{"legacy glyph atlas loaded: "}
-        + std::to_string(glyph_atlas_bytes.size()) + " bytes"
+        std::string{"legacy glyph atlas loaded: "} +
+        std::to_string(glyph_atlas_bytes.size()) + " bytes"
     );
 
     const std::filesystem::path configuration_path =
         executable_directory / openswd3::resource_io::kConfigurationFilename;
     const openswd3::resource_io::WindowConfigurationLoadResult window_config =
         openswd3::resource_io::load_window_configuration(
-            configuration_path,
-            {kInitialWindowWidth, kInitialWindowHeight}
+            configuration_path, {kInitialWindowWidth, kInitialWindowHeight}
         );
     if (window_config.status !=
         openswd3::resource_io::WindowConfigurationStatus::ready) {
@@ -3810,9 +3683,7 @@ int main(const int argument_count, char** arguments) {
     if (renderer == nullptr) {
         const int result = report_sdl_error("SDL_CreateRenderer");
         persist_window_configuration(
-            *window,
-            configuration_path,
-            normal_window_size
+            *window, configuration_path, normal_window_size
         );
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -3828,9 +3699,7 @@ int main(const int argument_count, char** arguments) {
         const int result = report_sdl_error("SDL_SetRenderLogicalPresentation");
         SDL_DestroyRenderer(renderer);
         persist_window_configuration(
-            *window,
-            configuration_path,
-            normal_window_size
+            *window, configuration_path, normal_window_size
         );
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -3840,8 +3709,7 @@ int main(const int argument_count, char** arguments) {
     bool game_initialized = false;
     bool startup_destroy_requested = false;
     SDL_Texture* texture = nullptr;
-    openswd3::compat::u32 frame_interval =
-        kInitialFrameIntervalMilliseconds;
+    openswd3::compat::u32 frame_interval = kInitialFrameIntervalMilliseconds;
     openswd3::app::InitializationState initialization_state{};
     openswd3::app::PlatformBackendState backend_state{};
     openswd3::resource_io::LegacyResourceDatabases resource_databases;
@@ -3852,8 +3720,7 @@ int main(const int argument_count, char** arguments) {
     openswd3::platform_sdl3::SdlLegacySampleBackend sample_backend;
     openswd3::audio_video::LegacySndArchive snd_archive;
     openswd3::audio_video::LegacySampleManager sample_manager(
-        sample_backend,
-        snd_archive
+        sample_backend, snd_archive
     );
     UnavailableLegacySequenceBackend sequence_backend;
     openswd3::audio_video::LegacySequenceManager sequence_manager(
@@ -3864,17 +3731,13 @@ int main(const int argument_count, char** arguments) {
     openswd3::audio_video::ImmediateCompleteLegacyVideoBackend video_backend;
     openswd3::audio_video::LegacyVideoPlayer video_player(video_backend);
     SdlLegacyAudioQueuePorts audio_queue_ports(
-        sequence_manager,
-        stream_manager
+        sequence_manager, stream_manager
     );
     openswd3::audio_video::LegacyAudioQueueCoordinator audio_queue(
         audio_queue_ports
     );
     SdlLegacyAudioMaintenancePorts audio_maintenance(
-        audio_queue,
-        stream_manager,
-        sequence_manager,
-        sample_manager
+        audio_queue, stream_manager, sequence_manager, sample_manager
     );
     SdlSmokePlatformBackendPorts backend_ports(
         *renderer,
@@ -3903,9 +3766,7 @@ int main(const int argument_count, char** arguments) {
     {
         openswd3::platform_sdl3::SdlExternalLaunchPorts external_launch_ports;
         openswd3::platform_sdl3::SdlStartupDialog startup_dialog(
-            *renderer,
-            external_launch_ports,
-            [] {}
+            *renderer, external_launch_ports, [] {}
         );
         SdlSmokeStartupPorts startup_ports(
             startup_dialog,
@@ -3916,12 +3777,9 @@ int main(const int argument_count, char** arguments) {
             startup_destroy_requested
         );
         openswd3::app::StartupState startup_state{};
-        static_cast<void>(
-            openswd3::app::run_startup_custom_message(
-                startup_state,
-                startup_ports
-            )
-        );
+        static_cast<void>(openswd3::app::run_startup_custom_message(
+            startup_state, startup_ports
+        ));
     }
 
     openswd3::input_time_rng::LegacyCrtRng crt_rng;
@@ -3942,9 +3800,7 @@ int main(const int argument_count, char** arguments) {
         }
         SDL_DestroyRenderer(renderer);
         persist_window_configuration(
-            *window,
-            configuration_path,
-            normal_window_size
+            *window, configuration_path, normal_window_size
         );
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -3956,15 +3812,12 @@ int main(const int argument_count, char** arguments) {
     );
     openswd3::rendering::LegacyPixelConversionState pixel_conversion;
     openswd3::rendering::select_legacy_pixel_conversion(
-        pixel_conversion,
-        {0xF800U, 0x07E0U, 0x001FU}
+        pixel_conversion, {0xF800U, 0x07E0U, 0x001FU}
     );
     openswd3::asset_runtime::LegacyActRuntime act_runtime{
         data_directory.directory
     };
-    act_runtime.set_cache_limit(
-        openswd3::asset_runtime::kLegacyActCacheBytes
-    );
+    act_runtime.set_cache_limit(openswd3::asset_runtime::kLegacyActCacheBytes);
     openswd3::asset_runtime::LegacyActActionStreamProvider action_provider{
         act_runtime
     };
@@ -3974,8 +3827,7 @@ int main(const int argument_count, char** arguments) {
     openswd3::world_map::LegacyWorldActionUpdaterInitializer
         world_action_initializer{action_updater};
     openswd3::asset_runtime::LegacyTswRuntime tsw_runtime{
-        data_directory.directory,
-        pixel_conversion
+        data_directory.directory, pixel_conversion
     };
     tsw_runtime.set_cache_limit(
         openswd3::asset_runtime::kLegacyMaximumTswCacheBytes
@@ -3983,9 +3835,8 @@ int main(const int argument_count, char** arguments) {
 
     openswd3::app::seed_two_rng_streams(rng_seed_ports);
 
-    const bool runtime_ready =
-        game_initialized && backend_state.display_active != 0U &&
-        texture != nullptr;
+    const bool runtime_ready = game_initialized &&
+        backend_state.display_active != 0U && texture != nullptr;
     openswd3::app::WindowEventState window_state{
         runtime_ready ? 1U : 0U,
         backend_state.process_flags,
@@ -3999,10 +3850,7 @@ int main(const int argument_count, char** arguments) {
     bool ok = true;
     bool running = true;
     SmokeWindowEventPorts window_ports(
-        framebuffer,
-        pixel_conversion,
-        audio_maintenance,
-        video_player
+        framebuffer, pixel_conversion, audio_maintenance, video_player
     );
     SdlDisplayLifecyclePorts display_ports(
         *window,
@@ -4021,9 +3869,7 @@ int main(const int argument_count, char** arguments) {
         running
     );
     SmokeShutdownPorts shutdown_ports(
-        text_renderers,
-        stream_manager,
-        sample_manager
+        text_renderers, stream_manager, sample_manager
     );
 
     SdlProcessExitPorts exit_ports(running);
@@ -4032,9 +3878,7 @@ int main(const int argument_count, char** arguments) {
         static_cast<void>(report_sdl_error("initial framebuffer presentation"));
         ok = false;
         openswd3::app::handle_window_destroy(
-            window_state,
-            shutdown_ports,
-            exit_ports
+            window_state, shutdown_ports, exit_ports
         );
     }
     openswd3::app::FramePreparationState frame_preparation_state{};
@@ -4117,9 +3961,7 @@ int main(const int argument_count, char** arguments) {
             );
             if (result == openswd3::app::HostWindowEventResult::request_close) {
                 openswd3::app::handle_window_destroy(
-                    window_state,
-                    shutdown_ports,
-                    exit_ports
+                    window_state, shutdown_ports, exit_ports
                 );
                 break;
             }
@@ -4152,9 +3994,7 @@ int main(const int argument_count, char** arguments) {
     }
     SDL_DestroyRenderer(renderer);
     persist_window_configuration(
-        *window,
-        configuration_path,
-        normal_window_size
+        *window, configuration_path, normal_window_size
     );
     SDL_DestroyWindow(window);
     SDL_Quit();

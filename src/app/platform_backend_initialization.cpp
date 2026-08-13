@@ -34,8 +34,7 @@ bool run_platform_backend_initialization(
     }
 
     state.common_source_surface = ports.create_common_source_surface(
-        kLegacyFrameWidth,
-        kLegacyFrameHeight
+        kLegacyFrameWidth, kLegacyFrameHeight
     );
     state.display_active = 1U;
     const BackendToken audio_driver = ports.query_audio_driver();

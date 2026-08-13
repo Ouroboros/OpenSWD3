@@ -51,9 +51,8 @@ struct LegacyGlyphWriteResult {
     LegacyGlyphStyle style{LegacyGlyphStyle::none};
 };
 
-[[nodiscard]] LegacyGlyphStyle select_legacy_glyph_style(
-    compat::u32 flags
-) noexcept;
+[[nodiscard]] LegacyGlyphStyle
+select_legacy_glyph_style(compat::u32 flags) noexcept;
 
 [[nodiscard]] LegacyGlyphWriteResult draw_legacy_glyph(
     LegacyFramebuffer& framebuffer,
@@ -77,8 +76,7 @@ struct LegacyGlyphBackgroundRequest {
 };
 
 [[nodiscard]] LegacyGlyphBackgroundStatus fill_legacy_glyph_background(
-    LegacyFramebuffer& framebuffer,
-    const LegacyGlyphBackgroundRequest& request
+    LegacyFramebuffer& framebuffer, const LegacyGlyphBackgroundRequest& request
 ) noexcept;
 
 }  // namespace openswd3::rendering

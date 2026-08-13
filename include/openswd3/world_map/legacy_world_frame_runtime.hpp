@@ -29,142 +29,145 @@
 namespace openswd3::world_map {
 
 struct LegacyWorldFrameEffectState {
-  LegacyWorldFrameEffectState() noexcept;
+    LegacyWorldFrameEffectState() noexcept;
 
-  asset_runtime::LegacyAniDriftEffect drift;
-  asset_runtime::LegacyAniStreakEffect streak;
-  asset_runtime::LegacyAniSparkEffect spark;
-  asset_runtime::LegacyAniDirectionalEffect directional;
-  asset_runtime::LegacyAniDirectionalConfiguration directional_configuration{
-      .base_variant = 0U,
-      .variant_count = 4U,
-      .spawn_direction = 0U,
-  };
-  asset_runtime::LegacyActionRecord directional_action{};
-  asset_runtime::LegacyAniRowCopyEffect row_copy;
-  asset_runtime::LegacyDeformationList deformation;
-  asset_runtime::LegacyAniFollowerState follower;
-  asset_runtime::LegacyActionRecord follower_action{};
-  std::list<rendering::LegacyPackedRowEffect> packed_rows;
-  rendering::LegacyFrameColorTransitionState frame_color;
-  std::list<rendering::LegacyTimedMessage> timed_messages;
-  LegacyWorldCursorState cursor;
+    asset_runtime::LegacyAniDriftEffect drift;
+    asset_runtime::LegacyAniStreakEffect streak;
+    asset_runtime::LegacyAniSparkEffect spark;
+    asset_runtime::LegacyAniDirectionalEffect directional;
+    asset_runtime::LegacyAniDirectionalConfiguration directional_configuration{
+        .base_variant = 0U,
+        .variant_count = 4U,
+        .spawn_direction = 0U,
+    };
+    asset_runtime::LegacyActionRecord directional_action{};
+    asset_runtime::LegacyAniRowCopyEffect row_copy;
+    asset_runtime::LegacyDeformationList deformation;
+    asset_runtime::LegacyAniFollowerState follower;
+    asset_runtime::LegacyActionRecord follower_action{};
+    std::list<rendering::LegacyPackedRowEffect> packed_rows;
+    rendering::LegacyFrameColorTransitionState frame_color;
+    std::list<rendering::LegacyTimedMessage> timed_messages;
+    LegacyWorldCursorState cursor;
 };
 
 struct LegacyWorldFrameRuntimeState {
-  LegacyWorldFrameState frame;
-  compat::u32 role_frame_counter{};
-  compat::i32 flash_red_offset{};
-  compat::i32 flash_green_offset{};
-  compat::i32 flash_blue_offset{};
-  LegacyWorldSpatialAudioState spatial_audio;
-  compat::i32 directional_movement_scale{};
-  compat::i32 directional_player_delta_x{};
-  compat::i32 directional_player_delta_y{};
+    LegacyWorldFrameState frame;
+    compat::u32 role_frame_counter{};
+    compat::i32 flash_red_offset{};
+    compat::i32 flash_green_offset{};
+    compat::i32 flash_blue_offset{};
+    LegacyWorldSpatialAudioState spatial_audio;
+    compat::i32 directional_movement_scale{};
+    compat::i32 directional_player_delta_x{};
+    compat::i32 directional_player_delta_y{};
 };
 
 struct LegacyWorldFrameRuntimePorts {
-  // Stages without a concrete owner remain explicit here until their owning
-  // module supplies a runtime implementation.
-  LegacyWorldFramePorts &remaining_stages;
-  std::span<const LegacyWorldIndexedObject> indexed_objects;
-  LegacyPictureActionLists &picture_actions;
-  LegacyMovingActionList &moving_actions;
-  LegacyRoleHeadActionList &role_head_actions;
-  LegacyWorldFrameEffectState &environment_effects;
-  input_time_rng::LegacySecondaryRng &secondary_rng;
-  const rendering::LegacyPixelConversionState &pixel_conversion;
-  const rendering::LegacyBlitEffectState *blit_effects{};
-  bool cursor_delete_key_pressed{};
-  compat::i32 cursor_mouse_x{};
-  compat::i32 cursor_mouse_y{};
-  compat::u32 cursor_left_press_multiplicity{};
-  compat::u32 *special_mode_state{};
-  asset_runtime::LegacyAniDriftPorts &ani_drift;
-  asset_runtime::LegacyAniDirectionalPorts &ani_directional;
-  asset_runtime::LegacyAniFollowerPorts &ani_follower;
-  rendering::LegacyTimedMessageRuntimePorts &timed_message_runtime;
-  asset_runtime::LegacyActionDrawPorts &flagged_roles;
-  LegacyWorldRoleRenderPorts &world_roles;
-  LegacyWorldSpatialAudioPorts &spatial_audio;
-  story_scene::LegacyDialogRuntimeState *dialogs{};
-  story_scene::LegacyDialogRuntimePorts *dialog_runtime{};
-  story_scene::LegacyDialogRuntimeInput dialog_input{};
+    // Stages without a concrete owner remain explicit here until their owning
+    // module supplies a runtime implementation.
+    LegacyWorldFramePorts& remaining_stages;
+    std::span<const LegacyWorldIndexedObject> indexed_objects;
+    LegacyPictureActionLists& picture_actions;
+    LegacyMovingActionList& moving_actions;
+    LegacyRoleHeadActionList& role_head_actions;
+    LegacyWorldFrameEffectState& environment_effects;
+    input_time_rng::LegacySecondaryRng& secondary_rng;
+    const rendering::LegacyPixelConversionState& pixel_conversion;
+    const rendering::LegacyBlitEffectState* blit_effects{};
+    bool cursor_delete_key_pressed{};
+    compat::i32 cursor_mouse_x{};
+    compat::i32 cursor_mouse_y{};
+    compat::u32 cursor_left_press_multiplicity{};
+    compat::u32* special_mode_state{};
+    asset_runtime::LegacyAniDriftPorts& ani_drift;
+    asset_runtime::LegacyAniDirectionalPorts& ani_directional;
+    asset_runtime::LegacyAniFollowerPorts& ani_follower;
+    rendering::LegacyTimedMessageRuntimePorts& timed_message_runtime;
+    asset_runtime::LegacyActionDrawPorts& flagged_roles;
+    LegacyWorldRoleRenderPorts& world_roles;
+    LegacyWorldSpatialAudioPorts& spatial_audio;
+    story_scene::LegacyDialogRuntimeState* dialogs{};
+    story_scene::LegacyDialogRuntimePorts* dialog_runtime{};
+    story_scene::LegacyDialogRuntimeInput dialog_input{};
 };
 
 enum class LegacyWorldFrameRuntimeStatus : compat::u8 {
-  completed,
-  composition_failed,
-  delegated_stage_failed,
-  indexed_objects_failed,
-  environment_effect_failed,
-  frame_color_failed,
-  flagged_roles_failed,
-  world_roles_failed,
-  cursor_frame_failed,
-  dialog_failed,
-  stage_exception,
+    completed,
+    composition_failed,
+    delegated_stage_failed,
+    indexed_objects_failed,
+    environment_effect_failed,
+    frame_color_failed,
+    flagged_roles_failed,
+    world_roles_failed,
+    cursor_frame_failed,
+    dialog_failed,
+    stage_exception,
 };
 
 struct LegacyWorldFrameRuntimeResult {
-  LegacyWorldFrameRuntimeStatus status{
-      LegacyWorldFrameRuntimeStatus::composition_failed};
-  LegacyWorldFrameCompositionResult composition;
-  LegacyWorldFlaggedRolesResult flagged_roles;
-  LegacyWorldIndexedObjectDrawResult indexed_objects;
-  LegacyWorldRolesResult world_roles;
-  LegacyWorldCursorResult cursor;
-  LegacyPictureActionResult primary_picture_actions;
-  LegacyMovingActionResult moving_actions;
-  LegacyPictureActionResult secondary_picture_actions;
-  LegacyRoleHeadActionResult role_head_actions;
-  asset_runtime::LegacyAniDriftResult ani_drift;
-  asset_runtime::LegacyAniStreakResult ani_streak;
-  asset_runtime::LegacyAniSparkResult ani_spark;
-  asset_runtime::LegacyAniDirectionalResult ani_directional;
-  asset_runtime::LegacyAniRowCopyResult ani_row_copy;
-  asset_runtime::LegacyDeformationListUpdateResult framebuffer_deformation;
-  asset_runtime::LegacyAniFollowerResult ani_follower;
-  rendering::LegacyPackedRowEffectResult packed_rows;
-  rendering::LegacyFrameColorTransitionResult frame_color;
-  rendering::LegacyTimedMessageResult timed_messages;
-  story_scene::LegacyDialogRuntimeResult dialogs;
-  compat::u32 delegated_stage_count{};
-  bool indexed_objects_executed{};
-  bool flagged_stage_executed{};
-  bool world_roles_stage_executed{};
-  bool cursor_executed{};
-  bool primary_picture_actions_executed{};
-  bool moving_actions_executed{};
-  bool secondary_picture_actions_executed{};
-  bool role_head_actions_executed{};
-  bool ani_drift_executed{};
-  bool ani_streak_executed{};
-  bool ani_spark_executed{};
-  bool ani_directional_executed{};
-  bool ani_row_copy_executed{};
-  bool framebuffer_deformation_executed{};
-  bool ani_follower_executed{};
-  bool packed_rows_executed{};
-  bool frame_color_executed{};
-  bool timed_messages_executed{};
-  bool dialogs_executed{};
-  bool failed_stage_recorded{};
-  LegacyWorldFrameStage failed_stage{
-      LegacyWorldFrameStage::ani_activity_004154a0};
+    LegacyWorldFrameRuntimeStatus status{
+        LegacyWorldFrameRuntimeStatus::composition_failed
+    };
+    LegacyWorldFrameCompositionResult composition;
+    LegacyWorldFlaggedRolesResult flagged_roles;
+    LegacyWorldIndexedObjectDrawResult indexed_objects;
+    LegacyWorldRolesResult world_roles;
+    LegacyWorldCursorResult cursor;
+    LegacyPictureActionResult primary_picture_actions;
+    LegacyMovingActionResult moving_actions;
+    LegacyPictureActionResult secondary_picture_actions;
+    LegacyRoleHeadActionResult role_head_actions;
+    asset_runtime::LegacyAniDriftResult ani_drift;
+    asset_runtime::LegacyAniStreakResult ani_streak;
+    asset_runtime::LegacyAniSparkResult ani_spark;
+    asset_runtime::LegacyAniDirectionalResult ani_directional;
+    asset_runtime::LegacyAniRowCopyResult ani_row_copy;
+    asset_runtime::LegacyDeformationListUpdateResult framebuffer_deformation;
+    asset_runtime::LegacyAniFollowerResult ani_follower;
+    rendering::LegacyPackedRowEffectResult packed_rows;
+    rendering::LegacyFrameColorTransitionResult frame_color;
+    rendering::LegacyTimedMessageResult timed_messages;
+    story_scene::LegacyDialogRuntimeResult dialogs;
+    compat::u32 delegated_stage_count{};
+    bool indexed_objects_executed{};
+    bool flagged_stage_executed{};
+    bool world_roles_stage_executed{};
+    bool cursor_executed{};
+    bool primary_picture_actions_executed{};
+    bool moving_actions_executed{};
+    bool secondary_picture_actions_executed{};
+    bool role_head_actions_executed{};
+    bool ani_drift_executed{};
+    bool ani_streak_executed{};
+    bool ani_spark_executed{};
+    bool ani_directional_executed{};
+    bool ani_row_copy_executed{};
+    bool framebuffer_deformation_executed{};
+    bool ani_follower_executed{};
+    bool packed_rows_executed{};
+    bool frame_color_executed{};
+    bool timed_messages_executed{};
+    bool dialogs_executed{};
+    bool failed_stage_recorded{};
+    LegacyWorldFrameStage failed_stage{
+        LegacyWorldFrameStage::ani_activity_004154a0
+    };
 };
 
 // Concrete 0x00412930 vertical slice. The frame coordinator retains the exact
 // assembly order while recovered stages execute against the same mutable
 // frame state, role array, raster clip, framebuffer and row-jitter state.
 [[nodiscard]] LegacyWorldFrameRuntimeResult compose_legacy_world_runtime_frame(
-    rendering::LegacyFramebuffer &framebuffer,
-    rendering::LegacyRasterGeometryState &raster,
-    const LegacyWorldBackgroundSource &background_source,
-    const LegacyRoleSpatialIndex &spatial_index,
+    rendering::LegacyFramebuffer& framebuffer,
+    rendering::LegacyRasterGeometryState& raster,
+    const LegacyWorldBackgroundSource& background_source,
+    const LegacyRoleSpatialIndex& spatial_index,
     std::span<LegacyWorldRoleRecord> roles,
-    const LegacyWorldFrameRuntimeState &state,
-    rendering::LegacyRleRowJitterState &jitter,
-    LegacyWorldFrameRuntimePorts ports) noexcept;
+    const LegacyWorldFrameRuntimeState& state,
+    rendering::LegacyRleRowJitterState& jitter,
+    LegacyWorldFrameRuntimePorts ports
+) noexcept;
 
-} // namespace openswd3::world_map
+}  // namespace openswd3::world_map

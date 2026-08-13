@@ -16,15 +16,28 @@ constexpr std::size_t kObjectPathCursorOffset = 0x02U;
 constexpr std::size_t kObjectPathDataOffset = 0x1CU;
 
 constexpr std::array<i32, 8U> kDirectionStepX{
-    4, 0, -4, -4, -4, 0, 4, 4,
+    4,
+    0,
+    -4,
+    -4,
+    -4,
+    0,
+    4,
+    4,
 };
 constexpr std::array<i32, 8U> kDirectionStepY{
-    4, 4, 4, 0, -4, -4, -4, 0,
+    4,
+    4,
+    4,
+    0,
+    -4,
+    -4,
+    -4,
+    0,
 };
 
 [[nodiscard]] u16 read_u16_le(
-    const std::span<const u8> bytes,
-    const std::size_t offset
+    const std::span<const u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<u16>(bytes[offset]) |
         static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
@@ -49,18 +62,15 @@ constexpr std::array<i32, 8U> kDirectionStepY{
     const LegacyWorldRoleMapUpdateContext& context,
     LegacyWorldRoleMapUpdateResult& result
 ) noexcept {
-    const auto cleared = clear_legacy_world_role_surface_occupancy(
-        role,
-        context.role_surface
-    );
+    const auto cleared =
+        clear_legacy_world_role_surface_occupancy(role, context.role_surface);
     if (cleared.status != LegacyWorldRoleSurfaceStatus::ready) {
         return LegacyWorldRoleMapUpdateStatus::role_surface_failed;
     }
     result.role_surface_cleared = true;
 
     const u16 cursor = static_cast<u16>(
-        read_u16_le(slot.bytes, kObjectPathCursorOffset) &
-        kObjectPathCursorMask
+        read_u16_le(slot.bytes, kObjectPathCursorOffset) & kObjectPathCursorMask
     );
     const std::size_t direction_offset = kObjectPathDataOffset + cursor;
     if (direction_offset >= slot.bytes.size()) {
@@ -78,8 +88,7 @@ constexpr std::array<i32, 8U> kDirectionStepY{
         result.coordinates_aligned = true;
     }
     if (context.spatial_index == nullptr) {
-        return LegacyWorldRoleMapUpdateStatus::
-            role_spatial_relocation_failed;
+        return LegacyWorldRoleMapUpdateStatus::role_spatial_relocation_failed;
     }
     const u32 first_row_bits = (role.world_y >> 4U) - 1U;
     const auto spatial_status = relocate_legacy_role_spatially_by_guid(
@@ -91,8 +100,7 @@ constexpr std::array<i32, 8U> kDirectionStepY{
         true
     );
     if (spatial_status != LegacyRoleSpatialRelocationStatus::ready) {
-        return LegacyWorldRoleMapUpdateStatus::
-            role_spatial_relocation_failed;
+        return LegacyWorldRoleMapUpdateStatus::role_spatial_relocation_failed;
     }
     result.spatial_role_relocated = true;
     return LegacyWorldRoleMapUpdateStatus::ready;
@@ -123,7 +131,8 @@ LegacyWorldRoleMapUpdateResult apply_legacy_world_role_map_update(
     const LegacyWorldRoleMapUpdateContext& context
 ) noexcept {
     LegacyWorldRoleMapUpdateResult result;
-    if (context.maps_database == nullptr || context.party_role_count == nullptr) {
+    if (context.maps_database == nullptr ||
+        context.party_role_count == nullptr) {
         result.status = LegacyWorldRoleMapUpdateStatus::maps_runtime_required;
         return result;
     }
@@ -154,13 +163,14 @@ LegacyWorldRoleMapUpdateResult apply_legacy_world_role_map_update(
         return result;
     }
     if (role_index >= context.roles.size()) {
-        result.status = LegacyWorldRoleMapUpdateStatus::
-            controlled_role_out_of_range;
+        result.status =
+            LegacyWorldRoleMapUpdateStatus::controlled_role_out_of_range;
         return result;
     }
     if (*context.party_role_count == 0U ||
         *context.party_role_count > kLegacyWorldPartySlotCount) {
-        result.status = LegacyWorldRoleMapUpdateStatus::party_count_out_of_range;
+        result.status =
+            LegacyWorldRoleMapUpdateStatus::party_count_out_of_range;
         return result;
     }
 
@@ -171,23 +181,22 @@ LegacyWorldRoleMapUpdateResult apply_legacy_world_role_map_update(
     }
     result.physical_party_index = party_index;
     if (party_index == kLegacyWorldPartySlotCount) {
-        result.status = LegacyWorldRoleMapUpdateStatus::
-            active_role_not_in_physical_party;
+        result.status =
+            LegacyWorldRoleMapUpdateStatus::active_role_not_in_physical_party;
         return result;
     }
 
     LegacyWorldRoleRecord& role = context.roles[role_index];
     LegacyWorldObjectSlot& party_slot = context.party_object_slots[party_index];
-    const u16 path_cursor = read_u16_le(
-        party_slot.bytes,
-        kObjectPathCursorOffset
-    );
+    const u16 path_cursor =
+        read_u16_le(party_slot.bytes, kObjectPathCursorOffset);
     if (path_cursor < kObjectPathCursorMask &&
         ((role.world_x | role.world_y) & 0x0FU) != 0U) {
         result.status = align_party_role(role, party_slot, context, result);
         if (result.status != LegacyWorldRoleMapUpdateStatus::ready &&
-            result.status != LegacyWorldRoleMapUpdateStatus::
-                                 role_spatial_relocation_failed) {
+            result.status !=
+                LegacyWorldRoleMapUpdateStatus::
+                    role_spatial_relocation_failed) {
             return result;
         }
     }
@@ -205,22 +214,18 @@ LegacyWorldRoleMapUpdateResult apply_legacy_world_role_map_update(
     result.maps_source_patched =
         patch_status == LegacyMapsRolePatchStatus::ready;
 
-    const auto marked = mark_legacy_world_role_surface_occupancy(
-        role,
-        context.role_surface
-    );
+    const auto marked =
+        mark_legacy_world_role_surface_occupancy(role, context.role_surface);
     if (marked.status != LegacyWorldRoleSurfaceStatus::ready) {
         result.status = LegacyWorldRoleMapUpdateStatus::role_surface_failed;
         return result;
     }
-    for (u32 index = party_index;
-         index + 1U < kLegacyWorldPartySlotCount;
+    for (u32 index = party_index; index + 1U < kLegacyWorldPartySlotCount;
          ++index) {
         context.party_role_indices[index] =
             context.party_role_indices[index + 1U];
     }
-    for (u32 index = party_index;
-         index + 1U < kLegacyWorldPartySlotCount;
+    for (u32 index = party_index; index + 1U < kLegacyWorldPartySlotCount;
          ++index) {
         context.party_object_slots[index] =
             context.party_object_slots[index + 1U];

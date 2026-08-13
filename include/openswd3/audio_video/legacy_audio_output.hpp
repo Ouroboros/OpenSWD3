@@ -19,8 +19,7 @@ struct LegacyPcmOutputFormat {
     compat::u16 bits_per_sample{};
 
     friend bool operator==(
-        const LegacyPcmOutputFormat&,
-        const LegacyPcmOutputFormat&
+        const LegacyPcmOutputFormat&, const LegacyPcmOutputFormat&
     ) = default;
 };
 
@@ -32,9 +31,8 @@ public:
 
     virtual void set_preference(compat::i32 index, compat::i32 value) = 0;
     [[nodiscard]] virtual compat::i32 preference(compat::i32 index) = 0;
-    [[nodiscard]] virtual bool open_output(
-        const LegacyPcmOutputFormat& format
-    ) = 0;
+    [[nodiscard]] virtual bool
+    open_output(const LegacyPcmOutputFormat& format) = 0;
     [[nodiscard]] virtual std::string_view output_configuration() = 0;
     [[nodiscard]] virtual std::string_view last_error() const = 0;
     virtual void close_output() = 0;
@@ -52,8 +50,7 @@ struct LegacyAudioOutputResult {
     std::string last_error;
 };
 
-[[nodiscard]] LegacyAudioOutputResult initialize_legacy_audio_output(
-    LegacyAudioOutputBackend& backend
-);
+[[nodiscard]] LegacyAudioOutputResult
+initialize_legacy_audio_output(LegacyAudioOutputBackend& backend);
 
 }  // namespace openswd3::audio_video

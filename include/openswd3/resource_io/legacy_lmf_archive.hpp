@@ -18,9 +18,7 @@ enum class LegacyLmfMapLookupStatus {
 };
 
 struct LegacyLmfMapLookupResult {
-    LegacyLmfMapLookupStatus status{
-        LegacyLmfMapLookupStatus::file_open_failed
-    };
+    LegacyLmfMapLookupStatus status{LegacyLmfMapLookupStatus::file_open_failed};
     compat::u32 map_offset{};
 };
 
@@ -42,9 +40,7 @@ enum class LegacyLmfMapHeaderStatus {
 };
 
 struct LegacyLmfMapHeader {
-    LegacyLmfMapHeaderStatus status{
-        LegacyLmfMapHeaderStatus::file_open_failed
-    };
+    LegacyLmfMapHeaderStatus status{LegacyLmfMapHeaderStatus::file_open_failed};
     LegacyLmfMapFormat format{LegacyLmfMapFormat::unknown};
     compat::u32 offset_04{};
     compat::u32 offset_14{};
@@ -83,9 +79,7 @@ struct LegacyLmfSurfaceGrid {
     compat::u32 actual_surface_grid_size{};
     compat::u32 post_surface_record_count{};
     compat::u32 post_surface_records_offset{};
-    LegacyLzo1xStatus decompression_status{
-        LegacyLzo1xStatus::source_exhausted
-    };
+    LegacyLzo1xStatus decompression_status{LegacyLzo1xStatus::source_exhausted};
 };
 
 enum class LegacyLmfPostSurfaceRecordsStatus {
@@ -208,9 +202,7 @@ struct LegacyLmfIndexedObject {
     compat::u32 actual_compressed_size{};
     std::vector<compat::u8> decompressed_payload;
     compat::u32 actual_decompressed_size{};
-    LegacyLzo1xStatus decompression_status{
-        LegacyLzo1xStatus::source_exhausted
-    };
+    LegacyLzo1xStatus decompression_status{LegacyLzo1xStatus::source_exhausted};
 };
 
 struct LegacyLmfIndexedObjectDirectory {
@@ -251,13 +243,11 @@ struct LegacyLmfOffset1cDirectory {
 };
 
 [[nodiscard]] LegacyLmfMapLookupResult legacy_lmf_lookup_map(
-    const std::filesystem::path& archive_path,
-    compat::u32 map_id
+    const std::filesystem::path& archive_path, compat::u32 map_id
 );
 
 [[nodiscard]] LegacyLmfMapHeader legacy_lmf_read_map_header(
-    const std::filesystem::path& archive_path,
-    compat::u32 map_offset
+    const std::filesystem::path& archive_path, compat::u32 map_offset
 );
 
 [[nodiscard]] LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(

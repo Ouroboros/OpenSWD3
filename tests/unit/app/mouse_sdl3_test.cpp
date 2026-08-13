@@ -6,15 +6,10 @@
 
 namespace {
 
-void test_virtual_absolute_axes_and_buttons(
-    openswd3::test::Context& test
-) {
+void test_virtual_absolute_axes_and_buttons(openswd3::test::Context& test) {
     openswd3::platform_sdl3::SdlMouseDeviceState state{};
     auto sample = openswd3::platform_sdl3::accumulate_sdl_mouse_sample(
-        state,
-        0.5,
-        0.25,
-        SDL_BUTTON_LMASK
+        state, 0.5, 0.25, SDL_BUTTON_LMASK
     );
     test.expect_equal(sample.absolute_x, 0, "fractional x remains accumulated");
     test.expect_equal(sample.absolute_y, 0, "fractional y remains accumulated");
@@ -30,13 +25,14 @@ void test_virtual_absolute_axes_and_buttons(
     );
 
     sample = openswd3::platform_sdl3::accumulate_sdl_mouse_sample(
-        state,
-        0.5,
-        0.75,
-        SDL_BUTTON_RMASK
+        state, 0.5, 0.75, SDL_BUTTON_RMASK
     );
-    test.expect_equal(sample.absolute_x, 1, "fractional x carries to next sample");
-    test.expect_equal(sample.absolute_y, 1, "fractional y carries to next sample");
+    test.expect_equal(
+        sample.absolute_x, 1, "fractional x carries to next sample"
+    );
+    test.expect_equal(
+        sample.absolute_y, 1, "fractional y carries to next sample"
+    );
     test.expect_equal(
         sample.button_0,
         static_cast<openswd3::compat::u8>(0U),
@@ -54,8 +50,12 @@ void test_virtual_absolute_axes_and_buttons(
         -3.5,
         SDL_BUTTON_LMASK | SDL_BUTTON_RMASK | SDL_BUTTON_MMASK
     );
-    test.expect_equal(sample.absolute_x, -1, "negative x truncates toward zero");
-    test.expect_equal(sample.absolute_y, -2, "negative y truncates toward zero");
+    test.expect_equal(
+        sample.absolute_x, -1, "negative x truncates toward zero"
+    );
+    test.expect_equal(
+        sample.absolute_y, -2, "negative y truncates toward zero"
+    );
     test.expect_equal(
         sample.button_0,
         static_cast<openswd3::compat::u8>(0x80U),

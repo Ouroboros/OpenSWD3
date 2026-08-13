@@ -43,14 +43,40 @@ void test_default_bindings(openswd3::test::Context& test) {
         LegacyKeyBinding::configurable_19,
     };
     constexpr std::array<u32, 16> kExpected{
-        0x01U, 0x39U, 0x36U, 0xCBU,
-        0xC8U, 0xCDU, 0xD0U, 0xC9U,
-        0xD1U, 0x9DU, 0xCFU, 0x1CU,
-        0x13U, 0x1EU, 0x22U, 0x3BU,
+        0x01U,
+        0x39U,
+        0x36U,
+        0xCBU,
+        0xC8U,
+        0xCDU,
+        0xD0U,
+        0xC9U,
+        0xD1U,
+        0x9DU,
+        0xCFU,
+        0x1CU,
+        0x13U,
+        0x1EU,
+        0x22U,
+        0x3BU,
     };
     constexpr std::array<std::size_t, 16> kPhysicalWordIndices{
-        0U, 1U, 2U, 3U, 4U, 5U, 6U, 7U,
-        8U, 9U, 10U, 12U, 16U, 17U, 18U, 19U,
+        0U,
+        1U,
+        2U,
+        3U,
+        4U,
+        5U,
+        6U,
+        7U,
+        8U,
+        9U,
+        10U,
+        12U,
+        16U,
+        17U,
+        18U,
+        19U,
     };
     for (std::size_t index = 0U; index < kBindings.size(); ++index) {
         test.expect_equal(
@@ -66,10 +92,22 @@ void test_default_bindings(openswd3::test::Context& test) {
     }
 
     constexpr std::array<std::size_t, 16> kUntouchedWordIndices{
-        11U, 13U, 14U, 15U,
-        20U, 21U, 22U, 23U,
-        24U, 25U, 26U, 27U,
-        28U, 29U, 30U, 31U,
+        11U,
+        13U,
+        14U,
+        15U,
+        20U,
+        21U,
+        22U,
+        23U,
+        24U,
+        25U,
+        26U,
+        27U,
+        28U,
+        29U,
+        30U,
+        31U,
     };
     for (const std::size_t index : kUntouchedWordIndices) {
         test.expect_equal(
@@ -135,15 +173,12 @@ void test_release_transitions(openswd3::test::Context& test) {
 
 void test_press_transitions(openswd3::test::Context& test) {
     constexpr std::array<u32, 4> kExpectedMultiplicity{1U, 2U, 3U, 3U};
-    for (std::size_t index = 0U; index < kExpectedMultiplicity.size(); ++index) {
+    for (std::size_t index = 0U; index < kExpectedMultiplicity.size();
+         ++index) {
         const u32 stage = static_cast<u32>(index);
         LegacyInputRecord record{9U, 100U, stage, 7U};
         test.expect_equal(
-            openswd3::input_time_rng::update_input_record(
-                record,
-                0x80U,
-                1000U
-            ),
+            openswd3::input_time_rng::update_input_record(record, 0x80U, 1000U),
             1U,
             "re-press returns a fresh held sample count"
         );
@@ -249,12 +284,7 @@ void test_mouse_sensitivity_and_rebase(openswd3::test::Context& test) {
     );
 
     const LegacyMouseDeviceSample sample{1000, 2000, 0U, 0U};
-    openswd3::input_time_rng::rebase_mouse_coordinates(
-        state,
-        sample,
-        480,
-        360
-    );
+    openswd3::input_time_rng::rebase_mouse_coordinates(state, sample, 480, 360);
     test.expect_equal(
         state.absolute_x_baseline,
         760,
@@ -331,21 +361,14 @@ void test_mouse_clamp_baseline_quirks(openswd3::test::Context& test) {
 void test_mouse_rebase_clamps_and_wraps(openswd3::test::Context& test) {
     LegacyMouseState state{0, 0, 20};
     const LegacyMouseDeviceSample sample{1000, 2000, 0U, 0U};
-    openswd3::input_time_rng::rebase_mouse_coordinates(
-        state,
-        sample,
-        640,
-        -1
-    );
+    openswd3::input_time_rng::rebase_mouse_coordinates(state, sample, 640, -1);
     test.expect_equal(
         state.absolute_x_baseline,
         690,
         "rebase clamps x to 639 then performs divide-before-multiply"
     );
     test.expect_equal(
-        state.absolute_y_baseline,
-        2000,
-        "rebase clamps nonpositive y to zero"
+        state.absolute_y_baseline, 2000, "rebase clamps nonpositive y to zero"
     );
     test.expect_equal(
         openswd3::input_time_rng::normalize_mouse_sample(state, sample),
@@ -391,20 +414,14 @@ void normalize_test_frame(
     const u32 current_milliseconds
 ) {
     openswd3::input_time_rng::begin_input_normalization(
-        state,
-        current_milliseconds
+        state, current_milliseconds
     );
     openswd3::input_time_rng::normalize_input_frame(
-        state,
-        mouse_state,
-        keyboard,
-        mouse_sample
+        state, mouse_state, keyboard, mouse_sample
     );
 }
 
-void test_full_frame_keyboard_record_mapping(
-    openswd3::test::Context& test
-) {
+void test_full_frame_keyboard_record_mapping(openswd3::test::Context& test) {
     using Binding = openswd3::input_time_rng::LegacyKeyBinding;
     constexpr std::array<std::pair<std::size_t, Binding>, 16>
         kExpectedRecordBindings{
@@ -434,17 +451,12 @@ void test_full_frame_keyboard_record_mapping(
         prepare_released_records(state);
         LegacyKeyboardSnapshot keyboard{};
         keyboard[openswd3::input_time_rng::key_binding(
-            state.key_bindings,
-            binding
+            state.key_bindings, binding
         )] = 0x80U;
         LegacyMouseState mouse_state{0, 0, 20};
 
         normalize_test_frame(
-            state,
-            mouse_state,
-            keyboard,
-            LegacyMouseDeviceSample{},
-            200U
+            state, mouse_state, keyboard, LegacyMouseDeviceSample{}, 200U
         );
 
         for (const auto& [record_index, unused] : kExpectedRecordBindings) {
@@ -504,13 +516,7 @@ void test_full_frame_left_suppression(openswd3::test::Context& test) {
     LegacyMouseState mouse_state{0, 0, 20};
     const LegacyMouseDeviceSample both_buttons{0, 0, 0x80U, 0x80U};
 
-    normalize_test_frame(
-        state,
-        mouse_state,
-        {},
-        both_buttons,
-        250U
-    );
+    normalize_test_frame(state, mouse_state, {}, both_buttons, 250U);
     test.expect_equal(
         state.records[15U],
         LegacyInputRecord{},
@@ -532,20 +538,8 @@ void test_full_frame_left_suppression(openswd3::test::Context& test) {
         "raw mouse buttons reset inactivity even when left is suppressed"
     );
 
-    normalize_test_frame(
-        state,
-        mouse_state,
-        {},
-        both_buttons,
-        251U
-    );
-    normalize_test_frame(
-        state,
-        mouse_state,
-        {},
-        both_buttons,
-        252U
-    );
+    normalize_test_frame(state, mouse_state, {}, both_buttons, 251U);
+    normalize_test_frame(state, mouse_state, {}, both_buttons, 252U);
     test.expect_equal(
         state.left_button_suppression_count,
         0U,
@@ -572,13 +566,7 @@ void test_full_frame_mouse_inactivity(openswd3::test::Context& test) {
     state.mouse_inactive_flag_9 = true;
     LegacyMouseState mouse_state{0, 0, 20};
 
-    normalize_test_frame(
-        state,
-        mouse_state,
-        {},
-        {},
-        300U
-    );
+    normalize_test_frame(state, mouse_state, {}, {}, 300U);
     test.expect_equal(
         state.mouse_inactivity_sample_count,
         450U,
@@ -590,13 +578,7 @@ void test_full_frame_mouse_inactivity(openswd3::test::Context& test) {
         "inactivity flag 9 is cleared before the threshold comparison"
     );
 
-    normalize_test_frame(
-        state,
-        mouse_state,
-        {},
-        {},
-        301U
-    );
+    normalize_test_frame(state, mouse_state, {}, {}, 301U);
     test.expect_equal(
         state.mouse_inactivity_sample_count,
         451U,
@@ -609,11 +591,7 @@ void test_full_frame_mouse_inactivity(openswd3::test::Context& test) {
     );
 
     normalize_test_frame(
-        state,
-        mouse_state,
-        {},
-        LegacyMouseDeviceSample{0, 0, 0U, 0x80U},
-        302U
+        state, mouse_state, {}, LegacyMouseDeviceSample{0, 0, 0U, 0x80U}, 302U
     );
     test.expect_equal(
         state.mouse_inactivity_sample_count,
@@ -627,11 +605,7 @@ void test_full_frame_mouse_inactivity(openswd3::test::Context& test) {
     );
 
     normalize_test_frame(
-        state,
-        mouse_state,
-        {},
-        LegacyMouseDeviceSample{1, 0, 0U, 0U},
-        303U
+        state, mouse_state, {}, LegacyMouseDeviceSample{1, 0, 0U, 0U}, 303U
     );
     test.expect_equal(
         state.mouse_inactivity_sample_count,
@@ -645,11 +619,7 @@ void test_full_frame_mouse_inactivity(openswd3::test::Context& test) {
     );
 
     normalize_test_frame(
-        state,
-        mouse_state,
-        {},
-        LegacyMouseDeviceSample{1, 0, 0U, 0U},
-        304U
+        state, mouse_state, {}, LegacyMouseDeviceSample{1, 0, 0U, 0U}, 304U
     );
     test.expect_equal(
         state.mouse_inactivity_sample_count,
@@ -659,11 +629,7 @@ void test_full_frame_mouse_inactivity(openswd3::test::Context& test) {
 
     state.mouse_inactivity_sample_count = 0xFFFFFFFFU;
     normalize_test_frame(
-        state,
-        mouse_state,
-        {},
-        LegacyMouseDeviceSample{1, 0, 0U, 0U},
-        305U
+        state, mouse_state, {}, LegacyMouseDeviceSample{1, 0, 0U, 0U}, 305U
     );
     test.expect_equal(
         state.mouse_inactivity_sample_count,

@@ -37,9 +37,8 @@ enum class FrameEntryAction {
     sample_time,
 };
 
-[[nodiscard]] FrameEntryAction select_frame_entry_action(
-    const FrameEntryState& state
-) noexcept;
+[[nodiscard]] FrameEntryAction
+select_frame_entry_action(const FrameEntryState& state) noexcept;
 
 struct ActiveFrameState {
     compat::u32 high_priority_state{};
@@ -54,9 +53,8 @@ enum class ActiveFrameBranch {
     special_mode,
 };
 
-[[nodiscard]] ActiveFrameBranch select_active_frame_branch(
-    const ActiveFrameState& state
-) noexcept;
+[[nodiscard]] ActiveFrameBranch
+select_active_frame_branch(const ActiveFrameState& state) noexcept;
 
 struct StoryGateState {
     compat::u32 frame_execution_gate{};
@@ -74,9 +72,8 @@ enum class SpecialModeHandler {
     shop_mode_2,
 };
 
-[[nodiscard]] SpecialModeHandler select_special_mode_handler(
-    compat::u32 tagged_mode_value
-) noexcept;
+[[nodiscard]] SpecialModeHandler
+select_special_mode_handler(compat::u32 tagged_mode_value) noexcept;
 
 enum class BattleExitAction {
     restore_world_for_result_0,
@@ -85,9 +82,8 @@ enum class BattleExitAction {
     keep_battle_active_and_return,
 };
 
-[[nodiscard]] BattleExitAction select_battle_exit_action(
-    compat::i32 result
-) noexcept;
+[[nodiscard]] BattleExitAction
+select_battle_exit_action(compat::i32 result) noexcept;
 
 [[nodiscard]] bool should_request_close(compat::u32 process_flags) noexcept;
 

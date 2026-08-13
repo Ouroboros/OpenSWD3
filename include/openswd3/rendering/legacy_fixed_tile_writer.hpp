@@ -26,8 +26,7 @@ enum class LegacyFixedTileWriteStatus : compat::u8 {
 ) noexcept;
 
 // sub_417530.
-[[nodiscard]] LegacyFixedTileWriteStatus
-write_legacy_direct_keyed_16x16_tile(
+[[nodiscard]] LegacyFixedTileWriteStatus write_legacy_direct_keyed_16x16_tile(
     LegacyFramebuffer& framebuffer,
     compat::i32 destination_x,
     compat::i32 destination_y,
@@ -45,8 +44,7 @@ write_legacy_direct_keyed_16x16_tile(
 ) noexcept;
 
 // sub_417650. Palette index 1 is the fixed transparent value.
-[[nodiscard]] LegacyFixedTileWriteStatus
-write_legacy_indexed_keyed_16x16_tile(
+[[nodiscard]] LegacyFixedTileWriteStatus write_legacy_indexed_keyed_16x16_tile(
     LegacyFramebuffer& framebuffer,
     compat::i32 destination_x,
     compat::i32 destination_y,

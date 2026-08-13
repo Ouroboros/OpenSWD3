@@ -15,8 +15,7 @@ compat::i32 legacy_audio_volume_parameter(const compat::i32 value) noexcept {
 }
 
 compat::i32 legacy_audio_pan_parameter(const compat::i32 value) noexcept {
-    const compat::u32 shifted_bits =
-        static_cast<compat::u32>(value) + 63U;
+    const compat::u32 shifted_bits = static_cast<compat::u32>(value) + 63U;
     const compat::i32 shifted = std::bit_cast<compat::i32>(shifted_bits);
     return legacy_audio_volume_parameter(shifted);
 }

@@ -3,8 +3,7 @@
 namespace openswd3::app {
 
 bool run_nonempty_command_line_path(
-    const std::optional<std::string_view> command_line,
-    CommandLinePorts& ports
+    const std::optional<std::string_view> command_line, CommandLinePorts& ports
 ) {
     if (!command_line.has_value() || command_line->empty()) {
         return false;

@@ -116,10 +116,8 @@ public:
         surface.status = LegacyLmfSurfaceGridStatus::ready;
         surface.raw_table_values.assign(40U * 30U, 0U);
         surface.surface_grid.assign(40U * 30U * 4U, 0U);
-        post_surface.status =
-            LegacyLmfPostSurfaceRecordsStatus::ready;
-        referenced.status =
-            LegacyLmfReferencedRecordDirectoryStatus::ready;
+        post_surface.status = LegacyLmfPostSurfaceRecordsStatus::ready;
+        referenced.status = LegacyLmfReferencedRecordDirectoryStatus::ready;
         offset14.status = LegacyLmfOffset14DirectoryStatus::ready;
         indexed.status = LegacyLmfIndexedObjectDirectoryStatus::ready;
         offset1c.status = LegacyLmfOffset1cDirectoryStatus::ready;
@@ -136,50 +134,40 @@ public:
         return header;
     }
 
-    LegacyLmfSurfaceGrid read_surface_grid(
-        const u32,
-        const LegacyLmfMapHeader&
-    ) override {
+    LegacyLmfSurfaceGrid
+    read_surface_grid(const u32, const LegacyLmfMapHeader&) override {
         stages_.push_back(Stage::surface);
         return surface;
     }
 
-    LegacyLmfPostSurfaceRecords read_post_surface_records(
-        const u32,
-        const LegacyLmfSurfaceGrid&
-    ) override {
+    LegacyLmfPostSurfaceRecords
+    read_post_surface_records(const u32, const LegacyLmfSurfaceGrid&) override {
         stages_.push_back(Stage::post_surface);
         return post_surface;
     }
 
     LegacyLmfReferencedRecordDirectory read_referenced_record_directory(
-        const u32,
-        const LegacyLmfPostSurfaceRecords&
+        const u32, const LegacyLmfPostSurfaceRecords&
     ) override {
         stages_.push_back(Stage::referenced);
         return referenced;
     }
 
-    LegacyLmfOffset14Directory read_offset14_directory(
-        const u32,
-        const LegacyLmfMapHeader&
-    ) override {
+    LegacyLmfOffset14Directory
+    read_offset14_directory(const u32, const LegacyLmfMapHeader&) override {
         stages_.push_back(Stage::offset14);
         return offset14;
     }
 
     LegacyLmfIndexedObjectDirectory read_indexed_object_directory(
-        const u32,
-        const LegacyLmfMapHeader&
+        const u32, const LegacyLmfMapHeader&
     ) override {
         stages_.push_back(Stage::indexed);
         return indexed;
     }
 
-    LegacyLmfOffset1cDirectory read_offset1c_directory(
-        const u32,
-        const LegacyLmfMapHeader&
-    ) override {
+    LegacyLmfOffset1cDirectory
+    read_offset1c_directory(const u32, const LegacyLmfMapHeader&) override {
         stages_.push_back(Stage::offset1c);
         return offset1c;
     }
@@ -205,9 +193,8 @@ public:
         result.cache_bytes.resize(0x400U);
     }
 
-    LegacyCmCacheLoadResult load_cm_cache(
-        const LegacyCmCacheRequest& request
-    ) override {
+    LegacyCmCacheLoadResult
+    load_cm_cache(const LegacyCmCacheRequest& request) override {
         stages_.push_back(Stage::cm);
         seen_request = request;
         ++call_count;
@@ -235,9 +222,7 @@ private:
     return state;
 }
 
-[[nodiscard]] std::uint64_t fnv1a64(
-    const std::span<const u8> bytes
-) noexcept {
+[[nodiscard]] std::uint64_t fnv1a64(const std::span<const u8> bytes) noexcept {
     std::uint64_t hash = 0xCBF29CE484222325ULL;
     for (const u8 byte : bytes) {
         hash ^= byte;
@@ -246,9 +231,7 @@ private:
     return hash;
 }
 
-void test_original_load_slot_and_direct_source(
-    openswd3::test::Context& test
-) {
+void test_original_load_slot_and_direct_source(openswd3::test::Context& test) {
     TestTree tree;
     std::vector<Stage> stages;
     FakeMapSource map_source{stages};
@@ -266,8 +249,11 @@ void test_original_load_slot_and_direct_source(
         cm_source
     );
 
-    test.expect_equal(result.status, LegacyWorldRenderSessionStatus::ready,
-                      "direct map produces a complete render session");
+    test.expect_equal(
+        result.status,
+        LegacyWorldRenderSessionStatus::ready,
+        "direct map produces a complete render session"
+    );
     test.expect_equal(
         stages,
         std::vector<Stage>{
@@ -284,8 +270,7 @@ void test_original_load_slot_and_direct_source(
         "CM loading occupies the header-to-surface assembly slot"
     );
     test.expect_true(
-        map_source.seen_map_id == 24U &&
-            cm_source.seen_request.map_id == 24U &&
+        map_source.seen_map_id == 24U && cm_source.seen_request.map_id == 24U &&
             cm_source.seen_request.map_offset == 0x11223344U &&
             cm_source.seen_request.cm_relative_offset == 0x55667788U &&
             cm_source.seen_request.cache_limit_megabytes == 73U &&
@@ -300,11 +285,11 @@ void test_original_load_slot_and_direct_source(
         background.map_width == 40U && background.map_height == 30U &&
             background.tile_layer_offset == 17U &&
             background.tile_indices.data() ==
-                result.session.map_load.session.surface_grid
-                    .raw_table_values.data() &&
+                result.session.map_load.session.surface_grid.raw_table_values
+                    .data() &&
             background.cell_flags.data() ==
-                result.session.map_load.session.surface_grid
-                    .surface_grid.data() &&
+                result.session.map_load.session.surface_grid.surface_grid
+                    .data() &&
             background.tile_bytes.data() ==
                 result.session.cm_cache.cache_bytes.data() &&
             background.pixel_layout ==
@@ -338,8 +323,11 @@ void test_indexed_palette_is_owned_and_converted(
         cm_source
     );
 
-    test.expect_equal(result.status, LegacyWorldRenderSessionStatus::ready,
-                      "indexed map produces a complete render session");
+    test.expect_equal(
+        result.status,
+        LegacyWorldRenderSessionStatus::ready,
+        "indexed map produces a complete render session"
+    );
     const auto background = result.session.background_source();
     test.expect_true(
         result.session.indexed_palette.size() == 256U &&
@@ -375,9 +363,7 @@ void test_indexed_palette_is_owned_and_converted(
     );
 }
 
-void test_failures_stop_at_their_physical_stage(
-    openswd3::test::Context& test
-) {
+void test_failures_stop_at_their_physical_stage(openswd3::test::Context& test) {
     TestTree tree;
     std::vector<Stage> stages;
     FakeMapSource map_source{stages};
@@ -398,18 +384,18 @@ void test_failures_stop_at_their_physical_stage(
                 LegacyWorldRenderSessionStatus::cm_cache_load_failed &&
             cm_failed.session.map_load.status ==
                 LegacyWorldMapLoadStatus::pre_surface_stage_failed &&
-            stages == std::vector<Stage>{
-                Stage::lookup,
-                Stage::header,
-                Stage::cm,
-            },
+            stages ==
+                std::vector<Stage>{
+                    Stage::lookup,
+                    Stage::header,
+                    Stage::cm,
+                },
         "CM failure stops before the surface stream"
     );
 
     std::vector<Stage> map_stages;
     FakeMapSource bad_map{map_stages};
-    bad_map.header.status =
-        LegacyLmfMapHeaderStatus::unsupported_signature;
+    bad_map.header.status = LegacyLmfMapHeaderStatus::unsupported_signature;
     FakeCmCacheSource unused_cm{map_stages};
     const auto map_failed = load_legacy_world_render_session(
         LegacyWorldRenderSessionRequest{
@@ -422,11 +408,9 @@ void test_failures_stop_at_their_physical_stage(
         unused_cm
     );
     test.expect_true(
-        map_failed.status ==
-                LegacyWorldRenderSessionStatus::map_load_failed &&
+        map_failed.status == LegacyWorldRenderSessionStatus::map_load_failed &&
             unused_cm.call_count == 0U &&
-            map_stages ==
-                std::vector<Stage>{Stage::lookup, Stage::header},
+            map_stages == std::vector<Stage>{Stage::lookup, Stage::header},
         "header failure never attempts CM loading"
     );
 
@@ -503,8 +487,7 @@ void test_failures_stop_at_their_physical_stage(
 }
 
 void test_current_maps(
-    openswd3::test::Context& test,
-    const std::filesystem::path& archive_path
+    openswd3::test::Context& test, const std::filesystem::path& archive_path
 ) {
     const LegacyPixelConversionState conversion = rgb565_conversion();
 
@@ -517,8 +500,11 @@ void test_current_maps(
             .pixel_conversion = conversion,
         }
     );
-    test.expect_equal(direct.status, LegacyWorldRenderSessionStatus::ready,
-                      "current map 24 owns LMF and generated CM data");
+    test.expect_equal(
+        direct.status,
+        LegacyWorldRenderSessionStatus::ready,
+        "current map 24 owns LMF and generated CM data"
+    );
     if (direct.status == LegacyWorldRenderSessionStatus::ready) {
         LegacyFramebuffer framebuffer;
         const auto rendered = render_legacy_world_background(
@@ -527,8 +513,7 @@ void test_current_maps(
             LegacyWorldBackgroundView{}
         );
         test.expect_true(
-            rendered.status ==
-                    LegacyWorldBackgroundRenderStatus::completed &&
+            rendered.status == LegacyWorldBackgroundRenderStatus::completed &&
                 legacy_framebuffer_logical_fnv1a64(framebuffer) ==
                     0x947C15A53487BF9AULL,
             "owned map 24 source preserves the fixed full viewport hash"
@@ -544,8 +529,11 @@ void test_current_maps(
             .pixel_conversion = conversion,
         }
     );
-    test.expect_equal(indexed.status, LegacyWorldRenderSessionStatus::ready,
-                      "current map 4 owns its indexed CM palette and tiles");
+    test.expect_equal(
+        indexed.status,
+        LegacyWorldRenderSessionStatus::ready,
+        "current map 4 owns its indexed CM palette and tiles"
+    );
     if (indexed.status == LegacyWorldRenderSessionStatus::ready) {
         LegacyFramebuffer framebuffer;
         const auto rendered = render_legacy_world_background(
@@ -554,8 +542,7 @@ void test_current_maps(
             LegacyWorldBackgroundView{}
         );
         test.expect_true(
-            rendered.status ==
-                    LegacyWorldBackgroundRenderStatus::completed &&
+            rendered.status == LegacyWorldBackgroundRenderStatus::completed &&
                 rendered.visited_cells == 40U * 30U &&
                 indexed.session.indexed_palette.size() == 256U &&
                 legacy_framebuffer_logical_fnv1a64(framebuffer) ==
@@ -587,8 +574,7 @@ void test_current_maps(
             const auto& object =
                 object_map.session.prepared_indexed_objects.objects.front();
             test.expect_true(
-                object.source_width == 1072U &&
-                    object.source_height == 1024U &&
+                object.source_width == 1072U && object.source_height == 1024U &&
                     object.command_stream.size() == 1'790'338U,
                 "the render-session owner keeps the real sub_401B70 dimensions"
             );
@@ -621,8 +607,7 @@ void test_current_maps(
                 draw_ports
             );
             test.expect_true(
-                drawn.status ==
-                        LegacyWorldIndexedObjectDrawStatus::completed &&
+                drawn.status == LegacyWorldIndexedObjectDrawStatus::completed &&
                     drawn.draw_count >= 1U,
                 "the real normalized stream reaches the 0x004151F0 blitter path"
             );
@@ -638,8 +623,10 @@ int main(const int argument_count, char** arguments) {
     test_indexed_palette_is_owned_and_converted(test);
     test_failures_stop_at_their_physical_stage(test);
 
-    test.expect_true(argument_count == 1 || argument_count == 2,
-                     "optional argument names the current huge.lmf");
+    test.expect_true(
+        argument_count == 1 || argument_count == 2,
+        "optional argument names the current huge.lmf"
+    );
     if (argument_count == 2 && arguments != nullptr &&
         arguments[1] != nullptr) {
         test_current_maps(test, arguments[1]);

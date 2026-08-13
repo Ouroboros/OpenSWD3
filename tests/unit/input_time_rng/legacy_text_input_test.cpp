@@ -32,9 +32,7 @@ public:
 };
 
 template <std::size_t Size>
-[[nodiscard]] std::array<u8, Size> copy_bytes(
-    LegacyDbcsTextBuffer& buffer
-) {
+[[nodiscard]] std::array<u8, Size> copy_bytes(LegacyDbcsTextBuffer& buffer) {
     std::array<u8, Size> bytes{};
     bytes.fill(0xCCU);
     static_cast<void>(buffer.copy_to(bytes.data(), static_cast<i32>(Size)));
@@ -50,18 +48,18 @@ template <std::size_t Size>
     const u32 second_parameter = 0U
 ) {
     return openswd3::input_time_rng::filter_legacy_text_input_message(
-        buffer,
-        state,
-        message,
-        first_parameter,
-        second_parameter,
-        ports
+        buffer, state, message, first_parameter, second_parameter, ports
     );
 }
 
 void test_cursor_helpers_and_enable_bug(openswd3::test::Context& test) {
     constexpr std::array<u8, 6> kText{
-        0xA9U, 0x67U, 0x41U, 0xA5U, 0x69U, 0x00U,
+        0xA9U,
+        0x67U,
+        0x41U,
+        0xA5U,
+        0x69U,
+        0x00U,
     };
     LegacyDbcsTextBuffer buffer{kText.data(), 8, 0, 0};
 
@@ -75,7 +73,9 @@ void test_cursor_helpers_and_enable_bug(openswd3::test::Context& test) {
         1U,
         "cursor next crosses a CP950 pair"
     );
-    test.expect_equal(buffer.cursor_byte_offset(), 2, "cursor reaches byte two");
+    test.expect_equal(
+        buffer.cursor_byte_offset(), 2, "cursor reaches byte two"
+    );
     static_cast<void>(
         openswd3::input_time_rng::legacy_move_text_cursor_next(buffer)
     );
@@ -85,13 +85,17 @@ void test_cursor_helpers_and_enable_bug(openswd3::test::Context& test) {
         1U,
         "cursor previous returns one away from byte zero"
     );
-    test.expect_equal(buffer.cursor_byte_offset(), 2, "cursor returns to byte two");
+    test.expect_equal(
+        buffer.cursor_byte_offset(), 2, "cursor returns to byte two"
+    );
     test.expect_equal(
         openswd3::input_time_rng::legacy_move_text_cursor_previous(buffer),
         0U,
         "moving onto byte zero returns zero despite changing the cursor"
     );
-    test.expect_equal(buffer.cursor_byte_offset(), 0, "cursor reaches byte zero");
+    test.expect_equal(
+        buffer.cursor_byte_offset(), 0, "cursor reaches byte zero"
+    );
 
     test.expect_equal(
         openswd3::input_time_rng::legacy_set_text_input_enabled(buffer, 0),
@@ -107,7 +111,12 @@ void test_cursor_helpers_and_enable_bug(openswd3::test::Context& test) {
 
 void test_key_dispatch(openswd3::test::Context& test) {
     constexpr std::array<u8, 6> kText{
-        0xA9U, 0x67U, 0x41U, 0xA5U, 0x69U, 0x00U,
+        0xA9U,
+        0x67U,
+        0x41U,
+        0xA5U,
+        0x69U,
+        0x00U,
     };
     LegacyDbcsTextBuffer buffer{kText.data(), 8, 0, 0};
     LegacyTextInputDriverState state;
@@ -120,7 +129,9 @@ void test_key_dispatch(openswd3::test::Context& test) {
         openswd3::input_time_rng::kLegacyKeyDownMessage,
         0x23U
     ));
-    test.expect_equal(buffer.cursor_byte_offset(), 5, "End reaches the NUL byte");
+    test.expect_equal(
+        buffer.cursor_byte_offset(), 5, "End reaches the NUL byte"
+    );
     static_cast<void>(dispatch(
         buffer,
         state,
@@ -128,7 +139,9 @@ void test_key_dispatch(openswd3::test::Context& test) {
         openswd3::input_time_rng::kLegacyKeyDownMessage,
         0x25U
     ));
-    test.expect_equal(buffer.cursor_byte_offset(), 3, "Left crosses one CP950 pair");
+    test.expect_equal(
+        buffer.cursor_byte_offset(), 3, "Left crosses one CP950 pair"
+    );
     static_cast<void>(dispatch(
         buffer,
         state,
@@ -136,7 +149,9 @@ void test_key_dispatch(openswd3::test::Context& test) {
         openswd3::input_time_rng::kLegacyKeyDownMessage,
         0x27U
     ));
-    test.expect_equal(buffer.cursor_byte_offset(), 5, "Right restores the end offset");
+    test.expect_equal(
+        buffer.cursor_byte_offset(), 5, "Right restores the end offset"
+    );
     static_cast<void>(dispatch(
         buffer,
         state,
@@ -184,7 +199,11 @@ void test_key_dispatch(openswd3::test::Context& test) {
 
 void test_delete_and_backspace_bug(openswd3::test::Context& test) {
     constexpr std::array<u8, 5> kTwoCharacters{
-        0xA9U, 0x67U, 0xA5U, 0x69U, 0x00U,
+        0xA9U,
+        0x67U,
+        0xA5U,
+        0x69U,
+        0x00U,
     };
     LegacyTextInputDriverState state;
     RecordingPorts ports;
@@ -198,7 +217,15 @@ void test_delete_and_backspace_bug(openswd3::test::Context& test) {
         0x08U
     ));
     constexpr std::array<u8, 9> kSecondOnly{
-        0xA5U, 0x69U, 0U, 0U, 0U, 0U, 0U, 0U, 0U,
+        0xA5U,
+        0x69U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
     };
     test.expect_equal(
         copy_bytes<9>(backspace),
@@ -219,7 +246,15 @@ void test_delete_and_backspace_bug(openswd3::test::Context& test) {
         openswd3::input_time_rng::legacy_delete_text_at_cursor(deletion)
     );
     constexpr std::array<u8, 9> kFirstOnly{
-        0xA9U, 0x67U, 0U, 0U, 0U, 0U, 0U, 0U, 0U,
+        0xA9U,
+        0x67U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
     };
     test.expect_equal(
         copy_bytes<9>(deletion),
@@ -241,7 +276,11 @@ void test_delete_and_backspace_bug(openswd3::test::Context& test) {
 
 void test_insertion_and_capacity(openswd3::test::Context& test) {
     constexpr std::array<u8, 5> kTwoCharacters{
-        0xA9U, 0x67U, 0xA5U, 0x69U, 0x00U,
+        0xA9U,
+        0x67U,
+        0xA5U,
+        0x69U,
+        0x00U,
     };
     constexpr std::array<u8, 2> kAscii{0x58U, 0x00U};
     LegacyDbcsTextBuffer insertion{kTwoCharacters.data(), 8, 0, 0};
@@ -250,14 +289,21 @@ void test_insertion_and_capacity(openswd3::test::Context& test) {
     );
     test.expect_equal(
         openswd3::input_time_rng::legacy_insert_text_bytes(
-            insertion,
-            kAscii.data()
+            insertion, kAscii.data()
         ),
         1U,
         "insert returns one"
     );
     constexpr std::array<u8, 9> kInserted{
-        0xA9U, 0x67U, 0x58U, 0xA5U, 0x69U, 0U, 0U, 0U, 0U,
+        0xA9U,
+        0x67U,
+        0x58U,
+        0xA5U,
+        0x69U,
+        0U,
+        0U,
+        0U,
+        0U,
     };
     test.expect_equal(
         copy_bytes<9>(insertion),
@@ -276,11 +322,14 @@ void test_insertion_and_capacity(openswd3::test::Context& test) {
         openswd3::input_time_rng::legacy_move_text_cursor_next(truncation)
     );
     static_cast<void>(openswd3::input_time_rng::legacy_insert_text_bytes(
-        truncation,
-        kReplacement.data()
+        truncation, kReplacement.data()
     ));
     constexpr std::array<u8, 5> kTruncated{
-        0xA9U, 0x67U, 0xC1U, 0xC9U, 0U,
+        0xA9U,
+        0x67U,
+        0xC1U,
+        0xC9U,
+        0U,
     };
     test.expect_equal(
         copy_bytes<5>(truncation),
@@ -294,9 +343,7 @@ void test_insertion_and_capacity(openswd3::test::Context& test) {
     );
 }
 
-void test_language_and_ascii_character_paths(
-    openswd3::test::Context& test
-) {
+void test_language_and_ascii_character_paths(openswd3::test::Context& test) {
     constexpr std::array<u8, 1> kEmpty{0U};
     LegacyDbcsTextBuffer buffer{kEmpty.data(), 8, 0, 0};
     LegacyTextInputDriverState state;
@@ -345,7 +392,9 @@ void test_language_and_ascii_character_paths(
         0U,
         0x87654321U
     ));
-    test.expect_equal(buffer.snapshot().ime_state, 0, "non-IME layout stores zero");
+    test.expect_equal(
+        buffer.snapshot().ime_state, 0, "non-IME layout stores zero"
+    );
     static_cast<void>(dispatch(
         buffer,
         state,
@@ -354,9 +403,7 @@ void test_language_and_ascii_character_paths(
         0x1EU
     ));
     test.expect_equal(
-        copy_bytes<9>(buffer),
-        kAllZero,
-        "bytes below 0x1F are ignored"
+        copy_bytes<9>(buffer), kAllZero, "bytes below 0x1F are ignored"
     );
     static_cast<void>(dispatch(
         buffer,
@@ -394,7 +441,15 @@ void test_language_and_ascii_character_paths(
         0x41U
     ));
     constexpr std::array<u8, 9> kAccepted{
-        0x1FU, 0x41U, 0U, 0U, 0U, 0U, 0U, 0U, 0U,
+        0x1FU,
+        0x41U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
     };
     test.expect_equal(
         copy_bytes<9>(buffer),
@@ -429,7 +484,15 @@ void test_dbcs_latch_bugs(openswd3::test::Context& test) {
         0x67U
     ));
     constexpr std::array<u8, 9> kNicoleFirst{
-        0xA9U, 0x67U, 0U, 0U, 0U, 0U, 0U, 0U, 0U,
+        0xA9U,
+        0x67U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
     };
     test.expect_equal(
         copy_bytes<9>(low_trail),
@@ -471,7 +534,15 @@ void test_dbcs_latch_bugs(openswd3::test::Context& test) {
         0x25U
     ));
     constexpr std::array<u8, 9> kLeadPercent{
-        0xA9U, 0x25U, 0U, 0U, 0U, 0U, 0U, 0U, 0U,
+        0xA9U,
+        0x25U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
     };
     test.expect_equal(
         copy_bytes<9>(high_trail),
@@ -511,7 +582,15 @@ void test_ime_character_path(openswd3::test::Context& test) {
         "WM_IME_CHAR is the sole zero-return path"
     );
     constexpr std::array<u8, 9> kExpected{
-        0xA9U, 0x67U, 0U, 0U, 0U, 0U, 0U, 0U, 0U,
+        0xA9U,
+        0x67U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
     };
     test.expect_equal(
         copy_bytes<9>(buffer),

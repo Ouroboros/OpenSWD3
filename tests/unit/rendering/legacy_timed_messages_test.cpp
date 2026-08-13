@@ -28,9 +28,8 @@ using openswd3::rendering::LegacyTimedMessageResult;
 
 class InputPorts final : public LegacyTimedMessageInputPorts {
 public:
-    [[nodiscard]] bool is_legacy_control_active(
-        const u32 control_index
-    ) noexcept override {
+    [[nodiscard]] bool
+    is_legacy_control_active(const u32 control_index) noexcept override {
         controls.push_back(control_index);
         const bool value = responses[index];
         ++index;
@@ -60,19 +59,14 @@ public:
     u32 calls{};
 };
 
-[[nodiscard]] LegacyTimedMessage message(
-    const i32 frames,
-    const u8 first
-) {
+[[nodiscard]] LegacyTimedMessage message(const i32 frames, const u8 first) {
     LegacyTimedMessage value{.remaining_frames = frames};
     value.text[0] = first;
     value.text[1] = 0U;
     return value;
 }
 
-void test_queue_draw_suppression_and_expiry(
-    openswd3::test::Context& test
-) {
+void test_queue_draw_suppression_and_expiry(openswd3::test::Context& test) {
     std::list<LegacyTimedMessage> messages{
         message(2, 0x41U),
         message(1, 0x42U),
@@ -106,19 +100,49 @@ void test_queue_draw_suppression_and_expiry(
         runtime_ports.update_and_draw(messages, 0x1234U);
 
     test.expect_equal(result.visited_count, 3U, "all queued messages visit");
-    test.expect_equal(result.input_query_count, 3U, "control 14 queries per message");
-    test.expect_equal(result.draw_count, 1U, "suppressed and malformed messages do not draw");
-    test.expect_equal(result.invalid_text_count, 1U, "missing terminator is isolated");
-    test.expect_equal(result.removed_count, 2U, "zero-after-decrement records erase");
+    test.expect_equal(
+        result.input_query_count, 3U, "control 14 queries per message"
+    );
+    test.expect_equal(
+        result.draw_count, 1U, "suppressed and malformed messages do not draw"
+    );
+    test.expect_equal(
+        result.invalid_text_count, 1U, "missing terminator is isolated"
+    );
+    test.expect_equal(
+        result.removed_count, 2U, "zero-after-decrement records erase"
+    );
     test.expect_equal(result.final_y, 80, "y advances 24 for every record");
-    test.expect_equal(result.last_text_status, LegacyTextDrawStatus::missing_terminator, "last malformed status is retained");
-    test.expect_equal(messages.size(), std::size_t{1U}, "first message remains");
-    test.expect_equal(messages.front().remaining_frames, 1, "remaining lifetime decrements");
-    test.expect_equal(text_state.background_color, static_cast<openswd3::compat::u16>(0xFFFEU), "background is disabled");
-    test.expect_equal(text_state.secondary_color, static_cast<openswd3::compat::u16>(0U), "secondary color clears");
+    test.expect_equal(
+        result.last_text_status,
+        LegacyTextDrawStatus::missing_terminator,
+        "last malformed status is retained"
+    );
+    test.expect_equal(
+        messages.size(), std::size_t{1U}, "first message remains"
+    );
+    test.expect_equal(
+        messages.front().remaining_frames, 1, "remaining lifetime decrements"
+    );
+    test.expect_equal(
+        text_state.background_color,
+        static_cast<openswd3::compat::u16>(0xFFFEU),
+        "background is disabled"
+    );
+    test.expect_equal(
+        text_state.secondary_color,
+        static_cast<openswd3::compat::u16>(0U),
+        "secondary color clears"
+    );
     test.expect_equal(input_ports.controls[0], 0x0EU, "control index is exact");
-    test.expect_equal(glyph_provider.calls, 1U, "one visible ASCII glyph is provided");
-    test.expect_equal(framebuffer.row_pixels(8U)[629U], static_cast<openswd3::compat::u16>(0x1234U), "one-byte text uses x=640-11");
+    test.expect_equal(
+        glyph_provider.calls, 1U, "one visible ASCII glyph is provided"
+    );
+    test.expect_equal(
+        framebuffer.row_pixels(8U)[629U],
+        static_cast<openswd3::compat::u16>(0x1234U),
+        "one-byte text uses x=640-11"
+    );
 }
 
 }  // namespace

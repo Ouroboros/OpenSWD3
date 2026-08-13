@@ -40,9 +40,7 @@ enum class LegacyWorldRolePreloadStatus {
 };
 
 struct LegacyWorldRolePreloadResult {
-    LegacyWorldRolePreloadStatus status{
-        LegacyWorldRolePreloadStatus::ready
-    };
+    LegacyWorldRolePreloadStatus status{LegacyWorldRolePreloadStatus::ready};
     compat::u32 roles_visited{};
     compat::u32 roles_skipped{};
     compat::u32 flagged_roles_patched{};

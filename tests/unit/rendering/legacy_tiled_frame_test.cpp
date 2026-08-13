@@ -34,9 +34,7 @@ public:
     }
 
     [[nodiscard]] bool load_frame_piece(
-        const u32 resource_id,
-        const u32 piece_index,
-        LegacyFramePiece& piece
+        const u32 resource_id, const u32 piece_index, LegacyFramePiece& piece
     ) noexcept override {
         if (request_count_ < requested_indices_.size()) {
             requested_indices_[request_count_] = piece_index;
@@ -44,16 +42,14 @@ public:
         }
         ++request_count_;
 
-        if (piece_index >= bytes_.size() ||
-            piece_index == unavailable_index_) {
+        if (piece_index >= bytes_.size() || piece_index == unavailable_index_) {
             return false;
         }
 
         piece = LegacyFramePiece{
             .source = LegacyBlitSource{.bytes = bytes_[piece_index]},
-            .width = static_cast<u16>(
-                piece_index == zero_geometry_index_ ? 0U : 1U
-            ),
+            .width =
+                static_cast<u16>(piece_index == zero_geometry_index_ ? 0U : 1U),
             .height = 1U,
         };
         return true;
@@ -75,9 +71,8 @@ public:
         return requested_indices_[index];
     }
 
-    [[nodiscard]] u32 requested_resource_id(
-        const std::size_t index
-    ) const noexcept {
+    [[nodiscard]] u32
+    requested_resource_id(const std::size_t index) const noexcept {
         return requested_resource_ids_[index];
     }
 
@@ -90,10 +85,8 @@ private:
     u32 zero_geometry_index_{std::numeric_limits<u32>::max()};
 };
 
-[[nodiscard]] LegacyFramebuffer make_framebuffer(
-    const int width,
-    const int height
-) {
+[[nodiscard]] LegacyFramebuffer
+make_framebuffer(const int width, const int height) {
     return LegacyFramebuffer{LegacySurfaceGeometry{
         .pitch_bytes = width * 2,
         .width = width,
@@ -162,9 +155,21 @@ void test_border_only_layout(openswd3::test::Context& test) {
     );
     test.expect_equal(result.draw_calls, 18U, "border draw count is exact");
     constexpr std::array<u32, 15> kExpectedRequests{
-        0U, 1U, 1U, 1U, 1U, 2U,
-        3U, 5U, 3U, 5U, 3U, 5U,
-        6U, 7U, 8U,
+        0U,
+        1U,
+        1U,
+        1U,
+        1U,
+        2U,
+        3U,
+        5U,
+        3U,
+        5U,
+        3U,
+        5U,
+        6U,
+        7U,
+        8U,
     };
     expect_request_order(test, provider, kExpectedRequests, 0x233BU);
 
@@ -248,9 +253,23 @@ void test_center_and_special_piece(openswd3::test::Context& test) {
 
     test.expect_equal(result.draw_calls, 31U, "filled draw count is exact");
     constexpr std::array<u32, 17> kExpectedRequests{
-        9U, 4U, 0U, 1U, 1U, 1U, 1U, 2U,
-        3U, 5U, 3U, 5U, 3U, 5U,
-        6U, 7U, 8U,
+        9U,
+        4U,
+        0U,
+        1U,
+        1U,
+        1U,
+        1U,
+        2U,
+        3U,
+        5U,
+        3U,
+        5U,
+        3U,
+        5U,
+        6U,
+        7U,
+        8U,
     };
     test.expect_equal(
         provider.request_count(),
@@ -300,7 +319,9 @@ void test_zero_height_border_layout(openswd3::test::Context& test) {
         LegacyTiledFrameStatus::completed,
         "zero-height frame follows the original register path"
     );
-    test.expect_equal(result.draw_calls, 12U, "zero-height draw count is exact");
+    test.expect_equal(
+        result.draw_calls, 12U, "zero-height draw count is exact"
+    );
     test.expect_equal(
         framebuffer.row_pixels(3U)[1U],
         static_cast<u16>(7U),
@@ -320,7 +341,15 @@ void test_zero_height_border_layout(openswd3::test::Context& test) {
     );
 
     constexpr std::array<u32, 9> kExpectedRequests{
-        0U, 1U, 1U, 1U, 1U, 2U, 6U, 7U, 8U,
+        0U,
+        1U,
+        1U,
+        1U,
+        1U,
+        2U,
+        6U,
+        7U,
+        8U,
     };
     expect_request_order(test, provider, kExpectedRequests, 0x233BU);
 }
@@ -354,7 +383,9 @@ void test_provider_and_geometry_failures(openswd3::test::Context& test) {
         );
         test.expect_equal(result.frame_index, 2U, "missing index is retained");
         test.expect_equal(raster.clip_width, 8, "failure restores full clip");
-        test.expect_equal(raster.clip_height, 7, "failure restores clip height");
+        test.expect_equal(
+            raster.clip_height, 7, "failure restores clip height"
+        );
     }
 
     {

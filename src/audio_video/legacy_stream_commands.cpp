@@ -7,24 +7,20 @@ namespace {
 
 constexpr compat::i32 kMusicStreamId = 100;
 
-[[nodiscard]] constexpr compat::i32 from_bits(
-    const compat::u32 value
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+from_bits(const compat::u32 value) noexcept {
     return std::bit_cast<compat::i32>(value);
 }
 
-[[nodiscard]] constexpr compat::i32 wrapping_subtract(
-    const compat::i32 left,
-    const compat::i32 right
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+wrapping_subtract(const compat::i32 left, const compat::i32 right) noexcept {
     return from_bits(
         static_cast<compat::u32>(left) - static_cast<compat::u32>(right)
     );
 }
 
-[[nodiscard]] constexpr compat::i32 scale_level_by_128_over_11(
-    const compat::i32 level
-) noexcept {
+[[nodiscard]] constexpr compat::i32
+scale_level_by_128_over_11(const compat::i32 level) noexcept {
     return from_bits(static_cast<compat::u32>(level) << 7U) / 11;
 }
 
@@ -41,10 +37,7 @@ compat::i32 play_legacy_stream(
     }
 
     static_cast<void>(manager.play(
-        filename,
-        kMusicStreamId,
-        scale_level_by_128_over_11(mix_level),
-        1
+        filename, kMusicStreamId, scale_level_by_128_over_11(mix_level), 1
     ));
     return 1;
 }
@@ -58,18 +51,15 @@ compat::i32 legacy_stream_absent(LegacyStreamManager& manager) {
 }
 
 compat::i32 set_legacy_stream_volume(
-    LegacyStreamManager& manager,
-    const compat::i32 level
+    LegacyStreamManager& manager, const compat::i32 level
 ) {
     return manager.set_volume(
-        kMusicStreamId,
-        scale_level_by_128_over_11(level)
+        kMusicStreamId, scale_level_by_128_over_11(level)
     );
 }
 
 compat::i32 apply_legacy_stream_transition(
-    LegacyStreamManager& manager,
-    LegacyStreamCommandState& state
+    LegacyStreamManager& manager, LegacyStreamCommandState& state
 ) {
     compat::i32 result = wrapping_subtract(state.transition_mode, 1);
     if (result == 0) {
@@ -84,17 +74,13 @@ compat::i32 apply_legacy_stream_transition(
         return result;
     }
 
-    result = manager.begin_fade(
-        kMusicStreamId,
-        state.pending_fade_divisor
-    );
+    result = manager.begin_fade(kMusicStreamId, state.pending_fade_divisor);
     state.current_fade_divisor = state.pending_fade_divisor;
     return result;
 }
 
 compat::i32 poll_legacy_stream_transition(
-    LegacyStreamManager& manager,
-    LegacyStreamCommandState& state
+    LegacyStreamManager& manager, LegacyStreamCommandState& state
 ) {
     compat::i32 result = state.transition_mode;
     if (result == 0) {

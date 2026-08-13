@@ -27,12 +27,7 @@ void test_mask_pack(openswd3::test::Context& test) {
     std::array<u8, 4> mask{};
 
     test.expect_equal(
-        openswd3::rendering::pack_legacy_glyph_mask(
-            raster,
-            10,
-            2,
-            mask
-        ),
+        openswd3::rendering::pack_legacy_glyph_mask(raster, 10, 2, mask),
         LegacyGlyphMaskPackStatus::completed,
         "valid raster packs"
     );
@@ -47,10 +42,7 @@ void test_mask_pack(openswd3::test::Context& test) {
     zero_raster[8] = 0x1234U;
     test.expect_equal(
         openswd3::rendering::pack_legacy_glyph_mask(
-            zero_raster,
-            10,
-            1,
-            existing
+            zero_raster, 10, 1, existing
         ),
         LegacyGlyphMaskPackStatus::completed,
         "pack into an existing slot"
@@ -68,31 +60,20 @@ void test_mask_pack_boundaries(openswd3::test::Context& test) {
     std::array<u8, 2> destination{};
 
     test.expect_equal(
-        openswd3::rendering::pack_legacy_glyph_mask(
-            kRaster,
-            0,
-            1,
-            destination
-        ),
+        openswd3::rendering::pack_legacy_glyph_mask(kRaster, 0, 1, destination),
         LegacyGlyphMaskPackStatus::invalid_geometry,
         "zero width is outside the isolated valid geometry boundary"
     );
     test.expect_equal(
         openswd3::rendering::pack_legacy_glyph_mask(
-            kShortRaster,
-            10,
-            1,
-            destination
+            kShortRaster, 10, 1, destination
         ),
         LegacyGlyphMaskPackStatus::source_out_of_bounds,
         "short tight raster is rejected before packing"
     );
     test.expect_equal(
         openswd3::rendering::pack_legacy_glyph_mask(
-            kRaster,
-            10,
-            1,
-            std::span<u8>{destination}.first(1U)
+            kRaster, 10, 1, std::span<u8>{destination}.first(1U)
         ),
         LegacyGlyphMaskPackStatus::destination_out_of_bounds,
         "short mask slot is rejected before packing"
@@ -120,9 +101,9 @@ void test_unsigned_sorted_cache(openswd3::test::Context& test) {
     const i32 lower = cache.insert_empty(0x0080U);
     test.expect_equal(lower, 0, "unsigned lower key inserts before 0x8000");
     test.expect_true(
-        std::ranges::all_of(cache.mask_slot(0U), [](const u8 value) {
-            return value == 0U;
-        }),
+        std::ranges::all_of(
+            cache.mask_slot(0U), [](const u8 value) { return value == 0U; }
+        ),
         "new insertion slot is cleared"
     );
     test.expect_true(

@@ -91,7 +91,9 @@ void test_active_frame_branch(Context& test) {
 
 void test_story_gate(Context& test) {
     const StoryGateState open{1, 0, 0, 0, 0};
-    test.expect_true(openswd3::app::should_step_story(open), "all five gates open");
+    test.expect_true(
+        openswd3::app::should_step_story(open), "all five gates open"
+    );
     test.expect_false(
         openswd3::app::should_step_story({0, 0, 0, 0, 0}),
         "frame execution gate is required"
@@ -105,8 +107,7 @@ void test_story_gate(Context& test) {
         "special mode blocks story"
     );
     test.expect_false(
-        openswd3::app::should_step_story({1, 0, 0, 1, 0}),
-        "battle blocks story"
+        openswd3::app::should_step_story({1, 0, 0, 1, 0}), "battle blocks story"
     );
     test.expect_false(
         openswd3::app::should_step_story({1, 0, 0, 0, 1}),
@@ -161,7 +162,9 @@ void test_mode_and_battle_results(Context& test) {
 }
 
 void test_close_request(Context& test) {
-    test.expect_false(openswd3::app::should_request_close(0), "zero flags stay open");
+    test.expect_false(
+        openswd3::app::should_request_close(0), "zero flags stay open"
+    );
     test.expect_true(
         openswd3::app::should_request_close(0x24),
         "close bit remains visible alongside video bit"

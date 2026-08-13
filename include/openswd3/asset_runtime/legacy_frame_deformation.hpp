@@ -71,16 +71,12 @@ public:
     LegacyDeformationNode(LegacyDeformationNode&&) = delete;
     LegacyDeformationNode& operator=(LegacyDeformationNode&&) = delete;
 
-    [[nodiscard]] compat::i32 set_origin(
-        compat::i32 origin_x,
-        compat::i32 origin_y
-    ) noexcept;
-    [[nodiscard]] LegacyDeformationStatus capture(
-        std::span<const compat::u16> framebuffer
-    ) noexcept;
-    [[nodiscard]] LegacyDeformationStatus apply(
-        std::span<compat::u16> framebuffer
-    ) const noexcept;
+    [[nodiscard]] compat::i32
+    set_origin(compat::i32 origin_x, compat::i32 origin_y) noexcept;
+    [[nodiscard]] LegacyDeformationStatus
+    capture(std::span<const compat::u16> framebuffer) noexcept;
+    [[nodiscard]] LegacyDeformationStatus
+    apply(std::span<compat::u16> framebuffer) const noexcept;
     [[nodiscard]] LegacyDeformationAdvanceResult advance() noexcept;
     [[nodiscard]] LegacyDeformationInjectionResult inject(
         compat::i32 x,
@@ -92,14 +88,10 @@ public:
 
     [[nodiscard]] LegacyDeformationState& state() noexcept;
     [[nodiscard]] const LegacyDeformationState& state() const noexcept;
-    [[nodiscard]] std::span<compat::i16> field(
-        compat::u32 index
-    ) noexcept;
-    [[nodiscard]] std::span<const compat::i16> field(
-        compat::u32 index
-    ) const noexcept;
-    [[nodiscard]] std::span<const compat::u16> source_snapshot()
-        const noexcept;
+    [[nodiscard]] std::span<compat::i16> field(compat::u32 index) noexcept;
+    [[nodiscard]] std::span<const compat::i16>
+    field(compat::u32 index) const noexcept;
+    [[nodiscard]] std::span<const compat::u16> source_snapshot() const noexcept;
 
 private:
     friend class LegacyDeformationList;
@@ -125,9 +117,8 @@ public:
 
     void push_front(std::unique_ptr<LegacyDeformationNode> node) noexcept;
     void clear() noexcept;
-    [[nodiscard]] LegacyDeformationListUpdateResult update(
-        std::span<compat::u16> framebuffer
-    ) noexcept;
+    [[nodiscard]] LegacyDeformationListUpdateResult
+    update(std::span<compat::u16> framebuffer) noexcept;
 
     [[nodiscard]] LegacyDeformationNode* front() noexcept;
     [[nodiscard]] const LegacyDeformationNode* front() const noexcept;

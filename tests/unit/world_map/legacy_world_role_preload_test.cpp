@@ -32,18 +32,14 @@ using openswd3::world_map::preload_legacy_world_roles_before_load;
 using openswd3::world_map::write_legacy_maps_role_source_record;
 
 void write_u16(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u16 value
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
 ) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
 void write_u32(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>((value >> 8U) & 0xFFU);
@@ -65,8 +61,7 @@ MapsFixture make_maps_fixture(const std::span<const u16> guids) {
     for (std::size_t index = 0U; index < guids.size(); ++index) {
         LegacyMapsRoleSourceRecord role{
             .payload_offset = static_cast<u32>(
-                index *
-                openswd3::world_map::kLegacyMapsRoleSourceRecordSize
+                index * openswd3::world_map::kLegacyMapsRoleSourceRecordSize
             ),
             .logical_map_id = 1U,
             .guid = guids[index],
@@ -82,19 +77,15 @@ MapsFixture make_maps_fixture(const std::span<const u16> guids) {
         };
         fixture.database.role_sources.push_back(role);
         static_cast<void>(write_legacy_maps_role_source_record(
-            fixture.payload,
-            fixture.database.role_sources.back()
+            fixture.payload, fixture.database.role_sources.back()
         ));
     }
 
     return fixture;
 }
 
-LegacyWorldRoleRecord make_role(
-    const u16 guid,
-    const u32 world_x,
-    const u32 world_y
-) {
+LegacyWorldRoleRecord
+make_role(const u16 guid, const u32 world_x, const u32 world_y) {
     LegacyWorldRoleRecord role{};
     role.guid = guid;
     role.world_x = world_x;
@@ -107,14 +98,10 @@ LegacyWorldRoleRecord make_role(
     return role;
 }
 
-const LegacyMapsRoleSourceRecord& source_by_guid(
-    const LegacyMapsWorldDatabase& database,
-    const u16 guid
-) {
+const LegacyMapsRoleSourceRecord&
+source_by_guid(const LegacyMapsWorldDatabase& database, const u16 guid) {
     const auto found = std::ranges::find(
-        database.role_sources,
-        guid,
-        &LegacyMapsRoleSourceRecord::guid
+        database.role_sources, guid, &LegacyMapsRoleSourceRecord::guid
     );
     return *found;
 }
@@ -209,8 +196,7 @@ void test_full_preload_behavior(openswd3::test::Context& test) {
     test.expect_true(
         ordinary.tile_x == 0x0FFFU && ordinary.tile_y == 0x000FU &&
             ordinary.path_word_index == std::bit_cast<i16>(u16{0x8001U}) &&
-            ordinary.action_id ==
-                static_cast<u16>(roles[5U].action.action_id),
+            ordinary.action_id == static_cast<u16>(roles[5U].action.action_id),
         "ordinary writeback truncates coordinates before the 16-bit shift"
     );
 
@@ -219,9 +205,8 @@ void test_full_preload_behavior(openswd3::test::Context& test) {
     const auto& wrapped = source_by_guid(maps.database, 18U);
     test.expect_true(
         overridden.tile_x == 0x35U && overridden.tile_y == 0x46U &&
-            overridden.path_word_index == 3 &&
-            non_eight.tile_x == 0x12U && non_eight.tile_y == 0x23U &&
-            non_eight.path_word_index == 0 &&
+            overridden.path_word_index == 3 && non_eight.tile_x == 0x12U &&
+            non_eight.tile_y == 0x23U && non_eight.path_word_index == 0 &&
             wrapped.tile_x == 0x12U && wrapped.tile_y == 0x23U &&
             wrapped.path_word_index == 0,
         "type eight overrides or aligns then wraps while command five does not"

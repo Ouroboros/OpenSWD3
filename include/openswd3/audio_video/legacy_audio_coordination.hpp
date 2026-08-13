@@ -56,18 +56,15 @@ public:
 
 class LegacyAudioQueueCoordinator final {
 public:
-    explicit LegacyAudioQueueCoordinator(
-        LegacyAudioQueuePorts& ports
-    ) noexcept;
+    explicit LegacyAudioQueueCoordinator(LegacyAudioQueuePorts& ports) noexcept;
     ~LegacyAudioQueueCoordinator();
 
     LegacyAudioQueueCoordinator(const LegacyAudioQueueCoordinator&) = delete;
-    LegacyAudioQueueCoordinator& operator=(
-        const LegacyAudioQueueCoordinator&
-    ) = delete;
+    LegacyAudioQueueCoordinator&
+    operator=(const LegacyAudioQueueCoordinator&) = delete;
     LegacyAudioQueueCoordinator(LegacyAudioQueueCoordinator&&) = delete;
-    LegacyAudioQueueCoordinator& operator=(LegacyAudioQueueCoordinator&&) =
-        delete;
+    LegacyAudioQueueCoordinator&
+    operator=(LegacyAudioQueueCoordinator&&) = delete;
 
     [[nodiscard]] LegacyAudioQueueState& state() noexcept;
     [[nodiscard]] const LegacyAudioQueueState& state() const noexcept;
@@ -90,8 +87,6 @@ public:
     virtual void service_samples() = 0;
 };
 
-[[nodiscard]] bool maintain_legacy_audio(
-    LegacyAudioMaintenancePorts& ports
-);
+[[nodiscard]] bool maintain_legacy_audio(LegacyAudioMaintenancePorts& ports);
 
 }  // namespace openswd3::audio_video

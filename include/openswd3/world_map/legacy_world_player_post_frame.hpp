@@ -22,8 +22,8 @@ struct LegacyWorldPlayerPostFrameState {
 };
 
 void initialize_legacy_world_player_position_history(
-    LegacyWorldPlayerPostFrameState& state,
-    const LegacyWorldRoleRecord& player) noexcept;
+    LegacyWorldPlayerPostFrameState& state, const LegacyWorldRoleRecord& player
+) noexcept;
 
 enum class LegacyWorldPlayerPostFrameStatus : compat::u8 {
     completed,
@@ -35,11 +35,14 @@ enum class LegacyWorldPlayerPostFrameStatus : compat::u8 {
 
 struct LegacyWorldPlayerPostFrameResult {
     LegacyWorldPlayerPostFrameStatus status{
-        LegacyWorldPlayerPostFrameStatus::completed};
+        LegacyWorldPlayerPostFrameStatus::completed
+    };
     LegacyRoleSpatialRelocationStatus spatial_status{
-        LegacyRoleSpatialRelocationStatus::ready};
+        LegacyRoleSpatialRelocationStatus::ready
+    };
     LegacyWorldRoleSurfaceStatus surface_status{
-        LegacyWorldRoleSurfaceStatus::ready};
+        LegacyWorldRoleSurfaceStatus::ready
+    };
     bool aligned{};
     bool spatially_relocated{};
     bool old_occupancy_cleared{};
@@ -67,6 +70,7 @@ advance_legacy_world_player_post_frame(
     LegacyWorldMovementRuntimeState& movement,
     LegacyWorldPlayerPostFrameState& state,
     const LegacyWorldRoleSurfaceContext& surface_context,
-    asset_runtime::LegacyActionDrawPorts& action_ports);
+    asset_runtime::LegacyActionDrawPorts& action_ports
+);
 
 }  // namespace openswd3::world_map

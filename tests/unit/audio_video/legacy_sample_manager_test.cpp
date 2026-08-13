@@ -39,9 +39,7 @@ constexpr std::size_t kPayloadOffset =
 constexpr std::size_t kPayloadSize = 48U;
 
 void write_u32(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
@@ -55,7 +53,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-sample-manager-" + std::to_string(unique_value));
+            ("legacy-sample-manager-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -68,14 +66,8 @@ public:
         return root_;
     }
 
-    void write(
-        const char* name,
-        const std::span<const u8> bytes
-    ) const {
-        std::ofstream output{
-            root_ / name,
-            std::ios::binary | std::ios::trunc
-        };
+    void write(const char* name, const std::span<const u8> bytes) const {
+        std::ofstream output{root_ / name, std::ios::binary | std::ios::trunc};
         for (const u8 byte : bytes) {
             output.put(static_cast<char>(byte));
         }
@@ -90,17 +82,15 @@ private:
     for (u32 sound_id = 1U; sound_id <= 3U; ++sound_id) {
         const std::size_t record =
             kIndexOffset + (sound_id - 1U) * kDiskRecordSize;
-        const u32 payload_offset = static_cast<u32>(
-            kPayloadOffset + (sound_id - 1U) * kPayloadSize
-        );
+        const u32 payload_offset =
+            static_cast<u32>(kPayloadOffset + (sound_id - 1U) * kPayloadSize);
         write_u32(archive, record + 0x14U, static_cast<u32>(kPayloadSize));
         write_u32(archive, record + 0x18U, payload_offset);
         write_u32(archive, record + 0x20U, sound_id == 2U ? 1U : 0U);
 
         for (std::size_t index = 0U; index < kPayloadSize; ++index) {
-            archive[payload_offset + index] = static_cast<u8>(
-                sound_id * 0x20U + static_cast<u32>(index)
-            );
+            archive[payload_offset + index] =
+                static_cast<u8>(sound_id * 0x20U + static_cast<u32>(index));
         }
         if (sound_id == 2U) {
             archive[payload_offset] = 'I';
@@ -163,12 +153,9 @@ public:
     }
 
     bool set_sample_file(
-        const LegacySampleHandle handle,
-        const std::span<const u8> bytes
+        const LegacySampleHandle handle, const std::span<const u8> bytes
     ) override {
-        events.push_back(
-            {BackendCall::set_file, handle, 0, 0U, bytes.size()}
-        );
+        events.push_back({BackendCall::set_file, handle, 0, 0U, bytes.size()});
         return set_file_result;
     }
 
@@ -186,9 +173,7 @@ public:
     }
 
     void set_sample_user_data(
-        const LegacySampleHandle handle,
-        const u32 slot,
-        const u32 value
+        const LegacySampleHandle handle, const u32 slot, const u32 value
     ) override {
         events.push_back(
             {BackendCall::set_user_data, handle, static_cast<i32>(value), slot}
@@ -196,31 +181,25 @@ public:
         user_data[handle] = value;
     }
 
-    u32 sample_user_data(
-        const LegacySampleHandle handle,
-        const u32 slot
-    ) override {
+    u32
+    sample_user_data(const LegacySampleHandle handle, const u32 slot) override {
         events.push_back({BackendCall::get_user_data, handle, 0, slot});
         return user_data[handle];
     }
 
     void set_sample_volume(
-        const LegacySampleHandle handle,
-        const i32 volume
+        const LegacySampleHandle handle, const i32 volume
     ) override {
         events.push_back({BackendCall::set_volume, handle, volume});
     }
 
-    void set_sample_pan(
-        const LegacySampleHandle handle,
-        const i32 pan
-    ) override {
+    void
+    set_sample_pan(const LegacySampleHandle handle, const i32 pan) override {
         events.push_back({BackendCall::set_pan, handle, pan});
     }
 
     void set_sample_loop_count(
-        const LegacySampleHandle handle,
-        const i32 loop_count
+        const LegacySampleHandle handle, const i32 loop_count
     ) override {
         events.push_back({BackendCall::set_loop_count, handle, loop_count});
     }
@@ -287,8 +266,7 @@ struct Fixture {
 }
 
 void expect_ready_fixture(
-    openswd3::test::Context& test,
-    const Fixture& fixture
+    openswd3::test::Context& test, const Fixture& fixture
 ) {
     test.expect_equal(
         fixture.open_status,
@@ -320,8 +298,7 @@ void test_pool_initialization(openswd3::test::Context& test) {
     );
     test.expect_true(fixture.manager.initialized(), "initialized flag is one");
     test.expect_true(
-        fixture.manager.sample_enabled(),
-        "sample-enabled flag starts one"
+        fixture.manager.sample_enabled(), "sample-enabled flag starts one"
     );
     test.expect_equal(
         fixture.manager.configured_handle_count(),
@@ -436,9 +413,7 @@ void test_play_riff_and_named(openswd3::test::Context& test) {
         {BackendCall::start, 3U},
     };
     test.expect_equal(
-        fixture.backend.events,
-        riff_events,
-        "RIFF playback backend event order"
+        fixture.backend.events, riff_events, "RIFF playback backend event order"
     );
     test.expect_equal(
         fixture.manager.active_sample_count(),
@@ -486,9 +461,7 @@ void test_play_riff_and_named(openswd3::test::Context& test) {
     );
 }
 
-void test_setup_failure_and_empty_pool_leak(
-    openswd3::test::Context& test
-) {
+void test_setup_failure_and_empty_pool_leak(openswd3::test::Context& test) {
     Fixture fixture;
     static_cast<void>(fixture.manager.initialize_pool(1));
     fixture.backend.clear_events();
@@ -636,9 +609,7 @@ void test_stop_all_and_parameter_updates(openswd3::test::Context& test) {
 
     fixture.backend.clear_events();
     test.expect_equal(
-        fixture.manager.set_volume(2U, 500),
-        0,
-        "volume update returns zero"
+        fixture.manager.set_volume(2U, 500), 0, "volume update returns zero"
     );
     test.expect_equal(
         fixture.backend.events,
@@ -749,15 +720,10 @@ void test_disabled_and_shutdown(openswd3::test::Context& test) {
     test.expect_equal(fixture.manager.play(request(2U)), 0, "disabled play");
     test.expect_equal(fixture.manager.stop(1U), 0, "disabled stop");
     test.expect_false(fixture.manager.stop_all(), "disabled stop-all");
-    test.expect_equal(
-        fixture.manager.set_volume(1U, 50),
-        0,
-        "disabled volume"
-    );
+    test.expect_equal(fixture.manager.set_volume(1U, 50), 0, "disabled volume");
     test.expect_equal(fixture.manager.set_pan(1U, 50), 0, "disabled pan");
     test.expect_false(
-        fixture.manager.service_completed_samples(),
-        "disabled service"
+        fixture.manager.service_completed_samples(), "disabled service"
     );
     test.expect_true(
         fixture.backend.events.empty(),

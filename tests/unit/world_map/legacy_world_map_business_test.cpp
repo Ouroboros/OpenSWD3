@@ -71,29 +71,49 @@ void test_business_conversion(openswd3::test::Context& test) {
             std::vector<u8>{0U},
         },
         LegacyLmfOffset14Record{
-            0U, 1U, i16{0}, 0U, 0U, i16{-20}, 0U,
+            0U,
+            1U,
+            i16{0},
+            0U,
+            0U,
+            i16{-20},
+            0U,
             std::vector<u8>{0U},
         },
         LegacyLmfOffset14Record{
-            0U, 1U, i16{0}, 0U, 0U, i16{30}, 0U,
+            0U,
+            1U,
+            i16{0},
+            0U,
+            0U,
+            i16{30},
+            0U,
             std::vector<u8>{0U},
         },
     };
     source.offset1c.records = {
         LegacyLmfOffset1cRecord{
-            0U, 0x1234U, 5U, 3U, 9U, 0xB201U,
+            0U,
+            0x1234U,
+            5U,
+            3U,
+            9U,
+            0xB201U,
             std::vector<u8>{0U},
         },
         LegacyLmfOffset1cRecord{
-            0U, 9U, 8U, 1U, 10U, 0U, std::vector<u8>{0U},
+            0U,
+            9U,
+            8U,
+            1U,
+            10U,
+            0U,
+            std::vector<u8>{0U},
         },
     };
 
     const auto result = build_legacy_world_map_business_state(
-        source.header,
-        source.post_surface,
-        source.offset14,
-        source.offset1c
+        source.header, source.post_surface, source.offset14, source.offset1c
     );
     test.expect_equal(
         result.status,
@@ -122,8 +142,7 @@ void test_business_conversion(openswd3::test::Context& test) {
     );
     test.expect_true(
         first.field_28 == 0xAU && first.field_2a == 3U &&
-            first.action.action_id == 0U &&
-            first.action.draw_offset_x == 0U &&
+            first.action.action_id == 0U && first.action.draw_offset_x == 0U &&
             first.action.draw_offset_y == 0xFFFFFFD0U &&
             first.action.field_4c == 0xFFFFU,
         "offset14 action and packed subfields preserve word arithmetic"
@@ -132,23 +151,18 @@ void test_business_conversion(openswd3::test::Context& test) {
     const auto& second = result.state.roles[2];
     test.expect_true(
         second.world_x == 48U && second.world_y == 144U &&
-            second.flags == 0x00009001U &&
-            second.action.action_id == 0x1234U &&
-            second.action.base_variant == 5U &&
-            second.field_28 == 0xBU && second.field_2a == 2U,
+            second.flags == 0x00009001U && second.action.action_id == 0x1234U &&
+            second.action.base_variant == 5U && second.field_28 == 0xBU &&
+            second.field_2a == 2U,
         "offset1c zero-extended coordinates and action key match 0x004266B8"
     );
     test.expect_equal(
-        result.state.spatial_index.row_heads[2U][
-            kLegacySpatialRowPadding + 2U
-        ],
+        result.state.spatial_index.row_heads[2U][kLegacySpatialRowPadding + 2U],
         u32{1U},
         "offset14 role is inserted in its packed group and truncated row"
     );
     test.expect_equal(
-        result.state.spatial_index.row_heads[1U][
-            kLegacySpatialRowPadding + 9U
-        ],
+        result.state.spatial_index.row_heads[1U][kLegacySpatialRowPadding + 9U],
         u32{2U},
         "offset1c role is inserted in its packed group and row"
     );
@@ -174,14 +188,22 @@ void test_spatial_insertion_order(openswd3::test::Context& test) {
     roles[5].guid = 4U;
     roles[5].flags = 1U;
 
-    test.expect_true(insert_legacy_role_spatially(spatial, roles, 1U),
-                     "first role becomes row head");
-    test.expect_true(insert_legacy_role_spatially(spatial, roles, 2U),
-                     "larger equal-row GUID enters before a single node");
-    test.expect_true(insert_legacy_role_spatially(spatial, roles, 3U),
-                     "middle GUID follows the multi-node insertion branch");
-    test.expect_true(insert_legacy_role_spatially(spatial, roles, 4U),
-                     "later sub-tile Y follows the exact walk-to-tail branch");
+    test.expect_true(
+        insert_legacy_role_spatially(spatial, roles, 1U),
+        "first role becomes row head"
+    );
+    test.expect_true(
+        insert_legacy_role_spatially(spatial, roles, 2U),
+        "larger equal-row GUID enters before a single node"
+    );
+    test.expect_true(
+        insert_legacy_role_spatially(spatial, roles, 3U),
+        "middle GUID follows the multi-node insertion branch"
+    );
+    test.expect_true(
+        insert_legacy_role_spatially(spatial, roles, 4U),
+        "later sub-tile Y follows the exact walk-to-tail branch"
+    );
 
     const u32 head = spatial.row_heads[0U][kLegacySpatialRowPadding + 1U];
     test.expect_true(
@@ -192,8 +214,10 @@ void test_spatial_insertion_order(openswd3::test::Context& test) {
         "0x00411490 pointer chain is represented by role indices"
     );
 
-    test.expect_true(insert_legacy_role_spatially(spatial, roles, 5U),
-                     "signed division truncates negative sub-tile Y to zero");
+    test.expect_true(
+        insert_legacy_role_spatially(spatial, roles, 5U),
+        "signed division truncates negative sub-tile Y to zero"
+    );
     test.expect_equal(
         spatial.row_heads[1U][kLegacySpatialRowPadding],
         u32{5U},
@@ -228,13 +252,7 @@ void test_cell_binding(openswd3::test::Context& test) {
     constexpr std::size_t cell_six = 6U * 4U;
     grid[cell_six + 1U] = 0xA8U;
 
-    const auto result = bind_legacy_world_role_cells(
-        roles,
-        1U,
-        3U,
-        4U,
-        grid
-    );
+    const auto result = bind_legacy_world_role_cells(roles, 1U, 3U, 4U, grid);
     test.expect_equal(
         result.status,
         LegacyWorldRoleCellBindingStatus::ready,
@@ -243,19 +261,12 @@ void test_cell_binding(openswd3::test::Context& test) {
     test.expect_true(
         result.roles_bound == 2U && result.out_of_bounds_indices == 1U &&
             roles[1].map_cell_pointer_32 == 6U &&
-            roles[1].flags == 0xFFAFFFFFU &&
-            roles[1].action.mode_flags == 7U,
+            roles[1].flags == 0xFFAFFFFFU && roles[1].action.mode_flags == 7U,
         "0x0040F2C1 cell index and flag projection preserve exact masks without repeating the pre-update mode reset"
     );
 
     roles[2].flags |= 0x00000100U;
-    const auto flagged = bind_legacy_world_role_cells(
-        roles,
-        2U,
-        3U,
-        4U,
-        grid
-    );
+    const auto flagged = bind_legacy_world_role_cells(roles, 2U, 3U, 4U, grid);
     test.expect_equal(
         flagged.status,
         LegacyWorldRoleCellBindingStatus::flagged_cell_out_of_bounds,
@@ -267,10 +278,7 @@ void test_invalid_and_capacity_statuses(openswd3::test::Context& test) {
     ReadyPhysicalState source;
     source.header.status = LegacyLmfMapHeaderStatus::unsupported_signature;
     auto result = build_legacy_world_map_business_state(
-        source.header,
-        source.post_surface,
-        source.offset14,
-        source.offset1c
+        source.header, source.post_surface, source.offset14, source.offset1c
     );
     test.expect_equal(
         result.status,
@@ -281,10 +289,7 @@ void test_invalid_and_capacity_statuses(openswd3::test::Context& test) {
     source.header.status = LegacyLmfMapHeaderStatus::ready;
     source.offset14.records.resize(256U);
     result = build_legacy_world_map_business_state(
-        source.header,
-        source.post_surface,
-        source.offset14,
-        source.offset1c
+        source.header, source.post_surface, source.offset14, source.offset1c
     );
     test.expect_equal(
         result.status,
@@ -296,10 +301,7 @@ void test_invalid_and_capacity_statuses(openswd3::test::Context& test) {
         0U, 1U, i16{0}, 0U, 0U, i16{30}, 3U, std::vector<u8>{0U}
     }};
     result = build_legacy_world_map_business_state(
-        source.header,
-        source.post_surface,
-        source.offset14,
-        source.offset1c
+        source.header, source.post_surface, source.offset14, source.offset1c
     );
     test.expect_true(
         result.status == LegacyWorldMapBusinessStatus::ready &&
@@ -309,10 +311,7 @@ void test_invalid_and_capacity_statuses(openswd3::test::Context& test) {
 
     source.offset14.records.front().field_08 = i16{0};
     result = build_legacy_world_map_business_state(
-        source.header,
-        source.post_surface,
-        source.offset14,
-        source.offset1c
+        source.header, source.post_surface, source.offset14, source.offset1c
     );
     test.expect_equal(
         result.status,

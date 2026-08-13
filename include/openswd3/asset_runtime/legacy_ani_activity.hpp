@@ -62,10 +62,12 @@ enum class LegacyAniActivityStartStatus {
 
 struct LegacyAniActivityStartResult {
     LegacyAniActivityStartStatus status{
-        LegacyAniActivityStartStatus::archive_open_failed};
+        LegacyAniActivityStartStatus::archive_open_failed
+    };
     LegacyAniOpenStatus open_status{LegacyAniOpenStatus::file_open_failed};
     LegacyAniFrameLoadStatus frame_status{
-        LegacyAniFrameLoadStatus::archive_not_open};
+        LegacyAniFrameLoadStatus::archive_not_open
+    };
 };
 
 enum class LegacyAniActivityStatus {
@@ -133,12 +135,10 @@ public:
 
 private:
     [[nodiscard]] LegacyAniActivityStatus validate_framebuffer(
-        std::span<const compat::u8> framebuffer,
-        compat::u32 pitch_bytes
+        std::span<const compat::u8> framebuffer, compat::u32 pitch_bytes
     ) const noexcept;
     [[nodiscard]] LegacyAniSpanResult render_current_frame(
-        std::span<compat::u8> framebuffer,
-        compat::u32 pitch_bytes
+        std::span<compat::u8> framebuffer, compat::u32 pitch_bytes
     ) const noexcept;
     void finalize(LegacyAniActivityPorts& ports);
 

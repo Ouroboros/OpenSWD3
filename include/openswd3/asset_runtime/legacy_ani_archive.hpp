@@ -114,7 +114,8 @@ struct LegacyAniFrameLoadResult {
     std::span<const compat::u8> command_stream;
     std::span<const compat::u16> palette;
     resource_io::LegacyLzo1xStatus decompression_status{
-        resource_io::LegacyLzo1xStatus::success};
+        resource_io::LegacyLzo1xStatus::success
+    };
     compat::u32 decompressed_size{};
     compat::u32 legacy_return_value{};
     bool has_palette{};
@@ -123,9 +124,10 @@ struct LegacyAniFrameLoadResult {
 
 class LegacyAniArchive final {
 public:
-    [[nodiscard]] LegacyAniOpenStatus
-    open(const std::filesystem::path& archive_path,
-         rendering::LegacyPixelConversionState pixel_conversion = {});
+    [[nodiscard]] LegacyAniOpenStatus open(
+        const std::filesystem::path& archive_path,
+        rendering::LegacyPixelConversionState pixel_conversion = {}
+    );
     void close() noexcept;
 
     [[nodiscard]] bool is_open() const noexcept;
@@ -176,10 +178,13 @@ struct LegacyAniSpanResult {
 };
 
 [[nodiscard]] LegacyAniSpanResult apply_legacy_ani_spans(
-    std::span<const compat::u8> command_stream, compat::u32 span_count,
-    std::span<const compat::u16> palette, std::span<compat::u8> destination,
-    compat::u32 pitch_bytes, compat::u16 display_height,
-    const rendering::LegacyPixelConversionState& pixel_conversion =
-        {}) noexcept;
+    std::span<const compat::u8> command_stream,
+    compat::u32 span_count,
+    std::span<const compat::u16> palette,
+    std::span<compat::u8> destination,
+    compat::u32 pitch_bytes,
+    compat::u16 display_height,
+    const rendering::LegacyPixelConversionState& pixel_conversion = {}
+) noexcept;
 
 }  // namespace openswd3::asset_runtime

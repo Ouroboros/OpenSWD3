@@ -11,8 +11,7 @@ namespace {
 
 constexpr compat::u32 kCacheSlotCount = 24U;
 constexpr std::size_t kCacheRecordSize = 16U;
-constexpr std::size_t kCacheIndexSize =
-    kCacheSlotCount * kCacheRecordSize;
+constexpr std::size_t kCacheIndexSize = kCacheSlotCount * kCacheRecordSize;
 
 void write_u32(
     std::span<compat::u8> bytes,
@@ -66,8 +65,7 @@ void reset_cache_files(const std::filesystem::path& cache_directory) {
 }
 
 [[nodiscard]] compat::u32 finish_validation(
-    const std::filesystem::path& cache_directory,
-    const bool invalidate
+    const std::filesystem::path& cache_directory, const bool invalidate
 ) {
     if (invalidate) {
         reset_cache_files(cache_directory);
@@ -78,18 +76,15 @@ void reset_cache_files(const std::filesystem::path& cache_directory) {
 
 }  // namespace
 
-compat::u32 legacy_cm_cache_total_size(
-    const std::filesystem::path& cache_directory
-) {
+compat::u32
+legacy_cm_cache_total_size(const std::filesystem::path& cache_directory) {
     compat::u32 total_size{};
     for (compat::u32 slot = 0U; slot < kCacheSlotCount; ++slot) {
         LegacyFile file;
         const std::filesystem::path path =
             cache_directory / (std::to_string(slot) + ".cm");
         if (file.open(
-                path,
-                LegacyFileCreation::open_existing,
-                LegacyFileAccess::read
+                path, LegacyFileCreation::open_existing, LegacyFileAccess::read
             )) {
             total_size += file.size();
         }
@@ -146,8 +141,7 @@ compat::u32 legacy_cm_cache_validate_pixel_masks(
             static_cast<void>(file.seek_begin_one_based(0x1E));
             compat::u32 requested = 6U;
             static_cast<void>(file.read(
-                std::span<compat::u8>{buffer}.first(requested),
-                requested
+                std::span<compat::u8>{buffer}.first(requested), requested
             ));
             write_u32(
                 buffer,
@@ -160,8 +154,7 @@ compat::u32 legacy_cm_cache_validate_pixel_masks(
             static_cast<void>(file.seek_begin_one_based(0x1E));
             requested = 6U;
             static_cast<void>(file.write(
-                std::span<const compat::u8>{buffer}.first(requested),
-                requested
+                std::span<const compat::u8>{buffer}.first(requested), requested
             ));
         }
     }

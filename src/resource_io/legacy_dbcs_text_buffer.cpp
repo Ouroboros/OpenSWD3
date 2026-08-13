@@ -12,9 +12,8 @@ namespace {
 constexpr compat::u8 kCp950LeadFirst = 0x81U;
 constexpr compat::u8 kCp950LeadLast = 0xFEU;
 
-[[nodiscard]] const compat::u8* cp950_char_next(
-    const compat::u8* const current
-) noexcept {
+[[nodiscard]] const compat::u8*
+cp950_char_next(const compat::u8* const current) noexcept {
     if (*current == 0U) {
         return current;
     }
@@ -32,8 +31,7 @@ constexpr compat::u8 kCp950LeadLast = 0xFEU;
 }  // namespace
 
 compat::i32 legacy_cp950_next_character_offset(
-    const compat::u8* const text,
-    const compat::i32 current_offset
+    const compat::u8* const text, const compat::i32 current_offset
 ) noexcept {
     if (text == nullptr || current_offset < 0) {
         terminate_legacy_fault();
@@ -44,8 +42,7 @@ compat::i32 legacy_cp950_next_character_offset(
 }
 
 compat::i32 legacy_cp950_previous_character_offset(
-    const compat::u8* const text,
-    const compat::i32 current_offset
+    const compat::u8* const text, const compat::i32 current_offset
 ) noexcept {
     if (text == nullptr) {
         terminate_legacy_fault();
@@ -72,8 +69,7 @@ compat::i32 legacy_cp950_previous_character_offset(
 }
 
 compat::i32 legacy_cp950_bounded_length(
-    const compat::u8* const text,
-    const compat::i32 maximum_bytes
+    const compat::u8* const text, const compat::i32 maximum_bytes
 ) noexcept {
     if (text == nullptr) {
         terminate_legacy_fault();
@@ -111,37 +107,25 @@ LegacyDbcsTextBuffer::LegacyDbcsTextBuffer(
     const compat::i32 x,
     const compat::i32 y
 ) noexcept
-    : x_{x},
-      y_{y},
-      capacity_{capacity},
-      cursor_byte_offset_{0xC0C0},
-      result_{0},
-      ime_state_{0},
-      input_enabled_state_{1} {
+    : x_{x}, y_{y}, capacity_{capacity}, cursor_byte_offset_{0xC0C0},
+      result_{0}, ime_state_{0}, input_enabled_state_{1} {
     if (capacity_ < 0) {
         terminate_legacy_fault();
     }
 
-    const auto allocation_size = static_cast<std::size_t>(
-        static_cast<compat::u32>(capacity_) + 1U
-    );
-    buffer_ = static_cast<compat::u8*>(
-        ::operator new(allocation_size, std::nothrow)
-    );
+    const auto allocation_size =
+        static_cast<std::size_t>(static_cast<compat::u32>(capacity_) + 1U);
+    buffer_ =
+        static_cast<compat::u8*>(::operator new(allocation_size, std::nothrow));
     if (buffer_ == nullptr) {
         terminate_legacy_fault();
     }
 
     std::memset(buffer_, 0, allocation_size);
-    cursor_byte_offset_ = legacy_cp950_bounded_length(
-        initial_text,
-        capacity_
-    );
+    cursor_byte_offset_ = legacy_cp950_bounded_length(initial_text, capacity_);
     if (cursor_byte_offset_ > 0) {
         std::memcpy(
-            buffer_,
-            initial_text,
-            static_cast<std::size_t>(cursor_byte_offset_)
+            buffer_, initial_text, static_cast<std::size_t>(cursor_byte_offset_)
         );
     }
     cursor_byte_offset_ = 0;
@@ -168,8 +152,7 @@ compat::i32 LegacyDbcsTextBuffer::cursor_byte_offset() const noexcept {
 }
 
 compat::i32 LegacyDbcsTextBuffer::copy_to(
-    compat::u8* const destination,
-    const compat::i32 destination_size
+    compat::u8* const destination, const compat::i32 destination_size
 ) const noexcept {
     if (destination_size < 0 ||
         (destination == nullptr && destination_size != 0)) {
@@ -177,27 +160,17 @@ compat::i32 LegacyDbcsTextBuffer::copy_to(
     }
 
     if (destination_size > 0) {
-        std::memset(
-            destination,
-            0,
-            static_cast<std::size_t>(destination_size)
-        );
+        std::memset(destination, 0, static_cast<std::size_t>(destination_size));
     }
 
     compat::i32 maximum_bytes = destination_size;
     if (maximum_bytes > capacity_) {
         maximum_bytes = capacity_;
     }
-    const compat::i32 copied = legacy_cp950_bounded_length(
-        buffer_,
-        maximum_bytes
-    );
+    const compat::i32 copied =
+        legacy_cp950_bounded_length(buffer_, maximum_bytes);
     if (copied > 0) {
-        std::memcpy(
-            destination,
-            buffer_,
-            static_cast<std::size_t>(copied)
-        );
+        std::memcpy(destination, buffer_, static_cast<std::size_t>(copied));
     }
     return 1;
 }
@@ -214,8 +187,7 @@ LegacyDbcsTextBufferSnapshot LegacyDbcsTextBuffer::snapshot() const noexcept {
     };
 }
 
-LegacyDbcsTextBufferEditView
-LegacyDbcsTextBuffer::borrow_edit_view() noexcept {
+LegacyDbcsTextBufferEditView LegacyDbcsTextBuffer::borrow_edit_view() noexcept {
     return LegacyDbcsTextBufferEditView{
         .bytes = buffer_,
         .capacity = capacity_,

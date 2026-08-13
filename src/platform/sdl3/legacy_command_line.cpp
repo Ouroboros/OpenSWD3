@@ -12,8 +12,7 @@ std::string_view extract_windows_command_line_tail(
     const std::size_t leading_argument_count
 ) noexcept {
     std::size_t offset = 0U;
-    for (std::size_t argument = 0U;
-         argument < leading_argument_count;
+    for (std::size_t argument = 0U; argument < leading_argument_count;
          ++argument) {
         offset = command_line.find_first_not_of(" \t", offset);
         if (offset == std::string_view::npos) {
@@ -32,8 +31,7 @@ std::string_view extract_windows_command_line_tail(
 
             if (character == '"' && backslash_count % 2U == 0U) {
                 quoted = !quoted;
-            } else if (!quoted &&
-                       (character == ' ' || character == '\t')) {
+            } else if (!quoted && (character == ' ' || character == '\t')) {
                 break;
             }
 
@@ -44,7 +42,7 @@ std::string_view extract_windows_command_line_tail(
 
     offset = command_line.find_first_not_of(" \t", offset);
     return offset == std::string_view::npos ? std::string_view{}
-                                             : command_line.substr(offset);
+                                            : command_line.substr(offset);
 }
 
 std::string reconstruct_legacy_command_line_tail(
@@ -57,16 +55,13 @@ std::string reconstruct_legacy_command_line_tail(
     static_cast<void>(arguments);
     const char* command_line = GetCommandLineA();
     return command_line == nullptr
-               ? std::string{}
-               : std::string{extract_windows_command_line_tail(
-                     command_line,
-                     static_cast<std::size_t>(first_legacy_argument)
-                 )};
+        ? std::string{}
+        : std::string{extract_windows_command_line_tail(
+              command_line, static_cast<std::size_t>(first_legacy_argument)
+          )};
 #else
     std::string result;
-    for (int index = first_legacy_argument;
-         index < argument_count;
-         ++index) {
+    for (int index = first_legacy_argument; index < argument_count; ++index) {
         if (index != first_legacy_argument) {
             result.push_back(' ');
         }

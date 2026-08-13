@@ -13,8 +13,7 @@ void expect_initial_state(openswd3::test::Context& test) {
     const auto state = manager.snapshot();
 
     test.expect_true(
-        state.private_heap_created,
-        "the process-private heap is created"
+        state.private_heap_created, "the process-private heap is created"
     );
     test.expect_equal(
         state.allocated_payload_bytes,
@@ -37,9 +36,7 @@ void expect_initial_state(openswd3::test::Context& test) {
         "all initial nodes are on the free list"
     );
     test.expect_equal(
-        state.active_node_count,
-        0U,
-        "all 32 active bucket lists start empty"
+        state.active_node_count, 0U, "all 32 active bucket lists start empty"
     );
     test.expect_true(
         state.bucket_metadata_zero,

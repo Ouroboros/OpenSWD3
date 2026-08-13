@@ -86,10 +86,8 @@ public:
     i32 sample_count_preference{32};
 };
 
-[[nodiscard]] LegacyPcmOutputFormat format(
-    const i32 sample_rate,
-    const i32 bits
-) {
+[[nodiscard]] LegacyPcmOutputFormat
+format(const i32 sample_rate, const i32 bits) {
     const i32 bytes_per_sample = bits / 8;
     const i32 block_align = bytes_per_sample * 2;
     return LegacyPcmOutputFormat{
@@ -109,14 +107,10 @@ void test_initial_success(openswd3::test::Context& test) {
         openswd3::audio_video::initialize_legacy_audio_output(backend);
 
     test.expect_equal(
-        result.status,
-        LegacyAudioOutputStatus::ready,
-        "initial output opens"
+        result.status, LegacyAudioOutputStatus::ready, "initial output opens"
     );
     test.expect_equal(
-        result.selected_format,
-        format(44'100, 16),
-        "initial PCM format"
+        result.selected_format, format(44'100, 16), "initial PCM format"
     );
     test.expect_equal(
         result.sample_handle_count,
@@ -131,9 +125,7 @@ void test_initial_success(openswd3::test::Context& test) {
         {Call::preference, 1},
     };
     test.expect_equal(
-        backend.events,
-        expected,
-        "initial success follows the LST call order"
+        backend.events, expected, "initial success follows the LST call order"
     );
 }
 

@@ -53,7 +53,9 @@ static_assert(offsetof(LegacyWorldRoleRecord, field_2a) == 0x2AU);
 static_assert(offsetof(LegacyWorldRoleRecord, field_2c) == 0x2CU);
 static_assert(offsetof(LegacyWorldRoleRecord, field_30) == 0x30U);
 static_assert(offsetof(LegacyWorldRoleRecord, path_payload_relation) == 0x34U);
-static_assert(offsetof(LegacyWorldRoleRecord, path_payload_pointer_32) == 0x38U);
+static_assert(
+    offsetof(LegacyWorldRoleRecord, path_payload_pointer_32) == 0x38U
+);
 static_assert(offsetof(LegacyWorldRoleRecord, action) == 0x40U);
 
 }  // namespace openswd3::world_map

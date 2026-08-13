@@ -27,19 +27,15 @@ class LegacyAniFollowerPorts {
 public:
     virtual ~LegacyAniFollowerPorts() = default;
 
-    [[nodiscard]] virtual LegacyActionUpdateStatus update_action_record(
-        LegacyActionRecord& record
-    ) = 0;
+    [[nodiscard]] virtual LegacyActionUpdateStatus
+    update_action_record(LegacyActionRecord& record) = 0;
     [[nodiscard]] virtual bool load_frame_piece(
         compat::u16 resource_id,
         compat::u16 frame_index,
         rendering::LegacyFramePiece& piece
     ) = 0;
     virtual void set_clip_rectangle(
-        compat::i32 left,
-        compat::i32 top,
-        compat::i32 right,
-        compat::i32 bottom
+        compat::i32 left, compat::i32 top, compat::i32 right, compat::i32 bottom
     ) noexcept = 0;
     [[nodiscard]] virtual rendering::LegacyBlitExecutionStatus draw_frame_piece(
         const rendering::LegacyFramePiece& piece,
@@ -60,19 +56,15 @@ public:
         rendering::LegacyRleRowJitterState& jitter
     ) noexcept;
 
-    [[nodiscard]] LegacyActionUpdateStatus update_action_record(
-        LegacyActionRecord& record
-    ) override;
+    [[nodiscard]] LegacyActionUpdateStatus
+    update_action_record(LegacyActionRecord& record) override;
     [[nodiscard]] bool load_frame_piece(
         compat::u16 resource_id,
         compat::u16 frame_index,
         rendering::LegacyFramePiece& piece
     ) override;
     void set_clip_rectangle(
-        compat::i32 left,
-        compat::i32 top,
-        compat::i32 right,
-        compat::i32 bottom
+        compat::i32 left, compat::i32 top, compat::i32 right, compat::i32 bottom
     ) noexcept override;
     [[nodiscard]] rendering::LegacyBlitExecutionStatus draw_frame_piece(
         const rendering::LegacyFramePiece& piece,

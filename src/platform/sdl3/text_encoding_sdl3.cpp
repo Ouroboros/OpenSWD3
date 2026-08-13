@@ -21,12 +21,7 @@ std::optional<std::string> utf8_to_cp950(const std::string_view input) {
 #if defined(_WIN32)
     const int input_size = static_cast<int>(input.size());
     const int wide_size = MultiByteToWideChar(
-        CP_UTF8,
-        MB_ERR_INVALID_CHARS,
-        input.data(),
-        input_size,
-        nullptr,
-        0
+        CP_UTF8, MB_ERR_INVALID_CHARS, input.data(), input_size, nullptr, 0
     );
     if (wide_size <= 0) {
         return std::nullopt;

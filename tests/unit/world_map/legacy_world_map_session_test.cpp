@@ -57,8 +57,7 @@ public:
     }
 
     LegacyLmfSurfaceGrid read_surface_grid(
-        const u32 map_offset,
-        const LegacyLmfMapHeader&
+        const u32 map_offset, const LegacyLmfMapHeader&
     ) override {
         calls.push_back(Call::surface);
         offsets.push_back(map_offset);
@@ -66,8 +65,7 @@ public:
     }
 
     LegacyLmfPostSurfaceRecords read_post_surface_records(
-        const u32 map_offset,
-        const LegacyLmfSurfaceGrid&
+        const u32 map_offset, const LegacyLmfSurfaceGrid&
     ) override {
         calls.push_back(Call::post_surface);
         offsets.push_back(map_offset);
@@ -75,8 +73,7 @@ public:
     }
 
     LegacyLmfReferencedRecordDirectory read_referenced_record_directory(
-        const u32 map_offset,
-        const LegacyLmfPostSurfaceRecords&
+        const u32 map_offset, const LegacyLmfPostSurfaceRecords&
     ) override {
         calls.push_back(Call::referenced);
         offsets.push_back(map_offset);
@@ -84,8 +81,7 @@ public:
     }
 
     LegacyLmfOffset14Directory read_offset14_directory(
-        const u32 map_offset,
-        const LegacyLmfMapHeader&
+        const u32 map_offset, const LegacyLmfMapHeader&
     ) override {
         calls.push_back(Call::offset14);
         offsets.push_back(map_offset);
@@ -93,8 +89,7 @@ public:
     }
 
     LegacyLmfIndexedObjectDirectory read_indexed_object_directory(
-        const u32 map_offset,
-        const LegacyLmfMapHeader&
+        const u32 map_offset, const LegacyLmfMapHeader&
     ) override {
         calls.push_back(Call::indexed);
         offsets.push_back(map_offset);
@@ -102,8 +97,7 @@ public:
     }
 
     LegacyLmfOffset1cDirectory read_offset1c_directory(
-        const u32 map_offset,
-        const LegacyLmfMapHeader&
+        const u32 map_offset, const LegacyLmfMapHeader&
     ) override {
         calls.push_back(Call::offset1c);
         offsets.push_back(map_offset);
@@ -116,8 +110,7 @@ public:
         header.status = LegacyLmfMapHeaderStatus::ready;
         surface.status = LegacyLmfSurfaceGridStatus::ready;
         post_surface.status = LegacyLmfPostSurfaceRecordsStatus::ready;
-        referenced.status =
-            LegacyLmfReferencedRecordDirectoryStatus::ready;
+        referenced.status = LegacyLmfReferencedRecordDirectoryStatus::ready;
         offset14.status = LegacyLmfOffset14DirectoryStatus::ready;
         indexed.status = LegacyLmfIndexedObjectDirectoryStatus::ready;
         offset1c.status = LegacyLmfOffset1cDirectoryStatus::ready;
@@ -141,12 +134,17 @@ void test_ready_sequence(openswd3::test::Context& test) {
     source.make_ready();
     const auto result = load_legacy_world_map(24U, source);
 
-    test.expect_equal(result.status, LegacyWorldMapLoadStatus::ready,
-                      "all physical stages produce a ready session");
-    test.expect_equal(result.session.map_id, u32{24U},
-                      "session retains the requested map id");
-    test.expect_equal(source.seen_map_id, u32{24U},
-                      "lookup receives the full map id");
+    test.expect_equal(
+        result.status,
+        LegacyWorldMapLoadStatus::ready,
+        "all physical stages produce a ready session"
+    );
+    test.expect_equal(
+        result.session.map_id, u32{24U}, "session retains the requested map id"
+    );
+    test.expect_equal(
+        source.seen_map_id, u32{24U}, "lookup receives the full map id"
+    );
     test.expect_equal(
         source.calls,
         std::vector<Call>{
@@ -163,9 +161,10 @@ void test_ready_sequence(openswd3::test::Context& test) {
     );
     test.expect_true(
         source.offsets.size() == 7U &&
-            std::ranges::all_of(source.offsets, [](const u32 value) {
-                return value == 0x12345678U;
-            }),
+            std::ranges::all_of(
+                source.offsets,
+                [](const u32 value) { return value == 0x12345678U; }
+            ),
         "every physical reader uses the lookup offset"
     );
 }
@@ -173,18 +172,18 @@ void test_ready_sequence(openswd3::test::Context& test) {
 void test_pre_surface_stage_slot(openswd3::test::Context& test) {
     FakeSource source;
     source.make_ready();
-    const auto result = load_legacy_world_map(
-        24U,
-        source,
-        [&](const auto& session) {
+    const auto result =
+        load_legacy_world_map(24U, source, [&](const auto& session) {
             source.calls.push_back(Call::pre_surface_stage);
             return session.lookup.map_offset == 0x12345678U &&
                 session.header.status == LegacyLmfMapHeaderStatus::ready;
-        }
-    );
+        });
 
-    test.expect_equal(result.status, LegacyWorldMapLoadStatus::ready,
-                      "successful pre-surface stage resumes physical loading");
+    test.expect_equal(
+        result.status,
+        LegacyWorldMapLoadStatus::ready,
+        "successful pre-surface stage resumes physical loading"
+    );
     test.expect_equal(
         source.calls,
         std::vector<Call>{
@@ -203,14 +202,10 @@ void test_pre_surface_stage_slot(openswd3::test::Context& test) {
 
     FakeSource stopped;
     stopped.make_ready();
-    const auto failed = load_legacy_world_map(
-        24U,
-        stopped,
-        [&](const auto&) {
-            stopped.calls.push_back(Call::pre_surface_stage);
-            return false;
-        }
-    );
+    const auto failed = load_legacy_world_map(24U, stopped, [&](const auto&) {
+        stopped.calls.push_back(Call::pre_surface_stage);
+        return false;
+    });
     test.expect_equal(
         failed.status,
         LegacyWorldMapLoadStatus::pre_surface_stage_failed,
@@ -231,21 +226,27 @@ void test_first_failure_stops(openswd3::test::Context& test) {
     constexpr std::array cases{
         FailureCase{Call::lookup, LegacyWorldMapLoadStatus::map_lookup_failed},
         FailureCase{Call::header, LegacyWorldMapLoadStatus::map_header_failed},
-        FailureCase{Call::surface, LegacyWorldMapLoadStatus::surface_grid_failed},
-        FailureCase{Call::post_surface,
-                    LegacyWorldMapLoadStatus::post_surface_records_failed},
+        FailureCase{
+            Call::surface, LegacyWorldMapLoadStatus::surface_grid_failed
+        },
+        FailureCase{
+            Call::post_surface,
+            LegacyWorldMapLoadStatus::post_surface_records_failed
+        },
         FailureCase{
             Call::referenced,
             LegacyWorldMapLoadStatus::referenced_record_directory_failed,
         },
-        FailureCase{Call::offset14,
-                    LegacyWorldMapLoadStatus::offset14_directory_failed},
+        FailureCase{
+            Call::offset14, LegacyWorldMapLoadStatus::offset14_directory_failed
+        },
         FailureCase{
             Call::indexed,
             LegacyWorldMapLoadStatus::indexed_object_directory_failed,
         },
-        FailureCase{Call::offset1c,
-                    LegacyWorldMapLoadStatus::offset1c_directory_failed},
+        FailureCase{
+            Call::offset1c, LegacyWorldMapLoadStatus::offset1c_directory_failed
+        },
     };
 
     for (const auto& failure : cases) {
@@ -271,7 +272,8 @@ void test_first_failure_stops(openswd3::test::Context& test) {
             break;
         case Call::referenced:
             source.referenced.status =
-                LegacyLmfReferencedRecordDirectoryStatus::referenced_record_read_failed;
+                LegacyLmfReferencedRecordDirectoryStatus::
+                    referenced_record_read_failed;
             break;
         case Call::offset14:
             source.offset14.status =
@@ -288,16 +290,21 @@ void test_first_failure_stops(openswd3::test::Context& test) {
         }
 
         const auto result = load_legacy_world_map(7U, source);
-        test.expect_equal(result.status, failure.status,
-                          "failure is attributed to its physical stage");
-        test.expect_equal(source.calls.back(), failure.call,
-                          "no later stage runs after the first failure");
+        test.expect_equal(
+            result.status,
+            failure.status,
+            "failure is attributed to its physical stage"
+        );
+        test.expect_equal(
+            source.calls.back(),
+            failure.call,
+            "no later stage runs after the first failure"
+        );
     }
 }
 
 void test_current_maps(
-    openswd3::test::Context& test,
-    const std::filesystem::path& archive_path
+    openswd3::test::Context& test, const std::filesystem::path& archive_path
 ) {
     struct Expected {
         u32 map_id;
@@ -315,14 +322,18 @@ void test_current_maps(
     };
 
     for (const auto& expected : expected_maps) {
-        const auto result = load_legacy_world_map(
-            archive_path,
-            expected.map_id
+        const auto result =
+            load_legacy_world_map(archive_path, expected.map_id);
+        test.expect_equal(
+            result.status,
+            LegacyWorldMapLoadStatus::ready,
+            "fixed current map reaches a complete LMF session"
         );
-        test.expect_equal(result.status, LegacyWorldMapLoadStatus::ready,
-                          "fixed current map reaches a complete LMF session");
-        test.expect_equal(result.session.lookup.map_offset, expected.map_offset,
-                          "fixed map offset matches the inventory");
+        test.expect_equal(
+            result.session.lookup.map_offset,
+            expected.map_offset,
+            "fixed map offset matches the inventory"
+        );
         test.expect_true(
             result.session.header.width == expected.width &&
                 result.session.header.height == expected.height,
@@ -364,9 +375,12 @@ int main(const int argument_count, char** arguments) {
     test_pre_surface_stage_slot(test);
     test_first_failure_stops(test);
 
-    test.expect_true(argument_count == 1 || argument_count == 2,
-                     "optional argument names the current huge.lmf");
-    if (argument_count == 2 && arguments != nullptr && arguments[1] != nullptr) {
+    test.expect_true(
+        argument_count == 1 || argument_count == 2,
+        "optional argument names the current huge.lmf"
+    );
+    if (argument_count == 2 && arguments != nullptr &&
+        arguments[1] != nullptr) {
         test_current_maps(test, arguments[1]);
     }
     return test.exit_code();

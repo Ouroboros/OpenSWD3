@@ -64,9 +64,8 @@ class LegacyWorldInteractionPorts {
 public:
     virtual ~LegacyWorldInteractionPorts() = default;
 
-    [[nodiscard]] virtual compat::u32 query_internal_flag(
-        compat::u32 bit_index
-    ) = 0;
+    [[nodiscard]] virtual compat::u32
+    query_internal_flag(compat::u32 bit_index) = 0;
 
     [[nodiscard]] virtual bool load_role_frame_size(
         compat::u16 resource_id,
@@ -75,9 +74,8 @@ public:
         compat::u16& height
     ) = 0;
 
-    [[nodiscard]] virtual compat::u32 update_action(
-        asset_runtime::LegacyActionRecord& action
-    ) = 0;
+    [[nodiscard]] virtual compat::u32
+    update_action(asset_runtime::LegacyActionRecord& action) = 0;
 };
 
 enum class LegacyWorldInteractionStatus : compat::u8 {

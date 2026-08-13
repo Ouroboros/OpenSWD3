@@ -12,8 +12,7 @@ constexpr compat::u32 kRestoredFrameInterval = 35U;
 }  // namespace
 
 void deactivate_display(
-    DisplayLifecycleState& state,
-    DisplayLifecyclePorts& ports
+    DisplayLifecycleState& state, DisplayLifecyclePorts& ports
 ) {
     if (!ports.display_backend_available()) {
         return;
@@ -35,8 +34,7 @@ void deactivate_display(
 }
 
 void reactivate_display(
-    DisplayLifecycleState& state,
-    DisplayLifecyclePorts& ports
+    DisplayLifecycleState& state, DisplayLifecyclePorts& ports
 ) {
     if (!ports.display_backend_available()) {
         return;

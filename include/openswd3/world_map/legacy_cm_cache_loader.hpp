@@ -35,9 +35,7 @@ enum class LegacyCmCacheLoadStatus {
 };
 
 struct LegacyCmCacheLoadResult {
-    LegacyCmCacheLoadStatus status{
-        LegacyCmCacheLoadStatus::index_open_failed
-    };
+    LegacyCmCacheLoadStatus status{LegacyCmCacheLoadStatus::index_open_failed};
     std::vector<LegacyCmCacheRecord> records;
     std::vector<LegacyCmCacheEviction> evictions;
     std::vector<compat::u8> cache_bytes;
@@ -49,8 +47,7 @@ struct LegacyCmCacheLoadResult {
     LegacyCmCacheGenerationResult generation;
 };
 
-[[nodiscard]] LegacyCmCacheLoadResult load_legacy_cm_cache(
-    const LegacyCmCacheRequest& request
-);
+[[nodiscard]] LegacyCmCacheLoadResult
+load_legacy_cm_cache(const LegacyCmCacheRequest& request);
 
 }  // namespace openswd3::world_map

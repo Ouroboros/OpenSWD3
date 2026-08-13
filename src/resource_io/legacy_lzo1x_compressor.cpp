@@ -20,9 +20,7 @@ constexpr compat::u32 kInvalidDictionaryPosition =
 
 class CompressionOutput {
 public:
-    explicit CompressionOutput(
-        const std::span<compat::u8> destination
-    ) noexcept
+    explicit CompressionOutput(const std::span<compat::u8> destination) noexcept
         : destination_{destination} {}
 
     [[nodiscard]] bool write_byte(const compat::u8 value) noexcept {
@@ -67,9 +65,8 @@ public:
         return true;
     }
 
-    [[nodiscard]] bool add_trailing_literal_count(
-        const compat::u8 count
-    ) noexcept {
+    [[nodiscard]] bool
+    add_trailing_literal_count(const compat::u8 count) noexcept {
         if (position_ < 2U) {
             return false;
         }
@@ -92,18 +89,16 @@ private:
 };
 
 [[nodiscard]] bool write_extended_length(
-    CompressionOutput& output,
-    const std::size_t value
+    CompressionOutput& output, const std::size_t value
 ) noexcept {
     const std::size_t zero_count = (value - 1U) / 0xFFU;
     const std::size_t remainder = value - zero_count * 0xFFU;
     return output.write_zeroes(zero_count) &&
-           output.write_byte(static_cast<compat::u8>(remainder));
+        output.write_byte(static_cast<compat::u8>(remainder));
 }
 
 [[nodiscard]] bool write_noninitial_literal_header(
-    CompressionOutput& output,
-    const std::size_t count
+    CompressionOutput& output, const std::size_t count
 ) noexcept {
     if (count <= 3U) {
         return output.add_trailing_literal_count(
@@ -116,7 +111,7 @@ private:
     }
 
     return output.write_byte(0U) &&
-           write_extended_length(output, count - 0x12U);
+        write_extended_length(output, count - 0x12U);
 }
 
 [[nodiscard]] bool write_literal_run(
@@ -126,7 +121,7 @@ private:
     const std::size_t count
 ) noexcept {
     return write_noninitial_literal_header(output, count) &&
-           output.write_bytes(source, source_position, count);
+        output.write_bytes(source, source_position, count);
 }
 
 [[nodiscard]] bool write_trailing_literals(
@@ -149,12 +144,10 @@ private:
     return output.write_bytes(source, source.size() - count, count);
 }
 
-[[nodiscard]] bool write_offset(
-    CompressionOutput& output,
-    const std::size_t offset
-) noexcept {
+[[nodiscard]] bool
+write_offset(CompressionOutput& output, const std::size_t offset) noexcept {
     return output.write_byte(static_cast<compat::u8>(offset << 2U)) &&
-           output.write_byte(static_cast<compat::u8>(offset >> 6U));
+        output.write_byte(static_cast<compat::u8>(offset >> 6U));
 }
 
 [[nodiscard]] bool write_match(
@@ -168,19 +161,21 @@ private:
             ((length - 1U) << 5U) | ((offset & 7U) << 2U)
         );
         return output.write_byte(token) &&
-               output.write_byte(static_cast<compat::u8>(offset >> 3U));
+            output.write_byte(static_cast<compat::u8>(offset >> 3U));
     }
 
     if (distance <= kM3MaximumDistance) {
         const std::size_t offset = distance - 1U;
         if (length <= 0x21U) {
-            if (!output.write_byte(static_cast<compat::u8>(
-                    0x20U | (length - 2U)
-                ))) {
+            if (!output.write_byte(
+                    static_cast<compat::u8>(0x20U | (length - 2U))
+                )) {
                 return false;
             }
-        } else if (!output.write_byte(0x20U) ||
-                   !write_extended_length(output, length - 0x21U)) {
+        } else if (
+            !output.write_byte(0x20U) ||
+            !write_extended_length(output, length - 0x21U)
+        ) {
             return false;
         }
 
@@ -188,19 +183,18 @@ private:
     }
 
     const std::size_t offset = distance - kM3MaximumDistance;
-    const compat::u8 distance_bit = static_cast<compat::u8>(
-        (offset >> 11U) & 8U
-    );
+    const compat::u8 distance_bit =
+        static_cast<compat::u8>((offset >> 11U) & 8U);
     if (length <= 9U) {
-        if (!output.write_byte(static_cast<compat::u8>(
-                0x10U | distance_bit | (length - 2U)
-            ))) {
+        if (!output.write_byte(
+                static_cast<compat::u8>(0x10U | distance_bit | (length - 2U))
+            )) {
             return false;
         }
-    } else if (!output.write_byte(static_cast<compat::u8>(
-                   0x10U | distance_bit
-               )) ||
-               !write_extended_length(output, length - 9U)) {
+    } else if (
+        !output.write_byte(static_cast<compat::u8>(0x10U | distance_bit)) ||
+        !write_extended_length(output, length - 9U)
+    ) {
         return false;
     }
 
@@ -209,8 +203,7 @@ private:
 
 template <unsigned DictionaryBits>
 [[nodiscard]] compat::u32 dictionary_index(
-    const std::span<const compat::u8> source,
-    const std::size_t position
+    const std::span<const compat::u8> source, const std::size_t position
 ) noexcept {
     static_assert(DictionaryBits == 14U || DictionaryBits == 15U);
     compat::u32 value = static_cast<compat::u32>(source[position + 3U]) << 6U;
@@ -221,15 +214,13 @@ template <unsigned DictionaryBits>
     return (value >> 5U) & ((1U << DictionaryBits) - 1U);
 }
 
-template <unsigned DictionaryBits>
-class LegacyLzo1xCompressor {
+template <unsigned DictionaryBits> class LegacyLzo1xCompressor {
 public:
     LegacyLzo1xCompressor(
         const std::span<const compat::u8> source,
         const std::span<compat::u8> destination
     )
-        : source_{source},
-          output_{destination},
+        : source_{source}, output_{destination},
           dictionary_(1U << DictionaryBits, kInvalidDictionaryPosition) {}
 
     [[nodiscard]] LegacyLzo1xResult run() noexcept {
@@ -247,8 +238,7 @@ public:
         }
 
         if (!write_trailing_literals(output_, source_, trailing_literals) ||
-            !output_.write_byte(0x11U) ||
-            !output_.write_byte(0x00U) ||
+            !output_.write_byte(0x11U) || !output_.write_byte(0x00U) ||
             !output_.write_byte(0x00U)) {
             return result(LegacyLzo1xStatus::destination_exhausted);
         }
@@ -257,9 +247,8 @@ public:
     }
 
 private:
-    [[nodiscard]] LegacyLzo1xResult result(
-        const LegacyLzo1xStatus status
-    ) const noexcept {
+    [[nodiscard]] LegacyLzo1xResult
+    result(const LegacyLzo1xStatus status) const noexcept {
         return LegacyLzo1xResult{
             status,
             static_cast<compat::u32>(output_.size()),
@@ -280,17 +269,14 @@ private:
     }
 
     [[nodiscard]] bool first_three_bytes_match(
-        const std::size_t candidate,
-        const std::size_t position
+        const std::size_t candidate, const std::size_t position
     ) const noexcept {
         return source_[candidate] == source_[position] &&
-               source_[candidate + 1U] == source_[position + 1U] &&
-               source_[candidate + 2U] == source_[position + 2U];
+            source_[candidate + 1U] == source_[position + 1U] &&
+            source_[candidate + 2U] == source_[position + 2U];
     }
 
-    [[nodiscard]] bool write_matches(
-        std::size_t& trailing_literals
-    ) noexcept {
+    [[nodiscard]] bool write_matches(std::size_t& trailing_literals) noexcept {
         std::size_t literal_position = 0U;
         std::size_t position = kInitialSearchPosition;
         const std::size_t search_end = source_.size() - kSearchLookahead;
@@ -301,25 +287,17 @@ private:
             std::size_t slot = primary_index;
             compat::u32 candidate = dictionary_[slot];
             std::size_t distance{};
-            bool candidate_valid = valid_candidate(
-                candidate,
-                position,
-                distance
-            );
+            bool candidate_valid =
+                valid_candidate(candidate, position, distance);
 
-            if (candidate_valid &&
-                distance > kM2MaximumDistance &&
+            if (candidate_valid && distance > kM2MaximumDistance &&
                 source_[candidate + 3U] != source_[position + 3U]) {
                 slot = (primary_index & 0x07FFU) ^
-                       ((1U << (DictionaryBits - 1U)) | 0x001FU);
+                    ((1U << (DictionaryBits - 1U)) | 0x001FU);
                 candidate = dictionary_[slot];
-                candidate_valid = valid_candidate(
-                    candidate,
-                    position,
-                    distance
-                );
-                if (candidate_valid &&
-                    distance > kM2MaximumDistance &&
+                candidate_valid =
+                    valid_candidate(candidate, position, distance);
+                if (candidate_valid && distance > kM2MaximumDistance &&
                     source_[candidate + 3U] != source_[position + 3U]) {
                     candidate_valid = false;
                 }
@@ -331,10 +309,7 @@ private:
                 const std::size_t literal_count = position - literal_position;
                 if (literal_count > 0U &&
                     !write_literal_run(
-                        output_,
-                        source_,
-                        literal_position,
-                        literal_count
+                        output_, source_, literal_position, literal_count
                     )) {
                     return false;
                 }
@@ -400,23 +375,19 @@ LegacyLzo1xResult compress_legacy_lzo1x_15(
     return compress_legacy_lzo1x_impl<15U>(source, destination);
 }
 
-LegacyLzo1xOwnedBlock compress_legacy_save_block(
-    const std::span<const compat::u8> source
-) {
+LegacyLzo1xOwnedBlock
+compress_legacy_save_block(const std::span<const compat::u8> source) {
     LegacyLzo1xOwnedBlock block;
-    if (source.size() >
-        static_cast<std::size_t>(
-            std::numeric_limits<compat::u32>::max() - 0x20U
-        )) {
+    if (source.size() > static_cast<std::size_t>(
+                            std::numeric_limits<compat::u32>::max() - 0x20U
+                        )) {
         block.status = LegacyLzo1xStatus::size_overflow;
         return block;
     }
 
     block.storage.resize(source.size() + 0x20U);
-    const LegacyLzo1xResult compressed = compress_legacy_lzo1x_14(
-        source,
-        block.storage
-    );
+    const LegacyLzo1xResult compressed =
+        compress_legacy_lzo1x_14(source, block.storage);
     block.status = compressed.status;
     block.bytes_written = compressed.bytes_written;
     return block;

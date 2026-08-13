@@ -18,9 +18,8 @@ class LegacyTimedMessageInputPorts {
 public:
     virtual ~LegacyTimedMessageInputPorts() = default;
 
-    [[nodiscard]] virtual bool is_legacy_control_active(
-        compat::u32 control_index
-    ) noexcept = 0;
+    [[nodiscard]] virtual bool
+    is_legacy_control_active(compat::u32 control_index) noexcept = 0;
 };
 
 struct LegacyTimedMessageResult {
@@ -38,8 +37,7 @@ public:
     virtual ~LegacyTimedMessageRuntimePorts() = default;
 
     [[nodiscard]] virtual LegacyTimedMessageResult update_and_draw(
-        std::list<LegacyTimedMessage>& messages,
-        compat::u16 foreground_color
+        std::list<LegacyTimedMessage>& messages, compat::u16 foreground_color
     ) noexcept = 0;
 };
 
@@ -55,8 +53,7 @@ public:
     ) noexcept;
 
     [[nodiscard]] LegacyTimedMessageResult update_and_draw(
-        std::list<LegacyTimedMessage>& messages,
-        compat::u16 foreground_color
+        std::list<LegacyTimedMessage>& messages, compat::u16 foreground_color
     ) noexcept override;
 
 private:
@@ -69,8 +66,7 @@ private:
 
 // sub_4153D0. Messages retain their original fixed 0x80-byte text storage;
 // the std::list owns the modern allocation while preserving queue order.
-[[nodiscard]] LegacyTimedMessageResult
-update_and_draw_legacy_timed_messages(
+[[nodiscard]] LegacyTimedMessageResult update_and_draw_legacy_timed_messages(
     std::list<LegacyTimedMessage>& messages,
     LegacyTimedMessageInputPorts& input_ports,
     LegacyFramebuffer& framebuffer,

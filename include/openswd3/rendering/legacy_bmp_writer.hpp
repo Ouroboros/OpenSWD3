@@ -32,13 +32,11 @@ public:
 
     // Mirrors Win32 OPEN_ALWAYS: create a missing file, but do not truncate an
     // existing one before the writer overwrites it from offset zero.
-    [[nodiscard]] virtual bool open_or_create_without_truncation(
-        std::string_view filename
-    ) = 0;
+    [[nodiscard]] virtual bool
+    open_or_create_without_truncation(std::string_view filename) = 0;
     [[nodiscard]] virtual bool seek_absolute(compat::u32 offset) = 0;
-    [[nodiscard]] virtual bool write_bytes(
-        std::span<const compat::u8> bytes
-    ) = 0;
+    [[nodiscard]] virtual bool
+    write_bytes(std::span<const compat::u8> bytes) = 0;
     [[nodiscard]] virtual std::optional<compat::u32> current_position() = 0;
     virtual void close() = 0;
     virtual void maintain_audio() = 0;

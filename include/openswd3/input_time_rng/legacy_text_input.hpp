@@ -24,19 +24,16 @@ class LegacyTextInputPorts {
 public:
     virtual ~LegacyTextInputPorts() = default;
 
-    [[nodiscard]] virtual bool is_ime_keyboard_layout(
-        compat::u32 keyboard_layout
-    ) = 0;
+    [[nodiscard]] virtual bool
+    is_ime_keyboard_layout(compat::u32 keyboard_layout) = 0;
     virtual void play_sound_effect(compat::u32 sound_id) = 0;
 };
 
-[[nodiscard]] compat::i32 legacy_text_input_enabled(
-    resource_io::LegacyDbcsTextBuffer& buffer
-) noexcept;
+[[nodiscard]] compat::i32
+legacy_text_input_enabled(resource_io::LegacyDbcsTextBuffer& buffer) noexcept;
 
 [[nodiscard]] compat::i32 legacy_set_text_input_enabled(
-    resource_io::LegacyDbcsTextBuffer& buffer,
-    compat::i32 requested_state
+    resource_io::LegacyDbcsTextBuffer& buffer, compat::i32 requested_state
 ) noexcept;
 
 [[nodiscard]] compat::u32 legacy_move_text_cursor_previous(
@@ -48,8 +45,7 @@ public:
 ) noexcept;
 
 [[nodiscard]] compat::u32 legacy_insert_text_bytes(
-    resource_io::LegacyDbcsTextBuffer& buffer,
-    const compat::u8* text
+    resource_io::LegacyDbcsTextBuffer& buffer, const compat::u8* text
 );
 
 [[nodiscard]] compat::u32 legacy_delete_text_at_cursor(

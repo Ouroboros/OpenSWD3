@@ -14,18 +14,13 @@ struct LegacyFrameClockState {
     compat::u32 previous_input_milliseconds{};
 };
 
-[[nodiscard]] compat::i32 set_frame_interval(
-    compat::u32& interval,
-    compat::u32 milliseconds
-) noexcept;
+[[nodiscard]] compat::i32
+set_frame_interval(compat::u32& interval, compat::u32 milliseconds) noexcept;
 
-[[nodiscard]] compat::i32 clear_frame_interval(
-    compat::u32& interval
-) noexcept;
+[[nodiscard]] compat::i32 clear_frame_interval(compat::u32& interval) noexcept;
 
 [[nodiscard]] bool try_accept_frame_milliseconds(
-    LegacyFrameClockState& state,
-    compat::u32 now
+    LegacyFrameClockState& state, compat::u32 now
 ) noexcept;
 
 void finish_accepted_frame_time(LegacyFrameClockState& state) noexcept;

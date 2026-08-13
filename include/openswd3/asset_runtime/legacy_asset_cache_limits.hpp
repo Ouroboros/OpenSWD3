@@ -19,8 +19,7 @@ class LegacyAssetCacheLimitPorts {
 public:
     virtual ~LegacyAssetCacheLimitPorts() = default;
 
-    [[nodiscard]] virtual compat::u32
-    total_physical_memory_bytes_32() = 0;
+    [[nodiscard]] virtual compat::u32 total_physical_memory_bytes_32() = 0;
     virtual void set_tsw_cache_limit(compat::u32 bytes) = 0;
     virtual void set_act_cache_limit(compat::u32 bytes) = 0;
 };
@@ -29,8 +28,7 @@ public:
     compat::u32 total_physical_memory_bytes
 ) noexcept;
 
-[[nodiscard]] bool configure_legacy_asset_cache_limits(
-    LegacyAssetCacheLimitPorts& ports
-);
+[[nodiscard]] bool
+configure_legacy_asset_cache_limits(LegacyAssetCacheLimitPorts& ports);
 
 }  // namespace openswd3::asset_runtime

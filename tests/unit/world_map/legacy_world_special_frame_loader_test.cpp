@@ -52,18 +52,14 @@ private:
 };
 
 void write_u16(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u16 value
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
 ) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
 void write_u32(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
@@ -79,10 +75,8 @@ void write_u32(
     return compressed;
 }
 
-[[nodiscard]] std::vector<u8> make_record(
-    const std::span<const u8> payload,
-    const u16 depth
-) {
+[[nodiscard]] std::vector<u8>
+make_record(const std::span<const u8> payload, const u16 depth) {
     const std::vector<u8> compressed = compress(payload);
     std::vector<u8> record(0x10U + compressed.size(), 0U);
     write_u16(record, 0x02U, 1U);
@@ -98,23 +92,21 @@ void write_u32(
 rgb565_conversion() {
     openswd3::rendering::LegacyPixelConversionState conversion;
     openswd3::rendering::select_legacy_pixel_conversion(
-        conversion,
-        {0xF800U, 0x07E0U, 0x001FU}
+        conversion, {0xF800U, 0x07E0U, 0x001FU}
     );
     return conversion;
 }
 
 void test_direct_and_indexed_records(openswd3::test::Context& test) {
     const std::array<u8, 4U> direct_pixels{
-        0x00U, 0x7CU,
-        0xE0U, 0x03U,
+        0x00U,
+        0x7CU,
+        0xE0U,
+        0x03U,
     };
     const auto direct_stream =
         openswd3::rendering::encode_legacy_image_command_stream(
-            direct_pixels,
-            2U,
-            1U,
-            16U
+            direct_pixels, 2U, 1U, 16U
         );
     test.expect_equal(
         direct_stream.status,
@@ -128,10 +120,7 @@ void test_direct_and_indexed_records(openswd3::test::Context& test) {
     const std::array<u8, 2U> indexed_pixels{2U, 4U};
     const auto indexed_stream =
         openswd3::rendering::encode_legacy_image_command_stream(
-            indexed_pixels,
-            2U,
-            1U,
-            8U
+            indexed_pixels, 2U, 1U, 8U
         );
     test.expect_equal(
         indexed_stream.status,
@@ -144,25 +133,19 @@ void test_direct_and_indexed_records(openswd3::test::Context& test) {
         indexed_stream.bytes.end()
     );
 
-    const std::vector<u8> direct_record = make_record(
-        direct_stream.bytes,
-        16U
-    );
+    const std::vector<u8> direct_record = make_record(direct_stream.bytes, 16U);
     const std::vector<u8> indexed_record = make_record(indexed_payload, 8U);
     constexpr u32 map_offset = 0x20U;
     constexpr u32 direct_relative_offset = 0x20U;
     constexpr u32 indexed_relative_offset = 0x200U;
     std::vector<u8> archive(
-        map_offset + indexed_relative_offset + indexed_record.size(),
-        0U
+        map_offset + indexed_relative_offset + indexed_record.size(), 0U
     );
     std::ranges::copy(
-        direct_record,
-        archive.begin() + map_offset + direct_relative_offset
+        direct_record, archive.begin() + map_offset + direct_relative_offset
     );
     std::ranges::copy(
-        indexed_record,
-        archive.begin() + map_offset + indexed_relative_offset
+        indexed_record, archive.begin() + map_offset + indexed_relative_offset
     );
 
     TestTree tree;
@@ -203,10 +186,10 @@ void test_direct_and_indexed_records(openswd3::test::Context& test) {
     test.expect_true(
         loader.last_status() == LegacyWorldSpecialFrameStatus::ready &&
             direct_frame.width == 2U && direct_frame.height == 1U &&
-            decoded_direct.status == openswd3::rendering::
-                                         LegacyImageCommandStreamStatus::completed &&
-            decoded_direct.bytes ==
-                std::vector<u8>{0x00U, 0xF8U, 0xC0U, 0x07U},
+            decoded_direct.status ==
+                openswd3::rendering::LegacyImageCommandStreamStatus::
+                    completed &&
+            decoded_direct.bytes == std::vector<u8>{0x00U, 0xF8U, 0xC0U, 0x07U},
         "direct literals use the active RGB555-to-RGB565 conversion"
     );
 
@@ -221,8 +204,9 @@ void test_direct_and_indexed_records(openswd3::test::Context& test) {
         );
     test.expect_true(
         indexed_frame.width == 2U && indexed_frame.height == 1U &&
-            decoded_indexed.status == openswd3::rendering::
-                                          LegacyImageCommandStreamStatus::completed &&
+            decoded_indexed.status ==
+                openswd3::rendering::LegacyImageCommandStreamStatus::
+                    completed &&
             decoded_indexed.bytes ==
                 std::vector<u8>{0x00U, 0xF8U, 0xC0U, 0x07U},
         "embedded palette expands to the same converted word stream"

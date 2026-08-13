@@ -3,8 +3,7 @@
 namespace openswd3::input_time_rng {
 
 compat::i32 set_frame_interval(
-    compat::u32& interval,
-    const compat::u32 milliseconds
+    compat::u32& interval, const compat::u32 milliseconds
 ) noexcept {
     interval = milliseconds;
     return 1;
@@ -16,8 +15,7 @@ compat::i32 clear_frame_interval(compat::u32& interval) noexcept {
 }
 
 bool try_accept_frame_milliseconds(
-    LegacyFrameClockState& state,
-    const compat::u32 now
+    LegacyFrameClockState& state, const compat::u32 now
 ) noexcept {
     state.sampled_milliseconds = now;
     const compat::u32 elapsed =
@@ -33,8 +31,7 @@ bool try_accept_frame_milliseconds(
 void finish_accepted_frame_time(LegacyFrameClockState& state) noexcept {
     const compat::u32 now = state.sampled_milliseconds;
     state.current_frame_milliseconds = now;
-    state.frame_delta_milliseconds =
-        now - state.previous_input_milliseconds;
+    state.frame_delta_milliseconds = now - state.previous_input_milliseconds;
     state.previous_input_milliseconds = now;
 }
 

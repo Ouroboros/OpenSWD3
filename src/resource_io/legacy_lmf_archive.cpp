@@ -24,8 +24,7 @@ constexpr compat::u32 kMsfpSignature = 0x7046534DU;
 constexpr compat::u32 kMsf2Signature = 0x3246534DU;
 
 [[nodiscard]] compat::u32 read_u32(
-    const std::span<const compat::u8> bytes,
-    const std::size_t offset
+    const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u32>(bytes[offset]) |
         (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
@@ -34,34 +33,28 @@ constexpr compat::u32 kMsf2Signature = 0x3246534DU;
 }
 
 [[nodiscard]] compat::u32 read_u16(
-    const std::span<const compat::u8> bytes,
-    const std::size_t offset
+    const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u32>(bytes[offset]) |
         (static_cast<compat::u32>(bytes[offset + 1U]) << 8U);
 }
 
 [[nodiscard]] compat::i16 read_i16(
-    const std::span<const compat::u8> bytes,
-    const std::size_t offset
+    const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
     return std::bit_cast<compat::i16>(
         static_cast<compat::u16>(read_u16(bytes, offset))
     );
 }
 
-[[nodiscard]] bool read_exact(
-    LegacyFile& file,
-    const std::span<compat::u8> buffer
-) noexcept {
+[[nodiscard]] bool
+read_exact(LegacyFile& file, const std::span<compat::u8> buffer) noexcept {
     compat::u32 requested = static_cast<compat::u32>(buffer.size());
     return file.read(buffer, requested) && requested == buffer.size();
 }
 
 [[nodiscard]] bool checked_multiply(
-    const compat::u32 left,
-    const compat::u32 right,
-    compat::u32& result
+    const compat::u32 left, const compat::u32 right, compat::u32& result
 ) noexcept {
     if (right != 0U && left > std::numeric_limits<compat::u32>::max() / right) {
         return false;
@@ -72,9 +65,7 @@ constexpr compat::u32 kMsf2Signature = 0x3246534DU;
 }
 
 [[nodiscard]] bool checked_add(
-    const compat::u32 left,
-    const compat::u32 right,
-    compat::u32& result
+    const compat::u32 left, const compat::u32 right, compat::u32& result
 ) noexcept {
     if (left > std::numeric_limits<compat::u32>::max() - right) {
         return false;
@@ -87,8 +78,7 @@ constexpr compat::u32 kMsf2Signature = 0x3246534DU;
 }  // namespace
 
 LegacyLmfMapLookupResult legacy_lmf_lookup_map(
-    const std::filesystem::path& archive_path,
-    const compat::u32 map_id
+    const std::filesystem::path& archive_path, const compat::u32 map_id
 ) {
     LegacyFile file;
     if (!file.open(
@@ -107,10 +97,7 @@ LegacyLmfMapLookupResult legacy_lmf_lookup_map(
 
     const compat::u32 index_offset = read_u32(header, 0U);
     if (index_offset > file_size) {
-        return {
-            LegacyLmfMapLookupStatus::index_offset_out_of_range,
-            0U
-        };
+        return {LegacyLmfMapLookupStatus::index_offset_out_of_range, 0U};
     }
 
     const compat::u32 tail_size = file_size - index_offset;
@@ -132,10 +119,7 @@ LegacyLmfMapLookupResult legacy_lmf_lookup_map(
         const std::size_t offset =
             static_cast<std::size_t>(record) * kIndexRecordSize;
         if (read_u32(tail, offset + 8U) == map_id) {
-            return {
-                LegacyLmfMapLookupStatus::ready,
-                read_u32(tail, offset)
-            };
+            return {LegacyLmfMapLookupStatus::ready, read_u32(tail, offset)};
         }
     }
 
@@ -143,8 +127,7 @@ LegacyLmfMapLookupResult legacy_lmf_lookup_map(
 }
 
 LegacyLmfMapHeader legacy_lmf_read_map_header(
-    const std::filesystem::path& archive_path,
-    const compat::u32 map_offset
+    const std::filesystem::path& archive_path, const compat::u32 map_offset
 ) {
     LegacyLmfMapHeader result;
     LegacyFile file;
@@ -192,16 +175,14 @@ LegacyLmfMapHeader legacy_lmf_read_map_header(
     result.layers = read_u16(header, 0x8CU);
 
     const compat::u32 data_position = map_offset + result.offset_04;
-    if (file.seek_begin_one_based(
-            std::bit_cast<compat::i32>(data_position)
-        ) == 0U) {
+    if (file.seek_begin_one_based(std::bit_cast<compat::i32>(data_position)) ==
+        0U) {
         result.status = LegacyLmfMapHeaderStatus::data_seek_failed;
         return result;
     }
 
     if (read_u16(header, 0x8EU) != 0U) {
-        result.status =
-            LegacyLmfMapHeaderStatus::tile_count_high_word_nonzero;
+        result.status = LegacyLmfMapHeaderStatus::tile_count_high_word_nonzero;
         return result;
     }
 
@@ -219,9 +200,8 @@ LegacyLmfMapHeader legacy_lmf_read_map_header(
         header.cbegin() + static_cast<std::ptrdiff_t>(kMapNameOffset),
         name_end + 1
     );
-    result.raw_table_offset = static_cast<compat::u32>(
-        std::distance(header.cbegin(), name_end + 1)
-    );
+    result.raw_table_offset =
+        static_cast<compat::u32>(std::distance(header.cbegin(), name_end + 1));
     result.status = LegacyLmfMapHeaderStatus::ready;
     return result;
 }
@@ -260,8 +240,7 @@ LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
         return result;
     }
 
-    const compat::u32 raw_table_position =
-        map_offset + header.raw_table_offset;
+    const compat::u32 raw_table_position = map_offset + header.raw_table_offset;
     if (file.seek_begin_one_based(
             std::bit_cast<compat::i32>(raw_table_position)
         ) == 0U) {
@@ -277,15 +256,15 @@ LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
 
     result.raw_table_values.reserve(raw_entry_count);
     for (compat::u32 entry = 0U; entry < raw_entry_count; ++entry) {
-        result.raw_table_values.push_back(static_cast<compat::u16>(
-            read_u16(raw_table, static_cast<std::size_t>(entry) * 4U)
-        ));
+        result.raw_table_values.push_back(
+            static_cast<compat::u16>(
+                read_u16(raw_table, static_cast<std::size_t>(entry) * 4U)
+            )
+        );
     }
 
-    compat::u32 compressed_size = read_u32(
-        raw_table,
-        static_cast<std::size_t>(raw_entry_count) * 4U
-    );
+    compat::u32 compressed_size =
+        read_u32(raw_table, static_cast<std::size_t>(raw_entry_count) * 4U);
     if (header.format == LegacyLmfMapFormat::msfp) {
         if (file.seek_current_one_based(
                 std::bit_cast<compat::i32>(compressed_size)
@@ -317,10 +296,8 @@ LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
         return result;
     }
 
-    result.post_surface_record_count = read_u32(
-        compressed_block,
-        compressed_size
-    );
+    result.post_surface_record_count =
+        read_u32(compressed_block, compressed_size);
     compat::u32 post_surface_position{};
     if (!file.current_position(post_surface_position) ||
         post_surface_position < map_offset) {
@@ -402,9 +379,7 @@ LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
 
     compat::u32 offset_table_bytes{};
     if (!checked_multiply(
-            surface_grid.post_surface_record_count,
-            4U,
-            offset_table_bytes
+            surface_grid.post_surface_record_count, 4U, offset_table_bytes
         ) ||
         offset_table_bytes > record_window.size()) {
         result.status =
@@ -418,10 +393,9 @@ LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
     for (compat::u32 record = 0U;
          record < surface_grid.post_surface_record_count;
          ++record) {
-        result.declared_relative_offsets.push_back(read_u32(
-            record_window,
-            static_cast<std::size_t>(record) * 4U
-        ));
+        result.declared_relative_offsets.push_back(
+            read_u32(record_window, static_cast<std::size_t>(record) * 4U)
+        );
     }
 
     std::size_t cursor = offset_table_bytes;
@@ -446,10 +420,8 @@ LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
                 LegacyLmfPostSurfaceRecordsStatus::record_data_out_of_range;
             return result;
         }
-        parsed.field_00 = static_cast<compat::u16>(read_u16(
-            record_window,
-            cursor
-        ));
+        parsed.field_00 =
+            static_cast<compat::u16>(read_u16(record_window, cursor));
         parsed.field_02 = read_u32(record_window, cursor + 2U);
         parsed.field_06 = read_u32(record_window, cursor + 6U);
         parsed.field_0a = read_u32(record_window, cursor + 10U);
@@ -490,8 +462,7 @@ LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
     return result;
 }
 
-LegacyLmfReferencedRecordDirectory
-legacy_lmf_read_referenced_record_directory(
+LegacyLmfReferencedRecordDirectory legacy_lmf_read_referenced_record_directory(
     const std::filesystem::path& archive_path,
     const compat::u32 map_offset,
     const LegacyLmfPostSurfaceRecords& post_surface_records
@@ -539,9 +510,10 @@ legacy_lmf_read_referenced_record_directory(
             4U,
             directory_end_offset
         ) ||
-        !checked_add(directory_end_offset, offsets_size, directory_end_offset) ||
-        directory_end_offset >
-            post_surface_records.record_window_end_offset) {
+        !checked_add(
+            directory_end_offset, offsets_size, directory_end_offset
+        ) ||
+        directory_end_offset > post_surface_records.record_window_end_offset) {
         result.status = LegacyLmfReferencedRecordDirectoryStatus::
             directory_count_out_of_range;
         return result;
@@ -557,10 +529,8 @@ legacy_lmf_read_referenced_record_directory(
     result.records.reserve(record_count);
     for (compat::u32 record = 0U; record < record_count; ++record) {
         LegacyLmfReferencedRecord parsed;
-        parsed.relative_offset = read_u32(
-            offset_bytes,
-            static_cast<std::size_t>(record) * 4U
-        );
+        parsed.relative_offset =
+            read_u32(offset_bytes, static_cast<std::size_t>(record) * 4U);
 
         const compat::u32 field_position =
             map_offset + parsed.relative_offset + 0x0CU;
@@ -642,8 +612,7 @@ LegacyLmfOffset14Directory legacy_lmf_read_offset14_directory(
     result.declared_relative_offsets.reserve(record_count);
     for (compat::u32 record = 0U; record < record_count; ++record) {
         result.declared_relative_offsets.push_back(read_u32(
-            directory_window,
-            4U + static_cast<std::size_t>(record) * 4U
+            directory_window, 4U + static_cast<std::size_t>(record) * 4U
         ));
     }
 
@@ -660,32 +629,22 @@ LegacyLmfOffset14Directory legacy_lmf_read_offset14_directory(
         LegacyLmfOffset14Record parsed;
         const compat::u32 cursor_u32 = static_cast<compat::u32>(cursor);
         if (!checked_add(
-                header.offset_14,
-                cursor_u32,
-                parsed.relative_offset
+                header.offset_14, cursor_u32, parsed.relative_offset
             )) {
             result.status =
                 LegacyLmfOffset14DirectoryStatus::record_data_out_of_range;
             return result;
         }
-        parsed.field_00 = static_cast<compat::u16>(read_u16(
-            directory_window,
-            cursor
-        ));
+        parsed.field_00 =
+            static_cast<compat::u16>(read_u16(directory_window, cursor));
         parsed.field_02 = read_i16(directory_window, cursor + 2U);
-        parsed.field_04 = static_cast<compat::u16>(read_u16(
-            directory_window,
-            cursor + 4U
-        ));
-        parsed.field_06 = static_cast<compat::u16>(read_u16(
-            directory_window,
-            cursor + 6U
-        ));
+        parsed.field_04 =
+            static_cast<compat::u16>(read_u16(directory_window, cursor + 4U));
+        parsed.field_06 =
+            static_cast<compat::u16>(read_u16(directory_window, cursor + 6U));
         parsed.field_08 = read_i16(directory_window, cursor + 8U);
-        parsed.field_0a = static_cast<compat::u16>(read_u16(
-            directory_window,
-            cursor + 10U
-        ));
+        parsed.field_0a =
+            static_cast<compat::u16>(read_u16(directory_window, cursor + 10U));
         cursor += kFixedRecordSize;
 
         const auto name_end = std::find(
@@ -734,8 +693,7 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
             LegacyFileCreation::open_existing,
             LegacyFileAccess::read
         )) {
-        result.status =
-            LegacyLmfIndexedObjectDirectoryStatus::file_open_failed;
+        result.status = LegacyLmfIndexedObjectDirectoryStatus::file_open_failed;
         return result;
     }
 
@@ -751,14 +709,14 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
     std::vector<compat::u8> directory_window(kMapHeaderReadSize);
     compat::u32 actual_directory_size = kMapHeaderReadSize;
     if (!file.read(directory_window, actual_directory_size)) {
-        result.status = LegacyLmfIndexedObjectDirectoryStatus::
-            directory_window_read_failed;
+        result.status =
+            LegacyLmfIndexedObjectDirectoryStatus::directory_window_read_failed;
         return result;
     }
     directory_window.resize(actual_directory_size);
     if (directory_window.size() < 4U) {
-        result.status = LegacyLmfIndexedObjectDirectoryStatus::
-            directory_data_out_of_range;
+        result.status =
+            LegacyLmfIndexedObjectDirectoryStatus::directory_data_out_of_range;
         return result;
     }
 
@@ -768,8 +726,8 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
     if (!checked_multiply(object_count, 4U, offsets_size) ||
         !checked_add(4U, offsets_size, directory_size) ||
         directory_size > directory_window.size()) {
-        result.status = LegacyLmfIndexedObjectDirectoryStatus::
-            directory_data_out_of_range;
+        result.status =
+            LegacyLmfIndexedObjectDirectoryStatus::directory_data_out_of_range;
         return result;
     }
 
@@ -777,8 +735,7 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
     for (compat::u32 object = 0U; object < object_count; ++object) {
         LegacyLmfIndexedObject parsed;
         parsed.relative_offset = read_u32(
-            directory_window,
-            4U + static_cast<std::size_t>(object) * 4U
+            directory_window, 4U + static_cast<std::size_t>(object) * 4U
         );
 
         const compat::u32 object_header_position =
@@ -804,34 +761,20 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
             return result;
         }
 
-        parsed.field_00 = static_cast<compat::u16>(read_u16(
-            object_header,
-            0x00U
-        ));
-        parsed.field_02 = static_cast<compat::u16>(read_u16(
-            object_header,
-            0x02U
-        ));
-        parsed.field_04 = static_cast<compat::u16>(read_u16(
-            object_header,
-            0x04U
-        ));
-        parsed.field_06 = static_cast<compat::u16>(read_u16(
-            object_header,
-            0x06U
-        ));
-        parsed.field_08 = static_cast<compat::u16>(read_u16(
-            object_header,
-            0x08U
-        ));
-        parsed.field_0a = static_cast<compat::u16>(read_u16(
-            object_header,
-            0x0AU
-        ));
-        parsed.field_0c = static_cast<compat::u16>(read_u16(
-            object_header,
-            0x0CU
-        ));
+        parsed.field_00 =
+            static_cast<compat::u16>(read_u16(object_header, 0x00U));
+        parsed.field_02 =
+            static_cast<compat::u16>(read_u16(object_header, 0x02U));
+        parsed.field_04 =
+            static_cast<compat::u16>(read_u16(object_header, 0x04U));
+        parsed.field_06 =
+            static_cast<compat::u16>(read_u16(object_header, 0x06U));
+        parsed.field_08 =
+            static_cast<compat::u16>(read_u16(object_header, 0x08U));
+        parsed.field_0a =
+            static_cast<compat::u16>(read_u16(object_header, 0x0AU));
+        parsed.field_0c =
+            static_cast<compat::u16>(read_u16(object_header, 0x0CU));
         parsed.field_0e = object_header[0x0EU];
         parsed.field_0f = object_header[0x0FU];
         parsed.field_10 = object_header[0x10U];
@@ -867,10 +810,7 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
         }
 
         parsed.actual_compressed_size = parsed.declared_compressed_size;
-        if (!file.read(
-                compressed_payload,
-                parsed.actual_compressed_size
-            )) {
+        if (!file.read(compressed_payload, parsed.actual_compressed_size)) {
             result.status = LegacyLmfIndexedObjectDirectoryStatus::
                 compressed_payload_read_failed;
             return result;
@@ -886,8 +826,8 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
             parsed.decompression_status !=
                 LegacyLzo1xStatus::input_not_consumed) {
             result.objects.push_back(std::move(parsed));
-            result.status = LegacyLmfIndexedObjectDirectoryStatus::
-                decompression_failed;
+            result.status =
+                LegacyLmfIndexedObjectDirectoryStatus::decompression_failed;
             return result;
         }
 
@@ -929,8 +869,8 @@ LegacyLmfOffset1cDirectory legacy_lmf_read_offset1c_directory(
     std::vector<compat::u8> directory_window(kPostSurfaceRecordWindowSize);
     compat::u32 actual_window_size = kPostSurfaceRecordWindowSize;
     if (!file.read(directory_window, actual_window_size)) {
-        result.status = LegacyLmfOffset1cDirectoryStatus::
-            directory_window_read_failed;
+        result.status =
+            LegacyLmfOffset1cDirectoryStatus::directory_window_read_failed;
         return result;
     }
     directory_window.resize(actual_window_size);
@@ -965,8 +905,7 @@ LegacyLmfOffset1cDirectory legacy_lmf_read_offset1c_directory(
     result.declared_relative_offsets.reserve(record_count);
     for (compat::u32 record = 0U; record < record_count; ++record) {
         result.declared_relative_offsets.push_back(read_u32(
-            directory_window,
-            4U + static_cast<std::size_t>(record) * 4U
+            directory_window, 4U + static_cast<std::size_t>(record) * 4U
         ));
     }
 
@@ -983,34 +922,22 @@ LegacyLmfOffset1cDirectory legacy_lmf_read_offset1c_directory(
         LegacyLmfOffset1cRecord parsed;
         const compat::u32 cursor_u32 = static_cast<compat::u32>(cursor);
         if (!checked_add(
-                header.offset_1c,
-                cursor_u32,
-                parsed.relative_offset
+                header.offset_1c, cursor_u32, parsed.relative_offset
             )) {
             result.status =
                 LegacyLmfOffset1cDirectoryStatus::record_data_out_of_range;
             return result;
         }
-        parsed.field_00 = static_cast<compat::u16>(read_u16(
-            directory_window,
-            cursor
-        ));
-        parsed.field_02 = static_cast<compat::u16>(read_u16(
-            directory_window,
-            cursor + 2U
-        ));
-        parsed.field_04 = static_cast<compat::u16>(read_u16(
-            directory_window,
-            cursor + 4U
-        ));
-        parsed.field_06 = static_cast<compat::u16>(read_u16(
-            directory_window,
-            cursor + 6U
-        ));
-        parsed.packed_field_08 = static_cast<compat::u16>(read_u16(
-            directory_window,
-            cursor + 8U
-        ));
+        parsed.field_00 =
+            static_cast<compat::u16>(read_u16(directory_window, cursor));
+        parsed.field_02 =
+            static_cast<compat::u16>(read_u16(directory_window, cursor + 2U));
+        parsed.field_04 =
+            static_cast<compat::u16>(read_u16(directory_window, cursor + 4U));
+        parsed.field_06 =
+            static_cast<compat::u16>(read_u16(directory_window, cursor + 6U));
+        parsed.packed_field_08 =
+            static_cast<compat::u16>(read_u16(directory_window, cursor + 8U));
         cursor += kFixedRecordSize;
 
         const auto name_end = std::find(

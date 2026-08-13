@@ -60,10 +60,8 @@ int report_error(const std::string_view message) {
     return 1;
 }
 
-[[nodiscard]] bool read_file(
-    const std::filesystem::path& path,
-    std::vector<u8>& bytes
-) {
+[[nodiscard]] bool
+read_file(const std::filesystem::path& path, std::vector<u8>& bytes) {
     std::ifstream input(path, std::ios::binary | std::ios::ate);
     if (!input) {
         return false;
@@ -84,18 +82,16 @@ int report_error(const std::string_view message) {
 }
 
 [[nodiscard]] bool read_u32(
-    const std::span<const u8> bytes,
-    const std::size_t offset,
-    u32& value
+    const std::span<const u8> bytes, const std::size_t offset, u32& value
 ) noexcept {
     if (offset > bytes.size() || bytes.size() - offset < 4U) {
         return false;
     }
 
     value = static_cast<u32>(bytes[offset]) |
-            (static_cast<u32>(bytes[offset + 1U]) << 8U) |
-            (static_cast<u32>(bytes[offset + 2U]) << 16U) |
-            (static_cast<u32>(bytes[offset + 3U]) << 24U);
+        (static_cast<u32>(bytes[offset + 1U]) << 8U) |
+        (static_cast<u32>(bytes[offset + 2U]) << 16U) |
+        (static_cast<u32>(bytes[offset + 3U]) << 24U);
     return true;
 }
 
@@ -119,19 +115,19 @@ int report_error(const std::string_view message) {
     }
 
     block_end = payload_offset + compressed_size;
-    blocks.push_back(Block{
-        payload_offset,
-        compressed_size,
-        decompressed_size,
-        CompressorKind::dictionary_14,
-    });
+    blocks.push_back(
+        Block{
+            payload_offset,
+            compressed_size,
+            decompressed_size,
+            CompressorKind::dictionary_14,
+        }
+    );
     return true;
 }
 
-[[nodiscard]] bool parse_blocks(
-    const std::span<const u8> bytes,
-    std::vector<Block>& blocks
-) {
+[[nodiscard]] bool
+parse_blocks(const std::span<const u8> bytes, std::vector<Block>& blocks) {
     std::size_t block_end{};
     if (!append_standard_block(bytes, kFixedPrefixSize, blocks, block_end)) {
         return false;
@@ -142,10 +138,7 @@ int report_error(const std::string_view message) {
     }
 
     if (!append_standard_block(
-            bytes,
-            block_end + kRawAfterPrimaryState,
-            blocks,
-            block_end
+            bytes, block_end + kRawAfterPrimaryState, blocks, block_end
         )) {
         return false;
     }
@@ -171,12 +164,14 @@ int report_error(const std::string_view message) {
         return false;
     }
 
-    blocks.push_back(Block{
-        fame_payload,
-        fame_compressed_size,
-        fame_decompressed_size,
-        CompressorKind::dictionary_15,
-    });
+    blocks.push_back(
+        Block{
+            fame_payload,
+            fame_compressed_size,
+            fame_decompressed_size,
+            CompressorKind::dictionary_15,
+        }
+    );
 
     const std::size_t tail_header =
         fame_record + fame_record_size + kRawAfterFame;
@@ -187,15 +182,13 @@ int report_error(const std::string_view message) {
     return block_end == bytes.size() && blocks.size() == 5U;
 }
 
-[[nodiscard]] std::size_t compression_capacity(
-    const std::size_t source_size
-) noexcept {
+[[nodiscard]] std::size_t
+compression_capacity(const std::size_t source_size) noexcept {
     return source_size + source_size / 16U + 67U;
 }
 
 [[nodiscard]] std::size_t original_capacity(
-    const std::size_t source_size,
-    const CompressorKind kind
+    const std::size_t source_size, const CompressorKind kind
 ) noexcept {
     if (kind == CompressorKind::dictionary_14) {
         return source_size + 0x20U;
@@ -211,18 +204,16 @@ int report_error(const std::string_view message) {
 ) noexcept {
     if (kind == CompressorKind::dictionary_14) {
         return openswd3::resource_io::compress_legacy_lzo1x_14(
-            source,
-            destination
+            source, destination
         );
     }
 
-    return openswd3::resource_io::compress_legacy_lzo1x_15(
-        source,
-        destination
-    );
+    return openswd3::resource_io::compress_legacy_lzo1x_15(source, destination);
 }
 
-void update_hash(std::uint64_t& hash, const std::span<const u8> bytes) noexcept {
+void update_hash(
+    std::uint64_t& hash, const std::span<const u8> bytes
+) noexcept {
     for (const u8 byte : bytes) {
         hash ^= byte;
         hash *= 0x100000001B3ULL;
@@ -230,19 +221,14 @@ void update_hash(std::uint64_t& hash, const std::span<const u8> bytes) noexcept 
 }
 
 [[nodiscard]] bool verify_block(
-    const std::span<const u8> file_bytes,
-    const Block& block,
-    Totals& totals
+    const std::span<const u8> file_bytes, const Block& block, Totals& totals
 ) {
-    const std::span<const u8> original_compressed = file_bytes.subspan(
-        block.payload_offset,
-        block.compressed_size
-    );
+    const std::span<const u8> original_compressed =
+        file_bytes.subspan(block.payload_offset, block.compressed_size);
     std::vector<u8> decompressed(block.decompressed_size);
     const LegacyLzo1xResult original_result =
         openswd3::resource_io::decompress_legacy_lzo1x(
-            original_compressed,
-            decompressed
+            original_compressed, decompressed
         );
     if (original_result.status != LegacyLzo1xStatus::success ||
         original_result.bytes_written != block.decompressed_size) {
@@ -250,11 +236,8 @@ void update_hash(std::uint64_t& hash, const std::span<const u8> bytes) noexcept 
     }
 
     std::vector<u8> recompressed(compression_capacity(decompressed.size()));
-    const LegacyLzo1xResult compression_result = compress(
-        decompressed,
-        block.compressor,
-        recompressed
-    );
+    const LegacyLzo1xResult compression_result =
+        compress(decompressed, block.compressor, recompressed);
     if (compression_result.status != LegacyLzo1xStatus::success ||
         compression_result.bytes_written >
             original_capacity(decompressed.size(), block.compressor)) {
@@ -264,19 +247,15 @@ void update_hash(std::uint64_t& hash, const std::span<const u8> bytes) noexcept 
     recompressed.resize(compression_result.bytes_written);
     std::vector<u8> restored(decompressed.size());
     const LegacyLzo1xResult restored_result =
-        openswd3::resource_io::decompress_legacy_lzo1x(
-            recompressed,
-            restored
-        );
+        openswd3::resource_io::decompress_legacy_lzo1x(recompressed, restored);
     if (restored_result.status != LegacyLzo1xStatus::success ||
         restored_result.bytes_written != decompressed.size() ||
         restored != decompressed) {
         return false;
     }
 
-    ++(block.compressor == CompressorKind::dictionary_14
-           ? totals.normal_blocks
-           : totals.fame_blocks);
+    ++(block.compressor == CompressorKind::dictionary_14 ? totals.normal_blocks
+                                                         : totals.fame_blocks);
     totals.original_compressed_bytes += original_compressed.size();
     totals.recompressed_bytes += recompressed.size();
     totals.decompressed_bytes += decompressed.size();
@@ -301,10 +280,8 @@ void update_hash(std::uint64_t& hash, const std::span<const u8> bytes) noexcept 
     return true;
 }
 
-[[nodiscard]] bool parse_slot_number(
-    const std::filesystem::path& path,
-    unsigned& slot
-) {
+[[nodiscard]] bool
+parse_slot_number(const std::filesystem::path& path, unsigned& slot) {
     const std::string stem = path.stem().string();
     const char* const begin = stem.data();
     const char* const end = begin + stem.size();
@@ -312,21 +289,20 @@ void update_hash(std::uint64_t& hash, const std::span<const u8> bytes) noexcept 
     return result.ec == std::errc{} && result.ptr == end;
 }
 
-[[nodiscard]] std::vector<std::filesystem::path> find_saves(
-    const std::filesystem::path& workspace_root
-) {
+[[nodiscard]] std::vector<std::filesystem::path>
+find_saves(const std::filesystem::path& workspace_root) {
     std::vector<std::pair<unsigned, std::filesystem::path>> ordered;
     unsigned directory_order = 0U;
     for (const std::string_view directory_name : {"Save", "Save1"}) {
-        const std::filesystem::path directory =
-            workspace_root / directory_name;
+        const std::filesystem::path directory = workspace_root / directory_name;
         if (!std::filesystem::is_directory(directory)) {
             return {};
         }
 
         for (const std::filesystem::directory_entry& entry :
              std::filesystem::directory_iterator(directory)) {
-            if (!entry.is_regular_file() || entry.path().extension() != ".sav") {
+            if (!entry.is_regular_file() ||
+                entry.path().extension() != ".sav") {
                 continue;
             }
 
@@ -341,7 +317,9 @@ void update_hash(std::uint64_t& hash, const std::span<const u8> bytes) noexcept 
         ++directory_order;
     }
 
-    std::ranges::sort(ordered, {}, &std::pair<unsigned, std::filesystem::path>::first);
+    std::ranges::sort(
+        ordered, {}, &std::pair<unsigned, std::filesystem::path>::first
+    );
     std::vector<std::filesystem::path> paths;
     paths.reserve(ordered.size());
     for (auto& [key, path] : ordered) {
@@ -406,10 +384,9 @@ int main(const int argument_count, char** arguments) {
               << " recompressed=" << totals.recompressed_bytes
               << " decompressed=" << totals.decompressed_bytes
               << " original_hash14=0x" << std::hex
-              << totals.original_dictionary_14_hash
-              << " recompressed_hash14=0x" << totals.dictionary_14_hash
-              << " original_hash15=0x" << totals.original_dictionary_15_hash
-              << " recompressed_hash15=0x" << totals.dictionary_15_hash
-              << '\n';
+              << totals.original_dictionary_14_hash << " recompressed_hash14=0x"
+              << totals.dictionary_14_hash << " original_hash15=0x"
+              << totals.original_dictionary_15_hash << " recompressed_hash15=0x"
+              << totals.dictionary_15_hash << '\n';
     return 0;
 }

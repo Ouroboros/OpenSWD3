@@ -12,11 +12,8 @@ namespace {
 
 constexpr compat::i32 kMaximumSampleHandleCount = 16;
 
-[[nodiscard]] bool is_riff(
-    const std::span<const compat::u8> bytes
-) noexcept {
-    return bytes.size() >= 4U &&
-        bytes[0] == static_cast<compat::u8>('R') &&
+[[nodiscard]] bool is_riff(const std::span<const compat::u8> bytes) noexcept {
+    return bytes.size() >= 4U && bytes[0] == static_cast<compat::u8>('R') &&
         bytes[1] == static_cast<compat::u8>('I') &&
         bytes[2] == static_cast<compat::u8>('F') &&
         bytes[3] == static_cast<compat::u8>('F');
@@ -25,17 +22,16 @@ constexpr compat::i32 kMaximumSampleHandleCount = 16;
 }  // namespace
 
 LegacySampleManager::LegacySampleManager(
-    LegacySampleBackend& backend,
-    LegacySndArchive& archive
-) noexcept : backend_(backend), archive_(archive) {}
+    LegacySampleBackend& backend, LegacySndArchive& archive
+) noexcept
+    : backend_(backend), archive_(archive) {}
 
 LegacySampleManager::~LegacySampleManager() {
     static_cast<void>(shutdown());
 }
 
-LegacySampleManagerInitializeStatus LegacySampleManager::initialize_pool(
-    const compat::i32 requested_handle_count
-) {
+LegacySampleManagerInitializeStatus
+LegacySampleManager::initialize_pool(const compat::i32 requested_handle_count) {
     if (initialized_) {
         return LegacySampleManagerInitializeStatus::ready;
     }
@@ -43,14 +39,10 @@ LegacySampleManagerInitializeStatus LegacySampleManager::initialize_pool(
         return LegacySampleManagerInitializeStatus::archive_not_open;
     }
 
-    configured_handle_count_ = std::min(
-        requested_handle_count,
-        kMaximumSampleHandleCount
-    );
-    const compat::i32 allocation_count = std::max(
-        configured_handle_count_,
-        compat::i32{0}
-    );
+    configured_handle_count_ =
+        std::min(requested_handle_count, kMaximumSampleHandleCount);
+    const compat::i32 allocation_count =
+        std::max(configured_handle_count_, compat::i32{0});
 
     try {
         nodes_.reserve(static_cast<std::size_t>(allocation_count));
@@ -162,10 +154,7 @@ compat::i32 LegacySampleManager::play(LegacySamplePlayRequest request) {
     const bool configured = is_riff(bytes)
         ? backend_.set_sample_file(sample.handle, bytes)
         : backend_.set_named_sample_file(
-              sample.handle,
-              ".mp3",
-              bytes,
-              request.named_file_auxiliary
+              sample.handle, ".mp3", bytes, request.named_file_auxiliary
           );
     if (!configured) {
         release_buffer(buffer_token);
@@ -179,12 +168,10 @@ compat::i32 LegacySampleManager::play(LegacySamplePlayRequest request) {
 
     backend_.set_sample_user_data(sample.handle, 0U, request.sound_id);
     backend_.set_sample_volume(
-        sample.handle,
-        legacy_audio_volume_parameter(request.volume)
+        sample.handle, legacy_audio_volume_parameter(request.volume)
     );
     backend_.set_sample_pan(
-        sample.handle,
-        legacy_audio_pan_parameter(request.pan)
+        sample.handle, legacy_audio_pan_parameter(request.pan)
     );
     backend_.set_sample_loop_count(sample.handle, request.loop_count);
     backend_.start_sample(sample.handle);
@@ -228,8 +215,7 @@ bool LegacySampleManager::stop_all() {
 }
 
 compat::i32 LegacySampleManager::set_volume(
-    const compat::u32 sound_id,
-    const compat::i32 volume
+    const compat::u32 sound_id, const compat::i32 volume
 ) {
     if (!initialized_ || !sample_enabled_) {
         return 0;
@@ -244,8 +230,7 @@ compat::i32 LegacySampleManager::set_volume(
 }
 
 compat::i32 LegacySampleManager::set_pan(
-    const compat::u32 sound_id,
-    const compat::i32 pan
+    const compat::u32 sound_id, const compat::i32 pan
 ) {
     if (!initialized_ || !sample_enabled_) {
         return 0;
@@ -301,15 +286,16 @@ std::size_t LegacySampleManager::free_sample_count() const noexcept {
 
 std::size_t LegacySampleManager::live_buffer_count() const noexcept {
     return static_cast<std::size_t>(std::count_if(
-        buffers_.cbegin(),
-        buffers_.cend(),
-        [](const OwnedBuffer& buffer) { return buffer.live; }
+        buffers_.cbegin(), buffers_.cend(), [](const OwnedBuffer& buffer) {
+            return buffer.live;
+        }
     ));
 }
 
-bool LegacySampleManager::buffer_is_live(const compat::u32 token) const noexcept {
-    return token != 0U && token <= buffers_.size() &&
-        buffers_[token - 1U].live;
+bool LegacySampleManager::buffer_is_live(
+    const compat::u32 token
+) const noexcept {
+    return token != 0U && token <= buffers_.size() && buffers_[token - 1U].live;
 }
 
 compat::u32 LegacySampleManager::pop_free_node() noexcept {
@@ -337,9 +323,7 @@ void LegacySampleManager::push_active_node(const compat::u32 node) noexcept {
     active_head_ = node;
 }
 
-compat::u32 LegacySampleManager::find_active_node(
-    const compat::u32 sound_id
-) {
+compat::u32 LegacySampleManager::find_active_node(const compat::u32 sound_id) {
     compat::u32 node = active_head_;
     while (node != kNoNode) {
         if (backend_.sample_user_data(nodes_[node].handle, 0U) == sound_id) {
@@ -350,9 +334,8 @@ compat::u32 LegacySampleManager::find_active_node(
     return kNoNode;
 }
 
-compat::u32 LegacySampleManager::unlink_active_node(
-    const compat::u32 sound_id
-) {
+compat::u32
+LegacySampleManager::unlink_active_node(const compat::u32 sound_id) {
     compat::u32 previous = kNoNode;
     compat::u32 node = active_head_;
     while (node != kNoNode) {
@@ -370,9 +353,7 @@ compat::u32 LegacySampleManager::unlink_active_node(
     return kNoNode;
 }
 
-std::size_t LegacySampleManager::list_size(
-    compat::u32 head
-) const noexcept {
+std::size_t LegacySampleManager::list_size(compat::u32 head) const noexcept {
     std::size_t count{};
     while (head != kNoNode) {
         ++count;
@@ -381,9 +362,7 @@ std::size_t LegacySampleManager::list_size(
     return count;
 }
 
-compat::u32 LegacySampleManager::retain_buffer(
-    std::vector<compat::u8> bytes
-) {
+compat::u32 LegacySampleManager::retain_buffer(std::vector<compat::u8> bytes) {
     if (buffers_.size() >= std::numeric_limits<compat::u32>::max()) {
         return 0U;
     }
@@ -404,9 +383,8 @@ void LegacySampleManager::release_buffer(const compat::u32 token) noexcept {
     buffer.live = false;
 }
 
-std::span<const compat::u8> LegacySampleManager::buffer_bytes(
-    const compat::u32 token
-) const noexcept {
+std::span<const compat::u8>
+LegacySampleManager::buffer_bytes(const compat::u32 token) const noexcept {
     if (!buffer_is_live(token)) {
         return {};
     }

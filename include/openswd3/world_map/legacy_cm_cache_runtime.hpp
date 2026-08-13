@@ -47,8 +47,7 @@ struct LegacyCmCacheMissPlan {
 );
 
 [[nodiscard]] LegacyCmCacheLookupResult age_and_find_legacy_cm_cache_record(
-    std::span<LegacyCmCacheRecord> records,
-    compat::u32 map_id
+    std::span<LegacyCmCacheRecord> records, compat::u32 map_id
 ) noexcept;
 
 }  // namespace openswd3::world_map

@@ -9,10 +9,8 @@
 namespace openswd3::rendering {
 namespace {
 
-[[nodiscard]] constexpr compat::u32 wrapped_product(
-    const compat::i32 delta,
-    const compat::u32 unit
-) noexcept {
+[[nodiscard]] constexpr compat::u32
+wrapped_product(const compat::i32 delta, const compat::u32 unit) noexcept {
     return std::bit_cast<compat::u32>(delta) * unit;
 }
 
@@ -43,8 +41,7 @@ truncate_x87_float_to_low_i32(const float value) noexcept {
     const compat::u32 wrapped_delta,
     const bool nonnegative
 ) noexcept {
-    const compat::u32 candidate =
-        (loaded & mask) + wrapped_delta;
+    const compat::u32 candidate = (loaded & mask) + wrapped_delta;
     if ((candidate & ~mask) != 0U) {
         return nonnegative ? mask : 0U;
     }
@@ -52,8 +49,7 @@ truncate_x87_float_to_low_i32(const float value) noexcept {
 }
 
 [[nodiscard]] constexpr compat::u32 read_pair(
-    const std::span<const compat::u16> pixels,
-    const std::size_t offset
+    const std::span<const compat::u16> pixels, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u32>(pixels[offset]) |
         (static_cast<compat::u32>(pixels[offset + 1U]) << 16U);
@@ -95,24 +91,18 @@ void write_pair(
 
     for (std::size_t offset = 0U; offset < count; offset += 2U) {
         const compat::u32 loaded = read_pair(pixels, offset);
-        compat::u32 candidate = nonnegative
-            ? (loaded & pair_mask) + pair_delta
-            : (loaded & pair_mask) - pair_delta;
+        compat::u32 candidate = nonnegative ? (loaded & pair_mask) + pair_delta
+                                            : (loaded & pair_mask) - pair_delta;
 
         if ((candidate & low_outside_mask) != 0U) {
-            candidate = (candidate & 0xFFFF0000U) |
-                (nonnegative ? mask : 0U);
+            candidate = (candidate & 0xFFFF0000U) | (nonnegative ? mask : 0U);
         }
         if ((candidate & high_outside_mask) != 0U) {
-            candidate = (candidate & 0x0000FFFFU) |
-                (nonnegative ? (mask << 16U) : 0U);
+            candidate =
+                (candidate & 0x0000FFFFU) | (nonnegative ? (mask << 16U) : 0U);
         }
 
-        write_pair(
-            pixels,
-            offset,
-            (loaded & outside_pair_mask) | candidate
-        );
+        write_pair(pixels, offset, (loaded & outside_pair_mask) | candidate);
     }
 
     return LegacyFrameColorStatus::completed;
@@ -126,7 +116,8 @@ void write_pair(
 ) noexcept {
     const compat::u32 index =
         ((static_cast<compat::u32>(source) & mask) +
-         (static_cast<compat::u32>(destination) & mask)) >> shift;
+         (static_cast<compat::u32>(destination) & mask)) >>
+        shift;
     return index < 32U ? index << shift : 0U;
 }
 
@@ -198,26 +189,17 @@ LegacyFrameColorStatus adjust_legacy_rgb_channels(
         return LegacyFrameColorStatus::buffer_out_of_bounds;
     }
 
-    const compat::u32 red_delta_field = wrapped_product(
-        red_delta,
-        1U << format.red_shift
-    );
-    const compat::u32 green_delta_field = wrapped_product(
-        green_delta,
-        1U << format.green_shift
-    );
-    const compat::u32 blue_delta_field = wrapped_product(
-        blue_delta,
-        1U << format.blue_shift
-    );
+    const compat::u32 red_delta_field =
+        wrapped_product(red_delta, 1U << format.red_shift);
+    const compat::u32 green_delta_field =
+        wrapped_product(green_delta, 1U << format.green_shift);
+    const compat::u32 blue_delta_field =
+        wrapped_product(blue_delta, 1U << format.blue_shift);
 
     for (std::size_t index = 0U; index < count; ++index) {
         const compat::u32 loaded = read_pair(pixels, index);
         const compat::u32 red = adjusted_channel(
-            loaded,
-            format.effective_masks.red,
-            red_delta_field,
-            red_delta >= 0
+            loaded, format.effective_masks.red, red_delta_field, red_delta >= 0
         );
         const compat::u32 green = adjusted_channel(
             loaded,
@@ -255,23 +237,19 @@ LegacyFrameColorStatus adjust_legacy_red_channel(
     const compat::u32 mask = format.effective_masks.red;
     const compat::u32 outside_mask = ~mask;
     const bool nonnegative = delta >= 0;
-    const compat::u32 raw_delta = wrapped_product(
-        delta,
-        1U << format.red_shift
-    );
+    const compat::u32 raw_delta =
+        wrapped_product(delta, 1U << format.red_shift);
     const compat::u32 magnitude = nonnegative ? raw_delta : 0U - raw_delta;
 
     for (std::size_t index = 0U; index < count; ++index) {
         const compat::u32 loaded = read_pair(pixels, index);
-        compat::u32 candidate = nonnegative
-            ? (loaded & mask) + magnitude
-            : (loaded & mask) - magnitude;
+        compat::u32 candidate = nonnegative ? (loaded & mask) + magnitude
+                                            : (loaded & mask) - magnitude;
         if ((candidate & outside_mask) != 0U) {
             candidate = nonnegative ? mask : 0U;
         }
-        pixels[index] = static_cast<compat::u16>(
-            (loaded & outside_mask) | candidate
-        );
+        pixels[index] =
+            static_cast<compat::u16>((loaded & outside_mask) | candidate);
     }
 
     return LegacyFrameColorStatus::completed;

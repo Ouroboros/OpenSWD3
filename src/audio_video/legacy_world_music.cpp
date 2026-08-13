@@ -15,8 +15,7 @@ constexpr compat::u32 kLegacyLowByteMask = 0x000000FFU;
 constexpr compat::u32 kLegacyModeMask = 0x0000000FU;
 
 void consume_pending_slot(
-    LegacyWorldMusicState& state,
-    const std::size_t slot_index
+    LegacyWorldMusicState& state, const std::size_t slot_index
 ) noexcept {
     compat::u32& slot = state.music_slots[slot_index];
     if ((slot & kLegacyMusicSlotPendingFlag) == 0U) {
@@ -28,18 +27,15 @@ void consume_pending_slot(
 }
 
 void write_low_byte_mode(
-    LegacyWorldMusicState& state,
-    const compat::u32 mode
+    LegacyWorldMusicState& state, const compat::u32 mode
 ) noexcept {
-    state.request_flags =
-        (state.request_flags & ~kLegacyLowByteMask) | mode;
+    state.request_flags = (state.request_flags & ~kLegacyLowByteMask) | mode;
 }
 
 }  // namespace
 
 std::optional<std::string> build_legacy_music_path(
-    const std::string_view base_prefix,
-    const std::string_view source_filename
+    const std::string_view base_prefix, const std::string_view source_filename
 ) {
     const std::size_t period = source_filename.find('.');
     if (period == std::string_view::npos) {
@@ -148,8 +144,7 @@ bool service_legacy_world_music(
         if (music_id != 0U &&
             (music_id & kLegacyMusicSlotSuppressedFlag) == 0U) {
             const std::optional<std::string> path = build_legacy_music_path(
-                base_prefix,
-                ports.music_source_filename(music_id)
+                base_prefix, ports.music_source_filename(music_id)
             );
             if (path.has_value()) {
                 ports.play_music_stream(*path);

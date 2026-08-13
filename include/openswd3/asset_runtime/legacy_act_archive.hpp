@@ -72,12 +72,12 @@ public:
     [[nodiscard]] bool is_open() const noexcept;
     [[nodiscard]] LegacyActIndexResult
     read_index(compat::u32 one_based_physical_record) noexcept;
-    [[nodiscard]] LegacyActVariantResult
-    read_variant(compat::u32 one_based_physical_record,
-                 compat::u32 variant_index) noexcept;
-    [[nodiscard]] LegacyActVariantResult
-    read_variant(const LegacyActIndexRecord& index,
-                 compat::u32 variant_index) noexcept;
+    [[nodiscard]] LegacyActVariantResult read_variant(
+        compat::u32 one_based_physical_record, compat::u32 variant_index
+    ) noexcept;
+    [[nodiscard]] LegacyActVariantResult read_variant(
+        const LegacyActIndexRecord& index, compat::u32 variant_index
+    ) noexcept;
 
 private:
     resource_io::LegacyFile file_;

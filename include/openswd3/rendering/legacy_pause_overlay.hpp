@@ -23,8 +23,7 @@ struct LegacyPauseOverlayResult {
     LegacyPresentationDispatchResult presentation{};
 };
 
-[[nodiscard]] std::span<const compat::u8>
-legacy_pause_overlay_text() noexcept;
+[[nodiscard]] std::span<const compat::u8> legacy_pause_overlay_text() noexcept;
 
 // sub_411FA0. The caller supplies the already-initialized 20x20 renderer
 // state used by the original static object at 0x004AB998.

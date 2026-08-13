@@ -20,14 +20,9 @@ void expect_bytes(
     const std::string_view description
 ) {
     test.expect_equal(
-        actual.size(),
-        expected.size(),
-        "byte sequence sizes match"
+        actual.size(), expected.size(), "byte sequence sizes match"
     );
-    test.expect_true(
-        std::ranges::equal(actual, expected),
-        description
-    );
+    test.expect_true(std::ranges::equal(actual, expected), description);
 }
 
 void test_bounded_length(openswd3::test::Context& test) {
@@ -45,8 +40,7 @@ void test_bounded_length(openswd3::test::Context& test) {
         const i32 expected = limit <= 0 ? 0 : (limit < 3 ? limit : 3);
         test.expect_equal(
             openswd3::resource_io::legacy_cp950_bounded_length(
-                kAscii.data(),
-                limit
+                kAscii.data(), limit
             ),
             expected,
             "ASCII prefix follows the signed byte limit"
@@ -57,8 +51,7 @@ void test_bounded_length(openswd3::test::Context& test) {
     for (i32 limit = 0; limit <= 5; ++limit) {
         test.expect_equal(
             openswd3::resource_io::legacy_cp950_bounded_length(
-                kNicole.data(),
-                limit
+                kNicole.data(), limit
             ),
             kNicoleExpected[static_cast<std::size_t>(limit)],
             "CP950 prefix never splits a two-byte character"
@@ -69,8 +62,7 @@ void test_bounded_length(openswd3::test::Context& test) {
     for (i32 limit = 0; limit <= 4; ++limit) {
         test.expect_equal(
             openswd3::resource_io::legacy_cp950_bounded_length(
-                kMixed.data(),
-                limit
+                kMixed.data(), limit
             ),
             kMixedExpected[static_cast<std::size_t>(limit)],
             "mixed ASCII and CP950 prefixes use byte offsets"
@@ -86,17 +78,13 @@ void test_cp950_char_next_contract(openswd3::test::Context& test) {
     constexpr std::array<u8, 3> kLastLead{0xFEU, 0xFFU, 0x00U};
 
     test.expect_equal(
-        openswd3::resource_io::legacy_cp950_bounded_length(
-            kNotLead.data(),
-            1
-        ),
+        openswd3::resource_io::legacy_cp950_bounded_length(kNotLead.data(), 1),
         1,
         "0x80 is not a CP950 lead byte"
     );
     test.expect_equal(
         openswd3::resource_io::legacy_cp950_bounded_length(
-            kLeadBeforeNul.data(),
-            1
+            kLeadBeforeNul.data(), 1
         ),
         1,
         "lead byte before NUL advances by one"
@@ -121,61 +109,59 @@ void test_cp950_char_next_contract(openswd3::test::Context& test) {
 
 void test_cp950_character_offsets(openswd3::test::Context& test) {
     constexpr std::array<u8, 6> kMixed{
-        0xA9U, 0x67U, 0x41U, 0xA5U, 0x69U, 0x00U,
+        0xA9U,
+        0x67U,
+        0x41U,
+        0xA5U,
+        0x69U,
+        0x00U,
     };
 
     test.expect_equal(
         openswd3::resource_io::legacy_cp950_next_character_offset(
-            kMixed.data(),
-            0
+            kMixed.data(), 0
         ),
         2,
         "next offset advances over a CP950 pair"
     );
     test.expect_equal(
         openswd3::resource_io::legacy_cp950_next_character_offset(
-            kMixed.data(),
-            2
+            kMixed.data(), 2
         ),
         3,
         "next offset advances over ASCII"
     );
     test.expect_equal(
         openswd3::resource_io::legacy_cp950_next_character_offset(
-            kMixed.data(),
-            5
+            kMixed.data(), 5
         ),
         5,
         "next offset does not advance at NUL"
     );
     test.expect_equal(
         openswd3::resource_io::legacy_cp950_previous_character_offset(
-            kMixed.data(),
-            0
+            kMixed.data(), 0
         ),
         0,
         "previous offset remains at the beginning"
     );
     test.expect_equal(
         openswd3::resource_io::legacy_cp950_previous_character_offset(
-            kMixed.data(),
-            2
+            kMixed.data(), 2
         ),
         0,
         "previous offset crosses the first CP950 pair"
     );
     test.expect_equal(
         openswd3::resource_io::legacy_cp950_previous_character_offset(
-            kMixed.data(),
-            3
+            kMixed.data(), 3
         ),
         2,
         "previous offset crosses ASCII"
     );
     test.expect_equal(
         openswd3::resource_io::legacy_cp950_previous_character_offset(
-            kMixed.data(),
-            5
+            kMixed.data(), 5
         ),
         3,
         "previous offset crosses the final CP950 pair"
@@ -199,17 +185,13 @@ void test_constructor_and_real_names(openswd3::test::Context& test) {
     test.expect_equal(state.result, 0, "input result starts at zero");
     test.expect_equal(state.ime_state, 0, "IME state starts at zero");
     test.expect_equal(
-        state.input_enabled_state,
-        1,
-        "input-enabled state starts at one"
+        state.input_enabled_state, 1, "input-enabled state starts at one"
     );
     test.expect_equal(buffer.result(), 0, "result getter maps +0x14");
     test.expect_equal(buffer.x(), 300, "X getter maps +0x04");
     test.expect_equal(buffer.y(), 230, "Y getter maps +0x08");
     test.expect_equal(
-        buffer.cursor_byte_offset(),
-        0,
-        "cursor getter maps +0x10"
+        buffer.cursor_byte_offset(), 0, "cursor getter maps +0x10"
     );
 
     std::array<u8, 9> copied{};
@@ -220,7 +202,15 @@ void test_constructor_and_real_names(openswd3::test::Context& test) {
         "copy getter always returns one"
     );
     constexpr std::array<u8, 9> kExpectedSet{
-        0xC1U, 0xC9U, 0xAFU, 0x53U, 0U, 0U, 0U, 0U, 0U,
+        0xC1U,
+        0xC9U,
+        0xAFU,
+        0x53U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
     };
     expect_bytes(test, copied, kExpectedSet, "real Set bytes are preserved");
 
@@ -230,13 +220,18 @@ void test_constructor_and_real_names(openswd3::test::Context& test) {
         nicole.copy_to(copied.data(), static_cast<i32>(copied.size()))
     );
     constexpr std::array<u8, 9> kExpectedNicole{
-        0xA9U, 0x67U, 0xA5U, 0x69U, 0U, 0U, 0U, 0U, 0U,
+        0xA9U,
+        0x67U,
+        0xA5U,
+        0x69U,
+        0U,
+        0U,
+        0U,
+        0U,
+        0U,
     };
     expect_bytes(
-        test,
-        copied,
-        kExpectedNicole,
-        "real Nicole bytes are preserved"
+        test, copied, kExpectedNicole, "real Nicole bytes are preserved"
     );
 }
 
@@ -248,7 +243,12 @@ void test_constructor_truncation(openswd3::test::Context& test) {
     copied.fill(0xCCU);
     static_cast<void>(capacity_three.copy_to(copied.data(), 6));
     constexpr std::array<u8, 6> kOneCharacter{
-        0xA9U, 0x67U, 0U, 0U, 0U, 0U,
+        0xA9U,
+        0x67U,
+        0U,
+        0U,
+        0U,
+        0U,
     };
     expect_bytes(
         test,
@@ -262,10 +262,7 @@ void test_constructor_truncation(openswd3::test::Context& test) {
     static_cast<void>(capacity_one.copy_to(copied.data(), 6));
     constexpr std::array<u8, 6> kEmpty{0U, 0U, 0U, 0U, 0U, 0U};
     expect_bytes(
-        test,
-        copied,
-        kEmpty,
-        "capacity one refuses half of a CP950 character"
+        test, copied, kEmpty, "capacity one refuses half of a CP950 character"
     );
 }
 
@@ -277,7 +274,12 @@ void test_copy_contract(openswd3::test::Context& test) {
     destination.fill(0xCCU);
     static_cast<void>(buffer.copy_to(destination.data(), 3));
     constexpr std::array<u8, 6> kSizeThree{
-        0xA9U, 0x67U, 0U, 0xCCU, 0xCCU, 0xCCU,
+        0xA9U,
+        0x67U,
+        0U,
+        0xCCU,
+        0xCCU,
+        0xCCU,
     };
     expect_bytes(
         test,
@@ -289,7 +291,12 @@ void test_copy_contract(openswd3::test::Context& test) {
     destination.fill(0xCCU);
     static_cast<void>(buffer.copy_to(destination.data(), 4));
     constexpr std::array<u8, 6> kSizeFour{
-        0xA9U, 0x67U, 0xA5U, 0x69U, 0xCCU, 0xCCU,
+        0xA9U,
+        0x67U,
+        0xA5U,
+        0x69U,
+        0xCCU,
+        0xCCU,
     };
     expect_bytes(
         test,
@@ -301,7 +308,12 @@ void test_copy_contract(openswd3::test::Context& test) {
     destination.fill(0xCCU);
     static_cast<void>(buffer.copy_to(destination.data(), 6));
     constexpr std::array<u8, 6> kSizeSix{
-        0xA9U, 0x67U, 0xA5U, 0x69U, 0U, 0U,
+        0xA9U,
+        0x67U,
+        0xA5U,
+        0x69U,
+        0U,
+        0U,
     };
     expect_bytes(
         test,

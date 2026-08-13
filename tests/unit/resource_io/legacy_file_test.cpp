@@ -33,7 +33,7 @@ public:
         const auto unique_value =
             std::chrono::steady_clock::now().time_since_epoch().count();
         root_ = std::filesystem::path{OPENSWD3_TEST_ARTIFACT_ROOT} /
-                ("legacy-file-" + std::to_string(unique_value));
+            ("legacy-file-" + std::to_string(unique_value));
         std::filesystem::create_directories(root_);
     }
 
@@ -65,9 +65,7 @@ private:
     std::filesystem::path root_;
 };
 
-void test_open_modes_and_exact_little_endian_io(
-    openswd3::test::Context& test
-) {
+void test_open_modes_and_exact_little_endian_io(openswd3::test::Context& test) {
     const TestTree tree;
     LegacyFile file;
 
@@ -94,20 +92,22 @@ void test_open_modes_and_exact_little_endian_io(
     );
     test.expect_true(file.write_u8(0x41U), "one-byte exact write succeeds");
     test.expect_true(
-        file.write_u32(0x12345678U),
-        "four-byte exact write succeeds"
+        file.write_u32(0x12345678U), "four-byte exact write succeeds"
     );
     test.expect_equal(file.size(), 5U, "size follows exact writes");
     test.expect_true(file.close(), "close succeeds");
     test.expect_true(file.close(), "close is idempotent");
     test.expect_true(
-        file.error_message().empty(),
-        "successful close clears the error field"
+        file.error_message().empty(), "successful close clears the error field"
     );
 
     const std::vector<u8> bytes = tree.read("created.bin");
     constexpr std::array<u8, 5> kExpected{
-        0x41U, 0x78U, 0x56U, 0x34U, 0x12U,
+        0x41U,
+        0x78U,
+        0x56U,
+        0x34U,
+        0x12U,
     };
     test.expect_true(
         std::ranges::equal(bytes, kExpected),
@@ -123,9 +123,7 @@ void test_open_modes_and_exact_little_endian_io(
         "OPEN_ALWAYS reopens an existing file"
     );
     test.expect_equal(
-        file.size(),
-        5U,
-        "OPEN_ALWAYS preserves existing contents"
+        file.size(), 5U, "OPEN_ALWAYS preserves existing contents"
     );
     test.expect_true(file.close(), "preserved file closes");
 
@@ -171,15 +169,17 @@ void test_short_read_contract(openswd3::test::Context& test) {
     std::array<u8, 4> buffer{};
     u32 requested = 4U;
     test.expect_true(file.read(buffer, requested), "EOF short read succeeds");
-    test.expect_equal(requested, 2U, "read length is rewritten to actual bytes");
+    test.expect_equal(
+        requested, 2U, "read length is rewritten to actual bytes"
+    );
 
     test.expect_equal(
-        file.seek_begin_one_based(0),
-        1U,
-        "rewind returns a one-based position"
+        file.seek_begin_one_based(0), 1U, "rewind returns a one-based position"
     );
     u32 value = 0xAABBCCDDU;
-    test.expect_true(file.read_u32(value), "four-byte helper accepts short read");
+    test.expect_true(
+        file.read_u32(value), "four-byte helper accepts short read"
+    );
     test.expect_equal(
         value,
         0xAABB2211U,
@@ -202,18 +202,22 @@ void test_seek_size_and_truncate(openswd3::test::Context& test) {
         ),
         "seek fixture opens"
     );
-    test.expect_equal(file.seek_begin_one_based(0), 1U, "begin seek is one-based");
     test.expect_equal(
-        file.seek_current_one_based(2),
-        3U,
-        "current seek is one-based"
+        file.seek_begin_one_based(0), 1U, "begin seek is one-based"
+    );
+    test.expect_equal(
+        file.seek_current_one_based(2), 3U, "current seek is one-based"
     );
     test.expect_equal(file.seek_end_one_based(-1), 8U, "end seek is one-based");
 
     u32 position = 0xFFFFFFFFU;
-    test.expect_true(file.current_position(position), "current position query succeeds");
+    test.expect_true(
+        file.current_position(position), "current position query succeeds"
+    );
     test.expect_equal(position, 7U, "position query remains zero-based");
-    test.expect_equal(file.seek_begin_one_based(3), 4U, "truncate position is selected");
+    test.expect_equal(
+        file.seek_begin_one_based(3), 4U, "truncate position is selected"
+    );
     test.expect_true(
         file.truncate_at_current_position(),
         "truncate uses the current position"
@@ -228,13 +232,10 @@ void test_seek_size_and_truncate(openswd3::test::Context& test) {
         "invalid-handle raw zero still becomes one"
     );
     test.expect_false(
-        file.current_position(position),
-        "invalid-handle position query fails"
+        file.current_position(position), "invalid-handle position query fails"
     );
     test.expect_equal(
-        position,
-        0xA5A5A5A5U,
-        "failed position query leaves output untouched"
+        position, 0xA5A5A5A5U, "failed position query leaves output untouched"
     );
     test.expect_equal(
         file.size(),
@@ -250,8 +251,7 @@ void test_mapping_lifecycle(openswd3::test::Context& test) {
 
     LegacyFile file;
     test.expect_false(
-        file.create_read_only_mapping(),
-        "invalid file cannot create a mapping"
+        file.create_read_only_mapping(), "invalid file cannot create a mapping"
     );
     test.expect_true(
         file.open(
@@ -262,8 +262,7 @@ void test_mapping_lifecycle(openswd3::test::Context& test) {
         "mapping fixture opens"
     );
     test.expect_true(
-        file.create_read_only_mapping(),
-        "read-only mapping object is created"
+        file.create_read_only_mapping(), "read-only mapping object is created"
     );
 
     const u8* view = file.map_view();
@@ -274,8 +273,7 @@ void test_mapping_lifecycle(openswd3::test::Context& test) {
             "mapped bytes match the file"
         );
         test.expect_false(
-            file.close_view(view + 1),
-            "mismatched view pointer is rejected"
+            file.close_view(view + 1), "mismatched view pointer is rejected"
         );
         test.expect_true(file.close_view(view), "matching view pointer closes");
     }
@@ -285,8 +283,7 @@ void test_mapping_lifecycle(openswd3::test::Context& test) {
     view = file.map_view();
     test.expect_true(view != nullptr, "remap replaces the previous view");
     test.expect_true(
-        file.close_mapping(),
-        "mapping close first releases its active view"
+        file.close_mapping(), "mapping close first releases its active view"
     );
     test.expect_true(file.close_mapping(), "mapping close is idempotent");
     test.expect_true(file.close(), "mapping fixture closes");
@@ -307,8 +304,12 @@ void test_last_write_time(openswd3::test::Context& test) {
         "timestamp fixture opens"
     );
     LegacyFileTime time{};
-    test.expect_true(file.last_write_time(time), "last-write time is available");
-    test.expect_true(time.low != 0U || time.high != 0U, "timestamp is populated");
+    test.expect_true(
+        file.last_write_time(time), "last-write time is available"
+    );
+    test.expect_true(
+        time.low != 0U || time.high != 0U, "timestamp is populated"
+    );
     test.expect_true(file.close(), "timestamp fixture closes");
 }
 
@@ -323,9 +324,7 @@ void test_exclusive_file_probe(openswd3::test::Context& test) {
         "existing file probe succeeds"
     );
     test.expect_equal(
-        error[0],
-        '\0',
-        "successful probe leaves the error buffer unchanged"
+        error[0], '\0', "successful probe leaves the error buffer unchanged"
     );
     test.expect_false(
         legacy_exclusive_file_probe(tree.path("missing.bin"), error),

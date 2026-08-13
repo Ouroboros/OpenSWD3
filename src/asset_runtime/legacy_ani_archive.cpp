@@ -11,49 +11,59 @@
 namespace openswd3::asset_runtime {
 namespace {
 
-[[nodiscard]] compat::u16 read_u16(const std::span<const compat::u8> bytes,
-                                   const std::size_t offset) noexcept {
+[[nodiscard]] compat::u16 read_u16(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
     return static_cast<compat::u16>(
         static_cast<compat::u16>(bytes[offset]) |
-        static_cast<compat::u16>(static_cast<compat::u16>(bytes[offset + 1U])
-                                 << 8U));
+        static_cast<compat::u16>(
+            static_cast<compat::u16>(bytes[offset + 1U]) << 8U
+        )
+    );
 }
 
-[[nodiscard]] compat::u32 read_u32(const std::span<const compat::u8> bytes,
-                                   const std::size_t offset) noexcept {
+[[nodiscard]] compat::u32 read_u32(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
     return static_cast<compat::u32>(bytes[offset]) |
-           (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
-           (static_cast<compat::u32>(bytes[offset + 2U]) << 16U) |
-           (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
+        (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
+        (static_cast<compat::u32>(bytes[offset + 2U]) << 16U) |
+        (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
 }
 
-void write_u16(const std::span<compat::u8> bytes, const std::size_t offset,
-               const compat::u16 value) noexcept {
+void write_u16(
+    const std::span<compat::u8> bytes,
+    const std::size_t offset,
+    const compat::u16 value
+) noexcept {
     bytes[offset] = static_cast<compat::u8>(value);
     bytes[offset + 1U] = static_cast<compat::u8>(value >> 8U);
 }
 
-[[nodiscard]] bool read_exact(resource_io::LegacyFile& file,
-                              const std::span<compat::u8> bytes) noexcept {
+[[nodiscard]] bool read_exact(
+    resource_io::LegacyFile& file, const std::span<compat::u8> bytes
+) noexcept {
     compat::u32 requested = static_cast<compat::u32>(bytes.size());
     return file.read(bytes, requested) && requested == bytes.size();
 }
 
-[[nodiscard]] bool range_fits(const compat::u32 offset, const compat::u32 size,
-                              const compat::u32 limit) noexcept {
+[[nodiscard]] bool range_fits(
+    const compat::u32 offset, const compat::u32 size, const compat::u32 limit
+) noexcept {
     return static_cast<std::uint64_t>(offset) + size <= limit;
 }
 
-[[nodiscard]] bool seek_exact(resource_io::LegacyFile& file,
-                              const compat::u32 offset) noexcept {
-    return offset <= static_cast<compat::u32>(
-                         std::numeric_limits<compat::i32>::max()) &&
-           file.seek_begin_one_based(static_cast<compat::i32>(offset)) ==
-               offset + 1U;
+[[nodiscard]] bool
+seek_exact(resource_io::LegacyFile& file, const compat::u32 offset) noexcept {
+    return offset <=
+        static_cast<compat::u32>(std::numeric_limits<compat::i32>::max()) &&
+        file.seek_begin_one_based(static_cast<compat::i32>(offset)) ==
+        offset + 1U;
 }
 
-void parse_header(const std::span<const compat::u8> bytes,
-                  LegacyAniHeader& header) noexcept {
+void parse_header(
+    const std::span<const compat::u8> bytes, LegacyAniHeader& header
+) noexcept {
     std::ranges::copy(bytes.first(header.magic.size()), header.magic.begin());
     header.frame_count = read_u32(bytes, 0x04U);
     header.storage_bpp = read_u16(bytes, 0x08U);
@@ -97,9 +107,9 @@ make_next_node(const LegacyAniFrameNode& previous) noexcept {
     return node;
 }
 
-[[nodiscard]] LegacyAniSpanResult
-span_failure(const LegacyAniSpanResult& base,
-             const LegacyAniSpanStatus status) noexcept {
+[[nodiscard]] LegacyAniSpanResult span_failure(
+    const LegacyAniSpanResult& base, const LegacyAniSpanStatus status
+) noexcept {
     LegacyAniSpanResult result = base;
     result.status = status;
     return result;
@@ -109,12 +119,15 @@ span_failure(const LegacyAniSpanResult& base,
 
 LegacyAniOpenStatus LegacyAniArchive::open(
     const std::filesystem::path& archive_path,
-    const rendering::LegacyPixelConversionState pixel_conversion) {
+    const rendering::LegacyPixelConversionState pixel_conversion
+) {
     close();
-    if (!file_.open(archive_path,
-                    resource_io::LegacyFileCreation::open_existing,
-                    resource_io::LegacyFileAccess::read,
-                    resource_io::LegacyFileSharing::exclusive)) {
+    if (!file_.open(
+            archive_path,
+            resource_io::LegacyFileCreation::open_existing,
+            resource_io::LegacyFileAccess::read,
+            resource_io::LegacyFileSharing::exclusive
+        )) {
         return LegacyAniOpenStatus::file_open_failed;
     }
 
@@ -200,7 +213,9 @@ void LegacyAniArchive::close() noexcept {
     open_ = false;
 }
 
-bool LegacyAniArchive::is_open() const noexcept { return open_; }
+bool LegacyAniArchive::is_open() const noexcept {
+    return open_;
+}
 
 const LegacyAniHeader& LegacyAniArchive::header() const noexcept {
     return header_;
@@ -212,13 +227,11 @@ std::size_t LegacyAniArchive::cached_frame_count() const noexcept {
 
 LegacyAniOpenStatus
 LegacyAniArchive::load_palette(const compat::u16 palette_index) {
-    const std::uint64_t trailing_bytes =
-        header_.palette_count == 0U
-            ? kLegacyAniPaletteBytes
-            : static_cast<std::uint64_t>(kLegacyAniPaletteEventTableBytes) +
-                  static_cast<std::uint64_t>(header_.palette_count -
-                                             palette_index) *
-                      kLegacyAniPaletteBytes;
+    const std::uint64_t trailing_bytes = header_.palette_count == 0U
+        ? kLegacyAniPaletteBytes
+        : static_cast<std::uint64_t>(kLegacyAniPaletteEventTableBytes) +
+            static_cast<std::uint64_t>(header_.palette_count - palette_index) *
+                kLegacyAniPaletteBytes;
     if (trailing_bytes > file_size_) {
         return LegacyAniOpenStatus::palette_out_of_file_range;
     }
@@ -237,12 +250,15 @@ LegacyAniArchive::load_palette(const compat::u16 palette_index) {
         const compat::u16 rgb555 = static_cast<compat::u16>(
             (static_cast<compat::u16>(bytes[source] & 0xF8U) << 7U) |
             (static_cast<compat::u16>(bytes[source + 1U] & 0xF8U) << 2U) |
-            static_cast<compat::u16>(bytes[source + 2U] >> 3U));
+            static_cast<compat::u16>(bytes[source + 2U] >> 3U)
+        );
         palette_[index] = rgb555;
     }
     rendering::legacy_convert_pixels_forward(
-        pixel_conversion_, palette_.data(),
-        static_cast<compat::i32>(palette_.size()));
+        pixel_conversion_,
+        palette_.data(),
+        static_cast<compat::i32>(palette_.size())
+    );
     return LegacyAniOpenStatus::ready;
 }
 
@@ -258,23 +274,28 @@ LegacyAniArchive::read_record(const LegacyAniFrameNode& node) noexcept {
         static_cast<std::uint64_t>(node.record_seek_base) +
         kLegacyAniFrameTrailerSize;
     if (actual_offset > std::numeric_limits<compat::u32>::max() ||
-        !range_fits(static_cast<compat::u32>(actual_offset), node.record_size,
-                    file_size_)) {
+        !range_fits(
+            static_cast<compat::u32>(actual_offset),
+            node.record_size,
+            file_size_
+        )) {
         return LegacyAniFrameLoadStatus::record_out_of_file_range;
     }
     if (!seek_exact(file_, static_cast<compat::u32>(actual_offset))) {
         return LegacyAniFrameLoadStatus::record_seek_failed;
     }
-    if (!read_exact(file_, std::span<compat::u8>{compressed_scratch_}.first(
-                               node.record_size))) {
+    if (!read_exact(
+            file_,
+            std::span<compat::u8>{compressed_scratch_}.first(node.record_size)
+        )) {
         return LegacyAniFrameLoadStatus::record_read_failed;
     }
     return LegacyAniFrameLoadStatus::ready;
 }
 
-LegacyAniFrameLoadStatus
-LegacyAniArchive::update_palette_for_request(const compat::u32 one_based_frame,
-                                             bool& changed) {
+LegacyAniFrameLoadStatus LegacyAniArchive::update_palette_for_request(
+    const compat::u32 one_based_frame, bool& changed
+) {
     changed = false;
     if (!has_palette_ || next_palette_index_ >= header_.palette_count ||
         palette_event_frames_[next_palette_index_] != one_based_frame) {
@@ -288,9 +309,9 @@ LegacyAniArchive::update_palette_for_request(const compat::u32 one_based_frame,
     return LegacyAniFrameLoadStatus::ready;
 }
 
-LegacyAniFrameLoadResult
-LegacyAniArchive::finish_frame(const LegacyAniFrameNode& node,
-                               const LegacyAniFrameLoadMode mode) {
+LegacyAniFrameLoadResult LegacyAniArchive::finish_frame(
+    const LegacyAniFrameNode& node, const LegacyAniFrameLoadMode mode
+) {
     LegacyAniFrameLoadResult result;
     result.node = node;
     result.mode = mode;
@@ -307,8 +328,8 @@ LegacyAniArchive::finish_frame(const LegacyAniFrameNode& node,
         node.declared_total_size - kLegacyAniFrameTrailerSize;
     const compat::u32 compressed_size =
         mode == LegacyAniFrameLoadMode::cached_reload
-            ? node.record_size
-            : node.record_size - kLegacyAniFrameTrailerSize;
+        ? node.record_size
+        : node.record_size - kLegacyAniFrameTrailerSize;
 
     if (compressed_size == 0U) {
         if (expected_output != 0U || node.span_count != 0U) {
@@ -335,8 +356,10 @@ LegacyAniArchive::finish_frame(const LegacyAniFrameNode& node,
     const resource_io::LegacyLzo1xResult decompressed =
         resource_io::decompress_legacy_lzo1x(
             std::span<const compat::u8>{compressed_scratch_}.first(
-                compressed_size),
-            decompressed_scratch_);
+                compressed_size
+            ),
+            decompressed_scratch_
+        );
     result.decompression_status = decompressed.status;
     result.decompressed_size = decompressed.bytes_written;
     const bool acceptable_status =
@@ -354,7 +377,8 @@ LegacyAniArchive::finish_frame(const LegacyAniFrameNode& node,
     }
     result.command_stream =
         std::span<const compat::u8>{decompressed_scratch_}.first(
-            decompressed.bytes_written);
+            decompressed.bytes_written
+        );
     result.status = LegacyAniFrameLoadStatus::ready;
     return result;
 }
@@ -370,8 +394,9 @@ LegacyAniArchive::load_frame(const compat::u32 one_based_frame) {
         return result;
     }
 
-    const auto cached = std::ranges::find(frames_, one_based_frame,
-                                          &LegacyAniFrameNode::one_based_frame);
+    const auto cached = std::ranges::find(
+        frames_, one_based_frame, &LegacyAniFrameNode::one_based_frame
+    );
     if (cached != frames_.end()) {
         result.status = read_record(*cached);
         if (result.status != LegacyAniFrameLoadStatus::ready) {
@@ -433,14 +458,18 @@ LegacyAniArchive::load_frame(const compat::u32 one_based_frame) {
 
 LegacyAniSpanResult apply_legacy_ani_spans(
     const std::span<const compat::u8> command_stream,
-    const compat::u32 span_count, const std::span<const compat::u16> palette,
-    const std::span<compat::u8> destination, const compat::u32 pitch_bytes,
+    const compat::u32 span_count,
+    const std::span<const compat::u16> palette,
+    const std::span<compat::u8> destination,
+    const compat::u32 pitch_bytes,
     const compat::u16 display_height,
-    const rendering::LegacyPixelConversionState& pixel_conversion) noexcept {
+    const rendering::LegacyPixelConversionState& pixel_conversion
+) noexcept {
     LegacyAniSpanResult result;
     if (display_height > kLegacyAniViewportHeight) {
-        return span_failure(result,
-                            LegacyAniSpanStatus::invalid_display_height);
+        return span_failure(
+            result, LegacyAniSpanStatus::invalid_display_height
+        );
     }
     if (pitch_bytes == 0U) {
         return span_failure(result, LegacyAniSpanStatus::invalid_pitch);
@@ -448,50 +477,57 @@ LegacyAniSpanResult apply_legacy_ani_spans(
     const std::uint64_t top = (kLegacyAniViewportHeight - display_height) / 2U;
     const std::uint64_t base_offset = top * pitch_bytes;
     if (base_offset > destination.size()) {
-        return span_failure(result,
-                            LegacyAniSpanStatus::destination_out_of_bounds);
+        return span_failure(
+            result, LegacyAniSpanStatus::destination_out_of_bounds
+        );
     }
 
     std::size_t cursor{};
     const bool indexed = !palette.empty();
     if (indexed && palette.size() < kLegacyAniPaletteColorCount) {
-        return span_failure(result,
-                            LegacyAniSpanStatus::indexed_palette_too_small);
+        return span_failure(
+            result, LegacyAniSpanStatus::indexed_palette_too_small
+        );
     }
     for (compat::u32 ordinal = 0U; ordinal < span_count; ++ordinal) {
         if (cursor > command_stream.size() ||
             command_stream.size() - cursor < 8U) {
-            return span_failure(result,
-                                LegacyAniSpanStatus::command_stream_exhausted);
+            return span_failure(
+                result, LegacyAniSpanStatus::command_stream_exhausted
+            );
         }
         const compat::u32 record_size = read_u32(command_stream, cursor);
         const compat::u32 target_offset = read_u32(command_stream, cursor + 4U);
         if (record_size < 8U) {
-            return span_failure(result,
-                                LegacyAniSpanStatus::invalid_record_size);
+            return span_failure(
+                result, LegacyAniSpanStatus::invalid_record_size
+            );
         }
         if (record_size > command_stream.size() - cursor) {
-            return span_failure(result,
-                                LegacyAniSpanStatus::command_stream_exhausted);
+            return span_failure(
+                result, LegacyAniSpanStatus::command_stream_exhausted
+            );
         }
 
         const std::size_t source_offset = cursor + 8U;
         const std::size_t source_bytes = record_size - 8U;
         const std::uint64_t target = base_offset + target_offset;
-        const std::uint64_t output_bytes =
-            indexed ? static_cast<std::uint64_t>(source_bytes) * 2U
-                    : source_bytes;
+        const std::uint64_t output_bytes = indexed
+            ? static_cast<std::uint64_t>(source_bytes) * 2U
+            : source_bytes;
         if (target > destination.size() ||
             output_bytes > destination.size() - target) {
-            return span_failure(result,
-                                LegacyAniSpanStatus::destination_out_of_bounds);
+            return span_failure(
+                result, LegacyAniSpanStatus::destination_out_of_bounds
+            );
         }
 
         const std::span<const compat::u8> source =
             command_stream.subspan(source_offset, source_bytes);
-        std::span<compat::u8> output =
-            destination.subspan(static_cast<std::size_t>(target),
-                                static_cast<std::size_t>(output_bytes));
+        std::span<compat::u8> output = destination.subspan(
+            static_cast<std::size_t>(target),
+            static_cast<std::size_t>(output_bytes)
+        );
         if (indexed) {
             for (std::size_t index = 0U; index < source.size(); ++index) {
                 write_u16(output, index * 2U, palette[source[index]]);
@@ -501,8 +537,9 @@ LegacyAniSpanResult apply_legacy_ani_spans(
             std::size_t index{};
             for (; index + 1U < source.size(); index += 2U) {
                 compat::u16 pixel = read_u16(source, index);
-                rendering::legacy_convert_pixels_forward(pixel_conversion,
-                                                         &pixel, 1);
+                rendering::legacy_convert_pixels_forward(
+                    pixel_conversion, &pixel, 1
+                );
                 write_u16(output, index, pixel);
             }
             if (index < source.size()) {

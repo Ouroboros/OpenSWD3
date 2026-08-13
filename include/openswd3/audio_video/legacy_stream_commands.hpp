@@ -21,33 +21,23 @@ struct LegacyStreamCommandState {
     compat::i32 mix_level
 );
 
-[[nodiscard]] compat::i32 stop_legacy_stream(
-    LegacyStreamManager& manager
-);
+[[nodiscard]] compat::i32 stop_legacy_stream(LegacyStreamManager& manager);
 
-[[nodiscard]] compat::i32 legacy_stream_absent(
-    LegacyStreamManager& manager
-);
+[[nodiscard]] compat::i32 legacy_stream_absent(LegacyStreamManager& manager);
 
-[[nodiscard]] compat::i32 set_legacy_stream_volume(
-    LegacyStreamManager& manager,
-    compat::i32 level
-);
+[[nodiscard]] compat::i32
+set_legacy_stream_volume(LegacyStreamManager& manager, compat::i32 level);
 
 [[nodiscard]] compat::i32 apply_legacy_stream_transition(
-    LegacyStreamManager& manager,
-    LegacyStreamCommandState& state
+    LegacyStreamManager& manager, LegacyStreamCommandState& state
 );
 
 [[nodiscard]] compat::i32 poll_legacy_stream_transition(
-    LegacyStreamManager& manager,
-    LegacyStreamCommandState& state
+    LegacyStreamManager& manager, LegacyStreamCommandState& state
 );
 
 [[nodiscard]] compat::i32 configure_legacy_stream_transition(
-    LegacyStreamCommandState& state,
-    compat::i32 mode,
-    compat::i32 value
+    LegacyStreamCommandState& state, compat::i32 mode, compat::i32 value
 ) noexcept;
 
 }  // namespace openswd3::audio_video

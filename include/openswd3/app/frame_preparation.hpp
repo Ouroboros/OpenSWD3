@@ -32,7 +32,6 @@ struct FramePreparationState {
     compat::u32 value_004b72a4{};
     compat::u32 value_004b72a8{};
     compat::u32 secondary_countdown{};
-
 };
 
 enum class PrimaryTransitionOperation {
@@ -58,9 +57,8 @@ public:
     virtual void perform_primary_transition_operation(
         PrimaryTransitionOperation operation
     ) = 0;
-    virtual void release_and_clear_party_member_transition(
-        compat::u32 member_index
-    ) = 0;
+    virtual void
+    release_and_clear_party_member_transition(compat::u32 member_index) = 0;
 
     virtual void sample_input_device() = 0;
     virtual void normalize_input() = 0;
@@ -74,8 +72,7 @@ enum class FramePreparationOutcome {
 };
 
 [[nodiscard]] FramePreparationOutcome run_frame_preparation(
-    FramePreparationState& state,
-    FramePreparationPorts& ports
+    FramePreparationState& state, FramePreparationPorts& ports
 );
 
 }  // namespace openswd3::app

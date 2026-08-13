@@ -57,14 +57,10 @@ void test_three_default_slots(openswd3::test::Context& test) {
     }
 
     test.expect_equal(
-        large_state->horizontal_advance,
-        24,
-        "20-point initial advance"
+        large_state->horizontal_advance, 24, "20-point initial advance"
     );
     test.expect_equal(
-        medium_state->horizontal_advance,
-        18,
-        "16-point initial advance"
+        medium_state->horizontal_advance, 18, "16-point initial advance"
     );
     test.expect_equal(
         small_state->horizontal_advance,
@@ -93,30 +89,26 @@ void test_three_default_slots(openswd3::test::Context& test) {
     );
 
     test.expect_equal(
-        runtime.glyph_cache(20U)->glyph_width(),
-        20,
-        "20-point cache width"
+        runtime.glyph_cache(20U)->glyph_width(), 20, "20-point cache width"
     );
     test.expect_equal(
-        runtime.glyph_cache(16U)->glyph_height(),
-        16,
-        "16-point cache height"
+        runtime.glyph_cache(16U)->glyph_height(), 16, "16-point cache height"
     );
     test.expect_equal(
-        runtime.glyph_cache(12U)->glyph_width(),
-        12,
-        "12-point cache width"
+        runtime.glyph_cache(12U)->glyph_width(), 12, "12-point cache width"
     );
 }
 
 void test_rebuild_rebinds_and_clears(openswd3::test::Context& test) {
     LegacyTextRendererRuntime runtime;
     LegacyFramebuffer first;
-    LegacyFramebuffer second(LegacySurfaceGeometry{
-        .pitch_bytes = 80,
-        .width = 32,
-        .height = 24,
-    });
+    LegacyFramebuffer second(
+        LegacySurfaceGeometry{
+            .pitch_bytes = 80,
+            .width = 32,
+            .height = 24,
+        }
+    );
     GlyphProvider first_provider;
     GlyphProvider second_provider;
 
@@ -158,14 +150,10 @@ void test_rebuild_rebinds_and_clears(openswd3::test::Context& test) {
         "rebuild restores the original 12-point advance"
     );
     test.expect_equal(
-        second_binding.state->clip.width,
-        32,
-        "rebuild refreshes clip width"
+        second_binding.state->clip.width, 32, "rebuild refreshes clip width"
     );
     test.expect_equal(
-        second_binding.state->clip.height,
-        24,
-        "rebuild refreshes clip height"
+        second_binding.state->clip.height, 24, "rebuild refreshes clip height"
     );
 }
 

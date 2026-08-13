@@ -15,8 +15,7 @@ inline constexpr std::size_t kDirectTileByteCount =
     const compat::i32 destination_y
 ) noexcept {
     const LegacySurfaceGeometry& surface = framebuffer.geometry().surface;
-    if (surface.pitch_bytes <= 0 ||
-        (surface.pitch_bytes & 1) != 0 ||
+    if (surface.pitch_bytes <= 0 || (surface.pitch_bytes & 1) != 0 ||
         surface.pitch_bytes / 2 < surface.width ||
         surface.width < kLegacyFixedTileExtent ||
         surface.height < kLegacyFixedTileExtent) {
@@ -33,8 +32,7 @@ inline constexpr std::size_t kDirectTileByteCount =
 }
 
 [[nodiscard]] constexpr compat::u16 read_u16(
-    const std::span<const compat::u8> source,
-    const std::size_t offset
+    const std::span<const compat::u8> source, const std::size_t offset
 ) noexcept {
     return static_cast<compat::u16>(
         static_cast<compat::u16>(source[offset]) |
@@ -54,16 +52,12 @@ void write_tile(
         std::span<compat::u16> destination = framebuffer.row_pixels(
             static_cast<compat::u32>(destination_y + row)
         );
-        for (compat::i32 column = 0;
-             column < kLegacyFixedTileExtent;
+        for (compat::i32 column = 0; column < kLegacyFixedTileExtent;
              ++column) {
-            const std::size_t source_index = static_cast<std::size_t>(
-                row * kLegacyFixedTileExtent + column
-            );
+            const std::size_t source_index =
+                static_cast<std::size_t>(row * kLegacyFixedTileExtent + column);
             write_pixel(
-                destination[static_cast<std::size_t>(
-                    destination_x + column
-                )],
+                destination[static_cast<std::size_t>(destination_x + column)],
                 provide_pixel(source_index)
             );
         }
@@ -124,10 +118,7 @@ LegacyFixedTileWriteStatus write_legacy_direct_keyed_16x16_tile(
         [&](const std::size_t index) {
             return read_u16(source, index * sizeof(compat::u16));
         },
-        [transparent_color](
-            compat::u16& destination,
-            const compat::u16 pixel
-        ) {
+        [transparent_color](compat::u16& destination, const compat::u16 pixel) {
             if (pixel != transparent_color) {
                 destination = pixel;
             }
@@ -159,9 +150,7 @@ LegacyFixedTileWriteStatus write_legacy_indexed_16x16_tile(
         framebuffer,
         destination_x,
         destination_y,
-        [&](const std::size_t index) {
-            return palette[source[index]];
-        },
+        [&](const std::size_t index) { return palette[source[index]]; },
         [](compat::u16& destination, const compat::u16 pixel) {
             destination = pixel;
         }
@@ -192,9 +181,7 @@ LegacyFixedTileWriteStatus write_legacy_indexed_keyed_16x16_tile(
         framebuffer,
         destination_x,
         destination_y,
-        [&](const std::size_t index) {
-            return source[index];
-        },
+        [&](const std::size_t index) { return source[index]; },
         [&](compat::u16& destination, const compat::u8 index) {
             if (index != 1U) {
                 destination = palette[index];

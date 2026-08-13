@@ -13,8 +13,7 @@ constexpr compat::i32 kChannelCount = 2;
 constexpr compat::i32 kMaximumSampleHandleCount = 16;
 
 [[nodiscard]] LegacyPcmOutputFormat make_format(
-    const compat::i32 sample_rate,
-    const compat::i32 bits_per_sample
+    const compat::i32 sample_rate, const compat::i32 bits_per_sample
 ) noexcept {
     const compat::i32 bytes_per_sample = (bits_per_sample + 7) / 8;
     const compat::i32 block_align = bytes_per_sample * kChannelCount;
@@ -28,27 +27,23 @@ constexpr compat::i32 kMaximumSampleHandleCount = 16;
     };
 }
 
-[[nodiscard]] bool contains_emulated(
-    const std::string_view configuration
-) noexcept {
+[[nodiscard]] bool
+contains_emulated(const std::string_view configuration) noexcept {
     return configuration.find("Emulated") != std::string_view::npos;
 }
 
 }  // namespace
 
-LegacyAudioOutputResult initialize_legacy_audio_output(
-    LegacyAudioOutputBackend& backend
-) {
+LegacyAudioOutputResult
+initialize_legacy_audio_output(LegacyAudioOutputBackend& backend) {
     LegacyAudioOutputResult result;
     compat::i32 sample_rate = kInitialSampleRate;
     compat::i32 bits_per_sample = kInitialBitsPerSample;
     backend.set_preference(kLegacyWavePreference, 0);
 
     while (sample_rate >= kMinimumSampleRate) {
-        const LegacyPcmOutputFormat format = make_format(
-            sample_rate,
-            bits_per_sample
-        );
+        const LegacyPcmOutputFormat format =
+            make_format(sample_rate, bits_per_sample);
         if (backend.open_output(format)) {
             const std::string_view configuration =
                 backend.output_configuration();

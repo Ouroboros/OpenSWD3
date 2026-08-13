@@ -25,18 +25,14 @@ using openswd3::platform_sdl3::LegacyPcmDecodeStatus;
 using openswd3::platform_sdl3::SdlLegacySampleBackend;
 
 void write_u16(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u16 value
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
 ) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
 void write_u32(
-    const std::span<u8> bytes,
-    const std::size_t offset,
-    const u32 value
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
 ) {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
@@ -44,20 +40,16 @@ void write_u32(
     bytes[offset + 3U] = static_cast<u8>(value >> 24U);
 }
 
-[[nodiscard]] u16 read_u16(
-    const std::span<const u8> bytes,
-    const std::size_t offset
-) {
+[[nodiscard]] u16
+read_u16(const std::span<const u8> bytes, const std::size_t offset) {
     return static_cast<u16>(
         static_cast<u16>(bytes[offset]) |
         static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U)
     );
 }
 
-[[nodiscard]] u32 read_u32(
-    const std::span<const u8> bytes,
-    const std::size_t offset
-) {
+[[nodiscard]] u32
+read_u32(const std::span<const u8> bytes, const std::size_t offset) {
     return static_cast<u32>(bytes[offset]) |
         (static_cast<u32>(bytes[offset + 1U]) << 8U) |
         (static_cast<u32>(bytes[offset + 2U]) << 16U) |
@@ -65,8 +57,7 @@ void write_u32(
 }
 
 [[nodiscard]] std::vector<u8> make_legacy_pcm(
-    const std::size_t frame_count,
-    const u16 bits_per_sample = 16U
+    const std::size_t frame_count, const u16 bits_per_sample = 16U
 ) {
     const std::size_t bytes_per_frame = bits_per_sample / 8U;
     const std::size_t pcm_size = frame_count * bytes_per_frame;
@@ -92,11 +83,7 @@ void write_u32(
     write_u16(bytes, 20U, 1U);
     write_u16(bytes, 22U, 1U);
     write_u32(bytes, 24U, 22'050U);
-    write_u32(
-        bytes,
-        28U,
-        22'050U * static_cast<u32>(bytes_per_frame)
-    );
+    write_u32(bytes, 28U, 22'050U * static_cast<u32>(bytes_per_frame));
     write_u16(bytes, 32U, static_cast<u16>(bytes_per_frame));
     write_u16(bytes, 34U, bits_per_sample);
     write_u32(bytes, 40U, static_cast<u32>(pcm_size));
@@ -115,10 +102,8 @@ void write_u32(
 
 void test_decode(openswd3::test::Context& test) {
     const std::vector<u8> pcm = make_legacy_pcm(4U);
-    const auto decoded = openswd3::platform_sdl3::decode_legacy_riff_pcm(
-        pcm,
-        22'050
-    );
+    const auto decoded =
+        openswd3::platform_sdl3::decode_legacy_riff_pcm(pcm, 22'050);
     test.expect_equal(
         decoded.status,
         LegacyPcmDecodeStatus::ready,
@@ -135,8 +120,7 @@ void test_decode(openswd3::test::Context& test) {
         "mono conversion duplicates the left channel"
     );
     test.expect_true(
-        decoded.stereo_frames[0] < 0.0F &&
-            decoded.stereo_frames[2] > 0.0F,
+        decoded.stereo_frames[0] < 0.0F && decoded.stereo_frames[2] > 0.0F,
         "signed PCM polarity survives conversion"
     );
 
@@ -144,20 +128,16 @@ void test_decode(openswd3::test::Context& test) {
     malformed[36] = 0U;
     malformed[37] = 0U;
     test.expect_equal(
-        openswd3::platform_sdl3::decode_legacy_riff_pcm(
-            malformed,
-            22'050
-        ).status,
+        openswd3::platform_sdl3::decode_legacy_riff_pcm(malformed, 22'050)
+            .status,
         LegacyPcmDecodeStatus::ready,
         "ID 506/507 malformed data tag remains accepted"
     );
 
     malformed[0] = 0U;
     test.expect_equal(
-        openswd3::platform_sdl3::decode_legacy_riff_pcm(
-            malformed,
-            22'050
-        ).status,
+        openswd3::platform_sdl3::decode_legacy_riff_pcm(malformed, 22'050)
+            .status,
         LegacyPcmDecodeStatus::invalid_riff,
         "non-RIFF data is rejected"
     );
@@ -193,10 +173,7 @@ void test_dummy_device_backend(openswd3::test::Context& test) {
     );
     test.expect_false(
         backend.set_named_sample_file(
-            handle,
-            std::string_view{".mp3"},
-            pcm,
-            0U
+            handle, std::string_view{".mp3"}, pcm, 0U
         ),
         "named MP3 setup is unavailable without a decoder"
     );
@@ -222,15 +199,12 @@ void test_dummy_device_backend(openswd3::test::Context& test) {
     backend.release_sample_handle(handle);
     backend.close_output();
     test.expect_equal(
-        backend.driver_token(),
-        0U,
-        "closed output clears the driver token"
+        backend.driver_token(), 0U, "closed output clears the driver token"
     );
 }
 
 void test_real_archive_formats(
-    openswd3::test::Context& test,
-    const std::filesystem::path& archive_path
+    openswd3::test::Context& test, const std::filesystem::path& archive_path
 ) {
     openswd3::audio_video::LegacySndArchive archive;
     test.expect_equal(
@@ -247,8 +221,8 @@ void test_real_archive_formats(
          sound_id <= openswd3::audio_video::kLegacySndSlotCount;
          ++sound_id) {
         const auto* const entry = archive.entry(sound_id);
-        if (entry == nullptr || entry->file_offset == 0U ||
-            sound_id == 270U || sound_id == 277U) {
+        if (entry == nullptr || entry->file_offset == 0U || sound_id == 270U ||
+            sound_id == 277U) {
             continue;
         }
 
@@ -274,9 +248,9 @@ void test_real_archive_formats(
         }
         test.expect_equal(
             openswd3::platform_sdl3::decode_legacy_riff_pcm(
-                loaded.bytes,
-                44'100
-            ).status,
+                loaded.bytes, 44'100
+            )
+                .status,
             LegacyPcmDecodeStatus::ready,
             "each real PCM format converts through SDL3"
         );

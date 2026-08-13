@@ -32,15 +32,15 @@ private:
 
 class RecordingCommandLinePorts final : public openswd3::app::CommandLinePorts {
 public:
-    explicit RecordingCommandLinePorts(std::vector<Call>& calls) : calls_(calls) {}
+    explicit RecordingCommandLinePorts(std::vector<Call>& calls)
+        : calls_(calls) {}
 
     void initialize_default_key_bindings() override {
         calls_.push_back(Call::initialize_default_key_bindings);
     }
 
     void run_legacy_command(
-        const openswd3::compat::u8 selector,
-        const std::string_view payload
+        const openswd3::compat::u8 selector, const std::string_view payload
     ) override {
         calls_.push_back(Call::command);
         seen_selector = selector;

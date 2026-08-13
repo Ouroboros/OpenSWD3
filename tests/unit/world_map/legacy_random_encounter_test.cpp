@@ -37,33 +37,40 @@ using openswd3::world_map::load_legacy_encounter_regions;
 using openswd3::world_map::load_legacy_encounter_thresholds;
 using openswd3::world_map::select_legacy_random_encounter;
 
-void write_u16(std::vector<u8> &bytes, const std::size_t offset,
-               const u16 value) {
+void write_u16(
+    std::vector<u8>& bytes, const std::size_t offset, const u16 value
+) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
 u16 read_u16(const std::span<const u8> bytes, const std::size_t offset) {
     return static_cast<u16>(bytes[offset]) |
-           static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
+        static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
 }
 
-void write_i16(std::vector<u8> &bytes, const std::size_t offset,
-               const i16 value) {
+void write_i16(
+    std::vector<u8>& bytes, const std::size_t offset, const i16 value
+) {
     write_u16(bytes, offset, std::bit_cast<u16>(value));
 }
 
-void write_u32(std::vector<u8> &bytes, const std::size_t offset,
-               const u32 value) {
+void write_u32(
+    std::vector<u8>& bytes, const std::size_t offset, const u32 value
+) {
     bytes[offset] = static_cast<u8>(value & 0xFFU);
     bytes[offset + 1U] = static_cast<u8>((value >> 8U) & 0xFFU);
     bytes[offset + 2U] = static_cast<u8>((value >> 16U) & 0xFFU);
     bytes[offset + 3U] = static_cast<u8>(value >> 24U);
 }
 
-void write_region_record(std::vector<u8> &bytes, const std::size_t offset,
-                         const u16 map_id, const std::array<u16, 4U> bounds,
-                         const u32 candidate_offset) {
+void write_region_record(
+    std::vector<u8>& bytes,
+    const std::size_t offset,
+    const u16 map_id,
+    const std::array<u16, 4U> bounds,
+    const u32 candidate_offset
+) {
     write_u16(bytes, offset, map_id);
     for (std::size_t index = 0U; index < bounds.size(); ++index) {
         write_u16(bytes, offset + 2U + index * 2U, bounds[index]);
@@ -72,7 +79,7 @@ void write_region_record(std::vector<u8> &bytes, const std::size_t offset,
 }
 
 class SequenceRng final : public LegacyRandomEncounterRng {
-  public:
+public:
     u32 next_bounded(const u32 upper_bound) override {
         bounds.push_back(upper_bound);
         if (next_value < values.size()) {
@@ -104,13 +111,28 @@ std::vector<u8> make_candidate_data() {
     return data;
 }
 
-void test_physical_source_loading(openswd3::test::Context &test) {
+void test_physical_source_loading(openswd3::test::Context& test) {
     std::vector<u8> data(0xC0U, 0U);
     write_u32(data, 0x1CU, 0x60U);
     write_u32(data, 0x48U, 0x20U);
 
     constexpr std::array<i16, 16U> threshold_words{
-        3, 10, 4, 20, 5, 30, 6, 40, -2, -3, 7, 80, 8, 90, 9, 100,
+        3,
+        10,
+        4,
+        20,
+        5,
+        30,
+        6,
+        40,
+        -2,
+        -3,
+        7,
+        80,
+        8,
+        90,
+        9,
+        100,
     };
     for (std::size_t index = 0U; index < threshold_words.size(); ++index) {
         write_i16(data, 0x20U + index * 2U, threshold_words[index]);
@@ -123,48 +145,70 @@ void test_physical_source_loading(openswd3::test::Context &test) {
     write_u16(data, 0x8AU, 0xFFFFU);
 
     const auto thresholds = load_legacy_encounter_thresholds(data);
-    test.expect_equal(thresholds.status, LegacyEncounterSourceStatus::ready,
-                      "threshold source reaches its FFFF terminator");
-    test.expect_equal(thresholds.groups.size(), std::size_t{2U},
-                      "sixteen source words become two 16-byte groups");
+    test.expect_equal(
+        thresholds.status,
+        LegacyEncounterSourceStatus::ready,
+        "threshold source reaches its FFFF terminator"
+    );
+    test.expect_equal(
+        thresholds.groups.size(),
+        std::size_t{2U},
+        "sixteen source words become two 16-byte groups"
+    );
     test.expect_true(
         thresholds.groups[0].bands[0].step_span == 3 &&
             thresholds.groups[0].bands[3].probability_threshold == 40 &&
             thresholds.groups[1].bands[0].step_span == -2 &&
             thresholds.groups[1].bands[3].probability_threshold == 100,
-        "signed threshold words retain the loader byte layout");
+        "signed threshold words retain the loader byte layout"
+    );
 
     const auto regions = load_legacy_encounter_regions(data, 7U);
-    test.expect_equal(regions.status, LegacyEncounterSourceStatus::ready,
-                      "region source reaches its FFFF terminator");
-    test.expect_equal(regions.regions.size(), std::size_t{2U},
-                      "only current-map region records are retained");
+    test.expect_equal(
+        regions.status,
+        LegacyEncounterSourceStatus::ready,
+        "region source reaches its FFFF terminator"
+    );
+    test.expect_equal(
+        regions.regions.size(),
+        std::size_t{2U},
+        "only current-map region records are retained"
+    );
     test.expect_true(
         regions.regions[0].minimum_x == 9 &&
             regions.regions[0].candidate_list_offset == 0xB0U &&
             regions.regions[1].minimum_x == 1 &&
             regions.regions[1].candidate_list_offset == 0xA0U,
-        "records are reversed exactly like insertion at object +0x14");
+        "records are reversed exactly like insertion at object +0x14"
+    );
 }
 
-void test_source_boundaries(openswd3::test::Context &test) {
+void test_source_boundaries(openswd3::test::Context& test) {
     const std::array<u8, 16U> short_source{};
-    test.expect_equal(load_legacy_encounter_regions(short_source, 1U).status,
-                      LegacyEncounterSourceStatus::source_header_truncated,
-                      "region header offset requires bytes through 0x1f");
-    test.expect_equal(load_legacy_encounter_thresholds(short_source).status,
-                      LegacyEncounterSourceStatus::source_header_truncated,
-                      "threshold header offset requires bytes through 0x4b");
+    test.expect_equal(
+        load_legacy_encounter_regions(short_source, 1U).status,
+        LegacyEncounterSourceStatus::source_header_truncated,
+        "region header offset requires bytes through 0x1f"
+    );
+    test.expect_equal(
+        load_legacy_encounter_thresholds(short_source).status,
+        LegacyEncounterSourceStatus::source_header_truncated,
+        "threshold header offset requires bytes through 0x4b"
+    );
 
     std::vector<u8> bad_offset(0x50U, 0U);
     write_u32(bad_offset, 0x1CU, 0x50U);
     write_u32(bad_offset, 0x48U, 0x60U);
-    test.expect_equal(load_legacy_encounter_regions(bad_offset, 1U).status,
-                      LegacyEncounterSourceStatus::source_offset_out_of_range,
-                      "region source offset must expose its first map word");
-    test.expect_equal(load_legacy_encounter_thresholds(bad_offset).status,
-                      LegacyEncounterSourceStatus::source_offset_out_of_range,
-                      "threshold source offset must expose its first word");
+    test.expect_equal(
+        load_legacy_encounter_regions(bad_offset, 1U).status,
+        LegacyEncounterSourceStatus::source_offset_out_of_range,
+        "region source offset must expose its first map word"
+    );
+    test.expect_equal(
+        load_legacy_encounter_thresholds(bad_offset).status,
+        LegacyEncounterSourceStatus::source_offset_out_of_range,
+        "threshold source offset must expose its first word"
+    );
 
     std::vector<u8> malformed(0x80U, 0U);
     write_u32(malformed, 0x1CU, 0x74U);
@@ -172,7 +216,8 @@ void test_source_boundaries(openswd3::test::Context &test) {
     test.expect_equal(
         load_legacy_encounter_regions(malformed, 1U).status,
         LegacyEncounterSourceStatus::source_record_truncated,
-        "partial 14-byte region record is exposed by the checked boundary");
+        "partial 14-byte region record is exposed by the checked boundary"
+    );
 
     write_u32(malformed, 0x48U, 0x60U);
     for (std::size_t index = 0U; index < 7U; ++index) {
@@ -183,10 +228,11 @@ void test_source_boundaries(openswd3::test::Context &test) {
         load_legacy_encounter_thresholds(malformed).status,
         LegacyEncounterSourceStatus::
             threshold_word_count_not_divisible_by_eight,
-        "loader preserves the original eight-word group invariant");
+        "loader preserves the original eight-word group invariant"
+    );
 }
 
-void test_selector_order_and_boundaries(openswd3::test::Context &test) {
+void test_selector_order_and_boundaries(openswd3::test::Context& test) {
     const std::array groups{make_threshold_group()};
     const std::array regions{
         LegacyEncounterRegion{5, 7, 5, 7, 20U},
@@ -197,38 +243,63 @@ void test_selector_order_and_boundaries(openswd3::test::Context &test) {
     u32 counter = 10U;
 
     const auto result = select_legacy_random_encounter(
-        {1U, 0U, 80U, 112U}, counter, groups, regions, data, random);
-    test.expect_equal(result.status, LegacyRandomEncounterStatus::completed,
-                      "valid selection completes");
+        {1U, 0U, 80U, 112U}, counter, groups, regions, data, random
+    );
     test.expect_equal(
-        result.selected_band_index, 1U,
-        "counter equal to first cumulative boundary selects band one");
-    test.expect_equal(result.matched_region_index, 0U,
-                      "inclusive tile bounds select the first region");
-    test.expect_equal(result.battle_id, u16{22U},
-                      "second RNG result indexes the u16 candidate payload");
-    test.expect_equal(random.bounds, std::vector<u32>{100U, 3U},
-                      "probability RNG precedes candidate RNG");
-    test.expect_equal(result.random_call_count, 2U,
-                      "two bounded calls recorded");
+        result.status,
+        LegacyRandomEncounterStatus::completed,
+        "valid selection completes"
+    );
     test.expect_equal(
-        counter, 0U, "candidate RNG completion clears the global step counter");
-    test.expect_true(result.encounter_counter_cleared,
-                     "counter clear point is observable in the result");
+        result.selected_band_index,
+        1U,
+        "counter equal to first cumulative boundary selects band one"
+    );
+    test.expect_equal(
+        result.matched_region_index,
+        0U,
+        "inclusive tile bounds select the first region"
+    );
+    test.expect_equal(
+        result.battle_id,
+        u16{22U},
+        "second RNG result indexes the u16 candidate payload"
+    );
+    test.expect_equal(
+        random.bounds,
+        std::vector<u32>{100U, 3U},
+        "probability RNG precedes candidate RNG"
+    );
+    test.expect_equal(
+        result.random_call_count, 2U, "two bounded calls recorded"
+    );
+    test.expect_equal(
+        counter, 0U, "candidate RNG completion clears the global step counter"
+    );
+    test.expect_true(
+        result.encounter_counter_cleared,
+        "counter clear point is observable in the result"
+    );
 
     SequenceRng strict_random;
     strict_random.values = {50U};
     counter = 1U;
     const auto strict = select_legacy_random_encounter(
-        {1U, 0U, 80U, 112U}, counter, groups, regions, data, strict_random);
+        {1U, 0U, 80U, 112U}, counter, groups, regions, data, strict_random
+    );
     test.expect_equal(
-        strict.battle_id, u16{0U},
-        "threshold equal to roll fails the strict greater comparison");
+        strict.battle_id,
+        u16{0U},
+        "threshold equal to roll fails the strict greater comparison"
+    );
     test.expect_equal(
-        strict_random.bounds, std::vector<u32>{100U},
-        "failed probability does not query the region candidates");
-    test.expect_equal(counter, 1U,
-                      "failed probability does not clear the counter");
+        strict_random.bounds,
+        std::vector<u32>{100U},
+        "failed probability does not query the region candidates"
+    );
+    test.expect_equal(
+        counter, 1U, "failed probability does not clear the counter"
+    );
 
     LegacyEncounterThresholdGroup forced_group{};
     forced_group.bands[0] = {1, -1};
@@ -236,50 +307,74 @@ void test_selector_order_and_boundaries(openswd3::test::Context &test) {
     forced_random.values = {99U, 2U};
     counter = 0x7FFFFFFFU;
     const auto forced = select_legacy_random_encounter(
-        {1U, 1U, 80U, 112U}, counter,
+        {1U, 1U, 80U, 112U},
+        counter,
         std::span<const LegacyEncounterThresholdGroup>{&forced_group, 1U},
-        regions, data, forced_random);
+        regions,
+        data,
+        forced_random
+    );
     test.expect_equal(
-        forced.selected_band_index, 0U,
-        "force value exactly one chooses the first band immediately");
-    test.expect_equal(forced.battle_id, u16{33U},
-                      "force value one bypasses even a negative threshold");
+        forced.selected_band_index,
+        0U,
+        "force value exactly one chooses the first band immediately"
+    );
+    test.expect_equal(
+        forced.battle_id,
+        u16{33U},
+        "force value one bypasses even a negative threshold"
+    );
 
     SequenceRng not_forced_random;
     not_forced_random.values = {0U};
     counter = 0x7FFFFFFFU;
     const auto not_forced = select_legacy_random_encounter(
-        {1U, 2U, 80U, 112U}, counter,
+        {1U, 2U, 80U, 112U},
+        counter,
         std::span<const LegacyEncounterThresholdGroup>{&forced_group, 1U},
-        regions, data, not_forced_random);
-    test.expect_equal(not_forced.selected_band_index, kLegacyEncounterNoIndex,
-                      "force value two does not satisfy cmp arg,1");
+        regions,
+        data,
+        not_forced_random
+    );
+    test.expect_equal(
+        not_forced.selected_band_index,
+        kLegacyEncounterNoIndex,
+        "force value two does not satisfy cmp arg,1"
+    );
 }
 
-void test_selector_failure_side_effects(openswd3::test::Context &test) {
+void test_selector_failure_side_effects(openswd3::test::Context& test) {
     const std::array groups{make_threshold_group()};
     std::vector<u8> data = make_candidate_data();
 
     SequenceRng disabled_random;
     u32 counter = 7U;
     const auto disabled = select_legacy_random_encounter(
-        {0U, 0U, 0U, 0U}, counter, groups, {}, data, disabled_random);
-    test.expect_true(disabled_random.bounds.empty(),
-                     "encounter table zero returns before the first RNG call");
-    test.expect_equal(disabled.battle_id, u16{0U},
-                      "disabled encounter returns zero");
+        {0U, 0U, 0U, 0U}, counter, groups, {}, data, disabled_random
+    );
+    test.expect_true(
+        disabled_random.bounds.empty(),
+        "encounter table zero returns before the first RNG call"
+    );
+    test.expect_equal(
+        disabled.battle_id, u16{0U}, "disabled encounter returns zero"
+    );
 
     SequenceRng bad_index_random;
     bad_index_random.values = {3U};
     const auto bad_index = select_legacy_random_encounter(
-        {2U, 0U, 0U, 0U}, counter, groups, {}, data, bad_index_random);
+        {2U, 0U, 0U, 0U}, counter, groups, {}, data, bad_index_random
+    );
     test.expect_equal(
         bad_index.status,
         LegacyRandomEncounterStatus::encounter_table_index_out_of_range,
-        "checked table boundary reports the loader invariant violation");
+        "checked table boundary reports the loader invariant violation"
+    );
     test.expect_equal(
-        bad_index_random.bounds, std::vector<u32>{100U},
-        "original first RNG side effect precedes table dereference");
+        bad_index_random.bounds,
+        std::vector<u32>{100U},
+        "original first RNG side effect precedes table dereference"
+    );
 
     SequenceRng no_region_random;
     no_region_random.values = {1U};
@@ -287,13 +382,19 @@ void test_selector_failure_side_effects(openswd3::test::Context &test) {
     const std::array elsewhere{
         LegacyEncounterRegion{50, 50, 60, 60, 20U},
     };
-    const auto no_region =
-        select_legacy_random_encounter({1U, 0U, 80U, 112U}, counter, groups,
-                                       elsewhere, data, no_region_random);
-    test.expect_equal(no_region.matched_region_index, kLegacyEncounterNoIndex,
-                      "no matching linked region returns zero battle");
-    test.expect_equal(no_region_random.bounds, std::vector<u32>{100U},
-                      "region miss occurs after only the probability call");
+    const auto no_region = select_legacy_random_encounter(
+        {1U, 0U, 80U, 112U}, counter, groups, elsewhere, data, no_region_random
+    );
+    test.expect_equal(
+        no_region.matched_region_index,
+        kLegacyEncounterNoIndex,
+        "no matching linked region returns zero battle"
+    );
+    test.expect_equal(
+        no_region_random.bounds,
+        std::vector<u32>{100U},
+        "region miss occurs after only the probability call"
+    );
     test.expect_equal(counter, 1U, "region miss retains the step counter");
 
     std::vector<u8> zero_count_data(24U, 0U);
@@ -304,18 +405,26 @@ void test_selector_failure_side_effects(openswd3::test::Context &test) {
     zero_count_random.values = {1U};
     counter = 1U;
     const auto zero_count = select_legacy_random_encounter(
-        {1U, 0U, 80U, 112U}, counter, groups, zero_region, zero_count_data,
-        zero_count_random);
+        {1U, 0U, 80U, 112U},
+        counter,
+        groups,
+        zero_region,
+        zero_count_data,
+        zero_count_random
+    );
     test.expect_equal(
         zero_count.status,
         LegacyRandomEncounterStatus::candidate_count_zero_original_divide_error,
-        "zero candidate count exposes the original bounded-RNG divide error");
+        "zero candidate count exposes the original bounded-RNG divide error"
+    );
     test.expect_equal(
-        zero_count_random.bounds, std::vector<u32>{100U},
-        "modern checked boundary stops before executing bound zero");
+        zero_count_random.bounds,
+        std::vector<u32>{100U},
+        "modern checked boundary stops before executing bound zero"
+    );
     test.expect_equal(
-        counter, 1U,
-        "original fault occurs before the encounter counter clear");
+        counter, 1U, "original fault occurs before the encounter counter clear"
+    );
 
     std::vector<u8> truncated_data(25U, 0U);
     write_u16(truncated_data, 20U, 3U);
@@ -324,17 +433,26 @@ void test_selector_failure_side_effects(openswd3::test::Context &test) {
     truncated_random.values = {1U, 2U};
     counter = 1U;
     const auto truncated = select_legacy_random_encounter(
-        {1U, 0U, 80U, 112U}, counter, groups, zero_region, truncated_data,
-        truncated_random);
-    test.expect_equal(truncated.status,
-                      LegacyRandomEncounterStatus::candidate_payload_truncated,
-                      "selected candidate outside the payload is reported");
+        {1U, 0U, 80U, 112U},
+        counter,
+        groups,
+        zero_region,
+        truncated_data,
+        truncated_random
+    );
     test.expect_equal(
-        truncated_random.bounds, std::vector<u32>{100U, 3U},
-        "candidate RNG still precedes the original out-of-range read");
+        truncated.status,
+        LegacyRandomEncounterStatus::candidate_payload_truncated,
+        "selected candidate outside the payload is reported"
+    );
     test.expect_equal(
-        counter, 0U,
-        "counter clear still precedes the original candidate read");
+        truncated_random.bounds,
+        std::vector<u32>{100U, 3U},
+        "candidate RNG still precedes the original out-of-range read"
+    );
+    test.expect_equal(
+        counter, 0U, "counter clear still precedes the original candidate read"
+    );
 }
 
 enum class EncounterCall {
@@ -352,7 +470,7 @@ enum class EncounterCall {
 };
 
 class RecordingEncounterPorts final : public LegacyWorldEncounterPorts {
-  public:
+public:
     u32 query_encounter_suppression() override {
         calls.push_back(EncounterCall::query_suppression);
         return suppression;
@@ -364,9 +482,9 @@ class RecordingEncounterPorts final : public LegacyWorldEncounterPorts {
         return flag_result;
     }
 
-    LegacyRandomEncounterResult
-    select_encounter(u32 &encounter_step_counter,
-                     const u32 force_mode) override {
+    LegacyRandomEncounterResult select_encounter(
+        u32& encounter_step_counter, const u32 force_mode
+    ) override {
         calls.push_back(EncounterCall::select);
         selected_counter = encounter_step_counter;
         selected_force = force_mode;
@@ -421,7 +539,7 @@ LegacyWorldTalkContext idle_talk() {
     return talk;
 }
 
-void test_world_encounter_gates(openswd3::test::Context &test) {
+void test_world_encounter_gates(openswd3::test::Context& test) {
     LegacyWorldEncounterState state{};
     state.encounter_step_counter = 10U;
     state.temporary_battle_request = 77U;
@@ -429,17 +547,26 @@ void test_world_encounter_gates(openswd3::test::Context &test) {
     ports.suppression = 1U;
     const auto suppressed =
         coordinate_legacy_world_encounter(state, idle_talk(), {}, ports);
-    test.expect_equal(suppressed.outcome,
-                      LegacyWorldEncounterOutcome::encounter_suppressed,
-                      "first suppression gate exits the encounter tail");
-    test.expect_equal(state.encounter_step_counter, 10U,
-                      "suppression gate precedes counter increment");
-    test.expect_equal(state.temporary_battle_request, 0U,
-                      "common tail always clears the temporary request");
+    test.expect_equal(
+        suppressed.outcome,
+        LegacyWorldEncounterOutcome::encounter_suppressed,
+        "first suppression gate exits the encounter tail"
+    );
+    test.expect_equal(
+        state.encounter_step_counter,
+        10U,
+        "suppression gate precedes counter increment"
+    );
+    test.expect_equal(
+        state.temporary_battle_request,
+        0U,
+        "common tail always clears the temporary request"
+    );
     test.expect_equal(
         ports.calls,
         std::vector<EncounterCall>{EncounterCall::query_suppression},
-        "suppression performs no later query");
+        "suppression performs no later query"
+    );
 
     state = {};
     state.encounter_step_counter = 0xFFFFFFFFU;
@@ -447,24 +574,35 @@ void test_world_encounter_gates(openswd3::test::Context &test) {
     ports = {};
     const auto active =
         coordinate_legacy_world_encounter(state, idle_talk(), {}, ports);
-    test.expect_equal(active.outcome,
-                      LegacyWorldEncounterOutcome::battle_already_active,
-                      "active battle exits after increment");
-    test.expect_equal(state.encounter_step_counter, 0U,
-                      "counter increment wraps before the active-battle gate");
+    test.expect_equal(
+        active.outcome,
+        LegacyWorldEncounterOutcome::battle_already_active,
+        "active battle exits after increment"
+    );
+    test.expect_equal(
+        state.encounter_step_counter,
+        0U,
+        "counter increment wraps before the active-battle gate"
+    );
 
     state = {};
     ports = {};
     ports.flag_result = 0U;
     const auto flag_clear =
         coordinate_legacy_world_encounter(state, idle_talk(), {}, ports);
-    test.expect_equal(flag_clear.outcome,
-                      LegacyWorldEncounterOutcome::encounter_flag_clear,
-                      "internal bit 12 gates selection");
-    test.expect_equal(ports.queried_flag, 0x0CU,
-                      "the exact internal bit index is queried");
-    test.expect_equal(state.encounter_step_counter, 1U,
-                      "bit-12 failure retains the preceding increment");
+    test.expect_equal(
+        flag_clear.outcome,
+        LegacyWorldEncounterOutcome::encounter_flag_clear,
+        "internal bit 12 gates selection"
+    );
+    test.expect_equal(
+        ports.queried_flag, 0x0CU, "the exact internal bit index is queried"
+    );
+    test.expect_equal(
+        state.encounter_step_counter,
+        1U,
+        "bit-12 failure retains the preceding increment"
+    );
 
     state = {};
     state.temporary_battle_request = 9U;
@@ -474,9 +612,13 @@ void test_world_encounter_gates(openswd3::test::Context &test) {
     test.expect_equal(
         pending.outcome,
         LegacyWorldEncounterOutcome::battle_request_already_pending,
-        "existing temporary battle request blocks selection");
-    test.expect_equal(state.temporary_battle_request, 0U,
-                      "existing request is still cleared at the common tail");
+        "existing temporary battle request blocks selection"
+    );
+    test.expect_equal(
+        state.temporary_battle_request,
+        0U,
+        "existing request is still cleared at the common tail"
+    );
 
     state = {};
     ports = {};
@@ -484,26 +626,41 @@ void test_world_encounter_gates(openswd3::test::Context &test) {
     busy_talk.source_guid = 2U;
     const auto busy =
         coordinate_legacy_world_encounter(state, busy_talk, {}, ports);
-    test.expect_equal(busy.outcome, LegacyWorldEncounterOutcome::talk_active,
-                      "non-FFFF Talk source blocks selection");
+    test.expect_equal(
+        busy.outcome,
+        LegacyWorldEncounterOutcome::talk_active,
+        "non-FFFF Talk source blocks selection"
+    );
 }
 
-void test_world_encounter_selection_and_entry(openswd3::test::Context &test) {
+void test_world_encounter_selection_and_entry(openswd3::test::Context& test) {
     LegacyWorldEncounterState state{};
     state.encounter_step_counter = 4U;
     state.temporary_battle_request = 0U;
     RecordingEncounterPorts no_battle_ports;
     const auto no_battle = coordinate_legacy_world_encounter(
-        state, idle_talk(), {}, no_battle_ports);
-    test.expect_equal(no_battle.outcome,
-                      LegacyWorldEncounterOutcome::no_encounter,
-                      "zero selection reaches the no-encounter tail");
-    test.expect_equal(no_battle_ports.selected_counter, 5U,
-                      "selector receives the incremented counter");
-    test.expect_equal(no_battle_ports.selected_force, 0U,
-                      "normal world path passes force mode zero");
-    test.expect_equal(state.temporary_battle_request, 0U,
-                      "stored zero selection is cleared at the tail");
+        state, idle_talk(), {}, no_battle_ports
+    );
+    test.expect_equal(
+        no_battle.outcome,
+        LegacyWorldEncounterOutcome::no_encounter,
+        "zero selection reaches the no-encounter tail"
+    );
+    test.expect_equal(
+        no_battle_ports.selected_counter,
+        5U,
+        "selector receives the incremented counter"
+    );
+    test.expect_equal(
+        no_battle_ports.selected_force,
+        0U,
+        "normal world path passes force mode zero"
+    );
+    test.expect_equal(
+        state.temporary_battle_request,
+        0U,
+        "stored zero selection is cleared at the tail"
+    );
 
     state = {};
     RecordingEncounterPorts failed_ports;
@@ -512,12 +669,15 @@ void test_world_encounter_selection_and_entry(openswd3::test::Context &test) {
     const auto failed =
         coordinate_legacy_world_encounter(state, idle_talk(), {}, failed_ports);
     test.expect_equal(
-        failed.outcome, LegacyWorldEncounterOutcome::selection_failed,
-        "checked invalid asset state is not silently treated as no encounter");
+        failed.outcome,
+        LegacyWorldEncounterOutcome::selection_failed,
+        "checked invalid asset state is not silently treated as no encounter"
+    );
     test.expect_equal(
         failed.selection_status,
         LegacyRandomEncounterStatus::candidate_payload_truncated,
-        "selector failure reason crosses the coordinator boundary");
+        "selector failure reason crosses the coordinator boundary"
+    );
 
     state = {};
     state.encounter_step_counter = 99U;
@@ -536,14 +696,22 @@ void test_world_encounter_selection_and_entry(openswd3::test::Context &test) {
     success_ports.close_view_result = true;
 
     const auto entered = coordinate_legacy_world_encounter(
-        state, idle_talk(), roles, success_ports);
-    test.expect_equal(entered.outcome,
-                      LegacyWorldEncounterOutcome::battle_entered,
-                      "nonzero battle id enters battle immediately");
-    test.expect_equal(entered.battle_id, u16{0x3456U},
-                      "battle id preserves its low 16-bit value");
-    test.expect_true(entered.map_view_close_succeeded,
-                     "successful mapped-view close is reported");
+        state, idle_talk(), roles, success_ports
+    );
+    test.expect_equal(
+        entered.outcome,
+        LegacyWorldEncounterOutcome::battle_entered,
+        "nonzero battle id enters battle immediately"
+    );
+    test.expect_equal(
+        entered.battle_id,
+        u16{0x3456U},
+        "battle id preserves its low 16-bit value"
+    );
+    test.expect_true(
+        entered.map_view_close_succeeded,
+        "successful mapped-view close is reported"
+    );
     test.expect_equal(
         success_ports.calls,
         std::vector<EncounterCall>{
@@ -558,43 +726,62 @@ void test_world_encounter_selection_and_entry(openswd3::test::Context &test) {
             EncounterCall::close_view,
             EncounterCall::close_handle,
         },
-        "battle entry preserves the exact audio/resource/map close order");
-    test.expect_equal(success_ports.initialized_battle, u16{0x3456U},
-                      "battle initializer receives the selected word");
-    test.expect_equal(state.encounter_step_counter, 0U,
-                      "selector clear remains visible after battle entry");
-    test.expect_equal(state.battle_active, 1U,
-                      "battle active is set after initialization");
-    test.expect_true(state.movement_state_4b7920 == 0U &&
-                         state.movement_state_4b7518 == 0U &&
-                         state.movement_state_4a948c == 0U &&
-                         state.movement_state_4a9488 == 0U,
-                     "four movement globals are cleared");
+        "battle entry preserves the exact audio/resource/map close order"
+    );
+    test.expect_equal(
+        success_ports.initialized_battle,
+        u16{0x3456U},
+        "battle initializer receives the selected word"
+    );
+    test.expect_equal(
+        state.encounter_step_counter,
+        0U,
+        "selector clear remains visible after battle entry"
+    );
+    test.expect_equal(
+        state.battle_active, 1U, "battle active is set after initialization"
+    );
+    test.expect_true(
+        state.movement_state_4b7920 == 0U &&
+            state.movement_state_4b7518 == 0U &&
+            state.movement_state_4a948c == 0U &&
+            state.movement_state_4a9488 == 0U,
+        "four movement globals are cleared"
+    );
     test.expect_true(
         roles[0].flags == kLegacyEncounterPartyEntryFlag &&
             roles[1].flags == 0x20U && roles[2].flags == 0x80000000U,
-        "party clear starts at role one and preserves every other flag");
-    test.expect_equal(state.temporary_battle_request, 0U,
-                      "successful entry also reaches the common request clear");
+        "party clear starts at role one and preserves every other flag"
+    );
+    test.expect_equal(
+        state.temporary_battle_request,
+        0U,
+        "successful entry also reaches the common request clear"
+    );
 
     state = {};
     RecordingEncounterPorts close_failure_ports;
     close_failure_ports.selection.battle_id = 1U;
     close_failure_ports.close_view_result = false;
     const auto close_failure = coordinate_legacy_world_encounter(
-        state, idle_talk(), {}, close_failure_ports);
-    test.expect_false(close_failure.map_view_close_succeeded,
-                      "failed mapped-view close remains observable");
+        state, idle_talk(), {}, close_failure_ports
+    );
+    test.expect_false(
+        close_failure.map_view_close_succeeded,
+        "failed mapped-view close remains observable"
+    );
     test.expect_true(
         close_failure_ports.calls.size() >= 2U &&
             close_failure_ports.calls[close_failure_ports.calls.size() - 2U] ==
                 EncounterCall::report_close_failure &&
             close_failure_ports.calls.back() == EncounterCall::close_handle,
-        "close failure reports diagnostics but still closes the handle object");
+        "close failure reports diagnostics but still closes the handle object"
+    );
 }
 
-void test_real_maps_dat(openswd3::test::Context &test,
-                        const std::filesystem::path &path) {
+void test_real_maps_dat(
+    openswd3::test::Context& test, const std::filesystem::path& path
+) {
     std::ifstream input(path, std::ios::binary);
     const bool opened = input.is_open();
     const std::vector<u8> file_bytes{
@@ -603,7 +790,8 @@ void test_real_maps_dat(openswd3::test::Context &test,
     };
     test.expect_true(
         opened && file_bytes.size() > 0x200U,
-        "current MAPS.DAT can be read through its 0x200-byte prefix");
+        "current MAPS.DAT can be read through its 0x200-byte prefix"
+    );
     if (!opened || file_bytes.size() <= 0x200U) {
         return;
     }
@@ -613,10 +801,16 @@ void test_real_maps_dat(openswd3::test::Context &test,
         file_bytes.size() - 0x200U,
     };
     const auto thresholds = load_legacy_encounter_thresholds(payload);
-    test.expect_equal(thresholds.status, LegacyEncounterSourceStatus::ready,
-                      "current MAPS threshold source is structurally complete");
-    test.expect_equal(thresholds.groups.size(), std::size_t{11U},
-                      "current game payload contains eleven encounter groups");
+    test.expect_equal(
+        thresholds.status,
+        LegacyEncounterSourceStatus::ready,
+        "current MAPS threshold source is structurally complete"
+    );
+    test.expect_equal(
+        thresholds.groups.size(),
+        std::size_t{11U},
+        "current game payload contains eleven encounter groups"
+    );
 
     std::size_t total_regions = 0U;
     bool every_candidate_list_valid = true;
@@ -627,7 +821,7 @@ void test_real_maps_dat(openswd3::test::Context &test,
             break;
         }
         total_regions += regions.regions.size();
-        for (const auto &region : regions.regions) {
+        for (const auto& region : regions.regions) {
             const std::size_t offset = region.candidate_list_offset;
             if (offset > payload.size() || payload.size() - offset < 2U) {
                 every_candidate_list_valid = false;
@@ -645,20 +839,26 @@ void test_real_maps_dat(openswd3::test::Context &test,
             break;
         }
     }
-    test.expect_equal(total_regions, std::size_t{115U},
-                      "all current region records are reachable by map id");
-    test.expect_true(every_candidate_list_valid,
-                     "all current candidate lists are nonempty and in bounds");
+    test.expect_equal(
+        total_regions,
+        std::size_t{115U},
+        "all current region records are reachable by map id"
+    );
+    test.expect_true(
+        every_candidate_list_valid,
+        "all current candidate lists are nonempty and in bounds"
+    );
 
     const auto map_37 = load_legacy_encounter_regions(payload, 37U);
-    test.expect_true(map_37.status == LegacyEncounterSourceStatus::ready &&
-                         map_37.regions.size() == 1U &&
-                         map_37.regions[0].minimum_x == 0 &&
-                         map_37.regions[0].minimum_y == 0 &&
-                         map_37.regions[0].maximum_x == 105 &&
-                         map_37.regions[0].maximum_y == 110 &&
-                         map_37.regions[0].candidate_list_offset == 0x20CEU,
-                     "map 37 fixes a concrete current-data region vector");
+    test.expect_true(
+        map_37.status == LegacyEncounterSourceStatus::ready &&
+            map_37.regions.size() == 1U && map_37.regions[0].minimum_x == 0 &&
+            map_37.regions[0].minimum_y == 0 &&
+            map_37.regions[0].maximum_x == 105 &&
+            map_37.regions[0].maximum_y == 110 &&
+            map_37.regions[0].candidate_list_offset == 0x20CEU,
+        "map 37 fixes a concrete current-data region vector"
+    );
     if (thresholds.status != LegacyEncounterSourceStatus::ready ||
         map_37.status != LegacyEncounterSourceStatus::ready ||
         map_37.regions.empty()) {
@@ -669,21 +869,36 @@ void test_real_maps_dat(openswd3::test::Context &test,
     random.values = {99U, 0U};
     u32 counter = 123U;
     const auto selected = select_legacy_random_encounter(
-        {1U, 1U, 0U, 0U}, counter, thresholds.groups, map_37.regions, payload,
-        random);
-    test.expect_equal(selected.status, LegacyRandomEncounterStatus::completed,
-                      "current map 37 forced encounter completes");
-    test.expect_equal(selected.battle_id, u16{1U},
-                      "map 37 candidate zero is current battle id one");
-    test.expect_equal(random.bounds, std::vector<u32>{100U, 2U},
-                      "current map 37 retains the two exact random bounds");
-    test.expect_equal(counter, 0U,
-                      "current map candidate selection clears the counter");
+        {1U, 1U, 0U, 0U},
+        counter,
+        thresholds.groups,
+        map_37.regions,
+        payload,
+        random
+    );
+    test.expect_equal(
+        selected.status,
+        LegacyRandomEncounterStatus::completed,
+        "current map 37 forced encounter completes"
+    );
+    test.expect_equal(
+        selected.battle_id,
+        u16{1U},
+        "map 37 candidate zero is current battle id one"
+    );
+    test.expect_equal(
+        random.bounds,
+        std::vector<u32>{100U, 2U},
+        "current map 37 retains the two exact random bounds"
+    );
+    test.expect_equal(
+        counter, 0U, "current map candidate selection clears the counter"
+    );
 }
 
-} // namespace
+}  // namespace
 
-int main(const int argc, char **argv) {
+int main(const int argc, char** argv) {
     openswd3::test::Context test;
     test_physical_source_loading(test);
     test_source_boundaries(test);

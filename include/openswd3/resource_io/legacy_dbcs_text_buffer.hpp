@@ -24,18 +24,15 @@ struct LegacyDbcsTextBufferEditView {
 };
 
 [[nodiscard]] compat::i32 legacy_cp950_next_character_offset(
-    const compat::u8* text,
-    compat::i32 current_offset
+    const compat::u8* text, compat::i32 current_offset
 ) noexcept;
 
 [[nodiscard]] compat::i32 legacy_cp950_previous_character_offset(
-    const compat::u8* text,
-    compat::i32 current_offset
+    const compat::u8* text, compat::i32 current_offset
 ) noexcept;
 
 [[nodiscard]] compat::i32 legacy_cp950_bounded_length(
-    const compat::u8* text,
-    compat::i32 maximum_bytes
+    const compat::u8* text, compat::i32 maximum_bytes
 ) noexcept;
 
 class LegacyDbcsTextBuffer final {
@@ -58,8 +55,7 @@ public:
     [[nodiscard]] compat::i32 y() const noexcept;
     [[nodiscard]] compat::i32 cursor_byte_offset() const noexcept;
     [[nodiscard]] compat::i32 copy_to(
-        compat::u8* destination,
-        compat::i32 destination_size
+        compat::u8* destination, compat::i32 destination_size
     ) const noexcept;
     [[nodiscard]] LegacyDbcsTextBufferSnapshot snapshot() const noexcept;
     [[nodiscard]] LegacyDbcsTextBufferEditView borrow_edit_view() noexcept;

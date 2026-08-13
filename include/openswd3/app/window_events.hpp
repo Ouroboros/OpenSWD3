@@ -13,18 +13,15 @@ enum class DisplayTransition {
 };
 
 [[nodiscard]] DisplayTransition select_size_display_transition(
-    compat::u32 runtime_initialized,
-    compat::u32 size_code
+    compat::u32 runtime_initialized, compat::u32 size_code
 ) noexcept;
 
 [[nodiscard]] DisplayTransition select_activation_display_transition(
-    compat::u32 runtime_initialized,
-    compat::u32 activation_value
+    compat::u32 runtime_initialized, compat::u32 activation_value
 ) noexcept;
 
 [[nodiscard]] DisplayTransition select_system_enter_display_transition(
-    compat::u32 key_value,
-    compat::u32 display_active
+    compat::u32 key_value, compat::u32 display_active
 ) noexcept;
 
 void apply_display_transition(
@@ -33,9 +30,8 @@ void apply_display_transition(
     DisplayLifecyclePorts& ports
 );
 
-[[nodiscard]] bool should_intercept_system_command(
-    compat::u32 command
-) noexcept;
+[[nodiscard]] bool
+should_intercept_system_command(compat::u32 command) noexcept;
 
 enum class WindowMessagePrefixResult {
     continue_dispatch,
@@ -77,15 +73,11 @@ public:
 };
 
 void handle_key_release(
-    WindowEventState& state,
-    compat::u32 key_value,
-    WindowEventPorts& ports
+    WindowEventState& state, compat::u32 key_value, WindowEventPorts& ports
 );
 
 void handle_left_button_down(
-    WindowEventState& state,
-    compat::u32 button_state,
-    WindowEventPorts& ports
+    WindowEventState& state, compat::u32 button_state, WindowEventPorts& ports
 );
 
 class ProcessExitPorts {

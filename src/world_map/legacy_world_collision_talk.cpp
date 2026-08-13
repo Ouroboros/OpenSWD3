@@ -14,29 +14,38 @@ using compat::i32;
 using compat::u32;
 
 constexpr std::array<i32, 8> kLegacyTalkDirectionX{
-    4, 0, -4, -4, -4, 0, 4, 4,
+    4,
+    0,
+    -4,
+    -4,
+    -4,
+    0,
+    4,
+    4,
 };
 constexpr std::array<i32, 8> kLegacyTalkDirectionY{
-    4, 4, 4, 0, -4, -4, -4, 0,
+    4,
+    4,
+    4,
+    0,
+    -4,
+    -4,
+    -4,
+    0,
 };
 
-[[nodiscard]] constexpr bool has_motion(
-    const i32 delta_x,
-    const i32 delta_y
-) noexcept {
+[[nodiscard]] constexpr bool
+has_motion(const i32 delta_x, const i32 delta_y) noexcept {
     return delta_x != 0 || delta_y != 0;
 }
 
-[[nodiscard]] constexpr u32 wrapping_scaled_add(
-    const u32 value,
-    const u32 scale
-) noexcept {
+[[nodiscard]] constexpr u32
+wrapping_scaled_add(const u32 value, const u32 scale) noexcept {
     return value + scale * 8U;
 }
 
 [[nodiscard]] const LegacyWorldMapEvent* find_map_event(
-    const std::span<const LegacyWorldMapEvent> events,
-    const u32 event_code
+    const std::span<const LegacyWorldMapEvent> events, const u32 event_code
 ) noexcept {
     for (const LegacyWorldMapEvent& event : events) {
         if (event.field_04 == event_code) {
@@ -53,25 +62,20 @@ constexpr std::array<i32, 8> kLegacyTalkDirectionY{
     const i32 delta_y,
     LegacyWorldCollisionTalkPorts& ports
 ) {
-    const LegacyMovementCollisionResult collision = ports.query_collision(
-        player_index,
-        delta_x,
-        delta_y
-    );
+    const LegacyMovementCollisionResult collision =
+        ports.query_collision(player_index, delta_x, delta_y);
     ++result.collision_query_count;
     result.event_code = collision.event_code;
     result.hit_role_index = collision.hit_role_index;
     if (collision.status != LegacyMovementCollisionStatus::completed) {
-        result.status =
-            LegacyWorldCollisionTalkStatus::collision_query_failed;
+        result.status = LegacyWorldCollisionTalkStatus::collision_query_failed;
         return false;
     }
     return true;
 }
 
-[[nodiscard]] constexpr u32 opposite_legacy_direction(
-    const u32 direction
-) noexcept {
+[[nodiscard]] constexpr u32
+opposite_legacy_direction(const u32 direction) noexcept {
     return (direction & 0xFFFFFFFEU) + ((direction - 1U) & 1U);
 }
 
@@ -90,8 +94,7 @@ LegacyWorldCollisionTalkResult coordinate_legacy_world_collision_talk(
         .delta_y = request.adjusted_delta_y,
     };
     if (request.player_index >= roles.size()) {
-        result.status =
-            LegacyWorldCollisionTalkStatus::invalid_player_index;
+        result.status = LegacyWorldCollisionTalkStatus::invalid_player_index;
         return result;
     }
 
@@ -172,28 +175,19 @@ LegacyWorldCollisionTalkResult coordinate_legacy_world_collision_talk(
     }
 
     LegacyWorldRoleRecord& target = roles[result.hit_role_index];
-    const u32 player_center_x = wrapping_scaled_add(
-        player.world_x,
-        player.action.field_2c
-    );
-    const u32 player_center_y = wrapping_scaled_add(
-        player.world_y,
-        player.action.field_30
-    );
-    const u32 target_center_x = wrapping_scaled_add(
-        target.world_x,
-        target.action.field_2c
-    );
-    const u32 target_center_y = wrapping_scaled_add(
-        target.world_y,
-        target.action.field_30
-    );
-    const u32 facing = measure_legacy_world_facing(
-        player_center_x,
-        player_center_y,
-        target_center_x,
-        target_center_y
-    ).direction;
+    const u32 player_center_x =
+        wrapping_scaled_add(player.world_x, player.action.field_2c);
+    const u32 player_center_y =
+        wrapping_scaled_add(player.world_y, player.action.field_30);
+    const u32 target_center_x =
+        wrapping_scaled_add(target.world_x, target.action.field_2c);
+    const u32 target_center_y =
+        wrapping_scaled_add(target.world_y, target.action.field_30);
+    const u32 facing =
+        measure_legacy_world_facing(
+            player_center_x, player_center_y, target_center_x, target_center_y
+        )
+            .direction;
 
     if ((target.flags & kLegacyWorldTalkTurningRoleFlag) != 0U) {
         LegacyActionRecord& action = target.action;

@@ -74,8 +74,8 @@ public:
                 if (match_result == MatchResult::finished) {
                     const LegacyLzo1xStatus status =
                         input_position_ == source_.size()
-                            ? LegacyLzo1xStatus::success
-                            : LegacyLzo1xStatus::input_not_consumed;
+                        ? LegacyLzo1xStatus::success
+                        : LegacyLzo1xStatus::input_not_consumed;
                     return make_result(status);
                 }
 
@@ -94,9 +94,8 @@ public:
     }
 
 private:
-    [[nodiscard]] LegacyLzo1xResult make_result(
-        const LegacyLzo1xStatus status
-    ) const noexcept {
+    [[nodiscard]] LegacyLzo1xResult
+    make_result(const LegacyLzo1xStatus status) const noexcept {
         return LegacyLzo1xResult{
             status,
             static_cast<compat::u32>(output_position_),
@@ -128,15 +127,13 @@ private:
         }
 
         value = static_cast<compat::u32>(source_[input_position_]) |
-                (static_cast<compat::u32>(source_[input_position_ + 1U]) << 8U);
+            (static_cast<compat::u32>(source_[input_position_ + 1U]) << 8U);
         input_position_ += 2U;
         return true;
     }
 
     bool checked_add(
-        const compat::u32 left,
-        const compat::u32 right,
-        compat::u32& result
+        const compat::u32 left, const compat::u32 right, compat::u32& result
     ) noexcept {
         if (left > std::numeric_limits<compat::u32>::max() - right) {
             return fail(LegacyLzo1xStatus::size_overflow);
@@ -146,10 +143,8 @@ private:
         return true;
     }
 
-    bool read_extended_count(
-        const compat::u32 base,
-        compat::u32& count
-    ) noexcept {
+    bool
+    read_extended_count(const compat::u32 base, compat::u32& count) noexcept {
         count = 0U;
         while (true) {
             compat::u32 value{};
@@ -160,7 +155,7 @@ private:
             if (value != 0U) {
                 compat::u32 value_with_base{};
                 return checked_add(value, base, value_with_base) &&
-                       checked_add(count, value_with_base, count);
+                    checked_add(count, value_with_base, count);
             }
 
             if (!checked_add(count, 0xFFU, count)) {
@@ -189,10 +184,8 @@ private:
         return true;
     }
 
-    bool copy_match(
-        const std::size_t distance,
-        const compat::u32 count
-    ) noexcept {
+    bool
+    copy_match(const std::size_t distance, const compat::u32 count) noexcept {
         if (distance == 0U || distance > output_position_) {
             return fail(LegacyLzo1xStatus::invalid_lookbehind);
         }
@@ -222,10 +215,8 @@ private:
         return copy_match(distance, 3U);
     }
 
-    bool decode_literal_state(
-        compat::u32& token,
-        DecoderState& state
-    ) noexcept {
+    bool
+    decode_literal_state(compat::u32& token, DecoderState& state) noexcept {
         if (!read_byte(token)) {
             return false;
         }
@@ -238,8 +229,7 @@ private:
             }
 
             if (!checked_add(literal_count, 3U, literal_count) ||
-                !copy_literals(literal_count) ||
-                !read_byte(token)) {
+                !copy_literals(literal_count) || !read_byte(token)) {
                 return false;
             }
 
@@ -264,19 +254,16 @@ private:
                 return MatchResult::failed;
             }
 
-            const std::size_t distance =
-                8U * static_cast<std::size_t>(offset) + 1U +
-                ((token >> 2U) & 7U);
+            const std::size_t distance = 8U * static_cast<std::size_t>(offset) +
+                1U + ((token >> 2U) & 7U);
             const compat::u32 match_count = (token >> 5U) + 1U;
-            return copy_match(distance, match_count)
-                       ? MatchResult::copied
-                       : MatchResult::failed;
+            return copy_match(distance, match_count) ? MatchResult::copied
+                                                     : MatchResult::failed;
         }
 
         if (token >= 0x20U) {
             compat::u32 match_count = token & 0x1FU;
-            if (match_count == 0U &&
-                !read_extended_count(0x1FU, match_count)) {
+            if (match_count == 0U && !read_extended_count(0x1FU, match_count)) {
                 return MatchResult::failed;
             }
 
@@ -287,9 +274,8 @@ private:
             }
 
             const std::size_t distance = (offset >> 2U) + 1U;
-            return copy_match(distance, match_count)
-                       ? MatchResult::copied
-                       : MatchResult::failed;
+            return copy_match(distance, match_count) ? MatchResult::copied
+                                                     : MatchResult::failed;
         }
 
         if (token < 0x10U) {
@@ -300,14 +286,12 @@ private:
 
             const std::size_t distance =
                 4U * static_cast<std::size_t>(offset) + (token >> 2U) + 1U;
-            return copy_match(distance, 2U)
-                       ? MatchResult::copied
-                       : MatchResult::failed;
+            return copy_match(distance, 2U) ? MatchResult::copied
+                                            : MatchResult::failed;
         }
 
         compat::u32 match_count = token & 7U;
-        if (match_count == 0U &&
-            !read_extended_count(7U, match_count)) {
+        if (match_count == 0U && !read_extended_count(7U, match_count)) {
             return MatchResult::failed;
         }
 
@@ -327,14 +311,12 @@ private:
         }
 
         return copy_match(first_distance + 0x4000U, match_count)
-                   ? MatchResult::copied
-                   : MatchResult::failed;
+            ? MatchResult::copied
+            : MatchResult::failed;
     }
 
-    bool decode_match_done_state(
-        compat::u32& token,
-        DecoderState& state
-    ) noexcept {
+    bool
+    decode_match_done_state(compat::u32& token, DecoderState& state) noexcept {
         if (input_position_ < 2U) {
             return fail(LegacyLzo1xStatus::source_exhausted);
         }

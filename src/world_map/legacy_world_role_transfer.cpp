@@ -21,29 +21,40 @@ constexpr u32 kRoleTransferFlag = 0x00000080U;
 constexpr u32 kRolePartyClearFlag = 0x00004000U;
 
 constexpr std::array<i32, 8U> kDirectionStepX{
-    4, 0, -4, -4, -4, 0, 4, 4,
+    4,
+    0,
+    -4,
+    -4,
+    -4,
+    0,
+    4,
+    4,
 };
 constexpr std::array<i32, 8U> kDirectionStepY{
-    4, 4, 4, 0, -4, -4, -4, 0,
+    4,
+    4,
+    4,
+    0,
+    -4,
+    -4,
+    -4,
+    0,
 };
 
 [[nodiscard]] u16 read_u16_le(
-    const std::span<const u8> bytes,
-    const std::size_t offset
+    const std::span<const u8> bytes, const std::size_t offset
 ) noexcept {
     return static_cast<u16>(bytes[offset]) |
         static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
 }
 
 [[nodiscard]] LegacyWorldObjectSlot* find_active_object_slot(
-    const std::span<LegacyWorldObjectSlot> slots,
-    const u32 role_index
+    const std::span<LegacyWorldObjectSlot> slots, const u32 role_index
 ) noexcept {
     const auto exact_slots = slots.first(kLegacyWorldActiveObjectSlotCount);
     const u16 target = static_cast<u16>(role_index);
     const auto found = std::ranges::find_if(
-        exact_slots,
-        [target](const LegacyWorldObjectSlot& slot) {
+        exact_slots, [target](const LegacyWorldObjectSlot& slot) {
             return read_u16_le(slot.bytes, kObjectRoleIndexOffset) == target;
         }
     );
@@ -70,8 +81,7 @@ constexpr std::array<i32, 8U> kDirectionStepY{
     if (result.status == LegacyWorldRoleSurfaceStatus::invalid_surface_grid) {
         return LegacyWorldRoleTransferStatus::surface_grid_invalid;
     }
-    if (result.status ==
-        LegacyWorldRoleSurfaceStatus::footprint_out_of_range) {
+    if (result.status == LegacyWorldRoleSurfaceStatus::footprint_out_of_range) {
         return LegacyWorldRoleTransferStatus::surface_footprint_out_of_range;
     }
     return LegacyWorldRoleTransferStatus::ready;
@@ -85,8 +95,7 @@ constexpr std::array<i32, 8U> kDirectionStepY{
     LegacyWorldRoleTransferState& state
 ) noexcept {
     const u16 cursor = static_cast<u16>(
-        read_u16_le(slot.bytes, kObjectPathCursorOffset) &
-        kObjectPathCursorMask
+        read_u16_le(slot.bytes, kObjectPathCursorOffset) & kObjectPathCursorMask
     );
     const std::size_t direction_offset = kObjectPathDataOffset + cursor;
     if (direction_offset >= slot.bytes.size()) {
@@ -157,27 +166,17 @@ LegacyWorldRoleTransferStatus transfer_legacy_world_role(
             return LegacyWorldRoleTransferStatus::active_object_slots_required;
         }
 
-        LegacyWorldObjectSlot* const slot = find_active_object_slot(
-            context->active_object_slots,
-            role_index
-        );
+        LegacyWorldObjectSlot* const slot =
+            find_active_object_slot(context->active_object_slots, role_index);
         if (slot != nullptr) {
             if (((role.world_x | role.world_y) & 0x0FU) != 0U) {
-                auto status = clear_role_surface_occupancy(
-                    role,
-                    *context,
-                    state
-                );
+                auto status =
+                    clear_role_surface_occupancy(role, *context, state);
                 if (status != LegacyWorldRoleTransferStatus::ready) {
                     return status;
                 }
-                status = align_role_to_tile(
-                    role,
-                    *slot,
-                    *context,
-                    roles,
-                    state
-                );
+                status =
+                    align_role_to_tile(role, *slot, *context, roles, state);
                 if (status != LegacyWorldRoleTransferStatus::ready) {
                     return status;
                 }

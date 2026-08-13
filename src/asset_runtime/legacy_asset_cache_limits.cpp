@@ -10,21 +10,16 @@ LegacyAssetCacheLimits calculate_legacy_asset_cache_limits(
     const compat::u32 one_sixth = total_physical_memory_bytes / 6U;
     return {
         .tsw_bytes = std::clamp(
-            one_sixth,
-            kLegacyMinimumTswCacheBytes,
-            kLegacyMaximumTswCacheBytes
+            one_sixth, kLegacyMinimumTswCacheBytes, kLegacyMaximumTswCacheBytes
         ),
         .act_bytes = kLegacyActCacheBytes,
     };
 }
 
-bool configure_legacy_asset_cache_limits(
-    LegacyAssetCacheLimitPorts& ports
-) {
-    const LegacyAssetCacheLimits limits =
-        calculate_legacy_asset_cache_limits(
-            ports.total_physical_memory_bytes_32()
-        );
+bool configure_legacy_asset_cache_limits(LegacyAssetCacheLimitPorts& ports) {
+    const LegacyAssetCacheLimits limits = calculate_legacy_asset_cache_limits(
+        ports.total_physical_memory_bytes_32()
+    );
     ports.set_tsw_cache_limit(limits.tsw_bytes);
     ports.set_act_cache_limit(limits.act_bytes);
     return true;
