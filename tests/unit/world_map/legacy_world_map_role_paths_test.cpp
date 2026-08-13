@@ -1,6 +1,7 @@
 #include "test.hpp"
 
 #include "openswd3/world_map/legacy_world_map_role_paths.hpp"
+#include "openswd3/world_map/legacy_world_story_paths.hpp"
 
 #include <algorithm>
 #include <array>
@@ -33,6 +34,9 @@ using openswd3::world_map::LegacyWorldMovementRuntimeState;
 using openswd3::world_map::LegacyWorldObjectSlot;
 using openswd3::world_map::LegacyWorldRoleRecord;
 using openswd3::world_map::LegacyWorldRoleSurfaceContext;
+using openswd3::world_map::LegacyWorldStoryPathRequest;
+using openswd3::world_map::LegacyWorldStoryPathRuntime;
+using openswd3::world_map::LegacyWorldStoryPathStatus;
 
 constexpr std::size_t kPathCursorOffset = 0x02U;
 constexpr std::size_t kDestinationXOffset = 0x04U;
@@ -133,6 +137,8 @@ struct Fixture {
       .player_y_transition = 6,
   };
   LegacyWorldCameraRect camera{};
+  openswd3::world_map::LegacyWorldPathNodePool node_pool;
+  u8 scene_render_flags{};
   RecordingActionPorts actions;
   RecordingPathPorts paths;
 
@@ -171,7 +177,107 @@ struct Fixture {
         },
         1U, runtime_flags, movement, camera, state, actions, paths);
   }
+
+  [[nodiscard]] LegacyWorldStoryPathRuntime story_runtime() {
+    return {
+        .roles = roles,
+        .active_object_slots = state.active_object_slots,
+        .spatial_index = &spatial,
+        .role_surface = {
+            .map_width = kMapWidth,
+            .selected_guid = roles[1].guid,
+            .surface_grid = surface,
+        },
+        .node_pool = &node_pool,
+        .movement = &movement,
+        .camera = &camera,
+        .selected_arrival_bytes = state.guid_one_arrival_bytes,
+        .selected_role_index = 1U,
+        .map_height = kMapHeight,
+        .scene_render_flags = &scene_render_flags,
+    };
+  }
 };
+
+void test_story_path_schedule_query_and_completion(
+    openswd3::test::Context &test) {
+  Fixture fixture;
+  for (auto &slot : fixture.state.active_object_slots) {
+    slot.bytes.fill(0xFFU);
+  }
+  fixture.camera.right = 640U;
+  fixture.camera.bottom = 480U;
+  auto runtime = fixture.story_runtime();
+
+  const auto scheduled =
+      openswd3::world_map::schedule_legacy_world_story_path(
+          runtime,
+          LegacyWorldStoryPathRequest{
+              .role_index = 1U,
+              .destination_x = 400U,
+              .destination_y = 304U,
+          });
+  auto &slot = fixture.state.active_object_slots[0];
+  test.expect_true(
+      scheduled.status == LegacyWorldStoryPathStatus::completed &&
+          scheduled.legacy_return_value == 1 && scheduled.free_slot_allocated &&
+          scheduled.path_found && scheduled.slot_index == 0U &&
+          read_u16(slot, 0U) == 1U &&
+          read_u16(slot, kPathCursorOffset) == 0x8000U &&
+          read_u16(slot, kDestinationXOffset) == 400U &&
+          read_u16(slot, kDestinationYOffset) == 304U &&
+          (slot.bytes[kPathFlagsOffset] & 0x0FU) == 2U &&
+          (fixture.roles[1].flags & 0x80000000U) != 0U,
+      "sub_42DAF0 schedules a type-two path in the first free ordinary slot");
+
+  const auto prepared =
+      openswd3::world_map::query_legacy_world_story_path(runtime, 1U);
+  test.expect_true(
+      prepared.status == LegacyWorldStoryPathStatus::completed &&
+          prepared.legacy_return_value == 1 &&
+          read_u16(slot, kPathCursorOffset) == 0U &&
+          read_u16(slot, kStepXOffset) == 4U &&
+          read_u16(slot, kStepYOffset) == 0U &&
+          (fixture.roles[1].flags & 0x40000000U) != 0U,
+      "sub_42E280 opens the cursor gate and arms one four-pixel step");
+
+  const auto completed =
+      openswd3::world_map::complete_legacy_world_story_path(runtime, 1U);
+  test.expect_true(
+      completed.status == LegacyWorldStoryPathStatus::completed &&
+          completed.legacy_return_value == 1 && completed.slot_cleared &&
+          std::ranges::all_of(slot.bytes,
+                              [](const u8 value) { return value == 0xFFU; }),
+      "sub_42D920 clears an unchained completed type-two slot");
+}
+
+void test_story_path_offscreen_preadvance(openswd3::test::Context &test) {
+  Fixture fixture;
+  for (auto &slot : fixture.state.active_object_slots) {
+    slot.bytes.fill(0xFFU);
+  }
+  fixture.camera.left = 1000U;
+  fixture.camera.right = 1640U;
+  fixture.camera.bottom = 480U;
+  auto runtime = fixture.story_runtime();
+
+  const auto scheduled =
+      openswd3::world_map::schedule_legacy_world_story_path(
+          runtime,
+          LegacyWorldStoryPathRequest{
+              .role_index = 1U,
+              .destination_x = 400U,
+              .destination_y = 304U,
+          });
+  const auto &slot = fixture.state.active_object_slots[0];
+  test.expect_true(
+      scheduled.status == LegacyWorldStoryPathStatus::completed &&
+          scheduled.preadvanced_steps == 1U &&
+          fixture.roles[1].world_x == 400U &&
+          fixture.roles[1].world_y == 304U &&
+          read_u16(slot, kPathCursorOffset) == 0x8001U,
+      "sub_42DAF0 advances one full 16-pixel path tile while offscreen");
+}
 
 void test_arrival_replays_exact_state_order(openswd3::test::Context &test) {
   Fixture fixture;
@@ -383,6 +489,8 @@ void test_automatic_talk_and_failure_boundary(openswd3::test::Context &test) {
 
 int main() {
   openswd3::test::Context test;
+  test_story_path_schedule_query_and_completion(test);
+  test_story_path_offscreen_preadvance(test);
   test_arrival_replays_exact_state_order(test);
   test_wait_and_skip_gates_keep_their_slots(test);
   test_unaligned_motion_defers_cell_bookkeeping(test);

@@ -1278,14 +1278,26 @@ public:
     SdlDeferredWorldFramePorts(
         openswd3::audio_video::LegacyAudioMaintenancePorts& audio,
         openswd3::rendering::LegacyPresentationPorts& presentation,
-        openswd3::rendering::LegacyTextRendererRuntime& text_renderers
+        openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
+        openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths = nullptr
     ) noexcept
         : audio_(audio),
           presentation_(presentation),
-          text_renderers_(text_renderers) {}
+          text_renderers_(text_renderers),
+          story_paths_(story_paths) {}
 
-    bool complete_role_path(openswd3::compat::u32) noexcept override {
-        return false;
+    bool complete_role_path(
+        const openswd3::compat::u32 role_index
+    ) noexcept override {
+        if (story_paths_ == nullptr) {
+            return false;
+        }
+        const auto result =
+            openswd3::world_map::complete_legacy_world_story_path(
+                *story_paths_, role_index
+            );
+        return result.status == openswd3::world_map::
+                                    LegacyWorldStoryPathStatus::completed;
     }
 
     bool query_service(openswd3::compat::u32) noexcept override {
@@ -1436,6 +1448,7 @@ private:
     openswd3::audio_video::LegacyAudioMaintenancePorts& audio_;
     openswd3::rendering::LegacyPresentationPorts& presentation_;
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
+    openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths_{};
     openswd3::compat::u32 deferred_frame_stage_count_{};
     bool presentation_failed_{};
 };
@@ -2331,10 +2344,31 @@ public:
         auto& world = *active_world_session_;
         auto& map = world.render.map_load.session;
         auto& roles = map.business.state.roles;
+        openswd3::world_map::LegacyWorldStoryPathRuntime story_paths{
+            .roles = roles,
+            .active_object_slots =
+                world_frame_state_.map_role_paths.active_object_slots,
+            .spatial_index = &map.business.state.spatial_index,
+            .role_surface = {
+                .map_width = map.header.width,
+                .selected_guid = roles[world.selected_role_index].guid,
+                .surface_grid = map.surface_grid.surface_grid,
+            },
+            .node_pool = &world_path_node_pool_,
+            .movement = &world_frame_state_.movement,
+            .camera = &world.camera,
+            .selected_arrival_bytes =
+                world_frame_state_.map_role_paths.guid_one_arrival_bytes,
+            .selected_role_index = world.selected_role_index,
+            .map_height = map.header.height,
+            .scene_render_flags =
+                &world_frame_state_.frame_runtime.frame.runtime_flags,
+        };
         SdlDeferredWorldFramePorts deferred_ports{
             audio_maintenance_,
             *this,
             text_renderers_,
+            &story_paths,
         };
         StoryVmPorts story_ports{
             resource_databases_,
@@ -2357,6 +2391,7 @@ public:
             .movement = &world_frame_state_.movement,
             .picture_actions = &world_picture_actions_,
             .frame_color = &world_frame_effects_.frame_color,
+            .story_paths = &story_paths,
             .scene_render_flags =
                 &world_frame_state_.frame_runtime.frame.runtime_flags,
             .map_height = map.header.height,
@@ -2502,10 +2537,31 @@ public:
         auto& world = *active_world_session_;
         auto& map = world.render.map_load.session;
         auto& roles = map.business.state.roles;
+        openswd3::world_map::LegacyWorldStoryPathRuntime story_paths{
+            .roles = roles,
+            .active_object_slots =
+                world_frame_state_.map_role_paths.active_object_slots,
+            .spatial_index = &map.business.state.spatial_index,
+            .role_surface = {
+                .map_width = map.header.width,
+                .selected_guid = roles[world.selected_role_index].guid,
+                .surface_grid = map.surface_grid.surface_grid,
+            },
+            .node_pool = &world_path_node_pool_,
+            .movement = &world_frame_state_.movement,
+            .camera = &world.camera,
+            .selected_arrival_bytes =
+                world_frame_state_.map_role_paths.guid_one_arrival_bytes,
+            .selected_role_index = world.selected_role_index,
+            .map_height = map.header.height,
+            .scene_render_flags =
+                &world_frame_state_.frame_runtime.frame.runtime_flags,
+        };
         SdlDeferredWorldFramePorts deferred_ports{
             audio_maintenance_,
             *this,
             text_renderers_,
+            &story_paths,
         };
         const auto timed_message_binding = text_renderers_.binding(12U);
         const auto dialog_text_20 = text_renderers_.binding(20U);
