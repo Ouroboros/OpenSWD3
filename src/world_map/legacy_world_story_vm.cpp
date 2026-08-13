@@ -1,6 +1,7 @@
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
 
 #include "openswd3/world_map/legacy_world_facing.hpp"
+#include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
 #include "openswd3/world_map/legacy_world_spatial_audio.hpp"
 
 #include <algorithm>
@@ -1217,6 +1218,68 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
       context.instruction_offset =
           static_cast<u16>(context.instruction_offset + 10U);
       continue;
+
+    case 71U: {
+      if (!has_bytes(state.window, ip, 6U)) {
+        result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+        return result;
+      }
+      u32 role_index{};
+      if (resolve_role_index(roles, read_u16(state.window, ip + 2U),
+                             controlled_role_index, role_index)) {
+        roles[role_index].field_3c = legacy_world_head_sign_action_token(
+            read_u16(state.window, ip + 4U));
+      }
+      context.instruction_offset =
+          static_cast<u16>(context.instruction_offset + 6U);
+      continue;
+    }
+
+    case 72U: {
+      if (!has_bytes(state.window, ip, 4U)) {
+        result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+        return result;
+      }
+      u32 role_index{};
+      if (resolve_role_index(roles, read_u16(state.window, ip + 2U),
+                             controlled_role_index, role_index)) {
+        roles[role_index].field_3c = 0U;
+      }
+      context.instruction_offset =
+          static_cast<u16>(context.instruction_offset + 4U);
+      continue;
+    }
+
+    case 77U:
+    case 78U: {
+      const std::size_t instruction_size = result.opcode == 77U ? 6U : 4U;
+      if (!has_bytes(state.window, ip, instruction_size)) {
+        result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+        return result;
+      }
+      u16 selector = read_u16(state.window, ip + 2U);
+      if (selector == kCurrentSourceSelector) {
+        selector = context.source_guid;
+      }
+      u32 role_index{};
+      if (!resolve_role_index(roles, selector, controlled_role_index,
+                              role_index)) {
+        // The original failure path advances by an uninitialized stack value.
+        // Keep the instruction unconsumed instead of inventing a fixed width.
+        result.status = LegacyWorldStoryVmStatus::role_not_found;
+        return result;
+      }
+      auto &role = roles[role_index];
+      role.action.wait_override =
+          result.opcode == 77U
+              ? static_cast<u16>(read_u16(state.window, ip + 4U) | 0x8000U)
+              : 0U;
+      role.action.wait_remaining = 0U;
+      record_action_update(result, role.action, ports);
+      context.instruction_offset = static_cast<u16>(
+          context.instruction_offset + instruction_size);
+      continue;
+    }
 
     case 76U: {
       if (!has_bytes(state.window, ip, 6U)) {

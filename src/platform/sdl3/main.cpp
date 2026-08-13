@@ -1279,11 +1279,14 @@ public:
         openswd3::audio_video::LegacyAudioMaintenancePorts& audio,
         openswd3::rendering::LegacyPresentationPorts& presentation,
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
+        openswd3::world_map::LegacyWorldHeadSignActionsState*
+            head_sign_actions = nullptr,
         openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths = nullptr
     ) noexcept
         : audio_(audio),
           presentation_(presentation),
           text_renderers_(text_renderers),
+          head_sign_actions_(head_sign_actions),
           story_paths_(story_paths) {}
 
     bool complete_role_path(
@@ -1337,9 +1340,14 @@ public:
     ) noexcept override {}
 
     const openswd3::asset_runtime::LegacyActionRecord* resolve_overlay_action(
-        openswd3::compat::u32
+        const openswd3::compat::u32 token
     ) noexcept override {
-        return nullptr;
+        if (head_sign_actions_ == nullptr) {
+            return nullptr;
+        }
+        return openswd3::world_map::resolve_legacy_world_head_sign_action(
+            *head_sign_actions_, token
+        );
     }
 
     void emit_role_particles(
@@ -1448,6 +1456,8 @@ private:
     openswd3::audio_video::LegacyAudioMaintenancePorts& audio_;
     openswd3::rendering::LegacyPresentationPorts& presentation_;
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
+    openswd3::world_map::LegacyWorldHeadSignActionsState*
+        head_sign_actions_{};
     openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths_{};
     openswd3::compat::u32 deferred_frame_stage_count_{};
     bool presentation_failed_{};
@@ -2368,6 +2378,7 @@ public:
             audio_maintenance_,
             *this,
             text_renderers_,
+            &world_frame_state_.head_sign_actions,
             &story_paths,
         };
         StoryVmPorts story_ports{
@@ -2561,6 +2572,7 @@ public:
             audio_maintenance_,
             *this,
             text_renderers_,
+            &world_frame_state_.head_sign_actions,
             &story_paths,
         };
         const auto timed_message_binding = text_renderers_.binding(12U);

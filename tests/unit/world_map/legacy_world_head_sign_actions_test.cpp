@@ -16,10 +16,13 @@ using openswd3::compat::u32;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::world_map::advance_legacy_world_head_sign_actions;
+using openswd3::world_map::kLegacyWorldHeadSignActionBaseAddress;
 using openswd3::world_map::kLegacyWorldHeadSignActionCount;
 using openswd3::world_map::kLegacyWorldHeadSignActionId;
+using openswd3::world_map::legacy_world_head_sign_action_token;
 using openswd3::world_map::LegacyWorldHeadSignActionsState;
 using openswd3::world_map::LegacyWorldHeadSignActionsStatus;
+using openswd3::world_map::resolve_legacy_world_head_sign_action;
 
 class RecordingActionPorts final : public LegacyActionDrawPorts {
 public:
@@ -94,11 +97,31 @@ void test_failure_is_diagnostic_only(openswd3::test::Context& test) {
         "the nullsub diagnostic branch remains nonfatal and observable");
 }
 
+void test_original_address_tokens_resolve_exact_slots(
+    openswd3::test::Context& test) {
+    LegacyWorldHeadSignActionsState state;
+
+    test.expect_true(
+        legacy_world_head_sign_action_token(0U) ==
+                kLegacyWorldHeadSignActionBaseAddress &&
+            legacy_world_head_sign_action_token(3U) ==
+                kLegacyWorldHeadSignActionBaseAddress + 3U * 0x98U &&
+            resolve_legacy_world_head_sign_action(
+                state, legacy_world_head_sign_action_token(3U)) ==
+                &state.records[3] &&
+            resolve_legacy_world_head_sign_action(
+                state, kLegacyWorldHeadSignActionBaseAddress + 1U) == nullptr &&
+            resolve_legacy_world_head_sign_action(
+                state, legacy_world_head_sign_action_token(8U)) == nullptr,
+        "original head-sign addresses map only to the eight aligned slots");
+}
+
 }  // namespace
 
 int main() {
     openswd3::test::Context test;
     test_initial_layout_and_reverse_update(test);
     test_failure_is_diagnostic_only(test);
+    test_original_address_tokens_resolve_exact_slots(test);
     return test.exit_code();
 }

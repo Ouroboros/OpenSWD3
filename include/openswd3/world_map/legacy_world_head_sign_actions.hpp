@@ -10,6 +10,16 @@ namespace openswd3::world_map {
 
 inline constexpr std::size_t kLegacyWorldHeadSignActionCount = 8U;
 inline constexpr compat::u32 kLegacyWorldHeadSignActionId = 0x232EU;
+inline constexpr compat::u32 kLegacyWorldHeadSignActionBaseAddress =
+    0x004B9F68U;
+
+[[nodiscard]] constexpr compat::u32
+legacy_world_head_sign_action_token(const compat::u16 slot) noexcept {
+    return kLegacyWorldHeadSignActionBaseAddress +
+           static_cast<compat::u32>(slot) *
+               static_cast<compat::u32>(
+                   asset_runtime::kLegacyActionRecordSize);
+}
 
 struct LegacyWorldHeadSignActionsState {
     LegacyWorldHeadSignActionsState() noexcept;
@@ -18,6 +28,11 @@ struct LegacyWorldHeadSignActionsState {
                kLegacyWorldHeadSignActionCount>
         records{};
 };
+
+[[nodiscard]] const asset_runtime::LegacyActionRecord*
+resolve_legacy_world_head_sign_action(
+    const LegacyWorldHeadSignActionsState& state,
+    compat::u32 token) noexcept;
 
 enum class LegacyWorldHeadSignActionsStatus : compat::u8 {
     completed,

@@ -13,6 +13,25 @@ LegacyWorldHeadSignActionsState::LegacyWorldHeadSignActionsState() noexcept {
     }
 }
 
+const asset_runtime::LegacyActionRecord* resolve_legacy_world_head_sign_action(
+    const LegacyWorldHeadSignActionsState& state,
+    const compat::u32 token) noexcept {
+    if (token < kLegacyWorldHeadSignActionBaseAddress) {
+        return nullptr;
+    }
+    const compat::u32 byte_offset =
+        token - kLegacyWorldHeadSignActionBaseAddress;
+    if (byte_offset % asset_runtime::kLegacyActionRecordSize != 0U) {
+        return nullptr;
+    }
+    const std::size_t slot =
+        byte_offset / asset_runtime::kLegacyActionRecordSize;
+    if (slot >= state.records.size()) {
+        return nullptr;
+    }
+    return &state.records[slot];
+}
+
 LegacyWorldHeadSignActionsResult advance_legacy_world_head_sign_actions(
     LegacyWorldHeadSignActionsState& state,
     asset_runtime::LegacyActionDrawPorts& action_ports) {
