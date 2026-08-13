@@ -1,6 +1,7 @@
 # 玩家足迹移动碰撞汇编证据：`0x00404610`
 
-状态：`assembly_exact`；有效地图会话适配已实现并通过固定状态 UT；原程序动态差分待统一 oracle
+状态：`assembly_exact`；已完成独立双向逐基本块追溯，有效地图会话适配已通过固定状态
+UT；原程序动态差分待统一 oracle
 
 唯一行为来源：`swd3.exe.lst` 的 `0x00404610..0x00404BDB`
 
@@ -85,6 +86,6 @@ map_base_0x004B7948 + ((world_y >> 4) * S + (world_x >> 4)) * 4
 - `src/world_map/legacy_movement_collision.cpp`
 - `tests/unit/world_map/legacy_movement_collision_test.cpp`
 
-UT 覆盖九个分支的完整格地址与 tile 查询顺序、事件低字节优先、角色命中提前返回、selector 别名、default、零宽重复地址、32 位回绕，以及现代 span 边界。Linux Clang 全套为 111/111，Windows LLVM `app` 全套为 115/115。
+UT 覆盖九个分支的完整格地址与 tile 查询顺序、事件低字节优先、角色命中提前返回、selector 别名、default、零宽重复地址、32 位回绕，以及现代 span 边界。本轮再次从汇编九个分支推导访问序列，并反向核对实现的每次格读取、角色查询和提前返回；没有新增差异。
 
 本函数的输入输出完全可由汇编和固定状态确定，当前实现不需要启动原版。最终原程序帧状态差分仍按项目统一 Frida spawn oracle 执行。

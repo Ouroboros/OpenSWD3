@@ -4,7 +4,7 @@
 #include "openswd3/input_time_rng/legacy_crt_rng.hpp"
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/world_map/legacy_world_map_business.hpp"
-#include "openswd3/world_map/legacy_world_spatial_audio.hpp"
+#include "openswd3/world_map/legacy_world_role_lookup.hpp"
 #include "openswd3/world_map/legacy_world_role_surface_occupancy.hpp"
 
 #include <algorithm>
@@ -51,15 +51,10 @@ struct ResolvedRoleSelector {
 [[nodiscard]] ResolvedRoleSelector resolve_role_selector(
     const std::span<const LegacyWorldRoleRecord> roles, const u16 selector,
     const u32 controlled_role_index) noexcept {
-  if (selector == 0xFFFEU) {
-    return {controlled_role_index, controlled_role_index < roles.size()};
-  }
-  const u32 index = find_legacy_world_role_by_guid(roles, selector);
-  if (index == kLegacyWorldRoleNotFound) {
-    // sub_40C0D0 initializes its output index to zero before the GUID lookup.
-    return {0U, false};
-  }
-  return {index, true};
+  u32 index{};
+  const bool found = resolve_legacy_world_role_selector(
+      roles, selector, controlled_role_index, index);
+  return {index, found};
 }
 
 [[nodiscard]] compat::i32 signed_field(const u32 value) noexcept {

@@ -690,17 +690,13 @@ void test_role_mutation_and_random_walk_handlers(
 
   {
     Fixture fixture;
-    fixture.roles[0].path_data_id = 3U;
-    fixture.roles[0].path_word_index = 7U;
     constexpr std::array<u16, 4U> missing_target{24U, 99U, 9U, 5U};
     fixture.set_script(missing_target);
     const auto result = fixture.run();
-    test.expect_true(result.opcodes_dispatched == 2U &&
-                         fixture.roles[0].path_data_id == 9U &&
-                         fixture.roles[0].path_word_index == 0U &&
-                         fixture.roles[1].path_word_index == 4U,
-                     "opcode 24 ignores lookup failure and mutates the "
-                     "zero-initialized output role");
+    test.expect_true(
+        result.status == LegacyWorldPathScriptStatus::invalid_role_index &&
+            fixture.roles[1].path_word_index == 0U,
+        "opcode 24 isolates the original FFFFFFFF role-array underrun");
   }
 
   {
@@ -727,19 +723,20 @@ void test_role_mutation_and_random_walk_handlers(
 
   {
     Fixture fixture;
-    fixture.roles[0].flags = 0x0000C000U;
     constexpr std::array<u16, 3U> disable_missing{27U, 99U, 5U};
     fixture.set_script(disable_missing);
-    static_cast<void>(fixture.run());
-    test.expect_equal(fixture.roles[0].flags & 0x0000C000U, u32{0U},
-                      "opcode 27 ignores lookup failure and clears role zero");
+    const auto disabled = fixture.run();
+    test.expect_equal(
+        disabled.status, LegacyWorldPathScriptStatus::invalid_role_index,
+        "opcode 27 isolates the original FFFFFFFF role-array underrun");
 
     fixture.roles[1].path_word_index = 0U;
     constexpr std::array<u16, 3U> enable_missing{28U, 99U, 5U};
     fixture.set_script(enable_missing);
-    static_cast<void>(fixture.run());
-    test.expect_equal(fixture.roles[0].flags & 0x0000C000U, u32{0xC000U},
-                      "opcode 28 ignores lookup failure and sets role zero");
+    const auto enabled = fixture.run();
+    test.expect_equal(
+        enabled.status, LegacyWorldPathScriptStatus::invalid_role_index,
+        "opcode 28 isolates the original FFFFFFFF role-array underrun");
   }
 
   {

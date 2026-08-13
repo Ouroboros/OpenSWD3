@@ -82,19 +82,6 @@ spatial_distance(const LegacyWorldRoleRecord &left,
 
 } // namespace
 
-u32 find_legacy_world_role_by_guid(
-    const std::span<const LegacyWorldRoleRecord> roles,
-    const u16 guid) noexcept {
-  for (u32 index = 0U; index < roles.size(); ++index) {
-    const LegacyWorldRoleRecord &role = roles[index];
-    if (role.guid == guid &&
-        (role.flags & kLegacyWorldGuidLookupSkipBit) == 0U) {
-      return index;
-    }
-  }
-  return kLegacyWorldRoleNotFound;
-}
-
 LegacyWorldSpatialAudioResult update_legacy_world_spatial_audio(
     LegacyWorldRoleRecord &role,
     const std::span<const LegacyWorldRoleRecord> roles,

@@ -2,7 +2,7 @@
 
 #include "openswd3/world_map/legacy_world_facing.hpp"
 #include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
-#include "openswd3/world_map/legacy_world_spatial_audio.hpp"
+#include "openswd3/world_map/legacy_world_role_lookup.hpp"
 
 #include <algorithm>
 #include <array>
@@ -24,7 +24,6 @@ using compat::u32;
 
 constexpr u16 kCurrentSourceSelector = 0xFFF0U;
 constexpr u16 kContextSelector = 0xFFFDU;
-constexpr u16 kSelectedRoleSelector = 0xFFFEU;
 constexpr u32 kTalkEntriesPerFile = 2000U;
 constexpr u32 kDialogScale = 11U;
 constexpr std::size_t kObjectRoleIndexOffset = 0x00U;
@@ -92,12 +91,9 @@ void record_action_update(LegacyWorldStoryVmResult &result,
 [[nodiscard]] bool resolve_role_index(
     const std::span<const LegacyWorldRoleRecord> roles, const u16 selector,
     const u32 controlled_role_index, u32 &role_index) noexcept {
-  if (selector == kSelectedRoleSelector) {
-    role_index = controlled_role_index;
-    return role_index < roles.size();
-  }
-  role_index = find_legacy_world_role_by_guid(roles, selector);
-  return role_index != kLegacyWorldRoleNotFound;
+  return resolve_legacy_world_role_selector(
+             roles, selector, controlled_role_index, role_index) &&
+         role_index < roles.size();
 }
 
 [[nodiscard]] std::span<const u8> nul_terminated_name(

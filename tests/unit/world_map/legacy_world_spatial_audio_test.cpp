@@ -13,9 +13,7 @@ using openswd3::compat::i16;
 using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
-using openswd3::world_map::find_legacy_world_role_by_guid;
 using openswd3::world_map::kLegacyWorldGuidLookupSkipBit;
-using openswd3::world_map::kLegacyWorldRoleNotFound;
 using openswd3::world_map::kLegacyWorldSpatialAudioPlayingBit;
 using openswd3::world_map::kLegacyWorldSpatialAudioRoleBit;
 using openswd3::world_map::LegacyWorldRoleRecord;
@@ -82,21 +80,6 @@ struct Fixture {
     };
   }
 };
-
-void test_guid_lookup(openswd3::test::Context &test) {
-  std::array<LegacyWorldRoleRecord, 3U> roles{};
-  roles[0].guid = 9U;
-  roles[0].flags = kLegacyWorldGuidLookupSkipBit;
-  roles[1].guid = 9U;
-  roles[2].guid = 9U;
-
-  test.expect_equal(
-      find_legacy_world_role_by_guid(roles, 9U), u32{1U},
-      "GUID lookup skips roles with bit28 and returns first clear match");
-  test.expect_equal(find_legacy_world_role_by_guid(roles, 8U),
-                    kLegacyWorldRoleNotFound,
-                    "missing GUID returns the original FFFFFFFF sentinel");
-}
 
 void test_periodic_countdown_and_start(openswd3::test::Context &test) {
   Fixture fixture;
@@ -201,7 +184,6 @@ void test_checked_invalid_state(openswd3::test::Context &test) {
 
 int main() {
   openswd3::test::Context test;
-  test_guid_lookup(test);
   test_periodic_countdown_and_start(test);
   test_indefinite_loop_and_stop(test);
   test_distance_boundary_and_wrapping(test);

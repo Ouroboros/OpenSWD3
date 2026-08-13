@@ -5,7 +5,6 @@
 #include "openswd3/world_map/legacy_world_map_role_paths.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
-#include "openswd3/world_map/legacy_world_spatial_audio.hpp"
 #include <algorithm>
 #include <array>
 #include <bit>

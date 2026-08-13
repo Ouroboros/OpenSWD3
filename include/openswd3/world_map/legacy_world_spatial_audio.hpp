@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/compat/types.hpp"
+#include "openswd3/world_map/legacy_world_role_lookup.hpp"
 #include "openswd3/world_map/legacy_world_role_record.hpp"
 
 #include <span>
@@ -9,8 +10,6 @@ namespace openswd3::world_map {
 
 inline constexpr compat::u32 kLegacyWorldSpatialAudioPlayingBit = 0x01000000U;
 inline constexpr compat::u32 kLegacyWorldSpatialAudioRoleBit = 0x00008000U;
-inline constexpr compat::u32 kLegacyWorldGuidLookupSkipBit = 0x10000000U;
-inline constexpr compat::u32 kLegacyWorldRoleNotFound = 0xFFFFFFFFU;
 
 class LegacyWorldSpatialAudioPorts {
 public:
@@ -52,12 +51,6 @@ struct LegacyWorldSpatialAudioResult {
   bool sample_stopped{};
   bool parameters_updated{};
 };
-
-// 0x0040C020: first GUID match whose role has bit 28 clear. 0x0040C100
-// stores this index and reports whether it differs from 0xFFFFFFFF.
-[[nodiscard]] compat::u32
-find_legacy_world_role_by_guid(std::span<const LegacyWorldRoleRecord> roles,
-                               compat::u16 guid) noexcept;
 
 // 0x00413CA0: maintain one role's distance-gated periodic/looping sample.
 [[nodiscard]] LegacyWorldSpatialAudioResult

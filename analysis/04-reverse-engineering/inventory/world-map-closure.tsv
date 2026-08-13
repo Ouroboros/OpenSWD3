@@ -22,13 +22,13 @@ address	ida_name_navigation_only	closure_disposition	implementation_mapping	evid
 0x00402AC0	sub_402AC0	assembly_exact	legacy_world_pathfinding.cpp	world-pathfinding-00402030-00402f70.md	assembly_exact	original runtime differential
 0x00402AE0	sub_402AE0	assembly_exact	legacy_world_pathfinding.cpp;legacy_world_direction_adjustment.cpp	world-pathfinding-00402030-00402f70.md	assembly_exact	original runtime differential
 0x00402F70	sub_402F70	assembly_exact	legacy_world_pathfinding.cpp	world-pathfinding-00402030-00402f70.md	assembly_exact	original runtime differential
-0x00402F80	sub_402F80	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x004040B0	sub_4040B0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x00404510	sub_404510	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x00404610	sub_404610	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x00404C00	sub_404C00	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x00404FD0	sub_404FD0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x004050B0	sub_4050B0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
+0x00402F80	sub_402F80	pending_audit	legacy_world_player_control.cpp;legacy_world_facing_talk.cpp;legacy_world_direction_input.cpp;legacy_world_direction_adjustment.cpp;legacy_world_collision_talk.cpp;legacy_world_player_motion.cpp;legacy_random_encounter.cpp;main.cpp	world-player-control-00402f80.md	partial_implementation_reaudited	hidden debug hotkeys; control/Talk-list arbitration; random-encounter runtime wiring; complete entry-to-exit audit
+0x004040B0	sub_4040B0	assembly_exact	legacy_world_direction_adjustment.cpp	world-direction-adjustment-004040b0.md	assembly_exact;unit_tested	original runtime differential
+0x00404510	sub_404510	assembly_exact	legacy_world_direction_adjustment.cpp	world-direction-adjustment-004040b0.md	assembly_exact;unit_tested	original runtime differential
+0x00404610	sub_404610	assembly_exact	legacy_movement_collision.cpp	movement-collision-00404610.md	assembly_exact;unit_tested	original runtime differential
+0x00404C00	sub_404C00	assembly_exact	legacy_world_facing_role_query.cpp	world-player-control-00402f80.md	assembly_exact;unit_tested	original runtime differential
+0x00404FD0	sub_404FD0	assembly_exact	legacy_role_spatial_query.cpp	role-spatial-query-00404fd0.md	assembly_exact;unit_tested	original runtime differential
+0x004050B0	sub_4050B0	assembly_exact	legacy_role_spatial_query.cpp	role-spatial-query-00404fd0.md	assembly_exact;unit_tested	original runtime differential
 0x00405430	sub_405430	assembly_exact	legacy_world_path_script.cpp;main.cpp	world-path-script-00405500-00406709.md	assembly_exact	original runtime differential
 0x00405500	sub_405500	platform_adapted	legacy_world_path_script.cpp	world-path-script-00405500-00406709.md	assembly_exact;asset_verified;platform_adapted	dynamic-label ownership boundary; opcode 36 undefined first-use stack branch isolated; original runtime differential
 0x00406390	sub_406390	assembly_exact	legacy_world_path_requests.cpp	world-path-requests-00406390-00406960.md	assembly_exact	original runtime differential
@@ -36,14 +36,14 @@ address	ida_name_navigation_only	closure_disposition	implementation_mapping	evid
 0x00406710	sub_406710	assembly_exact	legacy_world_path_script.cpp	world-path-script-00405500-00406709.md	assembly_exact;asset_verified	original runtime differential
 0x00406770	sub_406770	assembly_exact	legacy_world_path_script.cpp	world-path-script-00405500-00406709.md	assembly_exact	original runtime differential
 0x00406960	sub_406960	platform_adapted	legacy_world_path_requests.cpp	world-path-requests-00406390-00406960.md	assembly_exact;platform_adapted	undefined failed-path byte read isolated; original runtime differential
-0x0040AD10	sub_40AD10	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040AE20	sub_40AE20	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040AEC0	sub_40AEC0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040BB50	sub_40BB50	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040C020	sub_40C020	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040C060	sub_40C060	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040C0D0	sub_40C0D0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
-0x0040C100	sub_40C100	pending_audit			not_inherited	independent LST-to-C++ closure audit required
+0x0040AD10	sub_40AD10	platform_adapted	legacy_world_special_frame_loader.cpp	world-special-tsw-frame-0040ad10.md	assembly_exact;asset_verified;platform_adapted	RAII/file bounds; original count-equal directory overrun isolated; original runtime differential
+0x0040AE20	sub_40AE20	assembly_exact	legacy_world_role_surface_occupancy.cpp	world-role-surface-occupancy-0040ae20.md	assembly_exact;unit_tested	original runtime differential
+0x0040AEC0	sub_40AEC0	assembly_exact	legacy_world_role_surface_occupancy.cpp	world-role-surface-occupancy-0040ae20.md	assembly_exact;unit_tested	original runtime differential
+0x0040BB50	sub_40BB50	assembly_exact	legacy_world_direction_adjustment.cpp	world-direction-adjustment-004040b0.md	assembly_exact;unit_tested	original runtime differential
+0x0040C020	sub_40C020	assembly_exact	legacy_world_role_lookup.cpp	world-role-lookup-0040c020.md	assembly_exact;unit_tested	original runtime differential
+0x0040C060	sub_40C060	platform_adapted	legacy_world_role_lookup.cpp	world-role-lookup-0040c020.md	assembly_exact;platform_adapted;unit_tested	original invalid-index MessageBox and out-of-array reads isolated; original runtime differential
+0x0040C0D0	sub_40C0D0	assembly_exact	legacy_world_role_lookup.cpp	world-role-lookup-0040c020.md	assembly_exact;unit_tested	original runtime differential
+0x0040C100	sub_40C100	assembly_exact	legacy_world_role_lookup.cpp	world-role-lookup-0040c020.md	assembly_exact;unit_tested	original runtime differential
 0x0040C130	sub_40C130	pending_audit			not_inherited	independent LST-to-C++ closure audit required
 0x0040D060	sub_40D060	pending_audit			not_inherited	independent LST-to-C++ closure audit required
 0x0040D0C0	sub_40D0C0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
