@@ -28,7 +28,6 @@ using openswd3::rendering::LegacySurfaceGeometry;
 using openswd3::world_map::draw_legacy_world_role;
 using openswd3::world_map::draw_legacy_world_roles;
 using openswd3::world_map::kLegacySpatialRowPadding;
-using openswd3::world_map::kLegacyWorldGuidLookupRoleBit;
 using openswd3::world_map::kLegacyWorldRoleFlashBit;
 using openswd3::world_map::kLegacyWorldRoleParticleBit;
 using openswd3::world_map::LegacyRoleSpatialIndex;
@@ -405,7 +404,6 @@ void test_spatial_traversal_order_padding_and_audio(
   roles[4].flags |= kLegacyWorldRoleFlashBit;
   roles[4].action.field_88 = 3U;
   roles[4].action.field_89 = 20U;
-  roles[2].flags |= kLegacyWorldGuidLookupRoleBit;
   roles[2].guid = 7U;
   roles[2].field_2c = 42U;
   roles[2].field_30 = 0xFFFF0000U;

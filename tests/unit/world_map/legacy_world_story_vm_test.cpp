@@ -274,7 +274,7 @@ struct Fixture {
     roles[0].world_x = 16U;
     roles[0].world_y = 16U;
     roles[1].guid = 0x00F8U;
-    roles[1].flags = openswd3::world_map::kLegacyWorldGuidLookupRoleBit;
+    roles[1].flags = 0U;
     roles[1].world_x = 320U;
     roles[1].world_y = 240U;
     roles[1].action.variant_delta = 0U;
@@ -903,8 +903,7 @@ void test_turn_role_toward_role(openswd3::test::Context &test) {
   fixture.roles[1].world_x = 100U;
   fixture.roles[1].world_y = 100U;
   fixture.roles[2].guid = 0x00F9U;
-  fixture.roles[2].flags =
-      openswd3::world_map::kLegacyWorldGuidLookupRoleBit;
+  fixture.roles[2].flags = 0U;
   fixture.roles[2].world_x = 200U;
   fixture.roles[2].world_y = 100U;
 
@@ -1065,7 +1064,7 @@ void test_real_story_248_dialog(openswd3::test::Context &test,
   roles[0].world_x = 16U;
   roles[0].world_y = 16U;
   roles[1].guid = 248U;
-  roles[1].flags = openswd3::world_map::kLegacyWorldGuidLookupRoleBit;
+  roles[1].flags = 0U;
   roles[1].world_x = 320U;
   roles[1].world_y = 240U;
   roles[1].action.variant_delta = 4U;
@@ -1124,7 +1123,7 @@ void test_real_new_game_story_reaches_first_dialog(
                                    const u32 tile_x, const u32 tile_y) {
     auto &role = roles[index];
     role.guid = guid;
-    role.flags = openswd3::world_map::kLegacyWorldGuidLookupRoleBit;
+    role.flags = 0U;
     const auto source = std::ranges::find(
         maps_world.database.role_sources, guid,
         &openswd3::world_map::LegacyMapsRoleSourceRecord::guid);
@@ -1337,7 +1336,7 @@ void test_real_new_game_story_reaches_first_dialog(
   runtime.current_tick =
       state.wait_started_at + static_cast<u32>(state.wait_duration) + 1U;
   const auto next_dialog = step();
-  const u32 path_final_facing = roles[2].action.variant_delta;
+  const u32 path_final_facing = roles[1].action.variant_delta;
   auto later_dialog = next_dialog;
   bool later_dialog_chain_completed = true;
   for (std::size_t dialog_index = 0U; dialog_index < 5U; ++dialog_index) {
@@ -1692,11 +1691,11 @@ void test_real_new_game_story_reaches_first_dialog(
                     "real story 100 relocates role 249 x");
   test.expect_equal(roles[7].world_y, u32{33U * 16U},
                     "real story 100 relocates role 249 y");
-  test.expect_equal(roles[2].world_x, u32{13U * 16U},
-                    "real story 100 completes visible GUID 1 second path x");
-  test.expect_equal(roles[2].world_y, u32{28U * 16U},
-                    "real story 100 completes visible GUID 1 second path y");
-  test.expect_equal(roles[2].action.base_variant, u32{68U},
+  test.expect_equal(roles[1].world_x, u32{13U * 16U},
+                    "real story 100 completes first clear GUID 1 path x");
+  test.expect_equal(roles[1].world_y, u32{28U * 16U},
+                    "real story 100 completes first clear GUID 1 path y");
+  test.expect_equal(roles[1].action.base_variant, u32{68U},
                     "real story 100 applies the later opcode 10 base variant");
   test.expect_equal(path_final_facing, u32{7U},
                     "real story 100 applies the final opcode 11 facing");
@@ -1717,7 +1716,7 @@ void test_real_new_game_story_reaches_first_dialog(
           frame_color.step_green == 0.0F &&
           frame_color.step_blue == 0.0F &&
           frame_color.countdown == 0 && scene_render_flags == 0U &&
-          (roles[2].flags & 0x00001000U) != 0U,
+          (roles[1].flags & 0x00001000U) != 0U,
       "real story 100 creates two pictures then completes and cancels the "
       "later color transition");
   test.expect_true(

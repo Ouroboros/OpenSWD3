@@ -88,7 +88,7 @@ u32 find_legacy_world_role_by_guid(
   for (u32 index = 0U; index < roles.size(); ++index) {
     const LegacyWorldRoleRecord &role = roles[index];
     if (role.guid == guid &&
-        (role.flags & kLegacyWorldGuidLookupRoleBit) != 0U) {
+        (role.flags & kLegacyWorldGuidLookupSkipBit) == 0U) {
       return index;
     }
   }

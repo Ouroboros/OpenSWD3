@@ -14,7 +14,7 @@ using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::world_map::find_legacy_world_role_by_guid;
-using openswd3::world_map::kLegacyWorldGuidLookupRoleBit;
+using openswd3::world_map::kLegacyWorldGuidLookupSkipBit;
 using openswd3::world_map::kLegacyWorldRoleNotFound;
 using openswd3::world_map::kLegacyWorldSpatialAudioPlayingBit;
 using openswd3::world_map::kLegacyWorldSpatialAudioRoleBit;
@@ -68,8 +68,7 @@ struct Fixture {
     roles[0].world_y = 0U;
     roles[1].world_x = 32U;
     roles[1].world_y = 24U;
-    roles[1].flags =
-        kLegacyWorldSpatialAudioRoleBit | kLegacyWorldGuidLookupRoleBit;
+    roles[1].flags = kLegacyWorldSpatialAudioRoleBit;
     roles[1].guid = 7U;
     roles[1].field_2c = 42U;
   }
@@ -87,14 +86,13 @@ struct Fixture {
 void test_guid_lookup(openswd3::test::Context &test) {
   std::array<LegacyWorldRoleRecord, 3U> roles{};
   roles[0].guid = 9U;
+  roles[0].flags = kLegacyWorldGuidLookupSkipBit;
   roles[1].guid = 9U;
-  roles[1].flags = kLegacyWorldGuidLookupRoleBit;
   roles[2].guid = 9U;
-  roles[2].flags = kLegacyWorldGuidLookupRoleBit;
 
   test.expect_equal(
       find_legacy_world_role_by_guid(roles, 9U), u32{1U},
-      "GUID lookup skips roles without bit28 and returns first match");
+      "GUID lookup skips roles with bit28 and returns first clear match");
   test.expect_equal(find_legacy_world_role_by_guid(roles, 8U),
                     kLegacyWorldRoleNotFound,
                     "missing GUID returns the original FFFFFFFF sentinel");
@@ -189,7 +187,7 @@ void test_checked_invalid_state(openswd3::test::Context &test) {
       "invalid controlled-role pointer is isolated before access");
 
   state = fixture.state();
-  fixture.roles[1].flags &= ~kLegacyWorldGuidLookupRoleBit;
+  fixture.roles[1].flags |= kLegacyWorldGuidLookupSkipBit;
   fixture.roles[1].field_30 = 0x00010001U;
   const auto resolved = update_legacy_world_spatial_audio(
       fixture.roles[1], fixture.roles, state, fixture.ports);

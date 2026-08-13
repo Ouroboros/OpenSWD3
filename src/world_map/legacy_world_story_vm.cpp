@@ -473,9 +473,9 @@ void replace_name_prefix(std::array<u8, 32U> &destination,
     return LegacyWorldStoryVmStatus::role_surface_failed;
   }
 
-  // sub_40C020 performs a second GUID lookup after bit 28 was cleared. A
-  // duplicate still-visible GUID is therefore the only index whose object
-  // slots are reset by the original loop.
+  // sub_40C020 performs the same first-clear-bit GUID lookup again after the
+  // mask. Keep that redundant lookup because the original object scan uses
+  // its returned role index rather than the one resolved above.
   const u32 replacement_index = find_legacy_world_role_by_guid(roles, role.guid);
   if (replacement_index != kLegacyWorldRoleNotFound) {
     for (auto &slot : active_object_slots) {
