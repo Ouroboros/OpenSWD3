@@ -91,6 +91,10 @@ public:
     role_patch_requests.push_back(request);
   }
 
+  void play_sound_effect(const u16 sound_id) noexcept override {
+    sound_effect_requests.push_back(sound_id);
+  }
+
   void clear_story_framebuffer() noexcept override {
     ++framebuffer_clear_count;
   }
@@ -123,6 +127,7 @@ public:
   std::vector<u8> last_video_filename;
   std::vector<openswd3::world_map::LegacyMapsRolePatchRequest>
       role_patch_requests;
+  std::vector<u16> sound_effect_requests;
 
 private:
   template <std::size_t Size>
@@ -172,6 +177,10 @@ public:
       const openswd3::world_map::LegacyMapsRolePatchRequest &
   ) noexcept override {}
 
+  void play_sound_effect(const u16 sound_id) noexcept override {
+    sound_effect_requests.push_back(sound_id);
+  }
+
   void clear_story_framebuffer() noexcept override {
     ++framebuffer_clear_count;
   }
@@ -196,6 +205,7 @@ public:
   u32 video_begin_count{};
   u32 video_progress_query_count{};
   std::vector<u8> last_video_filename;
+  std::vector<u16> sound_effect_requests;
 
 private:
   openswd3::resource_io::LegacyResourceDatabases &databases_;
@@ -631,6 +641,29 @@ void test_wait_for_role_action_position(openswd3::test::Context &test) {
           absent.opcode == 14U && absent.executed_instruction_count == 2U &&
           missing.context.instruction_offset == 10U,
       "opcode 107 consumes invalid thresholds and missing roles without waiting");
+}
+
+void test_play_sound_effect_request(openswd3::test::Context &test) {
+  Fixture fixture;
+  auto script = std::span<u8>{fixture.ports.initial_window};
+  write_u16(script, 0U, 59U);
+  write_u16(script, 2U, 0x1234U);
+  write_u16(script, 4U, 14U);
+  write_u16(script, 6U, 0x00F8U);
+
+  const auto requested = fixture.step();
+  const auto continued = fixture.step();
+
+  test.expect_true(
+      requested.status == LegacyWorldStoryVmStatus::yielded &&
+          requested.opcode == 59U &&
+          requested.executed_instruction_count == 1U &&
+          fixture.ports.sound_effect_requests.size() == 1U &&
+          fixture.ports.sound_effect_requests.front() == 0x1234U &&
+          continued.status == LegacyWorldStoryVmStatus::yielded &&
+          continued.opcode == 14U &&
+          fixture.context.instruction_offset == 8U,
+      "opcode 59 submits the u16 sound id, advances four bytes and yields");
 }
 
 void test_turn_role_toward_role(openswd3::test::Context &test) {
@@ -1327,15 +1360,15 @@ void test_real_new_game_story_reaches_first_dialog(
                     "story 100 post-opcode-45 dialog count");
   test.expect_equal(post_opcode_45_path_frame_count, std::size_t{29U},
                     "story 100 post-opcode-45 path frame count");
-  test.expect_equal(next_unsupported.opcode, u16{59U},
+  test.expect_equal(next_unsupported.opcode, u16{53U},
                     "story 100 next unsupported opcode boundary");
   test.expect_equal(next_unsupported.status,
                     LegacyWorldStoryVmStatus::unsupported_opcode,
-                    "story 100 stops without consuming opcode 59");
+                    "story 100 stops without consuming opcode 53");
   test.expect_equal(state.loaded_data_offset, u32{17476U},
                     "story 100 branched window base through both paths");
-  test.expect_equal(context.instruction_offset, u16{3591U},
-                    "story 100 instruction boundary at opcode 59");
+  test.expect_equal(context.instruction_offset, u16{3611U},
+                    "story 100 instruction boundary at opcode 53");
   test.expect_true(
       initialized.status ==
               openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
@@ -1387,7 +1420,11 @@ void test_real_new_game_story_reaches_first_dialog(
           roles[10].action.wait_remaining == 0U &&
           roles[10].field_3c == 0U,
       "real story 100 crosses opcode 45 and all subsequent restored waits, "
-      "dialogs and paths through opcode 107 before opcode 59");
+      "dialogs and paths through opcode 59 before opcode 53");
+  test.expect_true(
+      ports.sound_effect_requests.size() == 1U &&
+          ports.sound_effect_requests.front() == 0x73U,
+      "real story 100 submits the scripted opcode 59 sound id");
   test.expect_equal(roles[6].world_x, u32{37U * 16U},
                     "real story 100 relocates role 248 x");
   test.expect_equal(roles[6].world_y, u32{33U * 16U},
@@ -1410,9 +1447,18 @@ void test_real_new_game_story_reaches_first_dialog(
                     "real story 100 relocates role 195 y");
   test.expect_true(
           picture_actions.secondary.size() == 2U &&
-          frame_color.countdown == 15 && scene_render_flags == 0U &&
+          frame_color.current_red == 0.0F &&
+          frame_color.current_green == 0.0F &&
+          frame_color.current_blue == 0.0F &&
+          frame_color.target_red == 10.0F &&
+          frame_color.target_green == 10.0F &&
+          frame_color.target_blue == 10.0F &&
+          frame_color.step_red == 10.0F &&
+          frame_color.step_green == 10.0F &&
+          frame_color.step_blue == 10.0F &&
+          frame_color.countdown == 1 && scene_render_flags == 0U &&
           (roles[2].flags & 0x00001000U) != 0U,
-      "real story 100 creates two pictures and starts the color transition");
+      "real story 100 creates two pictures and starts the later color transition");
   test.expect_true(
           ports.framebuffer_clear_count == 3U &&
           ports.framebuffer_present_count == 1U &&
@@ -1435,6 +1481,7 @@ int main(const int argument_count, char **arguments) {
   test_role_action_chain_update_gate(test);
   test_change_requested_action_id(test);
   test_wait_for_role_action_position(test);
+  test_play_sound_effect_request(test);
   test_turn_role_toward_role(test);
   test_set_role_head_sign_action(test);
   test_set_and_clear_role_wait_override(test);

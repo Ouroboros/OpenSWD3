@@ -95,6 +95,7 @@ constexpr int kFrameHeight = 480;
 constexpr int kInitialWindowWidth = kFrameWidth * 3 / 2;
 constexpr int kInitialWindowHeight = kFrameHeight * 3 / 2;
 constexpr openswd3::compat::u32 kInitialFrameIntervalMilliseconds = 35U;
+constexpr openswd3::compat::i32 kLegacyInitialSampleMixLevel = 6;
 constexpr openswd3::compat::u32 kLegacySpatialRoleFlag = 0x00008000U;
 constexpr openswd3::compat::u32 kLegacyPartyRoleFlag = 0x00000080U;
 constexpr openswd3::compat::u32 kLegacyInteractionSuspendedFlag = 0x80000000U;
@@ -1616,6 +1617,7 @@ public:
         openswd3::input_time_rng::LegacyMouseState& mouse_state,
         openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state,
         openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance,
+        openswd3::audio_video::LegacySampleManager& sample_manager,
         openswd3::audio_video::LegacyVideoPlayer& video_player,
         openswd3::resource_io::LegacyResourceDatabases& resource_databases,
         std::filesystem::path data_directory,
@@ -1647,6 +1649,7 @@ public:
           mouse_state_(mouse_state),
           mouse_device_state_(mouse_device_state),
           audio_maintenance_(audio_maintenance),
+          sample_manager_(sample_manager),
           video_player_(video_player),
           resource_databases_(resource_databases),
           data_directory_(std::move(data_directory)),
@@ -2253,6 +2256,8 @@ public:
                 openswd3::resource_io::LegacyResourceDatabases& databases,
                 openswd3::world_map::LegacyMapsWorldDatabase& maps_database,
                 openswd3::asset_runtime::LegacyActionUpdater& action_updater,
+                openswd3::audio_video::LegacySampleManager& sample_manager,
+                const openswd3::compat::i32 sample_mix_level,
                 openswd3::rendering::LegacyFramebuffer& framebuffer,
                 openswd3::rendering::LegacyPresentationPorts& presentation,
                 openswd3::audio_video::LegacyVideoPlayer& video_player,
@@ -2262,6 +2267,8 @@ public:
                 : databases_(databases),
                   maps_database_(maps_database),
                   action_updater_(action_updater),
+                  sample_manager_(sample_manager),
+                  sample_mix_level_(sample_mix_level),
                   framebuffer_(framebuffer),
                   presentation_(presentation),
                   video_player_(video_player),
@@ -2312,6 +2319,14 @@ public:
                     ));
             }
 
+            void play_sound_effect(
+                const openswd3::compat::u16 sound_id
+            ) noexcept override {
+                static_cast<void>(openswd3::audio_video::play_legacy_sample(
+                    sample_manager_, sound_id, sample_mix_level_
+                ));
+            }
+
             void clear_story_framebuffer() noexcept override {
                 std::ranges::fill(
                     framebuffer_.physical_pixels(),
@@ -2358,6 +2373,8 @@ public:
             openswd3::resource_io::LegacyResourceDatabases& databases_;
             openswd3::world_map::LegacyMapsWorldDatabase& maps_database_;
             openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
+            openswd3::audio_video::LegacySampleManager& sample_manager_;
+            openswd3::compat::i32 sample_mix_level_{};
             openswd3::rendering::LegacyFramebuffer& framebuffer_;
             openswd3::rendering::LegacyPresentationPorts& presentation_;
             openswd3::audio_video::LegacyVideoPlayer& video_player_;
@@ -2399,6 +2416,8 @@ public:
             resource_databases_,
             world.maps_database,
             action_updater_,
+            sample_manager_,
+            world_frame_state_.frame_runtime.spatial_audio.mix_level,
             game_framebuffer_,
             *this,
             video_player_,
@@ -3023,7 +3042,7 @@ public:
         };
         world_frame_state_.frame_runtime.spatial_audio = {
             .controlled_role_index = world.selected_role_index,
-            .mix_level = 0,
+            .mix_level = kLegacyInitialSampleMixLevel,
             .distance_by_role = world_audio_distances_,
             .vertical_offset_by_role = world_audio_vertical_offsets_,
         };
@@ -3271,6 +3290,7 @@ private:
     openswd3::input_time_rng::LegacyMouseState& mouse_state_;
     openswd3::platform_sdl3::SdlMouseDeviceState& mouse_device_state_;
     openswd3::audio_video::LegacyAudioMaintenancePorts& audio_maintenance_;
+    openswd3::audio_video::LegacySampleManager& sample_manager_;
     openswd3::audio_video::LegacyVideoPlayer& video_player_;
     openswd3::resource_io::LegacyResourceDatabases& resource_databases_;
     std::filesystem::path data_directory_;
@@ -3749,6 +3769,7 @@ int main(const int argument_count, char** arguments) {
         mouse_state,
         mouse_device_state,
         audio_maintenance,
+        sample_manager,
         video_player,
         resource_databases,
         data_directory.directory,
