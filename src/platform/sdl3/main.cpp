@@ -63,6 +63,7 @@
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_interaction.hpp"
+#include "openswd3/world_map/legacy_world_item_lifecycle.hpp"
 #include "openswd3/world_map/legacy_world_load_progress.hpp"
 #include "openswd3/world_map/legacy_world_path_requests.hpp"
 #include "openswd3/world_map/legacy_world_path_script.hpp"
@@ -1131,10 +1132,12 @@ public:
     SmokeShutdownPorts(
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
         openswd3::audio_video::LegacyStreamManager& stream_manager,
-        openswd3::audio_video::LegacySampleManager& sample_manager
+        openswd3::audio_video::LegacySampleManager& sample_manager,
+        openswd3::world_map::LegacyWorldItemListState& world_item_lists
     )
         : text_renderers_(text_renderers), stream_manager_(stream_manager),
-          sample_manager_(sample_manager) {}
+          sample_manager_(sample_manager), world_item_lists_(world_item_lists) {
+    }
 
     void perform_shutdown_operation(
         const openswd3::app::ShutdownOperation operation
@@ -1154,6 +1157,17 @@ public:
             static_cast<void>(
                 openswd3::audio_video::stop_all_legacy_samples(sample_manager_)
             );
+        } else if (operation == Operation::release_0040f410) {
+            const auto result =
+                openswd3::world_map::release_legacy_world_item_lists(
+                    world_item_lists_
+                );
+            if (result.status !=
+                openswd3::world_map::LegacyWorldItemListReleaseStatus::ready) {
+                openswd3::diagnostics::log_error(
+                    "legacy world item-list shutdown rejected malformed roots"
+                );
+            }
         }
         if (operation == openswd3::app::ShutdownOperation::show_cursor) {
             static_cast<void>(SDL_ShowCursor());
@@ -1173,6 +1187,7 @@ private:
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
     openswd3::audio_video::LegacyStreamManager& stream_manager_;
     openswd3::audio_video::LegacySampleManager& sample_manager_;
+    openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
 };
 
 class SdlProcessExitPorts final : public openswd3::app::ProcessExitPorts {
@@ -3985,8 +4000,9 @@ int main(const int argument_count, char** arguments) {
         ok,
         running
     );
+    openswd3::world_map::LegacyWorldItemListState world_item_lists;
     SmokeShutdownPorts shutdown_ports(
-        text_renderers, stream_manager, sample_manager
+        text_renderers, stream_manager, sample_manager, world_item_lists
     );
 
     SdlProcessExitPorts exit_ports(running);
