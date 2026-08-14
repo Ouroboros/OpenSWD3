@@ -37,6 +37,17 @@ struct LegacyRoleSpatialIndex {
         row_heads;
 };
 
+enum class LegacyRoleSpatialIndexRebuildStatus {
+    ready,
+    allocation_size_overflow,
+    allocation_failed,
+};
+
+[[nodiscard]] LegacyRoleSpatialIndexRebuildStatus
+rebuild_legacy_role_spatial_index(
+    LegacyRoleSpatialIndex& spatial_index, compat::u32 map_height
+) noexcept;
+
 enum class LegacyWorldMapBusinessStatus {
     ready,
     invalid_physical_state,

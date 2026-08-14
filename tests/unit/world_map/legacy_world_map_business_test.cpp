@@ -2,6 +2,7 @@
 
 #include "openswd3/world_map/legacy_world_map_business.hpp"
 
+#include <algorithm>
 #include <array>
 #include <bit>
 #include <limits>
@@ -31,11 +32,13 @@ using openswd3::world_map::find_legacy_world_map_event;
 using openswd3::world_map::insert_legacy_role_spatially;
 using openswd3::world_map::kLegacySpatialRowPadding;
 using openswd3::world_map::LegacyRoleSpatialIndex;
+using openswd3::world_map::LegacyRoleSpatialIndexRebuildStatus;
 using openswd3::world_map::LegacyRoleSpatialRelocationStatus;
 using openswd3::world_map::LegacyWorldMapBusinessStatus;
 using openswd3::world_map::LegacyWorldMapEvent;
 using openswd3::world_map::LegacyWorldRoleCellBindingStatus;
 using openswd3::world_map::LegacyWorldRoleRecord;
+using openswd3::world_map::rebuild_legacy_role_spatial_index;
 using openswd3::world_map::relocate_legacy_role_spatially_by_guid;
 
 struct ReadyPhysicalState {
@@ -326,6 +329,86 @@ void test_spatial_insertion_order(openswd3::test::Context& test) {
     );
 }
 
+void test_spatial_index_rebuild(openswd3::test::Context& test) {
+    LegacyRoleSpatialIndex spatial;
+    spatial.map_height = 2U;
+    spatial.row_heads[0U].assign(42U, 11U);
+    spatial.row_heads[1U].assign(42U, 22U);
+    spatial.row_heads[2U].assign(42U, 33U);
+
+    test.expect_equal(
+        rebuild_legacy_role_spatial_index(spatial, 4U),
+        LegacyRoleSpatialIndexRebuildStatus::ready,
+        "sub_411620 accepts the current map height"
+    );
+    test.expect_true(
+        spatial.map_height == 4U &&
+            std::ranges::all_of(
+                spatial.row_heads,
+                [](const auto& group) {
+                    return group.size() == 44U &&
+                        std::ranges::all_of(group, [](const u32 value) {
+                               return value == 0U;
+                           });
+                }
+            ),
+        "three height-plus-forty row-head tables are rebuilt and zeroed"
+    );
+
+    spatial.row_heads[0U][0U] = 1U;
+    spatial.row_heads[1U][20U] = 2U;
+    spatial.row_heads[2U][43U] = 3U;
+    test.expect_equal(
+        rebuild_legacy_role_spatial_index(spatial, 4U),
+        LegacyRoleSpatialIndexRebuildStatus::ready,
+        "sub_411620 can rebuild an already allocated workspace"
+    );
+    test.expect_true(
+        std::ranges::all_of(
+            spatial.row_heads,
+            [](const auto& group) {
+                return std::ranges::all_of(group, [](const u32 value) {
+                    return value == 0U;
+                });
+            }
+        ),
+        "rebuilding the same height discards every old row-head link"
+    );
+
+    test.expect_equal(
+        rebuild_legacy_role_spatial_index(spatial, 0U),
+        LegacyRoleSpatialIndexRebuildStatus::ready,
+        "zero map height still allocates the physical 0xA0-byte workspace"
+    );
+    test.expect_true(
+        spatial.map_height == 0U &&
+            std::ranges::all_of(
+                spatial.row_heads,
+                [](const auto& group) {
+                    return group.size() == 40U &&
+                        std::ranges::all_of(group, [](const u32 value) {
+                               return value == 0U;
+                           });
+                }
+            ),
+        "each zero-height table retains the twenty-row prefix and suffix"
+    );
+
+    const auto preserved = spatial;
+    test.expect_equal(
+        rebuild_legacy_role_spatial_index(
+            spatial, std::numeric_limits<u32>::max()
+        ),
+        LegacyRoleSpatialIndexRebuildStatus::allocation_size_overflow,
+        "the original 32-bit byte-count wrap is isolated before allocation"
+    );
+    test.expect_true(
+        spatial.map_height == preserved.map_height &&
+            spatial.row_heads == preserved.row_heads,
+        "the modern allocation boundary preserves the prior valid workspace"
+    );
+}
+
 void test_spatial_relocation_by_guid(openswd3::test::Context& test) {
     const auto make_spatial = [] {
         LegacyRoleSpatialIndex spatial;
@@ -592,6 +675,7 @@ int main() {
     test_map_event_lookup(test);
     test_business_conversion(test);
     test_spatial_insertion_order(test);
+    test_spatial_index_rebuild(test);
     test_spatial_relocation_by_guid(test);
     test_cell_binding(test);
     test_invalid_and_capacity_statuses(test);

@@ -9,6 +9,7 @@
 #include <limits>
 #include <new>
 #include <stdexcept>
+#include <utility>
 
 namespace openswd3::world_map {
 namespace {
@@ -133,6 +134,36 @@ const LegacyWorldMapEvent* find_legacy_world_map_event(
         }
     }
     return nullptr;
+}
+
+LegacyRoleSpatialIndexRebuildStatus rebuild_legacy_role_spatial_index(
+    LegacyRoleSpatialIndex& spatial_index, const u32 map_height
+) noexcept {
+    constexpr u32 kRowBytes = static_cast<u32>(sizeof(u32));
+    constexpr u32 kPrefixAndSuffixBytes =
+        2U * kLegacySpatialRowPadding * kRowBytes;
+    constexpr u32 kMaximumHeightWithoutByteCountWrap =
+        (std::numeric_limits<u32>::max() - kPrefixAndSuffixBytes) / kRowBytes;
+    if (map_height > kMaximumHeightWithoutByteCountWrap) {
+        return LegacyRoleSpatialIndexRebuildStatus::allocation_size_overflow;
+    }
+
+    LegacyRoleSpatialIndex empty;
+    spatial_index = std::move(empty);
+    spatial_index.map_height = map_height;
+    const std::size_t row_count = static_cast<std::size_t>(map_height) +
+        2U * static_cast<std::size_t>(kLegacySpatialRowPadding);
+    try {
+        for (auto& group : spatial_index.row_heads) {
+            group.assign(row_count, kLegacySpatialNoRole);
+        }
+    } catch (const std::bad_alloc&) {
+        return LegacyRoleSpatialIndexRebuildStatus::allocation_failed;
+    } catch (const std::length_error&) {
+        return LegacyRoleSpatialIndexRebuildStatus::allocation_failed;
+    }
+
+    return LegacyRoleSpatialIndexRebuildStatus::ready;
 }
 
 bool insert_legacy_role_spatially(
@@ -303,14 +334,16 @@ LegacyWorldMapBusinessResult build_legacy_world_map_business_state(
         return result;
     }
 
-    if (header.height >
-        std::numeric_limits<u32>::max() - 2U * kLegacySpatialRowPadding) {
-        result.status =
-            LegacyWorldMapBusinessStatus::spatial_index_size_overflow;
+    const auto spatial_rebuild_status = rebuild_legacy_role_spatial_index(
+        result.state.spatial_index, header.height
+    );
+    if (spatial_rebuild_status != LegacyRoleSpatialIndexRebuildStatus::ready) {
+        result.status = spatial_rebuild_status ==
+                LegacyRoleSpatialIndexRebuildStatus::allocation_size_overflow
+            ? LegacyWorldMapBusinessStatus::spatial_index_size_overflow
+            : LegacyWorldMapBusinessStatus::allocation_failed;
         return result;
     }
-    const std::size_t spatial_rows =
-        static_cast<std::size_t>(header.height + 2U * kLegacySpatialRowPadding);
 
     try {
         result.state.events.reserve(post_surface_records.records.size());
@@ -329,11 +362,6 @@ LegacyWorldMapBusinessResult build_legacy_world_map_business_state(
         result.state.roles.reserve(kLegacyWorldRoleCapacity);
         result.state.roles.emplace_back();
         initialize_role(result.state.roles.front());
-        result.state.spatial_index.map_height = header.height;
-        for (auto& group : result.state.spatial_index.row_heads) {
-            group.resize(spatial_rows, kLegacySpatialNoRole);
-        }
-
         for (const auto& record : offset14_directory.records) {
             if (!append_offset14_role(result.state, record, header.height)) {
                 if (result.state.roles.size() >= kLegacyWorldRoleCapacity) {
