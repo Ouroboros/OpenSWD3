@@ -63,6 +63,7 @@
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_interaction.hpp"
+#include "openswd3/world_map/legacy_world_load_progress.hpp"
 #include "openswd3/world_map/legacy_world_path_requests.hpp"
 #include "openswd3/world_map/legacy_world_path_script.hpp"
 #include "openswd3/world_map/legacy_world_player_control.hpp"
@@ -1392,7 +1393,8 @@ class SdlSmokeIdlePorts final
       public openswd3::app::FramePreparationPorts,
       public openswd3::app::FrameRuntimePorts,
       public openswd3::rendering::LegacyPresentationPorts,
-      public openswd3::audio_video::LegacyVideoFramePorts {
+      public openswd3::audio_video::LegacyVideoFramePorts,
+      public openswd3::world_map::LegacyWorldLoadProgressPorts {
 public:
     class WorldInteractionPorts final
         : public openswd3::world_map::LegacyWorldInteractionPorts {
@@ -1667,6 +1669,11 @@ public:
     }
     void maintain_audio() override {
         service_audio(audio_maintenance_);
+    }
+
+    [[nodiscard]] openswd3::compat::u32
+    next_random_bounded(const openswd3::compat::u32 upper_bound) override {
+        return secondary_rng_.next_bounded(upper_bound);
     }
 
     void yield() override {
@@ -3074,14 +3081,6 @@ public:
         world_frame_effects_.initialize_action_records();
         world_dialogs_ = {};
         world_path_script_state_ = {};
-        openswd3::world_map::initialize_legacy_world_story_vm(
-            world_story_vm_state_
-        );
-        world_interaction_state_ = {};
-        world_player_control_state_ = {};
-        world_dialog_choice_pending_ = false;
-        world_auxiliary_selection_index_ = 0U;
-
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
             tsw_runtime_,
@@ -3090,6 +3089,33 @@ public:
             world_effects_,
             world_jitter_,
         };
+        openswd3::world_map::initialize_legacy_world_story_vm(
+            world_story_vm_state_
+        );
+        const auto progress_reset =
+            openswd3::world_map::update_legacy_world_load_progress(
+                world_load_progress_,
+                world_story_vm_state_,
+                game_framebuffer_,
+                pixel_conversion_,
+                -1,
+                *this,
+                action_ports,
+                *this
+            );
+        if (progress_reset.status !=
+            openswd3::world_map::LegacyWorldLoadProgressStatus::suppressed) {
+            static_cast<void>(report_error(
+                "initial world: loading progress reset was not suppressed"
+            ));
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+        world_interaction_state_ = {};
+        world_player_control_state_ = {};
+        world_dialog_choice_pending_ = false;
+        world_auxiliary_selection_index_ = 0U;
         if (openswd3::world_map::prime_legacy_world_cursor_state(
                 world_frame_effects_.cursor, action_ports
             ) != openswd3::asset_runtime::LegacyActionUpdateStatus::completed) {
@@ -3136,6 +3162,29 @@ public:
                 std::to_string(static_cast<unsigned>(loaded.render_status))
             );
             static_cast<void>(report_error(message));
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+
+        const auto progress_complete =
+            openswd3::world_map::update_legacy_world_load_progress(
+                world_load_progress_,
+                world_story_vm_state_,
+                game_framebuffer_,
+                pixel_conversion_,
+                100,
+                *this,
+                action_ports,
+                *this
+            );
+        if (progress_complete.status !=
+                openswd3::world_map::LegacyWorldLoadProgressStatus::
+                    suppressed ||
+            !progress_complete.suppression_flag_cleared) {
+            static_cast<void>(report_error(
+                "initial world: loading progress terminal gate failed"
+            ));
             ok_ = false;
             running_ = false;
             return false;
@@ -3527,6 +3576,7 @@ private:
     openswd3::world_map::LegacyWorldFrameEffectState world_frame_effects_;
     openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
     openswd3::world_map::LegacyWorldStoryVmState world_story_vm_state_;
+    openswd3::world_map::LegacyWorldLoadProgressState world_load_progress_;
     openswd3::world_map::LegacyWorldInteractionState world_interaction_state_;
     openswd3::world_map::LegacyWorldPlayerControlState
         world_player_control_state_;

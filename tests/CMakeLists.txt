@@ -2404,6 +2404,24 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_load_progress_tests
+    unit/world_map/legacy_world_load_progress_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_load_progress_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_load_progress_tests
+    PRIVATE openswd3_world_map
+)
+
+add_test(
+    NAME world_map.legacy_world_load_progress
+    COMMAND openswd3_world_map_legacy_world_load_progress_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_world_special_frame_loader_tests
     unit/world_map/legacy_world_special_frame_loader_test.cpp
 )
