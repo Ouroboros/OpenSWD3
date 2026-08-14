@@ -73,6 +73,7 @@
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
+#include "openswd3/world_map/legacy_world_transient_reset.hpp"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -3370,35 +3371,29 @@ public:
         world_raster_ = game_framebuffer_.geometry();
         world_jitter_ = {};
         world_frame_state_ = {};
-        static_cast<void>(openswd3::world_map::release_legacy_picture_actions(
-            world_picture_actions_
-        ));
-        static_cast<void>(openswd3::world_map::release_legacy_moving_actions(
-            world_moving_actions_
-        ));
-        static_cast<void>(openswd3::world_map::release_legacy_role_head_actions(
-            world_role_head_actions_
-        ));
-        world_frame_effects_.drift.reset_positions();
+        openswd3::world_map::reset_legacy_world_transient_state(
+            openswd3::world_map::LegacyWorldTransientResetOwners{
+                .packed_row_effects = world_frame_effects_.packed_rows,
+                .moving_actions = world_moving_actions_,
+                .role_head_actions = world_role_head_actions_,
+                .dialogs = world_dialogs_,
+                .picture_actions = world_picture_actions_,
+                .role_particles = world_role_particle_effect_,
+                .ani_drift = world_frame_effects_.drift,
+                .frame_color = world_frame_effects_.frame_color,
+                .selection_words = world_selection_words_,
+                .row_copy = world_frame_effects_.row_copy,
+            }
+        );
+        world_frame_effects_.frame_color = {};
         world_frame_effects_.streak.reset();
         world_frame_effects_.spark.reset_counters();
         world_frame_effects_.directional.reset_motion_block();
-        world_frame_effects_.row_copy.reset();
         world_frame_effects_.deformation.clear();
         world_frame_effects_.follower = {};
-        static_cast<void>(
-            openswd3::rendering::release_legacy_packed_row_effects(
-                world_frame_effects_.packed_rows
-            )
-        );
-        world_frame_effects_.frame_color = {};
         world_frame_effects_.timed_messages.clear();
         world_frame_effects_.cursor = {};
         world_frame_effects_.initialize_action_records();
-        static_cast<void>(openswd3::story_scene::release_legacy_dialog_messages(
-            world_dialogs_
-        ));
-        static_cast<void>(world_role_particle_effect_.release());
         world_path_script_state_ = {};
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
@@ -3911,11 +3906,21 @@ private:
     bool text_input_active_{};
     std::vector<openswd3::compat::i16> world_audio_distances_;
     std::vector<openswd3::compat::i16> world_audio_vertical_offsets_;
-    std::array<openswd3::compat::i16, 1U> world_selection_words_{
-        std::bit_cast<openswd3::compat::i16>(
-            openswd3::world_map::kLegacyWorldSelectionSentinel
-        )
-    };
+    std::array<
+        openswd3::compat::i16,
+        openswd3::world_map::kLegacyWorldSelectionWordCount>
+        world_selection_words_ = [] {
+            std::array<
+                openswd3::compat::i16,
+                openswd3::world_map::kLegacyWorldSelectionWordCount>
+                words{};
+            words.fill(
+                std::bit_cast<openswd3::compat::i16>(
+                    openswd3::world_map::kLegacyWorldSelectionSentinel
+                )
+            );
+            return words;
+        }();
     openswd3::compat::u32 world_auxiliary_selection_index_{};
     bool deferred_world_stage_notice_logged_{};
     bool unsupported_world_path_opcode_notice_logged_{};

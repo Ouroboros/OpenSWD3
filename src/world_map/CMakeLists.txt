@@ -57,6 +57,7 @@ add_library(
         legacy_world_special_frame_loader.cpp
         legacy_world_story_paths.cpp
         legacy_world_story_vm.cpp
+        legacy_world_transient_reset.cpp
 )
 target_include_directories(
     openswd3_world_map
