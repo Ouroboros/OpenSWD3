@@ -1845,6 +1845,13 @@ public:
             frame_coordinator_state_.battle.special_mode_state;
         frame_preparation_state_.high_priority_state =
             frame_coordinator_state_.battle.high_priority_state;
+        frame_preparation_state_.world_role_count =
+            active_world_session_.has_value()
+            ? static_cast<openswd3::compat::u32>(
+                  active_world_session_->render.map_load.session.business.state
+                      .roles.size()
+              )
+            : 0U;
         if (openswd3::app::run_frame_preparation(
                 frame_preparation_state_, *this
             ) == openswd3::app::FramePreparationOutcome::accepted) {
@@ -1949,8 +1956,85 @@ public:
         }
     }
 
-    void
-    release_and_clear_party_member_transition(openswd3::compat::u32) override {}
+    void release_and_clear_world_role_transition(
+        const openswd3::compat::u32 role_index
+    ) override {
+        if (!active_world_session_.has_value()) {
+            openswd3::diagnostics::log_warning(
+                "world role transition requested without an active world"
+            );
+            return;
+        }
+
+        auto& world = *active_world_session_;
+        auto& map = world.render.map_load.session;
+        auto& roles = map.business.state.roles;
+        if (world.selected_role_index >= roles.size()) {
+            openswd3::diagnostics::log_warning(
+                "world role transition has an invalid selected role"
+            );
+            return;
+        }
+
+        openswd3::world_map::LegacyWorldStoryPathRuntime story_paths{
+            .roles = roles,
+            .active_object_slots =
+                world_frame_state_.map_role_paths.active_object_slots,
+            .spatial_index = &map.business.state.spatial_index,
+            .role_surface =
+                {
+                    .map_width = map.header.width,
+                    .selected_guid = roles[world.selected_role_index].guid,
+                    .surface_grid = map.surface_grid.surface_grid,
+                },
+            .node_pool = &world_path_node_pool_,
+            .movement = &world_frame_state_.movement,
+            .camera = &world.camera,
+            .selected_arrival_bytes =
+                world_frame_state_.map_role_paths.guid_one_arrival_bytes,
+            .selected_role_index = world.selected_role_index,
+            .map_height = map.header.height,
+            .scene_render_flags =
+                &world_frame_state_.frame_runtime.frame.runtime_flags,
+        };
+        SdlDeferredWorldFramePorts path_ports{
+            audio_maintenance_,
+            *this,
+            text_renderers_,
+            &world_frame_state_.head_sign_actions,
+            &story_paths,
+            &world_path_script_state_,
+            &world_story_vm_state_,
+        };
+        openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
+            action_updater_,
+            tsw_runtime_,
+            game_framebuffer_,
+            world_raster_,
+            world_effects_,
+            world_jitter_,
+        };
+        const auto result =
+            openswd3::world_map::release_legacy_world_role_transition(
+                roles,
+                world_frame_state_.map_role_paths.active_object_slots,
+                role_index,
+                world.selected_role_index,
+                story_paths.role_surface,
+                path_ports,
+                action_ports
+            );
+        if (result.status !=
+            openswd3::world_map::LegacyWorldRoleTransitionStatus::ready) {
+            std::string message{"world role transition failed: role="};
+            message.append(std::to_string(role_index));
+            message.append(", status=");
+            message.append(
+                std::to_string(static_cast<unsigned int>(result.status))
+            );
+            openswd3::diagnostics::log_warning(message);
+        }
+    }
 
     void sample_input_device() override {
         static_cast<void>(openswd3::platform_sdl3::sample_sdl_keyboard_state(

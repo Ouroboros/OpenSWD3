@@ -74,11 +74,15 @@ struct LegacyActionRecord {
 
 static_assert(sizeof(LegacyActionRecord) == kLegacyActionRecordSize);
 static_assert(offsetof(LegacyActionRecord, action_id) == 0x00U);
+static_assert(offsetof(LegacyActionRecord, base_variant) == 0x08U);
 static_assert(offsetof(LegacyActionRecord, mode_flags) == 0x18U);
+static_assert(offsetof(LegacyActionRecord, one_shot_base_variant) == 0x20U);
 static_assert(offsetof(LegacyActionRecord, variant_delta) == 0x34U);
+static_assert(offsetof(LegacyActionRecord, one_shot_variant_delta) == 0x3CU);
 static_assert(offsetof(LegacyActionRecord, packed_ap_state) == 0x40U);
 static_assert(offsetof(LegacyActionRecord, command_cursor) == 0x42U);
 static_assert(offsetof(LegacyActionRecord, wait_remaining) == 0x44U);
+static_assert(offsetof(LegacyActionRecord, wait_override) == 0x48U);
 static_assert(offsetof(LegacyActionRecord, stream_pointer_32) == 0x54U);
 static_assert(offsetof(LegacyActionRecord, field_88) == 0x88U);
 static_assert(offsetof(LegacyActionRecord, field_8c) == 0x8CU);

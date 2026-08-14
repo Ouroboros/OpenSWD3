@@ -22,7 +22,7 @@ struct FramePreparationState {
     compat::u32 high_priority_state{};
     compat::u32 primary_countdown{};
     compat::u16 value_004b72c4{};
-    compat::u32 party_member_count{};
+    compat::u32 world_role_count{};
     compat::u16 value_004a93d4{};
     compat::u16 value_004b7bc4{};
     compat::u32 value_004b72b4{};
@@ -58,7 +58,7 @@ public:
         PrimaryTransitionOperation operation
     ) = 0;
     virtual void
-    release_and_clear_party_member_transition(compat::u32 member_index) = 0;
+    release_and_clear_world_role_transition(compat::u32 role_index) = 0;
 
     virtual void sample_input_device() = 0;
     virtual void normalize_input() = 0;

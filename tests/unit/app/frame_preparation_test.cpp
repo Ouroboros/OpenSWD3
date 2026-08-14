@@ -16,7 +16,7 @@ enum class CallKind {
     clear_flag,
     set_flag,
     primary_operation,
-    party_member,
+    world_role,
     sample_input,
     normalize_input,
 };
@@ -72,8 +72,8 @@ public:
     }
 
     void
-    release_and_clear_party_member_transition(const u32 member_index) override {
-        calls.push_back({CallKind::party_member, member_index});
+    release_and_clear_world_role_transition(const u32 role_index) override {
+        calls.push_back({CallKind::world_role, role_index});
     }
 
     void sample_input_device() override {
@@ -238,7 +238,7 @@ void test_primary_transition(openswd3::test::Context& test) {
     state.frame_clock.frame_interval_milliseconds = 0U;
     state.primary_countdown = 0U;
     state.value_004b72c4 = 0xFFFFU;
-    state.party_member_count = 3U;
+    state.world_role_count = 3U;
     state.value_004a93d4 = 0x1234U;
     state.value_004b7bc4 = 0x5678U;
     state.value_004b72b4 = 1U;
@@ -264,8 +264,8 @@ void test_primary_transition(openswd3::test::Context& test) {
         {CallKind::primary_operation, static_cast<u32>(release_0040f570)},
         {CallKind::primary_operation, static_cast<u32>(release_0040dbc0)},
         {CallKind::primary_operation, static_cast<u32>(release_0040f5a0)},
-        {CallKind::party_member, 1U},
-        {CallKind::party_member, 2U},
+        {CallKind::world_role, 1U},
+        {CallKind::world_role, 2U},
         {CallKind::query_flag, 0x4AU},
         {CallKind::sample_input, 0U},
         {CallKind::normalize_input, 0U},

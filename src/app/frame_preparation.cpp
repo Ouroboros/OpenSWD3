@@ -38,10 +38,9 @@ void run_primary_transition(
     }
 
     // The assembly compares this count as a signed dword and starts at one.
-    if (!has_sign_bit(state.party_member_count)) {
-        for (compat::u32 index = 1U; index < state.party_member_count;
-             ++index) {
-            ports.release_and_clear_party_member_transition(index);
+    if (!has_sign_bit(state.world_role_count)) {
+        for (compat::u32 index = 1U; index < state.world_role_count; ++index) {
+            ports.release_and_clear_world_role_transition(index);
         }
     }
 
