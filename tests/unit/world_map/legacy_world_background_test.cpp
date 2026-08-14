@@ -302,6 +302,60 @@ void test_partial_refresh_zero_left_stride(openswd3::test::Context& test) {
     );
 }
 
+void test_unaligned_partial_refresh_interior_only(
+    openswd3::test::Context& test
+) {
+    {
+        SyntheticMap map;
+        LegacyFramebuffer framebuffer;
+        fill_framebuffer(framebuffer, 0x7777U);
+
+        const auto result = render_legacy_world_background(
+            framebuffer,
+            map.source(),
+            LegacyWorldBackgroundView{
+                .camera_left = 0,
+                .camera_top = 7,
+                .partial_refresh = true,
+                .partial_focus_x = 320,
+                .partial_focus_y = 240,
+            }
+        );
+        test.expect_true(
+            result.status == LegacyWorldBackgroundRenderStatus::completed &&
+                framebuffer.row_pixels(57U)[128U] == 0x7777U &&
+                framebuffer.row_pixels(48U)[144U] == 0x7777U &&
+                framebuffer.row_pixels(57U)[144U] == 1U,
+            "unaligned partial refresh leaves its aligned-axis border intact"
+        );
+    }
+
+    {
+        SyntheticMap map;
+        map.tiles[4U * map.width + 9U] = 1U;
+        LegacyFramebuffer framebuffer;
+        fill_framebuffer(framebuffer, 0x7777U);
+
+        const auto result = render_legacy_world_background(
+            framebuffer,
+            map.source(),
+            LegacyWorldBackgroundView{
+                .camera_left = -5,
+                .camera_top = 7,
+                .partial_refresh = true,
+                .partial_focus_x = 320,
+                .partial_focus_y = 240,
+            }
+        );
+        test.expect_true(
+            result.status == LegacyWorldBackgroundRenderStatus::completed &&
+                framebuffer.row_pixels(57U)[133U] == 0x7777U &&
+                framebuffer.row_pixels(57U)[149U] == 0x1001U,
+            "negative camera clamp retains the original partial tile origin"
+        );
+    }
+}
+
 void test_indexed_tiles(openswd3::test::Context& test) {
     constexpr u32 width = 45U;
     constexpr u32 height = 35U;
@@ -452,6 +506,7 @@ int main(const int argument_count, char** arguments) {
     test_unaligned_edges_and_flags(test);
     test_partial_refresh(test);
     test_partial_refresh_zero_left_stride(test);
+    test_unaligned_partial_refresh_interior_only(test);
     test_indexed_tiles(test);
     test_checked_source_failures(test);
 

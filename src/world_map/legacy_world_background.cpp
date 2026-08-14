@@ -200,6 +200,39 @@ LegacyWorldBackgroundRenderResult render_legacy_world_background(
         low_nibble(view.camera_left) == 0 &&
         low_nibble(view.camera_top) == 0 && view.partial_refresh &&
         wrapping_subtract(round_up_to_16(view.partial_focus_x), 0xC0) == 0;
+    const bool legacy_unaligned_direct_partial_interior =
+        source.pixel_layout == LegacyWorldBackgroundPixelLayout::direct_16 &&
+        view.partial_refresh &&
+        (low_nibble(view.camera_left) != 0 ||
+         low_nibble(view.camera_top) != 0);
+    const bool legacy_unaligned_direct_edge_clip =
+        source.pixel_layout == LegacyWorldBackgroundPixelLayout::direct_16 &&
+        !view.partial_refresh &&
+        (low_nibble(view.camera_left) != 0 ||
+         low_nibble(view.camera_top) != 0);
+    i32 legacy_partial_cell_x = first_cell_x;
+    i32 legacy_partial_cell_y = first_cell_y;
+    i32 legacy_partial_offset_x = first_screen_x;
+    i32 legacy_partial_offset_y = first_screen_y;
+    if (legacy_partial_cell_x < 0) {
+        legacy_partial_cell_x = 0;
+        legacy_partial_offset_x = wrapping_add(legacy_partial_offset_x, 16);
+    }
+    if (legacy_partial_cell_y < 0) {
+        legacy_partial_cell_y = 0;
+        legacy_partial_offset_y = wrapping_add(legacy_partial_offset_y, 16);
+    }
+    const i32 legacy_partial_first_screen_x = wrapping_add(
+        redraw.left, wrapping_add(legacy_partial_offset_x, 16)
+    );
+    const i32 legacy_partial_first_screen_y = wrapping_add(
+        redraw.top, wrapping_add(legacy_partial_offset_y, 16)
+    );
+    const std::int64_t legacy_unaligned_partial_first_cell =
+        (static_cast<std::int64_t>(floor_divide_16(redraw.top)) +
+         legacy_partial_cell_y + 1) *
+            source.map_width +
+        floor_divide_16(redraw.left) + legacy_partial_cell_x + 1;
     const std::int64_t legacy_partial_first_cell =
         static_cast<std::int64_t>(
             floor_divide_16(wrapping_add(view.camera_top, redraw.top))
@@ -212,6 +245,12 @@ LegacyWorldBackgroundRenderResult render_legacy_world_background(
         if (screen_y + static_cast<i32>(kLegacyWorldTilePixels) <= redraw.top) {
             continue;
         }
+        if (legacy_unaligned_direct_partial_interior &&
+            (screen_y < legacy_partial_first_screen_y ||
+             screen_y >=
+                 redraw.bottom - static_cast<i32>(kLegacyWorldTilePixels))) {
+            continue;
+        }
         for (i32 screen_x = first_screen_x, cell_x = first_cell_x;
              screen_x < redraw.right;
              screen_x += static_cast<i32>(kLegacyWorldTilePixels), ++cell_x) {
@@ -219,16 +258,37 @@ LegacyWorldBackgroundRenderResult render_legacy_world_background(
                 redraw.left) {
                 continue;
             }
-            if (cell_x < 0 || cell_y < 0 ||
-                static_cast<u32>(cell_x) >= source.map_width ||
-                static_cast<u32>(cell_y) >= source.map_height) {
+            if (legacy_unaligned_direct_partial_interior &&
+                (screen_x < legacy_partial_first_screen_x ||
+                 screen_x >=
+                     redraw.right -
+                         static_cast<i32>(kLegacyWorldTilePixels))) {
+                continue;
+            }
+            if (!legacy_unaligned_direct_partial_interior &&
+                (cell_x < 0 || cell_y < 0 ||
+                 static_cast<u32>(cell_x) >= source.map_width ||
+                 static_cast<u32>(cell_y) >= source.map_height)) {
                 continue;
             }
 
-            std::size_t cell_index =
-                static_cast<std::size_t>(cell_y) * source.map_width +
-                static_cast<u32>(cell_x);
-            if (legacy_zero_left_partial_stride) {
+            std::size_t cell_index{};
+            if (legacy_unaligned_direct_partial_interior) {
+                const std::int64_t tile_row =
+                    (screen_y - legacy_partial_first_screen_y) /
+                    static_cast<i32>(kLegacyWorldTilePixels);
+                const std::int64_t tile_column =
+                    (screen_x - legacy_partial_first_screen_x) /
+                    static_cast<i32>(kLegacyWorldTilePixels);
+                const std::int64_t legacy_index =
+                    legacy_unaligned_partial_first_cell +
+                    tile_row * source.map_width + tile_column;
+                if (legacy_index < 0 ||
+                    legacy_index >= static_cast<std::int64_t>(cell_count)) {
+                    continue;
+                }
+                cell_index = static_cast<std::size_t>(legacy_index);
+            } else if (legacy_zero_left_partial_stride) {
                 const std::int64_t tile_row =
                     (screen_y - redraw.top) /
                     static_cast<i32>(kLegacyWorldTilePixels);
@@ -244,6 +304,10 @@ LegacyWorldBackgroundRenderResult render_legacy_world_background(
                     continue;
                 }
                 cell_index = static_cast<std::size_t>(legacy_index);
+            } else {
+                cell_index =
+                    static_cast<std::size_t>(cell_y) * source.map_width +
+                    static_cast<u32>(cell_x);
             }
             u32 flags{};
             if (!read_cell_flags(source.cell_flags, cell_index, flags)) {
@@ -269,16 +333,35 @@ LegacyWorldBackgroundRenderResult render_legacy_world_background(
                     [static_cast<std::size_t>(source.tile_layer_offset) +
                      cell_index];
 
-            const i32 clipped_left = std::max(screen_x, redraw.left);
-            const i32 clipped_top = std::max(screen_y, redraw.top);
-            const i32 clipped_right = std::min(
+            i32 clipped_left = std::max(screen_x, redraw.left);
+            i32 clipped_top = std::max(screen_y, redraw.top);
+            i32 clipped_right = std::min(
                 screen_x + static_cast<i32>(kLegacyWorldTilePixels),
                 redraw.right
             );
-            const i32 clipped_bottom = std::min(
+            i32 clipped_bottom = std::min(
                 screen_y + static_cast<i32>(kLegacyWorldTilePixels),
                 redraw.bottom
             );
+            if (legacy_unaligned_direct_edge_clip) {
+                const bool outer_tile = screen_x <= 0 || screen_y <= 0 ||
+                    screen_x + static_cast<i32>(kLegacyWorldTilePixels) >=
+                        surface.width ||
+                    screen_y + static_cast<i32>(kLegacyWorldTilePixels) >=
+                        surface.height ||
+                    cell_x == 0 || cell_y == 0 ||
+                    static_cast<u32>(cell_x + 1) >= source.map_width ||
+                    static_cast<u32>(cell_y + 1) >= source.map_height;
+                if (outer_tile) {
+                    clipped_left =
+                        std::max(clipped_left, view.edge_clip_left);
+                    clipped_top = std::max(clipped_top, view.edge_clip_top);
+                    clipped_right =
+                        std::min(clipped_right, view.edge_clip_right);
+                    clipped_bottom =
+                        std::min(clipped_bottom, view.edge_clip_bottom);
+                }
+            }
             for (i32 destination_y = clipped_top;
                  destination_y < clipped_bottom;
                  ++destination_y) {

@@ -240,6 +240,12 @@ LegacyWorldFrameCompositionResult compose_legacy_world_frame(
                     .partial_refresh = partial_background_refresh,
                     .partial_focus_x = state.partial_focus_x,
                     .partial_focus_y = state.partial_focus_y,
+                    .edge_clip_left = raster.clip_left,
+                    .edge_clip_top = raster.clip_top,
+                    .edge_clip_right =
+                        wrapping_add(raster.clip_left, raster.clip_width),
+                    .edge_clip_bottom =
+                        wrapping_add(raster.clip_top, raster.clip_height),
                 }
             );
             if (result.background.status !=

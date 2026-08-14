@@ -39,6 +39,12 @@ struct LegacyWorldBackgroundView {
     bool partial_refresh{};
     compat::i32 partial_focus_x{};
     compat::i32 partial_focus_y{};
+    // The unaligned legacy paths send only their outer tile ring through the
+    // clip-aware generic blitter. Interior full-tile copies ignore this clip.
+    compat::i32 edge_clip_left{};
+    compat::i32 edge_clip_top{};
+    compat::i32 edge_clip_right{rendering::kLegacyFramebufferWidth};
+    compat::i32 edge_clip_bottom{rendering::kLegacyFramebufferHeight};
 };
 
 enum class LegacyWorldBackgroundRenderStatus : compat::u8 {

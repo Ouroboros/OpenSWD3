@@ -339,6 +339,36 @@ void test_runtime_partial_clip_keeps_full_background(
     );
 }
 
+void test_runtime_clip_affects_only_unaligned_edge_tiles(
+    openswd3::test::Context& test
+) {
+    SyntheticBackground background;
+    LegacyFramebuffer framebuffer;
+    fill_framebuffer(framebuffer, 0x7777U);
+    LegacyRasterGeometryState raster = make_raster(framebuffer);
+    RecordingPorts ports(raster);
+
+    const auto result = compose_legacy_world_frame(
+        framebuffer,
+        raster,
+        background.source(),
+        LegacyWorldFrameState{
+            .runtime_flags = kLegacyWorldFramePartialRefresh,
+            .camera_left = 5,
+            .camera_top = 7,
+            .partial_focus_x = 321,
+            .partial_focus_y = 241,
+        },
+        ports
+    );
+    test.expect_true(
+        result.status == LegacyWorldFrameCompositionStatus::completed &&
+            framebuffer.row_pixels(0U)[0U] == 0x7777U &&
+            framebuffer.row_pixels(9U)[11U] == 1U,
+        "runtime clip affects unaligned edge blits but not full interior tiles"
+    );
+}
+
 void test_clear_only_short_circuit(openswd3::test::Context& test) {
     LegacyFramebuffer framebuffer;
     fill_framebuffer(framebuffer, 0x7777U);
@@ -637,6 +667,7 @@ int main(const int argument_count, char** arguments) {
     test_normal_exact_order(test);
     test_service_13_reclips_after_pre_background(test);
     test_runtime_partial_clip_keeps_full_background(test);
+    test_runtime_clip_affects_only_unaligned_edge_tiles(test);
     test_clear_only_short_circuit(test);
     test_ani_activity_and_full_clip_tail(test);
     test_service_48_and_control_override(test);
