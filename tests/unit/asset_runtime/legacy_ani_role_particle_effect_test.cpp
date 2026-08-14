@@ -4,6 +4,7 @@
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -189,14 +190,30 @@ void test_physical_layout_pool_and_reset(openswd3::test::Context& test) {
 
     const u32 first = effect.nodes().allocate_zeroed();
     const u32 second = effect.nodes().allocate_zeroed();
+    const u32 third = effect.nodes().allocate_zeroed();
+    const u32 fourth = effect.nodes().allocate_zeroed();
     test.expect_equal(first, u32{1U}, "the token pool reserves zero for null");
     test.expect_equal(second, u32{2U}, "tokens are stable one-based indices");
     effect.emitters()[0U].head_token = second;
     effect.emitters()[0U].role_selector = 7;
     effect.nodes().node(second)->next_token = first;
     effect.nodes().node(first)->lifetime = 9;
+    effect.emitters()[1U].head_token = third;
+    effect.emitters()[1U].world_x = 12;
+    effect.emitters()[3U].head_token = fourth;
+    effect.emitters()[3U].flags = 3;
 
-    effect.reset();
+    const auto released = effect.release();
+    test.expect_true(
+        released.released_per_emitter ==
+                std::array<u32, kLegacyAniRoleParticleEmitterCount>{
+                    2U, 1U, 0U, 1U
+                } &&
+            released.released_node_count == 4U &&
+            released.corrupt_link_count == 0U &&
+            released.orphaned_node_count == 0U,
+        "sub_40F630 releases four emitter chains from slot zero through three"
+    );
     test.expect_equal(
         effect.nodes().active_count(),
         std::size_t{0U},
@@ -213,6 +230,13 @@ void test_physical_layout_pool_and_reset(openswd3::test::Context& test) {
             }
         ),
         "reset zeros the full four-record 0x40-byte state"
+    );
+
+    effect.reset();
+    test.expect_equal(
+        effect.nodes().active_count(),
+        std::size_t{0U},
+        "the empty reset wrapper retains the same release contract"
     );
 }
 

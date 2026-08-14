@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v198
+版本：v199
 
 最后更新：2026-08-14
 
@@ -824,5 +824,17 @@
     两个最终空根和重复空链。Linux `core` 184/184、Linux `app` 189/189、Windows LLVM
     `app` 189/189 CTest 通过，两端应用均成功链接且未启动。114 项当前关闭 78 项，
     剩余 36 项。
+
+    B7 角色粒子发射器四链关闭 `sub_40F630` 随后完成函数级闭环：严格按四个连续
+    `0x10` 槽递增处理，每槽读取节点 `+0x00`、先推进该槽链首、再释放完整 `0x10`
+    节点，最后以 16 个 dword 无条件清零完整 `0x40` emitter 状态。既有
+    `LegacyAniRoleParticleEffect` 改为显式逐槽逐链 release；token 池在链处理后真正
+    归还 backing storage，不再由 `vector::clear()` 保留容量。三个无参数调用点及无
+    EAX 消费均已反查，SDL 总关闭和 world owner 重建已绑定实际 effect；
+    `sub_40C130/sub_411D00` 的完整外围调用次序以及普通角色绘制端口尚未接入
+    `sub_415EE0` 的缺口继续分别归入其外层 B7 行，不在本 helper 中伪造完成。定向 UT
+    覆盖四槽 `2/1/0/1` 节点、完整字段清零和重复空 reset。114 项当前关闭 79 项，
+    剩余 35 项。Linux `core` 184/184、Linux `app` 189/189、Windows LLVM `app`
+    189/189 CTest 通过，两端应用均成功链接且未启动。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

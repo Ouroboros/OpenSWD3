@@ -156,7 +156,7 @@ void LegacyAniRoleParticleNodePool::release(const u32 token) noexcept {
 }
 
 void LegacyAniRoleParticleNodePool::clear() noexcept {
-    slots_.clear();
+    std::vector<Slot>{}.swap(slots_);
     active_count_ = 0U;
 }
 
@@ -257,9 +257,33 @@ LegacyAniRoleParticleRuntimePorts::draw_frame_piece(
         .status;
 }
 
-void LegacyAniRoleParticleEffect::reset() noexcept {
+LegacyAniRoleParticleReleaseResult
+LegacyAniRoleParticleEffect::release() noexcept {
+    LegacyAniRoleParticleReleaseResult result;
+    for (std::size_t emitter_index = 0U; emitter_index < emitters_.size();
+         ++emitter_index) {
+        LegacyAniRoleParticleEmitter& emitter = emitters_[emitter_index];
+        while (emitter.head_token != 0U) {
+            const u32 token = emitter.head_token;
+            const LegacyAniRoleParticleNode* const node = nodes_.node(token);
+            if (node == nullptr) {
+                ++result.corrupt_link_count;
+                break;
+            }
+            emitter.head_token = node->next_token;
+            nodes_.release(token);
+            ++result.released_per_emitter[emitter_index];
+            ++result.released_node_count;
+        }
+    }
+    result.orphaned_node_count = static_cast<u32>(nodes_.active_count());
     nodes_.clear();
     emitters_.fill(LegacyAniRoleParticleEmitter{});
+    return result;
+}
+
+void LegacyAniRoleParticleEffect::reset() noexcept {
+    static_cast<void>(release());
 }
 
 LegacyAniRoleParticleResult LegacyAniRoleParticleEffect::update(

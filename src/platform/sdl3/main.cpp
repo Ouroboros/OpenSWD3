@@ -34,6 +34,7 @@
 #include "openswd3/asset_runtime/legacy_ani_directional_effect.hpp"
 #include "openswd3/asset_runtime/legacy_ani_drift_effect.hpp"
 #include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
+#include "openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp"
 #include "openswd3/asset_runtime/legacy_tsw_runtime.hpp"
 #include "openswd3/battle/legacy_battle_assets.hpp"
 #include "openswd3/battle/legacy_battle_setup.hpp"
@@ -1152,6 +1153,12 @@ public:
         picture_actions_ = &actions;
     }
 
+    void bind_role_particle_effect(
+        openswd3::asset_runtime::LegacyAniRoleParticleEffect& effect
+    ) noexcept {
+        role_particle_effect_ = &effect;
+    }
+
     void bind_moving_actions(
         openswd3::world_map::LegacyMovingActionList& actions
     ) noexcept {
@@ -1241,6 +1248,11 @@ public:
             static_cast<void>(
                 openswd3::story_scene::release_legacy_dialog_messages(*dialogs_)
             );
+        } else if (
+            operation == Operation::release_0040f630 &&
+            role_particle_effect_ != nullptr
+        ) {
+            static_cast<void>(role_particle_effect_->release());
         }
         if (operation == openswd3::app::ShutdownOperation::show_cursor) {
             static_cast<void>(SDL_ShowCursor());
@@ -1267,6 +1279,8 @@ private:
     openswd3::world_map::LegacyMovingActionList* moving_actions_{};
     openswd3::world_map::LegacyRoleHeadActionList* role_head_actions_{};
     openswd3::story_scene::LegacyDialogRuntimeState* dialogs_{};
+    openswd3::asset_runtime::LegacyAniRoleParticleEffect*
+        role_particle_effect_{};
 };
 
 class SdlProcessExitPorts final : public openswd3::app::ProcessExitPorts {
@@ -1721,6 +1735,11 @@ public:
     [[nodiscard]] openswd3::story_scene::LegacyDialogRuntimeState&
     dialogs() noexcept {
         return world_dialogs_;
+    }
+
+    [[nodiscard]] openswd3::asset_runtime::LegacyAniRoleParticleEffect&
+    role_particle_effect() noexcept {
+        return world_role_particle_effect_;
     }
 
     void latch_keyboard_press(const SDL_Scancode scancode) noexcept {
@@ -3278,6 +3297,7 @@ public:
         static_cast<void>(openswd3::story_scene::release_legacy_dialog_messages(
             world_dialogs_
         ));
+        static_cast<void>(world_role_particle_effect_.release());
         world_path_script_state_ = {};
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
@@ -3771,6 +3791,8 @@ private:
     openswd3::world_map::LegacyPictureActionLists world_picture_actions_;
     openswd3::world_map::LegacyMovingActionList world_moving_actions_;
     openswd3::world_map::LegacyRoleHeadActionList world_role_head_actions_;
+    openswd3::asset_runtime::LegacyAniRoleParticleEffect
+        world_role_particle_effect_;
     openswd3::world_map::LegacyWorldFrameEffectState world_frame_effects_;
     openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
     openswd3::world_map::LegacyWorldStoryVmState world_story_vm_state_;
@@ -4211,6 +4233,7 @@ int main(const int argument_count, char** arguments) {
         running
     );
     shutdown_ports.bind_picture_actions(idle_ports.picture_actions());
+    shutdown_ports.bind_role_particle_effect(idle_ports.role_particle_effect());
     shutdown_ports.bind_packed_row_effects(idle_ports.packed_row_effects());
     shutdown_ports.bind_moving_actions(idle_ports.moving_actions());
     shutdown_ports.bind_role_head_actions(idle_ports.role_head_actions());

@@ -178,10 +178,19 @@ struct LegacyAniRoleParticleResult {
     };
 };
 
+struct LegacyAniRoleParticleReleaseResult {
+    std::array<compat::u32, kLegacyAniRoleParticleEmitterCount>
+        released_per_emitter{};
+    compat::u32 released_node_count{};
+    compat::u32 corrupt_link_count{};
+    compat::u32 orphaned_node_count{};
+};
+
 class LegacyAniRoleParticleEffect final {
 public:
     // 0x0040F630 frees all four lists, then zeros the full 0x40-byte emitter
     // block.
+    [[nodiscard]] LegacyAniRoleParticleReleaseResult release() noexcept;
     void reset() noexcept;
 
     [[nodiscard]] LegacyAniRoleParticleResult update(
