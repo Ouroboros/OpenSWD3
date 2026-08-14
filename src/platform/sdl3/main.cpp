@@ -67,6 +67,7 @@
 #include "openswd3/world_map/legacy_world_path_requests.hpp"
 #include "openswd3/world_map/legacy_world_path_script.hpp"
 #include "openswd3/world_map/legacy_world_player_control.hpp"
+#include "openswd3/world_map/legacy_world_role_lifecycle.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
@@ -3026,6 +3027,37 @@ public:
         tsw_runtime_.set_special_loader(nullptr);
         tsw_runtime_.clear_cache();
         world_special_frame_loader_.reset();
+        if (active_world_session_.has_value()) {
+            auto& roles = active_world_session_->render.map_load.session
+                              .business.state.roles;
+            const auto highest_role_index =
+                roles.size() > openswd3::world_map::kLegacyWorldRoleCapacity
+                ? static_cast<openswd3::compat::i32>(
+                      openswd3::world_map::kLegacyWorldRoleCapacity
+                  )
+                : roles.empty()
+                ? openswd3::compat::i32{-1}
+                : static_cast<openswd3::compat::i32>(roles.size() - 1U);
+            const auto role_reset =
+                openswd3::world_map::reset_legacy_world_role_table(
+                    roles,
+                    world_path_script_state_.role_label_payloads,
+                    highest_role_index
+                );
+            if (role_reset.status !=
+                openswd3::world_map::LegacyWorldRoleTableResetStatus::ready) {
+                std::string message{
+                    "initial world: previous role owner reset failed: status="
+                };
+                message.append(
+                    std::to_string(static_cast<unsigned int>(role_reset.status))
+                );
+                static_cast<void>(report_error(message));
+                ok_ = false;
+                running_ = false;
+                return false;
+            }
+        }
         active_world_session_.reset();
         world_audio_distances_.clear();
         world_audio_vertical_offsets_.clear();
