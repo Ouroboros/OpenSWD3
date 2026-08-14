@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v195
+版本：v196
 
 最后更新：2026-08-14
 
@@ -793,5 +793,15 @@
     三节点、最终空根和入口空链。Linux `core` 184/184、Linux `app` 189/189、Windows
     LLVM `app` 189/189 CTest 通过，两端应用均成功链接且未启动。114 项当前关闭
     75 项，剩余 39 项。
+
+    B7 角色头顶 action 链关闭 `sub_40F570` 随后完成闭环：空的 `dword_4BA6E0`
+    直接返回；非空时每轮读取节点 `+0xB0`、先推进全局首、再释放整个 `0xB4` 节点。
+    既有 `LegacyRoleHeadActionNode` 已用静态断言固定完整 action、四个运动 word、保留段
+    和旧 next 槽；显式 helper 以先 `splice` 摘头再 `pop_front()` 保留销毁顺序，不把
+    容器整体 `clear()` 当作汇编证明。五个无参数调用点及无 EAX 消费均已反查，世界
+    owner 重建、主过渡、opcode 88 和 SDL `release_0040f570` 已接入实际跨帧链；定向
+    UT 覆盖三节点、最终空根和入口空链。Linux `core` 184/184、Linux `app` 189/189、
+    Windows LLVM `app` 189/189 CTest 通过，两端应用均成功链接且未启动。114 项当前
+    关闭 76 项，剩余 38 项。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

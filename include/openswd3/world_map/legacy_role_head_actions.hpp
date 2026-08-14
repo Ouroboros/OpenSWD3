@@ -34,6 +34,15 @@ static_assert(offsetof(LegacyRoleHeadActionNode, next_pointer_32) == 0xB0U);
 
 using LegacyRoleHeadActionList = std::list<LegacyRoleHeadActionNode>;
 
+struct LegacyRoleHeadActionReleaseResult {
+    compat::u32 node_release_count{};
+};
+
+// sub_40F570 (0x0040F570..0x0040F597): detach and release every 0xB4
+// dword_4BA6E0 node from the list head.
+[[nodiscard]] LegacyRoleHeadActionReleaseResult
+release_legacy_role_head_actions(LegacyRoleHeadActionList& nodes) noexcept;
+
 struct LegacyRoleHeadActionResult {
     compat::u32 visited_count{};
     compat::u32 action_update_failure_count{};

@@ -1152,6 +1152,12 @@ public:
         moving_actions_ = &actions;
     }
 
+    void bind_role_head_actions(
+        openswd3::world_map::LegacyRoleHeadActionList& actions
+    ) noexcept {
+        role_head_actions_ = &actions;
+    }
+
     void perform_shutdown_operation(
         const openswd3::app::ShutdownOperation operation
     ) override {
@@ -1199,6 +1205,15 @@ public:
                     *moving_actions_
                 )
             );
+        } else if (
+            operation == Operation::release_0040f570 &&
+            role_head_actions_ != nullptr
+        ) {
+            static_cast<void>(
+                openswd3::world_map::release_legacy_role_head_actions(
+                    *role_head_actions_
+                )
+            );
         }
         if (operation == openswd3::app::ShutdownOperation::show_cursor) {
             static_cast<void>(SDL_ShowCursor());
@@ -1222,6 +1237,7 @@ private:
     std::list<openswd3::rendering::LegacyPackedRowEffect>*
         packed_row_effects_{};
     openswd3::world_map::LegacyMovingActionList* moving_actions_{};
+    openswd3::world_map::LegacyRoleHeadActionList* role_head_actions_{};
 };
 
 class SdlProcessExitPorts final : public openswd3::app::ProcessExitPorts {
@@ -1663,6 +1679,11 @@ public:
         return world_moving_actions_;
     }
 
+    [[nodiscard]] openswd3::world_map::LegacyRoleHeadActionList&
+    role_head_actions() noexcept {
+        return world_role_head_actions_;
+    }
+
     void latch_keyboard_press(const SDL_Scancode scancode) noexcept {
         static_cast<void>(openswd3::platform_sdl3::latch_sdl_keyboard_press(
             pending_keyboard_presses_, scancode
@@ -1828,6 +1849,13 @@ public:
         ) {
             shutdown_ports_.perform_shutdown_operation(
                 openswd3::app::ShutdownOperation::release_0040f540
+            );
+        } else if (
+            operation ==
+            openswd3::app::PrimaryTransitionOperation::release_0040f570
+        ) {
+            shutdown_ports_.perform_shutdown_operation(
+                openswd3::app::ShutdownOperation::release_0040f570
             );
         }
     }
@@ -3173,7 +3201,9 @@ public:
         static_cast<void>(openswd3::world_map::release_legacy_moving_actions(
             world_moving_actions_
         ));
-        world_role_head_actions_ = {};
+        static_cast<void>(openswd3::world_map::release_legacy_role_head_actions(
+            world_role_head_actions_
+        ));
         world_frame_effects_.drift.reset_positions();
         world_frame_effects_.streak.reset();
         world_frame_effects_.spark.reset_counters();
@@ -4125,6 +4155,7 @@ int main(const int argument_count, char** arguments) {
     );
     shutdown_ports.bind_packed_row_effects(idle_ports.packed_row_effects());
     shutdown_ports.bind_moving_actions(idle_ports.moving_actions());
+    shutdown_ports.bind_role_head_actions(idle_ports.role_head_actions());
     while (running) {
         SDL_Event event{};
         while (SDL_PollEvent(&event)) {

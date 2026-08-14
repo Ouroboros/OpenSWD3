@@ -20,6 +20,8 @@ using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::world_map::LegacyRoleHeadActionList;
 using openswd3::world_map::LegacyRoleHeadActionNode;
+using openswd3::world_map::LegacyRoleHeadActionReleaseResult;
+using openswd3::world_map::release_legacy_role_head_actions;
 using openswd3::world_map::update_draw_legacy_role_head_actions;
 
 struct DrawCall {
@@ -181,11 +183,33 @@ void test_ballistic_boundaries_are_inclusive(openswd3::test::Context& test) {
     );
 }
 
+void test_release_lifecycle(openswd3::test::Context& test) {
+    LegacyRoleHeadActionList nodes;
+    nodes.push_back(make_node(1U, 10, 20, 30));
+    nodes.push_back(make_node(2U, 40, 50, 60));
+    nodes.push_back(make_node(3U, 70, 80, 90));
+
+    const LegacyRoleHeadActionReleaseResult released =
+        release_legacy_role_head_actions(nodes);
+    test.expect_true(
+        released.node_release_count == 3U && nodes.empty(),
+        "sub_40F570 advances and releases every role-head action head"
+    );
+
+    const LegacyRoleHeadActionReleaseResult empty =
+        release_legacy_role_head_actions(nodes);
+    test.expect_true(
+        empty.node_release_count == 0U && nodes.empty(),
+        "sub_40F570 leaves an empty root untouched"
+    );
+}
+
 }  // namespace
 
 int main() {
     openswd3::test::Context test;
     test_exact_layout_and_frame_order(test);
     test_ballistic_boundaries_are_inclusive(test);
+    test_release_lifecycle(test);
     return test.exit_code();
 }

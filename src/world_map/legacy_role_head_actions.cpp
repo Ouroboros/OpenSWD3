@@ -43,6 +43,18 @@ wrapping_add_word(const compat::i16 left, const compat::i32 right) noexcept {
 
 }  // namespace
 
+LegacyRoleHeadActionReleaseResult
+release_legacy_role_head_actions(LegacyRoleHeadActionList& nodes) noexcept {
+    LegacyRoleHeadActionReleaseResult result;
+    LegacyRoleHeadActionList detached;
+    while (!nodes.empty()) {
+        detached.splice(detached.end(), nodes, nodes.begin());
+        detached.pop_front();
+        ++result.node_release_count;
+    }
+    return result;
+}
+
 LegacyRoleHeadActionResult update_draw_legacy_role_head_actions(
     LegacyRoleHeadActionList& nodes,
     asset_runtime::LegacyActionDrawPorts& action_ports
