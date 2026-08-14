@@ -47,6 +47,18 @@ truncate_x87_float_to_low_i32(const float value) noexcept {
 
 }  // namespace
 
+LegacyMovingActionReleaseResult
+release_legacy_moving_actions(LegacyMovingActionList& nodes) noexcept {
+    LegacyMovingActionReleaseResult result;
+    LegacyMovingActionList detached;
+    while (!nodes.empty()) {
+        detached.splice(detached.end(), nodes, nodes.begin());
+        detached.pop_front();
+        ++result.node_release_count;
+    }
+    return result;
+}
+
 LegacyMovingActionResult update_draw_legacy_moving_actions(
     LegacyMovingActionList& nodes,
     const compat::i32 camera_left,

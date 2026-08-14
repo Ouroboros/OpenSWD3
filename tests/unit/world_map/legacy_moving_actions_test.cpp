@@ -20,6 +20,8 @@ using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::world_map::LegacyMovingActionList;
 using openswd3::world_map::LegacyMovingActionNode;
+using openswd3::world_map::LegacyMovingActionReleaseResult;
+using openswd3::world_map::release_legacy_moving_actions;
 using openswd3::world_map::update_draw_legacy_moving_actions;
 
 struct DrawCall {
@@ -176,11 +178,33 @@ void test_strict_target_window_edges(openswd3::test::Context& test) {
     );
 }
 
+void test_release_lifecycle(openswd3::test::Context& test) {
+    LegacyMovingActionList nodes;
+    nodes.push_back(make_node(1U, 10.0F, 20.0F));
+    nodes.push_back(make_node(2U, 30.0F, 40.0F));
+    nodes.push_back(make_node(3U, 50.0F, 60.0F));
+
+    const LegacyMovingActionReleaseResult released =
+        release_legacy_moving_actions(nodes);
+    test.expect_true(
+        released.node_release_count == 3U && nodes.empty(),
+        "sub_40F540 advances and releases every moving-action head"
+    );
+
+    const LegacyMovingActionReleaseResult empty =
+        release_legacy_moving_actions(nodes);
+    test.expect_true(
+        empty.node_release_count == 0U && nodes.empty(),
+        "sub_40F540 leaves an empty root untouched"
+    );
+}
+
 }  // namespace
 
 int main() {
     openswd3::test::Context test;
     test_exact_layout_and_frame_order(test);
     test_strict_target_window_edges(test);
+    test_release_lifecycle(test);
     return test.exit_code();
 }

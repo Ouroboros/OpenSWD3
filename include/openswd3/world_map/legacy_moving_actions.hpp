@@ -37,6 +37,15 @@ static_assert(offsetof(LegacyMovingActionNode, next_pointer_32) == 0xB0U);
 
 using LegacyMovingActionList = std::list<LegacyMovingActionNode>;
 
+struct LegacyMovingActionReleaseResult {
+    compat::u32 node_release_count{};
+};
+
+// sub_40F540 (0x0040F540..0x0040F567): detach and release every 0xB4
+// dword_4AD3E8 node from the list head.
+[[nodiscard]] LegacyMovingActionReleaseResult
+release_legacy_moving_actions(LegacyMovingActionList& nodes) noexcept;
+
 struct LegacyMovingActionResult {
     compat::u32 visited_count{};
     compat::u32 action_update_failure_count{};
