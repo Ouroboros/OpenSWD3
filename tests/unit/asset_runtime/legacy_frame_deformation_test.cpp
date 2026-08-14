@@ -368,8 +368,30 @@ void test_sentinel_list_update_and_removal(openswd3::test::Context& test) {
     test.expect_equal(
         list.size(), std::size_t{1U}, "nonzero node remains at sentinel +0x28"
     );
+    list.push_front(
+        std::make_unique<LegacyDeformationNode>(small_configuration())
+    );
+    list.push_front(
+        std::make_unique<LegacyDeformationNode>(small_configuration())
+    );
+    test.expect_equal(
+        list.size(),
+        std::size_t{3U},
+        "clear fixture owns three nodes in head insertion order"
+    );
     list.clear();
     test.expect_true(list.empty(), "clear releases the entire linked list");
+    list.clear();
+    test.expect_true(list.empty(), "clearing an empty sentinel is a no-op");
+    list.push_front(
+        std::make_unique<LegacyDeformationNode>(small_configuration())
+    );
+    test.expect_equal(
+        list.size(),
+        std::size_t{1U},
+        "clear preserves the sentinel for subsequent insertions"
+    );
+    list.clear();
 }
 
 }  // namespace
