@@ -593,10 +593,10 @@ void replace_name_prefix(
             .status != LegacyWorldRoleSurfaceStatus::ready) {
         return LegacyWorldStoryVmStatus::role_surface_failed;
     }
-    const auto spatial_status = relocate_legacy_role_spatially_by_guid(
+    const auto spatial_result = relocate_legacy_role_spatially_by_guid(
         *runtime.spatial_index, roles, role.guid, role.flags & 3U, 0, true
     );
-    if (spatial_status != LegacyRoleSpatialRelocationStatus::ready) {
+    if (spatial_result.status != LegacyRoleSpatialRelocationStatus::ready) {
         return LegacyWorldStoryVmStatus::role_spatial_relocation_failed;
     }
 

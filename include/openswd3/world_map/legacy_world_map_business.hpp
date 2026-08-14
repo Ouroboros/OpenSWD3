@@ -78,11 +78,18 @@ enum class LegacyRoleSpatialRelocationStatus {
     reinsertion_failed,
 };
 
-[[nodiscard]] LegacyRoleSpatialRelocationStatus
+struct LegacyRoleSpatialRelocationResult {
+    LegacyRoleSpatialRelocationStatus status{
+        LegacyRoleSpatialRelocationStatus::role_not_found
+    };
+    compat::u32 legacy_return_role_index{};
+};
+
+[[nodiscard]] LegacyRoleSpatialRelocationResult
 relocate_legacy_role_spatially_by_guid(
     LegacyRoleSpatialIndex& spatial_index,
     std::span<LegacyWorldRoleRecord> roles,
-    compat::u16 guid,
+    compat::u32 guid,
     compat::u32 group,
     compat::i32 first_row,
     bool reinsert

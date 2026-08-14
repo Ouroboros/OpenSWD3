@@ -60,7 +60,7 @@ LegacyWorldPlayerPostFrameResult advance_legacy_world_player_post_frame(
     result.aligned = ((player.world_x | player.world_y) & 0x0FU) == 0U;
     if (result.aligned) {
         const u32 first_row_bits = (player.world_y >> 4U) - 1U;
-        result.spatial_status = relocate_legacy_role_spatially_by_guid(
+        const auto spatial_result = relocate_legacy_role_spatially_by_guid(
             spatial_index,
             roles,
             player.guid,
@@ -68,6 +68,7 @@ LegacyWorldPlayerPostFrameResult advance_legacy_world_player_post_frame(
             std::bit_cast<i32>(first_row_bits),
             true
         );
+        result.spatial_status = spatial_result.status;
         if (result.spatial_status != LegacyRoleSpatialRelocationStatus::ready) {
             result.status =
                 LegacyWorldPlayerPostFrameStatus::spatial_relocation_failed;

@@ -126,7 +126,7 @@ void copy_path(
     LegacyWorldStoryPathRuntime& runtime,
     const i32 first_row = 0
 ) noexcept {
-    result.spatial_status = relocate_legacy_role_spatially_by_guid(
+    const auto spatial_result = relocate_legacy_role_spatially_by_guid(
         *runtime.spatial_index,
         runtime.roles,
         role.guid,
@@ -134,6 +134,7 @@ void copy_path(
         first_row,
         true
     );
+    result.spatial_status = spatial_result.status;
     if (result.spatial_status == LegacyRoleSpatialRelocationStatus::ready) {
         return true;
     }

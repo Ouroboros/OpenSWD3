@@ -91,7 +91,7 @@ constexpr std::array<i32, 8U> kDirectionStepY{
         return LegacyWorldRoleMapUpdateStatus::role_spatial_relocation_failed;
     }
     const u32 first_row_bits = (role.world_y >> 4U) - 1U;
-    const auto spatial_status = relocate_legacy_role_spatially_by_guid(
+    const auto spatial_result = relocate_legacy_role_spatially_by_guid(
         *context.spatial_index,
         context.roles,
         role.guid,
@@ -99,7 +99,7 @@ constexpr std::array<i32, 8U> kDirectionStepY{
         std::bit_cast<i32>(first_row_bits),
         true
     );
-    if (spatial_status != LegacyRoleSpatialRelocationStatus::ready) {
+    if (spatial_result.status != LegacyRoleSpatialRelocationStatus::ready) {
         return LegacyWorldRoleMapUpdateStatus::role_spatial_relocation_failed;
     }
     result.spatial_role_relocated = true;

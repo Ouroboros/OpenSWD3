@@ -245,9 +245,10 @@ clamped_view_start(const u32 value, const u32 margin) noexcept {
     if (!mark_role_surface(result, role, surface_context)) {
         return false;
     }
-    result.spatial_removal_status = relocate_legacy_role_spatially_by_guid(
+    const auto spatial_result = relocate_legacy_role_spatially_by_guid(
         spatial_index, roles, role.guid, role.flags & 3U, 0, false
     );
+    result.spatial_removal_status = spatial_result.status;
     if (result.spatial_removal_status !=
         LegacyRoleSpatialRelocationStatus::ready) {
         ++result.spatial_removal_failures;

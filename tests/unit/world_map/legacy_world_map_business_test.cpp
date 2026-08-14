@@ -4,6 +4,7 @@
 
 #include <array>
 #include <bit>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -30,10 +31,12 @@ using openswd3::world_map::find_legacy_world_map_event;
 using openswd3::world_map::insert_legacy_role_spatially;
 using openswd3::world_map::kLegacySpatialRowPadding;
 using openswd3::world_map::LegacyRoleSpatialIndex;
+using openswd3::world_map::LegacyRoleSpatialRelocationStatus;
 using openswd3::world_map::LegacyWorldMapBusinessStatus;
 using openswd3::world_map::LegacyWorldMapEvent;
 using openswd3::world_map::LegacyWorldRoleCellBindingStatus;
 using openswd3::world_map::LegacyWorldRoleRecord;
+using openswd3::world_map::relocate_legacy_role_spatially_by_guid;
 
 struct ReadyPhysicalState {
     ReadyPhysicalState() {
@@ -323,6 +326,183 @@ void test_spatial_insertion_order(openswd3::test::Context& test) {
     );
 }
 
+void test_spatial_relocation_by_guid(openswd3::test::Context& test) {
+    const auto make_spatial = [] {
+        LegacyRoleSpatialIndex spatial;
+        spatial.map_height = 4U;
+        for (auto& group : spatial.row_heads) {
+            group.resize(44U, 0U);
+        }
+        return spatial;
+    };
+
+    std::array<LegacyWorldRoleRecord, 5U> roles{};
+    roles[1U].guid = 10U;
+    roles[2U].guid = 20U;
+    roles[3U].guid = 30U;
+    roles[4U].guid = 40U;
+
+    auto spatial = make_spatial();
+    spatial.row_heads[0U][kLegacySpatialRowPadding] = 1U;
+    roles[1U].spatial_next_link_32 = 2U;
+    const auto removed_head = relocate_legacy_role_spatially_by_guid(
+        spatial, roles, 10U, 0U, 0, false
+    );
+    test.expect_true(
+        removed_head.status == LegacyRoleSpatialRelocationStatus::ready &&
+            removed_head.legacy_return_role_index == 1U &&
+            spatial.row_heads[0U][kLegacySpatialRowPadding] == 2U &&
+            roles[1U].spatial_next_link_32 == 0U,
+        "remove-only mode returns the removed head while advancing the row"
+    );
+    const auto removed_single = relocate_legacy_role_spatially_by_guid(
+        spatial, roles, 20U, 0U, 0, false
+    );
+    test.expect_true(
+        removed_single.status == LegacyRoleSpatialRelocationStatus::ready &&
+            removed_single.legacy_return_role_index == 2U &&
+            spatial.row_heads[0U][kLegacySpatialRowPadding] == 0U &&
+            roles[2U].spatial_next_link_32 == 0U,
+        "single-node removal clears both row head and role next"
+    );
+
+    spatial = make_spatial();
+    spatial.row_heads[0U][kLegacySpatialRowPadding] = 1U;
+    roles[1U].spatial_next_link_32 = 2U;
+    roles[2U].spatial_next_link_32 = 3U;
+    roles[3U].spatial_next_link_32 = 0U;
+    test.expect_true(
+        relocate_legacy_role_spatially_by_guid(
+            spatial, roles, 20U, 0U, 0, false
+        )
+                    .status == LegacyRoleSpatialRelocationStatus::ready &&
+            roles[1U].spatial_next_link_32 == 3U &&
+            roles[2U].spatial_next_link_32 == 0U,
+        "second-node removal uses the head predecessor branch"
+    );
+
+    roles[1U].spatial_next_link_32 = 2U;
+    roles[2U].spatial_next_link_32 = 3U;
+    roles[3U].spatial_next_link_32 = 4U;
+    roles[4U].spatial_next_link_32 = 0U;
+    test.expect_true(
+        relocate_legacy_role_spatially_by_guid(
+            spatial, roles, 40U, 0U, 0, false
+        )
+                    .status == LegacyRoleSpatialRelocationStatus::ready &&
+            roles[3U].spatial_next_link_32 == 0U &&
+            roles[4U].spatial_next_link_32 == 0U,
+        "deep-node removal rewrites the immediate predecessor link"
+    );
+
+    spatial = make_spatial();
+    roles[1U].world_y = 32U;
+    roles[1U].flags = 1U;
+    roles[1U].spatial_next_link_32 = 0U;
+    spatial.row_heads[0U][kLegacySpatialRowPadding] = 1U;
+    const auto reinserted = relocate_legacy_role_spatially_by_guid(
+        spatial, roles, 10U, 0U, 0, true
+    );
+    test.expect_true(
+        reinserted.status == LegacyRoleSpatialRelocationStatus::ready &&
+            reinserted.legacy_return_role_index == 0U &&
+            spatial.row_heads[0U][kLegacySpatialRowPadding] == 0U &&
+            spatial.row_heads[1U][kLegacySpatialRowPadding + 2U] == 1U,
+        "physical zero final argument removes then reinserts by role flags and Y"
+    );
+
+    spatial = make_spatial();
+    roles[1U].world_y = 0U;
+    roles[1U].flags = 0U;
+    roles[1U].spatial_next_link_32 = 0U;
+    spatial.row_heads[0U][kLegacySpatialRowPadding] = 1U;
+    const auto high_guid_miss = relocate_legacy_role_spatially_by_guid(
+        spatial, roles, 0x0001000AU, 0U, 0, false
+    );
+    test.expect_true(
+        high_guid_miss.status ==
+                LegacyRoleSpatialRelocationStatus::role_not_found &&
+            high_guid_miss.legacy_return_role_index == 0U &&
+            spatial.row_heads[0U][kLegacySpatialRowPadding] == 1U,
+        "full 32-bit GUID argument cannot alias a matching low word"
+    );
+
+    spatial.row_heads[0U][kLegacySpatialRowPadding + 1U] = 2U;
+    roles[2U].spatial_next_link_32 = 0U;
+    test.expect_true(
+        relocate_legacy_role_spatially_by_guid(
+            spatial, roles, 20U, 0U, 0, false
+        )
+                    .status == LegacyRoleSpatialRelocationStatus::ready &&
+            spatial.row_heads[0U][kLegacySpatialRowPadding + 1U] == 0U,
+        "row scan advances from the requested row until map height"
+    );
+    test.expect_equal(
+        relocate_legacy_role_spatially_by_guid(
+            spatial, roles, 10U, 0U, 1, false
+        )
+            .status,
+        LegacyRoleSpatialRelocationStatus::role_not_found,
+        "first row is an inclusive signed lower bound"
+    );
+    test.expect_equal(
+        relocate_legacy_role_spatially_by_guid(
+            spatial, roles, 10U, 0U, 4, false
+        )
+            .status,
+        LegacyRoleSpatialRelocationStatus::role_not_found,
+        "first row equal to map height follows the original empty diagnostic path"
+    );
+    test.expect_equal(
+        relocate_legacy_role_spatially_by_guid(
+            spatial, roles, 10U, 0U, std::numeric_limits<i32>::max(), false
+        )
+            .status,
+        LegacyRoleSpatialRelocationStatus::role_not_found,
+        "a first row above map height exits before any row dereference"
+    );
+
+    roles[1U].flags = 3U;
+    test.expect_equal(
+        relocate_legacy_role_spatially_by_guid(spatial, roles, 10U, 0U, 0, true)
+            .status,
+        LegacyRoleSpatialRelocationStatus::reinsertion_failed,
+        "invalid destination group is isolated only after the original unlink point"
+    );
+    test.expect_true(
+        spatial.row_heads[0U][kLegacySpatialRowPadding] == 0U &&
+            roles[1U].spatial_next_link_32 == 0U,
+        "reinsertion failure preserves the completed unlink side effect"
+    );
+
+    test.expect_equal(
+        relocate_legacy_role_spatially_by_guid(
+            spatial, roles, 10U, 3U, 0, false
+        )
+            .status,
+        LegacyRoleSpatialRelocationStatus::invalid_group,
+        "invalid search group is rejected at the modern boundary"
+    );
+    test.expect_equal(
+        relocate_legacy_role_spatially_by_guid(
+            spatial, roles, 10U, 0U, -21, false
+        )
+            .status,
+        LegacyRoleSpatialRelocationStatus::first_row_out_of_range,
+        "row before the twenty-row prefix is rejected at the modern boundary"
+    );
+    spatial.row_heads[0U][kLegacySpatialRowPadding] =
+        static_cast<u32>(roles.size());
+    test.expect_equal(
+        relocate_legacy_role_spatially_by_guid(
+            spatial, roles, 10U, 0U, 0, false
+        )
+            .status,
+        LegacyRoleSpatialRelocationStatus::broken_link,
+        "invalid role link is isolated before a host dereference"
+    );
+}
+
 void test_cell_binding(openswd3::test::Context& test) {
     std::array<LegacyWorldRoleRecord, 3U> roles{};
     roles[1].world_x = 32U;
@@ -412,6 +592,7 @@ int main() {
     test_map_event_lookup(test);
     test_business_conversion(test);
     test_spatial_insertion_order(test);
+    test_spatial_relocation_by_guid(test);
     test_cell_binding(test);
     test_invalid_and_capacity_statuses(test);
     return test.exit_code();

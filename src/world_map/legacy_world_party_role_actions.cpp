@@ -82,9 +82,10 @@ void write_u16_le(
     const std::span<LegacyWorldRoleRecord> roles,
     LegacyRoleSpatialIndex& spatial_index
 ) noexcept {
-    result.spatial_status = relocate_legacy_role_spatially_by_guid(
+    const auto spatial_result = relocate_legacy_role_spatially_by_guid(
         spatial_index, roles, role.guid, role.flags & 3U, 0, false
     );
+    result.spatial_status = spatial_result.status;
     if (result.spatial_status == LegacyRoleSpatialRelocationStatus::ready) {
         return true;
     }

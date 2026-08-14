@@ -116,7 +116,7 @@ void write_u16_le(
     LegacyRoleSpatialIndex& spatial_index
 ) noexcept {
     const u32 first_row_bits = (role.world_y >> 4U) - 1U;
-    result.spatial_status = relocate_legacy_role_spatially_by_guid(
+    const auto spatial_result = relocate_legacy_role_spatially_by_guid(
         spatial_index,
         roles,
         role.guid,
@@ -124,6 +124,7 @@ void write_u16_le(
         std::bit_cast<i32>(first_row_bits),
         true
     );
+    result.spatial_status = spatial_result.status;
     if (result.spatial_status == LegacyRoleSpatialRelocationStatus::ready) {
         return true;
     }
