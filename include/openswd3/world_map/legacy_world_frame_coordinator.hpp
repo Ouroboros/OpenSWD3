@@ -28,6 +28,8 @@ public:
 };
 
 struct LegacyWorldFrameCoordinatorState {
+    LegacyWorldFrameCoordinatorState() noexcept;
+
     compat::u32 map_id{};
     compat::u32 player_role_index{};
     compat::u32 party_role_count{1U};

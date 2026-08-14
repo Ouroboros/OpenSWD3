@@ -753,7 +753,17 @@ void finish_talk_global_cleanup(
 }  // namespace
 
 void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept {
-    state = {};
+    state.flags.fill(0U);
+    state.script_variables[0] = 100U;
+    state.deferred_map_tile_x = -1;
+    state.deferred_map_tile_y = -1;
+    state.deferred_map_id = 0;
+    state.music_request = 0U;
+    state.music_first_stream = 0U;
+    state.music_second_stream = 0U;
+    state.music_control_flags = 0U;
+    state.current_first_stream = 1U;
+    state.current_second_stream = 0U;
     for (const u16 index : kInitialSetFlags) {
         set_legacy_world_story_flag(state, index);
     }

@@ -397,10 +397,63 @@ void test_initial_flags_and_alignment_gate(openswd3::test::Context& test) {
             !openswd3::world_map::query_legacy_world_story_flag(
                 initialized, 2U
             ) &&
+            initialized.script_variables[0] == 100U &&
+            initialized.deferred_map_tile_x == -1 &&
+            initialized.deferred_map_tile_y == -1 &&
+            initialized.deferred_map_id == 0 &&
+            std::ranges::all_of(
+                initialized.script_variables.begin() + 1U,
+                initialized.script_variables.end(),
+                [](const u32 value) { return value == 0U; }
+            ) &&
             blocked.status == LegacyWorldStoryVmStatus::yielded &&
             fixture.ports.story_load_count == 0U &&
             fixture.context.talk_data_offset == 0U,
-        "sub_40E0B0 flags and the first-load tile-alignment gate are exact"
+        "sub_40E0B0 flags, initial money and first-load alignment gate are exact"
+    );
+}
+
+void test_reinitialization_writes_only_owned_vm_fields(
+    openswd3::test::Context& test
+) {
+    LegacyWorldStoryVmState state;
+    state.flags.fill(0xFFU);
+    state.script_variables.fill(0x12345678U);
+    state.window[0] = 0xA5U;
+    state.speaker_name[0] = 0x5AU;
+    state.text_control_flags = 0x11223344U;
+    state.wait_duration = 9U;
+    state.wait_started_at = 10U;
+    state.loaded_file_number = 11U;
+    state.loaded_data_offset = 12U;
+    state.window_loaded = true;
+    state.music_request = 13U;
+    state.music_first_stream = 14U;
+    state.music_second_stream = 15U;
+    state.music_control_flags = 16U;
+    state.current_first_stream = 17U;
+    state.current_second_stream = 18U;
+
+    openswd3::world_map::initialize_legacy_world_story_vm(state);
+
+    test.expect_true(
+        state.script_variables[0] == 100U &&
+            state.script_variables[1] == 0x12345678U &&
+            state.window[0] == 0xA5U && state.speaker_name[0] == 0x5AU &&
+            state.text_control_flags == 0x11223344U &&
+            state.wait_duration == 9U && state.wait_started_at == 10U &&
+            state.loaded_file_number == 11U &&
+            state.loaded_data_offset == 12U && state.window_loaded &&
+            state.music_request == 0U && state.music_first_stream == 0U &&
+            state.music_second_stream == 0U &&
+            state.music_control_flags == 0U &&
+            state.current_first_stream == 1U &&
+            state.current_second_stream == 0U &&
+            state.deferred_map_tile_x == -1 &&
+            state.deferred_map_tile_y == -1 && state.deferred_map_id == 0 &&
+            openswd3::world_map::query_legacy_world_story_flag(state, 70U) &&
+            !openswd3::world_map::query_legacy_world_story_flag(state, 2U),
+        "sub_40E0B0 rewrites only its VM globals on repeated initialization"
     );
 }
 
@@ -2430,6 +2483,7 @@ void test_real_new_game_story_reaches_first_dialog(
 int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
     test_initial_flags_and_alignment_gate(test);
+    test_reinitialization_writes_only_owned_vm_fields(test);
     test_dialog_enqueue_and_wait_protocol(test);
     test_dialog_role_overlap_avoidance(test);
     test_dialog_explicit_layout_pair(test);

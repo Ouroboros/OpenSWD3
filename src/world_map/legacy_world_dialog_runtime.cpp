@@ -215,16 +215,6 @@ LegacyWorldDialogPrimeResult prime_legacy_world_dialog_runtime(
     if (!update_action(state.next_page_action, action_ports)) {
         ++result.action_update_failure_count;
     }
-    for (std::size_t index = 0U; index < state.frame_actions.size(); ++index) {
-        ++result.action_update_count;
-        if (!update_action(state.frame_actions[index], action_ports)) {
-            ++result.action_update_failure_count;
-        }
-        ++result.action_update_count;
-        if (!update_action(state.caption_actions[index], action_ports)) {
-            ++result.action_update_failure_count;
-        }
-    }
     return result;
 }
 

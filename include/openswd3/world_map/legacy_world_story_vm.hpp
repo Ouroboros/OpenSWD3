@@ -35,17 +35,26 @@ struct LegacyWorldStoryVmState {
     compat::i32 text_layout_first{};
     compat::i32 text_layout_second{};
     compat::u32 next_text_aux_value{60U};
-    compat::u32 music_request{0xFFFFFFFFU};
+    // sub_40E0B0 clears the staged stream request at 0x004B7C80..88,
+    // clears 0x004ACDBC and establishes current stream mode 1/argument 0 at
+    // 0x004B7380/0x004B74F0.
+    compat::u32 music_request{};
     compat::u32 music_first_stream{};
     compat::u32 music_second_stream{};
     compat::u32 music_control_flags{};
-    compat::u32 current_first_stream{};
+    compat::u32 current_first_stream{1U};
     compat::u32 current_second_stream{};
     compat::u32 wait_duration{};
     compat::u32 wait_started_at{};
     compat::u32 script_clock_frame_counter{};
     compat::u32 script_clock{};
     compat::u32 script_clock_origin{};
+    // sub_40E0B0 initializes the deferred map-load coordinates at
+    // 0x004A9930/0x004A9938 to -1 and the map id at 0x004CAE88 to zero.
+    // Story opcodes 155..157 retain these values across VM steps.
+    compat::i32 deferred_map_tile_x{-1};
+    compat::i32 deferred_map_tile_y{-1};
+    compat::i32 deferred_map_id{};
     compat::u32 loaded_file_number{};
     compat::u32 loaded_data_offset{};
     bool next_text_aux_pending{};

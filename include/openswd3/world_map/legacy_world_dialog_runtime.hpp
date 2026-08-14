@@ -39,9 +39,10 @@ struct LegacyWorldDialogPrimeResult {
 };
 
 // Initialize the end/next indicators and the two four-record dialog pools.
-// 0x00424EC1..0x00424F6C establishes action 0x2329, variants 0x0C/0x0E;
-// 0x0040E528..0x0040E601 establishes frame ids 0x232D/0x232F..0x2331 and
-// caption ids 0x2337/0x2339..0x233B.
+// 0x0040E366..0x0040E448 establishes action 0x2329, variants 0x0C/0x0E,
+// and immediately updates only those two records. 0x0040E528..0x0040E601
+// establishes frame ids 0x232D/0x232F..0x2331 and caption ids
+// 0x2337/0x2339..0x233B without updating those eight records here.
 [[nodiscard]] LegacyWorldDialogPrimeResult prime_legacy_world_dialog_runtime(
     LegacyWorldDialogRuntimeState& state,
     asset_runtime::LegacyActionDrawPorts& action_ports

@@ -19,10 +19,12 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 68 项：43 项 `assembly_exact`、25 项 `platform_adapted`；其余
-46 项保持待审计。最新关闭 `sub_40E030/sub_411E20/sub_411F00`：受控角色中心包装、
-回绕距离与五度角量化、16 扇区方向折叠已完成双向调用核对，四个角色交互调用点以及
-鼠标方向和 VM opcode 76 均统一复用同一实现。此前 `sub_40DC30/sub_40DD10/`
+114 项全集复核当前已关闭 69 项：43 项 `assembly_exact`、26 项 `platform_adapted`；其余
+45 项保持待审计。最新关闭 `sub_40E0B0`：剧情位、变量 0、延迟地图、stream 状态、
+世界动作记录、地图目录与跨模块重建顺序已逐段完成双向追溯；重复初始化不再整体清空
+汇编未写的 VM 字段，battle/audio/item 状态明确转交各自 owner。此前
+`sub_40E030/sub_411E20/sub_411F00` 的受控角色中心包装、回绕距离、五度角量化和
+16 扇区方向折叠已完成双向调用核对。此前 `sub_40DC30/sub_40DD10/`
 `sub_40DD40` 分别恢复事件链首命中、
 完整 32 位移动步长写回，以及 135 个全一 dword 的 `0x21C` 对象槽重置；同时反查所有
 现代调用点并补回 `sub_40E0B0` 的初始步长 16。此前 `sub_40DB40/sub_40DB60/`
@@ -197,6 +199,8 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
 [`maps-role-preload-0040d200-0040d552.md`](../evidence/maps-role-preload-0040d200-0040d552.md)、
 [`initial-new-game-transition-00448840-00449311.md`](../evidence/initial-new-game-transition-00448840-00449311.md)、
 [`world-special-tsw-frame-0040ad10.md`](../evidence/world-special-tsw-frame-0040ad10.md)。
+全局初始化见
+[`world-global-initialization-0040e0b0.md`](../evidence/world-global-initialization-0040e0b0.md)。
 三个短 helper 见
 [`world-utility-helpers-0040dc30-0040dd40.md`](../evidence/world-utility-helpers-0040dc30-0040dd40.md)。
 图片动作链见

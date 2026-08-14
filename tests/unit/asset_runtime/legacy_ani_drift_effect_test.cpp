@@ -191,6 +191,17 @@ void test_initialization_and_selective_reset(openswd3::test::Context& test) {
         0x12345678U,
         "scene reset does not touch action records"
     );
+
+    effect.action_records()[0U].base_variant = 0x1234U;
+    effect.state().slots[0U].y = 0x5678;
+    effect.initialize_action_records();
+    test.expect_true(
+        effect.action_records()[0U].action_id == kLegacyAniDriftActionId &&
+            effect.action_records()[0U].base_variant == 0U &&
+            effect.action_records()[0U].field_1c == 0xFFFFFFFFU &&
+            effect.state().slots[0U].y == 0x5678,
+        "sub_40E0B0 rebuilds action records without clearing motion slots"
+    );
 }
 
 void test_disabled_path(openswd3::test::Context& test) {

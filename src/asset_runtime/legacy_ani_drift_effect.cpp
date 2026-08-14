@@ -135,11 +135,16 @@ LegacyAniDriftRuntimePorts::draw_frame_piece(
 }
 
 LegacyAniDriftEffect::LegacyAniDriftEffect() noexcept {
+    initialize_action_records();
+    reset_positions();
+}
+
+void LegacyAniDriftEffect::initialize_action_records() noexcept {
     for (LegacyActionRecord& record : action_records_) {
+        record = {};
         initialize_legacy_action_record(record);
         record.action_id = kLegacyAniDriftActionId;
     }
-    reset_positions();
 }
 
 void LegacyAniDriftEffect::reset_positions() noexcept {

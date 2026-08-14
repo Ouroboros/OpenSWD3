@@ -121,6 +121,10 @@ class LegacyAniDriftEffect final {
 public:
     LegacyAniDriftEffect() noexcept;
 
+    // sub_40E0B0 rebuilds all four action records while leaving the separate
+    // four-slot motion block to its own scene-reset path.
+    void initialize_action_records() noexcept;
+
     // The original scene reset writes only the four x sentinels. It preserves
     // y, both velocity fields, and all four action records.
     void reset_positions() noexcept;

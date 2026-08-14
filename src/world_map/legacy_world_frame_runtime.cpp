@@ -536,7 +536,16 @@ private:
 }  // namespace
 
 LegacyWorldFrameEffectState::LegacyWorldFrameEffectState() noexcept {
+    initialize_action_records();
+}
+
+void LegacyWorldFrameEffectState::initialize_action_records() noexcept {
+    drift.initialize_action_records();
+    directional_action = {};
     asset_runtime::initialize_legacy_action_record(directional_action);
+    directional_action.action_id = asset_runtime::kLegacyAniDirectionalActionId;
+    directional_action.base_variant = 0x38U;
+    follower_action = {};
     asset_runtime::initialize_legacy_action_record(follower_action);
 }
 

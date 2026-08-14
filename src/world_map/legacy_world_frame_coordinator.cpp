@@ -78,6 +78,10 @@ void sync_frame_camera(
 
 }  // namespace
 
+LegacyWorldFrameCoordinatorState::LegacyWorldFrameCoordinatorState() noexcept {
+    asset_runtime::initialize_legacy_action_record(countdown_action);
+}
+
 LegacyWorldFrameCoordinatorResult run_legacy_world_frame(
     rendering::LegacyFramebuffer& framebuffer,
     rendering::LegacyRasterGeometryState& raster,

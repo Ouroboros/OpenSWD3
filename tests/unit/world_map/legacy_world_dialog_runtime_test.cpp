@@ -223,7 +223,7 @@ void test_prime_and_live_surface_adapter(openswd3::test::Context& test) {
     ports.end_text_surface();
 
     test.expect_true(
-        text_ready && primed.action_update_count == 10U &&
+        text_ready && primed.action_update_count == 2U &&
             primed.action_update_failure_count == 0U &&
             state.end_dialog_action.action_id == 0x2329U &&
             state.end_dialog_action.base_variant == 0x0CU &&
@@ -243,7 +243,7 @@ void test_prime_and_live_surface_adapter(openswd3::test::Context& test) {
             transparent_text_pixel == expected_transparent_text_pixel &&
             action_ports.last_flags == 0U && close_updated && end_updated &&
             next_updated && roles[1].interaction_gate == 0U &&
-            action_ports.update_count == 13U && action_ports.load_count > 3U &&
+            action_ports.update_count == 5U && action_ports.load_count > 3U &&
             action_ports.draw_count == 1U,
         "the world adapter owns the exact scratch surface, color/text path, role cleanup and persistent indicator actions"
     );
@@ -257,9 +257,9 @@ void test_action_failures_remain_observable(openswd3::test::Context& test) {
         state, action_ports
     );
     test.expect_true(
-        result.action_update_count == 10U &&
-            result.action_update_failure_count == 10U,
-        "all nonfatal dialog-action prime failures are counted independently"
+        result.action_update_count == 2U &&
+            result.action_update_failure_count == 2U,
+        "both nonfatal dialog-indicator prime failures are counted independently"
     );
 }
 

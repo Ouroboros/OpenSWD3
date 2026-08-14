@@ -71,6 +71,12 @@ void test_initial_movement_step(openswd3::test::Context& test) {
         u32{0x10U},
         "sub_40E0B0 initializes the sub_40DD10 movement-step slot to sixteen"
     );
+    test.expect_true(
+        state.countdown_action.field_1c == 0xFFFFFFFFU &&
+            state.countdown_action.one_shot_base_variant == 0xFFFFFFFFU &&
+            state.countdown_action.one_shot_variant_delta == 0xFFFFFFFFU,
+        "sub_40E0B0 initializes the persistent countdown action record"
+    );
 }
 constexpr u32 kCountdownEventBase = 0x500U;
 constexpr u32 kCursorEventBase = 0x600U;

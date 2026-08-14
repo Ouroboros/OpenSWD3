@@ -30,6 +30,7 @@ namespace openswd3::world_map {
 
 struct LegacyWorldFrameEffectState {
     LegacyWorldFrameEffectState() noexcept;
+    void initialize_action_records() noexcept;
 
     asset_runtime::LegacyAniDriftEffect drift;
     asset_runtime::LegacyAniStreakEffect streak;

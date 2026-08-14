@@ -77,6 +77,31 @@ using openswd3::world_map::LegacyWorldRolesStatus;
 using openswd3::world_map::LegacyWorldSpatialAudioPorts;
 using openswd3::world_map::LegacyWorldSpatialAudioState;
 
+void test_initial_environment_action_records(openswd3::test::Context& test) {
+    LegacyWorldFrameEffectState state;
+    test.expect_true(
+        state.directional_action.action_id ==
+                openswd3::asset_runtime::kLegacyAniDirectionalActionId &&
+            state.directional_action.base_variant == 0x38U &&
+            state.directional_action.field_1c == 0xFFFFFFFFU &&
+            state.follower_action.field_1c == 0xFFFFFFFFU,
+        "sub_40E0B0 initializes the shared directional and follower actions"
+    );
+
+    state.directional_action.action_id = 1U;
+    state.directional_action.base_variant = 2U;
+    state.follower_action.field_1c = 3U;
+    state.initialize_action_records();
+    test.expect_true(
+        state.directional_action.action_id ==
+                openswd3::asset_runtime::kLegacyAniDirectionalActionId &&
+            state.directional_action.base_variant == 0x38U &&
+            state.directional_action.field_1c == 0xFFFFFFFFU &&
+            state.follower_action.field_1c == 0xFFFFFFFFU,
+        "a repeated sub_40E0B0 lifecycle pass rebuilds both action records"
+    );
+}
+
 struct BackgroundFixture {
     u32 width{45U};
     u32 height{40U};
@@ -974,6 +999,7 @@ void test_real_tsw_combined_frame(
 
 int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
+    test_initial_environment_action_records(test);
     test_spatial_stages_execute_in_frame_order(test);
     test_spatial_failure_stops_at_original_stage(test);
     test_delegated_failure_is_visible(test);
