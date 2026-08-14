@@ -451,6 +451,26 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
             result.session.map_descriptor.archive_map_id == 9U,
         "logical map five selects archive map nine without conflating IDs"
     );
+    constexpr std::array<u8, 7U> kUnknownMapName{
+        0xA4U,
+        0xA3U,
+        0xAAU,
+        0xBEU,
+        0xB9U,
+        0x44U,
+        0x00U,
+    };
+    test.expect_true(
+        result.session.map_name_lookup.status !=
+                openswd3::world_map::LegacyMapsMapNameLookupStatus::found &&
+            std::ranges::equal(
+                std::span<const u8>{result.session.map_name}.first(
+                    kUnknownMapName.size()
+                ),
+                kUnknownMapName
+            ),
+        "a missing synthetic map-name table uses the original unknown fallback"
+    );
     test.expect_true(
         result.session.map_descriptor_runtime.base_movement_step == 4U &&
             result.session.map_descriptor_runtime.tile_animation_interval ==
@@ -796,6 +816,30 @@ void test_real_initial_world(
             post_state.flagged_role_record_count == 0U &&
             post_state.guid_one_roles_overridden == 0U,
         "real new game loads the exact twelve MAPS roles without repair"
+    );
+    constexpr std::array<u8, 11U> kVeniceInnName{
+        0xABU,
+        0xC2U,
+        0xA5U,
+        0xA7U,
+        0xB4U,
+        0xB5U,
+        0xB0U,
+        0x73U,
+        0xABU,
+        0xCEU,
+        0x00U,
+    };
+    test.expect_true(
+        result.session.map_name_lookup.status ==
+                openswd3::world_map::LegacyMapsMapNameLookupStatus::found &&
+            std::ranges::equal(
+                std::span<const u8>{result.session.map_name}.first(
+                    kVeniceInnName.size()
+                ),
+                kVeniceInnName
+            ),
+        "the real initial session retains the exact CP950 map name"
     );
     test.expect_true(
         selected.guid == 1U && selected.world_x == 13U * 16U &&

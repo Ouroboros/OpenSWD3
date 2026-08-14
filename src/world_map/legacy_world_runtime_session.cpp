@@ -37,6 +37,16 @@ constexpr std::array<i32, 16U> kDescriptorColorOffsets{
     -1,
 };
 
+constexpr std::array<u8, 7U> kUnknownMapName{
+    0xA4U,
+    0xA3U,
+    0xAAU,
+    0xBEU,
+    0xB9U,
+    0x44U,
+    0x00U,
+};
+
 struct RoleAssemblyState {
     LegacyWorldRuntimeSessionStatus status{
         LegacyWorldRuntimeSessionStatus::ready
@@ -365,6 +375,13 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     result.session.map_descriptor_runtime = make_descriptor_runtime_state(
         *descriptor, result.session.encounter_thresholds.groups.size()
     );
+    result.session.map_name_lookup = copy_legacy_maps_map_name(
+        maps_payload, request.load.logical_map_id, result.session.map_name
+    );
+    if (result.session.map_name_lookup.status !=
+        LegacyMapsMapNameLookupStatus::found) {
+        std::ranges::copy(kUnknownMapName, result.session.map_name.begin());
+    }
 
     if ((request.load.load_flags & 1U) != 0U) {
         if (request.preload_context == nullptr) {

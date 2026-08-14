@@ -18,9 +18,11 @@ constexpr std::size_t kRoleDirectoryOffsetField = 0x04U;
 constexpr std::size_t kMapDescriptorDirectoryOffsetField = 0x0CU;
 constexpr std::size_t kInitialLoadOffsetField = 0x10U;
 constexpr std::size_t kPartyAttributeDirectoryOffsetField = 0x18U;
+constexpr std::size_t kMapNameDirectoryOffsetField = 0x50U;
 constexpr std::size_t kRoleDefaultsDirectoryOffsetField = 0x54U;
 constexpr u16 kDirectoryTerminator = 0xFFFFU;
 constexpr u16 kRoleDefaultsTerminator = 0U;
+constexpr u16 kMapNameRecordTerminator = 0x5125U;
 constexpr u16 kLegacySelectedRoleFlags = 0xD100U;
 
 [[nodiscard]] bool range_available(
@@ -183,6 +185,86 @@ void write_u16_le(
 }
 
 }  // namespace
+
+LegacyMapsMapNameLookupResult copy_legacy_maps_map_name(
+    const std::span<const u8> payload,
+    const u32 logical_map_id,
+    const std::span<u8> destination
+) noexcept {
+    LegacyMapsMapNameLookupResult result;
+    if (!range_available(payload, kMapNameDirectoryOffsetField, sizeof(u32))) {
+        return result;
+    }
+
+    result.directory_offset =
+        read_u32_le(payload, kMapNameDirectoryOffsetField);
+    std::size_t record_offset = result.directory_offset;
+    if (!range_available(payload, record_offset, sizeof(u16))) {
+        result.status =
+            LegacyMapsMapNameLookupStatus::directory_offset_out_of_range;
+        return result;
+    }
+
+    while (range_available(payload, record_offset, sizeof(u16))) {
+        const u16 key = read_u16_le(payload, record_offset);
+        if (key == kDirectoryTerminator) {
+            result.status = LegacyMapsMapNameLookupStatus::not_found;
+            return result;
+        }
+        ++result.records_scanned;
+
+        if (static_cast<u32>(key) == logical_map_id) {
+            const std::size_t text_offset = record_offset + sizeof(u16);
+            std::size_t marker_offset = text_offset;
+            while (range_available(payload, marker_offset, sizeof(u16)) &&
+                   read_u16_le(payload, marker_offset) !=
+                       kMapNameRecordTerminator) {
+                ++marker_offset;
+            }
+            if (!range_available(payload, marker_offset, sizeof(u16))) {
+                result.status =
+                    LegacyMapsMapNameLookupStatus::directory_unterminated;
+                return result;
+            }
+
+            const std::size_t byte_count = marker_offset - text_offset;
+            if (byte_count >= destination.size()) {
+                result.status =
+                    LegacyMapsMapNameLookupStatus::destination_too_small;
+                return result;
+            }
+            std::copy_n(
+                payload.begin() + static_cast<std::ptrdiff_t>(text_offset),
+                byte_count,
+                destination.begin()
+            );
+            destination[byte_count] = 0U;
+            result.status = LegacyMapsMapNameLookupStatus::found;
+            result.matched_record_offset = static_cast<u32>(record_offset);
+            result.copied_byte_count = static_cast<u32>(byte_count);
+            return result;
+        }
+
+        std::size_t marker_offset = record_offset;
+        if (key != kMapNameRecordTerminator) {
+            while (range_available(payload, marker_offset, sizeof(u16)) &&
+                   read_u16_le(payload, marker_offset) !=
+                       kMapNameRecordTerminator) {
+                ++marker_offset;
+            }
+            if (!range_available(payload, marker_offset, sizeof(u16))) {
+                result.status =
+                    LegacyMapsMapNameLookupStatus::directory_unterminated;
+                return result;
+            }
+        }
+
+        record_offset = marker_offset + sizeof(u16);
+    }
+
+    result.status = LegacyMapsMapNameLookupStatus::directory_unterminated;
+    return result;
+}
 
 u8 materialize_legacy_maps_party_attribute_record(
     const std::span<u8, kLegacyMapsPartyAttributeRuntimeRecordSize> destination,

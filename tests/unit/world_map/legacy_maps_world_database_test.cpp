@@ -20,6 +20,7 @@ using openswd3::compat::u32;
 using openswd3::compat::u8;
 using openswd3::world_map::apply_legacy_maps_world_load;
 using openswd3::world_map::apply_legacy_maps_role_defaults;
+using openswd3::world_map::copy_legacy_maps_map_name;
 using openswd3::world_map::decode_legacy_maps_world_database;
 using openswd3::world_map::find_legacy_maps_map_descriptor;
 using openswd3::world_map::find_legacy_maps_role_defaults;
@@ -32,6 +33,7 @@ using openswd3::world_map::patch_legacy_maps_role_source_record;
 using openswd3::world_map::synchronize_legacy_maps_role_source_record;
 using openswd3::world_map::LegacyMapsRolePatchRequest;
 using openswd3::world_map::LegacyMapsRolePatchStatus;
+using openswd3::world_map::LegacyMapsMapNameLookupStatus;
 using openswd3::world_map::LegacyMapsWorldDatabaseStatus;
 using openswd3::world_map::LegacyMapsWorldLoadApplyStatus;
 using openswd3::world_map::LegacyWorldLoadRequest;
@@ -131,6 +133,27 @@ std::vector<u8> make_database() {
     return bytes;
 }
 
+std::vector<u8> make_map_name_database() {
+    std::vector<u8> bytes(0x90U, 0U);
+    write_u32(bytes, 0x50U, 0x60U);
+    write_u16(bytes, 0x60U, 1000U);
+    bytes[0x62U] = 'E';
+    bytes[0x63U] = 'N';
+    bytes[0x64U] = 'D';
+    bytes[0x65U] = 0x25U;
+    bytes[0x66U] = 0x51U;
+    write_u16(bytes, 0x67U, 3U);
+    bytes[0x69U] = 0xA4U;
+    bytes[0x6AU] = 0xA4U;
+    bytes[0x6BU] = 0x25U;
+    bytes[0x6CU] = 0x51U;
+    write_u16(bytes, 0x6DU, 4U);
+    bytes[0x6FU] = 0x25U;
+    bytes[0x70U] = 0x51U;
+    write_u16(bytes, 0x71U, 0xFFFFU);
+    return bytes;
+}
+
 u16 read_u16(const std::span<const u8> bytes, const std::size_t offset) {
     return static_cast<u16>(bytes[offset]) |
         static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U);
@@ -190,6 +213,118 @@ void test_decode_and_lookup(openswd3::test::Context& test) {
         defaults != nullptr && defaults->field_2c == 0x2468U &&
             defaults->repeated_field_30_word == 0xACE0U,
         "the six-byte sub_40D060 directory is decoded by GUID"
+    );
+}
+
+void test_map_name_lookup(openswd3::test::Context& test) {
+    const std::vector<u8> bytes = make_map_name_database();
+    std::array<u8, 8U> destination{};
+    destination.fill(0xCCU);
+
+    const auto first = copy_legacy_maps_map_name(bytes, 1000U, destination);
+    test.expect_true(
+        first.status == LegacyMapsMapNameLookupStatus::found &&
+            first.directory_offset == 0x60U &&
+            first.matched_record_offset == 0x60U &&
+            first.records_scanned == 1U && first.copied_byte_count == 3U &&
+            destination[0U] == 'E' && destination[1U] == 'N' &&
+            destination[2U] == 'D' && destination[3U] == 0U &&
+            destination[4U] == 0xCCU,
+        "sub_40EFD0 copies the first byte record and appends one NUL"
+    );
+
+    destination.fill(0xCCU);
+    const auto second = copy_legacy_maps_map_name(bytes, 3U, destination);
+    test.expect_true(
+        second.status == LegacyMapsMapNameLookupStatus::found &&
+            second.matched_record_offset == 0x67U &&
+            second.records_scanned == 2U && second.copied_byte_count == 2U &&
+            destination[0U] == 0xA4U && destination[1U] == 0xA4U &&
+            destination[2U] == 0U && destination[3U] == 0xCCU,
+        "the unaligned percent-Q scan reaches the requested second record"
+    );
+
+    destination.fill(0xCCU);
+    const auto empty = copy_legacy_maps_map_name(bytes, 4U, destination);
+    test.expect_true(
+        empty.status == LegacyMapsMapNameLookupStatus::found &&
+            empty.matched_record_offset == 0x6DU &&
+            empty.copied_byte_count == 0U && destination[0U] == 0U &&
+            destination[1U] == 0xCCU,
+        "an immediate percent-Q marker produces the original empty string"
+    );
+
+    destination.fill(0xCCU);
+    const auto missing = copy_legacy_maps_map_name(bytes, 5U, destination);
+    test.expect_true(
+        missing.status == LegacyMapsMapNameLookupStatus::not_found &&
+            missing.records_scanned == 3U && destination[0U] == 0xCCU,
+        "FFFF returns zero semantics without touching the destination"
+    );
+
+    const auto wide_key =
+        copy_legacy_maps_map_name(bytes, 0x00010003U, destination);
+    test.expect_equal(
+        wide_key.status,
+        LegacyMapsMapNameLookupStatus::not_found,
+        "the zero-extended word key compares against all 32 input bits"
+    );
+
+    const auto sentinel_key =
+        copy_legacy_maps_map_name(bytes, 0xFFFFU, destination);
+    test.expect_equal(
+        sentinel_key.status,
+        LegacyMapsMapNameLookupStatus::not_found,
+        "the leading FFFF check prevents the directory sentinel from matching"
+    );
+
+    std::vector<u8> marker_key_bytes(0x70U, 0U);
+    write_u32(marker_key_bytes, 0x50U, 0x60U);
+    write_u16(marker_key_bytes, 0x60U, 0x5125U);
+    write_u16(marker_key_bytes, 0x62U, 0xFFFFU);
+    const auto marker_key =
+        copy_legacy_maps_map_name(marker_key_bytes, 1U, destination);
+    test.expect_true(
+        marker_key.status == LegacyMapsMapNameLookupStatus::not_found &&
+            marker_key.records_scanned == 1U,
+        "a current 5125 word takes the assembly direct-advance branch"
+    );
+}
+
+void test_map_name_lookup_boundaries(openswd3::test::Context& test) {
+    std::array<u8, 8U> destination{};
+    destination.fill(0xA5U);
+    test.expect_equal(
+        copy_legacy_maps_map_name(std::array<u8, 0x53U>{}, 1U, destination)
+            .status,
+        LegacyMapsMapNameLookupStatus::payload_header_truncated,
+        "the +50 relative pointer requires four bytes"
+    );
+
+    std::vector<u8> bytes = make_map_name_database();
+    write_u32(bytes, 0x50U, static_cast<u32>(bytes.size()));
+    test.expect_equal(
+        copy_legacy_maps_map_name(bytes, 1U, destination).status,
+        LegacyMapsMapNameLookupStatus::directory_offset_out_of_range,
+        "an invalid relative table pointer is isolated"
+    );
+
+    bytes = make_map_name_database();
+    bytes.resize(0x65U);
+    test.expect_equal(
+        copy_legacy_maps_map_name(bytes, 1000U, destination).status,
+        LegacyMapsMapNameLookupStatus::directory_unterminated,
+        "a found record still requires its complete percent-Q marker"
+    );
+
+    bytes = make_map_name_database();
+    std::array<u8, 3U> short_destination{};
+    short_destination.fill(0xA5U);
+    test.expect_true(
+        copy_legacy_maps_map_name(bytes, 1000U, short_destination).status ==
+                LegacyMapsMapNameLookupStatus::destination_too_small &&
+            short_destination[0U] == 0xA5U,
+        "the modern boundary requires room for the trailing NUL"
     );
 }
 
@@ -547,6 +682,33 @@ void test_real_maps_dat(
         "current MAPS.DAT materializes all four 0x38-byte party records"
     );
 
+    std::array<u8, 64U> map_name{};
+    const auto map_name_result =
+        copy_legacy_maps_map_name(payload, 81U, map_name);
+    constexpr std::array<u8, 11U> kExpectedMapName{
+        0xABU,
+        0xC2U,
+        0xA5U,
+        0xA7U,
+        0xB4U,
+        0xB5U,
+        0xB0U,
+        0x73U,
+        0xABU,
+        0xCEU,
+        0x00U,
+    };
+    test.expect_true(
+        map_name_result.status == LegacyMapsMapNameLookupStatus::found &&
+            map_name_result.directory_offset == 0x25E2FU &&
+            map_name_result.copied_byte_count == 10U &&
+            std::ranges::equal(
+                std::span<const u8>{map_name}.first(kExpectedMapName.size()),
+                kExpectedMapName
+            ),
+        "current logical map 81 resolves to the exact CP950 map-name bytes"
+    );
+
     const auto& initial = decoded.database.initial_load;
     const auto* descriptor =
         find_legacy_maps_map_descriptor(decoded.database, 81U);
@@ -587,6 +749,8 @@ void test_real_maps_dat(
 int main(const int argc, char** argv) {
     openswd3::test::Context test;
     test_decode_and_lookup(test);
+    test_map_name_lookup(test);
+    test_map_name_lookup_boundaries(test);
     test_party_attribute_materialization(test);
     test_role_defaults_and_source_materialization(test);
     test_apply_load_mutates_owned_payload(test);

@@ -111,6 +111,8 @@ struct LegacyWorldRuntimeSession {
     std::array<LegacyWorldDirectionalPoint, 4U> directional_points;
     LegacyWorldRenderSession render;
     LegacyWorldCameraRect camera;
+    std::array<compat::u8, kLegacyMapsCurrentMapNameCapacity> map_name{};
+    LegacyMapsMapNameLookupResult map_name_lookup;
     compat::u32 logical_map_id{};
     compat::u32 selected_role_index{};
     compat::u32 maps_role_count{};

@@ -15,6 +15,7 @@ inline constexpr std::size_t kLegacyMapsInitialLoadRecordSize = 0x0EU;
 inline constexpr std::size_t kLegacyMapsMapDescriptorRecordSize = 0x0EU;
 inline constexpr std::size_t kLegacyMapsRoleSourceRecordSize = 0x16U;
 inline constexpr std::size_t kLegacyMapsRoleDefaultsRecordSize = 0x06U;
+inline constexpr std::size_t kLegacyMapsCurrentMapNameCapacity = 0x40U;
 inline constexpr std::size_t kLegacyMapsPartyAttributeSourceRecordSize = 0x34U;
 inline constexpr std::size_t kLegacyMapsPartyAttributeRuntimeRecordSize = 0x38U;
 inline constexpr std::size_t kLegacyMapsPartyAttributeRecordCount = 4U;
@@ -124,8 +125,36 @@ struct LegacyMapsWorldDatabaseResult {
     LegacyMapsWorldDatabase database;
 };
 
+enum class LegacyMapsMapNameLookupStatus {
+    found,
+    not_found,
+    payload_header_truncated,
+    directory_offset_out_of_range,
+    directory_unterminated,
+    destination_too_small,
+};
+
+struct LegacyMapsMapNameLookupResult {
+    LegacyMapsMapNameLookupStatus status{
+        LegacyMapsMapNameLookupStatus::payload_header_truncated
+    };
+    compat::u32 directory_offset{};
+    compat::u32 matched_record_offset{};
+    compat::u32 records_scanned{};
+    compat::u32 copied_byte_count{};
+};
+
 [[nodiscard]] LegacyMapsWorldDatabaseResult
 decode_legacy_maps_world_database(std::span<const compat::u8> payload);
+
+// sub_40EFD0: find a 16-bit logical map id in the MAPS +0x50 byte stream,
+// copy bytes through the next unaligned "%Q" marker and append NUL. The
+// original compares the zero-extended key against the complete 32-bit input.
+[[nodiscard]] LegacyMapsMapNameLookupResult copy_legacy_maps_map_name(
+    std::span<const compat::u8> payload,
+    compat::u32 logical_map_id,
+    std::span<compat::u8> destination
+) noexcept;
 
 // sub_40DD60 (0x0040DD60..0x0040DE41): selectively materialize one
 // 0x34-byte MAPS party template into its 0x38-byte runtime record. Bytes
