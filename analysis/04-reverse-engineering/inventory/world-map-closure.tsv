@@ -86,7 +86,7 @@ address	ida_name_navigation_only	closure_disposition	implementation_mapping	evid
 0x00411D00	sub_411D00	platform_adapted	legacy_world_transient_reset.cpp:reset_legacy_world_transient_state;main.cpp:initialize_new_game_state_and_world	world-transient-reset-00411d00.md	assembly_exact;unit_tested;platform_adapted	seven-owner release order and interleaved 64-entry resets retained; non-step frame-color fields preserved; original runtime differential
 0x00411E20	sub_411E20	assembly_exact	legacy_world_facing.cpp:measure_legacy_world_facing	world-facing-wrapper-0040e030-00411f00.md	assembly_exact;unit_tested	original runtime differential
 0x00411F00	sub_411F00	assembly_exact	legacy_world_facing.cpp:measure_legacy_world_facing	world-facing-wrapper-0040e030-00411f00.md	assembly_exact;unit_tested	original runtime differential
-0x004120B0	sub_4120B0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
+0x004120B0	sub_4120B0	platform_adapted	legacy_world_frame_coordinator.cpp:run_legacy_world_frame;main.cpp:run_world_frame	world-frame-coordinator-004120b0.md	assembly_exact;unit_tested;asset_verified;platform_adapted;sdl_runtime_integrated	bounded modern owners and presentation port isolate invalid spans, resources and legacy DirectDraw surface ownership; original runtime differential
 0x00412930	sub_412930	pending_audit			not_inherited	independent LST-to-C++ closure audit required
 0x00412BE0	sub_412BE0	pending_audit			not_inherited	independent LST-to-C++ closure audit required
 0x00412D30	sub_412D30	pending_audit			not_inherited	independent LST-to-C++ closure audit required

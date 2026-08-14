@@ -1,7 +1,7 @@
 # 普通世界帧外层协调器（`0x004120B0`）
 
-状态：`assembly_exact`、`unit_verified`、`asset_verified`、
-`sdl_runtime_integrated`；尚未 `original_diff_verified`
+状态：`platform_adapted`、`assembly_exact`、`unit_tested`、`asset_verified`、
+`sdl_runtime_integrated`；原程序动态差分仍为 `blocked_runtime_oracle`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。它恢复的是普通世界唯一主帧函数
 `sub_4120B0` 的外层控制顺序；`0x00412930` 内部画面组合的证据和实现仍由
@@ -85,7 +85,28 @@
 - 仍 delegated 的角色/界面 stage 返回失败时停在对应原槽并报告失败，不把尚未恢复的
   行为伪装成完整帧；HeadSgn 和帧后玩家动作更新失败都按原汇编只记录诊断并继续。
 
-## 4. 验证边界
+## 4. 独立闭环复核
+
+本轮没有继承旧文档的完成结论，而是重新锁定完整函数范围
+`0x004120B0..0x00412926`、唯一调用点 `sub_40A570:0x0040AA90` 和全部直接调用槽，
+再执行两轮方向相反的核对：
+
+- LST→C++：按物理地址逐段核对 HeadSgn、玩家/相机位移、72 槽地图角色、队伍槽
+  `1..count-1`、相机平移、选择滚动、两次音频维护、surface 绑定、世界组合、倒计时、
+  调试叠层、唯一呈现、玩家帧后账本、tile 动画和视口恢复；
+- C++→LST：从 `run_legacy_world_frame` 的每一次状态修改和端口调用反查到唯一原槽，
+  核对调用次序、常量、循环范围、无符号门、失败性质和呈现前后边界；
+- ABI/调用点：原函数没有参数，保存 `EBX/EBP/ESI/EDI`，唯一调用者在返回后直接计算
+  帧时间差，不读取 EAX；现代返回对象只承载诊断，不模拟不存在的物理返回协议；
+- 平台边界：原 surface lock/unlock 与 DirectDraw `Blt(DDBLT_WAIT)` 分别映射为受所有权
+  保护的软件 framebuffer 和 presentation port；有界 span、资源失败状态只隔离原越界、
+  空指针或宿主失败域，不改变有效运行域。
+
+第二轮反查没有发现遗漏调用、重复呈现、阶段换序、范围偏差或有效域状态差异，因此本轮
+无需改动 coordinator C++。后续被调用函数仍按各自 B7 行独立审计，不能继承本函数的
+闭环状态。
+
+## 5. 验证边界
 
 组合 UT 已固定完整 outer/inner/audio/presentation 事件序列，并覆盖：
 
@@ -104,7 +125,8 @@
   执行动作校验；
 - 无效玩家索引、缺失选择 Y word、调试叠层失败和 composition 失败的原槽停止。
 
-Linux LLVM `core` 154/154、Windows LLVM `app` 158/158 CTest 通过。SDL app 已用真实
+Linux LLVM `core` 185/185、Linux LLVM `app` 190/190、Windows LLVM `app` 190/190
+CTest 通过。SDL app 已用真实
 地图 session、ACT/TSW runtime、软件 framebuffer 和 audio/presentation ports 调用该
 coordinator；地图角色、队伍角色、脚本相机平移、倒计时绘制和开发调试叠层均已替代
 outer 外部占位。需要原程序动态差分时，只准备
