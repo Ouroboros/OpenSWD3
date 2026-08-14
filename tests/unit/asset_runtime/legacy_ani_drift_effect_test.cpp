@@ -154,38 +154,39 @@ void test_initialization_and_selective_reset(openswd3::test::Context& test) {
         "all four initialized action records use action 0x232b"
     );
 
-    effect.state().slots[0U] = LegacyAniDriftSlot{
-        .x = 1,
-        .y = 2,
-        .velocity_x = 3,
-        .velocity_y = 4,
-    };
-    effect.state().slots[3U].x = 5;
+    for (std::size_t index = 0U; index < kLegacyAniDriftSlotCount; ++index) {
+        effect.state().slots[index] = LegacyAniDriftSlot{
+            .x = static_cast<i32>(index + 1U),
+            .y = static_cast<i32>(index + 2U),
+            .velocity_x = static_cast<i32>(index + 3U),
+            .velocity_y = static_cast<i32>(index + 4U),
+        };
+    }
     effect.action_records()[0U].field_94 = 0x12345678U;
     effect.reset_positions();
-    test.expect_equal(
-        effect.state().slots[0U].x,
-        kLegacyAniDriftInactiveX,
-        "scene reset rewrites the first x sentinel"
-    );
-    test.expect_equal(
-        effect.state().slots[3U].x,
-        kLegacyAniDriftInactiveX,
-        "scene reset rewrites the fourth x sentinel"
-    );
-    test.expect_equal(
-        effect.state().slots[0U].y, i32{2}, "scene reset preserves y"
-    );
-    test.expect_equal(
-        effect.state().slots[0U].velocity_x,
-        i32{3},
-        "scene reset preserves horizontal velocity"
-    );
-    test.expect_equal(
-        effect.state().slots[0U].velocity_y,
-        i32{4},
-        "scene reset preserves vertical velocity"
-    );
+    for (std::size_t index = 0U; index < kLegacyAniDriftSlotCount; ++index) {
+        const LegacyAniDriftSlot& slot = effect.state().slots[index];
+        test.expect_equal(
+            slot.x,
+            kLegacyAniDriftInactiveX,
+            "scene reset rewrites every x sentinel"
+        );
+        test.expect_equal(
+            slot.y,
+            static_cast<i32>(index + 2U),
+            "scene reset preserves every y"
+        );
+        test.expect_equal(
+            slot.velocity_x,
+            static_cast<i32>(index + 3U),
+            "scene reset preserves every horizontal velocity"
+        );
+        test.expect_equal(
+            slot.velocity_y,
+            static_cast<i32>(index + 4U),
+            "scene reset preserves every vertical velocity"
+        );
+    }
     test.expect_equal(
         effect.action_records()[0U].field_94,
         0x12345678U,

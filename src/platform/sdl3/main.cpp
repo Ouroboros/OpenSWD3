@@ -1159,6 +1159,12 @@ public:
         role_particle_effect_ = &effect;
     }
 
+    void bind_ani_drift_effect(
+        openswd3::asset_runtime::LegacyAniDriftEffect& effect
+    ) noexcept {
+        ani_drift_effect_ = &effect;
+    }
+
     void bind_moving_actions(
         openswd3::world_map::LegacyMovingActionList& actions
     ) noexcept {
@@ -1253,6 +1259,11 @@ public:
             role_particle_effect_ != nullptr
         ) {
             static_cast<void>(role_particle_effect_->release());
+        } else if (
+            operation == Operation::release_0040f670 &&
+            ani_drift_effect_ != nullptr
+        ) {
+            ani_drift_effect_->reset_positions();
         }
         if (operation == openswd3::app::ShutdownOperation::show_cursor) {
             static_cast<void>(SDL_ShowCursor());
@@ -1281,6 +1292,7 @@ private:
     openswd3::story_scene::LegacyDialogRuntimeState* dialogs_{};
     openswd3::asset_runtime::LegacyAniRoleParticleEffect*
         role_particle_effect_{};
+    openswd3::asset_runtime::LegacyAniDriftEffect* ani_drift_effect_{};
 };
 
 class SdlProcessExitPorts final : public openswd3::app::ProcessExitPorts {
@@ -1740,6 +1752,11 @@ public:
     [[nodiscard]] openswd3::asset_runtime::LegacyAniRoleParticleEffect&
     role_particle_effect() noexcept {
         return world_role_particle_effect_;
+    }
+
+    [[nodiscard]] openswd3::asset_runtime::LegacyAniDriftEffect&
+    ani_drift_effect() noexcept {
+        return world_frame_effects_.drift;
     }
 
     void latch_keyboard_press(const SDL_Scancode scancode) noexcept {
@@ -4234,6 +4251,7 @@ int main(const int argument_count, char** arguments) {
     );
     shutdown_ports.bind_picture_actions(idle_ports.picture_actions());
     shutdown_ports.bind_role_particle_effect(idle_ports.role_particle_effect());
+    shutdown_ports.bind_ani_drift_effect(idle_ports.ani_drift_effect());
     shutdown_ports.bind_packed_row_effects(idle_ports.packed_row_effects());
     shutdown_ports.bind_moving_actions(idle_ports.moving_actions());
     shutdown_ports.bind_role_head_actions(idle_ports.role_head_actions());
