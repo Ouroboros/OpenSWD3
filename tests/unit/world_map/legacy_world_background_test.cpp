@@ -148,6 +148,46 @@ void test_aligned_direct_tiles(openswd3::test::Context& test) {
     );
 }
 
+void test_aligned_direct_layer_and_cell_flags(
+    openswd3::test::Context& test
+) {
+    SyntheticMap map;
+    const std::size_t cell_count =
+        static_cast<std::size_t>(map.width) * map.height;
+    map.tiles.assign(cell_count * 2U, 1U);
+    std::fill(
+        map.tiles.begin() + static_cast<std::ptrdiff_t>(cell_count),
+        map.tiles.end(),
+        0U
+    );
+    write_u32(map.flags, 0U, kLegacyWorldCellTransparent);
+    write_u32(map.flags, 4U, kLegacyWorldCellHidden);
+
+    LegacyWorldBackgroundSource source = map.source();
+    source.tile_layer_offset = static_cast<u32>(cell_count);
+    LegacyFramebuffer framebuffer;
+    fill_framebuffer(framebuffer, 0x7777U);
+
+    const auto result = render_legacy_world_background(
+        framebuffer, source, LegacyWorldBackgroundView{}
+    );
+    test.expect_true(
+        result.status == LegacyWorldBackgroundRenderStatus::completed &&
+            result.visited_cells == 40U * 30U &&
+            result.transparent_cells == 1U && result.hidden_cells == 1U &&
+            result.opaque_cells == 40U * 30U - 2U &&
+            result.written_pixels == 40U * 30U * 16U * 16U - 257U,
+        "aligned direct path applies the animated layer only to tile indices"
+    );
+    test.expect_true(
+        framebuffer.row_pixels(0U)[0U] == 0x7777U &&
+            framebuffer.row_pixels(0U)[1U] == 2U &&
+            framebuffer.row_pixels(0U)[16U] == 0x7777U &&
+            framebuffer.row_pixels(0U)[32U] == 1U,
+        "aligned direct path preserves transparent, hidden, and opaque dispatch"
+    );
+}
+
 void test_unaligned_edges_and_flags(openswd3::test::Context& test) {
     SyntheticMap map;
     write_u32(map.flags, 0U, kLegacyWorldCellTransparent);
@@ -238,6 +278,27 @@ void test_partial_refresh(openswd3::test::Context& test) {
             framebuffer.row_pixels(447U)[527U] != 0x7777U &&
             framebuffer.row_pixels(448U)[320U] == 0x7777U,
         "background refresh rounds focus upward at 00412C26 before tile bounds"
+    );
+}
+
+void test_partial_refresh_zero_left_stride(openswd3::test::Context& test) {
+    SyntheticMap map;
+    map.tiles[3U * map.width + 29U] = 1U;
+    LegacyFramebuffer framebuffer;
+
+    const auto result = render_legacy_world_background(
+        framebuffer,
+        map.source(),
+        LegacyWorldBackgroundView{
+            .partial_refresh = true,
+            .partial_focus_x = 192,
+            .partial_focus_y = 240,
+        }
+    );
+    test.expect_true(
+        result.status == LegacyWorldBackgroundRenderStatus::completed &&
+            framebuffer.row_pixels(64U)[0U] == 0x1001U,
+        "zero-left partial refresh preserves the original row-stride quirk"
     );
 }
 
@@ -387,8 +448,10 @@ void test_current_map_24(
 int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
     test_aligned_direct_tiles(test);
+    test_aligned_direct_layer_and_cell_flags(test);
     test_unaligned_edges_and_flags(test);
     test_partial_refresh(test);
+    test_partial_refresh_zero_left_stride(test);
     test_indexed_tiles(test);
     test_checked_source_failures(test);
 

@@ -195,6 +195,16 @@ LegacyWorldBackgroundRenderResult render_legacy_world_background(
     const i32 first_screen_y = -low_nibble(view.camera_top);
     const i32 first_cell_x = floor_divide_16(view.camera_left);
     const i32 first_cell_y = floor_divide_16(view.camera_top);
+    const bool legacy_zero_left_partial_stride =
+        source.pixel_layout == LegacyWorldBackgroundPixelLayout::direct_16 &&
+        low_nibble(view.camera_left) == 0 &&
+        low_nibble(view.camera_top) == 0 && view.partial_refresh &&
+        wrapping_subtract(round_up_to_16(view.partial_focus_x), 0xC0) == 0;
+    const std::int64_t legacy_partial_first_cell =
+        static_cast<std::int64_t>(
+            floor_divide_16(wrapping_add(view.camera_top, redraw.top))
+        ) * source.map_width +
+        floor_divide_16(wrapping_add(view.camera_left, redraw.left));
 
     for (i32 screen_y = first_screen_y, cell_y = first_cell_y;
          screen_y < redraw.bottom;
@@ -215,9 +225,26 @@ LegacyWorldBackgroundRenderResult render_legacy_world_background(
                 continue;
             }
 
-            const std::size_t cell_index =
+            std::size_t cell_index =
                 static_cast<std::size_t>(cell_y) * source.map_width +
                 static_cast<u32>(cell_x);
+            if (legacy_zero_left_partial_stride) {
+                const std::int64_t tile_row =
+                    (screen_y - redraw.top) /
+                    static_cast<i32>(kLegacyWorldTilePixels);
+                const std::int64_t tile_column =
+                    (screen_x - redraw.left) /
+                    static_cast<i32>(kLegacyWorldTilePixels);
+                const std::int64_t legacy_index = legacy_partial_first_cell +
+                    tile_row *
+                        (static_cast<std::int64_t>(source.map_width) - 16) +
+                    tile_column;
+                if (legacy_index < 0 ||
+                    legacy_index >= static_cast<std::int64_t>(cell_count)) {
+                    continue;
+                }
+                cell_index = static_cast<std::size_t>(legacy_index);
+            }
             u32 flags{};
             if (!read_cell_flags(source.cell_flags, cell_index, flags)) {
                 result.status =

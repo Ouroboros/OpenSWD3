@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v209
+版本：v210
 
 最后更新：2026-08-14
 
@@ -932,5 +932,16 @@
     资源和 DirectDraw 状态。Linux `core` 185/185、Linux `app` 190/190、Windows LLVM
     `app` 190/190 CTest 全部通过，两端应用成功链接且未启动。114 项当前关闭 88 项，
     剩余 26 项。
+
+    B7 的 16 位对齐世界底图入口 `sub_412BE0` 随后完成独立闭环：物理范围
+    `0x00412BE0..0x00412D29` 的 service `0x48/0x13` 短路、40×30 与局部 24×24
+    tile 区域、首 cell、行跨度修正、动画层偏移以及 hidden/transparent/opaque 分派，
+    均完成 LST→C++ 和 C++→LST 反复核对。反向核对发现局部区域 left 恰为零时，汇编
+    会保留默认修正并按 `map_width - 16` 推进下一行；现代坐标循环此前无意正常化了该
+    旧行为，现已原样恢复并加入回归 UT。统一 background renderer 继续承载最终像素
+    语义，没有为旧裸指针重新引入不安全所有权；另一组 UT 固定动画层只偏移 tile 索引
+    而不偏移 flags，并同时验证三种 cell 分派。Linux `core` 185/185、Linux `app`
+    190/190、Windows LLVM `app` 190/190 CTest 全部通过，两端应用成功链接且未启动。
+    114 项当前关闭 89 项，剩余 25 项。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。
