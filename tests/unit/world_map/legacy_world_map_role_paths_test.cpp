@@ -164,7 +164,9 @@ struct Fixture {
         for (auto& rows : spatial.row_heads) {
             rows.assign(row_count, kLegacySpatialNoRole);
         }
-        static_cast<void>(insert_legacy_role_spatially(spatial, roles, 1U));
+        static_cast<void>(insert_legacy_role_spatially(
+            spatial, roles, 1U, roles[1U].flags & 3U
+        ));
         write_cell(surface, kOldCell, 0x10000100U);
 
         LegacyWorldObjectSlot& slot = state.active_object_slots[0];

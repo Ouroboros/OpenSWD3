@@ -174,7 +174,9 @@ void test_nonaligned_surface_and_spatial_path(openswd3::test::Context& test) {
         group.resize(45U, 0U);
     }
     test.expect_true(
-        insert_legacy_role_spatially(spatial, fixture.roles, 1U),
+        insert_legacy_role_spatially(
+            spatial, fixture.roles, 1U, fixture.roles[1U].flags & 3U
+        ),
         "the moving role begins in spatial row two"
     );
 
@@ -238,9 +240,9 @@ void test_surface_special_cases(openswd3::test::Context& test) {
         for (auto& group : spatial.row_heads) {
             group.resize(44U, 0U);
         }
-        static_cast<void>(
-            insert_legacy_role_spatially(spatial, fixture.roles, 1U)
-        );
+        static_cast<void>(insert_legacy_role_spatially(
+            spatial, fixture.roles, 1U, fixture.roles[1U].flags & 3U
+        ));
 
         std::vector<u8> surface_grid(16U * sizeof(u32), 0xFFU);
         std::array<LegacyWorldObjectSlot, kLegacyWorldActiveObjectSlotCount>

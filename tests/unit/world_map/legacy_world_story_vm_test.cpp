@@ -1773,27 +1773,27 @@ void test_real_new_game_story_reaches_first_dialog(
     }
     const bool inserted_role_one =
         openswd3::world_map::insert_legacy_role_spatially(
-            spatial_index, roles, 1U
+            spatial_index, roles, 1U, roles[1U].flags & 3U
         );
     const bool inserted_role_195 =
         openswd3::world_map::insert_legacy_role_spatially(
-            spatial_index, roles, 5U
+            spatial_index, roles, 5U, roles[5U].flags & 3U
         );
     const bool inserted_role_248 =
         openswd3::world_map::insert_legacy_role_spatially(
-            spatial_index, roles, 6U
+            spatial_index, roles, 6U, roles[6U].flags & 3U
         );
     const bool inserted_role_249 =
         openswd3::world_map::insert_legacy_role_spatially(
-            spatial_index, roles, 7U
+            spatial_index, roles, 7U, roles[7U].flags & 3U
         );
     const bool inserted_role_250 =
         openswd3::world_map::insert_legacy_role_spatially(
-            spatial_index, roles, 9U
+            spatial_index, roles, 9U, roles[9U].flags & 3U
         );
     const bool inserted_role_251 =
         openswd3::world_map::insert_legacy_role_spatially(
-            spatial_index, roles, 10U
+            spatial_index, roles, 10U, roles[10U].flags & 3U
         );
 
     std::vector<u8> surface_grid(80U * 80U * sizeof(u32), 0U);

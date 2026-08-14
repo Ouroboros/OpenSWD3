@@ -236,7 +236,10 @@ void initialize_maps_role(
             roles.push_back(role);
             const u32 role_index = static_cast<u32>(roles.size() - 1U);
             if (!insert_legacy_role_spatially(
-                    business.spatial_index, roles, role_index
+                    business.spatial_index,
+                    roles,
+                    role_index,
+                    roles[role_index].flags & 3U
                 )) {
                 roles.pop_back();
                 assembly.status = LegacyWorldRuntimeSessionStatus::

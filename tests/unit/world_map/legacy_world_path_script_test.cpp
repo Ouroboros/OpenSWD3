@@ -165,12 +165,12 @@ struct Fixture {
         for (auto& rows : spatial_index.row_heads) {
             rows.assign(row_count, kLegacySpatialNoRole);
         }
-        static_cast<void>(
-            insert_legacy_role_spatially(spatial_index, roles, 1U)
-        );
-        static_cast<void>(
-            insert_legacy_role_spatially(spatial_index, roles, 2U)
-        );
+        static_cast<void>(insert_legacy_role_spatially(
+            spatial_index, roles, 1U, roles[1U].flags & 3U
+        ));
+        static_cast<void>(insert_legacy_role_spatially(
+            spatial_index, roles, 2U, roles[2U].flags & 3U
+        ));
         crt_rng.seed(1U);
         secondary_rng.seed(1U);
     }

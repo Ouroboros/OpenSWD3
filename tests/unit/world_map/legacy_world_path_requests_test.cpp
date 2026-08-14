@@ -229,7 +229,9 @@ struct PartyPathFixture {
         for (auto& rows : spatial.row_heads) {
             rows.assign(row_count, kLegacySpatialNoRole);
         }
-        static_cast<void>(insert_legacy_role_spatially(spatial, roles, 2U));
+        static_cast<void>(insert_legacy_role_spatially(
+            spatial, roles, 2U, roles[2U].flags & 3U
+        ));
         write_cell(surface, follower.map_cell_pointer_32, 0x10000000U);
 
         party_indices[0] = 1U;

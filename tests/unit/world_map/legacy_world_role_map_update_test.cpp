@@ -188,7 +188,9 @@ void test_moving_role_alignment_and_spatial_removal(
         group.resize(45U, 0U);
     }
     test.expect_true(
-        insert_legacy_role_spatially(spatial, fixture.roles, 1U),
+        insert_legacy_role_spatially(
+            spatial, fixture.roles, 1U, fixture.roles[1U].flags & 3U
+        ),
         "the role starts in the spatial index"
     );
     fixture.spatial_pointer = &spatial;
@@ -226,7 +228,9 @@ void test_ff_direction_still_removes_spatial_role(
     for (auto& group : spatial.row_heads) {
         group.resize(45U, 0U);
     }
-    static_cast<void>(insert_legacy_role_spatially(spatial, fixture.roles, 1U));
+    static_cast<void>(insert_legacy_role_spatially(
+        spatial, fixture.roles, 1U, fixture.roles[1U].flags & 3U
+    ));
     fixture.spatial_pointer = &spatial;
 
     const auto result = apply_legacy_world_role_map_update(
@@ -253,7 +257,9 @@ void test_negative_direction_alignment(openswd3::test::Context& test) {
     for (auto& group : spatial.row_heads) {
         group.resize(45U, 0U);
     }
-    static_cast<void>(insert_legacy_role_spatially(spatial, fixture.roles, 1U));
+    static_cast<void>(insert_legacy_role_spatially(
+        spatial, fixture.roles, 1U, fixture.roles[1U].flags & 3U
+    ));
     fixture.spatial_pointer = &spatial;
 
     const auto result = apply_legacy_world_role_map_update(

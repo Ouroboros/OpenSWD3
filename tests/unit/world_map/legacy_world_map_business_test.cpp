@@ -222,19 +222,19 @@ void test_spatial_insertion_order(openswd3::test::Context& test) {
     roles[5].flags = 1U;
 
     test.expect_true(
-        insert_legacy_role_spatially(spatial, roles, 1U),
+        insert_legacy_role_spatially(spatial, roles, 1U, 0U),
         "first role becomes row head"
     );
     test.expect_true(
-        insert_legacy_role_spatially(spatial, roles, 2U),
+        insert_legacy_role_spatially(spatial, roles, 2U, 0U),
         "larger equal-row GUID enters before a single node"
     );
     test.expect_true(
-        insert_legacy_role_spatially(spatial, roles, 3U),
+        insert_legacy_role_spatially(spatial, roles, 3U, 0U),
         "middle GUID follows the multi-node insertion branch"
     );
     test.expect_true(
-        insert_legacy_role_spatially(spatial, roles, 4U),
+        insert_legacy_role_spatially(spatial, roles, 4U, 0U),
         "later sub-tile Y follows the exact walk-to-tail branch"
     );
 
@@ -248,7 +248,7 @@ void test_spatial_insertion_order(openswd3::test::Context& test) {
     );
 
     test.expect_true(
-        insert_legacy_role_spatially(spatial, roles, 5U),
+        insert_legacy_role_spatially(spatial, roles, 5U, 1U),
         "signed division truncates negative sub-tile Y to zero"
     );
     test.expect_equal(
@@ -259,15 +259,67 @@ void test_spatial_insertion_order(openswd3::test::Context& test) {
 
     roles[5].world_y = std::bit_cast<u32>(i32{-336});
     test.expect_false(
-        insert_legacy_role_spatially(spatial, roles, 5U),
+        insert_legacy_role_spatially(spatial, roles, 5U, 1U),
         "row below the twenty-row prefix is rejected by the modern boundary"
     );
 
     roles[5].world_y = 0U;
-    roles[5].flags = 3U;
     test.expect_false(
-        insert_legacy_role_spatially(spatial, roles, 5U),
-        "packed group three is outside the three pointers allocated at 0x00411620"
+        insert_legacy_role_spatially(spatial, roles, 5U, 3U),
+        "group three is outside the three pointers allocated at 0x00411620"
+    );
+
+    std::array<LegacyWorldRoleRecord, 4U> branch_roles{};
+    LegacyRoleSpatialIndex branch_spatial;
+    branch_spatial.map_height = 4U;
+    for (auto& group : branch_spatial.row_heads) {
+        group.resize(44U, 0U);
+    }
+    branch_roles[1U].world_y = 16U;
+    branch_roles[1U].guid = 20U;
+    branch_roles[2U].world_y = 16U;
+    branch_roles[2U].guid = 10U;
+    branch_roles[3U].world_y = 16U;
+    branch_roles[3U].guid = 30U;
+    test.expect_true(
+        insert_legacy_role_spatially(branch_spatial, branch_roles, 1U, 0U) &&
+            insert_legacy_role_spatially(
+                branch_spatial, branch_roles, 2U, 0U
+            ) &&
+            branch_roles[1U].spatial_next_link_32 == 2U,
+        "single-node fallback appends the lower GUID"
+    );
+    test.expect_true(
+        insert_legacy_role_spatially(branch_spatial, branch_roles, 3U, 0U) &&
+            branch_spatial.row_heads[0U][kLegacySpatialRowPadding + 1U] == 3U &&
+            branch_roles[3U].spatial_next_link_32 == 1U,
+        "multi-node head branch inserts the greater GUID before the head"
+    );
+
+    std::array<LegacyWorldRoleRecord, 3U> single_y_roles{};
+    single_y_roles[1U].world_y = 31U;
+    single_y_roles[1U].guid = 100U;
+    single_y_roles[2U].world_y = 16U;
+    single_y_roles[2U].guid = 1U;
+    test.expect_true(
+        insert_legacy_role_spatially(branch_spatial, single_y_roles, 1U, 1U) &&
+            insert_legacy_role_spatially(
+                branch_spatial, single_y_roles, 2U, 1U
+            ) &&
+            branch_spatial.row_heads[1U][kLegacySpatialRowPadding + 1U] == 2U &&
+            single_y_roles[2U].spatial_next_link_32 == 1U,
+        "single-node Y comparison inserts the earlier sub-tile position first"
+    );
+
+    std::array<LegacyWorldRoleRecord, 2U> explicit_group_roles{};
+    explicit_group_roles[1U].world_y = 0U;
+    explicit_group_roles[1U].flags = 0U;
+    test.expect_true(
+        insert_legacy_role_spatially(
+            branch_spatial, explicit_group_roles, 1U, 2U
+        ) && branch_spatial.row_heads[2U][kLegacySpatialRowPadding] == 1U &&
+            branch_spatial.row_heads[0U][kLegacySpatialRowPadding] == 0U,
+        "physical group argument selects the row-head table independently"
     );
 }
 

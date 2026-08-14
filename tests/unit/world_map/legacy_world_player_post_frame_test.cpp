@@ -89,7 +89,9 @@ struct Fixture {
         player.action.variant_delta = 6U;
         player.action.field_2c = 1U;
         player.action.field_30 = 1U;
-        static_cast<void>(insert_legacy_role_spatially(spatial, roles, 1U));
+        static_cast<void>(insert_legacy_role_spatially(
+            spatial, roles, 1U, roles[1U].flags & 3U
+        ));
         state.world_x_history.fill(16U);
         state.world_y_history.fill(16U);
         state.action_variant_history.fill(3U);

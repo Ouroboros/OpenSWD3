@@ -72,7 +72,10 @@ void apply_packed_role_fields(
     state.roles.push_back(role);
     const u32 role_index = static_cast<u32>(state.roles.size() - 1U);
     if (!insert_legacy_role_spatially(
-            state.spatial_index, state.roles, role_index
+            state.spatial_index,
+            state.roles,
+            role_index,
+            state.roles[role_index].flags & 3U
         )) {
         state.roles.pop_back();
         return false;
@@ -106,7 +109,10 @@ void apply_packed_role_fields(
     state.roles.push_back(role);
     const u32 role_index = static_cast<u32>(state.roles.size() - 1U);
     if (!insert_legacy_role_spatially(
-            state.spatial_index, state.roles, role_index
+            state.spatial_index,
+            state.roles,
+            role_index,
+            state.roles[role_index].flags & 3U
         )) {
         state.roles.pop_back();
         return false;
@@ -131,17 +137,17 @@ const LegacyWorldMapEvent* find_legacy_world_map_event(
 bool insert_legacy_role_spatially(
     LegacyRoleSpatialIndex& spatial_index,
     const std::span<LegacyWorldRoleRecord> roles,
-    const u32 role_index
+    const u32 role_index,
+    const u32 group
 ) noexcept {
     if (role_index == kLegacySpatialNoRole || role_index >= roles.size()) {
         return false;
     }
 
-    LegacyWorldRoleRecord& inserted = roles[role_index];
-    const u32 group = inserted.flags & 3U;
     if (group >= kLegacySpatialGroupCount) {
         return false;
     }
+    LegacyWorldRoleRecord& inserted = roles[role_index];
     const i32 row = std::bit_cast<i32>(inserted.world_y) / 16;
     const i32 padded_row = row + static_cast<i32>(kLegacySpatialRowPadding);
     if (padded_row < 0 ||
@@ -152,8 +158,8 @@ bool insert_legacy_role_spatially(
 
     u32& head =
         spatial_index.row_heads[group][static_cast<std::size_t>(padded_row)];
-    inserted.spatial_next_link_32 = kLegacySpatialNoRole;
     if (head == kLegacySpatialNoRole) {
+        inserted.spatial_next_link_32 = kLegacySpatialNoRole;
         head = role_index;
         return true;
     }
@@ -170,6 +176,7 @@ bool insert_legacy_role_spatially(
             inserted.spatial_next_link_32 = current_index;
             head = role_index;
         } else {
+            inserted.spatial_next_link_32 = kLegacySpatialNoRole;
             current->spatial_next_link_32 = role_index;
         }
         return true;
@@ -198,6 +205,7 @@ bool insert_legacy_role_spatially(
         current = &next;
         next_index = current->spatial_next_link_32;
         if (next_index == kLegacySpatialNoRole) {
+            inserted.spatial_next_link_32 = kLegacySpatialNoRole;
             current->spatial_next_link_32 = role_index;
             return true;
         }
@@ -249,7 +257,7 @@ LegacyRoleSpatialRelocationStatus relocate_legacy_role_spatially_by_guid(
                 role.spatial_next_link_32 = kLegacySpatialNoRole;
                 if (reinsert &&
                     !insert_legacy_role_spatially(
-                        spatial_index, roles, role_index
+                        spatial_index, roles, role_index, role.flags & 3U
                     )) {
                     return LegacyRoleSpatialRelocationStatus::
                         reinsertion_failed;

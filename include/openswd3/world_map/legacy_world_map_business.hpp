@@ -65,7 +65,8 @@ struct LegacyWorldMapBusinessResult {
 [[nodiscard]] bool insert_legacy_role_spatially(
     LegacyRoleSpatialIndex& spatial_index,
     std::span<LegacyWorldRoleRecord> roles,
-    compat::u32 role_index
+    compat::u32 role_index,
+    compat::u32 group
 ) noexcept;
 
 enum class LegacyRoleSpatialRelocationStatus {
