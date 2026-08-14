@@ -28,6 +28,16 @@ struct LegacyPictureActionLists {
     std::list<LegacyPictureActionNode> secondary;
 };
 
+struct LegacyPictureActionReleaseResult {
+    compat::u32 primary_release_count{};
+    compat::u32 secondary_release_count{};
+};
+
+// sub_40F5E0 (0x0040F5E0..0x0040F62E): release dword_4B7C70 first,
+// then dword_4B8968, advancing each +0xA0 chain head before its 0xA4 node.
+[[nodiscard]] LegacyPictureActionReleaseResult
+release_legacy_picture_actions(LegacyPictureActionLists& lists) noexcept;
+
 class LegacyPictureActionAudioPorts {
 public:
     virtual ~LegacyPictureActionAudioPorts() = default;

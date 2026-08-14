@@ -25,7 +25,29 @@ wrapping_subtract(const compat::i32 left, const compat::u32 right) noexcept {
         status == rendering::LegacyBlitExecutionStatus::opacity_disabled;
 }
 
+[[nodiscard]] compat::u32 release_picture_action_list(
+    std::list<LegacyPictureActionNode>& nodes
+) noexcept {
+    compat::u32 release_count = 0U;
+    std::list<LegacyPictureActionNode> detached;
+    while (!nodes.empty()) {
+        detached.splice(detached.end(), nodes, nodes.begin());
+        detached.pop_front();
+        ++release_count;
+    }
+    return release_count;
+}
+
 }  // namespace
+
+LegacyPictureActionReleaseResult
+release_legacy_picture_actions(LegacyPictureActionLists& lists) noexcept {
+    LegacyPictureActionReleaseResult result;
+    result.primary_release_count = release_picture_action_list(lists.primary);
+    result.secondary_release_count =
+        release_picture_action_list(lists.secondary);
+    return result;
+}
 
 LegacyPictureActionResult update_draw_legacy_picture_actions(
     std::list<LegacyPictureActionNode>& nodes,

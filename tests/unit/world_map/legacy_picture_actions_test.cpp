@@ -19,7 +19,9 @@ using openswd3::compat::u32;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::world_map::LegacyPictureActionAudioPorts;
+using openswd3::world_map::LegacyPictureActionLists;
 using openswd3::world_map::LegacyPictureActionNode;
+using openswd3::world_map::release_legacy_picture_actions;
 using openswd3::world_map::update_draw_legacy_picture_actions;
 
 struct DrawCall {
@@ -172,11 +174,34 @@ void test_completion_must_equal_one(openswd3::test::Context& test) {
     );
 }
 
+void test_release_primary_then_secondary_lists(openswd3::test::Context& test) {
+    LegacyPictureActionLists lists;
+    lists.primary.push_back(make_node(1U, 10U, 20U, 11U, 12U, 0U, 0U));
+    lists.primary.push_back(make_node(2U, 30U, 40U, 21U, 22U, 0U, 0U));
+    lists.secondary.push_back(make_node(3U, 50U, 60U, 31U, 32U, 0U, 0U));
+
+    const auto released = release_legacy_picture_actions(lists);
+    test.expect_true(
+        released.primary_release_count == 2U &&
+            released.secondary_release_count == 1U && lists.primary.empty() &&
+            lists.secondary.empty(),
+        "sub_40F5E0 releases both +0xA0 chains in primary-secondary order"
+    );
+
+    const auto empty = release_legacy_picture_actions(lists);
+    test.expect_true(
+        empty.primary_release_count == 0U &&
+            empty.secondary_release_count == 0U,
+        "sub_40F5E0 performs no release for two empty roots"
+    );
+}
+
 }  // namespace
 
 int main() {
     openswd3::test::Context test;
     test_exact_update_draw_audio_and_removal(test);
     test_completion_must_equal_one(test);
+    test_release_primary_then_secondary_lists(test);
     return test.exit_code();
 }

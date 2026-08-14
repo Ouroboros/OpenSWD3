@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v197
+版本：v198
 
 最后更新：2026-08-14
 
@@ -813,5 +813,16 @@
     `release_0040f5a0` 已接入实际 owner；定向 UT 覆盖三节点、空链、掩码和无关字段
     保持。Linux `core` 184/184、Linux `app` 189/189、Windows LLVM `app` 189/189
     CTest 通过，两端应用均成功链接且未启动。114 项当前关闭 77 项，剩余 37 项。
+
+    B7 picture-action 双链关闭 `sub_40F5E0` 随后完成闭环：先逐头处理
+    `dword_4B7C70`，再无条件转入 `dword_4B8968`；两段均读取节点 `+0xA0`、先推进
+    对应全局首、再释放完整 `0xA4` 节点。既有物理节点已固定 `+0x08` action 和
+    `+0xA0` next，opcode 58/153 分别前插两个实际 owner；显式 helper 以先 `splice`
+    摘头再 `pop_front()` 保留销毁顺序和双链先后，不再整体替换 owner。四个无参数
+    调用点及无 EAX 消费均已反查，世界 owner 重建、主过渡和 SDL
+    `release_0040f5e0` 已接入同一合同；定向 UT 覆盖 primary 两节点、secondary 一节点、
+    两个最终空根和重复空链。Linux `core` 184/184、Linux `app` 189/189、Windows LLVM
+    `app` 189/189 CTest 通过，两端应用均成功链接且未启动。114 项当前关闭 78 项，
+    剩余 36 项。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

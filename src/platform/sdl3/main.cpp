@@ -1146,6 +1146,12 @@ public:
         packed_row_effects_ = &effects;
     }
 
+    void bind_picture_actions(
+        openswd3::world_map::LegacyPictureActionLists& actions
+    ) noexcept {
+        picture_actions_ = &actions;
+    }
+
     void bind_moving_actions(
         openswd3::world_map::LegacyMovingActionList& actions
     ) noexcept {
@@ -1193,6 +1199,15 @@ public:
                     "legacy world item-list shutdown rejected malformed roots"
                 );
             }
+        } else if (
+            operation == Operation::release_0040f5e0 &&
+            picture_actions_ != nullptr
+        ) {
+            static_cast<void>(
+                openswd3::world_map::release_legacy_picture_actions(
+                    *picture_actions_
+                )
+            );
         } else if (
             operation == Operation::release_0040f500 &&
             packed_row_effects_ != nullptr
@@ -1246,6 +1261,7 @@ private:
     openswd3::audio_video::LegacyStreamManager& stream_manager_;
     openswd3::audio_video::LegacySampleManager& sample_manager_;
     openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
+    openswd3::world_map::LegacyPictureActionLists* picture_actions_{};
     std::list<openswd3::rendering::LegacyPackedRowEffect>*
         packed_row_effects_{};
     openswd3::world_map::LegacyMovingActionList* moving_actions_{};
@@ -1687,6 +1703,11 @@ public:
         return world_frame_effects_.packed_rows;
     }
 
+    [[nodiscard]] openswd3::world_map::LegacyPictureActionLists&
+    picture_actions() noexcept {
+        return world_picture_actions_;
+    }
+
     [[nodiscard]] openswd3::world_map::LegacyMovingActionList&
     moving_actions() noexcept {
         return world_moving_actions_;
@@ -1857,7 +1878,14 @@ public:
         const openswd3::app::PrimaryTransitionOperation operation
     ) override {
         if (operation ==
-            openswd3::app::PrimaryTransitionOperation::release_0040f500) {
+            openswd3::app::PrimaryTransitionOperation::release_0040f5e0) {
+            shutdown_ports_.perform_shutdown_operation(
+                openswd3::app::ShutdownOperation::release_0040f5e0
+            );
+        } else if (
+            operation ==
+            openswd3::app::PrimaryTransitionOperation::release_0040f500
+        ) {
             shutdown_ports_.perform_shutdown_operation(
                 openswd3::app::ShutdownOperation::release_0040f500
             );
@@ -3222,7 +3250,9 @@ public:
         world_raster_ = game_framebuffer_.geometry();
         world_jitter_ = {};
         world_frame_state_ = {};
-        world_picture_actions_ = {};
+        static_cast<void>(openswd3::world_map::release_legacy_picture_actions(
+            world_picture_actions_
+        ));
         static_cast<void>(openswd3::world_map::release_legacy_moving_actions(
             world_moving_actions_
         ));
@@ -4180,6 +4210,7 @@ int main(const int argument_count, char** arguments) {
         ok,
         running
     );
+    shutdown_ports.bind_picture_actions(idle_ports.picture_actions());
     shutdown_ports.bind_packed_row_effects(idle_ports.packed_row_effects());
     shutdown_ports.bind_moving_actions(idle_ports.moving_actions());
     shutdown_ports.bind_role_head_actions(idle_ports.role_head_actions());
