@@ -105,7 +105,7 @@ normal 路径只剩 `0x0042ED40` 转交 `remaining_stages`；另有只在 activi
 moving action、role-head action 和软件鼠标路径，叠加在 640×480 direct-16 底图后的逻辑
 framebuffer FNV-1a64 为 `0x5889E0547682E179`。
 
-Linux Clang `core` 159/159、Linux Clang `app` 163/163、Windows LLVM `app` 163/163
+Linux Clang `core` 185/185、Linux Clang `app` 190/190、Windows LLVM `app` 190/190
 CTest 均通过。原程序逐帧
 framebuffer、音频调用和 jitter 差分仍为 `blocked_runtime_oracle`；需要时只准备 Frida
 spawn 工具并等待用户执行，不由开发流程启动原版。

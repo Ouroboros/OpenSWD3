@@ -1,13 +1,14 @@
 # 普通世界帧组合与地图底图（`0x004120B0..0x00413370`）
 
-状态：`assembly_exact`、`asset_verified`；尚未 `original_diff_verified`
+状态：`platform_adapted`、`assembly_exact`、`unit_tested`、`asset_verified`、
+`sdl_runtime_integrated`；原程序动态差分仍为 `blocked_runtime_oracle`
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值，固定普通世界更新、软件画面组合与
 最终提交之间的边界。伪码只用于定位，不参与裁决。
 
 ## 1. `0x004120B0` 的职责边界
 
-唯一主帧调用点是 `0x0040AA90`，入口无参数，返回值不被观察。函数不是纯 renderer，
+普通世界主帧中的唯一调用槽是 `0x0040AA90`，入口无参数，返回值不被观察。函数不是纯 renderer，
 而是以下三段连续过程：
 
 1. `0x004120B7..0x00412687`：推进公共动作记录、玩家/相机、地图角色和队伍角色；
@@ -134,7 +135,7 @@ focus clip”和“底图 16 对齐 tile 区域”两套边界；实现与 UT �
 - stage 端口会报告成功与失败；现代受检失败停在原调用点、恢复全屏 clip，并返回
   `stage_failed`，正常资产下不改变汇编顺序；
 - 正常、局部 clip、service `0x13/0x48/0x0B/0x51`、clear-only、ANI activity、
-  control `0x2E` 和无效源隔离均有独立 UT；
+  control `0x2E`、talk target/phase 的无符号门和无效源隔离均有独立 UT；
 - 当前游戏数据地图 24 的 `LMF → CM → frame composition` RGB565 逻辑 framebuffer
   FNV-1a64 固定为 `0x947C15A53487BF9A`。
 
@@ -142,10 +143,37 @@ focus clip”和“底图 16 对齐 tile 区域”两套边界；实现与 UT �
 接线后，真实 TSW 路径叠加底图的 framebuffer 哈希在对应 service 全关闭时为
 `0x5889E0547682E179`。这同时证明禁用门和空队列没有引入像素副作用；service 6/7 的
 合成集成另行验证实际效果路径。真实资产结果证明当前数据链可用；
-Linux Clang `core` 159/159、Linux Clang `app` 163/163、Windows LLVM `app` 163/163
+Linux Clang `core` 185/185、Linux Clang `app` 190/190、Windows LLVM `app` 190/190
 CTest 通过。但尚未与原程序逐帧
 framebuffer 差分，所以验证等级不能写成 `original_diff_verified`。
 
 正常原始资产不会触发现代受检错误。短 tile/grid/palette 或不可能的 framebuffer 几何
 只在访问前返回并恢复全屏 clip，用于隔离旧程序会发生的越界/无效指针行为；这不改写
 任何有效游戏状态下的逻辑分支。
+
+## 6. `sub_412930` 独立闭环复核
+
+本轮重新以 `0x00412930..0x00412BD3` 为完整物理范围，不继承此前纵向切片的完成结论。
+函数没有参数，也不建立栈帧；正常主体保存并恢复 EBX/EDI，ANI activity 分支不经过这组
+保存。末尾以尾调用转入 `sub_4153D0`，四个直接调用者均不读取返回 EAX：
+
+| 调用点 | 原职责 | 当前归属 |
+|---|---|---|
+| `0x00407AC9` | 持久化截图/预览重组 | 转交 B11 持久化 owner |
+| `0x004126B8` | 普通世界每帧组合 | SDL 世界 runtime 已接线 |
+| `0x004155BC` | ANI 收尾时临时关闭 activity/bit 0 后递归重绘 | `LegacyAniActivityPorts::redraw_scene_without_ani` 边界 |
+| `0x0044D929` | 特殊模式转场前世界帧捕获 | 转交 B9 特殊模式 owner |
+
+收敛复核反复执行：
+
+- LST→C++：逐块核对初始 full/partial clip、activity/clear-only/normal 三分支、两次可能
+  清屏、四底图选择、全部 service/control 短路、十九个 normal stage 和公共尾部；
+- C++→LST：从每次 query、stage、clip、clear、数字绘制和背景选择反查唯一原地址，确认
+  service `0x48/0x13` 的两组查询没有缓存，service `0x0A/9/0x51` 保持短路顺序；
+- 调用边界：`sub_416FF0` 的 clip 映射为 raster owner，临时 palette 指针映射为受生命周期
+  保护的 background span，固定 `0x25800` dword 清屏映射为 `0x4B000` 个 u16；
+- 独立分支测试：除既有三主体和 service/control 用例外，新增 talk target 非 `0xFFFF`
+  时 phase 7/8 的边界，固定 phase 8 在 service `0x51` 查询前跳过数字绘制。
+
+反向追溯最终没有产生新的有效域差异或未决基本块。被调函数仍按各自 B7/B8/B9/B11
+范围独立审计；上述跨模块调用点转交不把其外围职责伪装为本函数已经实现。

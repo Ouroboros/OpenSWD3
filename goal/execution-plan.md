@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v208
+版本：v209
 
 最后更新：2026-08-14
 
@@ -921,5 +921,16 @@
     presentation port 只隔离原越界、空指针、宿主资源及 DirectDraw 所有权边界。Linux
     `core` 185/185、Linux `app` 190/190、Windows LLVM `app` 190/190 CTest 全部通过，
     两端应用成功链接且未启动。114 项当前关闭 87 项，剩余 27 项。
+
+    B7 世界画面组合入口 `sub_412930` 随后完成独立闭环复核：完整范围
+    `0x00412930..0x00412BD3` 的 full/partial clip、activity/clear-only/normal 三主体、
+    两次可能清屏、四底图选择、全部 service/control 短路、normal 十九个 stage 与公共
+    尾部均完成正向逐块和反向逐调用收敛。四个直接调用点均不消费 EAX；普通世界已接线，
+    持久化截图、ANI 递归重绘和特殊模式捕获分别转交 B11、既有 ANI port 与 B9 owner。
+    新增 talk target 有效时 phase 7/8 边界 UT，确认 phase 8 在 service `0x51` 查询前
+    跳过固定数字绘制；有界 framebuffer/raster/background/stage port 仅隔离原无效指针、
+    资源和 DirectDraw 状态。Linux `core` 185/185、Linux `app` 190/190、Windows LLVM
+    `app` 190/190 CTest 全部通过，两端应用成功链接且未启动。114 项当前关闭 88 项，
+    剩余 26 项。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

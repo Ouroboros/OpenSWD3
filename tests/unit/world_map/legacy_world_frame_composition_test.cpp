@@ -458,6 +458,76 @@ void test_service_48_and_control_override(openswd3::test::Context& test) {
     );
 }
 
+void test_decorated_number_talk_gate(openswd3::test::Context& test) {
+    SyntheticBackground background;
+
+    {
+        LegacyFramebuffer framebuffer;
+        LegacyRasterGeometryState raster = make_raster(framebuffer);
+        RecordingPorts ports(raster);
+        const auto result = compose_legacy_world_frame(
+            framebuffer,
+            raster,
+            background.source(),
+            LegacyWorldFrameState{
+                .talk_target = 7U,
+                .talk_phase = 7U,
+                .decorated_value = 99U,
+            },
+            ports
+        );
+        test.expect_true(
+            result.status == LegacyWorldFrameCompositionStatus::completed &&
+                result.decorated_number_drawn &&
+                ports.decorated_calls ==
+                    std::vector<RecordingPorts::DecoratedCall>{
+                        {0x27C, 0x1CC, 0U, 99U},
+                    },
+            "talk phase below eight retains the fixed decorated-number call"
+        );
+    }
+
+    {
+        LegacyFramebuffer framebuffer;
+        LegacyRasterGeometryState raster = make_raster(framebuffer);
+        RecordingPorts ports(raster);
+        const auto result = compose_legacy_world_frame(
+            framebuffer,
+            raster,
+            background.source(),
+            LegacyWorldFrameState{
+                .talk_target = 7U,
+                .talk_phase = 8U,
+                .decorated_value = 99U,
+            },
+            ports
+        );
+        test.expect_true(
+            result.status == LegacyWorldFrameCompositionStatus::completed &&
+                !result.decorated_number_drawn &&
+                ports.decorated_calls.empty(),
+            "talk phase eight skips the number before querying service 51"
+        );
+        test.expect_true(
+            ports.service_queries == std::vector<u32>{
+                0x0FU,
+                0x13U,
+                0x48U,
+                0x13U,
+                0x48U,
+                0x13U,
+                0x0BU,
+                0x48U,
+                0x48U,
+                0x0AU,
+                0x09U,
+                0x51U,
+            },
+            "the talk gate suppresses only its own service 51 query"
+        );
+    }
+}
+
 void test_background_failure_isolated(openswd3::test::Context& test) {
     LegacyFramebuffer framebuffer;
     LegacyRasterGeometryState raster = make_raster(framebuffer);
@@ -570,6 +640,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_only_short_circuit(test);
     test_ani_activity_and_full_clip_tail(test);
     test_service_48_and_control_override(test);
+    test_decorated_number_talk_gate(test);
     test_background_failure_isolated(test);
 
     test.expect_true(
