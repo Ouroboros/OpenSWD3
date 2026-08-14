@@ -406,6 +406,45 @@ void test_indexed_tiles(openswd3::test::Context& test) {
     );
 }
 
+void test_indexed_partial_zero_left_stride(openswd3::test::Context& test) {
+    constexpr u32 width = 45U;
+    constexpr u32 height = 35U;
+    std::vector<u16> tiles(static_cast<std::size_t>(width) * height, 0U);
+    tiles[3U * width + 29U] = 1U;
+    std::vector<u8> flags(static_cast<std::size_t>(width) * height * 4U);
+    std::vector<u8> cache(0x400U, 0U);
+    std::fill(cache.begin() + 0x300, cache.end(), 2U);
+    std::vector<u16> palette(256U);
+    for (u32 index = 0U; index < 256U; ++index) {
+        palette[index] = static_cast<u16>(0x2000U + index);
+    }
+    const LegacyWorldBackgroundSource source{
+        .map_width = width,
+        .map_height = height,
+        .tile_indices = tiles,
+        .cell_flags = flags,
+        .tile_bytes = cache,
+        .pixel_layout = LegacyWorldBackgroundPixelLayout::indexed_8,
+        .palette = palette,
+    };
+    LegacyFramebuffer framebuffer;
+
+    const auto result = render_legacy_world_background(
+        framebuffer,
+        source,
+        LegacyWorldBackgroundView{
+            .partial_refresh = true,
+            .partial_focus_x = 192,
+            .partial_focus_y = 240,
+        }
+    );
+    test.expect_true(
+        result.status == LegacyWorldBackgroundRenderStatus::completed &&
+            framebuffer.row_pixels(64U)[0U] == 0x2002U,
+        "indexed aligned path preserves the zero-left row-stride quirk"
+    );
+}
+
 void test_checked_source_failures(openswd3::test::Context& test) {
     SyntheticMap map;
     LegacyFramebuffer framebuffer;
@@ -508,6 +547,7 @@ int main(const int argument_count, char** arguments) {
     test_partial_refresh_zero_left_stride(test);
     test_unaligned_partial_refresh_interior_only(test);
     test_indexed_tiles(test);
+    test_indexed_partial_zero_left_stride(test);
     test_checked_source_failures(test);
 
     test.expect_true(

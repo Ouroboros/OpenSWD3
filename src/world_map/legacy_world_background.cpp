@@ -196,7 +196,6 @@ LegacyWorldBackgroundRenderResult render_legacy_world_background(
     const i32 first_cell_x = floor_divide_16(view.camera_left);
     const i32 first_cell_y = floor_divide_16(view.camera_top);
     const bool legacy_zero_left_partial_stride =
-        source.pixel_layout == LegacyWorldBackgroundPixelLayout::direct_16 &&
         low_nibble(view.camera_left) == 0 &&
         low_nibble(view.camera_top) == 0 && view.partial_refresh &&
         wrapping_subtract(round_up_to_16(view.partial_focus_x), 0xC0) == 0;
