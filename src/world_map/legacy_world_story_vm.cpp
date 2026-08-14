@@ -1744,7 +1744,9 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
                 return result;
             }
-            runtime.packed_row_effects->clear();
+            static_cast<void>(rendering::release_legacy_packed_row_effects(
+                *runtime.packed_row_effects
+            ));
             runtime.role_head_actions->clear();
             *runtime.battle_request_value =
                 static_cast<u32>(static_cast<i32>(

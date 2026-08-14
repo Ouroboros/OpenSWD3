@@ -17,6 +17,7 @@ using openswd3::rendering::LegacyFramebuffer;
 using openswd3::rendering::LegacyFramebufferPackedRowDrawPorts;
 using openswd3::rendering::LegacyPackedRowDrawPorts;
 using openswd3::rendering::LegacyPackedRowEffect;
+using openswd3::rendering::LegacyPackedRowEffectReleaseResult;
 using openswd3::rendering::LegacyPackedRowEffectResult;
 using openswd3::rendering::LegacyPixelConversionState;
 
@@ -175,11 +176,49 @@ void test_packed_row_framebuffer_port(openswd3::test::Context& test) {
     );
 }
 
+void test_packed_row_effect_release(openswd3::test::Context& test) {
+    std::list<LegacyPackedRowEffect> effects{
+        LegacyPackedRowEffect{},
+        LegacyPackedRowEffect{
+            .row_offsets = {1, 2},
+            .row_lengths = {3, 4},
+        },
+        LegacyPackedRowEffect{
+            .row_offsets = {5},
+        },
+    };
+
+    const LegacyPackedRowEffectReleaseResult released =
+        openswd3::rendering::release_legacy_packed_row_effects(effects);
+
+    test.expect_true(
+        effects.empty() && released.node_release_count == 3U,
+        "sub_40F500 drains every node from the list head"
+    );
+    test.expect_true(
+        released.row_offset_release_calls == 3U &&
+            released.row_offset_owners_released == 2U &&
+            released.row_length_release_calls == 3U &&
+            released.row_length_owners_released == 1U,
+        "sub_40F500 releases both owned arrays even when either is null"
+    );
+
+    const LegacyPackedRowEffectReleaseResult empty =
+        openswd3::rendering::release_legacy_packed_row_effects(effects);
+    test.expect_true(
+        empty.node_release_count == 0U &&
+            empty.row_offset_release_calls == 0U &&
+            empty.row_length_release_calls == 0U,
+        "sub_40F500 leaves an empty root untouched"
+    );
+}
+
 }  // namespace
 
 int main() {
     openswd3::test::Context test;
     test_packed_row_modes(test);
     test_packed_row_framebuffer_port(test);
+    test_packed_row_effect_release(test);
     return test.exit_code();
 }

@@ -84,6 +84,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <list>
 #include <optional>
 #include <source_location>
 #include <span>
@@ -1139,6 +1140,12 @@ public:
           sample_manager_(sample_manager), world_item_lists_(world_item_lists) {
     }
 
+    void bind_packed_row_effects(
+        std::list<openswd3::rendering::LegacyPackedRowEffect>& effects
+    ) noexcept {
+        packed_row_effects_ = &effects;
+    }
+
     void perform_shutdown_operation(
         const openswd3::app::ShutdownOperation operation
     ) override {
@@ -1168,6 +1175,15 @@ public:
                     "legacy world item-list shutdown rejected malformed roots"
                 );
             }
+        } else if (
+            operation == Operation::release_0040f500 &&
+            packed_row_effects_ != nullptr
+        ) {
+            static_cast<void>(
+                openswd3::rendering::release_legacy_packed_row_effects(
+                    *packed_row_effects_
+                )
+            );
         }
         if (operation == openswd3::app::ShutdownOperation::show_cursor) {
             static_cast<void>(SDL_ShowCursor());
@@ -1188,6 +1204,8 @@ private:
     openswd3::audio_video::LegacyStreamManager& stream_manager_;
     openswd3::audio_video::LegacySampleManager& sample_manager_;
     openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
+    std::list<openswd3::rendering::LegacyPackedRowEffect>*
+        packed_row_effects_{};
 };
 
 class SdlProcessExitPorts final : public openswd3::app::ProcessExitPorts {
@@ -1619,6 +1637,11 @@ public:
         );
     }
 
+    [[nodiscard]] std::list<openswd3::rendering::LegacyPackedRowEffect>&
+    packed_row_effects() noexcept {
+        return world_frame_effects_.packed_rows;
+    }
+
     void latch_keyboard_press(const SDL_Scancode scancode) noexcept {
         static_cast<void>(openswd3::platform_sdl3::latch_sdl_keyboard_press(
             pending_keyboard_presses_, scancode
@@ -1771,8 +1794,15 @@ public:
     }
 
     void perform_primary_transition_operation(
-        openswd3::app::PrimaryTransitionOperation
-    ) override {}
+        const openswd3::app::PrimaryTransitionOperation operation
+    ) override {
+        if (operation ==
+            openswd3::app::PrimaryTransitionOperation::release_0040f500) {
+            shutdown_ports_.perform_shutdown_operation(
+                openswd3::app::ShutdownOperation::release_0040f500
+            );
+        }
+    }
 
     void
     release_and_clear_party_member_transition(openswd3::compat::u32) override {}
@@ -3121,7 +3151,11 @@ public:
         world_frame_effects_.row_copy.reset();
         world_frame_effects_.deformation.clear();
         world_frame_effects_.follower = {};
-        world_frame_effects_.packed_rows.clear();
+        static_cast<void>(
+            openswd3::rendering::release_legacy_packed_row_effects(
+                world_frame_effects_.packed_rows
+            )
+        );
         world_frame_effects_.frame_color = {};
         world_frame_effects_.timed_messages.clear();
         world_frame_effects_.cursor = {};
@@ -4059,6 +4093,7 @@ int main(const int argument_count, char** arguments) {
         ok,
         running
     );
+    shutdown_ports.bind_packed_row_effects(idle_ports.packed_row_effects());
     while (running) {
         SDL_Event event{};
         while (SDL_PollEvent(&event)) {

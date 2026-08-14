@@ -99,6 +99,33 @@ LegacyFramebufferPackedRowDrawPorts::draw_legacy_packed_row(
     );
 }
 
+LegacyPackedRowEffectReleaseResult release_legacy_packed_row_effects(
+    std::list<LegacyPackedRowEffect>& effects
+) noexcept {
+    LegacyPackedRowEffectReleaseResult result;
+    std::list<LegacyPackedRowEffect> detached;
+    while (!effects.empty()) {
+        detached.splice(detached.end(), effects, effects.begin());
+        LegacyPackedRowEffect& effect = detached.front();
+
+        ++result.row_offset_release_calls;
+        if (effect.row_offsets.capacity() != 0U) {
+            ++result.row_offset_owners_released;
+        }
+        std::vector<i16>{}.swap(effect.row_offsets);
+
+        ++result.row_length_release_calls;
+        if (effect.row_lengths.capacity() != 0U) {
+            ++result.row_length_owners_released;
+        }
+        std::vector<i16>{}.swap(effect.row_lengths);
+
+        detached.pop_front();
+        ++result.node_release_count;
+    }
+    return result;
+}
+
 LegacyPackedRowEffectResult update_draw_legacy_packed_row_effects(
     std::list<LegacyPackedRowEffect>& effects,
     const std::span<const u32> color_patterns,
