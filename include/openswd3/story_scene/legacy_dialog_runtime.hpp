@@ -21,6 +21,18 @@ struct LegacyDialogRuntimeState {
     LegacyDialogCloseState close;
 };
 
+struct LegacyDialogMessageReleaseResult {
+    compat::u32 text_release_count{};
+    compat::u32 node_release_count{};
+    compat::u32 preserved_lock_value{};
+};
+
+// sub_40F5A0 (0x0040F5A0..0x0040F5DF): detach every dword_4ACF48
+// message, release its +0x38 text allocation before the 0x4C node, and retain
+// only bit 15 of dword_4A9920.
+[[nodiscard]] LegacyDialogMessageReleaseResult
+release_legacy_dialog_messages(LegacyDialogRuntimeState& state) noexcept;
+
 // sub_40DBC0: release the shared choice-hotspot chain and clear its five-dword
 // sentinel node. The modern owner has no raw sentinel; vector::clear supplies
 // the RAII ownership adaptation and unrelated dialog state remains untouched.

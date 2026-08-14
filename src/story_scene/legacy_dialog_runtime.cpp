@@ -1,5 +1,8 @@
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 
+#include <list>
+#include <vector>
+
 namespace openswd3::story_scene {
 namespace {
 
@@ -62,6 +65,22 @@ private:
 };
 
 }  // namespace
+
+LegacyDialogMessageReleaseResult
+release_legacy_dialog_messages(LegacyDialogRuntimeState& state) noexcept {
+    LegacyDialogMessageReleaseResult result;
+    std::list<LegacyDialogMessage> detached;
+    while (!state.messages.empty()) {
+        detached.splice(detached.end(), state.messages, state.messages.begin());
+        std::vector<compat::u8>{}.swap(detached.front().text);
+        ++result.text_release_count;
+        detached.pop_front();
+        ++result.node_release_count;
+    }
+    state.close.flagged_dialog_counter &= 0x00008000U;
+    result.preserved_lock_value = state.close.flagged_dialog_counter;
+    return result;
+}
 
 void clear_legacy_dialog_choice_chain(
     LegacyDialogRuntimeState& state

@@ -1158,6 +1158,12 @@ public:
         role_head_actions_ = &actions;
     }
 
+    void bind_dialogs(
+        openswd3::story_scene::LegacyDialogRuntimeState& dialogs
+    ) noexcept {
+        dialogs_ = &dialogs;
+    }
+
     void perform_shutdown_operation(
         const openswd3::app::ShutdownOperation operation
     ) override {
@@ -1214,6 +1220,12 @@ public:
                     *role_head_actions_
                 )
             );
+        } else if (
+            operation == Operation::release_0040f5a0 && dialogs_ != nullptr
+        ) {
+            static_cast<void>(
+                openswd3::story_scene::release_legacy_dialog_messages(*dialogs_)
+            );
         }
         if (operation == openswd3::app::ShutdownOperation::show_cursor) {
             static_cast<void>(SDL_ShowCursor());
@@ -1238,6 +1250,7 @@ private:
         packed_row_effects_{};
     openswd3::world_map::LegacyMovingActionList* moving_actions_{};
     openswd3::world_map::LegacyRoleHeadActionList* role_head_actions_{};
+    openswd3::story_scene::LegacyDialogRuntimeState* dialogs_{};
 };
 
 class SdlProcessExitPorts final : public openswd3::app::ProcessExitPorts {
@@ -1684,6 +1697,11 @@ public:
         return world_role_head_actions_;
     }
 
+    [[nodiscard]] openswd3::story_scene::LegacyDialogRuntimeState&
+    dialogs() noexcept {
+        return world_dialogs_;
+    }
+
     void latch_keyboard_press(const SDL_Scancode scancode) noexcept {
         static_cast<void>(openswd3::platform_sdl3::latch_sdl_keyboard_press(
             pending_keyboard_presses_, scancode
@@ -1856,6 +1874,13 @@ public:
         ) {
             shutdown_ports_.perform_shutdown_operation(
                 openswd3::app::ShutdownOperation::release_0040f570
+            );
+        } else if (
+            operation ==
+            openswd3::app::PrimaryTransitionOperation::release_0040f5a0
+        ) {
+            shutdown_ports_.perform_shutdown_operation(
+                openswd3::app::ShutdownOperation::release_0040f5a0
             );
         }
     }
@@ -3220,7 +3245,9 @@ public:
         world_frame_effects_.timed_messages.clear();
         world_frame_effects_.cursor = {};
         world_frame_effects_.initialize_action_records();
-        world_dialogs_ = {};
+        static_cast<void>(openswd3::story_scene::release_legacy_dialog_messages(
+            world_dialogs_
+        ));
         world_path_script_state_ = {};
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
@@ -4156,6 +4183,7 @@ int main(const int argument_count, char** arguments) {
     shutdown_ports.bind_packed_row_effects(idle_ports.packed_row_effects());
     shutdown_ports.bind_moving_actions(idle_ports.moving_actions());
     shutdown_ports.bind_role_head_actions(idle_ports.role_head_actions());
+    shutdown_ports.bind_dialogs(idle_ports.dialogs());
     while (running) {
         SDL_Event event{};
         while (SDL_PollEvent(&event)) {

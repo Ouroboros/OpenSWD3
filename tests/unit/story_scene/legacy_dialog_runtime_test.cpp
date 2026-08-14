@@ -24,11 +24,13 @@ using openswd3::story_scene::LegacyDialogRuntimeInput;
 using openswd3::story_scene::LegacyDialogRuntimePorts;
 using openswd3::story_scene::LegacyDialogRuntimeState;
 using openswd3::story_scene::LegacyDialogRuntimeStatus;
+using openswd3::story_scene::LegacyDialogMessageReleaseResult;
 using openswd3::story_scene::LegacyDialogSegmentDrawRequest;
 using openswd3::story_scene::clear_legacy_dialog_choice_chain;
 using openswd3::story_scene::kLegacyDialogFlagTerminated;
 using openswd3::story_scene::kLegacyDialogSurfaceHeight;
 using openswd3::story_scene::kLegacyDialogSurfaceWidth;
+using openswd3::story_scene::release_legacy_dialog_messages;
 using openswd3::story_scene::update_draw_legacy_dialogs;
 
 enum class Call {
@@ -367,6 +369,52 @@ void test_surface_and_anchor_failures_release_correctly(
     );
 }
 
+void test_message_chain_release_lifecycle(openswd3::test::Context& test) {
+    LegacyDialogRuntimeState state;
+    for (u32 index = 0U; index < 3U; ++index) {
+        state.messages.emplace_back();
+        state.messages.back().text = {
+            static_cast<openswd3::compat::u8>(index + 1U),
+            static_cast<openswd3::compat::u8>('%'),
+            static_cast<openswd3::compat::u8>('Q'),
+        };
+        state.messages.back().caption = {
+            static_cast<openswd3::compat::u8>(index + 4U)
+        };
+    }
+    state.control.selection_state = 5U;
+    state.control.advance_signal_state = 6U;
+    state.close.flagged_dialog_counter = 0x1234BEEFU;
+    state.close.close_mode_state = 7U;
+    state.close.input_hold_state = 8U;
+
+    const LegacyDialogMessageReleaseResult released =
+        release_legacy_dialog_messages(state);
+    test.expect_true(
+        released.text_release_count == 3U &&
+            released.node_release_count == 3U &&
+            released.preserved_lock_value == 0x8000U &&
+            state.messages.empty() &&
+            state.close.flagged_dialog_counter == 0x8000U,
+        "sub_40F5A0 releases each text before its message and preserves only bit 15"
+    );
+    test.expect_true(
+        state.control.selection_state == 5U &&
+            state.control.advance_signal_state == 6U &&
+            state.close.close_mode_state == 7U &&
+            state.close.input_hold_state == 8U,
+        "sub_40F5A0 leaves unrelated dialog globals untouched"
+    );
+
+    const LegacyDialogMessageReleaseResult empty =
+        release_legacy_dialog_messages(state);
+    test.expect_true(
+        empty.text_release_count == 0U && empty.node_release_count == 0U &&
+            empty.preserved_lock_value == 0x8000U,
+        "sub_40F5A0 still applies the bit-15 mask to an empty chain"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -376,5 +424,6 @@ int main() {
     test_complete_message_order_and_dimensions(test);
     test_close_is_composited_then_removed(test);
     test_surface_and_anchor_failures_release_correctly(test);
+    test_message_chain_release_lifecycle(test);
     return test.exit_code();
 }
