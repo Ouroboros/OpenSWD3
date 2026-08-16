@@ -10,7 +10,7 @@
 的过滤结果为准，共 114 个函数，分为三个连续工作组：
 
 | 工作组 | 地址范围 | 数量 | 职责 |
-|---|---:|---:|---|
+| --- | ---: | ---: | --- |
 | 控制、碰撞与角色辅助 | `0x00402030..0x00406960` | 37 | 玩家控制、格/角色命中、碰撞、路径辅助 |
 | 世界运行与绘制协调 | `0x0040AD10..0x004151F0` | 69 | 地图私有资源、角色状态、世界更新、绘制和切换 |
 | 地图装载与缓存 | `0x00425B50..0x00427300` | 8 | 世界清理、LMF/CM 装载、地图对象和交互 |
@@ -19,12 +19,19 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 72 项：43 项 `assembly_exact`、29 项 `platform_adapted`；其余
-42 项保持待审计。最新关闭 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整
-`256 * 0xD8` 清零和第二遍 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对
-非零 `+0x38` 标记真正释放 vector 容量，固定物理尾部与进程关闭手工释放由受检 span 和
-RAII 承担；Linux `core` 183/183、Windows LLVM `app` 188/188 CTest 通过，未启动
-任何 EXE。此前 `sub_40EFD0` 的 MAPS `+0x50` 相对目录、16 位键对完整 32 位参数的
+114 项全集复核当前已关闭 92 项：43 项 `assembly_exact`、49 项 `platform_adapted`；其余
+22 项保持待审计。最新关闭 `sub_413370`：8 位索引未对齐底图的 service-13 严格内部
+遍历与普通四边裁剪/内部不裁剪已经从 `0x00413370..0x0041386E` 及三个实际 blitter
+独立完成双向追溯；现代统一 renderer 此前把两项行为误限于 direct-16，本轮只解除布局
+限制并加入 indexed 专用边界、flags、palette/source 安全回归。物理对齐回退由唯一调用者
+证明在当前调用域不可达，不为它扩张公共 API。Linux `core` 185/185、Linux `app` 190/190、
+Windows LLVM `app` 190/190 CTest 全部通过，两端应用成功链接且未启动；原版动态差分仍
+等待用户 oracle。此前
+`sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
+256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放
+vector 容量，固定物理尾部与进程关闭手工释放由受检 span 和 RAII 承担；Linux `core`
+183/183、Windows LLVM `app` 188/188 CTest 通过，未启动任何 EXE。此前 `sub_40EFD0`
+的 MAPS `+0x50` 相对目录、16 位键对完整 32 位参数的
 比较、未对齐 `%Q` 逐字节扫描、NUL 结尾复制、`0xFFFF` miss 和“`不知道`”回退均已
 逐基本块完成双向追溯；当前游戏数据的 346 个唯一名称键及新游戏键 81 的 CP950 字节
 已经固定。特殊模式调用者留在其实际 owner 中继续接线。此前 `sub_40ED60` 的首次
@@ -80,11 +87,13 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
    control 短路、公共尾部和四条底图路径已经闭环；地图 24 的真实
    `LMF → CM → frame composition` RGB565 framebuffer 哈希为
    `0x947C15A53487BF9A`，Linux `core` 123/123、Windows LLVM `app` 127/127 CTest
-   通过。`0x00413EA0/0x00413F00` 的 group 0 bit-29 扫描与固定透明绘制、
-   `0x00413870/0x00413910` 的 group `2→0→1` 普通角色扫描、残影/主图/颜色叠加/
-   覆盖层/粒子/标签，以及 `0x00413CA0` 距离音频已经闭环；普通角色 runtime adapter
-   已接入真实 TSW 和软件 framebuffer，两个固定哈希分别为 `0xA6C3E08156F06060` 与
-   `0xA4766C928B05DC88`。空间 stage 已在 `0x00412930` 的实际 runtime 原槽接线，
+   通过。`0x00413EA0/0x00413F00` 的 group 0 bit-29 扫描与固定透明绘制已有闭环证据。
+   `sub_413870/sub_413910` 的 group `2→0→1` 普通角色扫描、残影/主图/颜色叠加/覆盖层/
+   粒子/标签，以及 `sub_413CA0` 距离音频已有实现与集成证据，但不能从这些旧证据继承
+   全函数关闭状态；三项在 `world-map-closure.tsv` 中仍为 `pending_audit`，须分别完成
+   独立 LST→C++→LST 收敛。普通角色 runtime adapter 已接入真实 TSW 和软件 framebuffer，
+   两个固定哈希分别为 `0xA6C3E08156F06060` 与 `0xA4766C928B05DC88`。空间 stage 已在
+   `0x00412930` 的实际 runtime 原槽接线，
    共用角色数组、clip、framebuffer 和 jitter；真实 TSW 双路径叠加底图的整帧哈希为
    `0xA6144A91E57939F9`。`0x004147E0` 的主/副图片动作链也已在各自原槽接入，保留
    `0xA4` 节点、非致命更新诊断、位置音效单次消费和精确等一摘链。`0x00414B60`
@@ -193,6 +202,7 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
 [`world-collision-talk-00403ad7.md`](../evidence/world-collision-talk-00403ad7.md)、
 [`random-encounter-0040d9e0-0040db39.md`](../evidence/random-encounter-0040d9e0-0040db39.md) 和
 [`world-frame-composition-004120b0-00413370.md`](../evidence/world-frame-composition-004120b0-00413370.md)、
+[`world-background-unaligned-indexed-00413370.md`](../evidence/world-background-unaligned-indexed-00413370.md)、
 [`world-frame-coordinator-004120b0.md`](../evidence/world-frame-coordinator-004120b0.md)、
 [`world-spatial-roles-00413870-00413f00.md`](../evidence/world-spatial-roles-00413870-00413f00.md)、
 [`world-frame-runtime-integration-00412930.md`](../evidence/world-frame-runtime-integration-00412930.md) 和

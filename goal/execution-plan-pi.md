@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v213
+版本：v214
 
 最后更新：2026-08-16
 
@@ -401,12 +401,15 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     真实组合哈希为 `0x947C15A53487BF9A`，Linux `core` 123/123、Windows LLVM `app`
     127/127 CTest 通过。`0x00413EA0/0x00413F00` 的 group 0 bit-29 扫描、
     `0x00413870/0x00413910` 的 group `2→0→1` 普通角色绘制，以及 `0x00413CA0`
-    距离音频已按汇编闭环；共享 jitter 保留残影继承上一笔绘制状态的原始顺序，普通
+    距离音频已有实现证据；共享 jitter 保留残影继承上一笔绘制状态的原始顺序，普通
     角色 runtime adapter 已接入真实 TSW 与软件 framebuffer。两个角色路径哈希为
     `0xA6C3E08156F06060`、`0xA4766C928B05DC88`，Linux `core` 128/128、Windows LLVM
     `app` 132/132 CTest 通过。两条空间 stage 现已在 `0x00412930` 的实际 runtime
     原槽接线，共用角色数组、clip、framebuffer 与 jitter；真实 TSW 双路径叠加底图的
-    整帧哈希为 `0xA6144A91E57939F9`。其余十七个 stage 保持显式转交，任何受检失败
+    整帧哈希为 `0xA6144A91E57939F9`。但这五个函数的权威 inventory 行均不从上述实现、
+    集成、哈希或测试证据继承闭环状态：`0x00413EA0`、`0x00413F00`、`0x00413870`、
+    `0x00413910`、`0x00413CA0` 各自仍为 `pending_audit`，必须分别完成独立的
+    LST→C++→LST 审计后方可关闭。其余十七个 stage 保持显式转交，任何受检失败
     都在原 stage 停止而不伪报完成。Linux `core` 130/130、Windows LLVM `app`
     134/134 CTest 通过。`0x0041287F..0x00412923` 的地图 tile 层折返动画、单帧
     counter 保留、零帧异常、32 位回绕和选择序列视口恢复已按汇编实现；Linux `core`
@@ -1056,5 +1059,18 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     实现此前把它误限于 direct-16，现已扩到 indexed 路径并补齐独立回归 UT。Linux
     `core` 185/185、Linux `app` 190/190、Windows LLVM `app` 190/190 CTest 全部
     通过，两端应用成功链接且未启动。114 项当前关闭 91 项，剩余 23 项。
+
+    B7 的 8 位索引未对齐世界底图入口 `sub_413370` 随后完成独立闭环：物理范围
+    `0x00413370..0x0041386E` 的对齐回退、相机余量与负 cell 修正、地图截断、service
+    `0x48/0x13` 短路、普通四边和严格内部遍历均完成双向核对，并独立追入
+    `sub_4170E0/sub_4175B0/sub_417650`。核对确认 service-13 跳过四边只画内部完整
+    tile，普通路径只有外圈受 raster clip；两项行为与像素布局无关。现代实现此前误限于
+    direct-16，本轮以最小改动解除限制并补齐 indexed 专用 UT：focus `(320,240)`、相机
+    `(0,7)` 固定首写 `(144,57)`、506 个现代唯一 cell 与 129536 次写入，另覆盖负相机
+    X=149、窄 edge clip、hidden/index-1 透明与不透明、非零动画层、右下截断及短 palette /
+    source。物理 aligned fallback 由唯一调用者证明在当前调用域不可达；统一 renderer
+    保持平台适配而不新增公共判别器。Linux `core` 185/185、Linux `app` 190/190、
+    Windows LLVM `app` 190/190 CTest 全部通过，两端应用成功链接且未启动。114 项当前
+    关闭 92 项，剩余 22 项。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

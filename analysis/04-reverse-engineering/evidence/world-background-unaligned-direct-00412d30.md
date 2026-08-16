@@ -4,7 +4,10 @@
 `sdl_runtime_integrated`；原程序动态差分仍为 `blocked_runtime_oracle`
 
 本文只以 `swd3.exe.lst` 的 `0x00412D30..0x00413219` 为行为真值。IDA 伪码仅用于
-辅助定位，不参与裁决。相邻的 8 位入口 `sub_413220`、`sub_413370` 仍须独立闭环。
+辅助定位，不参与裁决。相邻的 8 位入口
+[`sub_413220`](world-background-aligned-indexed-00413220.md) 与
+[`sub_413370`](world-background-unaligned-indexed-00413370.md) 已分别由各自的独立证据闭环；
+二者的状态不从本文继承。
 
 ## 1. 范围、ABI 与调用边界
 
@@ -19,8 +22,9 @@
 ## 2. 汇编确定的几何与分派
 
 入口先将相机拆为算术右移四位的 cell 坐标和低四位像素余量，目标起点是余量的负值。
-若 cell X/Y 为负，分别钳到零、目标起点加 16，并把默认 40×30 cell 数减一；只要余量
-非零又分别补一列/一行，随后按地图宽高截断。
+`0x00412D74..0x00412DC4` 对任意负 cell 分别直接钳到零、目标起点只加 16 一次，并把
+默认 40×30 cell 数减一；它不会逐个跳过所有负 cell。相机 X=-21 时 cell X 从 -2
+直接变为 0，目标 X 从 -11 变为 5。只要余量非零又分别补一列/一行，随后按地图宽高截断。
 
 service `0x48/0x13` 保持短路顺序：
 
@@ -51,8 +55,9 @@ transparent cell 分别走 `sub_4174D0`、`sub_417530`，不读取 raster clip�
 - 裸 tile/flags/framebuffer 指针改为有界 span 与 framebuffer。短源、无效几何和真正越界
   相机只在访问前隔离，不改变有效域的分派和像素。
 
-旧 scratch 全局 `dword_4CC2E4`、`dword_4CC2E8` 只在本函数及尚待审计的
-`sub_413370` 内部读写，没有跨帧消费者；现代实现将其收束为局部几何量。
+旧 scratch 全局 `dword_4CC2E4`、`dword_4CC2E8` 只在本函数及已由自身证据独立闭环的
+[`sub_413370`](world-background-unaligned-indexed-00413370.md) 内部读写，没有跨帧消费者；
+现代实现将其收束为局部几何量。
 
 ## 4. 双向收敛与测试
 
@@ -65,7 +70,9 @@ LST→C++ 按对齐回退、相机拆分、负 cell 调整、宽高截断、serv
 
 - 相机 `(5, 7)` 时的边缘像素、cell 推进、hidden 与 transparent color key；
 - service-13 局部路径不重画边缘碎片，并在单轴对齐时仍保留整 tile 边界；
-- 负相机 cell 钳零后使用旧的内部 tile 原点；
+- 普通相机 `(-21,7)` 时 framebuffer X=4 保持原值，cell 0 从 X=5 开始并在首行读取
+  direct source `(0,7)` 的值 113，固定 `< -16` 相机的一次性负 cell 钳位；
+- service-13 的负相机 cell 钳零后使用旧的内部 tile 原点；
 - runtime partial clip 只裁普通路径最外圈，内部完整 tile 仍按原逻辑写入；
 - 共享真实地图 24/CM/RGB565 路径继续保持已固定的 framebuffer 资产基线。
 

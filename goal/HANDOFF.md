@@ -15,12 +15,12 @@
 按以下顺序读取，不要先凭 README 或旧模块摘要猜测进度：
 
 1. [`AGENTS.md`](../AGENTS.md)：仓库操作约束。
-2. [`execution-plan-pi.md`](execution-plan-pi.md)：本分支唯一主执行计划，当前版本 `v213`。
+2. [`execution-plan-pi.md`](execution-plan-pi.md)：本分支唯一主执行计划，当前版本 `v214`。
 3. [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)：主计划挂载的高优先级追加计划。
 4. [`world-map-closure.tsv`](../analysis/04-reverse-engineering/inventory/world-map-closure.tsv)：
    当前 B7 的 114 项逐函数闭环真值表。
-5. [`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)：B7 范围、接口和
-   既有证据导航。该文件开头的完成数量已经落后，计数必须以 TSV 和主计划为准。
+5. [`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)：B7 范围、接口、
+   当前计数和既有证据导航。
 6. `/mnt/e/Game/swd3/swd3.exe_export_for_ai/swd3.exe.lst`：完整 IDA 反汇编列表，所有行为
    判断的唯一汇编真值。
 
@@ -35,13 +35,15 @@
 - 父提交/分支基线（当时的 `origin/main`）：`da098fa6f0db79e147dfee77d2422e78096537d6`。
 - 当前精确 `HEAD` 和工作区洁净状态不冻结在本文中；每个工作包开始时都必须直接从 Git
   重新读取并确认，不能继承上次交接或聊天中的值。
-- 预期推送/上游目标为 `origin/pi-execution`；首次阶段推送前由主 Agent 建立该上游关系。
+- 上游已建立：当前分支跟踪 `origin/pi-execution`。
 
 `da098fa` 已关闭 `sub_413220` 的独立审计：8 位 indexed 对齐底图保留原版
 left-zero 局部刷新行推进异常，证据、清单、实现和 UT 已一起提交。
 
-本次交接没有启动构建、测试、Windows EXE 或原版；不要据此推断用户机器上不存在其自行
-启动的进程。
+本次 `sub_413370` 工作树已执行定向 synthetic/real background 测试及完整门禁：Linux
+`core` 185/185、Linux `app` 190/190、Windows LLVM `app` 190/190 CTest 全部通过，
+两端应用成功链接。没有启动 OpenSWD3 游戏 EXE 或原版；不要据此推断用户机器上不存在
+其自行启动的进程。
 
 ## 3. 当前目标与计划优先级
 
@@ -142,7 +144,7 @@ P0 达到 B7 模块移交条件后必须立即停止扩展 world-map，转入 P1
 ## 6. 当前模块状态
 
 | 阶段 | 状态 | 当前结论 |
-|---|---|---|
+| --- | --- | --- |
 | A1–A5 | 完成 | 架构、函数归属、状态所有权、依赖和首轮模块顺序已冻结 |
 | B1 | 闭环，待原版 oracle | compat、SDL3 平台生命周期、app 顶层 |
 | B2 | 闭环，待原版 oracle | 文件、映射、资源容器、公共解压 |
@@ -151,7 +153,7 @@ P0 达到 B7 模块移交条件后必须立即停止扩展 world-map，转入 P1
 | B4 | 闭环，待原版 oracle | 软件 framebuffer、blitter、文字与呈现 |
 | B5 | 延期后端 | VM 需要的音视频状态合同已有大量实现；`libffmpeg` 后端最后补 |
 | B6 | 闭环，待原版 oracle | TSW/ACT/ANI/SND 资产运行时与动作记录 |
-| B7 | 执行中 | 114 项中关闭 91 项，剩余 23 项 |
+| B7 | 执行中 | 114 项中关闭 92 项，剩余 22 项 |
 | B8 | 未正式进入 | 受追加 PLAN 的 P1/P2/P3 取代为完整剧情 VM 闭环 |
 | B9 | 未完成 | 菜单、商店与特殊模式 |
 | B10 | 未完成 | 战斗状态机、AI 与数值 |
@@ -167,15 +169,14 @@ P0 达到 B7 模块移交条件后必须立即停止扩展 world-map，转入 P1
 当前共 114 项：
 
 - `assembly_exact`：43
-- `platform_adapted`：48
-- `pending_audit`：23
+- `platform_adapted`：49
+- `pending_audit`：22
 
-剩余 23 项必须逐项审计，不能继承旧实现或旧叙述的完成状态：
+剩余 22 项必须逐项审计，不能继承旧实现或旧叙述的完成状态：
 
 ```text
 0x00402F80  sub_402F80
-0x00413370  sub_413370   <- 当前断点
-0x00413870  sub_413870
+0x00413870  sub_413870   <- 当前断点
 0x00413910  sub_413910
 0x00413CA0  sub_413CA0
 0x00413EA0  sub_413EA0
@@ -201,67 +202,41 @@ P0 达到 B7 模块移交条件后必须立即停止扩展 world-map，转入 P1
 其中若干函数已有实现、集成测试或旧证据，但 `pending_audit` 明确表示它们仍需独立完成
 全函数 LST→C++→LST 收敛；不得因现有测试通过直接改为关闭。
 
-## 8. 当前精确开发断点：`sub_413370`
+## 8. 当前精确开发断点：`sub_413870`
 
-### 8.1 已锁定、可直接继承的事实
+### 8.1 刚完成的 `sub_413370` 闭环
 
-- 物理范围：`0x00413370..0x0041386E`；`0x0041386F` 是对齐 NOP，下一函数
-  `sub_413870` 从 `0x00413870` 开始。
-- 栈局部：`0x3C` 字节；保存并恢复 `EBX/EBP/ESI/EDI`。
-- 唯一直接调用点：`0x00412A68`。调用者在 `0x00412A66` 压入一个零，函数本身不读取
-  该参数，调用者在公共尾部清栈，也不消费返回值。
-- 调用前 `sub_412930` 把 indexed palette 指针写入 `dword_4CD764`；调用后清零。
-- 调用者只在 indexed 8 位底图且相机 X/Y 至少一轴未按 16 像素对齐时选择本入口。
-- 函数内部仍有“X/Y 都对齐则调用 `sub_412BE0`”的物理分支
-  `0x00413383..0x004133A0`。从当前唯一调用者的正常单线程路径看该分支冗余，但必须按
-  汇编保留；不能擅自改为 `sub_413220`。
-- indexed tile 源地址公式为：
+- `0x00413370..0x0041386E` 已独立完成 LST→C++→LST 收敛，并追入
+  `sub_4170E0/sub_4175B0/sub_417650`；证据见
+  [`world-background-unaligned-indexed-00413370.md`](../analysis/04-reverse-engineering/evidence/world-background-unaligned-indexed-00413370.md)。
+- service `0x48 != 0` 或 `0x13 == 0` 使用四边加内部遍历；`0x48 == 0 && 0x13 != 0`
+  跳过四边，只画严格内部完整 tile。普通路径只有 indexed 外圈走 clip-aware 通用
+  blitter，内部固定 16×16 writer 不读取 raster clip。
+- 现代 renderer 已解除这两项行为的 direct-only 限制。indexed 专用 UT 固定首写
+  `(144,57)`、506 个现代唯一 cell、129536 次写入、负相机 X=149、窄 edge clip、三种
+  cell flags、非零 tile layer、地图截断及 palette/source 越界隔离。
+- 物理 aligned fallback 由 `0x00412A4C..0x00412A68` 的唯一正常调用域证明不可达；统一
+  dispatcher 不为该旧分支新增公共判别器。原程序动态差分仍为 `blocked_runtime_oracle`。
+- 最终门禁为 Linux `core` 185/185、Linux `app` 190/190、Windows LLVM `app` 190/190
+  CTest 全部通过；Linux 与 Windows 应用成功链接，未启动 OpenSWD3 游戏 EXE 或原版。
 
-  ```text
-  lpBaseAddress + ((tile_index + 2) << 8)
-  = lpBaseAddress + 0x200 + tile_index * 0x100
-  ```
+### 8.2 `sub_413870` 的停止线
 
-- cell flag `0x08000000` 跳过绘制；`0x04000000` 选择透明路径。
-- 完整 tile 的 opaque/transparent 分别调用 `sub_4175B0`/`sub_417650`；透明路径只跳过
-  palette index `1`，不是跳过某个转换后的颜色值。
-- 四个边缘 tile 调用点走 `sub_4170E0`；本函数的四个调用地址为
-  `0x00413587/0x004135D9/0x004136D0/0x0041372C`。
-- service `0x48` 与 `0x13`、负 cell 修正、地图宽高截断和四边/内部循环的形状与相邻
-  `sub_412D30` 高度相似，但本函数不从 `sub_412D30` 继承关闭状态。
-
-### 8.2 尚未收敛，不能写成结论的点
-
-当前只完成了范围、ABI、调用者和主分派的第一轮阅读，没有修改 C++、测试、证据或 TSV。
-下一位执行者必须从函数入口重新独立记录所有基本块，重点证明：
-
-1. service `0x13` 局部刷新是否与 direct-16 一样只绘制内部完整 tile，以及单轴对齐时
-   是否仍保留一格边界。
-2. 普通未对齐路径是否同样只让最外圈 tile 经过当前 raster clip，内部 tile 是否绕过
-   该 clip。
-3. 负相机、地图右/下边界、宽高为零或小于视口时的精确截断和地址推进。
-4. 动画层偏移只作用于 tile index 还是也作用于 flag 指针。
-5. `sub_4170E0` 在 `dword_4CD764 != 0` 时的 indexed clip、palette 和透明 flag 合同。
-6. 内部对齐回退到 `sub_412BE0` 的可观察语义及当前调用域不可达证明。
-
-现有 [`legacy_world_background.cpp`](../src/world_map/legacy_world_background.cpp) 中
-`legacy_unaligned_direct_partial_interior` 和 `legacy_unaligned_direct_edge_clip` 都被限定为
-`direct_16`。第一轮阅读表明 indexed 未对齐路径可能也需要这些原始异常，但这只是待证明
-差异，不能先删条件再用现有测试倒推正确性。
+- 当前 inventory 的下一项是 `0x00413870 sub_413870`。本轮没有读取、实现或替它建立
+  语义；旧的空间角色实现、测试和证据均不能自动把该行从 `pending_audit` 改为关闭。
+- 下一轮必须先从完整 LST 独立建立范围、ABI、调用者、基本块、直接 callee 与测试向量，
+  再打开当前 C++。任何未证明分支、跨 owner/API 需求或原版 runtime 值都应停止上报。
+- 进入下一项前先由主 Agent 完成本轮评审、完整门禁、提交和推送；接手者必须重新核对
+  实际分支、HEAD、上游与洁净工作区，不从未提交工作树继承基线。
 
 ### 8.3 推荐的下一步顺序
 
 ```text
-1. 重新读取 LST 0x00413370..0x0041386E，不看现有 C++，建立基本块表。
-2. 追入 0x004170E0、0x004175B0、0x00417650，仅记录本调用域实际使用的合同。
-3. 从汇编独立导出 aligned fallback、service-13、四边、内部、负坐标、地图边界、
-   hidden、transparent、opaque 和 tile-source 越界测试向量。
-4. 再读取 legacy_world_background.cpp 与现有测试，逐项反查差异。
-5. 用最小改动修正实现，补 indexed 未对齐专用 UT。
-6. 完成 LST→C++、C++→LST 双向核对；若出现差异，从入口重做。
-7. 新建 world-background-unaligned-indexed-00413370.md，更新两个 TSV 与主计划版本/计数。
-8. 运行定向测试、Linux core/app 和 Windows app 全门禁。
-9. 达到独立闭环边界后，按 commit Skill 提交并 push，再进入 sub_413870。
+1. 评审 sub_413370 diff，并执行完整 Linux core/app 与 Windows app 门禁。
+2. 按 commit Skill 提交并 push 到 origin/pi-execution，确认工作区洁净。
+3. 独立读取 sub_413870 完整 LST 和直接 callee，不先看 C++ 或旧证据。
+4. 建立正常、边界、无效状态和源越界测试向量，再比较现代实现。
+5. 完成 sub_413870 自己的 LST→C++→LST 收敛；不能继承旧集成测试的关闭状态。
 ```
 
 ## 9. 构建与验证基线
@@ -277,7 +252,9 @@ P0 达到 B7 模块移交条件后必须立即停止扩展 world-map，转入 P1
 - 没有启动任何 EXE。
 
 当前构建树用 `ctest -N` 仍枚举出 Linux core 185 项和 Linux app 190 项。这里的枚举不
-替代最近一次实际全量通过记录；下一次实现修改后必须重新执行测试。
+替代最近一次实际全量通过记录。本轮 `sub_413370` 工作树已完成 Linux core 定向 target
+构建，`world_map.legacy_world_background` 与 `_real` 2/2 通过；完整 Linux/Windows
+门禁由主 Agent 在评审后执行。
 
 ### 9.2 Linux
 
@@ -363,7 +340,9 @@ E:\Game\swd3\OpenSWD3\build\app\src\platform\sdl3\Debug\openswd3.exe
   [`legacy_world_background.cpp`](../src/world_map/legacy_world_background.cpp)
 - 当前底图测试：
   [`legacy_world_background_test.cpp`](../tests/unit/world_map/legacy_world_background_test.cpp)
-- 最近相邻证据：
+- 最近闭环证据：
+  [`indexed 未对齐底图`](../analysis/04-reverse-engineering/evidence/world-background-unaligned-indexed-00413370.md)
+- 相邻 indexed 对齐证据：
   [`indexed 对齐底图`](../analysis/04-reverse-engineering/evidence/world-background-aligned-indexed-00413220.md)
 - direct-16 未对齐证据：
   [`direct-16 未对齐底图`](../analysis/04-reverse-engineering/evidence/world-background-unaligned-direct-00412d30.md)
@@ -381,9 +360,10 @@ E:\Game\swd3\OpenSWD3\build\app\src\platform\sdl3\Debug\openswd3.exe
 - 当前只以 [`execution-plan-pi.md`](execution-plan-pi.md) 和
   [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 为执行权威，没有让冻结的
   无后缀上游参考驱动本分支。
-- 预期推送/上游目标是 `origin/pi-execution`；首次阶段推送前由主 Agent 建立上游关系。
-- 当前执行位仍是 P0/B7 的 `sub_413370`，没有跳到 VM、战斗或音视频。
-- 已从 LST 独立建立 `sub_413370` 基本块和测试向量，再打开 C++。
+- 当前分支已经跟踪上游 `origin/pi-execution`。
+- 当前执行位是 P0/B7 的 `sub_413870`，没有跳到 VM、战斗或音视频。
+- `sub_413370` 已独立闭环；进入 `sub_413870` 时仍须先从 LST 建立自己的基本块和测试
+  向量，再打开 C++，不得继承旧实现的关闭状态。
 - 所有新增结论都能定位到具体汇编地址。
 - 实现修改后重新执行定向、Linux core/app 和 Windows app 门禁。
 - 未启动任何 EXE；动态验证需要用户操作时已经停下等待。

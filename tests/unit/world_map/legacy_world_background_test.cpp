@@ -118,6 +118,42 @@ struct SyntheticMap {
     }
 };
 
+struct SyntheticIndexedMap {
+    u32 width{};
+    u32 height{};
+    std::vector<u16> tiles;
+    std::vector<u8> flags;
+    std::vector<u8> cache;
+    std::vector<u16> palette;
+
+    explicit SyntheticIndexedMap(
+        const u32 map_width = 64U, const u32 map_height = 64U
+    )
+        : width(map_width), height(map_height),
+          tiles(static_cast<std::size_t>(width) * height, 0U),
+          flags(static_cast<std::size_t>(width) * height * 4U),
+          cache(0x400U, 2U), palette(256U) {
+        std::fill(cache.begin() + 0x300, cache.end(), 1U);
+        for (u32 index = 0U; index < 256U; ++index) {
+            palette[index] = static_cast<u16>(0x2000U + index);
+        }
+    }
+
+    [[nodiscard]] LegacyWorldBackgroundSource
+    source(const u32 tile_layer_offset = 0U) const {
+        return LegacyWorldBackgroundSource{
+            .map_width = width,
+            .map_height = height,
+            .tile_layer_offset = tile_layer_offset,
+            .tile_indices = tiles,
+            .cell_flags = flags,
+            .tile_bytes = cache,
+            .pixel_layout = LegacyWorldBackgroundPixelLayout::indexed_8,
+            .palette = palette,
+        };
+    }
+};
+
 void fill_framebuffer(LegacyFramebuffer& framebuffer, const u16 value) {
     std::ranges::fill(framebuffer.physical_pixels(), value);
 }
@@ -148,9 +184,7 @@ void test_aligned_direct_tiles(openswd3::test::Context& test) {
     );
 }
 
-void test_aligned_direct_layer_and_cell_flags(
-    openswd3::test::Context& test
-) {
+void test_aligned_direct_layer_and_cell_flags(openswd3::test::Context& test) {
     SyntheticMap map;
     const std::size_t cell_count =
         static_cast<std::size_t>(map.width) * map.height;
@@ -216,6 +250,19 @@ void test_unaligned_edges_and_flags(openswd3::test::Context& test) {
         framebuffer.row_pixels(0U)[11U] == 0x7777U &&
             framebuffer.row_pixels(0U)[27U] == 113U,
         "hidden cell keeps the prior framebuffer while its neighbor draws"
+    );
+
+    fill_framebuffer(framebuffer, 0x7777U);
+    const auto negative_cell = render_legacy_world_background(
+        framebuffer,
+        map.source(),
+        LegacyWorldBackgroundView{.camera_left = -21, .camera_top = 7}
+    );
+    test.expect_true(
+        negative_cell.status == LegacyWorldBackgroundRenderStatus::completed &&
+            framebuffer.row_pixels(0U)[4U] == 0x7777U &&
+            framebuffer.row_pixels(0U)[5U] == 113U,
+        "direct normal path clamps negative cell X once at 00412D74..00412DC4"
     );
 
     fill_framebuffer(framebuffer, 0x7777U);
@@ -404,6 +451,190 @@ void test_indexed_tiles(openswd3::test::Context& test) {
             framebuffer.row_pixels(0U)[0U] == 0x2075U,
         "8-bit unaligned path maps clipped destination pixels through palette"
     );
+
+    fill_framebuffer(framebuffer, 0x7777U);
+    const auto negative_cell = render_legacy_world_background(
+        framebuffer,
+        source,
+        LegacyWorldBackgroundView{.camera_left = -21, .camera_top = 7}
+    );
+    test.expect_true(
+        negative_cell.status == LegacyWorldBackgroundRenderStatus::completed &&
+            framebuffer.row_pixels(0U)[4U] == 0x7777U &&
+            framebuffer.row_pixels(0U)[5U] == 0x2070U,
+        "indexed normal path clamps negative cell X once at 004133B4..00413404"
+    );
+}
+
+void test_unaligned_indexed_partial_interior(openswd3::test::Context& test) {
+    SyntheticIndexedMap map;
+    LegacyFramebuffer framebuffer;
+    fill_framebuffer(framebuffer, 0x7777U);
+
+    const auto result = render_legacy_world_background(
+        framebuffer,
+        map.source(),
+        LegacyWorldBackgroundView{
+            .camera_left = 0,
+            .camera_top = 7,
+            .partial_refresh = true,
+            .partial_focus_x = 320,
+            .partial_focus_y = 240,
+        }
+    );
+    test.expect_true(
+        result.status == LegacyWorldBackgroundRenderStatus::completed &&
+            result.visited_cells == 22U * 23U &&
+            result.opaque_cells == 22U * 23U &&
+            result.written_pixels == 22U * 23U * 16U * 16U,
+        "indexed service-13 reports 506 modern unique cells and 129536 writes"
+    );
+    test.expect_true(
+        framebuffer.row_pixels(56U)[144U] == 0x7777U &&
+            framebuffer.row_pixels(57U)[143U] == 0x7777U &&
+            framebuffer.row_pixels(57U)[144U] == 0x2002U &&
+            framebuffer.row_pixels(424U)[495U] == 0x2002U &&
+            framebuffer.row_pixels(425U)[495U] == 0x7777U &&
+            framebuffer.row_pixels(424U)[496U] == 0x7777U,
+        "indexed service-13 keeps all four strict borders and starts at 144,57"
+    );
+
+    map.tiles[4U * map.width + 9U] = 1U;
+    fill_framebuffer(framebuffer, 0x7777U);
+    const auto negative = render_legacy_world_background(
+        framebuffer,
+        map.source(),
+        LegacyWorldBackgroundView{
+            .camera_left = -5,
+            .camera_top = 7,
+            .partial_refresh = true,
+            .partial_focus_x = 320,
+            .partial_focus_y = 240,
+        }
+    );
+    test.expect_true(
+        negative.status == LegacyWorldBackgroundRenderStatus::completed &&
+            negative.visited_cells == 22U * 23U &&
+            negative.written_pixels == 22U * 23U * 16U * 16U &&
+            framebuffer.row_pixels(57U)[148U] == 0x7777U &&
+            framebuffer.row_pixels(57U)[149U] == 0x2001U,
+        "indexed negative camera clamp preserves first destination x 149"
+    );
+}
+
+void test_unaligned_indexed_normal_edge_clip(openswd3::test::Context& test) {
+    SyntheticIndexedMap map;
+    LegacyFramebuffer framebuffer;
+    fill_framebuffer(framebuffer, 0x7777U);
+
+    const auto result = render_legacy_world_background(
+        framebuffer,
+        map.source(),
+        LegacyWorldBackgroundView{
+            .camera_left = 5,
+            .camera_top = 7,
+            .edge_clip_left = 300,
+            .edge_clip_top = 200,
+            .edge_clip_right = 340,
+            .edge_clip_bottom = 240,
+        }
+    );
+    // These result counters are the modern API's unique-cell observations.
+    // They do not reproduce the original four edge calls' repeated corners.
+    test.expect_true(
+        result.status == LegacyWorldBackgroundRenderStatus::completed &&
+            result.visited_cells == 41U * 31U &&
+            result.opaque_cells == 41U * 31U &&
+            result.written_pixels == 39U * 29U * 16U * 16U,
+        "indexed normal traversal reports unique cells while clipping its ring"
+    );
+    test.expect_true(
+        framebuffer.row_pixels(0U)[0U] == 0x7777U &&
+            framebuffer.row_pixels(9U)[11U] == 0x2002U,
+        "indexed outer ring obeys a narrow clip while interior bypasses it"
+    );
+}
+
+void test_unaligned_indexed_flags_and_layer(openswd3::test::Context& test) {
+    SyntheticIndexedMap map;
+    const std::size_t cell_count =
+        static_cast<std::size_t>(map.width) * map.height;
+    map.tiles.resize(cell_count * 2U, 0U);
+    map.tiles[cell_count + map.width + 1U] = 1U;
+    map.tiles[cell_count + map.width + 2U] = 1U;
+    write_u32(map.flags, (map.width + 1U) * 4U, kLegacyWorldCellTransparent);
+    write_u32(map.flags, (map.width + 3U) * 4U, kLegacyWorldCellHidden);
+
+    LegacyFramebuffer framebuffer;
+    fill_framebuffer(framebuffer, 0x7777U);
+    const auto result = render_legacy_world_background(
+        framebuffer,
+        map.source(static_cast<u32>(cell_count)),
+        LegacyWorldBackgroundView{.camera_left = 5, .camera_top = 7}
+    );
+    test.expect_true(
+        result.status == LegacyWorldBackgroundRenderStatus::completed &&
+            result.visited_cells == 41U * 31U &&
+            result.transparent_cells == 1U && result.hidden_cells == 1U &&
+            result.opaque_cells == 41U * 31U - 2U &&
+            result.written_pixels == 640U * 480U - 2U * 16U * 16U,
+        "indexed unaligned flags stay on the base grid while tile layer moves"
+    );
+    test.expect_true(
+        framebuffer.row_pixels(9U)[11U] == 0x7777U &&
+            framebuffer.row_pixels(9U)[27U] == 0x2001U &&
+            framebuffer.row_pixels(9U)[43U] == 0x7777U,
+        "indexed transparent index one skips, opaque index one writes, hidden skips"
+    );
+}
+
+void test_unaligned_indexed_map_and_source_bounds(
+    openswd3::test::Context& test
+) {
+    SyntheticIndexedMap map(42U, 32U);
+    LegacyFramebuffer framebuffer;
+    fill_framebuffer(framebuffer, 0x7777U);
+
+    const auto truncated = render_legacy_world_background(
+        framebuffer,
+        map.source(),
+        LegacyWorldBackgroundView{.camera_left = 37, .camera_top = 39}
+    );
+    test.expect_true(
+        truncated.status == LegacyWorldBackgroundRenderStatus::completed &&
+            truncated.visited_cells == 40U * 30U &&
+            truncated.written_pixels == 635U * 473U &&
+            framebuffer.row_pixels(472U)[634U] == 0x2002U &&
+            framebuffer.row_pixels(472U)[635U] == 0x7777U &&
+            framebuffer.row_pixels(473U)[634U] == 0x7777U,
+        "indexed right and down map edges truncate the unaligned viewport"
+    );
+
+    LegacyWorldBackgroundSource short_palette = map.source();
+    short_palette.palette = std::span<const u16>{map.palette}.first(255U);
+    test.expect_equal(
+        render_legacy_world_background(
+            framebuffer,
+            short_palette,
+            LegacyWorldBackgroundView{.camera_left = 5, .camera_top = 7}
+        )
+            .status,
+        LegacyWorldBackgroundRenderStatus::palette_out_of_bounds,
+        "indexed unaligned rendering rejects a short palette before access"
+    );
+
+    LegacyWorldBackgroundSource short_tiles = map.source();
+    short_tiles.tile_bytes = std::span<const u8>{map.cache}.first(0x200U);
+    test.expect_equal(
+        render_legacy_world_background(
+            framebuffer,
+            short_tiles,
+            LegacyWorldBackgroundView{.camera_left = 5, .camera_top = 7}
+        )
+            .status,
+        LegacyWorldBackgroundRenderStatus::tile_source_out_of_bounds,
+        "indexed unaligned rendering isolates a short tile source"
+    );
 }
 
 void test_indexed_partial_zero_left_stride(openswd3::test::Context& test) {
@@ -547,6 +778,10 @@ int main(const int argument_count, char** arguments) {
     test_partial_refresh_zero_left_stride(test);
     test_unaligned_partial_refresh_interior_only(test);
     test_indexed_tiles(test);
+    test_unaligned_indexed_partial_interior(test);
+    test_unaligned_indexed_normal_edge_clip(test);
+    test_unaligned_indexed_flags_and_layer(test);
+    test_unaligned_indexed_map_and_source_bounds(test);
     test_indexed_partial_zero_left_stride(test);
     test_checked_source_failures(test);
 
