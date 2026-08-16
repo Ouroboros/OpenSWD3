@@ -1,152 +1,124 @@
-# 世界空间角色绘制与距离音频（`0x00413870..0x00413FDD`）
+# 世界空间角色扫描（`0x00413870..0x00413FDD`）
 
-状态：`assembly_exact`、`asset_verified`、`original_diff_verified`（GUID 248/249
-角色位置、动作帧与水平模式）；完整 framebuffer/audio/jitter 差分尚未完成。
+本文只以 `/mnt/e/Game/swd3/swd3.exe_export_for_ai/swd3.exe.lst` 的机器码与指令为
+行为真值。当前工作包只独立关闭外层扫描 `sub_413870`；同文件曾记录的相邻绘制、音频与
+bit-29 路径不继承关闭状态。
 
-本文只以 `swd3.exe.lst` 的机器码与指令为行为真值。它固定普通世界画面组合中两次
-空间角色扫描、普通角色绘制和距离音频的调用顺序；IDA 伪码与符号名只用于定位。
+## 1. 逐函数状态
 
-## 1. 两条空间扫描
+| 地址 | 函数 | 当前状态 | 当前工作包结论 |
+| --- | --- | --- | --- |
+| `0x00413870` | `sub_413870` | `platform_adapted`，已独立闭环 | `0x00413870..0x0041390B` 已完成 LST→C++→LST 收敛；映射 `draw_legacy_world_roles` 及 runtime 原 stage seam |
+| `0x00413910` | `sub_413910` | `pending_audit` / `not_inherited` | 本轮只核对 `sub_413870` 所需的一参数 cdecl 调用边界，不审计角色绘制函数体 |
+| `0x00413CA0` | `sub_413CA0` | `pending_audit` / `not_inherited` | 本轮只核对 `sub_413870` 所需的一参数 cdecl 调用边界，不审计距离音频函数体 |
+| `0x00413EA0` | `sub_413EA0` | `pending_audit` / `not_inherited` | 未审计；旧实现、测试和集成叙述不构成本轮关闭证据 |
+| `0x00413F00` | `sub_413F00` | `pending_audit` / `not_inherited` | 未审计；旧实现、测试和集成叙述不构成本轮关闭证据 |
 
-`0x00412930` 的 normal 路径先在 service `0x0B` 为零时调用 `0x00413EA0`，随后无条件
-调用 `0x00413870`。两者不能合并：扫描组、纵向范围、筛选条件和绘制方式都不同。
+## 2. 范围、ABI 与唯一调用者
 
-### `0x00413EA0` 的 bit 29 角色
+- 函数体从 `0x00413870 push ecx` 到 `0x0041390B retn`，无入口参数，也没有 callee
+  栈清理立即数。
+- `0x00413873..0x0041387E` 保存 `EBX/EBP/ESI/EDI`，`0x00413906..0x0041390A`
+  逆序恢复这些寄存器和入口 scratch `ECX`。
+- 正常外层计数在 `0x004138F4..0x00413900` 递增到三；因此正常返回的 `EAX` 确定为
+  `3`。
+- LST 的唯一 CODE XREF 是 `sub_412930:0x00412A8D`。该处无参数直接调用，随后
+  `0x00412A92` 立即压入另一函数的参数，既不测试也不保存 `EAX`，所以返回值被忽略。
+- `0x004138CE` 与 `0x004138DE` 都把当前节点指针作为唯一栈参数；调用后分别在
+  `0x004138D4/0x004138E4` 执行 `add esp,4`。`sub_413910` 与 `sub_413CA0` 的入口及
+  plain `retn` 与该 cdecl 边界一致。这里没有据此继承两个 callee 的函数体语义或关闭
+  状态。
 
-- 只读取 `0x004A9A04`，即空间组 0；
-- 起始逻辑行为 `trunc_toward_zero(camera_y / 16) - 5`；
-- 物理循环计数从 `-10` 到 `<30`，最多四十行；
-- 负行跳过，`row >= map_height` 立即结束整个扫描；
-- 每行保持 `role+0x00` 链序，只为 flags bit 29 非零的角色调用 `0x00413F00`。
+## 3. 基本块到 C++ 的收敛
 
-`0x00413F00` 要求 `(flags & 0x8400) == 0x8000`，并使用严格水平范围
-`-320 < role_x-camera_x < 960`。动作 id 为零时资源号是 `0xFFFF`，否则取 action
-`+0x4A`；它不先更新 action。最终绘制参数固定为：
+### 3.1 三组物理顺序
 
-```text
-x       = role_x + role[+0x28] - action[+0x10] - camera_x
-y       = role_y + role[+0x2A] - camera_y + 8
-flags   = (action[+0x18] & 0x80000017) | 0x16
-opacity = 4
-```
-
-### `0x00413870` 的普通角色
-
-外层三次迭代通过 `0x0041387F..0x0041389A` 选择空间组，真实顺序固定为：
-
-```text
-iteration 0 -> 0x004A9A0C -> group 2
-iteration 1 -> 0x004A9A04 -> group 0
-iteration 2 -> 0x004A9A08 -> group 1
-```
-
-每组起始行为 `trunc_toward_zero(camera_y / 16) - 20`，随后固定扫描七十个行槽。
-`0x004138BC..0x004138C6` 的上界是无符号比较 `row < map_height + 20`：
-
-- 负行转换为大无符号数后跳过；
-- `0..map_height+19` 都会读取行头，因此地图底部二十行 padding 是可访问范围；
-- 超出上界只跳过当前行，不会提前结束剩余七十次循环。
-
-每个链节点严格先调用 `0x00413910`，再检查 `word role[+0x2C]`；低 16 位非零才调用
-`0x00413CA0`，最后读取 `role[+0x00]` 后继。重写保留这个 draw→audio→next 顺序，且
-用一基 `u32` 索引隔离宿主指针宽度；损坏索引或环只在旧程序将发生无效解引用的位置
-返回受检错误，不改变有效链顺序。
-
-## 2. `0x00413910` 普通角色绘制
-
-入口同样要求 `(flags & 0x8400) == 0x8000`，但水平范围包含两个端点：
-`-320 <= role_x-camera_x <= 960`。非零 action id 先以 service `0x0B` 门控；通过后，
-`role+0x98` 的一次性音效按角色世界坐标提交并清零，再按资源号与 action `+0x4C`
-取得 TSW 帧。
-
-可见绘制顺序为：
-
-1. flags bit 8 非零且 `frame_counter & 7 < 4` 时调用 `0x004145F0` 绘制变形残影；
-2. 以 action flags、byte `+0x8A` opacity 和 TSW `+0x04` auxiliary 绘制主图；
-3. bit 8 的三项全局颜色与 flags bits `20..23` 的表值相加，任一非零时用
-   `(action_flags & 0x80000013) | 0x10` 再绘一次；
-4. `role+0x3C` 非零时解析另一 action，按其 TSW/flags 绘制覆盖层；
-5. 把 blitter 全局 phase 的低字节写回 action `+0x89`；
-6. flags bit 9 非零且 service `0x48` 为零时提交角色粒子；
-7. talk target 为 `0xFFFF` 且 `role+0x38` 非零时，按原始 byte 字符串长度、颜色表和
-   style 4 绘制标签。
-
-普通主图坐标是：
+`0x0041387F..0x0041389A` 按外层计数选择三个全局行头基址：
 
 ```text
-x = role_x + role[+0x28] - action[+0x10] - camera_x
-y = role_y + role[+0x2A] - action[+0x14] - camera_y
+iteration 0 -> 0x004A9A0C -> physical group 2
+iteration 1 -> 0x004A9A04 -> physical group 0
+iteration 2 -> 0x004A9A08 -> physical group 1
 ```
 
-覆盖层 Y 还会同时减去覆盖 action 与主 action 的两个 Y offset，再加常量 28。
-`0x00413B5B` 虽暂时把 camera Y 装入 EDI，但 `0x00413B72/0x00413B8D` 两条路径都会
-在粒子调用前恢复 EDI 为角色世界 Y；不存在分支相关的错误 Y 参数。
+C++ 的固定数组 `{2, 0, 1}` 与该分派逐项对应；每组在进入行循环前都重新读取 camera Y
+并重算起始行。
 
-## 3. 残影继承上一笔 jitter 的原始顺序
+### 3.2 有符号相机商、七十行与 padding
 
-残影调用位于 `0x004139D3..0x00413A13`，而当前角色的 jitter group/phase 直到
-`0x00413A1B..0x00413A31` 才从 action `+0x88/+0x89` 写入
-`0x004CD724/0x004CD758`。因此：
-
-- 残影使用进入本角色前由上一笔 blit 留下的全局 group/phase；
-- 残影即使推进全局 phase，随后也会被当前角色 `+0x89` 覆盖；
-- 主图、颜色叠加和覆盖层共享当前角色加载后的状态；
-- 函数末尾只把最终 phase 的低字节写回当前 action。
-
-重写以同一个 `LegacyRleRowJitterState` 贯穿空间链和实际 blitter。UT 固定了“前一角色
-主图结束于 group 2/phase 12，后一角色残影先看到该值，随后主图切换到自身 group 3 /
-phase 20”的顺序，避免把 jitter 错误降格成单角色局部变量。
-
-## 4. `0x00413CA0` 距离音频
-
-监听者来自受控角色索引。距离先按 32 位回绕计算 `dx*dx + dy*dy`，再走 x87
-`fild/fsqrt` 与原转换 helper；负的回绕平方和保持原来的 indefinite 低双字结果零。
-
-`role+0x30` 高低 word 是原周期调度器：高 word 不是 `0xFFFF` 时先递减低 word；
-递减后非零便写回且本帧不能启动，等于零则允许启动。距离大于 512 或 flags bit 15
-为零时，若 bit 24 表示循环音仍活动，就停止音效并清 bit 24。距离恰好 512 仍进入更新。
-
-有效路径按 GUID 查找第一个 flags bit 28 为零的角色索引。允许启动且 bit 24 尚未置位
-时，把高 word 重载到低 word；高 word 为 `0xFFFF` 的无限调度会得到 `0xFFFFFFFF`、
-置 bit 24，并以固定 `(volume=0, pan=0, loop=1)` 启动样本。随后：
+`0x004138A0..0x004138B5` 用 `cdq; and edx,0x0F; add eax,edx; sar edi,4`
+实现有符号 `trunc_toward_zero(cameraY / 16)`，随后减 `20`。`EBP=0x46` 固定每组
+扫描 70 个逻辑行：
 
 ```text
-stored_distance = trunc_toward_zero(distance * 128 / 512)
-volume          = trunc_toward_zero((128 - stored_distance) * mix / 11)
-pan             = trunc_toward_zero(((role_x-listener_x) << 6) / 512)
+q         = trunc_toward_zero(cameraY / 16)
+first_row = q - 20
+rows      = first_row .. first_row + 69
 ```
 
-垂直数组保留汇编只取 Y 低 word、左移六位后再符号扩展的回绕行为。GUID 未命中、受控
-索引无效或输出数组不足只在旧程序会越界写的位置形成现代隔离状态。
+`0x004138BC..0x004138C6` 每次重新读取 `mapHeight`，先按 32 位加法形成
+`u32(mapHeight + 20)`，再用 `jnb` 实现：
 
-## 5. 实现与验证
+```text
+u32(row) < u32(mapHeight + 20)
+```
 
-- `draw_legacy_world_flagged_roles` / `draw_legacy_world_flagged_role` 映射
-  `0x00413EA0/0x00413F00`；
-- `draw_legacy_world_role` 映射 `0x00413910` 及其 `0x004145F0` 残影调用合同；
-- `update_legacy_world_spatial_audio` 映射 `0x00413CA0`；
-- `draw_legacy_world_roles` 映射 `0x00413870` 的三组、七十行和 draw→audio 顺序；
-- `LegacyWorldRoleRenderRuntimePorts` 把 TSW runtime、当前 clip、效果状态、共享 jitter 和
-  RGB565 framebuffer 接到普通角色路径；service、音频、覆盖 action、粒子和标签继续由
-  窄外部端口提供，不引入平台依赖。
-- `compose_legacy_world_runtime_frame` 在 `0x00412930` 的原 stage 槽实际调用上述两条
-  空间路径；相机、talk target、角色数组、clip、framebuffer 与 jitter 不再由测试各自
-  拼接。
+因此负行按无符号值跳过；普通高度下 `0..H+19` 被接受，`H+20` 被排除。这里的
+`mapHeight+20` 明确按 `u32` 回绕，不提升为无界整数。C++ 保留该比较；现代 owner 又在
+扫描前要求三个行头数组各至少分配 `H+40` 个槽。对接近 `UINT32_MAX`、无法形成该有界
+宿主分配的状态，前置校验会返回 `invalid_spatial_index`，这是保留的安全平台适配，不是
+对原裸指针越界行为的模拟。
 
-合成测试覆盖严格/包含裁剪边界、三个空间组顺序、负行与底部 padding、链环、调度低字
-回绕、512 距离边界、无限循环、被忽略的 blitter 失败及所有现代隔离门。当前真实 TSW
-资源的固定 RGB565 framebuffer FNV-1a64 为：
+`0x004138B8 lea ebx,[ebx+edi*4+0x50]` 证明物理槽为 `row+20`。每轮
+`inc edi; add ebx,4` 同步推进逻辑行和物理槽；上界失败只跳过本轮，不提前结束其余扫描。
 
-- bit 29 角色：`0xA6C3E08156F06060`；
-- 普通角色：`0xA4766C928B05DC88`。
-- 底图叠加 bit-29 与普通角色的整帧纵向切片：`0xA6144A91E57939F9`。
+### 3.3 空行、链顺序与 post-callee reload
 
-原版 `0x00413910` 动态采集固定 GUID 248 使用 `TSW 188/4`、目标 `(309,240)` 和
-`mode_flags=1`，GUID 249 使用 `TSW 188/8`、目标 `(235,258)` 和 `mode_flags=0`。
-宽 63 的真实 188/4 帧在 bit 0 下由 `0x004185C0` 水平反转；这解释了蓝衣角色有效像素
-相对正向帧向右镜像 18 像素，而红衣角色保持正向。真实数据回归覆盖这两个模式位从地图
-初始化到首帧的保留。
+- `0x004138C8..0x004138CC` 读取行头；零头直接进入下一行，所以合法的全 null 索引不依赖
+  角色存储存在。
+- 非零节点在 `0x004138CE..0x004138D4` 无条件先调用 `sub_413910`。
+- 返回后 `0x004138D7 cmp word ptr [esi+2Ch],0` 从角色记录重新读取 `+0x2C` 低字；只有
+  低字非零才在 `0x004138DE..0x004138E4` 调用 `sub_413CA0`。高字单独非零不通过门。
+- draw/audio 完成后，`0x004138E7 mov esi,[esi]` 才重新读取 `+0x00` 后继；因此两个
+  callee 对节点的合法修改对当帧 gate 与后继遍历可见。
+- C++ 不缓存 gate 或 next；测试端口在 draw callback 中把低字从零改为 `42`，再在 audio
+  callback 中把 next 从零改为 `2`，实际观察到音频调用与第二节点绘制，固定了该顺序。
 
-原程序完整逐帧 framebuffer、音频调用和 jitter 状态差分仍登记为
-`blocked_runtime_oracle`；如需验证只
-准备 Frida spawn 工具并等待用户执行，不由开发流程自行启动原版。
+原裸指针改成一基 `u32` 链索引；零仍是 null。越界索引在实际遇到时返回
+`invalid_role_link`，每条链的计数界限制环，且不会改变有效链的节点顺序。此前对
+`roles.empty()` 的 blanket early return 与空行头行为冲突，现已删除：全 null 行头可完成
+3 组/210 次扫描；空 span 只有在遇到非零头时才报 `invalid_role_link`。
+
+## 4. 独立测试向量
+
+`tests/unit/world_map/legacy_world_roles_test.cpp` 现在固定：
+
+- camera Y `-17` 得 `q=-1`、行 `-21..48`；H=30 时每组接受 49 行，共 147 行且不访问
+  row 49。camera Y `-15` 得 `q=0`、行 `-20..49`，每组接受 50 行，共 150 行，并访问
+  group 2 的 row 49；`INT32_MIN/INT32_MAX` 仍完成 3 组/210 次扫描且访问零行。
+- H=0/H=3、空角色 span、三组全 null 行头分别完成 3 组/210 扫描，访问 60/69 行、零
+  draw/audio callback；同一空 span 在实际遇到非零头时才返回 `invalid_role_link`。
+- H=3 时物理 prefix 的 row `-20/-1` 放入越界 poison link，`H+20` 的额外槽也放 poison；
+  扫描仍只访问 `H+19` 的有效节点，证明 prefix skip、suffix inclusion 与上界 exclusion。
+- 同一行 `1→4` 的节点顺序先于后续 group 0/1，完整回调顺序固定为 `1,4,2,3`，即链序
+  与 group `2→0→1` 同时成立。
+- `+0x2C=0xFFFF0000` 不进入音频，低字 `42` 才进入。
+- callback mutation 同时证明 draw 后 gate reload 与 audio 后 next reload。
+- 既有受检失败继续覆盖 frame load 失败、无效/循环链和任一短行头数组；安全隔离不会把
+  有效输入提前拒绝。
+
+## 5. 实现、集成与剩余阻断
+
+- `draw_legacy_world_roles` 映射本函数；`compose_legacy_world_runtime_frame` 在
+  `0x00412930` 的既有 `world_spatial_objects_00413870` stage seam 调用它。
+- runtime seam 继续复用有界角色数组、三组行头、camera、共享 jitter、TSW runtime、
+  framebuffer 与音频端口。现有普通角色真实 TSW framebuffer 哈希
+  `0xA4766C928B05DC88` 只作为资产与 seam 验证；它不让 `sub_413910` 或
+  `sub_413CA0` 继承关闭状态。
+- 评审后完整门禁通过：Linux core `185/185`、Linux app `190/190`、Windows LLVM app
+  `190/190`；两端应用成功链接，未启动任何游戏 EXE。
+- 关闭 disposition 为 `platform_adapted`：行为核心逐指令收敛，同时明确保留有界数组
+  预校验、一基链接、无效链接/环隔离。无公共 API 扩张。
+- 原程序完整逐帧 framebuffer、audio 调用与共享 jitter 差分仍为
+  `blocked_runtime_oracle`。需要时只准备 Frida spawn 工具并等待用户执行；本工作包不
+  启动原版或 OpenSWD3 游戏 EXE。

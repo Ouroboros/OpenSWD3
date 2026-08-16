@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v214
+版本：v215
 
 最后更新：2026-08-16
 
@@ -1072,5 +1072,20 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     保持平台适配而不新增公共判别器。Linux `core` 185/185、Linux `app` 190/190、
     Windows LLVM `app` 190/190 CTest 全部通过，两端应用成功链接且未启动。114 项当前
     关闭 92 项，剩余 22 项。
+
+    B7 的普通空间角色外层扫描 `sub_413870` 随后完成独立闭环：物理范围
+    `0x00413870..0x0041390B`、`0x00412A8D` 唯一调用点以及两个直接 callee 的必要
+    cdecl 边界均先于 C++ 独立复核。无参数/plain `retn`、正常 `EAX=3` 且调用者忽略、
+    `EBX/EBP/ESI/EDI` 保存，group `2→0→1`、`trunc_toward_zero(cameraY/16)-20`、每组
+    `0x46` 行、`u32(row)<u32(mapHeight+20)`、物理 `row+20`、null head 与
+    draw→重读 `+0x2C` 低字→可选 audio→重读 `+0x00` next 的顺序均完成 LST→C++→LST
+    双向收敛。实现删除了错误的空角色 span 整体早退；三个行头数组的 eager bounds 校验、
+    一基链接与环检测保留为平台适配。独立 UT 新增 `-17/-15` 与极端 camera、H=0/H=3
+    全 null 空 span、prefix/suffix poison、同行多节点与组序、高字 gate、callee callback
+    mutation 及既有无效链/短数组向量；定向 synthetic/real 测试通过。Linux `core`
+    185/185、Linux `app` 190/190、Windows LLVM `app` 190/190 CTest 全部通过，两端应用
+    成功链接且未启动游戏 EXE。`sub_413910/sub_413CA0/sub_413EA0/sub_413F00` 继续保持
+    `pending_audit`，原版 framebuffer/audio/jitter 动态 oracle 仍阻断。114 项当前关闭
+    93 项，即 `43 assembly_exact + 50 platform_adapted + 21 pending_audit`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

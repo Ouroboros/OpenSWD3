@@ -204,7 +204,8 @@ struct LegacyWorldRolesResult {
 
 // 0x00413870: scan the three spatial groups in the physical order 2, 0, 1.
 // Every linked role is drawn first; a nonzero low word at +0x2C then enters
-// the spatial-audio path.
+// the spatial-audio path. All bounded row-head allocations are validated
+// eagerly; an empty role span remains valid while every scanned head is null.
 [[nodiscard]] LegacyWorldRolesResult draw_legacy_world_roles(
     const LegacyRoleSpatialIndex& spatial_index,
     std::span<LegacyWorldRoleRecord> roles,

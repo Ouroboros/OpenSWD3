@@ -7,6 +7,7 @@
 #include <bit>
 #include <cstdint>
 #include <filesystem>
+#include <limits>
 #include <span>
 #include <utility>
 #include <vector>
@@ -101,6 +102,10 @@ public:
         if (jitter.phase_bytes >= 0x84U) {
             jitter.phase_bytes = 0U;
         }
+        if (role_to_mutate_on_draw != nullptr) {
+            role_to_mutate_on_draw->field_2c = field_2c_after_draw;
+            role_to_mutate_on_draw = nullptr;
+        }
         return draw_status;
     }
 
@@ -150,6 +155,8 @@ public:
     std::array<u8, 3U> auxiliary{1U, 2U, 3U};
     std::vector<u8> label{'A', 'B', 0U};
     u16 label_color_value{0x1234U};
+    LegacyWorldRoleRecord* role_to_mutate_on_draw{};
+    u32 field_2c_after_draw{};
     std::vector<u32> service_queries;
     std::vector<std::pair<u16, std::pair<i32, i32>>> positional_samples;
     std::vector<std::pair<u16, u16>> loads;
@@ -167,6 +174,10 @@ public:
         const u16 sound_id, const i32, const i32, const i32
     ) noexcept override {
         plays.push_back(sound_id);
+        if (role_to_mutate_on_play != nullptr) {
+            role_to_mutate_on_play->spatial_next_link_32 = next_link_after_play;
+            role_to_mutate_on_play = nullptr;
+        }
     }
 
     void stop_sample(const u16 sound_id) noexcept override {
@@ -182,6 +193,8 @@ public:
         pans.push_back({sound_id, pan});
     }
 
+    LegacyWorldRoleRecord* role_to_mutate_on_play{};
+    u32 next_link_after_play{};
     std::vector<u16> plays;
     std::vector<u16> stops;
     std::vector<std::pair<u16, i32>> volumes;
@@ -437,6 +450,165 @@ void test_checked_failures_and_blit_diagnostics(openswd3::test::Context& test) {
     );
 }
 
+void test_spatial_camera_quotient_boundaries(openswd3::test::Context& test) {
+    LegacyRoleSpatialIndex spatial = make_spatial_index(30U);
+    std::array<LegacyWorldRoleRecord, 2U> roles{};
+    roles[1] = make_role();
+    roles[1].action.field_58 = 0U;
+    spatial.row_heads[2U][49U + kLegacySpatialRowPadding] = 1U;
+    RecordingPorts render_ports;
+    RecordingAudioPorts audio_ports;
+    LegacyRleRowJitterState jitter;
+
+    LegacyWorldRoleRenderState render_state{};
+    render_state.camera.top = -17;
+    const auto below_negative_tile = draw_legacy_world_roles(
+        spatial,
+        roles,
+        render_state,
+        LegacyWorldSpatialAudioState{},
+        jitter,
+        render_ports,
+        audio_ports
+    );
+    render_state.camera.top = -15;
+    const auto above_negative_tile = draw_legacy_world_roles(
+        spatial,
+        roles,
+        render_state,
+        LegacyWorldSpatialAudioState{},
+        jitter,
+        render_ports,
+        audio_ports
+    );
+    test.expect_true(
+        below_negative_tile.status == LegacyWorldRolesStatus::completed &&
+            below_negative_tile.scanned_rows == 210U &&
+            below_negative_tile.visited_rows == 147U &&
+            below_negative_tile.visited_roles == 0U &&
+            above_negative_tile.status == LegacyWorldRolesStatus::completed &&
+            above_negative_tile.scanned_rows == 210U &&
+            above_negative_tile.visited_rows == 150U &&
+            above_negative_tile.visited_roles == 1U &&
+            render_ports.loads.size() == 1U,
+        "camera Y -17 truncates to -1 while -15 truncates to zero"
+    );
+
+    for (const i32 camera_y :
+         {std::numeric_limits<i32>::min(), std::numeric_limits<i32>::max()}) {
+        render_state.camera.top = camera_y;
+        const auto extreme = draw_legacy_world_roles(
+            spatial,
+            roles,
+            render_state,
+            LegacyWorldSpatialAudioState{},
+            jitter,
+            render_ports,
+            audio_ports
+        );
+        test.expect_true(
+            extreme.status == LegacyWorldRolesStatus::completed &&
+                extreme.visited_groups == 3U && extreme.scanned_rows == 210U &&
+                extreme.visited_rows == 0U,
+            "extreme signed camera quotients complete without row access"
+        );
+    }
+}
+
+void test_spatial_empty_roles_and_null_heads(openswd3::test::Context& test) {
+    struct EmptyIndexCase {
+        u32 map_height;
+        u32 expected_visited_rows;
+    };
+    constexpr std::array<EmptyIndexCase, 2U> kCases{{{0U, 60U}, {3U, 69U}}};
+    RecordingPorts render_ports;
+    RecordingAudioPorts audio_ports;
+    LegacyRleRowJitterState jitter;
+
+    for (const EmptyIndexCase vector : kCases) {
+        const LegacyRoleSpatialIndex spatial =
+            make_spatial_index(vector.map_height);
+        const auto result = draw_legacy_world_roles(
+            spatial,
+            std::span<LegacyWorldRoleRecord>{},
+            LegacyWorldRoleRenderState{},
+            LegacyWorldSpatialAudioState{},
+            jitter,
+            render_ports,
+            audio_ports
+        );
+        test.expect_true(
+            result.status == LegacyWorldRolesStatus::completed &&
+                result.visited_groups == 3U && result.scanned_rows == 210U &&
+                result.visited_rows == vector.expected_visited_rows &&
+                result.visited_roles == 0U,
+            "all-null row heads complete even when the role span is empty"
+        );
+    }
+    test.expect_true(
+        render_ports.service_queries.empty() &&
+            render_ports.positional_samples.empty() &&
+            render_ports.loads.empty() && render_ports.draws.empty() &&
+            render_ports.overlay_tokens.empty() &&
+            render_ports.particles.empty() &&
+            render_ports.label_tokens.empty() &&
+            render_ports.color_indices.empty() && render_ports.labels.empty() &&
+            audio_ports.plays.empty() && audio_ports.stops.empty() &&
+            audio_ports.volumes.empty() && audio_ports.pans.empty(),
+        "all-null empty-role scans invoke no draw or audio callback"
+    );
+
+    LegacyRoleSpatialIndex nonempty_head = make_spatial_index(3U);
+    nonempty_head.row_heads[2U][kLegacySpatialRowPadding] = 1U;
+    const auto encountered = draw_legacy_world_roles(
+        nonempty_head,
+        std::span<LegacyWorldRoleRecord>{},
+        LegacyWorldRoleRenderState{},
+        LegacyWorldSpatialAudioState{},
+        jitter,
+        render_ports,
+        audio_ports
+    );
+    test.expect_equal(
+        encountered.status,
+        LegacyWorldRolesStatus::invalid_role_link,
+        "an empty role span fails only when a nonzero row head is encountered"
+    );
+}
+
+void test_spatial_padding_boundaries(openswd3::test::Context& test) {
+    LegacyRoleSpatialIndex spatial = make_spatial_index(3U);
+    for (auto& row_heads : spatial.row_heads) {
+        row_heads[0U] = 99U;
+        row_heads[kLegacySpatialRowPadding - 1U] = 99U;
+        row_heads.push_back(99U);
+    }
+    spatial.row_heads[2U][3U + 19U + kLegacySpatialRowPadding] = 1U;
+
+    std::array<LegacyWorldRoleRecord, 2U> roles{};
+    roles[1] = make_role();
+    roles[1].action.field_58 = 0U;
+    RecordingPorts render_ports;
+    RecordingAudioPorts audio_ports;
+    LegacyRleRowJitterState jitter;
+    const auto result = draw_legacy_world_roles(
+        spatial,
+        roles,
+        LegacyWorldRoleRenderState{},
+        LegacyWorldSpatialAudioState{},
+        jitter,
+        render_ports,
+        audio_ports
+    );
+    test.expect_true(
+        result.status == LegacyWorldRolesStatus::completed &&
+            result.visited_groups == 3U && result.scanned_rows == 210U &&
+            result.visited_rows == 69U && result.visited_roles == 1U &&
+            render_ports.loads.size() == 1U,
+        "poisoned prefix rows and H+20 are skipped while H+19 is included"
+    );
+}
+
 void test_spatial_traversal_order_padding_and_audio(
     openswd3::test::Context& test
 ) {
@@ -455,12 +627,13 @@ void test_spatial_traversal_order_padding_and_audio(
     roles[4].flags |= kLegacyWorldRoleFlashBit;
     roles[4].action.field_88 = 3U;
     roles[4].action.field_89 = 20U;
+    roles[1].spatial_next_link_32 = 4U;
     roles[2].guid = 7U;
     roles[2].field_2c = 42U;
     roles[2].field_30 = 0xFFFF0000U;
+    roles[3].field_2c = 0xFFFF0000U;
 
     spatial.row_heads[2U][kLegacySpatialRowPadding] = 1U;
-    spatial.row_heads[2U][spatial.row_heads[2U].size() - 1U] = 4U;
     spatial.row_heads[0U][kLegacySpatialRowPadding] = 2U;
     spatial.row_heads[1U][kLegacySpatialRowPadding] = 3U;
 
@@ -500,7 +673,7 @@ void test_spatial_traversal_order_padding_and_audio(
                     {10U, 1U}, {40U, 4U}, {20U, 2U}, {30U, 3U}
                 } &&
             result.frame_requests == 4U && result.draw_count == 5U,
-        "spatial groups preserve the physical 2 0 1 traversal order"
+        "linked nodes preserve row order before physical groups 2 0 1"
     );
     test.expect_true(
         render_ports.draws[1].group_before == 2 &&
@@ -515,6 +688,57 @@ void test_spatial_traversal_order_padding_and_audio(
             audio_ports.plays == std::vector<u16>{42U} &&
             audio_ports.volumes.size() == 1U && audio_ports.pans.size() == 1U,
         "a nonzero +0x2C low word dispatches audio after drawing the role"
+    );
+    test.expect_true(
+        roles[3].field_2c == 0xFFFF0000U && result.spatial_audio_roles == 1U,
+        "a high-word-only +0x2C value does not enter spatial audio"
+    );
+}
+
+void test_post_callee_gate_and_next_reload(openswd3::test::Context& test) {
+    LegacyRoleSpatialIndex spatial = make_spatial_index(1U);
+    std::array<LegacyWorldRoleRecord, 3U> roles{};
+    roles[1] = make_role();
+    roles[2] = make_role();
+    roles[1].action.field_58 = 0U;
+    roles[2].action.field_58 = 0U;
+    roles[1].action.field_4a = 10U;
+    roles[2].action.field_4a = 20U;
+    roles[1].field_30 = 0xFFFF0000U;
+    spatial.row_heads[2U][kLegacySpatialRowPadding] = 1U;
+
+    std::array<openswd3::compat::i16, 3U> distances{};
+    std::array<openswd3::compat::i16, 3U> vertical_offsets{};
+    const LegacyWorldSpatialAudioState audio_state{
+        .controlled_role_index = 0U,
+        .mix_level = 11,
+        .distance_by_role = distances,
+        .vertical_offset_by_role = vertical_offsets,
+    };
+    RecordingPorts render_ports;
+    render_ports.role_to_mutate_on_draw = &roles[1];
+    render_ports.field_2c_after_draw = 42U;
+    RecordingAudioPorts audio_ports;
+    audio_ports.role_to_mutate_on_play = &roles[1];
+    audio_ports.next_link_after_play = 2U;
+    LegacyRleRowJitterState jitter;
+
+    const auto result = draw_legacy_world_roles(
+        spatial,
+        roles,
+        LegacyWorldRoleRenderState{},
+        audio_state,
+        jitter,
+        render_ports,
+        audio_ports
+    );
+    test.expect_true(
+        result.status == LegacyWorldRolesStatus::completed &&
+            result.visited_roles == 2U && result.spatial_audio_roles == 1U &&
+            audio_ports.plays == std::vector<u16>{42U} &&
+            render_ports.loads ==
+                std::vector<std::pair<u16, u16>>{{10U, 8U}, {20U, 8U}},
+        "the +0x2C gate reloads after draw and +0x00 reloads after audio"
     );
 }
 
@@ -649,7 +873,11 @@ int main(const int argument_count, char** arguments) {
     test_ghost_pass(test);
     test_additive_overlay_particles_and_label(test);
     test_checked_failures_and_blit_diagnostics(test);
+    test_spatial_camera_quotient_boundaries(test);
+    test_spatial_empty_roles_and_null_heads(test);
+    test_spatial_padding_boundaries(test);
     test_spatial_traversal_order_padding_and_audio(test);
+    test_post_callee_gate_and_next_reload(test);
     test_spatial_traversal_checked_failures(test);
     if (argument_count == 2) {
         test_real_tsw_and_blitter(test, std::filesystem::path{arguments[1]});

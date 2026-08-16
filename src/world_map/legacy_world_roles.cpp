@@ -505,13 +505,12 @@ LegacyWorldRolesResult draw_legacy_world_roles(
     const std::size_t expected_rows =
         static_cast<std::size_t>(spatial_index.map_height) +
         2U * static_cast<std::size_t>(kLegacySpatialRowPadding);
+    // Platform adaptation: validate all bounded row-head allocations before
+    // emulating the original raw-pointer scans, including all-null indices.
     for (const auto& row_heads : spatial_index.row_heads) {
         if (row_heads.size() < expected_rows) {
             return result;
         }
-    }
-    if (roles.empty()) {
-        return result;
     }
 
     result.status = LegacyWorldRolesStatus::completed;
