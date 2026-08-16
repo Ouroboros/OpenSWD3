@@ -14,6 +14,22 @@ target_link_libraries(
         SDL3::SDL3
 )
 
+add_library(
+    openswd3_platform_sdl3_world_role
+    STATIC
+        world_role_runtime_adapter.cpp
+)
+target_include_directories(
+    openswd3_platform_sdl3_world_role
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_link_libraries(
+    openswd3_platform_sdl3_world_role
+    PUBLIC
+        openswd3_audio_video
+        openswd3_world_map
+)
+
 add_executable(
     openswd3
     event_translation.cpp
@@ -33,6 +49,7 @@ target_link_libraries(
         openswd3_app
         openswd3_battle
         openswd3_platform_sdl3_audio
+        openswd3_platform_sdl3_world_role
         openswd3_input_time_rng
         openswd3_rendering
         openswd3_resource_io

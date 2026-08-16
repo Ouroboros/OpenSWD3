@@ -46,6 +46,13 @@ wrapping_subtract(const i32 left, const i32 right) noexcept {
     return value / 2;
 }
 
+// 0x00413C43..0x00413C58 wraps length*11 to 32 bits, then performs a
+// signed division by two with truncation toward zero.
+[[nodiscard]] constexpr i32 label_half_width(const u32 byte_length) noexcept {
+    return truncating_half(from_bits(byte_length * 11U));
+}
+static_assert(label_half_width(195225787U) == -1073741819);
+
 [[nodiscard]] constexpr bool accepted_blit_status(
     const rendering::LegacyBlitExecutionStatus status
 ) noexcept {
@@ -75,10 +82,26 @@ void record_draw(
     }
 }
 
+struct LegacyWorldRolePlacementSnapshot {
+    i32 world_x{};
+    i32 world_y{};
+    LegacyWorldRenderCamera camera;
+};
+
+[[nodiscard]] LegacyWorldRolePlacementSnapshot snapshot_placement(
+    const LegacyWorldRoleRecord& role, const LegacyWorldRoleRenderState& state
+) noexcept {
+    return {
+        .world_x = field_as_i32(role.world_x),
+        .world_y = field_as_i32(role.world_y),
+        .camera = state.camera,
+    };
+}
+
 [[nodiscard]] i32 normal_x(
     const LegacyWorldRoleRecord& role,
     const LegacyActionRecord& action,
-    const LegacyWorldRenderCamera camera
+    const LegacyWorldRolePlacementSnapshot& placement
 ) noexcept {
     return wrapping_add(
         wrapping_subtract(
@@ -86,16 +109,16 @@ void record_draw(
                 static_cast<i32>(role.field_28),
                 field_as_i32(action.draw_offset_x)
             ),
-            camera.left
+            placement.camera.left
         ),
-        field_as_i32(role.world_x)
+        placement.world_x
     );
 }
 
 [[nodiscard]] i32 normal_y(
     const LegacyWorldRoleRecord& role,
     const LegacyActionRecord& action,
-    const LegacyWorldRenderCamera camera
+    const LegacyWorldRolePlacementSnapshot& placement
 ) noexcept {
     return wrapping_add(
         wrapping_subtract(
@@ -103,9 +126,9 @@ void record_draw(
                 static_cast<i32>(role.field_2a),
                 field_as_i32(action.draw_offset_y)
             ),
-            camera.top
+            placement.camera.top
         ),
-        field_as_i32(role.world_y)
+        placement.world_y
     );
 }
 
@@ -113,6 +136,7 @@ void draw_ghost(
     const LegacyWorldRoleRecord& role,
     const LegacyWorldRoleFrame& frame,
     const LegacyWorldRoleRenderState& state,
+    const LegacyWorldRolePlacementSnapshot& placement,
     LegacyWorldRoleRenderPorts& ports,
     rendering::LegacyRleRowJitterState& jitter,
     LegacyWorldRoleDrawResult& result
@@ -147,15 +171,15 @@ void draw_ghost(
 
     const i32 base_x = wrapping_subtract(
         wrapping_subtract(
-            field_as_i32(role.world_x), field_as_i32(action.draw_offset_x)
+            placement.world_x, field_as_i32(action.draw_offset_x)
         ),
-        state.camera.left
+        placement.camera.left
     );
     const i32 base_y = wrapping_subtract(
         wrapping_subtract(
-            field_as_i32(role.world_y), field_as_i32(action.draw_offset_y)
+            placement.world_y, field_as_i32(action.draw_offset_y)
         ),
-        state.camera.top
+        placement.camera.top
     );
     const i32 color = kGhostOffsets[(role.flags >> 20U) & 0x0FU];
     const LegacyWorldRoleBlitRequest request{
@@ -201,8 +225,13 @@ LegacyWorldRoleDrawResult draw_legacy_world_role(
         return result;
     }
 
+    // 0x00413934..0x00413957 snapshots both world coordinates and camera
+    // left/top once. Later callbacks may mutate role or camera, but only the
+    // label intentionally reloads live role coordinates.
+    const LegacyWorldRolePlacementSnapshot placement =
+        snapshot_placement(role, state);
     const i32 horizontal_distance =
-        wrapping_subtract(field_as_i32(role.world_x), state.camera.left);
+        wrapping_subtract(placement.world_x, placement.camera.left);
     result.horizontally_visible =
         horizontal_distance >= -320 && horizontal_distance <= 960;
     if (!result.horizontally_visible) {
@@ -220,9 +249,7 @@ LegacyWorldRoleDrawResult draw_legacy_world_role(
 
     if (role.action.field_58 != 0U) {
         ports.play_positional_sample(
-            role.action.field_58,
-            field_as_i32(role.world_x),
-            field_as_i32(role.world_y)
+            role.action.field_58, placement.world_x, placement.world_y
         );
         role.action.field_58 = 0U;
     }
@@ -237,17 +264,18 @@ LegacyWorldRoleDrawResult draw_legacy_world_role(
 
     if ((role.flags & kLegacyWorldRoleFlashBit) != 0U &&
         (state.frame_counter & 7U) < 4U) {
-        draw_ghost(role, frame, state, ports, jitter, result);
+        draw_ghost(role, frame, state, placement, ports, jitter, result);
     }
 
+    // 0x00413A16 captures mode flags before the main callback. The additive
+    // pass reuses this value, while its fields and action offsets are live.
+    const u32 captured_mode_flags = role.action.mode_flags;
     jitter.group = static_cast<i32>(role.action.field_88);
     jitter.phase_bytes = role.action.field_89;
-    const i32 destination_x = normal_x(role, role.action, state.camera);
-    const i32 destination_y = normal_y(role, role.action, state.camera);
     const LegacyWorldRoleBlitRequest main_request{
-        .destination_x = destination_x,
-        .destination_y = destination_y,
-        .flags = role.action.mode_flags,
+        .destination_x = normal_x(role, role.action, placement),
+        .destination_y = normal_y(role, role.action, placement),
+        .flags = captured_mode_flags,
         .opacity_step = static_cast<i32>(role.action.field_8a),
         .auxiliary = frame.auxiliary,
     };
@@ -271,9 +299,9 @@ LegacyWorldRoleDrawResult draw_legacy_world_role(
     }
     if (red != 0 || green != 0 || blue != 0) {
         const LegacyWorldRoleBlitRequest additive_request{
-            .destination_x = destination_x,
-            .destination_y = destination_y,
-            .flags = (role.action.mode_flags & 0x80000013U) | 0x10U,
+            .destination_x = normal_x(role, role.action, placement),
+            .destination_y = normal_y(role, role.action, placement),
+            .flags = (captured_mode_flags & 0x80000013U) | 0x10U,
             .red_offset = red,
             .green_offset = green,
             .blue_offset = blue,
@@ -284,8 +312,9 @@ LegacyWorldRoleDrawResult draw_legacy_world_role(
     }
 
     if (role.field_3c != 0U) {
+        const u32 overlay_token_before_load = role.field_3c;
         const LegacyActionRecord* overlay =
-            ports.resolve_overlay_action(role.field_3c);
+            ports.resolve_overlay_action(overlay_token_before_load);
         if (overlay == nullptr) {
             result.status = LegacyWorldRoleDrawStatus::overlay_resolve_failed;
             role.action.field_89 = static_cast<u8>(jitter.phase_bytes);
@@ -300,6 +329,17 @@ LegacyWorldRoleDrawResult draw_legacy_world_role(
             role.action.field_89 = static_cast<u8>(jitter.phase_bytes);
             return result;
         }
+        // 0x00413BB1 reloads +0x3C after the frame request. Resolve a changed
+        // modern token again before dereferencing its bounded action owner.
+        if (role.field_3c != overlay_token_before_load) {
+            overlay = ports.resolve_overlay_action(role.field_3c);
+            if (overlay == nullptr) {
+                result.status =
+                    LegacyWorldRoleDrawStatus::overlay_resolve_failed;
+                role.action.field_89 = static_cast<u8>(jitter.phase_bytes);
+                return result;
+            }
+        }
         const i32 overlay_y = wrapping_add(
             wrapping_add(
                 wrapping_subtract(
@@ -310,14 +350,14 @@ LegacyWorldRoleDrawResult draw_legacy_world_role(
                         ),
                         field_as_i32(role.action.draw_offset_y)
                     ),
-                    state.camera.top
+                    placement.camera.top
                 ),
-                field_as_i32(role.world_y)
+                placement.world_y
             ),
             28
         );
         const LegacyWorldRoleBlitRequest overlay_request{
-            .destination_x = normal_x(role, *overlay, state.camera),
+            .destination_x = normal_x(role, *overlay, placement),
             .destination_y = overlay_y,
             .flags = overlay->mode_flags,
             .auxiliary = {},
@@ -332,7 +372,7 @@ LegacyWorldRoleDrawResult draw_legacy_world_role(
     if ((role.flags & kLegacyWorldRoleParticleBit) != 0U &&
         !ports.query_service(0x48U)) {
         ports.emit_role_particles(
-            field_as_i32(role.world_x), field_as_i32(role.world_y), role.guid
+            placement.world_x, placement.world_y, role.guid
         );
         result.particles_emitted = true;
     }
@@ -355,11 +395,11 @@ LegacyWorldRoleDrawResult draw_legacy_world_role(
     }
 
     const u32 byte_length = static_cast<u32>(label.size());
-    const i32 half_width = static_cast<i32>((byte_length * 11U) / 2U);
+    const i32 half_width = label_half_width(byte_length);
     const i32 label_x = wrapping_add(
         wrapping_subtract(
             wrapping_subtract(field_as_i32(role.world_x), half_width),
-            state.camera.left
+            placement.camera.left
         ),
         16
     );
@@ -367,7 +407,7 @@ LegacyWorldRoleDrawResult draw_legacy_world_role(
         wrapping_subtract(
             field_as_i32(role.world_y), field_as_i32(role.action.draw_offset_y)
         ),
-        state.camera.top
+        placement.camera.top
     );
     ports.draw_label(
         label,

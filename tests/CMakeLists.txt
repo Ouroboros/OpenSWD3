@@ -2641,6 +2641,29 @@ if(
     )
 endif()
 
+if(TARGET openswd3_platform_sdl3_world_role)
+    add_executable(
+        openswd3_platform_sdl3_world_role_runtime_adapter_tests
+        unit/app/world_role_runtime_adapter_test.cpp
+    )
+    target_compile_definitions(
+        openswd3_platform_sdl3_world_role_runtime_adapter_tests
+        PRIVATE OPENSWD3_TEST_ARTIFACT_ROOT="${CMAKE_CURRENT_BINARY_DIR}/runtime"
+    )
+    target_include_directories(
+        openswd3_platform_sdl3_world_role_runtime_adapter_tests
+        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+    )
+    target_link_libraries(
+        openswd3_platform_sdl3_world_role_runtime_adapter_tests
+        PRIVATE openswd3_platform_sdl3_world_role
+    )
+    add_test(
+        NAME platform_sdl3.world_role_runtime_adapter
+        COMMAND openswd3_platform_sdl3_world_role_runtime_adapter_tests
+    )
+endif()
+
 add_executable(
     openswd3_world_map_legacy_world_frame_composition_tests
     unit/world_map/legacy_world_frame_composition_test.cpp

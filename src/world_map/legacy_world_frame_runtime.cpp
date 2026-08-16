@@ -1,47 +1,11 @@
 #include "openswd3/world_map/legacy_world_frame_runtime.hpp"
 
-#include <array>
+#include "openswd3/world_map/legacy_world_builtin_colors.hpp"
+
 #include <bit>
 
 namespace openswd3::world_map {
 namespace {
-
-// 0x0049E0C8..0x0049E107 before sub_424B90 converts the sixteen
-// little-endian BGR888 values in place and duplicates each 16-bit result.
-constexpr std::array<compat::u32, 16U> kLegacyBuiltinBgr888Colors{
-    0x00FFFFFFU,
-    0x00000000U,
-    0x000C31ECU,
-    0x000080FFU,
-    0x002C577BU,
-    0x00FFE6E6U,
-    0x00ACCFE9U,
-    0x00002CECU,
-    0x00FF0000U,
-    0x00800000U,
-    0x00606060U,
-    0x002C577BU,
-    0x00E9C8C0U,
-    0x00ACCFE9U,
-    0x000D31ECU,
-    0x00002CECU,
-};
-
-[[nodiscard]] std::array<compat::u32, 16U> legacy_builtin_color_pairs(
-    const rendering::LegacyPixelConversionState& format
-) noexcept {
-    std::array<compat::u32, 16U> pairs{};
-    for (std::size_t index = 0U; index < pairs.size(); ++index) {
-        const compat::u32 color = kLegacyBuiltinBgr888Colors[index];
-        pairs[index] = rendering::legacy_pack_color_pair(
-            format,
-            static_cast<compat::i32>((color >> 3U) & 0x1FU),
-            static_cast<compat::i32>((color >> 11U) & 0x1FU),
-            static_cast<compat::i32>((color >> 19U) & 0x1FU)
-        );
-    }
-    return pairs;
-}
 
 [[nodiscard]] bool
 accepted(const asset_runtime::LegacyAniDriftStatus status) noexcept {
@@ -307,7 +271,8 @@ private:
 
     [[nodiscard]] bool execute_packed_rows() {
         result_.packed_rows_executed = true;
-        const auto colors = legacy_builtin_color_pairs(ports_.pixel_conversion);
+        const auto colors =
+            legacy_world_builtin_color_pairs(ports_.pixel_conversion);
         rendering::LegacyFramebufferPackedRowDrawPorts draw_ports{
             framebuffer_, ports_.pixel_conversion
         };
@@ -340,7 +305,8 @@ private:
 
     [[nodiscard]] bool execute_timed_messages() {
         result_.timed_messages_executed = true;
-        const auto colors = legacy_builtin_color_pairs(ports_.pixel_conversion);
+        const auto colors =
+            legacy_world_builtin_color_pairs(ports_.pixel_conversion);
         result_.timed_messages = ports_.timed_message_runtime.update_and_draw(
             ports_.environment_effects.timed_messages,
             static_cast<compat::u16>(colors[3U])

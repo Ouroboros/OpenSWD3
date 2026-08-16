@@ -7,6 +7,7 @@
 #include <bit>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <limits>
 #include <span>
 #include <utility>
@@ -83,6 +84,9 @@ public:
         LegacyWorldRoleFrame& frame
     ) override {
         loads.emplace_back(resource_id, frame_index);
+        if (load_callback) {
+            load_callback();
+        }
         if (!load_succeeds) {
             return false;
         }
@@ -98,6 +102,9 @@ public:
         LegacyRleRowJitterState& jitter
     ) noexcept override {
         draws.push_back({request, jitter.group, jitter.phase_bytes});
+        if (draw_callback) {
+            draw_callback(draws.size());
+        }
         jitter.phase_bytes += 4U;
         if (jitter.phase_bytes >= 0x84U) {
             jitter.phase_bytes = 0U;
@@ -157,6 +164,8 @@ public:
     u16 label_color_value{0x1234U};
     LegacyWorldRoleRecord* role_to_mutate_on_draw{};
     u32 field_2c_after_draw{};
+    std::function<void()> load_callback;
+    std::function<void(std::size_t)> draw_callback;
     std::vector<u32> service_queries;
     std::vector<std::pair<u16, std::pair<i32, i32>>> positional_samples;
     std::vector<std::pair<u16, u16>> loads;
@@ -394,6 +403,104 @@ void test_additive_overlay_particles_and_label(openswd3::test::Context& test) {
             ports.labels[0].color == 0x1234U && ports.labels[0].style == 4U &&
             ports.color_indices == std::vector<u32>{3U},
         "label uses byte length centering color table and style four"
+    );
+}
+
+void test_post_main_live_reloads_and_frozen_placement(
+    openswd3::test::Context& test
+) {
+    LegacyWorldRoleRecord role = make_role();
+    role.action.field_58 = 0U;
+    role.flags |=
+        kLegacyWorldRoleFlashBit | kLegacyWorldRoleParticleBit | (2U << 20U);
+    role.field_3c = 1U;
+    role.path_payload_pointer_32 = 2U;
+    role.path_payload_relation = 3U;
+
+    LegacyWorldRoleRenderState state = make_state();
+    state.flash_red_offset = 1;
+    state.flash_green_offset = 2;
+    state.flash_blue_offset = 3;
+    RecordingPorts ports;
+    ports.overlay.draw_offset_x = 2U;
+    ports.overlay.draw_offset_y = 3U;
+    ports.overlay.mode_flags = 0x55U;
+    ports.overlay.field_4a = 4U;
+    ports.overlay.field_4c = 5U;
+    ports.draw_callback = [&](const std::size_t draw_count) {
+        if (draw_count != 1U) {
+            return;
+        }
+        role.world_x = 1000U;
+        role.world_y = 2000U;
+        role.field_28 = 15U;
+        role.field_2a = 16U;
+        role.action.draw_offset_x = 30U;
+        role.action.draw_offset_y = 40U;
+        role.action.mode_flags = 0x00000008U;
+        state.camera = {.left = 300, .top = 400};
+    };
+    LegacyRleRowJitterState jitter;
+
+    const auto result = draw_legacy_world_role(role, state, jitter, ports);
+    test.expect_true(
+        result.main_drawn && result.additive_drawn && result.overlay_drawn &&
+            result.particles_emitted && result.label_drawn &&
+            ports.draws.size() == 3U,
+        "post-main callback preserves main additive overlay particle label order"
+    );
+    test.expect_true(
+        ports.draws[0].request.destination_x == 65 &&
+            ports.draws[0].request.destination_y == 146 &&
+            ports.draws[0].request.flags == 0x80000003U,
+        "main uses entry world camera and pre-main mode snapshot"
+    );
+    test.expect_true(
+        ports.draws[1].request.destination_x == 55 &&
+            ports.draws[1].request.destination_y == 136 &&
+            ports.draws[1].request.flags == 0x80000013U,
+        "additive reloads fields and action offsets but keeps mode and placement"
+    );
+    test.expect_true(
+        ports.draws[2].request.destination_x == 83 &&
+            ports.draws[2].request.destination_y == 161 &&
+            ports.particles == std::vector<std::array<i32, 3U>>{{100, 200, 9}},
+        "overlay and particles retain entry world and camera placement"
+    );
+    test.expect_true(
+        ports.labels.size() == 1U && ports.labels[0].x == 975 &&
+            ports.labels[0].y == 1920,
+        "label reloads live role coordinates and offset with frozen camera"
+    );
+}
+
+void test_frame_load_mutation_uses_entry_placement(
+    openswd3::test::Context& test
+) {
+    LegacyWorldRoleRecord role = make_role();
+    role.action.field_58 = 0U;
+    role.flags |= kLegacyWorldRoleFlashBit;
+    LegacyWorldRoleRenderState state = make_state();
+    state.frame_counter = 1U;
+    RecordingPorts ports;
+    ports.load_callback = [&]() {
+        role.world_x = 1000U;
+        role.world_y = 2000U;
+        state.camera = {.left = 300, .top = 400};
+    };
+    LegacyRleRowJitterState jitter;
+
+    const auto result = draw_legacy_world_role(role, state, jitter, ports);
+    test.expect_true(
+        result.ghost_drawn && result.main_drawn && ports.draws.size() == 2U,
+        "frame load mutation still executes ghost then main"
+    );
+    test.expect_true(
+        ports.draws[0].request.destination_x == 56 &&
+            ports.draws[0].request.destination_y == 154 &&
+            ports.draws[1].request.destination_x == 65 &&
+            ports.draws[1].request.destination_y == 146,
+        "ghost and main use world and camera snapped before frame loading"
     );
 }
 
@@ -872,6 +979,8 @@ int main(const int argument_count, char** arguments) {
     test_inclusive_cull_and_service(test);
     test_ghost_pass(test);
     test_additive_overlay_particles_and_label(test);
+    test_post_main_live_reloads_and_frozen_placement(test);
+    test_frame_load_mutation_uses_entry_placement(test);
     test_checked_failures_and_blit_diagnostics(test);
     test_spatial_camera_quotient_boundaries(test);
     test_spatial_empty_roles_and_null_heads(test);

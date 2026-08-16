@@ -19,15 +19,18 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 93 项：43 项 `assembly_exact`、50 项 `platform_adapted`；其余
-21 项保持待审计。最新关闭 `sub_413870`：`0x00413870..0x0041390B` 的无参数 ABI、唯一
-调用者、group `2→0→1`、有符号 camera 商、每组 70 行、底部 20 行 padding、null head、
-draw→重读低字 gate→可选 audio→重读 next 的顺序均已独立完成双向追溯。现代实现删除了
-空角色 span 的 blanket early return；有界行头数组预校验、一基链接和环隔离继续作为平台
-适配。`sub_413910/sub_413CA0/sub_413EA0/sub_413F00` 仍为 `pending_audit`，不继承本次
-关闭状态。Linux core `185/185`、Linux app `190/190`、Windows LLVM app `190/190`
-CTest 全部通过且未启动游戏 EXE；原版 framebuffer/audio/jitter 动态差分仍等待用户
-oracle。此前
+114 项全集复核当前已关闭 94 项：43 项 `assembly_exact`、51 项 `platform_adapted`；其余
+20 项保持待审计。最新关闭 `sub_413910`：`0x00413910..0x00413C96` 的一参数 cdecl、唯一
+调用者、全部直接调用边界、drawable/cull/service/音效/载帧/残影/主图/加色/覆盖层/粒子/
+标签和两个返回值均已独立完成双向追溯。入口冻结 world X/Y 与 camera left/top；主图后
+加色重读 field/action offset 但复用 `0x00413A16` 捕获 mode，标签重读 live role X/Y、
+复用冻结 camera，并按 `u32(len*11)` 回绕后的有符号值向零除二。受检
+frame/overlay/label/role lookup 和调用时监听者/viewport 的 SDL sample manager、
+`LegacyAniRoleParticleEffect`、内建颜色及 12 点文字 runtime 使 disposition 保持
+`platform_adapted`。`sub_413CA0/sub_413EA0/sub_413F00` 仍为 `pending_audit/not_inherited`，
+未改实现与 inventory。Linux core `185/185`、Linux app `191/191`、Windows LLVM app
+`191/191` CTest 全部通过，两端应用均成功链接且未启动游戏 EXE。原版完整
+framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放
 vector 容量，固定物理尾部与进程关闭手工释放由受检 span 和 RAII 承担；Linux `core`
@@ -90,10 +93,11 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
    `0x947C15A53487BF9A`，Linux `core` 123/123、Windows LLVM `app` 127/127 CTest
    通过。`sub_413870` 的 group `2→0→1` 外层扫描现已独立关闭，包含 210 次固定扫描、
    无符号回绕行界、null head、post-callee gate/next 重读以及有界索引平台适配。
-   `sub_413910` 的残影/主图/颜色叠加/覆盖层/粒子/标签、`sub_413CA0` 距离音频和
-   `sub_413EA0/sub_413F00` 的 bit-29 路径虽已有旧实现与集成证据，仍不能继承全函数关闭
-   状态；四项在 `world-map-closure.tsv` 中保持 `pending_audit`，须分别完成独立
-   LST→C++→LST 收敛。普通角色 runtime adapter 已接入真实 TSW 和软件 framebuffer，
+   `sub_413910` 的残影/主图/颜色叠加/覆盖层/粒子/标签现已完成独立全函数闭环：修正入口
+   world/camera 快照、主图后 live 坐标字段与捕获 mode 的交叉时序，并把 SDL 单次音效、
+   `LegacyAniRoleParticleEffect` 和 12 点标签从 no-op 接到真实 owner。`sub_413CA0` 距离
+   音频及 `sub_413EA0/sub_413F00` bit-29 路径继续保持 `pending_audit`，不得继承本关闭。
+   普通角色 runtime adapter 已接入真实 TSW 和软件 framebuffer，
    两个固定哈希分别为 `0xA6C3E08156F06060` 与 `0xA4766C928B05DC88`。空间 stage 已在
    `0x00412930` 的实际 runtime 原槽接线，
    共用角色数组、clip、framebuffer 和 jitter；真实 TSW 双路径叠加底图的整帧哈希为

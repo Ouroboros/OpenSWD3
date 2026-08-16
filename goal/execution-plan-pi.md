@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v215
+版本：v216
 
 最后更新：2026-08-16
 
@@ -1087,5 +1087,25 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     成功链接且未启动游戏 EXE。`sub_413910/sub_413CA0/sub_413EA0/sub_413F00` 继续保持
     `pending_audit`，原版 framebuffer/audio/jitter 动态 oracle 仍阻断。114 项当前关闭
     93 项，即 `43 assembly_exact + 50 platform_adapted + 21 pending_audit`。
+
+    B7 的普通空间角色绘制 `sub_413910` 随后完成独立闭环：完整物理范围
+    `0x00413910..0x00413C96`、`sub_413870:0x004138CF` 唯一调用点、一个入口参数的
+    cdecl/plain `retn`、callee-saved 寄存器、drawable 失败返回零与其余出口返回一，以及
+    12 个 direct/IAT 调用点均先于修改完成复核。实现纠正了两项旧时序：
+    `0x00413934..0x00413957` 的 world X/Y 与 camera left/top 只冻结一次并贯穿残影、
+    主图、加色、覆盖层与粒子；`0x00413A16` 的 mode flags 在主图前捕获，而加色坐标在
+    主图后重读 `+0x28/+0x2A` 及 action draw offsets。标签按 LST 重读 live role X/Y 和
+    draw Y、继续使用冻结 camera，并把 `u32(len*11)` 回绕结果按有符号值向零除二。
+    post-main 与 load-frame callback mutation UT 固定全部顺序和坐标，既有真实 TSW
+    framebuffer hash 不变。SDL production seam 把单次位置音效接到 sample manager 和
+    调用时受控角色监听者，把角色粒子接到持久 `LegacyAniRoleParticleEffect`、共享 action/RNG
+    及调用时 viewport/runtime ports，把标签接到
+    内建 16 色转换和 12 点 text framebuffer；三条 adapter 定向测试分别验证真实 manager、
+    与 direct seeded particle update 相同的结果/状态及 framebuffer 像素。受检
+    frame/overlay/label/role lookup 保留为平台适配。Linux `core` 185/185、Linux `app`
+    191/191、Windows LLVM `app` 191/191 CTest 全部通过，两端应用均成功链接且未启动游戏
+    EXE。`sub_413CA0/sub_413EA0/sub_413F00` 未改且继续 `pending_audit/not_inherited`；原版
+    framebuffer/audio/particle/text/jitter 动态 oracle 仍阻断。114 项当前关闭 94 项，
+    即 `43 assembly_exact + 51 platform_adapted + 20 pending_audit`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

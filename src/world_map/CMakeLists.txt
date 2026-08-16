@@ -14,6 +14,7 @@ add_library(
         legacy_world_collision_talk.cpp
         legacy_world_camera_pan.cpp
         legacy_world_background.cpp
+        legacy_world_builtin_colors.cpp
         legacy_world_cursor.cpp
         legacy_world_debug_overlay.cpp
         legacy_world_flagged_roles.cpp

@@ -7,6 +7,7 @@
 #include "single_instance.hpp"
 #include "startup_dialog_sdl3.hpp"
 #include "text_encoding_sdl3.hpp"
+#include "world_role_runtime_adapter.hpp"
 
 #include "openswd3/app/host_window_event.hpp"
 #include "openswd3/app/idle_runtime.hpp"
@@ -1328,12 +1329,15 @@ public:
         const openswd3::world_map::LegacyWorldPathScriptState*
             path_script_state = nullptr,
         const openswd3::world_map::LegacyWorldStoryVmState* story_state =
+            nullptr,
+        openswd3::platform_sdl3::WorldRoleRuntimeAdapter* world_role_adapter =
             nullptr
     ) noexcept
         : audio_(audio), presentation_(presentation),
           text_renderers_(text_renderers),
           head_sign_actions_(head_sign_actions), story_paths_(story_paths),
-          path_script_state_(path_script_state), story_state_(story_state) {}
+          path_script_state_(path_script_state), story_state_(story_state),
+          world_role_adapter_(world_role_adapter) {}
 
     bool complete_role_path(
         const openswd3::compat::u32 role_index
@@ -1385,12 +1389,23 @@ public:
     ) noexcept override {}
 
     void play_positional_sample(
-        openswd3::compat::u16, openswd3::compat::i32, openswd3::compat::i32
-    ) noexcept override {}
+        const openswd3::compat::u16 sound_id,
+        const openswd3::compat::i32 world_x,
+        const openswd3::compat::i32 world_y
+    ) noexcept override {
+        if (world_role_adapter_ != nullptr) {
+            static_cast<void>(world_role_adapter_->play_positional_sample(
+                sound_id, world_x, world_y
+            ));
+        }
+    }
 
     const openswd3::asset_runtime::LegacyActionRecord* resolve_overlay_action(
         const openswd3::compat::u32 token
     ) noexcept override {
+        if (world_role_adapter_ != nullptr) {
+            return world_role_adapter_->resolve_overlay_action(token);
+        }
         if (head_sign_actions_ == nullptr) {
             return nullptr;
         }
@@ -1400,11 +1415,24 @@ public:
     }
 
     void emit_role_particles(
-        openswd3::compat::i32, openswd3::compat::i32, openswd3::compat::u16
-    ) noexcept override {}
+        const openswd3::compat::i32 world_x,
+        const openswd3::compat::i32 world_y,
+        const openswd3::compat::u16 role_selector
+    ) noexcept override {
+        if (world_role_adapter_ != nullptr) {
+            static_cast<void>(world_role_adapter_->update_role_particles(
+                world_x, world_y, role_selector
+            ));
+        }
+    }
 
     std::span<const openswd3::compat::u8>
     resolve_label_bytes(const openswd3::compat::u32 token) noexcept override {
+        if (world_role_adapter_ != nullptr) {
+            const openswd3::platform_sdl3::WorldRoleLabelView bytes =
+                world_role_adapter_->resolve_label_bytes(token);
+            return {bytes.data, bytes.size};
+        }
         if (path_script_state_ == nullptr) {
             return {};
         }
@@ -1413,17 +1441,26 @@ public:
         );
     }
 
-    openswd3::compat::u16 label_color(openswd3::compat::u32) noexcept override {
-        return 0U;
+    openswd3::compat::u16
+    label_color(const openswd3::compat::u32 index) noexcept override {
+        return world_role_adapter_ != nullptr
+            ? world_role_adapter_->label_color(index)
+            : 0U;
     }
 
     void draw_label(
-        std::span<const openswd3::compat::u8>,
-        openswd3::compat::i32,
-        openswd3::compat::i32,
-        openswd3::compat::u16,
-        openswd3::compat::u32
-    ) noexcept override {}
+        const std::span<const openswd3::compat::u8> bytes,
+        const openswd3::compat::i32 x,
+        const openswd3::compat::i32 y,
+        const openswd3::compat::u16 color,
+        const openswd3::compat::u32 style
+    ) noexcept override {
+        if (world_role_adapter_ != nullptr) {
+            world_role_adapter_->draw_label(
+                bytes.data(), bytes.size(), x, y, color, style
+            );
+        }
+    }
 
     void play_sample(
         openswd3::compat::u16,
@@ -1506,6 +1543,7 @@ private:
     openswd3::world_map::LegacyWorldStoryPathRuntime* story_paths_{};
     const openswd3::world_map::LegacyWorldPathScriptState* path_script_state_{};
     const openswd3::world_map::LegacyWorldStoryVmState* story_state_{};
+    openswd3::platform_sdl3::WorldRoleRuntimeAdapter* world_role_adapter_{};
     openswd3::compat::u32 deferred_frame_stage_count_{};
     bool presentation_failed_{};
 };
@@ -2963,6 +3001,33 @@ public:
             .scene_render_flags =
                 &world_frame_state_.frame_runtime.frame.runtime_flags,
         };
+        openswd3::asset_runtime::LegacyAniRoleParticleRuntimePorts
+            role_particle_ports{
+                action_updater_,
+                tsw_runtime_,
+                game_framebuffer_,
+                world_raster_,
+                world_effects_,
+                world_jitter_,
+            };
+        openswd3::platform_sdl3::WorldRoleRuntimeAdapter world_role_adapter{
+            sample_manager_,
+            world_frame_state_.frame_runtime.spatial_audio.mix_level,
+            world_role_particle_effect_,
+            std::bit_cast<openswd3::compat::i32>(world_frame_state_.map_id),
+            world.camera,
+            secondary_rng_,
+            roles.data(),
+            roles.size(),
+            world.selected_role_index,
+            world_frame_effects_.directional_action,
+            role_particle_ports,
+            &world_frame_state_.head_sign_actions,
+            &world_path_script_state_,
+            &world_story_vm_state_,
+            text_renderers_,
+            pixel_conversion_,
+        };
         SdlDeferredWorldFramePorts deferred_ports{
             audio_maintenance_,
             *this,
@@ -2971,6 +3036,7 @@ public:
             &story_paths,
             &world_path_script_state_,
             &world_story_vm_state_,
+            &world_role_adapter,
         };
         // sub_40A570 0x0040AA6C..0x0040AA8B applies the gameplay advances
         // after the renderers were initially built as 24/18/16 by
