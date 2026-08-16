@@ -5,16 +5,18 @@
 仓库：`/mnt/e/Game/swd3/OpenSWD3`
 
 本文用于把当前仓库、执行计划、验证基线和精确开发断点交给下一位执行者。它不替代
-[`execution-plan.md`](execution-plan.md) 或
-[`story-vm-closure-plan.md`](story-vm-closure-plan.md)，也不创造新的完成条件。
+[`execution-plan-pi.md`](execution-plan-pi.md) 或
+[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)，也不创造新的完成条件。
+在 `pi-execution` 分支，这两份带 `-pi` 后缀的副本是唯一执行权威；不带后缀的副本是
+冻结的上游参考，不驱动本分支的执行。
 
 ## 1. 接手后的最短路径
 
 按以下顺序读取，不要先凭 README 或旧模块摘要猜测进度：
 
 1. [`AGENTS.md`](../AGENTS.md)：仓库操作约束。
-2. [`execution-plan.md`](execution-plan.md)：项目唯一主执行计划，当前版本 `v212`。
-3. [`story-vm-closure-plan.md`](story-vm-closure-plan.md)：主计划挂载的高优先级追加计划。
+2. [`execution-plan-pi.md`](execution-plan-pi.md)：本分支唯一主执行计划，当前版本 `v213`。
+3. [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)：主计划挂载的高优先级追加计划。
 4. [`world-map-closure.tsv`](../analysis/04-reverse-engineering/inventory/world-map-closure.tsv)：
    当前 B7 的 114 项逐函数闭环真值表。
 5. [`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)：B7 范围、接口和
@@ -27,13 +29,13 @@
 
 ## 2. Git 与工作区断点
 
-- 分支：`main`
-- 远端：`git@github.com:Ouroboros/OpenSWD3.git`
-- 当前提交：`da098fa6f0db79e147dfee77d2422e78096537d6`
-- 提交标题：`fix: 保留索引底图原始行推进`
-- 当前 `HEAD` 与 `origin/main`：`0 ahead / 0 behind`
-- 生成本文之前：没有未暂存、已暂存或未跟踪文件。
-- 生成本文之后：预期唯一新增文件是 `goal/HANDOFF.md`；本文尚未暂存、提交或推送。
+- 分支：`pi-execution`。
+- 远端：`origin`（`git@github.com:Ouroboros/OpenSWD3.git`）。
+- 分支创建/Pi 执行框架提交：`5232dad6330ba90cd00400d15063b5e028504d1e`。
+- 父提交/分支基线（当时的 `origin/main`）：`da098fa6f0db79e147dfee77d2422e78096537d6`。
+- 当前精确 `HEAD` 和工作区洁净状态不冻结在本文中；每个工作包开始时都必须直接从 Git
+  重新读取并确认，不能继承上次交接或聊天中的值。
+- 预期推送/上游目标为 `origin/pi-execution`；首次阶段推送前由主 Agent 建立该上游关系。
 
 `da098fa` 已关闭 `sub_413220` 的独立审计：8 位 indexed 对齐底图保留原版
 left-zero 局部刷新行推进异常，证据、清单、实现和 UT 已一起提交。
@@ -52,7 +54,7 @@ left-zero 局部刷新行推进异常，证据、清单、实现和 UT 已一起
 B7.1 · 地图、世界、角色与碰撞最小纵向闭环
 ```
 
-但当前执行队列受 [`story-vm-closure-plan.md`](story-vm-closure-plan.md) 覆盖：
+但当前执行队列受 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 覆盖：
 
 1. `P0`：有限收口 B7 的固定 114 项全集；当前正在执行。
 2. `P1`：锁定完整剧情 VM 工作包，即 198 个显式 opcode、146 个唯一 handler 入口、
@@ -131,6 +133,11 @@ P0 达到 B7 模块移交条件后必须立即停止扩展 world-map，转入 P1
   ```
 
   使用普通双引号，不使用 `$"..."`，文本必须为中文并保留段落。
+
+  [`execution-plan-pi.md`](execution-plan-pi.md) 中规定的规范命令
+  `D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"` 与上述命令是同一入口；
+  `python3 /mnt/d/Dev/Source/Project/stockkit/scripts/tg_notify.py ...` 只是它在 WSL/Bash 下的
+  路径映射和启动形式。两者遵守相同的 `CONTENT` 内容合同、中文格式和分段要求。
 
 ## 6. 当前模块状态
 
@@ -344,8 +351,8 @@ E:\Game\swd3\OpenSWD3\build\app\src\platform\sdl3\Debug\openswd3.exe
 
 ## 12. 关键文件索引
 
-- 主计划：[`execution-plan.md`](execution-plan.md)
-- VM 追加计划：[`story-vm-closure-plan.md`](story-vm-closure-plan.md)
+- 主计划：[`execution-plan-pi.md`](execution-plan-pi.md)
+- VM 追加计划：[`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)
 - 仓库约束：[`AGENTS.md`](../AGENTS.md)
 - B7 工作包：[`world-map.md`](../analysis/04-reverse-engineering/modules/world-map.md)
 - B7 逐项真值表：
@@ -367,8 +374,14 @@ E:\Game\swd3\OpenSWD3\build\app\src\platform\sdl3\Debug\openswd3.exe
 
 接手者开始实现前应确认：
 
-- `HEAD` 仍为 `da098fa`，或已理解之后的全部提交。
-- 除本文外没有未知工作区改动；不得覆盖用户文件。
+- 当前分支是 `pi-execution`，并已直接从 Git 重新读取精确 `HEAD` 和工作区洁净状态；若有
+  未知改动或基线不符，立即停止，不得覆盖用户文件。
+- 已确认分支创建/Pi 框架提交为 `5232dad`、其父提交/分支基线为 `da098fa`，并已理解之后
+  的全部提交。
+- 当前只以 [`execution-plan-pi.md`](execution-plan-pi.md) 和
+  [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 为执行权威，没有让冻结的
+  无后缀上游参考驱动本分支。
+- 预期推送/上游目标是 `origin/pi-execution`；首次阶段推送前由主 Agent 建立上游关系。
 - 当前执行位仍是 P0/B7 的 `sub_413370`，没有跳到 VM、战斗或音视频。
 - 已从 LST 独立建立 `sub_413370` 基本块和测试向量，再打开 C++。
 - 所有新增结论都能定位到具体汇编地址。
