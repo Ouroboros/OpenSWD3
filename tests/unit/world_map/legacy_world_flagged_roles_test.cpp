@@ -64,6 +64,10 @@ public:
         const u16 resource_id, const u16 frame_index, LegacyFramePiece& piece
     ) override {
         loads.emplace_back(resource_id, frame_index);
+        if (role_to_replace_on_load != nullptr) {
+            *role_to_replace_on_load = role_after_load;
+            role_to_replace_on_load = nullptr;
+        }
         piece.width = 16U;
         piece.height = 20U;
         return load_succeeds;
@@ -86,6 +90,8 @@ public:
 
     bool load_succeeds{true};
     LegacyBlitExecutionStatus draw_status{LegacyBlitExecutionStatus::completed};
+    LegacyWorldRoleRecord* role_to_replace_on_load{};
+    LegacyWorldRoleRecord role_after_load{};
     LegacyWorldRoleRecord* role_to_mutate_on_draw{};
     u32 next_link_after_draw{};
     u32 unexpected_updates{};
@@ -146,6 +152,48 @@ void test_single_role_contract(openswd3::test::Context& test) {
             ports.draws[0].y == 0 && ports.draws[0].flags == 0x80000017U &&
             ports.draws[0].opacity_step == 4,
         "coordinates wrap and the fixed 0x16 mode uses opacity step four"
+    );
+}
+
+void test_load_time_capture_and_reload(openswd3::test::Context& test) {
+    LegacyWorldRoleRecord role{};
+    role.flags = 0x00008000U;
+    role.world_x = 100U;
+    role.world_y = 200U;
+    role.field_28 = 1U;
+    role.field_2a = 2U;
+    role.action.action_id = 0xABCD0001U;
+    role.action.draw_offset_x = 3U;
+    role.action.mode_flags = 0x80000001U;
+    role.action.field_4a = 7U;
+    role.action.field_4c = 8U;
+
+    RecordingPorts ports;
+    ports.role_to_replace_on_load = &role;
+    ports.role_after_load = role;
+    ports.role_after_load.world_x = 1000U;
+    ports.role_after_load.world_y = 2000U;
+    ports.role_after_load.field_28 = 11U;
+    ports.role_after_load.field_2a = 12U;
+    ports.role_after_load.action.draw_offset_x = 13U;
+    ports.role_after_load.action.mode_flags = 0U;
+    ports.role_after_load.action.field_4a = 70U;
+    ports.role_after_load.action.field_4c = 80U;
+
+    const auto draw = draw_legacy_world_flagged_role(
+        role, LegacyWorldRenderCamera{.left = 10, .top = 20}, ports
+    );
+    test.expect_true(
+        draw.status == LegacyWorldFlaggedRoleDrawStatus::completed &&
+            draw.resource_id == 7U && draw.frame_index == 8U &&
+            ports.loads == std::vector<std::pair<u16, u16>>{{7U, 8U}},
+        "action selector and TSW key are captured before the frame load"
+    );
+    test.expect_true(
+        ports.draws.size() == 1U && ports.draws[0].x == 88 &&
+            ports.draws[0].y == 200 && ports.draws[0].flags == 0x80000017U &&
+            ports.draws[0].opacity_step == 4,
+        "world coordinates and mode stay captured while draw fields reload"
     );
 }
 
@@ -379,10 +427,11 @@ void test_failures_and_accepted_blit_exits(openswd3::test::Context& test) {
     const auto load_failure = draw_legacy_world_flagged_role(
         role, LegacyWorldRenderCamera{}, missing
     );
-    test.expect_equal(
-        load_failure.status,
-        LegacyWorldFlaggedRoleDrawStatus::frame_load_failed,
-        "missing TSW frame stops before the impossible original dereference"
+    test.expect_true(
+        load_failure.status ==
+                LegacyWorldFlaggedRoleDrawStatus::frame_load_failed &&
+            load_failure.opacity_step == 4,
+        "missing TSW frame preserves the opacity write before isolation"
     );
 
     LegacyRoleSpatialIndex spatial = make_spatial_index(40U);
@@ -498,6 +547,7 @@ void test_real_tsw_and_blitter(
 int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
     test_single_role_contract(test);
+    test_load_time_capture_and_reload(test);
     test_selector_and_strict_culling(test);
     test_spatial_scan_order_and_group(test);
     test_empty_rows_and_signed_camera_quotient(test);

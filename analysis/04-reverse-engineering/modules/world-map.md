@@ -19,14 +19,15 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 96 项：43 项 `assembly_exact`、53 项 `platform_adapted`；其余
-18 项保持待审计。最新关闭 `sub_413EA0`：`0x00413EA0..0x00413EFE` 的无参 ABI、唯一
-service-11 调用槽、group-0 行首、向零相机商减五、最多四十行、有符号高度退出、负行跳过、
-bit-29 门和 post-callee next reload 均已完成逐基本块双向追溯。实现删除与全 null 行头冲突
-的空角色整体早退；`-17/-15`、H=3/H=0 空角色、极端相机和回调改 next 已由独立向量固定。
-受检行首/link/frame owner 使分类保持 `platform_adapted`；`sub_413F00` 仍为
-`pending_audit/not_inherited`。flagged-role synthetic/real 与 world-frame synthetic/real
-四项定向测试通过；Linux core `185/185`、Linux app `191/191`、Windows LLVM app
+114 项全集复核当前已关闭 97 项：43 项 `assembly_exact`、54 项 `platform_adapted`；其余
+17 项保持待审计。最新关闭 `sub_413F00`：`0x00413F00..0x00413FDD` 的一参数 cdecl、唯一
+调用者、drawable mask、冻结 camera/world/mode/TSW key、严格水平开区间、post-load
+`field_28/field_2a/draw_offset_x` 重读、坐标回绕和固定透明 flags 均已完成逐基本块双向追溯。
+复核发现旧实现错误地在 frame load 后重读 world X/Y 与 mode，现改为 load 前快照；独立
+mutation 向量同时证明三个 draw 字段仍在 load 后读取。TSW lookup 的混合 frame dword 经
+直接 callee 证明显式截为低 16 位；缺帧隔离保留 opacity step 四。受检 frame owner 使分类
+保持 `platform_adapted`。flagged-role synthetic/real 与 world-frame synthetic/real 四项
+定向测试通过；Linux core `185/185`、Linux app `191/191`、Windows LLVM app
 `191/191` 完整门禁通过，两端应用成功链接且未启动游戏 EXE。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
@@ -97,8 +98,8 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
    音频随后也已独立闭环：保留入口距离、scheduler、start/stop、play/volume/pan 的物理
    顺序与 post-callee reload，并把 SDL 空端口接到实际 sample manager。`sub_413EA0`
    group-0 bit-29 扫描也已独立闭环，保留向零相机商、四十行、signed height 门和 callee 后
-   next 重读；`sub_413F00` 继续保持 `pending_audit`，不得继承外层关闭。普通角色 runtime
-   adapter 已接入真实 TSW 和软件 framebuffer，
+   next 重读；`sub_413F00` 随后独立闭环，纠正 load 后 world/mode 误读并保留三个 live
+   draw 字段。普通角色 runtime adapter 已接入真实 TSW 和软件 framebuffer，
    两个固定哈希分别为 `0xA6C3E08156F06060` 与 `0xA4766C928B05DC88`。空间 stage 已在
    `0x00412930` 的实际 runtime 原槽接线，
    共用角色数组、clip、framebuffer 和 jitter；真实 TSW 双路径叠加底图的整帧哈希为

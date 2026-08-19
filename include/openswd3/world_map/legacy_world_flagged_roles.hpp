@@ -43,8 +43,9 @@ struct LegacyWorldFlaggedRoleDrawResult {
 };
 
 // 0x00413F00: draw one bit-29 spatial role with the fixed translucent mode.
-// This path does not update the embedded action record before resolving its
-// current TSW frame.
+// This path does not update the embedded action record. World/camera/mode and
+// the TSW key are captured before frame resolution; the two role position
+// words and action draw-X offset are reloaded afterward.
 [[nodiscard]] LegacyWorldFlaggedRoleDrawResult draw_legacy_world_flagged_role(
     const LegacyWorldRoleRecord& role,
     LegacyWorldRenderCamera camera,

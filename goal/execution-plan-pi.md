@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v219
+版本：v220
 
 最后更新：2026-08-16
 
@@ -1052,5 +1052,20 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     CTest 全部通过，两端应用成功链接且未启动游戏 EXE。原版 framebuffer/jitter 动态
     oracle 仍阻断。114 项当前关闭 96 项，即
     `43 assembly_exact + 53 platform_adapted + 18 pending_audit`。
+
+    B7 的单个 bit-29 角色绘制 `sub_413F00` 随后完成独立闭环：完整物理范围
+    `0x00413F00..0x00413FDD`、`sub_413EA0:0x00413EE2` 唯一调用点、一参数
+    cdecl/plain `retn`、恒一返回、drawable mask、冻结 camera/world/mode/TSW key、严格
+    `(-320,960)` 水平开区间、post-load `field_28/field_2a/draw_offset_x` 重读、两条回绕
+    坐标公式与固定透明 flags 均完成 LST→C++→LST 双向逐基本块收敛。复核发现旧实现会在
+    frame load 后错误重读 world X/Y 与 mode，现改为 load 前快照；mutation UT 同时证明
+    三个 draw 字段继续读取 load 后 live 值，固定 resource/frame `7/8`、坐标 `(88,200)`
+    与 flags `0x80000017`。继续追入 TSW lookup/load 边界后确认混合 frame dword 的高
+    16 位在 cache key 和物理读取前均被屏蔽；现代缺帧隔离仍保留原 opacity step 四的先行
+    写入。受检 frame owner 保持为平台适配。Linux `core` 185/185、Linux `app` 191/191、
+    Windows LLVM `app` 191/191 CTest 全部通过，两端应用成功链接且未启动游戏 EXE。
+    原版 framebuffer/jitter 动态 oracle 仍阻断。114 项当前关闭 97 项，即
+    `43 assembly_exact + 54 platform_adapted + 17 pending_audit`；下一精确停点为
+    `0x00413FE0 sub_413FE0`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

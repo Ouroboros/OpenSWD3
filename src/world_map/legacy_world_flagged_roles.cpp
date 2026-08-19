@@ -59,45 +59,49 @@ LegacyWorldFlaggedRoleDrawResult draw_legacy_world_flagged_role(
         return result;
     }
 
-    const i32 horizontal_distance =
-        wrapping_subtract(field_as_i32(role.world_x), camera.left);
+    const i32 camera_top = camera.top;
+    const i32 world_y = field_as_i32(role.world_y);
+    const i32 camera_left = camera.left;
+    const i32 world_x = field_as_i32(role.world_x);
+    const i32 horizontal_distance = wrapping_subtract(world_x, camera_left);
     result.horizontally_visible =
         horizontal_distance > -320 && horizontal_distance < 960;
     if (!result.horizontally_visible) {
         return result;
     }
 
-    result.resource_id =
-        role.action.action_id == 0U ? u16{0xFFFFU} : role.action.field_4a;
+    const u32 action_id = role.action.action_id;
+    const u32 mode_flags = role.action.mode_flags;
+    result.resource_id = action_id == 0U ? u16{0xFFFFU} : role.action.field_4a;
     result.frame_index = role.action.field_4c;
     result.frame_requested = true;
     rendering::LegacyFramePiece piece;
-    if (!ports.load_frame_piece(
-            result.resource_id, result.frame_index, piece
-        )) {
+    const bool frame_loaded =
+        ports.load_frame_piece(result.resource_id, result.frame_index, piece);
+    result.opacity_step = 4;
+    if (!frame_loaded) {
         result.status = LegacyWorldFlaggedRoleDrawStatus::frame_load_failed;
         return result;
     }
 
+    result.destination_y = wrapping_add(
+        wrapping_add(
+            wrapping_subtract(static_cast<i32>(role.field_2a), camera_top),
+            world_y
+        ),
+        8
+    );
     result.destination_x = wrapping_add(
         wrapping_subtract(
             wrapping_subtract(
                 static_cast<i32>(role.field_28),
                 field_as_i32(role.action.draw_offset_x)
             ),
-            camera.left
+            camera_left
         ),
-        field_as_i32(role.world_x)
+        world_x
     );
-    result.destination_y = wrapping_add(
-        wrapping_add(
-            wrapping_subtract(static_cast<i32>(role.field_2a), camera.top),
-            field_as_i32(role.world_y)
-        ),
-        8
-    );
-    result.flags = (role.action.mode_flags & 0x80000017U) | 0x00000016U;
-    result.opacity_step = 4;
+    result.flags = (mode_flags & 0x80000017U) | 0x00000016U;
     result.last_blit_status = ports.draw_frame_piece(
         piece,
         result.destination_x,
