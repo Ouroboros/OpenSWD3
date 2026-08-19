@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <limits>
 #include <span>
 
@@ -426,6 +427,82 @@ void test_full_frame_transition_wrapper(openswd3::test::Context& test) {
     );
 }
 
+void test_transition_unordered_and_conversion_boundaries(
+    openswd3::test::Context& test
+) {
+    const LegacyPixelConversionState format;
+    LegacyFramebuffer framebuffer;
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    LegacyFrameColorTransitionState transition{
+        .countdown = 0,
+        .current_red = 4.0F,
+        .step_red = nan,
+        .step_green = 1.9F,
+    };
+
+    const auto mixed_unordered =
+        openswd3::rendering::update_legacy_frame_color_transition(
+            transition, false, framebuffer, format
+        );
+    test.expect_true(
+        mixed_unordered.status == LegacyFrameColorTransitionStatus::completed &&
+            !mixed_unordered.countdown_decremented &&
+            mixed_unordered.current_values_advanced &&
+            transition.countdown == 0 && std::isnan(transition.current_red) &&
+            mixed_unordered.applied_red == 0 &&
+            mixed_unordered.applied_green == 1 &&
+            mixed_unordered.applied_blue == 0,
+        "one unordered step does not trigger the all-three early return"
+    );
+
+    transition = LegacyFrameColorTransitionState{
+        .countdown = 0,
+        .step_red = 4294967040.0F,
+        .step_green = -4294967296.0F,
+        .step_blue = std::numeric_limits<float>::infinity(),
+    };
+    const auto conversion =
+        openswd3::rendering::update_legacy_frame_color_transition(
+            transition, false, framebuffer, format
+        );
+    test.expect_true(
+        conversion.status == LegacyFrameColorTransitionStatus::completed &&
+            conversion.applied_red == -256 && conversion.applied_green == 0 &&
+            conversion.applied_blue == 0,
+        "sub_489654 truncates to i64 then exposes the low i32"
+    );
+
+    transition = LegacyFrameColorTransitionState{
+        .countdown = -2,
+        .current_red = 1.9F,
+        .current_green = 2.9F,
+        .current_blue = 3.9F,
+        .target_red = 7.0F,
+        .target_green = 8.0F,
+        .target_blue = 9.0F,
+        .step_red = 4.0F,
+        .step_green = 5.0F,
+        .step_blue = 6.0F,
+    };
+    const auto already_negative =
+        openswd3::rendering::update_legacy_frame_color_transition(
+            transition, true, framebuffer, format
+        );
+    test.expect_true(
+        already_negative.status ==
+                LegacyFrameColorTransitionStatus::completed &&
+            !already_negative.countdown_decremented &&
+            !already_negative.current_values_advanced &&
+            already_negative.steps_replaced_by_targets &&
+            transition.countdown == -2 && transition.step_red == 7.0F &&
+            transition.step_green == 8.0F && transition.step_blue == 9.0F &&
+            already_negative.applied_red == 1 &&
+            already_negative.applied_green == 2 &&
+            already_negative.applied_blue == 3,
+        "an initially negative countdown skips decrement and copies targets"
+    );
+}
+
 }  // namespace
 
 int main() {
@@ -435,5 +512,6 @@ int main() {
     test_wrapped_delta_and_lane_carry(test);
     test_safety_and_zero_count_side_effect(test);
     test_full_frame_transition_wrapper(test);
+    test_transition_unordered_and_conversion_boundaries(test);
     return test.exit_code();
 }

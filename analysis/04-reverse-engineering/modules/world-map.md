@@ -19,14 +19,15 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 100 项：44 项 `assembly_exact`、56 项 `platform_adapted`；其余
-14 项保持待审计。最新关闭 `sub_4145F0`：`0x004145F0..0x004146E2` 的六参数 cdecl、
-唯一调用点、frame 高度二分/四分、counter parity/bit3/low3 分支、坐标回绕、flags mask、
-零 auxiliary、继承 jitter 和 `0x004995D4` 全 16 项 RGB 色表均完成逐指令双向追溯。独立
-向量覆盖 counter `0/1/2/8/9/10`、负奇数 offset、奇数高度及 height 3 的零 target 特例。
-受检 role/frame owner 和 typed blit port 使分类保持 `platform_adapted`。synthetic/real
-roles 两项定向 CTest 通过；Linux core `185/185`、Linux app `191/191`、Windows LLVM
-app `191/191` 完整门禁通过，两端应用成功链接且未启动游戏 EXE。原版完整
+114 项全集复核当前已关闭 101 项：44 项 `assembly_exact`、57 项 `platform_adapted`；其余
+13 项保持待审计。最新关闭 `sub_4146F0`：`0x004146F0..0x004147DE` 的一参数 cdecl、唯一
+调用点、三项 x87 zero/unordered 门、可选 countdown 减一、current/step 两分支、目标 bit
+复制、三次 qword→low-dword 向零转换和完整 `0x4B000` 像素 RGB 偏移均完成逐指令双向
+追溯。独立向量覆盖 mixed NaN、参数零、入口负 countdown、64 位转换低字和末像素 read
+guard。owned framebuffer 与 typed format 使分类保持 `platform_adapted`。frame-color
+及 world-frame composition/runtime synthetic/real 五项定向 CTest 通过；Linux core
+`185/185`、Linux app `191/191`、Windows LLVM app `191/191` 完整门禁通过，两端应用
+成功链接且未启动游戏 EXE。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放
