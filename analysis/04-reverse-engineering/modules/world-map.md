@@ -19,15 +19,14 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 98 项：43 项 `assembly_exact`、55 项 `platform_adapted`；其余
-16 项保持待审计。最新关闭 `sub_413FE0`：`0x00413FE0..0x00414567` 的两参数 ABI、调用者
-多余常量、入口文字样式、五次 38×28 格扫描、七条固定文字、事件与附近角色分支均完成
-逐基本块双向追溯。复核纠正三项旧时序：事件号改在任何文字前冻结；DIV-zero 改为保留
-MAct/Mouse 两次先行调用；事件 flag 数字改在低位查询 callback 后第三次重读。空事件名仍
-发出一次 NUL draw，角色第二行读取摘要 callback 后字段。受检 framebuffer/cell/event/role、
-格式缓冲与 DIV boundary 使分类保持 `platform_adapted`。debug-overlay 与 coordinator 两项
-定向 CTest 通过；Linux core `185/185`、Linux app `191/191`、Windows LLVM app
-`191/191` 完整门禁通过，两端应用成功链接且未启动游戏 EXE。原版完整
+114 项全集复核当前已关闭 99 项：44 项 `assembly_exact`、55 项 `platform_adapted`；其余
+15 项保持待审计。最新关闭 `sub_414570`：`0x00414570..0x004145EF` 的无参数 ABI、唯一
+调用者、双 remaining 入口门、共享双轴更新体、四条 viewport 回绕加法、两条 remaining
+回绕减法与结果恰好为零时的 step 清理均完成逐指令双向追溯。一轴非规范零 remaining/非零
+step、不可整除 overshoot、dormant step 及 `INT32_MIN - 1` 全部由独立向量固定。该函数
+没有 unsafe pointer、callback 或平台替代，分类为 `assembly_exact`。camera-pan 与
+coordinator 两项定向 CTest 通过；Linux core `185/185`、Linux app `191/191`、Windows
+LLVM app `191/191` 完整门禁通过，两端应用成功链接且未启动游戏 EXE。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放

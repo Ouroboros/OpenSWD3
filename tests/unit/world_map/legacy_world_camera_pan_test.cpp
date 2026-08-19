@@ -89,6 +89,27 @@ void test_active_peer_preserves_noncanonical_axis(
     );
 }
 
+void test_overshoot_does_not_clamp(openswd3::test::Context& test) {
+    LegacyWorldCameraRect camera{};
+    LegacyWorldCameraPanState state{
+        .remaining_x = 1,
+        .remaining_y = -1,
+        .step_x = 2,
+        .step_y = -2,
+    };
+
+    test.expect_true(
+        advance_legacy_world_camera_pan(camera, state),
+        "non-divisible remaining distances still enter the shared update"
+    );
+    test.expect_true(
+        camera.left == 2U && camera.right == 2U && camera.top == 0xFFFFFFFEU &&
+            camera.bottom == 0xFFFFFFFEU && state.remaining_x == -1 &&
+            state.remaining_y == 1 && state.step_x == 2 && state.step_y == -2,
+        "overshoot wraps past zero without clamping or clearing either step"
+    );
+}
+
 void test_x86_integer_wrap(openswd3::test::Context& test) {
     LegacyWorldCameraRect camera{0xFFFFFFFEU, 0xFFFFFFFFU, 0U, 1U};
     LegacyWorldCameraPanState state{
@@ -118,6 +139,7 @@ int main() {
     test_inactive_state_returns_without_mutation(test);
     test_signed_steps_and_axis_completion(test);
     test_active_peer_preserves_noncanonical_axis(test);
+    test_overshoot_does_not_clamp(test);
     test_x86_integer_wrap(test);
     return test.exit_code();
 }

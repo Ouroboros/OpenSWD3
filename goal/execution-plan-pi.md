@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v221
+版本：v222
 
 最后更新：2026-08-16
 
@@ -1081,5 +1081,17 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     未启动游戏 EXE。原版 framebuffer/text 动态 oracle 仍阻断。114 项当前关闭 98 项，
     即 `43 assembly_exact + 55 platform_adapted + 16 pending_audit`；下一精确停点为
     `0x00414570 sub_414570`。
+
+    B7 的脚本相机逐帧平移 `sub_414570` 随后完成独立闭环：完整物理范围
+    `0x00414570..0x004145EF`、`sub_4120B0:0x0041268C` 唯一调用点、无参数 ABI、
+    `ESI/EBX` 保存、无统一 EAX 返回合同、双 remaining 入口门、共享双轴更新体、四条
+    viewport 回绕加法、两条 remaining 回绕减法及结果恰好为零时的 step 清理均完成
+    LST→C++→LST 双向逐指令收敛。独立向量固定 dormant step、一轴非规范零 remaining/
+    非零 step、`remaining = ±1, step = ±2` overshoot 和 `INT32_MIN - 1` 回绕；纯 32 位
+    状态变换无 unsafe pointer、callback 或平台替代，分类为 `assembly_exact`。Linux
+    `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest 全部通过，
+    两端应用成功链接且未启动游戏 EXE。114 项当前关闭 99 项，即
+    `44 assembly_exact + 55 platform_adapted + 15 pending_audit`；下一精确停点为
+    `0x004145F0 sub_4145F0`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

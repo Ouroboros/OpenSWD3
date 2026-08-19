@@ -5,12 +5,14 @@
 
 本文只以 `swd3.exe.lst` 的机器码和指令为行为真值。`sub_414570` 的完整范围是
 `0x00414570..0x004145EF`，无被调函数，唯一直接调用点是普通世界主帧
-`0x0041268C`。
+`0x0041268C`。它没有栈参数，保存 `ESI/EBX` 后以 plain `retn` 返回；物理出口不形成统一
+`EAX` 合同，唯一调用者也不读取返回值。现代 bool 只报告是否进入共享更新体，不参与游戏
+状态决策。
 
 ## 1. 状态映射
 
 | 原地址 | OpenSWD3 字段 | 含义 |
-|---|---|---|
+| --- | --- | --- |
 | `0x004A99F0` | `remaining_x` | X 轴尚未完成的脚本位移 |
 | `0x004A98C0` | `remaining_y` | Y 轴尚未完成的脚本位移 |
 | `0x004A9480` | `step_x` | 每帧 X 位移 |
@@ -38,8 +40,9 @@ if remaining_y == 0: step_y = 0
 ```
 
 四条相机加法和两条 remaining 减法全部按 x86 32 位回绕实现，不借用会触发 C++ 有符号
-溢出未定义行为的普通 `i32` 算术。步长只在减法结果**恰好**为零时清除；本函数不修正
-越过零点或不可整除的脚本参数。
+溢出未定义行为的普通 `i32` 算术。写回顺序为完整 viewport、`remaining_x`、
+`remaining_y`，随后分别按减法结果清 step；没有 callback 或可重入边界。步长只在减法
+结果**恰好**为零时清除；本函数不修正越过零点或不可整除的脚本参数。
 
 共享更新体也没有独立的轴门：如果 Y remaining 非零而 X remaining 已为零，非零的
 X step 仍会移动视口并把 X remaining 减成负值。这在正常生产者合同下不应出现，但
@@ -65,9 +68,13 @@ X step 仍会移动视口并把 X remaining 减成负值。这在正常生产者
 - 两个 remaining 都为零时，camera、remaining 和 dormant step 全部不变；
 - 正负步长同时移动四条视口边，并只清除恰好完成的轴；
 - 一轴激活时，另一非规范零 remaining/非零 step 仍进入共享更新体；
+- `remaining = ±1, step = ±2` 越过零点后不钳位、不清 step；
 - camera 加法及 `INT32_MIN - 1` 按模 `2^32` 回绕。
 
 coordinator UT 另以 active pan 固定物理顺序：玩家 transition 后 camera 为
 `(14,16)`，脚本平移后为 `(16,15)`，选择滚动后的组合坐标为 `(19,13)`，帧尾恢复到
-`(16,15)`。Linux LLVM `core` 154/154、Windows LLVM `app` 158/158 CTest 通过。
-原程序动态差分若需要，只准备 Frida spawn 工具并等待用户执行，不由开发流程启动原版。
+`(16,15)`。camera-pan 与 frame-coordinator 两项定向 CTest 通过；Linux core
+`185/185`、Linux app `191/191`、Windows LLVM app `191/191` 完整门禁通过，两端应用
+成功链接且未启动游戏 EXE。纯 32 位状态变换没有 unsafe pointer、外部 callback 或平台
+替代，因此 closure disposition 为 `assembly_exact`。原程序动态差分若需要，只准备
+Frida spawn 工具并等待用户执行，不由开发流程启动原版。
