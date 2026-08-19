@@ -90,8 +90,8 @@ public:
         if (!load_succeeds) {
             return false;
         }
-        frame.width = 16U;
-        frame.height = 20U;
+        frame.width = frame_width;
+        frame.height = frame_height;
         frame.auxiliary = auxiliary;
         return true;
     }
@@ -155,6 +155,8 @@ public:
     bool service_0b{};
     bool service_48{};
     bool load_succeeds{true};
+    u16 frame_width{16U};
+    u16 frame_height{20U};
     bool overlay_available{true};
     bool label_available{true};
     LegacyBlitExecutionStatus draw_status{LegacyBlitExecutionStatus::completed};
@@ -350,6 +352,119 @@ void test_ghost_pass(openswd3::test::Context& test) {
             jitter.group == 2 && jitter.phase_bytes == 12U,
         "ghost inherits prior global jitter before main loads the role state"
     );
+}
+
+void test_ghost_phase_matrix(openswd3::test::Context& test) {
+    struct PhaseCase {
+        u32 counter;
+        i32 destination_x;
+        i32 destination_y;
+        i32 target_height;
+        i32 displacement;
+        u32 flags;
+    };
+    constexpr std::array<PhaseCase, 6U> cases{
+        PhaseCase{0U, 64, 154, 10, -5, 0x8000000CU},
+        PhaseCase{1U, 56, 154, 10, 5, 0x8000000CU},
+        PhaseCase{2U, 64, 164, 10, -5, 0x8000000EU},
+        PhaseCase{8U, 64, 163, 5, -5, 0x8000000CU},
+        PhaseCase{9U, 56, 163, 5, 5, 0x8000000CU},
+        PhaseCase{10U, 64, 168, 5, -5, 0x8000000EU},
+    };
+
+    for (const PhaseCase& phase : cases) {
+        LegacyWorldRoleRecord role = make_role();
+        role.action.field_58 = 0U;
+        role.action.mode_flags = 0x80000000U;
+        role.flags |= kLegacyWorldRoleFlashBit;
+        LegacyWorldRoleRenderState state = make_state();
+        state.frame_counter = phase.counter;
+        RecordingPorts ports;
+        LegacyRleRowJitterState jitter;
+
+        const auto result = draw_legacy_world_role(role, state, jitter, ports);
+        const auto& ghost = ports.draws[0].request;
+        test.expect_true(
+            result.ghost_drawn && ports.draws.size() >= 2U &&
+                ghost.destination_x == phase.destination_x &&
+                ghost.destination_y == phase.destination_y &&
+                ghost.target_height == phase.target_height &&
+                ghost.horizontal_resample_displacement == phase.displacement &&
+                ghost.flags == phase.flags,
+            "0x004145F0 counter bits preserve every geometry branch"
+        );
+    }
+
+    LegacyWorldRoleRecord signed_role = make_role();
+    signed_role.action.field_58 = 0U;
+    signed_role.action.draw_offset_y = std::bit_cast<u32>(-5);
+    signed_role.action.mode_flags = 0x80000000U;
+    signed_role.flags |= kLegacyWorldRoleFlashBit;
+    LegacyWorldRoleRenderState signed_state = make_state();
+    signed_state.frame_counter = 8U;
+    RecordingPorts signed_ports;
+    signed_ports.frame_height = 15U;
+    LegacyRleRowJitterState signed_jitter;
+
+    const auto signed_result = draw_legacy_world_role(
+        signed_role, signed_state, signed_jitter, signed_ports
+    );
+    const auto& signed_ghost = signed_ports.draws[0].request;
+    test.expect_true(
+        signed_result.ghost_drawn && signed_ghost.destination_x == 64 &&
+            signed_ghost.destination_y == 169 &&
+            signed_ghost.target_height == 3 &&
+            signed_ghost.horizontal_resample_displacement == -3,
+        "signed odd offsets and odd heights truncate toward zero"
+    );
+
+    LegacyWorldRoleRecord zero_target_role = make_role();
+    zero_target_role.action.field_58 = 0U;
+    zero_target_role.action.mode_flags = 0xFFFFFFFFU;
+    zero_target_role.flags |= kLegacyWorldRoleFlashBit;
+    LegacyWorldRoleRenderState zero_target_state = make_state();
+    zero_target_state.frame_counter = 8U;
+    RecordingPorts zero_target_ports;
+    zero_target_ports.frame_height = 3U;
+    LegacyRleRowJitterState zero_target_jitter;
+
+    const auto zero_target_result = draw_legacy_world_role(
+        zero_target_role,
+        zero_target_state,
+        zero_target_jitter,
+        zero_target_ports
+    );
+    const auto& zero_target = zero_target_ports.draws[0].request;
+    test.expect_true(
+        zero_target_result.ghost_drawn && zero_target.target_height == 0 &&
+            zero_target.horizontal_resample_displacement == 0 &&
+            zero_target.flags == 0x8000000FU,
+        "height three preserves the zero-target special path and flag mask"
+    );
+}
+
+void test_ghost_color_table(openswd3::test::Context& test) {
+    constexpr std::array<i32, 16U> expected{
+        -8, -7, -6, -5, -4, -3, -2, 0, 0, 0, -14, -13, -12, -11, -10, -9
+    };
+    for (u32 index = 0U; index < static_cast<u32>(expected.size()); ++index) {
+        LegacyWorldRoleRecord role = make_role();
+        role.action.field_58 = 0U;
+        role.flags |= kLegacyWorldRoleFlashBit | (index << 20U);
+        LegacyWorldRoleRenderState state = make_state();
+        state.frame_counter = 0U;
+        RecordingPorts ports;
+        LegacyRleRowJitterState jitter;
+
+        const auto result = draw_legacy_world_role(role, state, jitter, ports);
+        const auto& ghost = ports.draws[0].request;
+        test.expect_true(
+            result.ghost_drawn && ghost.red_offset == expected[index] &&
+                ghost.green_offset == expected[index] &&
+                ghost.blue_offset == expected[index],
+            "0x004995D4 ghost color table stays exact for all sixteen indices"
+        );
+    }
 }
 
 void test_additive_overlay_particles_and_label(openswd3::test::Context& test) {
@@ -978,6 +1093,8 @@ int main(const int argument_count, char** arguments) {
     test_main_draw_contract(test);
     test_inclusive_cull_and_service(test);
     test_ghost_pass(test);
+    test_ghost_phase_matrix(test);
+    test_ghost_color_table(test);
     test_additive_overlay_particles_and_label(test);
     test_post_main_live_reloads_and_frozen_placement(test);
     test_frame_load_mutation_uses_entry_placement(test);

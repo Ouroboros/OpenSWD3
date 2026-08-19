@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v222
+版本：v223
 
 最后更新：2026-08-16
 
@@ -1093,5 +1093,18 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     两端应用成功链接且未启动游戏 EXE。114 项当前关闭 99 项，即
     `44 assembly_exact + 55 platform_adapted + 15 pending_audit`；下一精确停点为
     `0x004145F0 sub_4145F0`。
+
+    B7 的普通角色闪烁残影 `sub_4145F0` 随后完成独立闭环：完整物理范围
+    `0x004145F0..0x004146E2`、`sub_413910:0x00413A0E` 唯一调用点、六参数 cdecl、
+    `sub_4170E0` 唯一 direct callee、frame 高度二分/四分、counter parity/bit3/low3
+    分支、坐标回绕、flags mask、零 auxiliary、共享 jitter 继承和 `0x004995D4` 全 16 项
+    RGB 色表均完成 LST→C++→LST 双向逐指令收敛。独立向量固定 counter
+    `0/1/2/8/9/10`、负奇数 action offset、奇数 frame height、height 3 的零 target/零
+    displacement 特例及完整色表。受检 role/frame owner 与 typed blit request/port 使分类
+    保持 `platform_adapted`。synthetic/real roles 两项定向 CTest 通过；Linux `core`
+    185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest 全部通过，两端应用
+    成功链接且未启动游戏 EXE。114 项当前关闭 100 项，即
+    `44 assembly_exact + 56 platform_adapted + 14 pending_audit`；下一精确停点为
+    `0x004146F0 sub_4146F0`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

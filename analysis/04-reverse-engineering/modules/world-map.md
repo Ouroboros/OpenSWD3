@@ -19,14 +19,14 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 99 项：44 项 `assembly_exact`、55 项 `platform_adapted`；其余
-15 项保持待审计。最新关闭 `sub_414570`：`0x00414570..0x004145EF` 的无参数 ABI、唯一
-调用者、双 remaining 入口门、共享双轴更新体、四条 viewport 回绕加法、两条 remaining
-回绕减法与结果恰好为零时的 step 清理均完成逐指令双向追溯。一轴非规范零 remaining/非零
-step、不可整除 overshoot、dormant step 及 `INT32_MIN - 1` 全部由独立向量固定。该函数
-没有 unsafe pointer、callback 或平台替代，分类为 `assembly_exact`。camera-pan 与
-coordinator 两项定向 CTest 通过；Linux core `185/185`、Linux app `191/191`、Windows
-LLVM app `191/191` 完整门禁通过，两端应用成功链接且未启动游戏 EXE。原版完整
+114 项全集复核当前已关闭 100 项：44 项 `assembly_exact`、56 项 `platform_adapted`；其余
+14 项保持待审计。最新关闭 `sub_4145F0`：`0x004145F0..0x004146E2` 的六参数 cdecl、
+唯一调用点、frame 高度二分/四分、counter parity/bit3/low3 分支、坐标回绕、flags mask、
+零 auxiliary、继承 jitter 和 `0x004995D4` 全 16 项 RGB 色表均完成逐指令双向追溯。独立
+向量覆盖 counter `0/1/2/8/9/10`、负奇数 offset、奇数高度及 height 3 的零 target 特例。
+受检 role/frame owner 和 typed blit port 使分类保持 `platform_adapted`。synthetic/real
+roles 两项定向 CTest 通过；Linux core `185/185`、Linux app `191/191`、Windows LLVM
+app `191/191` 完整门禁通过，两端应用成功链接且未启动游戏 EXE。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放
