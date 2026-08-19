@@ -278,13 +278,11 @@ template <typename... Arguments>
         mouse_y > role.world_y - 0x40U && mouse_y < role.world_y + 0x10U;
 }
 
-void draw_event_debug(
+[[nodiscard]] bool capture_event_id(
     const LegacyWorldBackgroundSource& background,
-    const std::span<const LegacyWorldMapEvent> events,
     const i32 camera_left,
     const i32 camera_top,
     const LegacyWorldDebugOverlayState& state,
-    LegacyWorldDebugOverlayPorts& ports,
     LegacyWorldDebugOverlayResult& result
 ) noexcept {
     const u32 world_x =
@@ -297,7 +295,7 @@ void draw_event_debug(
             result.status =
                 LegacyWorldDebugOverlayStatus::cell_grid_out_of_bounds;
         }
-        return;
+        return false;
     }
     const std::size_t cell_index =
         static_cast<std::size_t>(cell_y) * background.map_width + cell_x;
@@ -307,9 +305,18 @@ void draw_event_debug(
             result.status =
                 LegacyWorldDebugOverlayStatus::cell_grid_out_of_bounds;
         }
-        return;
+        return false;
     }
     result.event_id = flags & 0xFFU;
+    return true;
+}
+
+void draw_event_debug(
+    const std::span<const LegacyWorldMapEvent> events,
+    const LegacyWorldDebugOverlayState& state,
+    LegacyWorldDebugOverlayPorts& ports,
+    LegacyWorldDebugOverlayResult& result
+) noexcept {
     if (result.event_id == 0U) {
         return;
     }
@@ -328,21 +335,18 @@ void draw_event_debug(
         return;
     }
     result.event_found = true;
-    if (!event->name_bytes_with_terminator.empty()) {
-        draw_text(
-            ports,
-            event->name_bytes_with_terminator,
-            0x1C0,
-            state.text_color,
-            result
-        );
-    }
+    constexpr std::array<u8, 1U> empty_name{0U};
+    const std::span<const u8> name = event->name_bytes_with_terminator.empty()
+        ? std::span<const u8>{empty_name}
+        : std::span<const u8>{event->name_bytes_with_terminator};
+    draw_text(ports, name, 0x1C0, state.text_color, result);
     const u32 high_flag = event->field_0c >> 16U;
     const char* const high_text =
         ports.query_debug_flag(high_flag) ? kNotPassable : kPassable;
     const u32 low_flag = event->field_0c & 0xFFFFU;
     const char* const low_text =
         ports.query_debug_flag(low_flag) ? kSelectable : kNotSelectable;
+    const u32 formatted_flags = event->field_0c;
     static_cast<void>(format_and_draw(
         ports,
         0x1D0,
@@ -350,9 +354,9 @@ void draw_event_debug(
         result,
         kEventDetailFormat,
         from_bits(event->field_08 & 0x7FFFU),
-        from_bits(low_flag),
+        from_bits(formatted_flags & 0xFFFFU),
         low_text,
-        from_bits(high_flag),
+        from_bits(formatted_flags >> 16U),
         high_text
     ));
 }
@@ -424,13 +428,12 @@ void draw_diagnostic_text(
     LegacyWorldDebugOverlayPorts& ports,
     LegacyWorldDebugOverlayResult& result
 ) noexcept {
+    if (!capture_event_id(background, camera_left, camera_top, state, result)) {
+        return;
+    }
     if (state.controlled_role_index >= roles.size()) {
         result.status =
             LegacyWorldDebugOverlayStatus::controlled_role_out_of_bounds;
-        return;
-    }
-    if (state.frame_interval_milliseconds == 0U) {
-        result.status = LegacyWorldDebugOverlayStatus::zero_frame_interval;
         return;
     }
 
@@ -466,6 +469,13 @@ void draw_diagnostic_text(
         from_bits(state.mouse_screen_x),
         from_bits(state.mouse_screen_y)
     ));
+
+    if (state.frame_interval_milliseconds == 0U) {
+        if (result.status == LegacyWorldDebugOverlayStatus::completed) {
+            result.status = LegacyWorldDebugOverlayStatus::zero_frame_interval;
+        }
+        return;
+    }
 
     static_cast<void>(format_and_draw(
         ports,
@@ -536,9 +546,7 @@ void draw_diagnostic_text(
         story_mode
     ));
 
-    draw_event_debug(
-        background, events, camera_left, camera_top, state, ports, result
-    );
+    draw_event_debug(events, state, ports, result);
     draw_nearby_role_debug(
         roles, camera_left, camera_top, state, ports, result
     );

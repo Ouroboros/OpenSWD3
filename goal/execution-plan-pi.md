@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v220
+版本：v221
 
 最后更新：2026-08-16
 
@@ -1067,5 +1067,19 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     原版 framebuffer/jitter 动态 oracle 仍阻断。114 项当前关闭 97 项，即
     `43 assembly_exact + 54 platform_adapted + 17 pending_audit`；下一精确停点为
     `0x00413FE0 sub_413FE0`。
+
+    B7 的开发调试叠层 `sub_413FE0` 随后完成独立闭环：完整物理范围
+    `0x00413FE0..0x00414567`、`sub_4120B0:0x004126E8` 唯一调用点、两个实际 i32 参数、
+    调用者多余常量 2、无统一 EAX 返回合同、入口文字样式、两个精确等一开关、五次
+    38×28 collision-grid 扫描、七条固定文字、地图事件与附近角色循环均完成
+    LST→C++→LST 双向逐基本块收敛。复核纠正三项旧时序：cell 低字节事件号改在任何文字
+    callback 前冻结；DIV-zero 隔离改为保留 MAct/Mouse 两次先行调用；事件 flag 数字改在
+    低位查询 callback 后第三次重读。找到的空事件名仍发出一次 NUL draw，角色第二行读取
+    summary callback 后的 GUID/Talk/Path/flags。受检 framebuffer/cell/event/role owner、
+    256 字节格式边界与 DIV trap 使分类保持 `platform_adapted`。Linux `core` 185/185、
+    Linux `app` 191/191、Windows LLVM `app` 191/191 CTest 全部通过，两端应用成功链接且
+    未启动游戏 EXE。原版 framebuffer/text 动态 oracle 仍阻断。114 项当前关闭 98 项，
+    即 `43 assembly_exact + 55 platform_adapted + 16 pending_audit`；下一精确停点为
+    `0x00414570 sub_414570`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

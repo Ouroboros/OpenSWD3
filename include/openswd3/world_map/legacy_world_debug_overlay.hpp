@@ -99,6 +99,8 @@ struct LegacyWorldDebugOverlayResult {
 // Full sub_413FE0 owner. The original function has two parameters: the camera
 // left/top values used by the collision-grid screen alignment. Its sole caller
 // leaves one additional constant on the stack, but the callee never reads it.
+// Diagnostic mode captures the event-cell byte before drawing text; a zero
+// frame interval is isolated only after the first MAct and Mouse lines.
 [[nodiscard]] LegacyWorldDebugOverlayResult draw_legacy_world_debug_overlay(
     rendering::LegacyFramebuffer& framebuffer,
     const LegacyWorldBackgroundSource& background,
