@@ -94,13 +94,15 @@ LegacyWorldSpatialAudioResult update_legacy_world_spatial_audio(
 ) noexcept {
     LegacyWorldSpatialAudioResult result;
     result.sound_id = static_cast<u16>(role.field_2c);
-    if (state.controlled_role_index >= roles.size()) {
+    const u32 entry_controlled_role_index = state.controlled_role_index;
+    if (entry_controlled_role_index >= roles.size()) {
         result.status = LegacyWorldSpatialAudioStatus::invalid_controlled_role;
         return result;
     }
 
-    const LegacyWorldRoleRecord& listener = roles[state.controlled_role_index];
-    result.distance = spatial_distance(role, listener);
+    const LegacyWorldRoleRecord& entry_listener =
+        roles[entry_controlled_role_index];
+    result.distance = spatial_distance(role, entry_listener);
 
     u32 scheduler = role.field_30;
     const u32 scheduler_high = scheduler & 0xFFFF0000U;
@@ -117,7 +119,7 @@ LegacyWorldSpatialAudioResult update_legacy_world_spatial_audio(
     if (result.distance > 0x200 ||
         (role.flags & kLegacyWorldSpatialAudioRoleBit) == 0U) {
         if ((role.flags & kLegacyWorldSpatialAudioPlayingBit) != 0U) {
-            ports.stop_sample(result.sound_id);
+            ports.stop_sample(static_cast<u16>(role.field_2c));
             role.flags &= ~kLegacyWorldSpatialAudioPlayingBit;
             result.sample_stopped = true;
         }
@@ -134,29 +136,49 @@ LegacyWorldSpatialAudioResult update_legacy_world_spatial_audio(
             role.flags |= kLegacyWorldSpatialAudioPlayingBit;
         }
 
-        ports.play_sample(result.sound_id, 0, 0, 1);
+        ports.play_sample(static_cast<u16>(role.field_2c), 0, 0, 1);
         result.sample_started = true;
-        if (result.resolved_role_index >= state.distance_by_role.size() ||
-            result.resolved_role_index >=
-                state.vertical_offset_by_role.size()) {
+        if (result.resolved_role_index >= state.distance_by_role.size()) {
             result.status =
                 LegacyWorldSpatialAudioStatus::invalid_resolved_role;
             return result;
         }
         state.distance_by_role[result.resolved_role_index] =
             static_cast<i16>(scaled_distance(result.distance));
+
+        const u32 vertical_listener_index = state.controlled_role_index;
+        if (vertical_listener_index >= roles.size()) {
+            result.status =
+                LegacyWorldSpatialAudioStatus::invalid_controlled_role;
+            return result;
+        }
+        if (result.resolved_role_index >=
+            state.vertical_offset_by_role.size()) {
+            result.status =
+                LegacyWorldSpatialAudioStatus::invalid_resolved_role;
+            return result;
+        }
         state.vertical_offset_by_role[result.resolved_role_index] =
-            vertical_offset(role.world_y, listener.world_y);
+            vertical_offset(
+                role.world_y, roles[vertical_listener_index].world_y
+            );
     }
 
     const i32 remaining_level =
         wrapping_subtract(0x80, scaled_distance(result.distance));
     result.volume = wrapping_multiply(remaining_level, state.mix_level) / 11;
+    ports.set_sample_volume(static_cast<u16>(role.field_2c), result.volume);
+
+    const u32 pan_listener_index = state.controlled_role_index;
+    if (pan_listener_index >= roles.size()) {
+        result.status = LegacyWorldSpatialAudioStatus::invalid_controlled_role;
+        return result;
+    }
     result.pan = spatial_pan(
-        std::bit_cast<i32>(role.world_x), std::bit_cast<i32>(listener.world_x)
+        std::bit_cast<i32>(role.world_x),
+        std::bit_cast<i32>(roles[pan_listener_index].world_x)
     );
-    ports.set_sample_volume(result.sound_id, result.volume);
-    ports.set_sample_pan(result.sound_id, result.pan);
+    ports.set_sample_pan(static_cast<u16>(role.field_2c), result.pan);
     result.parameters_updated = true;
     return result;
 }

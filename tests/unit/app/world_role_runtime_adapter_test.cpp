@@ -156,11 +156,15 @@ public:
     void set_sample_pan(LegacySampleHandle, const i32 value) override {
         pans.push_back(value);
     }
-    void set_sample_loop_count(LegacySampleHandle, i32) override {}
+    void set_sample_loop_count(LegacySampleHandle, const i32 value) override {
+        loop_counts.push_back(value);
+    }
     void start_sample(LegacySampleHandle) override {
         ++start_count;
     }
-    void end_sample(LegacySampleHandle) override {}
+    void end_sample(LegacySampleHandle) override {
+        ++end_count;
+    }
     [[nodiscard]] u32 sample_status(LegacySampleHandle) override {
         return 4U;
     }
@@ -170,8 +174,10 @@ public:
     std::array<u32, 8U> user_data{};
     u32 last_sound_id{};
     u32 start_count{};
+    u32 end_count{};
     std::vector<i32> volumes;
     std::vector<i32> pans;
+    std::vector<i32> loop_counts;
 };
 
 struct SampleFixture {
@@ -329,6 +335,51 @@ void test_one_shot_sample_reaches_manager(openswd3::test::Context& test) {
     );
 }
 
+void test_spatial_audio_controls_reach_manager(openswd3::test::Context& test) {
+    SampleFixture samples;
+    expect_sample_fixture(test, samples);
+    LegacyAniRoleParticleEffect effect;
+    ParticlePorts particle_ports;
+    LegacySecondaryRng random;
+    LegacyActionRecord action{};
+    LegacyTextRendererRuntime text;
+    LegacyPixelConversionState conversion;
+    std::array<LegacyWorldRoleRecord, 1U> roles{};
+    LegacyWorldCameraRect camera{};
+    WorldRoleRuntimeAdapter adapter{
+        samples.manager,
+        11,
+        effect,
+        7,
+        camera,
+        random,
+        roles.data(),
+        roles.size(),
+        0U,
+        action,
+        particle_ports,
+        nullptr,
+        nullptr,
+        nullptr,
+        text,
+        conversion,
+    };
+
+    adapter.play_sample(1U, 0, 0, 1);
+    adapter.set_sample_volume(1U, 73);
+    adapter.set_sample_pan(1U, -9);
+    adapter.stop_sample(1U);
+    test.expect_true(
+        samples.backend.start_count == 1U && samples.backend.end_count == 1U &&
+            samples.backend.last_sound_id == 1U &&
+            samples.backend.volumes == std::vector<i32>{0, 73} &&
+            samples.backend.pans == std::vector<i32>{63, 54} &&
+            samples.backend.loop_counts == std::vector<i32>{1} &&
+            samples.manager.active_sample_count() == 0U,
+        "spatial role play, parameters and stop reach the sample manager"
+    );
+}
+
 void test_particle_adapter_matches_direct_update(
     openswd3::test::Context& test
 ) {
@@ -468,6 +519,7 @@ void test_label_color_and_12_point_framebuffer(openswd3::test::Context& test) {
 int main() {
     openswd3::test::Context test;
     test_one_shot_sample_reaches_manager(test);
+    test_spatial_audio_controls_reach_manager(test);
     test_particle_adapter_matches_direct_update(test);
     test_label_color_and_12_point_framebuffer(test);
     return test.exit_code();

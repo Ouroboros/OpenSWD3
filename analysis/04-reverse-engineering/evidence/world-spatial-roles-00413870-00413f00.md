@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | `0x00413870` | `sub_413870` | `platform_adapted`，已独立闭环 | `0x00413870..0x0041390B` 已完成 LST→C++→LST 收敛；映射 `draw_legacy_world_roles` 及 runtime 原 stage seam |
 | `0x00413910` | `sub_413910` | `platform_adapted`，已独立闭环 | `0x00413910..0x00413C96` 已完成逐基本块 LST→C++→LST 收敛；映射 `draw_legacy_world_role` 与 SDL runtime adapter |
-| `0x00413CA0` | `sub_413CA0` | `pending_audit` / `not_inherited` | 本轮只核对 `sub_413870` 所需的一参数 cdecl 调用边界，不审计距离音频函数体 |
+| `0x00413CA0` | `sub_413CA0` | `platform_adapted`，已独立闭环 | `0x00413CA0..0x00413E96` 已完成 LST→C++→LST 收敛；映射距离音频核心与 SDL sample manager adapter |
 | `0x00413EA0` | `sub_413EA0` | `pending_audit` / `not_inherited` | 未审计；旧实现、测试和集成叙述不构成本轮关闭证据 |
 | `0x00413F00` | `sub_413F00` | `pending_audit` / `not_inherited` | 未审计；旧实现、测试和集成叙述不构成本轮关闭证据 |
 
@@ -234,10 +234,86 @@ y         = live role.worldY - live action.drawY - frozen_top
 lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始裸指针及平台 API，
 有效输入的分支、宽度、回绕、reload、写入和回调顺序保持不变。
 
-## 5. 独立测试向量
+## 5. `sub_413CA0` 独立逐基本块闭环
 
-`tests/unit/world_map/legacy_world_roles_test.cpp` 现在固定：
+### 5.1 范围、ABI、唯一调用者与出口
 
+- 完整物理范围为 `0x00413CA0..0x00413E96`；入口只有一个角色记录指针参数，调用者
+  `sub_413870:0x004138DE..0x004138E4` 压入当前角色、调用后 `add esp,4`，所以是
+  一参数 cdecl/plain `retn`。
+- 函数保存并恢复 `EBX/ESI/EDI`。LST 只有上述一个 CODE XREF；调用者随后直接读取角色
+  `+0x00` 后继，既不测试也不保存 `EAX`。函数各出口的 `EAX` 会继承距离、音频 helper
+  或参数转换结果，不构成稳定返回合同；现代结果结构只承载受检诊断和测试观测。
+- 六个直接调用边界为 `sub_489654` 的 x87 向零整数转换、`sub_40C100` 的 GUID 角色
+  查找，以及 sample manager 的 play、stop、volume、pan 四个入口。后四项的返回值在本
+  函数中均不消费。
+
+### 5.2 距离快照、scheduler 与外部停止门（`0x00413CA0..0x00413D29`）
+
+- `0x00413CA0..0x00413CC9` 每次从 `dword_4AB378` 重建受控角色
+  `index * 0xD8` 地址，并读取目标/监听者完整 32 位 X/Y。两个差值、两个 `imul` 和加法
+  都只保留低 32 位；随后把结果按有符号 dword `fild`、`fsqrt`，再由
+  `sub_489654` 改为向零舍入并 `fistp qword`。正数得到截断平方根；负的回绕平方和产生
+  x87 integer-indefinite `0x8000000000000000`，其低 dword `EAX` 为零。
+- `0x00413CE6..0x00413D0F` 对角色 `+0x30` 保留原 packed scheduler：高字等于
+  `0xFFFF` 时不递减；否则低字先以完整 dword 语义减一。结果非零才把“高字掩码 +
+  已减值”写回并禁止本帧启动；原低字为零会跨完整 dword 回绕，例如
+  `0x00030000 → 0x0002FFFF`。原低字为一则不在该块写回并保持启动资格。
+- `0x00413D12` 使用有符号 `jg`，所以距离恰为 `0x200` 仍进入；只有大于 `0x200` 或
+  flags bit 15 清零才走外部路径。外部路径只在 flags bit 24 已置位时按调用时的
+  `+0x2C` 低字停止 sample，再以内存 read-modify-write 清 bit 24；有限周期 sample
+  从未设置该 bit，故不会由此显式停止。
+
+### 5.3 GUID 查找、启动与两个角色数组（`0x00413D2A..0x00413DED`）
+
+- 内部门先以 `+0x24` 低字调用 `sub_40C100`，把解析角色索引留在栈槽；随后重新读取
+  flags。bit 24 已置位或本帧 scheduler 未到期都跳过启动，但仍继续更新 volume/pan。
+- 可启动时重新读取 `+0x30`，把高字同时复制到低字。高字 `0xFFFF` 因而得到
+  `0xFFFFFFFF`，并在 play 之前置 flags bit 24；有限高字只重载周期，不置该 bit。
+- `sub_485CE0` 的六个实参固定为 `buffer=null`、`sound_id=+0x2C` 低字、volume 0、
+  pan 0、loop 1、auxiliary 0。返回后先把入口距离的
+  `wrap(distance << 7) / 0x200` 写入 `word_4C97F8[resolved]`。
+- `0x00413DC4..0x00413DED` 在 play 之后重新读取受控角色索引、目标 `+0x08` 和监听者
+  `+0x08` 低字；先做 16 位减法与 16 位左移回绕，再符号扩展并向零除 `0x200`，写入
+  `word_4BA430[resolved]`。入口距离快照不会被 play 后的坐标变化替换。
+
+### 5.4 音量、声像与 post-callee reload（`0x00413DF5..0x00413E71`）
+
+- 距离先按 `wrap(distance << 7) / 0x200` 缩放，再从 `0x80` 做 32 位回绕减法；结果
+  与调用时的 `dword_4AB784` 做低 32 位乘法。常数 `0x2E8BA2E9` 的有符号高半乘法、
+  算术右移和符号修正等价于向零除 11。
+- volume 调用在 `0x00413E2C` 重新读取 `+0x2C` 低字。该调用返回后，
+  `0x00413E36..0x00413E69` 又重新读取受控角色索引、目标完整 X、监听者完整 X 和
+  `+0x2C` 低字；pan 为 `wrap((target_x-listener_x) << 6) / 0x200`。因此 play 后
+  Y/listener/mix 变化和 volume 后 X/listener/sound-id 变化分别在原物理槽可见。
+- `update_legacy_world_spatial_audio` 现保留上述入口距离快照与三处 reload；受检角色、
+  解析索引及两个数组边界只在原裸读取/写入点停止，并保留此前已完成的 scheduler、play
+  和首个数组写入副作用，不提前事务式拒绝。
+
+### 5.5 production seam 与平台适配
+
+- `SdlDeferredWorldFramePorts` 的四个距离音频空端口现转发到
+  `WorldRoleRuntimeAdapter`；adapter 复用 `LegacySampleManager` 的 play/stop/volume/pan
+  owner，保留 manager 已验证的 SND buffer、handle、Miles 参数转换和失败合同。
+- 每帧进入 `run_legacy_world_frame` 前，SDL owner 用当前 `world.selected_role_index`
+  刷新 spatial-audio 监听者索引，避免只使用世界会话创建时的旧选择。
+- 原版固定 256 项裸角色表、两个 i16 数组和 Miles 对象改为 span、诊断状态及 sample
+  manager owner；有效域的位宽、顺序和副作用不变，因此 disposition 为
+  `platform_adapted`，不是 `assembly_exact`。
+
+## 6. 独立测试向量
+
+`tests/unit/world_map/legacy_world_roles_test.cpp` 与
+`tests/unit/world_map/legacy_world_spatial_audio_test.cpp` 现在固定：
+
+- scheduler 低字 `2→1→重载`、低字零的完整 dword 回绕、`0xFFFF` 无限期状态、已播放
+  跳过启动、距离 `512/513` 两侧、bit 15/24 门和负平方和的 x87 低 dword 零；另以
+  `mix=INT32_MAX` 和 X=`0x02000000` 固定 volume 乘法与 pan 左移的 32 位回绕。
+- play callback 后目标 Y、监听者索引、mix 与 sound id 的重读，以及 volume callback 后
+  目标 X、监听者索引和 sound id 的再次重读；入口距离保持 40，最终数组为 `10/5`，
+  volume/pan 调用为 `(43,236)/(44,40)`。
+- 受检边界固定原副作用位置：无效解析索引发生在 play 后；play 后无效监听者保留先前距离
+  数组写入；volume 后无效监听者保留 volume 调用但不伪造 pan 完成。
 - post-main callback 依 LST 顺序观察 main `(65,146)`、additive `(55,136)`、overlay
   `(83,161)`、particle `(100,200)`、label `(975,1920)`；同时证明 additive 使用 live
   `+0x28/+0x2A` 与 draw offsets、捕获 mode，overlay/particle 冻结 placement、label live
@@ -250,8 +326,9 @@ lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始�
 - 标签半宽的编译期向量以 `len=195225787` 固定 `u32(len*11)=0x80000009` 后的有符号
   向零截断结果 `-1073741819`，防止误用无符号除二。
 - `world_role_runtime_adapter_test.cpp` 直接打到 production adapter：构造后把监听者从
-  `(1000,1000)` 更新为 `(3,4)`，实际 sample manager 仍按调用时坐标收到音效；构造后把
-  camera 从离屏区域更新为目标 viewport，同 seed/节点/角色输入与直接
+  `(1000,1000)` 更新为 `(3,4)`，实际 sample manager 仍按调用时坐标收到音效；距离音频的
+  play→volume→pan→stop 同样抵达 manager/backend，固定 Miles 参数转换和 handle 回收；
+  构造后把 camera 从离屏区域更新为目标 viewport，同 seed/节点/角色输入与直接
   `LegacyAniRoleParticleEffect::update` 的 result、RNG 进度和 emitter/node 状态一致；内建
   颜色和 12 点 glyph 写入真实 framebuffer。
 - camera Y `-17` 得 `q=-1`、行 `-21..48`；H=30 时每组接受 49 行，共 147 行且不访问
@@ -274,18 +351,16 @@ lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始�
   `0x00412930` 的既有 `world_spatial_objects_00413870` stage seam 调用它。
 - runtime seam 继续复用有界角色数组、三组行头、camera、共享 jitter、TSW runtime、
   framebuffer 与音频端口。现有普通角色真实 TSW framebuffer 哈希
-  `0xA4766C928B05DC88` 继续作为资产与 seam 验证；`sub_413910` 另由上述完整函数体和
-  runtime adapter 证据关闭，它不让 `sub_413CA0` 继承关闭状态。
-- 本轮完整门禁通过：Linux core `185/185`、Linux app `191/191`、Windows LLVM app
-  `191/191`，两端应用均成功链接且未启动游戏 EXE。首次并行 Windows gate 仅有既有
-  `audio_video.legacy_snd_archive_real` 打开资产失败；该测试隔离重跑 `1/1` 通过，待 Linux
-  gate 结束后的 Windows 全量顺序重跑 `191/191` 通过。
-- `sub_413910` 关闭 disposition 为 `platform_adapted`：行为核心逐指令收敛，同时明确
-  保留受检 frame/overlay/label owner、selector lookup 与平台 framebuffer/audio owner。
-  唯一新增公共 helper 是 production adapter 必需且复用于既有 frame runtime 的内建颜色
-  转换，不扩张无关 API。
-- `sub_413CA0/sub_413EA0/sub_413F00` 明确保留 `pending_audit/not_inherited`；本节未改动
-  其实现、测试或 inventory 行。
+  `0xA4766C928B05DC88` 继续作为资产与 seam 验证；`sub_413910` 与 `sub_413CA0` 分别由
+  各自完整函数体和 adapter 证据关闭，二者都不让后续函数继承状态。
+- 本轮稳定快照的完整顺序门禁通过：Linux core `185/185`、Linux app `191/191`、
+  Windows LLVM app `191/191`，两端应用均成功链接且未启动游戏 EXE。
+- `sub_413910` 与 `sub_413CA0` 的关闭 disposition 均为 `platform_adapted`：行为核心
+  逐指令收敛，同时保留受检角色/数组/frame/overlay/label owner、selector lookup 与平台
+  framebuffer/audio/sample owner。内建颜色 helper 和距离音频 adapter 只复用既有 runtime，
+  不扩张无关 API。
+- `sub_413EA0/sub_413F00` 明确保留 `pending_audit/not_inherited`；本节未改动其实现、
+  测试或 inventory 行。
 - 原程序完整逐帧 framebuffer、audio/particle/text 调用与共享 jitter 差分仍为
   `blocked_runtime_oracle`。需要时只准备 Frida spawn 工具并等待用户执行；本工作包不
   启动原版或 OpenSWD3 游戏 EXE。

@@ -13,6 +13,7 @@
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
 
 #include <bit>
+#include <optional>
 #include <span>
 
 namespace openswd3::platform_sdl3 {
@@ -113,6 +114,40 @@ compat::i32 WorldRoleRuntimeAdapter::play_positional_sample(
             .mix_level = mix_level_,
         }
     );
+}
+
+void WorldRoleRuntimeAdapter::play_sample(
+    const compat::u16 sound_id,
+    const compat::i32 volume,
+    const compat::i32 pan,
+    const compat::i32 loop_count
+) noexcept {
+    static_cast<void>(sample_manager_.play(
+        audio_video::LegacySamplePlayRequest{
+            .existing_buffer = std::nullopt,
+            .sound_id = sound_id,
+            .volume = volume,
+            .pan = pan,
+            .loop_count = loop_count,
+            .named_file_auxiliary = 0U,
+        }
+    ));
+}
+
+void WorldRoleRuntimeAdapter::stop_sample(const compat::u16 sound_id) noexcept {
+    static_cast<void>(sample_manager_.stop(sound_id));
+}
+
+void WorldRoleRuntimeAdapter::set_sample_volume(
+    const compat::u16 sound_id, const compat::i32 volume
+) noexcept {
+    static_cast<void>(sample_manager_.set_volume(sound_id, volume));
+}
+
+void WorldRoleRuntimeAdapter::set_sample_pan(
+    const compat::u16 sound_id, const compat::i32 pan
+) noexcept {
+    static_cast<void>(sample_manager_.set_pan(sound_id, pan));
 }
 
 const asset_runtime::LegacyActionRecord*

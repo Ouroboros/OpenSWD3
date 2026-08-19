@@ -1463,21 +1463,37 @@ public:
     }
 
     void play_sample(
-        openswd3::compat::u16,
-        openswd3::compat::i32,
-        openswd3::compat::i32,
-        openswd3::compat::i32
-    ) noexcept override {}
+        const openswd3::compat::u16 sound_id,
+        const openswd3::compat::i32 volume,
+        const openswd3::compat::i32 pan,
+        const openswd3::compat::i32 loop_count
+    ) noexcept override {
+        if (world_role_adapter_ != nullptr) {
+            world_role_adapter_->play_sample(sound_id, volume, pan, loop_count);
+        }
+    }
 
-    void stop_sample(openswd3::compat::u16) noexcept override {}
+    void stop_sample(const openswd3::compat::u16 sound_id) noexcept override {
+        if (world_role_adapter_ != nullptr) {
+            world_role_adapter_->stop_sample(sound_id);
+        }
+    }
 
     void set_sample_volume(
-        openswd3::compat::u16, openswd3::compat::i32
-    ) noexcept override {}
+        const openswd3::compat::u16 sound_id, const openswd3::compat::i32 volume
+    ) noexcept override {
+        if (world_role_adapter_ != nullptr) {
+            world_role_adapter_->set_sample_volume(sound_id, volume);
+        }
+    }
 
     void set_sample_pan(
-        openswd3::compat::u16, openswd3::compat::i32
-    ) noexcept override {}
+        const openswd3::compat::u16 sound_id, const openswd3::compat::i32 pan
+    ) noexcept override {
+        if (world_role_adapter_ != nullptr) {
+            world_role_adapter_->set_sample_pan(sound_id, pan);
+        }
+    }
 
     void configure_debug_text(
         const openswd3::compat::u16 background_color,
@@ -2980,6 +2996,8 @@ public:
         auto& world = *active_world_session_;
         auto& map = world.render.map_load.session;
         auto& roles = map.business.state.roles;
+        world_frame_state_.frame_runtime.spatial_audio.controlled_role_index =
+            world.selected_role_index;
         openswd3::world_map::LegacyWorldStoryPathRuntime story_paths{
             .roles = roles,
             .active_object_slots =

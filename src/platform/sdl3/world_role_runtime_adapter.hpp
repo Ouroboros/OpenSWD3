@@ -67,6 +67,15 @@ public:
     [[nodiscard]] compat::i32 play_positional_sample(
         compat::u16 sound_id, compat::i32 world_x, compat::i32 world_y
     );
+    void play_sample(
+        compat::u16 sound_id,
+        compat::i32 volume,
+        compat::i32 pan,
+        compat::i32 loop_count
+    ) noexcept;
+    void stop_sample(compat::u16 sound_id) noexcept;
+    void set_sample_volume(compat::u16 sound_id, compat::i32 volume) noexcept;
+    void set_sample_pan(compat::u16 sound_id, compat::i32 pan) noexcept;
     [[nodiscard]] const asset_runtime::LegacyActionRecord*
     resolve_overlay_action(compat::u32 token) const noexcept;
     [[nodiscard]] asset_runtime::LegacyAniRoleParticleResult

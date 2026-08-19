@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v217
+版本：v218
 
 最后更新：2026-08-16
 
@@ -1025,5 +1025,19 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     EXE。`sub_413CA0/sub_413EA0/sub_413F00` 未改且继续 `pending_audit/not_inherited`；原版
     framebuffer/audio/particle/text/jitter 动态 oracle 仍阻断。114 项当前关闭 94 项，
     即 `43 assembly_exact + 51 platform_adapted + 20 pending_audit`。
+
+    B7 的普通角色距离音频 `sub_413CA0` 随后完成独立闭环：完整物理范围
+    `0x00413CA0..0x00413E96`、`sub_413870:0x004138DF` 唯一调用点、一参数
+    cdecl/plain `retn`、六个直接调用边界、入口 32 位回绕距离与 x87 转换、packed
+    scheduler、距离/bit 门、GUID 查找、有限/无限 sample 启动、两个 i16 角色数组、
+    volume/pan 和外部停止均完成双向逐基本块收敛。复核纠正 play 后 Y/listener/mix/
+    sound-id 与 volume 后 X/listener/sound-id 的 reload 时点；低字零 scheduler、距离
+    `512/513`、负平方和、参数回绕及受检失败副作用均由独立 UT 固定。SDL 四个距离音频
+    空端口已接到实际 `LegacySampleManager`，每帧同步当前受控角色索引；受检角色/数组与
+    sample owner 保持为平台适配。Linux `core` 185/185、Linux `app` 191/191、Windows
+    LLVM `app` 191/191 CTest 全部通过，两端应用成功链接且未启动游戏 EXE。
+    `sub_413EA0/sub_413F00` 继续 `pending_audit/not_inherited`；原版 audio/particle/text/
+    framebuffer/jitter 动态 oracle 仍阻断。114 项当前关闭 95 项，即
+    `43 assembly_exact + 52 platform_adapted + 19 pending_audit`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。
