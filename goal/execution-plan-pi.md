@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v218
+版本：v219
 
 最后更新：2026-08-16
 
@@ -1039,5 +1039,18 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     `sub_413EA0/sub_413F00` 继续 `pending_audit/not_inherited`；原版 audio/particle/text/
     framebuffer/jitter 动态 oracle 仍阻断。114 项当前关闭 95 项，即
     `43 assembly_exact + 52 platform_adapted + 19 pending_audit`。
+
+    B7 的 group-0 bit-29 外层扫描 `sub_413EA0` 随后完成独立闭环：完整物理范围
+    `0x00413EA0..0x00413EFE`、`sub_412930:0x00412A88` 唯一 service-11 条件调用点、
+    无参/plain `retn`、唯一一参数 cdecl callee 边界、group-0 行首、向零 camera-top 商减五、
+    `EBX=-10..29` 四十槽、有符号 map-height 退出、负行跳过、bit-29 门和 callee 后
+    next reload 均完成 LST→C++→LST 双向逐基本块收敛。实现删除了全 null 行头时错误的
+    `roles.empty()` 整体早退；`-17/-15`、H=3/H=0 空角色、极端相机、精确四十槽、组隔离、
+    同行链序和回调改 next 均由独立 UT 固定。受检 row-head/link/frame owner 与失败状态
+    保持为平台适配；`sub_413F00` 继续 `pending_audit/not_inherited`，不继承外层真实 TSW
+    哈希。Linux `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191
+    CTest 全部通过，两端应用成功链接且未启动游戏 EXE。原版 framebuffer/jitter 动态
+    oracle 仍阻断。114 项当前关闭 96 项，即
+    `43 assembly_exact + 53 platform_adapted + 18 pending_audit`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

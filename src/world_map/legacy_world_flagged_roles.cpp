@@ -124,7 +124,7 @@ LegacyWorldFlaggedRolesResult draw_legacy_world_flagged_roles(
     const std::size_t expected_rows =
         static_cast<std::size_t>(spatial_index.map_height) +
         2U * static_cast<std::size_t>(kLegacySpatialRowPadding);
-    if (row_heads.size() < expected_rows || roles.empty()) {
+    if (row_heads.size() < expected_rows) {
         return result;
     }
 

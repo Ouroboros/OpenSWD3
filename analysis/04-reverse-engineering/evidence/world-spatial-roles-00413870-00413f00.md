@@ -11,7 +11,7 @@
 | `0x00413870` | `sub_413870` | `platform_adapted`，已独立闭环 | `0x00413870..0x0041390B` 已完成 LST→C++→LST 收敛；映射 `draw_legacy_world_roles` 及 runtime 原 stage seam |
 | `0x00413910` | `sub_413910` | `platform_adapted`，已独立闭环 | `0x00413910..0x00413C96` 已完成逐基本块 LST→C++→LST 收敛；映射 `draw_legacy_world_role` 与 SDL runtime adapter |
 | `0x00413CA0` | `sub_413CA0` | `platform_adapted`，已独立闭环 | `0x00413CA0..0x00413E96` 已完成 LST→C++→LST 收敛；映射距离音频核心与 SDL sample manager adapter |
-| `0x00413EA0` | `sub_413EA0` | `pending_audit` / `not_inherited` | 未审计；旧实现、测试和集成叙述不构成本轮关闭证据 |
+| `0x00413EA0` | `sub_413EA0` | `platform_adapted`，已独立闭环 | `0x00413EA0..0x00413EFE` 已完成 LST→C++→LST 收敛；映射 group-0 bit-29 行链扫描 |
 | `0x00413F00` | `sub_413F00` | `pending_audit` / `not_inherited` | 未审计；旧实现、测试和集成叙述不构成本轮关闭证据 |
 
 ## 2. 范围、ABI 与唯一调用者
@@ -301,10 +301,60 @@ lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始�
   manager owner；有效域的位宽、顺序和副作用不变，因此 disposition 为
   `platform_adapted`，不是 `assembly_exact`。
 
-## 6. 独立测试向量
+## 6. `sub_413EA0` 独立逐基本块闭环
 
-`tests/unit/world_map/legacy_world_roles_test.cpp` 与
-`tests/unit/world_map/legacy_world_spatial_audio_test.cpp` 现在固定：
+### 6.1 范围、ABI、唯一调用者与 callee 边界
+
+- 完整物理范围为 `0x00413EA0..0x00413EFE`；入口无参数、plain `retn`，保存并逆序恢复
+  `EBX/EBP/ESI/EDI`。LST 的唯一 CODE XREF 是 `sub_412930:0x00412A88`：只有
+  service `0x0B` 返回零才调用，随后无条件进入 `sub_413870`，不读取 `EAX`。
+- 唯一直接 callee 是 `sub_413F00`。`0x00413EE1..0x00413EE7` 压入当前角色指针、
+  调用后 `add esp,4`，固定一参数 cdecl 边界；本节只使用该边界，不让尚待独立审计的
+  callee 函数体继承关闭状态。
+
+### 6.2 有符号相机商、group 0 与四十行（`0x00413EA0..0x00413ED6`）
+
+- `0x00413EA0..0x00413EBE` 读取 camera top，以 `cdq; and edx,0x0F; add; sar 4`
+  得到向零截断的有符号 `/16`，再减五形成首行。`EBP` 只绑定 `dword_4A9A04`
+  group 0，并以 `base + (row + 20) * 4` 指向带 20 行前缀的物理行首。
+- `EBX` 从 `-10` 起步，行尾先 `inc ebx/inc row/add ebp,4`，再以有符号
+  `cmp ebx,30` 回跳，因此最多检查首行到首行加 39 的四十个槽。
+- 每轮先以有符号 `row >= map_height` 退出整个函数，再以 `row < 0` 跳过物理读取；
+  负行仍消耗循环槽。有效非负行读取 group-0 行首，null 头直接进入下一行。
+- 因除法向零截断，camera top `-17` 得首行 `-6`、范围 `-6..33`；`-15` 得首行
+  `-5`、范围 `-5..34`。极小相机值的四十行都停在负域而不访问 prefix 之前，极大值
+  在首个 map-height 比较立即退出。
+
+### 6.3 bit-29 链门与 post-callee reload（`0x00413ED8..0x00413EFE`）
+
+- 每个非空行按 `+0x00` 链从头到尾遍历。只有角色 flags bit 29 非零才把当前角色压入
+  `sub_413F00`；未置位角色仍继续读取 next。
+- `0x00413EEA mov esi,[esi]` 位于 callee 返回之后，所以 callee 合法修改的 next 对同帧
+  后续遍历可见。测试让首角色绘制回调把 next 从零改为角色二，实际观察到两次按序绘制。
+- 原裸行首和角色指针改成受检 span 与一基索引；三个 row-head owner 仍由统一结构持有，
+  本函数只验证并使用 group 0。短行首、越界/循环 link 和 frame-load 失败在原危险点返回
+  明确状态；有效域的扫描、bit 门和调用顺序不变。
+- 此前 `roles.empty()` 的 blanket early return 与全 null 行头冲突，现已删除：空角色
+  span 在全 null 的 H=3/H=0 索引上分别完成八/五个负域与有效域槽；只有实际遇到非零头
+  才报告 link 失败。
+
+### 6.4 测试、接线与分类
+
+- 独立 UT 固定四十槽边界、group 0 独占、同行链序、bit-29 门、`-17/-15` 商差异、
+  H=3/H=0 空角色全 null、极端相机、post-draw next reload、短行首和无效 link。
+- 真实 TSW/opacity blitter 哈希继续为 `0xA6C3E08156F06060`；flagged-role synthetic/
+  real 与世界 frame composition synthetic/real 四项定向 CTest 通过。
+- 生产 runtime 已在 `sub_412930` 的 service-11 原槽调用该 scanner，并共用实际 group-0
+  行首、角色数组、camera、TSW 与 framebuffer。受检 owner 和失败状态使 disposition 为
+  `platform_adapted`。
+- 稳定快照完整门禁：Linux core `185/185`、Linux app `191/191`、Windows LLVM app
+  `191/191`；两端应用成功链接，未启动原版或 OpenSWD3 游戏 EXE。
+
+## 7. 独立测试向量
+
+`tests/unit/world_map/legacy_world_roles_test.cpp`、
+`tests/unit/world_map/legacy_world_spatial_audio_test.cpp` 与
+`tests/unit/world_map/legacy_world_flagged_roles_test.cpp` 现在固定：
 
 - scheduler 低字 `2→1→重载`、低字零的完整 dword 回绕、`0xFFFF` 无限期状态、已播放
   跳过启动、距离 `512/513` 两侧、bit 15/24 门和负平方和的 x87 低 dword 零；另以
@@ -345,7 +395,7 @@ lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始�
 - 既有受检失败继续覆盖 frame load 失败、无效/循环链和任一短行头数组；安全隔离不会把
   有效输入提前拒绝。
 
-## 6. 实现、集成与剩余阻断
+## 8. 实现、集成与剩余阻断
 
 - `draw_legacy_world_roles` 映射本函数；`compose_legacy_world_runtime_frame` 在
   `0x00412930` 的既有 `world_spatial_objects_00413870` stage seam 调用它。
@@ -355,12 +405,12 @@ lookup、label NUL、颜色索引和现代 framebuffer/audio owner 隔离原始�
   各自完整函数体和 adapter 证据关闭，二者都不让后续函数继承状态。
 - 本轮稳定快照的完整顺序门禁通过：Linux core `185/185`、Linux app `191/191`、
   Windows LLVM app `191/191`，两端应用均成功链接且未启动游戏 EXE。
-- `sub_413910` 与 `sub_413CA0` 的关闭 disposition 均为 `platform_adapted`：行为核心
-  逐指令收敛，同时保留受检角色/数组/frame/overlay/label owner、selector lookup 与平台
-  framebuffer/audio/sample owner。内建颜色 helper 和距离音频 adapter 只复用既有 runtime，
-  不扩张无关 API。
-- `sub_413EA0/sub_413F00` 明确保留 `pending_audit/not_inherited`；本节未改动其实现、
-  测试或 inventory 行。
+- `sub_413910`、`sub_413CA0` 与 `sub_413EA0` 的关闭 disposition 均为
+  `platform_adapted`：行为核心逐指令收敛，同时保留受检角色/数组/行首/link/frame/
+  overlay/label owner、selector lookup 与平台 framebuffer/audio/sample owner。内建颜色
+  helper 和距离音频 adapter 只复用既有 runtime，不扩张无关 API。
+- `sub_413F00` 明确保留 `pending_audit/not_inherited`；外层 scanner 的 closure 不继承到
+  callee 函数体。
 - 原程序完整逐帧 framebuffer、audio/particle/text 调用与共享 jitter 差分仍为
   `blocked_runtime_oracle`。需要时只准备 Frida spawn 工具并等待用户执行；本工作包不
   启动原版或 OpenSWD3 游戏 EXE。

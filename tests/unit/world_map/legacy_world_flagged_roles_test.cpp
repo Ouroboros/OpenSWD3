@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <limits>
+#include <span>
 #include <utility>
 #include <vector>
 
@@ -76,11 +77,17 @@ public:
         const i32 opacity_step
     ) noexcept override {
         draws.push_back({destination_x, destination_y, flags, opacity_step});
+        if (role_to_mutate_on_draw != nullptr) {
+            role_to_mutate_on_draw->spatial_next_link_32 = next_link_after_draw;
+            role_to_mutate_on_draw = nullptr;
+        }
         return draw_status;
     }
 
     bool load_succeeds{true};
     LegacyBlitExecutionStatus draw_status{LegacyBlitExecutionStatus::completed};
+    LegacyWorldRoleRecord* role_to_mutate_on_draw{};
+    u32 next_link_after_draw{};
     u32 unexpected_updates{};
     std::vector<std::pair<u16, u16>> loads;
     std::vector<DrawCall> draws;
@@ -223,6 +230,104 @@ void test_spatial_scan_order_and_group(openswd3::test::Context& test) {
     );
 }
 
+void test_empty_rows_and_signed_camera_quotient(openswd3::test::Context& test) {
+    LegacyRoleSpatialIndex empty_spatial = make_spatial_index(3U);
+    RecordingPorts empty_ports;
+    const std::span<const LegacyWorldRoleRecord> no_roles;
+    const auto empty = draw_legacy_world_flagged_roles(
+        empty_spatial, no_roles, LegacyWorldRenderCamera{}, empty_ports
+    );
+    test.expect_true(
+        empty.status == LegacyWorldFlaggedRolesStatus::completed &&
+            empty.visited_rows == 8U && empty.visited_roles == 0U,
+        "all-null rows complete without requiring role storage"
+    );
+
+    LegacyRoleSpatialIndex zero_height = make_spatial_index(0U);
+    const auto zero = draw_legacy_world_flagged_roles(
+        zero_height, no_roles, LegacyWorldRenderCamera{}, empty_ports
+    );
+    test.expect_true(
+        zero.status == LegacyWorldFlaggedRolesStatus::completed &&
+            zero.visited_rows == 5U,
+        "zero height still advances across the five negative prefix rows"
+    );
+
+    LegacyRoleSpatialIndex spatial = make_spatial_index(50U);
+    std::array<LegacyWorldRoleRecord, 2U> roles{};
+    roles[1].flags = 0x00008000U | kLegacyWorldFlaggedRoleBit;
+    roles[1].world_x = 1U;
+    roles[1].action.action_id = 1U;
+    roles[1].action.field_4a = 1U;
+    spatial.row_heads[0U][kLegacySpatialRowPadding + 34U] = 1U;
+
+    RecordingPorts negative_seventeen_ports;
+    const auto negative_seventeen = draw_legacy_world_flagged_roles(
+        spatial,
+        roles,
+        LegacyWorldRenderCamera{.top = -17},
+        negative_seventeen_ports
+    );
+    RecordingPorts negative_fifteen_ports;
+    const auto negative_fifteen = draw_legacy_world_flagged_roles(
+        spatial,
+        roles,
+        LegacyWorldRenderCamera{.top = -15},
+        negative_fifteen_ports
+    );
+    test.expect_true(
+        negative_seventeen.visited_rows == 40U &&
+            negative_seventeen.draw_count == 0U &&
+            negative_fifteen.visited_rows == 40U &&
+            negative_fifteen.draw_count == 1U,
+        "signed camera division truncates toward zero before the minus-five row"
+    );
+
+    RecordingPorts extreme_ports;
+    const auto minimum = draw_legacy_world_flagged_roles(
+        spatial,
+        roles,
+        LegacyWorldRenderCamera{.top = std::numeric_limits<i32>::min()},
+        extreme_ports
+    );
+    const auto maximum = draw_legacy_world_flagged_roles(
+        spatial,
+        roles,
+        LegacyWorldRenderCamera{.top = std::numeric_limits<i32>::max()},
+        extreme_ports
+    );
+    test.expect_true(
+        minimum.visited_rows == 40U && minimum.visited_roles == 0U &&
+            maximum.visited_rows == 0U,
+        "extreme signed camera rows skip prefix memory or exit at map height"
+    );
+}
+
+void test_post_draw_next_reload(openswd3::test::Context& test) {
+    LegacyRoleSpatialIndex spatial = make_spatial_index(40U);
+    std::array<LegacyWorldRoleRecord, 3U> roles{};
+    for (u32 index = 1U; index < roles.size(); ++index) {
+        roles[index].flags = 0x00008000U | kLegacyWorldFlaggedRoleBit;
+        roles[index].world_x = index;
+        roles[index].action.action_id = 1U;
+        roles[index].action.field_4a = static_cast<u16>(index);
+    }
+    spatial.row_heads[0U][kLegacySpatialRowPadding] = 1U;
+    RecordingPorts ports;
+    ports.role_to_mutate_on_draw = &roles[1];
+    ports.next_link_after_draw = 2U;
+
+    const auto result = draw_legacy_world_flagged_roles(
+        spatial, roles, LegacyWorldRenderCamera{.top = 80}, ports
+    );
+    test.expect_true(
+        result.status == LegacyWorldFlaggedRolesStatus::completed &&
+            result.visited_roles == 2U && result.draw_count == 2U &&
+            ports.loads == std::vector<std::pair<u16, u16>>{{1U, 0U}, {2U, 0U}},
+        "the row chain reloads +0x00 after the flagged-role callee returns"
+    );
+}
+
 void test_negative_rows_and_checked_links(openswd3::test::Context& test) {
     LegacyRoleSpatialIndex spatial = make_spatial_index(3U);
     std::array<LegacyWorldRoleRecord, 2U> roles{};
@@ -278,6 +383,27 @@ void test_failures_and_accepted_blit_exits(openswd3::test::Context& test) {
         load_failure.status,
         LegacyWorldFlaggedRoleDrawStatus::frame_load_failed,
         "missing TSW frame stops before the impossible original dereference"
+    );
+
+    LegacyRoleSpatialIndex spatial = make_spatial_index(40U);
+    std::array<LegacyWorldRoleRecord, 3U> roles{};
+    for (u32 index = 1U; index < roles.size(); ++index) {
+        roles[index] = role;
+        roles[index].flags |= kLegacyWorldFlaggedRoleBit;
+    }
+    roles[1].spatial_next_link_32 = 2U;
+    spatial.row_heads[0U][kLegacySpatialRowPadding] = 1U;
+    RecordingPorts missing_scan;
+    missing_scan.load_succeeds = false;
+    const auto scan_failure = draw_legacy_world_flagged_roles(
+        spatial, roles, LegacyWorldRenderCamera{.top = 80}, missing_scan
+    );
+    test.expect_true(
+        scan_failure.status ==
+                LegacyWorldFlaggedRolesStatus::frame_load_failed &&
+            scan_failure.visited_roles == 1U &&
+            scan_failure.frame_requests == 1U && scan_failure.draw_count == 0U,
+        "checked frame-load failure stops the scan at the original unsafe point"
     );
 
     for (const auto status :
@@ -374,6 +500,8 @@ int main(const int argument_count, char** arguments) {
     test_single_role_contract(test);
     test_selector_and_strict_culling(test);
     test_spatial_scan_order_and_group(test);
+    test_empty_rows_and_signed_camera_quotient(test);
+    test_post_draw_next_reload(test);
     test_negative_rows_and_checked_links(test);
     test_failures_and_accepted_blit_exits(test);
     if (argument_count == 2) {
