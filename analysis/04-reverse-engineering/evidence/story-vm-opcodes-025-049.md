@@ -92,7 +92,7 @@ opcode 34 将零扩展的 `u16` 写入 `dword_4ACDB0`；若值大于 1000，则�
 
 opcode 35 只读取 `+2` 的一个字节，并与 `dword_4ACDB0` 低 16 位作无符号比较；`+3` 的一个物理字节未读，目标位于 `+4`。opcode 36 计算 `dword_4BA42C + u16(+2)` 的 32 位回绕和，当前值严格大于该无符号和时跳转。
 
-这四个值当前 TALK 候选图都未观察到，但不能因此将 opcode 35 的未读 padding 删除或把指令缩成七字节。
+这四个值当前 TALK 候选图都未观察到，但不能因此将 opcode 35 的未读 padding 删除或把指令缩成七字节。opcode34的线性记录与entry probe均为0；四个TALK文件里501处raw `0x0022`字节序列都不是已证明的入口，不能伪造为真实回放。其`u16`零扩展、先写后清零、共享clock owner及same-call合同的完整独立证据见 [`story-vm-script-clock-set-0042890f.md`](story-vm-script-clock-set-0042890f.md)。
 
 ## opcode 38–40：相似角色入口并不共享 selector 规则
 

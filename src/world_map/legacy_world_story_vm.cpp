@@ -2123,6 +2123,20 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_34_SET_BOUNDED_SCRIPT_CLOCK:
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            state.script_clock = read_u16(state.window, ip + 2U);
+            if (state.script_clock > 1000U) {
+                state.script_clock = 0U;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+
         case 38U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

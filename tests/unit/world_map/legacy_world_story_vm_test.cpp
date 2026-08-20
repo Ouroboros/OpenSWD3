@@ -57,6 +57,7 @@ using openswd3::world_map::OP_30_ADD_GLOBAL_INTEGER;
 using openswd3::world_map::OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO;
 using openswd3::world_map::OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE;
 using openswd3::world_map::OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE;
+using openswd3::world_map::OP_34_SET_BOUNDED_SCRIPT_CLOCK;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -4930,6 +4931,72 @@ void test_global_integer_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_set_bounded_script_clock_protocol(openswd3::test::Context& test) {
+    struct Sample {
+        u16 value;
+        u32 expected;
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    constexpr std::array<Sample, 4U> samples{
+        Sample{0U, 0U},
+        Sample{1000U, 1000U},
+        Sample{1001U, 0U},
+        Sample{0xFFFFU, 0U},
+    };
+
+    for (const u16 mask : alias_masks) {
+        for (const auto sample : samples) {
+            Fixture fixture;
+            fixture.state.script_clock = 77U;
+            fixture.state.script_clock_frame_counter = 9U;
+            fixture.state.script_clock_origin = 88U;
+            prime_loaded_instruction(
+                fixture, static_cast<u16>(OP_34_SET_BOUNDED_SCRIPT_CLOCK | mask)
+            );
+            write_u16(fixture.state.window, 2U, sample.value);
+            write_u16(fixture.state.window, 4U, OP_1025);
+            const auto result = fixture.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                    result.opcode == OP_1025 &&
+                    result.executed_instruction_count == 2U &&
+                    fixture.context.instruction_offset == 4U &&
+                    fixture.state.previous_opcode ==
+                        OP_34_SET_BOUNDED_SCRIPT_CLOCK &&
+                    fixture.state.script_clock == sample.expected &&
+                    fixture.state.script_clock_frame_counter == 9U &&
+                    fixture.state.script_clock_origin == 88U &&
+                    fixture.ports.direct_audio_service_count == 0U,
+                "opcode 34 aliases set or reset the bounded script clock"
+            );
+        }
+    }
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFEU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x55U;
+    truncated.state.script_clock = 77U;
+    write_u16(truncated.state.window, 0x7FFEU, OP_34_SET_BOUNDED_SCRIPT_CLOCK);
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            truncated.state.previous_opcode == 0x55U &&
+            truncated.state.script_clock == 77U,
+        "opcode 34 rejects a missing u16 before writing the script clock"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -7477,6 +7544,7 @@ int main(const int argument_count, char** arguments) {
     test_reload_world_session_protocol(test);
     test_change_role_path_id_protocol(test);
     test_global_integer_protocol(test);
+    test_set_bounded_script_clock_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
