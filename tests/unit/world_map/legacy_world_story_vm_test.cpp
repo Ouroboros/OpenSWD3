@@ -623,6 +623,75 @@ void test_clear_dialog_control_flag(openswd3::test::Context& test) {
     );
 }
 
+void test_stage_dialog_lifetime(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        0x0008U, 0x4008U, 0x8008U, 0xC008U
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0xFFFFU);
+        write_u16(fixture.state.window, 4U, 12U);
+        fixture.state.previous_opcode = 0x55U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == 12U &&
+                result.executed_instruction_count == 2U &&
+                result.instruction_offset == 4U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.next_text_aux_pending &&
+                fixture.state.next_text_aux_value == 0xFFFFU &&
+                fixture.state.previous_opcode == 8U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.ports.story_protocol_events.empty(),
+            "opcode 8 aliases stage an unsigned word and continue without audio"
+        );
+    }
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFEU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    write_u16(truncated.state.window, 0x7FFEU, 8U);
+    truncated.state.previous_opcode = 0x55U;
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated_result.executed_instruction_count == 1U &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            !truncated.state.next_text_aux_pending &&
+            truncated.state.next_text_aux_value == 60U &&
+            truncated.state.previous_opcode == 0x55U &&
+            truncated_result.direct_audio_service_count == 0U,
+        "opcode 8 short operand fails before one-shot state and join effects"
+    );
+
+    Fixture dialog;
+    prime_loaded_instruction(dialog, 8U);
+    write_u16(dialog.state.window, 2U, 37U);
+    write_u16(dialog.state.window, 4U, 2U);
+    write_u16(dialog.state.window, 6U, 0x00F8U);
+    write_u16(dialog.state.window, 8U, 0x232DU);
+    dialog.state.window[10U] = '%';
+    dialog.state.window[11U] = 'Q';
+    const auto dialog_result = dialog.step();
+    const auto& record = dialog.dialogs.messages.front().record;
+    test.expect_true(
+        dialog_result.status == LegacyWorldStoryVmStatus::yielded &&
+            dialog_result.executed_instruction_count == 2U &&
+            dialog.context.instruction_offset == 12U &&
+            (record.flags & 0x08U) != 0U && record.lifetime_limit == 37U &&
+            !dialog.state.next_text_aux_pending &&
+            dialog.state.next_text_aux_value == 60U &&
+            dialog.state.previous_opcode == 2U,
+        "same-call dialog consumes and resets opcode 8 one-shot lifetime"
+    );
+}
+
 void test_dialog_text_preparation_and_mode_zero_metrics(
     openswd3::test::Context& test
 ) {
@@ -1902,6 +1971,41 @@ void test_real_clear_dialog_control_flag_record(
     );
 }
 
+void test_real_stage_dialog_lifetime_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0000451A);
+    std::array<u8, 4U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    test.expect_true(
+        static_cast<bool>(input) && read_u16(instruction, 0U) == 8U &&
+            read_u16(instruction, 2U) == 0xFFFFU,
+        "real opcode 8 physical record carries an unsigned FFFF word"
+    );
+    if (!input) {
+        return;
+    }
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, 8U);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 4U, 12U);
+    const auto result = fixture.step();
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 4U &&
+            fixture.state.next_text_aux_pending &&
+            fixture.state.next_text_aux_value == 0xFFFFU &&
+            fixture.state.previous_opcode == 8U,
+        "real opcode 8 record replays the staged-lifetime contract"
+    );
+}
+
 void test_real_shared_dialog_handler_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -3105,6 +3209,7 @@ int main(const int argument_count, char** arguments) {
     test_shared_dialog_handler_variants(test);
     test_shared_dialog_raw_aliases(test);
     test_clear_dialog_control_flag(test);
+    test_stage_dialog_lifetime(test);
     test_dialog_text_preparation_and_mode_zero_metrics(test);
     test_dialog_anchor_center_delay_and_reset(test);
     test_dialog_checked_failure_order(test);
@@ -3136,6 +3241,7 @@ int main(const int argument_count, char** arguments) {
     } else if (argument_count == 2) {
         const std::filesystem::path root{arguments[1]};
         test_real_clear_dialog_control_flag_record(test, root);
+        test_real_stage_dialog_lifetime_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);

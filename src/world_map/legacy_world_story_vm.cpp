@@ -1117,6 +1117,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.next_text_aux_value = read_u16(state.window, ip + 2U);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
             continue;
 
         case 9U:
