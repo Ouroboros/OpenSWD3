@@ -19,15 +19,16 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 105 项：44 项 `assembly_exact`、61 项 `platform_adapted`；其余
-9 项保持待审计。最新关闭 `sub_4151F0`：`0x004151F0..0x004153CB` 的无参数 ABI、唯一
-调用点、空链早退、`0..30` 三十一轮链头重载、每序号首个相交节点、相对 clip、两轴
-parallax 和全屏 clip 恢复均完成逐指令双向追溯。独立向量固定 draw 后下一 ordinal 的 live
-节点字段重读、大 factor 的 32 位 `IMUL` 回绕与 signed `/16` 朝零截断。owned reverse span
-与 typed clip/blit ports 使分类保持 `platform_adapted`。indexed-objects 与
-world-frame-runtime synthetic/real 三项定向 CTest 通过；Linux core `185/185`、Linux app
-`191/191`、Windows LLVM app `191/191` 完整门禁通过。该 owner 已接入原槽，地图 72 真实
-`1072x1024x16` stream 进入 runtime blitter；两端应用成功链接且未启动游戏 EXE。原版完整
+114 项全集复核当前已关闭 106 项：44 项 `assembly_exact`、62 项 `platform_adapted`；其余
+8 项保持待审计。最新关闭 `sub_425B50`：`0x00425B50..0x00425BDA` 的无参数 ABI、两处
+调用、两个地图分配释放、25 dword 状态清零、256 个 `0xD8` 角色逐项 payload 释放后立即
+清零、全 `0xFF` 无角色 sentinel 及 72 个 `0x21C` 对象槽重置均完成逐指令双向追溯。复核
+发现新游戏旧世界释放误用了 `sub_40F3B0` reset，导致清零后重建 action；现改用独立
+`clear_legacy_world_role_table`，保留本函数不初始化 action 的语义。RAII session、checked
+absent-role owner 与 split 64+8 slots 使分类保持 `platform_adapted`。role-lifecycle、
+role-transfer、new-game transition 与 runtime-session synthetic/real 五项定向 CTest 通过；
+Linux core `185/185`、Linux app `191/191`、Windows LLVM app `191/191` 完整门禁通过，
+两端应用成功链接且未启动游戏 EXE。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放

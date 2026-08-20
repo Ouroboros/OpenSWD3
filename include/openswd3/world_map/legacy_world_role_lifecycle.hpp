@@ -29,6 +29,24 @@ struct LegacyWorldRoleTableResetResult {
     compat::u32 action_records_initialized{};
 };
 
+struct LegacyWorldRoleTableClearResult {
+    LegacyWorldRoleTableResetStatus status{
+        LegacyWorldRoleTableResetStatus::role_span_exceeds_capacity
+    };
+    compat::u32 payload_slots_scanned{};
+    compat::u32 payload_owners_released{};
+    compat::u32 roles_zeroed{};
+};
+
+// sub_425B50 (0x00425B7F..0x00425BAB): scan every physical role, release
+// non-null +0x38 payload owners, then zero each complete 0xD8 record. Unlike
+// sub_40F3B0, this pass deliberately does not reinitialize +0x40 actions.
+[[nodiscard]] LegacyWorldRoleTableClearResult clear_legacy_world_role_table(
+    std::span<LegacyWorldRoleRecord> roles,
+    std::array<std::vector<compat::u8>, kLegacyWorldRoleCapacity>&
+        role_label_payloads
+) noexcept;
+
 // sub_40F3B0 (0x0040F3B0..0x0040F40D): release +0x38 for inclusive
 // indices 0..highest, zero the complete physical role table, then apply
 // sub_40DC00 to every +0x40 action record. A negative highest index skips

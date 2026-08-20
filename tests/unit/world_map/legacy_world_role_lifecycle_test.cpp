@@ -16,6 +16,7 @@ using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::compat::u8;
+using openswd3::world_map::clear_legacy_world_role_table;
 using openswd3::world_map::kLegacyWorldActiveObjectSlotCount;
 using openswd3::world_map::kLegacyWorldRoleCapacity;
 using openswd3::world_map::LegacyWorldMapRolePathPorts;
@@ -128,6 +129,44 @@ is_initialized_empty_role(const LegacyWorldRoleRecord& role) {
     );
 }
 
+void test_full_physical_table_clear_without_action_reinit(
+    openswd3::test::Context& test
+) {
+    std::array<LegacyWorldRoleRecord, kLegacyWorldRoleCapacity> roles{};
+    fill_role_bytes(roles, std::byte{0xA5U});
+    std::array<std::vector<u8>, kLegacyWorldRoleCapacity> payloads;
+    for (std::size_t index = 0U; index < payloads.size(); ++index) {
+        payloads[index] = {static_cast<u8>(index), 0U};
+        roles[index].path_payload_pointer_32 =
+            index % 2U == 0U ? static_cast<u32>(index + 1U) : 0U;
+    }
+
+    const auto result = clear_legacy_world_role_table(roles, payloads);
+
+    const LegacyWorldRoleRecord zero_role{};
+    test.expect_true(
+        result.status == LegacyWorldRoleTableResetStatus::ready &&
+            result.payload_slots_scanned == kLegacyWorldRoleCapacity &&
+            result.payload_owners_released == kLegacyWorldRoleCapacity / 2U &&
+            result.roles_zeroed == kLegacyWorldRoleCapacity,
+        "sub_425B50 scans and zeros all 256 physical role records"
+    );
+    test.expect_true(
+        std::ranges::all_of(
+            roles,
+            [&zero_role](const LegacyWorldRoleRecord& role) {
+                return std::ranges::equal(
+                    std::as_bytes(std::span{&role, 1U}),
+                    std::as_bytes(std::span{&zero_role, 1U})
+                );
+            }
+        ) && payloads[0U].empty() &&
+            payloads[0U].capacity() == 0U && !payloads[1U].empty() &&
+            payloads[254U].empty() && !payloads[255U].empty(),
+        "map clear releases only non-null +38 owners and leaves actions zero"
+    );
+}
+
 void test_full_physical_table_reset(openswd3::test::Context& test) {
     std::array<LegacyWorldRoleRecord, kLegacyWorldRoleCapacity> roles{};
     fill_role_bytes(roles, std::byte{0xA5U});
@@ -207,6 +246,16 @@ void test_modern_bounds_are_transactional(openswd3::test::Context& test) {
 
     std::array<LegacyWorldRoleRecord, kLegacyWorldRoleCapacity + 1U>
         oversized{};
+    oversized[0U].guid = 0x5678U;
+    const auto excessive_clear =
+        clear_legacy_world_role_table(oversized, payloads);
+    test.expect_true(
+        excessive_clear.status ==
+                LegacyWorldRoleTableResetStatus::role_span_exceeds_capacity &&
+            oversized[0U].guid == 0x5678U,
+        "map clear rejects an oversized modern owner before mutation"
+    );
+
     const auto excessive_span =
         reset_legacy_world_role_table(oversized, payloads, -1);
     test.expect_equal(
@@ -452,6 +501,7 @@ void test_transition_failures_do_not_skip_final_writes(
 
 int main() {
     openswd3::test::Context test;
+    test_full_physical_table_clear_without_action_reinit(test);
     test_full_physical_table_reset(test);
     test_negative_highest_skips_only_release(test);
     test_modern_bounds_are_transactional(test);

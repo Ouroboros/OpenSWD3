@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v228
+版本：v229
 
 最后更新：2026-08-16
 
@@ -1171,5 +1171,19 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     两端应用成功链接且未启动游戏 EXE。114 项当前关闭 105 项，即
     `44 assembly_exact + 61 platform_adapted + 9 pending_audit`；下一精确停点为
     `0x00425B50 sub_425B50`。
+
+    B7 的世界地图运行状态清理 `sub_425B50` 随后完成独立闭环：完整物理范围
+    `0x00425B50..0x00425BDA`、无参数 ABI、`sub_40F160/sub_424B90` 两处调用、两个地图
+    分配释放、25 dword 状态清零、256 个 `0xD8` 角色逐项 `+0x38` payload 释放后立即
+    清零、54 dword 全 `0xFF` 无角色 sentinel 及 72 个 `0x21C` 对象槽重置均完成
+    LST→C++→LST 双向逐指令收敛。复核发现 SDL 新游戏旧世界释放误用了 `sub_40F3B0`
+    reset，导致清零后重建 action；现改用 `clear_legacy_world_role_table`，固定本函数不做
+    action 初始化的差异。RAII session、checked absent-role owner 与 split 64+8 slots 使
+    分类保持 `platform_adapted`。role-lifecycle、role-transfer、new-game transition 与
+    runtime-session synthetic/real 五项定向 CTest 通过；Linux `core` 185/185、Linux
+    `app` 191/191、Windows LLVM `app` 191/191 CTest 全部通过，两端应用成功链接且未
+    启动游戏 EXE。114 项当前关闭 106 项，即
+    `44 assembly_exact + 62 platform_adapted + 8 pending_audit`；下一精确停点为
+    `0x00425BE0 sub_425BE0`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

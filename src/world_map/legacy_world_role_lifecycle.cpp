@@ -69,6 +69,33 @@ void align_axis(compat::u32& coordinate, const i32 step) noexcept {
 
 }  // namespace
 
+LegacyWorldRoleTableClearResult clear_legacy_world_role_table(
+    const std::span<LegacyWorldRoleRecord> roles,
+    std::array<std::vector<compat::u8>, kLegacyWorldRoleCapacity>&
+        role_label_payloads
+) noexcept {
+    LegacyWorldRoleTableClearResult result;
+    if (roles.size() > kLegacyWorldRoleCapacity) {
+        result.status =
+            LegacyWorldRoleTableResetStatus::role_span_exceeds_capacity;
+        return result;
+    }
+
+    for (std::size_t index = 0U; index < roles.size(); ++index) {
+        ++result.payload_slots_scanned;
+        LegacyWorldRoleRecord& role = roles[index];
+        if (role.path_payload_pointer_32 != 0U) {
+            std::vector<compat::u8>{}.swap(role_label_payloads[index]);
+            ++result.payload_owners_released;
+        }
+        role = {};
+        ++result.roles_zeroed;
+    }
+
+    result.status = LegacyWorldRoleTableResetStatus::ready;
+    return result;
+}
+
 LegacyWorldRoleTableResetResult reset_legacy_world_role_table(
     const std::span<LegacyWorldRoleRecord> roles,
     std::array<std::vector<compat::u8>, kLegacyWorldRoleCapacity>&

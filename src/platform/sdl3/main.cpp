@@ -3389,27 +3389,17 @@ public:
         if (active_world_session_.has_value()) {
             auto& roles = active_world_session_->render.map_load.session
                               .business.state.roles;
-            const auto highest_role_index =
-                roles.size() > openswd3::world_map::kLegacyWorldRoleCapacity
-                ? static_cast<openswd3::compat::i32>(
-                      openswd3::world_map::kLegacyWorldRoleCapacity
-                  )
-                : roles.empty()
-                ? openswd3::compat::i32{-1}
-                : static_cast<openswd3::compat::i32>(roles.size() - 1U);
-            const auto role_reset =
-                openswd3::world_map::reset_legacy_world_role_table(
-                    roles,
-                    world_path_script_state_.role_label_payloads,
-                    highest_role_index
+            const auto role_clear =
+                openswd3::world_map::clear_legacy_world_role_table(
+                    roles, world_path_script_state_.role_label_payloads
                 );
-            if (role_reset.status !=
+            if (role_clear.status !=
                 openswd3::world_map::LegacyWorldRoleTableResetStatus::ready) {
                 std::string message{
-                    "initial world: previous role owner reset failed: status="
+                    "initial world: previous role owner clear failed: status="
                 };
                 message.append(
-                    std::to_string(static_cast<unsigned int>(role_reset.status))
+                    std::to_string(static_cast<unsigned int>(role_clear.status))
                 );
                 static_cast<void>(report_error(message));
                 ok_ = false;
