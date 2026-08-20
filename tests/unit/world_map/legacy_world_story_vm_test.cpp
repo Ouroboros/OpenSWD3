@@ -58,6 +58,7 @@ using openswd3::world_map::OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO;
 using openswd3::world_map::OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE;
 using openswd3::world_map::OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE;
 using openswd3::world_map::OP_34_SET_BOUNDED_SCRIPT_CLOCK;
+using openswd3::world_map::OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -4997,6 +4998,155 @@ void test_set_bounded_script_clock_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_jump_if_byte_le_script_clock_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.script_clock = 0x12340001U;
+        prime_loaded_instruction(
+            fixture, static_cast<u16>(OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK | mask)
+        );
+        fixture.state.window[2] = 2U;
+        fixture.state.window[3] = 0xA5U;
+        write_u32(fixture.state.window, 4U, 0x2222U);
+        write_u16(fixture.state.window, 8U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 8U &&
+                fixture.state.previous_opcode ==
+                    OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK &&
+                fixture.state.script_clock == 0x12340001U &&
+                fixture.state.window[3] == 0xA5U &&
+                fixture.ports.data_load_count == 0U &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 35 aliases compare the byte against only clock low16"
+        );
+    }
+
+    Fixture equality_taken;
+    equality_taken.state.script_clock = 0x123400FFU;
+    prime_loaded_instruction(
+        equality_taken, OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK
+    );
+    equality_taken.state.window[2] = 0xFFU;
+    equality_taken.state.window[3] = 0xA5U;
+    write_u32(equality_taken.state.window, 4U, 0x3333U);
+    write_u16(equality_taken.ports.transferred_window, 0U, OP_1025);
+    const auto equality_taken_result = equality_taken.step();
+    test.expect_true(
+        equality_taken_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            equality_taken_result.executed_instruction_count == 2U &&
+            equality_taken.context.talk_data_offset == 0x3333U &&
+            equality_taken.context.instruction_offset == 0U &&
+            equality_taken.state.previous_opcode ==
+                OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK &&
+            equality_taken.ports.data_load_count == 1U &&
+            equality_taken.ports.last_data_offset == 0x3333U &&
+            equality_taken.ports.direct_audio_service_count == 1U,
+        "opcode 35 equality takes the same-file branch and continues"
+    );
+
+    Fixture no_target_needed;
+    no_target_needed.context.instruction_offset = 0x7FFDU;
+    no_target_needed.context.talk_data_offset = 0x1111U;
+    no_target_needed.state.loaded_file_number = 1U;
+    no_target_needed.state.loaded_data_offset = 0x1111U;
+    no_target_needed.state.window_loaded = true;
+    no_target_needed.state.script_clock = 0U;
+    write_u16(
+        no_target_needed.state.window,
+        0x7FFDU,
+        OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK
+    );
+    no_target_needed.state.window[0x7FFFU] = 0xFFU;
+    const auto no_target_needed_result = no_target_needed.step();
+    test.expect_true(
+        no_target_needed_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            no_target_needed.context.instruction_offset == 0x8005U &&
+            no_target_needed.state.previous_opcode ==
+                OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK &&
+            no_target_needed.ports.data_load_count == 0U &&
+            no_target_needed.ports.direct_audio_service_count == 0U,
+        "opcode 35 not-taken path neither reads padding nor requires target"
+    );
+
+    Fixture target_truncated;
+    target_truncated.context.instruction_offset = 0x7FFDU;
+    target_truncated.context.talk_data_offset = 0x1111U;
+    target_truncated.state.loaded_file_number = 1U;
+    target_truncated.state.loaded_data_offset = 0x1111U;
+    target_truncated.state.window_loaded = true;
+    target_truncated.state.previous_opcode = 0x55U;
+    target_truncated.state.script_clock = 0xFFU;
+    write_u16(
+        target_truncated.state.window,
+        0x7FFDU,
+        OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK
+    );
+    target_truncated.state.window[0x7FFFU] = 0xFFU;
+    const auto target_truncated_result = target_truncated.step();
+    test.expect_true(
+        target_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            target_truncated.context.instruction_offset == 0x7FFDU &&
+            target_truncated.state.previous_opcode == 0x55U &&
+            target_truncated.ports.data_load_count == 0U,
+        "opcode 35 taken path reads target only after the comparison"
+    );
+
+    Fixture value_truncated;
+    value_truncated.context.instruction_offset = 0x7FFEU;
+    value_truncated.context.talk_data_offset = 0x1111U;
+    value_truncated.state.loaded_file_number = 1U;
+    value_truncated.state.loaded_data_offset = 0x1111U;
+    value_truncated.state.window_loaded = true;
+    value_truncated.state.previous_opcode = 0x55U;
+    write_u16(
+        value_truncated.state.window,
+        0x7FFEU,
+        OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK
+    );
+    const auto value_truncated_result = value_truncated.step();
+    test.expect_true(
+        value_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            value_truncated.context.instruction_offset == 0x7FFEU &&
+            value_truncated.state.previous_opcode == 0x55U,
+        "opcode 35 requires the value byte before comparing"
+    );
+
+    Fixture load_failure;
+    load_failure.state.script_clock = 1U;
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    prime_loaded_instruction(load_failure, OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK);
+    load_failure.state.window[2] = 1U;
+    load_failure.state.window[3] = 0xA5U;
+    write_u32(load_failure.state.window, 4U, 0x4444U);
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.load_status ==
+                LegacyTalkWindowStatus::data_read_failed &&
+            load_failure.context.talk_data_offset == 0x4444U &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK &&
+            load_failure.ports.direct_audio_service_count == 1U,
+        "opcode 35 taken path preserves the checked loader failure order"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -7545,6 +7695,7 @@ int main(const int argument_count, char** arguments) {
     test_change_role_path_id_protocol(test);
     test_global_integer_protocol(test);
     test_set_bounded_script_clock_protocol(test);
+    test_jump_if_byte_le_script_clock_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);

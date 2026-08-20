@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v267
+版本：v268
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428934` handler（opcode 35）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042896C` handler（opcode 36）
 
 ## 0. 执行约定
 
@@ -1564,6 +1564,17 @@ B7 P0 有限收口完成。
     通过；生成器`py_compile`及双重生成哈希幂等通过。Windows依v267留到P3，未启动游戏EXE。
     workpack当前25/146，即`4 assembly_exact + 21 platform_adapted + 121 pending_audit`。
 
+- 剧情VM P2第二十六组`0x00428934` / opcode35完成独立闭环。恢复`u8(+2)`与共享
+    `script_clock & 0xFFFF`的无符号比较，相等及更小值taken；`+3` padding从不读取，target只在
+    taken后读取。no-jump即使窗口仅余3字节仍按物理长度IP+8；taken通过typed同文件loader直接
+    service audio、发布目标offset/IP=0并同调用继续，checked I/O failure保留调用后previous顺序。
+    四个TALK资产均为0条线性记录、0个entry probe；四种raw word共1145处字节候选全非已证明
+    入口，因此使用asset-absence证据。四raw alias、clock低16屏蔽、相等taken、无padding/target
+    no-jump、taken target截断及load failure均通过。定向剧情VM 3/3、Linux core 186/186、Linux
+    app 192/192均以exit 0通过；生成器`py_compile`及双重生成哈希幂等通过。Windows依v268留到
+    P3，未启动游戏EXE。workpack当前26/146，即
+    `4 assembly_exact + 22 platform_adapted + 120 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428934` 的opcode35 handler；现有导航语义与未实现状态均不继承完成状态。
+`0x0042896C` 的opcode36 handler；现有导航语义与未实现状态均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
