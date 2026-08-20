@@ -105,6 +105,29 @@ void test_interval_reload_and_cursor_advance(openswd3::test::Context& test) {
     );
 }
 
+void test_odd_cursor_and_nonpositive_reload(openswd3::test::Context& test) {
+    const std::array<i16, 4> selection{10, -2, 3, 4};
+    LegacyWorldCameraRect camera{1U, 2U, 641U, 482U};
+    LegacyWorldSelectionScrollState state{
+        .cursor_word_index = 1U,
+        .frames_remaining = 0,
+        .frame_interval = -5,
+    };
+
+    test.expect_equal(
+        advance_legacy_world_selection_scroll(selection, 24U, camera, state),
+        LegacyWorldSelectionScrollStatus::completed,
+        "the original word cursor is not forced to pair alignment"
+    );
+    test.expect_true(
+        state.cursor_word_index == 3U && state.frames_remaining == -5 &&
+            state.saved_left == 1U && state.saved_top == 2U &&
+            camera.left == 0xFFFFFFFFU && camera.right == 639U &&
+            camera.top == 5U && camera.bottom == 485U,
+        "zero countdown reloads a negative interval after consuming an odd pair"
+    );
+}
+
 void test_countdown_wrap(openswd3::test::Context& test) {
     const std::array<i16, 2> selection{0, 0};
     LegacyWorldCameraRect camera{};
@@ -214,6 +237,7 @@ int main() {
     test_entry_gates(test);
     test_cursor_rewind_and_signed_scroll(test);
     test_interval_reload_and_cursor_advance(test);
+    test_odd_cursor_and_nonpositive_reload(test);
     test_countdown_wrap(test);
     test_invalid_windows(test);
     test_scroll_and_frame_tail_restore(test);

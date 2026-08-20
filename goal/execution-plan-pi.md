@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v225
+版本：v226
 
 最后更新：2026-08-16
 
@@ -1132,5 +1132,17 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     Windows LLVM `app` 191/191 CTest 全部通过，两端应用成功链接且未启动游戏 EXE。
     114 项当前关闭 102 项，即 `44 assembly_exact + 58 platform_adapted + 12
     pending_audit`；下一精确停点为 `0x004148F0 sub_4148F0`。
+
+    B7 的选择序列临时相机滚动 `sub_4148F0` 随后完成独立闭环：完整物理范围
+    `0x004148F0..0x004149A1`、`sub_4120B0:0x00412691` 唯一调用点、无参数 ABI、首项
+    `0xCFCF` sentinel/map 22 两门、word 游标 sentinel 回零、signed i16 坐标、countdown
+    回绕/重载、原 left/top 保存及四边临时平移均完成 LST→C++→LST 双向逐指令收敛。
+    独立向量固定奇数游标不对齐、零 countdown 载入负 interval、`INT32_MIN` 递减回绕、
+    无效 span 隔离和帧尾固定 640×480 恢复。受检 selection span 使分类保持
+    `platform_adapted`。selection-scroll 与 frame-coordinator 两项定向 CTest 通过；Linux
+    `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest 全部通过。
+    该状态机已接入 coordinator，两端应用成功链接且未启动游戏 EXE。
+    114 项当前关闭 103 项，即 `44 assembly_exact + 59 platform_adapted + 11
+    pending_audit`；下一精确停点为 `0x004149B0 sub_4149B0`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。
