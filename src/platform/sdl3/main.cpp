@@ -3330,6 +3330,19 @@ public:
                 return action_updater_.update(action).return_value;
             }
 
+            void release_role_path_payload(
+                const openswd3::compat::u32 role_index
+            ) noexcept override {
+                if (role_index >= owner_.world_path_script_state_
+                                      .role_label_payloads.size()) {
+                    return;
+                }
+                std::vector<openswd3::compat::u8>{}.swap(
+                    owner_.world_path_script_state_
+                        .role_label_payloads[role_index]
+                );
+            }
+
             void begin_world_session_reload() noexcept override {
                 owner_.begin_story_world_session_reload();
             }

@@ -26,7 +26,31 @@ constexpr u16 kCurrentSourceSelector = 0xFFF0U;
 constexpr u16 kContextSelector = 0xFFFDU;
 constexpr u32 kTalkEntriesPerFile = 2000U;
 constexpr std::size_t kObjectRoleIndexOffset = 0x00U;
+constexpr std::size_t kObjectPathCursorOffset = 0x02U;
+constexpr std::size_t kObjectPathLinkFirstOffset = 0x08U;
 constexpr std::size_t kObjectPathFlagsOffset = 0x1BU;
+constexpr std::size_t kObjectPathDataOffset = 0x1CU;
+
+constexpr std::array<i32, 8U> kDirectionStepX{
+    4,
+    0,
+    -4,
+    -4,
+    -4,
+    0,
+    4,
+    4,
+};
+constexpr std::array<i32, 8U> kDirectionStepY{
+    4,
+    4,
+    4,
+    0,
+    -4,
+    -4,
+    -4,
+    0,
+};
 
 constexpr std::array<u16, 6U> kInitialSetFlags{1U, 3U, 4U, 10U, 30U, 70U};
 
@@ -111,6 +135,110 @@ void record_action_update(
                roles, selector, controlled_role_index, role_index
            ) &&
         role_index < roles.size();
+}
+
+[[nodiscard]] bool
+align_axis_to_previous_tile(u32& value, const i32 step) noexcept {
+    if ((value & 0x0FU) == 0U) {
+        return true;
+    }
+    if (step == 0 || (value & 3U) != 0U) {
+        return false;
+    }
+    while ((value & 0x0FU) != 0U) {
+        value -= static_cast<u32>(step);
+    }
+    return true;
+}
+
+[[nodiscard]] LegacyWorldStoryVmStatus prepare_role_path_id_change(
+    const std::span<LegacyWorldRoleRecord> roles,
+    const u32 role_index,
+    const std::span<LegacyWorldObjectSlot, kLegacyWorldActiveObjectSlotCount>
+        active_object_slots,
+    const LegacyWorldStoryVmRuntime& runtime,
+    LegacyWorldStoryVmResult& result,
+    LegacyWorldStoryVmPorts& ports
+) noexcept {
+    auto& role = roles[role_index];
+    if (role.path_payload_pointer_32 != 0U) {
+        ports.release_role_path_payload(role_index);
+        role.path_payload_relation = 0U;
+        role.path_payload_pointer_32 = 0U;
+    }
+
+    const auto object = std::ranges::find_if(
+        active_object_slots, [role_index](const LegacyWorldObjectSlot& slot) {
+            return read_object_u16(slot, kObjectRoleIndexOffset) ==
+                static_cast<u16>(role_index);
+        }
+    );
+    if (object == active_object_slots.end()) {
+        return LegacyWorldStoryVmStatus::idle;
+    }
+
+    auto& slot = *object;
+    const u8 object_type = slot.bytes[kObjectPathFlagsOffset] & 0x0FU;
+    if (object_type == 2U) {
+        for (std::size_t offset = kObjectPathLinkFirstOffset;
+             offset < kObjectPathLinkFirstOffset + 8U;
+             offset += 2U) {
+            write_u16(slot.bytes, offset, 0xFFFFU);
+        }
+        return LegacyWorldStoryVmStatus::idle;
+    }
+    if (object_type != 1U) {
+        return LegacyWorldStoryVmStatus::idle;
+    }
+
+    if ((role.world_x & 0x0FU) != 0U || (role.world_y & 0x0FU) != 0U) {
+        const u32 first_row_bits = (role.world_y >> 4U) - 1U;
+        if ((role.flags & 0x00004000U) == 0U) {
+            if (runtime.role_surface.map_width == 0U ||
+                runtime.role_surface.surface_grid.empty()) {
+                return LegacyWorldStoryVmStatus::runtime_unavailable;
+            }
+            if (clear_legacy_world_role_surface_occupancy(
+                    role, runtime.role_surface
+                )
+                    .status != LegacyWorldRoleSurfaceStatus::ready) {
+                return LegacyWorldStoryVmStatus::role_surface_failed;
+            }
+        }
+
+        const u16 cursor = static_cast<u16>(
+            read_object_u16(slot, kObjectPathCursorOffset) & 0x7FFFU
+        );
+        const std::size_t direction_offset = kObjectPathDataOffset + cursor;
+        if (direction_offset >= slot.bytes.size()) {
+            return LegacyWorldStoryVmStatus::role_path_failed;
+        }
+        const u8 direction = slot.bytes[direction_offset];
+        if (direction >= kDirectionStepX.size() ||
+            !align_axis_to_previous_tile(
+                role.world_x, kDirectionStepX[direction]
+            ) ||
+            !align_axis_to_previous_tile(
+                role.world_y, kDirectionStepY[direction]
+            )) {
+            return LegacyWorldStoryVmStatus::role_path_failed;
+        }
+        if (runtime.spatial_index == nullptr) {
+            return LegacyWorldStoryVmStatus::runtime_unavailable;
+        }
+        static_cast<void>(relocate_legacy_role_spatially_by_guid(
+            *runtime.spatial_index,
+            roles,
+            role.guid,
+            role.flags & 3U,
+            std::bit_cast<i32>(first_row_bits),
+            true
+        ));
+    }
+
+    static_cast<void>(reset_legacy_world_object_slot(slot));
+    ++result.active_object_reset_count;
+    return LegacyWorldStoryVmStatus::idle;
 }
 
 [[nodiscard]] std::span<const u8>
@@ -1847,6 +1975,63 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 14U);
             state.previous_opcode = result.opcode;
             continue;
+        }
+
+        case OP_28_CHANGE_ROLE_PATH_ID: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u16 selector = read_u16(state.window, ip + 2U);
+            u32 role_index{};
+            if (!resolve_role_index(
+                    roles, selector, controlled_role_index, role_index
+                )) {
+                if (selector == kLegacyWorldControlledRoleSelector) {
+                    result.status = LegacyWorldStoryVmStatus::role_not_found;
+                    return result;
+                }
+                if (!has_bytes(state.window, ip, 6U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                ports.patch_role_source(
+                    LegacyMapsRolePatchRequest{
+                        .guid = selector,
+                        .path_data_id = read_u16(state.window, ip + 4U),
+                        .flags_or_mask = 0x1000U,
+                    }
+                );
+            } else {
+                result.status = prepare_role_path_id_change(
+                    roles,
+                    role_index,
+                    active_object_slots,
+                    runtime,
+                    result,
+                    ports
+                );
+                if (result.status != LegacyWorldStoryVmStatus::idle) {
+                    return result;
+                }
+                if (!has_bytes(state.window, ip, 6U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                auto& role = roles[role_index];
+                role.path_data_id = read_u16(state.window, ip + 4U);
+                role.path_word_index = 0U;
+                role.flags |= 0x00001000U;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
         }
 
         case 38U: {

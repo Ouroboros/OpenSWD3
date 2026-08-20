@@ -52,13 +52,15 @@ handler 推进 14 字节、设置 `ESI=1` 并同调用继续。647 条真实物�
 
 角色存在时，handler 先释放角色 `+0x38` 拥有的旧 Path 载荷并清 `+0x34/+0x38`，再扫描固定 72 个地图对象槽：
 
-- type 2 对象会把四个 16 位关联字段写成 `FFFF`；
-- type 1 对象在角色坐标未按 16 像素对齐时，按地图步长表向下对齐并重新定位；
-- 匹配对象最终交给 `sub_40DD40` 重置。
+- type 2 对象只把 `+0x08/+0x0A/+0x0C/+0x0E` 四个 `u16` 写成 `FFFF`；
+- type 1 对象在角色坐标未按 16 像素对齐时，按方向步长执行反向减法直到整格，清旧 surface occupancy，并从旧 `(world_y >> 4) - 1` 开始空间重插；
+- type 1 匹配对象最终交给 `sub_40DD40` 重置，其他 type 不重置。
 
-之后写 `role+0x1C=path_id`、`role+0x18=0`，并对 `role+0x10` OR `0x1000`。角色不存在时走 `sub_40D460` fallback。
+之后写 `role+0x1C=path_id`、`role+0x18=0`，并对 `role+0x10` OR `0x1000`。角色不存在时走 `sub_40D460` fallback，只 patch MAPS source 的 Path id 与 `0x1000` flag。
 
-两条路径都汇合到 `0x0042BEE9`，只推进六字节，没有设置 `ESI=1`。因此该指令消费后返回主帧，下一条要到后续帧执行。这里不能照相邻大多数角色操作统一成同帧继续。
+两条路径都汇合到 `0x0042BEE9`，只推进六字节，没有设置 `ESI=1`。common join 发布 previous opcode 后进入 `_AIL_serve` 并返回；因此该指令消费后跨帧让出，下一条要到后续帧执行。这里不能照相邻大多数角色操作统一成同帧继续。
+
+45 条真实记录全部 raw `0x001C`、长度 6，分布为 TALK1/2/3/4=`7/27/2/9`。完整 staged-read、对象槽、反向对齐、重插、typed owner 与测试证据见 [`story-vm-role-path-id-change-00428713.md`](story-vm-role-path-id-change-00428713.md)。
 
 ## opcode 29–33：带原始越界行为的 64 项整数区
 

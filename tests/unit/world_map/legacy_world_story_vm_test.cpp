@@ -51,6 +51,7 @@ using openswd3::world_map::OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET;
 using openswd3::world_map::OP_25_SET_GLOBAL_BIT;
 using openswd3::world_map::OP_26_CLEAR_GLOBAL_BIT;
 using openswd3::world_map::OP_27_RELOAD_WORLD_SESSION;
+using openswd3::world_map::OP_28_CHANGE_ROLE_PATH_ID;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -184,6 +185,11 @@ public:
         return 1U;
     }
 
+    void release_role_path_payload(const u32 role_index) noexcept override {
+        ++role_path_payload_release_count;
+        released_role_path_index = role_index;
+    }
+
     void begin_world_session_reload() noexcept override {
         ++world_session_reload_begin_count;
         story_protocol_events.push_back(6U);
@@ -279,6 +285,8 @@ public:
     u32 beep_count{};
     u32 direct_audio_service_count{};
     u32 dialog_text_prepare_count{};
+    u32 role_path_payload_release_count{};
+    u32 released_role_path_index{0xFFFFFFFFU};
     u32 world_session_reload_begin_count{};
     u32 world_session_reload_count{};
     bool last_data_clear_before_read{};
@@ -351,6 +359,11 @@ public:
         return 1U;
     }
 
+    void release_role_path_payload(const u32 role_index) noexcept override {
+        ++role_path_payload_release_count;
+        released_role_path_index = role_index;
+    }
+
     void begin_world_session_reload() noexcept override {
         ++world_session_reload_begin_count;
     }
@@ -406,6 +419,8 @@ public:
     u32 framebuffer_present_count{};
     u32 video_begin_count{};
     u32 video_progress_query_count{};
+    u32 role_path_payload_release_count{};
+    u32 released_role_path_index{0xFFFFFFFFU};
     u32 world_session_reload_begin_count{};
     u32 world_session_reload_count{};
     openswd3::world_map::LegacyWorldLoadRequest last_world_load_request{};
@@ -4375,6 +4390,224 @@ void test_reload_world_session_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_change_role_path_id_protocol(openswd3::test::Context& test) {
+    const auto prime = [](Fixture& fixture,
+                          const u16 raw_word,
+                          const u16 selector,
+                          const u16 path_id) {
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, selector);
+        write_u16(fixture.state.window, 4U, path_id);
+    };
+
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_28_CHANGE_ROLE_PATH_ID,
+        static_cast<u16>(OP_28_CHANGE_ROLE_PATH_ID | 0x4000U),
+        static_cast<u16>(OP_28_CHANGE_ROLE_PATH_ID | 0x8000U),
+        static_cast<u16>(OP_28_CHANGE_ROLE_PATH_ID | 0xC000U),
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        fixture.roles[1].path_word_index = 7U;
+        fixture.roles[1].path_data_id = 0x1111U;
+        prime(fixture, raw_word, 0x00F8U, 0x2468U);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_28_CHANGE_ROLE_PATH_ID &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode == OP_28_CHANGE_ROLE_PATH_ID &&
+                fixture.roles[1].path_data_id == 0x2468U &&
+                fixture.roles[1].path_word_index == 0U &&
+                (fixture.roles[1].flags & 0x1000U) != 0U &&
+                fixture.ports.direct_audio_service_count == 1U,
+            "opcode 28 aliases update the live role then yield after audio service"
+        );
+    }
+
+    Fixture missing;
+    prime(missing, OP_28_CHANGE_ROLE_PATH_ID, 0x4321U, 0x1357U);
+    const auto missing_result = missing.step();
+    const auto& patch = missing.ports.role_patch_requests.front();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::yielded &&
+            missing.ports.role_patch_requests.size() == 1U &&
+            patch.guid == 0x4321U && patch.action_id == 0xFFFFU &&
+            patch.base_variant == 0xFFFFU && patch.variant_delta == 0xFFFFU &&
+            patch.tile_x == 0xFFFFU && patch.tile_y == 0xFFFFU &&
+            patch.talk_script_id == 0xFFFFU && patch.path_data_id == 0x1357U &&
+            patch.flags_or_mask == 0x1000U && patch.flags_and_mask == 0xFFFFU &&
+            patch.logical_map_id == 0xFFFFU &&
+            missing.context.instruction_offset == 6U &&
+            missing.state.previous_opcode == OP_28_CHANGE_ROLE_PATH_ID &&
+            missing.ports.direct_audio_service_count == 1U,
+        "opcode 28 preserves all other MAPS fields on a missing live role"
+    );
+
+    Fixture invalid_controlled;
+    invalid_controlled.state.previous_opcode = 0x55U;
+    prime(invalid_controlled, OP_28_CHANGE_ROLE_PATH_ID, 0xFFFEU, 0x1357U);
+    const auto invalid_controlled_result = invalid_controlled.step(0, 0, 99U);
+    test.expect_true(
+        invalid_controlled_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            invalid_controlled.context.instruction_offset == 0U &&
+            invalid_controlled.state.previous_opcode == 0x55U &&
+            invalid_controlled.ports.role_patch_requests.empty() &&
+            invalid_controlled.ports.direct_audio_service_count == 0U,
+        "opcode 28 isolates an invalid controlled-role selector before MAPS patching"
+    );
+
+    Fixture type_two;
+    type_two.roles[1].path_payload_relation = 0x11111111U;
+    type_two.roles[1].path_payload_pointer_32 = 0x22222222U;
+    auto& type_two_slot = type_two.active_object_slots[0];
+    type_two_slot.bytes.fill(0x5AU);
+    write_u16(type_two_slot.bytes, 0U, 1U);
+    type_two_slot.bytes[0x1BU] = 2U;
+    prime(type_two, OP_28_CHANGE_ROLE_PATH_ID, 0x00F8U, 0x3456U);
+    const auto type_two_result = type_two.step();
+    test.expect_true(
+        type_two_result.status == LegacyWorldStoryVmStatus::yielded &&
+            type_two.ports.role_path_payload_release_count == 1U &&
+            type_two.ports.released_role_path_index == 1U &&
+            type_two.roles[1].path_payload_relation == 0U &&
+            type_two.roles[1].path_payload_pointer_32 == 0U &&
+            std::ranges::all_of(
+                type_two_slot.bytes.begin() + 8,
+                type_two_slot.bytes.begin() + 16,
+                [](const u8 value) { return value == 0xFFU; }
+            ) &&
+            type_two_slot.bytes[0x10U] == 0x5AU &&
+            type_two_result.active_object_reset_count == 0U,
+        "opcode 28 releases role payload then clears only four type-2 link words"
+    );
+
+    Fixture aligned;
+    auto& aligned_slot = aligned.active_object_slots[0];
+    aligned_slot.bytes.fill(0x33U);
+    write_u16(aligned_slot.bytes, 0U, 1U);
+    aligned_slot.bytes[0x1BU] = 1U;
+    prime(aligned, OP_28_CHANGE_ROLE_PATH_ID, 0x00F8U, 0x4567U);
+    const auto aligned_result = aligned.step();
+    test.expect_true(
+        aligned_result.status == LegacyWorldStoryVmStatus::yielded &&
+            aligned_result.active_object_reset_count == 1U &&
+            std::ranges::all_of(
+                aligned_slot.bytes,
+                [](const u8 value) { return value == 0xFFU; }
+            ),
+        "opcode 28 resets an aligned matching type-1 object without runtime owners"
+    );
+
+    const auto test_alignment = [&](const u32 start_x,
+                                    const u32 start_y,
+                                    const u8 direction,
+                                    const u32 flags,
+                                    const bool provide_surface) {
+        Fixture fixture;
+        fixture.roles[1].world_x = start_x;
+        fixture.roles[1].world_y = start_y;
+        fixture.roles[1].flags = flags;
+        StoryPathHarness harness(fixture);
+        fixture.runtime.spatial_index = &harness.spatial;
+        fixture.runtime.role_surface = provide_surface
+            ? harness.runtime.role_surface
+            : openswd3::world_map::LegacyWorldRoleSurfaceContext{};
+        auto& slot = fixture.active_object_slots[0];
+        write_u16(slot.bytes, 0U, 1U);
+        write_u16(slot.bytes, 2U, 0U);
+        slot.bytes[0x1BU] = 1U;
+        slot.bytes[0x1CU] = direction;
+        prime(fixture, OP_28_CHANGE_ROLE_PATH_ID, 0x00F8U, 0x5678U);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                fixture.roles[1].world_x == 320U &&
+                fixture.roles[1].world_y == 240U &&
+                result.active_object_reset_count == 1U &&
+                std::ranges::all_of(
+                    slot.bytes, [](const u8 value) { return value == 0xFFU; }
+                ),
+            "opcode 28 aligns type-1 movement backward before spatial reinsertion"
+        );
+    };
+    test_alignment(324U, 244U, 0U, 0U, true);
+    test_alignment(316U, 236U, 4U, 0U, true);
+    test_alignment(324U, 244U, 0U, 0x4000U, false);
+
+    Fixture invalid_direction;
+    invalid_direction.state.previous_opcode = 0x55U;
+    invalid_direction.roles[1].world_x = 324U;
+    invalid_direction.roles[1].flags = 0x4000U;
+    auto& invalid_slot = invalid_direction.active_object_slots[0];
+    write_u16(invalid_slot.bytes, 0U, 1U);
+    write_u16(invalid_slot.bytes, 2U, 0U);
+    invalid_slot.bytes[0x1BU] = 1U;
+    invalid_slot.bytes[0x1CU] = 8U;
+    prime(invalid_direction, OP_28_CHANGE_ROLE_PATH_ID, 0x00F8U, 0x6789U);
+    const auto invalid_direction_result = invalid_direction.step();
+    test.expect_true(
+        invalid_direction_result.status ==
+                LegacyWorldStoryVmStatus::role_path_failed &&
+            invalid_direction.context.instruction_offset == 0U &&
+            invalid_direction.state.previous_opcode == 0x55U &&
+            invalid_direction.roles[1].path_data_id == 0U &&
+            invalid_direction.ports.direct_audio_service_count == 0U &&
+            invalid_slot.bytes[0x1BU] == 1U,
+        "opcode 28 isolates an invalid type-1 direction without publishing the instruction"
+    );
+
+    Fixture live_truncated;
+    live_truncated.context.instruction_offset = 0x7FFCU;
+    live_truncated.context.talk_data_offset = 0x1111U;
+    live_truncated.state.loaded_file_number = 1U;
+    live_truncated.state.loaded_data_offset = 0x1111U;
+    live_truncated.state.window_loaded = true;
+    live_truncated.state.previous_opcode = 0x55U;
+    live_truncated.roles[1].path_payload_relation = 0x11111111U;
+    live_truncated.roles[1].path_payload_pointer_32 = 0x22222222U;
+    write_u16(live_truncated.state.window, 0x7FFCU, OP_28_CHANGE_ROLE_PATH_ID);
+    write_u16(live_truncated.state.window, 0x7FFEU, 0x00F8U);
+    const auto live_truncated_result = live_truncated.step();
+    test.expect_true(
+        live_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            live_truncated.context.instruction_offset == 0x7FFCU &&
+            live_truncated.state.previous_opcode == 0x55U &&
+            live_truncated.ports.role_path_payload_release_count == 1U &&
+            live_truncated.roles[1].path_payload_relation == 0U &&
+            live_truncated.roles[1].path_payload_pointer_32 == 0U &&
+            live_truncated.roles[1].path_word_index == 0U &&
+            live_truncated.roles[1].path_data_id == 0U,
+        "opcode 28 reads path id only after live-role payload and object effects"
+    );
+
+    Fixture missing_truncated;
+    missing_truncated.context.instruction_offset = 0x7FFCU;
+    missing_truncated.context.talk_data_offset = 0x1111U;
+    missing_truncated.state.loaded_file_number = 1U;
+    missing_truncated.state.loaded_data_offset = 0x1111U;
+    missing_truncated.state.window_loaded = true;
+    missing_truncated.state.previous_opcode = 0x55U;
+    write_u16(
+        missing_truncated.state.window, 0x7FFCU, OP_28_CHANGE_ROLE_PATH_ID
+    );
+    write_u16(missing_truncated.state.window, 0x7FFEU, 0x4321U);
+    const auto missing_truncated_result = missing_truncated.step();
+    test.expect_true(
+        missing_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_truncated.context.instruction_offset == 0x7FFCU &&
+            missing_truncated.state.previous_opcode == 0x55U &&
+            missing_truncated.ports.role_patch_requests.empty() &&
+            missing_truncated.ports.direct_audio_service_count == 0U,
+        "opcode 28 missing-role fallback reads path id before MAPS patching"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -5164,7 +5397,7 @@ void test_real_release_all_role_paths_record(
 ) {
     std::ifstream input{root / "TALK2.DAT", std::ios::binary | std::ios::in};
     input.seekg(0x00010C93);
-    std::array<u8, 4U> instruction{};
+    std::array<u8, 8U> instruction{};
     input.read(
         reinterpret_cast<char*>(instruction.data()),
         static_cast<std::streamsize>(instruction.size())
@@ -5180,14 +5413,23 @@ void test_real_release_all_role_paths_record(
     test.expect_true(
         instruction_read &&
             read_u16(instruction, 0U) == OP_19_RELEASE_ROLE_PATHS &&
-            read_u16(instruction, 2U) == 28U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == 28U && result.executed_instruction_count == 2U &&
-            fixture.context.instruction_offset == 2U &&
-            fixture.state.previous_opcode == OP_19_RELEASE_ROLE_PATHS &&
+            read_u16(instruction, 2U) == OP_28_CHANGE_ROLE_PATH_ID &&
+            read_u16(instruction, 4U) == 102U &&
+            read_u16(instruction, 6U) == 102U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_28_CHANGE_ROLE_PATH_ID &&
+            result.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 8U &&
+            fixture.state.previous_opcode == OP_28_CHANGE_ROLE_PATH_ID &&
             fixture.roles[1].flags == 0x20000000U &&
-            fixture.roles[1].action.wait_remaining == 7U,
-        "real opcode 19 skips released roles then same-call fetches opcode 28"
+            fixture.roles[1].action.wait_remaining == 7U &&
+            fixture.ports.role_patch_requests.size() == 1U &&
+            fixture.ports.role_patch_requests.front().guid == 102U &&
+            fixture.ports.role_patch_requests.front().path_data_id == 102U &&
+            fixture.ports.role_patch_requests.front().flags_or_mask ==
+                0x1000U &&
+            fixture.ports.direct_audio_service_count == 1U,
+        "real opcode 19 skips released roles then opcode 28 patches MAPS and yields"
     );
 }
 
@@ -5563,6 +5805,46 @@ void test_real_reload_world_session_record(
             request.variant_delta == 0x4567U &&
             request.selected_guid == 0x00F8U && request.load_flags == 1U,
         "real opcode 27 record inherits all three controlled-role action " "fields before synchronous world reload"
+    );
+}
+
+void test_real_change_role_path_id_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK2.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0001938D);
+    std::array<u8, 6U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, OP_28_CHANGE_ROLE_PATH_ID);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    fixture.roles[1].guid = 2U;
+    fixture.roles[1].path_data_id = 0x1111U;
+    fixture.roles[1].path_word_index = 7U;
+    fixture.roles[1].flags = 0x20U;
+    const auto result = fixture.step();
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_28_CHANGE_ROLE_PATH_ID &&
+            read_u16(instruction, 2U) == 2U &&
+            read_u16(instruction, 4U) == 30U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_28_CHANGE_ROLE_PATH_ID &&
+            result.executed_instruction_count == 1U &&
+            result.direct_audio_service_count == 1U &&
+            fixture.context.instruction_offset == 6U &&
+            fixture.state.previous_opcode == OP_28_CHANGE_ROLE_PATH_ID &&
+            fixture.roles[1].path_data_id == 30U &&
+            fixture.roles[1].path_word_index == 0U &&
+            fixture.roles[1].flags == 0x1020U &&
+            fixture.ports.direct_audio_service_count == 1U,
+        "real opcode 28 record replaces live role path id then yields"
     );
 }
 
@@ -6803,6 +7085,7 @@ int main(const int argument_count, char** arguments) {
     test_set_global_bit_protocol(test);
     test_clear_global_bit_protocol(test);
     test_reload_world_session_protocol(test);
+    test_change_role_path_id_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -6834,6 +7117,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_global_bit_record(test, root);
         test_real_clear_global_bit_record(test, root);
         test_real_reload_world_session_record(test, root);
+        test_real_change_role_path_id_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);
