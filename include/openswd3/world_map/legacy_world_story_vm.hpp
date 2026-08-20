@@ -27,23 +27,27 @@ namespace openswd3::world_map {
 inline constexpr std::size_t kLegacyWorldStoryFlagBytes = 0x400U;
 inline constexpr std::size_t kLegacyWorldScriptVariableCount = 64U;
 
-inline constexpr compat::u16 OP_07_CLEAR_DIALOG_CONTROL_BIT31 = 7U;
-inline constexpr compat::u16 OP_08_STAGE_DIALOG_LIFETIME = 8U;
-inline constexpr compat::u16 OP_09_CLEAR_DIALOG_CONTROL_BIT30 = 9U;
-inline constexpr compat::u16 OP_10_SET_ROLE_BASE_VARIANT = 10U;
-inline constexpr compat::u16 OP_11_SET_ROLE_VARIANT_DELTA = 11U;
-inline constexpr compat::u16 OP_12_SET_ROLE_POSITION = 12U;
-inline constexpr compat::u16 OP_13_STEP_ROLE = 13U;
-inline constexpr compat::u16 OP_14_WAIT_ROLE_ACTION_STATUS = 14U;
-inline constexpr compat::u16 OP_15_JUMP_SAME_FILE_OFFSET = 15U;
-inline constexpr compat::u16 OP_16_JUMP_IF_ROLE_PATH_UNPREPARED = 16U;
-inline constexpr compat::u16 OP_17_JUMP_IF_ROLE_PATH_PREPARED = 17U;
-inline constexpr compat::u16 OP_18_RELEASE_ROLE_PATH = 18U;
-inline constexpr compat::u16 OP_19_RELEASE_ROLE_PATHS = 19U;
-inline constexpr compat::u16 OP_20_SCHEDULE_ROLE_PATHS = 20U;
-inline constexpr compat::u16 OP_23 = 23U;
-inline constexpr compat::u16 OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U;
-inline constexpr compat::u16 OP_45 = 45U;
+enum LegacyWorldStoryOpcode : compat::u16 {
+    OP_07_CLEAR_DIALOG_CONTROL_BIT31 = 7U,
+    OP_08_STAGE_DIALOG_LIFETIME = 8U,
+    OP_09_CLEAR_DIALOG_CONTROL_BIT30 = 9U,
+    OP_10_SET_ROLE_BASE_VARIANT = 10U,
+    OP_11_SET_ROLE_VARIANT_DELTA = 11U,
+    OP_12_SET_ROLE_POSITION = 12U,
+    OP_13_STEP_ROLE = 13U,
+    OP_14_WAIT_ROLE_ACTION_STATUS = 14U,
+    OP_15_JUMP_SAME_FILE_OFFSET = 15U,
+    OP_16_JUMP_IF_ROLE_PATH_UNPREPARED = 16U,
+    OP_17_JUMP_IF_ROLE_PATH_PREPARED = 17U,
+    OP_18_RELEASE_ROLE_PATH = 18U,
+    OP_19_RELEASE_ROLE_PATHS = 19U,
+    OP_20_SCHEDULE_ROLE_PATHS = 20U,
+    OP_21_JUMP_IF_GLOBAL_BIT_SET = 21U,
+    OP_22_JUMP_IF_GLOBAL_BIT_CLEAR = 22U,
+    OP_23 = 23U,
+    OP_45 = 45U,
+    OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
+};
 
 struct LegacyWorldStoryVmState {
     std::array<compat::u8, resource_io::kLegacyTalkWindowSize> window{};

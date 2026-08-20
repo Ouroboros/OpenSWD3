@@ -42,7 +42,7 @@ EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
 EXPECTED_MODERN_CASE_COUNT = 63
-EXPECTED_CLOSED_HANDLER_COUNT = 16
+EXPECTED_CLOSED_HANDLER_COUNT = 17
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -125,6 +125,11 @@ CLOSURE_OVERRIDES = {
         "story-vm-role-path-schedule-0042adb7.md",
         "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
     ),
+    "0x00428533": (
+        "platform_adapted",
+        "story-vm-global-bit-conditional-jump-00428533.md",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+    ),
 }
 
 
@@ -179,7 +184,8 @@ def modern_cases() -> set[int]:
     opcode_constants = {
         match.group(1): parse_decimal(match.group(2), "opcode constant")
         for match in re.finditer(
-            r"^inline constexpr compat::u16 (OP_\d+(?:_[A-Z0-9_]+)?) = (\d+)U;$",
+            r"^\s*(?:inline constexpr compat::u16 )?"
+            r"(OP_\d+(?:_[A-Z0-9_]+)?)\s*=\s*(\d+)U[,;]$",
             header_text,
             re.MULTILINE,
         )
@@ -214,9 +220,7 @@ def semantic_navigation() -> dict[int, dict[str, str]]:
             rows[opcode] = row
     opcode_domain = set(rows)
     if not set(range(125)).issubset(opcode_domain):
-        raise InventoryError(
-            "manual semantic navigation no longer fully covers 0..124"
-        )
+        raise InventoryError("manual semantic navigation no longer fully covers 0..124")
     if not opcode_domain.issubset(set(range(194))):
         raise InventoryError("manual semantic navigation escaped opcode 0..193")
     return rows

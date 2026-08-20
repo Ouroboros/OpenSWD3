@@ -958,14 +958,14 @@ release_legacy_world_story_role_path(
 
     auto& role = roles[role_index];
     if ((role.flags & 0x80000000U) != 0U) {
-        const bool matching_slot =
-            std::ranges::any_of(active_object_slots, [role_index](
-                const LegacyWorldObjectSlot& slot
-            ) {
+        const bool matching_slot = std::ranges::any_of(
+            active_object_slots,
+            [role_index](const LegacyWorldObjectSlot& slot) {
                 return read_object_u16(slot, kObjectRoleIndexOffset) ==
-                        static_cast<u16>(role_index) &&
+                    static_cast<u16>(role_index) &&
                     (slot.bytes[kObjectPathFlagsOffset] & 0x0FU) > 1U;
-            });
+            }
+        );
         if (!matching_slot) {
             result.legacy_return_value = 0;
         } else {
@@ -1650,7 +1650,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     continue;
                 }
                 if (runtime.story_paths == nullptr) {
-                    result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
                     return result;
                 }
                 const auto queried = query_legacy_world_story_path(
@@ -1672,69 +1673,46 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             write_u16(state.window, ip + 2U, count);
             const std::size_t instruction_size =
                 4U + static_cast<std::size_t>(count) * record_size;
-            context.instruction_offset = static_cast<u16>(
-                context.instruction_offset + instruction_size
-            );
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + instruction_size);
             state.previous_opcode = result.opcode;
             continue;
         }
 
-        case 21U: {
-            if (!has_bytes(state.window, ip, 8U)) {
+        case OP_21_JUMP_IF_GLOBAL_BIT_SET:
+        case OP_22_JUMP_IF_GLOBAL_BIT_CLEAR: {
+            if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            if (query_legacy_world_story_flag(
-                    state, read_u16(state.window, ip + 2U)
-                )) {
-                const u32 target = read_u32(state.window, ip + 4U);
-                const u32 file_number = current_file_number(context, state);
-                const auto loaded = ports.load_data_window(
-                    file_number, target, state.window, false
-                );
-                result.load_status = loaded.status;
-                if (loaded.status !=
-                    resource_io::LegacyTalkWindowStatus::ready) {
-                    result.status = LegacyWorldStoryVmStatus::load_failed;
-                    return result;
-                }
-                context.talk_data_offset = target;
-                context.instruction_offset = 0U;
-                state.loaded_file_number = file_number;
-                state.loaded_data_offset = target;
-            } else {
+            const bool bit_is_set = query_legacy_world_story_flag(
+                state, read_u16(state.window, ip + 2U)
+            );
+            const bool jump =
+                bit_is_set !=
+                (result.opcode == OP_22_JUMP_IF_GLOBAL_BIT_CLEAR);
+            if (!jump) {
                 context.instruction_offset =
                     static_cast<u16>(context.instruction_offset + 8U);
+                state.previous_opcode = result.opcode;
+                continue;
             }
-            continue;
-        }
-
-        case 22U: {
-            if (!has_bytes(state.window, ip, 8U)) {
+            if (!has_bytes(state.window, ip + 4U, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            if (!query_legacy_world_story_flag(
-                    state, read_u16(state.window, ip + 2U)
-                )) {
-                const u32 target = read_u32(state.window, ip + 4U);
-                const u32 file_number = current_file_number(context, state);
-                const auto loaded = ports.load_data_window(
-                    file_number, target, state.window, false
-                );
-                result.load_status = loaded.status;
-                if (loaded.status !=
-                    resource_io::LegacyTalkWindowStatus::ready) {
-                    result.status = LegacyWorldStoryVmStatus::load_failed;
-                    return result;
-                }
-                context.talk_data_offset = target;
-                context.instruction_offset = 0U;
-                state.loaded_file_number = file_number;
-                state.loaded_data_offset = target;
-            } else {
-                context.instruction_offset =
-                    static_cast<u16>(context.instruction_offset + 8U);
+            const auto status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, ip + 4U),
+                result,
+                ports
+            );
+            state.previous_opcode = result.opcode;
+            if (status != LegacyWorldStoryVmStatus::idle) {
+                result.status = status;
+                return result;
             }
             continue;
         }

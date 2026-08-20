@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v258
+版本：v259
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428533` shared handler（opcode 21,22）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042857F` handler（opcode 23）
 
 ## 0. 执行约定
 
@@ -1481,6 +1481,15 @@ B7 P0 有限收口完成。
     门禁分层留到剧情VM P3大阶段统一执行，未启动游戏EXE。workpack当前16/146，即
     `3 assembly_exact + 13 platform_adapted + 130 pending_audit`。
 
+- 剧情VM P2第十七组共享入口`0x00428533` / opcode21,22完成独立闭环。恢复全局bit查询的
+    精确XOR反谓词、branch-only target读取、audio/offset/reload/previous顺序及no-branch窗口尾；
+    两opcode各四raw alias、I/O失败与两级截断通过。全1,314条真实指令长度/target零差异，
+    TALK1双样本完整回放内部前缀链。按用户要求，已审计opcode名称集中为固定底层类型
+    `LegacyWorldStoryOpcode : u16`枚举，生成器同步支持enum解析。定向剧情VM 3/3、Linux core
+    186/186、Linux app 192/192均以exit 0通过；Windows依v259留到剧情VM P3，未启动游戏EXE。
+    workpack当前
+    17/146，即`3 assembly_exact + 14 platform_adapted + 129 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428533` 的共享 opcode21/22 handler；两个变体必须同组独立审计，现有C++与导航语义均不继承完成状态。
+`0x0042857F` 的 opcode23 handler；中性枚举项与导航语义均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
