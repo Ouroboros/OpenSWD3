@@ -75,10 +75,26 @@ read_exact(LegacyFile& file, const std::span<compat::u8> buffer) noexcept {
     return true;
 }
 
+void maintain_audio(const LegacyLmfReadObserver* const observer) {
+    if (observer != nullptr && observer->maintain_audio) {
+        observer->maintain_audio();
+    }
+}
+
+void report_map_header_signature_ready(
+    const LegacyLmfReadObserver* const observer
+) {
+    if (observer != nullptr && observer->map_header_signature_ready) {
+        observer->map_header_signature_ready();
+    }
+}
+
 }  // namespace
 
 LegacyLmfMapLookupResult legacy_lmf_lookup_map(
-    const std::filesystem::path& archive_path, const compat::u32 map_id
+    const std::filesystem::path& archive_path,
+    const compat::u32 map_id,
+    const LegacyLmfReadObserver* const observer
 ) {
     LegacyFile file;
     if (!file.open(
@@ -88,6 +104,7 @@ LegacyLmfMapLookupResult legacy_lmf_lookup_map(
         )) {
         return {LegacyLmfMapLookupStatus::file_open_failed, 0U};
     }
+    maintain_audio(observer);
 
     const compat::u32 file_size = file.size();
     std::array<compat::u8, 4> header{};
@@ -110,6 +127,7 @@ LegacyLmfMapLookupResult legacy_lmf_lookup_map(
             return {LegacyLmfMapLookupStatus::tail_read_failed, 0U};
         }
     }
+    maintain_audio(observer);
 
     const compat::i32 adjusted_tail_size =
         std::bit_cast<compat::i32>(tail_size - 1U);
@@ -127,7 +145,9 @@ LegacyLmfMapLookupResult legacy_lmf_lookup_map(
 }
 
 LegacyLmfMapHeader legacy_lmf_read_map_header(
-    const std::filesystem::path& archive_path, const compat::u32 map_offset
+    const std::filesystem::path& archive_path,
+    const compat::u32 map_offset,
+    const LegacyLmfReadObserver* const observer
 ) {
     LegacyLmfMapHeader result;
     LegacyFile file;
@@ -162,6 +182,7 @@ LegacyLmfMapHeader legacy_lmf_read_map_header(
         result.status = LegacyLmfMapHeaderStatus::unsupported_signature;
         return result;
     }
+    report_map_header_signature_ready(observer);
 
     result.offset_04 = read_u32(header, 0x04U);
     result.offset_14 = read_u32(header, 0x14U);
@@ -180,6 +201,7 @@ LegacyLmfMapHeader legacy_lmf_read_map_header(
         result.status = LegacyLmfMapHeaderStatus::data_seek_failed;
         return result;
     }
+    maintain_audio(observer);
 
     if (read_u16(header, 0x8EU) != 0U) {
         result.status = LegacyLmfMapHeaderStatus::tile_count_high_word_nonzero;
@@ -209,7 +231,8 @@ LegacyLmfMapHeader legacy_lmf_read_map_header(
 LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
     const std::filesystem::path& archive_path,
     const compat::u32 map_offset,
-    const LegacyLmfMapHeader& header
+    const LegacyLmfMapHeader& header,
+    const LegacyLmfReadObserver* const observer
 ) {
     LegacyLmfSurfaceGrid result;
     if (header.status != LegacyLmfMapHeaderStatus::ready ||
@@ -253,6 +276,7 @@ LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
         result.status = LegacyLmfSurfaceGridStatus::raw_table_read_failed;
         return result;
     }
+    maintain_audio(observer);
 
     result.raw_table_values.reserve(raw_entry_count);
     for (compat::u32 entry = 0U; entry < raw_entry_count; ++entry) {
@@ -262,6 +286,7 @@ LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
             )
         );
     }
+    maintain_audio(observer);
 
     compat::u32 compressed_size =
         read_u32(raw_table, static_cast<std::size_t>(raw_entry_count) * 4U);
@@ -295,6 +320,7 @@ LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
             LegacyLmfSurfaceGridStatus::compressed_block_read_failed;
         return result;
     }
+    maintain_audio(observer);
 
     result.post_surface_record_count =
         read_u32(compressed_block, compressed_size);
@@ -313,6 +339,9 @@ LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
         result.surface_grid,
         result.actual_surface_grid_size
     );
+    std::vector<compat::u8>{}.swap(compressed_block);
+    std::vector<compat::u8>{}.swap(raw_table);
+    maintain_audio(observer);
     if (result.decompression_status != LegacyLzo1xStatus::success) {
         result.status = LegacyLmfSurfaceGridStatus::decompression_failed;
         return result;
@@ -325,7 +354,8 @@ LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
 LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
     const std::filesystem::path& archive_path,
     const compat::u32 map_offset,
-    const LegacyLmfSurfaceGrid& surface_grid
+    const LegacyLmfSurfaceGrid& surface_grid,
+    const LegacyLmfReadObserver* const observer
 ) {
     LegacyLmfPostSurfaceRecords result;
     if (surface_grid.status != LegacyLmfSurfaceGridStatus::ready) {
@@ -366,6 +396,7 @@ LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
             LegacyLmfPostSurfaceRecordsStatus::record_window_read_failed;
         return result;
     }
+    maintain_audio(observer);
     record_window.resize(actual_window_size);
     if (!checked_add(
             surface_grid.post_surface_records_offset,
@@ -465,7 +496,8 @@ LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
 LegacyLmfReferencedRecordDirectory legacy_lmf_read_referenced_record_directory(
     const std::filesystem::path& archive_path,
     const compat::u32 map_offset,
-    const LegacyLmfPostSurfaceRecords& post_surface_records
+    const LegacyLmfPostSurfaceRecords& post_surface_records,
+    const LegacyLmfReadObserver* const observer
 ) {
     LegacyLmfReferencedRecordDirectory result;
     if (post_surface_records.status !=
@@ -550,6 +582,7 @@ LegacyLmfReferencedRecordDirectory legacy_lmf_read_referenced_record_directory(
         }
         parsed.field_0c = read_u32(field_bytes, 0U);
         result.records.push_back(parsed);
+        maintain_audio(observer);
     }
 
     result.status = LegacyLmfReferencedRecordDirectoryStatus::ready;
@@ -559,7 +592,8 @@ LegacyLmfReferencedRecordDirectory legacy_lmf_read_referenced_record_directory(
 LegacyLmfOffset14Directory legacy_lmf_read_offset14_directory(
     const std::filesystem::path& archive_path,
     const compat::u32 map_offset,
-    const LegacyLmfMapHeader& header
+    const LegacyLmfMapHeader& header,
+    const LegacyLmfReadObserver* const observer
 ) {
     LegacyLmfOffset14Directory result;
     if (header.status != LegacyLmfMapHeaderStatus::ready) {
@@ -591,6 +625,7 @@ LegacyLmfOffset14Directory legacy_lmf_read_offset14_directory(
             LegacyLmfOffset14DirectoryStatus::directory_window_read_failed;
         return result;
     }
+    maintain_audio(observer);
     directory_window.resize(actual_window_size);
     if (directory_window.size() < 4U) {
         result.status =
@@ -680,7 +715,8 @@ LegacyLmfOffset14Directory legacy_lmf_read_offset14_directory(
 LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
     const std::filesystem::path& archive_path,
     const compat::u32 map_offset,
-    const LegacyLmfMapHeader& header
+    const LegacyLmfMapHeader& header,
+    const LegacyLmfReadObserver* const observer
 ) {
     LegacyLmfIndexedObjectDirectory result;
     if (header.status != LegacyLmfMapHeaderStatus::ready) {
@@ -705,6 +741,7 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
             LegacyLmfIndexedObjectDirectoryStatus::directory_seek_failed;
         return result;
     }
+    maintain_audio(observer);
 
     std::vector<compat::u8> directory_window(kMapHeaderReadSize);
     compat::u32 actual_directory_size = kMapHeaderReadSize;
@@ -713,6 +750,7 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
             LegacyLmfIndexedObjectDirectoryStatus::directory_window_read_failed;
         return result;
     }
+    maintain_audio(observer);
     directory_window.resize(actual_directory_size);
     if (directory_window.size() < 4U) {
         result.status =
@@ -747,6 +785,7 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
                 object_header_seek_failed;
             return result;
         }
+        maintain_audio(observer);
 
         std::array<compat::u8, kMapHeaderReadSize> object_header{};
         compat::u32 actual_object_header_size = kMapHeaderReadSize;
@@ -760,6 +799,7 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
                 object_header_data_out_of_range;
             return result;
         }
+        maintain_audio(observer);
 
         parsed.field_00 =
             static_cast<compat::u16>(read_u16(object_header, 0x00U));
@@ -808,6 +848,7 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
                 compressed_payload_seek_failed;
             return result;
         }
+        maintain_audio(observer);
 
         parsed.actual_compressed_size = parsed.declared_compressed_size;
         if (!file.read(compressed_payload, parsed.actual_compressed_size)) {
@@ -815,6 +856,7 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
                 compressed_payload_read_failed;
             return result;
         }
+        maintain_audio(observer);
         compressed_payload.resize(parsed.actual_compressed_size);
 
         parsed.decompression_status = decompress_legacy_resource_block(
@@ -832,6 +874,17 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
         }
 
         result.objects.push_back(std::move(parsed));
+        const std::size_t physical_index = result.objects.size() - 1U;
+        const bool consumer_ready = observer == nullptr ||
+            !observer->indexed_object_ready ||
+            observer->indexed_object_ready(result, physical_index);
+        std::vector<compat::u8>{}.swap(compressed_payload);
+        maintain_audio(observer);
+        if (!consumer_ready) {
+            result.status = LegacyLmfIndexedObjectDirectoryStatus::
+                indexed_object_consumer_failed;
+            return result;
+        }
     }
 
     result.status = LegacyLmfIndexedObjectDirectoryStatus::ready;
@@ -841,7 +894,8 @@ LegacyLmfIndexedObjectDirectory legacy_lmf_read_indexed_object_directory(
 LegacyLmfOffset1cDirectory legacy_lmf_read_offset1c_directory(
     const std::filesystem::path& archive_path,
     const compat::u32 map_offset,
-    const LegacyLmfMapHeader& header
+    const LegacyLmfMapHeader& header,
+    const LegacyLmfReadObserver* const observer
 ) {
     LegacyLmfOffset1cDirectory result;
     if (header.status != LegacyLmfMapHeaderStatus::ready) {
@@ -865,6 +919,7 @@ LegacyLmfOffset1cDirectory legacy_lmf_read_offset1c_directory(
         result.status = LegacyLmfOffset1cDirectoryStatus::directory_seek_failed;
         return result;
     }
+    maintain_audio(observer);
 
     std::vector<compat::u8> directory_window(kPostSurfaceRecordWindowSize);
     compat::u32 actual_window_size = kPostSurfaceRecordWindowSize;
@@ -873,6 +928,7 @@ LegacyLmfOffset1cDirectory legacy_lmf_read_offset1c_directory(
             LegacyLmfOffset1cDirectoryStatus::directory_window_read_failed;
         return result;
     }
+    maintain_audio(observer);
     directory_window.resize(actual_window_size);
     if (directory_window.size() < 4U) {
         result.status =

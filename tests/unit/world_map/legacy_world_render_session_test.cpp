@@ -4,7 +4,6 @@
 #include "openswd3/world_map/legacy_world_render_session.hpp"
 
 #include <chrono>
-#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <span>
@@ -469,6 +468,7 @@ void test_failures_stop_at_their_physical_stage(openswd3::test::Context& test) {
     object_map.indexed.objects.front().decompressed_payload.assign(8U, 0U);
     object_map.indexed.objects.front().actual_decompressed_size = 8U;
     FakeCmCacheSource object_cm{object_stages};
+    std::vector<i32> object_progress;
     const auto object_failed = load_legacy_world_render_session(
         LegacyWorldRenderSessionRequest{
             .archive_path = "huge.lmf",
@@ -477,12 +477,37 @@ void test_failures_stop_at_their_physical_stage(openswd3::test::Context& test) {
             .pixel_conversion = {},
         },
         object_map,
-        object_cm
+        object_cm,
+        {},
+        [&](const i32 progress, const auto&) {
+            object_progress.push_back(progress);
+        }
+    );
+    test.expect_true(
+        object_failed.status ==
+                LegacyWorldRenderSessionStatus::indexed_object_prepare_failed &&
+            object_failed.session.map_load.status ==
+                LegacyWorldMapLoadStatus::indexed_object_stage_failed,
+        "invalid indexed-object images fail in the original consumer slot"
     );
     test.expect_equal(
-        object_failed.status,
-        LegacyWorldRenderSessionStatus::indexed_object_prepare_failed,
-        "invalid indexed-object images stop after LMF load and before rendering"
+        object_stages,
+        std::vector<Stage>{
+            Stage::lookup,
+            Stage::header,
+            Stage::cm,
+            Stage::surface,
+            Stage::post_surface,
+            Stage::referenced,
+            Stage::offset14,
+            Stage::indexed,
+        },
+        "indexed-object prepare failure stops before the +0x1C directory"
+    );
+    test.expect_equal(
+        object_progress,
+        std::vector<i32>{15, 60, 65, 70, 75},
+        "indexed-object prepare failure stops before progress 80"
     );
 }
 

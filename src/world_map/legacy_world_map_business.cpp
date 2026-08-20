@@ -317,20 +317,11 @@ LegacyRoleSpatialRelocationResult relocate_legacy_role_spatially_by_guid(
     return {};
 }
 
-LegacyWorldMapBusinessResult build_legacy_world_map_business_state(
-    const resource_io::LegacyLmfMapHeader& header,
-    const resource_io::LegacyLmfPostSurfaceRecords& post_surface_records,
-    const resource_io::LegacyLmfOffset14Directory& offset14_directory,
-    const resource_io::LegacyLmfOffset1cDirectory& offset1c_directory
+LegacyWorldMapBusinessResult begin_legacy_world_map_business_state(
+    const resource_io::LegacyLmfMapHeader& header
 ) {
     LegacyWorldMapBusinessResult result;
-    if (header.status != resource_io::LegacyLmfMapHeaderStatus::ready ||
-        post_surface_records.status !=
-            resource_io::LegacyLmfPostSurfaceRecordsStatus::ready ||
-        offset14_directory.status !=
-            resource_io::LegacyLmfOffset14DirectoryStatus::ready ||
-        offset1c_directory.status !=
-            resource_io::LegacyLmfOffset1cDirectoryStatus::ready) {
+    if (header.status != resource_io::LegacyLmfMapHeaderStatus::ready) {
         return result;
     }
 
@@ -346,6 +337,33 @@ LegacyWorldMapBusinessResult build_legacy_world_map_business_state(
     }
 
     try {
+        result.state.roles.reserve(kLegacyWorldRoleCapacity);
+        result.state.roles.emplace_back();
+        initialize_role(result.state.roles.front());
+    } catch (const std::bad_alloc&) {
+        result.status = LegacyWorldMapBusinessStatus::allocation_failed;
+        return result;
+    } catch (const std::length_error&) {
+        result.status = LegacyWorldMapBusinessStatus::allocation_failed;
+        return result;
+    }
+
+    result.status = LegacyWorldMapBusinessStatus::ready;
+    return result;
+}
+
+LegacyWorldMapBusinessStatus append_legacy_world_map_events(
+    LegacyWorldMapBusinessResult& result,
+    const resource_io::LegacyLmfPostSurfaceRecords& post_surface_records
+) {
+    if (result.status != LegacyWorldMapBusinessStatus::ready ||
+        post_surface_records.status !=
+            resource_io::LegacyLmfPostSurfaceRecordsStatus::ready) {
+        result.status = LegacyWorldMapBusinessStatus::invalid_physical_state;
+        return result.status;
+    }
+
+    try {
         result.state.events.reserve(post_surface_records.records.size());
         for (auto record = post_surface_records.records.crbegin();
              record != post_surface_records.records.crend();
@@ -358,51 +376,110 @@ LegacyWorldMapBusinessResult build_legacy_world_map_business_state(
                 record->name_bytes_with_terminator,
             });
         }
+    } catch (const std::bad_alloc&) {
+        result.status = LegacyWorldMapBusinessStatus::allocation_failed;
+    } catch (const std::length_error&) {
+        result.status = LegacyWorldMapBusinessStatus::allocation_failed;
+    }
+    return result.status;
+}
 
-        result.state.roles.reserve(kLegacyWorldRoleCapacity);
-        result.state.roles.emplace_back();
-        initialize_role(result.state.roles.front());
+LegacyWorldMapBusinessStatus append_legacy_world_map_offset14_roles(
+    LegacyWorldMapBusinessResult& result,
+    const resource_io::LegacyLmfMapHeader& header,
+    const resource_io::LegacyLmfOffset14Directory& offset14_directory
+) {
+    if (result.status != LegacyWorldMapBusinessStatus::ready ||
+        header.status != resource_io::LegacyLmfMapHeaderStatus::ready ||
+        offset14_directory.status !=
+            resource_io::LegacyLmfOffset14DirectoryStatus::ready) {
+        result.status = LegacyWorldMapBusinessStatus::invalid_physical_state;
+        return result.status;
+    }
+
+    try {
         for (const auto& record : offset14_directory.records) {
-            if (!append_offset14_role(result.state, record, header.height)) {
-                if (result.state.roles.size() >= kLegacyWorldRoleCapacity) {
-                    result.status =
-                        LegacyWorldMapBusinessStatus::role_capacity_exceeded;
-                } else if ((record.field_0a & 3U) >= kLegacySpatialGroupCount) {
-                    result.status =
-                        LegacyWorldMapBusinessStatus::unsupported_spatial_group;
-                } else {
-                    result.status =
-                        LegacyWorldMapBusinessStatus::spatial_row_out_of_range;
-                }
-                return result;
+            if (append_offset14_role(result.state, record, header.height)) {
+                continue;
             }
-        }
-        for (const auto& record : offset1c_directory.records) {
-            if (!append_offset1c_role(result.state, record, header.height)) {
-                if (result.state.roles.size() >= kLegacyWorldRoleCapacity) {
-                    result.status =
-                        LegacyWorldMapBusinessStatus::role_capacity_exceeded;
-                } else if (
-                    (record.packed_field_08 & 3U) >= kLegacySpatialGroupCount
-                ) {
-                    result.status =
-                        LegacyWorldMapBusinessStatus::unsupported_spatial_group;
-                } else {
-                    result.status =
-                        LegacyWorldMapBusinessStatus::spatial_row_out_of_range;
-                }
-                return result;
+            if (result.state.roles.size() >= kLegacyWorldRoleCapacity) {
+                result.status =
+                    LegacyWorldMapBusinessStatus::role_capacity_exceeded;
+            } else if ((record.field_0a & 3U) >= kLegacySpatialGroupCount) {
+                result.status =
+                    LegacyWorldMapBusinessStatus::unsupported_spatial_group;
+            } else {
+                result.status =
+                    LegacyWorldMapBusinessStatus::spatial_row_out_of_range;
             }
+            return result.status;
         }
     } catch (const std::bad_alloc&) {
         result.status = LegacyWorldMapBusinessStatus::allocation_failed;
-        return result;
     } catch (const std::length_error&) {
         result.status = LegacyWorldMapBusinessStatus::allocation_failed;
-        return result;
+    }
+    return result.status;
+}
+
+LegacyWorldMapBusinessStatus append_legacy_world_map_offset1c_roles(
+    LegacyWorldMapBusinessResult& result,
+    const resource_io::LegacyLmfMapHeader& header,
+    const resource_io::LegacyLmfOffset1cDirectory& offset1c_directory
+) {
+    if (result.status != LegacyWorldMapBusinessStatus::ready ||
+        header.status != resource_io::LegacyLmfMapHeaderStatus::ready ||
+        offset1c_directory.status !=
+            resource_io::LegacyLmfOffset1cDirectoryStatus::ready) {
+        result.status = LegacyWorldMapBusinessStatus::invalid_physical_state;
+        return result.status;
     }
 
-    result.status = LegacyWorldMapBusinessStatus::ready;
+    try {
+        for (const auto& record : offset1c_directory.records) {
+            if (append_offset1c_role(result.state, record, header.height)) {
+                continue;
+            }
+            if (result.state.roles.size() >= kLegacyWorldRoleCapacity) {
+                result.status =
+                    LegacyWorldMapBusinessStatus::role_capacity_exceeded;
+            } else if (
+                (record.packed_field_08 & 3U) >= kLegacySpatialGroupCount
+            ) {
+                result.status =
+                    LegacyWorldMapBusinessStatus::unsupported_spatial_group;
+            } else {
+                result.status =
+                    LegacyWorldMapBusinessStatus::spatial_row_out_of_range;
+            }
+            return result.status;
+        }
+    } catch (const std::bad_alloc&) {
+        result.status = LegacyWorldMapBusinessStatus::allocation_failed;
+    } catch (const std::length_error&) {
+        result.status = LegacyWorldMapBusinessStatus::allocation_failed;
+    }
+    return result.status;
+}
+
+LegacyWorldMapBusinessResult build_legacy_world_map_business_state(
+    const resource_io::LegacyLmfMapHeader& header,
+    const resource_io::LegacyLmfPostSurfaceRecords& post_surface_records,
+    const resource_io::LegacyLmfOffset14Directory& offset14_directory,
+    const resource_io::LegacyLmfOffset1cDirectory& offset1c_directory
+) {
+    auto result = begin_legacy_world_map_business_state(header);
+    if (result.status != LegacyWorldMapBusinessStatus::ready ||
+        append_legacy_world_map_events(result, post_surface_records) !=
+            LegacyWorldMapBusinessStatus::ready ||
+        append_legacy_world_map_offset14_roles(
+            result, header, offset14_directory
+        ) != LegacyWorldMapBusinessStatus::ready ||
+        append_legacy_world_map_offset1c_roles(
+            result, header, offset1c_directory
+        ) != LegacyWorldMapBusinessStatus::ready) {
+        return result;
+    }
     return result;
 }
 

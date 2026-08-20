@@ -3,10 +3,24 @@
 #include "openswd3/compat/types.hpp"
 #include "openswd3/resource_io/legacy_lzo1x.hpp"
 
+#include <cstddef>
 #include <filesystem>
+#include <functional>
 #include <vector>
 
 namespace openswd3::resource_io {
+
+struct LegacyLmfIndexedObjectDirectory;
+
+// Optional observer for sub_425BE0's externally visible orchestration points.
+// Physical readers remain usable without it; the world-map owner supplies it
+// to preserve Miles audio servicing and the mid-header progress callback.
+struct LegacyLmfReadObserver {
+    std::function<void()> maintain_audio;
+    std::function<void()> map_header_signature_ready;
+    std::function<bool(LegacyLmfIndexedObjectDirectory&, std::size_t)>
+        indexed_object_ready;
+};
 
 enum class LegacyLmfMapLookupStatus {
     ready,
@@ -182,6 +196,7 @@ enum class LegacyLmfIndexedObjectDirectoryStatus {
     compressed_payload_seek_failed,
     compressed_payload_read_failed,
     decompression_failed,
+    indexed_object_consumer_failed,
 };
 
 struct LegacyLmfIndexedObject {
@@ -243,49 +258,59 @@ struct LegacyLmfOffset1cDirectory {
 };
 
 [[nodiscard]] LegacyLmfMapLookupResult legacy_lmf_lookup_map(
-    const std::filesystem::path& archive_path, compat::u32 map_id
+    const std::filesystem::path& archive_path,
+    compat::u32 map_id,
+    const LegacyLmfReadObserver* observer = nullptr
 );
 
 [[nodiscard]] LegacyLmfMapHeader legacy_lmf_read_map_header(
-    const std::filesystem::path& archive_path, compat::u32 map_offset
+    const std::filesystem::path& archive_path,
+    compat::u32 map_offset,
+    const LegacyLmfReadObserver* observer = nullptr
 );
 
 [[nodiscard]] LegacyLmfSurfaceGrid legacy_lmf_read_surface_grid(
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
-    const LegacyLmfMapHeader& header
+    const LegacyLmfMapHeader& header,
+    const LegacyLmfReadObserver* observer = nullptr
 );
 
 [[nodiscard]] LegacyLmfPostSurfaceRecords legacy_lmf_read_post_surface_records(
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
-    const LegacyLmfSurfaceGrid& surface_grid
+    const LegacyLmfSurfaceGrid& surface_grid,
+    const LegacyLmfReadObserver* observer = nullptr
 );
 
 [[nodiscard]] LegacyLmfReferencedRecordDirectory
 legacy_lmf_read_referenced_record_directory(
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
-    const LegacyLmfPostSurfaceRecords& post_surface_records
+    const LegacyLmfPostSurfaceRecords& post_surface_records,
+    const LegacyLmfReadObserver* observer = nullptr
 );
 
 [[nodiscard]] LegacyLmfOffset14Directory legacy_lmf_read_offset14_directory(
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
-    const LegacyLmfMapHeader& header
+    const LegacyLmfMapHeader& header,
+    const LegacyLmfReadObserver* observer = nullptr
 );
 
 [[nodiscard]] LegacyLmfIndexedObjectDirectory
 legacy_lmf_read_indexed_object_directory(
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
-    const LegacyLmfMapHeader& header
+    const LegacyLmfMapHeader& header,
+    const LegacyLmfReadObserver* observer = nullptr
 );
 
 [[nodiscard]] LegacyLmfOffset1cDirectory legacy_lmf_read_offset1c_directory(
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
-    const LegacyLmfMapHeader& header
+    const LegacyLmfMapHeader& header,
+    const LegacyLmfReadObserver* observer = nullptr
 );
 
 }  // namespace openswd3::resource_io

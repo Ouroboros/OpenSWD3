@@ -3531,7 +3531,22 @@ public:
                 .pixel_conversion = pixel_conversion_,
                 .random = &world_runtime_random_,
             },
-            world_action_initializer_
+            world_action_initializer_,
+            [&](const openswd3::compat::i32 progress, const auto&) {
+                static_cast<void>(
+                    openswd3::world_map::update_legacy_world_load_progress(
+                        world_load_progress_,
+                        world_story_vm_state_,
+                        game_framebuffer_,
+                        pixel_conversion_,
+                        progress,
+                        *this,
+                        action_ports,
+                        *this
+                    )
+                );
+            },
+            [&]() { maintain_audio(); }
         );
         if (loaded.status !=
             openswd3::world_map::LegacyWorldRuntimeSessionStatus::ready) {

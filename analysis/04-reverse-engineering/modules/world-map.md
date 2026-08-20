@@ -190,6 +190,19 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
    20 种 opcode、全部目标边界与 word 对齐均通过离线回归；37 个 opcode 还分别具有
    汇编独立边界 UT。原程序动态差分仍登记为 `blocked_runtime_oracle`，未启动任何 EXE。
 
+   `sub_425BE0` 的完整 LMF 世界地图会话组合现已完成独立闭环：唯一调用点的两参数 cdecl
+   与 EAX 0/1、头签名中间的 progress 15、后续 `60/65/70/75/80/85`、事件和两类角色的
+   分阶段构建、CM 原槽、逐索引对象解压/consumer，以及 28 个 `_AIL_serve` 静态点均经
+   LST→C++→LST 多轮 REVIEW 收敛。音频维护动态次数固定为
+   `22 + referenced_record_count + 5 * indexed_object_count`；双对象首 consumer 失败会在
+   第一个对象的第五次维护后立即停止。真实地图 22/24/500 和 map/render/runtime session
+   synthetic/real 定向回归通过；完整门禁为 Linux `core` 185/185、Linux `app` 191/191、
+   Windows LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。RAII
+   文件/缓存/session owner 与损坏资源受检停止使其分类为 `platform_adapted`。114 项当前
+   关闭 107 项，即
+   `44 assembly_exact + 63 platform_adapted + 7 pending_audit`；下一精确停点为
+   `0x00426840 sub_426840`。
+
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
 

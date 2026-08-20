@@ -78,6 +78,23 @@ public:
 );
 
 [[nodiscard]] LegacyWorldRenderSessionResult load_legacy_world_render_session(
+    const LegacyWorldRenderSessionRequest& request,
+    LegacyWorldMapSource& map_source,
+    LegacyWorldCmCacheSource& cm_cache_source,
+    const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage,
+    const LegacyWorldMapLoadProgressStage& progress_stage
+);
+
+[[nodiscard]] LegacyWorldRenderSessionResult load_legacy_world_render_session(
+    const LegacyWorldRenderSessionRequest& request,
+    LegacyWorldMapSource& map_source,
+    LegacyWorldCmCacheSource& cm_cache_source,
+    const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage,
+    const LegacyWorldMapLoadProgressStage& progress_stage,
+    const LegacyWorldMapAudioMaintenanceStage& audio_maintenance_stage
+);
+
+[[nodiscard]] LegacyWorldRenderSessionResult load_legacy_world_render_session(
     const LegacyWorldRenderSessionRequest& request
 );
 

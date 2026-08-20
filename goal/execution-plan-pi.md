@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v229
+版本：v230
 
 最后更新：2026-08-16
 
@@ -1185,5 +1185,17 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     启动游戏 EXE。114 项当前关闭 106 项，即
     `44 assembly_exact + 62 platform_adapted + 8 pending_audit`；下一精确停点为
     `0x00425BE0 sub_425BE0`。
+  - B7 继续按函数级停止线完成 `0x00425BE0 sub_425BE0` 的独立闭环。唯一调用点确认
+    为两参数 cdecl，EAX 返回 0/1；六轮 LST→C++→LST REVIEW 纠正并固定头签名确认中间的
+    progress 15、后续 `60/65/70/75/80/85`、事件/两类角色的分阶段构建、CM 原槽及逐
+    索引对象 consumer。28 个显式 `_AIL_serve` 静态点全部恢复，动态次数为
+    `22 + referenced_record_count + 5 * indexed_object_count`；进度函数内部维护不与其
+    合并。双对象首 consumer 失败向量固定第一个对象第五次维护后立即短路，observer 在
+    同步装载返回前卸载。真实 `huge.lmf` 地图 22/24/500 的七进度、维护公式、业务状态
+    和既有 framebuffer 哈希继续通过。完整门禁为 Linux `core` 185/185、Linux `app`
+    191/191、Windows LLVM `app` 191/191 CTest；两端应用成功链接，未启动原版或
+    OpenSWD3 游戏 EXE。114 项当前关闭 107 项，即
+    `44 assembly_exact + 63 platform_adapted + 7 pending_audit`；下一精确停点为
+    `0x00426840 sub_426840`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

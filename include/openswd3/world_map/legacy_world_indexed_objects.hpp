@@ -43,6 +43,14 @@ struct LegacyWorldIndexedObjectPreparationResult {
 // converts its decompressed 16-bit command stream in place, and overwrites the
 // provisional +6/+8 fields with the stream width and height. Payload ownership
 // moves from the physical LMF directory into the render-session owner.
+[[nodiscard]] LegacyWorldIndexedObjectPreparationStatus
+prepare_legacy_world_indexed_object(
+    LegacyWorldIndexedObjectPreparationResult& result,
+    resource_io::LegacyLmfIndexedObjectDirectory& directory,
+    std::size_t physical_index,
+    const rendering::LegacyPixelConversionState& pixel_conversion
+);
+
 [[nodiscard]] LegacyWorldIndexedObjectPreparationResult
 prepare_legacy_world_indexed_objects(
     resource_io::LegacyLmfIndexedObjectDirectory& directory,

@@ -101,6 +101,67 @@ current_clip(const rendering::LegacyRasterGeometryState& raster) noexcept {
 
 }  // namespace
 
+LegacyWorldIndexedObjectPreparationStatus prepare_legacy_world_indexed_object(
+    LegacyWorldIndexedObjectPreparationResult& result,
+    resource_io::LegacyLmfIndexedObjectDirectory& directory,
+    const std::size_t physical_index,
+    const rendering::LegacyPixelConversionState& pixel_conversion
+) {
+    if (physical_index >= directory.objects.size()) {
+        result.status =
+            LegacyWorldIndexedObjectPreparationStatus::invalid_command_stream;
+        result.failed_physical_index = static_cast<u32>(physical_index);
+        return result.status;
+    }
+
+    auto& physical = directory.objects[physical_index];
+    rendering::LegacyImageCommandStreamHeader decoded_header;
+    const std::size_t available = std::min(
+        physical.decompressed_payload.size(),
+        static_cast<std::size_t>(physical.actual_decompressed_size)
+    );
+    const auto status =
+        rendering::convert_legacy_image_command_stream_literals_in_place(
+            std::span<compat::u8>{physical.decompressed_payload}.first(
+                available
+            ),
+            pixel_conversion,
+            &decoded_header
+        );
+    if (status != rendering::LegacyImageCommandStreamStatus::completed) {
+        result.status =
+            LegacyWorldIndexedObjectPreparationStatus::invalid_command_stream;
+        result.failed_physical_index = static_cast<u32>(physical_index);
+        return result.status;
+    }
+
+    try {
+        physical.decompressed_payload.resize(available);
+        result.objects.push_back(
+            LegacyWorldIndexedObject{
+                .command_stream = std::move(physical.decompressed_payload),
+                .source_width = decoded_header.width,
+                .source_height = decoded_header.height,
+                .ordinal = physical.field_0e,
+                .world_left = scale_coordinate(physical.field_06),
+                .world_top = scale_coordinate(physical.field_08),
+                .world_right = scale_coordinate(physical.field_0a),
+                .world_bottom = scale_coordinate(physical.field_0c),
+                .horizontal_factor = physical.field_0f,
+                .vertical_factor = physical.field_10,
+            }
+        );
+    } catch (const std::bad_alloc&) {
+        result.status =
+            LegacyWorldIndexedObjectPreparationStatus::allocation_failed;
+        result.failed_physical_index = static_cast<u32>(physical_index);
+        return result.status;
+    }
+    ++result.converted_count;
+    result.status = LegacyWorldIndexedObjectPreparationStatus::ready;
+    return result.status;
+}
+
 LegacyWorldIndexedObjectPreparationResult prepare_legacy_world_indexed_objects(
     resource_io::LegacyLmfIndexedObjectDirectory& directory,
     const rendering::LegacyPixelConversionState& pixel_conversion
@@ -108,53 +169,19 @@ LegacyWorldIndexedObjectPreparationResult prepare_legacy_world_indexed_objects(
     LegacyWorldIndexedObjectPreparationResult result;
     try {
         result.objects.reserve(directory.objects.size());
-        for (std::size_t index = 0U; index < directory.objects.size();
-             ++index) {
-            auto& physical = directory.objects[index];
-            rendering::LegacyImageCommandStreamHeader decoded_header;
-            const std::size_t available = std::min(
-                physical.decompressed_payload.size(),
-                static_cast<std::size_t>(physical.actual_decompressed_size)
-            );
-            const auto status = rendering::
-                convert_legacy_image_command_stream_literals_in_place(
-                    std::span<compat::u8>{physical.decompressed_payload}.first(
-                        available
-                    ),
-                    pixel_conversion,
-                    &decoded_header
-                );
-            if (status !=
-                rendering::LegacyImageCommandStreamStatus::completed) {
-                result.status = LegacyWorldIndexedObjectPreparationStatus::
-                    invalid_command_stream;
-                result.failed_physical_index = static_cast<u32>(index);
-                return result;
-            }
-
-            physical.decompressed_payload.resize(available);
-            result.objects.push_back(
-                LegacyWorldIndexedObject{
-                    .command_stream = std::move(physical.decompressed_payload),
-                    .source_width = decoded_header.width,
-                    .source_height = decoded_header.height,
-                    .ordinal = physical.field_0e,
-                    .world_left = scale_coordinate(physical.field_06),
-                    .world_top = scale_coordinate(physical.field_08),
-                    .world_right = scale_coordinate(physical.field_0a),
-                    .world_bottom = scale_coordinate(physical.field_0c),
-                    .horizontal_factor = physical.field_0f,
-                    .vertical_factor = physical.field_10,
-                }
-            );
-            ++result.converted_count;
-        }
     } catch (const std::bad_alloc&) {
         result.status =
             LegacyWorldIndexedObjectPreparationStatus::allocation_failed;
         return result;
     }
-    result.status = LegacyWorldIndexedObjectPreparationStatus::ready;
+
+    for (std::size_t index = 0U; index < directory.objects.size(); ++index) {
+        if (prepare_legacy_world_indexed_object(
+                result, directory, index, pixel_conversion
+            ) != LegacyWorldIndexedObjectPreparationStatus::ready) {
+            return result;
+        }
+    }
     return result;
 }
 

@@ -151,7 +151,41 @@ struct LegacyWorldRuntimeSessionResult {
 [[nodiscard]] LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     std::span<compat::u8> maps_payload,
     const LegacyWorldRuntimeSessionRequest& request,
+    LegacyWorldRoleActionInitializer& action_initializer,
+    LegacyWorldMapSource& map_source,
+    LegacyWorldCmCacheSource& cm_cache_source,
+    const LegacyWorldMapLoadProgressStage& progress_stage
+);
+
+[[nodiscard]] LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
+    std::span<compat::u8> maps_payload,
+    const LegacyWorldRuntimeSessionRequest& request,
+    LegacyWorldRoleActionInitializer& action_initializer,
+    LegacyWorldMapSource& map_source,
+    LegacyWorldCmCacheSource& cm_cache_source,
+    const LegacyWorldMapLoadProgressStage& progress_stage,
+    const LegacyWorldMapAudioMaintenanceStage& audio_maintenance_stage
+);
+
+[[nodiscard]] LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
+    std::span<compat::u8> maps_payload,
+    const LegacyWorldRuntimeSessionRequest& request,
     LegacyWorldRoleActionInitializer& action_initializer
+);
+
+[[nodiscard]] LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
+    std::span<compat::u8> maps_payload,
+    const LegacyWorldRuntimeSessionRequest& request,
+    LegacyWorldRoleActionInitializer& action_initializer,
+    const LegacyWorldMapLoadProgressStage& progress_stage
+);
+
+[[nodiscard]] LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
+    std::span<compat::u8> maps_payload,
+    const LegacyWorldRuntimeSessionRequest& request,
+    LegacyWorldRoleActionInitializer& action_initializer,
+    const LegacyWorldMapLoadProgressStage& progress_stage,
+    const LegacyWorldMapAudioMaintenanceStage& audio_maintenance_stage
 );
 
 }  // namespace openswd3::world_map

@@ -96,9 +96,40 @@ LegacyWorldRenderSessionResult load_legacy_world_render_session(
     LegacyWorldCmCacheSource& cm_cache_source,
     const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage
 ) {
+    return load_legacy_world_render_session(
+        request, map_source, cm_cache_source, pre_role_binding_stage, {}
+    );
+}
+
+LegacyWorldRenderSessionResult load_legacy_world_render_session(
+    const LegacyWorldRenderSessionRequest& request,
+    LegacyWorldMapSource& map_source,
+    LegacyWorldCmCacheSource& cm_cache_source,
+    const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage,
+    const LegacyWorldMapLoadProgressStage& progress_stage
+) {
+    return load_legacy_world_render_session(
+        request,
+        map_source,
+        cm_cache_source,
+        pre_role_binding_stage,
+        progress_stage,
+        {}
+    );
+}
+
+LegacyWorldRenderSessionResult load_legacy_world_render_session(
+    const LegacyWorldRenderSessionRequest& request,
+    LegacyWorldMapSource& map_source,
+    LegacyWorldCmCacheSource& cm_cache_source,
+    const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage,
+    const LegacyWorldMapLoadProgressStage& progress_stage,
+    const LegacyWorldMapAudioMaintenanceStage& audio_maintenance_stage
+) {
     LegacyWorldRenderSessionResult result;
     bool cache_directory_failed = false;
     bool cm_cache_attempted = false;
+    bool indexed_object_prepare_failed = false;
 
     result.session.map_load = load_legacy_world_map(
         request.map_id,
@@ -124,7 +155,20 @@ LegacyWorldRenderSessionResult load_legacy_world_render_session(
             );
             return cm_cache_is_ready(result.session.cm_cache.status);
         },
-        pre_role_binding_stage
+        pre_role_binding_stage,
+        progress_stage,
+        [&](resource_io::LegacyLmfIndexedObjectDirectory& directory,
+            const std::size_t physical_index) {
+            indexed_object_prepare_failed =
+                prepare_legacy_world_indexed_object(
+                    result.session.prepared_indexed_objects,
+                    directory,
+                    physical_index,
+                    request.pixel_conversion
+                ) != LegacyWorldIndexedObjectPreparationStatus::ready;
+            return !indexed_object_prepare_failed;
+        },
+        audio_maintenance_stage
     );
 
     if (result.session.map_load.status != LegacyWorldMapLoadStatus::ready) {
@@ -137,21 +181,12 @@ LegacyWorldRenderSessionResult load_legacy_world_render_session(
         ) {
             result.status =
                 LegacyWorldRenderSessionStatus::cm_cache_load_failed;
+        } else if (indexed_object_prepare_failed) {
+            result.status =
+                LegacyWorldRenderSessionStatus::indexed_object_prepare_failed;
         } else {
             result.status = LegacyWorldRenderSessionStatus::map_load_failed;
         }
-        return result;
-    }
-
-    result.session.prepared_indexed_objects =
-        prepare_legacy_world_indexed_objects(
-            result.session.map_load.session.indexed_objects,
-            request.pixel_conversion
-        );
-    if (result.session.prepared_indexed_objects.status !=
-        LegacyWorldIndexedObjectPreparationStatus::ready) {
-        result.status =
-            LegacyWorldRenderSessionStatus::indexed_object_prepare_failed;
         return result;
     }
 

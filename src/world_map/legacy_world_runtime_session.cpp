@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <array>
-#include <bit>
 #include <cstddef>
 #include <new>
 #include <stdexcept>
@@ -348,6 +347,44 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     LegacyWorldMapSource& map_source,
     LegacyWorldCmCacheSource& cm_cache_source
 ) {
+    return load_legacy_world_runtime_session(
+        maps_payload,
+        request,
+        action_initializer,
+        map_source,
+        cm_cache_source,
+        {}
+    );
+}
+
+LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
+    const std::span<u8> maps_payload,
+    const LegacyWorldRuntimeSessionRequest& request,
+    LegacyWorldRoleActionInitializer& action_initializer,
+    LegacyWorldMapSource& map_source,
+    LegacyWorldCmCacheSource& cm_cache_source,
+    const LegacyWorldMapLoadProgressStage& progress_stage
+) {
+    return load_legacy_world_runtime_session(
+        maps_payload,
+        request,
+        action_initializer,
+        map_source,
+        cm_cache_source,
+        progress_stage,
+        {}
+    );
+}
+
+LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
+    const std::span<u8> maps_payload,
+    const LegacyWorldRuntimeSessionRequest& request,
+    LegacyWorldRoleActionInitializer& action_initializer,
+    LegacyWorldMapSource& map_source,
+    LegacyWorldCmCacheSource& cm_cache_source,
+    const LegacyWorldMapLoadProgressStage& progress_stage,
+    const LegacyWorldMapAudioMaintenanceStage& audio_maintenance_stage
+) {
     LegacyWorldRuntimeSessionResult result;
     auto decoded = decode_legacy_maps_world_database(maps_payload);
     result.maps_database_status = decoded.status;
@@ -458,7 +495,9 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
                 result.session.role_post_materialization_status,
                 assembly
             );
-        }
+        },
+        progress_stage,
+        audio_maintenance_stage
     );
     result.render_status = render_result.status;
     result.session.render = std::move(render_result.session);
@@ -504,10 +543,39 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     const LegacyWorldRuntimeSessionRequest& request,
     LegacyWorldRoleActionInitializer& action_initializer
 ) {
+    return load_legacy_world_runtime_session(
+        maps_payload, request, action_initializer, {}
+    );
+}
+
+LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
+    const std::span<u8> maps_payload,
+    const LegacyWorldRuntimeSessionRequest& request,
+    LegacyWorldRoleActionInitializer& action_initializer,
+    const LegacyWorldMapLoadProgressStage& progress_stage
+) {
+    return load_legacy_world_runtime_session(
+        maps_payload, request, action_initializer, progress_stage, {}
+    );
+}
+
+LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
+    const std::span<u8> maps_payload,
+    const LegacyWorldRuntimeSessionRequest& request,
+    LegacyWorldRoleActionInitializer& action_initializer,
+    const LegacyWorldMapLoadProgressStage& progress_stage,
+    const LegacyWorldMapAudioMaintenanceStage& audio_maintenance_stage
+) {
     LegacyLmfWorldMapSource map_source{request.archive_path};
     LegacyFileWorldCmCacheSource cm_cache_source;
     return load_legacy_world_runtime_session(
-        maps_payload, request, action_initializer, map_source, cm_cache_source
+        maps_payload,
+        request,
+        action_initializer,
+        map_source,
+        cm_cache_source,
+        progress_stage,
+        audio_maintenance_stage
     );
 }
 

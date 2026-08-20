@@ -106,6 +106,33 @@ relocate_legacy_role_spatially_by_guid(
     bool reinsert
 ) noexcept;
 
+// sub_425BE0 builds this state in three observable phases separated by the
+// original loading-progress calls.  The staged entry points preserve that
+// ordering; the combined entry point below remains a convenience wrapper.
+[[nodiscard]] LegacyWorldMapBusinessResult
+begin_legacy_world_map_business_state(
+    const resource_io::LegacyLmfMapHeader& header
+);
+
+[[nodiscard]] LegacyWorldMapBusinessStatus append_legacy_world_map_events(
+    LegacyWorldMapBusinessResult& result,
+    const resource_io::LegacyLmfPostSurfaceRecords& post_surface_records
+);
+
+[[nodiscard]] LegacyWorldMapBusinessStatus
+append_legacy_world_map_offset14_roles(
+    LegacyWorldMapBusinessResult& result,
+    const resource_io::LegacyLmfMapHeader& header,
+    const resource_io::LegacyLmfOffset14Directory& offset14_directory
+);
+
+[[nodiscard]] LegacyWorldMapBusinessStatus
+append_legacy_world_map_offset1c_roles(
+    LegacyWorldMapBusinessResult& result,
+    const resource_io::LegacyLmfMapHeader& header,
+    const resource_io::LegacyLmfOffset1cDirectory& offset1c_directory
+);
+
 [[nodiscard]] LegacyWorldMapBusinessResult
 build_legacy_world_map_business_state(
     const resource_io::LegacyLmfMapHeader& header,

@@ -19,6 +19,7 @@ enum class LegacyWorldMapLoadStatus {
     referenced_record_directory_failed,
     offset14_directory_failed,
     indexed_object_directory_failed,
+    indexed_object_stage_failed,
     offset1c_directory_failed,
     business_state_failed,
     pre_role_binding_stage_failed,
@@ -47,6 +48,21 @@ struct LegacyWorldMapLoadResult {
     LegacyWorldMapSession session;
 };
 
+// sub_425BE0 reports 15/60/65/70/75/80/85 after the corresponding
+// successful stages.  Supplying the session makes the ordering independently
+// testable without exposing resource-layer internals to the progress renderer.
+using LegacyWorldMapLoadProgressStage = std::function<
+    void(compat::i32 progress, const LegacyWorldMapSession& session)>;
+using LegacyWorldMapAudioMaintenanceStage = std::function<void()>;
+
+// 0x0042660E passes each decompressed +0x18 object to sub_401B70 before
+// progress 80 and before the +0x1C directory.  The hook keeps that consumer
+// in the rendering owner while preserving its exact orchestration slot.
+using LegacyWorldMapIndexedObjectStage = std::function<bool(
+    resource_io::LegacyLmfIndexedObjectDirectory& directory,
+    std::size_t physical_index
+)>;
+
 // sub_425BE0 does not read the LMF body in one uninterrupted pass.  After the
 // map header has been copied into runtime state, and before the surface-grid
 // stream is read, 0x00426044 calls sub_426840 to acquire the CM tile cache.
@@ -65,6 +81,13 @@ using LegacyWorldMapPreRoleBindingStage =
 class LegacyWorldMapSource {
 public:
     virtual ~LegacyWorldMapSource() = default;
+
+    // Returns true when the source accepts the synchronous observer.  The
+    // loader always clears an accepted observer before returning.
+    [[nodiscard]] virtual bool
+    set_read_observer(const resource_io::LegacyLmfReadObserver*) noexcept {
+        return false;
+    }
 
     [[nodiscard]] virtual resource_io::LegacyLmfMapLookupResult
     lookup_map(compat::u32 map_id) = 0;
@@ -108,6 +131,10 @@ class LegacyLmfWorldMapSource final : public LegacyWorldMapSource {
 public:
     explicit LegacyLmfWorldMapSource(std::filesystem::path archive_path);
 
+    [[nodiscard]] bool set_read_observer(
+        const resource_io::LegacyLmfReadObserver* observer
+    ) noexcept override;
+
     [[nodiscard]] resource_io::LegacyLmfMapLookupResult
     lookup_map(compat::u32 map_id) override;
 
@@ -147,6 +174,7 @@ public:
 
 private:
     std::filesystem::path archive_path_;
+    const resource_io::LegacyLmfReadObserver* read_observer_{};
 };
 
 [[nodiscard]] LegacyWorldMapLoadResult
@@ -163,6 +191,33 @@ load_legacy_world_map(compat::u32 map_id, LegacyWorldMapSource& source);
     LegacyWorldMapSource& source,
     const LegacyWorldMapPreSurfaceStage& pre_surface_stage,
     const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage
+);
+
+[[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(
+    compat::u32 map_id,
+    LegacyWorldMapSource& source,
+    const LegacyWorldMapPreSurfaceStage& pre_surface_stage,
+    const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage,
+    const LegacyWorldMapLoadProgressStage& progress_stage
+);
+
+[[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(
+    compat::u32 map_id,
+    LegacyWorldMapSource& source,
+    const LegacyWorldMapPreSurfaceStage& pre_surface_stage,
+    const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage,
+    const LegacyWorldMapLoadProgressStage& progress_stage,
+    const LegacyWorldMapIndexedObjectStage& indexed_object_stage
+);
+
+[[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(
+    compat::u32 map_id,
+    LegacyWorldMapSource& source,
+    const LegacyWorldMapPreSurfaceStage& pre_surface_stage,
+    const LegacyWorldMapPreRoleBindingStage& pre_role_binding_stage,
+    const LegacyWorldMapLoadProgressStage& progress_stage,
+    const LegacyWorldMapIndexedObjectStage& indexed_object_stage,
+    const LegacyWorldMapAudioMaintenanceStage& audio_maintenance_stage
 );
 
 [[nodiscard]] LegacyWorldMapLoadResult load_legacy_world_map(
