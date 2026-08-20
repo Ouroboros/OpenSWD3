@@ -9,14 +9,14 @@
 ## 操作摘要
 
 | opcode | 当前中性操作名 | 汇编行为摘要 |
-|---:|---|---|
+| ---: | --- | --- |
 | `25/26` | 设置/清除全局 bit | 对 `byte_4AB384` bitset 操作，均输出诊断并同帧继续 |
 | `27` | 重置并装入地图/session | 六个 `u16` 参数进入 `sub_42E790`；后三个允许 `FFFF` 继承受控角色动作字段 |
 | `28` | 修改角色 Path id | 清理旧 Path 动态载荷、协调地图对象，推进后跨帧让出 |
 | `29/30/31` | 设置/加/减通用整数 | `s16` 下标和数值；减法按符号位归零，三者还有共享的第零项归零尾部 |
 | `32/33` | 通用整数条件跳转 | 阈值先符号扩展，再按 32 位无符号关系比较 |
 | `34..37` | 有界计数器与快照 | 设值、两个条件跳转、复制快照；34 超过 1000 时归零 |
-| `38/39` | 清/置角色状态范围 | 38 执行 `& 0x00007FFF`，39 执行 `| 0x8000` 并清两个 pending 字段 |
+| `38/39` | 清/置角色状态范围 | 38 执行 `& 0x00007FFF`，39 对状态 OR `0x8000` 并清两个 pending 字段 |
 | `40` | 调度角色分量并释放 | 两个分量左移四位，调用调度与释放 helper，再清 bit31 |
 | `41` | 按全局 selector 选择目标 | `u32` 目标表以 `FF00FF00` 结束；始终重载 TALK 窗口 |
 | `42/43` | 设置/清除全局 lock 位 | 42 还把受控角色 action `+0x08` 归零并尝试刷新；43 只清位 |
@@ -26,23 +26,27 @@
 
 候选控制流图在当前四个 TALK 资产中观察到本批次 16/25 个值。未观察到 `31`、`34..37`、`46..49`；未出现不代表可以删除，完整汇编已经给出明确 handler。
 
-## opcode 27：地图/session 同步重建边界
+## opcode 27：世界 session 同步重建边界
 
 物理布局固定为 14 字节：
 
 ```text
 +0   u16 opcode
-+2   u16 map/session id
-+4   u16 component A
-+6   u16 component B
++2   u16 logical map id
++4   u16 tile x
++6   u16 tile y
 +8   u16 requested action id
 +10  u16 requested base variant
 +12  u16 requested variant delta
 ```
 
-六项均零扩展后压栈，最后再传 literal `1` 给 `sub_42E790`。该 helper 先清理场景工作数组和一组全局状态，再调用地图/角色装载器 `sub_40C130`。后三项若为 `0xFFFF`，分别从当前受控角色内嵌 action 的 `+0x00`、`+0x08`、`+0x34` 取代；前面三项没有这一继承规则。
+handler 在 `0x004286C5..0x00428712` 依机器顺序读取六个 `u16`，并传 literal `1` 给 `sub_42E790`。最后一条机器指令是从 `0x0042870E` 开始的近跳；下一 handler 严格从 `0x00428713` 开始，静态提取器不能把 `0x0042870E` 误作边界。
 
-整个重建在当前解释器调用内同步完成。handler 随后推进 14 字节、设置 `ESI=1` 并继续取下一条指令。不能把它改成未经差分验证的异步地图加载。
+`sub_42E790` 按固定顺序清 `dword_4B7920`、`0x200` 字节工作区、`dword_4B7518/dword_4A948C/dword_4A9488`，再设置 process bit0。后三项若为 `0xFFFF`，分别取当前受控角色内嵌 action `+0x00/+0x08/+0x34` 的低 16 位；前三项没有继承规则。helper 同步调用 `sub_40C130`，返回前只清 process bit0。
+
+SDL typed owner 保留 `progress -> 旧role preload -> 不可逆owner teardown -> runtime load -> VM span/runtime重绑`。literal bit0 已由显式 preload 消费，runtime loader 使用清位后的 flags，避免重复同步。`dword_4C8BE0` 由持久 VM state 提供，`dword_4A9940` 的 item `0x0192` 查询由 player inventory typed owner 提供。pending-session 双缓冲使下一条 opcode 在同一次 VM 调用中观察新 world，并在旧外层引用离开作用域后再提交；teardown 后的 checked failure 会丢弃失效 session 并停止 frame，不能继续索引已清空 roles。
+
+handler 推进 14 字节、设置 `ESI=1` 并同调用继续。647 条真实物理记录全部 raw `0x001B`、长度 14；唯一全三项继承记录为 `TALK3.DAT@0x00016095`。完整独立证据见 [`story-vm-world-session-reload-004286c5.md`](story-vm-world-session-reload-004286c5.md)。
 
 ## opcode 28：消费后让出，而不是同帧继续
 

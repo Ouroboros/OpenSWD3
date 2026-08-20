@@ -48,6 +48,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET = 24U,
     OP_25_SET_GLOBAL_BIT = 25U,
     OP_26_CLEAR_GLOBAL_BIT = 26U,
+    OP_27_RELOAD_WORLD_SESSION = 27U,
     OP_45 = 45U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
@@ -96,6 +97,9 @@ struct LegacyWorldStoryVmState {
     compat::i32 deferred_map_tile_x{-1};
     compat::i32 deferred_map_tile_y{-1};
     compat::i32 deferred_map_id{};
+    // dword_4C8BE0 is serialized beside the deferred map fields and lets
+    // sub_40C130 override GUID 1's action when leaving logical map 22.
+    compat::u32 guid_one_action_override{};
     compat::u32 loaded_file_number{};
     compat::u32 loaded_data_offset{};
     bool next_text_aux_pending{};
@@ -151,6 +155,13 @@ public:
     ) = 0;
     [[nodiscard]] virtual compat::u32
     update_action(asset_runtime::LegacyActionRecord& action) = 0;
+    virtual void begin_world_session_reload() noexcept = 0;
+    [[nodiscard]] virtual bool reload_world_session(
+        const LegacyWorldLoadRequest& request,
+        std::span<LegacyWorldRoleRecord>& roles,
+        compat::u32& controlled_role_index,
+        LegacyWorldStoryVmRuntime& runtime
+    ) = 0;
     virtual void
     patch_role_source(const LegacyMapsRolePatchRequest& request) noexcept = 0;
     virtual void play_sound_effect(compat::u16 sound_id) noexcept = 0;
@@ -182,6 +193,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     role_spatial_relocation_failed,
     role_path_completion_unavailable,
     role_path_failed,
+    world_session_load_failed,
     dialog_allocation_failed,
     picture_action_allocation_failed,
 };
@@ -213,7 +225,7 @@ struct LegacyWorldStoryVmResult {
 
 // sub_427920, currently restricted to the independently audited default-invalid
 // and shared-dialog groups plus the earlier map-81/TALK100 implementation coverage:
-// 1-22,25-26,38-40,42-43,45,51-53,58-61,67,70-72,74,76-78,
+// 1-27,38-40,42-43,45,51-53,58-61,67,70-72,74,76-78,
 // 85,88-91,94-95,104,107,114,120,141,153,161,169,193,0x402 and 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.

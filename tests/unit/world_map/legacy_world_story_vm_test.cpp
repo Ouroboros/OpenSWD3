@@ -34,6 +34,7 @@ using openswd3::world_map::LegacyWorldStoryVmPorts;
 using openswd3::world_map::LegacyWorldStoryVmState;
 using openswd3::world_map::LegacyWorldStoryVmStatus;
 using openswd3::world_map::LegacyWorldTalkContext;
+using openswd3::world_map::OP_10_SET_ROLE_BASE_VARIANT;
 using openswd3::world_map::OP_12_SET_ROLE_POSITION;
 using openswd3::world_map::OP_13_STEP_ROLE;
 using openswd3::world_map::OP_14_WAIT_ROLE_ACTION_STATUS;
@@ -49,6 +50,7 @@ using openswd3::world_map::OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET;
 using openswd3::world_map::OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET;
 using openswd3::world_map::OP_25_SET_GLOBAL_BIT;
 using openswd3::world_map::OP_26_CLEAR_GLOBAL_BIT;
+using openswd3::world_map::OP_27_RELOAD_WORLD_SESSION;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -182,6 +184,31 @@ public:
         return 1U;
     }
 
+    void begin_world_session_reload() noexcept override {
+        ++world_session_reload_begin_count;
+        story_protocol_events.push_back(6U);
+    }
+
+    bool reload_world_session(
+        const openswd3::world_map::LegacyWorldLoadRequest& request,
+        std::span<openswd3::world_map::LegacyWorldRoleRecord>& roles,
+        u32& controlled_role_index,
+        openswd3::world_map::LegacyWorldStoryVmRuntime& runtime
+    ) override {
+        ++world_session_reload_count;
+        last_world_load_request = request;
+        story_protocol_events.push_back(7U);
+        if (!world_session_reload_success) {
+            return false;
+        }
+        if (!replacement_roles.empty()) {
+            roles = replacement_roles;
+            controlled_role_index = replacement_controlled_role_index;
+            runtime.role_surface.selected_guid = replacement_selected_guid;
+        }
+        return true;
+    }
+
     void patch_role_source(
         const openswd3::world_map::LegacyMapsRolePatchRequest& request
     ) noexcept override {
@@ -252,8 +279,11 @@ public:
     u32 beep_count{};
     u32 direct_audio_service_count{};
     u32 dialog_text_prepare_count{};
+    u32 world_session_reload_begin_count{};
+    u32 world_session_reload_count{};
     bool last_data_clear_before_read{};
     bool dialog_text_prepare_success{};
+    bool world_session_reload_success{true};
     bool throw_on_dialog_text_prepare{};
     LegacyTalkWindowStatus data_load_status{LegacyTalkWindowStatus::ready};
     i32 last_story_id{};
@@ -266,6 +296,10 @@ public:
     std::vector<u32> story_protocol_events;
     std::vector<u8> last_dialog_text;
     std::vector<u8> prepared_dialog_text;
+    openswd3::world_map::LegacyWorldLoadRequest last_world_load_request{};
+    std::span<openswd3::world_map::LegacyWorldRoleRecord> replacement_roles{};
+    u32 replacement_controlled_role_index{};
+    u32 replacement_selected_guid{};
 
 private:
     template <std::size_t Size>
@@ -317,6 +351,21 @@ public:
         return 1U;
     }
 
+    void begin_world_session_reload() noexcept override {
+        ++world_session_reload_begin_count;
+    }
+
+    bool reload_world_session(
+        const openswd3::world_map::LegacyWorldLoadRequest& request,
+        std::span<openswd3::world_map::LegacyWorldRoleRecord>&,
+        u32&,
+        openswd3::world_map::LegacyWorldStoryVmRuntime&
+    ) override {
+        ++world_session_reload_count;
+        last_world_load_request = request;
+        return true;
+    }
+
     void patch_role_source(
         const openswd3::world_map::LegacyMapsRolePatchRequest& request
     ) noexcept override {
@@ -357,6 +406,9 @@ public:
     u32 framebuffer_present_count{};
     u32 video_begin_count{};
     u32 video_progress_query_count{};
+    u32 world_session_reload_begin_count{};
+    u32 world_session_reload_count{};
+    openswd3::world_map::LegacyWorldLoadRequest last_world_load_request{};
     std::vector<u8> last_video_filename;
     std::vector<openswd3::world_map::LegacyMapsRolePatchRequest>
         role_patch_requests;
@@ -1164,6 +1216,7 @@ void test_reinitialization_writes_only_owned_vm_fields(
     state.current_first_stream = 17U;
     state.current_second_stream = 18U;
     state.previous_opcode = 0x1234U;
+    state.guid_one_action_override = 0x5678U;
     state.dialog_scale = 13U;
     state.dialog_character_delay_base = 3U;
     state.dialog_anchor_left = 21U;
@@ -1185,7 +1238,8 @@ void test_reinitialization_writes_only_owned_vm_fields(
             state.music_control_flags == 0U &&
             state.current_first_stream == 1U &&
             state.current_second_stream == 0U &&
-            state.previous_opcode == 0x1234U && state.dialog_scale == 13U &&
+            state.previous_opcode == 0x1234U &&
+            state.guid_one_action_override == 0U && state.dialog_scale == 13U &&
             state.dialog_character_delay_base == 3U &&
             state.dialog_anchor_left == 21U && state.dialog_anchor_top == 22U &&
             state.dialog_center_pending && state.deferred_map_tile_x == -1 &&
@@ -3563,9 +3617,7 @@ void test_jump_if_global_bit_protocol(openswd3::test::Context& test) {
     };
 
     for (const auto variant : variants) {
-        constexpr std::array<u16, 4U> modifiers{
-            0U, 0x4000U, 0x8000U, 0xC000U
-        };
+        constexpr std::array<u16, 4U> modifiers{0U, 0x4000U, 0x8000U, 0xC000U};
         for (const u16 modifier : modifiers) {
             Fixture fixture;
             prime_loaded_instruction(
@@ -3645,9 +3697,7 @@ void test_jump_if_global_bit_protocol(openswd3::test::Context& test) {
     missing_bit.state.loaded_data_offset = 0x1111U;
     missing_bit.state.window_loaded = true;
     missing_bit.state.previous_opcode = 0x55U;
-    write_u16(
-        missing_bit.state.window, 0x7FFEU, OP_21_JUMP_IF_GLOBAL_BIT_SET
-    );
+    write_u16(missing_bit.state.window, 0x7FFEU, OP_21_JUMP_IF_GLOBAL_BIT_SET);
     const auto missing_bit_result = missing_bit.step();
     test.expect_true(
         missing_bit_result.status ==
@@ -3689,9 +3739,7 @@ void test_jump_if_global_bit_protocol(openswd3::test::Context& test) {
     sequential_tail.state.window_loaded = true;
     sequential_tail.state.previous_opcode = 0x55U;
     write_u16(
-        sequential_tail.state.window,
-        0x7FFCU,
-        OP_21_JUMP_IF_GLOBAL_BIT_SET
+        sequential_tail.state.window, 0x7FFCU, OP_21_JUMP_IF_GLOBAL_BIT_SET
     );
     write_u16(sequential_tail.state.window, 0x7FFEU, 0x0123U);
     const auto sequential_tail_result = sequential_tail.step();
@@ -3707,9 +3755,7 @@ void test_jump_if_global_bit_protocol(openswd3::test::Context& test) {
     );
 }
 
-void test_jump_if_all_global_bits_set_protocol(
-    openswd3::test::Context& test
-) {
+void test_jump_if_all_global_bits_set_protocol(openswd3::test::Context& test) {
     constexpr std::array<u16, 4U> raw_aliases{
         OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET,
         static_cast<u16>(OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET | 0x4000U),
@@ -3752,9 +3798,7 @@ void test_jump_if_all_global_bits_set_protocol(
     write_u16(one_clear.state.window, 6U, 0xFF00U);
     write_u32(one_clear.state.window, 8U, 0x12345678U);
     write_u16(one_clear.state.window, 12U, OP_1025);
-    openswd3::world_map::set_legacy_world_story_flag(
-        one_clear.state, 0x0123U
-    );
+    openswd3::world_map::set_legacy_world_story_flag(one_clear.state, 0x0123U);
     const auto one_clear_result = one_clear.step();
     test.expect_true(
         one_clear_result.status ==
@@ -3780,8 +3824,7 @@ void test_jump_if_all_global_bits_set_protocol(
             empty_result.opcode == OP_1025 &&
             empty_result.direct_audio_service_count == 1U &&
             empty.context.talk_data_offset == 0x22223333U &&
-            empty.state.previous_opcode ==
-                OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET,
+            empty.state.previous_opcode == OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET,
         "opcode 23 treats an empty bit list as unconditionally true"
     );
 
@@ -3811,9 +3854,7 @@ void test_jump_if_all_global_bits_set_protocol(
     unterminated.state.window_loaded = true;
     unterminated.state.previous_opcode = 0x55U;
     write_u16(
-        unterminated.state.window,
-        0x7FFCU,
-        OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET
+        unterminated.state.window, 0x7FFCU, OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET
     );
     write_u16(unterminated.state.window, 0x7FFEU, 0x0123U);
     const auto unterminated_result = unterminated.step();
@@ -3833,9 +3874,7 @@ void test_jump_if_all_global_bits_set_protocol(
     missing_target.state.window_loaded = true;
     missing_target.state.previous_opcode = 0x55U;
     write_u16(
-        missing_target.state.window,
-        0x7FFCU,
-        OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET
+        missing_target.state.window, 0x7FFCU, OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET
     );
     write_u16(missing_target.state.window, 0x7FFEU, 0xFF00U);
     const auto missing_target_result = missing_target.step();
@@ -3856,9 +3895,7 @@ void test_jump_if_all_global_bits_set_protocol(
     sequential_tail.state.window_loaded = true;
     sequential_tail.state.previous_opcode = 0x55U;
     write_u16(
-        sequential_tail.state.window,
-        0x7FF8U,
-        OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET
+        sequential_tail.state.window, 0x7FF8U, OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET
     );
     write_u16(sequential_tail.state.window, 0x7FFAU, 0x0123U);
     write_u16(sequential_tail.state.window, 0x7FFCU, 0xFF00U);
@@ -3875,9 +3912,7 @@ void test_jump_if_all_global_bits_set_protocol(
     );
 }
 
-void test_jump_if_any_global_bit_set_protocol(
-    openswd3::test::Context& test
-) {
+void test_jump_if_any_global_bit_set_protocol(openswd3::test::Context& test) {
     constexpr std::array<u16, 4U> raw_aliases{
         OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET,
         static_cast<u16>(OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET | 0x4000U),
@@ -3942,8 +3977,7 @@ void test_jump_if_any_global_bit_set_protocol(
             empty_result.opcode == OP_1025 &&
             empty_result.direct_audio_service_count == 0U &&
             empty.context.instruction_offset == 8U &&
-            empty.state.previous_opcode ==
-                OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET &&
+            empty.state.previous_opcode == OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET &&
             empty.ports.data_load_count == 0U,
         "opcode 24 treats an empty bit list as false"
     );
@@ -3978,9 +4012,7 @@ void test_jump_if_any_global_bit_set_protocol(
     missing_target.state.window_loaded = true;
     missing_target.state.previous_opcode = 0x55U;
     write_u16(
-        missing_target.state.window,
-        0x7FF8U,
-        OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET
+        missing_target.state.window, 0x7FF8U, OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET
     );
     write_u16(missing_target.state.window, 0x7FFAU, 0x0123U);
     write_u16(missing_target.state.window, 0x7FFCU, 0xFF00U);
@@ -4005,9 +4037,7 @@ void test_jump_if_any_global_bit_set_protocol(
     sequential_tail.state.window_loaded = true;
     sequential_tail.state.previous_opcode = 0x55U;
     write_u16(
-        sequential_tail.state.window,
-        0x7FF8U,
-        OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET
+        sequential_tail.state.window, 0x7FF8U, OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET
     );
     write_u16(sequential_tail.state.window, 0x7FFAU, 0x0123U);
     write_u16(sequential_tail.state.window, 0x7FFCU, 0xFF00U);
@@ -4201,6 +4231,147 @@ void test_clear_global_bit_protocol(openswd3::test::Context& test) {
                 truncated.state, 0U
             ),
         "opcode 26 reads the bit operand before mutating global flags"
+    );
+}
+
+void test_reload_world_session_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_27_RELOAD_WORLD_SESSION,
+        static_cast<u16>(OP_27_RELOAD_WORLD_SESSION | 0x4000U),
+        static_cast<u16>(OP_27_RELOAD_WORLD_SESSION | 0x8000U),
+        static_cast<u16>(OP_27_RELOAD_WORLD_SESSION | 0xC000U),
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        fixture.runtime.role_surface.selected_guid = 0x00F8U;
+        write_u16(fixture.state.window, 2U, 0x0123U);
+        write_u16(fixture.state.window, 4U, 0x0045U);
+        write_u16(fixture.state.window, 6U, 0x0067U);
+        write_u16(fixture.state.window, 8U, 0x0089U);
+        write_u16(fixture.state.window, 10U, 0x00ABU);
+        write_u16(fixture.state.window, 12U, 0x00CDU);
+        write_u16(fixture.state.window, 14U, OP_1025);
+        const auto result = fixture.step();
+        const auto& request = fixture.ports.last_world_load_request;
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 14U &&
+                fixture.state.previous_opcode == OP_27_RELOAD_WORLD_SESSION &&
+                fixture.ports.world_session_reload_begin_count == 1U &&
+                fixture.ports.world_session_reload_count == 1U &&
+                request.logical_map_id == 0x0123U &&
+                request.tile_x == 0x0045U && request.tile_y == 0x0067U &&
+                request.action_id == 0x0089U &&
+                request.base_variant == 0x00ABU &&
+                request.variant_delta == 0x00CDU &&
+                request.selected_guid == 0x00F8U && request.load_flags == 1U,
+            "opcode 27 aliases synchronously submit all six load operands"
+        );
+    }
+
+    Fixture inherited;
+    std::array<LegacyWorldRoleRecord, 2U> replacement_roles{};
+    replacement_roles[1].guid = 0x0BEEU;
+    prime_loaded_instruction(inherited, OP_27_RELOAD_WORLD_SESSION);
+    inherited.runtime.role_surface.selected_guid = 0x00F8U;
+    inherited.roles[1].action.action_id = 0x12345U;
+    inherited.roles[1].action.base_variant = 0x23456U;
+    inherited.roles[1].action.variant_delta = 0x34567U;
+    inherited.ports.replacement_roles = replacement_roles;
+    inherited.ports.replacement_controlled_role_index = 1U;
+    inherited.ports.replacement_selected_guid = 0x0BEEU;
+    write_u16(inherited.state.window, 2U, 120U);
+    write_u16(inherited.state.window, 4U, 31U);
+    write_u16(inherited.state.window, 6U, 29U);
+    write_u16(inherited.state.window, 8U, 0xFFFFU);
+    write_u16(inherited.state.window, 10U, 0xFFFFU);
+    write_u16(inherited.state.window, 12U, 0xFFFFU);
+    write_u16(inherited.state.window, 14U, OP_10_SET_ROLE_BASE_VARIANT);
+    write_u16(inherited.state.window, 16U, 0xFFFEU);
+    write_u16(inherited.state.window, 18U, 0x2222U);
+    write_u16(inherited.state.window, 20U, OP_1025);
+    const auto inherited_result = inherited.step(0, 0, 1U);
+    const auto& inherited_request = inherited.ports.last_world_load_request;
+    test.expect_true(
+        inherited_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            inherited_result.opcode == OP_1025 &&
+            inherited_result.executed_instruction_count == 3U &&
+            inherited.context.instruction_offset == 20U &&
+            inherited.state.previous_opcode == OP_10_SET_ROLE_BASE_VARIANT &&
+            inherited_request.action_id == 0x2345U &&
+            inherited_request.base_variant == 0x3456U &&
+            inherited_request.variant_delta == 0x4567U &&
+            inherited_request.selected_guid == 0x00F8U &&
+            replacement_roles[1].action.base_variant == 0x2222U &&
+            inherited.roles[1].action.base_variant == 0x23456U &&
+            inherited.ports.story_protocol_events ==
+                std::vector<u32>{6U, 7U, 4U},
+        "opcode 27 resolves FFFF through low16 action fields then continues " "against the synchronously rebound world"
+    );
+
+    Fixture load_failed;
+    prime_loaded_instruction(load_failed, OP_27_RELOAD_WORLD_SESSION);
+    load_failed.state.previous_opcode = 0x55U;
+    load_failed.ports.world_session_reload_success = false;
+    write_u16(load_failed.state.window, 2U, 1U);
+    write_u16(load_failed.state.window, 4U, 2U);
+    write_u16(load_failed.state.window, 6U, 3U);
+    write_u16(load_failed.state.window, 8U, 4U);
+    write_u16(load_failed.state.window, 10U, 5U);
+    write_u16(load_failed.state.window, 12U, 6U);
+    const auto load_failed_result = load_failed.step();
+    test.expect_true(
+        load_failed_result.status ==
+                LegacyWorldStoryVmStatus::world_session_load_failed &&
+            load_failed.context.instruction_offset == 0U &&
+            load_failed.state.previous_opcode == 0x55U &&
+            load_failed.ports.world_session_reload_begin_count == 1U &&
+            load_failed.ports.world_session_reload_count == 1U,
+        "opcode 27 publishes no IP or previous opcode after reload failure"
+    );
+
+    Fixture missing_role;
+    prime_loaded_instruction(missing_role, OP_27_RELOAD_WORLD_SESSION);
+    missing_role.state.previous_opcode = 0x55U;
+    write_u16(missing_role.state.window, 2U, 1U);
+    write_u16(missing_role.state.window, 4U, 2U);
+    write_u16(missing_role.state.window, 6U, 3U);
+    write_u16(missing_role.state.window, 8U, 0xFFFFU);
+    write_u16(missing_role.state.window, 10U, 5U);
+    write_u16(missing_role.state.window, 12U, 6U);
+    const auto missing_role_result = missing_role.step(0, 0, 99U);
+    test.expect_true(
+        missing_role_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            missing_role.context.instruction_offset == 0U &&
+            missing_role.state.previous_opcode == 0x55U &&
+            missing_role.ports.world_session_reload_begin_count == 0U &&
+            missing_role.ports.world_session_reload_count == 0U &&
+            missing_role.ports.story_protocol_events.empty(),
+        "the existing VM entry guard rejects an invalid controlled role " "before opcode 27 dispatch"
+    );
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FF4U;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x55U;
+    write_u16(truncated.state.window, 0x7FF4U, OP_27_RELOAD_WORLD_SESSION);
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.context.instruction_offset == 0x7FF4U &&
+            truncated.state.previous_opcode == 0x55U &&
+            truncated.ports.world_session_reload_begin_count == 0U &&
+            truncated.ports.world_session_reload_count == 0U,
+        "opcode 27 reads the complete fourteen-byte record before transition " "effects"
     );
 }
 
@@ -5149,21 +5320,20 @@ void test_real_jump_if_global_bit_records(
             );
         }
         RealPorts ports{databases};
-        const auto result =
-            openswd3::world_map::step_legacy_world_story_vm(
-                fixture.context,
-                fixture.state,
-                fixture.roles,
-                0U,
-                fixture.active_object_slots,
-                fixture.maps_payload,
-                fixture.dialogs,
-                fixture.dialog_resources,
-                fixture.first_name,
-                fixture.second_name,
-                fixture.runtime,
-                ports
-            );
+        const auto result = openswd3::world_map::step_legacy_world_story_vm(
+            fixture.context,
+            fixture.state,
+            fixture.roles,
+            0U,
+            fixture.active_object_slots,
+            fixture.maps_payload,
+            fixture.dialogs,
+            fixture.dialog_resources,
+            fixture.first_name,
+            fixture.second_name,
+            fixture.runtime,
+            ports
+        );
 
         const bool opcode21_tail =
             result.status == LegacyWorldStoryVmStatus::runtime_unavailable &&
@@ -5181,8 +5351,8 @@ void test_real_jump_if_global_bit_records(
         test.expect_true(
             instruction_read &&
                 initialized.status ==
-                    openswd3::resource_io::
-                        LegacyResourceDatabaseStatus::ready &&
+                    openswd3::resource_io::LegacyResourceDatabaseStatus::
+                        ready &&
                 read_u16(instruction, 0U) == sample.opcode &&
                 read_u16(instruction, 2U) == sample.bit_index &&
                 read_u32(instruction, 4U) == sample.target &&
@@ -5248,8 +5418,7 @@ void test_real_jump_if_all_global_bits_set_record(
         instruction_read &&
             initialized.status ==
                 openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
-            read_u16(instruction, 0U) ==
-                OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET &&
+            read_u16(instruction, 0U) == OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET &&
             read_u16(instruction, 2U) == 295U &&
             read_u16(instruction, 4U) == 264U &&
             read_u16(instruction, 6U) == 0xFF00U &&
@@ -5289,8 +5458,7 @@ void test_real_set_global_bit_record(
     const auto result = fixture.step();
 
     test.expect_true(
-        instruction_read &&
-            read_u16(instruction, 0U) == OP_25_SET_GLOBAL_BIT &&
+        instruction_read && read_u16(instruction, 0U) == OP_25_SET_GLOBAL_BIT &&
             read_u16(instruction, 2U) == 7080U &&
             read_u16(instruction, 4U) == 59U &&
             read_u16(instruction, 6U) == 0x00ABU &&
@@ -5349,6 +5517,52 @@ void test_real_clear_global_bit_record(
             fixture.state.previous_opcode == OP_26_CLEAR_GLOBAL_BIT &&
             fixture.ports.sound_effect_requests == std::vector<u16>{0x0038U},
         "real opcode 26 clears bit 615 then same-call opcode 59 plays sound"
+    );
+}
+
+void test_real_reload_world_session_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK3.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00016095);
+    std::array<u8, 14U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, OP_27_RELOAD_WORLD_SESSION);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 14U, OP_1025);
+    fixture.runtime.role_surface.selected_guid = 0x00F8U;
+    fixture.roles[1].action.action_id = 0x12345U;
+    fixture.roles[1].action.base_variant = 0x23456U;
+    fixture.roles[1].action.variant_delta = 0x34567U;
+    const auto result = fixture.step(0, 0, 1U);
+    const auto& request = fixture.ports.last_world_load_request;
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_27_RELOAD_WORLD_SESSION &&
+            read_u16(instruction, 2U) == 161U &&
+            read_u16(instruction, 4U) == 23U &&
+            read_u16(instruction, 6U) == 22U &&
+            read_u16(instruction, 8U) == 0xFFFFU &&
+            read_u16(instruction, 10U) == 0xFFFFU &&
+            read_u16(instruction, 12U) == 0xFFFFU &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == OP_1025 &&
+            result.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 14U &&
+            fixture.state.previous_opcode == OP_27_RELOAD_WORLD_SESSION &&
+            request.logical_map_id == 161U && request.tile_x == 23U &&
+            request.tile_y == 22U && request.action_id == 0x2345U &&
+            request.base_variant == 0x3456U &&
+            request.variant_delta == 0x4567U &&
+            request.selected_guid == 0x00F8U && request.load_flags == 1U,
+        "real opcode 27 record inherits all three controlled-role action " "fields before synchronous world reload"
     );
 }
 
@@ -6588,6 +6802,7 @@ int main(const int argument_count, char** arguments) {
     test_jump_if_any_global_bit_set_protocol(test);
     test_set_global_bit_protocol(test);
     test_clear_global_bit_protocol(test);
+    test_reload_world_session_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -6618,6 +6833,7 @@ int main(const int argument_count, char** arguments) {
         test_real_jump_if_all_global_bits_set_record(test, root);
         test_real_set_global_bit_record(test, root);
         test_real_clear_global_bit_record(test, root);
+        test_real_reload_world_session_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);

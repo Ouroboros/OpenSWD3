@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v263
+版本：v264
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x004286C5` handler（opcode 27）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00428713` handler（opcode 28）
 
 ## 0. 执行约定
 
@@ -1522,6 +1522,17 @@ B7 P0 有限收口完成。
     workpack当前21/146，即
     `3 assembly_exact + 18 platform_adapted + 125 pending_audit`。
 
+- 剧情VM P2第二十二组`0x004286C5` / opcode27完成独立闭环。修正handler半开边界为
+    `0x004286C5..0x00428713`，恢复14-byte六u16、`sub_42E790`五段清理/process-bit顺序、
+    后三项FFFF低16继承、旧role preload、同步world reload、IP+14/previous/same-call合同。
+    SDL以pending-session双缓冲立即重绑VM span/runtime，离开旧引用作用域后再提交；连续reload、
+    后续role-source patch及teardown后fatal failure均有明确owner。`dword_4C8BE0`接入持久VM state，
+    item 0x0192接入player inventory。全647条资产、TALK1/2/3/4为360/6/77/204，全部raw001B、
+    长度14；唯一全继承记录`TALK3@0x16095`真实回放通过。定向剧情VM 3/3、Linux core 186/186、
+    Linux app 192/192均以exit 0通过；生成器`py_compile`及双重生成幂等通过。Windows依v264留到
+    P3，未启动游戏EXE。workpack当前22/146，即
+    `3 assembly_exact + 19 platform_adapted + 124 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x004286C5` 的 opcode27 handler；现有导航语义与未实现状态均不继承完成状态。
+`0x00428713` 的 opcode28 handler；现有导航语义与未实现状态均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
