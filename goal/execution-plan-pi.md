@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v271
+版本：v272
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428ADC` handler（opcode 39）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00428BA0` handler（opcode 40）
 
 ## 0. 执行约定
 
@@ -1609,6 +1609,19 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode仍为76；workpack当前29/146，即
     `5 assembly_exact + 24 platform_adapted + 117 pending_audit`。
 
+- 剧情VM P2第三十组`0x00428ADC` / opcode39完成独立闭环。恢复四字节记录与u16 role selector；
+    raw `0xFFF0`只对live lookup替换为context GUID，ordinary miss的MAPS patch重读原operand并仅
+    执行flags `OR 0x8000`/`AND 0xFFFF`。live path严格先对完整role flags置bit15，再清surface，
+    返回后才把role `+0x60/+0x7C`两个one-shot dword写成`0xFFFFFFFF`；修正了原实现遗漏的
+    missing-role fallback、previous发布与裸数字case。typed session/surface failure保留已发生的
+    flag及部分surface副作用而不提前写one-shot。资产确认553条唯一记录、558个entry probe，
+    均为raw `0x0027`/长度4；224种selector中无`0xFFF0/0xFFFE`，synthetic仍覆盖两种特殊值，
+    `TALK1.DAT@0x000049F0`真实回放通过。四raw alias、MAPS字段保持、surface失败顺序、完整u32
+    one-shot、窗口尾、无audio与same-call continuation均通过。定向剧情VM 3/3、Linux core
+    186/186、Linux app 192/192均以exit 0通过；生成器`py_compile`及双重生成哈希幂等通过。
+    Windows依v272留到P3，未启动游戏EXE。现代显式opcode仍为76；workpack当前30/146，即
+    `5 assembly_exact + 25 platform_adapted + 116 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428ADC` 的opcode39 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00428BA0` 的opcode40 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

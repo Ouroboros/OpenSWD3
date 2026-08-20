@@ -2247,40 +2247,54 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 39U: {
+        case OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            u16 selector = read_u16(state.window, ip + 2U);
-            if (selector == kCurrentSourceSelector) {
-                selector = context.source_guid;
-            }
+            const u16 raw_selector = read_u16(state.window, ip + 2U);
+            const u16 selector = raw_selector == kCurrentSourceSelector
+                ? context.source_guid
+                : raw_selector;
             u32 role_index{};
             if (!resolve_role_index(
                     roles, selector, controlled_role_index, role_index
                 )) {
-                result.status = LegacyWorldStoryVmStatus::role_not_found;
-                return result;
+                if (selector == kLegacyWorldControlledRoleSelector) {
+                    result.status = LegacyWorldStoryVmStatus::role_not_found;
+                    return result;
+                }
+                ports.patch_role_source(
+                    LegacyMapsRolePatchRequest{
+                        .guid = raw_selector,
+                        .flags_or_mask = 0x8000U,
+                        .flags_and_mask = 0xFFFFU,
+                    }
+                );
+            } else {
+                auto& role = roles[role_index];
+                role.flags |= 0x00008000U;
+                if (runtime.role_surface.surface_grid.empty()) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                if (clear_legacy_world_role_surface_occupancy(
+                        role, runtime.role_surface
+                    )
+                        .status != LegacyWorldRoleSurfaceStatus::ready) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::role_surface_failed;
+                    return result;
+                }
+                role.action.one_shot_base_variant =
+                    std::numeric_limits<u32>::max();
+                role.action.one_shot_variant_delta =
+                    std::numeric_limits<u32>::max();
             }
-            auto& role = roles[role_index];
-            role.flags |= 0x00008000U;
-            if (runtime.role_surface.surface_grid.empty()) {
-                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
-                return result;
-            }
-            if (clear_legacy_world_role_surface_occupancy(
-                    role, runtime.role_surface
-                )
-                    .status != LegacyWorldRoleSurfaceStatus::ready) {
-                result.status = LegacyWorldStoryVmStatus::role_surface_failed;
-                return result;
-            }
-            role.action.one_shot_base_variant = std::numeric_limits<u32>::max();
-            role.action.one_shot_variant_delta =
-                std::numeric_limits<u32>::max();
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
             continue;
         }
 

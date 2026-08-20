@@ -62,6 +62,7 @@ using openswd3::world_map::OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK;
 using openswd3::world_map::OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA;
 using openswd3::world_map::OP_37_SNAPSHOT_SCRIPT_CLOCK;
 using openswd3::world_map::OP_38_CLEAR_ROLE_FROM_SCENE;
+using openswd3::world_map::OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -5620,6 +5621,237 @@ void test_clear_role_from_scene_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_set_role_flag_8000_and_clear_one_shots_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS | mask
+            )
+        );
+        write_u16(fixture.state.window, 2U, 0x1234U);
+        write_u16(fixture.state.window, 4U, OP_1025);
+        const auto result = fixture.step();
+        const auto request = fixture.ports.role_patch_requests.empty()
+            ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+            : fixture.ports.role_patch_requests.front();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode ==
+                    OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS &&
+                fixture.ports.role_patch_requests.size() == 1U &&
+                request.guid == 0x1234U && request.action_id == 0xFFFFU &&
+                request.base_variant == 0xFFFFU &&
+                request.variant_delta == 0xFFFFU && request.tile_x == 0xFFFFU &&
+                request.tile_y == 0xFFFFU &&
+                request.talk_script_id == 0xFFFFU &&
+                request.path_data_id == 0xFFFFU &&
+                request.flags_or_mask == 0x8000U &&
+                request.flags_and_mask == 0xFFFFU &&
+                request.logical_map_id == 0xFFFFU &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 39 aliases patch only the MAPS role flag on ordinary miss"
+        );
+    }
+
+    Fixture raw_current_source_fallback;
+    raw_current_source_fallback.context.source_guid = 0x4321U;
+    prime_loaded_instruction(
+        raw_current_source_fallback,
+        OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS
+    );
+    write_u16(raw_current_source_fallback.state.window, 2U, 0xFFF0U);
+    write_u16(raw_current_source_fallback.state.window, 4U, OP_1025);
+    const auto raw_current_source_result = raw_current_source_fallback.step();
+    test.expect_true(
+        raw_current_source_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            raw_current_source_fallback.ports.role_patch_requests.size() ==
+                1U &&
+            raw_current_source_fallback.ports.role_patch_requests.front()
+                    .guid == 0xFFF0U &&
+            raw_current_source_fallback.ports.role_patch_requests.front()
+                    .flags_or_mask == 0x8000U &&
+            raw_current_source_fallback.context.instruction_offset == 4U &&
+            raw_current_source_fallback.state.previous_opcode ==
+                OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS,
+        "opcode 39 missing FFF0 lookup patches the original raw selector"
+    );
+
+    Fixture controlled_out_of_range;
+    controlled_out_of_range.state.previous_opcode = 0x55U;
+    prime_loaded_instruction(
+        controlled_out_of_range, OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS
+    );
+    write_u16(controlled_out_of_range.state.window, 2U, 0xFFFEU);
+    const auto controlled_out_of_range_result =
+        controlled_out_of_range.step(0, 0, 99U);
+    test.expect_true(
+        controlled_out_of_range_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            controlled_out_of_range_result.opcode == 0U &&
+            controlled_out_of_range_result.executed_instruction_count == 0U &&
+            controlled_out_of_range.context.instruction_offset == 0U &&
+            controlled_out_of_range.state.previous_opcode == 0x55U &&
+            controlled_out_of_range.ports.role_patch_requests.empty(),
+        "opcode 39 invalid controlled owner stops at the VM session boundary"
+    );
+
+    Fixture live_without_surface;
+    live_without_surface.state.previous_opcode = 0x55U;
+    live_without_surface.roles[1].flags = 0xA5A50001U;
+    live_without_surface.roles[1].action.one_shot_base_variant = 0x11111111U;
+    live_without_surface.roles[1].action.one_shot_variant_delta = 0x22222222U;
+    prime_loaded_instruction(
+        live_without_surface, OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS
+    );
+    write_u16(live_without_surface.state.window, 2U, 0xFFF0U);
+    const auto live_without_surface_result = live_without_surface.step();
+    test.expect_true(
+        live_without_surface_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            live_without_surface.context.instruction_offset == 0U &&
+            live_without_surface.roles[1].flags == 0xA5A58001U &&
+            live_without_surface.roles[1].action.one_shot_base_variant ==
+                0x11111111U &&
+            live_without_surface.roles[1].action.one_shot_variant_delta ==
+                0x22222222U &&
+            live_without_surface.state.previous_opcode == 0x55U &&
+            live_without_surface.ports.role_patch_requests.empty(),
+        "opcode 39 sets the live flag before the surface unsafe point"
+    );
+
+    Fixture partial_surface_failure;
+    partial_surface_failure.state.previous_opcode = 0x55U;
+    partial_surface_failure.roles[1].flags = 0xA5A50001U;
+    partial_surface_failure.roles[1].map_cell_pointer_32 = 3U;
+    partial_surface_failure.roles[1].action.field_2c = 2U;
+    partial_surface_failure.roles[1].action.field_30 = 1U;
+    partial_surface_failure.roles[1].action.one_shot_base_variant = 0x11111111U;
+    partial_surface_failure.roles[1].action.one_shot_variant_delta =
+        0x22222222U;
+    std::array<u8, 16U> partial_surface{};
+    partial_surface.fill(0xFFU);
+    partial_surface_failure.runtime.role_surface =
+        openswd3::world_map::LegacyWorldRoleSurfaceContext{
+            .map_width = 2U,
+            .selected_guid = 0U,
+            .surface_grid = partial_surface,
+        };
+    prime_loaded_instruction(
+        partial_surface_failure, OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS
+    );
+    write_u16(partial_surface_failure.state.window, 2U, 0xFFF0U);
+    const auto partial_surface_failure_result = partial_surface_failure.step();
+    test.expect_true(
+        partial_surface_failure_result.status ==
+                LegacyWorldStoryVmStatus::role_surface_failed &&
+            partial_surface_failure.context.instruction_offset == 0U &&
+            partial_surface_failure.roles[1].flags == 0xA5A58001U &&
+            read_u32(partial_surface, 12U) == 0xCF7FFFFFU &&
+            partial_surface_failure.roles[1].action.one_shot_base_variant ==
+                0x11111111U &&
+            partial_surface_failure.roles[1].action.one_shot_variant_delta ==
+                0x22222222U &&
+            partial_surface_failure.state.previous_opcode == 0x55U,
+        "opcode 39 preserves partial surface effects before checked failure"
+    );
+
+    Fixture live;
+    live.roles[1].flags = 0xA5A50001U;
+    live.roles[1].map_cell_pointer_32 = 0U;
+    live.roles[1].action.field_2c = 1U;
+    live.roles[1].action.field_30 = 1U;
+    live.roles[1].action.one_shot_base_variant = 0x11111111U;
+    live.roles[1].action.one_shot_variant_delta = 0x22222222U;
+    std::array<u8, 16U> surface{};
+    surface.fill(0xFFU);
+    live.runtime.role_surface =
+        openswd3::world_map::LegacyWorldRoleSurfaceContext{
+            .map_width = 2U,
+            .selected_guid = 0U,
+            .surface_grid = surface,
+        };
+    prime_loaded_instruction(
+        live, OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS
+    );
+    write_u16(live.state.window, 2U, 0xFFFEU);
+    write_u16(live.state.window, 4U, OP_1025);
+    const auto live_result = live.step(0, 0, 1U);
+    test.expect_true(
+        live_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            live_result.opcode == OP_1025 &&
+            live_result.executed_instruction_count == 2U &&
+            live.context.instruction_offset == 4U &&
+            live.state.previous_opcode ==
+                OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS &&
+            live.roles[1].flags == 0xA5A58001U &&
+            read_u32(surface, 0U) == 0xCF7FFFFFU &&
+            live.roles[1].action.one_shot_base_variant == 0xFFFFFFFFU &&
+            live.roles[1].action.one_shot_variant_delta == 0xFFFFFFFFU &&
+            live.ports.role_patch_requests.empty() &&
+            live.ports.direct_audio_service_count == 0U,
+        "opcode 39 clears surface before setting both one-shot fields to -1"
+    );
+
+    Fixture no_following_bytes;
+    no_following_bytes.context.instruction_offset = 0x7FFCU;
+    no_following_bytes.context.talk_data_offset = 0x1111U;
+    no_following_bytes.state.loaded_file_number = 1U;
+    no_following_bytes.state.loaded_data_offset = 0x1111U;
+    no_following_bytes.state.window_loaded = true;
+    write_u16(
+        no_following_bytes.state.window,
+        0x7FFCU,
+        OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS
+    );
+    write_u16(no_following_bytes.state.window, 0x7FFEU, 0x1234U);
+    const auto no_following_bytes_result = no_following_bytes.step();
+    test.expect_true(
+        no_following_bytes_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            no_following_bytes.context.instruction_offset == 0x8000U &&
+            no_following_bytes.state.previous_opcode ==
+                OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS &&
+            no_following_bytes.ports.role_patch_requests.size() == 1U,
+        "opcode 39 requires no bytes after its four-byte record"
+    );
+
+    Fixture operand_truncated;
+    operand_truncated.context.instruction_offset = 0x7FFEU;
+    operand_truncated.context.talk_data_offset = 0x1111U;
+    operand_truncated.state.loaded_file_number = 1U;
+    operand_truncated.state.loaded_data_offset = 0x1111U;
+    operand_truncated.state.window_loaded = true;
+    operand_truncated.state.previous_opcode = 0x55U;
+    write_u16(
+        operand_truncated.state.window,
+        0x7FFEU,
+        OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS
+    );
+    const auto operand_truncated_result = operand_truncated.step();
+    test.expect_true(
+        operand_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            operand_truncated.context.instruction_offset == 0x7FFEU &&
+            operand_truncated.state.previous_opcode == 0x55U &&
+            operand_truncated.ports.role_patch_requests.empty(),
+        "opcode 39 requires the complete u16 selector before side effects"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -6928,6 +7160,47 @@ void test_real_global_integer_records(
     );
 }
 
+void test_real_set_role_flag_8000_and_clear_one_shots_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x000049F0);
+    std::array<u8, 4U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    prime_loaded_instruction(
+        fixture, OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS
+    );
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 4U, OP_1025);
+    const auto result = fixture.step();
+    const auto request = fixture.ports.role_patch_requests.empty()
+        ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+        : fixture.ports.role_patch_requests.front();
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) ==
+                OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS &&
+            read_u16(instruction, 2U) == 1U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == OP_1025 &&
+            result.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 4U &&
+            fixture.state.previous_opcode ==
+                OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS &&
+            fixture.ports.role_patch_requests.size() == 1U &&
+            request.guid == 1U && request.flags_or_mask == 0x8000U &&
+            request.flags_and_mask == 0xFFFFU,
+        "real opcode 39 record patches missing role flag then continues"
+    );
+}
+
 void test_real_clear_role_from_scene_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -8209,6 +8482,7 @@ int main(const int argument_count, char** arguments) {
     test_jump_if_script_clock_exceeds_origin_delta_protocol(test);
     test_snapshot_script_clock_protocol(test);
     test_clear_role_from_scene_protocol(test);
+    test_set_role_flag_8000_and_clear_one_shots_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -8242,6 +8516,7 @@ int main(const int argument_count, char** arguments) {
         test_real_reload_world_session_record(test, root);
         test_real_change_role_path_id_record(test, root);
         test_real_global_integer_records(test, root);
+        test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
