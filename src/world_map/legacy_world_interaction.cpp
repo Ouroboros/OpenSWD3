@@ -21,7 +21,6 @@ constexpr std::size_t kRightInputIndex = 5U;
 constexpr std::size_t kDownInputIndex = 6U;
 constexpr std::size_t kMouseRightInputIndex = 14U;
 constexpr std::size_t kMouseLeftInputIndex = 15U;
-constexpr std::size_t kRequiredInputCount = kMouseLeftInputIndex + 1U;
 
 constexpr u32 kHoverCandidateFlag = 0x00008000U;
 constexpr u32 kHoverCursorSuppressedFlag = 0x00000020U;
@@ -168,6 +167,10 @@ void update_action(
     }
 
     state.selected_choice_index = hit.index;
+    if (input_records.size() <= kMouseLeftInputIndex) {
+        result.status = LegacyWorldInteractionStatus::missing_input_records;
+        return true;
+    }
     const LegacyInputRecord& click = input_records[kMouseLeftInputIndex];
     if (click.rapid_press_multiplicity == 0U || click.held_sample_count != 1U) {
         return true;
@@ -197,9 +200,15 @@ void update_action(
     }
 
     LegacyWorldRoleRecord& target = roles[hovered_role_index];
+    if (target.interaction_gate != 0U) {
+        return false;
+    }
+    if (input_records.size() <= kMouseLeftInputIndex) {
+        result.status = LegacyWorldInteractionStatus::missing_input_records;
+        return true;
+    }
     const LegacyInputRecord& click = input_records[kMouseLeftInputIndex];
-    if (target.interaction_gate != 0U || click.rapid_press_multiplicity == 0U ||
-        click.held_sample_count != 1U) {
+    if (click.rapid_press_multiplicity == 0U || click.held_sample_count != 1U) {
         return false;
     }
 
@@ -241,6 +250,7 @@ void update_action(
 [[nodiscard]] bool coordinate_map_event(
     LegacyWorldInteractionResult& result,
     const LegacyWorldInteractionRequest& request,
+    const LegacyWorldCameraRect& camera,
     const std::span<LegacyWorldRoleRecord> roles,
     const std::span<const LegacyWorldMapEvent> map_events,
     const std::span<const compat::u8> surface_grid,
@@ -256,8 +266,8 @@ void update_action(
         return false;
     }
 
-    const u32 tile_y = (request.mouse_y + request.camera.top) >> 4U;
-    const u32 tile_x = (request.mouse_x + request.camera.left) >> 4U;
+    const u32 tile_y = (request.mouse_y + camera.top) >> 4U;
+    const u32 tile_x = (request.mouse_x + camera.left) >> 4U;
     const u32 cell_index = tile_y * request.map_width + tile_x;
     const std::size_t byte_offset = static_cast<std::size_t>(cell_index * 4U);
     if (byte_offset > surface_grid.size() ||
@@ -285,6 +295,10 @@ void update_action(
     }
 
     state.cursor_variant = kLegacyWorldMapEventCursorVariant;
+    if (input_records.size() <= kMouseLeftInputIndex) {
+        result.status = LegacyWorldInteractionStatus::missing_input_records;
+        return true;
+    }
     const LegacyInputRecord& click = input_records[kMouseLeftInputIndex];
     if (click.rapid_press_multiplicity == 0U || click.held_sample_count != 1U) {
         return true;
@@ -295,14 +309,11 @@ void update_action(
     talk_context.talk_script_id = static_cast<u16>(event->field_08 & 0x7FFFU);
     talk_context.source_guid = kLegacyWorldTalkMapEventSource;
     talk_context.source_flags = 0U;
-    talk_context.world_x =
-        (request.mouse_x & 0xFFFFFFF0U) + request.camera.left;
-    talk_context.world_y = (request.mouse_y & 0xFFFFFFF0U) + request.camera.top;
+    talk_context.world_x = (request.mouse_x & 0xFFFFFFF0U) + camera.left;
+    talk_context.world_y = (request.mouse_y & 0xFFFFFFF0U) + camera.top;
 
     const u32 target_facing = facing_from_player_to_target(
-        player,
-        request.mouse_x + request.camera.left,
-        request.mouse_y + request.camera.top
+        player, request.mouse_x + camera.left, request.mouse_y + camera.top
     );
     result.facing = target_facing;
     player.action.one_shot_base_variant = player.action.base_variant;
@@ -336,19 +347,20 @@ void synthesize_mouse_direction(
     }
 }
 
-void coordinate_direction_tail(
+[[nodiscard]] bool coordinate_direction_tail(
     LegacyWorldInteractionResult& result,
     const LegacyWorldInteractionRequest& request,
+    const LegacyWorldCameraRect& camera,
     const LegacyWorldRoleRecord& player,
     const std::span<LegacyInputRecord> input_records,
     LegacyWorldInteractionState& state
 ) noexcept {
     const u32 player_x =
         wrapping_scaled_add(player.world_x, player.action.field_2c) -
-        request.camera.left;
+        camera.left;
     const u32 player_y =
         wrapping_scaled_add(player.world_y, player.action.field_30) -
-        request.camera.top;
+        camera.top;
     const LegacyWorldFacingResult facing = measure_legacy_world_facing(
         request.mouse_x, request.mouse_y, player_x, player_y
     );
@@ -358,6 +370,10 @@ void coordinate_direction_tail(
         state.cursor_variant = facing.direction;
     }
 
+    if (input_records.size() <= kMouseRightInputIndex) {
+        result.status = LegacyWorldInteractionStatus::missing_input_records;
+        return true;
+    }
     const u32 multiplicity =
         input_records[kMouseRightInputIndex].rapid_press_multiplicity;
     if (((player.world_x | player.world_y) & 0x0FU) == 0U &&
@@ -367,6 +383,7 @@ void coordinate_direction_tail(
             facing.direction, multiplicity, input_records
         );
     }
+    return false;
 }
 
 }  // namespace
@@ -410,15 +427,12 @@ LegacyWorldInteractionResult coordinate_legacy_world_interaction(
     LegacyWorldInteractionPorts& ports
 ) {
     LegacyWorldInteractionResult result;
-    if (request.player_index >= roles.size()) {
+    const bool player_available = request.player_index < roles.size();
+    if (!player_available &&
+        talk_context.source_guid == kLegacyWorldTalkIdleSource) {
         result.status = LegacyWorldInteractionStatus::invalid_player_index;
         return result;
     }
-    if (input_records.size() < kRequiredInputCount) {
-        result.status = LegacyWorldInteractionStatus::missing_input_records;
-        return result;
-    }
-
     bool map_event_allowed = true;
     const u32 hovered_role_index = find_hovered_role(
         result, request, roles, talk_context, state, ports, map_event_allowed
@@ -426,14 +440,21 @@ LegacyWorldInteractionResult coordinate_legacy_world_interaction(
 
     ++result.internal_flag_queries;
     const u32 internal_flag_9 = ports.query_internal_flag(9U);
-    if (coordinate_choice_chain(
+    if (!player_available) {
+        if (internal_flag_9 == 0U && !request.choice_hotspots.empty()) {
+            result.status = LegacyWorldInteractionStatus::invalid_player_index;
+            return result;
+        }
+    } else if (
+        coordinate_choice_chain(
             result,
             request,
             roles[request.player_index],
             internal_flag_9,
             input_records,
             state
-        )) {
+        )
+    ) {
         return result;
     }
 
@@ -449,9 +470,13 @@ LegacyWorldInteractionResult coordinate_legacy_world_interaction(
         return result;
     }
 
-    if (coordinate_map_event(
+    const LegacyWorldCameraRect live_camera =
+        request.live_camera != nullptr ? *request.live_camera : request.camera;
+    if (player_available &&
+        coordinate_map_event(
             result,
             request,
+            live_camera,
             roles,
             map_events,
             surface_grid,
@@ -464,14 +489,36 @@ LegacyWorldInteractionResult coordinate_legacy_world_interaction(
         return result;
     }
 
-    coordinate_direction_tail(
-        result, request, roles[request.player_index], input_records, state
-    );
+    if (!player_available) {
+        result.status = LegacyWorldInteractionStatus::invalid_player_index;
+        return result;
+    }
+    if (coordinate_direction_tail(
+            result,
+            request,
+            live_camera,
+            roles[request.player_index],
+            input_records,
+            state
+        )) {
+        return result;
+    }
 
-    if (request.dialog_chain_active &&
-        input_records[kPrimaryInputIndex].rapid_press_multiplicity == 0U) {
-        input_records[kPrimaryInputIndex] = input_records[kMouseLeftInputIndex];
-        result.delayed_primary_input_copied = true;
+    if (request.dialog_chain_active) {
+        if (input_records.size() <= kPrimaryInputIndex) {
+            result.status = LegacyWorldInteractionStatus::missing_input_records;
+            return result;
+        }
+        if (input_records[kPrimaryInputIndex].rapid_press_multiplicity == 0U) {
+            if (input_records.size() <= kMouseLeftInputIndex) {
+                result.status =
+                    LegacyWorldInteractionStatus::missing_input_records;
+                return result;
+            }
+            input_records[kPrimaryInputIndex] =
+                input_records[kMouseLeftInputIndex];
+            result.delayed_primary_input_copied = true;
+        }
     }
     return result;
 }

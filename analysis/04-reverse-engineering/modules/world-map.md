@@ -19,13 +19,14 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 112 项：44 项 `assembly_exact`、68 项 `platform_adapted`；其余
-2 项保持待审计。最新关闭 `sub_4272C0`：确认无参数 CRT initializer 只构造一个零消费者的
-`0x50` unopened 文件 owner，并注册其 unopened 析构；EAX 的 `_atexit` 结果无人消费。
-全 LST xref 穷尽后，该 owner 没有业务读写，析构也不进入 OS cleanup。现代 C++ RAII 覆盖
-所有有消费者的 `LegacyFile` 生命周期，并证明性消除这一 dead global，分类为
-`platform_adapted`；不伪造业务 UT 或资产验证。剩余独立停点为
-`sub_427300/sub_402F80`。原版完整
+114 项全集复核当前已关闭 113 项：44 项 `assembly_exact`、69 项 `platform_adapted`；仅
+`sub_402F80` 保持待审计。最新关闭 `sub_427300`：确认无参数、四处返回且调用者忽略 EAX，
+并逐基本块固定 cache-only NPC hover、选择链绝对优先、NPC/地图 Talk、方向合成与延迟输入
+复制。独立 REVIEW 纠正后半函数误用入口 camera 快照的问题：hover 用入口值，地图格和方向
+在原地址重借 live camera；同时把 input/player span check 下沉到每个原首次解引用点，保留
+此前 flag、cursor、choice、event 与 facing 副作用。typed spans、camera borrow 和 owned Talk
+state 使分类保持 `platform_adapted`。interaction 定向 CTest 1/1，以及 Linux `core`
+185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 全部通过。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放

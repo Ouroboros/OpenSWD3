@@ -56,6 +56,7 @@ struct LegacyWorldInteractionRequest {
     compat::u32 mouse_y{};
     compat::u32 map_width{};
     LegacyWorldCameraRect camera;
+    const LegacyWorldCameraRect* live_camera{};
     std::span<const LegacyWorldInteractionHotspot> choice_hotspots;
     bool dialog_chain_active{};
 };

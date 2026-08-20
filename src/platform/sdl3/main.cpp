@@ -2241,6 +2241,7 @@ public:
                     ),
                     .map_width = map.header.width,
                     .camera = world.camera,
+                    .live_camera = &world.camera,
                     .choice_hotspots = hotspots,
                     .dialog_chain_active = !world_dialogs_.messages.empty(),
                 },

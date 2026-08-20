@@ -1,8 +1,9 @@
 # 普通世界鼠标交互与 Talk 触发汇编证据：0x00427300
 
-状态：B7 全函数已恢复、接入并完成额外全函数汇编核对
+状态：已独立完成 `assembly_exact`、`unit_tested`、`platform_adapted`、
+`sdl_runtime_integrated`；原程序动态差分待统一 oracle。
 
-来源：`swd3.exe` 完整汇编
+唯一行为来源：`swd3.exe.lst` 完整汇编。IDA 原型、旧证据和既有 C++ 只用于导航。
 
 函数范围：`0x00427300` 至 `0x00427919`
 
@@ -178,22 +179,32 @@ P2 语义名：普通世界鼠标命中、UI 点击消费、NPC/地图 Talk 触�
 `coordinate_legacy_world_interaction` 已按 `0x00427300..0x00427919` 建立独立 C++20
 内核，并在普通世界帧的 `step_world_interaction` 原槽接入：
 
-- 输入直接借用 20 条规范化记录、逻辑鼠标、当前镜头、地图 surface grid、地图事件链、
-  `0xD8` 角色数组和 Talk 上下文；角色帧命中通过 cache-only TSW 端口，动作刷新通过
-  既有 ACT updater。
+- 输入直接借用规范化记录、逻辑鼠标、地图 surface grid、地图事件链、`0xD8` 角色数组和
+  Talk 上下文；角色帧命中通过 cache-only TSW 端口，动作刷新通过既有 ACT updater。
+- 入口 camera 快照只供 `0x0042738F..0x004273AC` 的 NPC hover；在
+  `0x00427682..0x00427688` 重新借用 live camera，后续地图格与方向尾部共用该 reload 值。
 - `0x0040A753` 的调用者职责在每帧调用前把光标变体重置为十三；函数内部再按选择链、
   NPC、地图事件和鼠标方向的原优先级覆盖。
 - 选择命中序号及点击消费已接给对话 runtime；NPC/地图点击按原字段建立 Talk 请求。
   当前 SDL owner 只拥有输入规范化产生的内部位九，其他剧情持久位仍明确等待剧情 VM
   owner，因此不据此宣称地图事件或对话脚本已经可以完整执行。
-- 对原版无边界检查的角色、输入和 surface 访问只在非法现代 span 上增加受检失败；合法
-  输入的无符号回绕、严格边界、早退顺序、点击是否清零和非致命 action 失败均保持不变。
+- 对原版无边界检查的角色、输入和 surface 访问只在非法现代 span 上增加受检失败；每个
+  check 下沉到原首次解引用点，保留此前的 hover、flag query、cursor、choice index、facing
+  和 event-code 副作用。合法输入的无符号回绕、严格边界、早退顺序、点击是否清零和非致命
+  action 失败均保持不变。
+- 角色 Talk 末尾的 `sub_40C020(guid)` 返回值只进入 `nullsub_1` 诊断且无状态写回，现代省略
+  该纯诊断查询，不伪造业务 callback。
 
-完成实现后的额外核对重新从入口逐段覆盖：`0x00427300..0x004274C8` 的扫描与选择链、
+本轮独立 REVIEW 重新从入口逐段覆盖：`0x00427300..0x004274C8` 的扫描与选择链、
 `0x004274C9..0x00427681` 的角色 Talk、`0x00427682..0x0042780C` 的地图 Talk，以及
-`0x0042780D..0x00427919` 的方向合成与延迟输入复制。核对中纠正了 SDL 适配器曾使用
-load-on-miss TSW 查询的问题，并补齐调用者每帧光标重置；纠正后未发现其余逻辑差异。
+`0x0042780D..0x00427919` 的方向合成与延迟输入复制。除既有 cache-only TSW 和调用者光标
+重置外，本轮纠正了两个差异：后半函数曾误用入口 camera 快照；input/player span 曾在入口
+提前失败，吞掉原危险点前副作用。修正后再次执行 LST→C++ 与 C++→LST REVIEW，未发现其他
+逻辑差异。
 
-独立 UT 固定角色相向及动作 owner、选择链绝对优先和严格边界、地图事件低 word flag、
-`0x7FFF` script 掩码、`0x8000` 锁赋值、右键八方向合成、四 dword 延迟复制和非法 span。
-Linux 与 Windows LLVM 完整应用均构建成功，171/171 CTest 通过；未启动任何 EXE。
+独立 UT 固定角色相向、非致命 action 失败、0x20/0x40 hover 优先、cache-only frame miss、
+选择链绝对优先/非首采样/严格边界、地图事件 low-word flag、`0x7FFF` script 掩码、`0x8000`
+锁赋值、入口 camera 与 live reload、右键八方向、四 dword 延迟复制，以及 choice/role/map/
+direction/delayed/player 各自原 unsafe-point 的受检停止顺序。interaction 定向 CTest 1/1
+通过；最终完整门禁为 Linux `core` 185/185、Linux `app` 191/191、Windows LLVM `app`
+191/191 CTest，两端应用成功链接且未启动任何原版或 OpenSWD3 游戏 EXE。

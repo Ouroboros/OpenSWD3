@@ -107,6 +107,7 @@ void test_role_hover_and_activation(openswd3::test::Context& test) {
     talk.field_18 = 0xCAFEBABEU;
     LegacyWorldInteractionState state;
     RecordingPorts ports;
+    ports.action_update_result = 0U;
 
     const auto result = coordinate_legacy_world_interaction(
         LegacyWorldInteractionRequest{
@@ -153,6 +154,11 @@ void test_role_hover_and_activation(openswd3::test::Context& test) {
         ports.action_updates.size(),
         std::size_t{2U},
         "turning target and player each refresh once"
+    );
+    test.expect_equal(
+        result.action_update_failure_count,
+        2U,
+        "both nonfatal action update failures preserve Talk activation"
     );
     test.expect_true(
         ports.action_updates[0] == &roles[1].action,
@@ -202,6 +208,136 @@ void test_role_hover_and_activation(openswd3::test::Context& test) {
         inputs[15U],
         LegacyInputRecord{},
         "role activation clears all four left-input dwords"
+    );
+}
+
+void test_hover_cursor_flag_precedence(openswd3::test::Context& test) {
+    std::vector roles{make_player(), LegacyWorldRoleRecord{}};
+    roles[1].talk_script_id = 1U;
+    const std::vector events{
+        LegacyWorldMapEvent{
+            .field_04 = 7U,
+            .field_08 = 0x123U,
+            .field_0c = 0x22U,
+            .name_bytes_with_terminator = {},
+        },
+    };
+    std::array<openswd3::compat::u8, 4U> event_cell{};
+    event_cell[0U] = 7U;
+    std::array<LegacyInputRecord, 20U> inputs{};
+
+    roles[1].flags = 0x00008040U;
+    auto talk = idle_talk();
+    LegacyWorldInteractionState state;
+    RecordingPorts ports;
+    ports.map_flag = 1U;
+    const auto blocking = coordinate_legacy_world_interaction(
+        LegacyWorldInteractionRequest{
+            .player_index = 0U,
+            .mouse_x = 1U,
+            .mouse_y = 1U,
+            .map_width = 1U,
+            .camera = {},
+            .choice_hotspots = {},
+        },
+        roles,
+        events,
+        event_cell,
+        inputs,
+        talk,
+        state,
+        ports
+    );
+    test.expect_true(
+        blocking.hovered_role_index == 1U && blocking.map_event_suppressed &&
+            blocking.map_event_code == 0U && state.cursor_variant == 10U &&
+            ports.flag_queries == std::vector<u32>{9U},
+        "bit 40 selects cursor ten and suppresses the map-event path"
+    );
+
+    roles[1].flags = 0x00008060U;
+    talk = idle_talk();
+    state = {};
+    ports.flag_queries.clear();
+    const auto cursor_suppressed = coordinate_legacy_world_interaction(
+        LegacyWorldInteractionRequest{
+            .player_index = 0U,
+            .mouse_x = 1U,
+            .mouse_y = 1U,
+            .map_width = 1U,
+            .camera = {},
+            .choice_hotspots = {},
+        },
+        roles,
+        events,
+        event_cell,
+        inputs,
+        talk,
+        state,
+        ports
+    );
+    test.expect_true(
+        cursor_suppressed.hovered_role_index == 1U &&
+            !cursor_suppressed.map_event_suppressed &&
+            cursor_suppressed.map_event_code == 7U &&
+            state.cursor_variant == kLegacyWorldMapEventCursorVariant &&
+            ports.flag_queries == std::vector<u32>({9U, 0x22U}),
+        "bit 20 exits before bit 40 and leaves the map-event path enabled"
+    );
+
+    roles[1].flags = 0x00008000U;
+    talk = idle_talk();
+    state = {};
+    ports.flag_queries.clear();
+    ports.frame_available = false;
+    const std::array<openswd3::compat::u8, 4U> empty_cell{};
+    const auto unavailable = coordinate_legacy_world_interaction(
+        LegacyWorldInteractionRequest{
+            .player_index = 0U,
+            .mouse_x = 1U,
+            .mouse_y = 1U,
+            .map_width = 1U,
+            .camera = {},
+            .choice_hotspots = {},
+        },
+        roles,
+        {},
+        empty_cell,
+        inputs,
+        talk,
+        state,
+        ports
+    );
+    test.expect_true(
+        unavailable.role_frames_requested == 1U &&
+            unavailable.unavailable_role_frames == 1U &&
+            unavailable.hovered_role_index == 0xFFFFFFFFU,
+        "cache-only frame miss advances the scan without a hover target"
+    );
+
+    ports.frame_available = true;
+    ports.flag_queries.clear();
+    const auto border = coordinate_legacy_world_interaction(
+        LegacyWorldInteractionRequest{
+            .player_index = 0U,
+            .mouse_x = 0U,
+            .mouse_y = 1U,
+            .map_width = 1U,
+            .camera = {},
+            .choice_hotspots = {},
+        },
+        roles,
+        {},
+        empty_cell,
+        inputs,
+        talk,
+        state,
+        ports
+    );
+    test.expect_equal(
+        border.hovered_role_index,
+        0xFFFFFFFFU,
+        "role hover excludes the exact left rectangle edge"
     );
 }
 
@@ -264,6 +400,35 @@ void test_choice_chain_has_absolute_priority(openswd3::test::Context& test) {
         inputs[15U],
         LegacyInputRecord{},
         "choice click clears the left input record"
+    );
+
+    inputs = first_left_click();
+    inputs[15U].held_sample_count = 2U;
+    talk = idle_talk();
+    state.cursor_variant = 9U;
+    const auto held = coordinate_legacy_world_interaction(
+        LegacyWorldInteractionRequest{
+            .player_index = 0U,
+            .mouse_x = 50U,
+            .mouse_y = 20U,
+            .map_width = 8U,
+            .camera = {},
+            .choice_hotspots = hotspots,
+        },
+        roles,
+        {},
+        std::array<openswd3::compat::u8, 4U>{},
+        inputs,
+        talk,
+        state,
+        ports
+    );
+    test.expect_true(
+        held.source == LegacyWorldInteractionSource::none &&
+            !held.choice_chain_clear_requested &&
+            inputs[15U].rapid_press_multiplicity == 1U &&
+            state.cursor_variant == kLegacyWorldDefaultCursorVariant,
+        "choice hit with non-first held sample still consumes world priority"
     );
 
     inputs = first_left_click();
@@ -452,6 +617,70 @@ void test_map_event_activation(openswd3::test::Context& test) {
     );
 }
 
+void test_camera_snapshot_and_live_reload(openswd3::test::Context& test) {
+    std::vector roles{make_player(), LegacyWorldRoleRecord{}};
+    roles[1].flags = 0x00008000U;
+    roles[1].talk_script_id = 1U;
+    const std::vector events{
+        LegacyWorldMapEvent{
+            .field_04 = 7U,
+            .field_08 = 0x123U,
+            .field_0c = 0x22U,
+            .name_bytes_with_terminator = {},
+        },
+    };
+    std::array<openswd3::compat::u8, 2U * 4U> surface{};
+    surface[4U] = 7U;
+    std::array<LegacyInputRecord, 20U> inputs{};
+    auto talk = idle_talk();
+    LegacyWorldInteractionState state;
+    RecordingPorts ports;
+    ports.map_flag = 1U;
+    const openswd3::world_map::LegacyWorldCameraRect live_camera{
+        .left = 16U,
+    };
+
+    const auto result = coordinate_legacy_world_interaction(
+        LegacyWorldInteractionRequest{
+            .player_index = 0U,
+            .mouse_x = 1U,
+            .mouse_y = 1U,
+            .map_width = 2U,
+            .camera = {},
+            .live_camera = &live_camera,
+            .choice_hotspots = {},
+        },
+        roles,
+        events,
+        surface,
+        inputs,
+        talk,
+        state,
+        ports
+    );
+
+    test.expect_equal(
+        result.hovered_role_index,
+        1U,
+        "role hover uses the entry camera snapshot"
+    );
+    test.expect_equal(
+        result.map_event_code,
+        7U,
+        "map event lookup reloads the live camera after role handling"
+    );
+    test.expect_equal(
+        state.cursor_variant,
+        kLegacyWorldMapEventCursorVariant,
+        "live-camera cell event overrides the earlier role cursor"
+    );
+    test.expect_equal(
+        ports.flag_queries,
+        std::vector<u32>({9U, 0x22U}),
+        "camera reload keeps internal-flag query ordering"
+    );
+}
+
 void test_direction_synthesis_and_delayed_primary_copy(
     openswd3::test::Context& test
 ) {
@@ -515,54 +744,326 @@ void test_direction_synthesis_and_delayed_primary_copy(
 }
 
 void test_safe_span_boundaries(openswd3::test::Context& test) {
-    std::vector roles{make_player()};
-    auto talk = idle_talk();
-    LegacyWorldInteractionState state;
-    RecordingPorts ports;
     std::array<LegacyInputRecord, 20U> inputs{};
+    const std::array<openswd3::compat::u8, 4U> empty_cell{};
+    const std::array<openswd3::compat::u8, 3U * 4U> empty_row{};
 
-    const auto short_grid = coordinate_legacy_world_interaction(
-        LegacyWorldInteractionRequest{
-            .player_index = 0U,
-            .mouse_x = 48U,
-            .mouse_y = 32U,
-            .map_width = 8U,
-            .camera = {},
-            .choice_hotspots = {},
-        },
-        roles,
-        {},
-        std::array<openswd3::compat::u8, 4U>{},
-        inputs,
-        talk,
-        state,
-        ports
-    );
-    test.expect_equal(
-        short_grid.status,
-        LegacyWorldInteractionStatus::invalid_surface_grid,
-        "modern span stops before original unchecked cell read"
-    );
+    {
+        std::vector roles{make_player()};
+        auto talk = idle_talk();
+        LegacyWorldInteractionState state;
+        RecordingPorts ports;
+        const auto result = coordinate_legacy_world_interaction(
+            LegacyWorldInteractionRequest{
+                .player_index = 0U,
+                .mouse_x = 48U,
+                .mouse_y = 32U,
+                .map_width = 8U,
+                .camera = {},
+                .choice_hotspots = {},
+            },
+            roles,
+            {},
+            empty_cell,
+            inputs,
+            talk,
+            state,
+            ports
+        );
+        test.expect_equal(
+            result.status,
+            LegacyWorldInteractionStatus::invalid_surface_grid,
+            "modern span stops before original unchecked cell read"
+        );
+    }
 
-    const auto short_inputs = coordinate_legacy_world_interaction(
-        LegacyWorldInteractionRequest{
-            .player_index = 0U,
-            .camera = {},
-            .choice_hotspots = {},
-        },
-        roles,
-        {},
-        {},
-        std::span<LegacyInputRecord>{inputs}.first(15U),
-        talk,
-        state,
-        ports
-    );
-    test.expect_equal(
-        short_inputs.status,
-        LegacyWorldInteractionStatus::missing_input_records,
-        "all referenced normalized records are required"
-    );
+    {
+        std::vector roles{make_player()};
+        auto talk = idle_talk();
+        LegacyWorldInteractionState state;
+        RecordingPorts ports;
+        const auto result = coordinate_legacy_world_interaction(
+            LegacyWorldInteractionRequest{
+                .player_index = 0U,
+                .mouse_x = 32U,
+                .mouse_y = 0U,
+                .map_width = 3U,
+                .camera = {},
+                .choice_hotspots = {},
+            },
+            roles,
+            {},
+            empty_row,
+            std::span<LegacyInputRecord>{inputs}.first(14U),
+            talk,
+            state,
+            ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyWorldInteractionStatus::missing_input_records &&
+                result.distance == 32U && result.facing == 0U &&
+                state.cursor_variant == 0U &&
+                ports.flag_queries == std::vector<u32>{9U},
+            "direction state is committed before the original input-14 access"
+        );
+    }
+
+    {
+        std::vector roles{make_player()};
+        auto talk = idle_talk();
+        LegacyWorldInteractionState state;
+        RecordingPorts ports;
+        const std::array hotspots{
+            LegacyWorldInteractionHotspot{0U, 0U, 2U, 2U},
+        };
+        const auto result = coordinate_legacy_world_interaction(
+            LegacyWorldInteractionRequest{
+                .player_index = 0U,
+                .mouse_x = 1U,
+                .mouse_y = 1U,
+                .map_width = 1U,
+                .camera = {},
+                .choice_hotspots = hotspots,
+            },
+            roles,
+            {},
+            empty_cell,
+            std::span<LegacyInputRecord>{inputs}.first(15U),
+            talk,
+            state,
+            ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyWorldInteractionStatus::missing_input_records &&
+                state.selected_choice_index == 0U &&
+                state.cursor_variant == kLegacyWorldDefaultCursorVariant &&
+                ports.flag_queries == std::vector<u32>{9U},
+            "choice hit and cursor commit before the original input-15 access"
+        );
+    }
+
+    {
+        std::vector roles{make_player(), LegacyWorldRoleRecord{}};
+        roles[1].flags = 0x00008000U;
+        roles[1].talk_script_id = 1U;
+        auto talk = idle_talk();
+        LegacyWorldInteractionState state;
+        RecordingPorts ports;
+        const auto result = coordinate_legacy_world_interaction(
+            LegacyWorldInteractionRequest{
+                .player_index = 0U,
+                .mouse_x = 1U,
+                .mouse_y = 1U,
+                .map_width = 1U,
+                .camera = {},
+                .choice_hotspots = {},
+            },
+            roles,
+            {},
+            empty_cell,
+            std::span<LegacyInputRecord>{inputs}.first(15U),
+            talk,
+            state,
+            ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyWorldInteractionStatus::missing_input_records &&
+                result.hovered_role_index == 1U && state.cursor_variant == 9U &&
+                ports.action_updates.empty() &&
+                ports.flag_queries == std::vector<u32>{9U},
+            "role hover commits before the activation input-15 access"
+        );
+    }
+
+    {
+        std::vector roles{make_player()};
+        const std::vector events{
+            LegacyWorldMapEvent{
+                .field_04 = 7U,
+                .field_08 = 0x123U,
+                .field_0c = 0x22U,
+                .name_bytes_with_terminator = {},
+            },
+        };
+        std::array<openswd3::compat::u8, 4U> event_cell{};
+        event_cell[0U] = 7U;
+        auto talk = idle_talk();
+        LegacyWorldInteractionState state;
+        RecordingPorts ports;
+        ports.map_flag = 1U;
+        const auto result = coordinate_legacy_world_interaction(
+            LegacyWorldInteractionRequest{
+                .player_index = 0U,
+                .mouse_x = 1U,
+                .mouse_y = 1U,
+                .map_width = 1U,
+                .camera = {},
+                .choice_hotspots = {},
+            },
+            roles,
+            events,
+            event_cell,
+            std::span<LegacyInputRecord>{inputs}.first(15U),
+            talk,
+            state,
+            ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyWorldInteractionStatus::missing_input_records &&
+                result.map_event_code == 7U &&
+                state.cursor_variant == kLegacyWorldMapEventCursorVariant &&
+                ports.flag_queries == std::vector<u32>({9U, 0x22U}),
+            "map cursor and flag query commit before its input-15 access"
+        );
+    }
+
+    {
+        std::vector roles{make_player()};
+        auto talk = idle_talk();
+        LegacyWorldInteractionState state;
+        RecordingPorts ports;
+        const auto result = coordinate_legacy_world_interaction(
+            LegacyWorldInteractionRequest{
+                .player_index = 0U,
+                .mouse_x = 32U,
+                .mouse_y = 0U,
+                .map_width = 3U,
+                .camera = {},
+                .choice_hotspots = {},
+                .dialog_chain_active = true,
+            },
+            roles,
+            {},
+            empty_row,
+            std::span<LegacyInputRecord>{inputs}.first(15U),
+            talk,
+            state,
+            ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyWorldInteractionStatus::missing_input_records &&
+                result.distance == 32U && !result.delayed_primary_input_copied,
+            "delayed bridge stops only at the original source input-15 access"
+        );
+    }
+
+    {
+        std::vector roles{make_player()};
+        roles[0].world_x = 33U;
+        auto talk = idle_talk();
+        LegacyWorldInteractionState state;
+        RecordingPorts ports;
+        const auto result = coordinate_legacy_world_interaction(
+            LegacyWorldInteractionRequest{
+                .player_index = 0U,
+                .mouse_x = 1U,
+                .mouse_y = 1U,
+                .map_width = 1U,
+                .camera = {},
+                .choice_hotspots = {},
+                .dialog_chain_active = true,
+            },
+            roles,
+            {},
+            empty_cell,
+            std::span<LegacyInputRecord>{inputs}.first(1U),
+            talk,
+            state,
+            ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyWorldInteractionStatus::missing_input_records &&
+                result.distance != 0U &&
+                state.cursor_variant == result.facing &&
+                ports.flag_queries == std::vector<u32>{9U},
+            "unaligned tail reaches the original primary input-1 access"
+        );
+    }
+
+    {
+        std::vector<LegacyWorldRoleRecord> roles;
+        auto talk = idle_talk();
+        LegacyWorldInteractionState state;
+        RecordingPorts ports;
+        const auto result = coordinate_legacy_world_interaction(
+            LegacyWorldInteractionRequest{.player_index = 0U},
+            roles,
+            {},
+            {},
+            inputs,
+            talk,
+            state,
+            ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyWorldInteractionStatus::invalid_player_index &&
+                ports.flag_queries.empty(),
+            "idle Talk reaches the player dereference before any callback"
+        );
+    }
+
+    {
+        std::vector<LegacyWorldRoleRecord> roles;
+        auto talk = idle_talk();
+        talk.source_guid = 1U;
+        LegacyWorldInteractionState state;
+        RecordingPorts ports;
+        ports.flag_9 = 1U;
+        const auto result = coordinate_legacy_world_interaction(
+            LegacyWorldInteractionRequest{.player_index = 0U},
+            roles,
+            {},
+            {},
+            inputs,
+            talk,
+            state,
+            ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyWorldInteractionStatus::invalid_player_index &&
+                ports.flag_queries == std::vector<u32>{9U},
+            "active Talk preserves flag-9 query before the tail dereference"
+        );
+    }
+
+    {
+        std::vector<LegacyWorldRoleRecord> roles;
+        auto talk = idle_talk();
+        talk.source_guid = 1U;
+        LegacyWorldInteractionState state{.cursor_variant = 9U};
+        RecordingPorts ports;
+        const std::array hotspots{
+            LegacyWorldInteractionHotspot{0U, 0U, 2U, 2U},
+        };
+        const auto result = coordinate_legacy_world_interaction(
+            LegacyWorldInteractionRequest{
+                .player_index = 0U,
+                .choice_hotspots = hotspots,
+            },
+            roles,
+            {},
+            {},
+            inputs,
+            talk,
+            state,
+            ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyWorldInteractionStatus::invalid_player_index &&
+                state.cursor_variant == 9U &&
+                ports.flag_queries == std::vector<u32>{9U},
+            "choice gate stops at player state before cursor thirteen"
+        );
+    }
 }
 
 }  // namespace
@@ -570,9 +1071,11 @@ void test_safe_span_boundaries(openswd3::test::Context& test) {
 int main() {
     openswd3::test::Context test;
     test_role_hover_and_activation(test);
+    test_hover_cursor_flag_precedence(test);
     test_choice_chain_has_absolute_priority(test);
     test_choice_hotspot_chain_helpers(test);
     test_map_event_activation(test);
+    test_camera_snapshot_and_live_reload(test);
     test_direction_synthesis_and_delayed_primary_copy(test);
     test_safe_span_boundaries(test);
     return test.exit_code();

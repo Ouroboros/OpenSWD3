@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v235
+版本：v236
 
 最后更新：2026-08-20
 
@@ -1273,5 +1273,23 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。114 项当前关闭 112 项，即
     `44 assembly_exact + 68 platform_adapted + 2 pending_audit`；下一精确停点为
     `0x00427300 sub_427300`。
+
+- B7 继续完成 `0x00427300 sub_427300` 独立闭环。`sub_40A570:0x0040A74E` 唯一调用点
+    确认无参数、caller 不清栈且忽略 EAX；四个 plain return 对应选择消费、NPC Talk、地图
+    Talk 与普通尾部，没有统一返回值契约。完整基本块先后恢复 cache-only NPC hover、位九
+    门控的选择链、NPC/地图 Talk 优先、角色相向、地图格 flag 与 script 掩码、右键八方向
+    合成，以及活动对话中的四 dword 延迟输入复制。反复 C++→LST REVIEW 纠正两个差异：
+    hover 只用入口 camera 快照，而 `0x00427682` 起必须重借 live camera 供地图格与方向；
+    input/player span 曾在入口提前失败，现已下沉到 choice/role/map/direction/delayed/player
+    的原首次解引用点，保留此前 flag query、cursor、choice index、event code 与 facing
+    副作用。`sub_40C020(guid)` 结果只送入空诊断函数，现代不伪造业务 callback。typed role/
+    event/input spans、camera borrow 与 owned Talk state 使分类保持 `platform_adapted`；SDL
+    runtime 把 live camera 接回原帧槽。独立 UT 固定 hover 0x20/0x40 优先、cache miss、
+    choice 非首采样、非致命 action 失败、Talk 两路径、camera reload、方向/延迟复制与全部
+    unsafe-point 停止顺序；interaction 定向 1/1 通过。最终完整门禁为 Linux `core`
+    185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest，两端应用成功链接且
+    未启动任何原版或 OpenSWD3 游戏 EXE。114 项当前关闭 113 项，即
+    `44 assembly_exact + 69 platform_adapted + 1 pending_audit`；B7 唯一剩余精确停点为
+    `0x00402F80 sub_402F80`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。
