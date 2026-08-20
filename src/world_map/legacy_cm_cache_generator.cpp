@@ -57,13 +57,15 @@ seek_absolute(std::ifstream& input, const compat::u32 offset) {
 LegacyCmCacheSizeResult read_legacy_cm_cache_declared_size(
     const std::filesystem::path& archive_path,
     const compat::u32 map_offset,
-    const compat::u32 cm_relative_offset
+    const compat::u32 cm_relative_offset,
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
 ) {
     LegacyCmCacheSizeResult result;
     if (cm_relative_offset == 0U) {
         return result;
     }
 
+    maintain_audio(audio_maintenance_stage);
     std::ifstream archive{archive_path, std::ios::binary};
     if (!archive.is_open()) {
         result.status = LegacyCmCacheSizeStatus::archive_open_failed;

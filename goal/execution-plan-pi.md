@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v232
+版本：v233
 
 最后更新：2026-08-20
 
@@ -1232,5 +1232,19 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     114 项当前关闭 109 项，即
     `44 assembly_exact + 65 platform_adapted + 5 pending_audit`；下一精确停点为
     `0x004270F0 sub_4270F0`。
+
+- B7 继续完成 `0x004270F0 sub_4270F0` 独立闭环。唯一调用点实际压入五个 cdecl 参数：
+    首个 map-id 与第四个路径 scratch 未读，第二/第三参数形成 CM 头地址，第五参数接收声明
+    输出大小。零 CM offset 只经过 nullsub，不写输出也不维护；非零路径在 seek 前严格执行
+    一个 `_AIL_serve`，以 u32 计算 `map_offset + cm_relative_offset + 0x10` 后读取一个 dword。
+    调用者清理 `0x14` 字节并忽略 EAX。现代 size probe 复用同一 audio owner，以独立 archive
+    reader 和显式状态隔离 archive-open、负 seek 与短读，所有合法域顺序保持不变，分类为
+    `platform_adapted`。合成成功/archive-open/seek/read 失败各固定 1 次直接维护，零 offset
+    固定 0 次；一块普通 miss 跨 helper 合计 16 次、单淘汰为 17 次。真实地图 24 probe
+    输出 `3,706,880` 且维护 1 次；generator/loader/render synthetic/real 6/6 定向回归通过。
+    最终完整门禁为 Linux `core` 185/185、Linux `app` 191/191、Windows LLVM `app`
+    191/191 CTest，两端应用成功链接且未启动游戏 EXE。114 项当前关闭 110 项，即
+    `44 assembly_exact + 66 platform_adapted + 4 pending_audit`；下一精确停点为
+    `0x00427140 sub_427140`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

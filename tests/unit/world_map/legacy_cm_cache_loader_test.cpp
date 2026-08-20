@@ -384,6 +384,7 @@ void test_miss_inserts_and_truncates_index(openswd3::test::Context& test) {
                 34U,
                 34U,
                 34U,
+                34U,
                 32U,
                 32U,
                 32U,
@@ -451,6 +452,7 @@ void test_eviction_truncates_slot_to_sixteen_bytes(
                 20U,
                 20U,
                 20U,
+                20U,
                 16U,
                 16U,
                 16U,
@@ -500,7 +502,7 @@ void test_short_nonempty_directory_stops_before_unsafe_slot(
     test.expect_true(
         result.status == LegacyCmCacheLoadStatus::no_evictable_record &&
             result.records.empty() && !result.index_persisted &&
-            audio_calls == 5U,
+            audio_calls == 6U,
         "short nonempty directory stops before the original record-zero overflow"
     );
     test.expect_equal(

@@ -27,7 +27,8 @@ struct LegacyCmCacheSizeResult {
 [[nodiscard]] LegacyCmCacheSizeResult read_legacy_cm_cache_declared_size(
     const std::filesystem::path& archive_path,
     compat::u32 map_offset,
-    compat::u32 cm_relative_offset
+    compat::u32 cm_relative_offset,
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage = {}
 );
 
 enum class LegacyCmCacheGenerationStatus {

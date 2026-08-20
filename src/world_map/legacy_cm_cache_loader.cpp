@@ -309,7 +309,10 @@ LegacyCmCacheLoadResult load_legacy_cm_cache(
     }
 
     result.size_probe = read_legacy_cm_cache_declared_size(
-        request.archive_path, request.map_offset, request.cm_relative_offset
+        request.archive_path,
+        request.map_offset,
+        request.cm_relative_offset,
+        audio_maintenance_stage
     );
     maintain_audio(audio_maintenance_stage);
     if (result.size_probe.status != LegacyCmCacheSizeStatus::ready) {

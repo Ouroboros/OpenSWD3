@@ -19,16 +19,14 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 106 项：44 项 `assembly_exact`、62 项 `platform_adapted`；其余
-8 项保持待审计。最新关闭 `sub_425B50`：`0x00425B50..0x00425BDA` 的无参数 ABI、两处
-调用、两个地图分配释放、25 dword 状态清零、256 个 `0xD8` 角色逐项 payload 释放后立即
-清零、全 `0xFF` 无角色 sentinel 及 72 个 `0x21C` 对象槽重置均完成逐指令双向追溯。复核
-发现新游戏旧世界释放误用了 `sub_40F3B0` reset，导致清零后重建 action；现改用独立
-`clear_legacy_world_role_table`，保留本函数不初始化 action 的语义。RAII session、checked
-absent-role owner 与 split 64+8 slots 使分类保持 `platform_adapted`。role-lifecycle、
-role-transfer、new-game transition 与 runtime-session synthetic/real 五项定向 CTest 通过；
-Linux core `185/185`、Linux app `191/191`、Windows LLVM app `191/191` 完整门禁通过，
-两端应用成功链接且未启动游戏 EXE。原版完整
+114 项全集复核当前已关闭 110 项：44 项 `assembly_exact`、66 项 `platform_adapted`；其余
+4 项保持待审计。最新关闭 `sub_4270F0`：确认唯一调用点的五参数 cdecl、未读 map-id 与
+scratch、第五参数输出 dword、零 offset 零维护，以及非零路径 seek 前唯一 `_AIL_serve`。
+独立 archive reader 与 checked seek/read 在原危险点停止，不改变合法域 u32 offset 和输出
+顺序，因此分类为 `platform_adapted`。合成成功/失败、真实地图 24 size probe 与 loader
+普通 miss/淘汰纵向回归通过；完整门禁为 Linux core `185/185`、Linux app `191/191`、
+Windows LLVM app `191/191`，两端应用成功链接且未启动游戏 EXE。剩余独立停点为
+`sub_427140/sub_4272C0/sub_427300/sub_402F80`。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放
@@ -227,6 +225,19 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
    LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。114 项当前关闭 109 项，
    即 `44 assembly_exact + 65 platform_adapted + 5 pending_audit`；下一精确停点为
    `0x004270F0 sub_4270F0`。
+
+   `sub_4270F0` CM 声明大小 probe 现已独立关闭：唯一调用点实际压入五个 cdecl 参数，
+   首个 map-id 与第四个 scratch 完全未读；零 CM offset 经过 nullsub，不写输出也不执行
+   维护。非零路径在 seek 前严格执行一次 `_AIL_serve`，以 u32 计算
+   `map_offset + cm_relative_offset + 0x10`，再把一个 dword 写入第五参数；调用者清理
+   `0x14` 字节并忽略 EAX。现代独立 reader 把 archive-open、负 seek 和短读取隔离为受检
+   状态，同时在同一前置位置复用 audio owner，分类为 `platform_adapted`。合成成功及三类
+   失败均固定 1 次维护，零 offset 固定 0 次；一块普通 miss 跨 helper 合计 16 次，单淘汰
+   为 17 次；真实地图 24 probe 输出 `3,706,880` 且维护 1 次。最终完整门禁为 Linux
+   `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest，两端应用成功
+   链接且未启动游戏 EXE。114 项当前关闭 110 项，即
+   `44 assembly_exact + 66 platform_adapted + 4 pending_audit`；下一精确停点为
+   `0x00427140 sub_427140`。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。

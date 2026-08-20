@@ -305,12 +305,13 @@ void test_size_probe_and_existing_tail(openswd3::test::Context& test) {
     };
     tree.write("huge.lmf", make_archive(raw, 6U, 8U));
 
+    u32 size_audio_calls{};
     const auto size = read_legacy_cm_cache_declared_size(
-        tree.root() / "huge.lmf", 0x20U, 0x40U
+        tree.root() / "huge.lmf", 0x20U, 0x40U, [&] { ++size_audio_calls; }
     );
     test.expect_true(
         size.status == LegacyCmCacheSizeStatus::ready &&
-            size.declared_output_size == 6U,
+            size.declared_output_size == 6U && size_audio_calls == 1U,
         "0x004270F0 reads only the declared CM output size"
     );
 
@@ -357,6 +358,57 @@ void test_size_probe_and_existing_tail(openswd3::test::Context& test) {
             0xEEU,
         },
         "generator overwrites from offset zero without truncating the old tail"
+    );
+}
+
+void test_size_probe_failures_preserve_service_boundary(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+
+    u32 zero_offset_audio{};
+    const auto zero_offset = read_legacy_cm_cache_declared_size(
+        tree.root() / "missing.lmf", 0U, 0U, [&] { ++zero_offset_audio; }
+    );
+    test.expect_true(
+        zero_offset.status == LegacyCmCacheSizeStatus::cm_offset_zero &&
+            zero_offset_audio == 0U,
+        "zero size-probe offset exits before its direct service"
+    );
+
+    u32 missing_archive_audio{};
+    const auto missing_archive = read_legacy_cm_cache_declared_size(
+        tree.root() / "missing.lmf", 0U, 1U, [&] { ++missing_archive_audio; }
+    );
+    test.expect_true(
+        missing_archive.status ==
+                LegacyCmCacheSizeStatus::archive_open_failed &&
+            missing_archive_audio == 1U,
+        "nonzero size probe services audio before platform archive open"
+    );
+
+    constexpr std::array<u8, 1> marker{0xAAU};
+    tree.write("tiny.lmf", marker);
+    u32 seek_failure_audio{};
+    const auto seek_failure = read_legacy_cm_cache_declared_size(
+        tree.root() / "tiny.lmf", 0x80000000U, 1U, [&] { ++seek_failure_audio; }
+    );
+    test.expect_true(
+        seek_failure.status == LegacyCmCacheSizeStatus::size_seek_failed &&
+            seek_failure_audio == 1U,
+        "checked negative seek stops after the original direct service"
+    );
+
+    constexpr std::array<u8, 19> short_size_source{};
+    tree.write("short-size.lmf", short_size_source);
+    u32 read_failure_audio{};
+    const auto read_failure = read_legacy_cm_cache_declared_size(
+        tree.root() / "short-size.lmf", 0U, 1U, [&] { ++read_failure_audio; }
+    );
+    test.expect_true(
+        read_failure.status == LegacyCmCacheSizeStatus::size_read_failed &&
+            read_failure_audio == 1U,
+        "short u32 read stops after the same pre-seek direct service"
     );
 }
 
@@ -530,6 +582,16 @@ void test_current_map_24(
 ) {
     const TestTree tree;
     tree.write("0.cm", std::span<const u8>{});
+    u32 size_audio_calls{};
+    const auto size = read_legacy_cm_cache_declared_size(
+        archive_path, 0x026698A3U, 0x00049193U, [&] { ++size_audio_calls; }
+    );
+    test.expect_true(
+        size.status == LegacyCmCacheSizeStatus::ready &&
+            size.declared_output_size == 3'706'880U && size_audio_calls == 1U,
+        "map 24 size probe preserves its one direct service"
+    );
+
     std::vector<i32> progress_stages;
     u32 audio_calls{};
     const auto result = generate_legacy_cm_cache_unit(
@@ -566,6 +628,7 @@ int main(const int argument_count, char** arguments) {
     test_non_16_bit_map_skips_conversion(test);
     test_exact_multiple_keeps_extra_chunk(test);
     test_size_probe_and_existing_tail(test);
+    test_size_probe_failures_preserve_service_boundary(test);
     test_early_failures_preserve_original_order(test);
     test_block_failures_stop_at_original_service_boundary(test);
 
