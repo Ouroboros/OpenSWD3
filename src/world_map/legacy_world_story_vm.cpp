@@ -1360,7 +1360,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case OP_16_JUMP_IF_ROLE_PATH_UNPREPARED: {
+        case OP_16_JUMP_IF_ROLE_PATH_UNPREPARED:
+        case OP_17_JUMP_IF_ROLE_PATH_PREPARED: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
@@ -1382,7 +1383,10 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     result.status = LegacyWorldStoryVmStatus::role_not_found;
                     return result;
                 }
-                if ((roles[role_index].flags & 0x40000000U) == 0U) {
+                const bool path_is_prepared =
+                    (roles[role_index].flags & 0x40000000U) != 0U;
+                if (path_is_prepared ==
+                    (result.opcode == OP_17_JUMP_IF_ROLE_PATH_PREPARED)) {
                     should_jump = true;
                     break;
                 }
@@ -1412,7 +1416,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 18U: {
+        case OP_18: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v252
+版本：v254
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x004283AC` handler（opcode 17）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00428444` handler（opcode 18）
 
 ## 0. 执行约定
 
@@ -110,6 +110,15 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 反向追溯不再产生新差异或未决项。UT 通过、文档自洽或固定次数复核均不能单独证明收敛。
 
 同一时间只允许一个阶段或一个模块处于执行状态。新发现先归入对应模块的待确认项，不能自动扩展成新阶段，也不能使已经满足停止线的总体架构调研重新无限展开。
+
+验证门禁分层如下：
+
+- 单个函数、handler 或紧密耦合小工作包闭环时，执行定向测试和 Linux `core`/`app` 门禁；
+- Windows LLVM `app` 不随每个函数、handler 或小工作包重复编译；
+- Windows LLVM `app` 只在大阶段结束时统一执行，例如 B7/P0 完成、剧情 VM P3 完成，或后续
+  模块达到正式关闭边界；
+- 大阶段 Windows 门禁发现的问题统一收集、统一修复，再重跑该大阶段 Windows 门禁直至通过；
+- 未到大阶段边界的阶段性汇报只报告本轮实际执行的 Linux/定向验证，不得暗示 Windows 已运行。
 
 每达到一个已完成验证、可以独立回退的阶段性边界，Codex 必须自行执行完整提交流程：
 先只暂存本阶段所属改动，再按 `$commit` Skill 创建提交，随后立即推送当前分支；不等待
@@ -1437,6 +1446,15 @@ B7 P0 有限收口完成。
     192/192、Windows LLVM app 192/192 均以 exit 0 通过，未启动游戏 EXE。workpack 当前
     12/146，即 `3 assembly_exact + 9 platform_adapted + 134 pending_audit`。
 
+- 剧情 VM P2 第十三组 `0x004283AC` / opcode17 完成独立闭环。恢复 8-byte 已准备
+    角色路径条件跳转、72-slot predicate、prepared/unprepared 极性、resolver miss `FFFFFFFF`、
+    branch-only target 读取与同调用继续取指；I/O/controlled index 仅在无效域 checked-stop。
+    四 raw alias、selector/type/窗口尾边界与真实 `TALK2.DAT@0x74A6` 跳转回放通过；全83条
+    物理记录均为 raw `0x0011`、长度8且 target 有效。定向 story VM 3/3、Linux core
+    186/186、Linux app 192/192 均以 exit 0 通过；Windows 依 v254 门禁分层留到剧情 VM
+    P3 大阶段统一执行，未启动游戏 EXE。workpack 当前 13/146，即
+    `3 assembly_exact + 10 platform_adapted + 133 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x004283AC` 的 opcode17；语义未审计前常量保持 `OP_17`。不并行回到延期的 `libffmpeg`，
+`0x00428444` 的 opcode18；语义未审计前常量保持 `OP_18`。不并行回到延期的 `libffmpeg`，
 也不按剧情命中顺序临时补 opcode。
