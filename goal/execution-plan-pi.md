@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v227
+版本：v228
 
 最后更新：2026-08-16
 
@@ -1158,5 +1158,18 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     已接入原槽，特殊模式/商店调用点留给各自模块且不复制 owner；两端应用成功链接且未
     启动游戏 EXE。114 项当前关闭 104 项，即 `44 assembly_exact + 60 platform_adapted + 10
     pending_audit`；下一精确停点为 `0x004151F0 sub_4151F0`。
+
+    B7 的 LMF indexed object 绘制 `sub_4151F0` 随后完成独立闭环：完整物理范围
+    `0x004151F0..0x004153CB`、无参数 ABI、`sub_412930:0x004129C8` 唯一调用、空链早退、
+    `0..30` 三十一轮链头重载、每序号首个相交节点、视口相对 clip、两轴 parallax、blit
+    和全屏 clip 恢复均完成 LST→C++→LST 双向逐指令收敛。独立向量固定 draw callback 后
+    下一 ordinal 的 live 节点字段重读，以及大 factor 的 32 位 `IMUL` 回绕与 signed `/16`
+    朝零截断。owned reverse span 与 typed clip/blit ports 使分类保持 `platform_adapted`。
+    indexed-objects 与 world-frame-runtime synthetic/real 三项定向 CTest 通过；Linux
+    `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest 全部通过。
+    该 owner 已接入原槽，地图 72 真实 `1072x1024x16` stream 进入 runtime blitter；
+    两端应用成功链接且未启动游戏 EXE。114 项当前关闭 105 项，即
+    `44 assembly_exact + 61 platform_adapted + 9 pending_audit`；下一精确停点为
+    `0x00425B50 sub_425B50`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

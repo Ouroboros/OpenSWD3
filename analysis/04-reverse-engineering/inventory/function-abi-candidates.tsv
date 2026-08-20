@@ -220,7 +220,7 @@ address	ida_name	export_status	asm_body_status	proc_name	ida_prototype_hint_navi
 0x00414B60	sub_414B60	decompile	expanded_proc_body	sub_414B60	void sub_414B60()	0			1	0x0	plain_retn_caller_or_register_abi	0	1	0	1	0	assembly_cleanup_extracted_arguments_and_eax_use_need_manual_review
 0x00414CE0	sub_414CE0	decompile	expanded_proc_body	sub_414CE0	void sub_414CE0()	0			1	0x0	plain_retn_caller_or_register_abi	0	2	0	1	1	assembly_cleanup_extracted_arguments_and_eax_use_need_manual_review
 0x00414E50	sub_414E50	decompile	expanded_proc_body	sub_414E50	void sub_414E50()	0			1	0x0	plain_retn_caller_or_register_abi	0	2	0	2	0	assembly_cleanup_extracted_arguments_and_eax_use_need_manual_review
-0x004151F0	sub_4151F0	decompile	expanded_proc_body	sub_4151F0	__int16 sub_4151F0()	0			1	0x0	plain_retn_caller_or_register_abi	0	1	0	1	0	assembly_cleanup_extracted_arguments_and_eax_use_need_manual_review
+0x004151F0	sub_4151F0	decompile	expanded_proc_body	sub_4151F0	__int16 sub_4151F0()	0			1	0x0	plain_retn_caller_or_register_abi	0	1	0	1	0	manual_reviewed_no_args_plain_retn_0x44_local_stack_ebx_ebp_esi_edi_saved_only_for_nonempty_head_eax_unspecified_unique_caller_ignores
 0x004153D0	sub_4153D0	decompile	expanded_proc_body	sub_4153D0	int sub_4153D0()	0			1	0x0	plain_retn_caller_or_register_abi	0	1	0	1	0	assembly_cleanup_extracted_arguments_and_eax_use_need_manual_review
 0x004154A0	sub_4154A0	decompile	expanded_proc_body	sub_4154A0	int sub_4154A0()	0			7	0x0	plain_retn_caller_or_register_abi	0	1	0	1	0	assembly_cleanup_extracted_arguments_and_eax_use_need_manual_review
 0x004157D0	sub_4157D0	decompile	expanded_proc_body	sub_4157D0	int sub_4157D0()	0			2	0x0	plain_retn_caller_or_register_abi	0	2	0	2	0	assembly_cleanup_extracted_arguments_and_eax_use_need_manual_review

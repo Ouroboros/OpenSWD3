@@ -6,7 +6,7 @@
 
 #include <array>
 #include <cstddef>
-#include <tuple>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -18,7 +18,6 @@ using openswd3::compat::u32;
 using openswd3::compat::u8;
 using openswd3::rendering::encode_legacy_image_command_stream;
 using openswd3::rendering::LegacyBlitExecutionStatus;
-using openswd3::rendering::LegacyImageCommandStreamStatus;
 using openswd3::rendering::LegacyPixelConversionState;
 using openswd3::rendering::LegacyPixelMasks;
 using openswd3::resource_io::LegacyLmfIndexedObject;
@@ -159,6 +158,9 @@ public:
                 destination_y,
             }
         );
+        if (draws.size() == 1U && reclassify_after_first_draw != nullptr) {
+            reclassify_after_first_draw->ordinal = 1U;
+        }
         return failure_on_draw == draws.size()
             ? LegacyBlitExecutionStatus::malformed_source
             : LegacyBlitExecutionStatus::completed;
@@ -166,6 +168,7 @@ public:
 
     std::vector<ClipCall> clips;
     std::vector<DrawCall> draws;
+    LegacyWorldIndexedObject* reclassify_after_first_draw{};
     std::size_t failure_on_draw{};
 };
 
@@ -232,6 +235,57 @@ void test_reverse_link_order_ordinal_scan_clip_and_parallax(
     );
 }
 
+void test_outer_scan_reloads_live_nodes_after_draw(
+    openswd3::test::Context& test
+) {
+    std::vector<LegacyWorldIndexedObject> objects;
+    objects.push_back(make_runtime_object(5U, 10U, 0U, 0U, 0U, 0U, 8U, 8U));
+    objects.push_back(make_runtime_object(0U, 20U, 0U, 0U, 0U, 0U, 8U, 8U));
+    RecordingDrawPorts ports;
+    ports.reclassify_after_first_draw = &objects.front();
+
+    const auto result = draw_legacy_world_indexed_objects(
+        objects, LegacyWorldIndexedObjectViewport{0, 0, 640, 480}, ports
+    );
+
+    test.expect_true(
+        result.status == LegacyWorldIndexedObjectDrawStatus::completed &&
+            result.draw_count == 2U &&
+            ports.draws ==
+                std::vector<DrawCall>{
+                    DrawCall{20U, 0, 0},
+                    DrawCall{10U, 0, 0},
+                },
+        "each outer ordinal reload sees node fields changed by the prior draw"
+    );
+}
+
+void test_factor_multiply_wraps_before_signed_division(
+    openswd3::test::Context& test
+) {
+    const std::array objects{
+        make_runtime_object(0U, 1U, 0U, 0U, 0U, 0U, 0x8000U, 8U)
+    };
+    RecordingDrawPorts ports;
+
+    const auto result = draw_legacy_world_indexed_objects(
+        objects,
+        LegacyWorldIndexedObjectViewport{
+            0,
+            0,
+            std::numeric_limits<i32>::max(),
+            480,
+        },
+        ports
+    );
+
+    test.expect_true(
+        result.status == LegacyWorldIndexedObjectDrawStatus::completed &&
+            ports.draws == std::vector<DrawCall>{DrawCall{1U, 2048, 0}},
+        "large parallax factors use wrapped IMUL then signed truncation to zero"
+    );
+}
+
 void test_draw_failure_still_restores_full_clip(openswd3::test::Context& test) {
     const std::array objects{
         make_runtime_object(0U, 1U, 0U, 0U, 0U, 0U, 8U, 8U),
@@ -255,6 +309,8 @@ int main() {
     test_loader_normalization_matches_00426519_00426620(test);
     test_invalid_stream_is_a_checked_load_failure(test);
     test_reverse_link_order_ordinal_scan_clip_and_parallax(test);
+    test_outer_scan_reloads_live_nodes_after_draw(test);
+    test_factor_multiply_wraps_before_signed_division(test);
     test_draw_failure_still_restores_full_clip(test);
     return test.exit_code();
 }
