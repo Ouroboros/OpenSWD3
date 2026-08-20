@@ -20,6 +20,7 @@
 #include <array>
 #include <list>
 #include <span>
+#include <vector>
 
 namespace openswd3::world_map {
 
@@ -35,6 +36,16 @@ struct LegacyWorldStoryVmState {
     compat::i32 text_layout_first{};
     compat::i32 text_layout_second{};
     compat::u32 next_text_aux_value{60U};
+    // sub_425040 establishes these process-level dialog metrics; sub_40E0B0
+    // does not own them.
+    compat::u32 dialog_scale{11U};
+    compat::u32 dialog_character_delay_base{2U};
+    // dword_4A135C packs the one-shot anchor override and 0x004CF73C is
+    // the one-shot horizontal-centering latch. The shared text handler resets
+    // them only after a dialog has been queued.
+    compat::u16 dialog_anchor_left{0x8000U};
+    compat::u16 dialog_anchor_top{0x8000U};
+    bool dialog_center_pending{};
     // sub_40E0B0 clears the staged stream request at 0x004B7C80..88,
     // clears 0x004ACDBC and establishes current stream mode 1/argument 0 at
     // 0x004B7380/0x004B74F0.
@@ -123,6 +134,11 @@ public:
     [[nodiscard]] virtual compat::i32 query_story_video_progress() = 0;
     virtual void beep() noexcept = 0;
     virtual void service_audio() = 0;
+    // Models sub_40B7F0's optional %T/mon.dat expansion. Returning false
+    // preserves the original resolver-failure path and leaves source intact.
+    [[nodiscard]] virtual bool prepare_dialog_text(
+        std::span<const compat::u8> source, std::vector<compat::u8>& destination
+    ) = 0;
 };
 
 enum class LegacyWorldStoryVmStatus : compat::u8 {
@@ -165,13 +181,14 @@ struct LegacyWorldStoryVmResult {
     compat::u32 invalid_opcode_previous{};
     compat::u32 beep_count{};
     compat::u32 direct_audio_service_count{};
+    compat::u32 dialog_text_prepare_count{};
+    compat::u32 dialog_text_prepare_success_count{};
 };
 
 // sub_427920, currently restricted to the independently audited default-invalid
-// group plus the earlier map-81/TALK100 implementation coverage:
-// 6,7,8,9,10,11,14,18,20,21,22,25,26,38,39,40,42,43,51,52,53,58,59,60,61,67,
-// 70,71,72,76,77,78,85,88,89,91,94,95,104,107,114,120,141,153,161,193,0x402 and
-// 0x3FFF. Each
+// and shared-dialog groups plus the earlier map-81/TALK100 implementation coverage:
+// 1-11,14,18,20-22,25-26,38-40,42-43,45,51-53,58-61,67,70-72,74,76-78,
+// 85,88-91,94-95,104,107,114,120,141,153,161,193,0x402 and 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.
 [[nodiscard]] LegacyWorldStoryVmResult step_legacy_world_story_vm(

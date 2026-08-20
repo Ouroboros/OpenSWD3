@@ -10,6 +10,7 @@
 #include <bit>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
 #include <span>
 #include <string_view>
 #include <tuple>
@@ -39,6 +40,14 @@ void write_u16(
 ) noexcept {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+}
+
+[[nodiscard]] u16
+read_u16(const std::span<const u8> bytes, const std::size_t offset) noexcept {
+    return static_cast<u16>(
+        static_cast<u16>(bytes[offset]) |
+        static_cast<u16>(static_cast<u16>(bytes[offset + 1U]) << 8U)
+    );
 }
 
 void write_u32(
@@ -135,6 +144,7 @@ public:
         openswd3::asset_runtime::LegacyActionRecord& action
     ) override {
         ++action_update_count;
+        story_protocol_events.push_back(4U);
         action.field_4a = static_cast<u16>(action.action_id);
         return 1U;
     }
@@ -170,11 +180,29 @@ public:
     void beep() noexcept override {
         ++beep_count;
         default_protocol_events.push_back(1U);
+        story_protocol_events.push_back(1U);
     }
 
     void service_audio() override {
         ++direct_audio_service_count;
         default_protocol_events.push_back(2U);
+        story_protocol_events.push_back(2U);
+    }
+
+    bool prepare_dialog_text(
+        const std::span<const u8> source, std::vector<u8>& destination
+    ) override {
+        ++dialog_text_prepare_count;
+        story_protocol_events.push_back(3U);
+        if (throw_on_dialog_text_prepare) {
+            throw std::bad_alloc{};
+        }
+        last_dialog_text.assign(source.begin(), source.end());
+        if (!dialog_text_prepare_success) {
+            return false;
+        }
+        destination = prepared_dialog_text;
+        return true;
     }
 
     std::array<u8, 256U> initial_window{};
@@ -188,6 +216,9 @@ public:
     u32 video_progress_query_count{};
     u32 beep_count{};
     u32 direct_audio_service_count{};
+    u32 dialog_text_prepare_count{};
+    bool dialog_text_prepare_success{};
+    bool throw_on_dialog_text_prepare{};
     i32 last_story_id{};
     i32 video_progress{-1};
     std::vector<u8> last_video_filename;
@@ -195,6 +226,9 @@ public:
         role_patch_requests;
     std::vector<u16> sound_effect_requests;
     std::vector<u32> default_protocol_events;
+    std::vector<u32> story_protocol_events;
+    std::vector<u8> last_dialog_text;
+    std::vector<u8> prepared_dialog_text;
 
 private:
     template <std::size_t Size>
@@ -276,6 +310,10 @@ public:
 
     void beep() noexcept override {}
     void service_audio() override {}
+    bool
+    prepare_dialog_text(const std::span<const u8>, std::vector<u8>&) override {
+        return false;
+    }
 
     u32 action_update_count{};
     u32 framebuffer_clear_count{};
@@ -397,6 +435,301 @@ void prime_loaded_instruction(Fixture& fixture, const u16 raw_word) {
     write_u16(fixture.state.window, 0U, raw_word);
 }
 
+std::size_t write_dialog_instruction(
+    Fixture& fixture,
+    const u16 raw_word,
+    const u16 selector,
+    const std::span<const u8> text,
+    const u16 frame_action_id = 0x232DU,
+    const u16 left = 100U,
+    const u16 top = 120U,
+    const u16 columns = 2U,
+    const u16 rows = 3U
+) {
+    prime_loaded_instruction(fixture, raw_word);
+    auto window = std::span<u8>{fixture.state.window};
+    write_u16(window, 2U, selector);
+    write_u16(window, 4U, frame_action_id);
+    const u16 opcode = static_cast<u16>(raw_word & 0x3FFFU);
+    std::size_t text_offset{};
+    if (opcode <= 2U) {
+        text_offset = 6U;
+    } else if (opcode <= 6U) {
+        write_u16(window, 6U, left);
+        write_u16(window, 8U, top);
+        write_u16(window, 10U, columns);
+        write_u16(window, 12U, rows);
+        text_offset = 14U;
+    } else {
+        write_u16(window, 6U, columns);
+        write_u16(window, 8U, rows);
+        text_offset = 10U;
+    }
+    std::ranges::copy(
+        text, window.begin() + static_cast<std::ptrdiff_t>(text_offset)
+    );
+    return text_offset + text.size();
+}
+
+void test_shared_dialog_handler_variants(openswd3::test::Context& test) {
+    constexpr std::array<u16, 8U> opcodes{1U, 2U, 3U, 4U, 5U, 6U, 89U, 90U};
+    constexpr std::array<u8, 3U> text{'A', '%', 'Q'};
+    for (const u16 opcode : opcodes) {
+        Fixture fixture;
+        const std::size_t end =
+            write_dialog_instruction(fixture, opcode, 0x00F8U, text);
+        fixture.state.previous_opcode = 0x1234U;
+        const auto result = fixture.step();
+        const auto& message = fixture.dialogs.messages.front();
+        const auto& record = message.record;
+        const bool odd_variant = (opcode & 1U) != 0U;
+        const u32 expected_flags = (opcode == 5U || opcode == 6U ? 0x40U : 0U) |
+            (odd_variant ? 0x10U : 0U);
+        const u16 expected_width = opcode <= 2U ? 176U : 22U;
+        const u16 expected_height = opcode <= 2U ? 66U : 33U;
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == opcode &&
+                result.executed_instruction_count == 1U &&
+                result.dialog_enqueue_count == 1U &&
+                result.dialog_text_prepare_count == 1U &&
+                result.dialog_text_prepare_success_count == 0U &&
+                result.direct_audio_service_count == 2U &&
+                result.action_update_count == 1U &&
+                fixture.context.instruction_offset == end &&
+                fixture.roles[1].interaction_gate == (odd_variant ? 1U : 2U) &&
+                fixture.dialogs.close.flagged_dialog_counter ==
+                    (odd_variant ? 1U : 0U) &&
+                record.role_index == 1U && record.flags == expected_flags &&
+                record.width == expected_width &&
+                record.height == expected_height &&
+                record.character_delay == 4U &&
+                message.text == std::vector<u8>(text.begin(), text.end()) &&
+                fixture.state.previous_opcode == opcode &&
+                fixture.state.dialog_anchor_left == 0x8000U &&
+                fixture.state.dialog_anchor_top == 0x8000U &&
+                !fixture.state.dialog_center_pending &&
+                fixture.state.text_control_flags == 0xFFFFFFFFU &&
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{2U, 3U, 4U, 2U},
+            "all eight shared dialog opcodes preserve their variant contract"
+        );
+        if (opcode >= 3U && opcode <= 6U) {
+            test.expect_true(
+                record.left == 100U && record.top == 120U,
+                "mode one retains its explicit left and top words"
+            );
+        }
+    }
+}
+
+void test_shared_dialog_raw_aliases(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        90U,
+        static_cast<u16>(90U | 0x4000U),
+        static_cast<u16>(90U | 0x8000U),
+        static_cast<u16>(90U | 0xC000U)
+    };
+    constexpr std::array<u8, 2U> text{'%', 'Q'};
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        const std::size_t end =
+            write_dialog_instruction(fixture, raw_word, 0xFFF0U, text);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word == raw_word && result.opcode == 90U &&
+                fixture.context.instruction_offset == end &&
+                read_u16(fixture.state.window, 2U) == 0x00F8U &&
+                fixture.dialogs.messages.front().record.role_index == 1U &&
+                fixture.roles[1].interaction_gate == 2U,
+            "raw aliases share mode-two semantics and rewrite FFF0 in place"
+        );
+    }
+
+    Fixture chained;
+    const std::size_t end =
+        write_dialog_instruction(chained, 90U, 0x00F8U, text);
+    write_u16(chained.state.window, end, 194U);
+    const auto dialog = chained.step();
+    const auto invalid = chained.step();
+    test.expect_true(
+        dialog.status == LegacyWorldStoryVmStatus::yielded &&
+            invalid.status == LegacyWorldStoryVmStatus::yielded &&
+            invalid.invalid_opcode_previous == 90U &&
+            invalid.invalid_opcode_current == 194U &&
+            chained.state.previous_opcode == 194U,
+        "dialog common join publishes its opcode before a later default"
+    );
+}
+
+void test_dialog_text_preparation_and_mode_zero_metrics(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u8, 6U> source{'%', 'T', '1', '.', '%', 'Q'};
+    const std::array<std::vector<u8>, 2U> prepared{
+        std::vector<u8>{'%', 'N', '%', 'N', '%', 'N', '%', 'Q'},
+        std::vector<u8>{'%', 'N', '%', 'N', '%', 'N', '%', 'N', '%', 'Q'},
+    };
+    constexpr std::array<u16, 2U> widths{198U, 220U};
+    constexpr std::array<u16, 2U> heights{88U, 110U};
+    for (std::size_t index = 0U; index < prepared.size(); ++index) {
+        Fixture fixture;
+        write_dialog_instruction(fixture, 1U, 0x00F8U, source);
+        fixture.ports.dialog_text_prepare_success = true;
+        fixture.ports.prepared_dialog_text = prepared[index];
+        const auto result = fixture.step();
+        const auto& message = fixture.dialogs.messages.front();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.dialog_text_prepare_success_count == 1U &&
+                fixture.ports.last_dialog_text ==
+                    std::vector<u8>(source.begin(), source.end()) &&
+                message.text == prepared[index] &&
+                message.record.width == widths[index] &&
+                message.record.height == heights[index],
+            "prepared mode-zero text selects the original line-count bucket"
+        );
+    }
+
+    Fixture measured;
+    constexpr std::array<u8, 7U> measured_text{
+        'A', 'B', 'C', 'D', 'E', '%', 'Q'
+    };
+    write_dialog_instruction(measured, 2U, 0x00F8U, measured_text);
+    measured.state.text_control_flags &= 0xF7FFFFFFU;
+    const auto result = measured.step();
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::yielded &&
+            measured.dialogs.messages.front().record.width == 55U &&
+            measured.dialogs.messages.front().record.height == 22U,
+        "bit-27 clear uses measured visible bytes and a two-unit height"
+    );
+}
+
+void test_dialog_anchor_center_delay_and_reset(openswd3::test::Context& test) {
+    Fixture fixture;
+    constexpr std::array<u8, 2U> text{'%', 'Q'};
+    write_dialog_instruction(
+        fixture, 4U, 0x00F8U, text, 0x232DU, 200U, 120U, 4U, 3U
+    );
+    fixture.state.dialog_anchor_left = 10U;
+    fixture.state.dialog_anchor_top = 20U;
+    fixture.state.dialog_center_pending = true;
+    fixture.state.dialog_character_delay_base = 3U;
+    fixture.state.text_layout_first = 7;
+    fixture.state.text_layout_second = -9;
+    fixture.state.speaker_name[0] = 'N';
+    fixture.state.speaker_name[1] = 0U;
+    fixture.state.speaker_name[2] = 0xAAU;
+    const auto result = fixture.step(16, 32);
+    const auto& message = fixture.dialogs.messages.front();
+    const auto& record = message.record;
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::yielded &&
+            record.anchor_left == 26U && record.anchor_top == 52U &&
+            record.left == 178U && record.top == 120U && record.width == 44U &&
+            record.height == 33U && record.character_delay == 6U &&
+            message.caption.size() == 1U &&
+            fixture.state.speaker_name[0] == 0U &&
+            fixture.state.speaker_name[2] == 0xAAU &&
+            fixture.state.dialog_anchor_left == 0x8000U &&
+            fixture.state.dialog_anchor_top == 0x8000U &&
+            !fixture.state.dialog_center_pending &&
+            fixture.state.text_layout_first == 0 &&
+            fixture.state.text_layout_second == 0 &&
+            fixture.ports.story_protocol_events ==
+                std::vector<u32>{2U, 3U, 4U, 4U, 2U},
+        "anchor, center, configured delay and one-byte name reset are exact"
+    );
+
+    Fixture detached;
+    write_dialog_instruction(detached, 2U, 0xFFFDU, text);
+    detached.context.world_x = 64U;
+    detached.context.world_y = 80U;
+    const auto detached_result = detached.step();
+    const auto& detached_record = detached.dialogs.messages.front().record;
+    test.expect_true(
+        detached_result.status == LegacyWorldStoryVmStatus::yielded &&
+            detached_record.role_index == 0xFFFDU &&
+            detached_record.anchor_left == 64U &&
+            detached_record.anchor_top == 80U &&
+            detached.context.field_26 == 2U &&
+            detached.roles[1].interaction_gate == 0U,
+        "FFFD uses the detached context anchor and interaction gate"
+    );
+
+    Fixture index_zero;
+    write_dialog_instruction(index_zero, 90U, 0U, text);
+    index_zero.roles[0].guid = 0U;
+    const auto zero_result = index_zero.step();
+    const auto& zero_record = index_zero.dialogs.messages.front().record;
+    test.expect_true(
+        zero_result.status == LegacyWorldStoryVmStatus::yielded &&
+            zero_record.role_index == 0U && zero_record.left == 30U &&
+            zero_record.top == 99U &&
+            index_zero.roles[0].interaction_gate == 2U,
+        "role index zero preserves the original skipped auto-center branch"
+    );
+}
+
+void test_dialog_checked_failure_order(openswd3::test::Context& test) {
+    constexpr std::array<u8, 3U> text{'A', '%', 'Q'};
+    Fixture missing_role;
+    write_dialog_instruction(missing_role, 90U, 0x7777U, text);
+    missing_role.state.previous_opcode = 0x55U;
+    missing_role.state.text_control_flags = 0x12345678U;
+    missing_role.state.speaker_name[0] = 'X';
+    const auto role_result = missing_role.step();
+    test.expect_true(
+        role_result.status == LegacyWorldStoryVmStatus::role_not_found &&
+            role_result.direct_audio_service_count == 1U &&
+            role_result.dialog_text_prepare_count == 1U &&
+            missing_role.dialogs.messages.empty() &&
+            missing_role.context.instruction_offset == 0U &&
+            missing_role.state.previous_opcode == 0x55U &&
+            missing_role.state.text_control_flags == 0x12345678U &&
+            missing_role.state.speaker_name[0] == 'X' &&
+            missing_role.ports.story_protocol_events ==
+                std::vector<u32>{2U, 3U},
+        "missing role stops at the caller gate write after audio and prepare"
+    );
+
+    Fixture missing_terminator;
+    prime_loaded_instruction(missing_terminator, 90U);
+    write_u16(missing_terminator.state.window, 2U, 0x00F8U);
+    write_u16(missing_terminator.state.window, 4U, 0x232DU);
+    write_u16(missing_terminator.state.window, 6U, 2U);
+    write_u16(missing_terminator.state.window, 8U, 3U);
+    missing_terminator.state.window[10U] = 'A';
+    const auto terminator_result = missing_terminator.step();
+    test.expect_true(
+        terminator_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            terminator_result.direct_audio_service_count == 1U &&
+            terminator_result.dialog_text_prepare_count == 0U &&
+            missing_terminator.dialogs.messages.empty() &&
+            missing_terminator.ports.story_protocol_events ==
+                std::vector<u32>{2U},
+        "missing percent-Q stops after the first original audio service"
+    );
+
+    Fixture allocation_failure;
+    write_dialog_instruction(allocation_failure, 90U, 0x00F8U, text);
+    allocation_failure.ports.throw_on_dialog_text_prepare = true;
+    const auto allocation_result = allocation_failure.step();
+    test.expect_true(
+        allocation_result.status ==
+                LegacyWorldStoryVmStatus::dialog_allocation_failed &&
+            allocation_result.direct_audio_service_count == 1U &&
+            allocation_result.dialog_text_prepare_count == 1U &&
+            allocation_failure.dialogs.messages.empty() &&
+            allocation_failure.ports.story_protocol_events ==
+                std::vector<u32>{2U, 3U},
+        "text preparation allocation failure preserves prior effects"
+    );
+}
+
 void test_default_invalid_opcode_protocol(openswd3::test::Context& test) {
     constexpr std::array<u16, 4U> opcode_zero_aliases{
         0x0000U, 0x4000U, 0x8000U, 0xC000U
@@ -464,7 +797,9 @@ void test_default_invalid_opcode_protocol(openswd3::test::Context& test) {
         "default diagnostics observe the prior join value before publishing"
     );
 
-    constexpr std::array<u16, 4U> explicit_unimplemented{1U, 12U, 1024U, 1025U};
+    constexpr std::array<u16, 4U> explicit_unimplemented{
+        12U, 13U, 1024U, 1025U
+    };
     for (const u16 opcode : explicit_unimplemented) {
         Fixture fixture;
         prime_loaded_instruction(fixture, opcode);
@@ -544,6 +879,11 @@ void test_reinitialization_writes_only_owned_vm_fields(
     state.current_first_stream = 17U;
     state.current_second_stream = 18U;
     state.previous_opcode = 0x1234U;
+    state.dialog_scale = 13U;
+    state.dialog_character_delay_base = 3U;
+    state.dialog_anchor_left = 21U;
+    state.dialog_anchor_top = 22U;
+    state.dialog_center_pending = true;
 
     openswd3::world_map::initialize_legacy_world_story_vm(state);
 
@@ -560,8 +900,10 @@ void test_reinitialization_writes_only_owned_vm_fields(
             state.music_control_flags == 0U &&
             state.current_first_stream == 1U &&
             state.current_second_stream == 0U &&
-            state.previous_opcode == 0x1234U &&
-            state.deferred_map_tile_x == -1 &&
+            state.previous_opcode == 0x1234U && state.dialog_scale == 13U &&
+            state.dialog_character_delay_base == 3U &&
+            state.dialog_anchor_left == 21U && state.dialog_anchor_top == 22U &&
+            state.dialog_center_pending && state.deferred_map_tile_x == -1 &&
             state.deferred_map_tile_y == -1 && state.deferred_map_id == 0 &&
             openswd3::world_map::query_legacy_world_story_flag(state, 70U) &&
             !openswd3::world_map::query_legacy_world_story_flag(state, 2U),
@@ -735,7 +1077,7 @@ void test_dialog_explicit_layout_pair(openswd3::test::Context& test) {
         result.status == LegacyWorldStoryVmStatus::yielded &&
             result.opcode == 89U && result.executed_instruction_count == 2U &&
             fixture.context.instruction_offset == 18U && record.left == 248U &&
-            record.top == 285U,
+            record.top == 189U,
         "opcode 104 replaces the second role-facing offset with its signed pair"
     );
     test.expect_true(
@@ -1465,6 +1807,78 @@ void test_set_and_clear_role_wait_override(openswd3::test::Context& test) {
             missing.context.instruction_offset == 0U,
         "opcodes 77 and 78 refresh the role wait override while an unresolved " "selector preserves the undefined-width instruction boundary"
     );
+}
+
+void test_real_shared_dialog_handler_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct Sample {
+        const char* filename;
+        std::streamoff file_offset;
+        std::size_t size;
+        u16 opcode;
+    };
+    constexpr std::array<Sample, 8U> samples{
+        Sample{"TALK4.DAT", 0x000304C5, 36U, 1U},
+        Sample{"TALK1.DAT", 0x00007533, 23U, 2U},
+        Sample{"TALK1.DAT", 0x00004295, 77U, 3U},
+        Sample{"TALK1.DAT", 0x00004422, 185U, 4U},
+        Sample{"TALK1.DAT", 0x00020CA4, 51U, 5U},
+        Sample{"TALK1.DAT", 0x000046CC, 34U, 6U},
+        Sample{"TALK1.DAT", 0x00002634, 56U, 89U},
+        Sample{"TALK1.DAT", 0x000027A2, 32U, 90U},
+    };
+    constexpr std::array<u8, 2U> percent_t{'%', 'T'};
+
+    for (const auto& sample : samples) {
+        std::ifstream input{
+            root / sample.filename, std::ios::binary | std::ios::in
+        };
+        std::vector<u8> instruction(sample.size);
+        input.seekg(sample.file_offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        if (!input) {
+            test.expect_true(false, "real shared-dialog sample is readable");
+            continue;
+        }
+
+        Fixture fixture;
+        prime_loaded_instruction(fixture, sample.opcode);
+        std::ranges::copy(instruction, fixture.state.window.begin());
+        fixture.roles[0].guid = 0xEEEEU;
+        const u16 selector = read_u16(instruction, 2U);
+        fixture.roles[1].guid =
+            selector == 0xFFF0U ? fixture.context.source_guid : selector;
+        const auto result = fixture.step();
+        const u32 mode =
+            sample.opcode <= 2U ? 0U : (sample.opcode <= 6U ? 1U : 2U);
+        const std::size_t text_offset =
+            mode == 0U ? 6U : (mode == 1U ? 14U : 10U);
+        const auto& message = fixture.dialogs.messages.front();
+        const bool odd_variant = (sample.opcode & 1U) != 0U;
+        const auto percent_t_match =
+            std::ranges::search(message.text, percent_t);
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == sample.opcode &&
+                result.executed_instruction_count == 1U &&
+                result.dialog_enqueue_count == 1U &&
+                result.dialog_text_prepare_count == 1U &&
+                result.dialog_text_prepare_success_count == 0U &&
+                result.direct_audio_service_count == 2U &&
+                fixture.context.instruction_offset == sample.size &&
+                message.text.size() == sample.size - text_offset &&
+                fixture.roles[1].interaction_gate == (odd_variant ? 1U : 2U) &&
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{2U, 3U, 4U, 2U} &&
+                (sample.opcode != 1U ||
+                 percent_t_match.begin() != message.text.end()),
+            "one real physical record closes each shared dialog variant"
+        );
+    }
 }
 
 void test_real_story_248_dialog(
@@ -2595,6 +3009,11 @@ void test_real_new_game_story_reaches_first_dialog(
 int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
     test_default_invalid_opcode_protocol(test);
+    test_shared_dialog_handler_variants(test);
+    test_shared_dialog_raw_aliases(test);
+    test_dialog_text_preparation_and_mode_zero_metrics(test);
+    test_dialog_anchor_center_delay_and_reset(test);
+    test_dialog_checked_failure_order(test);
     test_initial_flags_and_alignment_gate(test);
     test_reinitialization_writes_only_owned_vm_fields(test);
     test_dialog_enqueue_and_wait_protocol(test);
@@ -2622,6 +3041,7 @@ int main(const int argument_count, char** arguments) {
         );
     } else if (argument_count == 2) {
         const std::filesystem::path root{arguments[1]};
+        test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);
     }

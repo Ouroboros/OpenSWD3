@@ -3004,6 +3004,13 @@ public:
                 ::service_audio(audio_maintenance_);
             }
 
+            bool prepare_dialog_text(
+                const std::span<const openswd3::compat::u8>,
+                std::vector<openswd3::compat::u8>&
+            ) override {
+                return false;
+            }
+
         private:
             openswd3::resource_io::LegacyResourceDatabases& databases_;
             openswd3::world_map::LegacyMapsWorldDatabase& maps_database_;

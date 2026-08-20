@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v239
+版本：v240
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00427B8F` 共享 handler 组（1-6,89-90）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00427E72` handler（opcode 7）
 
 ## 0. 执行约定
 
@@ -1328,6 +1328,15 @@ B7 P0 有限收口完成。
     未启动游戏 EXE。workpack 当前 1/146，即 `1 platform_adapted + 145 pending_audit`；其他 handler 的公共 join
     仍独立待审，不继承本组 previous/audio 证据。
 
+- 剧情 VM P2 第二组共享对话入口 `0x00427B8F` 完成独立闭环。一次恢复 opcode
+    `1-6,89-90` 的 mode 0/1/2 不同固定头、奇偶 flag/gate/counter、`FFF0/FFFD`、一次性
+    anchor/center/text globals、`sub_40B7F0` prepared-text 测量、detached 0x4C record、
+    两次 `_AIL_serve`、IP/reset/previous 顺序和受检失败点；modern case 从 50 增至56。
+    `%T/mon.dat` 通过可失败窄 port 保留原 resolver failure，不伪造名字。UT 固定八变体、
+    四 raw alias、三档 mode0、real physical records、valid→default 和失败顺序；4392/4392
+    TALK 记录满足 6/14/10-byte 头与 `%Q`。定向 story VM 3/3、Linux core 186/186、
+    Linux app 192/192、Windows LLVM app 192/192 通过，三进程均 exit 0，未启动游戏 EXE。
+    workpack 当前 2/146，即 `2 platform_adapted + 144 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00427B8F`，一次审计 opcode `1-6,89-90` 八个变体；不并行回到延期的 `libffmpeg`，
-也不按剧情命中顺序临时补 opcode。
+`0x00427E72` 的 opcode 7；不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

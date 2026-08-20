@@ -25,7 +25,6 @@ using compat::u32;
 constexpr u16 kCurrentSourceSelector = 0xFFF0U;
 constexpr u16 kContextSelector = 0xFFFDU;
 constexpr u32 kTalkEntriesPerFile = 2000U;
-constexpr u32 kDialogScale = 11U;
 constexpr std::size_t kObjectRoleIndexOffset = 0x00U;
 constexpr std::size_t kObjectPathFlagsOffset = 0x1BU;
 
@@ -193,16 +192,109 @@ void replace_name_prefix(
     return LegacyWorldStoryVmStatus::yielded;
 }
 
-[[nodiscard]] std::size_t find_dialog_end(
-    const std::span<const u8> bytes, const std::size_t start
+[[nodiscard]] bool find_dialog_end_checked(
+    const std::span<const u8> bytes, const std::size_t start, std::size_t& end
 ) noexcept {
     for (std::size_t index = start; index + 1U < bytes.size(); ++index) {
         if (bytes[index] == static_cast<u8>('%') &&
             bytes[index + 1U] == static_cast<u8>('Q')) {
-            return index + 2U;
+            end = index + 2U;
+            return true;
         }
     }
-    return bytes.size();
+    return false;
+}
+
+[[nodiscard]] std::size_t find_dialog_end(
+    const std::span<const u8> bytes, const std::size_t start
+) noexcept {
+    std::size_t end{bytes.size()};
+    static_cast<void>(find_dialog_end_checked(bytes, start, end));
+    return end;
+}
+
+struct LegacyPreparedDialogTextMetrics {
+    u16 visible_byte_count{};
+    u16 line_count{1U};
+};
+
+[[nodiscard]] LegacyPreparedDialogTextMetrics
+measure_prepared_dialog_text(const std::span<const u8> text) noexcept {
+    u32 visible_byte_count{};
+    u32 current_line_byte_count{};
+    u32 line_count{1U};
+    std::size_t index{};
+    while (index < text.size() && text[index] != 0U) {
+        if (index + 1U < text.size()) {
+            const u8 first = text[index];
+            const u8 second = text[index + 1U];
+            if (first == static_cast<u8>('%') &&
+                second == static_cast<u8>('Q')) {
+                break;
+            }
+            if (first == static_cast<u8>('%') &&
+                (second == static_cast<u8>('N') ||
+                 second == static_cast<u8>('L') ||
+                 second == static_cast<u8>('K') ||
+                 second == static_cast<u8>('P'))) {
+                index += 2U;
+                current_line_byte_count = 0U;
+                ++line_count;
+                continue;
+            }
+            if ((first == static_cast<u8>('%') &&
+                 (second == static_cast<u8>('S') ||
+                  second == static_cast<u8>('C'))) ||
+                (first == static_cast<u8>('D') &&
+                 second == static_cast<u8>('%'))) {
+                index = std::min(index + 3U, text.size());
+                continue;
+            }
+            if (first == static_cast<u8>('%') &&
+                (second == static_cast<u8>('B') ||
+                 second == static_cast<u8>('A'))) {
+                index += 2U;
+                continue;
+            }
+        }
+        ++index;
+        ++visible_byte_count;
+        ++current_line_byte_count;
+        if (current_line_byte_count > 20U) {
+            current_line_byte_count = 0U;
+            ++line_count;
+        }
+    }
+    return LegacyPreparedDialogTextMetrics{
+        .visible_byte_count = static_cast<u16>(visible_byte_count),
+        .line_count = static_cast<u16>(line_count),
+    };
+}
+
+[[nodiscard]] constexpr u32 legacy_dialog_mode(const u16 opcode) noexcept {
+    if (opcode <= 2U) {
+        return 0U;
+    }
+    if (opcode <= 6U) {
+        return 1U;
+    }
+    return 2U;
+}
+
+[[nodiscard]] constexpr std::size_t
+legacy_dialog_text_offset(const std::size_t ip, const u32 mode) noexcept {
+    if (mode == 0U) {
+        return ip + 6U;
+    }
+    if (mode == 1U) {
+        return ip + 14U;
+    }
+    return ip + 10U;
+}
+
+[[nodiscard]] constexpr u16
+scale_dialog_word(const u16 value, const u32 scale) noexcept {
+    return static_cast<u16>(static_cast<u32>(value) * scale);
 }
 
 [[nodiscard]] std::size_t find_dialog_action_slot(
@@ -232,56 +324,29 @@ void replace_name_prefix(
     LegacyWorldStoryVmResult& result,
     LegacyWorldStoryVmPorts& ports
 ) noexcept {
-    const bool mode_one = opcode >= 3U && opcode <= 6U;
-    const bool odd_variant = (opcode & 1U) != 0U;
-    const std::size_t fixed_payload_size = mode_one ? 14U : 10U;
-    if (!has_bytes(window, ip, fixed_payload_size)) {
+    if (!has_bytes(window, ip, 4U)) {
         return LegacyWorldStoryVmStatus::operand_out_of_range;
     }
+    const u32 mode = legacy_dialog_mode(opcode);
+    const bool odd_variant = (opcode & 1U) != 0U;
     u16 selector = read_u16(window, ip + 2U);
     if (selector == kCurrentSourceSelector) {
         selector = context.source_guid;
         write_u16(window, ip + 2U, selector);
     }
 
-    u32 role_index = kContextSelector;
-    if (selector != kContextSelector &&
-        !resolve_role_index(
-            roles, selector, controlled_role_index, role_index
-        )) {
-        return LegacyWorldStoryVmStatus::role_not_found;
-    }
-    const u16 frame_action_id = read_u16(window, ip + 4U);
-    const u16 columns = read_u16(window, ip + (mode_one ? 10U : 6U));
-    const u16 rows = read_u16(window, ip + (mode_one ? 12U : 8U));
-    const std::size_t text_offset = ip + fixed_payload_size;
-    const std::size_t end = find_dialog_end(window, text_offset);
-    if (end == window.size()) {
-        return LegacyWorldStoryVmStatus::operand_out_of_range;
+    u32 role_index = std::numeric_limits<u32>::max();
+    const bool role_found = selector == kContextSelector ||
+        resolve_role_index(roles, selector, controlled_role_index, role_index);
+    if (selector == kContextSelector) {
+        role_index = kContextSelector;
     }
 
+    std::list<story_scene::LegacyDialogMessage> staged_messages;
     try {
-        dialogs.messages.emplace_back();
-        auto& message = dialogs.messages.back();
-        const std::size_t action_slot =
-            find_dialog_action_slot(resources, frame_action_id);
-        message.frame_action = &resources.frame_actions[action_slot];
-        message.caption_action = &resources.caption_actions[action_slot];
-        record_action_update(result, *message.frame_action, ports);
-        if (state.speaker_name.front() != 0U) {
-            record_action_update(result, *message.caption_action, ports);
-            const auto caption_end =
-                std::ranges::find(state.speaker_name, u8{});
-            message.caption.assign(state.speaker_name.begin(), caption_end);
-        }
-        message.text.assign(
-            window.begin() + static_cast<std::ptrdiff_t>(text_offset),
-            window.begin() + static_cast<std::ptrdiff_t>(end)
-        );
-
+        staged_messages.emplace_back();
+        auto& message = staged_messages.front();
         auto& record = message.record;
-        record.frame_action_pointer_32 = 1U;
-        record.caption_action_pointer_32 = message.caption.empty() ? 0U : 1U;
         record.flags = opcode == 5U || opcode == 6U ? 0x40U : 0U;
         if ((state.text_control_flags & 0x80000000U) == 0U) {
             record.flags |= 0x20U;
@@ -299,14 +364,105 @@ void replace_name_prefix(
         if ((state.text_control_flags & 0x04000000U) == 0U) {
             record.flags |= 0x02U;
         }
+        if (selector == kContextSelector) {
+            record.anchor_left = static_cast<u16>(context.world_x);
+            record.anchor_top = static_cast<u16>(context.world_y);
+        }
+        if (state.dialog_anchor_left != 0x8000U) {
+            record.anchor_left = static_cast<u16>(
+                static_cast<u16>(camera_left) + state.dialog_anchor_left
+            );
+            record.anchor_top = static_cast<u16>(
+                static_cast<u16>(camera_top) + state.dialog_anchor_top
+            );
+        }
+
+        ports.service_audio();
+        ++result.direct_audio_service_count;
+
+        const std::size_t text_offset = legacy_dialog_text_offset(ip, mode);
+        std::size_t end{};
+        if (!find_dialog_end_checked(window, text_offset, end)) {
+            return LegacyWorldStoryVmStatus::operand_out_of_range;
+        }
+        const auto source_text = window.subspan(text_offset, end - text_offset);
+        std::vector<u8> prepared_text;
+        ++result.dialog_text_prepare_count;
+        if (ports.prepare_dialog_text(source_text, prepared_text)) {
+            ++result.dialog_text_prepare_success_count;
+            message.text.swap(prepared_text);
+        } else {
+            message.text.assign(source_text.begin(), source_text.end());
+        }
+        const auto metrics = measure_prepared_dialog_text(message.text);
+
+        // sub_40AFF0 repeats the lookup and returns a zeroed detached record on
+        // failure. The caller's following role-gate write is the first unsafe
+        // consumer, so the portable boundary stops here after prior effects.
+        if (!role_found) {
+            return LegacyWorldStoryVmStatus::role_not_found;
+        }
+        if (!has_bytes(window, ip + 4U, 6U)) {
+            return LegacyWorldStoryVmStatus::operand_out_of_range;
+        }
+
+        const u16 frame_action_id = read_u16(window, ip + 4U);
+        const std::size_t action_slot =
+            find_dialog_action_slot(resources, frame_action_id);
+        message.frame_action = &resources.frame_actions[action_slot];
+        message.caption_action = &resources.caption_actions[action_slot];
+        record_action_update(result, *message.frame_action, ports);
+        if (state.speaker_name.front() != 0U) {
+            record_action_update(result, *message.caption_action, ports);
+            const auto caption_end =
+                std::ranges::find(state.speaker_name, u8{});
+            message.caption.assign(state.speaker_name.begin(), caption_end);
+        }
+
+        record.frame_action_pointer_32 = 1U;
+        record.caption_action_pointer_32 = message.caption.empty() ? 0U : 1U;
         record.transition_step = 0U;
         record.role_index = static_cast<u16>(role_index);
-        record.width =
-            static_cast<u16>(static_cast<u32>(columns) * kDialogScale);
-        record.height = static_cast<u16>(static_cast<u32>(rows) * kDialogScale);
-        record.left = columns;
-        record.top = rows;
-        record.character_delay = 4U;
+        const bool measured_size =
+            (state.text_control_flags & 0x08000000U) == 0U;
+        if (measured_size) {
+            record.width = scale_dialog_word(
+                metrics.visible_byte_count, state.dialog_scale
+            );
+            record.height = scale_dialog_word(2U, state.dialog_scale);
+        } else if (mode == 0U) {
+            u16 width_units{16U};
+            u16 height_units{6U};
+            if (metrics.line_count == 4U) {
+                width_units = 18U;
+                height_units = 8U;
+            } else if (metrics.line_count > 4U) {
+                width_units = 20U;
+                height_units = 10U;
+            }
+            record.width = scale_dialog_word(width_units, state.dialog_scale);
+            record.height = scale_dialog_word(height_units, state.dialog_scale);
+        } else {
+            const std::size_t dimensions_offset =
+                mode == 1U ? ip + 10U : ip + 6U;
+            record.width = scale_dialog_word(
+                read_u16(window, dimensions_offset), state.dialog_scale
+            );
+            record.height = scale_dialog_word(
+                read_u16(window, dimensions_offset + 2U), state.dialog_scale
+            );
+        }
+        record.left = read_u16(window, ip + 6U);
+        record.top = read_u16(window, ip + 8U);
+        if (state.dialog_center_pending) {
+            record.left = static_cast<u16>(
+                record.left - static_cast<u16>(record.width >> 1U)
+            );
+        }
+        record.character_delay = static_cast<u16>(
+            state.dialog_character_delay_base +
+            state.dialog_character_delay_base
+        );
         record.character_countdown = 0U;
         record.foreground_index = 4U;
         record.secondary_index = 4U;
@@ -315,28 +471,62 @@ void replace_name_prefix(
         record.text_cursor_pointer_32 = 1U;
         record.caption_pointer_32 = message.caption.empty() ? 0U : 1U;
 
-        if (mode_one) {
-            record.left = read_u16(window, ip + 6U);
-            record.top = read_u16(window, ip + 8U);
+        if (mode != 1U) {
+            if ((record.anchor_left | record.anchor_top) == 0U) {
+                if (role_index != kContextSelector) {
+                    if (role_index != 0U) {
+                        const auto& role = roles[role_index];
+                        record.left = static_cast<u16>(
+                            std::bit_cast<i32>(role.world_x) -
+                            static_cast<i32>(record.width) / 2 - camera_left
+                        );
+                        record.top = static_cast<u16>(
+                            std::bit_cast<i32>(role.world_y) -
+                            static_cast<i32>(record.height) / 2 - camera_top
+                        );
+                    }
+                } else {
+                    const auto& controlled_role = roles[controlled_role_index];
+                    record.anchor_left =
+                        static_cast<u16>(controlled_role.world_x);
+                    record.anchor_top =
+                        static_cast<u16>(controlled_role.world_y);
+                    record.left = static_cast<u16>(
+                        std::bit_cast<i32>(controlled_role.world_x) -
+                        static_cast<i32>(record.width) / 2 - camera_left
+                    );
+                    record.top = static_cast<u16>(
+                        std::bit_cast<i32>(controlled_role.world_y) -
+                        static_cast<i32>(record.height) / 2 - camera_top
+                    );
+                }
+            }
+
+            i32 left = static_cast<i16>(record.left);
+            i32 top = static_cast<i16>(record.top);
+            std::size_t facing{};
+            const bool explicit_text_layout =
+                (state.text_control_flags & 0x10000000U) == 0U;
             if (role_index != kContextSelector) {
-                roles[role_index].interaction_gate = 2U;
+                const auto& role = roles[role_index];
+                facing = static_cast<std::size_t>(role.action.variant_delta);
+                if (explicit_text_layout) {
+                    left = static_cast<i16>(
+                        static_cast<u16>(left) +
+                        static_cast<u16>(state.text_layout_first)
+                    );
+                    top = static_cast<i16>(
+                        static_cast<u16>(top) +
+                        static_cast<u16>(state.text_layout_second)
+                    );
+                } else if (facing < kDialogRoleOffsetX.size()) {
+                    left += kDialogRoleOffsetX[facing];
+                    top += kDialogRoleOffsetY[facing];
+                }
             } else {
-                context.field_26 = 2U;
+                top -= 104;
             }
-        } else if (role_index != kContextSelector) {
-            auto& role = roles[role_index];
-            const i32 half_width = static_cast<i32>(record.width) / 2;
-            const i32 half_height = static_cast<i32>(record.height) / 2;
-            i32 left =
-                std::bit_cast<i32>(role.world_x) - half_width - camera_left;
-            i32 top =
-                std::bit_cast<i32>(role.world_y) - half_height - camera_top;
-            const std::size_t facing =
-                static_cast<std::size_t>(role.action.variant_delta);
-            if (facing < kDialogRoleOffsetX.size()) {
-                left += kDialogRoleOffsetX[facing];
-                top += kDialogRoleOffsetY[facing];
-            }
+
             left = std::max(left, 30);
             top = std::max(top, 40);
             if (left + static_cast<i32>(record.width) >= 576) {
@@ -346,83 +536,40 @@ void replace_name_prefix(
                 top = 456 - static_cast<i32>(record.height);
             }
 
-            const bool explicit_text_layout =
-                (state.text_control_flags & 0x10000000U) == 0U;
-            // sub_40AFF0 applies either opcode-104's explicit pair or the facing
-            // offset when the role's screen point still overlaps the expanded
-            // dialog rectangle.
-            const i32 role_screen_x =
-                std::bit_cast<i32>(role.world_x) - camera_left;
-            const i32 role_screen_y =
-                std::bit_cast<i32>(role.world_y) - camera_top;
-            if (explicit_text_layout &&
-                (message.frame_action->mode_flags & 0x00000800U) == 0U) {
-                left = static_cast<i16>(
-                    static_cast<u16>(left) +
-                    static_cast<u16>(state.text_layout_first)
-                );
-                top = static_cast<i16>(
-                    static_cast<u16>(top) +
-                    static_cast<u16>(state.text_layout_second)
-                );
-                left = std::max(left, 24);
-                top = std::max(top, 32);
-                if (left + static_cast<i32>(record.width) >= 576) {
-                    left = 576 - static_cast<i32>(record.width);
-                }
-                if (top + static_cast<i32>(record.height) >= 456) {
-                    top = 456 - static_cast<i32>(record.height);
-                }
-            } else if (
-                role_screen_x > left - 16 &&
-                role_screen_x < left + static_cast<i32>(record.width) + 48 &&
-                role_screen_y > top - 16 &&
-                role_screen_y < top + static_cast<i32>(record.height) + 64
-            ) {
-                if (facing < kDialogRoleOffsetX.size()) {
-                    left += kDialogRoleOffsetX[facing];
-                    top += kDialogRoleOffsetY[facing];
-                }
-                left = std::max(left, 24);
-                top = std::max(top, 32);
-                if (left + static_cast<i32>(record.width) >= 576) {
-                    left = 576 - static_cast<i32>(record.width);
-                }
-                if (top + static_cast<i32>(record.height) >= 456) {
-                    top = 456 - static_cast<i32>(record.height);
+            if (!explicit_text_layout && (record.flags & 0x80U) == 0U &&
+                role_index != kContextSelector) {
+                const auto& role = roles[role_index];
+                const i32 role_screen_x =
+                    std::bit_cast<i32>(role.world_x) - camera_left;
+                const i32 role_screen_y =
+                    std::bit_cast<i32>(role.world_y) - camera_top;
+                if (role_screen_x > left - 16 &&
+                    role_screen_x <
+                        left + static_cast<i32>(record.width) + 48 &&
+                    role_screen_y > top - 16 &&
+                    role_screen_y <
+                        top + static_cast<i32>(record.height) + 64) {
+                    if (facing < kDialogRoleOffsetX.size()) {
+                        left += kDialogRoleOffsetX[facing];
+                        top += kDialogRoleOffsetY[facing];
+                    }
+                    left = std::max(left, 24);
+                    top = std::max(top, 32);
+                    if (left + static_cast<i32>(record.width) >= 576) {
+                        left = 576 - static_cast<i32>(record.width);
+                    }
+                    if (top + static_cast<i32>(record.height) >= 456) {
+                        top = 456 - static_cast<i32>(record.height);
+                    }
                 }
             }
             record.left = static_cast<u16>(left);
             record.top = static_cast<u16>(top);
-            role.interaction_gate = 2U;
+        }
+
+        if (role_index != kContextSelector) {
+            roles[role_index].interaction_gate = 2U;
         } else {
-            record.anchor_left = static_cast<u16>(context.world_x);
-            record.anchor_top = static_cast<u16>(context.world_y);
-            if ((record.anchor_left | record.anchor_top) == 0U) {
-                const auto& controlled_role = roles[controlled_role_index];
-                record.anchor_left = static_cast<u16>(controlled_role.world_x);
-                record.anchor_top = static_cast<u16>(controlled_role.world_y);
-                record.left = static_cast<u16>(
-                    std::bit_cast<i32>(controlled_role.world_x) -
-                    static_cast<i32>(record.width) / 2 - camera_left
-                );
-                record.top = static_cast<u16>(
-                    std::bit_cast<i32>(controlled_role.world_y) -
-                    static_cast<i32>(record.height) / 2 - camera_top
-                );
-            }
-            i32 left = static_cast<i16>(record.left);
-            i32 top = static_cast<i16>(record.top) - 104;
-            left = std::max(left, 30);
-            top = std::max(top, 40);
-            if (left + static_cast<i32>(record.width) >= 576) {
-                left = 576 - static_cast<i32>(record.width);
-            }
-            if (top + static_cast<i32>(record.height) >= 456) {
-                top = 456 - static_cast<i32>(record.height);
-            }
-            record.left = static_cast<u16>(left);
-            record.top = static_cast<u16>(top);
             context.field_26 = 2U;
         }
         if (odd_variant) {
@@ -432,23 +579,30 @@ void replace_name_prefix(
             } else {
                 context.field_26 = 1U;
             }
-            // dword_4A9920 is both the story lock and flagged-dialog counter.
             ++dialogs.close.flagged_dialog_counter;
         }
+        dialogs.messages.splice(dialogs.messages.end(), staged_messages);
         ++result.dialog_enqueue_count;
-        state.speaker_name.fill(0U);
+
+        context.instruction_offset = static_cast<u16>(end);
+        state.dialog_anchor_left = 0x8000U;
+        state.dialog_anchor_top = 0x8000U;
         state.text_control_flags = 0xFFFFFFFFU;
-        state.text_layout_first = 0;
-        state.text_layout_second = 0;
         state.next_text_aux_value = 60U;
         state.next_text_aux_pending = false;
+        state.speaker_name.front() = 0U;
+        state.text_layout_first = 0;
+        state.text_layout_second = 0;
+        state.dialog_center_pending = false;
+        state.previous_opcode = opcode;
+        ports.service_audio();
+        ++result.direct_audio_service_count;
     } catch (const std::bad_alloc&) {
         return LegacyWorldStoryVmStatus::dialog_allocation_failed;
     } catch (const std::length_error&) {
         return LegacyWorldStoryVmStatus::dialog_allocation_failed;
     }
 
-    context.instruction_offset = static_cast<u16>(end);
     return LegacyWorldStoryVmStatus::yielded;
 }
 
@@ -915,7 +1069,14 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
         ++result.executed_instruction_count;
 
         switch (result.opcode) {
-        case 6U: {
+        case 1U:
+        case 2U:
+        case 3U:
+        case 4U:
+        case 5U:
+        case 6U:
+        case 89U:
+        case 90U: {
             const i32 camera_left = runtime.camera == nullptr
                 ? 0
                 : std::bit_cast<i32>(runtime.camera->left);
@@ -1765,31 +1926,6 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 4U);
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
-
-        case 89U: {
-            const i32 camera_left = runtime.camera == nullptr
-                ? 0
-                : std::bit_cast<i32>(runtime.camera->left);
-            const i32 camera_top = runtime.camera == nullptr
-                ? 0
-                : std::bit_cast<i32>(runtime.camera->top);
-            result.status = enqueue_dialog(
-                context,
-                state,
-                state.window,
-                ip,
-                result.opcode,
-                roles,
-                controlled_role_index,
-                dialogs,
-                dialog_resources,
-                camera_left,
-                camera_top,
-                result,
-                ports
-            );
-            return result;
-        }
 
         case 91U: {
             if (!has_bytes(state.window, ip, 4U)) {

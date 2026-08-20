@@ -1,6 +1,6 @@
 # 剧情 VM P1 完整 handler 工作包
 
-状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 1/146。
+状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 2/146。
 
 唯一行为依据：`swd3.exe_export_for_ai/swd3.exe.lst`
 
@@ -110,11 +110,11 @@ P1 初始生成硬断言：
 当前导航统计：
 
 - 人工语义：125 opcode，落在 100 个 handler；46 个 handler 尚无人工语义行；
-- 现代 C++：50 个 case label；40 个 handler 的显式 opcode 全有 case、4 个仅部分有 case、102 个无 case；
+- P1 初始现代 C++：50 个 case label；40 个 handler 全有 case、4 个仅部分有 case、102 个无 case；P2 当前为 56 个 case、41 个全有、3 个部分、102 个无 case；
 - 当前 TALK 资产：143 个 opcode 有观察记录、55 个未观察；对应 109 个 handler 有任一观察、37 个完全未观察；
 - static triage：146 个 handler 当前没有 unresolved edge，但该 CFG 明确是过近似导航，不证明分支可行性或业务语义。
 
-因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭第一行；生成器现在硬断言 1 closed / 145 pending，并拒绝无 override 的状态漂移。
+因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前两行；生成器现在硬断言 2 closed / 144 pending，并拒绝无 override 的状态漂移。
 
 ## 6. 候选端口依赖
 
@@ -137,13 +137,16 @@ battle            2
 
 ## 7. P2 当前停止线
 
-第一组默认非法入口 `0x0042D230` 已按 [`story-vm-default-invalid-0042d230.md`](story-vm-default-invalid-0042d230.md) 独立关闭：显式 opcode 0 和默认范围 `194..1023,1027..16382` 共同固定 beep、diagnostic previous/current、IP 不推进、previous 写回、单次 audio service 与 yield。
+前两组已经独立关闭：
 
-下一组严格是共享入口：
+- 默认非法入口 `0x0042D230`：[`story-vm-default-invalid-0042d230.md`](story-vm-default-invalid-0042d230.md)；
+- 共享对话入口 `0x00427B8F` 的 `1-6,89-90`：[`story-vm-dialog-handler-00427b8f.md`](story-vm-dialog-handler-00427b8f.md)。
+
+下一组严格是：
 
 ```text
-entry = 0x00427B8F
-opcodes = 1-6,89-90
+entry = 0x00427E72
+opcode = 7
 ```
 
-八个变体必须整体重新审计；不得只延续当前已有 modern case 6/89，也不得按资产命中顺序跳组。
+不得因 opcode7 只有单条 bit 清除就继承本组的 common-join、audio 或 previous 结论；仍须独立完成双向追溯。

@@ -38,14 +38,19 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 50
-EXPECTED_CLOSED_HANDLER_COUNT = 1
+EXPECTED_MODERN_CASE_COUNT = 56
+EXPECTED_CLOSED_HANDLER_COUNT = 2
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
         "platform_adapted",
         "story-vm-default-invalid-0042d230.md",
         "assembly_exact;unit_tested;platform_adapted;sdl_runtime_integrated",
+    ),
+    "0x00427B8F": (
+        "platform_adapted",
+        "story-vm-dialog-handler-00427b8f.md",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;external_dependency_tested",
     ),
 }
 
@@ -117,7 +122,9 @@ def semantic_navigation() -> dict[int, dict[str, str]]:
                 raise InventoryError(f"duplicate semantic row for opcode {opcode}")
             rows[opcode] = row
     if set(rows) != set(range(125)):
-        raise InventoryError("manual semantic navigation no longer covers exactly 0..124")
+        raise InventoryError(
+            "manual semantic navigation no longer covers exactly 0..124"
+        )
     return rows
 
 
@@ -156,28 +163,166 @@ def call_targets(triage_rows: list[dict[str, str]]) -> set[str]:
 
 def is_symbolic_call_target(target: str) -> bool:
     registers = {"eax", "ebx", "ecx", "edx", "esi", "edi", "ebp", "esp"}
-    return target not in registers and "ptr [" not in target and not target.startswith("[")
+    return (
+        target not in registers and "ptr [" not in target and not target.startswith("[")
+    )
 
 
 def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]:
     return [
-        ("entry_activation", "0x00427920..0x0042794E", "entry_gate", "all", "one Talk-state pointer; inactive 0xFFFF context routes to return-one", "scope_locked_not_semantically_closed", "ABI and inactive gate"),
-        ("initial_window_load", "0x0042794F..0x00427B3F", "window_load", "all", "load TalkN.dat entry into the 0x8000-byte window before fetch", "scope_locked_not_semantically_closed", "file/open/failure and state side effects require P2 review"),
-        ("fetch_decode", "0x00427B40..0x00427B88", "fetch_decode", "14-bit domain", "raw u16 & 0x3FFF; preserve modifier bits in the raw word", "scope_locked_not_semantically_closed", "routes main/default/99/secondary"),
-        ("main_dispatch", "0x00427B7C..0x00427B88;0x0042D4F4..0x0042D67B", "jump_table", "1-98", "98 LST dwords", "lst_locked", "feeds handler work package"),
-        ("secondary_dispatch", "0x0042ADA4..0x0042ADB0;0x0042D67C..0x0042D7F3", "jump_table", "100-193", "94 LST dwords", "lst_locked", "feeds handler work package"),
-        ("default_invalid", "0x0042D230..0x0042D24D", "default", "0,194-1023,1027-16382", "MessageBeep/diagnostic; no automatic IP advance", "platform_adapted", "story-vm-default-invalid-0042d230.md; common join for other handlers remains pending"),
-        ("numeric_refinement", "0x0042B0CD..0x0042B1BF;0x0042D7F4..0x0042D8A8", "internal_switch", "29-185", "6-dword jump table plus 157-byte selector table", "pending_audit", "refines handlers 0x0042B074/0x0042B070"),
-        ("flag_refinement", "0x0042C567..0x0042C5D0;0x0042D8AC..0x0042D918", "internal_switch", "102-174", "9-dword jump table plus 73-byte selector table", "pending_audit", "refines handler 0x0042C567"),
-        ("window_transfers", "handler-specific", "window_transfer", compact_ranges(window_transfer_opcodes), "31-row control-transfer inventory marks same-file or story-window reload/transfer", "pending_audit", "navigation set only; each owning handler must re-prove load order and IP reset"),
-        ("common_join", "0x0042B0AA..0x0042B0CC", "continue_or_yield", "all handlers", "local continuation OR ESI; nonzero loops to 0x00427B40", "pending_audit", "zero routes to audio service/yield"),
-        ("special_1024", "0x0042D200..0x0042D218", "special", "1024", "advance 2; local continue flag; same-call fetch", "pending_audit", "outside the 198 ordinary 0-193 span but explicit"),
-        ("special_1025", "0x0042D49F..0x0042D4B5", "special", "1025", "advance 2; clear continuation; yield", "pending_audit", "explicit special value"),
-        ("special_1026", "0x0042D1EA..0x0042D1FF", "special", "1026", "advance 2; ESI continue; same-call fetch", "pending_audit", "explicit special value"),
-        ("talk_end_16383", "0x0042D24E..0x0042D49E", "special", "16383", "Talk cleanup and common join", "pending_audit", "explicit special value"),
-        ("fatal_return_zero", "0x0042D4B6..0x0042D4D6", "return", "handler-selected", "set close bit 0x04 and return zero", "pending_audit", "caller ignores EAX; side effect is authoritative"),
-        ("yield_return_one", "0x0042D4D7..0x0042D4F3", "return", "ordinary yield/inactive", "AIL serve then return one; inactive skips AIL", "pending_audit", "one return value has multiple meanings"),
-        ("load_failure_return_zero", "0x00427A18..0x00427A4B", "return", "initial load failure", "send WM_DESTROY and return zero", "pending_audit", "separate zero-return site"),
+        (
+            "entry_activation",
+            "0x00427920..0x0042794E",
+            "entry_gate",
+            "all",
+            "one Talk-state pointer; inactive 0xFFFF context routes to return-one",
+            "scope_locked_not_semantically_closed",
+            "ABI and inactive gate",
+        ),
+        (
+            "initial_window_load",
+            "0x0042794F..0x00427B3F",
+            "window_load",
+            "all",
+            "load TalkN.dat entry into the 0x8000-byte window before fetch",
+            "scope_locked_not_semantically_closed",
+            "file/open/failure and state side effects require P2 review",
+        ),
+        (
+            "fetch_decode",
+            "0x00427B40..0x00427B88",
+            "fetch_decode",
+            "14-bit domain",
+            "raw u16 & 0x3FFF; preserve modifier bits in the raw word",
+            "scope_locked_not_semantically_closed",
+            "routes main/default/99/secondary",
+        ),
+        (
+            "main_dispatch",
+            "0x00427B7C..0x00427B88;0x0042D4F4..0x0042D67B",
+            "jump_table",
+            "1-98",
+            "98 LST dwords",
+            "lst_locked",
+            "feeds handler work package",
+        ),
+        (
+            "secondary_dispatch",
+            "0x0042ADA4..0x0042ADB0;0x0042D67C..0x0042D7F3",
+            "jump_table",
+            "100-193",
+            "94 LST dwords",
+            "lst_locked",
+            "feeds handler work package",
+        ),
+        (
+            "default_invalid",
+            "0x0042D230..0x0042D24D",
+            "default",
+            "0,194-1023,1027-16382",
+            "MessageBeep/diagnostic; no automatic IP advance",
+            "platform_adapted",
+            "story-vm-default-invalid-0042d230.md; common join for other handlers remains pending",
+        ),
+        (
+            "numeric_refinement",
+            "0x0042B0CD..0x0042B1BF;0x0042D7F4..0x0042D8A8",
+            "internal_switch",
+            "29-185",
+            "6-dword jump table plus 157-byte selector table",
+            "pending_audit",
+            "refines handlers 0x0042B074/0x0042B070",
+        ),
+        (
+            "flag_refinement",
+            "0x0042C567..0x0042C5D0;0x0042D8AC..0x0042D918",
+            "internal_switch",
+            "102-174",
+            "9-dword jump table plus 73-byte selector table",
+            "pending_audit",
+            "refines handler 0x0042C567",
+        ),
+        (
+            "window_transfers",
+            "handler-specific",
+            "window_transfer",
+            compact_ranges(window_transfer_opcodes),
+            "31-row control-transfer inventory marks same-file or story-window reload/transfer",
+            "pending_audit",
+            "navigation set only; each owning handler must re-prove load order and IP reset",
+        ),
+        (
+            "common_join",
+            "0x0042B0AA..0x0042B0CC",
+            "continue_or_yield",
+            "all handlers",
+            "local continuation OR ESI; nonzero loops to 0x00427B40",
+            "pending_audit",
+            "zero routes to audio service/yield",
+        ),
+        (
+            "special_1024",
+            "0x0042D200..0x0042D218",
+            "special",
+            "1024",
+            "advance 2; local continue flag; same-call fetch",
+            "pending_audit",
+            "outside the 198 ordinary 0-193 span but explicit",
+        ),
+        (
+            "special_1025",
+            "0x0042D49F..0x0042D4B5",
+            "special",
+            "1025",
+            "advance 2; clear continuation; yield",
+            "pending_audit",
+            "explicit special value",
+        ),
+        (
+            "special_1026",
+            "0x0042D1EA..0x0042D1FF",
+            "special",
+            "1026",
+            "advance 2; ESI continue; same-call fetch",
+            "pending_audit",
+            "explicit special value",
+        ),
+        (
+            "talk_end_16383",
+            "0x0042D24E..0x0042D49E",
+            "special",
+            "16383",
+            "Talk cleanup and common join",
+            "pending_audit",
+            "explicit special value",
+        ),
+        (
+            "fatal_return_zero",
+            "0x0042D4B6..0x0042D4D6",
+            "return",
+            "handler-selected",
+            "set close bit 0x04 and return zero",
+            "pending_audit",
+            "caller ignores EAX; side effect is authoritative",
+        ),
+        (
+            "yield_return_one",
+            "0x0042D4D7..0x0042D4F3",
+            "return",
+            "ordinary yield/inactive",
+            "AIL serve then return one; inactive skips AIL",
+            "pending_audit",
+            "one return value has multiple meanings",
+        ),
+        (
+            "load_failure_return_zero",
+            "0x00427A18..0x00427A4B",
+            "return",
+            "initial load failure",
+            "send WM_DESTROY and return zero",
+            "pending_audit",
+            "separate zero-return site",
+        ),
     ]
 
 
@@ -372,11 +517,13 @@ def main() -> None:
         ),
         runtime,
     )
-    print(f"wrote {HANDLER_OUTPUT.relative_to(RESEARCH_ROOT)} ({len(handler_rows)} rows)")
+    print(
+        f"wrote {HANDLER_OUTPUT.relative_to(RESEARCH_ROOT)} ({len(handler_rows)} rows)"
+    )
     print(f"wrote {RUNTIME_OUTPUT.relative_to(RESEARCH_ROOT)} ({len(runtime)} rows)")
     print(
         "locked P1 scope: 198 explicit opcodes, 146 handlers, "
-        "25 shared entries, 50 modern case labels; closure 1/146"
+        "25 shared entries, 56 modern case labels; closure 2/146"
     )
 
 
