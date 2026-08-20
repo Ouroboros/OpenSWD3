@@ -40,6 +40,7 @@ using openswd3::world_map::OP_14_WAIT_ROLE_ACTION_STATUS;
 using openswd3::world_map::OP_15_JUMP_SAME_FILE_OFFSET;
 using openswd3::world_map::OP_16_JUMP_IF_ROLE_PATH_UNPREPARED;
 using openswd3::world_map::OP_17_JUMP_IF_ROLE_PATH_PREPARED;
+using openswd3::world_map::OP_18_RELEASE_ROLE_PATH;
 using openswd3::world_map::OP_19;
 
 void write_u16(
@@ -2856,90 +2857,196 @@ void test_wait_for_role_action_position(openswd3::test::Context& test) {
     );
 }
 
-void test_poll_role_path_release(openswd3::test::Context& test) {
-    const auto run = [&](const bool provide_matching_slot) {
-        Fixture fixture;
-        for (auto& slot : fixture.active_object_slots) {
-            slot.bytes.fill(0xFFU);
-        }
-        fixture.roles[1].flags |= 0x80000000U;
-        fixture.roles[1].action.wait_remaining = 7U;
-        if (provide_matching_slot) {
-            auto& slot = fixture.active_object_slots[0];
-            write_u16(slot.bytes, 0x00U, 1U);
-            slot.bytes[0x1BU] = 2U;
-        }
-
-        openswd3::world_map::LegacyRoleSpatialIndex spatial_index;
-        spatial_index.map_height = 1U;
-        std::vector<u8> surface_grid(sizeof(u32), 0U);
-        openswd3::world_map::LegacyWorldPathNodePool path_node_pool;
-        openswd3::world_map::LegacyWorldMovementRuntimeState movement;
-        openswd3::world_map::LegacyWorldCameraRect camera;
-        u8 scene_render_flags{};
-        openswd3::world_map::LegacyWorldStoryPathRuntime story_paths{
-            .roles = fixture.roles,
-            .active_object_slots = fixture.active_object_slots,
-            .spatial_index = &spatial_index,
-            .role_surface =
-                {
-                    .map_width = 1U,
-                    .selected_guid = 0x00F8U,
-                    .surface_grid = surface_grid,
-                },
-            .node_pool = &path_node_pool,
-            .movement = &movement,
-            .camera = &camera,
-            .selected_arrival_bytes = {},
-            .selected_role_index = 0U,
-            .map_height = 1U,
-            .scene_render_flags = &scene_render_flags,
-        };
-        fixture.runtime.story_paths = &story_paths;
-        auto script = std::span<u8>{fixture.ports.initial_window};
-        write_u16(script, 0U, 18U);
-        write_u16(script, 2U, 0x00F8U);
-        write_u16(script, 4U, OP_14_WAIT_ROLE_ACTION_STATUS);
-        write_u16(script, 6U, 0x00F8U);
-
-        return std::tuple{
-            fixture.step(),
-            fixture.context.instruction_offset,
-            fixture.roles[1].flags,
-            fixture.roles[1].action.wait_remaining,
-            fixture.active_object_slots[0].bytes
-        };
+void test_release_role_path_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_18_RELEASE_ROLE_PATH,
+        static_cast<u16>(OP_18_RELEASE_ROLE_PATH | 0x4000U),
+        static_cast<u16>(OP_18_RELEASE_ROLE_PATH | 0x8000U),
+        static_cast<u16>(OP_18_RELEASE_ROLE_PATH | 0xC000U)
     };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        for (auto& object : fixture.active_object_slots) {
+            object.bytes.fill(0xFFU);
+        }
+        fixture.roles[1].flags = 0xA0000000U;
+        fixture.roles[1].action.wait_remaining = 7U;
+        auto& slot = fixture.active_object_slots[0];
+        write_u16(slot.bytes, 0x00U, 1U);
+        slot.bytes[0x1BU] = 2U;
+        openswd3::world_map::LegacyWorldStoryPathRuntime paths{};
+        paths.roles = fixture.roles;
+        paths.active_object_slots = fixture.active_object_slots;
+        fixture.runtime.story_paths = &paths;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0x00F8U);
+        write_u16(fixture.state.window, 4U, OP_19);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_19 &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode == OP_18_RELEASE_ROLE_PATH &&
+                fixture.roles[1].flags == 0x20000000U &&
+                fixture.roles[1].action.wait_remaining == 0U &&
+                std::ranges::all_of(
+                    slot.bytes, [](const u8 value) { return value == 0xFFU; }
+                ),
+            "opcode 18 aliases complete a type>1 slot and continue in-call"
+        );
+    }
 
-    const auto
-        [completed,
-         completed_ip,
-         completed_flags,
-         completed_wait,
-         completed_slot] = run(true);
-    const auto
-        [retried, retried_ip, retried_flags, retried_wait, retried_slot] =
-            run(false);
-
+    Fixture already_released;
+    already_released.roles[1].flags = 0x20000000U;
+    already_released.roles[1].action.wait_remaining = 7U;
+    prime_loaded_instruction(already_released, OP_18_RELEASE_ROLE_PATH);
+    write_u16(already_released.state.window, 2U, 0x00F8U);
+    write_u16(already_released.state.window, 4U, OP_19);
+    const auto already_released_result = already_released.step();
     test.expect_true(
-        completed.status == LegacyWorldStoryVmStatus::yielded &&
-            completed.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
-            completed.executed_instruction_count == 2U && completed_ip == 8U &&
-            (completed_flags & 0x80000000U) == 0U && completed_wait == 0U &&
-            std::ranges::all_of(
-                completed_slot, [](const u8 value) { return value == 0xFFU; }
-            ),
-        "opcode 18 completes a matching story path, clears role state and continues"
+        already_released_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            already_released_result.executed_instruction_count == 2U &&
+            already_released.context.instruction_offset == 4U &&
+            already_released.roles[1].flags == 0x20000000U &&
+            already_released.roles[1].action.wait_remaining == 0U,
+        "opcode 18 advances without a story-path runtime after bit31 is clear"
+    );
+
+    Fixture no_slot;
+    no_slot.roles[1].flags = 0xA0000000U;
+    no_slot.roles[1].action.wait_remaining = 7U;
+    prime_loaded_instruction(no_slot, OP_18_RELEASE_ROLE_PATH);
+    write_u16(no_slot.state.window, 2U, 0x00F8U);
+    write_u16(no_slot.state.window, 4U, OP_19);
+    const auto no_slot_result = no_slot.step();
+    test.expect_true(
+        no_slot_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            no_slot_result.executed_instruction_count == 3U &&
+            no_slot.context.instruction_offset == 4U &&
+            no_slot.state.previous_opcode == OP_18_RELEASE_ROLE_PATH &&
+            no_slot.roles[1].flags == 0x20000000U &&
+            no_slot.roles[1].action.wait_remaining == 0U,
+        "opcode 18 clears bit31 then retries once in-call after no slot"
+    );
+
+    Fixture type_one;
+    type_one.roles[1].flags = 0x80000000U;
+    prime_loaded_instruction(type_one, OP_18_RELEASE_ROLE_PATH);
+    write_u16(type_one.state.window, 2U, 0x00F8U);
+    write_u16(type_one.state.window, 4U, OP_19);
+    write_u16(type_one.active_object_slots[0].bytes, 0x00U, 1U);
+    type_one.active_object_slots[0].bytes[0x1BU] = 1U;
+    const auto type_one_result = type_one.step();
+    test.expect_true(
+        type_one_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            type_one_result.executed_instruction_count == 3U &&
+            type_one.context.instruction_offset == 4U &&
+            type_one.active_object_slots[0].bytes[0x1BU] == 1U,
+        "opcode 18 requires slot type low nibble greater than one"
+    );
+
+    Fixture missing;
+    prime_loaded_instruction(missing, OP_18_RELEASE_ROLE_PATH);
+    write_u16(missing.state.window, 2U, 0x7777U);
+    missing.state.previous_opcode = 0x55U;
+    const auto missing_result = missing.step();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::role_not_found &&
+            missing.context.instruction_offset == 0U &&
+            missing.state.previous_opcode == 0x55U,
+        "opcode 18 stops at the original helper role dereference after a miss"
+    );
+
+    Fixture raw_current_token;
+    prime_loaded_instruction(raw_current_token, OP_18_RELEASE_ROLE_PATH);
+    write_u16(raw_current_token.state.window, 2U, 0xFFF0U);
+    const auto raw_current_token_result = raw_current_token.step();
+    test.expect_true(
+        raw_current_token_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            raw_current_token.context.instruction_offset == 0U,
+        "opcode 18 passes FFF0 raw without source substitution"
+    );
+
+    Fixture invalid_controlled;
+    prime_loaded_instruction(invalid_controlled, OP_18_RELEASE_ROLE_PATH);
+    write_u16(invalid_controlled.state.window, 2U, 0xFFFEU);
+    invalid_controlled.state.previous_opcode = 0x55U;
+    const auto invalid_controlled_result = invalid_controlled.step(
+        0, 0, static_cast<u32>(invalid_controlled.roles.size())
     );
     test.expect_true(
-        retried.status == LegacyWorldStoryVmStatus::yielded &&
-            retried.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
-            retried.executed_instruction_count == 3U && retried_ip == 8U &&
-            (retried_flags & 0x80000000U) == 0U && retried_wait == 0U &&
-            std::ranges::all_of(
-                retried_slot, [](const u8 value) { return value == 0xFFU; }
-            ),
-        "opcode 18 retries the same instruction in-call after a zero helper result"
+        invalid_controlled_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            invalid_controlled_result.executed_instruction_count == 0U &&
+            invalid_controlled.context.instruction_offset == 0U &&
+            invalid_controlled.state.previous_opcode == 0x55U,
+        "opcode 18 obeys the VM controlled-role entry safety boundary"
+    );
+
+    Fixture runtime_unavailable;
+    runtime_unavailable.roles[1].flags = 0x80000000U;
+    runtime_unavailable.roles[1].action.wait_remaining = 7U;
+    prime_loaded_instruction(runtime_unavailable, OP_18_RELEASE_ROLE_PATH);
+    write_u16(runtime_unavailable.state.window, 2U, 0x00F8U);
+    write_u16(runtime_unavailable.active_object_slots[0].bytes, 0x00U, 1U);
+    runtime_unavailable.active_object_slots[0].bytes[0x1BU] = 2U;
+    const auto runtime_unavailable_result = runtime_unavailable.step();
+    test.expect_true(
+        runtime_unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            runtime_unavailable.context.instruction_offset == 0U &&
+            runtime_unavailable.roles[1].flags == 0x80000000U &&
+            runtime_unavailable.roles[1].action.wait_remaining == 7U,
+        "opcode 18 requires the typed owner only after a matching slot"
+    );
+
+    Fixture helper_failure;
+    helper_failure.roles[1].flags = 0x80000000U;
+    helper_failure.roles[1].action.wait_remaining = 7U;
+    prime_loaded_instruction(helper_failure, OP_18_RELEASE_ROLE_PATH);
+    write_u16(helper_failure.state.window, 2U, 0x00F8U);
+    auto& failed_slot = helper_failure.active_object_slots[0];
+    write_u16(failed_slot.bytes, 0x00U, 1U);
+    write_u16(failed_slot.bytes, 0x08U, 2U);
+    failed_slot.bytes[0x1BU] = 2U;
+    openswd3::world_map::LegacyWorldStoryPathRuntime failed_paths{};
+    failed_paths.roles = helper_failure.roles;
+    failed_paths.active_object_slots = helper_failure.active_object_slots;
+    helper_failure.runtime.story_paths = &failed_paths;
+    const auto helper_failure_result = helper_failure.step();
+    test.expect_true(
+        helper_failure_result.status ==
+                LegacyWorldStoryVmStatus::role_path_failed &&
+            helper_failure.context.instruction_offset == 0U &&
+            helper_failure.roles[1].flags == 0x80000000U &&
+            helper_failure.roles[1].action.wait_remaining == 7U,
+        "opcode 18 checked-stops when chained-path ownership is unavailable"
+    );
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFEU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x55U;
+    truncated.roles[1].flags = 0x80000000U;
+    truncated.roles[1].action.wait_remaining = 7U;
+    write_u16(
+        truncated.state.window, 0x7FFEU, OP_18_RELEASE_ROLE_PATH
+    );
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            truncated.state.previous_opcode == 0x55U &&
+            truncated.roles[1].flags == 0x80000000U &&
+            truncated.roles[1].action.wait_remaining == 7U,
+        "opcode 18 reads the selector before any helper or role side effect"
     );
 }
 
@@ -3690,6 +3797,40 @@ void test_real_jump_if_role_path_prepared_record(
             context.talk_data_offset == 0x00007296U &&
             state.previous_opcode == OP_17_JUMP_IF_ROLE_PATH_PREPARED,
         "real opcode 17 jumps within TALK2 and same-call fetches opcode 109"
+    );
+}
+
+void test_real_release_role_path_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00054136);
+    std::array<u8, 6U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, OP_18_RELEASE_ROLE_PATH);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    fixture.roles[1].guid = 0x000BU;
+    fixture.roles[1].flags = 0x20000000U;
+    fixture.roles[1].action.wait_remaining = 9U;
+    const auto result = fixture.step();
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_18_RELEASE_ROLE_PATH &&
+            read_u16(instruction, 2U) == 0x000BU &&
+            read_u16(instruction, 4U) == 111U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == 111U && result.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 4U &&
+            fixture.state.previous_opcode == OP_18_RELEASE_ROLE_PATH &&
+            fixture.roles[1].flags == 0x20000000U &&
+            fixture.roles[1].action.wait_remaining == 0U,
+        "real opcode 18 releases role 11 then same-call fetches opcode 111"
     );
 }
 
@@ -4921,7 +5062,7 @@ int main(const int argument_count, char** arguments) {
     test_role_action_chain_update_gate(test);
     test_change_requested_action_id(test);
     test_wait_for_role_action_position(test);
-    test_poll_role_path_release(test);
+    test_release_role_path_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -4945,6 +5086,7 @@ int main(const int argument_count, char** arguments) {
         test_real_jump_same_file_offset_record(test, root);
         test_real_jump_if_role_path_unprepared_record(test, root);
         test_real_jump_if_role_path_prepared_record(test, root);
+        test_real_release_role_path_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);

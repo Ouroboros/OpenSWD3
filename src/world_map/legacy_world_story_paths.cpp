@@ -6,7 +6,6 @@
 #include <array>
 #include <bit>
 #include <cstddef>
-#include <limits>
 #include <new>
 
 namespace openswd3::world_map {
@@ -776,10 +775,6 @@ LegacyWorldStoryPathResult complete_legacy_world_story_path(
     LegacyWorldStoryPathRuntime& runtime, const u32 role_index
 ) noexcept {
     LegacyWorldStoryPathResult result;
-    if (!runtime_is_available(runtime)) {
-        result.status = LegacyWorldStoryPathStatus::runtime_unavailable;
-        return result;
-    }
     if (role_index >= runtime.roles.size()) {
         result.status = LegacyWorldStoryPathStatus::invalid_role_index;
         return result;
@@ -787,6 +782,11 @@ LegacyWorldStoryPathResult complete_legacy_world_story_path(
     LegacyWorldRoleRecord& role = runtime.roles[role_index];
     if ((role.flags & kPathOwnershipFlag) == 0U) {
         result.legacy_return_value = 1;
+        return result;
+    }
+    if (runtime.active_object_slots.size() <
+        kLegacyWorldActiveObjectSlotCount) {
+        result.status = LegacyWorldStoryPathStatus::runtime_unavailable;
         return result;
     }
 
@@ -812,6 +812,13 @@ LegacyWorldStoryPathResult complete_legacy_world_story_path(
             result.slot_cleared = true;
         }
         result.legacy_return_value = 1;
+        return result;
+    }
+
+    if (runtime.node_pool == nullptr || runtime.map_height == 0U ||
+        runtime.role_surface.map_width == 0U ||
+        runtime.role_surface.surface_grid.empty()) {
+        result.status = LegacyWorldStoryPathStatus::runtime_unavailable;
         return result;
     }
 

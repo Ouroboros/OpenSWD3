@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x0042845A`（opcode 18）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x004284C2`（opcode 19）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -69,11 +69,11 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、125 行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定 17 条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2 前十三行已独立关闭：默认非法与共享对话两组、
+值、窗口、公共 join/yield 与返回路径。P2 前十四行已独立关闭：默认非法与共享对话两组、
 opcode7/9 的 bit31/bit30 clear、opcode8 lifetime、opcode10/11 action、opcode12 position、
-opcode13 role step、opcode14 action wait、opcode15 same-file jump、opcode16 unprepared role-path
-jump 与 opcode17 prepared role-path jump。当前为 13/146；下一行只审计 `0x0042845A` 的
-opcode18。
+opcode13 role step、opcode14 action wait、opcode15 same-file jump、opcode16/17 两种 role-path
+conditional jump 与 opcode18 role-path release。当前为 14/146；下一行只审计 `0x004284C2`
+的 opcode19。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

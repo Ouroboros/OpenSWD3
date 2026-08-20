@@ -220,6 +220,18 @@ void test_story_path_schedule_query_and_completion(
     openswd3::test::Context& test
 ) {
     Fixture fixture;
+    LegacyWorldStoryPathRuntime released_runtime{};
+    released_runtime.roles = fixture.roles;
+    const auto already_released =
+        openswd3::world_map::complete_legacy_world_story_path(
+            released_runtime, 1U
+        );
+    test.expect_true(
+        already_released.status == LegacyWorldStoryPathStatus::completed &&
+            already_released.legacy_return_value == 1,
+        "sub_42D920 returns before touching slots when bit31 is clear"
+    );
+
     for (auto& slot : fixture.state.active_object_slots) {
         slot.bytes.fill(0xFFU);
     }

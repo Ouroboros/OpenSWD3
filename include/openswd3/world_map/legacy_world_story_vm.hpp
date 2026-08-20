@@ -38,7 +38,7 @@ inline constexpr compat::u16 OP_14_WAIT_ROLE_ACTION_STATUS = 14U;
 inline constexpr compat::u16 OP_15_JUMP_SAME_FILE_OFFSET = 15U;
 inline constexpr compat::u16 OP_16_JUMP_IF_ROLE_PATH_UNPREPARED = 16U;
 inline constexpr compat::u16 OP_17_JUMP_IF_ROLE_PATH_PREPARED = 17U;
-inline constexpr compat::u16 OP_18 = 18U;
+inline constexpr compat::u16 OP_18_RELEASE_ROLE_PATH = 18U;
 inline constexpr compat::u16 OP_19 = 19U;
 inline constexpr compat::u16 OP_45 = 45U;
 

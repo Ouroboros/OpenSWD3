@@ -1,6 +1,6 @@
 # 剧情 VM P1 完整 handler 工作包
 
-状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 13/146。
+状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 14/146。
 
 唯一行为依据：`swd3.exe_export_for_ai/swd3.exe.lst`
 
@@ -114,7 +114,7 @@ P1 初始生成硬断言：
 - 当前 TALK 资产：143 个 opcode 有观察记录、55 个未观察；对应 109 个 handler 有任一观察、37 个完全未观察；
 - static triage：146 个 handler 当前没有 unresolved edge，但该 CFG 明确是过近似导航，不证明分支可行性或业务语义。
 
-因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前十三行；生成器现在硬断言 13 closed / 133 pending，并拒绝无 override 的状态漂移。
+因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前十四行；生成器现在硬断言 14 closed / 132 pending，并拒绝无 override 的状态漂移。
 
 ## 6. 候选端口依赖
 
@@ -137,7 +137,7 @@ battle            2
 
 ## 7. P2 当前停止线
 
-前十三组已经独立关闭：
+前十四组已经独立关闭：
 
 - 默认非法入口 `0x0042D230`：[`story-vm-default-invalid-0042d230.md`](story-vm-default-invalid-0042d230.md)；
 - 共享对话入口 `0x00427B8F` 的 `1-6,89-90`：[`story-vm-dialog-handler-00427b8f.md`](story-vm-dialog-handler-00427b8f.md)；
@@ -151,13 +151,14 @@ battle            2
 - role action wait 入口 `0x0042829C` 的 opcode14：[`story-vm-role-action-wait-0042829c.md`](story-vm-role-action-wait-0042829c.md)；
 - same-file jump 入口 `0x00428310` 的 opcode15：[`story-vm-same-file-jump-00428310.md`](story-vm-same-file-jump-00428310.md)；
 - role-path unprepared conditional jump 入口 `0x00428318` 的 opcode16：[`story-vm-role-path-conditional-jump-00428318.md`](story-vm-role-path-conditional-jump-00428318.md)；
-- role-path prepared conditional jump 入口 `0x004283AC` 的 opcode17：[`story-vm-role-path-prepared-jump-004283ac.md`](story-vm-role-path-prepared-jump-004283ac.md)。
+- role-path prepared conditional jump 入口 `0x004283AC` 的 opcode17：[`story-vm-role-path-prepared-jump-004283ac.md`](story-vm-role-path-prepared-jump-004283ac.md)；
+- role-path release 入口 `0x0042845A` 的 opcode18：[`story-vm-role-path-release-0042845a.md`](story-vm-role-path-release-0042845a.md)。
 
 下一组严格是：
 
 ```text
-entry = 0x0042845A
-opcode = 18
+entry = 0x004284C2
+opcode = 19
 ```
 
-opcode18 语义尚未独立审计，常量暂为 `OP_18`。
+opcode19 语义尚未独立审计，常量暂为 `OP_19`。

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v255
+版本：v256
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042845A` handler（opcode 18）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x004284C2` handler（opcode 19）
 
 ## 0. 执行约定
 
@@ -683,8 +683,9 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
     不执行 `FFF0` 替换，直接沿既有角色查找规则解析（包含 `FFFE` 当前选中角色），
     并调用已恢复的 `sub_42D920` owner。helper 返回非零时消费四字节并继续；返回零时
     仍清除角色标志 bit 31 与动作等待字段，但不消费指令，因此在同一次解释器调用中
-    重试。处理器实现后再次逐分支核对 LST，未发现有效角色路径与汇编的逻辑差异。
-    定向测试覆盖匹配路径槽完成及零返回同调用重试；真实 `TALK100` 回归越过该指令和
+    重试。该旧实现 checkpoint 未构成 P2 closure；后续独立审计发现它漏发公共 join 的
+    previous18，并过早要求完整 path runtime，本轮第十四组已按 LST 修正。
+    旧定向测试覆盖匹配路径槽完成及零返回同调用重试；真实 `TALK100` 回归越过该指令和
     第八次等待，在指令指针 `3675` 精确停于未恢复 opcode `58`。Linux `core` 为
     175/175，Linux/Windows LLVM 完整应用均为 180/180 CTest 通过；Windows EXE 成功
     链接且未启动任何原版或重写版 EXE。下一实现边界为 opcode `58`。
@@ -1455,6 +1456,15 @@ B7 P0 有限收口完成。
     P3 大阶段统一执行，未启动游戏 EXE。workpack 当前 13/146，即
     `3 assembly_exact + 10 platform_adapted + 133 pending_audit`。
 
+- 剧情 VM P2 第十四组 `0x0042845A` / opcode18 完成独立闭环。恢复 4-byte 角色路径
+    释放、bit31/type>1 slot helper 返回合同、zero-return 单次同调用重试、previous18 与
+    wait 清零；typed owner 只在 chained path 实际需要时检查。四 raw alias、selector/runtime/
+    短载荷边界与真实 `TALK1.DAT@0x54136` 回放通过；全301条物理记录均为 raw `0x0012`、
+    长度4。定向 story VM/path owner 4/4、Linux core 186/186、Linux app 192/192 均以 exit 0 通过；
+    Windows 依 v256 门禁分层留到剧情 VM P3 大阶段统一执行，未启动游戏 EXE。workpack
+    当前 14/146，即
+    `3 assembly_exact + 11 platform_adapted + 132 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042845A` 的 opcode18；语义未审计前常量保持 `OP_18`。不并行回到延期的 `libffmpeg`，
+`0x004284C2` 的 opcode19；语义未审计前常量保持 `OP_19`。不并行回到延期的 `libffmpeg`，
 也不按剧情命中顺序临时补 opcode。
