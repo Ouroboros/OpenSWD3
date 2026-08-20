@@ -1773,7 +1773,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
         }
 
         case OP_25_SET_GLOBAL_BIT:
-        case OP_26:
+        case OP_26_CLEAR_GLOBAL_BIT:
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;

@@ -48,6 +48,7 @@ using openswd3::world_map::OP_22_JUMP_IF_GLOBAL_BIT_CLEAR;
 using openswd3::world_map::OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET;
 using openswd3::world_map::OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET;
 using openswd3::world_map::OP_25_SET_GLOBAL_BIT;
+using openswd3::world_map::OP_26_CLEAR_GLOBAL_BIT;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -4105,6 +4106,104 @@ void test_set_global_bit_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_clear_global_bit_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_26_CLEAR_GLOBAL_BIT,
+        static_cast<u16>(OP_26_CLEAR_GLOBAL_BIT | 0x4000U),
+        static_cast<u16>(OP_26_CLEAR_GLOBAL_BIT | 0x8000U),
+        static_cast<u16>(OP_26_CLEAR_GLOBAL_BIT | 0xC000U)
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0x0123U);
+        write_u16(fixture.state.window, 4U, OP_1025);
+        openswd3::world_map::set_legacy_world_story_flag(
+            fixture.state, 0x0120U
+        );
+        openswd3::world_map::set_legacy_world_story_flag(
+            fixture.state, 0x0123U
+        );
+        openswd3::world_map::set_legacy_world_story_flag(
+            fixture.state, 0x0127U
+        );
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                openswd3::world_map::query_legacy_world_story_flag(
+                    fixture.state, 0x0120U
+                ) &&
+                !openswd3::world_map::query_legacy_world_story_flag(
+                    fixture.state, 0x0123U
+                ) &&
+                openswd3::world_map::query_legacy_world_story_flag(
+                    fixture.state, 0x0127U
+                ) &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode == OP_26_CLEAR_GLOBAL_BIT,
+            "opcode 26 aliases clear only the addressed global bit"
+        );
+    }
+
+    Fixture already_clear;
+    prime_loaded_instruction(already_clear, OP_26_CLEAR_GLOBAL_BIT);
+    write_u16(already_clear.state.window, 2U, 0x0123U);
+    write_u16(already_clear.state.window, 4U, OP_1025);
+    const auto already_clear_result = already_clear.step();
+    test.expect_true(
+        already_clear_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            !openswd3::world_map::query_legacy_world_story_flag(
+                already_clear.state, 0x0123U
+            ) &&
+            already_clear.state.previous_opcode == OP_26_CLEAR_GLOBAL_BIT,
+        "opcode 26 is idempotent when the bit is already clear"
+    );
+
+    constexpr u16 last_valid_bit = static_cast<u16>(
+        openswd3::world_map::kLegacyWorldStoryFlagBytes * 8U - 1U
+    );
+    Fixture last_bit;
+    prime_loaded_instruction(last_bit, OP_26_CLEAR_GLOBAL_BIT);
+    write_u16(last_bit.state.window, 2U, last_valid_bit);
+    write_u16(last_bit.state.window, 4U, OP_1025);
+    openswd3::world_map::set_legacy_world_story_flag(
+        last_bit.state, last_valid_bit
+    );
+    const auto last_bit_result = last_bit.step();
+    test.expect_true(
+        last_bit_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            !openswd3::world_map::query_legacy_world_story_flag(
+                last_bit.state, last_valid_bit
+            ),
+        "opcode 26 clears the final bit owned by the typed global flag array"
+    );
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFEU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x55U;
+    openswd3::world_map::set_legacy_world_story_flag(truncated.state, 0U);
+    write_u16(truncated.state.window, 0x7FFEU, OP_26_CLEAR_GLOBAL_BIT);
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            truncated.state.previous_opcode == 0x55U &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                truncated.state, 0U
+            ),
+        "opcode 26 reads the bit operand before mutating global flags"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -5204,6 +5303,52 @@ void test_real_set_global_bit_record(
             fixture.state.previous_opcode == OP_25_SET_GLOBAL_BIT &&
             fixture.ports.sound_effect_requests == std::vector<u16>{0x00ABU},
         "real opcode 25 sets bit 7080 then same-call opcode 59 plays sound"
+    );
+}
+
+void test_real_clear_global_bit_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x000265FE);
+    std::array<u8, 8U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, OP_26_CLEAR_GLOBAL_BIT);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    fixture.state.loaded_data_offset = 0x000263FEU;
+    fixture.context.talk_data_offset = 0x000263FEU;
+    openswd3::world_map::set_legacy_world_story_flag(fixture.state, 614U);
+    openswd3::world_map::set_legacy_world_story_flag(fixture.state, 615U);
+    openswd3::world_map::set_legacy_world_story_flag(fixture.state, 616U);
+    const auto result = fixture.step();
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_26_CLEAR_GLOBAL_BIT &&
+            read_u16(instruction, 2U) == 615U &&
+            read_u16(instruction, 4U) == 59U &&
+            read_u16(instruction, 6U) == 0x0038U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == 59U && result.executed_instruction_count == 2U &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                fixture.state, 614U
+            ) &&
+            !openswd3::world_map::query_legacy_world_story_flag(
+                fixture.state, 615U
+            ) &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                fixture.state, 616U
+            ) &&
+            fixture.context.instruction_offset == 8U &&
+            fixture.state.previous_opcode == OP_26_CLEAR_GLOBAL_BIT &&
+            fixture.ports.sound_effect_requests == std::vector<u16>{0x0038U},
+        "real opcode 26 clears bit 615 then same-call opcode 59 plays sound"
     );
 }
 
@@ -6442,6 +6587,7 @@ int main(const int argument_count, char** arguments) {
     test_jump_if_all_global_bits_set_protocol(test);
     test_jump_if_any_global_bit_set_protocol(test);
     test_set_global_bit_protocol(test);
+    test_clear_global_bit_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -6471,6 +6617,7 @@ int main(const int argument_count, char** arguments) {
         test_real_jump_if_global_bit_records(test, root);
         test_real_jump_if_all_global_bits_set_record(test, root);
         test_real_set_global_bit_record(test, root);
+        test_real_clear_global_bit_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);
