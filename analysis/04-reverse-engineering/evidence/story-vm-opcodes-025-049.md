@@ -84,7 +84,7 @@ jl  dispatch
 - 32 在 `value >= unsigned(sign_extend(threshold))` 时跳转；
 - 33 在 `value <= unsigned(sign_extend(threshold))` 时跳转。
 
-不能在重写中把它们简化为有符号比较或为负下标补边界检查。
+不能在重写中把比较简化为有符号关系。机器负下标会访问数组前内存；typed owner 在真实资产零命中的前提下，必须保留 32/33 先读 target 的顺序，并只在首次数组越界访问点转为显式 checked failure。`index>=64` 则不是 unsafe adaptation，仍严格保留不推进、发布 previous opcode、audio service 与 yield/retry。44 条真实记录分布为 29/30/31/32/33=`9/22/0/8/5`，index 仅 `0,2,41,50,62`。完整证据见 [`story-vm-global-integers-0042b074.md`](story-vm-global-integers-0042b074.md)。
 
 ## opcode 34–37：有界值与快照
 

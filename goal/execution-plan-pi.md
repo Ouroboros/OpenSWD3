@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v265
+版本：v266
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B074` shared handler（opcodes 29–33）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042890F` handler（opcode 34）
 
 ## 0. 执行约定
 
@@ -1544,6 +1544,17 @@ B7 P0 有限收口完成。
     留到P3，未启动游戏EXE。workpack当前23/146，即
     `3 assembly_exact + 20 platform_adapted + 123 pending_audit`。
 
+- 剧情VM P2第二十四组`0x0042B074` / shared opcodes29–33完成独立闭环。恢复`s16` index和
+    value/threshold、set/add/sub的32位回绕、opcode31结果符号位归零，以及所有正常路径共享的
+    element0符号位归零尾；opcode32/33在先读target后按无符号`>=`/`<=`执行同文件跳转并同调用
+    继续。`index>=64`严格保留不读target、不推进、不执行共享clamp、发布previous、audio service
+    与yield/retry；负index只在原始首次数组越界点由typed owner隔离，32/33仍保留先读target顺序。
+    全44条资产按29/30/31/32/33=`9/22/0/8/5`，index仅`0,2,41,50,62`；TALK1真实opcode30与
+    `33→32→29→FFFF`链回放通过，opcode31资产缺席另有synthetic覆盖。二级入口`0x0042B070`的
+    181–185未继承关闭。定向剧情VM 3/3、Linux core 186/186、Linux app 192/192均以exit 0通过；
+    生成器`py_compile`及双重生成哈希幂等通过。Windows依v266留到P3，未启动游戏EXE。
+    workpack当前24/146，即`3 assembly_exact + 21 platform_adapted + 122 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042B074` 的共享opcodes29–33 handler；现有导航语义与未实现状态均不继承完成状态。
+`0x0042890F` 的opcode34 handler；现有导航语义与未实现状态均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

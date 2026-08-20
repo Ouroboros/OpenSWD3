@@ -2034,6 +2034,95 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_29_SET_GLOBAL_INTEGER:
+        case OP_30_ADD_GLOBAL_INTEGER:
+        case OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO:
+        case OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE:
+        case OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE: {
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i32 index = static_cast<i16>(read_u16(state.window, ip + 2U));
+            const i32 signed_value =
+                static_cast<i16>(read_u16(state.window, ip + 4U));
+            const u32 value_bits = static_cast<u32>(signed_value);
+            if (index >= static_cast<i32>(state.script_variables.size())) {
+                state.previous_opcode = result.opcode;
+                ports.service_audio();
+                ++result.direct_audio_service_count;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+
+            const bool conditional =
+                result.opcode == OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE ||
+                result.opcode == OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE;
+            u32 target{};
+            if (conditional) {
+                if (!has_bytes(state.window, ip, 10U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                target = read_u32(state.window, ip + 6U);
+            }
+            if (index < 0) {
+                result.status = LegacyWorldStoryVmStatus::
+                    script_variable_index_out_of_range;
+                return result;
+            }
+
+            u32& variable =
+                state.script_variables[static_cast<std::size_t>(index)];
+            std::size_t instruction_size = 6U;
+            if (result.opcode == OP_29_SET_GLOBAL_INTEGER) {
+                variable = value_bits;
+            } else if (result.opcode == OP_30_ADD_GLOBAL_INTEGER) {
+                variable += value_bits;
+            } else if (
+                result.opcode == OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO
+            ) {
+                variable -= value_bits;
+                if ((variable & 0x80000000U) != 0U) {
+                    variable = 0U;
+                }
+            } else {
+                instruction_size = 10U;
+                const bool jump =
+                    result.opcode == OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE
+                    ? variable >= value_bits
+                    : variable <= value_bits;
+                if (jump) {
+                    const auto status = load_same_file_story_window(
+                        context,
+                        state,
+                        current_file_number(context, state),
+                        target,
+                        result,
+                        ports
+                    );
+                    if ((state.script_variables[0] & 0x80000000U) != 0U) {
+                        state.script_variables[0] = 0U;
+                    }
+                    state.previous_opcode = result.opcode;
+                    if (status != LegacyWorldStoryVmStatus::idle) {
+                        result.status = status;
+                        return result;
+                    }
+                    continue;
+                }
+            }
+
+            if ((state.script_variables[0] & 0x80000000U) != 0U) {
+                state.script_variables[0] = 0U;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + instruction_size);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 38U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

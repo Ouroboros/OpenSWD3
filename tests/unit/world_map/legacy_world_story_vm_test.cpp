@@ -52,6 +52,11 @@ using openswd3::world_map::OP_25_SET_GLOBAL_BIT;
 using openswd3::world_map::OP_26_CLEAR_GLOBAL_BIT;
 using openswd3::world_map::OP_27_RELOAD_WORLD_SESSION;
 using openswd3::world_map::OP_28_CHANGE_ROLE_PATH_ID;
+using openswd3::world_map::OP_29_SET_GLOBAL_INTEGER;
+using openswd3::world_map::OP_30_ADD_GLOBAL_INTEGER;
+using openswd3::world_map::OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO;
+using openswd3::world_map::OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE;
+using openswd3::world_map::OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -4608,6 +4613,323 @@ void test_change_role_path_id_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_global_integer_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    const auto prime = [](Fixture& fixture,
+                          const u16 raw_word,
+                          const u16 index,
+                          const u16 value) {
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, index);
+        write_u16(fixture.state.window, 4U, value);
+    };
+
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.script_variables[0] = 0x80000001U;
+        prime(
+            fixture,
+            static_cast<u16>(OP_29_SET_GLOBAL_INTEGER | mask),
+            2U,
+            0xFFFFU
+        );
+        write_u16(fixture.state.window, 6U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode == OP_29_SET_GLOBAL_INTEGER &&
+                fixture.state.script_variables[0] == 0U &&
+                fixture.state.script_variables[2] == 0xFFFFFFFFU,
+            "opcode 29 aliases sign-extend the value and clamp variable zero"
+        );
+    }
+
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.script_variables[2] = 0xFFFFFFF0U;
+        prime(
+            fixture, static_cast<u16>(OP_30_ADD_GLOBAL_INTEGER | mask), 2U, 32U
+        );
+        write_u16(fixture.state.window, 6U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode == OP_30_ADD_GLOBAL_INTEGER &&
+                fixture.state.script_variables[2] == 0x10U,
+            "opcode 30 aliases add a sign-extended value with u32 wrapping"
+        );
+    }
+
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.script_variables[2] = 5U;
+        prime(
+            fixture,
+            static_cast<u16>(OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO | mask),
+            2U,
+            10U
+        );
+        write_u16(fixture.state.window, 6U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode ==
+                    OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO &&
+                fixture.state.script_variables[2] == 0U,
+            "opcode 31 aliases clamp a sign-bit subtraction result to zero"
+        );
+    }
+
+    Fixture add_above_path_limit;
+    add_above_path_limit.state.script_variables[2] = 990U;
+    prime(add_above_path_limit, OP_30_ADD_GLOBAL_INTEGER, 2U, 50U);
+    write_u16(add_above_path_limit.state.window, 6U, OP_1025);
+    const auto add_above_path_limit_result = add_above_path_limit.step();
+    test.expect_true(
+        add_above_path_limit_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            add_above_path_limit.state.script_variables[2] == 1040U,
+        "story opcode 30 does not inherit the PATH VM 1000-value cap"
+    );
+
+    Fixture subtract_negative;
+    subtract_negative.state.script_variables[2] = 3U;
+    prime(
+        subtract_negative, OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO, 2U, 0xFFFBU
+    );
+    write_u16(subtract_negative.state.window, 6U, OP_1025);
+    const auto subtract_negative_result = subtract_negative.step();
+    test.expect_true(
+        subtract_negative_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            subtract_negative.state.script_variables[2] == 8U,
+        "opcode 31 subtracts a negative s16 as its wrapped u32 bit pattern"
+    );
+
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.script_variables[0] = 0x80000000U;
+        fixture.state.script_variables[2] = 0U;
+        prime(
+            fixture,
+            static_cast<u16>(OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE | mask),
+            2U,
+            0xFFFFU
+        );
+        write_u32(fixture.state.window, 6U, 0x12345678U);
+        write_u16(fixture.state.window, 10U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 10U &&
+                fixture.state.previous_opcode ==
+                    OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE &&
+                fixture.state.script_variables[0] == 0U &&
+                fixture.ports.data_load_count == 0U,
+            "opcode 32 aliases compare against sign-extended threshold bits as unsigned"
+        );
+    }
+
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.script_variables[0] = 0x80000000U;
+        fixture.state.script_variables[2] = 0xFFFFFFFFU;
+        prime(
+            fixture,
+            static_cast<u16>(OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE | mask),
+            2U,
+            0U
+        );
+        write_u32(fixture.state.window, 6U, 0x12345678U);
+        write_u16(fixture.state.window, 10U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 10U &&
+                fixture.state.previous_opcode ==
+                    OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE &&
+                fixture.state.script_variables[0] == 0U &&
+                fixture.ports.data_load_count == 0U,
+            "opcode 33 aliases use an unsigned less-or-equal comparison"
+        );
+    }
+
+    Fixture ge_taken;
+    ge_taken.state.script_variables[0] = 0x80000000U;
+    ge_taken.state.script_variables[2] = 0xFFFFFFFFU;
+    prime(ge_taken, OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE, 2U, 0xFFFFU);
+    write_u32(ge_taken.state.window, 6U, 0x2222U);
+    write_u16(ge_taken.ports.transferred_window, 0U, OP_1025);
+    const auto ge_taken_result = ge_taken.step();
+    test.expect_true(
+        ge_taken_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            ge_taken_result.executed_instruction_count == 2U &&
+            ge_taken.context.talk_data_offset == 0x2222U &&
+            ge_taken.context.instruction_offset == 0U &&
+            ge_taken.state.previous_opcode ==
+                OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE &&
+            ge_taken.state.script_variables[0] == 0U &&
+            ge_taken.ports.data_load_count == 1U &&
+            ge_taken.ports.last_data_offset == 0x2222U &&
+            ge_taken.ports.direct_audio_service_count == 1U,
+        "opcode 32 taken path reloads then clamps variable zero before continuation"
+    );
+
+    Fixture le_taken;
+    le_taken.state.script_variables[2] = 0U;
+    prime(le_taken, OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE, 2U, 0xFFFFU);
+    write_u32(le_taken.state.window, 6U, 0x3333U);
+    write_u16(le_taken.ports.transferred_window, 0U, OP_1025);
+    const auto le_taken_result = le_taken.step();
+    test.expect_true(
+        le_taken_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            le_taken_result.executed_instruction_count == 2U &&
+            le_taken.context.talk_data_offset == 0x3333U &&
+            le_taken.state.previous_opcode ==
+                OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE &&
+            le_taken.ports.data_load_count == 1U &&
+            le_taken.ports.direct_audio_service_count == 1U,
+        "opcode 33 taken path accepts zero below a sign-extended negative threshold"
+    );
+
+    constexpr std::array<u16, 5U> opcodes{
+        OP_29_SET_GLOBAL_INTEGER,
+        OP_30_ADD_GLOBAL_INTEGER,
+        OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO,
+        OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE,
+        OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE,
+    };
+    for (const u16 opcode : opcodes) {
+        Fixture fixture;
+        fixture.context.instruction_offset = 0x7FFAU;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x55U;
+        fixture.state.script_variables[0] = 0x80000000U;
+        write_u16(fixture.state.window, 0x7FFAU, opcode);
+        write_u16(fixture.state.window, 0x7FFCU, 64U);
+        write_u16(fixture.state.window, 0x7FFEU, 1U);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == opcode &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 0x7FFAU &&
+                fixture.state.previous_opcode == opcode &&
+                fixture.state.script_variables[0] == 0x80000000U &&
+                fixture.ports.data_load_count == 0U &&
+                fixture.ports.direct_audio_service_count == 1U,
+            "opcodes 29-33 high index yields without target read or shared clamp"
+        );
+    }
+
+    Fixture negative_update;
+    negative_update.state.previous_opcode = 0x55U;
+    prime(negative_update, OP_29_SET_GLOBAL_INTEGER, 0xFFFFU, 1U);
+    const auto negative_update_result = negative_update.step();
+    test.expect_true(
+        negative_update_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            negative_update.context.instruction_offset == 0U &&
+            negative_update.state.previous_opcode == 0x55U &&
+            negative_update.ports.direct_audio_service_count == 0U,
+        "negative story-variable index stops at the original write unsafe point"
+    );
+
+    Fixture negative_branch;
+    negative_branch.state.previous_opcode = 0x55U;
+    prime(
+        negative_branch, OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE, 0xFFFFU, 0U
+    );
+    write_u32(negative_branch.state.window, 6U, 0x4444U);
+    const auto negative_branch_result = negative_branch.step();
+    test.expect_true(
+        negative_branch_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            negative_branch.context.instruction_offset == 0U &&
+            negative_branch.state.previous_opcode == 0x55U &&
+            negative_branch.ports.data_load_count == 0U,
+        "negative conditional index reads target before the original read unsafe point"
+    );
+
+    Fixture value_truncated;
+    value_truncated.context.instruction_offset = 0x7FFCU;
+    value_truncated.context.talk_data_offset = 0x1111U;
+    value_truncated.state.loaded_file_number = 1U;
+    value_truncated.state.loaded_data_offset = 0x1111U;
+    value_truncated.state.window_loaded = true;
+    write_u16(value_truncated.state.window, 0x7FFCU, OP_29_SET_GLOBAL_INTEGER);
+    write_u16(value_truncated.state.window, 0x7FFEU, 2U);
+    const auto value_truncated_result = value_truncated.step();
+    test.expect_true(
+        value_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            value_truncated.context.instruction_offset == 0x7FFCU,
+        "shared numeric entry requires index and value before dispatch"
+    );
+
+    Fixture target_truncated;
+    target_truncated.context.instruction_offset = 0x7FFAU;
+    target_truncated.context.talk_data_offset = 0x1111U;
+    target_truncated.state.loaded_file_number = 1U;
+    target_truncated.state.loaded_data_offset = 0x1111U;
+    target_truncated.state.window_loaded = true;
+    write_u16(
+        target_truncated.state.window,
+        0x7FFAU,
+        OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE
+    );
+    write_u16(target_truncated.state.window, 0x7FFCU, 0xFFFFU);
+    write_u16(target_truncated.state.window, 0x7FFEU, 0U);
+    const auto target_truncated_result = target_truncated.step();
+    test.expect_true(
+        target_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            target_truncated.context.instruction_offset == 0x7FFAU,
+        "negative conditional index still performs the earlier target read"
+    );
+
+    Fixture load_failure;
+    load_failure.state.script_variables[0] = 0x80000000U;
+    load_failure.state.script_variables[2] = 1U;
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    prime(load_failure, OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE, 2U, 1U);
+    write_u32(load_failure.state.window, 6U, 0x5555U);
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.load_status ==
+                LegacyTalkWindowStatus::data_read_failed &&
+            load_failure.context.talk_data_offset == 0x5555U &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE &&
+            load_failure.state.script_variables[0] == 0U &&
+            load_failure.ports.direct_audio_service_count == 1U,
+        "taken numeric branch preserves loader then shared-tail failure order"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -5845,6 +6167,74 @@ void test_real_change_role_path_id_record(
             fixture.roles[1].flags == 0x1020U &&
             fixture.ports.direct_audio_service_count == 1U,
         "real opcode 28 record replaces live role path id then yields"
+    );
+}
+
+void test_real_global_integer_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream add_input{
+        root / "TALK1.DAT", std::ios::binary | std::ios::in
+    };
+    add_input.seekg(0x00007FAF);
+    std::array<u8, 6U> add_instruction{};
+    add_input.read(
+        reinterpret_cast<char*>(add_instruction.data()),
+        static_cast<std::streamsize>(add_instruction.size())
+    );
+    const bool add_read = static_cast<bool>(add_input);
+
+    Fixture add_fixture;
+    prime_loaded_instruction(add_fixture, OP_30_ADD_GLOBAL_INTEGER);
+    std::ranges::copy(add_instruction, add_fixture.state.window.begin());
+    write_u16(add_fixture.state.window, 6U, OP_1025);
+    const auto add_result = add_fixture.step();
+    test.expect_true(
+        add_read && read_u16(add_instruction, 0U) == OP_30_ADD_GLOBAL_INTEGER &&
+            read_u16(add_instruction, 2U) == 0U &&
+            read_u16(add_instruction, 4U) == 50U &&
+            add_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            add_result.executed_instruction_count == 2U &&
+            add_fixture.context.instruction_offset == 6U &&
+            add_fixture.state.previous_opcode == OP_30_ADD_GLOBAL_INTEGER &&
+            add_fixture.state.script_variables[0] == 150U,
+        "real opcode 30 record adds 50 to initialized variable zero"
+    );
+
+    std::ifstream chain_input{
+        root / "TALK1.DAT", std::ios::binary | std::ios::in
+    };
+    chain_input.seekg(0x0000FF97);
+    std::array<u8, 28U> chain{};
+    chain_input.read(
+        reinterpret_cast<char*>(chain.data()),
+        static_cast<std::streamsize>(chain.size())
+    );
+    const bool chain_read = static_cast<bool>(chain_input);
+
+    Fixture chain_fixture;
+    prime_loaded_instruction(
+        chain_fixture, OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE
+    );
+    std::ranges::copy(chain, chain_fixture.state.window.begin());
+    chain_fixture.state.script_variables[62] = 3U;
+    const auto chain_result = chain_fixture.step();
+    test.expect_true(
+        chain_read &&
+            read_u16(chain, 0U) == OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE &&
+            read_u16(chain, 2U) == 62U && read_u16(chain, 4U) == 2U &&
+            read_u16(chain, 10U) == OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE &&
+            read_u16(chain, 12U) == 62U && read_u16(chain, 14U) == 4U &&
+            read_u16(chain, 20U) == OP_29_SET_GLOBAL_INTEGER &&
+            read_u16(chain, 22U) == 62U && read_u16(chain, 24U) == 4U &&
+            read_u16(chain, 26U) == 0xFFFFU &&
+            chain_result.status == LegacyWorldStoryVmStatus::terminated &&
+            chain_result.executed_instruction_count == 4U &&
+            chain_fixture.context.instruction_offset == 0xFFFFU &&
+            chain_fixture.state.previous_opcode == OP_29_SET_GLOBAL_INTEGER &&
+            chain_fixture.state.script_variables[62] == 4U &&
+            chain_fixture.ports.data_load_count == 0U,
+        "real opcode 33 to 32 to 29 chain falls through then terminates"
     );
 }
 
@@ -7086,6 +7476,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_global_bit_protocol(test);
     test_reload_world_session_protocol(test);
     test_change_role_path_id_protocol(test);
+    test_global_integer_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -7118,6 +7509,7 @@ int main(const int argument_count, char** arguments) {
         test_real_clear_global_bit_record(test, root);
         test_real_reload_world_session_record(test, root);
         test_real_change_role_path_id_record(test, root);
+        test_real_global_integer_records(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);
