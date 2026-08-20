@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v234
+版本：v235
 
 最后更新：2026-08-20
 
@@ -1261,5 +1261,17 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     191/191、Windows LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。
     114 项当前关闭 111 项，即 `44 assembly_exact + 67 platform_adapted + 3 pending_audit`；
     下一精确停点为 `0x004272C0 sub_4272C0`。
+
+- B7 继续完成 `0x004272C0 sub_4272C0` 独立闭环。无参数主块调用 constructor thunk 后
+    跳入 function chunk；chunk 把 destructor thunk 注册到 `_atexit` 并返回无人消费的
+    EAX。ctor 对 `0x004CF6E0..0x004CF72F` 写入 `0x50` 字节 unopened 文件 owner：首 dword
+    为 `0xFFFFFFFF`，其余 19 个 dword 为零。全 LST xref 只有 ctor/dtor 两处，没有第三个
+    业务消费者；因此析构中的 file handle 始终为零，不进入 view/mapping/file 的任何 OS
+    cleanup 分支。现代 `LegacyFile` constructor/destructor 与 C++ RAII 覆盖所有有消费者的
+    文件生命周期，这个 dead global 以证明性消除替代，分类为 `platform_adapted`；不伪造
+    unit/asset 证据。最终完整门禁为 Linux `core` 185/185、Linux `app` 191/191、Windows
+    LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。114 项当前关闭 112 项，即
+    `44 assembly_exact + 68 platform_adapted + 2 pending_audit`；下一精确停点为
+    `0x00427300 sub_427300`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

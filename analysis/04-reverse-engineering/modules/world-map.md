@@ -19,13 +19,13 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 111 项：44 项 `assembly_exact`、67 项 `platform_adapted`；其余
-3 项保持待审计。最新关闭 `sub_427140`：确认三个调用点实际使用两参数 cdecl，slot 有效、
-scratch 未读；open 失败固定 2 次直接维护，open 成功即使 mapping/view 失败也固定 5 次。
-RAII file 与 owned bytes 替代进程期 file/mapping/view globals，在第 1/2 个回调之间保持旧借用
-失效顺序，并在第 4/5 个回调之间发布完整物理字节，因此分类为 `platform_adapted`。合成
-open/ready/empty、真实地图 24 loader/render 纵向回归与三端完整门禁均通过，两端应用成功
-链接且未启动游戏 EXE。剩余独立停点为 `sub_4272C0/sub_427300/sub_402F80`。原版完整
+114 项全集复核当前已关闭 112 项：44 项 `assembly_exact`、68 项 `platform_adapted`；其余
+2 项保持待审计。最新关闭 `sub_4272C0`：确认无参数 CRT initializer 只构造一个零消费者的
+`0x50` unopened 文件 owner，并注册其 unopened 析构；EAX 的 `_atexit` 结果无人消费。
+全 LST xref 穷尽后，该 owner 没有业务读写，析构也不进入 OS cleanup。现代 C++ RAII 覆盖
+所有有消费者的 `LegacyFile` 生命周期，并证明性消除这一 dead global，分类为
+`platform_adapted`；不伪造业务 UT 或资产验证。剩余独立停点为
+`sub_427300/sub_402F80`。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放
@@ -251,6 +251,17 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
    114 项当前关闭 111 项，即 `44 assembly_exact + 67 platform_adapted + 3 pending_audit`；
    下一精确停点为 `0x004272C0 sub_4272C0`。
 
+   `sub_4272C0` 的 dead CRT 生命周期随后完成独立关闭：主块调用 constructor thunk 后跳入
+   function chunk，chunk 通过 `_atexit` 注册 destructor thunk 并返回其无人消费的 EAX。
+   ctor 把 `0x004CF6E0..0x004CF72F` 初始化为 unopened `0x50` 文件 owner；全 LST 只有 ctor/
+   dtor 两处引用，析构因 file handle 始终为零而不调用 unmap/close。现代
+   `LegacyFile` constructor/destructor 与 C++ RAII 覆盖全部有消费者的生命周期，这个无
+   消费者全局明确省略；分类为 `platform_adapted`，不伪造 unit/asset 证据。最终完整门禁
+   为 Linux `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest，
+   两端应用成功链接且未启动游戏 EXE。114 项当前关闭 112 项，即
+   `44 assembly_exact + 68 platform_adapted + 2 pending_audit`；下一精确停点为
+   `0x00427300 sub_427300`。
+
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
 
@@ -265,6 +276,7 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
 当前单元证据见 [`role-spatial-query-00404fd0.md`](../evidence/role-spatial-query-00404fd0.md)、
 [`lmf-world-map-session-00425be0.md`](../evidence/lmf-world-map-session-00425be0.md)、
 [`cm-cache-runtime-00426840-004272b8.md`](../evidence/cm-cache-runtime-00426840-004272b8.md)、
+[`cm-cache-crt-lifecycle-004272c0.md`](../evidence/cm-cache-crt-lifecycle-004272c0.md)、
 [`movement-collision-00404610.md`](../evidence/movement-collision-00404610.md) 和
 [`lmf-map-business-004261ce-00426798.md`](../evidence/lmf-map-business-004261ce-00426798.md)、
 [`world-direction-adjustment-004040b0.md`](../evidence/world-direction-adjustment-004040b0.md)、
