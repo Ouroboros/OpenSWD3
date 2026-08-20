@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v261
+版本：v262
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042865B` handler（opcode 25）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00428679` handler（opcode 26）
 
 ## 0. 执行约定
 
@@ -1506,6 +1506,14 @@ B7 P0 有限收口完成。
     留到P3，未启动游戏EXE。workpack当前19/146，即
     `3 assembly_exact + 16 platform_adapted + 127 pending_audit`。
 
+- 剧情VM P2第二十组`0x0042865B` / opcode25完成独立闭环。恢复全局bit幂等OR置位、
+    IP+4/previous/same-call合同，保留`fON`纯诊断省略；25改为语义枚举，26暂保中性枚举。
+    四raw alias、已置bit、typed owner末bit、operand窗口尾及TALK1真实置位→opcode59 sound回放通过；
+    全635条资产、488个不同bit、范围4..7084长度零差异。定向剧情VM 3/3、Linux core
+    186/186、Linux app 192/192均以exit 0通过；Windows依v262留到P3，未启动游戏EXE。
+    workpack当前20/146，即
+    `3 assembly_exact + 17 platform_adapted + 126 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042865B` 的 opcode25 handler；现有C++与导航语义均不继承完成状态。
+`0x00428679` 的 opcode26 handler；当前中性枚举与既有C++均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

@@ -1772,13 +1772,13 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 25U:
-        case 26U:
+        case OP_25_SET_GLOBAL_BIT:
+        case OP_26:
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            if (result.opcode == 25U) {
+            if (result.opcode == OP_25_SET_GLOBAL_BIT) {
                 set_legacy_world_story_flag(
                     state, read_u16(state.window, ip + 2U)
                 );
@@ -1789,6 +1789,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
             continue;
 
         case 38U: {
