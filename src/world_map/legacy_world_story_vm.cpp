@@ -820,7 +820,8 @@ scale_dialog_word(const u16 value, const u32 scale) noexcept {
         active_object_slots,
     const LegacyWorldStoryVmRuntime& runtime,
     const u16 raw_selector,
-    LegacyWorldStoryVmResult& result
+    LegacyWorldStoryVmResult& result,
+    LegacyWorldStoryVmPorts& ports
 ) noexcept {
     const u16 selector = raw_selector == kCurrentSourceSelector
         ? context.source_guid
@@ -829,7 +830,17 @@ scale_dialog_word(const u16 value, const u32 scale) noexcept {
     if (!resolve_role_index(
             roles, selector, controlled_role_index, role_index
         )) {
-        return LegacyWorldStoryVmStatus::role_not_found;
+        if (selector == kLegacyWorldControlledRoleSelector) {
+            return LegacyWorldStoryVmStatus::role_not_found;
+        }
+        ports.patch_role_source(
+            LegacyMapsRolePatchRequest{
+                .guid = raw_selector,
+                .flags_or_mask = 0U,
+                .flags_and_mask = 0x7FFFU,
+            }
+        );
+        return LegacyWorldStoryVmStatus::yielded;
     }
     auto& role = roles[role_index];
     role.flags &= 0x00007FFFU;
@@ -848,8 +859,9 @@ scale_dialog_word(const u16 value, const u32 scale) noexcept {
         find_legacy_world_role_by_guid(roles, role.guid);
     if (replacement_index != kLegacyWorldRoleNotFound) {
         for (auto& slot : active_object_slots) {
-            if (read_object_u16(slot, kObjectRoleIndexOffset) ==
-                static_cast<u16>(replacement_index)) {
+            if (static_cast<u32>(
+                    read_object_u16(slot, kObjectRoleIndexOffset)
+                ) == replacement_index) {
                 static_cast<void>(reset_legacy_world_object_slot(slot));
                 ++result.active_object_reset_count;
             }
@@ -2211,7 +2223,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
-        case 38U: {
+        case OP_38_CLEAR_ROLE_FROM_SCENE: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
@@ -2223,13 +2235,15 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 active_object_slots,
                 runtime,
                 read_u16(state.window, ip + 2U),
-                result
+                result,
+                ports
             );
             if (result.status != LegacyWorldStoryVmStatus::yielded) {
                 return result;
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
             continue;
         }
 

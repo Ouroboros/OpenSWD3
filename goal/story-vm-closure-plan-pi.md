@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x004289DE`（opcode 38）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x00428ADC`（opcode 39）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -69,15 +69,16 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至126行。前二十八行已独立
+值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至126行。前二十九行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
 schedule、共享opcode21/22全局bit条件跳转、opcode23/24全局bit列表all/any跳转、
 opcode25/26全局bit set/clear、opcode27世界session同步重载、opcode28角色Path id修改与对象协调、
 共享opcodes29–33全局整数set/add/sub与无符号条件跳转、opcode34有界脚本时钟设置、
-opcode35脚本时钟低位字节条件跳转、opcode36脚本时钟相对快照条件跳转，以及opcode37脚本
-时钟快照。当前为28/146；下一行只审计`0x004289DE`的opcode38 handler。
+opcode35脚本时钟低位字节条件跳转、opcode36脚本时钟相对快照条件跳转、opcode37脚本时钟快照，
+以及opcode38角色场景清除与MAPS fallback。当前为29/146；下一行只审计`0x00428ADC`的opcode39
+handler。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

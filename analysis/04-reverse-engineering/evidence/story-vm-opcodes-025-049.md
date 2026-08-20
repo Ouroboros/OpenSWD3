@@ -100,6 +100,8 @@ opcode 35 只读取 `+2` 的一个字节，并与 `dword_4ACDB0` 低 16 位作�
 
 40 没有 `0xFFF0` 替换。它把两个 `u16` 分量左移四位后传给 `sub_42DAF0`，调用 `sub_42D920`，再清角色状态 bit31。只有原始 selector 恰好等于 `state+0x24` 时，才额外把角色 `+0x4C/+0x78` 写成 `-1`。三个 handler 的 selector 规则不能因参数形状相似而共用一个前处理器。
 
+opcode38的独立闭环还证明：live path先掩码并清surface，再按GUID重新取得第一个skip bit已清的完整u32 role index，固定扫描72个object槽并把所有匹配槽完整fill `0xFF`；ordinary miss则用原始`+2`selector向MAPS发送flags `AND 0x7FFF`/`OR 0` patch。786条真实记录、790个entry probe、FFF0/raw fallback及`TALK1.DAT@0x00004656`回放见 [`story-vm-role-scene-clear-004289de.md`](story-vm-role-scene-clear-004289de.md)。
+
 ## opcode 41：必须保留的 selector 等于 count 边界
 
 handler 从 `+2` 开始无边界扫描 `u32` 目标，直到 `0xFF00FF00`，得到实际目标数量 `count`。随后执行的是：

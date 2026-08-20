@@ -42,7 +42,7 @@ EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
 EXPECTED_MODERN_CASE_COUNT = 76
-EXPECTED_CLOSED_HANDLER_COUNT = 28
+EXPECTED_CLOSED_HANDLER_COUNT = 29
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -184,6 +184,11 @@ CLOSURE_OVERRIDES = {
         "assembly_exact",
         "story-vm-script-clock-snapshot-004289be.md",
         "assembly_exact;unit_tested;asset_absence_verified;sdl_runtime_integrated",
+    ),
+    "0x004289DE": (
+        "platform_adapted",
+        "story-vm-role-scene-clear-004289de.md",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
     ),
 }
 
