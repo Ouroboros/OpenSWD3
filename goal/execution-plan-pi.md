@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v257
+版本：v258
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042ADB7` shared handler（opcode 20,169）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00428533` shared handler（opcode 21,22）
 
 ## 0. 执行约定
 
@@ -1473,6 +1473,14 @@ B7 P0 有限收口完成。
     门禁分层留到剧情 VM P3大阶段统一执行，未启动游戏 EXE。workpack当前15/146，即
     `3 assembly_exact + 12 platform_adapted + 131 pending_audit`。
 
+- 剧情 VM P2 第十六组共享入口 `0x0042ADB7` / opcode20,169完成独立闭环。恢复6/12-byte
+    批量路径records、schedule/wait双阶段、自修改count/phase、bit15转发、selected-role fallback、
+    source-role action字段及phase-specific危险点；补齐opcode169。两种opcode各四raw alias、count0、
+    selector/runtime/窗口尾与真实双样本回放通过；全607条物理指令、846个records长度公式零差异。
+    定向story VM/path owner 4/4、Linux core 186/186、Linux app 192/192均以exit 0通过；Windows依v258
+    门禁分层留到剧情VM P3大阶段统一执行，未启动游戏EXE。workpack当前16/146，即
+    `3 assembly_exact + 13 platform_adapted + 130 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042ADB7` 的共享 opcode20/169 handler；两个变体必须同组独立审计，`OP_20` 保持中性，
-opcode169在闭环前不得获得语义后缀。不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
+`0x00428533` 的共享 opcode21/22 handler；两个变体必须同组独立审计，现有C++与导航语义均不继承完成状态。
+不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

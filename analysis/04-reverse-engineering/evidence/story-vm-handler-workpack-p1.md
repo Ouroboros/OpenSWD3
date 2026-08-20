@@ -1,6 +1,6 @@
 # 剧情 VM P1 完整 handler 工作包
 
-状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 15/146。
+状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 16/146。
 
 唯一行为依据：`swd3.exe_export_for_ai/swd3.exe.lst`
 
@@ -109,12 +109,12 @@ P1 初始生成硬断言：
 
 当前导航统计：
 
-- 人工语义：125 opcode，落在 100 个 handler；46 个 handler 尚无人工语义行；
-- P1 初始现代 C++：50 个 case label；40 个 handler 全有 case、4 个仅部分有 case、102 个无 case；P2 当前为 62 个 case、47 个全有、3 个部分、96 个无 case；
+- 人工语义：P1初始125 opcode；P2随handler增量补入opcode169后当前126 opcode，仍落在100个handler，46个handler尚无人工语义行；
+- P1 初始现代 C++：50 个 case label；40 个 handler 全有 case、4 个仅部分有 case、102 个无 case；P2 当前为 63 个 case、48 个全有、2 个部分、96 个无 case；
 - 当前 TALK 资产：143 个 opcode 有观察记录、55 个未观察；对应 109 个 handler 有任一观察、37 个完全未观察；
 - static triage：146 个 handler 当前没有 unresolved edge，但该 CFG 明确是过近似导航，不证明分支可行性或业务语义。
 
-因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前十五行；生成器现在硬断言 15 closed / 131 pending，并拒绝无 override 的状态漂移。
+因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前十六行；生成器现在硬断言 16 closed / 130 pending，并拒绝无 override 的状态漂移。
 
 ## 6. 候选端口依赖
 
@@ -137,7 +137,7 @@ battle            2
 
 ## 7. P2 当前停止线
 
-前十五组已经独立关闭：
+前十六组已经独立关闭：
 
 - 默认非法入口 `0x0042D230`：[`story-vm-default-invalid-0042d230.md`](story-vm-default-invalid-0042d230.md)；
 - 共享对话入口 `0x00427B8F` 的 `1-6,89-90`：[`story-vm-dialog-handler-00427b8f.md`](story-vm-dialog-handler-00427b8f.md)；
@@ -153,13 +153,14 @@ battle            2
 - role-path unprepared conditional jump 入口 `0x00428318` 的 opcode16：[`story-vm-role-path-conditional-jump-00428318.md`](story-vm-role-path-conditional-jump-00428318.md)；
 - role-path prepared conditional jump 入口 `0x004283AC` 的 opcode17：[`story-vm-role-path-prepared-jump-004283ac.md`](story-vm-role-path-prepared-jump-004283ac.md)；
 - role-path release 入口 `0x0042845A` 的 opcode18：[`story-vm-role-path-release-0042845a.md`](story-vm-role-path-release-0042845a.md)；
-- all-role path release 入口 `0x004284C2` 的 opcode19：[`story-vm-role-path-release-all-004284c2.md`](story-vm-role-path-release-all-004284c2.md)。
+- all-role path release 入口 `0x004284C2` 的 opcode19：[`story-vm-role-path-release-all-004284c2.md`](story-vm-role-path-release-all-004284c2.md)；
+- role-path schedule共享入口 `0x0042ADB7` 的opcode20/169：[`story-vm-role-path-schedule-0042adb7.md`](story-vm-role-path-schedule-0042adb7.md)。
 
 下一组严格是共享 handler：
 
 ```text
-entry = 0x0042ADB7
-opcodes = 20,169
+entry = 0x00428533
+opcodes = 21,22
 ```
 
-opcode20/169 尚未独立审计；`OP_20` 保持中性，opcode169 在同组闭环前不得获得语义后缀。
+opcode21/22尚未独立审计；现有C++与导航语义均不继承完成状态，两个变体必须同组闭环。

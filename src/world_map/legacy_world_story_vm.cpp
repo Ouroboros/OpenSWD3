@@ -1512,29 +1512,27 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
-        case OP_20: {
+        case OP_20_SCHEDULE_ROLE_PATHS:
+        case OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
+            const bool has_action_operands =
+                result.opcode == OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
+            const std::size_t record_size = has_action_operands ? 12U : 6U;
             const u16 count_word = read_u16(state.window, ip + 2U);
             const u16 count = static_cast<u16>(count_word & 0x3FFFU);
-            const std::size_t instruction_size =
-                4U + static_cast<std::size_t>(count) * 6U;
-            if (!has_bytes(state.window, ip, instruction_size)) {
-                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
-                return result;
-            }
-            if (runtime.story_paths == nullptr) {
-                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
-                return result;
-            }
 
             if ((count_word & 0x4000U) == 0U) {
+                std::size_t record = ip + 4U;
                 for (u16 record_index = 0U; record_index < count;
-                     ++record_index) {
-                    const std::size_t record =
-                        ip + 4U + static_cast<std::size_t>(record_index) * 6U;
+                     ++record_index, record += record_size) {
+                    if (!has_bytes(state.window, record, 2U)) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::operand_out_of_range;
+                        return result;
+                    }
                     const u16 selector = read_u16(state.window, record);
                     u32 role_index{};
                     if (!resolve_role_index(
@@ -1542,20 +1540,51 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                         )) {
                         continue;
                     }
+
                     auto& role = roles[role_index];
                     if (selector == context.source_guid) {
                         role.flags &= 0xFFF7FFFFU;
-                        role.action.one_shot_base_variant =
+                        role.action.cached_base_variant =
                             std::numeric_limits<u32>::max();
-                        role.action.one_shot_variant_delta =
+                        role.action.cached_variant_delta =
                             std::numeric_limits<u32>::max();
                     }
-                    if (role.interaction_gate == 0U) {
-                        role.interaction_gate = 0x8001U;
+                    if (role.action.wait_override == 0U) {
+                        role.action.wait_override = 0x8001U;
                     }
+                    if (!has_bytes(state.window, record, 6U)) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::operand_out_of_range;
+                        return result;
+                    }
+
                     const auto& selected = roles[controlled_role_index];
                     const u16 tile_x = read_u16(state.window, record + 2U);
                     const u16 tile_y = read_u16(state.window, record + 4U);
+                    i16 action_id = -1;
+                    i16 base_variant = -1;
+                    i16 variant_delta = -1;
+                    if (has_action_operands) {
+                        if (!has_bytes(state.window, record, 12U)) {
+                            result.status =
+                                LegacyWorldStoryVmStatus::operand_out_of_range;
+                            return result;
+                        }
+                        action_id = std::bit_cast<i16>(
+                            read_u16(state.window, record + 6U)
+                        );
+                        base_variant = std::bit_cast<i16>(
+                            read_u16(state.window, record + 8U)
+                        );
+                        variant_delta = std::bit_cast<i16>(
+                            read_u16(state.window, record + 10U)
+                        );
+                    }
+                    if (runtime.story_paths == nullptr) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::runtime_unavailable;
+                        return result;
+                    }
                     const auto scheduled = schedule_legacy_world_story_path(
                         *runtime.story_paths,
                         LegacyWorldStoryPathRequest{
@@ -1571,6 +1600,9 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                                 << 4U
                             ),
                             .flags = static_cast<u32>(count_word & 0x8000U),
+                            .action_id = action_id,
+                            .base_variant = base_variant,
+                            .variant_delta = variant_delta,
                         }
                     );
                     if (scheduled.status !=
@@ -1583,28 +1615,43 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                         dialogs.close.flagged_dialog_counter |= 0x8000U;
                     }
                 }
-                state.window[ip + 3U] |= 0x40U;
+                write_u16(
+                    state.window,
+                    ip + 2U,
+                    static_cast<u16>(count_word | 0x4000U)
+                );
+                state.previous_opcode = result.opcode;
                 result.status = LegacyWorldStoryVmStatus::yielded;
                 return result;
             }
 
             u16 ready_count{};
-            for (u16 record_index = 0U; record_index < count; ++record_index) {
-                const std::size_t record =
-                    ip + 4U + static_cast<std::size_t>(record_index) * 6U;
+            std::size_t record = ip + 4U;
+            for (u16 record_index = 0U; record_index < count;
+                 ++record_index, record += record_size) {
+                if (!has_bytes(state.window, record, 2U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
                 u32 role_index{};
-                if (!resolve_role_index(
-                        roles,
-                        read_u16(state.window, record),
-                        controlled_role_index,
-                        role_index
-                    )) {
+                static_cast<void>(resolve_role_index(
+                    roles,
+                    read_u16(state.window, record),
+                    controlled_role_index,
+                    role_index
+                ));
+                if (role_index >= roles.size()) {
                     result.status = LegacyWorldStoryVmStatus::role_not_found;
                     return result;
                 }
                 if ((roles[role_index].flags & 0x02000000U) != 0U) {
                     ++ready_count;
                     continue;
+                }
+                if (runtime.story_paths == nullptr) {
+                    result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
                 }
                 const auto queried = query_legacy_world_story_path(
                     *runtime.story_paths, role_index
@@ -1618,12 +1665,17 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 }
             }
             if (ready_count != count) {
+                state.previous_opcode = result.opcode;
                 result.status = LegacyWorldStoryVmStatus::yielded;
                 return result;
             }
             write_u16(state.window, ip + 2U, count);
-            context.instruction_offset =
-                static_cast<u16>(context.instruction_offset + instruction_size);
+            const std::size_t instruction_size =
+                4U + static_cast<std::size_t>(count) * record_size;
+            context.instruction_offset = static_cast<u16>(
+                context.instruction_offset + instruction_size
+            );
+            state.previous_opcode = result.opcode;
             continue;
         }
 

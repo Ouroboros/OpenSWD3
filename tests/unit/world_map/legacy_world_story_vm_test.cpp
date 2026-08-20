@@ -42,7 +42,9 @@ using openswd3::world_map::OP_16_JUMP_IF_ROLE_PATH_UNPREPARED;
 using openswd3::world_map::OP_17_JUMP_IF_ROLE_PATH_PREPARED;
 using openswd3::world_map::OP_18_RELEASE_ROLE_PATH;
 using openswd3::world_map::OP_19_RELEASE_ROLE_PATHS;
+using openswd3::world_map::OP_20_SCHEDULE_ROLE_PATHS;
 using openswd3::world_map::OP_23;
+using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -3206,6 +3208,349 @@ void test_release_all_role_paths_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> opcode20_aliases{
+        OP_20_SCHEDULE_ROLE_PATHS,
+        static_cast<u16>(OP_20_SCHEDULE_ROLE_PATHS | 0x4000U),
+        static_cast<u16>(OP_20_SCHEDULE_ROLE_PATHS | 0x8000U),
+        static_cast<u16>(OP_20_SCHEDULE_ROLE_PATHS | 0xC000U)
+    };
+    for (const u16 raw_word : opcode20_aliases) {
+        Fixture fixture;
+        StoryPathHarness paths{fixture};
+        fixture.roles[1].flags = 0x00080000U;
+        fixture.roles[1].action.cached_base_variant = 11U;
+        fixture.roles[1].action.cached_variant_delta = 22U;
+        fixture.roles[1].action.one_shot_base_variant = 33U;
+        fixture.roles[1].action.one_shot_variant_delta = 44U;
+        fixture.roles[1].action.wait_override = 0U;
+        fixture.roles[1].interaction_gate = 0x1234U;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 1U);
+        write_u16(fixture.state.window, 4U, 0x00F8U);
+        write_u16(fixture.state.window, 6U, 21U);
+        write_u16(fixture.state.window, 8U, 15U);
+        write_u16(fixture.state.window, 10U, OP_23);
+
+        const auto scheduled = fixture.step();
+        const auto& slot = fixture.active_object_slots[0].bytes;
+        test.expect_true(
+            scheduled.status == LegacyWorldStoryVmStatus::yielded &&
+                scheduled.opcode == OP_20_SCHEDULE_ROLE_PATHS &&
+                scheduled.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode == OP_20_SCHEDULE_ROLE_PATHS &&
+                read_u16(fixture.state.window, 2U) == 0x4001U &&
+                (fixture.roles[1].flags & 0x00080000U) == 0U &&
+                fixture.roles[1].action.cached_base_variant ==
+                    std::numeric_limits<u32>::max() &&
+                fixture.roles[1].action.cached_variant_delta ==
+                    std::numeric_limits<u32>::max() &&
+                fixture.roles[1].action.one_shot_base_variant == 33U &&
+                fixture.roles[1].action.one_shot_variant_delta == 44U &&
+                fixture.roles[1].action.wait_override == 0x8001U &&
+                fixture.roles[1].interaction_gate == 0x1234U &&
+                read_u16(slot, 0x04U) == 336U &&
+                read_u16(slot, 0x06U) == 240U &&
+                read_u16(slot, 0x10U) == 0xFFFFU &&
+                read_u16(slot, 0x12U) == 0xFFFFU &&
+                read_u16(slot, 0x14U) == 0xFFFFU,
+            "opcode 20 aliases schedule six-byte records and publish phase one"
+        );
+
+        fixture.roles[1].flags |= 0x02000000U;
+        const auto completed = fixture.step();
+        test.expect_true(
+            completed.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                completed.opcode == OP_23 &&
+                completed.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 10U &&
+                fixture.state.previous_opcode == OP_20_SCHEDULE_ROLE_PATHS &&
+                read_u16(fixture.state.window, 2U) == 1U,
+            "opcode 20 ready phase clears high bits and continues in-call"
+        );
+    }
+
+    constexpr std::array<u16, 4U> opcode169_aliases{
+        OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS,
+        static_cast<u16>(OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS | 0x4000U),
+        static_cast<u16>(OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS | 0x8000U),
+        static_cast<u16>(OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS | 0xC000U)
+    };
+    for (const u16 raw_word : opcode169_aliases) {
+        Fixture fixture;
+        StoryPathHarness paths{fixture};
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 1U);
+        write_u16(fixture.state.window, 4U, 0x00F8U);
+        write_u16(fixture.state.window, 6U, 21U);
+        write_u16(fixture.state.window, 8U, 15U);
+        write_u16(fixture.state.window, 10U, 0x1234U);
+        write_u16(fixture.state.window, 12U, 0xFFFEU);
+        write_u16(fixture.state.window, 14U, 7U);
+        write_u16(fixture.state.window, 16U, OP_23);
+
+        const auto scheduled = fixture.step();
+        const auto& slot = fixture.active_object_slots[0].bytes;
+        test.expect_true(
+            scheduled.status == LegacyWorldStoryVmStatus::yielded &&
+                scheduled.opcode ==
+                    OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS &&
+                scheduled.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode ==
+                    OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS &&
+                read_u16(fixture.state.window, 2U) == 0x4001U &&
+                read_u16(slot, 0x10U) == 0x1234U &&
+                read_u16(slot, 0x12U) == 0xFFFEU &&
+                read_u16(slot, 0x14U) == 7U,
+            "opcode 169 aliases forward twelve-byte action-bearing records"
+        );
+
+        fixture.roles[1].flags |= 0x02000000U;
+        const auto completed = fixture.step();
+        test.expect_true(
+            completed.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                completed.opcode == OP_23 &&
+                completed.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 16U &&
+                fixture.state.previous_opcode ==
+                    OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS &&
+                read_u16(fixture.state.window, 2U) == 1U,
+            "opcode 169 ready phase advances by twelve bytes per record"
+        );
+    }
+
+    struct Variant {
+        u16 opcode;
+        std::size_t record_size;
+    };
+    constexpr std::array<Variant, 2U> variants{
+        Variant{OP_20_SCHEDULE_ROLE_PATHS, 6U},
+        Variant{OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS, 12U},
+    };
+    for (const auto variant : variants) {
+        Fixture empty;
+        prime_loaded_instruction(empty, variant.opcode);
+        write_u16(empty.state.window, 2U, 0U);
+        write_u16(empty.state.window, 4U, OP_23);
+        const auto staged = empty.step();
+        const u16 staged_count = read_u16(empty.state.window, 2U);
+        const auto completed = empty.step();
+        test.expect_true(
+            staged.status == LegacyWorldStoryVmStatus::yielded &&
+                staged.opcode == variant.opcode &&
+                staged.executed_instruction_count == 1U &&
+                staged_count == 0x4000U &&
+                read_u16(empty.state.window, 2U) == 0U &&
+                completed.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                completed.opcode == OP_23 &&
+                completed.executed_instruction_count == 2U &&
+                empty.context.instruction_offset == 4U &&
+                empty.state.previous_opcode == variant.opcode,
+            "shared path handler count-zero stages then completes without runtime"
+        );
+    }
+
+    Fixture selected_fallback;
+    selected_fallback.roles[1].world_x = 352U;
+    selected_fallback.roles[1].world_y = 256U;
+    StoryPathHarness selected_paths{selected_fallback, 1U};
+    prime_loaded_instruction(selected_fallback, OP_20_SCHEDULE_ROLE_PATHS);
+    write_u16(selected_fallback.state.window, 2U, 0x8001U);
+    write_u16(selected_fallback.state.window, 4U, 0xFFFEU);
+    write_u16(selected_fallback.state.window, 6U, 0xFFFFU);
+    write_u16(selected_fallback.state.window, 8U, 0xFFFFU);
+    const auto selected_staged = selected_fallback.step(0, 0, 1U);
+    const auto& selected_slot = selected_fallback.active_object_slots[0].bytes;
+    test.expect_true(
+        selected_staged.status == LegacyWorldStoryVmStatus::yielded &&
+            read_u16(selected_fallback.state.window, 2U) == 0xC001U &&
+            read_u16(selected_slot, 0x00U) == 1U &&
+            read_u16(selected_slot, 0x04U) == 352U &&
+            read_u16(selected_slot, 0x06U) == 256U &&
+            (selected_slot[0x1BU] & 0x80U) == 0U &&
+            (selected_fallback.dialogs.close.flagged_dialog_counter &
+             0x8000U) != 0U,
+        "opcode 20 forwards bit15 and uses selected-role FFFF coordinates"
+    );
+    selected_fallback.roles[1].flags |= 0x02000000U;
+    write_u16(selected_fallback.state.window, 10U, OP_23);
+    const auto selected_completed = selected_fallback.step(0, 0, 1U);
+    test.expect_true(
+        selected_completed.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            selected_fallback.context.instruction_offset == 10U &&
+            read_u16(selected_fallback.state.window, 2U) == 1U,
+        "ready phase clears both bit14 and forwarded bit15"
+    );
+
+    for (const auto variant : variants) {
+        Fixture missing_tail;
+        missing_tail.context.instruction_offset = 0x7FFAU;
+        missing_tail.context.talk_data_offset = 0x1111U;
+        missing_tail.state.loaded_file_number = 1U;
+        missing_tail.state.loaded_data_offset = 0x1111U;
+        missing_tail.state.window_loaded = true;
+        missing_tail.state.previous_opcode = 0x55U;
+        write_u16(missing_tail.state.window, 0x7FFAU, variant.opcode);
+        write_u16(missing_tail.state.window, 0x7FFCU, 1U);
+        write_u16(missing_tail.state.window, 0x7FFEU, 0xFFF0U);
+        const auto missing_tail_result = missing_tail.step();
+        test.expect_true(
+            missing_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+                missing_tail_result.executed_instruction_count == 1U &&
+                missing_tail.context.instruction_offset == 0x7FFAU &&
+                missing_tail.state.previous_opcode == variant.opcode &&
+                read_u16(missing_tail.state.window, 0x7FFCU) == 0x4001U,
+            "missing selector skips its record tail before phase publication"
+        );
+
+        Fixture valid_tail;
+        valid_tail.context.instruction_offset = 0x7FFAU;
+        valid_tail.context.talk_data_offset = 0x1111U;
+        valid_tail.state.loaded_file_number = 1U;
+        valid_tail.state.loaded_data_offset = 0x1111U;
+        valid_tail.state.window_loaded = true;
+        valid_tail.state.previous_opcode = 0x55U;
+        valid_tail.roles[1].flags = 0x00080000U;
+        valid_tail.roles[1].action.cached_base_variant = 11U;
+        valid_tail.roles[1].action.cached_variant_delta = 22U;
+        write_u16(valid_tail.state.window, 0x7FFAU, variant.opcode);
+        write_u16(valid_tail.state.window, 0x7FFCU, 1U);
+        write_u16(valid_tail.state.window, 0x7FFEU, 0x00F8U);
+        const auto valid_tail_result = valid_tail.step();
+        test.expect_true(
+            valid_tail_result.status ==
+                    LegacyWorldStoryVmStatus::operand_out_of_range &&
+                valid_tail.context.instruction_offset == 0x7FFAU &&
+                valid_tail.state.previous_opcode == 0x55U &&
+                (valid_tail.roles[1].flags & 0x00080000U) == 0U &&
+                valid_tail.roles[1].action.cached_base_variant ==
+                    std::numeric_limits<u32>::max() &&
+                valid_tail.roles[1].action.cached_variant_delta ==
+                    std::numeric_limits<u32>::max() &&
+                valid_tail.roles[1].action.wait_override == 0x8001U,
+            "valid selector applies role effects before truncated coordinates"
+        );
+
+        Fixture wait_tail;
+        wait_tail.context.instruction_offset = 0x7FFAU;
+        wait_tail.context.talk_data_offset = 0x1111U;
+        wait_tail.state.loaded_file_number = 1U;
+        wait_tail.state.loaded_data_offset = 0x1111U;
+        wait_tail.state.window_loaded = true;
+        wait_tail.roles[1].flags = 0x02000000U;
+        write_u16(wait_tail.state.window, 0x7FFAU, variant.opcode);
+        write_u16(wait_tail.state.window, 0x7FFCU, 0x4001U);
+        write_u16(wait_tail.state.window, 0x7FFEU, 0x00F8U);
+        const auto wait_tail_result = wait_tail.step();
+        const u16 expected_ip = static_cast<u16>(
+            0x7FFAU + 4U + variant.record_size
+        );
+        test.expect_true(
+            wait_tail_result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                wait_tail_result.executed_instruction_count == 1U &&
+                wait_tail.context.instruction_offset == expected_ip &&
+                wait_tail.state.previous_opcode == variant.opcode &&
+                read_u16(wait_tail.state.window, 0x7FFCU) == 1U,
+            "ready phase reads only selectors before advancing past the window"
+        );
+    }
+
+    Fixture action_tail;
+    action_tail.context.instruction_offset = 0x7FF4U;
+    action_tail.context.talk_data_offset = 0x1111U;
+    action_tail.state.loaded_file_number = 1U;
+    action_tail.state.loaded_data_offset = 0x1111U;
+    action_tail.state.window_loaded = true;
+    action_tail.state.previous_opcode = 0x55U;
+    action_tail.roles[1].flags = 0x00080000U;
+    action_tail.roles[1].action.cached_base_variant = 11U;
+    action_tail.roles[1].action.cached_variant_delta = 22U;
+    write_u16(
+        action_tail.state.window,
+        0x7FF4U,
+        OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS
+    );
+    write_u16(action_tail.state.window, 0x7FF6U, 1U);
+    write_u16(action_tail.state.window, 0x7FF8U, 0x00F8U);
+    write_u16(action_tail.state.window, 0x7FFAU, 21U);
+    write_u16(action_tail.state.window, 0x7FFCU, 15U);
+    write_u16(action_tail.state.window, 0x7FFEU, 0x1234U);
+    const auto action_tail_result = action_tail.step();
+    test.expect_true(
+        action_tail_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            action_tail.context.instruction_offset == 0x7FF4U &&
+            action_tail.state.previous_opcode == 0x55U &&
+            (action_tail.roles[1].flags & 0x00080000U) == 0U &&
+            action_tail.roles[1].action.cached_base_variant ==
+                std::numeric_limits<u32>::max() &&
+            action_tail.roles[1].action.cached_variant_delta ==
+                std::numeric_limits<u32>::max() &&
+            action_tail.roles[1].action.wait_override == 0x8001U &&
+            read_u16(action_tail.state.window, 0x7FF6U) == 1U,
+        "opcode 169 applies role effects before a truncated action tail"
+    );
+
+    Fixture wait_missing;
+    prime_loaded_instruction(wait_missing, OP_20_SCHEDULE_ROLE_PATHS);
+    write_u16(wait_missing.state.window, 2U, 0x4001U);
+    write_u16(wait_missing.state.window, 4U, 0x7777U);
+    wait_missing.state.previous_opcode = 0x55U;
+    const auto wait_missing_result = wait_missing.step();
+    test.expect_true(
+        wait_missing_result.status == LegacyWorldStoryVmStatus::role_not_found &&
+            wait_missing.context.instruction_offset == 0U &&
+            wait_missing.state.previous_opcode == 0x55U &&
+            read_u16(wait_missing.state.window, 2U) == 0x4001U,
+        "wait phase stops at the original role dereference after resolver miss"
+    );
+
+    Fixture not_ready;
+    StoryPathHarness not_ready_paths{not_ready};
+    prime_loaded_instruction(not_ready, OP_20_SCHEDULE_ROLE_PATHS);
+    write_u16(not_ready.state.window, 2U, 0x4001U);
+    write_u16(not_ready.state.window, 4U, 0x00F8U);
+    const auto not_ready_result = not_ready.step();
+    test.expect_true(
+        not_ready_result.status == LegacyWorldStoryVmStatus::yielded &&
+            not_ready_result.executed_instruction_count == 1U &&
+            not_ready.context.instruction_offset == 0U &&
+            not_ready.state.previous_opcode == OP_20_SCHEDULE_ROLE_PATHS &&
+            read_u16(not_ready.state.window, 2U) == 0x4001U,
+        "wait phase keeps the instruction staged while a role is not ready"
+    );
+
+    Fixture runtime_unavailable;
+    runtime_unavailable.roles[1].flags = 0x00080000U;
+    runtime_unavailable.roles[1].action.cached_base_variant = 11U;
+    runtime_unavailable.roles[1].action.cached_variant_delta = 22U;
+    prime_loaded_instruction(runtime_unavailable, OP_20_SCHEDULE_ROLE_PATHS);
+    write_u16(runtime_unavailable.state.window, 2U, 1U);
+    write_u16(runtime_unavailable.state.window, 4U, 0x00F8U);
+    write_u16(runtime_unavailable.state.window, 6U, 21U);
+    write_u16(runtime_unavailable.state.window, 8U, 15U);
+    const auto runtime_unavailable_result = runtime_unavailable.step();
+    test.expect_true(
+        runtime_unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            runtime_unavailable.context.instruction_offset == 0U &&
+            runtime_unavailable.state.previous_opcode == 0U &&
+            (runtime_unavailable.roles[1].flags & 0x00080000U) == 0U &&
+            runtime_unavailable.roles[1].action.cached_base_variant ==
+                std::numeric_limits<u32>::max() &&
+            runtime_unavailable.roles[1].action.cached_variant_delta ==
+                std::numeric_limits<u32>::max() &&
+            runtime_unavailable.roles[1].action.wait_override == 0x8001U &&
+            read_u16(runtime_unavailable.state.window, 2U) == 1U,
+        "initial phase preserves role effects before missing path runtime"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -4020,6 +4365,82 @@ void test_real_release_all_role_paths_record(
             fixture.roles[1].action.wait_remaining == 7U,
         "real opcode 19 skips released roles then same-call fetches opcode 28"
     );
+}
+
+void test_real_schedule_role_path_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct Sample {
+        std::streamoff file_offset;
+        std::size_t instruction_size;
+        u16 opcode;
+        u16 expected_action_id;
+        u16 expected_base_variant;
+        u16 expected_variant_delta;
+    };
+    constexpr std::array<Sample, 2U> samples{
+        Sample{
+            0x000049F6,
+            10U,
+            OP_20_SCHEDULE_ROLE_PATHS,
+            0xFFFFU,
+            0xFFFFU,
+            0xFFFFU,
+        },
+        Sample{
+            0x0002A56D,
+            16U,
+            OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS,
+            0xFFFFU,
+            0U,
+            7U,
+        },
+    };
+
+    for (const auto sample : samples) {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(sample.file_offset);
+        std::vector<u8> instruction(sample.instruction_size + 2U);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        const bool instruction_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.context.source_guid = 1U;
+        fixture.roles[1].guid = 1U;
+        StoryPathHarness paths{fixture};
+        prime_loaded_instruction(fixture, sample.opcode);
+        std::ranges::copy(instruction, fixture.state.window.begin());
+        write_u16(fixture.state.window, sample.instruction_size, OP_23);
+        const auto staged = fixture.step();
+        const u16 staged_count = read_u16(fixture.state.window, 2U);
+        const auto& slot = fixture.active_object_slots[0].bytes;
+        fixture.roles[1].flags |= 0x02000000U;
+        const auto completed = fixture.step();
+
+        test.expect_true(
+            instruction_read && read_u16(instruction, 0U) == sample.opcode &&
+                (read_u16(instruction, 2U) & 0x4000U) == 0U &&
+                staged.status == LegacyWorldStoryVmStatus::yielded &&
+                staged.opcode == sample.opcode && staged_count == 0x4001U &&
+                read_u16(slot, 0x10U) == sample.expected_action_id &&
+                read_u16(slot, 0x12U) == sample.expected_base_variant &&
+                read_u16(slot, 0x14U) == sample.expected_variant_delta &&
+                completed.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                completed.opcode == OP_23 &&
+                completed.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset ==
+                    sample.instruction_size &&
+                fixture.state.previous_opcode == sample.opcode &&
+                read_u16(fixture.state.window, 2U) == 1U,
+            "real opcode 20/169 records stage paths then complete in-call"
+        );
+    }
 }
 
 void test_real_shared_dialog_handler_records(
@@ -5252,6 +5673,7 @@ int main(const int argument_count, char** arguments) {
     test_wait_for_role_action_position(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
+    test_schedule_role_paths_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -5277,6 +5699,7 @@ int main(const int argument_count, char** arguments) {
         test_real_jump_if_role_path_prepared_record(test, root);
         test_real_release_role_path_record(test, root);
         test_real_release_all_role_paths_record(test, root);
+        test_real_schedule_role_path_records(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);
