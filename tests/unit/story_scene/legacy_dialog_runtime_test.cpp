@@ -232,13 +232,15 @@ void test_choice_chain_release_preserves_unrelated_state(
     state.close.flagged_dialog_counter = 13U;
     state.close.input_hold_state = 14U;
     state.close.close_mode_state = 15U;
+    state.choice_chain_flags = 0x1234U;
 
     clear_legacy_dialog_choice_chain(state);
 
     test.expect_true(
         state.messages.front().choices.empty() &&
-            state.messages.back().choices.empty(),
-        "sub_40DBC0 releases every hotspot node across dialog owners"
+            state.messages.back().choices.empty() &&
+            state.choice_chain_flags == 0U,
+        "sub_40DBC0 releases hotspots and clears all sentinel dwords"
     );
     test.expect_true(
         state.control.selection_state == 11U &&

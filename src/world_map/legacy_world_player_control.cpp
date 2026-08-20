@@ -24,11 +24,6 @@ LegacyWorldPlayerControlResult prepare_legacy_world_player_control(
     LegacyWorldPlayerControlState& state
 ) noexcept {
     LegacyWorldPlayerControlResult result;
-    if (input_records.size() < kRequiredInputCount) {
-        result.status = LegacyWorldPlayerControlStatus::missing_input_records;
-        return result;
-    }
-
     if (request.raw_speed_toggle_state != 0U) {
         if (state.speed_mode >= kSpeedModeToggle.size()) {
             result.status = LegacyWorldPlayerControlStatus::invalid_speed_mode;
@@ -49,10 +44,38 @@ LegacyWorldPlayerControlResult prepare_legacy_world_player_control(
     }
 
     result.control_allowed = true;
+    if (input_records.size() < kRequiredInputCount) {
+        result.status = LegacyWorldPlayerControlStatus::missing_input_records;
+        return result;
+    }
     result.primary_fresh_press =
         is_fresh_press(input_records[kPrimaryInputIndex]);
     result.menu_fresh_press = is_fresh_press(input_records[kMenuInputIndex]);
     return result;
+}
+
+LegacyWorldControlArbitrationResult arbitrate_legacy_world_control(
+    const LegacyWorldPlayerControlResult& control,
+    const LegacyWorldControlArbitrationRequest& request,
+    LegacyWorldPlayerControlState& state
+) noexcept {
+    if (request.dialog_messages_active && control.menu_fresh_press) {
+        ++state.one_shot_interaction_state;
+    }
+    if (!request.choice_chain_active && control.primary_fresh_press) {
+        state.one_shot_interaction_state = 1U;
+    }
+
+    if (!request.choice_chain_active ||
+        (!control.primary_fresh_press && !control.menu_fresh_press)) {
+        return {};
+    }
+    if ((request.choice_chain_flags & 0x00001000U) != 0U) {
+        return {
+            LegacyWorldControlArbitrationAction::clear_choice_chain_and_return,
+        };
+    }
+    return {LegacyWorldControlArbitrationAction::return_from_player_control};
 }
 
 bool should_request_legacy_world_menu(

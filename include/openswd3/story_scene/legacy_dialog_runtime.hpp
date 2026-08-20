@@ -15,10 +15,17 @@ inline constexpr compat::i32 kLegacyDialogSurfaceWidth =
 inline constexpr compat::i32 kLegacyDialogSurfaceHeight =
     kLegacyDialogSurfaceRows * kLegacyDialogScale;
 
+inline constexpr compat::u32 kLegacyDialogChoiceChainReleaseOnPress =
+    0x00001000U;
+
 struct LegacyDialogRuntimeState {
     std::list<LegacyDialogMessage> messages;
     LegacyDialogControlState control;
     LegacyDialogCloseState close;
+    // dword_4C8BF4 is the +0x0C control dword of the five-dword
+    // choice-chain sentinel. sub_402F80 consumes bit 0x1000 before
+    // sub_40DBC0 clears it.
+    compat::u32 choice_chain_flags{};
 };
 
 struct LegacyDialogMessageReleaseResult {

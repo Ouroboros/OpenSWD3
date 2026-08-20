@@ -1,6 +1,6 @@
 # B7 · 地图、世界、角色、碰撞与寻路
 
-状态：执行中；单模块开始条件已满足
+状态：完成；114/114 函数均已独立闭环，无 `pending_audit`
 
 来源：`swd3.exe.lst` 完整汇编。汇编是唯一行为真值；伪码和符号只用于定位。
 
@@ -19,8 +19,15 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 113 项：44 项 `assembly_exact`、69 项 `platform_adapted`；仅
-`sub_402F80` 保持待审计。最新关闭 `sub_427300`：确认无参数、四处返回且调用者忽略 EAX，
+114 项全集复核已全部关闭：44 项 `assembly_exact`、70 项 `platform_adapted`，无
+`pending_audit`。最后关闭 `sub_402F80`：从完整 LST 独立核对无参数、13 个物理出口且
+调用者忽略 EAX，恢复隐藏开发热键、choice sentinel/列表仲裁、normal control gates、
+bit-14 阻挡绕过、facing/menu、collision/motion、遇敌与公共尾；SDL 接入真实 MAPS
+阈值/区域、二次 RNG、音频/地图资源清理与立即 battle 初始化。REVIEW 还统一了
+`[0x004CAE7C]` 的 mouse/direction/dialog selection owner，并把 idle phase 衰减移动到所有
+normal-control 早退之前。定向 CTest 6/6，Linux `core` 186/186、Linux `app` 192/192、
+Windows LLVM `app` 192/192 全通过，未启动游戏 EXE。此前 `sub_427300`：确认无参数、
+四处返回且调用者忽略 EAX，
 并逐基本块固定 cache-only NPC hover、选择链绝对优先、NPC/地图 Talk、方向合成与延迟输入
 复制。独立 REVIEW 纠正后半函数误用入口 camera 快照的问题：hover 用入口值，地图格和方向
 在原地址重借 live camera；同时把 input/player span check 下沉到每个原首次解引用点，保留
@@ -48,10 +55,9 @@ vector 容量，固定物理尾部与进程关闭手工释放由受检 span 和 
 完整 32 位移动步长写回，以及 135 个全一 dword 的 `0x21C` 对象槽重置；同时反查所有
 现代调用点并补回 `sub_40E0B0` 的初始步长 16。此前 `sub_40DB40/sub_40DB60/`
 `sub_40DBC0/sub_40DD60`：前三项
-恢复对话选择热点计数、严格开区间命中和全链释放，并确认五个相邻 dword 是一个
-sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化四条 `0x34 → 0x38`
-队伍属性记录，保留原汇编未写的尾部两字节。`sub_402F80` 仍有隐藏调试热键、完整入口
-审计等已登记缺口，不继承旧完成叙述。
+恢复对话选择热点计数、严格开区间命中和全链释放，并确认五个相邻 dword 是选择链
+sentinel/control 头，其中 `+0x0C` 的 `0x1000` 位由 `sub_402F80` 消费；后一项从 MAPS
+`+0x18` 精确物化四条 `0x34 → 0x38` 队伍属性记录，保留原汇编未写的尾部两字节。
 
 ## 状态与接口
 
@@ -75,7 +81,7 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
    地图角色、三组空间链，以及 `0x0040F2C1..0x0040F31B` 的受检格索引和 flags
    投影也已闭环。地图 22/24/500 的业务角色数为 49/29/1，Linux `core` 112/112、
    Windows LLVM `app` 116/116 CTest 通过。
-4. `[~]` 接入 `0x00402F80` 输入/移动、`0x004120B0` 世界更新绘制和软件 framebuffer；
+4. `[x]` 接入 `0x00402F80` 输入/移动、`0x004120B0` 世界更新绘制和软件 framebuffer；
    四方向输入、八方向覆盖顺序、列表重复、移动边界、动作/速度状态和
    `0x004120F9..0x00412197` 坐标更新已实现；`0x0040BB50` 八方向占位、
    `0x00404510` 三带可通行扫描和 `0x004040B0` 单轴绕行/对角裁剪也已闭环。

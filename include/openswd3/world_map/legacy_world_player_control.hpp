@@ -43,12 +43,40 @@ struct LegacyWorldPlayerControlResult {
     bool menu_fresh_press{};
 };
 
+enum class LegacyWorldControlArbitrationAction : compat::u8 {
+    continue_world_control,
+    return_from_player_control,
+    clear_choice_chain_and_return,
+};
+
+struct LegacyWorldControlArbitrationRequest {
+    bool dialog_messages_active{};
+    bool choice_chain_active{};
+    compat::u32 choice_chain_flags{};
+};
+
+struct LegacyWorldControlArbitrationResult {
+    LegacyWorldControlArbitrationAction action{
+        LegacyWorldControlArbitrationAction::continue_world_control
+    };
+};
+
 // sub_402F80 normal-path prelude: direct raw R toggle, one-shot reset,
 // transition gates, and the fresh-press predicates consumed by Talk/menu.
 [[nodiscard]] LegacyWorldPlayerControlResult
 prepare_legacy_world_player_control(
     const LegacyWorldPlayerControlRequest& request,
     std::span<const input_time_rng::LegacyInputRecord> input_records,
+    LegacyWorldPlayerControlState& state
+) noexcept;
+
+// 0x00403652..0x004036D1: merge delayed-primary/menu fresh presses with
+// dialog-message and choice-chain ownership. The +0 sentinel bit 0x1000
+// selects whether an intercepted press also releases the hotspot chain.
+[[nodiscard]] LegacyWorldControlArbitrationResult
+arbitrate_legacy_world_control(
+    const LegacyWorldPlayerControlResult& control,
+    const LegacyWorldControlArbitrationRequest& request,
     LegacyWorldPlayerControlState& state
 ) noexcept;
 

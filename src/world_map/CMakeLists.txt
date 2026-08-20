@@ -16,6 +16,7 @@ add_library(
         legacy_world_background.cpp
         legacy_world_builtin_colors.cpp
         legacy_world_cursor.cpp
+        legacy_world_debug_hotkeys.cpp
         legacy_world_debug_overlay.cpp
         legacy_world_flagged_roles.cpp
         legacy_world_frame_composition.cpp

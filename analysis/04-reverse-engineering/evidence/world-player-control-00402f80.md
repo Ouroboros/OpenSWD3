@@ -1,6 +1,6 @@
 # 普通世界玩家控制与遇敌协调汇编证据：0x00402F80
 
-状态：顶层控制流程已确认；正常路径的 R 键速度切换、控制门、面向角色检索、面向 Talk、菜单请求、方向输入、阻挡修正和碰撞 Talk 已接入普通世界帧；控制/对话列表仲裁、菜单模式 1 消费、剧情 VM、持久剧情位和遇敌运行时接线仍在 B7 收敛
+状态：`platform_adapted`、`assembly_exact`（有效输入/资产域）、`unit_tested`、`asset_verified`、`sdl_runtime_integrated`；`sub_402F80` 已按完整 LST 独立完成双向逐基本块闭环，B7 世界地图全集 114/114 无 `pending_audit`。原程序动态差分仍为 `blocked_runtime_oracle`。
 
 来源：`swd3.exe` 完整汇编
 
@@ -61,7 +61,7 @@ player = 0x004BABA8 + index × 0xD8
 
 多个分支直接调用 `Sleep(150..500 ms)` 做防连按，并在完成后提前返回。它们会改变帧时序，不能混入正常移动路径。
 
-P2 只把这组逻辑标记为开发功能；扫描码与每个开关的最终用户命名不影响正常世界规则，留待兼容选项设计时决定是否暴露。
+现代 `legacy_world_debug_hotkeys` 按相同 raw-key 顺序恢复了完整块：`58` 请求模式 2；`1D/9D + 43` 按原带符号余数切固定速度；`10` 执行调试动作；`1F/26` 请求两种模式 3；`3B/3C/3D` 切三个可见/碰撞状态；`0F+4E/4A` 把间隔限制到 `1..64`；`3E` 进入资源对话；`41` 增加 1000；`40` 遍历 `0x65..0x4AF` 并按 18 个类别加入十件。四键解锁弦严格为 `9D,36,C7,CF`；13 个物理 `retn`、9 个静态 `Sleep` 点和全部早退均已从 LST 机械复核。SDL 没有 Win32 资源对话和旧物品装载链，因此对应 port 明确返回非零 modal 结果/跳过物品定义，同时保留该帧早停、cursor state、遍历范围和释放可见性；这是 debug-only 平台适配，不影响默认关闭的正式路径。
 
 ## 4. 普通世界控制门控
 
@@ -221,19 +221,14 @@ SDL 普通世界入口现已先执行速度切换和控制门，再依次消费�
 直到角色重新落在 16 像素格对齐点才由帧后 owner 清零。真实地图 81 起点回归固定了右
 方向每帧 4 像素、连续四帧完成一个 16 像素格并清除 transition 的行为。
 
-这不等于整个 `sub_402F80` 已在 SDL 完成。`0x004C8BEC/0x004ACF48` 控制/对话列表的
-抢占及一次性交互计数仍由对话/UI owner 接线；菜单请求只准确产生模式
-`0x80000001`，模式 1 消费尚未实现；Talk 上下文已经建立，但剧情 VM 和持久剧情位 owner
-尚未消费；随机遇敌选择与切战斗内核已有独立实现，尚未接入本入口。隐藏调试热键也明确
-排除在本阶段之外。碰撞 Talk 的逐基本块证据见
-`world-collision-talk-00403ad7.md`，遇敌物理布局、选择和切战斗顺序见
-`random-encounter-0040d9e0-0040db39.md`。
+本轮 B7 全集审计没有继承旧完成叙述，而是从 `0x00402F80..0x004040A4` 重新建立控制流，再逐段回查现代实现。审计并修复了旧实现的四类真实差异：
 
-本轮 B7 全集审计没有继承上述完成叙述，而是重新核对 `0x00402F80` 的完整 LST。结论是
-该函数仍不能关闭：现有 C++ 已覆盖正常控制前奏、面向交互、方向输入、方向修正、碰撞
-Talk、移动状态和独立随机遇敌内核，但隐藏调试热键、控制/对话列表仲裁、随机遇敌的 SDL
-运行时接线及完整入口到出口追溯仍未完成。`0x004040B0/0x00404510/0x00404610/`
-`0x00404C00/0x00404FD0/0x004050B0` 已在本轮独立关闭，不能据此把调用者一并标记完成。
+- 对话消息存在时，`choice_chain_flags & 0x1000` 决定是否清链并当帧返回；无消息时还要按固定热点数量抢占普通 control。方向列表和鼠标命中现共用原 `[0x004CAE7C]` 的单一 owner，不再拆成两个无法互见的 selection index。
+- idle phase 的 `-2/clamp` 位于 transition 计算之后、所有后续 suppression/choice/facing/menu/global-lock 早退之前；现拆为 `prepare_legacy_world_player_motion_frame`，不会被 motion-only 路径吞掉或重复执行。配置速度键的 200 ms delay 也保留在 missing-input 原危险点之前。
+- story flag `0x14` 只绕过 `sub_4040B0` 地表阻挡调整，不绕过两次 collision Talk；global lock 则在方向读取之前直接走公共尾。本入口的 input/player/span 检查均下沉到原首次解引用点，保留此前清 one-shot、idle decay、selection 和其他副作用。
+- `coordinate_legacy_world_encounter` 已由 SDL 真实接入 story flag、MAPS 阈值/区域、玩家 tile、二次 RNG、音频停止、battle 初始化、地图 view 关闭和 NPC bit 清理；movement prelude → encounter → common tail 顺序保持不变，战斗激活后同帧阻止 story VM。
+
+菜单分支仍只负责精确产生 `0x80000001`；模式 1 的后续消费属于 `sub_40A570/0x00439FD0` 的特殊模式 owner，不是关闭本函数必须伪造的副作用。剧情 VM 的持续执行同理属于调用者后续阶段，但本函数建立 Talk、choice 和 battle 请求的写入均已接到对应现代 owner。碰撞 Talk 的逐基本块证据见 `world-collision-talk-00403ad7.md`，遇敌物理布局、选择和切战斗顺序见 `random-encounter-0040d9e0-0040db39.md`。
 
 ## 10. 随机遇敌选择
 
@@ -296,3 +291,10 @@ sub_40DA60([0x004C9A20], 0)
 - 随机遇敌必须保留两次随机调用的条件和顺序。
 - 战斗建立前的音频/资源清理、地图解除映射和 NPC 状态位清理顺序必须保留。
 - 调试热键要与正常控制逻辑隔离；是否在正式重写中默认启用属于产品决策，不得误删成未知死代码。
+
+## 13. 双向追溯与最终验证
+
+- LST → C++：机械统计并核对 13 个 `retn`、22 次 `sub_4372D0` 原始键查询（21 个字面扫描码加配置扫描码）、9 个静态 `Sleep` 调用，以及从隐藏块、normal gates、choice/facing/menu、direction/collision/motion、encounter 到公共尾的全部 call 类别。
+- C++ → LST：每个状态写、早退、阻塞延迟、Talk/battle side effect 都能回指本范围指令；只省略 `nullsub_1/wsprintfA` 纯诊断，并以受检 span、typed owner、RAII map bytes 和 SDL debug ports 替换裸指针/Win32 资源。
+- 定向 CTest：`story_scene.legacy_dialog_runtime`、`world_map.legacy_world_debug_hotkeys`、`world_map.legacy_world_player_control`、`world_map.legacy_world_player_motion`、`world_map.legacy_random_encounter`、`world_map.legacy_random_encounter_real` 共 6/6 通过；真实 MAPS 资产继续覆盖 11 个阈值组、115 条区域及候选表。
+- 完整门禁：Linux core 186/186、Linux app 192/192、Windows LLVM app 192/192；三者进程生命周期均为成功。13 个本轮代码/测试文件主动 full LSP 为零问题；未启动原版或 OpenSWD3 游戏 EXE。

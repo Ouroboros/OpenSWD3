@@ -1931,6 +1931,23 @@ add_test(
 )
 
 add_executable(
+    openswd3_world_map_legacy_world_debug_hotkeys_tests
+    unit/world_map/legacy_world_debug_hotkeys_test.cpp
+)
+target_include_directories(
+    openswd3_world_map_legacy_world_debug_hotkeys_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(
+    openswd3_world_map_legacy_world_debug_hotkeys_tests
+    PRIVATE openswd3_world_map
+)
+add_test(
+    NAME world_map.legacy_world_debug_hotkeys
+    COMMAND openswd3_world_map_legacy_world_debug_hotkeys_tests
+)
+
+add_executable(
     openswd3_world_map_legacy_world_player_control_tests
     unit/world_map/legacy_world_player_control_test.cpp
 )

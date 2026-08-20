@@ -88,6 +88,7 @@ void clear_legacy_dialog_choice_chain(
     for (LegacyDialogMessage& message : state.messages) {
         message.choices.clear();
     }
+    state.choice_chain_flags = 0U;
 }
 
 LegacyDialogRuntimeResult update_draw_legacy_dialogs(
@@ -192,6 +193,9 @@ LegacyDialogRuntimeResult update_draw_legacy_dialogs(
                 result.status = LegacyDialogRuntimeStatus::control_apply_failed;
                 return result;
             }
+        }
+        if (!message.choices.empty()) {
+            state.choice_chain_flags |= kLegacyDialogChoiceChainReleaseOnPress;
         }
 
         ports.composite_text_surface(

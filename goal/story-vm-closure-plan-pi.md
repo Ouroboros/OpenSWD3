@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，当前步骤 P0
+状态：执行中，P0 已完成，当前步骤 P1
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -48,6 +48,10 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 3. 补齐 B7 自身的真实缺口，包括 PATH VM 尚未恢复的分支。
 4. 达到原 PLAN 的 B7 模块移交条件后立即结束 P0；不继续扩大世界模块，不继续首场战斗，
    不再以 `TALK100` 的下一条未实现 opcode 作为工作边界。
+
+P0 已完成：world-map 锁定全集 114/114 已逐项归档为 `44 assembly_exact + 70
+platform_adapted + 0 pending_audit`；Linux core 186/186、Linux app 192/192、Windows
+LLVM app 192/192 完整门禁通过。P1 从此边界开始，不继承任何 VM handler 的完成状态。
 
 ### P1 · 建立完整剧情 VM 工作包
 

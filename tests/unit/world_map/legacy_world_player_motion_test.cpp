@@ -9,7 +9,10 @@ namespace {
 using openswd3::compat::i32;
 using openswd3::compat::u32;
 using openswd3::world_map::advance_legacy_world_player_and_camera;
+using openswd3::world_map::apply_legacy_world_player_motion_pre_encounter;
 using openswd3::world_map::apply_legacy_world_player_motion_state;
+using openswd3::world_map::finish_legacy_world_player_motion_frame;
+using openswd3::world_map::prepare_legacy_world_player_motion_frame;
 using openswd3::world_map::calculate_legacy_world_camera_rect;
 using openswd3::world_map::compute_legacy_world_movement_bounds;
 using openswd3::world_map::set_legacy_world_movement_step;
@@ -122,6 +125,40 @@ void test_idle_state(openswd3::test::Context& test) {
     test.expect_true(
         state.no_input_frame_count == 102U && state.idle_phase == 16U,
         "idle phase increments after frame one hundred and clamps to sixteen"
+    );
+}
+
+void test_encounter_split_order(openswd3::test::Context& test) {
+    LegacyWorldRoleRecord player{};
+    player.action.base_variant = 8U;
+    player.action.cached_base_variant = 8U;
+    LegacyWorldMovementRuntimeState state{
+        .idle_phase = 5U,
+        .idle_action_age = 11U,
+        .world_frame_count = 0xFFFFFFFFU,
+    };
+    prepare_legacy_world_player_motion_frame(state);
+    test.expect_equal(
+        state.idle_phase,
+        u32{3U},
+        "pre-control idle decay occurs before encounter and early-return gates"
+    );
+    apply_legacy_world_player_motion_pre_encounter(
+        player,
+        make_input(1, 0, 3U),
+        LegacyWorldMovementBounds{.player_right = true},
+        state,
+        {}
+    );
+    test.expect_true(
+        state.idle_phase == 3U && state.idle_action_age == 11U &&
+            state.world_frame_count == 0xFFFFFFFFU,
+        "pre-encounter motion does not repeat decay or tail counters"
+    );
+    finish_legacy_world_player_motion_frame(player, state);
+    test.expect_true(
+        state.idle_action_age == 0U && state.world_frame_count == 0U,
+        "common tail runs after encounter and preserves 32-bit wrap"
     );
 }
 
@@ -273,6 +310,7 @@ int main() {
     test_movement_step_setter(test);
     test_movement_bounds(test);
     test_idle_state(test);
+    test_encounter_split_order(test);
     test_transition_priority(test);
     test_speed_and_cached_action_quirks(test);
     test_coordinate_advance(test);

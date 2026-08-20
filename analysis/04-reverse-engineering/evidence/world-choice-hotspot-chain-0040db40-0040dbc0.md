@@ -39,13 +39,13 @@
 `[0x004C8BEC]` 发布为 next。链结束后将 `[0x004C8BE8..0x004C8BF8]` 五个 dword
 全部清零。
 
-对所有读写点复核后确认，这五个 dword 是一个五双字哨兵节点：`+0x04` 才是链头，
-其余四项没有独立消费者。它们不是对话控制状态，不能为了“对应四项清零”而误清选择
-接受、关闭或输入状态。现代 owner 把节点嵌入每条 `LegacyDialogMessage::choices`，没有
-裸 sentinel；`clear_legacy_dialog_choice_chain` 清空所有消息的热点 vector，RAII 同时
-完成节点释放和五双字 sentinel 消失。`step_world_interaction` 在原点击接受路径调用该
-owner；世界切换、总销毁和战斗 owner 的调用点则分别由会话 reset、进程资源销毁和战斗
-模块负责，不在 world-map 中伪造跨模块状态。
+跨函数复核后确认，这五个 dword 是选择链哨兵/控制头：`+0x04` 是链头；`+0x0C`
+会被 `sub_402F80` 读取位 `0x1000`，用于决定对话消息活跃时是否清链并当帧返回；其余
+三项没有独立消费者。现代 owner 把节点嵌入每条 `LegacyDialogMessage::choices`，以
+`LegacyDialogRuntimeState::choice_chain_flags` 明确承载 `+0x0C`；构建 choice chain 时
+置 `0x1000`，`clear_legacy_dialog_choice_chain` 同时清热点 vector 和该标志。鼠标接受和
+`sub_402F80` 键盘仲裁都调用同一清理 owner；世界切换、总销毁和战斗 owner 的调用点则
+分别由会话 reset、进程资源销毁和战斗模块负责，不伪造其他对话状态。
 
 ## 双向追溯与测试
 
@@ -54,7 +54,7 @@ owner；世界切换、总销毁和战斗 owner 的调用点则分别由会话 r
 - C++ → LST：两个查询 helper 的每条判断和返回都有上述指令依据；清链只清热点容器，
   没有增加对无关对话状态的写入；
 - UT 固定两节点 count、空链、第二节点命中、四条边界排除、miss 返回 terminal count、
-  多消息热点释放和无关对话状态保留；
+  多消息热点释放、`0x1000` 置位/清除和无关对话状态保留；
 - `coordinate_legacy_world_interaction` 组合 UT 继续固定 UI 点击绝对优先、选择序号写入、
   左键四 dword 清零和当帧早退。
 

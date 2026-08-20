@@ -40,6 +40,30 @@ struct LegacyWorldMovementOptions {
     compat::u32 value, compat::u32& movement_step
 ) noexcept;
 
+// sub_402F80 0x0040352E..0x0040354C: decay the idle phase after the
+// transition test but before every later normal-control gate and early return.
+void prepare_legacy_world_player_motion_frame(
+    LegacyWorldMovementRuntimeState& state
+) noexcept;
+
+// sub_402F80 0x00403DB6..0x00403F42: update idle/movement action and
+// transition state before the random-encounter tail.
+void apply_legacy_world_player_motion_pre_encounter(
+    LegacyWorldRoleRecord& player,
+    const LegacyWorldDirectionInputResult& input,
+    const LegacyWorldMovementBounds& bounds,
+    LegacyWorldMovementRuntimeState& state,
+    const LegacyWorldMovementOptions& options
+) noexcept;
+
+// sub_402F80 0x00404075..0x00404099: common frame counters reached after
+// every encounter outcome, including immediate battle entry.
+void finish_legacy_world_player_motion_frame(
+    const LegacyWorldRoleRecord& player, LegacyWorldMovementRuntimeState& state
+) noexcept;
+
+// Compatibility wrapper for consumers that do not insert encounter work
+// between the two physical sub_402F80 regions.
 void apply_legacy_world_player_motion_state(
     LegacyWorldRoleRecord& player,
     const LegacyWorldDirectionInputResult& input,

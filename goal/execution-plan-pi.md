@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v236
+版本：v237
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：B7.1 · 地图、世界、角色与碰撞最小纵向闭环
+当前步骤：剧情 VM 追加 PLAN P1 · 建立完整剧情 VM 工作包
 
 ## 0. 执行约定
 
@@ -1292,4 +1292,21 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     `44 assembly_exact + 69 platform_adapted + 1 pending_audit`；B7 唯一剩余精确停点为
     `0x00402F80 sub_402F80`。
 
-当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。
+- B7 最后完成 `0x00402F80 sub_402F80` 独立闭环。完整物理范围
+    `0x00402F80..0x004040A4` 与唯一调用点从零重建：无参数、13 个 plain `retn`、caller
+    忽略 EAX；隐藏开发热键的四键解锁、raw scan 顺序、9 个静态 Sleep 点、模式/显示/
+    collision/间隔/资源/金钱/物品分支均恢复。normal 路径补齐 dialog message 与 choice
+    sentinel `0x1000` 仲裁、热点数量抢占、列表方向、global lock、story flag `0x14`
+    仅绕过阻挡调整、facing/menu/collision/motion 以及遇敌公共尾。反复 REVIEW 纠正三项
+    差异：mouse/direction/dialog 统一使用 `[0x004CAE7C]` 单一 selection owner；idle phase
+    衰减移动到所有 normal-control 早退之前；speed 200 ms delay 保留在 missing-input 原
+    危险点之前。SDL 以真实 MAPS 阈值/区域、二次 RNG、story flags、音频停止、battle
+    初始化、地图 view 与角色状态 owner 接入遇敌；Win32-only debug dialog/item 链通过窄
+    port 明确平台适配，不污染默认关闭的正式路径。定向 CTest 6/6；Linux `core` 186/186、
+    Linux `app` 192/192、Windows LLVM `app` 192/192 全部通过，三进程生命周期成功且未
+    启动游戏 EXE。B7 全集最终为 `44 assembly_exact + 70 platform_adapted + 0
+    pending_audit`，114/114 达到模块移交条件。
+
+B7 P0 有限收口完成。当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md)
+只执行 P1，建立 198 opcode / 146 唯一 handler 的完整剧情 VM 工作包；不并行回到延期的
+`libffmpeg`，也不按剧情命中顺序临时补 opcode。

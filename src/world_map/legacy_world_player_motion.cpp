@@ -136,12 +136,8 @@ LegacyWorldMovementBounds compute_legacy_world_movement_bounds(
     };
 }
 
-void apply_legacy_world_player_motion_state(
-    LegacyWorldRoleRecord& player,
-    const LegacyWorldDirectionInputResult& input,
-    const LegacyWorldMovementBounds& bounds,
-    LegacyWorldMovementRuntimeState& state,
-    const LegacyWorldMovementOptions& options
+void prepare_legacy_world_player_motion_frame(
+    LegacyWorldMovementRuntimeState& state
 ) noexcept {
     if (state.no_input_frame_count == 0U) {
         state.idle_phase -= 2U;
@@ -149,7 +145,15 @@ void apply_legacy_world_player_motion_state(
             state.idle_phase = 0U;
         }
     }
+}
 
+void apply_legacy_world_player_motion_pre_encounter(
+    LegacyWorldRoleRecord& player,
+    const LegacyWorldDirectionInputResult& input,
+    const LegacyWorldMovementBounds& bounds,
+    LegacyWorldMovementRuntimeState& state,
+    const LegacyWorldMovementOptions& options
+) noexcept {
     player.action.variant_delta = input.state.direction;
     if (input.delta_x == 0 && input.delta_y == 0) {
         update_idle_state(player, state);
@@ -158,13 +162,31 @@ void apply_legacy_world_player_motion_state(
         select_axis_transitions(input, bounds, state);
         update_movement_action(player, input, state, options);
     }
+}
 
+void finish_legacy_world_player_motion_frame(
+    const LegacyWorldRoleRecord& player, LegacyWorldMovementRuntimeState& state
+) noexcept {
     ++state.idle_action_age;
     if (player.action.base_variant != 0U &&
         player.action.base_variant != 0x34U) {
         state.idle_action_age = 0U;
     }
     ++state.world_frame_count;
+}
+
+void apply_legacy_world_player_motion_state(
+    LegacyWorldRoleRecord& player,
+    const LegacyWorldDirectionInputResult& input,
+    const LegacyWorldMovementBounds& bounds,
+    LegacyWorldMovementRuntimeState& state,
+    const LegacyWorldMovementOptions& options
+) noexcept {
+    prepare_legacy_world_player_motion_frame(state);
+    apply_legacy_world_player_motion_pre_encounter(
+        player, input, bounds, state, options
+    );
+    finish_legacy_world_player_motion_frame(player, state);
 }
 
 void advance_legacy_world_player_and_camera(
