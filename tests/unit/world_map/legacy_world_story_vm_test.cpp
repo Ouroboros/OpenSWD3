@@ -46,6 +46,7 @@ using openswd3::world_map::OP_20_SCHEDULE_ROLE_PATHS;
 using openswd3::world_map::OP_21_JUMP_IF_GLOBAL_BIT_SET;
 using openswd3::world_map::OP_22_JUMP_IF_GLOBAL_BIT_CLEAR;
 using openswd3::world_map::OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET;
+using openswd3::world_map::OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -3872,6 +3873,155 @@ void test_jump_if_all_global_bits_set_protocol(
     );
 }
 
+void test_jump_if_any_global_bit_set_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET,
+        static_cast<u16>(OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET | 0x4000U),
+        static_cast<u16>(OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET | 0x8000U),
+        static_cast<u16>(OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET | 0xC000U)
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0x0123U);
+        write_u16(fixture.state.window, 4U, 0x0456U);
+        write_u16(fixture.state.window, 6U, 0xFF00U);
+        write_u32(fixture.state.window, 8U, 0x12345678U);
+        openswd3::world_map::set_legacy_world_story_flag(
+            fixture.state, 0x0456U
+        );
+        write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.talk_data_offset == 0x12345678U &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode ==
+                    OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET &&
+                fixture.ports.data_load_count == 1U,
+            "opcode 24 aliases jump when any listed global bit is set"
+        );
+    }
+
+    Fixture all_clear;
+    prime_loaded_instruction(all_clear, OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET);
+    write_u16(all_clear.state.window, 2U, 0x0123U);
+    write_u16(all_clear.state.window, 4U, 0x0456U);
+    write_u16(all_clear.state.window, 6U, 0xFF00U);
+    write_u32(all_clear.state.window, 8U, 0x12345678U);
+    write_u16(all_clear.state.window, 12U, OP_1025);
+    const auto all_clear_result = all_clear.step();
+    test.expect_true(
+        all_clear_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            all_clear_result.opcode == OP_1025 &&
+            all_clear_result.executed_instruction_count == 2U &&
+            all_clear_result.direct_audio_service_count == 0U &&
+            all_clear.context.instruction_offset == 12U &&
+            all_clear.state.previous_opcode ==
+                OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET &&
+            all_clear.ports.data_load_count == 0U,
+        "opcode 24 advances over the full list when every bit is clear"
+    );
+
+    Fixture empty;
+    prime_loaded_instruction(empty, OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET);
+    write_u16(empty.state.window, 2U, 0xFF00U);
+    write_u32(empty.state.window, 4U, 0x22223333U);
+    write_u16(empty.state.window, 8U, OP_1025);
+    const auto empty_result = empty.step();
+    test.expect_true(
+        empty_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            empty_result.opcode == OP_1025 &&
+            empty_result.direct_audio_service_count == 0U &&
+            empty.context.instruction_offset == 8U &&
+            empty.state.previous_opcode ==
+                OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET &&
+            empty.ports.data_load_count == 0U,
+        "opcode 24 treats an empty bit list as false"
+    );
+
+    Fixture load_failure;
+    prime_loaded_instruction(load_failure, OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET);
+    write_u16(load_failure.state.window, 2U, 0x0123U);
+    write_u16(load_failure.state.window, 4U, 0xFF00U);
+    write_u32(load_failure.state.window, 6U, 0x44445555U);
+    openswd3::world_map::set_legacy_world_story_flag(
+        load_failure.state, 0x0123U
+    );
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.direct_audio_service_count == 1U &&
+            load_failure.context.talk_data_offset == 0x44445555U &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET &&
+            !load_failure.state.window_loaded,
+        "opcode 24 preserves loader effects before taken-branch I/O failure"
+    );
+
+    Fixture missing_target;
+    missing_target.context.instruction_offset = 0x7FF8U;
+    missing_target.context.talk_data_offset = 0x1111U;
+    missing_target.state.loaded_file_number = 1U;
+    missing_target.state.loaded_data_offset = 0x1111U;
+    missing_target.state.window_loaded = true;
+    missing_target.state.previous_opcode = 0x55U;
+    write_u16(
+        missing_target.state.window,
+        0x7FF8U,
+        OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET
+    );
+    write_u16(missing_target.state.window, 0x7FFAU, 0x0123U);
+    write_u16(missing_target.state.window, 0x7FFCU, 0xFF00U);
+    openswd3::world_map::set_legacy_world_story_flag(
+        missing_target.state, 0x0123U
+    );
+    const auto missing_target_result = missing_target.step();
+    test.expect_true(
+        missing_target_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_target.context.instruction_offset == 0x7FF8U &&
+            missing_target.state.previous_opcode == 0x55U &&
+            missing_target.ports.data_load_count == 0U,
+        "opcode 24 taken branch reads the target only after FF00"
+    );
+
+    Fixture sequential_tail;
+    sequential_tail.context.instruction_offset = 0x7FF8U;
+    sequential_tail.context.talk_data_offset = 0x1111U;
+    sequential_tail.state.loaded_file_number = 1U;
+    sequential_tail.state.loaded_data_offset = 0x1111U;
+    sequential_tail.state.window_loaded = true;
+    sequential_tail.state.previous_opcode = 0x55U;
+    write_u16(
+        sequential_tail.state.window,
+        0x7FF8U,
+        OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET
+    );
+    write_u16(sequential_tail.state.window, 0x7FFAU, 0x0123U);
+    write_u16(sequential_tail.state.window, 0x7FFCU, 0xFF00U);
+    const auto sequential_tail_result = sequential_tail.step();
+    test.expect_true(
+        sequential_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            sequential_tail_result.executed_instruction_count == 1U &&
+            sequential_tail.context.instruction_offset == 0x8002U &&
+            sequential_tail.state.previous_opcode ==
+                OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET &&
+            sequential_tail.ports.data_load_count == 0U,
+        "opcode 24 no-branch skips an unavailable target before fetch fails"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -6170,6 +6320,7 @@ int main(const int argument_count, char** arguments) {
     test_schedule_role_paths_protocol(test);
     test_jump_if_global_bit_protocol(test);
     test_jump_if_all_global_bits_set_protocol(test);
+    test_jump_if_any_global_bit_set_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);

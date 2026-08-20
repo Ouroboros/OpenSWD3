@@ -1,6 +1,6 @@
 # 剧情 VM P1 完整 handler 工作包
 
-状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 18/146。
+状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 19/146。
 
 唯一行为依据：`swd3.exe_export_for_ai/swd3.exe.lst`
 
@@ -110,11 +110,11 @@ P1 初始生成硬断言：
 当前导航统计：
 
 - 人工语义：P1初始125 opcode；P2随handler增量补入opcode169后当前126 opcode，仍落在100个handler，46个handler尚无人工语义行；
-- P1 初始现代 C++：50 个 case label；40 个 handler 全有 case、4 个仅部分有 case、102 个无 case；P2 当前为 64 个 case、49 个全有、2 个部分、95 个无 case；
+- P1 初始现代 C++：50 个 case label；40 个 handler 全有 case、4 个仅部分有 case、102 个无 case；P2 当前为 65 个 case、50 个全有、2 个部分、94 个无 case；
 - 当前 TALK 资产：143 个 opcode 有观察记录、55 个未观察；对应 109 个 handler 有任一观察、37 个完全未观察；
 - static triage：146 个 handler 当前没有 unresolved edge，但该 CFG 明确是过近似导航，不证明分支可行性或业务语义。
 
-因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前十八行；生成器现在硬断言 18 closed / 128 pending，并拒绝无 override 的状态漂移。
+因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前十九行；生成器现在硬断言 19 closed / 127 pending，并拒绝无 override 的状态漂移。
 
 ## 6. 候选端口依赖
 
@@ -137,7 +137,7 @@ battle            2
 
 ## 7. P2 当前停止线
 
-前十八组已经独立关闭：
+前十九组已经独立关闭：
 
 - 默认非法入口 `0x0042D230`：[`story-vm-default-invalid-0042d230.md`](story-vm-default-invalid-0042d230.md)；
 - 共享对话入口 `0x00427B8F` 的 `1-6,89-90`：[`story-vm-dialog-handler-00427b8f.md`](story-vm-dialog-handler-00427b8f.md)；
@@ -156,13 +156,14 @@ battle            2
 - all-role path release 入口 `0x004284C2` 的 opcode19：[`story-vm-role-path-release-all-004284c2.md`](story-vm-role-path-release-all-004284c2.md)；
 - role-path schedule共享入口 `0x0042ADB7` 的opcode20/169：[`story-vm-role-path-schedule-0042adb7.md`](story-vm-role-path-schedule-0042adb7.md)；
 - global-bit conditional jump共享入口`0x00428533`的opcode21/22：[`story-vm-global-bit-conditional-jump-00428533.md`](story-vm-global-bit-conditional-jump-00428533.md)；
-- all-global-bits conditional jump入口`0x0042857F`的opcode23：[`story-vm-all-global-bits-conditional-jump-0042857f.md`](story-vm-all-global-bits-conditional-jump-0042857f.md)。
+- all-global-bits conditional jump入口`0x0042857F`的opcode23：[`story-vm-all-global-bits-conditional-jump-0042857f.md`](story-vm-all-global-bits-conditional-jump-0042857f.md)；
+- any-global-bit conditional jump入口`0x004285ED`的opcode24：[`story-vm-any-global-bit-conditional-jump-004285ed.md`](story-vm-any-global-bit-conditional-jump-004285ed.md)。
 
 下一组严格是：
 
 ```text
-entry = 0x004285ED
-opcode = 24
+entry = 0x0042865B
+opcode = 25
 ```
 
-opcode24尚未独立审计；现有导航语义与未实现状态均不继承完成状态。
+opcode25尚未独立审计；现有C++与导航语义均不继承完成状态。

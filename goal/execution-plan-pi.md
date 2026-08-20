@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v260
+版本：v261
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x004285ED` handler（opcode 24）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042865B` handler（opcode 25）
 
 ## 0. 执行约定
 
@@ -1498,6 +1498,14 @@ B7 P0 有限收口完成。
     workpack当前18/146，即
     `3 assembly_exact + 15 platform_adapted + 128 pending_audit`。
 
+- 剧情VM P2第十九组`0x004285ED` / opcode24完成独立闭环。复用23的FF00列表扫描器，
+    同时维护all/any谓词，恢复any-set跳转、empty/all-clear顺序路径、完整非短路扫描与
+    phase-specific target读取。四raw alias、I/O失败与target窗口尾通过；完整58,782条资产
+    确认opcode24零命中，因此记录`asset_absence_verified`而不虚构real replay。定向三项
+    剧情VM CTest 3/3、Linux core 186/186、Linux app 192/192均以exit 0通过；Windows依v261
+    留到P3，未启动游戏EXE。workpack当前19/146，即
+    `3 assembly_exact + 16 platform_adapted + 127 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x004285ED` 的 opcode24 handler；现有导航语义与未实现状态均不继承完成状态。
+`0x0042865B` 的 opcode25 handler；现有C++与导航语义均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
