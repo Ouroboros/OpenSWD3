@@ -39,7 +39,7 @@ EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
 EXPECTED_MODERN_CASE_COUNT = 56
-EXPECTED_CLOSED_HANDLER_COUNT = 4
+EXPECTED_CLOSED_HANDLER_COUNT = 5
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -60,6 +60,11 @@ CLOSURE_OVERRIDES = {
     "0x00427E9A": (
         "assembly_exact",
         "story-vm-dialog-lifetime-00427e9a.md",
+        "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated",
+    ),
+    "0x00427EC2": (
+        "assembly_exact",
+        "story-vm-dialog-flag-clear-00427ec2.md",
         "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated",
     ),
 }
@@ -533,7 +538,7 @@ def main() -> None:
     print(f"wrote {RUNTIME_OUTPUT.relative_to(RESEARCH_ROOT)} ({len(runtime)} rows)")
     print(
         "locked P1 scope: 198 explicit opcodes, 146 handlers, "
-        "25 shared entries, 56 modern case labels; closure 4/146"
+        "25 shared entries, 56 modern case labels; closure 5/146"
     )
 
 

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v242
+版本：v243
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00427EC2` handler（opcode 9）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00427ED0` handler（opcode 10）
 
 ## 0. 执行约定
 
@@ -1354,5 +1354,12 @@ B7 P0 有限收口完成。
     通过，三进程均 exit 0，未启动游戏 EXE。workpack 当前 4/146，即
     `2 assembly_exact + 2 platform_adapted + 142 pending_audit`；全局 common_join 仍 pending。
 
+- 剧情 VM P2 第五组 `0x00427EC2` / opcode9 完成独立闭环。固定 bit30 clear、IP+2、
+    previous=9、无 audio 与同帧 continue；修复旧 case 遗漏 previous 的差异。四 raw alias、
+    `9→default`、`9→dialog2` 与 `TALK1.DAT@0x451E` 真记录通过；1537/1537 条 TALK 记录
+    均为长度2。定向 story VM 3/3、Linux core 186/186、Linux app 192/192、Windows LLVM
+    app 192/192 通过，三进程均 exit 0，未启动游戏 EXE。workpack 当前 5/146，即
+    `3 assembly_exact + 2 platform_adapted + 141 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00427EC2` 的 opcode9；不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
+`0x00427ED0` 的 opcode10；不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

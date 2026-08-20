@@ -130,6 +130,7 @@ IDA 伪码只用于定位函数、辅助阅读和提出假设。任何类型、�
 - [剧情 VM 共享对话 handler `0x00427B8F`](04-reverse-engineering/evidence/story-vm-dialog-handler-00427b8f.md)
 - [剧情 VM 对话控制 bit31 清除 handler `0x00427E72`](04-reverse-engineering/evidence/story-vm-dialog-flag-clear-00427e72.md)
 - [剧情 VM 对话 lifetime 暂存 handler `0x00427E9A`](04-reverse-engineering/evidence/story-vm-dialog-lifetime-00427e9a.md)
+- [剧情 VM 对话控制 bit30 清除 handler `0x00427EC2`](04-reverse-engineering/evidence/story-vm-dialog-flag-clear-00427ec2.md)
 - [剧情 VM 146 个 handler 审计工作行](04-reverse-engineering/inventory/story-vm-handler-workpack.tsv)
 - [剧情 VM 17 条非 handler 运行路径](04-reverse-engineering/inventory/story-vm-runtime-paths.tsv)
 - [剧情 VM 指令长度层与 TALK 线性前缀验证](04-reverse-engineering/evidence/story-vm-length-and-talk-linear-probe.md)

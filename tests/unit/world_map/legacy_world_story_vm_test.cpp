@@ -623,6 +623,61 @@ void test_clear_dialog_control_flag(openswd3::test::Context& test) {
     );
 }
 
+void test_clear_dialog_control_flag_bit30(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        0x0009U, 0x4009U, 0x8009U, 0xC009U
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 12U);
+        fixture.state.text_control_flags = 0xD2345678U;
+        fixture.state.previous_opcode = 0x55U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == 12U &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.text_control_flags == 0x92345678U &&
+                fixture.state.previous_opcode == 9U &&
+                result.direct_audio_service_count == 0U,
+            "opcode 9 aliases clear only bit 30 and continue without audio"
+        );
+    }
+
+    Fixture chained;
+    prime_loaded_instruction(chained, 9U);
+    write_u16(chained.state.window, 2U, 194U);
+    const auto result = chained.step();
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.executed_instruction_count == 2U &&
+            result.invalid_opcode_previous == 9U &&
+            result.invalid_opcode_current == 194U &&
+            chained.context.instruction_offset == 2U,
+        "opcode 9 publishes previous before the same-call next fetch"
+    );
+
+    Fixture dialog;
+    prime_loaded_instruction(dialog, 9U);
+    write_u16(dialog.state.window, 2U, 2U);
+    write_u16(dialog.state.window, 4U, 0x00F8U);
+    write_u16(dialog.state.window, 6U, 0x232DU);
+    dialog.state.window[8U] = '%';
+    dialog.state.window[9U] = 'Q';
+    const auto dialog_result = dialog.step();
+    test.expect_true(
+        dialog_result.status == LegacyWorldStoryVmStatus::yielded &&
+            dialog_result.executed_instruction_count == 2U &&
+            dialog.context.instruction_offset == 10U &&
+            (dialog.dialogs.messages.front().record.flags & 0x400U) != 0U &&
+            dialog.state.text_control_flags == 0xFFFFFFFFU &&
+            dialog.state.previous_opcode == 2U,
+        "same-call dialog observes opcode 9 bit 30 clear before resetting it"
+    );
+}
+
 void test_stage_dialog_lifetime(openswd3::test::Context& test) {
     constexpr std::array<u16, 4U> raw_aliases{
         0x0008U, 0x4008U, 0x8008U, 0xC008U
@@ -1971,6 +2026,39 @@ void test_real_clear_dialog_control_flag_record(
     );
 }
 
+void test_real_clear_dialog_control_flag_bit30_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0000451E);
+    std::array<u8, 2U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    test.expect_true(
+        static_cast<bool>(input) && read_u16(instruction, 0U) == 9U,
+        "real opcode 9 physical record is a two-byte instruction"
+    );
+    if (!input) {
+        return;
+    }
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, 9U);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 2U, 12U);
+    const auto result = fixture.step();
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 2U &&
+            fixture.state.text_control_flags == 0xBFFFFFFFU &&
+            fixture.state.previous_opcode == 9U,
+        "real opcode 9 record replays the bit-30 clear contract"
+    );
+}
+
 void test_real_stage_dialog_lifetime_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -3209,6 +3297,7 @@ int main(const int argument_count, char** arguments) {
     test_shared_dialog_handler_variants(test);
     test_shared_dialog_raw_aliases(test);
     test_clear_dialog_control_flag(test);
+    test_clear_dialog_control_flag_bit30(test);
     test_stage_dialog_lifetime(test);
     test_dialog_text_preparation_and_mode_zero_metrics(test);
     test_dialog_anchor_center_delay_and_reset(test);
@@ -3241,6 +3330,7 @@ int main(const int argument_count, char** arguments) {
     } else if (argument_count == 2) {
         const std::filesystem::path root{arguments[1]};
         test_real_clear_dialog_control_flag_record(test, root);
+        test_real_clear_dialog_control_flag_bit30_record(test, root);
         test_real_stage_dialog_lifetime_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);

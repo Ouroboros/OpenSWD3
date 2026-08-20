@@ -1,6 +1,6 @@
 # 剧情 VM P1 完整 handler 工作包
 
-状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 4/146。
+状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 5/146。
 
 唯一行为依据：`swd3.exe_export_for_ai/swd3.exe.lst`
 
@@ -114,7 +114,7 @@ P1 初始生成硬断言：
 - 当前 TALK 资产：143 个 opcode 有观察记录、55 个未观察；对应 109 个 handler 有任一观察、37 个完全未观察；
 - static triage：146 个 handler 当前没有 unresolved edge，但该 CFG 明确是过近似导航，不证明分支可行性或业务语义。
 
-因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前四行；生成器现在硬断言 4 closed / 142 pending，并拒绝无 override 的状态漂移。
+因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前五行；生成器现在硬断言 5 closed / 141 pending，并拒绝无 override 的状态漂移。
 
 ## 6. 候选端口依赖
 
@@ -137,18 +137,19 @@ battle            2
 
 ## 7. P2 当前停止线
 
-前四组已经独立关闭：
+前五组已经独立关闭：
 
 - 默认非法入口 `0x0042D230`：[`story-vm-default-invalid-0042d230.md`](story-vm-default-invalid-0042d230.md)；
 - 共享对话入口 `0x00427B8F` 的 `1-6,89-90`：[`story-vm-dialog-handler-00427b8f.md`](story-vm-dialog-handler-00427b8f.md)；
 - bit31 清除入口 `0x00427E72` 的 opcode7：[`story-vm-dialog-flag-clear-00427e72.md`](story-vm-dialog-flag-clear-00427e72.md)；
-- lifetime 暂存入口 `0x00427E9A` 的 opcode8：[`story-vm-dialog-lifetime-00427e9a.md`](story-vm-dialog-lifetime-00427e9a.md)。
+- lifetime 暂存入口 `0x00427E9A` 的 opcode8：[`story-vm-dialog-lifetime-00427e9a.md`](story-vm-dialog-lifetime-00427e9a.md)；
+- bit30 清除入口 `0x00427EC2` 的 opcode9：[`story-vm-dialog-flag-clear-00427ec2.md`](story-vm-dialog-flag-clear-00427ec2.md)。
 
 下一组严格是：
 
 ```text
-entry = 0x00427EC2
-opcode = 9
+entry = 0x00427ED0
+opcode = 10
 ```
 
-opcode9 使用另一 mask 并共用部分尾部；不得从 opcode7 的相似形状继承结论。
+opcode10 涉及 role selector 与动作更新；必须从完整 LST 独立审计。

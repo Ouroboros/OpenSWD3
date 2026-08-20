@@ -1124,6 +1124,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.text_control_flags &= 0xBFFFFFFFU;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
             continue;
 
         case 10U:
