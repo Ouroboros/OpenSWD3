@@ -27,6 +27,9 @@ COVERAGE_INPUT = INVENTORY_ROOT / "story-vm-talk-opcode-coverage.tsv"
 CONTROL_TRANSFER_INPUT = INVENTORY_ROOT / "story-vm-control-transfer-rules.tsv"
 OWNERSHIP_INPUT = INVENTORY_ROOT / "module-function-ownership.tsv"
 STORY_VM_SOURCE = PROJECT_ROOT / "src" / "world_map" / "legacy_world_story_vm.cpp"
+STORY_VM_HEADER = (
+    PROJECT_ROOT / "include" / "openswd3" / "world_map" / "legacy_world_story_vm.hpp"
+)
 SEMANTIC_INPUTS = tuple(
     INVENTORY_ROOT / f"story-vm-opcode-semantics-{start:03d}-{start + 24:03d}.tsv"
     for start in range(0, 125, 25)
@@ -38,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 56
-EXPECTED_CLOSED_HANDLER_COUNT = 7
+EXPECTED_MODERN_CASE_COUNT = 57
+EXPECTED_CLOSED_HANDLER_COUNT = 8
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -76,6 +79,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-role-variant-delta-00427feb.md",
         "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+    ),
+    "0x0042811F": (
+        "platform_adapted",
+        "story-vm-role-position-0042811f.md",
+        "assembly_exact;unit_tested;platform_adapted;sdl_runtime_integrated",
     ),
 }
 
@@ -126,11 +134,29 @@ def parse_decimal(value: str, field: str) -> int:
 
 
 def modern_cases() -> set[int]:
-    text = STORY_VM_SOURCE.read_text(encoding="utf-8")
-    values = {
-        parse_decimal(match.group(1), "modern case label")
-        for match in re.finditer(r"^\s*case\s+(\d+)U\s*:", text, re.MULTILINE)
+    source_text = STORY_VM_SOURCE.read_text(encoding="utf-8")
+    header_text = STORY_VM_HEADER.read_text(encoding="utf-8")
+    opcode_constants = {
+        match.group(1): parse_decimal(match.group(2), "opcode constant")
+        for match in re.finditer(
+            r"^inline constexpr compat::u16 (OP_\d+(?:_[A-Z0-9_]+)?) = (\d+)U;$",
+            header_text,
+            re.MULTILINE,
+        )
     }
+    values: set[int] = set()
+    for match in re.finditer(
+        r"^\s*case\s+((?:\d+U)|(?:OP_\d+(?:_[A-Z0-9_]+)?))\s*:",
+        source_text,
+        re.MULTILINE,
+    ):
+        label = match.group(1)
+        if label.endswith("U") and label[:-1].isdigit():
+            values.add(parse_decimal(label[:-1], "modern case label"))
+            continue
+        if label not in opcode_constants:
+            raise InventoryError(f"unknown opcode case constant: {label}")
+        values.add(opcode_constants[label])
     if len(values) != EXPECTED_MODERN_CASE_COUNT:
         raise InventoryError(
             f"expected {EXPECTED_MODERN_CASE_COUNT} modern cases, got {len(values)}"
@@ -548,7 +574,7 @@ def main() -> None:
     print(f"wrote {RUNTIME_OUTPUT.relative_to(RESEARCH_ROOT)} ({len(runtime)} rows)")
     print(
         "locked P1 scope: 198 explicit opcodes, 146 handlers, "
-        "25 shared entries, 56 modern case labels; closure 7/146"
+        "25 shared entries, 57 modern case labels; closure 8/146"
     )
 
 

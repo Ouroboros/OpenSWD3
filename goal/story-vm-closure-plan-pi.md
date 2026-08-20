@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x0042811F`（opcode 12）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x0042822A`（opcode 13）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -17,11 +17,11 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 
 - 原版剧情 VM 有 198 个显式 opcode，对应 146 个唯一汇编 handler 入口。
 - 其中 25 个入口由多个 opcode 共享；共享入口不代表各 opcode 语义相同。
-- 当前 C++ 接入 56 个显式 opcode。
-- 当前资产静态控制流观察到 143 个 opcode，其中仍有 87 个尚未实现。
+- 当前 C++ 接入 57 个显式 opcode。
+- 当前资产静态控制流观察到 143 个 opcode，其中仍有 86 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
 - `0..124` 已有人工汇编语义；`125..193` 目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
-- 当前已实现的 56 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
+- 当前已实现的 57 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
 
@@ -69,10 +69,9 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、125 行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定 17 条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2 前七行已独立关闭：默认非法与共享对话两组、
-opcode7/9 的 bit31/bit30 clear、opcode8 lifetime 暂存，以及 opcode10/11 的 live-role action、
-missing-role MAPS patch 与 unsafe controlled-role 边界。当前为 7/146；下一行只审计
-`0x0042811F` 的 opcode12。
+值、窗口、公共 join/yield 与返回路径。P2 前八行已独立关闭：默认非法与共享对话两组、
+opcode7/9 的 bit31/bit30 clear、opcode8 lifetime、opcode10/11 action，以及 opcode12 role
+position/path schedule。当前为 8/146；下一行只审计 `0x0042822A` 的 opcode13。
 
 ### P2 · 按 handler 组逆向、实现和验证
 
@@ -118,6 +117,7 @@ missing-role MAPS patch 与 unsafe controlled-role 边界。当前为 7/146；�
 - 不把外部模块阻塞当成 VM handler 未实现的理由。
 - 不为推进剧情而伪造菜单、商店、战斗、音视频等外部 owner 的成功结果。
 - 本 PLAN 执行期间不并行扩大首场战斗或回到延期的 `libffmpeg` 后端。
+- opcode 在 C++ 控制流中不得裸写数字 case 或跨指令比较：语义已独立收敛时使用 `OP_<编号>_<语义>`；尚未审计或语义不明时只使用 `OP_<编号>`，待该 handler 闭环后再重命名。
 
 ## 6. 完成与退出
 

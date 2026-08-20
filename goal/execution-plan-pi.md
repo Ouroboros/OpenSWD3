@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v245
+版本：v246
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042811F` handler（opcode 12）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042822A` handler（opcode 13）
 
 ## 0. 执行约定
 
@@ -1379,5 +1379,16 @@ B7 P0 有限收口完成。
     exit 0，未启动游戏 EXE。workpack 当前 7/146，即
     `3 assembly_exact + 4 platform_adapted + 139 pending_audit`。
 
+- 剧情 VM P2 第八组 `0x0042811F` / opcode12 完成独立闭环。新增语义常量
+    `OP_12_SET_ROLE_POSITION`，并确立“已知语义用 `OP_<编号>_<语义>`、未知暂用
+    `OP_<编号>`”规则。恢复 FFF0 lookup、raw-selector cache reset、16-bit 坐标左移回绕、
+    `sub_42DAF0` typed story-path schedule、ordinary missing consume、controlled bit15、IP+8、
+    previous=12 与同帧继续；补齐 invalid controlled/runtime/两类短载荷危险点顺序。四 raw alias
+    与组合测试通过；58,782 条物理 TALK 记录中 opcode12 为0，因此不声称 real_asset_tested。
+    定向 story VM 3/3、Linux core 186/186、Linux app 192/192、Windows LLVM app
+    192/192 均以 exit 0 通过，未启动游戏 EXE。workpack 当前 8/146，即
+    `3 assembly_exact + 5 platform_adapted + 138 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042811F` 的 opcode12；不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
+`0x0042822A` 的 opcode13；语义未审计前常量保持 `OP_13`。不并行回到延期的 `libffmpeg`，
+也不按剧情命中顺序临时补 opcode。

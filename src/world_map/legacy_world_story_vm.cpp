@@ -644,7 +644,8 @@ scale_dialog_word(const u16 value, const u32 scale) noexcept {
         return false;
     }
     const u16 next_opcode = read_u16(window, next_ip);
-    if (next_opcode != 10U && next_opcode != 11U && next_opcode != 45U) {
+    if (next_opcode != OP_10_SET_ROLE_BASE_VARIANT &&
+        next_opcode != OP_11_SET_ROLE_VARIANT_DELTA && next_opcode != OP_45) {
         return false;
     }
     u32 next_role_index{};
@@ -1101,14 +1102,14 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
-        case 7U:
+        case OP_07_CLEAR_DIALOG_CONTROL_BIT31:
             state.text_control_flags &= 0x7FFFFFFFU;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
             state.previous_opcode = result.opcode;
             continue;
 
-        case 8U:
+        case OP_08_STAGE_DIALOG_LIFETIME:
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
@@ -1120,15 +1121,15 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
-        case 9U:
+        case OP_09_CLEAR_DIALOG_CONTROL_BIT30:
             state.text_control_flags &= 0xBFFFFFFFU;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
             state.previous_opcode = result.opcode;
             continue;
 
-        case 10U:
-        case 11U: {
+        case OP_10_SET_ROLE_BASE_VARIANT:
+        case OP_11_SET_ROLE_VARIANT_DELTA: {
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
@@ -1150,7 +1151,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     .guid = selector,
                     .flags_or_mask = 0x1000U,
                 };
-                if (result.opcode == 10U) {
+                if (result.opcode == OP_10_SET_ROLE_BASE_VARIANT) {
                     request.base_variant = value;
                 } else {
                     request.variant_delta = value;
@@ -1162,7 +1163,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 continue;
             }
             auto& role = roles[role_index];
-            if (result.opcode == 10U) {
+            if (result.opcode == OP_10_SET_ROLE_BASE_VARIANT) {
                 role.action.base_variant = value;
             } else {
                 role.action.variant_delta = value;
@@ -1177,12 +1178,79 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 )) {
                 record_action_update(result, role.action, ports);
             }
-            if (result.opcode == 11U) {
+            if (result.opcode == OP_11_SET_ROLE_VARIANT_DELTA) {
                 role.flags |= 0x00001000U;
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
             state.previous_opcode = result.opcode;
+            continue;
+        }
+
+        case OP_12_SET_ROLE_POSITION: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const bool full_payload = has_bytes(state.window, ip, 8U);
+            const u16 raw_selector = read_u16(state.window, ip + 2U);
+            const u16 selector = raw_selector == kCurrentSourceSelector
+                ? context.source_guid
+                : raw_selector;
+            u32 role_index{};
+            const bool role_found = resolve_role_index(
+                roles, selector, controlled_role_index, role_index
+            );
+            if (!role_found && selector == kLegacyWorldControlledRoleSelector) {
+                result.status = LegacyWorldStoryVmStatus::role_not_found;
+                return result;
+            }
+            if (role_found) {
+                auto& role = roles[role_index];
+                if (raw_selector == context.source_guid) {
+                    role.action.cached_base_variant =
+                        std::numeric_limits<u32>::max();
+                    role.action.cached_variant_delta =
+                        std::numeric_limits<u32>::max();
+                    role.flags &= 0xFFF7FFFFU;
+                }
+                if (!full_payload) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                if (runtime.story_paths == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                const auto scheduled = schedule_legacy_world_story_path(
+                    *runtime.story_paths,
+                    LegacyWorldStoryPathRequest{
+                        .role_index = role_index,
+                        .destination_x = static_cast<u16>(
+                            read_u16(state.window, ip + 4U) << 4U
+                        ),
+                        .destination_y = static_cast<u16>(
+                            read_u16(state.window, ip + 6U) << 4U
+                        ),
+                    }
+                );
+                if (scheduled.status != LegacyWorldStoryPathStatus::completed) {
+                    result.status = LegacyWorldStoryVmStatus::role_path_failed;
+                    return result;
+                }
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 8U);
+            if (role_index == controlled_role_index) {
+                dialogs.close.flagged_dialog_counter |= 0x8000U;
+            }
+            state.previous_opcode = result.opcode;
+            if (!full_payload) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
             continue;
         }
 
@@ -1540,7 +1608,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 2U);
             continue;
 
-        case 45U: {
+        case OP_45: {
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
