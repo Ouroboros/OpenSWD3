@@ -405,15 +405,18 @@ struct Fixture {
         dialog_resources.caption_actions[0].action_id = 0x2337U;
     }
 
-    [[nodiscard]] auto
-    step(const i32 camera_left = 0, const i32 camera_top = 0) {
+    [[nodiscard]] auto step(
+        const i32 camera_left = 0,
+        const i32 camera_top = 0,
+        const u32 controlled_role_index = 0U
+    ) {
         camera.left = std::bit_cast<u32>(camera_left);
         camera.top = std::bit_cast<u32>(camera_top);
         return openswd3::world_map::step_legacy_world_story_vm(
             context,
             state,
             roles,
-            0U,
+            controlled_role_index,
             active_object_slots,
             maps_payload,
             dialogs,
@@ -1503,6 +1506,24 @@ void test_change_role_base_variant_protocol(openswd3::test::Context& test) {
         "opcode 10 patches the MAPS source when the live role is absent"
     );
 
+    Fixture invalid_controlled;
+    prime_loaded_instruction(invalid_controlled, 10U);
+    write_u16(invalid_controlled.state.window, 2U, 0xFFFEU);
+    write_u16(invalid_controlled.state.window, 4U, 0x1234U);
+    invalid_controlled.state.previous_opcode = 0x55U;
+    const auto invalid_controlled_result = invalid_controlled.step(
+        0, 0, static_cast<u32>(invalid_controlled.roles.size())
+    );
+    test.expect_true(
+        invalid_controlled_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            invalid_controlled.context.instruction_offset == 0U &&
+            invalid_controlled.state.previous_opcode == 0x55U &&
+            invalid_controlled_result.action_update_count == 0U &&
+            invalid_controlled.ports.role_patch_requests.empty(),
+        "opcode 10 stops at an invalid controlled-role live access"
+    );
+
     Fixture truncated;
     truncated.context.instruction_offset = 0x7FFCU;
     truncated.context.talk_data_offset = 0x1111U;
@@ -1521,6 +1542,115 @@ void test_change_role_base_variant_protocol(openswd3::test::Context& test) {
             truncated_result.action_update_count == 0U &&
             truncated.ports.role_patch_requests.empty(),
         "opcode 10 short payload fails before role or MAPS mutation"
+    );
+}
+
+void test_change_role_variant_delta_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        0x000BU, 0x400BU, 0x800BU, 0xC00BU
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0xFFF0U);
+        write_u16(fixture.state.window, 4U, 0x8123U);
+        write_u16(fixture.state.window, 6U, 12U);
+        fixture.roles[1].flags = 0xA5000001U;
+        fixture.roles[1].action.wait_remaining = 9U;
+        fixture.state.previous_opcode = 0x55U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == 12U &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.roles[1].action.variant_delta == 0x8123U &&
+                fixture.roles[1].action.wait_remaining == 0U &&
+                fixture.roles[1].flags == 0xA5001001U &&
+                result.action_update_count == 1U &&
+                fixture.state.previous_opcode == 11U &&
+                fixture.ports.role_patch_requests.empty(),
+            "opcode 11 aliases update the live role and continue"
+        );
+    }
+
+    Fixture missing;
+    prime_loaded_instruction(missing, 11U);
+    write_u16(missing.state.window, 2U, 0x7777U);
+    write_u16(missing.state.window, 4U, 0x8123U);
+    write_u16(missing.state.window, 6U, 12U);
+    const auto missing_result = missing.step();
+    const auto patch = missing.ports.role_patch_requests.empty()
+        ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+        : missing.ports.role_patch_requests.front();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            missing_result.executed_instruction_count == 2U &&
+            missing.context.instruction_offset == 6U &&
+            missing.state.previous_opcode == 11U &&
+            missing_result.action_update_count == 0U &&
+            missing.ports.role_patch_requests.size() == 1U &&
+            patch.guid == 0x7777U && patch.variant_delta == 0x8123U &&
+            patch.action_id == 0xFFFFU && patch.base_variant == 0xFFFFU &&
+            patch.flags_or_mask == 0x1000U && patch.flags_and_mask == 0xFFFFU,
+        "opcode 11 patches the MAPS source when the live role is absent"
+    );
+
+    Fixture invalid_controlled;
+    prime_loaded_instruction(invalid_controlled, 11U);
+    write_u16(invalid_controlled.state.window, 2U, 0xFFFEU);
+    write_u16(invalid_controlled.state.window, 4U, 0x8123U);
+    invalid_controlled.state.previous_opcode = 0x55U;
+    const auto invalid_controlled_result = invalid_controlled.step(
+        0, 0, static_cast<u32>(invalid_controlled.roles.size())
+    );
+    test.expect_true(
+        invalid_controlled_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            invalid_controlled.context.instruction_offset == 0U &&
+            invalid_controlled.state.previous_opcode == 0x55U &&
+            invalid_controlled_result.action_update_count == 0U &&
+            invalid_controlled.ports.role_patch_requests.empty(),
+        "opcode 11 stops at an invalid controlled-role live access"
+    );
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFCU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    write_u16(truncated.state.window, 0x7FFCU, 11U);
+    write_u16(truncated.state.window, 0x7FFEU, 0x00F8U);
+    truncated.state.previous_opcode = 0x55U;
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.context.instruction_offset == 0x7FFCU &&
+            truncated.state.previous_opcode == 0x55U &&
+            truncated_result.action_update_count == 0U &&
+            truncated.ports.role_patch_requests.empty(),
+        "opcode 11 short payload fails before role or MAPS mutation"
+    );
+
+    Fixture chained;
+    prime_loaded_instruction(chained, 11U);
+    write_u16(chained.state.window, 2U, 0x00F8U);
+    write_u16(chained.state.window, 4U, 3U);
+    write_u16(chained.state.window, 6U, 45U);
+    write_u16(chained.state.window, 8U, 0x00F8U);
+    write_u16(chained.state.window, 10U, 0x0222U);
+    write_u16(chained.state.window, 12U, 12U);
+    const auto chained_result = chained.step();
+    test.expect_true(
+        chained_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            chained_result.executed_instruction_count == 3U &&
+            chained_result.action_update_count == 1U &&
+            chained.roles[1].action.variant_delta == 3U &&
+            chained.roles[1].action.action_id == 0x0222U &&
+            (chained.roles[1].flags & 0x00001000U) != 0U,
+        "opcode 11 defers its action update across a same-role opcode 45"
     );
 }
 
@@ -2133,6 +2263,47 @@ void test_real_change_role_base_variant_record(
             result.action_update_count == 1U &&
             fixture.state.previous_opcode == 10U,
         "real opcode 10 record replays the live-role update contract"
+    );
+}
+
+void test_real_change_role_variant_delta_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00004A2E);
+    std::array<u8, 6U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    test.expect_true(
+        static_cast<bool>(input) && read_u16(instruction, 0U) == 11U &&
+            read_u16(instruction, 2U) == 1U && read_u16(instruction, 4U) == 0U,
+        "real opcode 11 physical record has the expected six-byte payload"
+    );
+    if (!input) {
+        return;
+    }
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, 11U);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 6U, 12U);
+    fixture.roles[1].guid = 1U;
+    fixture.roles[1].flags = 1U;
+    fixture.roles[1].action.variant_delta = 77U;
+    fixture.roles[1].action.wait_remaining = 9U;
+    const auto result = fixture.step();
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 6U &&
+            fixture.roles[1].action.variant_delta == 0U &&
+            fixture.roles[1].action.wait_remaining == 0U &&
+            fixture.roles[1].flags == 0x00001001U &&
+            result.action_update_count == 1U &&
+            fixture.state.previous_opcode == 11U,
+        "real opcode 11 record replays the live-role update contract"
     );
 }
 
@@ -3422,6 +3593,7 @@ int main(const int argument_count, char** arguments) {
     test_role_action_operand_extension(test);
     test_missing_role_position_patch(test);
     test_change_role_base_variant_protocol(test);
+    test_change_role_variant_delta_protocol(test);
     test_role_action_chain_update_gate(test);
     test_change_requested_action_id(test);
     test_wait_for_role_action_position(test);
@@ -3442,6 +3614,7 @@ int main(const int argument_count, char** arguments) {
         const std::filesystem::path root{arguments[1]};
         test_real_clear_dialog_control_flag_record(test, root);
         test_real_change_role_base_variant_record(test, root);
+        test_real_change_role_variant_delta_record(test, root);
         test_real_clear_dialog_control_flag_bit30_record(test, root);
         test_real_stage_dialog_lifetime_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

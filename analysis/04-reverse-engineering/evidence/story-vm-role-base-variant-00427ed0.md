@@ -54,12 +54,13 @@ SDL port 已接真实 `LegacyMapsWorldDatabase` patch owner；测试替身固定
 
 ## 4. 受检边界与测试
 
-固定载荷不足 6 bytes 时，现代返回 `operand_out_of_range`，且不修改 role、MAPS、IP、previous 或 action callback。原有效路径没有其他可恢复错误；role/action helper 结果均按原控制流消费。
+固定载荷不足 6 bytes 时，现代返回 `operand_out_of_range`，且不修改 role、MAPS、IP、previous 或 action callback。selector `0xFFFE` 在原 resolver 中无条件映射 controlled index；若该 index 越界，原程序会在随后 live action 写入处危险访问而不会走 MAPS fallback。现代在该首个危险点前 checked `role_not_found`，不 patch、不推进、不发布 previous；该 unsafe-domain 回归由 opcode11 独立 REVIEW 发现并补齐。原有效路径没有其他可恢复错误；role/action helper 结果均按原控制流消费。
 
 测试覆盖：
 
 - 四个 raw alias 的 live role base variant、wait reset、action update、IP+6 与 previous=10；
 - missing role 的 exact MAPS patch request 与继续行为；
+- invalid controlled-role index 在危险 live 写入前 checked-stop 且不误 patch；
 - 短载荷零副作用；
 - raw next `11` 与 `0x400B` 的 coalescing 差异；
 - real `TALK1.DAT@0x00004A24` 记录 `0A 00 01 00 00 00`。

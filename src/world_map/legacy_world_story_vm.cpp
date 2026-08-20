@@ -1142,17 +1142,20 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             if (!resolve_role_index(
                     roles, selector, controlled_role_index, role_index
                 )) {
-                if (result.opcode != 10U) {
+                if (selector == kLegacyWorldControlledRoleSelector) {
                     result.status = LegacyWorldStoryVmStatus::role_not_found;
                     return result;
                 }
-                ports.patch_role_source(
-                    LegacyMapsRolePatchRequest{
-                        .guid = selector,
-                        .base_variant = value,
-                        .flags_or_mask = 0x1000U,
-                    }
-                );
+                LegacyMapsRolePatchRequest request{
+                    .guid = selector,
+                    .flags_or_mask = 0x1000U,
+                };
+                if (result.opcode == 10U) {
+                    request.base_variant = value;
+                } else {
+                    request.variant_delta = value;
+                }
+                ports.patch_role_source(request);
                 context.instruction_offset =
                     static_cast<u16>(context.instruction_offset + 6U);
                 state.previous_opcode = result.opcode;
@@ -1179,9 +1182,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
-            if (result.opcode == 10U) {
-                state.previous_opcode = result.opcode;
-            }
+            state.previous_opcode = result.opcode;
             continue;
         }
 
