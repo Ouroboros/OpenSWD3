@@ -4,11 +4,14 @@
 #include "openswd3/world_map/legacy_cm_cache_runtime.hpp"
 
 #include <filesystem>
+#include <functional>
 #include <vector>
 
 namespace openswd3::world_map {
 
 inline constexpr compat::u32 kLegacyCmCacheSlotCount = 24U;
+
+using LegacyCmCacheAudioMaintenanceStage = std::function<void()>;
 
 struct LegacyCmCacheRequest {
     std::filesystem::path archive_path;
@@ -49,5 +52,10 @@ struct LegacyCmCacheLoadResult {
 
 [[nodiscard]] LegacyCmCacheLoadResult
 load_legacy_cm_cache(const LegacyCmCacheRequest& request);
+
+[[nodiscard]] LegacyCmCacheLoadResult load_legacy_cm_cache(
+    const LegacyCmCacheRequest& request,
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+);
 
 }  // namespace openswd3::world_map

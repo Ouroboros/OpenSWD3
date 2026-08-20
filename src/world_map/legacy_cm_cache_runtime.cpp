@@ -107,9 +107,8 @@ LegacyCmCacheLookupResult age_and_find_legacy_cm_cache_record(
 
     compat::u32 prefix_byte_size{};
     for (std::size_t index = 0U; index < records.size(); ++index) {
-        auto& record = records[index];
+        const auto& record = records[index];
         if (record.map_id == map_id) {
-            record.use_counter = 0U;
             return LegacyCmCacheLookupResult{
                 .found = true,
                 .record_index = static_cast<compat::u32>(index),

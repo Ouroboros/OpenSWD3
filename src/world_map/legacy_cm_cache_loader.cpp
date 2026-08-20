@@ -11,6 +11,14 @@ namespace {
 
 constexpr std::size_t kRecordSize = 0x10U;
 
+void maintain_audio(
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+) {
+    if (audio_maintenance_stage) {
+        audio_maintenance_stage();
+    }
+}
+
 [[nodiscard]] compat::u32 read_u32(
     const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
@@ -204,7 +212,16 @@ void initialize_empty_directory(
 
 LegacyCmCacheLoadResult
 load_legacy_cm_cache(const LegacyCmCacheRequest& request) {
+    return load_legacy_cm_cache(request, {});
+}
+
+LegacyCmCacheLoadResult load_legacy_cm_cache(
+    const LegacyCmCacheRequest& request,
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+) {
     LegacyCmCacheLoadResult result;
+    maintain_audio(audio_maintenance_stage);
+
     resource_io::LegacyFile index;
     if (!index.open(
             request.cache_directory / "mcache.dat",
@@ -213,13 +230,21 @@ load_legacy_cm_cache(const LegacyCmCacheRequest& request) {
         )) {
         return result;
     }
+    maintain_audio(audio_maintenance_stage);
 
     const compat::u32 index_size = index.size();
     std::vector<compat::u8> index_bytes;
-    if (index_size == 0xFFFFFFFFU ||
-        !read_file(index, index_size, index_bytes)) {
+    if (index_size == 0xFFFFFFFFU) {
         result.status = LegacyCmCacheLoadStatus::index_read_failed;
         return result;
+    }
+    if (index_size != 0U) {
+        const bool read = read_file(index, index_size, index_bytes);
+        maintain_audio(audio_maintenance_stage);
+        if (!read) {
+            result.status = LegacyCmCacheLoadStatus::index_read_failed;
+            return result;
+        }
     }
 
     if (index_size == 0U) {
@@ -238,11 +263,15 @@ load_legacy_cm_cache(const LegacyCmCacheRequest& request) {
             request.map_id,
             result.generation.declared_output_size
         );
+        maintain_audio(audio_maintenance_stage);
         result.index_persisted = persist_records(
             index, result.records, index_bytes, true, result.index_truncated
         );
+        static_cast<void>(index.close());
+        maintain_audio(audio_maintenance_stage);
         const CacheUnitReadStatus cache_status =
             read_cache_unit(request.cache_directory, 0U, result.cache_bytes);
+        maintain_audio(audio_maintenance_stage);
         set_cache_read_status(result, cache_status, true);
         if (result.generation.status != LegacyCmCacheGenerationStatus::ready) {
             result.status = LegacyCmCacheLoadStatus::generation_failed;
@@ -258,16 +287,21 @@ load_legacy_cm_cache(const LegacyCmCacheRequest& request) {
         const CacheUnitReadStatus cache_status = read_cache_unit(
             request.cache_directory, result.selected_slot, result.cache_bytes
         );
+        maintain_audio(audio_maintenance_stage);
+        result.records[lookup.record_index].use_counter = 0U;
         set_cache_read_status(result, cache_status, false);
         result.index_persisted = persist_records(
             index, result.records, index_bytes, false, result.index_truncated
         );
+        static_cast<void>(index.close());
+        maintain_audio(audio_maintenance_stage);
         return result;
     }
 
     result.size_probe = read_legacy_cm_cache_declared_size(
         request.archive_path, request.map_offset, request.cm_relative_offset
     );
+    maintain_audio(audio_maintenance_stage);
     if (result.size_probe.status != LegacyCmCacheSizeStatus::ready) {
         result.status = LegacyCmCacheLoadStatus::declared_size_failed;
         return result;
@@ -281,17 +315,22 @@ load_legacy_cm_cache(const LegacyCmCacheRequest& request) {
     );
     result.evictions = plan.evictions;
     for (const auto& eviction : result.evictions) {
+        maintain_audio(audio_maintenance_stage);
         truncate_evicted_unit(request.cache_directory, eviction.stored_slot);
     }
+    maintain_audio(audio_maintenance_stage);
     if (!plan.ready) {
         result.status = LegacyCmCacheLoadStatus::no_evictable_record;
         return result;
     }
 
     result.selected_slot = plan.insertion_record_index;
+    maintain_audio(audio_maintenance_stage);
     result.index_persisted = persist_records(
         index, result.records, index_bytes, true, result.index_truncated
     );
+    static_cast<void>(index.close());
+    maintain_audio(audio_maintenance_stage);
     result.generation = generate_legacy_cm_cache_unit(
         request.archive_path,
         request.map_offset,
@@ -304,6 +343,7 @@ load_legacy_cm_cache(const LegacyCmCacheRequest& request) {
     const CacheUnitReadStatus cache_status = read_cache_unit(
         request.cache_directory, result.selected_slot, result.cache_bytes
     );
+    maintain_audio(audio_maintenance_stage);
     set_cache_read_status(result, cache_status, true);
     if (result.generation.status != LegacyCmCacheGenerationStatus::ready) {
         result.status = LegacyCmCacheLoadStatus::generation_failed;

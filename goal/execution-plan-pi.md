@@ -1,8 +1,8 @@
 # OpenSWD3 执行 GOAL
 
-版本：v230
+版本：v231
 
-最后更新：2026-08-16
+最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
@@ -1185,7 +1185,8 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     启动游戏 EXE。114 项当前关闭 106 项，即
     `44 assembly_exact + 62 platform_adapted + 8 pending_audit`；下一精确停点为
     `0x00425BE0 sub_425BE0`。
-  - B7 继续按函数级停止线完成 `0x00425BE0 sub_425BE0` 的独立闭环。唯一调用点确认
+
+- B7 继续按函数级停止线完成 `0x00425BE0 sub_425BE0` 的独立闭环。唯一调用点确认
     为两参数 cdecl，EAX 返回 0/1；六轮 LST→C++→LST REVIEW 纠正并固定头签名确认中间的
     progress 15、后续 `60/65/70/75/80/85`、事件/两类角色的分阶段构建、CM 原槽及逐
     索引对象 consumer。28 个显式 `_AIL_serve` 静态点全部恢复，动态次数为
@@ -1197,5 +1198,21 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     OpenSWD3 游戏 EXE。114 项当前关闭 107 项，即
     `44 assembly_exact + 63 platform_adapted + 7 pending_audit`；下一精确停点为
     `0x00426840 sub_426840`。
+
+- B7 继续完成 `0x00426840 sub_426840` 独立闭环。唯一调用点确认四参数 cdecl：地图号、
+    LMF 地图偏移、受原 word 门控的 CM 相对偏移与 `0x200` 路径 scratch；EAX 映射基址由
+    `sub_425BE0` 写入地图状态 `+0x20`。多轮 LST→C++→LST REVIEW 恢复 14 个直接
+    `_AIL_serve` 静态点，动态次数固定为打开失败 1、hit 5、空目录 5、普通 miss 8、每次
+    淘汰额外 1；hit 计数清零严格位于槽读取后的维护点之后。空目录保持先生成后提交，一般
+    miss 保持先提交后生成，hit 保留目录物理尾部而 miss 截断尾部；目录写回后显式关闭。
+    runtime → render → file CM source 已把 SDL audio owner 传到原 CM 槽，真实地图 24 的
+    首次生成与第二次 hit 各固定 5 次直接维护。Windows 首轮门禁暴露测试在原版独占打开的
+    `mcache.dat` 上并发读文件；改用第 4 次维护抛测试哨兵并在 RAII 关闭后验证未写回，未改
+    生产语义。非零短目录和无淘汰候选在原越界点前受检停止，因此分类为
+    `platform_adapted`；`sub_426DF0/sub_4270F0/sub_427140` 仍须独立审计。最终完整门禁为
+    Linux `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest，
+    两端应用成功链接且未启动游戏 EXE。114 项当前关闭 108 项，即
+    `44 assembly_exact + 64 platform_adapted + 6 pending_audit`；下一精确停点为
+    `0x00426DF0 sub_426DF0`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

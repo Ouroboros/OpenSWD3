@@ -203,6 +203,19 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
    `44 assembly_exact + 63 platform_adapted + 7 pending_audit`；下一精确停点为
    `0x00426840 sub_426840`。
 
+   `sub_426840` CM 缓存组合现已独立关闭：确认唯一调用点的四参数 cdecl、EAX 映射返回、
+   年龄回绕、首命中、空目录/一般 miss 相反提交顺序、逐项淘汰与 hit/miss 物理尾部差异。
+   14 个直接 `_AIL_serve` 静态点恢复后，动态次数固定为打开失败 1、hit 5、空目录 5、
+   `8 + eviction_count`；真实地图 24 首次生成与第二次 hit 各为 5。SDL audio owner 已经
+   runtime → render → file CM source 纵向传入。Windows 独占文件导致的测试并发读取误差已
+   改为第 4 次维护抛哨兵、RAII 关闭后验证未写回；生产文件共享语义不变。固定缓冲、裸映射
+   与原损坏输入越界域以 RAII/checked owner 隔离，分类为 `platform_adapted`；被调用的
+   `sub_426DF0/sub_4270F0/sub_427140` 仍各自保持 `pending_audit`。最终完整门禁为 Linux
+   `core` 185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest，两端应用成功
+   链接且未启动游戏 EXE。114 项当前关闭 108 项，即
+   `44 assembly_exact + 64 platform_adapted + 6 pending_audit`；下一精确停点为
+   `0x00426DF0 sub_426DF0`。
+
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
 

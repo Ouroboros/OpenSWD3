@@ -56,12 +56,24 @@ public:
 
     [[nodiscard]] virtual LegacyCmCacheLoadResult
     load_cm_cache(const LegacyCmCacheRequest& request) = 0;
+
+    [[nodiscard]] virtual LegacyCmCacheLoadResult load_cm_cache(
+        const LegacyCmCacheRequest& request,
+        const LegacyCmCacheAudioMaintenanceStage&
+    ) {
+        return load_cm_cache(request);
+    }
 };
 
 class LegacyFileWorldCmCacheSource final : public LegacyWorldCmCacheSource {
 public:
     [[nodiscard]] LegacyCmCacheLoadResult
     load_cm_cache(const LegacyCmCacheRequest& request) override;
+
+    [[nodiscard]] LegacyCmCacheLoadResult load_cm_cache(
+        const LegacyCmCacheRequest& request,
+        const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+    ) override;
 };
 
 [[nodiscard]] LegacyWorldRenderSessionResult load_legacy_world_render_session(

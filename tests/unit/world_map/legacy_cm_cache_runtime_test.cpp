@@ -38,9 +38,9 @@ void test_age_lookup_and_first_match(openswd3::test::Context& test) {
         "first matching record and prefix size are retained"
     );
     test.expect_true(
-        records[0].use_counter == 0U && records[1].use_counter == 0U &&
+        records[0].use_counter == 0U && records[1].use_counter == 5U &&
             records[2].use_counter == 10U,
-        "all counters increment with u32 wrap before the hit resets"
+        "lookup ages all counters but leaves the later hit reset to its caller"
     );
 }
 

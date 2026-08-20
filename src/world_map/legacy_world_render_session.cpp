@@ -80,6 +80,13 @@ LegacyCmCacheLoadResult LegacyFileWorldCmCacheSource::load_cm_cache(
     return load_legacy_cm_cache(request);
 }
 
+LegacyCmCacheLoadResult LegacyFileWorldCmCacheSource::load_cm_cache(
+    const LegacyCmCacheRequest& request,
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+) {
+    return load_legacy_cm_cache(request, audio_maintenance_stage);
+}
+
 LegacyWorldRenderSessionResult load_legacy_world_render_session(
     const LegacyWorldRenderSessionRequest& request,
     LegacyWorldMapSource& map_source,
@@ -151,7 +158,8 @@ LegacyWorldRenderSessionResult load_legacy_world_render_session(
                     .cache_limit_megabytes = request.cache_limit_megabytes,
                     .map_pixel_bits = map_session.header.field_88,
                     .pixel_conversion = request.pixel_conversion,
-                }
+                },
+                audio_maintenance_stage
             );
             return cm_cache_is_ready(result.session.cm_cache.status);
         },

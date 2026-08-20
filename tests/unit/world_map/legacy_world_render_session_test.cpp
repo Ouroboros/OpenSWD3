@@ -52,6 +52,8 @@ using openswd3::world_map::LegacyCmCacheRequest;
 using openswd3::world_map::LegacyWorldBackgroundPixelLayout;
 using openswd3::world_map::LegacyWorldBackgroundRenderStatus;
 using openswd3::world_map::LegacyWorldBackgroundView;
+using openswd3::world_map::LegacyFileWorldCmCacheSource;
+using openswd3::world_map::LegacyLmfWorldMapSource;
 using openswd3::world_map::LegacyWorldCmCacheSource;
 using openswd3::world_map::LegacyWorldMapLoadStatus;
 using openswd3::world_map::LegacyWorldMapSource;
@@ -517,13 +519,21 @@ void test_current_maps(
     const LegacyPixelConversionState conversion = rgb565_conversion();
 
     TestTree direct_tree;
+    LegacyLmfWorldMapSource direct_map_source{archive_path};
+    LegacyFileWorldCmCacheSource direct_cm_source;
+    std::size_t direct_audio_maintenance_count{};
     const auto direct = load_legacy_world_render_session(
         LegacyWorldRenderSessionRequest{
             .archive_path = archive_path,
             .cache_directory = direct_tree.root() / "maps",
             .map_id = 24U,
             .pixel_conversion = conversion,
-        }
+        },
+        direct_map_source,
+        direct_cm_source,
+        {},
+        {},
+        [&] { ++direct_audio_maintenance_count; }
     );
     test.expect_equal(
         direct.status,
@@ -531,6 +541,16 @@ void test_current_maps(
         "current map 24 owns LMF and generated CM data"
     );
     if (direct.status == LegacyWorldRenderSessionStatus::ready) {
+        test.expect_equal(
+            direct_audio_maintenance_count,
+            std::size_t{27U} +
+                direct.session.map_load.session.referenced_records.records
+                    .size() +
+                direct.session.map_load.session.indexed_objects.objects.size() *
+                    5U,
+            "real render composition includes the five empty-CM loader services"
+        );
+
         LegacyFramebuffer framebuffer;
         const auto rendered = render_legacy_world_background(
             framebuffer,
