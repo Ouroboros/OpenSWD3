@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v240
+版本：v241
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00427E72` handler（opcode 7）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00427E9A` handler（opcode 8）
 
 ## 0. 执行约定
 
@@ -1338,5 +1338,13 @@ B7 P0 有限收口完成。
     Linux app 192/192、Windows LLVM app 192/192 通过，三进程均 exit 0，未启动游戏 EXE。
     workpack 当前 2/146，即 `2 platform_adapted + 144 pending_audit`。
 
+- 剧情 VM P2 第三组 `0x00427E72` / opcode7 完成独立闭环。LST 直线合同固定
+    `text_control_flags &= 0x7FFFFFFF`、IP+2、common join 先发布 previous=7、无 audio 并
+    同帧继续。修复旧 case 遗漏 previous 的差异；四 raw alias、`7→default`、`7→dialog2`
+    与 `TALK1.DAT@0x4518` 真记录回放通过，2781/2781 条 TALK 记录均为 raw `0007`、长度2。
+    定向 story VM 3/3、Linux core 186/186、Linux app 192/192、Windows LLVM app 192/192
+    通过，三进程均 exit 0，未启动游戏 EXE。workpack 当前 3/146，即
+    `1 assembly_exact + 2 platform_adapted + 143 pending_audit`；全局 common_join 仍 pending。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00427E72` 的 opcode 7；不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
+`0x00427E9A` 的 opcode8；不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

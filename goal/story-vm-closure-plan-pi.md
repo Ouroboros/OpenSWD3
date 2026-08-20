@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x00427E72`（opcode 7）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x00427E9A`（opcode 8）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -69,10 +69,10 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、125 行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定 17 条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2 前两行已独立关闭：`0x0042D230` 覆盖 opcode 0
-及完整默认域；`0x00427B8F` 一次覆盖 `1-6,89-90` 八个对话变体、三种 mode、奇偶 gate、
-两次 audio、one-shot reset 和 4392 条真实 TALK 布局。当前为 2/146；下一行只审计
-`0x00427E72` 的 opcode 7，不得继承前两组的公共尾结论。
+值、窗口、公共 join/yield 与返回路径。P2 前三行已独立关闭：`0x0042D230` 覆盖 opcode 0
+及完整默认域；`0x00427B8F` 覆盖 `1-6,89-90` 八个对话变体；`0x00427E72` 覆盖 opcode7
+的 bit31 clear、两字节推进、previous 发布与同帧 continue。当前为 3/146；下一行只审计
+`0x00427E9A` 的 opcode8，不得继承 opcode7 的无操作数结论。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

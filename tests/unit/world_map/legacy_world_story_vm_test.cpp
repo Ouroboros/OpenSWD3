@@ -563,6 +563,66 @@ void test_shared_dialog_raw_aliases(openswd3::test::Context& test) {
     );
 }
 
+void test_clear_dialog_control_flag(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        0x0007U, 0x4007U, 0x8007U, 0xC007U
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 12U);
+        fixture.state.text_control_flags = 0x92345678U;
+        fixture.state.previous_opcode = 0x55U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == 12U &&
+                result.executed_instruction_count == 2U &&
+                result.instruction_offset == 2U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.text_control_flags == 0x12345678U &&
+                fixture.state.previous_opcode == 7U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.ports.story_protocol_events.empty(),
+            "opcode 7 aliases clear bit 31 and continue without audio"
+        );
+    }
+
+    Fixture chained;
+    prime_loaded_instruction(chained, 7U);
+    write_u16(chained.state.window, 2U, 194U);
+    const auto result = chained.step();
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.executed_instruction_count == 2U &&
+            result.invalid_opcode_previous == 7U &&
+            result.invalid_opcode_current == 194U && result.beep_count == 1U &&
+            result.direct_audio_service_count == 1U &&
+            chained.context.instruction_offset == 2U &&
+            chained.state.previous_opcode == 194U,
+        "opcode 7 publishes previous before the same-call next fetch"
+    );
+
+    Fixture dialog;
+    prime_loaded_instruction(dialog, 7U);
+    write_u16(dialog.state.window, 2U, 2U);
+    write_u16(dialog.state.window, 4U, 0x00F8U);
+    write_u16(dialog.state.window, 6U, 0x232DU);
+    dialog.state.window[8U] = '%';
+    dialog.state.window[9U] = 'Q';
+    const auto dialog_result = dialog.step();
+    test.expect_true(
+        dialog_result.status == LegacyWorldStoryVmStatus::yielded &&
+            dialog_result.executed_instruction_count == 2U &&
+            dialog_result.dialog_enqueue_count == 1U &&
+            dialog.context.instruction_offset == 10U &&
+            (dialog.dialogs.messages.front().record.flags & 0x20U) != 0U &&
+            dialog.state.text_control_flags == 0xFFFFFFFFU &&
+            dialog.state.previous_opcode == 2U,
+        "same-call dialog observes opcode 7 bit 31 clear before resetting it"
+    );
+}
+
 void test_dialog_text_preparation_and_mode_zero_metrics(
     openswd3::test::Context& test
 ) {
@@ -1809,6 +1869,39 @@ void test_set_and_clear_role_wait_override(openswd3::test::Context& test) {
     );
 }
 
+void test_real_clear_dialog_control_flag_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00004518);
+    std::array<u8, 2U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    test.expect_true(
+        static_cast<bool>(input) && read_u16(instruction, 0U) == 7U,
+        "real opcode 7 physical record is a two-byte instruction"
+    );
+    if (!input) {
+        return;
+    }
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, 7U);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 2U, 12U);
+    const auto result = fixture.step();
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 2U &&
+            fixture.state.text_control_flags == 0x7FFFFFFFU &&
+            fixture.state.previous_opcode == 7U,
+        "real opcode 7 record replays the clear-and-continue contract"
+    );
+}
+
 void test_real_shared_dialog_handler_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -3011,6 +3104,7 @@ int main(const int argument_count, char** arguments) {
     test_default_invalid_opcode_protocol(test);
     test_shared_dialog_handler_variants(test);
     test_shared_dialog_raw_aliases(test);
+    test_clear_dialog_control_flag(test);
     test_dialog_text_preparation_and_mode_zero_metrics(test);
     test_dialog_anchor_center_delay_and_reset(test);
     test_dialog_checked_failure_order(test);
@@ -3041,6 +3135,7 @@ int main(const int argument_count, char** arguments) {
         );
     } else if (argument_count == 2) {
         const std::filesystem::path root{arguments[1]};
+        test_real_clear_dialog_control_flag_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);
