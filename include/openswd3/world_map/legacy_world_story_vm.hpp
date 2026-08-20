@@ -34,7 +34,7 @@ inline constexpr compat::u16 OP_10_SET_ROLE_BASE_VARIANT = 10U;
 inline constexpr compat::u16 OP_11_SET_ROLE_VARIANT_DELTA = 11U;
 inline constexpr compat::u16 OP_12_SET_ROLE_POSITION = 12U;
 inline constexpr compat::u16 OP_13_STEP_ROLE = 13U;
-inline constexpr compat::u16 OP_14 = 14U;
+inline constexpr compat::u16 OP_14_WAIT_ROLE_ACTION_STATUS = 14U;
 inline constexpr compat::u16 OP_15 = 15U;
 inline constexpr compat::u16 OP_45 = 45U;
 

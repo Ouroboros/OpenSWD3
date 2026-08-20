@@ -606,21 +606,22 @@ scale_dialog_word(const u16 value, const u32 scale) noexcept {
     return LegacyWorldStoryVmStatus::yielded;
 }
 
-[[nodiscard]] LegacyWorldStoryVmStatus wait_for_role(
+[[nodiscard]] LegacyWorldStoryVmStatus wait_for_role_action_status(
     LegacyWorldTalkContext& context,
     const std::span<const LegacyWorldRoleRecord> roles,
     const u32 controlled_role_index,
-    const u16 selector
+    const u16 raw_selector
 ) noexcept {
+    const u16 selector = raw_selector == kCurrentSourceSelector
+        ? context.source_guid
+        : raw_selector;
     u16 status{};
     if (selector == kContextSelector) {
         status = context.field_26;
     } else {
-        const u16 resolved =
-            selector == kCurrentSourceSelector ? context.source_guid : selector;
         u32 role_index{};
         if (!resolve_role_index(
-                roles, resolved, controlled_role_index, role_index
+                roles, selector, controlled_role_index, role_index
             )) {
             return LegacyWorldStoryVmStatus::role_not_found;
         }
@@ -1294,17 +1295,23 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
-        case OP_14: {
+        case OP_14_WAIT_ROLE_ACTION_STATUS: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            result.status = wait_for_role(
+            result.status = wait_for_role_action_status(
                 context,
                 roles,
                 controlled_role_index,
                 read_u16(state.window, ip + 2U)
             );
+            if (result.status != LegacyWorldStoryVmStatus::yielded) {
+                return result;
+            }
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
             return result;
         }
 
