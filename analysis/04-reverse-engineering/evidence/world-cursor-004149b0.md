@@ -1,11 +1,18 @@
 # 世界软件鼠标与右边条（`0x004149B0`）
 
+状态：`assembly_exact`、`unit_verified`、`asset_verified`、`platform_adapted`、
+`world_runtime_integrated`；尚未 `original_diff_verified`
+
 来源：`swd3.exe.lst` 完整汇编。机器码与指令是唯一行为真值；IDA 名称只用于定位。
+`sub_4149B0` 的完整物理范围是 `0x004149B0..0x00414B58`，无栈参数、不修改需保存寄存器，
+以 plain `retn` 返回。三个调用者均忽略 `EAX`；正常出口保留最后一次 `sub_4170E0` blit
+结果，但不存在调用方可见的统一返回合同。
 
 ## 1. 所有者与调用位置
 
 `sub_4149B0` 由普通世界 `0x00412930`、标准特殊模式 `0x0043A610` 和商店
-`0x0044EA60` 共用。函数自身负责两个固定动作记录：
+`0x0044EA60` 共用。普通世界已接入真实 frame runtime；特殊模式与商店仍由各自模块恢复，
+只共享本函数 owner，不在 B7 复制状态机。函数自身负责两个固定动作记录：
 
 - `0x004ACD18`：主软件鼠标，动作号 `0x2329`、初始变体 0；
 - `0x004C83A8`：右边条，动作号 `0x2329`、初始变体 8。
@@ -42,8 +49,10 @@
 `0x80000001`，请求特殊模式。右边条最终绘制门为：Talk target 等于 `0xFFFF`，或
 Talk phase 无符号小于 8。
 
-右边条沿用 `sub_40EBF0` 合同；动作更新或取帧失败不会阻止本函数继续处理主鼠标，
-因为原调用者忽略该 helper 返回值。
+右边条沿用 `sub_40EBF0` 合同。动作更新失败会在 helper 的诊断分支正常 `retn`，因此本函数
+继续处理主鼠标；frame miss 则不同：helper 在 `0x0040EC30 [eax]` 首次解引用即停止，根本
+不会返回本函数。旧现代实现错误地忽略 `frame_load_failed` 并继续主鼠标；现返回
+`edge_frame_unavailable`，让 world frame runtime 在 `world_indicator_004149b0` stage 停止。
 
 ## 4. 主软件鼠标
 
@@ -69,14 +78,18 @@ Talk phase 无符号小于 8。
 - `tests/unit/world_map/legacy_world_cursor_test.cpp`
 
 UT 覆盖初始化/单次预热、空闲第 17 帧热区请求、移动与 Talk 门、`-32` 钳位、Delete
-变体、更新失败后继续、坐标回绕、完整 flags/opacity 和主 frame 缺失边界。普通世界
-runtime 顺序测试固定右边条变体 8 先于主鼠标变体 0，并确认 normal 路径只剩
-`0x0042ED40` 一个外部 stage。
+变体、更新失败后继续、坐标回绕、完整 flags/opacity、主 frame 缺失边界，以及右边条
+frame miss 在主记录更新前停止。独立 callback 向量在 frame 请求回调内改写 action 的绘制
+偏移/flags/opacity 和鼠标 X/Y，固定原 `load→live globals reload→blit` 顺序。普通世界
+runtime 测试另证明右边条 frame miss 报告 cursor stage 失败，且不再更新或绘制主记录。
 
 真实 ACT/TSW 组合帧在包含底图、角色、两条 `0xB4` 动作链和鼠标后，RGB565 逻辑
 framebuffer FNV-1a64 为 `0x5889E0547682E179`。Linux Clang `core` 159/159、Linux
 Clang `app` 163/163、Windows LLVM `app` 163/163 CTest 均通过，Windows 应用成功
 链接且未启动任何 EXE。
 
-当前验证等级为 `assembly_exact + asset_verified`；尚未取得原程序同帧 framebuffer
-差分，因此不是 `original_diff_verified`。
+原 DIK/鼠标/动作/TSW/blitter globals 与裸 frame 指针改由 frame input、owned action、typed
+ports 和受检 frame piece 承担；有效路径的门、回绕、helper 分支、live reload 与绘制顺序
+不变，因此 closure disposition 为 `platform_adapted`。Linux core `185/185`、Linux app
+`191/191`、Windows LLVM app `191/191` 完整门禁通过，两端应用成功链接且未启动游戏
+EXE。尚未取得原程序同帧 framebuffer 差分，因此不是 `original_diff_verified`。

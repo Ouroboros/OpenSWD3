@@ -27,6 +27,7 @@ using openswd3::asset_runtime::initialize_legacy_action_record;
 using openswd3::asset_runtime::LegacyActActionStreamProvider;
 using openswd3::asset_runtime::LegacyActionDrawPorts;
 using openswd3::asset_runtime::LegacyActionDrawRuntimePorts;
+using openswd3::asset_runtime::LegacyActionDrawStatus;
 using openswd3::asset_runtime::LegacyActionRecord;
 using openswd3::asset_runtime::LegacyActionUpdater;
 using openswd3::asset_runtime::LegacyActionUpdateStatus;
@@ -61,6 +62,7 @@ using openswd3::world_map::LegacyRoleHeadActionNode;
 using openswd3::world_map::LegacyRoleSpatialIndex;
 using openswd3::world_map::LegacyWorldBackgroundPixelLayout;
 using openswd3::world_map::LegacyWorldBackgroundSource;
+using openswd3::world_map::LegacyWorldCursorStatus;
 using openswd3::world_map::LegacyWorldFrameCompositionStatus;
 using openswd3::world_map::LegacyWorldFrameEffectState;
 using openswd3::world_map::LegacyWorldFramePorts;
@@ -774,6 +776,90 @@ void test_picture_frame_failure_stops_at_original_dereference(
     );
 }
 
+void test_cursor_edge_frame_failure_stops_at_original_dereference(
+    openswd3::test::Context& test
+) {
+    BackgroundFixture background;
+    LegacyRoleSpatialIndex spatial = make_spatial_index(background.height);
+    std::array<LegacyWorldRoleRecord, 1U> roles{};
+    std::vector<openswd3::compat::i16> distances(roles.size());
+    std::vector<openswd3::compat::i16> vertical_offsets(roles.size());
+    const LegacyWorldFrameRuntimeState state =
+        make_runtime_state(distances, vertical_offsets);
+    LegacyPictureActionLists picture_actions;
+    LegacyMovingActionList moving_actions;
+    LegacyRoleHeadActionList role_head_actions;
+    LegacyWorldFrameEffectState environment_effects;
+    openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
+    LegacyPixelConversionState pixel_conversion;
+    LegacyFramebuffer framebuffer;
+    LegacyRasterGeometryState raster = framebuffer.geometry();
+    LegacyRleRowJitterState jitter;
+    RemainingPorts remaining;
+    RecordingFlaggedPorts flagged;
+    flagged.load_succeeds = false;
+    RecordingRolePorts ordinary;
+    RecordingAudioPorts audio;
+    RecordingAniPorts ani;
+    RecordingTimedMessageRuntimePorts timed_messages;
+    openswd3::story_scene::LegacyDialogRuntimeState dialogs;
+    EmptyDialogPorts dialog_ports;
+    u32 special_mode_state{};
+
+    const auto result = compose_legacy_world_runtime_frame(
+        framebuffer,
+        raster,
+        background.source(),
+        spatial,
+        roles,
+        state,
+        jitter,
+        LegacyWorldFrameRuntimePorts{
+            .remaining_stages = remaining,
+            .indexed_objects = {},
+            .picture_actions = picture_actions,
+            .moving_actions = moving_actions,
+            .role_head_actions = role_head_actions,
+            .environment_effects = environment_effects,
+            .secondary_rng = secondary_rng,
+            .pixel_conversion = pixel_conversion,
+            .blit_effects = nullptr,
+            .cursor_delete_key_pressed = false,
+            .cursor_mouse_x = 0,
+            .cursor_mouse_y = 0,
+            .cursor_left_press_multiplicity = 0U,
+            .special_mode_state = &special_mode_state,
+            .ani_drift = ani,
+            .ani_directional = ani,
+            .ani_follower = ani,
+            .timed_message_runtime = timed_messages,
+            .flagged_roles = flagged,
+            .world_roles = ordinary,
+            .spatial_audio = audio,
+            .dialogs = &dialogs,
+            .dialog_runtime = &dialog_ports,
+        }
+    );
+
+    test.expect_true(
+        result.status == LegacyWorldFrameRuntimeStatus::cursor_frame_failed &&
+            result.composition.status ==
+                LegacyWorldFrameCompositionStatus::stage_failed &&
+            result.failed_stage_recorded &&
+            result.failed_stage ==
+                LegacyWorldFrameStage::world_indicator_004149b0 &&
+            result.cursor_executed &&
+            result.cursor.status ==
+                LegacyWorldCursorStatus::edge_frame_unavailable &&
+            result.cursor.edge_action.status ==
+                LegacyActionDrawStatus::frame_load_failed &&
+            result.cursor.cursor_update_count == 0U &&
+            flagged.loads == std::vector<std::pair<u16, u16>>{{0U, 0U}} &&
+            flagged.draws == 0U,
+        "edge frame failure stops the cursor stage before the main record"
+    );
+}
+
 void test_delegated_failure_is_visible(openswd3::test::Context& test) {
     BackgroundFixture background;
     LegacyRoleSpatialIndex spatial = make_spatial_index(background.height);
@@ -1091,6 +1177,7 @@ int main(const int argument_count, char** arguments) {
     test_spatial_stages_execute_in_frame_order(test);
     test_spatial_failure_stops_at_original_stage(test);
     test_picture_frame_failure_stops_at_original_dereference(test);
+    test_cursor_edge_frame_failure_stops_at_original_dereference(test);
     test_delegated_failure_is_visible(test);
     test_environment_effects_use_live_frame_dependencies(test);
     if (argument_count == 2 && arguments != nullptr &&

@@ -30,6 +30,7 @@ struct LegacyWorldCursorFrameInput {
 
 enum class LegacyWorldCursorStatus : compat::u8 {
     completed,
+    edge_frame_unavailable,
     cursor_frame_unavailable,
 };
 

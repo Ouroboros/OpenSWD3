@@ -19,14 +19,16 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 103 项：44 项 `assembly_exact`、59 项 `platform_adapted`；其余
-11 项保持待审计。最新关闭 `sub_4148F0`：`0x004148F0..0x004149A1` 的无参数 ABI、唯一
-调用点、首项 sentinel/map 门、word 游标回零、signed i16 坐标、countdown 回绕/重载、原
-left/top 保存与四边临时相机平移均完成逐指令双向追溯。独立向量覆盖奇数游标、零
-countdown/负 interval、`INT32_MIN` 回绕与帧尾恢复。受检 selection span 使分类保持
-`platform_adapted`。selection-scroll 与 frame-coordinator 两项定向 CTest 通过；Linux
-core `185/185`、Linux app `191/191`、Windows LLVM app `191/191` 完整门禁通过。该状态机
-已接入 coordinator，两端应用成功链接且未启动游戏 EXE。原版完整
+114 项全集复核当前已关闭 104 项：44 项 `assembly_exact`、60 项 `platform_adapted`；其余
+10 项保持待审计。最新关闭 `sub_4149B0`：`0x004149B0..0x00414B58` 的无参数 ABI、普通
+世界/特殊模式/商店三处调用、Delete 变体、右边条 movement/idle/hot-corner/Talk 门、主
+鼠标 variant reload/update/frame/blit 均完成逐指令双向追溯。复核发现旧实现错误地忽略
+右边条 helper 的 frame miss 并继续主鼠标；现于 helper 原首条 frame 解引用点停止，world
+runtime 同步停止 cursor stage。独立 callback 向量固定 frame load 后 action 与 mouse live
+字段重读。typed input/action/frame/blit ports 使分类保持 `platform_adapted`。cursor 与
+world-frame-runtime synthetic/real 三项定向 CTest 通过；Linux core `185/185`、Linux app
+`191/191`、Windows LLVM app `191/191` 完整门禁通过。普通世界已接入原槽，特殊模式/
+商店调用点留给各自模块且不复制 owner；两端应用成功链接且未启动游戏 EXE。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放

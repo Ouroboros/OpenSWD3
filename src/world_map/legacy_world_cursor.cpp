@@ -91,6 +91,11 @@ LegacyWorldCursorResult update_draw_legacy_world_cursor(
             result.edge_action = asset_runtime::update_draw_legacy_action(
                 state.edge_action, wrapping_add(state.edge_x, 642), 0, ports
             );
+            if (result.edge_action.status ==
+                asset_runtime::LegacyActionDrawStatus::frame_load_failed) {
+                result.status = LegacyWorldCursorStatus::edge_frame_unavailable;
+                return result;
+            }
         }
     }
 

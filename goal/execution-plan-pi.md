@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v226
+版本：v227
 
 最后更新：2026-08-16
 
@@ -1144,5 +1144,19 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     该状态机已接入 coordinator，两端应用成功链接且未启动游戏 EXE。
     114 项当前关闭 103 项，即 `44 assembly_exact + 59 platform_adapted + 11
     pending_audit`；下一精确停点为 `0x004149B0 sub_4149B0`。
+
+    B7 的世界软件鼠标与右边条 `sub_4149B0` 随后完成独立闭环：完整物理范围
+    `0x004149B0..0x00414B58`、无参数 ABI、普通世界/特殊模式/商店三处调用、Delete 变体
+    15、右边条 movement/idle/hot-corner/Talk 门、主鼠标 variant reload、非致命更新失败、
+    frame load 与 blit 均完成 LST→C++→LST 双向逐指令收敛。复核发现旧现代实现把右边条
+    helper 的 frame miss 当可忽略返回，错误继续主鼠标；原 helper 会在 `0x0040EC30 [eax]`
+    首次 frame 解引用停止。现返回 `edge_frame_unavailable` 并让 world runtime 在 cursor
+    stage 停止。独立 callback 向量固定 frame load 后 action offset/flags/opacity 与 mouse
+    X/Y live reload。typed input/action/frame/blit ports 使分类保持 `platform_adapted`。
+    cursor 与 world-frame-runtime synthetic/real 三项定向 CTest 通过；Linux `core`
+    185/185、Linux `app` 191/191、Windows LLVM `app` 191/191 CTest 全部通过。普通世界
+    已接入原槽，特殊模式/商店调用点留给各自模块且不复制 owner；两端应用成功链接且未
+    启动游戏 EXE。114 项当前关闭 104 项，即 `44 assembly_exact + 60 platform_adapted + 10
+    pending_audit`；下一精确停点为 `0x004151F0 sub_4151F0`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

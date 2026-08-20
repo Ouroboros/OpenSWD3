@@ -52,6 +52,16 @@ public:
         loads.emplace_back(resource_id, frame_index);
         piece.width = 16U;
         piece.height = 16U;
+        if (record_to_mutate_after_load != nullptr) {
+            record_to_mutate_after_load->draw_offset_x = 2U;
+            record_to_mutate_after_load->draw_offset_y = 3U;
+            record_to_mutate_after_load->mode_flags = 0x80000021U;
+            record_to_mutate_after_load->field_8a = 0xFEU;
+        }
+        if (input_to_mutate_after_load != nullptr) {
+            input_to_mutate_after_load->mouse_x = 300;
+            input_to_mutate_after_load->mouse_y = 400;
+        }
         return frame_index != unavailable_frame;
     }
 
@@ -74,6 +84,8 @@ public:
     u32 failed_variant{0xFFFFFFFFU};
     u16 unavailable_frame{0xFFFFU};
     LegacyBlitExecutionStatus draw_status{LegacyBlitExecutionStatus::completed};
+    LegacyActionRecord* record_to_mutate_after_load{};
+    LegacyWorldCursorFrameInput* input_to_mutate_after_load{};
     bool write_frame_fields{true};
 };
 
@@ -220,6 +232,62 @@ void test_delete_update_failure_continues_with_current_frame(
     );
 }
 
+void test_missing_edge_frame_stops_before_main_cursor(
+    openswd3::test::Context& test
+) {
+    LegacyWorldCursorState state;
+    RecordingPorts ports;
+    ports.unavailable_frame = 0x48U;
+    u32 special_mode{};
+
+    const auto result = update_draw_legacy_world_cursor(
+        state, LegacyWorldCursorFrameInput{}, special_mode, ports
+    );
+
+    test.expect_true(
+        result.status == LegacyWorldCursorStatus::edge_frame_unavailable &&
+            result.edge_draw_requested &&
+            result.edge_action.status ==
+                openswd3::asset_runtime::LegacyActionDrawStatus::
+                    frame_load_failed &&
+            result.edge_action.frame_request_count == 1U &&
+            result.edge_action.draw_count == 0U &&
+            result.cursor_update_count == 0U &&
+            result.cursor_frame_request_count == 0U &&
+            ports.updated_variants == std::vector<u32>{8U} &&
+            ports.loads == std::vector<std::pair<u16, u16>>{{0x1208U, 0x48U}} &&
+            ports.draws.empty(),
+        "edge frame miss stops at the helper's original first dereference"
+    );
+}
+
+void test_frame_callback_fields_are_reloaded(openswd3::test::Context& test) {
+    LegacyWorldCursorState state;
+    state.cursor_action.field_4a = 0x3456U;
+    state.cursor_action.field_4c = 0x0078U;
+    LegacyWorldCursorFrameInput input{
+        .mouse_x = 100,
+        .mouse_y = 200,
+    };
+    RecordingPorts ports;
+    ports.write_frame_fields = false;
+    ports.record_to_mutate_after_load = &state.cursor_action;
+    ports.input_to_mutate_after_load = &input;
+    u32 special_mode{1U};
+
+    const auto result =
+        update_draw_legacy_world_cursor(state, input, special_mode, ports);
+
+    test.expect_true(
+        result.status == LegacyWorldCursorStatus::completed &&
+            ports.loads ==
+                std::vector<std::pair<u16, u16>>{{0x3456U, 0x0078U}} &&
+            ports.draws ==
+                std::vector<DrawCall>{DrawCall{298, 397, 0x80000021U, 0xFE}},
+        "frame callback reloads live cursor action and mouse fields before blit"
+    );
+}
+
 void test_missing_main_frame_is_checked(openswd3::test::Context& test) {
     LegacyWorldCursorState state;
     RecordingPorts ports;
@@ -246,6 +314,8 @@ int main() {
     test_idle_edge_click_requests_special_mode(test);
     test_edge_motion_talk_gate_and_clamp(test);
     test_delete_update_failure_continues_with_current_frame(test);
+    test_missing_edge_frame_stops_before_main_cursor(test);
+    test_frame_callback_fields_are_reloaded(test);
     test_missing_main_frame_is_checked(test);
     return test.exit_code();
 }
