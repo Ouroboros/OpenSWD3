@@ -18,6 +18,22 @@ constexpr std::size_t kHeaderSize = 0x1A8U;
 constexpr std::size_t kChunkTableOffset = 0x1CU;
 constexpr std::size_t kChunkEntrySize = 8U;
 
+void maintain_audio(
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+) {
+    if (audio_maintenance_stage) {
+        audio_maintenance_stage();
+    }
+}
+
+void update_progress(
+    const LegacyCmCacheProgressStage& progress_stage, const compat::i32 progress
+) {
+    if (progress_stage) {
+        progress_stage(progress);
+    }
+}
+
 [[nodiscard]] compat::u32 read_u32(
     const std::span<const compat::u8> bytes, const std::size_t offset
 ) noexcept {
@@ -81,13 +97,16 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
     const compat::u32 cm_relative_offset,
     const std::filesystem::path& cache_path,
     const compat::u32 map_pixel_bits,
-    const rendering::LegacyPixelConversionState& pixel_conversion
+    const rendering::LegacyPixelConversionState& pixel_conversion,
+    const LegacyCmCacheProgressStage& progress_stage,
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
 ) {
     LegacyCmCacheGenerationResult result;
     if (cm_relative_offset == 0U) {
         return result;
     }
 
+    maintain_audio(audio_maintenance_stage);
     resource_io::LegacyFile cache;
     if (!cache.open(
             cache_path,
@@ -98,6 +117,7 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
         return result;
     }
     static_cast<void>(cache.seek_begin_one_based(0));
+    maintain_audio(audio_maintenance_stage);
 
     std::ifstream archive{archive_path, std::ios::binary};
     if (!archive.is_open()) {
@@ -106,7 +126,9 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
     }
 
     const compat::u32 header_offset = map_offset + cm_relative_offset;
-    if (!seek_absolute(archive, header_offset)) {
+    const bool header_seek_succeeded = seek_absolute(archive, header_offset);
+    maintain_audio(audio_maintenance_stage);
+    if (!header_seek_succeeded) {
         result.status = LegacyCmCacheGenerationStatus::header_seek_failed;
         return result;
     }
@@ -120,6 +142,7 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
         result.status = LegacyCmCacheGenerationStatus::header_read_failed;
         return result;
     }
+    maintain_audio(audio_maintenance_stage);
 
     result.declared_output_size = read_u32(header, 0x10U);
     result.chunk_output_size = read_u32(header, 0x14U);
@@ -154,11 +177,13 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
     };
 
     compat::u32 remaining = result.declared_output_size;
+    compat::u32 progress_numerator{};
     for (compat::u32 chunk_index = 0U; chunk_index < result.chunk_count;
          ++chunk_index) {
         const std::size_t entry_offset = kChunkTableOffset +
             static_cast<std::size_t>(chunk_index) * kChunkEntrySize;
         const compat::u32 compressed_size = read_u32(header, entry_offset);
+        maintain_audio(audio_maintenance_stage);
         std::vector<compat::u8> compressed(compressed_size);
         if (!compressed.empty()) {
             archive.read(
@@ -172,6 +197,7 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
             }
         }
         result.compressed_bytes_read += compressed_size;
+        maintain_audio(audio_maintenance_stage);
 
         const auto decompressed =
             resource_io::decompress_legacy_lzo1x(compressed, output_bytes);
@@ -203,6 +229,7 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
                 static_cast<compat::i32>(pixel_count)
             );
         }
+        maintain_audio(audio_maintenance_stage);
 
         if (bytes_to_write != 0U) {
             compat::u32 requested_size = bytes_to_write;
@@ -218,6 +245,13 @@ LegacyCmCacheGenerationResult generate_legacy_cm_cache_unit(
         result.cache_bytes_written += bytes_to_write;
         result.decompressed_bytes_discarded +=
             decompressed.bytes_written - bytes_to_write;
+        update_progress(
+            progress_stage,
+            static_cast<compat::i32>(
+                progress_numerator / result.chunk_count + 15U
+            )
+        );
+        progress_numerator += 45U;
         remaining -= result.chunk_output_size;
         ++result.completed_chunks;
     }

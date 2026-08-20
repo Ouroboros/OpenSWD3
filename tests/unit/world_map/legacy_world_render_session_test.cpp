@@ -521,6 +521,7 @@ void test_current_maps(
     TestTree direct_tree;
     LegacyLmfWorldMapSource direct_map_source{archive_path};
     LegacyFileWorldCmCacheSource direct_cm_source;
+    std::vector<i32> direct_progress;
     std::size_t direct_audio_maintenance_count{};
     const auto direct = load_legacy_world_render_session(
         LegacyWorldRenderSessionRequest{
@@ -532,7 +533,9 @@ void test_current_maps(
         direct_map_source,
         direct_cm_source,
         {},
-        {},
+        [&](const i32 progress, const auto&) {
+            direct_progress.push_back(progress);
+        },
         [&] { ++direct_audio_maintenance_count; }
     );
     test.expect_equal(
@@ -543,12 +546,17 @@ void test_current_maps(
     if (direct.status == LegacyWorldRenderSessionStatus::ready) {
         test.expect_equal(
             direct_audio_maintenance_count,
-            std::size_t{27U} +
+            std::size_t{43U} +
                 direct.session.map_load.session.referenced_records.records
                     .size() +
                 direct.session.map_load.session.indexed_objects.objects.size() *
                     5U,
-            "real render composition includes the five empty-CM loader services"
+            "real render composition includes loader and generator direct services"
+        );
+        test.expect_equal(
+            direct_progress,
+            std::vector<i32>{15, 15, 26, 37, 48, 60, 65, 70, 75, 80, 85},
+            "real map 24 exposes nested CM progress before outer progress 60"
         );
 
         LegacyFramebuffer framebuffer;

@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v231
+版本：v232
 
 最后更新：2026-08-20
 
@@ -1214,5 +1214,23 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     两端应用成功链接且未启动游戏 EXE。114 项当前关闭 108 项，即
     `44 assembly_exact + 64 platform_adapted + 6 pending_audit`；下一精确停点为
     `0x00426DF0 sub_426DF0`。
+
+- B7 继续完成 `0x00426DF0 sub_426DF0` 独立闭环。两处调用确认五参数 cdecl；IDA 漏计的
+    `+0x10` scratch 实参完全未读，`+0x14` 在头读取成功后接收声明输出大小，EAX 所有出口
+    恒为 0 且调用者不消费。多轮 LST→C++→LST REVIEW 恢复循环外 4 个、每块 3 个直接
+    `_AIL_serve`，成功动态次数为 `4 + 3 * chunk_count`；每块写后 progress 保留
+    `15 + floor(45 * index / chunk_count)`。块数继续使用原版
+    `(chunk_size + declared_size) / chunk_size`，精确整除时多读/解压一块、写零字节的 BUG
+    已由双块合成向量固定为 10 次维护与 `15/37`。真实地图 24 四块 generator 为 16 次维护、
+    `15/26/37/48`；首次完整 loader 为 21 次，第二次 hit 为 5 次，render 总公式更新为
+    `43 + refs + 5 * indexed_objects`，完整进度为
+    `15/15/26/37/48/60/65/70/75/80/85`。同一 progress/audio owner 已经 loader → render →
+    SDL 纵向传入。固定 malloc、全局 LMF 文件、错误路径泄漏和未检查解压/写入以
+    RAII/checked owner 替代，失败停在对应危险点，因此分类为 `platform_adapted`；
+    `sub_4270F0/sub_427140` 仍须独立审计。最终完整门禁为 Linux `core` 185/185、Linux
+    `app` 191/191、Windows LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。
+    114 项当前关闭 109 项，即
+    `44 assembly_exact + 65 platform_adapted + 5 pending_audit`；下一精确停点为
+    `0x004270F0 sub_4270F0`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

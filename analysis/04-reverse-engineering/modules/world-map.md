@@ -216,6 +216,18 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
    `44 assembly_exact + 64 platform_adapted + 6 pending_audit`；下一精确停点为
    `0x00426DF0 sub_426DF0`。
 
+   `sub_426DF0` CM 分块生成随后完成独立关闭：确认五参数 cdecl、未读 scratch、输出大小
+   指针与恒零 EAX；恢复循环外 4 个、每块 3 个直接 `_AIL_serve`，并把每块写后的
+   `15 + floor(45 * index / chunk_count)` 进度接回现有 owner。原版块数公式在精确整除时
+   多处理一块的 BUG 已由两块合成向量固定。真实地图 24 四块为 16 次 generator 维护、
+   `15/26/37/48`，首次 loader 为 21 次，render 总公式为
+   `43 + refs + 5 * indexed_objects`。固定 malloc、全局 LMF 文件、错误路径泄漏和未检查失败
+   以 RAII/checked owner 隔离，分类为 `platform_adapted`；`sub_4270F0/sub_427140` 仍保持
+   `pending_audit`。最终完整门禁为 Linux `core` 185/185、Linux `app` 191/191、Windows
+   LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。114 项当前关闭 109 项，
+   即 `44 assembly_exact + 65 platform_adapted + 5 pending_audit`；下一精确停点为
+   `0x004270F0 sub_4270F0`。
+
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
 

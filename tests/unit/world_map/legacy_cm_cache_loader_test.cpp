@@ -22,6 +22,7 @@
 
 namespace {
 
+using openswd3::compat::i32;
 using openswd3::compat::u8;
 using openswd3::compat::u32;
 using openswd3::rendering::LegacyPixelConversionState;
@@ -203,12 +204,17 @@ void test_empty_directory_initialization(openswd3::test::Context& test) {
 
     std::vector<std::uintmax_t> observed_index_sizes;
     std::vector<std::uintmax_t> observed_cache_sizes;
-    const auto result = load_legacy_cm_cache(request_for(tree, 24U), [&] {
-        observed_index_sizes.push_back(
-            file_size_or_missing(tree, "mcache.dat")
-        );
-        observed_cache_sizes.push_back(file_size_or_missing(tree, "0.cm"));
-    });
+    std::vector<i32> progress_stages;
+    const auto result = load_legacy_cm_cache(
+        request_for(tree, 24U),
+        [&](const i32 progress) { progress_stages.push_back(progress); },
+        [&] {
+            observed_index_sizes.push_back(
+                file_size_or_missing(tree, "mcache.dat")
+            );
+            observed_cache_sizes.push_back(file_size_or_missing(tree, "0.cm"));
+        }
+    );
     test.expect_true(
         result.status == LegacyCmCacheLoadStatus::ready_generated &&
             result.initialized_empty_directory && result.selected_slot == 0U &&
@@ -219,13 +225,36 @@ void test_empty_directory_initialization(openswd3::test::Context& test) {
     test.expect_true(
         observed_index_sizes ==
                 std::vector<std::uintmax_t>{
-                    kMissingFileSize, 0U, 0U, 384U, 384U
+                    kMissingFileSize,
+                    0U,
+                    0U,
+                    0U,
+                    0U,
+                    0U,
+                    0U,
+                    0U,
+                    0U,
+                    0U,
+                    384U,
+                    384U,
                 } &&
             observed_cache_sizes ==
                 std::vector<std::uintmax_t>{
-                    kMissingFileSize, kMissingFileSize, 6U, 6U, 6U
-                },
-        "empty-directory audio stages bracket open, generation, persist and load"
+                    kMissingFileSize,
+                    kMissingFileSize,
+                    kMissingFileSize,
+                    0U,
+                    0U,
+                    0U,
+                    0U,
+                    0U,
+                    0U,
+                    6U,
+                    6U,
+                    6U,
+                } &&
+            progress_stages == std::vector<i32>{15},
+        "empty-directory stages interleave loader and one-chunk generator services"
     );
     test.expect_equal(
         result.cache_bytes,
@@ -348,8 +377,24 @@ void test_miss_inserts_and_truncates_index(openswd3::test::Context& test) {
     );
     test.expect_true(
         observed_index_sizes ==
-            std::vector<std::uintmax_t>{34U, 34U, 34U, 34U, 34U, 34U, 32U, 32U},
-        "miss audio stages place truncating persistence between stages six and seven"
+            std::vector<std::uintmax_t>{
+                34U,
+                34U,
+                34U,
+                34U,
+                34U,
+                34U,
+                32U,
+                32U,
+                32U,
+                32U,
+                32U,
+                32U,
+                32U,
+                32U,
+                32U,
+            },
+        "miss stages keep persistence before all nested generator services"
     );
     const std::vector<u8> rewritten = tree.read("mcache.dat");
     test.expect_true(
@@ -401,9 +446,24 @@ void test_eviction_truncates_slot_to_sixteen_bytes(
     test.expect_true(
         observed_slot_sizes ==
             std::vector<std::uintmax_t>{
-                20U, 20U, 20U, 20U, 20U, 16U, 16U, 16U, 16U
+                20U,
+                20U,
+                20U,
+                20U,
+                20U,
+                16U,
+                16U,
+                16U,
+                16U,
+                16U,
+                16U,
+                16U,
+                16U,
+                16U,
+                16U,
+                16U,
             },
-        "eviction audio stage precedes truncation and the remaining stages follow it"
+        "eviction service precedes truncation and nested generation follows it"
     );
     test.expect_true(
         result.cache_bytes.size() == 16U &&
@@ -498,14 +558,19 @@ void test_current_map_24(
         .pixel_conversion = rgb565_conversion(),
     };
     u32 generated_audio_calls{};
-    const auto generated =
-        load_legacy_cm_cache(request, [&] { ++generated_audio_calls; });
+    std::vector<i32> generated_progress;
+    const auto generated = load_legacy_cm_cache(
+        request,
+        [&](const i32 progress) { generated_progress.push_back(progress); },
+        [&] { ++generated_audio_calls; }
+    );
     test.expect_true(
         generated.status == LegacyCmCacheLoadStatus::ready_generated &&
             generated.cache_bytes.size() == 3'706'880U &&
             fnv1a64(generated.cache_bytes) == 0x9923E29AAAA434EEULL &&
-            generated_audio_calls == 5U,
-        "map 24 completes empty-directory generation with five direct services"
+            generated_audio_calls == 21U &&
+            generated_progress == std::vector<i32>{15, 26, 37, 48},
+        "map 24 composes five loader and sixteen generator direct services"
     );
 
     u32 hit_audio_calls{};

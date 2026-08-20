@@ -212,11 +212,19 @@ void initialize_empty_directory(
 
 LegacyCmCacheLoadResult
 load_legacy_cm_cache(const LegacyCmCacheRequest& request) {
-    return load_legacy_cm_cache(request, {});
+    return load_legacy_cm_cache(request, {}, {});
 }
 
 LegacyCmCacheLoadResult load_legacy_cm_cache(
     const LegacyCmCacheRequest& request,
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+) {
+    return load_legacy_cm_cache(request, {}, audio_maintenance_stage);
+}
+
+LegacyCmCacheLoadResult load_legacy_cm_cache(
+    const LegacyCmCacheRequest& request,
+    const LegacyCmCacheProgressStage& progress_stage,
     const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
 ) {
     LegacyCmCacheLoadResult result;
@@ -256,7 +264,9 @@ LegacyCmCacheLoadResult load_legacy_cm_cache(
             request.cm_relative_offset,
             request.cache_directory / "0.cm",
             request.map_pixel_bits,
-            request.pixel_conversion
+            request.pixel_conversion,
+            progress_stage,
+            audio_maintenance_stage
         );
         initialize_empty_directory(
             result.records,
@@ -338,7 +348,9 @@ LegacyCmCacheLoadResult load_legacy_cm_cache(
         request.cache_directory /
             (std::to_string(result.selected_slot) + ".cm"),
         request.map_pixel_bits,
-        request.pixel_conversion
+        request.pixel_conversion,
+        progress_stage,
+        audio_maintenance_stage
     );
     const CacheUnitReadStatus cache_status = read_cache_unit(
         request.cache_directory, result.selected_slot, result.cache_bytes

@@ -87,6 +87,16 @@ LegacyCmCacheLoadResult LegacyFileWorldCmCacheSource::load_cm_cache(
     return load_legacy_cm_cache(request, audio_maintenance_stage);
 }
 
+LegacyCmCacheLoadResult LegacyFileWorldCmCacheSource::load_cm_cache(
+    const LegacyCmCacheRequest& request,
+    const LegacyCmCacheProgressStage& progress_stage,
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+) {
+    return load_legacy_cm_cache(
+        request, progress_stage, audio_maintenance_stage
+    );
+}
+
 LegacyWorldRenderSessionResult load_legacy_world_render_session(
     const LegacyWorldRenderSessionRequest& request,
     LegacyWorldMapSource& map_source,
@@ -158,6 +168,11 @@ LegacyWorldRenderSessionResult load_legacy_world_render_session(
                     .cache_limit_megabytes = request.cache_limit_megabytes,
                     .map_pixel_bits = map_session.header.field_88,
                     .pixel_conversion = request.pixel_conversion,
+                },
+                [&](const compat::i32 progress) {
+                    if (progress_stage) {
+                        progress_stage(progress, map_session);
+                    }
                 },
                 audio_maintenance_stage
             );

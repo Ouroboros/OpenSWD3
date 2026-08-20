@@ -4,8 +4,12 @@
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 
 #include <filesystem>
+#include <functional>
 
 namespace openswd3::world_map {
+
+using LegacyCmCacheProgressStage = std::function<void(compat::i32)>;
+using LegacyCmCacheAudioMaintenanceStage = std::function<void()>;
 
 enum class LegacyCmCacheSizeStatus {
     ready,
@@ -62,7 +66,9 @@ struct LegacyCmCacheGenerationResult {
     compat::u32 cm_relative_offset,
     const std::filesystem::path& cache_path,
     compat::u32 map_pixel_bits,
-    const rendering::LegacyPixelConversionState& pixel_conversion
+    const rendering::LegacyPixelConversionState& pixel_conversion,
+    const LegacyCmCacheProgressStage& progress_stage = {},
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage = {}
 );
 
 }  // namespace openswd3::world_map

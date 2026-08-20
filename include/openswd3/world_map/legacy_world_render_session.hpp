@@ -63,6 +63,14 @@ public:
     ) {
         return load_cm_cache(request);
     }
+
+    [[nodiscard]] virtual LegacyCmCacheLoadResult load_cm_cache(
+        const LegacyCmCacheRequest& request,
+        const LegacyCmCacheProgressStage&,
+        const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+    ) {
+        return load_cm_cache(request, audio_maintenance_stage);
+    }
 };
 
 class LegacyFileWorldCmCacheSource final : public LegacyWorldCmCacheSource {
@@ -72,6 +80,12 @@ public:
 
     [[nodiscard]] LegacyCmCacheLoadResult load_cm_cache(
         const LegacyCmCacheRequest& request,
+        const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+    ) override;
+
+    [[nodiscard]] LegacyCmCacheLoadResult load_cm_cache(
+        const LegacyCmCacheRequest& request,
+        const LegacyCmCacheProgressStage& progress_stage,
         const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
     ) override;
 };
