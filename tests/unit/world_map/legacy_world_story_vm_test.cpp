@@ -60,6 +60,7 @@ using openswd3::world_map::OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE;
 using openswd3::world_map::OP_34_SET_BOUNDED_SCRIPT_CLOCK;
 using openswd3::world_map::OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK;
 using openswd3::world_map::OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA;
+using openswd3::world_map::OP_37_SNAPSHOT_SCRIPT_CLOCK;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -5324,6 +5325,58 @@ void test_jump_if_script_clock_exceeds_origin_delta_protocol(
     );
 }
 
+void test_snapshot_script_clock_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.script_clock = 0x89ABCDEFU;
+        fixture.state.script_clock_origin = 0x01234567U;
+        fixture.state.script_clock_frame_counter = 20U;
+        prime_loaded_instruction(
+            fixture, static_cast<u16>(OP_37_SNAPSHOT_SCRIPT_CLOCK | mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.script_clock_origin == 0x89ABCDEFU &&
+                fixture.state.script_clock == 0x89ABCDEFU &&
+                fixture.state.script_clock_frame_counter == 20U &&
+                fixture.state.previous_opcode == OP_37_SNAPSHOT_SCRIPT_CLOCK &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 37 aliases snapshot the full clock and continue"
+        );
+    }
+
+    Fixture window_tail;
+    window_tail.context.instruction_offset = 0x7FFEU;
+    window_tail.context.talk_data_offset = 0x1111U;
+    window_tail.state.loaded_file_number = 1U;
+    window_tail.state.loaded_data_offset = 0x1111U;
+    window_tail.state.window_loaded = true;
+    window_tail.state.script_clock = 0xFEDCBA98U;
+    window_tail.state.script_clock_origin = 0x01234567U;
+    write_u16(window_tail.state.window, 0x7FFEU, OP_37_SNAPSHOT_SCRIPT_CLOCK);
+    const auto window_tail_result = window_tail.step();
+    test.expect_true(
+        window_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            window_tail.context.instruction_offset == 0x8000U &&
+            window_tail.state.script_clock_origin == 0xFEDCBA98U &&
+            window_tail.state.script_clock == 0xFEDCBA98U &&
+            window_tail.state.previous_opcode == OP_37_SNAPSHOT_SCRIPT_CLOCK,
+        "opcode 37 needs no bytes beyond the two-byte opcode"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -7874,6 +7927,7 @@ int main(const int argument_count, char** arguments) {
     test_set_bounded_script_clock_protocol(test);
     test_jump_if_byte_le_script_clock_protocol(test);
     test_jump_if_script_clock_exceeds_origin_delta_protocol(test);
+    test_snapshot_script_clock_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);

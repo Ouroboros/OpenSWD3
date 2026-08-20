@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v269
+版本：v270
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x004289BE` handler（opcode 37）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x004289DE` handler（opcode 38）
 
 ## 0. 执行约定
 
@@ -1586,6 +1586,16 @@ B7 P0 有限收口完成。
     通过。Windows依v269留到P3，未启动游戏EXE。workpack当前27/146，即
     `4 assembly_exact + 23 platform_adapted + 119 pending_audit`。
 
+- 剧情VM P2第二十八组`0x004289BE` / opcode37完成独立闭环。恢复完整32位`script_clock`
+    到`script_clock_origin`的快照复制；物理记录仅两字节，无operand、audio、callback或yield，
+    不修改clock与21帧divider，固定IP+2、previous发布并同调用继续。窗口IP=`0x7FFE`只剩opcode
+    时仍先完成snapshot，再在下一fetch越界。四个TALK资产均为0条线性记录、0个entry probe；
+    四种raw word共202处字节候选全非已证明入口，因此使用asset-absence证据。四raw alias、完整
+    32位复制、clock/frame-counter隔离、同调用继续与窗口尾副作用顺序均通过。定向剧情VM 3/3、
+    Linux core 186/186、Linux app 192/192均以exit 0通过；生成器`py_compile`及双重生成哈希幂等
+    通过。Windows依v270留到P3，未启动游戏EXE。workpack当前28/146，即
+    `5 assembly_exact + 23 platform_adapted + 118 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x004289BE` 的opcode37 handler；现有导航语义与未实现状态均不继承完成状态。
+`0x004289DE` 的opcode38 handler；现有导航语义与未实现状态均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
