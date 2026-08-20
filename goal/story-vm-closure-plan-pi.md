@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0 已完成，当前步骤 P1
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x0042D230`
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -63,6 +63,14 @@ LLVM app 192/192 完整门禁通过。P1 从此边界开始，不继承任何 VM
    不先进行脱离实现的全量研究。
 4. 明确每个 handler 对 world-map、story-scene、special-modes、battle、rendering、
    asset-runtime 和 audio-video 的端口依赖。
+
+P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST label/机器字节重建两张
+一级表、两张内部跳表和 157/73 byte selector；重跑后 198 行 dispatch、146 个入口组和
+2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
+行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、125 行旧语义、
+143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定 17 条默认、特殊
+值、窗口、公共 join/yield 与返回路径。P2 当前只审计第一行 `0x0042D230`：显式 opcode 0
+与默认范围 `194..1023,1027..16382`，不得跳到既有 case 或资产命中组。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

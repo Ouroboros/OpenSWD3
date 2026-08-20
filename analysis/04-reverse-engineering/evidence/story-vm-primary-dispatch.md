@@ -4,15 +4,15 @@
 
 本证据块只回答 `sub_427920` 如何从当前命令字选择第一个处理入口，以及未映射值如何处理。汇编是唯一真实依据；IDA 的 switch 注释只用于核对，不参与生成结论。
 
-机器目录由 `tools/build_story_vm_dispatch_inventory.py` 从完整汇编机械抽取，并直接读取锁定的原 `swd3.exe` PE 表字节复核。生成器要求：
+机器目录由 `tools/build_story_vm_dispatch_inventory.py` 只从完整 LST 机械抽取。生成器要求：
 
-- `swd3.exe` SHA-256 为 `0bac897a7557735b22607d8c8f0a79a3e7ae7729deb56593fd91c21e10baee0c`；
-- 完整汇编 SHA-256 为 `d902f6dfd47d7033bf8a971c4ccc3a4d8d037b5b577035041113329363cab052`；
-- `0x0042D4F4` 的 98 个 PE dword 与主表汇编文本逐项相同；
-- `0x0042D67C` 的 94 个 PE dword 与次表汇编文本逐项相同；
-- 两个共享入口内部使用的 6/9 项跳表和 157/73 字节选择表也与原 PE 字节相同。
+- `swd3.exe.lst` SHA-256 为 `701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b`；
+- `0x0042D4F4` 的 98 个 LST `dd offset` 逐项解析到同一 LST label；
+- `0x0042D67C` 的 94 个 LST `dd offset` 逐项解析到同一 LST label；
+- 每个可见表行的首 dword 与该行 little-endian 机器字节一致；
+- 两个共享入口内部使用的 6/9 项跳表和 157/73 字节 selector 表均从 LST byte column 重建。
 
-因此本文不是手工抄录 IDA case 注释，192 个表项均可重复生成并回查原二进制。
+生成器不再读取已失效 hash 的 `swd3.exe.asm`，也不以 PE 作为第二行为来源。重跑后 opcode dispatch、entry groups 和 internal switches 三表与旧基线逐字节相同，证明 192 个表项在切换到唯一 LST 真值后没有漂移。
 
 ## 取指与 opcode 域
 
@@ -100,7 +100,10 @@ opcode | 0xC000
 - `inventory/story-vm-dispatch-ranges.tsv`：完整 14 位域的 11 条解码/边界规则。
 - `inventory/story-vm-entry-target-groups.tsv`：146 个入口目标及其 opcode 集；默认入口用三个区间压缩表示。
 - `inventory/story-vm-internal-opcode-switches.tsv`：两个共享 handler 内部的 opcode 细分表。
+- `inventory/story-vm-handler-workpack.tsv`：P1 的 146 个唯一 handler 审计行，全部从 `pending_audit` 开始。
+- `inventory/story-vm-runtime-paths.tsv`：默认、特殊值、窗口、公共 join/yield 和返回路径的 17 行范围表。
+- [`story-vm-handler-workpack-p1.md`](story-vm-handler-workpack-p1.md)：LST 单源生成、导航覆盖和 P2 停止线。
 
 ## 当前结论与下一步
 
-P5 的“完整 jump table、分派边界和未映射值行为”已经闭环。当前仍不能声称剧情 VM 已恢复：下一步必须从每个一级入口的真实汇编控制流提取参数读取宽度、推进长度、状态读写、同步/异步/等待条件和错误路径，再用全部 `TALK*.DAT` 的真实命令流反向验证。任何基于入口地址自动合并 opcode 的做法都会丢失已确认的内部细分。
+P1 的完整 scope 已锁定，但剧情 VM 语义闭环仍为 0/146。P2 必须从每个一级入口的真实 LST 控制流提取参数读取宽度、推进长度、状态读写、同步/异步/等待条件和错误路径，再用全部 `TALK*.DAT` 的真实命令流反向验证。第一停止点为默认非法入口 `0x0042D230`（显式 opcode 0，并同时覆盖两个默认范围）；任何基于入口地址自动合并 opcode 或继承既有 C++/文档完成状态的做法都会丢失已确认的内部细分。

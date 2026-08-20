@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Build assembly-locked inventories for the SWD3 story VM dispatcher.
+"""Build LST-locked inventories for the SWD3 story VM dispatcher.
 
-The complete assembly is the sole behavioral authority.  This generator also
-decodes the original PE jump-table bytes and requires them to agree with the
-assembly export, so table transcription errors cannot silently enter the
-research documents.  It does not interpret story opcodes beyond their first
-dispatch target.
+The complete LST machine listing is the sole behavioral authority.  Jump-table
+symbols are resolved through labels from that same listing; every visible first
+dword is also checked against its little-endian machine bytes.  Internal byte
+selector tables are reconstructed directly from the LST byte column.  The
+generator does not interpret story opcodes beyond their first dispatch target.
 """
 
 from __future__ import annotations
@@ -13,15 +13,13 @@ from __future__ import annotations
 import csv
 import hashlib
 import re
-import struct
 from collections import Counter, defaultdict
 from pathlib import Path
-
+from typing import cast
 
 RESEARCH_ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE_ROOT = RESEARCH_ROOT.parents[1]
-EXE_PATH = WORKSPACE_ROOT / "swd3.exe"
-ASM_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.asm"
+LST_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.lst"
 INVENTORY_ROOT = RESEARCH_ROOT / "04-reverse-engineering" / "inventory"
 
 DISPATCH_OUTPUT = INVENTORY_ROOT / "story-vm-opcode-dispatch.tsv"
@@ -30,16 +28,18 @@ GROUP_OUTPUT = INVENTORY_ROOT / "story-vm-entry-target-groups.tsv"
 INTERNAL_OUTPUT = INVENTORY_ROOT / "story-vm-internal-opcode-switches.tsv"
 
 EXPECTED_SHA256 = {
-    EXE_PATH: "0bac897a7557735b22607d8c8f0a79a3e7ae7729deb56593fd91c21e10baee0c",
-    ASM_PATH: "d902f6dfd47d7033bf8a971c4ccc3a4d8d037b5b577035041113329363cab052",
+    LST_PATH: "701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b",
 }
 
-IMAGE_BASE = 0x00400000
 MAIN_TABLE = (0x0042D4F4, 98, 1, 0x00427B88)
 SECONDARY_TABLE = (0x0042D67C, 94, 100, 0x0042ADB0)
 
-ASM_LINE_RE = re.compile(r"^([0-9A-F]{8})\s+(.+?)\s*$")
-TARGET_RE = re.compile(r"\boffset\s+(?:loc|def)_([0-9A-F]{6})\b")
+LST_LINE_RE = re.compile(r"^\.[^:]+:([0-9A-F]{8})\s*(.*?)\s*$")
+LST_BYTE_PREFIX_RE = re.compile(
+    r"^(?P<bytes>(?:[0-9A-F]{2}(?:\s+|…))+)(?P<text>.*)$"
+)
+LST_LABEL_RE = re.compile(r"^([A-Za-z_?$@][A-Za-z0-9_?$@]*)\s*:")
+OFFSET_TARGET_RE = re.compile(r"\boffset\s+([A-Za-z_?$@][A-Za-z0-9_?$@]*)\b")
 
 EXPECTED_SNIPPETS = {
     0x00427B40: "mov cx, [ebx]",
@@ -108,20 +108,41 @@ def normalize(text: str) -> str:
     return " ".join(text.split())
 
 
-def load_assembly() -> tuple[list[str], dict[int, str]]:
-    lines = ASM_PATH.read_text(encoding="utf-8", errors="replace").splitlines()
+def split_lst_line(raw: str) -> tuple[int, list[int], str] | None:
+    match = LST_LINE_RE.match(raw)
+    if not match:
+        return None
+    address = int(match.group(1), 16)
+    remainder = match.group(2)
+    byte_match = LST_BYTE_PREFIX_RE.match(remainder)
+    if byte_match is None:
+        return address, [], remainder.strip()
+    byte_values = [
+        int(value, 16)
+        for value in re.findall(r"[0-9A-F]{2}", byte_match.group("bytes"))
+    ]
+    return address, byte_values, byte_match.group("text").strip()
+
+
+def load_lst() -> tuple[list[str], dict[int, str], dict[str, int]]:
+    lines = LST_PATH.read_text(encoding="utf-8", errors="replace").splitlines()
     by_address: dict[int, str] = {}
+    labels: dict[str, int] = {}
     for raw in lines:
-        match = ASM_LINE_RE.match(raw)
-        if not match:
+        parsed = split_lst_line(raw)
+        if parsed is None:
             continue
-        text = match.group(2).split(";", 1)[0].rstrip()
+        address, byte_values, text = parsed
+        label_match = LST_LABEL_RE.match(text)
+        if label_match is not None:
+            labels.setdefault(label_match.group(1), address)
+        if not byte_values:
+            continue
+        text = text.split(";", 1)[0].rstrip()
         if not text or text.endswith(":"):
             continue
-        if " = " in text or re.search(r"\bproc near\b|\bendp\b", text):
-            continue
-        by_address.setdefault(int(match.group(1), 16), normalize(text))
-    return lines, by_address
+        by_address.setdefault(address, normalize(text))
+    return lines, by_address, labels
 
 
 def verify_inputs() -> None:
@@ -143,82 +164,79 @@ def verify_assembly(by_address: dict[int, str]) -> None:
             )
 
 
-def parse_asm_table(lines: list[str], address: int, count: int) -> list[int]:
+def parse_lst_target_table(
+    lines: list[str], labels: dict[str, int], address: int, count: int
+) -> list[int]:
     end = address + count * 4
     targets: list[int] = []
     for raw in lines:
-        match = ASM_LINE_RE.match(raw)
-        if not match:
+        parsed = split_lst_line(raw)
+        if parsed is None:
             continue
-        line_address = int(match.group(1), 16)
-        if address <= line_address < end:
-            targets.extend(int(value, 16) for value in TARGET_RE.findall(raw))
+        line_address, byte_values, _text = parsed
+        if not (address <= line_address < end):
+            continue
+        names = OFFSET_TARGET_RE.findall(raw)
+        if not names:
+            continue
+        try:
+            resolved = [labels[name] for name in names]
+        except KeyError as error:
+            raise SystemExit(f"unresolved LST table label: {error.args[0]}") from error
+        if len(byte_values) >= 4:
+            displayed = int.from_bytes(bytes(byte_values[:4]), "little")
+            if displayed != resolved[0]:
+                raise SystemExit(
+                    f"LST dword mismatch at 0x{line_address:08X}: "
+                    f"bytes=0x{displayed:08X}, label=0x{resolved[0]:08X}"
+                )
+        targets.extend(resolved)
     if len(targets) != count:
         raise SystemExit(
-            f"assembly table 0x{address:08X}: expected {count} entries, got {len(targets)}"
+            f"LST table 0x{address:08X}: expected {count} entries, got {len(targets)}"
         )
     return targets
 
 
-def pe_sections(data: bytes) -> list[tuple[int, int, int, int]]:
-    pe_offset = struct.unpack_from("<I", data, 0x3C)[0]
-    if data[pe_offset:pe_offset + 4] != b"PE\0\0":
-        raise SystemExit("swd3.exe no longer has a PE signature")
-    section_count = struct.unpack_from("<H", data, pe_offset + 6)[0]
-    optional_size = struct.unpack_from("<H", data, pe_offset + 20)[0]
-    optional = pe_offset + 24
-    if struct.unpack_from("<H", data, optional)[0] != 0x10B:
-        raise SystemExit("expected PE32 executable")
-    image_base = struct.unpack_from("<I", data, optional + 28)[0]
-    if image_base != IMAGE_BASE:
-        raise SystemExit(f"unexpected ImageBase 0x{image_base:08X}")
-    section_table = optional + optional_size
-    sections = []
-    for index in range(section_count):
-        entry = section_table + index * 40
-        virtual_size, virtual_address, raw_size, raw_pointer = struct.unpack_from(
-            "<IIII", data, entry + 8
+def parse_lst_bytes(lines: list[str], address: int, count: int) -> bytes:
+    end = address + count
+    values: dict[int, int] = {}
+    for raw in lines:
+        parsed = split_lst_line(raw)
+        if parsed is None:
+            continue
+        line_address, byte_values, _text = parsed
+        for index, value in enumerate(byte_values):
+            byte_address = line_address + index
+            if not (address <= byte_address < end):
+                continue
+            previous = values.setdefault(byte_address, value)
+            if previous != value:
+                raise SystemExit(
+                    f"conflicting LST byte at 0x{byte_address:08X}: "
+                    f"0x{previous:02X} vs 0x{value:02X}"
+                )
+    missing = [byte_address for byte_address in range(address, end) if byte_address not in values]
+    if missing:
+        raise SystemExit(
+            f"LST byte table 0x{address:08X}: missing byte 0x{missing[0]:08X}"
         )
-        sections.append((virtual_address, virtual_size, raw_pointer, raw_size))
-    return sections
+    return bytes(values[byte_address] for byte_address in range(address, end))
 
 
-def va_to_file_offset(
-    va: int, sections: list[tuple[int, int, int, int]]
-) -> int:
-    rva = va - IMAGE_BASE
-    for virtual_address, virtual_size, raw_pointer, raw_size in sections:
-        span = max(virtual_size, raw_size)
-        if virtual_address <= rva < virtual_address + span:
-            delta = rva - virtual_address
-            if delta >= raw_size:
-                raise SystemExit(f"VA 0x{va:08X} lies in a zero-filled section tail")
-            return raw_pointer + delta
-    raise SystemExit(f"VA 0x{va:08X} is not covered by a PE section")
-
-
-def parse_pe_table(data: bytes, address: int, count: int) -> list[int]:
-    offset = va_to_file_offset(address, pe_sections(data))
-    return list(struct.unpack_from(f"<{count}I", data, offset))
+def parse_lst_dwords(lines: list[str], address: int, count: int) -> list[int]:
+    data = parse_lst_bytes(lines, address, count * 4)
+    return [
+        int.from_bytes(data[index:index + 4], "little")
+        for index in range(0, len(data), 4)
+    ]
 
 
 def verify_table(
-    lines: list[str], data: bytes, descriptor: tuple[int, int, int, int]
+    lines: list[str], labels: dict[str, int], descriptor: tuple[int, int, int, int]
 ) -> list[int]:
     address, count, _opcode_base, _dispatch = descriptor
-    asm_targets = parse_asm_table(lines, address, count)
-    pe_targets = parse_pe_table(data, address, count)
-    if asm_targets != pe_targets:
-        mismatch = next(
-            index
-            for index, pair in enumerate(zip(asm_targets, pe_targets))
-            if pair[0] != pair[1]
-        )
-        raise SystemExit(
-            f"PE/assembly table mismatch at 0x{address + mismatch * 4:08X}: "
-            f"asm=0x{asm_targets[mismatch]:08X}, pe=0x{pe_targets[mismatch]:08X}"
-        )
-    return asm_targets
+    return parse_lst_target_table(lines, labels, address, count)
 
 
 def raw_aliases(opcode: int) -> str:
@@ -280,15 +298,15 @@ def build_dispatch_rows(
                 "behavior": behavior,
             }
         )
-    entries.sort(key=lambda entry: int(entry["opcode"]))
+    entries.sort(key=lambda entry: cast(int, entry["opcode"]))
     if len(entries) != 198 or len({entry["opcode"] for entry in entries}) != 198:
         raise SystemExit("unexpected explicit opcode count")
 
-    counts = Counter(int(entry["target"]) for entry in entries)
+    counts = Counter(cast(int, entry["target"]) for entry in entries)
     rows = []
     for entry in entries:
-        opcode = int(entry["opcode"])
-        target = int(entry["target"])
+        opcode = cast(int, entry["opcode"])
+        target = cast(int, entry["target"])
         rows.append(
             (
                 opcode,
@@ -310,9 +328,9 @@ def build_range_rows() -> list[tuple[object, ...]]:
     return [
         ("decode", "raw_word 0..65535", "raw_word & 0x3FFF", "0x00427B4F", "upper two bits do not select the primary route; four raw words alias each effective opcode"),
         ("default", "opcode == 0", "0x0042D230", "0x00427B7C-0x00427B82", "unsigned index underflow takes JA; beep/diagnostic, no advance, return 1"),
-        ("main_table", "1 <= opcode <= 98", "jpt_427B88[opcode-1]", "0x00427B7C-0x00427B88", "98 PE dwords at 0x0042D4F4"),
+        ("main_table", "1 <= opcode <= 98", "jpt_427B88[opcode-1]", "0x00427B7C-0x00427B88", "98 LST dwords at 0x0042D4F4"),
         ("special", "opcode == 99", "0x0042AD75", "0x00427B69-0x00427B76", "operand-gated wait; instruction is four bytes when accepted"),
-        ("secondary_table", "100 <= opcode <= 193", "jpt_42ADB0[opcode-100]", "0x0042ADA4-0x0042ADB0", "94 PE dwords at 0x0042D67C"),
+        ("secondary_table", "100 <= opcode <= 193", "jpt_42ADB0[opcode-100]", "0x0042ADA4-0x0042ADB0", "94 LST dwords at 0x0042D67C"),
         ("default", "194 <= opcode <= 1023", "0x0042D230", "0x0042AD92-0x0042ADAA", "secondary unsigned index is above 93"),
         ("special", "opcode == 1024", "0x0042D200", "0x0042AD92-0x0042AD9E", "advance two and continue in same interpreter call"),
         ("special", "opcode == 1025", "0x0042D49F", "0x0042D219-0x0042D21F", "advance two and yield"),
@@ -328,7 +346,7 @@ def build_group_rows(
     target_to_opcodes: dict[int, list[int]] = defaultdict(list)
     target_to_kinds: dict[int, set[str]] = defaultdict(set)
     for row in dispatch_rows:
-        opcode = int(row[0])
+        opcode = cast(int, row[0])
         target = int(str(row[6]), 16)
         target_to_opcodes[target].append(opcode)
         target_to_kinds[target].add(str(row[3]))
@@ -391,7 +409,7 @@ def build_internal_rows() -> list[tuple[object, ...]]:
     ]
 
 
-def verify_internal_tables(data: bytes) -> None:
+def verify_internal_tables(lines: list[str]) -> None:
     expected_jump_tables = {
         (0x0042D7F4, 6): [
             0x0042B0EB, 0x0042B0F4, 0x0042B0FD,
@@ -404,15 +422,12 @@ def verify_internal_tables(data: bytes) -> None:
         ],
     }
     for (address, count), expected in expected_jump_tables.items():
-        actual = parse_pe_table(data, address, count)
+        actual = parse_lst_dwords(lines, address, count)
         if actual != expected:
             raise SystemExit(f"internal jump table changed at 0x{address:08X}")
 
-    sections = pe_sections(data)
-    first = va_to_file_offset(0x0042D80C, sections)
-    second = va_to_file_offset(0x0042D8D0, sections)
-    table_a = data[first:first + 157]
-    table_b = data[second:second + 73]
+    table_a = parse_lst_bytes(lines, 0x0042D80C, 157)
+    table_b = parse_lst_bytes(lines, 0x0042D8D0, 73)
     expected_a = bytearray([5] * 157)
     for opcode, selector in {
         29: 0, 30: 1, 31: 2, 32: 3, 33: 4,
@@ -439,12 +454,11 @@ def write_tsv(path: Path, header: tuple[str, ...], rows: list[tuple[object, ...]
 
 def main() -> None:
     verify_inputs()
-    lines, by_address = load_assembly()
+    lines, by_address, labels = load_lst()
     verify_assembly(by_address)
-    data = EXE_PATH.read_bytes()
-    main_targets = verify_table(lines, data, MAIN_TABLE)
-    secondary_targets = verify_table(lines, data, SECONDARY_TABLE)
-    verify_internal_tables(data)
+    main_targets = verify_table(lines, labels, MAIN_TABLE)
+    secondary_targets = verify_table(lines, labels, SECONDARY_TABLE)
+    verify_internal_tables(lines)
 
     dispatch_rows = build_dispatch_rows(main_targets, secondary_targets, by_address)
     range_rows = build_range_rows()
@@ -457,7 +471,7 @@ def main() -> None:
         raise SystemExit("main opcode rows changed")
     if sum(1 for row in dispatch_rows if row[3] == "secondary_table") != 94:
         raise SystemExit("secondary opcode rows changed")
-    if sum(int(row[1]) for row in group_rows) != 16384:
+    if sum(cast(int, row[1]) for row in group_rows) != 16384:
         raise SystemExit("entry target groups do not cover the full 14-bit opcode domain")
 
     write_tsv(
