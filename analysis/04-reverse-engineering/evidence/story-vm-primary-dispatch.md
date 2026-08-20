@@ -106,4 +106,4 @@ opcode | 0xC000
 
 ## 当前结论与下一步
 
-P1 的完整 scope 已锁定，P2 当前闭环 17/146。默认非法入口、共享对话入口、bit31/bit30 清除入口、lifetime 暂存入口、role base/variant action、role position、role step、role action wait、same-file jump、unprepared/prepared role-path conditional jump、单角色/全角色 role-path release、共享 opcode20/169 role-path schedule，以及共享opcode21/22 global-bit conditional jump入口已关闭；下一停止点为`0x0042857F`的opcode23 handler。后续仍必须从每个一级入口的真实 LST 控制流提取参数读取宽度、推进长度、状态读写、同步/异步/等待条件和错误路径，再用全部 `TALK*.DAT` 的真实命令流反向验证；任何按入口地址粗暴合并变体或继承既有 C++/文档完成状态的做法都会丢失内部细分。
+P1 的完整 scope 已锁定，P2 当前闭环 18/146。默认非法入口、共享对话入口、bit31/bit30 清除入口、lifetime 暂存入口、role base/variant action、role position、role step、role action wait、same-file jump、unprepared/prepared role-path conditional jump、单角色/全角色 role-path release、共享 opcode20/169 role-path schedule、共享opcode21/22 global-bit conditional jump，以及opcode23 all-global-bits conditional jump入口已关闭；下一停止点为`0x004285ED`的opcode24 handler。后续仍必须从每个一级入口的真实 LST 控制流提取参数读取宽度、推进长度、状态读写、同步/异步/等待条件和错误路径，再用全部 `TALK*.DAT` 的真实命令流反向验证；任何按入口地址粗暴合并变体或继承既有 C++/文档完成状态的做法都会丢失内部细分。

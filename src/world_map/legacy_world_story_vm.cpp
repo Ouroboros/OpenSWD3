@@ -1717,6 +1717,54 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET: {
+            std::size_t cursor = ip + 2U;
+            std::size_t bit_count = 0U;
+            bool all_bits_set = true;
+            for (;;) {
+                if (!has_bytes(state.window, cursor, 2U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                const u16 bit_index = read_u16(state.window, cursor);
+                if (bit_index == 0xFF00U) {
+                    break;
+                }
+                if (!query_legacy_world_story_flag(state, bit_index)) {
+                    all_bits_set = false;
+                }
+                ++bit_count;
+                cursor += 2U;
+            }
+            if (!all_bits_set) {
+                const std::size_t instruction_size = 8U + bit_count * 2U;
+                context.instruction_offset = static_cast<u16>(
+                    context.instruction_offset + instruction_size
+                );
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+            if (!has_bytes(state.window, cursor + 2U, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const auto status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, cursor + 2U),
+                result,
+                ports
+            );
+            state.previous_opcode = result.opcode;
+            if (status != LegacyWorldStoryVmStatus::idle) {
+                result.status = status;
+                return result;
+            }
+            continue;
+        }
+
         case 25U:
         case 26U:
             if (!has_bytes(state.window, ip, 4U)) {

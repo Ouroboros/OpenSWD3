@@ -45,7 +45,8 @@ using openswd3::world_map::OP_19_RELEASE_ROLE_PATHS;
 using openswd3::world_map::OP_20_SCHEDULE_ROLE_PATHS;
 using openswd3::world_map::OP_21_JUMP_IF_GLOBAL_BIT_SET;
 using openswd3::world_map::OP_22_JUMP_IF_GLOBAL_BIT_CLEAR;
-using openswd3::world_map::OP_23;
+using openswd3::world_map::OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET;
+using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
 void write_u16(
@@ -669,13 +670,13 @@ void test_clear_dialog_control_flag(openswd3::test::Context& test) {
     for (const u16 raw_word : raw_aliases) {
         Fixture fixture;
         prime_loaded_instruction(fixture, raw_word);
-        write_u16(fixture.state.window, 2U, OP_23);
+        write_u16(fixture.state.window, 2U, OP_1025);
         fixture.state.text_control_flags = 0x92345678U;
         fixture.state.previous_opcode = 0x55U;
         const auto result = fixture.step();
         test.expect_true(
             result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_23 &&
+                result.opcode == OP_1025 &&
                 result.executed_instruction_count == 2U &&
                 result.instruction_offset == 2U &&
                 fixture.context.instruction_offset == 2U &&
@@ -729,13 +730,13 @@ void test_clear_dialog_control_flag_bit30(openswd3::test::Context& test) {
     for (const u16 raw_word : raw_aliases) {
         Fixture fixture;
         prime_loaded_instruction(fixture, raw_word);
-        write_u16(fixture.state.window, 2U, OP_23);
+        write_u16(fixture.state.window, 2U, OP_1025);
         fixture.state.text_control_flags = 0xD2345678U;
         fixture.state.previous_opcode = 0x55U;
         const auto result = fixture.step();
         test.expect_true(
             result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_23 &&
+                result.opcode == OP_1025 &&
                 result.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 2U &&
                 fixture.state.text_control_flags == 0x92345678U &&
@@ -785,12 +786,12 @@ void test_stage_dialog_lifetime(openswd3::test::Context& test) {
         Fixture fixture;
         prime_loaded_instruction(fixture, raw_word);
         write_u16(fixture.state.window, 2U, 0xFFFFU);
-        write_u16(fixture.state.window, 4U, OP_23);
+        write_u16(fixture.state.window, 4U, OP_1025);
         fixture.state.previous_opcode = 0x55U;
         const auto result = fixture.step();
         test.expect_true(
             result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_23 &&
+                result.opcode == OP_1025 &&
                 result.executed_instruction_count == 2U &&
                 result.instruction_offset == 4U &&
                 fixture.context.instruction_offset == 4U &&
@@ -1080,7 +1081,7 @@ void test_default_invalid_opcode_protocol(openswd3::test::Context& test) {
         "default diagnostics observe the prior join value before publishing"
     );
 
-    constexpr std::array<u16, 3U> explicit_unimplemented{OP_23, 1024U, 1025U};
+    constexpr std::array<u16, 3U> explicit_unimplemented{OP_1025, 1024U, 1025U};
     for (const u16 opcode : explicit_unimplemented) {
         Fixture fixture;
         prime_loaded_instruction(fixture, opcode);
@@ -1560,13 +1561,13 @@ void test_change_role_base_variant_protocol(openswd3::test::Context& test) {
         prime_loaded_instruction(fixture, raw_word);
         write_u16(fixture.state.window, 2U, 0xFFF0U);
         write_u16(fixture.state.window, 4U, 0x1234U);
-        write_u16(fixture.state.window, 6U, OP_23);
+        write_u16(fixture.state.window, 6U, OP_1025);
         fixture.roles[1].action.wait_remaining = 9U;
         fixture.state.previous_opcode = 0x55U;
         const auto result = fixture.step();
         test.expect_true(
             result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_23 &&
+                result.opcode == OP_1025 &&
                 result.executed_instruction_count == 2U &&
                 result.instruction_offset == 6U &&
                 fixture.context.instruction_offset == 6U &&
@@ -1583,7 +1584,7 @@ void test_change_role_base_variant_protocol(openswd3::test::Context& test) {
     prime_loaded_instruction(missing, 10U);
     write_u16(missing.state.window, 2U, 0x7777U);
     write_u16(missing.state.window, 4U, 0x0333U);
-    write_u16(missing.state.window, 6U, OP_23);
+    write_u16(missing.state.window, 6U, OP_1025);
     const auto missing_result = missing.step();
     const auto patch = missing.ports.role_patch_requests.empty()
         ? openswd3::world_map::LegacyMapsRolePatchRequest{}
@@ -1649,14 +1650,14 @@ void test_change_role_variant_delta_protocol(openswd3::test::Context& test) {
         prime_loaded_instruction(fixture, raw_word);
         write_u16(fixture.state.window, 2U, 0xFFF0U);
         write_u16(fixture.state.window, 4U, 0x8123U);
-        write_u16(fixture.state.window, 6U, OP_23);
+        write_u16(fixture.state.window, 6U, OP_1025);
         fixture.roles[1].flags = 0xA5000001U;
         fixture.roles[1].action.wait_remaining = 9U;
         fixture.state.previous_opcode = 0x55U;
         const auto result = fixture.step();
         test.expect_true(
             result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_23 &&
+                result.opcode == OP_1025 &&
                 result.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 6U &&
                 fixture.roles[1].action.variant_delta == 0x8123U &&
@@ -1673,7 +1674,7 @@ void test_change_role_variant_delta_protocol(openswd3::test::Context& test) {
     prime_loaded_instruction(missing, 11U);
     write_u16(missing.state.window, 2U, 0x7777U);
     write_u16(missing.state.window, 4U, 0x8123U);
-    write_u16(missing.state.window, 6U, OP_23);
+    write_u16(missing.state.window, 6U, OP_1025);
     const auto missing_result = missing.step();
     const auto patch = missing.ports.role_patch_requests.empty()
         ? openswd3::world_map::LegacyMapsRolePatchRequest{}
@@ -1736,7 +1737,7 @@ void test_change_role_variant_delta_protocol(openswd3::test::Context& test) {
     write_u16(chained.state.window, 6U, 45U);
     write_u16(chained.state.window, 8U, 0x00F8U);
     write_u16(chained.state.window, 10U, 0x0222U);
-    write_u16(chained.state.window, 12U, OP_23);
+    write_u16(chained.state.window, 12U, OP_1025);
     const auto chained_result = chained.step();
     test.expect_true(
         chained_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
@@ -1766,14 +1767,14 @@ void test_set_role_position_protocol(openswd3::test::Context& test) {
         write_u16(fixture.state.window, 2U, 0x00F8U);
         write_u16(fixture.state.window, 4U, 0x1015U);
         write_u16(fixture.state.window, 6U, 0x100FU);
-        write_u16(fixture.state.window, 8U, OP_23);
+        write_u16(fixture.state.window, 8U, OP_1025);
         fixture.state.previous_opcode = 0x55U;
         const auto result = fixture.step();
         const auto slot =
             std::span<const u8>{fixture.active_object_slots[0].bytes};
         test.expect_true(
             result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_23 &&
+                result.opcode == OP_1025 &&
                 result.executed_instruction_count == 2U &&
                 result.direct_audio_service_count == 0U &&
                 fixture.context.instruction_offset == 8U &&
@@ -1797,7 +1798,7 @@ void test_set_role_position_protocol(openswd3::test::Context& test) {
     write_u16(current_alias.state.window, 2U, 0xFFF0U);
     write_u16(current_alias.state.window, 4U, 22U);
     write_u16(current_alias.state.window, 6U, 15U);
-    write_u16(current_alias.state.window, 8U, OP_23);
+    write_u16(current_alias.state.window, 8U, OP_1025);
     const auto alias_result = current_alias.step();
     test.expect_true(
         alias_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
@@ -1813,7 +1814,7 @@ void test_set_role_position_protocol(openswd3::test::Context& test) {
     write_u16(controlled.state.window, 2U, 0x00F8U);
     write_u16(controlled.state.window, 4U, 21U);
     write_u16(controlled.state.window, 6U, 15U);
-    write_u16(controlled.state.window, 8U, OP_23);
+    write_u16(controlled.state.window, 8U, OP_1025);
     const auto controlled_result = controlled.step(0, 0, 1U);
     test.expect_true(
         controlled_result.status ==
@@ -1829,7 +1830,7 @@ void test_set_role_position_protocol(openswd3::test::Context& test) {
     write_u16(missing.state.window, 2U, 0x7777U);
     write_u16(missing.state.window, 4U, 21U);
     write_u16(missing.state.window, 6U, 15U);
-    write_u16(missing.state.window, 8U, OP_23);
+    write_u16(missing.state.window, 8U, OP_1025);
     const auto missing_result = missing.step();
     test.expect_true(
         missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
@@ -2884,11 +2885,11 @@ void test_release_role_path_protocol(openswd3::test::Context& test) {
         fixture.runtime.story_paths = &paths;
         prime_loaded_instruction(fixture, raw_word);
         write_u16(fixture.state.window, 2U, 0x00F8U);
-        write_u16(fixture.state.window, 4U, OP_23);
+        write_u16(fixture.state.window, 4U, OP_1025);
         const auto result = fixture.step();
         test.expect_true(
             result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_23 &&
+                result.opcode == OP_1025 &&
                 result.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 4U &&
                 fixture.state.previous_opcode == OP_18_RELEASE_ROLE_PATH &&
@@ -2906,7 +2907,7 @@ void test_release_role_path_protocol(openswd3::test::Context& test) {
     already_released.roles[1].action.wait_remaining = 7U;
     prime_loaded_instruction(already_released, OP_18_RELEASE_ROLE_PATH);
     write_u16(already_released.state.window, 2U, 0x00F8U);
-    write_u16(already_released.state.window, 4U, OP_23);
+    write_u16(already_released.state.window, 4U, OP_1025);
     const auto already_released_result = already_released.step();
     test.expect_true(
         already_released_result.status ==
@@ -2923,7 +2924,7 @@ void test_release_role_path_protocol(openswd3::test::Context& test) {
     no_slot.roles[1].action.wait_remaining = 7U;
     prime_loaded_instruction(no_slot, OP_18_RELEASE_ROLE_PATH);
     write_u16(no_slot.state.window, 2U, 0x00F8U);
-    write_u16(no_slot.state.window, 4U, OP_23);
+    write_u16(no_slot.state.window, 4U, OP_1025);
     const auto no_slot_result = no_slot.step();
     test.expect_true(
         no_slot_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
@@ -2939,7 +2940,7 @@ void test_release_role_path_protocol(openswd3::test::Context& test) {
     type_one.roles[1].flags = 0x80000000U;
     prime_loaded_instruction(type_one, OP_18_RELEASE_ROLE_PATH);
     write_u16(type_one.state.window, 2U, 0x00F8U);
-    write_u16(type_one.state.window, 4U, OP_23);
+    write_u16(type_one.state.window, 4U, OP_1025);
     write_u16(type_one.active_object_slots[0].bytes, 0x00U, 1U);
     type_one.active_object_slots[0].bytes[0x1BU] = 1U;
     const auto type_one_result = type_one.step();
@@ -3079,11 +3080,11 @@ void test_release_all_role_paths_protocol(openswd3::test::Context& test) {
         paths.active_object_slots = fixture.active_object_slots;
         fixture.runtime.story_paths = &paths;
         prime_loaded_instruction(fixture, raw_word);
-        write_u16(fixture.state.window, 2U, OP_23);
+        write_u16(fixture.state.window, 2U, OP_1025);
         const auto result = fixture.step();
         test.expect_true(
             result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_23 &&
+                result.opcode == OP_1025 &&
                 result.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 2U &&
                 fixture.state.previous_opcode == OP_19_RELEASE_ROLE_PATHS &&
@@ -3105,7 +3106,7 @@ void test_release_all_role_paths_protocol(openswd3::test::Context& test) {
     already_released.roles[1].action.wait_remaining = 7U;
     already_released.roles[2].action.wait_remaining = 9U;
     prime_loaded_instruction(already_released, OP_19_RELEASE_ROLE_PATHS);
-    write_u16(already_released.state.window, 2U, OP_23);
+    write_u16(already_released.state.window, 2U, OP_1025);
     const auto already_released_result = already_released.step();
     test.expect_true(
         already_released_result.status ==
@@ -3123,7 +3124,7 @@ void test_release_all_role_paths_protocol(openswd3::test::Context& test) {
     write_u16(type_one.active_object_slots[0].bytes, 0x00U, 1U);
     type_one.active_object_slots[0].bytes[0x1BU] = 1U;
     prime_loaded_instruction(type_one, OP_19_RELEASE_ROLE_PATHS);
-    write_u16(type_one.state.window, 2U, OP_23);
+    write_u16(type_one.state.window, 2U, OP_1025);
     const auto type_one_result = type_one.step();
     test.expect_true(
         type_one_result.status ==
@@ -3159,7 +3160,7 @@ void test_release_all_role_paths_protocol(openswd3::test::Context& test) {
     one_role.roles[0].flags = 0x80000000U;
     one_role.roles[0].action.wait_remaining = 5U;
     prime_loaded_instruction(one_role, OP_19_RELEASE_ROLE_PATHS);
-    write_u16(one_role.state.window, 2U, OP_23);
+    write_u16(one_role.state.window, 2U, OP_1025);
     auto one_role_span =
         std::span<LegacyWorldRoleRecord>{one_role.roles}.first(1U);
     const auto one_role_result =
@@ -3229,7 +3230,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         write_u16(fixture.state.window, 4U, 0x00F8U);
         write_u16(fixture.state.window, 6U, 21U);
         write_u16(fixture.state.window, 8U, 15U);
-        write_u16(fixture.state.window, 10U, OP_23);
+        write_u16(fixture.state.window, 10U, OP_1025);
 
         const auto scheduled = fixture.step();
         const auto& slot = fixture.active_object_slots[0].bytes;
@@ -3261,7 +3262,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         const auto completed = fixture.step();
         test.expect_true(
             completed.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                completed.opcode == OP_23 &&
+                completed.opcode == OP_1025 &&
                 completed.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 10U &&
                 fixture.state.previous_opcode == OP_20_SCHEDULE_ROLE_PATHS &&
@@ -3287,7 +3288,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         write_u16(fixture.state.window, 10U, 0x1234U);
         write_u16(fixture.state.window, 12U, 0xFFFEU);
         write_u16(fixture.state.window, 14U, 7U);
-        write_u16(fixture.state.window, 16U, OP_23);
+        write_u16(fixture.state.window, 16U, OP_1025);
 
         const auto scheduled = fixture.step();
         const auto& slot = fixture.active_object_slots[0].bytes;
@@ -3308,7 +3309,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         const auto completed = fixture.step();
         test.expect_true(
             completed.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                completed.opcode == OP_23 &&
+                completed.opcode == OP_1025 &&
                 completed.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 16U &&
                 fixture.state.previous_opcode ==
@@ -3330,7 +3331,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         Fixture empty;
         prime_loaded_instruction(empty, variant.opcode);
         write_u16(empty.state.window, 2U, 0U);
-        write_u16(empty.state.window, 4U, OP_23);
+        write_u16(empty.state.window, 4U, OP_1025);
         const auto staged = empty.step();
         const u16 staged_count = read_u16(empty.state.window, 2U);
         const auto completed = empty.step();
@@ -3342,7 +3343,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
                 read_u16(empty.state.window, 2U) == 0U &&
                 completed.status ==
                     LegacyWorldStoryVmStatus::unsupported_opcode &&
-                completed.opcode == OP_23 &&
+                completed.opcode == OP_1025 &&
                 completed.executed_instruction_count == 2U &&
                 empty.context.instruction_offset == 4U &&
                 empty.state.previous_opcode == variant.opcode,
@@ -3373,7 +3374,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         "opcode 20 forwards bit15 and uses selected-role FFFF coordinates"
     );
     selected_fallback.roles[1].flags |= 0x02000000U;
-    write_u16(selected_fallback.state.window, 10U, OP_23);
+    write_u16(selected_fallback.state.window, 10U, OP_1025);
     const auto selected_completed = selected_fallback.step(0, 0, 1U);
     test.expect_true(
         selected_completed.status ==
@@ -3574,11 +3575,11 @@ void test_jump_if_global_bit_protocol(openswd3::test::Context& test) {
                     fixture.state, 0x0123U
                 );
             }
-            write_u16(fixture.ports.transferred_window, 0U, OP_23);
+            write_u16(fixture.ports.transferred_window, 0U, OP_1025);
             const auto result = fixture.step();
             test.expect_true(
                 result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                    result.opcode == OP_23 &&
+                    result.opcode == OP_1025 &&
                     result.executed_instruction_count == 2U &&
                     result.direct_audio_service_count == 1U &&
                     fixture.context.talk_data_offset == 0x12345678U &&
@@ -3598,12 +3599,12 @@ void test_jump_if_global_bit_protocol(openswd3::test::Context& test) {
                 sequential.state, 0x0123U
             );
         }
-        write_u16(sequential.state.window, 8U, OP_23);
+        write_u16(sequential.state.window, 8U, OP_1025);
         const auto sequential_result = sequential.step();
         test.expect_true(
             sequential_result.status ==
                     LegacyWorldStoryVmStatus::unsupported_opcode &&
-                sequential_result.opcode == OP_23 &&
+                sequential_result.opcode == OP_1025 &&
                 sequential_result.executed_instruction_count == 2U &&
                 sequential_result.direct_audio_service_count == 0U &&
                 sequential.context.instruction_offset == 8U &&
@@ -3700,6 +3701,174 @@ void test_jump_if_global_bit_protocol(openswd3::test::Context& test) {
                 OP_21_JUMP_IF_GLOBAL_BIT_SET &&
             sequential_tail.ports.data_load_count == 0U,
         "opcode 21 no-branch advances before the next fetch fails"
+    );
+}
+
+void test_jump_if_all_global_bits_set_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET,
+        static_cast<u16>(OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET | 0x4000U),
+        static_cast<u16>(OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET | 0x8000U),
+        static_cast<u16>(OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET | 0xC000U)
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0x0123U);
+        write_u16(fixture.state.window, 4U, 0x0456U);
+        write_u16(fixture.state.window, 6U, 0xFF00U);
+        write_u32(fixture.state.window, 8U, 0x12345678U);
+        openswd3::world_map::set_legacy_world_story_flag(
+            fixture.state, 0x0123U
+        );
+        openswd3::world_map::set_legacy_world_story_flag(
+            fixture.state, 0x0456U
+        );
+        write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.talk_data_offset == 0x12345678U &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode ==
+                    OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET &&
+                fixture.ports.data_load_count == 1U,
+            "opcode 23 aliases jump when every listed global bit is set"
+        );
+    }
+
+    Fixture one_clear;
+    prime_loaded_instruction(one_clear, OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET);
+    write_u16(one_clear.state.window, 2U, 0x0123U);
+    write_u16(one_clear.state.window, 4U, 0x0456U);
+    write_u16(one_clear.state.window, 6U, 0xFF00U);
+    write_u32(one_clear.state.window, 8U, 0x12345678U);
+    write_u16(one_clear.state.window, 12U, OP_1025);
+    openswd3::world_map::set_legacy_world_story_flag(
+        one_clear.state, 0x0123U
+    );
+    const auto one_clear_result = one_clear.step();
+    test.expect_true(
+        one_clear_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            one_clear_result.opcode == OP_1025 &&
+            one_clear_result.executed_instruction_count == 2U &&
+            one_clear_result.direct_audio_service_count == 0U &&
+            one_clear.context.instruction_offset == 12U &&
+            one_clear.state.previous_opcode ==
+                OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET &&
+            one_clear.ports.data_load_count == 0U,
+        "opcode 23 advances over the full list when any bit is clear"
+    );
+
+    Fixture empty;
+    prime_loaded_instruction(empty, OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET);
+    write_u16(empty.state.window, 2U, 0xFF00U);
+    write_u32(empty.state.window, 4U, 0x22223333U);
+    write_u16(empty.ports.transferred_window, 0U, OP_1025);
+    const auto empty_result = empty.step();
+    test.expect_true(
+        empty_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            empty_result.opcode == OP_1025 &&
+            empty_result.direct_audio_service_count == 1U &&
+            empty.context.talk_data_offset == 0x22223333U &&
+            empty.state.previous_opcode ==
+                OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET,
+        "opcode 23 treats an empty bit list as unconditionally true"
+    );
+
+    Fixture load_failure;
+    prime_loaded_instruction(load_failure, OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET);
+    write_u16(load_failure.state.window, 2U, 0xFF00U);
+    write_u32(load_failure.state.window, 4U, 0x44445555U);
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.direct_audio_service_count == 1U &&
+            load_failure.context.talk_data_offset == 0x44445555U &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET &&
+            !load_failure.state.window_loaded,
+        "opcode 23 preserves loader effects before taken-branch I/O failure"
+    );
+
+    Fixture unterminated;
+    unterminated.context.instruction_offset = 0x7FFCU;
+    unterminated.context.talk_data_offset = 0x1111U;
+    unterminated.state.loaded_file_number = 1U;
+    unterminated.state.loaded_data_offset = 0x1111U;
+    unterminated.state.window_loaded = true;
+    unterminated.state.previous_opcode = 0x55U;
+    write_u16(
+        unterminated.state.window,
+        0x7FFCU,
+        OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET
+    );
+    write_u16(unterminated.state.window, 0x7FFEU, 0x0123U);
+    const auto unterminated_result = unterminated.step();
+    test.expect_true(
+        unterminated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            unterminated.context.instruction_offset == 0x7FFCU &&
+            unterminated.state.previous_opcode == 0x55U,
+        "opcode 23 scans for FF00 until the original list danger point"
+    );
+
+    Fixture missing_target;
+    missing_target.context.instruction_offset = 0x7FFCU;
+    missing_target.context.talk_data_offset = 0x1111U;
+    missing_target.state.loaded_file_number = 1U;
+    missing_target.state.loaded_data_offset = 0x1111U;
+    missing_target.state.window_loaded = true;
+    missing_target.state.previous_opcode = 0x55U;
+    write_u16(
+        missing_target.state.window,
+        0x7FFCU,
+        OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET
+    );
+    write_u16(missing_target.state.window, 0x7FFEU, 0xFF00U);
+    const auto missing_target_result = missing_target.step();
+    test.expect_true(
+        missing_target_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_target.context.instruction_offset == 0x7FFCU &&
+            missing_target.state.previous_opcode == 0x55U &&
+            missing_target.ports.data_load_count == 0U,
+        "opcode 23 taken empty-list branch reads the target after FF00"
+    );
+
+    Fixture sequential_tail;
+    sequential_tail.context.instruction_offset = 0x7FF8U;
+    sequential_tail.context.talk_data_offset = 0x1111U;
+    sequential_tail.state.loaded_file_number = 1U;
+    sequential_tail.state.loaded_data_offset = 0x1111U;
+    sequential_tail.state.window_loaded = true;
+    sequential_tail.state.previous_opcode = 0x55U;
+    write_u16(
+        sequential_tail.state.window,
+        0x7FF8U,
+        OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET
+    );
+    write_u16(sequential_tail.state.window, 0x7FFAU, 0x0123U);
+    write_u16(sequential_tail.state.window, 0x7FFCU, 0xFF00U);
+    const auto sequential_tail_result = sequential_tail.step();
+    test.expect_true(
+        sequential_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            sequential_tail_result.executed_instruction_count == 1U &&
+            sequential_tail.context.instruction_offset == 0x8002U &&
+            sequential_tail.state.previous_opcode ==
+                OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET &&
+            sequential_tail.ports.data_load_count == 0U,
+        "opcode 23 no-branch skips an unavailable target before fetch fails"
     );
 }
 
@@ -4039,7 +4208,7 @@ void test_real_clear_dialog_control_flag_record(
     Fixture fixture;
     prime_loaded_instruction(fixture, 7U);
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 2U, OP_23);
+    write_u16(fixture.state.window, 2U, OP_1025);
     const auto result = fixture.step();
     test.expect_true(
         result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
@@ -4073,7 +4242,7 @@ void test_real_change_role_base_variant_record(
     Fixture fixture;
     prime_loaded_instruction(fixture, 10U);
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 6U, OP_23);
+    write_u16(fixture.state.window, 6U, OP_1025);
     fixture.roles[1].guid = 1U;
     fixture.roles[1].action.base_variant = 77U;
     fixture.roles[1].action.wait_remaining = 9U;
@@ -4112,7 +4281,7 @@ void test_real_change_role_variant_delta_record(
     Fixture fixture;
     prime_loaded_instruction(fixture, 11U);
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 6U, OP_23);
+    write_u16(fixture.state.window, 6U, OP_1025);
     fixture.roles[1].guid = 1U;
     fixture.roles[1].flags = 1U;
     fixture.roles[1].action.variant_delta = 77U;
@@ -4152,7 +4321,7 @@ void test_real_clear_dialog_control_flag_bit30_record(
     Fixture fixture;
     prime_loaded_instruction(fixture, 9U);
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 2U, OP_23);
+    write_u16(fixture.state.window, 2U, OP_1025);
     const auto result = fixture.step();
     test.expect_true(
         result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
@@ -4186,7 +4355,7 @@ void test_real_stage_dialog_lifetime_record(
     Fixture fixture;
     prime_loaded_instruction(fixture, 8U);
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 4U, OP_23);
+    write_u16(fixture.state.window, 4U, OP_1025);
     const auto result = fixture.step();
     test.expect_true(
         result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
@@ -4567,7 +4736,7 @@ void test_real_schedule_role_path_records(
         StoryPathHarness paths{fixture};
         prime_loaded_instruction(fixture, sample.opcode);
         std::ranges::copy(instruction, fixture.state.window.begin());
-        write_u16(fixture.state.window, sample.instruction_size, OP_23);
+        write_u16(fixture.state.window, sample.instruction_size, OP_1025);
         const auto staged = fixture.step();
         const u16 staged_count = read_u16(fixture.state.window, 2U);
         const auto& slot = fixture.active_object_slots[0].bytes;
@@ -4584,7 +4753,7 @@ void test_real_schedule_role_path_records(
                 read_u16(slot, 0x14U) == sample.expected_variant_delta &&
                 completed.status ==
                     LegacyWorldStoryVmStatus::unsupported_opcode &&
-                completed.opcode == OP_23 &&
+                completed.opcode == OP_1025 &&
                 completed.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == sample.instruction_size &&
                 fixture.state.previous_opcode == sample.opcode &&
@@ -4702,6 +4871,70 @@ void test_real_jump_if_global_bit_records(
             );
         }
     }
+}
+
+void test_real_jump_if_all_global_bits_set_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00008AD3);
+    std::array<u8, 12U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+    input.close();
+
+    openswd3::resource_io::LegacyResourceDatabases databases;
+    const auto initialized = databases.initialize(root);
+    Fixture fixture;
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    fixture.state.loaded_file_number = 1U;
+    fixture.state.loaded_data_offset = 0x000088D3U;
+    fixture.state.window_loaded = true;
+    fixture.context.talk_data_offset = 0x000088D3U;
+    openswd3::world_map::set_legacy_world_story_flag(fixture.state, 295U);
+    openswd3::world_map::set_legacy_world_story_flag(fixture.state, 264U);
+    RealPorts ports{databases};
+    const auto result = openswd3::world_map::step_legacy_world_story_vm(
+        fixture.context,
+        fixture.state,
+        fixture.roles,
+        0U,
+        fixture.active_object_slots,
+        fixture.maps_payload,
+        fixture.dialogs,
+        fixture.dialog_resources,
+        fixture.first_name,
+        fixture.second_name,
+        fixture.runtime,
+        ports
+    );
+
+    test.expect_true(
+        instruction_read &&
+            initialized.status ==
+                openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
+            read_u16(instruction, 0U) ==
+                OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET &&
+            read_u16(instruction, 2U) == 295U &&
+            read_u16(instruction, 4U) == 264U &&
+            read_u16(instruction, 6U) == 0xFF00U &&
+            read_u32(instruction, 8U) == 0x000088E1U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == 59U && result.executed_instruction_count == 2U &&
+            result.load_status == LegacyTalkWindowStatus::ready &&
+            result.direct_audio_service_count == 1U &&
+            fixture.context.talk_data_offset == 0x000088E1U &&
+            fixture.context.instruction_offset == 4U &&
+            fixture.state.loaded_file_number == 1U &&
+            fixture.state.loaded_data_offset == 0x000088E1U &&
+            fixture.state.previous_opcode ==
+                OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET &&
+            ports.sound_effect_requests == std::vector<u16>{0x0039U},
+        "real opcode 23 branches then same-call opcode 59 plays sound and yields"
+    );
 }
 
 void test_real_shared_dialog_handler_records(
@@ -5936,6 +6169,7 @@ int main(const int argument_count, char** arguments) {
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);
     test_jump_if_global_bit_protocol(test);
+    test_jump_if_all_global_bits_set_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -5963,6 +6197,7 @@ int main(const int argument_count, char** arguments) {
         test_real_release_all_role_paths_record(test, root);
         test_real_schedule_role_path_records(test, root);
         test_real_jump_if_global_bit_records(test, root);
+        test_real_jump_if_all_global_bits_set_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);

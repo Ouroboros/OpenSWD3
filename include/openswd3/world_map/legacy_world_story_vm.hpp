@@ -44,9 +44,10 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_20_SCHEDULE_ROLE_PATHS = 20U,
     OP_21_JUMP_IF_GLOBAL_BIT_SET = 21U,
     OP_22_JUMP_IF_GLOBAL_BIT_CLEAR = 22U,
-    OP_23 = 23U,
+    OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET = 23U,
     OP_45 = 45U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
+    OP_1025 = 1025U,
 };
 
 struct LegacyWorldStoryVmState {
