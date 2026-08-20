@@ -606,6 +606,31 @@ scale_dialog_word(const u16 value, const u32 scale) noexcept {
     return LegacyWorldStoryVmStatus::yielded;
 }
 
+[[nodiscard]] LegacyWorldStoryVmStatus load_same_file_story_window(
+    LegacyWorldTalkContext& context,
+    LegacyWorldStoryVmState& state,
+    const u32 file_number,
+    const u32 target,
+    LegacyWorldStoryVmResult& result,
+    LegacyWorldStoryVmPorts& ports
+) {
+    ports.service_audio();
+    ++result.direct_audio_service_count;
+    context.talk_data_offset = target;
+    context.instruction_offset = 0U;
+    const auto loaded =
+        ports.load_data_window(file_number, target, state.window, false);
+    result.load_status = loaded.status;
+    if (loaded.status != resource_io::LegacyTalkWindowStatus::ready) {
+        state.window_loaded = false;
+        return LegacyWorldStoryVmStatus::load_failed;
+    }
+    state.loaded_file_number = file_number;
+    state.loaded_data_offset = target;
+    state.window_loaded = true;
+    return LegacyWorldStoryVmStatus::idle;
+}
+
 [[nodiscard]] LegacyWorldStoryVmStatus wait_for_role_action_status(
     LegacyWorldTalkContext& context,
     const std::span<const LegacyWorldRoleRecord> roles,
@@ -1320,25 +1345,70 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            const u32 target = read_u32(state.window, ip + 2U);
-            const u32 file_number = current_file_number(context, state);
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            context.talk_data_offset = target;
-            context.instruction_offset = 0U;
-            const auto loaded = ports.load_data_window(
-                file_number, target, state.window, false
+            result.status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, ip + 2U),
+                result,
+                ports
             );
-            result.load_status = loaded.status;
             state.previous_opcode = result.opcode;
-            if (loaded.status != resource_io::LegacyTalkWindowStatus::ready) {
-                state.window_loaded = false;
-                result.status = LegacyWorldStoryVmStatus::load_failed;
+            if (result.status != LegacyWorldStoryVmStatus::idle) {
                 return result;
             }
-            state.loaded_file_number = file_number;
-            state.loaded_data_offset = target;
-            state.window_loaded = true;
+            continue;
+        }
+
+        case OP_16_JUMP_IF_ROLE_PATH_UNPREPARED: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u32 role_index{};
+            static_cast<void>(resolve_role_index(
+                roles,
+                read_u16(state.window, ip + 2U),
+                controlled_role_index,
+                role_index
+            ));
+            bool should_jump{};
+            for (const auto& slot : active_object_slots) {
+                if (read_object_u16(slot, 0U) != role_index ||
+                    (slot.bytes[kObjectPathFlagsOffset] & 0x0FU) != 2U) {
+                    continue;
+                }
+                if (role_index >= roles.size()) {
+                    result.status = LegacyWorldStoryVmStatus::role_not_found;
+                    return result;
+                }
+                if ((roles[role_index].flags & 0x40000000U) == 0U) {
+                    should_jump = true;
+                    break;
+                }
+            }
+            if (!should_jump) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 8U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+            if (!has_bytes(state.window, ip, 8U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            result.status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, ip + 4U),
+                result,
+                ports
+            );
+            state.previous_opcode = result.opcode;
+            if (result.status != LegacyWorldStoryVmStatus::idle) {
+                return result;
+            }
             continue;
         }
 

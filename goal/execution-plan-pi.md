@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v251
+版本：v252
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428318` handler（opcode 16）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x004283AC` handler（opcode 17）
 
 ## 0. 执行约定
 
@@ -1429,6 +1429,14 @@ B7 P0 有限收口完成。
     192/192 均以 exit 0 通过，未启动游戏 EXE。workpack 当前 11/146，即
     `3 assembly_exact + 8 platform_adapted + 135 pending_audit`。
 
+- 剧情 VM P2 第十二组 `0x00428318` / opcode16 完成独立闭环。恢复 8-byte 角色路径
+    条件跳转、72-slot predicate、prepared/no-slot 顺序、resolver miss `FFFFFFFF`、branch-only
+    target 读取与同调用继续取指；I/O/controlled index 仅在无效域 checked-stop。四 raw alias、
+    branch/no-branch 窗口尾与真实 `TALK2.DAT@0xF963` 跳转回放通过；全3条物理记录均为
+    raw `0x0010`、长度8且 target 有效。定向 story VM 3/3、Linux core 186/186、Linux app
+    192/192、Windows LLVM app 192/192 均以 exit 0 通过，未启动游戏 EXE。workpack 当前
+    12/146，即 `3 assembly_exact + 9 platform_adapted + 134 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428318` 的 opcode16；语义未审计前常量保持 `OP_16`。不并行回到延期的 `libffmpeg`，
+`0x004283AC` 的 opcode17；语义未审计前常量保持 `OP_17`。不并行回到延期的 `libffmpeg`，
 也不按剧情命中顺序临时补 opcode。
