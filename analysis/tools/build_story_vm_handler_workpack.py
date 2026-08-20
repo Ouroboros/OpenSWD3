@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 58
-EXPECTED_CLOSED_HANDLER_COUNT = 10
+EXPECTED_MODERN_CASE_COUNT = 59
+EXPECTED_CLOSED_HANDLER_COUNT = 11
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -93,6 +93,11 @@ CLOSURE_OVERRIDES = {
     "0x0042829C": (
         "platform_adapted",
         "story-vm-role-action-wait-0042829c.md",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+    ),
+    "0x00428310": (
+        "platform_adapted",
+        "story-vm-same-file-jump-00428310.md",
         "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
     ),
 }
@@ -584,7 +589,7 @@ def main() -> None:
     print(f"wrote {RUNTIME_OUTPUT.relative_to(RESEARCH_ROOT)} ({len(runtime)} rows)")
     print(
         "locked P1 scope: 198 explicit opcodes, 146 handlers, "
-        "25 shared entries, 58 modern case labels; closure 10/146"
+        "25 shared entries, 59 modern case labels; closure 11/146"
     )
 
 

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v249
+版本：v251
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428310` handler（opcode 15）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00428318` handler（opcode 16）
 
 ## 0. 执行约定
 
@@ -22,6 +22,21 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
 验证结果和下一步；只有确有阻塞时才增加剩余风险。完成内容只概括模块或业务结果，不展开代码
 实现细节，不罗列 helper、字段、flag、地址分支或测试边界。汇报必须基于当前仓库实物和验证
 证据。命令执行失败时记录错误并明确告知用户，不得伪称已经送达。
+
+TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一个长句或单段。固定模板如下，每个
+字段独占一行，段落之间保留空行；没有阻塞时不写“风险”段：
+
+```text
+阶段：<阶段或工作包名称>
+
+完成：<高层完成概述>
+
+整体进度：<全局进度>
+
+验证：<验证结果>
+
+下一步：<下一工作包>
+```
 
 ## 1. 目标
 
@@ -1406,6 +1421,14 @@ B7 P0 有限收口完成。
     192/192 均以 exit 0 通过，未启动游戏 EXE。workpack 当前 10/146，即
     `3 assembly_exact + 7 platform_adapted + 136 pending_audit`。
 
+- 剧情 VM P2 第十一组 `0x00428310` / opcode15 完成独立闭环。恢复 6-byte 同文件
+    绝对跳转、audio/offset/previous 顺序、无清空窗口加载与同调用继续取指；I/O 失败仅在
+    无效域 checked-stop。四 raw alias、窗口尾、失败顺序与真实 `TALK1.DAT@0x8A85`
+    跳转回放通过；全 68 条物理记录均为 raw `0x000F`、长度6且 target 有效。
+    定向 story VM 3/3、Linux core 186/186、Linux app 192/192、Windows LLVM app
+    192/192 均以 exit 0 通过，未启动游戏 EXE。workpack 当前 11/146，即
+    `3 assembly_exact + 8 platform_adapted + 135 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428310` 的 opcode15；语义未审计前常量保持 `OP_15`。不并行回到延期的 `libffmpeg`，
+`0x00428318` 的 opcode16；语义未审计前常量保持 `OP_16`。不并行回到延期的 `libffmpeg`，
 也不按剧情命中顺序临时补 opcode。

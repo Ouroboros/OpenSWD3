@@ -1315,6 +1315,33 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_15_JUMP_SAME_FILE_OFFSET: {
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u32 target = read_u32(state.window, ip + 2U);
+            const u32 file_number = current_file_number(context, state);
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            context.talk_data_offset = target;
+            context.instruction_offset = 0U;
+            const auto loaded = ports.load_data_window(
+                file_number, target, state.window, false
+            );
+            result.load_status = loaded.status;
+            state.previous_opcode = result.opcode;
+            if (loaded.status != resource_io::LegacyTalkWindowStatus::ready) {
+                state.window_loaded = false;
+                result.status = LegacyWorldStoryVmStatus::load_failed;
+                return result;
+            }
+            state.loaded_file_number = file_number;
+            state.loaded_data_offset = target;
+            state.window_loaded = true;
+            continue;
+        }
+
         case 18U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
