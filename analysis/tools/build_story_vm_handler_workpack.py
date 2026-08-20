@@ -39,6 +39,15 @@ EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
 EXPECTED_MODERN_CASE_COUNT = 50
+EXPECTED_CLOSED_HANDLER_COUNT = 1
+
+CLOSURE_OVERRIDES = {
+    "0x0042D230": (
+        "platform_adapted",
+        "story-vm-default-invalid-0042d230.md",
+        "assembly_exact;unit_tested;platform_adapted;sdl_runtime_integrated",
+    ),
+}
 
 
 class InventoryError(RuntimeError):
@@ -157,7 +166,7 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
         ("fetch_decode", "0x00427B40..0x00427B88", "fetch_decode", "14-bit domain", "raw u16 & 0x3FFF; preserve modifier bits in the raw word", "scope_locked_not_semantically_closed", "routes main/default/99/secondary"),
         ("main_dispatch", "0x00427B7C..0x00427B88;0x0042D4F4..0x0042D67B", "jump_table", "1-98", "98 LST dwords", "lst_locked", "feeds handler work package"),
         ("secondary_dispatch", "0x0042ADA4..0x0042ADB0;0x0042D67C..0x0042D7F3", "jump_table", "100-193", "94 LST dwords", "lst_locked", "feeds handler work package"),
-        ("default_invalid", "0x0042D230..0x0042D24D", "default", "0,194-1023,1027-16382", "MessageBeep/diagnostic; no automatic IP advance", "pending_audit", "must not become a NOP"),
+        ("default_invalid", "0x0042D230..0x0042D24D", "default", "0,194-1023,1027-16382", "MessageBeep/diagnostic; no automatic IP advance", "platform_adapted", "story-vm-default-invalid-0042d230.md; common join for other handlers remains pending"),
         ("numeric_refinement", "0x0042B0CD..0x0042B1BF;0x0042D7F4..0x0042D8A8", "internal_switch", "29-185", "6-dword jump table plus 157-byte selector table", "pending_audit", "refines handlers 0x0042B074/0x0042B070"),
         ("flag_refinement", "0x0042C567..0x0042C5D0;0x0042D8AC..0x0042D918", "internal_switch", "102-174", "9-dword jump table plus 73-byte selector table", "pending_audit", "refines handler 0x0042C567"),
         ("window_transfers", "handler-specific", "window_transfer", compact_ranges(window_transfer_opcodes), "31-row control-transfer inventory marks same-file or story-window reload/transfer", "pending_audit", "navigation set only; each owning handler must re-prove load order and IP reset"),
@@ -274,6 +283,10 @@ def main() -> None:
         case_coverage = "none"
         if present_cases:
             case_coverage = "all" if len(present_cases) == len(opcodes) else "partial"
+        closure = CLOSURE_OVERRIDES.get(target)
+        closure_status = closure[0] if closure is not None else "pending_audit"
+        closure_evidence = closure[1] if closure is not None else ""
+        closure_proof = closure[2] if closure is not None else ""
         handler_rows.append(
             (
                 order,
@@ -294,7 +307,9 @@ def main() -> None:
                 ",".join(sorted(candidate_modules)),
                 "|".join(sorted(targets)),
                 "|".join(unresolved_edges),
-                "pending_audit",
+                closure_status,
+                closure_evidence,
+                closure_proof,
                 "existing semantics/C++/asset/triage fields are navigation only; independently audit full LST entry and every opcode variant",
             )
         )
@@ -310,8 +325,11 @@ def main() -> None:
     runtime = runtime_rows(window_transfer_opcodes)
     if len(handler_rows) != EXPECTED_HANDLER_COUNT or len(runtime) != 17:
         raise InventoryError("unexpected P1 work-package row count")
-    if any(row[18] != "pending_audit" for row in handler_rows):
-        raise InventoryError("P1 must not inherit handler closure state")
+    closed_count = sum(row[18] != "pending_audit" for row in handler_rows)
+    if closed_count != EXPECTED_CLOSED_HANDLER_COUNT:
+        raise InventoryError(
+            f"expected {EXPECTED_CLOSED_HANDLER_COUNT} closed handler, got {closed_count}"
+        )
 
     write_tsv(
         HANDLER_OUTPUT,
@@ -335,6 +353,8 @@ def main() -> None:
             "direct_call_targets_navigation",
             "unresolved_edges_navigation",
             "closure_status",
+            "closure_evidence",
+            "closure_proof",
             "closure_rule",
         ),
         handler_rows,
@@ -356,7 +376,7 @@ def main() -> None:
     print(f"wrote {RUNTIME_OUTPUT.relative_to(RESEARCH_ROOT)} ({len(runtime)} rows)")
     print(
         "locked P1 scope: 198 explicit opcodes, 146 handlers, "
-        "25 shared entries, 50 modern case labels; closure 0/146"
+        "25 shared entries, 50 modern case labels; closure 1/146"
     )
 
 

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v238
+版本：v239
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042D230` 默认非法 handler 组
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00427B8F` 共享 handler 组（1-6,89-90）
 
 ## 0. 执行约定
 
@@ -1315,9 +1315,19 @@ B7 P0 有限收口完成。
     一级入口组、25 个共享入口和 2 个 internal switch 重建后无目标漂移。新增 146 行
     handler workpack 与 17 行 runtime-path 表；50 个现代 case、125 行旧人工语义、143/55
     资产观察、static triage 和十类候选端口全部只作导航，所有 handler 固定从
-    `pending_audit` 开始，当前闭环为 0/146。ruff、py_compile、生成器硬断言、TSV 宽度和
+    `pending_audit` 开始，P1 结束时闭环为 0/146。ruff、py_compile、生成器硬断言、TSV 宽度和
     Markdown 链接通过。
 
-当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 第一停点
-`0x0042D230`：同时审计显式 opcode 0 与默认范围 `194..1023,1027..16382`；不并行回到
-延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
+- 剧情 VM P2 第一组默认非法入口 `0x0042D230` 随后完成独立闭环。显式 opcode 0 的四个
+    raw alias 与默认范围 `194..1023,1027..16382` 均恢复 `MessageBeep(0)`、previous/current
+    诊断快照、IP 不推进、`dword_4CF6D8` 写回、一次 `_AIL_serve` 和返回一。现代 default
+    先判原默认域，避免把显式但尚未实现的 `1..193/1024/1025` 误作非法值；SDL beep 保持
+    平台 no-op，audio 接实际 maintenance owner。UT 固定四 alias、四边界、两帧 previous
+    rollover、调用顺序与显式未实现隔离；story VM synthetic/real/initial-session-real 3/3，
+    Linux core 186/186、Linux app 192/192、Windows LLVM app 192/192 通过，三进程均 exit 0，
+    未启动游戏 EXE。workpack 当前 1/146，即 `1 platform_adapted + 145 pending_audit`；其他 handler 的公共 join
+    仍独立待审，不继承本组 previous/audio 证据。
+
+当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
+`0x00427B8F`，一次审计 opcode `1-6,89-90` 八个变体；不并行回到延期的 `libffmpeg`，
+也不按剧情命中顺序临时补 opcode。

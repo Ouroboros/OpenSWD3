@@ -4,7 +4,7 @@
 
 ## 证据范围
 
-唯一行为真值是 `swd3.exe.lst`。完整 surface 虚表 `+0x14` 调用中，写向 primary surface 的 21 项已经由 [`primary-presentation-paths.tsv`](../inventory/primary-presentation-paths.tsv) 逐地址列出，并由 [`build_frame_presentation_inventory.py`](../../../tools/build_frame_presentation_inventory.py) 锁定。
+唯一行为真值是 `swd3.exe.lst`。完整 surface 虚表 `+0x14` 调用中，写向 primary surface 的 21 项已经由 [`primary-presentation-paths.tsv`](../inventory/primary-presentation-paths.tsv) 逐地址列出，并由 [`build_frame_presentation_inventory.py`](../../tools/build_frame_presentation_inventory.py) 锁定。
 
 21 项合同的物理分布为：
 

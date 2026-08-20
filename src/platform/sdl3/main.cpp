@@ -2888,6 +2888,8 @@ public:
                 openswd3::world_map::LegacyMapsWorldDatabase& maps_database,
                 openswd3::asset_runtime::LegacyActionUpdater& action_updater,
                 openswd3::audio_video::LegacySampleManager& sample_manager,
+                openswd3::audio_video::LegacyAudioMaintenancePorts&
+                    audio_maintenance,
                 const openswd3::compat::i32 sample_mix_level,
                 openswd3::rendering::LegacyFramebuffer& framebuffer,
                 openswd3::rendering::LegacyPresentationPorts& presentation,
@@ -2898,6 +2900,7 @@ public:
                 : databases_(databases), maps_database_(maps_database),
                   action_updater_(action_updater),
                   sample_manager_(sample_manager),
+                  audio_maintenance_(audio_maintenance),
                   sample_mix_level_(sample_mix_level),
                   framebuffer_(framebuffer), presentation_(presentation),
                   video_player_(video_player), data_directory_(data_directory),
@@ -2995,11 +2998,19 @@ public:
                 return video_player_.legacy_progress();
             }
 
+            void beep() noexcept override {}
+
+            void service_audio() override {
+                ::service_audio(audio_maintenance_);
+            }
+
         private:
             openswd3::resource_io::LegacyResourceDatabases& databases_;
             openswd3::world_map::LegacyMapsWorldDatabase& maps_database_;
             openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
             openswd3::audio_video::LegacySampleManager& sample_manager_;
+            openswd3::audio_video::LegacyAudioMaintenancePorts&
+                audio_maintenance_;
             openswd3::compat::i32 sample_mix_level_{};
             openswd3::rendering::LegacyFramebuffer& framebuffer_;
             openswd3::rendering::LegacyPresentationPorts& presentation_;
@@ -3081,6 +3092,7 @@ public:
             world.maps_database,
             action_updater_,
             sample_manager_,
+            audio_maintenance_,
             world_frame_state_.frame_runtime.spatial_audio.mix_level,
             game_framebuffer_,
             *this,

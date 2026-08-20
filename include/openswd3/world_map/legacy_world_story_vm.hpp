@@ -49,6 +49,10 @@ struct LegacyWorldStoryVmState {
     compat::u32 script_clock_frame_counter{};
     compat::u32 script_clock{};
     compat::u32 script_clock_origin{};
+    // dword_4CF6D8 is updated at the common interpreter join and read by the
+    // default-invalid diagnostic before that update. sub_40E0B0 does not own
+    // or reset it.
+    compat::u32 previous_opcode{};
     // sub_40E0B0 initializes the deferred map-load coordinates at
     // 0x004A9930/0x004A9938 to -1 and the map id at 0x004CAE88 to zero.
     // Story opcodes 155..157 retain these values across VM steps.
@@ -117,6 +121,8 @@ public:
     virtual void present_story_framebuffer() noexcept = 0;
     virtual void begin_story_video(std::span<const compat::u8> filename) = 0;
     [[nodiscard]] virtual compat::i32 query_story_video_progress() = 0;
+    virtual void beep() noexcept = 0;
+    virtual void service_audio() = 0;
 };
 
 enum class LegacyWorldStoryVmStatus : compat::u8 {
@@ -154,10 +160,15 @@ struct LegacyWorldStoryVmResult {
     compat::u32 dialog_enqueue_count{};
     compat::u32 role_one_shot_clear_count{};
     compat::u32 active_object_reset_count{};
+    compat::u32 invalid_opcode_diagnostic_count{};
+    compat::u32 invalid_opcode_current{};
+    compat::u32 invalid_opcode_previous{};
+    compat::u32 beep_count{};
+    compat::u32 direct_audio_service_count{};
 };
 
-// sub_427920, restricted to the assembly-audited opcode closure reachable
-// from the map-81 new-game entry through the current TALK100 battle request:
+// sub_427920, currently restricted to the independently audited default-invalid
+// group plus the earlier map-81/TALK100 implementation coverage:
 // 6,7,8,9,10,11,14,18,20,21,22,25,26,38,39,40,42,43,51,52,53,58,59,60,61,67,
 // 70,71,72,76,77,78,85,88,89,91,94,95,104,107,114,120,141,153,161,193,0x402 and
 // 0x3FFF. Each

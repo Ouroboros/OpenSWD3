@@ -167,6 +167,16 @@ public:
         return video_progress;
     }
 
+    void beep() noexcept override {
+        ++beep_count;
+        default_protocol_events.push_back(1U);
+    }
+
+    void service_audio() override {
+        ++direct_audio_service_count;
+        default_protocol_events.push_back(2U);
+    }
+
     std::array<u8, 256U> initial_window{};
     std::array<u8, 256U> transferred_window{};
     u32 story_load_count{};
@@ -176,12 +186,15 @@ public:
     u32 framebuffer_present_count{};
     u32 video_begin_count{};
     u32 video_progress_query_count{};
+    u32 beep_count{};
+    u32 direct_audio_service_count{};
     i32 last_story_id{};
     i32 video_progress{-1};
     std::vector<u8> last_video_filename;
     std::vector<openswd3::world_map::LegacyMapsRolePatchRequest>
         role_patch_requests;
     std::vector<u16> sound_effect_requests;
+    std::vector<u32> default_protocol_events;
 
 private:
     template <std::size_t Size>
@@ -260,6 +273,9 @@ public:
         ++video_progress_query_count;
         return -1;
     }
+
+    void beep() noexcept override {}
+    void service_audio() override {}
 
     u32 action_update_count{};
     u32 framebuffer_clear_count{};
@@ -372,6 +388,100 @@ struct Fixture {
     }
 };
 
+void prime_loaded_instruction(Fixture& fixture, const u16 raw_word) {
+    fixture.context.talk_data_offset = 0x1111U;
+    fixture.context.instruction_offset = 0U;
+    fixture.state.loaded_file_number = 1U;
+    fixture.state.loaded_data_offset = 0x1111U;
+    fixture.state.window_loaded = true;
+    write_u16(fixture.state.window, 0U, raw_word);
+}
+
+void test_default_invalid_opcode_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> opcode_zero_aliases{
+        0x0000U, 0x4000U, 0x8000U, 0xC000U
+    };
+    for (const u16 raw_word : opcode_zero_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        fixture.state.previous_opcode = 0x1234U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word == raw_word && result.opcode == 0U &&
+                result.instruction_offset == 0U &&
+                fixture.context.instruction_offset == 0U &&
+                result.executed_instruction_count == 1U &&
+                result.invalid_opcode_diagnostic_count == 1U &&
+                result.invalid_opcode_current == 0U &&
+                result.invalid_opcode_previous == 0x1234U &&
+                result.beep_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.state.previous_opcode == 0U &&
+                fixture.ports.beep_count == 1U &&
+                fixture.ports.direct_audio_service_count == 1U &&
+                fixture.ports.default_protocol_events ==
+                    std::vector<u32>{1U, 2U},
+            "opcode zero raw aliases beep, diagnose, publish and service"
+        );
+    }
+
+    constexpr std::array<u16, 4U> default_boundaries{
+        194U, 1023U, 1027U, 16382U
+    };
+    for (const u16 opcode : default_boundaries) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, opcode);
+        fixture.state.previous_opcode = 0x55AAU;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == opcode &&
+                fixture.context.instruction_offset == 0U &&
+                result.invalid_opcode_current == opcode &&
+                result.invalid_opcode_previous == 0x55AAU &&
+                fixture.state.previous_opcode == opcode &&
+                fixture.ports.default_protocol_events ==
+                    std::vector<u32>{1U, 2U},
+            "both original default ranges retain the no-advance protocol"
+        );
+    }
+
+    Fixture chained;
+    prime_loaded_instruction(chained, 194U);
+    chained.state.previous_opcode = 0x55U;
+    const auto first = chained.step();
+    write_u16(chained.state.window, 0U, 1023U);
+    const auto second = chained.step();
+    test.expect_true(
+        first.invalid_opcode_previous == 0x55U &&
+            first.invalid_opcode_current == 194U &&
+            second.invalid_opcode_previous == 194U &&
+            second.invalid_opcode_current == 1023U &&
+            chained.state.previous_opcode == 1023U &&
+            chained.ports.default_protocol_events ==
+                std::vector<u32>{1U, 2U, 1U, 2U},
+        "default diagnostics observe the prior join value before publishing"
+    );
+
+    constexpr std::array<u16, 4U> explicit_unimplemented{1U, 12U, 1024U, 1025U};
+    for (const u16 opcode : explicit_unimplemented) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, opcode);
+        fixture.state.previous_opcode = 0xA5A5U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode == 0xA5A5U &&
+                fixture.ports.beep_count == 0U &&
+                fixture.ports.direct_audio_service_count == 0U &&
+                fixture.ports.default_protocol_events.empty(),
+            "explicit unimplemented opcodes do not masquerade as defaults"
+        );
+    }
+}
+
 void test_initial_flags_and_alignment_gate(openswd3::test::Context& test) {
     Fixture fixture;
     const auto initialized = fixture.state;
@@ -433,6 +543,7 @@ void test_reinitialization_writes_only_owned_vm_fields(
     state.music_control_flags = 16U;
     state.current_first_stream = 17U;
     state.current_second_stream = 18U;
+    state.previous_opcode = 0x1234U;
 
     openswd3::world_map::initialize_legacy_world_story_vm(state);
 
@@ -449,6 +560,7 @@ void test_reinitialization_writes_only_owned_vm_fields(
             state.music_control_flags == 0U &&
             state.current_first_stream == 1U &&
             state.current_second_stream == 0U &&
+            state.previous_opcode == 0x1234U &&
             state.deferred_map_tile_x == -1 &&
             state.deferred_map_tile_y == -1 && state.deferred_map_id == 0 &&
             openswd3::world_map::query_legacy_world_story_flag(state, 70U) &&
@@ -2482,6 +2594,7 @@ void test_real_new_game_story_reaches_first_dialog(
 
 int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
+    test_default_invalid_opcode_protocol(test);
     test_initial_flags_and_alignment_gate(test);
     test_reinitialization_writes_only_owned_vm_fields(test);
     test_dialog_enqueue_and_wait_protocol(test);

@@ -31,6 +31,12 @@ constexpr std::size_t kObjectPathFlagsOffset = 0x1BU;
 
 constexpr std::array<u16, 6U> kInitialSetFlags{1U, 3U, 4U, 10U, 30U, 70U};
 
+[[nodiscard]] constexpr bool
+is_legacy_default_invalid_opcode(const u16 opcode) noexcept {
+    return opcode == 0U || (opcode >= 194U && opcode <= 1023U) ||
+        (opcode >= 1027U && opcode <= 16382U);
+}
+
 constexpr std::array<i16, 8U> kDialogRoleOffsetX{
     0, 0, 160, -160, 80, -80, 80, -80
 };
@@ -2037,7 +2043,19 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::terminated;
             return result;
         default:
-            result.status = LegacyWorldStoryVmStatus::unsupported_opcode;
+            if (!is_legacy_default_invalid_opcode(result.opcode)) {
+                result.status = LegacyWorldStoryVmStatus::unsupported_opcode;
+                return result;
+            }
+            ports.beep();
+            ++result.beep_count;
+            result.invalid_opcode_current = result.opcode;
+            result.invalid_opcode_previous = state.previous_opcode;
+            ++result.invalid_opcode_diagnostic_count;
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
         }
     }

@@ -126,6 +126,7 @@ IDA 伪码只用于定位函数、辅助阅读和提出假设。任何类型、�
 - [剧情 VM 146 个一级入口目标组](04-reverse-engineering/inventory/story-vm-entry-target-groups.tsv)
 - [剧情 VM 共享 handler 内部 opcode 细分](04-reverse-engineering/inventory/story-vm-internal-opcode-switches.tsv)
 - [剧情 VM P1 完整 handler 工作包证据](04-reverse-engineering/evidence/story-vm-handler-workpack-p1.md)
+- [剧情 VM 默认非法 handler `0x0042D230`](04-reverse-engineering/evidence/story-vm-default-invalid-0042d230.md)
 - [剧情 VM 146 个 handler 审计工作行](04-reverse-engineering/inventory/story-vm-handler-workpack.tsv)
 - [剧情 VM 17 条非 handler 运行路径](04-reverse-engineering/inventory/story-vm-runtime-paths.tsv)
 - [剧情 VM 指令长度层与 TALK 线性前缀验证](04-reverse-engineering/evidence/story-vm-length-and-talk-linear-probe.md)
