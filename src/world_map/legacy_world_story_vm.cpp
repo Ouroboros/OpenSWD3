@@ -1137,15 +1137,28 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             if (selector == kCurrentSourceSelector) {
                 selector = context.source_guid;
             }
+            const u16 value = read_u16(state.window, ip + 4U);
             u32 role_index{};
             if (!resolve_role_index(
                     roles, selector, controlled_role_index, role_index
                 )) {
-                result.status = LegacyWorldStoryVmStatus::role_not_found;
-                return result;
+                if (result.opcode != 10U) {
+                    result.status = LegacyWorldStoryVmStatus::role_not_found;
+                    return result;
+                }
+                ports.patch_role_source(
+                    LegacyMapsRolePatchRequest{
+                        .guid = selector,
+                        .base_variant = value,
+                        .flags_or_mask = 0x1000U,
+                    }
+                );
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 6U);
+                state.previous_opcode = result.opcode;
+                continue;
             }
             auto& role = roles[role_index];
-            const u16 value = read_u16(state.window, ip + 4U);
             if (result.opcode == 10U) {
                 role.action.base_variant = value;
             } else {
@@ -1166,6 +1179,9 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
+            if (result.opcode == 10U) {
+                state.previous_opcode = result.opcode;
+            }
             continue;
         }
 

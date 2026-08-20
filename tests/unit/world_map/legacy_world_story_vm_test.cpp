@@ -1453,6 +1453,77 @@ void test_missing_role_position_patch(openswd3::test::Context& test) {
     );
 }
 
+void test_change_role_base_variant_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        0x000AU, 0x400AU, 0x800AU, 0xC00AU
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0xFFF0U);
+        write_u16(fixture.state.window, 4U, 0x1234U);
+        write_u16(fixture.state.window, 6U, 12U);
+        fixture.roles[1].action.wait_remaining = 9U;
+        fixture.state.previous_opcode = 0x55U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == 12U &&
+                result.executed_instruction_count == 2U &&
+                result.instruction_offset == 6U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.roles[1].action.base_variant == 0x1234U &&
+                fixture.roles[1].action.wait_remaining == 0U &&
+                result.action_update_count == 1U &&
+                fixture.state.previous_opcode == 10U &&
+                fixture.ports.role_patch_requests.empty(),
+            "opcode 10 aliases update the live role and continue"
+        );
+    }
+
+    Fixture missing;
+    prime_loaded_instruction(missing, 10U);
+    write_u16(missing.state.window, 2U, 0x7777U);
+    write_u16(missing.state.window, 4U, 0x0333U);
+    write_u16(missing.state.window, 6U, 12U);
+    const auto missing_result = missing.step();
+    const auto patch = missing.ports.role_patch_requests.empty()
+        ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+        : missing.ports.role_patch_requests.front();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            missing_result.executed_instruction_count == 2U &&
+            missing.context.instruction_offset == 6U &&
+            missing.state.previous_opcode == 10U &&
+            missing_result.action_update_count == 0U &&
+            missing.ports.role_patch_requests.size() == 1U &&
+            patch.guid == 0x7777U && patch.base_variant == 0x0333U &&
+            patch.action_id == 0xFFFFU && patch.variant_delta == 0xFFFFU &&
+            patch.flags_or_mask == 0x1000U && patch.flags_and_mask == 0xFFFFU,
+        "opcode 10 patches the MAPS source when the live role is absent"
+    );
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFCU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    write_u16(truncated.state.window, 0x7FFCU, 10U);
+    write_u16(truncated.state.window, 0x7FFEU, 0x00F8U);
+    truncated.state.previous_opcode = 0x55U;
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.context.instruction_offset == 0x7FFCU &&
+            truncated.state.previous_opcode == 0x55U &&
+            truncated_result.action_update_count == 0U &&
+            truncated.ports.role_patch_requests.empty(),
+        "opcode 10 short payload fails before role or MAPS mutation"
+    );
+}
+
 void test_role_action_chain_update_gate(openswd3::test::Context& test) {
     const auto run_chain = [](const u16 second_opcode) {
         Fixture fixture;
@@ -2023,6 +2094,45 @@ void test_real_clear_dialog_control_flag_record(
             fixture.state.text_control_flags == 0x7FFFFFFFU &&
             fixture.state.previous_opcode == 7U,
         "real opcode 7 record replays the clear-and-continue contract"
+    );
+}
+
+void test_real_change_role_base_variant_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00004A24);
+    std::array<u8, 6U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    test.expect_true(
+        static_cast<bool>(input) && read_u16(instruction, 0U) == 10U &&
+            read_u16(instruction, 2U) == 1U && read_u16(instruction, 4U) == 0U,
+        "real opcode 10 physical record has the expected six-byte payload"
+    );
+    if (!input) {
+        return;
+    }
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, 10U);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 6U, 12U);
+    fixture.roles[1].guid = 1U;
+    fixture.roles[1].action.base_variant = 77U;
+    fixture.roles[1].action.wait_remaining = 9U;
+    const auto result = fixture.step();
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 6U &&
+            fixture.roles[1].action.base_variant == 0U &&
+            fixture.roles[1].action.wait_remaining == 0U &&
+            result.action_update_count == 1U &&
+            fixture.state.previous_opcode == 10U,
+        "real opcode 10 record replays the live-role update contract"
     );
 }
 
@@ -3311,6 +3421,7 @@ int main(const int argument_count, char** arguments) {
     test_same_file_branch(test);
     test_role_action_operand_extension(test);
     test_missing_role_position_patch(test);
+    test_change_role_base_variant_protocol(test);
     test_role_action_chain_update_gate(test);
     test_change_requested_action_id(test);
     test_wait_for_role_action_position(test);
@@ -3330,6 +3441,7 @@ int main(const int argument_count, char** arguments) {
     } else if (argument_count == 2) {
         const std::filesystem::path root{arguments[1]};
         test_real_clear_dialog_control_flag_record(test, root);
+        test_real_change_role_base_variant_record(test, root);
         test_real_clear_dialog_control_flag_bit30_record(test, root);
         test_real_stage_dialog_lifetime_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

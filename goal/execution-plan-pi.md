@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v243
+版本：v244
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00427ED0` handler（opcode 10）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00427FEB` handler（opcode 11）
 
 ## 0. 执行约定
 
@@ -1361,5 +1361,13 @@ B7 P0 有限收口完成。
     app 192/192 通过，三进程均 exit 0，未启动游戏 EXE。workpack 当前 5/146，即
     `3 assembly_exact + 2 platform_adapted + 141 pending_audit`。
 
+- 剧情 VM P2 第六组 `0x00427ED0` / opcode10 完成独立闭环。恢复 selector/FFF0、
+    live role base variant、wait reset、raw-next chain gate、action update、IP+6、previous=10 与
+    missing-role MAPS source patch；修复旧实现错误返回 `role_not_found` 和遗漏 previous。
+    四 raw alias、短载荷、fallback、chain 与 `TALK1.DAT@0x4A24` 真记录通过；1693/1693 条
+    TALK 记录均长度6。定向 story VM 3/3、Linux core 186/186、Linux app 192/192、Windows
+    LLVM app 192/192 通过，三个有效门禁进程均 exit 0，未启动游戏 EXE。workpack 当前
+    6/146，即 `3 assembly_exact + 3 platform_adapted + 140 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00427ED0` 的 opcode10；不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
+`0x00427FEB` 的 opcode11；不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
