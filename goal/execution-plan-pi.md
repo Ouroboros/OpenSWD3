@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v254
+版本：v255
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428444` handler（opcode 18）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042845A` handler（opcode 18）
 
 ## 0. 执行约定
 
@@ -1456,5 +1456,5 @@ B7 P0 有限收口完成。
     `3 assembly_exact + 10 platform_adapted + 133 pending_audit`。
 
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428444` 的 opcode18；语义未审计前常量保持 `OP_18`。不并行回到延期的 `libffmpeg`，
+`0x0042845A` 的 opcode18；语义未审计前常量保持 `OP_18`。不并行回到延期的 `libffmpeg`，
 也不按剧情命中顺序临时补 opcode。

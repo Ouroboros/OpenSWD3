@@ -156,7 +156,7 @@ battle            2
 下一组严格是：
 
 ```text
-entry = 0x00428444
+entry = 0x0042845A
 opcode = 18
 ```
 

@@ -76,7 +76,7 @@ target data offset = 0x00007296
 关闭后 workpack 为 13/146。下一行严格是：
 
 ```text
-0x00428444
+0x0042845A
 opcode 18
 ```
 
