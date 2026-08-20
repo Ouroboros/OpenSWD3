@@ -39,7 +39,9 @@ inline constexpr compat::u16 OP_15_JUMP_SAME_FILE_OFFSET = 15U;
 inline constexpr compat::u16 OP_16_JUMP_IF_ROLE_PATH_UNPREPARED = 16U;
 inline constexpr compat::u16 OP_17_JUMP_IF_ROLE_PATH_PREPARED = 17U;
 inline constexpr compat::u16 OP_18_RELEASE_ROLE_PATH = 18U;
-inline constexpr compat::u16 OP_19 = 19U;
+inline constexpr compat::u16 OP_19_RELEASE_ROLE_PATHS = 19U;
+inline constexpr compat::u16 OP_20 = 20U;
+inline constexpr compat::u16 OP_23 = 23U;
 inline constexpr compat::u16 OP_45 = 45U;
 
 struct LegacyWorldStoryVmState {
@@ -202,7 +204,7 @@ struct LegacyWorldStoryVmResult {
 
 // sub_427920, currently restricted to the independently audited default-invalid
 // and shared-dialog groups plus the earlier map-81/TALK100 implementation coverage:
-// 1-18,20-22,25-26,38-40,42-43,45,51-53,58-61,67,70-72,74,76-78,
+// 1-22,25-26,38-40,42-43,45,51-53,58-61,67,70-72,74,76-78,
 // 85,88-91,94-95,104,107,114,120,141,153,161,193,0x402 and 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.

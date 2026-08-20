@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x004284C2`（opcode 19）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 shared handler `0x0042ADB7`（opcode 20,169）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -17,11 +17,11 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 
 - 原版剧情 VM 有 198 个显式 opcode，对应 146 个唯一汇编 handler 入口。
 - 其中 25 个入口由多个 opcode 共享；共享入口不代表各 opcode 语义相同。
-- 当前 C++ 接入 61 个显式 opcode。
-- 当前资产静态控制流观察到 143 个 opcode，其中仍有 83 个尚未实现。
+- 当前 C++ 接入 62 个显式 opcode。
+- 当前资产静态控制流观察到 143 个 opcode，其中仍有 82 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
 - `0..124` 已有人工汇编语义；`125..193` 目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
-- 当前已实现的 61 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
+- 当前已实现的 62 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
 
@@ -69,11 +69,11 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、125 行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定 17 条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2 前十四行已独立关闭：默认非法与共享对话两组、
+值、窗口、公共 join/yield 与返回路径。P2 前十五行已独立关闭：默认非法与共享对话两组、
 opcode7/9 的 bit31/bit30 clear、opcode8 lifetime、opcode10/11 action、opcode12 position、
 opcode13 role step、opcode14 action wait、opcode15 same-file jump、opcode16/17 两种 role-path
-conditional jump 与 opcode18 role-path release。当前为 14/146；下一行只审计 `0x004284C2`
-的 opcode19。
+conditional jump，以及 opcode18/19 单角色与全角色 path release。当前为 15/146；下一行只
+审计 `0x0042ADB7` 的共享 opcode20/169 handler，两个变体不得拆开。
 
 ### P2 · 按 handler 组逆向、实现和验证
 
