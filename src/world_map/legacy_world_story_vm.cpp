@@ -2169,6 +2169,41 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u32 threshold =
+                state.script_clock_origin + read_u16(state.window, ip + 2U);
+            if (state.script_clock <= threshold) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 8U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+            if (!has_bytes(state.window, ip + 4U, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const auto status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, ip + 4U),
+                result,
+                ports
+            );
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 8U);
+            state.previous_opcode = result.opcode;
+            if (status != LegacyWorldStoryVmStatus::idle) {
+                result.status = status;
+                return result;
+            }
+            continue;
+        }
+
         case 38U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

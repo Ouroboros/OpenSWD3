@@ -59,6 +59,7 @@ using openswd3::world_map::OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE;
 using openswd3::world_map::OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE;
 using openswd3::world_map::OP_34_SET_BOUNDED_SCRIPT_CLOCK;
 using openswd3::world_map::OP_35_JUMP_IF_BYTE_LE_SCRIPT_CLOCK;
+using openswd3::world_map::OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -5147,6 +5148,182 @@ void test_jump_if_byte_le_script_clock_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_jump_if_script_clock_exceeds_origin_delta_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.script_clock_origin = 0xFFFFFFF0U;
+        fixture.state.script_clock = 0x10U;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA | mask
+            )
+        );
+        write_u16(fixture.state.window, 2U, 0x20U);
+        write_u32(fixture.state.window, 4U, 0x2222U);
+        write_u16(fixture.state.window, 8U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 8U &&
+                fixture.state.previous_opcode ==
+                    OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA &&
+                fixture.state.script_clock_origin == 0xFFFFFFF0U &&
+                fixture.state.script_clock == 0x10U &&
+                fixture.ports.data_load_count == 0U &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 36 aliases use wrapped threshold and strict comparison"
+        );
+    }
+
+    Fixture taken;
+    taken.state.script_clock_origin = 0xFFFFFFF0U;
+    taken.state.script_clock = 0x11U;
+    prime_loaded_instruction(
+        taken, OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA
+    );
+    write_u16(taken.state.window, 2U, 0x20U);
+    write_u32(taken.state.window, 4U, 0x3333U);
+    write_u16(taken.ports.transferred_window, 8U, OP_1025);
+    const auto taken_result = taken.step();
+    test.expect_true(
+        taken_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            taken_result.executed_instruction_count == 2U &&
+            taken.context.talk_data_offset == 0x3333U &&
+            taken.context.instruction_offset == 8U &&
+            taken.state.previous_opcode ==
+                OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA &&
+            taken.ports.data_load_count == 1U &&
+            taken.ports.last_data_offset == 0x3333U &&
+            taken.ports.direct_audio_service_count == 1U &&
+            taken.ports.beep_count == 0U,
+        "opcode 36 taken path reloads then continues at new-window offset 8"
+    );
+
+    Fixture full_width_clock;
+    full_width_clock.state.script_clock_origin = 0U;
+    full_width_clock.state.script_clock = 0x10000U;
+    prime_loaded_instruction(
+        full_width_clock, OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA
+    );
+    write_u16(full_width_clock.state.window, 2U, 1U);
+    write_u32(full_width_clock.state.window, 4U, 0x3535U);
+    write_u16(full_width_clock.ports.transferred_window, 8U, OP_1025);
+    const auto full_width_clock_result = full_width_clock.step();
+    test.expect_true(
+        full_width_clock_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            full_width_clock.context.talk_data_offset == 0x3535U &&
+            full_width_clock.context.instruction_offset == 8U &&
+            full_width_clock.ports.data_load_count == 1U,
+        "opcode 36 compares the full 32-bit script clock"
+    );
+
+    Fixture no_target_needed;
+    no_target_needed.context.instruction_offset = 0x7FFCU;
+    no_target_needed.context.talk_data_offset = 0x1111U;
+    no_target_needed.state.loaded_file_number = 1U;
+    no_target_needed.state.loaded_data_offset = 0x1111U;
+    no_target_needed.state.window_loaded = true;
+    no_target_needed.state.script_clock_origin = 0U;
+    no_target_needed.state.script_clock = 1U;
+    write_u16(
+        no_target_needed.state.window,
+        0x7FFCU,
+        OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA
+    );
+    write_u16(no_target_needed.state.window, 0x7FFEU, 1U);
+    const auto no_target_needed_result = no_target_needed.step();
+    test.expect_true(
+        no_target_needed_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            no_target_needed.context.instruction_offset == 0x8004U &&
+            no_target_needed.state.previous_opcode ==
+                OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA &&
+            no_target_needed.ports.data_load_count == 0U,
+        "opcode 36 not-taken path does not require the target"
+    );
+
+    Fixture target_truncated;
+    target_truncated.context.instruction_offset = 0x7FFCU;
+    target_truncated.context.talk_data_offset = 0x1111U;
+    target_truncated.state.loaded_file_number = 1U;
+    target_truncated.state.loaded_data_offset = 0x1111U;
+    target_truncated.state.window_loaded = true;
+    target_truncated.state.previous_opcode = 0x55U;
+    target_truncated.state.script_clock_origin = 0U;
+    target_truncated.state.script_clock = 2U;
+    write_u16(
+        target_truncated.state.window,
+        0x7FFCU,
+        OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA
+    );
+    write_u16(target_truncated.state.window, 0x7FFEU, 1U);
+    const auto target_truncated_result = target_truncated.step();
+    test.expect_true(
+        target_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            target_truncated.context.instruction_offset == 0x7FFCU &&
+            target_truncated.state.previous_opcode == 0x55U &&
+            target_truncated.ports.data_load_count == 0U,
+        "opcode 36 taken path reads target only after comparison"
+    );
+
+    Fixture delta_truncated;
+    delta_truncated.context.instruction_offset = 0x7FFEU;
+    delta_truncated.context.talk_data_offset = 0x1111U;
+    delta_truncated.state.loaded_file_number = 1U;
+    delta_truncated.state.loaded_data_offset = 0x1111U;
+    delta_truncated.state.window_loaded = true;
+    delta_truncated.state.previous_opcode = 0x55U;
+    write_u16(
+        delta_truncated.state.window,
+        0x7FFEU,
+        OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA
+    );
+    const auto delta_truncated_result = delta_truncated.step();
+    test.expect_true(
+        delta_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            delta_truncated.context.instruction_offset == 0x7FFEU &&
+            delta_truncated.state.previous_opcode == 0x55U,
+        "opcode 36 requires the complete u16 delta before comparison"
+    );
+
+    Fixture load_failure;
+    load_failure.state.script_clock_origin = 0U;
+    load_failure.state.script_clock = 2U;
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    prime_loaded_instruction(
+        load_failure, OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA
+    );
+    write_u16(load_failure.state.window, 2U, 1U);
+    write_u32(load_failure.state.window, 4U, 0x4444U);
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.load_status ==
+                LegacyTalkWindowStatus::data_read_failed &&
+            load_failure.context.talk_data_offset == 0x4444U &&
+            load_failure.context.instruction_offset == 8U &&
+            load_failure.state.previous_opcode ==
+                OP_36_JUMP_IF_SCRIPT_CLOCK_GT_ORIGIN_PLUS_DELTA &&
+            load_failure.ports.direct_audio_service_count == 1U,
+        "opcode 36 failure preserves loader then post-load +8 ordering"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -7696,6 +7873,7 @@ int main(const int argument_count, char** arguments) {
     test_global_integer_protocol(test);
     test_set_bounded_script_clock_protocol(test);
     test_jump_if_byte_le_script_clock_protocol(test);
+    test_jump_if_script_clock_exceeds_origin_delta_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
