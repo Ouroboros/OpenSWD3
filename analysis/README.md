@@ -134,6 +134,7 @@ IDA 伪码只用于定位函数、辅助阅读和提出假设。任何类型、�
 - [剧情 VM 角色 base variant handler `0x00427ED0`](04-reverse-engineering/evidence/story-vm-role-base-variant-00427ed0.md)
 - [剧情 VM 角色 variant delta handler `0x00427FEB`](04-reverse-engineering/evidence/story-vm-role-variant-delta-00427feb.md)
 - [剧情 VM 角色位置 handler `0x0042811F`](04-reverse-engineering/evidence/story-vm-role-position-0042811f.md)
+- [剧情 VM 角色步进 handler `0x0042822A`](04-reverse-engineering/evidence/story-vm-role-step-0042822a.md)
 - [剧情 VM 146 个 handler 审计工作行](04-reverse-engineering/inventory/story-vm-handler-workpack.tsv)
 - [剧情 VM 17 条非 handler 运行路径](04-reverse-engineering/inventory/story-vm-runtime-paths.tsv)
 - [剧情 VM 指令长度层与 TALK 线性前缀验证](04-reverse-engineering/evidence/story-vm-length-and-talk-linear-probe.md)

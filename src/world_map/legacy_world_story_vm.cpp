@@ -1254,7 +1254,47 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 14U: {
+        case OP_13_STEP_ROLE: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u16 raw_selector = read_u16(state.window, ip + 2U);
+            const u16 selector = raw_selector == kCurrentSourceSelector
+                ? context.source_guid
+                : raw_selector;
+            u32 role_index{};
+            const bool role_found = resolve_role_index(
+                roles, selector, controlled_role_index, role_index
+            );
+            if (!role_found && selector == kLegacyWorldControlledRoleSelector) {
+                result.status = LegacyWorldStoryVmStatus::role_not_found;
+                return result;
+            }
+            if (role_found && (roles[role_index].flags & 0x02000000U) == 0U) {
+                if (runtime.story_paths == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                const auto queried = query_legacy_world_story_path(
+                    *runtime.story_paths, role_index
+                );
+                if (queried.status != LegacyWorldStoryPathStatus::completed) {
+                    result.status = LegacyWorldStoryVmStatus::role_path_failed;
+                    return result;
+                }
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
+        case OP_14: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;

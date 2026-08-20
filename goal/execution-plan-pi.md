@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v246
+版本：v248
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042822A` handler（opcode 13）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042829C` handler（opcode 14）
 
 ## 0. 执行约定
 
@@ -18,9 +18,10 @@
 D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
 ```
 
-`CONTENT` 由主 Agent 替换为本阶段的简明摘要，至少包含阶段/工作包名称、完成内容、验证结果、
-剩余风险或阻塞项以及下一步。汇报必须基于当前仓库实物和验证证据。命令执行失败时记录错误
-并明确告知用户，不得伪称已经送达。
+`CONTENT` 必须是高层、简短的阶段摘要，只包含阶段/工作包名称、完成内容概述、整体进度、
+验证结果和下一步；只有确有阻塞时才增加剩余风险。完成内容只概括模块或业务结果，不展开代码
+实现细节，不罗列 helper、字段、flag、地址分支或测试边界。汇报必须基于当前仓库实物和验证
+证据。命令执行失败时记录错误并明确告知用户，不得伪称已经送达。
 
 ## 1. 目标
 
@@ -1389,6 +1390,14 @@ B7 P0 有限收口完成。
     192/192 均以 exit 0 通过，未启动游戏 EXE。workpack 当前 8/146，即
     `3 assembly_exact + 5 platform_adapted + 138 pending_audit`。
 
+- 剧情 VM P2 第九组 `0x0042822A` / opcode13 完成独立闭环。恢复 selector/FFF0、
+    role bit25 gate、`sub_42E280` 三态返回忽略、IP+4、previous=13、直接 audio service 与 yield；
+    补齐 ordinary missing、invalid controlled、runtime/slot/cursor/direction checked failure 顺序。
+    四 raw alias、return0/1/2、短载荷与组合测试通过；58,782 条物理 TALK 记录中 opcode13 为0，
+    因此不声称 real_asset_tested。定向 story VM 3/3、Linux core 186/186、Linux app
+    192/192、Windows LLVM app 192/192 均以 exit 0 通过，未启动游戏 EXE。workpack 当前
+    9/146，即 `3 assembly_exact + 6 platform_adapted + 137 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042822A` 的 opcode13；语义未审计前常量保持 `OP_13`。不并行回到延期的 `libffmpeg`，
+`0x0042829C` 的 opcode14；语义未审计前常量保持 `OP_14`。不并行回到延期的 `libffmpeg`，
 也不按剧情命中顺序临时补 opcode。

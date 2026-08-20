@@ -1,6 +1,6 @@
 # 剧情 VM P1 完整 handler 工作包
 
-状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 8/146。
+状态：P1 scope lock 完成；初始 146 个 handler 全部为 `pending_audit`，不继承旧语义、C++ case、资产观察或 CFG 的完成状态。P2 当前进度 9/146。
 
 唯一行为依据：`swd3.exe_export_for_ai/swd3.exe.lst`
 
@@ -110,11 +110,11 @@ P1 初始生成硬断言：
 当前导航统计：
 
 - 人工语义：125 opcode，落在 100 个 handler；46 个 handler 尚无人工语义行；
-- P1 初始现代 C++：50 个 case label；40 个 handler 全有 case、4 个仅部分有 case、102 个无 case；P2 当前为 57 个 case、42 个全有、3 个部分、101 个无 case；
+- P1 初始现代 C++：50 个 case label；40 个 handler 全有 case、4 个仅部分有 case、102 个无 case；P2 当前为 58 个 case、43 个全有、3 个部分、100 个无 case；
 - 当前 TALK 资产：143 个 opcode 有观察记录、55 个未观察；对应 109 个 handler 有任一观察、37 个完全未观察；
 - static triage：146 个 handler 当前没有 unresolved edge，但该 CFG 明确是过近似导航，不证明分支可行性或业务语义。
 
-因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前八行；生成器现在硬断言 8 closed / 138 pending，并拒绝无 override 的状态漂移。
+因此 P1 没有把任何一行标为已实现。`all` C++ case presence 也不能关闭 handler：共享入口仍可能有不同 operand、修饰位、等待、异常或窗口路径，旧实现同样必须按所属组重审。P2 已通过独立证据关闭前九行；生成器现在硬断言 9 closed / 137 pending，并拒绝无 override 的状态漂移。
 
 ## 6. 候选端口依赖
 
@@ -137,7 +137,7 @@ battle            2
 
 ## 7. P2 当前停止线
 
-前八组已经独立关闭：
+前九组已经独立关闭：
 
 - 默认非法入口 `0x0042D230`：[`story-vm-default-invalid-0042d230.md`](story-vm-default-invalid-0042d230.md)；
 - 共享对话入口 `0x00427B8F` 的 `1-6,89-90`：[`story-vm-dialog-handler-00427b8f.md`](story-vm-dialog-handler-00427b8f.md)；
@@ -146,13 +146,14 @@ battle            2
 - bit30 清除入口 `0x00427EC2` 的 opcode9：[`story-vm-dialog-flag-clear-00427ec2.md`](story-vm-dialog-flag-clear-00427ec2.md)；
 - role base variant 入口 `0x00427ED0` 的 opcode10：[`story-vm-role-base-variant-00427ed0.md`](story-vm-role-base-variant-00427ed0.md)；
 - role variant delta 入口 `0x00427FEB` 的 opcode11：[`story-vm-role-variant-delta-00427feb.md`](story-vm-role-variant-delta-00427feb.md)；
-- role position 入口 `0x0042811F` 的 opcode12：[`story-vm-role-position-0042811f.md`](story-vm-role-position-0042811f.md)。
+- role position 入口 `0x0042811F` 的 opcode12：[`story-vm-role-position-0042811f.md`](story-vm-role-position-0042811f.md)；
+- role step 入口 `0x0042822A` 的 opcode13：[`story-vm-role-step-0042822a.md`](story-vm-role-step-0042822a.md)。
 
 下一组严格是：
 
 ```text
-entry = 0x0042822A
-opcode = 13
+entry = 0x0042829C
+opcode = 14
 ```
 
-opcode13 语义尚未独立审计，常量暂为 `OP_13`。
+opcode14 语义尚未独立审计，常量暂为 `OP_14`。
