@@ -102,6 +102,7 @@ enum class LegacyWorldFrameRuntimeStatus : compat::u8 {
     frame_color_failed,
     flagged_roles_failed,
     world_roles_failed,
+    picture_actions_failed,
     cursor_frame_failed,
     dialog_failed,
     stage_exception,

@@ -47,7 +47,13 @@ public:
     ) noexcept = 0;
 };
 
+enum class LegacyPictureActionStatus : compat::u8 {
+    completed,
+    frame_load_failed,
+};
+
 struct LegacyPictureActionResult {
+    LegacyPictureActionStatus status{LegacyPictureActionStatus::completed};
     compat::u32 visited_count{};
     compat::u32 action_update_failure_count{};
     compat::u32 frame_request_count{};

@@ -3,6 +3,7 @@
 #include "openswd3/world_map/legacy_picture_actions.hpp"
 
 #include <bit>
+#include <functional>
 #include <list>
 #include <tuple>
 #include <utility>
@@ -21,6 +22,7 @@ using openswd3::rendering::LegacyFramePiece;
 using openswd3::world_map::LegacyPictureActionAudioPorts;
 using openswd3::world_map::LegacyPictureActionLists;
 using openswd3::world_map::LegacyPictureActionNode;
+using openswd3::world_map::LegacyPictureActionStatus;
 using openswd3::world_map::release_legacy_picture_actions;
 using openswd3::world_map::update_draw_legacy_picture_actions;
 
@@ -36,6 +38,9 @@ public:
     [[nodiscard]] LegacyActionUpdateStatus
     update_action_record(LegacyActionRecord& record) override {
         updated_ids.push_back(record.action_id);
+        if (update_callback) {
+            update_callback();
+        }
         if (record.action_id == 2U) {
             return LegacyActionUpdateStatus::malformed_stream;
         }
@@ -48,6 +53,9 @@ public:
         loads.emplace_back(resource_id, frame_index);
         piece.width = 16U;
         piece.height = 20U;
+        if (load_callback) {
+            load_callback();
+        }
         return resource_id != 33U;
     }
 
@@ -61,10 +69,16 @@ public:
         draws.push_back(
             DrawCall{destination_x, destination_y, flags, opacity_step}
         );
+        if (draw_callback) {
+            draw_callback();
+        }
         return draws.size() == 2U ? LegacyBlitExecutionStatus::malformed_source
                                   : LegacyBlitExecutionStatus::completed;
     }
 
+    std::function<void()> update_callback;
+    std::function<void()> load_callback;
+    std::function<void()> draw_callback;
     std::vector<u32> updated_ids;
     std::vector<std::pair<u16, u16>> loads;
     std::vector<DrawCall> draws;
@@ -76,8 +90,12 @@ public:
         const u16 sound_id, const i32 world_x, const i32 world_y
     ) noexcept override {
         samples.emplace_back(sound_id, world_x, world_y);
+        if (play_callback) {
+            play_callback();
+        }
     }
 
+    std::function<void()> play_callback;
     std::vector<std::tuple<u16, i32, i32>> samples;
 };
 
@@ -118,13 +136,14 @@ void test_exact_update_draw_audio_and_removal(openswd3::test::Context& test) {
     );
 
     test.expect_true(
-        result.visited_count == 3U &&
+        result.status == LegacyPictureActionStatus::frame_load_failed &&
+            result.visited_count == 3U &&
             result.action_update_failure_count == 1U &&
             result.frame_request_count == 3U &&
             result.frame_failure_count == 1U && result.draw_count == 2U &&
             result.blit_failure_count == 1U &&
-            result.positional_sample_count == 2U && result.removed_count == 2U,
-        "0x004147E0 retains every update, draw, sound and removal boundary"
+            result.positional_sample_count == 1U && result.removed_count == 1U,
+        "the checked frame boundary stops at the original unsafe dereference"
     );
     test.expect_true(
         action_ports.updated_ids == std::vector<u32>{1U, 2U, 3U} &&
@@ -144,12 +163,58 @@ void test_exact_update_draw_audio_and_removal(openswd3::test::Context& test) {
     );
     test.expect_true(
         audio_ports.samples ==
-                std::vector<std::tuple<u16, i32, i32>>{
-                    {5U, 110, 220}, {7U, 150, 260}
-                } &&
-            nodes.size() == 1U && nodes.front().action.action_id == 1U &&
-            nodes.front().action.field_58 == 0U,
-        "positional sounds use world coordinates, clear once, and completed nodes erase"
+                std::vector<std::tuple<u16, i32, i32>>{{5U, 110, 220}} &&
+            nodes.size() == 2U && nodes.front().action.action_id == 1U &&
+            nodes.front().action.field_58 == 0U &&
+            nodes.back().action.action_id == 3U &&
+            nodes.back().action.field_58 == 7U,
+        "post-dereference sound and removal do not run after frame failure"
+    );
+}
+
+void test_callback_reload_order(openswd3::test::Context& test) {
+    std::list<LegacyPictureActionNode> nodes;
+    nodes.push_back(make_node(1U, 10U, 20U, 11U, 12U, 5U, 0U));
+    auto& node = nodes.front();
+    RecordingActionPorts action_ports;
+    RecordingAudioPorts audio_ports;
+    action_ports.update_callback = [&]() {
+        node.action.field_4a = 21U;
+        node.action.field_4c = 22U;
+    };
+    action_ports.load_callback = [&]() {
+        node.screen_x = 30U;
+        node.screen_y = 40U;
+        node.action.draw_offset_x = 3U;
+        node.action.draw_offset_y = 4U;
+        node.action.mode_flags = 0xABCDEF01U;
+        node.action.field_8a = 0x2AU;
+        node.action.field_58 = 6U;
+    };
+    action_ports.draw_callback = [&]() {
+        node.screen_x = 50U;
+        node.screen_y = 60U;
+        node.action.field_58 = 7U;
+        node.action.field_8c = 0U;
+    };
+    audio_ports.play_callback = [&]() { node.action.field_8c = 1U; };
+
+    const auto result = update_draw_legacy_picture_actions(
+        nodes, 100, 200, action_ports, audio_ports
+    );
+    test.expect_true(
+        result.status == LegacyPictureActionStatus::completed &&
+            result.visited_count == 1U && result.draw_count == 1U &&
+            result.positional_sample_count == 1U &&
+            result.removed_count == 1U && nodes.empty() &&
+            action_ports.loads ==
+                std::vector<std::pair<u16, u16>>{{21U, 22U}} &&
+            action_ports.draws[0].x == 27 && action_ports.draws[0].y == 36 &&
+            action_ports.draws[0].flags == 0xABCDEF01U &&
+            action_ports.draws[0].opacity == 0x2A &&
+            audio_ports.samples ==
+                std::vector<std::tuple<u16, i32, i32>>{{7U, 150, 260}},
+        "each callback boundary reloads only the fields read after it"
     );
 }
 
@@ -201,6 +266,7 @@ void test_release_primary_then_secondary_lists(openswd3::test::Context& test) {
 int main() {
     openswd3::test::Context test;
     test_exact_update_draw_audio_and_removal(test);
+    test_callback_reload_order(test);
     test_completion_must_equal_one(test);
     test_release_primary_then_secondary_lists(test);
     return test.exit_code();

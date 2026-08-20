@@ -229,6 +229,9 @@ private:
     }
 
     [[nodiscard]] bool execute_picture_actions(const bool primary) {
+        const LegacyWorldFrameStage stage = primary
+            ? LegacyWorldFrameStage::primary_picture_actions_004147e0
+            : LegacyWorldFrameStage::secondary_picture_actions_004147e0;
         std::list<LegacyPictureActionNode>& nodes = primary
             ? ports_.picture_actions.primary
             : ports_.picture_actions.secondary;
@@ -247,7 +250,11 @@ private:
             ports_.flagged_roles,
             ports_.world_roles
         );
-        return true;
+        if (picture_result.status == LegacyPictureActionStatus::completed) {
+            return true;
+        }
+        fail(LegacyWorldFrameRuntimeStatus::picture_actions_failed, stage);
+        return false;
     }
 
     [[nodiscard]] bool execute_moving_actions() {

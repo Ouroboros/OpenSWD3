@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v224
+版本：v225
 
 最后更新：2026-08-16
 
@@ -1119,5 +1119,18 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     通过，两端应用成功链接且未启动游戏 EXE。114 项当前关闭 101 项，即
     `44 assembly_exact + 57 platform_adapted + 13 pending_audit`；下一精确停点为
     `0x004147E0 sub_4147E0`。
+
+    B7 的图片动作链更新绘制 `sub_4147E0` 随后完成独立闭环：完整物理范围
+    `0x004147E0..0x004148ED`、三个一参数 cdecl 调用点、动作更新、载帧、绘制、音效、
+    sound word 清零、完成值精确等一摘链及 next reload 均完成 LST→C++→LST 双向逐指令
+    收敛。复核发现旧现代实现把 frame miss 当作可继续诊断，错误执行其后的音效、摘链和
+    后续节点；现于原 `0x00414843 [eax]` 首次帧解引用点返回 `frame_load_failed`，并让 frame
+    runtime 在对应主/副 stage 停止。独立 callback 向量固定 update→frame→draw→audio
+    之间的 action/坐标/sound/completion 重读。受检 `std::list`/frame owner 和 typed ports
+    使分类保持 `platform_adapted`。picture-actions 与 world-frame composition/runtime
+    synthetic/real 五项定向 CTest 通过；Linux `core` 185/185、Linux `app` 191/191、
+    Windows LLVM `app` 191/191 CTest 全部通过，两端应用成功链接且未启动游戏 EXE。
+    114 项当前关闭 102 项，即 `44 assembly_exact + 58 platform_adapted + 12
+    pending_audit`；下一精确停点为 `0x004148F0 sub_4148F0`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

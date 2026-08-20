@@ -70,24 +70,25 @@ LegacyPictureActionResult update_draw_legacy_picture_actions(
                 current->action.field_4a, current->action.field_4c, piece
             )) {
             ++result.frame_failure_count;
-        } else {
-            result.last_blit_status = action_ports.draw_frame_piece(
-                piece,
-                wrapping_subtract(
-                    static_cast<compat::i32>(current->screen_x),
-                    current->action.draw_offset_x
-                ),
-                wrapping_subtract(
-                    static_cast<compat::i32>(current->screen_y),
-                    current->action.draw_offset_y
-                ),
-                current->action.mode_flags,
-                static_cast<compat::i32>(current->action.field_8a)
-            );
-            ++result.draw_count;
-            if (!accepted_blit_status(result.last_blit_status)) {
-                ++result.blit_failure_count;
-            }
+            result.status = LegacyPictureActionStatus::frame_load_failed;
+            return result;
+        }
+        result.last_blit_status = action_ports.draw_frame_piece(
+            piece,
+            wrapping_subtract(
+                static_cast<compat::i32>(current->screen_x),
+                current->action.draw_offset_x
+            ),
+            wrapping_subtract(
+                static_cast<compat::i32>(current->screen_y),
+                current->action.draw_offset_y
+            ),
+            current->action.mode_flags,
+            static_cast<compat::i32>(current->action.field_8a)
+        );
+        ++result.draw_count;
+        if (!accepted_blit_status(result.last_blit_status)) {
+            ++result.blit_failure_count;
         }
 
         if (current->action.field_58 != 0U) {

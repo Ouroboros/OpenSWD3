@@ -55,6 +55,7 @@ using openswd3::world_map::LegacyMovingActionList;
 using openswd3::world_map::LegacyMovingActionNode;
 using openswd3::world_map::LegacyPictureActionLists;
 using openswd3::world_map::LegacyPictureActionNode;
+using openswd3::world_map::LegacyPictureActionStatus;
 using openswd3::world_map::LegacyRoleHeadActionList;
 using openswd3::world_map::LegacyRoleHeadActionNode;
 using openswd3::world_map::LegacyRoleSpatialIndex;
@@ -204,7 +205,7 @@ public:
         loads.emplace_back(resource_id, frame_index);
         piece.width = 16U;
         piece.height = 16U;
-        return true;
+        return load_succeeds;
     }
 
     [[nodiscard]] LegacyBlitExecutionStatus draw_frame_piece(
@@ -215,6 +216,7 @@ public:
     }
 
     std::vector<std::pair<u16, u16>> loads;
+    bool load_succeeds{true};
     u32 draws{};
 };
 
@@ -686,6 +688,92 @@ void test_spatial_failure_stops_at_original_stage(
     );
 }
 
+void test_picture_frame_failure_stops_at_original_dereference(
+    openswd3::test::Context& test
+) {
+    BackgroundFixture background;
+    LegacyRoleSpatialIndex spatial = make_spatial_index(background.height);
+    std::array<LegacyWorldRoleRecord, 2U> roles{};
+    std::vector<openswd3::compat::i16> distances(roles.size());
+    std::vector<openswd3::compat::i16> vertical_offsets(roles.size());
+    const LegacyWorldFrameRuntimeState state =
+        make_runtime_state(distances, vertical_offsets);
+    LegacyPictureActionLists picture_actions;
+    picture_actions.primary.emplace_back();
+    picture_actions.primary.front().action.field_4a = 7U;
+    picture_actions.primary.front().action.field_4c = 8U;
+    picture_actions.primary.front().action.field_58 = 9U;
+    picture_actions.primary.front().action.field_8c = 1U;
+    LegacyMovingActionList moving_actions;
+    LegacyRoleHeadActionList role_head_actions;
+    LegacyWorldFrameEffectState environment_effects;
+    openswd3::input_time_rng::LegacySecondaryRng secondary_rng;
+    LegacyPixelConversionState pixel_conversion;
+    LegacyFramebuffer framebuffer;
+    LegacyRasterGeometryState raster = framebuffer.geometry();
+    LegacyRleRowJitterState jitter;
+    RemainingPorts remaining;
+    RecordingFlaggedPorts flagged;
+    flagged.load_succeeds = false;
+    RecordingRolePorts ordinary;
+    RecordingAudioPorts audio;
+    RecordingAniPorts ani;
+    RecordingTimedMessageRuntimePorts timed_messages;
+
+    const auto result = compose_legacy_world_runtime_frame(
+        framebuffer,
+        raster,
+        background.source(),
+        spatial,
+        roles,
+        state,
+        jitter,
+        LegacyWorldFrameRuntimePorts{
+            .remaining_stages = remaining,
+            .indexed_objects = {},
+            .picture_actions = picture_actions,
+            .moving_actions = moving_actions,
+            .role_head_actions = role_head_actions,
+            .environment_effects = environment_effects,
+            .secondary_rng = secondary_rng,
+            .pixel_conversion = pixel_conversion,
+            .blit_effects = nullptr,
+            .cursor_delete_key_pressed = false,
+            .cursor_mouse_x = 0,
+            .cursor_mouse_y = 0,
+            .cursor_left_press_multiplicity = 0U,
+            .special_mode_state = nullptr,
+            .ani_drift = ani,
+            .ani_directional = ani,
+            .ani_follower = ani,
+            .timed_message_runtime = timed_messages,
+            .flagged_roles = flagged,
+            .world_roles = ordinary,
+            .spatial_audio = audio,
+        }
+    );
+
+    test.expect_true(
+        result.status ==
+                LegacyWorldFrameRuntimeStatus::picture_actions_failed &&
+            result.composition.status ==
+                LegacyWorldFrameCompositionStatus::stage_failed &&
+            result.composition.failed_stage ==
+                LegacyWorldFrameStage::primary_picture_actions_004147e0 &&
+            result.failed_stage_recorded &&
+            result.primary_picture_actions_executed &&
+            !result.moving_actions_executed &&
+            !result.secondary_picture_actions_executed &&
+            result.primary_picture_actions.status ==
+                LegacyPictureActionStatus::frame_load_failed &&
+            flagged.loads == std::vector<std::pair<u16, u16>>{{7U, 8U}} &&
+            flagged.draws == 0U && ordinary.samples.empty() &&
+            picture_actions.primary.size() == 1U &&
+            picture_actions.primary.front().action.field_58 == 9U,
+        "frame failure stops composition before sound, erase and later stages"
+    );
+}
+
 void test_delegated_failure_is_visible(openswd3::test::Context& test) {
     BackgroundFixture background;
     LegacyRoleSpatialIndex spatial = make_spatial_index(background.height);
@@ -1002,6 +1090,7 @@ int main(const int argument_count, char** arguments) {
     test_initial_environment_action_records(test);
     test_spatial_stages_execute_in_frame_order(test);
     test_spatial_failure_stops_at_original_stage(test);
+    test_picture_frame_failure_stops_at_original_dereference(test);
     test_delegated_failure_is_visible(test);
     test_environment_effects_use_live_frame_dependencies(test);
     if (argument_count == 2 && arguments != nullptr &&
