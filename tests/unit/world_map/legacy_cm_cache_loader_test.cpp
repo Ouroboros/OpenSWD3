@@ -31,7 +31,9 @@ using openswd3::resource_io::compress_legacy_lzo1x_15;
 using openswd3::world_map::kLegacyCmCacheInvalidMap;
 using openswd3::world_map::LegacyCmCacheLoadStatus;
 using openswd3::world_map::LegacyCmCacheRequest;
+using openswd3::world_map::LegacyCmCacheUnitReadStatus;
 using openswd3::world_map::load_legacy_cm_cache;
+using openswd3::world_map::read_legacy_cm_cache_unit;
 
 class TestTree {
 public:
@@ -188,6 +190,51 @@ void test_index_open_failure_maintains_audio_once(
     );
 }
 
+void test_cache_unit_mapping_services_and_invalidation(
+    openswd3::test::Context& test
+) {
+    const TestTree tree;
+    std::vector<u8> bytes{0xAAU, 0xBBU};
+    std::vector<std::size_t> observed_sizes;
+
+    const auto open_failed = read_legacy_cm_cache_unit(
+        tree.root() / "missing-parent", 7U, bytes, [&] {
+            observed_sizes.push_back(bytes.size());
+        }
+    );
+    test.expect_true(
+        open_failed == LegacyCmCacheUnitReadStatus::open_failed &&
+            bytes.empty() && observed_sizes == std::vector<std::size_t>{2U, 0U},
+        "slot open failure follows two services and invalidates the old borrow"
+    );
+
+    constexpr std::array<u8, 4> mapped{1U, 2U, 3U, 4U};
+    tree.write("3.cm", mapped);
+    bytes = {0xAAU, 0xBBU};
+    observed_sizes.clear();
+    const auto ready = read_legacy_cm_cache_unit(tree.root(), 3U, bytes, [&] {
+        observed_sizes.push_back(bytes.size());
+    });
+    test.expect_true(
+        ready == LegacyCmCacheUnitReadStatus::ready &&
+            bytes == std::vector<u8>{1U, 2U, 3U, 4U} &&
+            observed_sizes == std::vector<std::size_t>{2U, 0U, 0U, 0U, 4U},
+        "successful slot mapping publishes bytes between services four and five"
+    );
+
+    bytes = {0xAAU};
+    observed_sizes.clear();
+    const auto empty = read_legacy_cm_cache_unit(tree.root(), 5U, bytes, [&] {
+        observed_sizes.push_back(bytes.size());
+    });
+    test.expect_true(
+        empty == LegacyCmCacheUnitReadStatus::empty && bytes.empty() &&
+            observed_sizes == std::vector<std::size_t>{1U, 0U, 0U, 0U, 0U} &&
+            std::filesystem::is_regular_file(tree.root() / "5.cm"),
+        "OPEN_ALWAYS empty view failure still reaches all five services"
+    );
+}
+
 void test_empty_directory_initialization(openswd3::test::Context& test) {
     const TestTree tree;
     constexpr std::array<u8, 8> raw{
@@ -237,6 +284,11 @@ void test_empty_directory_initialization(openswd3::test::Context& test) {
                     0U,
                     384U,
                     384U,
+                    384U,
+                    384U,
+                    384U,
+                    384U,
+                    384U,
                 } &&
             observed_cache_sizes ==
                 std::vector<std::uintmax_t>{
@@ -249,6 +301,11 @@ void test_empty_directory_initialization(openswd3::test::Context& test) {
                     0U,
                     0U,
                     0U,
+                    6U,
+                    6U,
+                    6U,
+                    6U,
+                    6U,
                     6U,
                     6U,
                     6U,
@@ -288,7 +345,7 @@ void test_hit_order_and_tail_preservation(openswd3::test::Context& test) {
     try {
         static_cast<void>(load_legacy_cm_cache(request_for(tree, 24U), [&] {
             ++interrupted_audio_calls;
-            if (interrupted_audio_calls == 4U) {
+            if (interrupted_audio_calls == 9U) {
                 throw StopAfterSlotLoad{};
             }
         }));
@@ -296,7 +353,7 @@ void test_hit_order_and_tail_preservation(openswd3::test::Context& test) {
         interrupted = true;
     }
     test.expect_true(
-        interrupted && interrupted_audio_calls == 4U &&
+        interrupted && interrupted_audio_calls == 9U &&
             tree.read("mcache.dat") == index,
         "hit reaches the post-slot service before resetting and persisting age"
     );
@@ -307,7 +364,7 @@ void test_hit_order_and_tail_preservation(openswd3::test::Context& test) {
     test.expect_true(
         result.status == LegacyCmCacheLoadStatus::ready_hit &&
             result.selected_slot == 3U && result.index_persisted &&
-            !result.index_truncated && audio_calls == 5U,
+            !result.index_truncated && audio_calls == 10U,
         "hit loads the stored slot before rewriting the directory"
     );
     const std::vector<u8> rewritten = tree.read("mcache.dat");
@@ -332,7 +389,7 @@ void test_hit_creates_missing_slot_before_empty_failure(
         load_legacy_cm_cache(request_for(tree, 24U), [&] { ++audio_calls; });
     test.expect_true(
         result.status == LegacyCmCacheLoadStatus::cache_file_empty &&
-            result.index_persisted && audio_calls == 5U &&
+            result.index_persisted && audio_calls == 10U &&
             std::filesystem::is_regular_file(tree.root() / "3.cm") &&
             std::filesystem::file_size(tree.root() / "3.cm") == 0U,
         "cache hit uses OPEN_ALWAYS before an empty mapping fails"
@@ -378,24 +435,10 @@ void test_miss_inserts_and_truncates_index(openswd3::test::Context& test) {
     test.expect_true(
         observed_index_sizes ==
             std::vector<std::uintmax_t>{
-                34U,
-                34U,
-                34U,
-                34U,
-                34U,
-                34U,
-                34U,
-                32U,
-                32U,
-                32U,
-                32U,
-                32U,
-                32U,
-                32U,
-                32U,
-                32U,
+                34U, 34U, 34U, 34U, 34U, 34U, 34U, 32U, 32U, 32U, 32U,
+                32U, 32U, 32U, 32U, 32U, 32U, 32U, 32U, 32U, 32U,
             },
-        "miss stages keep persistence before all nested generator services"
+        "miss stages keep persistence before all nested helper services"
     );
     const std::vector<u8> rewritten = tree.read("mcache.dat");
     test.expect_true(
@@ -447,25 +490,10 @@ void test_eviction_truncates_slot_to_sixteen_bytes(
     test.expect_true(
         observed_slot_sizes ==
             std::vector<std::uintmax_t>{
-                20U,
-                20U,
-                20U,
-                20U,
-                20U,
-                20U,
-                16U,
-                16U,
-                16U,
-                16U,
-                16U,
-                16U,
-                16U,
-                16U,
-                16U,
-                16U,
-                16U,
+                20U, 20U, 20U, 20U, 20U, 20U, 16U, 16U, 16U, 16U, 16U,
+                16U, 16U, 16U, 16U, 16U, 16U, 16U, 16U, 16U, 16U, 16U,
             },
-        "eviction service precedes truncation and nested generation follows it"
+        "eviction service precedes truncation and nested helpers follow it"
     );
     test.expect_true(
         result.cache_bytes.size() == 16U &&
@@ -570,9 +598,9 @@ void test_current_map_24(
         generated.status == LegacyCmCacheLoadStatus::ready_generated &&
             generated.cache_bytes.size() == 3'706'880U &&
             fnv1a64(generated.cache_bytes) == 0x9923E29AAAA434EEULL &&
-            generated_audio_calls == 21U &&
+            generated_audio_calls == 26U &&
             generated_progress == std::vector<i32>{15, 26, 37, 48},
-        "map 24 composes five loader and sixteen generator direct services"
+        "map 24 composes loader, generator, and five slot-mapping services"
     );
 
     u32 hit_audio_calls{};
@@ -580,8 +608,8 @@ void test_current_map_24(
     test.expect_true(
         hit.status == LegacyCmCacheLoadStatus::ready_hit &&
             hit.selected_slot == 0U &&
-            hit.cache_bytes == generated.cache_bytes && hit_audio_calls == 5U,
-        "second map 24 request follows the five-service persisted hit path"
+            hit.cache_bytes == generated.cache_bytes && hit_audio_calls == 10U,
+        "second map 24 request composes five loader and five mapping services"
     );
 }
 
@@ -590,6 +618,7 @@ void test_current_map_24(
 int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
     test_index_open_failure_maintains_audio_once(test);
+    test_cache_unit_mapping_services_and_invalidation(test);
     test_empty_directory_initialization(test);
     test_hit_order_and_tail_preservation(test);
     test_hit_creates_missing_slot_before_empty_failure(test);

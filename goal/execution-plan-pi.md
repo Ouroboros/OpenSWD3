@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v233
+版本：v234
 
 最后更新：2026-08-20
 
@@ -1246,5 +1246,20 @@ D:\Dev\Source\Project\stockkit\scripts\tg_notify.py "CONTENT"
     191/191 CTest，两端应用成功链接且未启动游戏 EXE。114 项当前关闭 110 项，即
     `44 assembly_exact + 66 platform_adapted + 4 pending_audit`；下一精确停点为
     `0x00427140 sub_427140`。
+
+- B7 继续完成 `0x00427140 sub_427140` 独立闭环。三个调用点都压入两个 cdecl 参数：
+    第一槽是 stored slot，第二槽是 callee 未读的路径 scratch；caller 清理 8 字节并消费
+    EAX 映射基址。函数第 1 个 `_AIL_serve` 位于旧 view/mapping/file 关闭前，第 2 个位于
+    新槽只读 `OPEN_ALWAYS` 前；open 失败固定到此返回。open 成功后第 3 个点位于
+    create-mapping 后，第 4 个位于 map-view 前；mapping/view 失败只记录诊断，仍复制当前
+    路径并执行第 5 个点。现代 `read_legacy_cm_cache_unit` 在第 1/2 个回调间清空旧借用，
+    在第 4/5 个回调间发布完整物理 bytes；RAII file 与 owned bytes 替代进程期裸映射，
+    合法域顺序不变，分类为 `platform_adapted`。直接 UT 固定 open 失败 2 次、ready/empty
+    5 次及旧借用失效点；一块普通 miss 共 21 次、单淘汰 22 次。真实地图 24 首次 loader
+    为 26、hit 为 10，render 总公式为 `48 + refs + 5 * indexed_objects`；loader/render
+    synthetic/real 4/4 定向回归通过。最终完整门禁为 Linux `core` 185/185、Linux `app`
+    191/191、Windows LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。
+    114 项当前关闭 111 项，即 `44 assembly_exact + 67 platform_adapted + 3 pending_audit`；
+    下一精确停点为 `0x004272C0 sub_4272C0`。
 
 当前只执行 B7，不并行回到延期的 `libffmpeg`，也不继续 opcode 125 起的逐值恢复。

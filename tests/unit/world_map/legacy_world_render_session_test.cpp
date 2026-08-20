@@ -546,12 +546,12 @@ void test_current_maps(
     if (direct.status == LegacyWorldRenderSessionStatus::ready) {
         test.expect_equal(
             direct_audio_maintenance_count,
-            std::size_t{43U} +
+            std::size_t{48U} +
                 direct.session.map_load.session.referenced_records.records
                     .size() +
                 direct.session.map_load.session.indexed_objects.objects.size() *
                     5U,
-            "real render composition includes loader and generator direct services"
+            "real render composition includes loader, generator, and mapping services"
         );
         test.expect_equal(
             direct_progress,

@@ -10,6 +10,20 @@ namespace openswd3::world_map {
 
 inline constexpr compat::u32 kLegacyCmCacheSlotCount = 24U;
 
+enum class LegacyCmCacheUnitReadStatus {
+    ready,
+    open_failed,
+    empty,
+    read_failed,
+};
+
+[[nodiscard]] LegacyCmCacheUnitReadStatus read_legacy_cm_cache_unit(
+    const std::filesystem::path& cache_directory,
+    compat::u32 slot,
+    std::vector<compat::u8>& bytes,
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage = {}
+);
+
 struct LegacyCmCacheRequest {
     std::filesystem::path archive_path;
     std::filesystem::path cache_directory;

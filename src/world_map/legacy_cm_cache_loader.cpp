@@ -118,37 +118,6 @@ void encode_records(
     return written && (!truncate || truncated);
 }
 
-enum class CacheUnitReadStatus {
-    ready,
-    open_failed,
-    empty,
-    read_failed,
-};
-
-[[nodiscard]] CacheUnitReadStatus read_cache_unit(
-    const std::filesystem::path& cache_directory,
-    const compat::u32 slot,
-    std::vector<compat::u8>& bytes
-) {
-    resource_io::LegacyFile cache;
-    if (!cache.open(
-            cache_directory / (std::to_string(slot) + ".cm"),
-            resource_io::LegacyFileCreation::open_always,
-            resource_io::LegacyFileAccess::read
-        )) {
-        return CacheUnitReadStatus::open_failed;
-    }
-
-    const compat::u32 byte_size = cache.size();
-    if (byte_size == 0U) {
-        return CacheUnitReadStatus::empty;
-    }
-    if (byte_size == 0xFFFFFFFFU || !read_file(cache, byte_size, bytes)) {
-        return CacheUnitReadStatus::read_failed;
-    }
-    return CacheUnitReadStatus::ready;
-}
-
 void truncate_evicted_unit(
     const std::filesystem::path& cache_directory, const compat::u32 stored_slot
 ) {
@@ -166,21 +135,21 @@ void truncate_evicted_unit(
 
 void set_cache_read_status(
     LegacyCmCacheLoadResult& result,
-    const CacheUnitReadStatus status,
+    const LegacyCmCacheUnitReadStatus status,
     const bool generated
 ) {
     switch (status) {
-    case CacheUnitReadStatus::ready:
+    case LegacyCmCacheUnitReadStatus::ready:
         result.status = generated ? LegacyCmCacheLoadStatus::ready_generated
                                   : LegacyCmCacheLoadStatus::ready_hit;
         break;
-    case CacheUnitReadStatus::open_failed:
+    case LegacyCmCacheUnitReadStatus::open_failed:
         result.status = LegacyCmCacheLoadStatus::cache_file_open_failed;
         break;
-    case CacheUnitReadStatus::empty:
+    case LegacyCmCacheUnitReadStatus::empty:
         result.status = LegacyCmCacheLoadStatus::cache_file_empty;
         break;
-    case CacheUnitReadStatus::read_failed:
+    case LegacyCmCacheUnitReadStatus::read_failed:
         result.status = LegacyCmCacheLoadStatus::cache_file_read_failed;
         break;
     }
@@ -209,6 +178,42 @@ void initialize_empty_directory(
 }
 
 }  // namespace
+
+LegacyCmCacheUnitReadStatus read_legacy_cm_cache_unit(
+    const std::filesystem::path& cache_directory,
+    const compat::u32 slot,
+    std::vector<compat::u8>& bytes,
+    const LegacyCmCacheAudioMaintenanceStage& audio_maintenance_stage
+) {
+    maintain_audio(audio_maintenance_stage);
+    bytes.clear();
+    maintain_audio(audio_maintenance_stage);
+
+    resource_io::LegacyFile cache;
+    if (!cache.open(
+            cache_directory / (std::to_string(slot) + ".cm"),
+            resource_io::LegacyFileCreation::open_always,
+            resource_io::LegacyFileAccess::read
+        )) {
+        return LegacyCmCacheUnitReadStatus::open_failed;
+    }
+
+    maintain_audio(audio_maintenance_stage);
+    const compat::u32 byte_size = cache.size();
+    maintain_audio(audio_maintenance_stage);
+
+    LegacyCmCacheUnitReadStatus status = LegacyCmCacheUnitReadStatus::ready;
+    if (byte_size == 0U) {
+        status = LegacyCmCacheUnitReadStatus::empty;
+    } else if (
+        byte_size == 0xFFFFFFFFU || !read_file(cache, byte_size, bytes)
+    ) {
+        bytes.clear();
+        status = LegacyCmCacheUnitReadStatus::read_failed;
+    }
+    maintain_audio(audio_maintenance_stage);
+    return status;
+}
 
 LegacyCmCacheLoadResult
 load_legacy_cm_cache(const LegacyCmCacheRequest& request) {
@@ -279,8 +284,13 @@ LegacyCmCacheLoadResult load_legacy_cm_cache(
         );
         static_cast<void>(index.close());
         maintain_audio(audio_maintenance_stage);
-        const CacheUnitReadStatus cache_status =
-            read_cache_unit(request.cache_directory, 0U, result.cache_bytes);
+        const LegacyCmCacheUnitReadStatus cache_status =
+            read_legacy_cm_cache_unit(
+                request.cache_directory,
+                0U,
+                result.cache_bytes,
+                audio_maintenance_stage
+            );
         maintain_audio(audio_maintenance_stage);
         set_cache_read_status(result, cache_status, true);
         if (result.generation.status != LegacyCmCacheGenerationStatus::ready) {
@@ -294,9 +304,13 @@ LegacyCmCacheLoadResult load_legacy_cm_cache(
         age_and_find_legacy_cm_cache_record(result.records, request.map_id);
     if (lookup.found) {
         result.selected_slot = lookup.record.stored_slot;
-        const CacheUnitReadStatus cache_status = read_cache_unit(
-            request.cache_directory, result.selected_slot, result.cache_bytes
-        );
+        const LegacyCmCacheUnitReadStatus cache_status =
+            read_legacy_cm_cache_unit(
+                request.cache_directory,
+                result.selected_slot,
+                result.cache_bytes,
+                audio_maintenance_stage
+            );
         maintain_audio(audio_maintenance_stage);
         result.records[lookup.record_index].use_counter = 0U;
         set_cache_read_status(result, cache_status, false);
@@ -355,8 +369,11 @@ LegacyCmCacheLoadResult load_legacy_cm_cache(
         progress_stage,
         audio_maintenance_stage
     );
-    const CacheUnitReadStatus cache_status = read_cache_unit(
-        request.cache_directory, result.selected_slot, result.cache_bytes
+    const LegacyCmCacheUnitReadStatus cache_status = read_legacy_cm_cache_unit(
+        request.cache_directory,
+        result.selected_slot,
+        result.cache_bytes,
+        audio_maintenance_stage
     );
     maintain_audio(audio_maintenance_stage);
     set_cache_read_status(result, cache_status, true);

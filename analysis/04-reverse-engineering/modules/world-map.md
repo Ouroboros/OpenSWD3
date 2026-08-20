@@ -19,14 +19,13 @@
 B4 软件 framebuffer 和 B6 动作/TSW 运行时。剧情 VM、特殊模式、战斗数值和存档字段
 解释不属于 B7；本模块只按汇编产生相应请求并由 app 在原顺序消费。
 
-114 项全集复核当前已关闭 110 项：44 项 `assembly_exact`、66 项 `platform_adapted`；其余
-4 项保持待审计。最新关闭 `sub_4270F0`：确认唯一调用点的五参数 cdecl、未读 map-id 与
-scratch、第五参数输出 dword、零 offset 零维护，以及非零路径 seek 前唯一 `_AIL_serve`。
-独立 archive reader 与 checked seek/read 在原危险点停止，不改变合法域 u32 offset 和输出
-顺序，因此分类为 `platform_adapted`。合成成功/失败、真实地图 24 size probe 与 loader
-普通 miss/淘汰纵向回归通过；完整门禁为 Linux core `185/185`、Linux app `191/191`、
-Windows LLVM app `191/191`，两端应用成功链接且未启动游戏 EXE。剩余独立停点为
-`sub_427140/sub_4272C0/sub_427300/sub_402F80`。原版完整
+114 项全集复核当前已关闭 111 项：44 项 `assembly_exact`、67 项 `platform_adapted`；其余
+3 项保持待审计。最新关闭 `sub_427140`：确认三个调用点实际使用两参数 cdecl，slot 有效、
+scratch 未读；open 失败固定 2 次直接维护，open 成功即使 mapping/view 失败也固定 5 次。
+RAII file 与 owned bytes 替代进程期 file/mapping/view globals，在第 1/2 个回调之间保持旧借用
+失效顺序，并在第 4/5 个回调之间发布完整物理字节，因此分类为 `platform_adapted`。合成
+open/ready/empty、真实地图 24 loader/render 纵向回归与三端完整门禁均通过，两端应用成功
+链接且未启动游戏 EXE。剩余独立停点为 `sub_4272C0/sub_427300/sub_402F80`。原版完整
 framebuffer/audio/particle/text/jitter 动态差分仍等待用户 oracle。此前
 `sub_40F3B0`：最高角色索引的负值门、包含端释放、完整 `256 * 0xD8` 清零和第二遍
 256 项动作初始化均已逐基本块完成双向追溯；现代 owner 对非零 `+0x38` 标记真正释放
@@ -238,6 +237,19 @@ sentinel 节点而非独立对话状态；后一项从 MAPS `+0x18` 精确物化
    链接且未启动游戏 EXE。114 项当前关闭 110 项，即
    `44 assembly_exact + 66 platform_adapted + 4 pending_audit`；下一精确停点为
    `0x00427140 sub_427140`。
+
+   `sub_427140` 槽映射生命周期现已独立关闭：三个调用点均压入 slot 与未读 scratch，并由
+   caller 清理 8 字节；EAX 返回映射基址或 0。函数第 1 个 `_AIL_serve` 位于关闭旧
+   view/mapping/file 之前，第 2 个位于新槽只读 `OPEN_ALWAYS` 前；open 失败到此返回。
+   open 成功后第 3 个点位于 create-mapping 后，第 4 个位于 map-view 前；mapping/view
+   失败只记录诊断，仍复制当前路径并执行第 5 个点。现代 typed port 在第 1/2 个回调之间
+   清空旧借用 bytes，在第 4/5 个回调之间读取完整物理文件；持久裸映射改为 RAII/owned
+   bytes，分类为 `platform_adapted`。一块普通 miss 组合维护更新为 21，单淘汰为 22；真实
+   地图 24 首次 loader 为 26、hit 为 10，render 总公式为
+   `48 + refs + 5 * indexed_objects`。最终完整门禁为 Linux `core` 185/185、Linux `app`
+   191/191、Windows LLVM `app` 191/191 CTest，两端应用成功链接且未启动游戏 EXE。
+   114 项当前关闭 111 项，即 `44 assembly_exact + 67 platform_adapted + 3 pending_audit`；
+   下一精确停点为 `0x004272C0 sub_4272C0`。
 
 达到第 4 项即形成“真实地图→角色→输入→碰撞→画面”的首个闭环；不等待 114 个函数
 全部内部命名后才实现。
