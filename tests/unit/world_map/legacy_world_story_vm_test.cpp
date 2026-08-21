@@ -110,6 +110,7 @@ using openswd3::world_map::OP_79_ENQUEUE_MOVING_ACTION;
 using openswd3::world_map::OP_80_CLEAR_TEXT_CONTROL_BIT29;
 using openswd3::world_map::OP_81_ENQUEUE_ROLE_HEAD_ACTION;
 using openswd3::world_map::OP_82_DISMISS_ROLE_HEAD_ACTION;
+using openswd3::world_map::OP_83_UPSERT_PACKED_ROW_EFFECT;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -13052,6 +13053,283 @@ void test_dismiss_role_head_action_boundaries(openswd3::test::Context& test) {
     );
 }
 
+void test_upsert_packed_row_effect_protocol(openswd3::test::Context& test) {
+    const auto write_record = [](const std::span<u8> bytes,
+                                 const std::size_t offset,
+                                 const u16 raw_opcode,
+                                 const u16 effect_id,
+                                 const u16 color,
+                                 const u16 mode,
+                                 const u16 x,
+                                 const u16 y,
+                                 const u16 width,
+                                 const u16 height) {
+        write_u16(bytes, offset, raw_opcode);
+        write_u16(bytes, offset + 2U, effect_id);
+        write_u16(bytes, offset + 4U, color);
+        write_u16(bytes, offset + 6U, mode);
+        write_u16(bytes, offset + 8U, x);
+        write_u16(bytes, offset + 10U, y);
+        write_u16(bytes, offset + 12U, width);
+        write_u16(bytes, offset + 14U, height);
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture exact_tail;
+        std::list<openswd3::rendering::LegacyPackedRowEffect> effects{
+            {.mode = 0x0805U},
+            {.mode = 0x4005U},
+            {.mode = 0x8006U},
+        };
+        exact_tail.runtime.packed_row_effects = &effects;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FF0U;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_record(
+            exact_tail.state.window,
+            0x7FF0U,
+            static_cast<u16>(OP_83_UPSERT_PACKED_ROW_EFFECT | alias_mask),
+            5U,
+            9U,
+            1U,
+            131U,
+            11U,
+            383U,
+            5U
+        );
+
+        const auto result = exact_tail.step();
+        const auto& effect = effects.front();
+
+        test.expect_true(
+            result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.opcode == OP_83_UPSERT_PACKED_ROW_EFFECT &&
+                result.executed_instruction_count == 1U &&
+                effects.size() == 2U && effect.base_x == 130 &&
+                effect.base_y == 10 && effect.limit == 382 &&
+                effect.row_count == 4 && effect.mode == 0x4005U &&
+                effect.color_index == 9 && effect.row_offsets.size() == 4U &&
+                std::ranges::all_of(
+                    effect.row_offsets,
+                    [](const i16 value) { return value == 380; }
+                ) &&
+                std::ranges::all_of(
+                    effect.row_lengths,
+                    [](const i16 value) { return value == 2; }
+                ) &&
+                std::next(effects.begin())->mode == 0x8006U &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_83_UPSERT_PACKED_ROW_EFFECT,
+            "opcode 83 aliases remove every matching low-byte ID and prepend an even-masked mode-1 effect before exact-tail failure"
+        );
+    }
+
+    Fixture ordinary;
+    std::list<openswd3::rendering::LegacyPackedRowEffect> effects;
+    ordinary.runtime.packed_row_effects = &effects;
+    auto script = std::span<u8>{ordinary.ports.initial_window};
+    write_record(
+        script, 0U, OP_83_UPSERT_PACKED_ROW_EFFECT, 1U, 3U, 2U, 10U, 20U, 8U, 2U
+    );
+    write_record(
+        script,
+        16U,
+        OP_83_UPSERT_PACKED_ROW_EFFECT,
+        2U,
+        4U,
+        11U,
+        30U,
+        40U,
+        10U,
+        2U
+    );
+    write_u16(script, 32U, OP_14_WAIT_ROLE_ACTION_STATUS);
+    write_u16(script, 34U, 0x00F8U);
+
+    const auto result = ordinary.step();
+    const auto first = effects.begin();
+    const auto second = std::next(first);
+
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
+            result.executed_instruction_count == 3U && effects.size() == 2U &&
+            first->mode == 0x8002U &&
+            std::ranges::all_of(
+                first->row_offsets, [](const i16 value) { return value == 0; }
+            ) &&
+            second->mode == 0x0801U &&
+            std::ranges::all_of(
+                second->row_offsets, [](const i16 value) { return value == 0; }
+            ) &&
+            ordinary.context.instruction_offset == 36U &&
+            ordinary.state.previous_opcode == OP_14_WAIT_ROLE_ACTION_STATUS,
+        "opcode 83 initializes mode 2/simple and default/grow records and continues in the same call"
+    );
+}
+
+void test_upsert_packed_row_effect_boundaries(openswd3::test::Context& test) {
+    const auto write_record = [](const std::span<u8> bytes,
+                                 const std::size_t offset,
+                                 const u16 effect_id,
+                                 const u16 x,
+                                 const u16 y,
+                                 const u16 width,
+                                 const u16 height) {
+        write_u16(bytes, offset, OP_83_UPSERT_PACKED_ROW_EFFECT);
+        write_u16(bytes, offset + 2U, effect_id);
+        write_u16(bytes, offset + 4U, 9U);
+        write_u16(bytes, offset + 6U, 0U);
+        write_u16(bytes, offset + 8U, x);
+        write_u16(bytes, offset + 10U, y);
+        write_u16(bytes, offset + 12U, width);
+        write_u16(bytes, offset + 14U, height);
+    };
+
+    Fixture invalid_id;
+    invalid_id.context.talk_data_offset = 0x1111U;
+    invalid_id.context.instruction_offset = 0x7FFCU;
+    invalid_id.state.loaded_file_number = 1U;
+    invalid_id.state.loaded_data_offset = 0x1111U;
+    invalid_id.state.window_loaded = true;
+    invalid_id.state.previous_opcode = 0x66U;
+    write_u16(invalid_id.state.window, 0x7FFCU, OP_83_UPSERT_PACKED_ROW_EFFECT);
+    write_u16(invalid_id.state.window, 0x7FFEU, 0x0100U);
+    const auto invalid_id_result = invalid_id.step();
+    test.expect_true(
+        invalid_id_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            invalid_id.context.instruction_offset == 0x800CU &&
+            invalid_id.state.previous_opcode == OP_83_UPSERT_PACKED_ROW_EFFECT,
+        "opcode 83 invalid ID consumes sixteen bytes without touching the list owner or later operands"
+    );
+
+    constexpr std::array<u16, 7U> operands{
+        5U,
+        9U,
+        1U,
+        130U,
+        10U,
+        382U,
+        4U,
+    };
+    for (std::size_t available = 0U; available < operands.size(); ++available) {
+        Fixture truncated;
+        std::list<openswd3::rendering::LegacyPackedRowEffect> effects{
+            {.mode = 0x0805U},
+            {.mode = 0x8006U},
+        };
+        truncated.runtime.packed_row_effects = &effects;
+        const u16 offset =
+            static_cast<u16>(0x8000U - (available + 1U) * sizeof(u16));
+        truncated.context.talk_data_offset = 0x1111U;
+        truncated.context.instruction_offset = offset;
+        truncated.state.loaded_file_number = 1U;
+        truncated.state.loaded_data_offset = 0x1111U;
+        truncated.state.window_loaded = true;
+        truncated.state.previous_opcode = 0x66U;
+        write_u16(
+            truncated.state.window, offset, OP_83_UPSERT_PACKED_ROW_EFFECT
+        );
+        for (std::size_t index = 0U; index < available; ++index) {
+            write_u16(
+                truncated.state.window,
+                static_cast<std::size_t>(offset) + 2U + index * 2U,
+                operands[index]
+            );
+        }
+
+        const auto result = truncated.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::operand_out_of_range &&
+                effects.size() == (available == 0U ? 2U : 1U) &&
+                effects.front().mode == (available == 0U ? 0x0805U : 0x8006U) &&
+                truncated.context.instruction_offset == offset &&
+                truncated.state.previous_opcode == 0x66U,
+            "opcode 83 truncations preserve the staged same-ID deletion before later operand reads"
+        );
+    }
+
+    constexpr std::array<std::array<u16, 4U>, 4U> invalid_rectangles{
+        std::array<u16, 4U>{0xFFFFU, 10U, 20U, 4U},
+        std::array<u16, 4U>{10U, 0xFFFFU, 20U, 4U},
+        std::array<u16, 4U>{630U, 10U, 12U, 4U},
+        std::array<u16, 4U>{10U, 470U, 20U, 12U},
+    };
+    for (const auto& rectangle : invalid_rectangles) {
+        Fixture invalid;
+        std::list<openswd3::rendering::LegacyPackedRowEffect> effects{
+            {.mode = 0x0805U},
+            {.mode = 0x8006U},
+        };
+        invalid.runtime.packed_row_effects = &effects;
+        auto script = std::span<u8>{invalid.ports.initial_window};
+        write_record(
+            script,
+            0U,
+            5U,
+            rectangle[0],
+            rectangle[1],
+            rectangle[2],
+            rectangle[3]
+        );
+        write_u16(script, 16U, OP_14_WAIT_ROLE_ACTION_STATUS);
+        write_u16(script, 18U, 0x00F8U);
+        const auto result = invalid.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                effects.size() == 1U && effects.front().mode == 0x8006U &&
+                invalid.context.instruction_offset == 20U,
+            "opcode 83 invalid rectangles retain prior same-ID deletion, create no replacement and continue"
+        );
+    }
+
+    Fixture non_positive;
+    std::list<openswd3::rendering::LegacyPackedRowEffect> effects;
+    non_positive.runtime.packed_row_effects = &effects;
+    auto script = std::span<u8>{non_positive.ports.initial_window};
+    write_record(script, 0U, 5U, 10U, 10U, 0U, 0U);
+    write_record(script, 16U, 6U, 10U, 10U, 0xFFFEU, 0xFFFEU);
+    write_u16(script, 32U, OP_14_WAIT_ROLE_ACTION_STATUS);
+    write_u16(script, 34U, 0x00F8U);
+    const auto non_positive_result = non_positive.step();
+    test.expect_true(
+        non_positive_result.status == LegacyWorldStoryVmStatus::yielded &&
+            effects.size() == 2U && effects.front().limit == -2 &&
+            effects.front().row_count == -2 &&
+            effects.front().row_offsets.empty() &&
+            effects.front().row_lengths.empty() &&
+            std::next(effects.begin())->limit == 0 &&
+            std::next(effects.begin())->row_count == 0,
+        "opcode 83 keeps zero and negative dimensions because the original has no positive-size gate"
+    );
+
+    Fixture unavailable;
+    auto unavailable_script = std::span<u8>{unavailable.ports.initial_window};
+    write_u16(unavailable_script, 0U, OP_83_UPSERT_PACKED_ROW_EFFECT);
+    write_u16(unavailable_script, 2U, 5U);
+    unavailable.state.previous_opcode = 0x66U;
+    const auto unavailable_result = unavailable.step();
+    test.expect_true(
+        unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            unavailable.context.instruction_offset == 0U &&
+            unavailable.state.previous_opcode == 0x66U,
+        "opcode 83 typed owner absence stops at the original valid-ID list-head access"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -15387,6 +15665,61 @@ void test_real_role_wait_override_records(
     );
 }
 
+void test_real_upsert_packed_row_effect_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x000060C2);
+    std::array<u8, 16U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    std::list<openswd3::rendering::LegacyPackedRowEffect> effects{
+        {.mode = 0x0805U},
+        {.mode = 0x8006U},
+    };
+    fixture.runtime.packed_row_effects = &effects;
+    fixture.context.talk_data_offset = 0x1111U;
+    fixture.context.instruction_offset = 0x7FF0U;
+    fixture.state.loaded_file_number = 1U;
+    fixture.state.loaded_data_offset = 0x1111U;
+    fixture.state.window_loaded = true;
+    fixture.state.previous_opcode = 0x66U;
+    std::ranges::copy(instruction, fixture.state.window.begin() + 0x7FF0U);
+
+    const auto result = fixture.step();
+    const auto& effect = effects.front();
+
+    test.expect_true(
+        input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
+            read_u16(instruction, 0U) == OP_83_UPSERT_PACKED_ROW_EFFECT &&
+            read_u16(instruction, 2U) == 5U &&
+            read_u16(instruction, 4U) == 9U &&
+            read_u16(instruction, 6U) == 1U &&
+            read_u16(instruction, 8U) == 130U &&
+            read_u16(instruction, 10U) == 360U &&
+            read_u16(instruction, 12U) == 382U &&
+            read_u16(instruction, 14U) == 111U &&
+            result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            result.opcode == OP_83_UPSERT_PACKED_ROW_EFFECT &&
+            result.executed_instruction_count == 1U && effects.size() == 2U &&
+            effect.base_x == 130 && effect.base_y == 360 &&
+            effect.limit == 382 && effect.row_count == 110 &&
+            effect.mode == 0x4005U && effect.row_offsets.size() == 110U &&
+            effect.row_lengths.size() == 110U &&
+            effect.row_offsets.front() == 380 &&
+            effect.row_lengths.front() == 2 &&
+            std::next(effects.begin())->mode == 0x8006U &&
+            fixture.context.instruction_offset == 0x8000U &&
+            fixture.state.previous_opcode == OP_83_UPSERT_PACKED_ROW_EFFECT,
+        "real opcode 83 record replaces ID 5 and builds the 110-row mode-1 effect before exact-tail failure"
+    );
+}
+
 void test_real_dismiss_role_head_action_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -17267,6 +17600,8 @@ int main(const int argument_count, char** arguments) {
     test_enqueue_role_head_action_boundaries(test);
     test_dismiss_role_head_action_protocol(test);
     test_dismiss_role_head_action_boundaries(test);
+    test_upsert_packed_row_effect_protocol(test);
+    test_upsert_packed_row_effect_boundaries(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -17326,6 +17661,7 @@ int main(const int argument_count, char** arguments) {
         test_real_clear_text_control_bit29_record(test, root);
         test_real_enqueue_role_head_action_records(test, root);
         test_real_dismiss_role_head_action_record(test, root);
+        test_real_upsert_packed_row_effect_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

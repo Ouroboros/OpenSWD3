@@ -113,6 +113,8 @@ Y + height <= 480
 
 84 找第一个 id 相同的节点：操作 0 OR `0x2000`，操作 1 OR `0x1000`，操作 2 释放节点。若操作值不是 0、1、2，代码仍在公共尾部把 `var_44` OR 进节点状态；该局部变量在这条路径上没有赋值，来源同样是旧栈内容。非法 id `>=256` 只诊断，缺失 id 静默消费。
 
+83现已独立闭环：保留invalid-ID早消费、删除全部同ID先于分配/后续读取、七个staged截断、四矩形门、无正尺寸附加门、两级数组、三mode初始化、前插、+16、previous83与same-call。资产锁1879条/1879 probes，分布`485/337/396/661`，全部raw `0x0053`、长度16；mode为1/0/11共`935/938/6`，TALK1真实110行mode1回放通过。完整证据见[`story-vm-packed-row-effect-upsert-0042a341.md`](story-vm-packed-row-effect-upsert-0042a341.md)。
+
 ## opcode 85：清屏提交后启动 Bink
 
 85 先以运行时逻辑宽高计算字节数，清零软件 framebuffer，并把软件源 surface 整体 Blt 到 primary。随后 `sub_484730` 从 `+2` 开始消费到 `%Q`：

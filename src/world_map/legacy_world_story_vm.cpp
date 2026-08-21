@@ -4080,6 +4080,127 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_83_UPSERT_PACKED_ROW_EFFECT: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u16 effect_id = read_u16(state.window, ip + 2U);
+            if (effect_id >= 0x100U) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 16U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+            if (runtime.packed_row_effects == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            auto& effects = *runtime.packed_row_effects;
+            for (auto current = effects.begin(); current != effects.end();) {
+                if ((current->mode & 0x00FFU) == effect_id) {
+                    current = effects.erase(current);
+                } else {
+                    ++current;
+                }
+            }
+
+            std::list<rendering::LegacyPackedRowEffect> pending;
+            try {
+                pending.emplace_front();
+            } catch (const std::bad_alloc&) {
+                result.status = LegacyWorldStoryVmStatus::
+                    packed_row_effect_allocation_failed;
+                return result;
+            } catch (const std::length_error&) {
+                result.status = LegacyWorldStoryVmStatus::
+                    packed_row_effect_allocation_failed;
+                return result;
+            }
+            auto& effect = pending.front();
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            effect.color_index =
+                std::bit_cast<i16>(read_u16(state.window, ip + 4U));
+            if (!has_bytes(state.window, ip, 10U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            effect.base_x = std::bit_cast<i16>(
+                static_cast<u16>(read_u16(state.window, ip + 8U) & 0xFFFEU)
+            );
+            if (!has_bytes(state.window, ip, 12U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            effect.base_y = std::bit_cast<i16>(
+                static_cast<u16>(read_u16(state.window, ip + 10U) & 0xFFFEU)
+            );
+            if (!has_bytes(state.window, ip, 14U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            effect.limit = std::bit_cast<i16>(
+                static_cast<u16>(read_u16(state.window, ip + 12U) & 0xFFFEU)
+            );
+            if (!has_bytes(state.window, ip, 16U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            effect.row_count = std::bit_cast<i16>(
+                static_cast<u16>(read_u16(state.window, ip + 14U) & 0xFFFEU)
+            );
+            const i32 rectangle_right = static_cast<i32>(effect.base_x) +
+                static_cast<i32>(effect.limit);
+            const i32 rectangle_bottom = static_cast<i32>(effect.base_y) +
+                static_cast<i32>(effect.row_count);
+            if (effect.base_x < 0 || effect.base_y < 0 ||
+                rectangle_right > 640 || rectangle_bottom > 480) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 16U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+
+            try {
+                if (effect.row_count > 0) {
+                    const auto count =
+                        static_cast<std::size_t>(effect.row_count);
+                    effect.row_offsets.resize(count);
+                    effect.row_lengths.resize(count);
+                }
+            } catch (const std::bad_alloc&) {
+                result.status = LegacyWorldStoryVmStatus::
+                    packed_row_effect_allocation_failed;
+                return result;
+            } catch (const std::length_error&) {
+                result.status = LegacyWorldStoryVmStatus::
+                    packed_row_effect_allocation_failed;
+                return result;
+            }
+            const u16 requested_mode = read_u16(state.window, ip + 6U);
+            u16 high_mode = 0x8000U;
+            i16 initial_offset{};
+            if (requested_mode == 1U) {
+                high_mode = 0x4000U;
+                initial_offset = std::bit_cast<i16>(
+                    static_cast<u16>(static_cast<u16>(effect.limit) - 2U)
+                );
+            } else if (requested_mode == 2U) {
+                high_mode = 0x0800U;
+            }
+            effect.mode = static_cast<u16>(effect_id | high_mode);
+            std::ranges::fill(effect.row_offsets, initial_offset);
+            std::ranges::fill(effect.row_lengths, i16{2});
+            effects.splice(effects.begin(), pending);
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 16U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 85U: {
             const std::size_t end = find_dialog_end(state.window, ip + 2U);
             if (end == state.window.size()) {
