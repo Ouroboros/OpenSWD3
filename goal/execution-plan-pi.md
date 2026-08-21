@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v300
+版本：v301
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00429F7B` handler（shared opcodes 77/78）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A0A6` handler（opcode 79）
 
 ## 0. 执行约定
 
@@ -1992,6 +1992,16 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode仍96；对外进度为已实现96/198、已验收81/198；内部workpack
     58/146，即`7 assembly_exact + 51 platform_adapted + 88 pending_audit`。
 
+- 剧情VM P2第五十九组`0x00429F7B` / shared opcodes77/78完成独立闭环。两者先解析支持
+    `FFF0`的selector；命中后77才读取payload并写`value|0x8000`、固定长6，78写零、固定长4；
+    两者清wait_remaining、刷新、发布previous并same-call继续。原C++整条预验且漏previous，已修正；
+    missing原版使用陈旧`var_40`推进，现代typed-stop。两opcode×四raw alias missing、77载荷截断、
+    77/78精确尾均通过。77资产442条/447 probes、分布`137/109/113/83`；78资产4条/4 probes、
+    分布`1/3/0/0`；全部长度及raw核验通过，TALK1两条回放通过。剧情VM3/3、Linux core186/186、
+    Linux app192/192通过；workpack hash为`ce5a41ffc05e907c2c90ba1cd99f969082a5d1d94541255f4db6aa684873b97f`。
+    未启动游戏EXE。现代显式opcode仍96；对外进度为已实现96/198、已验收83/198；内部workpack
+    59/146，即`7 assembly_exact + 52 platform_adapted + 87 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00429F7B` 的shared opcodes77/78 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042A0A6` 的opcode79 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

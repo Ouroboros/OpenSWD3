@@ -103,6 +103,8 @@ using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_74_CANCEL_FRAME_COLOR_TRANSITION;
 using openswd3::world_map::OP_75_SUSPEND_STORY_ROLE;
 using openswd3::world_map::OP_76_TURN_AND_SUSPEND_STORY_ROLE;
+using openswd3::world_map::OP_77_SET_ROLE_WAIT_OVERRIDE;
+using openswd3::world_map::OP_78_CLEAR_ROLE_WAIT_OVERRIDE;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -12501,7 +12503,7 @@ void test_set_and_clear_role_wait_override(openswd3::test::Context& test) {
     Fixture assigned;
     assigned.roles[1].action.wait_remaining = 9U;
     auto assigned_script = std::span<u8>{assigned.ports.initial_window};
-    write_u16(assigned_script, 0U, 77U);
+    write_u16(assigned_script, 0U, OP_77_SET_ROLE_WAIT_OVERRIDE);
     write_u16(assigned_script, 2U, 0xFFF0U);
     write_u16(assigned_script, 4U, 3U);
     write_u16(assigned_script, 6U, OP_14_WAIT_ROLE_ACTION_STATUS);
@@ -12512,7 +12514,7 @@ void test_set_and_clear_role_wait_override(openswd3::test::Context& test) {
     cleared.roles[1].action.wait_override = 0x8123U;
     cleared.roles[1].action.wait_remaining = 9U;
     auto cleared_script = std::span<u8>{cleared.ports.initial_window};
-    write_u16(cleared_script, 0U, 78U);
+    write_u16(cleared_script, 0U, OP_78_CLEAR_ROLE_WAIT_OVERRIDE);
     write_u16(cleared_script, 2U, 0x00F8U);
     write_u16(cleared_script, 4U, OP_14_WAIT_ROLE_ACTION_STATUS);
     write_u16(cleared_script, 6U, 0x00F8U);
@@ -12520,7 +12522,7 @@ void test_set_and_clear_role_wait_override(openswd3::test::Context& test) {
 
     Fixture missing;
     auto missing_script = std::span<u8>{missing.ports.initial_window};
-    write_u16(missing_script, 0U, 77U);
+    write_u16(missing_script, 0U, OP_77_SET_ROLE_WAIT_OVERRIDE);
     write_u16(missing_script, 2U, 0x7777U);
     write_u16(missing_script, 4U, 5U);
     const auto missing_result = missing.step();
@@ -12533,6 +12535,7 @@ void test_set_and_clear_role_wait_override(openswd3::test::Context& test) {
             assigned.roles[1].action.wait_override == 0x8003U &&
             assigned.roles[1].action.wait_remaining == 0U &&
             assigned.context.instruction_offset == 10U &&
+            assigned.state.previous_opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
             cleared_result.status == LegacyWorldStoryVmStatus::yielded &&
             cleared_result.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
             cleared_result.executed_instruction_count == 2U &&
@@ -12540,12 +12543,145 @@ void test_set_and_clear_role_wait_override(openswd3::test::Context& test) {
             cleared.roles[1].action.wait_override == 0U &&
             cleared.roles[1].action.wait_remaining == 0U &&
             cleared.context.instruction_offset == 8U &&
+            cleared.state.previous_opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
             missing_result.status == LegacyWorldStoryVmStatus::role_not_found &&
             missing_result.instruction_offset == 0U &&
             missing_result.first_operand_available &&
             missing_result.first_operand_word == 0x7777U &&
             missing.context.instruction_offset == 0U,
         "opcodes 77 and 78 refresh the role wait override while an unresolved " "selector preserves the undefined-width instruction boundary"
+    );
+}
+
+void test_role_wait_override_lookup_boundaries(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 2U> opcodes{
+        OP_77_SET_ROLE_WAIT_OVERRIDE,
+        OP_78_CLEAR_ROLE_WAIT_OVERRIDE,
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 opcode : opcodes) {
+        for (const u16 alias_mask : alias_masks) {
+            Fixture missing;
+            missing.context.talk_data_offset = 0x1111U;
+            missing.context.instruction_offset = 0x7FFCU;
+            missing.state.loaded_file_number = 1U;
+            missing.state.loaded_data_offset = 0x1111U;
+            missing.state.window_loaded = true;
+            missing.state.previous_opcode = 0x66U;
+            write_u16(
+                missing.state.window,
+                0x7FFCU,
+                static_cast<u16>(opcode | alias_mask)
+            );
+            write_u16(missing.state.window, 0x7FFEU, 0xFFFFU);
+
+            const auto missing_result = missing.step();
+
+            test.expect_true(
+                missing_result.status ==
+                        LegacyWorldStoryVmStatus::role_not_found &&
+                    missing_result.opcode == opcode &&
+                    missing.context.instruction_offset == 0x7FFCU &&
+                    missing.state.previous_opcode == 0x66U,
+                "opcode 77/78 aliases typed-stop an unresolved selector before using the original stale-width advance"
+            );
+        }
+    }
+
+    Fixture payload_truncated;
+    payload_truncated.context.talk_data_offset = 0x1111U;
+    payload_truncated.context.instruction_offset = 0x7FFCU;
+    payload_truncated.state.loaded_file_number = 1U;
+    payload_truncated.state.loaded_data_offset = 0x1111U;
+    payload_truncated.state.window_loaded = true;
+    payload_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        payload_truncated.state.window,
+        0x7FFCU,
+        OP_77_SET_ROLE_WAIT_OVERRIDE
+    );
+    write_u16(payload_truncated.state.window, 0x7FFEU, 0x00F8U);
+
+    const auto payload_truncated_result = payload_truncated.step();
+
+    test.expect_true(
+        payload_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            payload_truncated.roles[1].action.wait_override == 0U &&
+            payload_truncated.context.instruction_offset == 0x7FFCU &&
+            payload_truncated.state.previous_opcode == 0x66U,
+        "opcode 77 reads its payload only after selector lookup succeeds"
+    );
+}
+
+void test_role_wait_override_exact_tails(openswd3::test::Context& test) {
+    Fixture assigned;
+    assigned.roles[1].action.wait_remaining = 9U;
+    assigned.context.talk_data_offset = 0x1111U;
+    assigned.context.instruction_offset = 0x7FFAU;
+    assigned.state.loaded_file_number = 1U;
+    assigned.state.loaded_data_offset = 0x1111U;
+    assigned.state.window_loaded = true;
+    assigned.state.previous_opcode = 0x66U;
+    write_u16(
+        assigned.state.window,
+        0x7FFAU,
+        static_cast<u16>(OP_77_SET_ROLE_WAIT_OVERRIDE | 0x8000U)
+    );
+    write_u16(assigned.state.window, 0x7FFCU, 0xFFF0U);
+    write_u16(assigned.state.window, 0x7FFEU, 0xFFFFU);
+
+    const auto assigned_result = assigned.step();
+
+    test.expect_true(
+        assigned_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            assigned_result.opcode == OP_77_SET_ROLE_WAIT_OVERRIDE &&
+            assigned_result.executed_instruction_count == 1U &&
+            assigned_result.action_update_count == 1U &&
+            assigned.roles[1].action.wait_override == 0xFFFFU &&
+            assigned.roles[1].action.wait_remaining == 0U &&
+            assigned.context.instruction_offset == 0x8000U &&
+            assigned.state.previous_opcode == OP_77_SET_ROLE_WAIT_OVERRIDE,
+        "opcode 77 exact tail writes the flagged override, refreshes and publishes before next fetch fails"
+    );
+
+    Fixture cleared;
+    cleared.roles[1].action.wait_override = 0x8123U;
+    cleared.roles[1].action.wait_remaining = 9U;
+    cleared.context.talk_data_offset = 0x1111U;
+    cleared.context.instruction_offset = 0x7FFCU;
+    cleared.state.loaded_file_number = 1U;
+    cleared.state.loaded_data_offset = 0x1111U;
+    cleared.state.window_loaded = true;
+    cleared.state.previous_opcode = 0x66U;
+    write_u16(
+        cleared.state.window,
+        0x7FFCU,
+        static_cast<u16>(OP_78_CLEAR_ROLE_WAIT_OVERRIDE | 0xC000U)
+    );
+    write_u16(cleared.state.window, 0x7FFEU, 0xFFFEU);
+
+    const auto cleared_result = cleared.step(0, 0, 1U);
+
+    test.expect_true(
+        cleared_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            cleared_result.opcode == OP_78_CLEAR_ROLE_WAIT_OVERRIDE &&
+            cleared_result.executed_instruction_count == 1U &&
+            cleared_result.action_update_count == 1U &&
+            cleared.roles[1].action.wait_override == 0U &&
+            cleared.roles[1].action.wait_remaining == 0U &&
+            cleared.context.instruction_offset == 0x8000U &&
+            cleared.state.previous_opcode == OP_78_CLEAR_ROLE_WAIT_OVERRIDE,
+        "opcode 78 exact tail clears the controlled-role override, refreshes and publishes before next fetch fails"
     );
 }
 
@@ -14628,6 +14764,75 @@ void test_real_turn_and_suspend_story_role_record(
     );
 }
 
+void test_real_role_wait_override_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    const auto read_record = [&root](
+                                 const std::streamoff offset,
+                                 const std::size_t size
+                             ) -> std::array<u8, 6U> {
+        std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+        input.seekg(offset);
+        std::array<u8, 6U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(size)
+        );
+        return record;
+    };
+    const auto assigned_record = read_record(0x00004E24, 6U);
+    const auto cleared_record = read_record(0x00042697, 4U);
+
+    Fixture assigned;
+    assigned.roles[1].guid = 0x00FAU;
+    assigned.context.talk_data_offset = 0x1111U;
+    assigned.context.instruction_offset = 0x7FFAU;
+    assigned.state.loaded_file_number = 1U;
+    assigned.state.loaded_data_offset = 0x1111U;
+    assigned.state.window_loaded = true;
+    assigned.state.previous_opcode = 0x66U;
+    std::ranges::copy(
+        assigned_record, assigned.state.window.begin() + 0x7FFAU
+    );
+    const auto assigned_result = assigned.step();
+
+    Fixture cleared;
+    cleared.roles[1].guid = 8U;
+    cleared.roles[1].action.wait_override = 0x8123U;
+    cleared.roles[1].action.wait_remaining = 9U;
+    cleared.context.talk_data_offset = 0x1111U;
+    cleared.context.instruction_offset = 0x7FFCU;
+    cleared.state.loaded_file_number = 1U;
+    cleared.state.loaded_data_offset = 0x1111U;
+    cleared.state.window_loaded = true;
+    cleared.state.previous_opcode = 0x66U;
+    std::ranges::copy_n(
+        cleared_record.begin(), 4U, cleared.state.window.begin() + 0x7FFCU
+    );
+    const auto cleared_result = cleared.step();
+
+    test.expect_true(
+        read_u16(assigned_record, 0U) == OP_77_SET_ROLE_WAIT_OVERRIDE &&
+            read_u16(assigned_record, 2U) == 0x00FAU &&
+            read_u16(assigned_record, 4U) == 3U &&
+            assigned_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            assigned_result.action_update_count == 1U &&
+            assigned.roles[1].action.wait_override == 0x8003U &&
+            assigned.roles[1].action.wait_remaining == 0U &&
+            assigned.state.previous_opcode == OP_77_SET_ROLE_WAIT_OVERRIDE &&
+            read_u16(cleared_record, 0U) == OP_78_CLEAR_ROLE_WAIT_OVERRIDE &&
+            read_u16(cleared_record, 2U) == 8U &&
+            cleared_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            cleared_result.action_update_count == 1U &&
+            cleared.roles[1].action.wait_override == 0U &&
+            cleared.roles[1].action.wait_remaining == 0U &&
+            cleared.state.previous_opcode == OP_78_CLEAR_ROLE_WAIT_OVERRIDE,
+        "real opcode 77/78 records set and clear role wait overrides before exact-tail fetch failure"
+    );
+}
+
 void test_real_shared_scene_render_control_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -16358,6 +16563,8 @@ int main(const int argument_count, char** arguments) {
     test_turn_role_toward_role_owner_and_exact_tail(test);
     test_set_role_head_sign_action(test);
     test_set_and_clear_role_wait_override(test);
+    test_role_wait_override_lookup_boundaries(test);
+    test_role_wait_override_exact_tails(test);
     if (argument_count == 3 &&
         std::string_view{arguments[2]} == "initial-session") {
         test_real_new_game_story_patches_unloaded_role(
@@ -16411,6 +16618,7 @@ int main(const int argument_count, char** arguments) {
         test_real_cancel_frame_color_transition_record(test, root);
         test_real_suspend_story_role_record(test, root);
         test_real_turn_and_suspend_story_role_record(test, root);
+        test_real_role_wait_override_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

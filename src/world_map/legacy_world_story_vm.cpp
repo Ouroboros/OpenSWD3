@@ -3752,10 +3752,9 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 77U:
-        case 78U: {
-            const std::size_t instruction_size = result.opcode == 77U ? 6U : 4U;
-            if (!has_bytes(state.window, ip, instruction_size)) {
+        case OP_77_SET_ROLE_WAIT_OVERRIDE:
+        case OP_78_CLEAR_ROLE_WAIT_OVERRIDE: {
+            if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
@@ -3772,14 +3771,22 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 result.status = LegacyWorldStoryVmStatus::role_not_found;
                 return result;
             }
+            const std::size_t instruction_size =
+                result.opcode == OP_77_SET_ROLE_WAIT_OVERRIDE ? 6U : 4U;
+            if (!has_bytes(state.window, ip, instruction_size)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
             auto& role = roles[role_index];
-            role.action.wait_override = result.opcode == 77U
+            role.action.wait_override =
+                result.opcode == OP_77_SET_ROLE_WAIT_OVERRIDE
                 ? static_cast<u16>(read_u16(state.window, ip + 4U) | 0x8000U)
                 : 0U;
             role.action.wait_remaining = 0U;
             record_action_update(result, role.action, ports);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + instruction_size);
+            state.previous_opcode = result.opcode;
             continue;
         }
 

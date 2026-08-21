@@ -60,6 +60,8 @@ lookup 失败时 `sub_40C0D0` 把输出写成 `0xFFFFFFFF`，75 不检查返回�
 
 这也解释了物理长度目录只能确认“成功 lookup 时 77 为 6、78 为 4”。未来兼容器不能悄悄把失败路径定成固定长度；必须先用原程序 oracle 捕获可触发状态，或明确把此未定义机器状态作为隔离兼容例外。
 
+77/78现已独立闭环：selector命中后77才读取payload；成功域保持word写入、刷新、固定宽度、previous与same-call，missing陈旧`var_40`推进收敛为typed stop。77有442条记录/447 probes，TALK分布`137/109/113/83`；78有4条/4 probes，分布`1/3/0/0`。完整证据见[`story-vm-role-wait-override-00429f7b.md`](story-vm-role-wait-override-00429f7b.md)。
+
 ## opcode 79：两点移动 action 的零距离除法
 
 79 分配、清零并初始化一个 `0xB4` 字节 action 对象。四个坐标参数左移四位成为起点和终点；`s16(+14)` 作为每拍移动量。handler 用 32 位整数计算：
