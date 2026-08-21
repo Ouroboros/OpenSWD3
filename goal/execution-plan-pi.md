@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v288
+版本：v289
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00429A1B` handler（opcode 63）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00429AD2` handler（opcode 64）
 
 ## 0. 执行约定
 
@@ -1855,6 +1855,20 @@ B7 P0 有限收口完成。
     对外进度为已实现89/198、已验收69/198；内部workpack当前46/146，即
     `5 assembly_exact + 41 platform_adapted + 100 pending_audit`。
 
+- 剧情VM P2第四十七组`0x00429A1B` / opcode63完成独立闭环。LST从`+4`无界扫描`FF00`
+    terminator；count不超过56时先以`CFCF`清空64-word目标表，按dword对复制、读取viewport top、
+    再复制奇数尾word，把`+2` prefix零扩展写入interval/remaining，最后读取left并保存top/left
+    快照，cursor保持不变；推进`6+2*count`、发布previous并同调用继续。count超过56则不访问owner、
+    不推进IP，只诊断、发布previous并原地yield重试。初版合成测试误把脚本terminator写成目标空值
+    `CFCF`，真实TALK回放发现后已修正为`FF00`并重新REVIEW。四raw alias、0/3/56项、57项超限、
+    无terminator、table/camera/scroll三个owner分阶段失败、`0x7FF8`精确尾均通过。资产锁定7条物理
+    记录/7 probes，TALK1/2/3分布`2/1/4`，全部raw`0x003F`、count8、长度22；TALK1代表记录回放
+    通过。剧情VM定向3/3、Linux core 186/186、Linux app 192/192均exit 0，SDL主程序完成链接；
+    未启动游戏EXE。生成器`py_compile`及双重生成幂等通过，workpack hash为
+    `7fdc78f5712ecc44ae558cc333ddfac520b93f91a1456ec5fdf8d95ed27d5ab3`。Windows依v289留到P3。
+    对外进度为已实现90/198、已验收70/198；内部workpack当前47/146，即
+    `5 assembly_exact + 42 platform_adapted + 99 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00429A1B` 的opcode63 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00429AD2` 的opcode64 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

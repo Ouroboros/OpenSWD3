@@ -91,9 +91,11 @@ GUID缺失仅诊断；正常、非当前map和缺失三路都推进18、发布pr
      u16 0xFF00 terminator
 ```
 
-终止符扫描没有外部边界。`count <= 56` 时，handler 先以 `CFCF` 填充 64 项目标表，再复制项目但不复制终止符，同时保存 prefix 和当前视口原点；推进量为 `6 + 2*count`。`count > 56` 时只诊断，不推进 IP，并跨帧重复同一条指令。
+终止符扫描没有外部边界。`count <= 56` 时，handler先以`CFCF`填充64项目标表，复制项目但不复制`FF00`，把prefix零扩展写入滚动interval与remaining，并按top后left的读取顺序保存当前视口快照；cursor不重置。推进量为`6 + 2*count`，发布previous并同调用继续。`count > 56`时不访问owner、不推进IP，只诊断、发布previous并跨帧重复同一条指令。
 
-64 只把 64 个 `u16` 目标项恢复为 `CFCF`，不会清 prefix 或视口快照。目的数组虽有 64 项，接受门槛却是 56；两者都必须原样保留。
+这里`FF00`是脚本terminator，`CFCF`才是运行时空项，不能混用。现代复用既有64-word表和selection-scroll状态，并按原版`rep movsd`→读取top→奇数尾copy→写计时→读取left→写快照的切点保留typed失败部分效果。7条真实记录全部raw`0x003F`、count8、长度22，TALK1/2/3分布`2/1/4`；TALK1代表记录回放通过。完整证据见[`story-vm-selection-scroll-write-00429a1b.md`](story-vm-selection-scroll-write-00429a1b.md)。
+
+64只把64个`u16`目标项恢复为`CFCF`，不会清prefix或视口快照。目的数组虽有64项，接受门槛却是56；两者都必须原样保留。
 
 ## opcode 65、66：消费后让出的转移记录操作
 

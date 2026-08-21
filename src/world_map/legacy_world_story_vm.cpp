@@ -27,6 +27,7 @@ using compat::u32;
 
 constexpr u16 kCurrentSourceSelector = 0xFFF0U;
 constexpr u16 kContextSelector = 0xFFFDU;
+constexpr u16 kSelectionScrollTerminator = 0xFF00U;
 constexpr u32 kTalkEntriesPerFile = 2000U;
 constexpr std::size_t kObjectRoleIndexOffset = 0x00U;
 constexpr std::size_t kObjectPathCursorOffset = 0x02U;
@@ -3161,6 +3162,81 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 18U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
+        case OP_63_SET_SELECTION_SCROLL: {
+            std::size_t selection_count{};
+            std::size_t cursor = ip + 4U;
+            for (;;) {
+                if (!has_bytes(state.window, cursor, 2U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                if (read_u16(state.window, cursor) ==
+                    kSelectionScrollTerminator) {
+                    break;
+                }
+                ++selection_count;
+                cursor += 2U;
+            }
+
+            if (selection_count > 56U) {
+                ++result.selection_overflow_diagnostic_count;
+                state.previous_opcode = result.opcode;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+            if (runtime.selection_words == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            auto& selection_words = *runtime.selection_words;
+            selection_words.fill(
+                std::bit_cast<i16>(kLegacyWorldSelectionSentinel)
+            );
+            const std::size_t paired_word_count = selection_count & ~1U;
+            for (std::size_t index = 0U; index < paired_word_count; ++index) {
+                selection_words[index] = std::bit_cast<i16>(
+                    read_u16(state.window, ip + 4U + index * 2U)
+                );
+            }
+
+            if (runtime.camera == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            const u32 saved_top = runtime.camera->top;
+            if (paired_word_count != selection_count) {
+                selection_words[paired_word_count] = std::bit_cast<i16>(
+                    read_u16(
+                        state.window,
+                        ip + 4U + paired_word_count * 2U
+                    )
+                );
+            }
+            if (runtime.selection_scroll == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            const i32 interval = static_cast<i32>(
+                read_u16(state.window, ip + 2U)
+            );
+            auto& scroll = *runtime.selection_scroll;
+            scroll.frame_interval = interval;
+            scroll.frames_remaining = interval;
+            const u32 saved_left = runtime.camera->left;
+            scroll.saved_top = saved_top;
+            scroll.saved_left = saved_left;
+
+            const std::size_t instruction_size = 6U + selection_count * 2U;
+            context.instruction_offset = static_cast<u16>(
+                context.instruction_offset + instruction_size
+            );
             state.previous_opcode = result.opcode;
             continue;
         }

@@ -89,6 +89,7 @@ using openswd3::world_map::OP_59_PLAY_SOUND_EFFECT;
 using openswd3::world_map::OP_60_RESUME_WORLD_SCENE_RENDERING;
 using openswd3::world_map::OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING;
 using openswd3::world_map::OP_62_WRITE_MAP_ROLE;
+using openswd3::world_map::OP_63_SET_SELECTION_SCROLL;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
@@ -541,6 +542,11 @@ struct Fixture {
     std::array<u8, 16U> first_name{};
     std::array<u8, 16U> second_name{};
     openswd3::world_map::LegacyWorldCameraRect camera{};
+    std::array<
+        i16,
+        openswd3::world_map::kLegacyWorldSelectionWordCount>
+        selection_words{};
+    openswd3::world_map::LegacyWorldSelectionScrollState selection_scroll{};
     u32 indexed_target_selector{};
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     RecordingPorts ports{};
@@ -556,7 +562,12 @@ struct Fixture {
         roles[1].world_x = 320U;
         roles[1].world_y = 240U;
         roles[1].action.variant_delta = 0U;
+        selection_words.fill(std::bit_cast<i16>(
+            openswd3::world_map::kLegacyWorldSelectionSentinel
+        ));
         runtime.role_storage = &roles;
+        runtime.selection_words = &selection_words;
+        runtime.selection_scroll = &selection_scroll;
         runtime.camera = &camera;
         runtime.indexed_target_selector = &indexed_target_selector;
         dialog_resources.frame_actions[0].action_id = 0x232DU;
@@ -10332,6 +10343,288 @@ void test_write_map_role_failure_ordering(openswd3::test::Context& test) {
     );
 }
 
+void test_set_selection_scroll_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.selection_words.fill(std::bit_cast<i16>(u16{0x1234U}));
+        fixture.selection_scroll = {
+            .cursor_word_index = 7U,
+            .frames_remaining = 11,
+            .frame_interval = 12,
+            .saved_left = 13U,
+            .saved_top = 14U,
+        };
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_63_SET_SELECTION_SCROLL | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, 0xFFFFU);
+        write_u16(fixture.state.window, 4U, 0x0001U);
+        write_u16(fixture.state.window, 6U, 0xFFFEU);
+        write_u16(fixture.state.window, 8U, 0x8000U);
+        write_u16(fixture.state.window, 10U, 0xFF00U);
+        write_u16(fixture.state.window, 12U, 67U);
+        write_u16(fixture.state.window, 14U, 0U);
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step(100, 200);
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == 67U &&
+                result.executed_instruction_count == 2U &&
+                result.selection_overflow_diagnostic_count == 0U &&
+                std::bit_cast<u16>(fixture.selection_words[0]) == 0x0001U &&
+                std::bit_cast<u16>(fixture.selection_words[1]) == 0xFFFEU &&
+                std::bit_cast<u16>(fixture.selection_words[2]) == 0x8000U &&
+                std::ranges::all_of(
+                    fixture.selection_words.begin() + 3,
+                    fixture.selection_words.end(),
+                    [](const i16 value) {
+                        return std::bit_cast<u16>(value) ==
+                            openswd3::world_map::
+                                kLegacyWorldSelectionSentinel;
+                    }
+                ) &&
+                fixture.selection_scroll.cursor_word_index == 7U &&
+                fixture.selection_scroll.frame_interval == 65535 &&
+                fixture.selection_scroll.frames_remaining == 65535 &&
+                fixture.selection_scroll.saved_left == 100U &&
+                fixture.selection_scroll.saved_top == 200U &&
+                fixture.context.instruction_offset == 12U &&
+                fixture.state.previous_opcode == OP_63_SET_SELECTION_SCROLL,
+            "opcode 63 aliases replace the selection table, zero-extend the interval, preserve the cursor, snapshot the viewport and fetch the next instruction"
+        );
+    }
+
+    Fixture empty;
+    empty.selection_words.fill(std::bit_cast<i16>(u16{0x1111U}));
+    prime_loaded_instruction(empty, OP_63_SET_SELECTION_SCROLL);
+    write_u16(empty.state.window, 2U, 0U);
+    write_u16(empty.state.window, 4U, 0xFF00U);
+    write_u16(empty.state.window, 6U, 67U);
+    write_u16(empty.state.window, 8U, 0U);
+    const auto empty_result = empty.step(0x1234, 0x5678);
+    test.expect_true(
+        empty_result.status == LegacyWorldStoryVmStatus::yielded &&
+            empty_result.opcode == 67U &&
+            empty_result.executed_instruction_count == 2U &&
+            std::ranges::all_of(
+                empty.selection_words,
+                [](const i16 value) {
+                    return std::bit_cast<u16>(value) ==
+                        openswd3::world_map::kLegacyWorldSelectionSentinel;
+                }
+            ) &&
+            empty.selection_scroll.frame_interval == 0 &&
+            empty.selection_scroll.frames_remaining == 0 &&
+            empty.selection_scroll.saved_left == 0x1234U &&
+            empty.selection_scroll.saved_top == 0x5678U &&
+            empty.context.instruction_offset == 6U &&
+            empty.state.previous_opcode == OP_63_SET_SELECTION_SCROLL,
+        "opcode 63 accepts an immediate terminator, clears all 64 words and advances six bytes"
+    );
+
+    Fixture maximum;
+    prime_loaded_instruction(maximum, OP_63_SET_SELECTION_SCROLL);
+    write_u16(maximum.state.window, 2U, 1U);
+    for (u16 index = 0U; index < 56U; ++index) {
+        write_u16(
+            maximum.state.window,
+            4U + static_cast<std::size_t>(index) * 2U,
+            static_cast<u16>(0x1000U + index)
+        );
+    }
+    write_u16(maximum.state.window, 116U, 0xFF00U);
+    write_u16(maximum.state.window, 118U, 67U);
+    write_u16(maximum.state.window, 120U, 0U);
+    const auto maximum_result = maximum.step(10, 20);
+    test.expect_true(
+        maximum_result.status == LegacyWorldStoryVmStatus::yielded &&
+            maximum_result.opcode == 67U &&
+            maximum_result.executed_instruction_count == 2U &&
+            std::bit_cast<u16>(maximum.selection_words[0]) == 0x1000U &&
+            std::bit_cast<u16>(maximum.selection_words[55]) == 0x1037U &&
+            std::bit_cast<u16>(maximum.selection_words[56]) ==
+                openswd3::world_map::kLegacyWorldSelectionSentinel &&
+            maximum.context.instruction_offset == 118U &&
+            maximum.state.previous_opcode == OP_63_SET_SELECTION_SCROLL,
+        "opcode 63 accepts exactly 56 words, retains eight CFCF tail words and continues in the same call"
+    );
+
+    Fixture overflow;
+    overflow.selection_words.fill(std::bit_cast<i16>(u16{0x2222U}));
+    prime_loaded_instruction(overflow, OP_63_SET_SELECTION_SCROLL);
+    write_u16(overflow.state.window, 2U, 4U);
+    for (u16 index = 0U; index < 57U; ++index) {
+        write_u16(
+            overflow.state.window,
+            4U + static_cast<std::size_t>(index) * 2U,
+            index
+        );
+    }
+    write_u16(overflow.state.window, 118U, 0xFF00U);
+    overflow.runtime.selection_words = nullptr;
+    overflow.runtime.selection_scroll = nullptr;
+    overflow.runtime.camera = nullptr;
+    overflow.state.previous_opcode = 0x66U;
+    const auto overflow_result = overflow.step();
+    test.expect_true(
+        overflow_result.status == LegacyWorldStoryVmStatus::yielded &&
+            overflow_result.opcode == OP_63_SET_SELECTION_SCROLL &&
+            overflow_result.executed_instruction_count == 1U &&
+            overflow_result.selection_overflow_diagnostic_count == 1U &&
+            std::ranges::all_of(
+                overflow.selection_words,
+                [](const i16 value) {
+                    return std::bit_cast<u16>(value) == 0x2222U;
+                }
+            ) &&
+            overflow.context.instruction_offset == 0U &&
+            overflow.state.previous_opcode == OP_63_SET_SELECTION_SCROLL,
+        "opcode 63 rejects 57 words before every runtime owner, publishes previous and yields on the same instruction"
+    );
+
+    Fixture unterminated;
+    unterminated.selection_words.fill(std::bit_cast<i16>(u16{0x3333U}));
+    unterminated.context.instruction_offset = 0x7FFCU;
+    unterminated.context.talk_data_offset = 0x1111U;
+    unterminated.state.loaded_file_number = 1U;
+    unterminated.state.loaded_data_offset = 0x1111U;
+    unterminated.state.window_loaded = true;
+    unterminated.state.previous_opcode = 0x66U;
+    write_u16(
+        unterminated.state.window, 0x7FFCU, OP_63_SET_SELECTION_SCROLL
+    );
+    write_u16(unterminated.state.window, 0x7FFEU, 4U);
+    const auto unterminated_result = unterminated.step();
+    test.expect_true(
+        unterminated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            std::ranges::all_of(
+                unterminated.selection_words,
+                [](const i16 value) {
+                    return std::bit_cast<u16>(value) == 0x3333U;
+                }
+            ) &&
+            unterminated.context.instruction_offset == 0x7FFCU &&
+            unterminated.state.previous_opcode == 0x66U,
+        "opcode 63 typed-stops an unterminated scan before clearing the destination or publishing previous"
+    );
+
+    Fixture missing_words;
+    missing_words.selection_words.fill(std::bit_cast<i16>(u16{0x6666U}));
+    missing_words.selection_scroll = {
+        .cursor_word_index = 3U,
+        .frames_remaining = 4,
+        .frame_interval = 5,
+        .saved_left = 6U,
+        .saved_top = 7U,
+    };
+    prime_loaded_instruction(missing_words, OP_63_SET_SELECTION_SCROLL);
+    write_u16(missing_words.state.window, 2U, 2U);
+    write_u16(missing_words.state.window, 4U, 0xFF00U);
+    missing_words.runtime.selection_words = nullptr;
+    missing_words.state.previous_opcode = 0x66U;
+    const auto missing_words_result = missing_words.step(10, 20);
+    test.expect_true(
+        missing_words_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            std::ranges::all_of(
+                missing_words.selection_words,
+                [](const i16 value) {
+                    return std::bit_cast<u16>(value) == 0x6666U;
+                }
+            ) &&
+            missing_words.selection_scroll.cursor_word_index == 3U &&
+            missing_words.selection_scroll.frame_interval == 5 &&
+            missing_words.context.instruction_offset == 0U &&
+            missing_words.state.previous_opcode == 0x66U,
+        "opcode 63 missing-table typed-stop occurs after terminator validation but before destination clearing"
+    );
+
+    Fixture missing_camera;
+    missing_camera.selection_words.fill(std::bit_cast<i16>(u16{0x4444U}));
+    prime_loaded_instruction(missing_camera, OP_63_SET_SELECTION_SCROLL);
+    write_u16(missing_camera.state.window, 2U, 2U);
+    write_u16(missing_camera.state.window, 4U, 0x1111U);
+    write_u16(missing_camera.state.window, 6U, 0x2222U);
+    write_u16(missing_camera.state.window, 8U, 0x3333U);
+    write_u16(missing_camera.state.window, 10U, 0xFF00U);
+    missing_camera.runtime.camera = nullptr;
+    missing_camera.state.previous_opcode = 0x66U;
+    const auto missing_camera_result = missing_camera.step();
+    test.expect_true(
+        missing_camera_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            std::bit_cast<u16>(missing_camera.selection_words[0]) == 0x1111U &&
+            std::bit_cast<u16>(missing_camera.selection_words[1]) == 0x2222U &&
+            std::bit_cast<u16>(missing_camera.selection_words[2]) ==
+                openswd3::world_map::kLegacyWorldSelectionSentinel &&
+            missing_camera.selection_scroll.frame_interval == 0 &&
+            missing_camera.context.instruction_offset == 0U &&
+            missing_camera.state.previous_opcode == 0x66U,
+        "opcode 63 missing-camera typed-stop preserves the prior fill and paired-word copy but not the odd tail"
+    );
+
+    Fixture missing_scroll;
+    missing_scroll.selection_words.fill(std::bit_cast<i16>(u16{0x5555U}));
+    prime_loaded_instruction(missing_scroll, OP_63_SET_SELECTION_SCROLL);
+    write_u16(missing_scroll.state.window, 2U, 2U);
+    write_u16(missing_scroll.state.window, 4U, 0x1111U);
+    write_u16(missing_scroll.state.window, 6U, 0x2222U);
+    write_u16(missing_scroll.state.window, 8U, 0x3333U);
+    write_u16(missing_scroll.state.window, 10U, 0xFF00U);
+    missing_scroll.runtime.selection_scroll = nullptr;
+    missing_scroll.state.previous_opcode = 0x66U;
+    const auto missing_scroll_result = missing_scroll.step(10, 20);
+    test.expect_true(
+        missing_scroll_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            std::bit_cast<u16>(missing_scroll.selection_words[0]) == 0x1111U &&
+            std::bit_cast<u16>(missing_scroll.selection_words[1]) == 0x2222U &&
+            std::bit_cast<u16>(missing_scroll.selection_words[2]) == 0x3333U &&
+            missing_scroll.context.instruction_offset == 0U &&
+            missing_scroll.state.previous_opcode == 0x66U,
+        "opcode 63 missing-scroll typed-stop preserves the complete word copy after reading the camera top"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FF8U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(exact_tail.state.window, 0x7FF8U, OP_63_SET_SELECTION_SCROLL);
+    write_u16(exact_tail.state.window, 0x7FFAU, 3U);
+    write_u16(exact_tail.state.window, 0x7FFCU, 0xFFFEU);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0xFF00U);
+    const auto exact_tail_result = exact_tail.step(30, 40);
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.opcode == OP_63_SET_SELECTION_SCROLL &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            std::bit_cast<u16>(exact_tail.selection_words[0]) == 0xFFFEU &&
+            std::bit_cast<u16>(exact_tail.selection_words[1]) ==
+                openswd3::world_map::kLegacyWorldSelectionSentinel &&
+            exact_tail.selection_scroll.frame_interval == 3 &&
+            exact_tail.selection_scroll.frames_remaining == 3 &&
+            exact_tail.selection_scroll.saved_left == 30U &&
+            exact_tail.selection_scroll.saved_top == 40U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_63_SET_SELECTION_SCROLL,
+        "opcode 63 exact tail completes table, timing, viewport and previous publication before the next fetch fails"
+    );
+}
+
 void test_wait_for_frame_color_transition(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::rendering::LegacyFrameColorTransitionState frame_color{
@@ -12032,6 +12325,92 @@ void test_real_write_map_role_record(
     );
 }
 
+void test_real_set_selection_scroll_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00022D55);
+    std::array<u8, 22U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    fixture.selection_scroll = {
+        .cursor_word_index = 9U,
+        .frames_remaining = 10,
+        .frame_interval = 11,
+        .saved_left = 12U,
+        .saved_top = 13U,
+    };
+    prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 22U, 67U);
+    write_u16(fixture.state.window, 24U, 0U);
+    fixture.state.previous_opcode = 0x66U;
+
+    const auto result = fixture.step(100, 200);
+    constexpr std::array<u16, 8U> expected{
+        1U,
+        1U,
+        0U,
+        0U,
+        0xFFFFU,
+        1U,
+        0U,
+        0U,
+    };
+    bool table_matches = true;
+    for (std::size_t index = 0U; index < expected.size(); ++index) {
+        table_matches = table_matches &&
+            std::bit_cast<u16>(fixture.selection_words[index]) ==
+                expected[index];
+    }
+
+    test.expect_equal(
+        input.gcount(),
+        static_cast<std::streamsize>(instruction.size()),
+        "real opcode 63 record read length"
+    );
+    test.expect_equal(
+        read_u16(instruction, 0U),
+        OP_63_SET_SELECTION_SCROLL,
+        "real opcode 63 raw word"
+    );
+    test.expect_equal(
+        read_u16(instruction, 2U),
+        u16{4U},
+        "real opcode 63 prefix"
+    );
+    test.expect_equal(
+        read_u16(instruction, 20U),
+        u16{0xFF00U},
+        "real opcode 63 terminator"
+    );
+    test.expect_true(
+        result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == 67U && result.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 22U &&
+            fixture.state.previous_opcode == OP_63_SET_SELECTION_SCROLL,
+        "real opcode 63 record publishes previous and continues to the following wait in the same call"
+    );
+    test.expect_true(
+        table_matches &&
+            std::bit_cast<u16>(fixture.selection_words[8]) ==
+                openswd3::world_map::kLegacyWorldSelectionSentinel,
+        "real opcode 63 record installs its eight observed scroll words and retains a CFCF tail"
+    );
+    test.expect_true(
+        fixture.selection_scroll.cursor_word_index == 9U &&
+            fixture.selection_scroll.frame_interval == 4 &&
+            fixture.selection_scroll.frames_remaining == 4 &&
+            fixture.selection_scroll.saved_left == 100U &&
+            fixture.selection_scroll.saved_top == 200U,
+        "real opcode 63 record preserves the cursor, writes both timing fields and snapshots the viewport"
+    );
+}
+
 void test_real_shared_scene_render_control_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -13712,6 +14091,7 @@ int main(const int argument_count, char** arguments) {
     test_write_map_role_patch_protocol(test);
     test_write_map_role_materialization_protocol(test);
     test_write_map_role_failure_ordering(test);
+    test_set_selection_scroll_protocol(test);
     test_wait_for_frame_color_transition(test);
     test_turn_role_toward_role(test);
     test_set_role_head_sign_action(test);
@@ -13757,6 +14137,7 @@ int main(const int argument_count, char** arguments) {
         test_real_play_sound_effect_records(test, root);
         test_real_shared_scene_render_control_records(test, root);
         test_real_write_map_role_record(test, root);
+        test_real_set_selection_scroll_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

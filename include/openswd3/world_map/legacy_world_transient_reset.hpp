@@ -17,8 +17,6 @@
 
 namespace openswd3::world_map {
 
-inline constexpr std::size_t kLegacyWorldSelectionWordCount = 64U;
-
 struct LegacyWorldTransientResetOwners {
     std::list<rendering::LegacyPackedRowEffect>& packed_row_effects;
     LegacyMovingActionList& moving_actions;

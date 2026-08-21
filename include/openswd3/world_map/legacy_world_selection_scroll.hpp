@@ -3,11 +3,13 @@
 #include "openswd3/compat/types.hpp"
 #include "openswd3/world_map/legacy_world_player_motion.hpp"
 
+#include <cstddef>
 #include <span>
 
 namespace openswd3::world_map {
 
 inline constexpr compat::u16 kLegacyWorldSelectionSentinel = 0xCFCFU;
+inline constexpr std::size_t kLegacyWorldSelectionWordCount = 64U;
 
 struct LegacyWorldSelectionScrollState {
     compat::u32 cursor_word_index{};
