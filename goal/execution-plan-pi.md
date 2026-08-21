@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v319
+版本：v320
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042C7EA` handler（opcode 98）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042AD75` handler（opcode 99）
 
 ## 0. 执行约定
 
@@ -2220,6 +2220,17 @@ B7 P0 有限收口完成。
     依阶段规则留到P2完成门。现代显式opcode增至109；对外进度为已实现109/198、已验收101/198；
     内部workpack76/146，即`8 assembly_exact + 68 platform_adapted + 70 pending_audit`。
 
+- 剧情VM P2第七十七组`0x0042C7EA` / opcode98完成独立闭环。机器不读取名义`+2 u16`
+    payload，只把物理脚本指针与u16 IP各+4，保存新指针后以ESI0进入common join，发布previous98并
+    yield；不是same-call no-op。modern同样不检查或使用payload。四raw alias的正常记录、完整四字节
+    精确尾和仅剩两字节opcode的未读payload尾通过；后者仍完成IP=`0x8002`、previous98与yield，下一
+    调用才typed fetch失败。资产锁3条/3 probes，全部raw`0062`、长度4，分布`0/1/2/0`；TALK2/3三条
+    机器未读payload分别为`0190/006C/0001`，均以完整精确尾真实回放。格式化后剧情VM3/3、Linux
+    core186/186、Linux app192/192均exit0；测试时间分别0.51/23.20/23.32秒。workpack双生成hash为
+    `a6c41dee65c432f589e66d36e844ec449a2668b9e63fafc12e553bbd0a12be4d`。未启动游戏EXE；Windows
+    依阶段规则留到P2完成门。现代显式opcode增至110；对外进度为已实现110/198、已验收102/198；
+    内部workpack77/146，即`9 assembly_exact + 68 platform_adapted + 69 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042C7EA` 的opcode98 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042AD75` 的opcode99 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

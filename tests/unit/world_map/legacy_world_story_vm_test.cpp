@@ -124,6 +124,7 @@ using openswd3::world_map::OP_94_SET_SCENE_RENDER_BIT1;
 using openswd3::world_map::OP_95_CLEAR_SCENE_RENDER_BIT1;
 using openswd3::world_map::OP_96_BEGIN_CUSTOM_ANI;
 using openswd3::world_map::OP_97_WAIT_CUSTOM_ANI_COMPLETE;
+using openswd3::world_map::OP_98_CONSUME_FOUR_BYTE_NOOP;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
@@ -15239,6 +15240,76 @@ void test_wait_custom_ani_complete_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_consume_four_byte_noop_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        const u16 raw_word =
+            static_cast<u16>(OP_98_CONSUME_FOUR_BYTE_NOOP | alias_mask);
+
+        Fixture normal;
+        prime_loaded_instruction(normal, raw_word);
+        write_u16(normal.state.window, 2U, 0xA55AU);
+        write_u16(normal.state.window, 4U, OP_95_CLEAR_SCENE_RENDER_BIT1);
+        u8 scene_render_flags = 0xA7U;
+        normal.runtime.scene_render_flags = &scene_render_flags;
+
+        const auto normal_result = normal.step();
+        test.expect_true(
+            normal_result.status == LegacyWorldStoryVmStatus::yielded &&
+                normal_result.raw_word == raw_word &&
+                normal_result.opcode == OP_98_CONSUME_FOUR_BYTE_NOOP &&
+                normal_result.executed_instruction_count == 1U &&
+                normal.context.instruction_offset == 4U &&
+                normal.state.previous_opcode == OP_98_CONSUME_FOUR_BYTE_NOOP &&
+                scene_render_flags == 0xA7U,
+            "opcode 98 aliases consume four bytes, publish previous and yield without executing the next instruction"
+        );
+
+        Fixture exact_tail;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFCU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        write_u16(exact_tail.state.window, 0x7FFCU, raw_word);
+        write_u16(exact_tail.state.window, 0x7FFEU, 0x5AA5U);
+
+        const auto exact_tail_result = exact_tail.step();
+        test.expect_true(
+            exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+                exact_tail_result.executed_instruction_count == 1U &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_98_CONSUME_FOUR_BYTE_NOOP,
+            "opcode 98 aliases complete all side effects at an exact four-byte window tail"
+        );
+
+        Fixture unread_payload;
+        unread_payload.context.talk_data_offset = 0x1111U;
+        unread_payload.context.instruction_offset = 0x7FFEU;
+        unread_payload.state.loaded_file_number = 1U;
+        unread_payload.state.loaded_data_offset = 0x1111U;
+        unread_payload.state.window_loaded = true;
+        write_u16(unread_payload.state.window, 0x7FFEU, raw_word);
+
+        const auto unread_payload_result = unread_payload.step();
+        test.expect_true(
+            unread_payload_result.status == LegacyWorldStoryVmStatus::yielded &&
+                !unread_payload_result.first_operand_available &&
+                unread_payload_result.executed_instruction_count == 1U &&
+                unread_payload.context.instruction_offset == 0x8002U &&
+                unread_payload.state.previous_opcode ==
+                    OP_98_CONSUME_FOUR_BYTE_NOOP,
+            "opcode 98 does not read or require its nominal payload word before advancing and yielding"
+        );
+    }
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -18152,6 +18223,54 @@ void test_real_wait_custom_ani_complete_record(
     );
 }
 
+void test_real_consume_four_byte_noop_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        u16 payload;
+    };
+    constexpr std::array<RealCase, 3U> cases{
+        RealCase{"TALK2.DAT", 0x0001708D, 0x0190U},
+        RealCase{"TALK3.DAT", 0x0000B039, 0x006CU},
+        RealCase{"TALK3.DAT", 0x0000CFD2, 0x0001U},
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 4U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFCU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFCU);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read &&
+                read_u16(record, 0U) == OP_98_CONSUME_FOUR_BYTE_NOOP &&
+                read_u16(record, 2U) == real_case.payload &&
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.previous_opcode == OP_98_CONSUME_FOUR_BYTE_NOOP,
+            "real opcode 98 consumes its four-byte record and yields at the exact tail"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -20269,6 +20388,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_scene_render_bit1_protocol(test);
     test_begin_custom_ani_protocol(test);
     test_wait_custom_ani_complete_protocol(test);
+    test_consume_four_byte_noop_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -20338,6 +20458,7 @@ int main(const int argument_count, char** arguments) {
         test_real_clear_scene_render_bit1_record(test, root);
         test_real_begin_custom_ani_records(test, root);
         test_real_wait_custom_ani_complete_record(test, root);
+        test_real_consume_four_byte_noop_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

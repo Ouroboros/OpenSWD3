@@ -220,6 +220,8 @@ opcode97按`dword_4CAE8C` active extent独立等待：active原地发布previous
 
 98 只把脚本指针和 16 位 IP 各加四，完全不读取 `+2` 的物理 `u16`，也不设置 `ESI=1`。所以它不是普通同帧 no-op，而是固定消费四字节后让出一次。
 
+opcode98现已独立闭环：modern不检查或解码payload，保持+4、previous98与yield；四raw alias的正常记录、完整四字节精确尾和仅剩opcode两字节的未读payload尾均通过。资产锁3条/3 probes，全部raw`0062`、长度4，分布`0/1/2/0`；三个机器未读payload为`0190/006C/0001`，三条真实记录均以完整精确尾回放。完整证据见[`story-vm-four-byte-noop-0042c7ea.md`](story-vm-four-byte-noop-0042c7ea.md)。
+
 ## 产物与下一批
 
 - `inventory/story-vm-opcode-semantics-075-099.tsv`：本批次 25 行人工汇编语义。
