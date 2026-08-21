@@ -116,7 +116,7 @@ GUID缺失仅诊断；正常、非当前map和缺失三路都推进18、发布pr
 
 ## opcode 68、69、71、72：相近角色指令仍有不同 selector 合同
 
-68/69 会先把 `FFF0` 替换为当前 selector。找到角色时分别清或置 `role+0x10` 的 `0x400` 位；找不到时调用 `sub_40D460` 记录 fallback 请求。两者推进后让出。
+68/69会先把`FFF0`替换为当前source GUID。68命中角色时对完整flags dword清`0x400`；缺失时以替换后的GUID调用`sub_40D460`，只提交flags OR0、AND`0xFBFF`，其余字段与map均`FFFF`。两路推进4、发布previous并yield。78条真实68记录全部raw`0x0044`、长度4，TALK1/2/3/4分布`24/6/7/41`；TALK1 GUID1回放通过。完整证据见[`story-vm-role-flag-0400-clear-00429bb5.md`](story-vm-role-flag-0400-clear-00429bb5.md)。69的置位与fallback必须下一组独立审计，不能继承68完成状态。
 
 71/72 不替换 `FFF0`。71 找到角色时写 `role+0x3C = 0x004B9F68 + slot*0x98`，slot 没有范围检查；72 把该字段写零。找不到角色时两者都静默消费。即使四条指令都操作角色状态，也不能共用一个自动处理 sentinel、查找失败和范围检查的现代化包装器。
 

@@ -3468,6 +3468,36 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_68_CLEAR_ROLE_FLAG_0400: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u16 selector = read_u16(state.window, ip + 2U);
+            if (selector == kCurrentSourceSelector) {
+                selector = context.source_guid;
+            }
+            u32 role_index{};
+            if (resolve_role_index(
+                    roles, selector, controlled_role_index, role_index
+                )) {
+                roles[role_index].flags &= 0xFFFFFBFFU;
+            } else {
+                ports.patch_role_source(
+                    LegacyMapsRolePatchRequest{
+                        .guid = selector,
+                        .flags_or_mask = 0U,
+                        .flags_and_mask = 0xFBFFU,
+                    }
+                );
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
         case OP_50_START_RELATIVE_CAMERA_MOVE:
         case OP_70_START_ABSOLUTE_CAMERA_MOVE:
         case OP_73_START_CAMERA_MOVE_TO_ROLE: {
