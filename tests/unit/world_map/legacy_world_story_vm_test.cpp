@@ -100,6 +100,7 @@ using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_71_SET_ROLE_HEAD_SIGN;
 using openswd3::world_map::OP_72_CLEAR_ROLE_HEAD_SIGN;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
+using openswd3::world_map::OP_74_CANCEL_FRAME_COLOR_TRANSITION;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -11890,7 +11891,7 @@ void test_wait_for_frame_color_transition(openswd3::test::Context& test) {
     };
     cancel_fixture.runtime.frame_color = &cancel_color;
     auto cancel_script = std::span<u8>{cancel_fixture.ports.initial_window};
-    write_u16(cancel_script, 0U, 74U);
+    write_u16(cancel_script, 0U, OP_74_CANCEL_FRAME_COLOR_TRANSITION);
     write_u16(cancel_script, 2U, OP_14_WAIT_ROLE_ACTION_STATUS);
     write_u16(cancel_script, 4U, 0x00F8U);
 
@@ -11908,8 +11909,76 @@ void test_wait_for_frame_color_transition(openswd3::test::Context& test) {
             cancel_color.current_blue == 3.0F &&
             cancel_color.target_red == 4.0F &&
             cancel_color.target_green == 5.0F &&
-            cancel_color.target_blue == 6.0F,
+            cancel_color.target_blue == 6.0F &&
+            cancel_fixture.state.previous_opcode ==
+                OP_14_WAIT_ROLE_ACTION_STATUS,
         "opcode 74 clears only the three color steps and countdown then continues"
+    );
+
+    constexpr std::array<u16, 4U> cancel_alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : cancel_alias_masks) {
+        Fixture exact_tail;
+        openswd3::rendering::LegacyFrameColorTransitionState exact_color{
+            .countdown = 7,
+            .current_red = 1.0F,
+            .current_green = 2.0F,
+            .current_blue = 3.0F,
+            .target_red = 4.0F,
+            .target_green = 5.0F,
+            .target_blue = 6.0F,
+            .step_red = 7.0F,
+            .step_green = 8.0F,
+            .step_blue = 9.0F,
+        };
+        exact_tail.runtime.frame_color = &exact_color;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFEU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_u16(
+            exact_tail.state.window,
+            0x7FFEU,
+            static_cast<u16>(
+                OP_74_CANCEL_FRAME_COLOR_TRANSITION | alias_mask
+            )
+        );
+
+        const auto exact_result = exact_tail.step();
+
+        test.expect_true(
+            exact_result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                exact_result.opcode == OP_74_CANCEL_FRAME_COLOR_TRANSITION &&
+                exact_result.executed_instruction_count == 1U &&
+                exact_color.countdown == 0 && exact_color.step_red == 0.0F &&
+                exact_color.step_green == 0.0F &&
+                exact_color.step_blue == 0.0F &&
+                exact_color.current_red == 1.0F &&
+                exact_color.target_blue == 6.0F &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_74_CANCEL_FRAME_COLOR_TRANSITION,
+            "opcode 74 aliases complete all clears and publication before an exact-tail next fetch fails"
+        );
+    }
+
+    Fixture unavailable;
+    prime_loaded_instruction(unavailable, OP_74_CANCEL_FRAME_COLOR_TRANSITION);
+    unavailable.state.previous_opcode = 0x66U;
+    const auto unavailable_result = unavailable.step();
+    test.expect_true(
+        unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            unavailable.context.instruction_offset == 0U &&
+            unavailable.state.previous_opcode == 0x66U,
+        "opcode 74 platform owner absence stops before the first color-state write"
     );
 }
 
@@ -14173,6 +14242,59 @@ void test_real_clear_role_head_sign_record(
     );
 }
 
+void test_real_cancel_frame_color_transition_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00005461);
+    std::array<u8, 2U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    openswd3::rendering::LegacyFrameColorTransitionState color{
+        .countdown = 7,
+        .current_red = 1.0F,
+        .current_green = 2.0F,
+        .current_blue = 3.0F,
+        .target_red = 4.0F,
+        .target_green = 5.0F,
+        .target_blue = 6.0F,
+        .step_red = 7.0F,
+        .step_green = 8.0F,
+        .step_blue = 9.0F,
+    };
+    fixture.runtime.frame_color = &color;
+    fixture.context.talk_data_offset = 0x1111U;
+    fixture.context.instruction_offset = 0x7FFEU;
+    fixture.state.loaded_file_number = 1U;
+    fixture.state.loaded_data_offset = 0x1111U;
+    fixture.state.window_loaded = true;
+    fixture.state.previous_opcode = 0x66U;
+    std::ranges::copy(instruction, fixture.state.window.begin() + 0x7FFEU);
+
+    const auto result = fixture.step();
+
+    test.expect_true(
+        input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
+            read_u16(instruction, 0U) ==
+                OP_74_CANCEL_FRAME_COLOR_TRANSITION &&
+            result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            result.opcode == OP_74_CANCEL_FRAME_COLOR_TRANSITION &&
+            result.executed_instruction_count == 1U && color.countdown == 0 &&
+            color.step_red == 0.0F && color.step_green == 0.0F &&
+            color.step_blue == 0.0F && color.current_red == 1.0F &&
+            color.target_blue == 6.0F &&
+            fixture.context.instruction_offset == 0x8000U &&
+            fixture.state.previous_opcode ==
+                OP_74_CANCEL_FRAME_COLOR_TRANSITION,
+        "real opcode 74 record clears the color transition before exact-tail fetch failure"
+    );
+}
+
 void test_real_shared_scene_render_control_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -15950,6 +16072,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_role_flag_0400_record(test, root);
         test_real_set_role_head_sign_record(test, root);
         test_real_clear_role_head_sign_record(test, root);
+        test_real_cancel_frame_color_transition_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

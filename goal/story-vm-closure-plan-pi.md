@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x00429D43`（opcode 74）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x00429D70`（opcode 75）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -69,7 +69,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至127行。前55行已独立
+值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至127行。前56行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -103,8 +103,9 @@ MAPS/surface并移除物理party槽，按原版忽略已完成诊断后yield，�
 以及opcode68先解析FFF0，命中角色时清flags bit0400，缺失时以替换后的GUID提交MAPS AND FBFF请求，
 opcode69则独立置flags bit0400并提交MAPS OR 0400请求，以及opcode71按raw selector命中后写HeadSgn
 slot token，missing不读slot且两路yield；opcode72则以同样raw lookup清field3C，missing静默且两路yield。
-对外进度为已实现95/198、已验收78/198；内部workpack为55/146，即
-`7 assembly_exact + 48 platform_adapted + 91 pending_audit`。下一行只审计`0x00429D43`下的opcode74。
+opcode74按RGB step与countdown顺序清零，保留current/target并same-call继续。对外进度为
+已实现95/198、已验收79/198；内部workpack为56/146，即
+`7 assembly_exact + 49 platform_adapted + 90 pending_audit`。下一行只审计`0x00429D70`下的opcode75。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

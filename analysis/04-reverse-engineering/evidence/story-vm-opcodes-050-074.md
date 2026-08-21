@@ -120,6 +120,8 @@ GUID缺失仅诊断；正常、非当前map和缺失三路都推进18、发布pr
 
 71/72不替换`FFF0`。71先查selector，只有命中角色才读取slot并写`role+0x3C = 0x004B9F68 + zero_extend(slot)*0x98`；slot没有范围检查。缺失角色不读slot却仍推进6，命中与缺失两路都发布previous71并yield。331条真实记录/338 probes全部raw`0x0047`、长度6，slot仅0..3，TALK1/2/3/4分布`127/22/138/44`；完整证据见[`story-vm-role-head-sign-00429cbc.md`](story-vm-role-head-sign-00429cbc.md)。72同样raw lookup，命中把field3C清零、缺失不写；两路推进4、发布previous72并yield。329条真实记录/336 probes全部raw`0x0048`、长度4，分布`126/21/138/44`；完整证据见[`story-vm-role-head-sign-clear-00429d0f.md`](story-vm-role-head-sign-clear-00429d0f.md)。
 
+74按red/green/blue step、signed countdown顺序清零，保留current/target，推进2、发布previous74并same-call继续。13条真实记录/13 probes全部raw`0x004A`、长度2，TALK1/2/3/4分布`1/2/1/9`；完整证据见[`story-vm-frame-color-cancel-00429d43.md`](story-vm-frame-color-cancel-00429d43.md)。
+
 ## 产物与下一批
 
 - `inventory/story-vm-opcode-semantics-050-074.tsv`：本批次 25 行人工汇编语义。

@@ -3706,7 +3706,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
-        case 74U:
+        case OP_74_CANCEL_FRAME_COLOR_TRANSITION:
             if (runtime.frame_color == nullptr) {
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
                 return result;
@@ -3717,6 +3717,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             runtime.frame_color->countdown = 0;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
             continue;
 
         case 77U:
