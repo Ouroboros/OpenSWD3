@@ -2290,6 +2290,47 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_41_RELOAD_INDEXED_TARGET: {
+            if (runtime.indexed_target_selector == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            const u32 requested_index = *runtime.indexed_target_selector;
+            std::size_t cursor = ip + 2U;
+            u32 target_count = 0U;
+            for (;;) {
+                if (!has_bytes(state.window, cursor, 4U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                if (read_u32(state.window, cursor) == 0xFF00FF00U) {
+                    break;
+                }
+                ++target_count;
+                cursor += 4U;
+            }
+            const u32 selected_index =
+                requested_index > target_count ? 0U : requested_index;
+            const std::size_t target_offset =
+                ip + 2U + static_cast<std::size_t>(selected_index) * 4U;
+            const auto status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, target_offset),
+                result,
+                ports
+            );
+            *runtime.indexed_target_selector = 0U;
+            state.previous_opcode = result.opcode;
+            if (status != LegacyWorldStoryVmStatus::idle) {
+                result.status = status;
+                return result;
+            }
+            continue;
+        }
+
         case 42U:
             dialogs.close.flagged_dialog_counter |= 0x8000U;
             roles[controlled_role_index].action.base_variant = 0U;

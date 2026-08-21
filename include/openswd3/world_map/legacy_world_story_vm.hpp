@@ -62,6 +62,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_38_CLEAR_ROLE_FROM_SCENE = 38U,
     OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS = 39U,
     OP_40_RELOCATE_ROLE_AND_COMPLETE_PATH = 40U,
+    OP_41_RELOAD_INDEXED_TARGET = 41U,
     OP_45 = 45U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
@@ -131,6 +132,7 @@ struct LegacyWorldStoryVmRuntime {
     compat::u32* battle_request_value{};
     rendering::LegacyFrameColorTransitionState* frame_color{};
     LegacyWorldStoryPathRuntime* story_paths{};
+    compat::u32* indexed_target_selector{};
     compat::u8* scene_render_flags{};
     compat::u32 map_height{};
     compat::u32 current_tick{};

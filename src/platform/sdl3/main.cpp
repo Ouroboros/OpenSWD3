@@ -3556,6 +3556,8 @@ public:
                     &frame_coordinator_state_.battle.battle_request_value,
                 .frame_color = &world_frame_effects_.frame_color,
                 .story_paths = &story_paths,
+                .indexed_target_selector =
+                    &world_interaction_state_.selected_choice_index,
                 .scene_render_flags =
                     &world_frame_state_.frame_runtime.frame.runtime_flags,
                 .map_height = map.header.height,

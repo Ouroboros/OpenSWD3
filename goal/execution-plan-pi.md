@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v273
+版本：v274
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428C9F` handler（opcode 41）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00428D18` 共享 handler（opcodes 42/43）
 
 ## 0. 执行约定
 
@@ -1634,6 +1634,18 @@ B7 P0 有限收口完成。
     `py_compile`及双重生成幂等通过。Windows依v273留到P3，未启动游戏EXE。现代显式opcode仍为76；
     workpack当前31/146，即`5 assembly_exact + 26 platform_adapted + 115 pending_audit`。
 
+- 剧情VM P2第三十二组`0x00428C9F` / opcode41完成独立闭环。恢复以`0xFF00FF00` dword
+    sentinel结束的变长目标表；使用世界交互共享的完整u32 selector，`selector > count`回退index 0，
+    而`selector == count`保留选择sentinel作为target的原BUG。选定完整u32 target后服务audio并重载
+    同一TALK窗口，helper返回后清共享selector、发布previous，并从新窗口offset 0同调用继续；无顺序
+    IP推进。SDL runtime直接绑定既有`LegacyWorldInteractionState::selected_choice_index`，未复制VM私有
+    状态。资产确认64条唯一记录、65个entry probe，均为raw `0x0029`，target数2..10、长度14..46；
+    `TALK1.DAT@0x000042E6`真实26字节记录以selector 3回放到`0x0000410C`。四raw alias、完整u32
+    越界回退、equality sentinel bug、load failure副作用顺序、owner缺失、terminator截断、精确窗口尾及
+    same-call continuation均通过。定向剧情VM 3/3、Linux core 186/186、Linux app 192/192均以exit 0
+    通过；生成器`py_compile`及双重生成幂等通过。Windows依v274留到P3，未启动游戏EXE。现代显式
+    opcode为77；workpack当前32/146，即`5 assembly_exact + 27 platform_adapted + 114 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428C9F` 的opcode41 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00428D18` 的共享opcodes42/43 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

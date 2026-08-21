@@ -64,6 +64,7 @@ using openswd3::world_map::OP_37_SNAPSHOT_SCRIPT_CLOCK;
 using openswd3::world_map::OP_38_CLEAR_ROLE_FROM_SCENE;
 using openswd3::world_map::OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS;
 using openswd3::world_map::OP_40_RELOCATE_ROLE_AND_COMPLETE_PATH;
+using openswd3::world_map::OP_41_RELOAD_INDEXED_TARGET;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -502,6 +503,7 @@ struct Fixture {
     std::array<u8, 16U> first_name{};
     std::array<u8, 16U> second_name{};
     openswd3::world_map::LegacyWorldCameraRect camera{};
+    u32 indexed_target_selector{};
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     RecordingPorts ports{};
 
@@ -517,6 +519,7 @@ struct Fixture {
         roles[1].world_y = 240U;
         roles[1].action.variant_delta = 0U;
         runtime.camera = &camera;
+        runtime.indexed_target_selector = &indexed_target_selector;
         dialog_resources.frame_actions[0].action_id = 0x232DU;
         dialog_resources.caption_actions[0].action_id = 0x2337U;
     }
@@ -6135,6 +6138,171 @@ void test_relocate_role_and_complete_path_protocol(
     );
 }
 
+void test_reload_indexed_target_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_41_RELOAD_INDEXED_TARGET,
+        static_cast<u16>(OP_41_RELOAD_INDEXED_TARGET | 0x4000U),
+        static_cast<u16>(OP_41_RELOAD_INDEXED_TARGET | 0x8000U),
+        static_cast<u16>(OP_41_RELOAD_INDEXED_TARGET | 0xC000U),
+    };
+    constexpr u32 first_target = 0x11112222U;
+    constexpr u32 second_target = 0x33334444U;
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        fixture.indexed_target_selector = 1U;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u32(fixture.state.window, 2U, first_target);
+        write_u32(fixture.state.window, 6U, second_target);
+        write_u32(fixture.state.window, 10U, 0xFF00FF00U);
+        write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+        fixture.state.previous_opcode = 0x55U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.load_status == LegacyTalkWindowStatus::ready &&
+                result.direct_audio_service_count == 1U &&
+                fixture.indexed_target_selector == 0U &&
+                fixture.context.talk_data_offset == second_target &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.loaded_file_number == 1U &&
+                fixture.state.loaded_data_offset == second_target &&
+                fixture.state.window_loaded &&
+                fixture.state.previous_opcode == OP_41_RELOAD_INDEXED_TARGET &&
+                fixture.ports.data_load_count == 1U &&
+                fixture.ports.last_data_file_number == 1U &&
+                fixture.ports.last_data_offset == second_target &&
+                !fixture.ports.last_data_clear_before_read &&
+                fixture.ports.story_protocol_events == std::vector<u32>{2U, 5U},
+            "opcode 41 aliases select one dword target and reload in same call"
+        );
+    }
+
+    Fixture out_of_range;
+    out_of_range.indexed_target_selector = 0x00010002U;
+    prime_loaded_instruction(out_of_range, OP_41_RELOAD_INDEXED_TARGET);
+    write_u32(out_of_range.state.window, 2U, first_target);
+    write_u32(out_of_range.state.window, 6U, second_target);
+    write_u32(out_of_range.state.window, 10U, 0xFF00FF00U);
+    write_u16(out_of_range.ports.transferred_window, 0U, OP_1025);
+    const auto out_of_range_result = out_of_range.step();
+    test.expect_true(
+        out_of_range_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            out_of_range.ports.last_data_offset == first_target &&
+            out_of_range.indexed_target_selector == 0U &&
+            out_of_range.state.previous_opcode == OP_41_RELOAD_INDEXED_TARGET,
+        "opcode 41 compares the full u32 selector and falls back to index zero"
+    );
+
+    Fixture sentinel_selected;
+    sentinel_selected.indexed_target_selector = 2U;
+    prime_loaded_instruction(sentinel_selected, OP_41_RELOAD_INDEXED_TARGET);
+    write_u32(sentinel_selected.state.window, 2U, first_target);
+    write_u32(sentinel_selected.state.window, 6U, second_target);
+    write_u32(sentinel_selected.state.window, 10U, 0xFF00FF00U);
+    write_u16(sentinel_selected.ports.transferred_window, 0U, OP_1025);
+    const auto sentinel_selected_result = sentinel_selected.step();
+    test.expect_true(
+        sentinel_selected_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            sentinel_selected.ports.last_data_offset == 0xFF00FF00U &&
+            sentinel_selected.context.talk_data_offset == 0xFF00FF00U &&
+            sentinel_selected.indexed_target_selector == 0U,
+        "opcode 41 preserves the selector-equals-count sentinel target bug"
+    );
+
+    Fixture load_failure;
+    load_failure.indexed_target_selector = 1U;
+    prime_loaded_instruction(load_failure, OP_41_RELOAD_INDEXED_TARGET);
+    write_u32(load_failure.state.window, 2U, first_target);
+    write_u32(load_failure.state.window, 6U, second_target);
+    write_u32(load_failure.state.window, 10U, 0xFF00FF00U);
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    load_failure.state.previous_opcode = 0x55U;
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.executed_instruction_count == 1U &&
+            load_failure_result.load_status ==
+                LegacyTalkWindowStatus::data_read_failed &&
+            load_failure_result.direct_audio_service_count == 1U &&
+            load_failure.indexed_target_selector == 0U &&
+            load_failure.context.talk_data_offset == second_target &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode == OP_41_RELOAD_INDEXED_TARGET &&
+            !load_failure.state.window_loaded &&
+            load_failure.ports.story_protocol_events ==
+                std::vector<u32>{2U, 5U},
+        "opcode 41 checked load failure preserves audio, target, reset, and previous"
+    );
+
+    Fixture missing_owner;
+    missing_owner.indexed_target_selector = 9U;
+    missing_owner.runtime.indexed_target_selector = nullptr;
+    prime_loaded_instruction(missing_owner, OP_41_RELOAD_INDEXED_TARGET);
+    missing_owner.state.previous_opcode = 0x55U;
+    const auto missing_owner_result = missing_owner.step();
+    test.expect_true(
+        missing_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_owner_result.executed_instruction_count == 1U &&
+            missing_owner.indexed_target_selector == 9U &&
+            missing_owner.context.instruction_offset == 0U &&
+            missing_owner.state.previous_opcode == 0x55U &&
+            missing_owner.ports.data_load_count == 0U &&
+            missing_owner.ports.direct_audio_service_count == 0U,
+        "opcode 41 stops at the missing indexed-selector owner"
+    );
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFAU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.indexed_target_selector = 1U;
+    truncated.state.previous_opcode = 0x55U;
+    write_u16(truncated.state.window, 0x7FFAU, OP_41_RELOAD_INDEXED_TARGET);
+    write_u32(truncated.state.window, 0x7FFCU, first_target);
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated_result.executed_instruction_count == 1U &&
+            truncated.indexed_target_selector == 1U &&
+            truncated.context.instruction_offset == 0x7FFAU &&
+            truncated.state.previous_opcode == 0x55U &&
+            truncated.ports.data_load_count == 0U &&
+            truncated.ports.direct_audio_service_count == 0U,
+        "opcode 41 checked scan stops when the FF00FF00 terminator is absent"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FF6U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.indexed_target_selector = 0U;
+    write_u16(exact_tail.state.window, 0x7FF6U, OP_41_RELOAD_INDEXED_TARGET);
+    write_u32(exact_tail.state.window, 0x7FF8U, first_target);
+    write_u32(exact_tail.state.window, 0x7FFCU, 0xFF00FF00U);
+    write_u16(exact_tail.ports.transferred_window, 0U, OP_1025);
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            exact_tail_result.executed_instruction_count == 2U &&
+            exact_tail.ports.last_data_offset == first_target &&
+            exact_tail.indexed_target_selector == 0U &&
+            exact_tail.state.previous_opcode == OP_41_RELOAD_INDEXED_TARGET,
+        "opcode 41 accepts a target table ending at the window boundary"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -7485,6 +7653,47 @@ void test_real_relocate_role_and_complete_path_record(
     );
 }
 
+void test_real_reload_indexed_target_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x000042E6);
+    std::array<u8, 26U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    fixture.indexed_target_selector = 3U;
+    prime_loaded_instruction(fixture, OP_41_RELOAD_INDEXED_TARGET);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+    const auto result = fixture.step();
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_41_RELOAD_INDEXED_TARGET &&
+            read_u32(instruction, 2U) == 0x00004100U &&
+            read_u32(instruction, 6U) == 0x00004118U &&
+            read_u32(instruction, 10U) == 0x00004124U &&
+            read_u32(instruction, 14U) == 0x0000410CU &&
+            read_u32(instruction, 18U) == 0x00004130U &&
+            read_u32(instruction, 22U) == 0xFF00FF00U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == OP_1025 &&
+            result.executed_instruction_count == 2U &&
+            result.direct_audio_service_count == 1U &&
+            fixture.ports.last_data_file_number == 1U &&
+            fixture.ports.last_data_offset == 0x0000410CU &&
+            fixture.context.talk_data_offset == 0x0000410CU &&
+            fixture.indexed_target_selector == 0U &&
+            fixture.state.previous_opcode == OP_41_RELOAD_INDEXED_TARGET,
+        "real opcode 41 record selects target three, resets selector, and reloads"
+    );
+}
+
 void test_real_set_role_flag_8000_and_clear_one_shots_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -7780,6 +7989,7 @@ void test_real_new_game_story_patches_unloaded_role(
     std::list<openswd3::rendering::LegacyPackedRowEffect> packed_row_effects;
     openswd3::world_map::LegacyRoleHeadActionList role_head_actions;
     u32 battle_request_value{};
+    u32 indexed_target_selector{};
     openswd3::rendering::LegacyFrameColorTransitionState frame_color{};
     u8 scene_render_flags{};
     openswd3::world_map::LegacyWorldPathNodePool path_node_pool;
@@ -7818,6 +8028,7 @@ void test_real_new_game_story_patches_unloaded_role(
         .battle_request_value = &battle_request_value,
         .frame_color = &frame_color,
         .story_paths = &story_paths,
+        .indexed_target_selector = &indexed_target_selector,
         .scene_render_flags = &scene_render_flags,
         .map_height = map.header.height,
     };
@@ -8096,6 +8307,7 @@ void test_real_new_game_story_reaches_first_dialog(
     std::list<openswd3::rendering::LegacyPackedRowEffect> packed_row_effects;
     openswd3::world_map::LegacyRoleHeadActionList role_head_actions;
     u32 battle_request_value{};
+    u32 indexed_target_selector{};
     openswd3::rendering::LegacyFrameColorTransitionState frame_color{};
     openswd3::rendering::LegacyFramebuffer frame_color_framebuffer;
     openswd3::rendering::LegacyPixelConversionState frame_color_format;
@@ -8136,6 +8348,7 @@ void test_real_new_game_story_reaches_first_dialog(
         .battle_request_value = &battle_request_value,
         .frame_color = &frame_color,
         .story_paths = &story_paths,
+        .indexed_target_selector = &indexed_target_selector,
         .scene_render_flags = &scene_render_flags,
         .map_height = 80U,
     };
@@ -8809,6 +9022,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_role_from_scene_protocol(test);
     test_set_role_flag_8000_and_clear_one_shots_protocol(test);
     test_relocate_role_and_complete_path_protocol(test);
+    test_reload_indexed_target_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -8843,6 +9057,7 @@ int main(const int argument_count, char** arguments) {
         test_real_change_role_path_id_record(test, root);
         test_real_global_integer_records(test, root);
         test_real_relocate_role_and_complete_path_record(test, root);
+        test_real_reload_indexed_target_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
