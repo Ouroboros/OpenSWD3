@@ -4772,18 +4772,23 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 104U:
+        case OP_104_SET_TEXT_LAYOUT_PAIR:
+            state.text_control_flags &= 0xEFFFFFFFU;
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            state.text_layout_first =
+                static_cast<i16>(read_u16(state.window, ip + 2U));
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            state.text_control_flags &= 0xEFFFFFFFU;
-            state.text_layout_first =
-                static_cast<i16>(read_u16(state.window, ip + 2U));
             state.text_layout_second =
                 static_cast<i16>(read_u16(state.window, ip + 4U));
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
             continue;
 
         case 107U: {

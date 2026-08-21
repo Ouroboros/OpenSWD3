@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至134行。前81行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至134行。前82行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -149,8 +149,10 @@ missing静默；两路保持+4、previous101与same-call。126条真实记录、
 共享opcodes102/103/117/136/140/145/146/174按内部跳表选择八个mask；FFF0把controlled index作GUID key，
 live路径clear/set flags后依次clear/mark surface，missing路径提交布尔AND/OR MAPS patch。683条记录/685 probes；
 145/174零记录由asset absence、全alias/boolean synthetic与精确尾锁定。
-已实现121/198、已验收113/198；内部workpack为81/146，即
-`10 assembly_exact + 71 platform_adapted + 65 pending_audit`。下一行只审计`0x0042B47E`下的opcode104。
+opcode104先清text bit28，再分阶段sign-extend写两项i16布局值；修复旧case一次性预检与漏发previous104。
+125条真实记录、四alias、i16边界、两级截断、精确尾及dialog消费链通过。
+已实现121/198、已验收114/198；内部workpack为82/146，即
+`10 assembly_exact + 72 platform_adapted + 64 pending_audit`。下一行只审计`0x0042B4B9`下的opcode105。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

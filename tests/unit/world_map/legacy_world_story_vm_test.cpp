@@ -130,6 +130,7 @@ using openswd3::world_map::OP_100_SET_ROLE_TALK_SCRIPT;
 using openswd3::world_map::OP_101_SET_ROLE_STATUS_BIT26;
 using openswd3::world_map::OP_102_SET_ROLE_STATUS_BIT6;
 using openswd3::world_map::OP_103_SET_ROLE_STATUS_BIT5;
+using openswd3::world_map::OP_104_SET_TEXT_LAYOUT_PAIR;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -16090,6 +16091,124 @@ void test_set_role_status_from_boolean_protocol(
     );
 }
 
+void test_set_text_layout_pair_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        const u16 raw_word =
+            static_cast<u16>(OP_104_SET_TEXT_LAYOUT_PAIR | alias_mask);
+        fixture.state.text_control_flags = 0xFFFFFFFFU;
+        fixture.state.text_layout_first = 111;
+        fixture.state.text_layout_second = -222;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0x8000U);
+        write_u16(fixture.state.window, 4U, 0x7FFFU);
+        write_u16(fixture.state.window, 6U, OP_95_CLEAR_SCENE_RENDER_BIT1);
+        u8 scene_render_flags = 0xA7U;
+        fixture.runtime.scene_render_flags = &scene_render_flags;
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                result.opcode == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 8U &&
+                fixture.state.text_control_flags == 0xEFFFFFFFU &&
+                fixture.state.text_layout_first == -32768 &&
+                fixture.state.text_layout_second == 32767 &&
+                fixture.state.previous_opcode ==
+                    OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                scene_render_flags == 0xA5U,
+            "opcode 104 aliases clear only text bit 28, sign-extend both values and continue"
+        );
+    }
+
+    Fixture missing_first;
+    missing_first.context.talk_data_offset = 0x1111U;
+    missing_first.context.instruction_offset = 0x7FFEU;
+    missing_first.state.loaded_file_number = 1U;
+    missing_first.state.loaded_data_offset = 0x1111U;
+    missing_first.state.window_loaded = true;
+    missing_first.state.previous_opcode = 0x55U;
+    missing_first.state.text_control_flags = 0xFFFFFFFFU;
+    missing_first.state.text_layout_first = 11;
+    missing_first.state.text_layout_second = 22;
+    write_u16(
+        missing_first.state.window, 0x7FFEU, OP_104_SET_TEXT_LAYOUT_PAIR
+    );
+
+    const auto missing_first_result = missing_first.step();
+    test.expect_true(
+        missing_first_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_first.context.instruction_offset == 0x7FFEU &&
+            missing_first.state.text_control_flags == 0xEFFFFFFFU &&
+            missing_first.state.text_layout_first == 11 &&
+            missing_first.state.text_layout_second == 22 &&
+            missing_first.state.previous_opcode == 0x55U,
+        "opcode 104 clears text bit 28 before the first original operand access"
+    );
+
+    Fixture missing_second;
+    missing_second.context.talk_data_offset = 0x1111U;
+    missing_second.context.instruction_offset = 0x7FFCU;
+    missing_second.state.loaded_file_number = 1U;
+    missing_second.state.loaded_data_offset = 0x1111U;
+    missing_second.state.window_loaded = true;
+    missing_second.state.previous_opcode = 0x66U;
+    missing_second.state.text_control_flags = 0xF5FFFFFFU;
+    missing_second.state.text_layout_first = 11;
+    missing_second.state.text_layout_second = 22;
+    write_u16(
+        missing_second.state.window, 0x7FFCU, OP_104_SET_TEXT_LAYOUT_PAIR
+    );
+    write_u16(missing_second.state.window, 0x7FFEU, 0xFFB0U);
+
+    const auto missing_second_result = missing_second.step();
+    test.expect_true(
+        missing_second_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_second.context.instruction_offset == 0x7FFCU &&
+            missing_second.state.text_control_flags == 0xE5FFFFFFU &&
+            missing_second.state.text_layout_first == -80 &&
+            missing_second.state.text_layout_second == 22 &&
+            missing_second.state.previous_opcode == 0x66U,
+        "opcode 104 commits bit clear and first signed value before the second operand access"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.text_control_flags = 0xFFFFFFFFU;
+    write_u16(
+        exact_tail.state.window, 0x7FFAU, OP_104_SET_TEXT_LAYOUT_PAIR
+    );
+    write_u16(exact_tail.state.window, 0x7FFCU, 52U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0xFF88U);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.text_control_flags == 0xEFFFFFFFU &&
+            exact_tail.state.text_layout_first == 52 &&
+            exact_tail.state.text_layout_second == -120 &&
+            exact_tail.state.previous_opcode == OP_104_SET_TEXT_LAYOUT_PAIR,
+        "opcode 104 commits both signed values and previous before the next exact-tail fetch fails"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -19315,6 +19434,62 @@ void test_real_set_role_status_from_boolean_records(
     }
 }
 
+void test_real_set_text_layout_pair_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        i16 first;
+        i16 second;
+    };
+    constexpr std::array<RealCase, 4U> cases{
+        RealCase{"TALK1.DAT", 0x000054AD, 0, -96},
+        RealCase{"TALK2.DAT", 0x0000CB89, 0, -30},
+        RealCase{"TALK3.DAT", 0x00009DDF, 20, -75},
+        RealCase{"TALK4.DAT", 0x00002273, 20, -75},
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 6U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFAU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.text_control_flags = 0xFFFFFFFFU;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFAU);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read &&
+                read_u16(record, 0U) == OP_104_SET_TEXT_LAYOUT_PAIR &&
+                static_cast<i16>(read_u16(record, 2U)) == real_case.first &&
+                static_cast<i16>(read_u16(record, 4U)) == real_case.second &&
+                result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.text_control_flags == 0xEFFFFFFFU &&
+                fixture.state.text_layout_first == real_case.first &&
+                fixture.state.text_layout_second == real_case.second &&
+                fixture.state.previous_opcode == OP_104_SET_TEXT_LAYOUT_PAIR,
+            "real opcode 104 stores the signed layout pair before exact-tail completion"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -21437,6 +21612,7 @@ int main(const int argument_count, char** arguments) {
     test_set_role_talk_script_protocol(test);
     test_set_role_status_bit26_protocol(test);
     test_set_role_status_from_boolean_protocol(test);
+    test_set_text_layout_pair_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -21511,6 +21687,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_role_talk_script_records(test, root);
         test_real_set_role_status_bit26_records(test, root);
         test_real_set_role_status_from_boolean_records(test, root);
+        test_real_set_text_layout_pair_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

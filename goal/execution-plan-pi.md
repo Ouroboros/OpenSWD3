@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v324
+版本：v325
 
 最后更新：2026-08-21
 
@@ -2285,6 +2285,17 @@ B7 P0 有限收口完成。
     121/198、已验收113/198；内部workpack81/146，即`10 assembly_exact + 71 platform_adapted +
     65 pending_audit`。
 
+- 剧情VM P2第八十二组`0x0042B47E` / opcode104完成独立闭环。机器先清text control bit28，
+    再依次读取并sign-extend写入`+2/+4`两个i16布局值，最后推进6、发布previous104并same-call。
+    REVIEW发现旧case错误地一次性预检两个operand，且成功路径漏发previous；现按原访问点分两级typed-stop，
+    保留缺第一项前已清bit、缺第二项前已清bit并写第一项的副作用。四raw alias、i16最小/最大、两级截断、
+    精确尾和既有dialog消费/复位链通过。资产锁125条/125 probes，全部raw`0068`、长度6，分布
+    `46/48/18/13`；31种pair，第一项范围-80..52、第二项-120..-20。格式化后剧情VM3/3、Linux
+    core186/186、Linux app192/192均exit0；测试时间分别0.58/21.82/22.07秒。workpack双生成hash为
+    `56a45509e2499fed1cf892e3ad7413559cdd337ffc67d91c43cedc4f80b4f969`。未启动游戏EXE；
+    Windows依阶段规则留到P2完成门。现代显式opcode保持121；对外进度为已实现121/198、已验收
+    114/198；内部workpack82/146，即`10 assembly_exact + 72 platform_adapted + 64 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042B47E` 的opcode104 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042B4B9` 的opcode105 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

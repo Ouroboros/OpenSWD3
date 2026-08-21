@@ -81,6 +81,8 @@ dword_4CF734 = sign_extend(s16(+4))
 
 后续文字 action 创建会把这两个 dword 原样传给 `sub_40AFF0`。没有坐标、间距或枚举范围门控。
 
+opcode104现已独立闭环：bit28清除先于第一operand，第一signed i16写入先于第二operand；两个原unsafe读取点分别typed-stop并保留此前副作用。成功路径补齐previous104与same-call。四raw alias、i16边界、两级截断、精确尾及125条资产/125 probes通过；完整证据见[`story-vm-text-layout-pair-0042b47e.md`](story-vm-text-layout-pair-0042b47e.md)。
+
 105、121、124 分别清 `dword_4A1360` 的 bit27、bit26、bit25，均为两字节、同帧继续。它们与此前的 bit31..28 控制指令属于独立 opcode，不能合并成会自动正规化整个 flag word 的接口。
 
 108 把 `+2/+4` 写入 `dword_4A135C` 的低/高 word，供下一次文字 action 覆盖默认位置。随后分别执行无符号边界检查：
