@@ -15,6 +15,7 @@ if not exist "%LLVM_BIN%\clang++.exe" goto missing_tools
 if /I "%~1"=="app" if not exist "%LLVM_BIN%\clang.exe" goto missing_tools
 
 set "PATH=%LLVM_BIN%;D:\Dev\lldb\tools\cmake\bin;D:\Dev\lldb\tools\ninja;%PATH%"
+if not defined OPENSWD3_TEST_JOBS set "OPENSWD3_TEST_JOBS=8"
 
 set "TARGET=%~1"
 if "%TARGET%"=="" set "TARGET=core"
@@ -48,8 +49,8 @@ echo [OpenSWD3] Build: %BUILD_PRESET%
 "%CMAKE_EXE%" --build --preset "%BUILD_PRESET%"
 if errorlevel 1 goto failed
 
-echo [OpenSWD3] Test: Debug
-"%CTEST_EXE%" --test-dir "build\%CONFIGURE_PRESET%" -C Debug --output-on-failure
+echo [OpenSWD3] Test: Debug ^(parallel jobs: %OPENSWD3_TEST_JOBS%^)
+"%CTEST_EXE%" --test-dir "build\%CONFIGURE_PRESET%" -C Debug --parallel "%OPENSWD3_TEST_JOBS%" --output-on-failure
 if errorlevel 1 goto failed
 
 echo [OpenSWD3] Build and tests completed successfully.

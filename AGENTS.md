@@ -133,6 +133,8 @@
 - `build.bat` 必须保持 CRLF，且不得加入 `pause`。
 - Linux 使用 `build.sh`；Linux 与 macOS 可复用相同的 POSIX 构建思路，但没有实际 macOS
   验证时不能声称已经支持或通过。
+- `build.sh` 与 `build.bat` 的 CTest 默认使用 8 个并发 job；需要调整时只设置正整数环境变量
+  `OPENSWD3_TEST_JOBS`。不得移除同测试二进制调用锁或真实资产全局锁来换取虚假提速。
 - 修改后运行仓库现有的定向测试和适用的 Linux/Windows 完整门禁。命令没有实际执行时，
   不得声称已构建、已测试或已通过。
 - 构建成功不等于运行验证成功，测试枚举数量也不等于测试实际通过。

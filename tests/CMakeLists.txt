@@ -3343,3 +3343,226 @@ if(TARGET SDL3::SDL3)
         COMMAND openswd3_platform_mouse_sdl3_tests
     )
 endif()
+
+# CTest may launch the synthetic and real-asset invocations of one executable
+# in the same clock tick. Their per-process TestTree names intentionally share
+# a prefix, so serialize only invocations of the same binary while preserving
+# parallel execution across unrelated test executables.
+function(openswd3_lock_shared_test_executable lock_name)
+    set(existing_tests)
+    foreach(test_name IN LISTS ARGN)
+        if(TEST "${test_name}")
+            list(APPEND existing_tests "${test_name}")
+        endif()
+    endforeach()
+    if(existing_tests)
+        set_tests_properties(
+            ${existing_tests}
+            PROPERTIES RESOURCE_LOCK "${lock_name}"
+        )
+    endif()
+endfunction()
+
+openswd3_lock_shared_test_executable(
+    act_archive
+    asset_runtime.legacy_act_archive
+    asset_runtime.legacy_act_archive_real
+)
+openswd3_lock_shared_test_executable(
+    action_draw_bridge
+    asset_runtime.legacy_action_draw_bridge
+    asset_runtime.legacy_action_draw_bridge_real
+)
+openswd3_lock_shared_test_executable(
+    action_record
+    asset_runtime.legacy_action_record
+    asset_runtime.legacy_action_record_real
+)
+openswd3_lock_shared_test_executable(
+    ani_archive
+    asset_runtime.legacy_ani_archive
+    asset_runtime.legacy_ani_archive_real
+)
+openswd3_lock_shared_test_executable(
+    ani_directional_effect
+    asset_runtime.legacy_ani_directional_effect
+    asset_runtime.legacy_ani_directional_effect_real
+)
+openswd3_lock_shared_test_executable(
+    ani_drift_effect
+    asset_runtime.legacy_ani_drift_effect
+    asset_runtime.legacy_ani_drift_effect_real
+)
+openswd3_lock_shared_test_executable(
+    ani_follower_effect
+    asset_runtime.legacy_ani_follower_effect
+    asset_runtime.legacy_ani_follower_effect_real
+)
+openswd3_lock_shared_test_executable(
+    ani_role_particle_effect
+    asset_runtime.legacy_ani_role_particle_effect
+    asset_runtime.legacy_ani_role_particle_effect_real
+)
+openswd3_lock_shared_test_executable(
+    tsw_archive
+    asset_runtime.legacy_tsw_archive
+    asset_runtime.legacy_tsw_archive_real
+)
+openswd3_lock_shared_test_executable(
+    snd_archive
+    audio_video.legacy_snd_archive
+    audio_video.legacy_snd_archive_real
+)
+openswd3_lock_shared_test_executable(
+    sample_backend_sdl3
+    platform.legacy_sample_backend_sdl3
+    platform.legacy_sample_backend_sdl3_real
+)
+openswd3_lock_shared_test_executable(
+    glyph_atlas
+    rendering.legacy_glyph_atlas
+    rendering.legacy_glyph_atlas_asset
+)
+openswd3_lock_shared_test_executable(
+    image_command_stream
+    rendering.legacy_image_command_stream
+    rendering.legacy_image_command_stream_asset
+)
+openswd3_lock_shared_test_executable(
+    resource_databases
+    resource_io.legacy_resource_databases
+    resource_io.legacy_resource_databases_real
+)
+openswd3_lock_shared_test_executable(
+    cm_cache_generator
+    world_map.legacy_cm_cache_generator
+    world_map.legacy_cm_cache_generator_real
+)
+openswd3_lock_shared_test_executable(
+    cm_cache_loader
+    world_map.legacy_cm_cache_loader
+    world_map.legacy_cm_cache_loader_real
+)
+openswd3_lock_shared_test_executable(
+    maps_world_database
+    world_map.legacy_maps_world_database
+    world_map.legacy_maps_world_database_real
+)
+openswd3_lock_shared_test_executable(
+    random_encounter
+    world_map.legacy_random_encounter
+    world_map.legacy_random_encounter_real
+)
+openswd3_lock_shared_test_executable(
+    world_background
+    world_map.legacy_world_background
+    world_map.legacy_world_background_real
+)
+openswd3_lock_shared_test_executable(
+    world_flagged_roles
+    world_map.legacy_world_flagged_roles
+    world_map.legacy_world_flagged_roles_real
+)
+openswd3_lock_shared_test_executable(
+    world_frame_composition
+    world_map.legacy_world_frame_composition
+    world_map.legacy_world_frame_composition_real
+)
+openswd3_lock_shared_test_executable(
+    world_frame_runtime
+    world_map.legacy_world_frame_runtime
+    world_map.legacy_world_frame_runtime_real
+)
+openswd3_lock_shared_test_executable(
+    world_map_session
+    world_map.legacy_world_map_session
+    world_map.legacy_world_map_session_real
+)
+openswd3_lock_shared_test_executable(
+    world_path_script
+    world_map.legacy_world_path_script
+    world_map.legacy_world_path_script_real
+)
+openswd3_lock_shared_test_executable(
+    world_render_session
+    world_map.legacy_world_render_session
+    world_map.legacy_world_render_session_real
+)
+openswd3_lock_shared_test_executable(
+    world_role_map_update
+    world_map.legacy_world_role_map_update
+    world_map.legacy_world_role_map_update_real
+)
+openswd3_lock_shared_test_executable(
+    world_role_post_materialization
+    world_map.legacy_world_role_post_materialization
+    world_map.legacy_world_role_post_materialization_real
+)
+openswd3_lock_shared_test_executable(
+    world_role_preload
+    world_map.legacy_world_role_preload
+    world_map.legacy_world_role_preload_real
+)
+openswd3_lock_shared_test_executable(
+    world_roles
+    world_map.legacy_world_roles
+    world_map.legacy_world_roles_real
+)
+openswd3_lock_shared_test_executable(
+    world_runtime_session
+    world_map.legacy_world_runtime_session
+    world_map.legacy_world_runtime_session_real
+)
+openswd3_lock_shared_test_executable(
+    world_story_vm
+    world_map.legacy_world_story_vm
+    world_map.legacy_world_story_vm_real
+    world_map.legacy_world_story_vm_initial_session_real
+)
+
+# Legacy read-only databases and several archives intentionally retain the
+# original Win32 exclusive sharing mode. Real-asset tests therefore share one
+# additional lock; synthetic tests and unrelated binaries remain parallel.
+set(openswd3_shared_real_asset_tests
+    assets.startup_ui
+    resource_io.legacy_resource_databases_real
+    rendering.legacy_image_command_stream_asset
+    rendering.legacy_glyph_atlas_asset
+    audio_video.legacy_snd_archive_real
+    asset_runtime.legacy_tsw_archive_real
+    asset_runtime.legacy_act_archive_real
+    asset_runtime.legacy_ani_archive_real
+    asset_runtime.legacy_ani_follower_effect_real
+    asset_runtime.legacy_ani_drift_effect_real
+    asset_runtime.legacy_ani_directional_effect_real
+    asset_runtime.legacy_ani_role_particle_effect_real
+    world_map.legacy_world_path_script_real
+    world_map.legacy_random_encounter_real
+    world_map.legacy_world_role_post_materialization_real
+    world_map.legacy_world_role_map_update_real
+    world_map.legacy_maps_world_database_real
+    world_map.legacy_world_role_preload_real
+    world_map.legacy_world_runtime_session_real
+    world_map.legacy_world_background_real
+    world_map.legacy_world_flagged_roles_real
+    world_map.legacy_world_roles_real
+    world_map.legacy_world_frame_composition_real
+    world_map.legacy_world_story_vm_real
+    world_map.legacy_world_story_vm_initial_session_real
+    world_map.legacy_world_frame_runtime_real
+    world_map.legacy_cm_cache_generator_real
+    world_map.legacy_cm_cache_loader_real
+    world_map.legacy_world_map_session_real
+    world_map.legacy_world_render_session_real
+    asset_runtime.legacy_action_draw_bridge_real
+    asset_runtime.legacy_action_record_real
+    platform.legacy_sample_backend_sdl3_real
+)
+foreach(test_name IN LISTS openswd3_shared_real_asset_tests)
+    if(TEST "${test_name}")
+        set_property(
+            TEST "${test_name}"
+            APPEND PROPERTY RESOURCE_LOCK legacy_real_assets
+        )
+    endif()
+endforeach()

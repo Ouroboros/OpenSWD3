@@ -26,6 +26,12 @@ cmake_executable="${OPENSWD3_CMAKE:-cmake}"
 ctest_executable="${OPENSWD3_CTEST:-ctest}"
 clang_executable="${CC:-clang}"
 clangxx_executable="${CXX:-clang++}"
+test_jobs="${OPENSWD3_TEST_JOBS:-8}"
+
+if [[ ! "$test_jobs" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[OpenSWD3] OPENSWD3_TEST_JOBS must be a positive integer." >&2
+    exit 2
+fi
 
 for tool in \
     "$cmake_executable" \
@@ -69,9 +75,10 @@ echo "[OpenSWD3] Configure: linux-$target"
 echo "[OpenSWD3] Build: linux-$target-debug"
 "$cmake_executable" --build "$build_directory" --parallel
 
-echo "[OpenSWD3] Test: Debug"
+echo "[OpenSWD3] Test: Debug (parallel jobs: $test_jobs)"
 "$ctest_executable" \
     --test-dir "$build_directory" \
+    --parallel "$test_jobs" \
     --output-on-failure
 
 echo "[OpenSWD3] Build and tests completed successfully."

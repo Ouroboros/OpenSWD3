@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v327
+版本：v328
 
 最后更新：2026-08-21
 
@@ -2320,3 +2320,14 @@ B7 P0 有限收口完成。
 
 按用户指令，本组提交推送后暂停P2并将`pi-execution`合并到`main`；合并后只独立调整CTest并发，
 不进入下一handler。恢复P2时下一停点为`0x0042B50F` / opcode107，现有导航语义与既有实现均不继承完成状态。
+
+- `pi-execution`的`a48601c`已在确认`origin/main`为其祖先且零分叉后，以`--ff-only`合并并推送到
+    `main`；合并时两branch tip/tree完全相等。随后按用户指令在`main`独立优化完整门：Linux/Windows
+    CTest统一读取`OPENSWD3_TEST_JOBS`，默认8，Linux拒绝非正整数；编译仍使用既有并发。
+    首轮Windows并发暴露真实竞态，5/192失败；仅加同exe锁后另一组5/192失败。最终按CTest JSON锁定
+    31组同测试二进制多invocation，并给33项真实资产测试追加`legacy_real_assets`全局锁，保留Win32
+    exclusive archive语义而不伪改生产共享模式。最终Linux core186/186、Linux app192/192、Windows LLVM
+    app192/192均exit0；CTest时间分别18.52/18.65/12.11秒，Linux core+app完整流程158秒，较修改前
+    195秒缩短37秒。`build.bat`保持CRLF且未加入pause；未启动游戏EXE。
+
+按用户指令继续暂停P2。恢复后下一停点仍为`0x0042B50F` / opcode107。
