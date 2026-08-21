@@ -73,16 +73,11 @@ SDL端口每个世界帧使用当前mix level调用已审计`audio_video::play_l
 
 ## opcode 62：多重继承的地图角色 upsert
 
-62 长 18 字节，八个 `u16` 参数并非使用统一 sentinel 规则：
+62 长18字节：selector的`FFF0`继承Talk source GUID；map的`FFFF`继承当前map；X/Y的`FFFF`分别继承受控角色坐标右移四位；path/action/base/variant的`FFFF`由`sub_40D460`逐字段保留。旧运行角色存在时，handler先重置72槽中的全部关联对象，保存flags低16和Talk id，清bits14/15、清地表占用并置bit28；这一清理发生在剩余14字节参数读取前。
 
-- selector `FFF0` 继承当前状态 `+0x24`；
-- map id `FFFF` 继承当前 ArgList map；
-- X/Y 的 `FFFF` 分别继承受控角色坐标右移四位；
-- 其余字段原样零扩展。
+MAPS patch成功且目标为当前map时，原版先分配并清零`0xD8`临时角色，由`sub_40D560`复制源字段，再由`sub_40F280`更新动作、映射地表标志并按条件写占用。随后从索引1直接搜索GUID：命中时使用新物化flags低2位摘链、整记录覆盖并重插，未命中时复制到role count槽、插入成功后递增count。最终flags bit9置位时遍历四个16字节粒子emitter；循环故意填满所有空selector槽并保留各槽head链，而不是只占一个槽。
 
-若角色已存在，handler 扫描 72 个对象槽并重置关联对象，保存一部分旧角色状态，清状态 bit14/15，刷新角色，再置 bit28。随后用精确解析后的字段调用 `sub_40D460`。目标 map 正是当前活动 map 时，还会建立临时角色记录，按 GUID 替换现有 `0xD8` 字节角色或追加新记录，并更新辅助对象表。
-
-当前 handler 没有证明角色数组容量或辅助表空槽受到保护；helper 失败也只是诊断。初步重写不得把各 sentinel 合并成统一参数模板，也不得擅自增加会改变正常脚本分支的“安全失败”语义。
+GUID缺失仅诊断；正常、非当前map和缺失三路都推进18、发布previous并同调用继续。443条真实记录全部为raw`0x003E`、长度18、单entry probe，TALK1/2/3/4分布`77/59/128/179`；map sentinel 124条，X/Y sentinel各16条。完整LST、typed owner、失败顺序、四槽bug、资产与测试证据见[`story-vm-map-role-write-004296de.md`](story-vm-map-role-write-004296de.md)。
 
 ## opcode 63、64：变长 `u16` 表的原始边界
 

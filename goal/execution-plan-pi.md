@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v287
+版本：v288
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x004296DE` handler（opcode 62）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00429A1B` handler（opcode 63）
 
 ## 0. 执行约定
 
@@ -1840,6 +1840,21 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode仍为88；workpack当前45/146，即
     `5 assembly_exact + 40 platform_adapted + 101 pending_audit`。
 
+- 剧情VM P2第四十六组`0x004296DE` / opcode62完成独立闭环。LST先按selector清理旧运行角色：
+    重置72槽全部关联对象、保存flags低16和Talk id、清bits14/15、清地表占用并置bit28；随后按
+    map/path/X/Y/action/base/variant各自独立的`FFFF`继承规则调用`sub_40D460`写MAPS源。仅目标map
+    等于当前map时，才分配清零`0xD8`临时角色，执行动作更新和地表映射，再从索引1按GUID替换或
+    追加、重建空间链；flags bit9还会保留原版“填满所有空粒子槽且不清head链”的bug。初版REVIEW
+    发现误写成直接yield，已按`ESI=1`修正为推进18、发布previous并同调用继续。四raw alias、非当前
+    map、缺失源diagnostic、所有继承、旧角色清理、同GUID替换、缺失追加、动作失败、空间/地表/
+    粒子顺序、`+2`后截断、owner缺失与`0x7FEE`精确尾均通过；TALK1真实记录回放通过。资产锁定
+    443条物理记录/443 probes，TALK1/2/3/4分布`77/59/128/179`，全部raw`0x003E`、长度18。
+    剧情VM定向3/3、Linux core 186/186、Linux app 192/192均exit 0，SDL主程序完成链接；未启动
+    游戏EXE。生成器`py_compile`及双重生成幂等通过，workpack hash为
+    `a6e90a3952acfcbe092c91a9d7fc60d7b72bc492f621466ba932f871e3ea0289`。Windows依v288留到P3。
+    对外进度为已实现89/198、已验收69/198；内部workpack当前46/146，即
+    `5 assembly_exact + 41 platform_adapted + 100 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x004296DE` 的opcode62 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00429A1B` 的opcode63 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

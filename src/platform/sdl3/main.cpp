@@ -3547,6 +3547,13 @@ public:
                         .selected_guid = roles[world.selected_role_index].guid,
                         .surface_grid = map.surface_grid.surface_grid,
                     },
+                .mutable_maps_payload =
+                    resource_databases_.mutable_maps_payload_bytes(),
+                .maps_database = &world.maps_database,
+                .role_storage = &roles,
+                .role_particles = &world_role_particle_effect_,
+                .current_logical_map_id =
+                    static_cast<openswd3::compat::u16>(world.logical_map_id),
                 .camera = &world.camera,
                 .camera_pan = &world_frame_state_.camera_pan,
                 .movement = &world_frame_state_.movement,

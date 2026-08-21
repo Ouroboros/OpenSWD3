@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x004296DE`（opcode 62）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x00429A1B`（opcode 63）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -90,10 +90,12 @@ movement/step状态等待镜头移动完成并在两路发布previous，opcode52
 重复刷新且在每轮刷新后清辅助字段，共享opcodes55–57保存旧空间分组、写入新分组并完成角色
 空间链解链重插，以及共享opcodes58/153按分配、清零、初始化、四项operand写入顺序分别前插主/次
 图片动作链并发布previous后让出，opcode59按当前混音等级提交居中单次音效、忽略后端结果并发布
-previous后让出，以及共享opcodes60/61共同先清场景clear-only bit、由61清零完整framebuffer后重新
-置bit、由60直接恢复世界场景并在两路发布previous后让出。当前为45/146，即
-`5 assembly_exact + 40 platform_adapted + 101 pending_audit`；下一行只审计
-`0x004296DE`下的opcode62。
+previous后让出，共享opcodes60/61共同先清场景clear-only bit、由61清零完整framebuffer后重新
+置bit、由60直接恢复世界场景并在两路发布previous后让出，以及opcode62先清理旧运行角色、按八项
+独立继承规则写MAPS角色源，仅对当前map即时替换/追加运行角色、恢复空间链并保留四粒子槽全填bug，
+最后发布previous并同调用继续。对外进度为已实现89/198、已验收69/198；内部workpack为46/146，
+即`5 assembly_exact + 41 platform_adapted + 100 pending_audit`。下一行只审计
+`0x00429A1B`下的opcode63。
 
 ### P2 · 按 handler 组逆向、实现和验证
 
