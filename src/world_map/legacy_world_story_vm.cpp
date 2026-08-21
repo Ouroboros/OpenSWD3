@@ -4867,6 +4867,28 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_108_SET_NEXT_DIALOG_ANCHOR:
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            state.dialog_anchor_left = read_u16(state.window, ip + 2U);
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            state.dialog_anchor_top = read_u16(state.window, ip + 4U);
+            if (state.dialog_anchor_left > 639U) {
+                state.dialog_anchor_left = 16U;
+            }
+            if (state.dialog_anchor_top > 479U) {
+                state.dialog_anchor_top = 16U;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            continue;
+
         case 114U: {
             if (!has_bytes(state.window, ip, 8U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

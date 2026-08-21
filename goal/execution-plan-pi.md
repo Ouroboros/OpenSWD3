@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v329
+版本：v330
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B5F2` handler（opcode 108）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B63C` handler（opcode 109）
 
 ## 0. 执行约定
 
@@ -2342,4 +2342,15 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode保持124；对外进度为已实现124/198、已验收118/198；内部workpack
     85/146，即`12 assembly_exact + 73 platform_adapted + 61 pending_audit`。
 
-下一组只审计`0x0042B5F2` / opcode108。
+- 剧情VM P2第八十六组`0x0042B5F2` / opcode108完成独立闭环。机器先读/写u16 X，再读/写
+    u16 Y，只有两项均提交后才按无符号边界独立把`X>639`或`Y>479`替换为16；成功+6、
+    previous108、same-call。现代复用已集成的`dialog_anchor_left/top` one-shot owner；修复原缺失case，
+    下游共享dialog同帧消费后恢复`8000/8000` sentinel。四raw alias、`639/640`、`479/480`、FFFF、
+    两阶段截断、精确尾及下游dialog链通过。线性TALK零记录，使用`asset_absence_verified`。Story VM3/3，
+    Linux core/app完整门待最终验证；workpack双生成稳定hash为
+    `a94c72c6bc052fc4da30fb9eec3ebdb4c951f0429c5fb22b25740adcca260fef`。未启动游戏EXE。现代显式
+    opcode增至125；Linux core 186/186与app 192/192完整门exit0通过；对外进度为
+    已实现125/198、已验收119/198；内部workpack86/146，即
+    `13 assembly_exact + 73 platform_adapted + 60 pending_audit`。
+
+下一组只审计`0x0042B63C` / opcode109。

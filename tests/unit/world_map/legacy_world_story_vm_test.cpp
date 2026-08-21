@@ -134,6 +134,7 @@ using openswd3::world_map::OP_104_SET_TEXT_LAYOUT_PAIR;
 using openswd3::world_map::OP_105_CLEAR_TEXT_CONTROL_BIT27;
 using openswd3::world_map::OP_106_WAIT_PRIMARY_PICTURE_ACTION_BYTE;
 using openswd3::world_map::OP_107_WAIT_ROLE_ACTION_INDEX;
+using openswd3::world_map::OP_108_SET_NEXT_DIALOG_ANCHOR;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -6064,6 +6065,139 @@ void test_wait_for_role_action_index_threshold(openswd3::test::Context& test) {
             missing_threshold.context.instruction_offset == 0x7FFCU &&
             missing_threshold.state.previous_opcode == 0x66U,
         "opcode 107 preserves staged operands and exact-tail completion"
+    );
+}
+
+void test_set_next_dialog_anchor_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_108_SET_NEXT_DIALOG_ANCHOR,
+        static_cast<u16>(OP_108_SET_NEXT_DIALOG_ANCHOR | 0x4000U),
+        static_cast<u16>(OP_108_SET_NEXT_DIALOG_ANCHOR | 0x8000U),
+        static_cast<u16>(OP_108_SET_NEXT_DIALOG_ANCHOR | 0xC000U),
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 639U);
+        write_u16(fixture.state.window, 4U, 479U);
+        write_u16(fixture.state.window, 6U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.raw_word == OP_1025 && result.opcode == OP_1025 &&
+                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.dialog_anchor_left == 639U &&
+                fixture.state.dialog_anchor_top == 479U &&
+                fixture.state.previous_opcode ==
+                    OP_108_SET_NEXT_DIALOG_ANCHOR,
+            "opcode 108 aliases preserve inclusive anchor bounds and continue in-call"
+        );
+    }
+
+    Fixture both_fallback;
+    prime_loaded_instruction(both_fallback, OP_108_SET_NEXT_DIALOG_ANCHOR);
+    write_u16(both_fallback.state.window, 2U, 640U);
+    write_u16(both_fallback.state.window, 4U, 480U);
+    write_u16(both_fallback.state.window, 6U, OP_1025);
+    const auto both_result = both_fallback.step();
+
+    Fixture top_fallback;
+    prime_loaded_instruction(top_fallback, OP_108_SET_NEXT_DIALOG_ANCHOR);
+    write_u16(top_fallback.state.window, 2U, 639U);
+    write_u16(top_fallback.state.window, 4U, 0xFFFFU);
+    write_u16(top_fallback.state.window, 6U, OP_1025);
+    const auto top_result = top_fallback.step();
+
+    test.expect_true(
+        both_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            both_fallback.state.dialog_anchor_left == 16U &&
+            both_fallback.state.dialog_anchor_top == 16U &&
+            both_fallback.state.previous_opcode ==
+                OP_108_SET_NEXT_DIALOG_ANCHOR &&
+            top_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            top_fallback.state.dialog_anchor_left == 639U &&
+            top_fallback.state.dialog_anchor_top == 16U &&
+            top_fallback.state.previous_opcode ==
+                OP_108_SET_NEXT_DIALOG_ANCHOR,
+        "opcode 108 independently replaces unsigned out-of-range anchors with 16"
+    );
+
+    const auto prime_exact_tail = [](Fixture& fixture, const u16 offset) {
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = offset;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.dialog_anchor_left = 10U;
+        fixture.state.dialog_anchor_top = 20U;
+        fixture.state.previous_opcode = 0x66U;
+        write_u16(fixture.state.window, offset, OP_108_SET_NEXT_DIALOG_ANCHOR);
+    };
+
+    Fixture missing_left;
+    prime_exact_tail(missing_left, 0x7FFEU);
+    const auto missing_left_result = missing_left.step();
+
+    Fixture missing_top;
+    prime_exact_tail(missing_top, 0x7FFCU);
+    write_u16(missing_top.state.window, 0x7FFEU, 700U);
+    const auto missing_top_result = missing_top.step();
+
+    Fixture exact_tail;
+    prime_exact_tail(exact_tail, 0x7FFAU);
+    write_u16(exact_tail.state.window, 0x7FFCU, 640U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 479U);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        missing_left_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_left.state.dialog_anchor_left == 10U &&
+            missing_left.state.dialog_anchor_top == 20U &&
+            missing_left.state.previous_opcode == 0x66U &&
+            missing_top_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_top.state.dialog_anchor_left == 700U &&
+            missing_top.state.dialog_anchor_top == 20U &&
+            missing_top.state.previous_opcode == 0x66U &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.dialog_anchor_left == 16U &&
+            exact_tail.state.dialog_anchor_top == 479U &&
+            exact_tail.state.previous_opcode ==
+                OP_108_SET_NEXT_DIALOG_ANCHOR,
+        "opcode 108 preserves staged writes and completes an exact-tail record"
+    );
+
+    Fixture dialog_template;
+    constexpr std::array<u8, 2U> text{'%', 'Q'};
+    const std::size_t dialog_length =
+        write_dialog_instruction(dialog_template, 2U, 0x00F8U, text);
+    Fixture chained;
+    prime_loaded_instruction(chained, OP_108_SET_NEXT_DIALOG_ANCHOR);
+    write_u16(chained.state.window, 2U, 10U);
+    write_u16(chained.state.window, 4U, 20U);
+    std::ranges::copy_n(
+        dialog_template.state.window.begin(),
+        static_cast<std::ptrdiff_t>(dialog_length),
+        chained.state.window.begin() + 6U
+    );
+    const auto chained_result = chained.step();
+    test.expect_true(
+        chained_result.status == LegacyWorldStoryVmStatus::yielded &&
+            chained_result.opcode == 2U &&
+            chained_result.executed_instruction_count == 2U &&
+            chained.context.instruction_offset == 6U + dialog_length &&
+            !chained.dialogs.messages.empty() &&
+            chained.state.dialog_anchor_left == 0x8000U &&
+            chained.state.dialog_anchor_top == 0x8000U &&
+            chained.state.previous_opcode == 2U,
+        "opcode 108 stages the one-shot anchor consumed by the next dialog"
     );
 }
 
@@ -22029,6 +22163,7 @@ int main(const int argument_count, char** arguments) {
     test_repeat_role_action_refresh_protocol(test);
     test_shared_role_spatial_group_protocol(test);
     test_wait_for_role_action_index_threshold(test);
+    test_set_next_dialog_anchor_protocol(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);

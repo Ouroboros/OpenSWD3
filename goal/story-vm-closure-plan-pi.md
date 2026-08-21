@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042B5F2`（opcode108）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042B63C`（opcode109）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至135行。前85行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至135行。前86行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -157,9 +157,11 @@ packed word高字节并严格等待其大于u16 threshold。106锁定60条记录
 双变体全alias、链选择、严格边界、operand/runtime顺序及精确尾锁定；opcode107按selector→lookup→threshold→
 action顺序读取角色动作packed word，threshold高于低字节上限或lookup失败时消费，合法且高字节低于threshold
 时发布previous107并等待，其余发布previous107并同帧继续。107锁定294条记录/296 probes，四alias、FFF0/FFFE、
-无符号边界、两阶段截断及精确尾通过。
-已实现124/198、已验收118/198；内部workpack为85/146，即
-`12 assembly_exact + 73 platform_adapted + 61 pending_audit`。下一行只审计`0x0042B5F2`下的opcode108。
+无符号边界、两阶段截断及精确尾通过。opcode108分阶段写one-shot dialog anchor X/Y，只有两项均已写入
+后才按u16独立把`X>639`/`Y>479`替换为16；成功+6、previous108、same-call。108零资产，以四alias、
+边界、两阶段截断、精确尾和下一dialog消费/重置锁定。
+已实现125/198、已验收119/198；内部workpack为86/146，即
+`13 assembly_exact + 73 platform_adapted + 60 pending_audit`。下一行只审计`0x0042B63C`下的opcode109。
 
 ### P2 · 按 handler 组逆向、实现和验证
 
