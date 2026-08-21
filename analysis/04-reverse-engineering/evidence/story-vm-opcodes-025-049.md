@@ -154,11 +154,11 @@ index * 0xD8 + role_array_base + 0x40
 
 ## opcode 45：向后看一条的刷新合并
 
-角色存在时，45 把 `u16(+4)` 写入 action `+0x00`，并对角色 `+0x10` OR `0x1000`。写零会输出诊断，但零仍然落入字段。
+current selector `0xFFF0`只在本条handler内替换为context source GUID；`0xFFFE`仍由`sub_40C0D0`直接选择受控index。角色存在时，45把`u16(+4)`零扩展并完整写入u32 action `+0x00`，再对完整u32角色flags OR `0x1000`。写零会输出诊断，但零仍然落入字段。
 
-在立即刷新 action 之前，`sub_42E740` 查看尚未消费的下一条指令。若下一 opcode 是 10、11 或 45，且下一条的角色 selector 能解析到同一个角色 index，本次跳过 `sub_4321E0`；否则立即刷新。之后仍只按本条固定六字节推进。
+在refresh和flags写之前，`sub_42E740`强制读取尚未消费的下一raw opcode。只有精确`0x000A/0x000B/0x002D`才继续读取下一selector；alias不合并，next `0xFFF0`也不执行本条handler的替换。下一selector解析到同一个role index时跳过`sub_4321E0`，否则立即refresh。缺next opcode或recognized-next selector时保留已完成的action-id写，但不refresh、不置flags、不推进当前IP或发布previous。
 
-这不是通用 peephole 优化：它只认三个精确 opcode、只看紧邻下一条、只比较解析后的角色 index。重写必须复现该观察顺序。
+missing live role不执行lookahead，而由`sub_40D460`只patch MAPS action id并OR flags `0x1000`，随后正常推进。65条真实记录、9次资产same-role合并、完整窗口尾顺序与typed边界见 [`story-vm-role-action-id-00428e52.md`](story-vm-role-action-id-00428e52.md)。
 
 ## opcode 46–49 的 action pending 协议
 

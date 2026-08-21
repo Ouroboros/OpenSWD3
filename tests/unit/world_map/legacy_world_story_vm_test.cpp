@@ -69,6 +69,7 @@ using openswd3::world_map::OP_41_RELOAD_INDEXED_TARGET;
 using openswd3::world_map::OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT;
 using openswd3::world_map::OP_43_CLEAR_INTERACTION_LOCK;
 using openswd3::world_map::OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE;
+using openswd3::world_map::OP_45_SET_ROLE_ACTION_ID;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -1826,7 +1827,7 @@ void test_change_role_variant_delta_protocol(openswd3::test::Context& test) {
     prime_loaded_instruction(chained, 11U);
     write_u16(chained.state.window, 2U, 0x00F8U);
     write_u16(chained.state.window, 4U, 3U);
-    write_u16(chained.state.window, 6U, 45U);
+    write_u16(chained.state.window, 6U, OP_45_SET_ROLE_ACTION_ID);
     write_u16(chained.state.window, 8U, 0x00F8U);
     write_u16(chained.state.window, 10U, 0x0222U);
     write_u16(chained.state.window, 12U, OP_1025);
@@ -2845,56 +2846,488 @@ void test_role_action_chain_update_gate(openswd3::test::Context& test) {
             flagged_role.action.variant_delta == 3U,
         "sub_42E740 compares the next raw opcode without masking flag bits"
     );
+
+    Fixture next_opcode_truncated;
+    next_opcode_truncated.context.instruction_offset = 0x7FFAU;
+    next_opcode_truncated.context.talk_data_offset = 0x1111U;
+    next_opcode_truncated.state.loaded_file_number = 1U;
+    next_opcode_truncated.state.loaded_data_offset = 0x1111U;
+    next_opcode_truncated.state.window_loaded = true;
+    next_opcode_truncated.roles[1].action.base_variant = 9U;
+    next_opcode_truncated.roles[1].action.wait_remaining = 7U;
+    write_u16(next_opcode_truncated.state.window, 0x7FFAU, 10U);
+    write_u16(next_opcode_truncated.state.window, 0x7FFCU, 0x00F8U);
+    write_u16(next_opcode_truncated.state.window, 0x7FFEU, 2U);
+    next_opcode_truncated.state.previous_opcode = 0x55U;
+    const auto next_opcode_truncated_result = next_opcode_truncated.step();
+    test.expect_true(
+        next_opcode_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            next_opcode_truncated_result.executed_instruction_count == 1U &&
+            next_opcode_truncated_result.action_update_count == 0U &&
+            next_opcode_truncated.roles[1].action.base_variant == 2U &&
+            next_opcode_truncated.roles[1].action.wait_remaining == 0U &&
+            next_opcode_truncated.context.instruction_offset == 0x7FFAU &&
+            next_opcode_truncated.state.previous_opcode == 0x55U,
+        "opcode 10 writes action fields before mandatory lookahead opcode access"
+    );
+
+    Fixture next_selector_truncated;
+    next_selector_truncated.context.instruction_offset = 0x7FF8U;
+    next_selector_truncated.context.talk_data_offset = 0x1111U;
+    next_selector_truncated.state.loaded_file_number = 1U;
+    next_selector_truncated.state.loaded_data_offset = 0x1111U;
+    next_selector_truncated.state.window_loaded = true;
+    next_selector_truncated.roles[1].action.variant_delta = 9U;
+    next_selector_truncated.roles[1].action.wait_remaining = 7U;
+    next_selector_truncated.roles[1].flags = 0x20U;
+    write_u16(next_selector_truncated.state.window, 0x7FF8U, 11U);
+    write_u16(next_selector_truncated.state.window, 0x7FFAU, 0x00F8U);
+    write_u16(next_selector_truncated.state.window, 0x7FFCU, 3U);
+    write_u16(
+        next_selector_truncated.state.window, 0x7FFEU, OP_45_SET_ROLE_ACTION_ID
+    );
+    next_selector_truncated.state.previous_opcode = 0x55U;
+    const auto next_selector_truncated_result = next_selector_truncated.step();
+    test.expect_true(
+        next_selector_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            next_selector_truncated_result.action_update_count == 0U &&
+            next_selector_truncated.roles[1].action.variant_delta == 3U &&
+            next_selector_truncated.roles[1].action.wait_remaining == 0U &&
+            next_selector_truncated.roles[1].flags == 0x20U &&
+            next_selector_truncated.context.instruction_offset == 0x7FF8U &&
+            next_selector_truncated.state.previous_opcode == 0x55U,
+        "opcode 11 reads a recognized next selector before refresh and flags"
+    );
 }
 
 void test_change_requested_action_id(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> aliases{
+        OP_45_SET_ROLE_ACTION_ID,
+        static_cast<u16>(OP_45_SET_ROLE_ACTION_ID | 0x4000U),
+        static_cast<u16>(OP_45_SET_ROLE_ACTION_ID | 0x8000U),
+        static_cast<u16>(OP_45_SET_ROLE_ACTION_ID | 0xC000U),
+    };
+    for (const u16 raw_word : aliases) {
+        Fixture fixture;
+        fixture.roles[1].flags = 0xA4A50020U;
+        fixture.roles[1].action.action_id = 0xDEADBEEFU;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0x00F8U);
+        write_u16(fixture.state.window, 4U, 0x8001U);
+        write_u16(fixture.state.window, 6U, OP_1025);
+        fixture.state.previous_opcode = 0x55U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.action_update_count == 1U &&
+                result.action_update_failure_count == 0U &&
+                fixture.roles[1].action.action_id == 0x00008001U &&
+                fixture.roles[1].flags == 0xA4A51020U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode == OP_45_SET_ROLE_ACTION_ID &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 45 aliases write a zero-extended action id and set bit 12"
+        );
+    }
+
+    Fixture current_source;
+    current_source.roles[1].action.action_id = 0xDEADBEEFU;
+    prime_loaded_instruction(current_source, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(current_source.state.window, 2U, 0xFFF0U);
+    write_u16(current_source.state.window, 4U, 0xFFFFU);
+    write_u16(current_source.state.window, 6U, OP_1025);
+    const auto current_source_result = current_source.step();
+    test.expect_true(
+        current_source_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            current_source.roles[1].action.action_id == 0x0000FFFFU &&
+            current_source.roles[0].action.action_id == 0U &&
+            read_u16(current_source.state.window, 2U) == 0xFFF0U,
+        "opcode 45 translates FFF0 only for the current role lookup"
+    );
+
+    Fixture controlled;
+    controlled.roles[1].guid = 0xFFFEU;
+    controlled.roles[1].action.action_id = 0x1111U;
+    controlled.roles[2].action.action_id = 0x2222U;
+    prime_loaded_instruction(controlled, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    write_u16(controlled.state.window, 4U, 0x8123U);
+    write_u16(controlled.state.window, 6U, OP_1025);
+    const auto controlled_result = controlled.step(0, 0, 2U);
+    test.expect_true(
+        controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled.roles[2].action.action_id == 0x8123U &&
+            controlled.roles[1].action.action_id == 0x1111U &&
+            (controlled.roles[2].flags & 0x1000U) != 0U,
+        "opcode 45 passes FFFE through for controlled-role selection"
+    );
+
+    Fixture first_clear_match;
+    first_clear_match.roles[0].guid = 0x2222U;
+    first_clear_match.roles[0].flags =
+        openswd3::world_map::kLegacyWorldGuidLookupSkipBit;
+    first_clear_match.roles[1].guid = 0x2222U;
+    first_clear_match.roles[2].guid = 0x2222U;
+    first_clear_match.roles[1].action.action_id = 0x1111U;
+    first_clear_match.roles[2].action.action_id = 0x2222U;
+    prime_loaded_instruction(first_clear_match, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(first_clear_match.state.window, 2U, 0x2222U);
+    write_u16(first_clear_match.state.window, 4U, 0x8004U);
+    write_u16(first_clear_match.state.window, 6U, OP_1025);
+    const auto first_clear_match_result = first_clear_match.step();
+    test.expect_true(
+        first_clear_match_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            first_clear_match.roles[0].action.action_id == 0U &&
+            first_clear_match.roles[1].action.action_id == 0x8004U &&
+            first_clear_match.roles[2].action.action_id == 0x2222U,
+        "opcode 45 skips bit-28 roles and uses the first clear GUID match"
+    );
+
     Fixture chained;
-    auto chained_script = std::span<u8>{chained.ports.initial_window};
-    write_u16(chained_script, 0U, 45U);
-    write_u16(chained_script, 2U, 0xFFF0U);
-    write_u16(chained_script, 4U, 0x222U);
-    write_u16(chained_script, 6U, 45U);
-    write_u16(chained_script, 8U, 0x00F8U);
-    write_u16(chained_script, 10U, 0U);
-    write_u16(chained_script, 12U, OP_14_WAIT_ROLE_ACTION_STATUS);
-    write_u16(chained_script, 14U, 0x00F8U);
+    prime_loaded_instruction(chained, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(chained.state.window, 2U, 0x00F8U);
+    write_u16(chained.state.window, 4U, 0x0222U);
+    write_u16(chained.state.window, 6U, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(chained.state.window, 8U, 0x00F8U);
+    write_u16(chained.state.window, 10U, 0U);
+    write_u16(chained.state.window, 12U, OP_1025);
     const auto chained_result = chained.step();
+    test.expect_true(
+        chained_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            chained_result.executed_instruction_count == 3U &&
+            chained_result.action_update_count == 1U &&
+            chained.roles[1].action.action_id == 0U &&
+            (chained.roles[1].flags & 0x1000U) != 0U &&
+            chained.context.instruction_offset == 12U &&
+            chained.state.previous_opcode == OP_45_SET_ROLE_ACTION_ID,
+        "opcode 45 coalesces an exact raw same-role chain and writes zero"
+    );
+
+    const auto run_field_chain = [](const u16 next_opcode) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_45_SET_ROLE_ACTION_ID);
+        write_u16(fixture.state.window, 2U, 0x00F8U);
+        write_u16(fixture.state.window, 4U, 0x0111U);
+        write_u16(fixture.state.window, 6U, next_opcode);
+        write_u16(fixture.state.window, 8U, 0x00F8U);
+        write_u16(fixture.state.window, 10U, 3U);
+        write_u16(fixture.state.window, 12U, OP_1025);
+        const auto result = fixture.step();
+        return std::tuple{result, fixture.roles[1]};
+    };
+    const auto [base_chain_result, base_chain_role] =
+        run_field_chain(OP_10_SET_ROLE_BASE_VARIANT);
+    const auto [delta_chain_result, delta_chain_role] = run_field_chain(11U);
+    test.expect_true(
+        base_chain_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            base_chain_result.executed_instruction_count == 3U &&
+            base_chain_result.action_update_count == 1U &&
+            base_chain_role.action.action_id == 0x0111U &&
+            base_chain_role.action.base_variant == 3U,
+        "opcode 45 coalesces a same-role raw opcode 10 successor"
+    );
+    test.expect_true(
+        delta_chain_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            delta_chain_result.executed_instruction_count == 3U &&
+            delta_chain_result.action_update_count == 1U &&
+            delta_chain_role.action.action_id == 0x0111U &&
+            delta_chain_role.action.variant_delta == 3U,
+        "opcode 45 coalesces a same-role raw opcode 11 successor"
+    );
+
+    Fixture aliased_next;
+    prime_loaded_instruction(aliased_next, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(aliased_next.state.window, 2U, 0x00F8U);
+    write_u16(aliased_next.state.window, 4U, 0x0111U);
+    write_u16(
+        aliased_next.state.window,
+        6U,
+        static_cast<u16>(OP_45_SET_ROLE_ACTION_ID | 0x4000U)
+    );
+    write_u16(aliased_next.state.window, 8U, 0x00F8U);
+    write_u16(aliased_next.state.window, 10U, 0x0222U);
+    write_u16(aliased_next.state.window, 12U, OP_1025);
+    const auto aliased_next_result = aliased_next.step();
+    test.expect_true(
+        aliased_next_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            aliased_next_result.action_update_count == 2U &&
+            aliased_next.roles[1].action.action_id == 0x0222U,
+        "opcode 45 lookahead compares the next raw opcode without alias masking"
+    );
+
+    Fixture untranslated_next;
+    prime_loaded_instruction(untranslated_next, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(untranslated_next.state.window, 2U, 0x00F8U);
+    write_u16(untranslated_next.state.window, 4U, 0x0111U);
+    write_u16(untranslated_next.state.window, 6U, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(untranslated_next.state.window, 8U, 0xFFF0U);
+    write_u16(untranslated_next.state.window, 10U, 0x0222U);
+    write_u16(untranslated_next.state.window, 12U, OP_1025);
+    const auto untranslated_next_result = untranslated_next.step();
+    test.expect_true(
+        untranslated_next_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            untranslated_next_result.action_update_count == 2U &&
+            untranslated_next.roles[1].action.action_id == 0x0222U,
+        "opcode 45 lookahead does not translate the next FFF0 selector"
+    );
+
+    Fixture controlled_chain;
+    prime_loaded_instruction(controlled_chain, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(controlled_chain.state.window, 2U, 0xFFFEU);
+    write_u16(controlled_chain.state.window, 4U, 0x0111U);
+    write_u16(controlled_chain.state.window, 6U, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(controlled_chain.state.window, 8U, 0xFFFEU);
+    write_u16(controlled_chain.state.window, 10U, 0x0222U);
+    write_u16(controlled_chain.state.window, 12U, OP_1025);
+    const auto controlled_chain_result = controlled_chain.step();
+    test.expect_true(
+        controlled_chain_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled_chain_result.action_update_count == 1U &&
+            controlled_chain.roles[0].action.action_id == 0x0222U,
+        "opcode 45 lookahead preserves FFFE controlled-role selection"
+    );
+
+    Fixture update_failure;
+    update_failure.ports.action_update_result = 0U;
+    prime_loaded_instruction(update_failure, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(update_failure.state.window, 2U, 0x00F8U);
+    write_u16(update_failure.state.window, 4U, 0x8005U);
+    write_u16(update_failure.state.window, 6U, OP_1025);
+    const auto update_failure_result = update_failure.step();
+    test.expect_true(
+        update_failure_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            update_failure_result.action_update_count == 1U &&
+            update_failure_result.action_update_failure_count == 1U &&
+            update_failure.roles[1].action.action_id == 0x8005U &&
+            (update_failure.roles[1].flags & 0x1000U) != 0U &&
+            update_failure.state.previous_opcode == OP_45_SET_ROLE_ACTION_ID,
+        "opcode 45 refresh failure is diagnostic-only before bit 12 is set"
+    );
 
     Fixture missing;
-    auto missing_script = std::span<u8>{missing.ports.initial_window};
-    write_u16(missing_script, 0U, 45U);
-    write_u16(missing_script, 2U, 0x7777U);
-    write_u16(missing_script, 4U, 0x333U);
-    write_u16(missing_script, 6U, OP_14_WAIT_ROLE_ACTION_STATUS);
-    write_u16(missing_script, 8U, 0x00F8U);
+    prime_loaded_instruction(missing, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(missing.state.window, 2U, 0x7777U);
+    write_u16(missing.state.window, 4U, 0x0333U);
+    write_u16(missing.state.window, 6U, OP_1025);
+    missing.state.previous_opcode = 0x55U;
     const auto missing_result = missing.step();
     const auto patch = missing.ports.role_patch_requests.empty()
         ? openswd3::world_map::LegacyMapsRolePatchRequest{}
         : missing.ports.role_patch_requests.front();
-
     test.expect_true(
-        chained_result.status == LegacyWorldStoryVmStatus::yielded &&
-            chained_result.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
-            chained_result.executed_instruction_count == 3U &&
-            chained_result.action_update_count == 2U &&
-            chained.roles[1].action.action_id == 0U &&
-            (chained.roles[1].flags & 0x00001000U) != 0U &&
-            chained.context.instruction_offset == 16U,
-        "opcode 45 coalesces a same-role chain and still writes action id zero"
-    );
-    test.expect_true(
-        missing_result.status == LegacyWorldStoryVmStatus::yielded &&
-            missing_result.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
+        missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
             missing_result.executed_instruction_count == 2U &&
-            missing_result.action_update_count == 1U &&
+            missing_result.action_update_count == 0U &&
             missing.ports.role_patch_requests.size() == 1U &&
-            patch.guid == 0x7777U && patch.action_id == 0x333U &&
+            patch.guid == 0x7777U && patch.action_id == 0x0333U &&
             patch.base_variant == 0xFFFFU && patch.variant_delta == 0xFFFFU &&
             patch.tile_x == 0xFFFFU && patch.tile_y == 0xFFFFU &&
             patch.talk_script_id == 0xFFFFU && patch.path_data_id == 0xFFFFU &&
             patch.flags_or_mask == 0x1000U && patch.flags_and_mask == 0xFFFFU &&
-            patch.logical_map_id == 0xFFFFU,
-        "opcode 45 routes a missing role through the exact MAPS patch request"
+            patch.logical_map_id == 0xFFFFU &&
+            missing.context.instruction_offset == 6U &&
+            missing.state.previous_opcode == OP_45_SET_ROLE_ACTION_ID,
+        "opcode 45 missing role uses the exact MAPS action-and-flag patch"
+    );
+}
+
+void test_change_requested_action_id_failure_ordering(
+    openswd3::test::Context& test
+) {
+    Fixture selector_truncated;
+    selector_truncated.context.instruction_offset = 0x7FFEU;
+    selector_truncated.context.talk_data_offset = 0x1111U;
+    selector_truncated.state.loaded_file_number = 1U;
+    selector_truncated.state.loaded_data_offset = 0x1111U;
+    selector_truncated.state.window_loaded = true;
+    write_u16(
+        selector_truncated.state.window, 0x7FFEU, OP_45_SET_ROLE_ACTION_ID
+    );
+    selector_truncated.state.previous_opcode = 0x55U;
+    const auto selector_truncated_result = selector_truncated.step();
+    test.expect_true(
+        selector_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            selector_truncated_result.executed_instruction_count == 1U &&
+            selector_truncated_result.action_update_count == 0U &&
+            selector_truncated.context.instruction_offset == 0x7FFEU &&
+            selector_truncated.state.previous_opcode == 0x55U,
+        "opcode 45 stops at the first unsafe selector access"
+    );
+
+    Fixture found_value_truncated;
+    found_value_truncated.context.instruction_offset = 0x7FFCU;
+    found_value_truncated.context.talk_data_offset = 0x1111U;
+    found_value_truncated.state.loaded_file_number = 1U;
+    found_value_truncated.state.loaded_data_offset = 0x1111U;
+    found_value_truncated.state.window_loaded = true;
+    found_value_truncated.roles[1].action.action_id = 0xDEADBEEFU;
+    write_u16(
+        found_value_truncated.state.window, 0x7FFCU, OP_45_SET_ROLE_ACTION_ID
+    );
+    write_u16(found_value_truncated.state.window, 0x7FFEU, 0x00F8U);
+    found_value_truncated.state.previous_opcode = 0x55U;
+    const auto found_value_truncated_result = found_value_truncated.step();
+    test.expect_true(
+        found_value_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            found_value_truncated.roles[1].action.action_id == 0xDEADBEEFU &&
+            found_value_truncated_result.action_update_count == 0U &&
+            found_value_truncated.context.instruction_offset == 0x7FFCU &&
+            found_value_truncated.state.previous_opcode == 0x55U,
+        "opcode 45 finds the role before the unsafe action-id access"
+    );
+
+    Fixture missing_value_truncated;
+    missing_value_truncated.context.instruction_offset = 0x7FFCU;
+    missing_value_truncated.context.talk_data_offset = 0x1111U;
+    missing_value_truncated.state.loaded_file_number = 1U;
+    missing_value_truncated.state.loaded_data_offset = 0x1111U;
+    missing_value_truncated.state.window_loaded = true;
+    write_u16(
+        missing_value_truncated.state.window, 0x7FFCU, OP_45_SET_ROLE_ACTION_ID
+    );
+    write_u16(missing_value_truncated.state.window, 0x7FFEU, 0x7777U);
+    const auto missing_value_truncated_result = missing_value_truncated.step();
+    test.expect_true(
+        missing_value_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_value_truncated.ports.role_patch_requests.empty() &&
+            missing_value_truncated.context.instruction_offset == 0x7FFCU,
+        "opcode 45 missing-role patch waits for the action-id read"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.roles[1].flags = 0x20U;
+    exact_tail.roles[1].action.action_id = 0xDEADBEEFU;
+    write_u16(exact_tail.state.window, 0x7FFAU, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(exact_tail.state.window, 0x7FFCU, 0x00F8U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0x8008U);
+    exact_tail.state.previous_opcode = 0x55U;
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.action_update_count == 0U &&
+            exact_tail.roles[1].action.action_id == 0x8008U &&
+            exact_tail.roles[1].flags == 0x20U &&
+            exact_tail.context.instruction_offset == 0x7FFAU &&
+            exact_tail.state.previous_opcode == 0x55U,
+        "opcode 45 writes action id before the mandatory next-opcode access"
+    );
+
+    Fixture next_selector_truncated;
+    next_selector_truncated.context.instruction_offset = 0x7FF8U;
+    next_selector_truncated.context.talk_data_offset = 0x1111U;
+    next_selector_truncated.state.loaded_file_number = 1U;
+    next_selector_truncated.state.loaded_data_offset = 0x1111U;
+    next_selector_truncated.state.window_loaded = true;
+    next_selector_truncated.roles[1].flags = 0x20U;
+    write_u16(
+        next_selector_truncated.state.window, 0x7FF8U, OP_45_SET_ROLE_ACTION_ID
+    );
+    write_u16(next_selector_truncated.state.window, 0x7FFAU, 0x00F8U);
+    write_u16(next_selector_truncated.state.window, 0x7FFCU, 0x8009U);
+    write_u16(
+        next_selector_truncated.state.window, 0x7FFEU, OP_45_SET_ROLE_ACTION_ID
+    );
+    next_selector_truncated.state.previous_opcode = 0x55U;
+    const auto next_selector_truncated_result = next_selector_truncated.step();
+    test.expect_true(
+        next_selector_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            next_selector_truncated_result.action_update_count == 0U &&
+            next_selector_truncated.roles[1].action.action_id == 0x8009U &&
+            next_selector_truncated.roles[1].flags == 0x20U &&
+            next_selector_truncated.context.instruction_offset == 0x7FF8U &&
+            next_selector_truncated.state.previous_opcode == 0x55U,
+        "opcode 45 reads a recognized next selector before refresh and bit 12"
+    );
+
+    Fixture unrecognized_tail;
+    unrecognized_tail.context.instruction_offset = 0x7FF8U;
+    unrecognized_tail.context.talk_data_offset = 0x1111U;
+    unrecognized_tail.state.loaded_file_number = 1U;
+    unrecognized_tail.state.loaded_data_offset = 0x1111U;
+    unrecognized_tail.state.window_loaded = true;
+    write_u16(
+        unrecognized_tail.state.window, 0x7FF8U, OP_45_SET_ROLE_ACTION_ID
+    );
+    write_u16(unrecognized_tail.state.window, 0x7FFAU, 0x00F8U);
+    write_u16(unrecognized_tail.state.window, 0x7FFCU, 0x8010U);
+    write_u16(unrecognized_tail.state.window, 0x7FFEU, OP_1025);
+    const auto unrecognized_tail_result = unrecognized_tail.step();
+    test.expect_true(
+        unrecognized_tail_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            unrecognized_tail_result.executed_instruction_count == 2U &&
+            unrecognized_tail_result.action_update_count == 1U &&
+            unrecognized_tail.roles[1].action.action_id == 0x8010U &&
+            (unrecognized_tail.roles[1].flags & 0x1000U) != 0U &&
+            unrecognized_tail.context.instruction_offset == 0x7FFEU &&
+            unrecognized_tail.state.previous_opcode == OP_45_SET_ROLE_ACTION_ID,
+        "opcode 45 unrecognized lookahead needs no following selector"
+    );
+
+    Fixture missing_exact_tail;
+    missing_exact_tail.context.instruction_offset = 0x7FFAU;
+    missing_exact_tail.context.talk_data_offset = 0x1111U;
+    missing_exact_tail.state.loaded_file_number = 1U;
+    missing_exact_tail.state.loaded_data_offset = 0x1111U;
+    missing_exact_tail.state.window_loaded = true;
+    write_u16(
+        missing_exact_tail.state.window, 0x7FFAU, OP_45_SET_ROLE_ACTION_ID
+    );
+    write_u16(missing_exact_tail.state.window, 0x7FFCU, 0x7777U);
+    write_u16(missing_exact_tail.state.window, 0x7FFEU, 0x0333U);
+    const auto missing_exact_tail_result = missing_exact_tail.step();
+    test.expect_true(
+        missing_exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            missing_exact_tail_result.executed_instruction_count == 1U &&
+            missing_exact_tail_result.action_update_count == 0U &&
+            missing_exact_tail.ports.role_patch_requests.size() == 1U &&
+            missing_exact_tail.context.instruction_offset == 0x8000U &&
+            missing_exact_tail.state.previous_opcode ==
+                OP_45_SET_ROLE_ACTION_ID,
+        "opcode 45 missing-role exact tail patches before the next fetch"
+    );
+
+    Fixture invalid_controlled;
+    prime_loaded_instruction(invalid_controlled, OP_45_SET_ROLE_ACTION_ID);
+    write_u16(invalid_controlled.state.window, 2U, 0xFFFEU);
+    write_u16(invalid_controlled.state.window, 4U, 0x8011U);
+    invalid_controlled.state.previous_opcode = 0x55U;
+    const auto invalid_controlled_result = invalid_controlled.step(
+        0, 0, static_cast<u32>(invalid_controlled.roles.size())
+    );
+    test.expect_true(
+        invalid_controlled_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            invalid_controlled_result.opcode == 0U &&
+            invalid_controlled_result.executed_instruction_count == 0U &&
+            invalid_controlled.context.instruction_offset == 0U &&
+            invalid_controlled.state.previous_opcode == 0x55U,
+        "opcode 45 invalid controlled owner stops at the VM session boundary"
     );
 }
 
@@ -8236,6 +8669,42 @@ void test_real_set_role_action_wait_override_record(
     );
 }
 
+void test_real_set_role_action_id_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x000051C9);
+    std::array<u8, 6U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    fixture.roles[1].action.action_id = 0xDEADBEEFU;
+    prime_loaded_instruction(fixture, OP_45_SET_ROLE_ACTION_ID);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 6U, OP_1025);
+    const auto result = fixture.step();
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_45_SET_ROLE_ACTION_ID &&
+            read_u16(instruction, 2U) == 0x00F8U &&
+            read_u16(instruction, 4U) == 0x0223U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.executed_instruction_count == 2U &&
+            result.action_update_count == 1U &&
+            fixture.roles[1].action.action_id == 0x0223U &&
+            (fixture.roles[1].flags & 0x1000U) != 0U &&
+            fixture.context.instruction_offset == 6U &&
+            fixture.state.previous_opcode == OP_45_SET_ROLE_ACTION_ID &&
+            fixture.ports.direct_audio_service_count == 0U,
+        "real opcode 45 changes the requested role action and continues"
+    );
+}
+
 void test_real_set_role_flag_8000_and_clear_one_shots_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -9545,6 +10014,7 @@ int main(const int argument_count, char** arguments) {
     test_jump_if_role_path_prepared_protocol(test);
     test_role_action_chain_update_gate(test);
     test_change_requested_action_id(test);
+    test_change_requested_action_id_failure_ordering(test);
     test_wait_for_role_action_position(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
@@ -9604,6 +10074,7 @@ int main(const int argument_count, char** arguments) {
         test_real_reload_indexed_target_record(test, root);
         test_real_interaction_lock_records(test, root);
         test_real_set_role_action_wait_override_record(test, root);
+        test_real_set_role_action_id_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

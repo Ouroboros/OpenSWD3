@@ -33,7 +33,7 @@ role 命中时，LST 以 `4BABE8 + index*0xD8` 取得 role 内嵌 action 起点�
 5. 两个 helper 都返回零时只执行 `nullsub_1` 诊断；
 6. 无论 helper 返回值，IP 都推进 6，common join 发布 previous=10 并同帧继续。
 
-`sub_42E740` 只在下一条 raw opcode（不做 `&0x3FFF`）恰为 `10/11/45`，且下一条 selector 解析到同一 role 时返回一。因此连续同 role action 指令只在链尾 update；带高位的 `0x400B` 不匹配。已有链测试固定 raw 判定与 callback 次数。
+`sub_42E740`先无条件读取下一条raw opcode；只在它（不做`&0x3FFF`）恰为`10/11/45`时再读取下一条selector，并仅在selector解析到同一role时返回一。因此连续同role action指令只在链尾update；带高位的`0x400B`不匹配。下一opcode不足，或recognized opcode后的selector不足，都发生在当前base variant与wait清零之后、refresh/IP/previous之前。modern三态checked helper和链/窗口尾测试固定了raw判定、分段读取、side-effect顺序与callback次数。
 
 现代 action 字段、wait 清零和 chain helper 已正确；独立重审发现 live path 只缺 common join 的 previous publication，现已补齐。action update 返回零只增加失败观测，不改变原继续合同；纯诊断不伪造业务 callback。
 
@@ -54,7 +54,7 @@ SDL port 已接真实 `LegacyMapsWorldDatabase` patch owner；测试替身固定
 
 ## 4. 受检边界与测试
 
-固定载荷不足 6 bytes 时，现代返回 `operand_out_of_range`，且不修改 role、MAPS、IP、previous 或 action callback。selector `0xFFFE` 在原 resolver 中无条件映射 controlled index；若该 index 越界，原程序会在随后 live action 写入处危险访问而不会走 MAPS fallback。现代在该首个危险点前 checked `role_not_found`，不 patch、不推进、不发布 previous；该 unsafe-domain 回归由 opcode11 独立 REVIEW 发现并补齐。原有效路径没有其他可恢复错误；role/action helper 结果均按原控制流消费。
+固定当前载荷不足6 bytes时，modern返回`operand_out_of_range`，且不修改role、MAPS、IP、previous或action callback。完整当前载荷命中live role后，base variant写与wait清零先完成；若随后next opcode或recognized-next selector越过窗口，则在该原始unsafe读取点返回`operand_out_of_range`，不refresh、不推进、不发布previous，并保留前述两次写。selector`0xFFFE`在原resolver中无条件映射controlled index；若该index越界，原程序会在随后live action写入处危险访问而不会走MAPS fallback。modern在该首个危险点前checked `role_not_found`，不patch、不推进、不发布previous；该unsafe-domain回归由opcode11独立REVIEW发现并补齐。
 
 测试覆盖：
 
@@ -63,6 +63,7 @@ SDL port 已接真实 `LegacyMapsWorldDatabase` patch owner；测试替身固定
 - invalid controlled-role index 在危险 live 写入前 checked-stop 且不误 patch；
 - 短载荷零副作用；
 - raw next `11` 与 `0x400B` 的 coalescing 差异；
+- 当前记录写完后next opcode缺失时，保留base/wait写但阻断refresh/IP/previous；
 - real `TALK1.DAT@0x00004A24` 记录 `0A 00 01 00 00 00`。
 
 ## 5. 资产与验证

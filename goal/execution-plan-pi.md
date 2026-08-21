@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v276
+版本：v277
 
-最后更新：2026-08-20
+最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428E52` handler（opcode 45）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00428F7B` 共享 handler（opcodes 46–49）
 
 ## 0. 执行约定
 
@@ -1676,6 +1676,23 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode为78；workpack当前34/146，即
     `5 assembly_exact + 29 platform_adapted + 112 pending_audit`。
 
+- 剧情VM P2第三十五组`0x00428E52` / opcode45完成独立闭环。六字节handler现按机器顺序先解析
+    角色，再读取并零扩展写入完整u32 action id；live role只在紧邻raw opcode精确为10/11/45且
+    selector解析到同一index时合并action refresh，next alias与`0xFFF0`均不继承current handler的
+    归一化，refresh零返回只诊断，随后完整u32 flags OR `0x1000`。missing live role经MAPS source仅
+    patch action id与flags。REVIEW同时修正共享`sub_42E740`在opcodes10/11中的旧checked近似：found
+    path会在当前action字段写后强制读取next opcode，recognized next还会读取selector；任一窗口越界
+    都保留已完成写入但阻断refresh/flags/IP/previous。资产确认65条唯一记录、68个entry probe，均为
+    raw `0x002D`/长度6，文件分布47/1/14/3；真实lookahead含9次same-role合并及5次recognized但
+    different-role refresh，`TALK1.DAT@0x000051C9`真实回放通过。四raw alias、FFF0/FFFE、bit28
+    首匹配、45→10/11/45合并、next alias/FFF0、refresh失败、MAPS fallback、分阶段operand截断、
+    found/missing两类窗口尾、受控owner、previous、无audio与same-call continuation均通过；共享
+    opcode10/11窗口尾回归也通过。最终剧情VM定向3/3、Linux core 186/186、Linux app 192/192均
+    以exit 0通过；app仅保留既有ALSA开发库warning。生成器`py_compile`及双重生成幂等通过，workpack
+    hash为`877dc274b26c9b6befd67adbbf23c37c2f4e885190c4852c5ec64953e52a86e7`。Windows依v277
+    留到P3，未启动游戏EXE。现代显式opcode仍为78；workpack当前35/146，即
+    `5 assembly_exact + 30 platform_adapted + 111 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428E52` 的opcode45 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00428F7B` 的共享opcodes46–49 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

@@ -36,7 +36,7 @@ role 命中时，LST 以 `4BABE8 + index*0xD8` 取得 role 内嵌 action 起点�
 
 flag 写发生在可选 action update 之后，现代保持该顺序。action update 返回零只增加失败观测，不改变原继续合同；纯诊断不伪造业务 callback。
 
-`sub_42E740` 重新独立核对为：只接受下一条 raw opcode 恰为 `10/11/45`，读取其原始 selector，直接调用 `sub_40C0D0`，且仅在解析 index 与当前 role 相等时返回一。它不 mask raw opcode，也不把下一条 `0xFFF0` 替换为 source guid。现代 helper 的 4-byte 边界、raw 判定和 resolver/index 比较一致。`11→45` 同 role 测试固定了 update 只发生在链尾。
+`sub_42E740`重新独立核对为：先无条件读取下一条raw opcode；只接受精确`10/11/45`，命中后才读取原始selector、直接调用`sub_40C0D0`，且仅在解析index与当前role相等时返回一。它不mask raw opcode，也不把下一条`0xFFF0`替换为source GUID。下一opcode不足，或recognized opcode后的selector不足，都发生在当前variant delta与wait清零之后、refresh/flags/IP/previous之前。modern三态checked helper、`11→45`同role测试及窗口尾测试固定了分段读取、index比较和side-effect顺序。
 
 ## 3. missing role fallback
 
@@ -57,11 +57,11 @@ SDL port 已接真实 `LegacyMapsWorldDatabase` patch owner；测试替身固定
 
 `0xFFFE` 是 controlled-role selector。原 `sub_40C0D0` 对它无条件返回 controlled index 与 success；若 index 越界，程序会在随后 action 写入处危险访问，绝不会走 MAPS fallback。现代 resolver 额外做 bounds check，因此必须区分 ordinary missing role：越界 controlled index 在首个 live 写入前返回 checked `role_not_found`，不 patch MAPS、不推进 IP、不发布 previous，也不调用 action update。该平台适配同时回归 opcode10 的共享分支。
 
-固定载荷不足 6 bytes 时返回 `operand_out_of_range`，且不修改 role、MAPS、IP、previous 或 callback。原路径在首次业务写入前只有读取与 lookup；现代提前边界检查没有吞掉可见副作用。
+固定当前载荷不足6 bytes时返回`operand_out_of_range`，且不修改role、MAPS、IP、previous或callback。完整当前载荷命中live role后，variant delta与wait清零先完成；若随后next opcode或recognized-next selector越过窗口，则在该原始unsafe读取点返回`operand_out_of_range`，不refresh、不置flags、不推进、不发布previous，并保留前述两次写。原路径在首次业务写入前只有读取与lookup；modern checked边界没有吞掉可见副作用。
 
 ## 5. 测试、资产与验证
 
-测试覆盖：四个 raw alias 的 live mutation/wait/flags/update/IP/previous；ordinary missing-role exact patch；invalid controlled-role checked-stop；短载荷；`11→45` same-role coalescing；以及 real `TALK1.DAT@0x00004A2E` 的 `0B 00 01 00 00 00`。
+测试覆盖：四个raw alias的live mutation/wait/flags/update/IP/previous；ordinary missing-role exact patch；invalid controlled-role checked-stop；短载荷；`11→45` same-role coalescing；recognized next opcode缺selector时保留variant/wait写但阻断refresh/flags/IP/previous；以及real `TALK1.DAT@0x00004A2E`的`0B 00 01 00 00 00`。
 
 完整线性 TALK 目录含 opcode11 物理记录 1234 条：
 
