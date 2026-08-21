@@ -138,6 +138,7 @@ using openswd3::world_map::OP_108_SET_NEXT_DIALOG_ANCHOR;
 using openswd3::world_map::OP_109_STEP_ROLES;
 using openswd3::world_map::OP_110_RELOAD_IF_NO_SECONDARY_ROLE_BIT30;
 using openswd3::world_map::OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30;
+using openswd3::world_map::OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -6619,6 +6620,172 @@ void test_secondary_role_bit30_reload_protocol(openswd3::test::Context& test) {
             sequential_tail.ports.data_load_count == 0U,
         "opcodes 110 and 111 preserve reload and sequential exact tails"
     );
+}
+
+void test_wait_overlay_action_lists_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        std::list<openswd3::rendering::LegacyPackedRowEffect> packed_rows(1U);
+        openswd3::world_map::LegacyMovingActionList moving_actions(1U);
+        fixture.runtime.packed_row_effects = &packed_rows;
+        fixture.runtime.moving_actions = &moving_actions;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS | alias_mask
+            )
+        );
+        fixture.state.previous_opcode = 0x66U;
+        u32 previous_seen_by_audio{};
+        u16 ip_seen_by_audio{};
+        fixture.ports.audio_service_callback = [&] {
+            previous_seen_by_audio = fixture.state.previous_opcode;
+            ip_seen_by_audio = fixture.context.instruction_offset;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode ==
+                    OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS &&
+                previous_seen_by_audio ==
+                    OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS &&
+                ip_seen_by_audio == 0U && packed_rows.size() == 1U &&
+                moving_actions.size() == 1U &&
+                fixture.ports.story_protocol_events == std::vector<u32>{2U},
+            "opcode 112 aliases short-circuit on the packed-row list"
+        );
+    }
+
+    Fixture role_head_wait;
+    std::list<openswd3::rendering::LegacyPackedRowEffect> empty_packed_rows;
+    openswd3::world_map::LegacyRoleHeadActionList role_head_actions(1U);
+    openswd3::world_map::LegacyMovingActionList waiting_moving_actions(1U);
+    role_head_wait.runtime.packed_row_effects = &empty_packed_rows;
+    role_head_wait.runtime.role_head_actions = &role_head_actions;
+    role_head_wait.runtime.moving_actions = &waiting_moving_actions;
+    prime_loaded_instruction(
+        role_head_wait, OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS
+    );
+    role_head_wait.state.previous_opcode = 0x66U;
+    const auto role_head_result = role_head_wait.step();
+    test.expect_true(
+        role_head_result.status == LegacyWorldStoryVmStatus::yielded &&
+            role_head_result.executed_instruction_count == 1U &&
+            role_head_result.direct_audio_service_count == 1U &&
+            role_head_wait.context.instruction_offset == 0U &&
+            role_head_wait.state.previous_opcode ==
+                OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS &&
+            role_head_actions.size() == 1U &&
+            waiting_moving_actions.size() == 1U,
+        "opcode 112 waits when only the role-head action list is nonempty"
+    );
+
+    Fixture completed;
+    std::list<openswd3::rendering::LegacyPackedRowEffect> completed_rows;
+    openswd3::world_map::LegacyRoleHeadActionList completed_heads;
+    openswd3::world_map::LegacyMovingActionList retained_moving_actions(1U);
+    completed.runtime.packed_row_effects = &completed_rows;
+    completed.runtime.role_head_actions = &completed_heads;
+    completed.runtime.moving_actions = &retained_moving_actions;
+    prime_loaded_instruction(
+        completed, OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS
+    );
+    write_u16(completed.state.window, 2U, OP_1025);
+    completed.state.previous_opcode = 0x66U;
+    const auto completed_result = completed.step();
+    test.expect_true(
+        completed_result.status == LegacyWorldStoryVmStatus::yielded &&
+            completed_result.opcode ==
+                OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS &&
+            completed_result.executed_instruction_count == 1U &&
+            completed_result.direct_audio_service_count == 1U &&
+            completed.context.instruction_offset == 2U &&
+            completed.state.previous_opcode ==
+                OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS &&
+            retained_moving_actions.size() == 1U,
+        "opcode 112 completes but still yields and ignores moving actions"
+    );
+
+    Fixture packed_owner_missing;
+    openswd3::world_map::LegacyRoleHeadActionList untouched_heads(1U);
+    packed_owner_missing.runtime.role_head_actions = &untouched_heads;
+    prime_loaded_instruction(
+        packed_owner_missing, OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS
+    );
+    packed_owner_missing.state.previous_opcode = 0x66U;
+    const auto packed_missing_result = packed_owner_missing.step();
+
+    Fixture head_owner_missing;
+    std::list<openswd3::rendering::LegacyPackedRowEffect> available_rows;
+    head_owner_missing.runtime.packed_row_effects = &available_rows;
+    prime_loaded_instruction(
+        head_owner_missing, OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS
+    );
+    head_owner_missing.state.previous_opcode = 0x66U;
+    const auto head_missing_result = head_owner_missing.step();
+
+    test.expect_true(
+        packed_missing_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            packed_owner_missing.context.instruction_offset == 0U &&
+            packed_owner_missing.state.previous_opcode == 0x66U &&
+            packed_missing_result.direct_audio_service_count == 0U &&
+            untouched_heads.size() == 1U &&
+            head_missing_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            head_owner_missing.context.instruction_offset == 0U &&
+            head_owner_missing.state.previous_opcode == 0x66U &&
+            head_missing_result.direct_audio_service_count == 0U,
+        "opcode 112 checks typed list owners in machine access order"
+    );
+
+    for (const bool wait_at_tail : {false, true}) {
+        Fixture exact_tail;
+        std::list<openswd3::rendering::LegacyPackedRowEffect> tail_rows;
+        if (wait_at_tail) {
+            tail_rows.emplace_back();
+        }
+        openswd3::world_map::LegacyRoleHeadActionList tail_heads;
+        openswd3::world_map::LegacyMovingActionList tail_moving(1U);
+        exact_tail.runtime.packed_row_effects = &tail_rows;
+        exact_tail.runtime.role_head_actions = &tail_heads;
+        exact_tail.runtime.moving_actions = &tail_moving;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFEU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_u16(
+            exact_tail.state.window,
+            0x7FFEU,
+            OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS
+        );
+
+        const auto tail_result = exact_tail.step();
+        test.expect_true(
+            tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+                tail_result.executed_instruction_count == 1U &&
+                tail_result.direct_audio_service_count == 1U &&
+                exact_tail.context.instruction_offset ==
+                    (wait_at_tail ? 0x7FFEU : 0x8000U) &&
+                exact_tail.state.previous_opcode ==
+                    OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS &&
+                tail_moving.size() == 1U,
+            "opcode 112 preserves waiting and completed exact tails"
+        );
+    }
 }
 
 void test_release_role_path_protocol(openswd3::test::Context& test) {
@@ -20713,6 +20880,59 @@ void test_real_secondary_role_bit30_reload_record(
     );
 }
 
+void test_real_wait_overlay_action_lists_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x000307D8);
+    std::array<u8, 4U> record{};
+    input.read(
+        reinterpret_cast<char*>(record.data()),
+        static_cast<std::streamsize>(record.size())
+    );
+    const bool record_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    prime_loaded_instruction(
+        fixture, OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS
+    );
+    std::ranges::copy(record, fixture.state.window.begin());
+    std::list<openswd3::rendering::LegacyPackedRowEffect> packed_rows;
+    openswd3::world_map::LegacyRoleHeadActionList role_heads(1U);
+    openswd3::world_map::LegacyMovingActionList moving_actions(1U);
+    fixture.runtime.packed_row_effects = &packed_rows;
+    fixture.runtime.role_head_actions = &role_heads;
+    fixture.runtime.moving_actions = &moving_actions;
+    fixture.state.previous_opcode = 0x66U;
+
+    const auto waiting_result = fixture.step();
+    const u16 waiting_ip = fixture.context.instruction_offset;
+    const u32 waiting_previous = fixture.state.previous_opcode;
+    role_heads.clear();
+    const auto completed_result = fixture.step();
+
+    test.expect_true(
+        record_read &&
+            read_u16(record, 0U) ==
+                OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS &&
+            read_u16(record, 2U) == OP_26_CLEAR_GLOBAL_BIT &&
+            waiting_result.status == LegacyWorldStoryVmStatus::yielded &&
+            waiting_result.executed_instruction_count == 1U &&
+            waiting_result.direct_audio_service_count == 1U &&
+            waiting_ip == 0U &&
+            waiting_previous == OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS &&
+            completed_result.status == LegacyWorldStoryVmStatus::yielded &&
+            completed_result.executed_instruction_count == 1U &&
+            completed_result.direct_audio_service_count == 1U &&
+            fixture.context.instruction_offset == 2U &&
+            fixture.state.previous_opcode ==
+                OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS &&
+            fixture.ports.direct_audio_service_count == 2U &&
+            moving_actions.size() == 1U,
+        "real opcode 112 waits for both overlay lists and ignores moving actions"
+    );
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -22770,6 +22990,7 @@ int main(const int argument_count, char** arguments) {
     test_set_next_dialog_anchor_protocol(test);
     test_step_role_list_protocol(test);
     test_secondary_role_bit30_reload_protocol(test);
+    test_wait_overlay_action_lists_protocol(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);
@@ -22921,6 +23142,7 @@ int main(const int argument_count, char** arguments) {
         test_real_wait_role_action_index_records(test, root);
         test_real_step_role_list_records(test, root);
         test_real_secondary_role_bit30_reload_record(test, root);
+        test_real_wait_overlay_action_lists_record(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

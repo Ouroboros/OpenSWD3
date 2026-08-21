@@ -119,6 +119,8 @@ byte >  threshold  -> 推进 4，ESI=1，同帧继续
 
 112 只检查 `dword_4BAB9C` framebuffer 区域效果链和 `dword_4BA6E0` 角色头像 action 链。任一非空时不推进；两者都为空时推进两字节。两条路径的 `ESI` 都保持零，所以即便成功也立即让出。`dword_4AD3E8` 移动 action 链不在谓词内。
 
+opcode112现已独立闭环：packed-row链先读且非空时短路第二链，role-head链只在首链为空时读取；等待与完成均发布previous112、service audio并yield，完成不same-call。线性资产锁定9条记录/9 probes，代表记录先等待role-head链、清空后完成，同时保留非空moving-action链。完整证据见[`story-vm-overlay-action-lists-wait-0042b70c.md`](story-vm-overlay-action-lists-wait-0042b70c.md)。
+
 ## opcode 109、110、111、116：批量角色处理与条件转移
 
 109 的物理格式是 `u16 count` 后跟 `count` 个 `u16` selector。每项 lookup 成功才调用 `sub_42E280`；该 helper 协调角色与地图对象，并按关联结果设置或清理角色 bit30 等状态。失败项静默跳过，helper 返回值全部忽略。handler 自身不把 `FFF0` 换成当前状态，但 `sub_40C0D0` 的 `FFFE` 特例仍存在。
