@@ -1,6 +1,7 @@
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
 
 #include "openswd3/world_map/legacy_world_facing.hpp"
+#include "openswd3/world_map/legacy_world_frame_composition.hpp"
 #include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
 #include "openswd3/world_map/legacy_world_role_lookup.hpp"
 
@@ -2873,26 +2874,22 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
-        case 60U:
+        case OP_60_RESUME_WORLD_SCENE_RENDERING:
+        case OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING:
             if (runtime.scene_render_flags == nullptr) {
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
                 return result;
             }
-            *runtime.scene_render_flags &= static_cast<u8>(~u8{1U});
-            context.instruction_offset =
-                static_cast<u16>(context.instruction_offset + 2U);
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
-
-        case 61U:
-            if (runtime.scene_render_flags == nullptr) {
-                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
-                return result;
+            *runtime.scene_render_flags &=
+                static_cast<u8>(~kLegacyWorldFrameClearOnly);
+            if (result.opcode ==
+                OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING) {
+                ports.clear_story_framebuffer();
+                *runtime.scene_render_flags |= kLegacyWorldFrameClearOnly;
             }
-            ports.clear_story_framebuffer();
-            *runtime.scene_render_flags |= 1U;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 

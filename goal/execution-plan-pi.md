@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v286
+版本：v287
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00429693` shared handler（opcodes 60, 61）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x004296DE` handler（opcode 62）
 
 ## 0. 执行约定
 
@@ -1826,6 +1826,20 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode仍为88；workpack当前44/146，即
     `5 assembly_exact + 39 platform_adapted + 102 pending_audit`。
 
+- 剧情VM P2第四十五组`0x00429693` / shared opcodes60、61完成独立闭环。LST两路先共同清
+    `dword_4C9A18` bit0：60直接推进2字节，61在bit0已清状态下以`rep stosd`清零
+    `0x25800`个dword / `0x96000`字节完整16位framebuffer，再只把低字节bit0置回1；两路均
+    发布normalized previous并让出。原C++的60低位flag效果与SDL清屏端口已存在，但61漏了清屏
+    前清bit、两路均漏发previous且case为裸数字；现已合并语义case并恢复顺序。两opcode×四raw
+    alias、初始`0xA5`其余bit保留、清屏时中间值`0xA4`、两路owner缺失、两路`0x7FFE`精确尾与
+    TALK1各一条真实记录均通过。资产锁定60为21条、61为20条，共41条物理记录/41 probes，全部
+    低位raw、长度2；唯一`0x403D`字样位于TALK1文件头dword目录，不是指令入口。最终剧情VM定向
+    3/3、Linux core 186/186、Linux app 192/192均exit 0；app仅保留既有ALSA开发库warning。
+    生成器`py_compile`及双重生成幂等通过，workpack hash为
+    `853625a20a99f0d342b25d5d7478c0467dd96acd670fe71829d1a4dad8aa6909`。Windows依v287留到P3，
+    未启动游戏EXE。现代显式opcode仍为88；workpack当前45/146，即
+    `5 assembly_exact + 40 platform_adapted + 101 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00429693` 的共享opcodes60、61 handler；现有导航语义与既有实现均不继承完成状态。
+`0x004296DE` 的opcode62 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

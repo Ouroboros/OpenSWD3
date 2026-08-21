@@ -86,6 +86,8 @@ using openswd3::world_map::OP_56_SET_ROLE_SPATIAL_GROUP_0;
 using openswd3::world_map::OP_57_SET_ROLE_SPATIAL_GROUP_2;
 using openswd3::world_map::OP_58_ENQUEUE_PRIMARY_PICTURE_ACTION;
 using openswd3::world_map::OP_59_PLAY_SOUND_EFFECT;
+using openswd3::world_map::OP_60_RESUME_WORLD_SCENE_RENDERING;
+using openswd3::world_map::OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
@@ -267,6 +269,9 @@ public:
 
     void clear_story_framebuffer() noexcept override {
         ++framebuffer_clear_count;
+        if (framebuffer_clear_callback) {
+            framebuffer_clear_callback();
+        }
     }
 
     void present_story_framebuffer() noexcept override {
@@ -321,6 +326,7 @@ public:
     u32 action_update_result{1U};
     std::function<void(openswd3::asset_runtime::LegacyActionRecord&, u32)>
         action_update_callback;
+    std::function<void()> framebuffer_clear_callback;
     u32 framebuffer_clear_count{};
     u32 framebuffer_present_count{};
     u32 video_begin_count{};
@@ -9747,6 +9753,106 @@ void test_play_sound_effect_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_shared_scene_render_control_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    constexpr std::array<u16, 2U> opcodes{
+        OP_60_RESUME_WORLD_SCENE_RENDERING,
+        OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING,
+    };
+    for (const u16 opcode : opcodes) {
+        for (const u16 alias_mask : alias_masks) {
+            Fixture fixture;
+            u8 scene_render_flags{0xA5U};
+            std::vector<u8> flags_during_clear;
+            fixture.runtime.scene_render_flags = &scene_render_flags;
+            fixture.ports.framebuffer_clear_callback = [&]() noexcept {
+                flags_during_clear.push_back(scene_render_flags);
+            };
+            prime_loaded_instruction(
+                fixture, static_cast<u16>(opcode | alias_mask)
+            );
+            fixture.state.previous_opcode = 0x66U;
+
+            const auto result = fixture.step();
+            const bool suspends =
+                opcode == OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING;
+
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                    result.opcode == opcode &&
+                    result.executed_instruction_count == 1U &&
+                    scene_render_flags == (suspends ? 0xA5U : 0xA4U) &&
+                    flags_during_clear ==
+                        (suspends ? std::vector<u8>{0xA4U}
+                                  : std::vector<u8>{}) &&
+                    fixture.ports.framebuffer_clear_count ==
+                        (suspends ? 1U : 0U) &&
+                    fixture.context.instruction_offset == 2U &&
+                    fixture.state.previous_opcode == opcode,
+                "shared opcodes 60 and 61 preserve aliases, clear bit zero before the optional framebuffer clear, publish previous and yield"
+            );
+        }
+    }
+
+    for (const u16 opcode : opcodes) {
+        Fixture unavailable;
+        prime_loaded_instruction(unavailable, opcode);
+        unavailable.state.previous_opcode = 0x66U;
+
+        const auto result = unavailable.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::runtime_unavailable &&
+                result.opcode == opcode &&
+                result.executed_instruction_count == 1U &&
+                unavailable.ports.framebuffer_clear_count == 0U &&
+                unavailable.context.instruction_offset == 0U &&
+                unavailable.state.previous_opcode == 0x66U,
+            "shared opcodes 60 and 61 typed-stop before effects when the scene flag owner is unavailable"
+        );
+    }
+
+    for (const u16 opcode : opcodes) {
+        Fixture exact_tail;
+        u8 scene_render_flags{0xA5U};
+        std::vector<u8> flags_during_clear;
+        exact_tail.runtime.scene_render_flags = &scene_render_flags;
+        exact_tail.ports.framebuffer_clear_callback = [&]() noexcept {
+            flags_during_clear.push_back(scene_render_flags);
+        };
+        exact_tail.context.instruction_offset = 0x7FFEU;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_u16(exact_tail.state.window, 0x7FFEU, opcode);
+
+        const auto result = exact_tail.step();
+        const bool suspends =
+            opcode == OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING;
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == opcode &&
+                result.executed_instruction_count == 1U &&
+                scene_render_flags == (suspends ? 0xA5U : 0xA4U) &&
+                flags_during_clear ==
+                    (suspends ? std::vector<u8>{0xA4U} : std::vector<u8>{}) &&
+                exact_tail.ports.framebuffer_clear_count ==
+                    (suspends ? 1U : 0U) &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode == opcode,
+            "shared opcodes 60 and 61 complete effects and publication at the exact window tail"
+        );
+    }
+}
+
 void test_wait_for_frame_color_transition(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::rendering::LegacyFrameColorTransitionState frame_color{
@@ -11385,6 +11491,62 @@ void test_real_play_sound_effect_records(
     );
 }
 
+void test_real_shared_scene_render_control_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    const auto read_record =
+        [&root](const std::streamoff file_offset) -> std::array<u8, 2U> {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(file_offset);
+        std::array<u8, 2U> instruction{};
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        return instruction;
+    };
+    const auto suspend = read_record(0x000044E3);
+    const auto resume = read_record(0x000046B6);
+
+    Fixture fixture;
+    u8 scene_render_flags{0xA5U};
+    std::vector<u8> flags_during_clear;
+    fixture.runtime.scene_render_flags = &scene_render_flags;
+    fixture.ports.framebuffer_clear_callback = [&]() noexcept {
+        flags_during_clear.push_back(scene_render_flags);
+    };
+    const auto execute = [&fixture](const std::array<u8, 2U>& instruction) {
+        prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+        std::ranges::copy(instruction, fixture.state.window.begin());
+        fixture.state.previous_opcode = 0x66U;
+        return fixture.step();
+    };
+    const auto suspend_result = execute(suspend);
+    const u8 flags_after_suspend = scene_render_flags;
+    const auto resume_result = execute(resume);
+
+    test.expect_true(
+        read_u16(suspend, 0U) ==
+                OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING &&
+            read_u16(resume, 0U) == OP_60_RESUME_WORLD_SCENE_RENDERING &&
+            suspend_result.status == LegacyWorldStoryVmStatus::yielded &&
+            suspend_result.opcode ==
+                OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING &&
+            suspend_result.executed_instruction_count == 1U &&
+            resume_result.status == LegacyWorldStoryVmStatus::yielded &&
+            resume_result.opcode == OP_60_RESUME_WORLD_SCENE_RENDERING &&
+            resume_result.executed_instruction_count == 1U &&
+            flags_during_clear == std::vector<u8>{0xA4U} &&
+            flags_after_suspend == 0xA5U && scene_render_flags == 0xA4U &&
+            fixture.ports.framebuffer_clear_count == 1U &&
+            fixture.context.instruction_offset == 2U &&
+            fixture.state.previous_opcode == OP_60_RESUME_WORLD_SCENE_RENDERING,
+        "real opcodes 61 and 60 clear and suspend the world scene, then resume it"
+    );
+}
+
 void test_real_shared_picture_action_enqueue_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -13005,6 +13167,7 @@ int main(const int argument_count, char** arguments) {
     test_shared_picture_action_enqueue_protocol(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_protocol(test);
+    test_shared_scene_render_control_protocol(test);
     test_wait_for_frame_color_transition(test);
     test_turn_role_toward_role(test);
     test_set_role_head_sign_action(test);
@@ -13048,6 +13211,7 @@ int main(const int argument_count, char** arguments) {
         test_real_shared_role_spatial_group_records(test, root);
         test_real_shared_picture_action_enqueue_records(test, root);
         test_real_play_sound_effect_records(test, root);
+        test_real_shared_scene_render_control_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

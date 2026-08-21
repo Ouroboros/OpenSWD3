@@ -67,9 +67,9 @@ duration 为零时没有前置保护，直接进入 x87 除法。modern已按del
 
 SDL端口每个世界帧使用当前mix level调用已审计`audio_video::play_legacy_sample`；资源上界检查与后端替换只隔离原版裸目录/Miles无效域。资产锁定740条物理记录/740个probe，分布224/155/279/82，全部raw `0x003B`、长度4；93种声音编号范围1..656，高位alias字样为0。完整证据见[`story-vm-sound-effect-0042967b.md`](story-vm-sound-effect-0042967b.md)。
 
-60 清 `dword_4C9A18` bit0。61 对 `dword_4CD76C` 指向的 framebuffer 执行 `rep stosd`，固定清零 `0x25800` 个 dword，即 `0x96000` 字节，然后置 bit0。61 不检查 framebuffer 指针；两条指令都推进两字节并让出。
+60、61共享入口并先把`dword_4C9A18` bit0清零；normalized delta不是1的60直接进入+2尾。61在bit0已清状态下从`dword_4CD76C`取裸framebuffer指针，以`rep stosd`固定清零`0x25800`个dword，再重新读取flags并只把低字节bit0置1。两条均保留其余flag、推进2字节、发布normalized previous并让出；原版无framebuffer空指针检查，故裸指针故障会保留先前清位且阻止重新置位、推进和发布。
 
-`0x96000 = 640 × 480 × 2` 进一步固定了这里操作的是完整 16 位逻辑 framebuffer，而不是 SDL3 或 DirectDraw 的展示 surface。未来 SDL3 平台层必须保留这块软件缓冲及原始时序。
+`0x96000 = 640 × 480 × 2`固定了完整16位逻辑framebuffer，而不是SDL或DirectDraw展示surface。modern `kLegacyWorldFrameClearOnly`以低`u8`建模已知flags，SDL端口清零`LegacyFramebuffer::physical_pixels()`这一同尺寸持有型span；owner缺失在任何效果前typed-stop。资产锁定60为21条、61为20条，共41条物理记录/41 probes，全部低位raw且长度2；唯一高位alias字样`0x403D`位于TALK1文件头dword目录，不是指令入口。TALK1各一条真实记录回放锁定了清位→清屏→置位与随后恢复场景顺序。完整证据见[`story-vm-scene-render-control-00429693.md`](story-vm-scene-render-control-00429693.md)。
 
 ## opcode 62：多重继承的地图角色 upsert
 
