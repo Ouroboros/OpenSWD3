@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v321
+版本：v322
 
 最后更新：2026-08-21
 
@@ -2245,6 +2245,19 @@ B7 P0 有限收口完成。
     111/198、已验收103/198；内部workpack78/146，即`9 assembly_exact + 69 platform_adapted +
     68 pending_audit`。
 
+- 剧情VM P2第七十九组`0x0042B3B0` / opcode100完成独立闭环。机器在selector替换或lookup前
+    staged读取`u16(+2)` selector与`u16(+4)` Talk script number；`FFF0`映射current source GUID，
+    `FFFE`保持helper-native受控角色规则。命中live role时只写`talk_script_id`；missing时以Talk值、
+    OR0、AND FFFF和其余FFFF sentinel提交精确MAPS role-source patch。两路均推进6、发布previous100
+    并same-call，Talk值不做范围或sentinel验证。modern复用已集成typed MAPS database port，保持
+    无world-session owner或source GUID不存在时无伪造写入。四raw alias、`FFFF`值、双operand截断、
+    精确尾和四TALK文件代表记录通过。资产锁192条/192 probes，全部raw`0064`、长度6，分布
+    `49/14/47/82`；Talk范围0..6909。格式化后剧情VM3/3、MAPS依赖3/3、Linux core186/186、
+    Linux app192/192均exit0；测试时间分别0.61/0.11/24.82/24.30秒。workpack双生成hash为
+    `2eb063a44643f25b7fc1e2c743115b665b910274515f26bbec2197380a600303`。未启动游戏EXE；
+    Windows依阶段规则留到P2完成门。现代显式opcode增至112；对外进度为已实现112/198、已验收
+    104/198；内部workpack79/146，即`9 assembly_exact + 70 platform_adapted + 67 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042B3B0` 的opcode100 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042B43B` 的opcode101 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

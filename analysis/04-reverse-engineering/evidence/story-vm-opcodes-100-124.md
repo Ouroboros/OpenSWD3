@@ -9,7 +9,7 @@
 ## 操作摘要
 
 | opcode | 当前中性操作名 | 汇编行为摘要 |
-|---:|---|---|
+| ---: | --- | --- |
 | `100` | 设置角色 Talk 脚本编号 | 找到角色时写 `role+0x1E`，否则走 pending-role helper |
 | `101` | 置角色状态 bit26 | 找不到角色时静默消费 |
 | `102/103/117` | 按布尔值置/清角色 bit6/5/4 | 清位后按非零参数置位，并刷新两类角色派生状态 |
@@ -39,6 +39,8 @@ TALK 全分支候选图观察到本批次 20/25 个值；未观察的是 `108/11
 
 找不到角色时，100 不丢弃写入意图，而是以大量 `FFFF` 保留值调用 `sub_40D460`，把 `+4` 放进对应 pending-role 字段。指令始终推进六字节并同帧继续；没有脚本编号范围检查。
 
+opcode100现已独立闭环：两个operand在selector替换/lookup前完整staged；live路径只写`talk_script_id`，missing路径提交精确Talk-only MAPS patch，并保持`FFF0` current source、helper-native `FFFE`、+6、previous100与same-call。四raw alias、`FFFF`值、双operand截断和精确尾通过。资产锁192条/192 probes，全部raw`0064`、长度6，分布`49/14/47/82`；Talk范围0..6909，TALK1/2/3/4四条代表记录在missing路径真实回放。完整证据见[`story-vm-role-talk-script-write-0042b3b0.md`](story-vm-role-talk-script-write-0042b3b0.md)。
+
 101 同样处理 `FFF0`，但只在 lookup 成功时执行：
 
 ```text
@@ -52,7 +54,7 @@ role[index].status |= 0x04000000
 三条指令在 `0x0042C567` 二次分派，只改变掩码：
 
 | opcode | 掩码 | 角色状态位 |
-|---:|---:|---:|
+| ---: | ---: | ---: |
 | `102` | `0x40` | bit6 |
 | `103` | `0x20` | bit5 |
 | `117` | `0x10` | bit4 |
@@ -116,7 +118,7 @@ byte >  threshold  -> 推进 4，ESI=1，同帧继续
 110/111 从角色 index 1 开始扫描到 `dword_49E0C4-1`，只测试 `role+0x10` bit30；index 0 永远跳过。随后按 `+2` 的 `u32` TALK 目标决定顺序推进或调用 `sub_42E430` 转移窗口：
 
 | opcode | 转移条件 | 顺序消费条件 |
-|---:|---|---|
+| ---: | --- | --- |
 | `110` | 没有次要角色带 bit30 | 至少一个带 bit30 |
 | `111` | 至少一个次要角色带 bit30 | 一个都没有 |
 

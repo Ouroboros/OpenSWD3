@@ -126,6 +126,7 @@ using openswd3::world_map::OP_96_BEGIN_CUSTOM_ANI;
 using openswd3::world_map::OP_97_WAIT_CUSTOM_ANI_COMPLETE;
 using openswd3::world_map::OP_98_CONSUME_FOUR_BYTE_NOOP;
 using openswd3::world_map::OP_99_WAIT_CUSTOM_ANI_PHASE;
+using openswd3::world_map::OP_100_SET_ROLE_TALK_SCRIPT;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
@@ -15453,6 +15454,146 @@ void test_wait_custom_ani_phase_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_set_role_talk_script_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        const u16 raw_word =
+            static_cast<u16>(OP_100_SET_ROLE_TALK_SCRIPT | alias_mask);
+        fixture.roles[1].talk_script_id = 0x1111U;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0x00F8U);
+        write_u16(fixture.state.window, 4U, 0x8001U);
+        write_u16(fixture.state.window, 6U, OP_95_CLEAR_SCENE_RENDER_BIT1);
+        u8 scene_render_flags = 0xA7U;
+        fixture.runtime.scene_render_flags = &scene_render_flags;
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                result.opcode == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 8U &&
+                fixture.roles[1].talk_script_id == 0x8001U &&
+                fixture.state.previous_opcode ==
+                    OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                fixture.ports.role_patch_requests.empty() &&
+                scene_render_flags == 0xA5U,
+            "opcode 100 aliases update the live role Talk script and continue in the same call"
+        );
+    }
+
+    Fixture current_source;
+    current_source.roles[1].talk_script_id = 0x1111U;
+    prime_loaded_instruction(current_source, OP_100_SET_ROLE_TALK_SCRIPT);
+    write_u16(current_source.state.window, 2U, 0xFFF0U);
+    write_u16(current_source.state.window, 4U, 0xFFFFU);
+    write_u16(current_source.state.window, 6U, OP_1025);
+    const auto current_source_result = current_source.step();
+    test.expect_true(
+        current_source_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            current_source_result.executed_instruction_count == 2U &&
+            current_source.roles[1].talk_script_id == 0xFFFFU &&
+            current_source.roles[0].talk_script_id == 0U &&
+            current_source.state.previous_opcode ==
+                OP_100_SET_ROLE_TALK_SCRIPT &&
+            read_u16(current_source.state.window, 2U) == 0xFFF0U,
+        "opcode 100 translates FFF0 to the current source and does not validate the Talk script number"
+    );
+
+    Fixture controlled;
+    controlled.roles[1].guid = 0xFFFEU;
+    controlled.roles[1].talk_script_id = 0x1111U;
+    controlled.roles[2].talk_script_id = 0x2222U;
+    prime_loaded_instruction(controlled, OP_100_SET_ROLE_TALK_SCRIPT);
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    write_u16(controlled.state.window, 4U, 0x3456U);
+    write_u16(controlled.state.window, 6U, OP_1025);
+    const auto controlled_result = controlled.step(0, 0, 2U);
+    test.expect_true(
+        controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled.roles[1].talk_script_id == 0x1111U &&
+            controlled.roles[2].talk_script_id == 0x3456U &&
+            controlled.state.previous_opcode == OP_100_SET_ROLE_TALK_SCRIPT,
+        "opcode 100 preserves helper-native FFFE controlled-role selection"
+    );
+
+    Fixture missing;
+    prime_loaded_instruction(missing, OP_100_SET_ROLE_TALK_SCRIPT);
+    write_u16(missing.state.window, 2U, 0x7777U);
+    write_u16(missing.state.window, 4U, 0x4567U);
+    write_u16(missing.state.window, 6U, OP_1025);
+    const auto missing_result = missing.step();
+    const auto patch = missing.ports.role_patch_requests.empty()
+        ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+        : missing.ports.role_patch_requests.front();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            missing_result.executed_instruction_count == 2U &&
+            missing.ports.role_patch_requests.size() == 1U &&
+            patch.guid == 0x7777U && patch.action_id == 0xFFFFU &&
+            patch.base_variant == 0xFFFFU && patch.variant_delta == 0xFFFFU &&
+            patch.tile_x == 0xFFFFU && patch.tile_y == 0xFFFFU &&
+            patch.talk_script_id == 0x4567U && patch.path_data_id == 0xFFFFU &&
+            patch.flags_or_mask == 0U && patch.flags_and_mask == 0xFFFFU &&
+            patch.logical_map_id == 0xFFFFU &&
+            missing.context.instruction_offset == 6U &&
+            missing.state.previous_opcode == OP_100_SET_ROLE_TALK_SCRIPT,
+        "opcode 100 missing role submits the exact Talk-only MAPS patch"
+    );
+
+    Fixture truncated;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.context.instruction_offset = 0x7FFCU;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x55U;
+    truncated.roles[1].talk_script_id = 0x1111U;
+    write_u16(truncated.state.window, 0x7FFCU, OP_100_SET_ROLE_TALK_SCRIPT);
+    write_u16(truncated.state.window, 0x7FFEU, 0x00F8U);
+
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.context.instruction_offset == 0x7FFCU &&
+            truncated.state.previous_opcode == 0x55U &&
+            truncated.roles[1].talk_script_id == 0x1111U &&
+            truncated.ports.role_patch_requests.empty(),
+        "opcode 100 stages both operands before role lookup or MAPS mutation"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    write_u16(exact_tail.state.window, 0x7FFAU, OP_100_SET_ROLE_TALK_SCRIPT);
+    write_u16(exact_tail.state.window, 0x7FFCU, 0x00F8U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0x2468U);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.roles[1].talk_script_id == 0x2468U &&
+            exact_tail.state.previous_opcode == OP_100_SET_ROLE_TALK_SCRIPT,
+        "opcode 100 commits the Talk update and previous before the next exact-tail fetch fails"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -18470,6 +18611,65 @@ void test_real_wait_custom_ani_phase_records(
     }
 }
 
+void test_real_set_role_talk_script_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        u16 selector;
+        u16 talk_script_id;
+    };
+    constexpr std::array<RealCase, 4U> cases{
+        RealCase{"TALK1.DAT", 0x00043399, 0x0019U, 0U},
+        RealCase{"TALK2.DAT", 0x00013B3F, 0x0068U, 0U},
+        RealCase{"TALK3.DAT", 0x00002E44, 0x000EU, 0U},
+        RealCase{"TALK4.DAT", 0x0000488B, 0x0252U, 6421U},
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 6U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFAU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFAU);
+
+        const auto result = fixture.step();
+        const auto patch = fixture.ports.role_patch_requests.empty()
+            ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+            : fixture.ports.role_patch_requests.front();
+        test.expect_true(
+            record_read &&
+                read_u16(record, 0U) == OP_100_SET_ROLE_TALK_SCRIPT &&
+                read_u16(record, 2U) == real_case.selector &&
+                read_u16(record, 4U) == real_case.talk_script_id &&
+                result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.previous_opcode == OP_100_SET_ROLE_TALK_SCRIPT &&
+                fixture.ports.role_patch_requests.size() == 1U &&
+                patch.guid == real_case.selector &&
+                patch.talk_script_id == real_case.talk_script_id &&
+                patch.flags_or_mask == 0U && patch.flags_and_mask == 0xFFFFU,
+            "real opcode 100 submits the Talk-only MAPS patch before exact-tail completion"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -20589,6 +20789,7 @@ int main(const int argument_count, char** arguments) {
     test_wait_custom_ani_complete_protocol(test);
     test_consume_four_byte_noop_protocol(test);
     test_wait_custom_ani_phase_protocol(test);
+    test_set_role_talk_script_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -20660,6 +20861,7 @@ int main(const int argument_count, char** arguments) {
         test_real_wait_custom_ani_complete_record(test, root);
         test_real_consume_four_byte_noop_records(test, root);
         test_real_wait_custom_ani_phase_records(test, root);
+        test_real_set_role_talk_script_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

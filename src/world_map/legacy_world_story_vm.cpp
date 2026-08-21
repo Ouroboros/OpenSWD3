@@ -4622,6 +4622,37 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_100_SET_ROLE_TALK_SCRIPT: {
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u16 selector = read_u16(state.window, ip + 2U);
+            const u16 talk_script_id = read_u16(state.window, ip + 4U);
+            if (selector == kCurrentSourceSelector) {
+                selector = context.source_guid;
+            }
+            u32 role_index{};
+            if (resolve_role_index(
+                    roles, selector, controlled_role_index, role_index
+                )) {
+                roles[role_index].talk_script_id = talk_script_id;
+            } else {
+                ports.patch_role_source(
+                    LegacyMapsRolePatchRequest{
+                        .guid = selector,
+                        .talk_script_id = talk_script_id,
+                        .flags_or_mask = 0U,
+                        .flags_and_mask = 0xFFFFU,
+                    }
+                );
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 104U:
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
