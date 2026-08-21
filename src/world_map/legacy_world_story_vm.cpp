@@ -3437,7 +3437,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
-        case 67U: {
+        case OP_67_WAIT_FRAME_CLOCK: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
@@ -3449,19 +3449,23 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 write_u16(
                     state.window, ip + 2U, static_cast<u16>(operand | 0x8000U)
                 );
-            } else if (
-                runtime.current_tick - state.wait_started_at >
-                state.wait_duration
-            ) {
-                write_u16(
-                    state.window, ip + 2U, static_cast<u16>(operand & 0x7FFFU)
-                );
-                context.instruction_offset =
-                    static_cast<u16>(context.instruction_offset + 4U);
-                continue;
+                state.previous_opcode = result.opcode;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
             }
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (runtime.current_tick - state.wait_started_at <=
+                state.wait_duration) {
+                state.previous_opcode = result.opcode;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+            write_u16(
+                state.window, ip + 2U, static_cast<u16>(operand & 0x7FFFU)
+            );
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
         }
 
         case OP_50_START_RELATIVE_CAMERA_MOVE:

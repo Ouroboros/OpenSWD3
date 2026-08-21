@@ -93,6 +93,7 @@ using openswd3::world_map::OP_63_SET_SELECTION_SCROLL;
 using openswd3::world_map::OP_64_CLEAR_SELECTION_SCROLL;
 using openswd3::world_map::OP_65_TRANSFER_ROLE_TO_PARTY;
 using openswd3::world_map::OP_66_UPDATE_ROLE_MAP_STATE;
+using openswd3::world_map::OP_67_WAIT_FRAME_CLOCK;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
@@ -10019,7 +10020,7 @@ void test_write_map_role_patch_protocol(openswd3::test::Context& test) {
                 result.role_materialization_count == 0U &&
                 result.action_update_count == 0U &&
                 fixture.context.instruction_offset == 18U &&
-                fixture.state.previous_opcode == OP_62_WRITE_MAP_ROLE &&
+                fixture.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK &&
                 fixture.roles.size() == 3U &&
                 source.logical_map_id == 9U && source.guid == 0x2222U &&
                 source.action_id == 0x0055U &&
@@ -10052,7 +10053,7 @@ void test_write_map_role_patch_protocol(openswd3::test::Context& test) {
             missing_result.role_source_patch_failure_count == 1U &&
             missing_result.role_materialization_count == 0U &&
             missing.context.instruction_offset == 18U &&
-            missing.state.previous_opcode == OP_62_WRITE_MAP_ROLE,
+            missing.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
         "opcode 62 preserves the original diagnostic-only missing-source path and still advances"
     );
 }
@@ -10174,7 +10175,7 @@ void test_write_map_role_materialization_protocol(
             replacement_emitters[1].world_y == 16 &&
             replacement_emitters[1].head_token == 11U &&
             replaced.context.instruction_offset == 18U &&
-            replaced.state.previous_opcode == OP_62_WRITE_MAP_ROLE,
+            replaced.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
         "opcode 62 cleans the old role, inherits its low flags and talk id, replaces through the spatial chain, then fills every empty particle emitter"
     );
 
@@ -10410,7 +10411,7 @@ void test_set_selection_scroll_protocol(openswd3::test::Context& test) {
                 fixture.selection_scroll.saved_left == 100U &&
                 fixture.selection_scroll.saved_top == 200U &&
                 fixture.context.instruction_offset == 12U &&
-                fixture.state.previous_opcode == OP_63_SET_SELECTION_SCROLL,
+                fixture.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
             "opcode 63 aliases replace the selection table, zero-extend the interval, preserve the cursor, snapshot the viewport and fetch the next instruction"
         );
     }
@@ -10439,7 +10440,7 @@ void test_set_selection_scroll_protocol(openswd3::test::Context& test) {
             empty.selection_scroll.saved_left == 0x1234U &&
             empty.selection_scroll.saved_top == 0x5678U &&
             empty.context.instruction_offset == 6U &&
-            empty.state.previous_opcode == OP_63_SET_SELECTION_SCROLL,
+            empty.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
         "opcode 63 accepts an immediate terminator, clears all 64 words and advances six bytes"
     );
 
@@ -10466,7 +10467,7 @@ void test_set_selection_scroll_protocol(openswd3::test::Context& test) {
             std::bit_cast<u16>(maximum.selection_words[56]) ==
                 openswd3::world_map::kLegacyWorldSelectionSentinel &&
             maximum.context.instruction_offset == 118U &&
-            maximum.state.previous_opcode == OP_63_SET_SELECTION_SCROLL,
+            maximum.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
         "opcode 63 accepts exactly 56 words, retains eight CFCF tail words and continues in the same call"
     );
 
@@ -10686,7 +10687,7 @@ void test_clear_selection_scroll_protocol(openswd3::test::Context& test) {
                 fixture.selection_scroll.saved_left == 10U &&
                 fixture.selection_scroll.saved_top == 11U &&
                 fixture.context.instruction_offset == 2U &&
-                fixture.state.previous_opcode == OP_64_CLEAR_SELECTION_SCROLL,
+                fixture.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
             "opcode 64 aliases clear all 64 selection words, preserve timing/cursor/snapshot state and fetch the next instruction"
         );
     }
@@ -11539,6 +11540,154 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_frame_clock_wait_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_67_WAIT_FRAME_CLOCK | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, 0x1234U);
+        fixture.runtime.current_tick = 0xABCDEF01U;
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_67_WAIT_FRAME_CLOCK &&
+                result.executed_instruction_count == 1U &&
+                fixture.state.wait_duration == 0x1234U &&
+                fixture.state.wait_started_at == 0xABCDEF01U &&
+                read_u16(fixture.state.window, 2U) == 0x9234U &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
+            "opcode 67 aliases snapshot duration/start, set script bit15, publish previous and yield in place"
+        );
+    }
+
+    Fixture strict;
+    prime_loaded_instruction(strict, OP_67_WAIT_FRAME_CLOCK);
+    write_u16(strict.state.window, 2U, 0x800AU);
+    write_u16(strict.state.window, 4U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(strict.state.window, 6U, 1U);
+    strict.state.wait_duration = 10U;
+    strict.state.wait_started_at = 100U;
+    strict.runtime.current_tick = 110U;
+    strict.state.previous_opcode = 0x66U;
+    const auto equal_result = strict.step();
+    test.expect_true(
+        equal_result.status == LegacyWorldStoryVmStatus::yielded &&
+            equal_result.opcode == OP_67_WAIT_FRAME_CLOCK &&
+            equal_result.executed_instruction_count == 1U &&
+            read_u16(strict.state.window, 2U) == 0x800AU &&
+            strict.context.instruction_offset == 0U &&
+            strict.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK &&
+            strict.ports.sound_effect_requests.empty(),
+        "opcode 67 waits when unsigned elapsed equals duration"
+    );
+
+    strict.runtime.current_tick = 111U;
+    const auto greater_result = strict.step();
+    test.expect_true(
+        greater_result.status == LegacyWorldStoryVmStatus::yielded &&
+            greater_result.opcode == OP_59_PLAY_SOUND_EFFECT &&
+            greater_result.executed_instruction_count == 2U &&
+            read_u16(strict.state.window, 2U) == 10U &&
+            strict.context.instruction_offset == 8U &&
+            strict.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+            strict.ports.sound_effect_requests == std::vector<u16>{1U},
+        "opcode 67 completes only when elapsed is strictly greater, clears bit15 and fetches the next instruction in the same call"
+    );
+
+    Fixture wrapping;
+    prime_loaded_instruction(wrapping, OP_67_WAIT_FRAME_CLOCK);
+    write_u16(wrapping.state.window, 2U, 0x8020U);
+    write_u16(wrapping.state.window, 4U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(wrapping.state.window, 6U, 2U);
+    wrapping.state.wait_duration = 0x20U;
+    wrapping.state.wait_started_at = 0xFFFFFFF0U;
+    wrapping.runtime.current_tick = 0x10U;
+    const auto wrapping_equal = wrapping.step();
+    wrapping.runtime.current_tick = 0x11U;
+    const auto wrapping_greater = wrapping.step();
+    test.expect_true(
+        wrapping_equal.status == LegacyWorldStoryVmStatus::yielded &&
+            wrapping_equal.opcode == OP_67_WAIT_FRAME_CLOCK &&
+            wrapping.state.wait_duration == 0x20U &&
+            wrapping_greater.status == LegacyWorldStoryVmStatus::yielded &&
+            wrapping_greater.opcode == OP_59_PLAY_SOUND_EFFECT &&
+            wrapping.ports.sound_effect_requests == std::vector<u16>{2U},
+        "opcode 67 elapsed subtraction wraps in u32 before the strict comparison"
+    );
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFEU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x66U;
+    write_u16(truncated.state.window, 0x7FFEU, OP_67_WAIT_FRAME_CLOCK);
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            truncated.state.previous_opcode == 0x66U,
+        "opcode 67 truncated operand typed-stops before self-modification and previous publication"
+    );
+
+    Fixture start_tail;
+    start_tail.context.instruction_offset = 0x7FFCU;
+    start_tail.context.talk_data_offset = 0x1111U;
+    start_tail.state.loaded_file_number = 1U;
+    start_tail.state.loaded_data_offset = 0x1111U;
+    start_tail.state.window_loaded = true;
+    start_tail.runtime.current_tick = 123U;
+    start_tail.state.previous_opcode = 0x66U;
+    write_u16(start_tail.state.window, 0x7FFCU, OP_67_WAIT_FRAME_CLOCK);
+    write_u16(start_tail.state.window, 0x7FFEU, 5U);
+    const auto start_tail_result = start_tail.step();
+    test.expect_true(
+        start_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            read_u16(start_tail.state.window, 0x7FFEU) == 0x8005U &&
+            start_tail.context.instruction_offset == 0x7FFCU &&
+            start_tail.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
+        "opcode 67 phase-one exact tail self-modifies and publishes previous while yielding in place"
+    );
+
+    Fixture complete_tail;
+    complete_tail.context.instruction_offset = 0x7FFCU;
+    complete_tail.context.talk_data_offset = 0x1111U;
+    complete_tail.state.loaded_file_number = 1U;
+    complete_tail.state.loaded_data_offset = 0x1111U;
+    complete_tail.state.window_loaded = true;
+    complete_tail.state.wait_duration = 5U;
+    complete_tail.state.wait_started_at = 100U;
+    complete_tail.runtime.current_tick = 106U;
+    complete_tail.state.previous_opcode = 0x66U;
+    write_u16(complete_tail.state.window, 0x7FFCU, OP_67_WAIT_FRAME_CLOCK);
+    write_u16(complete_tail.state.window, 0x7FFEU, 0x8005U);
+    const auto complete_tail_result = complete_tail.step();
+    test.expect_true(
+        complete_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            complete_tail_result.opcode == OP_67_WAIT_FRAME_CLOCK &&
+            complete_tail_result.executed_instruction_count == 1U &&
+            read_u16(complete_tail.state.window, 0x7FFEU) == 5U &&
+            complete_tail.context.instruction_offset == 0x8000U &&
+            complete_tail.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
+        "opcode 67 completion exact tail clears bit15, advances and publishes previous before the next fetch fails"
+    );
+}
+
 void test_wait_for_frame_color_transition(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::rendering::LegacyFrameColorTransitionState frame_color{
@@ -12126,7 +12275,7 @@ void test_real_jump_if_role_path_unprepared_record(
             context.instruction_offset == 0U &&
             state.loaded_file_number == 2U &&
             state.loaded_data_offset == 0x0000F787U &&
-            state.previous_opcode == OP_16_JUMP_IF_ROLE_PATH_UNPREPARED &&
+            state.previous_opcode == OP_67_WAIT_FRAME_CLOCK &&
             state.wait_duration == 0x012CU &&
             read_u16(state.window, 2U) == 0x812CU,
         "real opcode 16 jumps within TALK2 and same-call starts opcode 67 wait"
@@ -13234,7 +13383,7 @@ void test_real_write_map_role_record(
             source.action_id == 623U && source.base_variant == 0U &&
             source.variant_delta == 4U &&
             fixture.context.instruction_offset == 18U &&
-            fixture.state.previous_opcode == OP_62_WRITE_MAP_ROLE,
+            fixture.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
         "real opcode 62 record writes GUID 248 onto map 81 with its observed path, coordinates and action tuple"
     );
 }
@@ -13306,7 +13455,7 @@ void test_real_set_selection_scroll_record(
         result.status == LegacyWorldStoryVmStatus::yielded &&
             result.opcode == 67U && result.executed_instruction_count == 2U &&
             fixture.context.instruction_offset == 22U &&
-            fixture.state.previous_opcode == OP_63_SET_SELECTION_SCROLL,
+            fixture.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
         "real opcode 63 record publishes previous and continues to the following wait in the same call"
     );
     test.expect_true(
@@ -13371,7 +13520,7 @@ void test_real_clear_selection_scroll_record(
             fixture.selection_scroll.saved_left == 4U &&
             fixture.selection_scroll.saved_top == 5U &&
             fixture.context.instruction_offset == 2U &&
-            fixture.state.previous_opcode == OP_64_CLEAR_SELECTION_SCROLL,
+            fixture.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK,
         "real opcode 64 record clears only the selection table and continues to the following wait"
     );
 }
@@ -13514,6 +13663,52 @@ void test_real_update_role_map_state_record(
             fixture.context.instruction_offset == 16U &&
             fixture.state.previous_opcode == OP_66_UPDATE_ROLE_MAP_STATE,
         "real opcode 66 record applies GUID 9 map state, removes its physical party slot and yields"
+    );
+}
+
+void test_real_frame_clock_wait_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x000044F7);
+    std::array<u8, 4U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 4U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(fixture.state.window, 6U, 1U);
+    fixture.runtime.current_tick = 12345U;
+    fixture.state.previous_opcode = 0x66U;
+
+    const auto initialized = fixture.step();
+    fixture.runtime.current_tick = 14345U;
+    const auto equal = fixture.step();
+    fixture.runtime.current_tick = 14346U;
+    const auto completed = fixture.step();
+
+    test.expect_true(
+        input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
+            read_u16(instruction, 0U) == OP_67_WAIT_FRAME_CLOCK &&
+            read_u16(instruction, 2U) == 2000U &&
+            initialized.status == LegacyWorldStoryVmStatus::yielded &&
+            initialized.opcode == OP_67_WAIT_FRAME_CLOCK &&
+            fixture.state.wait_duration == 2000U &&
+            fixture.state.wait_started_at == 12345U &&
+            equal.status == LegacyWorldStoryVmStatus::yielded &&
+            equal.opcode == OP_67_WAIT_FRAME_CLOCK &&
+            completed.status == LegacyWorldStoryVmStatus::yielded &&
+            completed.opcode == OP_59_PLAY_SOUND_EFFECT &&
+            completed.executed_instruction_count == 2U &&
+            read_u16(fixture.state.window, 2U) == 2000U &&
+            fixture.context.instruction_offset == 8U &&
+            fixture.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+            fixture.ports.sound_effect_requests == std::vector<u16>{1U},
+        "real opcode 67 record waits through equality, completes at duration plus one and continues in the same call"
     );
 }
 
@@ -15201,6 +15396,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_selection_scroll_protocol(test);
     test_transfer_role_to_party_protocol(test);
     test_update_role_map_state_protocol(test);
+    test_frame_clock_wait_protocol(test);
     test_wait_for_frame_color_transition(test);
     test_turn_role_toward_role(test);
     test_set_role_head_sign_action(test);
@@ -15250,6 +15446,7 @@ int main(const int argument_count, char** arguments) {
         test_real_clear_selection_scroll_record(test, root);
         test_real_transfer_role_to_party_record(test, root);
         test_real_update_role_map_state_record(test, root);
+        test_real_frame_clock_wait_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

@@ -107,12 +107,12 @@ GUID缺失仅诊断；正常、非当前map和缺失三路都推进18、发布pr
 
 ## opcode 67：脚本内存就是等待状态
 
-67 把 `+2` 的低 15 位作为 duration，把 bit15 当阶段标记：
+67把`+2`低15位作为duration，把bit15当阶段标记：
 
-1. bit15 未置时，保存 duration 和当前 accepted-frame clock，并直接在脚本字节中置 bit15；IP 不推进并让出。
-2. bit15 已置时，以 32 位无符号回绕减法计算 elapsed。`elapsed <= duration` 继续原地等待；只有严格 `elapsed > duration` 才清脚本 bit15、推进四字节并同帧继续。
+1. bit15未置时，保存duration和当前accepted-frame clock，并直接在脚本word中置bit15；IP不推进、发布previous67并让出。
+2. bit15已置时，以32位无符号回绕减法计算elapsed。`elapsed <= duration`继续原地等待并发布previous67；只有严格`elapsed > duration`才清脚本bit15、推进四字节、发布previous67并同调用继续。
 
-这条指令会自修改已载入的剧情窗口。重写若把脚本资源映射为只读内存，必须在 VM 层提供等价的可写窗口状态；不能把严格 `>` 改成 `>=`，也不能把无符号回绕改成无限精度时间差。
+这条指令会自修改已载入的剧情窗口。1118条物理记录/1130 probes全部raw`0x0043`、长度4，TALK1/2/3/4分布`460/232/273/153`，40种duration且源记录phase bit全部为0；TALK1 duration2000真实三阶段回放通过。完整证据见[`story-vm-frame-clock-wait-00429b62.md`](story-vm-frame-clock-wait-00429b62.md)。重写不能把严格`>`改成`>=`，不能把u32回绕改成无限精度时间差，也不能漏发三路previous。
 
 ## opcode 68、69、71、72：相近角色指令仍有不同 selector 合同
 
