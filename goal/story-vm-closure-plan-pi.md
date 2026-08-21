@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x0042949D`（opcode 53）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x004294C0`（opcode 54）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -69,7 +69,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至126行。前39行已独立
+值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至126行。前40行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -84,10 +84,11 @@ opcode44设置角色action wait override并清wait remaining、opcode45切换角
 同角色action指令refresh并为missing角色patch MAPS action/flags、共享opcodes46–49恢复pending
 角色action字段/条件应用base/delta override/设置wait override sentinel，共享opcodes50/70/73
 按relative target、absolute target或role-centered viewport启动镜头移动，opcode51按四个
-movement/step状态等待镜头移动完成并在两路发布previous，以及opcode52按机器阶段顺序初始化
-三通道画面渐变、复现x87除法/零时长位型并同调用继续。当前为39/146，即
-`5 assembly_exact + 34 platform_adapted + 107 pending_audit`；下一行只审计
-`0x0042949D`的opcode53 handler。
+movement/step状态等待镜头移动完成并在两路发布previous，opcode52按机器阶段顺序初始化
+三通道画面渐变、复现x87除法/零时长位型并同调用继续，以及opcode53按signed countdown等待
+三通道渐变完成并在两路发布previous。当前为40/146，即
+`5 assembly_exact + 35 platform_adapted + 106 pending_audit`；下一行只审计
+`0x004294C0`的opcode54 handler。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

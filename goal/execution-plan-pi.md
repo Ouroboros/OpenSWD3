@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v281
+版本：v282
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042949D` handler（opcode 53）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x004294C0` handler（opcode 54）
 
 ## 0. 执行约定
 
@@ -1756,6 +1756,19 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode仍为84；workpack当前39/146，即
     `5 assembly_exact + 34 platform_adapted + 107 pending_audit`。
 
+- 剧情VM P2第四十组`0x0042949D` / opcode53完成独立闭环。LST把frame-color countdown按signed
+    dword判断：正值不推进并让出，零或负值推进2字节并同调用继续；dispatch每轮先清ESI，等待和
+    完成两路再共同发布normalized previous。原C++的signed谓词与IP语义已正确，但两路均漏发
+    previous且case仍为裸数字；现已补齐。四raw alias、`1/INT32_MAX`等待、`0/-1/INT32_MIN`
+    完成、owner缺失、全部颜色状态不变、无audio、`0x7FFE`等待/完成精确尾均通过；
+    `TALK1.DAT@0x000043B8`真实opcode52→53序列验证先等待再完成。TALK目录锁定1360条物理记录/
+    1360个entry probe，分布732/24/174/430，全部raw `0x0035`、长度2；7个高位字样候选均不是
+    指令入口。最终剧情VM定向3/3、Linux core 186/186、Linux app 192/192均exit 0；app仅保留
+    既有ALSA开发库warning。生成器`py_compile`及双重生成幂等通过，workpack hash为
+    `0457c65d909021fa566b665082a14458122cec34feefd595709a87ef8d12363f`。Windows依v282留到P3，
+    未启动游戏EXE。现代显式opcode仍为84；workpack当前40/146，即
+    `5 assembly_exact + 35 platform_adapted + 106 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042949D` 的 opcode53 handler；现有导航语义与既有实现均不继承完成状态。
+`0x004294C0` 的 opcode54 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

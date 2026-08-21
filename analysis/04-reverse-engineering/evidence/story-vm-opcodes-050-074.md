@@ -49,7 +49,7 @@
 
 duration 为零时没有前置保护，直接进入 x87 除法。modern已按delta符号固定`+Inf/-Inf/0xFFC00000`，并对资产54种唯一差值/时长及零时长/极值共59组与宿主x87逐位比较零差异。资产锁定1361条物理记录/1361个entry probe，全部raw `0x0034`、长度16、duration `1..46`；`TALK1.DAT@0x000043B8`真实回放通过。完整证据见 [`story-vm-frame-color-transition-004293ac.md`](story-vm-frame-color-transition-004293ac.md)。
 
-53 在倒计时按有符号值 `>0` 时原地等待；`<=0` 才推进。每帧更新器 `sub_4146F0` 负责减少倒计时并累加三项。74 只把三个增量和倒计时写零，不覆盖当前值或目标值，所以它是取消后续推进，不是把插值状态整体清空。
+53 在countdown按有符号值 `>0` 时原地等待，`<=0` 才推进2字节并同调用继续；两路都发布previous，且handler自身不递减countdown或修改颜色状态。资产锁定1360条物理记录/1360个entry probe，全部raw `0x0035`、长度2；真实`TALK1.DAT@0x000043B8` opcode52→53等待/完成序列通过。完整证据见 [`story-vm-frame-color-wait-0042949d.md`](story-vm-frame-color-wait-0042949d.md)。每帧更新器 `sub_4146F0` 负责减少倒计时并累加三项。74 只把三个增量和倒计时写零，不覆盖当前值或目标值，所以它是取消后续推进，不是把插值状态整体清空。
 
 ## opcode 54–57：刷新次数和查找失败行为
 

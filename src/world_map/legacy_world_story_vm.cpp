@@ -2692,17 +2692,19 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 53U:
+        case OP_53_WAIT_FRAME_COLOR_TRANSITION:
             if (runtime.frame_color == nullptr) {
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
                 return result;
             }
             if (runtime.frame_color->countdown > 0) {
+                state.previous_opcode = result.opcode;
                 result.status = LegacyWorldStoryVmStatus::yielded;
                 return result;
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
             continue;
 
         case 58U: {
