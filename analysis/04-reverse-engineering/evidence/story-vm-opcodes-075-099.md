@@ -216,6 +216,8 @@ opcode97按`dword_4CAE8C` active extent独立等待：active原地发布previous
 
 99 则把有符号 `dword_4B7AC8` 与零扩展 `u16(+2)` 作有符号比较。只有 counter 严格大于 threshold 才推进四字节；`<=` 时原地跨帧等待。96 成功后把 counter 写成 `-13`，因此启动负相位不会满足任何非负 threshold。97 是“整个 Ani 活动结束”门控，99 是“内部时间线超过指定点”门控，不能合并。
 
+opcode99现已独立闭环：modern直接查询`LegacyAniActivityState::phase` live i32 owner，保持phase读取先于threshold危险点、signed严格`>`、两路previous以及等待yield/完成same-call；不增加active检查。四raw alias、负启动相位、u16最大阈值、缺operand访问顺序和精确尾通过。资产锁139条/139 probes，全部raw`0063`、长度4，分布`0/44/64/31`，threshold范围1..350、共111种；TALK2/3/4四条代表记录跨等值等待和大一完成真实回放。完整证据见[`story-vm-custom-ani-phase-wait-0042ad75.md`](story-vm-custom-ani-phase-wait-0042ad75.md)。
+
 ## opcode 98：带未读载荷的跨帧空操作
 
 98 只把脚本指针和 16 位 IP 各加四，完全不读取 `+2` 的物理 `u16`，也不设置 `ESI=1`。所以它不是普通同帧 no-op，而是固定消费四字节后让出一次。

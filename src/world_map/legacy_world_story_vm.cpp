@@ -4603,6 +4603,25 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
+        case OP_99_WAIT_CUSTOM_ANI_PHASE: {
+            const i32 phase = ports.query_story_ani_phase();
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i32 threshold =
+                static_cast<i32>(read_u16(state.window, ip + 2U));
+            if (phase <= threshold) {
+                state.previous_opcode = result.opcode;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 104U:
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

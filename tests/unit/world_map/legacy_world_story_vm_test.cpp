@@ -125,6 +125,7 @@ using openswd3::world_map::OP_95_CLEAR_SCENE_RENDER_BIT1;
 using openswd3::world_map::OP_96_BEGIN_CUSTOM_ANI;
 using openswd3::world_map::OP_97_WAIT_CUSTOM_ANI_COMPLETE;
 using openswd3::world_map::OP_98_CONSUME_FOUR_BYTE_NOOP;
+using openswd3::world_map::OP_99_WAIT_CUSTOM_ANI_PHASE;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
@@ -366,6 +367,11 @@ public:
         return ani_active;
     }
 
+    [[nodiscard]] i32 query_story_ani_phase() const noexcept override {
+        ++ani_phase_query_count;
+        return ani_phase;
+    }
+
     void beep() noexcept override {
         ++beep_count;
         default_protocol_events.push_back(1U);
@@ -421,6 +427,7 @@ public:
     u32 ani_prepare_count{};
     u32 ani_begin_count{};
     mutable u32 ani_active_query_count{};
+    mutable u32 ani_phase_query_count{};
     u32 last_ani_frame_interval{};
     u32 beep_count{};
     u32 direct_audio_service_count{};
@@ -439,6 +446,7 @@ public:
     LegacyTalkWindowStatus data_load_status{LegacyTalkWindowStatus::ready};
     i32 last_story_id{};
     i32 video_progress{-1};
+    i32 ani_phase{};
     u8 last_ani_flags{};
     std::vector<u8> last_video_filename;
     std::vector<u8> last_ani_filename;
@@ -588,6 +596,10 @@ public:
 
     [[nodiscard]] bool is_story_ani_active() const noexcept override {
         return false;
+    }
+
+    [[nodiscard]] i32 query_story_ani_phase() const noexcept override {
+        return 0;
     }
 
     void beep() noexcept override {}
@@ -15310,6 +15322,137 @@ void test_consume_four_byte_noop_protocol(openswd3::test::Context& test) {
     }
 }
 
+void test_wait_custom_ani_phase_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        const u16 raw_word =
+            static_cast<u16>(OP_99_WAIT_CUSTOM_ANI_PHASE | alias_mask);
+
+        Fixture waiting;
+        prime_loaded_instruction(waiting, raw_word);
+        write_u16(waiting.state.window, 2U, 35U);
+        waiting.state.previous_opcode = 0x66U;
+        waiting.ports.ani_phase = 35;
+
+        const auto waiting_result = waiting.step();
+        test.expect_true(
+            waiting_result.status == LegacyWorldStoryVmStatus::yielded &&
+                waiting_result.raw_word == raw_word &&
+                waiting_result.opcode == OP_99_WAIT_CUSTOM_ANI_PHASE &&
+                waiting_result.executed_instruction_count == 1U &&
+                waiting.context.instruction_offset == 0U &&
+                waiting.state.previous_opcode == OP_99_WAIT_CUSTOM_ANI_PHASE &&
+                waiting.ports.ani_phase_query_count == 1U,
+            "opcode 99 aliases wait at an equal phase threshold and publish previous without advancing"
+        );
+
+        Fixture completed;
+        prime_loaded_instruction(completed, raw_word);
+        write_u16(completed.state.window, 2U, 35U);
+        write_u16(completed.state.window, 4U, OP_95_CLEAR_SCENE_RENDER_BIT1);
+        u8 scene_render_flags = 0xA7U;
+        completed.runtime.scene_render_flags = &scene_render_flags;
+        completed.ports.ani_phase = 36;
+
+        const auto completed_result = completed.step();
+        test.expect_true(
+            completed_result.status == LegacyWorldStoryVmStatus::yielded &&
+                completed_result.opcode == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                completed_result.executed_instruction_count == 2U &&
+                completed.context.instruction_offset == 6U &&
+                completed.state.previous_opcode ==
+                    OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                completed.ports.ani_phase_query_count == 1U &&
+                scene_render_flags == 0xA5U,
+            "opcode 99 aliases advance only when phase is strictly greater and continue in the same call"
+        );
+
+        Fixture exact_tail;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFCU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        write_u16(exact_tail.state.window, 0x7FFCU, raw_word);
+        write_u16(exact_tail.state.window, 0x7FFEU, 350U);
+        exact_tail.ports.ani_phase = 351;
+
+        const auto exact_tail_result = exact_tail.step();
+        test.expect_true(
+            exact_tail_result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                exact_tail_result.executed_instruction_count == 1U &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_99_WAIT_CUSTOM_ANI_PHASE &&
+                exact_tail.ports.ani_phase_query_count == 1U,
+            "opcode 99 aliases commit completion side effects before the next exact-tail fetch fails"
+        );
+    }
+
+    Fixture signed_startup;
+    prime_loaded_instruction(signed_startup, OP_99_WAIT_CUSTOM_ANI_PHASE);
+    write_u16(signed_startup.state.window, 2U, 0U);
+    signed_startup.ports.ani_phase = -13;
+    const auto signed_startup_result = signed_startup.step();
+    test.expect_true(
+        signed_startup_result.status == LegacyWorldStoryVmStatus::yielded &&
+            signed_startup.context.instruction_offset == 0U &&
+            signed_startup.state.previous_opcode == OP_99_WAIT_CUSTOM_ANI_PHASE,
+        "opcode 99 compares the signed negative ANI startup phase below every u16 threshold"
+    );
+
+    Fixture maximum_threshold;
+    prime_loaded_instruction(maximum_threshold, OP_99_WAIT_CUSTOM_ANI_PHASE);
+    write_u16(maximum_threshold.state.window, 2U, 0xFFFFU);
+    write_u16(
+        maximum_threshold.state.window, 4U, OP_95_CLEAR_SCENE_RENDER_BIT1
+    );
+    u8 maximum_scene_flags = 0xA7U;
+    maximum_threshold.runtime.scene_render_flags = &maximum_scene_flags;
+    maximum_threshold.ports.ani_phase = 0xFFFF;
+    const auto equal_maximum_result = maximum_threshold.step();
+    maximum_threshold.ports.ani_phase = 0x10000;
+    const auto above_maximum_result = maximum_threshold.step();
+    test.expect_true(
+        equal_maximum_result.status == LegacyWorldStoryVmStatus::yielded &&
+            equal_maximum_result.executed_instruction_count == 1U &&
+            above_maximum_result.status == LegacyWorldStoryVmStatus::yielded &&
+            above_maximum_result.executed_instruction_count == 2U &&
+            maximum_threshold.context.instruction_offset == 6U &&
+            maximum_threshold.ports.ani_phase_query_count == 2U &&
+            maximum_scene_flags == 0xA5U,
+        "opcode 99 zero-extends the full u16 threshold before the strict signed comparison"
+    );
+
+    Fixture missing_threshold;
+    missing_threshold.context.talk_data_offset = 0x1111U;
+    missing_threshold.context.instruction_offset = 0x7FFEU;
+    missing_threshold.state.loaded_file_number = 1U;
+    missing_threshold.state.loaded_data_offset = 0x1111U;
+    missing_threshold.state.window_loaded = true;
+    missing_threshold.state.previous_opcode = 0x66U;
+    missing_threshold.ports.ani_phase = 123;
+    write_u16(
+        missing_threshold.state.window, 0x7FFEU, OP_99_WAIT_CUSTOM_ANI_PHASE
+    );
+
+    const auto missing_threshold_result = missing_threshold.step();
+    test.expect_true(
+        missing_threshold_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_threshold.context.instruction_offset == 0x7FFEU &&
+            missing_threshold.state.previous_opcode == 0x66U &&
+            missing_threshold.ports.ani_phase_query_count == 1U,
+        "opcode 99 reads the phase owner before stopping at the original missing-threshold access point"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -18271,6 +18414,62 @@ void test_real_consume_four_byte_noop_records(
     }
 }
 
+void test_real_wait_custom_ani_phase_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        u16 threshold;
+    };
+    constexpr std::array<RealCase, 4U> cases{
+        RealCase{"TALK2.DAT", 0x0000D3AE, 1U},
+        RealCase{"TALK2.DAT", 0x00017089, 350U},
+        RealCase{"TALK3.DAT", 0x0000898A, 30U},
+        RealCase{"TALK4.DAT", 0x0001484C, 11U},
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 4U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFCU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.ports.ani_phase = static_cast<i32>(real_case.threshold);
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFCU);
+
+        const auto waiting_result = fixture.step();
+        fixture.ports.ani_phase = static_cast<i32>(real_case.threshold) + 1;
+        const auto completed_result = fixture.step();
+        test.expect_true(
+            record_read &&
+                read_u16(record, 0U) == OP_99_WAIT_CUSTOM_ANI_PHASE &&
+                read_u16(record, 2U) == real_case.threshold &&
+                waiting_result.status == LegacyWorldStoryVmStatus::yielded &&
+                waiting_result.executed_instruction_count == 1U &&
+                completed_result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                completed_result.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.previous_opcode == OP_99_WAIT_CUSTOM_ANI_PHASE &&
+                fixture.ports.ani_phase_query_count == 2U,
+            "real opcode 99 waits at equality then completes above the phase threshold at the exact tail"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -20389,6 +20588,7 @@ int main(const int argument_count, char** arguments) {
     test_begin_custom_ani_protocol(test);
     test_wait_custom_ani_complete_protocol(test);
     test_consume_four_byte_noop_protocol(test);
+    test_wait_custom_ani_phase_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -20459,6 +20659,7 @@ int main(const int argument_count, char** arguments) {
         test_real_begin_custom_ani_records(test, root);
         test_real_wait_custom_ani_complete_record(test, root);
         test_real_consume_four_byte_noop_records(test, root);
+        test_real_wait_custom_ani_phase_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

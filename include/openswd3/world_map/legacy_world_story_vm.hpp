@@ -124,6 +124,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_96_BEGIN_CUSTOM_ANI = 96U,
     OP_97_WAIT_CUSTOM_ANI_COMPLETE = 97U,
     OP_98_CONSUME_FOUR_BYTE_NOOP = 98U,
+    OP_99_WAIT_CUSTOM_ANI_PHASE = 99U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
     OP_162_LOAD_DYNAMIC_NAME_RECORD = 162U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
@@ -267,6 +268,8 @@ public:
     [[nodiscard]] virtual asset_runtime::LegacyAniActivityStartResult
     begin_story_ani(std::span<const compat::u8> filename, compat::u8 flags) = 0;
     [[nodiscard]] virtual bool is_story_ani_active() const noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    query_story_ani_phase() const noexcept = 0;
     virtual void beep() noexcept = 0;
     virtual void service_audio() = 0;
     // Models sub_40B7F0's optional %T/mon.dat expansion. Returning false

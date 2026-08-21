@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v320
+版本：v321
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042AD75` handler（opcode 99）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B3B0` handler（opcode 100）
 
 ## 0. 执行约定
 
@@ -2231,6 +2231,20 @@ B7 P0 有限收口完成。
     依阶段规则留到P2完成门。现代显式opcode增至110；对外进度为已实现110/198、已验收102/198；
     内部workpack77/146，即`9 assembly_exact + 68 platform_adapted + 69 pending_audit`。
 
+- 剧情VM P2第七十八组`0x0042AD75` / opcode99完成独立闭环。机器先读signed ANI phase
+    dword，再零扩展读取`u16(+2)` threshold并作严格有符号`>`比较；`phase<=threshold`不推进、
+    发布previous99并yield，`phase>threshold`推进4、发布previous99并same-call。handler不检查active
+    extent，phase为0的inactive状态仍按比较等待。modern直接映射已集成`LegacyAniActivityState::phase`
+    live i32 owner，保持start 1/-13、逐帧递增与finalize归零；threshold缺失在phase查询后的原operand
+    访问点typed-stop。四raw alias、负启动相位、u16最大阈值、缺operand访问顺序和精确尾通过。资产锁
+    139条/139 probes，全部raw`0063`、长度4，分布`0/44/64/31`；threshold范围1..350、共111种，
+    TALK2/3/4四条代表记录跨等值等待和大一完成真实回放。格式化后剧情VM3/3、ANI backend3/3、
+    Linux core186/186、Linux app192/192均exit0；测试时间分别0.56/7.41/23.66/24.77秒。
+    workpack双生成hash为`e966a88434e3133522c81d0936abea8ed48f6e298e7c45c7f01b5bc61cfca455`。
+    未启动游戏EXE；Windows依阶段规则留到P2完成门。现代显式opcode增至111；对外进度为已实现
+    111/198、已验收103/198；内部workpack78/146，即`9 assembly_exact + 69 platform_adapted +
+    68 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042AD75` 的opcode99 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042B3B0` 的opcode100 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

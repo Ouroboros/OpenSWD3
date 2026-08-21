@@ -3636,6 +3636,11 @@ public:
                 return ani_activity_.is_active();
             }
 
+            [[nodiscard]] openswd3::compat::i32
+            query_story_ani_phase() const noexcept override {
+                return ani_activity_.state().phase;
+            }
+
             void beep() noexcept override {}
 
             void service_audio() override {

@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至129行。前77行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至129行。前78行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -139,8 +139,10 @@ opcode97只查询同一activity active extent：active原地发布previous97/yie
 active/inactive、精确尾和normal same-call均通过。
 opcode98不读取名义payload，只推进4、发布previous98并yield；四alias、完整精确尾和仅剩opcode两字节
 仍完成的未读payload尾均锁定。3条真实记录/3 probes全部raw0062，payload`0190/006C/0001`不参与行为。
-已实现110/198、已验收102/198；内部workpack为77/146，即
-`9 assembly_exact + 68 platform_adapted + 69 pending_audit`。下一行只审计`0x0042AD75`下的opcode99。
+opcode99把live ANI phase按signed i32与zero-extended u16 threshold严格比较；等待yield、完成same-call两路
+发布previous99，且不增加active检查。139条真实记录、负启动相位、u16最大阈值、staged operand及精确尾通过。
+已实现111/198、已验收103/198；内部workpack为78/146，即
+`9 assembly_exact + 69 platform_adapted + 68 pending_audit`。下一行只审计`0x0042B3B0`下的opcode100。
 
 ### P2 · 按 handler 组逆向、实现和验证
 
