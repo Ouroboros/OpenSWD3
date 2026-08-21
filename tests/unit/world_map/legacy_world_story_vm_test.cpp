@@ -76,6 +76,7 @@ using openswd3::world_map::OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE;
 using openswd3::world_map::OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE;
 using openswd3::world_map::OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF;
 using openswd3::world_map::OP_50_START_RELATIVE_CAMERA_MOVE;
+using openswd3::world_map::OP_51_WAIT_CAMERA_MOVE_COMPLETE;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
@@ -4505,6 +4506,139 @@ void test_start_camera_move_window_boundaries(openswd3::test::Context& test) {
             clamped_diagnostic_available.state.previous_opcode ==
                 OP_73_START_CAMERA_MOVE_TO_ROLE,
         "opcode 73 clamp diagnostics consume an available next word only diagnostically"
+    );
+}
+
+void test_wait_for_camera_move_protocol(openswd3::test::Context& test) {
+    struct Variant {
+        i32 remaining_x;
+        i32 remaining_y;
+        i32 step_x;
+        i32 step_y;
+    };
+    constexpr std::array<Variant, 4U> variants{
+        Variant{16, 0, 0, 0},
+        Variant{0, -16, 0, 0},
+        Variant{0, 0, 4, 0},
+        Variant{0, 0, 0, -4},
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const u16 mask : alias_masks) {
+        for (const Variant variant : variants) {
+            CameraMoveFixture waiting;
+            waiting.camera_pan.remaining_x = variant.remaining_x;
+            waiting.camera_pan.remaining_y = variant.remaining_y;
+            waiting.camera_pan.step_x = variant.step_x;
+            waiting.camera_pan.step_y = variant.step_y;
+            waiting.state.previous_opcode = 0x55U;
+            prime_loaded_instruction(
+                waiting,
+                static_cast<u16>(OP_51_WAIT_CAMERA_MOVE_COMPLETE | mask)
+            );
+            write_u16(waiting.state.window, 2U, OP_1025);
+
+            const auto result = waiting.step();
+
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                    result.opcode == OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+                    result.executed_instruction_count == 1U &&
+                    waiting.camera_pan.remaining_x == variant.remaining_x &&
+                    waiting.camera_pan.remaining_y == variant.remaining_y &&
+                    waiting.camera_pan.step_x == variant.step_x &&
+                    waiting.camera_pan.step_y == variant.step_y &&
+                    waiting.context.instruction_offset == 0U &&
+                    waiting.state.previous_opcode ==
+                        OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+                    waiting.ports.direct_audio_service_count == 0U,
+                "opcode 51 aliases wait on each camera movement field"
+            );
+        }
+
+        CameraMoveFixture completed;
+        completed.state.previous_opcode = 0x55U;
+        prime_loaded_instruction(
+            completed, static_cast<u16>(OP_51_WAIT_CAMERA_MOVE_COMPLETE | mask)
+        );
+        write_u16(completed.state.window, 2U, OP_1025);
+
+        const auto result = completed.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                completed.context.instruction_offset == 2U &&
+                completed.state.previous_opcode ==
+                    OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+                completed.ports.direct_audio_service_count == 0U,
+            "opcode 51 aliases advance and continue when all movement fields are zero"
+        );
+    }
+
+    Fixture missing_owner;
+    missing_owner.state.previous_opcode = 0x55U;
+    prime_loaded_instruction(missing_owner, OP_51_WAIT_CAMERA_MOVE_COMPLETE);
+    const auto missing_owner_result = missing_owner.step();
+    test.expect_true(
+        missing_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_owner_result.opcode == OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+            missing_owner_result.executed_instruction_count == 1U &&
+            missing_owner.context.instruction_offset == 0U &&
+            missing_owner.state.previous_opcode == 0x55U,
+        "opcode 51 requires the camera-pan owner before reading movement state"
+    );
+
+    CameraMoveFixture completed_tail;
+    completed_tail.context.talk_data_offset = 0x1111U;
+    completed_tail.context.instruction_offset = 0x7FFEU;
+    completed_tail.state.loaded_file_number = 1U;
+    completed_tail.state.loaded_data_offset = 0x1111U;
+    completed_tail.state.window_loaded = true;
+    completed_tail.state.previous_opcode = 0x55U;
+    write_u16(
+        completed_tail.state.window, 0x7FFEU, OP_51_WAIT_CAMERA_MOVE_COMPLETE
+    );
+    const auto completed_tail_result = completed_tail.step();
+    test.expect_true(
+        completed_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            completed_tail_result.opcode == OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+            completed_tail_result.executed_instruction_count == 1U &&
+            completed_tail.context.instruction_offset == 0x8000U &&
+            completed_tail.state.previous_opcode ==
+                OP_51_WAIT_CAMERA_MOVE_COMPLETE,
+        "opcode 51 exact tail publishes completion before the next fetch fails"
+    );
+
+    CameraMoveFixture waiting_tail;
+    waiting_tail.context.talk_data_offset = 0x1111U;
+    waiting_tail.context.instruction_offset = 0x7FFEU;
+    waiting_tail.state.loaded_file_number = 1U;
+    waiting_tail.state.loaded_data_offset = 0x1111U;
+    waiting_tail.state.window_loaded = true;
+    waiting_tail.state.previous_opcode = 0x55U;
+    waiting_tail.camera_pan.step_y = -4;
+    write_u16(
+        waiting_tail.state.window, 0x7FFEU, OP_51_WAIT_CAMERA_MOVE_COMPLETE
+    );
+    const auto waiting_tail_result = waiting_tail.step();
+    test.expect_true(
+        waiting_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            waiting_tail_result.opcode == OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+            waiting_tail_result.executed_instruction_count == 1U &&
+            waiting_tail.context.instruction_offset == 0x7FFEU &&
+            waiting_tail.state.previous_opcode ==
+                OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+            waiting_tail.camera_pan.step_y == -4,
+        "opcode 51 exact-tail wait publishes without advancing"
     );
 }
 
@@ -9993,6 +10127,53 @@ void test_real_camera_move_records(
     );
 }
 
+void test_real_wait_for_camera_move_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x000046C2);
+    std::array<u8, 2U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    CameraMoveFixture fixture;
+    fixture.state.previous_opcode = 0x55U;
+    prime_loaded_instruction(fixture, OP_51_WAIT_CAMERA_MOVE_COMPLETE);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 2U, OP_1025);
+    fixture.camera_pan.remaining_x = 64;
+    fixture.camera_pan.step_x = 4;
+
+    const auto waiting = fixture.step();
+    const u16 waiting_offset = fixture.context.instruction_offset;
+    const u32 waiting_previous = fixture.state.previous_opcode;
+    const i32 waiting_remaining_x = fixture.camera_pan.remaining_x;
+    const i32 waiting_step_x = fixture.camera_pan.step_x;
+    fixture.camera_pan.remaining_x = 0;
+    fixture.camera_pan.step_x = 0;
+    const auto completed = fixture.step();
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+            waiting.status == LegacyWorldStoryVmStatus::yielded &&
+            waiting.opcode == OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+            waiting.executed_instruction_count == 1U && waiting_offset == 0U &&
+            waiting_previous == OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+            waiting_remaining_x == 64 && waiting_step_x == 4 &&
+            completed.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            completed.opcode == OP_1025 &&
+            completed.executed_instruction_count == 2U &&
+            fixture.context.instruction_offset == 2U &&
+            fixture.state.previous_opcode == OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
+            fixture.ports.direct_audio_service_count == 0U,
+        "real opcode 51 waits for camera motion then continues"
+    );
+}
+
 void test_real_set_role_flag_8000_and_clear_one_shots_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -11307,6 +11488,7 @@ int main(const int argument_count, char** arguments) {
     test_start_camera_move_protocol(test);
     test_start_camera_move_failure_ordering(test);
     test_start_camera_move_window_boundaries(test);
+    test_wait_for_camera_move_protocol(test);
     test_wait_for_role_action_position(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
@@ -11368,6 +11550,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_role_action_wait_override_record(test, root);
         test_real_set_role_action_id_record(test, root);
         test_real_camera_move_records(test, root);
+        test_real_wait_for_camera_move_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

@@ -2585,7 +2585,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 51U:
+        case OP_51_WAIT_CAMERA_MOVE_COMPLETE:
             if (runtime.camera_pan == nullptr) {
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
                 return result;
@@ -2594,11 +2594,13 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 runtime.camera_pan->remaining_y != 0 ||
                 runtime.camera_pan->step_x != 0 ||
                 runtime.camera_pan->step_y != 0) {
+                state.previous_opcode = result.opcode;
                 result.status = LegacyWorldStoryVmStatus::yielded;
                 return result;
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
             continue;
 
         case 52U: {
