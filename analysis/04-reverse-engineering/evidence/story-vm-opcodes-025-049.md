@@ -132,11 +132,19 @@ selector = 0
 
 资产中opcode42/43分别有84/62条记录和84/62个entry probes，全部为两字节raw `0x002A/0x002B`；文件分布分别为68/15/1/0与52/8/2/0。真实回放及typed session/action port边界见 [`story-vm-interaction-lock-00428d18.md`](story-vm-interaction-lock-00428d18.md)。
 
-## opcode 44 与 46–49：查找失败后仍计算数组前地址
+## opcode 44：两种特殊 selector 与 staged unsafe 顺序
+
+opcode44先把raw `0xFFF0`替换为context source GUID，但不自修改脚本；随后`sub_40C0D0`仍把`0xFFFE`作为独立特殊值，直接返回受控角色index。ordinary selector按u16 GUID扫描，跳过bit28置位角色并取第一个clear匹配。
+
+lookup返回值被忽略；miss输出`0xFFFFFFFF`。机器仍先读`u16(+4)`，然后才第一次访问越界的`action[-1]`。modern checked边界因此必须保留“selector→lookup→value→action”顺序：missing且value截断先报operand越界，完整value的missing才在action访问点停下。
+
+live path依次把`u16(+4)`写入action `+0x48` wait override、把action `+0x44` wait remaining写零，再调用一次`sub_4321E0`；refresh零返回只诊断，六字节推进与same-call continuation不变。8条真实记录及FFF0/FFFE、bit28、missing、窗口尾的完整证据见 [`story-vm-role-action-wait-override-00428db8.md`](story-vm-role-action-wait-override-00428db8.md)。
+
+## opcode 46–49：查找失败后仍计算数组前地址
 
 `sub_40C0D0` 会先清输出；普通 selector 继续调用 `sub_40C100`。角色不存在时，后者把 lookup 返回的 `0xFFFFFFFF` 写入输出并返回零。
 
-opcode 44、46、47、48、49 都忽略这个布尔返回值，直接用输出做：
+opcode 46、47、48、49 都忽略这个布尔返回值，直接用输出做：
 
 ```text
 index * 0xD8 + role_array_base + 0x40

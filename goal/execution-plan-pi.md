@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v275
+版本：v276
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428DB8` handler（opcode 44）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00428E52` handler（opcode 45）
 
 ## 0. 执行约定
 
@@ -1661,6 +1661,21 @@ B7 P0 有限收口完成。
     游戏EXE。现代显式opcode仍为77；workpack当前33/146，即
     `5 assembly_exact + 28 platform_adapted + 113 pending_audit`。
 
+- 剧情VM P2第三十四组`0x00428DB8` / opcode44完成独立闭环。补齐此前缺失的六字节handler：
+    raw `0xFFF0`先替换为context source GUID但不自修改operand，`0xFFFE`再由`sub_40C0D0`直接
+    解析为受控index；ordinary selector按u16 GUID跳过bit28角色并取首个clear匹配。live path按机器
+    顺序先把`u16(+4)`写入action `+0x48` wait override，再清action `+0x44` wait remaining，恰好
+    refresh一次；零返回只诊断并同调用继续。ordinary miss保留selector→lookup→value→首次unsafe
+    action访问顺序，typed边界在完整value读取后返回`role_not_found`，没有MAPS fallback。资产确认8条
+    唯一记录及8个entry probe，均为raw `0x002C`/长度6，分布5/2/0/1；selector仅027F/0143/0019/
+    0316/0027、value仅0/1/2，`TALK1.DAT@0x00041D04`真实回放通过。四raw alias、FFF0/FFFE、bit28
+    首匹配、u16字段宽度、refresh失败、两级operand截断、missing/受控owner边界、`0x7FFA`精确窗口尾、
+    previous、无audio与same-call continuation均通过。最终定向剧情VM 3/3、Linux core 186/186、
+    Linux app 192/192均以exit 0通过；生成器`py_compile`及双重生成幂等通过，workpack hash为
+    `31ae91228bd780b83f3d0368c8e5019b61cbc21ad5fe707f9e8db3e23700e1e8`。Windows依v276留到P3，
+    未启动游戏EXE。现代显式opcode为78；workpack当前34/146，即
+    `5 assembly_exact + 29 platform_adapted + 112 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428DB8` 的opcode44 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00428E52` 的opcode45 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

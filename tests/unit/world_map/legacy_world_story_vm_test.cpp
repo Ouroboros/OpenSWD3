@@ -3,6 +3,7 @@
 #include "openswd3/asset_runtime/legacy_act_runtime.hpp"
 #include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
 #include "openswd3/world_map/legacy_world_map_role_paths.hpp"
+#include "openswd3/world_map/legacy_world_role_lookup.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
 #include <algorithm>
@@ -67,6 +68,7 @@ using openswd3::world_map::OP_40_RELOCATE_ROLE_AND_COMPLETE_PATH;
 using openswd3::world_map::OP_41_RELOAD_INDEXED_TARGET;
 using openswd3::world_map::OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT;
 using openswd3::world_map::OP_43_CLEAR_INTERACTION_LOCK;
+using openswd3::world_map::OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -6507,6 +6509,246 @@ void test_interaction_lock_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_set_role_action_wait_override_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> aliases{
+        OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE,
+        static_cast<u16>(OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE | 0x4000U),
+        static_cast<u16>(OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE | 0x8000U),
+        static_cast<u16>(OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE | 0xC000U),
+    };
+    for (const u16 raw_word : aliases) {
+        Fixture fixture;
+        fixture.roles[1].action.wait_remaining = 0xCAFEU;
+        fixture.roles[1].action.wait_default = 0xBEEFU;
+        fixture.roles[1].action.wait_override = 0x1234U;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0x00F8U);
+        write_u16(fixture.state.window, 4U, 0x8003U);
+        write_u16(fixture.state.window, 6U, OP_1025);
+        fixture.state.previous_opcode = 0x55U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.action_update_count == 1U &&
+                result.action_update_failure_count == 0U &&
+                fixture.ports.action_update_count == 1U &&
+                fixture.roles[1].action.wait_remaining == 0U &&
+                fixture.roles[1].action.wait_default == 0xBEEFU &&
+                fixture.roles[1].action.wait_override == 0x8003U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode ==
+                    OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 44 aliases write wait override, clear remaining, and continue"
+        );
+    }
+
+    Fixture current_source;
+    current_source.roles[1].action.wait_remaining = 9U;
+    prime_loaded_instruction(
+        current_source, OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE
+    );
+    write_u16(current_source.state.window, 2U, 0xFFF0U);
+    write_u16(current_source.state.window, 4U, 0xFFFFU);
+    write_u16(current_source.state.window, 6U, OP_1025);
+    const auto current_source_result = current_source.step();
+    test.expect_true(
+        current_source_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            current_source.roles[1].action.wait_override == 0xFFFFU &&
+            current_source.roles[1].action.wait_remaining == 0U &&
+            current_source.roles[0].action.wait_override == 0U &&
+            read_u16(current_source.state.window, 2U) == 0xFFF0U,
+        "opcode 44 translates FFF0 to the context GUID before lookup"
+    );
+
+    Fixture controlled;
+    controlled.roles[1].guid = 0xFFFEU;
+    controlled.roles[1].action.wait_override = 0x1111U;
+    controlled.roles[2].action.wait_remaining = 7U;
+    prime_loaded_instruction(controlled, OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE);
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    write_u16(controlled.state.window, 4U, 0x8123U);
+    write_u16(controlled.state.window, 6U, OP_1025);
+    const auto controlled_result = controlled.step(0, 0, 2U);
+    test.expect_true(
+        controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled.roles[2].action.wait_override == 0x8123U &&
+            controlled.roles[2].action.wait_remaining == 0U &&
+            controlled.roles[1].action.wait_override == 0x1111U,
+        "opcode 44 passes FFFE to the helper for direct controlled-index selection"
+    );
+
+    Fixture first_clear_match;
+    first_clear_match.roles[0].guid = 0x2222U;
+    first_clear_match.roles[0].flags =
+        openswd3::world_map::kLegacyWorldGuidLookupSkipBit;
+    first_clear_match.roles[1].guid = 0x2222U;
+    first_clear_match.roles[2].guid = 0x2222U;
+    first_clear_match.roles[1].action.wait_remaining = 5U;
+    first_clear_match.roles[2].action.wait_remaining = 7U;
+    prime_loaded_instruction(
+        first_clear_match, OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE
+    );
+    write_u16(first_clear_match.state.window, 2U, 0x2222U);
+    write_u16(first_clear_match.state.window, 4U, 0x8004U);
+    write_u16(first_clear_match.state.window, 6U, OP_1025);
+    const auto first_clear_match_result = first_clear_match.step();
+    test.expect_true(
+        first_clear_match_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            first_clear_match.roles[0].action.wait_override == 0U &&
+            first_clear_match.roles[1].action.wait_override == 0x8004U &&
+            first_clear_match.roles[1].action.wait_remaining == 0U &&
+            first_clear_match.roles[2].action.wait_override == 0U &&
+            first_clear_match.roles[2].action.wait_remaining == 7U,
+        "opcode 44 lookup skips bit-28 roles and uses the first clear GUID match"
+    );
+
+    Fixture update_failure;
+    update_failure.roles[1].action.wait_remaining = 9U;
+    update_failure.ports.action_update_result = 0U;
+    prime_loaded_instruction(
+        update_failure, OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE
+    );
+    write_u16(update_failure.state.window, 2U, 0x00F8U);
+    write_u16(update_failure.state.window, 4U, 0x8005U);
+    write_u16(update_failure.state.window, 6U, OP_1025);
+    const auto update_failure_result = update_failure.step();
+    test.expect_true(
+        update_failure_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            update_failure_result.action_update_count == 1U &&
+            update_failure_result.action_update_failure_count == 1U &&
+            update_failure.roles[1].action.wait_override == 0x8005U &&
+            update_failure.roles[1].action.wait_remaining == 0U &&
+            update_failure.context.instruction_offset == 6U &&
+            update_failure.state.previous_opcode ==
+                OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE,
+        "opcode 44 refresh failure is diagnostic-only after both word writes"
+    );
+
+    Fixture missing;
+    missing.roles[0].action.wait_override = 0x1111U;
+    missing.roles[1].action.wait_override = 0x2222U;
+    missing.roles[2].action.wait_override = 0x3333U;
+    prime_loaded_instruction(missing, OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE);
+    write_u16(missing.state.window, 2U, 0x7777U);
+    write_u16(missing.state.window, 4U, 0x8006U);
+    missing.state.previous_opcode = 0x55U;
+    const auto missing_result = missing.step();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::role_not_found &&
+            missing_result.opcode == OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE &&
+            missing_result.executed_instruction_count == 1U &&
+            missing_result.action_update_count == 0U &&
+            missing.roles[0].action.wait_override == 0x1111U &&
+            missing.roles[1].action.wait_override == 0x2222U &&
+            missing.roles[2].action.wait_override == 0x3333U &&
+            missing.context.instruction_offset == 0U &&
+            missing.state.previous_opcode == 0x55U,
+        "opcode 44 missing role stops at the first unsafe action access"
+    );
+
+    Fixture selector_truncated;
+    selector_truncated.context.instruction_offset = 0x7FFEU;
+    selector_truncated.context.talk_data_offset = 0x1111U;
+    selector_truncated.state.loaded_file_number = 1U;
+    selector_truncated.state.loaded_data_offset = 0x1111U;
+    selector_truncated.state.window_loaded = true;
+    write_u16(
+        selector_truncated.state.window,
+        0x7FFEU,
+        OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE
+    );
+    selector_truncated.state.previous_opcode = 0x55U;
+    const auto selector_truncated_result = selector_truncated.step();
+    test.expect_true(
+        selector_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            selector_truncated_result.executed_instruction_count == 1U &&
+            selector_truncated_result.action_update_count == 0U &&
+            selector_truncated.context.instruction_offset == 0x7FFEU &&
+            selector_truncated.state.previous_opcode == 0x55U,
+        "opcode 44 stops at the first unsafe selector-word access"
+    );
+
+    Fixture missing_truncated;
+    missing_truncated.context.instruction_offset = 0x7FFCU;
+    missing_truncated.context.talk_data_offset = 0x1111U;
+    missing_truncated.state.loaded_file_number = 1U;
+    missing_truncated.state.loaded_data_offset = 0x1111U;
+    missing_truncated.state.window_loaded = true;
+    write_u16(
+        missing_truncated.state.window,
+        0x7FFCU,
+        OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE
+    );
+    write_u16(missing_truncated.state.window, 0x7FFEU, 0x7777U);
+    missing_truncated.state.previous_opcode = 0x55U;
+    const auto missing_truncated_result = missing_truncated.step();
+    test.expect_true(
+        missing_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_truncated_result.executed_instruction_count == 1U &&
+            missing_truncated_result.action_update_count == 0U &&
+            missing_truncated.context.instruction_offset == 0x7FFCU &&
+            missing_truncated.state.previous_opcode == 0x55U,
+        "opcode 44 reads the value after lookup and before unsafe role access"
+    );
+
+    Fixture invalid_controlled;
+    prime_loaded_instruction(
+        invalid_controlled, OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE
+    );
+    write_u16(invalid_controlled.state.window, 2U, 0xFFFEU);
+    write_u16(invalid_controlled.state.window, 4U, 0x8007U);
+    invalid_controlled.state.previous_opcode = 0x55U;
+    const auto invalid_controlled_result = invalid_controlled.step(
+        0, 0, static_cast<u32>(invalid_controlled.roles.size())
+    );
+    test.expect_true(
+        invalid_controlled_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            invalid_controlled_result.opcode == 0U &&
+            invalid_controlled_result.executed_instruction_count == 0U &&
+            invalid_controlled.context.instruction_offset == 0U &&
+            invalid_controlled.state.previous_opcode == 0x55U,
+        "opcode 44 invalid controlled owner stops at the VM session boundary"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.roles[1].action.wait_remaining = 9U;
+    write_u16(
+        exact_tail.state.window, 0x7FFAU, OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE
+    );
+    write_u16(exact_tail.state.window, 0x7FFCU, 0x00F8U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0x8008U);
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.action_update_count == 1U &&
+            exact_tail.roles[1].action.wait_override == 0x8008U &&
+            exact_tail.roles[1].action.wait_remaining == 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE,
+        "opcode 44 exact-tail record completes before the next fetch fails"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -7955,6 +8197,45 @@ void test_real_interaction_lock_records(
     );
 }
 
+void test_real_set_role_action_wait_override_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00041D04);
+    std::array<u8, 6U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    fixture.roles[1].guid = 0x027FU;
+    fixture.roles[1].action.wait_remaining = 9U;
+    fixture.roles[1].action.wait_override = 0x8123U;
+    prime_loaded_instruction(fixture, OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 6U, OP_1025);
+    const auto result = fixture.step();
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE &&
+            read_u16(instruction, 2U) == 0x027FU &&
+            read_u16(instruction, 4U) == 0U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.executed_instruction_count == 2U &&
+            result.action_update_count == 1U &&
+            fixture.roles[1].action.wait_override == 0U &&
+            fixture.roles[1].action.wait_remaining == 0U &&
+            fixture.context.instruction_offset == 6U &&
+            fixture.state.previous_opcode ==
+                OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE &&
+            fixture.ports.direct_audio_service_count == 0U,
+        "real opcode 44 writes the role wait override and clears remaining wait"
+    );
+}
+
 void test_real_set_role_flag_8000_and_clear_one_shots_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -9285,6 +9566,7 @@ int main(const int argument_count, char** arguments) {
     test_relocate_role_and_complete_path_protocol(test);
     test_reload_indexed_target_protocol(test);
     test_interaction_lock_protocol(test);
+    test_set_role_action_wait_override_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -9321,6 +9603,7 @@ int main(const int argument_count, char** arguments) {
         test_real_relocate_role_and_complete_path_record(test, root);
         test_real_reload_indexed_target_record(test, root);
         test_real_interaction_lock_records(test, root);
+        test_real_set_role_action_wait_override_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
