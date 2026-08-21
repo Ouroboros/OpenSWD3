@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v278
+版本：v279
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00429066` 共享 handler（opcodes 50、70、73）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00429362` handler（opcode 51）
 
 ## 0. 执行约定
 
@@ -1710,6 +1710,24 @@ B7 P0 有限收口完成。
     Windows依v278留到P3，未启动游戏EXE。现代显式opcode为82；workpack当前36/146，即
     `5 assembly_exact + 31 platform_adapted + 110 pending_audit`。
 
+- 剧情VM P2第三十七组`0x00429066` / 共享opcodes50、70、73完成独立闭环。原有C++仅接入
+    opcode70且提前整段验长、预夹取目标并拒绝zero map；现按LST恢复relative tile、absolute target
+    tile和role-centered viewport三分支。最终REVIEW另纠正opcode70必须先读完X/Y target word再写remaining，
+    Y target截断不得保留新X。共同路径严格按X/Y分阶段写tile displacement与raw u16 step，
+    再转wrapping pixel、signed IDIV检查整除、非整除回退4、最后定方向；非零位移配zero step在两项
+    pixel remaining/raw step已经写入后由`camera_step_divide_by_zero`隔离CPU fault。viewport四边与
+    map pixel边界夹取发生在step确定后，不重算step，zero map仍保留原wrap。opcode73不替换FFF0，
+    lookup miss在viewport copy之后的role coordinate unsafe点typed-stop；共同clamp诊断还保留原版把
+    8-byte记录`+8`误读为下一opcode word的条件window边界。TALK目录锁定17/62/34条物理记录与
+    同数entry probe，合计113/113，全部基础raw、长度10/10/8；三条TALK1代表性记录真实回放通过。
+    三opcode四raw alias、已有movement覆盖、relative/absolute/role target、FFF0/FFFE/bit28、zero axis、
+    X/Y divide fault、四边clamp、zero map、分阶段operand截断、两类opcode73精确窗口尾、owner顺序、
+    previous、无MAPS/audio/yield均通过。最终剧情VM定向3/3、Linux core 186/186、Linux app 192/192
+    均exit 0；app仅保留既有ALSA开发库warning。生成器`py_compile`及双重生成幂等通过，workpack
+    hash为`99403c210d8784b38c4d8a31478598023370762ff6d1a66e93e6d72884b412b4`。Windows依v279
+    留到P3，未启动游戏EXE。现代显式opcode为84；workpack当前37/146，即
+    `5 assembly_exact + 32 platform_adapted + 109 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00429066` 的共享opcodes50、70、73 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00429362` 的 opcode51 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

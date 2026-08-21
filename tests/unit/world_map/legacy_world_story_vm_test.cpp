@@ -23,6 +23,7 @@
 
 namespace {
 
+using openswd3::compat::i16;
 using openswd3::compat::i32;
 using openswd3::compat::u8;
 using openswd3::compat::u16;
@@ -74,6 +75,9 @@ using openswd3::world_map::OP_46_RESTORE_ROLE_ACTION_OVERRIDES;
 using openswd3::world_map::OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE;
 using openswd3::world_map::OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE;
 using openswd3::world_map::OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF;
+using openswd3::world_map::OP_50_START_RELATIVE_CAMERA_MOVE;
+using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
+using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -558,6 +562,18 @@ struct Fixture {
     }
 };
 
+struct CameraMoveFixture : Fixture {
+    openswd3::world_map::LegacyWorldCameraPanState camera_pan{};
+
+    CameraMoveFixture() {
+        runtime.camera_pan = &camera_pan;
+        runtime.role_surface.map_width = 100U;
+        runtime.map_height = 80U;
+        camera.right = 640U;
+        camera.bottom = 480U;
+    }
+};
+
 struct StoryPathHarness {
     static constexpr u32 kMapWidth = 50U;
     static constexpr u32 kMapHeight = 40U;
@@ -628,6 +644,36 @@ void prime_loaded_instruction(Fixture& fixture, const u16 raw_word) {
     fixture.state.loaded_data_offset = 0x1111U;
     fixture.state.window_loaded = true;
     write_u16(fixture.state.window, 0U, raw_word);
+}
+
+void prime_long_camera_move(
+    Fixture& fixture,
+    const u16 raw_word,
+    const i16 first,
+    const i16 second,
+    const u16 step_x,
+    const u16 step_y
+) {
+    prime_loaded_instruction(fixture, raw_word);
+    write_u16(fixture.state.window, 2U, static_cast<u16>(first));
+    write_u16(fixture.state.window, 4U, static_cast<u16>(second));
+    write_u16(fixture.state.window, 6U, step_x);
+    write_u16(fixture.state.window, 8U, step_y);
+    write_u16(fixture.state.window, 10U, OP_1025);
+}
+
+void prime_role_camera_move(
+    Fixture& fixture,
+    const u16 raw_word,
+    const u16 selector,
+    const u16 step_x,
+    const u16 step_y
+) {
+    prime_loaded_instruction(fixture, raw_word);
+    write_u16(fixture.state.window, 2U, selector);
+    write_u16(fixture.state.window, 4U, step_x);
+    write_u16(fixture.state.window, 6U, step_y);
+    write_u16(fixture.state.window, 8U, OP_1025);
 }
 
 std::size_t write_dialog_instruction(
@@ -3756,6 +3802,710 @@ void test_restore_role_action_overrides_protocol(
             "opcodes 46-49 invalid controlled owner stops before opcode fetch"
         );
     }
+}
+
+void test_start_camera_move_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 mask : alias_masks) {
+        CameraMoveFixture relative;
+        relative.camera.right = 800U;
+        relative.camera.bottom = 800U;
+        relative.camera_pan.remaining_x = 0x11111111;
+        relative.camera_pan.remaining_y = 0x22222222;
+        relative.camera_pan.step_x = 0x33333333;
+        relative.camera_pan.step_y = 0x44444444;
+        relative.state.previous_opcode = 0x55U;
+        prime_long_camera_move(
+            relative,
+            static_cast<u16>(OP_50_START_RELATIVE_CAMERA_MOVE | mask),
+            -3,
+            2,
+            8U,
+            7U
+        );
+        const auto relative_result = relative.step(160, 320);
+        test.expect_true(
+            relative_result.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                relative_result.opcode == OP_1025 &&
+                relative_result.executed_instruction_count == 2U &&
+                relative.camera_pan.remaining_x == -48 &&
+                relative.camera_pan.remaining_y == 32 &&
+                relative.camera_pan.step_x == -8 &&
+                relative.camera_pan.step_y == 4 &&
+                relative.context.instruction_offset == 10U &&
+                relative.state.previous_opcode ==
+                    OP_50_START_RELATIVE_CAMERA_MOVE &&
+                relative.ports.direct_audio_service_count == 0U,
+            "opcode 50 aliases replace active motion and derive signed steps"
+        );
+
+        CameraMoveFixture absolute;
+        absolute.camera.right = 800U;
+        absolute.camera.bottom = 560U;
+        absolute.camera_pan.remaining_x = 0x11111111;
+        absolute.camera_pan.remaining_y = 0x22222222;
+        absolute.camera_pan.step_x = 0x33333333;
+        absolute.camera_pan.step_y = 0x44444444;
+        absolute.state.previous_opcode = 0x55U;
+        prime_long_camera_move(
+            absolute,
+            static_cast<u16>(OP_70_START_ABSOLUTE_CAMERA_MOVE | mask),
+            7,
+            9,
+            6U,
+            8U
+        );
+        const auto absolute_result = absolute.step(160, 80);
+        test.expect_true(
+            absolute_result.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                absolute_result.opcode == OP_1025 &&
+                absolute_result.executed_instruction_count == 2U &&
+                absolute.camera_pan.remaining_x == -48 &&
+                absolute.camera_pan.remaining_y == 64 &&
+                absolute.camera_pan.step_x == -6 &&
+                absolute.camera_pan.step_y == 8 &&
+                absolute.context.instruction_offset == 10U &&
+                absolute.state.previous_opcode ==
+                    OP_70_START_ABSOLUTE_CAMERA_MOVE &&
+                absolute.ports.direct_audio_service_count == 0U,
+            "opcode 70 aliases derive displacement from viewport tile origin"
+        );
+
+        CameraMoveFixture role_target;
+        role_target.roles[1].world_x = 800U;
+        role_target.roles[1].world_y = 640U;
+        role_target.camera_pan.remaining_x = 0x11111111;
+        role_target.camera_pan.remaining_y = 0x22222222;
+        role_target.camera_pan.step_x = 0x33333333;
+        role_target.camera_pan.step_y = 0x44444444;
+        role_target.state.previous_opcode = 0x55U;
+        prime_role_camera_move(
+            role_target,
+            static_cast<u16>(OP_73_START_CAMERA_MOVE_TO_ROLE | mask),
+            0x00F8U,
+            16U,
+            6U
+        );
+        const auto role_result = role_target.step();
+        test.expect_true(
+            role_result.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                role_result.opcode == OP_1025 &&
+                role_result.executed_instruction_count == 2U &&
+                role_target.camera_pan.remaining_x == 480 &&
+                role_target.camera_pan.remaining_y == 400 &&
+                role_target.camera_pan.step_x == 16 &&
+                role_target.camera_pan.step_y == 4 &&
+                role_target.context.instruction_offset == 8U &&
+                role_target.state.previous_opcode ==
+                    OP_73_START_CAMERA_MOVE_TO_ROLE &&
+                role_target.ports.direct_audio_service_count == 0U,
+            "opcode 73 aliases center a clamped viewport on the selected role"
+        );
+    }
+
+    CameraMoveFixture zero_axes;
+    zero_axes.camera.right = 640U;
+    zero_axes.camera.bottom = 480U;
+    zero_axes.camera_pan.remaining_x = 11;
+    zero_axes.camera_pan.remaining_y = 22;
+    zero_axes.camera_pan.step_x = 33;
+    zero_axes.camera_pan.step_y = 44;
+    prime_long_camera_move(
+        zero_axes, OP_50_START_RELATIVE_CAMERA_MOVE, 0, 0, 0U, 0U
+    );
+    const auto zero_axes_result = zero_axes.step();
+    test.expect_true(
+        zero_axes_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            zero_axes.camera_pan.remaining_x == 0 &&
+            zero_axes.camera_pan.remaining_y == 0 &&
+            zero_axes.camera_pan.step_x == 0 &&
+            zero_axes.camera_pan.step_y == 0 &&
+            zero_axes.context.instruction_offset == 10U,
+        "zero camera displacement accepts zero requested steps"
+    );
+
+    CameraMoveFixture literal_fff0;
+    literal_fff0.roles[1].world_x = 320U;
+    literal_fff0.roles[1].world_y = 240U;
+    literal_fff0.roles[2].guid = 0xFFF0U;
+    literal_fff0.roles[2].world_x = 960U;
+    literal_fff0.roles[2].world_y = 720U;
+    prime_role_camera_move(
+        literal_fff0, OP_73_START_CAMERA_MOVE_TO_ROLE, 0xFFF0U, 16U, 16U
+    );
+    const auto literal_fff0_result = literal_fff0.step();
+    test.expect_true(
+        literal_fff0_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            literal_fff0.camera_pan.remaining_x == 640 &&
+            literal_fff0.camera_pan.remaining_y == 480 &&
+            literal_fff0.camera_pan.step_x == 16 &&
+            literal_fff0.camera_pan.step_y == 16,
+        "opcode 73 treats FFF0 as a literal role GUID"
+    );
+
+    CameraMoveFixture controlled;
+    controlled.roles[1].guid = 0xFFFEU;
+    controlled.roles[1].world_x = 320U;
+    controlled.roles[1].world_y = 240U;
+    controlled.roles[2].world_x = 960U;
+    controlled.roles[2].world_y = 720U;
+    prime_role_camera_move(
+        controlled, OP_73_START_CAMERA_MOVE_TO_ROLE, 0xFFFEU, 16U, 16U
+    );
+    const auto controlled_result = controlled.step(0, 0, 2U);
+    test.expect_true(
+        controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled.camera_pan.remaining_x == 640 &&
+            controlled.camera_pan.remaining_y == 480,
+        "opcode 73 passes FFFE through for controlled-role selection"
+    );
+
+    CameraMoveFixture first_clear_match;
+    first_clear_match.roles[0].guid = 0x2222U;
+    first_clear_match.roles[0].flags =
+        openswd3::world_map::kLegacyWorldGuidLookupSkipBit;
+    first_clear_match.roles[0].world_x = 320U;
+    first_clear_match.roles[0].world_y = 240U;
+    first_clear_match.roles[1].guid = 0x2222U;
+    first_clear_match.roles[1].world_x = 960U;
+    first_clear_match.roles[1].world_y = 720U;
+    first_clear_match.roles[2].guid = 0x2222U;
+    first_clear_match.roles[2].world_x = 1200U;
+    first_clear_match.roles[2].world_y = 960U;
+    prime_role_camera_move(
+        first_clear_match, OP_73_START_CAMERA_MOVE_TO_ROLE, 0x2222U, 16U, 16U
+    );
+    const auto first_clear_result = first_clear_match.step();
+    test.expect_true(
+        first_clear_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            first_clear_match.camera_pan.remaining_x == 640 &&
+            first_clear_match.camera_pan.remaining_y == 480,
+        "opcode 73 skips bit-28 roles and uses the first clear GUID match"
+    );
+
+    CameraMoveFixture far_role;
+    far_role.roles[1].world_x = 2000U;
+    far_role.roles[1].world_y = 1600U;
+    prime_role_camera_move(
+        far_role, OP_73_START_CAMERA_MOVE_TO_ROLE, 0x00F8U, 16U, 16U
+    );
+    const auto far_role_result = far_role.step();
+    test.expect_true(
+        far_role_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            far_role.camera_pan.remaining_x == 960 &&
+            far_role.camera_pan.remaining_y == 800 &&
+            far_role.camera_pan.step_x == 16 &&
+            far_role.camera_pan.step_y == 16,
+        "opcode 73 centers then clamps the target viewport to map bounds"
+    );
+
+    CameraMoveFixture zero_map;
+    zero_map.runtime.role_surface.map_width = 0U;
+    zero_map.runtime.map_height = 0U;
+    zero_map.roles[1].world_x = 320U;
+    zero_map.roles[1].world_y = 240U;
+    prime_role_camera_move(
+        zero_map, OP_73_START_CAMERA_MOVE_TO_ROLE, 0x00F8U, 16U, 16U
+    );
+    const auto zero_map_result = zero_map.step();
+    test.expect_true(
+        zero_map_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            zero_map.camera_pan.remaining_x == -640 &&
+            zero_map.camera_pan.remaining_y == -480 &&
+            zero_map.camera_pan.step_x == -16 &&
+            zero_map.camera_pan.step_y == -16 &&
+            zero_map.context.instruction_offset == 8U,
+        "zero-sized maps preserve original wrapping camera clamping"
+    );
+
+    CameraMoveFixture high_clamp;
+    high_clamp.runtime.role_surface.map_width = 50U;
+    high_clamp.runtime.map_height = 40U;
+    high_clamp.camera.right = 800U;
+    high_clamp.camera.bottom = 640U;
+    prime_long_camera_move(
+        high_clamp, OP_50_START_RELATIVE_CAMERA_MOVE, 10, 10, 16U, 16U
+    );
+    const auto high_clamp_result = high_clamp.step();
+    test.expect_true(
+        high_clamp_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            high_clamp.camera_pan.remaining_x == 0 &&
+            high_clamp.camera_pan.remaining_y == 0 &&
+            high_clamp.camera_pan.step_x == 16 &&
+            high_clamp.camera_pan.step_y == 16,
+        "camera max clamping occurs after step derivation without recomputing steps"
+    );
+
+    CameraMoveFixture low_clamp;
+    low_clamp.camera.right = 800U;
+    low_clamp.camera.bottom = 800U;
+    prime_long_camera_move(
+        low_clamp, OP_50_START_RELATIVE_CAMERA_MOVE, -20, -20, 16U, 16U
+    );
+    const auto low_clamp_result = low_clamp.step(160, 160);
+    test.expect_true(
+        low_clamp_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            low_clamp.camera_pan.remaining_x == -160 &&
+            low_clamp.camera_pan.remaining_y == -160 &&
+            low_clamp.camera_pan.step_x == -16 &&
+            low_clamp.camera_pan.step_y == -16,
+        "camera minimum clamping preserves already-signed step magnitudes"
+    );
+}
+
+void test_start_camera_move_failure_ordering(openswd3::test::Context& test) {
+    CameraMoveFixture x_divide_by_zero;
+    x_divide_by_zero.state.previous_opcode = 0x55U;
+    prime_long_camera_move(
+        x_divide_by_zero, OP_50_START_RELATIVE_CAMERA_MOVE, 1, 2, 0U, 3U
+    );
+    const auto x_divide_result = x_divide_by_zero.step();
+    test.expect_true(
+        x_divide_result.status ==
+                LegacyWorldStoryVmStatus::camera_step_divide_by_zero &&
+            x_divide_result.opcode == OP_50_START_RELATIVE_CAMERA_MOVE &&
+            x_divide_result.executed_instruction_count == 1U &&
+            x_divide_by_zero.camera_pan.remaining_x == 16 &&
+            x_divide_by_zero.camera_pan.remaining_y == 32 &&
+            x_divide_by_zero.camera_pan.step_x == 0 &&
+            x_divide_by_zero.camera_pan.step_y == 3 &&
+            x_divide_by_zero.context.instruction_offset == 0U &&
+            x_divide_by_zero.state.previous_opcode == 0x55U &&
+            x_divide_by_zero.ports.direct_audio_service_count == 0U,
+        "X step divide-by-zero preserves shifted displacements and raw steps"
+    );
+
+    CameraMoveFixture y_divide_by_zero;
+    y_divide_by_zero.state.previous_opcode = 0x55U;
+    prime_long_camera_move(
+        y_divide_by_zero, OP_50_START_RELATIVE_CAMERA_MOVE, -1, -2, 3U, 0U
+    );
+    const auto y_divide_result = y_divide_by_zero.step();
+    test.expect_true(
+        y_divide_result.status ==
+                LegacyWorldStoryVmStatus::camera_step_divide_by_zero &&
+            y_divide_by_zero.camera_pan.remaining_x == -16 &&
+            y_divide_by_zero.camera_pan.remaining_y == -32 &&
+            y_divide_by_zero.camera_pan.step_x == 4 &&
+            y_divide_by_zero.camera_pan.step_y == 0 &&
+            y_divide_by_zero.context.instruction_offset == 0U &&
+            y_divide_by_zero.state.previous_opcode == 0x55U,
+        "Y step divide-by-zero retains X fallback before sign application"
+    );
+
+    CameraMoveFixture relative_without_camera;
+    relative_without_camera.runtime.camera = nullptr;
+    relative_without_camera.state.previous_opcode = 0x55U;
+    prime_long_camera_move(
+        relative_without_camera, OP_50_START_RELATIVE_CAMERA_MOVE, 1, 0, 1U, 0U
+    );
+    const auto relative_without_camera_result = relative_without_camera.step();
+    test.expect_true(
+        relative_without_camera_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            relative_without_camera.camera_pan.remaining_x == 16 &&
+            relative_without_camera.camera_pan.remaining_y == 0 &&
+            relative_without_camera.camera_pan.step_x == 1 &&
+            relative_without_camera.camera_pan.step_y == 0 &&
+            relative_without_camera.context.instruction_offset == 0U &&
+            relative_without_camera.state.previous_opcode == 0x55U,
+        "opcode 50 reaches the camera owner only after step preparation"
+    );
+
+    CameraMoveFixture absolute_without_camera;
+    absolute_without_camera.runtime.camera = nullptr;
+    absolute_without_camera.camera_pan.remaining_x = 0x11111111;
+    absolute_without_camera.camera_pan.remaining_y = 0x22222222;
+    absolute_without_camera.camera_pan.step_x = 0x33333333;
+    absolute_without_camera.camera_pan.step_y = 0x44444444;
+    prime_long_camera_move(
+        absolute_without_camera, OP_70_START_ABSOLUTE_CAMERA_MOVE, 7, 9, 4U, 4U
+    );
+    const auto absolute_without_camera_result = absolute_without_camera.step();
+    test.expect_true(
+        absolute_without_camera_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            absolute_without_camera.camera_pan.remaining_x == 0x11111111 &&
+            absolute_without_camera.camera_pan.remaining_y == 0x22222222 &&
+            absolute_without_camera.camera_pan.step_x == 0x33333333 &&
+            absolute_without_camera.camera_pan.step_y == 0x44444444 &&
+            absolute_without_camera.context.instruction_offset == 0U,
+        "opcode 70 accesses the camera after its first target operand"
+    );
+
+    CameraMoveFixture missing_role;
+    missing_role.camera_pan.remaining_x = 11;
+    missing_role.camera_pan.remaining_y = 22;
+    missing_role.camera_pan.step_x = 33;
+    missing_role.camera_pan.step_y = 44;
+    missing_role.state.previous_opcode = 0x55U;
+    prime_role_camera_move(
+        missing_role, OP_73_START_CAMERA_MOVE_TO_ROLE, 0x7777U, 4U, 4U
+    );
+    const auto missing_role_result = missing_role.step();
+    test.expect_true(
+        missing_role_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            missing_role_result.opcode == OP_73_START_CAMERA_MOVE_TO_ROLE &&
+            missing_role_result.executed_instruction_count == 1U &&
+            missing_role.camera_pan.remaining_x == 11 &&
+            missing_role.camera_pan.remaining_y == 22 &&
+            missing_role.camera_pan.step_x == 33 &&
+            missing_role.camera_pan.step_y == 44 &&
+            missing_role.context.instruction_offset == 0U &&
+            missing_role.state.previous_opcode == 0x55U &&
+            missing_role.ports.role_patch_requests.empty(),
+        "opcode 73 missing role stops at the unchecked coordinate access"
+    );
+
+    CameraMoveFixture missing_role_without_camera;
+    missing_role_without_camera.runtime.camera = nullptr;
+    prime_role_camera_move(
+        missing_role_without_camera,
+        OP_73_START_CAMERA_MOVE_TO_ROLE,
+        0x7777U,
+        4U,
+        4U
+    );
+    const auto missing_without_camera_result =
+        missing_role_without_camera.step();
+    test.expect_true(
+        missing_without_camera_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_role_without_camera.context.instruction_offset == 0U,
+        "opcode 73 copies the camera owner before its unsafe missing-role read"
+    );
+
+    Fixture missing_pan;
+    prime_long_camera_move(
+        missing_pan, OP_50_START_RELATIVE_CAMERA_MOVE, 1, 1, 1U, 1U
+    );
+    const auto missing_pan_result = missing_pan.step();
+    test.expect_true(
+        missing_pan_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_pan_result.opcode == OP_50_START_RELATIVE_CAMERA_MOVE &&
+            missing_pan_result.executed_instruction_count == 1U &&
+            missing_pan.context.instruction_offset == 0U,
+        "camera move handlers require the process camera-pan owner first"
+    );
+
+    CameraMoveFixture invalid_controlled;
+    invalid_controlled.state.previous_opcode = 0x55U;
+    prime_role_camera_move(
+        invalid_controlled, OP_73_START_CAMERA_MOVE_TO_ROLE, 0xFFFEU, 4U, 4U
+    );
+    const auto invalid_controlled_result = invalid_controlled.step(
+        0, 0, static_cast<u32>(invalid_controlled.roles.size())
+    );
+    test.expect_true(
+        invalid_controlled_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            invalid_controlled_result.opcode == 0U &&
+            invalid_controlled_result.executed_instruction_count == 0U &&
+            invalid_controlled.camera_pan.remaining_x == 0 &&
+            invalid_controlled.camera_pan.remaining_y == 0 &&
+            invalid_controlled.context.instruction_offset == 0U &&
+            invalid_controlled.state.previous_opcode == 0x55U,
+        "opcode 73 invalid controlled owner stops before opcode fetch"
+    );
+}
+
+void test_start_camera_move_window_boundaries(openswd3::test::Context& test) {
+    const auto prime_at =
+        [](Fixture& fixture, const u16 raw_word, const u16 offset) {
+            fixture.context.talk_data_offset = 0x1111U;
+            fixture.context.instruction_offset = offset;
+            fixture.state.loaded_file_number = 1U;
+            fixture.state.loaded_data_offset = 0x1111U;
+            fixture.state.window_loaded = true;
+            fixture.state.previous_opcode = 0x55U;
+            write_u16(fixture.state.window, offset, raw_word);
+        };
+
+    constexpr std::array<u16, 2U> long_opcodes{
+        OP_50_START_RELATIVE_CAMERA_MOVE,
+        OP_70_START_ABSOLUTE_CAMERA_MOVE,
+    };
+    for (const u16 opcode : long_opcodes) {
+        const i16 first = opcode == OP_50_START_RELATIVE_CAMERA_MOVE ? -2 : 5;
+        const i16 second = opcode == OP_50_START_RELATIVE_CAMERA_MOVE ? 3 : 7;
+        const i32 expected_tile_x =
+            opcode == OP_50_START_RELATIVE_CAMERA_MOVE ? -2 : 1;
+        constexpr i32 expected_tile_y = 3;
+
+        CameraMoveFixture first_operand_truncated;
+        first_operand_truncated.camera_pan.remaining_x = 11;
+        first_operand_truncated.camera_pan.remaining_y = 22;
+        first_operand_truncated.camera_pan.step_x = 33;
+        first_operand_truncated.camera_pan.step_y = 44;
+        prime_at(first_operand_truncated, opcode, 0x7FFEU);
+        const auto first_truncated_result =
+            first_operand_truncated.step(64, 64);
+        test.expect_true(
+            first_truncated_result.status ==
+                    LegacyWorldStoryVmStatus::operand_out_of_range &&
+                first_truncated_result.opcode == opcode &&
+                first_truncated_result.executed_instruction_count == 1U &&
+                first_operand_truncated.camera_pan.remaining_x == 11 &&
+                first_operand_truncated.camera_pan.remaining_y == 22 &&
+                first_operand_truncated.camera_pan.step_x == 33 &&
+                first_operand_truncated.camera_pan.step_y == 44 &&
+                first_operand_truncated.context.instruction_offset == 0x7FFEU &&
+                first_operand_truncated.state.previous_opcode == 0x55U,
+            "long camera moves stop before the first operand word"
+        );
+
+        CameraMoveFixture second_operand_truncated;
+        second_operand_truncated.camera_pan.remaining_x = 11;
+        second_operand_truncated.camera_pan.remaining_y = 22;
+        second_operand_truncated.camera_pan.step_x = 33;
+        second_operand_truncated.camera_pan.step_y = 44;
+        prime_at(second_operand_truncated, opcode, 0x7FFCU);
+        write_u16(
+            second_operand_truncated.state.window,
+            0x7FFEU,
+            static_cast<u16>(first)
+        );
+        const auto second_truncated_result =
+            second_operand_truncated.step(64, 64);
+        test.expect_true(
+            second_truncated_result.status ==
+                    LegacyWorldStoryVmStatus::operand_out_of_range &&
+                second_operand_truncated.camera_pan.remaining_x ==
+                    (opcode == OP_50_START_RELATIVE_CAMERA_MOVE
+                         ? expected_tile_x
+                         : 11) &&
+                second_operand_truncated.camera_pan.remaining_y == 22 &&
+                second_operand_truncated.camera_pan.step_x == 33 &&
+                second_operand_truncated.camera_pan.step_y == 44 &&
+                second_operand_truncated.context.instruction_offset ==
+                    0x7FFCU &&
+                second_operand_truncated.state.previous_opcode == 0x55U,
+            "camera move variants preserve their distinct Y-target truncation order"
+        );
+
+        CameraMoveFixture x_step_truncated;
+        x_step_truncated.camera_pan.step_x = 33;
+        x_step_truncated.camera_pan.step_y = 44;
+        prime_at(x_step_truncated, opcode, 0x7FFAU);
+        write_u16(
+            x_step_truncated.state.window, 0x7FFCU, static_cast<u16>(first)
+        );
+        write_u16(
+            x_step_truncated.state.window, 0x7FFEU, static_cast<u16>(second)
+        );
+        const auto x_step_truncated_result = x_step_truncated.step(64, 64);
+        test.expect_true(
+            x_step_truncated_result.status ==
+                    LegacyWorldStoryVmStatus::operand_out_of_range &&
+                x_step_truncated.camera_pan.remaining_x == expected_tile_x &&
+                x_step_truncated.camera_pan.remaining_y == expected_tile_y &&
+                x_step_truncated.camera_pan.step_x == 33 &&
+                x_step_truncated.camera_pan.step_y == 44 &&
+                x_step_truncated.context.instruction_offset == 0x7FFAU &&
+                x_step_truncated.state.previous_opcode == 0x55U,
+            "long camera moves retain both tile displacements before X-step truncation"
+        );
+
+        CameraMoveFixture y_step_truncated;
+        y_step_truncated.camera_pan.step_x = 33;
+        y_step_truncated.camera_pan.step_y = 44;
+        prime_at(y_step_truncated, opcode, 0x7FF8U);
+        write_u16(
+            y_step_truncated.state.window, 0x7FFAU, static_cast<u16>(first)
+        );
+        write_u16(
+            y_step_truncated.state.window, 0x7FFCU, static_cast<u16>(second)
+        );
+        write_u16(y_step_truncated.state.window, 0x7FFEU, 8U);
+        const auto y_step_truncated_result = y_step_truncated.step(64, 64);
+        test.expect_true(
+            y_step_truncated_result.status ==
+                    LegacyWorldStoryVmStatus::operand_out_of_range &&
+                y_step_truncated.camera_pan.remaining_x == expected_tile_x &&
+                y_step_truncated.camera_pan.remaining_y == expected_tile_y &&
+                y_step_truncated.camera_pan.step_x == 8 &&
+                y_step_truncated.camera_pan.step_y == 44 &&
+                y_step_truncated.context.instruction_offset == 0x7FF8U &&
+                y_step_truncated.state.previous_opcode == 0x55U,
+            "long camera moves retain raw X step before Y-step truncation"
+        );
+
+        CameraMoveFixture exact_tail;
+        exact_tail.camera.right = 704U;
+        exact_tail.camera.bottom = 544U;
+        prime_at(exact_tail, opcode, 0x7FF6U);
+        write_u16(exact_tail.state.window, 0x7FF8U, static_cast<u16>(first));
+        write_u16(exact_tail.state.window, 0x7FFAU, static_cast<u16>(second));
+        write_u16(exact_tail.state.window, 0x7FFCU, 8U);
+        write_u16(exact_tail.state.window, 0x7FFEU, 4U);
+        const auto exact_tail_result = exact_tail.step(64, 64);
+        const i32 expected_pixel_x = expected_tile_x * 16;
+        test.expect_true(
+            exact_tail_result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                exact_tail_result.opcode == opcode &&
+                exact_tail_result.executed_instruction_count == 1U &&
+                exact_tail.camera_pan.remaining_x == expected_pixel_x &&
+                exact_tail.camera_pan.remaining_y == 48 &&
+                exact_tail.camera_pan.step_x ==
+                    (expected_pixel_x < 0 ? -8 : 8) &&
+                exact_tail.camera_pan.step_y == 4 &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode == opcode,
+            "complete long camera records finish effects before next fetch"
+        );
+    }
+
+    CameraMoveFixture role_selector_truncated;
+    role_selector_truncated.camera_pan.remaining_x = 11;
+    role_selector_truncated.camera_pan.remaining_y = 22;
+    role_selector_truncated.camera_pan.step_x = 33;
+    role_selector_truncated.camera_pan.step_y = 44;
+    prime_at(role_selector_truncated, OP_73_START_CAMERA_MOVE_TO_ROLE, 0x7FFEU);
+    const auto role_selector_result = role_selector_truncated.step();
+    test.expect_true(
+        role_selector_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            role_selector_truncated.camera_pan.remaining_x == 11 &&
+            role_selector_truncated.camera_pan.remaining_y == 22 &&
+            role_selector_truncated.camera_pan.step_x == 33 &&
+            role_selector_truncated.camera_pan.step_y == 44 &&
+            role_selector_truncated.context.instruction_offset == 0x7FFEU &&
+            role_selector_truncated.state.previous_opcode == 0x55U,
+        "opcode 73 stops before the selector word"
+    );
+
+    CameraMoveFixture role_x_step_truncated;
+    role_x_step_truncated.roles[1].world_x = 800U;
+    role_x_step_truncated.roles[1].world_y = 640U;
+    role_x_step_truncated.camera_pan.step_x = 33;
+    role_x_step_truncated.camera_pan.step_y = 44;
+    prime_at(role_x_step_truncated, OP_73_START_CAMERA_MOVE_TO_ROLE, 0x7FFCU);
+    write_u16(role_x_step_truncated.state.window, 0x7FFEU, 0x00F8U);
+    const auto role_x_step_result = role_x_step_truncated.step();
+    test.expect_true(
+        role_x_step_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            role_x_step_truncated.camera_pan.remaining_x == 30 &&
+            role_x_step_truncated.camera_pan.remaining_y == 25 &&
+            role_x_step_truncated.camera_pan.step_x == 33 &&
+            role_x_step_truncated.camera_pan.step_y == 44 &&
+            role_x_step_truncated.context.instruction_offset == 0x7FFCU &&
+            role_x_step_truncated.state.previous_opcode == 0x55U,
+        "opcode 73 retains role-derived tile displacements before X-step truncation"
+    );
+
+    CameraMoveFixture role_y_step_truncated;
+    role_y_step_truncated.roles[1].world_x = 800U;
+    role_y_step_truncated.roles[1].world_y = 640U;
+    role_y_step_truncated.camera_pan.step_x = 33;
+    role_y_step_truncated.camera_pan.step_y = 44;
+    prime_at(role_y_step_truncated, OP_73_START_CAMERA_MOVE_TO_ROLE, 0x7FFAU);
+    write_u16(role_y_step_truncated.state.window, 0x7FFCU, 0x00F8U);
+    write_u16(role_y_step_truncated.state.window, 0x7FFEU, 8U);
+    const auto role_y_step_result = role_y_step_truncated.step();
+    test.expect_true(
+        role_y_step_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            role_y_step_truncated.camera_pan.remaining_x == 30 &&
+            role_y_step_truncated.camera_pan.remaining_y == 25 &&
+            role_y_step_truncated.camera_pan.step_x == 8 &&
+            role_y_step_truncated.camera_pan.step_y == 44 &&
+            role_y_step_truncated.context.instruction_offset == 0x7FFAU &&
+            role_y_step_truncated.state.previous_opcode == 0x55U,
+        "opcode 73 retains raw X step before Y-step truncation"
+    );
+
+    CameraMoveFixture role_exact_tail;
+    role_exact_tail.roles[1].world_x = 800U;
+    role_exact_tail.roles[1].world_y = 640U;
+    prime_at(role_exact_tail, OP_73_START_CAMERA_MOVE_TO_ROLE, 0x7FF8U);
+    write_u16(role_exact_tail.state.window, 0x7FFAU, 0x00F8U);
+    write_u16(role_exact_tail.state.window, 0x7FFCU, 8U);
+    write_u16(role_exact_tail.state.window, 0x7FFEU, 8U);
+    const auto role_exact_tail_result = role_exact_tail.step();
+    test.expect_true(
+        role_exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            role_exact_tail_result.opcode == OP_73_START_CAMERA_MOVE_TO_ROLE &&
+            role_exact_tail_result.executed_instruction_count == 1U &&
+            role_exact_tail.camera_pan.remaining_x == 480 &&
+            role_exact_tail.camera_pan.remaining_y == 400 &&
+            role_exact_tail.camera_pan.step_x == 8 &&
+            role_exact_tail.camera_pan.step_y == 8 &&
+            role_exact_tail.context.instruction_offset == 0x8000U &&
+            role_exact_tail.state.previous_opcode ==
+                OP_73_START_CAMERA_MOVE_TO_ROLE,
+        "opcode 73 exact tail completes when clamp diagnostics are skipped"
+    );
+
+    CameraMoveFixture clamped_diagnostic_tail;
+    clamped_diagnostic_tail.runtime.role_surface.map_width = 50U;
+    clamped_diagnostic_tail.camera.right = 900U;
+    clamped_diagnostic_tail.roles[1].world_x = 320U;
+    clamped_diagnostic_tail.roles[1].world_y = 240U;
+    prime_at(clamped_diagnostic_tail, OP_73_START_CAMERA_MOVE_TO_ROLE, 0x7FF8U);
+    write_u16(clamped_diagnostic_tail.state.window, 0x7FFAU, 0x00F8U);
+    write_u16(clamped_diagnostic_tail.state.window, 0x7FFCU, 4U);
+    write_u16(clamped_diagnostic_tail.state.window, 0x7FFEU, 4U);
+    const auto clamped_tail_result = clamped_diagnostic_tail.step();
+    test.expect_true(
+        clamped_tail_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            clamped_tail_result.opcode == OP_73_START_CAMERA_MOVE_TO_ROLE &&
+            clamped_tail_result.executed_instruction_count == 1U &&
+            clamped_diagnostic_tail.camera_pan.remaining_x == -100 &&
+            clamped_diagnostic_tail.camera_pan.remaining_y == 0 &&
+            clamped_diagnostic_tail.camera_pan.step_x == 0 &&
+            clamped_diagnostic_tail.camera_pan.step_y == 0 &&
+            clamped_diagnostic_tail.context.instruction_offset == 0x7FF8U &&
+            clamped_diagnostic_tail.state.previous_opcode == 0x55U,
+        "opcode 73 clamp diagnostics preserve the original next-word overread"
+    );
+
+    CameraMoveFixture clamped_diagnostic_available;
+    clamped_diagnostic_available.runtime.role_surface.map_width = 50U;
+    clamped_diagnostic_available.camera.right = 900U;
+    clamped_diagnostic_available.roles[1].world_x = 320U;
+    clamped_diagnostic_available.roles[1].world_y = 240U;
+    prime_role_camera_move(
+        clamped_diagnostic_available,
+        OP_73_START_CAMERA_MOVE_TO_ROLE,
+        0x00F8U,
+        4U,
+        4U
+    );
+    const auto clamped_available_result = clamped_diagnostic_available.step();
+    test.expect_true(
+        clamped_available_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            clamped_available_result.opcode == OP_1025 &&
+            clamped_available_result.executed_instruction_count == 2U &&
+            clamped_diagnostic_available.camera_pan.remaining_x == -100 &&
+            clamped_diagnostic_available.camera_pan.remaining_y == 0 &&
+            clamped_diagnostic_available.context.instruction_offset == 8U &&
+            clamped_diagnostic_available.state.previous_opcode ==
+                OP_73_START_CAMERA_MOVE_TO_ROLE,
+        "opcode 73 clamp diagnostics consume an available next word only diagnostically"
+    );
 }
 
 void test_wait_for_role_action_position(openswd3::test::Context& test) {
@@ -9132,6 +9882,117 @@ void test_real_set_role_action_id_record(
     );
 }
 
+void test_real_camera_move_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    std::array<u8, 10U> relative_instruction{};
+    input.seekg(0x0000A18C);
+    input.read(
+        reinterpret_cast<char*>(relative_instruction.data()),
+        static_cast<std::streamsize>(relative_instruction.size())
+    );
+    const bool relative_read = static_cast<bool>(input);
+
+    input.clear();
+    std::array<u8, 10U> absolute_instruction{};
+    input.seekg(0x000046B8);
+    input.read(
+        reinterpret_cast<char*>(absolute_instruction.data()),
+        static_cast<std::streamsize>(absolute_instruction.size())
+    );
+    const bool absolute_read = static_cast<bool>(input);
+
+    input.clear();
+    std::array<u8, 8U> role_instruction{};
+    input.seekg(0x000096A3);
+    input.read(
+        reinterpret_cast<char*>(role_instruction.data()),
+        static_cast<std::streamsize>(role_instruction.size())
+    );
+    const bool role_read = static_cast<bool>(input);
+
+    CameraMoveFixture relative;
+    relative.camera.right = 640U;
+    relative.camera.bottom = 1120U;
+    prime_loaded_instruction(relative, OP_50_START_RELATIVE_CAMERA_MOVE);
+    std::ranges::copy(relative_instruction, relative.state.window.begin());
+    write_u16(relative.state.window, 10U, OP_1025);
+    const auto relative_result = relative.step(0, 640);
+
+    CameraMoveFixture absolute;
+    absolute.camera.right = 656U;
+    absolute.camera.bottom = 512U;
+    prime_loaded_instruction(absolute, OP_70_START_ABSOLUTE_CAMERA_MOVE);
+    std::ranges::copy(absolute_instruction, absolute.state.window.begin());
+    write_u16(absolute.state.window, 10U, OP_1025);
+    const auto absolute_result = absolute.step(16, 32);
+
+    CameraMoveFixture role;
+    role.roles[1].guid = 1U;
+    role.roles[1].world_x = 800U;
+    role.roles[1].world_y = 640U;
+    prime_loaded_instruction(role, OP_73_START_CAMERA_MOVE_TO_ROLE);
+    std::ranges::copy(role_instruction, role.state.window.begin());
+    write_u16(role.state.window, 8U, OP_1025);
+    const auto role_result = role.step();
+
+    test.expect_true(
+        relative_read &&
+            read_u16(relative_instruction, 0U) ==
+                OP_50_START_RELATIVE_CAMERA_MOVE &&
+            static_cast<i16>(read_u16(relative_instruction, 2U)) == 0 &&
+            static_cast<i16>(read_u16(relative_instruction, 4U)) == -32 &&
+            read_u16(relative_instruction, 6U) == 8U &&
+            read_u16(relative_instruction, 8U) == 4U &&
+            relative_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            relative_result.executed_instruction_count == 2U &&
+            relative.camera_pan.remaining_x == 0 &&
+            relative.camera_pan.remaining_y == -512 &&
+            relative.camera_pan.step_x == 0 &&
+            relative.camera_pan.step_y == -4 &&
+            relative.context.instruction_offset == 10U &&
+            relative.state.previous_opcode == OP_50_START_RELATIVE_CAMERA_MOVE,
+        "real opcode 50 starts the requested relative camera move"
+    );
+    test.expect_true(
+        absolute_read &&
+            read_u16(absolute_instruction, 0U) ==
+                OP_70_START_ABSOLUTE_CAMERA_MOVE &&
+            read_u16(absolute_instruction, 2U) == 5U &&
+            read_u16(absolute_instruction, 4U) == 8U &&
+            read_u16(absolute_instruction, 6U) == 4U &&
+            read_u16(absolute_instruction, 8U) == 16U &&
+            absolute_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            absolute_result.executed_instruction_count == 2U &&
+            absolute.camera_pan.remaining_x == 64 &&
+            absolute.camera_pan.remaining_y == 96 &&
+            absolute.camera_pan.step_x == 4 &&
+            absolute.camera_pan.step_y == 16 &&
+            absolute.context.instruction_offset == 10U &&
+            absolute.state.previous_opcode == OP_70_START_ABSOLUTE_CAMERA_MOVE,
+        "real opcode 70 starts the requested absolute camera move"
+    );
+    test.expect_true(
+        role_read &&
+            read_u16(role_instruction, 0U) == OP_73_START_CAMERA_MOVE_TO_ROLE &&
+            read_u16(role_instruction, 2U) == 1U &&
+            read_u16(role_instruction, 4U) == 8U &&
+            read_u16(role_instruction, 6U) == 8U &&
+            role_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            role_result.executed_instruction_count == 2U &&
+            role.camera_pan.remaining_x == 480 &&
+            role.camera_pan.remaining_y == 400 && role.camera_pan.step_x == 8 &&
+            role.camera_pan.step_y == 8 &&
+            role.context.instruction_offset == 8U &&
+            role.state.previous_opcode == OP_73_START_CAMERA_MOVE_TO_ROLE,
+        "real opcode 73 starts a camera move toward role 1"
+    );
+}
+
 void test_real_set_role_flag_8000_and_clear_one_shots_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -10443,6 +11304,9 @@ int main(const int argument_count, char** arguments) {
     test_change_requested_action_id(test);
     test_change_requested_action_id_failure_ordering(test);
     test_restore_role_action_overrides_protocol(test);
+    test_start_camera_move_protocol(test);
+    test_start_camera_move_failure_ordering(test);
+    test_start_camera_move_window_boundaries(test);
     test_wait_for_role_action_position(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
@@ -10503,6 +11367,7 @@ int main(const int argument_count, char** arguments) {
         test_real_interaction_lock_records(test, root);
         test_real_set_role_action_wait_override_record(test, root);
         test_real_set_role_action_id_record(test, root);
+        test_real_camera_move_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

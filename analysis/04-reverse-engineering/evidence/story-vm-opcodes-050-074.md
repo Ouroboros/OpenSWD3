@@ -9,7 +9,7 @@
 ## 操作摘要
 
 | opcode | 当前中性操作名 | 汇编行为摘要 |
-|---:|---|---|
+| ---: | --- | --- |
 | `50/70/73` | 启动视口移动 | 相对坐标、绝对坐标或角色坐标三种目标，共用余量、步长、整除检查和地图边界裁剪 |
 | `51` | 等待视口移动结束 | 四个移动状态量任一非零就不推进并让出 |
 | `52/53/74` | 三分量浮点插值 | 设置起点、终点、每拍增量和倒计时；等待或取消只按原状态字段操作 |
@@ -29,15 +29,13 @@
 
 ## opcode 50、70、73：共用视口移动初始化器
 
-三个 opcode 都进入 `0x00429066`，但参数解释不同：
+三个opcode共享入口，但参数与长度独立：50把`+2/+4`当signed relative tile位移，70把它们当signed absolute target tile并减当前viewport left/top的算术右移tile值，两者长度10；73用`+2`查角色、经`sub_40D160`构造居中且受地图限制的640×480目标viewport，长度8。73不替换`FFF0`，lookup miss在viewport copy之后形成index -1的role coordinate访问；modern只在该unsafe点checked-stop且不增加MAPS fallback。
 
-- 50 把 `+2/+4` 当有符号相对 tile 位移，固定长度 10；
-- 70 把 `+2/+4` 当有符号绝对 tile 坐标，再减当前视口左上角，固定长度 10；
-- 73 用 `+2` 查角色，经 `sub_40D160` 求目标视口位置，固定长度 8。它不替换 `FFF0`，也不检查角色查找结果。
+共同路径严格按X后Y写raw u16 step，把tile位移左移4成wrapping pixel i32，再用signed `IDIV`检查整除。非整除step先改为正4，两轴除法完成后才按位移符号定方向；非零位移配zero step会在pixel remaining和两项raw step已写后触发CPU整数除零，modern以专用status隔离并保留此前effects。随后按viewport left/right/top/bottom与`map_width/height<<4`的signed wrapping endpoint夹取remaining；夹取发生在step确定后，不重新计算step，zero map也不提前失败。
 
-最终位移以像素保存到 `dword_4A99F0/4A98C0`，每拍有符号步长保存到 `dword_4A9480/4A93D8`。已有移动未完成时只输出诊断，仍会被新移动覆盖。初始化器把目标裁剪到地图允许的视口范围；后续 `sub_414570` 每帧按步长移动视口并减少余量。
+73还有共享diagnostic的原版bug：发生共同endpoint clamp时，固定diagnostic参数读取会把`current+8`（下一opcode word）当作本指令参数。modern只在该条件下保留额外window边界；无clamp的`0x7FF8`完整记录可先完成IP/previous再由下一fetch失败，有clamp的同位置记录则保留movement/clamp效果后在diagnostic overread处停止。
 
-每个非零轴位移都会先除以脚本提供的无符号步长检查是否整除。步长为零没有保护，会触发原生整数除法错误；不能在兼容核心中静默改成零步长或默认步长。不能整除时会输出诊断并把该轴步长强制为 4，方向再按位移符号决定。
+资产锁定17/62/34条物理记录与同数entry probe，合计113/113，全部为基础raw且长度分别10/10/8；三条代表性TALK1真实回放通过。完整LST、分阶段unsafe、资产与测试证据见 [`story-vm-camera-move-00429066.md`](story-vm-camera-move-00429066.md)。
 
 ## opcode 51：四字段联合等待
 

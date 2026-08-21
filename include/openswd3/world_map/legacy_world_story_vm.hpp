@@ -71,6 +71,9 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE = 47U,
     OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE = 48U,
     OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF = 49U,
+    OP_50_START_RELATIVE_CAMERA_MOVE = 50U,
+    OP_70_START_ABSOLUTE_CAMERA_MOVE = 70U,
+    OP_73_START_CAMERA_MOVE_TO_ROLE = 73U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
 };
@@ -220,6 +223,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     script_variable_index_out_of_range,
     dialog_allocation_failed,
     picture_action_allocation_failed,
+    camera_step_divide_by_zero,
 };
 
 struct LegacyWorldStoryVmResult {

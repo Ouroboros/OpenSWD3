@@ -883,57 +883,139 @@ enum class NextActionRoleCheck {
     return LegacyWorldStoryVmStatus::yielded;
 }
 
-[[nodiscard]] LegacyWorldStoryVmStatus start_absolute_camera_move(
-    const std::span<const u8> window,
-    const std::size_t ip,
-    const LegacyWorldStoryVmRuntime& runtime
-) noexcept {
-    if (!has_bytes(window, ip, 10U)) {
-        return LegacyWorldStoryVmStatus::operand_out_of_range;
-    }
-    if (runtime.camera == nullptr || runtime.camera_pan == nullptr ||
-        runtime.role_surface.map_width == 0U || runtime.map_height == 0U) {
-        return LegacyWorldStoryVmStatus::runtime_unavailable;
-    }
-
-    auto& camera = *runtime.camera;
-    auto& pan = *runtime.camera_pan;
-    const i32 target_x =
-        static_cast<i32>(static_cast<i16>(read_u16(window, ip + 2U))) * 16;
-    const i32 target_y =
-        static_cast<i32>(static_cast<i16>(read_u16(window, ip + 4U))) * 16;
-    const i32 maximum_x = std::max(
-        static_cast<i32>(runtime.role_surface.map_width * 16U) - 640, 0
+[[nodiscard]] constexpr i32
+wrapping_add_i32(const i32 left, const i32 right) noexcept {
+    return std::bit_cast<i32>(
+        std::bit_cast<u32>(left) + std::bit_cast<u32>(right)
     );
-    const i32 maximum_y =
-        std::max(static_cast<i32>(runtime.map_height * 16U) - 480, 0);
-    const i32 clamped_x = std::clamp(target_x, 0, maximum_x);
-    const i32 clamped_y = std::clamp(target_y, 0, maximum_y);
-    pan.remaining_x = clamped_x - std::bit_cast<i32>(camera.left);
-    pan.remaining_y = clamped_y - std::bit_cast<i32>(camera.top);
+}
 
-    const auto derive_step = [](const i32 remaining,
-                                const u16 requested,
-                                i32& step) noexcept -> bool {
-        if (remaining == 0) {
-            step = 0;
-            return true;
-        }
-        if (requested == 0U) {
-            return false;
-        }
-        i32 magnitude = static_cast<i32>(requested);
-        if (remaining % magnitude != 0) {
-            magnitude = 4;
-        }
-        step = remaining < 0 ? -magnitude : magnitude;
-        return true;
-    };
-    if (!derive_step(pan.remaining_x, read_u16(window, ip + 6U), pan.step_x) ||
-        !derive_step(pan.remaining_y, read_u16(window, ip + 8U), pan.step_y)) {
-        return LegacyWorldStoryVmStatus::operand_out_of_range;
+[[nodiscard]] constexpr i32
+wrapping_subtract_i32(const i32 left, const i32 right) noexcept {
+    return std::bit_cast<i32>(
+        std::bit_cast<u32>(left) - std::bit_cast<u32>(right)
+    );
+}
+
+[[nodiscard]] constexpr i32 wrapping_negate_i32(const i32 value) noexcept {
+    return std::bit_cast<i32>(0U - std::bit_cast<u32>(value));
+}
+
+[[nodiscard]] constexpr i32 wrapping_shift_left_four(const i32 value) noexcept {
+    return std::bit_cast<i32>(std::bit_cast<u32>(value) << 4U);
+}
+
+[[nodiscard]] LegacyWorldCameraRect centered_legacy_story_camera(
+    const u32 world_x,
+    const u32 world_y,
+    const u32 map_width,
+    const u32 map_height
+) noexcept {
+    LegacyWorldCameraRect camera{};
+    i32 left = wrapping_subtract_i32(std::bit_cast<i32>(world_x), 320);
+    if (left < 0) {
+        left = 0;
     }
-    return LegacyWorldStoryVmStatus::yielded;
+    i32 top = wrapping_subtract_i32(std::bit_cast<i32>(world_y), 240);
+    if (top < 0) {
+        top = 0;
+    }
+    i32 right = wrapping_add_i32(left, 640);
+    const i32 map_right = std::bit_cast<i32>(map_width << 4U);
+    if (right >= map_right) {
+        left = std::bit_cast<i32>((map_width - 40U) << 4U);
+        right = map_right;
+    }
+    i32 bottom = wrapping_add_i32(top, 480);
+    const i32 map_bottom = std::bit_cast<i32>(map_height << 4U);
+    if (bottom >= map_bottom) {
+        top = std::bit_cast<i32>((map_height - 30U) << 4U);
+        bottom = map_bottom;
+    }
+    camera.left = std::bit_cast<u32>(left);
+    camera.top = std::bit_cast<u32>(top);
+    camera.right = std::bit_cast<u32>(right);
+    camera.bottom = std::bit_cast<u32>(bottom);
+    return camera;
+}
+
+enum class LegacyStoryCameraStepStatus : u8 {
+    ready,
+    divide_by_zero,
+};
+
+[[nodiscard]] LegacyStoryCameraStepStatus
+prepare_legacy_story_camera_steps(LegacyWorldCameraPanState& pan) noexcept {
+    if (pan.remaining_x == 0) {
+        pan.step_x = 0;
+    }
+    if (pan.remaining_y == 0) {
+        pan.step_y = 0;
+    }
+    pan.remaining_x = wrapping_shift_left_four(pan.remaining_x);
+    pan.remaining_y = wrapping_shift_left_four(pan.remaining_y);
+
+    if (pan.remaining_x != 0) {
+        if (pan.step_x == 0) {
+            return LegacyStoryCameraStepStatus::divide_by_zero;
+        }
+        if (pan.remaining_x % pan.step_x != 0) {
+            pan.step_x = 4;
+        }
+    }
+    if (pan.remaining_y != 0) {
+        if (pan.step_y == 0) {
+            return LegacyStoryCameraStepStatus::divide_by_zero;
+        }
+        if (pan.remaining_y % pan.step_y != 0) {
+            pan.step_y = 4;
+        }
+    }
+    if (pan.remaining_x < 0) {
+        pan.step_x = wrapping_negate_i32(pan.step_x);
+    }
+    if (pan.remaining_y < 0) {
+        pan.step_y = wrapping_negate_i32(pan.step_y);
+    }
+    return LegacyStoryCameraStepStatus::ready;
+}
+
+[[nodiscard]] bool clamp_legacy_story_camera_move(
+    LegacyWorldCameraPanState& pan,
+    const LegacyWorldCameraRect& camera,
+    const u32 map_width,
+    const u32 map_height
+) noexcept {
+    bool clamped = false;
+    i32 remaining_x = pan.remaining_x;
+    const i32 left = std::bit_cast<i32>(camera.left);
+    if (wrapping_add_i32(remaining_x, left) < 0) {
+        remaining_x = wrapping_negate_i32(left);
+        pan.remaining_x = remaining_x;
+        clamped = true;
+    }
+    const i32 right = std::bit_cast<i32>(camera.right);
+    const i32 map_right = std::bit_cast<i32>(map_width << 4U);
+    if (wrapping_add_i32(right, remaining_x) > map_right) {
+        remaining_x = wrapping_subtract_i32(map_right, right);
+        pan.remaining_x = remaining_x;
+        clamped = true;
+    }
+
+    i32 remaining_y = pan.remaining_y;
+    const i32 top = std::bit_cast<i32>(camera.top);
+    if (wrapping_add_i32(remaining_y, top) < 0) {
+        remaining_y = wrapping_negate_i32(top);
+        pan.remaining_y = remaining_y;
+        clamped = true;
+    }
+    const i32 bottom = std::bit_cast<i32>(camera.bottom);
+    const i32 map_bottom = std::bit_cast<i32>(map_height << 4U);
+    if (wrapping_add_i32(bottom, remaining_y) > map_bottom) {
+        pan.remaining_y = wrapping_subtract_i32(map_bottom, bottom);
+        clamped = true;
+    }
+    return clamped;
 }
 
 [[nodiscard]] LegacyWorldStoryVmStatus finish_talk_source(
@@ -2665,15 +2747,143 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
-        case 70U:
-            result.status =
-                start_absolute_camera_move(state.window, ip, runtime);
-            if (result.status != LegacyWorldStoryVmStatus::yielded) {
+        case OP_50_START_RELATIVE_CAMERA_MOVE:
+        case OP_70_START_ABSOLUTE_CAMERA_MOVE:
+        case OP_73_START_CAMERA_MOVE_TO_ROLE: {
+            if (runtime.camera_pan == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
                 return result;
             }
-            context.instruction_offset =
-                static_cast<u16>(context.instruction_offset + 10U);
+            auto& pan = *runtime.camera_pan;
+            std::size_t step_offset{};
+            u16 instruction_length{};
+
+            if (result.opcode == OP_50_START_RELATIVE_CAMERA_MOVE) {
+                if (!has_bytes(state.window, ip, 4U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                pan.remaining_x =
+                    static_cast<i16>(read_u16(state.window, ip + 2U));
+                if (!has_bytes(state.window, ip, 6U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                pan.remaining_y =
+                    static_cast<i16>(read_u16(state.window, ip + 4U));
+                step_offset = 6U;
+                instruction_length = 10U;
+            } else if (result.opcode == OP_70_START_ABSOLUTE_CAMERA_MOVE) {
+                if (!has_bytes(state.window, ip, 4U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                const i32 target_x =
+                    static_cast<i16>(read_u16(state.window, ip + 2U));
+                if (runtime.camera == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                if (!has_bytes(state.window, ip, 6U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                const i32 target_y =
+                    static_cast<i16>(read_u16(state.window, ip + 4U));
+                pan.remaining_x = wrapping_subtract_i32(
+                    target_x, std::bit_cast<i32>(runtime.camera->left) >> 4
+                );
+                pan.remaining_y = wrapping_subtract_i32(
+                    target_y, std::bit_cast<i32>(runtime.camera->top) >> 4
+                );
+                step_offset = 6U;
+                instruction_length = 10U;
+            } else {
+                if (!has_bytes(state.window, ip, 4U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                u32 role_index{};
+                const bool role_found = resolve_role_index(
+                    roles,
+                    read_u16(state.window, ip + 2U),
+                    controlled_role_index,
+                    role_index
+                );
+                if (runtime.camera == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                const LegacyWorldCameraRect camera = *runtime.camera;
+                if (!role_found) {
+                    result.status = LegacyWorldStoryVmStatus::role_not_found;
+                    return result;
+                }
+                const LegacyWorldCameraRect target =
+                    centered_legacy_story_camera(
+                        roles[role_index].world_x,
+                        roles[role_index].world_y,
+                        runtime.role_surface.map_width,
+                        runtime.map_height
+                    );
+                pan.remaining_x = wrapping_subtract_i32(
+                                      std::bit_cast<i32>(target.left),
+                                      std::bit_cast<i32>(camera.left)
+                                  ) >>
+                    4;
+                pan.remaining_y = wrapping_subtract_i32(
+                                      std::bit_cast<i32>(target.top),
+                                      std::bit_cast<i32>(camera.top)
+                                  ) >>
+                    4;
+                step_offset = 4U;
+                instruction_length = 8U;
+            }
+
+            if (!has_bytes(state.window, ip, step_offset + 2U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            pan.step_x = read_u16(state.window, ip + step_offset);
+            if (!has_bytes(state.window, ip, step_offset + 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            pan.step_y = read_u16(state.window, ip + step_offset + 2U);
+            if (prepare_legacy_story_camera_steps(pan) ==
+                LegacyStoryCameraStepStatus::divide_by_zero) {
+                result.status =
+                    LegacyWorldStoryVmStatus::camera_step_divide_by_zero;
+                return result;
+            }
+            if (runtime.camera == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            const bool clamped = clamp_legacy_story_camera_move(
+                pan,
+                *runtime.camera,
+                runtime.role_surface.map_width,
+                runtime.map_height
+            );
+            if (clamped && result.opcode == OP_73_START_CAMERA_MOVE_TO_ROLE &&
+                !has_bytes(state.window, ip, 10U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            context.instruction_offset = static_cast<u16>(
+                context.instruction_offset + instruction_length
+            );
+            state.previous_opcode = result.opcode;
             continue;
+        }
 
         case 71U: {
             if (!has_bytes(state.window, ip, 6U)) {
