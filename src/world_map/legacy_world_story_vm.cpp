@@ -267,9 +267,21 @@ void replace_name_prefix(
         return;
     }
     const std::size_t tail_begin = expected.size();
-    const std::size_t tail_size = destination_size - tail_begin + 1U;
     const std::size_t replacement_size =
-        std::min(replacement.size(), destination.size() - 1U);
+        std::min(replacement.size(), destination.size());
+    if (replacement_size >= tail_begin) {
+        std::memmove(
+            destination.data() + replacement_size,
+            destination.data() + tail_begin,
+            destination.size() - replacement_size
+        );
+        std::ranges::copy(
+            replacement.first(replacement_size), destination.begin()
+        );
+        return;
+    }
+
+    const std::size_t tail_size = destination_size - tail_begin + 1U;
     const std::size_t available_tail = destination.size() - replacement_size;
     const std::size_t copied_tail = std::min(tail_size, available_tail);
     std::memmove(
@@ -284,7 +296,7 @@ void replace_name_prefix(
 [[nodiscard]] LegacyWorldStoryVmStatus load_name_record(
     LegacyWorldStoryVmState& state,
     const std::span<const u8> maps_payload,
-    const u16 record_index,
+    const u32 record_index,
     const std::span<const u8, 16U> first_name,
     const std::span<const u8, 16U> second_name
 ) noexcept {
@@ -292,8 +304,9 @@ void replace_name_prefix(
         return LegacyWorldStoryVmStatus::maps_payload_out_of_range;
     }
     const u32 table_offset = read_u32(maps_payload, 0x20U);
-    const std::size_t table_entry = static_cast<std::size_t>(table_offset) +
-        static_cast<std::size_t>(record_index) * sizeof(u32);
+    const u32 table_entry_offset = table_offset + record_index * sizeof(u32);
+    const std::size_t table_entry =
+        static_cast<std::size_t>(table_entry_offset);
     if (!has_bytes(maps_payload, table_entry, sizeof(u32))) {
         return LegacyWorldStoryVmStatus::maps_payload_out_of_range;
     }
@@ -305,13 +318,18 @@ void replace_name_prefix(
         maps_payload.subspan(record_offset, state.speaker_name.size()),
         state.speaker_name.begin()
     );
+    bool terminator_found = false;
     for (std::size_t index = 0U; index + 1U < state.speaker_name.size();
          ++index) {
         if (state.speaker_name[index] == static_cast<u8>('%') &&
             state.speaker_name[index + 1U] == static_cast<u8>('Q')) {
             state.speaker_name[index] = 0U;
+            terminator_found = true;
             break;
         }
+    }
+    if (!terminator_found) {
+        return LegacyWorldStoryVmStatus::name_terminator_not_found;
     }
 
     constexpr std::array<u8, 4U> kDefaultFirst{0xC1U, 0xC9U, 0xAFU, 0x53U};
@@ -4393,14 +4411,33 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
-        case 91U: {
+        case OP_91_LOAD_NAME_RECORD:
+        case OP_162_LOAD_DYNAMIC_NAME_RECORD: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            u16 record_index = read_u16(state.window, ip + 2U);
-            if (record_index == kCurrentSourceSelector) {
-                record_index = context.source_guid;
+            u32 record_index = 0U;
+            if (result.opcode == OP_91_LOAD_NAME_RECORD) {
+                record_index = read_u16(state.window, ip + 2U);
+                if (record_index == kCurrentSourceSelector) {
+                    record_index = context.source_guid;
+                }
+            } else {
+                const u16 variable_index = read_u16(state.window, ip + 2U);
+                if (variable_index != 11U && variable_index != 12U) {
+                    context.instruction_offset =
+                        static_cast<u16>(context.instruction_offset + 4U);
+                    state.previous_opcode = result.opcode;
+                    continue;
+                }
+                record_index = state.script_variables[variable_index];
+                if (record_index == 0U) {
+                    context.instruction_offset =
+                        static_cast<u16>(context.instruction_offset + 4U);
+                    state.previous_opcode = result.opcode;
+                    continue;
+                }
             }
             result.status = load_name_record(
                 state, maps_payload, record_index, first_name, second_name
@@ -4410,6 +4447,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
             continue;
         }
 

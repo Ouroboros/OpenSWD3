@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v312
+版本：v313
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B287` shared handler（opcodes 91/162）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A756` handler（opcode 92）
 
 ## 0. 执行约定
 
@@ -2125,6 +2125,21 @@ B7 P0 有限收口完成。
     初始化DB前预读。修复后Linux/Windows Story VM均3/3，当前HEAD Windows LLVM app192/192并
     exit0；历史与当前均未启动游戏EXE。该结果不替代P2完成时必须重跑的独立Windows门。
 
+- 剧情VM P2第七十组`0x0042B287` / shared opcodes91/162完成独立闭环。opcode91读取u16
+    record index并把`FFF0`替换为context source GUID；opcode162只接受变量11/12并读取完整u32
+    动态index，非法selector或zero仅固定消费。共享路径按MAPS `+20`相对目录以u32回绕计算entry，
+    复制32 bytes、把首个`%Q`的percent改零，再按`sub_40BAA0`固定buffer规则替换两个默认姓名前缀；
+    合法replacement保留NUL后尾bytes，短replacement跨相邻全局读取以bounded fallback适配。目录/记录
+    越界与缺terminator按原访问阶段typed-stop，缺terminator保留已完成copy。四alias、FFF0且index0合法、
+    variable11/12、invalid/zero、u32回绕、staged失败、精确尾与real MAPS对照均通过。资产锁1184条/
+    1203 probes：opcode91为1180/1199，分布`388/239/295/258`且有33条FFF0；opcode162为4/4，
+    分布`3/1/0/0`且均selector11。真实TALK1显式index782和variable11→782得到相同姓名。格式化后
+    剧情VM3/3、Linux core186/186、Linux app192/192均exit0；测试时间分别0.48/22.57/22.88秒。
+    workpack双生成hash为`b610350b0e756879545f7502b26f9bcd28426b4a5967107e1e19c12018dabe36`。
+    未启动游戏EXE；Windows依阶段规则留到P2完成门。现代显式opcode增至105；对外进度为已实现
+    105/198、已验收95/198；内部workpack70/146，即`8 assembly_exact + 62 platform_adapted +
+    76 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042B287` 的shared opcodes91/162 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042A756` 的opcode92 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

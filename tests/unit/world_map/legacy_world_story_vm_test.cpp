@@ -117,6 +117,8 @@ using openswd3::world_map::OP_85_BEGIN_STORY_VIDEO;
 using openswd3::world_map::OP_86_REWRITE_ROLE_HEAD_ACTION_KEY;
 using openswd3::world_map::OP_87_RELOAD_RANDOM_TARGET;
 using openswd3::world_map::OP_88_REQUEST_BATTLE;
+using openswd3::world_map::OP_91_LOAD_NAME_RECORD;
+using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -14234,6 +14236,279 @@ void test_request_battle_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_load_name_record_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u8, 4U> default_first{0xC1U, 0xC9U, 0xAFU, 0x53U};
+    constexpr std::array<u8, 4U> default_second{0xA9U, 0x67U, 0xA5U, 0x69U};
+    const auto make_record = [](const std::span<const u8, 4U> prefix) {
+        std::array<u8, 32U> record{};
+        for (std::size_t index = 0U; index < record.size(); ++index) {
+            record[index] = static_cast<u8>(0x80U + index);
+        }
+        std::ranges::copy(prefix, record.begin());
+        record[4] = static_cast<u8>('-');
+        record[5] = static_cast<u8>('X');
+        record[6] = static_cast<u8>('%');
+        record[7] = static_cast<u8>('Q');
+        return record;
+    };
+    const auto set_default_names = [&](Fixture& fixture) {
+        std::ranges::copy(default_first, fixture.first_name.begin());
+        fixture.first_name[default_first.size()] = 0U;
+        std::ranges::copy(default_second, fixture.second_name.begin());
+        fixture.second_name[default_second.size()] = 0U;
+    };
+    const auto install_record = [](Fixture& fixture,
+                                   const u32 record_index,
+                                   const std::array<u8, 32U>& record,
+                                   const u32 table_offset = 0x40U) {
+        fixture.maps_payload.fill(0U);
+        write_u32(fixture.maps_payload, 0x20U, table_offset);
+        const u32 entry_offset = table_offset + record_index * 4U;
+        write_u32(fixture.maps_payload, entry_offset, 0x80U);
+        std::ranges::copy(record, fixture.maps_payload.begin() + 0x80U);
+    };
+    const auto prime_exact_tail =
+        [](Fixture& fixture, const u16 raw_opcode, const u16 operand) {
+            fixture.context.talk_data_offset = 0x1111U;
+            fixture.context.instruction_offset = 0x7FFCU;
+            fixture.state.loaded_file_number = 1U;
+            fixture.state.loaded_data_offset = 0x1111U;
+            fixture.state.window_loaded = true;
+            write_u16(fixture.state.window, 0x7FFCU, raw_opcode);
+            write_u16(fixture.state.window, 0x7FFEU, operand);
+        };
+
+    const auto first_record = make_record(default_first);
+    auto replaced_first = first_record;
+    replaced_first[6] = 0U;
+    constexpr std::array<u8, 5U> first_replacement{'A', 'l', 'i', 'c', 'e'};
+    std::array<u8, 32U> expected_replaced_first{};
+    std::ranges::copy(first_replacement, expected_replaced_first.begin());
+    for (std::size_t index = 0U;
+         index < expected_replaced_first.size() - first_replacement.size();
+         ++index) {
+        expected_replaced_first[first_replacement.size() + index] =
+            replaced_first[default_first.size() + index];
+    }
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture explicit_record;
+        install_record(explicit_record, 3U, first_record);
+        std::ranges::copy(
+            first_replacement, explicit_record.first_name.begin()
+        );
+        prime_exact_tail(
+            explicit_record,
+            static_cast<u16>(OP_91_LOAD_NAME_RECORD | alias_mask),
+            3U
+        );
+
+        const auto result = explicit_record.step();
+
+        test.expect_true(
+            result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.opcode == OP_91_LOAD_NAME_RECORD &&
+                result.executed_instruction_count == 1U &&
+                explicit_record.state.speaker_name == expected_replaced_first &&
+                explicit_record.context.instruction_offset == 0x8000U &&
+                explicit_record.state.previous_opcode == OP_91_LOAD_NAME_RECORD,
+            "opcode 91 aliases copy 32 bytes, terminate percent-Q, apply fixed-buffer name replacement and complete at the exact tail"
+        );
+
+        Fixture dynamic_record;
+        install_record(dynamic_record, 3U, first_record);
+        set_default_names(dynamic_record);
+        dynamic_record.state.script_variables[11U] = 3U;
+        prime_exact_tail(
+            dynamic_record,
+            static_cast<u16>(OP_162_LOAD_DYNAMIC_NAME_RECORD | alias_mask),
+            11U
+        );
+
+        const auto dynamic_result = dynamic_record.step();
+        auto expected_dynamic = first_record;
+        expected_dynamic[6] = 0U;
+        test.expect_true(
+            dynamic_result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                dynamic_result.opcode == OP_162_LOAD_DYNAMIC_NAME_RECORD &&
+                dynamic_result.executed_instruction_count == 1U &&
+                dynamic_record.state.speaker_name == expected_dynamic &&
+                dynamic_record.context.instruction_offset == 0x8000U &&
+                dynamic_record.state.previous_opcode ==
+                    OP_162_LOAD_DYNAMIC_NAME_RECORD,
+            "opcode 162 aliases resolve variable 11 and share the exact name-record copy path"
+        );
+    }
+
+    Fixture current_source;
+    install_record(current_source, 0U, first_record);
+    set_default_names(current_source);
+    current_source.context.source_guid = 0U;
+    auto current_script = std::span<u8>{current_source.ports.initial_window};
+    write_u16(current_script, 0U, OP_91_LOAD_NAME_RECORD);
+    write_u16(current_script, 2U, 0xFFF0U);
+    write_u16(current_script, 4U, OP_1025);
+    const auto current_result = current_source.step();
+    test.expect_true(
+        current_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            current_result.opcode == OP_1025 &&
+            current_result.executed_instruction_count == 2U &&
+            current_source.context.instruction_offset == 4U &&
+            current_source.state.previous_opcode == OP_91_LOAD_NAME_RECORD,
+        "opcode 91 translates FFF0 to the current source while preserving record index zero and same-call continuation"
+    );
+
+    Fixture variable_twelve;
+    const auto second_record = make_record(default_second);
+    install_record(variable_twelve, 4U, second_record);
+    set_default_names(variable_twelve);
+    variable_twelve.state.script_variables[12U] = 4U;
+    auto variable_twelve_script =
+        std::span<u8>{variable_twelve.ports.initial_window};
+    write_u16(variable_twelve_script, 0U, OP_162_LOAD_DYNAMIC_NAME_RECORD);
+    write_u16(variable_twelve_script, 2U, 12U);
+    write_u16(variable_twelve_script, 4U, OP_1025);
+    const auto variable_twelve_result = variable_twelve.step();
+    test.expect_true(
+        variable_twelve_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            variable_twelve_result.executed_instruction_count == 2U &&
+            variable_twelve.context.instruction_offset == 4U &&
+            variable_twelve.state.previous_opcode ==
+                OP_162_LOAD_DYNAMIC_NAME_RECORD &&
+            variable_twelve.state.speaker_name[6U] == 0U,
+        "opcode 162 accepts variable 12 and continues in the same call"
+    );
+
+    for (const u16 invalid_index : std::array<u16, 2U>{10U, 13U}) {
+        Fixture invalid_variable;
+        invalid_variable.maps_payload.fill(0xCCU);
+        invalid_variable.state.speaker_name.fill(0x5AU);
+        auto script = std::span<u8>{invalid_variable.ports.initial_window};
+        write_u16(script, 0U, OP_162_LOAD_DYNAMIC_NAME_RECORD);
+        write_u16(script, 2U, invalid_index);
+        write_u16(script, 4U, OP_1025);
+        invalid_variable.state.previous_opcode = 0x66U;
+
+        const auto result = invalid_variable.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.executed_instruction_count == 2U &&
+                invalid_variable.state.speaker_name.front() == 0x5AU &&
+                invalid_variable.context.instruction_offset == 4U &&
+                invalid_variable.state.previous_opcode ==
+                    OP_162_LOAD_DYNAMIC_NAME_RECORD,
+            "opcode 162 invalid variable selectors consume four bytes without touching maps or the name record"
+        );
+    }
+
+    Fixture zero_dynamic_index;
+    zero_dynamic_index.maps_payload.fill(0xCCU);
+    zero_dynamic_index.state.speaker_name.fill(0x5AU);
+    auto zero_script = std::span<u8>{zero_dynamic_index.ports.initial_window};
+    write_u16(zero_script, 0U, OP_162_LOAD_DYNAMIC_NAME_RECORD);
+    write_u16(zero_script, 2U, 11U);
+    write_u16(zero_script, 4U, OP_1025);
+    zero_dynamic_index.state.previous_opcode = 0x66U;
+    const auto zero_result = zero_dynamic_index.step();
+    test.expect_true(
+        zero_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            zero_result.executed_instruction_count == 2U &&
+            zero_dynamic_index.state.speaker_name.front() == 0x5AU &&
+            zero_dynamic_index.context.instruction_offset == 4U &&
+            zero_dynamic_index.state.previous_opcode ==
+                OP_162_LOAD_DYNAMIC_NAME_RECORD,
+        "opcode 162 zero dynamic record indices consume without maps access"
+    );
+
+    Fixture wrapped_dynamic_index;
+    install_record(wrapped_dynamic_index, 0xFFFFFFFFU, first_record, 0x44U);
+    set_default_names(wrapped_dynamic_index);
+    wrapped_dynamic_index.state.script_variables[11U] = 0xFFFFFFFFU;
+    auto wrapped_script =
+        std::span<u8>{wrapped_dynamic_index.ports.initial_window};
+    write_u16(wrapped_script, 0U, OP_162_LOAD_DYNAMIC_NAME_RECORD);
+    write_u16(wrapped_script, 2U, 11U);
+    write_u16(wrapped_script, 4U, OP_1025);
+    const auto wrapped_result = wrapped_dynamic_index.step();
+    test.expect_true(
+        wrapped_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            wrapped_result.executed_instruction_count == 2U &&
+            wrapped_dynamic_index.state.speaker_name[6U] == 0U &&
+            wrapped_dynamic_index.state.previous_opcode ==
+                OP_162_LOAD_DYNAMIC_NAME_RECORD,
+        "opcode 162 preserves 32-bit table-entry multiplication and addition wrapping"
+    );
+
+    Fixture missing_terminator;
+    auto unterminated_record = first_record;
+    unterminated_record[6U] = 0xCCU;
+    unterminated_record[7U] = 0xDDU;
+    install_record(missing_terminator, 3U, unterminated_record);
+    set_default_names(missing_terminator);
+    auto unterminated_script =
+        std::span<u8>{missing_terminator.ports.initial_window};
+    write_u16(unterminated_script, 0U, OP_91_LOAD_NAME_RECORD);
+    write_u16(unterminated_script, 2U, 3U);
+    missing_terminator.state.previous_opcode = 0x66U;
+    const auto unterminated_result = missing_terminator.step();
+    test.expect_true(
+        unterminated_result.status ==
+                LegacyWorldStoryVmStatus::name_terminator_not_found &&
+            missing_terminator.state.speaker_name == unterminated_record &&
+            missing_terminator.context.instruction_offset == 0U &&
+            missing_terminator.state.previous_opcode == 0x66U,
+        "opcode 91 missing percent-Q stops only after the 32-byte record copy"
+    );
+
+    Fixture maps_failure;
+    maps_failure.maps_payload.fill(0U);
+    write_u32(maps_failure.maps_payload, 0x20U, 0xFEU);
+    maps_failure.state.speaker_name.fill(0x5AU);
+    auto maps_failure_script = std::span<u8>{maps_failure.ports.initial_window};
+    write_u16(maps_failure_script, 0U, OP_91_LOAD_NAME_RECORD);
+    write_u16(maps_failure_script, 2U, 1U);
+    maps_failure.state.previous_opcode = 0x66U;
+    const auto maps_failure_result = maps_failure.step();
+    test.expect_true(
+        maps_failure_result.status ==
+                LegacyWorldStoryVmStatus::maps_payload_out_of_range &&
+            maps_failure.state.speaker_name.front() == 0x5AU &&
+            maps_failure.context.instruction_offset == 0U &&
+            maps_failure.state.previous_opcode == 0x66U,
+        "opcode 91 table-entry failure stops before record copy and publication"
+    );
+
+    Fixture operand_truncated;
+    operand_truncated.context.talk_data_offset = 0x1111U;
+    operand_truncated.context.instruction_offset = 0x7FFEU;
+    operand_truncated.state.loaded_file_number = 1U;
+    operand_truncated.state.loaded_data_offset = 0x1111U;
+    operand_truncated.state.window_loaded = true;
+    operand_truncated.state.speaker_name.fill(0x5AU);
+    operand_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        operand_truncated.state.window, 0x7FFEU, OP_162_LOAD_DYNAMIC_NAME_RECORD
+    );
+    const auto truncated_result = operand_truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            operand_truncated.state.speaker_name.front() == 0x5AU &&
+            operand_truncated.context.instruction_offset == 0x7FFEU &&
+            operand_truncated.state.previous_opcode == 0x66U,
+        "opcode 162 stops before the unsafe variable selector read"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -16961,6 +17236,99 @@ void test_real_request_battle_records(
     );
 }
 
+void test_real_load_name_record_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    const auto read_record = [&root](const std::streamoff offset) {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(offset);
+        std::array<u8, 4U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        return std::pair{record, static_cast<bool>(input)};
+    };
+    const auto [explicit_record, explicit_read] = read_record(0x000364EB);
+    const auto [dynamic_record, dynamic_read] = read_record(0x000364C9);
+
+    openswd3::resource_io::LegacyResourceDatabases databases;
+    const auto initialized = databases.initialize(root);
+    const auto maps = databases.reload_maps_payload();
+    constexpr std::array<u8, 5U> default_first{0xC1U, 0xC9U, 0xAFU, 0x53U, 0U};
+    constexpr std::array<u8, 5U> default_second{0xA9U, 0x67U, 0xA5U, 0x69U, 0U};
+    const auto execute = [&](const std::array<u8, 4U>& record,
+                             const bool dynamic) {
+        Fixture fixture;
+        std::ranges::copy(default_first, fixture.first_name.begin());
+        std::ranges::copy(default_second, fixture.second_name.begin());
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFCU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x66U;
+        if (dynamic) {
+            fixture.state.script_variables[11U] = 782U;
+        }
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFCU);
+
+        const auto result = openswd3::world_map::step_legacy_world_story_vm(
+            fixture.context,
+            fixture.state,
+            fixture.roles,
+            0U,
+            fixture.active_object_slots,
+            databases.maps_payload_bytes(),
+            fixture.dialogs,
+            fixture.dialog_resources,
+            fixture.first_name,
+            fixture.second_name,
+            fixture.runtime,
+            fixture.ports
+        );
+
+        return std::tuple{
+            result,
+            fixture.state.speaker_name,
+            fixture.context.instruction_offset,
+            fixture.state.previous_opcode,
+        };
+    };
+    const auto
+        [explicit_result, explicit_name, explicit_ip, explicit_previous] =
+            execute(explicit_record, false);
+    const auto [dynamic_result, dynamic_name, dynamic_ip, dynamic_previous] =
+        execute(dynamic_record, true);
+
+    test.expect_true(
+        explicit_read && dynamic_read &&
+            initialized.status ==
+                openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
+            maps.status ==
+                openswd3::resource_io::LegacyMapsPayloadStatus::ready &&
+            read_u16(explicit_record, 0U) == OP_91_LOAD_NAME_RECORD &&
+            read_u16(explicit_record, 2U) == 782U &&
+            explicit_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            explicit_result.executed_instruction_count == 1U &&
+            explicit_ip == 0x8000U &&
+            explicit_previous == OP_91_LOAD_NAME_RECORD &&
+            read_u16(dynamic_record, 0U) == OP_162_LOAD_DYNAMIC_NAME_RECORD &&
+            read_u16(dynamic_record, 2U) == 11U &&
+            dynamic_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            dynamic_result.executed_instruction_count == 1U &&
+            dynamic_ip == 0x8000U &&
+            dynamic_previous == OP_162_LOAD_DYNAMIC_NAME_RECORD &&
+            explicit_name == dynamic_name &&
+            std::ranges::find(explicit_name, u8{}) != explicit_name.end(),
+        "real opcodes 91 and 162 resolve record 782 through explicit and variable-11 paths to the same exact-tail name"
+    );
+}
+
 void test_real_control_packed_row_effect_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -18978,6 +19346,7 @@ int main(const int argument_count, char** arguments) {
     test_rewrite_role_head_action_key_protocol(test);
     test_reload_random_target_protocol(test);
     test_request_battle_protocol(test);
+    test_load_name_record_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -19043,6 +19412,7 @@ int main(const int argument_count, char** arguments) {
         test_real_rewrite_role_head_action_key_records(test, root);
         test_real_reload_random_target_records(test, root);
         test_real_request_battle_records(test, root);
+        test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

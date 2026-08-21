@@ -169,6 +169,8 @@ dword_4A94AC = sign_extend(s16(+2)) | 0x80000000
 
 91 把 `FFF0` 替换为当前状态 selector，然后直接用该值索引 `dword_4C9A10` 的相对偏移表；这里没有 `sub_40C0D0`，所以 `FFFE` 不会获得 helper 的当前角色语义。它固定复制 32 字节到 `word_4CF6B8`，向后寻找 `%Q`，把 `%` 写零，再调用两次 `sub_40BAA0` 生成两个全局文本缓冲。索引和终止扫描都没有边界检查。
 
+shared 91/162现已独立闭环：91使用u16显式index并把FFF0替换为source GUID；162只接受变量11/12，读取完整u32动态index，非法selector或zero只消费。共享路径保持u32目录回绕、32-byte copy、首个`%Q`、固定buffer前缀替换、+4、previous与same-call；缺terminator在copy后typed-stop。资产锁1184条/1203 probes：91为1180/1199、162为4/4，四条162均type11；真实TALK1显式782与variable11→782得到相同MAPS姓名。完整证据见[`story-vm-name-record-load-0042b287.md`](story-vm-name-record-load-0042b287.md)。
+
 92/93 计算 `u32(selector)-1+30`，分别调用无边界全局 bit 置位/清位 helper。有效 selector 1–4 映射 bit30–33；零会经 32 位回绕映射到 bit29，5 以上则继续向后。非法值虽然诊断，仍然执行访问。当前候选资产没有 opcode 93，但 handler 完整存在。
 
 94/95 分别置、清 `dword_4C9A18` bit1。两者都推进两字节但保持 `ESI=0`，因此消费后跨帧让出。

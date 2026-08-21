@@ -115,7 +115,9 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_86_REWRITE_ROLE_HEAD_ACTION_KEY = 86U,
     OP_87_RELOAD_RANDOM_TARGET = 87U,
     OP_88_REQUEST_BATTLE = 88U,
+    OP_91_LOAD_NAME_RECORD = 91U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
+    OP_162_LOAD_DYNAMIC_NAME_RECORD = 162U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
 };
@@ -269,6 +271,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     operand_out_of_range,
     unsupported_opcode,
     maps_payload_out_of_range,
+    name_terminator_not_found,
     role_not_found,
     runtime_unavailable,
     role_surface_failed,

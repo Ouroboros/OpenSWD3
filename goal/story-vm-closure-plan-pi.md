@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至127行。前68行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至128行。前70行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -120,9 +120,11 @@ new ID先写再读new variant的staged unsafe点、+10、previous86与same-call�
 opcode87按FF00FF00表、secondary two-raw rejection RNG选择同文件target，恢复audio/IP0/窗口替换与
 same-call；空表原unsigned DIV0、缺sentinel、owner和load失败均按阶段typed-stop。
 opcode88按packed-row→role-head→signed operand顺序清两链并提交战斗request，保持移动链、previous与yield；
-释放owner、operand和request owner失败均保留此前已完成副作用。
-已实现104/198、已验收93/198；内部workpack为69/146，即
-`8 assembly_exact + 61 platform_adapted + 77 pending_audit`。下一行只审计`0x0042B287`下的shared opcodes91/162。
+释放owner、operand和request owner失败均保留此前已完成副作用。shared opcodes91/162按显式u16或变量11/12
+完整u32取得MAPS姓名record index，共享u32目录回绕、32-byte copy、首个`%Q`终止、固定buffer姓名替换、
+previous与same-call；非法/zero dynamic selector只消费，目录和terminator unsafe点按阶段typed-stop。
+已实现105/198、已验收95/198；内部workpack为70/146，即
+`8 assembly_exact + 62 platform_adapted + 76 pending_audit`。下一行只审计`0x0042A756`下的opcode92。
 
 ### P2 · 按 handler 组逆向、实现和验证
 
