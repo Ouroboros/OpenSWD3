@@ -32,6 +32,7 @@
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_act_runtime.hpp"
 #include "openswd3/asset_runtime/legacy_asset_cache_limits.hpp"
+#include "openswd3/asset_runtime/legacy_ani_activity.hpp"
 #include "openswd3/asset_runtime/legacy_ani_directional_effect.hpp"
 #include "openswd3/asset_runtime/legacy_ani_drift_effect.hpp"
 #include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
@@ -85,6 +86,7 @@
 #include <array>
 #include <bit>
 #include <cstdint>
+#include <cctype>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
@@ -1885,7 +1887,7 @@ public:
         SDL_Texture*& texture,
         openswd3::rendering::LegacyFramebuffer& game_framebuffer,
         openswd3::rendering::LegacyFramebuffer& primary_surface,
-        const openswd3::compat::u32& frame_interval,
+        openswd3::compat::u32& frame_interval,
         openswd3::app::WindowEventState& window_state,
         const openswd3::app::DisplayLifecycleState& display_state,
         openswd3::app::FramePreparationState& frame_preparation_state,
@@ -3288,8 +3290,13 @@ public:
                 openswd3::rendering::LegacyFramebuffer& framebuffer,
                 openswd3::rendering::LegacyPresentationPorts& presentation,
                 openswd3::audio_video::LegacyVideoPlayer& video_player,
+                openswd3::asset_runtime::LegacyAniActivity& ani_activity,
+                const openswd3::rendering::LegacyPixelConversionState&
+                    pixel_conversion,
+                const openswd3::compat::u8& scene_render_flags,
                 const std::filesystem::path& data_directory,
-                openswd3::compat::u32& process_flags
+                openswd3::compat::u32& process_flags,
+                openswd3::compat::u32& frame_interval
             ) noexcept
                 : owner_(owner), databases_(databases),
                   action_updater_(action_updater),
@@ -3297,8 +3304,12 @@ public:
                   audio_maintenance_(audio_maintenance),
                   sample_mix_level_(sample_mix_level),
                   framebuffer_(framebuffer), presentation_(presentation),
-                  video_player_(video_player), data_directory_(data_directory),
-                  process_flags_(process_flags) {}
+                  video_player_(video_player), ani_activity_(ani_activity),
+                  pixel_conversion_(pixel_conversion),
+                  scene_render_flags_(scene_render_flags),
+                  data_directory_(data_directory),
+                  process_flags_(process_flags),
+                  frame_interval_(frame_interval) {}
 
             openswd3::resource_io::LegacyTalkWindowLoadResult load_story_window(
                 const openswd3::compat::i32 story_id,
@@ -3435,6 +3446,78 @@ public:
                 return video_player_.legacy_progress();
             }
 
+            void set_story_frame_interval(
+                const openswd3::compat::u32 milliseconds
+            ) noexcept override {
+                frame_interval_ = milliseconds;
+            }
+
+            [[nodiscard]] bool prepare_story_ani() noexcept override {
+                // Configured data roots replace the original CD acquisition.
+                return true;
+            }
+
+            [[nodiscard]]
+            openswd3::asset_runtime::LegacyAniActivityStartResult
+            begin_story_ani(
+                const std::span<const openswd3::compat::u8> filename,
+                const openswd3::compat::u8 flags
+            ) override {
+                const std::string scripted_filename{
+                    reinterpret_cast<const char*>(filename.data()),
+                    filename.size(),
+                };
+                const std::filesystem::path video_directory =
+                    data_directory_ / "Video";
+                std::filesystem::path archive_path =
+                    video_directory / scripted_filename;
+                std::error_code error;
+                if (!std::filesystem::exists(archive_path, error)) {
+                    error.clear();
+                    for (std::filesystem::directory_iterator
+                             iterator{video_directory, error},
+                         end;
+                         !error && iterator != end;
+                         iterator.increment(error)) {
+                        const std::string candidate =
+                            iterator->path().filename().string();
+                        if (candidate.size() != scripted_filename.size()) {
+                            continue;
+                        }
+                        bool equal = true;
+                        for (std::size_t index = 0U; index < candidate.size();
+                             ++index) {
+                            const auto left =
+                                static_cast<unsigned char>(candidate[index]);
+                            const auto right = static_cast<unsigned char>(
+                                scripted_filename[index]
+                            );
+                            if (std::tolower(left) != std::tolower(right)) {
+                                equal = false;
+                                break;
+                            }
+                        }
+                        if (equal) {
+                            archive_path = iterator->path();
+                            break;
+                        }
+                    }
+                }
+                error.clear();
+                if (!std::filesystem::exists(archive_path, error)) {
+                    return {};
+                }
+                auto result = ani_activity_.start(
+                    archive_path,
+                    flags,
+                    process_flags_,
+                    static_cast<openswd3::compat::u32>(scene_render_flags_),
+                    pixel_conversion_
+                );
+                process_flags_ = ani_activity_.state().process_flags;
+                return result;
+            }
+
             void beep() noexcept override {}
 
             void service_audio() override {
@@ -3459,8 +3542,13 @@ public:
             openswd3::rendering::LegacyFramebuffer& framebuffer_;
             openswd3::rendering::LegacyPresentationPorts& presentation_;
             openswd3::audio_video::LegacyVideoPlayer& video_player_;
+            openswd3::asset_runtime::LegacyAniActivity& ani_activity_;
+            const openswd3::rendering::LegacyPixelConversionState&
+                pixel_conversion_;
+            const openswd3::compat::u8& scene_render_flags_;
             const std::filesystem::path& data_directory_;
             openswd3::compat::u32& process_flags_;
+            openswd3::compat::u32& frame_interval_;
         };
 
         class PathScriptPorts final
@@ -3543,8 +3631,12 @@ public:
                 game_framebuffer_,
                 *this,
                 video_player_,
+                world_ani_activity_,
+                pixel_conversion_,
+                world_frame_state_.frame_runtime.frame.runtime_flags,
                 data_directory_,
                 window_state_.process_flags,
+                frame_interval_,
             };
             const openswd3::world_map::LegacyWorldStoryVmRuntime story_runtime{
                 .spatial_index = &map.business.state.spatial_index,
@@ -4784,7 +4876,7 @@ private:
     SDL_Texture*& texture_;
     openswd3::rendering::LegacyFramebuffer& game_framebuffer_;
     openswd3::rendering::LegacyFramebuffer& primary_surface_;
-    const openswd3::compat::u32& frame_interval_;
+    openswd3::compat::u32& frame_interval_;
     openswd3::app::WindowEventState& window_state_;
     const openswd3::app::DisplayLifecycleState& display_state_;
     openswd3::app::FramePreparationState& frame_preparation_state_;
@@ -4850,6 +4942,7 @@ private:
     openswd3::world_map::LegacyRoleHeadActionList world_role_head_actions_;
     openswd3::asset_runtime::LegacyAniRoleParticleEffect
         world_role_particle_effect_;
+    openswd3::asset_runtime::LegacyAniActivity world_ani_activity_;
     openswd3::world_map::LegacyWorldFrameEffectState world_frame_effects_;
     openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
     openswd3::world_map::LegacyWorldStoryVmState world_story_vm_state_;

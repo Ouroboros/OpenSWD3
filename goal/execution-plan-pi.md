@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v317
+版本：v318
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A80E` handler（opcode 96）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042AD3C` handler（opcode 97）
 
 ## 0. 执行约定
 
@@ -2189,6 +2189,22 @@ B7 P0 有限收口完成。
     107/198、已验收99/198；内部workpack74/146，即`8 assembly_exact + 66 platform_adapted +
     72 pending_audit`。
 
+- 剧情VM P2第七十五组`0x0042A80E` / opcode96完成独立闭环。机器先写frame interval70，
+    再消费可选`%`/`*`独立prefix和首个`%Q`终止的filename；原32-byte临时copy域内扫描改为
+    bounded typed失败，保留interval先行与精确窗口尾。记录消费后先audio，再走CD-style preflight；
+    result2路径一次audio、无start/previous，正常与open失败路径第二次audio、actual start后共同发布
+    previous96并yield。SDL以配置data root、大小写不敏感`Video/`解析及真实`LegacyAniActivity`
+    start替代Win32 CD/文件/DirectDraw；archive/header/frame1/palette backend3/3通过，但world-frame ANI
+    stage仍属后续集成，不宣称完整runtime。最终LST复审删除了机器中不存在的scene staged读取；scene
+    live owner留在异步activity port。四alias、四prefix、32-byte边界、截断、preflight、open失败、无
+    artificial scene stop及精确尾通过。资产锁16条/16 probes，全部raw`0060`，分布`2/2/9/3`；真实
+    TALK1 `0x43FA` `%*expv.ani%Q`和TALK2 `0xD39F` `*memory.ani%Q`精确尾回放。格式化后
+    剧情VM3/3、Linux core186/186、Linux app192/192均exit0；最终完整门时间分别21.88/22.59秒。
+    workpack双生成hash为`54b0429903f1a40cd64f6a70b55f2e8c4f2ea6d1a81e924a6b430406416b2714`。
+    未启动游戏EXE；Windows依阶段规则留到P2完成门。现代显式opcode增至108；对外进度为已实现
+    108/198、已验收100/198；内部workpack75/146，即`8 assembly_exact + 67 platform_adapted +
+    71 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042A80E` 的opcode96 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042AD3C` 的opcode97 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

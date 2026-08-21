@@ -122,6 +122,7 @@ using openswd3::world_map::OP_92_SET_RESERVED_GLOBAL_BIT;
 using openswd3::world_map::OP_93_CLEAR_RESERVED_GLOBAL_BIT;
 using openswd3::world_map::OP_94_SET_SCENE_RENDER_BIT1;
 using openswd3::world_map::OP_95_CLEAR_SCENE_RENDER_BIT1;
+using openswd3::world_map::OP_96_BEGIN_CUSTOM_ANI;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
@@ -335,6 +336,29 @@ public:
         return video_progress;
     }
 
+    void set_story_frame_interval(const u32 milliseconds) noexcept override {
+        ++ani_frame_interval_write_count;
+        last_ani_frame_interval = milliseconds;
+        story_protocol_events.push_back(8U);
+    }
+
+    [[nodiscard]] bool prepare_story_ani() noexcept override {
+        ++ani_prepare_count;
+        story_protocol_events.push_back(9U);
+        return ani_prepare_success;
+    }
+
+    [[nodiscard]] openswd3::asset_runtime::LegacyAniActivityStartResult
+    begin_story_ani(
+        const std::span<const u8> filename, const u8 flags
+    ) override {
+        ++ani_begin_count;
+        last_ani_filename.assign(filename.begin(), filename.end());
+        last_ani_flags = flags;
+        story_protocol_events.push_back(10U);
+        return ani_start_result;
+    }
+
     void beep() noexcept override {
         ++beep_count;
         default_protocol_events.push_back(1U);
@@ -386,6 +410,10 @@ public:
     u32 video_prepare_count{};
     u32 video_begin_count{};
     u32 video_progress_query_count{};
+    u32 ani_frame_interval_write_count{};
+    u32 ani_prepare_count{};
+    u32 ani_begin_count{};
+    u32 last_ani_frame_interval{};
     u32 beep_count{};
     u32 direct_audio_service_count{};
     u32 dialog_text_prepare_count{};
@@ -397,11 +425,20 @@ public:
     bool dialog_text_prepare_success{};
     bool world_session_reload_success{true};
     bool video_prepare_success{true};
+    bool ani_prepare_success{true};
     bool throw_on_dialog_text_prepare{};
     LegacyTalkWindowStatus data_load_status{LegacyTalkWindowStatus::ready};
     i32 last_story_id{};
     i32 video_progress{-1};
+    u8 last_ani_flags{};
     std::vector<u8> last_video_filename;
+    std::vector<u8> last_ani_filename;
+    openswd3::asset_runtime::LegacyAniActivityStartResult ani_start_result{
+        .status = openswd3::asset_runtime::LegacyAniActivityStartStatus::ready,
+        .open_status = openswd3::asset_runtime::LegacyAniOpenStatus::ready,
+        .frame_status =
+            openswd3::asset_runtime::LegacyAniFrameLoadStatus::ready,
+    };
     std::vector<openswd3::world_map::LegacyMapsRolePatchRequest>
         role_patch_requests;
     std::vector<u16> sound_effect_requests;
@@ -517,6 +554,29 @@ public:
         return -1;
     }
 
+    void set_story_frame_interval(const u32 milliseconds) noexcept override {
+        last_ani_frame_interval = milliseconds;
+    }
+
+    [[nodiscard]] bool prepare_story_ani() noexcept override {
+        return true;
+    }
+
+    [[nodiscard]] openswd3::asset_runtime::LegacyAniActivityStartResult
+    begin_story_ani(
+        const std::span<const u8> filename, const u8 flags
+    ) override {
+        last_ani_filename.assign(filename.begin(), filename.end());
+        last_ani_flags = flags;
+        return openswd3::asset_runtime::LegacyAniActivityStartResult{
+            .status =
+                openswd3::asset_runtime::LegacyAniActivityStartStatus::ready,
+            .open_status = openswd3::asset_runtime::LegacyAniOpenStatus::ready,
+            .frame_status =
+                openswd3::asset_runtime::LegacyAniFrameLoadStatus::ready,
+        };
+    }
+
     void beep() noexcept override {}
     void service_audio() override {}
     bool
@@ -530,12 +590,15 @@ public:
     u32 video_prepare_count{};
     u32 video_begin_count{};
     u32 video_progress_query_count{};
+    u32 last_ani_frame_interval{};
+    u8 last_ani_flags{};
     u32 role_path_payload_release_count{};
     u32 released_role_path_index{0xFFFFFFFFU};
     u32 world_session_reload_begin_count{};
     u32 world_session_reload_count{};
     openswd3::world_map::LegacyWorldLoadRequest last_world_load_request{};
     std::vector<u8> last_video_filename;
+    std::vector<u8> last_ani_filename;
     std::vector<openswd3::world_map::LegacyMapsRolePatchRequest>
         role_patch_requests;
     std::vector<u16> sound_effect_requests;
@@ -14877,6 +14940,221 @@ void test_clear_scene_render_bit1_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_begin_custom_ani_protocol(openswd3::test::Context& test) {
+    const auto write_payload = [](Fixture& fixture,
+                                  const std::size_t offset,
+                                  const std::string_view payload) {
+        std::ranges::copy(
+            payload,
+            fixture.state.window.begin() + static_cast<std::ptrdiff_t>(offset)
+        );
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture, static_cast<u16>(OP_96_BEGIN_CUSTOM_ANI | alias_mask)
+        );
+        u8 scene_render_flags = 0xA5U;
+        fixture.runtime.scene_render_flags = &scene_render_flags;
+        write_payload(fixture, 2U, "%*demo.ani%Q");
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_96_BEGIN_CUSTOM_ANI &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 2U &&
+                fixture.context.instruction_offset == 14U &&
+                fixture.state.previous_opcode == OP_96_BEGIN_CUSTOM_ANI &&
+                fixture.ports.last_ani_frame_interval == 70U &&
+                fixture.ports.ani_prepare_count == 1U &&
+                fixture.ports.ani_begin_count == 1U &&
+                fixture.ports.last_ani_filename ==
+                    std::vector<u8>{'d', 'e', 'm', 'o', '.', 'a', 'n', 'i'} &&
+                fixture.ports.last_ani_flags ==
+                    (openswd3::asset_runtime::kLegacyAniSkipRevealFlag |
+                     openswd3::asset_runtime::kLegacyAniEndingEffectFlag) &&
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{8U, 2U, 9U, 2U, 10U},
+            "opcode 96 aliases set interval, parse independent percent-star flags, service audio, start ANI, publish previous and yield"
+        );
+    }
+
+    struct PrefixCase {
+        std::string_view payload;
+        u8 flags;
+        u16 length;
+    };
+    constexpr std::array<PrefixCase, 4U> prefix_cases{
+        PrefixCase{"demo.ani%Q", 0U, 12U},
+        PrefixCase{
+            "%demo.ani%Q",
+            openswd3::asset_runtime::kLegacyAniSkipRevealFlag,
+            13U,
+        },
+        PrefixCase{
+            "*demo.ani%Q",
+            openswd3::asset_runtime::kLegacyAniEndingEffectFlag,
+            13U,
+        },
+        PrefixCase{
+            "%*demo.ani%Q",
+            openswd3::asset_runtime::kLegacyAniSkipRevealFlag |
+                openswd3::asset_runtime::kLegacyAniEndingEffectFlag,
+            14U,
+        },
+    };
+    for (const auto prefix_case : prefix_cases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_96_BEGIN_CUSTOM_ANI);
+        u8 scene_render_flags = 0x12U;
+        fixture.runtime.scene_render_flags = &scene_render_flags;
+        write_payload(fixture, 2U, prefix_case.payload);
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                fixture.ports.last_ani_flags == prefix_case.flags &&
+                fixture.ports.last_ani_filename ==
+                    std::vector<u8>{'d', 'e', 'm', 'o', '.', 'a', 'n', 'i'} &&
+                fixture.context.instruction_offset == prefix_case.length &&
+                fixture.state.previous_opcode == OP_96_BEGIN_CUSTOM_ANI,
+            "opcode 96 parses percent and star as ordered independent optional prefixes"
+        );
+    }
+
+    Fixture exact_tail;
+    constexpr std::string_view exact_payload{"%*demo.ani%Q"};
+    constexpr std::size_t exact_record_size = 2U + exact_payload.size();
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.context.instruction_offset = static_cast<u16>(
+        openswd3::resource_io::kLegacyTalkWindowSize - exact_record_size
+    );
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    u8 exact_scene_flags = 0xA5U;
+    exact_tail.runtime.scene_render_flags = &exact_scene_flags;
+    write_u16(
+        exact_tail.state.window,
+        exact_tail.context.instruction_offset,
+        OP_96_BEGIN_CUSTOM_ANI
+    );
+    write_payload(
+        exact_tail,
+        static_cast<std::size_t>(exact_tail.context.instruction_offset) + 2U,
+        exact_payload
+    );
+    const auto exact_result = exact_tail.step();
+    test.expect_true(
+        exact_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_96_BEGIN_CUSTOM_ANI &&
+            exact_tail.ports.ani_begin_count == 1U,
+        "opcode 96 accepts a complete percent-Q record ending exactly at the window tail"
+    );
+
+    Fixture open_failure;
+    prime_loaded_instruction(open_failure, OP_96_BEGIN_CUSTOM_ANI);
+    u8 failed_scene_flags = 0xA5U;
+    open_failure.runtime.scene_render_flags = &failed_scene_flags;
+    write_payload(open_failure, 2U, "missing.ani%Q");
+    open_failure.ports.ani_start_result = {
+        .status = openswd3::asset_runtime::LegacyAniActivityStartStatus::
+            archive_open_failed,
+        .open_status =
+            openswd3::asset_runtime::LegacyAniOpenStatus::file_open_failed,
+        .frame_status =
+            openswd3::asset_runtime::LegacyAniFrameLoadStatus::archive_not_open,
+    };
+    const auto open_failure_result = open_failure.step();
+    test.expect_true(
+        open_failure_result.status == LegacyWorldStoryVmStatus::yielded &&
+            open_failure.context.instruction_offset == 15U &&
+            open_failure.state.previous_opcode == OP_96_BEGIN_CUSTOM_ANI &&
+            open_failure.ports.ani_begin_count == 1U,
+        "opcode 96 archive-open failure remains a consumed common-join yield"
+    );
+
+    Fixture preflight_exit;
+    prime_loaded_instruction(preflight_exit, OP_96_BEGIN_CUSTOM_ANI);
+    u8 preflight_scene_flags = 0xA5U;
+    preflight_exit.runtime.scene_render_flags = &preflight_scene_flags;
+    preflight_exit.state.previous_opcode = 0x66U;
+    preflight_exit.ports.ani_prepare_success = false;
+    write_payload(preflight_exit, 2U, "demo.ani%Q");
+    const auto preflight_result = preflight_exit.step();
+    test.expect_true(
+        preflight_result.status == LegacyWorldStoryVmStatus::yielded &&
+            preflight_result.direct_audio_service_count == 1U &&
+            preflight_exit.context.instruction_offset == 12U &&
+            preflight_exit.state.previous_opcode == 0x66U &&
+            preflight_exit.ports.ani_begin_count == 0U &&
+            preflight_exit.ports.story_protocol_events ==
+                std::vector<u32>{8U, 2U, 9U},
+        "opcode 96 CD-style preflight exit preserves consumption and audio but bypasses common previous publication"
+    );
+
+    Fixture scene_owner_not_read;
+    prime_loaded_instruction(scene_owner_not_read, OP_96_BEGIN_CUSTOM_ANI);
+    scene_owner_not_read.runtime.scene_render_flags = nullptr;
+    scene_owner_not_read.state.previous_opcode = 0x66U;
+    write_payload(scene_owner_not_read, 2U, "demo.ani%Q");
+    const auto owner_result = scene_owner_not_read.step();
+    test.expect_true(
+        owner_result.status == LegacyWorldStoryVmStatus::yielded &&
+            owner_result.direct_audio_service_count == 2U &&
+            scene_owner_not_read.context.instruction_offset == 12U &&
+            scene_owner_not_read.state.previous_opcode ==
+                OP_96_BEGIN_CUSTOM_ANI &&
+            scene_owner_not_read.ports.ani_begin_count == 1U,
+        "opcode 96 leaves live scene flags to the asynchronous ANI port rather than adding a staged VM owner read"
+    );
+
+    Fixture missing_terminator;
+    prime_loaded_instruction(missing_terminator, OP_96_BEGIN_CUSTOM_ANI);
+    missing_terminator.state.previous_opcode = 0x66U;
+    std::ranges::fill_n(
+        missing_terminator.state.window.begin() + 2, 32U, u8{'A'}
+    );
+    const auto missing_result = missing_terminator.step();
+    test.expect_true(
+        missing_result.status ==
+                LegacyWorldStoryVmStatus::ani_filename_terminator_not_found &&
+            missing_terminator.ports.last_ani_frame_interval == 70U &&
+            missing_terminator.ports.direct_audio_service_count == 0U &&
+            missing_terminator.context.instruction_offset == 0U &&
+            missing_terminator.state.previous_opcode == 0x66U,
+        "opcode 96 bounds the original 32-byte temporary filename copy and retains the prior interval side effect"
+    );
+
+    Fixture operand_truncated;
+    operand_truncated.context.talk_data_offset = 0x1111U;
+    operand_truncated.context.instruction_offset = 0x7FFEU;
+    operand_truncated.state.loaded_file_number = 1U;
+    operand_truncated.state.loaded_data_offset = 0x1111U;
+    operand_truncated.state.window_loaded = true;
+    operand_truncated.state.previous_opcode = 0x66U;
+    write_u16(operand_truncated.state.window, 0x7FFEU, OP_96_BEGIN_CUSTOM_ANI);
+    const auto truncated_result = operand_truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            operand_truncated.ports.last_ani_frame_interval == 70U &&
+            operand_truncated.context.instruction_offset == 0x7FFEU &&
+            operand_truncated.state.previous_opcode == 0x66U,
+        "opcode 96 sets the interval before its first post-opcode unsafe byte read"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -17676,6 +17954,81 @@ void test_real_clear_scene_render_bit1_record(
     );
 }
 
+void test_real_begin_custom_ani_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        std::string_view expected_name;
+        u8 expected_flags;
+    };
+    constexpr std::array<RealCase, 2U> cases{
+        RealCase{
+            "TALK1.DAT",
+            0x000043FA,
+            "expv.ani",
+            openswd3::asset_runtime::kLegacyAniSkipRevealFlag |
+                openswd3::asset_runtime::kLegacyAniEndingEffectFlag,
+        },
+        RealCase{
+            "TALK2.DAT",
+            0x0000D39F,
+            "memory.ani",
+            openswd3::asset_runtime::kLegacyAniEndingEffectFlag,
+        },
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 32U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+        const auto terminator =
+            std::ranges::search(record, std::array<u8, 2U>{u8{'%'}, u8{'Q'}});
+        const std::size_t record_size =
+            static_cast<std::size_t>(terminator.begin() - record.begin()) + 2U;
+
+        Fixture fixture;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = static_cast<u16>(
+            openswd3::resource_io::kLegacyTalkWindowSize - record_size
+        );
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        u8 scene_flags = 0xA5U;
+        fixture.runtime.scene_render_flags = &scene_flags;
+        std::ranges::copy(
+            std::span<const u8>{record}.first(record_size),
+            fixture.state.window.begin() + fixture.context.instruction_offset
+        );
+
+        const auto result = fixture.step();
+        const std::vector<u8> expected_name{
+            real_case.expected_name.begin(), real_case.expected_name.end()
+        };
+        test.expect_true(
+            record_read && read_u16(record, 0U) == OP_96_BEGIN_CUSTOM_ANI &&
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 2U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.previous_opcode == OP_96_BEGIN_CUSTOM_ANI &&
+                fixture.ports.last_ani_frame_interval == 70U &&
+                fixture.ports.last_ani_filename == expected_name &&
+                fixture.ports.last_ani_flags == real_case.expected_flags,
+            "real opcode 96 parses ANI prefixes and starts the requested archive at the exact tail"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -19791,6 +20144,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_reserved_global_bit_protocol(test);
     test_set_scene_render_bit1_protocol(test);
     test_clear_scene_render_bit1_protocol(test);
+    test_begin_custom_ani_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -19858,6 +20212,7 @@ int main(const int argument_count, char** arguments) {
         test_real_request_battle_records(test, root);
         test_real_set_scene_render_bit1_record(test, root);
         test_real_clear_scene_render_bit1_record(test, root);
+        test_real_begin_custom_ani_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

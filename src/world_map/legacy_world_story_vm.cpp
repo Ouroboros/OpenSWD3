@@ -4520,6 +4520,70 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
+        case OP_96_BEGIN_CUSTOM_ANI: {
+            ports.set_story_frame_interval(70U);
+            std::size_t cursor = ip + 2U;
+            if (cursor >= state.window.size()) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u8 ani_flags = 0U;
+            if (state.window[cursor] == static_cast<u8>('%')) {
+                ani_flags |= asset_runtime::kLegacyAniSkipRevealFlag;
+                ++cursor;
+            }
+            if (cursor >= state.window.size()) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            if (state.window[cursor] == static_cast<u8>('*')) {
+                ani_flags |= asset_runtime::kLegacyAniEndingEffectFlag;
+                ++cursor;
+            }
+            if (cursor >= state.window.size()) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const std::size_t filename_begin = cursor;
+            const std::size_t scan_end = std::min(
+                state.window.size(), filename_begin + std::size_t{32U}
+            );
+            std::size_t terminator = scan_end;
+            for (std::size_t index = filename_begin; index + 1U < scan_end;
+                 ++index) {
+                if (state.window[index] == static_cast<u8>('%') &&
+                    state.window[index + 1U] == static_cast<u8>('Q')) {
+                    terminator = index;
+                    break;
+                }
+            }
+            if (terminator == scan_end) {
+                result.status =
+                    LegacyWorldStoryVmStatus::ani_filename_terminator_not_found;
+                return result;
+            }
+
+            context.instruction_offset = static_cast<u16>(terminator + 2U);
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            if (!ports.prepare_story_ani()) {
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            static_cast<void>(ports.begin_story_ani(
+                std::span<const u8>{state.window}.subspan(
+                    filename_begin, terminator - filename_begin
+                ),
+                ani_flags
+            ));
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
         case 104U:
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

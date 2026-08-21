@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/asset_runtime/legacy_ani_activity.hpp"
 #include "openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp"
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
@@ -120,6 +121,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_93_CLEAR_RESERVED_GLOBAL_BIT = 93U,
     OP_94_SET_SCENE_RENDER_BIT1 = 94U,
     OP_95_CLEAR_SCENE_RENDER_BIT1 = 95U,
+    OP_96_BEGIN_CUSTOM_ANI = 96U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
     OP_162_LOAD_DYNAMIC_NAME_RECORD = 162U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
@@ -257,6 +259,11 @@ public:
     [[nodiscard]] virtual bool prepare_story_video() noexcept = 0;
     virtual void begin_story_video(std::span<const compat::u8> filename) = 0;
     [[nodiscard]] virtual compat::i32 query_story_video_progress() = 0;
+    virtual void
+    set_story_frame_interval(compat::u32 milliseconds) noexcept = 0;
+    [[nodiscard]] virtual bool prepare_story_ani() noexcept = 0;
+    [[nodiscard]] virtual asset_runtime::LegacyAniActivityStartResult
+    begin_story_ani(std::span<const compat::u8> filename, compat::u8 flags) = 0;
     virtual void beep() noexcept = 0;
     virtual void service_audio() = 0;
     // Models sub_40B7F0's optional %T/mon.dat expansion. Returning false
@@ -276,6 +283,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     unsupported_opcode,
     maps_payload_out_of_range,
     name_terminator_not_found,
+    ani_filename_terminator_not_found,
     global_bit_index_out_of_range,
     role_not_found,
     runtime_unavailable,
@@ -334,7 +342,7 @@ struct LegacyWorldStoryVmResult {
 // sub_427920, currently restricted to the independently audited default-invalid
 // and shared-dialog groups plus the earlier map-81/TALK100 implementation coverage:
 // 1-40,42-43,45,51-53,58-72,74,76-87,
-// 88-95,104,107,114,120,141,153,161,169,193,0x402 and 0x3FFF. Each
+// 88-96,104,107,114,120,141,153,161,169,193,0x402 and 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.
 [[nodiscard]] LegacyWorldStoryVmResult step_legacy_world_story_vm(

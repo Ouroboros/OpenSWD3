@@ -196,6 +196,8 @@ opcode95另行独立闭环：按`AND FFFFFFFD`只清bit1，补齐旧numeric case
 
 两个前缀按顺序独立判断。handler 建立 `Video\...` / `swd3\Video\...` 路径，打开文件，清旧帧节点，固定读取 `0x24` 字节头；随后写入首帧链字段，分配两个 `0x9C400` 缓冲。storage bpp 为 8 时，从文件尾读取初始 `0x300` RGB 调色板并转换成 256 个 16 位颜色。最后把相位值暂设为一，调用 `sub_4158C0` 预载首帧，再改成 `-13` 进入每帧 Ani 更新器 `sub_4154A0`。
 
+opcode96现已独立闭环并接入实际`LegacyAniActivity`：interval70先行，`%/*`独立prefix、原32-byte临时copy域内`%Q`、消费、CD-style preflight、双audio、case-insensitive `Video/`路径、open失败common previous/yield，以及机器中无scene staged读取均锁定。资产16条/16 probes，分布`2/2/9/3`，prefix `%*/*/%=14/1/1`；真实`expv.ani`与`memory.ani`精确尾回放通过，ANI archive/activity及real archive 3/3。完整证据见[`story-vm-custom-ani-start-0042a80e.md`](story-vm-custom-ani-start-0042a80e.md)。
+
 原始错误行为也已固定：
 
 - 文件名和路径复制、`%Q` 扫描都无边界；
