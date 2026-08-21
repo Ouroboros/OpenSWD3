@@ -94,6 +94,8 @@ step_y = dy * movement / distance
 
 三个 handler 没有节点容量或分配保护。它们共享链表不代表可以改成按 key 唯一的 map；重复 key 存在时只改第一个节点的顺序行为必须保留。
 
+81现已独立闭环：现代精确0xB4节点接入既有role-head list，保留分配/初始化、四个staged operand、signed X边界、low15 Y、bit15特殊motion、前插、+10、previous81与same-call。资产锁1888条/1888 probes，分布`488/340/398/662`，全部raw `0x0051`、长度10；3条bit15特殊记录均在TALK2。普通与特殊真实回放通过。完整证据见[`story-vm-role-head-action-enqueue-0042a200.md`](story-vm-role-head-action-enqueue-0042a200.md)。
+
 ## opcode 83、84：framebuffer 区域效果与两个原始越界面
 
 83 先按 id 低字节删除所有同 id 节点，再建立 24 字节记录和两条逐行 `s16` 数组。参数 `X/Y/width/height` 都先清 bit0；合法门控只有：
