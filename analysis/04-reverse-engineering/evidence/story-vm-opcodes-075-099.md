@@ -119,12 +119,15 @@ Y + height <= 480
 
 ## opcode 85：清屏提交后启动 Bink
 
-85 先以运行时逻辑宽高计算字节数，清零软件 framebuffer，并把软件源 surface 整体 Blt 到 primary。随后 `sub_484730` 从 `+2` 开始消费到 `%Q`：
+85 先以运行时逻辑宽高计算字节数，清零软件 framebuffer，并把软件源 surface 整体 Blt 到 primary。随后`AIL_serve`并由`sub_484730`从`+2`开始消费到`%Q`：
 
-- 构造 `video\` 或 `swd3\` 路径；
-- 若文件名含 `.avi` 或 `.mpg`，原地改成 `.bik`；
-- 建立 Bink 包装对象并调用打开入口；
+- CD checker失败时设置close-request、不消费文件名并yield；
+- 成功时构造`video\\swd3\\`路径；
+- 若文件名含case-sensitive `.avi`或`.mpg`，首匹配原地改成`.bik`；
+- 建立Bink包装对象并调用打开入口；
 - 设置视频活动位。
+
+85现已独立闭环：修正旧C++把合法`%Q`恰好结束在`0x8000`误判为失败的问题，恢复clear→present→audio→preflight→parse→begin、previous85与yield；SDL以配置data root和typed video backend替代CD/固定路径/Bink裸owner。资产锁11条/11 probes，分布`6/2/1/2`，全部raw `0x0055`和`%Q`终止；真实`OPENING.bik`与`Demo.mpg`精确尾回放通过。完整证据见[`story-vm-video-start-0042a611.md`](story-vm-video-start-0042a611.md)。
 
 正常解析后推进到 `%Q` 之后并跨帧让出。若 CD/path helper 返回 2，helper 在扫描字符串前返回零，既不推进 IP，也不释放刚分配的 `0x400` 字节临时区；外层不检查返回值，因此下一帧会清屏、提交并重试同一 opcode。
 

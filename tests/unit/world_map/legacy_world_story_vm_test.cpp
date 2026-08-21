@@ -112,6 +112,7 @@ using openswd3::world_map::OP_81_ENQUEUE_ROLE_HEAD_ACTION;
 using openswd3::world_map::OP_82_DISMISS_ROLE_HEAD_ACTION;
 using openswd3::world_map::OP_83_UPSERT_PACKED_ROW_EFFECT;
 using openswd3::world_map::OP_84_CONTROL_PACKED_ROW_EFFECT;
+using openswd3::world_map::OP_85_BEGIN_STORY_VIDEO;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -298,11 +299,25 @@ public:
 
     void present_story_framebuffer() noexcept override {
         ++framebuffer_present_count;
+        if (framebuffer_present_callback) {
+            framebuffer_present_callback();
+        }
+    }
+
+    [[nodiscard]] bool prepare_story_video() noexcept override {
+        ++video_prepare_count;
+        if (story_video_prepare_callback) {
+            story_video_prepare_callback();
+        }
+        return video_prepare_success;
     }
 
     void begin_story_video(const std::span<const u8> filename) override {
         ++video_begin_count;
         last_video_filename.assign(filename.begin(), filename.end());
+        if (story_video_begin_callback) {
+            story_video_begin_callback();
+        }
     }
 
     i32 query_story_video_progress() override {
@@ -320,6 +335,9 @@ public:
         ++direct_audio_service_count;
         default_protocol_events.push_back(2U);
         story_protocol_events.push_back(2U);
+        if (audio_service_callback) {
+            audio_service_callback();
+        }
     }
 
     bool prepare_dialog_text(
@@ -349,8 +367,13 @@ public:
     std::function<void(openswd3::asset_runtime::LegacyActionRecord&, u32)>
         action_update_callback;
     std::function<void()> framebuffer_clear_callback;
+    std::function<void()> framebuffer_present_callback;
+    std::function<void()> story_video_prepare_callback;
+    std::function<void()> story_video_begin_callback;
+    std::function<void()> audio_service_callback;
     u32 framebuffer_clear_count{};
     u32 framebuffer_present_count{};
+    u32 video_prepare_count{};
     u32 video_begin_count{};
     u32 video_progress_query_count{};
     u32 beep_count{};
@@ -363,6 +386,7 @@ public:
     bool last_data_clear_before_read{};
     bool dialog_text_prepare_success{};
     bool world_session_reload_success{true};
+    bool video_prepare_success{true};
     bool throw_on_dialog_text_prepare{};
     LegacyTalkWindowStatus data_load_status{LegacyTalkWindowStatus::ready};
     i32 last_story_id{};
@@ -468,6 +492,11 @@ public:
         ++framebuffer_present_count;
     }
 
+    [[nodiscard]] bool prepare_story_video() noexcept override {
+        ++video_prepare_count;
+        return true;
+    }
+
     void begin_story_video(const std::span<const u8> filename) override {
         ++video_begin_count;
         last_video_filename.assign(filename.begin(), filename.end());
@@ -488,6 +517,7 @@ public:
     u32 action_update_count{};
     u32 framebuffer_clear_count{};
     u32 framebuffer_present_count{};
+    u32 video_prepare_count{};
     u32 video_begin_count{};
     u32 video_progress_query_count{};
     u32 role_path_payload_release_count{};
@@ -13511,6 +13541,128 @@ void test_control_packed_row_effect_boundaries(openswd3::test::Context& test) {
     );
 }
 
+void test_begin_story_video_protocol(openswd3::test::Context& test) {
+    const auto write_record = [](const std::span<u8> bytes,
+                                 const std::size_t offset,
+                                 const u16 raw_opcode,
+                                 const std::string_view filename) {
+        write_u16(bytes, offset, raw_opcode);
+        std::ranges::copy(
+            filename, bytes.begin() + static_cast<std::ptrdiff_t>(offset + 2U)
+        );
+        bytes[offset + 2U + filename.size()] = 0x25U;
+        bytes[offset + 3U + filename.size()] = 0x51U;
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    constexpr std::string_view kFilename{"clip.avi"};
+    constexpr std::size_t kLength = 2U + kFilename.size() + 2U;
+    for (const u16 alias_mask : alias_masks) {
+        Fixture exact_tail;
+        std::vector<u32> events;
+        exact_tail.ports.framebuffer_clear_callback = [&]() {
+            events.push_back(1U);
+        };
+        exact_tail.ports.framebuffer_present_callback = [&]() {
+            events.push_back(2U);
+        };
+        exact_tail.ports.audio_service_callback = [&]() {
+            events.push_back(3U);
+        };
+        exact_tail.ports.story_video_prepare_callback = [&]() {
+            events.push_back(4U);
+        };
+        exact_tail.ports.story_video_begin_callback = [&]() {
+            events.push_back(5U);
+        };
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset =
+            static_cast<u16>(0x8000U - kLength);
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_record(
+            exact_tail.state.window,
+            exact_tail.context.instruction_offset,
+            static_cast<u16>(OP_85_BEGIN_STORY_VIDEO | alias_mask),
+            kFilename
+        );
+
+        const auto result = exact_tail.step();
+        const std::string filename{
+            exact_tail.ports.last_video_filename.begin(),
+            exact_tail.ports.last_video_filename.end(),
+        };
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_85_BEGIN_STORY_VIDEO &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                events == std::vector<u32>{1U, 2U, 3U, 4U, 5U} &&
+                exact_tail.ports.framebuffer_clear_count == 1U &&
+                exact_tail.ports.framebuffer_present_count == 1U &&
+                exact_tail.ports.direct_audio_service_count == 1U &&
+                exact_tail.ports.video_prepare_count == 1U &&
+                exact_tail.ports.video_begin_count == 1U &&
+                filename == kFilename &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode == OP_85_BEGIN_STORY_VIDEO,
+            "opcode 85 aliases clear, present, service audio, prepare and begin in order before exact-tail yield"
+        );
+    }
+
+    Fixture rejected;
+    rejected.ports.video_prepare_success = false;
+    auto rejected_script = std::span<u8>{rejected.ports.initial_window};
+    write_record(rejected_script, 0U, OP_85_BEGIN_STORY_VIDEO, "ignored.mpg");
+    rejected.state.previous_opcode = 0x66U;
+    const auto rejected_result = rejected.step();
+    test.expect_true(
+        rejected_result.status == LegacyWorldStoryVmStatus::yielded &&
+            rejected_result.direct_audio_service_count == 1U &&
+            rejected.ports.framebuffer_clear_count == 1U &&
+            rejected.ports.framebuffer_present_count == 1U &&
+            rejected.ports.direct_audio_service_count == 1U &&
+            rejected.ports.video_prepare_count == 1U &&
+            rejected.ports.video_begin_count == 0U &&
+            rejected.context.instruction_offset == 0U &&
+            rejected.state.previous_opcode == OP_85_BEGIN_STORY_VIDEO,
+        "opcode 85 CD preflight rejection yields and publishes previous without consuming the filename"
+    );
+
+    Fixture truncated;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.context.instruction_offset = 0x7FF8U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x66U;
+    write_u16(truncated.state.window, 0x7FF8U, OP_85_BEGIN_STORY_VIDEO);
+    std::ranges::copy(
+        std::string_view{"broken"}, truncated.state.window.begin() + 0x7FFAU
+    );
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated_result.direct_audio_service_count == 1U &&
+            truncated.ports.framebuffer_clear_count == 1U &&
+            truncated.ports.framebuffer_present_count == 1U &&
+            truncated.ports.direct_audio_service_count == 1U &&
+            truncated.ports.video_prepare_count == 1U &&
+            truncated.ports.video_begin_count == 0U &&
+            truncated.context.instruction_offset == 0x7FF8U &&
+            truncated.state.previous_opcode == 0x66U,
+        "opcode 85 missing terminator typed-stops only after clear, present, audio service and preflight"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -15846,6 +15998,108 @@ void test_real_role_wait_override_records(
     );
 }
 
+void test_real_begin_story_video_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    const auto read_opening = [&root]() {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(0x000044FF);
+        std::array<u8, 15U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        return record;
+    };
+    const auto read_demo = [&root]() {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(0x00004634);
+        std::array<u8, 12U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        return record;
+    };
+    const auto opening = read_opening();
+    const auto demo = read_demo();
+
+    const auto execute = [](const std::span<const u8> record) {
+        Fixture fixture;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset =
+            static_cast<u16>(0x8000U - record.size());
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x66U;
+        std::ranges::copy(
+            record,
+            fixture.state.window.begin() + fixture.context.instruction_offset
+        );
+        const auto result = fixture.step();
+        return std::tuple{
+            result,
+            std::string{
+                fixture.ports.last_video_filename.begin(),
+                fixture.ports.last_video_filename.end(),
+            },
+            fixture.context.instruction_offset,
+            fixture.state.previous_opcode,
+            fixture.ports.framebuffer_clear_count,
+            fixture.ports.framebuffer_present_count,
+            fixture.ports.direct_audio_service_count,
+            fixture.ports.video_prepare_count,
+            fixture.ports.video_begin_count,
+        };
+    };
+    const auto
+        [opening_result,
+         opening_filename,
+         opening_ip,
+         opening_previous,
+         opening_clear,
+         opening_present,
+         opening_audio,
+         opening_prepare,
+         opening_begin] = execute(opening);
+    const auto
+        [demo_result,
+         demo_filename,
+         demo_ip,
+         demo_previous,
+         demo_clear,
+         demo_present,
+         demo_audio,
+         demo_prepare,
+         demo_begin] = execute(demo);
+
+    test.expect_true(
+        read_u16(opening, 0U) == OP_85_BEGIN_STORY_VIDEO &&
+            opening[opening.size() - 2U] == 0x25U &&
+            opening[opening.size() - 1U] == 0x51U &&
+            opening_result.status == LegacyWorldStoryVmStatus::yielded &&
+            opening_result.direct_audio_service_count == 1U &&
+            opening_filename == "OPENING.bik" && opening_ip == 0x8000U &&
+            opening_previous == OP_85_BEGIN_STORY_VIDEO &&
+            opening_clear == 1U && opening_present == 1U &&
+            opening_audio == 1U && opening_prepare == 1U &&
+            opening_begin == 1U &&
+            read_u16(demo, 0U) == OP_85_BEGIN_STORY_VIDEO &&
+            demo_result.status == LegacyWorldStoryVmStatus::yielded &&
+            demo_result.direct_audio_service_count == 1U &&
+            demo_filename == "Demo.mpg" && demo_ip == 0x8000U &&
+            demo_previous == OP_85_BEGIN_STORY_VIDEO && demo_clear == 1U &&
+            demo_present == 1U && demo_audio == 1U && demo_prepare == 1U &&
+            demo_begin == 1U,
+        "real opcode 85 BIK and MPG records preserve raw filenames, side-effect order owners and exact-tail yield"
+    );
+}
+
 void test_real_control_packed_row_effect_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -17859,6 +18113,7 @@ int main(const int argument_count, char** arguments) {
     test_upsert_packed_row_effect_boundaries(test);
     test_control_packed_row_effect_protocol(test);
     test_control_packed_row_effect_boundaries(test);
+    test_begin_story_video_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -17920,6 +18175,7 @@ int main(const int argument_count, char** arguments) {
         test_real_dismiss_role_head_action_record(test, root);
         test_real_upsert_packed_row_effect_record(test, root);
         test_real_control_packed_row_effect_records(test, root);
+        test_real_begin_story_video_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

@@ -3403,6 +3403,13 @@ public:
                 );
             }
 
+            [[nodiscard]] bool prepare_story_video() noexcept override {
+                // The original CD-checker can request process shutdown before
+                // consuming the filename. Configured data roots need no CD
+                // acquisition, so the SDL adaptation is always ready.
+                return true;
+            }
+
             void begin_story_video(
                 const std::span<const openswd3::compat::u8> filename
             ) override {

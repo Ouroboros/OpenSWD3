@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v307
+版本：v308
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A611` handler（opcode 85）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A673` handler（opcode 86）
 
 ## 0. 执行约定
 
@@ -2067,6 +2067,19 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode增至102；对外进度为已实现102/198、已验收89/198；内部
     workpack65/146，即`8 assembly_exact + 57 platform_adapted + 81 pending_audit`。
 
+- 剧情VM P2第六十六组`0x0042A611` / opcode85完成独立闭环。handler固定执行clear framebuffer、
+    primary present、AIL service，再进入CD preflight与`%Q`文件名解析。CD checker拒绝不推进IP，
+    但common join仍发布previous85/yield；成功路径消费到terminator后提交raw filename并让出。
+    本轮修正旧C++把terminator恰好结束在`0x8000`误判为失败，并补齐audio service、preflight、
+    previous publication与side-effect顺序。SDL以配置data root和typed video backend替代CD、固定
+    `video\\swd3\\`路径与Bink裸owner。四alias精确尾、preflight拒绝、缺terminator，以及真实
+    `OPENING.bik`/`Demo.mpg`精确尾回放通过。资产锁11条/11 probes，分布`6/2/1/2`，全部raw
+    `0x0055`和`%Q`终止；另锁定1条177-byte opaque记录。格式化后剧情VM3/3、Linux core186/186、
+    Linux app192/192通过；workpack hash为
+    `39d6ae542f4d9dc454cf979d245fdf5a5b7b61a563c4d12b5cea7990cf932b11`。未启动游戏EXE。
+    对外进度为已实现102/198、已验收90/198；内部workpack66/146，即
+    `8 assembly_exact + 58 platform_adapted + 80 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042A611` 的opcode85 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042A673` 的opcode86 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

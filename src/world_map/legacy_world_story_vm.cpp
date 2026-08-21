@@ -338,14 +338,6 @@ void replace_name_prefix(
     return false;
 }
 
-[[nodiscard]] std::size_t find_dialog_end(
-    const std::span<const u8> bytes, const std::size_t start
-) noexcept {
-    std::size_t end{bytes.size()};
-    static_cast<void>(find_dialog_end_checked(bytes, start, end));
-    return end;
-}
-
 struct LegacyPreparedDialogTextMetrics {
     u16 visible_byte_count{};
     u16 line_count{1U};
@@ -4249,20 +4241,28 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 85U: {
-            const std::size_t end = find_dialog_end(state.window, ip + 2U);
-            if (end == state.window.size()) {
+        case OP_85_BEGIN_STORY_VIDEO: {
+            ports.clear_story_framebuffer();
+            ports.present_story_framebuffer();
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            if (!ports.prepare_story_video()) {
+                state.previous_opcode = result.opcode;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+            std::size_t end{};
+            if (!find_dialog_end_checked(state.window, ip + 2U, end)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            ports.clear_story_framebuffer();
-            ports.present_story_framebuffer();
             ports.begin_story_video(
                 std::span<const u8>{state.window}.subspan(
                     ip + 2U, end - ip - 4U
                 )
             );
             context.instruction_offset = static_cast<u16>(end);
+            state.previous_opcode = result.opcode;
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
         }

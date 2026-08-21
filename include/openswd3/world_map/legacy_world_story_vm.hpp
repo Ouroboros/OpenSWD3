@@ -110,6 +110,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_82_DISMISS_ROLE_HEAD_ACTION = 82U,
     OP_83_UPSERT_PACKED_ROW_EFFECT = 83U,
     OP_84_CONTROL_PACKED_ROW_EFFECT = 84U,
+    OP_85_BEGIN_STORY_VIDEO = 85U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
@@ -242,6 +243,7 @@ public:
     virtual void play_sound_effect(compat::u16 sound_id) noexcept = 0;
     virtual void clear_story_framebuffer() noexcept = 0;
     virtual void present_story_framebuffer() noexcept = 0;
+    [[nodiscard]] virtual bool prepare_story_video() noexcept = 0;
     virtual void begin_story_video(std::span<const compat::u8> filename) = 0;
     [[nodiscard]] virtual compat::i32 query_story_video_progress() = 0;
     virtual void beep() noexcept = 0;

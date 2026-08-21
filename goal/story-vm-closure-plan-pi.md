@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x0042A611`（opcode 85）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x0042A673`（opcode 86）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -69,7 +69,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至127行。前65行已独立
+值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至127行。前66行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -108,8 +108,10 @@ opcode75复用`sub_42E5A0`等价helper取得角色路径所有权，missing inde
 opcode76按LST分阶段双lookup，完成朝向action刷新后再挂起；两处index -1越界收敛为typed失败。
 shared opcodes77/78按selector命中后分流固定6/4字节，更新等待覆盖并刷新；missing陈旧宽度收敛为typed失败。
 opcode84控制首匹配packed-row效果，保持staged读取、op0/1/2、缺失推进；真实3/8陈旧局部typed-stop。
-已实现102/198、已验收89/198；内部workpack为65/146，即
-`8 assembly_exact + 57 platform_adapted + 81 pending_audit`。下一行只审计`0x0042A611`下的opcode85。
+opcode85恢复clear/present/audio/CD preflight/`%Q`解析/begin顺序、preflight不消费与两路previous/yield，
+修正合法terminator精确结束在`0x8000`误判失败；SDL以配置root和typed video backend适配CD/Bink。
+已实现102/198、已验收90/198；内部workpack为66/146，即
+`8 assembly_exact + 58 platform_adapted + 80 pending_audit`。下一行只审计`0x0042A673`下的opcode86。
 
 ### P2 · 按 handler 组逆向、实现和验证
 
