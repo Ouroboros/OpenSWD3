@@ -123,6 +123,7 @@ using openswd3::world_map::OP_93_CLEAR_RESERVED_GLOBAL_BIT;
 using openswd3::world_map::OP_94_SET_SCENE_RENDER_BIT1;
 using openswd3::world_map::OP_95_CLEAR_SCENE_RENDER_BIT1;
 using openswd3::world_map::OP_96_BEGIN_CUSTOM_ANI;
+using openswd3::world_map::OP_97_WAIT_CUSTOM_ANI_COMPLETE;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
@@ -359,6 +360,11 @@ public:
         return ani_start_result;
     }
 
+    [[nodiscard]] bool is_story_ani_active() const noexcept override {
+        ++ani_active_query_count;
+        return ani_active;
+    }
+
     void beep() noexcept override {
         ++beep_count;
         default_protocol_events.push_back(1U);
@@ -413,6 +419,7 @@ public:
     u32 ani_frame_interval_write_count{};
     u32 ani_prepare_count{};
     u32 ani_begin_count{};
+    mutable u32 ani_active_query_count{};
     u32 last_ani_frame_interval{};
     u32 beep_count{};
     u32 direct_audio_service_count{};
@@ -426,6 +433,7 @@ public:
     bool world_session_reload_success{true};
     bool video_prepare_success{true};
     bool ani_prepare_success{true};
+    bool ani_active{};
     bool throw_on_dialog_text_prepare{};
     LegacyTalkWindowStatus data_load_status{LegacyTalkWindowStatus::ready};
     i32 last_story_id{};
@@ -575,6 +583,10 @@ public:
             .frame_status =
                 openswd3::asset_runtime::LegacyAniFrameLoadStatus::ready,
         };
+    }
+
+    [[nodiscard]] bool is_story_ani_active() const noexcept override {
+        return false;
     }
 
     void beep() noexcept override {}
@@ -15155,6 +15167,78 @@ void test_begin_custom_ani_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_wait_custom_ani_complete_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFEU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x66U;
+        fixture.ports.ani_active = true;
+        write_u16(
+            fixture.state.window,
+            fixture.context.instruction_offset,
+            static_cast<u16>(OP_97_WAIT_CUSTOM_ANI_COMPLETE | alias_mask)
+        );
+
+        const auto active_result = fixture.step();
+        test.expect_true(
+            active_result.status == LegacyWorldStoryVmStatus::yielded &&
+                active_result.opcode == OP_97_WAIT_CUSTOM_ANI_COMPLETE &&
+                active_result.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0x7FFEU &&
+                fixture.state.previous_opcode ==
+                    OP_97_WAIT_CUSTOM_ANI_COMPLETE &&
+                fixture.ports.ani_active_query_count == 1U &&
+                fixture.ports.ani_frame_interval_write_count == 0U,
+            "opcode 97 aliases publish previous and yield without advancing while the ANI activity is active"
+        );
+
+        fixture.ports.ani_active = false;
+        const auto inactive_result = fixture.step();
+        test.expect_true(
+            inactive_result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                inactive_result.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.previous_opcode ==
+                    OP_97_WAIT_CUSTOM_ANI_COMPLETE &&
+                fixture.ports.ani_active_query_count == 2U &&
+                fixture.ports.ani_frame_interval_write_count == 1U &&
+                fixture.ports.last_ani_frame_interval == 35U,
+            "opcode 97 aliases consume at completion, restore interval 35, publish previous and accept an exact window tail"
+        );
+    }
+
+    Fixture same_call;
+    prime_loaded_instruction(same_call, OP_97_WAIT_CUSTOM_ANI_COMPLETE);
+    write_u16(same_call.state.window, 2U, OP_95_CLEAR_SCENE_RENDER_BIT1);
+    u8 scene_render_flags = 0xA7U;
+    same_call.runtime.scene_render_flags = &scene_render_flags;
+    same_call.ports.ani_active = false;
+
+    const auto same_call_result = same_call.step();
+    test.expect_true(
+        same_call_result.status == LegacyWorldStoryVmStatus::yielded &&
+            same_call_result.opcode == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+            same_call_result.executed_instruction_count == 2U &&
+            same_call.context.instruction_offset == 4U &&
+            same_call.state.previous_opcode == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+            same_call.ports.ani_active_query_count == 1U &&
+            same_call.ports.last_ani_frame_interval == 35U &&
+            scene_render_flags == 0xA5U,
+        "opcode 97 completion restores interval before common-join same-call continuation"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -18029,6 +18113,45 @@ void test_real_begin_custom_ani_records(
     }
 }
 
+void test_real_wait_custom_ani_complete_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00004408);
+    std::array<u8, 2U> record{};
+    input.read(
+        reinterpret_cast<char*>(record.data()),
+        static_cast<std::streamsize>(record.size())
+    );
+    const bool record_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    fixture.context.talk_data_offset = 0x1111U;
+    fixture.context.instruction_offset = 0x7FFEU;
+    fixture.state.loaded_file_number = 1U;
+    fixture.state.loaded_data_offset = 0x1111U;
+    fixture.state.window_loaded = true;
+    fixture.ports.ani_active = true;
+    std::ranges::copy(record, fixture.state.window.begin() + 0x7FFE);
+
+    const auto active_result = fixture.step();
+    fixture.ports.ani_active = false;
+    const auto completed_result = fixture.step();
+
+    test.expect_true(
+        record_read && read_u16(record, 0U) == OP_97_WAIT_CUSTOM_ANI_COMPLETE &&
+            active_result.status == LegacyWorldStoryVmStatus::yielded &&
+            active_result.executed_instruction_count == 1U &&
+            completed_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            completed_result.executed_instruction_count == 1U &&
+            fixture.context.instruction_offset == 0x8000U &&
+            fixture.state.previous_opcode == OP_97_WAIT_CUSTOM_ANI_COMPLETE &&
+            fixture.ports.last_ani_frame_interval == 35U,
+        "real opcode 97 waits while active then completes at the exact tail"
+    );
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -20145,6 +20268,7 @@ int main(const int argument_count, char** arguments) {
     test_set_scene_render_bit1_protocol(test);
     test_clear_scene_render_bit1_protocol(test);
     test_begin_custom_ani_protocol(test);
+    test_wait_custom_ani_complete_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -20213,6 +20337,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_scene_render_bit1_record(test, root);
         test_real_clear_scene_render_bit1_record(test, root);
         test_real_begin_custom_ani_records(test, root);
+        test_real_wait_custom_ani_complete_record(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

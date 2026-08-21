@@ -1,6 +1,6 @@
 # 剧情 VM 自定义 ANI 启动 `0x0042A80E`
 
-状态：`platform_adapted`、`unit_tested`、`real_asset_tested`、`external_dependency_tested`、`sdl_start_integrated`。
+状态：`platform_adapted`、`unit_tested`、`real_asset_tested`、`external_dependency_tested`、`sdl_runtime_integrated`。
 
 唯一行为依据：`swd3.exe_export_for_ai/swd3.exe.lst`
 
@@ -45,7 +45,7 @@ activity.start(resolved Video path,
 
 archive/open/header/frame1/allocation失败在原版均已消费记录并最终common join或崩溃；modern backend把失败类型化，VM仍按原open-failure业务路径发布previous96并yield。机器final file-open失败发生在清旧ANI节点之前；SDL resolver因此在missing path时不调用会先关闭activity的typed start，保留旧activity/process bit。进入typed start后的header/frame1/allocation失败则同步backend已清理的process状态。最终LST复审确认scene flags不是opcode96的staged读取：机器在异步ANI ending更新`0x004155AD`才读取scene global。VM因此不增加scene owner stop；SDL activity port持有live scene reference，并在建立typed activity时传入当前低位状态。
 
-原版`%`分支还直接清一次目标surface；modern把skip-reveal归入activity首个更新帧，避免裸DirectDraw vcall。handler已把实际activity owner启动接入SDL；world-frame ANI stage仍是后续集成项，故本证据只标记`sdl_start_integrated`，不宣称完整frame-runtime integration。
+原版`%`分支还直接清一次目标surface。opcode97闭环包现已在成功start后按`%`清黑，并把world-frame `ani_activity_004154a0` stage接入实际update；normal ending使用start前world snapshot适配原递归scene redraw，finalize后下一帧恢复live world composition。因此本证据升级为`sdl_runtime_integrated`。
 
 ## 4. 资产锁与验证
 

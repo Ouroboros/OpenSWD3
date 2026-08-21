@@ -122,6 +122,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_94_SET_SCENE_RENDER_BIT1 = 94U,
     OP_95_CLEAR_SCENE_RENDER_BIT1 = 95U,
     OP_96_BEGIN_CUSTOM_ANI = 96U,
+    OP_97_WAIT_CUSTOM_ANI_COMPLETE = 97U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
     OP_162_LOAD_DYNAMIC_NAME_RECORD = 162U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
@@ -264,6 +265,7 @@ public:
     [[nodiscard]] virtual bool prepare_story_ani() noexcept = 0;
     [[nodiscard]] virtual asset_runtime::LegacyAniActivityStartResult
     begin_story_ani(std::span<const compat::u8> filename, compat::u8 flags) = 0;
+    [[nodiscard]] virtual bool is_story_ani_active() const noexcept = 0;
     virtual void beep() noexcept = 0;
     virtual void service_audio() = 0;
     // Models sub_40B7F0's optional %T/mon.dat expansion. Returning false
@@ -342,7 +344,7 @@ struct LegacyWorldStoryVmResult {
 // sub_427920, currently restricted to the independently audited default-invalid
 // and shared-dialog groups plus the earlier map-81/TALK100 implementation coverage:
 // 1-40,42-43,45,51-53,58-72,74,76-87,
-// 88-96,104,107,114,120,141,153,161,169,193,0x402 and 0x3FFF. Each
+// 88-97,104,107,114,120,141,153,161,169,193,0x402 and 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.
 [[nodiscard]] LegacyWorldStoryVmResult step_legacy_world_story_vm(

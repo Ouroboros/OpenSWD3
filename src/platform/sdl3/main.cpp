@@ -1317,6 +1317,7 @@ private:
 
 class SdlDeferredWorldFramePorts final
     : public openswd3::world_map::LegacyWorldFramePorts,
+      public openswd3::asset_runtime::LegacyAniActivityPorts,
       public openswd3::world_map::LegacyWorldRoleExternalPorts,
       public openswd3::world_map::LegacyWorldSpatialAudioPorts,
       public openswd3::world_map::LegacyWorldOuterFramePorts,
@@ -1335,13 +1336,27 @@ public:
         const openswd3::world_map::LegacyWorldStoryVmState* story_state =
             nullptr,
         openswd3::platform_sdl3::WorldRoleRuntimeAdapter* world_role_adapter =
-            nullptr
+            nullptr,
+        openswd3::asset_runtime::LegacyAniActivity* ani_activity = nullptr,
+        openswd3::rendering::LegacyFramebuffer* framebuffer = nullptr,
+        const openswd3::rendering::LegacyPixelConversionState*
+            pixel_conversion = nullptr,
+        openswd3::compat::u32* process_flags = nullptr,
+        openswd3::compat::u8* scene_flags = nullptr,
+        openswd3::compat::u32* frame_interval = nullptr,
+        const openswd3::asset_runtime::LegacyAniActivityBlockers ani_blockers =
+            {},
+        const std::vector<openswd3::compat::u16>* ani_scene_backup = nullptr
     ) noexcept
         : audio_(audio), presentation_(presentation),
           text_renderers_(text_renderers),
           head_sign_actions_(head_sign_actions), story_paths_(story_paths),
           path_script_state_(path_script_state), story_state_(story_state),
-          world_role_adapter_(world_role_adapter) {}
+          world_role_adapter_(world_role_adapter), ani_activity_(ani_activity),
+          framebuffer_(framebuffer), pixel_conversion_(pixel_conversion),
+          process_flags_(process_flags), scene_flags_(scene_flags),
+          frame_interval_(frame_interval), ani_blockers_(ani_blockers),
+          ani_scene_backup_(ani_scene_backup) {}
 
     bool complete_role_path(
         const openswd3::compat::u32 role_index
@@ -1379,10 +1394,84 @@ public:
     void play_dialog_choice_sound() noexcept override {}
 
     bool execute_stage(
-        openswd3::world_map::LegacyWorldFrameStage
+        const openswd3::world_map::LegacyWorldFrameStage stage
     ) noexcept override {
-        ++deferred_frame_stage_count_;
-        return true;
+        if (stage !=
+                openswd3::world_map::LegacyWorldFrameStage::
+                    ani_activity_004154a0 ||
+            ani_activity_ == nullptr || framebuffer_ == nullptr ||
+            process_flags_ == nullptr || scene_flags_ == nullptr) {
+            ++deferred_frame_stage_count_;
+            return true;
+        }
+        ani_stage_failed_ = false;
+        ani_activity_->state().scene_flags = *scene_flags_;
+        try {
+            const auto physical_pixels = framebuffer_->physical_pixels();
+            const auto result = ani_activity_->update(
+                std::span<openswd3::compat::u8>{
+                    reinterpret_cast<openswd3::compat::u8*>(
+                        physical_pixels.data()
+                    ),
+                    physical_pixels.size_bytes(),
+                },
+                static_cast<openswd3::compat::u32>(
+                    framebuffer_->geometry().surface.pitch_bytes
+                ),
+                ani_blockers_,
+                *this
+            );
+            *process_flags_ = ani_activity_->state().process_flags;
+            *scene_flags_ = static_cast<openswd3::compat::u8>(
+                ani_activity_->state().scene_flags
+            );
+            return !ani_stage_failed_ &&
+                result.status ==
+                openswd3::asset_runtime::LegacyAniActivityStatus::ready;
+        } catch (const std::bad_alloc&) {
+            return false;
+        }
+    }
+
+    void redraw_scene_without_ani() override {
+        if (framebuffer_ == nullptr) {
+            return;
+        }
+        const auto destination = framebuffer_->physical_pixels();
+        if (ani_scene_backup_ != nullptr &&
+            ani_scene_backup_->size() == destination.size()) {
+            std::ranges::copy(*ani_scene_backup_, destination.begin());
+            return;
+        }
+        std::ranges::fill(destination, openswd3::compat::u16{0U});
+    }
+
+    void apply_ending_color_adjustment(
+        const std::span<openswd3::compat::u8>,
+        const openswd3::compat::u32 pixel_count,
+        const openswd3::compat::i32 first,
+        const openswd3::compat::i32 second,
+        const openswd3::compat::i32 third
+    ) override {
+        if (framebuffer_ == nullptr || pixel_conversion_ == nullptr) {
+            ani_stage_failed_ = true;
+            return;
+        }
+        ani_stage_failed_ =
+            openswd3::rendering::adjust_legacy_rgb_channels(
+                framebuffer_->physical_pixels_with_read_guard(),
+                static_cast<openswd3::compat::i32>(pixel_count),
+                first,
+                second,
+                third,
+                *pixel_conversion_
+            ) != openswd3::rendering::LegacyFrameColorStatus::completed;
+    }
+
+    void finalize_service(const openswd3::compat::u32 service_id) override {
+        if (frame_interval_ != nullptr) {
+            *frame_interval_ = service_id;
+        }
     }
 
     void draw_decorated_number(
@@ -1564,8 +1653,17 @@ private:
     const openswd3::world_map::LegacyWorldPathScriptState* path_script_state_{};
     const openswd3::world_map::LegacyWorldStoryVmState* story_state_{};
     openswd3::platform_sdl3::WorldRoleRuntimeAdapter* world_role_adapter_{};
+    openswd3::asset_runtime::LegacyAniActivity* ani_activity_{};
+    openswd3::rendering::LegacyFramebuffer* framebuffer_{};
+    const openswd3::rendering::LegacyPixelConversionState* pixel_conversion_{};
+    openswd3::compat::u32* process_flags_{};
+    openswd3::compat::u8* scene_flags_{};
+    openswd3::compat::u32* frame_interval_{};
+    openswd3::asset_runtime::LegacyAniActivityBlockers ani_blockers_{};
+    const std::vector<openswd3::compat::u16>* ani_scene_backup_{};
     openswd3::compat::u32 deferred_frame_stage_count_{};
     bool presentation_failed_{};
+    bool ani_stage_failed_{};
 };
 
 class SdlSmokeIdlePorts final
@@ -3294,6 +3392,7 @@ public:
                 const openswd3::rendering::LegacyPixelConversionState&
                     pixel_conversion,
                 const openswd3::compat::u8& scene_render_flags,
+                std::vector<openswd3::compat::u16>& ani_scene_backup,
                 const std::filesystem::path& data_directory,
                 openswd3::compat::u32& process_flags,
                 openswd3::compat::u32& frame_interval
@@ -3307,6 +3406,7 @@ public:
                   video_player_(video_player), ani_activity_(ani_activity),
                   pixel_conversion_(pixel_conversion),
                   scene_render_flags_(scene_render_flags),
+                  ani_scene_backup_(ani_scene_backup),
                   data_directory_(data_directory),
                   process_flags_(process_flags),
                   frame_interval_(frame_interval) {}
@@ -3507,6 +3607,10 @@ public:
                 if (!std::filesystem::exists(archive_path, error)) {
                     return {};
                 }
+                ani_scene_backup_.assign(
+                    framebuffer_.physical_pixels().begin(),
+                    framebuffer_.physical_pixels().end()
+                );
                 auto result = ani_activity_.start(
                     archive_path,
                     flags,
@@ -3515,7 +3619,21 @@ public:
                     pixel_conversion_
                 );
                 process_flags_ = ani_activity_.state().process_flags;
+                if (result.status ==
+                        openswd3::asset_runtime::LegacyAniActivityStartStatus::
+                            ready &&
+                    (flags &
+                     openswd3::asset_runtime::kLegacyAniSkipRevealFlag) != 0U) {
+                    std::ranges::fill(
+                        framebuffer_.physical_pixels(),
+                        openswd3::compat::u16{0U}
+                    );
+                }
                 return result;
+            }
+
+            [[nodiscard]] bool is_story_ani_active() const noexcept override {
+                return ani_activity_.is_active();
             }
 
             void beep() noexcept override {}
@@ -3546,6 +3664,7 @@ public:
             const openswd3::rendering::LegacyPixelConversionState&
                 pixel_conversion_;
             const openswd3::compat::u8& scene_render_flags_;
+            std::vector<openswd3::compat::u16>& ani_scene_backup_;
             const std::filesystem::path& data_directory_;
             openswd3::compat::u32& process_flags_;
             openswd3::compat::u32& frame_interval_;
@@ -3634,6 +3753,7 @@ public:
                 world_ani_activity_,
                 pixel_conversion_,
                 world_frame_state_.frame_runtime.frame.runtime_flags,
+                world_ani_scene_backup_,
                 data_directory_,
                 window_state_.process_flags,
                 frame_interval_,
@@ -3960,6 +4080,8 @@ public:
         auto& roles = map.business.state.roles;
         world_frame_state_.frame_runtime.spatial_audio.controlled_role_index =
             world.selected_role_index;
+        world_frame_state_.frame_runtime.frame.ani_activity_active =
+            world_ani_activity_.is_active();
         openswd3::world_map::LegacyWorldStoryPathRuntime story_paths{
             .roles = roles,
             .active_object_slots =
@@ -4017,6 +4139,18 @@ public:
             &world_path_script_state_,
             &world_story_vm_state_,
             &world_role_adapter,
+            &world_ani_activity_,
+            &game_framebuffer_,
+            &pixel_conversion_,
+            &window_state_.process_flags,
+            &world_frame_state_.frame_runtime.frame.runtime_flags,
+            &frame_interval_,
+            openswd3::asset_runtime::LegacyAniActivityBlockers{
+                .first = world_dialogs_.messages.empty() ? 0U : 1U,
+                .second = world_frame_effects_.packed_rows.empty() ? 0U : 1U,
+                .third = world_role_head_actions_.empty() ? 0U : 1U,
+            },
+            &world_ani_scene_backup_,
         };
         // sub_40A570 0x0040AA6C..0x0040AA8B applies the gameplay advances
         // after the renderers were initially built as 24/18/16 by
@@ -4943,6 +5077,7 @@ private:
     openswd3::asset_runtime::LegacyAniRoleParticleEffect
         world_role_particle_effect_;
     openswd3::asset_runtime::LegacyAniActivity world_ani_activity_;
+    std::vector<openswd3::compat::u16> world_ani_scene_backup_;
     openswd3::world_map::LegacyWorldFrameEffectState world_frame_effects_;
     openswd3::story_scene::LegacyDialogRuntimeState world_dialogs_;
     openswd3::world_map::LegacyWorldStoryVmState world_story_vm_state_;

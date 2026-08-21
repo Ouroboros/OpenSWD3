@@ -4584,6 +4584,18 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_97_WAIT_CUSTOM_ANI_COMPLETE:
+            if (ports.is_story_ani_active()) {
+                state.previous_opcode = result.opcode;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            ports.set_story_frame_interval(35U);
+            state.previous_opcode = result.opcode;
+            continue;
+
         case 104U:
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v318
+版本：v319
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042AD3C` handler（opcode 97）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042C7EA` handler（opcode 98）
 
 ## 0. 执行约定
 
@@ -2194,8 +2194,8 @@ B7 P0 有限收口完成。
     bounded typed失败，保留interval先行与精确窗口尾。记录消费后先audio，再走CD-style preflight；
     result2路径一次audio、无start/previous，正常与open失败路径第二次audio、actual start后共同发布
     previous96并yield。SDL以配置data root、大小写不敏感`Video/`解析及真实`LegacyAniActivity`
-    start替代Win32 CD/文件/DirectDraw；archive/header/frame1/palette backend3/3通过，但world-frame ANI
-    stage仍属后续集成，不宣称完整runtime。最终LST复审删除了机器中不存在的scene staged读取；scene
+    start替代Win32 CD/文件/DirectDraw；archive/header/frame1/palette backend3/3通过，world-frame ANI
+    stage已由后续opcode97包接通。最终LST复审删除了机器中不存在的scene staged读取；scene
     live owner留在异步activity port。四alias、四prefix、32-byte边界、截断、preflight、open失败、无
     artificial scene stop及精确尾通过。资产锁16条/16 probes，全部raw`0060`，分布`2/2/9/3`；真实
     TALK1 `0x43FA` `%*expv.ani%Q`和TALK2 `0xD39F` `*memory.ani%Q`精确尾回放。格式化后
@@ -2205,6 +2205,21 @@ B7 P0 有限收口完成。
     108/198、已验收100/198；内部workpack75/146，即`8 assembly_exact + 67 platform_adapted +
     71 pending_audit`。
 
+- 剧情VM P2第七十六组`0x0042AD3C` / opcode97完成独立闭环。机器只读取ANI header
+    `+0x0E`写入的active extent：active时不推进、发布previous97并yield；inactive时先IP+2、恢复
+    frame interval35，再发布previous97并same-call继续。modern直接查询`LegacyAniActivity::is_active`，
+    不新增nullable VM owner。四alias跨active/inactive两帧、normal same-call和精确尾通过；精确尾完成
+    副作用后下一fetch按合同返回`instruction_out_of_range`。资产锁14条/14 probes，全部raw`0061`、
+    长度2，分布`2/2/8/2`；真实TALK1 `0x4408`跨两帧精确尾回放。为保证谓词真实可完成，本组把
+    world-frame `ani_activity_004154a0` stage接入actual activity update，映射dialog/packed-row/head-action
+    三blocker，逐帧同步scene/process，复用assembly-audited RGB ending并在finalize恢复interval35。
+    原递归scene redraw以start前world snapshot/下一帧live composition最小适配；`%`成功start按机器清黑。
+    格式化后剧情VM3/3、ANI backend3/3、Linux core186/186、Linux app192/192均exit0；测试时间分别
+    0.59/7.55/24.56/23.26秒。workpack双生成hash为
+    `995f2fa71a740ac6b85986370a5cfdc02ed9b9092642c4921ef441d0ccb1e8ad`。未启动游戏EXE；Windows
+    依阶段规则留到P2完成门。现代显式opcode增至109；对外进度为已实现109/198、已验收101/198；
+    内部workpack76/146，即`8 assembly_exact + 68 platform_adapted + 70 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042AD3C` 的opcode97 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042C7EA` 的opcode98 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
