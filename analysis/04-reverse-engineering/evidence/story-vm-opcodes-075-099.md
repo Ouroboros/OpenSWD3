@@ -115,6 +115,8 @@ Y + height <= 480
 
 83现已独立闭环：保留invalid-ID早消费、删除全部同ID先于分配/后续读取、七个staged截断、四矩形门、无正尺寸附加门、两级数组、三mode初始化、前插、+16、previous83与same-call。资产锁1879条/1879 probes，分布`485/337/396/661`，全部raw `0x0053`、长度16；mode为1/0/11共`935/938/6`，TALK1真实110行mode1回放通过。完整证据见[`story-vm-packed-row-effect-upsert-0042a341.md`](story-vm-packed-row-effect-upsert-0042a341.md)。
 
+84现已独立闭环：保留invalid-ID/空链/ID miss不读operation、首匹配、op0/1高mode替换、op2释放、+6、previous84与same-call。资产锁1879条/1879 probes，分布`485/337/396/661`，operation0/1/3/8为`910/963/3/3`；真实op0/op1回放成功，6条真实3/8记录因原版陈旧`var_44`而modern typed-stop。完整证据见[`story-vm-packed-row-effect-control-0042a54c.md`](story-vm-packed-row-effect-control-0042a54c.md)。
+
 ## opcode 85：清屏提交后启动 Bink
 
 85 先以运行时逻辑宽高计算字节数，清零软件 framebuffer，并把软件源 surface 整体 Blt 到 primary。随后 `sub_484730` 从 `+2` 开始消费到 `%Q`：

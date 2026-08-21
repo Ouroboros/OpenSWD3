@@ -4201,6 +4201,54 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_84_CONTROL_PACKED_ROW_EFFECT: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u16 effect_id = read_u16(state.window, ip + 2U);
+            if (effect_id >= 0x100U) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 6U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+            if (runtime.packed_row_effects == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            auto& effects = *runtime.packed_row_effects;
+            auto current = std::ranges::find_if(
+                effects,
+                [effect_id](const rendering::LegacyPackedRowEffect& effect) {
+                    return (effect.mode & 0x00FFU) == effect_id;
+                }
+            );
+            if (current != effects.end()) {
+                if (!has_bytes(state.window, ip, 6U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                const u16 operation = read_u16(state.window, ip + 4U);
+                if (operation == 0U) {
+                    current->mode = static_cast<u16>(effect_id | 0x2000U);
+                } else if (operation == 1U) {
+                    current->mode = static_cast<u16>(effect_id | 0x1000U);
+                } else if (operation == 2U) {
+                    effects.erase(current);
+                } else {
+                    result.status = LegacyWorldStoryVmStatus::
+                        unsupported_packed_row_effect_operation;
+                    return result;
+                }
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 85U: {
             const std::size_t end = find_dialog_end(state.window, ip + 2U);
             if (end == state.window.size()) {

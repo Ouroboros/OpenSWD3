@@ -109,6 +109,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_81_ENQUEUE_ROLE_HEAD_ACTION = 81U,
     OP_82_DISMISS_ROLE_HEAD_ACTION = 82U,
     OP_83_UPSERT_PACKED_ROW_EFFECT = 83U,
+    OP_84_CONTROL_PACKED_ROW_EFFECT = 84U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
@@ -274,6 +275,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     moving_action_allocation_failed,
     role_head_action_allocation_failed,
     packed_row_effect_allocation_failed,
+    unsupported_packed_row_effect_operation,
     role_allocation_failed,
     role_transfer_failed,
     role_map_update_failed,
@@ -315,8 +317,8 @@ struct LegacyWorldStoryVmResult {
 
 // sub_427920, currently restricted to the independently audited default-invalid
 // and shared-dialog groups plus the earlier map-81/TALK100 implementation coverage:
-// 1-40,42-43,45,51-53,58-72,74,76-83,
-// 85,88-91,94-95,104,107,114,120,141,153,161,169,193,0x402 and 0x3FFF. Each
+// 1-40,42-43,45,51-53,58-72,74,76-85,
+// 88-91,94-95,104,107,114,120,141,153,161,169,193,0x402 and 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.
 [[nodiscard]] LegacyWorldStoryVmResult step_legacy_world_story_vm(
