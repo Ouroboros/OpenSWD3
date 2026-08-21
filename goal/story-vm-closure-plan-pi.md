@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至128行。前72行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至128行。前73行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -125,9 +125,10 @@ opcode88按packed-row→role-head→signed operand顺序清两链并提交战斗
 previous与same-call；非法/zero dynamic selector只消费，目录和terminator unsafe点按阶段typed-stop。
 opcode92按u16零扩展后的u32 dec/+30定位保留全局bit，保留selector0回绕与invalid-safe继续写；
 0x400-byte owner外裸写在selector8163起按原访问点typed-stop。opcode93独立以相同索引公式调用clear
-helper，按`FF-mask`只清单bit；selector0、invalid-safe和owner边界均独立锁定。
-已实现107/198、已验收97/198；内部workpack为72/146，即
-`8 assembly_exact + 64 platform_adapted + 74 pending_audit`。下一行只审计`0x0042A7CE`下的opcode94。
+helper，按`FF-mask`只清单bit；selector0、invalid-safe和owner边界均独立锁定。opcode94按原dword
+OR2、+2、previous与yield修复旧combined case漏发布，并映射到已集成u8低位scene-runtime owner。
+已实现107/198、已验收98/198；内部workpack为73/146，即
+`8 assembly_exact + 65 platform_adapted + 73 pending_audit`。下一行只审计`0x0042A7EE`下的opcode95。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

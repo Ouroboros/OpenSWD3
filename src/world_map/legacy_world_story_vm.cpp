@@ -4496,17 +4496,24 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 94U:
+        case OP_94_SET_SCENE_RENDER_BIT1:
+            if (runtime.scene_render_flags == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            *runtime.scene_render_flags |= 2U;
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+
         case 95U:
             if (runtime.scene_render_flags == nullptr) {
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
                 return result;
             }
-            if (result.opcode == 94U) {
-                *runtime.scene_render_flags |= 2U;
-            } else {
-                *runtime.scene_render_flags &= static_cast<u8>(~u8{2U});
-            }
+            *runtime.scene_render_flags &= static_cast<u8>(~u8{2U});
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
             result.status = LegacyWorldStoryVmStatus::yielded;

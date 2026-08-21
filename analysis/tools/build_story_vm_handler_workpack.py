@@ -42,7 +42,7 @@ EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
 EXPECTED_MODERN_CASE_COUNT = 107
-EXPECTED_CLOSED_HANDLER_COUNT = 72
+EXPECTED_CLOSED_HANDLER_COUNT = 73
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -404,6 +404,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-reserved-global-bit-clear-0042a792.md",
         "assembly_exact;unit_tested;asset_absence_verified;platform_adapted;sdl_runtime_integrated;u32_wrap_tested;unsafe_owner_boundary_tested",
+    ),
+    "0x0042A7CE": (
+        "platform_adapted",
+        "story-vm-scene-render-bit1-set-0042a7ce.md",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;typed_owner_boundary_tested",
     ),
 }
 
