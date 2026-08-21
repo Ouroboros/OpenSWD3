@@ -10,6 +10,7 @@
 #include <array>
 #include <bit>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <functional>
@@ -105,6 +106,7 @@ using openswd3::world_map::OP_75_SUSPEND_STORY_ROLE;
 using openswd3::world_map::OP_76_TURN_AND_SUSPEND_STORY_ROLE;
 using openswd3::world_map::OP_77_SET_ROLE_WAIT_OVERRIDE;
 using openswd3::world_map::OP_78_CLEAR_ROLE_WAIT_OVERRIDE;
+using openswd3::world_map::OP_79_ENQUEUE_MOVING_ACTION;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -12685,6 +12687,200 @@ void test_role_wait_override_exact_tails(openswd3::test::Context& test) {
     );
 }
 
+void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
+    const auto write_record = [](
+                                  const std::span<u8> bytes,
+                                  const std::size_t offset,
+                                  const u16 raw_opcode
+                              ) {
+        write_u16(bytes, offset, raw_opcode);
+        write_u16(bytes, offset + 2U, 0x1234U);
+        write_u16(bytes, offset + 4U, 2U);
+        write_u16(bytes, offset + 6U, 1U);
+        write_u16(bytes, offset + 8U, 2U);
+        write_u16(bytes, offset + 10U, 4U);
+        write_u16(bytes, offset + 12U, 6U);
+        write_u16(bytes, offset + 14U, 5U);
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture exact_tail;
+        openswd3::world_map::LegacyMovingActionList moving_actions;
+        exact_tail.runtime.moving_actions = &moving_actions;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FF0U;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_record(
+            exact_tail.state.window,
+            0x7FF0U,
+            static_cast<u16>(OP_79_ENQUEUE_MOVING_ACTION | alias_mask)
+        );
+
+        const auto exact_result = exact_tail.step();
+        const auto& node = moving_actions.front();
+
+        test.expect_true(
+            exact_result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                exact_result.opcode == OP_79_ENQUEUE_MOVING_ACTION &&
+                exact_result.executed_instruction_count == 1U &&
+                moving_actions.size() == 1U &&
+                node.action.action_id == 0x1234U &&
+                node.action.base_variant == 2U &&
+                node.action.variant_delta == 0U && node.start_x == 16 &&
+                node.start_y == 32 && node.target_x == 64 &&
+                node.target_y == 96 && node.velocity_x == 3.0F &&
+                node.velocity_y == 4.0F && node.position_x == 16.0F &&
+                node.position_y == 32.0F && node.next_pointer_32 == 0U &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode == OP_79_ENQUEUE_MOVING_ACTION,
+            "opcode 79 aliases initialize and prepend the moving action before exact-tail next fetch failure"
+        );
+    }
+
+    Fixture ordinary;
+    openswd3::world_map::LegacyMovingActionList moving_actions;
+    moving_actions.emplace_back();
+    moving_actions.back().action.action_id = 0x9999U;
+    ordinary.runtime.moving_actions = &moving_actions;
+    auto script = std::span<u8>{ordinary.ports.initial_window};
+    write_record(script, 0U, OP_79_ENQUEUE_MOVING_ACTION);
+    write_u16(script, 16U, OP_14_WAIT_ROLE_ACTION_STATUS);
+    write_u16(script, 18U, 0x00F8U);
+
+    const auto ordinary_result = ordinary.step();
+
+    test.expect_true(
+        ordinary_result.status == LegacyWorldStoryVmStatus::yielded &&
+            ordinary_result.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
+            ordinary_result.executed_instruction_count == 2U &&
+            moving_actions.size() == 2U &&
+            moving_actions.front().action.action_id == 0x1234U &&
+            moving_actions.back().action.action_id == 0x9999U &&
+            ordinary.context.instruction_offset == 20U &&
+            ordinary.state.previous_opcode == OP_14_WAIT_ROLE_ACTION_STATUS,
+        "opcode 79 prepends to the real list and continues in the same call"
+    );
+}
+
+void test_enqueue_moving_action_boundaries(openswd3::test::Context& test) {
+    constexpr std::array<u16, 7U> operands{
+        0x1234U,
+        2U,
+        1U,
+        2U,
+        4U,
+        6U,
+        5U,
+    };
+    for (std::size_t available = 0U; available < operands.size(); ++available) {
+        Fixture truncated;
+        openswd3::world_map::LegacyMovingActionList moving_actions;
+        truncated.runtime.moving_actions = &moving_actions;
+        const u16 offset = static_cast<u16>(
+            0x8000U - (available + 1U) * sizeof(u16)
+        );
+        truncated.context.talk_data_offset = 0x1111U;
+        truncated.context.instruction_offset = offset;
+        truncated.state.loaded_file_number = 1U;
+        truncated.state.loaded_data_offset = 0x1111U;
+        truncated.state.window_loaded = true;
+        truncated.state.previous_opcode = 0x66U;
+        write_u16(truncated.state.window, offset, OP_79_ENQUEUE_MOVING_ACTION);
+        for (std::size_t index = 0U; index < available; ++index) {
+            write_u16(
+                truncated.state.window,
+                static_cast<std::size_t>(offset) + 2U + index * 2U,
+                operands[index]
+            );
+        }
+
+        const auto truncated_result = truncated.step();
+
+        test.expect_true(
+            truncated_result.status ==
+                    LegacyWorldStoryVmStatus::operand_out_of_range &&
+                moving_actions.empty() &&
+                truncated.context.instruction_offset == offset &&
+                truncated.state.previous_opcode == 0x66U,
+            "opcode 79 truncations release the temporary unlinked node and preserve IP/previous"
+        );
+    }
+
+    Fixture unavailable;
+    auto unavailable_script = std::span<u8>{unavailable.ports.initial_window};
+    write_u16(unavailable_script, 0U, OP_79_ENQUEUE_MOVING_ACTION);
+    for (std::size_t index = 0U; index < operands.size(); ++index) {
+        write_u16(unavailable_script, 2U + index * 2U, operands[index]);
+    }
+    unavailable.state.previous_opcode = 0x66U;
+    const auto unavailable_result = unavailable.step();
+    test.expect_true(
+        unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            unavailable.context.instruction_offset == 0U &&
+            unavailable.state.previous_opcode == 0x66U,
+        "opcode 79 owner absence occurs after full node initialization but before list insertion"
+    );
+
+    const auto run_exact = [&](const u16 start_x,
+                               const u16 start_y,
+                               const u16 target_x,
+                               const u16 target_y,
+                               const u16 movement) {
+        Fixture fixture;
+        openswd3::world_map::LegacyMovingActionList moving_actions;
+        fixture.runtime.moving_actions = &moving_actions;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FF0U;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        write_u16(fixture.state.window, 0x7FF0U, OP_79_ENQUEUE_MOVING_ACTION);
+        write_u16(fixture.state.window, 0x7FF2U, 1U);
+        write_u16(fixture.state.window, 0x7FF4U, 2U);
+        write_u16(fixture.state.window, 0x7FF6U, start_x);
+        write_u16(fixture.state.window, 0x7FF8U, start_y);
+        write_u16(fixture.state.window, 0x7FFAU, target_x);
+        write_u16(fixture.state.window, 0x7FFCU, target_y);
+        write_u16(fixture.state.window, 0x7FFEU, movement);
+        const auto result = fixture.step();
+        return std::tuple{
+            result,
+            moving_actions.front().velocity_x,
+            moving_actions.front().velocity_y,
+        };
+    };
+
+    const auto [zero_result, zero_velocity_x, zero_velocity_y] =
+        run_exact(1U, 2U, 1U, 2U, 5U);
+    const auto [negative_result, negative_velocity_x, negative_velocity_y] =
+        run_exact(1U, 2U, 4U, 6U, 0xFFFBU);
+    const auto [overflow_result, overflow_velocity_x, overflow_velocity_y] =
+        run_exact(0x0800U, 0U, 0x07FFU, 0U, 5U);
+    test.expect_true(
+        zero_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            std::isnan(zero_velocity_x) && std::isnan(zero_velocity_y) &&
+            negative_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            negative_velocity_x == -3.0F && negative_velocity_y == -4.0F &&
+            overflow_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            std::isnan(overflow_velocity_x) &&
+            std::isnan(overflow_velocity_y),
+        "opcode 79 preserves x87 zero-distance NaN, signed movement and wrapping 32-bit squared-distance behavior"
+    );
+}
+
 void test_real_clear_dialog_control_flag_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -16565,6 +16761,8 @@ int main(const int argument_count, char** arguments) {
     test_set_and_clear_role_wait_override(test);
     test_role_wait_override_lookup_boundaries(test);
     test_role_wait_override_exact_tails(test);
+    test_enqueue_moving_action_protocol(test);
+    test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
         std::string_view{arguments[2]} == "initial-session") {
         test_real_new_game_story_patches_unloaded_role(

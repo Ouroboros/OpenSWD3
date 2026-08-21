@@ -6,6 +6,7 @@
 #include "openswd3/rendering/legacy_frame_color.hpp"
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_collision_talk.hpp"
+#include "openswd3/world_map/legacy_moving_actions.hpp"
 #include "openswd3/world_map/legacy_picture_actions.hpp"
 #include "openswd3/world_map/legacy_role_head_actions.hpp"
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
@@ -103,6 +104,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_76_TURN_AND_SUSPEND_STORY_ROLE = 76U,
     OP_77_SET_ROLE_WAIT_OVERRIDE = 77U,
     OP_78_CLEAR_ROLE_WAIT_OVERRIDE = 78U,
+    OP_79_ENQUEUE_MOVING_ACTION = 79U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
@@ -179,6 +181,7 @@ struct LegacyWorldStoryVmRuntime {
     LegacyWorldMovementRuntimeState* movement{};
     LegacyPictureActionLists* picture_actions{};
     std::list<rendering::LegacyPackedRowEffect>* packed_row_effects{};
+    LegacyMovingActionList* moving_actions{};
     LegacyRoleHeadActionList* role_head_actions{};
     compat::u32* battle_request_value{};
     rendering::LegacyFrameColorTransitionState* frame_color{};
@@ -264,6 +267,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     script_variable_index_out_of_range,
     dialog_allocation_failed,
     picture_action_allocation_failed,
+    moving_action_allocation_failed,
     role_allocation_failed,
     role_transfer_failed,
     role_map_update_failed,
@@ -305,7 +309,7 @@ struct LegacyWorldStoryVmResult {
 
 // sub_427920, currently restricted to the independently audited default-invalid
 // and shared-dialog groups plus the earlier map-81/TALK100 implementation coverage:
-// 1-40,42-43,45,51-53,58-72,74,76-78,
+// 1-40,42-43,45,51-53,58-72,74,76-79,
 // 85,88-91,94-95,104,107,114,120,141,153,161,169,193,0x402 and 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.

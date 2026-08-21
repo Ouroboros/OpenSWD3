@@ -11,6 +11,7 @@
 #include <array>
 #include <bit>
 #include <cstddef>
+#include <cmath>
 #include <cstring>
 #include <limits>
 #include <new>
@@ -1118,6 +1119,29 @@ legacy_x87_interpolation_step(const i32 delta, const u32 duration) noexcept {
     return static_cast<float>(
         static_cast<long double>(delta) / static_cast<long double>(duration)
     );
+}
+
+[[nodiscard]] constexpr i16 legacy_moving_pixel_coordinate(
+    const u16 tile_coordinate
+) noexcept {
+    return std::bit_cast<i16>(static_cast<u16>(tile_coordinate << 4U));
+}
+
+[[nodiscard]] constexpr i32 legacy_moving_squared_distance(
+    const i32 delta_x, const i32 delta_y
+) noexcept {
+    const u32 x_bits = std::bit_cast<u32>(delta_x);
+    const u32 y_bits = std::bit_cast<u32>(delta_y);
+    return std::bit_cast<i32>(x_bits * x_bits + y_bits * y_bits);
+}
+
+[[nodiscard]] float legacy_x87_moving_velocity(
+    const i32 delta, const i16 movement, const i32 squared_distance
+) noexcept {
+    const long double distance =
+        std::sqrt(static_cast<long double>(squared_distance));
+    const long double scale = static_cast<long double>(movement) / distance;
+    return static_cast<float>(static_cast<long double>(delta) * scale);
 }
 
 [[nodiscard]] LegacyWorldCameraRect centered_legacy_story_camera(
@@ -3858,6 +3882,96 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
+        case OP_79_ENQUEUE_MOVING_ACTION: {
+            LegacyMovingActionList pending;
+            try {
+                pending.emplace_front();
+            } catch (const std::bad_alloc&) {
+                result.status =
+                    LegacyWorldStoryVmStatus::moving_action_allocation_failed;
+                return result;
+            } catch (const std::length_error&) {
+                result.status =
+                    LegacyWorldStoryVmStatus::moving_action_allocation_failed;
+                return result;
+            }
+
+            auto& node = pending.front();
+            asset_runtime::initialize_legacy_action_record(node.action);
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            node.action.action_id = read_u16(state.window, ip + 2U);
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            node.action.base_variant = read_u16(state.window, ip + 4U);
+            node.action.variant_delta = 0U;
+            if (!has_bytes(state.window, ip, 8U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            node.start_x = legacy_moving_pixel_coordinate(
+                read_u16(state.window, ip + 6U)
+            );
+            if (!has_bytes(state.window, ip, 10U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            node.start_y = legacy_moving_pixel_coordinate(
+                read_u16(state.window, ip + 8U)
+            );
+            if (!has_bytes(state.window, ip, 12U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            node.target_x = legacy_moving_pixel_coordinate(
+                read_u16(state.window, ip + 10U)
+            );
+            if (!has_bytes(state.window, ip, 14U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            node.target_y = legacy_moving_pixel_coordinate(
+                read_u16(state.window, ip + 12U)
+            );
+            if (!has_bytes(state.window, ip, 16U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i16 movement = std::bit_cast<i16>(
+                read_u16(state.window, ip + 14U)
+            );
+            const i32 delta_x = static_cast<i32>(node.target_x) -
+                static_cast<i32>(node.start_x);
+            const i32 delta_y = static_cast<i32>(node.target_y) -
+                static_cast<i32>(node.start_y);
+            const i32 squared_distance =
+                legacy_moving_squared_distance(delta_x, delta_y);
+            node.velocity_x = legacy_x87_moving_velocity(
+                delta_x, movement, squared_distance
+            );
+            node.velocity_y = legacy_x87_moving_velocity(
+                delta_y, movement, squared_distance
+            );
+            node.position_x = static_cast<float>(node.start_x);
+            node.position_y = static_cast<float>(node.start_y);
+
+            if (runtime.moving_actions == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            runtime.moving_actions->splice(
+                runtime.moving_actions->begin(), pending
+            );
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 16U);
             state.previous_opcode = result.opcode;
             continue;
         }

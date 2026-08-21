@@ -76,7 +76,9 @@ step_y = dy * movement / distance
 
 两个 step 以浮点保存，起点也转换成浮点，节点前插到 `dword_4AD3E8`。`sub_414B60` 每帧先绘制 action，再累加坐标；进入目标点横纵各 `±32` 的范围时释放节点。
 
-坐标平方和先以 32 位整数完成，可能在 `fsqrt` 前溢出；起点和终点相同时还会直接执行 x87 零除。`malloc` 也没有空值检查。这些边界不得由 C++ 容器或向量库隐式改变。
+坐标平方和先以32位整数完成，可能在`fsqrt`前溢出；起点和终点相同时还会直接执行x87零除。`malloc`也没有空值检查。这些边界不得由C++容器或向量库隐式改变。
+
+79现已独立闭环：现代0xB4节点与既有moving list生命周期接通，保留分配/初始化时点、7个staged operand、16/32位wrapping、x87中间精度、前插、+16、previous79和same-call；裸分配/指针改为typed容器。TALK线性目录为0条/0 probes，使用`asset_absence_verified`，不把2个候选CFG节点冒充真实记录。完整证据见[`story-vm-moving-action-enqueue-0042a0a6.md`](story-vm-moving-action-enqueue-0042a0a6.md)。
 
 ## opcode 81、82、86：角色头像 action 链
 
