@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v316
+版本：v317
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A7EE` handler（opcode 95）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A80E` handler（opcode 96）
 
 ## 0. 执行约定
 
@@ -2177,6 +2177,18 @@ B7 P0 有限收口完成。
     107/198、已验收98/198；内部workpack73/146，即`8 assembly_exact + 65 platform_adapted +
     73 pending_audit`。
 
+- 剧情VM P2第七十四组`0x0042A7EE` / opcode95完成独立闭环。机器无operand：读取
+    `dword_4C9A18`、AND `FFFFFFFD`只清bit1、IP+2后以ESI0进入common join，发布previous95并
+    yield。旧numeric case已有低位clear/yield但漏previous95，本组独立修正。原dword低位操作映射
+    到已集成u8 scene-runtime owner，保留其他低位；owner缺失在原读取点typed-stop。四alias、
+    bit已清保持、owner失败、精确尾与真实记录通过。资产锁25条/25 probes，全部raw`005F`、长度2，
+    分布`9/5/2/9`；真实TALK1 `0x4A22`精确尾回放`A7→A5`并发布previous95。格式化后剧情VM3/3、
+    Linux core186/186、Linux app192/192均exit0；测试时间分别0.51/21.75/22.28秒。workpack
+    双生成hash为`50202cd05af6e02117a66f6656e8df01c310a61c25577e28f12b84363b35b4f1`。
+    未启动游戏EXE；Windows依阶段规则留到P2完成门。现代显式opcode保持107；对外进度为已实现
+    107/198、已验收99/198；内部workpack74/146，即`8 assembly_exact + 66 platform_adapted +
+    72 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042A7EE` 的opcode95 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042A80E` 的opcode96 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

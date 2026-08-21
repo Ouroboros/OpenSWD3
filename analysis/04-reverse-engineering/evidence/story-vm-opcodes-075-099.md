@@ -179,7 +179,9 @@ opcode93另行独立闭环：相同索引公式在clear helper中按`FF-mask`只
 
 94/95 分别置、清 `dword_4C9A18` bit1。两者都推进两字节但保持 `ESI=0`，因此消费后跨帧让出。
 
-opcode94现已独立闭环：修复旧combined modern case漏发previous94，保持OR2、其他低位、+2与yield；原dword owner映射到已集成u8低位scene-runtime owner，缺失在原读取点typed-stop。资产锁39条/39 probes，分布`14/7/3/15`；真实TALK1 `0x49F4`精确尾回放`A5→A7`。完整证据见[`story-vm-scene-render-bit1-set-0042a7ce.md`](story-vm-scene-render-bit1-set-0042a7ce.md)。opcode95不继承完成状态。
+opcode94现已独立闭环：修复旧combined modern case漏发previous94，保持OR2、其他低位、+2与yield；原dword owner映射到已集成u8低位scene-runtime owner，缺失在原读取点typed-stop。资产锁39条/39 probes，分布`14/7/3/15`；真实TALK1 `0x49F4`精确尾回放`A5→A7`。完整证据见[`story-vm-scene-render-bit1-set-0042a7ce.md`](story-vm-scene-render-bit1-set-0042a7ce.md)。
+
+opcode95另行独立闭环：按`AND FFFFFFFD`只清bit1，补齐旧numeric case漏发previous95，保持+2与yield；同一低位owner缺失在原读取点typed-stop。资产锁25条/25 probes，分布`9/5/2/9`；真实TALK1 `0x4A22`精确尾回放`A7→A5`。完整证据见[`story-vm-scene-render-bit1-clear-0042a7ee.md`](story-vm-scene-render-bit1-clear-0042a7ee.md)。
 
 ## opcode 96：自定义 Ani 打开与启动
 

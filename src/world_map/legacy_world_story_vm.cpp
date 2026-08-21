@@ -4508,7 +4508,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
-        case 95U:
+        case OP_95_CLEAR_SCENE_RENDER_BIT1:
             if (runtime.scene_render_flags == nullptr) {
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
                 return result;
@@ -4516,6 +4516,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             *runtime.scene_render_flags &= static_cast<u8>(~u8{2U});
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
