@@ -67,6 +67,8 @@ opcode101现已独立闭环：单一selector在lookup前staged，命中时只OR 
 
 lookup 失败会输出 `(Sar_**)` 诊断，然后构造“清该位/按布尔值置该位”的掩码参数调用 `sub_40D460`。成功和失败都固定推进六字节、置 `ESI=1` 并同帧继续。
 
+共享入口现已按全部八个变体独立闭环：除102/103/117外，内部跳表还映射136/140/145/146/174到`1000/0800/2000/0100/4000`。live路径保留clear flags→任意非零set→clear surface→mark surface；missing路径按布尔提交精确MAPS AND/OR mask。`FFF0`继续按受控index作为GUID key，而非current source或直接controlled role。683条记录/685 probes覆盖六个变体；145/174零记录由asset absence与synthetic锁定。完整证据见[`story-vm-role-status-boolean-flags-0042c567.md`](story-vm-role-status-boolean-flags-0042c567.md)。
+
 ## opcode 104、105、108、121、122、124：文字全局状态
 
 104 先执行：

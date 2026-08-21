@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v323
+版本：v324
 
 最后更新：2026-08-21
 
@@ -2270,6 +2270,21 @@ B7 P0 有限收口完成。
     Windows依阶段规则留到P2完成门。现代显式opcode增至113；对外进度为已实现113/198、已验收
     105/198；内部workpack80/146，即`10 assembly_exact + 70 platform_adapted + 66 pending_audit`。
 
+- 剧情VM P2第八十一组`0x0042C567`共享opcodes102/103/117/136/140/145/146/174完成独立闭环。
+    内部跳表分别选择`0040/0020/0010/1000/0800/2000/0100/4000` mask；机器先读selector并lookup，
+    再读boolean。`FFF0`把受控index低16位当GUID key继续lookup，不是current source或直接controlled role；
+    `FFFE`仍由helper直接选择受控角色。live路径按clear mask、任意非零set、clear surface、mark surface
+    顺序执行；missing路径按false=`OR0/AND(FFFF-mask)`、true=`OR mask/AND FFFF`提交MAPS patch。
+    modern复用typed surface和MAPS owner，owner/footprint失败在原helper点typed-stop并保留已提交flags与
+    partial clear。八mask×四alias×两类boolean、FFF0/FFFE、skip首匹配、分阶段截断、missing双mask、
+    partial failure及精确尾通过。资产锁683条/685 probes，六个变体有记录，145/174以asset absence和
+    synthetic锁定；只有opcode103观察到58条`FFF0`。格式化后剧情VM3/3、surface/MAPS依赖3/3、Linux
+    core186/186、Linux app192/192均exit0；测试时间分别0.59/0.10/21.81/24.23秒。workpack双生成
+    hash为`0a455f788581ae9ffe944858d8d7381ae4fbcc944f339344357952c76723d5b7`。未启动游戏EXE；
+    Windows依阶段规则留到P2完成门。人工语义增至134行，现代显式opcode增至121；对外进度为已实现
+    121/198、已验收113/198；内部workpack81/146，即`10 assembly_exact + 71 platform_adapted +
+    65 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042C567` 的共享opcodes102/103/117/136/140/145/146/174 handler；现有导航语义与既有实现均不继承
-完成状态。不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
+`0x0042B47E` 的opcode104 handler；现有导航语义与既有实现均不继承完成状态。
+不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

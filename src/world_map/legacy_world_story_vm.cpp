@@ -66,6 +66,31 @@ is_legacy_default_invalid_opcode(const u16 opcode) noexcept {
         (opcode >= 1027U && opcode <= 16382U);
 }
 
+[[nodiscard]] constexpr u32 role_status_boolean_mask(
+    const u16 opcode
+) noexcept {
+    switch (opcode) {
+        case OP_102_SET_ROLE_STATUS_BIT6:
+            return 0x00000040U;
+        case OP_103_SET_ROLE_STATUS_BIT5:
+            return 0x00000020U;
+        case OP_117_SET_ROLE_STATUS_BIT4:
+            return 0x00000010U;
+        case OP_136_SET_ROLE_STATUS_BIT12:
+            return 0x00001000U;
+        case OP_140_SET_ROLE_STATUS_BIT11:
+            return 0x00000800U;
+        case OP_145_SET_ROLE_STATUS_BIT13:
+            return 0x00002000U;
+        case OP_146_SET_ROLE_STATUS_BIT8:
+            return 0x00000100U;
+        case OP_174_SET_ROLE_STATUS_BIT14:
+            return 0x00004000U;
+        default:
+            return 0U;
+    }
+}
+
 constexpr std::array<i16, 8U> kDialogRoleOffsetX{
     0, 0, 160, -160, 80, -80, 80, -80
 };
@@ -4671,6 +4696,78 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
+        case OP_102_SET_ROLE_STATUS_BIT6:
+        case OP_103_SET_ROLE_STATUS_BIT5:
+        case OP_117_SET_ROLE_STATUS_BIT4:
+        case OP_136_SET_ROLE_STATUS_BIT12:
+        case OP_140_SET_ROLE_STATUS_BIT11:
+        case OP_145_SET_ROLE_STATUS_BIT13:
+        case OP_146_SET_ROLE_STATUS_BIT8:
+        case OP_174_SET_ROLE_STATUS_BIT14: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u16 selector = read_u16(state.window, ip + 2U);
+            if (selector == kCurrentSourceSelector) {
+                selector = static_cast<u16>(controlled_role_index);
+            }
+            u32 role_index{};
+            const bool role_found = resolve_role_index(
+                roles, selector, controlled_role_index, role_index
+            );
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const bool enabled = read_u16(state.window, ip + 4U) != 0U;
+            const u32 mask = role_status_boolean_mask(result.opcode);
+            if (role_found) {
+                auto& role = roles[role_index];
+                role.flags &= ~mask;
+                if (enabled) {
+                    role.flags |= mask;
+                }
+                if (runtime.role_surface.surface_grid.empty()) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                if (clear_legacy_world_role_surface_occupancy(
+                        role, runtime.role_surface
+                    )
+                        .status != LegacyWorldRoleSurfaceStatus::ready ||
+                    mark_legacy_world_role_surface_occupancy(
+                        role, runtime.role_surface
+                    )
+                            .status != LegacyWorldRoleSurfaceStatus::ready) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::role_surface_failed;
+                    return result;
+                }
+            } else {
+                if (selector == kLegacyWorldControlledRoleSelector) {
+                    result.status = LegacyWorldStoryVmStatus::role_not_found;
+                    return result;
+                }
+                ports.patch_role_source(
+                    LegacyMapsRolePatchRequest{
+                        .guid = selector,
+                        .flags_or_mask = static_cast<u16>(
+                            enabled ? mask : 0U
+                        ),
+                        .flags_and_mask = static_cast<u16>(
+                            enabled ? 0xFFFFU : 0xFFFFU - mask
+                        ),
+                    }
+                );
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
             state.previous_opcode = result.opcode;
             continue;
         }

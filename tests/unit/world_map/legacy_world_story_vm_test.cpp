@@ -128,7 +128,15 @@ using openswd3::world_map::OP_98_CONSUME_FOUR_BYTE_NOOP;
 using openswd3::world_map::OP_99_WAIT_CUSTOM_ANI_PHASE;
 using openswd3::world_map::OP_100_SET_ROLE_TALK_SCRIPT;
 using openswd3::world_map::OP_101_SET_ROLE_STATUS_BIT26;
+using openswd3::world_map::OP_102_SET_ROLE_STATUS_BIT6;
+using openswd3::world_map::OP_103_SET_ROLE_STATUS_BIT5;
+using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
+using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
+using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
+using openswd3::world_map::OP_145_SET_ROLE_STATUS_BIT13;
+using openswd3::world_map::OP_146_SET_ROLE_STATUS_BIT8;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
+using openswd3::world_map::OP_174_SET_ROLE_STATUS_BIT14;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -15749,6 +15757,339 @@ void test_set_role_status_bit26_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_set_role_status_from_boolean_protocol(
+    openswd3::test::Context& test
+) {
+    struct Variant {
+        u16 opcode;
+        u32 mask;
+    };
+    constexpr std::array<Variant, 8U> variants{
+        Variant{OP_102_SET_ROLE_STATUS_BIT6, 0x00000040U},
+        Variant{OP_103_SET_ROLE_STATUS_BIT5, 0x00000020U},
+        Variant{OP_117_SET_ROLE_STATUS_BIT4, 0x00000010U},
+        Variant{OP_136_SET_ROLE_STATUS_BIT12, 0x00001000U},
+        Variant{OP_140_SET_ROLE_STATUS_BIT11, 0x00000800U},
+        Variant{OP_145_SET_ROLE_STATUS_BIT13, 0x00002000U},
+        Variant{OP_146_SET_ROLE_STATUS_BIT8, 0x00000100U},
+        Variant{OP_174_SET_ROLE_STATUS_BIT14, 0x00004000U},
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    const auto bind_surface = [](Fixture& fixture,
+                                 const u32 role_index,
+                                 const std::span<u8> surface,
+                                 const u32 selected_guid = 0U) {
+        auto& role = fixture.roles[role_index];
+        role.map_cell_pointer_32 = 0U;
+        role.action.field_2c = 1U;
+        role.action.field_30 = 1U;
+        fixture.runtime.role_surface = {
+            .map_width = 2U,
+            .selected_guid = selected_guid,
+            .surface_grid = surface,
+        };
+    };
+    const auto expected_surface = [](const u32 flags) {
+        u32 mark_mask = (flags & 0x00004000U) != 0U ? 0x30000000U
+                                                    : 0x10000000U;
+        if ((flags & 0x00000010U) != 0U) {
+            mark_mask |= 0x00800000U;
+        }
+        return 0xCF7FFFFFU | mark_mask;
+    };
+
+    for (const auto variant : variants) {
+        for (const u16 alias_mask : alias_masks) {
+            for (const bool enabled : {false, true}) {
+                Fixture fixture;
+                const u16 raw_word =
+                    static_cast<u16>(variant.opcode | alias_mask);
+                const u32 initial_flags = 0x80000001U |
+                    (enabled ? 0U : variant.mask);
+                const u32 final_flags =
+                    (initial_flags & ~variant.mask) |
+                    (enabled ? variant.mask : 0U);
+                fixture.roles[1].flags = initial_flags;
+                std::array<u8, 16U> surface{};
+                surface.fill(0xFFU);
+                bind_surface(fixture, 1U, surface);
+                prime_loaded_instruction(fixture, raw_word);
+                write_u16(fixture.state.window, 2U, 0x00F8U);
+                write_u16(
+                    fixture.state.window, 4U, enabled ? 0x8000U : 0U
+                );
+                write_u16(
+                    fixture.state.window,
+                    6U,
+                    OP_95_CLEAR_SCENE_RENDER_BIT1
+                );
+                u8 scene_render_flags = 0xA7U;
+                fixture.runtime.scene_render_flags = &scene_render_flags;
+
+                const auto result = fixture.step();
+                test.expect_true(
+                    result.status == LegacyWorldStoryVmStatus::yielded &&
+                        result.raw_word ==
+                            OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                        result.opcode == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                        result.executed_instruction_count == 2U &&
+                        fixture.context.instruction_offset == 8U &&
+                        fixture.roles[1].flags == final_flags &&
+                        read_u32(surface, 0U) ==
+                            expected_surface(final_flags) &&
+                        fixture.state.previous_opcode ==
+                            OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                        fixture.ports.role_patch_requests.empty() &&
+                        scene_render_flags == 0xA5U,
+                    "shared role-status aliases apply zero/any-nonzero booleans, refresh surface occupancy and continue"
+                );
+            }
+        }
+    }
+
+    Fixture current_index_key;
+    current_index_key.roles[1].guid = 2U;
+    current_index_key.roles[1].flags = 0x80000041U;
+    current_index_key.roles[2].guid = 0xAAAAU;
+    current_index_key.roles[2].flags = 0x22220000U;
+    std::array<u8, 16U> current_index_surface{};
+    current_index_surface.fill(0xFFU);
+    bind_surface(current_index_key, 1U, current_index_surface);
+    prime_loaded_instruction(
+        current_index_key, OP_102_SET_ROLE_STATUS_BIT6
+    );
+    write_u16(current_index_key.state.window, 2U, 0xFFF0U);
+    write_u16(current_index_key.state.window, 4U, 0U);
+    write_u16(current_index_key.state.window, 6U, OP_1025);
+    const auto current_index_key_result = current_index_key.step(0, 0, 2U);
+    test.expect_true(
+        current_index_key_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            current_index_key.roles[1].flags == 0x80000001U &&
+            current_index_key.roles[2].flags == 0x22220000U &&
+            read_u32(current_index_surface, 0U) == 0xDF7FFFFFU &&
+            read_u16(current_index_key.state.window, 2U) == 0xFFF0U,
+        "shared role-status FFF0 uses the controlled index as a GUID lookup key, not current source or direct role"
+    );
+
+    Fixture controlled;
+    controlled.roles[1].guid = 0xFFFEU;
+    controlled.roles[1].flags = 0x11110020U;
+    controlled.roles[2].flags = 0x22220000U;
+    std::array<u8, 16U> controlled_surface{};
+    controlled_surface.fill(0xFFU);
+    bind_surface(controlled, 2U, controlled_surface);
+    prime_loaded_instruction(controlled, OP_103_SET_ROLE_STATUS_BIT5);
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    write_u16(controlled.state.window, 4U, 2U);
+    write_u16(controlled.state.window, 6U, OP_1025);
+    const auto controlled_result = controlled.step(0, 0, 2U);
+    test.expect_true(
+        controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled.roles[1].flags == 0x11110020U &&
+            controlled.roles[2].flags == 0x22220020U &&
+            read_u32(controlled_surface, 0U) == 0xDF7FFFFFU,
+        "shared role-status preserves helper-native FFFE controlled-role selection"
+    );
+
+    Fixture first_clear_match;
+    first_clear_match.roles[0].guid = 0x2222U;
+    first_clear_match.roles[0].flags =
+        openswd3::world_map::kLegacyWorldGuidLookupSkipBit | 0x1000U;
+    first_clear_match.roles[1].guid = 0x2222U;
+    first_clear_match.roles[1].flags = 0x80000001U;
+    first_clear_match.roles[2].guid = 0x2222U;
+    first_clear_match.roles[2].flags = 0x80U;
+    std::array<u8, 16U> first_clear_surface{};
+    first_clear_surface.fill(0xFFU);
+    bind_surface(first_clear_match, 1U, first_clear_surface);
+    prime_loaded_instruction(
+        first_clear_match, OP_136_SET_ROLE_STATUS_BIT12
+    );
+    write_u16(first_clear_match.state.window, 2U, 0x2222U);
+    write_u16(first_clear_match.state.window, 4U, 1U);
+    write_u16(first_clear_match.state.window, 6U, OP_1025);
+    const auto first_clear_match_result = first_clear_match.step();
+    test.expect_true(
+        first_clear_match_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            first_clear_match.roles[0].flags ==
+                (openswd3::world_map::kLegacyWorldGuidLookupSkipBit |
+                 0x1000U) &&
+            first_clear_match.roles[1].flags == 0x80001001U &&
+            first_clear_match.roles[2].flags == 0x80U,
+        "shared role-status skips bit-28 roles and uses the first clear GUID match"
+    );
+
+    for (const auto variant : variants) {
+        for (const bool enabled : {false, true}) {
+            Fixture missing;
+            prime_loaded_instruction(missing, variant.opcode);
+            write_u16(missing.state.window, 2U, 0x7777U);
+            write_u16(missing.state.window, 4U, enabled ? 0xFFFFU : 0U);
+            write_u16(missing.state.window, 6U, OP_1025);
+
+            const auto result = missing.step();
+            const auto patch = missing.ports.role_patch_requests.empty()
+                ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+                : missing.ports.role_patch_requests.front();
+            test.expect_true(
+                result.status ==
+                        LegacyWorldStoryVmStatus::unsupported_opcode &&
+                    result.executed_instruction_count == 2U &&
+                    missing.ports.role_patch_requests.size() == 1U &&
+                    patch.guid == 0x7777U && patch.action_id == 0xFFFFU &&
+                    patch.base_variant == 0xFFFFU &&
+                    patch.variant_delta == 0xFFFFU &&
+                    patch.tile_x == 0xFFFFU && patch.tile_y == 0xFFFFU &&
+                    patch.talk_script_id == 0xFFFFU &&
+                    patch.path_data_id == 0xFFFFU &&
+                    patch.flags_or_mask ==
+                        (enabled ? static_cast<u16>(variant.mask) : 0U) &&
+                    patch.flags_and_mask ==
+                        (enabled
+                             ? 0xFFFFU
+                             : static_cast<u16>(0xFFFFU - variant.mask)) &&
+                    patch.logical_map_id == 0xFFFFU &&
+                    missing.context.instruction_offset == 6U &&
+                    missing.state.previous_opcode == variant.opcode,
+                "shared role-status missing path submits exact boolean MAPS masks"
+            );
+        }
+    }
+
+    Fixture current_index_missing;
+    prime_loaded_instruction(
+        current_index_missing, OP_140_SET_ROLE_STATUS_BIT11
+    );
+    write_u16(current_index_missing.state.window, 2U, 0xFFF0U);
+    write_u16(current_index_missing.state.window, 4U, 1U);
+    write_u16(current_index_missing.state.window, 6U, OP_1025);
+    const auto current_index_missing_result =
+        current_index_missing.step(0, 0, 2U);
+    const auto current_index_patch =
+        current_index_missing.ports.role_patch_requests.empty()
+        ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+        : current_index_missing.ports.role_patch_requests.front();
+    test.expect_true(
+        current_index_missing_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            current_index_patch.guid == 2U &&
+            current_index_patch.flags_or_mask == 0x0800U &&
+            current_index_patch.flags_and_mask == 0xFFFFU,
+        "shared role-status missing FFF0 patches the controlled index key rather than literal FFF0"
+    );
+
+    for (const u16 selector : {0x00F8U, 0x7777U}) {
+        Fixture missing_value;
+        missing_value.context.talk_data_offset = 0x1111U;
+        missing_value.context.instruction_offset = 0x7FFCU;
+        missing_value.state.loaded_file_number = 1U;
+        missing_value.state.loaded_data_offset = 0x1111U;
+        missing_value.state.window_loaded = true;
+        missing_value.state.previous_opcode = 0x55U;
+        missing_value.roles[1].flags = 0x80000040U;
+        write_u16(
+            missing_value.state.window,
+            0x7FFCU,
+            OP_102_SET_ROLE_STATUS_BIT6
+        );
+        write_u16(missing_value.state.window, 0x7FFEU, selector);
+
+        const auto result = missing_value.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::operand_out_of_range &&
+                missing_value.context.instruction_offset == 0x7FFCU &&
+                missing_value.state.previous_opcode == 0x55U &&
+                missing_value.roles[1].flags == 0x80000040U &&
+                missing_value.ports.role_patch_requests.empty(),
+            "shared role-status reads the boolean only after lookup and stops before live/MAPS mutation"
+        );
+    }
+
+    Fixture no_surface;
+    no_surface.state.previous_opcode = 0x55U;
+    no_surface.roles[1].flags = 0x80000040U;
+    prime_loaded_instruction(no_surface, OP_102_SET_ROLE_STATUS_BIT6);
+    write_u16(no_surface.state.window, 2U, 0x00F8U);
+    write_u16(no_surface.state.window, 4U, 0U);
+    const auto no_surface_result = no_surface.step();
+    test.expect_true(
+        no_surface_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            no_surface.context.instruction_offset == 0U &&
+            no_surface.roles[1].flags == 0x80000000U &&
+            no_surface.state.previous_opcode == 0x55U,
+        "shared role-status commits the live flag before the surface unsafe point"
+    );
+
+    Fixture partial_surface_failure;
+    partial_surface_failure.state.previous_opcode = 0x55U;
+    partial_surface_failure.roles[1].flags = 0x80000040U;
+    partial_surface_failure.roles[1].map_cell_pointer_32 = 3U;
+    partial_surface_failure.roles[1].action.field_2c = 2U;
+    partial_surface_failure.roles[1].action.field_30 = 1U;
+    std::array<u8, 16U> partial_surface{};
+    partial_surface.fill(0xFFU);
+    partial_surface_failure.runtime.role_surface = {
+        .map_width = 2U,
+        .selected_guid = 0U,
+        .surface_grid = partial_surface,
+    };
+    prime_loaded_instruction(
+        partial_surface_failure, OP_102_SET_ROLE_STATUS_BIT6
+    );
+    write_u16(partial_surface_failure.state.window, 2U, 0x00F8U);
+    write_u16(partial_surface_failure.state.window, 4U, 0U);
+    const auto partial_surface_result = partial_surface_failure.step();
+    test.expect_true(
+        partial_surface_result.status ==
+                LegacyWorldStoryVmStatus::role_surface_failed &&
+            partial_surface_failure.context.instruction_offset == 0U &&
+            partial_surface_failure.roles[1].flags == 0x80000000U &&
+            read_u32(partial_surface, 12U) == 0xCF7FFFFFU &&
+            partial_surface_failure.state.previous_opcode == 0x55U,
+        "shared role-status preserves flags and partial clear effects before checked surface failure"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.roles[1].flags = 0x80000001U;
+    std::array<u8, 16U> exact_tail_surface{};
+    exact_tail_surface.fill(0xFFU);
+    bind_surface(exact_tail, 1U, exact_tail_surface);
+    write_u16(
+        exact_tail.state.window,
+        0x7FFAU,
+        OP_174_SET_ROLE_STATUS_BIT14
+    );
+    write_u16(exact_tail.state.window, 0x7FFCU, 0x00F8U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 1U);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.roles[1].flags == 0x80004001U &&
+            read_u32(exact_tail_surface, 0U) == 0xFF7FFFFFU &&
+            exact_tail.state.previous_opcode ==
+                OP_174_SET_ROLE_STATUS_BIT14,
+        "shared role-status commits flag, surface and previous before the next exact-tail fetch fails"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -18879,6 +19220,101 @@ void test_real_set_role_status_bit26_records(
     }
 }
 
+void test_real_set_role_status_from_boolean_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        u16 opcode;
+        u16 selector;
+        u16 value;
+        u32 mask;
+    };
+    constexpr std::array<RealCase, 6U> cases{
+        RealCase{
+            "TALK1.DAT", 0x0001BA75, OP_102_SET_ROLE_STATUS_BIT6,
+            0x00E6U, 0U, 0x00000040U,
+        },
+        RealCase{
+            "TALK2.DAT", 0x00001723, OP_103_SET_ROLE_STATUS_BIT5,
+            0xFFF0U, 1U, 0x00000020U,
+        },
+        RealCase{
+            "TALK3.DAT", 0x00002E4A, OP_117_SET_ROLE_STATUS_BIT4,
+            0x023FU, 0U, 0x00000010U,
+        },
+        RealCase{
+            "TALK4.DAT", 0x00022104, OP_136_SET_ROLE_STATUS_BIT12,
+            0x0027U, 1U, 0x00001000U,
+        },
+        RealCase{
+            "TALK1.DAT", 0x000317E4, OP_140_SET_ROLE_STATUS_BIT11,
+            0x0009U, 1U, 0x00000800U,
+        },
+        RealCase{
+            "TALK2.DAT", 0x00011366, OP_146_SET_ROLE_STATUS_BIT8,
+            0x00E6U, 1U, 0x00000100U,
+        },
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 6U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        const u32 role_index = real_case.selector == 0xFFF0U ? 0U : 1U;
+        if (real_case.selector != 0xFFF0U) {
+            fixture.roles[role_index].guid = real_case.selector;
+        }
+        const bool enabled = real_case.value != 0U;
+        const u32 initial_flags = 0x80000001U |
+            (enabled ? 0U : real_case.mask);
+        const u32 final_flags = (initial_flags & ~real_case.mask) |
+            (enabled ? real_case.mask : 0U);
+        fixture.roles[role_index].flags = initial_flags;
+        fixture.roles[role_index].map_cell_pointer_32 = 0U;
+        fixture.roles[role_index].action.field_2c = 1U;
+        fixture.roles[role_index].action.field_30 = 1U;
+        std::array<u8, 16U> surface{};
+        surface.fill(0xFFU);
+        fixture.runtime.role_surface = {
+            .map_width = 2U,
+            .selected_guid = 0xFFFFU,
+            .surface_grid = surface,
+        };
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFAU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFAU);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read && read_u16(record, 0U) == real_case.opcode &&
+                read_u16(record, 2U) == real_case.selector &&
+                read_u16(record, 4U) == real_case.value &&
+                result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.roles[role_index].flags == final_flags &&
+                fixture.state.previous_opcode == real_case.opcode &&
+                fixture.ports.role_patch_requests.empty(),
+            "real shared role-status record updates the resolved live role before exact-tail completion"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -21000,6 +21436,7 @@ int main(const int argument_count, char** arguments) {
     test_wait_custom_ani_phase_protocol(test);
     test_set_role_talk_script_protocol(test);
     test_set_role_status_bit26_protocol(test);
+    test_set_role_status_from_boolean_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -21073,6 +21510,7 @@ int main(const int argument_count, char** arguments) {
         test_real_wait_custom_ani_phase_records(test, root);
         test_real_set_role_talk_script_records(test, root);
         test_real_set_role_status_bit26_records(test, root);
+        test_real_set_role_status_from_boolean_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
