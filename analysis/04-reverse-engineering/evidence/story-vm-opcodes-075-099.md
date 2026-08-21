@@ -96,6 +96,8 @@ step_y = dy * movement / distance
 
 81现已独立闭环：现代精确0xB4节点接入既有role-head list，保留分配/初始化、四个staged operand、signed X边界、low15 Y、bit15特殊motion、前插、+10、previous81与same-call。资产锁1888条/1888 probes，分布`488/340/398/662`，全部raw `0x0051`、长度10；3条bit15特殊记录均在TALK2。普通与特殊真实回放通过。完整证据见[`story-vm-role-head-action-enqueue-0042a200.md`](story-vm-role-head-action-enqueue-0042a200.md)。
 
+82现已独立闭环：保留首匹配、motion bit15→10000、signed X左右遣出、空链不读operand、ID miss不读variant、所有缺失路径静默+6、previous82与same-call。资产锁1889条/1889 probes，分布`489/340/398/662`，全部raw `0x0052`、长度6；TALK1真实精确尾回放通过。完整证据见[`story-vm-role-head-action-dismiss-0042a2c6.md`](story-vm-role-head-action-dismiss-0042a2c6.md)。
+
 ## opcode 83、84：framebuffer 区域效果与两个原始越界面
 
 83 先按 id 低字节删除所有同 id 节点，再建立 24 字节记录和两条逐行 `s16` 数组。参数 `X/Y/width/height` 都先清 bit0；合法门控只有：

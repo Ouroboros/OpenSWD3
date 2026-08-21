@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v304
+版本：v305
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A2C6` handler（opcode 82）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A341` handler（opcode 83）
 
 ## 0. 执行约定
 
@@ -2033,6 +2033,17 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode增至99；对外进度为已实现99/198、已验收86/198；内部
     workpack62/146，即`8 assembly_exact + 54 platform_adapted + 84 pending_audit`。
 
+- 剧情VM P2第六十三组`0x0042A2C6` / opcode82完成独立闭环。handler按action ID/base variant
+    首匹配头像节点；motion bit15置位写10000，否则signed current X<=320写-1、>320写+1。
+    空链在不读任何operand时仍+6；非空先读ID，只有首次ID命中才读variant；ID全miss不读variant
+    仍静默+6。现代仅在固定全局head访问点增加typed owner失败。四raw alias精确尾、重复key首节点、
+    bit15、signed X、ordinary same-call、空链unsafe advance、ID miss、variant截断、owner缺失和
+    `TALK1.DAT@0x0000614D`真实回放通过。资产锁1889条/1889 probes，分布`489/340/398/662`，
+    全部raw `0x0052`、长度6。剧情VM3/3、Linux core186/186、Linux app192/192通过；workpack
+    hash为`d072856ecfbeeb2c53f82b57bf044017d9b986a2640f37dcec3a2ae63ed59f61`。未启动游戏EXE。
+    现代显式opcode增至100；对外进度为已实现100/198、已验收87/198；内部workpack63/146，
+    即`8 assembly_exact + 55 platform_adapted + 83 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042A2C6` 的opcode82 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042A341` 的opcode83 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

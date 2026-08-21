@@ -4006,17 +4006,13 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            node.target_x = std::bit_cast<i16>(
-                read_u16(state.window, ip + 6U)
-            );
+            node.target_x = std::bit_cast<i16>(read_u16(state.window, ip + 6U));
             if (!has_bytes(state.window, ip, 10U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
             const u16 encoded_y = read_u16(state.window, ip + 8U);
-            node.y = std::bit_cast<i16>(
-                static_cast<u16>(encoded_y & 0x7FFFU)
-            );
+            node.y = std::bit_cast<i16>(static_cast<u16>(encoded_y & 0x7FFFU));
             node.current_x = node.target_x > 320 ? 760 : -120;
             node.horizontal_motion = 0;
             if ((encoded_y & 0x8000U) != 0U) {
@@ -4033,6 +4029,53 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             );
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 10U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
+        case OP_82_DISMISS_ROLE_HEAD_ACTION: {
+            if (runtime.role_head_actions == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            auto& actions = *runtime.role_head_actions;
+            if (!actions.empty()) {
+                if (!has_bytes(state.window, ip, 4U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                const u16 action_id = read_u16(state.window, ip + 2U);
+                bool variant_loaded = false;
+                u16 base_variant{};
+                for (auto& node : actions) {
+                    if (node.action.action_id != action_id) {
+                        continue;
+                    }
+                    if (!variant_loaded) {
+                        if (!has_bytes(state.window, ip, 6U)) {
+                            result.status =
+                                LegacyWorldStoryVmStatus::operand_out_of_range;
+                            return result;
+                        }
+                        base_variant = read_u16(state.window, ip + 4U);
+                        variant_loaded = true;
+                    }
+                    if (node.action.base_variant != base_variant) {
+                        continue;
+                    }
+                    const u16 motion_bits =
+                        std::bit_cast<u16>(node.horizontal_motion);
+                    if ((motion_bits & 0x8000U) != 0U) {
+                        node.horizontal_motion = 10000;
+                    } else {
+                        node.horizontal_motion = node.current_x <= 320 ? -1 : 1;
+                    }
+                    break;
+                }
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
             state.previous_opcode = result.opcode;
             continue;
         }

@@ -109,6 +109,7 @@ using openswd3::world_map::OP_78_CLEAR_ROLE_WAIT_OVERRIDE;
 using openswd3::world_map::OP_79_ENQUEUE_MOVING_ACTION;
 using openswd3::world_map::OP_80_CLEAR_TEXT_CONTROL_BIT29;
 using openswd3::world_map::OP_81_ENQUEUE_ROLE_HEAD_ACTION;
+using openswd3::world_map::OP_82_DISMISS_ROLE_HEAD_ACTION;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -12772,13 +12773,11 @@ void test_enqueue_role_head_action_protocol(openswd3::test::Context& test) {
                     LegacyWorldStoryVmStatus::instruction_out_of_range &&
                 result.opcode == OP_81_ENQUEUE_ROLE_HEAD_ACTION &&
                 result.executed_instruction_count == 1U &&
-                actions.size() == 1U &&
-                node.action.action_id == 0x2711U &&
+                actions.size() == 1U && node.action.action_id == 0x2711U &&
                 node.action.base_variant == 9U &&
                 node.action.variant_delta == 0U && node.target_x == 50 &&
                 node.y == 120 && node.current_x == 50 &&
-                node.horizontal_motion ==
-                    std::bit_cast<i16>(u16{0x8000U}) &&
+                node.horizontal_motion == std::bit_cast<i16>(u16{0x8000U}) &&
                 node.next_pointer_32 == 0U &&
                 exact_tail.context.instruction_offset == 0x8000U &&
                 exact_tail.state.previous_opcode ==
@@ -12827,8 +12826,7 @@ void test_enqueue_role_head_action_protocol(openswd3::test::Context& test) {
         const auto result = fixture.step();
         test.expect_true(
             result.status == LegacyWorldStoryVmStatus::yielded &&
-                left_actions.front().target_x ==
-                    std::bit_cast<i16>(target_x) &&
+                left_actions.front().target_x == std::bit_cast<i16>(target_x) &&
                 left_actions.front().current_x == expected_start &&
                 left_actions.front().y == 0x4567,
             "opcode 81 uses signed target X and the inclusive 320 left-start boundary"
@@ -12842,9 +12840,8 @@ void test_enqueue_role_head_action_boundaries(openswd3::test::Context& test) {
         Fixture truncated;
         openswd3::world_map::LegacyRoleHeadActionList actions;
         truncated.runtime.role_head_actions = &actions;
-        const u16 offset = static_cast<u16>(
-            0x8000U - (available + 1U) * sizeof(u16)
-        );
+        const u16 offset =
+            static_cast<u16>(0x8000U - (available + 1U) * sizeof(u16));
         truncated.context.talk_data_offset = 0x1111U;
         truncated.context.instruction_offset = offset;
         truncated.state.loaded_file_number = 1U;
@@ -12884,6 +12881,174 @@ void test_enqueue_role_head_action_boundaries(openswd3::test::Context& test) {
             unavailable.context.instruction_offset == 0U &&
             unavailable.state.previous_opcode == 0x66U,
         "opcode 81 owner absence occurs after complete node initialization but before insertion"
+    );
+}
+
+void test_dismiss_role_head_action_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture exact_tail;
+        openswd3::world_map::LegacyRoleHeadActionList actions(2U);
+        auto first = actions.begin();
+        first->action.action_id = 0x2711U;
+        first->action.base_variant = 0U;
+        first->current_x = 100;
+        first->horizontal_motion = 0;
+        auto second = std::next(first);
+        second->action.action_id = 0x2711U;
+        second->action.base_variant = 0U;
+        second->current_x = 500;
+        second->horizontal_motion = 77;
+        exact_tail.runtime.role_head_actions = &actions;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFAU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_u16(
+            exact_tail.state.window,
+            0x7FFAU,
+            static_cast<u16>(OP_82_DISMISS_ROLE_HEAD_ACTION | alias_mask)
+        );
+        write_u16(exact_tail.state.window, 0x7FFCU, 0x2711U);
+        write_u16(exact_tail.state.window, 0x7FFEU, 0U);
+
+        const auto result = exact_tail.step();
+
+        test.expect_true(
+            result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.opcode == OP_82_DISMISS_ROLE_HEAD_ACTION &&
+                result.executed_instruction_count == 1U &&
+                first->horizontal_motion == -1 &&
+                second->horizontal_motion == 77 &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_82_DISMISS_ROLE_HEAD_ACTION,
+            "opcode 82 aliases update only the first matching head action before exact-tail next fetch failure"
+        );
+    }
+
+    Fixture ordinary;
+    openswd3::world_map::LegacyRoleHeadActionList actions(2U);
+    auto special = actions.begin();
+    special->action.action_id = 0x2711U;
+    special->action.base_variant = 9U;
+    special->current_x = 50;
+    special->horizontal_motion = std::bit_cast<i16>(u16{0x8000U});
+    auto right = std::next(special);
+    right->action.action_id = 0x2712U;
+    right->action.base_variant = 2U;
+    right->current_x = 321;
+    right->horizontal_motion = 0;
+    ordinary.runtime.role_head_actions = &actions;
+    auto script = std::span<u8>{ordinary.ports.initial_window};
+    write_u16(script, 0U, OP_82_DISMISS_ROLE_HEAD_ACTION);
+    write_u16(script, 2U, 0x2711U);
+    write_u16(script, 4U, 9U);
+    write_u16(script, 6U, OP_82_DISMISS_ROLE_HEAD_ACTION);
+    write_u16(script, 8U, 0x2712U);
+    write_u16(script, 10U, 2U);
+    write_u16(script, 12U, OP_14_WAIT_ROLE_ACTION_STATUS);
+    write_u16(script, 14U, 0x00F8U);
+
+    const auto ordinary_result = ordinary.step();
+
+    test.expect_true(
+        ordinary_result.status == LegacyWorldStoryVmStatus::yielded &&
+            ordinary_result.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
+            ordinary_result.executed_instruction_count == 3U &&
+            special->horizontal_motion == 10000 &&
+            right->horizontal_motion == 1 &&
+            ordinary.context.instruction_offset == 16U &&
+            ordinary.state.previous_opcode == OP_14_WAIT_ROLE_ACTION_STATUS,
+        "opcode 82 preserves bit15 dismissal, signed X right dismissal and same-call continuation"
+    );
+}
+
+void test_dismiss_role_head_action_boundaries(openswd3::test::Context& test) {
+    Fixture empty;
+    openswd3::world_map::LegacyRoleHeadActionList empty_actions;
+    empty.runtime.role_head_actions = &empty_actions;
+    empty.context.talk_data_offset = 0x1111U;
+    empty.context.instruction_offset = 0x7FFEU;
+    empty.state.loaded_file_number = 1U;
+    empty.state.loaded_data_offset = 0x1111U;
+    empty.state.window_loaded = true;
+    empty.state.previous_opcode = 0x66U;
+    write_u16(empty.state.window, 0x7FFEU, OP_82_DISMISS_ROLE_HEAD_ACTION);
+    const auto empty_result = empty.step();
+    test.expect_true(
+        empty_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            empty.context.instruction_offset == 0x8004U &&
+            empty.state.previous_opcode == OP_82_DISMISS_ROLE_HEAD_ACTION,
+        "opcode 82 empty list consumes six bytes without reading either operand"
+    );
+
+    Fixture id_miss;
+    openswd3::world_map::LegacyRoleHeadActionList miss_actions(1U);
+    miss_actions.front().action.action_id = 0x9999U;
+    miss_actions.front().horizontal_motion = 55;
+    id_miss.runtime.role_head_actions = &miss_actions;
+    id_miss.context.talk_data_offset = 0x1111U;
+    id_miss.context.instruction_offset = 0x7FFCU;
+    id_miss.state.loaded_file_number = 1U;
+    id_miss.state.loaded_data_offset = 0x1111U;
+    id_miss.state.window_loaded = true;
+    id_miss.state.previous_opcode = 0x66U;
+    write_u16(id_miss.state.window, 0x7FFCU, OP_82_DISMISS_ROLE_HEAD_ACTION);
+    write_u16(id_miss.state.window, 0x7FFEU, 0x2711U);
+    const auto miss_result = id_miss.step();
+    test.expect_true(
+        miss_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            miss_actions.front().horizontal_motion == 55 &&
+            id_miss.context.instruction_offset == 0x8002U &&
+            id_miss.state.previous_opcode == OP_82_DISMISS_ROLE_HEAD_ACTION,
+        "opcode 82 ID miss does not read the absent variant and silently advances six bytes"
+    );
+
+    Fixture variant_truncated;
+    openswd3::world_map::LegacyRoleHeadActionList matching_actions(1U);
+    matching_actions.front().action.action_id = 0x2711U;
+    variant_truncated.runtime.role_head_actions = &matching_actions;
+    variant_truncated.context.talk_data_offset = 0x1111U;
+    variant_truncated.context.instruction_offset = 0x7FFCU;
+    variant_truncated.state.loaded_file_number = 1U;
+    variant_truncated.state.loaded_data_offset = 0x1111U;
+    variant_truncated.state.window_loaded = true;
+    variant_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        variant_truncated.state.window, 0x7FFCU, OP_82_DISMISS_ROLE_HEAD_ACTION
+    );
+    write_u16(variant_truncated.state.window, 0x7FFEU, 0x2711U);
+    const auto truncated_result = variant_truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            variant_truncated.context.instruction_offset == 0x7FFCU &&
+            variant_truncated.state.previous_opcode == 0x66U,
+        "opcode 82 reads the variant only after the first action-ID match"
+    );
+
+    Fixture unavailable;
+    auto script = std::span<u8>{unavailable.ports.initial_window};
+    write_u16(script, 0U, OP_82_DISMISS_ROLE_HEAD_ACTION);
+    unavailable.state.previous_opcode = 0x66U;
+    const auto unavailable_result = unavailable.step();
+    test.expect_true(
+        unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            unavailable.context.instruction_offset == 0U &&
+            unavailable.state.previous_opcode == 0x66U,
+        "opcode 82 typed owner absence stops before original global-head access"
     );
 }
 
@@ -15222,6 +15387,50 @@ void test_real_role_wait_override_records(
     );
 }
 
+void test_real_dismiss_role_head_action_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0000614D);
+    std::array<u8, 6U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    openswd3::world_map::LegacyRoleHeadActionList actions(1U);
+    actions.front().action.action_id = 0x2711U;
+    actions.front().action.base_variant = 0U;
+    actions.front().current_x = 100;
+    actions.front().horizontal_motion = 0;
+    fixture.runtime.role_head_actions = &actions;
+    fixture.context.talk_data_offset = 0x1111U;
+    fixture.context.instruction_offset = 0x7FFAU;
+    fixture.state.loaded_file_number = 1U;
+    fixture.state.loaded_data_offset = 0x1111U;
+    fixture.state.window_loaded = true;
+    fixture.state.previous_opcode = 0x66U;
+    std::ranges::copy(instruction, fixture.state.window.begin() + 0x7FFAU);
+
+    const auto result = fixture.step();
+
+    test.expect_true(
+        input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
+            read_u16(instruction, 0U) == OP_82_DISMISS_ROLE_HEAD_ACTION &&
+            read_u16(instruction, 2U) == 0x2711U &&
+            read_u16(instruction, 4U) == 0U &&
+            result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            result.opcode == OP_82_DISMISS_ROLE_HEAD_ACTION &&
+            result.executed_instruction_count == 1U &&
+            actions.front().horizontal_motion == -1 &&
+            fixture.context.instruction_offset == 0x8000U &&
+            fixture.state.previous_opcode == OP_82_DISMISS_ROLE_HEAD_ACTION,
+        "real opcode 82 record dismisses the matching left-side head action before exact-tail fetch failure"
+    );
+}
+
 void test_real_enqueue_role_head_action_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -15229,9 +15438,7 @@ void test_real_enqueue_role_head_action_records(
                                  const std::string_view file_name,
                                  const std::streamoff offset
                              ) -> std::array<u8, 10U> {
-        std::ifstream input{
-            root / file_name, std::ios::binary | std::ios::in
-        };
+        std::ifstream input{root / file_name, std::ios::binary | std::ios::in};
         input.seekg(offset);
         std::array<u8, 10U> record{};
         input.read(
@@ -15269,9 +15476,9 @@ void test_real_enqueue_role_head_action_records(
             ordinary_result.status ==
                 LegacyWorldStoryVmStatus::instruction_out_of_range &&
             ordinary.action.action_id == 0x2711U &&
-            ordinary.action.base_variant == 0U &&
-            ordinary.target_x == 560 && ordinary.y == 460 &&
-            ordinary.current_x == 760 && ordinary.horizontal_motion == 0 &&
+            ordinary.action.base_variant == 0U && ordinary.target_x == 560 &&
+            ordinary.y == 460 && ordinary.current_x == 760 &&
+            ordinary.horizontal_motion == 0 &&
             read_u16(special_record, 0U) == OP_81_ENQUEUE_ROLE_HEAD_ACTION &&
             read_u16(special_record, 2U) == 0x2711U &&
             read_u16(special_record, 4U) == 9U &&
@@ -15281,8 +15488,7 @@ void test_real_enqueue_role_head_action_records(
                 LegacyWorldStoryVmStatus::instruction_out_of_range &&
             special.target_x == 50 && special.y == 120 &&
             special.current_x == 50 &&
-            special.horizontal_motion ==
-                std::bit_cast<i16>(u16{0x8000U}),
+            special.horizontal_motion == std::bit_cast<i16>(u16{0x8000U}),
         "real opcode 81 records preserve ordinary right-start and rare bit15 special-start behavior"
     );
 }
@@ -17059,6 +17265,8 @@ int main(const int argument_count, char** arguments) {
     test_clear_text_control_bit29(test);
     test_enqueue_role_head_action_protocol(test);
     test_enqueue_role_head_action_boundaries(test);
+    test_dismiss_role_head_action_protocol(test);
+    test_dismiss_role_head_action_boundaries(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -17117,6 +17325,7 @@ int main(const int argument_count, char** arguments) {
         test_real_role_wait_override_records(test, root);
         test_real_clear_text_control_bit29_record(test, root);
         test_real_enqueue_role_head_action_records(test, root);
+        test_real_dismiss_role_head_action_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
