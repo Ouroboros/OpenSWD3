@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v330
+版本：v331
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B63C` handler（opcode 109）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B6A5` handler（共享 opcodes 110/111）
 
 ## 0. 执行约定
 
@@ -2134,8 +2134,7 @@ B7 P0 有限收口完成。
     variable11/12、invalid/zero、u32回绕、staged失败、精确尾与real MAPS对照均通过。资产锁1184条/
     1203 probes：opcode91为1180/1199，分布`388/239/295/258`且有33条FFF0；opcode162为4/4，
     分布`3/1/0/0`且均selector11。真实TALK1显式index782和variable11→782得到相同姓名。格式化后
-    剧情VM3/3、Linux core186/186、Linux app192/192均exit0；测试时间分别0.48/22.57/22.88秒。
-    workpack双生成hash为`b610350b0e756879545f7502b26f9bcd28426b4a5967107e1e19c12018dabe36`。
+    剧情VM3/3、Linux core186/186、Linux app192/192均exit0。workpack双生成hash为`b610350b0e756879545f7502b26f9bcd28426b4a5967107e1e19c12018dabe36`。
     未启动游戏EXE；Windows依阶段规则留到P2完成门。现代显式opcode增至105；对外进度为已实现
     105/198、已验收95/198；内部workpack70/146，即`8 assembly_exact + 62 platform_adapted +
     76 pending_audit`。
@@ -2147,8 +2146,7 @@ B7 P0 有限收口完成。
     8162写bit8191，8163起在原始裸写点以`global_bit_index_out_of_range` typed-stop，且不能经
     u16 helper截断。四alias、0/1/4/5、8162/8163/FFFF、operand截断、精确尾与same-call均通过。
     线性资产0条/0 probes；四raw全文件102处双字节候选均非指令入口，使用asset-absence证据。
-    格式化后剧情VM3/3、Linux core186/186、Linux app192/192均exit0；测试时间分别
-    0.48/23.41/23.75秒。workpack双生成hash为
+    格式化后剧情VM3/3、Linux core186/186、Linux app192/192均exit0。workpack双生成hash为
     `1473b4842fceb8186fff291ad13ad6f725e6c4e850989a58647d33d5342193eb`。未启动游戏EXE；
     Windows依阶段规则留到P2完成门。现代显式opcode增至106；对外进度为已实现106/198、已验收
     96/198；内部workpack71/146，即`8 assembly_exact + 63 platform_adapted + 75 pending_audit`。
@@ -2160,7 +2158,7 @@ B7 P0 有限收口完成。
     原始read/write点typed-stop，不改flags、IP或previous。四alias、0/1/4/5、8162/8163/FFFF、
     operand截断、精确尾、单bit保持与same-call均独立覆盖。线性资产0条/0 probes；四raw全文件
     41处双字节候选均非指令入口，使用asset-absence证据。格式化后剧情VM3/3、Linux core186/186、
-    Linux app192/192均exit0；测试时间分别0.50/21.56/22.40秒。workpack双生成hash为
+    Linux app192/192均exit0。workpack双生成hash为
     `891b193d222ff828007273f9b6b3a2787f5f2e308b96f9db26a60930ccc094c4`。未启动游戏EXE；
     Windows依阶段规则留到P2完成门。现代显式opcode增至107；对外进度为已实现107/198、已验收
     97/198；内部workpack72/146，即`8 assembly_exact + 64 platform_adapted + 74 pending_audit`。
@@ -2171,8 +2169,7 @@ B7 P0 有限收口完成。
     modern复用已集成的u8 scene-runtime owner，保留其他低位；typed owner缺失在原读取点停止。
     四alias、bit保持、owner失败、精确尾及真实记录通过。资产锁39条/39 probes，全部raw`005E`、
     长度2，分布`14/7/3/15`；真实TALK1 `0x49F4`精确尾回放`A5→A7`并发布previous94。格式化后
-    剧情VM3/3、Linux core186/186、Linux app192/192均exit0；测试时间分别0.50/23.39/22.78秒。
-    workpack双生成hash为`9e8998a333349cff72a9890ae9cd1502efee0392a8ecc8b3d5c9c121a7c35bd3`。
+    剧情VM3/3、Linux core186/186、Linux app192/192均exit0。workpack双生成hash为`9e8998a333349cff72a9890ae9cd1502efee0392a8ecc8b3d5c9c121a7c35bd3`。
     未启动游戏EXE；Windows依阶段规则留到P2完成门。现代显式opcode保持107；对外进度为已实现
     107/198、已验收98/198；内部workpack73/146，即`8 assembly_exact + 65 platform_adapted +
     73 pending_audit`。
@@ -2183,8 +2180,7 @@ B7 P0 有限收口完成。
     到已集成u8 scene-runtime owner，保留其他低位；owner缺失在原读取点typed-stop。四alias、
     bit已清保持、owner失败、精确尾与真实记录通过。资产锁25条/25 probes，全部raw`005F`、长度2，
     分布`9/5/2/9`；真实TALK1 `0x4A22`精确尾回放`A7→A5`并发布previous95。格式化后剧情VM3/3、
-    Linux core186/186、Linux app192/192均exit0；测试时间分别0.51/21.75/22.28秒。workpack
-    双生成hash为`50202cd05af6e02117a66f6656e8df01c310a61c25577e28f12b84363b35b4f1`。
+    Linux core186/186、Linux app192/192均exit0。workpack双生成hash为`50202cd05af6e02117a66f6656e8df01c310a61c25577e28f12b84363b35b4f1`。
     未启动游戏EXE；Windows依阶段规则留到P2完成门。现代显式opcode保持107；对外进度为已实现
     107/198、已验收99/198；内部workpack74/146，即`8 assembly_exact + 66 platform_adapted +
     72 pending_audit`。
@@ -2199,8 +2195,7 @@ B7 P0 有限收口完成。
     live owner留在异步activity port。四alias、四prefix、32-byte边界、截断、preflight、open失败、无
     artificial scene stop及精确尾通过。资产锁16条/16 probes，全部raw`0060`，分布`2/2/9/3`；真实
     TALK1 `0x43FA` `%*expv.ani%Q`和TALK2 `0xD39F` `*memory.ani%Q`精确尾回放。格式化后
-    剧情VM3/3、Linux core186/186、Linux app192/192均exit0；最终完整门时间分别21.88/22.59秒。
-    workpack双生成hash为`54b0429903f1a40cd64f6a70b55f2e8c4f2ea6d1a81e924a6b430406416b2714`。
+    剧情VM3/3、Linux core186/186、Linux app192/192均exit0。workpack双生成hash为`54b0429903f1a40cd64f6a70b55f2e8c4f2ea6d1a81e924a6b430406416b2714`。
     未启动游戏EXE；Windows依阶段规则留到P2完成门。现代显式opcode增至108；对外进度为已实现
     108/198、已验收100/198；内部workpack75/146，即`8 assembly_exact + 67 platform_adapted +
     71 pending_audit`。
@@ -2214,8 +2209,7 @@ B7 P0 有限收口完成。
     world-frame `ani_activity_004154a0` stage接入actual activity update，映射dialog/packed-row/head-action
     三blocker，逐帧同步scene/process，复用assembly-audited RGB ending并在finalize恢复interval35。
     原递归scene redraw以start前world snapshot/下一帧live composition最小适配；`%`成功start按机器清黑。
-    格式化后剧情VM3/3、ANI backend3/3、Linux core186/186、Linux app192/192均exit0；测试时间分别
-    0.59/7.55/24.56/23.26秒。workpack双生成hash为
+    格式化后剧情VM3/3、ANI backend3/3、Linux core186/186、Linux app192/192均exit0。workpack双生成hash为
     `995f2fa71a740ac6b85986370a5cfdc02ed9b9092642c4921ef441d0ccb1e8ad`。未启动游戏EXE；Windows
     依阶段规则留到P2完成门。现代显式opcode增至109；对外进度为已实现109/198、已验收101/198；
     内部workpack76/146，即`8 assembly_exact + 68 platform_adapted + 70 pending_audit`。
@@ -2226,7 +2220,7 @@ B7 P0 有限收口完成。
     精确尾和仅剩两字节opcode的未读payload尾通过；后者仍完成IP=`0x8002`、previous98与yield，下一
     调用才typed fetch失败。资产锁3条/3 probes，全部raw`0062`、长度4，分布`0/1/2/0`；TALK2/3三条
     机器未读payload分别为`0190/006C/0001`，均以完整精确尾真实回放。格式化后剧情VM3/3、Linux
-    core186/186、Linux app192/192均exit0；测试时间分别0.51/23.20/23.32秒。workpack双生成hash为
+    core186/186、Linux app192/192均exit0。workpack双生成hash为
     `a6c41dee65c432f589e66d36e844ec449a2668b9e63fafc12e553bbd0a12be4d`。未启动游戏EXE；Windows
     依阶段规则留到P2完成门。现代显式opcode增至110；对外进度为已实现110/198、已验收102/198；
     内部workpack77/146，即`9 assembly_exact + 68 platform_adapted + 69 pending_audit`。
@@ -2239,8 +2233,7 @@ B7 P0 有限收口完成。
     访问点typed-stop。四raw alias、负启动相位、u16最大阈值、缺operand访问顺序和精确尾通过。资产锁
     139条/139 probes，全部raw`0063`、长度4，分布`0/44/64/31`；threshold范围1..350、共111种，
     TALK2/3/4四条代表记录跨等值等待和大一完成真实回放。格式化后剧情VM3/3、ANI backend3/3、
-    Linux core186/186、Linux app192/192均exit0；测试时间分别0.56/7.41/23.66/24.77秒。
-    workpack双生成hash为`e966a88434e3133522c81d0936abea8ed48f6e298e7c45c7f01b5bc61cfca455`。
+    Linux core186/186、Linux app192/192均exit0。workpack双生成hash为`e966a88434e3133522c81d0936abea8ed48f6e298e7c45c7f01b5bc61cfca455`。
     未启动游戏EXE；Windows依阶段规则留到P2完成门。现代显式opcode增至111；对外进度为已实现
     111/198、已验收103/198；内部workpack78/146，即`9 assembly_exact + 69 platform_adapted +
     68 pending_audit`。
@@ -2253,7 +2246,7 @@ B7 P0 有限收口完成。
     无world-session owner或source GUID不存在时无伪造写入。四raw alias、`FFFF`值、双operand截断、
     精确尾和四TALK文件代表记录通过。资产锁192条/192 probes，全部raw`0064`、长度6，分布
     `49/14/47/82`；Talk范围0..6909。格式化后剧情VM3/3、MAPS依赖3/3、Linux core186/186、
-    Linux app192/192均exit0；测试时间分别0.61/0.11/24.82/24.30秒。workpack双生成hash为
+    Linux app192/192均exit0。workpack双生成hash为
     `2eb063a44643f25b7fc1e2c743115b665b910274515f26bbec2197380a600303`。未启动游戏EXE；
     Windows依阶段规则留到P2完成门。现代显式opcode增至112；对外进度为已实现112/198、已验收
     104/198；内部workpack79/146，即`9 assembly_exact + 70 platform_adapted + 67 pending_audit`。
@@ -2265,7 +2258,7 @@ B7 P0 有限收口完成。
     无需平台转换或新端口。四raw alias、bit28 skip首匹配、selector截断、其他位保留、精确尾和
     四TALK文件代表记录通过。资产锁126条/126 probes，全部raw`0065`、长度4，分布`39/38/11/38`；
     40种selector范围0..1061。格式化后剧情VM3/3、role lookup依赖1/1、Linux core186/186、
-    Linux app192/192均exit0；测试时间分别0.55/0.06/22.42/22.99秒。workpack双生成hash为
+    Linux app192/192均exit0。workpack双生成hash为
     `d051c5ec33cf669aa18d6b0c1c6ab0ceb34d324d3ddc2c59a2fcea6ab0a2b3e6`。未启动游戏EXE；
     Windows依阶段规则留到P2完成门。现代显式opcode增至113；对外进度为已实现113/198、已验收
     105/198；内部workpack80/146，即`10 assembly_exact + 70 platform_adapted + 66 pending_audit`。
@@ -2279,8 +2272,7 @@ B7 P0 有限收口完成。
     partial clear。八mask×四alias×两类boolean、FFF0/FFFE、skip首匹配、分阶段截断、missing双mask、
     partial failure及精确尾通过。资产锁683条/685 probes，六个变体有记录，145/174以asset absence和
     synthetic锁定；只有opcode103观察到58条`FFF0`。格式化后剧情VM3/3、surface/MAPS依赖3/3、Linux
-    core186/186、Linux app192/192均exit0；测试时间分别0.59/0.10/21.81/24.23秒。workpack双生成
-    hash为`0a455f788581ae9ffe944858d8d7381ae4fbcc944f339344357952c76723d5b7`。未启动游戏EXE；
+    core186/186、Linux app192/192均exit0。workpack双生成hash为`0a455f788581ae9ffe944858d8d7381ae4fbcc944f339344357952c76723d5b7`。未启动游戏EXE；
     Windows依阶段规则留到P2完成门。人工语义增至134行，现代显式opcode增至121；对外进度为已实现
     121/198、已验收113/198；内部workpack81/146，即`10 assembly_exact + 71 platform_adapted +
     65 pending_audit`。
@@ -2291,7 +2283,7 @@ B7 P0 有限收口完成。
     保留缺第一项前已清bit、缺第二项前已清bit并写第一项的副作用。四raw alias、i16最小/最大、两级截断、
     精确尾和既有dialog消费/复位链通过。资产锁125条/125 probes，全部raw`0068`、长度6，分布
     `46/48/18/13`；31种pair，第一项范围-80..52、第二项-120..-20。格式化后剧情VM3/3、Linux
-    core186/186、Linux app192/192均exit0；测试时间分别0.58/21.82/22.07秒。workpack双生成hash为
+    core186/186、Linux app192/192均exit0。workpack双生成hash为
     `56a45509e2499fed1cf892e3ad7413559cdd337ffc67d91c43cedc4f80b4f969`。未启动游戏EXE；
     Windows依阶段规则留到P2完成门。现代显式opcode保持121；对外进度为已实现121/198、已验收
     114/198；内部workpack82/146，即`10 assembly_exact + 72 platform_adapted + 64 pending_audit`。
@@ -2300,7 +2292,7 @@ B7 P0 有限收口完成。
     `AND F7FFFFFF`、推进2、发布previous105并same-call；modern新增直接typed owner case，无operand、helper、
     条件分支或平台适配。四raw alias、其他位保留、same-call successor与精确尾通过。资产锁806条/
     806 probes，全部raw`0069`、长度2，分布`308/173/145/180`。格式化后剧情VM3/3、Linux
-    core186/186、Linux app192/192均exit0；测试时间分别0.58/22.43/23.52秒。workpack双生成hash为
+    core186/186、Linux app192/192均exit0。workpack双生成hash为
     `e2ded255146f2237a45dc0dc65659c11e4c12a2e215f55200c1e7b7eecf6ea49`。未启动游戏EXE；
     Windows依阶段规则留到P2完成门。现代显式opcode增至122；对外进度为已实现122/198、已验收
     115/198；内部workpack83/146，即`11 assembly_exact + 72 platform_adapted + 63 pending_audit`。
@@ -2312,8 +2304,7 @@ B7 P0 有限收口完成。
     的父对象访问点typed-stop。两个变体各四raw alias、主副链选择、相等/严格大于、空链、threshold256、
     operand/runtime顺序及精确尾通过。opcode106资产锁60条/63 probes，全部raw`006A`、长度4，分布
     `21/8/14/17`，25种threshold范围2..110；opcode154以asset absence和synthetic锁定。格式化后剧情VM/
-    picture-actions定向4/4、Linux core186/186、Linux app192/192均exit0；测试时间分别0.60/22.45/24.59秒。
-    workpack双生成hash为`d145e17bd011fa7aa5498103c845fcb310024edc4b7b8f1aa531e7066501e8cc`。
+    picture-actions定向4/4、Linux core186/186、Linux app192/192均exit0。workpack双生成hash为`d145e17bd011fa7aa5498103c845fcb310024edc4b7b8f1aa531e7066501e8cc`。
     未启动游戏EXE；Windows依阶段规则留到P2完成门。人工语义增至135行，现代显式opcode增至124；
     对外进度为已实现124/198、已验收117/198；内部workpack84/146，即`11 assembly_exact +
     73 platform_adapted + 62 pending_audit`。
@@ -2327,8 +2318,7 @@ B7 P0 有限收口完成。
     首轮Windows并发暴露真实竞态，5/192失败；仅加同exe锁后另一组5/192失败。最终按CTest JSON锁定
     31组同测试二进制多invocation，并给33项真实资产测试追加`legacy_real_assets`全局锁，保留Win32
     exclusive archive语义而不伪改生产共享模式。最终Linux core186/186、Linux app192/192、Windows LLVM
-    app192/192均exit0；CTest时间分别18.52/18.65/12.11秒，Linux core+app完整流程158秒，较修改前
-    195秒缩短37秒。`build.bat`保持CRLF且未加入pause；未启动游戏EXE。
+    app192/192均exit0。`build.bat`保持CRLF且未加入pause；未启动游戏EXE。
 
 - 剧情VM P2第八十五组`0x0042B50F` / opcode107完成独立闭环。机器按selector→lookup→threshold→
     action顺序读取；FFF0替换context source，helper-native FFFE解析controlled role。threshold高于packed低
@@ -2337,7 +2327,7 @@ B7 P0 有限收口完成。
     漏previous。四raw alias、FFF0/FFFE、等上限等待、等threshold完成、非法上限、lookup失败、两阶段截断、
     精确尾与四库真实回放通过。资产锁294条/296 probes，全部raw`0x006B`、长度6，分布
     `64/27/36/167`；35种selector、20种threshold、67种pair。Story VM3/3、Linux core186/186、app192/192
-    均exit0，最终CTest分别18.95/18.61秒；workpack双生成稳定hash为
+    均exit0；workpack双生成稳定hash为
     `b42d4ff6c9ac6719824e245531b1d327a183f55b27b7ce706d0c9e57ad234b94`。
     未启动游戏EXE。现代显式opcode保持124；对外进度为已实现124/198、已验收118/198；内部workpack
     85/146，即`12 assembly_exact + 73 platform_adapted + 61 pending_audit`。
@@ -2353,4 +2343,12 @@ B7 P0 有限收口完成。
     已实现125/198、已验收119/198；内部workpack86/146，即
     `13 assembly_exact + 73 platform_adapted + 60 pending_audit`。
 
-下一组只审计`0x0042B63C` / opcode109。
+- 剧情VM P2第八十七组`0x0042B63C` / opcode109完成独立闭环。恢复变长角色列表的逐项
+    路径步进、缺失角色跳过和消费后让出合同；复用已闭环story-path owner，并在原危险点保留
+    typed失败。67条真实记录及代表性count1/count18回放通过。Story VM 3/3、Linux core
+    186/186和app 192/192通过；workpack双生成稳定hash为
+    `951b34e144bfcf449d764fd8f598d8de1c4b8ffc29c80b2b95efa94c9e2c9ad3`。未启动游戏EXE。
+    现代显式opcode增至126；对外进度为已实现126/198、已验收120/198；内部workpack87/146，
+    即`13 assembly_exact + 74 platform_adapted + 59 pending_audit`。
+
+下一组只审计`0x0042B6A5` / 共享opcodes110/111。

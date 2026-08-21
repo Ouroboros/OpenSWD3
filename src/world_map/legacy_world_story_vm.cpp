@@ -4889,6 +4889,53 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
+        case OP_109_STEP_ROLES: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u16 count = read_u16(state.window, ip + 2U);
+            std::size_t cursor = ip + 4U;
+            for (u32 index = 0U; index < count; ++index) {
+                if (!has_bytes(state.window, cursor, 2U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                const u16 selector = read_u16(state.window, cursor);
+                u32 role_index{};
+                const bool role_found = resolve_role_index(
+                    roles, selector, controlled_role_index, role_index
+                );
+                cursor += 2U;
+                if (!role_found) {
+                    continue;
+                }
+                if (runtime.story_paths == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                const auto queried = query_legacy_world_story_path(
+                    *runtime.story_paths, role_index
+                );
+                if (queried.status != LegacyWorldStoryPathStatus::completed) {
+                    result.status = LegacyWorldStoryVmStatus::role_path_failed;
+                    return result;
+                }
+            }
+            const u16 final_count = read_u16(state.window, ip + 2U);
+            context.instruction_offset = static_cast<u16>(
+                context.instruction_offset + 4U +
+                static_cast<u32>(final_count) * 2U
+            );
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
         case 114U: {
             if (!has_bytes(state.window, ip, 8U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

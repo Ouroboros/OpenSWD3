@@ -125,6 +125,8 @@ byte >  threshold  -> 推进 4，ESI=1，同帧继续
 
 处理完成后，真实脚本指针按完整 `4 + 2*count` 移动，状态块中的 16 位 IP 只加该长度低 16 位；`ESI` 不置一，因此消费后让出。`count=0` 合法。大 count 会让 16 位 IP 与完整指针产生原始回绕差异。
 
+opcode109现已独立闭环：逐项selector读取、lookup、游标推进和helper调用顺序，post-loop count重读、previous/audio/yield、分阶段失败及真实count1/count18记录均已锁定。完整证据见[`story-vm-role-step-list-0042b63c.md`](story-vm-role-step-list-0042b63c.md)。
+
 110/111 从角色 index 1 开始扫描到 `dword_49E0C4-1`，只测试 `role+0x10` bit30；index 0 永远跳过。随后按 `+2` 的 `u32` TALK 目标决定顺序推进或调用 `sub_42E430` 转移窗口：
 
 | opcode | 转移条件 | 顺序消费条件 |

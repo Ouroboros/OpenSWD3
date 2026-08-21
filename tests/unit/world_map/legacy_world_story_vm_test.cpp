@@ -135,6 +135,7 @@ using openswd3::world_map::OP_105_CLEAR_TEXT_CONTROL_BIT27;
 using openswd3::world_map::OP_106_WAIT_PRIMARY_PICTURE_ACTION_BYTE;
 using openswd3::world_map::OP_107_WAIT_ROLE_ACTION_INDEX;
 using openswd3::world_map::OP_108_SET_NEXT_DIALOG_ANCHOR;
+using openswd3::world_map::OP_109_STEP_ROLES;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -6198,6 +6199,227 @@ void test_set_next_dialog_anchor_protocol(openswd3::test::Context& test) {
             chained.state.dialog_anchor_top == 0x8000U &&
             chained.state.previous_opcode == 2U,
         "opcode 108 stages the one-shot anchor consumed by the next dialog"
+    );
+}
+
+void test_step_role_list_protocol(openswd3::test::Context& test) {
+    const auto prime_slot = [](Fixture& fixture,
+                               const std::size_t slot_index,
+                               const u16 role_index,
+                               const u8 direction) {
+        auto& slot = fixture.active_object_slots[slot_index].bytes;
+        slot.fill(0xFFU);
+        write_u16(slot, 0x00U, role_index);
+        write_u16(slot, 0x02U, 0U);
+        slot[0x1BU] = 2U;
+        slot[0x1CU] = direction;
+    };
+
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_109_STEP_ROLES,
+        static_cast<u16>(OP_109_STEP_ROLES | 0x4000U),
+        static_cast<u16>(OP_109_STEP_ROLES | 0x8000U),
+        static_cast<u16>(OP_109_STEP_ROLES | 0xC000U),
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        StoryPathHarness paths{fixture};
+        fixture.roles[1].flags |= 0x00040000U;
+        prime_slot(fixture, 0U, 1U, 0U);
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 2U);
+        write_u16(fixture.state.window, 4U, 0x7777U);
+        write_u16(fixture.state.window, 6U, 0x00F8U);
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_109_STEP_ROLES &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 8U &&
+                fixture.state.previous_opcode == OP_109_STEP_ROLES &&
+                (fixture.roles[1].flags & 0x40000000U) != 0U,
+            "opcode 109 aliases skip missing selectors, step found roles, and yield"
+        );
+    }
+
+    Fixture no_slot;
+    StoryPathHarness no_slot_paths{no_slot};
+    prime_loaded_instruction(no_slot, OP_109_STEP_ROLES);
+    write_u16(no_slot.state.window, 2U, 1U);
+    write_u16(no_slot.state.window, 4U, 0x00F8U);
+    const auto no_slot_result = no_slot.step();
+    test.expect_true(
+        no_slot_result.status == LegacyWorldStoryVmStatus::yielded &&
+            no_slot_result.direct_audio_service_count == 1U &&
+            no_slot.context.instruction_offset == 6U &&
+            no_slot.state.previous_opcode == OP_109_STEP_ROLES &&
+            std::ranges::all_of(
+                no_slot.active_object_slots[0].bytes,
+                [](const u8 value) { return value == 0xFFU; }
+            ),
+        "opcode 109 ignores the helper's no matching slot return"
+    );
+
+    Fixture literal_fff0;
+    StoryPathHarness literal_fff0_paths{literal_fff0};
+    literal_fff0.roles[2].guid = 0xFFF0U;
+    literal_fff0.roles[2].flags = 0x00040000U;
+    prime_slot(literal_fff0, 0U, 2U, 0U);
+    prime_loaded_instruction(literal_fff0, OP_109_STEP_ROLES);
+    write_u16(literal_fff0.state.window, 2U, 1U);
+    write_u16(literal_fff0.state.window, 4U, 0xFFF0U);
+    const auto literal_fff0_result = literal_fff0.step();
+
+    Fixture controlled_fffe;
+    StoryPathHarness controlled_fffe_paths{controlled_fffe};
+    controlled_fffe.roles[0].flags |= 0x00040000U;
+    prime_slot(controlled_fffe, 0U, 0U, 0U);
+    prime_loaded_instruction(controlled_fffe, OP_109_STEP_ROLES);
+    write_u16(controlled_fffe.state.window, 2U, 1U);
+    write_u16(controlled_fffe.state.window, 4U, 0xFFFEU);
+    const auto controlled_fffe_result = controlled_fffe.step();
+
+    test.expect_true(
+        literal_fff0_result.status == LegacyWorldStoryVmStatus::yielded &&
+            (literal_fff0.roles[2].flags & 0x40000000U) != 0U &&
+            (literal_fff0.roles[1].flags & 0x40000000U) == 0U &&
+            controlled_fffe_result.status ==
+                LegacyWorldStoryVmStatus::yielded &&
+            (controlled_fffe.roles[0].flags & 0x40000000U) != 0U,
+        "opcode 109 keeps FFF0 literal and preserves helper-native FFFE lookup"
+    );
+
+    Fixture failed_second;
+    StoryPathHarness failed_second_paths{failed_second};
+    failed_second.roles[1].flags |= 0x00040000U;
+    failed_second.roles[2].guid = 0x1234U;
+    failed_second.roles[2].flags = 0x00040000U;
+    prime_slot(failed_second, 0U, 1U, 0U);
+    prime_slot(failed_second, 1U, 2U, 8U);
+    prime_loaded_instruction(failed_second, OP_109_STEP_ROLES);
+    write_u16(failed_second.state.window, 2U, 2U);
+    write_u16(failed_second.state.window, 4U, 0x00F8U);
+    write_u16(failed_second.state.window, 6U, 0x1234U);
+    failed_second.state.previous_opcode = 0x66U;
+    const auto failed_second_result = failed_second.step();
+    test.expect_true(
+        failed_second_result.status ==
+                LegacyWorldStoryVmStatus::role_path_failed &&
+            failed_second_result.direct_audio_service_count == 0U &&
+            failed_second.context.instruction_offset == 0U &&
+            failed_second.state.previous_opcode == 0x66U &&
+            (failed_second.roles[1].flags & 0x40000000U) != 0U &&
+            (failed_second.roles[2].flags & 0x40000000U) == 0U,
+        "opcode 109 preserves earlier role side effects when a later helper fails"
+    );
+
+    Fixture missing_count;
+    missing_count.context.talk_data_offset = 0x1111U;
+    missing_count.context.instruction_offset = 0x7FFEU;
+    missing_count.state.loaded_file_number = 1U;
+    missing_count.state.loaded_data_offset = 0x1111U;
+    missing_count.state.window_loaded = true;
+    missing_count.state.previous_opcode = 0x66U;
+    write_u16(missing_count.state.window, 0x7FFEU, OP_109_STEP_ROLES);
+    const auto missing_count_result = missing_count.step();
+
+    Fixture missing_second;
+    StoryPathHarness missing_second_paths{missing_second};
+    prime_slot(missing_second, 0U, 1U, 0xFFU);
+    missing_second.roles[1].path_wait_remaining = 7U;
+    missing_second.roles[1].flags = 0x44000000U;
+    missing_second.context.talk_data_offset = 0x1111U;
+    missing_second.context.instruction_offset = 0x7FFAU;
+    missing_second.state.loaded_file_number = 1U;
+    missing_second.state.loaded_data_offset = 0x1111U;
+    missing_second.state.window_loaded = true;
+    missing_second.state.previous_opcode = 0x66U;
+    write_u16(missing_second.state.window, 0x7FFAU, OP_109_STEP_ROLES);
+    write_u16(missing_second.state.window, 0x7FFCU, 2U);
+    write_u16(missing_second.state.window, 0x7FFEU, 0x00F8U);
+    const auto missing_second_result = missing_second.step();
+
+    test.expect_true(
+        missing_count_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_count.context.instruction_offset == 0x7FFEU &&
+            missing_count.state.previous_opcode == 0x66U &&
+            missing_count_result.direct_audio_service_count == 0U &&
+            missing_second_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_second.context.instruction_offset == 0x7FFAU &&
+            missing_second.state.previous_opcode == 0x66U &&
+            missing_second_result.direct_audio_service_count == 0U &&
+            missing_second.roles[1].path_wait_remaining == 0U &&
+            missing_second.roles[1].flags == 0U,
+        "opcode 109 reads its list incrementally and retains prior helper effects"
+    );
+
+    Fixture zero_tail;
+    zero_tail.context.talk_data_offset = 0x1111U;
+    zero_tail.context.instruction_offset = 0x7FFCU;
+    zero_tail.state.loaded_file_number = 1U;
+    zero_tail.state.loaded_data_offset = 0x1111U;
+    zero_tail.state.window_loaded = true;
+    write_u16(zero_tail.state.window, 0x7FFCU, OP_109_STEP_ROLES);
+    write_u16(zero_tail.state.window, 0x7FFEU, 0U);
+    const auto zero_tail_result = zero_tail.step();
+
+    Fixture one_tail;
+    one_tail.context.talk_data_offset = 0x1111U;
+    one_tail.context.instruction_offset = 0x7FFAU;
+    one_tail.state.loaded_file_number = 1U;
+    one_tail.state.loaded_data_offset = 0x1111U;
+    one_tail.state.window_loaded = true;
+    write_u16(one_tail.state.window, 0x7FFAU, OP_109_STEP_ROLES);
+    write_u16(one_tail.state.window, 0x7FFCU, 1U);
+    write_u16(one_tail.state.window, 0x7FFEU, 0x7777U);
+    const auto one_tail_result = one_tail.step();
+
+    test.expect_true(
+        zero_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            zero_tail.context.instruction_offset == 0x8000U &&
+            zero_tail.state.previous_opcode == OP_109_STEP_ROLES &&
+            zero_tail_result.direct_audio_service_count == 1U &&
+            one_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            one_tail.context.instruction_offset == 0x8000U &&
+            one_tail.state.previous_opcode == OP_109_STEP_ROLES &&
+            one_tail_result.direct_audio_service_count == 1U,
+        "opcode 109 accepts zero count and exact-tail counted lists"
+    );
+
+    const auto prime_maximum_list = [](Fixture& fixture, const u16 count) {
+        prime_loaded_instruction(fixture, OP_109_STEP_ROLES);
+        write_u16(fixture.state.window, 2U, count);
+        for (std::size_t offset = 4U; offset < fixture.state.window.size();
+             offset += 2U) {
+            write_u16(fixture.state.window, offset, 0x7777U);
+        }
+        fixture.state.previous_opcode = 0x66U;
+    };
+
+    Fixture wrapped;
+    prime_maximum_list(wrapped, 0x3FFEU);
+    const auto wrapped_result = wrapped.step();
+
+    Fixture beyond_window;
+    prime_maximum_list(beyond_window, 0x3FFFU);
+    const auto beyond_window_result = beyond_window.step();
+
+    test.expect_true(
+        wrapped_result.status == LegacyWorldStoryVmStatus::yielded &&
+            wrapped.context.instruction_offset == 0x8000U &&
+            wrapped.state.previous_opcode == OP_109_STEP_ROLES &&
+            wrapped_result.direct_audio_service_count == 1U &&
+            beyond_window_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            beyond_window.context.instruction_offset == 0U &&
+            beyond_window.state.previous_opcode == 0x66U &&
+            beyond_window_result.direct_audio_service_count == 0U,
+        "opcode 109 preserves the full-window IP and stops at the first missing selector"
     );
 }
 
@@ -17249,13 +17471,40 @@ void test_real_jump_if_role_path_prepared_record(
     context.talk_data_offset = 0x000072A6U;
     std::array<LegacyWorldRoleRecord, 2U> roles{};
     roles[1].guid = 0x00DAU;
-    roles[1].flags = 0x40000000U;
+    roles[1].flags = 0x40040000U;
     std::array<
         LegacyWorldObjectSlot,
         openswd3::world_map::kLegacyWorldActiveObjectSlotCount>
         active_object_slots{};
     write_u16(active_object_slots[0].bytes, 0U, 1U);
+    write_u16(active_object_slots[0].bytes, 2U, 0U);
     active_object_slots[0].bytes[0x1BU] = 2U;
+    active_object_slots[0].bytes[0x1CU] = 0U;
+    std::vector<u8> surface(4U, 0U);
+    openswd3::world_map::LegacyRoleSpatialIndex spatial;
+    openswd3::world_map::LegacyWorldPathNodePool node_pool;
+    openswd3::world_map::LegacyWorldMovementRuntimeState movement{};
+    openswd3::world_map::LegacyWorldCameraRect camera{};
+    u8 scene_render_flags{};
+    openswd3::world_map::LegacyWorldStoryPathRuntime story_paths{
+        .roles = roles,
+        .active_object_slots = active_object_slots,
+        .spatial_index = &spatial,
+        .role_surface =
+            {
+                .map_width = 1U,
+                .surface_grid = surface,
+            },
+        .node_pool = &node_pool,
+        .movement = &movement,
+        .camera = &camera,
+        .selected_arrival_bytes = {},
+        .selected_role_index = 0U,
+        .map_height = 1U,
+        .scene_render_flags = &scene_render_flags,
+    };
+    openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
+    runtime.story_paths = &story_paths;
     openswd3::story_scene::LegacyDialogRuntimeState dialogs;
     openswd3::world_map::LegacyWorldDialogRuntimeState dialog_resources;
     std::array<u8, 16U> first_name{};
@@ -17272,7 +17521,7 @@ void test_real_jump_if_role_path_prepared_record(
         dialog_resources,
         first_name,
         second_name,
-        {},
+        runtime,
         ports
     );
     test.expect_true(
@@ -17281,12 +17530,14 @@ void test_real_jump_if_role_path_prepared_record(
                 openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
             read_u16(instruction, 0U) == OP_17_JUMP_IF_ROLE_PATH_PREPARED &&
             read_u32(instruction, 4U) == 0x00007296U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == 109U && result.executed_instruction_count == 2U &&
-            result.direct_audio_service_count == 1U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_109_STEP_ROLES &&
+            result.executed_instruction_count == 2U &&
+            result.direct_audio_service_count == 2U &&
             context.talk_data_offset == 0x00007296U &&
-            state.previous_opcode == OP_17_JUMP_IF_ROLE_PATH_PREPARED,
-        "real opcode 17 jumps within TALK2 and same-call fetches opcode 109"
+            context.instruction_offset == 8U &&
+            state.previous_opcode == OP_109_STEP_ROLES,
+        "real opcode 17 jumps within TALK2 and executes opcode 109"
     );
 }
 
@@ -20109,6 +20360,59 @@ void test_real_wait_role_action_index_records(
     }
 }
 
+void test_real_step_role_list_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        std::size_t length;
+        u16 count;
+    };
+    constexpr std::array<RealCase, 2U> cases{
+        RealCase{"TALK1.DAT", 0x0001BF5B, 6U, 1U},
+        RealCase{"TALK2.DAT", 0x0000F92D, 40U, 18U},
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::vector<u8> record(real_case.length);
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset =
+            static_cast<u16>(fixture.state.window.size() - real_case.length);
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        std::ranges::copy(
+            record,
+            fixture.state.window.begin() + fixture.context.instruction_offset
+        );
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read && read_u16(record, 0U) == OP_109_STEP_ROLES &&
+                read_u16(record, 2U) == real_case.count &&
+                real_case.length == 4U + 2U * real_case.count &&
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.previous_opcode == OP_109_STEP_ROLES,
+            "real opcode 109 consumes counted role lists and yields at the exact tail"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -22164,6 +22468,7 @@ int main(const int argument_count, char** arguments) {
     test_shared_role_spatial_group_protocol(test);
     test_wait_for_role_action_index_threshold(test);
     test_set_next_dialog_anchor_protocol(test);
+    test_step_role_list_protocol(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);
@@ -22313,6 +22618,7 @@ int main(const int argument_count, char** arguments) {
         test_real_clear_text_control_bit27_records(test, root);
         test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_wait_role_action_index_records(test, root);
+        test_real_step_role_list_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
