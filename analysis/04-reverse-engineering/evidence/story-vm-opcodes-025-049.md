@@ -19,7 +19,7 @@
 | `38/39` | 清/置角色状态范围 | 38 执行 `& 0x00007FFF`，39 对状态 OR `0x8000` 并清两个 pending 字段 |
 | `40` | 重定位角色并完成路径 | tile 坐标按 u16 左移四位，依次调用调度与完成 helper，再清 bit31 |
 | `41` | 按共享 selector 重载目标 | `u32` 表以 `FF00FF00` 结束；`>` 回退 0，`==count` 会选择 sentinel |
-| `42/43` | 设置/清除全局 lock 位 | 42 还把受控角色 action `+0x08` 归零并尝试刷新；43 只清位 |
+| `42/43` | 设置/清除共享 interaction lock | 42 还把受控角色 action `+0x08` 归零并尝试刷新；43 只清位 |
 | `44` | 修改 action `+0x48` | 原诊断名 `ChangSpd`；同时把 action `+0x44` 归零 |
 | `45` | 修改请求动作 id | 写 action `+0x00`；若下一条仍操作同一角色可推迟刷新 |
 | `46..49` | 恢复 pending action 字段 | 全部恢复、单独恢复 `+0x20`、单独恢复 `+0x3C`、写 `+0x48=FFFF` |
@@ -121,6 +121,16 @@ selector = 0
 - `selector == count` 把终止值本身当成目标，重载到 `0xFF00FF00`。
 
 全分支候选图里的 193 条非入队/文件外边全部来自这一相等边。没有证据表明正常游戏状态必然触发它，但 1:1 初步还原不得把 `jbe` 修成严格小于。
+
+## opcodes 42/43：dialog counter 与 interaction lock 是同一 owner
+
+共享入口先比较 effective opcode 42；相等时按完整 u32 对 `dword_4A9920` OR `0x00008000`，再把受控角色 action `+0x08` 的完整 dword 写零并调用一次 `sub_4321E0`。refresh 返回零只进入 `nullsub_1` 的 `Act Err(Talk:Rmlock)` 诊断，然后仍按两字节推进并同调用继续；已经写入的 lock 与 base variant 不回滚。
+
+不等于42的共享分支即opcode43，只对完整 u32 AND `0xFFFF7FFF`，不访问角色且不刷新 action。两者各自都在窗口`0x7FFE`完整记录上先完成副作用、推进和previous发布，下一次fetch才失败。
+
+`dword_4A9920`低15位同时承载dialog counter，bit15承载世界交互锁。原版map-event赋值、鼠标方向门、世界移动门、dialog生命周期及42/43全都读写同一进程全局。SDL runtime现以`world_dialogs_.close.flagged_dialog_counter`为canonical：VM直接使用，interaction map-event写/方向门借用同一指针，移动门也读取同一字段；模块单元测试才使用局部fallback，不维护镜像副本。
+
+资产中opcode42/43分别有84/62条记录和84/62个entry probes，全部为两字节raw `0x002A/0x002B`；文件分布分别为68/15/1/0与52/8/2/0。真实回放及typed session/action port边界见 [`story-vm-interaction-lock-00428d18.md`](story-vm-interaction-lock-00428d18.md)。
 
 ## opcode 44 与 46–49：查找失败后仍计算数组前地址
 

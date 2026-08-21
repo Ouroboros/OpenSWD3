@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v274
+版本：v275
 
 最后更新：2026-08-20
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428D18` 共享 handler（opcodes 42/43）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00428DB8` handler（opcode 44）
 
 ## 0. 执行约定
 
@@ -1646,6 +1646,21 @@ B7 P0 有限收口完成。
     通过；生成器`py_compile`及双重生成幂等通过。Windows依v274留到P3，未启动游戏EXE。现代显式
     opcode为77；workpack当前32/146，即`5 assembly_exact + 27 platform_adapted + 114 pending_audit`。
 
+- 剧情VM P2第三十三组`0x00428D18` / 共享opcodes42/43完成独立闭环。两者均为两字节无operand
+    记录：42对完整u32共享值置bit15、把受控角色action `+0x08`清零并恰好刷新一次，refresh零返回
+    只保留诊断并继续；43只清bit15，不访问角色或刷新action。确认原版`dword_4A9920`的low15 dialog
+    counter与bit15 interaction lock是同一owner，修复modern曾拆分的真实集成缺口：剧情VM、map-event
+    写、鼠标方向门及世界移动门现均绑定`world_dialogs_.close.flagged_dialog_counter`，模块测试保留无镜像
+    fallback。资产确认42/43分别84/62条唯一记录及84/62个entry probe，全部raw `0x002A/0x002B`、
+    长度2，文件分布68/15/1/0与52/8/2/0；`TALK1.DAT@0x000046EE/@0x0000A164`真实回放通过。
+    两组四raw alias、完整u32位保持、update失败顺序、42→43组合、各自受控owner边界与`0x7FFE`窗口尾、
+    previous及same-call continuation均通过；world-interaction shared-owner定向回归通过。修复3个aggregate
+    initializer warning后，联合定向4/4及最终VM 3/3均以stderr空通过；Linux core 186/186、Linux app
+    192/192均以exit 0通过。生成器`py_compile`及双重生成幂等通过，workpack hash为
+    `8d32ce5f29ffa215143643e8fed378407beffd7b470459f40e61938a2a03d0b8`。Windows依v275留到P3，未启动
+    游戏EXE。现代显式opcode仍为77；workpack当前33/146，即
+    `5 assembly_exact + 28 platform_adapted + 113 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428D18` 的共享opcodes42/43 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00428DB8` 的opcode44 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

@@ -257,6 +257,7 @@ void update_action(
     const std::span<LegacyInputRecord> input_records,
     LegacyWorldTalkContext& talk_context,
     LegacyWorldInteractionState& state,
+    u32& global_lock,
     LegacyWorldInteractionPorts& ports,
     const bool map_event_allowed
 ) {
@@ -323,7 +324,7 @@ void update_action(
     player.action.wait_remaining = 0U;
     update_action(result, player.action, ports);
 
-    state.global_lock = kMapEventLock;
+    global_lock = kMapEventLock;
     result.source = LegacyWorldInteractionSource::map_event;
     return true;
 }
@@ -353,7 +354,8 @@ void synthesize_mouse_direction(
     const LegacyWorldCameraRect& camera,
     const LegacyWorldRoleRecord& player,
     const std::span<LegacyInputRecord> input_records,
-    LegacyWorldInteractionState& state
+    LegacyWorldInteractionState& state,
+    const u32 global_lock
 ) noexcept {
     const u32 player_x =
         wrapping_scaled_add(player.world_x, player.action.field_2c) -
@@ -377,7 +379,7 @@ void synthesize_mouse_direction(
     const u32 multiplicity =
         input_records[kMouseRightInputIndex].rapid_press_multiplicity;
     if (((player.world_x | player.world_y) & 0x0FU) == 0U &&
-        state.global_lock == 0U && multiplicity != 0U &&
+        global_lock == 0U && multiplicity != 0U &&
         std::bit_cast<i32>(facing.distance) >= 16) {
         synthesize_mouse_direction(
             facing.direction, multiplicity, input_records
@@ -424,9 +426,12 @@ LegacyWorldInteractionResult coordinate_legacy_world_interaction(
     const std::span<LegacyInputRecord> input_records,
     LegacyWorldTalkContext& talk_context,
     LegacyWorldInteractionState& state,
-    LegacyWorldInteractionPorts& ports
+    LegacyWorldInteractionPorts& ports,
+    u32* const shared_global_lock
 ) {
     LegacyWorldInteractionResult result;
+    u32& global_lock =
+        shared_global_lock != nullptr ? *shared_global_lock : state.global_lock;
     const bool player_available = request.player_index < roles.size();
     if (!player_available &&
         talk_context.source_guid == kLegacyWorldTalkIdleSource) {
@@ -483,6 +488,7 @@ LegacyWorldInteractionResult coordinate_legacy_world_interaction(
             input_records,
             talk_context,
             state,
+            global_lock,
             ports,
             map_event_allowed
         )) {
@@ -499,7 +505,8 @@ LegacyWorldInteractionResult coordinate_legacy_world_interaction(
             live_camera,
             roles[request.player_index],
             input_records,
-            state
+            state,
+            global_lock
         )) {
         return result;
     }

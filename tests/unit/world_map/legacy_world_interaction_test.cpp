@@ -532,6 +532,7 @@ void test_map_event_activation(openswd3::test::Context& test) {
     LegacyWorldInteractionState state;
     RecordingPorts ports;
     ports.map_flag = 2U;
+    u32 shared_global_lock = 0x1234U;
 
     const auto result = coordinate_legacy_world_interaction(
         LegacyWorldInteractionRequest{
@@ -548,7 +549,8 @@ void test_map_event_activation(openswd3::test::Context& test) {
         inputs,
         talk,
         state,
-        ports
+        ports,
+        &shared_global_lock
     );
 
     test.expect_equal(
@@ -567,9 +569,14 @@ void test_map_event_activation(openswd3::test::Context& test) {
         "enabled event selects cursor variant eleven"
     );
     test.expect_equal(
-        state.global_lock,
+        shared_global_lock,
         0x8000U,
-        "map event assigns, rather than ORs, global lock 8000"
+        "map event assigns, rather than ORs, the shared global lock"
+    );
+    test.expect_equal(
+        state.global_lock,
+        0U,
+        "shared global lock does not mirror into the fallback state owner"
     );
     test.expect_equal(
         talk.talk_data_offset, 0U, "map event clears Talk data offset"
@@ -740,6 +747,36 @@ void test_direction_synthesis_and_delayed_primary_copy(
     test.expect_true(
         result.delayed_primary_input_copied,
         "delayed primary bridge is reported"
+    );
+
+    std::array<LegacyInputRecord, 20U> blocked_inputs{};
+    blocked_inputs[14U] = LegacyInputRecord{2U, 3U, 2U, 1U};
+    auto blocked_talk = idle_talk();
+    LegacyWorldInteractionState blocked_state;
+    blocked_state.cursor_variant = kLegacyWorldDefaultCursorVariant;
+    u32 shared_global_lock = 0x8000U;
+    static_cast<void>(coordinate_legacy_world_interaction(
+        LegacyWorldInteractionRequest{
+            .player_index = 0U,
+            .mouse_x = 32U,
+            .mouse_y = 0U,
+            .map_width = 8U,
+            .camera = {},
+            .choice_hotspots = {},
+        },
+        roles,
+        {},
+        surface,
+        blocked_inputs,
+        blocked_talk,
+        blocked_state,
+        ports,
+        &shared_global_lock
+    ));
+    test.expect_equal(
+        blocked_inputs[4U].rapid_press_multiplicity,
+        0U,
+        "shared global lock blocks synthesized direction input"
     );
 }
 
@@ -992,7 +1029,7 @@ void test_safe_span_boundaries(openswd3::test::Context& test) {
         LegacyWorldInteractionState state;
         RecordingPorts ports;
         const auto result = coordinate_legacy_world_interaction(
-            LegacyWorldInteractionRequest{.player_index = 0U},
+            LegacyWorldInteractionRequest{},
             roles,
             {},
             {},
@@ -1017,7 +1054,7 @@ void test_safe_span_boundaries(openswd3::test::Context& test) {
         RecordingPorts ports;
         ports.flag_9 = 1U;
         const auto result = coordinate_legacy_world_interaction(
-            LegacyWorldInteractionRequest{.player_index = 0U},
+            LegacyWorldInteractionRequest{},
             roles,
             {},
             {},
@@ -1043,18 +1080,10 @@ void test_safe_span_boundaries(openswd3::test::Context& test) {
         const std::array hotspots{
             LegacyWorldInteractionHotspot{0U, 0U, 2U, 2U},
         };
+        LegacyWorldInteractionRequest request{};
+        request.choice_hotspots = hotspots;
         const auto result = coordinate_legacy_world_interaction(
-            LegacyWorldInteractionRequest{
-                .player_index = 0U,
-                .choice_hotspots = hotspots,
-            },
-            roles,
-            {},
-            {},
-            inputs,
-            talk,
-            state,
-            ports
+            request, roles, {}, {}, inputs, talk, state, ports
         );
         test.expect_true(
             result.status ==

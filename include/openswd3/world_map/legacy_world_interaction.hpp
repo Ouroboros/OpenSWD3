@@ -127,7 +127,8 @@ struct LegacyWorldInteractionResult {
     std::span<input_time_rng::LegacyInputRecord> input_records,
     LegacyWorldTalkContext& talk_context,
     LegacyWorldInteractionState& state,
-    LegacyWorldInteractionPorts& ports
+    LegacyWorldInteractionPorts& ports,
+    compat::u32* shared_global_lock = nullptr
 );
 
 }  // namespace openswd3::world_map

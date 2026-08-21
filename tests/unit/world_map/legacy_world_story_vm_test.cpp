@@ -65,6 +65,8 @@ using openswd3::world_map::OP_38_CLEAR_ROLE_FROM_SCENE;
 using openswd3::world_map::OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS;
 using openswd3::world_map::OP_40_RELOCATE_ROLE_AND_COMPLETE_PATH;
 using openswd3::world_map::OP_41_RELOAD_INDEXED_TARGET;
+using openswd3::world_map::OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT;
+using openswd3::world_map::OP_43_CLEAR_INTERACTION_LOCK;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -195,7 +197,7 @@ public:
         ++action_update_count;
         story_protocol_events.push_back(4U);
         action.field_4a = static_cast<u16>(action.action_id);
-        return 1U;
+        return action_update_result;
     }
 
     void release_role_path_payload(const u32 role_index) noexcept override {
@@ -291,6 +293,7 @@ public:
     u32 last_data_file_number{};
     u32 last_data_offset{};
     u32 action_update_count{};
+    u32 action_update_result{1U};
     u32 framebuffer_clear_count{};
     u32 framebuffer_present_count{};
     u32 video_begin_count{};
@@ -6303,6 +6306,207 @@ void test_reload_indexed_target_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_interaction_lock_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> set_aliases{
+        OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT,
+        static_cast<u16>(
+            OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT | 0x4000U
+        ),
+        static_cast<u16>(
+            OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT | 0x8000U
+        ),
+        static_cast<u16>(
+            OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT | 0xC000U
+        ),
+    };
+    for (const u16 raw_word : set_aliases) {
+        Fixture fixture;
+        fixture.dialogs.close.flagged_dialog_counter = 0xCAFE0005U;
+        fixture.roles[0].action.base_variant = 7U;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, OP_1025);
+        fixture.state.previous_opcode = 0x55U;
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.action_update_count == 1U &&
+                result.action_update_failure_count == 0U &&
+                fixture.ports.action_update_count == 1U &&
+                fixture.dialogs.close.flagged_dialog_counter == 0xCAFE8005U &&
+                fixture.roles[0].action.base_variant == 0U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode ==
+                    OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 42 aliases set shared lock, reset base variant, and continue"
+        );
+    }
+
+    Fixture update_failure;
+    update_failure.dialogs.close.flagged_dialog_counter = 0x12340002U;
+    update_failure.roles[0].action.base_variant = 9U;
+    update_failure.ports.action_update_result = 0U;
+    prime_loaded_instruction(
+        update_failure, OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT
+    );
+    write_u16(update_failure.state.window, 2U, OP_1025);
+    const auto update_failure_result = update_failure.step();
+    test.expect_true(
+        update_failure_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            update_failure_result.action_update_count == 1U &&
+            update_failure_result.action_update_failure_count == 1U &&
+            update_failure.dialogs.close.flagged_dialog_counter ==
+                0x12348002U &&
+            update_failure.roles[0].action.base_variant == 0U &&
+            update_failure.context.instruction_offset == 2U &&
+            update_failure.state.previous_opcode ==
+                OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT,
+        "opcode 42 action-update failure is diagnostic-only after state writes"
+    );
+
+    constexpr std::array<u16, 4U> clear_aliases{
+        OP_43_CLEAR_INTERACTION_LOCK,
+        static_cast<u16>(OP_43_CLEAR_INTERACTION_LOCK | 0x4000U),
+        static_cast<u16>(OP_43_CLEAR_INTERACTION_LOCK | 0x8000U),
+        static_cast<u16>(OP_43_CLEAR_INTERACTION_LOCK | 0xC000U),
+    };
+    for (const u16 raw_word : clear_aliases) {
+        Fixture fixture;
+        fixture.dialogs.close.flagged_dialog_counter = 0xCAFE8005U;
+        fixture.roles[0].action.base_variant = 7U;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.executed_instruction_count == 2U &&
+                result.action_update_count == 0U &&
+                fixture.ports.action_update_count == 0U &&
+                fixture.dialogs.close.flagged_dialog_counter == 0xCAFE0005U &&
+                fixture.roles[0].action.base_variant == 7U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode == OP_43_CLEAR_INTERACTION_LOCK &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 43 aliases clear only shared interaction-lock bit fifteen"
+        );
+    }
+
+    Fixture chained;
+    chained.dialogs.close.flagged_dialog_counter = 0x12340003U;
+    chained.roles[0].action.base_variant = 11U;
+    prime_loaded_instruction(
+        chained, OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT
+    );
+    write_u16(chained.state.window, 2U, OP_43_CLEAR_INTERACTION_LOCK);
+    write_u16(chained.state.window, 4U, OP_1025);
+    const auto chained_result = chained.step();
+    test.expect_true(
+        chained_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            chained_result.executed_instruction_count == 3U &&
+            chained.dialogs.close.flagged_dialog_counter == 0x12340003U &&
+            chained.roles[0].action.base_variant == 0U &&
+            chained.ports.action_update_count == 1U &&
+            chained.context.instruction_offset == 4U &&
+            chained.state.previous_opcode == OP_43_CLEAR_INTERACTION_LOCK,
+        "opcodes 42 and 43 share one lock owner across same-call continuation"
+    );
+
+    Fixture invalid_controlled;
+    invalid_controlled.dialogs.close.flagged_dialog_counter = 0x1234U;
+    prime_loaded_instruction(
+        invalid_controlled, OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT
+    );
+    invalid_controlled.state.previous_opcode = 0x55U;
+    const auto invalid_controlled_result = invalid_controlled.step(
+        0, 0, static_cast<u32>(invalid_controlled.roles.size())
+    );
+    test.expect_true(
+        invalid_controlled_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            invalid_controlled_result.opcode == 0U &&
+            invalid_controlled_result.executed_instruction_count == 0U &&
+            invalid_controlled.dialogs.close.flagged_dialog_counter ==
+                0x1234U &&
+            invalid_controlled.context.instruction_offset == 0U &&
+            invalid_controlled.state.previous_opcode == 0x55U,
+        "opcode 42 invalid controlled owner stops at the VM session boundary"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.dialogs.close.flagged_dialog_counter = 0x1234U;
+    exact_tail.roles[0].action.base_variant = 7U;
+    write_u16(
+        exact_tail.state.window,
+        0x7FFEU,
+        OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT
+    );
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.dialogs.close.flagged_dialog_counter == 0x9234U &&
+            exact_tail.roles[0].action.base_variant == 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT,
+        "opcode 42 needs no following byte before its effects and previous publish"
+    );
+
+    Fixture clear_invalid_controlled;
+    clear_invalid_controlled.dialogs.close.flagged_dialog_counter = 0xCAFE8005U;
+    prime_loaded_instruction(
+        clear_invalid_controlled, OP_43_CLEAR_INTERACTION_LOCK
+    );
+    clear_invalid_controlled.state.previous_opcode = 0x55U;
+    const auto clear_invalid_controlled_result = clear_invalid_controlled.step(
+        0, 0, static_cast<u32>(clear_invalid_controlled.roles.size())
+    );
+    test.expect_true(
+        clear_invalid_controlled_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            clear_invalid_controlled_result.opcode == 0U &&
+            clear_invalid_controlled_result.executed_instruction_count == 0U &&
+            clear_invalid_controlled.dialogs.close.flagged_dialog_counter ==
+                0xCAFE8005U &&
+            clear_invalid_controlled.context.instruction_offset == 0U &&
+            clear_invalid_controlled.state.previous_opcode == 0x55U,
+        "opcode 43 invalid controlled owner stops at the VM session boundary"
+    );
+
+    Fixture clear_exact_tail;
+    clear_exact_tail.context.instruction_offset = 0x7FFEU;
+    clear_exact_tail.context.talk_data_offset = 0x1111U;
+    clear_exact_tail.state.loaded_file_number = 1U;
+    clear_exact_tail.state.loaded_data_offset = 0x1111U;
+    clear_exact_tail.state.window_loaded = true;
+    clear_exact_tail.dialogs.close.flagged_dialog_counter = 0xCAFE8005U;
+    write_u16(
+        clear_exact_tail.state.window, 0x7FFEU, OP_43_CLEAR_INTERACTION_LOCK
+    );
+    const auto clear_exact_tail_result = clear_exact_tail.step();
+    test.expect_true(
+        clear_exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            clear_exact_tail_result.executed_instruction_count == 1U &&
+            clear_exact_tail_result.action_update_count == 0U &&
+            clear_exact_tail.dialogs.close.flagged_dialog_counter ==
+                0xCAFE0005U &&
+            clear_exact_tail.context.instruction_offset == 0x8000U &&
+            clear_exact_tail.state.previous_opcode ==
+                OP_43_CLEAR_INTERACTION_LOCK,
+        "opcode 43 needs no following byte before clear and previous publish"
+    );
+}
+
 void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::world_map::LegacyPictureActionLists picture_actions;
@@ -7694,6 +7898,63 @@ void test_real_reload_indexed_target_record(
     );
 }
 
+void test_real_interaction_lock_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x000046EE);
+    std::array<u8, 2U> set_instruction{};
+    input.read(
+        reinterpret_cast<char*>(set_instruction.data()),
+        static_cast<std::streamsize>(set_instruction.size())
+    );
+    input.seekg(0x0000A164);
+    std::array<u8, 2U> clear_instruction{};
+    input.read(
+        reinterpret_cast<char*>(clear_instruction.data()),
+        static_cast<std::streamsize>(clear_instruction.size())
+    );
+    const bool instructions_read = static_cast<bool>(input);
+
+    Fixture set_fixture;
+    set_fixture.dialogs.close.flagged_dialog_counter = 0x12340005U;
+    set_fixture.roles[0].action.base_variant = 7U;
+    prime_loaded_instruction(
+        set_fixture, OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT
+    );
+    std::ranges::copy(set_instruction, set_fixture.state.window.begin());
+    write_u16(set_fixture.state.window, 2U, OP_1025);
+    const auto set_result = set_fixture.step();
+
+    Fixture clear_fixture;
+    clear_fixture.dialogs.close.flagged_dialog_counter = 0x12348005U;
+    prime_loaded_instruction(clear_fixture, OP_43_CLEAR_INTERACTION_LOCK);
+    std::ranges::copy(clear_instruction, clear_fixture.state.window.begin());
+    write_u16(clear_fixture.state.window, 2U, OP_1025);
+    const auto clear_result = clear_fixture.step();
+
+    test.expect_true(
+        instructions_read &&
+            read_u16(set_instruction, 0U) ==
+                OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT &&
+            read_u16(clear_instruction, 0U) == OP_43_CLEAR_INTERACTION_LOCK &&
+            set_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            set_result.executed_instruction_count == 2U &&
+            set_fixture.dialogs.close.flagged_dialog_counter == 0x12348005U &&
+            set_fixture.roles[0].action.base_variant == 0U &&
+            set_fixture.ports.action_update_count == 1U &&
+            set_fixture.state.previous_opcode ==
+                OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT &&
+            clear_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            clear_result.executed_instruction_count == 2U &&
+            clear_fixture.dialogs.close.flagged_dialog_counter == 0x12340005U &&
+            clear_fixture.ports.action_update_count == 0U &&
+            clear_fixture.state.previous_opcode == OP_43_CLEAR_INTERACTION_LOCK,
+        "real opcodes 42 and 43 set and clear the shared interaction lock"
+    );
+}
+
 void test_real_set_role_flag_8000_and_clear_one_shots_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -9023,6 +9284,7 @@ int main(const int argument_count, char** arguments) {
     test_set_role_flag_8000_and_clear_one_shots_protocol(test);
     test_relocate_role_and_complete_path_protocol(test);
     test_reload_indexed_target_protocol(test);
+    test_interaction_lock_protocol(test);
     test_enqueue_primary_picture_action(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
@@ -9058,6 +9320,7 @@ int main(const int argument_count, char** arguments) {
         test_real_global_integer_records(test, root);
         test_real_relocate_role_and_complete_path_record(test, root);
         test_real_reload_indexed_target_record(test, root);
+        test_real_interaction_lock_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

@@ -2437,7 +2437,8 @@ public:
                 input_state_.records,
                 world_frame_state_.map_role_paths.talk_context,
                 world_interaction_state_,
-                ports
+                ports,
+                &world_dialogs_.close.flagged_dialog_counter
             );
 
         if (result.choice_chain_clear_requested) {
@@ -2686,7 +2687,7 @@ public:
                 openswd3::world_map::kLegacyWorldMenuRequest;
             return;
         }
-        if (world_interaction_state_.global_lock != 0U &&
+        if (world_dialogs_.close.flagged_dialog_counter != 0U &&
             !choice_chain_active) {
             return;
         }

@@ -2331,19 +2331,21 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 42U:
-            dialogs.close.flagged_dialog_counter |= 0x8000U;
+        case OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT:
+            dialogs.close.flagged_dialog_counter |= 0x00008000U;
             roles[controlled_role_index].action.base_variant = 0U;
             record_action_update(
                 result, roles[controlled_role_index].action, ports
             );
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
             continue;
-        case 43U:
-            dialogs.close.flagged_dialog_counter &= ~0x8000U;
+        case OP_43_CLEAR_INTERACTION_LOCK:
+            dialogs.close.flagged_dialog_counter &= 0xFFFF7FFFU;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
             continue;
 
         case OP_45: {

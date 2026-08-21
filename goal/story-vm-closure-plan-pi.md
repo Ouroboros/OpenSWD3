@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前共享 handler `0x00428D18`（opcodes 42/43）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x00428DB8`（opcode 44）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -69,7 +69,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至126行。前三十二行已独立
+值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至126行。前三十三行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -78,9 +78,10 @@ opcode25/26全局bit set/clear、opcode27世界session同步重载、opcode28角
 共享opcodes29–33全局整数set/add/sub与无符号条件跳转、opcode34有界脚本时钟设置、
 opcode35脚本时钟低位字节条件跳转、opcode36脚本时钟相对快照条件跳转、opcode37脚本时钟快照、
 opcode38角色场景清除与MAPS fallback、opcode39角色bit15标记/surface清除/one-shot复位、
-opcode40角色重定位/路径完成/MAPS坐标fallback，以及opcode41共享selector索引目标并重载TALK窗口。
-当前为32/146，即`5 assembly_exact + 27 platform_adapted + 114 pending_audit`；下一行只审计
-`0x00428D18`的共享opcodes42/43 handler。
+opcode40角色重定位/路径完成/MAPS坐标fallback、opcode41共享selector索引目标并重载TALK窗口，
+以及共享opcodes42/43设置/清除dialog counter共用的interaction lock并由42重置受控角色base variant。
+当前为33/146，即`5 assembly_exact + 28 platform_adapted + 113 pending_audit`；下一行只审计
+`0x00428DB8`的opcode44 handler。
 
 ### P2 · 按 handler 组逆向、实现和验证
 
