@@ -1121,15 +1121,13 @@ legacy_x87_interpolation_step(const i32 delta, const u32 duration) noexcept {
     );
 }
 
-[[nodiscard]] constexpr i16 legacy_moving_pixel_coordinate(
-    const u16 tile_coordinate
-) noexcept {
+[[nodiscard]] constexpr i16
+legacy_moving_pixel_coordinate(const u16 tile_coordinate) noexcept {
     return std::bit_cast<i16>(static_cast<u16>(tile_coordinate << 4U));
 }
 
-[[nodiscard]] constexpr i32 legacy_moving_squared_distance(
-    const i32 delta_x, const i32 delta_y
-) noexcept {
+[[nodiscard]] constexpr i32
+legacy_moving_squared_distance(const i32 delta_x, const i32 delta_y) noexcept {
     const u32 x_bits = std::bit_cast<u32>(delta_x);
     const u32 y_bits = std::bit_cast<u32>(delta_y);
     return std::bit_cast<i32>(x_bits * x_bits + y_bits * y_bits);
@@ -3917,16 +3915,14 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            node.start_x = legacy_moving_pixel_coordinate(
-                read_u16(state.window, ip + 6U)
-            );
+            node.start_x =
+                legacy_moving_pixel_coordinate(read_u16(state.window, ip + 6U));
             if (!has_bytes(state.window, ip, 10U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            node.start_y = legacy_moving_pixel_coordinate(
-                read_u16(state.window, ip + 8U)
-            );
+            node.start_y =
+                legacy_moving_pixel_coordinate(read_u16(state.window, ip + 8U));
             if (!has_bytes(state.window, ip, 12U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
@@ -3945,21 +3941,18 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            const i16 movement = std::bit_cast<i16>(
-                read_u16(state.window, ip + 14U)
-            );
+            const i16 movement =
+                std::bit_cast<i16>(read_u16(state.window, ip + 14U));
             const i32 delta_x = static_cast<i32>(node.target_x) -
                 static_cast<i32>(node.start_x);
             const i32 delta_y = static_cast<i32>(node.target_y) -
                 static_cast<i32>(node.start_y);
             const i32 squared_distance =
                 legacy_moving_squared_distance(delta_x, delta_y);
-            node.velocity_x = legacy_x87_moving_velocity(
-                delta_x, movement, squared_distance
-            );
-            node.velocity_y = legacy_x87_moving_velocity(
-                delta_y, movement, squared_distance
-            );
+            node.velocity_x =
+                legacy_x87_moving_velocity(delta_x, movement, squared_distance);
+            node.velocity_y =
+                legacy_x87_moving_velocity(delta_y, movement, squared_distance);
             node.position_x = static_cast<float>(node.start_x);
             node.position_y = static_cast<float>(node.start_y);
 
@@ -3975,6 +3968,13 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
         }
+
+        case OP_80_CLEAR_TEXT_CONTROL_BIT29:
+            state.text_control_flags &= 0xDFFFFFFFU;
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
+            continue;
 
         case 85U: {
             const std::size_t end = find_dialog_end(state.window, ip + 2U);

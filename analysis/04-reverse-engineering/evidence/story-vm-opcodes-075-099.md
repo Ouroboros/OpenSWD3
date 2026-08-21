@@ -9,7 +9,7 @@
 ## 操作摘要
 
 | opcode | 当前中性操作名 | 汇编行为摘要 |
-|---:|---|---|
+| ---: | --- | --- |
 | `75` | 标记角色 bit31 并协调占位 | lookup 未检查，`sub_42E5A0` 对角色和地图对象执行对齐/占位处理 |
 | `76` | 第一角色转向第二角色后标记 bit31 | 计算中心点距离和量化方向，刷新 action，再进入与 75 相同 helper |
 | `77/78` | 设置/清除角色 `+0x88` | 找到角色时固定推进；找不到时推进量读取未赋值的局部变量 |
@@ -79,6 +79,12 @@ step_y = dy * movement / distance
 坐标平方和先以32位整数完成，可能在`fsqrt`前溢出；起点和终点相同时还会直接执行x87零除。`malloc`也没有空值检查。这些边界不得由C++容器或向量库隐式改变。
 
 79现已独立闭环：现代0xB4节点与既有moving list生命周期接通，保留分配/初始化时点、7个staged operand、16/32位wrapping、x87中间精度、前插、+16、previous79和same-call；裸分配/指针改为typed容器。TALK线性目录为0条/0 probes，使用`asset_absence_verified`，不把2个候选CFG节点冒充真实记录。完整证据见[`story-vm-moving-action-enqueue-0042a0a6.md`](story-vm-moving-action-enqueue-0042a0a6.md)。
+
+## opcode 80：清文本控制 bit29
+
+80对32位`dword_4A1360`执行`&= 0xDFFFFFFF`，经共享尾写回，再+2、发布previous80并same-call继续。它没有operand、helper、callback或yield；其他31位必须保持。
+
+80现已独立闭环：四raw alias精确尾与`TALK1.DAT@0x00004520`真实记录通过；资产锁为2256条/2256 probes，分布`609/453/507/687`，全部raw `0x0050`、长度2。完整证据见[`story-vm-text-control-bit29-clear-0042a1ef.md`](story-vm-text-control-bit29-clear-0042a1ef.md)。
 
 ## opcode 81、82、86：角色头像 action 链
 

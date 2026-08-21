@@ -107,6 +107,7 @@ using openswd3::world_map::OP_76_TURN_AND_SUSPEND_STORY_ROLE;
 using openswd3::world_map::OP_77_SET_ROLE_WAIT_OVERRIDE;
 using openswd3::world_map::OP_78_CLEAR_ROLE_WAIT_OVERRIDE;
 using openswd3::world_map::OP_79_ENQUEUE_MOVING_ACTION;
+using openswd3::world_map::OP_80_CLEAR_TEXT_CONTROL_BIT29;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -11951,9 +11952,7 @@ void test_wait_for_frame_color_transition(openswd3::test::Context& test) {
         write_u16(
             exact_tail.state.window,
             0x7FFEU,
-            static_cast<u16>(
-                OP_74_CANCEL_FRAME_COLOR_TRANSITION | alias_mask
-            )
+            static_cast<u16>(OP_74_CANCEL_FRAME_COLOR_TRANSITION | alias_mask)
         );
 
         const auto exact_result = exact_tail.step();
@@ -12030,8 +12029,7 @@ void test_suspend_story_role_protocol(openswd3::test::Context& test) {
     for (const u16 alias_mask : alias_masks) {
         Fixture missing;
         prime_loaded_instruction(
-            missing,
-            static_cast<u16>(OP_75_SUSPEND_STORY_ROLE | alias_mask)
+            missing, static_cast<u16>(OP_75_SUSPEND_STORY_ROLE | alias_mask)
         );
         write_u16(missing.state.window, 2U, 0xFFF0U);
         missing.state.previous_opcode = 0x66U;
@@ -12138,9 +12136,7 @@ void test_turn_role_toward_role_lookup_boundaries(
         write_u16(
             missing_first.state.window,
             0x7FFCU,
-            static_cast<u16>(
-                OP_76_TURN_AND_SUSPEND_STORY_ROLE | alias_mask
-            )
+            static_cast<u16>(OP_76_TURN_AND_SUSPEND_STORY_ROLE | alias_mask)
         );
         write_u16(missing_first.state.window, 0x7FFEU, 0xFFFFU);
         const auto missing_first_result = missing_first.step();
@@ -12181,9 +12177,7 @@ void test_turn_role_toward_role_lookup_boundaries(
     second_literal.roles[1].action.base_variant = 7U;
     second_literal.roles[1].action.variant_delta = 6U;
     second_literal.roles[1].action.wait_remaining = 9U;
-    prime_loaded_instruction(
-        second_literal, OP_76_TURN_AND_SUSPEND_STORY_ROLE
-    );
+    prime_loaded_instruction(second_literal, OP_76_TURN_AND_SUSPEND_STORY_ROLE);
     write_u16(second_literal.state.window, 2U, 0xFFF0U);
     write_u16(second_literal.state.window, 4U, 0xFFF0U);
     second_literal.state.previous_opcode = 0x66U;
@@ -12215,9 +12209,7 @@ void test_turn_role_toward_role_owner_and_exact_tail(
     unavailable.roles[2].guid = 0x00F9U;
     unavailable.roles[2].world_x = 200U;
     unavailable.roles[2].world_y = 100U;
-    prime_loaded_instruction(
-        unavailable, OP_76_TURN_AND_SUSPEND_STORY_ROLE
-    );
+    prime_loaded_instruction(unavailable, OP_76_TURN_AND_SUSPEND_STORY_ROLE);
     write_u16(unavailable.state.window, 2U, 0x00F8U);
     write_u16(unavailable.state.window, 4U, 0x00F9U);
     unavailable.state.previous_opcode = 0x66U;
@@ -12413,8 +12405,7 @@ void test_set_role_head_sign_action(openswd3::test::Context& test) {
         Fixture alias;
         alias.roles[1].field_3c = 0x12345678U;
         prime_loaded_instruction(
-            alias,
-            static_cast<u16>(OP_72_CLEAR_ROLE_HEAD_SIGN | alias_mask)
+            alias, static_cast<u16>(OP_72_CLEAR_ROLE_HEAD_SIGN | alias_mask)
         );
         write_u16(alias.state.window, 2U, 0x00F8U);
         alias.state.previous_opcode = 0x66U;
@@ -12463,9 +12454,7 @@ void test_set_role_head_sign_action(openswd3::test::Context& test) {
     clear_truncated.state.window_loaded = true;
     clear_truncated.state.previous_opcode = 0x66U;
     write_u16(
-        clear_truncated.state.window,
-        0x7FFEU,
-        OP_72_CLEAR_ROLE_HEAD_SIGN
+        clear_truncated.state.window, 0x7FFEU, OP_72_CLEAR_ROLE_HEAD_SIGN
     );
     const auto clear_truncated_result = clear_truncated.step();
     test.expect_true(
@@ -12485,9 +12474,7 @@ void test_set_role_head_sign_action(openswd3::test::Context& test) {
     clear_exact_tail.state.previous_opcode = 0x66U;
     clear_exact_tail.roles[1].field_3c = 0x12345678U;
     write_u16(
-        clear_exact_tail.state.window,
-        0x7FFCU,
-        OP_72_CLEAR_ROLE_HEAD_SIGN
+        clear_exact_tail.state.window, 0x7FFCU, OP_72_CLEAR_ROLE_HEAD_SIGN
     );
     write_u16(clear_exact_tail.state.window, 0x7FFEU, 0x00F8U);
     const auto clear_exact_tail_result = clear_exact_tail.step();
@@ -12555,9 +12542,7 @@ void test_set_and_clear_role_wait_override(openswd3::test::Context& test) {
     );
 }
 
-void test_role_wait_override_lookup_boundaries(
-    openswd3::test::Context& test
-) {
+void test_role_wait_override_lookup_boundaries(openswd3::test::Context& test) {
     constexpr std::array<u16, 2U> opcodes{
         OP_77_SET_ROLE_WAIT_OVERRIDE,
         OP_78_CLEAR_ROLE_WAIT_OVERRIDE,
@@ -12605,9 +12590,7 @@ void test_role_wait_override_lookup_boundaries(
     payload_truncated.state.window_loaded = true;
     payload_truncated.state.previous_opcode = 0x66U;
     write_u16(
-        payload_truncated.state.window,
-        0x7FFCU,
-        OP_77_SET_ROLE_WAIT_OVERRIDE
+        payload_truncated.state.window, 0x7FFCU, OP_77_SET_ROLE_WAIT_OVERRIDE
     );
     write_u16(payload_truncated.state.window, 0x7FFEU, 0x00F8U);
 
@@ -12687,12 +12670,67 @@ void test_role_wait_override_exact_tails(openswd3::test::Context& test) {
     );
 }
 
+void test_clear_text_control_bit29(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture exact_tail;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFEU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        exact_tail.state.text_control_flags = 0xFFFFFFFFU;
+        write_u16(
+            exact_tail.state.window,
+            0x7FFEU,
+            static_cast<u16>(OP_80_CLEAR_TEXT_CONTROL_BIT29 | alias_mask)
+        );
+
+        const auto exact_result = exact_tail.step();
+
+        test.expect_true(
+            exact_result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                exact_result.opcode == OP_80_CLEAR_TEXT_CONTROL_BIT29 &&
+                exact_result.executed_instruction_count == 1U &&
+                exact_tail.state.text_control_flags == 0xDFFFFFFFU &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_80_CLEAR_TEXT_CONTROL_BIT29,
+            "opcode 80 aliases clear only text-control bit 29 before exact-tail next fetch failure"
+        );
+    }
+
+    Fixture ordinary;
+    ordinary.state.text_control_flags = 0xA0000000U;
+    auto script = std::span<u8>{ordinary.ports.initial_window};
+    write_u16(script, 0U, OP_80_CLEAR_TEXT_CONTROL_BIT29);
+    write_u16(script, 2U, OP_14_WAIT_ROLE_ACTION_STATUS);
+    write_u16(script, 4U, 0x00F8U);
+
+    const auto ordinary_result = ordinary.step();
+
+    test.expect_true(
+        ordinary_result.status == LegacyWorldStoryVmStatus::yielded &&
+            ordinary_result.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
+            ordinary_result.executed_instruction_count == 2U &&
+            ordinary.state.text_control_flags == 0x80000000U &&
+            ordinary.context.instruction_offset == 6U &&
+            ordinary.state.previous_opcode == OP_14_WAIT_ROLE_ACTION_STATUS,
+        "opcode 80 preserves other text-control bits and continues in the same call"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
-    const auto write_record = [](
-                                  const std::span<u8> bytes,
-                                  const std::size_t offset,
-                                  const u16 raw_opcode
-                              ) {
+    const auto write_record = [](const std::span<u8> bytes,
+                                 const std::size_t offset,
+                                 const u16 raw_opcode) {
         write_u16(bytes, offset, raw_opcode);
         write_u16(bytes, offset + 2U, 0x1234U);
         write_u16(bytes, offset + 4U, 2U);
@@ -12785,9 +12823,8 @@ void test_enqueue_moving_action_boundaries(openswd3::test::Context& test) {
         Fixture truncated;
         openswd3::world_map::LegacyMovingActionList moving_actions;
         truncated.runtime.moving_actions = &moving_actions;
-        const u16 offset = static_cast<u16>(
-            0x8000U - (available + 1U) * sizeof(u16)
-        );
+        const u16 offset =
+            static_cast<u16>(0x8000U - (available + 1U) * sizeof(u16));
         truncated.context.talk_data_offset = 0x1111U;
         truncated.context.instruction_offset = offset;
         truncated.state.loaded_file_number = 1U;
@@ -12875,8 +12912,7 @@ void test_enqueue_moving_action_boundaries(openswd3::test::Context& test) {
             negative_velocity_x == -3.0F && negative_velocity_y == -4.0F &&
             overflow_result.status ==
                 LegacyWorldStoryVmStatus::instruction_out_of_range &&
-            std::isnan(overflow_velocity_x) &&
-            std::isnan(overflow_velocity_y),
+            std::isnan(overflow_velocity_x) && std::isnan(overflow_velocity_y),
         "opcode 79 preserves x87 zero-distance NaN, signed movement and wrapping 32-bit squared-distance behavior"
     );
 }
@@ -14846,8 +14882,7 @@ void test_real_cancel_frame_color_transition_record(
 
     test.expect_true(
         input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
-            read_u16(instruction, 0U) ==
-                OP_74_CANCEL_FRAME_COLOR_TRANSITION &&
+            read_u16(instruction, 0U) == OP_74_CANCEL_FRAME_COLOR_TRANSITION &&
             result.status ==
                 LegacyWorldStoryVmStatus::instruction_out_of_range &&
             result.opcode == OP_74_CANCEL_FRAME_COLOR_TRANSITION &&
@@ -14940,8 +14975,7 @@ void test_real_turn_and_suspend_story_role_record(
 
     test.expect_true(
         input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
-            read_u16(instruction, 0U) ==
-                OP_76_TURN_AND_SUSPEND_STORY_ROLE &&
+            read_u16(instruction, 0U) == OP_76_TURN_AND_SUSPEND_STORY_ROLE &&
             read_u16(instruction, 2U) == 0x00BFU &&
             read_u16(instruction, 4U) == 1U &&
             result.status ==
@@ -14954,8 +14988,7 @@ void test_real_turn_and_suspend_story_role_record(
             fixture.roles[1].action.wait_remaining == 0U &&
             (fixture.roles[1].flags & 0x80000000U) != 0U &&
             fixture.context.instruction_offset == 0x8000U &&
-            fixture.state.previous_opcode ==
-                OP_76_TURN_AND_SUSPEND_STORY_ROLE,
+            fixture.state.previous_opcode == OP_76_TURN_AND_SUSPEND_STORY_ROLE,
         "real opcode 76 record turns GUID 191 toward GUID 1 and suspends it before exact-tail fetch failure"
     );
 }
@@ -14967,7 +15000,9 @@ void test_real_role_wait_override_records(
                                  const std::streamoff offset,
                                  const std::size_t size
                              ) -> std::array<u8, 6U> {
-        std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
         input.seekg(offset);
         std::array<u8, 6U> record{};
         input.read(
@@ -14987,9 +15022,7 @@ void test_real_role_wait_override_records(
     assigned.state.loaded_data_offset = 0x1111U;
     assigned.state.window_loaded = true;
     assigned.state.previous_opcode = 0x66U;
-    std::ranges::copy(
-        assigned_record, assigned.state.window.begin() + 0x7FFAU
-    );
+    std::ranges::copy(assigned_record, assigned.state.window.begin() + 0x7FFAU);
     const auto assigned_result = assigned.step();
 
     Fixture cleared;
@@ -15026,6 +15059,43 @@ void test_real_role_wait_override_records(
             cleared.roles[1].action.wait_remaining == 0U &&
             cleared.state.previous_opcode == OP_78_CLEAR_ROLE_WAIT_OVERRIDE,
         "real opcode 77/78 records set and clear role wait overrides before exact-tail fetch failure"
+    );
+}
+
+void test_real_clear_text_control_bit29_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00004520);
+    std::array<u8, 2U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    fixture.context.talk_data_offset = 0x1111U;
+    fixture.context.instruction_offset = 0x7FFEU;
+    fixture.state.loaded_file_number = 1U;
+    fixture.state.loaded_data_offset = 0x1111U;
+    fixture.state.window_loaded = true;
+    fixture.state.previous_opcode = 0x66U;
+    fixture.state.text_control_flags = 0xFFFFFFFFU;
+    std::ranges::copy(instruction, fixture.state.window.begin() + 0x7FFEU);
+
+    const auto result = fixture.step();
+
+    test.expect_true(
+        input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
+            read_u16(instruction, 0U) == OP_80_CLEAR_TEXT_CONTROL_BIT29 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            result.opcode == OP_80_CLEAR_TEXT_CONTROL_BIT29 &&
+            result.executed_instruction_count == 1U &&
+            fixture.state.text_control_flags == 0xDFFFFFFFU &&
+            fixture.context.instruction_offset == 0x8000U &&
+            fixture.state.previous_opcode == OP_80_CLEAR_TEXT_CONTROL_BIT29,
+        "real opcode 80 record clears text-control bit 29 before exact-tail fetch failure"
     );
 }
 
@@ -16761,6 +16831,7 @@ int main(const int argument_count, char** arguments) {
     test_set_and_clear_role_wait_override(test);
     test_role_wait_override_lookup_boundaries(test);
     test_role_wait_override_exact_tails(test);
+    test_clear_text_control_bit29(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -16817,6 +16888,7 @@ int main(const int argument_count, char** arguments) {
         test_real_suspend_story_role_record(test, root);
         test_real_turn_and_suspend_story_role_record(test, root);
         test_real_role_wait_override_records(test, root);
+        test_real_clear_text_control_bit29_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

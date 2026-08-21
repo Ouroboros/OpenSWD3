@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v302
+版本：v303
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A1EF` handler（opcode 80）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A200` handler（opcode 81）
 
 ## 0. 执行约定
 
@@ -2013,6 +2013,15 @@ B7 P0 有限收口完成。
     现代显式opcode增至97；对外进度为已实现97/198、已验收84/198；内部workpack60/146，即
     `7 assembly_exact + 53 platform_adapted + 86 pending_audit`。
 
+- 剧情VM P2第六十一组`0x0042A1EF` / opcode80完成独立闭环。LST确认读取32位
+    `dword_4A1360`、以`0xDFFFFFFF`只清bit29，经共享尾写回、+2、发布previous80并same-call。
+    现代直接映射`text_control_flags`；四raw alias精确尾、ordinary continuation与
+    `TALK1.DAT@0x00004520`真实记录通过。资产锁2256条/2256 probes，四文件分布
+    `609/453/507/687`，全部raw `0x0050`、长度2。剧情VM3/3、Linux core186/186、Linux app
+    192/192通过；workpack hash为`048a4c63426f262db518938f644a7d8fccd1fb3848f0bd58d6223d6b9a42c59b`。
+    未启动游戏EXE。现代显式opcode增至98；对外进度为已实现98/198、已验收85/198；内部
+    workpack61/146，即`8 assembly_exact + 53 platform_adapted + 85 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042A1EF` 的opcode80 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042A200` 的opcode81 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
