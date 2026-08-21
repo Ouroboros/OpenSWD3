@@ -173,6 +173,8 @@ shared 91/162现已独立闭环：91使用u16显式index并把FFF0替换为sourc
 
 92/93 计算 `u32(selector)-1+30`，分别调用无边界全局 bit 置位/清位 helper。有效 selector 1–4 映射 bit30–33；零会经 32 位回绕映射到 bit29，5 以上则继续向后。非法值虽然诊断，仍然执行访问。当前候选资产没有 opcode 93，但 handler 完整存在。
 
+opcode92现已独立闭环：保留u16零扩展、u32 dec/+30回绕、selector0→bit29、invalid-safe继续写、+4、previous与same-call；0x400-byte owner最后安全selector8162，8163起在原始裸写点typed-stop，避免u16 helper错误截断。线性资产0条/0 probes，四raw全文件102处双字节候选均非指令入口。完整证据见[`story-vm-reserved-global-bit-set-0042a756.md`](story-vm-reserved-global-bit-set-0042a756.md)。opcode93不继承完成状态。
+
 94/95 分别置、清 `dword_4C9A18` bit1。两者都推进两字节但保持 `ESI=0`，因此消费后跨帧让出。
 
 ## opcode 96：自定义 Ani 打开与启动

@@ -118,6 +118,7 @@ using openswd3::world_map::OP_86_REWRITE_ROLE_HEAD_ACTION_KEY;
 using openswd3::world_map::OP_87_RELOAD_RANDOM_TARGET;
 using openswd3::world_map::OP_88_REQUEST_BATTLE;
 using openswd3::world_map::OP_91_LOAD_NAME_RECORD;
+using openswd3::world_map::OP_92_SET_RESERVED_GLOBAL_BIT;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
@@ -14509,6 +14510,118 @@ void test_load_name_record_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_set_reserved_global_bit_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture exact_tail;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFCU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_u16(
+            exact_tail.state.window,
+            0x7FFCU,
+            static_cast<u16>(OP_92_SET_RESERVED_GLOBAL_BIT | alias_mask)
+        );
+        write_u16(exact_tail.state.window, 0x7FFEU, 1U);
+
+        const auto result = exact_tail.step();
+
+        test.expect_true(
+            result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.opcode == OP_92_SET_RESERVED_GLOBAL_BIT &&
+                result.executed_instruction_count == 1U &&
+                (exact_tail.state.flags[3U] & 0x40U) != 0U &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_92_SET_RESERVED_GLOBAL_BIT,
+            "opcode 92 aliases set reserved bit 30 and complete before an exact-tail next-fetch failure"
+        );
+    }
+
+    struct SafeCase {
+        u16 selector;
+        u32 bit_index;
+    };
+    constexpr std::array<SafeCase, 4U> safe_cases{
+        SafeCase{0U, 29U},
+        SafeCase{4U, 33U},
+        SafeCase{5U, 34U},
+        SafeCase{8162U, 8191U},
+    };
+    for (const auto safe_case : safe_cases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_92_SET_RESERVED_GLOBAL_BIT);
+        write_u16(fixture.state.window, 2U, safe_case.selector);
+        write_u16(fixture.state.window, 4U, OP_1025);
+
+        const auto result = fixture.step();
+        const std::size_t byte_index = safe_case.bit_index >> 3U;
+        const u8 mask = static_cast<u8>(1U << (safe_case.bit_index & 7U));
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                (fixture.state.flags[byte_index] & mask) != 0U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode == OP_92_SET_RESERVED_GLOBAL_BIT,
+            "opcode 92 preserves selector-minus-one wrapping, invalid-but-accessed values, the final owned bit and same-call continuation"
+        );
+    }
+
+    for (const u16 unsafe_selector : std::array<u16, 2U>{8163U, 0xFFFFU}) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_92_SET_RESERVED_GLOBAL_BIT);
+        write_u16(fixture.state.window, 2U, unsafe_selector);
+        fixture.state.flags.fill(0x5AU);
+        const auto original_flags = fixture.state.flags;
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status ==
+                    LegacyWorldStoryVmStatus::global_bit_index_out_of_range &&
+                fixture.state.flags == original_flags &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode == 0x66U,
+            "opcode 92 typed-stops only when the original computed byte leaves the owned global-bit array"
+        );
+    }
+
+    Fixture operand_truncated;
+    operand_truncated.context.talk_data_offset = 0x1111U;
+    operand_truncated.context.instruction_offset = 0x7FFEU;
+    operand_truncated.state.loaded_file_number = 1U;
+    operand_truncated.state.loaded_data_offset = 0x1111U;
+    operand_truncated.state.window_loaded = true;
+    operand_truncated.state.previous_opcode = 0x66U;
+    operand_truncated.state.flags.fill(0x5AU);
+    write_u16(
+        operand_truncated.state.window, 0x7FFEU, OP_92_SET_RESERVED_GLOBAL_BIT
+    );
+    const auto original_flags = operand_truncated.state.flags;
+
+    const auto truncated_result = operand_truncated.step();
+
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            operand_truncated.state.flags == original_flags &&
+            operand_truncated.context.instruction_offset == 0x7FFEU &&
+            operand_truncated.state.previous_opcode == 0x66U,
+        "opcode 92 stops before the unsafe operand read and all bit effects"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -19347,6 +19460,7 @@ int main(const int argument_count, char** arguments) {
     test_reload_random_target_protocol(test);
     test_request_battle_protocol(test);
     test_load_name_record_protocol(test);
+    test_set_reserved_global_bit_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
