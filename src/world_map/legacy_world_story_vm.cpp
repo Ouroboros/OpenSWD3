@@ -2861,7 +2861,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
-        case 59U:
+        case OP_59_PLAY_SOUND_EFFECT:
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
@@ -2869,6 +2869,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ports.play_sound_effect(read_u16(state.window, ip + 2U));
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 

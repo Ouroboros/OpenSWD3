@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x0042967B`（opcode 59）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 shared handler `0x00429693`（opcodes 60, 61）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -69,7 +69,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至127行。前43行已独立
+值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至127行。前44行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -89,9 +89,10 @@ movement/step状态等待镜头移动完成并在两路发布previous，opcode52
 三通道渐变完成并在两路发布previous，opcode54对角色动作先初始化刷新、再按signed repeat
 重复刷新且在每轮刷新后清辅助字段，共享opcodes55–57保存旧空间分组、写入新分组并完成角色
 空间链解链重插，以及共享opcodes58/153按分配、清零、初始化、四项operand写入顺序分别前插主/次
-图片动作链并发布previous后让出。当前为43/146，即
-`5 assembly_exact + 38 platform_adapted + 103 pending_audit`；下一行只审计
-`0x0042967B`下的opcode59。
+图片动作链并发布previous后让出，以及opcode59按当前混音等级提交居中单次音效、忽略后端结果并发布
+previous后让出。当前为44/146，即
+`5 assembly_exact + 39 platform_adapted + 102 pending_audit`；下一行只审计
+`0x00429693`共享handler下的opcodes60、61。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

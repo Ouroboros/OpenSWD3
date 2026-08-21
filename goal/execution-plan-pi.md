@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v285
+版本：v286
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042967B` handler（opcode 59）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00429693` shared handler（opcodes 60, 61）
 
 ## 0. 执行约定
 
@@ -1812,6 +1812,20 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode仍为88；workpack当前43/146，即
     `5 assembly_exact + 38 platform_adapted + 103 pending_audit`。
 
+- 剧情VM P2第四十四组`0x0042967B` / opcode59完成独立闭环。LST先读取当前样本混音等级，
+    再读取u16一基声音编号，并由既有audio_video wrapper按32位回绕执行`level << 7`后signed
+    `/11`，提交居中、单次音效；0编号、资源或后端失败及成功均返回0，VM忽略结果，推进4字节、
+    发布normalized previous并跨帧让出。原C++的编号、yield和SDL端口已正确，但case仍为裸数字且
+    漏发previous；现已补齐，并把所有同调用继续到59的组合测试最终previous改为59。四raw alias、
+    `0/1/0x1234/0xFFFF`、operand截断、`0x7FFC`精确尾、六类同调用组合与TALK2/TALK3最小/最大
+    观察编号真实回放均通过。资产锁定740条物理记录/740个probe，分布224/155/279/82，全部raw
+    `0x003B`、长度4；93种编号范围1..656，高位alias字样为0。最终剧情VM定向3/3、Linux core
+    186/186、Linux app 192/192均exit 0；app仅保留既有ALSA开发库warning。生成器`py_compile`
+    及双重生成幂等通过，workpack hash为
+    `5dc5f7fec17379af4ac0571e06caf2aaa3056a9183df820774e61242529da271`。Windows依v286留到P3，
+    未启动游戏EXE。现代显式opcode仍为88；workpack当前44/146，即
+    `5 assembly_exact + 39 platform_adapted + 102 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042967B` 的opcode59 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00429693` 的共享opcodes60、61 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

@@ -63,7 +63,9 @@ duration 为零时没有前置保护，直接进入 x87 除法。modern已按del
 
 原版`malloc`返回没有空值检查，且operand故障会在进程终止前遗留未链接堆块。modern以未链接临时list节点保持分配→初始化→逐项写入→最终链入顺序，只在typed-stop无效域释放临时节点；平台owner也延迟到四项完整后检查。资产锁定58为73条物理记录/77 probes，153为11/11，合计84/88，全部低位raw且长度10；一条主链与连续两条次链TALK1记录回放固定了列表归属和前插顺序。完整证据见[`story-vm-picture-action-enqueue-0042b1f1.md`](story-vm-picture-action-enqueue-0042b1f1.md)。
 
-59 把 `u16(+2)` 和全局缩放值传入 `sub_485610`，再由 `sub_485CE0` 进入 Miles 音频对象。返回值不参与剧情分支；handler 推进四字节后让出。平台音频替换可以改变后端，不能改变这条请求在剧情帧中的消费和让出位置。
+59先快照当前全局样本混音等级，再读`u16(+2)`一基声音编号并调用`sub_485610`。wrapper按32位回绕执行`level << 7`后作signed `/11`，再向样本管理器提交pan0、loop1请求；下游把音量夹到`0..127`。0编号、资源/handle/Miles失败和成功启动均返回0，VM完全忽略结果，推进4字节、发布normalized previous并让出。
+
+SDL端口每个世界帧使用当前mix level调用已审计`audio_video::play_legacy_sample`；资源上界检查与后端替换只隔离原版裸目录/Miles无效域。资产锁定740条物理记录/740个probe，分布224/155/279/82，全部raw `0x003B`、长度4；93种声音编号范围1..656，高位alias字样为0。完整证据见[`story-vm-sound-effect-0042967b.md`](story-vm-sound-effect-0042967b.md)。
 
 60 清 `dword_4C9A18` bit0。61 对 `dword_4CD76C` 指向的 framebuffer 执行 `rep stosd`，固定清零 `0x25800` 个 dword，即 `0x96000` 字节，然后置 bit0。61 不检查 framebuffer 指针；两条指令都推进两字节并让出。
 
