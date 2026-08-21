@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v331
+版本：v332
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B6A5` handler（共享 opcodes 110/111）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B70C` handler（opcode 112）
 
 ## 0. 执行约定
 
@@ -2351,4 +2351,13 @@ B7 P0 有限收口完成。
     现代显式opcode增至126；对外进度为已实现126/198、已验收120/198；内部workpack87/146，
     即`13 assembly_exact + 74 platform_adapted + 59 pending_audit`。
 
-下一组只审计`0x0042B6A5` / 共享opcodes110/111。
+- 剧情VM P2第八十八组`0x0042B6A5` / 共享opcodes110/111完成独立闭环。恢复从角色1
+    开始的bit30扫描及两条互反条件：命中分支按同文件target重载，顺序分支固定消费且不读取
+    target；两路均发布previous并same-call。opcode110线性资产零记录；opcode111锁定24条记录/
+    24 probes，代表记录的顺序和重载两路回放通过。Story VM 3/3、Linux core 186/186和app 192/192通过；
+    workpack双生成稳定hash为
+    `808be682a78cd80c5d05a2d95f2145c36210ed943d1ce188da55a46f92621f16`。未启动游戏EXE。
+    现代显式opcode增至128；对外进度为已实现128/198、已验收122/198；内部workpack88/146，
+    即`13 assembly_exact + 75 platform_adapted + 58 pending_audit`。
+
+下一组只审计`0x0042B70C` / opcode112。

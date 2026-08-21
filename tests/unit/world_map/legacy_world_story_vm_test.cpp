@@ -136,6 +136,8 @@ using openswd3::world_map::OP_106_WAIT_PRIMARY_PICTURE_ACTION_BYTE;
 using openswd3::world_map::OP_107_WAIT_ROLE_ACTION_INDEX;
 using openswd3::world_map::OP_108_SET_NEXT_DIALOG_ANCHOR;
 using openswd3::world_map::OP_109_STEP_ROLES;
+using openswd3::world_map::OP_110_RELOAD_IF_NO_SECONDARY_ROLE_BIT30;
+using openswd3::world_map::OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -6420,6 +6422,202 @@ void test_step_role_list_protocol(openswd3::test::Context& test) {
             beyond_window.state.previous_opcode == 0x66U &&
             beyond_window_result.direct_audio_service_count == 0U,
         "opcode 109 preserves the full-window IP and stops at the first missing selector"
+    );
+}
+
+void test_secondary_role_bit30_reload_protocol(openswd3::test::Context& test) {
+    constexpr u32 target = 0x12345678U;
+    constexpr std::array<u16, 2U> opcodes{
+        OP_110_RELOAD_IF_NO_SECONDARY_ROLE_BIT30,
+        OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30,
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 opcode : opcodes) {
+        for (const u16 alias_mask : alias_masks) {
+            for (const bool secondary_role_has_bit30 : {false, true}) {
+                Fixture fixture;
+                prime_loaded_instruction(
+                    fixture, static_cast<u16>(opcode | alias_mask)
+                );
+                write_u32(fixture.state.window, 2U, target);
+                write_u16(fixture.state.window, 6U, OP_1025);
+                write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+                fixture.roles[1].flags =
+                    secondary_role_has_bit30 ? 0x40000000U : 0U;
+                fixture.state.previous_opcode = 0x66U;
+
+                const auto result = fixture.step();
+                const bool should_reload = secondary_role_has_bit30 ==
+                    (opcode == OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30);
+                test.expect_true(
+                    result.status ==
+                            LegacyWorldStoryVmStatus::unsupported_opcode &&
+                        result.opcode == OP_1025 &&
+                        result.executed_instruction_count == 2U &&
+                        result.direct_audio_service_count ==
+                            (should_reload ? 1U : 0U) &&
+                        fixture.context.talk_data_offset ==
+                            (should_reload ? target : 0x1111U) &&
+                        fixture.context.instruction_offset ==
+                            (should_reload ? 0U : 6U) &&
+                        fixture.state.previous_opcode == opcode &&
+                        fixture.ports.data_load_count ==
+                            (should_reload ? 1U : 0U) &&
+                        fixture.ports.story_protocol_events ==
+                            (should_reload ? std::vector<u32>{2U, 5U}
+                                           : std::vector<u32>{}),
+                    "opcodes 110 and 111 invert the secondary-role bit30 condition"
+                );
+            }
+        }
+    }
+
+    Fixture role_zero_only;
+    role_zero_only.roles.resize(1U);
+    role_zero_only.roles[0].flags = 0x40000000U;
+    prime_loaded_instruction(
+        role_zero_only, OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30
+    );
+    write_u32(role_zero_only.state.window, 2U, target);
+    write_u16(role_zero_only.state.window, 6U, OP_1025);
+    role_zero_only.state.previous_opcode = 0x66U;
+    const auto role_zero_result = role_zero_only.step();
+    test.expect_true(
+        role_zero_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            role_zero_result.executed_instruction_count == 2U &&
+            role_zero_only.context.instruction_offset == 6U &&
+            role_zero_only.state.previous_opcode ==
+                OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30 &&
+            role_zero_only.ports.data_load_count == 0U,
+        "opcodes 110 and 111 never scan role index zero"
+    );
+
+    Fixture load_failure;
+    prime_loaded_instruction(
+        load_failure, OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30
+    );
+    write_u32(load_failure.state.window, 2U, 0x87654321U);
+    load_failure.roles[1].flags = 0x40000000U;
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    load_failure.state.previous_opcode = 0x66U;
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.opcode ==
+                OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30 &&
+            load_failure_result.executed_instruction_count == 1U &&
+            load_failure_result.load_status ==
+                LegacyTalkWindowStatus::data_read_failed &&
+            load_failure_result.direct_audio_service_count == 1U &&
+            load_failure.context.talk_data_offset == 0x87654321U &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30 &&
+            !load_failure.state.window_loaded &&
+            load_failure.ports.story_protocol_events ==
+                std::vector<u32>{2U, 5U},
+        "opcode 111 checked I/O failure preserves legacy transfer side effects"
+    );
+
+    Fixture sequential_truncated;
+    sequential_truncated.context.talk_data_offset = 0x1111U;
+    sequential_truncated.context.instruction_offset = 0x7FFEU;
+    sequential_truncated.state.loaded_file_number = 1U;
+    sequential_truncated.state.loaded_data_offset = 0x1111U;
+    sequential_truncated.state.window_loaded = true;
+    sequential_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        sequential_truncated.state.window,
+        0x7FFEU,
+        OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30
+    );
+    const auto sequential_truncated_result = sequential_truncated.step();
+
+    Fixture reload_truncated;
+    reload_truncated.context.talk_data_offset = 0x1111U;
+    reload_truncated.context.instruction_offset = 0x7FFEU;
+    reload_truncated.state.loaded_file_number = 1U;
+    reload_truncated.state.loaded_data_offset = 0x1111U;
+    reload_truncated.state.window_loaded = true;
+    reload_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        reload_truncated.state.window,
+        0x7FFEU,
+        OP_110_RELOAD_IF_NO_SECONDARY_ROLE_BIT30
+    );
+    const auto reload_truncated_result = reload_truncated.step();
+
+    test.expect_true(
+        sequential_truncated_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            sequential_truncated_result.executed_instruction_count == 1U &&
+            sequential_truncated.context.instruction_offset == 0x8004U &&
+            sequential_truncated.state.previous_opcode ==
+                OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30 &&
+            sequential_truncated.ports.data_load_count == 0U &&
+            reload_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            reload_truncated.context.instruction_offset == 0x7FFEU &&
+            reload_truncated.state.previous_opcode == 0x66U &&
+            reload_truncated.ports.data_load_count == 0U,
+        "opcodes 110 and 111 read the target only on the reload path"
+    );
+
+    Fixture reload_tail;
+    reload_tail.context.talk_data_offset = 0x1111U;
+    reload_tail.context.instruction_offset = 0x7FFAU;
+    reload_tail.state.loaded_file_number = 1U;
+    reload_tail.state.loaded_data_offset = 0x1111U;
+    reload_tail.state.window_loaded = true;
+    write_u16(
+        reload_tail.state.window,
+        0x7FFAU,
+        OP_110_RELOAD_IF_NO_SECONDARY_ROLE_BIT30
+    );
+    write_u32(reload_tail.state.window, 0x7FFCU, target);
+    write_u16(reload_tail.ports.transferred_window, 0U, OP_1025);
+    const auto reload_tail_result = reload_tail.step();
+
+    Fixture sequential_tail;
+    sequential_tail.context.talk_data_offset = 0x1111U;
+    sequential_tail.context.instruction_offset = 0x7FFAU;
+    sequential_tail.state.loaded_file_number = 1U;
+    sequential_tail.state.loaded_data_offset = 0x1111U;
+    sequential_tail.state.window_loaded = true;
+    write_u16(
+        sequential_tail.state.window,
+        0x7FFAU,
+        OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30
+    );
+    write_u32(sequential_tail.state.window, 0x7FFCU, target);
+    const auto sequential_tail_result = sequential_tail.step();
+
+    test.expect_true(
+        reload_tail_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            reload_tail_result.executed_instruction_count == 2U &&
+            reload_tail_result.direct_audio_service_count == 1U &&
+            reload_tail.context.talk_data_offset == target &&
+            reload_tail.context.instruction_offset == 0U &&
+            reload_tail.state.previous_opcode ==
+                OP_110_RELOAD_IF_NO_SECONDARY_ROLE_BIT30 &&
+            reload_tail.ports.data_load_count == 1U &&
+            sequential_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            sequential_tail_result.executed_instruction_count == 1U &&
+            sequential_tail_result.direct_audio_service_count == 0U &&
+            sequential_tail.context.instruction_offset == 0x8000U &&
+            sequential_tail.state.previous_opcode ==
+                OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30 &&
+            sequential_tail.ports.data_load_count == 0U,
+        "opcodes 110 and 111 preserve reload and sequential exact tails"
     );
 }
 
@@ -17558,20 +17756,27 @@ void test_real_release_role_path_record(
     std::ranges::copy(instruction, fixture.state.window.begin());
     fixture.roles[1].guid = 0x000BU;
     fixture.roles[1].flags = 0x20000000U;
+    fixture.roles[1].interaction_gate = 1U;
     fixture.roles[1].action.wait_remaining = 9U;
+    write_u16(fixture.state.window, 10U, OP_14_WAIT_ROLE_ACTION_STATUS);
+    write_u16(fixture.state.window, 12U, 0x000BU);
     const auto result = fixture.step();
     test.expect_true(
         instruction_read &&
             read_u16(instruction, 0U) == OP_18_RELEASE_ROLE_PATH &&
             read_u16(instruction, 2U) == 0x000BU &&
-            read_u16(instruction, 4U) == 111U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == 111U && result.executed_instruction_count == 2U &&
-            fixture.context.instruction_offset == 4U &&
-            fixture.state.previous_opcode == OP_18_RELEASE_ROLE_PATH &&
+            read_u16(instruction, 4U) ==
+                OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30 &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
+            result.executed_instruction_count == 3U &&
+            result.direct_audio_service_count == 1U &&
+            fixture.context.instruction_offset == 10U &&
+            fixture.state.previous_opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
             fixture.roles[1].flags == 0x20000000U &&
-            fixture.roles[1].action.wait_remaining == 0U,
-        "real opcode 18 releases role 11 then same-call fetches opcode 111"
+            fixture.roles[1].action.wait_remaining == 0U &&
+            fixture.ports.data_load_count == 0U,
+        "real opcode 18 releases role 11 before opcode 111 skips its target"
     );
 }
 
@@ -20413,6 +20618,101 @@ void test_real_step_role_list_records(
     }
 }
 
+void test_real_secondary_role_bit30_reload_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK2.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0000F981);
+    std::array<u8, 10U> record{};
+    input.read(
+        reinterpret_cast<char*>(record.data()),
+        static_cast<std::streamsize>(record.size())
+    );
+    const bool record_read = static_cast<bool>(input);
+    input.seekg(0x0000F92D);
+    std::array<u8, 4U> target_record{};
+    input.read(
+        reinterpret_cast<char*>(target_record.data()),
+        static_cast<std::streamsize>(target_record.size())
+    );
+    const bool target_read = static_cast<bool>(input);
+    input.close();
+
+    Fixture sequential;
+    prime_loaded_instruction(
+        sequential, OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30
+    );
+    std::ranges::copy(record, sequential.state.window.begin());
+    const auto sequential_result = sequential.step();
+
+    openswd3::resource_io::LegacyResourceDatabases databases;
+    const auto initialized = databases.initialize(root);
+    LegacyWorldStoryVmState state{};
+    openswd3::world_map::initialize_legacy_world_story_vm(state);
+    std::ranges::copy(record, state.window.begin());
+    state.loaded_file_number = 2U;
+    state.loaded_data_offset = 0x0000F781U;
+    state.window_loaded = true;
+    LegacyWorldTalkContext context{};
+    context.source_guid = 0x1234U;
+    context.talk_script_id = 2200U;
+    context.talk_data_offset = 0x0000F781U;
+    std::array<LegacyWorldRoleRecord, 2U> roles{};
+    roles[1].guid = 0x1234U;
+    roles[1].flags = 0x40000000U;
+    std::array<
+        LegacyWorldObjectSlot,
+        openswd3::world_map::kLegacyWorldActiveObjectSlotCount>
+        active_object_slots{};
+    openswd3::story_scene::LegacyDialogRuntimeState dialogs;
+    openswd3::world_map::LegacyWorldDialogRuntimeState dialog_resources;
+    std::array<u8, 16U> first_name{};
+    std::array<u8, 16U> second_name{};
+    RealPorts ports{databases};
+    const auto reload_result = openswd3::world_map::step_legacy_world_story_vm(
+        context,
+        state,
+        roles,
+        0U,
+        active_object_slots,
+        {},
+        dialogs,
+        dialog_resources,
+        first_name,
+        second_name,
+        {},
+        ports
+    );
+
+    test.expect_true(
+        record_read && target_read &&
+            initialized.status ==
+                openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
+            read_u16(record, 0U) == OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30 &&
+            read_u32(record, 2U) == 0x0000F72DU &&
+            read_u16(record, 6U) == OP_67_WAIT_FRAME_CLOCK &&
+            read_u16(record, 8U) == 0x012CU &&
+            read_u16(target_record, 0U) == OP_109_STEP_ROLES &&
+            read_u16(target_record, 2U) == 18U &&
+            sequential_result.status == LegacyWorldStoryVmStatus::yielded &&
+            sequential_result.opcode == OP_67_WAIT_FRAME_CLOCK &&
+            sequential_result.executed_instruction_count == 2U &&
+            sequential_result.direct_audio_service_count == 0U &&
+            sequential.context.instruction_offset == 6U &&
+            sequential.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK &&
+            reload_result.status == LegacyWorldStoryVmStatus::yielded &&
+            reload_result.opcode == OP_109_STEP_ROLES &&
+            reload_result.executed_instruction_count == 2U &&
+            reload_result.direct_audio_service_count == 2U &&
+            context.talk_data_offset == 0x0000F72DU &&
+            context.instruction_offset == 40U &&
+            state.loaded_file_number == 2U &&
+            state.loaded_data_offset == 0x0000F72DU &&
+            state.previous_opcode == OP_109_STEP_ROLES,
+        "real opcode 111 either continues to 67 or reloads the count-18 opcode 109"
+    );
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -22469,6 +22769,7 @@ int main(const int argument_count, char** arguments) {
     test_wait_for_role_action_index_threshold(test);
     test_set_next_dialog_anchor_protocol(test);
     test_step_role_list_protocol(test);
+    test_secondary_role_bit30_reload_protocol(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);
@@ -22619,6 +22920,7 @@ int main(const int argument_count, char** arguments) {
         test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_wait_role_action_index_records(test, root);
         test_real_step_role_list_records(test, root);
+        test_real_secondary_role_bit30_reload_record(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

@@ -136,6 +136,8 @@ opcode109现已独立闭环：逐项selector读取、lookup、游标推进和hel
 
 角色总数不大于一时，110 必然转移，111 必然顺序消费。转移后当前指针改成 `dword_4B8860`，不是简单地把同一缓冲区 IP 改为绝对偏移。
 
+共享入口现已独立闭环：角色1起的bit30首命中扫描、两opcode互反条件、只在转移分支读取u32 target、same-file窗口重载、previous与same-call均已锁定。opcode110零资产；opcode111有24条记录/24 probes，代表记录同时回放顺序进入opcode67及重载到count18 opcode109。完整证据见[`story-vm-secondary-role-bit30-reload-0042b6a5.md`](story-vm-secondary-role-bit30-reload-0042b6a5.md)。
+
 116 的每项为 `{selector, X, Y}`。`FFF0` 在 handler 中替换成状态块 `+0x24`；lookup 的成功返回没有被测试，输出 index 无论是否为 `-1` 都交给：
 
 ```text

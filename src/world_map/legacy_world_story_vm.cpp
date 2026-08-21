@@ -4936,6 +4936,43 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_110_RELOAD_IF_NO_SECONDARY_ROLE_BIT30:
+        case OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30: {
+            bool any_secondary_role_has_bit30{};
+            for (std::size_t role_index = 1U; role_index < roles.size();
+                 ++role_index) {
+                if ((roles[role_index].flags & 0x40000000U) != 0U) {
+                    any_secondary_role_has_bit30 = true;
+                    break;
+                }
+            }
+            const bool should_reload = any_secondary_role_has_bit30 ==
+                (result.opcode == OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30);
+            if (!should_reload) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 6U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            result.status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, ip + 2U),
+                result,
+                ports
+            );
+            state.previous_opcode = result.opcode;
+            if (result.status != LegacyWorldStoryVmStatus::idle) {
+                return result;
+            }
+            continue;
+        }
+
         case 114U: {
             if (!has_bytes(state.window, ip, 8U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
