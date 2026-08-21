@@ -171,6 +171,8 @@ dword_4B7C88 = u16(+4)
 
 公共尾部的 `and al,0` 会清整个 dword 的低八位，而不是只清一个局部 flag。其余上 24 位保留。指令推进八字节并同帧继续。
 
+opcode114现已独立闭环：恢复request→双ID→既有transition同步→control bit23→flags派生的分阶段顺序，并把`0x004B7378` current fade divisor接入实际stream manager端口；成功发布previous114且无audio、same-call继续。157条真实记录/159 probes、四alias、三类资产flags、三阶段截断和精确尾均锁定。完整证据见[`story-vm-scene-music-stream-request-0042b739.md`](story-vm-scene-music-stream-request-0042b739.md)。
+
 115 将零扩展的 `u16` level 与 11 比较，超过 11 就强制写成 11。后面的“若小于零则置零”分支在该数据流上不可达。`sub_485850` 把 0..11 档缩放后，为 Miles stream 编号 100 调用 `AIL_set_stream_volume`；stream 不存在等错误返回全部忽略。指令推进四字节后让出。
 
 ## opcode 118、119、120：dialog 链与角色 action

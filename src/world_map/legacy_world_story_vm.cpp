@@ -1430,6 +1430,7 @@ void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept {
     state.music_second_stream = 0U;
     state.music_control_flags = 0U;
     state.current_first_stream = 1U;
+    state.current_stream_fade_divisor = 0U;
     state.current_second_stream = 0U;
     for (const u16 index : kInitialSetFlags) {
         set_legacy_world_story_flag(state, index);
@@ -5009,20 +5010,34 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
-        case 114U: {
+        case OP_114_STAGE_SCENE_MUSIC_STREAM_REQUEST: {
+            const u32 initial_transition_mode = state.current_first_stream;
+            state.music_request = 0x80000001U;
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            state.music_first_stream = read_u16(state.window, ip + 2U);
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            state.music_second_stream = read_u16(state.window, ip + 4U);
+            if (initial_transition_mode == 0U) {
+                state.current_first_stream = 1U;
+            }
+            ports.apply_music_stream_transition(
+                state.current_first_stream,
+                state.current_stream_fade_divisor,
+                state.current_second_stream
+            );
+            state.music_control_flags |= 0x00800000U;
             if (!has_bytes(state.window, ip, 8U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            state.music_request = 0x80000001U;
-            state.music_first_stream = read_u16(state.window, ip + 2U);
-            state.music_second_stream = read_u16(state.window, ip + 4U);
-            if (state.current_first_stream == 0U) {
-                state.current_first_stream = 1U;
-            }
-            state.music_control_flags |= 0x00800000U;
-            state.music_control_flags &= ~0x00030000U;
             const u16 flags = read_u16(state.window, ip + 6U);
+            state.music_control_flags &= ~0x00030000U;
             if ((flags & 0x8000U) == 0U) {
                 if ((flags & 0x4000U) != 0U) {
                     state.music_control_flags |= 0x00030000U;
@@ -5034,6 +5049,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.music_control_flags &= 0xFFFFFF00U;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 8U);
+            state.previous_opcode = result.opcode;
             continue;
         }
 

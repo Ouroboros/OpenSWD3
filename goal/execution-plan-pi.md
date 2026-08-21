@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v334
+版本：v335
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B739` handler（opcode 114）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B7FC` handler（opcode 115）
 
 ## 0. 执行约定
 
@@ -2377,4 +2377,12 @@ B7 P0 有限收口完成。
     现代显式opcode增至130；对外进度为已实现130/198、已验收124/198；内部workpack90/146，
     即`13 assembly_exact + 77 platform_adapted + 56 pending_audit`。
 
-下一组只审计`0x0042B739` / opcode114。
+- 剧情VM P2第九十一组`0x0042B739` / opcode114完成独立闭环。恢复场景音乐stream
+    请求的分阶段状态写入、既有transition同步、control位派生及same-call合同；实际
+    LegacyStreamManager已接入原transition槽。157条真实记录/159 probes及代表记录回放通过。
+    Story VM 3/3、Linux core 186/186和app 192/192通过；workpack双生成稳定hash为
+    `f5e176856582bf643502b2ece14b7658a307e7e76fc7144fd8c9e7c6a8fc14ba`。未启动游戏EXE。
+    现代显式opcode保持130；对外进度为已实现130/198、已验收125/198；内部workpack91/146，
+    即`13 assembly_exact + 78 platform_adapted + 55 pending_audit`。
+
+下一组只审计`0x0042B7FC` / opcode115。

@@ -139,6 +139,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30 = 111U,
     OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS = 112U,
     OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING = 113U,
+    OP_114_STAGE_SCENE_MUSIC_STREAM_REQUEST = 114U,
     OP_117_SET_ROLE_STATUS_BIT4 = 117U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
@@ -179,6 +180,7 @@ struct LegacyWorldStoryVmState {
     compat::u32 music_second_stream{};
     compat::u32 music_control_flags{};
     compat::u32 current_first_stream{1U};
+    compat::u32 current_stream_fade_divisor{};
     compat::u32 current_second_stream{};
     compat::u32 wait_duration{};
     compat::u32 wait_started_at{};
@@ -278,6 +280,11 @@ public:
     virtual void
     patch_role_source(const LegacyMapsRolePatchRequest& request) noexcept = 0;
     virtual void play_sound_effect(compat::u16 sound_id) noexcept = 0;
+    virtual void apply_music_stream_transition(
+        compat::u32& transition_mode,
+        compat::u32& current_fade_divisor,
+        compat::u32 pending_fade_divisor
+    ) noexcept = 0;
     virtual void clear_story_framebuffer() noexcept = 0;
     virtual void present_story_framebuffer() noexcept = 0;
     [[nodiscard]] virtual bool prepare_story_video() noexcept = 0;

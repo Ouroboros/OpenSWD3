@@ -3382,6 +3382,7 @@ public:
                 openswd3::resource_io::LegacyResourceDatabases& databases,
                 openswd3::asset_runtime::LegacyActionUpdater& action_updater,
                 openswd3::audio_video::LegacySampleManager& sample_manager,
+                openswd3::audio_video::LegacyStreamManager& stream_manager,
                 openswd3::audio_video::LegacyAudioMaintenancePorts&
                     audio_maintenance,
                 const openswd3::compat::i32 sample_mix_level,
@@ -3400,6 +3401,7 @@ public:
                 : owner_(owner), databases_(databases),
                   action_updater_(action_updater),
                   sample_manager_(sample_manager),
+                  stream_manager_(stream_manager),
                   audio_maintenance_(audio_maintenance),
                   sample_mix_level_(sample_mix_level),
                   framebuffer_(framebuffer), presentation_(presentation),
@@ -3496,6 +3498,35 @@ public:
                 static_cast<void>(openswd3::audio_video::play_legacy_sample(
                     sample_manager_, sound_id, sample_mix_level_
                 ));
+            }
+
+            void apply_music_stream_transition(
+                openswd3::compat::u32& transition_mode,
+                openswd3::compat::u32& current_fade_divisor,
+                const openswd3::compat::u32 pending_fade_divisor
+            ) noexcept override {
+                openswd3::audio_video::LegacyStreamCommandState state{
+                    .transition_mode =
+                        std::bit_cast<openswd3::compat::i32>(transition_mode),
+                    .current_fade_divisor =
+                        std::bit_cast<openswd3::compat::i32>(
+                            current_fade_divisor
+                        ),
+                    .pending_fade_divisor =
+                        std::bit_cast<openswd3::compat::i32>(
+                            pending_fade_divisor
+                        ),
+                };
+                static_cast<void>(
+                    openswd3::audio_video::apply_legacy_stream_transition(
+                        stream_manager_, state
+                    )
+                );
+                transition_mode =
+                    std::bit_cast<openswd3::compat::u32>(state.transition_mode);
+                current_fade_divisor = std::bit_cast<openswd3::compat::u32>(
+                    state.current_fade_divisor
+                );
             }
 
             void clear_story_framebuffer() noexcept override {
@@ -3659,6 +3690,7 @@ public:
             openswd3::resource_io::LegacyResourceDatabases& databases_;
             openswd3::asset_runtime::LegacyActionUpdater& action_updater_;
             openswd3::audio_video::LegacySampleManager& sample_manager_;
+            openswd3::audio_video::LegacyStreamManager& stream_manager_;
             openswd3::audio_video::LegacyAudioMaintenancePorts&
                 audio_maintenance_;
             openswd3::compat::i32 sample_mix_level_{};
@@ -3750,6 +3782,7 @@ public:
                 resource_databases_,
                 action_updater_,
                 sample_manager_,
+                stream_manager_,
                 audio_maintenance_,
                 world_frame_state_.frame_runtime.spatial_audio.mix_level,
                 game_framebuffer_,
