@@ -113,6 +113,7 @@ using openswd3::world_map::OP_82_DISMISS_ROLE_HEAD_ACTION;
 using openswd3::world_map::OP_83_UPSERT_PACKED_ROW_EFFECT;
 using openswd3::world_map::OP_84_CONTROL_PACKED_ROW_EFFECT;
 using openswd3::world_map::OP_85_BEGIN_STORY_VIDEO;
+using openswd3::world_map::OP_86_REWRITE_ROLE_HEAD_ACTION_KEY;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -13663,6 +13664,233 @@ void test_begin_story_video_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_rewrite_role_head_action_key_protocol(openswd3::test::Context& test) {
+    const auto write_record = [](const std::span<u8> bytes,
+                                 const std::size_t offset,
+                                 const u16 raw_opcode,
+                                 const u16 old_action_id,
+                                 const u16 old_variant,
+                                 const u16 new_action_id,
+                                 const u16 new_variant) {
+        write_u16(bytes, offset, raw_opcode);
+        write_u16(bytes, offset + 2U, old_action_id);
+        write_u16(bytes, offset + 4U, old_variant);
+        write_u16(bytes, offset + 6U, new_action_id);
+        write_u16(bytes, offset + 8U, new_variant);
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture exact_tail;
+        openswd3::world_map::LegacyRoleHeadActionList actions(3U);
+        auto variant_miss = actions.begin();
+        variant_miss->action.action_id = 10001U;
+        variant_miss->action.base_variant = 9U;
+        auto first_exact = std::next(variant_miss);
+        first_exact->action.action_id = 10001U;
+        first_exact->action.base_variant = 1U;
+        auto duplicate = std::next(first_exact);
+        duplicate->action.action_id = 10001U;
+        duplicate->action.base_variant = 1U;
+        exact_tail.runtime.role_head_actions = &actions;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FF6U;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_record(
+            exact_tail.state.window,
+            0x7FF6U,
+            static_cast<u16>(OP_86_REWRITE_ROLE_HEAD_ACTION_KEY | alias_mask),
+            10001U,
+            1U,
+            10002U,
+            24U
+        );
+
+        const auto result = exact_tail.step();
+
+        test.expect_true(
+            result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.opcode == OP_86_REWRITE_ROLE_HEAD_ACTION_KEY &&
+                result.executed_instruction_count == 1U &&
+                variant_miss->action.action_id == 10001U &&
+                variant_miss->action.base_variant == 9U &&
+                first_exact->action.action_id == 10002U &&
+                first_exact->action.base_variant == 24U &&
+                duplicate->action.action_id == 10001U &&
+                duplicate->action.base_variant == 1U &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_86_REWRITE_ROLE_HEAD_ACTION_KEY,
+            "opcode 86 aliases rewrite only the first exact head-action key before exact-tail next fetch"
+        );
+    }
+
+    Fixture ordinary;
+    openswd3::world_map::LegacyRoleHeadActionList ordinary_actions(1U);
+    ordinary_actions.front().action.action_id = 10002U;
+    ordinary_actions.front().action.base_variant = 18U;
+    ordinary.runtime.role_head_actions = &ordinary_actions;
+    auto ordinary_script = std::span<u8>{ordinary.ports.initial_window};
+    write_record(
+        ordinary_script,
+        0U,
+        OP_86_REWRITE_ROLE_HEAD_ACTION_KEY,
+        10002U,
+        18U,
+        10002U,
+        24U
+    );
+    write_u16(ordinary_script, 10U, OP_14_WAIT_ROLE_ACTION_STATUS);
+    write_u16(ordinary_script, 12U, 0x00F8U);
+    const auto ordinary_result = ordinary.step();
+    test.expect_true(
+        ordinary_result.status == LegacyWorldStoryVmStatus::yielded &&
+            ordinary_result.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
+            ordinary_result.executed_instruction_count == 2U &&
+            ordinary_actions.front().action.action_id == 10002U &&
+            ordinary_actions.front().action.base_variant == 24U &&
+            ordinary.context.instruction_offset == 14U &&
+            ordinary.state.previous_opcode == OP_14_WAIT_ROLE_ACTION_STATUS,
+        "opcode 86 rewrites both key fields and continues in the same call"
+    );
+
+    Fixture empty;
+    openswd3::world_map::LegacyRoleHeadActionList empty_actions;
+    empty.runtime.role_head_actions = &empty_actions;
+    empty.context.talk_data_offset = 0x1111U;
+    empty.context.instruction_offset = 0x7FFEU;
+    empty.state.loaded_file_number = 1U;
+    empty.state.loaded_data_offset = 0x1111U;
+    empty.state.window_loaded = true;
+    empty.state.previous_opcode = 0x66U;
+    write_u16(empty.state.window, 0x7FFEU, OP_86_REWRITE_ROLE_HEAD_ACTION_KEY);
+    const auto empty_result = empty.step();
+    test.expect_true(
+        empty_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            empty.context.instruction_offset == 0x8008U &&
+            empty.state.previous_opcode == OP_86_REWRITE_ROLE_HEAD_ACTION_KEY,
+        "opcode 86 empty list reads no operands and still advances ten bytes"
+    );
+
+    Fixture id_miss;
+    openswd3::world_map::LegacyRoleHeadActionList miss_actions(1U);
+    miss_actions.front().action.action_id = 0x00010001U;
+    miss_actions.front().action.base_variant = 1U;
+    id_miss.runtime.role_head_actions = &miss_actions;
+    id_miss.context.talk_data_offset = 0x1111U;
+    id_miss.context.instruction_offset = 0x7FFCU;
+    id_miss.state.loaded_file_number = 1U;
+    id_miss.state.loaded_data_offset = 0x1111U;
+    id_miss.state.window_loaded = true;
+    id_miss.state.previous_opcode = 0x66U;
+    write_u16(
+        id_miss.state.window, 0x7FFCU, OP_86_REWRITE_ROLE_HEAD_ACTION_KEY
+    );
+    write_u16(id_miss.state.window, 0x7FFEU, 1U);
+    const auto id_miss_result = id_miss.step();
+    test.expect_true(
+        id_miss_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            miss_actions.front().action.action_id == 0x00010001U &&
+            miss_actions.front().action.base_variant == 1U &&
+            id_miss.context.instruction_offset == 0x8006U &&
+            id_miss.state.previous_opcode == OP_86_REWRITE_ROLE_HEAD_ACTION_KEY,
+        "opcode 86 compares zero-extended old ID against the full node dword and ID miss reads no later operands"
+    );
+
+    Fixture variant_miss;
+    openswd3::world_map::LegacyRoleHeadActionList variant_miss_actions(1U);
+    variant_miss_actions.front().action.action_id = 10001U;
+    variant_miss_actions.front().action.base_variant = 9U;
+    variant_miss.runtime.role_head_actions = &variant_miss_actions;
+    variant_miss.context.talk_data_offset = 0x1111U;
+    variant_miss.context.instruction_offset = 0x7FFAU;
+    variant_miss.state.loaded_file_number = 1U;
+    variant_miss.state.loaded_data_offset = 0x1111U;
+    variant_miss.state.window_loaded = true;
+    variant_miss.state.previous_opcode = 0x66U;
+    write_u16(
+        variant_miss.state.window, 0x7FFAU, OP_86_REWRITE_ROLE_HEAD_ACTION_KEY
+    );
+    write_u16(variant_miss.state.window, 0x7FFCU, 10001U);
+    write_u16(variant_miss.state.window, 0x7FFEU, 1U);
+    const auto variant_miss_result = variant_miss.step();
+    test.expect_true(
+        variant_miss_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            variant_miss_actions.front().action.action_id == 10001U &&
+            variant_miss_actions.front().action.base_variant == 9U &&
+            variant_miss.context.instruction_offset == 0x8004U &&
+            variant_miss.state.previous_opcode ==
+                OP_86_REWRITE_ROLE_HEAD_ACTION_KEY,
+        "opcode 86 variant miss reads no new key operands and still advances ten bytes"
+    );
+
+    const auto make_matching = []() {
+        openswd3::world_map::LegacyRoleHeadActionList actions(1U);
+        actions.front().action.action_id = 10001U;
+        actions.front().action.base_variant = 9U;
+        return actions;
+    };
+    for (const std::size_t available_words : {2U, 3U, 4U}) {
+        Fixture truncated;
+        auto actions = make_matching();
+        truncated.runtime.role_head_actions = &actions;
+        const u16 offset =
+            static_cast<u16>(0x8000U - available_words * sizeof(u16));
+        truncated.context.talk_data_offset = 0x1111U;
+        truncated.context.instruction_offset = offset;
+        truncated.state.loaded_file_number = 1U;
+        truncated.state.loaded_data_offset = 0x1111U;
+        truncated.state.window_loaded = true;
+        truncated.state.previous_opcode = 0x66U;
+        write_u16(
+            truncated.state.window, offset, OP_86_REWRITE_ROLE_HEAD_ACTION_KEY
+        );
+        write_u16(truncated.state.window, offset + 2U, 10001U);
+        if (available_words >= 3U) {
+            write_u16(truncated.state.window, offset + 4U, 9U);
+        }
+        if (available_words >= 4U) {
+            write_u16(truncated.state.window, offset + 6U, 10002U);
+        }
+
+        const auto result = truncated.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::operand_out_of_range &&
+                actions.front().action.action_id ==
+                    (available_words == 4U ? 10002U : 10001U) &&
+                actions.front().action.base_variant == 9U &&
+                truncated.context.instruction_offset == offset &&
+                truncated.state.previous_opcode == 0x66U,
+            "opcode 86 staged truncation preserves the new-ID write before the new-variant unsafe read"
+        );
+    }
+
+    Fixture unavailable;
+    auto unavailable_script = std::span<u8>{unavailable.ports.initial_window};
+    write_u16(unavailable_script, 0U, OP_86_REWRITE_ROLE_HEAD_ACTION_KEY);
+    unavailable.state.previous_opcode = 0x66U;
+    const auto unavailable_result = unavailable.step();
+    test.expect_true(
+        unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            unavailable.context.instruction_offset == 0U &&
+            unavailable.state.previous_opcode == 0x66U,
+        "opcode 86 typed owner absence stops at the original list-head access before operands"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -16100,6 +16328,100 @@ void test_real_begin_story_video_records(
     );
 }
 
+void test_real_rewrite_role_head_action_key_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    const auto read_record = [&root](
+                                 const std::filesystem::path& filename,
+                                 const std::streamoff offset
+                             ) {
+        std::ifstream input{root / filename, std::ios::binary | std::ios::in};
+        input.seekg(offset);
+        std::array<u8, 10U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        return record;
+    };
+    const auto first = read_record("TALK1.DAT", 0x0001CC18);
+    const auto second = read_record("TALK4.DAT", 0x0002BA21);
+
+    const auto execute = [](const std::array<u8, 10U>& record) {
+        Fixture fixture;
+        openswd3::world_map::LegacyRoleHeadActionList actions(3U);
+        const u16 old_action_id = read_u16(record, 2U);
+        const u16 old_variant = read_u16(record, 4U);
+        auto variant_miss = actions.begin();
+        variant_miss->action.action_id = old_action_id;
+        variant_miss->action.base_variant = old_variant + 1U;
+        auto exact = std::next(variant_miss);
+        exact->action.action_id = old_action_id;
+        exact->action.base_variant = old_variant;
+        auto duplicate = std::next(exact);
+        duplicate->action.action_id = old_action_id;
+        duplicate->action.base_variant = old_variant;
+        fixture.runtime.role_head_actions = &actions;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FF6U;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x66U;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FF6U);
+
+        const auto result = fixture.step();
+
+        return std::tuple{
+            result,
+            exact->action.action_id,
+            exact->action.base_variant,
+            duplicate->action.action_id,
+            duplicate->action.base_variant,
+            fixture.context.instruction_offset,
+            fixture.state.previous_opcode,
+        };
+    };
+    const auto
+        [first_result,
+         first_id,
+         first_variant,
+         first_duplicate_id,
+         first_duplicate_variant,
+         first_ip,
+         first_previous] = execute(first);
+    const auto
+        [second_result,
+         second_id,
+         second_variant,
+         second_duplicate_id,
+         second_duplicate_variant,
+         second_ip,
+         second_previous] = execute(second);
+
+    test.expect_true(
+        read_u16(first, 0U) == OP_86_REWRITE_ROLE_HEAD_ACTION_KEY &&
+            read_u16(first, 2U) == 10002U && read_u16(first, 4U) == 18U &&
+            read_u16(first, 6U) == 10002U && read_u16(first, 8U) == 24U &&
+            first_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            first_id == 10002U && first_variant == 24U &&
+            first_duplicate_id == 10002U && first_duplicate_variant == 18U &&
+            first_ip == 0x8000U &&
+            first_previous == OP_86_REWRITE_ROLE_HEAD_ACTION_KEY &&
+            read_u16(second, 0U) == OP_86_REWRITE_ROLE_HEAD_ACTION_KEY &&
+            read_u16(second, 2U) == 10001U && read_u16(second, 4U) == 22U &&
+            read_u16(second, 6U) == 10001U && read_u16(second, 8U) == 54U &&
+            second_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            second_id == 10001U && second_variant == 54U &&
+            second_duplicate_id == 10001U && second_duplicate_variant == 22U &&
+            second_ip == 0x8000U &&
+            second_previous == OP_86_REWRITE_ROLE_HEAD_ACTION_KEY,
+        "real opcode 86 records rewrite only the first exact role-head key and preserve exact-tail continuation"
+    );
+}
+
 void test_real_control_packed_row_effect_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -18114,6 +18436,7 @@ int main(const int argument_count, char** arguments) {
     test_control_packed_row_effect_protocol(test);
     test_control_packed_row_effect_boundaries(test);
     test_begin_story_video_protocol(test);
+    test_rewrite_role_head_action_key_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -18176,6 +18499,7 @@ int main(const int argument_count, char** arguments) {
         test_real_upsert_packed_row_effect_record(test, root);
         test_real_control_packed_row_effect_records(test, root);
         test_real_begin_story_video_records(test, root);
+        test_real_rewrite_role_head_action_key_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

@@ -133,6 +133,12 @@ Y + height <= 480
 
 平台层将来可以用 FFmpeg 或其他解码后端替换 Bink DLL，但必须保留“先清屏并提交、再尝试打开”、扩展名改写、失败重试位置和脚本消费时序。
 
+## opcode 86：改写头像动作键
+
+86遍历固定0xB4头像动作链，以完整32位node action ID/base variant和脚本零扩展u16旧键比较；只把首个exact match的`+0x00/+0x08`依次改为new action ID/new variant。访问严格分阶段：空链不读任何operand，ID miss不读variant/new key，new ID写后才读取new variant，因此末operand截断会保留ID部分写。所有路径固定+10、发布previous86并same-call继续。
+
+86现已独立闭环：typed list owner替代固定裸全局/哨兵，保留线性顺序、完整dword比较、首匹配和unsafe副作用。资产锁34条/34 probes，分布`4/22/5/3`，全部raw `0x0056`、长度10；真实`TALK1 10002/18→10002/24`与`TALK4 10001/22→10001/54`精确尾回放通过。完整证据见[`story-vm-role-head-action-key-rewrite-0042a673.md`](story-vm-role-head-action-key-rewrite-0042a673.md)。
+
 ## opcode 87：空随机目标表直接整数除零
 
 87 从 `+2` 开始扫描 `u32` 目标直到 `0xFF00FF00`，调用 `sub_439070(count)` 取得 `[0,count)` 的无偏随机索引，再由 `sub_42E430` 重载 TALK 窗口。成功路径不按表的物理尾继续，而是把当前脚本指针替换为新窗口基址。

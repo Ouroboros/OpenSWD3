@@ -4267,6 +4267,54 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_86_REWRITE_ROLE_HEAD_ACTION_KEY: {
+            if (runtime.role_head_actions == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            auto& actions = *runtime.role_head_actions;
+            if (!actions.empty()) {
+                if (!has_bytes(state.window, ip, 4U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                const u16 old_action_id = read_u16(state.window, ip + 2U);
+                for (auto& action : actions) {
+                    if (action.action.action_id != old_action_id) {
+                        continue;
+                    }
+                    if (!has_bytes(state.window, ip, 6U)) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::operand_out_of_range;
+                        return result;
+                    }
+                    const u16 old_variant = read_u16(state.window, ip + 4U);
+                    if (action.action.base_variant != old_variant) {
+                        continue;
+                    }
+                    if (!has_bytes(state.window, ip, 8U)) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::operand_out_of_range;
+                        return result;
+                    }
+                    action.action.action_id = read_u16(state.window, ip + 6U);
+                    if (!has_bytes(state.window, ip, 10U)) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::operand_out_of_range;
+                        return result;
+                    }
+                    action.action.base_variant =
+                        read_u16(state.window, ip + 8U);
+                    break;
+                }
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 10U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 88U:
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
