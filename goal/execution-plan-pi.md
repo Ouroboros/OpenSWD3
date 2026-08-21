@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v326
+版本：v327
 
 最后更新：2026-08-21
 
@@ -2305,6 +2305,18 @@ B7 P0 有限收口完成。
     Windows依阶段规则留到P2完成门。现代显式opcode增至122；对外进度为已实现122/198、已验收
     115/198；内部workpack83/146，即`11 assembly_exact + 72 platform_adapted + 63 pending_audit`。
 
-当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042B4CA` 的共享opcodes106/154 handler；现有导航语义与既有实现均不继承完成状态。
-不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
+- 剧情VM P2第八十四组`0x0042B4CA`共享opcodes106/154完成独立闭环。机器先读`+2` u16
+    threshold，再按normalized opcode选择主/副picture-action父对象；selected链为空直接完成，非空只读取首节点
+    `+0x49` u8，即typed action `packed_ap_state`高字节。`byte<=threshold`不推进并yield；空链或严格
+    `byte>threshold`推进4、发布previous并same-call。modern复用`LegacyPictureActionLists`，缺binding在operand后
+    的父对象访问点typed-stop。两个变体各四raw alias、主副链选择、相等/严格大于、空链、threshold256、
+    operand/runtime顺序及精确尾通过。opcode106资产锁60条/63 probes，全部raw`006A`、长度4，分布
+    `21/8/14/17`，25种threshold范围2..110；opcode154以asset absence和synthetic锁定。格式化后剧情VM/
+    picture-actions定向4/4、Linux core186/186、Linux app192/192均exit0；测试时间分别0.60/22.45/24.59秒。
+    workpack双生成hash为`d145e17bd011fa7aa5498103c845fcb310024edc4b7b8f1aa531e7066501e8cc`。
+    未启动游戏EXE；Windows依阶段规则留到P2完成门。人工语义增至135行，现代显式opcode增至124；
+    对外进度为已实现124/198、已验收117/198；内部workpack84/146，即`11 assembly_exact +
+    73 platform_adapted + 62 pending_audit`。
+
+按用户指令，本组提交推送后暂停P2并将`pi-execution`合并到`main`；合并后只独立调整CTest并发，
+不进入下一handler。恢复P2时下一停点为`0x0042B50F` / opcode107，现有导航语义与既有实现均不继承完成状态。

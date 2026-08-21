@@ -4798,6 +4798,37 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
+        case OP_106_WAIT_PRIMARY_PICTURE_ACTION_BYTE:
+        case OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u16 threshold = read_u16(state.window, ip + 2U);
+            if (runtime.picture_actions == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            const std::list<LegacyPictureActionNode>& actions =
+                result.opcode == OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE
+                ? runtime.picture_actions->secondary
+                : runtime.picture_actions->primary;
+            if (!actions.empty()) {
+                const u16 wait_byte = static_cast<u8>(
+                    actions.front().action.packed_ap_state >> 8U
+                );
+                if (wait_byte <= threshold) {
+                    state.previous_opcode = result.opcode;
+                    result.status = LegacyWorldStoryVmStatus::yielded;
+                    return result;
+                }
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 107U: {
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

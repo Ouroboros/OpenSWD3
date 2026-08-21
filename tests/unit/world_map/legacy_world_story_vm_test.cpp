@@ -132,6 +132,7 @@ using openswd3::world_map::OP_102_SET_ROLE_STATUS_BIT6;
 using openswd3::world_map::OP_103_SET_ROLE_STATUS_BIT5;
 using openswd3::world_map::OP_104_SET_TEXT_LAYOUT_PAIR;
 using openswd3::world_map::OP_105_CLEAR_TEXT_CONTROL_BIT27;
+using openswd3::world_map::OP_106_WAIT_PRIMARY_PICTURE_ACTION_BYTE;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -141,6 +142,7 @@ using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_174_SET_ROLE_STATUS_BIT14;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
+using openswd3::world_map::OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
 void write_u16(
@@ -16270,6 +16272,185 @@ void test_clear_text_control_bit27_protocol(
     );
 }
 
+void test_wait_picture_action_byte_protocol(
+    openswd3::test::Context& test
+) {
+    struct Variant {
+        u16 opcode;
+        bool primary;
+    };
+    constexpr std::array<Variant, 2U> variants{
+        Variant{OP_106_WAIT_PRIMARY_PICTURE_ACTION_BYTE, true},
+        Variant{OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE, false},
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const auto variant : variants) {
+        for (const u16 alias_mask : alias_masks) {
+            Fixture fixture;
+            openswd3::world_map::LegacyPictureActionLists picture_actions;
+            picture_actions.primary.emplace_back();
+            picture_actions.secondary.emplace_back();
+            auto& selected = variant.primary ? picture_actions.primary
+                                             : picture_actions.secondary;
+            auto& other = variant.primary ? picture_actions.secondary
+                                          : picture_actions.primary;
+            selected.front().action.packed_ap_state = 0x0500U;
+            other.front().action.packed_ap_state = 0x0A00U;
+            fixture.runtime.picture_actions = &picture_actions;
+            prime_loaded_instruction(
+                fixture, static_cast<u16>(variant.opcode | alias_mask)
+            );
+            write_u16(fixture.state.window, 2U, 5U);
+            write_u16(
+                fixture.state.window, 4U, OP_95_CLEAR_SCENE_RENDER_BIT1
+            );
+            u8 scene_render_flags = 0xA7U;
+            fixture.runtime.scene_render_flags = &scene_render_flags;
+
+            const auto waiting = fixture.step();
+            test.expect_true(
+                waiting.status == LegacyWorldStoryVmStatus::yielded &&
+                    waiting.raw_word ==
+                        static_cast<u16>(variant.opcode | alias_mask) &&
+                    waiting.opcode == variant.opcode &&
+                    waiting.executed_instruction_count == 1U &&
+                    fixture.context.instruction_offset == 0U &&
+                    fixture.state.previous_opcode == variant.opcode &&
+                    scene_render_flags == 0xA7U,
+                "shared picture-action wait aliases select their own head and stall at equality"
+            );
+
+            selected.front().action.packed_ap_state = 0x0600U;
+            const auto completed = fixture.step();
+            test.expect_true(
+                completed.status == LegacyWorldStoryVmStatus::yielded &&
+                    completed.opcode == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                    completed.executed_instruction_count == 2U &&
+                    fixture.context.instruction_offset == 6U &&
+                    fixture.state.previous_opcode ==
+                        OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                    scene_render_flags == 0xA5U,
+                "shared picture-action wait advances only when the selected byte is strictly above"
+            );
+        }
+    }
+
+    for (const auto variant : variants) {
+        Fixture wide_threshold;
+        openswd3::world_map::LegacyPictureActionLists picture_actions;
+        auto& selected = variant.primary ? picture_actions.primary
+                                         : picture_actions.secondary;
+        selected.emplace_back();
+        selected.front().action.packed_ap_state = 0xFF00U;
+        wide_threshold.runtime.picture_actions = &picture_actions;
+        prime_loaded_instruction(wide_threshold, variant.opcode);
+        write_u16(wide_threshold.state.window, 2U, 256U);
+
+        const auto result = wide_threshold.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.executed_instruction_count == 1U &&
+                wide_threshold.context.instruction_offset == 0U &&
+                wide_threshold.state.previous_opcode == variant.opcode,
+            "picture-action wait cannot complete above a u16 threshold greater than byte range"
+        );
+
+        Fixture empty_selected;
+        openswd3::world_map::LegacyPictureActionLists empty_actions;
+        auto& other = variant.primary ? empty_actions.secondary
+                                      : empty_actions.primary;
+        other.emplace_back();
+        other.front().action.packed_ap_state = 0U;
+        empty_selected.runtime.picture_actions = &empty_actions;
+        prime_loaded_instruction(empty_selected, variant.opcode);
+        write_u16(empty_selected.state.window, 2U, 0U);
+        write_u16(
+            empty_selected.state.window, 4U, OP_95_CLEAR_SCENE_RENDER_BIT1
+        );
+        u8 scene_render_flags = 0xA7U;
+        empty_selected.runtime.scene_render_flags = &scene_render_flags;
+
+        const auto empty_result = empty_selected.step();
+        test.expect_true(
+            empty_result.status == LegacyWorldStoryVmStatus::yielded &&
+                empty_result.executed_instruction_count == 2U &&
+                empty_selected.context.instruction_offset == 6U &&
+                scene_render_flags == 0xA5U,
+            "picture-action wait completes on an empty selected chain without reading the other chain"
+        );
+    }
+
+    Fixture missing_operand;
+    missing_operand.context.talk_data_offset = 0x1111U;
+    missing_operand.context.instruction_offset = 0x7FFEU;
+    missing_operand.state.loaded_file_number = 1U;
+    missing_operand.state.loaded_data_offset = 0x1111U;
+    missing_operand.state.window_loaded = true;
+    missing_operand.state.previous_opcode = 0x55U;
+    write_u16(
+        missing_operand.state.window,
+        0x7FFEU,
+        OP_106_WAIT_PRIMARY_PICTURE_ACTION_BYTE
+    );
+
+    const auto missing_operand_result = missing_operand.step();
+    test.expect_true(
+        missing_operand_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_operand.context.instruction_offset == 0x7FFEU &&
+            missing_operand.state.previous_opcode == 0x55U,
+        "picture-action wait reads its threshold before selecting the runtime owner"
+    );
+
+    Fixture missing_runtime;
+    prime_loaded_instruction(
+        missing_runtime, OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE
+    );
+    write_u16(missing_runtime.state.window, 2U, 5U);
+    missing_runtime.state.previous_opcode = 0x66U;
+
+    const auto missing_runtime_result = missing_runtime.step();
+    test.expect_true(
+        missing_runtime_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_runtime.context.instruction_offset == 0U &&
+            missing_runtime.state.previous_opcode == 0x66U,
+        "picture-action wait stops at the typed parent owner when runtime binding is absent"
+    );
+
+    Fixture exact_tail;
+    openswd3::world_map::LegacyPictureActionLists picture_actions;
+    exact_tail.runtime.picture_actions = &picture_actions;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.context.instruction_offset = 0x7FFCU;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    write_u16(
+        exact_tail.state.window,
+        0x7FFCU,
+        OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE
+    );
+    write_u16(exact_tail.state.window, 0x7FFEU, 0xFFFFU);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE,
+        "empty secondary picture-action wait commits IP and previous before exact-tail fetch failure"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -19603,6 +19784,63 @@ void test_real_clear_text_control_bit27_records(
     }
 }
 
+void test_real_wait_primary_picture_action_byte_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        u16 threshold;
+    };
+    constexpr std::array<RealCase, 4U> cases{
+        RealCase{"TALK1.DAT", 0x0001C0C9, 9U},
+        RealCase{"TALK2.DAT", 0x000101E7, 3U},
+        RealCase{"TALK3.DAT", 0x00016EF6, 25U},
+        RealCase{"TALK4.DAT", 0x0000258A, 110U},
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 4U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        openswd3::world_map::LegacyPictureActionLists picture_actions;
+        picture_actions.primary.emplace_back();
+        picture_actions.primary.front().action.packed_ap_state =
+            static_cast<u16>((real_case.threshold + 1U) << 8U);
+        fixture.runtime.picture_actions = &picture_actions;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFCU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFCU);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read &&
+                read_u16(record, 0U) ==
+                    OP_106_WAIT_PRIMARY_PICTURE_ACTION_BYTE &&
+                read_u16(record, 2U) == real_case.threshold &&
+                result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.previous_opcode ==
+                    OP_106_WAIT_PRIMARY_PICTURE_ACTION_BYTE,
+            "real opcode 106 completes above its threshold before exact-tail fetch failure"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -21727,6 +21965,7 @@ int main(const int argument_count, char** arguments) {
     test_set_role_status_from_boolean_protocol(test);
     test_set_text_layout_pair_protocol(test);
     test_clear_text_control_bit27_protocol(test);
+    test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -21803,6 +22042,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_role_status_from_boolean_records(test, root);
         test_real_set_text_layout_pair_records(test, root);
         test_real_clear_text_control_bit27_records(test, root);
+        test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

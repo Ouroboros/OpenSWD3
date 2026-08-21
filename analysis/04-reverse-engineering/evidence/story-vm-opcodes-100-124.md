@@ -107,6 +107,8 @@ byte >  threshold  -> 推进 4，ESI=1，同帧继续
 
 比较是严格大于。指针持续非空时，阈值 255 或更大永远无法由单字节满足。
 
+共享入口现已按106/154独立闭环：154选择副图片动作链，106选择主链；`node+0x49`精确映射为typed action `packed_ap_state`高字节。两个变体各四raw alias、链选择、空链、严格边界、threshold 256、operand/runtime访问顺序与精确尾通过。opcode106锁定60条资产/63 probes；154以asset absence和synthetic锁定。完整证据见[`story-vm-picture-action-byte-wait-0042b4ca.md`](story-vm-picture-action-byte-wait-0042b4ca.md)。
+
 107 找到角色后读取其 action `+0x40` 的 packed word：低字节是 AP 项数量/上限，高字节是一基当前下标。精确分支为：
 
 - `threshold > low_byte`：诊断并消费；
