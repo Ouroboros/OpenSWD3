@@ -91,6 +91,7 @@ using openswd3::world_map::OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING;
 using openswd3::world_map::OP_62_WRITE_MAP_ROLE;
 using openswd3::world_map::OP_63_SET_SELECTION_SCROLL;
 using openswd3::world_map::OP_64_CLEAR_SELECTION_SCROLL;
+using openswd3::world_map::OP_65_TRANSFER_ROLE_TO_PARTY;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
@@ -548,6 +549,12 @@ struct Fixture {
         openswd3::world_map::kLegacyWorldSelectionWordCount>
         selection_words{};
     openswd3::world_map::LegacyWorldSelectionScrollState selection_scroll{};
+    openswd3::world_map::LegacyWorldRoleTransferState role_transfer_state{};
+    u32 live_party_role_count{1U};
+    std::array<
+        LegacyWorldObjectSlot,
+        openswd3::world_map::kLegacyWorldPartySlotCount>
+        live_party_object_slots{};
     u32 indexed_target_selector{};
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     RecordingPorts ports{};
@@ -567,6 +574,9 @@ struct Fixture {
             openswd3::world_map::kLegacyWorldSelectionSentinel
         ));
         runtime.role_storage = &roles;
+        runtime.role_transfer_state = &role_transfer_state;
+        runtime.live_party_role_count = &live_party_role_count;
+        runtime.live_party_object_slots = &live_party_object_slots;
         runtime.selection_words = &selection_words;
         runtime.selection_scroll = &selection_scroll;
         runtime.camera = &camera;
@@ -10754,6 +10764,261 @@ void test_clear_selection_scroll_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_transfer_role_to_party_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.roles[1].guid = 9U;
+        fixture.roles[1].flags = 0x00004082U;
+        fixture.roles[1].talk_script_id = 0x0033U;
+        fixture.roles[1].path_data_id = 0U;
+        fixture.live_party_object_slots[1].bytes.fill(0x44U);
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_65_TRANSFER_ROLE_TO_PARTY | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, 9U);
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_65_TRANSFER_ROLE_TO_PARTY &&
+                result.executed_instruction_count == 1U &&
+                result.role_transfer_status ==
+                    openswd3::world_map::LegacyWorldRoleTransferStatus::ready &&
+                fixture.role_transfer_state.party_role_count == 2U &&
+                fixture.role_transfer_state.party_role_indices[1] == 1U &&
+                fixture.role_transfer_state.roles_transferred == 1U &&
+                fixture.live_party_role_count == 2U &&
+                std::ranges::all_of(
+                    fixture.live_party_object_slots[1].bytes,
+                    [](const u8 value) { return value == 0xFFU; }
+                ) &&
+                fixture.roles[1].talk_script_id == 0U &&
+                fixture.roles[1].flags == 0x00000082U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode ==
+                    OP_65_TRANSFER_ROLE_TO_PARTY,
+            "opcode 65 aliases append a pathless role to transfer bookkeeping, apply Talk/flag state, publish previous and yield"
+        );
+    }
+
+    Fixture raw_fff0;
+    raw_fff0.context.source_guid = 9U;
+    raw_fff0.roles[1].guid = 9U;
+    raw_fff0.runtime.role_transfer_state = nullptr;
+    prime_loaded_instruction(raw_fff0, OP_65_TRANSFER_ROLE_TO_PARTY);
+    write_u16(raw_fff0.state.window, 2U, 0xFFF0U);
+    raw_fff0.state.previous_opcode = 0x66U;
+    const auto raw_fff0_result = raw_fff0.step();
+    test.expect_true(
+        raw_fff0_result.status == LegacyWorldStoryVmStatus::yielded &&
+            raw_fff0.role_transfer_state.party_role_count == 1U &&
+            raw_fff0.roles[1].talk_script_id == 0U &&
+            raw_fff0.context.instruction_offset == 4U &&
+            raw_fff0.state.previous_opcode == OP_65_TRANSFER_ROLE_TO_PARTY,
+        "opcode 65 does not translate FFF0 to the Talk source GUID and silently consumes a missing literal selector"
+    );
+
+    Fixture controlled;
+    controlled.roles[1].guid = 9U;
+    controlled.roles[1].flags = 0x00004001U;
+    controlled.roles[1].talk_script_id = 0x0044U;
+    controlled.roles[1].path_data_id = 0U;
+    prime_loaded_instruction(controlled, OP_65_TRANSFER_ROLE_TO_PARTY);
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    const auto controlled_result = controlled.step(0, 0, 1U);
+    test.expect_true(
+        controlled_result.status == LegacyWorldStoryVmStatus::yielded &&
+            controlled.role_transfer_state.party_role_indices[1] == 1U &&
+            controlled.live_party_role_count == 2U &&
+            controlled.roles[1].talk_script_id == 0U &&
+            controlled.roles[1].flags == 0x00000081U,
+        "opcode 65 retains the shared FFFE controlled-role lookup contract"
+    );
+
+    Fixture aligned;
+    MapRoleWriteHarness aligned_runtime{aligned};
+    aligned.roles[1].guid = 9U;
+    aligned.roles[1].flags = 0x00004080U;
+    aligned.roles[1].talk_script_id = 0x0033U;
+    aligned.roles[1].path_data_id = 4U;
+    aligned.roles[1].world_x = 0x20U;
+    aligned.roles[1].world_y = 0x30U;
+    aligned_runtime.add_source(
+        {.logical_map_id = 5U, .guid = 9U, .flags = 0x0100U}
+    );
+    auto& aligned_slot = aligned.active_object_slots[5U];
+    aligned_slot.bytes.fill(0x55U);
+    aligned.live_party_object_slots[1].bytes.fill(0x44U);
+    write_u16(aligned_slot.bytes, 0U, 1U);
+    prime_loaded_instruction(aligned, OP_65_TRANSFER_ROLE_TO_PARTY);
+    write_u16(aligned.state.window, 2U, 9U);
+
+    const auto aligned_result = aligned.step();
+    test.expect_true(
+        aligned_result.status == LegacyWorldStoryVmStatus::yielded &&
+            aligned_result.role_transfer_status ==
+                openswd3::world_map::LegacyWorldRoleTransferStatus::ready &&
+            aligned_runtime.database.role_sources.front().flags == 0x0180U &&
+            std::ranges::all_of(
+                aligned_slot.bytes,
+                [](const u8 value) { return value == 0xFFU; }
+            ) &&
+            aligned.role_transfer_state.active_object_slots_reset == 1U &&
+            aligned.role_transfer_state.party_role_indices[1] == 1U &&
+            aligned.live_party_role_count == 2U &&
+            std::ranges::all_of(
+                aligned.live_party_object_slots[1].bytes,
+                [](const u8 value) { return value == 0xFFU; }
+            ) &&
+            aligned.roles[1].talk_script_id == 0U &&
+            aligned.roles[1].flags == 0x00000080U,
+        "opcode 65 wires aligned active-object MAPS patch, full slot reset and final transfer append through the shared helper"
+    );
+
+    Fixture missing_maps;
+    MapRoleWriteHarness missing_maps_runtime{missing_maps};
+    missing_maps.roles[1].guid = 9U;
+    missing_maps.roles[1].flags = 0x00004080U;
+    missing_maps.roles[1].talk_script_id = 0x0033U;
+    missing_maps.roles[1].path_data_id = 4U;
+    missing_maps.roles[1].world_x = 0x20U;
+    missing_maps.roles[1].world_y = 0x30U;
+    missing_maps_runtime.add_source(
+        {.logical_map_id = 5U, .guid = 9U, .flags = 0x0100U}
+    );
+    auto& missing_maps_slot = missing_maps.active_object_slots[0U];
+    missing_maps_slot.bytes.fill(0x55U);
+    write_u16(missing_maps_slot.bytes, 0U, 1U);
+    prime_loaded_instruction(missing_maps, OP_65_TRANSFER_ROLE_TO_PARTY);
+    write_u16(missing_maps.state.window, 2U, 9U);
+    missing_maps.runtime.maps_database = nullptr;
+    missing_maps.state.previous_opcode = 0x66U;
+
+    const auto missing_maps_result = missing_maps.step();
+    test.expect_true(
+        missing_maps_result.status ==
+                LegacyWorldStoryVmStatus::role_transfer_failed &&
+            missing_maps_result.role_transfer_status ==
+                openswd3::world_map::LegacyWorldRoleTransferStatus::
+                    role_source_patch_failed &&
+            missing_maps_runtime.database.role_sources.front().flags ==
+                0x0100U &&
+            missing_maps_slot.bytes[0] == 1U &&
+            missing_maps.role_transfer_state.active_object_slots_reset == 0U &&
+            missing_maps.role_transfer_state.party_role_count == 1U &&
+            missing_maps.live_party_role_count == 1U &&
+            missing_maps.roles[1].talk_script_id == 0x0033U &&
+            missing_maps.roles[1].flags == 0x00004080U &&
+            missing_maps.context.instruction_offset == 0U &&
+            missing_maps.state.previous_opcode == 0x66U,
+        "opcode 65 nullable MAPS owner failure occurs at the patch point before object reset, transfer append, IP and previous publication"
+    );
+
+    Fixture missing_live;
+    missing_live.roles[1].guid = 9U;
+    missing_live.roles[1].flags = 0x00004080U;
+    missing_live.roles[1].talk_script_id = 0x0033U;
+    missing_live.roles[1].path_data_id = 0U;
+    missing_live.live_party_object_slots[1].bytes.fill(0x44U);
+    prime_loaded_instruction(missing_live, OP_65_TRANSFER_ROLE_TO_PARTY);
+    write_u16(missing_live.state.window, 2U, 9U);
+    missing_live.runtime.live_party_object_slots = nullptr;
+    missing_live.runtime.live_party_role_count = nullptr;
+    missing_live.state.previous_opcode = 0x66U;
+    const auto missing_live_result = missing_live.step();
+    test.expect_true(
+        missing_live_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_live_result.role_transfer_status ==
+                openswd3::world_map::LegacyWorldRoleTransferStatus::ready &&
+            missing_live.role_transfer_state.party_role_count == 2U &&
+            missing_live.role_transfer_state.party_role_indices[1] == 1U &&
+            missing_live.role_transfer_state.roles_transferred == 1U &&
+            missing_live.live_party_role_count == 1U &&
+            missing_live.live_party_object_slots[1].bytes[0] == 0x44U &&
+            missing_live.roles[1].talk_script_id == 0U &&
+            missing_live.roles[1].flags == 0x00000080U &&
+            missing_live.context.instruction_offset == 0U &&
+            missing_live.state.previous_opcode == 0x66U,
+        "opcode 65 missing live-party slots typed-stops after helper effects but before live publication, IP and previous"
+    );
+
+    Fixture full_party;
+    full_party.roles[1].guid = 9U;
+    full_party.roles[1].flags = 0x00004080U;
+    full_party.roles[1].talk_script_id = 0x0033U;
+    full_party.roles[1].path_data_id = 0U;
+    full_party.role_transfer_state.party_role_count = 8U;
+    prime_loaded_instruction(full_party, OP_65_TRANSFER_ROLE_TO_PARTY);
+    write_u16(full_party.state.window, 2U, 9U);
+    full_party.state.previous_opcode = 0x66U;
+    const auto full_party_result = full_party.step();
+    test.expect_true(
+        full_party_result.status ==
+                LegacyWorldStoryVmStatus::role_transfer_failed &&
+            full_party_result.role_transfer_status ==
+                openswd3::world_map::LegacyWorldRoleTransferStatus::
+                    party_capacity_exceeded &&
+            full_party.roles[1].talk_script_id == 0x0033U &&
+            full_party.roles[1].flags == 0x00004080U &&
+            full_party.live_party_role_count == 1U &&
+            full_party.context.instruction_offset == 0U &&
+            full_party.state.previous_opcode == 0x66U,
+        "opcode 65 full-party typed-stop preserves common role state and publication"
+    );
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFEU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        truncated.state.window, 0x7FFEU, OP_65_TRANSFER_ROLE_TO_PARTY
+    );
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.role_transfer_state.party_role_count == 1U &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            truncated.state.previous_opcode == 0x66U,
+        "opcode 65 truncated selector typed-stops before lookup and transfer state"
+    );
+
+    Fixture exact_tail;
+    exact_tail.runtime.role_transfer_state = nullptr;
+    exact_tail.context.instruction_offset = 0x7FFCU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window, 0x7FFCU, OP_65_TRANSFER_ROLE_TO_PARTY
+    );
+    write_u16(exact_tail.state.window, 0x7FFEU, 0x7777U);
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.opcode == OP_65_TRANSFER_ROLE_TO_PARTY &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_65_TRANSFER_ROLE_TO_PARTY,
+        "opcode 65 missing-role exact tail consumes, publishes previous and yields without another fetch"
+    );
+}
+
 void test_wait_for_frame_color_transition(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::rendering::LegacyFrameColorTransitionState frame_color{
@@ -12591,6 +12856,51 @@ void test_real_clear_selection_scroll_record(
     );
 }
 
+void test_real_transfer_role_to_party_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0000FE4F);
+    std::array<u8, 4U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    fixture.roles[1].guid = 3U;
+    fixture.roles[1].flags = 0x00004082U;
+    fixture.roles[1].talk_script_id = 0x0033U;
+    fixture.roles[1].path_data_id = 0U;
+    fixture.live_party_object_slots[1].bytes.fill(0x44U);
+    prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    fixture.state.previous_opcode = 0x66U;
+
+    const auto result = fixture.step();
+
+    test.expect_true(
+        input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
+            read_u16(instruction, 0U) == OP_65_TRANSFER_ROLE_TO_PARTY &&
+            read_u16(instruction, 2U) == 3U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.role_transfer_status ==
+                openswd3::world_map::LegacyWorldRoleTransferStatus::ready &&
+            fixture.role_transfer_state.party_role_count == 2U &&
+            fixture.role_transfer_state.party_role_indices[1] == 1U &&
+            fixture.live_party_role_count == 2U &&
+            std::ranges::all_of(
+                fixture.live_party_object_slots[1].bytes,
+                [](const u8 value) { return value == 0xFFU; }
+            ) &&
+            fixture.roles[1].talk_script_id == 0U &&
+            fixture.roles[1].flags == 0x00000082U &&
+            fixture.context.instruction_offset == 4U &&
+            fixture.state.previous_opcode == OP_65_TRANSFER_ROLE_TO_PARTY,
+        "real opcode 65 record transfers GUID 3 into party bookkeeping and yields"
+    );
+}
+
 void test_real_shared_scene_render_control_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -14273,6 +14583,7 @@ int main(const int argument_count, char** arguments) {
     test_write_map_role_failure_ordering(test);
     test_set_selection_scroll_protocol(test);
     test_clear_selection_scroll_protocol(test);
+    test_transfer_role_to_party_protocol(test);
     test_wait_for_frame_color_transition(test);
     test_turn_role_toward_role(test);
     test_set_role_head_sign_action(test);
@@ -14320,6 +14631,7 @@ int main(const int argument_count, char** arguments) {
         test_real_write_map_role_record(test, root);
         test_real_set_selection_scroll_record(test, root);
         test_real_clear_selection_scroll_record(test, root);
+        test_real_transfer_role_to_party_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

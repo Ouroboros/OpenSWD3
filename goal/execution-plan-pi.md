@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v290
+版本：v291
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00429AE8` handler（opcode 65）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00429B14` handler（opcode 66）
 
 ## 0. 执行约定
 
@@ -1880,6 +1880,20 @@ B7 P0 有限收口完成。
     对外进度为已实现91/198、已验收71/198；内部workpack当前48/146，即
     `5 assembly_exact + 43 platform_adapted + 98 pending_audit`。
 
+- 剧情VM P2第四十九组`0x00429AE8` / opcode65完成独立闭环。LST原样读取selector、不替换
+    `FFF0`；lookup命中才调用已审计`sub_40D610`，按Path/活动对象条件完成地表与空间对齐、MAPS
+    flags `0x80` patch和对象槽清空，再写role index、清新party槽、清Talk、清flag`0x4000`并置
+    `0x80`；缺失角色静默消费。两路均走共享`+4`尾、发布previous并yield。SDL现按新party槽后count
+    的顺序同步post与live frame状态；REVIEW发现并修正了只写加载期post副本的问题。四raw alias、
+    raw`FFF0`、`FFFE`受控角色、path0、aligned活动对象、nullable MAPS失败点、live owner缺失、满8槽、
+    selector截断与`0x7FFC`精确尾均通过。资产锁定109条物理记录/110 probes，TALK1/2/3/4分布
+    `52/1/21/35`，全部raw`0x0041`、长度4；TALK1 GUID3真实记录回放通过。共享helper+剧情VM定向
+    4/4、Linux core 186/186、Linux app 192/192均exit 0，SDL主程序完成链接；未启动游戏EXE。
+    生成器`py_compile`及双重生成幂等通过，workpack hash为
+    `15a4fadb7b3a9d9948394feda09b143e2e659d0f58de4248662d94afe6060c66`。Windows依v291留到P3。
+    对外进度为已实现92/198、已验收72/198；内部workpack当前49/146，即
+    `5 assembly_exact + 44 platform_adapted + 97 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00429AE8` 的opcode65 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00429B14` 的opcode66 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

@@ -99,9 +99,9 @@ GUID缺失仅诊断；正常、非当前map和缺失三路都推进18、发布pr
 
 ## opcode 65、66：消费后让出的转移记录操作
 
-65 不替换 `FFF0`。找到角色时调用 `sub_40D610` 协调 Path、地图对象、角色状态和转移 bookkeeping；找不到时静默消费。66 把七个 `u16` 全部零扩展后交给 `sub_40D790`，由 helper 更新活动角色或 pending map-role 记录，返回值不被观察。
+65不替换`FFF0`。找到角色时调用已独立闭环的`sub_40D610`：按Path/活动对象条件完成地表与空间对齐、MAPS flags `0x80` patch和对象槽清除，再写post与live party bookkeeping，清Talk、清flag`0x4000`并置`0x80`；找不到时不访问transfer owner并静默消费。现代nullable MAPS owner只在真实patch点检查，helper成功后按新party槽→live count顺序同步SDL帧状态。109条物理记录/110 probes全部raw`0x0041`、长度4，TALK1/2/3/4分布`52/1/21/35`；真实GUID3记录回放通过。完整证据见[`story-vm-role-transfer-00429ae8.md`](story-vm-role-transfer-00429ae8.md)。
 
-两条指令成功消费后都保持 `ESI=0` 并让出。这里的跨帧边界属于剧情逻辑规格，不是平台性能策略。
+66把七个`u16`全部零扩展后交给`sub_40D790`，由helper更新活动角色或pending map-role记录，返回值不被观察。两条指令成功消费后都保持`ESI=0`并让出。这里的跨帧边界属于剧情逻辑规格，不是平台性能策略。
 
 ## opcode 67：脚本内存就是等待状态
 

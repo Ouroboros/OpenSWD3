@@ -154,7 +154,7 @@ u32 reset_legacy_world_object_slot(LegacyWorldObjectSlot& slot) noexcept {
 
 LegacyWorldRoleTransferStatus transfer_legacy_world_role(
     const std::span<u8> maps_payload,
-    LegacyMapsWorldDatabase& maps_database,
+    LegacyMapsWorldDatabase* const maps_database,
     const std::span<LegacyWorldRoleRecord> roles,
     const u32 role_index,
     const LegacyWorldRoleTransferContext* const context,
@@ -187,9 +187,12 @@ LegacyWorldRoleTransferStatus transfer_legacy_world_role(
                 }
             }
 
+            if (maps_database == nullptr) {
+                return LegacyWorldRoleTransferStatus::role_source_patch_failed;
+            }
             const auto patch_status = patch_legacy_maps_role_source_record(
                 maps_payload,
-                maps_database,
+                *maps_database,
                 LegacyMapsRolePatchRequest{
                     .guid = role.guid,
                     .flags_or_mask = 0x0080U,
@@ -219,6 +222,19 @@ LegacyWorldRoleTransferStatus transfer_legacy_world_role(
     ++state.party_role_count;
     ++state.roles_transferred;
     return LegacyWorldRoleTransferStatus::ready;
+}
+
+LegacyWorldRoleTransferStatus transfer_legacy_world_role(
+    const std::span<u8> maps_payload,
+    LegacyMapsWorldDatabase& maps_database,
+    const std::span<LegacyWorldRoleRecord> roles,
+    const u32 role_index,
+    const LegacyWorldRoleTransferContext* const context,
+    LegacyWorldRoleTransferState& state
+) noexcept {
+    return transfer_legacy_world_role(
+        maps_payload, &maps_database, roles, role_index, context, state
+    );
 }
 
 }  // namespace openswd3::world_map

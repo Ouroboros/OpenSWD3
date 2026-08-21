@@ -3254,6 +3254,77 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
+        case OP_65_TRANSFER_ROLE_TO_PARTY: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u32 role_index{};
+            if (resolve_role_index(
+                    roles,
+                    read_u16(state.window, ip + 2U),
+                    controlled_role_index,
+                    role_index
+                )) {
+                if (runtime.role_transfer_state == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                const LegacyWorldRoleTransferContext transfer_context{
+                    .active_object_slots = active_object_slots,
+                    .spatial_index = runtime.spatial_index,
+                    .surface_grid = runtime.role_surface.surface_grid,
+                    .map_width = runtime.role_surface.map_width,
+                    .selected_guid = static_cast<u16>(
+                        runtime.role_surface.selected_guid
+                    ),
+                };
+                result.role_transfer_status = transfer_legacy_world_role(
+                    runtime.mutable_maps_payload,
+                    runtime.maps_database,
+                    roles,
+                    role_index,
+                    &transfer_context,
+                    *runtime.role_transfer_state
+                );
+                if (result.role_transfer_status !=
+                    LegacyWorldRoleTransferStatus::ready) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::role_transfer_failed;
+                    return result;
+                }
+                const u32 party_count =
+                    runtime.role_transfer_state->party_role_count;
+                if (party_count == 0U ||
+                    party_count > kLegacyWorldPartySlotCount) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::role_transfer_failed;
+                    return result;
+                }
+                const std::size_t party_index =
+                    static_cast<std::size_t>(party_count - 1U);
+                if (runtime.live_party_object_slots == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                (*runtime.live_party_object_slots)[party_index] =
+                    runtime.role_transfer_state->party_object_slots[party_index];
+                if (runtime.live_party_role_count == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                *runtime.live_party_role_count = party_count;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
         case 67U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

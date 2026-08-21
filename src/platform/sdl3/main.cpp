@@ -3551,6 +3551,10 @@ public:
                     resource_databases_.mutable_maps_payload_bytes(),
                 .maps_database = &world.maps_database,
                 .role_storage = &roles,
+                .role_transfer_state = &world.role_post_materialization,
+                .live_party_role_count = &world_frame_state_.party_role_count,
+                .live_party_object_slots =
+                    &world_frame_state_.party_object_slots,
                 .role_particles = &world_role_particle_effect_,
                 .current_logical_map_id =
                     static_cast<openswd3::compat::u16>(world.logical_map_id),

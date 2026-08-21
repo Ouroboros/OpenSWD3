@@ -71,6 +71,15 @@ enum class LegacyWorldRoleTransferStatus {
 
 [[nodiscard]] LegacyWorldRoleTransferStatus transfer_legacy_world_role(
     std::span<compat::u8> maps_payload,
+    LegacyMapsWorldDatabase* maps_database,
+    std::span<LegacyWorldRoleRecord> roles,
+    compat::u32 role_index,
+    const LegacyWorldRoleTransferContext* context,
+    LegacyWorldRoleTransferState& state
+) noexcept;
+
+[[nodiscard]] LegacyWorldRoleTransferStatus transfer_legacy_world_role(
+    std::span<compat::u8> maps_payload,
     LegacyMapsWorldDatabase& maps_database,
     std::span<LegacyWorldRoleRecord> roles,
     compat::u32 role_index,
