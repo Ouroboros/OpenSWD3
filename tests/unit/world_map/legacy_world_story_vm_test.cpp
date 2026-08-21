@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <memory>
 #include <span>
 #include <string_view>
 #include <tuple>
@@ -580,7 +581,7 @@ private:
     openswd3::world_map::LegacyWorldStoryPathRuntime& runtime_;
 };
 
-struct Fixture {
+struct FixtureStorage {
     LegacyWorldTalkContext context{};
     LegacyWorldStoryVmState state{};
     std::vector<LegacyWorldRoleRecord> roles =
@@ -608,6 +609,41 @@ struct Fixture {
     openswd3::input_time_rng::LegacySecondaryRng secondary_rng{};
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     RecordingPorts ports{};
+};
+
+struct Fixture {
+    std::unique_ptr<FixtureStorage> storage =
+        std::make_unique<FixtureStorage>();
+    LegacyWorldTalkContext& context = storage->context;
+    LegacyWorldStoryVmState& state = storage->state;
+    std::vector<LegacyWorldRoleRecord>& roles = storage->roles;
+    std::array<
+        LegacyWorldObjectSlot,
+        openswd3::world_map::kLegacyWorldActiveObjectSlotCount>&
+        active_object_slots = storage->active_object_slots;
+    std::array<u8, 0x100U>& maps_payload = storage->maps_payload;
+    openswd3::story_scene::LegacyDialogRuntimeState& dialogs = storage->dialogs;
+    openswd3::world_map::LegacyWorldDialogRuntimeState& dialog_resources =
+        storage->dialog_resources;
+    std::array<u8, 16U>& first_name = storage->first_name;
+    std::array<u8, 16U>& second_name = storage->second_name;
+    openswd3::world_map::LegacyWorldCameraRect& camera = storage->camera;
+    std::array<i16, openswd3::world_map::kLegacyWorldSelectionWordCount>&
+        selection_words = storage->selection_words;
+    openswd3::world_map::LegacyWorldSelectionScrollState& selection_scroll =
+        storage->selection_scroll;
+    openswd3::world_map::LegacyWorldRoleTransferState& role_transfer_state =
+        storage->role_transfer_state;
+    u32& live_party_role_count = storage->live_party_role_count;
+    std::array<
+        LegacyWorldObjectSlot,
+        openswd3::world_map::kLegacyWorldPartySlotCount>&
+        live_party_object_slots = storage->live_party_object_slots;
+    u32& indexed_target_selector = storage->indexed_target_selector;
+    openswd3::input_time_rng::LegacySecondaryRng& secondary_rng =
+        storage->secondary_rng;
+    openswd3::world_map::LegacyWorldStoryVmRuntime& runtime = storage->runtime;
+    RecordingPorts& ports = storage->ports;
 
     Fixture() {
         openswd3::world_map::initialize_legacy_world_story_vm(state);
@@ -15001,20 +15037,26 @@ void test_real_jump_if_global_bit_records(
         },
     };
 
-    openswd3::resource_io::LegacyResourceDatabases databases;
-    const auto initialized = databases.initialize(root);
-    for (const auto sample : samples) {
+    std::array<std::array<u8, 8U>, samples.size()> instructions{};
+    std::array<bool, samples.size()> instruction_reads{};
+    for (std::size_t index = 0U; index < samples.size(); ++index) {
         std::ifstream input{
             root / "TALK1.DAT", std::ios::binary | std::ios::in
         };
-        input.seekg(sample.file_offset);
-        std::array<u8, 8U> instruction{};
+        input.seekg(samples[index].file_offset);
         input.read(
-            reinterpret_cast<char*>(instruction.data()),
-            static_cast<std::streamsize>(instruction.size())
+            reinterpret_cast<char*>(instructions[index].data()),
+            static_cast<std::streamsize>(instructions[index].size())
         );
-        const bool instruction_read = static_cast<bool>(input);
+        instruction_reads[index] = static_cast<bool>(input);
+    }
 
+    openswd3::resource_io::LegacyResourceDatabases databases;
+    const auto initialized = databases.initialize(root);
+    for (std::size_t index = 0U; index < samples.size(); ++index) {
+        const auto sample = samples[index];
+        const auto& instruction = instructions[index];
+        const bool instruction_read = instruction_reads[index];
         Fixture fixture;
         std::ranges::copy(instruction, fixture.state.window.begin());
         fixture.state.loaded_file_number = 1U;

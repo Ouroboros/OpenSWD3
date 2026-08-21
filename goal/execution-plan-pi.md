@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v311
+版本：v312
 
 最后更新：2026-08-21
 
@@ -115,9 +115,11 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 
 - 单个函数、handler 或紧密耦合小工作包闭环时，执行定向测试和 Linux `core`/`app` 门禁；
 - Windows LLVM `app` 不随每个函数、handler 或小工作包重复编译；
-- Windows LLVM `app` 只在大阶段结束时统一执行，例如 B7/P0 完成、剧情 VM P3 完成，或后续
-  模块达到正式关闭边界；
-- 大阶段 Windows 门禁发现的问题统一收集、统一修复，再重跑该大阶段 Windows 门禁直至通过；
+- Windows LLVM `app` 只在大阶段结束时统一执行；剧情 VM 追加 PLAN 的 P0、P1、P2、P3
+  各自都是独立大阶段，每个阶段完成时都必须执行一次 Windows LLVM `app` 完整门禁，前一阶段
+  的通过结果不得替代后一阶段；后续模块达到正式关闭边界时同样执行；
+- 大阶段 Windows 门禁发现的问题统一收集、统一修复，再重跑该阶段 Windows 门禁直至通过；
+  未取得对应 Windows 通过证据时不得宣告该大阶段完成；
 - 未到大阶段边界的阶段性汇报只报告本轮实际执行的 Linux/定向验证，不得暗示 Windows 已运行。
 
 每达到一个已完成验证、可以独立回退的阶段性边界，Codex 必须自行执行完整提交流程：
@@ -2115,6 +2117,13 @@ B7 P0 有限收口完成。
     `66243f68234f2345294c1280a92a006567187f2f4b562d4e869eaf738faed886`。未启动游戏EXE。
     现代显式opcode保持104；对外进度为已实现104/198、已验收93/198；内部workpack69/146，
     即`8 assembly_exact + 61 platform_adapted + 77 pending_audit`。
+
+- 剧情VM大阶段Windows门禁规则完成纠偏：P0/P1/P2/P3各自完成时必须独立执行Windows LLVM
+    app完整门，前一阶段结果不得替代。P1边界提交`a24145a`已在隔离worktree补跑192/192并exit0。
+    当前HEAD首次补门暴露Story VM测试二进制`0xC00000FD`栈溢出，以及resource DB持有TALK句柄时
+    二次ifstream受Windows共享模式拒绝；测试Fixture改为单一heap storage，real opcode21/22记录改为
+    初始化DB前预读。修复后Linux/Windows Story VM均3/3，当前HEAD Windows LLVM app192/192并
+    exit0；历史与当前均未启动游戏EXE。该结果不替代P2完成时必须重跑的独立Windows门。
 
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
 `0x0042B287` 的shared opcodes91/162 handler；现有导航语义与既有实现均不继承完成状态。

@@ -36,6 +36,10 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 研究完再开始编码。执行方式固定为按 handler 组边逆向、边实现、边验证，当前组完全
 收敛后再进入下一组。
 
+P0、P1、P2、P3各自都是独立大阶段；每个阶段完成时都必须执行并通过一次Windows LLVM
+`app`完整门禁，前一阶段或当前小工作包的结果不得替代后一阶段。没有对应Windows通过证据时
+不得宣告该阶段完成；门禁发现的问题必须修复并重跑至通过。
+
 ## 4. 执行顺序
 
 ### P0 · 有限收口 B7
@@ -69,7 +73,8 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至127行。前68行已独立
+值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至127行。前68行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
