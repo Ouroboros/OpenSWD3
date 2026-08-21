@@ -53,7 +53,7 @@ duration 为零时没有前置保护，直接进入 x87 除法。modern已按del
 
 ## opcode 54–57：刷新次数和查找失败行为
 
-54 把 `FFF0` 替换为当前状态 `+0x24`，但随后没有检查查找结果。它总会先清 action `+0x44/+0x42` 并调用一次 `sub_4321E0`；只有 `s16` repeat count 大于零时，才再循环指定次数，每次重复清 `+0x44`、刷新并清角色 `+0x98` 低字。因此总刷新次数是 `1 + max(repeat, 0)`，不是脚本字段本身。
+54 把`FFF0`替换为talk source GUID，`FFFE`保留给lookup helper选择受控角色；lookup发生在signed repeat读取前且原版忽略失败。它总会先清action `+0x44/+0x42`并刷新一次；只有repeat大于零时才再循环指定次数，每轮清`+0x44`、刷新、再清角色`+0x98`低字。因此总刷新次数是`1 + max(repeat, 0)`，刷新失败仅诊断且最后一次回写除`+0x98`低字外均保留。资产锁定256条物理记录/258个entry probe，全部raw `0x0036`、长度6；`TALK1.DAT@0x00005A6B`真实回放通过。完整证据见 [`story-vm-role-action-repeat-refresh-004294c0.md`](story-vm-role-action-repeat-refresh-004294c0.md)。
 
 55、56、57 共用同一 handler，分别把角色状态 `+0x10` 的低两位写成 `1`、`0`、`2`，同时保留旧低两位用于 `sub_411530`。三者都支持 `FFF0`，但同样不检查 lookup 返回；缺失角色会在角色数组基址前形成访问。正常路径推进四字节后让出，不同帧继续取下一条。
 

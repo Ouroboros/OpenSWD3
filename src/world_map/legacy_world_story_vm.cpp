@@ -2707,6 +2707,46 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
+        case OP_54_REPEAT_ROLE_ACTION_REFRESH: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u16 selector = read_u16(state.window, ip + 2U);
+            if (selector == 0xFFF0U) {
+                selector = context.source_guid;
+            }
+            u32 role_index{};
+            const bool role_found = resolve_role_index(
+                roles, selector, controlled_role_index, role_index
+            );
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i32 repeat_count =
+                static_cast<i16>(read_u16(state.window, ip + 4U));
+            if (!role_found) {
+                result.status = LegacyWorldStoryVmStatus::role_not_found;
+                return result;
+            }
+
+            auto& action = roles[role_index].action;
+            action.wait_remaining = 0U;
+            action.command_cursor = 0U;
+            record_action_update(result, action, ports);
+            for (i32 repeat_index = 0; repeat_index < repeat_count;
+                 ++repeat_index) {
+                action.wait_remaining = 0U;
+                record_action_update(result, action, ports);
+                action.field_58 = 0U;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 58U: {
             if (!has_bytes(state.window, ip, 10U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

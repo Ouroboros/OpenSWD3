@@ -12,6 +12,7 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <span>
 #include <string_view>
 #include <tuple>
@@ -79,6 +80,7 @@ using openswd3::world_map::OP_50_START_RELATIVE_CAMERA_MOVE;
 using openswd3::world_map::OP_51_WAIT_CAMERA_MOVE_COMPLETE;
 using openswd3::world_map::OP_52_START_FRAME_COLOR_TRANSITION;
 using openswd3::world_map::OP_53_WAIT_FRAME_COLOR_TRANSITION;
+using openswd3::world_map::OP_54_REPEAT_ROLE_ACTION_REFRESH;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
@@ -211,6 +213,9 @@ public:
         ++action_update_count;
         story_protocol_events.push_back(4U);
         action.field_4a = static_cast<u16>(action.action_id);
+        if (action_update_callback) {
+            action_update_callback(action, action_update_count);
+        }
         return action_update_result;
     }
 
@@ -308,6 +313,8 @@ public:
     u32 last_data_offset{};
     u32 action_update_count{};
     u32 action_update_result{1U};
+    std::function<void(openswd3::asset_runtime::LegacyActionRecord&, u32)>
+        action_update_callback;
     u32 framebuffer_clear_count{};
     u32 framebuffer_present_count{};
     u32 video_begin_count{};
@@ -5023,6 +5030,278 @@ void test_wait_for_frame_color_transition_protocol(
             completed_tail.state.previous_opcode ==
                 OP_53_WAIT_FRAME_COLOR_TRANSITION,
         "opcode 53 completed tail publishes previous before the next fetch fails"
+    );
+}
+
+void test_repeat_role_action_refresh_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    const auto prime_instruction = [](Fixture& fixture,
+                                      const u16 raw_word,
+                                      const u16 selector,
+                                      const i16 repeat_count) {
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, selector);
+        write_u16(fixture.state.window, 4U, static_cast<u16>(repeat_count));
+        write_u16(fixture.state.window, 6U, OP_1025);
+        fixture.state.previous_opcode = 0x55U;
+    };
+
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        auto& action = fixture.roles[1].action;
+        action.command_cursor = 0x1111U;
+        action.wait_remaining = 0x2222U;
+        action.field_58 = 0x3333U;
+        std::vector<std::tuple<u16, u16, u16>> snapshots;
+        fixture.ports.action_update_callback =
+            [&snapshots](
+                openswd3::asset_runtime::LegacyActionRecord& updated,
+                const u32 update_index
+            ) {
+                snapshots.emplace_back(
+                    updated.wait_remaining,
+                    updated.command_cursor,
+                    updated.field_58
+                );
+                updated.wait_remaining =
+                    static_cast<u16>(0x4000U + update_index);
+                updated.command_cursor =
+                    static_cast<u16>(0x5000U + update_index);
+                updated.field_58 = static_cast<u16>(0x6000U + update_index);
+            };
+        prime_instruction(
+            fixture,
+            static_cast<u16>(OP_54_REPEAT_ROLE_ACTION_REFRESH | mask),
+            0x00F8U,
+            2
+        );
+
+        const auto result = fixture.step();
+
+        const std::vector<std::tuple<u16, u16, u16>> expected{
+            {0U, 0U, 0x3333U},
+            {0U, 0x5001U, 0x6001U},
+            {0U, 0x5002U, 0U},
+        };
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.action_update_count == 3U &&
+                result.action_update_failure_count == 0U &&
+                snapshots == expected && action.wait_remaining == 0x4003U &&
+                action.command_cursor == 0x5003U && action.field_58 == 0U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode ==
+                    OP_54_REPEAT_ROLE_ACTION_REFRESH &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 54 aliases preserve initial and repeated refresh ordering"
+        );
+    }
+
+    constexpr std::array<i16, 3U> non_positive_repeats{
+        static_cast<i16>(0x8000U),
+        -1,
+        0,
+    };
+    for (const i16 repeat_count : non_positive_repeats) {
+        Fixture fixture;
+        auto& action = fixture.roles[1].action;
+        action.command_cursor = 0x1111U;
+        action.wait_remaining = 0x2222U;
+        action.field_58 = 0x3333U;
+        std::tuple<u16, u16, u16> snapshot{};
+        fixture.ports.action_update_callback =
+            [&snapshot](
+                openswd3::asset_runtime::LegacyActionRecord& updated, const u32
+            ) {
+                snapshot = {
+                    updated.wait_remaining,
+                    updated.command_cursor,
+                    updated.field_58,
+                };
+                updated.wait_remaining = 0x4444U;
+                updated.command_cursor = 0x5555U;
+                updated.field_58 = 0x6666U;
+            };
+        prime_instruction(
+            fixture, OP_54_REPEAT_ROLE_ACTION_REFRESH, 0x00F8U, repeat_count
+        );
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.action_update_count == 1U &&
+                result.action_update_failure_count == 0U &&
+                snapshot == std::tuple<u16, u16, u16>{0U, 0U, 0x3333U} &&
+                action.command_cursor == 0x5555U &&
+                action.wait_remaining == 0x4444U &&
+                action.field_58 == 0x6666U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode ==
+                    OP_54_REPEAT_ROLE_ACTION_REFRESH,
+            "opcode 54 non-positive signed repeat keeps the initial refresh writeback"
+        );
+    }
+
+    Fixture update_failure;
+    auto& failed_action = update_failure.roles[1].action;
+    failed_action.command_cursor = 0x1111U;
+    failed_action.wait_remaining = 0x2222U;
+    failed_action.field_58 = 0x3333U;
+    update_failure.ports.action_update_result = 0U;
+    update_failure.ports.action_update_callback =
+        [](openswd3::asset_runtime::LegacyActionRecord& updated,
+           const u32 update_index) {
+            updated.wait_remaining = static_cast<u16>(0x7000U + update_index);
+            updated.command_cursor = static_cast<u16>(0x7100U + update_index);
+            updated.field_58 = static_cast<u16>(0x7200U + update_index);
+        };
+    prime_instruction(
+        update_failure, OP_54_REPEAT_ROLE_ACTION_REFRESH, 0x00F8U, 2
+    );
+    const auto failure_result = update_failure.step();
+    test.expect_true(
+        failure_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            failure_result.action_update_count == 3U &&
+            failure_result.action_update_failure_count == 3U &&
+            failed_action.command_cursor == 0x7103U &&
+            failed_action.wait_remaining == 0x7003U &&
+            failed_action.field_58 == 0U &&
+            update_failure.context.instruction_offset == 6U &&
+            update_failure.state.previous_opcode ==
+                OP_54_REPEAT_ROLE_ACTION_REFRESH,
+        "opcode 54 refresh failures are diagnostic-only across every iteration"
+    );
+
+    Fixture source_selector;
+    source_selector.roles[1].action.command_cursor = 0x1111U;
+    source_selector.roles[2].guid = 0xFFF0U;
+    source_selector.roles[2].action.command_cursor = 0x2222U;
+    prime_instruction(
+        source_selector, OP_54_REPEAT_ROLE_ACTION_REFRESH, 0xFFF0U, 0
+    );
+    const auto source_result = source_selector.step();
+    test.expect_true(
+        source_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            source_result.action_update_count == 1U &&
+            source_selector.roles[1].action.command_cursor == 0U &&
+            source_selector.roles[2].action.command_cursor == 0x2222U,
+        "opcode 54 translates FFF0 to the talk source before lookup"
+    );
+
+    Fixture controlled_selector;
+    controlled_selector.roles[1].guid = 0xFFFEU;
+    controlled_selector.roles[1].action.command_cursor = 0x1111U;
+    controlled_selector.roles[2].action.command_cursor = 0x2222U;
+    prime_instruction(
+        controlled_selector, OP_54_REPEAT_ROLE_ACTION_REFRESH, 0xFFFEU, 0
+    );
+    const auto controlled_result = controlled_selector.step(0, 0, 2U);
+    test.expect_true(
+        controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled_result.action_update_count == 1U &&
+            controlled_selector.roles[1].action.command_cursor == 0x1111U &&
+            controlled_selector.roles[2].action.command_cursor == 0U,
+        "opcode 54 passes FFFE through for controlled-role selection"
+    );
+
+    Fixture selector_truncated;
+    selector_truncated.context.instruction_offset = 0x7FFEU;
+    selector_truncated.context.talk_data_offset = 0x1111U;
+    selector_truncated.state.loaded_file_number = 1U;
+    selector_truncated.state.loaded_data_offset = 0x1111U;
+    selector_truncated.state.window_loaded = true;
+    selector_truncated.state.previous_opcode = 0x55U;
+    write_u16(
+        selector_truncated.state.window,
+        0x7FFEU,
+        OP_54_REPEAT_ROLE_ACTION_REFRESH
+    );
+    const auto selector_truncated_result = selector_truncated.step();
+    test.expect_true(
+        selector_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            selector_truncated_result.action_update_count == 0U &&
+            selector_truncated.context.instruction_offset == 0x7FFEU &&
+            selector_truncated.state.previous_opcode == 0x55U,
+        "opcode 54 stops at the unsafe selector-word access"
+    );
+
+    Fixture repeat_truncated;
+    repeat_truncated.context.instruction_offset = 0x7FFCU;
+    repeat_truncated.context.talk_data_offset = 0x1111U;
+    repeat_truncated.state.loaded_file_number = 1U;
+    repeat_truncated.state.loaded_data_offset = 0x1111U;
+    repeat_truncated.state.window_loaded = true;
+    repeat_truncated.state.previous_opcode = 0x55U;
+    write_u16(
+        repeat_truncated.state.window, 0x7FFCU, OP_54_REPEAT_ROLE_ACTION_REFRESH
+    );
+    write_u16(repeat_truncated.state.window, 0x7FFEU, 0x7777U);
+    const auto repeat_truncated_result = repeat_truncated.step();
+    test.expect_true(
+        repeat_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            repeat_truncated_result.action_update_count == 0U &&
+            repeat_truncated.context.instruction_offset == 0x7FFCU &&
+            repeat_truncated.state.previous_opcode == 0x55U,
+        "opcode 54 performs missing-role lookup before the unsafe repeat read"
+    );
+
+    Fixture missing_role;
+    missing_role.roles[0].action.command_cursor = 0x1111U;
+    prime_instruction(
+        missing_role, OP_54_REPEAT_ROLE_ACTION_REFRESH, 0x7777U, 2
+    );
+    const auto missing_result = missing_role.step();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::role_not_found &&
+            missing_result.opcode == OP_54_REPEAT_ROLE_ACTION_REFRESH &&
+            missing_result.executed_instruction_count == 1U &&
+            missing_result.action_update_count == 0U &&
+            missing_role.roles[0].action.command_cursor == 0x1111U &&
+            missing_role.context.instruction_offset == 0U &&
+            missing_role.state.previous_opcode == 0x55U,
+        "opcode 54 missing role stops at the first unsafe action-field write"
+    );
+
+    Fixture exact_tail;
+    auto& tail_action = exact_tail.roles[1].action;
+    tail_action.command_cursor = 0x1111U;
+    tail_action.wait_remaining = 0x2222U;
+    tail_action.field_58 = 0x3333U;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x55U;
+    write_u16(
+        exact_tail.state.window, 0x7FFAU, OP_54_REPEAT_ROLE_ACTION_REFRESH
+    );
+    write_u16(exact_tail.state.window, 0x7FFCU, 0x00F8U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 1U);
+    const auto tail_result = exact_tail.step();
+    test.expect_true(
+        tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            tail_result.opcode == OP_54_REPEAT_ROLE_ACTION_REFRESH &&
+            tail_result.executed_instruction_count == 1U &&
+            tail_result.action_update_count == 2U &&
+            tail_action.command_cursor == 0U &&
+            tail_action.wait_remaining == 0U && tail_action.field_58 == 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_54_REPEAT_ROLE_ACTION_REFRESH,
+        "opcode 54 exact tail completes every refresh before next-fetch failure"
     );
 }
 
@@ -10557,6 +10836,47 @@ void test_real_start_frame_color_transition_record(
     );
 }
 
+void test_real_repeat_role_action_refresh_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00005A6B);
+    std::array<u8, 6U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    fixture.roles[2].guid = 1U;
+    auto& action = fixture.roles[2].action;
+    action.command_cursor = 0x1111U;
+    action.wait_remaining = 0x2222U;
+    action.field_58 = 0x3333U;
+    prime_loaded_instruction(fixture, OP_54_REPEAT_ROLE_ACTION_REFRESH);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 6U, OP_1025);
+    const auto result = fixture.step();
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_54_REPEAT_ROLE_ACTION_REFRESH &&
+            read_u16(instruction, 2U) == 1U &&
+            static_cast<i16>(read_u16(instruction, 4U)) == 1 &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == OP_1025 &&
+            result.executed_instruction_count == 2U &&
+            result.action_update_count == 2U &&
+            result.action_update_failure_count == 0U &&
+            action.command_cursor == 0U && action.wait_remaining == 0U &&
+            action.field_58 == 0U && fixture.context.instruction_offset == 6U &&
+            fixture.state.previous_opcode == OP_54_REPEAT_ROLE_ACTION_REFRESH &&
+            fixture.ports.direct_audio_service_count == 0U,
+        "real opcode 54 performs the initial and requested repeated refresh"
+    );
+}
+
 void test_real_wait_for_frame_color_transition_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -11971,6 +12291,7 @@ int main(const int argument_count, char** arguments) {
     test_start_frame_color_transition_protocol(test);
     test_start_frame_color_transition_window_boundaries(test);
     test_wait_for_frame_color_transition_protocol(test);
+    test_repeat_role_action_refresh_protocol(test);
     test_wait_for_role_action_position(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
@@ -12035,6 +12356,7 @@ int main(const int argument_count, char** arguments) {
         test_real_wait_for_camera_move_record(test, root);
         test_real_start_frame_color_transition_record(test, root);
         test_real_wait_for_frame_color_transition_record(test, root);
+        test_real_repeat_role_action_refresh_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

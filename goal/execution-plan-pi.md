@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v282
+版本：v283
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x004294C0` handler（opcode 54）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x004295F3` shared handler（opcodes 55–57）
 
 ## 0. 执行约定
 
@@ -1769,6 +1769,20 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode仍为84；workpack当前40/146，即
     `5 assembly_exact + 35 platform_adapted + 106 pending_audit`。
 
+- 剧情VM P2第四十一组`0x004294C0` / opcode54完成独立闭环。LST先读角色selector并查找，再读
+    signed repeat；总刷新次数固定为`1 + max(repeat, 0)`。初始刷新前清等待与命令位置，正repeat
+    的每一轮只先清等待、刷新，随后清角色动作辅助字段；刷新失败仅记诊断，循环、字段回写、IP、
+    previous和同调用继续均不取消。原版忽略missing lookup并可形成`-1`索引，modern只在repeat
+    可读后的首次动作写入点typed-stop，保留前序访问且不伪造fallback。四raw alias、signed非正值、
+    三次刷新失败、source/受控角色selector、两级operand截断、missing角色、`0x7FFA`精确尾和
+    callback刷新前后快照均通过；`TALK1.DAT@0x00005A6B`真实记录完成初始加一次重复刷新。TALK
+    目录锁定256条物理记录/258个entry probe，分布99/65/80/12与99/65/82/12，全部raw `0x0036`、
+    长度6，repeat为0..8；高位alias字样为0。最终剧情VM定向3/3、Linux core 186/186、Linux app
+    192/192均exit 0；app仅保留既有ALSA开发库warning。生成器`py_compile`及双重生成幂等通过，
+    workpack hash为`e8620a0a9f1c07e47c988bd75c6f9b5a9682e18ede15be3f79936311cbd6ab70`。Windows依v283
+    留到P3，未启动游戏EXE。现代显式opcode增至85；workpack当前41/146，即
+    `5 assembly_exact + 36 platform_adapted + 105 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x004294C0` 的 opcode54 handler；现有导航语义与既有实现均不继承完成状态。
+`0x004295F3` 的共享opcodes55–57 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。
