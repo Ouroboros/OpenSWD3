@@ -4791,6 +4791,13 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
+        case OP_105_CLEAR_TEXT_CONTROL_BIT27:
+            state.text_control_flags &= 0xF7FFFFFFU;
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
+            continue;
+
         case 107U: {
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

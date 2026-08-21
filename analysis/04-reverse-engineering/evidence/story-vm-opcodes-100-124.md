@@ -85,6 +85,8 @@ opcode104现已独立闭环：bit28清除先于第一operand，第一signed i16�
 
 105、121、124 分别清 `dword_4A1360` 的 bit27、bit26、bit25，均为两字节、同帧继续。它们与此前的 bit31..28 控制指令属于独立 opcode，不能合并成会自动正规化整个 flag word 的接口。
 
+opcode105现已独立闭环：只执行u32 `AND F7FFFFFF`、+2、previous105与same-call。四raw alias、精确尾及806条资产/806 probes通过；完整证据见[`story-vm-text-control-bit27-clear-0042b4b9.md`](story-vm-text-control-bit27-clear-0042b4b9.md)。
+
 108 把 `+2/+4` 写入 `dword_4A135C` 的低/高 word，供下一次文字 action 覆盖默认位置。随后分别执行无符号边界检查：
 
 - `X > 639` 时把 X 改成 16；

@@ -131,6 +131,7 @@ using openswd3::world_map::OP_101_SET_ROLE_STATUS_BIT26;
 using openswd3::world_map::OP_102_SET_ROLE_STATUS_BIT6;
 using openswd3::world_map::OP_103_SET_ROLE_STATUS_BIT5;
 using openswd3::world_map::OP_104_SET_TEXT_LAYOUT_PAIR;
+using openswd3::world_map::OP_105_CLEAR_TEXT_CONTROL_BIT27;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -16209,6 +16210,66 @@ void test_set_text_layout_pair_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_clear_text_control_bit27_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        const u16 raw_word =
+            static_cast<u16>(OP_105_CLEAR_TEXT_CONTROL_BIT27 | alias_mask);
+        fixture.state.text_control_flags = 0xFFFFFFFFU;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, OP_95_CLEAR_SCENE_RENDER_BIT1);
+        u8 scene_render_flags = 0xA7U;
+        fixture.runtime.scene_render_flags = &scene_render_flags;
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                result.opcode == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.text_control_flags == 0xF7FFFFFFU &&
+                fixture.state.previous_opcode ==
+                    OP_95_CLEAR_SCENE_RENDER_BIT1 &&
+                scene_render_flags == 0xA5U,
+            "opcode 105 aliases clear only text-control bit 27 and continue"
+        );
+    }
+
+    Fixture exact_tail;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.text_control_flags = 0xAFFFFFFFU;
+    write_u16(
+        exact_tail.state.window,
+        0x7FFEU,
+        OP_105_CLEAR_TEXT_CONTROL_BIT27
+    );
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.text_control_flags == 0xA7FFFFFFU &&
+            exact_tail.state.previous_opcode ==
+                OP_105_CLEAR_TEXT_CONTROL_BIT27,
+        "opcode 105 commits bit clear and previous before the next exact-tail fetch fails"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -19490,6 +19551,58 @@ void test_real_set_text_layout_pair_records(
     }
 }
 
+void test_real_clear_text_control_bit27_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+    };
+    constexpr std::array<RealCase, 4U> cases{
+        RealCase{"TALK1.DAT", 0x0000256C},
+        RealCase{"TALK2.DAT", 0x00001703},
+        RealCase{"TALK3.DAT", 0x00009DDD},
+        RealCase{"TALK4.DAT", 0x0000169B},
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 2U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFEU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.text_control_flags = 0xFFFFFFFFU;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFEU);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read &&
+                read_u16(record, 0U) ==
+                    OP_105_CLEAR_TEXT_CONTROL_BIT27 &&
+                result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.text_control_flags == 0xF7FFFFFFU &&
+                fixture.state.previous_opcode ==
+                    OP_105_CLEAR_TEXT_CONTROL_BIT27,
+            "real opcode 105 clears bit 27 before exact-tail completion"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -21613,6 +21726,7 @@ int main(const int argument_count, char** arguments) {
     test_set_role_status_bit26_protocol(test);
     test_set_role_status_from_boolean_protocol(test);
     test_set_text_layout_pair_protocol(test);
+    test_clear_text_control_bit27_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -21688,6 +21802,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_role_status_bit26_records(test, root);
         test_real_set_role_status_from_boolean_records(test, root);
         test_real_set_text_layout_pair_records(test, root);
+        test_real_clear_text_control_bit27_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
