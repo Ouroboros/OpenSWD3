@@ -1021,12 +1021,7 @@ void refresh_story_path_role_span(
     const u32 group = pending.flags & 3U;
     if (direct_match != kLegacyWorldRoleNotFound) {
         const auto removed = relocate_legacy_role_spatially_by_guid(
-            *runtime.spatial_index,
-            roles,
-            pending.guid,
-            group,
-            0,
-            false
+            *runtime.spatial_index, roles, pending.guid, group, 0, false
         );
         if (removed.status != LegacyRoleSpatialRelocationStatus::ready ||
             removed.legacy_return_role_index >= roles.size()) {
@@ -3212,10 +3207,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             const u32 saved_top = runtime.camera->top;
             if (paired_word_count != selection_count) {
                 selection_words[paired_word_count] = std::bit_cast<i16>(
-                    read_u16(
-                        state.window,
-                        ip + 4U + paired_word_count * 2U
-                    )
+                    read_u16(state.window, ip + 4U + paired_word_count * 2U)
                 );
             }
             if (runtime.selection_scroll == nullptr) {
@@ -3223,9 +3215,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 return result;
             }
 
-            const i32 interval = static_cast<i32>(
-                read_u16(state.window, ip + 2U)
-            );
+            const i32 interval =
+                static_cast<i32>(read_u16(state.window, ip + 2U));
             auto& scroll = *runtime.selection_scroll;
             scroll.frame_interval = interval;
             scroll.frames_remaining = interval;
@@ -3234,9 +3225,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             scroll.saved_left = saved_left;
 
             const std::size_t instruction_size = 6U + selection_count * 2U;
-            context.instruction_offset = static_cast<u16>(
-                context.instruction_offset + instruction_size
-            );
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + instruction_size);
             state.previous_opcode = result.opcode;
             continue;
         }
@@ -3276,9 +3266,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     .spatial_index = runtime.spatial_index,
                     .surface_grid = runtime.role_surface.surface_grid,
                     .map_width = runtime.role_surface.map_width,
-                    .selected_guid = static_cast<u16>(
-                        runtime.role_surface.selected_guid
-                    ),
+                    .selected_guid =
+                        static_cast<u16>(runtime.role_surface.selected_guid),
                 };
                 result.role_transfer_status = transfer_legacy_world_role(
                     runtime.mutable_maps_payload,
@@ -3310,7 +3299,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     return result;
                 }
                 (*runtime.live_party_object_slots)[party_index] =
-                    runtime.role_transfer_state->party_object_slots[party_index];
+                    runtime.role_transfer_state
+                        ->party_object_slots[party_index];
                 if (runtime.live_party_role_count == nullptr) {
                     result.status =
                         LegacyWorldStoryVmStatus::runtime_unavailable;
@@ -3356,24 +3346,25 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>
                 fallback_party_objects;
-            std::array<u32, kLegacyWorldPartySlotCount> fallback_party_indices{};
+            std::array<u32, kLegacyWorldPartySlotCount>
+                fallback_party_indices{};
             u32 fallback_party_count{1U};
             auto* const transfer_state = runtime.role_transfer_state;
             const std::span<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>
                 party_objects = probed_runtime_role
                 ? std::span<
                       LegacyWorldObjectSlot,
-                      kLegacyWorldPartySlotCount>{
-                      *runtime.live_party_object_slots
-                  }
-                : std::span<
-                      LegacyWorldObjectSlot,
-                      kLegacyWorldPartySlotCount>{fallback_party_objects};
+                      kLegacyWorldPartySlotCount>{*runtime
+                                                       .live_party_object_slots}
+                : std::span<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>{
+                      fallback_party_objects
+                  };
             const std::span<u32, kLegacyWorldPartySlotCount> party_indices =
                 probed_runtime_role
-                ? std::span<u32, kLegacyWorldPartySlotCount>{
-                      transfer_state->party_role_indices
-                  }
+                ? std::span<
+                      u32,
+                      kLegacyWorldPartySlotCount>{transfer_state
+                                                      ->party_role_indices}
                 : std::span<u32, kLegacyWorldPartySlotCount>{
                       fallback_party_indices
                   };
@@ -3397,8 +3388,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             );
 
             const auto update_status = result.role_map_update.status;
-            const bool completed_diagnostic =
-                update_status ==
+            const bool completed_diagnostic = update_status ==
                     LegacyWorldRoleMapUpdateStatus::
                         active_role_not_in_physical_party ||
                 (!result.role_map_update.runtime_role_found &&
@@ -3695,7 +3685,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
-        case 72U: {
+        case OP_72_CLEAR_ROLE_HEAD_SIGN: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
@@ -3711,7 +3701,9 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            continue;
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
         }
 
         case 74U:

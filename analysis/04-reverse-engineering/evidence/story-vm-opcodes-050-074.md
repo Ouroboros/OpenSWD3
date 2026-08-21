@@ -118,7 +118,7 @@ GUID缺失仅诊断；正常、非当前map和缺失三路都推进18、发布pr
 
 68/69会先把`FFF0`替换为当前source GUID。68命中角色时对完整flags dword清`0x400`；缺失时以替换后的GUID调用`sub_40D460`，只提交flags OR0、AND`0xFBFF`，其余字段与map均`FFFF`。78条真实68记录全部raw`0x0044`、长度4，TALK1/2/3/4分布`24/6/7/41`；完整证据见[`story-vm-role-flag-0400-clear-00429bb5.md`](story-vm-role-flag-0400-clear-00429bb5.md)。69命中角色时对完整flags dword置`0x400`；缺失时提交flags OR`0x0400`、AND`0xFFFF`，其余字段与map均`FFFF`。103条真实69记录全部raw`0x0045`、长度4，分布`22/3/7/71`；完整证据见[`story-vm-role-flag-0400-set-00429c37.md`](story-vm-role-flag-0400-set-00429c37.md)。两条均推进4、发布对应previous并yield，TALK1 GUID1回放通过。
 
-71/72不替换`FFF0`。71先查selector，只有命中角色才读取slot并写`role+0x3C = 0x004B9F68 + zero_extend(slot)*0x98`；slot没有范围检查。缺失角色不读slot却仍推进6，命中与缺失两路都发布previous71并yield。331条真实记录/338 probes全部raw`0x0047`、长度6，slot仅0..3，TALK1/2/3/4分布`127/22/138/44`；完整证据见[`story-vm-role-head-sign-00429cbc.md`](story-vm-role-head-sign-00429cbc.md)。72把该字段写零，找不到角色时静默消费；它仍需下一组独立审计。
+71/72不替换`FFF0`。71先查selector，只有命中角色才读取slot并写`role+0x3C = 0x004B9F68 + zero_extend(slot)*0x98`；slot没有范围检查。缺失角色不读slot却仍推进6，命中与缺失两路都发布previous71并yield。331条真实记录/338 probes全部raw`0x0047`、长度6，slot仅0..3，TALK1/2/3/4分布`127/22/138/44`；完整证据见[`story-vm-role-head-sign-00429cbc.md`](story-vm-role-head-sign-00429cbc.md)。72同样raw lookup，命中把field3C清零、缺失不写；两路推进4、发布previous72并yield。329条真实记录/336 probes全部raw`0x0048`、长度4，分布`126/21/138/44`；完整证据见[`story-vm-role-head-sign-clear-00429d0f.md`](story-vm-role-head-sign-clear-00429d0f.md)。
 
 ## 产物与下一批
 

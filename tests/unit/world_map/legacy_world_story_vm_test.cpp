@@ -98,6 +98,7 @@ using openswd3::world_map::OP_68_CLEAR_ROLE_FLAG_0400;
 using openswd3::world_map::OP_69_SET_ROLE_FLAG_0400;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_71_SET_ROLE_HEAD_SIGN;
+using openswd3::world_map::OP_72_CLEAR_ROLE_HEAD_SIGN;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
@@ -549,9 +550,7 @@ struct Fixture {
     std::array<u8, 16U> first_name{};
     std::array<u8, 16U> second_name{};
     openswd3::world_map::LegacyWorldCameraRect camera{};
-    std::array<
-        i16,
-        openswd3::world_map::kLegacyWorldSelectionWordCount>
+    std::array<i16, openswd3::world_map::kLegacyWorldSelectionWordCount>
         selection_words{};
     openswd3::world_map::LegacyWorldSelectionScrollState selection_scroll{};
     openswd3::world_map::LegacyWorldRoleTransferState role_transfer_state{};
@@ -575,9 +574,11 @@ struct Fixture {
         roles[1].world_x = 320U;
         roles[1].world_y = 240U;
         roles[1].action.variant_delta = 0U;
-        selection_words.fill(std::bit_cast<i16>(
-            openswd3::world_map::kLegacyWorldSelectionSentinel
-        ));
+        selection_words.fill(
+            std::bit_cast<i16>(
+                openswd3::world_map::kLegacyWorldSelectionSentinel
+            )
+        );
         runtime.role_storage = &roles;
         runtime.role_transfer_state = &role_transfer_state;
         runtime.live_party_role_count = &live_party_role_count;
@@ -736,7 +737,8 @@ struct MapRoleWriteHarness {
 
     void add_source(openswd3::world_map::LegacyMapsRoleSourceRecord source) {
         source.payload_offset = static_cast<u32>(
-            0x40U + database.role_sources.size() *
+            0x40U +
+            database.role_sources.size() *
                 openswd3::world_map::kLegacyMapsRoleSourceRecordSize
         );
         database.role_sources.push_back(source);
@@ -9985,21 +9987,19 @@ void test_write_map_role_patch_protocol(openswd3::test::Context& test) {
     for (const u16 alias_mask : alias_masks) {
         Fixture fixture;
         MapRoleWriteHarness harness{fixture};
-        harness.add_source(
-            {
-                .logical_map_id = 1U,
-                .guid = 0x2222U,
-                .action_id = 2U,
-                .base_variant = 3U,
-                .variant_delta = 4U,
-                .tile_x = 5U,
-                .tile_y = 6U,
-                .talk_script_id = 7U,
-                .path_data_id = 8U,
-                .path_word_index = 9,
-                .flags = 0x0100U,
-            }
-        );
+        harness.add_source({
+            .logical_map_id = 1U,
+            .guid = 0x2222U,
+            .action_id = 2U,
+            .base_variant = 3U,
+            .variant_delta = 4U,
+            .tile_x = 5U,
+            .tile_y = 6U,
+            .talk_script_id = 7U,
+            .path_data_id = 8U,
+            .path_word_index = 9,
+            .flags = 0x0100U,
+        });
         harness.prime(
             static_cast<u16>(OP_62_WRITE_MAP_ROLE | alias_mask),
             0x2222U,
@@ -10024,14 +10024,13 @@ void test_write_map_role_patch_protocol(openswd3::test::Context& test) {
                 result.action_update_count == 0U &&
                 fixture.context.instruction_offset == 18U &&
                 fixture.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK &&
-                fixture.roles.size() == 3U &&
-                source.logical_map_id == 9U && source.guid == 0x2222U &&
-                source.action_id == 0x0055U &&
+                fixture.roles.size() == 3U && source.logical_map_id == 9U &&
+                source.guid == 0x2222U && source.action_id == 0x0055U &&
                 source.base_variant == 0x0066U &&
                 source.variant_delta == 0x0077U && source.tile_x == 7U &&
                 source.tile_y == 8U && source.talk_script_id == 7U &&
-                source.path_data_id == 0x0044U &&
-                source.path_word_index == 0 && source.flags == 0x0100U,
+                source.path_data_id == 0x0044U && source.path_word_index == 0 &&
+                source.flags == 0x0100U,
             "opcode 62 aliases patch the complete MAPS source, skip runtime materialization for another map and fetch the next instruction in the same call"
         );
     }
@@ -10039,15 +10038,7 @@ void test_write_map_role_patch_protocol(openswd3::test::Context& test) {
     Fixture missing;
     MapRoleWriteHarness missing_harness{missing};
     missing_harness.prime(
-        OP_62_WRITE_MAP_ROLE,
-        0x3456U,
-        9U,
-        1U,
-        2U,
-        3U,
-        4U,
-        5U,
-        6U
+        OP_62_WRITE_MAP_ROLE, 0x3456U, 9U, 1U, 2U, 3U, 4U, 5U, 6U
     );
     missing.state.previous_opcode = 0x66U;
     const auto missing_result = missing.step();
@@ -10084,21 +10075,19 @@ void test_write_map_role_materialization_protocol(
     auto& occupied_slot = replaced.active_object_slots[7U];
     occupied_slot.bytes.fill(0xA5U);
     write_u16(occupied_slot.bytes, 0U, 1U);
-    replacement.add_source(
-        {
-            .logical_map_id = 5U,
-            .guid = 0x00F8U,
-            .action_id = 9U,
-            .base_variant = 10U,
-            .variant_delta = 11U,
-            .tile_x = 3U,
-            .tile_y = 4U,
-            .talk_script_id = 0x2222U,
-            .path_data_id = 0x3333U,
-            .path_word_index = 7,
-            .flags = 0x0100U,
-        }
-    );
+    replacement.add_source({
+        .logical_map_id = 5U,
+        .guid = 0x00F8U,
+        .action_id = 9U,
+        .base_variant = 10U,
+        .variant_delta = 11U,
+        .tile_x = 3U,
+        .tile_y = 4U,
+        .talk_script_id = 0x2222U,
+        .path_data_id = 0x3333U,
+        .path_word_index = 7,
+        .flags = 0x0100U,
+    });
     const std::size_t old_cell_offset =
         static_cast<std::size_t>(old_role.map_cell_pointer_32) * sizeof(u32);
     const std::size_t new_cell_offset =
@@ -10107,22 +10096,20 @@ void test_write_map_role_materialization_protocol(
     write_u32(replacement.surface, new_cell_offset, 0x0000A800U);
     auto& replacement_emitters = replacement.particles.emitters();
     for (std::size_t index = 0U; index < replacement_emitters.size(); ++index) {
-        replacement_emitters[index].head_token =
-            static_cast<u32>(10U + index);
+        replacement_emitters[index].head_token = static_cast<u32>(10U + index);
     }
     replacement_emitters[0].role_selector = 0x7777;
     bool update_observed_order{};
     replaced.ports.action_update_callback = [&](auto& action, const u32) {
         action.field_2c = 1U;
         action.field_30 = 1U;
-        update_observed_order =
-            replaced.roles[1].flags == 0x11000201U &&
-            std::ranges::all_of(
-                occupied_slot.bytes, [](const u8 value) { return value == 0xFFU; }
-            ) &&
+        update_observed_order = replaced.roles[1].flags == 0x11000201U &&
+            std::ranges::all_of(occupied_slot.bytes,
+                                [](const u8 value) {
+                                    return value == 0xFFU;
+                                }) &&
             read_u32(replacement.surface, old_cell_offset) == 0xCF7FFFFFU &&
-            replacement.database.role_sources.front().talk_script_id ==
-                0x4444U;
+            replacement.database.role_sources.front().talk_script_id == 0x4444U;
     };
     replacement.prime(
         OP_62_WRITE_MAP_ROLE,
@@ -10184,21 +10171,19 @@ void test_write_map_role_materialization_protocol(
 
     Fixture appended;
     MapRoleWriteHarness append{appended};
-    append.add_source(
-        {
-            .logical_map_id = 5U,
-            .guid = 0x3333U,
-            .action_id = 1U,
-            .base_variant = 2U,
-            .variant_delta = 3U,
-            .tile_x = 2U,
-            .tile_y = 3U,
-            .talk_script_id = 4U,
-            .path_data_id = 5U,
-            .path_word_index = 6,
-            .flags = 0x0202U,
-        }
-    );
+    append.add_source({
+        .logical_map_id = 5U,
+        .guid = 0x3333U,
+        .action_id = 1U,
+        .base_variant = 2U,
+        .variant_delta = 3U,
+        .tile_x = 2U,
+        .tile_y = 3U,
+        .talk_script_id = 4U,
+        .path_data_id = 5U,
+        .path_word_index = 6,
+        .flags = 0x0202U,
+    });
     auto& append_emitters = append.particles.emitters();
     for (std::size_t index = 0U; index < append_emitters.size(); ++index) {
         append_emitters[index].head_token = static_cast<u32>(20U + index);
@@ -10208,17 +10193,7 @@ void test_write_map_role_materialization_protocol(
         action.field_2c = 1U;
         action.field_30 = 1U;
     };
-    append.prime(
-        OP_62_WRITE_MAP_ROLE,
-        0x3333U,
-        5U,
-        5U,
-        2U,
-        3U,
-        1U,
-        2U,
-        3U
-    );
+    append.prime(OP_62_WRITE_MAP_ROLE, 0x3333U, 5U, 5U, 2U, 3U, 1U, 2U, 3U);
     const auto appended_result = appended.step();
     const std::size_t append_row =
         openswd3::world_map::kLegacySpatialRowPadding + 3U;
@@ -10301,15 +10276,7 @@ void test_write_map_role_failure_ordering(openswd3::test::Context& test) {
     unavailable.roles[1].action.field_30 = 1U;
     unavailable_runtime.add_source({.logical_map_id = 5U, .guid = 0x00F8U});
     unavailable_runtime.prime(
-        OP_62_WRITE_MAP_ROLE,
-        0x00F8U,
-        5U,
-        0U,
-        1U,
-        1U,
-        1U,
-        0U,
-        0U
+        OP_62_WRITE_MAP_ROLE, 0x00F8U, 5U, 0U, 1U, 1U, 1U, 0U, 0U
     );
     unavailable.runtime.maps_database = nullptr;
     const auto unavailable_result = unavailable.step();
@@ -10342,9 +10309,7 @@ void test_write_map_role_failure_ordering(openswd3::test::Context& test) {
         0U,
     };
     for (std::size_t index = 0U; index < words.size(); ++index) {
-        write_u16(
-            exact_tail.state.window, 0x7FEEU + index * 2U, words[index]
-        );
+        write_u16(exact_tail.state.window, 0x7FEEU + index * 2U, words[index]);
     }
     const auto tail_result = exact_tail.step();
     test.expect_true(
@@ -10377,8 +10342,7 @@ void test_set_selection_scroll_protocol(openswd3::test::Context& test) {
             .saved_top = 14U,
         };
         prime_loaded_instruction(
-            fixture,
-            static_cast<u16>(OP_63_SET_SELECTION_SCROLL | alias_mask)
+            fixture, static_cast<u16>(OP_63_SET_SELECTION_SCROLL | alias_mask)
         );
         write_u16(fixture.state.window, 2U, 0xFFFFU);
         write_u16(fixture.state.window, 4U, 0x0001U);
@@ -10404,8 +10368,7 @@ void test_set_selection_scroll_protocol(openswd3::test::Context& test) {
                     fixture.selection_words.end(),
                     [](const i16 value) {
                         return std::bit_cast<u16>(value) ==
-                            openswd3::world_map::
-                                kLegacyWorldSelectionSentinel;
+                            openswd3::world_map::kLegacyWorldSelectionSentinel;
                     }
                 ) &&
                 fixture.selection_scroll.cursor_word_index == 7U &&
@@ -10515,9 +10478,7 @@ void test_set_selection_scroll_protocol(openswd3::test::Context& test) {
     unterminated.state.loaded_data_offset = 0x1111U;
     unterminated.state.window_loaded = true;
     unterminated.state.previous_opcode = 0x66U;
-    write_u16(
-        unterminated.state.window, 0x7FFCU, OP_63_SET_SELECTION_SCROLL
-    );
+    write_u16(unterminated.state.window, 0x7FFCU, OP_63_SET_SELECTION_SCROLL);
     write_u16(unterminated.state.window, 0x7FFEU, 4U);
     const auto unterminated_result = unterminated.step();
     test.expect_true(
@@ -10663,8 +10624,7 @@ void test_clear_selection_scroll_protocol(openswd3::test::Context& test) {
             .saved_top = 11U,
         };
         prime_loaded_instruction(
-            fixture,
-            static_cast<u16>(OP_64_CLEAR_SELECTION_SCROLL | alias_mask)
+            fixture, static_cast<u16>(OP_64_CLEAR_SELECTION_SCROLL | alias_mask)
         );
         write_u16(fixture.state.window, 2U, 67U);
         write_u16(fixture.state.window, 4U, 0U);
@@ -10680,8 +10640,7 @@ void test_clear_selection_scroll_protocol(openswd3::test::Context& test) {
                     fixture.selection_words,
                     [](const i16 value) {
                         return std::bit_cast<u16>(value) ==
-                            openswd3::world_map::
-                                kLegacyWorldSelectionSentinel;
+                            openswd3::world_map::kLegacyWorldSelectionSentinel;
                     }
                 ) &&
                 fixture.selection_scroll.cursor_word_index == 7U &&
@@ -10742,9 +10701,7 @@ void test_clear_selection_scroll_protocol(openswd3::test::Context& test) {
     exact_tail.state.loaded_data_offset = 0x1111U;
     exact_tail.state.window_loaded = true;
     exact_tail.state.previous_opcode = 0x66U;
-    write_u16(
-        exact_tail.state.window, 0x7FFEU, OP_64_CLEAR_SELECTION_SCROLL
-    );
+    write_u16(exact_tail.state.window, 0x7FFEU, OP_64_CLEAR_SELECTION_SCROLL);
     const auto exact_tail_result = exact_tail.step(100, 200);
     test.expect_true(
         exact_tail_result.status ==
@@ -10784,8 +10741,7 @@ void test_transfer_role_to_party_protocol(openswd3::test::Context& test) {
         fixture.roles[1].path_data_id = 0U;
         fixture.live_party_object_slots[1].bytes.fill(0x44U);
         prime_loaded_instruction(
-            fixture,
-            static_cast<u16>(OP_65_TRANSFER_ROLE_TO_PARTY | alias_mask)
+            fixture, static_cast<u16>(OP_65_TRANSFER_ROLE_TO_PARTY | alias_mask)
         );
         write_u16(fixture.state.window, 2U, 9U);
         fixture.state.previous_opcode = 0x66U;
@@ -10809,8 +10765,7 @@ void test_transfer_role_to_party_protocol(openswd3::test::Context& test) {
                 fixture.roles[1].talk_script_id == 0U &&
                 fixture.roles[1].flags == 0x00000082U &&
                 fixture.context.instruction_offset == 4U &&
-                fixture.state.previous_opcode ==
-                    OP_65_TRANSFER_ROLE_TO_PARTY,
+                fixture.state.previous_opcode == OP_65_TRANSFER_ROLE_TO_PARTY,
             "opcode 65 aliases append a pathless role to transfer bookkeeping, apply Talk/flag state, publish previous and yield"
         );
     }
@@ -10988,9 +10943,7 @@ void test_transfer_role_to_party_protocol(openswd3::test::Context& test) {
     truncated.state.loaded_data_offset = 0x1111U;
     truncated.state.window_loaded = true;
     truncated.state.previous_opcode = 0x66U;
-    write_u16(
-        truncated.state.window, 0x7FFEU, OP_65_TRANSFER_ROLE_TO_PARTY
-    );
+    write_u16(truncated.state.window, 0x7FFEU, OP_65_TRANSFER_ROLE_TO_PARTY);
     const auto truncated_result = truncated.step();
     test.expect_true(
         truncated_result.status ==
@@ -11009,9 +10962,7 @@ void test_transfer_role_to_party_protocol(openswd3::test::Context& test) {
     exact_tail.state.loaded_data_offset = 0x1111U;
     exact_tail.state.window_loaded = true;
     exact_tail.state.previous_opcode = 0x66U;
-    write_u16(
-        exact_tail.state.window, 0x7FFCU, OP_65_TRANSFER_ROLE_TO_PARTY
-    );
+    write_u16(exact_tail.state.window, 0x7FFCU, OP_65_TRANSFER_ROLE_TO_PARTY);
     write_u16(exact_tail.state.window, 0x7FFEU, 0x7777U);
     const auto exact_tail_result = exact_tail.step();
     test.expect_true(
@@ -11025,17 +10976,15 @@ void test_transfer_role_to_party_protocol(openswd3::test::Context& test) {
 }
 
 void test_update_role_map_state_protocol(openswd3::test::Context& test) {
-    const auto prime = [](
-                           Fixture& fixture,
-                           const u16 raw_word,
-                           const u16 selector,
-                           const u16 path,
-                           const u16 talk,
-                           const u16 action,
-                           const u16 base,
-                           const u16 variant,
-                           const u16 flags
-                       ) {
+    const auto prime = [](Fixture& fixture,
+                          const u16 raw_word,
+                          const u16 selector,
+                          const u16 path,
+                          const u16 talk,
+                          const u16 action,
+                          const u16 base,
+                          const u16 variant,
+                          const u16 flags) {
         prime_loaded_instruction(fixture, raw_word);
         write_u16(fixture.state.window, 2U, selector);
         write_u16(fixture.state.window, 4U, path);
@@ -11046,21 +10995,19 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
         write_u16(fixture.state.window, 14U, flags);
     };
     const auto add_source = [](MapRoleWriteHarness& runtime, const u16 guid) {
-        runtime.add_source(
-            {
-                .logical_map_id = 81U,
-                .guid = guid,
-                .action_id = 100U,
-                .base_variant = 101U,
-                .variant_delta = 102U,
-                .tile_x = 2U,
-                .tile_y = 2U,
-                .talk_script_id = 103U,
-                .path_data_id = 104U,
-                .path_word_index = 7,
-                .flags = 0x0181U,
-            }
-        );
+        runtime.add_source({
+            .logical_map_id = 81U,
+            .guid = guid,
+            .action_id = 100U,
+            .base_variant = 101U,
+            .variant_delta = 102U,
+            .tile_x = 2U,
+            .tile_y = 2U,
+            .talk_script_id = 103U,
+            .path_data_id = 104U,
+            .path_word_index = 7,
+            .flags = 0x0181U,
+        });
     };
     const auto prepare_party = [](Fixture& fixture) {
         fixture.role_transfer_state.party_role_count = 5U;
@@ -11076,7 +11023,8 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
             17U,
         };
         for (std::size_t index = 0U;
-             index < fixture.live_party_object_slots.size(); ++index) {
+             index < fixture.live_party_object_slots.size();
+             ++index) {
             fixture.live_party_object_slots[index].bytes.fill(
                 static_cast<u8>(index)
             );
@@ -11121,7 +11069,8 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
                 result.opcode == OP_66_UPDATE_ROLE_MAP_STATE &&
                 result.executed_instruction_count == 1U &&
                 result.role_map_update.status ==
-                    openswd3::world_map::LegacyWorldRoleMapUpdateStatus::ready &&
+                    openswd3::world_map::LegacyWorldRoleMapUpdateStatus::
+                        ready &&
                 !result.role_map_update.runtime_role_found &&
                 result.role_map_update.maps_source_patched &&
                 source.flags == 0x0101U && source.path_data_id == 104U &&
@@ -11141,15 +11090,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
     raw_fff0.runtime.live_party_object_slots = nullptr;
     raw_fff0.runtime.live_party_role_count = nullptr;
     prime(
-        raw_fff0,
-        OP_66_UPDATE_ROLE_MAP_STATE,
-        0xFFF0U,
-        1U,
-        2U,
-        3U,
-        4U,
-        5U,
-        6U
+        raw_fff0, OP_66_UPDATE_ROLE_MAP_STATE, 0xFFF0U, 1U, 2U, 3U, 4U, 5U, 6U
     );
     const auto raw_fff0_result = raw_fff0.step();
     test.expect_true(
@@ -11186,15 +11127,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
         write_u16(object.bytes, 2U, 0x7FFFU);
     }
     prime(
-        controlled,
-        OP_66_UPDATE_ROLE_MAP_STATE,
-        0xFFFEU,
-        1U,
-        2U,
-        3U,
-        4U,
-        5U,
-        6U
+        controlled, OP_66_UPDATE_ROLE_MAP_STATE, 0xFFFEU, 1U, 2U, 3U, 4U, 5U, 6U
     );
     const auto controlled_result = controlled.step(0, 0, 1U);
     test.expect_true(
@@ -11243,9 +11176,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
             aligned.role_transfer_state.party_role_count == 4U &&
             aligned.live_party_role_count == 4U &&
             aligned.role_transfer_state.party_role_indices ==
-                std::array<u32, 8U>{
-                    10U, 11U, 13U, 14U, 15U, 16U, 17U, 17U
-                } &&
+                std::array<u32, 8U>{10U, 11U, 13U, 14U, 15U, 16U, 17U, 17U} &&
             aligned.live_party_object_slots[2].bytes[0] == 3U &&
             aligned.role_transfer_state.party_object_slots[2].bytes[0] == 3U &&
             aligned_role.path_data_id == 0x8001U &&
@@ -11254,8 +11185,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
             aligned_role.action.action_id == 0x8003U &&
             aligned_role.action.base_variant == 0x8004U &&
             aligned_role.action.variant_delta == 0x8005U &&
-            aligned_role.flags == 0xC000U &&
-            aligned_source.action_id == 100U &&
+            aligned_role.flags == 0xC000U && aligned_source.action_id == 100U &&
             aligned_source.base_variant == 101U &&
             aligned_source.variant_delta == 102U &&
             aligned_source.talk_script_id == 0x8002U &&
@@ -11277,17 +11207,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
     not_party.role_transfer_state.party_role_count = 5U;
     not_party.live_party_role_count = 5U;
     not_party.role_transfer_state.party_role_indices.fill(99U);
-    prime(
-        not_party,
-        OP_66_UPDATE_ROLE_MAP_STATE,
-        9U,
-        1U,
-        2U,
-        3U,
-        4U,
-        5U,
-        6U
-    );
+    prime(not_party, OP_66_UPDATE_ROLE_MAP_STATE, 9U, 1U, 2U, 3U, 4U, 5U, 6U);
     const auto not_party_result = not_party.step();
     test.expect_true(
         not_party_result.status == LegacyWorldStoryVmStatus::yielded &&
@@ -11334,8 +11254,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
             missing_source.live_party_role_count == 4U &&
             missing_source.roles[1].path_data_id == 0x8001U &&
             missing_source.context.instruction_offset == 16U &&
-            missing_source.state.previous_opcode ==
-                OP_66_UPDATE_ROLE_MAP_STATE,
+            missing_source.state.previous_opcode == OP_66_UPDATE_ROLE_MAP_STATE,
         "opcode 66 ignores MAPS patch diagnostics after preserving all later runtime and party-removal side effects"
     );
 
@@ -11353,15 +11272,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
     write_u16(spatial_miss.live_party_object_slots[2].bytes, 2U, 0U);
     spatial_miss.live_party_object_slots[2].bytes[0x1CU] = 7U;
     prime(
-        spatial_miss,
-        OP_66_UPDATE_ROLE_MAP_STATE,
-        9U,
-        1U,
-        2U,
-        3U,
-        4U,
-        5U,
-        6U
+        spatial_miss, OP_66_UPDATE_ROLE_MAP_STATE, 9U, 1U, 2U, 3U, 4U, 5U, 6U
     );
     const auto spatial_miss_result = spatial_miss.step();
     test.expect_true(
@@ -11393,15 +11304,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
     write_u16(bad_direction.live_party_object_slots[2].bytes, 2U, 0U);
     bad_direction.live_party_object_slots[2].bytes[0x1CU] = 8U;
     prime(
-        bad_direction,
-        OP_66_UPDATE_ROLE_MAP_STATE,
-        9U,
-        1U,
-        2U,
-        3U,
-        4U,
-        5U,
-        6U
+        bad_direction, OP_66_UPDATE_ROLE_MAP_STATE, 9U, 1U, 2U, 3U, 4U, 5U, 6U
     );
     bad_direction.state.previous_opcode = 0x66U;
     const auto bad_direction_result = bad_direction.step();
@@ -11462,15 +11365,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
     missing_runtime.runtime.live_party_object_slots = nullptr;
     missing_runtime.runtime.live_party_role_count = nullptr;
     prime(
-        missing_runtime,
-        OP_66_UPDATE_ROLE_MAP_STATE,
-        9U,
-        1U,
-        2U,
-        3U,
-        4U,
-        5U,
-        6U
+        missing_runtime, OP_66_UPDATE_ROLE_MAP_STATE, 9U, 1U, 2U, 3U, 4U, 5U, 6U
     );
     missing_runtime.state.previous_opcode = 0x66U;
     const auto missing_runtime_result = missing_runtime.step();
@@ -11535,8 +11430,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
         exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
             exact_tail_result.opcode == OP_66_UPDATE_ROLE_MAP_STATE &&
             exact_tail_result.executed_instruction_count == 1U &&
-            exact_tail_runtime.database.role_sources.front().flags ==
-                0x0101U &&
+            exact_tail_runtime.database.role_sources.front().flags == 0x0101U &&
             exact_tail.context.instruction_offset == 0x8000U &&
             exact_tail.state.previous_opcode == OP_66_UPDATE_ROLE_MAP_STATE,
         "opcode 66 exact tail completes MAPS fallback and publication then yields without another fetch"
@@ -11553,8 +11447,7 @@ void test_frame_clock_wait_protocol(openswd3::test::Context& test) {
     for (const u16 alias_mask : alias_masks) {
         Fixture fixture;
         prime_loaded_instruction(
-            fixture,
-            static_cast<u16>(OP_67_WAIT_FRAME_CLOCK | alias_mask)
+            fixture, static_cast<u16>(OP_67_WAIT_FRAME_CLOCK | alias_mask)
         );
         write_u16(fixture.state.window, 2U, 0x1234U);
         fixture.runtime.current_tick = 0xABCDEF01U;
@@ -11703,8 +11596,7 @@ void test_clear_role_flag_0400_protocol(openswd3::test::Context& test) {
         fixture.roles[1].guid = 9U;
         fixture.roles[1].flags = 0xA5A5FFFFU;
         prime_loaded_instruction(
-            fixture,
-            static_cast<u16>(OP_68_CLEAR_ROLE_FLAG_0400 | alias_mask)
+            fixture, static_cast<u16>(OP_68_CLEAR_ROLE_FLAG_0400 | alias_mask)
         );
         write_u16(fixture.state.window, 2U, 9U);
         fixture.state.previous_opcode = 0x66U;
@@ -11837,8 +11729,7 @@ void test_set_role_flag_0400_protocol(openswd3::test::Context& test) {
         fixture.roles[1].guid = 9U;
         fixture.roles[1].flags = 0xA5A50001U;
         prime_loaded_instruction(
-            fixture,
-            static_cast<u16>(OP_69_SET_ROLE_FLAG_0400 | alias_mask)
+            fixture, static_cast<u16>(OP_69_SET_ROLE_FLAG_0400 | alias_mask)
         );
         write_u16(fixture.state.window, 2U, 9U);
         fixture.state.previous_opcode = 0x66U;
@@ -12149,9 +12040,7 @@ void test_set_role_head_sign_action(openswd3::test::Context& test) {
     found_truncated.state.loaded_data_offset = 0x1111U;
     found_truncated.state.window_loaded = true;
     found_truncated.state.previous_opcode = 0x66U;
-    write_u16(
-        found_truncated.state.window, 0x7FFCU, OP_71_SET_ROLE_HEAD_SIGN
-    );
+    write_u16(found_truncated.state.window, 0x7FFCU, OP_71_SET_ROLE_HEAD_SIGN);
     write_u16(found_truncated.state.window, 0x7FFEU, 0x00F8U);
     const auto found_truncated_result = found_truncated.step();
     test.expect_true(
@@ -12200,17 +12089,108 @@ void test_set_role_head_sign_action(openswd3::test::Context& test) {
     cleared.roles[1].field_3c =
         openswd3::world_map::legacy_world_head_sign_action_token(2U);
     auto clear_script = std::span<u8>{cleared.ports.initial_window};
-    write_u16(clear_script, 0U, 72U);
+    write_u16(clear_script, 0U, OP_72_CLEAR_ROLE_HEAD_SIGN);
     write_u16(clear_script, 2U, 0x00F8U);
-    write_u16(clear_script, 4U, OP_14_WAIT_ROLE_ACTION_STATUS);
-    write_u16(clear_script, 6U, 0x00F8U);
     const auto removed = cleared.step();
     test.expect_true(
         removed.status == LegacyWorldStoryVmStatus::yielded &&
-            removed.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
-            removed.executed_instruction_count == 2U &&
-            cleared.roles[1].field_3c == 0U,
-        "existing opcode 72 coverage remains separate from opcode 71 closure"
+            removed.opcode == OP_72_CLEAR_ROLE_HEAD_SIGN &&
+            removed.executed_instruction_count == 1U &&
+            cleared.roles[1].field_3c == 0U &&
+            cleared.context.instruction_offset == 4U &&
+            cleared.state.previous_opcode == OP_72_CLEAR_ROLE_HEAD_SIGN,
+        "opcode 72 clears the head sign, publishes previous and yields"
+    );
+
+    for (const u16 alias_mask : alias_masks) {
+        Fixture alias;
+        alias.roles[1].field_3c = 0x12345678U;
+        prime_loaded_instruction(
+            alias,
+            static_cast<u16>(OP_72_CLEAR_ROLE_HEAD_SIGN | alias_mask)
+        );
+        write_u16(alias.state.window, 2U, 0x00F8U);
+        alias.state.previous_opcode = 0x66U;
+        const auto alias_result = alias.step();
+        test.expect_true(
+            alias_result.status == LegacyWorldStoryVmStatus::yielded &&
+                alias_result.opcode == OP_72_CLEAR_ROLE_HEAD_SIGN &&
+                alias_result.executed_instruction_count == 1U &&
+                alias.roles[1].field_3c == 0U &&
+                alias.context.instruction_offset == 4U &&
+                alias.state.previous_opcode == OP_72_CLEAR_ROLE_HEAD_SIGN,
+            "opcode 72 aliases clear the head sign, publish previous and yield"
+        );
+    }
+
+    Fixture missing;
+    missing.roles[1].field_3c = 0x12345678U;
+    prime_loaded_instruction(missing, OP_72_CLEAR_ROLE_HEAD_SIGN);
+    write_u16(missing.state.window, 2U, 0xFFF0U);
+    missing.state.previous_opcode = 0x66U;
+    const auto clear_missing_result = missing.step();
+    test.expect_true(
+        clear_missing_result.status == LegacyWorldStoryVmStatus::yielded &&
+            missing.roles[1].field_3c == 0x12345678U &&
+            missing.context.instruction_offset == 4U &&
+            missing.state.previous_opcode == OP_72_CLEAR_ROLE_HEAD_SIGN,
+        "opcode 72 keeps literal FFF0 untranslated and silently consumes a missing role"
+    );
+
+    Fixture controlled_clear;
+    controlled_clear.roles[1].field_3c = 0x12345678U;
+    prime_loaded_instruction(controlled_clear, OP_72_CLEAR_ROLE_HEAD_SIGN);
+    write_u16(controlled_clear.state.window, 2U, 0xFFFEU);
+    const auto controlled_clear_result = controlled_clear.step(0, 0, 1U);
+    test.expect_true(
+        controlled_clear_result.status == LegacyWorldStoryVmStatus::yielded &&
+            controlled_clear.roles[1].field_3c == 0U,
+        "opcode 72 retains the shared FFFE controlled-role lookup contract"
+    );
+
+    Fixture clear_truncated;
+    clear_truncated.context.instruction_offset = 0x7FFEU;
+    clear_truncated.context.talk_data_offset = 0x1111U;
+    clear_truncated.state.loaded_file_number = 1U;
+    clear_truncated.state.loaded_data_offset = 0x1111U;
+    clear_truncated.state.window_loaded = true;
+    clear_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        clear_truncated.state.window,
+        0x7FFEU,
+        OP_72_CLEAR_ROLE_HEAD_SIGN
+    );
+    const auto clear_truncated_result = clear_truncated.step();
+    test.expect_true(
+        clear_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            clear_truncated.context.instruction_offset == 0x7FFEU &&
+            clear_truncated.state.previous_opcode == 0x66U,
+        "opcode 72 typed-stops before lookup when the selector is truncated"
+    );
+
+    Fixture clear_exact_tail;
+    clear_exact_tail.context.instruction_offset = 0x7FFCU;
+    clear_exact_tail.context.talk_data_offset = 0x1111U;
+    clear_exact_tail.state.loaded_file_number = 1U;
+    clear_exact_tail.state.loaded_data_offset = 0x1111U;
+    clear_exact_tail.state.window_loaded = true;
+    clear_exact_tail.state.previous_opcode = 0x66U;
+    clear_exact_tail.roles[1].field_3c = 0x12345678U;
+    write_u16(
+        clear_exact_tail.state.window,
+        0x7FFCU,
+        OP_72_CLEAR_ROLE_HEAD_SIGN
+    );
+    write_u16(clear_exact_tail.state.window, 0x7FFEU, 0x00F8U);
+    const auto clear_exact_tail_result = clear_exact_tail.step();
+    test.expect_true(
+        clear_exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            clear_exact_tail.roles[1].field_3c == 0U &&
+            clear_exact_tail.context.instruction_offset == 0x8000U &&
+            clear_exact_tail.state.previous_opcode ==
+                OP_72_CLEAR_ROLE_HEAD_SIGN,
+        "opcode 72 exact tail clears, advances, publishes previous and yields without another fetch"
     );
 }
 
@@ -13692,21 +13672,19 @@ void test_real_write_map_role_record(
     Fixture fixture;
     fixture.roles[1].guid = 0x9999U;
     MapRoleWriteHarness harness{fixture};
-    harness.add_source(
-        {
-            .logical_map_id = 1U,
-            .guid = 0x00F8U,
-            .action_id = 1U,
-            .base_variant = 2U,
-            .variant_delta = 3U,
-            .tile_x = 4U,
-            .tile_y = 5U,
-            .talk_script_id = 6U,
-            .path_data_id = 7U,
-            .path_word_index = 8,
-            .flags = 0x0100U,
-        }
-    );
+    harness.add_source({
+        .logical_map_id = 1U,
+        .guid = 0x00F8U,
+        .action_id = 1U,
+        .base_variant = 2U,
+        .variant_delta = 3U,
+        .tile_x = 4U,
+        .tile_y = 5U,
+        .talk_script_id = 6U,
+        .path_data_id = 7U,
+        .path_word_index = 8,
+        .flags = 0x0100U,
+    });
     prime_loaded_instruction(fixture, read_u16(instruction, 0U));
     std::ranges::copy(instruction, fixture.state.window.begin());
     write_u16(fixture.state.window, 18U, 67U);
@@ -13794,14 +13772,10 @@ void test_real_set_selection_scroll_record(
         "real opcode 63 raw word"
     );
     test.expect_equal(
-        read_u16(instruction, 2U),
-        u16{4U},
-        "real opcode 63 prefix"
+        read_u16(instruction, 2U), u16{4U}, "real opcode 63 prefix"
     );
     test.expect_equal(
-        read_u16(instruction, 20U),
-        u16{0xFF00U},
-        "real opcode 63 terminator"
+        read_u16(instruction, 20U), u16{0xFF00U}, "real opcode 63 terminator"
     );
     test.expect_true(
         result.status == LegacyWorldStoryVmStatus::yielded &&
@@ -13942,21 +13916,19 @@ void test_real_update_role_map_state_record(
     fixture.roles[1].flags = 0x80U;
     fixture.roles[1].action.field_2c = 1U;
     fixture.roles[1].action.field_30 = 1U;
-    runtime.add_source(
-        {
-            .logical_map_id = 81U,
-            .guid = 9U,
-            .action_id = 100U,
-            .base_variant = 101U,
-            .variant_delta = 102U,
-            .tile_x = 2U,
-            .tile_y = 2U,
-            .talk_script_id = 103U,
-            .path_data_id = 104U,
-            .path_word_index = 7,
-            .flags = 0x0181U,
-        }
-    );
+    runtime.add_source({
+        .logical_map_id = 81U,
+        .guid = 9U,
+        .action_id = 100U,
+        .base_variant = 101U,
+        .variant_delta = 102U,
+        .tile_x = 2U,
+        .tile_y = 2U,
+        .talk_script_id = 103U,
+        .path_data_id = 104U,
+        .path_word_index = 7,
+        .flags = 0x0181U,
+    });
     fixture.role_transfer_state.party_role_count = 2U;
     fixture.live_party_role_count = 2U;
     fixture.role_transfer_state.party_role_indices = {
@@ -13969,14 +13941,12 @@ void test_real_update_role_map_state_record(
         16U,
         17U,
     };
-    for (std::size_t index = 0U;
-         index < fixture.live_party_object_slots.size(); ++index) {
+    for (std::size_t index = 0U; index < fixture.live_party_object_slots.size();
+         ++index) {
         fixture.live_party_object_slots[index].bytes.fill(
             static_cast<u8>(index)
         );
-        write_u16(
-            fixture.live_party_object_slots[index].bytes, 2U, 0x7FFFU
-        );
+        write_u16(fixture.live_party_object_slots[index].bytes, 2U, 0x7FFFU);
     }
     prime_loaded_instruction(fixture, read_u16(instruction, 0U));
     std::ranges::copy(instruction, fixture.state.window.begin());
@@ -14005,11 +13975,10 @@ void test_real_update_role_map_state_record(
             fixture.roles[1].action.action_id == 9U &&
             fixture.roles[1].action.base_variant == 0U &&
             fixture.roles[1].action.variant_delta == 7U &&
-            fixture.roles[1].flags == 0xD100U &&
-            source.action_id == 100U && source.base_variant == 101U &&
-            source.variant_delta == 102U && source.talk_script_id == 9U &&
-            source.path_data_id == 0U && source.path_word_index == 0 &&
-            source.flags == 0x0101U &&
+            fixture.roles[1].flags == 0xD100U && source.action_id == 100U &&
+            source.base_variant == 101U && source.variant_delta == 102U &&
+            source.talk_script_id == 9U && source.path_data_id == 0U &&
+            source.path_word_index == 0 && source.flags == 0x0101U &&
             fixture.role_transfer_state.party_role_count == 1U &&
             fixture.live_party_role_count == 1U &&
             fixture.context.instruction_offset == 16U &&
@@ -14167,6 +14136,40 @@ void test_real_set_role_head_sign_record(
             fixture.context.instruction_offset == 6U &&
             fixture.state.previous_opcode == OP_71_SET_ROLE_HEAD_SIGN,
         "real opcode 71 record assigns GUID 191 head-sign slot zero and yields"
+    );
+}
+
+void test_real_clear_role_head_sign_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00004BA7);
+    std::array<u8, 4U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    fixture.roles[1].guid = 0x00BFU;
+    fixture.roles[1].field_3c = 0x12345678U;
+    prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    fixture.state.previous_opcode = OP_71_SET_ROLE_HEAD_SIGN;
+
+    const auto result = fixture.step();
+
+    test.expect_true(
+        input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
+            read_u16(instruction, 0U) == OP_72_CLEAR_ROLE_HEAD_SIGN &&
+            read_u16(instruction, 2U) == 0x00BFU &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_72_CLEAR_ROLE_HEAD_SIGN &&
+            result.executed_instruction_count == 1U &&
+            fixture.roles[1].field_3c == 0U &&
+            fixture.context.instruction_offset == 4U &&
+            fixture.state.previous_opcode == OP_72_CLEAR_ROLE_HEAD_SIGN,
+        "real opcode 72 record clears GUID 191 head sign and yields"
     );
 }
 
@@ -15315,6 +15318,7 @@ void test_real_new_game_story_reaches_first_dialog(
     const auto head_sign_wait = step();
     runtime.current_tick =
         state.wait_started_at + static_cast<u32>(state.wait_duration) + 1U;
+    const auto head_sign_clear = step();
     const auto post_head_sign_dialog = step();
     auto next_unsupported = post_head_sign_dialog;
     std::size_t post_head_sign_dialog_count{};
@@ -15379,17 +15383,16 @@ void test_real_new_game_story_reaches_first_dialog(
         ++third_path_dialog_count;
     }
     std::size_t final_dialog_count{};
-    for (std::size_t head_sign_boundary = 0U;
-         head_sign_boundary < 16U &&
+    for (std::size_t head_sign_boundary = 0U; head_sign_boundary < 32U &&
          next_unsupported.status == LegacyWorldStoryVmStatus::yielded &&
-         next_unsupported.opcode == OP_71_SET_ROLE_HEAD_SIGN;
+         (next_unsupported.opcode == OP_71_SET_ROLE_HEAD_SIGN ||
+          next_unsupported.opcode == OP_72_CLEAR_ROLE_HEAD_SIGN ||
+          next_unsupported.opcode == OP_67_WAIT_FRAME_CLOCK);
          ++head_sign_boundary) {
-        next_unsupported = step();
-    }
-    if (next_unsupported.status == LegacyWorldStoryVmStatus::yielded &&
-        next_unsupported.opcode == 67U) {
-        runtime.current_tick =
-            state.wait_started_at + static_cast<u32>(state.wait_duration) + 1U;
+        if (next_unsupported.opcode == OP_67_WAIT_FRAME_CLOCK) {
+            runtime.current_tick = state.wait_started_at +
+                static_cast<u32>(state.wait_duration) + 1U;
+        }
         next_unsupported = step();
     }
     while (final_dialog_count < 32U &&
@@ -15405,10 +15408,10 @@ void test_real_new_game_story_reaches_first_dialog(
             break;
         }
         next_unsupported = step();
-        for (std::size_t head_sign_boundary = 0U;
-             head_sign_boundary < 16U &&
+        for (std::size_t head_sign_boundary = 0U; head_sign_boundary < 16U &&
              next_unsupported.status == LegacyWorldStoryVmStatus::yielded &&
              (next_unsupported.opcode == OP_71_SET_ROLE_HEAD_SIGN ||
+              next_unsupported.opcode == OP_72_CLEAR_ROLE_HEAD_SIGN ||
               next_unsupported.opcode == OP_67_WAIT_FRAME_CLOCK);
              ++head_sign_boundary) {
             if (next_unsupported.opcode == OP_67_WAIT_FRAME_CLOCK) {
@@ -15488,6 +15491,7 @@ void test_real_new_game_story_reaches_first_dialog(
             next_unsupported = step();
             break;
         case OP_71_SET_ROLE_HEAD_SIGN:
+        case OP_72_CLEAR_ROLE_HEAD_SIGN:
             next_unsupported = step();
             break;
         case 89U:
@@ -15620,6 +15624,11 @@ void test_real_new_game_story_reaches_first_dialog(
         head_sign_wait.opcode, u16{67U}, "story 100 head-sign wait boundary"
     );
     test.expect_equal(
+        head_sign_clear.opcode,
+        OP_72_CLEAR_ROLE_HEAD_SIGN,
+        "story 100 head-sign clear boundary"
+    );
+    test.expect_equal(
         post_head_sign_dialog.opcode,
         u16{89U},
         "story 100 post-head-sign dialog boundary"
@@ -15719,9 +15728,9 @@ void test_real_new_game_story_reaches_first_dialog(
             first_path_frame_count < 512U && second_path_frame_count < 512U &&
             next_dialog.status == LegacyWorldStoryVmStatus::yielded &&
             later_dialog_chain_completed &&
-            head_sign_assignment.status ==
-                LegacyWorldStoryVmStatus::yielded &&
+            head_sign_assignment.status == LegacyWorldStoryVmStatus::yielded &&
             head_sign_wait.status == LegacyWorldStoryVmStatus::yielded &&
+            head_sign_clear.status == LegacyWorldStoryVmStatus::yielded &&
             head_sign_token ==
                 openswd3::world_map::legacy_world_head_sign_action_token(0U) &&
             post_head_sign_dialog.status == LegacyWorldStoryVmStatus::yielded &&
@@ -15940,6 +15949,7 @@ int main(const int argument_count, char** arguments) {
         test_real_clear_role_flag_0400_record(test, root);
         test_real_set_role_flag_0400_record(test, root);
         test_real_set_role_head_sign_record(test, root);
+        test_real_clear_role_head_sign_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
