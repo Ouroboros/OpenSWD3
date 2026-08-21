@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v284
+版本：v285
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B1F1` shared handler（opcodes 58, 153）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042967B` handler（opcode 59）
 
 ## 0. 执行约定
 
@@ -1797,6 +1797,21 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode增至88；workpack当前42/146，即
     `5 assembly_exact + 37 platform_adapted + 104 pending_audit`。
 
+- 剧情VM P2第四十三组共享`0x0042B1F1` / opcodes58、153完成独立闭环。LST在读取任何operand
+    前先分配并清零`0xA4`字节节点、初始化内嵌`0x98`字节动作记录，再按`+2/+4/+6/+8`逐word
+    写入坐标、action id和base variant；全部完成后58前插主图片动作链，153前插次图片动作链。
+    两路均推进10字节、发布normalized previous并跨帧让出。原C++整条预验、提前owner检查与链入，
+    且漏发previous；现以未链接临时list节点保留分配/初始化/分阶段写入顺序，并只在typed-stop
+    无效域释放节点、隔离unchecked malloc和平台owner。两opcode×四raw alias、完整初始化、u16
+    零扩展、已有链前插、四级operand尾、owner缺失和`0x7FF6`精确尾均通过；一条主链与连续两条
+    次链TALK1真实记录回放固定归属和前插顺序。资产锁定84条物理记录/88个probe，其中58为73/77、
+    153为11/11，全部低位raw、长度10，高位alias字样均为0。最终剧情VM定向3/3、Linux core
+    186/186、Linux app 192/192均exit 0；app仅保留既有ALSA开发库warning。生成器`py_compile`
+    及双重生成幂等通过，workpack hash为
+    `dc926de280fbe48bda49790b2ec97ea206087d6f2b4d5489babd59897bb93484`。Windows依v285留到P3，
+    未启动游戏EXE。现代显式opcode仍为88；workpack当前43/146，即
+    `5 assembly_exact + 38 platform_adapted + 103 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042B1F1` 的共享opcodes58、153 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042967B` 的opcode59 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

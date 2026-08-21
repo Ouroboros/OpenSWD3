@@ -84,9 +84,11 @@ using openswd3::world_map::OP_54_REPEAT_ROLE_ACTION_REFRESH;
 using openswd3::world_map::OP_55_SET_ROLE_SPATIAL_GROUP_1;
 using openswd3::world_map::OP_56_SET_ROLE_SPATIAL_GROUP_0;
 using openswd3::world_map::OP_57_SET_ROLE_SPATIAL_GROUP_2;
+using openswd3::world_map::OP_58_ENQUEUE_PRIMARY_PICTURE_ACTION;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
+using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
 void write_u16(
@@ -9457,39 +9459,178 @@ void test_set_role_action_wait_override_protocol(
     );
 }
 
-void test_enqueue_primary_picture_action(openswd3::test::Context& test) {
-    Fixture fixture;
-    openswd3::world_map::LegacyPictureActionLists picture_actions;
-    picture_actions.primary.emplace_back();
-    picture_actions.primary.back().screen_x = 0xFFFFU;
-    fixture.runtime.picture_actions = &picture_actions;
-    auto script = std::span<u8>{fixture.ports.initial_window};
-    write_u16(script, 0U, 58U);
-    write_u16(script, 2U, 123U);
-    write_u16(script, 4U, 234U);
-    write_u16(script, 6U, 345U);
-    write_u16(script, 8U, 456U);
+void test_shared_picture_action_enqueue_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    struct Variant {
+        u16 opcode;
+        bool primary;
+    };
+    constexpr std::array<Variant, 2U> variants{
+        Variant{OP_58_ENQUEUE_PRIMARY_PICTURE_ACTION, true},
+        Variant{OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION, false},
+    };
+    const auto prime_instruction = [](Fixture& fixture, const u16 raw_word) {
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0xFEDCU);
+        write_u16(fixture.state.window, 4U, 0x8001U);
+        write_u16(fixture.state.window, 6U, 0xFFFFU);
+        write_u16(fixture.state.window, 8U, 0x8000U);
+        fixture.state.previous_opcode = 0x66U;
+    };
 
-    const auto result = fixture.step();
-    const auto& node = picture_actions.primary.front();
+    for (const Variant variant : variants) {
+        for (const u16 mask : alias_masks) {
+            Fixture fixture;
+            openswd3::world_map::LegacyPictureActionLists picture_actions;
+            picture_actions.primary.emplace_back();
+            picture_actions.primary.back().screen_x = 0x1111U;
+            picture_actions.secondary.emplace_back();
+            picture_actions.secondary.back().screen_x = 0x2222U;
+            fixture.runtime.picture_actions = &picture_actions;
+            prime_instruction(fixture, static_cast<u16>(variant.opcode | mask));
 
+            const auto result = fixture.step();
+            const auto& destination = variant.primary
+                ? picture_actions.primary
+                : picture_actions.secondary;
+            const auto& other = variant.primary ? picture_actions.secondary
+                                                : picture_actions.primary;
+            const auto& node = destination.front();
+            const u16 prior_x = variant.primary ? 0x1111U : 0x2222U;
+            const u16 other_x = variant.primary ? 0x2222U : 0x1111U;
+
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                    result.opcode == variant.opcode &&
+                    result.executed_instruction_count == 1U &&
+                    destination.size() == 2U && other.size() == 1U &&
+                    std::next(destination.begin())->screen_x == prior_x &&
+                    other.front().screen_x == other_x &&
+                    node.screen_x == 0xFEDCU && node.screen_y == 0x8001U &&
+                    node.field_04 == 0U && node.field_06 == 0U &&
+                    node.action.action_id == 0xFFFFU &&
+                    node.action.base_variant == 0x8000U &&
+                    node.action.field_1c == 0xFFFFFFFFU &&
+                    node.action.one_shot_base_variant == 0xFFFFFFFFU &&
+                    node.action.one_shot_variant_delta == 0xFFFFFFFFU &&
+                    node.action.wait_override == 0U &&
+                    node.action.wait_default == 0U &&
+                    node.action.wait_remaining == 0U &&
+                    node.action.command_cursor == 0U &&
+                    node.action.external_mode == 0U &&
+                    node.next_pointer_32 == 0U &&
+                    fixture.context.instruction_offset == 10U &&
+                    fixture.state.previous_opcode == variant.opcode &&
+                    fixture.ports.direct_audio_service_count == 0U,
+                "opcodes 58 and 153 aliases initialize and prepend the selected picture-action list"
+            );
+        }
+    }
+
+    struct BoundaryCase {
+        u16 instruction_offset;
+        u32 available_operands;
+    };
+    constexpr std::array<BoundaryCase, 4U> boundaries{
+        BoundaryCase{0x7FFEU, 0U},
+        BoundaryCase{0x7FFCU, 1U},
+        BoundaryCase{0x7FFAU, 2U},
+        BoundaryCase{0x7FF8U, 3U},
+    };
+    for (const BoundaryCase boundary : boundaries) {
+        Fixture fixture;
+        openswd3::world_map::LegacyPictureActionLists picture_actions;
+        picture_actions.primary.emplace_back();
+        picture_actions.secondary.emplace_back();
+        fixture.runtime.picture_actions = &picture_actions;
+        fixture.context.instruction_offset = boundary.instruction_offset;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x66U;
+        write_u16(
+            fixture.state.window,
+            boundary.instruction_offset,
+            OP_58_ENQUEUE_PRIMARY_PICTURE_ACTION
+        );
+        for (u32 operand = 0U; operand < boundary.available_operands;
+             ++operand) {
+            write_u16(
+                fixture.state.window,
+                static_cast<std::size_t>(boundary.instruction_offset) + 2U +
+                    2U * operand,
+                static_cast<u16>(0x1000U + operand)
+            );
+        }
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::operand_out_of_range &&
+                result.opcode == OP_58_ENQUEUE_PRIMARY_PICTURE_ACTION &&
+                result.executed_instruction_count == 1U &&
+                picture_actions.primary.size() == 1U &&
+                picture_actions.secondary.size() == 1U &&
+                fixture.context.instruction_offset ==
+                    boundary.instruction_offset &&
+                fixture.state.previous_opcode == 0x66U,
+            "shared picture-action handler keeps an incomplete staged node unlinked"
+        );
+    }
+
+    Fixture missing_owner;
+    prime_instruction(missing_owner, OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION);
+    const auto owner_result = missing_owner.step();
     test.expect_true(
-        result.status == LegacyWorldStoryVmStatus::yielded &&
-            result.opcode == 58U && result.executed_instruction_count == 1U &&
-            fixture.context.instruction_offset == 10U &&
-            picture_actions.primary.size() == 2U &&
-            picture_actions.secondary.empty(),
-        "opcode 58 prepends one primary picture-action node and yields"
+        owner_result.status == LegacyWorldStoryVmStatus::runtime_unavailable &&
+            owner_result.opcode == OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION &&
+            owner_result.executed_instruction_count == 1U &&
+            missing_owner.context.instruction_offset == 0U &&
+            missing_owner.state.previous_opcode == 0x66U,
+        "shared picture-action handler reaches the list owner only after all operands"
     );
+
+    Fixture exact_tail;
+    openswd3::world_map::LegacyPictureActionLists tail_actions;
+    exact_tail.runtime.picture_actions = &tail_actions;
+    exact_tail.context.instruction_offset = 0x7FF6U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window,
+        0x7FF6U,
+        OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION
+    );
+    write_u16(exact_tail.state.window, 0x7FF8U, 1U);
+    write_u16(exact_tail.state.window, 0x7FFAU, 2U);
+    write_u16(exact_tail.state.window, 0x7FFCU, 3U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 4U);
+    const auto tail_result = exact_tail.step();
     test.expect_true(
-        node.screen_x == 123U && node.screen_y == 234U && node.field_04 == 0U &&
-            node.field_06 == 0U && node.action.action_id == 345U &&
-            node.action.base_variant == 456U &&
-            node.action.field_1c == 0xFFFFFFFFU &&
-            node.action.one_shot_base_variant == 0xFFFFFFFFU &&
-            node.action.one_shot_variant_delta == 0xFFFFFFFFU &&
-            node.next_pointer_32 == 0U,
-        "opcode 58 preserves the zeroed 0xA4 payload and action initializer"
+        tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            tail_result.opcode == OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION &&
+            tail_result.executed_instruction_count == 1U &&
+            tail_actions.primary.empty() &&
+            tail_actions.secondary.size() == 1U &&
+            tail_actions.secondary.front().screen_x == 1U &&
+            tail_actions.secondary.front().screen_y == 2U &&
+            tail_actions.secondary.front().action.action_id == 3U &&
+            tail_actions.secondary.front().action.base_variant == 4U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION,
+        "shared picture-action handler exact tail links the node and yields at the window end"
     );
 }
 
@@ -11137,6 +11278,76 @@ void test_real_start_frame_color_transition_record(
     );
 }
 
+void test_real_shared_picture_action_enqueue_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    const auto read_record =
+        [&root](const std::streamoff file_offset) -> std::array<u8, 10U> {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(file_offset);
+        std::array<u8, 10U> instruction{};
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        return instruction;
+    };
+    const auto primary = read_record(0x0000549F);
+    const auto secondary_first = read_record(0x0000468A);
+    const auto secondary_second = read_record(0x00004698);
+
+    Fixture fixture;
+    openswd3::world_map::LegacyPictureActionLists picture_actions;
+    fixture.runtime.picture_actions = &picture_actions;
+    const auto execute = [&fixture](const std::array<u8, 10U>& instruction) {
+        prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+        std::ranges::copy(instruction, fixture.state.window.begin());
+        fixture.state.previous_opcode = 0x66U;
+        return fixture.step();
+    };
+
+    const auto primary_result = execute(primary);
+    const auto first_secondary_result = execute(secondary_first);
+    const auto second_secondary_result = execute(secondary_second);
+    const auto secondary_tail = picture_actions.secondary.size() >= 2U
+        ? std::next(picture_actions.secondary.begin())
+        : picture_actions.secondary.end();
+
+    test.expect_true(
+        read_u16(primary, 0U) == OP_58_ENQUEUE_PRIMARY_PICTURE_ACTION &&
+            read_u16(secondary_first, 0U) ==
+                OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION &&
+            read_u16(secondary_second, 0U) ==
+                OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION &&
+            primary_result.status == LegacyWorldStoryVmStatus::yielded &&
+            first_secondary_result.status ==
+                LegacyWorldStoryVmStatus::yielded &&
+            second_secondary_result.status ==
+                LegacyWorldStoryVmStatus::yielded &&
+            picture_actions.primary.size() == 1U &&
+            picture_actions.secondary.size() == 2U &&
+            picture_actions.primary.front().screen_x == 82U &&
+            picture_actions.primary.front().screen_y == 344U &&
+            picture_actions.primary.front().action.action_id == 9006U &&
+            picture_actions.primary.front().action.base_variant == 2U &&
+            picture_actions.secondary.front().screen_x == 480U &&
+            picture_actions.secondary.front().screen_y == 400U &&
+            picture_actions.secondary.front().action.action_id == 9050U &&
+            picture_actions.secondary.front().action.base_variant == 1U &&
+            secondary_tail->screen_x == 360U &&
+            secondary_tail->screen_y == 400U &&
+            secondary_tail->action.action_id == 9050U &&
+            secondary_tail->action.base_variant == 0U &&
+            fixture.context.instruction_offset == 10U &&
+            fixture.state.previous_opcode ==
+                OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION &&
+            fixture.ports.direct_audio_service_count == 0U,
+        "real opcodes 58 and 153 prepend primary and secondary picture actions"
+    );
+}
+
 void test_real_shared_role_spatial_group_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -12684,7 +12895,7 @@ int main(const int argument_count, char** arguments) {
     test_reload_indexed_target_protocol(test);
     test_interaction_lock_protocol(test);
     test_set_role_action_wait_override_protocol(test);
-    test_enqueue_primary_picture_action(test);
+    test_shared_picture_action_enqueue_protocol(test);
     test_request_battle_after_clearing_overlay_lists(test);
     test_play_sound_effect_request(test);
     test_wait_for_frame_color_transition(test);
@@ -12728,6 +12939,7 @@ int main(const int argument_count, char** arguments) {
         test_real_wait_for_frame_color_transition_record(test, root);
         test_real_repeat_role_action_refresh_record(test, root);
         test_real_shared_role_spatial_group_records(test, root);
+        test_real_shared_picture_action_enqueue_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

@@ -15,7 +15,7 @@
 | `52/53/74` | 三分量浮点插值 | 设置起点、终点、每拍增量和倒计时；等待或取消只按原状态字段操作 |
 | `54` | 重复 action refresh | 始终先刷新一次，正重复数再额外刷新指定次数 |
 | `55..57` | 修改角色状态低两位 | 分别写成 `1/0/2`，并用旧低两位调用对象放置 helper |
-| `58` | 入队临时 action 节点 | 分配 `0xA4` 字节节点，内嵌 `0x98` 字节 action 后挂到链表头 |
+| `58` | 入队主图片动作节点 | 与次表153共享入口；完整初始化后分别前插主/次图片动作链 |
 | `59` | 请求音效播放 | 经 Miles 包装层提交声音编号，忽略返回值 |
 | `60/61` | 场景提交位与 framebuffer | 清 bit0，或清零 `0x96000` 字节 framebuffer 后置 bit0 |
 | `62` | 新增或更新地图角色记录 | 多种 `FFFF/FFF0` 继承、旧对象清理、当前地图角色替换或追加 |
@@ -57,9 +57,11 @@ duration 为零时没有前置保护，直接进入 x87 除法。modern已按del
 
 55、56、57共用同一handler：先保存角色flags低两位旧空间分组，再清低两位并分别写为1、0、2；随后以旧分组解链，并按新flags分组重插。起始行严格使用`(world_y_u32 >> 4) - 1`的logical shift/回绕；helper链中not-found只诊断并继续，missing selector的`-1`角色索引与损坏空间链由modern在原unsafe点隔离。三条都推进4字节、发布normalized previous并跨帧让出。资产仅有`TALK4.DAT`四条物理记录/四个probe，55/56各一条、57两条，全部raw低位形式、长度4。完整证据见 [`story-vm-role-spatial-groups-004295f3.md`](story-vm-role-spatial-groups-004295f3.md)。
 
-## opcode 58–61：临时 action、音频和 framebuffer
+## opcode 58（与次表153共享）、59–61：图片动作、音频和 framebuffer
 
-58 分配并清零 `0xA4` 字节节点，在 `+8` 放置一个由 `sub_40DC00` 初始化的 `0x98` 字节 action，再写入四个 `u16` 参数并前插到 `dword_4B7C70` 链表。`malloc` 返回没有空值检查；指令消费后让出。
+58与次表153共享入口。入口在读取任何operand前分配并清零`0xA4`字节节点，再在`+8`处调用`sub_40DC00`初始化内嵌`0x98`字节动作记录；随后严格按`+2/+4/+6/+8`逐word写入屏幕坐标、action id和base variant。四项完整后才访问链头：58前插主图片动作链`dword_4B7C70`，153前插次图片动作链`dword_4B8968`。两条都推进10字节、发布normalized previous并让出。
+
+原版`malloc`返回没有空值检查，且operand故障会在进程终止前遗留未链接堆块。modern以未链接临时list节点保持分配→初始化→逐项写入→最终链入顺序，只在typed-stop无效域释放临时节点；平台owner也延迟到四项完整后检查。资产锁定58为73条物理记录/77 probes，153为11/11，合计84/88，全部低位raw且长度10；一条主链与连续两条次链TALK1记录回放固定了列表归属和前插顺序。完整证据见[`story-vm-picture-action-enqueue-0042b1f1.md`](story-vm-picture-action-enqueue-0042b1f1.md)。
 
 59 把 `u16(+2)` 和全局缩放值传入 `sub_485610`，再由 `sub_485CE0` 进入 Miles 音频对象。返回值不参与剧情分支；handler 推进四字节后让出。平台音频替换可以改变后端，不能改变这条请求在剧情帧中的消费和让出位置。
 

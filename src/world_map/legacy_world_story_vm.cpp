@@ -2806,23 +2806,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
-        case 58U: {
-            if (!has_bytes(state.window, ip, 10U)) {
-                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
-                return result;
-            }
-            if (runtime.picture_actions == nullptr) {
-                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
-                return result;
-            }
+        case OP_58_ENQUEUE_PRIMARY_PICTURE_ACTION:
+        case OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION: {
+            std::list<LegacyPictureActionNode> pending;
             try {
-                runtime.picture_actions->primary.emplace_front();
-                auto& node = runtime.picture_actions->primary.front();
-                asset_runtime::initialize_legacy_action_record(node.action);
-                node.screen_x = read_u16(state.window, ip + 2U);
-                node.screen_y = read_u16(state.window, ip + 4U);
-                node.action.action_id = read_u16(state.window, ip + 6U);
-                node.action.base_variant = read_u16(state.window, ip + 8U);
+                pending.emplace_front();
             } catch (const std::bad_alloc&) {
                 result.status =
                     LegacyWorldStoryVmStatus::picture_action_allocation_failed;
@@ -2832,8 +2820,43 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     LegacyWorldStoryVmStatus::picture_action_allocation_failed;
                 return result;
             }
+
+            auto& node = pending.front();
+            asset_runtime::initialize_legacy_action_record(node.action);
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            node.screen_x = read_u16(state.window, ip + 2U);
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            node.screen_y = read_u16(state.window, ip + 4U);
+            const bool primary_destination =
+                result.opcode == OP_58_ENQUEUE_PRIMARY_PICTURE_ACTION;
+            if (!has_bytes(state.window, ip, 8U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            node.action.action_id = read_u16(state.window, ip + 6U);
+            if (!has_bytes(state.window, ip, 10U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            node.action.base_variant = read_u16(state.window, ip + 8U);
+            if (runtime.picture_actions == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            auto& destination = primary_destination
+                ? runtime.picture_actions->primary
+                : runtime.picture_actions->secondary;
+            destination.splice(destination.begin(), pending);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 10U);
+            state.previous_opcode = result.opcode;
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
         }
@@ -3398,38 +3421,6 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
             continue;
-
-        case 153U: {
-            if (!has_bytes(state.window, ip, 10U)) {
-                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
-                return result;
-            }
-            if (runtime.picture_actions == nullptr) {
-                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
-                return result;
-            }
-            try {
-                runtime.picture_actions->secondary.emplace_front();
-                auto& node = runtime.picture_actions->secondary.front();
-                asset_runtime::initialize_legacy_action_record(node.action);
-                node.screen_x = read_u16(state.window, ip + 2U);
-                node.screen_y = read_u16(state.window, ip + 4U);
-                node.action.action_id = read_u16(state.window, ip + 6U);
-                node.action.base_variant = read_u16(state.window, ip + 8U);
-            } catch (const std::bad_alloc&) {
-                result.status =
-                    LegacyWorldStoryVmStatus::picture_action_allocation_failed;
-                return result;
-            } catch (const std::length_error&) {
-                result.status =
-                    LegacyWorldStoryVmStatus::picture_action_allocation_failed;
-                return result;
-            }
-            context.instruction_offset =
-                static_cast<u16>(context.instruction_offset + 10U);
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
-        }
 
         case 161U: {
             if (!has_bytes(state.window, ip, 4U)) {
