@@ -3783,29 +3783,31 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 76U: {
-            if (!has_bytes(state.window, ip, 6U)) {
+        case OP_76_TURN_AND_SUSPEND_STORY_ROLE: {
+            if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            if (runtime.story_paths == nullptr) {
-                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
-                return result;
-            }
-
             u16 first_selector = read_u16(state.window, ip + 2U);
             if (first_selector == kCurrentSourceSelector) {
                 first_selector = context.source_guid;
             }
             u32 first_role_index{};
-            u32 second_role_index{};
             if (!resolve_role_index(
                     roles,
                     first_selector,
                     controlled_role_index,
                     first_role_index
-                ) ||
-                !resolve_role_index(
+                )) {
+                result.status = LegacyWorldStoryVmStatus::role_not_found;
+                return result;
+            }
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u32 second_role_index{};
+            if (!resolve_role_index(
                     roles,
                     read_u16(state.window, ip + 4U),
                     controlled_role_index,
@@ -3836,6 +3838,10 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             first.action.wait_remaining = 0U;
             record_action_update(result, first.action, ports);
 
+            if (runtime.story_paths == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
             const auto suspended = suspend_legacy_world_story_role(
                 *runtime.story_paths, first_role_index
             );
@@ -3845,6 +3851,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
             continue;
         }
 

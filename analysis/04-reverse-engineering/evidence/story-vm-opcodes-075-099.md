@@ -46,6 +46,8 @@ lookup 失败时 `sub_40C0D0` 把输出写成 `0xFFFFFFFF`，75 不检查返回�
 
 任一 lookup 失败都会让中心点计算在角色数组前继续执行。这是原始异常，不得把 76 现代化成“任一角色不存在就跳过”。
 
+76现已独立闭环：两个lookup按LST分阶段，第一参数独占`FFF0`替换；合法域保持中心点/朝向、action刷新、挂起、+6、previous76和same-call，两处index -1越界与固定owner收敛为typed失败。449条真实记录/450 probes全部raw`0x004C`、长度6，TALK1/2/3/4分布`181/140/56/72`；完整证据见[`story-vm-role-turn-suspend-00429da6.md`](story-vm-role-turn-suspend-00429da6.md)。
+
 ## opcode 77、78：成功宽度固定，失败宽度来自旧栈值
 
 77/78 共用 `0x00429F7B`。找到角色时：
