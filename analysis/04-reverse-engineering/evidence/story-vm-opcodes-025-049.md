@@ -162,14 +162,14 @@ missing live role不执行lookahead，而由`sub_40D460`只patch MAPS action id�
 
 ## opcode 46–49 的 action pending 协议
 
-现有动作字段证据已确认：action `+0x20` 和 `+0x3C` 是以 `0xFFFFFFFF` 表示无值的一次性 pending override，分别恢复到 action `+0x08` 和 `+0x34`。
+四条共享4-byte handler，selector不执行`0xFFF0` context替换；`0xFFF0`是ordinary字面GUID，`0xFFFE`仍由helper选择受控index。ordinary miss的lookup返回被忽略并形成`action[-1]`，modern在各分支首次unsafe action访问点checked-stop，不增加MAPS fallback。
 
-- 46 同时把 `+0x1C/+0x20/+0x3C` 复制到 `+0x00/+0x08/+0x34`，再调用 `sub_40DC00`。该初始化器把三个 pending 字段写回 `-1`，并清若干倒计时/控制字段，但保留刚恢复的目标字段。
-- 47 只在 `+0x20 != -1` 时复制到 `+0x08` 并清源。
-- 48 只在 `+0x3C != -1` 时复制到 `+0x34` 并清源。
-- 49 只对 action `+0x48` 的低 16 位比较和写入 `0xFFFF`。
+- 46无条件把`+0x1C/+0x20/+0x3C`的完整u32复制到`+0x00/+0x08/+0x34`，即使pending值是`0xFFFFFFFF`也照常覆盖；随后精确复用`sub_40DC00`，把三个pending dword写回`FFFFFFFF`，清u16 wait override/default/remaining、u16 command cursor与u32 external mode。
+- 47只在`+0x20 != FFFFFFFF`时复制完整u32到`+0x08`并清pending。
+- 48只在`+0x3C != FFFFFFFF`时复制完整u32到`+0x34`并清pending。
+- 49只对`+0x48`的低16位比较和写入`FFFF`，不改相邻wait字段。
 
-四者最后都尝试 `sub_4321E0(action)`，失败仅输出 `RestoreOpSet` 诊断，随后推进四字节并同帧继续。
+四者无论条件写是否发生，都恰好尝试一次`sub_4321E0(action)`；失败仅诊断，随后推进4字节、发布previous并同调用继续。锁定TALK目录对四条均为0条物理记录/0个entry probe，因此使用`asset_absence_verified`且不伪造real replay。完整证据见 [`story-vm-role-action-override-restore-00428f7b.md`](story-vm-role-action-override-restore-00428f7b.md)。
 
 ## 产物与下一批
 

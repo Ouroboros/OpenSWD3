@@ -70,6 +70,10 @@ using openswd3::world_map::OP_42_SET_INTERACTION_LOCK_AND_RESET_BASE_VARIANT;
 using openswd3::world_map::OP_43_CLEAR_INTERACTION_LOCK;
 using openswd3::world_map::OP_44_SET_ROLE_ACTION_WAIT_OVERRIDE;
 using openswd3::world_map::OP_45_SET_ROLE_ACTION_ID;
+using openswd3::world_map::OP_46_RESTORE_ROLE_ACTION_OVERRIDES;
+using openswd3::world_map::OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE;
+using openswd3::world_map::OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE;
+using openswd3::world_map::OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
 
@@ -3329,6 +3333,429 @@ void test_change_requested_action_id_failure_ordering(
             invalid_controlled.state.previous_opcode == 0x55U,
         "opcode 45 invalid controlled owner stops at the VM session boundary"
     );
+}
+
+void test_restore_role_action_overrides_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    const auto prime_role_instruction = [](Fixture& fixture,
+                                           const u16 raw_word) {
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0x00F8U);
+        write_u16(fixture.state.window, 4U, OP_1025);
+        fixture.state.previous_opcode = 0x55U;
+    };
+
+    for (const u16 mask : alias_masks) {
+        Fixture restore_all;
+        auto& action = restore_all.roles[1].action;
+        action.action_id = 0xA0A0A0A0U;
+        action.cached_action_id = 0x41414141U;
+        action.base_variant = 0xB0B0B0B0U;
+        action.cached_base_variant = 0x42424242U;
+        action.variant_delta = 0xC0C0C0C0U;
+        action.cached_variant_delta = 0x43434343U;
+        action.mode_flags = 0x44444444U;
+        action.field_1c = 0x11111111U;
+        action.one_shot_base_variant = 0x22222222U;
+        action.one_shot_variant_delta = 0x33333333U;
+        action.packed_ap_state = 0x4545U;
+        action.command_cursor = 0x4646U;
+        action.wait_remaining = 0x4747U;
+        action.wait_default = 0x4848U;
+        action.wait_override = 0x4949U;
+        action.field_4a = 0x4A4AU;
+        action.field_8c = 0x4B4B4B4BU;
+        action.external_mode = 0x4C4C4C4CU;
+        prime_role_instruction(
+            restore_all,
+            static_cast<u16>(OP_46_RESTORE_ROLE_ACTION_OVERRIDES | mask)
+        );
+        const auto result = restore_all.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.action_update_count == 1U &&
+                result.action_update_failure_count == 0U &&
+                action.action_id == 0x11111111U &&
+                action.cached_action_id == 0x41414141U &&
+                action.base_variant == 0x22222222U &&
+                action.cached_base_variant == 0x42424242U &&
+                action.variant_delta == 0x33333333U &&
+                action.cached_variant_delta == 0x43434343U &&
+                action.mode_flags == 0x44444444U &&
+                action.field_1c == 0xFFFFFFFFU &&
+                action.one_shot_base_variant == 0xFFFFFFFFU &&
+                action.one_shot_variant_delta == 0xFFFFFFFFU &&
+                action.packed_ap_state == 0x4545U &&
+                action.command_cursor == 0U && action.wait_remaining == 0U &&
+                action.wait_default == 0U && action.wait_override == 0U &&
+                action.field_4a == 0x1111U && action.field_8c == 0x4B4B4B4BU &&
+                action.external_mode == 0U &&
+                restore_all.context.instruction_offset == 4U &&
+                restore_all.state.previous_opcode ==
+                    OP_46_RESTORE_ROLE_ACTION_OVERRIDES &&
+                restore_all.ports.direct_audio_service_count == 0U,
+            "opcode 46 aliases restore all targets then reset exact action fields"
+        );
+
+        Fixture base_override;
+        auto& base_action = base_override.roles[1].action;
+        base_action.base_variant = 0x11111111U;
+        base_action.one_shot_base_variant = 0x89ABCDEFU;
+        base_action.one_shot_variant_delta = 0x76543210U;
+        base_action.wait_remaining = 0x1111U;
+        base_action.wait_default = 0x2222U;
+        base_action.wait_override = 0x3333U;
+        prime_role_instruction(
+            base_override,
+            static_cast<u16>(OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE | mask)
+        );
+        const auto base_result = base_override.step();
+        test.expect_true(
+            base_result.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                base_result.executed_instruction_count == 2U &&
+                base_result.action_update_count == 1U &&
+                base_action.base_variant == 0x89ABCDEFU &&
+                base_action.one_shot_base_variant == 0xFFFFFFFFU &&
+                base_action.one_shot_variant_delta == 0x76543210U &&
+                base_action.wait_remaining == 0x1111U &&
+                base_action.wait_default == 0x2222U &&
+                base_action.wait_override == 0x3333U &&
+                base_override.context.instruction_offset == 4U &&
+                base_override.state.previous_opcode ==
+                    OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE &&
+                base_override.ports.direct_audio_service_count == 0U,
+            "opcode 47 aliases apply the full pending base variant only"
+        );
+
+        Fixture delta_override;
+        auto& delta_action = delta_override.roles[1].action;
+        delta_action.variant_delta = 0x11111111U;
+        delta_action.one_shot_base_variant = 0x76543210U;
+        delta_action.one_shot_variant_delta = 0x89ABCDEFU;
+        delta_action.wait_remaining = 0x1111U;
+        delta_action.wait_default = 0x2222U;
+        delta_action.wait_override = 0x3333U;
+        prime_role_instruction(
+            delta_override,
+            static_cast<u16>(OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE | mask)
+        );
+        const auto delta_result = delta_override.step();
+        test.expect_true(
+            delta_result.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                delta_result.executed_instruction_count == 2U &&
+                delta_result.action_update_count == 1U &&
+                delta_action.variant_delta == 0x89ABCDEFU &&
+                delta_action.one_shot_variant_delta == 0xFFFFFFFFU &&
+                delta_action.one_shot_base_variant == 0x76543210U &&
+                delta_action.wait_remaining == 0x1111U &&
+                delta_action.wait_default == 0x2222U &&
+                delta_action.wait_override == 0x3333U &&
+                delta_override.context.instruction_offset == 4U &&
+                delta_override.state.previous_opcode ==
+                    OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE &&
+                delta_override.ports.direct_audio_service_count == 0U,
+            "opcode 48 aliases apply the full pending variant delta only"
+        );
+
+        Fixture wait_override;
+        auto& wait_action = wait_override.roles[1].action;
+        wait_action.one_shot_base_variant = 0x11111111U;
+        wait_action.one_shot_variant_delta = 0x22222222U;
+        wait_action.wait_remaining = 0x3333U;
+        wait_action.wait_default = 0x4444U;
+        wait_action.wait_override = 0x5555U;
+        prime_role_instruction(
+            wait_override,
+            static_cast<u16>(OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF | mask)
+        );
+        const auto wait_result = wait_override.step();
+        test.expect_true(
+            wait_result.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                wait_result.executed_instruction_count == 2U &&
+                wait_result.action_update_count == 1U &&
+                wait_action.one_shot_base_variant == 0x11111111U &&
+                wait_action.one_shot_variant_delta == 0x22222222U &&
+                wait_action.wait_remaining == 0x3333U &&
+                wait_action.wait_default == 0x4444U &&
+                wait_action.wait_override == 0xFFFFU &&
+                wait_override.context.instruction_offset == 4U &&
+                wait_override.state.previous_opcode ==
+                    OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF &&
+                wait_override.ports.direct_audio_service_count == 0U,
+            "opcode 49 aliases write only the wait-override word"
+        );
+    }
+
+    constexpr std::array<u16, 3U> conditional_opcodes{
+        OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE,
+        OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE,
+        OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF,
+    };
+    for (const u16 opcode : conditional_opcodes) {
+        Fixture no_pending_value;
+        auto& action = no_pending_value.roles[1].action;
+        action.base_variant = 0x11111111U;
+        action.variant_delta = 0x22222222U;
+        action.one_shot_base_variant = 0xFFFFFFFFU;
+        action.one_shot_variant_delta = 0xFFFFFFFFU;
+        action.wait_remaining = 0x3333U;
+        action.wait_default = 0x4444U;
+        action.wait_override = 0xFFFFU;
+        prime_role_instruction(no_pending_value, opcode);
+        const auto result = no_pending_value.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.action_update_count == 1U &&
+                action.base_variant == 0x11111111U &&
+                action.variant_delta == 0x22222222U &&
+                action.one_shot_base_variant == 0xFFFFFFFFU &&
+                action.one_shot_variant_delta == 0xFFFFFFFFU &&
+                action.wait_remaining == 0x3333U &&
+                action.wait_default == 0x4444U &&
+                action.wait_override == 0xFFFFU &&
+                no_pending_value.context.instruction_offset == 4U &&
+                no_pending_value.state.previous_opcode == opcode,
+            "opcodes 47-49 refresh once even when their conditional write skips"
+        );
+    }
+
+    Fixture restore_absent_values;
+    auto& absent_action = restore_absent_values.roles[1].action;
+    absent_action.action_id = 0x11111111U;
+    absent_action.base_variant = 0x22222222U;
+    absent_action.variant_delta = 0x33333333U;
+    absent_action.field_1c = 0xFFFFFFFFU;
+    absent_action.one_shot_base_variant = 0xFFFFFFFFU;
+    absent_action.one_shot_variant_delta = 0xFFFFFFFFU;
+    prime_role_instruction(
+        restore_absent_values, OP_46_RESTORE_ROLE_ACTION_OVERRIDES
+    );
+    const auto restore_absent_result = restore_absent_values.step();
+    test.expect_true(
+        restore_absent_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            restore_absent_result.action_update_count == 1U &&
+            absent_action.action_id == 0xFFFFFFFFU &&
+            absent_action.base_variant == 0xFFFFFFFFU &&
+            absent_action.variant_delta == 0xFFFFFFFFU,
+        "opcode 46 unconditionally copies absent pending values"
+    );
+
+    Fixture literal_fff0;
+    literal_fff0.roles[1].action.base_variant = 0x11111111U;
+    literal_fff0.roles[1].action.one_shot_base_variant = 0x22222222U;
+    literal_fff0.roles[2].guid = 0xFFF0U;
+    literal_fff0.roles[2].action.base_variant = 0x33333333U;
+    literal_fff0.roles[2].action.one_shot_base_variant = 0x44444444U;
+    prime_loaded_instruction(
+        literal_fff0, OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE
+    );
+    write_u16(literal_fff0.state.window, 2U, 0xFFF0U);
+    write_u16(literal_fff0.state.window, 4U, OP_1025);
+    const auto literal_fff0_result = literal_fff0.step();
+    test.expect_true(
+        literal_fff0_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            literal_fff0.roles[1].action.base_variant == 0x11111111U &&
+            literal_fff0.roles[1].action.one_shot_base_variant == 0x22222222U &&
+            literal_fff0.roles[2].action.base_variant == 0x44444444U &&
+            literal_fff0.roles[2].action.one_shot_base_variant == 0xFFFFFFFFU,
+        "opcodes 46-49 treat FFF0 as a literal GUID"
+    );
+
+    Fixture controlled;
+    controlled.roles[1].guid = 0xFFFEU;
+    controlled.roles[1].action.one_shot_variant_delta = 0x11111111U;
+    controlled.roles[2].action.one_shot_variant_delta = 0x22222222U;
+    prime_loaded_instruction(
+        controlled, OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE
+    );
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    write_u16(controlled.state.window, 4U, OP_1025);
+    const auto controlled_result = controlled.step(0, 0, 2U);
+    test.expect_true(
+        controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled.roles[1].action.variant_delta == 0U &&
+            controlled.roles[1].action.one_shot_variant_delta == 0x11111111U &&
+            controlled.roles[2].action.variant_delta == 0x22222222U &&
+            controlled.roles[2].action.one_shot_variant_delta == 0xFFFFFFFFU,
+        "opcodes 46-49 pass FFFE through for controlled-role selection"
+    );
+
+    Fixture first_clear_match;
+    first_clear_match.roles[0].guid = 0x2222U;
+    first_clear_match.roles[0].flags =
+        openswd3::world_map::kLegacyWorldGuidLookupSkipBit;
+    first_clear_match.roles[0].action.wait_override = 0x1111U;
+    first_clear_match.roles[1].guid = 0x2222U;
+    first_clear_match.roles[1].action.wait_override = 0x2222U;
+    first_clear_match.roles[2].guid = 0x2222U;
+    first_clear_match.roles[2].action.wait_override = 0x3333U;
+    prime_loaded_instruction(
+        first_clear_match, OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF
+    );
+    write_u16(first_clear_match.state.window, 2U, 0x2222U);
+    write_u16(first_clear_match.state.window, 4U, OP_1025);
+    const auto first_clear_match_result = first_clear_match.step();
+    test.expect_true(
+        first_clear_match_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            first_clear_match.roles[0].action.wait_override == 0x1111U &&
+            first_clear_match.roles[1].action.wait_override == 0xFFFFU &&
+            first_clear_match.roles[2].action.wait_override == 0x3333U,
+        "opcodes 46-49 skip bit-28 roles and use the first clear GUID match"
+    );
+
+    constexpr std::array<u16, 4U> opcodes{
+        OP_46_RESTORE_ROLE_ACTION_OVERRIDES,
+        OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE,
+        OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE,
+        OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF,
+    };
+    for (const u16 opcode : opcodes) {
+        Fixture missing;
+        prime_loaded_instruction(missing, opcode);
+        write_u16(missing.state.window, 2U, 0x7777U);
+        missing.state.previous_opcode = 0x55U;
+        const auto result = missing.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::role_not_found &&
+                result.opcode == opcode &&
+                result.executed_instruction_count == 1U &&
+                result.action_update_count == 0U &&
+                missing.context.instruction_offset == 0U &&
+                missing.state.previous_opcode == 0x55U &&
+                missing.ports.role_patch_requests.empty(),
+            "opcodes 46-49 stop at the first unsafe missing-role action access"
+        );
+
+        Fixture selector_truncated;
+        selector_truncated.context.instruction_offset = 0x7FFEU;
+        selector_truncated.context.talk_data_offset = 0x1111U;
+        selector_truncated.state.loaded_file_number = 1U;
+        selector_truncated.state.loaded_data_offset = 0x1111U;
+        selector_truncated.state.window_loaded = true;
+        write_u16(selector_truncated.state.window, 0x7FFEU, opcode);
+        selector_truncated.state.previous_opcode = 0x55U;
+        const auto truncated_result = selector_truncated.step();
+        test.expect_true(
+            truncated_result.status ==
+                    LegacyWorldStoryVmStatus::operand_out_of_range &&
+                truncated_result.opcode == opcode &&
+                truncated_result.executed_instruction_count == 1U &&
+                truncated_result.action_update_count == 0U &&
+                selector_truncated.context.instruction_offset == 0x7FFEU &&
+                selector_truncated.state.previous_opcode == 0x55U,
+            "opcodes 46-49 stop at the unsafe selector-word access"
+        );
+
+        Fixture exact_tail;
+        auto& tail_action = exact_tail.roles[1].action;
+        tail_action.action_id = 0x10U;
+        tail_action.field_1c = 0x101U;
+        tail_action.base_variant = 0x20U;
+        tail_action.one_shot_base_variant = 0x202U;
+        tail_action.variant_delta = 0x30U;
+        tail_action.one_shot_variant_delta = 0x303U;
+        tail_action.wait_override = 0x404U;
+        exact_tail.context.instruction_offset = 0x7FFCU;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        write_u16(exact_tail.state.window, 0x7FFCU, opcode);
+        write_u16(exact_tail.state.window, 0x7FFEU, 0x00F8U);
+        const auto tail_result = exact_tail.step();
+        const bool tail_effect =
+            (opcode == OP_46_RESTORE_ROLE_ACTION_OVERRIDES &&
+             tail_action.action_id == 0x101U &&
+             tail_action.base_variant == 0x202U &&
+             tail_action.variant_delta == 0x303U &&
+             tail_action.wait_override == 0U) ||
+            (opcode == OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE &&
+             tail_action.base_variant == 0x202U &&
+             tail_action.one_shot_base_variant == 0xFFFFFFFFU) ||
+            (opcode == OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE &&
+             tail_action.variant_delta == 0x303U &&
+             tail_action.one_shot_variant_delta == 0xFFFFFFFFU) ||
+            (opcode == OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF &&
+             tail_action.wait_override == 0xFFFFU);
+        test.expect_true(
+            tail_result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                tail_result.opcode == opcode &&
+                tail_result.executed_instruction_count == 1U &&
+                tail_result.action_update_count == 1U && tail_effect &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode == opcode &&
+                exact_tail.ports.direct_audio_service_count == 0U,
+            "opcodes 46-49 exact-tail records complete before next fetch"
+        );
+
+        Fixture update_failure;
+        auto& failed_action = update_failure.roles[1].action;
+        failed_action.action_id = 0x10U;
+        failed_action.field_1c = 0x101U;
+        failed_action.base_variant = 0x20U;
+        failed_action.one_shot_base_variant = 0x202U;
+        failed_action.variant_delta = 0x30U;
+        failed_action.one_shot_variant_delta = 0x303U;
+        failed_action.wait_override = 0x404U;
+        update_failure.ports.action_update_result = 0U;
+        prime_role_instruction(update_failure, opcode);
+        const auto failed_result = update_failure.step();
+        const bool failed_effect =
+            (opcode == OP_46_RESTORE_ROLE_ACTION_OVERRIDES &&
+             failed_action.action_id == 0x101U &&
+             failed_action.base_variant == 0x202U &&
+             failed_action.variant_delta == 0x303U) ||
+            (opcode == OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE &&
+             failed_action.base_variant == 0x202U) ||
+            (opcode == OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE &&
+             failed_action.variant_delta == 0x303U) ||
+            (opcode == OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF &&
+             failed_action.wait_override == 0xFFFFU);
+        test.expect_true(
+            failed_result.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                failed_result.action_update_count == 1U &&
+                failed_result.action_update_failure_count == 1U &&
+                failed_effect &&
+                update_failure.context.instruction_offset == 4U &&
+                update_failure.state.previous_opcode == opcode,
+            "opcodes 46-49 refresh failure is diagnostic-only after effects"
+        );
+
+        Fixture invalid_controlled;
+        prime_loaded_instruction(invalid_controlled, opcode);
+        write_u16(invalid_controlled.state.window, 2U, 0xFFFEU);
+        invalid_controlled.state.previous_opcode = 0x55U;
+        const auto invalid_result = invalid_controlled.step(
+            0, 0, static_cast<u32>(invalid_controlled.roles.size())
+        );
+        test.expect_true(
+            invalid_result.status == LegacyWorldStoryVmStatus::role_not_found &&
+                invalid_result.opcode == 0U &&
+                invalid_result.executed_instruction_count == 0U &&
+                invalid_result.action_update_count == 0U &&
+                invalid_controlled.context.instruction_offset == 0U &&
+                invalid_controlled.state.previous_opcode == 0x55U,
+            "opcodes 46-49 invalid controlled owner stops before opcode fetch"
+        );
+    }
 }
 
 void test_wait_for_role_action_position(openswd3::test::Context& test) {
@@ -10015,6 +10442,7 @@ int main(const int argument_count, char** arguments) {
     test_role_action_chain_update_gate(test);
     test_change_requested_action_id(test);
     test_change_requested_action_id_failure_ordering(test);
+    test_restore_role_action_overrides_protocol(test);
     test_wait_for_role_action_position(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v277
+版本：v278
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00428F7B` 共享 handler（opcodes 46–49）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00429066` 共享 handler（opcodes 50、70、73）
 
 ## 0. 执行约定
 
@@ -1693,6 +1693,23 @@ B7 P0 有限收口完成。
     留到P3，未启动游戏EXE。现代显式opcode仍为78；workpack当前35/146，即
     `5 assembly_exact + 30 platform_adapted + 111 pending_audit`。
 
+- 剧情VM P2第三十六组`0x00428F7B` / 共享opcodes46–49完成独立闭环。四条4字节记录均把
+    selector原样交给lookup：`0xFFF0`是ordinary字面GUID，`0xFFFE`由helper选择受控index，ordinary
+    GUID跳过bit28并取首个clear匹配。opcode46无条件把三个pending u32复制到active action字段，
+    即使值为`FFFFFFFF`也照常覆盖，再精确复用`sub_40DC00`清三个pending dword、三个wait word、
+    command cursor与external mode；47/48只在各自pending非`FFFFFFFF`时复制完整u32并清pending，
+    49严格只把u16 wait override写为`FFFF`。四条无论条件写是否发生都恰好refresh一次，零返回只
+    诊断并保留效果；随后推进4字节、发布previous并同调用继续，无MAPS fallback、audio或yield。
+    ordinary miss在各分支首次unsafe action访问处typed-stop，selector截断、受控owner和`0x7FFC`
+    精确窗口尾顺序均已锁定。TALK目录对四条均为0条物理记录/0个entry probe，raw及高位alias的
+    零散byte-word候选未被伪报为入口，闭环标记为`asset_absence_verified`而不伪造real replay。
+    四raw alias、FFF0/FFFE、bit28首匹配、pending有/无、精确字段宽度、四类missing/tail、refresh
+    失败、previous、无MAPS与无audio回归均通过。最终剧情VM定向3/3、Linux core 186/186、Linux
+    app 192/192均以exit 0通过；app仅保留既有ALSA开发库warning。生成器`py_compile`及双重生成
+    幂等通过，workpack hash为`b52f7cc28d9f578155b5b0a9289ab4a67ac199071c7bb6ce678057ae0ca5f2f0`。
+    Windows依v278留到P3，未启动游戏EXE。现代显式opcode为82；workpack当前36/146，即
+    `5 assembly_exact + 31 platform_adapted + 110 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00428F7B` 的共享opcodes46–49 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00429066` 的共享opcodes50、70、73 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

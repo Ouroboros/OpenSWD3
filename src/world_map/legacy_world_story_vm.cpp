@@ -2446,6 +2446,63 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_46_RESTORE_ROLE_ACTION_OVERRIDES:
+        case OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE:
+        case OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE:
+        case OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u32 role_index{};
+            if (!resolve_role_index(
+                    roles,
+                    read_u16(state.window, ip + 2U),
+                    controlled_role_index,
+                    role_index
+                )) {
+                result.status = LegacyWorldStoryVmStatus::role_not_found;
+                return result;
+            }
+            auto& action = roles[role_index].action;
+            switch (result.opcode) {
+            case OP_46_RESTORE_ROLE_ACTION_OVERRIDES:
+                action.action_id = action.field_1c;
+                action.base_variant = action.one_shot_base_variant;
+                action.variant_delta = action.one_shot_variant_delta;
+                asset_runtime::initialize_legacy_action_record(action);
+                break;
+            case OP_47_APPLY_ROLE_BASE_VARIANT_OVERRIDE:
+                if (action.one_shot_base_variant !=
+                    std::numeric_limits<u32>::max()) {
+                    action.base_variant = action.one_shot_base_variant;
+                    action.one_shot_base_variant =
+                        std::numeric_limits<u32>::max();
+                }
+                break;
+            case OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE:
+                if (action.one_shot_variant_delta !=
+                    std::numeric_limits<u32>::max()) {
+                    action.variant_delta = action.one_shot_variant_delta;
+                    action.one_shot_variant_delta =
+                        std::numeric_limits<u32>::max();
+                }
+                break;
+            case OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF:
+                if (action.wait_override != std::numeric_limits<u16>::max()) {
+                    action.wait_override = std::numeric_limits<u16>::max();
+                }
+                break;
+            default:
+                break;
+            }
+            record_action_update(result, action, ports);
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 51U:
             if (runtime.camera_pan == nullptr) {
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
