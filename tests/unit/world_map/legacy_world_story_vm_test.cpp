@@ -95,6 +95,7 @@ using openswd3::world_map::OP_65_TRANSFER_ROLE_TO_PARTY;
 using openswd3::world_map::OP_66_UPDATE_ROLE_MAP_STATE;
 using openswd3::world_map::OP_67_WAIT_FRAME_CLOCK;
 using openswd3::world_map::OP_68_CLEAR_ROLE_FLAG_0400;
+using openswd3::world_map::OP_69_SET_ROLE_FLAG_0400;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
@@ -11823,6 +11824,140 @@ void test_clear_role_flag_0400_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_set_role_flag_0400_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.roles[1].guid = 9U;
+        fixture.roles[1].flags = 0xA5A50001U;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_69_SET_ROLE_FLAG_0400 | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, 9U);
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_69_SET_ROLE_FLAG_0400 &&
+                result.executed_instruction_count == 1U &&
+                fixture.roles[1].flags == 0xA5A50401U &&
+                fixture.ports.role_patch_requests.empty() &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode == OP_69_SET_ROLE_FLAG_0400,
+            "opcode 69 aliases set only role flag 0400, publish previous and yield"
+        );
+    }
+
+    Fixture current_source;
+    current_source.context.source_guid = 9U;
+    current_source.roles[1].guid = 9U;
+    current_source.roles[1].flags = 1U;
+    prime_loaded_instruction(current_source, OP_69_SET_ROLE_FLAG_0400);
+    write_u16(current_source.state.window, 2U, 0xFFF0U);
+    const auto current_source_result = current_source.step();
+    test.expect_true(
+        current_source_result.status == LegacyWorldStoryVmStatus::yielded &&
+            current_source.roles[1].flags == 0x00000401U &&
+            current_source.ports.role_patch_requests.empty(),
+        "opcode 69 resolves FFF0 through the Talk source before runtime lookup"
+    );
+
+    Fixture controlled;
+    controlled.roles[1].guid = 9U;
+    controlled.roles[1].flags = 2U;
+    prime_loaded_instruction(controlled, OP_69_SET_ROLE_FLAG_0400);
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    const auto controlled_result = controlled.step(0, 0, 1U);
+    test.expect_true(
+        controlled_result.status == LegacyWorldStoryVmStatus::yielded &&
+            controlled.roles[1].flags == 0x00000402U,
+        "opcode 69 independently retains the FFFE controlled-role lookup contract"
+    );
+
+    Fixture missing;
+    prime_loaded_instruction(missing, OP_69_SET_ROLE_FLAG_0400);
+    write_u16(missing.state.window, 2U, 0x1234U);
+    missing.state.previous_opcode = 0x66U;
+    const auto missing_result = missing.step();
+    const auto& missing_request = missing.ports.role_patch_requests.front();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::yielded &&
+            missing.ports.role_patch_requests.size() == 1U &&
+            missing_request.guid == 0x1234U &&
+            missing_request.action_id == 0xFFFFU &&
+            missing_request.base_variant == 0xFFFFU &&
+            missing_request.variant_delta == 0xFFFFU &&
+            missing_request.tile_x == 0xFFFFU &&
+            missing_request.tile_y == 0xFFFFU &&
+            missing_request.talk_script_id == 0xFFFFU &&
+            missing_request.path_data_id == 0xFFFFU &&
+            missing_request.flags_or_mask == 0x0400U &&
+            missing_request.flags_and_mask == 0xFFFFU &&
+            missing_request.logical_map_id == 0xFFFFU &&
+            missing.context.instruction_offset == 4U &&
+            missing.state.previous_opcode == OP_69_SET_ROLE_FLAG_0400,
+        "opcode 69 missing-role fallback submits only MAPS flags OR 0400 and AND FFFF then consumes"
+    );
+
+    Fixture missing_source;
+    missing_source.context.source_guid = 0x1234U;
+    prime_loaded_instruction(missing_source, OP_69_SET_ROLE_FLAG_0400);
+    write_u16(missing_source.state.window, 2U, 0xFFF0U);
+    const auto missing_source_result = missing_source.step();
+    test.expect_true(
+        missing_source_result.status == LegacyWorldStoryVmStatus::yielded &&
+            missing_source.ports.role_patch_requests.size() == 1U &&
+            missing_source.ports.role_patch_requests.front().guid == 0x1234U,
+        "opcode 69 missing FFF0 target patches the resolved source GUID rather than raw FFF0"
+    );
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFEU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x66U;
+    write_u16(truncated.state.window, 0x7FFEU, OP_69_SET_ROLE_FLAG_0400);
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.ports.role_patch_requests.empty() &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            truncated.state.previous_opcode == 0x66U,
+        "opcode 69 truncated selector typed-stops before role or MAPS effects"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFCU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(exact_tail.state.window, 0x7FFCU, OP_69_SET_ROLE_FLAG_0400);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0x1234U);
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.opcode == OP_69_SET_ROLE_FLAG_0400 &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.ports.role_patch_requests.size() == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_69_SET_ROLE_FLAG_0400,
+        "opcode 69 missing-role exact tail submits MAPS patch, advances, publishes previous and yields without another fetch"
+    );
+}
+
 void test_wait_for_frame_color_transition(openswd3::test::Context& test) {
     Fixture fixture;
     openswd3::rendering::LegacyFrameColorTransitionState frame_color{
@@ -13882,6 +14017,41 @@ void test_real_clear_role_flag_0400_record(
     );
 }
 
+void test_real_set_role_flag_0400_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0000CA01);
+    std::array<u8, 4U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    fixture.roles[1].guid = 1U;
+    fixture.roles[1].flags = 0xA5A50001U;
+    prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    fixture.state.previous_opcode = 0x66U;
+
+    const auto result = fixture.step();
+
+    test.expect_true(
+        input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
+            read_u16(instruction, 0U) == OP_69_SET_ROLE_FLAG_0400 &&
+            read_u16(instruction, 2U) == 1U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_69_SET_ROLE_FLAG_0400 &&
+            result.executed_instruction_count == 1U &&
+            fixture.roles[1].flags == 0xA5A50401U &&
+            fixture.ports.role_patch_requests.empty() &&
+            fixture.context.instruction_offset == 4U &&
+            fixture.state.previous_opcode == OP_69_SET_ROLE_FLAG_0400,
+        "real opcode 69 record sets only GUID 1 role flag 0400 and yields"
+    );
+}
+
 void test_real_shared_scene_render_control_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -15568,6 +15738,7 @@ int main(const int argument_count, char** arguments) {
     test_update_role_map_state_protocol(test);
     test_frame_clock_wait_protocol(test);
     test_clear_role_flag_0400_protocol(test);
+    test_set_role_flag_0400_protocol(test);
     test_wait_for_frame_color_transition(test);
     test_turn_role_toward_role(test);
     test_set_role_head_sign_action(test);
@@ -15619,6 +15790,7 @@ int main(const int argument_count, char** arguments) {
         test_real_update_role_map_state_record(test, root);
         test_real_frame_clock_wait_record(test, root);
         test_real_clear_role_flag_0400_record(test, root);
+        test_real_set_role_flag_0400_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
