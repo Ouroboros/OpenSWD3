@@ -3241,6 +3241,19 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_64_CLEAR_SELECTION_SCROLL:
+            if (runtime.selection_words == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            runtime.selection_words->fill(
+                std::bit_cast<i16>(kLegacyWorldSelectionSentinel)
+            );
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
+            continue;
+
         case 67U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

@@ -95,7 +95,7 @@ GUID缺失仅诊断；正常、非当前map和缺失三路都推进18、发布pr
 
 这里`FF00`是脚本terminator，`CFCF`才是运行时空项，不能混用。现代复用既有64-word表和selection-scroll状态，并按原版`rep movsd`→读取top→奇数尾copy→写计时→读取left→写快照的切点保留typed失败部分效果。7条真实记录全部raw`0x003F`、count8、长度22，TALK1/2/3分布`2/1/4`；TALK1代表记录回放通过。完整证据见[`story-vm-selection-scroll-write-00429a1b.md`](story-vm-selection-scroll-write-00429a1b.md)。
 
-64只把64个`u16`目标项恢复为`CFCF`，不会清prefix或视口快照。目的数组虽有64项，接受门槛却是56；两者都必须原样保留。
+64只把64个`u16`目标项恢复为`CFCF`，不会清interval、remaining、cursor或视口快照；随后推进2、发布previous并同调用继续。目的数组虽有64项，63的接受门槛却是56；两者都必须原样保留。资产锁定8条raw`0x0040`、长度2记录，TALK1/2/3分布`3/1/4`；TALK1真实回放通过。完整证据见[`story-vm-selection-scroll-clear-00429ad2.md`](story-vm-selection-scroll-clear-00429ad2.md)。
 
 ## opcode 65、66：消费后让出的转移记录操作
 

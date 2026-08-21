@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v289
+版本：v290
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00429AD2` handler（opcode 64）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00429AE8` handler（opcode 65）
 
 ## 0. 执行约定
 
@@ -1869,6 +1869,17 @@ B7 P0 有限收口完成。
     对外进度为已实现90/198、已验收70/198；内部workpack当前47/146，即
     `5 assembly_exact + 42 platform_adapted + 99 pending_audit`。
 
+- 剧情VM P2第四十八组`0x00429AD2` / opcode64完成独立闭环。LST只以`rep stosd`把
+    `word_4ACE70`起32个dword/64个word/128字节全部写成`CFCF`，不修改opcode63建立的interval、
+    remaining、cursor或left/top快照；随后走共享`+2`尾、发布previous并同调用继续。四raw alias、
+    64个不同初值、完整状态保留、table owner缺失和`0x7FFE`精确尾均通过。资产锁定8条物理记录/
+    8 probes，TALK1/2/3分布`3/1/4`，全部raw`0x0040`、长度2；TALK1真实记录回放通过。剧情VM定向
+    3/3、Linux core 186/186、Linux app 192/192均exit 0，SDL主程序完成链接；未启动游戏EXE。
+    生成器`py_compile`及双重生成幂等通过，workpack hash为
+    `aa7d60e832dad3f2a21c1a755d3ad3acb12d7166b42cc9d431bc04f1b492da78`。Windows依v290留到P3。
+    对外进度为已实现91/198、已验收71/198；内部workpack当前48/146，即
+    `5 assembly_exact + 43 platform_adapted + 98 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00429AD2` 的opcode64 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00429AE8` 的opcode65 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

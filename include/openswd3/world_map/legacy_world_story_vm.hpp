@@ -87,6 +87,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING = 61U,
     OP_62_WRITE_MAP_ROLE = 62U,
     OP_63_SET_SELECTION_SCROLL = 63U,
+    OP_64_CLEAR_SELECTION_SCROLL = 64U,
     OP_70_START_ABSOLUTE_CAMERA_MOVE = 70U,
     OP_73_START_CAMERA_MOVE_TO_ROLE = 73U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
@@ -281,7 +282,7 @@ struct LegacyWorldStoryVmResult {
 
 // sub_427920, currently restricted to the independently audited default-invalid
 // and shared-dialog groups plus the earlier map-81/TALK100 implementation coverage:
-// 1-40,42-43,45,51-53,58-63,67,70-72,74,76-78,
+// 1-40,42-43,45,51-53,58-64,67,70-72,74,76-78,
 // 85,88-91,94-95,104,107,114,120,141,153,161,169,193,0x402 and 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.
