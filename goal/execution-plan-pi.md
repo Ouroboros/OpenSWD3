@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v291
+版本：v292
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00429B14` handler（opcode 66）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00429B62` handler（opcode 67）
 
 ## 0. 执行约定
 
@@ -1894,6 +1894,21 @@ B7 P0 有限收口完成。
     对外进度为已实现92/198、已验收72/198；内部workpack当前49/146，即
     `5 assembly_exact + 44 platform_adapted + 97 pending_audit`。
 
+- 剧情VM P2第五十组`0x00429B14` / opcode66完成独立闭环。LST把selector、Path、Talk、action、
+    base、variant、flags七个u16零扩展后调用`sub_40D790`并无条件忽略返回：缺失运行角色只清同GUID
+    MAPS flags bit7；命中角色则扫描八物理party槽，按条件清surface/整格对齐/空间摘链，写运行角色七
+    字段、更新MAPS Talk/Path/flags、标记surface，左移party indices与对象槽并减count。现代仅对真正
+    提前的owner/count/direction/surface失败typed-stop；party未命中diagnostic、missing-source MAPS
+    diagnostic，以及已完成party移除的MAPS/空间diagnostic仍消费。post/live对象槽与count同步完成。
+    四raw alias、raw`FFF0`、独立`FFFE`、missing fallback、完整命中、party未命中、MAPS/空间诊断、
+    方向失败、live count缺失、MAPS runtime缺失、截断与`0x7FF0`精确尾均通过。资产锁定100条物理
+    记录/100 probes，TALK1/2/3/4分布`48/0/22/30`，全部raw`0x0042`、长度16；TALK1 selector9
+    真实记录回放通过。共享helper普通/真实+剧情VM定向5/5、Linux core 186/186、Linux app 192/192
+    均exit 0，SDL主程序完成链接；未启动游戏EXE。生成器`py_compile`及双重生成幂等通过，workpack
+    hash为`604d5833972e7e0e03b8246beba44ab5dd856e65ef81c2b1f89f269a61c32d7b`。Windows依v292留到P3。
+    对外进度为已实现93/198、已验收73/198；内部workpack当前50/146，即
+    `5 assembly_exact + 45 platform_adapted + 96 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00429B14` 的opcode66 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00429B62` 的opcode67 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

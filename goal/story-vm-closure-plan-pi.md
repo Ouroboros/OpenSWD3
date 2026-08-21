@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x00429B14`（opcode 66）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x00429B62`（opcode 67）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -17,11 +17,11 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 
 - 原版剧情 VM 有 198 个显式 opcode，对应 146 个唯一汇编 handler 入口。
 - 其中 25 个入口由多个 opcode 共享；共享入口不代表各 opcode 语义相同。
-- 当前 C++ 接入 92 个显式 opcode。
+- 当前 C++ 接入 93 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
 - `0..124` 已有人工汇编语义；`125..193` 目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
-- 当前已实现的 92 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
+- 当前已实现的 93 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
 
@@ -69,7 +69,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 2 个 internal switch 与旧基线逐字节一致。新增 `story-vm-handler-workpack.tsv` 的 146
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
-值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至127行。前49行已独立
+值、窗口、公共 join/yield 与返回路径。P2当前人工语义已随审计增至127行。前50行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -97,9 +97,10 @@ previous后让出，共享opcodes60/61共同先清场景clear-only bit、由61�
 同步prefix到interval/remaining并快照left/top；成功同调用继续，超56项原地yield重试，以及opcode64
 只把64-word选择滚动表清为CFCF，保留interval、remaining、cursor与视口快照后同调用继续，以及
 opcode65按raw selector把命中角色经共享helper转入队伍、同步post/live队伍状态，缺失角色静默消费，
-两路均发布previous并yield。对外进度为已实现92/198、已验收72/198；内部workpack为49/146，即
-`5 assembly_exact + 44 platform_adapted + 97 pending_audit`。下一行只审计
-`0x00429B14`下的opcode66。
+两路均发布previous并yield，以及opcode66零扩展七参数：缺失角色清MAPS bit7，命中角色更新运行时/
+MAPS/surface并移除物理party槽，按原版忽略已完成诊断后yield。对外进度为已实现93/198、已验收73/198；
+内部workpack为50/146，即`5 assembly_exact + 45 platform_adapted + 96 pending_audit`。下一行只审计
+`0x00429B62`下的opcode67。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

@@ -3325,6 +3325,118 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_66_UPDATE_ROLE_MAP_STATE: {
+            if (!has_bytes(state.window, ip, 16U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const LegacyWorldRoleMapUpdateRequest request{
+                .role_selector = read_u16(state.window, ip + 2U),
+                .path_data_id = read_u16(state.window, ip + 4U),
+                .talk_script_id = read_u16(state.window, ip + 6U),
+                .action_id = read_u16(state.window, ip + 8U),
+                .base_variant = read_u16(state.window, ip + 10U),
+                .variant_delta = read_u16(state.window, ip + 12U),
+                .flags = read_u16(state.window, ip + 14U),
+            };
+
+            u32 probed_role_index{};
+            const bool probed_runtime_role = resolve_role_index(
+                roles,
+                request.role_selector,
+                controlled_role_index,
+                probed_role_index
+            );
+            if (probed_runtime_role &&
+                (runtime.role_transfer_state == nullptr ||
+                 runtime.live_party_object_slots == nullptr)) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>
+                fallback_party_objects;
+            std::array<u32, kLegacyWorldPartySlotCount> fallback_party_indices{};
+            u32 fallback_party_count{1U};
+            auto* const transfer_state = runtime.role_transfer_state;
+            const std::span<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>
+                party_objects = probed_runtime_role
+                ? std::span<
+                      LegacyWorldObjectSlot,
+                      kLegacyWorldPartySlotCount>{
+                      *runtime.live_party_object_slots
+                  }
+                : std::span<
+                      LegacyWorldObjectSlot,
+                      kLegacyWorldPartySlotCount>{fallback_party_objects};
+            const std::span<u32, kLegacyWorldPartySlotCount> party_indices =
+                probed_runtime_role
+                ? std::span<u32, kLegacyWorldPartySlotCount>{
+                      transfer_state->party_role_indices
+                  }
+                : std::span<u32, kLegacyWorldPartySlotCount>{
+                      fallback_party_indices
+                  };
+            u32* const party_count = probed_runtime_role
+                ? &transfer_state->party_role_count
+                : &fallback_party_count;
+
+            result.role_map_update = apply_legacy_world_role_map_update(
+                request,
+                LegacyWorldRoleMapUpdateContext{
+                    .controlled_role_index = controlled_role_index,
+                    .maps_payload = runtime.mutable_maps_payload,
+                    .maps_database = runtime.maps_database,
+                    .roles = roles,
+                    .party_object_slots = party_objects,
+                    .party_role_indices = party_indices,
+                    .party_role_count = party_count,
+                    .spatial_index = runtime.spatial_index,
+                    .role_surface = runtime.role_surface,
+                }
+            );
+
+            const auto update_status = result.role_map_update.status;
+            const bool completed_diagnostic =
+                update_status ==
+                    LegacyWorldRoleMapUpdateStatus::
+                        active_role_not_in_physical_party ||
+                (!result.role_map_update.runtime_role_found &&
+                 update_status ==
+                     LegacyWorldRoleMapUpdateStatus::maps_patch_failed) ||
+                (result.role_map_update.party_role_removed &&
+                 (update_status ==
+                      LegacyWorldRoleMapUpdateStatus::
+                          role_spatial_relocation_failed ||
+                  update_status ==
+                      LegacyWorldRoleMapUpdateStatus::maps_patch_failed));
+            if (update_status != LegacyWorldRoleMapUpdateStatus::ready &&
+                !completed_diagnostic) {
+                result.status =
+                    LegacyWorldStoryVmStatus::role_map_update_failed;
+                return result;
+            }
+
+            if (result.role_map_update.runtime_role_found &&
+                result.role_map_update.party_role_removed) {
+                transfer_state->party_object_slots =
+                    *runtime.live_party_object_slots;
+                if (runtime.live_party_role_count == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                *runtime.live_party_role_count =
+                    transfer_state->party_role_count;
+            }
+
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 16U);
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
         case 67U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
