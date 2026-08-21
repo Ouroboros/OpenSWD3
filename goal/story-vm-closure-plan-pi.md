@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至129行。前79行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至129行。前80行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -144,8 +144,11 @@ opcode99把live ANI phase按signed i32与zero-extended u16 threshold严格比较
 opcode100在lookup前staged读取selector与Talk值；FFF0映射current source、FFFE沿用controlled helper。live路径只写
 `talk_script_id`，missing路径通过typed MAPS database port提交Talk-only patch，并保持OR0/AND FFFF、+6、
 previous100与same-call。192条真实记录、四alias、FFFF值、双operand截断及精确尾通过。
-已实现112/198、已验收104/198；内部workpack为79/146，即
-`9 assembly_exact + 70 platform_adapted + 67 pending_audit`。下一行只审计`0x0042B43B`下的opcode101。
+opcode101只读取selector；FFF0映射current source、FFFE沿用controlled helper。命中live role只OR flags bit26，
+missing静默；两路保持+4、previous101与same-call。126条真实记录、四alias、bit28 skip首匹配、截断及精确尾通过。
+已实现113/198、已验收105/198；内部workpack为80/146，即
+`10 assembly_exact + 70 platform_adapted + 66 pending_audit`。下一行只审计`0x0042C567`下的共享
+opcodes102/103/117/136/140/145/146/174。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

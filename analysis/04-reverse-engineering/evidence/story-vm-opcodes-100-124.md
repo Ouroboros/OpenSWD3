@@ -49,6 +49,8 @@ role[index].status |= 0x04000000
 
 失败路径不诊断、不调用 pending helper，直接消费四字节。这种差异不能被统一的现代 selector 包装器抹平。
 
+opcode101现已独立闭环：单一selector在lookup前staged，命中时只OR bit26，missing静默，并保持`FFF0` current source、helper-native `FFFE`、+4、previous101与same-call。四raw alias、bit28 skip首匹配、selector截断和精确尾通过。资产锁126条/126 probes，全部raw`0065`、长度4，分布`39/38/11/38`；40种selector范围0..1061，TALK1/2/3/4四条代表记录命中live角色真实回放。完整证据见[`story-vm-role-status-bit26-set-0042b43b.md`](story-vm-role-status-bit26-set-0042b43b.md)。
+
 ## opcode 102、103、117：共享布尔状态位 handler
 
 三条指令在 `0x0042C567` 二次分派，只改变掩码：

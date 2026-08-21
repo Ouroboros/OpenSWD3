@@ -28,6 +28,7 @@ using compat::u32;
 
 constexpr u16 kCurrentSourceSelector = 0xFFF0U;
 constexpr u16 kContextSelector = 0xFFFDU;
+constexpr u32 kRoleStatusBit26 = 0x04000000U;
 constexpr u16 kSelectionScrollTerminator = 0xFF00U;
 constexpr u32 kTalkEntriesPerFile = 2000U;
 constexpr std::size_t kObjectRoleIndexOffset = 0x00U;
@@ -4649,6 +4650,27 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
+        case OP_101_SET_ROLE_STATUS_BIT26: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u16 selector = read_u16(state.window, ip + 2U);
+            if (selector == kCurrentSourceSelector) {
+                selector = context.source_guid;
+            }
+            u32 role_index{};
+            if (resolve_role_index(
+                    roles, selector, controlled_role_index, role_index
+                )) {
+                roles[role_index].flags |= kRoleStatusBit26;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
             state.previous_opcode = result.opcode;
             continue;
         }
