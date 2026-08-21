@@ -905,6 +905,22 @@ wrapping_subtract_i32(const i32 left, const i32 right) noexcept {
     return std::bit_cast<i32>(std::bit_cast<u32>(value) << 4U);
 }
 
+[[nodiscard]] float
+legacy_x87_interpolation_step(const i32 delta, const u32 duration) noexcept {
+    if (duration == 0U) {
+        if (delta > 0) {
+            return std::bit_cast<float>(u32{0x7F800000U});
+        }
+        if (delta < 0) {
+            return std::bit_cast<float>(u32{0xFF800000U});
+        }
+        return std::bit_cast<float>(u32{0xFFC00000U});
+    }
+    return static_cast<float>(
+        static_cast<long double>(delta) / static_cast<long double>(duration)
+    );
+}
+
 [[nodiscard]] LegacyWorldCameraRect centered_legacy_story_camera(
     const u32 world_x,
     const u32 world_y,
@@ -2603,43 +2619,76 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
-        case 52U: {
-            if (!has_bytes(state.window, ip, 16U)) {
+        case OP_52_START_FRAME_COLOR_TRANSITION: {
+            if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
+            const i32 current_red =
+                static_cast<i16>(read_u16(state.window, ip + 2U));
             if (runtime.frame_color == nullptr) {
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
                 return result;
             }
             auto& color = *runtime.frame_color;
-            color.current_red = static_cast<float>(
-                static_cast<i16>(read_u16(state.window, ip + 2U))
+            color.current_red = static_cast<float>(current_red);
+
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i32 current_green =
+                static_cast<i16>(read_u16(state.window, ip + 4U));
+            color.current_green = static_cast<float>(current_green);
+
+            if (!has_bytes(state.window, ip, 8U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i32 current_blue =
+                static_cast<i16>(read_u16(state.window, ip + 6U));
+            color.current_blue = static_cast<float>(current_blue);
+
+            if (!has_bytes(state.window, ip, 10U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i32 target_red =
+                static_cast<i16>(read_u16(state.window, ip + 8U));
+            if (!has_bytes(state.window, ip, 12U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i32 target_green =
+                static_cast<i16>(read_u16(state.window, ip + 10U));
+            if (!has_bytes(state.window, ip, 14U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i32 target_blue =
+                static_cast<i16>(read_u16(state.window, ip + 12U));
+            color.target_red = static_cast<float>(target_red);
+            color.target_green = static_cast<float>(target_green);
+            color.target_blue = static_cast<float>(target_blue);
+
+            if (!has_bytes(state.window, ip, 16U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u32 duration = read_u16(state.window, ip + 14U);
+            color.countdown = static_cast<i32>(duration);
+            color.step_red = legacy_x87_interpolation_step(
+                target_red - current_red, duration
             );
-            color.current_green = static_cast<float>(
-                static_cast<i16>(read_u16(state.window, ip + 4U))
+            color.step_green = legacy_x87_interpolation_step(
+                target_green - current_green, duration
             );
-            color.current_blue = static_cast<float>(
-                static_cast<i16>(read_u16(state.window, ip + 6U))
+            color.step_blue = legacy_x87_interpolation_step(
+                target_blue - current_blue, duration
             );
-            color.target_red = static_cast<float>(
-                static_cast<i16>(read_u16(state.window, ip + 8U))
-            );
-            color.target_green = static_cast<float>(
-                static_cast<i16>(read_u16(state.window, ip + 10U))
-            );
-            color.target_blue = static_cast<float>(
-                static_cast<i16>(read_u16(state.window, ip + 12U))
-            );
-            color.countdown = read_u16(state.window, ip + 14U);
-            const float duration = static_cast<float>(color.countdown);
-            color.step_red = (color.target_red - color.current_red) / duration;
-            color.step_green =
-                (color.target_green - color.current_green) / duration;
-            color.step_blue =
-                (color.target_blue - color.current_blue) / duration;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 16U);
+            state.previous_opcode = result.opcode;
             continue;
         }
 

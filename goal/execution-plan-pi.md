@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v280
+版本：v281
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x004293AC` handler（opcode 52）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042949D` handler（opcode 53）
 
 ## 0. 执行约定
 
@@ -1741,6 +1741,21 @@ B7 P0 有限收口完成。
     留到P3，未启动游戏EXE。现代显式opcode仍为84；workpack当前38/146，即
     `5 assembly_exact + 33 platform_adapted + 108 pending_audit`。
 
+- 剧情VM P2第三十九组`0x004293AC` / opcode52完成独立闭环。LST按三个current operand逐读逐写，
+    三个target operand则全部读完后才按RGB写入，随后零扩展u16 duration、写countdown并依次计算
+    三项`(target-current)/duration`单精度step；完整路径推进16字节、发布normalized previous并同调用
+    继续。原C++预验完整记录，既丢失截断窗口的前序写入，也漏发共同出口previous；现已恢复机器顺序。
+    零duration未被正规化，正差/负差/零差分别固定为x87的`+Inf/-Inf/0xFFC00000`；资产54种唯一
+    delta/duration及零时长/极值共59组与宿主x87逐位比较0差异。四raw alias、signed极值、u16最大
+    duration、owner缺失、operand 0..6可用、`0x7FF0`精确尾与无audio/yield均通过；
+    `TALK1.DAT@0x000043B8`真实记录回放通过。TALK目录锁定1361条物理记录/1361个entry probe，
+    分布733/25/174/429，全部raw `0x0034`、长度16，duration为1..46；唯一高位字样候选不是入口。
+    最终剧情VM定向3/3、Linux core 186/186、Linux app 192/192均exit 0；app仅保留既有ALSA开发库
+    warning。生成器`py_compile`及双重生成幂等通过，workpack hash为
+    `143ccfc37a73dd2cfa9e54bc83d1844a1ecbc140d29636294b92bc3ac6be8c15`。Windows依v281留到P3，
+    未启动游戏EXE。现代显式opcode仍为84；workpack当前39/146，即
+    `5 assembly_exact + 34 platform_adapted + 107 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x004293AC` 的 opcode52 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042949D` 的 opcode53 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

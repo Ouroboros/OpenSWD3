@@ -45,9 +45,9 @@
 
 ## opcode 52、53、74：三分量插值协议
 
-52 的物理长度为 16 字节：六个 `s16` 分别作为三项起点和三项目标，最后一个 `u16` 是 duration。handler 写入当前值、目标值、倒计时，并计算三项 `(end-start)/duration` 浮点增量，然后同帧继续。
+52 的物理长度为 16 字节：六个 `s16` 分别作为三项起点和三项目标，最后一个 `u16` 是 duration。三个current按operand逐读逐写；三个target必须全部读完后才依次写入。duration零扩展为dword countdown，再计算三项 `(target-current)/duration` 浮点增量，推进16字节、发布previous并同调用继续。
 
-duration 为零时没有前置保护，直接进入 x87 除法。现代实现必须先通过参考环境向量固定零除、舍入和后续更新的可见结果，不能凭语言默认行为自行正规化。
+duration 为零时没有前置保护，直接进入 x87 除法。modern已按delta符号固定`+Inf/-Inf/0xFFC00000`，并对资产54种唯一差值/时长及零时长/极值共59组与宿主x87逐位比较零差异。资产锁定1361条物理记录/1361个entry probe，全部raw `0x0034`、长度16、duration `1..46`；`TALK1.DAT@0x000043B8`真实回放通过。完整证据见 [`story-vm-frame-color-transition-004293ac.md`](story-vm-frame-color-transition-004293ac.md)。
 
 53 在倒计时按有符号值 `>0` 时原地等待；`<=0` 才推进。每帧更新器 `sub_4146F0` 负责减少倒计时并累加三项。74 只把三个增量和倒计时写零，不覆盖当前值或目标值，所以它是取消后续推进，不是把插值状态整体清空。
 

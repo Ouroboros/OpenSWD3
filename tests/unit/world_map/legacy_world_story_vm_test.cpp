@@ -77,6 +77,7 @@ using openswd3::world_map::OP_48_APPLY_ROLE_VARIANT_DELTA_OVERRIDE;
 using openswd3::world_map::OP_49_SET_ROLE_ACTION_WAIT_OVERRIDE_FFFF;
 using openswd3::world_map::OP_50_START_RELATIVE_CAMERA_MOVE;
 using openswd3::world_map::OP_51_WAIT_CAMERA_MOVE_COMPLETE;
+using openswd3::world_map::OP_52_START_FRAME_COLOR_TRANSITION;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
@@ -675,6 +676,24 @@ void prime_role_camera_move(
     write_u16(fixture.state.window, 4U, step_x);
     write_u16(fixture.state.window, 6U, step_y);
     write_u16(fixture.state.window, 8U, OP_1025);
+}
+
+void prime_frame_color_transition(
+    Fixture& fixture,
+    const u16 raw_word,
+    const std::array<i16, 6U>& components,
+    const u16 duration
+) {
+    prime_loaded_instruction(fixture, raw_word);
+    for (std::size_t index = 0U; index < components.size(); ++index) {
+        write_u16(
+            fixture.state.window,
+            2U + index * 2U,
+            static_cast<u16>(components[index])
+        );
+    }
+    write_u16(fixture.state.window, 14U, duration);
+    write_u16(fixture.state.window, 16U, OP_1025);
 }
 
 std::size_t write_dialog_instruction(
@@ -4639,6 +4658,202 @@ void test_wait_for_camera_move_protocol(openswd3::test::Context& test) {
                 OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
             waiting_tail.camera_pan.step_y == -4,
         "opcode 51 exact-tail wait publishes without advancing"
+    );
+}
+
+void test_start_frame_color_transition_protocol(openswd3::test::Context& test) {
+    constexpr std::array<i16, 6U> components{-30, 5, 17, 0, -25, 2};
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        openswd3::rendering::LegacyFrameColorTransitionState color{};
+        fixture.runtime.frame_color = &color;
+        fixture.state.previous_opcode = 0x55U;
+        prime_frame_color_transition(
+            fixture,
+            static_cast<u16>(OP_52_START_FRAME_COLOR_TRANSITION | mask),
+            components,
+            6U
+        );
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                color.current_red == -30.0F && color.current_green == 5.0F &&
+                color.current_blue == 17.0F && color.target_red == 0.0F &&
+                color.target_green == -25.0F && color.target_blue == 2.0F &&
+                color.countdown == 6 && color.step_red == 5.0F &&
+                color.step_green == -5.0F && color.step_blue == -2.5F &&
+                fixture.context.instruction_offset == 16U &&
+                fixture.state.previous_opcode ==
+                    OP_52_START_FRAME_COLOR_TRANSITION &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 52 aliases initialize all color-transition values and continue"
+        );
+    }
+
+    Fixture maximum_duration;
+    openswd3::rendering::LegacyFrameColorTransitionState maximum_color{};
+    maximum_duration.runtime.frame_color = &maximum_color;
+    prime_frame_color_transition(
+        maximum_duration,
+        OP_52_START_FRAME_COLOR_TRANSITION,
+        std::array<i16, 6U>{-32768, -32768, -32768, 32767, 32767, 32767},
+        0xFFFFU
+    );
+    const auto maximum_result = maximum_duration.step();
+    test.expect_true(
+        maximum_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            maximum_color.countdown == 65535 &&
+            maximum_color.step_red == 1.0F &&
+            maximum_color.step_green == 1.0F && maximum_color.step_blue == 1.0F,
+        "opcode 52 zero-extends duration and preserves full signed component range"
+    );
+
+    Fixture zero_duration;
+    openswd3::rendering::LegacyFrameColorTransitionState zero_color{};
+    zero_duration.runtime.frame_color = &zero_color;
+    prime_frame_color_transition(
+        zero_duration,
+        OP_52_START_FRAME_COLOR_TRANSITION,
+        std::array<i16, 6U>{0, 0, 5, 1, -1, 5},
+        0U
+    );
+    const auto zero_result = zero_duration.step();
+    test.expect_true(
+        zero_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            zero_color.countdown == 0 &&
+            std::bit_cast<u32>(zero_color.step_red) == 0x7F800000U &&
+            std::bit_cast<u32>(zero_color.step_green) == 0xFF800000U &&
+            std::bit_cast<u32>(zero_color.step_blue) == 0xFFC00000U &&
+            zero_duration.context.instruction_offset == 16U &&
+            zero_duration.state.previous_opcode ==
+                OP_52_START_FRAME_COLOR_TRANSITION,
+        "opcode 52 zero duration reproduces x87 infinity and indefinite-NaN bits"
+    );
+
+    Fixture missing_owner;
+    missing_owner.state.previous_opcode = 0x55U;
+    prime_frame_color_transition(
+        missing_owner, OP_52_START_FRAME_COLOR_TRANSITION, components, 6U
+    );
+    const auto missing_owner_result = missing_owner.step();
+    test.expect_true(
+        missing_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_owner_result.opcode == OP_52_START_FRAME_COLOR_TRANSITION &&
+            missing_owner_result.executed_instruction_count == 1U &&
+            missing_owner.context.instruction_offset == 0U &&
+            missing_owner.state.previous_opcode == 0x55U,
+        "opcode 52 accesses the color owner after reading the first component"
+    );
+}
+
+void test_start_frame_color_transition_window_boundaries(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<i16, 6U> components{-30, 5, 17, 0, -25, 2};
+
+    for (std::size_t available = 0U; available < 7U; ++available) {
+        Fixture fixture;
+        openswd3::rendering::LegacyFrameColorTransitionState color{
+            .countdown = 77,
+            .current_red = 101.0F,
+            .current_green = 102.0F,
+            .current_blue = 103.0F,
+            .target_red = 201.0F,
+            .target_green = 202.0F,
+            .target_blue = 203.0F,
+            .step_red = 301.0F,
+            .step_green = 302.0F,
+            .step_blue = 303.0F,
+        };
+        fixture.runtime.frame_color = &color;
+        const u16 offset = static_cast<u16>(0x7FFEU - available * 2U);
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = offset;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x55U;
+        write_u16(
+            fixture.state.window, offset, OP_52_START_FRAME_COLOR_TRANSITION
+        );
+        for (std::size_t index = 0U;
+             index < available && index < components.size();
+             ++index) {
+            write_u16(
+                fixture.state.window,
+                offset + 2U + index * 2U,
+                static_cast<u16>(components[index])
+            );
+        }
+
+        const auto result = fixture.step();
+        const bool all_targets_available = available >= components.size();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::operand_out_of_range &&
+                result.opcode == OP_52_START_FRAME_COLOR_TRANSITION &&
+                result.executed_instruction_count == 1U &&
+                color.current_red == (available >= 1U ? -30.0F : 101.0F) &&
+                color.current_green == (available >= 2U ? 5.0F : 102.0F) &&
+                color.current_blue == (available >= 3U ? 17.0F : 103.0F) &&
+                color.target_red == (all_targets_available ? 0.0F : 201.0F) &&
+                color.target_green ==
+                    (all_targets_available ? -25.0F : 202.0F) &&
+                color.target_blue == (all_targets_available ? 2.0F : 203.0F) &&
+                color.countdown == 77 && color.step_red == 301.0F &&
+                color.step_green == 302.0F && color.step_blue == 303.0F &&
+                fixture.context.instruction_offset == offset &&
+                fixture.state.previous_opcode == 0x55U,
+            "opcode 52 truncations preserve staged current and grouped target writes"
+        );
+    }
+
+    Fixture exact_tail;
+    openswd3::rendering::LegacyFrameColorTransitionState exact_color{};
+    exact_tail.runtime.frame_color = &exact_color;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.context.instruction_offset = 0x7FF0U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x55U;
+    write_u16(
+        exact_tail.state.window, 0x7FF0U, OP_52_START_FRAME_COLOR_TRANSITION
+    );
+    for (std::size_t index = 0U; index < components.size(); ++index) {
+        write_u16(
+            exact_tail.state.window,
+            0x7FF2U + index * 2U,
+            static_cast<u16>(components[index])
+        );
+    }
+    write_u16(exact_tail.state.window, 0x7FFEU, 6U);
+
+    const auto exact_result = exact_tail.step();
+
+    test.expect_true(
+        exact_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_result.opcode == OP_52_START_FRAME_COLOR_TRANSITION &&
+            exact_result.executed_instruction_count == 1U &&
+            exact_color.countdown == 6 && exact_color.step_red == 5.0F &&
+            exact_color.step_green == -5.0F && exact_color.step_blue == -2.5F &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_52_START_FRAME_COLOR_TRANSITION,
+        "opcode 52 exact tail completes all effects before the next fetch fails"
     );
 }
 
@@ -10127,6 +10342,52 @@ void test_real_camera_move_records(
     );
 }
 
+void test_real_start_frame_color_transition_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x000043B8);
+    std::array<u8, 16U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    openswd3::rendering::LegacyFrameColorTransitionState color{};
+    fixture.runtime.frame_color = &color;
+    prime_loaded_instruction(fixture, OP_52_START_FRAME_COLOR_TRANSITION);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    write_u16(fixture.state.window, 16U, OP_1025);
+    const auto result = fixture.step();
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_52_START_FRAME_COLOR_TRANSITION &&
+            static_cast<i16>(read_u16(instruction, 2U)) == -30 &&
+            static_cast<i16>(read_u16(instruction, 4U)) == -30 &&
+            static_cast<i16>(read_u16(instruction, 6U)) == -30 &&
+            read_u16(instruction, 8U) == 0U &&
+            read_u16(instruction, 10U) == 0U &&
+            read_u16(instruction, 12U) == 0U &&
+            read_u16(instruction, 14U) == 6U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == OP_1025 &&
+            result.executed_instruction_count == 2U &&
+            color.current_red == -30.0F && color.current_green == -30.0F &&
+            color.current_blue == -30.0F && color.target_red == 0.0F &&
+            color.target_green == 0.0F && color.target_blue == 0.0F &&
+            color.countdown == 6 && color.step_red == 5.0F &&
+            color.step_green == 5.0F && color.step_blue == 5.0F &&
+            fixture.context.instruction_offset == 16U &&
+            fixture.state.previous_opcode ==
+                OP_52_START_FRAME_COLOR_TRANSITION &&
+            fixture.ports.direct_audio_service_count == 0U,
+        "real opcode 52 initializes the scripted frame-color transition"
+    );
+}
+
 void test_real_wait_for_camera_move_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -11489,6 +11750,8 @@ int main(const int argument_count, char** arguments) {
     test_start_camera_move_failure_ordering(test);
     test_start_camera_move_window_boundaries(test);
     test_wait_for_camera_move_protocol(test);
+    test_start_frame_color_transition_protocol(test);
+    test_start_frame_color_transition_window_boundaries(test);
     test_wait_for_role_action_position(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
@@ -11551,6 +11814,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_role_action_id_record(test, root);
         test_real_camera_move_records(test, root);
         test_real_wait_for_camera_move_record(test, root);
+        test_real_start_frame_color_transition_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
