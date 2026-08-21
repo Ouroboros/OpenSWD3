@@ -4473,6 +4473,29 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_93_CLEAR_RESERVED_GLOBAL_BIT: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u32 selector_minus_one =
+                static_cast<u32>(read_u16(state.window, ip + 2U)) - 1U;
+            const u32 bit_index = selector_minus_one + 30U;
+            const std::size_t byte_index =
+                static_cast<std::size_t>(bit_index >> 3U);
+            if (byte_index >= state.flags.size()) {
+                result.status =
+                    LegacyWorldStoryVmStatus::global_bit_index_out_of_range;
+                return result;
+            }
+            state.flags[byte_index] &=
+                static_cast<u8>(~static_cast<u8>(1U << (bit_index & 7U)));
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 94U:
         case 95U:
             if (runtime.scene_render_flags == nullptr) {
