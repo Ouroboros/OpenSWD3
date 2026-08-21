@@ -4359,23 +4359,29 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 88U:
-            if (!has_bytes(state.window, ip, 4U)) {
-                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
-                return result;
-            }
-            if (runtime.packed_row_effects == nullptr ||
-                runtime.role_head_actions == nullptr ||
-                runtime.battle_request_value == nullptr) {
+        case OP_88_REQUEST_BATTLE:
+            if (runtime.packed_row_effects == nullptr) {
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
                 return result;
             }
             static_cast<void>(rendering::release_legacy_packed_row_effects(
                 *runtime.packed_row_effects
             ));
+            if (runtime.role_head_actions == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
             static_cast<void>(
                 release_legacy_role_head_actions(*runtime.role_head_actions)
             );
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            if (runtime.battle_request_value == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
             *runtime.battle_request_value =
                 static_cast<u32>(static_cast<i32>(
                     static_cast<i16>(read_u16(state.window, ip + 2U))
@@ -4383,6 +4389,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 0x80000000U;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 

@@ -157,6 +157,8 @@ dword_4A94AC = sign_extend(s16(+2)) | 0x80000000
 
 这就是主帧消费的战斗请求。它不清 79 使用的 `dword_4AD3E8` 移动 action 链。推进四字节后 `ESI=0`，所以请求提交后立即让出，不继续执行下一条剧情指令。
 
+88现已独立闭环：修正旧C++在释放前whole-record/三owner预检及漏发previous88，恢复packed-row→role-head→signed operand→request→IP/previous→yield顺序；每个typed失败保留此前释放。资产锁52条/52 probes，分布`20/7/8/17`，全部raw `0x0058`、长度4；真实battle98/290精确尾回放通过，移动链保持。完整证据见[`story-vm-battle-request-0042a727.md`](story-vm-battle-request-0042a727.md)。
+
 ## opcode 89、90 与 1–6 的共享文本入口
 
 89/90 完整复用 opcode 1–6 的 `0x00427B8F`：首个 `u16` 同时是 selector 和文本头两个字节，`FFF0` 会被改写进脚本窗口，载荷逐字节扫描到 `%Q`，分配 `0x4C` 记录并加入文本/action 队列。

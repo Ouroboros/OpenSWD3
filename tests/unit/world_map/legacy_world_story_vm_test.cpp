@@ -115,6 +115,7 @@ using openswd3::world_map::OP_84_CONTROL_PACKED_ROW_EFFECT;
 using openswd3::world_map::OP_85_BEGIN_STORY_VIDEO;
 using openswd3::world_map::OP_86_REWRITE_ROLE_HEAD_ACTION_KEY;
 using openswd3::world_map::OP_87_RELOAD_RANDOM_TARGET;
+using openswd3::world_map::OP_88_REQUEST_BATTLE;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -14029,6 +14030,174 @@ void test_reload_random_target_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_request_battle_protocol(openswd3::test::Context& test) {
+    const auto write_record = [](const std::span<u8> bytes,
+                                 const std::size_t offset,
+                                 const u16 raw_opcode,
+                                 const u16 battle_id) {
+        write_u16(bytes, offset, raw_opcode);
+        write_u16(bytes, offset + 2U, battle_id);
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture exact_tail;
+        std::list<openswd3::rendering::LegacyPackedRowEffect> packed_rows(2U);
+        openswd3::world_map::LegacyRoleHeadActionList role_heads(2U);
+        openswd3::world_map::LegacyMovingActionList moving_actions(1U);
+        u32 battle_request = 0x11111111U;
+        exact_tail.runtime.packed_row_effects = &packed_rows;
+        exact_tail.runtime.role_head_actions = &role_heads;
+        exact_tail.runtime.moving_actions = &moving_actions;
+        exact_tail.runtime.battle_request_value = &battle_request;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFCU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_record(
+            exact_tail.state.window,
+            0x7FFCU,
+            static_cast<u16>(OP_88_REQUEST_BATTLE | alias_mask),
+            0x8001U
+        );
+
+        const auto result = exact_tail.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_88_REQUEST_BATTLE &&
+                result.executed_instruction_count == 1U &&
+                packed_rows.empty() && role_heads.empty() &&
+                moving_actions.size() == 1U && battle_request == 0xFFFF8001U &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode == OP_88_REQUEST_BATTLE,
+            "opcode 88 aliases release only packed-row and role-head lists, sign-extend the request and yield at the exact tail"
+        );
+    }
+
+    constexpr std::array<std::pair<u16, u32>, 4U> signed_requests{
+        std::pair<u16, u32>{0x0000U, 0x80000000U},
+        std::pair<u16, u32>{0x7FFFU, 0x80007FFFU},
+        std::pair<u16, u32>{0x8000U, 0xFFFF8000U},
+        std::pair<u16, u32>{0xFFFFU, 0xFFFFFFFFU},
+    };
+    for (const auto [raw_battle_id, expected_request] : signed_requests) {
+        Fixture fixture;
+        std::list<openswd3::rendering::LegacyPackedRowEffect> packed_rows;
+        openswd3::world_map::LegacyRoleHeadActionList role_heads;
+        u32 battle_request = 0U;
+        fixture.runtime.packed_row_effects = &packed_rows;
+        fixture.runtime.role_head_actions = &role_heads;
+        fixture.runtime.battle_request_value = &battle_request;
+        auto script = std::span<u8>{fixture.ports.initial_window};
+        write_record(script, 0U, OP_88_REQUEST_BATTLE, raw_battle_id);
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                battle_request == expected_request &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode == OP_88_REQUEST_BATTLE,
+            "opcode 88 preserves signed 16-bit battle request extension"
+        );
+    }
+
+    Fixture packed_unavailable;
+    openswd3::world_map::LegacyRoleHeadActionList untouched_heads(1U);
+    openswd3::world_map::LegacyMovingActionList untouched_moving(1U);
+    u32 untouched_battle = 0x11111111U;
+    packed_unavailable.runtime.role_head_actions = &untouched_heads;
+    packed_unavailable.runtime.moving_actions = &untouched_moving;
+    packed_unavailable.runtime.battle_request_value = &untouched_battle;
+    packed_unavailable.state.previous_opcode = 0x66U;
+    write_u16(
+        packed_unavailable.ports.initial_window, 0U, OP_88_REQUEST_BATTLE
+    );
+    const auto packed_unavailable_result = packed_unavailable.step();
+    test.expect_true(
+        packed_unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            untouched_heads.size() == 1U && untouched_moving.size() == 1U &&
+            untouched_battle == 0x11111111U &&
+            packed_unavailable.context.instruction_offset == 0U &&
+            packed_unavailable.state.previous_opcode == 0x66U,
+        "opcode 88 packed-row owner absence stops at the first release before other owners or operands"
+    );
+
+    Fixture head_unavailable;
+    std::list<openswd3::rendering::LegacyPackedRowEffect> released_rows(1U);
+    openswd3::world_map::LegacyMovingActionList retained_moving(1U);
+    u32 retained_battle = 0x11111111U;
+    head_unavailable.runtime.packed_row_effects = &released_rows;
+    head_unavailable.runtime.moving_actions = &retained_moving;
+    head_unavailable.runtime.battle_request_value = &retained_battle;
+    head_unavailable.state.previous_opcode = 0x66U;
+    write_u16(head_unavailable.ports.initial_window, 0U, OP_88_REQUEST_BATTLE);
+    const auto head_unavailable_result = head_unavailable.step();
+    test.expect_true(
+        head_unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            released_rows.empty() && retained_moving.size() == 1U &&
+            retained_battle == 0x11111111U &&
+            head_unavailable.context.instruction_offset == 0U &&
+            head_unavailable.state.previous_opcode == 0x66U,
+        "opcode 88 role-head owner absence preserves the already completed packed-row release"
+    );
+
+    Fixture operand_truncated;
+    std::list<openswd3::rendering::LegacyPackedRowEffect> truncated_rows(1U);
+    openswd3::world_map::LegacyRoleHeadActionList truncated_heads(1U);
+    openswd3::world_map::LegacyMovingActionList truncated_moving(1U);
+    u32 truncated_battle = 0x11111111U;
+    operand_truncated.runtime.packed_row_effects = &truncated_rows;
+    operand_truncated.runtime.role_head_actions = &truncated_heads;
+    operand_truncated.runtime.moving_actions = &truncated_moving;
+    operand_truncated.runtime.battle_request_value = &truncated_battle;
+    operand_truncated.context.talk_data_offset = 0x1111U;
+    operand_truncated.context.instruction_offset = 0x7FFEU;
+    operand_truncated.state.loaded_file_number = 1U;
+    operand_truncated.state.loaded_data_offset = 0x1111U;
+    operand_truncated.state.window_loaded = true;
+    operand_truncated.state.previous_opcode = 0x66U;
+    write_u16(operand_truncated.state.window, 0x7FFEU, OP_88_REQUEST_BATTLE);
+    const auto operand_truncated_result = operand_truncated.step();
+    test.expect_true(
+        operand_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated_rows.empty() && truncated_heads.empty() &&
+            truncated_moving.size() == 1U && truncated_battle == 0x11111111U &&
+            operand_truncated.context.instruction_offset == 0x7FFEU &&
+            operand_truncated.state.previous_opcode == 0x66U,
+        "opcode 88 operand truncation retains both completed list releases before the unsafe read"
+    );
+
+    Fixture battle_unavailable;
+    std::list<openswd3::rendering::LegacyPackedRowEffect> request_rows(1U);
+    openswd3::world_map::LegacyRoleHeadActionList request_heads(1U);
+    battle_unavailable.runtime.packed_row_effects = &request_rows;
+    battle_unavailable.runtime.role_head_actions = &request_heads;
+    auto request_script =
+        std::span<u8>{battle_unavailable.ports.initial_window};
+    write_record(request_script, 0U, OP_88_REQUEST_BATTLE, 123U);
+    battle_unavailable.state.previous_opcode = 0x66U;
+    const auto battle_unavailable_result = battle_unavailable.step();
+    test.expect_true(
+        battle_unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            request_rows.empty() && request_heads.empty() &&
+            battle_unavailable.context.instruction_offset == 0U &&
+            battle_unavailable.state.previous_opcode == 0x66U,
+        "opcode 88 battle-request owner absence occurs only after releases and operand read"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -16667,6 +16836,89 @@ void test_real_reload_random_target_records(
     );
 }
 
+void test_real_request_battle_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    const auto read_record = [&root](
+                                 const std::filesystem::path& filename,
+                                 const std::streamoff offset
+                             ) {
+        std::ifstream input{root / filename, std::ios::binary | std::ios::in};
+        input.seekg(offset);
+        std::array<u8, 4U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        return record;
+    };
+    const auto first = read_record("TALK1.DAT", 0x00005547);
+    const auto second = read_record("TALK4.DAT", 0x0001F694);
+
+    const auto execute = [](const std::array<u8, 4U>& record) {
+        Fixture fixture;
+        std::list<openswd3::rendering::LegacyPackedRowEffect> packed_rows(1U);
+        openswd3::world_map::LegacyRoleHeadActionList role_heads(1U);
+        openswd3::world_map::LegacyMovingActionList moving_actions(1U);
+        u32 battle_request = 0x11111111U;
+        fixture.runtime.packed_row_effects = &packed_rows;
+        fixture.runtime.role_head_actions = &role_heads;
+        fixture.runtime.moving_actions = &moving_actions;
+        fixture.runtime.battle_request_value = &battle_request;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFCU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x66U;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFCU);
+
+        const auto result = fixture.step();
+
+        return std::tuple{
+            result,
+            battle_request,
+            packed_rows.size(),
+            role_heads.size(),
+            moving_actions.size(),
+            fixture.context.instruction_offset,
+            fixture.state.previous_opcode,
+        };
+    };
+    const auto
+        [first_result,
+         first_request,
+         first_rows,
+         first_heads,
+         first_moving,
+         first_ip,
+         first_previous] = execute(first);
+    const auto
+        [second_result,
+         second_request,
+         second_rows,
+         second_heads,
+         second_moving,
+         second_ip,
+         second_previous] = execute(second);
+
+    test.expect_true(
+        read_u16(first, 0U) == OP_88_REQUEST_BATTLE &&
+            read_u16(first, 2U) == 98U &&
+            first_result.status == LegacyWorldStoryVmStatus::yielded &&
+            first_request == 0x80000062U && first_rows == 0U &&
+            first_heads == 0U && first_moving == 1U && first_ip == 0x8000U &&
+            first_previous == OP_88_REQUEST_BATTLE &&
+            read_u16(second, 0U) == OP_88_REQUEST_BATTLE &&
+            read_u16(second, 2U) == 290U &&
+            second_result.status == LegacyWorldStoryVmStatus::yielded &&
+            second_request == 0x80000122U && second_rows == 0U &&
+            second_heads == 0U && second_moving == 1U && second_ip == 0x8000U &&
+            second_previous == OP_88_REQUEST_BATTLE,
+        "real opcode 88 records clear exactly two overlay lists, publish signed battle requests and yield at the exact tail"
+    );
+}
+
 void test_real_control_packed_row_effect_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -18683,6 +18935,7 @@ int main(const int argument_count, char** arguments) {
     test_begin_story_video_protocol(test);
     test_rewrite_role_head_action_key_protocol(test);
     test_reload_random_target_protocol(test);
+    test_request_battle_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -18747,6 +19000,7 @@ int main(const int argument_count, char** arguments) {
         test_real_begin_story_video_records(test, root);
         test_real_rewrite_role_head_action_key_records(test, root);
         test_real_reload_random_target_records(test, root);
+        test_real_request_battle_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

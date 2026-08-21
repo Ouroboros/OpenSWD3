@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；当前 handler `0x0042A727`（opcode 88）
+状态：执行中，P0/P1 已完成，当前步骤 P2；当前 shared handler `0x0042B287`（opcodes 91/162）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -114,8 +114,10 @@ opcode86按完整32位头像节点key与零扩展u16旧键匹配，只改首个e
 new ID先写再读new variant的staged unsafe点、+10、previous86与same-call。
 opcode87按FF00FF00表、secondary two-raw rejection RNG选择同文件target，恢复audio/IP0/窗口替换与
 same-call；空表原unsigned DIV0、缺sentinel、owner和load失败均按阶段typed-stop。
-已实现104/198、已验收92/198；内部workpack为68/146，即
-`8 assembly_exact + 60 platform_adapted + 78 pending_audit`。下一行只审计`0x0042A727`下的opcode88。
+opcode88按packed-row→role-head→signed operand顺序清两链并提交战斗request，保持移动链、previous与yield；
+释放owner、operand和request owner失败均保留此前已完成副作用。
+已实现104/198、已验收93/198；内部workpack为69/146，即
+`8 assembly_exact + 61 platform_adapted + 77 pending_audit`。下一行只审计`0x0042B287`下的shared opcodes91/162。
 
 ### P2 · 按 handler 组逆向、实现和验证
 
