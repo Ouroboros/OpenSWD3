@@ -4995,6 +4995,20 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
+        case OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING:
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            ports.play_sound_effect(read_u16(state.window, ip + 2U));
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+
         case 114U: {
             if (!has_bytes(state.window, ip, 8U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

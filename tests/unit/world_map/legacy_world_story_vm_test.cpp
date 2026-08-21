@@ -139,6 +139,7 @@ using openswd3::world_map::OP_109_STEP_ROLES;
 using openswd3::world_map::OP_110_RELOAD_IF_NO_SECONDARY_ROLE_BIT30;
 using openswd3::world_map::OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30;
 using openswd3::world_map::OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS;
+using openswd3::world_map::OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -6786,6 +6787,142 @@ void test_wait_overlay_action_lists_protocol(openswd3::test::Context& test) {
             "opcode 112 preserves waiting and completed exact tails"
         );
     }
+}
+
+void test_play_sound_effect_with_unread_padding_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    constexpr std::array<u16, 4U> sound_ids{
+        0U,
+        1U,
+        0x1234U,
+        0xFFFFU,
+    };
+    for (std::size_t index = 0U; index < alias_masks.size(); ++index) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING |
+                alias_masks[index]
+            )
+        );
+        write_u16(fixture.state.window, 2U, sound_ids[index]);
+        write_u16(
+            fixture.state.window,
+            4U,
+            static_cast<u16>(0xA500U | static_cast<u16>(index))
+        );
+        write_u16(fixture.state.window, 6U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        std::size_t requests_seen_by_audio{};
+        u16 sound_seen_by_audio{};
+        u16 ip_seen_by_audio{};
+        u32 previous_seen_by_audio{};
+        fixture.ports.audio_service_callback = [&] {
+            requests_seen_by_audio = fixture.ports.sound_effect_requests.size();
+            sound_seen_by_audio = fixture.ports.sound_effect_requests.back();
+            ip_seen_by_audio = fixture.context.instruction_offset;
+            previous_seen_by_audio = fixture.state.previous_opcode;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.ports.sound_effect_requests ==
+                    std::vector<u16>{sound_ids[index]} &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode ==
+                    OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING &&
+                requests_seen_by_audio == 1U &&
+                sound_seen_by_audio == sound_ids[index] &&
+                ip_seen_by_audio == 6U &&
+                previous_seen_by_audio ==
+                    OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING &&
+                fixture.ports.story_protocol_events == std::vector<u32>{2U},
+            "opcode 113 aliases consume six bytes and ignore playback results"
+        );
+    }
+
+    Fixture operand_truncated;
+    operand_truncated.context.talk_data_offset = 0x1111U;
+    operand_truncated.context.instruction_offset = 0x7FFEU;
+    operand_truncated.state.loaded_file_number = 1U;
+    operand_truncated.state.loaded_data_offset = 0x1111U;
+    operand_truncated.state.window_loaded = true;
+    operand_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        operand_truncated.state.window,
+        0x7FFEU,
+        OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING
+    );
+    const auto truncated_result = operand_truncated.step();
+
+    Fixture unread_padding;
+    unread_padding.context.talk_data_offset = 0x1111U;
+    unread_padding.context.instruction_offset = 0x7FFCU;
+    unread_padding.state.loaded_file_number = 1U;
+    unread_padding.state.loaded_data_offset = 0x1111U;
+    unread_padding.state.window_loaded = true;
+    unread_padding.state.previous_opcode = 0x66U;
+    write_u16(
+        unread_padding.state.window,
+        0x7FFCU,
+        OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING
+    );
+    write_u16(unread_padding.state.window, 0x7FFEU, 0x4321U);
+    const auto unread_padding_result = unread_padding.step();
+
+    Fixture exact_tail;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window,
+        0x7FFAU,
+        OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING
+    );
+    write_u16(exact_tail.state.window, 0x7FFCU, 0xFFFFU);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0xBEEFU);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            operand_truncated.ports.sound_effect_requests.empty() &&
+            operand_truncated.context.instruction_offset == 0x7FFEU &&
+            operand_truncated.state.previous_opcode == 0x66U &&
+            truncated_result.direct_audio_service_count == 0U &&
+            unread_padding_result.status == LegacyWorldStoryVmStatus::yielded &&
+            unread_padding_result.executed_instruction_count == 1U &&
+            unread_padding_result.direct_audio_service_count == 1U &&
+            unread_padding.ports.sound_effect_requests ==
+                std::vector<u16>{0x4321U} &&
+            unread_padding.context.instruction_offset == 0x8002U &&
+            unread_padding.state.previous_opcode ==
+                OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING &&
+            exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.ports.sound_effect_requests ==
+                std::vector<u16>{0xFFFFU} &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING,
+        "opcode 113 reads only the sound word and preserves both tail forms"
+    );
 }
 
 void test_release_role_path_protocol(openswd3::test::Context& test) {
@@ -22991,6 +23128,7 @@ int main(const int argument_count, char** arguments) {
     test_step_role_list_protocol(test);
     test_secondary_role_bit30_reload_protocol(test);
     test_wait_overlay_action_lists_protocol(test);
+    test_play_sound_effect_with_unread_padding_protocol(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);

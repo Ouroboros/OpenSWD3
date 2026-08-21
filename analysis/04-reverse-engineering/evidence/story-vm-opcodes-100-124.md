@@ -153,6 +153,8 @@ sub_42DAF0(index, (X << 4) & 0xFFFF, (Y << 4) & 0xFFFF,
 
 113 只读取 `+2` 的音效 ID，与全局 `dword_4AB784` 一起调用 `sub_485610`。wrapper 把全局档位缩放后提交给 Miles sample 播放层。指令却固定推进六字节：`+4` 的 word 从未读取。播放结果不观察，消费后让出。
 
+opcode113现已独立闭环：只要求opcode与sound word可读，固定消费未读padding；复用已审计sample wrapper，保持play→IP+6→previous113→正常common audio→yield。线性资产零记录/零probes，55处raw字样均非证明入口，以asset absence及四alias、operand截断、未读padding尾和精确尾synthetic锁定。完整证据见[`story-vm-sound-effect-unread-padding-0042b723.md`](story-vm-sound-effect-unread-padding-0042b723.md)。
+
 114 写入 pending stream 状态：
 
 ```text
