@@ -81,6 +81,9 @@ using openswd3::world_map::OP_51_WAIT_CAMERA_MOVE_COMPLETE;
 using openswd3::world_map::OP_52_START_FRAME_COLOR_TRANSITION;
 using openswd3::world_map::OP_53_WAIT_FRAME_COLOR_TRANSITION;
 using openswd3::world_map::OP_54_REPEAT_ROLE_ACTION_REFRESH;
+using openswd3::world_map::OP_55_SET_ROLE_SPATIAL_GROUP_1;
+using openswd3::world_map::OP_56_SET_ROLE_SPATIAL_GROUP_0;
+using openswd3::world_map::OP_57_SET_ROLE_SPATIAL_GROUP_2;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
@@ -5302,6 +5305,304 @@ void test_repeat_role_action_refresh_protocol(openswd3::test::Context& test) {
             exact_tail.state.previous_opcode ==
                 OP_54_REPEAT_ROLE_ACTION_REFRESH,
         "opcode 54 exact tail completes every refresh before next-fetch failure"
+    );
+}
+
+void test_shared_role_spatial_group_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    struct GroupCase {
+        u16 opcode;
+        u32 old_group;
+        u32 target_group;
+    };
+    constexpr std::array<GroupCase, 3U> group_cases{
+        GroupCase{OP_55_SET_ROLE_SPATIAL_GROUP_1, 0U, 1U},
+        GroupCase{OP_56_SET_ROLE_SPATIAL_GROUP_0, 2U, 0U},
+        GroupCase{OP_57_SET_ROLE_SPATIAL_GROUP_2, 1U, 2U},
+    };
+    constexpr std::size_t role_row =
+        openswd3::world_map::kLegacySpatialRowPadding + 2U;
+    const auto reset_spatial =
+        [](openswd3::world_map::LegacyRoleSpatialIndex& spatial) {
+            spatial.map_height = 4U;
+            for (auto& group : spatial.row_heads) {
+                group.assign(44U, 0U);
+            }
+        };
+    const auto prime_instruction =
+        [](Fixture& fixture, const u16 raw_word, const u16 selector) {
+            prime_loaded_instruction(fixture, raw_word);
+            write_u16(fixture.state.window, 2U, selector);
+            fixture.state.previous_opcode = 0x66U;
+        };
+
+    for (const GroupCase group_case : group_cases) {
+        for (const u16 mask : alias_masks) {
+            Fixture fixture;
+            openswd3::world_map::LegacyRoleSpatialIndex spatial;
+            reset_spatial(spatial);
+            auto& role = fixture.roles[1];
+            role.world_y = 32U;
+            role.flags = 0xA5A50000U | group_case.old_group;
+            const bool inserted =
+                openswd3::world_map::insert_legacy_role_spatially(
+                    spatial, fixture.roles, 1U, group_case.old_group
+                );
+            fixture.runtime.spatial_index = &spatial;
+            prime_instruction(
+                fixture, static_cast<u16>(group_case.opcode | mask), 0x00F8U
+            );
+
+            const auto result = fixture.step();
+
+            test.expect_true(
+                inserted &&
+                    result.status == LegacyWorldStoryVmStatus::yielded &&
+                    result.opcode == group_case.opcode &&
+                    result.executed_instruction_count == 1U &&
+                    role.flags == (0xA5A50000U | group_case.target_group) &&
+                    spatial.row_heads[group_case.old_group][role_row] == 0U &&
+                    spatial.row_heads[group_case.target_group][role_row] ==
+                        1U &&
+                    role.spatial_next_link_32 == 0U &&
+                    fixture.context.instruction_offset == 4U &&
+                    fixture.state.previous_opcode == group_case.opcode &&
+                    fixture.ports.direct_audio_service_count == 0U,
+                "opcodes 55-57 aliases move the role from its old group to the requested group"
+            );
+        }
+    }
+
+    Fixture source_selector;
+    openswd3::world_map::LegacyRoleSpatialIndex source_spatial;
+    reset_spatial(source_spatial);
+    source_selector.roles[1].world_y = 32U;
+    source_selector.roles[1].flags = 0U;
+    source_selector.roles[2].guid = 0xFFF0U;
+    source_selector.roles[2].world_y = 32U;
+    source_selector.roles[2].flags = 0U;
+    const bool source_inserted =
+        openswd3::world_map::insert_legacy_role_spatially(
+            source_spatial, source_selector.roles, 1U, 0U
+        );
+    source_selector.runtime.spatial_index = &source_spatial;
+    prime_instruction(source_selector, OP_55_SET_ROLE_SPATIAL_GROUP_1, 0xFFF0U);
+    const auto source_result = source_selector.step();
+    test.expect_true(
+        source_inserted &&
+            source_result.status == LegacyWorldStoryVmStatus::yielded &&
+            (source_selector.roles[1].flags & 3U) == 1U &&
+            (source_selector.roles[2].flags & 3U) == 0U &&
+            source_spatial.row_heads[1U][role_row] == 1U,
+        "shared role group handler translates FFF0 to the talk source"
+    );
+
+    Fixture controlled_selector;
+    openswd3::world_map::LegacyRoleSpatialIndex controlled_spatial;
+    reset_spatial(controlled_spatial);
+    controlled_selector.roles[1].guid = 0xFFFEU;
+    controlled_selector.roles[1].world_y = 32U;
+    controlled_selector.roles[1].flags = 0U;
+    controlled_selector.roles[2].world_y = 32U;
+    controlled_selector.roles[2].flags = 0U;
+    const bool controlled_inserted =
+        openswd3::world_map::insert_legacy_role_spatially(
+            controlled_spatial, controlled_selector.roles, 2U, 0U
+        );
+    controlled_selector.runtime.spatial_index = &controlled_spatial;
+    prime_instruction(
+        controlled_selector, OP_57_SET_ROLE_SPATIAL_GROUP_2, 0xFFFEU
+    );
+    const auto controlled_result = controlled_selector.step(0, 0, 2U);
+    test.expect_true(
+        controlled_inserted &&
+            controlled_result.status == LegacyWorldStoryVmStatus::yielded &&
+            (controlled_selector.roles[1].flags & 3U) == 0U &&
+            (controlled_selector.roles[2].flags & 3U) == 2U &&
+            controlled_spatial.row_heads[2U][role_row] == 2U,
+        "shared role group handler passes FFFE through for controlled-role selection"
+    );
+
+    Fixture absent_from_chain;
+    openswd3::world_map::LegacyRoleSpatialIndex empty_spatial;
+    reset_spatial(empty_spatial);
+    absent_from_chain.roles[1].world_y = 32U;
+    absent_from_chain.roles[1].flags = 0U;
+    absent_from_chain.runtime.spatial_index = &empty_spatial;
+    prime_instruction(
+        absent_from_chain, OP_55_SET_ROLE_SPATIAL_GROUP_1, 0x00F8U
+    );
+    const auto absent_result = absent_from_chain.step();
+    test.expect_true(
+        absent_result.status == LegacyWorldStoryVmStatus::yielded &&
+            (absent_from_chain.roles[1].flags & 3U) == 1U &&
+            empty_spatial.row_heads[0U][role_row] == 0U &&
+            empty_spatial.row_heads[1U][role_row] == 0U &&
+            absent_from_chain.context.instruction_offset == 4U &&
+            absent_from_chain.state.previous_opcode ==
+                OP_55_SET_ROLE_SPATIAL_GROUP_1,
+        "shared role group handler treats a missing spatial-chain node as diagnostic-only"
+    );
+
+    Fixture logical_y;
+    openswd3::world_map::LegacyRoleSpatialIndex logical_spatial;
+    reset_spatial(logical_spatial);
+    logical_y.roles[1].world_y = 0xFFFFFFFFU;
+    logical_y.roles[1].flags = 0U;
+    const bool logical_inserted =
+        openswd3::world_map::insert_legacy_role_spatially(
+            logical_spatial, logical_y.roles, 1U, 0U
+        );
+    logical_y.runtime.spatial_index = &logical_spatial;
+    prime_instruction(logical_y, OP_55_SET_ROLE_SPATIAL_GROUP_1, 0x00F8U);
+    const auto logical_result = logical_y.step();
+    const std::size_t zero_row = openswd3::world_map::kLegacySpatialRowPadding;
+    test.expect_true(
+        logical_inserted &&
+            logical_result.status == LegacyWorldStoryVmStatus::yielded &&
+            (logical_y.roles[1].flags & 3U) == 1U &&
+            logical_spatial.row_heads[0U][zero_row] == 1U &&
+            logical_spatial.row_heads[1U][zero_row] == 0U,
+        "shared role group handler preserves logical Y shift before the diagnostic-only miss"
+    );
+
+    Fixture selector_truncated;
+    selector_truncated.context.instruction_offset = 0x7FFEU;
+    selector_truncated.context.talk_data_offset = 0x1111U;
+    selector_truncated.state.loaded_file_number = 1U;
+    selector_truncated.state.loaded_data_offset = 0x1111U;
+    selector_truncated.state.window_loaded = true;
+    selector_truncated.state.previous_opcode = 0x66U;
+    selector_truncated.roles[1].flags = 0x12345678U;
+    write_u16(
+        selector_truncated.state.window, 0x7FFEU, OP_55_SET_ROLE_SPATIAL_GROUP_1
+    );
+    const auto truncated_result = selector_truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            selector_truncated.roles[1].flags == 0x12345678U &&
+            selector_truncated.context.instruction_offset == 0x7FFEU &&
+            selector_truncated.state.previous_opcode == 0x66U,
+        "shared role group handler stops at the unsafe selector read"
+    );
+
+    Fixture missing_role;
+    missing_role.context.instruction_offset = 0x7FFCU;
+    missing_role.context.talk_data_offset = 0x1111U;
+    missing_role.state.loaded_file_number = 1U;
+    missing_role.state.loaded_data_offset = 0x1111U;
+    missing_role.state.window_loaded = true;
+    missing_role.state.previous_opcode = 0x66U;
+    missing_role.roles[0].flags = 0x12345678U;
+    write_u16(
+        missing_role.state.window, 0x7FFCU, OP_55_SET_ROLE_SPATIAL_GROUP_1
+    );
+    write_u16(missing_role.state.window, 0x7FFEU, 0x7777U);
+    const auto missing_result = missing_role.step();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::role_not_found &&
+            missing_result.opcode == OP_55_SET_ROLE_SPATIAL_GROUP_1 &&
+            missing_result.executed_instruction_count == 1U &&
+            missing_role.roles[0].flags == 0x12345678U &&
+            missing_role.context.instruction_offset == 0x7FFCU &&
+            missing_role.state.previous_opcode == 0x66U,
+        "shared role group handler isolates the original negative role index before flags access"
+    );
+
+    Fixture missing_owner;
+    missing_owner.roles[1].world_y = 32U;
+    missing_owner.roles[1].flags = 0xA5A50000U;
+    prime_instruction(missing_owner, OP_55_SET_ROLE_SPATIAL_GROUP_1, 0x00F8U);
+    const auto owner_result = missing_owner.step();
+    test.expect_true(
+        owner_result.status == LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_owner.roles[1].flags == 0xA5A50001U &&
+            missing_owner.context.instruction_offset == 0U &&
+            missing_owner.state.previous_opcode == 0x66U,
+        "shared role group handler updates flags before the missing spatial owner boundary"
+    );
+
+    Fixture invalid_old_group;
+    openswd3::world_map::LegacyRoleSpatialIndex invalid_group_spatial;
+    reset_spatial(invalid_group_spatial);
+    invalid_old_group.roles[1].world_y = 32U;
+    invalid_old_group.roles[1].flags = 0xA5A50003U;
+    invalid_old_group.runtime.spatial_index = &invalid_group_spatial;
+    prime_instruction(
+        invalid_old_group, OP_55_SET_ROLE_SPATIAL_GROUP_1, 0x00F8U
+    );
+    const auto invalid_group_result = invalid_old_group.step();
+    test.expect_true(
+        invalid_group_result.status ==
+                LegacyWorldStoryVmStatus::role_spatial_relocation_failed &&
+            invalid_old_group.roles[1].flags == 0xA5A50001U &&
+            invalid_old_group.context.instruction_offset == 0U &&
+            invalid_old_group.state.previous_opcode == 0x66U,
+        "shared role group handler preserves the flags write before invalid old-group isolation"
+    );
+
+    Fixture reinsertion_failure;
+    openswd3::world_map::LegacyRoleSpatialIndex broken_spatial;
+    reset_spatial(broken_spatial);
+    reinsertion_failure.roles[1].world_y = 32U;
+    reinsertion_failure.roles[1].flags = 0U;
+    const bool broken_inserted =
+        openswd3::world_map::insert_legacy_role_spatially(
+            broken_spatial, reinsertion_failure.roles, 1U, 0U
+        );
+    broken_spatial.row_heads[1U].clear();
+    reinsertion_failure.runtime.spatial_index = &broken_spatial;
+    prime_instruction(
+        reinsertion_failure, OP_55_SET_ROLE_SPATIAL_GROUP_1, 0x00F8U
+    );
+    const auto reinsertion_result = reinsertion_failure.step();
+    test.expect_true(
+        broken_inserted &&
+            reinsertion_result.status ==
+                LegacyWorldStoryVmStatus::role_spatial_relocation_failed &&
+            (reinsertion_failure.roles[1].flags & 3U) == 1U &&
+            broken_spatial.row_heads[0U][role_row] == 0U &&
+            reinsertion_failure.roles[1].spatial_next_link_32 == 0U &&
+            reinsertion_failure.context.instruction_offset == 0U &&
+            reinsertion_failure.state.previous_opcode == 0x66U,
+        "shared role group handler keeps completed unlink effects when reinsertion is isolated"
+    );
+
+    Fixture exact_tail;
+    openswd3::world_map::LegacyRoleSpatialIndex tail_spatial;
+    reset_spatial(tail_spatial);
+    exact_tail.roles[1].world_y = 32U;
+    exact_tail.roles[1].flags = 0U;
+    const bool tail_inserted =
+        openswd3::world_map::insert_legacy_role_spatially(
+            tail_spatial, exact_tail.roles, 1U, 0U
+        );
+    exact_tail.runtime.spatial_index = &tail_spatial;
+    exact_tail.context.instruction_offset = 0x7FFCU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(exact_tail.state.window, 0x7FFCU, OP_57_SET_ROLE_SPATIAL_GROUP_2);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0x00F8U);
+    const auto tail_result = exact_tail.step();
+    test.expect_true(
+        tail_inserted &&
+            tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            tail_result.opcode == OP_57_SET_ROLE_SPATIAL_GROUP_2 &&
+            tail_result.executed_instruction_count == 1U &&
+            (exact_tail.roles[1].flags & 3U) == 2U &&
+            tail_spatial.row_heads[2U][role_row] == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_57_SET_ROLE_SPATIAL_GROUP_2,
+        "shared role group handler exact tail completes relocation and yields at the window end"
     );
 }
 
@@ -10836,6 +11137,74 @@ void test_real_start_frame_color_transition_record(
     );
 }
 
+void test_real_shared_role_spatial_group_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealRecord {
+        std::streamoff file_offset;
+        u16 opcode;
+        u16 selector;
+        u32 old_group;
+        u32 target_group;
+    };
+    constexpr std::array<RealRecord, 4U> records{
+        RealRecord{0x000121DA, OP_55_SET_ROLE_SPATIAL_GROUP_1, 322U, 0U, 1U},
+        RealRecord{0x00012B12, OP_56_SET_ROLE_SPATIAL_GROUP_0, 322U, 2U, 0U},
+        RealRecord{0x00005084, OP_57_SET_ROLE_SPATIAL_GROUP_2, 701U, 1U, 2U},
+        RealRecord{0x0000526B, OP_57_SET_ROLE_SPATIAL_GROUP_2, 702U, 1U, 2U},
+    };
+    constexpr std::size_t role_row =
+        openswd3::world_map::kLegacySpatialRowPadding + 2U;
+
+    for (const RealRecord record : records) {
+        std::ifstream input{
+            root / "TALK4.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(record.file_offset);
+        std::array<u8, 4U> instruction{};
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        const bool instruction_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        openswd3::world_map::LegacyRoleSpatialIndex spatial;
+        spatial.map_height = 4U;
+        for (auto& group : spatial.row_heads) {
+            group.assign(44U, 0U);
+        }
+        fixture.roles[1].guid = record.selector;
+        fixture.roles[1].world_y = 32U;
+        fixture.roles[1].flags = record.old_group;
+        const bool inserted = openswd3::world_map::insert_legacy_role_spatially(
+            spatial, fixture.roles, 1U, record.old_group
+        );
+        fixture.runtime.spatial_index = &spatial;
+        prime_loaded_instruction(fixture, record.opcode);
+        std::ranges::copy(instruction, fixture.state.window.begin());
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+
+        test.expect_true(
+            instruction_read && inserted &&
+                read_u16(instruction, 0U) == record.opcode &&
+                read_u16(instruction, 2U) == record.selector &&
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == record.opcode &&
+                result.executed_instruction_count == 1U &&
+                (fixture.roles[1].flags & 3U) == record.target_group &&
+                spatial.row_heads[record.old_group][role_row] == 0U &&
+                spatial.row_heads[record.target_group][role_row] == 1U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode == record.opcode &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "real opcodes 55-57 move the selected role between spatial groups"
+        );
+    }
+}
+
 void test_real_repeat_role_action_refresh_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -12292,6 +12661,7 @@ int main(const int argument_count, char** arguments) {
     test_start_frame_color_transition_window_boundaries(test);
     test_wait_for_frame_color_transition_protocol(test);
     test_repeat_role_action_refresh_protocol(test);
+    test_shared_role_spatial_group_protocol(test);
     test_wait_for_role_action_position(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
@@ -12357,6 +12727,7 @@ int main(const int argument_count, char** arguments) {
         test_real_start_frame_color_transition_record(test, root);
         test_real_wait_for_frame_color_transition_record(test, root);
         test_real_repeat_role_action_refresh_record(test, root);
+        test_real_shared_role_spatial_group_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

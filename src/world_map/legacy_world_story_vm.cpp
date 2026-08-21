@@ -2747,6 +2747,65 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_55_SET_ROLE_SPATIAL_GROUP_1:
+        case OP_56_SET_ROLE_SPATIAL_GROUP_0:
+        case OP_57_SET_ROLE_SPATIAL_GROUP_2: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u16 selector = read_u16(state.window, ip + 2U);
+            if (selector == 0xFFF0U) {
+                selector = context.source_guid;
+            }
+            u32 role_index{};
+            if (!resolve_role_index(
+                    roles, selector, controlled_role_index, role_index
+                )) {
+                result.status = LegacyWorldStoryVmStatus::role_not_found;
+                return result;
+            }
+
+            auto& role = roles[role_index];
+            const u32 old_group = role.flags & 3U;
+            role.flags &= 0xFFFFFFFCU;
+            u32 target_group = 2U;
+            if (result.opcode == OP_55_SET_ROLE_SPATIAL_GROUP_1) {
+                target_group = 1U;
+            } else if (result.opcode == OP_56_SET_ROLE_SPATIAL_GROUP_0) {
+                target_group = 0U;
+            }
+            role.flags |= target_group;
+            const u32 first_row_bits = (role.world_y >> 4U) - 1U;
+            const u32 guid = role.guid;
+            if (runtime.spatial_index == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            const auto spatial_result = relocate_legacy_role_spatially_by_guid(
+                *runtime.spatial_index,
+                roles,
+                guid,
+                old_group,
+                std::bit_cast<i32>(first_row_bits),
+                true
+            );
+            if (spatial_result.status !=
+                    LegacyRoleSpatialRelocationStatus::ready &&
+                spatial_result.status !=
+                    LegacyRoleSpatialRelocationStatus::role_not_found) {
+                result.status =
+                    LegacyWorldStoryVmStatus::role_spatial_relocation_failed;
+                return result;
+            }
+
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
         case 58U: {
             if (!has_bytes(state.window, ip, 10U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
