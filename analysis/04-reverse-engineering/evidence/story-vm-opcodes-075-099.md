@@ -35,6 +35,8 @@ TALK 全分支候选图观察到本批次 24/25 个值；唯一未观察的是 o
 
 lookup 失败时 `sub_40C0D0` 把输出写成 `0xFFFFFFFF`，75 不检查返回值。`sub_42E5A0` 随即用 index `-1` 构造角色指针，在数组前读写。helper 自带的 `FFFE` 当前角色规则仍有效，但这不能被误写为 75 支持 `FFF0`。
 
+75现已独立闭环：现代复用`suspend_legacy_world_story_role`，合法域保持helper副作用、+4、previous75和same-call；index -1越界与固定全局owner收敛为typed失败。82条真实记录/82 probes全部raw`0x004B`、长度4，TALK1/2/3/4分布`19/43/18/2`；完整证据见[`story-vm-role-suspend-00429d70.md`](story-vm-role-suspend-00429d70.md)。
+
 76 的第一个 selector 支持 `FFF0`，第二个不支持。两次 lookup 失败都只输出诊断并继续。正常路径以两个角色的坐标和范围字段组成中心点，`sub_411E20` 得到整数距离和量化方向，`sub_411F00` 再映射 facing 值：
 
 - 先把第一角色 action `+0x08/+0x34` 清零；

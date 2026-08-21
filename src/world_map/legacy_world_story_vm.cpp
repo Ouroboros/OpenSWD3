@@ -3720,6 +3720,38 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
+        case OP_75_SUSPEND_STORY_ROLE: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u32 role_index{};
+            if (!resolve_role_index(
+                    roles,
+                    read_u16(state.window, ip + 2U),
+                    controlled_role_index,
+                    role_index
+                )) {
+                result.status = LegacyWorldStoryVmStatus::role_not_found;
+                return result;
+            }
+            if (runtime.story_paths == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            const auto suspended = suspend_legacy_world_story_role(
+                *runtime.story_paths, role_index
+            );
+            if (suspended.status != LegacyWorldStoryPathStatus::completed) {
+                result.status = LegacyWorldStoryVmStatus::role_path_failed;
+                return result;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 77U:
         case 78U: {
             const std::size_t instruction_size = result.opcode == 77U ? 6U : 4U;

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v298
+版本：v299
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x00429D70` handler（opcode 75）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x00429DA6` handler（opcode 76）
 
 ## 0. 执行约定
 
@@ -1972,6 +1972,16 @@ B7 P0 有限收口完成。
     现代显式opcode仍95；对外进度为已实现95/198、已验收79/198；内部workpack56/146，即
     `7 assembly_exact + 49 platform_adapted + 90 pending_audit`。
 
+- 剧情VM P2第五十七组`0x00429D70` / opcode75完成独立闭环。LST以raw selector lookup后无条件
+    调`sub_42E5A0`；合法域协调角色sub-cell/槽/surface/空间链并置flags bit31，推进4、发布
+    previous75并same-call继续。现代复用`suspend_legacy_world_story_role`；原版missing index -1越界
+    与固定全局owner收敛为typed失败。四raw alias literal`FFF0`、`FFFE`精确尾、空owner和截断均通过。
+    资产82条/82 probes，分布`19/43/18/2`，全部raw`0x004B`、长度4；TALK1 GUID181回放通过。
+    剧情VM3/3、Linux core186/186、Linux app192/192通过；workpack hash为
+    `8bfb0eb9afe63ec3c66a35f2f08b94a3b55ab826c4afbfa2688c8f336423c23f`。未启动游戏EXE。
+    现代显式opcode增至96；对外进度为已实现96/198、已验收80/198；内部workpack57/146，即
+    `7 assembly_exact + 50 platform_adapted + 89 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x00429D70` 的opcode75 handler；现有导航语义与既有实现均不继承完成状态。
+`0x00429DA6` 的opcode76 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

@@ -101,6 +101,7 @@ using openswd3::world_map::OP_71_SET_ROLE_HEAD_SIGN;
 using openswd3::world_map::OP_72_CLEAR_ROLE_HEAD_SIGN;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_74_CANCEL_FRAME_COLOR_TRANSITION;
+using openswd3::world_map::OP_75_SUSPEND_STORY_ROLE;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -11982,6 +11983,96 @@ void test_wait_for_frame_color_transition(openswd3::test::Context& test) {
     );
 }
 
+void test_suspend_story_role_protocol(openswd3::test::Context& test) {
+    Fixture exact_tail;
+    exact_tail.roles[1].guid = 0x00F8U;
+    exact_tail.roles[1].world_x = 0x20U;
+    exact_tail.roles[1].world_y = 0x30U;
+    StoryPathHarness path_harness{exact_tail};
+    exact_tail.runtime.story_paths = &path_harness.runtime;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.context.instruction_offset = 0x7FFCU;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window,
+        0x7FFCU,
+        static_cast<u16>(OP_75_SUSPEND_STORY_ROLE | 0xC000U)
+    );
+    write_u16(exact_tail.state.window, 0x7FFEU, 0xFFFEU);
+
+    const auto exact_result = exact_tail.step(0, 0, 1U);
+
+    test.expect_true(
+        exact_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_result.opcode == OP_75_SUSPEND_STORY_ROLE &&
+            exact_result.executed_instruction_count == 1U &&
+            (exact_tail.roles[1].flags & 0x80000000U) != 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_75_SUSPEND_STORY_ROLE,
+        "opcode 75 alias uses the FFFE controlled role and publishes before exact-tail next fetch failure"
+    );
+
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture missing;
+        prime_loaded_instruction(
+            missing,
+            static_cast<u16>(OP_75_SUSPEND_STORY_ROLE | alias_mask)
+        );
+        write_u16(missing.state.window, 2U, 0xFFF0U);
+        missing.state.previous_opcode = 0x66U;
+        const auto missing_result = missing.step();
+        test.expect_true(
+            missing_result.status == LegacyWorldStoryVmStatus::role_not_found &&
+                missing_result.opcode == OP_75_SUSPEND_STORY_ROLE &&
+                missing.context.instruction_offset == 0U &&
+                missing.state.previous_opcode == 0x66U,
+            "opcode 75 aliases keep literal FFF0 untranslated and typed-stop the original index-minus-one overrun"
+        );
+    }
+
+    Fixture unavailable;
+    unavailable.roles[1].guid = 0x00F8U;
+    prime_loaded_instruction(unavailable, OP_75_SUSPEND_STORY_ROLE);
+    write_u16(unavailable.state.window, 2U, 0x00F8U);
+    unavailable.state.previous_opcode = 0x66U;
+    const auto unavailable_result = unavailable.step();
+    test.expect_true(
+        unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            unavailable.context.instruction_offset == 0U &&
+            unavailable.state.previous_opcode == 0x66U &&
+            (unavailable.roles[1].flags & 0x80000000U) == 0U,
+        "opcode 75 owner absence stops after lookup but before suspend effects"
+    );
+
+    Fixture truncated;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.context.instruction_offset = 0x7FFEU;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x66U;
+    write_u16(truncated.state.window, 0x7FFEU, OP_75_SUSPEND_STORY_ROLE);
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            truncated.state.previous_opcode == 0x66U,
+        "opcode 75 typed-stops before lookup when the selector is truncated"
+    );
+}
+
 void test_turn_role_toward_role(openswd3::test::Context& test) {
     Fixture fixture;
     fixture.roles[1].action.base_variant = 7U;
@@ -14295,6 +14386,48 @@ void test_real_cancel_frame_color_transition_record(
     );
 }
 
+void test_real_suspend_story_role_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00007A38);
+    std::array<u8, 4U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    fixture.roles[1].guid = 0x00B5U;
+    fixture.roles[1].world_x = 0x20U;
+    fixture.roles[1].world_y = 0x30U;
+    StoryPathHarness path_harness{fixture};
+    fixture.runtime.story_paths = &path_harness.runtime;
+    fixture.context.talk_data_offset = 0x1111U;
+    fixture.context.instruction_offset = 0x7FFCU;
+    fixture.state.loaded_file_number = 1U;
+    fixture.state.loaded_data_offset = 0x1111U;
+    fixture.state.window_loaded = true;
+    fixture.state.previous_opcode = 0x66U;
+    std::ranges::copy(instruction, fixture.state.window.begin() + 0x7FFCU);
+
+    const auto result = fixture.step();
+
+    test.expect_true(
+        input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
+            read_u16(instruction, 0U) == OP_75_SUSPEND_STORY_ROLE &&
+            read_u16(instruction, 2U) == 0x00B5U &&
+            result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            result.opcode == OP_75_SUSPEND_STORY_ROLE &&
+            result.executed_instruction_count == 1U &&
+            (fixture.roles[1].flags & 0x80000000U) != 0U &&
+            fixture.context.instruction_offset == 0x8000U &&
+            fixture.state.previous_opcode == OP_75_SUSPEND_STORY_ROLE,
+        "real opcode 75 record suspends GUID 181 before exact-tail fetch failure"
+    );
+}
+
 void test_real_shared_scene_render_control_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -15980,6 +16113,7 @@ int main(const int argument_count, char** arguments) {
     test_start_frame_color_transition_protocol(test);
     test_start_frame_color_transition_window_boundaries(test);
     test_wait_for_frame_color_transition_protocol(test);
+    test_suspend_story_role_protocol(test);
     test_repeat_role_action_refresh_protocol(test);
     test_shared_role_spatial_group_protocol(test);
     test_wait_for_role_action_position(test);
@@ -16073,6 +16207,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_role_head_sign_record(test, root);
         test_real_clear_role_head_sign_record(test, root);
         test_real_cancel_frame_color_transition_record(test, root);
+        test_real_suspend_story_role_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
