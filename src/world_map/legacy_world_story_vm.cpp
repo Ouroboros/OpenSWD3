@@ -3666,8 +3666,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 71U: {
-            if (!has_bytes(state.window, ip, 6U)) {
+        case OP_71_SET_ROLE_HEAD_SIGN: {
+            if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
@@ -3678,6 +3678,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     controlled_role_index,
                     role_index
                 )) {
+                if (!has_bytes(state.window, ip, 6U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
                 roles[role_index].field_3c =
                     legacy_world_head_sign_action_token(
                         read_u16(state.window, ip + 4U)
@@ -3685,7 +3690,9 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
-            continue;
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
         }
 
         case 72U: {

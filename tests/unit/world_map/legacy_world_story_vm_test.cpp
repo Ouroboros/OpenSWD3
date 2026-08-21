@@ -97,6 +97,7 @@ using openswd3::world_map::OP_67_WAIT_FRAME_CLOCK;
 using openswd3::world_map::OP_68_CLEAR_ROLE_FLAG_0400;
 using openswd3::world_map::OP_69_SET_ROLE_FLAG_0400;
 using openswd3::world_map::OP_70_START_ABSOLUTE_CAMERA_MOVE;
+using openswd3::world_map::OP_71_SET_ROLE_HEAD_SIGN;
 using openswd3::world_map::OP_73_START_CAMERA_MOVE_TO_ROLE;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
@@ -12085,24 +12086,115 @@ void test_turn_role_toward_role(openswd3::test::Context& test) {
 }
 
 void test_set_role_head_sign_action(openswd3::test::Context& test) {
-    Fixture fixture;
-    auto script = std::span<u8>{fixture.ports.initial_window};
-    write_u16(script, 0U, 71U);
-    write_u16(script, 2U, 0x00F8U);
-    write_u16(script, 4U, 3U);
-    write_u16(script, 6U, OP_14_WAIT_ROLE_ACTION_STATUS);
-    write_u16(script, 8U, 0x00F8U);
-    const auto assigned = fixture.step();
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    constexpr std::array<u16, 4U> slots{0U, 1U, 3U, 0xFFFFU};
+    for (std::size_t index = 0U; index < alias_masks.size(); ++index) {
+        Fixture fixture;
+        fixture.roles[1].field_3c = 0x12345678U;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_71_SET_ROLE_HEAD_SIGN | alias_masks[index])
+        );
+        write_u16(fixture.state.window, 2U, 0x00F8U);
+        write_u16(fixture.state.window, 4U, slots[index]);
+        fixture.state.previous_opcode = 0x66U;
 
-    Fixture missing;
-    missing.roles[1].field_3c = 0x12345678U;
-    auto missing_script = std::span<u8>{missing.ports.initial_window};
-    write_u16(missing_script, 0U, 71U);
-    write_u16(missing_script, 2U, 0xFFF0U);
-    write_u16(missing_script, 4U, 0U);
-    write_u16(missing_script, 6U, OP_14_WAIT_ROLE_ACTION_STATUS);
-    write_u16(missing_script, 8U, 0x00F8U);
-    const auto ignored = missing.step();
+        const auto result = fixture.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_71_SET_ROLE_HEAD_SIGN &&
+                result.executed_instruction_count == 1U &&
+                fixture.roles[1].field_3c ==
+                    openswd3::world_map::legacy_world_head_sign_action_token(
+                        slots[index]
+                    ) &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode == OP_71_SET_ROLE_HEAD_SIGN,
+            "opcode 71 aliases zero-extend the slot without a range check, assign the head-sign token, publish previous and yield"
+        );
+    }
+
+    Fixture missing_tail;
+    missing_tail.roles[1].field_3c = 0x12345678U;
+    missing_tail.context.instruction_offset = 0x7FFCU;
+    missing_tail.context.talk_data_offset = 0x1111U;
+    missing_tail.state.loaded_file_number = 1U;
+    missing_tail.state.loaded_data_offset = 0x1111U;
+    missing_tail.state.window_loaded = true;
+    missing_tail.state.previous_opcode = 0x66U;
+    write_u16(missing_tail.state.window, 0x7FFCU, OP_71_SET_ROLE_HEAD_SIGN);
+    write_u16(missing_tail.state.window, 0x7FFEU, 0xFFF0U);
+    const auto missing_result = missing_tail.step();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::yielded &&
+            missing_result.opcode == OP_71_SET_ROLE_HEAD_SIGN &&
+            missing_result.executed_instruction_count == 1U &&
+            missing_tail.roles[1].field_3c == 0x12345678U &&
+            missing_tail.context.instruction_offset == 0x8002U &&
+            missing_tail.state.previous_opcode == OP_71_SET_ROLE_HEAD_SIGN,
+        "opcode 71 unresolved literal FFF0 consumes six bytes without reading the missing slot operand"
+    );
+
+    Fixture found_truncated;
+    found_truncated.roles[1].field_3c = 0x12345678U;
+    found_truncated.context.instruction_offset = 0x7FFCU;
+    found_truncated.context.talk_data_offset = 0x1111U;
+    found_truncated.state.loaded_file_number = 1U;
+    found_truncated.state.loaded_data_offset = 0x1111U;
+    found_truncated.state.window_loaded = true;
+    found_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        found_truncated.state.window, 0x7FFCU, OP_71_SET_ROLE_HEAD_SIGN
+    );
+    write_u16(found_truncated.state.window, 0x7FFEU, 0x00F8U);
+    const auto found_truncated_result = found_truncated.step();
+    test.expect_true(
+        found_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            found_truncated.roles[1].field_3c == 0x12345678U &&
+            found_truncated.context.instruction_offset == 0x7FFCU &&
+            found_truncated.state.previous_opcode == 0x66U,
+        "opcode 71 found-role path reads the slot only after lookup and typed-stops a truncated tail"
+    );
+
+    Fixture controlled;
+    controlled.roles[1].field_3c = 0U;
+    prime_loaded_instruction(controlled, OP_71_SET_ROLE_HEAD_SIGN);
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    write_u16(controlled.state.window, 4U, 2U);
+    const auto controlled_result = controlled.step(0, 0, 1U);
+    test.expect_true(
+        controlled_result.status == LegacyWorldStoryVmStatus::yielded &&
+            controlled.roles[1].field_3c ==
+                openswd3::world_map::legacy_world_head_sign_action_token(2U),
+        "opcode 71 independently retains the FFFE controlled-role lookup contract"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(exact_tail.state.window, 0x7FFAU, OP_71_SET_ROLE_HEAD_SIGN);
+    write_u16(exact_tail.state.window, 0x7FFCU, 0x00F8U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 3U);
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail.roles[1].field_3c ==
+                openswd3::world_map::legacy_world_head_sign_action_token(3U) &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_71_SET_ROLE_HEAD_SIGN,
+        "opcode 71 exact tail assigns the token, advances, publishes previous and yields without another fetch"
+    );
 
     Fixture cleared;
     cleared.roles[1].field_3c =
@@ -12113,22 +12205,12 @@ void test_set_role_head_sign_action(openswd3::test::Context& test) {
     write_u16(clear_script, 4U, OP_14_WAIT_ROLE_ACTION_STATUS);
     write_u16(clear_script, 6U, 0x00F8U);
     const auto removed = cleared.step();
-
     test.expect_true(
-        assigned.status == LegacyWorldStoryVmStatus::yielded &&
-            assigned.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
-            assigned.executed_instruction_count == 2U &&
-            fixture.roles[1].field_3c ==
-                openswd3::world_map::legacy_world_head_sign_action_token(3U) &&
-            ignored.status == LegacyWorldStoryVmStatus::yielded &&
-            ignored.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
-            ignored.executed_instruction_count == 2U &&
-            missing.roles[1].field_3c == 0x12345678U &&
-            removed.status == LegacyWorldStoryVmStatus::yielded &&
+        removed.status == LegacyWorldStoryVmStatus::yielded &&
             removed.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
             removed.executed_instruction_count == 2U &&
             cleared.roles[1].field_3c == 0U,
-        "opcodes 71 and 72 assign and clear the head sign while unresolved " "selectors are consumed without substituting FFF0"
+        "existing opcode 72 coverage remains separate from opcode 71 closure"
     );
 }
 
@@ -14052,6 +14134,42 @@ void test_real_set_role_flag_0400_record(
     );
 }
 
+void test_real_set_role_head_sign_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00004B9D);
+    std::array<u8, 6U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+
+    Fixture fixture;
+    fixture.roles[1].guid = 0x00BFU;
+    fixture.roles[1].field_3c = 0x12345678U;
+    prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    fixture.state.previous_opcode = 0x66U;
+
+    const auto result = fixture.step();
+
+    test.expect_true(
+        input.gcount() == static_cast<std::streamsize>(instruction.size()) &&
+            read_u16(instruction, 0U) == OP_71_SET_ROLE_HEAD_SIGN &&
+            read_u16(instruction, 2U) == 0x00BFU &&
+            read_u16(instruction, 4U) == 0U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_71_SET_ROLE_HEAD_SIGN &&
+            result.executed_instruction_count == 1U &&
+            fixture.roles[1].field_3c ==
+                openswd3::world_map::legacy_world_head_sign_action_token(0U) &&
+            fixture.context.instruction_offset == 6U &&
+            fixture.state.previous_opcode == OP_71_SET_ROLE_HEAD_SIGN,
+        "real opcode 71 record assigns GUID 191 head-sign slot zero and yields"
+    );
+}
+
 void test_real_shared_scene_render_control_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -15192,8 +15310,9 @@ void test_real_new_game_story_reaches_first_dialog(
     }
     context.field_26 = 0U;
     const auto released_later_dialog = step();
-    const auto head_sign_wait = step();
+    const auto head_sign_assignment = step();
     const u32 head_sign_token = roles[8].field_3c;
+    const auto head_sign_wait = step();
     runtime.current_tick =
         state.wait_started_at + static_cast<u32>(state.wait_duration) + 1U;
     const auto post_head_sign_dialog = step();
@@ -15260,6 +15379,13 @@ void test_real_new_game_story_reaches_first_dialog(
         ++third_path_dialog_count;
     }
     std::size_t final_dialog_count{};
+    for (std::size_t head_sign_boundary = 0U;
+         head_sign_boundary < 16U &&
+         next_unsupported.status == LegacyWorldStoryVmStatus::yielded &&
+         next_unsupported.opcode == OP_71_SET_ROLE_HEAD_SIGN;
+         ++head_sign_boundary) {
+        next_unsupported = step();
+    }
     if (next_unsupported.status == LegacyWorldStoryVmStatus::yielded &&
         next_unsupported.opcode == 67U) {
         runtime.current_tick =
@@ -15279,6 +15405,18 @@ void test_real_new_game_story_reaches_first_dialog(
             break;
         }
         next_unsupported = step();
+        for (std::size_t head_sign_boundary = 0U;
+             head_sign_boundary < 16U &&
+             next_unsupported.status == LegacyWorldStoryVmStatus::yielded &&
+             (next_unsupported.opcode == OP_71_SET_ROLE_HEAD_SIGN ||
+              next_unsupported.opcode == OP_67_WAIT_FRAME_CLOCK);
+             ++head_sign_boundary) {
+            if (next_unsupported.opcode == OP_67_WAIT_FRAME_CLOCK) {
+                runtime.current_tick = state.wait_started_at +
+                    static_cast<u32>(state.wait_duration) + 1U;
+            }
+            next_unsupported = step();
+        }
         ++final_dialog_count;
     }
     std::size_t fourth_path_frame_count{};
@@ -15347,6 +15485,9 @@ void test_real_new_game_story_reaches_first_dialog(
             runtime.current_tick = state.wait_started_at +
                 static_cast<u32>(state.wait_duration) + 1U;
             ++post_opcode_45_wait_count;
+            next_unsupported = step();
+            break;
+        case OP_71_SET_ROLE_HEAD_SIGN:
             next_unsupported = step();
             break;
         case 89U:
@@ -15471,6 +15612,11 @@ void test_real_new_game_story_reaches_first_dialog(
         "story 100 fifth post-path dialog release boundary"
     );
     test.expect_equal(
+        head_sign_assignment.opcode,
+        OP_71_SET_ROLE_HEAD_SIGN,
+        "story 100 head-sign assignment boundary"
+    );
+    test.expect_equal(
         head_sign_wait.opcode, u16{67U}, "story 100 head-sign wait boundary"
     );
     test.expect_equal(
@@ -15573,6 +15719,8 @@ void test_real_new_game_story_reaches_first_dialog(
             first_path_frame_count < 512U && second_path_frame_count < 512U &&
             next_dialog.status == LegacyWorldStoryVmStatus::yielded &&
             later_dialog_chain_completed &&
+            head_sign_assignment.status ==
+                LegacyWorldStoryVmStatus::yielded &&
             head_sign_wait.status == LegacyWorldStoryVmStatus::yielded &&
             head_sign_token ==
                 openswd3::world_map::legacy_world_head_sign_action_token(0U) &&
@@ -15791,6 +15939,7 @@ int main(const int argument_count, char** arguments) {
         test_real_frame_clock_wait_record(test, root);
         test_real_clear_role_flag_0400_record(test, root);
         test_real_set_role_flag_0400_record(test, root);
+        test_real_set_role_head_sign_record(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
