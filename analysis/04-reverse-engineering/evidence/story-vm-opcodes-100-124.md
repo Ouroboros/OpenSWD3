@@ -115,7 +115,7 @@ byte >  threshold  -> 推进 4，ESI=1，同帧继续
 - `threshold <= low_byte && high_byte < threshold`：不推进并让出；
 - `high_byte >= threshold`：消费并同帧继续。
 
-角色 lookup 失败也诊断并消费。因此 opcode 107 的等待条件不是简单的 `current < threshold`；非法阈值路径必须先于等待判断。
+角色 lookup 失败也诊断并消费。因此 opcode 107 的等待条件不是简单的 `current < threshold`；非法阈值路径必须先于等待判断。该入口现已独立闭环，完整访问顺序、common join、精确尾与资产锁见[`story-vm-role-action-index-wait-0042b50f.md`](story-vm-role-action-index-wait-0042b50f.md)。
 
 112 只检查 `dword_4BAB9C` framebuffer 区域效果链和 `dword_4BA6E0` 角色头像 action 链。任一非空时不推进；两者都为空时推进两字节。两条路径的 `ESI` 都保持零，所以即便成功也立即让出。`dword_4AD3E8` 移动 action 链不在谓词内。
 

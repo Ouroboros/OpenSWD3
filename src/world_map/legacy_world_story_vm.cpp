@@ -4829,8 +4829,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 107U: {
-            if (!has_bytes(state.window, ip, 6U)) {
+        case OP_107_WAIT_ROLE_ACTION_INDEX: {
+            if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
@@ -4838,11 +4838,16 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             if (selector == kCurrentSourceSelector) {
                 selector = context.source_guid;
             }
-            const u16 threshold = read_u16(state.window, ip + 4U);
             u32 role_index{};
-            if (resolve_role_index(
-                    roles, selector, controlled_role_index, role_index
-                )) {
+            const bool role_found = resolve_role_index(
+                roles, selector, controlled_role_index, role_index
+            );
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u16 threshold = read_u16(state.window, ip + 4U);
+            if (role_found) {
                 const u16 packed_state =
                     roles[role_index].action.packed_ap_state;
                 const u16 item_count = static_cast<u8>(packed_state);
@@ -4850,6 +4855,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     const u16 one_based_index =
                         static_cast<u8>(packed_state >> 8U);
                     if (one_based_index < threshold) {
+                        state.previous_opcode = result.opcode;
                         result.status = LegacyWorldStoryVmStatus::yielded;
                         return result;
                     }
@@ -4857,6 +4863,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
             continue;
         }
 

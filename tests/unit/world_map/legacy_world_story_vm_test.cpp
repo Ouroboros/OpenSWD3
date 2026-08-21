@@ -133,6 +133,7 @@ using openswd3::world_map::OP_103_SET_ROLE_STATUS_BIT5;
 using openswd3::world_map::OP_104_SET_TEXT_LAYOUT_PAIR;
 using openswd3::world_map::OP_105_CLEAR_TEXT_CONTROL_BIT27;
 using openswd3::world_map::OP_106_WAIT_PRIMARY_PICTURE_ACTION_BYTE;
+using openswd3::world_map::OP_107_WAIT_ROLE_ACTION_INDEX;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -5932,59 +5933,137 @@ void test_shared_role_spatial_group_protocol(openswd3::test::Context& test) {
     );
 }
 
-void test_wait_for_role_action_position(openswd3::test::Context& test) {
-    Fixture waiting;
-    auto waiting_script = std::span<u8>{waiting.ports.initial_window};
-    write_u16(waiting_script, 0U, 107U);
-    write_u16(waiting_script, 2U, 0xFFF0U);
-    write_u16(waiting_script, 4U, 5U);
-    write_u16(waiting_script, 6U, OP_14_WAIT_ROLE_ACTION_STATUS);
-    write_u16(waiting_script, 8U, 0x00F8U);
-    waiting.roles[1].action.packed_ap_state = 0x0405U;
-    const auto stalled = waiting.step();
-    const u16 stalled_offset = waiting.context.instruction_offset;
-    waiting.roles[1].action.packed_ap_state = 0x0505U;
-    const auto completed = waiting.step();
+void test_wait_for_role_action_index_threshold(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_107_WAIT_ROLE_ACTION_INDEX,
+        static_cast<u16>(OP_107_WAIT_ROLE_ACTION_INDEX | 0x4000U),
+        static_cast<u16>(OP_107_WAIT_ROLE_ACTION_INDEX | 0x8000U),
+        static_cast<u16>(OP_107_WAIT_ROLE_ACTION_INDEX | 0xC000U),
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture waiting;
+        prime_loaded_instruction(waiting, raw_word);
+        write_u16(waiting.state.window, 2U, 0xFFF0U);
+        write_u16(waiting.state.window, 4U, 5U);
+        waiting.roles[1].action.packed_ap_state = 0x0405U;
+        waiting.state.previous_opcode = 0x66U;
 
+        const auto result = waiting.step();
+        test.expect_true(
+            result.raw_word == raw_word &&
+                result.opcode == OP_107_WAIT_ROLE_ACTION_INDEX &&
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.executed_instruction_count == 1U &&
+                waiting.context.instruction_offset == 0U &&
+                waiting.state.previous_opcode == OP_107_WAIT_ROLE_ACTION_INDEX,
+            "opcode 107 aliases publish previous and wait at the inclusive item-count boundary"
+        );
+    }
+
+    const auto prime_consuming = [](Fixture& fixture,
+                                    const u16 selector,
+                                    const u16 threshold,
+                                    const u16 packed_state) {
+        prime_loaded_instruction(fixture, OP_107_WAIT_ROLE_ACTION_INDEX);
+        write_u16(fixture.state.window, 2U, selector);
+        write_u16(fixture.state.window, 4U, threshold);
+        write_u16(fixture.state.window, 6U, OP_1025);
+        fixture.roles[1].action.packed_ap_state = packed_state;
+        fixture.state.previous_opcode = 0x66U;
+    };
+
+    Fixture completed;
+    prime_consuming(completed, 0xFFF0U, 5U, 0x0505U);
+    const auto completed_result = completed.step();
     Fixture invalid_threshold;
-    auto invalid_script = std::span<u8>{invalid_threshold.ports.initial_window};
-    write_u16(invalid_script, 0U, 107U);
-    write_u16(invalid_script, 2U, 0x00F8U);
-    write_u16(invalid_script, 4U, 5U);
-    write_u16(invalid_script, 6U, OP_14_WAIT_ROLE_ACTION_STATUS);
-    write_u16(invalid_script, 8U, 0x00F8U);
-    invalid_threshold.roles[1].action.packed_ap_state = 0x0104U;
-    const auto invalid = invalid_threshold.step();
-
-    Fixture missing;
-    auto missing_script = std::span<u8>{missing.ports.initial_window};
-    write_u16(missing_script, 0U, 107U);
-    write_u16(missing_script, 2U, 0x7777U);
-    write_u16(missing_script, 4U, 5U);
-    write_u16(missing_script, 6U, OP_14_WAIT_ROLE_ACTION_STATUS);
-    write_u16(missing_script, 8U, 0x00F8U);
-    const auto absent = missing.step();
+    prime_consuming(invalid_threshold, 0x00F8U, 5U, 0x0104U);
+    const auto invalid_result = invalid_threshold.step();
+    Fixture missing_role;
+    prime_consuming(missing_role, 0x7777U, 5U, 0x0000U);
+    const auto missing_result = missing_role.step();
+    Fixture controlled_role;
+    prime_consuming(controlled_role, 0xFFFEU, 0U, 0x0000U);
+    const auto controlled_result = controlled_role.step(0, 0, 1U);
 
     test.expect_true(
-        stalled.status == LegacyWorldStoryVmStatus::yielded &&
-            stalled.opcode == 107U &&
-            stalled.executed_instruction_count == 1U && stalled_offset == 0U &&
-            completed.status == LegacyWorldStoryVmStatus::yielded &&
-            completed.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
-            completed.executed_instruction_count == 2U &&
-            waiting.context.instruction_offset == 10U,
-        "opcode 107 waits until the packed AP one-based index reaches its threshold"
+        completed_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            completed_result.opcode == OP_1025 &&
+            completed_result.executed_instruction_count == 2U &&
+            completed.context.instruction_offset == 6U &&
+            completed.state.previous_opcode == OP_107_WAIT_ROLE_ACTION_INDEX,
+        "opcode 107 consumes a reached action index in-call"
     );
     test.expect_true(
-        invalid.status == LegacyWorldStoryVmStatus::yielded &&
-            invalid.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
-            invalid.executed_instruction_count == 2U &&
-            invalid_threshold.context.instruction_offset == 10U &&
-            absent.status == LegacyWorldStoryVmStatus::yielded &&
-            absent.opcode == OP_14_WAIT_ROLE_ACTION_STATUS &&
-            absent.executed_instruction_count == 2U &&
-            missing.context.instruction_offset == 10U,
-        "opcode 107 consumes invalid thresholds and missing roles without waiting"
+        invalid_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            invalid_result.opcode == OP_1025 &&
+            invalid_result.executed_instruction_count == 2U &&
+            invalid_threshold.context.instruction_offset == 6U &&
+            invalid_threshold.state.previous_opcode ==
+                OP_107_WAIT_ROLE_ACTION_INDEX,
+        "opcode 107 consumes a threshold above the item limit in-call"
+    );
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            missing_result.opcode == OP_1025 &&
+            missing_result.executed_instruction_count == 2U &&
+            missing_role.context.instruction_offset == 6U &&
+            missing_role.state.previous_opcode == OP_107_WAIT_ROLE_ACTION_INDEX,
+        "opcode 107 consumes a missing role in-call"
+    );
+    test.expect_true(
+        controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled_result.opcode == OP_1025 &&
+            controlled_result.executed_instruction_count == 2U &&
+            controlled_role.context.instruction_offset == 6U &&
+            controlled_role.state.previous_opcode ==
+                OP_107_WAIT_ROLE_ACTION_INDEX,
+        "opcode 107 preserves the helper-native controlled-role selector"
+    );
+
+    const auto prime_exact_tail = [](Fixture& fixture, const u16 offset) {
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = offset;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x66U;
+        write_u16(fixture.state.window, offset, OP_107_WAIT_ROLE_ACTION_INDEX);
+    };
+
+    Fixture completed_tail;
+    prime_exact_tail(completed_tail, 0x7FFAU);
+    write_u16(completed_tail.state.window, 0x7FFCU, 0xFFF0U);
+    write_u16(completed_tail.state.window, 0x7FFEU, 5U);
+    completed_tail.roles[1].action.packed_ap_state = 0x0505U;
+    const auto completed_tail_result = completed_tail.step();
+
+    Fixture missing_selector;
+    prime_exact_tail(missing_selector, 0x7FFEU);
+    const auto missing_selector_result = missing_selector.step();
+
+    Fixture missing_threshold;
+    prime_exact_tail(missing_threshold, 0x7FFCU);
+    write_u16(missing_threshold.state.window, 0x7FFEU, 0xFFF0U);
+    const auto missing_threshold_result = missing_threshold.step();
+
+    test.expect_true(
+        completed_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            completed_tail_result.executed_instruction_count == 1U &&
+            completed_tail.context.instruction_offset == 0x8000U &&
+            completed_tail.state.previous_opcode ==
+                OP_107_WAIT_ROLE_ACTION_INDEX &&
+            missing_selector_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_selector.context.instruction_offset == 0x7FFEU &&
+            missing_selector.state.previous_opcode == 0x66U &&
+            missing_threshold_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_threshold.context.instruction_offset == 0x7FFCU &&
+            missing_threshold.state.previous_opcode == 0x66U,
+        "opcode 107 preserves staged operands and exact-tail completion"
     );
 }
 
@@ -19841,6 +19920,61 @@ void test_real_wait_primary_picture_action_byte_records(
     }
 }
 
+void test_real_wait_role_action_index_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        u16 selector;
+        u16 threshold;
+    };
+    constexpr std::array<RealCase, 4U> cases{
+        RealCase{"TALK1.DAT", 0x00005445, 0x0001U, 5U},
+        RealCase{"TALK2.DAT", 0x000074CC, 0x0001U, 5U},
+        RealCase{"TALK3.DAT", 0x00002B20, 0x000BU, 9U},
+        RealCase{"TALK4.DAT", 0x00001987, 0x0011U, 8U},
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 6U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.roles[1].guid = real_case.selector;
+        fixture.roles[1].action.packed_ap_state =
+            static_cast<u16>((real_case.threshold << 8U) | real_case.threshold);
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = 0x7FFAU;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFAU);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read &&
+                read_u16(record, 0U) == OP_107_WAIT_ROLE_ACTION_INDEX &&
+                read_u16(record, 2U) == real_case.selector &&
+                read_u16(record, 4U) == real_case.threshold &&
+                result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.previous_opcode == OP_107_WAIT_ROLE_ACTION_INDEX,
+            "real opcode 107 reaches its action index before exact-tail completion"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -21894,7 +22028,7 @@ int main(const int argument_count, char** arguments) {
     test_suspend_story_role_protocol(test);
     test_repeat_role_action_refresh_protocol(test);
     test_shared_role_spatial_group_protocol(test);
-    test_wait_for_role_action_position(test);
+    test_wait_for_role_action_index_threshold(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);
@@ -22043,6 +22177,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_text_layout_pair_records(test, root);
         test_real_clear_text_control_bit27_records(test, root);
         test_real_wait_primary_picture_action_byte_records(test, root);
+        test_real_wait_role_action_index_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v328
+版本：v329
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B3B0` handler（opcode 100）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B5F2` handler（opcode 108）
 
 ## 0. 执行约定
 
@@ -2330,4 +2330,16 @@ B7 P0 有限收口完成。
     app192/192均exit0；CTest时间分别18.52/18.65/12.11秒，Linux core+app完整流程158秒，较修改前
     195秒缩短37秒。`build.bat`保持CRLF且未加入pause；未启动游戏EXE。
 
-按用户指令继续暂停P2。恢复后下一停点仍为`0x0042B50F` / opcode107。
+- 剧情VM P2第八十五组`0x0042B50F` / opcode107完成独立闭环。机器按selector→lookup→threshold→
+    action顺序读取；FFF0替换context source，helper-native FFFE解析controlled role。threshold高于packed低
+    字节上限或lookup失败时空诊断并消费；合法且packed高字节低于threshold时不推进并yield，其余+6后
+    same-call；所有路径经common join发布previous107。修复旧C++ whole-record预检提前threshold及两类路径
+    漏previous。四raw alias、FFF0/FFFE、等上限等待、等threshold完成、非法上限、lookup失败、两阶段截断、
+    精确尾与四库真实回放通过。资产锁294条/296 probes，全部raw`0x006B`、长度6，分布
+    `64/27/36/167`；35种selector、20种threshold、67种pair。Story VM3/3、Linux core186/186、app192/192
+    均exit0，最终CTest分别18.95/18.61秒；workpack双生成稳定hash为
+    `b42d4ff6c9ac6719824e245531b1d327a183f55b27b7ce706d0c9e57ad234b94`。
+    未启动游戏EXE。现代显式opcode保持124；对外进度为已实现124/198、已验收118/198；内部workpack
+    85/146，即`12 assembly_exact + 73 platform_adapted + 61 pending_audit`。
+
+下一组只审计`0x0042B5F2` / opcode108。
