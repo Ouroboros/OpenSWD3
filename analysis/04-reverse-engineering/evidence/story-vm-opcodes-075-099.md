@@ -145,6 +145,8 @@ Y + height <= 480
 
 终止符扫描无边界。首项就是 sentinel 时 `count=0`；`sub_439070` 的第一步是 `0xFFFF / count`，没有零保护，因此空表触发整数除法错误。随机数算法、拒绝采样次数和调用顺序也属于 1:1 规格，不能替换为 `std::uniform_int_distribution` 后假设等价。
 
+87现已独立闭环：复用assembly-exact 250-word secondary RNG，保持每次尝试先丢弃1个raw、再以candidate做`0xFFFF` acceptance/remainder；空表以明确DIV0 typed-stop隔离，不伪造目标。`sub_42E430`的audio、同文件target、IP0、0x8000窗口与same-call已恢复。资产锁5条/5 probes，分布`3/1/0/1`，四条3-target、一条6-target；固定seed真实回放选择`TALK1 index1=0x28995`与`TALK4 index4=0x2FEB3`。完整证据见[`story-vm-random-target-reload-0042a6cb.md`](story-vm-random-target-reload-0042a6cb.md)。
+
 ## opcode 88：战斗请求之前只清两条链
 
 88 调用 `sub_40F500` 释放 framebuffer 区域效果链，调用 `sub_40F570` 释放角色头像链，然后写：

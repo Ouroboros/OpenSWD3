@@ -4315,6 +4315,50 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_87_RELOAD_RANDOM_TARGET: {
+            std::size_t cursor = ip + 2U;
+            u32 target_count = 0U;
+            for (;;) {
+                if (!has_bytes(state.window, cursor, 4U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                if (read_u32(state.window, cursor) == 0xFF00FF00U) {
+                    break;
+                }
+                ++target_count;
+                cursor += 4U;
+            }
+            if (target_count == 0U) {
+                result.status =
+                    LegacyWorldStoryVmStatus::random_target_divide_by_zero;
+                return result;
+            }
+            if (runtime.secondary_rng == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            const u32 selected_index =
+                runtime.secondary_rng->next_bounded(target_count);
+            const std::size_t target_offset =
+                ip + 2U + static_cast<std::size_t>(selected_index) * 4U;
+            const auto status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, target_offset),
+                result,
+                ports
+            );
+            state.previous_opcode = result.opcode;
+            if (status != LegacyWorldStoryVmStatus::idle) {
+                result.status = status;
+                return result;
+            }
+            continue;
+        }
+
         case 88U:
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

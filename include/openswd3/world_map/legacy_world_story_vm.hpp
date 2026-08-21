@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp"
+#include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
 #include "openswd3/rendering/legacy_action_renderers.hpp"
 #include "openswd3/rendering/legacy_frame_color.hpp"
@@ -112,6 +113,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_84_CONTROL_PACKED_ROW_EFFECT = 84U,
     OP_85_BEGIN_STORY_VIDEO = 85U,
     OP_86_REWRITE_ROLE_HEAD_ACTION_KEY = 86U,
+    OP_87_RELOAD_RANDOM_TARGET = 87U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
@@ -197,6 +199,7 @@ struct LegacyWorldStoryVmRuntime {
     compat::u8* scene_render_flags{};
     compat::u32 map_height{};
     compat::u32 current_tick{};
+    input_time_rng::LegacySecondaryRng* secondary_rng{};
 };
 
 void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept;
@@ -283,6 +286,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     role_transfer_failed,
     role_map_update_failed,
     camera_step_divide_by_zero,
+    random_target_divide_by_zero,
 };
 
 struct LegacyWorldStoryVmResult {
@@ -320,7 +324,7 @@ struct LegacyWorldStoryVmResult {
 
 // sub_427920, currently restricted to the independently audited default-invalid
 // and shared-dialog groups plus the earlier map-81/TALK100 implementation coverage:
-// 1-40,42-43,45,51-53,58-72,74,76-85,
+// 1-40,42-43,45,51-53,58-72,74,76-87,
 // 88-91,94-95,104,107,114,120,141,153,161,169,193,0x402 and 0x3FFF. Each
 // handler preserves its individual advance/continue/yield contract;
 // unsupported opcodes deliberately do not advance the IP.

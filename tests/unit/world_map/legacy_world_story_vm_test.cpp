@@ -114,6 +114,7 @@ using openswd3::world_map::OP_83_UPSERT_PACKED_ROW_EFFECT;
 using openswd3::world_map::OP_84_CONTROL_PACKED_ROW_EFFECT;
 using openswd3::world_map::OP_85_BEGIN_STORY_VIDEO;
 using openswd3::world_map::OP_86_REWRITE_ROLE_HEAD_ACTION_KEY;
+using openswd3::world_map::OP_87_RELOAD_RANDOM_TARGET;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -603,6 +604,7 @@ struct Fixture {
         openswd3::world_map::kLegacyWorldPartySlotCount>
         live_party_object_slots{};
     u32 indexed_target_selector{};
+    openswd3::input_time_rng::LegacySecondaryRng secondary_rng{};
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     RecordingPorts ports{};
 
@@ -630,6 +632,7 @@ struct Fixture {
         runtime.selection_scroll = &selection_scroll;
         runtime.camera = &camera;
         runtime.indexed_target_selector = &indexed_target_selector;
+        runtime.secondary_rng = &secondary_rng;
         dialog_resources.frame_actions[0].action_id = 0x232DU;
         dialog_resources.caption_actions[0].action_id = 0x2337U;
     }
@@ -13891,6 +13894,141 @@ void test_rewrite_role_head_action_key_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_reload_random_target_protocol(openswd3::test::Context& test) {
+    const auto write_three_target_record = [](const std::span<u8> bytes,
+                                              const std::size_t offset,
+                                              const u16 raw_opcode) {
+        write_u16(bytes, offset, raw_opcode);
+        write_u32(bytes, offset + 2U, 0x11111111U);
+        write_u32(bytes, offset + 6U, 0x22222222U);
+        write_u32(bytes, offset + 10U, 0x33333333U);
+        write_u32(bytes, offset + 14U, 0xFF00FF00U);
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture exact_tail;
+        exact_tail.secondary_rng.seed(0x12345678U);
+        write_u16(exact_tail.ports.transferred_window, 0U, 88U);
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FEEU;
+        exact_tail.state.loaded_file_number = 2U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x66U;
+        write_three_target_record(
+            exact_tail.state.window,
+            0x7FEEU,
+            static_cast<u16>(OP_87_RELOAD_RANDOM_TARGET | alias_mask)
+        );
+
+        const auto result = exact_tail.step();
+
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::runtime_unavailable &&
+                result.opcode == 88U &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 1U &&
+                exact_tail.secondary_rng.index() == 2U &&
+                exact_tail.ports.data_load_count == 1U &&
+                exact_tail.ports.last_data_file_number == 2U &&
+                exact_tail.ports.last_data_offset == 0x22222222U &&
+                !exact_tail.ports.last_data_clear_before_read &&
+                exact_tail.ports.direct_audio_service_count == 1U &&
+                exact_tail.context.talk_data_offset == 0x22222222U &&
+                exact_tail.context.instruction_offset == 0U &&
+                exact_tail.state.loaded_data_offset == 0x22222222U &&
+                exact_tail.state.window_loaded &&
+                exact_tail.state.previous_opcode == OP_87_RELOAD_RANDOM_TARGET,
+            "opcode 87 aliases scan an exact-tail table, consume the assembly RNG stream, reload the selected target and continue in the same call"
+        );
+    }
+
+    Fixture empty;
+    empty.secondary_rng.seed(0x12345678U);
+    auto empty_script = std::span<u8>{empty.ports.initial_window};
+    write_u16(empty_script, 0U, OP_87_RELOAD_RANDOM_TARGET);
+    write_u32(empty_script, 2U, 0xFF00FF00U);
+    empty.state.previous_opcode = 0x66U;
+    const auto empty_result = empty.step();
+    test.expect_true(
+        empty_result.status ==
+                LegacyWorldStoryVmStatus::random_target_divide_by_zero &&
+            empty.secondary_rng.index() == 0U &&
+            empty.ports.data_load_count == 0U &&
+            empty.ports.direct_audio_service_count == 0U &&
+            empty.context.instruction_offset == 0U &&
+            empty.state.previous_opcode == 0x66U,
+        "opcode 87 empty table typed-stops at the original unsigned divide by zero before RNG state access"
+    );
+
+    Fixture unterminated;
+    unterminated.secondary_rng.seed(0x12345678U);
+    unterminated.context.talk_data_offset = 0x1111U;
+    unterminated.context.instruction_offset = 0x7FFAU;
+    unterminated.state.loaded_file_number = 1U;
+    unterminated.state.loaded_data_offset = 0x1111U;
+    unterminated.state.window_loaded = true;
+    unterminated.state.previous_opcode = 0x66U;
+    write_u16(unterminated.state.window, 0x7FFAU, OP_87_RELOAD_RANDOM_TARGET);
+    write_u32(unterminated.state.window, 0x7FFCU, 0x11111111U);
+    const auto unterminated_result = unterminated.step();
+    test.expect_true(
+        unterminated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            unterminated.secondary_rng.index() == 0U &&
+            unterminated.ports.data_load_count == 0U &&
+            unterminated.context.instruction_offset == 0x7FFAU &&
+            unterminated.state.previous_opcode == 0x66U,
+        "opcode 87 missing sentinel typed-stops after the bounded table scan and before RNG access"
+    );
+
+    Fixture unavailable;
+    unavailable.runtime.secondary_rng = nullptr;
+    auto unavailable_script = std::span<u8>{unavailable.ports.initial_window};
+    write_u16(unavailable_script, 0U, OP_87_RELOAD_RANDOM_TARGET);
+    write_u32(unavailable_script, 2U, 0x11111111U);
+    write_u32(unavailable_script, 6U, 0xFF00FF00U);
+    unavailable.state.previous_opcode = 0x66U;
+    const auto unavailable_result = unavailable.step();
+    test.expect_true(
+        unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            unavailable.ports.data_load_count == 0U &&
+            unavailable.ports.direct_audio_service_count == 0U &&
+            unavailable.context.instruction_offset == 0U &&
+            unavailable.state.previous_opcode == 0x66U,
+        "opcode 87 typed RNG owner absence stops only after a valid non-empty table scan"
+    );
+
+    Fixture load_failed;
+    load_failed.secondary_rng.seed(0x12345678U);
+    load_failed.ports.data_load_status = LegacyTalkWindowStatus::open_failed;
+    auto failed_script = std::span<u8>{load_failed.ports.initial_window};
+    write_u16(failed_script, 0U, OP_87_RELOAD_RANDOM_TARGET);
+    write_u32(failed_script, 2U, 0x12345678U);
+    write_u32(failed_script, 6U, 0xFF00FF00U);
+    load_failed.state.previous_opcode = 0x66U;
+    const auto failed_result = load_failed.step();
+    test.expect_true(
+        failed_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            failed_result.direct_audio_service_count == 1U &&
+            load_failed.secondary_rng.index() == 2U &&
+            load_failed.ports.data_load_count == 1U &&
+            load_failed.ports.last_data_offset == 0x12345678U &&
+            load_failed.ports.direct_audio_service_count == 1U &&
+            load_failed.context.talk_data_offset == 0x12345678U &&
+            load_failed.context.instruction_offset == 0U &&
+            !load_failed.state.window_loaded &&
+            load_failed.state.previous_opcode == OP_87_RELOAD_RANDOM_TARGET,
+        "opcode 87 load failure preserves RNG, audio, target publication and previous before typed stop"
+    );
+}
+
 void test_enqueue_moving_action_protocol(openswd3::test::Context& test) {
     const auto write_record = [](const std::span<u8> bytes,
                                  const std::size_t offset,
@@ -16422,6 +16560,113 @@ void test_real_rewrite_role_head_action_key_records(
     );
 }
 
+void test_real_reload_random_target_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    const auto read_three_targets = [&root]() {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(0x00028B22);
+        std::array<u8, 18U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        return record;
+    };
+    const auto read_six_targets = [&root]() {
+        std::ifstream input{
+            root / "TALK4.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(0x0002FE09);
+        std::array<u8, 30U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        return record;
+    };
+    const auto three_targets = read_three_targets();
+    const auto six_targets = read_six_targets();
+
+    const auto execute = [](const std::span<const u8> record,
+                            const u32 file_number) {
+        Fixture fixture;
+        fixture.secondary_rng.seed(0x12345678U);
+        write_u16(fixture.ports.transferred_window, 0U, 88U);
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset =
+            static_cast<u16>(0x8000U - record.size());
+        fixture.state.loaded_file_number = file_number;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x66U;
+        std::ranges::copy(
+            record,
+            fixture.state.window.begin() + fixture.context.instruction_offset
+        );
+
+        const auto result = fixture.step();
+
+        return std::tuple{
+            result,
+            fixture.secondary_rng.index(),
+            fixture.ports.last_data_file_number,
+            fixture.ports.last_data_offset,
+            fixture.ports.last_data_clear_before_read,
+            fixture.context.talk_data_offset,
+            fixture.context.instruction_offset,
+            fixture.state.previous_opcode,
+        };
+    };
+    const auto
+        [three_result,
+         three_rng_index,
+         three_file,
+         three_target,
+         three_clear,
+         three_context_target,
+         three_ip,
+         three_previous] = execute(three_targets, 1U);
+    const auto
+        [six_result,
+         six_rng_index,
+         six_file,
+         six_target,
+         six_clear,
+         six_context_target,
+         six_ip,
+         six_previous] = execute(six_targets, 4U);
+
+    test.expect_true(
+        read_u16(three_targets, 0U) == OP_87_RELOAD_RANDOM_TARGET &&
+            read_u32(three_targets, 2U) == 0x0002897DU &&
+            read_u32(three_targets, 6U) == 0x00028995U &&
+            read_u32(three_targets, 10U) == 0x000289DAU &&
+            read_u32(three_targets, 14U) == 0xFF00FF00U &&
+            three_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            three_result.executed_instruction_count == 2U &&
+            three_result.direct_audio_service_count == 1U &&
+            three_rng_index == 2U && three_file == 1U &&
+            three_target == 0x00028995U && !three_clear &&
+            three_context_target == 0x00028995U && three_ip == 0U &&
+            three_previous == OP_87_RELOAD_RANDOM_TARGET &&
+            read_u16(six_targets, 0U) == OP_87_RELOAD_RANDOM_TARGET &&
+            read_u32(six_targets, 26U) == 0xFF00FF00U &&
+            six_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            six_result.executed_instruction_count == 2U &&
+            six_result.direct_audio_service_count == 1U &&
+            six_rng_index == 2U && six_file == 4U &&
+            six_target == 0x0002FEB3U && !six_clear &&
+            six_context_target == 0x0002FEB3U && six_ip == 0U &&
+            six_previous == OP_87_RELOAD_RANDOM_TARGET,
+        "real opcode 87 three- and six-target tables preserve RNG selection, exact-tail reload and same-call continuation"
+    );
+}
+
 void test_real_control_packed_row_effect_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -18437,6 +18682,7 @@ int main(const int argument_count, char** arguments) {
     test_control_packed_row_effect_boundaries(test);
     test_begin_story_video_protocol(test);
     test_rewrite_role_head_action_key_protocol(test);
+    test_reload_random_target_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
     if (argument_count == 3 &&
@@ -18500,6 +18746,7 @@ int main(const int argument_count, char** arguments) {
         test_real_control_packed_row_effect_records(test, root);
         test_real_begin_story_video_records(test, root);
         test_real_rewrite_role_head_action_key_records(test, root);
+        test_real_reload_random_target_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);

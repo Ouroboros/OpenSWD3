@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v309
+版本：v310
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A6CB` handler（opcode 87）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042A727` handler（opcode 88）
 
 ## 0. 执行约定
 
@@ -2092,6 +2092,18 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode增至103；对外进度为已实现103/198、已验收91/198；内部
     workpack67/146，即`8 assembly_exact + 59 platform_adapted + 79 pending_audit`。
 
+- 剧情VM P2第六十八组`0x0042A6CB` / opcode87完成独立闭环。handler从+2扫描unaligned u32
+    目标到`FF00FF00`，调用secondary RNG按`(FFFF/count)*count`阈值执行每轮two-raw拒绝采样，
+    再由同文件窗口helper执行audio、target data offset、IP0和0x8000窗口替换，发布previous87并
+    same-call继续。空表原版在RNG状态访问前unsigned DIV0，现代以明确typed-stop隔离且不伪造目标；
+    缺sentinel、RNG owner和I/O失败均按原副作用阶段收敛。四alias精确尾、固定seed index1、空表、
+    缺sentinel、owner缺失、load失败与两条真实表通过。资产锁5条/5 probes，分布`3/1/0/1`，
+    四条3-target长18、一条6-target长30；真实TALK1选`0x28995`、TALK4选`0x2FEB3`。格式化后
+    剧情VM3/3、Linux core186/186、Linux app192/192通过；workpack hash为
+    `597b0f03e016dd5b2988fa2f766ac9700a2fc7a41ad8d4c6b036731fd6a1f7d5`。未启动游戏EXE。
+    现代显式opcode增至104；对外进度为已实现104/198、已验收92/198；内部workpack68/146，
+    即`8 assembly_exact + 60 platform_adapted + 78 pending_audit`。
+
 当前按 [`story-vm-closure-plan-pi.md`](story-vm-closure-plan-pi.md) 只执行 P2 下一停点
-`0x0042A6CB` 的opcode87 handler；现有导航语义与既有实现均不继承完成状态。
+`0x0042A727` 的opcode88 handler；现有导航语义与既有实现均不继承完成状态。
 不并行回到延期的 `libffmpeg`，也不按剧情命中顺序临时补 opcode。

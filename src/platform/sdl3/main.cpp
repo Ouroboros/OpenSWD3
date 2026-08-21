@@ -3585,6 +3585,7 @@ public:
                 .map_height = map.header.height,
                 .current_tick =
                     frame_preparation_state_.frame_clock.sampled_milliseconds,
+                .secondary_rng = &secondary_rng_,
             };
             openswd3::world_map::advance_legacy_world_script_clock(
                 world_story_vm_state_
