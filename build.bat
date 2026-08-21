@@ -15,7 +15,8 @@ if not exist "%LLVM_BIN%\clang++.exe" goto missing_tools
 if /I "%~1"=="app" if not exist "%LLVM_BIN%\clang.exe" goto missing_tools
 
 set "PATH=%LLVM_BIN%;D:\Dev\lldb\tools\cmake\bin;D:\Dev\lldb\tools\ninja;%PATH%"
-if not defined OPENSWD3_TEST_JOBS set "OPENSWD3_TEST_JOBS=8"
+if not defined OPENSWD3_BUILD_JOBS set "OPENSWD3_BUILD_JOBS=%NUMBER_OF_PROCESSORS%"
+if not defined OPENSWD3_TEST_JOBS set "OPENSWD3_TEST_JOBS=%NUMBER_OF_PROCESSORS%"
 
 set "TARGET=%~1"
 if "%TARGET%"=="" set "TARGET=core"
@@ -32,6 +33,13 @@ if /I "%TARGET%"=="core" (
     goto finish
 )
 
+if /I "%OPENSWD3_RECONFIGURE%"=="1" goto configure
+if not exist "build\%CONFIGURE_PRESET%\CMakeCache.txt" goto configure
+if not exist "build\%CONFIGURE_PRESET%\build.ninja" goto configure
+echo [OpenSWD3] Configure: %CONFIGURE_PRESET% ^(reuse Ninja cache^)
+goto configured
+
+:configure
 echo [OpenSWD3] Configure: %CONFIGURE_PRESET%
 if /I "%TARGET%"=="app" (
     "%CMAKE_EXE%" --preset "%CONFIGURE_PRESET%" ^
@@ -45,8 +53,9 @@ if /I "%TARGET%"=="app" (
 )
 if errorlevel 1 goto failed
 
-echo [OpenSWD3] Build: %BUILD_PRESET%
-"%CMAKE_EXE%" --build --preset "%BUILD_PRESET%"
+:configured
+echo [OpenSWD3] Build: %BUILD_PRESET% ^(parallel jobs: %OPENSWD3_BUILD_JOBS%^)
+"%CMAKE_EXE%" --build --preset "%BUILD_PRESET%" --parallel "%OPENSWD3_BUILD_JOBS%"
 if errorlevel 1 goto failed
 
 echo [OpenSWD3] Test: Debug ^(parallel jobs: %OPENSWD3_TEST_JOBS%^)
