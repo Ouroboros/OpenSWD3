@@ -225,6 +225,9 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE = 185U,
     OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE = 186U,
     OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE = 187U,
+    OP_188_SET_PARTY_MEMBER_FIELD = 188U,
+    OP_189_ADD_PARTY_MEMBER_FIELD = 189U,
+    OP_190_SUBTRACT_PARTY_MEMBER_FIELD = 190U,
     OP_1025 = 1025U,
 };
 
@@ -463,6 +466,11 @@ public:
     // sub_406D30 spans the deferred special-modes and persistence owners.
     // False stops at the original cross-module call after prior global writes.
     [[nodiscard]] virtual bool reset_input_menu_and_save_previews() = 0;
+    // sub_477290 reads a LEVEL.DAT group/level entry and may update field 20.
+    // False preserves its nonfatal file/record failure return.
+    [[nodiscard]] virtual bool load_party_member_level_field(
+        compat::u32 group, compat::u32 level, compat::u32& output
+    ) = 0;
     virtual void beep() noexcept = 0;
     virtual void service_audio() = 0;
     // Models sub_40B7F0's optional %T/mon.dat expansion. Returning false

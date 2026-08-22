@@ -196,6 +196,74 @@ void write_u32(
     }
 }
 
+void write_party_member_field(
+    LegacyWorldStoryPartyMemberResources& resources,
+    const i32 selector,
+    const i32 value,
+    LegacyWorldStoryVmPorts& ports
+) {
+    switch (selector) {
+    case 0:
+        resources.current_first = static_cast<u16>(value);
+        break;
+
+    case 1:
+        resources.current_second = static_cast<u16>(value);
+        break;
+
+    case 2:
+        resources.current_third = static_cast<u16>(value);
+        break;
+
+    case 3:
+        resources.limit_first = static_cast<u16>(value);
+        break;
+
+    case 4:
+        resources.limit_second = static_cast<u16>(value);
+        break;
+
+    case 5:
+        resources.limit_third = static_cast<u16>(value);
+        break;
+
+    case 6:
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+    case 12:
+    case 13:
+        resources.fields_10_to_1e[static_cast<std::size_t>(selector - 6)] =
+            static_cast<u16>(value);
+        break;
+
+    case 14:
+        resources.field_20 = std::bit_cast<u32>(value);
+        break;
+
+    case 15:
+        resources.field_00 = std::bit_cast<u32>(value);
+        break;
+
+    case 16: {
+        resources.field_2c = static_cast<u8>(value);
+        u32 level_output = 1U;
+        if (ports.load_party_member_level_field(
+                2U, std::bit_cast<u32>(value) + 1U, level_output
+            )) {
+            resources.field_20 = level_output;
+        }
+
+        break;
+    }
+
+    default:
+        break;
+    }
+}
+
 class StoryCountdownFlagPorts final
     : public rendering::LegacyCountdownFlagPorts {
 public:
@@ -7456,6 +7524,47 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
+        }
+
+        case OP_188_SET_PARTY_MEMBER_FIELD:
+        case OP_189_ADD_PARTY_MEMBER_FIELD:
+        case OP_190_SUBTRACT_PARTY_MEMBER_FIELD: {
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const i32 selector =
+                static_cast<i16>(read_u16(state.window, ip + 2U));
+            const i32 operand =
+                static_cast<i16>(read_u16(state.window, ip + 4U));
+            if (selector > 16) {
+                state.previous_opcode = result.opcode;
+                ports.service_audio();
+                ++result.direct_audio_service_count;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+
+            auto& resources = state.party_member_resources[1U];
+            i32 value = operand;
+            if (result.opcode != OP_188_SET_PARTY_MEMBER_FIELD) {
+                const u32 current_bits = std::bit_cast<u32>(
+                    read_party_member_field(resources, selector)
+                );
+                const u32 operand_bits = std::bit_cast<u32>(operand);
+                const u32 result_bits =
+                    result.opcode == OP_189_ADD_PARTY_MEMBER_FIELD
+                    ? current_bits + operand_bits
+                    : current_bits - operand_bits;
+                value = std::bit_cast<i32>(result_bits);
+            }
+
+            write_party_member_field(resources, selector, value, ports);
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            continue;
         }
 
         case 193U:

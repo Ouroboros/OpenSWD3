@@ -3779,6 +3779,16 @@ public:
                 return false;
             }
 
+            [[nodiscard]] bool load_party_member_level_field(
+                const openswd3::compat::u32,
+                const openswd3::compat::u32,
+                openswd3::compat::u32&
+            ) override {
+                // LEVEL.DAT field materialization belongs to the deferred B10
+                // battle database. Original open/record failure is nonfatal.
+                return false;
+            }
+
             void beep() noexcept override {}
 
             void service_audio() override {

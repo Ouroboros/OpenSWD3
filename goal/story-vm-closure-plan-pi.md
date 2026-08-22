@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一shared handler `0x0042D0D8`（opcodes188–190）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042D170`（opcode191）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -20,7 +20,7 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 - 当前 C++ 接入 95 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- `0..144`、`147..152`、`155..168`、`170..173`及`175..187`已有人工汇编语义；其余opcode目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
+- `0..144`、`147..152`、`155..168`、`170..173`及`175..191`已有人工汇编语义；其余opcode目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
 - 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
@@ -336,7 +336,13 @@ shared opcodes186–187恢复第二项0x38 party-member记录的17字段getter�
 和checked load失败均已锁定。两opcode线性资产为0；Story VM 3/3和SDL app编译通过，Linux完整门
 core 186/186、app 192/192通过。已实现190/198、已验收188/198；内部workpack为138/146，即
 `23 assembly_exact + 115 platform_adapted + 8 pending_audit`。
-下一行只审计`0x0042D0D8`下的opcodes188–190共享handler。
+shared opcodes188–190恢复第二项0x38 party-member记录17字段的set/add/sub写入、getter extension、
+i32回绕和目标宽度；field16先写低byte，再以可失败B10 LEVEL窄port成功更新field14，SDL不
+伪造LEVEL值。三opcode线性资产为0；Story VM 3/3、SDL app编译、Linux core 186/186与app
+192/192完整门全部通过。
+已实现193/198、已验收191/198；内部workpack为139/146，即
+`23 assembly_exact + 116 platform_adapted + 7 pending_audit`。
+下一行只审计`0x0042D170`下的opcode191。
 
 ### P2 · 按 handler 组逆向、实现和验证
 
