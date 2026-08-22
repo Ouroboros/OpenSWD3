@@ -6282,7 +6282,9 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     return result;
                 }
 
-                write_u16(state.window, ip + 10U, OP_144);
+                write_u16(
+                    state.window, ip + 10U, OP_144_REQUEST_SPECIAL_MODE_4_OR_5
+                );
             }
 
             if (static_cast<i16>(resources.current_second) < 0) {
@@ -6499,6 +6501,61 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             clear_legacy_world_story_flag(state, 0x12U);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+
+        case OP_144_REQUEST_SPECIAL_MODE_4_OR_5:
+            if (runtime.special_mode_state == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.special_mode_state = 0x80000004U;
+            if (!has_bytes(state.window, ip, 3U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            if (state.window[ip + 2U] == 0U) {
+                *runtime.special_mode_state = 0x80000004U;
+            } else if (state.window[ip + 2U] == 1U) {
+                *runtime.special_mode_state = 0x80000005U;
+            }
+
+            if (runtime.high_priority_state == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.high_priority_state = 0U;
+            if (!ports.reset_input_menu_and_save_previews()) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            if (runtime.high_priority_submode == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.high_priority_submode = 0U;
+            if (runtime.high_priority_auxiliary == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.high_priority_auxiliary = 0U;
+            if (runtime.special_input_mode == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.special_input_mode = 0U;
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
             state.previous_opcode = result.opcode;
             ports.service_audio();
             ++result.direct_audio_service_count;

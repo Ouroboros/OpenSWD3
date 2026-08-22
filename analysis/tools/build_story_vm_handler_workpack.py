@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 156
-EXPECTED_CLOSED_HANDLER_COUNT = 114
+EXPECTED_MODERN_CASE_COUNT = 157
+EXPECTED_CLOSED_HANDLER_COUNT = 115
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -614,6 +614,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-primary-countdown-disable-0042c766.md",
         "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;shared_owner_tested;typed_owner_boundary_tested;side_effect_order_tested;audio_yield_tested",
+    ),
+    "0x0042C79D": (
+        "platform_adapted",
+        "story-vm-special-mode-four-five-request-0042c79d.md",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;staged_operand_tested;partial_failure_tested;unread_padding_tested;shared_owner_tested;typed_owner_boundary_tested;side_effect_order_tested;audio_yield_tested;composition_tested",
     ),
 }
 

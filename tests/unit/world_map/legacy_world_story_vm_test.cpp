@@ -174,7 +174,7 @@ using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
 using openswd3::world_map::OP_141_CONFIGURE_MUSIC_STREAM_TRANSITION;
 using openswd3::world_map::OP_142_INITIALIZE_PRIMARY_COUNTDOWN;
 using openswd3::world_map::OP_143_DISABLE_PRIMARY_COUNTDOWN;
-using openswd3::world_map::OP_144;
+using openswd3::world_map::OP_144_REQUEST_SPECIAL_MODE_4_OR_5;
 using openswd3::world_map::OP_145_SET_ROLE_STATUS_BIT13;
 using openswd3::world_map::OP_146_SET_ROLE_STATUS_BIT8;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
@@ -21142,19 +21142,22 @@ void test_adjust_party_member_resources_protocol(
     const auto self_modify_result = self_modify.step();
 
     test.expect_true(
-        self_modify_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            self_modify_result.opcode == OP_144 &&
+        self_modify_result.status == LegacyWorldStoryVmStatus::yielded &&
+            self_modify_result.opcode == OP_144_REQUEST_SPECIAL_MODE_4_OR_5 &&
             self_modify_result.executed_instruction_count == 2U &&
-            self_modify.context.instruction_offset == 10U &&
+            self_modify_result.direct_audio_service_count == 1U &&
+            self_modify.context.instruction_offset == 14U &&
             self_modify.state.previous_opcode ==
-                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+                OP_144_REQUEST_SPECIAL_MODE_4_OR_5 &&
             self_modify_resources.current_first == 0U &&
             self_modify_resources.current_second == 0U &&
             self_modify_resources.current_third == 100U &&
             self_modify_resources.transient_value == 0U &&
-            read_u16(self_modify.state.window, 10U) == OP_144,
-        "opcode 134 treats wrapped negative resources as signed, rewrites the next word to pending opcode 144 when the first resource is nonpositive, and same-calls it"
+            self_modify.special_mode_state == 0x80000004U &&
+            self_modify.ports.input_menu_reset_count == 1U &&
+            read_u16(self_modify.state.window, 10U) ==
+                OP_144_REQUEST_SPECIAL_MODE_4_OR_5,
+        "opcode 134 treats wrapped negative resources as signed, rewrites the next word to opcode 144, and same-calls its mode-four audio-yield path"
     );
 
     Fixture missing_first;
@@ -22350,9 +22353,255 @@ void test_disable_primary_countdown_protocol(openswd3::test::Context& test) {
     );
 }
 
-void test_wait_picture_action_byte_protocol(
+void test_request_special_mode_four_or_five_protocol(
     openswd3::test::Context& test
 ) {
+    struct TestCase {
+        u16 alias_mask;
+        u8 selector;
+        u8 unread_padding;
+        u32 expected_mode;
+    };
+    constexpr std::array cases{
+        TestCase{0U, 0U, 0x11U, 0x80000004U},
+        TestCase{0x4000U, 1U, 0x22U, 0x80000005U},
+        TestCase{0x8000U, 2U, 0x33U, 0x80000004U},
+        TestCase{0xC000U, 0xFFU, 0x44U, 0x80000004U},
+    };
+
+    for (const auto& test_case : cases) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_144_REQUEST_SPECIAL_MODE_4_OR_5 | test_case.alias_mask
+            )
+        );
+        fixture.state.window[2U] = test_case.selector;
+        fixture.state.window[3U] = test_case.unread_padding;
+        write_u16(fixture.state.window, 4U, OP_1025);
+        fixture.special_mode_state = 0x11111111U;
+        fixture.high_priority_state = 0x22222222U;
+        fixture.high_priority_submode = 0x33333333U;
+        fixture.high_priority_auxiliary = 0x44444444U;
+        fixture.special_input_mode = 0x55555555U;
+        fixture.state.previous_opcode = 0x66U;
+        bool reset_saw_pre_state = false;
+        bool audio_saw_committed_state = false;
+        fixture.ports.input_menu_reset_callback = [&]() {
+            reset_saw_pre_state =
+                fixture.special_mode_state == test_case.expected_mode &&
+                fixture.high_priority_state == 0U &&
+                fixture.high_priority_submode == 0x33333333U &&
+                fixture.high_priority_auxiliary == 0x44444444U &&
+                fixture.special_input_mode == 0x55555555U &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode == 0x66U;
+        };
+        fixture.ports.audio_service_callback = [&]() {
+            audio_saw_committed_state =
+                fixture.special_mode_state == test_case.expected_mode &&
+                fixture.high_priority_state == 0U &&
+                fixture.high_priority_submode == 0U &&
+                fixture.high_priority_auxiliary == 0U &&
+                fixture.special_input_mode == 0U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode ==
+                    OP_144_REQUEST_SPECIAL_MODE_4_OR_5;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_144_REQUEST_SPECIAL_MODE_4_OR_5 &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.special_mode_state == test_case.expected_mode &&
+                fixture.high_priority_state == 0U &&
+                fixture.high_priority_submode == 0U &&
+                fixture.high_priority_auxiliary == 0U &&
+                fixture.special_input_mode == 0U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode ==
+                    OP_144_REQUEST_SPECIAL_MODE_4_OR_5 &&
+                fixture.ports.input_menu_reset_count == 1U &&
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{14U, 2U} &&
+                reset_saw_pre_state && audio_saw_committed_state,
+            "opcode 144 aliases select only mode five for selector byte one, ignore padding, reset in machine order, publish previous, service audio, and yield"
+        );
+    }
+
+    Fixture missing_mode_owner;
+    missing_mode_owner.runtime.special_mode_state = nullptr;
+    prime_loaded_instruction(
+        missing_mode_owner, OP_144_REQUEST_SPECIAL_MODE_4_OR_5
+    );
+    missing_mode_owner.state.window[2U] = 1U;
+    missing_mode_owner.state.previous_opcode = 0x66U;
+    const auto missing_mode_owner_result = missing_mode_owner.step();
+
+    Fixture truncated_selector;
+    truncated_selector.context.instruction_offset = 0x7FFEU;
+    truncated_selector.context.talk_data_offset = 0x1111U;
+    truncated_selector.state.loaded_file_number = 1U;
+    truncated_selector.state.loaded_data_offset = 0x1111U;
+    truncated_selector.state.window_loaded = true;
+    truncated_selector.special_mode_state = 0x11111111U;
+    truncated_selector.high_priority_state = 0x22222222U;
+    truncated_selector.state.previous_opcode = 0x66U;
+    write_u16(
+        truncated_selector.state.window,
+        0x7FFEU,
+        OP_144_REQUEST_SPECIAL_MODE_4_OR_5
+    );
+    const auto truncated_selector_result = truncated_selector.step();
+
+    Fixture missing_high_state;
+    missing_high_state.runtime.high_priority_state = nullptr;
+    prime_loaded_instruction(
+        missing_high_state, OP_144_REQUEST_SPECIAL_MODE_4_OR_5
+    );
+    missing_high_state.state.window[2U] = 1U;
+    missing_high_state.high_priority_state = 0x22222222U;
+    const auto missing_high_state_result = missing_high_state.step();
+
+    Fixture failed_reset;
+    prime_loaded_instruction(failed_reset, OP_144_REQUEST_SPECIAL_MODE_4_OR_5);
+    failed_reset.state.window[2U] = 0U;
+    failed_reset.high_priority_state = 0x22222222U;
+    failed_reset.high_priority_submode = 0x33333333U;
+    failed_reset.high_priority_auxiliary = 0x44444444U;
+    failed_reset.special_input_mode = 0x55555555U;
+    failed_reset.ports.input_menu_reset_success = false;
+    const auto failed_reset_result = failed_reset.step();
+
+    Fixture missing_submode;
+    missing_submode.runtime.high_priority_submode = nullptr;
+    prime_loaded_instruction(
+        missing_submode, OP_144_REQUEST_SPECIAL_MODE_4_OR_5
+    );
+    missing_submode.state.window[2U] = 0U;
+    missing_submode.high_priority_submode = 0x33333333U;
+    missing_submode.high_priority_auxiliary = 0x44444444U;
+    missing_submode.special_input_mode = 0x55555555U;
+    const auto missing_submode_result = missing_submode.step();
+
+    Fixture missing_auxiliary;
+    missing_auxiliary.runtime.high_priority_auxiliary = nullptr;
+    prime_loaded_instruction(
+        missing_auxiliary, OP_144_REQUEST_SPECIAL_MODE_4_OR_5
+    );
+    missing_auxiliary.state.window[2U] = 0U;
+    missing_auxiliary.high_priority_submode = 0x33333333U;
+    missing_auxiliary.high_priority_auxiliary = 0x44444444U;
+    missing_auxiliary.special_input_mode = 0x55555555U;
+    const auto missing_auxiliary_result = missing_auxiliary.step();
+
+    Fixture missing_input;
+    missing_input.runtime.special_input_mode = nullptr;
+    prime_loaded_instruction(missing_input, OP_144_REQUEST_SPECIAL_MODE_4_OR_5);
+    missing_input.state.window[2U] = 0U;
+    missing_input.high_priority_submode = 0x33333333U;
+    missing_input.high_priority_auxiliary = 0x44444444U;
+    missing_input.special_input_mode = 0x55555555U;
+    const auto missing_input_result = missing_input.step();
+
+    test.expect_true(
+        missing_mode_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_mode_owner.ports.input_menu_reset_count == 0U &&
+            truncated_selector_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated_selector.special_mode_state == 0x80000004U &&
+            truncated_selector.high_priority_state == 0x22222222U &&
+            truncated_selector.context.instruction_offset == 0x7FFEU &&
+            truncated_selector.state.previous_opcode == 0x66U &&
+            truncated_selector.ports.input_menu_reset_count == 0U &&
+            missing_high_state_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_high_state.special_mode_state == 0x80000005U &&
+            missing_high_state.high_priority_state == 0x22222222U &&
+            missing_high_state.ports.input_menu_reset_count == 0U &&
+            failed_reset_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            failed_reset.special_mode_state == 0x80000004U &&
+            failed_reset.high_priority_state == 0U &&
+            failed_reset.high_priority_submode == 0x33333333U &&
+            failed_reset.high_priority_auxiliary == 0x44444444U &&
+            failed_reset.special_input_mode == 0x55555555U &&
+            failed_reset.ports.input_menu_reset_count == 1U &&
+            missing_submode_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_submode.high_priority_state == 0U &&
+            missing_submode.high_priority_submode == 0x33333333U &&
+            missing_submode.high_priority_auxiliary == 0x44444444U &&
+            missing_submode.special_input_mode == 0x55555555U &&
+            missing_submode.ports.input_menu_reset_count == 1U &&
+            missing_auxiliary_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_auxiliary.high_priority_state == 0U &&
+            missing_auxiliary.high_priority_submode == 0U &&
+            missing_auxiliary.high_priority_auxiliary == 0x44444444U &&
+            missing_auxiliary.special_input_mode == 0x55555555U &&
+            missing_auxiliary.ports.input_menu_reset_count == 1U &&
+            missing_input_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_input.high_priority_state == 0U &&
+            missing_input.high_priority_submode == 0U &&
+            missing_input.high_priority_auxiliary == 0U &&
+            missing_input.special_input_mode == 0x55555555U &&
+            missing_input.ports.input_menu_reset_count == 1U,
+        "opcode 144 preserves every committed write across selector, binding, and reset-helper failure boundaries"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFCU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window, 0x7FFCU, OP_144_REQUEST_SPECIAL_MODE_4_OR_5
+    );
+    exact_tail.state.window[0x7FFEU] = 1U;
+    exact_tail.state.window[0x7FFFU] = 0xA5U;
+    const auto exact_tail_result = exact_tail.step();
+
+    Fixture unread_padding;
+    unread_padding.context.instruction_offset = 0x7FFDU;
+    unread_padding.context.talk_data_offset = 0x1111U;
+    unread_padding.state.loaded_file_number = 1U;
+    unread_padding.state.loaded_data_offset = 0x1111U;
+    unread_padding.state.window_loaded = true;
+    unread_padding.state.previous_opcode = 0x66U;
+    write_u16(
+        unread_padding.state.window, 0x7FFDU, OP_144_REQUEST_SPECIAL_MODE_4_OR_5
+    );
+    unread_padding.state.window[0x7FFFU] = 1U;
+    const auto unread_padding_result = unread_padding.step();
+
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.special_mode_state == 0x80000005U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_144_REQUEST_SPECIAL_MODE_4_OR_5 &&
+            unread_padding_result.status == LegacyWorldStoryVmStatus::yielded &&
+            unread_padding_result.executed_instruction_count == 1U &&
+            unread_padding_result.direct_audio_service_count == 1U &&
+            unread_padding.special_mode_state == 0x80000005U &&
+            unread_padding.context.instruction_offset == 0x8001U &&
+            unread_padding.state.previous_opcode ==
+                OP_144_REQUEST_SPECIAL_MODE_4_OR_5,
+        "opcode 144 completes at the exact tail and also ignores a missing nominal padding byte"
+    );
+}
+
+void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
         bool primary;
@@ -26365,19 +26614,22 @@ void test_real_adjust_party_member_resources_records(
             read_u16(damage_record, 2U) == 1U &&
             read_u16(damage_record, 4U) == 0xFF9CU &&
             read_u16(damage_record, 10U) == 0xFFFFU &&
-            damage_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            damage_result.opcode == OP_144 &&
+            damage_result.status == LegacyWorldStoryVmStatus::yielded &&
+            damage_result.opcode == OP_144_REQUEST_SPECIAL_MODE_4_OR_5 &&
             damage_result.executed_instruction_count == 2U &&
-            damage.context.instruction_offset == 10U &&
+            damage_result.direct_audio_service_count == 1U &&
+            damage.context.instruction_offset == 14U &&
             damage.state.previous_opcode ==
-                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+                OP_144_REQUEST_SPECIAL_MODE_4_OR_5 &&
             damage_resources.current_first == 0U &&
             damage_resources.current_second == 10U &&
             damage_resources.current_third == 10U &&
             damage_resources.transient_value == 0U &&
-            read_u16(damage.state.window, 10U) == OP_144,
-        "real opcode 134 restores all four party-member resources and rewrites the post-damage terminator to pending opcode 144"
+            damage.special_mode_state == 0x80000004U &&
+            damage.ports.input_menu_reset_count == 1U &&
+            read_u16(damage.state.window, 10U) ==
+                OP_144_REQUEST_SPECIAL_MODE_4_OR_5,
+        "real opcode 134 restores all four party-member resources and same-calls its rewritten opcode 144 mode-four audio-yield path"
     );
 }
 
@@ -27150,6 +27402,48 @@ void test_real_disable_primary_countdown_records(
     test.expect_true(
         all_records_match,
         "real opcode 143 records disable the primary countdown then service audio and yield"
+    );
+}
+
+void test_real_request_special_mode_four_or_five_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00025F51);
+    std::array<u8, 4U> record{};
+    input.read(
+        reinterpret_cast<char*>(record.data()),
+        static_cast<std::streamsize>(record.size())
+    );
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, OP_144_REQUEST_SPECIAL_MODE_4_OR_5);
+    std::ranges::copy(record, fixture.state.window.begin());
+    write_u16(fixture.state.window, 4U, OP_1025);
+    fixture.special_mode_state = 0x11111111U;
+    fixture.high_priority_state = 0x22222222U;
+    fixture.high_priority_submode = 0x33333333U;
+    fixture.high_priority_auxiliary = 0x44444444U;
+    fixture.special_input_mode = 0x55555555U;
+
+    const auto result = fixture.step();
+    test.expect_true(
+        static_cast<bool>(input) &&
+            read_u16(record, 0U) == OP_144_REQUEST_SPECIAL_MODE_4_OR_5 &&
+            record[2U] == 0U && record[3U] == 0U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_144_REQUEST_SPECIAL_MODE_4_OR_5 &&
+            result.executed_instruction_count == 1U &&
+            result.direct_audio_service_count == 1U &&
+            fixture.special_mode_state == 0x80000004U &&
+            fixture.high_priority_state == 0U &&
+            fixture.high_priority_submode == 0U &&
+            fixture.high_priority_auxiliary == 0U &&
+            fixture.special_input_mode == 0U &&
+            fixture.ports.input_menu_reset_count == 1U &&
+            fixture.context.instruction_offset == 4U &&
+            fixture.state.previous_opcode == OP_144_REQUEST_SPECIAL_MODE_4_OR_5,
+        "real opcode 144 record requests special mode four, resets menu state, services audio, and yields"
     );
 }
 
@@ -29546,6 +29840,7 @@ int main(const int argument_count, char** arguments) {
     test_configure_music_stream_transition_protocol(test);
     test_initialize_primary_countdown_protocol(test);
     test_disable_primary_countdown_protocol(test);
+    test_request_special_mode_four_or_five_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -29642,6 +29937,7 @@ int main(const int argument_count, char** arguments) {
         test_real_configure_music_stream_transition_records(test, root);
         test_real_initialize_primary_countdown_records(test, root);
         test_real_disable_primary_countdown_records(test, root);
+        test_real_request_special_mode_four_or_five_record(test, root);
         test_real_batch_set_role_positions_record(test, root);
         test_real_remove_dialogs_for_role_guid_records(test, root);
         test_real_wait_dialog_flag_records(test, root);
