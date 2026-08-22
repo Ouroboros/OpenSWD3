@@ -356,7 +356,7 @@ void test_world_music_service(openswd3::test::Context& test) {
         RecordingPorts ports;
         ports.source_filename = "Story_50.mid";
         LegacyWorldMusicState state;
-        state.request_flags = 0x008A0002U;
+        state.request_flags = 0x00AA0002U;
         state.mix_level = 11;
         state.music_slots[5U] = 77U;
 
@@ -368,8 +368,28 @@ void test_world_music_service(openswd3::test::Context& test) {
         );
         test.expect_equal(
             state.request_flags,
-            0x00880002U,
-            "successful play clears 0x20000 and writes mode two"
+            0x008A0002U,
+            "successful play clears LST bit 0x200000, preserves the scene " "restart bit and writes mode two"
+        );
+    }
+
+    {
+        RecordingPorts ports;
+        ports.source_filename = "Map_Eu08.wav";
+        LegacyWorldMusicState state;
+        state.request_flags = 0x00820002U;
+        state.music_slots[5U] = 24U;
+
+        static_cast<void>(service_legacy_world_music(state, "", ports));
+        test.expect_equal(
+            ports.last_resolved_id,
+            24U,
+            "scene mode three retains 0x20000 and loops its second slot"
+        );
+        test.expect_equal(
+            state.request_flags,
+            0x00820002U,
+            "the looping scene request remains in mode two after restart"
         );
     }
 

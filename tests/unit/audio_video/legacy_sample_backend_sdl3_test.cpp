@@ -241,6 +241,7 @@ public:
     }
 
     void play_music_stream(const std::string_view filename) override {
+        ++request_count;
         requested_filename = filename;
         static_cast<void>(
             openswd3::audio_video::play_legacy_stream(manager_, filename, 1, 6)
@@ -257,6 +258,7 @@ public:
     openswd3::audio_video::LegacyStreamManager& manager_;
     std::span<const u8> maps_payload_;
     std::string requested_filename;
+    std::size_t request_count{};
 };
 
 class VideoFramePorts final
@@ -362,6 +364,52 @@ void test_real_ffmpeg_media(
             world_music_manager.active_stream_count() == 1U &&
             !world_music_manager.stream_absent(100),
         "real MAPS map 214 resolves Map_Ca12 and starts FFmpeg BGM stream 100"
+    );
+    SDL_Delay(4'500U);
+    static_cast<void>(world_music_manager.service());
+    static_cast<void>(openswd3::audio_video::service_legacy_world_music(
+        world_music, "", world_music_ports
+    ));
+    test.expect_true(
+        world_music_ports.request_count == 2U &&
+            world_music_manager.active_stream_count() == 1U,
+        "the second map music slot starts after the first real MP3 reaches EOF"
+    );
+    SDL_Delay(4'500U);
+    static_cast<void>(world_music_manager.service());
+    static_cast<void>(openswd3::audio_video::service_legacy_world_music(
+        world_music, "", world_music_ports
+    ));
+    test.expect_true(
+        world_music_ports.request_count == 3U &&
+            world_music_manager.active_stream_count() == 1U,
+        "the MAPS 0x2000 restart flag loops the real MP3 after both slots"
+    );
+    static_cast<void>(world_music_manager.shutdown());
+
+    test.expect_equal(
+        world_music_manager.initialize_pool(1U),
+        openswd3::audio_video::LegacyStreamManagerInitializeStatus::ready,
+        "the scene-music stream pool reinitializes"
+    );
+    openswd3::audio_video::LegacyWorldMusicState scene_music{
+        .request_flags = 0x00820002U,
+        .music_slots = {0U, 0U, 0U, 0U, 0U, 102U, 0U},
+        .mix_level = 6,
+    };
+    RealWorldMusicPorts scene_music_ports{world_music_manager, maps_payload};
+    static_cast<void>(openswd3::audio_video::service_legacy_world_music(
+        scene_music, "", scene_music_ports
+    ));
+    SDL_Delay(4'500U);
+    static_cast<void>(world_music_manager.service());
+    static_cast<void>(openswd3::audio_video::service_legacy_world_music(
+        scene_music, "", scene_music_ports
+    ));
+    test.expect_true(
+        scene_music_ports.request_count == 2U &&
+            world_music_manager.active_stream_count() == 1U,
+        "the scene 0x20000 restart flag loops a real FFmpeg MP3"
     );
     static_cast<void>(world_music_manager.shutdown());
 

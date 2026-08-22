@@ -9,6 +9,7 @@ constexpr compat::u32 kLegacyNormalRestartFlag = 0x00080000U;
 constexpr compat::u32 kLegacyNormalFirstSlotFlag = 0x00040000U;
 constexpr compat::u32 kLegacyAlternateRestartFlag = 0x00020000U;
 constexpr compat::u32 kLegacyAlternateFirstSlotFlag = 0x00010000U;
+constexpr compat::u32 kLegacyPostPlayClearFlag = 0x00200000U;
 constexpr compat::u32 kLegacyMusicRequestPairMask = 0x000C0000U;
 constexpr compat::u32 kLegacyMapRequestPreserveMask = 0x008FFFFFU;
 constexpr compat::u32 kLegacyLowByteMask = 0x000000FFU;
@@ -266,7 +267,7 @@ bool service_legacy_world_music(
             if (path.has_value()) {
                 ports.play_music_stream(*path);
                 ports.set_music_stream_volume(state.mix_level);
-                state.request_flags &= ~kLegacyAlternateRestartFlag;
+                state.request_flags &= ~kLegacyPostPlayClearFlag;
             }
         }
     }

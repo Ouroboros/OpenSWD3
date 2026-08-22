@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v414
+版本：v415
 
 最后更新：2026-08-22
 
@@ -3033,7 +3033,9 @@ B7 P0 有限收口完成。
 - FFmpeg BGM运行时修复完成Linux验证。原SDL主帧`update_background_music()`为空，导致MP3
     后端可独立播放但地图音乐请求从未被消费；现将剧情VM六槽音乐状态、真实MAPS地图音乐表、
     ID文件名目录、stream transition和`LegacyStreamManager`接入主帧。真实map214解析ID102并
-    启动`Music\\Map_Ca12.mp3`的stream100；新增请求、启动、目录失败和打开失败日志。Linux
-    core186/186、app192/192通过。
+    启动`Music\\Map_Ca12.mp3`的stream100；新增请求、启动、目录失败和打开失败日志。首次接线
+    将LST掩码`0xFFDFFFFF`误读为清`0x00020000`，导致`Story_10`到`Map_Eu08`的场景第二槽不能
+    循环；现修正为只清`0x00200000`，保留场景循环位。普通组与场景组真实MP3 EOF重开均通过。
+    Linux core186/186、app192/192通过。
 
 下一工作包：Windows FFmpeg BGM实际播放复测与完整门；通过前不恢复模块9。

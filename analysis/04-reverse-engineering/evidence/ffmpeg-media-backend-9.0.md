@@ -48,6 +48,8 @@ Linux共享库RUNPATH优先使用`$ORIGIN`。Windows测试证明复制后的DLL�
 
 世界BGM运行时直接复用剧情VM中与原全局一致的六个音乐槽、请求控制位和stream transition字段。主帧从MAPS payload的根目录读取8字节地图音乐表，并从相邻的四字节偏移目录把音乐ID解析为源文件名；例如真实map214解析为ID102和`Map_Ca12.`，最终构造`Music\\Map_Ca12.mp3`并建立用户数据编号100的stream。BGM请求、启动、目录解析失败和媒体打开失败均写入运行日志。
 
+逐帧消费末尾的`and ecx, 0xFFDFFFFF`只清`0x00200000`，不得清场景组循环位`0x00020000`。初次主帧接线误把掩码解释为后者，导致`Story_10`与`Map_Eu08`场景音乐对进入第二槽后不能循环；现已按LST修正，场景第二槽在真实MP3 EOF后重新建立stream100。
+
 ## 视频后端
 
 `make_legacy_video_backend()`创建进程内单实例句柄后端，用于Bink容器。
@@ -79,7 +81,7 @@ SDL主运行时不再实例化不可用的stream backend或立即完成型video 
 ## 验证
 
 - 链接的运行时版本以`n9.0`开头。
-- Linux真实SDL媒体测试通过：真实MAPS map214经世界音乐状态机启动`Music\\Map_Ca12.mp3`的stream100；`firegod.bik`完整176帧和`opening.bik`完整7,369帧均解码到EOF。
+- Linux真实SDL媒体测试通过：真实MAPS map214经世界音乐状态机启动`Music\\Map_Ca12.mp3`的stream100；普通组`0x00080000`和场景组`0x00020000`均在真实MP3 EOF后重开stream100；`firegod.bik`完整176帧和`opening.bik`完整7,369帧均解码到EOF。
 - Player fake backend测试证明：解码EOF不会复制或呈现黑帧；解码失败会关闭句柄。
 - 帧运行时测试证明：剧情VM写入的视频活动位会保留在发布给idle分派的已接受帧状态中。
 - 运行时修复后，Linux core无SDL/无FFmpeg配置保持独立并通过`186/186`。
