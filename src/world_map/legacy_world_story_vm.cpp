@@ -33,6 +33,7 @@ constexpr u16 kContextSelector = 0xFFFDU;
 constexpr u32 kRoleStatusBit26 = 0x04000000U;
 constexpr u16 kSelectionScrollTerminator = 0xFF00U;
 constexpr u16 kPercentQTerminator = 0x5125U;
+constexpr u32 kShopSpecialModeRequest = 0x80000002U;
 constexpr u32 kTalkEntriesPerFile = 2000U;
 constexpr std::size_t kObjectRoleIndexOffset = 0x00U;
 constexpr std::size_t kObjectPathCursorOffset = 0x02U;
@@ -6123,6 +6124,65 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 8U);
             state.previous_opcode = result.opcode;
             continue;
+        }
+
+        case OP_133_REQUEST_SHOP: {
+            std::vector<u16>{}.swap(state.shop_item_ids);
+            try {
+                state.shop_item_ids.reserve(
+                    kLegacyWorldStoryShopBufferWordCount
+                );
+            } catch (const std::bad_alloc&) {
+                result.status =
+                    LegacyWorldStoryVmStatus::shop_item_list_allocation_failed;
+                return result;
+            } catch (...) {
+                result.status =
+                    LegacyWorldStoryVmStatus::shop_item_list_allocation_failed;
+                return result;
+            }
+
+            std::size_t item_count = 0U;
+            std::size_t cursor = ip + 2U;
+            for (;;) {
+                if (!has_bytes(state.window, cursor, sizeof(u16))) {
+                    result.status = LegacyWorldStoryVmStatus::
+                        shop_item_list_terminator_not_found;
+                    return result;
+                }
+
+                if (read_u16(state.window, cursor) == 0U) {
+                    break;
+                }
+
+                ++item_count;
+                cursor += sizeof(u16);
+            }
+
+            if (item_count > kLegacyWorldStoryShopItemCapacity) {
+                result.status =
+                    LegacyWorldStoryVmStatus::shop_item_list_out_of_range;
+                return result;
+            }
+
+            state.shop_item_ids.resize(item_count);
+            for (std::size_t index = 0U; index < item_count; ++index) {
+                state.shop_item_ids[index] =
+                    read_u16(state.window, ip + 2U + index * sizeof(u16));
+            }
+
+            if (runtime.special_mode_state == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.special_mode_state = kShopSpecialModeRequest;
+            context.instruction_offset = static_cast<u16>(
+                context.instruction_offset + 4U + item_count * sizeof(u16)
+            );
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
         }
 
         case 141U:

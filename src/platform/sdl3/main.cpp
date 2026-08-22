@@ -3850,6 +3850,8 @@ public:
                 .role_head_actions = &world_role_head_actions_,
                 .battle_request_value =
                     &frame_coordinator_state_.battle.battle_request_value,
+                .special_mode_state =
+                    &frame_coordinator_state_.battle.special_mode_state,
                 .frame_color = &world_frame_effects_.frame_color,
                 .story_paths = &story_paths,
                 .indexed_target_selector =

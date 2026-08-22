@@ -34,6 +34,9 @@ namespace openswd3::world_map {
 inline constexpr std::size_t kLegacyWorldStoryFlagBytes = 0x400U;
 inline constexpr std::size_t kLegacyWorldScriptVariableCount = 64U;
 inline constexpr std::size_t kLegacyWorldStoryTextAllocationSize = 0x100U;
+inline constexpr std::size_t kLegacyWorldStoryShopBufferWordCount = 0x80U;
+inline constexpr std::size_t kLegacyWorldStoryShopItemCapacity =
+    kLegacyWorldStoryShopBufferWordCount - 1U;
 
 enum LegacyWorldStoryOpcode : compat::u16 {
     OP_07_CLEAR_DIALOG_CONTROL_BIT31 = 7U,
@@ -160,6 +163,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM = 130U,
     OP_131_ADD_PARTY_ITEM_IF_ALLOWED = 131U,
     OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT = 132U,
+    OP_133_REQUEST_SHOP = 133U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
@@ -184,6 +188,10 @@ struct LegacyWorldStoryVmState {
     // node owns a separately allocated 0x100-byte zero-filled text buffer.
     std::list<std::array<compat::u8, kLegacyWorldStoryTextAllocationSize>>
         text_allocation_chain;
+    // Opcode 133 replaces the process-level 0x100-byte item-id buffer.
+    // Shop mode 2 consumes the nonzero u16 ids and releases that owner on exit;
+    // sub_40E0B0 does not reset it.
+    std::vector<compat::u16> shop_item_ids;
     compat::u32 text_control_flags{0xFFFFFFFFU};
     compat::i32 text_layout_first{};
     compat::i32 text_layout_second{};
@@ -254,6 +262,7 @@ struct LegacyWorldStoryVmRuntime {
     LegacyMovingActionList* moving_actions{};
     LegacyRoleHeadActionList* role_head_actions{};
     compat::u32* battle_request_value{};
+    compat::u32* special_mode_state{};
     rendering::LegacyFrameColorTransitionState* frame_color{};
     LegacyWorldStoryPathRuntime* story_paths{};
     compat::u32* indexed_target_selector{};
@@ -381,6 +390,9 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     unsupported_packed_row_effect_operation,
     item_allocation_failed,
     item_update_failed,
+    shop_item_list_allocation_failed,
+    shop_item_list_terminator_not_found,
+    shop_item_list_out_of_range,
     role_allocation_failed,
     role_transfer_failed,
     role_map_update_failed,

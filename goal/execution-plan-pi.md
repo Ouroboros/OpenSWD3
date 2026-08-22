@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v351
+版本：v353
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042C234` handler（opcode 133）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042C2C6` handler（opcode 134）
 
 ## 0. 执行约定
 
@@ -70,7 +70,7 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 - 进程入口、消息泵、单帧调度、世界/特殊模式/战斗分支和退出顶层流程已有汇编证据。
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
 - 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
-- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..132`及`167..168`；其余 opcode 与 Ani 播放语义尚未完成。
+- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..133`及`167..168`；其余 opcode 与 Ani 播放语义尚未完成。
 - 309 张地图的物理容器、40 份存档的压缩边界和战斗顶层入口已经恢复；地图内部、存档业务字段和战斗内部状态机仍待对应模块处理。
 
 ## 3. 执行方法
@@ -2540,4 +2540,16 @@ B7 P0 有限收口完成。
     已验收145/198；内部workpack106/146，即`15 assembly_exact + 91 platform_adapted +
     40 pending_audit`。
 
-下一组只审计`0x0042C234` / opcode133。
+- 剧情VM P2第一百零七组`0x0042C234` / opcode133完成独立闭环。机器先释放旧256字节
+    商品ID owner并分配替换owner，再从`+2`逐u16扫描到零、复制非零ID并补终止word；成功后
+    写special mode请求`0x80000002`，按`4+2*N`推进、发布previous133并yield。现代以进程期
+    vector承接owner，保持替换先于scan；127项为最大合法容量，缺terminator、128项越界和
+    fixed global写分别在原危险点typed-stop。SDL已接实际frame coordinator的special-mode owner；
+    B9后续消费ID列表并物化商品链，不在VM伪造。线性资产锁定22条记录/22 probes，TALK1/TALK3
+    分布15/7，真实六项代表回放通过。Story VM 3/3、Linux core 186/186与app 192/192完整门
+    均以exit 0通过；workpack双生成稳定hash为`41681a72d859e8b5fa10484f7f4569abcca5485a678c841502d53b6f45b88653`。
+    未启动游戏EXE。人工语义增至146行，现代显式opcode增至150；对外进度为已实现150/198、
+    已验收146/198；内部workpack107/146，即`15 assembly_exact + 92 platform_adapted +
+    39 pending_audit`。
+
+下一组只审计`0x0042C2C6` / opcode134。

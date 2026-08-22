@@ -163,6 +163,7 @@ using openswd3::world_map::OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM;
 using openswd3::world_map::OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM;
 using openswd3::world_map::OP_131_ADD_PARTY_ITEM_IF_ALLOWED;
 using openswd3::world_map::OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT;
+using openswd3::world_map::OP_133_REQUEST_SHOP;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -840,6 +841,7 @@ struct FixtureStorage {
     u32 indexed_target_selector{};
     openswd3::input_time_rng::LegacySecondaryRng secondary_rng{};
     u32 speed_mode{};
+    u32 special_mode_state{};
     LegacyWorldItemListState item_lists;
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     RecordingPorts ports{};
@@ -877,6 +879,7 @@ struct Fixture {
     openswd3::input_time_rng::LegacySecondaryRng& secondary_rng =
         storage->secondary_rng;
     u32& speed_mode = storage->speed_mode;
+    u32& special_mode_state = storage->special_mode_state;
     LegacyWorldItemListState& item_lists = storage->item_lists;
     std::list<LegacyWorldItemNode>& player_inventory =
         item_lists.player_inventory;
@@ -909,6 +912,7 @@ struct Fixture {
         runtime.indexed_target_selector = &indexed_target_selector;
         runtime.secondary_rng = &secondary_rng;
         runtime.speed_mode = &speed_mode;
+        runtime.special_mode_state = &special_mode_state;
         runtime.player_inventory = &player_inventory;
         runtime.party_item_lists = &item_lists.party_item_lists;
         runtime.role_item_lists = &item_lists.role_item_lists;
@@ -20872,6 +20876,162 @@ void test_swap_player_item_into_role_slot_protocol(
     );
 }
 
+void test_request_shop_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.shop_item_ids = {1U, 2U, 3U};
+        fixture.special_mode_state = 0x11111111U;
+        prime_loaded_instruction(
+            fixture, static_cast<u16>(OP_133_REQUEST_SHOP | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, 501U);
+        write_u16(fixture.state.window, 4U, 0xFFFFU);
+        write_u16(fixture.state.window, 6U, 0U);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_133_REQUEST_SHOP &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 8U &&
+                fixture.state.previous_opcode == OP_133_REQUEST_SHOP &&
+                fixture.state.shop_item_ids ==
+                    std::vector<u16>{501U, 0xFFFFU} &&
+                fixture.special_mode_state == 0x80000002U,
+            "opcode 133 aliases replace the process shop item-id buffer, request shop mode 2, publish previous, and yield"
+        );
+    }
+
+    Fixture empty;
+    empty.state.shop_item_ids = {1U};
+    prime_loaded_instruction(empty, OP_133_REQUEST_SHOP);
+    write_u16(empty.state.window, 2U, 0U);
+    const auto empty_result = empty.step();
+
+    Fixture maximum;
+    prime_loaded_instruction(maximum, OP_133_REQUEST_SHOP);
+    for (std::size_t index = 0U;
+         index < openswd3::world_map::kLegacyWorldStoryShopItemCapacity;
+         ++index) {
+        write_u16(
+            maximum.state.window,
+            2U + index * sizeof(u16),
+            static_cast<u16>(0x0200U + index)
+        );
+    }
+    write_u16(
+        maximum.state.window,
+        2U +
+            openswd3::world_map::kLegacyWorldStoryShopItemCapacity *
+                sizeof(u16),
+        0U
+    );
+    const auto maximum_result = maximum.step();
+
+    Fixture overflow;
+    overflow.state.shop_item_ids = {9U};
+    overflow.special_mode_state = 0x22222222U;
+    prime_loaded_instruction(overflow, OP_133_REQUEST_SHOP);
+    for (std::size_t index = 0U;
+         index <= openswd3::world_map::kLegacyWorldStoryShopItemCapacity;
+         ++index) {
+        write_u16(
+            overflow.state.window,
+            2U + index * sizeof(u16),
+            static_cast<u16>(0x0300U + index)
+        );
+    }
+    write_u16(
+        overflow.state.window,
+        2U +
+            (openswd3::world_map::kLegacyWorldStoryShopItemCapacity + 1U) *
+                sizeof(u16),
+        0U
+    );
+    const auto overflow_result = overflow.step();
+
+    test.expect_true(
+        empty_result.status == LegacyWorldStoryVmStatus::yielded &&
+            empty.context.instruction_offset == 4U &&
+            empty.state.shop_item_ids.empty() &&
+            empty.special_mode_state == 0x80000002U &&
+            maximum_result.status == LegacyWorldStoryVmStatus::yielded &&
+            maximum.context.instruction_offset == 258U &&
+            maximum.state.shop_item_ids.size() ==
+                openswd3::world_map::kLegacyWorldStoryShopItemCapacity &&
+            maximum.state.shop_item_ids.front() == 0x0200U &&
+            maximum.state.shop_item_ids.back() == 0x027EU &&
+            maximum.special_mode_state == 0x80000002U &&
+            overflow_result.status ==
+                LegacyWorldStoryVmStatus::shop_item_list_out_of_range &&
+            overflow.context.instruction_offset == 0U &&
+            overflow.state.previous_opcode == 0U &&
+            overflow.state.shop_item_ids.empty() &&
+            overflow.special_mode_state == 0x22222222U,
+        "opcode 133 accepts zero through 127 item ids and stops after the terminator scan when 128 ids exceed the fixed buffer"
+    );
+
+    Fixture missing_terminator;
+    missing_terminator.context.instruction_offset = 0x7FFCU;
+    missing_terminator.context.talk_data_offset = 0x1111U;
+    missing_terminator.state.loaded_file_number = 1U;
+    missing_terminator.state.loaded_data_offset = 0x1111U;
+    missing_terminator.state.window_loaded = true;
+    missing_terminator.state.shop_item_ids = {1U, 2U};
+    missing_terminator.special_mode_state = 0x33333333U;
+    write_u16(missing_terminator.state.window, 0x7FFCU, OP_133_REQUEST_SHOP);
+    write_u16(missing_terminator.state.window, 0x7FFEU, 501U);
+    const auto missing_terminator_result = missing_terminator.step();
+
+    Fixture missing_mode_owner;
+    missing_mode_owner.runtime.special_mode_state = nullptr;
+    prime_loaded_instruction(missing_mode_owner, OP_133_REQUEST_SHOP);
+    write_u16(missing_mode_owner.state.window, 2U, 501U);
+    write_u16(missing_mode_owner.state.window, 4U, 502U);
+    write_u16(missing_mode_owner.state.window, 6U, 0U);
+    const auto missing_mode_owner_result = missing_mode_owner.step();
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    write_u16(exact_tail.state.window, 0x7FFAU, OP_133_REQUEST_SHOP);
+    write_u16(exact_tail.state.window, 0x7FFCU, 0x0401U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0U);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        missing_terminator_result.status ==
+                LegacyWorldStoryVmStatus::shop_item_list_terminator_not_found &&
+            missing_terminator.context.instruction_offset == 0x7FFCU &&
+            missing_terminator.state.previous_opcode == 0U &&
+            missing_terminator.state.shop_item_ids.empty() &&
+            missing_terminator.special_mode_state == 0x33333333U &&
+            missing_mode_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_mode_owner.context.instruction_offset == 0U &&
+            missing_mode_owner.state.previous_opcode == 0U &&
+            missing_mode_owner.state.shop_item_ids ==
+                std::vector<u16>{501U, 502U} &&
+            exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_133_REQUEST_SHOP &&
+            exact_tail.state.shop_item_ids == std::vector<u16>{0x0401U} &&
+            exact_tail.special_mode_state == 0x80000002U,
+        "opcode 133 preserves replacement-before-scan failures, commits the list before the mode owner, and completes an exact-tail request"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -24756,6 +24916,41 @@ void test_real_adjust_player_item_quantity_record(
     );
 }
 
+void test_real_request_shop_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00007AEE);
+    std::array<u8, 16U> record{};
+    input.read(
+        reinterpret_cast<char*>(record.data()),
+        static_cast<std::streamsize>(record.size())
+    );
+    const bool record_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    std::ranges::copy(record, fixture.state.window.begin());
+    fixture.state.loaded_file_number = 1U;
+    fixture.state.loaded_data_offset = 0x000078EEU;
+    fixture.state.window_loaded = true;
+    fixture.context.talk_data_offset = 0x000078EEU;
+
+    const auto result = fixture.step();
+    test.expect_true(
+        record_read && read_u16(record, 0U) == OP_133_REQUEST_SHOP &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_133_REQUEST_SHOP &&
+            result.executed_instruction_count == 1U &&
+            result.direct_audio_service_count == 0U &&
+            fixture.context.instruction_offset == 16U &&
+            fixture.state.previous_opcode == OP_133_REQUEST_SHOP &&
+            fixture.state.shop_item_ids ==
+                std::vector<u16>{501U, 502U, 503U, 521U, 851U, 855U} &&
+            fixture.special_mode_state == 0x80000002U,
+        "real opcode 133 requests shop mode 2 with six item ids from TALK1 offset 0x7AEE"
+    );
+}
+
 void test_real_item_presence_reload_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -27592,6 +27787,7 @@ int main(const int argument_count, char** arguments) {
     test_item_presence_reload_protocol(test);
     test_add_party_item_if_allowed_protocol(test);
     test_swap_player_item_into_role_slot_protocol(test);
+    test_request_shop_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -27675,6 +27871,7 @@ int main(const int argument_count, char** arguments) {
         test_real_role_base_variant_reload_record(test, root);
         test_real_adjust_player_item_quantity_record(test, root);
         test_real_item_presence_reload_records(test, root);
+        test_real_request_shop_record(test, root);
         test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_wait_role_action_index_records(test, root);
         test_real_step_role_list_records(test, root);
