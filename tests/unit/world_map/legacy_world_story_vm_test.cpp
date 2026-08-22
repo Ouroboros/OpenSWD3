@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <span>
 #include <string_view>
@@ -151,6 +152,7 @@ using openswd3::world_map::OP_121_CLEAR_TEXT_CONTROL_BIT26;
 using openswd3::world_map::OP_122_CLEAR_SPEED_MODE;
 using openswd3::world_map::OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY;
 using openswd3::world_map::OP_124_CLEAR_TEXT_CONTROL_BIT25;
+using openswd3::world_map::OP_125_APPEND_TEXT_ALLOCATION;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -19049,6 +19051,175 @@ void test_clear_text_control_bit25_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_append_text_allocation_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_125_APPEND_TEXT_ALLOCATION | alias_mask)
+        );
+        fixture.state.window[2U] = static_cast<u8>('A');
+        fixture.state.window[3U] = static_cast<u8>('B');
+        fixture.state.window[4U] = static_cast<u8>('%');
+        fixture.state.window[5U] = static_cast<u8>('Q');
+        write_u16(fixture.state.window, 6U, OP_1025);
+
+        const auto result = fixture.step();
+        const auto& allocation = fixture.state.text_allocation_chain.back();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word ==
+                    static_cast<u16>(
+                        OP_125_APPEND_TEXT_ALLOCATION | alias_mask
+                    ) &&
+                result.opcode == OP_125_APPEND_TEXT_ALLOCATION &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.text_allocation_chain.size() == 1U &&
+                allocation[0U] == static_cast<u8>('A') &&
+                allocation[1U] == static_cast<u8>('B') &&
+                allocation[2U] == static_cast<u8>('%') &&
+                allocation[3U] == static_cast<u8>('Q') &&
+                allocation[4U] == 0U && allocation[5U] == 0U &&
+                allocation.back() == 0U &&
+                fixture.state.previous_opcode == OP_125_APPEND_TEXT_ALLOCATION,
+            "opcode 125 aliases append one zero-filled terminated allocation and yield"
+        );
+
+        const auto successor = fixture.step();
+        test.expect_true(
+            successor.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                successor.opcode == OP_1025 &&
+                successor.executed_instruction_count == 1U &&
+                fixture.context.instruction_offset == 6U,
+            "opcode 125 leaves its successor for the next VM call"
+        );
+    }
+
+    Fixture persistent_chain;
+    prime_loaded_instruction(persistent_chain, OP_125_APPEND_TEXT_ALLOCATION);
+    persistent_chain.state.window[2U] = static_cast<u8>('%');
+    persistent_chain.state.window[3U] = static_cast<u8>('Q');
+    write_u16(persistent_chain.state.window, 4U, OP_125_APPEND_TEXT_ALLOCATION);
+    persistent_chain.state.window[6U] = static_cast<u8>('X');
+    persistent_chain.state.window[7U] = static_cast<u8>('%');
+    persistent_chain.state.window[8U] = static_cast<u8>('Q');
+    const auto first_append = persistent_chain.step();
+    const auto second_append = persistent_chain.step();
+    openswd3::world_map::initialize_legacy_world_story_vm(
+        persistent_chain.state
+    );
+    const auto first_allocation =
+        persistent_chain.state.text_allocation_chain.begin();
+    const auto second_allocation = std::next(first_allocation);
+
+    test.expect_true(
+        first_append.status == LegacyWorldStoryVmStatus::yielded &&
+            first_append.executed_instruction_count == 1U &&
+            second_append.status == LegacyWorldStoryVmStatus::yielded &&
+            second_append.executed_instruction_count == 1U &&
+            persistent_chain.context.instruction_offset == 9U &&
+            persistent_chain.state.text_allocation_chain.size() == 2U &&
+            (*first_allocation)[0U] == static_cast<u8>('%') &&
+            (*first_allocation)[1U] == static_cast<u8>('Q') &&
+            (*first_allocation)[2U] == 0U &&
+            (*second_allocation)[0U] == static_cast<u8>('X') &&
+            (*second_allocation)[1U] == static_cast<u8>('%') &&
+            (*second_allocation)[2U] == static_cast<u8>('Q') &&
+            (*second_allocation)[3U] == 0U,
+        "opcode 125 appends in order and the process allocation chain survives VM initialization"
+    );
+
+    Fixture missing_terminator;
+    prime_loaded_instruction(missing_terminator, OP_125_APPEND_TEXT_ALLOCATION);
+    missing_terminator.context.instruction_offset = 0x7FFCU;
+    write_u16(
+        missing_terminator.state.window, 0x7FFCU, OP_125_APPEND_TEXT_ALLOCATION
+    );
+    missing_terminator.state.window[0x7FFEU] = static_cast<u8>('A');
+    missing_terminator.state.window[0x7FFFU] = static_cast<u8>('B');
+    const auto missing_result = missing_terminator.step();
+
+    Fixture copy_overflow;
+    prime_loaded_instruction(copy_overflow, OP_125_APPEND_TEXT_ALLOCATION);
+    std::ranges::fill_n(
+        copy_overflow.state.window.begin() + 2U, 257U, static_cast<u8>('A')
+    );
+    copy_overflow.state.window[259U] = static_cast<u8>('%');
+    copy_overflow.state.window[260U] = static_cast<u8>('Q');
+    const auto copy_overflow_result = copy_overflow.step();
+
+    test.expect_true(
+        missing_result.status ==
+                LegacyWorldStoryVmStatus::
+                    text_allocation_terminator_not_found &&
+            missing_terminator.context.instruction_offset == 0x7FFCU &&
+            missing_terminator.state.text_allocation_chain.size() == 1U &&
+            missing_terminator.state.text_allocation_chain.back()[0U] ==
+                static_cast<u8>('A') &&
+            missing_terminator.state.text_allocation_chain.back()[1U] == 0U &&
+            missing_terminator.state.previous_opcode == 0U &&
+            copy_overflow_result.status ==
+                LegacyWorldStoryVmStatus::text_allocation_out_of_range &&
+            copy_overflow.context.instruction_offset == 0U &&
+            copy_overflow.state.text_allocation_chain.size() == 1U &&
+            std::ranges::all_of(
+                copy_overflow.state.text_allocation_chain.back(),
+                [](const u8 byte) { return byte == static_cast<u8>('A'); }
+            ) &&
+            copy_overflow.state.previous_opcode == 0U,
+        "opcode 125 retains its linked allocation and staged copy on malformed input"
+    );
+
+    Fixture suffix_overflow;
+    prime_loaded_instruction(suffix_overflow, OP_125_APPEND_TEXT_ALLOCATION);
+    std::ranges::fill_n(
+        suffix_overflow.state.window.begin() + 2U, 254U, static_cast<u8>('A')
+    );
+    suffix_overflow.state.window[256U] = static_cast<u8>('%');
+    suffix_overflow.state.window[257U] = static_cast<u8>('Q');
+    const auto suffix_overflow_result = suffix_overflow.step();
+    const auto& suffix_allocation =
+        suffix_overflow.state.text_allocation_chain.back();
+
+    Fixture exact_tail;
+    prime_loaded_instruction(exact_tail, OP_125_APPEND_TEXT_ALLOCATION);
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    write_u16(exact_tail.state.window, 0x7FFAU, OP_125_APPEND_TEXT_ALLOCATION);
+    exact_tail.state.window[0x7FFCU] = static_cast<u8>('A');
+    exact_tail.state.window[0x7FFDU] = static_cast<u8>('B');
+    exact_tail.state.window[0x7FFEU] = static_cast<u8>('%');
+    exact_tail.state.window[0x7FFFU] = static_cast<u8>('Q');
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        suffix_overflow_result.status ==
+                LegacyWorldStoryVmStatus::text_allocation_out_of_range &&
+            suffix_overflow.context.instruction_offset == 258U &&
+            suffix_allocation[253U] == static_cast<u8>('A') &&
+            suffix_allocation[254U] == static_cast<u8>('%') &&
+            suffix_allocation[255U] == static_cast<u8>('Q') &&
+            suffix_overflow.state.previous_opcode == 0U &&
+            suffix_overflow.ports.direct_audio_service_count == 0U &&
+            exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.text_allocation_chain.back()[0U] ==
+                static_cast<u8>('A') &&
+            exact_tail.state.text_allocation_chain.back()[4U] == 0U &&
+            exact_tail.state.previous_opcode == OP_125_APPEND_TEXT_ALLOCATION,
+        "opcode 125 advances before staged suffix writes and completes an exact-tail record"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -25519,6 +25690,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_speed_mode_protocol(test);
     test_update_scene_music_table_entry_protocol(test);
     test_clear_text_control_bit25_protocol(test);
+    test_append_text_allocation_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);

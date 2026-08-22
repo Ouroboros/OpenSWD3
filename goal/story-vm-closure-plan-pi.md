@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042BD06`（opcode125）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042BDBC`（opcodes126、127）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -20,7 +20,7 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 - 当前 C++ 接入 95 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- `0..124` 已有人工汇编语义；`125..193` 目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
+- `0..125` 已有人工汇编语义；`126..193` 目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
 - 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至136行。前100行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至137行。前101行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -187,7 +187,11 @@ app 192/192通过。opcode123按三层相对链首匹配更新Scene_Music表项�
 opcode123 Linux core 186/186与app 192/192通过。opcode124只清text-control bit25并same-call继续；
 完整线性TALK目录零记录，以asset absence和synthetic锁定。已实现139/198、已验收135/198；内部
 workpack为100/146，即`15 assembly_exact + 85 platform_adapted + 46 pending_audit`。opcode124 Linux
-core 186/186与app 192/192通过。下一行只审计`0x0042BD06`下的opcode125。
+core 186/186与app 192/192通过。opcode125恢复进程期文本分配链尾插、`%Q`动态记录、IP先于suffix
+提交和audio-yield；零资产以asset absence与synthetic锁定。已实现140/198、已验收136/198；
+Linux core 186/186与app 192/192完整门通过。内部workpack为101/146，即`15 assembly_exact +
+86 platform_adapted + 45 pending_audit`。下一行只审计
+`0x0042BDBC`下的opcodes126、127。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

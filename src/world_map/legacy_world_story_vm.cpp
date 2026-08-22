@@ -30,6 +30,7 @@ constexpr u16 kCurrentSourceSelector = 0xFFF0U;
 constexpr u16 kContextSelector = 0xFFFDU;
 constexpr u32 kRoleStatusBit26 = 0x04000000U;
 constexpr u16 kSelectionScrollTerminator = 0xFF00U;
+constexpr u16 kPercentQTerminator = 0x5125U;
 constexpr u32 kTalkEntriesPerFile = 2000U;
 constexpr std::size_t kObjectRoleIndexOffset = 0x00U;
 constexpr std::size_t kObjectPathCursorOffset = 0x02U;
@@ -5452,6 +5453,62 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 2U);
             state.previous_opcode = result.opcode;
             continue;
+
+        case OP_125_APPEND_TEXT_ALLOCATION: {
+            try {
+                state.text_allocation_chain.emplace_back();
+            } catch (const std::bad_alloc&) {
+                result.status =
+                    LegacyWorldStoryVmStatus::text_allocation_failed;
+                return result;
+            } catch (...) {
+                result.status =
+                    LegacyWorldStoryVmStatus::text_allocation_failed;
+                return result;
+            }
+
+            auto& allocation = state.text_allocation_chain.back();
+            allocation.fill(0U);
+            std::size_t cursor = ip + 2U;
+            std::size_t copied_size{};
+            for (;;) {
+                if (!has_bytes(state.window, cursor, sizeof(u16))) {
+                    result.status = LegacyWorldStoryVmStatus::
+                        text_allocation_terminator_not_found;
+                    return result;
+                }
+                if (read_u16(state.window, cursor) == kPercentQTerminator) {
+                    break;
+                }
+                if (copied_size >= allocation.size()) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::text_allocation_out_of_range;
+                    return result;
+                }
+                allocation[copied_size++] = state.window[cursor++];
+            }
+
+            context.instruction_offset = static_cast<u16>(cursor + 2U);
+            constexpr std::array<u8, 3U> kTerminatedSuffix{
+                static_cast<u8>('%'),
+                static_cast<u8>('Q'),
+                0U,
+            };
+            for (const u8 byte : kTerminatedSuffix) {
+                if (copied_size >= allocation.size()) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::text_allocation_out_of_range;
+                    return result;
+                }
+                allocation[copied_size++] = byte;
+            }
+
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
 
         case 141U:
             if (!has_bytes(state.window, ip, 6U)) {

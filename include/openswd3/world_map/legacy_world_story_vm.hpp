@@ -32,6 +32,7 @@ namespace openswd3::world_map {
 
 inline constexpr std::size_t kLegacyWorldStoryFlagBytes = 0x400U;
 inline constexpr std::size_t kLegacyWorldScriptVariableCount = 64U;
+inline constexpr std::size_t kLegacyWorldStoryTextAllocationSize = 0x100U;
 
 enum LegacyWorldStoryOpcode : compat::u16 {
     OP_07_CLEAR_DIALOG_CONTROL_BIT31 = 7U,
@@ -150,6 +151,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_122_CLEAR_SPEED_MODE = 122U,
     OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY = 123U,
     OP_124_CLEAR_TEXT_CONTROL_BIT25 = 124U,
+    OP_125_APPEND_TEXT_ALLOCATION = 125U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
@@ -168,6 +170,10 @@ struct LegacyWorldStoryVmState {
     std::array<compat::u8, kLegacyWorldStoryFlagBytes> flags{};
     std::array<compat::u32, kLegacyWorldScriptVariableCount> script_variables{};
     std::array<compat::u8, 32U> speaker_name{};
+    // Opcode 125 appends to the process-level 0x004C99FC chain. Each legacy
+    // node owns a separately allocated 0x100-byte zero-filled text buffer.
+    std::list<std::array<compat::u8, kLegacyWorldStoryTextAllocationSize>>
+        text_allocation_chain;
     compat::u32 text_control_flags{0xFFFFFFFFU};
     compat::i32 text_layout_first{};
     compat::i32 text_layout_second{};
@@ -346,6 +352,9 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     moving_action_allocation_failed,
     role_head_action_allocation_failed,
     packed_row_effect_allocation_failed,
+    text_allocation_failed,
+    text_allocation_terminator_not_found,
+    text_allocation_out_of_range,
     unsupported_packed_row_effect_operation,
     role_allocation_failed,
     role_transfer_failed,
