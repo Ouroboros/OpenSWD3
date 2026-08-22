@@ -519,16 +519,19 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
         return result;
     }
 
-    const auto& map_session = result.session.render.map_load.session;
-    const auto& roles = map_session.business.state.roles;
+    auto& map_session = result.session.render.map_load.session;
+    auto& roles = map_session.business.state.roles;
     if (result.session.selected_role_index == 0U ||
         result.session.selected_role_index >= roles.size()) {
         result.status =
             LegacyWorldRuntimeSessionStatus::selected_role_not_materialized;
         return result;
     }
+    auto& selected_role = roles[result.session.selected_role_index];
+    selected_role.world_x = request.load.tile_x << 4U;
+    selected_role.world_y = request.load.tile_y << 4U;
     recenter_legacy_world_camera(
-        roles[result.session.selected_role_index],
+        selected_role,
         map_session.header.width,
         map_session.header.height,
         result.session.camera

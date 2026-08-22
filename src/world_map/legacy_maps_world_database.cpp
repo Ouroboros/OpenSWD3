@@ -565,8 +565,8 @@ LegacyMapsWorldLoadApplyResult apply_legacy_maps_world_load(
                 role.action_id = request.action_id;
                 role.base_variant = request.base_variant;
                 role.variant_delta = request.variant_delta;
-                role.tile_x = request.tile_x;
-                role.tile_y = request.tile_y;
+                role.tile_x = static_cast<u16>(request.tile_x);
+                role.tile_y = static_cast<u16>(request.tile_y);
                 role.talk_script_id = 0U;
                 role.path_data_id = 0U;
                 role.path_word_index = 0;

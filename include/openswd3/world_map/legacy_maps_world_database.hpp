@@ -34,8 +34,8 @@ struct LegacyMapsWorldHeader {
 
 struct LegacyWorldLoadRequest {
     compat::u16 logical_map_id{};
-    compat::u16 tile_x{};
-    compat::u16 tile_y{};
+    compat::u32 tile_x{};
+    compat::u32 tile_y{};
     compat::u16 action_id{};
     compat::u16 base_variant{};
     compat::u16 variant_delta{};

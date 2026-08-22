@@ -546,6 +546,58 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
             result.session.camera.bottom == 480U,
         "sub_40D0C0 centers then clamps the selected role camera"
     );
+
+    std::vector<u8> wide_payload = make_maps_payload();
+    write_u16(wide_payload, 0x74U, 0x4000U);
+    const auto wide_decoded = decode_legacy_maps_world_database(wide_payload);
+    auto wide_load = wide_decoded.database.initial_load;
+    wide_load.tile_x = 0x0001000BU;
+    wide_load.tile_y = 0x0002000CU;
+    std::vector<std::string> wide_stages;
+    FakeMapSource wide_map_source{wide_stages};
+    FakeCmSource wide_cm_source{wide_stages};
+    RecordingActionInitializer wide_action_initializer{wide_stages};
+    SequenceWorldRuntimeRandom wide_random;
+    auto wide_result = load_legacy_world_runtime_session(
+        wide_payload,
+        LegacyWorldRuntimeSessionRequest{
+            .archive_path = "huge.lmf",
+            .cache_directory = tree.root() / "cache" / "wide-maps",
+            .load = wide_load,
+            .cache_limit_megabytes = 60U,
+            .pixel_conversion = rgb565_conversion(),
+            .random = &wide_random,
+        },
+        wide_action_initializer,
+        wide_map_source,
+        wide_cm_source
+    );
+    auto& wide_roles =
+        wide_result.session.render.map_load.session.business.state.roles;
+    const auto wide_source = std::ranges::find(
+        wide_result.session.maps_database.role_sources,
+        7U,
+        &openswd3::world_map::LegacyMapsRoleSourceRecord::guid
+    );
+    test.expect_true(
+        wide_result.status == LegacyWorldRuntimeSessionStatus::ready &&
+            wide_result.session.selected_role_index == 2U &&
+            wide_roles[2U].world_x == 0x001000B0U &&
+            wide_roles[2U].world_y == 0x002000C0U,
+        "the loader retains full dword selected world coordinates"
+    );
+    const u32 rebound_cell = (wide_roles[2U].world_y >> 4U) *
+            wide_result.session.render.map_load.session.header.width +
+        (wide_roles[2U].world_x >> 4U);
+    test.expect_true(
+        wide_roles[2U].map_cell_pointer_32 != rebound_cell,
+        "the full coordinate overwrite leaves the prior spatial binding unchanged"
+    );
+    test.expect_true(
+        wide_source != wide_result.session.maps_database.role_sources.end() &&
+            wide_source->tile_x == 0x000BU && wide_source->tile_y == 0x000CU,
+        "the loader writes only the low coordinate words to the MAPS source"
+    );
 }
 
 void test_role_initialization_marks_surface_occupancy(

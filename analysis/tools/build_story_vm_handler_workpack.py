@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 163
-EXPECTED_CLOSED_HANDLER_COUNT = 121
+EXPECTED_MODERN_CASE_COUNT = 164
+EXPECTED_CLOSED_HANDLER_COUNT = 122
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -649,6 +649,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-ani-follower-target-wait-0042c936.md",
         "platform_adapted;unit_tested;asset_absence_verified;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;shared_owner_tested;short_circuit_tested;wait_complete_tested;previous_publication_tested;audio_yield_tested",
+    ),
+    "0x0042C95B": (
+        "platform_adapted",
+        "story-vm-current-world-session-reload-0042c95b.md",
+        "platform_adapted;unit_tested;asset_absence_verified;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;shared_owner_tested;staged_write_tested;original_bug_tested;reload_failure_tested;audio_yield_tested",
     ),
 }
 

@@ -183,6 +183,7 @@ using openswd3::world_map::OP_149_CLEAR_STORY_FLAG_19;
 using openswd3::world_map::OP_150_CONFIGURE_ANI_FOLLOWER_POSITION;
 using openswd3::world_map::OP_151_CONFIGURE_ANI_FOLLOWER_TARGET;
 using openswd3::world_map::OP_152_WAIT_ANI_FOLLOWER_TARGET;
+using openswd3::world_map::OP_155_RELOAD_CURRENT_WORLD_SESSION;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -23350,6 +23351,150 @@ void test_wait_ani_follower_target_protocol(openswd3::test::Context& test) {
     }
 }
 
+void test_reload_current_world_session_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.runtime.current_logical_map_id = 21U;
+        fixture.runtime.role_surface.selected_guid = 0x00F8U;
+        fixture.roles[0].world_x = 0xFFFEDCBAU;
+        fixture.roles[0].world_y = 0x81234567U;
+        fixture.roles[0].action.action_id = 0x00012345U;
+        fixture.state.deferred_map_tile_x = -1;
+        fixture.state.deferred_map_tile_y = -1;
+        fixture.state.deferred_map_id = 0;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_155_RELOAD_CURRENT_WORLD_SESSION | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        bool committed_before_audio = false;
+        fixture.ports.audio_service_callback = [&]() {
+            const auto& request = fixture.ports.last_world_load_request;
+            committed_before_audio =
+                fixture.state.deferred_map_tile_x == 0x0FFFEDCB &&
+                fixture.state.deferred_map_tile_y == 0x08123456 &&
+                fixture.state.deferred_map_id == 21 &&
+                fixture.ports.world_session_reload_begin_count == 1U &&
+                fixture.ports.world_session_reload_count == 1U &&
+                request.logical_map_id == 21U &&
+                request.tile_x == 0x0FFFEDCBU &&
+                request.tile_y == 0x08123456U && request.action_id == 0x2345U &&
+                request.base_variant == 0U && request.variant_delta == 1U &&
+                request.selected_guid == 0x00F8U && request.load_flags == 1U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode ==
+                    OP_155_RELOAD_CURRENT_WORLD_SESSION;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word ==
+                    static_cast<u16>(
+                        OP_155_RELOAD_CURRENT_WORLD_SESSION | alias_mask
+                    ) &&
+                result.opcode == OP_155_RELOAD_CURRENT_WORLD_SESSION &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode ==
+                    OP_155_RELOAD_CURRENT_WORLD_SESSION &&
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{6U, 7U, 2U} &&
+                committed_before_audio,
+            "opcode 155 aliases retain full shifted role coordinates, submit fixed reload parameters, publish previous, service audio, and yield"
+        );
+    }
+
+    Fixture map_twenty_two;
+    map_twenty_two.runtime.current_logical_map_id = 22U;
+    map_twenty_two.state.deferred_map_tile_x = 111;
+    map_twenty_two.state.deferred_map_tile_y = 222;
+    map_twenty_two.state.deferred_map_id = 333;
+    prime_loaded_instruction(
+        map_twenty_two, OP_155_RELOAD_CURRENT_WORLD_SESSION
+    );
+    const auto map_twenty_two_result = map_twenty_two.step();
+    test.expect_true(
+        map_twenty_two_result.status == LegacyWorldStoryVmStatus::yielded &&
+            map_twenty_two_result.direct_audio_service_count == 1U &&
+            map_twenty_two.state.deferred_map_tile_x == 111 &&
+            map_twenty_two.state.deferred_map_tile_y == 222 &&
+            map_twenty_two.state.deferred_map_id == 333 &&
+            map_twenty_two.ports.world_session_reload_begin_count == 0U &&
+            map_twenty_two.ports.world_session_reload_count == 0U &&
+            map_twenty_two.context.instruction_offset == 2U &&
+            map_twenty_two.state.previous_opcode ==
+                OP_155_RELOAD_CURRENT_WORLD_SESSION &&
+            map_twenty_two.ports.story_protocol_events == std::vector<u32>{2U},
+        "opcode 155 map 22 follows the debug-only no-op path and preserves deferred map state"
+    );
+
+    Fixture load_failure;
+    load_failure.runtime.current_logical_map_id = 21U;
+    load_failure.roles[0].world_x = 0x12340U;
+    load_failure.roles[0].world_y = 0x56780U;
+    load_failure.roles[0].action.action_id = 0x12345U;
+    prime_loaded_instruction(load_failure, OP_155_RELOAD_CURRENT_WORLD_SESSION);
+    load_failure.state.previous_opcode = 0x66U;
+    load_failure.ports.world_session_reload_success = false;
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status ==
+                LegacyWorldStoryVmStatus::world_session_load_failed &&
+            load_failure_result.direct_audio_service_count == 0U &&
+            load_failure.state.deferred_map_tile_x == 0x1234 &&
+            load_failure.state.deferred_map_tile_y == 0x5678 &&
+            load_failure.state.deferred_map_id == 21 &&
+            load_failure.ports.world_session_reload_begin_count == 1U &&
+            load_failure.ports.world_session_reload_count == 1U &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode == 0x66U &&
+            load_failure.ports.story_protocol_events ==
+                std::vector<u32>{6U, 7U},
+        "opcode 155 checked reload failure preserves all deferred writes but not IP, previous, or audio"
+    );
+
+    Fixture exact_tail;
+    exact_tail.runtime.current_logical_map_id = 21U;
+    exact_tail.runtime.role_surface.selected_guid = 0x00F8U;
+    exact_tail.roles[0].world_x = 0x12340U;
+    exact_tail.roles[0].world_y = 0x56780U;
+    exact_tail.roles[0].action.action_id = 0x12345U;
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window, 0x7FFEU, OP_155_RELOAD_CURRENT_WORLD_SESSION
+    );
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.opcode == OP_155_RELOAD_CURRENT_WORLD_SESSION &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.state.deferred_map_tile_x == 0x1234 &&
+            exact_tail.state.deferred_map_tile_y == 0x5678 &&
+            exact_tail.state.deferred_map_id == 21 &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_155_RELOAD_CURRENT_WORLD_SESSION,
+        "opcode 155 completes its synchronous reload before previous, audio maintenance, and yield at the exact window tail"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
@@ -30656,6 +30801,7 @@ int main(const int argument_count, char** arguments) {
     test_configure_ani_follower_position_protocol(test);
     test_configure_ani_follower_target_protocol(test);
     test_wait_ani_follower_target_protocol(test);
+    test_reload_current_world_session_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
