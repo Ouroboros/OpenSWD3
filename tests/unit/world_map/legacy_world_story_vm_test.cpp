@@ -35,6 +35,7 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::resource_io::LegacyTalkWindowLoadResult;
 using openswd3::resource_io::LegacyTalkWindowStatus;
+using openswd3::world_map::LegacyWorldItemListState;
 using openswd3::world_map::LegacyWorldItemNode;
 using openswd3::world_map::LegacyWorldRoleRecord;
 using openswd3::world_map::LegacyWorldObjectSlot;
@@ -158,12 +159,16 @@ using openswd3::world_map::OP_125_APPEND_TEXT_ALLOCATION;
 using openswd3::world_map::OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL;
 using openswd3::world_map::OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL;
 using openswd3::world_map::OP_128_ADJUST_PLAYER_ITEM_QUANTITY;
+using openswd3::world_map::OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM;
+using openswd3::world_map::OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
 using openswd3::world_map::OP_145_SET_ROLE_STATUS_BIT13;
 using openswd3::world_map::OP_146_SET_ROLE_STATUS_BIT8;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
+using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
+using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_174_SET_ROLE_STATUS_BIT14;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
@@ -833,7 +838,7 @@ struct FixtureStorage {
     u32 indexed_target_selector{};
     openswd3::input_time_rng::LegacySecondaryRng secondary_rng{};
     u32 speed_mode{};
-    std::list<LegacyWorldItemNode> player_inventory;
+    LegacyWorldItemListState item_lists;
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     RecordingPorts ports{};
 };
@@ -870,8 +875,9 @@ struct Fixture {
     openswd3::input_time_rng::LegacySecondaryRng& secondary_rng =
         storage->secondary_rng;
     u32& speed_mode = storage->speed_mode;
+    LegacyWorldItemListState& item_lists = storage->item_lists;
     std::list<LegacyWorldItemNode>& player_inventory =
-        storage->player_inventory;
+        item_lists.player_inventory;
     openswd3::world_map::LegacyWorldStoryVmRuntime& runtime = storage->runtime;
     RecordingPorts& ports = storage->ports;
 
@@ -902,6 +908,7 @@ struct Fixture {
         runtime.secondary_rng = &secondary_rng;
         runtime.speed_mode = &speed_mode;
         runtime.player_inventory = &player_inventory;
+        runtime.role_item_lists = &item_lists.role_item_lists;
         dialog_resources.frame_actions[0].action_id = 0x232DU;
         dialog_resources.caption_actions[0].action_id = 0x2337U;
     }
@@ -19863,6 +19870,272 @@ void test_adjust_player_item_quantity_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_item_presence_reload_protocol(openswd3::test::Context& test) {
+    struct Variant {
+        u16 opcode;
+        bool role_root_only;
+        bool inverted;
+    };
+
+    constexpr std::array<Variant, 4U> variants{
+        Variant{OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM, false, false},
+        Variant{OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM, false, true},
+        Variant{
+            OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM,
+            true,
+            false,
+        },
+        Variant{
+            OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM,
+            true,
+            true,
+        },
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    constexpr u32 target = 0x12345678U;
+
+    for (const auto variant : variants) {
+        for (const u16 alias_mask : alias_masks) {
+            Fixture fixture;
+            const u16 item_id =
+                variant.opcode == OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM
+                ? 0xC123U
+                : 0x0123U;
+            if (!variant.inverted) {
+                if (variant.role_root_only) {
+                    fixture.item_lists.role_item_lists[2]->sentinel.item_id =
+                        item_id;
+                } else {
+                    fixture.player_inventory.emplace_back();
+                    fixture.player_inventory.front().item_id =
+                        static_cast<u16>(item_id | 0xC000U);
+                }
+            } else if (variant.role_root_only) {
+                fixture.player_inventory.emplace_back();
+                fixture.player_inventory.front().item_id =
+                    static_cast<u16>(item_id | 0xC000U);
+            }
+
+            prime_loaded_instruction(
+                fixture, static_cast<u16>(variant.opcode | alias_mask)
+            );
+            write_u16(fixture.state.window, 2U, item_id);
+            write_u32(fixture.state.window, 4U, target);
+            write_u16(fixture.ports.transferred_window, 0U, 1026U);
+            write_u16(fixture.ports.transferred_window, 2U, 16383U);
+
+            const auto result = fixture.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::terminated &&
+                    result.executed_instruction_count == 3U &&
+                    result.direct_audio_service_count == 1U &&
+                    fixture.ports.data_load_count == 1U &&
+                    fixture.ports.last_data_file_number == 1U &&
+                    fixture.ports.last_data_offset == target &&
+                    !fixture.ports.last_data_clear_before_read &&
+                    fixture.ports.story_protocol_events ==
+                        std::vector<u32>{2U, 5U, 4U} &&
+                    fixture.state.previous_opcode == variant.opcode,
+                "shared item-presence reload aliases take each positive or inverted predicate and same-call the target window"
+            );
+        }
+    }
+
+    for (const auto variant : variants) {
+        Fixture fixture;
+        constexpr u16 item_id = 0x0123U;
+        if (variant.inverted) {
+            if (variant.role_root_only) {
+                fixture.item_lists.role_item_lists[0]->sentinel.item_id =
+                    item_id;
+            } else {
+                fixture.player_inventory.emplace_back();
+                fixture.player_inventory.front().item_id = 0xC123U;
+            }
+        } else if (variant.role_root_only) {
+            fixture.player_inventory.emplace_back();
+            fixture.player_inventory.front().item_id = 0xC123U;
+            fixture.item_lists.role_item_lists[0]->sentinel.item_id = 0xC123U;
+            fixture.item_lists.role_item_lists[0]->nodes.emplace_back();
+            fixture.item_lists.role_item_lists[0]->nodes.front().item_id =
+                item_id;
+        }
+
+        prime_loaded_instruction(fixture, variant.opcode);
+        write_u16(fixture.state.window, 2U, item_id);
+        write_u32(fixture.state.window, 4U, target);
+        write_u16(fixture.state.window, 8U, OP_59_PLAY_SOUND_EFFECT);
+        write_u16(fixture.state.window, 10U, 0x0073U);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_59_PLAY_SOUND_EFFECT &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 12U &&
+                fixture.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+                fixture.ports.data_load_count == 0U &&
+                fixture.ports.sound_effect_requests ==
+                    std::vector<u16>{0x0073U},
+            "shared item-presence reload variants invert independently and role-only variants ignore player matches and linked role nodes"
+        );
+    }
+
+    Fixture missing_player_owner;
+    missing_player_owner.runtime.player_inventory = nullptr;
+    missing_player_owner.item_lists.role_item_lists[0]->sentinel.item_id =
+        0x0222U;
+    prime_loaded_instruction(
+        missing_player_owner, OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM
+    );
+    write_u16(missing_player_owner.state.window, 2U, 0x0222U);
+    write_u32(missing_player_owner.state.window, 4U, target);
+    const auto missing_player_owner_result = missing_player_owner.step();
+
+    Fixture missing_role_owner;
+    missing_role_owner.player_inventory.emplace_back();
+    missing_role_owner.player_inventory.front().item_id = 0x0222U;
+    missing_role_owner.runtime.role_item_lists = nullptr;
+    prime_loaded_instruction(
+        missing_role_owner, OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM
+    );
+    write_u16(missing_role_owner.state.window, 2U, 0x0222U);
+    write_u32(missing_role_owner.state.window, 4U, target);
+    const auto missing_role_owner_result = missing_role_owner.step();
+
+    Fixture missing_role_root;
+    missing_role_root.player_inventory.emplace_back();
+    missing_role_root.player_inventory.front().item_id = 0x0222U;
+    missing_role_root.item_lists.role_item_lists[0].reset();
+    prime_loaded_instruction(
+        missing_role_root, OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM
+    );
+    write_u16(missing_role_root.state.window, 2U, 0x0222U);
+    write_u32(missing_role_root.state.window, 4U, target);
+    const auto missing_role_root_result = missing_role_root.step();
+
+    Fixture early_role_match;
+    early_role_match.item_lists.role_item_lists[0]->sentinel.item_id = 0x0222U;
+    early_role_match.item_lists.role_item_lists[1].reset();
+    prime_loaded_instruction(
+        early_role_match, OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM
+    );
+    write_u16(early_role_match.state.window, 2U, 0x0222U);
+    write_u32(early_role_match.state.window, 4U, target);
+    write_u16(early_role_match.ports.transferred_window, 0U, 1026U);
+    write_u16(early_role_match.ports.transferred_window, 2U, 16383U);
+    const auto early_role_match_result = early_role_match.step();
+
+    test.expect_true(
+        missing_player_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_player_owner.ports.data_load_count == 0U &&
+            missing_role_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_role_owner.ports.data_load_count == 0U &&
+            missing_role_root_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_role_root.ports.data_load_count == 0U &&
+            early_role_match_result.status ==
+                LegacyWorldStoryVmStatus::terminated &&
+            early_role_match.ports.data_load_count == 1U,
+        "item-presence reload preserves player-first owner access and the 64-root helper's first-match return"
+    );
+
+    Fixture target_truncated;
+    target_truncated.context.instruction_offset = 0x7FFCU;
+    target_truncated.context.talk_data_offset = 0x1111U;
+    target_truncated.state.loaded_file_number = 1U;
+    target_truncated.state.loaded_data_offset = 0x1111U;
+    target_truncated.state.window_loaded = true;
+    target_truncated.player_inventory.emplace_back();
+    target_truncated.player_inventory.front().item_id = 0xC333U;
+    write_u16(
+        target_truncated.state.window,
+        0x7FFCU,
+        OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM
+    );
+    write_u16(target_truncated.state.window, 0x7FFEU, 0x0333U);
+    const auto target_truncated_result = target_truncated.step();
+
+    Fixture no_target_needed;
+    no_target_needed.context.instruction_offset = 0x7FFCU;
+    no_target_needed.context.talk_data_offset = 0x1111U;
+    no_target_needed.state.loaded_file_number = 1U;
+    no_target_needed.state.loaded_data_offset = 0x1111U;
+    no_target_needed.state.window_loaded = true;
+    write_u16(
+        no_target_needed.state.window,
+        0x7FFCU,
+        OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM
+    );
+    write_u16(no_target_needed.state.window, 0x7FFEU, 0x0333U);
+    const auto no_target_needed_result = no_target_needed.step();
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FF8U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    write_u16(
+        exact_tail.state.window,
+        0x7FF8U,
+        OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM
+    );
+    write_u16(exact_tail.state.window, 0x7FFAU, 0x0333U);
+    write_u32(exact_tail.state.window, 0x7FFCU, target);
+    write_u16(exact_tail.ports.transferred_window, 0U, 1026U);
+    write_u16(exact_tail.ports.transferred_window, 2U, 16383U);
+    const auto exact_tail_result = exact_tail.step();
+
+    Fixture load_failure;
+    prime_loaded_instruction(
+        load_failure, OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM
+    );
+    write_u16(load_failure.state.window, 2U, 0x0333U);
+    write_u32(load_failure.state.window, 4U, target);
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    load_failure.state.previous_opcode = 0x55U;
+    const auto load_failure_result = load_failure.step();
+
+    test.expect_true(
+        target_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            target_truncated.context.instruction_offset == 0x7FFCU &&
+            target_truncated.state.previous_opcode == 0U &&
+            target_truncated.ports.data_load_count == 0U &&
+            no_target_needed_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            no_target_needed_result.executed_instruction_count == 1U &&
+            no_target_needed.context.instruction_offset == 0x8004U &&
+            no_target_needed.state.previous_opcode ==
+                OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM &&
+            no_target_needed.ports.data_load_count == 0U &&
+            exact_tail_result.status == LegacyWorldStoryVmStatus::terminated &&
+            exact_tail_result.executed_instruction_count == 3U &&
+            exact_tail.ports.last_data_offset == target &&
+            load_failure_result.status ==
+                LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.executed_instruction_count == 1U &&
+            load_failure_result.direct_audio_service_count == 1U &&
+            load_failure.context.talk_data_offset == target &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM &&
+            load_failure.ports.story_protocol_events ==
+                std::vector<u32>{2U, 5U},
+        "item-presence reload reads its u32 target only when taken and preserves common reload failure publication"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -23747,6 +24020,97 @@ void test_real_adjust_player_item_quantity_record(
     );
 }
 
+void test_real_item_presence_reload_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        u16 opcode;
+        u16 item_id;
+        u32 target;
+    };
+
+    constexpr std::array<RealCase, 4U> cases{
+        RealCase{
+            "TALK1.DAT",
+            0x0004D692,
+            OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM,
+            799U,
+            0x0004D868U,
+        },
+        RealCase{
+            "TALK1.DAT",
+            0x00029C8F,
+            OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM,
+            402U,
+            0x00029AC9U,
+        },
+        RealCase{
+            "TALK1.DAT",
+            0x000238AB,
+            OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM,
+            1004U,
+            0x00023785U,
+        },
+        RealCase{
+            "TALK3.DAT",
+            0x0002452E,
+            OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM,
+            578U,
+            0x0002435EU,
+        },
+    };
+
+    for (const auto real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 8U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        if (real_case.opcode == OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM) {
+            fixture.player_inventory.emplace_back();
+            fixture.player_inventory.front().item_id = real_case.item_id;
+        } else if (
+            real_case.opcode == OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM
+        ) {
+            fixture.item_lists.role_item_lists[0]->sentinel.item_id =
+                real_case.item_id;
+        }
+
+        std::ranges::copy(record, fixture.state.window.begin());
+        fixture.state.loaded_file_number =
+            real_case.file == std::string_view{"TALK3.DAT"} ? 3U : 1U;
+        fixture.state.loaded_data_offset =
+            static_cast<u32>(real_case.offset) - 0x200U;
+        fixture.state.window_loaded = true;
+        fixture.context.talk_data_offset =
+            static_cast<u32>(real_case.offset) - 0x200U;
+        write_u16(fixture.ports.transferred_window, 0U, 1026U);
+        write_u16(fixture.ports.transferred_window, 2U, 16383U);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read && read_u16(record, 0U) == real_case.opcode &&
+                read_u16(record, 2U) == real_case.item_id &&
+                read_u32(record, 4U) == real_case.target &&
+                result.status == LegacyWorldStoryVmStatus::terminated &&
+                result.executed_instruction_count == 3U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.ports.last_data_offset == real_case.target &&
+                fixture.state.previous_opcode == real_case.opcode,
+            "real shared item-presence reload record takes its opcode-specific predicate and same-calls the target"
+        );
+    }
+}
+
 void test_real_wait_primary_picture_action_byte_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -26489,6 +26853,7 @@ int main(const int argument_count, char** arguments) {
     test_append_text_allocation_protocol(test);
     test_role_base_variant_reload_protocol(test);
     test_adjust_player_item_quantity_protocol(test);
+    test_item_presence_reload_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -26571,6 +26936,7 @@ int main(const int argument_count, char** arguments) {
         test_real_update_scene_music_table_entry_records(test, root);
         test_real_role_base_variant_reload_record(test, root);
         test_real_adjust_player_item_quantity_record(test, root);
+        test_real_item_presence_reload_records(test, root);
         test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_wait_role_action_index_records(test, root);
         test_real_step_role_list_records(test, root);

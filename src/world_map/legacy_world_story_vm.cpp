@@ -1574,6 +1574,35 @@ release_legacy_world_story_role_path(
     return LegacyWorldStoryVmStatus::idle;
 }
 
+[[nodiscard]] bool player_inventory_has_item(
+    const std::list<LegacyWorldItemNode>& inventory, const u16 item_id
+) noexcept {
+    return std::ranges::any_of(
+        inventory, [item_id](const LegacyWorldItemNode& item) {
+            return (item.item_id & 0x3FFFU) == item_id;
+        }
+    );
+}
+
+[[nodiscard]] std::optional<bool> role_item_roots_have_item(
+    const std::array<
+        std::optional<LegacyWorldSentinelItemList>,
+        kLegacyRoleItemListCount>& role_item_lists,
+    const u16 item_id
+) noexcept {
+    for (const auto& list : role_item_lists) {
+        if (!list.has_value()) {
+            return std::nullopt;
+        }
+
+        if (list->sentinel.item_id == item_id) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 }  // namespace
 
 void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept {
@@ -5687,6 +5716,75 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ++result.direct_audio_service_count;
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
+        }
+
+        case OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM:
+        case OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM:
+        case OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM:
+        case OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM: {
+            if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const u16 item_id = read_u16(state.window, ip + 2U);
+            if (runtime.player_inventory == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            const bool player_has_item =
+                player_inventory_has_item(*runtime.player_inventory, item_id);
+            const u16 role_root_item_id = read_u16(state.window, ip + 2U);
+            if (runtime.role_item_lists == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            const auto role_root_has_item = role_item_roots_have_item(
+                *runtime.role_item_lists, role_root_item_id
+            );
+            if (!role_root_has_item.has_value()) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            const bool role_root_only =
+                result.opcode == OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM ||
+                result.opcode == OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
+            const bool inverted =
+                result.opcode == OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM ||
+                result.opcode == OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
+            const bool item_present =
+                *role_root_has_item || (!role_root_only && player_has_item);
+            const bool reload = item_present != inverted;
+            if (reload) {
+                if (!has_bytes(state.window, ip + 4U, sizeof(u32))) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+
+                result.status = load_same_file_story_window(
+                    context,
+                    state,
+                    current_file_number(context, state),
+                    read_u32(state.window, ip + 4U),
+                    result,
+                    ports
+                );
+            } else {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 8U);
+                result.status = LegacyWorldStoryVmStatus::idle;
+            }
+
+            state.previous_opcode = result.opcode;
+            if (result.status != LegacyWorldStoryVmStatus::idle) {
+                return result;
+            }
+
+            continue;
         }
 
         case 141U:

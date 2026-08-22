@@ -156,6 +156,8 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL = 126U,
     OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL = 127U,
     OP_128_ADJUST_PLAYER_ITEM_QUANTITY = 128U,
+    OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM = 129U,
+    OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM = 130U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
@@ -165,6 +167,8 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE = 154U,
     OP_174_SET_ROLE_STATUS_BIT14 = 174U,
     OP_162_LOAD_DYNAMIC_NAME_RECORD = 162U,
+    OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM = 167U,
+    OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM = 168U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
 };
@@ -259,6 +263,9 @@ struct LegacyWorldStoryVmRuntime {
     // shared dialog runtime. Opcode 122 clears the same process-level owner.
     compat::u32* speed_mode{};
     std::list<LegacyWorldItemNode>* player_inventory{};
+    const std::array<
+        std::optional<LegacyWorldSentinelItemList>,
+        kLegacyRoleItemListCount>* role_item_lists{};
 };
 
 void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept;
