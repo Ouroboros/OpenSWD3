@@ -122,7 +122,7 @@ struct LegacyMapsWorldDatabaseResult {
     LegacyMapsWorldDatabaseStatus status{
         LegacyMapsWorldDatabaseStatus::payload_header_truncated
     };
-    LegacyMapsWorldDatabase database;
+    LegacyMapsWorldDatabase database{};
 };
 
 enum class LegacyMapsMapNameLookupStatus {

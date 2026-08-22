@@ -2133,6 +2133,30 @@ void test_real_clear_speed_mode_records(
 void test_real_update_scene_music_table_entry_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+        std::array<u8, 10U> record{};
+        bool record_read{};
+    };
+    std::array<RealCase, 4U> cases{
+        RealCase{"TALK1.DAT", 0x00022C77},
+        RealCase{"TALK2.DAT", 0x0001836F},
+        RealCase{"TALK3.DAT", 0x0000CD7A},
+        RealCase{"TALK4.DAT", 0x000289D1},
+    };
+    for (auto& real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        input.read(
+            reinterpret_cast<char*>(real_case.record.data()),
+            static_cast<std::streamsize>(real_case.record.size())
+        );
+        real_case.record_read = static_cast<bool>(input);
+    }
+
     openswd3::resource_io::LegacyResourceDatabases databases;
     const auto initialized = databases.initialize(root);
     const auto maps = databases.reload_maps_payload();
@@ -2153,29 +2177,9 @@ void test_real_update_scene_music_table_entry_records(
         databases.maps_payload_bytes().end(),
     };
 
-    struct RealCase {
-        const char* file;
-        std::streamoff offset;
-    };
-    constexpr std::array<RealCase, 4U> cases{
-        RealCase{"TALK1.DAT", 0x00022C77},
-        RealCase{"TALK2.DAT", 0x0001836F},
-        RealCase{"TALK3.DAT", 0x0000CD7A},
-        RealCase{"TALK4.DAT", 0x000289D1},
-    };
-
     for (const auto& real_case : cases) {
-        std::ifstream input{
-            root / real_case.file, std::ios::binary | std::ios::in
-        };
-        input.seekg(real_case.offset);
-        std::array<u8, 10U> record{};
-        input.read(
-            reinterpret_cast<char*>(record.data()),
-            static_cast<std::streamsize>(record.size())
-        );
-        const bool record_read = static_cast<bool>(input);
-
+        const auto& record = real_case.record;
+        const bool record_read = real_case.record_read;
         std::vector<u8> payload = baseline;
         const u32 first_offset = read_u32(payload, 0x08U);
         const u32 second_offset = read_u32(payload, first_offset + 4U);

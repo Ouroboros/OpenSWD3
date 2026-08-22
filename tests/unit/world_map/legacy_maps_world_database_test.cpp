@@ -184,6 +184,15 @@ void test_decode_and_lookup(openswd3::test::Context& test) {
             result.database.header.role_defaults_directory_offset == 0xB0U,
         "payload-relative pointers come from header +04/+0c/+10/+18/+54"
     );
+    test.expect_true(
+        std::ranges::all_of(
+            result.database.party_attributes,
+            [](const auto& record) {
+                return record[0x36U] == 0U && record[0x37U] == 0U;
+            }
+        ),
+        "new party records preserve the zero-initialized unwritten tail"
+    );
     const auto& initial = result.database.initial_load;
     test.expect_true(
         initial.logical_map_id == 5U && initial.tile_x == 11U &&
