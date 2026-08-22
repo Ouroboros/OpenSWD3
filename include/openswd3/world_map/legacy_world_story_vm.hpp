@@ -223,6 +223,8 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_183_SUBTRACT_GLOBAL_INTEGER_WIDE_CLAMP_ZERO = 183U,
     OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE = 184U,
     OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE = 185U,
+    OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE = 186U,
+    OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE = 187U,
     OP_1025 = 1025U,
 };
 
@@ -238,13 +240,18 @@ enum class LegacyWorldStoryFileDirectory : compat::u8 {
 };
 
 struct LegacyWorldStoryPartyMemberResources {
+    compat::u32 field_00{};
     compat::u16 current_first{};
     compat::u16 current_second{};
     compat::u16 current_third{};
     compat::u16 limit_first{};
     compat::u16 limit_second{};
     compat::u16 limit_third{};
+    std::array<compat::u16, 8U> fields_10_to_1e{};
+    compat::u32 field_20{};
     compat::u16 transient_value{};
+    compat::u32 field_28{};
+    compat::u8 field_2c{};
 };
 
 struct LegacyWorldStoryModeText {
@@ -269,9 +276,8 @@ struct LegacyWorldStoryVmState {
     // dword_4B751C/dword_4B74F4. Special modes 17/18 consume these bytes and
     // persistence serializes the two blocks in this order.
     std::array<LegacyWorldStoryModeText, 2U> mode_texts;
-    // Opcode 134 directly updates the first three current/limit word pairs in
-    // four process-level 0x38-byte party-member records, then clears +0x24.
-    // The remaining record fields and persistence loading belong to B10/B11.
+    // Opcodes 134, 186 and 187 share four process-level 0x38-byte
+    // party-member records. B10/B11 still own real record loading/persistence.
     std::array<
         LegacyWorldStoryPartyMemberResources,
         kLegacyWorldStoryPartyMemberResourceCount>

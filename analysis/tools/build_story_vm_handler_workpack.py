@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 188
-EXPECTED_CLOSED_HANDLER_COUNT = 137
+EXPECTED_MODERN_CASE_COUNT = 190
+EXPECTED_CLOSED_HANDLER_COUNT = 138
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -729,6 +729,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-wide-global-integers-0042b070.md",
         "platform_adapted;unit_tested;real_asset_tested;asset_absence_verified;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;shared_owner_tested;full_width_value_tested;wrapping_arithmetic_tested;unsigned_comparison_tested;staged_operand_tested;target_read_order_tested;conditional_reload_tested;shared_clamp_tested;high_index_retry_tested;negative_index_adapted;load_failure_tested;previous_publication_tested;same_call_tested;audio_order_tested",
+    ),
+    "0x0042D05C": (
+        "platform_adapted",
+        "story-vm-party-member-field-reload-0042d05c.md",
+        "platform_adapted;unit_tested;asset_absence_verified;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;shared_owner_tested;all_field_selectors_tested;signed_field_tested;unsigned_field_tested;fixed_member_record_tested;signed_comparison_tested;negative_selector_default_tested;high_selector_retry_tested;staged_operand_tested;taken_only_target_tested;conditional_reload_tested;double_audio_tested;load_failure_tested;previous_publication_tested;same_call_tested;yield_tested",
     ),
 }
 

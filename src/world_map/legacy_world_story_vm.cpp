@@ -149,6 +149,53 @@ void write_u32(
     return offset <= bytes.size() && count <= bytes.size() - offset;
 }
 
+[[nodiscard]] i32 read_party_member_field(
+    const LegacyWorldStoryPartyMemberResources& resources, const i32 selector
+) noexcept {
+    switch (selector) {
+    case 0:
+        return static_cast<i16>(resources.current_first);
+
+    case 1:
+        return static_cast<i16>(resources.current_second);
+
+    case 2:
+        return static_cast<i16>(resources.current_third);
+
+    case 3:
+        return static_cast<i16>(resources.limit_first);
+
+    case 4:
+        return static_cast<i16>(resources.limit_second);
+
+    case 5:
+        return static_cast<i16>(resources.limit_third);
+
+    case 6:
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+    case 12:
+    case 13:
+        return resources
+            .fields_10_to_1e[static_cast<std::size_t>(selector - 6)];
+
+    case 14:
+        return std::bit_cast<i32>(resources.field_20);
+
+    case 15:
+        return std::bit_cast<i32>(resources.field_00);
+
+    case 16:
+        return resources.field_2c;
+
+    default:
+        return 0;
+    }
+}
+
 class StoryCountdownFlagPorts final
     : public rendering::LegacyCountdownFlagPorts {
 public:
@@ -7348,6 +7395,68 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ++result.direct_audio_service_count;
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
+
+        case OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE:
+        case OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE: {
+            if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const i32 selector =
+                static_cast<i16>(read_u16(state.window, ip + 2U));
+            if (selector > 16) {
+                state.previous_opcode = result.opcode;
+                ports.service_audio();
+                ++result.direct_audio_service_count;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+
+            const i32 value = read_party_member_field(
+                state.party_member_resources[1U], selector
+            );
+            if (!has_bytes(state.window, ip + 4U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const i32 threshold = read_u16(state.window, ip + 4U);
+            const bool reload =
+                result.opcode == OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE
+                ? value >= threshold
+                : value <= threshold;
+            if (!reload) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 10U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+
+            if (!has_bytes(state.window, ip + 6U, sizeof(u32))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const auto status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, ip + 6U),
+                result,
+                ports
+            );
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            if (status != LegacyWorldStoryVmStatus::idle) {
+                result.status = status;
+                return result;
+            }
+
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
 
         case 193U:
             if (ports.query_story_video_progress() >= 0) {

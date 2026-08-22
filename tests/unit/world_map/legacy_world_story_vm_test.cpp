@@ -220,6 +220,8 @@ using openswd3::world_map::OP_182_ADD_GLOBAL_INTEGER_WIDE;
 using openswd3::world_map::OP_183_SUBTRACT_GLOBAL_INTEGER_WIDE_CLAMP_ZERO;
 using openswd3::world_map::OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE;
 using openswd3::world_map::OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE;
+using openswd3::world_map::OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE;
+using openswd3::world_map::OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -3955,6 +3957,393 @@ void test_clear_frame_execution_gate_protocol(openswd3::test::Context& test) {
             owner_missing.state.previous_opcode == 0x66U &&
             owner_missing.frame_execution_gate == 0x12345678U,
         "opcode 180 is idempotent and yields after its full-dword gate clear at the exact window tail, while a missing actual owner stops at the original write point"
+    );
+}
+
+void test_party_member_field_reload_protocol(openswd3::test::Context& test) {
+    const auto set_field = [](auto& resources,
+                              const i32 selector,
+                              const u32 value) {
+        switch (selector) {
+        case 0:
+            resources.current_first = static_cast<u16>(value);
+            break;
+
+        case 1:
+            resources.current_second = static_cast<u16>(value);
+            break;
+
+        case 2:
+            resources.current_third = static_cast<u16>(value);
+            break;
+
+        case 3:
+            resources.limit_first = static_cast<u16>(value);
+            break;
+
+        case 4:
+            resources.limit_second = static_cast<u16>(value);
+            break;
+
+        case 5:
+            resources.limit_third = static_cast<u16>(value);
+            break;
+
+        case 6:
+        case 7:
+        case 8:
+        case 9:
+        case 10:
+        case 11:
+        case 12:
+        case 13:
+            resources.fields_10_to_1e[static_cast<std::size_t>(selector - 6)] =
+                static_cast<u16>(value);
+            break;
+
+        case 14:
+            resources.field_20 = value;
+            break;
+
+        case 15:
+            resources.field_00 = value;
+            break;
+
+        case 16:
+            resources.field_2c = static_cast<u8>(value);
+            break;
+        }
+    };
+    const auto prime = [](Fixture& fixture,
+                          const u16 raw_word,
+                          const u16 selector,
+                          const u16 threshold,
+                          const u32 target) {
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, selector);
+        write_u16(fixture.state.window, 4U, threshold);
+        write_u32(fixture.state.window, 6U, target);
+    };
+
+    for (i32 selector = 0; selector <= 16; ++selector) {
+        Fixture fixture;
+        const u16 value = static_cast<u16>(100 + selector);
+        set_field(
+            fixture.state.party_member_resources[0U], selector, value + 1U
+        );
+        set_field(fixture.state.party_member_resources[1U], selector, value);
+        prime(
+            fixture,
+            OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE,
+            static_cast<u16>(selector),
+            value,
+            static_cast<u32>(0x2000 + selector)
+        );
+        write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 2U &&
+                fixture.context.talk_data_offset ==
+                    static_cast<u32>(0x2000 + selector) &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode ==
+                    OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE &&
+                fixture.ports.data_load_count == 1U &&
+                fixture.ports.direct_audio_service_count == 2U,
+            "opcode 186 maps all seventeen getter selectors to the second party-member record and reloads on equality"
+        );
+    }
+
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 mask : alias_masks) {
+        for (const u16 opcode : {
+                 OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE,
+                 OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE,
+             }) {
+            Fixture fixture;
+            fixture.state.party_member_resources[1U].field_00 = 10U;
+            prime(fixture, static_cast<u16>(opcode | mask), 15U, 10U, 0x3333U);
+            write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+            const auto result = fixture.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                    result.opcode == opcode &&
+                    result.executed_instruction_count == 1U &&
+                    result.direct_audio_service_count == 2U &&
+                    fixture.context.talk_data_offset == 0x3333U &&
+                    fixture.state.previous_opcode == opcode &&
+                    fixture.ports.data_load_count == 1U,
+                "opcodes 186-187 cover every raw alias and take their inclusive signed equality branch"
+            );
+        }
+    }
+
+    Fixture signed_word;
+    signed_word.state.party_member_resources[1U].limit_third = 0xFFFFU;
+    prime(signed_word, OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE, 5U, 0U, 0x4444U);
+    write_u16(signed_word.state.window, 10U, OP_1025);
+    const auto signed_word_result = signed_word.step();
+
+    Fixture unsigned_word;
+    unsigned_word.state.party_member_resources[1U].fields_10_to_1e[0U] =
+        0xFFFFU;
+    prime(
+        unsigned_word,
+        OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE,
+        6U,
+        0xFFFFU,
+        0x4444U
+    );
+    write_u16(unsigned_word.ports.transferred_window, 0U, OP_1025);
+    const auto unsigned_word_result = unsigned_word.step();
+
+    Fixture signed_dword_20;
+    signed_dword_20.state.party_member_resources[1U].field_20 = 0x80000000U;
+    prime(
+        signed_dword_20,
+        OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE,
+        14U,
+        0U,
+        0x5555U
+    );
+    write_u16(signed_dword_20.ports.transferred_window, 0U, OP_1025);
+    const auto signed_dword_20_result = signed_dword_20.step();
+
+    Fixture signed_dword_00;
+    signed_dword_00.state.party_member_resources[1U].field_00 = 0xFFFFFFFFU;
+    prime(
+        signed_dword_00,
+        OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE,
+        15U,
+        0U,
+        0x6666U
+    );
+    write_u16(signed_dword_00.ports.transferred_window, 0U, OP_1025);
+    const auto signed_dword_00_result = signed_dword_00.step();
+
+    test.expect_true(
+        signed_word_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            signed_word.context.instruction_offset == 10U &&
+            signed_word.ports.data_load_count == 0U &&
+            unsigned_word_result.status == LegacyWorldStoryVmStatus::yielded &&
+            unsigned_word.context.talk_data_offset == 0x4444U &&
+            signed_dword_20_result.status ==
+                LegacyWorldStoryVmStatus::yielded &&
+            signed_dword_20.context.talk_data_offset == 0x5555U &&
+            signed_dword_00_result.status ==
+                LegacyWorldStoryVmStatus::yielded &&
+            signed_dword_00.context.talk_data_offset == 0x6666U,
+        "party-member getter sign-extends fields zero through five, zero-extends fields six through thirteen, and preserves signed i32 bit patterns for fields fourteen and fifteen"
+    );
+
+    Fixture ge_not_taken;
+    ge_not_taken.state.party_member_resources[1U].field_00 = 9U;
+    prime(
+        ge_not_taken, OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE, 15U, 10U, 0x7777U
+    );
+    write_u16(ge_not_taken.state.window, 10U, OP_1025);
+    const auto ge_not_taken_result = ge_not_taken.step();
+
+    Fixture le_not_taken;
+    le_not_taken.state.party_member_resources[1U].field_00 = 11U;
+    prime(
+        le_not_taken, OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE, 15U, 10U, 0x7777U
+    );
+    write_u16(le_not_taken.state.window, 10U, OP_1025);
+    const auto le_not_taken_result = le_not_taken.step();
+    test.expect_true(
+        ge_not_taken_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            ge_not_taken_result.executed_instruction_count == 2U &&
+            ge_not_taken.context.instruction_offset == 10U &&
+            ge_not_taken.state.previous_opcode ==
+                OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE &&
+            ge_not_taken.ports.data_load_count == 0U &&
+            ge_not_taken.ports.direct_audio_service_count == 0U &&
+            le_not_taken_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            le_not_taken_result.executed_instruction_count == 2U &&
+            le_not_taken.context.instruction_offset == 10U &&
+            le_not_taken.state.previous_opcode ==
+                OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE &&
+            le_not_taken.ports.data_load_count == 0U &&
+            le_not_taken.ports.direct_audio_service_count == 0U,
+        "opcodes 186-187 use opposite inclusive signed predicates and same-call their ten-byte not-taken records without audio"
+    );
+
+    for (const u16 opcode : {
+             OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE,
+             OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE,
+         }) {
+        Fixture high_selector;
+        high_selector.context.instruction_offset = 0x7FFCU;
+        high_selector.context.talk_data_offset = 0x1111U;
+        high_selector.state.loaded_file_number = 1U;
+        high_selector.state.loaded_data_offset = 0x1111U;
+        high_selector.state.window_loaded = true;
+        high_selector.state.previous_opcode = 0x55U;
+        write_u16(high_selector.state.window, 0x7FFCU, opcode);
+        write_u16(high_selector.state.window, 0x7FFEU, 17U);
+        const auto result = high_selector.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                high_selector.context.instruction_offset == 0x7FFCU &&
+                high_selector.state.previous_opcode == opcode &&
+                high_selector.ports.data_load_count == 0U,
+            "opcodes 186-187 selector above sixteen does not read threshold or target, does not advance, and audio-yields for retry"
+        );
+    }
+
+    Fixture negative_ge;
+    prime(
+        negative_ge,
+        OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE,
+        0xFFFFU,
+        1U,
+        0x8888U
+    );
+    write_u16(negative_ge.state.window, 10U, OP_1025);
+    const auto negative_ge_result = negative_ge.step();
+
+    Fixture negative_le;
+    prime(
+        negative_le,
+        OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE,
+        0x8000U,
+        0U,
+        0x9999U
+    );
+    write_u16(negative_le.ports.transferred_window, 0U, OP_1025);
+    const auto negative_le_result = negative_le.step();
+    test.expect_true(
+        negative_ge_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            negative_ge.context.instruction_offset == 10U &&
+            negative_ge.ports.data_load_count == 0U &&
+            negative_le_result.status == LegacyWorldStoryVmStatus::yielded &&
+            negative_le.context.talk_data_offset == 0x9999U &&
+            negative_le.ports.data_load_count == 1U,
+        "negative selectors use the original getter default value zero instead of indexing the record"
+    );
+
+    Fixture threshold_truncated;
+    threshold_truncated.context.instruction_offset = 0x7FFCU;
+    threshold_truncated.context.talk_data_offset = 0x1111U;
+    threshold_truncated.state.loaded_file_number = 1U;
+    threshold_truncated.state.loaded_data_offset = 0x1111U;
+    threshold_truncated.state.window_loaded = true;
+    write_u16(
+        threshold_truncated.state.window,
+        0x7FFCU,
+        OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE
+    );
+    write_u16(threshold_truncated.state.window, 0x7FFEU, 15U);
+    const auto threshold_truncated_result = threshold_truncated.step();
+
+    Fixture target_truncated;
+    target_truncated.context.instruction_offset = 0x7FFAU;
+    target_truncated.context.talk_data_offset = 0x1111U;
+    target_truncated.state.loaded_file_number = 1U;
+    target_truncated.state.loaded_data_offset = 0x1111U;
+    target_truncated.state.window_loaded = true;
+    target_truncated.state.party_member_resources[1U].field_00 = 10U;
+    write_u16(
+        target_truncated.state.window,
+        0x7FFAU,
+        OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE
+    );
+    write_u16(target_truncated.state.window, 0x7FFCU, 15U);
+    write_u16(target_truncated.state.window, 0x7FFEU, 10U);
+    const auto target_truncated_result = target_truncated.step();
+
+    Fixture unread_target;
+    unread_target.context.instruction_offset = 0x7FFAU;
+    unread_target.context.talk_data_offset = 0x1111U;
+    unread_target.state.loaded_file_number = 1U;
+    unread_target.state.loaded_data_offset = 0x1111U;
+    unread_target.state.window_loaded = true;
+    unread_target.state.party_member_resources[1U].field_00 = 9U;
+    write_u16(
+        unread_target.state.window,
+        0x7FFAU,
+        OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE
+    );
+    write_u16(unread_target.state.window, 0x7FFCU, 15U);
+    write_u16(unread_target.state.window, 0x7FFEU, 10U);
+    const auto unread_target_result = unread_target.step();
+    test.expect_true(
+        threshold_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            threshold_truncated.context.instruction_offset == 0x7FFCU &&
+            target_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            target_truncated.context.instruction_offset == 0x7FFAU &&
+            target_truncated.state.previous_opcode == 0U &&
+            unread_target_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            unread_target.context.instruction_offset == 0x8004U &&
+            unread_target.state.previous_opcode ==
+                OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE &&
+            unread_target.ports.data_load_count == 0U,
+        "valid selectors read threshold after the getter, taken requires target, and not-taken leaves target bytes unread before its fixed ten-byte same-call tail"
+    );
+
+    Fixture exact_taken;
+    exact_taken.context.instruction_offset = 0x7FF6U;
+    exact_taken.context.talk_data_offset = 0x1111U;
+    exact_taken.state.loaded_file_number = 1U;
+    exact_taken.state.loaded_data_offset = 0x1111U;
+    exact_taken.state.window_loaded = true;
+    exact_taken.state.party_member_resources[1U].field_00 = 10U;
+    write_u16(
+        exact_taken.state.window,
+        0x7FF6U,
+        OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE
+    );
+    write_u16(exact_taken.state.window, 0x7FF8U, 15U);
+    write_u16(exact_taken.state.window, 0x7FFAU, 10U);
+    write_u32(exact_taken.state.window, 0x7FFCU, 0xAAAAU);
+    write_u16(exact_taken.ports.transferred_window, 0U, OP_1025);
+    const auto exact_taken_result = exact_taken.step();
+
+    Fixture load_failure;
+    load_failure.state.party_member_resources[1U].field_00 = 10U;
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    prime(
+        load_failure, OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE, 15U, 10U, 0xBBBBU
+    );
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        exact_taken_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_taken_result.executed_instruction_count == 1U &&
+            exact_taken_result.direct_audio_service_count == 2U &&
+            exact_taken.context.talk_data_offset == 0xAAAAU &&
+            exact_taken.context.instruction_offset == 0U &&
+            exact_taken.state.previous_opcode ==
+                OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE &&
+            load_failure_result.status ==
+                LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.load_status ==
+                LegacyTalkWindowStatus::data_read_failed &&
+            load_failure_result.direct_audio_service_count == 2U &&
+            load_failure.context.talk_data_offset == 0xBBBBU &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE &&
+            load_failure.ports.direct_audio_service_count == 2U,
+        "taken exact-tail and checked load failure both preserve loader audio, previous publication, common-join audio and yield ordering"
     );
 }
 
@@ -34384,6 +34773,7 @@ int main(const int argument_count, char** arguments) {
     test_set_role_collision_bypass_protocol(test);
     test_enqueue_frame_deformation_protocol(test);
     test_clear_frame_execution_gate_protocol(test);
+    test_party_member_field_reload_protocol(test);
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);
