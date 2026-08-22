@@ -159,6 +159,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM = 129U,
     OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM = 130U,
     OP_131_ADD_PARTY_ITEM_IF_ALLOWED = 131U,
+    OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT = 132U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
@@ -267,7 +268,7 @@ struct LegacyWorldStoryVmRuntime {
     std::array<
         std::optional<LegacyWorldSentinelItemList>,
         kLegacyPartyItemListCount>* party_item_lists{};
-    const std::array<
+    std::array<
         std::optional<LegacyWorldSentinelItemList>,
         kLegacyRoleItemListCount>* role_item_lists{};
 };

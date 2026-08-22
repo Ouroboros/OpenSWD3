@@ -12,6 +12,7 @@
 #include <bit>
 #include <cstddef>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -1693,6 +1694,83 @@ void decrement_party_item(
         inventory, [item_id](const LegacyWorldItemNode& item) {
             return (item.item_id & 0x3FFFU) == item_id;
         }
+    );
+}
+
+[[nodiscard]] LegacyWorldItemNode* find_player_inventory_item_masked(
+    std::list<LegacyWorldItemNode>& inventory, const u16 item_id
+) noexcept {
+    const auto existing = std::ranges::find_if(
+        inventory, [item_id](const LegacyWorldItemNode& item) {
+            return (item.item_id & 0x3FFFU) == item_id;
+        }
+    );
+    return existing == inventory.end() ? nullptr : &*existing;
+}
+
+[[nodiscard]] LegacyWorldItemNode* find_player_inventory_node_by_address(
+    std::list<LegacyWorldItemNode>& inventory, const std::uintptr_t address
+) noexcept {
+    const auto existing = std::ranges::find_if(
+        inventory, [address](const LegacyWorldItemNode& item) {
+            return reinterpret_cast<std::uintptr_t>(&item) == address;
+        }
+    );
+    return existing == inventory.end() ? nullptr : &*existing;
+}
+
+[[nodiscard]] LegacyWorldStoryVmStatus swap_player_item_into_role_slot(
+    std::list<LegacyWorldItemNode>& inventory,
+    LegacyWorldSentinelItemList& role_slot,
+    LegacyWorldItemNode& source,
+    LegacyWorldItemNode& displaced,
+    LegacyWorldStoryVmPorts& ports
+) noexcept {
+    try {
+        displaced = role_slot.sentinel;
+    } catch (const std::bad_alloc&) {
+        return LegacyWorldStoryVmStatus::item_allocation_failed;
+    } catch (...) {
+        return LegacyWorldStoryVmStatus::item_allocation_failed;
+    }
+
+    // The raw 0xB0 copy leaks the old child chain and aliases source.next.
+    // Modern lists have unique ownership, so discard the replaced chain but
+    // do not manufacture a cross-list owner for the player inventory tail.
+    role_slot.nodes.clear();
+    role_slot.sentinel.item_id = source.item_id;
+    role_slot.sentinel.selected_count = source.selected_count;
+    role_slot.sentinel.quantity_a = source.quantity_a;
+    role_slot.sentinel.quantity_b = source.quantity_b;
+    role_slot.sentinel.definition_snapshot = source.definition_snapshot;
+    role_slot.sentinel.quantity_a = 1U;
+    role_slot.sentinel.quantity_b = 0U;
+    role_slot.sentinel.selected_count = 0U;
+    std::vector<u8>{}.swap(role_slot.sentinel.description);
+    try {
+        role_slot.sentinel.description = source.description;
+    } catch (const std::bad_alloc&) {
+        return LegacyWorldStoryVmStatus::item_allocation_failed;
+    } catch (...) {
+        return LegacyWorldStoryVmStatus::item_allocation_failed;
+    }
+
+    const auto source_address = reinterpret_cast<std::uintptr_t>(&source);
+    const auto add_displaced_status = adjust_player_item_quantity(
+        inventory, displaced.item_id, i16{1}, ports
+    );
+    if (add_displaced_status != LegacyWorldStoryVmStatus::idle) {
+        return add_displaced_status;
+    }
+
+    auto* live_source =
+        find_player_inventory_node_by_address(inventory, source_address);
+    if (live_source == nullptr) {
+        return LegacyWorldStoryVmStatus::item_update_failed;
+    }
+
+    return adjust_player_item_quantity(
+        inventory, live_source->item_id, i16{-1}, ports
     );
 }
 
@@ -5964,6 +6042,85 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
+        case OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT: {
+            if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const u16 role_group = read_u16(state.window, ip + 2U);
+            if (!has_bytes(state.window, ip + 4U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const u16 role_slot = read_u16(state.window, ip + 4U);
+            if (role_group <= 3U && role_slot <= 11U) {
+                if (!has_bytes(state.window, ip + 6U, sizeof(u16))) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+
+                const u16 item_id = read_u16(state.window, ip + 6U);
+                if (runtime.player_inventory == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+
+                auto* source = find_player_inventory_item_masked(
+                    *runtime.player_inventory, item_id
+                );
+                if (source != nullptr) {
+                    std::unique_ptr<LegacyWorldItemNode> displaced;
+                    try {
+                        displaced = std::make_unique<LegacyWorldItemNode>();
+                    } catch (const std::bad_alloc&) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::item_allocation_failed;
+                        return result;
+                    } catch (...) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::item_allocation_failed;
+                        return result;
+                    }
+
+                    if (runtime.role_item_lists == nullptr) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::runtime_unavailable;
+                        return result;
+                    }
+
+                    const std::size_t root_index =
+                        static_cast<std::size_t>(role_group) * 16U + role_slot;
+                    auto& selected_root =
+                        (*runtime.role_item_lists)[root_index];
+                    if (!selected_root.has_value()) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::runtime_unavailable;
+                        return result;
+                    }
+
+                    result.status = swap_player_item_into_role_slot(
+                        *runtime.player_inventory,
+                        *selected_root,
+                        *source,
+                        *displaced,
+                        ports
+                    );
+                    if (result.status != LegacyWorldStoryVmStatus::idle) {
+                        return result;
+                    }
+                }
+            }
+
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 8U);
             state.previous_opcode = result.opcode;
             continue;
         }

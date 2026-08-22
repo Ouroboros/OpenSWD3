@@ -162,6 +162,7 @@ using openswd3::world_map::OP_128_ADJUST_PLAYER_ITEM_QUANTITY;
 using openswd3::world_map::OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM;
 using openswd3::world_map::OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM;
 using openswd3::world_map::OP_131_ADD_PARTY_ITEM_IF_ALLOWED;
+using openswd3::world_map::OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -20495,6 +20496,382 @@ void test_add_party_item_if_allowed_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_swap_player_item_into_role_slot_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        for (u16 role_group = 0U; role_group < 4U; ++role_group) {
+            Fixture fixture;
+            auto& source = fixture.player_inventory.emplace_back();
+            source.item_id = 0xC123U;
+            source.selected_count = 9U;
+            source.quantity_b = 1U;
+            source.definition_snapshot.fill(
+                static_cast<u8>(0x20U + role_group)
+            );
+            source.description = {
+                1U,
+                2U,
+                static_cast<u8>(role_group),
+            };
+            auto& tail = fixture.player_inventory.emplace_back();
+            tail.item_id = 0x0500U;
+            tail.quantity_b = 4U;
+            const std::size_t root_index =
+                static_cast<std::size_t>(role_group) * 16U + 11U;
+            auto& selected =
+                fixture.item_lists.role_item_lists[root_index]->sentinel;
+            selected.item_id = static_cast<u16>(0x0220U + role_group);
+            selected.selected_count = 7U;
+            selected.quantity_a = 3U;
+            selected.quantity_b = 4U;
+            selected.definition_snapshot.fill(0x44U);
+            selected.description = {9U, static_cast<u8>(role_group)};
+            fixture.item_lists.role_item_lists[root_index]
+                ->nodes.emplace_back()
+                .item_id = 0x0777U;
+            fixture.ports.prepared_item_definition.fill(0x55U);
+            fixture.ports.prepared_item_description = {7U, 8U};
+            prime_loaded_instruction(
+                fixture,
+                static_cast<u16>(
+                    OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT | alias_mask
+                )
+            );
+            write_u16(fixture.state.window, 2U, role_group);
+            write_u16(fixture.state.window, 4U, 11U);
+            write_u16(fixture.state.window, 6U, 0x0123U);
+            write_u16(fixture.state.window, 8U, OP_59_PLAY_SOUND_EFFECT);
+            write_u16(fixture.state.window, 10U, 0x0073U);
+
+            const auto result = fixture.step();
+            const auto& inventory = fixture.player_inventory;
+            const auto& equipped =
+                fixture.item_lists.role_item_lists[root_index]->sentinel;
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                    result.opcode == OP_59_PLAY_SOUND_EFFECT &&
+                    result.executed_instruction_count == 2U &&
+                    fixture.context.instruction_offset == 12U &&
+                    fixture.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+                    equipped.item_id == 0xC123U &&
+                    equipped.selected_count == 0U &&
+                    equipped.quantity_a == 1U && equipped.quantity_b == 0U &&
+                    equipped.definition_snapshot[0U] ==
+                        static_cast<u8>(0x20U + role_group) &&
+                    equipped.description ==
+                        std::vector<u8>{
+                            1U,
+                            2U,
+                            static_cast<u8>(role_group),
+                        } &&
+                    fixture.item_lists.role_item_lists[root_index]
+                        ->nodes.empty() &&
+                    inventory.size() == 2U &&
+                    inventory.front().item_id ==
+                        static_cast<u16>(0x0220U + role_group) &&
+                    inventory.front().selected_count == 0U &&
+                    inventory.front().quantity_a == 0U &&
+                    inventory.front().quantity_b == 1U &&
+                    inventory.front().definition_snapshot[0U] == 0x55U &&
+                    inventory.front().definition_snapshot[0x21U] == 0xD5U &&
+                    inventory.front().description == std::vector<u8>{7U, 8U} &&
+                    inventory.back().item_id == 0x0500U &&
+                    inventory.back().quantity_b == 4U &&
+                    fixture.ports.item_definition_load_count == 1U &&
+                    fixture.ports.last_item_definition_id ==
+                        static_cast<u16>(0x0220U + role_group) &&
+                    fixture.ports.sound_effect_requests ==
+                        std::vector<u16>{0x0073U},
+                "opcode 132 aliases swap a masked player item into slot 11 of each role group and return the old root item"
+            );
+        }
+    }
+
+    Fixture existing_displaced;
+    auto& existing_source = existing_displaced.player_inventory.emplace_back();
+    existing_source.item_id = 0xC123U;
+    existing_source.quantity_b = 2U;
+    existing_source.description = {1U};
+    auto& existing_old = existing_displaced.player_inventory.emplace_back();
+    existing_old.item_id = 0x0222U;
+    existing_old.quantity_b = 98U;
+    auto& existing_root =
+        existing_displaced.item_lists.role_item_lists[0]->sentinel;
+    existing_root.item_id = 0x0222U;
+    existing_root.description = {9U};
+    prime_loaded_instruction(
+        existing_displaced, OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(existing_displaced.state.window, 2U, 0U);
+    write_u16(existing_displaced.state.window, 4U, 0U);
+    write_u16(existing_displaced.state.window, 6U, 0x0123U);
+    write_u16(existing_displaced.state.window, 8U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(existing_displaced.state.window, 10U, 0x0073U);
+    const auto existing_displaced_result = existing_displaced.step();
+
+    test.expect_true(
+        existing_displaced_result.status == LegacyWorldStoryVmStatus::yielded &&
+            existing_root.item_id == 0xC123U &&
+            existing_displaced.player_inventory.size() == 2U &&
+            existing_old.quantity_b == 99U &&
+            existing_source.quantity_b == 1U &&
+            existing_displaced.ports.item_definition_load_count == 0U,
+        "opcode 132 runs the displaced-item +1 update before the source-item -1 update on existing inventory nodes"
+    );
+
+    Fixture loader_failure;
+    auto& loader_source = loader_failure.player_inventory.emplace_back();
+    loader_source.item_id = 0xC123U;
+    loader_source.quantity_b = 1U;
+    loader_source.description = {1U, 2U};
+    auto& loader_root = loader_failure.item_lists.role_item_lists[0]->sentinel;
+    loader_root.item_id = 0x0234U;
+    loader_root.description = {9U};
+    loader_failure.ports.item_definition_load_success = false;
+    prime_loaded_instruction(
+        loader_failure, OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(loader_failure.state.window, 2U, 0U);
+    write_u16(loader_failure.state.window, 4U, 0U);
+    write_u16(loader_failure.state.window, 6U, 0x0123U);
+    write_u16(loader_failure.state.window, 8U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(loader_failure.state.window, 10U, 0x0073U);
+    const auto loader_failure_result = loader_failure.step();
+
+    test.expect_true(
+        loader_failure_result.status == LegacyWorldStoryVmStatus::yielded &&
+            loader_root.item_id == 0xC123U &&
+            loader_root.description == std::vector<u8>{1U, 2U} &&
+            loader_failure.player_inventory.empty() &&
+            loader_failure.ports.item_definition_load_count == 1U &&
+            loader_failure.ports.last_item_definition_id == 0x0234U,
+        "opcode 132 ignores a displaced-item definition loader miss and still removes the source item"
+    );
+
+    Fixture source_deleted_during_add;
+    auto& unstable_source =
+        source_deleted_during_add.player_inventory.emplace_back();
+    unstable_source.item_id = 0xC123U;
+    unstable_source.quantity_b = 0x7FFFU;
+    unstable_source.description = {1U};
+    auto& unstable_root =
+        source_deleted_during_add.item_lists.role_item_lists[0]->sentinel;
+    unstable_root.item_id = 0xC123U;
+    unstable_root.description = {9U};
+    prime_loaded_instruction(
+        source_deleted_during_add, OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(source_deleted_during_add.state.window, 2U, 0U);
+    write_u16(source_deleted_during_add.state.window, 4U, 0U);
+    write_u16(source_deleted_during_add.state.window, 6U, 0x0123U);
+    const auto source_deleted_during_add_result =
+        source_deleted_during_add.step();
+
+    test.expect_true(
+        source_deleted_during_add_result.status ==
+                LegacyWorldStoryVmStatus::item_update_failed &&
+            source_deleted_during_add.player_inventory.empty() &&
+            unstable_root.item_id == 0xC123U &&
+            unstable_root.quantity_a == 1U && unstable_root.quantity_b == 0U &&
+            source_deleted_during_add.context.instruction_offset == 0U &&
+            source_deleted_during_add.state.previous_opcode == 0U,
+        "opcode 132 stops at the original freed-source reread after the displaced-item +1 update deletes that node"
+    );
+
+    for (const std::array<u16, 2U> indices : {
+             std::array<u16, 2U>{4U, 0U},
+             std::array<u16, 2U>{0U, 12U},
+         }) {
+        Fixture fixture;
+        fixture.runtime.player_inventory = nullptr;
+        fixture.runtime.role_item_lists = nullptr;
+        prime_loaded_instruction(
+            fixture, OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+        );
+        write_u16(fixture.state.window, 2U, indices[0U]);
+        write_u16(fixture.state.window, 4U, indices[1U]);
+        write_u16(fixture.state.window, 6U, 0x0123U);
+        write_u16(fixture.state.window, 8U, OP_59_PLAY_SOUND_EFFECT);
+        write_u16(fixture.state.window, 10U, 0x0073U);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_59_PLAY_SOUND_EFFECT &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 12U,
+            "opcode 132 invalid role-group or role-slot indices consume without reading the item owner"
+        );
+    }
+
+    Fixture masked_miss;
+    masked_miss.runtime.role_item_lists = nullptr;
+    prime_loaded_instruction(
+        masked_miss, OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(masked_miss.state.window, 2U, 0U);
+    write_u16(masked_miss.state.window, 4U, 0U);
+    write_u16(masked_miss.state.window, 6U, 0x0123U);
+    write_u16(masked_miss.state.window, 8U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(masked_miss.state.window, 10U, 0x0073U);
+    const auto masked_miss_result = masked_miss.step();
+
+    Fixture missing_player_owner;
+    missing_player_owner.runtime.player_inventory = nullptr;
+    prime_loaded_instruction(
+        missing_player_owner, OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(missing_player_owner.state.window, 2U, 0U);
+    write_u16(missing_player_owner.state.window, 4U, 0U);
+    write_u16(missing_player_owner.state.window, 6U, 0x0123U);
+    const auto missing_player_owner_result = missing_player_owner.step();
+
+    Fixture missing_role_owner;
+    missing_role_owner.player_inventory.emplace_back().item_id = 0xC123U;
+    missing_role_owner.runtime.role_item_lists = nullptr;
+    prime_loaded_instruction(
+        missing_role_owner, OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(missing_role_owner.state.window, 2U, 0U);
+    write_u16(missing_role_owner.state.window, 4U, 0U);
+    write_u16(missing_role_owner.state.window, 6U, 0x0123U);
+    const auto missing_role_owner_result = missing_role_owner.step();
+
+    Fixture missing_role_root;
+    missing_role_root.player_inventory.emplace_back().item_id = 0xC123U;
+    missing_role_root.item_lists.role_item_lists[16U].reset();
+    prime_loaded_instruction(
+        missing_role_root, OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(missing_role_root.state.window, 2U, 1U);
+    write_u16(missing_role_root.state.window, 4U, 0U);
+    write_u16(missing_role_root.state.window, 6U, 0x0123U);
+    const auto missing_role_root_result = missing_role_root.step();
+
+    test.expect_true(
+        masked_miss_result.status == LegacyWorldStoryVmStatus::yielded &&
+            masked_miss_result.opcode == OP_59_PLAY_SOUND_EFFECT &&
+            masked_miss.context.instruction_offset == 12U &&
+            missing_player_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_role_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_role_root_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable,
+        "opcode 132 preserves player-query-before-role-root owner access and skips the role root on masked miss"
+    );
+
+    Fixture first_operand_truncated;
+    first_operand_truncated.context.instruction_offset = 0x7FFEU;
+    first_operand_truncated.context.talk_data_offset = 0x1111U;
+    first_operand_truncated.state.loaded_file_number = 1U;
+    first_operand_truncated.state.loaded_data_offset = 0x1111U;
+    first_operand_truncated.state.window_loaded = true;
+    write_u16(
+        first_operand_truncated.state.window,
+        0x7FFEU,
+        OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    const auto first_operand_truncated_result = first_operand_truncated.step();
+
+    Fixture second_operand_truncated;
+    second_operand_truncated.context.instruction_offset = 0x7FFCU;
+    second_operand_truncated.context.talk_data_offset = 0x1111U;
+    second_operand_truncated.state.loaded_file_number = 1U;
+    second_operand_truncated.state.loaded_data_offset = 0x1111U;
+    second_operand_truncated.state.window_loaded = true;
+    write_u16(
+        second_operand_truncated.state.window,
+        0x7FFCU,
+        OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(second_operand_truncated.state.window, 0x7FFEU, 0U);
+    const auto second_operand_truncated_result =
+        second_operand_truncated.step();
+
+    Fixture item_truncated;
+    item_truncated.context.instruction_offset = 0x7FFAU;
+    item_truncated.context.talk_data_offset = 0x1111U;
+    item_truncated.state.loaded_file_number = 1U;
+    item_truncated.state.loaded_data_offset = 0x1111U;
+    item_truncated.state.window_loaded = true;
+    write_u16(
+        item_truncated.state.window,
+        0x7FFAU,
+        OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(item_truncated.state.window, 0x7FFCU, 0U);
+    write_u16(item_truncated.state.window, 0x7FFEU, 0U);
+    const auto item_truncated_result = item_truncated.step();
+
+    Fixture invalid_partial_tail;
+    invalid_partial_tail.context.instruction_offset = 0x7FFAU;
+    invalid_partial_tail.context.talk_data_offset = 0x1111U;
+    invalid_partial_tail.state.loaded_file_number = 1U;
+    invalid_partial_tail.state.loaded_data_offset = 0x1111U;
+    invalid_partial_tail.state.window_loaded = true;
+    invalid_partial_tail.runtime.player_inventory = nullptr;
+    invalid_partial_tail.runtime.role_item_lists = nullptr;
+    write_u16(
+        invalid_partial_tail.state.window,
+        0x7FFAU,
+        OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(invalid_partial_tail.state.window, 0x7FFCU, 4U);
+    write_u16(invalid_partial_tail.state.window, 0x7FFEU, 0U);
+    const auto invalid_partial_tail_result = invalid_partial_tail.step();
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FF8U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    auto& exact_source = exact_tail.player_inventory.emplace_back();
+    exact_source.item_id = 0xC123U;
+    exact_source.quantity_b = 1U;
+    exact_source.description = {1U};
+    exact_tail.item_lists.role_item_lists[0]->sentinel.item_id = 0xFFDCU;
+    write_u16(
+        exact_tail.state.window, 0x7FF8U, OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT
+    );
+    write_u16(exact_tail.state.window, 0x7FFAU, 0U);
+    write_u16(exact_tail.state.window, 0x7FFCU, 0U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0x0123U);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        first_operand_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            second_operand_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            item_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            invalid_partial_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            invalid_partial_tail_result.executed_instruction_count == 1U &&
+            invalid_partial_tail.context.instruction_offset == 0x8002U &&
+            invalid_partial_tail.state.previous_opcode ==
+                OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT &&
+            exact_tail.item_lists.role_item_lists[0]->sentinel.item_id ==
+                0xC123U,
+        "opcode 132 stages three operands, leaves the item unread for invalid indices, and completes a successful exact-tail swap"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -27214,6 +27591,7 @@ int main(const int argument_count, char** arguments) {
     test_adjust_player_item_quantity_protocol(test);
     test_item_presence_reload_protocol(test);
     test_add_party_item_if_allowed_protocol(test);
+    test_swap_player_item_into_role_slot_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);

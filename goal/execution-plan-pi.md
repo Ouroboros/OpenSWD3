@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v349
+版本：v351
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042C033` handler（opcode 132）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042C234` handler（opcode 133）
 
 ## 0. 执行约定
 
@@ -70,7 +70,7 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 - 进程入口、消息泵、单帧调度、世界/特殊模式/战斗分支和退出顶层流程已有汇编证据。
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
 - 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
-- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..131`及`167..168`；其余 opcode 与 Ani 播放语义尚未完成。
+- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..132`及`167..168`；其余 opcode 与 Ani 播放语义尚未完成。
 - 309 张地图的物理容器、40 份存档的压缩边界和战斗顶层入口已经恢复；地图内部、存档业务字段和战斗内部状态机仍待对应模块处理。
 
 ## 3. 执行方法
@@ -2527,4 +2527,17 @@ B7 P0 有限收口完成。
     已验收144/198；内部workpack105/146，即`15 assembly_exact + 90 platform_adapted +
     41 pending_audit`。
 
-下一组只审计`0x0042C033` / opcode132。
+- 剧情VM P2第一百零六组`0x0042C033` / opcode132完成独立闭环。机器分阶段读取role
+    group、slot和item id；两项index有效时masked查玩家库存，命中后深拷贝旧角色root，以
+    玩家item覆盖root并规范数量，再按mode0先把旧item加回库存、后扣除source item。恢复
+    两次说明深拷贝、完整定义快照、loader miss继续及首个更新删除source后的UAF危险点。
+    现代借用实际64槽角色item owner；raw next覆盖造成的旧child泄漏和玩家tail别名不制造
+    交叉list owner，改为清理独立child并登记平台差异；原双说明泄漏由RAII隔离。线性资产
+    零记录，以asset absence和synthetic锁定。Story VM 3/3、Linux core 186/186与app
+    192/192完整门均以exit 0通过；workpack双生成稳定hash为
+    `1fe28bc8bc3d6ef6bf4b9a43616a7a3a44286c9e61ebcd4452ce1635d9e7a9f1`。
+    未启动游戏EXE。人工语义增至145行，现代显式opcode增至149；对外进度为已实现149/198、
+    已验收145/198；内部workpack106/146，即`15 assembly_exact + 91 platform_adapted +
+    40 pending_audit`。
+
+下一组只审计`0x0042C234` / opcode133。
