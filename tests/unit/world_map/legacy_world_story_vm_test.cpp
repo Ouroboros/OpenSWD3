@@ -225,6 +225,7 @@ using openswd3::world_map::OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE;
 using openswd3::world_map::OP_188_SET_PARTY_MEMBER_FIELD;
 using openswd3::world_map::OP_189_ADD_PARTY_MEMBER_FIELD;
 using openswd3::world_map::OP_190_SUBTRACT_PARTY_MEMBER_FIELD;
+using openswd3::world_map::OP_191_WAIT_CAMERA_TOP_WHILE_MOVING;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -8126,6 +8127,204 @@ void test_wait_for_camera_move_protocol(openswd3::test::Context& test) {
             waiting_tail_result.direct_audio_service_count == 1U &&
             waiting_tail.ports.direct_audio_service_count == 1U,
         "opcode 51 exact-tail wait publishes and audio-yields without advancing"
+    );
+}
+
+void test_wait_for_camera_top_while_moving_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const u16 mask : alias_masks) {
+        CameraMoveFixture matching_x;
+        matching_x.camera_pan.remaining_x = 16;
+        prime_loaded_instruction(
+            matching_x,
+            static_cast<u16>(OP_191_WAIT_CAMERA_TOP_WHILE_MOVING | mask)
+        );
+        write_u16(matching_x.state.window, 2U, 0xFF10U);
+        write_u16(matching_x.state.window, 4U, OP_1025);
+        const auto matching_x_result = matching_x.step(0, -240);
+
+        CameraMoveFixture mismatching_y;
+        mismatching_y.camera_pan.remaining_y = -16;
+        prime_loaded_instruction(
+            mismatching_y,
+            static_cast<u16>(OP_191_WAIT_CAMERA_TOP_WHILE_MOVING | mask)
+        );
+        write_u16(mismatching_y.state.window, 2U, 0xFF10U);
+        write_u16(mismatching_y.state.window, 4U, OP_1025);
+        const auto mismatching_y_result = mismatching_y.step(0, -239);
+
+        test.expect_true(
+            matching_x_result.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                matching_x_result.opcode == OP_1025 &&
+                matching_x_result.executed_instruction_count == 2U &&
+                matching_x.context.instruction_offset == 4U &&
+                matching_x.state.previous_opcode ==
+                    OP_191_WAIT_CAMERA_TOP_WHILE_MOVING &&
+                matching_x.ports.direct_audio_service_count == 0U &&
+                matching_x.camera_pan.remaining_x == 16 &&
+                mismatching_y_result.status ==
+                    LegacyWorldStoryVmStatus::yielded &&
+                mismatching_y_result.opcode ==
+                    OP_191_WAIT_CAMERA_TOP_WHILE_MOVING &&
+                mismatching_y_result.executed_instruction_count == 1U &&
+                mismatching_y_result.direct_audio_service_count == 1U &&
+                mismatching_y.context.instruction_offset == 0U &&
+                mismatching_y.state.previous_opcode ==
+                    OP_191_WAIT_CAMERA_TOP_WHILE_MOVING &&
+                mismatching_y.ports.direct_audio_service_count == 1U &&
+                mismatching_y.camera_pan.remaining_y == -16,
+            "opcode 191 aliases compare signed viewport top only while either camera displacement remains, continuing on equality and audio-yielding on mismatch"
+        );
+    }
+
+    CameraMoveFixture step_only;
+    step_only.camera_pan.step_x = 4;
+    step_only.camera_pan.step_y = -4;
+    step_only.runtime.camera = nullptr;
+    prime_loaded_instruction(step_only, OP_191_WAIT_CAMERA_TOP_WHILE_MOVING);
+    write_u16(step_only.state.window, 4U, OP_1025);
+    const auto step_only_result = step_only.step();
+    test.expect_true(
+        step_only_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            step_only_result.executed_instruction_count == 2U &&
+            step_only.context.instruction_offset == 4U &&
+            step_only.state.previous_opcode ==
+                OP_191_WAIT_CAMERA_TOP_WHILE_MOVING &&
+            step_only.camera_pan.step_x == 4 &&
+            step_only.camera_pan.step_y == -4 &&
+            step_only.ports.direct_audio_service_count == 0U,
+        "opcode 191 ignores camera steps and does not access the operand or viewport owner when both displacement fields are zero"
+    );
+
+    Fixture missing_pan_owner;
+    missing_pan_owner.state.previous_opcode = 0x55U;
+    prime_loaded_instruction(
+        missing_pan_owner, OP_191_WAIT_CAMERA_TOP_WHILE_MOVING
+    );
+    const auto missing_pan_result = missing_pan_owner.step();
+
+    CameraMoveFixture missing_camera_owner;
+    missing_camera_owner.camera_pan.remaining_x = 1;
+    missing_camera_owner.runtime.camera = nullptr;
+    missing_camera_owner.state.previous_opcode = 0x55U;
+    prime_loaded_instruction(
+        missing_camera_owner, OP_191_WAIT_CAMERA_TOP_WHILE_MOVING
+    );
+    write_u16(missing_camera_owner.state.window, 2U, 0U);
+    const auto missing_camera_result = missing_camera_owner.step();
+    test.expect_true(
+        missing_pan_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_pan_owner.context.instruction_offset == 0U &&
+            missing_pan_owner.state.previous_opcode == 0x55U &&
+            missing_camera_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_camera_owner.context.instruction_offset == 0U &&
+            missing_camera_owner.state.previous_opcode == 0x55U &&
+            missing_camera_owner.ports.direct_audio_service_count == 0U,
+        "opcode 191 accesses the pan owner before its conditional operand and the viewport owner only after that operand"
+    );
+
+    CameraMoveFixture active_truncated;
+    active_truncated.context.talk_data_offset = 0x1111U;
+    active_truncated.context.instruction_offset = 0x7FFEU;
+    active_truncated.state.loaded_file_number = 1U;
+    active_truncated.state.loaded_data_offset = 0x1111U;
+    active_truncated.state.window_loaded = true;
+    active_truncated.state.previous_opcode = 0x55U;
+    active_truncated.camera_pan.remaining_y = 1;
+    write_u16(
+        active_truncated.state.window,
+        0x7FFEU,
+        OP_191_WAIT_CAMERA_TOP_WHILE_MOVING
+    );
+    const auto active_truncated_result = active_truncated.step();
+
+    CameraMoveFixture inactive_unread_tail;
+    inactive_unread_tail.context.talk_data_offset = 0x1111U;
+    inactive_unread_tail.context.instruction_offset = 0x7FFEU;
+    inactive_unread_tail.state.loaded_file_number = 1U;
+    inactive_unread_tail.state.loaded_data_offset = 0x1111U;
+    inactive_unread_tail.state.window_loaded = true;
+    inactive_unread_tail.state.previous_opcode = 0x55U;
+    inactive_unread_tail.runtime.camera = nullptr;
+    write_u16(
+        inactive_unread_tail.state.window,
+        0x7FFEU,
+        OP_191_WAIT_CAMERA_TOP_WHILE_MOVING
+    );
+    const auto inactive_tail_result = inactive_unread_tail.step();
+    test.expect_true(
+        active_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            active_truncated.context.instruction_offset == 0x7FFEU &&
+            active_truncated.state.previous_opcode == 0x55U &&
+            active_truncated.ports.direct_audio_service_count == 0U &&
+            inactive_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            inactive_unread_tail.context.instruction_offset == 0x8002U &&
+            inactive_unread_tail.state.previous_opcode ==
+                OP_191_WAIT_CAMERA_TOP_WHILE_MOVING &&
+            inactive_unread_tail.ports.direct_audio_service_count == 0U,
+        "opcode 191 requires the Y operand only while displacement remains, while the inactive path consumes four bytes without reading the absent operand"
+    );
+
+    CameraMoveFixture matching_exact_tail;
+    matching_exact_tail.context.talk_data_offset = 0x1111U;
+    matching_exact_tail.context.instruction_offset = 0x7FFCU;
+    matching_exact_tail.state.loaded_file_number = 1U;
+    matching_exact_tail.state.loaded_data_offset = 0x1111U;
+    matching_exact_tail.state.window_loaded = true;
+    matching_exact_tail.state.previous_opcode = 0x55U;
+    matching_exact_tail.camera_pan.remaining_x = 1;
+    write_u16(
+        matching_exact_tail.state.window,
+        0x7FFCU,
+        OP_191_WAIT_CAMERA_TOP_WHILE_MOVING
+    );
+    write_u16(matching_exact_tail.state.window, 0x7FFEU, 0x8000U);
+    const auto matching_tail_result = matching_exact_tail.step(0, -32768);
+
+    CameraMoveFixture mismatching_exact_tail;
+    mismatching_exact_tail.context.talk_data_offset = 0x1111U;
+    mismatching_exact_tail.context.instruction_offset = 0x7FFCU;
+    mismatching_exact_tail.state.loaded_file_number = 1U;
+    mismatching_exact_tail.state.loaded_data_offset = 0x1111U;
+    mismatching_exact_tail.state.window_loaded = true;
+    mismatching_exact_tail.state.previous_opcode = 0x55U;
+    mismatching_exact_tail.camera_pan.remaining_y = 1;
+    write_u16(
+        mismatching_exact_tail.state.window,
+        0x7FFCU,
+        OP_191_WAIT_CAMERA_TOP_WHILE_MOVING
+    );
+    write_u16(mismatching_exact_tail.state.window, 0x7FFEU, 0x8000U);
+    const auto mismatching_tail_result = mismatching_exact_tail.step(0, 32767);
+    test.expect_true(
+        matching_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            matching_exact_tail.context.instruction_offset == 0x8000U &&
+            matching_exact_tail.state.previous_opcode ==
+                OP_191_WAIT_CAMERA_TOP_WHILE_MOVING &&
+            matching_exact_tail.ports.direct_audio_service_count == 0U &&
+            mismatching_tail_result.status ==
+                LegacyWorldStoryVmStatus::yielded &&
+            mismatching_exact_tail.context.instruction_offset == 0x7FFCU &&
+            mismatching_exact_tail.state.previous_opcode ==
+                OP_191_WAIT_CAMERA_TOP_WHILE_MOVING &&
+            mismatching_tail_result.direct_audio_service_count == 1U &&
+            mismatching_exact_tail.ports.direct_audio_service_count == 1U,
+        "opcode 191 exact four-byte tail commits equality before successor fetch failure but keeps mismatch in place through the common audio-yield exit"
     );
 }
 
@@ -33727,6 +33926,63 @@ void test_real_wait_for_camera_move_record(
     );
 }
 
+void test_real_wait_for_camera_top_while_moving_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK4.DAT", std::ios::binary | std::ios::in};
+    bool records_match = true;
+    for (u32 index = 0U; index < 13U; ++index) {
+        const u32 file_offset = 0x0002FC5FU + index * 14U;
+        input.seekg(static_cast<std::streamoff>(file_offset));
+        std::array<u8, 4U> instruction{};
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        const i32 expected_top = static_cast<i16>(read_u16(instruction, 2U));
+        records_match = records_match && static_cast<bool>(input) &&
+            read_u16(instruction, 0U) == OP_191_WAIT_CAMERA_TOP_WHILE_MOVING &&
+            expected_top == static_cast<i32>(800U + index * 320U);
+
+        CameraMoveFixture matching;
+        matching.camera_pan.remaining_x = 1;
+        prime_loaded_instruction(matching, OP_191_WAIT_CAMERA_TOP_WHILE_MOVING);
+        std::ranges::copy(instruction, matching.state.window.begin());
+        write_u16(matching.state.window, 4U, OP_1025);
+        const auto matching_result = matching.step(0, expected_top);
+
+        CameraMoveFixture mismatching;
+        mismatching.camera_pan.remaining_y = -1;
+        prime_loaded_instruction(
+            mismatching, OP_191_WAIT_CAMERA_TOP_WHILE_MOVING
+        );
+        std::ranges::copy(instruction, mismatching.state.window.begin());
+        write_u16(mismatching.state.window, 4U, OP_1025);
+        const auto mismatching_result = mismatching.step(0, expected_top + 1);
+
+        records_match = records_match &&
+            matching_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            matching_result.executed_instruction_count == 2U &&
+            matching.context.instruction_offset == 4U &&
+            matching.state.previous_opcode ==
+                OP_191_WAIT_CAMERA_TOP_WHILE_MOVING &&
+            matching.ports.direct_audio_service_count == 0U &&
+            mismatching_result.status == LegacyWorldStoryVmStatus::yielded &&
+            mismatching_result.executed_instruction_count == 1U &&
+            mismatching_result.direct_audio_service_count == 1U &&
+            mismatching.context.instruction_offset == 0U &&
+            mismatching.state.previous_opcode ==
+                OP_191_WAIT_CAMERA_TOP_WHILE_MOVING &&
+            mismatching.ports.direct_audio_service_count == 1U;
+    }
+
+    test.expect_true(
+        records_match,
+        "all thirteen real opcode 191 records preserve their signed viewport-top equality and mismatch paths"
+    );
+}
+
 void test_real_set_role_flag_8000_and_clear_one_shots_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -35146,6 +35402,7 @@ int main(const int argument_count, char** arguments) {
     test_start_camera_move_failure_ordering(test);
     test_start_camera_move_window_boundaries(test);
     test_wait_for_camera_move_protocol(test);
+    test_wait_for_camera_top_while_moving_protocol(test);
     test_start_frame_color_transition_protocol(test);
     test_start_frame_color_transition_window_boundaries(test);
     test_wait_for_frame_color_transition_protocol(test);
@@ -35307,6 +35564,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_role_action_id_record(test, root);
         test_real_camera_move_records(test, root);
         test_real_wait_for_camera_move_record(test, root);
+        test_real_wait_for_camera_top_while_moving_records(test, root);
         test_real_start_frame_color_transition_record(test, root);
         test_real_wait_for_frame_color_transition_record(test, root);
         test_real_repeat_role_action_refresh_record(test, root);

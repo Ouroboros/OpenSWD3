@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 193
-EXPECTED_CLOSED_HANDLER_COUNT = 139
+EXPECTED_MODERN_CASE_COUNT = 194
+EXPECTED_CLOSED_HANDLER_COUNT = 140
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -739,6 +739,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-party-member-field-write-0042d0d8.md",
         "platform_adapted;unit_tested;asset_absence_verified;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;shared_owner_tested;all_field_selectors_tested;fixed_member_record_tested;signed_operand_tested;wrapping_arithmetic_tested;destination_width_tested;negative_selector_default_tested;high_selector_retry_tested;staged_operand_tested;level_port_adapted;level_success_tested;level_failure_tested;partial_write_tested;previous_publication_tested;same_call_tested;no_audio_tested",
+    ),
+    "0x0042D170": (
+        "platform_adapted",
+        "story-vm-camera-top-wait-0042d170.md",
+        "platform_adapted;unit_tested;real_asset_tested;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;shared_owner_tested;signed_operand_tested;conditional_operand_tested;owner_access_order_tested;inactive_unread_operand_tested;full_dword_comparison_tested;previous_publication_tested;same_call_tested;audio_service_tested;yield_tested",
     ),
 }
 

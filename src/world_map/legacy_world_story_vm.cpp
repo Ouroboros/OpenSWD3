@@ -7569,6 +7569,42 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_191_WAIT_CAMERA_TOP_WHILE_MOVING:
+            if (runtime.camera_pan == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            if (runtime.camera_pan->remaining_x != 0 ||
+                runtime.camera_pan->remaining_y != 0) {
+                if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+
+                const i32 expected_top =
+                    static_cast<i16>(read_u16(state.window, ip + 2U));
+                if (runtime.camera == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+
+                if (std::bit_cast<i32>(runtime.camera->top) != expected_top) {
+                    state.previous_opcode = result.opcode;
+                    ports.service_audio();
+                    ++result.direct_audio_service_count;
+                    result.status = LegacyWorldStoryVmStatus::yielded;
+                    return result;
+                }
+            }
+
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+
         case 193U:
             if (ports.query_story_video_progress() >= 0) {
                 result.status = LegacyWorldStoryVmStatus::yielded;
