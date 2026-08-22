@@ -210,6 +210,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_172_CLEAR_MODE18_TEXT = 172U,
     OP_173_SET_MODE18_TEXT = 173U,
     OP_175_SUSPEND_STORY_ANI = 175U,
+    OP_176_RESUME_STORY_ANI = 176U,
     OP_1025 = 1025U,
 };
 
