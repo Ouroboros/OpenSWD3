@@ -164,9 +164,11 @@ using openswd3::world_map::OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM;
 using openswd3::world_map::OP_131_ADD_PARTY_ITEM_IF_ALLOWED;
 using openswd3::world_map::OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT;
 using openswd3::world_map::OP_133_REQUEST_SHOP;
+using openswd3::world_map::OP_134_ADJUST_PARTY_MEMBER_RESOURCES;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
+using openswd3::world_map::OP_144;
 using openswd3::world_map::OP_145_SET_ROLE_STATUS_BIT13;
 using openswd3::world_map::OP_146_SET_ROLE_STATUS_BIT8;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
@@ -21032,6 +21034,252 @@ void test_request_shop_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_adjust_party_member_resources_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        auto& resources = fixture.state.party_member_resources[1U];
+        resources.current_first = 10U;
+        resources.current_second = 1U;
+        resources.current_third = 50U;
+        resources.limit_first = 20U;
+        resources.limit_second = 100U;
+        resources.limit_third = 60U;
+        resources.transient_value = 77U;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_134_ADJUST_PARTY_MEMBER_RESOURCES | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, 2U);
+        write_u16(fixture.state.window, 4U, 5U);
+        write_u16(fixture.state.window, 6U, 0xFFFFU);
+        write_u16(fixture.state.window, 8U, 20U);
+        write_u16(fixture.state.window, 10U, 192U);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == 192U &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 10U &&
+                fixture.state.previous_opcode ==
+                    OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+                resources.current_first == 15U &&
+                resources.current_second == 0U &&
+                resources.current_third == 60U &&
+                resources.limit_first == 20U &&
+                resources.limit_second == 100U &&
+                resources.limit_third == 60U &&
+                resources.transient_value == 0U &&
+                read_u16(fixture.state.window, 10U) == 192U,
+            "opcode 134 aliases wrap three u16 additions, apply signed limits and lower bounds, clear the transient word, publish previous, and same-call"
+        );
+    }
+
+    Fixture self_modify;
+    auto& self_modify_resources = self_modify.state.party_member_resources[0U];
+    self_modify_resources.current_first = 0x7FF8U;
+    self_modify_resources.current_second = 0xFFFFU;
+    self_modify_resources.current_third = 90U;
+    self_modify_resources.limit_first = 100U;
+    self_modify_resources.limit_second = 100U;
+    self_modify_resources.limit_third = 100U;
+    self_modify_resources.transient_value = 99U;
+    prime_loaded_instruction(self_modify, OP_134_ADJUST_PARTY_MEMBER_RESOURCES);
+    write_u16(self_modify.state.window, 2U, 1U);
+    write_u16(self_modify.state.window, 4U, 16U);
+    write_u16(self_modify.state.window, 6U, 0U);
+    write_u16(self_modify.state.window, 8U, 20U);
+    write_u16(self_modify.state.window, 10U, 192U);
+    const auto self_modify_result = self_modify.step();
+
+    test.expect_true(
+        self_modify_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            self_modify_result.opcode == OP_144 &&
+            self_modify_result.executed_instruction_count == 2U &&
+            self_modify.context.instruction_offset == 10U &&
+            self_modify.state.previous_opcode ==
+                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            self_modify_resources.current_first == 0U &&
+            self_modify_resources.current_second == 0U &&
+            self_modify_resources.current_third == 100U &&
+            self_modify_resources.transient_value == 0U &&
+            read_u16(self_modify.state.window, 10U) == OP_144,
+        "opcode 134 treats wrapped negative resources as signed, rewrites the next word to pending opcode 144 when the first resource is nonpositive, and same-calls it"
+    );
+
+    Fixture missing_first;
+    missing_first.context.instruction_offset = 0x7FFCU;
+    missing_first.context.talk_data_offset = 0x1111U;
+    missing_first.state.loaded_file_number = 1U;
+    missing_first.state.loaded_data_offset = 0x1111U;
+    missing_first.state.window_loaded = true;
+    missing_first.state.party_member_resources[0U].current_first = 7U;
+    write_u16(
+        missing_first.state.window,
+        0x7FFCU,
+        OP_134_ADJUST_PARTY_MEMBER_RESOURCES
+    );
+    write_u16(missing_first.state.window, 0x7FFEU, 1U);
+    const auto missing_first_result = missing_first.step();
+
+    Fixture missing_second;
+    missing_second.context.instruction_offset = 0x7FFAU;
+    missing_second.context.talk_data_offset = 0x1111U;
+    missing_second.state.loaded_file_number = 1U;
+    missing_second.state.loaded_data_offset = 0x1111U;
+    missing_second.state.window_loaded = true;
+    missing_second.state.party_member_resources[0U].current_first = 0x7FFFU;
+    write_u16(
+        missing_second.state.window,
+        0x7FFAU,
+        OP_134_ADJUST_PARTY_MEMBER_RESOURCES
+    );
+    write_u16(missing_second.state.window, 0x7FFCU, 1U);
+    write_u16(missing_second.state.window, 0x7FFEU, 1U);
+    const auto missing_second_result = missing_second.step();
+
+    Fixture missing_third;
+    missing_third.context.instruction_offset = 0x7FF8U;
+    missing_third.context.talk_data_offset = 0x1111U;
+    missing_third.state.loaded_file_number = 1U;
+    missing_third.state.loaded_data_offset = 0x1111U;
+    missing_third.state.window_loaded = true;
+    missing_third.state.party_member_resources[0U].current_first = 5U;
+    missing_third.state.party_member_resources[0U].current_second = 6U;
+    write_u16(
+        missing_third.state.window,
+        0x7FF8U,
+        OP_134_ADJUST_PARTY_MEMBER_RESOURCES
+    );
+    write_u16(missing_third.state.window, 0x7FFAU, 1U);
+    write_u16(missing_third.state.window, 0x7FFCU, 2U);
+    write_u16(missing_third.state.window, 0x7FFEU, 3U);
+    const auto missing_third_result = missing_third.step();
+
+    test.expect_true(
+        missing_first_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_first.context.instruction_offset == 0x7FFCU &&
+            missing_first.state.previous_opcode == 0U &&
+            missing_first.state.party_member_resources[0U].current_first ==
+                7U &&
+            missing_second_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_second.context.instruction_offset == 0x7FFAU &&
+            missing_second.state.previous_opcode == 0U &&
+            missing_second.state.party_member_resources[0U].current_first ==
+                0x8000U &&
+            missing_third_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_third.context.instruction_offset == 0x7FF8U &&
+            missing_third.state.previous_opcode == 0U &&
+            missing_third.state.party_member_resources[0U].current_first ==
+                7U &&
+            missing_third.state.party_member_resources[0U].current_second == 9U,
+        "opcode 134 reads and commits each delta independently and does not clamp or publish after a later operand truncation"
+    );
+
+    Fixture invalid_selector;
+    invalid_selector.context.instruction_offset = 0x7FFCU;
+    invalid_selector.context.talk_data_offset = 0x1111U;
+    invalid_selector.state.loaded_file_number = 1U;
+    invalid_selector.state.loaded_data_offset = 0x1111U;
+    invalid_selector.state.window_loaded = true;
+    invalid_selector.state.party_member_resources[0U].current_first = 7U;
+    write_u16(
+        invalid_selector.state.window,
+        0x7FFCU,
+        OP_134_ADJUST_PARTY_MEMBER_RESOURCES
+    );
+    write_u16(invalid_selector.state.window, 0x7FFEU, 5U);
+    const auto invalid_selector_result = invalid_selector.step();
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FF6U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    auto& exact_tail_resources = exact_tail.state.party_member_resources[0U];
+    exact_tail_resources.current_first = 1U;
+    exact_tail_resources.limit_first = 10U;
+    exact_tail_resources.limit_second = 10U;
+    exact_tail_resources.limit_third = 10U;
+    exact_tail_resources.transient_value = 99U;
+    write_u16(
+        exact_tail.state.window, 0x7FF6U, OP_134_ADJUST_PARTY_MEMBER_RESOURCES
+    );
+    write_u16(exact_tail.state.window, 0x7FF8U, 1U);
+    write_u16(exact_tail.state.window, 0x7FFAU, 0U);
+    write_u16(exact_tail.state.window, 0x7FFCU, 0U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0U);
+    const auto exact_tail_result = exact_tail.step();
+
+    Fixture self_modify_out_of_range;
+    self_modify_out_of_range.context.instruction_offset = 0x7FF6U;
+    self_modify_out_of_range.context.talk_data_offset = 0x1111U;
+    self_modify_out_of_range.state.loaded_file_number = 1U;
+    self_modify_out_of_range.state.loaded_data_offset = 0x1111U;
+    self_modify_out_of_range.state.window_loaded = true;
+    auto& out_of_range_resources =
+        self_modify_out_of_range.state.party_member_resources[0U];
+    out_of_range_resources.current_second = 0xFFFFU;
+    out_of_range_resources.current_third = 0xFFFFU;
+    out_of_range_resources.limit_first = 10U;
+    out_of_range_resources.limit_second = 10U;
+    out_of_range_resources.limit_third = 10U;
+    out_of_range_resources.transient_value = 99U;
+    write_u16(
+        self_modify_out_of_range.state.window,
+        0x7FF6U,
+        OP_134_ADJUST_PARTY_MEMBER_RESOURCES
+    );
+    write_u16(self_modify_out_of_range.state.window, 0x7FF8U, 1U);
+    write_u16(self_modify_out_of_range.state.window, 0x7FFAU, 0U);
+    write_u16(self_modify_out_of_range.state.window, 0x7FFCU, 0U);
+    write_u16(self_modify_out_of_range.state.window, 0x7FFEU, 0U);
+    const auto self_modify_out_of_range_result =
+        self_modify_out_of_range.step();
+
+    test.expect_true(
+        invalid_selector_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            invalid_selector_result.executed_instruction_count == 1U &&
+            invalid_selector.context.instruction_offset == 0x8006U &&
+            invalid_selector.state.previous_opcode ==
+                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            invalid_selector.state.party_member_resources[0U].current_first ==
+                7U &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            exact_tail_resources.current_first == 1U &&
+            exact_tail_resources.transient_value == 0U &&
+            self_modify_out_of_range_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            self_modify_out_of_range.context.instruction_offset == 0x7FF6U &&
+            self_modify_out_of_range.state.previous_opcode == 0U &&
+            out_of_range_resources.current_first == 0U &&
+            out_of_range_resources.current_second == 0xFFFFU &&
+            out_of_range_resources.current_third == 0xFFFFU &&
+            out_of_range_resources.transient_value == 99U,
+        "opcode 134 invalid selectors consume without operands, exact-tail success continues after publication, and an unsafe next-opcode rewrite preserves prior clamps only"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -24951,6 +25199,118 @@ void test_real_request_shop_record(
     );
 }
 
+void test_real_adjust_party_member_resources_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream restore_input{
+        root / "TALK1.DAT", std::ios::binary | std::ios::in
+    };
+    restore_input.seekg(0x000233AF);
+    std::array<u8, 42U> restore_records{};
+    restore_input.read(
+        reinterpret_cast<char*>(restore_records.data()),
+        static_cast<std::streamsize>(restore_records.size())
+    );
+    const bool restore_records_read = static_cast<bool>(restore_input);
+
+    Fixture restore;
+    std::ranges::copy(restore_records, restore.state.window.begin());
+    restore.state.loaded_file_number = 1U;
+    restore.state.loaded_data_offset = 0x000231AFU;
+    restore.state.window_loaded = true;
+    restore.context.talk_data_offset = 0x000231AFU;
+    for (std::size_t index = 0U;
+         index < restore.state.party_member_resources.size();
+         ++index) {
+        auto& resources = restore.state.party_member_resources[index];
+        resources.current_first = 1U;
+        resources.current_second = 2U;
+        resources.current_third = 3U;
+        resources.limit_first = static_cast<u16>(101U + index);
+        resources.limit_second = static_cast<u16>(201U + index);
+        resources.limit_third = static_cast<u16>(301U + index);
+        resources.transient_value = 99U;
+    }
+
+    const auto restore_result = restore.step();
+    bool restored_all = true;
+    for (std::size_t index = 0U;
+         index < restore.state.party_member_resources.size();
+         ++index) {
+        const auto& resources = restore.state.party_member_resources[index];
+        restored_all = restored_all &&
+            resources.current_first == 101U + index &&
+            resources.current_second == 201U + index &&
+            resources.current_third == 301U + index &&
+            resources.transient_value == 0U;
+    }
+
+    std::ifstream damage_input{
+        root / "TALK1.DAT", std::ios::binary | std::ios::in
+    };
+    damage_input.seekg(0x000299AF);
+    std::array<u8, 14U> damage_record{};
+    damage_input.read(
+        reinterpret_cast<char*>(damage_record.data()),
+        static_cast<std::streamsize>(damage_record.size())
+    );
+    const bool damage_record_read = static_cast<bool>(damage_input);
+
+    Fixture damage;
+    std::ranges::copy(damage_record, damage.state.window.begin());
+    damage.state.loaded_file_number = 1U;
+    damage.state.loaded_data_offset = 0x000297AFU;
+    damage.state.window_loaded = true;
+    damage.context.talk_data_offset = 0x000297AFU;
+    auto& damage_resources = damage.state.party_member_resources[0U];
+    damage_resources.current_first = 50U;
+    damage_resources.current_second = 10U;
+    damage_resources.current_third = 10U;
+    damage_resources.limit_first = 100U;
+    damage_resources.limit_second = 20U;
+    damage_resources.limit_third = 20U;
+    damage_resources.transient_value = 99U;
+
+    const auto damage_result = damage.step();
+    test.expect_true(
+        restore_records_read &&
+            read_u16(restore_records, 0U) ==
+                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            read_u16(restore_records, 10U) ==
+                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            read_u16(restore_records, 20U) ==
+                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            read_u16(restore_records, 30U) ==
+                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            restore_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            restore_result.opcode == 171U &&
+            restore_result.executed_instruction_count == 5U &&
+            restore.context.instruction_offset == 40U &&
+            restore.state.previous_opcode ==
+                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            restored_all && damage_record_read &&
+            read_u16(damage_record, 0U) ==
+                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            read_u16(damage_record, 2U) == 1U &&
+            read_u16(damage_record, 4U) == 0xFF9CU &&
+            read_u16(damage_record, 10U) == 0xFFFFU &&
+            damage_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            damage_result.opcode == OP_144 &&
+            damage_result.executed_instruction_count == 2U &&
+            damage.context.instruction_offset == 10U &&
+            damage.state.previous_opcode ==
+                OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            damage_resources.current_first == 0U &&
+            damage_resources.current_second == 10U &&
+            damage_resources.current_third == 10U &&
+            damage_resources.transient_value == 0U &&
+            read_u16(damage.state.window, 10U) == OP_144,
+        "real opcode 134 restores all four party-member resources and rewrites the post-damage terminator to pending opcode 144"
+    );
+}
+
 void test_real_item_presence_reload_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -27788,6 +28148,7 @@ int main(const int argument_count, char** arguments) {
     test_add_party_item_if_allowed_protocol(test);
     test_swap_player_item_into_role_slot_protocol(test);
     test_request_shop_protocol(test);
+    test_adjust_party_member_resources_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -27872,6 +28233,7 @@ int main(const int argument_count, char** arguments) {
         test_real_adjust_player_item_quantity_record(test, root);
         test_real_item_presence_reload_records(test, root);
         test_real_request_shop_record(test, root);
+        test_real_adjust_party_member_resources_records(test, root);
         test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_wait_role_action_index_records(test, root);
         test_real_step_role_list_records(test, root);

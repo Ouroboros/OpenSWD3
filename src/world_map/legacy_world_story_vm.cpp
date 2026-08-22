@@ -6185,6 +6185,87 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_134_ADJUST_PARTY_MEMBER_RESOURCES: {
+            if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const u16 selector = read_u16(state.window, ip + 2U);
+            if (selector == 0U ||
+                selector > kLegacyWorldStoryPartyMemberResourceCount) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 10U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+
+            auto& resources = state.party_member_resources[selector - 1U];
+            if (!has_bytes(state.window, ip + 4U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            resources.current_first = static_cast<u16>(
+                resources.current_first + read_u16(state.window, ip + 4U)
+            );
+            if (!has_bytes(state.window, ip + 6U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            resources.current_second = static_cast<u16>(
+                resources.current_second + read_u16(state.window, ip + 6U)
+            );
+            if (!has_bytes(state.window, ip + 8U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            resources.current_third = static_cast<u16>(
+                resources.current_third + read_u16(state.window, ip + 8U)
+            );
+            if (static_cast<i16>(resources.current_first) >
+                static_cast<i16>(resources.limit_first)) {
+                resources.current_first = resources.limit_first;
+            }
+
+            if (static_cast<i16>(resources.current_second) >
+                static_cast<i16>(resources.limit_second)) {
+                resources.current_second = resources.limit_second;
+            }
+
+            if (static_cast<i16>(resources.current_third) >
+                static_cast<i16>(resources.limit_third)) {
+                resources.current_third = resources.limit_third;
+            }
+
+            if (static_cast<i16>(resources.current_first) <= 0) {
+                resources.current_first = 0U;
+                if (!has_bytes(state.window, ip + 10U, sizeof(u16))) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+
+                write_u16(state.window, ip + 10U, OP_144);
+            }
+
+            if (static_cast<i16>(resources.current_second) < 0) {
+                resources.current_second = 0U;
+            }
+
+            if (static_cast<i16>(resources.current_third) < 0) {
+                resources.current_third = 0U;
+            }
+
+            resources.transient_value = 0U;
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 10U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 141U:
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

@@ -37,6 +37,7 @@ inline constexpr std::size_t kLegacyWorldStoryTextAllocationSize = 0x100U;
 inline constexpr std::size_t kLegacyWorldStoryShopBufferWordCount = 0x80U;
 inline constexpr std::size_t kLegacyWorldStoryShopItemCapacity =
     kLegacyWorldStoryShopBufferWordCount - 1U;
+inline constexpr std::size_t kLegacyWorldStoryPartyMemberResourceCount = 4U;
 
 enum LegacyWorldStoryOpcode : compat::u16 {
     OP_07_CLEAR_DIALOG_CONTROL_BIT31 = 7U,
@@ -164,9 +165,11 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_131_ADD_PARTY_ITEM_IF_ALLOWED = 131U,
     OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT = 132U,
     OP_133_REQUEST_SHOP = 133U,
+    OP_134_ADJUST_PARTY_MEMBER_RESOURCES = 134U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
+    OP_144 = 144U,
     OP_145_SET_ROLE_STATUS_BIT13 = 145U,
     OP_146_SET_ROLE_STATUS_BIT8 = 146U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
@@ -177,6 +180,16 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM = 168U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
+};
+
+struct LegacyWorldStoryPartyMemberResources {
+    compat::u16 current_first{};
+    compat::u16 current_second{};
+    compat::u16 current_third{};
+    compat::u16 limit_first{};
+    compat::u16 limit_second{};
+    compat::u16 limit_third{};
+    compat::u16 transient_value{};
 };
 
 struct LegacyWorldStoryVmState {
@@ -192,6 +205,13 @@ struct LegacyWorldStoryVmState {
     // Shop mode 2 consumes the nonzero u16 ids and releases that owner on exit;
     // sub_40E0B0 does not reset it.
     std::vector<compat::u16> shop_item_ids;
+    // Opcode 134 directly updates the first three current/limit word pairs in
+    // four process-level 0x38-byte party-member records, then clears +0x24.
+    // The remaining record fields and persistence loading belong to B10/B11.
+    std::array<
+        LegacyWorldStoryPartyMemberResources,
+        kLegacyWorldStoryPartyMemberResourceCount>
+        party_member_resources;
     compat::u32 text_control_flags{0xFFFFFFFFU};
     compat::i32 text_layout_first{};
     compat::i32 text_layout_second{};
