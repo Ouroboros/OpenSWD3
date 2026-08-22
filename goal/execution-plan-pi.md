@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v405
+版本：v406
 
 最后更新：2026-08-21
 
@@ -2953,5 +2953,15 @@ B7 P0 有限收口完成。
     `244f0d55c0ccd038e9391aba2d394161673d27b002864e4a08edf858f34daf3f`。本地进度为
     已实现196/198、已验收195/198；内部workpack143/146，即`24 assembly_exact +
     119 platform_adapted + 3 pending_audit`。
+
+- 按用户决定完成FFmpeg 9.0预编译依赖落盘。BtbN当前只在滚动`latest` release提供n9.0包，
+    因此除tag外锁定同批次asset ID/更新时间/文件名/字节数/SHA256。Linux x64与Windows x64
+    `lgpl-shared` archives及解压结果位于Git已忽略的
+    `build/dependencies/ffmpeg/9.0/`；SHA256分别为
+    `1857bfb5781d82e6f402be251a5019b24f20ed340084951fbc2cdaa69c197bb4`与
+    `80fa3acdcf73b8810a0aa2567674b12523ce6311651f80aca9797e88ccefd3f9`。可追踪来源清单为
+    `dependencies/ffmpeg/9.0/SOURCE.md`。两个解压目录的license、头文件与共享库均存在，Linux
+    二进制报告`n9.0.1-6-g9d4ca21220-20260822`。未接入CMake或运行时后端，且未在configure
+    阶段联网下载/源码编译。
 
 下一组只审计`0x0042D49F` / special opcode1025。
