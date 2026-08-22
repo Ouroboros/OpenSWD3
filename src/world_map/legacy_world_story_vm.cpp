@@ -7134,6 +7134,13 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_175_SUSPEND_STORY_ANI:
+            ports.set_story_ani_suspended(true);
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
+            continue;
+
         case 193U:
             if (ports.query_story_video_progress() >= 0) {
                 result.status = LegacyWorldStoryVmStatus::yielded;

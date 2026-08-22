@@ -3700,6 +3700,19 @@ public:
                 return ani_activity_.state().phase;
             }
 
+            void
+            set_story_ani_suspended(const bool suspended) noexcept override {
+                if (suspended) {
+                    ani_activity_.state().flags |=
+                        openswd3::asset_runtime::kLegacyAniSuspendFlag;
+                } else {
+                    ani_activity_.state().flags &=
+                        ~static_cast<openswd3::compat::u32>(
+                            openswd3::asset_runtime::kLegacyAniSuspendFlag
+                        );
+                }
+            }
+
             void suspend_story_host_frame_execution() noexcept override {
                 // The original sets the Win32 activation gate and relies on a
                 // later activation event to resume frames. SDL focus changes

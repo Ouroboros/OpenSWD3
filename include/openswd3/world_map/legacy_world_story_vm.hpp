@@ -209,6 +209,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_171_SET_MODE17_TEXT = 171U,
     OP_172_CLEAR_MODE18_TEXT = 172U,
     OP_173_SET_MODE18_TEXT = 173U,
+    OP_175_SUSPEND_STORY_ANI = 175U,
     OP_1025 = 1025U,
 };
 
@@ -429,6 +430,7 @@ public:
     [[nodiscard]] virtual bool is_story_ani_active() const noexcept = 0;
     [[nodiscard]] virtual compat::i32
     query_story_ani_phase() const noexcept = 0;
+    virtual void set_story_ani_suspended(bool suspended) noexcept = 0;
     virtual void suspend_story_host_frame_execution() noexcept = 0;
     [[nodiscard]] virtual bool perform_story_file_operation(
         LegacyWorldStoryFileOperation operation,

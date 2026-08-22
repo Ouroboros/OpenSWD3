@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042CDED`（opcode175）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042CE12`（opcode176）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -20,7 +20,7 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 - 当前 C++ 接入 95 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- `0..144`、`147..152`、`155..168`及`170..173`已有人工汇编语义；其余opcode目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
+- `0..144`、`147..152`、`155..168`、`170..173`及`175`已有人工汇编语义；其余opcode目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
 - 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
@@ -295,7 +295,12 @@ shared opcodes170–173恢复mode17/18两个nullable 52字节文本owner：偶�
 9/3/5/4，四库分布8/4/5/4；四种代表回放与synthetic通过。Story VM 3/3、Linux core186/186
 及app192/192完整门均通过。已实现177/198、已验收175/198；内部workpack为130/146，即
 `20 assembly_exact + 110 platform_adapted + 16 pending_audit`。
-下一行只审计`0x0042CDED`下的opcode175。
+opcode175恢复完整ANI control dword的bit4置位，actual activity owner写入后+2、previous并
+same-call，不audio；其余31位及幂等语义保持。ANI flags恢复u32并由窄port连接SDL实际owner。
+线性资产为0条，以absence锁定；ANI owner依赖与Story VM共4/4、Linux core186/186及
+app192/192通过。已实现178/198、已验收176/198；内部workpack为131/146，即
+`21 assembly_exact + 110 platform_adapted + 15 pending_audit`。
+下一行只审计`0x0042CE12`下的opcode176。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

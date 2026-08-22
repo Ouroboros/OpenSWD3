@@ -34,7 +34,7 @@ struct LegacyAniActivityState {
     compat::i32 phase{};
     compat::u32 process_flags{};
     compat::u32 scene_flags{};
-    compat::u8 flags{};
+    compat::u32 flags{};
     bool snapshot_saved{};
 };
 

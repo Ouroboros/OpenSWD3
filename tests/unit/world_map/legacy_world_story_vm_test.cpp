@@ -209,6 +209,7 @@ using openswd3::world_map::OP_170_CLEAR_MODE17_TEXT;
 using openswd3::world_map::OP_171_SET_MODE17_TEXT;
 using openswd3::world_map::OP_172_CLEAR_MODE18_TEXT;
 using openswd3::world_map::OP_173_SET_MODE18_TEXT;
+using openswd3::world_map::OP_175_SUSPEND_STORY_ANI;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -511,6 +512,20 @@ public:
         return ani_phase;
     }
 
+    void set_story_ani_suspended(const bool suspended) noexcept override {
+        ++ani_suspend_write_count;
+        if (suspended) {
+            ani_control_flags |= openswd3::asset_runtime::kLegacyAniSuspendFlag;
+        } else {
+            ani_control_flags &= ~static_cast<u32>(
+                openswd3::asset_runtime::kLegacyAniSuspendFlag
+            );
+        }
+        if (story_ani_suspend_callback) {
+            story_ani_suspend_callback();
+        }
+    }
+
     void suspend_story_host_frame_execution() noexcept override {
         ++story_host_frame_suspend_count;
         if (story_host_frame_suspend_callback) {
@@ -593,6 +608,7 @@ public:
     std::function<void()> music_transition_callback;
     std::function<void()> music_volume_callback;
     std::function<void()> input_menu_reset_callback;
+    std::function<void()> story_ani_suspend_callback;
     std::function<void()> story_host_frame_suspend_callback;
     std::function<void()> story_file_operation_callback;
     u32 framebuffer_clear_count{};
@@ -605,6 +621,8 @@ public:
     u32 ani_begin_count{};
     mutable u32 ani_active_query_count{};
     mutable u32 ani_phase_query_count{};
+    u32 ani_suspend_write_count{};
+    u32 ani_control_flags{};
     u32 last_ani_frame_interval{};
     u32 beep_count{};
     u32 direct_audio_service_count{};
@@ -833,6 +851,16 @@ public:
         return 0;
     }
 
+    void set_story_ani_suspended(const bool suspended) noexcept override {
+        if (suspended) {
+            ani_control_flags |= openswd3::asset_runtime::kLegacyAniSuspendFlag;
+        } else {
+            ani_control_flags &= ~static_cast<u32>(
+                openswd3::asset_runtime::kLegacyAniSuspendFlag
+            );
+        }
+    }
+
     void suspend_story_host_frame_execution() noexcept override {}
 
     [[nodiscard]] bool perform_story_file_operation(
@@ -861,6 +889,7 @@ public:
     u32 video_begin_count{};
     u32 video_progress_query_count{};
     u32 last_ani_frame_interval{};
+    u32 ani_control_flags{};
     u8 last_ani_flags{};
     u32 role_path_payload_release_count{};
     u32 released_role_path_index{0xFFFFFFFFU};
@@ -3105,6 +3134,77 @@ void test_mode_text_protocol(openswd3::test::Context& test) {
                 set_exact_tail.state, 78U
             ),
         "variable mode-text set completes owner, flag, previous, audio, and yield at the exact window tail"
+    );
+}
+
+void test_suspend_story_ani_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture, static_cast<u16>(OP_175_SUSPEND_STORY_ANI | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        fixture.ports.ani_control_flags = 0xA5A50001U;
+        u32 flags_at_write{};
+        u16 ip_at_write{0xFFFFU};
+        u32 previous_at_write{};
+        fixture.ports.story_ani_suspend_callback = [&] {
+            flags_at_write = fixture.ports.ani_control_flags;
+            ip_at_write = fixture.context.instruction_offset;
+            previous_at_write = fixture.state.previous_opcode;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode == OP_175_SUSPEND_STORY_ANI &&
+                fixture.ports.ani_suspend_write_count == 1U &&
+                fixture.ports.ani_control_flags == 0xA5A50011U &&
+                flags_at_write == 0xA5A50011U && ip_at_write == 0U &&
+                previous_at_write == 0x66U,
+            "opcode 175 covers every raw alias, ORs only ANI control bit4 across the full dword, writes before IP and previous, and same-calls without audio"
+        );
+    }
+
+    Fixture idempotent;
+    prime_loaded_instruction(idempotent, OP_175_SUSPEND_STORY_ANI);
+    write_u16(idempotent.state.window, 2U, OP_1025);
+    idempotent.ports.ani_control_flags = 0xFFFFFFFFU;
+    const auto idempotent_result = idempotent.step();
+
+    Fixture exact_tail;
+    prime_loaded_instruction(exact_tail, OP_175_SUSPEND_STORY_ANI);
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.state.previous_opcode = 0x66U;
+    exact_tail.ports.ani_control_flags = 0x80000000U;
+    write_u16(exact_tail.state.window, 0x7FFEU, OP_175_SUSPEND_STORY_ANI);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        idempotent_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            idempotent.ports.ani_control_flags == 0xFFFFFFFFU &&
+            idempotent.ports.ani_suspend_write_count == 1U &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_175_SUSPEND_STORY_ANI &&
+            exact_tail.ports.ani_control_flags == 0x80000010U &&
+            exact_tail.ports.ani_suspend_write_count == 1U,
+        "opcode 175 is idempotent and completes its full-dword flag write, IP advance, and previous publication before an exact-tail successor fetch failure"
     );
 }
 
@@ -32937,6 +33037,7 @@ int main(const int argument_count, char** arguments) {
     test_current_map_reload_protocol(test);
     test_item_total_reload_protocol(test);
     test_mode_text_protocol(test);
+    test_suspend_story_ani_protocol(test);
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);
