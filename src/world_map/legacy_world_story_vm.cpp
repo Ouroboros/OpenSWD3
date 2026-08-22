@@ -7310,6 +7310,21 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_180_CLEAR_FRAME_EXECUTION_GATE:
+            if (runtime.frame_execution_gate == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.frame_execution_gate = 0U;
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+
         case 193U:
             if (ports.query_story_video_progress() >= 0) {
                 result.status = LegacyWorldStoryVmStatus::yielded;

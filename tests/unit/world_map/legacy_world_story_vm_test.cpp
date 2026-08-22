@@ -214,6 +214,7 @@ using openswd3::world_map::OP_176_RESUME_STORY_ANI;
 using openswd3::world_map::OP_177_GATHER_PARTY_AT_PLAYER;
 using openswd3::world_map::OP_178_SET_ROLE_COLLISION_BYPASS;
 using openswd3::world_map::OP_179_ENQUEUE_FRAME_DEFORMATION;
+using openswd3::world_map::OP_180_CLEAR_FRAME_EXECUTION_GATE;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -983,6 +984,7 @@ struct FixtureStorage {
     openswd3::input_time_rng::LegacySecondaryRng secondary_rng{};
     openswd3::input_time_rng::LegacyCrtRng crt_rng{};
     openswd3::asset_runtime::LegacyDeformationList frame_deformations;
+    u32 frame_execution_gate{1U};
     u32 speed_mode{};
     u32 special_mode_state{};
     u32 special_input_mode{};
@@ -1032,6 +1034,7 @@ struct Fixture {
     openswd3::input_time_rng::LegacyCrtRng& crt_rng = storage->crt_rng;
     openswd3::asset_runtime::LegacyDeformationList& frame_deformations =
         storage->frame_deformations;
+    u32& frame_execution_gate = storage->frame_execution_gate;
     u32& speed_mode = storage->speed_mode;
     u32& special_mode_state = storage->special_mode_state;
     u32& special_input_mode = storage->special_input_mode;
@@ -1073,6 +1076,7 @@ struct Fixture {
         runtime.secondary_rng = &secondary_rng;
         runtime.frame_deformations = &frame_deformations;
         runtime.crt_rng = &crt_rng;
+        runtime.frame_execution_gate = &frame_execution_gate;
         runtime.speed_mode = &speed_mode;
         runtime.special_mode_state = &special_mode_state;
         runtime.special_input_mode = &special_input_mode;
@@ -3858,6 +3862,94 @@ void test_enqueue_frame_deformation_protocol(openswd3::test::Context& test) {
             invalid_geometry.frame_deformations.empty() &&
             invalid_geometry.crt_rng.state() == 1U,
         "opcode 179 commits the complete node before exact-tail successor fetch failure, while missing actual owners and unsafe zero geometry typed-stop before publication, IP, previous, or RNG"
+    );
+}
+
+void test_clear_frame_execution_gate_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_180_CLEAR_FRAME_EXECUTION_GATE | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        fixture.frame_execution_gate = 0xA5A50001U;
+        u32 gate_at_audio = 0xFFFFFFFFU;
+        u16 ip_at_audio{};
+        u32 previous_at_audio{};
+        fixture.ports.audio_service_callback = [&] {
+            gate_at_audio = fixture.frame_execution_gate;
+            ip_at_audio = fixture.context.instruction_offset;
+            previous_at_audio = fixture.state.previous_opcode;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_180_CLEAR_FRAME_EXECUTION_GATE &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.frame_execution_gate == 0U && gate_at_audio == 0U &&
+                fixture.context.instruction_offset == 2U && ip_at_audio == 2U &&
+                fixture.state.previous_opcode ==
+                    OP_180_CLEAR_FRAME_EXECUTION_GATE &&
+                previous_at_audio == OP_180_CLEAR_FRAME_EXECUTION_GATE,
+            "opcode 180 covers every raw alias, clears the full frame-execution gate before IP and previous, then services audio and yields without fetching the successor"
+        );
+    }
+
+    Fixture idempotent;
+    prime_loaded_instruction(idempotent, OP_180_CLEAR_FRAME_EXECUTION_GATE);
+    write_u16(idempotent.state.window, 2U, OP_1025);
+    idempotent.frame_execution_gate = 0U;
+    const auto idempotent_result = idempotent.step();
+
+    Fixture exact_tail;
+    prime_loaded_instruction(exact_tail, OP_180_CLEAR_FRAME_EXECUTION_GATE);
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.state.previous_opcode = 0x66U;
+    exact_tail.frame_execution_gate = 0xFFFFFFFFU;
+    write_u16(
+        exact_tail.state.window,
+        0x7FFEU,
+        static_cast<u16>(OP_180_CLEAR_FRAME_EXECUTION_GATE | 0xC000U)
+    );
+    const auto exact_tail_result = exact_tail.step();
+
+    Fixture owner_missing;
+    prime_loaded_instruction(owner_missing, OP_180_CLEAR_FRAME_EXECUTION_GATE);
+    owner_missing.state.previous_opcode = 0x66U;
+    owner_missing.frame_execution_gate = 0x12345678U;
+    owner_missing.runtime.frame_execution_gate = nullptr;
+    const auto owner_missing_result = owner_missing.step();
+
+    test.expect_true(
+        idempotent_result.status == LegacyWorldStoryVmStatus::yielded &&
+            idempotent_result.executed_instruction_count == 1U &&
+            idempotent_result.direct_audio_service_count == 1U &&
+            idempotent.frame_execution_gate == 0U &&
+            exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_180_CLEAR_FRAME_EXECUTION_GATE &&
+            exact_tail.frame_execution_gate == 0U &&
+            owner_missing_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            owner_missing_result.executed_instruction_count == 1U &&
+            owner_missing_result.direct_audio_service_count == 0U &&
+            owner_missing.context.instruction_offset == 0U &&
+            owner_missing.state.previous_opcode == 0x66U &&
+            owner_missing.frame_execution_gate == 0x12345678U,
+        "opcode 180 is idempotent and yields after its full-dword gate clear at the exact window tail, while a missing actual owner stops at the original write point"
     );
 }
 
@@ -33872,6 +33964,7 @@ int main(const int argument_count, char** arguments) {
     test_gather_party_at_player_protocol(test);
     test_set_role_collision_bypass_protocol(test);
     test_enqueue_frame_deformation_protocol(test);
+    test_clear_frame_execution_gate_protocol(test);
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);

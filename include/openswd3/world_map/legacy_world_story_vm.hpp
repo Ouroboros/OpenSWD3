@@ -217,6 +217,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_177_GATHER_PARTY_AT_PLAYER = 177U,
     OP_178_SET_ROLE_COLLISION_BYPASS = 178U,
     OP_179_ENQUEUE_FRAME_DEFORMATION = 179U,
+    OP_180_CLEAR_FRAME_EXECUTION_GATE = 180U,
     OP_1025 = 1025U,
 };
 
@@ -346,6 +347,7 @@ struct LegacyWorldStoryVmRuntime {
     LegacyRoleHeadActionList* role_head_actions{};
     asset_runtime::LegacyDeformationList* frame_deformations{};
     input_time_rng::LegacyCrtRng* crt_rng{};
+    compat::u32* frame_execution_gate{};
     compat::u32* battle_request_value{};
     compat::u32* special_mode_state{};
     compat::u32* special_input_mode{};
