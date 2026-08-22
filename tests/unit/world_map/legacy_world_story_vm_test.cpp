@@ -211,6 +211,7 @@ using openswd3::world_map::OP_172_CLEAR_MODE18_TEXT;
 using openswd3::world_map::OP_173_SET_MODE18_TEXT;
 using openswd3::world_map::OP_175_SUSPEND_STORY_ANI;
 using openswd3::world_map::OP_176_RESUME_STORY_ANI;
+using openswd3::world_map::OP_177_GATHER_PARTY_AT_PLAYER;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -971,6 +972,7 @@ struct FixtureStorage {
     openswd3::world_map::LegacyWorldSelectionScrollState selection_scroll{};
     openswd3::world_map::LegacyWorldRoleTransferState role_transfer_state{};
     u32 live_party_role_count{1U};
+    openswd3::world_map::LegacyWorldPlayerPostFrameState player_post_frame{};
     std::array<
         LegacyWorldObjectSlot,
         openswd3::world_map::kLegacyWorldPartySlotCount>
@@ -1014,6 +1016,8 @@ struct Fixture {
     openswd3::world_map::LegacyWorldRoleTransferState& role_transfer_state =
         storage->role_transfer_state;
     u32& live_party_role_count = storage->live_party_role_count;
+    openswd3::world_map::LegacyWorldPlayerPostFrameState& player_post_frame =
+        storage->player_post_frame;
     std::array<
         LegacyWorldObjectSlot,
         openswd3::world_map::kLegacyWorldPartySlotCount>&
@@ -1052,6 +1056,7 @@ struct Fixture {
         runtime.role_storage = &roles;
         runtime.role_transfer_state = &role_transfer_state;
         runtime.live_party_role_count = &live_party_role_count;
+        runtime.player_post_frame = &player_post_frame;
         runtime.live_party_object_slots = &live_party_object_slots;
         runtime.selection_words = &selection_words;
         runtime.selection_scroll = &selection_scroll;
@@ -3287,6 +3292,237 @@ void test_resume_story_ani_protocol(openswd3::test::Context& test) {
             exact_tail.ports.ani_control_flags == 0xFFFFFFEFU &&
             exact_tail.ports.ani_suspend_write_count == 1U,
         "opcode 176 is idempotent and yields after its full-dword flag clear, IP advance, previous publication, and audio at the exact window tail"
+    );
+}
+
+void test_gather_party_at_player_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 2U> setup_alias_masks{0U, 0x4000U};
+    for (const u16 alias_mask : setup_alias_masks) {
+        Fixture fixture;
+        fixture.roles.resize(4U);
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_177_GATHER_PARTY_AT_PLAYER | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        fixture.dialogs.close.flagged_dialog_counter = 0xCAFE0005U;
+        fixture.roles[0].world_x = 0x12345678U;
+        fixture.roles[0].world_y = 0x9ABCDEF0U;
+        fixture.roles[0].action.base_variant = 77U;
+        fixture.roles[1].flags = 0x80000081U;
+        fixture.roles[1].action.wait_override = 7U;
+        fixture.roles[2].flags = 0x12345600U;
+        fixture.roles[2].action.wait_override = 8U;
+        fixture.roles[3].flags = 0x04000080U;
+        fixture.roles[3].action.wait_override = 9U;
+        fixture.player_post_frame.world_x_history.fill(0x11111111U);
+        fixture.player_post_frame.world_y_history.fill(0x22222222U);
+        bool audio_after_setup{};
+        fixture.ports.audio_service_callback = [&] {
+            audio_after_setup =
+                read_u16(fixture.state.window, 0U) ==
+                    static_cast<u16>(
+                        OP_177_GATHER_PARTY_AT_PLAYER | alias_mask | 0x8000U
+                    ) &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode ==
+                    OP_177_GATHER_PARTY_AT_PLAYER &&
+                fixture.dialogs.close.flagged_dialog_counter == 0xCAFE8005U &&
+                fixture.roles[0].action.base_variant == 0U &&
+                fixture.roles[1].flags == 0x84000081U &&
+                fixture.roles[1].action.wait_override == 0x8000U;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_177_GATHER_PARTY_AT_PLAYER &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode ==
+                    OP_177_GATHER_PARTY_AT_PLAYER &&
+                read_u16(fixture.state.window, 0U) ==
+                    static_cast<u16>(
+                        OP_177_GATHER_PARTY_AT_PLAYER | alias_mask | 0x8000U
+                    ) &&
+                fixture.dialogs.close.flagged_dialog_counter == 0xCAFE8005U &&
+                fixture.roles[0].action.base_variant == 0U &&
+                std::ranges::all_of(
+                    fixture.player_post_frame.world_x_history,
+                    [](const u32 value) { return value == 0x12345678U; }
+                ) &&
+                std::ranges::all_of(
+                    fixture.player_post_frame.world_y_history,
+                    [](const u32 value) { return value == 0x9ABCDEF0U; }
+                ) &&
+                fixture.roles[1].flags == 0x84000081U &&
+                fixture.roles[1].action.wait_override == 0x8000U &&
+                fixture.roles[2].flags == 0x12345600U &&
+                fixture.roles[2].action.wait_override == 8U &&
+                fixture.roles[3].flags == 0x04000080U &&
+                fixture.roles[3].action.wait_override == 0x8000U &&
+                audio_after_setup,
+            "opcode 177 base aliases self-mark setup, preserve alias bit14, reset the player action and histories, mark only secondary party roles, then publish previous and audio-yield at the same IP"
+        );
+    }
+
+    constexpr std::array<u16, 2U> poll_alias_masks{0x8000U, 0xC000U};
+    for (const u16 alias_mask : poll_alias_masks) {
+        Fixture fixture;
+        fixture.roles.resize(4U);
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_177_GATHER_PARTY_AT_PLAYER | alias_mask)
+        );
+        fixture.state.previous_opcode = 0x66U;
+        fixture.dialogs.close.flagged_dialog_counter = 0xCAFE0005U;
+        fixture.roles[0].world_x = 100U;
+        fixture.roles[0].world_y = 200U;
+        fixture.roles[0].action.base_variant = 77U;
+        fixture.roles[1].world_x = 100U;
+        fixture.roles[1].world_y = 200U;
+        fixture.roles[1].flags = 0x84000080U;
+        fixture.roles[1].action.wait_override = 0x8000U;
+        fixture.roles[2].world_x = 101U;
+        fixture.roles[2].world_y = 200U;
+        fixture.roles[2].flags = 0x04000080U;
+        fixture.roles[2].action.wait_override = 0x8000U;
+        fixture.roles[3].world_x = 100U;
+        fixture.roles[3].world_y = 200U;
+        fixture.roles[3].flags = 0x04000000U;
+        fixture.roles[3].action.wait_override = 0x8000U;
+        fixture.live_party_role_count = 3U;
+        fixture.runtime.player_post_frame = nullptr;
+        bool audio_after_poll{};
+        fixture.ports.audio_service_callback = [&] {
+            audio_after_poll = fixture.roles[1].flags == 0x80000080U &&
+                fixture.roles[1].action.wait_override == 0U &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode == OP_177_GATHER_PARTY_AT_PLAYER;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 0U &&
+                read_u16(fixture.state.window, 0U) ==
+                    static_cast<u16>(
+                        OP_177_GATHER_PARTY_AT_PLAYER | alias_mask
+                    ) &&
+                fixture.dialogs.close.flagged_dialog_counter == 0xCAFE0005U &&
+                fixture.roles[0].action.base_variant == 77U &&
+                fixture.roles[1].flags == 0x80000080U &&
+                fixture.roles[1].action.wait_override == 0U &&
+                fixture.roles[2].flags == 0x04000080U &&
+                fixture.roles[2].action.wait_override == 0x8000U &&
+                fixture.roles[3].flags == 0x04000000U &&
+                fixture.roles[3].action.wait_override == 0x8000U &&
+                audio_after_poll,
+            "opcode 177 high aliases poll without setup owners, clear only matching party-role bit26 and wait override, retain the self marker while party count disagrees, then audio-yield"
+        );
+    }
+
+    Fixture completion;
+    completion.roles.resize(2U);
+    prime_loaded_instruction(
+        completion, static_cast<u16>(OP_177_GATHER_PARTY_AT_PLAYER | 0xC000U)
+    );
+    completion.roles[0].world_x = 100U;
+    completion.roles[0].world_y = 200U;
+    completion.roles[1].world_x = 100U;
+    completion.roles[1].world_y = 200U;
+    completion.roles[1].flags = 0x04000080U;
+    completion.roles[1].action.wait_override = 0x8000U;
+    completion.live_party_role_count = 2U;
+    completion.runtime.player_post_frame = nullptr;
+    const auto completion_result = completion.step();
+
+    Fixture exact_tail;
+    exact_tail.roles.resize(1U);
+    prime_loaded_instruction(exact_tail, OP_177_GATHER_PARTY_AT_PLAYER);
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.live_party_role_count = 1U;
+    exact_tail.runtime.player_post_frame = nullptr;
+    write_u16(
+        exact_tail.state.window,
+        0x7FFEU,
+        static_cast<u16>(OP_177_GATHER_PARTY_AT_PLAYER | 0x8000U)
+    );
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        completion_result.status == LegacyWorldStoryVmStatus::yielded &&
+            completion_result.direct_audio_service_count == 1U &&
+            completion.context.instruction_offset == 2U &&
+            read_u16(completion.state.window, 0U) ==
+                static_cast<u16>(OP_177_GATHER_PARTY_AT_PLAYER | 0x4000U) &&
+            completion.roles[1].flags == 0x00000080U &&
+            completion.roles[1].action.wait_override == 0U &&
+            exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_177_GATHER_PARTY_AT_PLAYER &&
+            read_u16(exact_tail.state.window, 0x7FFEU) ==
+                OP_177_GATHER_PARTY_AT_PLAYER,
+        "opcode 177 completes only when matched party roles plus the player equal live count, clears raw bit15 while preserving bit14, and audio-yields without a successor fetch at the exact tail"
+    );
+
+    Fixture missing_history;
+    missing_history.roles.resize(2U);
+    prime_loaded_instruction(missing_history, OP_177_GATHER_PARTY_AT_PLAYER);
+    missing_history.state.previous_opcode = 0x66U;
+    missing_history.dialogs.close.flagged_dialog_counter = 0x12340005U;
+    missing_history.roles[0].action.base_variant = 9U;
+    missing_history.roles[1].flags = 0x00000080U;
+    missing_history.roles[1].action.wait_override = 7U;
+    missing_history.runtime.player_post_frame = nullptr;
+    const auto missing_history_result = missing_history.step();
+
+    Fixture missing_party_count;
+    missing_party_count.roles.resize(2U);
+    prime_loaded_instruction(
+        missing_party_count,
+        static_cast<u16>(OP_177_GATHER_PARTY_AT_PLAYER | 0x8000U)
+    );
+    missing_party_count.state.previous_opcode = 0x66U;
+    missing_party_count.roles[0].world_x = 100U;
+    missing_party_count.roles[0].world_y = 200U;
+    missing_party_count.roles[1].world_x = 100U;
+    missing_party_count.roles[1].world_y = 200U;
+    missing_party_count.roles[1].flags = 0x04000080U;
+    missing_party_count.roles[1].action.wait_override = 0x8000U;
+    missing_party_count.runtime.player_post_frame = nullptr;
+    missing_party_count.runtime.live_party_role_count = nullptr;
+    const auto missing_party_count_result = missing_party_count.step();
+
+    test.expect_true(
+        missing_history_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            read_u16(missing_history.state.window, 0U) ==
+                static_cast<u16>(OP_177_GATHER_PARTY_AT_PLAYER | 0x8000U) &&
+            missing_history.dialogs.close.flagged_dialog_counter ==
+                0x12348005U &&
+            missing_history.roles[0].action.base_variant == 0U &&
+            missing_history.roles[1].flags == 0x00000080U &&
+            missing_history.roles[1].action.wait_override == 7U &&
+            missing_history.context.instruction_offset == 0U &&
+            missing_history.state.previous_opcode == 0x66U &&
+            missing_history.ports.direct_audio_service_count == 0U &&
+            missing_party_count_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_party_count.roles[1].flags == 0x00000080U &&
+            missing_party_count.roles[1].action.wait_override == 0U &&
+            read_u16(missing_party_count.state.window, 0U) ==
+                static_cast<u16>(OP_177_GATHER_PARTY_AT_PLAYER | 0x8000U) &&
+            missing_party_count.context.instruction_offset == 0U &&
+            missing_party_count.state.previous_opcode == 0x66U &&
+            missing_party_count.ports.direct_audio_service_count == 0U,
+        "opcode 177 typed-stops at missing setup history after self/dialog/base writes and at missing poll party count after matching-role cleanup, without previous or audio"
     );
 }
 
@@ -26429,6 +26665,120 @@ void test_real_mode_text_records(
     }
 }
 
+void test_real_gather_party_at_player_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct Sample {
+        u32 file_number;
+        std::streamoff file_offset;
+    };
+    constexpr std::array samples{
+        Sample{3U, 0x000066FEU}, Sample{4U, 0x00009842U},
+        Sample{4U, 0x00009970U}, Sample{4U, 0x00009A60U},
+        Sample{4U, 0x00009B50U}, Sample{4U, 0x00009C40U},
+        Sample{4U, 0x00009D30U}, Sample{4U, 0x00009E20U},
+        Sample{4U, 0x00009F10U}, Sample{4U, 0x0001A9DBU},
+        Sample{4U, 0x0001B7E9U}, Sample{4U, 0x0001B8CDU},
+        Sample{4U, 0x0001B9B9U}, Sample{4U, 0x0001BA9DU},
+        Sample{4U, 0x0001BB81U}, Sample{4U, 0x0001BC65U},
+        Sample{4U, 0x0001BD49U}, Sample{4U, 0x0001BE2DU},
+        Sample{4U, 0x0001BEE1U}, Sample{4U, 0x0001BFC5U},
+        Sample{4U, 0x0001C0A9U}, Sample{4U, 0x0001C18DU},
+        Sample{4U, 0x0001C279U}, Sample{4U, 0x0001C35DU},
+        Sample{4U, 0x0001C441U}, Sample{4U, 0x0001C525U},
+        Sample{4U, 0x0001C609U}, Sample{4U, 0x00021832U},
+        Sample{4U, 0x0002B5FCU},
+    };
+
+    std::array<std::size_t, 4U> file_counts{};
+    bool all_records_valid = true;
+    for (const auto sample : samples) {
+        std::ifstream input{
+            root / ("TALK" + std::to_string(sample.file_number) + ".DAT"),
+            std::ios::binary | std::ios::in
+        };
+        std::array<u8, 2U> instruction{};
+        input.seekg(sample.file_offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        all_records_valid = all_records_valid && static_cast<bool>(input) &&
+            read_u16(instruction, 0U) == OP_177_GATHER_PARTY_AT_PLAYER;
+        ++file_counts[sample.file_number - 1U];
+    }
+
+    test.expect_true(
+        all_records_valid && samples.size() == 29U &&
+            file_counts == std::array<std::size_t, 4U>{0U, 0U, 1U, 28U},
+        "all 29 real opcode 177 records are base raw two-byte instructions with the locked TALK3 and TALK4 distribution"
+    );
+
+    for (const std::size_t replay_index : {0U, 1U}) {
+        const auto sample = samples[replay_index];
+        std::ifstream input{
+            root / ("TALK" + std::to_string(sample.file_number) + ".DAT"),
+            std::ios::binary | std::ios::in
+        };
+        std::array<u8, 2U> instruction{};
+        input.seekg(sample.file_offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        const bool instruction_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_177_GATHER_PARTY_AT_PLAYER);
+        fixture.context.instruction_offset = 0x7FFEU;
+        std::ranges::copy(instruction, fixture.state.window.begin() + 0x7FFEU);
+        fixture.roles[0].action.base_variant = 9U;
+        fixture.dialogs.close.flagged_dialog_counter = 0x12340005U;
+        fixture.player_post_frame.world_x_history.fill(0x11111111U);
+        fixture.player_post_frame.world_y_history.fill(0x22222222U);
+
+        const auto setup = fixture.step();
+        const u16 setup_raw = read_u16(fixture.state.window, 0x7FFEU);
+        const u16 setup_ip = fixture.context.instruction_offset;
+        const u32 setup_previous = fixture.state.previous_opcode;
+        const u32 setup_audio = fixture.ports.direct_audio_service_count;
+        const auto completed = fixture.step();
+
+        test.expect_true(
+            instruction_read &&
+                read_u16(instruction, 0U) == OP_177_GATHER_PARTY_AT_PLAYER &&
+                setup.status == LegacyWorldStoryVmStatus::yielded &&
+                setup.executed_instruction_count == 1U &&
+                setup.direct_audio_service_count == 1U &&
+                setup_raw ==
+                    static_cast<u16>(OP_177_GATHER_PARTY_AT_PLAYER | 0x8000U) &&
+                setup_ip == 0x7FFEU &&
+                setup_previous == OP_177_GATHER_PARTY_AT_PLAYER &&
+                setup_audio == 1U &&
+                fixture.roles[0].action.base_variant == 0U &&
+                fixture.dialogs.close.flagged_dialog_counter == 0x12348005U &&
+                std::ranges::all_of(
+                    fixture.player_post_frame.world_x_history,
+                    [](const u32 value) { return value == 16U; }
+                ) &&
+                std::ranges::all_of(
+                    fixture.player_post_frame.world_y_history,
+                    [](const u32 value) { return value == 16U; }
+                ) &&
+                completed.status == LegacyWorldStoryVmStatus::yielded &&
+                completed.executed_instruction_count == 1U &&
+                completed.direct_audio_service_count == 1U &&
+                fixture.ports.direct_audio_service_count == 2U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.previous_opcode ==
+                    OP_177_GATHER_PARTY_AT_PLAYER &&
+                read_u16(fixture.state.window, 0x7FFEU) ==
+                    OP_177_GATHER_PARTY_AT_PLAYER,
+            "real opcode 177 performs setup at the same exact-tail IP, then its self-marked poll completes the one-role party and audio-yields at IP 0x8000"
+        );
+    }
+}
+
 void test_real_jump_same_file_offset_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -33121,6 +33471,7 @@ int main(const int argument_count, char** arguments) {
     test_mode_text_protocol(test);
     test_suspend_story_ani_protocol(test);
     test_resume_story_ani_protocol(test);
+    test_gather_party_at_player_protocol(test);
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);
@@ -33279,6 +33630,7 @@ int main(const int argument_count, char** arguments) {
         test_real_current_map_reload_records(test, root);
         test_real_item_total_reload_records(test, root);
         test_real_mode_text_records(test, root);
+        test_real_gather_party_at_player_records(test, root);
         test_real_jump_same_file_offset_record(test, root);
         test_real_jump_if_role_path_unprepared_record(test, root);
         test_real_jump_if_role_path_prepared_record(test, root);

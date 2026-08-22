@@ -7151,6 +7151,72 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
+        case OP_177_GATHER_PARTY_AT_PLAYER: {
+            const u16 raw_opcode = read_u16(state.window, ip);
+            auto& player = roles[controlled_role_index];
+            if ((raw_opcode & 0x8000U) == 0U) {
+                write_u16(
+                    state.window, ip, static_cast<u16>(raw_opcode | 0x8000U)
+                );
+                dialogs.close.flagged_dialog_counter |= 0x8000U;
+                player.action.base_variant = 0U;
+                if (runtime.player_post_frame == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+
+                runtime.player_post_frame->world_y_history.fill(player.world_y);
+                runtime.player_post_frame->world_x_history.fill(player.world_x);
+                for (std::size_t role_index = 1U; role_index < roles.size();
+                     ++role_index) {
+                    auto& role = roles[role_index];
+                    if ((role.flags & 0x00000080U) == 0U) {
+                        continue;
+                    }
+
+                    role.flags |= 0x04000000U;
+                    role.action.wait_override = 0x8000U;
+                }
+            } else {
+                u32 matching_party_roles{};
+                for (std::size_t role_index = 1U; role_index < roles.size();
+                     ++role_index) {
+                    auto& role = roles[role_index];
+                    if ((role.flags & 0x00000080U) == 0U ||
+                        role.world_x != player.world_x ||
+                        role.world_y != player.world_y) {
+                        continue;
+                    }
+
+                    ++matching_party_roles;
+                    role.flags &= 0xFBFFFFFFU;
+                    role.action.wait_override = 0U;
+                }
+
+                if (runtime.live_party_role_count == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+
+                if (matching_party_roles + 1U ==
+                    *runtime.live_party_role_count) {
+                    write_u16(
+                        state.window, ip, static_cast<u16>(raw_opcode & 0x7FFFU)
+                    );
+                    context.instruction_offset =
+                        static_cast<u16>(context.instruction_offset + 2U);
+                }
+            }
+
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
         case 193U:
             if (ports.query_story_video_progress() >= 0) {
                 result.status = LegacyWorldStoryVmStatus::yielded;

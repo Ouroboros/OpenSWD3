@@ -19,6 +19,7 @@
 #include "openswd3/world_map/legacy_world_item_lifecycle.hpp"
 #include "openswd3/world_map/legacy_world_map_business.hpp"
 #include "openswd3/world_map/legacy_world_player_motion.hpp"
+#include "openswd3/world_map/legacy_world_player_post_frame.hpp"
 #include "openswd3/world_map/legacy_world_role_map_update.hpp"
 #include "openswd3/world_map/legacy_world_role_record.hpp"
 #include "openswd3/world_map/legacy_world_role_surface_occupancy.hpp"
@@ -211,6 +212,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_173_SET_MODE18_TEXT = 173U,
     OP_175_SUSPEND_STORY_ANI = 175U,
     OP_176_RESUME_STORY_ANI = 176U,
+    OP_177_GATHER_PARTY_AT_PLAYER = 177U,
     OP_1025 = 1025U,
 };
 
@@ -323,6 +325,7 @@ struct LegacyWorldStoryVmRuntime {
     std::vector<LegacyWorldRoleRecord>* role_storage{};
     LegacyWorldRoleTransferState* role_transfer_state{};
     compat::u32* live_party_role_count{};
+    LegacyWorldPlayerPostFrameState* player_post_frame{};
     std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>*
         live_party_object_slots{};
     asset_runtime::LegacyAniRoleParticleEffect* role_particles{};

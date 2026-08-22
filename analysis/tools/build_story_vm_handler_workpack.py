@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 179
-EXPECTED_CLOSED_HANDLER_COUNT = 132
+EXPECTED_MODERN_CASE_COUNT = 180
+EXPECTED_CLOSED_HANDLER_COUNT = 133
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -704,6 +704,11 @@ CLOSURE_OVERRIDES = {
         "assembly_exact",
         "story-vm-ani-resume-0042ce12.md",
         "assembly_exact;unit_tested;asset_absence_verified;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;shared_owner_tested;full_width_owner_tested;idempotence_tested;write_order_tested;previous_publication_tested;audio_order_tested;yield_tested;unread_successor_tested",
+    ),
+    "0x0042CE32": (
+        "platform_adapted",
+        "story-vm-party-gather-0042ce32.md",
+        "platform_adapted;unit_tested;real_asset_tested;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;shared_owner_tested;full_width_owner_tested;self_modifying_tested;setup_poll_phase_tested;staged_state_tested;partial_failure_tested;secondary_role_scan_tested;party_role_filter_tested;coordinate_match_tested;history_fill_tested;exact_count_tested;previous_publication_tested;audio_order_tested;yield_tested;unread_successor_tested",
     ),
 }
 

@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042CE32`（opcode177）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042CF7C`（opcode178）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -20,7 +20,7 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 - 当前 C++ 接入 95 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- `0..144`、`147..152`、`155..168`、`170..173`及`175..176`已有人工汇编语义；其余opcode目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
+- `0..144`、`147..152`、`155..168`、`170..173`及`175..177`已有人工汇编语义；其余opcode目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
 - 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
@@ -305,7 +305,13 @@ audio一次并yield，不读取后继；其余31位及幂等语义保持。线�
 ANI owner依赖与Story VM共4/4、SDL app编译、Linux core186/186及app192/192通过。
 已实现179/198、已验收177/198；内部workpack为132/146，即
 `22 assembly_exact + 110 platform_adapted + 14 pending_audit`。
-下一行只审计`0x0042CE32`下的opcode177。
+opcode177恢复raw bit15两相队伍集合协议：setup在原IP提交actual player/history/party状态后
+audio-yield；poll逐项清到达成员状态，只有`matched+1`精确等于live party count才清marker
+并推进2，等待和完成都previous、audio一次并yield。29条真实线性记录全部base raw，
+TALK3/4分布1/28；两条代表回放和四alias synthetic通过。player-history、party transfer与
+Story VM共5/5、SDL app编译、Linux core186/186及app192/192通过。已实现180/198、
+已验收178/198；内部workpack为133/146，即`22 assembly_exact + 111 platform_adapted + 13 pending_audit`。
+下一行只审计`0x0042CF7C`下的opcode178。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

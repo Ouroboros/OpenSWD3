@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v391
+版本：v392
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042CE32` handler（opcode177）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042CF7C` handler（opcode178）
 
 ## 0. 执行约定
 
@@ -70,7 +70,7 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 - 进程入口、消息泵、单帧调度、世界/特殊模式/战斗分支和退出顶层流程已有汇编证据。
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
 - 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
-- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..144`、`147..152`、`155..168`、`170..173`及`175..176`；其余 opcode 与 Ani 播放语义尚未完成。
+- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..144`、`147..152`、`155..168`、`170..173`及`175..177`；其余 opcode 与 Ani 播放语义尚未完成。
 - 309 张地图的物理容器、40 份存档的压缩边界和战斗顶层入口已经恢复；地图内部、存档业务字段和战斗内部状态机仍待对应模块处理。
 
 ## 3. 执行方法
@@ -2808,4 +2808,15 @@ B7 P0 有限收口完成。
     人工语义增至177行，现代显式opcode增至179；本地进度为已实现179/198、已验收177/198；
     内部workpack132/146，即`22 assembly_exact + 110 platform_adapted + 14 pending_audit`。
 
-下一组只审计`0x0042CE32` / opcode177。
+- 剧情VM P2第一百三十三组`0x0042CE32` / opcode177完成独立闭环。handler恢复raw bit15
+    两相队伍集合协议：setup在原IP提交脚本/dialog/player/history/party角色状态后audio-yield；
+    poll逐项清已到达成员状态，只有`matched+1`精确等于live party count才清marker并推进2，
+    等待和完成都previous、audio一次并yield。现代复用actual角色、dialog、party count和玩家
+    历史owner；缺history/count在原访问点保留前序副作用后typed-stop。29条线性记录/29 probes
+    全部raw base，TALK3/4分布1/28；两条代表setup→complete回放及四alias synthetic通过。
+    player-history、party transfer与Story VM共5/5、SDL app编译、Linux core186/186及
+    app192/192通过。workpack双生成稳定hash为`a97360fa0c39ea5f3bb6ee2d998e6051997e7abcc92cfcaf8a73f93b5f0bd1f1`。
+    人工语义增至178行，现代显式opcode增至180；本地进度为已实现180/198、已验收178/198；
+    内部workpack133/146，即`22 assembly_exact + 111 platform_adapted + 13 pending_audit`。
+
+下一组只审计`0x0042CF7C` / opcode178。
