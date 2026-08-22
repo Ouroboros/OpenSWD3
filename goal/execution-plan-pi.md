@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v415
+版本：v416
 
 最后更新：2026-08-22
 
@@ -3036,6 +3036,6 @@ B7 P0 有限收口完成。
     启动`Music\\Map_Ca12.mp3`的stream100；新增请求、启动、目录失败和打开失败日志。首次接线
     将LST掩码`0xFFDFFFFF`误读为清`0x00020000`，导致`Story_10`到`Map_Eu08`的场景第二槽不能
     循环；现修正为只清`0x00200000`，保留场景循环位。普通组与场景组真实MP3 EOF重开均通过。
-    Linux core186/186、app192/192通过。
+    Linux core186/186、app192/192及修复后Windows LLVM app192/192通过。
 
-下一工作包：Windows FFmpeg BGM实际播放复测与完整门；通过前不恢复模块9。
+下一工作包：Windows FFmpeg BGM实际循环播放复测；通过前不恢复模块9。

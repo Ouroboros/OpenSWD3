@@ -86,7 +86,7 @@ SDL主运行时不再实例化不可用的stream backend或立即完成型video 
 - 帧运行时测试证明：剧情VM写入的视频活动位会保留在发布给idle分派的已接受帧状态中。
 - 运行时修复后，Linux core无SDL/无FFmpeg配置保持独立并通过`186/186`。
 - 运行时修复后，Linux app完整门通过`192/192`。
-- 早先Windows LLVM app完整门通过`192/192`；运行时修复后的Windows复跑仍待完成，因为当前WSL会话丢失宿主`WSLInterop` binfmt注册且无权重新挂载。
+- 场景音乐循环掩码修复后，Windows LLVM app完整门再次通过`192/192`。
 - Linux ELF依赖从应用输出目录复制的文件中解析全部五个FFmpeg库，不存在缺失的FFmpeg依赖。
 - Linux和Windows应用/测试输出目录均包含`openswd3_ffmpeg`、共享SDL3运行库、五个FFmpeg运行库及`LICENSE.txt`。
 - ELF和PE依赖检查证明应用与`openswd3_ffmpeg`解析到同一个共享SDL3运行时实例。
