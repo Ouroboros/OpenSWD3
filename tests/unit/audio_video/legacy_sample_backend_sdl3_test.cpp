@@ -4,6 +4,9 @@
 
 #include "openswd3/audio_video/legacy_audio_output.hpp"
 #include "openswd3/audio_video/legacy_snd_archive.hpp"
+#include "openswd3/audio_video/legacy_stream_commands.hpp"
+#include "openswd3/audio_video/legacy_stream_manager.hpp"
+#include "openswd3/audio_video/legacy_world_music.hpp"
 #include "openswd3/media_ffmpeg/legacy_ffmpeg_backends.hpp"
 
 #include <SDL3/SDL_hints.h>
@@ -14,8 +17,10 @@
 #include <cmath>
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
 #include <set>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -206,6 +211,54 @@ void test_dummy_device_backend(openswd3::test::Context& test) {
     );
 }
 
+class RealWorldMusicPorts final
+    : public openswd3::audio_video::LegacyWorldMusicPorts {
+public:
+    RealWorldMusicPorts(
+        openswd3::audio_video::LegacyStreamManager& manager,
+        const std::span<const u8> maps_payload
+    ) noexcept
+        : manager_(manager), maps_payload_(maps_payload) {}
+
+    void poll_stream_transition() override {}
+
+    bool music_stream_absent() override {
+        return openswd3::audio_video::legacy_stream_absent(manager_) != 0;
+    }
+
+    void configure_stream_transition(
+        openswd3::compat::i32, openswd3::compat::i32
+    ) override {}
+
+    void apply_stream_transition() override {}
+
+    std::string_view music_source_filename(const u32 music_id) override {
+        const auto filename =
+            openswd3::audio_video::legacy_music_source_filename_from_maps(
+                maps_payload_, music_id
+            );
+        return filename.value_or(std::string_view{});
+    }
+
+    void play_music_stream(const std::string_view filename) override {
+        requested_filename = filename;
+        static_cast<void>(
+            openswd3::audio_video::play_legacy_stream(manager_, filename, 1, 6)
+        );
+    }
+
+    void
+    set_music_stream_volume(const openswd3::compat::i32 mix_level) override {
+        static_cast<void>(
+            openswd3::audio_video::set_legacy_stream_volume(manager_, mix_level)
+        );
+    }
+
+    openswd3::audio_video::LegacyStreamManager& manager_;
+    std::span<const u8> maps_payload_;
+    std::string requested_filename;
+};
+
 class VideoFramePorts final
     : public openswd3::audio_video::LegacyVideoFramePorts {
 public:
@@ -269,6 +322,48 @@ void test_real_ffmpeg_media(
         );
         stream_backend->close_stream(stream);
     }
+
+    auto world_music_backend =
+        openswd3::media_ffmpeg::make_legacy_stream_backend(data_root);
+    openswd3::audio_video::LegacyStreamManager world_music_manager{
+        *world_music_backend
+    };
+    test.expect_equal(
+        world_music_manager.initialize_pool(1U),
+        openswd3::audio_video::LegacyStreamManagerInitializeStatus::ready,
+        "the real world-music stream pool initializes"
+    );
+    std::ifstream maps_file{data_root / "MAPS.DAT", std::ios::binary};
+    maps_file.seekg(0, std::ios::end);
+    const auto maps_size = maps_file.tellg();
+    std::vector<u8> maps_payload;
+    if (maps_size > std::streamoff{0x200}) {
+        maps_payload.resize(static_cast<std::size_t>(maps_size) - 0x200U);
+        maps_file.seekg(0x200, std::ios::beg);
+        maps_file.read(
+            reinterpret_cast<char*>(maps_payload.data()),
+            static_cast<std::streamsize>(maps_payload.size())
+        );
+    }
+    openswd3::audio_video::LegacyWorldMusicState world_music{
+        .mix_level = 6,
+    };
+    RealWorldMusicPorts world_music_ports{world_music_manager, maps_payload};
+    const auto map_music =
+        openswd3::audio_video::update_legacy_world_music_request_from_maps(
+            world_music, maps_payload, 214U, world_music_ports
+        );
+    static_cast<void>(openswd3::audio_video::service_legacy_world_music(
+        world_music, "", world_music_ports
+    ));
+    test.expect_true(
+        map_music == openswd3::audio_video::LegacyWorldMusicMapsStatus::ready &&
+            world_music_ports.requested_filename == "Music\\Map_Ca12.mp3" &&
+            world_music_manager.active_stream_count() == 1U &&
+            !world_music_manager.stream_absent(100),
+        "real MAPS map 214 resolves Map_Ca12 and starts FFmpeg BGM stream 100"
+    );
+    static_cast<void>(world_music_manager.shutdown());
 
     const auto verify_bink = [&](const std::string_view filename,
                                  const u32 expected_frame_count,

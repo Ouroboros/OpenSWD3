@@ -13,6 +13,35 @@ constexpr compat::u32 kLegacyMusicRequestPairMask = 0x000C0000U;
 constexpr compat::u32 kLegacyMapRequestPreserveMask = 0x008FFFFFU;
 constexpr compat::u32 kLegacyLowByteMask = 0x000000FFU;
 constexpr compat::u32 kLegacyModeMask = 0x0000000FU;
+constexpr std::size_t kMapsRootDirectoryOffset = 0x08U;
+constexpr std::size_t kMusicTableDirectoryFieldOffset = 0x04U;
+constexpr std::size_t kMusicTableEntrySize = 0x08U;
+
+[[nodiscard]] bool has_bytes(
+    const std::span<const compat::u8> bytes,
+    const std::size_t offset,
+    const std::size_t size
+) noexcept {
+    return offset <= bytes.size() && size <= bytes.size() - offset;
+}
+
+[[nodiscard]] compat::u16 read_u16(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
+    return static_cast<compat::u16>(
+        static_cast<compat::u16>(bytes[offset]) |
+        static_cast<compat::u16>(bytes[offset + 1U]) << 8U
+    );
+}
+
+[[nodiscard]] compat::u32 read_u32(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
+    return static_cast<compat::u32>(bytes[offset]) |
+        static_cast<compat::u32>(bytes[offset + 1U]) << 8U |
+        static_cast<compat::u32>(bytes[offset + 2U]) << 16U |
+        static_cast<compat::u32>(bytes[offset + 3U]) << 24U;
+}
 
 void consume_pending_slot(
     LegacyWorldMusicState& state, const std::size_t slot_index
@@ -33,6 +62,94 @@ void write_low_byte_mode(
 }
 
 }  // namespace
+
+LegacyWorldMusicMapsStatus update_legacy_world_music_request_from_maps(
+    LegacyWorldMusicState& state,
+    const std::span<const compat::u8> maps_payload,
+    const compat::u16 map_id,
+    LegacyWorldMusicPorts& ports
+) {
+    if (!has_bytes(
+            maps_payload, kMapsRootDirectoryOffset, sizeof(compat::u32)
+        )) {
+        return LegacyWorldMusicMapsStatus::payload_out_of_range;
+    }
+    const std::size_t root_directory =
+        read_u32(maps_payload, kMapsRootDirectoryOffset);
+    const std::size_t table_directory_field =
+        root_directory + kMusicTableDirectoryFieldOffset;
+    if (!has_bytes(maps_payload, table_directory_field, sizeof(compat::u32))) {
+        return LegacyWorldMusicMapsStatus::payload_out_of_range;
+    }
+    const std::size_t table_directory =
+        read_u32(maps_payload, table_directory_field);
+    if (!has_bytes(maps_payload, table_directory, sizeof(compat::u32))) {
+        return LegacyWorldMusicMapsStatus::payload_out_of_range;
+    }
+
+    std::size_t entry_offset = read_u32(maps_payload, table_directory);
+    for (;;) {
+        if (!has_bytes(maps_payload, entry_offset, kMusicTableEntrySize)) {
+            return LegacyWorldMusicMapsStatus::payload_out_of_range;
+        }
+        const LegacyWorldMusicTableEntry entry{
+            .map_id = read_u16(maps_payload, entry_offset),
+            .first_music_id = read_u16(maps_payload, entry_offset + 2U),
+            .second_music_id = read_u16(maps_payload, entry_offset + 4U),
+            .flags = read_u16(maps_payload, entry_offset + 6U),
+        };
+        if (entry.map_id == 0U) {
+            const std::array terminator{LegacyWorldMusicTableEntry{}};
+            update_legacy_world_music_request(state, terminator, map_id, ports);
+            return LegacyWorldMusicMapsStatus::map_not_found;
+        }
+        if (entry.map_id == map_id) {
+            const std::array table{entry, LegacyWorldMusicTableEntry{}};
+            update_legacy_world_music_request(state, table, map_id, ports);
+            return LegacyWorldMusicMapsStatus::ready;
+        }
+        entry_offset += kMusicTableEntrySize;
+    }
+}
+
+std::optional<std::string_view> legacy_music_source_filename_from_maps(
+    const std::span<const compat::u8> maps_payload, const compat::u32 music_id
+) noexcept {
+    if (!has_bytes(
+            maps_payload, kMapsRootDirectoryOffset, sizeof(compat::u32)
+        )) {
+        return std::nullopt;
+    }
+    const std::size_t root_directory =
+        read_u32(maps_payload, kMapsRootDirectoryOffset);
+    if (!has_bytes(maps_payload, root_directory, sizeof(compat::u32))) {
+        return std::nullopt;
+    }
+    const std::size_t filename_directory =
+        read_u32(maps_payload, root_directory);
+    const std::size_t filename_entry = filename_directory +
+        static_cast<std::size_t>(music_id) * sizeof(compat::u32);
+    if (!has_bytes(maps_payload, filename_entry, sizeof(compat::u32))) {
+        return std::nullopt;
+    }
+    const std::size_t record_offset = read_u32(maps_payload, filename_entry);
+    const std::size_t filename_offset = record_offset + sizeof(compat::u32);
+    if (!has_bytes(maps_payload, filename_offset, 1U)) {
+        return std::nullopt;
+    }
+
+    std::size_t terminator = filename_offset;
+    while (terminator < maps_payload.size() && maps_payload[terminator] != 0U) {
+        ++terminator;
+    }
+    if (terminator == maps_payload.size()) {
+        return std::nullopt;
+    }
+    return std::string_view{
+        reinterpret_cast<const char*>(maps_payload.data() + filename_offset),
+        terminator - filename_offset,
+    };
+}
 
 std::optional<std::string> build_legacy_music_path(
     const std::string_view base_prefix, const std::string_view source_filename

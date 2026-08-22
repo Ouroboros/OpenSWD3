@@ -28,6 +28,7 @@
 #include "openswd3/audio_video/legacy_stream_commands.hpp"
 #include "openswd3/audio_video/legacy_stream_manager.hpp"
 #include "openswd3/audio_video/legacy_video.hpp"
+#include "openswd3/audio_video/legacy_world_music.hpp"
 #include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/asset_runtime/legacy_act_runtime.hpp"
@@ -2446,7 +2447,208 @@ public:
         );
     }
     void
-    update_background_music(openswd3::app::FrameCoordinatorState&) override {}
+    update_background_music(openswd3::app::FrameCoordinatorState&) override {
+        auto& story = world_story_vm_state_;
+        openswd3::audio_video::LegacyWorldMusicState music{
+            .request_flags = story.music_control_flags,
+            .selected_mode = story.current_first_stream,
+            .music_slots =
+                {story.world_music_request,
+                 story.world_music_first_stream,
+                 story.world_music_second_stream,
+                 story.music_request,
+                 story.music_first_stream,
+                 story.music_second_stream,
+                 0U},
+            .mix_level =
+                world_frame_state_.frame_runtime.spatial_audio.mix_level,
+        };
+        const auto maps_payload = resource_databases_.maps_payload_bytes();
+
+        class WorldMusicPorts final
+            : public openswd3::audio_video::LegacyWorldMusicPorts {
+        public:
+            WorldMusicPorts(
+                openswd3::audio_video::LegacyWorldMusicState& music,
+                openswd3::world_map::LegacyWorldStoryVmState& story,
+                openswd3::audio_video::LegacyStreamManager& stream_manager,
+                const std::span<const openswd3::compat::u8> maps_payload,
+                bool& failure_logged
+            ) noexcept
+                : music_(music), story_(story), stream_manager_(stream_manager),
+                  maps_payload_(maps_payload), failure_logged_(failure_logged) {
+            }
+
+            void poll_stream_transition() override {
+                auto state = command_state();
+                static_cast<void>(
+                    openswd3::audio_video::poll_legacy_stream_transition(
+                        stream_manager_, state
+                    )
+                );
+                publish(state);
+            }
+
+            bool music_stream_absent() override {
+                return openswd3::audio_video::legacy_stream_absent(
+                           stream_manager_
+                       ) != 0;
+            }
+
+            void configure_stream_transition(
+                const openswd3::compat::i32 mode,
+                const openswd3::compat::i32 value
+            ) override {
+                auto state = command_state();
+                static_cast<void>(
+                    openswd3::audio_video::configure_legacy_stream_transition(
+                        state, mode, value
+                    )
+                );
+                publish(state);
+            }
+
+            void apply_stream_transition() override {
+                auto state = command_state();
+                static_cast<void>(
+                    openswd3::audio_video::apply_legacy_stream_transition(
+                        stream_manager_, state
+                    )
+                );
+                publish(state);
+            }
+
+            std::string_view music_source_filename(
+                const openswd3::compat::u32 music_id
+            ) override {
+                const auto filename = openswd3::audio_video::
+                    legacy_music_source_filename_from_maps(
+                        maps_payload_, music_id
+                    );
+                if (filename.has_value()) {
+                    return *filename;
+                }
+                if (!failure_logged_) {
+                    std::string message{
+                        "legacy BGM catalog lookup failed: id="
+                    };
+                    message.append(std::to_string(music_id));
+                    openswd3::diagnostics::log_error(message);
+                    failure_logged_ = true;
+                }
+                return {};
+            }
+
+            void play_music_stream(const std::string_view filename) override {
+                std::string message{"legacy BGM request: "};
+                message.append(filename);
+                openswd3::diagnostics::log_info(message);
+                static_cast<void>(openswd3::audio_video::play_legacy_stream(
+                    stream_manager_, filename, 1, music_.mix_level
+                ));
+                if (music_stream_absent()) {
+                    if (!failure_logged_) {
+                        message.assign("legacy BGM open failed: ");
+                        message.append(stream_manager_.last_error());
+                        openswd3::diagnostics::log_error(message);
+                        failure_logged_ = true;
+                    }
+                    return;
+                }
+                failure_logged_ = false;
+                openswd3::diagnostics::log_info("legacy BGM started");
+            }
+
+            void set_music_stream_volume(
+                const openswd3::compat::i32 mix_level
+            ) override {
+                static_cast<void>(
+                    openswd3::audio_video::set_legacy_stream_volume(
+                        stream_manager_, mix_level
+                    )
+                );
+            }
+
+        private:
+            openswd3::audio_video::LegacyStreamCommandState
+            command_state() const noexcept {
+                return {
+                    .transition_mode = std::bit_cast<openswd3::compat::i32>(
+                        music_.selected_mode
+                    ),
+                    .current_fade_divisor =
+                        std::bit_cast<openswd3::compat::i32>(
+                            story_.current_stream_fade_divisor
+                        ),
+                    .pending_fade_divisor =
+                        std::bit_cast<openswd3::compat::i32>(
+                            story_.current_second_stream
+                        ),
+                };
+            }
+
+            void publish(
+                const openswd3::audio_video::LegacyStreamCommandState& state
+            ) noexcept {
+                music_.selected_mode =
+                    std::bit_cast<openswd3::compat::u32>(state.transition_mode);
+                story_.current_stream_fade_divisor =
+                    std::bit_cast<openswd3::compat::u32>(
+                        state.current_fade_divisor
+                    );
+                story_.current_second_stream =
+                    std::bit_cast<openswd3::compat::u32>(
+                        state.pending_fade_divisor
+                    );
+            }
+
+            openswd3::audio_video::LegacyWorldMusicState& music_;
+            openswd3::world_map::LegacyWorldStoryVmState& story_;
+            openswd3::audio_video::LegacyStreamManager& stream_manager_;
+            std::span<const openswd3::compat::u8> maps_payload_;
+            bool& failure_logged_;
+        };
+
+        WorldMusicPorts ports{
+            music,
+            story,
+            stream_manager_,
+            maps_payload,
+            world_music_failure_logged_,
+        };
+        if (active_world_session_.has_value()) {
+            const auto status = openswd3::audio_video::
+                update_legacy_world_music_request_from_maps(
+                    music,
+                    maps_payload,
+                    static_cast<openswd3::compat::u16>(
+                        active_world_session_->logical_map_id
+                    ),
+                    ports
+                );
+            if (status ==
+                    openswd3::audio_video::LegacyWorldMusicMapsStatus::
+                        payload_out_of_range &&
+                !world_music_failure_logged_) {
+                openswd3::diagnostics::log_error(
+                    "legacy BGM MAPS directory is out of range"
+                );
+                world_music_failure_logged_ = true;
+            }
+        }
+        static_cast<void>(
+            openswd3::audio_video::service_legacy_world_music(music, "", ports)
+        );
+
+        story.music_control_flags = music.request_flags;
+        story.current_first_stream = music.selected_mode;
+        story.world_music_request = music.music_slots[0U];
+        story.world_music_first_stream = music.music_slots[1U];
+        story.world_music_second_stream = music.music_slots[2U];
+        story.music_request = music.music_slots[3U];
+        story.music_first_stream = music.music_slots[4U];
+        story.music_second_stream = music.music_slots[5U];
+    }
     void
     step_world_interaction(openswd3::app::FrameCoordinatorState&) override {
         if (!active_world_session_.has_value()) {
@@ -5249,6 +5451,7 @@ private:
     bool deferred_world_stage_notice_logged_{};
     bool unsupported_world_path_opcode_notice_logged_{};
     bool unsupported_world_story_opcode_notice_logged_{};
+    bool world_music_failure_logged_{};
     openswd3::app::ShutdownPorts& shutdown_ports_;
     openswd3::app::ProcessExitPorts& exit_ports_;
     openswd3::compat::u32 accumulated_play_time_{};

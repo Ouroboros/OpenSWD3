@@ -2,6 +2,7 @@
 
 #include "openswd3/audio_video/legacy_world_music.hpp"
 
+#include <algorithm>
 #include <array>
 #include <optional>
 #include <string>
@@ -11,13 +12,18 @@
 
 namespace {
 
+using openswd3::audio_video::LegacyWorldMusicMapsStatus;
 using openswd3::audio_video::LegacyWorldMusicPorts;
 using openswd3::audio_video::LegacyWorldMusicState;
 using openswd3::audio_video::LegacyWorldMusicTableEntry;
 using openswd3::audio_video::build_legacy_music_path;
+using openswd3::audio_video::legacy_music_source_filename_from_maps;
+using openswd3::audio_video::update_legacy_world_music_request_from_maps;
 using openswd3::audio_video::service_legacy_world_music;
 using openswd3::audio_video::update_legacy_world_music_request;
 using openswd3::compat::i32;
+using openswd3::compat::u8;
+using openswd3::compat::u16;
 using openswd3::compat::u32;
 
 enum class PortCall {
@@ -90,6 +96,76 @@ public:
     std::string source_filename{"Map_Ca00.wav"};
     std::vector<PortEvent> events;
 };
+
+void write_u16(
+    const std::span<u8> bytes, const std::size_t offset, const u16 value
+) {
+    bytes[offset] = static_cast<u8>(value);
+    bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+}
+
+void write_u32(
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
+) {
+    bytes[offset] = static_cast<u8>(value);
+    bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+    bytes[offset + 2U] = static_cast<u8>(value >> 16U);
+    bytes[offset + 3U] = static_cast<u8>(value >> 24U);
+}
+
+void test_maps_music_directory(openswd3::test::Context& test) {
+    std::array<u8, 0xA0U> maps{};
+    write_u32(maps, 0x08U, 0x20U);
+    write_u32(maps, 0x20U, 0x40U);
+    write_u32(maps, 0x24U, 0x30U);
+    write_u32(maps, 0x30U, 0x50U);
+    write_u16(maps, 0x50U, 7U);
+    write_u16(maps, 0x52U, 1U);
+    write_u16(maps, 0x54U, 2U);
+    write_u16(maps, 0x56U, 0x2000U);
+    write_u32(maps, 0x44U, 0x70U);
+    write_u32(maps, 0x48U, 0x84U);
+    constexpr std::string_view first_name{"Map_Ca12.wav"};
+    constexpr std::string_view second_name{"Map_Eu01.wav"};
+    std::ranges::copy(first_name, maps.begin() + 0x74U);
+    std::ranges::copy(second_name, maps.begin() + 0x88U);
+
+    LegacyWorldMusicState state;
+    RecordingPorts ports;
+    test.expect_equal(
+        update_legacy_world_music_request_from_maps(state, maps, 7U, ports),
+        LegacyWorldMusicMapsStatus::ready,
+        "the MAPS root directories resolve the current map music record"
+    );
+    test.expect_true(
+        state.music_slots[1U] == 1U && state.music_slots[2U] == 2U &&
+            state.request_flags == 0x00080000U,
+        "the decoded eight-byte MAPS record reaches the existing request " "state machine"
+    );
+    test.expect_equal(
+        legacy_music_source_filename_from_maps(maps, 1U),
+        std::optional<std::string_view>{first_name},
+        "the first MAPS directory maps a music ID to its source filename"
+    );
+    test.expect_equal(
+        legacy_music_source_filename_from_maps(maps, 2U),
+        std::optional<std::string_view>{second_name},
+        "the filename view skips the four-byte record prefix"
+    );
+
+    test.expect_equal(
+        update_legacy_world_music_request_from_maps(state, maps, 8U, ports),
+        LegacyWorldMusicMapsStatus::map_not_found,
+        "the zero map ID terminator reports a missing map entry"
+    );
+    test.expect_equal(
+        update_legacy_world_music_request_from_maps(
+            state, std::span<const u8>{maps}.first(12U), 7U, ports
+        ),
+        LegacyWorldMusicMapsStatus::payload_out_of_range,
+        "a truncated MAPS directory stops before changing request state"
+    );
+}
 
 void test_path_construction(openswd3::test::Context& test) {
     test.expect_equal(
@@ -315,6 +391,7 @@ void test_world_music_service(openswd3::test::Context& test) {
 
 int main() {
     openswd3::test::Context test;
+    test_maps_music_directory(test);
     test_path_construction(test);
     test_map_request_update(test);
     test_world_music_service(test);

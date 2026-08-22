@@ -43,6 +43,25 @@ public:
     virtual void set_music_stream_volume(compat::i32 mix_level) = 0;
 };
 
+enum class LegacyWorldMusicMapsStatus : compat::u8 {
+    ready,
+    map_not_found,
+    payload_out_of_range,
+};
+
+[[nodiscard]] LegacyWorldMusicMapsStatus
+update_legacy_world_music_request_from_maps(
+    LegacyWorldMusicState& state,
+    std::span<const compat::u8> maps_payload,
+    compat::u16 map_id,
+    LegacyWorldMusicPorts& ports
+);
+
+[[nodiscard]] std::optional<std::string_view>
+legacy_music_source_filename_from_maps(
+    std::span<const compat::u8> maps_payload, compat::u32 music_id
+) noexcept;
+
 [[nodiscard]] std::optional<std::string> build_legacy_music_path(
     std::string_view base_prefix, std::string_view source_filename
 );

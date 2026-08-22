@@ -46,6 +46,8 @@ Linux共享库RUNPATH优先使用`$ORIGIN`。Windows测试证明复制后的DLL�
 
 真实媒体测试打开`Music/Map_Ca12.mp3`。该锁定资产为44.1 kHz单声道MP3，时长约4.023秒。测试通过真实FFmpeg和SDL dummy设备路径验证打开、user data、音量、无限循环保持状态，以及4,000至4,050毫秒的解码时长。
 
+世界BGM运行时直接复用剧情VM中与原全局一致的六个音乐槽、请求控制位和stream transition字段。主帧从MAPS payload的根目录读取8字节地图音乐表，并从相邻的四字节偏移目录把音乐ID解析为源文件名；例如真实map214解析为ID102和`Map_Ca12.`，最终构造`Music\\Map_Ca12.mp3`并建立用户数据编号100的stream。BGM请求、启动、目录解析失败和媒体打开失败均写入运行日志。
+
 ## 视频后端
 
 `make_legacy_video_backend()`创建进程内单实例句柄后端，用于Bink容器。
@@ -68,14 +70,16 @@ Linux共享库RUNPATH优先使用`$ORIGIN`。Windows测试证明复制后的DLL�
 
 SDL主运行时不再实例化不可用的stream backend或立即完成型video backend。配置数据根目录解析后，主运行时构造两个FFmpeg factory，并只把其基类接口交给既有manager和剧情VM端口。
 
-原接线存在运行时缺陷：剧情VM在已接受帧仍在执行时，把视频活动位写入`WindowEventState`；已接受帧尾随后用较旧的`FrameCoordinatorState::process_flags`覆盖它。结果是解码器句柄保持活动，但idle分派永远不会选择`step_video()`，脚本则一直等待未推进的黑帧。剧情VM端口现在写入当前帧协调状态，再由既有帧尾发布到窗口与idle owner。解码失败或EOF也会清除已发布的视频活动位。
+原视频接线存在运行时缺陷：剧情VM在已接受帧仍在执行时，把视频活动位写入`WindowEventState`；已接受帧尾随后用较旧的`FrameCoordinatorState::process_flags`覆盖它。结果是解码器句柄保持活动，但idle分派永远不会选择`step_video()`，脚本则一直等待未推进的黑帧。剧情VM端口现在写入当前帧协调状态，再由既有帧尾发布到窗口与idle owner。解码失败或EOF也会清除已发布的视频活动位。
+
+原BGM接线的`update_background_music()`为空，因此FFmpeg MP3后端虽然可以独立打开并播放真实文件，主帧却从未消费地图音乐请求。该入口现已接入MAPS音乐表、剧情VM音乐状态、stream transition和`LegacyStreamManager`，并保持原`0x0040CDD0`在普通帧分支前执行的顺序。
 
 验证期间未启动原版或OpenSWD3游戏EXE。
 
 ## 验证
 
 - 链接的运行时版本以`n9.0`开头。
-- Linux真实SDL媒体测试通过：MP3、`firegod.bik`完整176帧和`opening.bik`完整7,369帧均解码到EOF。
+- Linux真实SDL媒体测试通过：真实MAPS map214经世界音乐状态机启动`Music\\Map_Ca12.mp3`的stream100；`firegod.bik`完整176帧和`opening.bik`完整7,369帧均解码到EOF。
 - Player fake backend测试证明：解码EOF不会复制或呈现黑帧；解码失败会关闭句柄。
 - 帧运行时测试证明：剧情VM写入的视频活动位会保留在发布给idle分派的已接受帧状态中。
 - 运行时修复后，Linux core无SDL/无FFmpeg配置保持独立并通过`186/186`。

@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v413
+版本：v414
 
 最后更新：2026-08-22
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：FFmpeg视频运行时修复 · Windows用户复测
+当前步骤：FFmpeg BGM运行时修复 · Windows用户复测
 
 ## 0. 执行约定
 
@@ -3026,7 +3026,14 @@ B7 P0 有限收口完成。
 - FFmpeg视频运行时修复完成Linux验证。Story VM原先把视频活动位写入窗口状态，随后被同帧旧
     协调状态覆盖，导致解码器已打开但idle永不执行`step_video()`；现改为写当前协调状态并由
     既有帧尾发布。解码后端增加明确EOF/失败终止，禁止重复呈现不可用黑帧。`firegod.bik`
-    176帧和`opening.bik`7369帧均全量解码到EOF；Linux core186/186、app192/192通过。当前
-    WSL丢失`WSLInterop`注册且无挂载权限，Windows修复后门禁和用户实际窗口复测待完成。
+    176帧和`opening.bik`7369帧均全量解码到EOF；Linux core186/186、app192/192通过。用户
+    已确认Windows实际OP播放正常；当前WSL丢失`WSLInterop`注册且无挂载权限，Windows完整门
+    仍待复跑。
 
-下一工作包：Windows FFmpeg视频门禁与用户实际播放复测；通过前不恢复模块9。
+- FFmpeg BGM运行时修复完成Linux验证。原SDL主帧`update_background_music()`为空，导致MP3
+    后端可独立播放但地图音乐请求从未被消费；现将剧情VM六槽音乐状态、真实MAPS地图音乐表、
+    ID文件名目录、stream transition和`LegacyStreamManager`接入主帧。真实map214解析ID102并
+    启动`Music\\Map_Ca12.mp3`的stream100；新增请求、启动、目录失败和打开失败日志。Linux
+    core186/186、app192/192通过。
+
+下一工作包：Windows FFmpeg BGM实际播放复测与完整门；通过前不恢复模块9。
