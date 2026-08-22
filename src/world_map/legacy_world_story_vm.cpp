@@ -1265,6 +1265,19 @@ legacy_moving_squared_distance(const i32 delta_x, const i32 delta_y) noexcept {
     return std::bit_cast<i32>(x_bits * x_bits + y_bits * y_bits);
 }
 
+[[nodiscard]] i32
+legacy_x87_integer_distance(const i32 squared_distance) noexcept {
+    if (squared_distance < 0) {
+        // Masked x87 invalid produces the integer-indefinite qword; callers
+        // retain only its zero low dword.
+        return 0;
+    }
+
+    return static_cast<i32>(
+        std::sqrt(static_cast<long double>(squared_distance))
+    );
+}
+
 [[nodiscard]] float legacy_x87_moving_velocity(
     const i32 delta, const i16 movement, const i32 squared_distance
 ) noexcept {
@@ -6328,6 +6341,80 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 2U);
             state.previous_opcode = result.opcode;
             continue;
+
+        case OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS: {
+            if (!has_bytes(state.window, ip, 8U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            u16 selector = read_u16(state.window, ip + 6U);
+            if (selector == kCurrentSourceSelector) {
+                selector = static_cast<u16>(controlled_role_index);
+            }
+
+            u32 role_index{};
+            if (!resolve_legacy_world_role_selector(
+                    roles, selector, controlled_role_index, role_index
+                )) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 14U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+
+            if (role_index >= roles.size()) {
+                result.status = LegacyWorldStoryVmStatus::role_not_found;
+                return result;
+            }
+
+            const LegacyWorldRoleRecord& role = roles[role_index];
+            const i32 delta_x = std::bit_cast<i32>(
+                role.world_x -
+                (static_cast<u32>(read_u16(state.window, ip + 2U)) << 4U) + 8U
+            );
+            const i32 delta_y = std::bit_cast<i32>(
+                role.world_y -
+                (static_cast<u32>(read_u16(state.window, ip + 4U)) << 4U)
+            );
+            const i32 distance = legacy_x87_integer_distance(
+                legacy_moving_squared_distance(delta_x, delta_y)
+            );
+            if (!has_bytes(state.window, ip, 10U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const i32 radius = static_cast<i32>(read_u16(state.window, ip + 8U))
+                << 4U;
+            if (distance > radius) {
+                if (!has_bytes(state.window, ip, 14U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+
+                result.status = load_same_file_story_window(
+                    context,
+                    state,
+                    current_file_number(context, state),
+                    read_u32(state.window, ip + 10U),
+                    result,
+                    ports
+                );
+                state.previous_opcode = result.opcode;
+                if (result.status != LegacyWorldStoryVmStatus::idle) {
+                    return result;
+                }
+
+                continue;
+            }
+
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 14U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
 
         case 141U:
             if (!has_bytes(state.window, ip, 6U)) {

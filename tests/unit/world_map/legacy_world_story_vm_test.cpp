@@ -168,6 +168,7 @@ using openswd3::world_map::OP_134_ADJUST_PARTY_MEMBER_RESOURCES;
 using openswd3::world_map::OP_135_RESET_INPUT_MENU_STATE;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_137_STOP_SCENE_MUSIC_STREAM;
+using openswd3::world_map::OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
 using openswd3::world_map::OP_144;
@@ -21645,6 +21646,288 @@ void test_stop_scene_music_stream_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_role_distance_reload_protocol(openswd3::test::Context& test) {
+    const auto write_record = [](Fixture& fixture,
+                                 const std::size_t ip,
+                                 const u16 raw_opcode,
+                                 const u16 tile_x,
+                                 const u16 tile_y,
+                                 const u16 selector,
+                                 const u16 radius,
+                                 const u32 target) {
+        write_u16(fixture.state.window, ip, raw_opcode);
+        write_u16(fixture.state.window, ip + 2U, tile_x);
+        write_u16(fixture.state.window, ip + 4U, tile_y);
+        write_u16(fixture.state.window, ip + 6U, selector);
+        write_u16(fixture.state.window, ip + 8U, radius);
+        write_u32(fixture.state.window, ip + 10U, target);
+    };
+    struct TestCase {
+        u16 alias_mask;
+        u16 selector;
+        u16 role_guid;
+        u16 context_source_guid;
+        u32 role_world_x;
+        bool should_reload;
+    };
+    constexpr std::array cases{
+        TestCase{0U, 1U, 1U, 0x7777U, 232U, false},
+        TestCase{0x4000U, 1U, 1U, 0x7777U, 233U, true},
+        TestCase{0x8000U, 0xFFF0U, 1U, 0x7777U, 232U, false},
+        TestCase{0xC000U, 0xFFFEU, 0x7777U, 0x8888U, 232U, false},
+    };
+    constexpr u32 target = 0x12345678U;
+
+    for (const auto& test_case : cases) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS | test_case.alias_mask
+            )
+        );
+        fixture.context.source_guid = test_case.context_source_guid;
+        fixture.roles[0].guid = test_case.role_guid;
+        fixture.roles[0].flags = 0x10000000U;
+        fixture.roles[1].guid = test_case.role_guid;
+        fixture.roles[1].world_x = test_case.role_world_x;
+        fixture.roles[1].world_y = 320U;
+        fixture.state.previous_opcode = 0x66U;
+        write_record(
+            fixture,
+            0U,
+            static_cast<u16>(
+                OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS | test_case.alias_mask
+            ),
+            10U,
+            20U,
+            test_case.selector,
+            5U,
+            target
+        );
+        write_u16(fixture.state.window, 14U, OP_1025);
+        write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+
+        const auto result = fixture.step(0, 0, 1U);
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count ==
+                    (test_case.should_reload ? 1U : 0U) &&
+                fixture.context.talk_data_offset ==
+                    (test_case.should_reload ? target : 0x1111U) &&
+                fixture.context.instruction_offset ==
+                    (test_case.should_reload ? 0U : 14U) &&
+                fixture.state.previous_opcode ==
+                    OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS &&
+                fixture.ports.data_load_count ==
+                    (test_case.should_reload ? 1U : 0U) &&
+                fixture.ports.story_protocol_events ==
+                    (test_case.should_reload ? std::vector<u32>{2U, 5U}
+                                             : std::vector<u32>{}),
+            "opcode 138 aliases use a strict scaled radius, map FFF0 through the controlled index as a GUID, resolve FFFE directly, and same-call either the sequential or reloaded target"
+        );
+    }
+
+    Fixture wrapped_negative;
+    prime_loaded_instruction(
+        wrapped_negative, OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS
+    );
+    wrapped_negative.roles[1].guid = 1U;
+    wrapped_negative.roles[1].world_x = 32760U;
+    wrapped_negative.roles[1].world_y = 32768U;
+    write_record(
+        wrapped_negative,
+        0U,
+        OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS,
+        0U,
+        0U,
+        1U,
+        0U,
+        target
+    );
+    write_u16(wrapped_negative.state.window, 14U, OP_1025);
+    const auto wrapped_negative_result = wrapped_negative.step();
+
+    Fixture invalid_controlled;
+    prime_loaded_instruction(
+        invalid_controlled, OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS
+    );
+    invalid_controlled.state.previous_opcode = 0x66U;
+    write_record(
+        invalid_controlled,
+        0U,
+        OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS,
+        0U,
+        0U,
+        0xFFFEU,
+        0U,
+        target
+    );
+    const auto invalid_controlled_result = invalid_controlled.step(0, 0, 99U);
+
+    Fixture load_failure;
+    prime_loaded_instruction(
+        load_failure, OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS
+    );
+    load_failure.roles[1].guid = 1U;
+    load_failure.roles[1].world_x = 1000U;
+    load_failure.roles[1].world_y = 1000U;
+    load_failure.state.previous_opcode = 0x66U;
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    write_record(
+        load_failure,
+        0U,
+        OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS,
+        0U,
+        0U,
+        1U,
+        0U,
+        target
+    );
+    const auto load_failure_result = load_failure.step();
+
+    test.expect_true(
+        wrapped_negative_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            wrapped_negative_result.executed_instruction_count == 2U &&
+            wrapped_negative.ports.data_load_count == 0U &&
+            wrapped_negative.context.instruction_offset == 14U &&
+            wrapped_negative.state.previous_opcode ==
+                OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS &&
+            invalid_controlled_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            invalid_controlled.context.instruction_offset == 0U &&
+            invalid_controlled.state.previous_opcode == 0x66U &&
+            invalid_controlled.ports.data_load_count == 0U &&
+            load_failure_result.status ==
+                LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.executed_instruction_count == 1U &&
+            load_failure_result.direct_audio_service_count == 1U &&
+            load_failure_result.load_status ==
+                LegacyTalkWindowStatus::data_read_failed &&
+            load_failure.context.talk_data_offset == target &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS &&
+            !load_failure.state.window_loaded &&
+            load_failure.ports.story_protocol_events ==
+                std::vector<u32>{2U, 5U},
+        "opcode 138 preserves the x87 negative-square low-dword zero, isolates an invalid controlled index at role access, and publishes previous after reload failure"
+    );
+
+    const auto prime_tail = [](Fixture& fixture, const u16 ip) {
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.context.instruction_offset = ip;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x66U;
+        fixture.roles[1].guid = 1U;
+    };
+
+    Fixture missing_short;
+    prime_tail(missing_short, 0x7FF8U);
+    write_u16(
+        missing_short.state.window,
+        0x7FF8U,
+        OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS
+    );
+    write_u16(missing_short.state.window, 0x7FFEU, 0x7777U);
+    const auto missing_short_result = missing_short.step();
+
+    Fixture threshold_truncated;
+    prime_tail(threshold_truncated, 0x7FF8U);
+    write_u16(
+        threshold_truncated.state.window,
+        0x7FF8U,
+        OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS
+    );
+    write_u16(threshold_truncated.state.window, 0x7FFEU, 1U);
+    const auto threshold_truncated_result = threshold_truncated.step();
+
+    Fixture target_truncated;
+    prime_tail(target_truncated, 0x7FF6U);
+    target_truncated.roles[1].world_x = 1000U;
+    target_truncated.roles[1].world_y = 1000U;
+    write_u16(
+        target_truncated.state.window,
+        0x7FF6U,
+        OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS
+    );
+    write_u16(target_truncated.state.window, 0x7FF8U, 0U);
+    write_u16(target_truncated.state.window, 0x7FFAU, 0U);
+    write_u16(target_truncated.state.window, 0x7FFCU, 1U);
+    write_u16(target_truncated.state.window, 0x7FFEU, 0U);
+    const auto target_truncated_result = target_truncated.step();
+
+    Fixture target_unread;
+    prime_tail(target_unread, 0x7FF6U);
+    target_unread.roles[1].world_x = 8U;
+    target_unread.roles[1].world_y = 0U;
+    write_u16(
+        target_unread.state.window,
+        0x7FF6U,
+        OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS
+    );
+    write_u16(target_unread.state.window, 0x7FF8U, 1U);
+    write_u16(target_unread.state.window, 0x7FFAU, 0U);
+    write_u16(target_unread.state.window, 0x7FFCU, 1U);
+    write_u16(target_unread.state.window, 0x7FFEU, 0U);
+    const auto target_unread_result = target_unread.step();
+
+    Fixture exact_tail;
+    prime_tail(exact_tail, 0x7FF2U);
+    exact_tail.roles[1].world_x = 8U;
+    exact_tail.roles[1].world_y = 0U;
+    write_record(
+        exact_tail,
+        0x7FF2U,
+        OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS,
+        1U,
+        0U,
+        1U,
+        0U,
+        target
+    );
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        missing_short_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            missing_short_result.executed_instruction_count == 1U &&
+            missing_short.context.instruction_offset == 0x8006U &&
+            missing_short.state.previous_opcode ==
+                OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS &&
+            threshold_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            threshold_truncated.context.instruction_offset == 0x7FF8U &&
+            threshold_truncated.state.previous_opcode == 0x66U &&
+            target_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            target_truncated.context.instruction_offset == 0x7FF6U &&
+            target_truncated.state.previous_opcode == 0x66U &&
+            target_unread_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            target_unread.context.instruction_offset == 0x8004U &&
+            target_unread.state.previous_opcode ==
+                OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS &&
+            missing_short.ports.data_load_count == 0U &&
+            threshold_truncated.ports.data_load_count == 0U &&
+            target_truncated.ports.data_load_count == 0U &&
+            target_unread.ports.data_load_count == 0U &&
+            exact_tail.ports.data_load_count == 0U,
+        "opcode 138 reads the selector first, skips all remaining fields on a miss, checks radius only for a live role, reads the target only when taken, and preserves exact-tail same-call behavior"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -26194,6 +26477,67 @@ void test_real_stop_scene_music_stream_records(
     );
 }
 
+void test_real_role_distance_reload_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RecordLocation {
+        const char* filename;
+        std::streamoff offset;
+        u32 file_number;
+    };
+    constexpr std::array locations{
+        RecordLocation{"TALK1.DAT", 0x00005B99, 1U},
+        RecordLocation{"TALK2.DAT", 0x0001950A, 2U},
+        RecordLocation{"TALK3.DAT", 0x0002397F, 3U},
+        RecordLocation{"TALK4.DAT", 0x00004F08, 4U},
+    };
+
+    bool all_records_match = true;
+    for (const auto& location : locations) {
+        std::ifstream input{
+            root / location.filename, std::ios::binary | std::ios::in
+        };
+        input.seekg(location.offset);
+        std::array<u8, 14U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS);
+        std::ranges::copy(record, fixture.state.window.begin());
+        fixture.state.loaded_file_number = location.file_number;
+        fixture.roles[1].guid = 1U;
+        fixture.roles[1].world_x = 0U;
+        fixture.roles[1].world_y = 0U;
+        write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+        const u32 target = read_u32(record, 10U);
+
+        const auto result = fixture.step();
+        all_records_match = all_records_match && static_cast<bool>(input) &&
+            read_u16(record, 0U) == OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS &&
+            read_u16(record, 6U) == 1U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == OP_1025 &&
+            result.executed_instruction_count == 2U &&
+            result.direct_audio_service_count == 1U &&
+            fixture.context.talk_data_offset == target &&
+            fixture.context.instruction_offset == 0U &&
+            fixture.state.previous_opcode ==
+                OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS &&
+            fixture.ports.data_load_count == 1U &&
+            fixture.ports.last_data_file_number == location.file_number &&
+            fixture.ports.last_data_offset == target &&
+            fixture.ports.story_protocol_events == std::vector<u32>{2U, 5U};
+    }
+
+    test.expect_true(
+        all_records_match,
+        "real opcode 138 records from all TALK files take the scaled-distance reload and same-call the target"
+    );
+}
+
 void test_real_batch_set_role_positions_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -28583,6 +28927,7 @@ int main(const int argument_count, char** arguments) {
     test_adjust_party_member_resources_protocol(test);
     test_reset_input_menu_state_protocol(test);
     test_stop_scene_music_stream_protocol(test);
+    test_role_distance_reload_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -28675,6 +29020,7 @@ int main(const int argument_count, char** arguments) {
         test_real_wait_overlay_action_lists_record(test, root);
         test_real_stage_scene_music_stream_request_record(test, root);
         test_real_stop_scene_music_stream_records(test, root);
+        test_real_role_distance_reload_records(test, root);
         test_real_batch_set_role_positions_record(test, root);
         test_real_remove_dialogs_for_role_guid_records(test, root);
         test_real_wait_dialog_flag_records(test, root);
