@@ -5176,6 +5176,57 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_119_WAIT_DIALOG_FLAG_BIT0:
+        case OP_139_WAIT_DIALOG_FLAG_BIT15: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u16 selector = read_u16(state.window, ip + 2U);
+            if (selector == kCurrentSourceSelector) {
+                selector = context.source_guid;
+            }
+
+            u32 role_index = kContextSelector;
+            if (selector != kContextSelector &&
+                !resolve_legacy_world_role_selector(
+                    roles, selector, controlled_role_index, role_index
+                )) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 4U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+
+            const auto message = std::ranges::find_if(
+                dialogs.messages,
+                [role_index](const story_scene::LegacyDialogMessage& entry) {
+                    return entry.record.role_index == role_index;
+                }
+            );
+            if (message == dialogs.messages.end()) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 4U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+
+            const u32 completion_mask =
+                result.opcode == OP_119_WAIT_DIALOG_FLAG_BIT0 ? 0x00000001U
+                                                              : 0x00008000U;
+            if ((message->record.flags & completion_mask) == 0U) {
+                state.previous_opcode = result.opcode;
+                ports.service_audio();
+                ++result.direct_audio_service_count;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 120U: {
             if (!has_bytes(state.window, ip, 10U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

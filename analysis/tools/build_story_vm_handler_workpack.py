@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 133
-EXPECTED_CLOSED_HANDLER_COUNT = 94
+EXPECTED_MODERN_CASE_COUNT = 135
+EXPECTED_CLOSED_HANDLER_COUNT = 95
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -514,6 +514,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-dialog-role-remove-0042b8e6.md",
         "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;staged_operand_tested;selector_alias_tested;partial_failure_tested;shared_owner_tested",
+    ),
+    "0x0042B9C2": (
+        "platform_adapted",
+        "story-vm-dialog-flag-wait-0042b9c2.md",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;staged_operand_tested;selector_alias_tested;shared_handler_all_variants_tested;shared_owner_tested;typed_owner_boundary_tested",
     ),
 }
 

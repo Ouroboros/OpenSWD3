@@ -199,7 +199,9 @@ bit0 == 1                         -> 消费
 没有记录或角色 lookup 失败       -> 消费
 ```
 
-`FFFD` 绕过 lookup，直接匹配特殊记录。若理论上有多个匹配项，只有扫描到的第一项决定等待，不继续检查其余项。
+`FFFD` 绕过 lookup，直接匹配特殊记录。若理论上有多个匹配项，只有扫描到的第一项决定等待，不继续检查其余项。共享opcode139执行相同selector和首匹配扫描，但等待位改为`record+0x08` bit15；bit15清零等待、置位完成。
+
+共享入口现已独立闭环：两opcode均锁定四raw alias、`FFF0→FFFD`判断顺序、`FFFE`完整u32 index、lookup失败/空链/miss消费、首匹配优先、各自bit极性、wait audio/yield与完成same-call。119/139共850条真实记录/850 probes及两条variant回放通过；完整证据见[`story-vm-dialog-flag-wait-0042b9c2.md`](story-vm-dialog-flag-wait-0042b9c2.md)。
 
 120 的三个可选字段分别写 action `+0x00/+0x08/+0x34`。每个原始 word 等于 `FFFF` 时保留旧值；前两个非 sentinel 值按 `s16` 符号扩展，第三个按 `u16` 零扩展。随后清 action `+0x44`、调用刷新 helper，并置 `role+0x10` bit12。刷新失败只诊断，不撤销已写字段。角色不存在时改走 `sub_40D460`，仍消费十字节。
 

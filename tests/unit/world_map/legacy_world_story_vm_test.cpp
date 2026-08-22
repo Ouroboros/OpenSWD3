@@ -145,7 +145,9 @@ using openswd3::world_map::OP_115_SET_MUSIC_STREAM_VOLUME;
 using openswd3::world_map::OP_116_BATCH_SET_ROLE_POSITIONS;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID;
+using openswd3::world_map::OP_119_WAIT_DIALOG_FLAG_BIT0;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
+using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
 using openswd3::world_map::OP_145_SET_ROLE_STATUS_BIT13;
 using openswd3::world_map::OP_146_SET_ROLE_STATUS_BIT8;
@@ -7679,6 +7681,245 @@ void test_remove_dialogs_for_role_guid_protocol(openswd3::test::Context& test) {
             exact_tail.dialogs.close.flagged_dialog_counter == 0x8000U &&
             read_u16(exact_tail.state.window, 0x7FFEU) == 0xFFF0U,
         "opcode 118 commits its exact-tail removals before refetch"
+    );
+}
+
+void test_wait_dialog_flag_protocol(openswd3::test::Context& test) {
+    struct Variant {
+        u16 opcode;
+        u32 completion_mask;
+        u32 unrelated_mask;
+    };
+    constexpr std::array<Variant, 2U> variants{
+        Variant{OP_119_WAIT_DIALOG_FLAG_BIT0, 0x00000001U, 0x00008000U},
+        Variant{OP_139_WAIT_DIALOG_FLAG_BIT15, 0x00008000U, 0x00000001U},
+    };
+    constexpr std::array<u16, 4U> alias_bits{0U, 0x4000U, 0x8000U, 0xC000U};
+    for (const auto& variant : variants) {
+        for (const u16 alias : alias_bits) {
+            Fixture fixture;
+            prime_loaded_instruction(
+                fixture, static_cast<u16>(variant.opcode | alias)
+            );
+            write_u16(fixture.state.window, 2U, 0x00F8U);
+            write_u16(fixture.state.window, 4U, OP_1025);
+
+            const auto result = fixture.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                    result.opcode == OP_1025 &&
+                    result.executed_instruction_count == 2U &&
+                    result.direct_audio_service_count == 0U &&
+                    fixture.context.instruction_offset == 4U &&
+                    fixture.state.previous_opcode == variant.opcode,
+                "dialog wait aliases consume an empty message list"
+            );
+        }
+
+        Fixture matching;
+        matching.dialogs.messages.emplace_back();
+        matching.dialogs.messages.back().record.role_index = 1U;
+        matching.dialogs.messages.back().record.flags = variant.unrelated_mask;
+        prime_loaded_instruction(matching, variant.opcode);
+        write_u16(matching.state.window, 2U, 0x00F8U);
+        write_u16(matching.state.window, 4U, OP_1025);
+        const auto waiting = matching.step();
+        matching.dialogs.messages.back().record.flags |=
+            variant.completion_mask;
+        const auto completed = matching.step();
+        test.expect_true(
+            waiting.status == LegacyWorldStoryVmStatus::yielded &&
+                waiting.executed_instruction_count == 1U &&
+                waiting.direct_audio_service_count == 1U &&
+                matching.ports.direct_audio_service_count == 1U &&
+                completed.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                completed.opcode == OP_1025 &&
+                completed.executed_instruction_count == 2U &&
+                completed.direct_audio_service_count == 0U &&
+                matching.context.instruction_offset == 4U &&
+                matching.state.previous_opcode == variant.opcode,
+            "each dialog wait variant uses only its own completion bit"
+        );
+    }
+
+    Fixture first_match;
+    for (const u32 flags : {0U, 1U}) {
+        first_match.dialogs.messages.emplace_back();
+        first_match.dialogs.messages.back().record.role_index = 1U;
+        first_match.dialogs.messages.back().record.flags = flags;
+    }
+    prime_loaded_instruction(first_match, OP_119_WAIT_DIALOG_FLAG_BIT0);
+    write_u16(first_match.state.window, 2U, 0x00F8U);
+    write_u16(first_match.state.window, 4U, OP_1025);
+    const auto first_match_waiting = first_match.step();
+    first_match.dialogs.messages.front().record.flags = 1U;
+    first_match.dialogs.messages.back().record.flags = 0U;
+    const auto first_match_completed = first_match.step();
+    test.expect_true(
+        first_match_waiting.status == LegacyWorldStoryVmStatus::yielded &&
+            first_match_waiting.direct_audio_service_count == 1U &&
+            first_match_completed.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            first_match.context.instruction_offset == 4U,
+        "dialog waits inspect only the first matching message"
+    );
+
+    Fixture detached;
+    detached.dialogs.messages.emplace_back();
+    detached.dialogs.messages.back().record.role_index = 0xFFFDU;
+    detached.dialogs.messages.back().record.flags = 0U;
+    prime_loaded_instruction(detached, OP_119_WAIT_DIALOG_FLAG_BIT0);
+    write_u16(detached.state.window, 2U, 0xFFFDU);
+    const auto detached_result = detached.step();
+    test.expect_true(
+        detached_result.status == LegacyWorldStoryVmStatus::yielded &&
+            detached_result.direct_audio_service_count == 1U &&
+            detached.context.instruction_offset == 0U &&
+            detached.state.previous_opcode == OP_119_WAIT_DIALOG_FLAG_BIT0,
+        "dialog wait selector FFFD matches detached messages without lookup"
+    );
+
+    Fixture context_detached;
+    context_detached.context.source_guid = 0xFFFDU;
+    context_detached.dialogs.messages.emplace_back();
+    context_detached.dialogs.messages.back().record.role_index = 0xFFFDU;
+    context_detached.dialogs.messages.back().record.flags = 1U;
+    prime_loaded_instruction(context_detached, OP_119_WAIT_DIALOG_FLAG_BIT0);
+    write_u16(context_detached.state.window, 2U, 0xFFF0U);
+    write_u16(context_detached.state.window, 4U, OP_1025);
+    const auto context_detached_result = context_detached.step();
+    test.expect_true(
+        context_detached_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            context_detached.context.instruction_offset == 4U &&
+            context_detached.state.previous_opcode ==
+                OP_119_WAIT_DIALOG_FLAG_BIT0 &&
+            read_u16(context_detached.state.window, 2U) == 0xFFF0U,
+        "dialog wait applies FFFD handling after FFF0 replacement"
+    );
+
+    Fixture current_source;
+    current_source.dialogs.messages.emplace_back();
+    current_source.dialogs.messages.back().record.role_index = 1U;
+    current_source.dialogs.messages.back().record.flags = 0x8000U;
+    prime_loaded_instruction(current_source, OP_139_WAIT_DIALOG_FLAG_BIT15);
+    write_u16(current_source.state.window, 2U, 0xFFF0U);
+    write_u16(current_source.state.window, 4U, OP_1025);
+    const auto current_source_result = current_source.step();
+    test.expect_true(
+        current_source_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            current_source.context.instruction_offset == 4U &&
+            current_source.state.previous_opcode ==
+                OP_139_WAIT_DIALOG_FLAG_BIT15 &&
+            read_u16(current_source.state.window, 2U) == 0xFFF0U,
+        "dialog wait FFF0 replacement is local and preserves the script"
+    );
+
+    Fixture missing;
+    missing.dialogs.messages.emplace_back();
+    missing.dialogs.messages.back().record.role_index = 0xFFFDU;
+    missing.dialogs.messages.back().record.flags = 0U;
+    prime_loaded_instruction(missing, OP_119_WAIT_DIALOG_FLAG_BIT0);
+    write_u16(missing.state.window, 2U, 0x7777U);
+    write_u16(missing.state.window, 4U, OP_1025);
+    const auto missing_result = missing.step();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            missing_result.executed_instruction_count == 2U &&
+            missing_result.direct_audio_service_count == 0U &&
+            missing.context.instruction_offset == 4U &&
+            missing.dialogs.messages.size() == 1U,
+        "dialog wait lookup failure consumes without scanning the list"
+    );
+
+    Fixture controlled;
+    controlled.roles.resize(4U);
+    controlled.dialogs.messages.emplace_back();
+    controlled.dialogs.messages.back().record.role_index = 3U;
+    controlled.dialogs.messages.back().record.flags = 0U;
+    prime_loaded_instruction(controlled, OP_119_WAIT_DIALOG_FLAG_BIT0);
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    const auto controlled_result = controlled.step(0, 0, 3U);
+    test.expect_true(
+        controlled_result.status == LegacyWorldStoryVmStatus::yielded &&
+            controlled_result.direct_audio_service_count == 1U &&
+            controlled.context.instruction_offset == 0U,
+        "dialog wait uses the controlled index directly for matching"
+    );
+
+    Fixture wide_controlled;
+    wide_controlled.roles.resize(0x00010004U);
+    wide_controlled.dialogs.messages.emplace_back();
+    wide_controlled.dialogs.messages.back().record.role_index = 3U;
+    wide_controlled.dialogs.messages.back().record.flags = 0U;
+    prime_loaded_instruction(wide_controlled, OP_119_WAIT_DIALOG_FLAG_BIT0);
+    write_u16(wide_controlled.state.window, 2U, 0xFFFEU);
+    write_u16(wide_controlled.state.window, 4U, OP_1025);
+    const auto wide_controlled_result = wide_controlled.step(0, 0, 0x00010003U);
+    test.expect_true(
+        wide_controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            wide_controlled_result.direct_audio_service_count == 0U &&
+            wide_controlled.context.instruction_offset == 4U,
+        "dialog wait compares the full controlled index with a u16 record"
+    );
+
+    Fixture operand_truncated;
+    operand_truncated.dialogs.messages.emplace_back();
+    operand_truncated.dialogs.messages.back().record.role_index = 1U;
+    operand_truncated.dialogs.messages.back().record.flags = 0U;
+    prime_loaded_instruction(operand_truncated, OP_119_WAIT_DIALOG_FLAG_BIT0);
+    operand_truncated.context.instruction_offset = 0x7FFEU;
+    operand_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        operand_truncated.state.window, 0x7FFEU, OP_119_WAIT_DIALOG_FLAG_BIT0
+    );
+    const auto operand_truncated_result = operand_truncated.step();
+
+    Fixture waiting_tail;
+    waiting_tail.dialogs.messages.emplace_back();
+    waiting_tail.dialogs.messages.back().record.role_index = 1U;
+    waiting_tail.dialogs.messages.back().record.flags = 0U;
+    prime_loaded_instruction(waiting_tail, OP_119_WAIT_DIALOG_FLAG_BIT0);
+    waiting_tail.context.instruction_offset = 0x7FFCU;
+    write_u16(waiting_tail.state.window, 0x7FFCU, OP_119_WAIT_DIALOG_FLAG_BIT0);
+    write_u16(waiting_tail.state.window, 0x7FFEU, 0x00F8U);
+    const auto waiting_tail_result = waiting_tail.step();
+
+    Fixture completed_tail;
+    completed_tail.dialogs.messages.emplace_back();
+    completed_tail.dialogs.messages.back().record.role_index = 1U;
+    completed_tail.dialogs.messages.back().record.flags = 0x8000U;
+    prime_loaded_instruction(completed_tail, OP_139_WAIT_DIALOG_FLAG_BIT15);
+    completed_tail.context.instruction_offset = 0x7FFCU;
+    write_u16(
+        completed_tail.state.window, 0x7FFCU, OP_139_WAIT_DIALOG_FLAG_BIT15
+    );
+    write_u16(completed_tail.state.window, 0x7FFEU, 0x00F8U);
+    const auto completed_tail_result = completed_tail.step();
+
+    test.expect_true(
+        operand_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            operand_truncated.context.instruction_offset == 0x7FFEU &&
+            operand_truncated.state.previous_opcode == 0x66U &&
+            operand_truncated_result.direct_audio_service_count == 0U &&
+            waiting_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            waiting_tail_result.executed_instruction_count == 1U &&
+            waiting_tail_result.direct_audio_service_count == 1U &&
+            waiting_tail.context.instruction_offset == 0x7FFCU &&
+            waiting_tail.state.previous_opcode ==
+                OP_119_WAIT_DIALOG_FLAG_BIT0 &&
+            completed_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            completed_tail_result.executed_instruction_count == 1U &&
+            completed_tail_result.direct_audio_service_count == 0U &&
+            completed_tail.context.instruction_offset == 0x8000U &&
+            completed_tail.state.previous_opcode ==
+                OP_139_WAIT_DIALOG_FLAG_BIT15,
+        "dialog waits preserve selector and two exact-tail exit contracts"
     );
 }
 
@@ -21970,6 +22211,77 @@ void test_real_remove_dialogs_for_role_guid_records(
     );
 }
 
+void test_real_wait_dialog_flag_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        std::streamoff offset;
+        u16 opcode;
+        u16 selector;
+        u16 role_index;
+        u32 completion_mask;
+    };
+    constexpr std::array<RealCase, 2U> cases{
+        RealCase{
+            0x0000968B,
+            OP_119_WAIT_DIALOG_FLAG_BIT0,
+            10000U,
+            1U,
+            0x00000001U,
+        },
+        RealCase{
+            0x000045E4,
+            OP_139_WAIT_DIALOG_FLAG_BIT15,
+            0U,
+            0U,
+            0x00008000U,
+        },
+    };
+
+    for (const auto& real_case : cases) {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 4U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.roles[real_case.role_index].guid = real_case.selector;
+        fixture.dialogs.messages.emplace_back();
+        fixture.dialogs.messages.back().record.role_index =
+            real_case.role_index;
+        fixture.dialogs.messages.back().record.flags = 0U;
+        prime_loaded_instruction(fixture, real_case.opcode);
+        std::ranges::copy(record, fixture.state.window.begin());
+        write_u16(fixture.state.window, record.size(), OP_1025);
+        const auto waiting = fixture.step();
+        fixture.dialogs.messages.back().record.flags |=
+            real_case.completion_mask;
+        const auto completed = fixture.step();
+
+        test.expect_true(
+            record_read && read_u16(record, 0U) == real_case.opcode &&
+                read_u16(record, 2U) == real_case.selector &&
+                waiting.status == LegacyWorldStoryVmStatus::yielded &&
+                waiting.executed_instruction_count == 1U &&
+                waiting.direct_audio_service_count == 1U &&
+                completed.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                completed.opcode == OP_1025 &&
+                completed.executed_instruction_count == 2U &&
+                completed.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode == real_case.opcode,
+            "real dialog wait records cross their variant completion bit"
+        );
+    }
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -24033,6 +24345,7 @@ int main(const int argument_count, char** arguments) {
     test_set_music_stream_volume_protocol(test);
     test_batch_set_role_positions_protocol(test);
     test_remove_dialogs_for_role_guid_protocol(test);
+    test_wait_dialog_flag_protocol(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);
@@ -24188,6 +24501,7 @@ int main(const int argument_count, char** arguments) {
         test_real_stage_scene_music_stream_request_record(test, root);
         test_real_batch_set_role_positions_record(test, root);
         test_real_remove_dialogs_for_role_guid_records(test, root);
+        test_real_wait_dialog_flag_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
