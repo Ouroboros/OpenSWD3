@@ -42,7 +42,7 @@ EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
 EXPECTED_MODERN_CASE_COUNT = 197
-EXPECTED_CLOSED_HANDLER_COUNT = 144
+EXPECTED_CLOSED_HANDLER_COUNT = 145
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -765,6 +765,11 @@ CLOSURE_OVERRIDES = {
         "story-vm-common-join-latch-clear-0042d49f.md",
         "assembly_exact;unit_tested;asset_absence_verified;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;call_local_state_tested;latch_clear_tested;common_join_tested;previous_publication_tested;audio_order_tested;audio_service_tested;yield_tested;unread_successor_tested",
     ),
+    "0x0042D1EA": (
+        "assembly_exact",
+        "story-vm-common-join-continue-0042d1ea.md",
+        "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;call_local_state_tested;one_shot_continue_tested;persistent_latch_preserved;common_join_tested;previous_publication_tested;same_call_tested;no_audio_tested;successor_fetch_tested",
+    ),
 }
 
 
@@ -1017,8 +1022,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "special",
             "1026",
             "advance 2; ESI continue; same-call fetch",
-            "pending_audit",
-            "explicit special value",
+            "assembly_exact",
+            "story-vm-common-join-continue-0042d1ea.md",
         ),
         (
             "talk_end_16383",

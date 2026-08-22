@@ -370,7 +370,11 @@ special1025恢复latch清除与共同出口让出：双指针+2后清ESI/var_28�
 不fetch后继；四alias、1024链、audio顺序与精确尾通过，线性资产0条，归assembly exact。旧测试
 停机哨兵已迁出真实1025。Story VM 3/3、SDL app编译、Linux core186/186与app192/192通过。已实现197/198、
 已验收196/198；内部workpack144/146，即`25 assembly_exact + 119 platform_adapted + 2 pending_audit`。
-下一行只审计`0x0042D1EA`下的special opcode1026。
+special1026恢复一次性common-join续行：双指针+2、previous1026、零audio并same-call，下一fetch清ESI；
+不清1024持久latch。四alias、组合链与精确尾通过；线性资产4141条/4150 probes及真实边界样本通过，
+归assembly exact。Story VM 3/3、Linux core 186/186与app 192/192通过。已实现198/198、
+已验收197/198；内部workpack145/146，即`26 assembly_exact + 119 platform_adapted + 1 pending_audit`。
+下一行只审计`0x0042D24E`下的special opcode16383。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

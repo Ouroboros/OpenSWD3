@@ -58,6 +58,7 @@ int main(const int argument_count, char** arguments) {
     test_wait_for_story_video_protocol(test);
     test_latch_common_join_same_call_protocol(test);
     test_clear_common_join_latch_and_yield_protocol(test);
+    test_continue_common_join_same_call_protocol(test);
     test_start_frame_color_transition_protocol(test);
     test_start_frame_color_transition_window_boundaries(test);
     test_wait_for_frame_color_transition_protocol(test);
@@ -193,6 +194,7 @@ int main(const int argument_count, char** arguments) {
         test_real_stage_dialog_lifetime_record(test, root);
         test_real_wait_role_action_status_record(test, root);
         test_real_story_transfer_record(test, root);
+        test_real_continue_common_join_same_call_records(test, root);
         test_real_current_map_reload_records(test, root);
         test_real_item_total_reload_records(test, root);
         test_real_mode_text_records(test, root);

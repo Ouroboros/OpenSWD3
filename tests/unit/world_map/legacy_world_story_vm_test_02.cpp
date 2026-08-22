@@ -1512,6 +1512,108 @@ void test_clear_common_join_latch_and_yield_protocol(
     }
 }
 
+void test_continue_common_join_same_call_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.previous_opcode = 0x55U;
+        const u16 raw_word =
+            static_cast<u16>(OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL | mask);
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, kStoryVmTypedStop);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.raw_word == static_cast<u16>(kStoryVmTypedStop) &&
+                result.opcode == kStoryVmTypedStop &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode ==
+                    OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 1026 aliases advance, publish themselves, and same-call the successor without common audio"
+        );
+    }
+
+    Fixture one_shot;
+    prime_loaded_instruction(one_shot, OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL);
+    write_u16(one_shot.state.window, 2U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(one_shot.state.window, 4U, 0x1234U);
+    const auto one_shot_result = one_shot.step();
+    test.expect_true(
+        one_shot_result.status == LegacyWorldStoryVmStatus::yielded &&
+            one_shot_result.opcode == OP_59_PLAY_SOUND_EFFECT &&
+            one_shot_result.executed_instruction_count == 2U &&
+            one_shot_result.direct_audio_service_count == 1U &&
+            one_shot.context.instruction_offset == 6U &&
+            one_shot.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+            one_shot.ports.sound_effect_requests == std::vector<u16>{0x1234U} &&
+            one_shot.ports.direct_audio_service_count == 1U,
+        "opcode 1026 ESI continuation is one-shot because the next fetch clears ESI before the successor common join"
+    );
+
+    Fixture latched;
+    prime_loaded_instruction(latched, OP_1024_LATCH_COMMON_JOIN_SAME_CALL);
+    write_u16(latched.state.window, 2U, OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL);
+    write_u16(latched.state.window, 4U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(latched.state.window, 6U, 0x4321U);
+    write_u16(latched.state.window, 8U, kStoryVmTypedStop);
+    const auto latched_result = latched.step();
+    test.expect_true(
+        latched_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            latched_result.opcode == kStoryVmTypedStop &&
+            latched_result.executed_instruction_count == 4U &&
+            latched_result.direct_audio_service_count == 0U &&
+            latched.context.instruction_offset == 8U &&
+            latched.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+            latched.ports.sound_effect_requests == std::vector<u16>{0x4321U} &&
+            latched.ports.direct_audio_service_count == 0U,
+        "opcode 1026 does not clear an existing opcode 1024 call-local latch"
+    );
+
+    for (const u16 mask : alias_masks) {
+        Fixture exact_tail;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFEU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x55U;
+        write_u16(
+            exact_tail.state.window,
+            0x7FFEU,
+            static_cast<u16>(OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL | mask)
+        );
+
+        const auto result = exact_tail.step();
+        test.expect_true(
+            result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.opcode == OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 0U &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
+                exact_tail.ports.direct_audio_service_count == 0U,
+            "opcode 1026 exact tail commits IP and previous before the same-call successor fetch fails"
+        );
+    }
+}
+
 void test_start_frame_color_transition_protocol(openswd3::test::Context& test) {
     constexpr std::array<i16, 6U> components{-30, 5, 17, 0, -25, 2};
     constexpr std::array<u16, 4U> alias_masks{

@@ -7723,9 +7723,10 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             continue;
 
-        case 1026U:
+        case OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL:
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
             continue;
         case 16383U:
             result.status = finish_talk_source(

@@ -69,6 +69,9 @@ void test_latch_common_join_same_call_protocol(openswd3::test::Context& test);
 void test_clear_common_join_latch_and_yield_protocol(
     openswd3::test::Context& test
 );
+void test_continue_common_join_same_call_protocol(
+    openswd3::test::Context& test
+);
 void test_start_frame_color_transition_protocol(openswd3::test::Context& test);
 void test_start_frame_color_transition_window_boundaries(
     openswd3::test::Context& test
@@ -240,6 +243,9 @@ void test_real_stage_dialog_lifetime_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 );
 void test_real_wait_role_action_status_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+);
+void test_real_continue_common_join_same_call_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 );
 void test_real_story_transfer_record(

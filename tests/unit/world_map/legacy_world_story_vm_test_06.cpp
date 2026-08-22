@@ -2286,7 +2286,7 @@ void test_real_role_base_variant_reload_record(
             context.talk_data_offset == 0xFFFFFFFFU &&
             context.instruction_offset == 0xFFFFU && !state.window_loaded &&
             state.loaded_file_number == 0U && state.loaded_data_offset == 0U &&
-            state.previous_opcode == OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL,
+            state.previous_opcode == OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL,
         "real opcode 126 reloads TALK1 target 0x79D7 and same-call terminates through 1026 and FFFF"
     );
 }
@@ -2595,7 +2595,11 @@ void test_real_item_presence_reload_records(
         fixture.state.window_loaded = true;
         fixture.context.talk_data_offset =
             static_cast<u32>(real_case.offset) - 0x200U;
-        write_u16(fixture.ports.transferred_window, 0U, 1026U);
+        write_u16(
+            fixture.ports.transferred_window,
+            0U,
+            OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+        );
         write_u16(fixture.ports.transferred_window, 2U, 16383U);
 
         const auto result = fixture.step();
@@ -2607,7 +2611,8 @@ void test_real_item_presence_reload_records(
                 result.executed_instruction_count == 3U &&
                 result.direct_audio_service_count == 1U &&
                 fixture.ports.last_data_offset == real_case.target &&
-                fixture.state.previous_opcode == real_case.opcode,
+                fixture.state.previous_opcode ==
+                    OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL,
             "real shared item-presence reload record takes its opcode-specific predicate and same-calls the target"
         );
     }

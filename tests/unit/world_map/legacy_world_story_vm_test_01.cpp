@@ -866,7 +866,11 @@ void test_story_transfer_protocol(openswd3::test::Context& test) {
         );
         write_u16(fixture.state.window, 2U, 2042U);
         fixture.state.window[300U] = 0xA5U;
-        write_u16(fixture.ports.transferred_window, 0U, 1026U);
+        write_u16(
+            fixture.ports.transferred_window,
+            0U,
+            OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+        );
         write_u16(fixture.ports.transferred_window, 2U, kStoryVmTypedStop);
         fixture.state.previous_opcode = 0x66U;
         fixture.ports.story_load_callback = [&fixture]() {
@@ -893,7 +897,8 @@ void test_story_transfer_protocol(openswd3::test::Context& test) {
                 fixture.state.loaded_data_offset == 0x2222U &&
                 fixture.state.window_loaded &&
                 fixture.state.window[300U] == 0xA5U &&
-                fixture.state.previous_opcode == OP_161_TRANSFER_STORY &&
+                fixture.state.previous_opcode ==
+                    OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
                 fixture.ports.story_protocol_events ==
                     std::vector<u32>{2U, 2U, 15U, 2U, 2U},
             "opcode 161 aliases service audio four times, preserve the unread window tail, publish previous, and same-call the transferred window"
@@ -909,7 +914,11 @@ void test_story_transfer_protocol(openswd3::test::Context& test) {
     exact_tail.state.previous_opcode = 0x66U;
     write_u16(exact_tail.state.window, 0x7FFCU, OP_161_TRANSFER_STORY);
     write_u16(exact_tail.state.window, 0x7FFEU, 2042U);
-    write_u16(exact_tail.ports.transferred_window, 0U, 1026U);
+    write_u16(
+        exact_tail.ports.transferred_window,
+        0U,
+        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+    );
     write_u16(exact_tail.ports.transferred_window, 2U, kStoryVmTypedStop);
     exact_tail.ports.story_load_callback = [&exact_tail]() {
         exact_tail.ports.story_protocol_events.push_back(15U);
@@ -924,7 +933,8 @@ void test_story_transfer_protocol(openswd3::test::Context& test) {
             exact_tail_result.direct_audio_service_count == 4U &&
             exact_tail.context.talk_data_offset == 0x2222U &&
             exact_tail.context.instruction_offset == 2U &&
-            exact_tail.state.previous_opcode == OP_161_TRANSFER_STORY &&
+            exact_tail.state.previous_opcode ==
+                OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
             exact_tail.ports.story_protocol_events ==
                 std::vector<u32>{2U, 2U, 15U, 2U, 2U},
         "opcode 161 transfers from the final complete four-byte source record before same-calling the new window"
@@ -1025,7 +1035,11 @@ void test_current_map_reload_protocol(openswd3::test::Context& test) {
             write_u32(fixture.state.window, 4U, target);
             fixture.state.window[300U] = 0xA5U;
             fixture.state.previous_opcode = 0x66U;
-            write_u16(fixture.ports.transferred_window, 0U, 1026U);
+            write_u16(
+                fixture.ports.transferred_window,
+                0U,
+                OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+            );
             write_u16(fixture.ports.transferred_window, 2U, kStoryVmTypedStop);
 
             const auto result = fixture.step();
@@ -1048,7 +1062,8 @@ void test_current_map_reload_protocol(openswd3::test::Context& test) {
                     fixture.state.loaded_data_offset == target &&
                     fixture.state.window_loaded &&
                     fixture.state.window[300U] == 0xA5U &&
-                    fixture.state.previous_opcode == opcode &&
+                    fixture.state.previous_opcode ==
+                        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
                     fixture.ports.story_protocol_events ==
                         std::vector<u32>{2U, 5U},
                 "opcodes 163 and 164 cover every raw alias, compare the signed map operand against the full current-map dword, preserve the unread window tail, and same-call the target"
@@ -1128,7 +1143,11 @@ void test_current_map_reload_protocol(openswd3::test::Context& test) {
     exact_tail.state.window[300U] = 0xA5U;
     write_u16(exact_tail.state.window, 0x7FFAU, 0xFFFFU);
     write_u32(exact_tail.state.window, 0x7FFCU, 0x12345678U);
-    write_u16(exact_tail.ports.transferred_window, 0U, 1026U);
+    write_u16(
+        exact_tail.ports.transferred_window,
+        0U,
+        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+    );
     write_u16(exact_tail.ports.transferred_window, 2U, kStoryVmTypedStop);
     const auto exact_tail_result = exact_tail.step();
 
@@ -1157,7 +1176,7 @@ void test_current_map_reload_protocol(openswd3::test::Context& test) {
             exact_tail.context.talk_data_offset == 0x12345678U &&
             exact_tail.context.instruction_offset == 2U &&
             exact_tail.state.previous_opcode ==
-                OP_164_RELOAD_IF_CURRENT_MAP_EQUAL &&
+                OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
             exact_tail.state.window[300U] == 0xA5U &&
             operand_truncated.ports.data_load_count == 0U &&
             target_truncated.ports.data_load_count == 0U &&
@@ -1233,7 +1252,11 @@ void test_item_total_reload_protocol(openswd3::test::Context& test) {
             write_u32(fixture.state.window, 6U, target);
             fixture.state.window[300U] = 0xA5U;
             fixture.state.previous_opcode = 0x66U;
-            write_u16(fixture.ports.transferred_window, 0U, 1026U);
+            write_u16(
+                fixture.ports.transferred_window,
+                0U,
+                OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+            );
             write_u16(fixture.ports.transferred_window, 2U, kStoryVmTypedStop);
 
             const auto result = fixture.step();
@@ -1253,7 +1276,8 @@ void test_item_total_reload_protocol(openswd3::test::Context& test) {
                     fixture.context.instruction_offset == 2U &&
                     fixture.state.loaded_data_offset == target &&
                     fixture.state.window[300U] == 0xA5U &&
-                    fixture.state.previous_opcode == opcode &&
+                    fixture.state.previous_opcode ==
+                        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
                     fixture.ports.story_protocol_events ==
                         std::vector<u32>{2U, 5U},
                 "opcodes 165 and 166 cover every raw alias, sum signed player and role-root quantities, ignore selected-count fields, and take equality at both threshold boundaries"
@@ -1329,7 +1353,11 @@ void test_item_total_reload_protocol(openswd3::test::Context& test) {
     write_u16(zero_at_most.state.window, 2U, item_id);
     write_u16(zero_at_most.state.window, 4U, 0x8000U);
     write_u32(zero_at_most.state.window, 6U, target);
-    write_u16(zero_at_most.ports.transferred_window, 0U, 1026U);
+    write_u16(
+        zero_at_most.ports.transferred_window,
+        0U,
+        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+    );
     write_u16(zero_at_most.ports.transferred_window, 2U, kStoryVmTypedStop);
     const auto zero_at_most_result = zero_at_most.step();
 
@@ -1346,7 +1374,7 @@ void test_item_total_reload_protocol(openswd3::test::Context& test) {
             zero_at_most.context.talk_data_offset == target &&
             zero_at_most.ports.data_load_count == 1U &&
             zero_at_most.state.previous_opcode ==
-                OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST,
+                OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL,
         "zero totals preserve the original opcode-165 sequential and opcode-166 reload special cases regardless of signed threshold, while role roots use exact IDs and ignore linked nodes"
     );
 
@@ -1405,7 +1433,11 @@ void test_item_total_reload_protocol(openswd3::test::Context& test) {
     write_u16(early_role_match.state.window, 2U, item_id);
     write_u16(early_role_match.state.window, 4U, 1U);
     write_u32(early_role_match.state.window, 6U, target);
-    write_u16(early_role_match.ports.transferred_window, 0U, 1026U);
+    write_u16(
+        early_role_match.ports.transferred_window,
+        0U,
+        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+    );
     write_u16(early_role_match.ports.transferred_window, 2U, kStoryVmTypedStop);
     const auto early_role_match_result = early_role_match.step();
 
@@ -1487,7 +1519,11 @@ void test_item_total_reload_protocol(openswd3::test::Context& test) {
     write_u16(exact_tail.state.window, 0x7FF8U, item_id);
     write_u16(exact_tail.state.window, 0x7FFAU, 0x8000U);
     write_u32(exact_tail.state.window, 0x7FFCU, target);
-    write_u16(exact_tail.ports.transferred_window, 0U, 1026U);
+    write_u16(
+        exact_tail.ports.transferred_window,
+        0U,
+        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+    );
     write_u16(exact_tail.ports.transferred_window, 2U, kStoryVmTypedStop);
     const auto exact_tail_result = exact_tail.step();
 
@@ -1513,7 +1549,7 @@ void test_item_total_reload_protocol(openswd3::test::Context& test) {
             exact_tail.context.talk_data_offset == target &&
             exact_tail.context.instruction_offset == 2U &&
             exact_tail.state.previous_opcode ==
-                OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST &&
+                OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
             exact_tail.state.window[300U] == 0xA5U &&
             threshold_truncated.ports.data_load_count == 0U &&
             target_truncated.ports.data_load_count == 0U &&

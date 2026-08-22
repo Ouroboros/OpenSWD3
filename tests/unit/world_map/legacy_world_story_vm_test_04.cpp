@@ -4960,7 +4960,11 @@ void test_item_presence_reload_protocol(openswd3::test::Context& test) {
             );
             write_u16(fixture.state.window, 2U, item_id);
             write_u32(fixture.state.window, 4U, target);
-            write_u16(fixture.ports.transferred_window, 0U, 1026U);
+            write_u16(
+                fixture.ports.transferred_window,
+                0U,
+                OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+            );
             write_u16(fixture.ports.transferred_window, 2U, 16383U);
 
             const auto result = fixture.step();
@@ -4974,7 +4978,8 @@ void test_item_presence_reload_protocol(openswd3::test::Context& test) {
                     !fixture.ports.last_data_clear_before_read &&
                     fixture.ports.story_protocol_events ==
                         std::vector<u32>{2U, 5U, 4U} &&
-                    fixture.state.previous_opcode == variant.opcode,
+                    fixture.state.previous_opcode ==
+                        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL,
                 "shared item-presence reload aliases take each positive or inverted predicate and same-call the target window"
             );
         }
@@ -5062,7 +5067,11 @@ void test_item_presence_reload_protocol(openswd3::test::Context& test) {
     );
     write_u16(early_role_match.state.window, 2U, 0x0222U);
     write_u32(early_role_match.state.window, 4U, target);
-    write_u16(early_role_match.ports.transferred_window, 0U, 1026U);
+    write_u16(
+        early_role_match.ports.transferred_window,
+        0U,
+        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+    );
     write_u16(early_role_match.ports.transferred_window, 2U, 16383U);
     const auto early_role_match_result = early_role_match.step();
 
@@ -5125,7 +5134,11 @@ void test_item_presence_reload_protocol(openswd3::test::Context& test) {
     );
     write_u16(exact_tail.state.window, 0x7FFAU, 0x0333U);
     write_u32(exact_tail.state.window, 0x7FFCU, target);
-    write_u16(exact_tail.ports.transferred_window, 0U, 1026U);
+    write_u16(
+        exact_tail.ports.transferred_window,
+        0U,
+        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+    );
     write_u16(exact_tail.ports.transferred_window, 2U, 16383U);
     const auto exact_tail_result = exact_tail.step();
 

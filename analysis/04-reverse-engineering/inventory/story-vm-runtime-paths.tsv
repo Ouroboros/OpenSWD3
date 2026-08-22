@@ -11,7 +11,7 @@ window_transfers	handler-specific	window_transfer	15-17,21-24,32-33,35-36,41,87,
 common_join	0x0042B0AA..0x0042B0CC	continue_or_yield	all handlers	local continuation OR ESI; nonzero loops to 0x00427B40	platform_adapted	story-vm-common-join-audio-0042b0ae.md; story-vm-common-join-latch-0042d200.md
 special_1024	0x0042D200..0x0042D218	special	1024	advance 2; local continue flag; same-call fetch	platform_adapted	story-vm-common-join-latch-0042d200.md
 special_1025	0x0042D49F..0x0042D4B5	special	1025	advance 2; clear continuation; yield	assembly_exact	story-vm-common-join-latch-clear-0042d49f.md
-special_1026	0x0042D1EA..0x0042D1FF	special	1026	advance 2; ESI continue; same-call fetch	pending_audit	explicit special value
+special_1026	0x0042D1EA..0x0042D1FF	special	1026	advance 2; ESI continue; same-call fetch	assembly_exact	story-vm-common-join-continue-0042d1ea.md
 talk_end_16383	0x0042D24E..0x0042D49E	special	16383	Talk cleanup and common join	pending_audit	explicit special value
 fatal_return_zero	0x0042D4B6..0x0042D4D6	return	handler-selected	set close bit 0x04 and return zero	pending_audit	caller ignores EAX; side effect is authoritative
 yield_return_one	0x0042D4D7..0x0042D4F3	return	ordinary yield/inactive	AIL serve then return one; inactive skips AIL	pending_audit	one return value has multiple meanings

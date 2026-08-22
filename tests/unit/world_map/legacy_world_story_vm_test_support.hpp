@@ -205,6 +205,7 @@ using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_174_SET_ROLE_STATUS_BIT14;
 using openswd3::world_map::OP_1024_LATCH_COMMON_JOIN_SAME_CALL;
 using openswd3::world_map::OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD;
+using openswd3::world_map::OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;

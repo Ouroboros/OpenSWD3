@@ -3841,6 +3841,54 @@ void test_real_wait_role_action_status_record(
     );
 }
 
+void test_real_continue_common_join_same_call_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct Sample {
+        std::string_view file;
+        std::streamoff offset;
+    };
+    constexpr std::array samples{
+        Sample{"TALK1.DAT", 0x000014C8U},
+        Sample{"TALK1.DAT", 0x00011FCDU},
+        Sample{"TALK1.DAT", 0x0005AAF2U},
+        Sample{"TALK2.DAT", 0x00000CF4U},
+        Sample{"TALK2.DAT", 0x0003305EU},
+        Sample{"TALK2.DAT", 0x00033078U},
+        Sample{"TALK2.DAT", 0x000330D2U},
+        Sample{"TALK2.DAT", 0x0003312EU},
+        Sample{"TALK3.DAT", 0x000021BEU},
+        Sample{"TALK3.DAT", 0x0001D882U},
+        Sample{"TALK3.DAT", 0x0001D884U},
+        Sample{"TALK3.DAT", 0x00033490U},
+        Sample{"TALK4.DAT", 0x00001334U},
+        Sample{"TALK4.DAT", 0x000364E4U},
+        Sample{"TALK4.DAT", 0x000364FEU},
+        Sample{"TALK4.DAT", 0x00036558U},
+        Sample{"TALK4.DAT", 0x000365B4U},
+    };
+
+    bool all_records_valid = true;
+    for (const auto sample : samples) {
+        std::ifstream input{
+            root / sample.file, std::ios::binary | std::ios::in
+        };
+        std::array<u8, 2U> instruction{};
+        input.seekg(sample.offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        all_records_valid = all_records_valid && static_cast<bool>(input) &&
+            read_u16(instruction, 0U) == OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL;
+    }
+
+    test.expect_true(
+        all_records_valid,
+        "real opcode 1026 boundary and multi-probe records in all four TALK files retain the raw 0402 word"
+    );
+}
+
 void test_real_story_transfer_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -3908,7 +3956,8 @@ void test_real_story_transfer_record(
             state.loaded_file_number == 2U &&
             state.loaded_data_offset == 0x00006CE9U &&
             state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
-            read_u16(state.window, 0U) == 1026U &&
+            read_u16(state.window, 0U) ==
+                OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
             read_u16(state.window, 2U) == OP_59_PLAY_SOUND_EFFECT &&
             read_u16(state.window, 4U) == 193U &&
             ports.sound_effect_requests == std::vector<u16>{193U},
@@ -3988,7 +4037,8 @@ void test_real_current_map_reload_records(
         );
         all_records_valid = all_records_valid && static_cast<bool>(input) &&
             (read_u16(instruction, 0U) & 0x3FFFU) == sample.opcode &&
-            (read_u16(target_instruction, 0U) & 0x3FFFU) == 1026U;
+            (read_u16(target_instruction, 0U) & 0x3FFFU) ==
+                OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL;
         opcode_163_count +=
             sample.opcode == OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL ? 1U : 0U;
         opcode_164_count +=
@@ -4030,7 +4080,11 @@ void test_real_current_map_reload_records(
         std::ranges::copy(instruction, fixture.state.window.begin());
         fixture.runtime.current_logical_map_id = replay.current_map_id;
         fixture.state.window[300U] = 0xA5U;
-        write_u16(fixture.ports.transferred_window, 0U, 1026U);
+        write_u16(
+            fixture.ports.transferred_window,
+            0U,
+            OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+        );
         write_u16(fixture.ports.transferred_window, 2U, kStoryVmTypedStop);
         const u32 target = read_u32(instruction, 4U);
         const i32 map_id = static_cast<i16>(read_u16(instruction, 2U));
@@ -4058,7 +4112,8 @@ void test_real_current_map_reload_records(
                 fixture.context.instruction_offset == 2U &&
                 fixture.state.loaded_data_offset == target &&
                 fixture.state.window[300U] == 0xA5U &&
-                fixture.state.previous_opcode == replay.opcode &&
+                fixture.state.previous_opcode ==
+                    OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
                 fixture.ports.story_protocol_events == std::vector<u32>{2U, 5U},
             "real opcode 163 and 164 records take their inverted map predicates and same-call the loaded 1026 target"
         );
@@ -4081,8 +4136,18 @@ void test_real_item_total_reload_records(
             0x00004D26U,
             OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST,
         },
-        Sample{0x00005470U, 798U, 0x000052EFU, 1026U},
-        Sample{0x000057B5U, 798U, 0x00005662U, 1026U},
+        Sample{
+            0x00005470U,
+            798U,
+            0x000052EFU,
+            OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+        },
+        Sample{
+            0x000057B5U,
+            798U,
+            0x00005662U,
+            OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+        },
     };
 
     bool all_records_valid = true;
@@ -4140,7 +4205,11 @@ void test_real_item_total_reload_records(
     player_item.item_id = 0xC31EU;
     player_item.quantity_a = 1U;
     fixture.state.window[300U] = 0xA5U;
-    write_u16(fixture.ports.transferred_window, 0U, 1026U);
+    write_u16(
+        fixture.ports.transferred_window,
+        0U,
+        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
+    );
     write_u16(fixture.ports.transferred_window, 2U, kStoryVmTypedStop);
 
     const auto result = fixture.step();
@@ -4167,7 +4236,7 @@ void test_real_item_total_reload_records(
             fixture.state.loaded_data_offset == 0x000052EFU &&
             fixture.state.window[300U] == 0xA5U &&
             fixture.state.previous_opcode ==
-                OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST &&
+                OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL &&
             fixture.ports.story_protocol_events == std::vector<u32>{2U, 5U},
         "real opcode 165 item 798 takes total-one equality and same-calls its TALK4 target"
     );
@@ -4984,7 +5053,8 @@ void test_real_jump_if_global_bit_records(
                 read_u32(instruction, 4U) == sample.target &&
                 result.load_status == LegacyTalkWindowStatus::ready &&
                 result.direct_audio_service_count == 1U &&
-                fixture.state.previous_opcode == sample.opcode,
+                fixture.state.previous_opcode ==
+                    OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL,
             "real opcode 21/22 records execute the audited first branch"
         );
         if (sample.opcode == OP_21_JUMP_IF_GLOBAL_BIT_SET) {
