@@ -142,6 +142,7 @@ using openswd3::world_map::OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS;
 using openswd3::world_map::OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING;
 using openswd3::world_map::OP_114_STAGE_SCENE_MUSIC_STREAM_REQUEST;
 using openswd3::world_map::OP_115_SET_MUSIC_STREAM_VOLUME;
+using openswd3::world_map::OP_116_BATCH_SET_ROLE_POSITIONS;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -7334,6 +7335,191 @@ void test_set_music_stream_volume_protocol(openswd3::test::Context& test) {
             exact_tail.ports.music_volume_write_count == 1U &&
             exact_tail.ports.last_music_volume_level == 11U,
         "opcode 115 commits its exact-tail volume before yielding"
+    );
+}
+
+void test_batch_set_role_positions_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_116_BATCH_SET_ROLE_POSITIONS,
+        static_cast<u16>(OP_116_BATCH_SET_ROLE_POSITIONS | 0x4000U),
+        static_cast<u16>(OP_116_BATCH_SET_ROLE_POSITIONS | 0x8000U),
+        static_cast<u16>(OP_116_BATCH_SET_ROLE_POSITIONS | 0xC000U),
+    };
+    for (const u16 raw_opcode : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_opcode);
+        write_u16(fixture.state.window, 2U, 0U);
+        write_u16(fixture.state.window, 4U, OP_1025);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode ==
+                    OP_116_BATCH_SET_ROLE_POSITIONS,
+            "opcode 116 aliases accept an empty batch and continue"
+        );
+    }
+
+    Fixture batch;
+    StoryPathHarness batch_paths{batch, 1U};
+    prime_loaded_instruction(batch, OP_116_BATCH_SET_ROLE_POSITIONS);
+    write_u16(batch.state.window, 2U, 2U);
+    write_u16(batch.state.window, 4U, 0xFFF0U);
+    write_u16(batch.state.window, 6U, 21U);
+    write_u16(batch.state.window, 8U, 15U);
+    write_u16(batch.state.window, 10U, 0xFFFEU);
+    write_u16(batch.state.window, 12U, 22U);
+    write_u16(batch.state.window, 14U, 16U);
+    write_u16(batch.state.window, 16U, OP_1025);
+    const auto batch_result = batch.step(0, 0, 1U);
+    const auto role_one_slot = std::ranges::find_if(
+        batch.active_object_slots, [](const LegacyWorldObjectSlot& slot) {
+            return read_u16(slot.bytes, 0U) == 1U;
+        }
+    );
+    test.expect_true(
+        batch_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            batch_result.opcode == OP_1025 &&
+            batch_result.executed_instruction_count == 2U &&
+            batch_result.direct_audio_service_count == 0U &&
+            batch.context.instruction_offset == 16U &&
+            batch.state.previous_opcode == OP_116_BATCH_SET_ROLE_POSITIONS &&
+            batch.dialogs.close.flagged_dialog_counter == 0x8000U &&
+            role_one_slot != batch.active_object_slots.end() &&
+            read_u16(role_one_slot->bytes, 4U) == 352U &&
+            read_u16(role_one_slot->bytes, 6U) == 256U,
+        "opcode 116 schedules every record and marks the controlled role"
+    );
+
+    Fixture controlled_alias;
+    StoryPathHarness controlled_paths{controlled_alias, 1U};
+    prime_loaded_instruction(controlled_alias, OP_116_BATCH_SET_ROLE_POSITIONS);
+    write_u16(controlled_alias.state.window, 2U, 1U);
+    write_u16(controlled_alias.state.window, 4U, 0xFFFEU);
+    write_u16(controlled_alias.state.window, 6U, 0x1015U);
+    write_u16(controlled_alias.state.window, 8U, 0x100FU);
+    write_u16(controlled_alias.state.window, 10U, OP_1025);
+    const auto controlled_alias_result = controlled_alias.step(0, 0, 1U);
+    const auto controlled_slot = std::ranges::find_if(
+        controlled_alias.active_object_slots,
+        [](const LegacyWorldObjectSlot& slot) {
+            return read_u16(slot.bytes, 0U) == 1U;
+        }
+    );
+    test.expect_true(
+        controlled_alias_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled_alias.context.instruction_offset == 10U &&
+            controlled_alias.dialogs.close.flagged_dialog_counter == 0x8000U &&
+            controlled_slot != controlled_alias.active_object_slots.end() &&
+            read_u16(controlled_slot->bytes, 4U) == 336U &&
+            read_u16(controlled_slot->bytes, 6U) == 240U,
+        "opcode 116 keeps FFFE and 16-bit coordinate shift semantics"
+    );
+
+    Fixture missing;
+    StoryPathHarness missing_paths{missing};
+    prime_loaded_instruction(missing, OP_116_BATCH_SET_ROLE_POSITIONS);
+    write_u16(missing.state.window, 2U, 1U);
+    write_u16(missing.state.window, 4U, 0x7777U);
+    write_u16(missing.state.window, 6U, 21U);
+    write_u16(missing.state.window, 8U, 15U);
+    missing.state.previous_opcode = 0x66U;
+    const auto missing_result = missing.step();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::role_not_found &&
+            missing.context.instruction_offset == 0U &&
+            missing.state.previous_opcode == 0x66U &&
+            missing.dialogs.close.flagged_dialog_counter == 0U,
+        "opcode 116 stops where a missing resolver result becomes a role pointer"
+    );
+
+    Fixture unavailable;
+    prime_loaded_instruction(unavailable, OP_116_BATCH_SET_ROLE_POSITIONS);
+    write_u16(unavailable.state.window, 2U, 1U);
+    write_u16(unavailable.state.window, 4U, 0x00F8U);
+    write_u16(unavailable.state.window, 6U, 21U);
+    write_u16(unavailable.state.window, 8U, 15U);
+    unavailable.state.previous_opcode = 0x66U;
+    const auto unavailable_result = unavailable.step();
+    test.expect_true(
+        unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            unavailable.context.instruction_offset == 0U &&
+            unavailable.state.previous_opcode == 0x66U,
+        "opcode 116 reads a full record before requiring the path runtime"
+    );
+
+    auto prime_tail = [](Fixture& fixture, const u16 ip) {
+        prime_loaded_instruction(fixture, OP_116_BATCH_SET_ROLE_POSITIONS);
+        fixture.context.instruction_offset = ip;
+        fixture.state.previous_opcode = 0x66U;
+        write_u16(fixture.state.window, ip, OP_116_BATCH_SET_ROLE_POSITIONS);
+    };
+
+    Fixture count_truncated;
+    prime_tail(count_truncated, 0x7FFEU);
+    const auto count_truncated_result = count_truncated.step();
+
+    Fixture selector_truncated;
+    prime_tail(selector_truncated, 0x7FFCU);
+    write_u16(selector_truncated.state.window, 0x7FFEU, 1U);
+    const auto selector_truncated_result = selector_truncated.step();
+
+    Fixture coordinates_truncated;
+    prime_tail(coordinates_truncated, 0x7FF8U);
+    write_u16(coordinates_truncated.state.window, 0x7FFAU, 1U);
+    write_u16(coordinates_truncated.state.window, 0x7FFCU, 0x00F8U);
+    write_u16(coordinates_truncated.state.window, 0x7FFEU, 21U);
+    const auto coordinates_truncated_result = coordinates_truncated.step();
+
+    Fixture empty_exact_tail;
+    prime_tail(empty_exact_tail, 0x7FFCU);
+    write_u16(empty_exact_tail.state.window, 0x7FFEU, 0U);
+    const auto empty_exact_tail_result = empty_exact_tail.step();
+
+    Fixture record_exact_tail;
+    StoryPathHarness record_exact_paths{record_exact_tail};
+    prime_tail(record_exact_tail, 0x7FF6U);
+    write_u16(record_exact_tail.state.window, 0x7FF8U, 1U);
+    write_u16(record_exact_tail.state.window, 0x7FFAU, 0x00F8U);
+    write_u16(record_exact_tail.state.window, 0x7FFCU, 21U);
+    write_u16(record_exact_tail.state.window, 0x7FFEU, 15U);
+    const auto record_exact_tail_result = record_exact_tail.step();
+
+    test.expect_true(
+        count_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            count_truncated.context.instruction_offset == 0x7FFEU &&
+            count_truncated.state.previous_opcode == 0x66U &&
+            selector_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            selector_truncated.context.instruction_offset == 0x7FFCU &&
+            selector_truncated.state.previous_opcode == 0x66U &&
+            coordinates_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            coordinates_truncated.context.instruction_offset == 0x7FF8U &&
+            coordinates_truncated.state.previous_opcode == 0x66U,
+        "opcode 116 preserves count, selector and Y-before-X unsafe points"
+    );
+    test.expect_true(
+        empty_exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            empty_exact_tail_result.executed_instruction_count == 1U &&
+            empty_exact_tail.context.instruction_offset == 0x8000U &&
+            empty_exact_tail.state.previous_opcode ==
+                OP_116_BATCH_SET_ROLE_POSITIONS &&
+            record_exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            record_exact_tail_result.executed_instruction_count == 1U &&
+            record_exact_tail.context.instruction_offset == 0x8000U &&
+            record_exact_tail.state.previous_opcode ==
+                OP_116_BATCH_SET_ROLE_POSITIONS,
+        "opcode 116 commits empty and one-record exact tails before refetch"
     );
 }
 
@@ -21529,6 +21715,50 @@ void test_real_stage_scene_music_stream_request_record(
     );
 }
 
+void test_real_batch_set_role_positions_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0001BF4F);
+    std::array<u8, 10U> record{};
+    input.read(
+        reinterpret_cast<char*>(record.data()),
+        static_cast<std::streamsize>(record.size())
+    );
+    const bool record_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    fixture.roles[1].guid = 1U;
+    StoryPathHarness paths{fixture};
+    prime_loaded_instruction(fixture, OP_116_BATCH_SET_ROLE_POSITIONS);
+    std::ranges::copy(record, fixture.state.window.begin());
+    write_u16(fixture.state.window, record.size(), OP_1025);
+    const auto result = fixture.step();
+    const auto slot = std::ranges::find_if(
+        fixture.active_object_slots,
+        [](const LegacyWorldObjectSlot& candidate) {
+            return read_u16(candidate.bytes, 0U) == 1U;
+        }
+    );
+
+    test.expect_true(
+        record_read &&
+            read_u16(record, 0U) == OP_116_BATCH_SET_ROLE_POSITIONS &&
+            read_u16(record, 2U) == 1U && read_u16(record, 4U) == 1U &&
+            read_u16(record, 6U) == 42U && read_u16(record, 8U) == 33U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == OP_1025 &&
+            result.executed_instruction_count == 2U &&
+            result.direct_audio_service_count == 0U &&
+            fixture.context.instruction_offset == 10U &&
+            fixture.state.previous_opcode == OP_116_BATCH_SET_ROLE_POSITIONS &&
+            slot != fixture.active_object_slots.end() &&
+            read_u16(slot->bytes, 4U) == 672U &&
+            read_u16(slot->bytes, 6U) == 528U,
+        "real opcode 116 schedules its counted role-position record"
+    );
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -23590,6 +23820,7 @@ int main(const int argument_count, char** arguments) {
     test_play_sound_effect_with_unread_padding_protocol(test);
     test_stage_scene_music_stream_request_protocol(test);
     test_set_music_stream_volume_protocol(test);
+    test_batch_set_role_positions_protocol(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);
@@ -23743,6 +23974,7 @@ int main(const int argument_count, char** arguments) {
         test_real_secondary_role_bit30_reload_record(test, root);
         test_real_wait_overlay_action_lists_record(test, root);
         test_real_stage_scene_music_stream_request_record(test, root);
+        test_real_batch_set_role_positions_record(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

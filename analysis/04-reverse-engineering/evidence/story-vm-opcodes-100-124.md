@@ -149,6 +149,8 @@ sub_42DAF0(index, (X << 4) & 0xFFFF, (Y << 4) & 0xFFFF,
 
 若输出 index 等于 `dword_4AB378`，再置 `dword_4A9920` bit15。X/Y 的移位在 16 位寄存器中进行，溢出直接回绕。与 109 一样，物理指针按完整 `4 + 6*count` 前进，状态 IP 只加低 16 位；但 116 最终置 `ESI=1`，允许同帧继续。
 
+opcode116现已独立闭环：锁定入口count冻结、末尾count重读、selector→lookup→Y→X→位置owner→受控比较顺序、missing index原危险点、16位坐标和same-call合同。30条真实记录/30 probes、117个子记录及代表count1回放通过；完整证据见[`story-vm-batch-role-position-0042b83a.md`](story-vm-batch-role-position-0042b83a.md)。
+
 ## opcode 113–115：音效与场景音乐 stream
 
 113 只读取 `+2` 的音效 ID，与全局 `dword_4AB784` 一起调用 `sub_485610`。wrapper 把全局档位缩放后提交给 Miles sample 播放层。指令却固定推进六字节：`+4` 的 word 从未读取。播放结果不观察，消费后让出。
