@@ -6755,6 +6755,41 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_156_RELOAD_DEFERRED_WORLD_SESSION: {
+            if (state.deferred_map_id > 0) {
+                const auto& selected = roles[controlled_role_index];
+                LegacyWorldLoadRequest request{
+                    .logical_map_id = static_cast<u16>(state.deferred_map_id),
+                    .tile_x = static_cast<u32>(state.deferred_map_tile_x),
+                    .tile_y = static_cast<u32>(state.deferred_map_tile_y),
+                    .action_id = static_cast<u16>(selected.action.action_id),
+                    .base_variant = 0U,
+                    .variant_delta = 1U,
+                    .selected_guid =
+                        static_cast<u16>(runtime.role_surface.selected_guid),
+                    .load_flags = 1U,
+                };
+                ports.begin_world_session_reload();
+                if (!ports.reload_world_session(
+                        request, roles, controlled_role_index, runtime
+                    )) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::world_session_load_failed;
+                    return result;
+                }
+                state.deferred_map_tile_x = -1;
+                state.deferred_map_tile_y = -1;
+                state.deferred_map_id = 0;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
         case 161U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

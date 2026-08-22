@@ -184,6 +184,7 @@ using openswd3::world_map::OP_150_CONFIGURE_ANI_FOLLOWER_POSITION;
 using openswd3::world_map::OP_151_CONFIGURE_ANI_FOLLOWER_TARGET;
 using openswd3::world_map::OP_152_WAIT_ANI_FOLLOWER_TARGET;
 using openswd3::world_map::OP_155_RELOAD_CURRENT_WORLD_SESSION;
+using openswd3::world_map::OP_156_RELOAD_DEFERRED_WORLD_SESSION;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -345,6 +346,9 @@ public:
         ++world_session_reload_count;
         last_world_load_request = request;
         story_protocol_events.push_back(7U);
+        if (world_session_reload_callback) {
+            world_session_reload_callback();
+        }
         if (!world_session_reload_success) {
             return false;
         }
@@ -539,6 +543,7 @@ public:
     std::function<void()> story_video_prepare_callback;
     std::function<void()> story_video_begin_callback;
     std::function<void()> audio_service_callback;
+    std::function<void()> world_session_reload_callback;
     std::function<void()> music_transition_callback;
     std::function<void()> music_volume_callback;
     std::function<void()> input_menu_reset_callback;
@@ -23495,6 +23500,152 @@ void test_reload_current_world_session_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_reload_deferred_world_session_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.runtime.role_surface.selected_guid = 0x00F8U;
+        fixture.roles[0].action.action_id = 0x00012345U;
+        fixture.state.deferred_map_tile_x = -2;
+        fixture.state.deferred_map_tile_y = -3;
+        fixture.state.deferred_map_id = 0xFFFF;
+        fixture.state.previous_opcode = 0x66U;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_156_RELOAD_DEFERRED_WORLD_SESSION | alias_mask)
+        );
+        bool deferred_visible_during_reload = false;
+        fixture.ports.world_session_reload_callback = [&]() {
+            deferred_visible_during_reload =
+                fixture.state.deferred_map_tile_x == -2 &&
+                fixture.state.deferred_map_tile_y == -3 &&
+                fixture.state.deferred_map_id == 0xFFFF;
+        };
+        bool cleared_before_audio = false;
+        fixture.ports.audio_service_callback = [&]() {
+            cleared_before_audio = fixture.state.deferred_map_tile_x == -1 &&
+                fixture.state.deferred_map_tile_y == -1 &&
+                fixture.state.deferred_map_id == 0 &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode ==
+                    OP_156_RELOAD_DEFERRED_WORLD_SESSION;
+        };
+
+        const auto result = fixture.step();
+        const auto& request = fixture.ports.last_world_load_request;
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word ==
+                    static_cast<u16>(
+                        OP_156_RELOAD_DEFERRED_WORLD_SESSION | alias_mask
+                    ) &&
+                result.opcode == OP_156_RELOAD_DEFERRED_WORLD_SESSION &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                request.logical_map_id == 0xFFFFU &&
+                request.tile_x == 0xFFFFFFFEU &&
+                request.tile_y == 0xFFFFFFFDU && request.action_id == 0x2345U &&
+                request.base_variant == 0U && request.variant_delta == 1U &&
+                request.selected_guid == 0x00F8U && request.load_flags == 1U &&
+                fixture.ports.world_session_reload_begin_count == 1U &&
+                fixture.ports.world_session_reload_count == 1U &&
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{6U, 7U, 2U} &&
+                deferred_visible_during_reload && cleared_before_audio,
+            "opcode 156 aliases reload positive deferred state before clearing it, publish previous, service audio, and yield"
+        );
+    }
+
+    for (const i32 inactive_map_id : std::array<i32, 2U>{0, -1}) {
+        Fixture fixture;
+        fixture.state.deferred_map_tile_x = 111;
+        fixture.state.deferred_map_tile_y = 222;
+        fixture.state.deferred_map_id = inactive_map_id;
+        prime_loaded_instruction(fixture, OP_156_RELOAD_DEFERRED_WORLD_SESSION);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.direct_audio_service_count == 1U &&
+                fixture.state.deferred_map_tile_x == 111 &&
+                fixture.state.deferred_map_tile_y == 222 &&
+                fixture.state.deferred_map_id == inactive_map_id &&
+                fixture.ports.world_session_reload_begin_count == 0U &&
+                fixture.ports.world_session_reload_count == 0U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode ==
+                    OP_156_RELOAD_DEFERRED_WORLD_SESSION &&
+                fixture.ports.story_protocol_events == std::vector<u32>{2U},
+            "opcode 156 nonpositive deferred map ids follow the debug-only no-op path and preserve deferred state"
+        );
+    }
+
+    Fixture load_failure;
+    load_failure.state.deferred_map_tile_x = 0x1234;
+    load_failure.state.deferred_map_tile_y = 0x5678;
+    load_failure.state.deferred_map_id = 21;
+    load_failure.state.previous_opcode = 0x66U;
+    load_failure.ports.world_session_reload_success = false;
+    prime_loaded_instruction(
+        load_failure, OP_156_RELOAD_DEFERRED_WORLD_SESSION
+    );
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status ==
+                LegacyWorldStoryVmStatus::world_session_load_failed &&
+            load_failure_result.direct_audio_service_count == 0U &&
+            load_failure.state.deferred_map_tile_x == 0x1234 &&
+            load_failure.state.deferred_map_tile_y == 0x5678 &&
+            load_failure.state.deferred_map_id == 21 &&
+            load_failure.ports.world_session_reload_begin_count == 1U &&
+            load_failure.ports.world_session_reload_count == 1U &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode == 0x66U &&
+            load_failure.ports.story_protocol_events ==
+                std::vector<u32>{6U, 7U},
+        "opcode 156 checked reload failure preserves deferred state but not IP, previous, or audio"
+    );
+
+    Fixture exact_tail;
+    exact_tail.runtime.role_surface.selected_guid = 0x00F8U;
+    exact_tail.roles[0].action.action_id = 0x12345U;
+    exact_tail.state.deferred_map_tile_x = 0x1234;
+    exact_tail.state.deferred_map_tile_y = 0x5678;
+    exact_tail.state.deferred_map_id = 21;
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window, 0x7FFEU, OP_156_RELOAD_DEFERRED_WORLD_SESSION
+    );
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.opcode == OP_156_RELOAD_DEFERRED_WORLD_SESSION &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.state.deferred_map_tile_x == -1 &&
+            exact_tail.state.deferred_map_tile_y == -1 &&
+            exact_tail.state.deferred_map_id == 0 &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_156_RELOAD_DEFERRED_WORLD_SESSION,
+        "opcode 156 completes reload and deferred clearing before previous, audio maintenance, and yield at the exact window tail"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
@@ -24790,6 +24941,51 @@ void test_real_reload_world_session_record(
             request.variant_delta == 0x4567U &&
             request.selected_guid == 0x00F8U && request.load_flags == 1U,
         "real opcode 27 record inherits all three controlled-role action " "fields before synchronous world reload"
+    );
+}
+
+void test_real_reload_deferred_world_session_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00038E29);
+    std::array<u8, 2U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, OP_156_RELOAD_DEFERRED_WORLD_SESSION);
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    fixture.runtime.role_surface.selected_guid = 0x00F8U;
+    fixture.roles[0].action.action_id = 0x12345U;
+    fixture.state.deferred_map_tile_x = 23;
+    fixture.state.deferred_map_tile_y = 22;
+    fixture.state.deferred_map_id = 161;
+    const auto result = fixture.step();
+    const auto& request = fixture.ports.last_world_load_request;
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_156_RELOAD_DEFERRED_WORLD_SESSION &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_156_RELOAD_DEFERRED_WORLD_SESSION &&
+            result.executed_instruction_count == 1U &&
+            result.direct_audio_service_count == 1U &&
+            fixture.context.instruction_offset == 2U &&
+            fixture.state.previous_opcode ==
+                OP_156_RELOAD_DEFERRED_WORLD_SESSION &&
+            fixture.state.deferred_map_tile_x == -1 &&
+            fixture.state.deferred_map_tile_y == -1 &&
+            fixture.state.deferred_map_id == 0 &&
+            request.logical_map_id == 161U && request.tile_x == 23U &&
+            request.tile_y == 22U && request.action_id == 0x2345U &&
+            request.base_variant == 0U && request.variant_delta == 1U &&
+            request.selected_guid == 0x00F8U && request.load_flags == 1U &&
+            fixture.ports.story_protocol_events == std::vector<u32>{6U, 7U, 2U},
+        "real opcode 156 record reloads deferred world state, clears it, and yields"
     );
 }
 
@@ -30802,6 +30998,7 @@ int main(const int argument_count, char** arguments) {
     test_configure_ani_follower_target_protocol(test);
     test_wait_ani_follower_target_protocol(test);
     test_reload_current_world_session_protocol(test);
+    test_reload_deferred_world_session_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -30829,6 +31026,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_global_bit_record(test, root);
         test_real_clear_global_bit_record(test, root);
         test_real_reload_world_session_record(test, root);
+        test_real_reload_deferred_world_session_record(test, root);
         test_real_change_role_path_id_record(test, root);
         test_real_global_integer_records(test, root);
         test_real_relocate_role_and_complete_path_record(test, root);
