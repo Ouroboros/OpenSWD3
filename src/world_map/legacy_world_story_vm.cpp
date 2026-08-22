@@ -7605,6 +7605,19 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
+        case OP_192_WAIT_MUSIC_STREAM_TRANSITION:
+            if (state.current_first_stream != 2U &&
+                state.current_stream_fade_divisor == 0U) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 2U);
+            }
+
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+
         case 193U:
             if (ports.query_story_video_progress() >= 0) {
                 result.status = LegacyWorldStoryVmStatus::yielded;

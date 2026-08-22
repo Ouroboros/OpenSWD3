@@ -226,6 +226,7 @@ using openswd3::world_map::OP_188_SET_PARTY_MEMBER_FIELD;
 using openswd3::world_map::OP_189_ADD_PARTY_MEMBER_FIELD;
 using openswd3::world_map::OP_190_SUBTRACT_PARTY_MEMBER_FIELD;
 using openswd3::world_map::OP_191_WAIT_CAMERA_TOP_WHILE_MOVING;
+using openswd3::world_map::OP_192_WAIT_MUSIC_STREAM_TRANSITION;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -8325,6 +8326,94 @@ void test_wait_for_camera_top_while_moving_protocol(
             mismatching_tail_result.direct_audio_service_count == 1U &&
             mismatching_exact_tail.ports.direct_audio_service_count == 1U,
         "opcode 191 exact four-byte tail commits equality before successor fetch failure but keeps mismatch in place through the common audio-yield exit"
+    );
+}
+
+void test_wait_for_music_stream_transition_protocol(
+    openswd3::test::Context& test
+) {
+    struct Case {
+        u32 mode;
+        u32 current_divisor;
+        u16 expected_offset;
+    };
+    constexpr std::array<Case, 4U> cases{
+        Case{2U, 0U, 0U},
+        Case{1U, 9U, 0U},
+        Case{1U, 0U, 2U},
+        Case{0x00010002U, 0U, 2U},
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const u16 mask : alias_masks) {
+        for (const Case test_case : cases) {
+            Fixture fixture;
+            fixture.state.current_first_stream = test_case.mode;
+            fixture.state.current_stream_fade_divisor =
+                test_case.current_divisor;
+            fixture.state.current_second_stream = 0x55667788U;
+            fixture.state.previous_opcode = 0x55U;
+            prime_loaded_instruction(
+                fixture,
+                static_cast<u16>(OP_192_WAIT_MUSIC_STREAM_TRANSITION | mask)
+            );
+            write_u16(fixture.state.window, 2U, OP_1025);
+            u16 offset_at_audio{};
+            u32 previous_at_audio{};
+            fixture.ports.audio_service_callback = [&] {
+                offset_at_audio = fixture.context.instruction_offset;
+                previous_at_audio = fixture.state.previous_opcode;
+            };
+
+            const auto result = fixture.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                    result.opcode == OP_192_WAIT_MUSIC_STREAM_TRANSITION &&
+                    result.executed_instruction_count == 1U &&
+                    result.direct_audio_service_count == 1U &&
+                    fixture.context.instruction_offset ==
+                        test_case.expected_offset &&
+                    offset_at_audio == test_case.expected_offset &&
+                    fixture.state.previous_opcode ==
+                        OP_192_WAIT_MUSIC_STREAM_TRANSITION &&
+                    previous_at_audio == OP_192_WAIT_MUSIC_STREAM_TRANSITION &&
+                    fixture.state.current_first_stream == test_case.mode &&
+                    fixture.state.current_stream_fade_divisor ==
+                        test_case.current_divisor &&
+                    fixture.state.current_second_stream == 0x55667788U &&
+                    fixture.ports.direct_audio_service_count == 1U,
+                "opcode 192 aliases wait on full mode two or a nonzero current fade divisor, otherwise advancing before the common audio-yield exit"
+            );
+        }
+    }
+
+    Fixture exact_tail;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x55U;
+    exact_tail.state.current_first_stream = 0U;
+    exact_tail.state.current_stream_fade_divisor = 0U;
+    write_u16(
+        exact_tail.state.window, 0x7FFEU, OP_192_WAIT_MUSIC_STREAM_TRANSITION
+    );
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_192_WAIT_MUSIC_STREAM_TRANSITION &&
+            exact_tail.ports.direct_audio_service_count == 1U,
+        "opcode 192 exact tail advances but audio-yields without fetching its successor"
     );
 }
 
@@ -24307,12 +24396,12 @@ void test_adjust_party_member_resources_protocol(
         write_u16(fixture.state.window, 4U, 5U);
         write_u16(fixture.state.window, 6U, 0xFFFFU);
         write_u16(fixture.state.window, 8U, 20U);
-        write_u16(fixture.state.window, 10U, 192U);
+        write_u16(fixture.state.window, 10U, OP_1025);
 
         const auto result = fixture.step();
         test.expect_true(
             result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == 192U &&
+                result.opcode == OP_1025 &&
                 result.executed_instruction_count == 2U &&
                 result.direct_audio_service_count == 0U &&
                 fixture.context.instruction_offset == 10U &&
@@ -24325,7 +24414,7 @@ void test_adjust_party_member_resources_protocol(
                 resources.limit_second == 100U &&
                 resources.limit_third == 60U &&
                 resources.transient_value == 0U &&
-                read_u16(fixture.state.window, 10U) == 192U,
+                read_u16(fixture.state.window, 10U) == OP_1025,
             "opcode 134 aliases wrap three u16 additions, apply signed limits and lower bounds, clear the transient word, publish previous, and same-call"
         );
     }
@@ -35403,6 +35492,7 @@ int main(const int argument_count, char** arguments) {
     test_start_camera_move_window_boundaries(test);
     test_wait_for_camera_move_protocol(test);
     test_wait_for_camera_top_while_moving_protocol(test);
+    test_wait_for_music_stream_transition_protocol(test);
     test_start_frame_color_transition_protocol(test);
     test_start_frame_color_transition_window_boundaries(test);
     test_wait_for_frame_color_transition_protocol(test);
