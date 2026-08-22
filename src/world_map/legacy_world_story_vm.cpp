@@ -6572,6 +6572,16 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
+        case OP_148_SET_STORY_FLAG_19:
+            set_legacy_world_story_flag(state, 19U);
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+
         case 161U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
