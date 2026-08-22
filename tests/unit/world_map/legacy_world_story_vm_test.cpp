@@ -227,6 +227,7 @@ using openswd3::world_map::OP_189_ADD_PARTY_MEMBER_FIELD;
 using openswd3::world_map::OP_190_SUBTRACT_PARTY_MEMBER_FIELD;
 using openswd3::world_map::OP_191_WAIT_CAMERA_TOP_WHILE_MOVING;
 using openswd3::world_map::OP_192_WAIT_MUSIC_STREAM_TRANSITION;
+using openswd3::world_map::OP_193_WAIT_STORY_VIDEO;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -493,6 +494,10 @@ public:
 
     i32 query_story_video_progress() override {
         ++video_progress_query_count;
+        if (video_progress_callback) {
+            video_progress_callback();
+        }
+
         return video_progress;
     }
 
@@ -639,6 +644,7 @@ public:
     std::function<void()> music_transition_callback;
     std::function<void()> music_volume_callback;
     std::function<void()> input_menu_reset_callback;
+    std::function<void()> video_progress_callback;
     std::function<void()> story_ani_suspend_callback;
     std::function<void()> story_host_frame_suspend_callback;
     std::function<void()> story_file_operation_callback;
@@ -8414,6 +8420,131 @@ void test_wait_for_music_stream_transition_protocol(
                 OP_192_WAIT_MUSIC_STREAM_TRANSITION &&
             exact_tail.ports.direct_audio_service_count == 1U,
         "opcode 192 exact tail advances but audio-yields without fetching its successor"
+    );
+}
+
+void test_wait_for_story_video_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    constexpr std::array<i32, 3U> active_values{
+        0,
+        1,
+        std::numeric_limits<i32>::max(),
+    };
+    constexpr std::array<i32, 2U> completed_values{
+        -1,
+        std::numeric_limits<i32>::min(),
+    };
+
+    for (const u16 mask : alias_masks) {
+        for (const i32 progress : active_values) {
+            Fixture active;
+            active.ports.video_progress = progress;
+            active.state.previous_opcode = 0x55U;
+            prime_loaded_instruction(
+                active, static_cast<u16>(OP_193_WAIT_STORY_VIDEO | mask)
+            );
+            write_u16(active.state.window, 2U, OP_1025);
+            u16 offset_at_query = 0xFFFFU;
+            u32 previous_at_query{};
+            u16 offset_at_audio = 0xFFFFU;
+            u32 previous_at_audio{};
+            active.ports.video_progress_callback = [&] {
+                offset_at_query = active.context.instruction_offset;
+                previous_at_query = active.state.previous_opcode;
+            };
+            active.ports.audio_service_callback = [&] {
+                offset_at_audio = active.context.instruction_offset;
+                previous_at_audio = active.state.previous_opcode;
+            };
+
+            const auto result = active.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                    result.opcode == OP_193_WAIT_STORY_VIDEO &&
+                    result.executed_instruction_count == 1U &&
+                    result.direct_audio_service_count == 1U &&
+                    active.context.instruction_offset == 0U &&
+                    active.state.previous_opcode == OP_193_WAIT_STORY_VIDEO &&
+                    active.ports.video_progress_query_count == 1U &&
+                    active.ports.direct_audio_service_count == 1U &&
+                    offset_at_query == 0U && previous_at_query == 0x55U &&
+                    offset_at_audio == 0U &&
+                    previous_at_audio == OP_193_WAIT_STORY_VIDEO,
+                "opcode 193 aliases query video progress before publication, then keep every nonnegative result in place through previous and one audio service"
+            );
+        }
+
+        for (const i32 progress : completed_values) {
+            Fixture completed;
+            completed.ports.video_progress = progress;
+            completed.state.previous_opcode = 0x55U;
+            prime_loaded_instruction(
+                completed, static_cast<u16>(OP_193_WAIT_STORY_VIDEO | mask)
+            );
+            write_u16(completed.state.window, 2U, OP_1025);
+            u16 offset_at_query = 0xFFFFU;
+            u32 previous_at_query{};
+            completed.ports.video_progress_callback = [&] {
+                offset_at_query = completed.context.instruction_offset;
+                previous_at_query = completed.state.previous_opcode;
+            };
+
+            const auto result = completed.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                    result.opcode == OP_1025 &&
+                    result.executed_instruction_count == 2U &&
+                    result.direct_audio_service_count == 0U &&
+                    completed.context.instruction_offset == 2U &&
+                    completed.state.previous_opcode ==
+                        OP_193_WAIT_STORY_VIDEO &&
+                    completed.ports.video_progress_query_count == 1U &&
+                    completed.ports.direct_audio_service_count == 0U &&
+                    offset_at_query == 0U && previous_at_query == 0x55U,
+                "opcode 193 aliases advance and same-call without audio for every negative legacy video progress result"
+            );
+        }
+    }
+
+    Fixture active_tail;
+    active_tail.context.talk_data_offset = 0x1111U;
+    active_tail.context.instruction_offset = 0x7FFEU;
+    active_tail.state.loaded_file_number = 1U;
+    active_tail.state.loaded_data_offset = 0x1111U;
+    active_tail.state.window_loaded = true;
+    active_tail.state.previous_opcode = 0x55U;
+    active_tail.ports.video_progress = 0;
+    write_u16(active_tail.state.window, 0x7FFEU, OP_193_WAIT_STORY_VIDEO);
+    const auto active_tail_result = active_tail.step();
+
+    Fixture completed_tail;
+    completed_tail.context.talk_data_offset = 0x1111U;
+    completed_tail.context.instruction_offset = 0x7FFEU;
+    completed_tail.state.loaded_file_number = 1U;
+    completed_tail.state.loaded_data_offset = 0x1111U;
+    completed_tail.state.window_loaded = true;
+    completed_tail.state.previous_opcode = 0x55U;
+    completed_tail.ports.video_progress = -1;
+    write_u16(completed_tail.state.window, 0x7FFEU, OP_193_WAIT_STORY_VIDEO);
+    const auto completed_tail_result = completed_tail.step();
+    test.expect_true(
+        active_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            active_tail_result.executed_instruction_count == 1U &&
+            active_tail_result.direct_audio_service_count == 1U &&
+            active_tail.context.instruction_offset == 0x7FFEU &&
+            active_tail.state.previous_opcode == OP_193_WAIT_STORY_VIDEO &&
+            completed_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            completed_tail_result.executed_instruction_count == 1U &&
+            completed_tail_result.direct_audio_service_count == 0U &&
+            completed_tail.context.instruction_offset == 0x8000U &&
+            completed_tail.state.previous_opcode == OP_193_WAIT_STORY_VIDEO,
+        "opcode 193 exact tail audio-yields active video in place, while completed video commits IP and previous before same-call successor fetch failure"
     );
 }
 
@@ -30825,6 +30956,54 @@ void test_real_begin_story_video_records(
     );
 }
 
+void test_real_wait_for_story_video_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0000450E);
+    std::array<u8, 2U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture active;
+    active.ports.video_progress = 0;
+    prime_loaded_instruction(active, OP_193_WAIT_STORY_VIDEO);
+    std::ranges::copy(instruction, active.state.window.begin());
+    write_u16(active.state.window, 2U, OP_1025);
+    const auto active_result = active.step();
+
+    Fixture completed;
+    completed.ports.video_progress = -1;
+    prime_loaded_instruction(completed, OP_193_WAIT_STORY_VIDEO);
+    std::ranges::copy(instruction, completed.state.window.begin());
+    write_u16(completed.state.window, 2U, OP_1025);
+    const auto completed_result = completed.step();
+
+    test.expect_true(
+        instruction_read &&
+            read_u16(instruction, 0U) == OP_193_WAIT_STORY_VIDEO &&
+            active_result.status == LegacyWorldStoryVmStatus::yielded &&
+            active_result.executed_instruction_count == 1U &&
+            active_result.direct_audio_service_count == 1U &&
+            active.context.instruction_offset == 0U &&
+            active.state.previous_opcode == OP_193_WAIT_STORY_VIDEO &&
+            active.ports.video_progress_query_count == 1U &&
+            active.ports.direct_audio_service_count == 1U &&
+            completed_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            completed_result.executed_instruction_count == 2U &&
+            completed_result.direct_audio_service_count == 0U &&
+            completed.context.instruction_offset == 2U &&
+            completed.state.previous_opcode == OP_193_WAIT_STORY_VIDEO &&
+            completed.ports.video_progress_query_count == 1U &&
+            completed.ports.direct_audio_service_count == 0U,
+        "real opcode 193 record audio-yields active video and same-calls after inactive completion"
+    );
+}
+
 void test_real_rewrite_role_head_action_key_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -35493,6 +35672,7 @@ int main(const int argument_count, char** arguments) {
     test_wait_for_camera_move_protocol(test);
     test_wait_for_camera_top_while_moving_protocol(test);
     test_wait_for_music_stream_transition_protocol(test);
+    test_wait_for_story_video_protocol(test);
     test_start_frame_color_transition_protocol(test);
     test_start_frame_color_transition_window_boundaries(test);
     test_wait_for_frame_color_transition_protocol(test);
@@ -35682,6 +35862,7 @@ int main(const int argument_count, char** arguments) {
         test_real_upsert_packed_row_effect_record(test, root);
         test_real_control_packed_row_effect_records(test, root);
         test_real_begin_story_video_records(test, root);
+        test_real_wait_for_story_video_record(test, root);
         test_real_rewrite_role_head_action_key_records(test, root);
         test_real_reload_random_target_records(test, root);
         test_real_request_battle_records(test, root);

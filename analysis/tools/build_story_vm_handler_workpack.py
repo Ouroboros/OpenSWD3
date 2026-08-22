@@ -42,7 +42,7 @@ EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
 EXPECTED_MODERN_CASE_COUNT = 195
-EXPECTED_CLOSED_HANDLER_COUNT = 141
+EXPECTED_CLOSED_HANDLER_COUNT = 142
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -749,6 +749,11 @@ CLOSURE_OVERRIDES = {
         "assembly_exact",
         "story-vm-music-stream-transition-wait-0042d1aa.md",
         "assembly_exact;unit_tested;asset_absence_verified;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;shared_owner_tested;full_dword_comparison_tested;short_circuit_tested;state_preservation_tested;previous_publication_tested;audio_service_tested;yield_tested;no_successor_fetch_tested",
+    ),
+    "0x0042D1D5": (
+        "platform_adapted",
+        "story-vm-video-wait-0042d1d5.md",
+        "platform_adapted;unit_tested;real_asset_tested;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;signed_progress_tested;query_order_tested;single_query_tested;previous_publication_tested;same_call_tested;audio_service_tested;yield_tested",
     ),
 }
 
