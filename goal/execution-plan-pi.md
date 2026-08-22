@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v359
+版本：v360
 
 最后更新：2026-08-21
 
@@ -2577,7 +2577,7 @@ B7 P0 有限收口完成。
 
 - 剧情VM P2第一百一十组`0x0042C3F7` / opcode137完成独立闭环。机器无operand，先按music
     control bit23调用既有stream transition或直接清mode/pending，随后发布world音乐request、清scene
-    三槽、按`0xFF5CFF00`清flags、+2、发布previous137并yield；无audio。VM state补齐world三槽，
+    三槽、按`0xFF5CFF00`清flags、+2、发布previous137并same-call继续；无audio。VM state补齐world三槽，
     与既有scene三槽共同承接原连续六dword owner；SDL transition复用实际stream manager。Win32
     `wsprintfA→nullsub_1`只覆盖无消费者诊断scratch，以平台适配省略。60条真实记录/60 probes及四库
     代表回放、四alias、bit23双路、helper三mode、六槽初始化和精确尾通过。Story VM 3/3通过，

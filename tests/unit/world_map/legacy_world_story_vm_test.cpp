@@ -21553,6 +21553,7 @@ void test_stop_scene_music_stream_protocol(openswd3::test::Context& test) {
                 OP_137_STOP_SCENE_MUSIC_STREAM | test_case.alias_mask
             )
         );
+        write_u16(fixture.state.window, 2U, OP_1025);
         fixture.state.world_music_request = 0x11111111U;
         fixture.state.world_music_first_stream = 0x22222222U;
         fixture.state.world_music_second_stream = 0x33333333U;
@@ -21581,9 +21582,9 @@ void test_stop_scene_music_stream_protocol(openswd3::test::Context& test) {
 
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::yielded &&
-                result.opcode == OP_137_STOP_SCENE_MUSIC_STREAM &&
-                result.executed_instruction_count == 1U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
                 result.direct_audio_service_count == 0U &&
                 fixture.state.world_music_request == 0x80000001U &&
                 fixture.state.world_music_first_stream == 0x22222222U &&
@@ -21610,7 +21611,7 @@ void test_stop_scene_music_stream_protocol(openswd3::test::Context& test) {
                          : std::vector<u32>{}) &&
                 (test_case.expected_transition_calls == 0U ||
                  transition_saw_prior_slots),
-            "opcode 137 aliases conditionally synchronize the old scene stream, stage the world-music request, clear the scene slots and flags, publish previous, and yield without audio"
+            "opcode 137 aliases conditionally synchronize the old scene stream, stage the world-music request, clear the scene slots and flags, publish previous, and continue in the same call without audio"
         );
     }
 
@@ -21628,7 +21629,8 @@ void test_stop_scene_music_stream_protocol(openswd3::test::Context& test) {
 
     const auto exact_tail_result = exact_tail.step();
     test.expect_true(
-        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
             exact_tail_result.executed_instruction_count == 1U &&
             exact_tail_result.direct_audio_service_count == 0U &&
             exact_tail.context.instruction_offset == 0x8000U &&
@@ -21639,7 +21641,7 @@ void test_stop_scene_music_stream_protocol(openswd3::test::Context& test) {
             exact_tail.state.current_stream_fade_divisor == 0x12345678U &&
             exact_tail.state.current_second_stream == 0U &&
             exact_tail.ports.music_transition_apply_count == 0U,
-        "opcode 137 completes an exact-tail two-byte record without reading an operand or servicing audio"
+        "opcode 137 completes an exact-tail two-byte record before the next same-call fetch fails without servicing audio"
     );
 }
 
@@ -26163,12 +26165,14 @@ void test_real_stop_scene_music_stream_records(
         fixture.state.current_first_stream = 2U;
         fixture.state.current_stream_fade_divisor = 9U;
         fixture.state.current_second_stream = 7U;
+        write_u16(fixture.state.window, 2U, OP_1025);
 
         const auto result = fixture.step();
         all_records_match = all_records_match && static_cast<bool>(input) &&
             read_u16(record, 0U) == OP_137_STOP_SCENE_MUSIC_STREAM &&
-            result.status == LegacyWorldStoryVmStatus::yielded &&
-            result.executed_instruction_count == 1U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == OP_1025 &&
+            result.executed_instruction_count == 2U &&
             result.direct_audio_service_count == 0U &&
             fixture.state.world_music_request == 0x80000001U &&
             fixture.state.world_music_first_stream == 31U &&
@@ -26186,7 +26190,7 @@ void test_real_stop_scene_music_stream_records(
 
     test.expect_true(
         all_records_match,
-        "real opcode 137 records in all four TALK files restore the world-music slot group and yield"
+        "real opcode 137 records in all four TALK files restore the world-music slot group and continue"
     );
 }
 

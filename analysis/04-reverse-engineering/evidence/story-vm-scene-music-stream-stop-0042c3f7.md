@@ -34,7 +34,7 @@ opcode：137 / `OP_137_STOP_SCENE_MUSIC_STREAM`
 
 现代复用opcode114已审计的`apply_music_stream_transition`窄port。SDL port继续以bit-preserving `u32↔i32`接实际`LegacyStreamManager`，有效mode与状态迁移不新增第二套实现。
 
-## 3. 请求、flags、IP与yield顺序
+## 3. 请求、flags、IP与same-call顺序
 
 transition分流结束后，机器严格执行：
 
@@ -46,14 +46,14 @@ scene second id     = 0
 music control flags &= 0xFF5CFF00
 IP                  += 2
 previous            = 137
-yield
+same-call continue
 ```
 
-world两个ID不改，current fade只受前述helper合法分支影响。handler不调用`AIL_serve`，没有audio service、same-call continuation、operand读取或失败出口。
+world两个ID不改，current fade只受前述helper合法分支影响。handler不调用`AIL_serve`，没有audio service、跨帧yield、operand读取或自身失败出口。
 
 机器在请求写前执行`wsprintfA("StreamStartOut")→nullsub_1`，在IP提交后读取world两个ID并执行`wsprintfA("S_M_off[%d,%d]")→nullsub_1`。两次callee为空操作，唯一额外效果是覆盖共享Win32 `FileName`诊断scratch；现代没有该无消费者可变日志缓冲，不保留格式化副作用。业务槽、transition、flags、IP与common join顺序不变，此差异归入平台适配。
 
-完整两字节记录可位于`IP=0x7FFE`并精确结束于窗口尾：状态写、IP=`0x8000`、previous137和yield全部完成，不读取后继字节。
+完整两字节记录可位于`IP=0x7FFE`并精确结束于窗口尾：状态写、IP=`0x8000`和previous137先完成，随后same-call下一次取指才在原危险点返回窗口越界。
 
 ## 4. 资产与验证
 
@@ -68,6 +68,6 @@ TALK4  19
 
 四库基础raw `0x0089`字样总数为`69/20/20/35`；三个高位alias raw字样均为零。代表记录使用`TALK1.DAT@0x00005925`、`TALK2.DAT@0x0000DEA4`、`TALK3.DAT@0x00002E28`与`TALK4.DAT@0x00002F40`，四条均完成真实回放。
 
-synthetic覆盖四raw alias、bit23两路、transition mode1/2/其他完整u32、false路current fade保留、helper调用时六槽/flags/IP/previous旧值、`0xFF5CFF00`精确mask、world ID保留、scene三槽清零、无audio、previous137/yield，以及`IP=0x7FFE`精确尾。reinitialization同时锁定六槽一次清零。
+synthetic覆盖四raw alias、bit23两路、transition mode1/2/其他完整u32、false路current fade保留、helper调用时六槽/flags/IP/previous旧值、`0xFF5CFF00`精确mask、world ID保留、scene三槽清零、无audio、previous137与same-call后继，以及`IP=0x7FFE`精确尾由下一fetch失败。reinitialization同时锁定六槽一次清零。
 
 Story VM synthetic、real及initial-session三项通过。Linux core 186/186与app 192/192完整门以exit0通过。未启动原版或OpenSWD3游戏EXE。

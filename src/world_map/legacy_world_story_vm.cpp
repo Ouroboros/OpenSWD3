@@ -6327,8 +6327,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
             state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            continue;
 
         case 141U:
             if (!has_bytes(state.window, ip, 6U)) {

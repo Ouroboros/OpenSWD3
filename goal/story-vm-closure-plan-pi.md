@@ -212,7 +212,7 @@ app 192/192完整门均以exit 0通过；已实现151/198、已验收147/198；�
 SDL不伪造成功。零资产以asset absence与synthetic锁定，Story VM 3/3、Linux core186/186及app192/192完整门均以exit0通过；
 已实现152/198、已验收148/198；内部workpack为109/146，即`15 assembly_exact + 94 platform_adapted +
 37 pending_audit`。opcode137恢复bit23双路stream transition、双三dword音乐槽组切换、flags mask与无audio
-的previous/yield合同；VM补齐world三槽，SDL transition复用实际stream manager，Win32空诊断scratch以
+的previous/same-call合同；VM补齐world三槽，SDL transition复用实际stream manager，Win32空诊断scratch以
 平台适配省略。60条真实记录、四库代表回放与synthetic通过，Story VM 3/3、Linux core186/186及app192/192完整门均以exit0通过；
 已实现153/198、已验收149/198；内部workpack为110/146，即`15 assembly_exact + 95 platform_adapted +
 36 pending_audit`。下一行只审计`0x0042C49E`下的opcode138。
