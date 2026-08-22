@@ -136,6 +136,7 @@ def decode_record(file_name: str, data: bytes, offset: int, rules: dict[int, Rul
         "byte_string_percent_q",
         "byte_string_percent_q_external",
         "byte_string_percent_q_with_prefix_flags",
+        "mode_text_percent_q",
     }:
         count = scan_percent_q(data, offset + 2)
         length = 4 + count
@@ -301,6 +302,30 @@ def main() -> None:
                     error,
                 )
             )
+
+    allowed_stop_reasons = {
+        "control_transfer_15",
+        "control_transfer_41",
+        "control_transfer_87",
+        "control_transfer_161",
+        "invalid_index_candidate",
+        "talk_end",
+    }
+    unexpected_stops = [
+        row for row in entry_rows if str(row[8]) not in allowed_stop_reasons
+    ]
+    if unexpected_stops:
+        raise SystemExit(
+            f"unexpected TALK linear stop reasons: {unexpected_stops[:4]}"
+        )
+    invalid_index_candidates = sum(
+        str(row[8]) == "invalid_index_candidate" for row in entry_rows
+    )
+    if invalid_index_candidates != 8:
+        raise SystemExit(
+            "unexpected TALK3 invalid index candidate count: "
+            f"{invalid_index_candidates}"
+        )
 
     record_rows = []
     opcode_unique: Counter[int] = Counter()

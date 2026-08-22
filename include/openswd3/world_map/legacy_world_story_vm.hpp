@@ -234,6 +234,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_1024_LATCH_COMMON_JOIN_SAME_CALL = 1024U,
     OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD = 1025U,
     OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL = 1026U,
+    OP_16383_FINISH_TALK = 16383U,
 };
 
 enum class LegacyWorldStoryFileOperation : compat::u8 {
@@ -499,6 +500,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     story_filename_terminator_not_found,
     global_bit_index_out_of_range,
     role_not_found,
+    role_index_out_of_range,
     runtime_unavailable,
     role_surface_failed,
     role_spatial_relocation_failed,

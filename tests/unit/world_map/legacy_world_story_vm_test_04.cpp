@@ -4965,21 +4965,22 @@ void test_item_presence_reload_protocol(openswd3::test::Context& test) {
                 0U,
                 OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
             );
-            write_u16(fixture.ports.transferred_window, 2U, 16383U);
+            write_u16(
+                fixture.ports.transferred_window, 2U, OP_16383_FINISH_TALK
+            );
 
             const auto result = fixture.step();
             test.expect_true(
                 result.status == LegacyWorldStoryVmStatus::terminated &&
                     result.executed_instruction_count == 3U &&
-                    result.direct_audio_service_count == 1U &&
+                    result.direct_audio_service_count == 2U &&
                     fixture.ports.data_load_count == 1U &&
                     fixture.ports.last_data_file_number == 1U &&
                     fixture.ports.last_data_offset == target &&
                     !fixture.ports.last_data_clear_before_read &&
                     fixture.ports.story_protocol_events ==
-                        std::vector<u32>{2U, 5U, 4U} &&
-                    fixture.state.previous_opcode ==
-                        OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL,
+                        std::vector<u32>{2U, 5U, 4U, 2U} &&
+                    fixture.state.previous_opcode == OP_16383_FINISH_TALK,
                 "shared item-presence reload aliases take each positive or inverted predicate and same-call the target window"
             );
         }
@@ -5072,7 +5073,9 @@ void test_item_presence_reload_protocol(openswd3::test::Context& test) {
         0U,
         OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
     );
-    write_u16(early_role_match.ports.transferred_window, 2U, 16383U);
+    write_u16(
+        early_role_match.ports.transferred_window, 2U, OP_16383_FINISH_TALK
+    );
     const auto early_role_match_result = early_role_match.step();
 
     test.expect_true(
@@ -5139,7 +5142,7 @@ void test_item_presence_reload_protocol(openswd3::test::Context& test) {
         0U,
         OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
     );
-    write_u16(exact_tail.ports.transferred_window, 2U, 16383U);
+    write_u16(exact_tail.ports.transferred_window, 2U, OP_16383_FINISH_TALK);
     const auto exact_tail_result = exact_tail.step();
 
     Fixture load_failure;

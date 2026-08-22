@@ -1614,6 +1614,283 @@ void test_continue_common_join_same_call_protocol(
     }
 }
 
+void test_finish_talk_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_16383_FINISH_TALK,
+        static_cast<u16>(OP_16383_FINISH_TALK | 0x4000U),
+        static_cast<u16>(OP_16383_FINISH_TALK | 0x8000U),
+        static_cast<u16>(OP_16383_FINISH_TALK | 0xC000U),
+    };
+    const auto context_is_cleared = [](const LegacyWorldTalkContext& context) {
+        const auto bytes = std::as_bytes(std::span{&context, 1U});
+        return std::ranges::all_of(bytes, [](const std::byte value) {
+            return value == std::byte{0xFFU};
+        });
+    };
+
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        fixture.context.source_guid = 0xFFFDU;
+        fixture.state.previous_opcode = 0x55U;
+        fixture.dialogs.close.flagged_dialog_counter = 0x12348005U;
+        fixture.movement.no_input_frame_count = 91U;
+        fixture.movement.idle_phase = 13U;
+        fixture.movement.world_frame_count = 77U;
+        for (auto& role : fixture.roles) {
+            role.action.one_shot_base_variant = 7U;
+            role.action.one_shot_variant_delta = 8U;
+        }
+        fixture.roles[2].path_data_id = 9U;
+        fixture.roles[2].path_word_index = 17U;
+        write_u16(fixture.active_object_slots[0].bytes, 0U, 2U);
+        fixture.active_object_slots[0].bytes[0x1BU] = 2U;
+        prime_loaded_instruction(fixture, raw_word);
+        bool final_state_at_audio{};
+        fixture.ports.audio_service_callback = [&] {
+            final_state_at_audio = context_is_cleared(fixture.context) &&
+                fixture.state.window[0] == 0xFFU &&
+                fixture.state.window[1] == 0xFFU &&
+                !fixture.state.window_loaded &&
+                fixture.dialogs.close.flagged_dialog_counter == 0x12340005U &&
+                fixture.movement.no_input_frame_count == 0U &&
+                fixture.movement.idle_phase == 0U &&
+                fixture.state.previous_opcode == OP_16383_FINISH_TALK;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::terminated &&
+                result.raw_word == raw_word &&
+                result.opcode == OP_16383_FINISH_TALK &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                result.action_update_count == 0U &&
+                result.role_one_shot_clear_count == fixture.roles.size() &&
+                result.active_object_reset_count == 1U &&
+                context_is_cleared(fixture.context) &&
+                fixture.state.previous_opcode == OP_16383_FINISH_TALK &&
+                fixture.state.window[0] == 0xFFU &&
+                fixture.state.window[1] == 0xFFU &&
+                !fixture.state.window_loaded &&
+                fixture.state.loaded_file_number == 0U &&
+                fixture.state.loaded_data_offset == 0U &&
+                fixture.dialogs.close.flagged_dialog_counter == 0x12340005U &&
+                fixture.movement.no_input_frame_count == 0U &&
+                fixture.movement.idle_phase == 0U &&
+                fixture.movement.world_frame_count == 77U &&
+                fixture.roles[2].path_data_id == 0U &&
+                fixture.roles[2].path_word_index == 0U &&
+                std::ranges::all_of(
+                    fixture.active_object_slots[0].bytes,
+                    [](const u8 value) { return value == 0xFFU; }
+                ) &&
+                std::ranges::all_of(
+                    fixture.roles,
+                    [](const LegacyWorldRoleRecord& role) {
+                        return role.action.one_shot_base_variant ==
+                            0xFFFFFFFFU &&
+                            role.action.one_shot_variant_delta == 0xFFFFFFFFU;
+                    }
+                ) &&
+                final_state_at_audio,
+            "opcode 16383 aliases skip a map-event source, clear role and object transient state, retire the talk window and context, reset movement counters, publish previous, service audio, and terminate"
+        );
+    }
+
+    Fixture source;
+    StoryPathHarness source_paths{source, 1U};
+    source.roles[1].flags = 0x80080800U;
+    source.roles[1].action.base_variant = 1U;
+    source.roles[1].action.variant_delta = 2U;
+    source.roles[1].action.one_shot_base_variant = 7U;
+    source.roles[1].action.one_shot_variant_delta = 6U;
+    write_u16(source.active_object_slots[0].bytes, 0U, 1U);
+    write_u16(source.active_object_slots[0].bytes, 8U, 0xFFFFU);
+    source.active_object_slots[0].bytes[0x1BU] = 2U;
+    source.ports.action_update_result = 0U;
+    prime_loaded_instruction(source, OP_16383_FINISH_TALK);
+    const auto source_result = source.step();
+    test.expect_true(
+        source_result.status == LegacyWorldStoryVmStatus::terminated &&
+            source_result.action_update_count == 1U &&
+            source_result.action_update_failure_count == 1U &&
+            source_result.active_object_reset_count == 1U &&
+            source.roles[1].flags == 0x00080800U &&
+            source.roles[1].action.base_variant == 7U &&
+            source.roles[1].action.variant_delta == 6U &&
+            source.roles[1].action.one_shot_base_variant == 0xFFFFFFFFU &&
+            source.roles[1].action.one_shot_variant_delta == 0xFFFFFFFFU &&
+            std::ranges::all_of(
+                source.active_object_slots[0].bytes,
+                [](const u8 value) { return value == 0xFFU; }
+            ) &&
+            source.ports.direct_audio_service_count == 1U,
+        "opcode 16383 completes the source path before restoring one-shot action values, treats action-update zero as diagnostic-only, preserves the bit-19 second completion quirk, and continues global cleanup"
+    );
+
+    Fixture map_event;
+    map_event.context.source_guid = 0xFFFDU;
+    prime_loaded_instruction(map_event, OP_16383_FINISH_TALK);
+    const auto map_event_result = map_event.step();
+
+    Fixture missing_source;
+    missing_source.context.source_guid = 0x7777U;
+    prime_loaded_instruction(missing_source, OP_16383_FINISH_TALK);
+    const auto missing_source_result = missing_source.step();
+
+    Fixture controlled_source;
+    controlled_source.context.source_guid = 0xFFFEU;
+    controlled_source.roles[0].flags = 0x00000800U;
+    controlled_source.roles[0].action.base_variant = 1U;
+    controlled_source.roles[0].action.variant_delta = 2U;
+    controlled_source.roles[0].action.one_shot_base_variant = 3U;
+    controlled_source.roles[0].action.one_shot_variant_delta = 4U;
+    prime_loaded_instruction(controlled_source, OP_16383_FINISH_TALK);
+    const auto controlled_source_result = controlled_source.step(0, 0, 0U);
+    test.expect_true(
+        map_event_result.status == LegacyWorldStoryVmStatus::terminated &&
+            map_event_result.action_update_count == 0U &&
+            missing_source_result.status ==
+                LegacyWorldStoryVmStatus::terminated &&
+            missing_source_result.action_update_count == 0U &&
+            controlled_source_result.status ==
+                LegacyWorldStoryVmStatus::terminated &&
+            controlled_source_result.action_update_count == 1U &&
+            controlled_source.roles[0].action.base_variant == 3U &&
+            controlled_source.roles[0].action.variant_delta == 4U,
+        "opcode 16383 skips FFFD, treats an ordinary missing source as diagnostic-only, and still resolves FFFE to the controlled role"
+    );
+
+    Fixture missing_path_owner;
+    missing_path_owner.roles[1].flags = 0x80000000U;
+    missing_path_owner.roles[1].action.one_shot_base_variant = 7U;
+    missing_path_owner.state.previous_opcode = 0x55U;
+    prime_loaded_instruction(missing_path_owner, OP_16383_FINISH_TALK);
+    const auto missing_path_owner_result = missing_path_owner.step();
+    test.expect_true(
+        missing_path_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_path_owner_result.role_one_shot_clear_count == 0U &&
+            missing_path_owner_result.direct_audio_service_count == 0U &&
+            missing_path_owner.roles[1].flags == 0x80000000U &&
+            missing_path_owner.roles[1].action.one_shot_base_variant == 7U &&
+            missing_path_owner.context.talk_data_offset == 0x1111U &&
+            missing_path_owner.state.previous_opcode == 0x55U,
+        "opcode 16383 stops at the source path-completion owner before later source or global cleanup"
+    );
+
+    Fixture invalid_object_role;
+    invalid_object_role.context.source_guid = 0xFFFDU;
+    invalid_object_role.state.previous_opcode = 0x55U;
+    invalid_object_role.dialogs.close.flagged_dialog_counter = 0x8005U;
+    invalid_object_role.movement.no_input_frame_count = 9U;
+    write_u16(invalid_object_role.active_object_slots[0].bytes, 0U, 3U);
+    invalid_object_role.active_object_slots[0].bytes[0x1BU] = 2U;
+    prime_loaded_instruction(invalid_object_role, OP_16383_FINISH_TALK);
+    const auto invalid_object_role_result = invalid_object_role.step();
+    test.expect_true(
+        invalid_object_role_result.status ==
+                LegacyWorldStoryVmStatus::role_index_out_of_range &&
+            invalid_object_role_result.role_one_shot_clear_count ==
+                invalid_object_role.roles.size() &&
+            invalid_object_role_result.active_object_reset_count == 1U &&
+            std::ranges::all_of(
+                invalid_object_role.active_object_slots[0].bytes,
+                [](const u8 value) { return value == 0xFFU; }
+            ) &&
+            invalid_object_role.context.talk_data_offset == 0x1111U &&
+            invalid_object_role.dialogs.close.flagged_dialog_counter ==
+                0x8005U &&
+            invalid_object_role.movement.no_input_frame_count == 9U &&
+            invalid_object_role.state.previous_opcode == 0x55U &&
+            invalid_object_role.ports.direct_audio_service_count == 0U,
+        "opcode 16383 resets a selected object slot before the original out-of-range role-table write is isolated as a typed stop"
+    );
+
+    Fixture oversized_roles;
+    oversized_roles.context.source_guid = 0xFFFDU;
+    oversized_roles.roles.resize(
+        openswd3::world_map::kLegacyWorldRoleCapacity + 1U
+    );
+    for (auto& role : oversized_roles.roles) {
+        role.action.one_shot_base_variant = 7U;
+        role.action.one_shot_variant_delta = 8U;
+    }
+    prime_loaded_instruction(oversized_roles, OP_16383_FINISH_TALK);
+    const auto oversized_roles_result = oversized_roles.step();
+    test.expect_true(
+        oversized_roles_result.status ==
+                LegacyWorldStoryVmStatus::role_index_out_of_range &&
+            oversized_roles_result.role_one_shot_clear_count ==
+                openswd3::world_map::kLegacyWorldRoleCapacity &&
+            oversized_roles.roles[255U].action.one_shot_base_variant ==
+                0xFFFFFFFFU &&
+            oversized_roles.roles[256U].action.one_shot_base_variant == 7U &&
+            oversized_roles.context.talk_data_offset == 0x1111U &&
+            oversized_roles.ports.direct_audio_service_count == 0U,
+        "opcode 16383 commits all 256 physical role one-shot clears before isolating an oversized modern role span"
+    );
+
+    Fixture missing_movement;
+    missing_movement.context.source_guid = 0xFFFDU;
+    missing_movement.state.previous_opcode = 0x55U;
+    missing_movement.dialogs.close.flagged_dialog_counter = 0x8005U;
+    missing_movement.movement.no_input_frame_count = 9U;
+    missing_movement.movement.idle_phase = 11U;
+    missing_movement.runtime.movement = nullptr;
+    prime_loaded_instruction(missing_movement, OP_16383_FINISH_TALK);
+    const auto missing_movement_result = missing_movement.step();
+    test.expect_true(
+        missing_movement_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_movement_result.role_one_shot_clear_count ==
+                missing_movement.roles.size() &&
+            context_is_cleared(missing_movement.context) &&
+            missing_movement.state.window[0] == 0xFFU &&
+            missing_movement.state.window[1] == 0xFFU &&
+            !missing_movement.state.window_loaded &&
+            missing_movement.dialogs.close.flagged_dialog_counter == 5U &&
+            missing_movement.movement.no_input_frame_count == 9U &&
+            missing_movement.movement.idle_phase == 11U &&
+            missing_movement.state.previous_opcode == 0x55U &&
+            missing_movement.ports.direct_audio_service_count == 0U,
+        "opcode 16383 commits dialog, window, context, role and object cleanup before the missing movement owner typed stop"
+    );
+
+    Fixture latched;
+    latched.context.source_guid = 0xFFFDU;
+    prime_loaded_instruction(latched, OP_1024_LATCH_COMMON_JOIN_SAME_CALL);
+    write_u16(latched.state.window, 2U, OP_16383_FINISH_TALK);
+    const auto latched_result = latched.step();
+    test.expect_true(
+        latched_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            latched_result.opcode == OP_16383_FINISH_TALK &&
+            latched_result.executed_instruction_count == 2U &&
+            latched_result.direct_audio_service_count == 0U &&
+            context_is_cleared(latched.context) &&
+            latched.state.previous_opcode == OP_16383_FINISH_TALK &&
+            latched.ports.direct_audio_service_count == 0U,
+        "opcode 16383 preserves an opcode 1024 latch, completes cleanup, publishes previous, skips common audio, and same-calls the now-FFFF context offset"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.source_guid = 0xFFFDU;
+    prime_loaded_instruction(exact_tail, OP_16383_FINISH_TALK);
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    write_u16(exact_tail.state.window, 0x7FFEU, OP_16383_FINISH_TALK);
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::terminated &&
+            exact_tail_result.instruction_offset == 0x7FFEU &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            context_is_cleared(exact_tail.context) &&
+            exact_tail.state.previous_opcode == OP_16383_FINISH_TALK,
+        "opcode 16383 exact tail reads no successor and terminates through the common join"
+    );
+}
+
 void test_start_frame_color_transition_protocol(openswd3::test::Context& test) {
     constexpr std::array<i16, 6U> components{-30, 5, 17, 0, -25, 2};
     constexpr std::array<u16, 4U> alias_masks{

@@ -3366,8 +3366,8 @@ void test_transfer_flags_and_terminal_cleanup(openswd3::test::Context& test) {
             result.executed_instruction_count == 4U &&
             fixture.ports.story_load_count == 2U &&
             fixture.ports.last_story_id == 2042 &&
-            result.direct_audio_service_count == 4U &&
-            fixture.ports.direct_audio_service_count == 4U &&
+            result.direct_audio_service_count == 5U &&
+            fixture.ports.direct_audio_service_count == 5U &&
             openswd3::world_map::query_legacy_world_story_flag(
                 fixture.state, 123U
             ) &&
@@ -3378,7 +3378,7 @@ void test_transfer_flags_and_terminal_cleanup(openswd3::test::Context& test) {
             fixture.context.talk_data_offset == 0xFFFFFFFFU &&
             !fixture.state.window_loaded &&
             (fixture.dialogs.close.flagged_dialog_counter & 0x8000U) == 0U &&
-            (fixture.roles[1].flags & 0x00080000U) == 0U &&
+            (fixture.roles[1].flags & 0x00080000U) != 0U &&
             fixture.roles[1].action.base_variant == 7U &&
             fixture.roles[1].action.variant_delta == 6U &&
             fixture.roles[1].action.one_shot_base_variant == 0xFFFFFFFFU &&
@@ -3394,7 +3394,7 @@ void test_transfer_flags_and_terminal_cleanup(openswd3::test::Context& test) {
             result.role_one_shot_clear_count == fixture.roles.size() &&
             result.active_object_reset_count == 1U &&
             result.action_update_count == 2U,
-        "opcode 161 replaces the window, 25/26 mutate flags, and FFFF restores and releases the source role"
+        "opcode 161 replaces the window, 25/26 mutate flags, and FFFF restores the source role while preserving the entry bit-19 quirk through common audio"
     );
 }
 

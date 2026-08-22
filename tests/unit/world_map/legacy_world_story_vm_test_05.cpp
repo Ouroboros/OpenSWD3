@@ -3889,6 +3889,80 @@ void test_real_continue_common_join_same_call_records(
     );
 }
 
+void test_real_finish_talk_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct Sample {
+        std::string_view file;
+        std::streamoff offset;
+    };
+    constexpr std::array samples{
+        Sample{"TALK1.DAT", 0x000014CAU},
+        Sample{"TALK1.DAT", 0x00011FCFU},
+        Sample{"TALK1.DAT", 0x0005AAF4U},
+        Sample{"TALK2.DAT", 0x00000D99U},
+        Sample{"TALK2.DAT", 0x00033060U},
+        Sample{"TALK2.DAT", 0x0003307AU},
+        Sample{"TALK2.DAT", 0x000330D4U},
+        Sample{"TALK2.DAT", 0x00033130U},
+        Sample{"TALK3.DAT", 0x000022E0U},
+        Sample{"TALK3.DAT", 0x00011206U},
+        Sample{"TALK3.DAT", 0x0001E431U},
+        Sample{"TALK3.DAT", 0x000339AFU},
+        Sample{"TALK4.DAT", 0x000013B5U},
+        Sample{"TALK4.DAT", 0x000364E6U},
+        Sample{"TALK4.DAT", 0x00036500U},
+        Sample{"TALK4.DAT", 0x0003655AU},
+        Sample{"TALK4.DAT", 0x000365B6U},
+    };
+
+    bool all_records_valid = true;
+    bool all_replays_valid = true;
+    for (const auto sample : samples) {
+        std::ifstream input{
+            root / sample.file, std::ios::binary | std::ios::in
+        };
+        std::array<u8, 2U> instruction{};
+        input.seekg(sample.offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        const bool record_valid =
+            static_cast<bool>(input) && read_u16(instruction, 0U) == 0xFFFFU;
+        all_records_valid = all_records_valid && record_valid;
+        if (!record_valid) {
+            all_replays_valid = false;
+            continue;
+        }
+
+        Fixture fixture;
+        fixture.context.source_guid = 0xFFFDU;
+        fixture.movement.no_input_frame_count = 9U;
+        fixture.movement.idle_phase = 11U;
+        prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+        const auto result = fixture.step();
+        all_replays_valid = all_replays_valid &&
+            result.status == LegacyWorldStoryVmStatus::terminated &&
+            result.opcode == OP_16383_FINISH_TALK &&
+            result.executed_instruction_count == 1U &&
+            result.direct_audio_service_count == 1U &&
+            fixture.state.previous_opcode == OP_16383_FINISH_TALK &&
+            fixture.movement.no_input_frame_count == 0U &&
+            fixture.movement.idle_phase == 0U &&
+            fixture.ports.direct_audio_service_count == 1U;
+    }
+
+    test.expect_true(
+        all_records_valid,
+        "real opcode 16383 boundary and multi-probe records in all four TALK files retain the raw FFFF word"
+    );
+    test.expect_true(
+        all_replays_valid,
+        "real opcode 16383 boundary and multi-probe records execute terminal cleanup, common previous/audio, and movement-counter reset"
+    );
+}
+
 void test_real_story_transfer_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -5039,7 +5113,7 @@ void test_real_jump_if_global_bit_records(
             fixture.state.loaded_data_offset == sample.target;
         const bool opcode22_tail =
             result.status == LegacyWorldStoryVmStatus::terminated &&
-            result.opcode == 0x3FFFU &&
+            result.opcode == OP_16383_FINISH_TALK &&
             result.executed_instruction_count == 3U &&
             fixture.context.talk_data_offset == 0xFFFFFFFFU &&
             fixture.context.instruction_offset == 0xFFFFU;
@@ -5052,9 +5126,13 @@ void test_real_jump_if_global_bit_records(
                 read_u16(instruction, 2U) == sample.bit_index &&
                 read_u32(instruction, 4U) == sample.target &&
                 result.load_status == LegacyTalkWindowStatus::ready &&
-                result.direct_audio_service_count == 1U &&
+                result.direct_audio_service_count ==
+                    (sample.opcode == OP_22_JUMP_IF_GLOBAL_BIT_CLEAR ? 2U
+                                                                     : 1U) &&
                 fixture.state.previous_opcode ==
-                    OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL,
+                    (sample.opcode == OP_22_JUMP_IF_GLOBAL_BIT_CLEAR
+                         ? OP_16383_FINISH_TALK
+                         : OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL),
             "real opcode 21/22 records execute the audited first branch"
         );
         if (sample.opcode == OP_21_JUMP_IF_GLOBAL_BIT_SET) {
@@ -5412,8 +5490,9 @@ void test_real_global_integer_records(
             chain_result.status == LegacyWorldStoryVmStatus::terminated &&
             chain_result.executed_instruction_count == 4U &&
             chain_fixture.context.instruction_offset == 0xFFFFU &&
-            chain_fixture.state.previous_opcode == OP_29_SET_GLOBAL_INTEGER &&
+            chain_fixture.state.previous_opcode == OP_16383_FINISH_TALK &&
             chain_fixture.state.script_variables[62] == 4U &&
+            chain_fixture.ports.direct_audio_service_count == 1U &&
             chain_fixture.ports.data_load_count == 0U,
         "real opcode 33 to 32 to 29 chain falls through then terminates"
     );

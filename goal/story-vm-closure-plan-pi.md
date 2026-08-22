@@ -1,8 +1,8 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一special handler `0x0042D200`（opcode1024）
+状态：已完成；P0、P1、P2、P3及各自Windows LLVM `app`门禁全部关闭
 
-优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
+优先级：已解除；执行队列已返回 [`execution-plan-pi.md`](execution-plan-pi.md)
 
 Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部规定的主 Agent 主导、
 子 Agent 使用干净 Context、单写者、独立审查和阶段性 TG 汇报约束。
@@ -17,11 +17,11 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 
 - 原版剧情 VM 有 198 个显式 opcode，对应 146 个唯一汇编 handler 入口。
 - 其中 25 个入口由多个 opcode 共享；共享入口不代表各 opcode 语义相同。
-- 当前 C++ 接入 95 个显式 opcode。
-- 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
-- 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- 全部`0..193`已有人工汇编语义；special opcodes1024/1025/1026/16383仍只有分派、长度和保守CFG，尚待逐项完成。
-- 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
+- 当前 C++ 接入并验收全部 198 个显式 opcode。
+- 当前资产静态控制流观察到 143 个 opcode，均已实现并有真实资产覆盖。
+- 另有 55 个 opcode 未在当前资产静态控制流中观察到，均已按LST完成实现和离线验证。
+- 全部`0..193`及special opcodes1024/1025/1026/16383均已逐项关闭。
+- 全部146个handler组均已重新审计和验证。
 
 ## 3. 固定决策
 
@@ -374,7 +374,19 @@ special1026恢复一次性common-join续行：双指针+2、previous1026、零au
 不清1024持久latch。四alias、组合链与精确尾通过；线性资产4141条/4150 probes及真实边界样本通过，
 归assembly exact。Story VM 3/3、Linux core 186/186与app 192/192通过。已实现198/198、
 已验收197/198；内部workpack145/146，即`26 assembly_exact + 119 platform_adapted + 1 pending_audit`。
-下一行只审计`0x0042D24E`下的special opcode16383。
+special16383恢复完整TalkEnd协议：按source selector解析角色，接入真实path completion owner，按机器顺序
+恢复one-shot、action update、bit19二次完成quirk、全角色one-shot清理、72个对象槽清理、dialog/window/context/
+movement清理及common join。四raw alias、FFF0/FFFD/FFFE、lookup miss、原unsafe点typed-stop、latch、
+exact-tail与17条真实边界/多probe样本通过；完整库存3743条记录/3756 probes。Story VM 3/3、Linux core
+186/186及app192/192通过。P2独立Windows LLVM app门发现并独立提交MAPS零初始化/文件共享修复后
+192/192通过。workpack关闭为`146/146 = 26 assembly_exact + 120 platform_adapted`，hash为
+`f442d46d2d9179ee51c2c26da24e469cfba7ae1d2e9ac94882d612489b8075b5`。
+
+P3全VM验收完成：17条runtime path全部关闭为`7 assembly_exact + 10 platform_adapted`；严格线性探针
+遍历3992个目录入口和58782条记录，零中途解码错误；LST锁定CFG覆盖138988节点、137207边且零issue。
+九份生成库存连续两轮hash一致，真实story248/new-game长链不再因unsupported停止。独立P3 Windows LLVM
+app完整门192/192通过，未启动原版或OpenSWD3游戏EXE。公开进度为已实现198/198、已验收198/198；
+本追加PLAN完成并解除优先级覆盖。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

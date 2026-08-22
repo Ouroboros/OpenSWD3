@@ -162,37 +162,37 @@ effective_opcode	encoding_class	unique_physical_records	entry_probe_instances	fi
 160	fixed_raw_operands	558	558	TALK1.DAT,TALK2.DAT,TALK3.DAT,TALK4.DAT	seen
 161	story_id_transfer	90	90	TALK1.DAT	seen
 162	fixed_raw_operands	4	4	TALK1.DAT,TALK2.DAT	seen
-163	fixed_raw_operands	3	3	TALK1.DAT,TALK2.DAT,TALK3.DAT	seen
-164	fixed_raw_operands	24	24	TALK1.DAT,TALK3.DAT,TALK4.DAT	seen
-165	fixed_raw_operands	3	3	TALK4.DAT	seen
-166	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
+163	current_map_conditional_reload	3	3	TALK1.DAT,TALK2.DAT,TALK3.DAT	seen
+164	current_map_conditional_reload	24	24	TALK1.DAT,TALK3.DAT,TALK4.DAT	seen
+165	item_total_conditional_reload	3	3	TALK4.DAT	seen
+166	item_total_conditional_reload	0	0		not_seen_in_linear_prefix_probe
 167	fixed_raw_operands	1	1	TALK1.DAT	seen
 168	fixed_raw_operands	1	1	TALK3.DAT	seen
 169	counted_records_12byte	184	188	TALK1.DAT,TALK2.DAT,TALK3.DAT,TALK4.DAT	seen
-170	fixed_even_variant	9	9	TALK1.DAT,TALK2.DAT,TALK3.DAT,TALK4.DAT	seen
-171	byte_string_percent_q	3	3	TALK1.DAT,TALK2.DAT	seen
-172	fixed_even_variant	5	5	TALK1.DAT,TALK2.DAT,TALK4.DAT	seen
-173	byte_string_percent_q	4	4	TALK1.DAT,TALK2.DAT,TALK3.DAT	seen
+170	fixed_mode_text_clear	9	9	TALK1.DAT,TALK2.DAT,TALK3.DAT,TALK4.DAT	seen
+171	mode_text_percent_q	3	3	TALK1.DAT,TALK2.DAT	seen
+172	fixed_mode_text_clear	5	5	TALK1.DAT,TALK2.DAT,TALK4.DAT	seen
+173	mode_text_percent_q	4	4	TALK1.DAT,TALK2.DAT,TALK3.DAT	seen
 174	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-175	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-176	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-177	fixed_raw_operands	29	29	TALK3.DAT,TALK4.DAT	seen
-178	fixed_raw_operands	6	6	TALK1.DAT,TALK3.DAT,TALK4.DAT	seen
-179	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-180	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-181	fixed_shared_numeric	0	0		not_seen_in_linear_prefix_probe
-182	fixed_shared_numeric	0	0		not_seen_in_linear_prefix_probe
-183	fixed_shared_numeric	0	0		not_seen_in_linear_prefix_probe
-184	fixed_shared_numeric	1	1	TALK4.DAT	seen
-185	fixed_shared_numeric	0	0		not_seen_in_linear_prefix_probe
-186	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-187	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-188	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-189	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-190	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-191	fixed_raw_operands	13	13	TALK4.DAT	seen
-192	fixed_raw_operands	0	0		not_seen_in_linear_prefix_probe
-193	fixed_raw_operands	1	1	TALK1.DAT	seen
+175	fixed_ani_suspend_bit_set	0	0		not_seen_in_linear_prefix_probe
+176	fixed_ani_suspend_bit_clear	0	0		not_seen_in_linear_prefix_probe
+177	self_modifying_party_gather	29	29	TALK3.DAT,TALK4.DAT	seen
+178	fixed_role_collision_bypass	6	6	TALK1.DAT,TALK3.DAT,TALK4.DAT	seen
+179	fixed_frame_deformation	0	0		not_seen_in_linear_prefix_probe
+180	fixed_frame_execution_gate_clear	0	0		not_seen_in_linear_prefix_probe
+181	fixed_wide_global_integer	0	0		not_seen_in_linear_prefix_probe
+182	fixed_wide_global_integer	0	0		not_seen_in_linear_prefix_probe
+183	fixed_wide_global_integer	0	0		not_seen_in_linear_prefix_probe
+184	fixed_wide_global_integer_branch	1	1	TALK4.DAT	seen
+185	fixed_wide_global_integer_branch	0	0		not_seen_in_linear_prefix_probe
+186	fixed_party_member_field_reload	0	0		not_seen_in_linear_prefix_probe
+187	fixed_party_member_field_reload	0	0		not_seen_in_linear_prefix_probe
+188	fixed_party_member_field_write	0	0		not_seen_in_linear_prefix_probe
+189	fixed_party_member_field_write	0	0		not_seen_in_linear_prefix_probe
+190	fixed_party_member_field_write	0	0		not_seen_in_linear_prefix_probe
+191	fixed_camera_top_wait	13	13	TALK4.DAT	seen
+192	fixed_no_operands	0	0		not_seen_in_linear_prefix_probe
+193	fixed_no_operands	1	1	TALK1.DAT	seen
 1024	fixed_control	0	0		not_seen_in_linear_prefix_probe
 1025	fixed_control	0	0		not_seen_in_linear_prefix_probe
 1026	fixed_control	4141	4150	TALK1.DAT,TALK2.DAT,TALK3.DAT,TALK4.DAT	seen

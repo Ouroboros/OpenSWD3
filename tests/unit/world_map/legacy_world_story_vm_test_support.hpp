@@ -206,6 +206,7 @@ using openswd3::world_map::OP_174_SET_ROLE_STATUS_BIT14;
 using openswd3::world_map::OP_1024_LATCH_COMMON_JOIN_SAME_CALL;
 using openswd3::world_map::OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD;
 using openswd3::world_map::OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL;
+using openswd3::world_map::OP_16383_FINISH_TALK;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -1060,6 +1061,7 @@ struct FixtureStorage {
     std::array<u8, 16U> first_name{};
     std::array<u8, 16U> second_name{};
     openswd3::world_map::LegacyWorldCameraRect camera{};
+    openswd3::world_map::LegacyWorldMovementRuntimeState movement{};
     openswd3::asset_runtime::LegacyAniFollowerState ani_follower{};
     std::array<i16, openswd3::world_map::kLegacyWorldSelectionWordCount>
         selection_words{};
@@ -1104,6 +1106,8 @@ struct Fixture {
     std::array<u8, 16U>& first_name = storage->first_name;
     std::array<u8, 16U>& second_name = storage->second_name;
     openswd3::world_map::LegacyWorldCameraRect& camera = storage->camera;
+    openswd3::world_map::LegacyWorldMovementRuntimeState& movement =
+        storage->movement;
     openswd3::asset_runtime::LegacyAniFollowerState& ani_follower =
         storage->ani_follower;
     std::array<i16, openswd3::world_map::kLegacyWorldSelectionWordCount>&
@@ -1162,6 +1166,7 @@ struct Fixture {
         runtime.selection_words = &selection_words;
         runtime.selection_scroll = &selection_scroll;
         runtime.camera = &camera;
+        runtime.movement = &movement;
         runtime.ani_follower = &ani_follower;
         runtime.indexed_target_selector = &indexed_target_selector;
         runtime.secondary_rng = &secondary_rng;

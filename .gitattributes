@@ -1,1 +1,2 @@
 *.bat text eol=crlf
+analysis/04-reverse-engineering/inventory/story-vm-talk-cfg-nodes.tsv whitespace=-blank-at-eol

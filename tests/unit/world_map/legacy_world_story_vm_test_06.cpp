@@ -2257,6 +2257,10 @@ void test_real_role_base_variant_reload_record(
     openswd3::world_map::LegacyWorldDialogRuntimeState dialog_resources;
     std::array<u8, 16U> first_name{};
     std::array<u8, 16U> second_name{};
+    openswd3::world_map::LegacyWorldMovementRuntimeState movement{};
+    openswd3::world_map::LegacyWorldStoryVmRuntime runtime{
+        .movement = &movement,
+    };
     RealPorts ports{databases};
 
     const auto result = openswd3::world_map::step_legacy_world_story_vm(
@@ -2270,7 +2274,7 @@ void test_real_role_base_variant_reload_record(
         dialog_resources,
         first_name,
         second_name,
-        {},
+        runtime,
         ports
     );
     test.expect_true(
@@ -2283,14 +2287,14 @@ void test_real_role_base_variant_reload_record(
             read_u16(instruction, 4U) == 8U &&
             read_u32(instruction, 6U) == 0x000079D7U &&
             result.status == LegacyWorldStoryVmStatus::terminated &&
-            result.opcode == 16383U &&
+            result.opcode == OP_16383_FINISH_TALK &&
             result.executed_instruction_count == 3U &&
             result.load_status == LegacyTalkWindowStatus::ready &&
-            result.direct_audio_service_count == 1U &&
+            result.direct_audio_service_count == 2U &&
             context.talk_data_offset == 0xFFFFFFFFU &&
             context.instruction_offset == 0xFFFFU && !state.window_loaded &&
             state.loaded_file_number == 0U && state.loaded_data_offset == 0U &&
-            state.previous_opcode == OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL,
+            state.previous_opcode == OP_16383_FINISH_TALK,
         "real opcode 126 reloads TALK1 target 0x79D7 and same-call terminates through 1026 and FFFF"
     );
 }
@@ -2604,7 +2608,7 @@ void test_real_item_presence_reload_records(
             0U,
             OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL
         );
-        write_u16(fixture.ports.transferred_window, 2U, 16383U);
+        write_u16(fixture.ports.transferred_window, 2U, OP_16383_FINISH_TALK);
 
         const auto result = fixture.step();
         test.expect_true(
@@ -2613,10 +2617,9 @@ void test_real_item_presence_reload_records(
                 read_u32(record, 4U) == real_case.target &&
                 result.status == LegacyWorldStoryVmStatus::terminated &&
                 result.executed_instruction_count == 3U &&
-                result.direct_audio_service_count == 1U &&
+                result.direct_audio_service_count == 2U &&
                 fixture.ports.last_data_offset == real_case.target &&
-                fixture.state.previous_opcode ==
-                    OP_1026_CONTINUE_COMMON_JOIN_SAME_CALL,
+                fixture.state.previous_opcode == OP_16383_FINISH_TALK,
             "real shared item-presence reload record takes its opcode-specific predicate and same-calls the target"
         );
     }

@@ -26,14 +26,14 @@ import build_story_vm_talk_linear_probe as linear  # noqa: E402
 RESEARCH_ROOT = TOOL_ROOT.parent
 WORKSPACE_ROOT = RESEARCH_ROOT.parents[1]
 INVENTORY_ROOT = RESEARCH_ROOT / "04-reverse-engineering" / "inventory"
-ASM_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.asm"
+LST_PATH = WORKSPACE_ROOT / "swd3.exe_export_for_ai" / "swd3.exe.lst"
 
 RULE_OUTPUT = INVENTORY_ROOT / "story-vm-control-transfer-rules.tsv"
 NODE_OUTPUT = INVENTORY_ROOT / "story-vm-talk-cfg-nodes.tsv"
 EDGE_OUTPUT = INVENTORY_ROOT / "story-vm-talk-cfg-edges.tsv"
 ISSUE_OUTPUT = INVENTORY_ROOT / "story-vm-talk-cfg-issues.tsv"
 
-EXPECTED_ASM_SHA256 = "d902f6dfd47d7033bf8a971c4ccc3a4d8d037b5b577035041113329363cab052"
+EXPECTED_LST_SHA256 = "701732b5481ba34876b62ca97535c9463f65ec3feb2ed745c03772dd4bc3ad8b"
 WINDOW_SIZE = 0x8000
 
 
@@ -120,26 +120,26 @@ def transfer_rules() -> dict[int, TransferRule]:
 
 
 def validate_assembly(rules: dict[int, TransferRule]) -> None:
-    if sha256(ASM_PATH) != EXPECTED_ASM_SHA256:
-        raise SystemExit("locked full assembly input changed")
-    text = ASM_PATH.read_text(encoding="utf-8", errors="replace")
+    if sha256(LST_PATH) != EXPECTED_LST_SHA256:
+        raise SystemExit("locked authoritative LST input changed")
+    text = LST_PATH.read_text(encoding="utf-8", errors="replace")
     markers = (
-        "00428388                 call    sub_42E430",
-        "0042841D                 call    sub_42E430",
-        "00428956                 call    sub_42E430",
-        "00428994                 call    sub_42E430",
-        "00428CF2                 call    sub_42E430",
-        "0042A70B                 call    sub_42E430",
-        "0042B1AB                 call    sub_42E430",
-        "0042BE4D                 call    sub_42E430",
-        "0042CBE3                 call    sub_42E480",
-        "0042CCDB                 call    sub_42E430",
-        "0042D0C1                 call    sub_42E430",
-        "0043907D                 div     edi",
+        ".text:00428388 E8 A3 60 00                 call    sub_42E430",
+        ".text:0042841D E8 0E 60 00                 call    sub_42E430",
+        ".text:00428956 E8 D5 5A 00                 call    sub_42E430",
+        ".text:00428994 E8 97 5A 00                 call    sub_42E430",
+        ".text:00428CF2 E8 39 57 00                 call    sub_42E430",
+        ".text:0042A70B E8 20 3D 00                 call    sub_42E430",
+        ".text:0042B1AB E8 80 32 00                 call    sub_42E430",
+        ".text:0042BE4D E8 DE 25 00                 call    sub_42E430",
+        ".text:0042CBE3 E8 98 18 00                 call    sub_42E480",
+        ".text:0042CCDB E8 50 17 00                 call    sub_42E430",
+        ".text:0042D0C1 E8 6A 13 00                 call    sub_42E430",
+        ".text:0043907D F7 F7                       div     edi",
     )
     missing = [marker for marker in markers if marker not in text]
     if missing:
-        raise SystemExit(f"assembly transfer markers missing: {missing}")
+        raise SystemExit(f"LST transfer markers missing: {missing}")
     if len(rules) != 31:
         raise SystemExit(f"expected 31 transfer opcodes, got {len(rules)}")
 
@@ -248,6 +248,7 @@ def main() -> None:
 
     data_by_file: dict[str, bytes] = {}
     roots: dict[State, list[int]] = defaultdict(list)
+    invalid_root_slots: list[tuple[str, int, int]] = []
     for file_name, (slot_count, expected_hash) in linear.TALK_FILES.items():
         path = WORKSPACE_ROOT / file_name
         data = path.read_bytes()
@@ -255,7 +256,24 @@ def main() -> None:
             raise SystemExit(f"locked TALK input changed: {file_name}")
         data_by_file[file_name] = data
         for slot, relative in linear.valid_slots(file_name, data, slot_count):
+            try:
+                linear.decode_record(
+                    file_name,
+                    data,
+                    linear.PAYLOAD_BASE + relative,
+                    length_rules,
+                )
+            except ValueError:
+                if file_name != "TALK3.DAT":
+                    raise
+                invalid_root_slots.append((file_name, slot, relative))
+                continue
             roots[State(file_name, relative, 0)].append(slot)
+    if len(invalid_root_slots) != 8:
+        raise SystemExit(
+            "unexpected TALK3 invalid CFG root count: "
+            f"{len(invalid_root_slots)}"
+        )
 
     queue = deque(sorted(roots))
     visited: set[State] = set()
@@ -334,6 +352,9 @@ def main() -> None:
             resolution, detail = target_resolution(sequential, data_by_file)
         add_edge(state, record, "sequential", 0, sequential, resolution, detail, "opcode length rule")
 
+    if issue_rows:
+        raise SystemExit(f"unexpected TALK CFG issues: {issue_rows[:4]}")
+
     rule_rows = [
         (
             value.opcode, value.branch_kind, value.target_shape, value.target_offset,
@@ -379,6 +400,7 @@ def main() -> None:
     print(f"wrote {EDGE_OUTPUT.relative_to(RESEARCH_ROOT)} ({len(edge_rows)} rows)")
     print(f"wrote {ISSUE_OUTPUT.relative_to(RESEARCH_ROOT)} ({len(issue_rows)} rows)")
     print(f"unique root windows: {len(roots)}; root slots: {sum(map(len, roots.values()))}")
+    print(f"excluded invalid TALK3 root slots: {len(invalid_root_slots)}")
     print(f"decoded context nodes: {len(records)}")
     print(f"physical instruction offsets: {len({(r.file_name, r.file_offset) for r in records.values()})}")
     print("edge kinds:", dict(sorted(Counter(str(row[5]) for row in edge_rows).items())))

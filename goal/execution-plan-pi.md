@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v409
+版本：v410
 
-最后更新：2026-08-21
+最后更新：2026-08-22
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042D200` special handler（opcode1024）
+当前步骤：FFmpeg 9.0媒体后端 · BGM/MP3与BIK/OP播放
 
 ## 0. 执行约定
 
@@ -70,7 +70,7 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 - 进程入口、消息泵、单帧调度、世界/特殊模式/战斗分支和退出顶层流程已有汇编证据。
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
 - 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
-- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义已完成全部`0..193`；special opcodes1024/1025/1026/16383尚待逐项完成。
+- 剧情 VM 198个显式opcode、146个handler、17条runtime path及全部special/default/window/common路径均已完成实现和P3验收。
 - 309 张地图的物理容器、40 份存档的压缩边界和战斗顶层入口已经恢复；地图内部、存档业务字段和战斗内部状态机仍待对应模块处理。
 
 ## 3. 执行方法
@@ -2999,4 +2999,17 @@ B7 P0 有限收口完成。
     已实现198/198、已验收197/198；内部workpack145/146，即`26 assembly_exact +
     119 platform_adapted + 1 pending_audit`。
 
-下一组只审计`0x0042D24E` / special opcode16383。
+- 剧情VM P2第一百四十六组`0x0042D24E` / special opcode16383完成独立闭环。恢复source
+    selector、角色path completion、one-shot/action update、bit19原始quirk、全角色与72对象槽清理、
+    dialog/window/context/movement收尾和common join；3743条记录/3756 probes及17条真实边界/多probe
+    回放通过。P2独立Windows LLVM app门经单独提交的MAPS资产门禁修复后192/192通过。workpack关闭为
+    `146/146 = 26 assembly_exact + 120 platform_adapted`，hash为
+    `f442d46d2d9179ee51c2c26da24e469cfba7ae1d2e9ac94882d612489b8075b5`。
+
+- 剧情VM P3全VM验收完成。17条runtime path全部关闭；严格线性探针覆盖3992入口、58782记录、
+    198行opcode目录且零中途解码错误；权威LST锁定CFG覆盖138988节点、137207边、零issue，九份生成
+    库存连续两轮hash一致。Story VM 3/3、Linux core186/186、Linux app192/192及独立P3 Windows
+    LLVM app192/192全部通过，未启动游戏EXE。公开进度为已实现198/198、已验收198/198；剧情VM
+    追加PLAN完成并解除优先级覆盖。
+
+下一工作包：接入已锁定的FFmpeg 9.0 `lgpl-shared`预编译包，先打通BGM/MP3与BIK/OP播放后端。

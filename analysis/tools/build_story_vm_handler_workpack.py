@@ -42,7 +42,7 @@ EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
 EXPECTED_MODERN_CASE_COUNT = 197
-EXPECTED_CLOSED_HANDLER_COUNT = 145
+EXPECTED_CLOSED_HANDLER_COUNT = 146
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -770,6 +770,11 @@ CLOSURE_OVERRIDES = {
         "story-vm-common-join-continue-0042d1ea.md",
         "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;call_local_state_tested;one_shot_continue_tested;persistent_latch_preserved;common_join_tested;previous_publication_tested;same_call_tested;no_audio_tested;successor_fetch_tested",
     ),
+    "0x0042D24E": (
+        "platform_adapted",
+        "story-vm-talk-end-cleanup-0042d24e.md",
+        "platform_adapted;unit_tested;real_asset_tested;sdl_runtime_integrated;source_selector_tested;role_path_completion_tested;one_shot_restore_tested;action_update_order_tested;action_update_failure_tested;bit19_quirk_tested;role_table_capacity_adapted;object_role_index_adapted;active_object_cleanup_tested;context_cleanup_tested;window_cleanup_tested;movement_owner_tested;previous_publication_tested;audio_order_tested;audio_service_tested;terminated_tested;call_local_latch_tested;exact_tail_tested",
+    ),
 }
 
 
@@ -914,8 +919,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "entry_gate",
             "all",
             "one Talk-state pointer; inactive 0xFFFF context routes to return-one",
-            "scope_locked_not_semantically_closed",
-            "ABI and inactive gate",
+            "platform_adapted",
+            "story-vm-full-validation-p3.md; typed status preserves inactive return-one semantics",
         ),
         (
             "initial_window_load",
@@ -923,8 +928,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "window_load",
             "all",
             "load TalkN.dat entry into the 0x8000-byte window before fetch",
-            "scope_locked_not_semantically_closed",
-            "file/open/failure and state side effects require P2 review",
+            "platform_adapted",
+            "story-vm-full-validation-p3.md; checked resource owner preserves load and failure ordering",
         ),
         (
             "fetch_decode",
@@ -932,8 +937,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "fetch_decode",
             "14-bit domain",
             "raw u16 & 0x3FFF; preserve modifier bits in the raw word",
-            "scope_locked_not_semantically_closed",
-            "routes main/default/99/secondary",
+            "assembly_exact",
+            "story-vm-full-validation-p3.md; raw aliases and all dispatch boundaries verified",
         ),
         (
             "main_dispatch",
@@ -941,8 +946,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "jump_table",
             "1-98",
             "98 LST dwords",
-            "lst_locked",
-            "feeds handler work package",
+            "assembly_exact",
+            "story-vm-full-validation-p3.md; 98-entry primary table regenerated from LST",
         ),
         (
             "secondary_dispatch",
@@ -950,8 +955,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "jump_table",
             "100-193",
             "94 LST dwords",
-            "lst_locked",
-            "feeds handler work package",
+            "assembly_exact",
+            "story-vm-full-validation-p3.md; 94-entry secondary table regenerated from LST",
         ),
         (
             "default_invalid",
@@ -968,8 +973,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "internal_switch",
             "29-185",
             "6-dword jump table plus 157-byte selector table",
-            "pending_audit",
-            "refines handlers 0x0042B074/0x0042B070",
+            "assembly_exact",
+            "story-vm-full-validation-p3.md; table extraction and all ten owning opcodes closed",
         ),
         (
             "flag_refinement",
@@ -977,8 +982,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "internal_switch",
             "102-174",
             "9-dword jump table plus 73-byte selector table",
-            "pending_audit",
-            "refines handler 0x0042C567",
+            "assembly_exact",
+            "story-vm-full-validation-p3.md; table extraction and all eight owning opcodes closed",
         ),
         (
             "window_transfers",
@@ -986,8 +991,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "window_transfer",
             compact_ranges(window_transfer_opcodes),
             "31-row control-transfer inventory marks same-file or story-window reload/transfer",
-            "pending_audit",
-            "navigation set only; each owning handler must re-prove load order and IP reset",
+            "platform_adapted",
+            "story-vm-full-validation-p3.md; 31 transfer opcodes and zero-issue TALK CFG verified",
         ),
         (
             "common_join",
@@ -1031,8 +1036,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "special",
             "16383",
             "Talk cleanup and common join",
-            "pending_audit",
-            "explicit special value",
+            "platform_adapted",
+            "story-vm-talk-end-cleanup-0042d24e.md",
         ),
         (
             "fatal_return_zero",
@@ -1040,8 +1045,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "return",
             "handler-selected",
             "set close bit 0x04 and return zero",
-            "pending_audit",
-            "caller ignores EAX; side effect is authoritative",
+            "platform_adapted",
+            "story-vm-full-validation-p3.md; typed fatal status preserves close-bit side effect",
         ),
         (
             "yield_return_one",
@@ -1049,8 +1054,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "return",
             "ordinary yield/inactive",
             "AIL serve then return one; inactive skips AIL",
-            "pending_audit",
-            "one return value has multiple meanings",
+            "platform_adapted",
+            "story-vm-full-validation-p3.md; typed yield/inactive results preserve AIL-service split",
         ),
         (
             "load_failure_return_zero",
@@ -1058,8 +1063,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "return",
             "initial load failure",
             "send WM_DESTROY and return zero",
-            "pending_audit",
-            "separate zero-return site",
+            "platform_adapted",
+            "story-vm-full-validation-p3.md; checked load failure replaces WM_DESTROY with typed stop",
         ),
     ]
 
