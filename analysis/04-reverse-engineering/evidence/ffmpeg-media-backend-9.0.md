@@ -1,86 +1,86 @@
-# FFmpeg 9.0 stream and video backend
+# FFmpeg 9.0 音频流与视频后端
 
-## Scope
+## 范围
 
-Status: `platform_adapted`, `unit_tested`, `real_asset_tested`, `linux_runtime_integrated`, `windows_runtime_integrated`.
+状态：`platform_adapted`、`unit_tested`、`real_asset_tested`、`linux_runtime_integrated`、`windows_runtime_integrated`。
 
-This backend completes the deferred media implementation behind the existing platform-neutral contracts:
+该后端在既有平台无关合同后完成此前延期的媒体实现：
 
-- BGM/MP3 playback through `LegacyStreamBackend` and `LegacyStreamManager`.
-- BIK/OP playback through `LegacyVideoBackend` and `LegacyVideoPlayer`.
-- SDL3 remains the final audio device and presentation owner.
-- No FFmpeg type or function crosses into the audio/video compatibility core, Story VM, or application orchestration.
+- BGM/MP3通过`LegacyStreamBackend`和`LegacyStreamManager`播放。
+- BIK/OP通过`LegacyVideoBackend`和`LegacyVideoPlayer`播放。
+- SDL3继续拥有最终音频设备与画面呈现职责。
+- FFmpeg类型和函数不进入音视频兼容核心、剧情VM或应用编排层。
 
-The original Miles/Bink behavior contracts remain defined by their existing LST evidence and fake-backend tests. FFmpeg is a platform replacement for the proprietary decoders, not a new compatibility contract.
+原版Miles/Bink行为合同继续由既有LST证据和fake backend测试定义。FFmpeg只是专有解码器的平台替代，不建立新的兼容合同。
 
-## Dependency lock and licensing
+## 依赖锁与许可
 
-The backend consumes the BtbN n9.0 `lgpl-shared` Windows x64 and Linux x64 packages recorded in `dependencies/ffmpeg/9.0/SOURCE.md`.
+后端使用`dependencies/ffmpeg/9.0/SOURCE.md`记录的BtbN n9.0 Windows x64和Linux x64 `lgpl-shared`包。
 
-CMake:
+CMake行为：
 
-- selects `windows-x64` or `linux-x64` without network access;
-- accepts an explicit `OPENSWD3_FFMPEG_ROOT` override;
-- verifies local headers, import libraries, and runtime libraries;
-- imports `avformat`, `avcodec`, `avutil`, `swresample`, and `swscale`;
-- builds the project-owned `openswd3_ffmpeg` shared library;
-- builds one shared SDL3 fallback so the application and media library use the same SDL device/runtime state;
-- copies the project library, SDL3, the five FFmpeg runtime libraries, and upstream `LICENSE.txt` beside the application and real-media test executable.
+- 不联网，按平台选择`windows-x64`或`linux-x64`。
+- 接受显式`OPENSWD3_FFMPEG_ROOT`覆盖。
+- 校验本地头文件、导入库和运行库。
+- 导入`avformat`、`avcodec`、`avutil`、`swresample`和`swscale`。
+- 构建项目自有`openswd3_ffmpeg`共享库。
+- 构建单一共享SDL3 fallback，使应用和媒体库使用同一SDL设备与运行时状态。
+- 将项目媒体库、SDL3、五个FFmpeg运行库及上游`LICENSE.txt`复制到应用和真实媒体测试可执行文件旁。
 
-Linux uses `$ORIGIN` first in the shared library RUNPATH. Windows tests prove the copied DLL set loads without relying on an FFmpeg installation.
+Linux共享库RUNPATH优先使用`$ORIGIN`。Windows测试证明复制后的DLL集合无需依赖系统FFmpeg安装即可加载。
 
-## Stream backend
+## 音频流后端
 
-`make_legacy_stream_backend()` creates a backend bound to the configured game data directory.
+`make_legacy_stream_backend()`创建绑定到配置游戏数据目录的后端。
 
-For each opened stream it:
+每个打开的音频流按以下顺序处理：
 
-1. normalizes legacy backslash paths without changing the compatibility-layer filename contract;
-2. opens the media through libavformat and selects the best audio stream;
-3. decodes through libavcodec;
-4. converts to interleaved stereo float at 48 kHz through libswresample;
-5. opens an SDL3 playback stream and applies Miles-compatible user-data, volume, loop, start, status, and millisecond-position operations;
-6. reports retained status `4`, terminal status `2`, and pre-start status `8` to the unchanged `LegacyStreamManager`.
+1. 规范化旧式反斜杠路径，不修改兼容层文件名合同。
+2. 通过libavformat打开媒体并选择最佳音频流。
+3. 通过libavcodec解码。
+4. 通过libswresample转换为48 kHz双声道交错float。
+5. 打开SDL3播放流，并实现Miles兼容的user data、音量、循环、启动、状态和毫秒位置操作。
+6. 向未修改的`LegacyStreamManager`报告保持状态`4`、终止状态`2`和启动前状态`8`。
 
-A zero loop count requeues indefinitely, positive counts preserve finite replay behavior, and manager-owned fade/status ordering remains unchanged.
+循环次数为零时无限重新排队；正数保持有限重播。manager拥有的淡入淡出及状态顺序不变。
 
-The real-media test opens `Music/Map_Ca12.mp3`, whose locked properties are mono MP3, 44.1 kHz, approximately 4.023 seconds. It verifies open, user data, volume, infinite-loop retained status, and a 4,000-4,050 ms decoded duration through the real FFmpeg and SDL dummy-device path.
+真实媒体测试打开`Music/Map_Ca12.mp3`。该锁定资产为44.1 kHz单声道MP3，时长约4.023秒。测试通过真实FFmpeg和SDL dummy设备路径验证打开、user data、音量、无限循环保持状态，以及4,000至4,050毫秒的解码时长。
 
-## Video backend
+## 视频后端
 
-`make_legacy_video_backend()` creates a single-process handle backend for Bink containers.
+`make_legacy_video_backend()`创建进程内单实例句柄后端，用于Bink容器。
 
-For each opened movie it:
+每个打开的视频按以下顺序处理：
 
-1. selects and opens the Bink video decoder;
-2. derives the frame cadence and frame count from the real stream time base;
-3. optionally opens the embedded Bink audio decoder, resamples it to stereo float 48 kHz, and queues it to SDL3;
-4. implements the existing wait/copy/frame-count/frame-number/advance/service/close ABI and an explicit modern decode result (`frame_ready`, `completed`, or `failed`);
-5. converts the current frame to RGB555 or RGB565 through libswscale directly into the centered legacy destination span;
-6. uses monotonic SDL nanoseconds for the existing frame-wait contract;
-7. flushes the decoder at demux EOF, publishes the actual decoded frame count, and terminates without copying or presenting a synthetic black frame;
-8. closes immediately on decoder/packet/flush failure instead of repeatedly advancing an unavailable frame;
-9. keeps volume and audio-device ownership inside the backend.
+1. 选择并打开Bink视频解码器。
+2. 从真实流time base推导帧节奏与帧总数。
+3. 若存在内嵌Bink音频，则打开音频解码器，重采样为48 kHz双声道float，并排入SDL3队列。
+4. 实现既有wait/copy/frame-count/frame-number/advance/service/close ABI，并增加明确的现代解码结果：`frame_ready`、`completed`或`failed`。
+5. 通过libswscale将当前帧转换为RGB555或RGB565，直接写入居中的旧式目标span。
+6. 使用SDL单调纳秒时钟实现既有帧等待合同。
+7. demux到达EOF时flush解码器，发布实际解码帧数，并在不复制或呈现伪造黑帧的情况下结束。
+8. 解码、packet提交或flush失败时立即关闭，不再重复推进不可用帧。
+9. 音量与音频设备所有权保持在后端内部。
 
-The real-media test opens `Video/firegod.bik`, verifies the 640x480 summary and 176-frame count, validates a non-black RGB565 first frame, demuxes embedded audio, then decodes all 176 frames to explicit EOF. It separately opens the actual OP asset `Video/opening.bik`, locks its 640x480/7,369-frame stream, and decodes all 7,369 frames to explicit EOF. Both files finish without a repeated black frame or terminal decode loop. The same backend covers the remaining real Bink assets selected by the existing Story VM filename adaptation.
+真实媒体测试打开`Video/firegod.bik`，验证640×480、176帧、首帧RGB565非黑、内嵌音频demux，并将全部176帧解码到明确EOF。测试另行打开真实OP资产`Video/opening.bik`，锁定其640×480和7,369帧，并将全部7,369帧解码到明确EOF。两个文件均能结束，不出现重复黑帧或末尾解码循环。现有剧情VM文件名适配选择的其他真实Bink资产复用同一后端。
 
-## Application integration
+## 应用接入
 
-The SDL main runtime no longer instantiates the unavailable stream backend or immediate-complete video backend. It constructs both FFmpeg factories after the configured data root is resolved, then passes only their base interfaces to the existing managers and Story VM ports.
+SDL主运行时不再实例化不可用的stream backend或立即完成型video backend。配置数据根目录解析后，主运行时构造两个FFmpeg factory，并只把其基类接口交给既有manager和剧情VM端口。
 
-A runtime wiring defect originally wrote the Story VM video-active bit to `WindowEventState` while an accepted frame was still executing. The accepted-frame tail then copied the older `FrameCoordinatorState::process_flags` over it. The decoder handle remained active, but idle dispatch never selected `step_video()`, so the script waited forever on an unadvanced black frame. The Story VM port now writes the current frame coordinator state; the existing frame tail then publishes that bit to the window/idle owner. Decode failure or EOF also clears the published video-active bit.
+原接线存在运行时缺陷：剧情VM在已接受帧仍在执行时，把视频活动位写入`WindowEventState`；已接受帧尾随后用较旧的`FrameCoordinatorState::process_flags`覆盖它。结果是解码器句柄保持活动，但idle分派永远不会选择`step_video()`，脚本则一直等待未推进的黑帧。剧情VM端口现在写入当前帧协调状态，再由既有帧尾发布到窗口与idle owner。解码失败或EOF也会清除已发布的视频活动位。
 
-No original or OpenSWD3 game executable was launched during verification.
+验证期间未启动原版或OpenSWD3游戏EXE。
 
-## Verification
+## 验证
 
-- Linked runtime version begins with `n9.0`.
-- Linux real SDL media tests: MP3 plus complete 176-frame `firegod.bik` and 7,369-frame `opening.bik` decode-to-EOF paths passed.
-- Player fake-backend tests prove decoder EOF performs no black-frame copy/presentation and decoder failure closes the handle.
-- Frame-runtime tests prove a Story VM video-active bit remains in the accepted frame state published to idle dispatch.
-- Linux core no-SDL/no-FFmpeg configuration remained independent and passed `186/186` after the runtime correction.
-- Linux app full gate passed `192/192` after the runtime correction.
-- The earlier Windows LLVM app gate passed `192/192`; the runtime-correction Windows rerun is pending because this WSL session lost its host `WSLInterop` binfmt registration and lacks permission to remount it.
-- Linux ELF dependencies resolve all five FFmpeg libraries from copied application output files; no FFmpeg dependency is missing.
-- Linux and Windows application/test output directories contain `openswd3_ffmpeg`, the shared SDL3 runtime, all five FFmpeg runtime libraries, and `LICENSE.txt`.
-- ELF and PE dependency inspection proves both the application and `openswd3_ffmpeg` resolve the same shared SDL3 runtime instance.
+- 链接的运行时版本以`n9.0`开头。
+- Linux真实SDL媒体测试通过：MP3、`firegod.bik`完整176帧和`opening.bik`完整7,369帧均解码到EOF。
+- Player fake backend测试证明：解码EOF不会复制或呈现黑帧；解码失败会关闭句柄。
+- 帧运行时测试证明：剧情VM写入的视频活动位会保留在发布给idle分派的已接受帧状态中。
+- 运行时修复后，Linux core无SDL/无FFmpeg配置保持独立并通过`186/186`。
+- 运行时修复后，Linux app完整门通过`192/192`。
+- 早先Windows LLVM app完整门通过`192/192`；运行时修复后的Windows复跑仍待完成，因为当前WSL会话丢失宿主`WSLInterop` binfmt注册且无权重新挂载。
+- Linux ELF依赖从应用输出目录复制的文件中解析全部五个FFmpeg库，不存在缺失的FFmpeg依赖。
+- Linux和Windows应用/测试输出目录均包含`openswd3_ffmpeg`、共享SDL3运行库、五个FFmpeg运行库及`LICENSE.txt`。
+- ELF和PE依赖检查证明应用与`openswd3_ffmpeg`解析到同一个共享SDL3运行时实例。
