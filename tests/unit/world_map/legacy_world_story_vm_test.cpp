@@ -191,6 +191,7 @@ using openswd3::world_map::OP_156_RELOAD_DEFERRED_WORLD_SESSION;
 using openswd3::world_map::OP_157_CONFIGURE_DEFERRED_WORLD_SESSION;
 using openswd3::world_map::OP_158_COPY_STORY_FILE;
 using openswd3::world_map::OP_159_DELETE_STORY_FILE;
+using openswd3::world_map::OP_160_SUPPRESS_NEXT_DIALOG_FLAG18;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -24141,6 +24142,113 @@ void test_story_file_operations_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_suppress_next_dialog_flag18_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.next_dialog_flag18_suppression = 0xA5A5A5A5U;
+        fixture.state.previous_opcode = 0x66U;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_160_SUPPRESS_NEXT_DIALOG_FLAG18 | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.next_dialog_flag18_suppression == 1U &&
+                fixture.state.previous_opcode ==
+                    OP_160_SUPPRESS_NEXT_DIALOG_FLAG18 &&
+                fixture.ports.story_protocol_events.empty(),
+            "opcode 160 aliases overwrite the full one-shot value, publish previous, and same-call the successor"
+        );
+    }
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.next_dialog_flag18_suppression = 2U;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window, 0x7FFEU, OP_160_SUPPRESS_NEXT_DIALOG_FLAG18
+    );
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.opcode == OP_160_SUPPRESS_NEXT_DIALOG_FLAG18 &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.next_dialog_flag18_suppression == 1U &&
+            exact_tail.state.previous_opcode ==
+                OP_160_SUPPRESS_NEXT_DIALOG_FLAG18 &&
+            exact_tail.ports.story_protocol_events.empty(),
+        "opcode 160 commits the one-shot value, IP and previous before the exact-tail next fetch fails"
+    );
+
+    Fixture dialog;
+    dialog.state.previous_opcode = 0x66U;
+    prime_loaded_instruction(dialog, OP_160_SUPPRESS_NEXT_DIALOG_FLAG18);
+    write_u16(dialog.state.window, 2U, 2U);
+    write_u16(dialog.state.window, 4U, 0U);
+    write_u16(dialog.state.window, 6U, 0x232DU);
+    dialog.state.window[8U] = static_cast<u8>('%');
+    dialog.state.window[9U] = static_cast<u8>('Q');
+
+    const auto dialog_result = dialog.step();
+    test.expect_true(
+        dialog_result.status == LegacyWorldStoryVmStatus::yielded &&
+            dialog_result.opcode == 2U &&
+            dialog_result.executed_instruction_count == 2U &&
+            dialog_result.dialog_enqueue_count == 1U &&
+            dialog_result.direct_audio_service_count == 2U &&
+            dialog.context.instruction_offset == 10U &&
+            dialog.dialogs.messages.size() == 1U &&
+            (dialog.dialogs.messages.front().record.flags & 0x00040000U) ==
+                0U &&
+            dialog.state.next_dialog_flag18_suppression == 0U &&
+            dialog.state.previous_opcode == 2U,
+        "opcode 160 same-calls a dialog that suppresses flag bit 18 once and clears the one-shot value after queueing"
+    );
+
+    Fixture failed_dialog;
+    failed_dialog.state.previous_opcode = 0x66U;
+    prime_loaded_instruction(failed_dialog, OP_160_SUPPRESS_NEXT_DIALOG_FLAG18);
+    write_u16(failed_dialog.state.window, 2U, 2U);
+    write_u16(failed_dialog.state.window, 4U, 0U);
+    write_u16(failed_dialog.state.window, 6U, 0x232DU);
+
+    const auto failed_dialog_result = failed_dialog.step();
+    test.expect_true(
+        failed_dialog_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            failed_dialog_result.opcode == 2U &&
+            failed_dialog_result.executed_instruction_count == 2U &&
+            failed_dialog_result.direct_audio_service_count == 1U &&
+            failed_dialog.context.instruction_offset == 2U &&
+            failed_dialog.dialogs.messages.empty() &&
+            failed_dialog.state.next_dialog_flag18_suppression == 1U &&
+            failed_dialog.state.previous_opcode ==
+                OP_160_SUPPRESS_NEXT_DIALOG_FLAG18,
+        "a failed dialog after opcode 160 preserves the one-shot value and opcode 160 previous publication"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
@@ -30178,6 +30286,60 @@ void test_real_shared_dialog_handler_records(
     }
 }
 
+void test_real_suppress_next_dialog_flag18_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct Sample {
+        std::streamoff file_offset;
+        std::size_t size;
+        std::size_t dialog_offset;
+        u32 executed_instruction_count;
+    };
+    constexpr std::array<Sample, 2U> samples{
+        Sample{0x00005975, 40U, 4U, 3U},
+        Sample{0x0000762E, 33U, 2U, 2U},
+    };
+
+    for (const auto sample : samples) {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        std::vector<u8> instructions(sample.size);
+        input.seekg(sample.file_offset);
+        input.read(
+            reinterpret_cast<char*>(instructions.data()),
+            static_cast<std::streamsize>(instructions.size())
+        );
+        if (!input) {
+            test.expect_true(false, "real opcode 160 dialog chain is readable");
+            continue;
+        }
+
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_160_SUPPRESS_NEXT_DIALOG_FLAG18);
+        std::ranges::copy(instructions, fixture.state.window.begin());
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+        test.expect_true(
+            read_u16(instructions, 0U) == OP_160_SUPPRESS_NEXT_DIALOG_FLAG18 &&
+                read_u16(instructions, sample.dialog_offset) == 6U &&
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == 6U &&
+                result.executed_instruction_count ==
+                    sample.executed_instruction_count &&
+                result.dialog_enqueue_count == 1U &&
+                result.direct_audio_service_count == 2U &&
+                fixture.context.instruction_offset == sample.size &&
+                fixture.dialogs.messages.size() == 1U &&
+                fixture.dialogs.messages.front().record.flags == 0x40U &&
+                fixture.state.next_dialog_flag18_suppression == 0U &&
+                fixture.state.previous_opcode == 6U,
+            "real opcode 160 chains suppress dialog flag bit 18 once and clear the one-shot value"
+        );
+    }
+}
+
 void test_real_story_248_dialog(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -31497,6 +31659,7 @@ int main(const int argument_count, char** arguments) {
     test_reload_deferred_world_session_protocol(test);
     test_configure_deferred_world_session_protocol(test);
     test_story_file_operations_protocol(test);
+    test_suppress_next_dialog_flag18_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -31604,6 +31767,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
         test_real_shared_dialog_handler_records(test, root);
+        test_real_suppress_next_dialog_flag18_records(test, root);
         test_real_story_248_dialog(test, root);
         test_real_new_game_story_reaches_first_dialog(test, root);
     }
