@@ -6875,13 +6875,17 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.previous_opcode = result.opcode;
             continue;
 
-        case 161U: {
+        case OP_161_TRANSFER_STORY: {
+            ports.service_audio();
+            ++result.direct_audio_service_count;
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
             const i32 story_id =
                 static_cast<i16>(read_u16(state.window, ip + 2U));
+            ports.service_audio();
+            ++result.direct_audio_service_count;
             const auto loaded =
                 ports.load_story_window(story_id, state.window, false);
             result.load_status = loaded.status;
@@ -6894,6 +6898,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             state.loaded_file_number = loaded.file_number;
             state.loaded_data_offset = loaded.data_offset;
             state.window_loaded = true;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            state.previous_opcode = result.opcode;
             continue;
         }
 

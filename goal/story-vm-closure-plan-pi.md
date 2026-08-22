@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042CBCC`（opcode161）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一shared handler `0x0042CBFF`（opcodes163–164）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -20,7 +20,7 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 - 当前 C++ 接入 95 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- `0..144`、`147..152`、`155..160`及`167..168`已有人工汇编语义；其余`161..193`目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
+- `0..144`、`147..152`、`155..162`及`167..168`已有人工汇编语义；其余`163..193`目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
 - 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
@@ -268,7 +268,12 @@ opcode/workpack计数。opcode160恢复完整下一对话控制dword写1、+2、
 下一成功对话抑制record bit18并清零，失败保留。558条真实记录/558 probes及三类对话后继链已锁定，
 两条代表链与synthetic通过。Story VM 3/3、Linux core186/186及app192/192完整门均以exit0通过。
 已实现169/198、已验收166/198；内部workpack为126/146，即`20 assembly_exact + 106 platform_adapted + 20 pending_audit`。
-下一行只审计`0x0042CBCC`下的opcode161。
+opcode161恢复signed story ID、四次audio、TALK文件/目录/窗口切换、IP0、previous与same-call；现代RAII
+资源port保持未覆盖窗口尾，并以typed load failure承接Win32同步退出后的陈旧物理指针失败域。90条真实
+记录/90 probes、89个目标ID及TALK2/3/4的87/2/1分布已锁定，全部目标首opcode为1026；真实story2037
+同调用进入TALK2并提交sound193。Story VM 3/3、Linux core186/186和app192/192通过。已实现169/198、
+已验收167/198；内部workpack为127/146，即`20 assembly_exact + 107 platform_adapted + 19 pending_audit`。
+下一行只审计`0x0042CBFF`下的opcodes163–164。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

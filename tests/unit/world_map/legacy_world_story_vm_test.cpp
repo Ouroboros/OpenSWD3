@@ -192,6 +192,7 @@ using openswd3::world_map::OP_157_CONFIGURE_DEFERRED_WORLD_SESSION;
 using openswd3::world_map::OP_158_COPY_STORY_FILE;
 using openswd3::world_map::OP_159_DELETE_STORY_FILE;
 using openswd3::world_map::OP_160_SUPPRESS_NEXT_DIALOG_FLAG18;
+using openswd3::world_map::OP_161_TRANSFER_STORY;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -280,6 +281,13 @@ public:
     ) override {
         ++story_load_count;
         last_story_id = story_id;
+        last_story_clear_before_read = clear_before_read;
+        if (story_load_callback) {
+            story_load_callback();
+        }
+        if (story_load_status != LegacyTalkWindowStatus::ready) {
+            return LegacyTalkWindowLoadResult{.status = story_load_status};
+        }
         copy_window(
             story_id == 2042 ? transferred_window : initial_window,
             destination,
@@ -567,6 +575,7 @@ public:
     u32 action_update_result{1U};
     std::function<void(openswd3::asset_runtime::LegacyActionRecord&, u32)>
         action_update_callback;
+    std::function<void()> story_load_callback;
     std::function<void()> framebuffer_clear_callback;
     std::function<void()> framebuffer_present_callback;
     std::function<void()> story_video_prepare_callback;
@@ -606,6 +615,7 @@ public:
     u32 world_session_reload_count{};
     u32 story_host_frame_suspend_count{};
     u32 story_file_operation_count{};
+    bool last_story_clear_before_read{};
     bool last_data_clear_before_read{};
     bool dialog_text_prepare_success{};
     bool item_definition_load_success{true};
@@ -616,6 +626,7 @@ public:
     bool ani_prepare_success{true};
     bool ani_active{};
     bool throw_on_dialog_text_prepare{};
+    LegacyTalkWindowStatus story_load_status{LegacyTalkWindowStatus::ready};
     LegacyTalkWindowStatus data_load_status{LegacyTalkWindowStatus::ready};
     i32 last_story_id{};
     i32 video_progress{-1};
@@ -2163,10 +2174,148 @@ void test_dialog_explicit_layout_pair(openswd3::test::Context& test) {
     );
 }
 
+void test_story_transfer_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture, static_cast<u16>(OP_161_TRANSFER_STORY | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, 2042U);
+        fixture.state.window[300U] = 0xA5U;
+        write_u16(fixture.ports.transferred_window, 0U, 1026U);
+        write_u16(fixture.ports.transferred_window, 2U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        fixture.ports.story_load_callback = [&fixture]() {
+            fixture.ports.story_protocol_events.push_back(15U);
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.raw_word == OP_1025 && result.opcode == OP_1025 &&
+                result.executed_instruction_count == 3U &&
+                result.load_status == LegacyTalkWindowStatus::ready &&
+                result.direct_audio_service_count == 4U &&
+                fixture.ports.direct_audio_service_count == 4U &&
+                fixture.ports.story_load_count == 1U &&
+                fixture.ports.last_story_id == 2042 &&
+                !fixture.ports.last_story_clear_before_read &&
+                fixture.context.talk_data_offset == 0x2222U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.loaded_file_number == 2U &&
+                fixture.state.loaded_data_offset == 0x2222U &&
+                fixture.state.window_loaded &&
+                fixture.state.window[300U] == 0xA5U &&
+                fixture.state.previous_opcode == OP_161_TRANSFER_STORY &&
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{2U, 2U, 15U, 2U, 2U},
+            "opcode 161 aliases service audio four times, preserve the unread window tail, publish previous, and same-call the transferred window"
+        );
+    }
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFCU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(exact_tail.state.window, 0x7FFCU, OP_161_TRANSFER_STORY);
+    write_u16(exact_tail.state.window, 0x7FFEU, 2042U);
+    write_u16(exact_tail.ports.transferred_window, 0U, 1026U);
+    write_u16(exact_tail.ports.transferred_window, 2U, OP_1025);
+    exact_tail.ports.story_load_callback = [&exact_tail]() {
+        exact_tail.ports.story_protocol_events.push_back(15U);
+    };
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            exact_tail_result.opcode == OP_1025 &&
+            exact_tail_result.executed_instruction_count == 3U &&
+            exact_tail_result.direct_audio_service_count == 4U &&
+            exact_tail.context.talk_data_offset == 0x2222U &&
+            exact_tail.context.instruction_offset == 2U &&
+            exact_tail.state.previous_opcode == OP_161_TRANSFER_STORY &&
+            exact_tail.ports.story_protocol_events ==
+                std::vector<u32>{2U, 2U, 15U, 2U, 2U},
+        "opcode 161 transfers from the final complete four-byte source record before same-calling the new window"
+    );
+
+    Fixture truncated;
+    truncated.context.instruction_offset = 0x7FFEU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x66U;
+    write_u16(truncated.state.window, 0x7FFEU, OP_161_TRANSFER_STORY);
+
+    const auto truncated_result = truncated.step();
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated_result.opcode == OP_161_TRANSFER_STORY &&
+            truncated_result.executed_instruction_count == 1U &&
+            truncated_result.direct_audio_service_count == 1U &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            truncated.state.previous_opcode == 0x66U &&
+            truncated.ports.story_load_count == 0U &&
+            truncated.ports.story_protocol_events == std::vector<u32>{2U},
+        "opcode 161 services audio before the original operand access and typed-stops a truncated operand"
+    );
+
+    struct Failure {
+        u16 story_word;
+        i32 expected_story_id;
+        LegacyTalkWindowStatus status;
+    };
+    constexpr std::array<Failure, 2U> failures{
+        Failure{0xFFFFU, -1, LegacyTalkWindowStatus::invalid_story_id},
+        Failure{2042U, 2042, LegacyTalkWindowStatus::open_failed},
+    };
+    for (const auto failure : failures) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_161_TRANSFER_STORY);
+        write_u16(fixture.state.window, 2U, failure.story_word);
+        fixture.state.previous_opcode = 0x66U;
+        fixture.ports.story_load_status = failure.status;
+        fixture.ports.story_load_callback = [&fixture]() {
+            fixture.ports.story_protocol_events.push_back(15U);
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::load_failed &&
+                result.opcode == OP_161_TRANSFER_STORY &&
+                result.executed_instruction_count == 1U &&
+                result.load_status == failure.status &&
+                result.direct_audio_service_count == 2U &&
+                fixture.ports.direct_audio_service_count == 2U &&
+                fixture.ports.story_load_count == 1U &&
+                fixture.ports.last_story_id == failure.expected_story_id &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.loaded_file_number == 1U &&
+                fixture.state.window_loaded &&
+                fixture.state.previous_opcode == 0x66U &&
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{2U, 2U, 15U},
+            "opcode 161 sign-extends the story id and preserves two prior audio services at the checked load failure boundary"
+        );
+    }
+}
+
 void test_transfer_flags_and_terminal_cleanup(openswd3::test::Context& test) {
     Fixture fixture;
     auto first = std::span<u8>{fixture.ports.initial_window};
-    write_u16(first, 0U, 161U);
+    write_u16(first, 0U, OP_161_TRANSFER_STORY);
     write_u16(first, 2U, 2042U);
     auto second = std::span<u8>{fixture.ports.transferred_window};
     write_u16(second, 0U, 25U);
@@ -2193,6 +2342,8 @@ void test_transfer_flags_and_terminal_cleanup(openswd3::test::Context& test) {
             result.executed_instruction_count == 4U &&
             fixture.ports.story_load_count == 2U &&
             fixture.ports.last_story_id == 2042 &&
+            result.direct_audio_service_count == 4U &&
+            fixture.ports.direct_audio_service_count == 4U &&
             openswd3::world_map::query_legacy_world_story_flag(
                 fixture.state, 123U
             ) &&
@@ -24838,6 +24989,81 @@ void test_real_wait_role_action_status_record(
     );
 }
 
+void test_real_story_transfer_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00007505);
+    std::array<u8, 4U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+    input.close();
+
+    openswd3::resource_io::LegacyResourceDatabases databases;
+    const auto initialized = databases.initialize(root);
+    LegacyWorldStoryVmState state{};
+    openswd3::world_map::initialize_legacy_world_story_vm(state);
+    std::ranges::copy(instruction, state.window.begin());
+    state.loaded_file_number = 1U;
+    state.loaded_data_offset = 0x00007305U;
+    state.window_loaded = true;
+    state.previous_opcode = 0x66U;
+    LegacyWorldTalkContext context{};
+    context.source_guid = 0x00F8U;
+    context.talk_script_id = 248U;
+    context.talk_data_offset = 0x00007305U;
+    std::array<LegacyWorldRoleRecord, 2U> roles{};
+    std::array<
+        LegacyWorldObjectSlot,
+        openswd3::world_map::kLegacyWorldActiveObjectSlotCount>
+        active_object_slots{};
+    openswd3::story_scene::LegacyDialogRuntimeState dialogs;
+    openswd3::world_map::LegacyWorldDialogRuntimeState dialog_resources;
+    std::array<u8, 16U> first_name{};
+    std::array<u8, 16U> second_name{};
+    RealPorts ports{databases};
+
+    const auto result = openswd3::world_map::step_legacy_world_story_vm(
+        context,
+        state,
+        roles,
+        0U,
+        active_object_slots,
+        {},
+        dialogs,
+        dialog_resources,
+        first_name,
+        second_name,
+        {},
+        ports
+    );
+    test.expect_true(
+        instruction_read &&
+            initialized.status ==
+                openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
+            read_u16(instruction, 0U) == OP_161_TRANSFER_STORY &&
+            read_u16(instruction, 2U) == 2037U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_59_PLAY_SOUND_EFFECT &&
+            result.executed_instruction_count == 3U &&
+            result.load_status == LegacyTalkWindowStatus::ready &&
+            result.direct_audio_service_count == 4U &&
+            context.talk_data_offset == 0x00006CE9U &&
+            context.instruction_offset == 6U &&
+            state.loaded_file_number == 2U &&
+            state.loaded_data_offset == 0x00006CE9U &&
+            state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+            read_u16(state.window, 0U) == 1026U &&
+            read_u16(state.window, 2U) == OP_59_PLAY_SOUND_EFFECT &&
+            read_u16(state.window, 4U) == 193U &&
+            ports.sound_effect_requests == std::vector<u16>{193U},
+        "real opcode 161 transfers from TALK1 to TALK2 and same-calls the 1026 prefix and sound request"
+    );
+}
+
 void test_real_jump_same_file_offset_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -31522,6 +31748,7 @@ int main(const int argument_count, char** arguments) {
     test_dialog_enqueue_and_wait_protocol(test);
     test_dialog_role_overlap_avoidance(test);
     test_dialog_explicit_layout_pair(test);
+    test_story_transfer_protocol(test);
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);
@@ -31676,6 +31903,7 @@ int main(const int argument_count, char** arguments) {
         test_real_clear_dialog_control_flag_bit30_record(test, root);
         test_real_stage_dialog_lifetime_record(test, root);
         test_real_wait_role_action_status_record(test, root);
+        test_real_story_transfer_record(test, root);
         test_real_jump_same_file_offset_record(test, root);
         test_real_jump_if_role_path_unprepared_record(test, root);
         test_real_jump_if_role_path_prepared_record(test, root);
