@@ -185,6 +185,7 @@ using openswd3::world_map::OP_151_CONFIGURE_ANI_FOLLOWER_TARGET;
 using openswd3::world_map::OP_152_WAIT_ANI_FOLLOWER_TARGET;
 using openswd3::world_map::OP_155_RELOAD_CURRENT_WORLD_SESSION;
 using openswd3::world_map::OP_156_RELOAD_DEFERRED_WORLD_SESSION;
+using openswd3::world_map::OP_157_CONFIGURE_DEFERRED_WORLD_SESSION;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -23646,6 +23647,210 @@ void test_reload_deferred_world_session_protocol(
     );
 }
 
+void test_configure_deferred_world_session_protocol(
+    openswd3::test::Context& test
+) {
+    struct SignedCase {
+        u16 map_id;
+        u16 tile_x;
+        u16 tile_y;
+        i32 expected_map_id;
+        i32 expected_tile_x;
+        i32 expected_tile_y;
+    };
+    constexpr std::array<SignedCase, 4U> cases{
+        SignedCase{0x0000U, 0x8000U, 0xFFFFU, 0, -32768, -1},
+        SignedCase{0x7FFFU, 0x0000U, 0x0001U, 32767, 0, 1},
+        SignedCase{0x8000U, 0x7FFFU, 0x8000U, -32768, 32767, -32768},
+        SignedCase{0xFFFFU, 0xFFFFU, 0x7FFFU, -1, -1, 32767},
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (std::size_t index = 0U; index < cases.size(); ++index) {
+        Fixture fixture;
+        const auto& value = cases[index];
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_157_CONFIGURE_DEFERRED_WORLD_SESSION | alias_masks[index]
+            )
+        );
+        write_u16(fixture.state.window, 2U, value.map_id);
+        write_u16(fixture.state.window, 4U, value.tile_x);
+        write_u16(fixture.state.window, 6U, value.tile_y);
+        write_u16(fixture.state.window, 8U, OP_1025);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.state.deferred_map_id == value.expected_map_id &&
+                fixture.state.deferred_map_tile_x == value.expected_tile_x &&
+                fixture.state.deferred_map_tile_y == value.expected_tile_y &&
+                fixture.context.instruction_offset == 8U &&
+                fixture.state.previous_opcode ==
+                    OP_157_CONFIGURE_DEFERRED_WORLD_SESSION &&
+                fixture.ports.story_protocol_events.empty(),
+            "opcode 157 aliases sign-extend all three deferred words, publish previous, and continue in the same call"
+        );
+    }
+
+    Fixture map_twenty_two;
+    map_twenty_two.state.deferred_map_id = 111;
+    map_twenty_two.state.deferred_map_tile_x = 222;
+    map_twenty_two.state.deferred_map_tile_y = 333;
+    map_twenty_two.context.instruction_offset = 0x7FFCU;
+    map_twenty_two.context.talk_data_offset = 0x1111U;
+    map_twenty_two.state.loaded_file_number = 1U;
+    map_twenty_two.state.loaded_data_offset = 0x1111U;
+    map_twenty_two.state.window_loaded = true;
+    map_twenty_two.state.previous_opcode = 0x66U;
+    write_u16(
+        map_twenty_two.state.window,
+        0x7FFCU,
+        OP_157_CONFIGURE_DEFERRED_WORLD_SESSION
+    );
+    write_u16(map_twenty_two.state.window, 0x7FFEU, 22U);
+
+    const auto map_twenty_two_result = map_twenty_two.step();
+    test.expect_true(
+        map_twenty_two_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            map_twenty_two_result.executed_instruction_count == 1U &&
+            map_twenty_two_result.direct_audio_service_count == 0U &&
+            map_twenty_two.state.deferred_map_id == 111 &&
+            map_twenty_two.state.deferred_map_tile_x == 222 &&
+            map_twenty_two.state.deferred_map_tile_y == 333 &&
+            map_twenty_two.context.instruction_offset == 0x8004U &&
+            map_twenty_two.state.previous_opcode ==
+                OP_157_CONFIGURE_DEFERRED_WORLD_SESSION &&
+            map_twenty_two.ports.story_protocol_events.empty(),
+        "opcode 157 map 22 preserves all deferred state, does not read tile operands, advances eight, and same-calls the next fetch"
+    );
+
+    Fixture missing_map;
+    missing_map.state.deferred_map_id = 111;
+    missing_map.state.deferred_map_tile_x = 222;
+    missing_map.state.deferred_map_tile_y = 333;
+    missing_map.context.instruction_offset = 0x7FFEU;
+    missing_map.context.talk_data_offset = 0x1111U;
+    missing_map.state.loaded_file_number = 1U;
+    missing_map.state.loaded_data_offset = 0x1111U;
+    missing_map.state.window_loaded = true;
+    missing_map.state.previous_opcode = 0x66U;
+    write_u16(
+        missing_map.state.window,
+        0x7FFEU,
+        OP_157_CONFIGURE_DEFERRED_WORLD_SESSION
+    );
+
+    const auto missing_map_result = missing_map.step();
+    test.expect_true(
+        missing_map_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_map.state.deferred_map_id == 111 &&
+            missing_map.state.deferred_map_tile_x == 222 &&
+            missing_map.state.deferred_map_tile_y == 333 &&
+            missing_map.context.instruction_offset == 0x7FFEU &&
+            missing_map.state.previous_opcode == 0x66U,
+        "opcode 157 missing map stops before the first deferred write"
+    );
+
+    Fixture missing_x;
+    missing_x.state.deferred_map_id = 111;
+    missing_x.state.deferred_map_tile_x = 222;
+    missing_x.state.deferred_map_tile_y = 333;
+    missing_x.context.instruction_offset = 0x7FFCU;
+    missing_x.context.talk_data_offset = 0x1111U;
+    missing_x.state.loaded_file_number = 1U;
+    missing_x.state.loaded_data_offset = 0x1111U;
+    missing_x.state.window_loaded = true;
+    missing_x.state.previous_opcode = 0x66U;
+    write_u16(
+        missing_x.state.window, 0x7FFCU, OP_157_CONFIGURE_DEFERRED_WORLD_SESSION
+    );
+    write_u16(missing_x.state.window, 0x7FFEU, 0x8000U);
+
+    const auto missing_x_result = missing_x.step();
+    test.expect_true(
+        missing_x_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_x.state.deferred_map_id == -32768 &&
+            missing_x.state.deferred_map_tile_x == 222 &&
+            missing_x.state.deferred_map_tile_y == 333 &&
+            missing_x.context.instruction_offset == 0x7FFCU &&
+            missing_x.state.previous_opcode == 0x66U,
+        "opcode 157 missing X preserves the committed signed map and all older coordinates"
+    );
+
+    Fixture missing_y;
+    missing_y.state.deferred_map_id = 111;
+    missing_y.state.deferred_map_tile_x = 222;
+    missing_y.state.deferred_map_tile_y = 333;
+    missing_y.context.instruction_offset = 0x7FFAU;
+    missing_y.context.talk_data_offset = 0x1111U;
+    missing_y.state.loaded_file_number = 1U;
+    missing_y.state.loaded_data_offset = 0x1111U;
+    missing_y.state.window_loaded = true;
+    missing_y.state.previous_opcode = 0x66U;
+    write_u16(
+        missing_y.state.window, 0x7FFAU, OP_157_CONFIGURE_DEFERRED_WORLD_SESSION
+    );
+    write_u16(missing_y.state.window, 0x7FFCU, 0x7FFFU);
+    write_u16(missing_y.state.window, 0x7FFEU, 0xFFFFU);
+
+    const auto missing_y_result = missing_y.step();
+    test.expect_true(
+        missing_y_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_y.state.deferred_map_id == 32767 &&
+            missing_y.state.deferred_map_tile_x == -1 &&
+            missing_y.state.deferred_map_tile_y == 333 &&
+            missing_y.context.instruction_offset == 0x7FFAU &&
+            missing_y.state.previous_opcode == 0x66U,
+        "opcode 157 missing Y preserves the committed signed map and X"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FF8U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window,
+        0x7FF8U,
+        OP_157_CONFIGURE_DEFERRED_WORLD_SESSION
+    );
+    write_u16(exact_tail.state.window, 0x7FFAU, 0x7FFFU);
+    write_u16(exact_tail.state.window, 0x7FFCU, 0x8000U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0xFFFFU);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 0U &&
+            exact_tail.state.deferred_map_id == 32767 &&
+            exact_tail.state.deferred_map_tile_x == -32768 &&
+            exact_tail.state.deferred_map_tile_y == -1 &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_157_CONFIGURE_DEFERRED_WORLD_SESSION &&
+            exact_tail.ports.story_protocol_events.empty(),
+        "opcode 157 commits all signed fields, publishes previous, and same-calls the next fetch at the exact window tail"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
@@ -30999,6 +31204,7 @@ int main(const int argument_count, char** arguments) {
     test_wait_ani_follower_target_protocol(test);
     test_reload_current_world_session_protocol(test);
     test_reload_deferred_world_session_protocol(test);
+    test_configure_deferred_world_session_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);

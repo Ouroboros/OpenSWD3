@@ -6790,6 +6790,35 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_157_CONFIGURE_DEFERRED_WORLD_SESSION: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u16 map_id = read_u16(state.window, ip + 2U);
+            if (map_id != 22U) {
+                state.deferred_map_id = static_cast<i16>(map_id);
+                if (!has_bytes(state.window, ip, 6U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                state.deferred_map_tile_x =
+                    static_cast<i16>(read_u16(state.window, ip + 4U));
+                if (!has_bytes(state.window, ip, 8U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                state.deferred_map_tile_y =
+                    static_cast<i16>(read_u16(state.window, ip + 6U));
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 8U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 161U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
