@@ -2113,11 +2113,17 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
         state.window_loaded = true;
     }
 
+    bool common_join_same_call_latched{};
     const auto yield_from_common_join = [&]() noexcept {
         state.previous_opcode = result.opcode;
+        if (common_join_same_call_latched) {
+            return false;
+        }
+
         ports.service_audio();
         ++result.direct_audio_service_count;
         result.status = LegacyWorldStoryVmStatus::yielded;
+        return true;
     };
 
     constexpr u32 kInstructionLimit = 4096U;
@@ -2356,11 +2362,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_14_WAIT_ROLE_ACTION_STATUS: {
@@ -2612,8 +2618,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     ip + 2U,
                     static_cast<u16>(count_word | 0x4000U)
                 );
-                yield_from_common_join();
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
 
             u16 ready_count{};
@@ -2657,8 +2666,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 }
             }
             if (ready_count != count) {
-                yield_from_common_join();
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
             write_u16(state.window, ip + 2U, count);
             const std::size_t instruction_size =
@@ -2888,11 +2900,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_29_SET_GLOBAL_INTEGER:
@@ -2919,11 +2931,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                       static_cast<i16>(read_u16(state.window, ip + 4U))
                   ));
             if (index >= static_cast<i32>(state.script_variables.size())) {
-                state.previous_opcode = result.opcode;
-                ports.service_audio();
-                ++result.direct_audio_service_count;
-                result.status = LegacyWorldStoryVmStatus::yielded;
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
 
             const bool conditional =
@@ -3451,11 +3463,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 runtime.camera_pan->remaining_y != 0 ||
                 runtime.camera_pan->step_x != 0 ||
                 runtime.camera_pan->step_y != 0) {
-                state.previous_opcode = result.opcode;
-                ports.service_audio();
-                ++result.direct_audio_service_count;
-                result.status = LegacyWorldStoryVmStatus::yielded;
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
@@ -3541,8 +3553,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 return result;
             }
             if (runtime.frame_color->countdown > 0) {
-                yield_from_common_join();
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
@@ -3643,8 +3658,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_58_ENQUEUE_PRIMARY_PICTURE_ACTION:
@@ -3697,8 +3715,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             destination.splice(destination.begin(), pending);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 10U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_59_PLAY_SOUND_EFFECT:
@@ -3709,8 +3730,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ports.play_sound_effect(read_u16(state.window, ip + 2U));
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_60_RESUME_WORLD_SCENE_RENDERING:
         case OP_61_CLEAR_AND_SUSPEND_WORLD_SCENE_RENDERING:
@@ -3727,8 +3751,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_62_WRITE_MAP_ROLE: {
             if (!has_bytes(state.window, ip, 4U)) {
@@ -3819,8 +3846,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             if (selection_count > 56U) {
                 ++result.selection_overflow_diagnostic_count;
-                yield_from_common_join();
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
             if (runtime.selection_words == nullptr) {
                 result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
@@ -3948,8 +3978,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_66_UPDATE_ROLE_MAP_STATE: {
@@ -4059,8 +4092,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 16U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_67_WAIT_FRAME_CLOCK: {
@@ -4075,13 +4111,19 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 write_u16(
                     state.window, ip + 2U, static_cast<u16>(operand | 0x8000U)
                 );
-                yield_from_common_join();
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
             if (runtime.current_tick - state.wait_started_at <=
                 state.wait_duration) {
-                yield_from_common_join();
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
             write_u16(
                 state.window, ip + 2U, static_cast<u16>(operand & 0x7FFFU)
@@ -4117,8 +4159,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_69_SET_ROLE_FLAG_0400: {
@@ -4146,8 +4191,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_50_START_RELATIVE_CAMERA_MOVE:
@@ -4312,8 +4360,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_72_CLEAR_ROLE_HEAD_SIGN: {
@@ -4332,8 +4383,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_74_CANCEL_FRAME_COLOR_TRANSITION:
@@ -4863,8 +4917,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ports.service_audio();
             ++result.direct_audio_service_count;
             if (!ports.prepare_story_video()) {
-                yield_from_common_join();
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
             std::size_t end{};
             if (!find_dialog_end_checked(state.window, ip + 2U, end)) {
@@ -4877,8 +4934,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 )
             );
             context.instruction_offset = static_cast<u16>(end);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_86_REWRITE_ROLE_HEAD_ACTION_KEY: {
@@ -5003,8 +5063,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 0x80000000U;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_91_LOAD_NAME_RECORD:
         case OP_162_LOAD_DYNAMIC_NAME_RECORD: {
@@ -5099,8 +5162,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             *runtime.scene_render_flags |= 2U;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_95_CLEAR_SCENE_RENDER_BIT1:
             if (runtime.scene_render_flags == nullptr) {
@@ -5110,8 +5176,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             *runtime.scene_render_flags &= static_cast<u8>(~u8{2U});
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_96_BEGIN_CUSTOM_ANI: {
             ports.set_story_frame_interval(70U);
@@ -5172,14 +5241,20 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 ),
                 ani_flags
             ));
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_97_WAIT_CUSTOM_ANI_COMPLETE:
             if (ports.is_story_ani_active()) {
-                yield_from_common_join();
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
@@ -5190,8 +5265,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
         case OP_98_CONSUME_FOUR_BYTE_NOOP:
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_99_WAIT_CUSTOM_ANI_PHASE: {
             const i32 phase = ports.query_story_ani_phase();
@@ -5202,8 +5280,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             const i32 threshold =
                 static_cast<i32>(read_u16(state.window, ip + 2U));
             if (phase <= threshold) {
-                yield_from_common_join();
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
@@ -5381,8 +5462,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     actions.front().action.packed_ap_state >> 8U
                 );
                 if (wait_byte <= threshold) {
-                    yield_from_common_join();
-                    return result;
+                    if (yield_from_common_join()) {
+                        return result;
+                    }
+
+                    continue;
                 }
             }
             context.instruction_offset =
@@ -5417,8 +5501,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     const u16 one_based_index =
                         static_cast<u8>(packed_state >> 8U);
                     if (one_based_index < threshold) {
-                        yield_from_common_join();
-                        return result;
+                        if (yield_from_common_join()) {
+                            return result;
+                        }
+
+                        continue;
                     }
                 }
             }
@@ -5490,11 +5577,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 context.instruction_offset + 4U +
                 static_cast<u32>(final_count) * 2U
             );
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_110_RELOAD_IF_NO_SECONDARY_ROLE_BIT30:
@@ -5550,11 +5637,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                         static_cast<u16>(context.instruction_offset + 2U);
                 }
             }
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING:
             if (!has_bytes(state.window, ip, 4U)) {
@@ -5564,11 +5651,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ports.play_sound_effect(read_u16(state.window, ip + 2U));
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_114_STAGE_SCENE_MUSIC_STREAM_REQUEST: {
             const u32 initial_transition_mode = state.current_first_stream;
@@ -5623,11 +5710,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ports.set_music_stream_volume(level);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_116_BATCH_SET_ROLE_POSITIONS: {
@@ -5775,11 +5862,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 result.opcode == OP_119_WAIT_DIALOG_FLAG_BIT0 ? 0x00000001U
                                                               : 0x00008000U;
             if ((message->record.flags & completion_mask) == 0U) {
-                state.previous_opcode = result.opcode;
-                ports.service_audio();
-                ++result.direct_audio_service_count;
-                result.status = LegacyWorldStoryVmStatus::yielded;
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
@@ -5970,11 +6057,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 allocation[copied_size++] = byte;
             }
 
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL:
@@ -6084,11 +6171,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM:
@@ -6362,8 +6449,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             context.instruction_offset = static_cast<u16>(
                 context.instruction_offset + 4U + item_count * sizeof(u16)
             );
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_134_ADJUST_PARTY_MEMBER_RESOURCES: {
@@ -6483,8 +6573,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 2U);
             ports.service_audio();
             ++result.direct_audio_service_count;
-            yield_from_common_join();
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_137_STOP_SCENE_MUSIC_STREAM:
             if ((state.music_control_flags & 0x00800000U) != 0U) {
@@ -6628,11 +6721,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             );
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 8U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_143_DISABLE_PRIMARY_COUNTDOWN:
@@ -6647,11 +6740,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             clear_legacy_world_story_flag(state, 0x12U);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_144_REQUEST_SPECIAL_MODE_4_OR_5:
             if (runtime.special_mode_state == nullptr) {
@@ -6702,41 +6795,41 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             *runtime.special_input_mode = 0U;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_147_SET_STORY_FLAG_70:
             set_legacy_world_story_flag(state, 70U);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_148_SET_STORY_FLAG_19:
             set_legacy_world_story_flag(state, 19U);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_149_CLEAR_STORY_FLAG_19:
             clear_legacy_world_story_flag(state, 19U);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_150_CONFIGURE_ANI_FOLLOWER_POSITION: {
             if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
@@ -6787,11 +6880,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             follower.velocity_y = 0;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_151_CONFIGURE_ANI_FOLLOWER_TARGET: {
@@ -6838,11 +6931,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<i16>(read_u16(state.window, ip + 8U));
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 10U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_152_WAIT_ANI_FOLLOWER_TARGET: {
@@ -6856,11 +6949,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 context.instruction_offset =
                     static_cast<u16>(context.instruction_offset + 2U);
             }
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_155_RELOAD_CURRENT_WORLD_SESSION: {
@@ -6895,11 +6988,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_156_RELOAD_DEFERRED_WORLD_SESSION: {
@@ -6930,11 +7023,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_157_CONFIGURE_DEFERRED_WORLD_SESSION: {
@@ -7197,11 +7290,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     static_cast<u16>(context.instruction_offset + 2U);
                 text.allocated = false;
                 clear_legacy_world_story_flag(state, flag_index);
-                state.previous_opcode = result.opcode;
-                ports.service_audio();
-                ++result.direct_audio_service_count;
-                result.status = LegacyWorldStoryVmStatus::yielded;
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
 
             std::size_t terminator = ip + 2U;
@@ -7246,11 +7339,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
 
             set_legacy_world_story_flag(state, flag_index);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_175_SUSPEND_STORY_ANI:
@@ -7264,11 +7357,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ports.set_story_ani_suspended(false);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_177_GATHER_PARTY_AT_PLAYER: {
             const u16 raw_opcode = read_u16(state.window, ip);
@@ -7329,11 +7422,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 }
             }
 
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_178_SET_ROLE_COLLISION_BYPASS: {
@@ -7438,11 +7531,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             *runtime.frame_execution_gate = 0U;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_186_RELOAD_IF_PARTY_MEMBER_FIELD_GE:
         case OP_187_RELOAD_IF_PARTY_MEMBER_FIELD_LE: {
@@ -7454,11 +7547,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             const i32 selector =
                 static_cast<i16>(read_u16(state.window, ip + 2U));
             if (selector > 16) {
-                state.previous_opcode = result.opcode;
-                ports.service_audio();
-                ++result.direct_audio_service_count;
-                result.status = LegacyWorldStoryVmStatus::yielded;
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
 
             const i32 value = read_party_member_field(
@@ -7494,16 +7587,19 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 result,
                 ports
             );
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
             if (status != LegacyWorldStoryVmStatus::idle) {
+                state.previous_opcode = result.opcode;
+                ports.service_audio();
+                ++result.direct_audio_service_count;
                 result.status = status;
                 return result;
             }
 
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
 
         case OP_188_SET_PARTY_MEMBER_FIELD:
@@ -7519,11 +7615,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             const i32 operand =
                 static_cast<i16>(read_u16(state.window, ip + 4U));
             if (selector > 16) {
-                state.previous_opcode = result.opcode;
-                ports.service_audio();
-                ++result.direct_audio_service_count;
-                result.status = LegacyWorldStoryVmStatus::yielded;
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
 
             auto& resources = state.party_member_resources[1U];
@@ -7570,11 +7666,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 }
 
                 if (std::bit_cast<i32>(runtime.camera->top) != expected_top) {
-                    state.previous_opcode = result.opcode;
-                    ports.service_audio();
-                    ++result.direct_audio_service_count;
-                    result.status = LegacyWorldStoryVmStatus::yielded;
-                    return result;
+                    if (yield_from_common_join()) {
+                        return result;
+                    }
+
+                    continue;
                 }
             }
 
@@ -7590,24 +7686,34 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     static_cast<u16>(context.instruction_offset + 2U);
             }
 
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
 
         case OP_193_WAIT_STORY_VIDEO:
             if (ports.query_story_video_progress() >= 0) {
-                state.previous_opcode = result.opcode;
-                ports.service_audio();
-                ++result.direct_audio_service_count;
-                result.status = LegacyWorldStoryVmStatus::yielded;
-                return result;
+                if (yield_from_common_join()) {
+                    return result;
+                }
+
+                continue;
             }
 
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
             state.previous_opcode = result.opcode;
+            continue;
+
+        case OP_1024_LATCH_COMMON_JOIN_SAME_CALL:
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            common_join_same_call_latched = true;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
             continue;
 
         case 1026U:
@@ -7641,11 +7747,11 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.invalid_opcode_current = result.opcode;
             result.invalid_opcode_previous = state.previous_opcode;
             ++result.invalid_opcode_diagnostic_count;
-            state.previous_opcode = result.opcode;
-            ports.service_audio();
-            ++result.direct_audio_service_count;
-            result.status = LegacyWorldStoryVmStatus::yielded;
-            return result;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
         }
     }
     result.status = LegacyWorldStoryVmStatus::unsupported_opcode;

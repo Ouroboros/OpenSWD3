@@ -201,6 +201,7 @@ using openswd3::world_map::OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_174_SET_ROLE_STATUS_BIT14;
+using openswd3::world_map::OP_1024_LATCH_COMMON_JOIN_SAME_CALL;
 using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE;
@@ -1972,7 +1973,7 @@ void test_default_invalid_opcode_protocol(openswd3::test::Context& test) {
         "default diagnostics observe the prior join value before publishing"
     );
 
-    constexpr std::array<u16, 3U> explicit_unimplemented{OP_1025, 1024U, 1025U};
+    constexpr std::array<u16, 1U> explicit_unimplemented{OP_1025};
     for (const u16 opcode : explicit_unimplemented) {
         Fixture fixture;
         prime_loaded_instruction(fixture, opcode);
@@ -8548,6 +8549,151 @@ void test_wait_for_story_video_protocol(openswd3::test::Context& test) {
             completed_tail.state.previous_opcode == OP_193_WAIT_STORY_VIDEO,
         "opcode 193 exact tail audio-yields active video in place, while completed video commits IP and previous before same-call successor fetch failure"
     );
+}
+
+void test_latch_common_join_same_call_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.previous_opcode = 0x55U;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_1024_LATCH_COMMON_JOIN_SAME_CALL | mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_59_PLAY_SOUND_EFFECT);
+        write_u16(fixture.state.window, 4U, 0x1234U);
+        write_u16(fixture.state.window, 6U, OP_1025);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 3U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+                fixture.ports.sound_effect_requests ==
+                    std::vector<u16>{0x1234U} &&
+                fixture.ports.direct_audio_service_count == 0U,
+            "opcode 1024 aliases advance, publish themselves, latch common joins to same-call, and suppress the following sound handler common audio"
+        );
+    }
+
+    Fixture persistent;
+    prime_loaded_instruction(persistent, OP_1024_LATCH_COMMON_JOIN_SAME_CALL);
+    write_u16(persistent.state.window, 2U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(persistent.state.window, 4U, 0x1111U);
+    write_u16(persistent.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(persistent.state.window, 8U, 0x2222U);
+    write_u16(persistent.state.window, 10U, OP_1025);
+    const auto persistent_result = persistent.step();
+    test.expect_true(
+        persistent_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            persistent_result.executed_instruction_count == 4U &&
+            persistent_result.direct_audio_service_count == 0U &&
+            persistent.context.instruction_offset == 10U &&
+            persistent.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+            persistent.ports.sound_effect_requests ==
+                std::vector<u16>{0x1111U, 0x2222U} &&
+            persistent.ports.direct_audio_service_count == 0U,
+        "opcode 1024 call-local latch survives multiple common joins instead of behaving as one-shot ESI"
+    );
+
+    persistent.context.instruction_offset = 2U;
+    const auto next_call_result = persistent.step();
+    test.expect_true(
+        next_call_result.status == LegacyWorldStoryVmStatus::yielded &&
+            next_call_result.opcode == OP_59_PLAY_SOUND_EFFECT &&
+            next_call_result.executed_instruction_count == 1U &&
+            next_call_result.direct_audio_service_count == 1U &&
+            persistent.context.instruction_offset == 6U &&
+            persistent.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+            persistent.ports.sound_effect_requests ==
+                std::vector<u16>{0x1111U, 0x2222U, 0x1111U} &&
+            persistent.ports.direct_audio_service_count == 1U,
+        "opcode 1024 latch expires with the interpreter call and does not leak into a later step"
+    );
+
+    Fixture internal_audio;
+    prime_loaded_instruction(
+        internal_audio, OP_1024_LATCH_COMMON_JOIN_SAME_CALL
+    );
+    write_u16(internal_audio.state.window, 2U, OP_135_RESET_INPUT_MENU_STATE);
+    write_u16(internal_audio.state.window, 4U, OP_1025);
+    const auto internal_audio_result = internal_audio.step();
+    test.expect_true(
+        internal_audio_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            internal_audio_result.executed_instruction_count == 3U &&
+            internal_audio_result.direct_audio_service_count == 1U &&
+            internal_audio.context.instruction_offset == 4U &&
+            internal_audio.state.previous_opcode ==
+                OP_135_RESET_INPUT_MENU_STATE &&
+            internal_audio.ports.input_menu_reset_count == 1U &&
+            internal_audio.ports.story_protocol_events ==
+                std::vector<u32>{14U, 2U},
+        "opcode 1024 suppresses only opcode 135 common audio while preserving its handler-internal audio"
+    );
+
+    Fixture stationary_wait;
+    openswd3::rendering::LegacyFrameColorTransitionState color{};
+    color.countdown = 1;
+    stationary_wait.runtime.frame_color = &color;
+    prime_loaded_instruction(
+        stationary_wait, OP_1024_LATCH_COMMON_JOIN_SAME_CALL
+    );
+    write_u16(
+        stationary_wait.state.window, 2U, OP_53_WAIT_FRAME_COLOR_TRANSITION
+    );
+    const auto stationary_result = stationary_wait.step();
+    test.expect_true(
+        stationary_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            stationary_result.opcode == OP_53_WAIT_FRAME_COLOR_TRANSITION &&
+            stationary_result.executed_instruction_count == 4096U &&
+            stationary_result.direct_audio_service_count == 0U &&
+            stationary_wait.context.instruction_offset == 2U &&
+            stationary_wait.state.previous_opcode ==
+                OP_53_WAIT_FRAME_COLOR_TRANSITION &&
+            stationary_wait.ports.direct_audio_service_count == 0U,
+        "opcode 1024 keeps a nonadvancing common-wait handler in the same call until the modern dispatch guard stops the original infinite loop domain"
+    );
+
+    for (const u16 mask : alias_masks) {
+        Fixture exact_tail;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFEU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x55U;
+        write_u16(
+            exact_tail.state.window,
+            0x7FFEU,
+            static_cast<u16>(OP_1024_LATCH_COMMON_JOIN_SAME_CALL | mask)
+        );
+
+        const auto result = exact_tail.step();
+        test.expect_true(
+            result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.opcode == OP_1024_LATCH_COMMON_JOIN_SAME_CALL &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 0U &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_1024_LATCH_COMMON_JOIN_SAME_CALL &&
+                exact_tail.ports.direct_audio_service_count == 0U,
+            "opcode 1024 exact tail commits IP, previous, and the call-local latch before successor fetch failure"
+        );
+    }
 }
 
 void test_start_frame_color_transition_protocol(openswd3::test::Context& test) {
@@ -35704,6 +35850,7 @@ int main(const int argument_count, char** arguments) {
     test_wait_for_camera_top_while_moving_protocol(test);
     test_wait_for_music_stream_transition_protocol(test);
     test_wait_for_story_video_protocol(test);
+    test_latch_common_join_same_call_protocol(test);
     test_start_frame_color_transition_protocol(test);
     test_start_frame_color_transition_window_boundaries(test);
     test_wait_for_frame_color_transition_protocol(test);

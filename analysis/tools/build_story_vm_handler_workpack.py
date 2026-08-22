@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 195
-EXPECTED_CLOSED_HANDLER_COUNT = 142
+EXPECTED_MODERN_CASE_COUNT = 196
+EXPECTED_CLOSED_HANDLER_COUNT = 143
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -755,6 +755,11 @@ CLOSURE_OVERRIDES = {
         "story-vm-video-wait-0042d1d5.md",
         "platform_adapted;unit_tested;real_asset_tested;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;signed_progress_tested;query_order_tested;single_query_tested;previous_publication_tested;same_call_tested;audio_service_tested;yield_tested",
     ),
+    "0x0042D200": (
+        "platform_adapted",
+        "story-vm-common-join-latch-0042d200.md",
+        "platform_adapted;unit_tested;asset_absence_verified;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;call_local_state_tested;persistent_latch_tested;common_join_tested;previous_publication_tested;same_call_tested;no_common_audio_tested;internal_audio_preserved;instruction_limit_adapted",
+    ),
 }
 
 
@@ -945,7 +950,7 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "0,194-1023,1027-16382",
             "MessageBeep/diagnostic; no automatic IP advance",
             "platform_adapted",
-            "story-vm-default-invalid-0042d230.md; common join for other handlers remains pending",
+            "story-vm-default-invalid-0042d230.md; story-vm-common-join-audio-0042b0ae.md; story-vm-common-join-latch-0042d200.md",
         ),
         (
             "numeric_refinement",
@@ -980,8 +985,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "continue_or_yield",
             "all handlers",
             "local continuation OR ESI; nonzero loops to 0x00427B40",
-            "pending_audit",
-            "zero routes to audio service/yield",
+            "platform_adapted",
+            "story-vm-common-join-audio-0042b0ae.md; story-vm-common-join-latch-0042d200.md",
         ),
         (
             "special_1024",
@@ -989,8 +994,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "special",
             "1024",
             "advance 2; local continue flag; same-call fetch",
-            "pending_audit",
-            "outside the 198 ordinary 0-193 span but explicit",
+            "platform_adapted",
+            "story-vm-common-join-latch-0042d200.md",
         ),
         (
             "special_1025",

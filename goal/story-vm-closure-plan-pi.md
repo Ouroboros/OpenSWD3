@@ -362,7 +362,11 @@ Linux core186/186与app192/192完整门通过。已实现195/198、已验收194/
 special1024预审触发独立common-join修复：最终26个已闭环handler组恢复`var_28|ESI==0`时的
 最终audio；85/135合计2次、96 common路径合计3次且CD preflight仍绕过common。Story VM 3/3、
 SDL app编译、Linux core186/186与app192/192通过；公开进度与workpack计数不变。
-下一行仍只审计`0x0042D200`下的special opcode1024。
+special1024恢复调用期common-join latch：后续全部共同出口持续same-call且跳过common audio，
+handler内部audio保留；现代仅用既有dispatch guard隔离原非推进无限域。线性资产0条，Story VM
+3/3、SDL app编译、Linux core186/186与app192/192通过。已实现196/198、已验收195/198；内部workpack
+143/146，即`24 assembly_exact + 119 platform_adapted + 3 pending_audit`。
+下一行只审计`0x0042D49F`下的special opcode1025。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

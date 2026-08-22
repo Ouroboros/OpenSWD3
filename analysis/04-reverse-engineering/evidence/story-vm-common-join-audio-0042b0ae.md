@@ -1,6 +1,6 @@
 # 剧情 VM common join 音频出口校正 `0x0042B0AE`
 
-状态：`assembly_exact`、`unit_tested`、`real_asset_tested`。
+状态：`assembly_exact`、`platform_adapted`、`unit_tested`、`real_asset_tested`。
 
 唯一行为依据：`swd3.exe_export_for_ai/swd3.exe.lst`
 
@@ -52,7 +52,7 @@ special opcode1024预审暴露旧C++把若干共同出口直接写成`yielded`�
 0x0042C3B0  135 after one handler-internal audio
 ```
 
-现代新增单一`yield_from_common_join`窄helper，固定previous→audio→yield。只把上述确实到达共同出口的路径接入；same-call、typed-stop和handler内部audio不改。
+现代新增单一`yield_from_common_join`窄helper。opcode1024闭环后，全部64个common-join调用点统一由它先发布previous；调用期latch为0时audio→yield，为1时跳过common audio并same-call。typed-stop和handler内部audio不改。latch及非推进无限域边界见`story-vm-common-join-latch-0042d200.md`。
 
 两个多audio合同特别锁定：
 
@@ -72,4 +72,4 @@ LST→C++：逐入口确认最终jump为`loc_42B0AA/0x0042B0AE`或等价共享�
 
 C++→LST：没有给same-call完成路、typed-stop或opcode96 CD preflight增加audio；没有把内部audio误删或把186/187变成三次。
 
-SDL app编译通过；workpack双生成稳定hash为`4b0b06c1df4bb912ea01bebf99be0799917c6c306ef14f6af09dcc5c35be935e`。Linux完整门通过：core 186/186、app 192/192。未启动原版或OpenSWD3游戏EXE。
+SDL app编译通过；opcode1024闭环后的workpack双生成稳定hash为`856190c62941e0c0af81d89381357dda47133ef4d131abb8f42aa1ad7d9d7f98`。Linux完整门通过：core 186/186、app 192/192。未启动原版或OpenSWD3游戏EXE。

@@ -4,12 +4,12 @@ initial_window_load	0x0042794F..0x00427B3F	window_load	all	load TalkN.dat entry 
 fetch_decode	0x00427B40..0x00427B88	fetch_decode	14-bit domain	raw u16 & 0x3FFF; preserve modifier bits in the raw word	scope_locked_not_semantically_closed	routes main/default/99/secondary
 main_dispatch	0x00427B7C..0x00427B88;0x0042D4F4..0x0042D67B	jump_table	1-98	98 LST dwords	lst_locked	feeds handler work package
 secondary_dispatch	0x0042ADA4..0x0042ADB0;0x0042D67C..0x0042D7F3	jump_table	100-193	94 LST dwords	lst_locked	feeds handler work package
-default_invalid	0x0042D230..0x0042D24D	default	0,194-1023,1027-16382	MessageBeep/diagnostic; no automatic IP advance	platform_adapted	story-vm-default-invalid-0042d230.md; common join for other handlers remains pending
+default_invalid	0x0042D230..0x0042D24D	default	0,194-1023,1027-16382	MessageBeep/diagnostic; no automatic IP advance	platform_adapted	story-vm-default-invalid-0042d230.md; story-vm-common-join-audio-0042b0ae.md; story-vm-common-join-latch-0042d200.md
 numeric_refinement	0x0042B0CD..0x0042B1BF;0x0042D7F4..0x0042D8A8	internal_switch	29-185	6-dword jump table plus 157-byte selector table	pending_audit	refines handlers 0x0042B074/0x0042B070
 flag_refinement	0x0042C567..0x0042C5D0;0x0042D8AC..0x0042D918	internal_switch	102-174	9-dword jump table plus 73-byte selector table	pending_audit	refines handler 0x0042C567
 window_transfers	handler-specific	window_transfer	15-17,21-24,32-33,35-36,41,87,110-111,126-127,129-130,138,161,163-168,184-187	31-row control-transfer inventory marks same-file or story-window reload/transfer	pending_audit	navigation set only; each owning handler must re-prove load order and IP reset
-common_join	0x0042B0AA..0x0042B0CC	continue_or_yield	all handlers	local continuation OR ESI; nonzero loops to 0x00427B40	pending_audit	zero routes to audio service/yield
-special_1024	0x0042D200..0x0042D218	special	1024	advance 2; local continue flag; same-call fetch	pending_audit	outside the 198 ordinary 0-193 span but explicit
+common_join	0x0042B0AA..0x0042B0CC	continue_or_yield	all handlers	local continuation OR ESI; nonzero loops to 0x00427B40	platform_adapted	story-vm-common-join-audio-0042b0ae.md; story-vm-common-join-latch-0042d200.md
+special_1024	0x0042D200..0x0042D218	special	1024	advance 2; local continue flag; same-call fetch	platform_adapted	story-vm-common-join-latch-0042d200.md
 special_1025	0x0042D49F..0x0042D4B5	special	1025	advance 2; clear continuation; yield	pending_audit	explicit special value
 special_1026	0x0042D1EA..0x0042D1FF	special	1026	advance 2; ESI continue; same-call fetch	pending_audit	explicit special value
 talk_end_16383	0x0042D24E..0x0042D49E	special	16383	Talk cleanup and common join	pending_audit	explicit special value

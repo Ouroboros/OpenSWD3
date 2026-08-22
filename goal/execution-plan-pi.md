@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v404
+版本：v405
 
 最后更新：2026-08-21
 
@@ -2941,4 +2941,17 @@ B7 P0 有限收口完成。
     `4b0b06c1df4bb912ea01bebf99be0799917c6c306ef14f6af09dcc5c35be935e`。公开进度保持
     已实现195/198、已验收194/198；内部workpack142/146。
 
-下一组仍只审计`0x0042D200` / special opcode1024。
+- 剧情VM P2第一百四十三组`0x0042D200` / special opcode1024完成独立闭环。handler固定
+    双指针+2并把调用期`var_28`置1；该latch不同于每fetch清零的ESI，会使本次调用后续全部
+    common join持续发布previous、跳过common audio并same-call，直到1025清除或调用结束。
+    现代用step栈内bool承接，并把全部64个共同出口统一接入窄helper；入口对齐门与opcode96 CD
+    preflight仍绕过common。四alias、多个连续common join、下一step不泄漏、opcode135内部audio
+    保留、非推进等待的原无限域和精确尾通过；4096 dispatch guard作为既有typed-stop隔离无限域，
+    因而归`platform_adapted`。线性资产0条/0 probes。Story VM 3/3、SDL app编译、Linux core
+    186/186与app 192/192通过。workpack/runtime-path双生成hash分别为
+    `856190c62941e0c0af81d89381357dda47133ef4d131abb8f42aa1ad7d9d7f98`、
+    `244f0d55c0ccd038e9391aba2d394161673d27b002864e4a08edf858f34daf3f`。本地进度为
+    已实现196/198、已验收195/198；内部workpack143/146，即`24 assembly_exact +
+    119 platform_adapted + 3 pending_audit`。
+
+下一组只审计`0x0042D49F` / special opcode1025。
