@@ -167,6 +167,7 @@ using openswd3::world_map::OP_133_REQUEST_SHOP;
 using openswd3::world_map::OP_134_ADJUST_PARTY_MEMBER_RESOURCES;
 using openswd3::world_map::OP_135_RESET_INPUT_MENU_STATE;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
+using openswd3::world_map::OP_137_STOP_SCENE_MUSIC_STREAM;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
 using openswd3::world_map::OP_144;
@@ -1819,6 +1820,9 @@ void test_reinitialization_writes_only_owned_vm_fields(
     state.loaded_file_number = 11U;
     state.loaded_data_offset = 12U;
     state.window_loaded = true;
+    state.world_music_request = 10U;
+    state.world_music_first_stream = 11U;
+    state.world_music_second_stream = 12U;
     state.music_request = 13U;
     state.music_first_stream = 14U;
     state.music_second_stream = 15U;
@@ -1844,6 +1848,9 @@ void test_reinitialization_writes_only_owned_vm_fields(
             state.wait_duration == 9U && state.wait_started_at == 10U &&
             state.loaded_file_number == 11U &&
             state.loaded_data_offset == 12U && state.window_loaded &&
+            state.world_music_request == 0U &&
+            state.world_music_first_stream == 0U &&
+            state.world_music_second_stream == 0U &&
             state.music_request == 0U && state.music_first_stream == 0U &&
             state.music_second_stream == 0U &&
             state.music_control_flags == 0U &&
@@ -21479,6 +21486,163 @@ void test_reset_input_menu_state_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_stop_scene_music_stream_protocol(openswd3::test::Context& test) {
+    struct TestCase {
+        u16 alias_mask;
+        u32 initial_control_flags;
+        u32 initial_transition_mode;
+        u32 initial_fade_divisor;
+        u32 initial_pending_fade_divisor;
+        u32 expected_transition_mode;
+        u32 expected_fade_divisor;
+        u32 expected_pending_fade_divisor;
+        u32 expected_transition_calls;
+    };
+    constexpr std::array cases{
+        TestCase{
+            0U,
+            0xA58312EFU,
+            1U,
+            0x11111111U,
+            3U,
+            0U,
+            0U,
+            3U,
+            1U,
+        },
+        TestCase{
+            0x4000U,
+            0x5A80AA55U,
+            2U,
+            0x22222222U,
+            5U,
+            2U,
+            5U,
+            5U,
+            1U,
+        },
+        TestCase{
+            0x8000U,
+            0x008000FFU,
+            0xFFFFFFFFU,
+            0x33333333U,
+            7U,
+            0xFFFFFFFFU,
+            0x33333333U,
+            7U,
+            1U,
+        },
+        TestCase{
+            0xC000U,
+            0xFF7FFFFFU,
+            2U,
+            0x44444444U,
+            9U,
+            0U,
+            0x44444444U,
+            0U,
+            0U,
+        },
+    };
+
+    for (const auto& test_case : cases) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_137_STOP_SCENE_MUSIC_STREAM | test_case.alias_mask
+            )
+        );
+        fixture.state.world_music_request = 0x11111111U;
+        fixture.state.world_music_first_stream = 0x22222222U;
+        fixture.state.world_music_second_stream = 0x33333333U;
+        fixture.state.music_request = 0x44444444U;
+        fixture.state.music_first_stream = 0x55555555U;
+        fixture.state.music_second_stream = 0x66666666U;
+        fixture.state.music_control_flags = test_case.initial_control_flags;
+        fixture.state.current_first_stream = test_case.initial_transition_mode;
+        fixture.state.current_stream_fade_divisor =
+            test_case.initial_fade_divisor;
+        fixture.state.current_second_stream =
+            test_case.initial_pending_fade_divisor;
+        fixture.state.previous_opcode = 0x66U;
+        bool transition_saw_prior_slots = false;
+        fixture.ports.music_transition_callback = [&]() {
+            transition_saw_prior_slots =
+                fixture.state.world_music_request == 0x11111111U &&
+                fixture.state.music_request == 0x44444444U &&
+                fixture.state.music_first_stream == 0x55555555U &&
+                fixture.state.music_second_stream == 0x66666666U &&
+                fixture.state.music_control_flags ==
+                    test_case.initial_control_flags &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode == 0x66U;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_137_STOP_SCENE_MUSIC_STREAM &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.state.world_music_request == 0x80000001U &&
+                fixture.state.world_music_first_stream == 0x22222222U &&
+                fixture.state.world_music_second_stream == 0x33333333U &&
+                fixture.state.music_request == 0U &&
+                fixture.state.music_first_stream == 0U &&
+                fixture.state.music_second_stream == 0U &&
+                fixture.state.music_control_flags ==
+                    (test_case.initial_control_flags & 0xFF5CFF00U) &&
+                fixture.state.current_first_stream ==
+                    test_case.expected_transition_mode &&
+                fixture.state.current_stream_fade_divisor ==
+                    test_case.expected_fade_divisor &&
+                fixture.state.current_second_stream ==
+                    test_case.expected_pending_fade_divisor &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode ==
+                    OP_137_STOP_SCENE_MUSIC_STREAM &&
+                fixture.ports.music_transition_apply_count ==
+                    test_case.expected_transition_calls &&
+                fixture.ports.story_protocol_events ==
+                    (test_case.expected_transition_calls != 0U
+                         ? std::vector<u32>{11U}
+                         : std::vector<u32>{}) &&
+                (test_case.expected_transition_calls == 0U ||
+                 transition_saw_prior_slots),
+            "opcode 137 aliases conditionally synchronize the old scene stream, stage the world-music request, clear the scene slots and flags, publish previous, and yield without audio"
+        );
+    }
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.music_control_flags = 0U;
+    exact_tail.state.current_first_stream = 2U;
+    exact_tail.state.current_stream_fade_divisor = 0x12345678U;
+    exact_tail.state.current_second_stream = 15U;
+    write_u16(exact_tail.state.window, 0x7FFEU, OP_137_STOP_SCENE_MUSIC_STREAM);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_137_STOP_SCENE_MUSIC_STREAM &&
+            exact_tail.state.world_music_request == 0x80000001U &&
+            exact_tail.state.current_first_stream == 0U &&
+            exact_tail.state.current_stream_fade_divisor == 0x12345678U &&
+            exact_tail.state.current_second_stream == 0U &&
+            exact_tail.ports.music_transition_apply_count == 0U,
+        "opcode 137 completes an exact-tail two-byte record without reading an operand or servicing audio"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -25961,6 +26125,71 @@ void test_real_stage_scene_music_stream_request_record(
     );
 }
 
+void test_real_stop_scene_music_stream_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RecordLocation {
+        const char* filename;
+        std::streamoff offset;
+    };
+    constexpr std::array locations{
+        RecordLocation{"TALK1.DAT", 0x00005925},
+        RecordLocation{"TALK2.DAT", 0x0000DEA4},
+        RecordLocation{"TALK3.DAT", 0x00002E28},
+        RecordLocation{"TALK4.DAT", 0x00002F40},
+    };
+
+    bool all_records_match = true;
+    for (const auto& location : locations) {
+        std::ifstream input{
+            root / location.filename, std::ios::binary | std::ios::in
+        };
+        input.seekg(location.offset);
+        std::array<u8, 2U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_137_STOP_SCENE_MUSIC_STREAM);
+        std::ranges::copy(record, fixture.state.window.begin());
+        fixture.state.world_music_first_stream = 31U;
+        fixture.state.world_music_second_stream = 32U;
+        fixture.state.music_request = 0x80000001U;
+        fixture.state.music_first_stream = 41U;
+        fixture.state.music_second_stream = 42U;
+        fixture.state.music_control_flags = 0x008300A5U;
+        fixture.state.current_first_stream = 2U;
+        fixture.state.current_stream_fade_divisor = 9U;
+        fixture.state.current_second_stream = 7U;
+
+        const auto result = fixture.step();
+        all_records_match = all_records_match && static_cast<bool>(input) &&
+            read_u16(record, 0U) == OP_137_STOP_SCENE_MUSIC_STREAM &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.executed_instruction_count == 1U &&
+            result.direct_audio_service_count == 0U &&
+            fixture.state.world_music_request == 0x80000001U &&
+            fixture.state.world_music_first_stream == 31U &&
+            fixture.state.world_music_second_stream == 32U &&
+            fixture.state.music_request == 0U &&
+            fixture.state.music_first_stream == 0U &&
+            fixture.state.music_second_stream == 0U &&
+            fixture.state.music_control_flags == 0x00000000U &&
+            fixture.state.current_first_stream == 2U &&
+            fixture.state.current_stream_fade_divisor == 7U &&
+            fixture.state.current_second_stream == 7U &&
+            fixture.state.previous_opcode == OP_137_STOP_SCENE_MUSIC_STREAM &&
+            fixture.ports.music_transition_apply_count == 1U;
+    }
+
+    test.expect_true(
+        all_records_match,
+        "real opcode 137 records in all four TALK files restore the world-music slot group and yield"
+    );
+}
+
 void test_real_batch_set_role_positions_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -28349,6 +28578,7 @@ int main(const int argument_count, char** arguments) {
     test_request_shop_protocol(test);
     test_adjust_party_member_resources_protocol(test);
     test_reset_input_menu_state_protocol(test);
+    test_stop_scene_music_stream_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -28440,6 +28670,7 @@ int main(const int argument_count, char** arguments) {
         test_real_secondary_role_bit30_reload_record(test, root);
         test_real_wait_overlay_action_lists_record(test, root);
         test_real_stage_scene_music_stream_request_record(test, root);
+        test_real_stop_scene_music_stream_records(test, root);
         test_real_batch_set_role_positions_record(test, root);
         test_real_remove_dialogs_for_role_guid_records(test, root);
         test_real_wait_dialog_flag_records(test, root);

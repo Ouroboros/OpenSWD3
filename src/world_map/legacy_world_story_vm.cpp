@@ -1803,6 +1803,9 @@ void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept {
     state.deferred_map_tile_y = -1;
     state.deferred_map_id = 0;
     state.guid_one_action_override = 0U;
+    state.world_music_request = 0U;
+    state.world_music_first_stream = 0U;
+    state.world_music_second_stream = 0U;
     state.music_request = 0U;
     state.music_first_stream = 0U;
     state.music_second_stream = 0U;
@@ -6300,6 +6303,29 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 2U);
             ports.service_audio();
             ++result.direct_audio_service_count;
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+
+        case OP_137_STOP_SCENE_MUSIC_STREAM:
+            if ((state.music_control_flags & 0x00800000U) != 0U) {
+                ports.apply_music_stream_transition(
+                    state.current_first_stream,
+                    state.current_stream_fade_divisor,
+                    state.current_second_stream
+                );
+            } else {
+                state.current_first_stream = 0U;
+                state.current_second_stream = 0U;
+            }
+
+            state.world_music_request = 0x80000001U;
+            state.music_request = 0U;
+            state.music_first_stream = 0U;
+            state.music_second_stream = 0U;
+            state.music_control_flags &= 0xFF5CFF00U;
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
             state.previous_opcode = result.opcode;
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;

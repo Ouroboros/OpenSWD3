@@ -168,6 +168,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_134_ADJUST_PARTY_MEMBER_RESOURCES = 134U,
     OP_135_RESET_INPUT_MENU_STATE = 135U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
+    OP_137_STOP_SCENE_MUSIC_STREAM = 137U,
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
     OP_144 = 144U,
@@ -227,9 +228,12 @@ struct LegacyWorldStoryVmState {
     compat::u16 dialog_anchor_left{0x8000U};
     compat::u16 dialog_anchor_top{0x8000U};
     bool dialog_center_pending{};
-    // sub_40E0B0 clears the staged stream request at 0x004B7C80..88,
-    // clears 0x004ACDBC and establishes current stream mode 1/argument 0 at
-    // 0x004B7380/0x004B74F0.
+    // sub_40E0B0 clears both three-dword music slot groups at
+    // 0x004B7C74..88, clears 0x004ACDBC and establishes current stream mode
+    // 1/argument 0 at 0x004B7380/0x004B74F0.
+    compat::u32 world_music_request{};
+    compat::u32 world_music_first_stream{};
+    compat::u32 world_music_second_stream{};
     compat::u32 music_request{};
     compat::u32 music_first_stream{};
     compat::u32 music_second_stream{};
