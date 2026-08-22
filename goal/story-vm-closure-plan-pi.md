@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042B8E6`（opcode118）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042B9C2`（shared opcodes119、139）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至135行。前93行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至135行。前94行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -171,9 +171,12 @@ stream manager；157条真实记录/159 probes及same-call合同通过。opcode1
 复用实际stream100音量wrapper并忽略返回后yield；线性资产零记录/零probes，以asset absence和synthetic锁定；
 Linux core 186/186和app 192/192通过。opcode116冻结入口count逐项调度角色位置，末尾重读count并
 same-call继续；30条真实记录/30 probes、117个子记录及代表回放通过，Story VM 3/3及Linux
-core186/186、app192/192通过。已实现132/198、已验收127/198；
-内部workpack为93/146，即
-`13 assembly_exact + 80 platform_adapted + 53 pending_audit`。下一行只审计`0x0042B8E6`下的opcode118。
+core186/186、app192/192通过。opcode118按消息raw role index映射GUID并删除全部匹配对话，
+按机器顺序清角色gate、释放双owner/节点并递减低15位计数；1669条真实记录/1669 probes及
+连续GUID 0→1回放通过，Story VM 3/3及Linux core186/186、app192/192通过。
+已实现133/198、已验收128/198；内部workpack为94/146，即
+`13 assembly_exact + 81 platform_adapted + 52 pending_audit`。下一行只审计`0x0042B9C2`下的
+shared opcodes119、139。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

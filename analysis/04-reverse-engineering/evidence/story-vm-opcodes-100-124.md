@@ -189,6 +189,8 @@ opcode115现已独立闭环：新增窄port复用实际stream manager，锁定u1
 4. 把 `dword_4A9920` 低 15 位减一并在负数时夹到零，bit15 原样保留；
 5. 继续删除后续所有匹配项。
 
+opcode118现已独立闭环：锁定selector局部`FFF0`替换、raw role index→GUID匹配、predecessor保持、解链→gate→text/caption/node释放→counter顺序、低15位零夹与高位清除、无效index分阶段停止及same-call合同。1669条真实记录/1669 probes和TALK1连续`0→1`记录回放通过；完整证据见[`story-vm-dialog-role-remove-0042b8e6.md`](story-vm-dialog-role-remove-0042b8e6.md)。
+
 119 接受普通角色 selector，也接受特殊值 `FFFD`。普通值经 `sub_40C0D0` 解析成 index 后，与第一条匹配 dialog 记录的 `+0x16` 比较。对 opcode 119，汇编的真实方向是：
 
 ```text

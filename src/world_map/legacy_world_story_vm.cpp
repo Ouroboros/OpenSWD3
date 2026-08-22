@@ -5133,6 +5133,49 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u16 selector = read_u16(state.window, ip + 2U);
+            if (selector == kCurrentSourceSelector) {
+                selector = context.source_guid;
+            }
+
+            std::list<story_scene::LegacyDialogMessage> detached;
+            for (auto message = dialogs.messages.begin();
+                 message != dialogs.messages.end();) {
+                auto current = message++;
+                const u16 role_index = current->record.role_index;
+                if (role_index >= roles.size()) {
+                    result.status = LegacyWorldStoryVmStatus::role_not_found;
+                    return result;
+                }
+                if (roles[role_index].guid != selector) {
+                    continue;
+                }
+
+                detached.splice(detached.end(), dialogs.messages, current);
+                if (role_index != kContextSelector) {
+                    roles[role_index].interaction_gate = 0U;
+                }
+                std::vector<u8>{}.swap(detached.back().text);
+                std::vector<u8>{}.swap(detached.back().caption);
+                detached.pop_back();
+
+                const u32 counter =
+                    dialogs.close.flagged_dialog_counter & 0x00007FFFU;
+                dialogs.close.flagged_dialog_counter =
+                    (dialogs.close.flagged_dialog_counter & 0x00008000U) |
+                    (counter == 0U ? 0U : counter - 1U);
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 120U: {
             if (!has_bytes(state.window, ip, 10U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

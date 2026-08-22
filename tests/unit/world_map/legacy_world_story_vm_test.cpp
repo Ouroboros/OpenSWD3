@@ -144,6 +144,7 @@ using openswd3::world_map::OP_114_STAGE_SCENE_MUSIC_STREAM_REQUEST;
 using openswd3::world_map::OP_115_SET_MUSIC_STREAM_VOLUME;
 using openswd3::world_map::OP_116_BATCH_SET_ROLE_POSITIONS;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
+using openswd3::world_map::OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
 using openswd3::world_map::OP_145_SET_ROLE_STATUS_BIT13;
@@ -7520,6 +7521,164 @@ void test_batch_set_role_positions_protocol(openswd3::test::Context& test) {
             record_exact_tail.state.previous_opcode ==
                 OP_116_BATCH_SET_ROLE_POSITIONS,
         "opcode 116 commits empty and one-record exact tails before refetch"
+    );
+}
+
+void test_remove_dialogs_for_role_guid_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID,
+        static_cast<u16>(OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID | 0x4000U),
+        static_cast<u16>(OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID | 0x8000U),
+        static_cast<u16>(OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID | 0xC000U),
+    };
+    for (const u16 raw_opcode : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_opcode);
+        write_u16(fixture.state.window, 2U, 0xFFF0U);
+        write_u16(fixture.state.window, 4U, OP_1025);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode ==
+                    OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID &&
+                read_u16(fixture.state.window, 2U) == 0xFFF0U,
+            "opcode 118 aliases preserve an empty list and continue"
+        );
+    }
+
+    const auto append_message =
+        [](Fixture& fixture, const u16 role_index, const u16 marker) {
+            fixture.dialogs.messages.emplace_back();
+            auto& message = fixture.dialogs.messages.back();
+            message.record.role_index = role_index;
+            message.record.display_counter = marker;
+            message.text = {static_cast<u8>(marker)};
+            message.caption = {static_cast<u8>(marker + 1U)};
+        };
+
+    Fixture matching;
+    matching.roles[0].guid = 1U;
+    matching.roles[1].guid = 2U;
+    matching.roles[2].guid = 1U;
+    matching.roles[0].interaction_gate = 7U;
+    matching.roles[1].interaction_gate = 8U;
+    matching.roles[2].interaction_gate = 9U;
+    append_message(matching, 1U, 10U);
+    append_message(matching, 0U, 11U);
+    append_message(matching, 2U, 12U);
+    append_message(matching, 0U, 13U);
+    append_message(matching, 1U, 14U);
+    matching.dialogs.close.flagged_dialog_counter = 0xCAFE8002U;
+    prime_loaded_instruction(matching, OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID);
+    write_u16(matching.state.window, 2U, 1U);
+    write_u16(matching.state.window, 4U, OP_1025);
+    const auto matching_result = matching.step();
+    auto remaining = matching.dialogs.messages.begin();
+    const u16 first_remaining_marker = remaining->record.display_counter;
+    ++remaining;
+    const u16 second_remaining_marker = remaining->record.display_counter;
+    test.expect_true(
+        matching_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            matching_result.opcode == OP_1025 &&
+            matching_result.executed_instruction_count == 2U &&
+            matching_result.direct_audio_service_count == 0U &&
+            matching.context.instruction_offset == 4U &&
+            matching.state.previous_opcode ==
+                OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID &&
+            matching.dialogs.messages.size() == 2U &&
+            first_remaining_marker == 10U && second_remaining_marker == 14U &&
+            matching.roles[0].interaction_gate == 0U &&
+            matching.roles[1].interaction_gate == 8U &&
+            matching.roles[2].interaction_gate == 0U &&
+            matching.dialogs.close.flagged_dialog_counter == 0x8000U,
+        "opcode 118 removes every matching GUID and clamps the low-15 count"
+    );
+
+    Fixture partial_failure;
+    partial_failure.roles[0].guid = 1U;
+    partial_failure.roles[0].interaction_gate = 7U;
+    append_message(partial_failure, 0U, 20U);
+    append_message(partial_failure, 0xFFFDU, 21U);
+    append_message(partial_failure, 1U, 22U);
+    partial_failure.dialogs.close.flagged_dialog_counter = 0x12348002U;
+    partial_failure.state.previous_opcode = 0x66U;
+    prime_loaded_instruction(
+        partial_failure, OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID
+    );
+    write_u16(partial_failure.state.window, 2U, 1U);
+    const auto partial_failure_result = partial_failure.step();
+    test.expect_true(
+        partial_failure_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            partial_failure_result.executed_instruction_count == 1U &&
+            partial_failure_result.direct_audio_service_count == 0U &&
+            partial_failure.context.instruction_offset == 0U &&
+            partial_failure.state.previous_opcode == 0x66U &&
+            partial_failure.dialogs.messages.size() == 2U &&
+            partial_failure.dialogs.messages.front().record.role_index ==
+                0xFFFDU &&
+            partial_failure.roles[0].interaction_gate == 0U &&
+            partial_failure.dialogs.close.flagged_dialog_counter == 0x8001U,
+        "opcode 118 retains earlier deletions before an invalid record index"
+    );
+
+    Fixture operand_truncated;
+    append_message(operand_truncated, 0xFFFDU, 30U);
+    operand_truncated.dialogs.close.flagged_dialog_counter = 0x12348001U;
+    operand_truncated.context.instruction_offset = 0x7FFEU;
+    operand_truncated.state.previous_opcode = 0x66U;
+    prime_loaded_instruction(
+        operand_truncated, OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID
+    );
+    operand_truncated.context.instruction_offset = 0x7FFEU;
+    write_u16(
+        operand_truncated.state.window,
+        0x7FFEU,
+        OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID
+    );
+    const auto operand_truncated_result = operand_truncated.step();
+    test.expect_true(
+        operand_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            operand_truncated.context.instruction_offset == 0x7FFEU &&
+            operand_truncated.state.previous_opcode == 0x66U &&
+            operand_truncated.dialogs.messages.size() == 1U &&
+            operand_truncated.dialogs.close.flagged_dialog_counter ==
+                0x12348001U,
+        "opcode 118 reads the selector before touching the dialog list"
+    );
+
+    Fixture exact_tail;
+    exact_tail.roles[1].interaction_gate = 7U;
+    append_message(exact_tail, 1U, 40U);
+    exact_tail.dialogs.close.flagged_dialog_counter = 0xCAFE8001U;
+    exact_tail.state.previous_opcode = 0x66U;
+    prime_loaded_instruction(exact_tail, OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID);
+    exact_tail.context.instruction_offset = 0x7FFCU;
+    write_u16(
+        exact_tail.state.window, 0x7FFCU, OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID
+    );
+    write_u16(exact_tail.state.window, 0x7FFEU, 0xFFF0U);
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID &&
+            exact_tail.dialogs.messages.empty() &&
+            exact_tail.roles[1].interaction_gate == 0U &&
+            exact_tail.dialogs.close.flagged_dialog_counter == 0x8000U &&
+            read_u16(exact_tail.state.window, 0x7FFEU) == 0xFFF0U,
+        "opcode 118 commits its exact-tail removals before refetch"
     );
 }
 
@@ -21759,6 +21918,58 @@ void test_real_batch_set_role_positions_record(
     );
 }
 
+void test_real_remove_dialogs_for_role_guid_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0000462C);
+    std::array<u8, 8U> records{};
+    input.read(
+        reinterpret_cast<char*>(records.data()),
+        static_cast<std::streamsize>(records.size())
+    );
+    const bool records_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    fixture.roles[0].guid = 0U;
+    fixture.roles[1].guid = 1U;
+    fixture.roles[0].interaction_gate = 3U;
+    fixture.roles[1].interaction_gate = 4U;
+    fixture.dialogs.messages.emplace_back();
+    fixture.dialogs.messages.back().record.role_index = 1U;
+    fixture.dialogs.messages.back().text = {'A'};
+    fixture.dialogs.messages.back().caption = {'B'};
+    fixture.dialogs.messages.emplace_back();
+    fixture.dialogs.messages.back().record.role_index = 0U;
+    fixture.dialogs.messages.back().text = {'C'};
+    fixture.dialogs.messages.back().caption = {'D'};
+    fixture.dialogs.close.flagged_dialog_counter = 0x8002U;
+    prime_loaded_instruction(fixture, OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID);
+    std::ranges::copy(records, fixture.state.window.begin());
+    write_u16(fixture.state.window, records.size(), OP_1025);
+    const auto result = fixture.step();
+
+    test.expect_true(
+        records_read &&
+            read_u16(records, 0U) == OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID &&
+            read_u16(records, 2U) == 0U &&
+            read_u16(records, 4U) == OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID &&
+            read_u16(records, 6U) == 1U &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == OP_1025 &&
+            result.executed_instruction_count == 3U &&
+            result.direct_audio_service_count == 0U &&
+            fixture.context.instruction_offset == 8U &&
+            fixture.state.previous_opcode ==
+                OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID &&
+            fixture.dialogs.messages.empty() &&
+            fixture.roles[0].interaction_gate == 0U &&
+            fixture.roles[1].interaction_gate == 0U &&
+            fixture.dialogs.close.flagged_dialog_counter == 0x8000U,
+        "real opcode 118 records remove role zero and role one dialogs"
+    );
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -23821,6 +24032,7 @@ int main(const int argument_count, char** arguments) {
     test_stage_scene_music_stream_request_protocol(test);
     test_set_music_stream_volume_protocol(test);
     test_batch_set_role_positions_protocol(test);
+    test_remove_dialogs_for_role_guid_protocol(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);
@@ -23975,6 +24187,7 @@ int main(const int argument_count, char** arguments) {
         test_real_wait_overlay_action_lists_record(test, root);
         test_real_stage_scene_music_stream_request_record(test, root);
         test_real_batch_set_role_positions_record(test, root);
+        test_real_remove_dialogs_for_role_guid_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);
