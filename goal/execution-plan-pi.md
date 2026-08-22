@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v411
+版本：v412
 
 最后更新：2026-08-22
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 菜单、商店和其他特殊模式
+当前步骤：模块9 P1 · 标准模式总入口`0x00439FD0`
 
 ## 0. 执行约定
 
@@ -285,7 +285,7 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 8. `[x]` 日志基础设施：独立实现 UTC 毫秒时间、级别、线程 ID、`file:line`、单行消息、线程安全文件写入、逐条刷新、级别过滤，以及 `stderr`/Windows 调试器失败回退；Windows LLVM `core`/`app` 均通过 31/31 CTest，命令行早退和真实 SDL3 窗口正常关闭 smoke 均产生完整日志。
 9. `[x]` B3：26 项函数全部具有实现映射；两套 RNG、帧时钟、默认绑定、DIK 快照、鼠标合同、整帧 20 条输入记录和 DBCS/IME 编辑驱动均已按完整汇编复核。Windows LLVM `core` 为 39/39、`app` 为 41/41，WSL Linux Clang 22.1.8 为 39/39 CTest；唯一缺口是已登记的原程序动态 oracle，状态为 `module_closed_pending_oracle`。
 10. `[x]` B4：B6 归属复核转入 `0x004350E0` 后，152 项有限收口矩阵现为 95 项实现、16 项内部物理分支、36 项平台替代、2 项当前资产不可达、2 项等待 B10 owner 的战斗 surface 接线和 1 项归属修正；没有 B4 自有缺口。20/16/12 字体 renderer 已接入启动、显示停用/恢复和总退出，Linux `core` 64/64、Windows LLVM `app` 66/66 CTest 通过。原程序 framebuffer/RECT 动态差分仍为已登记的 `blocked_runtime_oracle`，状态为 `module_closed_pending_oracle`。
-11. `[~]` B5：73 个自有地址已经有限收口，逐地址表与总所有权表零差异；43 项核心实现、2 项资产验证实现、3 项平台替代、1 项外部 service 端口、23 项核心状态机已实现但媒体后端延期、1 项剧情调用边界拆分，没有未映射项。Linux `core` 76/76、Linux/Windows `app` 80/80 CTest 通过。按用户决定，压缩音频与 Bink 解码最终统一放入项目自有 `libffmpeg` 动态库；原版动态差分仍为 `blocked_runtime_oracle`。B5 当前不占执行位，最终后端完成后再升级为正式 `module_closed_pending_oracle` 或 `module_closed`。
+11. `[x]` B5：73个自有地址及全部核心状态机已关闭；最终BtbN FFmpeg n9.0 `lgpl-shared`后端通过项目自有共享库接入BGM/MP3与BIK/OP，主程序和媒体库共用单一动态SDL3。Linux core186/186、Linux app192/192、Windows LLVM app192/192及真实MP3/短BIK/OP两帧测试通过；原版Miles/Bink动态差分保留`blocked_runtime_oracle`，状态为`module_closed_pending_oracle`。
 12. `[x]` B6：78 个候选函数、TSW/ACT/ANI 运行时、公共动作记录、缓存状态、SND
     借用边界、生命周期和验证入口已形成唯一工作包，单模块开始条件满足；首个缓存容量
     策略单元已按 `0x00424330/0x004315C0/0x00432010` 实现；TSW 物理读取、六包
@@ -3018,4 +3018,9 @@ B7 P0 有限收口完成。
     `Map_Ca12.mp3`与`firegod.bik`测试通过，Linux core186/186及Linux/Windows app192/192完整门
     通过；应用和测试目录均复制项目库、五个FFmpeg运行库及LGPL许可，未启动游戏EXE。
 
-下一工作包：模块9，菜单、商店和其他特殊模式。
+- 模块9 scope lock完成。机械所有权库存锁定227个候选：高优先级5项、共享对话/队伍helper8项、
+    标准模式1/3/4/5/6共204项、商店mode2共10项；全部重新置为`pending_audit`，不继承IDA名或
+    既有mode3切片完成结论。`special-modes.md`固定owner、跨B10/B11边界、入口顺序和测试合同；
+    workpack连续两轮稳定hash为`dff92f9a105168ebc6503c38c51f4de7b8201ad22080254f4526e7268f4e7a3d`。
+
+下一工作包：模块9标准模式总入口`0x00439FD0`。
