@@ -273,6 +273,7 @@ void test_real_ffmpeg_media(
     const auto verify_bink = [&](const std::string_view filename,
                                  const u32 expected_frame_count,
                                  const bool require_nonzero_pixels,
+                                 const bool decode_to_eof,
                                  const std::string_view message) {
         auto video_backend =
             openswd3::media_ffmpeg::make_legacy_video_backend();
@@ -294,7 +295,8 @@ void test_real_ffmpeg_media(
             video_backend->wait_for_video_frame(opened.handle),
             "the first Bink frame is immediately due"
         );
-        video_backend->decode_video_frame(opened.handle);
+        const auto first_decode =
+            video_backend->decode_video_frame(opened.handle);
         VideoFramePorts ports;
         const openswd3::audio_video::LegacyVideoCopyRequest request{
             .destination = ports.video_destination_pixels(),
@@ -311,7 +313,10 @@ void test_real_ffmpeg_media(
                 return pixel != 0U;
             });
         test.expect_true(
-            copied == 1 &&
+            first_decode ==
+                    openswd3::audio_video::LegacyVideoDecodeStatus::
+                        frame_ready &&
+                copied == 1 &&
                 video_backend->video_frame_number(opened.handle) == 1U &&
                 video_backend->video_frame_count(opened.handle) ==
                     expected_frame_count &&
@@ -323,21 +328,60 @@ void test_real_ffmpeg_media(
         if (video_backend->wait_for_video_frame(opened.handle)) {
             SDL_Delay(40U);
         }
-        video_backend->decode_video_frame(opened.handle);
+        const auto second_decode =
+            video_backend->decode_video_frame(opened.handle);
         video_backend->service_video(opened.handle);
-        test.expect_equal(
-            video_backend->video_frame_number(opened.handle),
-            2U,
+        test.expect_true(
+            second_decode ==
+                    openswd3::audio_video::LegacyVideoDecodeStatus::
+                        frame_ready &&
+                video_backend->video_frame_number(opened.handle) == 2U,
             "the second Bink frame demuxes with embedded audio packets"
         );
+
+        if (decode_to_eof) {
+            video_backend->advance_video_frame(opened.handle);
+            auto terminal_status =
+                openswd3::audio_video::LegacyVideoDecodeStatus::frame_ready;
+            while (video_backend->video_frame_number(opened.handle) <=
+                   expected_frame_count) {
+                terminal_status =
+                    video_backend->decode_video_frame(opened.handle);
+                if (terminal_status !=
+                    openswd3::audio_video::LegacyVideoDecodeStatus::
+                        frame_ready) {
+                    break;
+                }
+                video_backend->advance_video_frame(opened.handle);
+            }
+            test.expect_true(
+                terminal_status ==
+                        openswd3::audio_video::LegacyVideoDecodeStatus::
+                            completed &&
+                    video_backend->video_frame_number(opened.handle) ==
+                        expected_frame_count &&
+                    video_backend->video_frame_count(opened.handle) ==
+                        expected_frame_count,
+                "the complete short Bink stream reaches explicit EOF without " "a repeated black frame"
+            );
+        }
+
         video_backend->close_video(opened.handle);
     };
 
     verify_bink(
-        "firegod.bik", 176U, true, "FFmpeg opens the short real Bink movie"
+        "firegod.bik",
+        176U,
+        true,
+        true,
+        "FFmpeg opens the short real Bink movie"
     );
     verify_bink(
-        "opening.bik", 7'369U, false, "FFmpeg opens the real OP Bink movie"
+        "opening.bik",
+        7'369U,
+        false,
+        true,
+        "FFmpeg opens the real OP Bink movie"
     );
 }
 

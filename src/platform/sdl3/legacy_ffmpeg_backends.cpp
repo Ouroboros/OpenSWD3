@@ -681,11 +681,17 @@ public:
         return SDL_GetTicksNS() < due;
     }
 
-    void decode_video_frame(const LegacyVideoHandle handle) override {
+    audio_video::LegacyVideoDecodeStatus
+    decode_video_frame(const LegacyVideoHandle handle) override {
         VideoState* state = find(handle);
-        if (state == nullptr || state->video_frame_ready) {
-            return;
+        if (state == nullptr) {
+            last_error_ = "FFmpeg video handle is not active";
+            return audio_video::LegacyVideoDecodeStatus::failed;
         }
+        if (state->video_frame_ready) {
+            return audio_video::LegacyVideoDecodeStatus::frame_ready;
+        }
+
         while (true) {
             const int buffered_result = avcodec_receive_frame(
                 state->video_decoder.get(), state->video_frame.get()
@@ -693,13 +699,16 @@ public:
             if (buffered_result == 0) {
                 state->video_frame_ready = true;
                 ++state->frame_number;
-                return;
+                return audio_video::LegacyVideoDecodeStatus::frame_ready;
             }
-            if (buffered_result != AVERROR(EAGAIN) &&
-                buffered_result != AVERROR_EOF) {
+            if (buffered_result == AVERROR_EOF) {
+                state->frame_count = state->frame_number;
+                return audio_video::LegacyVideoDecodeStatus::completed;
+            }
+            if (buffered_result != AVERROR(EAGAIN)) {
                 last_error_ = "FFmpeg video decode failed: " +
                     ffmpeg_error(buffered_result);
-                return;
+                return audio_video::LegacyVideoDecodeStatus::failed;
             }
 
             const int read_result =
@@ -707,24 +716,29 @@ public:
             if (read_result < 0) {
                 if (!state->video_flushed) {
                     state->video_flushed = true;
-                    static_cast<void>(
-                        avcodec_send_packet(state->video_decoder.get(), nullptr)
+                    const int flush_result = avcodec_send_packet(
+                        state->video_decoder.get(), nullptr
                     );
+                    if (flush_result < 0 && flush_result != AVERROR_EOF) {
+                        last_error_ = "FFmpeg video flush failed: " +
+                            ffmpeg_error(flush_result);
+                        return audio_video::LegacyVideoDecodeStatus::failed;
+                    }
                     continue;
                 }
-                if (state->frame_count == std::numeric_limits<u32>::max()) {
-                    state->frame_count = state->frame_number;
-                }
-                return;
+                state->frame_count = state->frame_number;
+                return audio_video::LegacyVideoDecodeStatus::completed;
             }
 
             if (state->packet->stream_index == state->video_stream_index) {
                 const int send_result = avcodec_send_packet(
                     state->video_decoder.get(), state->packet.get()
                 );
-                if (send_result < 0 && send_result != AVERROR(EAGAIN)) {
+                if (send_result < 0) {
                     last_error_ = "FFmpeg video packet submit failed: " +
                         ffmpeg_error(send_result);
+                    av_packet_unref(state->packet.get());
+                    return audio_video::LegacyVideoDecodeStatus::failed;
                 }
             } else if (
                 state->audio_decoder && state->audio_resampler &&

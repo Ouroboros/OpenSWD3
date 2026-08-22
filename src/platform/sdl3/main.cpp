@@ -2114,8 +2114,16 @@ public:
     void step_video() override {
         const auto result = video_player_.step(*this);
         if (result.status ==
-            openswd3::audio_video::LegacyVideoStepStatus::completed) {
+                openswd3::audio_video::LegacyVideoStepStatus::completed ||
+            result.status ==
+                openswd3::audio_video::LegacyVideoStepStatus::failed) {
             window_state_.process_flags &= ~openswd3::app::kProcessVideoActive;
+        }
+        if (result.status ==
+            openswd3::audio_video::LegacyVideoStepStatus::failed) {
+            std::string message{"legacy video decode failed: "};
+            message.append(video_player_.last_error());
+            openswd3::diagnostics::log_error(message);
         }
     }
     void maintain_audio() override {
@@ -3307,7 +3315,8 @@ public:
         return true;
     }
 
-    void step_story(openswd3::app::FrameCoordinatorState&) override {
+    void
+    step_story(openswd3::app::FrameCoordinatorState& frame_state) override {
         if (!active_world_session_.has_value()) {
             return;
         }
@@ -3864,7 +3873,7 @@ public:
                 world_ani_scene_backup_,
                 data_directory_,
                 launch_directory_,
-                window_state_.process_flags,
+                frame_state.process_flags,
                 frame_interval_,
             };
             const openswd3::world_map::LegacyWorldStoryVmRuntime story_runtime{

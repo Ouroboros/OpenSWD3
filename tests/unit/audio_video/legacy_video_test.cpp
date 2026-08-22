@@ -13,6 +13,7 @@ using openswd3::audio_video::ImmediateCompleteLegacyVideoBackend;
 using openswd3::audio_video::LegacyVideoBackend;
 using openswd3::audio_video::LegacyVideoBeginStatus;
 using openswd3::audio_video::LegacyVideoCopyRequest;
+using openswd3::audio_video::LegacyVideoDecodeStatus;
 using openswd3::audio_video::LegacyVideoFramePorts;
 using openswd3::audio_video::LegacyVideoHandle;
 using openswd3::audio_video::LegacyVideoOpenDisposition;
@@ -74,8 +75,10 @@ public:
         return wait_result;
     }
 
-    void decode_video_frame(const LegacyVideoHandle handle) override {
+    LegacyVideoDecodeStatus
+    decode_video_frame(const LegacyVideoHandle handle) override {
         events.push_back({BackendCall::decode, handle});
+        return decode_result;
     }
 
     i32 copy_video_frame(
@@ -114,6 +117,7 @@ public:
         .summary = {320, 200},
     };
     bool wait_result{};
+    LegacyVideoDecodeStatus decode_result{LegacyVideoDecodeStatus::frame_ready};
     i32 copy_result{1};
     u32 frame_count{10U};
     u32 frame_number{3U};
@@ -321,6 +325,47 @@ void test_wait_and_active_progress(openswd3::test::Context& test) {
     static_cast<void>(player.close());
 }
 
+void test_decoder_completion_and_failure(openswd3::test::Context& test) {
+    RecordingBackend backend;
+    LegacyVideoPlayer player(backend);
+    RecordingFramePorts ports;
+    static_cast<void>(player.begin("movie.bik", 100));
+    backend.clear_events();
+    backend.decode_result = LegacyVideoDecodeStatus::completed;
+
+    const auto completed = player.step(ports);
+    test.expect_true(
+        completed.status == LegacyVideoStepStatus::completed &&
+            !player.active() && ports.present_count == 0U &&
+            backend.events ==
+                std::vector<BackendEvent>{
+                    {BackendCall::wait, 7U},
+                    {BackendCall::decode, 7U},
+                    {BackendCall::service, 7U},
+                    {BackendCall::close, 7U},
+                },
+        "decoder EOF closes without copying or presenting a black frame"
+    );
+
+    backend.clear_events();
+    backend.decode_result = LegacyVideoDecodeStatus::failed;
+    static_cast<void>(player.begin("broken.bik", 100));
+    backend.clear_events();
+    const auto failed = player.step(ports);
+    test.expect_true(
+        failed.status == LegacyVideoStepStatus::failed && !player.active() &&
+            player.last_error() == std::string_view{"decoder open failure"} &&
+            ports.present_count == 0U &&
+            backend.events ==
+                std::vector<BackendEvent>{
+                    {BackendCall::wait, 7U},
+                    {BackendCall::decode, 7U},
+                    {BackendCall::close, 7U},
+                },
+        "decoder failure closes instead of repeating failed black frames"
+    );
+}
+
 void test_decode_copy_advance_and_complete(openswd3::test::Context& test) {
     RecordingBackend backend;
     LegacyVideoPlayer player(backend);
@@ -436,6 +481,7 @@ int main() {
     test_open_volume_and_failure(test);
     test_immediate_completion_placeholder(test);
     test_wait_and_active_progress(test);
+    test_decoder_completion_and_failure(test);
     test_decode_copy_advance_and_complete(test);
     return test.exit_code();
 }

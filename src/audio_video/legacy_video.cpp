@@ -105,12 +105,30 @@ LegacyVideoStepResult LegacyVideoPlayer::step(LegacyVideoFramePorts& ports) {
         return result;
     }
 
+    const LegacyVideoDecodeStatus decode_status =
+        backend_.decode_video_frame(handle_);
+    if (decode_status == LegacyVideoDecodeStatus::completed) {
+        backend_.service_video(handle_);
+        static_cast<void>(close());
+        result.status = LegacyVideoStepStatus::completed;
+        return result;
+    }
+    if (decode_status == LegacyVideoDecodeStatus::failed) {
+        try {
+            last_error_.assign(backend_.last_error());
+        } catch (const std::bad_alloc&) {
+            last_error_ = "video decode failed";
+        }
+        static_cast<void>(close());
+        result.status = LegacyVideoStepStatus::failed;
+        return result;
+    }
+
     const compat::i32 destination_x =
         (kLegacyVideoCanvasWidth - summary_.width) / 2;
     const compat::i32 destination_y =
         (kLegacyVideoCanvasHeight - summary_.height) / 2;
 
-    backend_.decode_video_frame(handle_);
     result.copy_result = backend_.copy_video_frame(
         handle_,
         LegacyVideoCopyRequest{
@@ -191,9 +209,10 @@ bool ImmediateCompleteLegacyVideoBackend::wait_for_video_frame(
     return false;
 }
 
-void ImmediateCompleteLegacyVideoBackend::decode_video_frame(
-    LegacyVideoHandle
-) {}
+LegacyVideoDecodeStatus
+ImmediateCompleteLegacyVideoBackend::decode_video_frame(LegacyVideoHandle) {
+    return LegacyVideoDecodeStatus::completed;
+}
 
 compat::i32 ImmediateCompleteLegacyVideoBackend::copy_video_frame(
     LegacyVideoHandle, const LegacyVideoCopyRequest&

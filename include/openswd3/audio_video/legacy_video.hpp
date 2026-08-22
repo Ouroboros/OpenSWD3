@@ -39,6 +39,12 @@ struct LegacyVideoOpenResult {
     LegacyVideoSummary summary{};
 };
 
+enum class LegacyVideoDecodeStatus : compat::u8 {
+    frame_ready,
+    completed,
+    failed,
+};
+
 struct LegacyVideoCopyRequest {
     std::span<compat::u16> destination;
     compat::i32 pitch_bytes{};
@@ -69,7 +75,8 @@ public:
 
     [[nodiscard]] virtual bool
     wait_for_video_frame(LegacyVideoHandle handle) = 0;
-    virtual void decode_video_frame(LegacyVideoHandle handle) = 0;
+    [[nodiscard]] virtual LegacyVideoDecodeStatus
+    decode_video_frame(LegacyVideoHandle handle) = 0;
     [[nodiscard]] virtual compat::i32 copy_video_frame(
         LegacyVideoHandle handle, const LegacyVideoCopyRequest& request
     ) = 0;
@@ -103,6 +110,7 @@ enum class LegacyVideoStepStatus : compat::u8 {
     waiting,
     frame_presented,
     completed,
+    failed,
 };
 
 struct LegacyVideoStepResult {
@@ -148,7 +156,8 @@ public:
     void
     set_video_volume(LegacyVideoHandle handle, compat::i32 volume) override;
     [[nodiscard]] bool wait_for_video_frame(LegacyVideoHandle handle) override;
-    void decode_video_frame(LegacyVideoHandle handle) override;
+    [[nodiscard]] LegacyVideoDecodeStatus
+    decode_video_frame(LegacyVideoHandle handle) override;
     [[nodiscard]] compat::i32 copy_video_frame(
         LegacyVideoHandle handle, const LegacyVideoCopyRequest& request
     ) override;

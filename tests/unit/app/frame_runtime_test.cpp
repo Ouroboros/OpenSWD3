@@ -293,6 +293,19 @@ void test_world_gate_mutations(openswd3::test::Context& test) {
         },
         "story close bit skips world finishing but reaches common close"
     );
+
+    state = make_state();
+    RecordingPorts video_ports;
+    video_ports.flags_set_by_story = openswd3::app::kProcessVideoActive;
+    test.expect_equal(
+        openswd3::app::run_accepted_frame(state, video_ports),
+        openswd3::app::FrameRunOutcome::common_tail_completed,
+        "story video request reaches the common tail"
+    );
+    test.expect_true(
+        (state.process_flags & openswd3::app::kProcessVideoActive) != 0U,
+        "the story video bit remains in the frame state copied back to the " "idle dispatcher"
+    );
 }
 
 void test_special_modes(openswd3::test::Context& test) {
