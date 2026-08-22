@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v346
+版本：v347
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042BE8A` handler（opcode 128）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042BEFE` handler（opcodes 129、130、167、168）
 
 ## 0. 执行约定
 
@@ -70,7 +70,7 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 - 进程入口、消息泵、单帧调度、世界/特殊模式/战斗分支和退出顶层流程已有汇编证据。
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
 - 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
-- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..127`；其余 opcode 与 Ani 播放语义尚未完成。
+- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..128`；其余 opcode 与 Ani 播放语义尚未完成。
 - 309 张地图的物理容器、40 份存档的压缩边界和战斗顶层入口已经恢复；地图内部、存档业务字段和战斗内部状态机仍待对应模块处理。
 
 ## 3. 执行方法
@@ -2492,4 +2492,16 @@ B7 P0 有限收口完成。
     已验收138/198；内部workpack102/146，即`15 assembly_exact + 87 platform_adapted +
     44 pending_audit`。
 
-下一组只审计`0x0042BE8A` / opcode128。
+- 剧情VM P2第一百零三组`0x0042BE8A` / opcode128完成独立闭环。机器先读signed i16
+    delta再读u16 item id，调用玩家库存共享helper的mode0；恢复完整u16回绕、signed判断、
+    quantity B上限99、B向A搬运、A耗尽删除、FFDC规范化、MON定义节点前插及helper失败仍
+    固定+6/previous/audio/yield。现代直接借用实际player_inventory；裸链/unchecked malloc
+    由RAII与typed-stop隔离。新节点MON定义使用窄端口；SDL当前明确走原loader-failure而不
+    伪造空定义，真实loader留给B9。397条真实记录/399 probes及item971 +1代表记录回放通过。
+    Story VM 3/3、Linux core 186/186和app 192/192均以exit 0通过；workpack双生成稳定hash为
+    `85e129df6e2dcaa6fe6c2ee941c97ab02cc84827fb6dd9222dd6f30854c9fe82`。
+    未启动游戏EXE。人工语义增至140行，现代显式opcode增至143；对外进度为已实现143/198、
+    已验收139/198；内部workpack103/146，即`15 assembly_exact + 88 platform_adapted +
+    43 pending_audit`。
+
+下一组只审计`0x0042BEFE` / opcodes129、130、167、168。

@@ -3492,6 +3492,19 @@ public:
                 );
             }
 
+            [[nodiscard]] bool load_story_item_definition(
+                openswd3::compat::u16,
+                std::span<
+                    openswd3::compat::u8,
+                    openswd3::world_map::kLegacyItemDefinitionSnapshotBytes>,
+                std::vector<openswd3::compat::u8>&
+            ) override {
+                // The MON definition owner belongs to the deferred special-mode
+                // module. Report the original loader-failure path rather than
+                // publishing an empty inventory node.
+                return false;
+            }
+
             void play_sound_effect(
                 const openswd3::compat::u16 sound_id
             ) noexcept override {
@@ -3848,6 +3861,7 @@ public:
                     frame_preparation_state_.frame_clock.sampled_milliseconds,
                 .secondary_rng = &secondary_rng_,
                 .speed_mode = &world_player_control_state_.speed_mode,
+                .player_inventory = &world_item_lists_.player_inventory,
             };
             openswd3::world_map::advance_legacy_world_script_clock(
                 world_story_vm_state_

@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 142
-EXPECTED_CLOSED_HANDLER_COUNT = 102
+EXPECTED_MODERN_CASE_COUNT = 143
+EXPECTED_CLOSED_HANDLER_COUNT = 103
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -554,6 +554,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-role-base-variant-reload-0042bdbc.md",
         "assembly_exact;unit_tested;real_asset_tested;asset_absence_verified;platform_adapted;sdl_runtime_integrated;exact_tail_tested;staged_operand_tested;selector_alias_tested;shared_handler_all_variants_tested;partial_failure_tested;shared_owner_tested;external_dependency_tested;typed_owner_boundary_tested",
+    ),
+    "0x0042BE8A": (
+        "platform_adapted",
+        "story-vm-player-item-quantity-0042be8a.md",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;staged_operand_tested;selector_alias_tested;partial_failure_tested;shared_owner_tested;external_dependency_tested;typed_owner_boundary_tested",
     ),
 }
 

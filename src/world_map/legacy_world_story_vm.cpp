@@ -1510,6 +1510,70 @@ release_legacy_world_story_role_path(
     return result;
 }
 
+[[nodiscard]] LegacyWorldStoryVmStatus adjust_player_item_quantity(
+    std::list<LegacyWorldItemNode>& inventory,
+    const u16 item_id,
+    const i16 delta,
+    LegacyWorldStoryVmPorts& ports
+) noexcept {
+    const auto existing = std::ranges::find_if(
+        inventory, [item_id](const LegacyWorldItemNode& item) {
+            return item.item_id == item_id;
+        }
+    );
+    if (existing != inventory.end()) {
+        existing->quantity_b =
+            static_cast<u16>(existing->quantity_b + static_cast<u16>(delta));
+        const i16 quantity_b = std::bit_cast<i16>(existing->quantity_b);
+        if (quantity_b > 99) {
+            existing->quantity_b = 99U;
+            existing->quantity_a = 0U;
+            return LegacyWorldStoryVmStatus::idle;
+        }
+        if (quantity_b <= 0) {
+            existing->quantity_b = 0U;
+            existing->quantity_a = static_cast<u16>(
+                existing->quantity_a + static_cast<u16>(quantity_b)
+            );
+            if (std::bit_cast<i16>(existing->quantity_a) <= 0) {
+                inventory.erase(existing);
+                return LegacyWorldStoryVmStatus::idle;
+            }
+        }
+        if (item_id == kLegacyItemSentinelId) {
+            existing->quantity_a = 1U;
+            existing->quantity_b = 0U;
+        }
+        return LegacyWorldStoryVmStatus::idle;
+    }
+
+    if (delta <= 0) {
+        return LegacyWorldStoryVmStatus::idle;
+    }
+
+    try {
+        LegacyWorldItemNode item;
+        if (item_id == kLegacyItemSentinelId) {
+            item.definition_snapshot[0U] = kLegacyItemSentinelNameBytes[0U];
+            item.definition_snapshot[1U] = kLegacyItemSentinelNameBytes[1U];
+        } else if (!ports.load_story_item_definition(
+                       item_id, item.definition_snapshot, item.description
+                   )) {
+            return LegacyWorldStoryVmStatus::idle;
+        }
+        item.item_id = item_id;
+        item.quantity_b =
+            item_id == kLegacyItemSentinelId ? 1U : static_cast<u16>(delta);
+        item.definition_snapshot[0x21U] |= 0x80U;
+        inventory.emplace_front(std::move(item));
+    } catch (const std::bad_alloc&) {
+        return LegacyWorldStoryVmStatus::item_allocation_failed;
+    } catch (...) {
+        return LegacyWorldStoryVmStatus::item_allocation_failed;
+    }
+    return LegacyWorldStoryVmStatus::idle;
+}
+
 }  // namespace
 
 void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept {
@@ -5592,6 +5656,37 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 return result;
             }
             continue;
+        }
+
+        case OP_128_ADJUST_PLAYER_ITEM_QUANTITY: {
+            if (!has_bytes(state.window, ip + 4U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i16 delta =
+                std::bit_cast<i16>(read_u16(state.window, ip + 4U));
+            if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u16 item_id = read_u16(state.window, ip + 2U);
+            if (runtime.player_inventory == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            result.status = adjust_player_item_quantity(
+                *runtime.player_inventory, item_id, delta, ports
+            );
+            if (result.status != LegacyWorldStoryVmStatus::idle) {
+                return result;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
         }
 
         case 141U:

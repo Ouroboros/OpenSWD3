@@ -15,6 +15,7 @@
 #include <fstream>
 #include <functional>
 #include <iterator>
+#include <list>
 #include <memory>
 #include <span>
 #include <string_view>
@@ -34,6 +35,7 @@ using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::resource_io::LegacyTalkWindowLoadResult;
 using openswd3::resource_io::LegacyTalkWindowStatus;
+using openswd3::world_map::LegacyWorldItemNode;
 using openswd3::world_map::LegacyWorldRoleRecord;
 using openswd3::world_map::LegacyWorldObjectSlot;
 using openswd3::world_map::LegacyWorldStoryVmPorts;
@@ -155,6 +157,7 @@ using openswd3::world_map::OP_124_CLEAR_TEXT_CONTROL_BIT25;
 using openswd3::world_map::OP_125_APPEND_TEXT_ALLOCATION;
 using openswd3::world_map::OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL;
 using openswd3::world_map::OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL;
+using openswd3::world_map::OP_128_ADJUST_PLAYER_ITEM_QUANTITY;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -336,6 +339,26 @@ public:
         role_patch_requests.push_back(request);
     }
 
+    [[nodiscard]] bool load_story_item_definition(
+        const u16 item_id,
+        const std::
+            span<u8, openswd3::world_map::kLegacyItemDefinitionSnapshotBytes>
+                definition_snapshot,
+        std::vector<u8>& description
+    ) override {
+        ++item_definition_load_count;
+        last_item_definition_id = item_id;
+        story_protocol_events.push_back(13U);
+        if (!item_definition_load_success) {
+            return false;
+        }
+        std::ranges::copy(
+            prepared_item_definition, definition_snapshot.begin()
+        );
+        description = prepared_item_description;
+        return true;
+    }
+
     void play_sound_effect(const u16 sound_id) noexcept override {
         sound_effect_requests.push_back(sound_id);
     }
@@ -506,12 +529,14 @@ public:
     u32 music_volume_write_count{};
     u32 last_music_volume_level{};
     u32 dialog_text_prepare_count{};
+    u32 item_definition_load_count{};
     u32 role_path_payload_release_count{};
     u32 released_role_path_index{0xFFFFFFFFU};
     u32 world_session_reload_begin_count{};
     u32 world_session_reload_count{};
     bool last_data_clear_before_read{};
     bool dialog_text_prepare_success{};
+    bool item_definition_load_success{true};
     bool world_session_reload_success{true};
     bool video_prepare_success{true};
     bool ani_prepare_success{true};
@@ -522,6 +547,10 @@ public:
     i32 video_progress{-1};
     i32 ani_phase{};
     u8 last_ani_flags{};
+    u16 last_item_definition_id{};
+    std::array<u8, openswd3::world_map::kLegacyItemDefinitionSnapshotBytes>
+        prepared_item_definition{};
+    std::vector<u8> prepared_item_description;
     std::vector<u8> last_video_filename;
     std::vector<u8> last_ani_filename;
     openswd3::asset_runtime::LegacyAniActivityStartResult ani_start_result{
@@ -616,6 +645,19 @@ public:
         const openswd3::world_map::LegacyMapsRolePatchRequest& request
     ) noexcept override {
         role_patch_requests.push_back(request);
+    }
+
+    [[nodiscard]] bool load_story_item_definition(
+        const u16 item_id,
+        const std::
+            span<u8, openswd3::world_map::kLegacyItemDefinitionSnapshotBytes>
+                definition_snapshot,
+        std::vector<u8>& description
+    ) override {
+        definition_snapshot[0U] = static_cast<u8>(item_id);
+        definition_snapshot[1U] = static_cast<u8>(item_id >> 8U);
+        description = {static_cast<u8>('I'), 0U};
+        return true;
     }
 
     void play_sound_effect(const u16 sound_id) noexcept override {
@@ -791,6 +833,7 @@ struct FixtureStorage {
     u32 indexed_target_selector{};
     openswd3::input_time_rng::LegacySecondaryRng secondary_rng{};
     u32 speed_mode{};
+    std::list<LegacyWorldItemNode> player_inventory;
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     RecordingPorts ports{};
 };
@@ -827,6 +870,8 @@ struct Fixture {
     openswd3::input_time_rng::LegacySecondaryRng& secondary_rng =
         storage->secondary_rng;
     u32& speed_mode = storage->speed_mode;
+    std::list<LegacyWorldItemNode>& player_inventory =
+        storage->player_inventory;
     openswd3::world_map::LegacyWorldStoryVmRuntime& runtime = storage->runtime;
     RecordingPorts& ports = storage->ports;
 
@@ -856,6 +901,7 @@ struct Fixture {
         runtime.indexed_target_selector = &indexed_target_selector;
         runtime.secondary_rng = &secondary_rng;
         runtime.speed_mode = &speed_mode;
+        runtime.player_inventory = &player_inventory;
         dialog_resources.frame_actions[0].action_id = 0x232DU;
         dialog_resources.caption_actions[0].action_id = 0x2337U;
     }
@@ -19561,6 +19607,262 @@ void test_role_base_variant_reload_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_adjust_player_item_quantity_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.player_inventory.emplace_back();
+        auto& item = fixture.player_inventory.back();
+        item.item_id = 0x0123U;
+        item.quantity_a = 4U;
+        item.quantity_b = 5U;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_128_ADJUST_PLAYER_ITEM_QUANTITY | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, 0x0123U);
+        write_u16(fixture.state.window, 4U, 2U);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_128_ADJUST_PLAYER_ITEM_QUANTITY &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode ==
+                    OP_128_ADJUST_PLAYER_ITEM_QUANTITY &&
+                fixture.player_inventory.size() == 1U &&
+                fixture.player_inventory.front().quantity_a == 4U &&
+                fixture.player_inventory.front().quantity_b == 7U &&
+                fixture.ports.item_definition_load_count == 0U &&
+                fixture.ports.story_protocol_events == std::vector<u32>{2U},
+            "opcode 128 aliases update an existing item then publish previous, service audio, and yield"
+        );
+    }
+
+    Fixture clamp;
+    clamp.player_inventory.emplace_back();
+    clamp.player_inventory.front().item_id = 0x0200U;
+    clamp.player_inventory.front().quantity_a = 9U;
+    clamp.player_inventory.front().quantity_b = 98U;
+    prime_loaded_instruction(clamp, OP_128_ADJUST_PLAYER_ITEM_QUANTITY);
+    write_u16(clamp.state.window, 2U, 0x0200U);
+    write_u16(clamp.state.window, 4U, 2U);
+    const auto clamp_result = clamp.step();
+
+    Fixture transfer;
+    transfer.player_inventory.emplace_back();
+    transfer.player_inventory.front().item_id = 0x0201U;
+    transfer.player_inventory.front().quantity_a = 3U;
+    transfer.player_inventory.front().quantity_b = 1U;
+    prime_loaded_instruction(transfer, OP_128_ADJUST_PLAYER_ITEM_QUANTITY);
+    write_u16(transfer.state.window, 2U, 0x0201U);
+    write_u16(transfer.state.window, 4U, 0xFFFEU);
+    const auto transfer_result = transfer.step();
+
+    Fixture remove;
+    remove.player_inventory.emplace_back();
+    remove.player_inventory.front().item_id = 0x0202U;
+    remove.player_inventory.front().quantity_a = 1U;
+    prime_loaded_instruction(remove, OP_128_ADJUST_PLAYER_ITEM_QUANTITY);
+    write_u16(remove.state.window, 2U, 0x0202U);
+    write_u16(remove.state.window, 4U, 0xFFFFU);
+    const auto remove_result = remove.step();
+
+    Fixture wrapped_remove;
+    wrapped_remove.player_inventory.emplace_back();
+    wrapped_remove.player_inventory.front().item_id = 0x0203U;
+    wrapped_remove.player_inventory.front().quantity_b = 0x7FFFU;
+    prime_loaded_instruction(
+        wrapped_remove, OP_128_ADJUST_PLAYER_ITEM_QUANTITY
+    );
+    write_u16(wrapped_remove.state.window, 2U, 0x0203U);
+    write_u16(wrapped_remove.state.window, 4U, 1U);
+    const auto wrapped_remove_result = wrapped_remove.step();
+
+    Fixture sentinel;
+    sentinel.player_inventory.emplace_back();
+    sentinel.player_inventory.front().item_id =
+        openswd3::world_map::kLegacyItemSentinelId;
+    sentinel.player_inventory.front().quantity_a = 7U;
+    sentinel.player_inventory.front().quantity_b = 1U;
+    prime_loaded_instruction(sentinel, OP_128_ADJUST_PLAYER_ITEM_QUANTITY);
+    write_u16(
+        sentinel.state.window, 2U, openswd3::world_map::kLegacyItemSentinelId
+    );
+    write_u16(sentinel.state.window, 4U, 1U);
+    const auto sentinel_result = sentinel.step();
+
+    test.expect_true(
+        clamp_result.status == LegacyWorldStoryVmStatus::yielded &&
+            clamp.player_inventory.front().quantity_a == 0U &&
+            clamp.player_inventory.front().quantity_b == 99U &&
+            transfer_result.status == LegacyWorldStoryVmStatus::yielded &&
+            transfer.player_inventory.front().quantity_a == 2U &&
+            transfer.player_inventory.front().quantity_b == 0U &&
+            remove_result.status == LegacyWorldStoryVmStatus::yielded &&
+            remove.player_inventory.empty() &&
+            wrapped_remove_result.status == LegacyWorldStoryVmStatus::yielded &&
+            wrapped_remove.player_inventory.empty() &&
+            sentinel_result.status == LegacyWorldStoryVmStatus::yielded &&
+            sentinel.player_inventory.front().quantity_a == 1U &&
+            sentinel.player_inventory.front().quantity_b == 0U,
+        "opcode 128 preserves signed i16 wrapping, the 99 clamp, A/B transfer, deletion, and FFDC normalization"
+    );
+
+    Fixture create;
+    create.player_inventory.emplace_back();
+    create.player_inventory.front().item_id = 0x0010U;
+    create.ports.prepared_item_definition.fill(0x22U);
+    create.ports.prepared_item_description = {1U, 2U, 3U};
+    prime_loaded_instruction(create, OP_128_ADJUST_PLAYER_ITEM_QUANTITY);
+    write_u16(create.state.window, 2U, 0x0234U);
+    write_u16(create.state.window, 4U, 8U);
+    const auto create_result = create.step();
+    const auto& created = create.player_inventory.front();
+
+    Fixture create_sentinel;
+    prime_loaded_instruction(
+        create_sentinel, OP_128_ADJUST_PLAYER_ITEM_QUANTITY
+    );
+    write_u16(
+        create_sentinel.state.window,
+        2U,
+        openswd3::world_map::kLegacyItemSentinelId
+    );
+    write_u16(create_sentinel.state.window, 4U, 8U);
+    const auto create_sentinel_result = create_sentinel.step();
+    const auto& created_sentinel = create_sentinel.player_inventory.front();
+
+    test.expect_true(
+        create_result.status == LegacyWorldStoryVmStatus::yielded &&
+            create.player_inventory.size() == 2U &&
+            created.item_id == 0x0234U && created.selected_count == 0U &&
+            created.quantity_a == 0U && created.quantity_b == 8U &&
+            created.definition_snapshot[0x20U] == 0x22U &&
+            created.definition_snapshot[0x21U] == 0xA2U &&
+            created.description == std::vector<u8>{1U, 2U, 3U} &&
+            create.ports.item_definition_load_count == 1U &&
+            create.ports.last_item_definition_id == 0x0234U &&
+            create.ports.story_protocol_events == std::vector<u32>{13U, 2U} &&
+            create_sentinel_result.status ==
+                LegacyWorldStoryVmStatus::yielded &&
+            create_sentinel.ports.item_definition_load_count == 0U &&
+            created_sentinel.item_id ==
+                openswd3::world_map::kLegacyItemSentinelId &&
+            created_sentinel.quantity_a == 0U &&
+            created_sentinel.quantity_b == 1U &&
+            created_sentinel.definition_snapshot[0U] ==
+                openswd3::world_map::kLegacyItemSentinelNameBytes[0U] &&
+            created_sentinel.definition_snapshot[1U] ==
+                openswd3::world_map::kLegacyItemSentinelNameBytes[1U] &&
+            created_sentinel.definition_snapshot[0x21U] == 0x80U,
+        "opcode 128 prepends a loaded item snapshot and preserves the FFDC construction path"
+    );
+
+    Fixture missing_nonpositive;
+    prime_loaded_instruction(
+        missing_nonpositive, OP_128_ADJUST_PLAYER_ITEM_QUANTITY
+    );
+    write_u16(missing_nonpositive.state.window, 2U, 0x0300U);
+    write_u16(missing_nonpositive.state.window, 4U, 0xFFFFU);
+    const auto missing_nonpositive_result = missing_nonpositive.step();
+
+    Fixture definition_failure;
+    definition_failure.ports.item_definition_load_success = false;
+    prime_loaded_instruction(
+        definition_failure, OP_128_ADJUST_PLAYER_ITEM_QUANTITY
+    );
+    write_u16(definition_failure.state.window, 2U, 0x0301U);
+    write_u16(definition_failure.state.window, 4U, 1U);
+    const auto definition_failure_result = definition_failure.step();
+
+    Fixture missing_owner;
+    missing_owner.runtime.player_inventory = nullptr;
+    prime_loaded_instruction(missing_owner, OP_128_ADJUST_PLAYER_ITEM_QUANTITY);
+    write_u16(missing_owner.state.window, 2U, 0x0302U);
+    write_u16(missing_owner.state.window, 4U, 1U);
+    const auto missing_owner_result = missing_owner.step();
+
+    test.expect_true(
+        missing_nonpositive_result.status ==
+                LegacyWorldStoryVmStatus::yielded &&
+            missing_nonpositive.player_inventory.empty() &&
+            missing_nonpositive.ports.item_definition_load_count == 0U &&
+            definition_failure_result.status ==
+                LegacyWorldStoryVmStatus::yielded &&
+            definition_failure.player_inventory.empty() &&
+            definition_failure.ports.item_definition_load_count == 1U &&
+            definition_failure.context.instruction_offset == 6U &&
+            definition_failure.state.previous_opcode ==
+                OP_128_ADJUST_PLAYER_ITEM_QUANTITY &&
+            definition_failure.ports.direct_audio_service_count == 1U &&
+            missing_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_owner.context.instruction_offset == 0U &&
+            missing_owner.state.previous_opcode == 0U &&
+            missing_owner.ports.direct_audio_service_count == 0U,
+        "opcode 128 ignores ordinary helper misses but stops at the fixed player-inventory owner boundary"
+    );
+
+    Fixture operand_truncated;
+    operand_truncated.context.instruction_offset = 0x7FFCU;
+    operand_truncated.context.talk_data_offset = 0x1111U;
+    operand_truncated.state.loaded_file_number = 1U;
+    operand_truncated.state.loaded_data_offset = 0x1111U;
+    operand_truncated.state.window_loaded = true;
+    operand_truncated.player_inventory.emplace_back();
+    operand_truncated.player_inventory.front().item_id = 0x0400U;
+    operand_truncated.player_inventory.front().quantity_b = 1U;
+    write_u16(
+        operand_truncated.state.window,
+        0x7FFCU,
+        OP_128_ADJUST_PLAYER_ITEM_QUANTITY
+    );
+    write_u16(operand_truncated.state.window, 0x7FFEU, 0x0400U);
+    const auto operand_truncated_result = operand_truncated.step();
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.player_inventory.emplace_back();
+    exact_tail.player_inventory.front().item_id = 0x0401U;
+    exact_tail.player_inventory.front().quantity_b = 1U;
+    write_u16(
+        exact_tail.state.window, 0x7FFAU, OP_128_ADJUST_PLAYER_ITEM_QUANTITY
+    );
+    write_u16(exact_tail.state.window, 0x7FFCU, 0x0401U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0xFFFFU);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        operand_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            operand_truncated.context.instruction_offset == 0x7FFCU &&
+            operand_truncated.state.previous_opcode == 0U &&
+            operand_truncated.player_inventory.front().quantity_b == 1U &&
+            operand_truncated.ports.item_definition_load_count == 0U &&
+            operand_truncated.ports.direct_audio_service_count == 0U &&
+            exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_128_ADJUST_PLAYER_ITEM_QUANTITY &&
+            exact_tail.player_inventory.empty() &&
+            exact_tail.ports.direct_audio_service_count == 1U,
+        "opcode 128 reads signed delta before item id and completes an exact-tail record before yielding"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -23366,6 +23668,85 @@ void test_real_role_base_variant_reload_record(
     );
 }
 
+void test_real_adjust_player_item_quantity_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x0000764F);
+    std::array<u8, 6U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+    input.close();
+
+    openswd3::resource_io::LegacyResourceDatabases databases;
+    const auto initialized = databases.initialize(root);
+    LegacyWorldStoryVmState state{};
+    openswd3::world_map::initialize_legacy_world_story_vm(state);
+    std::ranges::copy(instruction, state.window.begin());
+    state.loaded_file_number = 1U;
+    state.loaded_data_offset = 0x0000744FU;
+    state.window_loaded = true;
+    LegacyWorldTalkContext context{};
+    context.source_guid = 0x00F8U;
+    context.talk_script_id = 100U;
+    context.talk_data_offset = 0x0000744FU;
+    std::array<LegacyWorldRoleRecord, 1U> roles{};
+    std::array<
+        LegacyWorldObjectSlot,
+        openswd3::world_map::kLegacyWorldActiveObjectSlotCount>
+        active_object_slots{};
+    openswd3::story_scene::LegacyDialogRuntimeState dialogs;
+    openswd3::world_map::LegacyWorldDialogRuntimeState dialog_resources;
+    std::array<u8, 16U> first_name{};
+    std::array<u8, 16U> second_name{};
+    std::list<LegacyWorldItemNode> player_inventory;
+    openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
+    runtime.player_inventory = &player_inventory;
+    RealPorts ports{databases};
+
+    const auto result = openswd3::world_map::step_legacy_world_story_vm(
+        context,
+        state,
+        roles,
+        0U,
+        active_object_slots,
+        {},
+        dialogs,
+        dialog_resources,
+        first_name,
+        second_name,
+        runtime,
+        ports
+    );
+    test.expect_true(
+        instruction_read &&
+            initialized.status ==
+                openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
+            read_u16(instruction, 0U) == OP_128_ADJUST_PLAYER_ITEM_QUANTITY &&
+            read_u16(instruction, 2U) == 971U &&
+            read_u16(instruction, 4U) == 1U &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_128_ADJUST_PLAYER_ITEM_QUANTITY &&
+            result.executed_instruction_count == 1U &&
+            result.direct_audio_service_count == 1U &&
+            context.instruction_offset == 6U &&
+            state.previous_opcode == OP_128_ADJUST_PLAYER_ITEM_QUANTITY &&
+            player_inventory.size() == 1U &&
+            player_inventory.front().item_id == 971U &&
+            player_inventory.front().quantity_a == 0U &&
+            player_inventory.front().quantity_b == 1U &&
+            player_inventory.front().definition_snapshot[0U] == 0xCBU &&
+            player_inventory.front().definition_snapshot[1U] == 0x03U &&
+            player_inventory.front().definition_snapshot[0x21U] == 0x80U &&
+            player_inventory.front().description ==
+                std::vector<u8>{static_cast<u8>('I'), 0U},
+        "real opcode 128 adds one unit of item 971 from TALK1 offset 0x764F"
+    );
+}
+
 void test_real_wait_primary_picture_action_byte_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -26107,6 +26488,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_text_control_bit25_protocol(test);
     test_append_text_allocation_protocol(test);
     test_role_base_variant_reload_protocol(test);
+    test_adjust_player_item_quantity_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -26188,6 +26570,7 @@ int main(const int argument_count, char** arguments) {
         test_real_clear_speed_mode_records(test, root);
         test_real_update_scene_music_table_entry_records(test, root);
         test_real_role_base_variant_reload_record(test, root);
+        test_real_adjust_player_item_quantity_record(test, root);
         test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_wait_role_action_index_records(test, root);
         test_real_step_role_list_records(test, root);

@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042BE8A`（opcode128）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042BEFE`（opcodes129、130、167、168）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -20,7 +20,7 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 - 当前 C++ 接入 95 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- `0..127` 已有人工汇编语义；`128..193` 目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
+- `0..128` 已有人工汇编语义；`129..193` 目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
 - 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至139行。前102行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至140行。前103行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -192,9 +192,11 @@ core 186/186与app 192/192通过。opcode125恢复进程期文本分配链尾插
 Linux core 186/186与app 192/192完整门通过。内部workpack为101/146，即`15 assembly_exact +
 86 platform_adapted + 45 pending_audit`。shared opcodes126/127按完整u32角色base variant与u16
 expected执行互反条件；taken-only target重载、live-miss MAPS临时物化、previous和same-call均已锁定。
-opcode126有236条真实记录，127零资产。Story VM 3/3、Linux core 186/186和app 192/192通过；已实现142/198、
-已验收138/198；内部workpack为102/146，即`15 assembly_exact + 87 platform_adapted +
-44 pending_audit`。下一行只审计`0x0042BE8A`下的opcode128。
+opcode126有236条真实记录，127零资产。Story VM 3/3、Linux core 186/186和app 192/192通过；opcode128
+恢复玩家库存mode0的signed delta、双数量搬运/删除、定义节点前插及固定yield，397条真实记录通过。
+MON定义以窄端口转交B9，SDL不伪造成功。Story VM 3/3、Linux core 186/186和app 192/192通过；已实现143/198、
+已验收139/198；内部workpack为103/146，即`15 assembly_exact + 88 platform_adapted +
+43 pending_audit`。下一行只审计`0x0042BEFE`下的opcodes129、130、167、168。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

@@ -14,6 +14,7 @@
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_world_camera_pan.hpp"
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
+#include "openswd3/world_map/legacy_world_item_lifecycle.hpp"
 #include "openswd3/world_map/legacy_world_map_business.hpp"
 #include "openswd3/world_map/legacy_world_player_motion.hpp"
 #include "openswd3/world_map/legacy_world_role_map_update.hpp"
@@ -154,6 +155,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_125_APPEND_TEXT_ALLOCATION = 125U,
     OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL = 126U,
     OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL = 127U,
+    OP_128_ADJUST_PLAYER_ITEM_QUANTITY = 128U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
@@ -256,6 +258,7 @@ struct LegacyWorldStoryVmRuntime {
     // dword_4CAEB8 is shared with sub_402F80's player speed toggle and the
     // shared dialog runtime. Opcode 122 clears the same process-level owner.
     compat::u32* speed_mode{};
+    std::list<LegacyWorldItemNode>* player_inventory{};
 };
 
 void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept;
@@ -300,6 +303,12 @@ public:
     ) = 0;
     virtual void
     patch_role_source(const LegacyMapsRolePatchRequest& request) noexcept = 0;
+    [[nodiscard]] virtual bool load_story_item_definition(
+        compat::u16 item_id,
+        std::span<compat::u8, kLegacyItemDefinitionSnapshotBytes>
+            definition_snapshot,
+        std::vector<compat::u8>& description
+    ) = 0;
     virtual void play_sound_effect(compat::u16 sound_id) noexcept = 0;
     virtual void apply_music_stream_transition(
         compat::u32& transition_mode,
@@ -358,6 +367,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     text_allocation_terminator_not_found,
     text_allocation_out_of_range,
     unsupported_packed_row_effect_operation,
+    item_allocation_failed,
     role_allocation_failed,
     role_transfer_failed,
     role_map_update_failed,
