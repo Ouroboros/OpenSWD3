@@ -261,7 +261,11 @@ shared opcodes158/159恢复自身prefix未读、`%Q`扫描、下一指令operand
 copy/delete双路径及文件API失败仍previous/same-call；SDL以配置data/launch roots和显式后台运行例外承接
 CD/Win32路径及激活门。两opcode零资产，以asset absence和synthetic锁定，Story VM 3/3、Linux
 core186/186及app192/192通过。已实现168/198、已验收165/198；内部workpack为125/146，即`19 assembly_exact +
-106 platform_adapted + 21 pending_audit`。下一行只审计`0x0042CBB0`下的opcode160。
+106 platform_adapted + 21 pending_audit`。opcode160前置审计另发现共享对话handler误把`dword_4CF73C`
+建模为水平居中bool；独立fix已恢复非1置record bit18、等1抑制、成功清零与失败保留，删除无LST依据的
+半宽扣减。Story VM 3/3、Linux core186/186及app192/192通过，完整门lifecycle exit 0；该fix不改变
+opcode/workpack计数。下一行只审计
+`0x0042CBB0`下的opcode160。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

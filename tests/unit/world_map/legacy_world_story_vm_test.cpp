@@ -1319,7 +1319,8 @@ void test_shared_dialog_handler_variants(openswd3::test::Context& test) {
         const auto& message = fixture.dialogs.messages.front();
         const auto& record = message.record;
         const bool odd_variant = (opcode & 1U) != 0U;
-        const u32 expected_flags = (opcode == 5U || opcode == 6U ? 0x40U : 0U) |
+        const u32 expected_flags = 0x00040000U |
+            (opcode == 5U || opcode == 6U ? 0x40U : 0U) |
             (odd_variant ? 0x10U : 0U);
         const u16 expected_width = opcode <= 2U ? 176U : 22U;
         const u16 expected_height = opcode <= 2U ? 66U : 33U;
@@ -1344,7 +1345,7 @@ void test_shared_dialog_handler_variants(openswd3::test::Context& test) {
                 fixture.state.previous_opcode == opcode &&
                 fixture.state.dialog_anchor_left == 0x8000U &&
                 fixture.state.dialog_anchor_top == 0x8000U &&
-                !fixture.state.dialog_center_pending &&
+                fixture.state.next_dialog_flag18_suppression == 0U &&
                 fixture.state.text_control_flags == 0xFFFFFFFFU &&
                 fixture.ports.story_protocol_events ==
                     std::vector<u32>{2U, 3U, 4U, 2U},
@@ -1396,6 +1397,49 @@ void test_shared_dialog_raw_aliases(openswd3::test::Context& test) {
             invalid.invalid_opcode_current == 194U &&
             chained.state.previous_opcode == 194U,
         "dialog common join publishes its opcode before a later default"
+    );
+}
+
+void test_dialog_flag18_suppression_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u8, 2U> text{'%', 'Q'};
+
+    Fixture suppressed;
+    write_dialog_instruction(suppressed, 2U, 0x00F8U, text);
+    suppressed.state.next_dialog_flag18_suppression = 1U;
+    const auto suppressed_result = suppressed.step();
+    test.expect_true(
+        suppressed_result.status == LegacyWorldStoryVmStatus::yielded &&
+            (suppressed.dialogs.messages.front().record.flags & 0x00040000U) ==
+                0U &&
+            suppressed.state.next_dialog_flag18_suppression == 0U,
+        "dialog flag bit 18 is suppressed only when the one-shot value equals one"
+    );
+
+    Fixture other_value;
+    write_dialog_instruction(other_value, 2U, 0x00F8U, text);
+    other_value.state.next_dialog_flag18_suppression = 2U;
+    const auto other_value_result = other_value.step();
+    test.expect_true(
+        other_value_result.status == LegacyWorldStoryVmStatus::yielded &&
+            (other_value.dialogs.messages.front().record.flags & 0x00040000U) !=
+                0U &&
+            other_value.state.next_dialog_flag18_suppression == 0U,
+        "dialog flag bit 18 remains set for a nonzero one-shot value other than one"
+    );
+
+    Fixture missing_terminator;
+    prime_loaded_instruction(missing_terminator, 2U);
+    write_u16(missing_terminator.state.window, 2U, 0x00F8U);
+    write_u16(missing_terminator.state.window, 4U, 0x232DU);
+    missing_terminator.state.next_dialog_flag18_suppression = 1U;
+    const auto missing_terminator_result = missing_terminator.step();
+    test.expect_true(
+        missing_terminator_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_terminator_result.direct_audio_service_count == 1U &&
+            missing_terminator.dialogs.messages.empty() &&
+            missing_terminator.state.next_dialog_flag18_suppression == 1U,
+        "dialog failure before queueing preserves the flag bit 18 one-shot value"
     );
 }
 
@@ -1627,7 +1671,7 @@ void test_dialog_text_preparation_and_mode_zero_metrics(
     );
 }
 
-void test_dialog_anchor_center_delay_and_reset(openswd3::test::Context& test) {
+void test_dialog_anchor_delay_flag_and_reset(openswd3::test::Context& test) {
     Fixture fixture;
     constexpr std::array<u8, 2U> text{'%', 'Q'};
     write_dialog_instruction(
@@ -1635,7 +1679,7 @@ void test_dialog_anchor_center_delay_and_reset(openswd3::test::Context& test) {
     );
     fixture.state.dialog_anchor_left = 10U;
     fixture.state.dialog_anchor_top = 20U;
-    fixture.state.dialog_center_pending = true;
+    fixture.state.next_dialog_flag18_suppression = 2U;
     fixture.state.dialog_character_delay_base = 3U;
     fixture.state.text_layout_first = 7;
     fixture.state.text_layout_second = -9;
@@ -1648,19 +1692,20 @@ void test_dialog_anchor_center_delay_and_reset(openswd3::test::Context& test) {
     test.expect_true(
         result.status == LegacyWorldStoryVmStatus::yielded &&
             record.anchor_left == 26U && record.anchor_top == 52U &&
-            record.left == 178U && record.top == 120U && record.width == 44U &&
+            record.left == 200U && record.top == 120U && record.width == 44U &&
             record.height == 33U && record.character_delay == 6U &&
             message.caption.size() == 1U &&
             fixture.state.speaker_name[0] == 0U &&
             fixture.state.speaker_name[2] == 0xAAU &&
             fixture.state.dialog_anchor_left == 0x8000U &&
             fixture.state.dialog_anchor_top == 0x8000U &&
-            !fixture.state.dialog_center_pending &&
+            fixture.state.next_dialog_flag18_suppression == 0U &&
+            (record.flags & 0x00040000U) != 0U &&
             fixture.state.text_layout_first == 0 &&
             fixture.state.text_layout_second == 0 &&
             fixture.ports.story_protocol_events ==
                 std::vector<u32>{2U, 3U, 4U, 4U, 2U},
-        "anchor, center, configured delay and one-byte name reset are exact"
+        "anchor, configured delay, flag bit 18 and one-byte name reset are exact"
     );
 
     Fixture detached;
@@ -1906,7 +1951,7 @@ void test_reinitialization_writes_only_owned_vm_fields(
     state.dialog_character_delay_base = 3U;
     state.dialog_anchor_left = 21U;
     state.dialog_anchor_top = 22U;
-    state.dialog_center_pending = true;
+    state.next_dialog_flag18_suppression = 2U;
 
     openswd3::world_map::initialize_legacy_world_story_vm(state);
 
@@ -1931,7 +1976,8 @@ void test_reinitialization_writes_only_owned_vm_fields(
             state.guid_one_action_override == 0U && state.dialog_scale == 13U &&
             state.dialog_character_delay_base == 3U &&
             state.dialog_anchor_left == 21U && state.dialog_anchor_top == 22U &&
-            state.dialog_center_pending && state.deferred_map_tile_x == -1 &&
+            state.next_dialog_flag18_suppression == 2U &&
+            state.deferred_map_tile_x == -1 &&
             state.deferred_map_tile_y == -1 && state.deferred_map_id == 0 &&
             openswd3::world_map::query_legacy_world_story_flag(state, 70U) &&
             !openswd3::world_map::query_legacy_world_story_flag(state, 2U),
@@ -2010,8 +2056,8 @@ void test_dialog_enqueue_and_wait_protocol(openswd3::test::Context& test) {
     );
     test.expect_equal(
         message.record.flags,
-        u32{0x10U},
-        "opcode 89 adds only its odd-variant flag"
+        u32{0x00040010U},
+        "opcode 89 adds its default bit 18 and odd-variant flags"
     );
     test.expect_equal(
         message.record.character_delay,
@@ -31196,7 +31242,7 @@ void test_real_new_game_story_reaches_first_dialog(
             third_scene_wait.opcode == 67U && transition_clear.opcode == 60U &&
             camera_wait.opcode == 51U && title.opcode == 6U &&
             title.status == LegacyWorldStoryVmStatus::yielded &&
-            title_record.flags == 0x468U &&
+            title_record.flags == 0x00040468U &&
             title_record.lifetime_limit == 20U && title_record.left == 20U &&
             title_record.top == 20U && title_record.width == 132U &&
             title_record.height == 22U && first_dialog.opcode == 89U &&
@@ -31302,11 +31348,12 @@ int main(const int argument_count, char** arguments) {
     test_default_invalid_opcode_protocol(test);
     test_shared_dialog_handler_variants(test);
     test_shared_dialog_raw_aliases(test);
+    test_dialog_flag18_suppression_protocol(test);
     test_clear_dialog_control_flag(test);
     test_clear_dialog_control_flag_bit30(test);
     test_stage_dialog_lifetime(test);
     test_dialog_text_preparation_and_mode_zero_metrics(test);
-    test_dialog_anchor_center_delay_and_reset(test);
+    test_dialog_anchor_delay_flag_and_reset(test);
     test_dialog_checked_failure_order(test);
     test_initial_flags_and_alignment_gate(test);
     test_reinitialization_writes_only_owned_vm_fields(test);

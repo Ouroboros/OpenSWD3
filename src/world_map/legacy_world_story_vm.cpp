@@ -647,6 +647,9 @@ scale_dialog_word(const u16 value, const u32 scale) noexcept {
         if ((state.text_control_flags & 0x04000000U) == 0U) {
             record.flags |= 0x02U;
         }
+        if (state.next_dialog_flag18_suppression != 1U) {
+            record.flags |= 0x00040000U;
+        }
         if (selector == kContextSelector) {
             record.anchor_left = static_cast<u16>(context.world_x);
             record.anchor_top = static_cast<u16>(context.world_y);
@@ -737,11 +740,6 @@ scale_dialog_word(const u16 value, const u32 scale) noexcept {
         }
         record.left = read_u16(window, ip + 6U);
         record.top = read_u16(window, ip + 8U);
-        if (state.dialog_center_pending) {
-            record.left = static_cast<u16>(
-                record.left - static_cast<u16>(record.width >> 1U)
-            );
-        }
         record.character_delay = static_cast<u16>(
             state.dialog_character_delay_base +
             state.dialog_character_delay_base
@@ -876,7 +874,7 @@ scale_dialog_word(const u16 value, const u32 scale) noexcept {
         state.speaker_name.front() = 0U;
         state.text_layout_first = 0;
         state.text_layout_second = 0;
-        state.dialog_center_pending = false;
+        state.next_dialog_flag18_suppression = 0U;
         state.previous_opcode = opcode;
         ports.service_audio();
         ++result.direct_audio_service_count;

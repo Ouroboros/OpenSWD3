@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v382
+版本：v383
 
 最后更新：2026-08-21
 
@@ -2720,5 +2720,12 @@ B7 P0 有限收口完成。
     `877ad3234198000501c55b2a47de08c99da86766ab01b8539a3a6ee899e8b110`。未启动游戏EXE。
     人工语义增至165行，现代显式opcode增至168；对外进度为已实现168/198、已验收165/198；
     内部workpack125/146，即`19 assembly_exact + 106 platform_adapted + 21 pending_audit`。
+
+- opcode160前置审计发现已提交共享对话handler把`dword_4CF73C`误映射为水平居中bool，
+    实际LST只在对话record flags处与1精确比较：非1置bit18，1抑制，成功排队后清零。
+    已独立删除无依据的半宽扣减，恢复完整dword one-shot、失败保留及默认bit18；Story VM 3/3、
+    Linux core186/186及app192/192通过，完整门lifecycle exit 0。此fix不实现或验收opcode160，
+    公开进度与workpack保持
+    已实现168/198、已验收165/198及125/146。
 
 下一组只审计`0x0042CBB0` / opcode160。

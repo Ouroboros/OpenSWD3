@@ -250,12 +250,12 @@ struct LegacyWorldStoryVmState {
     // does not own them.
     compat::u32 dialog_scale{11U};
     compat::u32 dialog_character_delay_base{2U};
-    // dword_4A135C packs the one-shot anchor override and 0x004CF73C is
-    // the one-shot horizontal-centering latch. The shared text handler resets
-    // them only after a dialog has been queued.
+    // dword_4A135C packs the one-shot anchor override. dword_4CF73C is
+    // compared with exactly one to suppress record flag bit 18 once. The
+    // shared text handler resets all three values only after queuing a dialog.
     compat::u16 dialog_anchor_left{0x8000U};
     compat::u16 dialog_anchor_top{0x8000U};
-    bool dialog_center_pending{};
+    compat::u32 next_dialog_flag18_suppression{};
     // sub_40E0B0 clears both three-dword music slot groups at
     // 0x004B7C74..88, clears 0x004ACDBC and establishes current stream mode
     // 1/argument 0 at 0x004B7380/0x004B74F0.

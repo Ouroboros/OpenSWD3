@@ -45,6 +45,7 @@ caller 在进入 `sub_40AFF0` 前按原顺序建立：
 
 - opcode 5/6 的 `record.flags |= 0x40`；
 - `text_control_flags` bit 31/30/29/26 清零分别映射 record `0x20/0x400/0x80/0x02`；
+- `dword_4CF73C != 1` 时置 record flag `0x00040000`；只有值恰好为1时抑制该位；
 - `next_text_aux_pending` 写 `lifetime_limit` 并置 `0x08`；
 - `0x004A135C` 的 low word 不为 `0x8000` 时，以 camera + 两个 u16 写 record `anchor_left/top`；
 - selector `0xFFFD` 先从 context `world_x/world_y` 写 anchor，再允许上述一次性 override 覆盖。
@@ -83,9 +84,9 @@ VM 通过 `prepare_dialog_text(source,destination)` 窄 port 请求完整 `%T/mo
 - frame action 先 update，speaker name 非空时再分配 caption、update caption action；
 - role index、transition、delay/countdown、颜色 4/4、style 4、text/caption pointer token 按原偏移写入；
 - character delay 为 `2 * dialog_character_delay_base`；
-- `0x004CF73C` center latch 在初始 left 上减半 width。
+- `0x004CF73C`不参与任何坐标计算，只参与caller的record flag bit18比较。
 
-mode1 保留 payload left/top。mode0/2 在 anchor 为零时按 role/context 建立中心点；role index 0 原分支跳过自动中心，这个看似异常的行为保留。随后：
+mode1原样保留payload left/top，不做额外半宽扣减。mode0/2在anchor为零时按role/context建立中心点；role index 0 原分支跳过自动中心，这个看似异常的行为保留。随后：
 
 - opcode104 对应 bit 28 清零时使用 `text_layout_first/second`；
 - 否则普通 role 使用八项 facing offset，detached context 使用 `(0,-104)`；
@@ -109,7 +110,7 @@ caller 链入 record 后再次按 byte 扫到原脚本 `%Q`，把 context IP 写
 - next aux value/pending → `60/false`；
 - speaker buffer只清 byte 0，后续 stale bytes 保留；
 - text layout pair → `0/0`；
-- center latch → false。
+- next-dialog flag bit18 suppression dword → `0`。
 
 跳到 common join 后先把当前 opcode 写入 previous owner，再因 continue flags 为零调用第二次 `_AIL_serve` 并返回 1/yield。现代同样在第二次 service 前写 `state.previous_opcode`；测试固定 dialog→default 的 previous 交接。
 
@@ -137,7 +138,7 @@ audio → prepare → frame action update → [caption update] → audio
 
 机械检查 4392/4392 均满足各自 6/14/10-byte 头且以 `%Q` 结束；长度为奇数的记录按 byte scan 合法保留。real CTest 另从原 `TALK1.DAT/TALK4.DAT` 各回放一条八变体物理记录；opcode1 样本含 `%T`，SDL/测试 false resolver 路径确认 token 保留。
 
-synthetic、real、initial-session-real 三项定向 CTest 为 3/3。最终完整门禁为 Linux core 186/186、Linux app 192/192、Windows LLVM app 192/192；三个 build/test 进程均 lifecycle exit 0，且没有启动原版或 OpenSWD3 游戏 EXE。
+opcode160前置审计发现旧证据曾把`dword_4CF73C`误写成水平居中latch，且现代遗漏默认flag bit18。独立修复删除该额外坐标分支，恢复完整dword精确等一抑制、其他值置位、成功排队清零与失败保留。synthetic、real、initial-session-real三项定向CTest 3/3通过；Linux core完整门186/186、app完整门192/192通过，进程lifecycle exit 0。未启动原版或OpenSWD3游戏EXE。
 
 ## 9. 停止线
 
