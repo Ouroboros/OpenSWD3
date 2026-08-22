@@ -50,6 +50,8 @@ Linux共享库RUNPATH优先使用`$ORIGIN`。Windows测试证明复制后的DLL�
 
 逐帧消费末尾的`and ecx, 0xFFDFFFFF`只清`0x00200000`，不得清场景组循环位`0x00020000`。初次主帧接线误把掩码解释为后者，导致`Story_10`与`Map_Eu08`场景音乐对进入第二槽后不能循环；现已按LST修正，场景第二槽在真实MP3 EOF后重新建立stream100。
 
+Windows真实音频设备复测进一步暴露：完整解码样本经`SDL_PutAudioStreamData()`入队后未调用`SDL_FlushAudioStream()`，因此设备侧可能保留尚未提交的输入尾部，`SDL_GetAudioStreamQueued()`在`Map_Eu08`播放结束后仍不归零，stream100不会进入Miles状态2。后端现于每次完整文件入队后显式flush；SDL3允许flush后继续入队，循环重开路径保持有效。
+
 ## 视频后端
 
 `make_legacy_video_backend()`创建进程内单实例句柄后端，用于Bink容器。
@@ -86,7 +88,7 @@ SDL主运行时不再实例化不可用的stream backend或立即完成型video 
 - 帧运行时测试证明：剧情VM写入的视频活动位会保留在发布给idle分派的已接受帧状态中。
 - 运行时修复后，Linux core无SDL/无FFmpeg配置保持独立并通过`186/186`。
 - 运行时修复后，Linux app完整门通过`192/192`。
-- 场景音乐循环掩码修复后，Windows LLVM app完整门再次通过`192/192`。
+- 场景音乐循环掩码及SDL音频输入flush修复后，Windows LLVM app完整门分别通过`192/192`。
 - Linux ELF依赖从应用输出目录复制的文件中解析全部五个FFmpeg库，不存在缺失的FFmpeg依赖。
 - Linux和Windows应用/测试输出目录均包含`openswd3_ffmpeg`、共享SDL3运行库、五个FFmpeg运行库及`LICENSE.txt`。
 - ELF和PE依赖检查证明应用与`openswd3_ffmpeg`解析到同一个共享SDL3运行时实例。

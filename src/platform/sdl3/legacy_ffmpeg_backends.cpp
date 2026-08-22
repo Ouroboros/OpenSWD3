@@ -377,6 +377,10 @@ make_audio_resampler(const AVCodecContext& decoder, std::string& error) {
         error = std::string{"SDL audio queue failed: "} + SDL_GetError();
         return false;
     }
+    if (!SDL_FlushAudioStream(&stream)) {
+        error = std::string{"SDL audio flush failed: "} + SDL_GetError();
+        return false;
+    }
     return true;
 }
 
