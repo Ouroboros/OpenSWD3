@@ -153,6 +153,8 @@ using openswd3::world_map::OP_122_CLEAR_SPEED_MODE;
 using openswd3::world_map::OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY;
 using openswd3::world_map::OP_124_CLEAR_TEXT_CONTROL_BIT25;
 using openswd3::world_map::OP_125_APPEND_TEXT_ALLOCATION;
+using openswd3::world_map::OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL;
+using openswd3::world_map::OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -19220,6 +19222,345 @@ void test_append_text_allocation_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_role_base_variant_reload_protocol(openswd3::test::Context& test) {
+    struct Variant {
+        u16 opcode;
+        u16 reload_value;
+        u16 sequential_value;
+    };
+    constexpr std::array<Variant, 2U> variants{
+        Variant{OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL, 8U, 9U},
+        Variant{OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL, 9U, 8U},
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    constexpr u32 target = 0x12345678U;
+    for (const auto variant : variants) {
+        for (const u16 alias_mask : alias_masks) {
+            Fixture fixture;
+            fixture.roles[1].guid = 0x2222U;
+            fixture.roles[1].action.base_variant = 8U;
+            prime_loaded_instruction(
+                fixture, static_cast<u16>(variant.opcode | alias_mask)
+            );
+            write_u16(fixture.state.window, 2U, 0x2222U);
+            write_u16(fixture.state.window, 4U, variant.reload_value);
+            write_u32(fixture.state.window, 6U, target);
+            write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+
+            const auto result = fixture.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                    result.opcode == OP_1025 &&
+                    result.executed_instruction_count == 2U &&
+                    result.direct_audio_service_count == 1U &&
+                    fixture.context.talk_data_offset == target &&
+                    fixture.context.instruction_offset == 0U &&
+                    fixture.state.loaded_data_offset == target &&
+                    fixture.state.previous_opcode == variant.opcode &&
+                    fixture.ports.data_load_count == 1U &&
+                    fixture.ports.last_data_offset == target &&
+                    !fixture.ports.last_data_clear_before_read &&
+                    fixture.ports.story_protocol_events ==
+                        std::vector<u32>{2U, 5U},
+                "opcodes 126 and 127 aliases apply their inverse reload predicates"
+            );
+        }
+
+        Fixture sequential;
+        sequential.roles[1].guid = 0x2222U;
+        sequential.roles[1].action.base_variant = 8U;
+        prime_loaded_instruction(sequential, variant.opcode);
+        write_u16(sequential.state.window, 2U, 0x2222U);
+        write_u16(sequential.state.window, 4U, variant.sequential_value);
+        write_u32(sequential.state.window, 6U, target);
+        write_u16(sequential.state.window, 10U, OP_1025);
+
+        const auto result = sequential.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                sequential.context.instruction_offset == 10U &&
+                sequential.state.previous_opcode == variant.opcode &&
+                sequential.ports.data_load_count == 0U,
+            "opcodes 126 and 127 consume ten bytes and same-call fetch when their predicate is false"
+        );
+    }
+
+    Fixture full_width;
+    full_width.roles[1].guid = 0x2222U;
+    full_width.roles[1].action.base_variant = 0x00010008U;
+    prime_loaded_instruction(
+        full_width, OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL
+    );
+    write_u16(full_width.state.window, 2U, 0x2222U);
+    write_u16(full_width.state.window, 4U, 8U);
+    write_u16(full_width.state.window, 10U, OP_1025);
+    const auto full_width_result = full_width.step();
+
+    Fixture current_source;
+    current_source.roles[1].guid = current_source.context.source_guid;
+    current_source.roles[1].action.base_variant = 8U;
+    prime_loaded_instruction(
+        current_source, OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL
+    );
+    write_u16(current_source.state.window, 2U, 0xFFF0U);
+    write_u16(current_source.state.window, 4U, 8U);
+    write_u32(current_source.state.window, 6U, target);
+    write_u16(current_source.ports.transferred_window, 0U, OP_1025);
+    const auto current_source_result = current_source.step();
+
+    Fixture controlled;
+    controlled.roles[2].guid = 0x3333U;
+    controlled.roles[2].action.base_variant = 8U;
+    prime_loaded_instruction(
+        controlled, OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL
+    );
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    write_u16(controlled.state.window, 4U, 9U);
+    write_u32(controlled.state.window, 6U, target);
+    write_u16(controlled.ports.transferred_window, 0U, OP_1025);
+    const auto controlled_result = controlled.step(0, 0, 2U);
+
+    test.expect_true(
+        full_width_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            full_width.context.instruction_offset == 10U &&
+            full_width.ports.data_load_count == 0U &&
+            current_source_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            current_source.ports.data_load_count == 1U &&
+            controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled.ports.data_load_count == 1U,
+        "role base-variant reload compares the full runtime dword and preserves FFF0 and FFFE lookup rules"
+    );
+
+    Fixture materialized_equal;
+    MapRoleWriteHarness equal_maps{materialized_equal};
+    equal_maps.add_source(
+        openswd3::world_map::LegacyMapsRoleSourceRecord{
+            .logical_map_id = 5U,
+            .guid = 0x4444U,
+            .action_id = 7U,
+            .base_variant = 8U,
+        }
+    );
+    prime_loaded_instruction(
+        materialized_equal, OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL
+    );
+    write_u16(materialized_equal.state.window, 2U, 0x4444U);
+    write_u16(materialized_equal.state.window, 4U, 8U);
+    write_u32(materialized_equal.state.window, 6U, target);
+    write_u16(materialized_equal.ports.transferred_window, 0U, OP_1025);
+    const auto materialized_equal_result = materialized_equal.step();
+
+    Fixture materialized_not_equal;
+    MapRoleWriteHarness not_equal_maps{materialized_not_equal};
+    not_equal_maps.add_source(
+        openswd3::world_map::LegacyMapsRoleSourceRecord{
+            .logical_map_id = 5U,
+            .guid = 0x4444U,
+            .action_id = 7U,
+            .base_variant = 8U,
+        }
+    );
+    prime_loaded_instruction(
+        materialized_not_equal, OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL
+    );
+    write_u16(materialized_not_equal.state.window, 2U, 0x4444U);
+    write_u16(materialized_not_equal.state.window, 4U, 8U);
+    write_u16(materialized_not_equal.state.window, 10U, OP_1025);
+    const auto materialized_not_equal_result = materialized_not_equal.step();
+
+    test.expect_true(
+        materialized_equal_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            materialized_equal.ports.data_load_count == 1U &&
+            materialized_not_equal_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            materialized_not_equal.context.instruction_offset == 10U &&
+            materialized_not_equal.ports.data_load_count == 0U,
+        "opcodes 126 and 127 materialize a missing live role from the mutable MAPS source"
+    );
+
+    Fixture missing_database;
+    prime_loaded_instruction(
+        missing_database, OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL
+    );
+    write_u16(missing_database.state.window, 2U, 0x5555U);
+    write_u16(missing_database.state.window, 4U, 8U);
+    const auto missing_database_result = missing_database.step();
+
+    Fixture missing_source;
+    MapRoleWriteHarness empty_maps{missing_source};
+    prime_loaded_instruction(
+        missing_source, OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL
+    );
+    write_u16(missing_source.state.window, 2U, 0x5555U);
+    const auto missing_source_result = missing_source.step();
+
+    Fixture selector_truncated;
+    selector_truncated.context.instruction_offset = 0x7FFEU;
+    selector_truncated.context.talk_data_offset = 0x1111U;
+    selector_truncated.state.loaded_file_number = 1U;
+    selector_truncated.state.loaded_data_offset = 0x1111U;
+    selector_truncated.state.window_loaded = true;
+    write_u16(
+        selector_truncated.state.window,
+        0x7FFEU,
+        OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL
+    );
+    const auto selector_truncated_result = selector_truncated.step();
+
+    Fixture compare_truncated;
+    compare_truncated.context.instruction_offset = 0x7FFCU;
+    compare_truncated.context.talk_data_offset = 0x1111U;
+    compare_truncated.state.loaded_file_number = 1U;
+    compare_truncated.state.loaded_data_offset = 0x1111U;
+    compare_truncated.state.window_loaded = true;
+    compare_truncated.roles[1].guid = 0x2222U;
+    compare_truncated.roles[1].action.base_variant = 8U;
+    write_u16(
+        compare_truncated.state.window,
+        0x7FFCU,
+        OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL
+    );
+    write_u16(compare_truncated.state.window, 0x7FFEU, 0x2222U);
+    const auto compare_truncated_result = compare_truncated.step();
+
+    test.expect_true(
+        missing_database_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_database.context.instruction_offset == 0U &&
+            missing_database.state.previous_opcode == 0U &&
+            missing_database.ports.data_load_count == 0U &&
+            missing_source_result.status ==
+                LegacyWorldStoryVmStatus::role_not_found &&
+            missing_source.context.instruction_offset == 0U &&
+            missing_source.state.previous_opcode == 0U &&
+            missing_source.ports.data_load_count == 0U &&
+            selector_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            selector_truncated.context.instruction_offset == 0x7FFEU &&
+            compare_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            compare_truncated.context.instruction_offset == 0x7FFCU &&
+            compare_truncated.state.previous_opcode == 0U,
+        "role base-variant reload preserves selector, MAPS materialization, and compare-operand failure order"
+    );
+
+    Fixture no_target_equal;
+    no_target_equal.context.instruction_offset = 0x7FFAU;
+    no_target_equal.context.talk_data_offset = 0x1111U;
+    no_target_equal.state.loaded_file_number = 1U;
+    no_target_equal.state.loaded_data_offset = 0x1111U;
+    no_target_equal.state.window_loaded = true;
+    no_target_equal.roles[1].guid = 0x2222U;
+    no_target_equal.roles[1].action.base_variant = 8U;
+    write_u16(
+        no_target_equal.state.window,
+        0x7FFAU,
+        OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL
+    );
+    write_u16(no_target_equal.state.window, 0x7FFCU, 0x2222U);
+    write_u16(no_target_equal.state.window, 0x7FFEU, 9U);
+    const auto no_target_equal_result = no_target_equal.step();
+
+    Fixture no_target_not_equal;
+    no_target_not_equal.context.instruction_offset = 0x7FFAU;
+    no_target_not_equal.context.talk_data_offset = 0x1111U;
+    no_target_not_equal.state.loaded_file_number = 1U;
+    no_target_not_equal.state.loaded_data_offset = 0x1111U;
+    no_target_not_equal.state.window_loaded = true;
+    no_target_not_equal.roles[1].guid = 0x2222U;
+    no_target_not_equal.roles[1].action.base_variant = 8U;
+    write_u16(
+        no_target_not_equal.state.window,
+        0x7FFAU,
+        OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL
+    );
+    write_u16(no_target_not_equal.state.window, 0x7FFCU, 0x2222U);
+    write_u16(no_target_not_equal.state.window, 0x7FFEU, 8U);
+    const auto no_target_not_equal_result = no_target_not_equal.step();
+
+    Fixture target_truncated;
+    target_truncated.context.instruction_offset = 0x7FFAU;
+    target_truncated.context.talk_data_offset = 0x1111U;
+    target_truncated.state.loaded_file_number = 1U;
+    target_truncated.state.loaded_data_offset = 0x1111U;
+    target_truncated.state.window_loaded = true;
+    target_truncated.roles[1].guid = 0x2222U;
+    target_truncated.roles[1].action.base_variant = 8U;
+    write_u16(
+        target_truncated.state.window,
+        0x7FFAU,
+        OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL
+    );
+    write_u16(target_truncated.state.window, 0x7FFCU, 0x2222U);
+    write_u16(target_truncated.state.window, 0x7FFEU, 8U);
+    const auto target_truncated_result = target_truncated.step();
+
+    test.expect_true(
+        no_target_equal_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            no_target_equal_result.executed_instruction_count == 1U &&
+            no_target_equal.context.instruction_offset == 0x8004U &&
+            no_target_equal.state.previous_opcode ==
+                OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL &&
+            no_target_equal.ports.data_load_count == 0U &&
+            no_target_not_equal_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            no_target_not_equal_result.executed_instruction_count == 1U &&
+            no_target_not_equal.context.instruction_offset == 0x8004U &&
+            no_target_not_equal.state.previous_opcode ==
+                OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL &&
+            no_target_not_equal.ports.data_load_count == 0U &&
+            target_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            target_truncated.context.instruction_offset == 0x7FFAU &&
+            target_truncated.state.previous_opcode == 0U &&
+            target_truncated.ports.data_load_count == 0U,
+        "role base-variant reload reads its u32 target only on the taken branch"
+    );
+
+    Fixture load_failure;
+    load_failure.roles[1].guid = 0x2222U;
+    load_failure.roles[1].action.base_variant = 8U;
+    prime_loaded_instruction(
+        load_failure, OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL
+    );
+    write_u16(load_failure.state.window, 2U, 0x2222U);
+    write_u16(load_failure.state.window, 4U, 9U);
+    write_u32(load_failure.state.window, 6U, target);
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    load_failure.state.previous_opcode = 0x55U;
+    const auto load_failure_result = load_failure.step();
+
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.opcode ==
+                OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL &&
+            load_failure_result.executed_instruction_count == 1U &&
+            load_failure_result.direct_audio_service_count == 1U &&
+            load_failure.context.talk_data_offset == target &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL &&
+            !load_failure.state.window_loaded &&
+            load_failure.ports.story_protocol_events ==
+                std::vector<u32>{2U, 5U},
+        "role base-variant reload preserves loader side effects and previous publication on checked I/O failure"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -22951,6 +23292,80 @@ void test_real_update_scene_music_table_entry_records(
     }
 }
 
+void test_real_role_base_variant_reload_record(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    std::ifstream input{root / "TALK1.DAT", std::ios::binary | std::ios::in};
+    input.seekg(0x00007B8C);
+    std::array<u8, 10U> instruction{};
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+    input.close();
+
+    openswd3::resource_io::LegacyResourceDatabases databases;
+    const auto initialized = databases.initialize(root);
+    LegacyWorldStoryVmState state{};
+    openswd3::world_map::initialize_legacy_world_story_vm(state);
+    std::ranges::copy(instruction, state.window.begin());
+    state.loaded_file_number = 1U;
+    state.loaded_data_offset = 0x0000798CU;
+    state.window_loaded = true;
+    LegacyWorldTalkContext context{};
+    context.source_guid = 0xEA46U;
+    context.talk_script_id = 100U;
+    context.talk_data_offset = 0x0000798CU;
+    std::array<LegacyWorldRoleRecord, 2U> roles{};
+    roles[1].guid = 0xEA46U;
+    roles[1].action.base_variant = 8U;
+    std::array<
+        LegacyWorldObjectSlot,
+        openswd3::world_map::kLegacyWorldActiveObjectSlotCount>
+        active_object_slots{};
+    openswd3::story_scene::LegacyDialogRuntimeState dialogs;
+    openswd3::world_map::LegacyWorldDialogRuntimeState dialog_resources;
+    std::array<u8, 16U> first_name{};
+    std::array<u8, 16U> second_name{};
+    RealPorts ports{databases};
+
+    const auto result = openswd3::world_map::step_legacy_world_story_vm(
+        context,
+        state,
+        roles,
+        0U,
+        active_object_slots,
+        {},
+        dialogs,
+        dialog_resources,
+        first_name,
+        second_name,
+        {},
+        ports
+    );
+    test.expect_true(
+        instruction_read &&
+            initialized.status ==
+                openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
+            read_u16(instruction, 0U) ==
+                OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL &&
+            read_u16(instruction, 2U) == 0xEA46U &&
+            read_u16(instruction, 4U) == 8U &&
+            read_u32(instruction, 6U) == 0x000079D7U &&
+            result.status == LegacyWorldStoryVmStatus::terminated &&
+            result.opcode == 16383U &&
+            result.executed_instruction_count == 3U &&
+            result.load_status == LegacyTalkWindowStatus::ready &&
+            result.direct_audio_service_count == 1U &&
+            context.talk_data_offset == 0xFFFFFFFFU &&
+            context.instruction_offset == 0xFFFFU && !state.window_loaded &&
+            state.loaded_file_number == 0U && state.loaded_data_offset == 0U &&
+            state.previous_opcode == OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL,
+        "real opcode 126 reloads TALK1 target 0x79D7 and same-call terminates through 1026 and FFFF"
+    );
+}
+
 void test_real_wait_primary_picture_action_byte_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -25691,6 +26106,7 @@ int main(const int argument_count, char** arguments) {
     test_update_scene_music_table_entry_protocol(test);
     test_clear_text_control_bit25_protocol(test);
     test_append_text_allocation_protocol(test);
+    test_role_base_variant_reload_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -25771,6 +26187,7 @@ int main(const int argument_count, char** arguments) {
         test_real_clear_text_control_bit26_records(test, root);
         test_real_clear_speed_mode_records(test, root);
         test_real_update_scene_music_table_entry_records(test, root);
+        test_real_role_base_variant_reload_record(test, root);
         test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_wait_role_action_index_records(test, root);
         test_real_step_role_list_records(test, root);

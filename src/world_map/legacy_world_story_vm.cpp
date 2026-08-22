@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <new>
 #include <stdexcept>
 
@@ -5508,6 +5509,89 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ++result.direct_audio_service_count;
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
+        }
+
+        case OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL:
+        case OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL: {
+            if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            u16 selector = read_u16(state.window, ip + 2U);
+            if (selector == kCurrentSourceSelector) {
+                selector = context.source_guid;
+            }
+
+            LegacyWorldRoleRecord* selected_role{};
+            std::unique_ptr<LegacyWorldRoleRecord> temporary_role;
+            u32 role_index{};
+            if (resolve_role_index(
+                    roles, selector, controlled_role_index, role_index
+                )) {
+                selected_role = &roles[role_index];
+            } else {
+                try {
+                    temporary_role = std::make_unique<LegacyWorldRoleRecord>();
+                } catch (const std::bad_alloc&) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::role_allocation_failed;
+                    return result;
+                } catch (...) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::role_allocation_failed;
+                    return result;
+                }
+                if (runtime.maps_database == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+                if (load_legacy_maps_role_source_record(
+                        *runtime.maps_database, selector, *temporary_role
+                    ) == std::numeric_limits<u32>::max()) {
+                    result.status = LegacyWorldStoryVmStatus::role_not_found;
+                    return result;
+                }
+                selected_role = temporary_role.get();
+            }
+
+            const u32 current_base_variant = selected_role->action.base_variant;
+            if (!has_bytes(state.window, ip + 4U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const bool equal =
+                current_base_variant == read_u16(state.window, ip + 4U);
+            const bool reload =
+                result.opcode == OP_126_RELOAD_IF_ROLE_BASE_VARIANT_EQUAL
+                ? equal
+                : !equal;
+            if (reload) {
+                if (!has_bytes(state.window, ip + 6U, sizeof(u32))) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                result.status = load_same_file_story_window(
+                    context,
+                    state,
+                    current_file_number(context, state),
+                    read_u32(state.window, ip + 6U),
+                    result,
+                    ports
+                );
+            } else {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 10U);
+                result.status = LegacyWorldStoryVmStatus::idle;
+            }
+
+            temporary_role.reset();
+            state.previous_opcode = result.opcode;
+            if (result.status != LegacyWorldStoryVmStatus::idle) {
+                return result;
+            }
+            continue;
         }
 
         case 141U:
