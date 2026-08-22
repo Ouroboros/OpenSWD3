@@ -147,6 +147,7 @@ using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID;
 using openswd3::world_map::OP_119_WAIT_DIALOG_FLAG_BIT0;
 using openswd3::world_map::OP_120_UPDATE_ROLE_ACTION_FIELDS;
+using openswd3::world_map::OP_121_CLEAR_TEXT_CONTROL_BIT26;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -18510,6 +18511,67 @@ void test_clear_text_control_bit27_protocol(
     );
 }
 
+void test_clear_text_control_bit26_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.text_control_flags = 0xFFFFFFFFU;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_121_CLEAR_TEXT_CONTROL_BIT26 | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.text_control_flags == 0xFBFFFFFFU &&
+                fixture.state.previous_opcode ==
+                    OP_121_CLEAR_TEXT_CONTROL_BIT26,
+            "opcode 121 aliases clear only text-control bit 26 and continue"
+        );
+    }
+
+    Fixture already_clear;
+    already_clear.state.text_control_flags = 0xFBFFFFFFU;
+    prime_loaded_instruction(already_clear, OP_121_CLEAR_TEXT_CONTROL_BIT26);
+    write_u16(already_clear.state.window, 2U, OP_1025);
+    const auto already_clear_result = already_clear.step();
+
+    Fixture exact_tail;
+    exact_tail.state.text_control_flags = 0xFFFFFFFFU;
+    prime_loaded_instruction(exact_tail, OP_121_CLEAR_TEXT_CONTROL_BIT26);
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    write_u16(
+        exact_tail.state.window, 0x7FFEU, OP_121_CLEAR_TEXT_CONTROL_BIT26
+    );
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        already_clear_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            already_clear.state.text_control_flags == 0xFBFFFFFFU &&
+            already_clear.state.previous_opcode ==
+                OP_121_CLEAR_TEXT_CONTROL_BIT26 &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.text_control_flags == 0xFBFFFFFFU &&
+            exact_tail.state.previous_opcode == OP_121_CLEAR_TEXT_CONTROL_BIT26,
+        "opcode 121 is idempotent and commits its exact-tail clear before refetch"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -22058,6 +22120,55 @@ void test_real_clear_text_control_bit27_records(
     }
 }
 
+void test_real_clear_text_control_bit26_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+    };
+    constexpr std::array<RealCase, 4U> cases{
+        RealCase{"TALK1.DAT", 0x0000965C},
+        RealCase{"TALK2.DAT", 0x0000F18D},
+        RealCase{"TALK3.DAT", 0x00023123},
+        RealCase{"TALK4.DAT", 0x0000135C},
+    };
+
+    for (const auto& real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 2U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.state.text_control_flags = 0xFFFFFFFFU;
+        prime_loaded_instruction(fixture, OP_121_CLEAR_TEXT_CONTROL_BIT26);
+        fixture.context.instruction_offset = 0x7FFEU;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFEU);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read &&
+                read_u16(record, 0U) == OP_121_CLEAR_TEXT_CONTROL_BIT26 &&
+                result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.state.text_control_flags == 0xFBFFFFFFU &&
+                fixture.state.previous_opcode ==
+                    OP_121_CLEAR_TEXT_CONTROL_BIT26,
+            "real opcode 121 clears bit 26 before exact-tail completion"
+        );
+    }
+}
+
 void test_real_wait_primary_picture_action_byte_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -24793,6 +24904,7 @@ int main(const int argument_count, char** arguments) {
     test_set_role_status_from_boolean_protocol(test);
     test_set_text_layout_pair_protocol(test);
     test_clear_text_control_bit27_protocol(test);
+    test_clear_text_control_bit26_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -24870,6 +24982,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_role_status_from_boolean_records(test, root);
         test_real_set_text_layout_pair_records(test, root);
         test_real_clear_text_control_bit27_records(test, root);
+        test_real_clear_text_control_bit26_records(test, root);
         test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_wait_role_action_index_records(test, root);
         test_real_step_role_list_records(test, root);

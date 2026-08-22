@@ -209,6 +209,8 @@ bit0 == 1                         -> 消费
 
 本入口现已独立闭环。live路径按`+4/+6/+8`逐项读取并立即提交，后续截断保留前序写；missing路径则按`+8/+6/+4`读取raw word后提交MAPS patch。两路均发布previous120并same-call。800条真实记录/808 probes、两条live/missing回放、四alias、special selector、refresh失败及两类精确尾通过；完整证据见[`story-vm-role-action-fields-0042bab8.md`](story-vm-role-action-fields-0042bab8.md)。
 
+opcode121无operand，只对完整text-control u32执行`AND FBFFFFFF`清bit26，再经共享尾+2、发布previous121并same-call。815条真实记录/815 probes、四库精确尾、四alias与幂等清位通过；完整证据见[`story-vm-text-control-bit26-clear-0042bc2c.md`](story-vm-text-control-bit26-clear-0042bc2c.md)。
+
 ## opcode 123：Scene_Music 表项的非对称复制
 
 123 从 `dword_4C9A10` 的相对偏移链取得 8 字节一项、以 key 零结束的 Scene_Music 表。`+2` 为查找 key；若是 `FFF0`，只在比较时以 `ArgList` 低 16 位替代。找到匹配项后实际复制：
