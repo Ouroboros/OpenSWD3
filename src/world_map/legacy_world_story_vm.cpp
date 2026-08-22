@@ -6266,6 +6266,44 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_135_RESET_INPUT_MENU_STATE:
+            if (runtime.special_input_mode == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.special_input_mode = 4U;
+            if (runtime.high_priority_submode == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.high_priority_submode = 1U;
+            if (runtime.high_priority_auxiliary == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.high_priority_auxiliary = 0U;
+            if (runtime.high_priority_state == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            *runtime.high_priority_state = 3U;
+            if (!ports.reset_input_menu_and_save_previews()) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            state.previous_opcode = result.opcode;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+
         case 141U:
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

@@ -166,6 +166,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT = 132U,
     OP_133_REQUEST_SHOP = 133U,
     OP_134_ADJUST_PARTY_MEMBER_RESOURCES = 134U,
+    OP_135_RESET_INPUT_MENU_STATE = 135U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
@@ -283,6 +284,10 @@ struct LegacyWorldStoryVmRuntime {
     LegacyRoleHeadActionList* role_head_actions{};
     compat::u32* battle_request_value{};
     compat::u32* special_mode_state{};
+    compat::u32* special_input_mode{};
+    compat::u32* high_priority_state{};
+    compat::u32* high_priority_submode{};
+    compat::u32* high_priority_auxiliary{};
     rendering::LegacyFrameColorTransitionState* frame_color{};
     LegacyWorldStoryPathRuntime* story_paths{};
     compat::u32* indexed_target_selector{};
@@ -370,6 +375,9 @@ public:
     [[nodiscard]] virtual bool is_story_ani_active() const noexcept = 0;
     [[nodiscard]] virtual compat::i32
     query_story_ani_phase() const noexcept = 0;
+    // sub_406D30 spans the deferred special-modes and persistence owners.
+    // False stops at the original cross-module call after prior global writes.
+    [[nodiscard]] virtual bool reset_input_menu_and_save_previews() = 0;
     virtual void beep() noexcept = 0;
     virtual void service_audio() = 0;
     // Models sub_40B7F0's optional %T/mon.dat expansion. Returning false

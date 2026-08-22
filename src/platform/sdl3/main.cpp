@@ -3696,6 +3696,13 @@ public:
                 return ani_activity_.state().phase;
             }
 
+            [[nodiscard]] bool reset_input_menu_and_save_previews() override {
+                // sub_406D30 also resets deferred B9 menu/action state and B11
+                // save previews. Preserve the VM's checked call boundary until
+                // those owners replace this explicit failure.
+                return false;
+            }
+
             void beep() noexcept override {}
 
             void service_audio() override {
@@ -3852,6 +3859,11 @@ public:
                     &frame_coordinator_state_.battle.battle_request_value,
                 .special_mode_state =
                     &frame_coordinator_state_.battle.special_mode_state,
+                .special_input_mode = &special_input_mode_,
+                .high_priority_state =
+                    &frame_coordinator_state_.battle.high_priority_state,
+                .high_priority_submode = &high_priority_submode_,
+                .high_priority_auxiliary = &high_priority_auxiliary_,
                 .frame_color = &world_frame_effects_.frame_color,
                 .story_paths = &story_paths,
                 .indexed_target_selector =
@@ -5186,6 +5198,7 @@ private:
     openswd3::app::ProcessExitPorts& exit_ports_;
     openswd3::compat::u32 accumulated_play_time_{};
     openswd3::compat::u32 play_time_origin_{};
+    openswd3::compat::u32 special_input_mode_{};
     openswd3::compat::u32 high_priority_submode_{};
     openswd3::compat::u32 high_priority_auxiliary_{};
     bool& ok_;

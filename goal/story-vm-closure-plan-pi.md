@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042C3B0`（opcode135）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042C3F7`（opcode137）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -20,7 +20,7 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 - 当前 C++ 接入 95 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- `0..134`及`167..168`已有人工汇编语义；其余`135..193`目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
+- `0..136`及`167..168`已有人工汇编语义；其余`137..193`目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
 - 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至147行。前108行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至148行。前109行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -207,7 +207,11 @@ B9只负责后续商品链物化。22条真实记录与代表回放、Story VM 3
 自修改下一word为opcode144、transient清理与same-call；B10/B11剩余字段加载不伪造，opcode144独立
 保持pending。47条真实记录、四项恢复链和损伤自修改链回放、Story VM 3/3、Linux core 186/186与
 app 192/192完整门均以exit 0通过；已实现151/198、已验收147/198；内部workpack为108/146，即`15 assembly_exact + 93 platform_adapted +
-38 pending_audit`。下一行只审计`0x0042C3B0`下的opcode135。
+38 pending_audit`。opcode135恢复四项special/high-priority状态写、`sub_406D30`输入菜单与存档预览
+重置调用、IP/audio/previous/yield顺序；四项实际owner已接线，跨B9/B11 helper以可失败窄port明确延期，
+SDL不伪造成功。零资产以asset absence与synthetic锁定，Story VM 3/3、Linux core186/186及app192/192完整门均以exit0通过；
+已实现152/198、已验收148/198；内部workpack为109/146，即`15 assembly_exact + 94 platform_adapted +
+37 pending_audit`。下一行只审计`0x0042C3F7`下的opcode137。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

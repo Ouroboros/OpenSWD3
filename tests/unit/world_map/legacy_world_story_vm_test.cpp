@@ -165,6 +165,7 @@ using openswd3::world_map::OP_131_ADD_PARTY_ITEM_IF_ALLOWED;
 using openswd3::world_map::OP_132_SWAP_PLAYER_ITEM_INTO_ROLE_SLOT;
 using openswd3::world_map::OP_133_REQUEST_SHOP;
 using openswd3::world_map::OP_134_ADJUST_PARTY_MEMBER_RESOURCES;
+using openswd3::world_map::OP_135_RESET_INPUT_MENU_STATE;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -471,6 +472,15 @@ public:
         return ani_phase;
     }
 
+    [[nodiscard]] bool reset_input_menu_and_save_previews() override {
+        ++input_menu_reset_count;
+        story_protocol_events.push_back(14U);
+        if (input_menu_reset_callback) {
+            input_menu_reset_callback();
+        }
+        return input_menu_reset_success;
+    }
+
     void beep() noexcept override {
         ++beep_count;
         default_protocol_events.push_back(1U);
@@ -519,6 +529,7 @@ public:
     std::function<void()> audio_service_callback;
     std::function<void()> music_transition_callback;
     std::function<void()> music_volume_callback;
+    std::function<void()> input_menu_reset_callback;
     u32 framebuffer_clear_count{};
     u32 framebuffer_present_count{};
     u32 video_prepare_count{};
@@ -540,6 +551,7 @@ public:
     u32 last_music_volume_level{};
     u32 dialog_text_prepare_count{};
     u32 item_definition_load_count{};
+    u32 input_menu_reset_count{};
     u32 role_path_payload_release_count{};
     u32 released_role_path_index{0xFFFFFFFFU};
     u32 world_session_reload_begin_count{};
@@ -548,6 +560,7 @@ public:
     bool dialog_text_prepare_success{};
     bool item_definition_load_success{true};
     bool world_session_reload_success{true};
+    bool input_menu_reset_success{true};
     bool video_prepare_success{true};
     bool ani_prepare_success{true};
     bool ani_active{};
@@ -743,6 +756,10 @@ public:
         return 0;
     }
 
+    [[nodiscard]] bool reset_input_menu_and_save_previews() override {
+        return true;
+    }
+
     void beep() noexcept override {}
     void service_audio() override {}
     bool
@@ -844,6 +861,10 @@ struct FixtureStorage {
     openswd3::input_time_rng::LegacySecondaryRng secondary_rng{};
     u32 speed_mode{};
     u32 special_mode_state{};
+    u32 special_input_mode{};
+    u32 high_priority_state{};
+    u32 high_priority_submode{};
+    u32 high_priority_auxiliary{};
     LegacyWorldItemListState item_lists;
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     RecordingPorts ports{};
@@ -882,6 +903,10 @@ struct Fixture {
         storage->secondary_rng;
     u32& speed_mode = storage->speed_mode;
     u32& special_mode_state = storage->special_mode_state;
+    u32& special_input_mode = storage->special_input_mode;
+    u32& high_priority_state = storage->high_priority_state;
+    u32& high_priority_submode = storage->high_priority_submode;
+    u32& high_priority_auxiliary = storage->high_priority_auxiliary;
     LegacyWorldItemListState& item_lists = storage->item_lists;
     std::list<LegacyWorldItemNode>& player_inventory =
         item_lists.player_inventory;
@@ -915,6 +940,10 @@ struct Fixture {
         runtime.secondary_rng = &secondary_rng;
         runtime.speed_mode = &speed_mode;
         runtime.special_mode_state = &special_mode_state;
+        runtime.special_input_mode = &special_input_mode;
+        runtime.high_priority_state = &high_priority_state;
+        runtime.high_priority_submode = &high_priority_submode;
+        runtime.high_priority_auxiliary = &high_priority_auxiliary;
         runtime.player_inventory = &player_inventory;
         runtime.party_item_lists = &item_lists.party_item_lists;
         runtime.role_item_lists = &item_lists.role_item_lists;
@@ -21280,6 +21309,176 @@ void test_adjust_party_member_resources_protocol(
     );
 }
 
+void test_reset_input_menu_state_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.special_input_mode = 0x11111111U;
+        fixture.high_priority_submode = 0x22222222U;
+        fixture.high_priority_auxiliary = 0x33333333U;
+        fixture.high_priority_state = 0x44444444U;
+        bool reset_saw_prior_writes = false;
+        bool audio_saw_committed_ip = false;
+        fixture.ports.input_menu_reset_callback = [&]() {
+            reset_saw_prior_writes = fixture.special_input_mode == 4U &&
+                fixture.high_priority_submode == 1U &&
+                fixture.high_priority_auxiliary == 0U &&
+                fixture.high_priority_state == 3U &&
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode == 0U;
+        };
+        fixture.ports.audio_service_callback = [&]() {
+            audio_saw_committed_ip =
+                fixture.ports.input_menu_reset_count == 1U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode == 0U;
+        };
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_135_RESET_INPUT_MENU_STATE | alias_mask)
+        );
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_135_RESET_INPUT_MENU_STATE &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode ==
+                    OP_135_RESET_INPUT_MENU_STATE &&
+                fixture.special_input_mode == 4U &&
+                fixture.high_priority_submode == 1U &&
+                fixture.high_priority_auxiliary == 0U &&
+                fixture.high_priority_state == 3U &&
+                fixture.ports.input_menu_reset_count == 1U &&
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{14U, 2U} &&
+                reset_saw_prior_writes && audio_saw_committed_ip,
+            "opcode 135 aliases write four mode states, reset input/menu/save previews, commit the two-byte record, service audio, publish previous, and yield"
+        );
+    }
+
+    Fixture missing_input_mode;
+    missing_input_mode.special_input_mode = 0x11U;
+    missing_input_mode.high_priority_submode = 0x22U;
+    missing_input_mode.high_priority_auxiliary = 0x33U;
+    missing_input_mode.high_priority_state = 0x44U;
+    missing_input_mode.runtime.special_input_mode = nullptr;
+    prime_loaded_instruction(missing_input_mode, OP_135_RESET_INPUT_MENU_STATE);
+    const auto missing_input_mode_result = missing_input_mode.step();
+
+    Fixture missing_submode;
+    missing_submode.special_input_mode = 0x11U;
+    missing_submode.high_priority_submode = 0x22U;
+    missing_submode.high_priority_auxiliary = 0x33U;
+    missing_submode.high_priority_state = 0x44U;
+    missing_submode.runtime.high_priority_submode = nullptr;
+    prime_loaded_instruction(missing_submode, OP_135_RESET_INPUT_MENU_STATE);
+    const auto missing_submode_result = missing_submode.step();
+
+    Fixture missing_auxiliary;
+    missing_auxiliary.special_input_mode = 0x11U;
+    missing_auxiliary.high_priority_submode = 0x22U;
+    missing_auxiliary.high_priority_auxiliary = 0x33U;
+    missing_auxiliary.high_priority_state = 0x44U;
+    missing_auxiliary.runtime.high_priority_auxiliary = nullptr;
+    prime_loaded_instruction(missing_auxiliary, OP_135_RESET_INPUT_MENU_STATE);
+    const auto missing_auxiliary_result = missing_auxiliary.step();
+
+    Fixture missing_high_priority;
+    missing_high_priority.special_input_mode = 0x11U;
+    missing_high_priority.high_priority_submode = 0x22U;
+    missing_high_priority.high_priority_auxiliary = 0x33U;
+    missing_high_priority.high_priority_state = 0x44U;
+    missing_high_priority.runtime.high_priority_state = nullptr;
+    prime_loaded_instruction(
+        missing_high_priority, OP_135_RESET_INPUT_MENU_STATE
+    );
+    const auto missing_high_priority_result = missing_high_priority.step();
+
+    test.expect_true(
+        missing_input_mode_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_input_mode.special_input_mode == 0x11U &&
+            missing_input_mode.high_priority_submode == 0x22U &&
+            missing_input_mode.high_priority_auxiliary == 0x33U &&
+            missing_input_mode.high_priority_state == 0x44U &&
+            missing_input_mode.ports.input_menu_reset_count == 0U &&
+            missing_submode_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_submode.special_input_mode == 4U &&
+            missing_submode.high_priority_submode == 0x22U &&
+            missing_submode.high_priority_auxiliary == 0x33U &&
+            missing_submode.high_priority_state == 0x44U &&
+            missing_submode.ports.input_menu_reset_count == 0U &&
+            missing_auxiliary_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_auxiliary.special_input_mode == 4U &&
+            missing_auxiliary.high_priority_submode == 1U &&
+            missing_auxiliary.high_priority_auxiliary == 0x33U &&
+            missing_auxiliary.high_priority_state == 0x44U &&
+            missing_auxiliary.ports.input_menu_reset_count == 0U &&
+            missing_high_priority_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_high_priority.special_input_mode == 4U &&
+            missing_high_priority.high_priority_submode == 1U &&
+            missing_high_priority.high_priority_auxiliary == 0U &&
+            missing_high_priority.high_priority_state == 0x44U &&
+            missing_high_priority.ports.input_menu_reset_count == 0U,
+        "opcode 135 borrows and writes each mode owner at its original global access point without rolling back earlier writes"
+    );
+
+    Fixture deferred_reset;
+    deferred_reset.special_input_mode = 0x11U;
+    deferred_reset.high_priority_submode = 0x22U;
+    deferred_reset.high_priority_auxiliary = 0x33U;
+    deferred_reset.high_priority_state = 0x44U;
+    deferred_reset.ports.input_menu_reset_success = false;
+    prime_loaded_instruction(deferred_reset, OP_135_RESET_INPUT_MENU_STATE);
+    const auto deferred_reset_result = deferred_reset.step();
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    write_u16(exact_tail.state.window, 0x7FFEU, OP_135_RESET_INPUT_MENU_STATE);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        deferred_reset_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            deferred_reset.context.instruction_offset == 0U &&
+            deferred_reset.state.previous_opcode == 0U &&
+            deferred_reset.special_input_mode == 4U &&
+            deferred_reset.high_priority_submode == 1U &&
+            deferred_reset.high_priority_auxiliary == 0U &&
+            deferred_reset.high_priority_state == 3U &&
+            deferred_reset.ports.input_menu_reset_count == 1U &&
+            deferred_reset.ports.direct_audio_service_count == 0U &&
+            deferred_reset.ports.story_protocol_events ==
+                std::vector<u32>{14U} &&
+            exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_135_RESET_INPUT_MENU_STATE &&
+            exact_tail.special_input_mode == 4U &&
+            exact_tail.high_priority_submode == 1U &&
+            exact_tail.high_priority_auxiliary == 0U &&
+            exact_tail.high_priority_state == 3U &&
+            exact_tail.ports.input_menu_reset_count == 1U,
+        "opcode 135 preserves all four writes when the deferred reset owner fails and completes an exact-tail record without reading operands"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -28149,6 +28348,7 @@ int main(const int argument_count, char** arguments) {
     test_swap_player_item_into_role_slot_protocol(test);
     test_request_shop_protocol(test);
     test_adjust_party_member_resources_protocol(test);
+    test_reset_input_menu_state_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
