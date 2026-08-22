@@ -2893,6 +2893,12 @@ add_test(
 add_executable(
     openswd3_world_map_legacy_world_story_vm_tests
     unit/world_map/legacy_world_story_vm_test.cpp
+    unit/world_map/legacy_world_story_vm_test_01.cpp
+    unit/world_map/legacy_world_story_vm_test_02.cpp
+    unit/world_map/legacy_world_story_vm_test_03.cpp
+    unit/world_map/legacy_world_story_vm_test_04.cpp
+    unit/world_map/legacy_world_story_vm_test_05.cpp
+    unit/world_map/legacy_world_story_vm_test_06.cpp
 )
 target_compile_definitions(
     openswd3_world_map_legacy_world_story_vm_tests

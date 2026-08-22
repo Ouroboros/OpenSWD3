@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v406
+版本：v407
 
 最后更新：2026-08-21
 
@@ -2963,5 +2963,15 @@ B7 P0 有限收口完成。
     `dependencies/ffmpeg/9.0/SOURCE.md`。两个解压目录的license、头文件与共享库均存在，Linux
     二进制报告`n9.0.1-6-g9d4ca21220-20260822`。未接入CMake或运行时后端，且未在configure
     阶段联网下载/源码编译。
+
+- 按用户决定先拆分剧情VM超大单元测试。原
+    `tests/unit/world_map/legacy_world_story_vm_test.cpp`为36092行/1607263字节，现保留298行main，
+    把1424行共享fixture/ports/helper移入support头、282个test函数声明移入cases头，并按完整函数
+    边界分成6个约5555–5905行/235850–275179字节的`.cpp`。仍只生成
+    `openswd3_world_map_legacy_world_story_vm_tests`一个二进制，不改变三条CTest注册、同二进制锁或
+    `legacy_real_assets`全局锁。原HEAD与拆分后使用同一仓库clang-format基准的282个函数体逐函数
+    SHA256完全一致，main的282个调用顺序一致；单目标编译、Story VM
+    synthetic/real/initial-session 3/3、Linux core 186/186与app 192/192通过。
+    该结构提交不改变198个opcode的实现/验收进度。
 
 下一组只审计`0x0042D49F` / special opcode1025。
