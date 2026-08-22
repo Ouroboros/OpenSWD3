@@ -17,7 +17,7 @@ void test_real_set_role_action_id_record(
     fixture.roles[1].action.action_id = 0xDEADBEEFU;
     prime_loaded_instruction(fixture, OP_45_SET_ROLE_ACTION_ID);
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 6U, OP_1025);
+    write_u16(fixture.state.window, 6U, kStoryVmTypedStop);
     const auto result = fixture.step();
 
     test.expect_true(
@@ -25,7 +25,8 @@ void test_real_set_role_action_id_record(
             read_u16(instruction, 0U) == OP_45_SET_ROLE_ACTION_ID &&
             read_u16(instruction, 2U) == 0x00F8U &&
             read_u16(instruction, 4U) == 0x0223U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             result.executed_instruction_count == 2U &&
             result.action_update_count == 1U &&
             fixture.roles[1].action.action_id == 0x0223U &&
@@ -72,7 +73,7 @@ void test_real_camera_move_records(
     relative.camera.bottom = 1120U;
     prime_loaded_instruction(relative, OP_50_START_RELATIVE_CAMERA_MOVE);
     std::ranges::copy(relative_instruction, relative.state.window.begin());
-    write_u16(relative.state.window, 10U, OP_1025);
+    write_u16(relative.state.window, 10U, kStoryVmTypedStop);
     const auto relative_result = relative.step(0, 640);
 
     CameraMoveFixture absolute;
@@ -80,7 +81,7 @@ void test_real_camera_move_records(
     absolute.camera.bottom = 512U;
     prime_loaded_instruction(absolute, OP_70_START_ABSOLUTE_CAMERA_MOVE);
     std::ranges::copy(absolute_instruction, absolute.state.window.begin());
-    write_u16(absolute.state.window, 10U, OP_1025);
+    write_u16(absolute.state.window, 10U, kStoryVmTypedStop);
     const auto absolute_result = absolute.step(16, 32);
 
     CameraMoveFixture role;
@@ -89,7 +90,7 @@ void test_real_camera_move_records(
     role.roles[1].world_y = 640U;
     prime_loaded_instruction(role, OP_73_START_CAMERA_MOVE_TO_ROLE);
     std::ranges::copy(role_instruction, role.state.window.begin());
-    write_u16(role.state.window, 8U, OP_1025);
+    write_u16(role.state.window, 8U, kStoryVmTypedStop);
     const auto role_result = role.step();
 
     test.expect_true(
@@ -101,7 +102,7 @@ void test_real_camera_move_records(
             read_u16(relative_instruction, 6U) == 8U &&
             read_u16(relative_instruction, 8U) == 4U &&
             relative_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             relative_result.executed_instruction_count == 2U &&
             relative.camera_pan.remaining_x == 0 &&
             relative.camera_pan.remaining_y == -512 &&
@@ -120,7 +121,7 @@ void test_real_camera_move_records(
             read_u16(absolute_instruction, 6U) == 4U &&
             read_u16(absolute_instruction, 8U) == 16U &&
             absolute_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             absolute_result.executed_instruction_count == 2U &&
             absolute.camera_pan.remaining_x == 64 &&
             absolute.camera_pan.remaining_y == 96 &&
@@ -137,7 +138,7 @@ void test_real_camera_move_records(
             read_u16(role_instruction, 4U) == 8U &&
             read_u16(role_instruction, 6U) == 8U &&
             role_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             role_result.executed_instruction_count == 2U &&
             role.camera_pan.remaining_x == 480 &&
             role.camera_pan.remaining_y == 400 && role.camera_pan.step_x == 8 &&
@@ -165,7 +166,7 @@ void test_real_start_frame_color_transition_record(
     fixture.runtime.frame_color = &color;
     prime_loaded_instruction(fixture, OP_52_START_FRAME_COLOR_TRANSITION);
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 16U, OP_1025);
+    write_u16(fixture.state.window, 16U, kStoryVmTypedStop);
     const auto result = fixture.step();
 
     test.expect_true(
@@ -178,8 +179,9 @@ void test_real_start_frame_color_transition_record(
             read_u16(instruction, 10U) == 0U &&
             read_u16(instruction, 12U) == 0U &&
             read_u16(instruction, 14U) == 6U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == OP_1025 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            result.opcode == kStoryVmTypedStop &&
             result.executed_instruction_count == 2U &&
             color.current_red == -30.0F && color.current_green == -30.0F &&
             color.current_blue == -30.0F && color.target_red == 0.0F &&
@@ -1088,14 +1090,14 @@ void test_real_wait_for_story_video_record(
     active.ports.video_progress = 0;
     prime_loaded_instruction(active, OP_193_WAIT_STORY_VIDEO);
     std::ranges::copy(instruction, active.state.window.begin());
-    write_u16(active.state.window, 2U, OP_1025);
+    write_u16(active.state.window, 2U, kStoryVmTypedStop);
     const auto active_result = active.step();
 
     Fixture completed;
     completed.ports.video_progress = -1;
     prime_loaded_instruction(completed, OP_193_WAIT_STORY_VIDEO);
     std::ranges::copy(instruction, completed.state.window.begin());
-    write_u16(completed.state.window, 2U, OP_1025);
+    write_u16(completed.state.window, 2U, kStoryVmTypedStop);
     const auto completed_result = completed.step();
 
     test.expect_true(
@@ -1109,7 +1111,7 @@ void test_real_wait_for_story_video_record(
             active.ports.video_progress_query_count == 1U &&
             active.ports.direct_audio_service_count == 1U &&
             completed_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             completed_result.executed_instruction_count == 2U &&
             completed_result.direct_audio_service_count == 0U &&
             completed.context.instruction_offset == 2U &&
@@ -2419,7 +2421,7 @@ void test_real_adjust_party_member_resources_records(
 
     Fixture restore;
     std::ranges::copy(restore_records, restore.state.window.begin());
-    write_u16(restore.state.window, 40U, OP_1025);
+    write_u16(restore.state.window, 40U, kStoryVmTypedStop);
     restore.state.loaded_file_number = 1U;
     restore.state.loaded_data_offset = 0x000231AFU;
     restore.state.window_loaded = true;
@@ -2489,8 +2491,8 @@ void test_real_adjust_party_member_resources_records(
                 OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
             read_u16(restore_records, 40U) == OP_171_SET_MODE17_TEXT &&
             restore_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            restore_result.opcode == OP_1025 &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            restore_result.opcode == kStoryVmTypedStop &&
             restore_result.executed_instruction_count == 5U &&
             restore.context.instruction_offset == 40U &&
             restore.state.previous_opcode ==
@@ -2939,7 +2941,7 @@ void test_real_stage_scene_music_stream_request_record(
     Fixture fixture;
     prime_loaded_instruction(fixture, OP_114_STAGE_SCENE_MUSIC_STREAM_REQUEST);
     std::ranges::copy(record, fixture.state.window.begin());
-    write_u16(fixture.state.window, 8U, OP_1025);
+    write_u16(fixture.state.window, 8U, kStoryVmTypedStop);
     fixture.state.current_first_stream = 2U;
     fixture.state.current_stream_fade_divisor = 9U;
     fixture.state.current_second_stream = 7U;
@@ -2952,8 +2954,9 @@ void test_real_stage_scene_music_stream_request_record(
             read_u16(record, 0U) == OP_114_STAGE_SCENE_MUSIC_STREAM_REQUEST &&
             read_u16(record, 2U) == 25U && read_u16(record, 4U) == 25U &&
             read_u16(record, 6U) == 0x2000U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == OP_1025 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            result.opcode == kStoryVmTypedStop &&
             result.executed_instruction_count == 2U &&
             result.direct_audio_service_count == 0U &&
             fixture.state.music_request == 0x80000001U &&
@@ -3009,13 +3012,14 @@ void test_real_stop_scene_music_stream_records(
         fixture.state.current_first_stream = 2U;
         fixture.state.current_stream_fade_divisor = 9U;
         fixture.state.current_second_stream = 7U;
-        write_u16(fixture.state.window, 2U, OP_1025);
+        write_u16(fixture.state.window, 2U, kStoryVmTypedStop);
 
         const auto result = fixture.step();
         all_records_match = all_records_match && static_cast<bool>(input) &&
             read_u16(record, 0U) == OP_137_STOP_SCENE_MUSIC_STREAM &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == OP_1025 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            result.opcode == kStoryVmTypedStop &&
             result.executed_instruction_count == 2U &&
             result.direct_audio_service_count == 0U &&
             fixture.state.world_music_request == 0x80000001U &&
@@ -3072,15 +3076,16 @@ void test_real_role_distance_reload_records(
         fixture.roles[1].guid = 1U;
         fixture.roles[1].world_x = 0U;
         fixture.roles[1].world_y = 0U;
-        write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+        write_u16(fixture.ports.transferred_window, 0U, kStoryVmTypedStop);
         const u32 target = read_u32(record, 10U);
 
         const auto result = fixture.step();
         all_records_match = all_records_match && static_cast<bool>(input) &&
             read_u16(record, 0U) == OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS &&
             read_u16(record, 6U) == 1U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == OP_1025 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            result.opcode == kStoryVmTypedStop &&
             result.executed_instruction_count == 2U &&
             result.direct_audio_service_count == 1U &&
             fixture.context.talk_data_offset == target &&
@@ -3132,7 +3137,7 @@ void test_real_configure_music_stream_transition_records(
             fixture, OP_141_CONFIGURE_MUSIC_STREAM_TRANSITION
         );
         std::ranges::copy(record, fixture.state.window.begin());
-        write_u16(fixture.state.window, 6U, OP_1025);
+        write_u16(fixture.state.window, 6U, kStoryVmTypedStop);
         fixture.state.current_stream_fade_divisor = 0x12345678U;
 
         const auto result = fixture.step();
@@ -3140,8 +3145,9 @@ void test_real_configure_music_stream_transition_records(
             read_u16(record, 0U) == OP_141_CONFIGURE_MUSIC_STREAM_TRANSITION &&
             read_u16(record, 2U) == location.expected_mode &&
             read_u16(record, 4U) == location.expected_pending_divisor &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == OP_1025 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            result.opcode == kStoryVmTypedStop &&
             result.executed_instruction_count == 2U &&
             result.direct_audio_service_count == 0U &&
             fixture.state.current_first_stream == location.expected_mode &&
@@ -3192,7 +3198,7 @@ void test_real_initialize_primary_countdown_records(
         fixture.runtime.countdown = &countdown;
         prime_loaded_instruction(fixture, OP_142_INITIALIZE_PRIMARY_COUNTDOWN);
         std::ranges::copy(record, fixture.state.window.begin());
-        write_u16(fixture.state.window, 8U, OP_1025);
+        write_u16(fixture.state.window, 8U, kStoryVmTypedStop);
 
         const auto result = fixture.step();
         all_records_match = all_records_match && static_cast<bool>(input) &&
@@ -3259,7 +3265,7 @@ void test_real_disable_primary_countdown_records(
         fixture.runtime.countdown = &countdown;
         prime_loaded_instruction(fixture, OP_143_DISABLE_PRIMARY_COUNTDOWN);
         std::ranges::copy(record, fixture.state.window.begin());
-        write_u16(fixture.state.window, 2U, OP_1025);
+        write_u16(fixture.state.window, 2U, kStoryVmTypedStop);
         openswd3::world_map::set_legacy_world_story_flag(fixture.state, 0x10U);
         openswd3::world_map::set_legacy_world_story_flag(fixture.state, 0x12U);
         openswd3::world_map::set_legacy_world_story_flag(fixture.state, 0x4CU);
@@ -3306,7 +3312,7 @@ void test_real_request_special_mode_four_or_five_record(
     Fixture fixture;
     prime_loaded_instruction(fixture, OP_144_REQUEST_SPECIAL_MODE_4_OR_5);
     std::ranges::copy(record, fixture.state.window.begin());
-    write_u16(fixture.state.window, 4U, OP_1025);
+    write_u16(fixture.state.window, 4U, kStoryVmTypedStop);
     fixture.special_mode_state = 0x11111111U;
     fixture.high_priority_state = 0x22222222U;
     fixture.high_priority_submode = 0x33333333U;
@@ -3363,7 +3369,7 @@ void test_real_set_story_flag_70_records(
         Fixture fixture;
         prime_loaded_instruction(fixture, OP_147_SET_STORY_FLAG_70);
         std::ranges::copy(record, fixture.state.window.begin());
-        write_u16(fixture.state.window, 2U, OP_1025);
+        write_u16(fixture.state.window, 2U, kStoryVmTypedStop);
         openswd3::world_map::clear_legacy_world_story_flag(fixture.state, 70U);
         openswd3::world_map::set_legacy_world_story_flag(fixture.state, 69U);
         openswd3::world_map::set_legacy_world_story_flag(fixture.state, 71U);
@@ -3411,7 +3417,7 @@ void test_real_batch_set_role_positions_record(
     StoryPathHarness paths{fixture};
     prime_loaded_instruction(fixture, OP_116_BATCH_SET_ROLE_POSITIONS);
     std::ranges::copy(record, fixture.state.window.begin());
-    write_u16(fixture.state.window, record.size(), OP_1025);
+    write_u16(fixture.state.window, record.size(), kStoryVmTypedStop);
     const auto result = fixture.step();
     const auto slot = std::ranges::find_if(
         fixture.active_object_slots,
@@ -3425,8 +3431,9 @@ void test_real_batch_set_role_positions_record(
             read_u16(record, 0U) == OP_116_BATCH_SET_ROLE_POSITIONS &&
             read_u16(record, 2U) == 1U && read_u16(record, 4U) == 1U &&
             read_u16(record, 6U) == 42U && read_u16(record, 8U) == 33U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == OP_1025 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            result.opcode == kStoryVmTypedStop &&
             result.executed_instruction_count == 2U &&
             result.direct_audio_service_count == 0U &&
             fixture.context.instruction_offset == 10U &&
@@ -3466,7 +3473,7 @@ void test_real_remove_dialogs_for_role_guid_records(
     fixture.dialogs.close.flagged_dialog_counter = 0x8002U;
     prime_loaded_instruction(fixture, OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID);
     std::ranges::copy(records, fixture.state.window.begin());
-    write_u16(fixture.state.window, records.size(), OP_1025);
+    write_u16(fixture.state.window, records.size(), kStoryVmTypedStop);
     const auto result = fixture.step();
 
     test.expect_true(
@@ -3475,8 +3482,9 @@ void test_real_remove_dialogs_for_role_guid_records(
             read_u16(records, 2U) == 0U &&
             read_u16(records, 4U) == OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID &&
             read_u16(records, 6U) == 1U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == OP_1025 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            result.opcode == kStoryVmTypedStop &&
             result.executed_instruction_count == 3U &&
             result.direct_audio_service_count == 0U &&
             fixture.context.instruction_offset == 8U &&
@@ -3537,7 +3545,7 @@ void test_real_wait_dialog_flag_records(
         fixture.dialogs.messages.back().record.flags = 0U;
         prime_loaded_instruction(fixture, real_case.opcode);
         std::ranges::copy(record, fixture.state.window.begin());
-        write_u16(fixture.state.window, record.size(), OP_1025);
+        write_u16(fixture.state.window, record.size(), kStoryVmTypedStop);
         const auto waiting = fixture.step();
         fixture.dialogs.messages.back().record.flags |=
             real_case.completion_mask;
@@ -3550,8 +3558,9 @@ void test_real_wait_dialog_flag_records(
                 waiting.executed_instruction_count == 1U &&
                 waiting.direct_audio_service_count == 1U &&
                 completed.status ==
-                    LegacyWorldStoryVmStatus::unsupported_opcode &&
-                completed.opcode == OP_1025 &&
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                completed.opcode == kStoryVmTypedStop &&
                 completed.executed_instruction_count == 2U &&
                 completed.direct_audio_service_count == 0U &&
                 fixture.context.instruction_offset == 4U &&
@@ -3583,13 +3592,13 @@ void test_real_update_role_action_fields_records(
     found.roles[1].guid = 0x007BU;
     prime_loaded_instruction(found, OP_120_UPDATE_ROLE_ACTION_FIELDS);
     std::ranges::copy(found_record, found.state.window.begin());
-    write_u16(found.state.window, found_record.size(), OP_1025);
+    write_u16(found.state.window, found_record.size(), kStoryVmTypedStop);
     const auto found_result = found.step();
 
     Fixture missing;
     prime_loaded_instruction(missing, OP_120_UPDATE_ROLE_ACTION_FIELDS);
     std::ranges::copy(missing_record, missing.state.window.begin());
-    write_u16(missing.state.window, missing_record.size(), OP_1025);
+    write_u16(missing.state.window, missing_record.size(), kStoryVmTypedStop);
     const auto missing_result = missing.step();
     const auto missing_patch = missing.ports.role_patch_requests.empty()
         ? openswd3::world_map::LegacyMapsRolePatchRequest{}
@@ -3603,8 +3612,8 @@ void test_real_update_role_action_fields_records(
             read_u16(found_record, 6U) == 0x0008U &&
             read_u16(found_record, 8U) == 0U &&
             found_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            found_result.opcode == OP_1025 &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            found_result.opcode == kStoryVmTypedStop &&
             found_result.executed_instruction_count == 2U &&
             found.roles[1].action.action_id == 0x0231U &&
             found.roles[1].action.base_variant == 8U &&
@@ -3621,8 +3630,8 @@ void test_real_update_role_action_fields_records(
             read_u16(missing_record, 6U) == 0xFFFFU &&
             read_u16(missing_record, 8U) == 0xFFFFU &&
             missing_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            missing_result.opcode == OP_1025 &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            missing_result.opcode == kStoryVmTypedStop &&
             missing.ports.role_patch_requests.size() == 1U &&
             missing_patch.guid == 1U && missing_patch.action_id == 0x0062U &&
             missing_patch.base_variant == 0xFFFFU &&
@@ -4213,7 +4222,7 @@ void test_real_repeat_role_action_refresh_record(
     action.field_58 = 0x3333U;
     prime_loaded_instruction(fixture, OP_54_REPEAT_ROLE_ACTION_REFRESH);
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 6U, OP_1025);
+    write_u16(fixture.state.window, 6U, kStoryVmTypedStop);
     const auto result = fixture.step();
 
     test.expect_true(
@@ -4221,8 +4230,9 @@ void test_real_repeat_role_action_refresh_record(
             read_u16(instruction, 0U) == OP_54_REPEAT_ROLE_ACTION_REFRESH &&
             read_u16(instruction, 2U) == 1U &&
             static_cast<i16>(read_u16(instruction, 4U)) == 1 &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == OP_1025 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            result.opcode == kStoryVmTypedStop &&
             result.executed_instruction_count == 2U &&
             result.action_update_count == 2U &&
             result.action_update_failure_count == 0U &&
@@ -4251,7 +4261,7 @@ void test_real_wait_for_frame_color_transition_record(
     fixture.runtime.frame_color = &color;
     prime_loaded_instruction(fixture, OP_52_START_FRAME_COLOR_TRANSITION);
     std::ranges::copy(instructions, fixture.state.window.begin());
-    write_u16(fixture.state.window, 18U, OP_1025);
+    write_u16(fixture.state.window, 18U, kStoryVmTypedStop);
 
     const auto waiting_result = fixture.step();
     const bool waiting_state =
@@ -4272,8 +4282,8 @@ void test_real_wait_for_frame_color_transition_record(
             read_u16(instructions, 16U) == OP_53_WAIT_FRAME_COLOR_TRANSITION &&
             waiting_state &&
             completed_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            completed_result.opcode == OP_1025 &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            completed_result.opcode == kStoryVmTypedStop &&
             completed_result.executed_instruction_count == 2U &&
             color.countdown == 0 && fixture.context.instruction_offset == 18U &&
             fixture.state.previous_opcode ==
@@ -4299,7 +4309,7 @@ void test_real_wait_for_camera_move_record(
     fixture.state.previous_opcode = 0x55U;
     prime_loaded_instruction(fixture, OP_51_WAIT_CAMERA_MOVE_COMPLETE);
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 2U, OP_1025);
+    write_u16(fixture.state.window, 2U, kStoryVmTypedStop);
     fixture.camera_pan.remaining_x = 64;
     fixture.camera_pan.step_x = 4;
 
@@ -4320,8 +4330,9 @@ void test_real_wait_for_camera_move_record(
             waiting.executed_instruction_count == 1U && waiting_offset == 0U &&
             waiting_previous == OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
             waiting_remaining_x == 64 && waiting_step_x == 4 &&
-            completed.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            completed.opcode == OP_1025 &&
+            completed.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            completed.opcode == kStoryVmTypedStop &&
             completed.executed_instruction_count == 2U &&
             waiting.direct_audio_service_count == 1U &&
             completed.direct_audio_service_count == 0U &&
@@ -4354,7 +4365,7 @@ void test_real_wait_for_camera_top_while_moving_records(
         matching.camera_pan.remaining_x = 1;
         prime_loaded_instruction(matching, OP_191_WAIT_CAMERA_TOP_WHILE_MOVING);
         std::ranges::copy(instruction, matching.state.window.begin());
-        write_u16(matching.state.window, 4U, OP_1025);
+        write_u16(matching.state.window, 4U, kStoryVmTypedStop);
         const auto matching_result = matching.step(0, expected_top);
 
         CameraMoveFixture mismatching;
@@ -4363,12 +4374,12 @@ void test_real_wait_for_camera_top_while_moving_records(
             mismatching, OP_191_WAIT_CAMERA_TOP_WHILE_MOVING
         );
         std::ranges::copy(instruction, mismatching.state.window.begin());
-        write_u16(mismatching.state.window, 4U, OP_1025);
+        write_u16(mismatching.state.window, 4U, kStoryVmTypedStop);
         const auto mismatching_result = mismatching.step(0, expected_top + 1);
 
         records_match = records_match &&
             matching_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             matching_result.executed_instruction_count == 2U &&
             matching.context.instruction_offset == 4U &&
             matching.state.previous_opcode ==
@@ -4406,7 +4417,7 @@ void test_real_set_role_flag_8000_and_clear_one_shots_record(
         fixture, OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS
     );
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 4U, OP_1025);
+    write_u16(fixture.state.window, 4U, kStoryVmTypedStop);
     const auto result = fixture.step();
     const auto request = fixture.ports.role_patch_requests.empty()
         ? openswd3::world_map::LegacyMapsRolePatchRequest{}
@@ -4417,8 +4428,9 @@ void test_real_set_role_flag_8000_and_clear_one_shots_record(
             read_u16(instruction, 0U) ==
                 OP_39_SET_ROLE_FLAG_8000_AND_CLEAR_ONE_SHOTS &&
             read_u16(instruction, 2U) == 1U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == OP_1025 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            result.opcode == kStoryVmTypedStop &&
             result.executed_instruction_count == 2U &&
             fixture.context.instruction_offset == 4U &&
             fixture.state.previous_opcode ==
@@ -4445,7 +4457,7 @@ void test_real_clear_role_from_scene_record(
     Fixture fixture;
     prime_loaded_instruction(fixture, OP_38_CLEAR_ROLE_FROM_SCENE);
     std::ranges::copy(instruction, fixture.state.window.begin());
-    write_u16(fixture.state.window, 4U, OP_1025);
+    write_u16(fixture.state.window, 4U, kStoryVmTypedStop);
     const auto result = fixture.step();
     const auto request = fixture.ports.role_patch_requests.empty()
         ? openswd3::world_map::LegacyMapsRolePatchRequest{}
@@ -4455,8 +4467,9 @@ void test_real_clear_role_from_scene_record(
         instruction_read &&
             read_u16(instruction, 0U) == OP_38_CLEAR_ROLE_FROM_SCENE &&
             read_u16(instruction, 2U) == 1U &&
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            result.opcode == OP_1025 &&
+            result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            result.opcode == kStoryVmTypedStop &&
             result.executed_instruction_count == 2U &&
             fixture.context.instruction_offset == 4U &&
             fixture.state.previous_opcode == OP_38_CLEAR_ROLE_FROM_SCENE &&

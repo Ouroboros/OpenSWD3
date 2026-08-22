@@ -61,7 +61,7 @@ opcode | 0xC000
 
 - `99`：`0x0042AD75` 读取无符号 `word [ebx+2]`，比较全局 `0x004B7AC8`。当全局值小于等于操作数时不推进指针并让出；大于时跳到 `0x0042D182`，推进四字节并继续解释。
 - `1024`：`0x0042D200` 推进两字节，设置调用期local continue latch；后续全部common join持续same-call且跳过common audio，直到1025清除或本次调用结束。完整闭环见`story-vm-common-join-latch-0042d200.md`。
-- `1025`：`0x0042D49F` 推进两字节，清除两个 continue 来源，经 `_AIL_serve` 后返回一。
+- `1025`：`0x0042D49F` 推进两字节，清除两个continue来源，经`_AIL_serve`后返回一；完整闭环见`story-vm-common-join-latch-clear-0042d49f.md`。
 - `1026`：`0x0042D1EA` 推进两字节，设置 `ESI=1`，在本次调用内继续取指。
 - `16383`：`0x0042D24E` 进入带 `TalkEnd` 诊断字符串的大型结束清理路径；角色、剧情和全局状态副作用留给逐 opcode 语义恢复。
 

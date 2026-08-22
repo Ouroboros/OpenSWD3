@@ -28,8 +28,9 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
         const auto relative_result = relative.step(160, 320);
         test.expect_true(
             relative_result.status ==
-                    LegacyWorldStoryVmStatus::unsupported_opcode &&
-                relative_result.opcode == OP_1025 &&
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                relative_result.opcode == kStoryVmTypedStop &&
                 relative_result.executed_instruction_count == 2U &&
                 relative.camera_pan.remaining_x == -48 &&
                 relative.camera_pan.remaining_y == 32 &&
@@ -61,8 +62,9 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
         const auto absolute_result = absolute.step(160, 80);
         test.expect_true(
             absolute_result.status ==
-                    LegacyWorldStoryVmStatus::unsupported_opcode &&
-                absolute_result.opcode == OP_1025 &&
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                absolute_result.opcode == kStoryVmTypedStop &&
                 absolute_result.executed_instruction_count == 2U &&
                 absolute.camera_pan.remaining_x == -48 &&
                 absolute.camera_pan.remaining_y == 64 &&
@@ -93,8 +95,9 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
         const auto role_result = role_target.step();
         test.expect_true(
             role_result.status ==
-                    LegacyWorldStoryVmStatus::unsupported_opcode &&
-                role_result.opcode == OP_1025 &&
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                role_result.opcode == kStoryVmTypedStop &&
                 role_result.executed_instruction_count == 2U &&
                 role_target.camera_pan.remaining_x == 480 &&
                 role_target.camera_pan.remaining_y == 400 &&
@@ -121,7 +124,7 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
     const auto zero_axes_result = zero_axes.step();
     test.expect_true(
         zero_axes_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             zero_axes.camera_pan.remaining_x == 0 &&
             zero_axes.camera_pan.remaining_y == 0 &&
             zero_axes.camera_pan.step_x == 0 &&
@@ -142,7 +145,7 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
     const auto literal_fff0_result = literal_fff0.step();
     test.expect_true(
         literal_fff0_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             literal_fff0.camera_pan.remaining_x == 640 &&
             literal_fff0.camera_pan.remaining_y == 480 &&
             literal_fff0.camera_pan.step_x == 16 &&
@@ -162,7 +165,7 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
     const auto controlled_result = controlled.step(0, 0, 2U);
     test.expect_true(
         controlled_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             controlled.camera_pan.remaining_x == 640 &&
             controlled.camera_pan.remaining_y == 480,
         "opcode 73 passes FFFE through for controlled-role selection"
@@ -186,7 +189,7 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
     const auto first_clear_result = first_clear_match.step();
     test.expect_true(
         first_clear_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             first_clear_match.camera_pan.remaining_x == 640 &&
             first_clear_match.camera_pan.remaining_y == 480,
         "opcode 73 skips bit-28 roles and uses the first clear GUID match"
@@ -201,7 +204,7 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
     const auto far_role_result = far_role.step();
     test.expect_true(
         far_role_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             far_role.camera_pan.remaining_x == 960 &&
             far_role.camera_pan.remaining_y == 800 &&
             far_role.camera_pan.step_x == 16 &&
@@ -220,7 +223,7 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
     const auto zero_map_result = zero_map.step();
     test.expect_true(
         zero_map_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             zero_map.camera_pan.remaining_x == -640 &&
             zero_map.camera_pan.remaining_y == -480 &&
             zero_map.camera_pan.step_x == -16 &&
@@ -240,7 +243,7 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
     const auto high_clamp_result = high_clamp.step();
     test.expect_true(
         high_clamp_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             high_clamp.camera_pan.remaining_x == 0 &&
             high_clamp.camera_pan.remaining_y == 0 &&
             high_clamp.camera_pan.step_x == 16 &&
@@ -257,7 +260,7 @@ void test_start_camera_move_protocol(openswd3::test::Context& test) {
     const auto low_clamp_result = low_clamp.step(160, 160);
     test.expect_true(
         low_clamp_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             low_clamp.camera_pan.remaining_x == -160 &&
             low_clamp.camera_pan.remaining_y == -160 &&
             low_clamp.camera_pan.step_x == -16 &&
@@ -693,8 +696,8 @@ void test_start_camera_move_window_boundaries(openswd3::test::Context& test) {
     const auto clamped_available_result = clamped_diagnostic_available.step();
     test.expect_true(
         clamped_available_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            clamped_available_result.opcode == OP_1025 &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            clamped_available_result.opcode == kStoryVmTypedStop &&
             clamped_available_result.executed_instruction_count == 2U &&
             clamped_diagnostic_available.camera_pan.remaining_x == -100 &&
             clamped_diagnostic_available.camera_pan.remaining_y == 0 &&
@@ -737,7 +740,7 @@ void test_wait_for_camera_move_protocol(openswd3::test::Context& test) {
                 waiting,
                 static_cast<u16>(OP_51_WAIT_CAMERA_MOVE_COMPLETE | mask)
             );
-            write_u16(waiting.state.window, 2U, OP_1025);
+            write_u16(waiting.state.window, 2U, kStoryVmTypedStop);
 
             const auto result = waiting.step();
 
@@ -763,13 +766,15 @@ void test_wait_for_camera_move_protocol(openswd3::test::Context& test) {
         prime_loaded_instruction(
             completed, static_cast<u16>(OP_51_WAIT_CAMERA_MOVE_COMPLETE | mask)
         );
-        write_u16(completed.state.window, 2U, OP_1025);
+        write_u16(completed.state.window, 2U, kStoryVmTypedStop);
 
         const auto result = completed.step();
 
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 completed.context.instruction_offset == 2U &&
                 completed.state.previous_opcode ==
@@ -859,7 +864,7 @@ void test_wait_for_camera_top_while_moving_protocol(
             static_cast<u16>(OP_191_WAIT_CAMERA_TOP_WHILE_MOVING | mask)
         );
         write_u16(matching_x.state.window, 2U, 0xFF10U);
-        write_u16(matching_x.state.window, 4U, OP_1025);
+        write_u16(matching_x.state.window, 4U, kStoryVmTypedStop);
         const auto matching_x_result = matching_x.step(0, -240);
 
         CameraMoveFixture mismatching_y;
@@ -869,13 +874,14 @@ void test_wait_for_camera_top_while_moving_protocol(
             static_cast<u16>(OP_191_WAIT_CAMERA_TOP_WHILE_MOVING | mask)
         );
         write_u16(mismatching_y.state.window, 2U, 0xFF10U);
-        write_u16(mismatching_y.state.window, 4U, OP_1025);
+        write_u16(mismatching_y.state.window, 4U, kStoryVmTypedStop);
         const auto mismatching_y_result = mismatching_y.step(0, -239);
 
         test.expect_true(
             matching_x_result.status ==
-                    LegacyWorldStoryVmStatus::unsupported_opcode &&
-                matching_x_result.opcode == OP_1025 &&
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                matching_x_result.opcode == kStoryVmTypedStop &&
                 matching_x_result.executed_instruction_count == 2U &&
                 matching_x.context.instruction_offset == 4U &&
                 matching_x.state.previous_opcode ==
@@ -902,11 +908,11 @@ void test_wait_for_camera_top_while_moving_protocol(
     step_only.camera_pan.step_y = -4;
     step_only.runtime.camera = nullptr;
     prime_loaded_instruction(step_only, OP_191_WAIT_CAMERA_TOP_WHILE_MOVING);
-    write_u16(step_only.state.window, 4U, OP_1025);
+    write_u16(step_only.state.window, 4U, kStoryVmTypedStop);
     const auto step_only_result = step_only.step();
     test.expect_true(
         step_only_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             step_only_result.executed_instruction_count == 2U &&
             step_only.context.instruction_offset == 4U &&
             step_only.state.previous_opcode ==
@@ -1072,7 +1078,7 @@ void test_wait_for_music_stream_transition_protocol(
                 fixture,
                 static_cast<u16>(OP_192_WAIT_MUSIC_STREAM_TRANSITION | mask)
             );
-            write_u16(fixture.state.window, 2U, OP_1025);
+            write_u16(fixture.state.window, 2U, kStoryVmTypedStop);
             u16 offset_at_audio{};
             u32 previous_at_audio{};
             fixture.ports.audio_service_callback = [&] {
@@ -1152,7 +1158,7 @@ void test_wait_for_story_video_protocol(openswd3::test::Context& test) {
             prime_loaded_instruction(
                 active, static_cast<u16>(OP_193_WAIT_STORY_VIDEO | mask)
             );
-            write_u16(active.state.window, 2U, OP_1025);
+            write_u16(active.state.window, 2U, kStoryVmTypedStop);
             u16 offset_at_query = 0xFFFFU;
             u32 previous_at_query{};
             u16 offset_at_audio = 0xFFFFU;
@@ -1190,7 +1196,7 @@ void test_wait_for_story_video_protocol(openswd3::test::Context& test) {
             prime_loaded_instruction(
                 completed, static_cast<u16>(OP_193_WAIT_STORY_VIDEO | mask)
             );
-            write_u16(completed.state.window, 2U, OP_1025);
+            write_u16(completed.state.window, 2U, kStoryVmTypedStop);
             u16 offset_at_query = 0xFFFFU;
             u32 previous_at_query{};
             completed.ports.video_progress_callback = [&] {
@@ -1200,8 +1206,10 @@ void test_wait_for_story_video_protocol(openswd3::test::Context& test) {
 
             const auto result = completed.step();
             test.expect_true(
-                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                    result.opcode == OP_1025 &&
+                result.status ==
+                        LegacyWorldStoryVmStatus::
+                            script_variable_index_out_of_range &&
+                    result.opcode == kStoryVmTypedStop &&
                     result.executed_instruction_count == 2U &&
                     result.direct_audio_service_count == 0U &&
                     completed.context.instruction_offset == 2U &&
@@ -1269,12 +1277,14 @@ void test_latch_common_join_same_call_protocol(openswd3::test::Context& test) {
         );
         write_u16(fixture.state.window, 2U, OP_59_PLAY_SOUND_EFFECT);
         write_u16(fixture.state.window, 4U, 0x1234U);
-        write_u16(fixture.state.window, 6U, OP_1025);
+        write_u16(fixture.state.window, 6U, kStoryVmTypedStop);
 
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 3U &&
                 result.direct_audio_service_count == 0U &&
                 fixture.context.instruction_offset == 6U &&
@@ -1292,11 +1302,11 @@ void test_latch_common_join_same_call_protocol(openswd3::test::Context& test) {
     write_u16(persistent.state.window, 4U, 0x1111U);
     write_u16(persistent.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
     write_u16(persistent.state.window, 8U, 0x2222U);
-    write_u16(persistent.state.window, 10U, OP_1025);
+    write_u16(persistent.state.window, 10U, kStoryVmTypedStop);
     const auto persistent_result = persistent.step();
     test.expect_true(
         persistent_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             persistent_result.executed_instruction_count == 4U &&
             persistent_result.direct_audio_service_count == 0U &&
             persistent.context.instruction_offset == 10U &&
@@ -1327,11 +1337,11 @@ void test_latch_common_join_same_call_protocol(openswd3::test::Context& test) {
         internal_audio, OP_1024_LATCH_COMMON_JOIN_SAME_CALL
     );
     write_u16(internal_audio.state.window, 2U, OP_135_RESET_INPUT_MENU_STATE);
-    write_u16(internal_audio.state.window, 4U, OP_1025);
+    write_u16(internal_audio.state.window, 4U, kStoryVmTypedStop);
     const auto internal_audio_result = internal_audio.step();
     test.expect_true(
         internal_audio_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             internal_audio_result.executed_instruction_count == 3U &&
             internal_audio_result.direct_audio_service_count == 1U &&
             internal_audio.context.instruction_offset == 4U &&
@@ -1397,6 +1407,111 @@ void test_latch_common_join_same_call_protocol(openswd3::test::Context& test) {
     }
 }
 
+void test_clear_common_join_latch_and_yield_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const u16 mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.previous_opcode = 0x55U;
+        const u16 raw_word =
+            static_cast<u16>(OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD | mask);
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, OP_59_PLAY_SOUND_EFFECT);
+        write_u16(fixture.state.window, 4U, 0x2222U);
+        u16 offset_at_audio{};
+        u16 previous_at_audio{};
+        fixture.ports.audio_service_callback = [&] {
+            offset_at_audio = fixture.context.instruction_offset;
+            previous_at_audio = fixture.state.previous_opcode;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word == raw_word &&
+                result.opcode == OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode ==
+                    OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD &&
+                fixture.ports.sound_effect_requests.empty() &&
+                fixture.ports.direct_audio_service_count == 1U &&
+                offset_at_audio == 2U &&
+                previous_at_audio == OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD,
+            "opcode 1025 aliases advance and publish before one audio service, yield, and leave the successor unread"
+        );
+    }
+
+    Fixture latched;
+    prime_loaded_instruction(latched, OP_1024_LATCH_COMMON_JOIN_SAME_CALL);
+    write_u16(latched.state.window, 2U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(latched.state.window, 4U, 0x1111U);
+    write_u16(
+        latched.state.window, 6U, OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD
+    );
+    write_u16(latched.state.window, 8U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(latched.state.window, 10U, 0x2222U);
+    u16 offset_at_audio{};
+    u16 previous_at_audio{};
+    latched.ports.audio_service_callback = [&] {
+        offset_at_audio = latched.context.instruction_offset;
+        previous_at_audio = latched.state.previous_opcode;
+    };
+
+    const auto latched_result = latched.step();
+    test.expect_true(
+        latched_result.status == LegacyWorldStoryVmStatus::yielded &&
+            latched_result.opcode ==
+                OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD &&
+            latched_result.executed_instruction_count == 3U &&
+            latched_result.direct_audio_service_count == 1U &&
+            latched.context.instruction_offset == 8U &&
+            latched.state.previous_opcode ==
+                OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD &&
+            latched.ports.sound_effect_requests == std::vector<u16>{0x1111U} &&
+            latched.ports.direct_audio_service_count == 1U &&
+            offset_at_audio == 8U &&
+            previous_at_audio == OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD,
+        "opcode 1025 clears the persistent opcode 1024 latch, services common audio once, yields, and leaves its successor unread"
+    );
+
+    for (const u16 mask : alias_masks) {
+        Fixture exact_tail;
+        exact_tail.context.talk_data_offset = 0x1111U;
+        exact_tail.context.instruction_offset = 0x7FFEU;
+        exact_tail.state.loaded_file_number = 1U;
+        exact_tail.state.loaded_data_offset = 0x1111U;
+        exact_tail.state.window_loaded = true;
+        exact_tail.state.previous_opcode = 0x55U;
+        write_u16(
+            exact_tail.state.window,
+            0x7FFEU,
+            static_cast<u16>(OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD | mask)
+        );
+
+        const auto result = exact_tail.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                exact_tail.context.instruction_offset == 0x8000U &&
+                exact_tail.state.previous_opcode ==
+                    OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD &&
+                exact_tail.ports.direct_audio_service_count == 1U,
+            "opcode 1025 exact tail commits IP and previous, services audio, and yields without fetching a successor"
+        );
+    }
+}
+
 void test_start_frame_color_transition_protocol(openswd3::test::Context& test) {
     constexpr std::array<i16, 6U> components{-30, 5, 17, 0, -25, 2};
     constexpr std::array<u16, 4U> alias_masks{
@@ -1421,8 +1536,10 @@ void test_start_frame_color_transition_protocol(openswd3::test::Context& test) {
         const auto result = fixture.step();
 
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 color.current_red == -30.0F && color.current_green == 5.0F &&
                 color.current_blue == 17.0F && color.target_red == 0.0F &&
@@ -1448,7 +1565,8 @@ void test_start_frame_color_transition_protocol(openswd3::test::Context& test) {
     );
     const auto maximum_result = maximum_duration.step();
     test.expect_true(
-        maximum_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+        maximum_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             maximum_color.countdown == 65535 &&
             maximum_color.step_red == 1.0F &&
             maximum_color.step_green == 1.0F && maximum_color.step_blue == 1.0F,
@@ -1466,7 +1584,8 @@ void test_start_frame_color_transition_protocol(openswd3::test::Context& test) {
     );
     const auto zero_result = zero_duration.step();
     test.expect_true(
-        zero_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+        zero_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             zero_color.countdown == 0 &&
             std::bit_cast<u32>(zero_color.step_red) == 0x7F800000U &&
             std::bit_cast<u32>(zero_color.step_green) == 0xFF800000U &&
@@ -1673,13 +1792,15 @@ void test_wait_for_frame_color_transition_protocol(
                 fixture,
                 static_cast<u16>(OP_53_WAIT_FRAME_COLOR_TRANSITION | mask)
             );
-            write_u16(fixture.state.window, 2U, OP_1025);
+            write_u16(fixture.state.window, 2U, kStoryVmTypedStop);
 
             const auto result = fixture.step();
 
             test.expect_true(
-                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                    result.opcode == OP_1025 &&
+                result.status ==
+                        LegacyWorldStoryVmStatus::
+                            script_variable_index_out_of_range &&
+                    result.opcode == kStoryVmTypedStop &&
                     result.executed_instruction_count == 2U &&
                     color.countdown == countdown &&
                     color.current_red == 101.0F &&
@@ -1775,7 +1896,7 @@ void test_repeat_role_action_refresh_protocol(openswd3::test::Context& test) {
         prime_loaded_instruction(fixture, raw_word);
         write_u16(fixture.state.window, 2U, selector);
         write_u16(fixture.state.window, 4U, static_cast<u16>(repeat_count));
-        write_u16(fixture.state.window, 6U, OP_1025);
+        write_u16(fixture.state.window, 6U, kStoryVmTypedStop);
         fixture.state.previous_opcode = 0x55U;
     };
 
@@ -1817,8 +1938,10 @@ void test_repeat_role_action_refresh_protocol(openswd3::test::Context& test) {
             {0U, 0x5002U, 0U},
         };
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 result.action_update_count == 3U &&
                 result.action_update_failure_count == 0U &&
@@ -1864,7 +1987,9 @@ void test_repeat_role_action_refresh_protocol(openswd3::test::Context& test) {
         const auto result = fixture.step();
 
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
                 result.action_update_count == 1U &&
                 result.action_update_failure_count == 0U &&
                 snapshot == std::tuple<u16, u16, u16>{0U, 0U, 0x3333U} &&
@@ -1896,7 +2021,8 @@ void test_repeat_role_action_refresh_protocol(openswd3::test::Context& test) {
     );
     const auto failure_result = update_failure.step();
     test.expect_true(
-        failure_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+        failure_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             failure_result.action_update_count == 3U &&
             failure_result.action_update_failure_count == 3U &&
             failed_action.command_cursor == 0x7103U &&
@@ -1917,7 +2043,8 @@ void test_repeat_role_action_refresh_protocol(openswd3::test::Context& test) {
     );
     const auto source_result = source_selector.step();
     test.expect_true(
-        source_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+        source_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             source_result.action_update_count == 1U &&
             source_selector.roles[1].action.command_cursor == 0U &&
             source_selector.roles[2].action.command_cursor == 0x2222U,
@@ -1934,7 +2061,7 @@ void test_repeat_role_action_refresh_protocol(openswd3::test::Context& test) {
     const auto controlled_result = controlled_selector.step(0, 0, 2U);
     test.expect_true(
         controlled_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             controlled_result.action_update_count == 1U &&
             controlled_selector.roles[1].action.command_cursor == 0x1111U &&
             controlled_selector.roles[2].action.command_cursor == 0U,
@@ -2366,7 +2493,7 @@ void test_wait_for_role_action_index_threshold(openswd3::test::Context& test) {
         prime_loaded_instruction(fixture, OP_107_WAIT_ROLE_ACTION_INDEX);
         write_u16(fixture.state.window, 2U, selector);
         write_u16(fixture.state.window, 4U, threshold);
-        write_u16(fixture.state.window, 6U, OP_1025);
+        write_u16(fixture.state.window, 6U, kStoryVmTypedStop);
         fixture.roles[1].action.packed_ap_state = packed_state;
         fixture.state.previous_opcode = 0x66U;
     };
@@ -2386,16 +2513,17 @@ void test_wait_for_role_action_index_threshold(openswd3::test::Context& test) {
 
     test.expect_true(
         completed_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            completed_result.opcode == OP_1025 &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            completed_result.opcode == kStoryVmTypedStop &&
             completed_result.executed_instruction_count == 2U &&
             completed.context.instruction_offset == 6U &&
             completed.state.previous_opcode == OP_107_WAIT_ROLE_ACTION_INDEX,
         "opcode 107 consumes a reached action index in-call"
     );
     test.expect_true(
-        invalid_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            invalid_result.opcode == OP_1025 &&
+        invalid_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            invalid_result.opcode == kStoryVmTypedStop &&
             invalid_result.executed_instruction_count == 2U &&
             invalid_threshold.context.instruction_offset == 6U &&
             invalid_threshold.state.previous_opcode ==
@@ -2403,8 +2531,9 @@ void test_wait_for_role_action_index_threshold(openswd3::test::Context& test) {
         "opcode 107 consumes a threshold above the item limit in-call"
     );
     test.expect_true(
-        missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            missing_result.opcode == OP_1025 &&
+        missing_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            missing_result.opcode == kStoryVmTypedStop &&
             missing_result.executed_instruction_count == 2U &&
             missing_role.context.instruction_offset == 6U &&
             missing_role.state.previous_opcode == OP_107_WAIT_ROLE_ACTION_INDEX,
@@ -2412,8 +2541,8 @@ void test_wait_for_role_action_index_threshold(openswd3::test::Context& test) {
     );
     test.expect_true(
         controlled_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            controlled_result.opcode == OP_1025 &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            controlled_result.opcode == kStoryVmTypedStop &&
             controlled_result.executed_instruction_count == 2U &&
             controlled_role.context.instruction_offset == 6U &&
             controlled_role.state.previous_opcode ==
@@ -2478,13 +2607,16 @@ void test_set_next_dialog_anchor_protocol(openswd3::test::Context& test) {
         prime_loaded_instruction(fixture, raw_word);
         write_u16(fixture.state.window, 2U, 639U);
         write_u16(fixture.state.window, 4U, 479U);
-        write_u16(fixture.state.window, 6U, OP_1025);
+        write_u16(fixture.state.window, 6U, kStoryVmTypedStop);
         fixture.state.previous_opcode = 0x66U;
 
         const auto result = fixture.step();
         test.expect_true(
-            result.raw_word == OP_1025 && result.opcode == OP_1025 &&
-                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.raw_word == kStoryVmTypedStop &&
+                result.opcode == kStoryVmTypedStop &&
+                result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
                 result.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 6U &&
                 fixture.state.dialog_anchor_left == 639U &&
@@ -2498,23 +2630,25 @@ void test_set_next_dialog_anchor_protocol(openswd3::test::Context& test) {
     prime_loaded_instruction(both_fallback, OP_108_SET_NEXT_DIALOG_ANCHOR);
     write_u16(both_fallback.state.window, 2U, 640U);
     write_u16(both_fallback.state.window, 4U, 480U);
-    write_u16(both_fallback.state.window, 6U, OP_1025);
+    write_u16(both_fallback.state.window, 6U, kStoryVmTypedStop);
     const auto both_result = both_fallback.step();
 
     Fixture top_fallback;
     prime_loaded_instruction(top_fallback, OP_108_SET_NEXT_DIALOG_ANCHOR);
     write_u16(top_fallback.state.window, 2U, 639U);
     write_u16(top_fallback.state.window, 4U, 0xFFFFU);
-    write_u16(top_fallback.state.window, 6U, OP_1025);
+    write_u16(top_fallback.state.window, 6U, kStoryVmTypedStop);
     const auto top_result = top_fallback.step();
 
     test.expect_true(
-        both_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+        both_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             both_fallback.state.dialog_anchor_left == 16U &&
             both_fallback.state.dialog_anchor_top == 16U &&
             both_fallback.state.previous_opcode ==
                 OP_108_SET_NEXT_DIALOG_ANCHOR &&
-            top_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            top_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             top_fallback.state.dialog_anchor_left == 639U &&
             top_fallback.state.dialog_anchor_top == 16U &&
             top_fallback.state.previous_opcode == OP_108_SET_NEXT_DIALOG_ANCHOR,
@@ -2837,8 +2971,10 @@ void test_secondary_role_bit30_reload_protocol(openswd3::test::Context& test) {
                     fixture, static_cast<u16>(opcode | alias_mask)
                 );
                 write_u32(fixture.state.window, 2U, target);
-                write_u16(fixture.state.window, 6U, OP_1025);
-                write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+                write_u16(fixture.state.window, 6U, kStoryVmTypedStop);
+                write_u16(
+                    fixture.ports.transferred_window, 0U, kStoryVmTypedStop
+                );
                 fixture.roles[1].flags =
                     secondary_role_has_bit30 ? 0x40000000U : 0U;
                 fixture.state.previous_opcode = 0x66U;
@@ -2848,8 +2984,9 @@ void test_secondary_role_bit30_reload_protocol(openswd3::test::Context& test) {
                     (opcode == OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30);
                 test.expect_true(
                     result.status ==
-                            LegacyWorldStoryVmStatus::unsupported_opcode &&
-                        result.opcode == OP_1025 &&
+                            LegacyWorldStoryVmStatus::
+                                script_variable_index_out_of_range &&
+                        result.opcode == kStoryVmTypedStop &&
                         result.executed_instruction_count == 2U &&
                         result.direct_audio_service_count ==
                             (should_reload ? 1U : 0U) &&
@@ -2876,12 +3013,12 @@ void test_secondary_role_bit30_reload_protocol(openswd3::test::Context& test) {
         role_zero_only, OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30
     );
     write_u32(role_zero_only.state.window, 2U, target);
-    write_u16(role_zero_only.state.window, 6U, OP_1025);
+    write_u16(role_zero_only.state.window, 6U, kStoryVmTypedStop);
     role_zero_only.state.previous_opcode = 0x66U;
     const auto role_zero_result = role_zero_only.step();
     test.expect_true(
         role_zero_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             role_zero_result.executed_instruction_count == 2U &&
             role_zero_only.context.instruction_offset == 6U &&
             role_zero_only.state.previous_opcode ==
@@ -2974,7 +3111,7 @@ void test_secondary_role_bit30_reload_protocol(openswd3::test::Context& test) {
         OP_110_RELOAD_IF_NO_SECONDARY_ROLE_BIT30
     );
     write_u32(reload_tail.state.window, 0x7FFCU, target);
-    write_u16(reload_tail.ports.transferred_window, 0U, OP_1025);
+    write_u16(reload_tail.ports.transferred_window, 0U, kStoryVmTypedStop);
     const auto reload_tail_result = reload_tail.step();
 
     Fixture sequential_tail;
@@ -2993,7 +3130,7 @@ void test_secondary_role_bit30_reload_protocol(openswd3::test::Context& test) {
 
     test.expect_true(
         reload_tail_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             reload_tail_result.executed_instruction_count == 2U &&
             reload_tail_result.direct_audio_service_count == 1U &&
             reload_tail.context.talk_data_offset == target &&
@@ -3092,7 +3229,7 @@ void test_wait_overlay_action_lists_protocol(openswd3::test::Context& test) {
     prime_loaded_instruction(
         completed, OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS
     );
-    write_u16(completed.state.window, 2U, OP_1025);
+    write_u16(completed.state.window, 2U, kStoryVmTypedStop);
     completed.state.previous_opcode = 0x66U;
     const auto completed_result = completed.step();
     test.expect_true(
@@ -3209,7 +3346,7 @@ void test_play_sound_effect_with_unread_padding_protocol(
             4U,
             static_cast<u16>(0xA500U | static_cast<u16>(index))
         );
-        write_u16(fixture.state.window, 6U, OP_1025);
+        write_u16(fixture.state.window, 6U, kStoryVmTypedStop);
         fixture.state.previous_opcode = 0x66U;
         std::size_t requests_seen_by_audio{};
         u16 sound_seen_by_audio{};
@@ -3402,7 +3539,7 @@ void test_stage_scene_music_stream_request_protocol(
         write_u16(fixture.state.window, 2U, test_case.first_stream);
         write_u16(fixture.state.window, 4U, test_case.second_stream);
         write_u16(fixture.state.window, 6U, test_case.flags);
-        write_u16(fixture.state.window, 8U, OP_1025);
+        write_u16(fixture.state.window, 8U, kStoryVmTypedStop);
         fixture.state.music_request = 0x01020304U;
         fixture.state.music_first_stream = 0x11111111U;
         fixture.state.music_second_stream = 0x22222222U;
@@ -3430,8 +3567,10 @@ void test_stage_scene_music_stream_request_protocol(
 
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 result.direct_audio_service_count == 0U &&
                 fixture.state.music_request == 0x80000001U &&
@@ -3681,12 +3820,14 @@ void test_batch_set_role_positions_protocol(openswd3::test::Context& test) {
         Fixture fixture;
         prime_loaded_instruction(fixture, raw_opcode);
         write_u16(fixture.state.window, 2U, 0U);
-        write_u16(fixture.state.window, 4U, OP_1025);
+        write_u16(fixture.state.window, 4U, kStoryVmTypedStop);
 
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 result.direct_audio_service_count == 0U &&
                 fixture.context.instruction_offset == 4U &&
@@ -3706,7 +3847,7 @@ void test_batch_set_role_positions_protocol(openswd3::test::Context& test) {
     write_u16(batch.state.window, 10U, 0xFFFEU);
     write_u16(batch.state.window, 12U, 22U);
     write_u16(batch.state.window, 14U, 16U);
-    write_u16(batch.state.window, 16U, OP_1025);
+    write_u16(batch.state.window, 16U, kStoryVmTypedStop);
     const auto batch_result = batch.step(0, 0, 1U);
     const auto role_one_slot = std::ranges::find_if(
         batch.active_object_slots, [](const LegacyWorldObjectSlot& slot) {
@@ -3714,8 +3855,9 @@ void test_batch_set_role_positions_protocol(openswd3::test::Context& test) {
         }
     );
     test.expect_true(
-        batch_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            batch_result.opcode == OP_1025 &&
+        batch_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            batch_result.opcode == kStoryVmTypedStop &&
             batch_result.executed_instruction_count == 2U &&
             batch_result.direct_audio_service_count == 0U &&
             batch.context.instruction_offset == 16U &&
@@ -3734,7 +3876,7 @@ void test_batch_set_role_positions_protocol(openswd3::test::Context& test) {
     write_u16(controlled_alias.state.window, 4U, 0xFFFEU);
     write_u16(controlled_alias.state.window, 6U, 0x1015U);
     write_u16(controlled_alias.state.window, 8U, 0x100FU);
-    write_u16(controlled_alias.state.window, 10U, OP_1025);
+    write_u16(controlled_alias.state.window, 10U, kStoryVmTypedStop);
     const auto controlled_alias_result = controlled_alias.step(0, 0, 1U);
     const auto controlled_slot = std::ranges::find_if(
         controlled_alias.active_object_slots,
@@ -3744,7 +3886,7 @@ void test_batch_set_role_positions_protocol(openswd3::test::Context& test) {
     );
     test.expect_true(
         controlled_alias_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             controlled_alias.context.instruction_offset == 10U &&
             controlled_alias.dialogs.close.flagged_dialog_counter == 0x8000U &&
             controlled_slot != controlled_alias.active_object_slots.end() &&
@@ -3866,12 +4008,14 @@ void test_remove_dialogs_for_role_guid_protocol(openswd3::test::Context& test) {
         Fixture fixture;
         prime_loaded_instruction(fixture, raw_opcode);
         write_u16(fixture.state.window, 2U, 0xFFF0U);
-        write_u16(fixture.state.window, 4U, OP_1025);
+        write_u16(fixture.state.window, 4U, kStoryVmTypedStop);
 
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 result.direct_audio_service_count == 0U &&
                 fixture.context.instruction_offset == 4U &&
@@ -3907,7 +4051,7 @@ void test_remove_dialogs_for_role_guid_protocol(openswd3::test::Context& test) {
     matching.dialogs.close.flagged_dialog_counter = 0xCAFE8002U;
     prime_loaded_instruction(matching, OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID);
     write_u16(matching.state.window, 2U, 1U);
-    write_u16(matching.state.window, 4U, OP_1025);
+    write_u16(matching.state.window, 4U, kStoryVmTypedStop);
     const auto matching_result = matching.step();
     auto remaining = matching.dialogs.messages.begin();
     const u16 first_remaining_marker = remaining->record.display_counter;
@@ -3915,8 +4059,8 @@ void test_remove_dialogs_for_role_guid_protocol(openswd3::test::Context& test) {
     const u16 second_remaining_marker = remaining->record.display_counter;
     test.expect_true(
         matching_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            matching_result.opcode == OP_1025 &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            matching_result.opcode == kStoryVmTypedStop &&
             matching_result.executed_instruction_count == 2U &&
             matching_result.direct_audio_service_count == 0U &&
             matching.context.instruction_offset == 4U &&
@@ -4031,12 +4175,14 @@ void test_wait_dialog_flag_protocol(openswd3::test::Context& test) {
                 fixture, static_cast<u16>(variant.opcode | alias)
             );
             write_u16(fixture.state.window, 2U, 0x00F8U);
-            write_u16(fixture.state.window, 4U, OP_1025);
+            write_u16(fixture.state.window, 4U, kStoryVmTypedStop);
 
             const auto result = fixture.step();
             test.expect_true(
-                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                    result.opcode == OP_1025 &&
+                result.status ==
+                        LegacyWorldStoryVmStatus::
+                            script_variable_index_out_of_range &&
+                    result.opcode == kStoryVmTypedStop &&
                     result.executed_instruction_count == 2U &&
                     result.direct_audio_service_count == 0U &&
                     fixture.context.instruction_offset == 4U &&
@@ -4051,7 +4197,7 @@ void test_wait_dialog_flag_protocol(openswd3::test::Context& test) {
         matching.dialogs.messages.back().record.flags = variant.unrelated_mask;
         prime_loaded_instruction(matching, variant.opcode);
         write_u16(matching.state.window, 2U, 0x00F8U);
-        write_u16(matching.state.window, 4U, OP_1025);
+        write_u16(matching.state.window, 4U, kStoryVmTypedStop);
         const auto waiting = matching.step();
         matching.dialogs.messages.back().record.flags |=
             variant.completion_mask;
@@ -4062,8 +4208,9 @@ void test_wait_dialog_flag_protocol(openswd3::test::Context& test) {
                 waiting.direct_audio_service_count == 1U &&
                 matching.ports.direct_audio_service_count == 1U &&
                 completed.status ==
-                    LegacyWorldStoryVmStatus::unsupported_opcode &&
-                completed.opcode == OP_1025 &&
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                completed.opcode == kStoryVmTypedStop &&
                 completed.executed_instruction_count == 2U &&
                 completed.direct_audio_service_count == 0U &&
                 matching.context.instruction_offset == 4U &&
@@ -4080,7 +4227,7 @@ void test_wait_dialog_flag_protocol(openswd3::test::Context& test) {
     }
     prime_loaded_instruction(first_match, OP_119_WAIT_DIALOG_FLAG_BIT0);
     write_u16(first_match.state.window, 2U, 0x00F8U);
-    write_u16(first_match.state.window, 4U, OP_1025);
+    write_u16(first_match.state.window, 4U, kStoryVmTypedStop);
     const auto first_match_waiting = first_match.step();
     first_match.dialogs.messages.front().record.flags = 1U;
     first_match.dialogs.messages.back().record.flags = 0U;
@@ -4089,7 +4236,7 @@ void test_wait_dialog_flag_protocol(openswd3::test::Context& test) {
         first_match_waiting.status == LegacyWorldStoryVmStatus::yielded &&
             first_match_waiting.direct_audio_service_count == 1U &&
             first_match_completed.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             first_match.context.instruction_offset == 4U,
         "dialog waits inspect only the first matching message"
     );
@@ -4116,11 +4263,11 @@ void test_wait_dialog_flag_protocol(openswd3::test::Context& test) {
     context_detached.dialogs.messages.back().record.flags = 1U;
     prime_loaded_instruction(context_detached, OP_119_WAIT_DIALOG_FLAG_BIT0);
     write_u16(context_detached.state.window, 2U, 0xFFF0U);
-    write_u16(context_detached.state.window, 4U, OP_1025);
+    write_u16(context_detached.state.window, 4U, kStoryVmTypedStop);
     const auto context_detached_result = context_detached.step();
     test.expect_true(
         context_detached_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             context_detached.context.instruction_offset == 4U &&
             context_detached.state.previous_opcode ==
                 OP_119_WAIT_DIALOG_FLAG_BIT0 &&
@@ -4134,11 +4281,11 @@ void test_wait_dialog_flag_protocol(openswd3::test::Context& test) {
     current_source.dialogs.messages.back().record.flags = 0x8000U;
     prime_loaded_instruction(current_source, OP_139_WAIT_DIALOG_FLAG_BIT15);
     write_u16(current_source.state.window, 2U, 0xFFF0U);
-    write_u16(current_source.state.window, 4U, OP_1025);
+    write_u16(current_source.state.window, 4U, kStoryVmTypedStop);
     const auto current_source_result = current_source.step();
     test.expect_true(
         current_source_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             current_source.context.instruction_offset == 4U &&
             current_source.state.previous_opcode ==
                 OP_139_WAIT_DIALOG_FLAG_BIT15 &&
@@ -4152,10 +4299,11 @@ void test_wait_dialog_flag_protocol(openswd3::test::Context& test) {
     missing.dialogs.messages.back().record.flags = 0U;
     prime_loaded_instruction(missing, OP_119_WAIT_DIALOG_FLAG_BIT0);
     write_u16(missing.state.window, 2U, 0x7777U);
-    write_u16(missing.state.window, 4U, OP_1025);
+    write_u16(missing.state.window, 4U, kStoryVmTypedStop);
     const auto missing_result = missing.step();
     test.expect_true(
-        missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+        missing_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             missing_result.executed_instruction_count == 2U &&
             missing_result.direct_audio_service_count == 0U &&
             missing.context.instruction_offset == 4U &&
@@ -4185,11 +4333,11 @@ void test_wait_dialog_flag_protocol(openswd3::test::Context& test) {
     wide_controlled.dialogs.messages.back().record.flags = 0U;
     prime_loaded_instruction(wide_controlled, OP_119_WAIT_DIALOG_FLAG_BIT0);
     write_u16(wide_controlled.state.window, 2U, 0xFFFEU);
-    write_u16(wide_controlled.state.window, 4U, OP_1025);
+    write_u16(wide_controlled.state.window, 4U, kStoryVmTypedStop);
     const auto wide_controlled_result = wide_controlled.step(0, 0, 0x00010003U);
     test.expect_true(
         wide_controlled_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             wide_controlled_result.direct_audio_service_count == 0U &&
             wide_controlled.context.instruction_offset == 4U,
         "dialog wait compares the full controlled index with a u16 record"
@@ -4275,11 +4423,13 @@ void test_release_role_path_protocol(openswd3::test::Context& test) {
         fixture.runtime.story_paths = &paths;
         prime_loaded_instruction(fixture, raw_word);
         write_u16(fixture.state.window, 2U, 0x00F8U);
-        write_u16(fixture.state.window, 4U, OP_1025);
+        write_u16(fixture.state.window, 4U, kStoryVmTypedStop);
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 4U &&
                 fixture.state.previous_opcode == OP_18_RELEASE_ROLE_PATH &&
@@ -4297,11 +4447,11 @@ void test_release_role_path_protocol(openswd3::test::Context& test) {
     already_released.roles[1].action.wait_remaining = 7U;
     prime_loaded_instruction(already_released, OP_18_RELEASE_ROLE_PATH);
     write_u16(already_released.state.window, 2U, 0x00F8U);
-    write_u16(already_released.state.window, 4U, OP_1025);
+    write_u16(already_released.state.window, 4U, kStoryVmTypedStop);
     const auto already_released_result = already_released.step();
     test.expect_true(
         already_released_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             already_released_result.executed_instruction_count == 2U &&
             already_released.context.instruction_offset == 4U &&
             already_released.roles[1].flags == 0x20000000U &&
@@ -4314,10 +4464,11 @@ void test_release_role_path_protocol(openswd3::test::Context& test) {
     no_slot.roles[1].action.wait_remaining = 7U;
     prime_loaded_instruction(no_slot, OP_18_RELEASE_ROLE_PATH);
     write_u16(no_slot.state.window, 2U, 0x00F8U);
-    write_u16(no_slot.state.window, 4U, OP_1025);
+    write_u16(no_slot.state.window, 4U, kStoryVmTypedStop);
     const auto no_slot_result = no_slot.step();
     test.expect_true(
-        no_slot_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+        no_slot_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             no_slot_result.executed_instruction_count == 3U &&
             no_slot.context.instruction_offset == 4U &&
             no_slot.state.previous_opcode == OP_18_RELEASE_ROLE_PATH &&
@@ -4330,13 +4481,13 @@ void test_release_role_path_protocol(openswd3::test::Context& test) {
     type_one.roles[1].flags = 0x80000000U;
     prime_loaded_instruction(type_one, OP_18_RELEASE_ROLE_PATH);
     write_u16(type_one.state.window, 2U, 0x00F8U);
-    write_u16(type_one.state.window, 4U, OP_1025);
+    write_u16(type_one.state.window, 4U, kStoryVmTypedStop);
     write_u16(type_one.active_object_slots[0].bytes, 0x00U, 1U);
     type_one.active_object_slots[0].bytes[0x1BU] = 1U;
     const auto type_one_result = type_one.step();
     test.expect_true(
         type_one_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             type_one_result.executed_instruction_count == 3U &&
             type_one.context.instruction_offset == 4U &&
             type_one.active_object_slots[0].bytes[0x1BU] == 1U,
@@ -4470,11 +4621,13 @@ void test_release_all_role_paths_protocol(openswd3::test::Context& test) {
         paths.active_object_slots = fixture.active_object_slots;
         fixture.runtime.story_paths = &paths;
         prime_loaded_instruction(fixture, raw_word);
-        write_u16(fixture.state.window, 2U, OP_1025);
+        write_u16(fixture.state.window, 2U, kStoryVmTypedStop);
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 2U &&
                 fixture.state.previous_opcode == OP_19_RELEASE_ROLE_PATHS &&
@@ -4496,11 +4649,11 @@ void test_release_all_role_paths_protocol(openswd3::test::Context& test) {
     already_released.roles[1].action.wait_remaining = 7U;
     already_released.roles[2].action.wait_remaining = 9U;
     prime_loaded_instruction(already_released, OP_19_RELEASE_ROLE_PATHS);
-    write_u16(already_released.state.window, 2U, OP_1025);
+    write_u16(already_released.state.window, 2U, kStoryVmTypedStop);
     const auto already_released_result = already_released.step();
     test.expect_true(
         already_released_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             already_released_result.executed_instruction_count == 2U &&
             already_released.context.instruction_offset == 2U &&
             already_released.roles[1].action.wait_remaining == 7U &&
@@ -4514,11 +4667,11 @@ void test_release_all_role_paths_protocol(openswd3::test::Context& test) {
     write_u16(type_one.active_object_slots[0].bytes, 0x00U, 1U);
     type_one.active_object_slots[0].bytes[0x1BU] = 1U;
     prime_loaded_instruction(type_one, OP_19_RELEASE_ROLE_PATHS);
-    write_u16(type_one.state.window, 2U, OP_1025);
+    write_u16(type_one.state.window, 2U, kStoryVmTypedStop);
     const auto type_one_result = type_one.step();
     test.expect_true(
         type_one_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             type_one_result.executed_instruction_count == 2U &&
             type_one.roles[1].flags == 0U &&
             type_one.roles[1].action.wait_remaining == 0U &&
@@ -4550,7 +4703,7 @@ void test_release_all_role_paths_protocol(openswd3::test::Context& test) {
     one_role.roles[0].flags = 0x80000000U;
     one_role.roles[0].action.wait_remaining = 5U;
     prime_loaded_instruction(one_role, OP_19_RELEASE_ROLE_PATHS);
-    write_u16(one_role.state.window, 2U, OP_1025);
+    write_u16(one_role.state.window, 2U, kStoryVmTypedStop);
     auto one_role_span =
         std::span<LegacyWorldRoleRecord>{one_role.roles}.first(1U);
     const auto one_role_result =
@@ -4570,7 +4723,7 @@ void test_release_all_role_paths_protocol(openswd3::test::Context& test) {
         );
     test.expect_true(
         one_role_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             one_role_result.executed_instruction_count == 2U &&
             one_role.context.instruction_offset == 2U &&
             one_role.state.previous_opcode == OP_19_RELEASE_ROLE_PATHS &&
@@ -4620,7 +4773,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         write_u16(fixture.state.window, 4U, 0x00F8U);
         write_u16(fixture.state.window, 6U, 21U);
         write_u16(fixture.state.window, 8U, 15U);
-        write_u16(fixture.state.window, 10U, OP_1025);
+        write_u16(fixture.state.window, 10U, kStoryVmTypedStop);
 
         const auto scheduled = fixture.step();
         const auto& slot = fixture.active_object_slots[0].bytes;
@@ -4652,8 +4805,10 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         fixture.roles[1].flags |= 0x02000000U;
         const auto completed = fixture.step();
         test.expect_true(
-            completed.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                completed.opcode == OP_1025 &&
+            completed.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                completed.opcode == kStoryVmTypedStop &&
                 completed.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 10U &&
                 fixture.state.previous_opcode == OP_20_SCHEDULE_ROLE_PATHS &&
@@ -4679,7 +4834,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         write_u16(fixture.state.window, 10U, 0x1234U);
         write_u16(fixture.state.window, 12U, 0xFFFEU);
         write_u16(fixture.state.window, 14U, 7U);
-        write_u16(fixture.state.window, 16U, OP_1025);
+        write_u16(fixture.state.window, 16U, kStoryVmTypedStop);
 
         const auto scheduled = fixture.step();
         const auto& slot = fixture.active_object_slots[0].bytes;
@@ -4700,8 +4855,10 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         fixture.roles[1].flags |= 0x02000000U;
         const auto completed = fixture.step();
         test.expect_true(
-            completed.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                completed.opcode == OP_1025 &&
+            completed.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                completed.opcode == kStoryVmTypedStop &&
                 completed.executed_instruction_count == 2U &&
                 fixture.context.instruction_offset == 16U &&
                 fixture.state.previous_opcode ==
@@ -4723,7 +4880,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         Fixture empty;
         prime_loaded_instruction(empty, variant.opcode);
         write_u16(empty.state.window, 2U, 0U);
-        write_u16(empty.state.window, 4U, OP_1025);
+        write_u16(empty.state.window, 4U, kStoryVmTypedStop);
         const auto staged = empty.step();
         const u16 staged_count = read_u16(empty.state.window, 2U);
         const auto completed = empty.step();
@@ -4734,8 +4891,9 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
                 staged_count == 0x4000U &&
                 read_u16(empty.state.window, 2U) == 0U &&
                 completed.status ==
-                    LegacyWorldStoryVmStatus::unsupported_opcode &&
-                completed.opcode == OP_1025 &&
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                completed.opcode == kStoryVmTypedStop &&
                 completed.executed_instruction_count == 2U &&
                 empty.context.instruction_offset == 4U &&
                 empty.state.previous_opcode == variant.opcode,
@@ -4766,11 +4924,11 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
         "opcode 20 forwards bit15 and uses selected-role FFFF coordinates"
     );
     selected_fallback.roles[1].flags |= 0x02000000U;
-    write_u16(selected_fallback.state.window, 10U, OP_1025);
+    write_u16(selected_fallback.state.window, 10U, kStoryVmTypedStop);
     const auto selected_completed = selected_fallback.step(0, 0, 1U);
     test.expect_true(
         selected_completed.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             selected_fallback.context.instruction_offset == 10U &&
             read_u16(selected_fallback.state.window, 2U) == 1U,
         "ready phase clears both bit14 and forwarded bit15"
@@ -4965,11 +5123,13 @@ void test_jump_if_global_bit_protocol(openswd3::test::Context& test) {
                     fixture.state, 0x0123U
                 );
             }
-            write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+            write_u16(fixture.ports.transferred_window, 0U, kStoryVmTypedStop);
             const auto result = fixture.step();
             test.expect_true(
-                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                    result.opcode == OP_1025 &&
+                result.status ==
+                        LegacyWorldStoryVmStatus::
+                            script_variable_index_out_of_range &&
+                    result.opcode == kStoryVmTypedStop &&
                     result.executed_instruction_count == 2U &&
                     result.direct_audio_service_count == 1U &&
                     fixture.context.talk_data_offset == 0x12345678U &&
@@ -4989,12 +5149,13 @@ void test_jump_if_global_bit_protocol(openswd3::test::Context& test) {
                 sequential.state, 0x0123U
             );
         }
-        write_u16(sequential.state.window, 8U, OP_1025);
+        write_u16(sequential.state.window, 8U, kStoryVmTypedStop);
         const auto sequential_result = sequential.step();
         test.expect_true(
             sequential_result.status ==
-                    LegacyWorldStoryVmStatus::unsupported_opcode &&
-                sequential_result.opcode == OP_1025 &&
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                sequential_result.opcode == kStoryVmTypedStop &&
                 sequential_result.executed_instruction_count == 2U &&
                 sequential_result.direct_audio_service_count == 0U &&
                 sequential.context.instruction_offset == 8U &&
@@ -5110,11 +5271,13 @@ void test_jump_if_all_global_bits_set_protocol(openswd3::test::Context& test) {
         openswd3::world_map::set_legacy_world_story_flag(
             fixture.state, 0x0456U
         );
-        write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+        write_u16(fixture.ports.transferred_window, 0U, kStoryVmTypedStop);
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 result.direct_audio_service_count == 1U &&
                 fixture.context.talk_data_offset == 0x12345678U &&
@@ -5132,13 +5295,13 @@ void test_jump_if_all_global_bits_set_protocol(openswd3::test::Context& test) {
     write_u16(one_clear.state.window, 4U, 0x0456U);
     write_u16(one_clear.state.window, 6U, 0xFF00U);
     write_u32(one_clear.state.window, 8U, 0x12345678U);
-    write_u16(one_clear.state.window, 12U, OP_1025);
+    write_u16(one_clear.state.window, 12U, kStoryVmTypedStop);
     openswd3::world_map::set_legacy_world_story_flag(one_clear.state, 0x0123U);
     const auto one_clear_result = one_clear.step();
     test.expect_true(
         one_clear_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            one_clear_result.opcode == OP_1025 &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            one_clear_result.opcode == kStoryVmTypedStop &&
             one_clear_result.executed_instruction_count == 2U &&
             one_clear_result.direct_audio_service_count == 0U &&
             one_clear.context.instruction_offset == 12U &&
@@ -5152,11 +5315,12 @@ void test_jump_if_all_global_bits_set_protocol(openswd3::test::Context& test) {
     prime_loaded_instruction(empty, OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET);
     write_u16(empty.state.window, 2U, 0xFF00U);
     write_u32(empty.state.window, 4U, 0x22223333U);
-    write_u16(empty.ports.transferred_window, 0U, OP_1025);
+    write_u16(empty.ports.transferred_window, 0U, kStoryVmTypedStop);
     const auto empty_result = empty.step();
     test.expect_true(
-        empty_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            empty_result.opcode == OP_1025 &&
+        empty_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            empty_result.opcode == kStoryVmTypedStop &&
             empty_result.direct_audio_service_count == 1U &&
             empty.context.talk_data_offset == 0x22223333U &&
             empty.state.previous_opcode == OP_23_JUMP_IF_ALL_GLOBAL_BITS_SET,
@@ -5264,11 +5428,13 @@ void test_jump_if_any_global_bit_set_protocol(openswd3::test::Context& test) {
         openswd3::world_map::set_legacy_world_story_flag(
             fixture.state, 0x0456U
         );
-        write_u16(fixture.ports.transferred_window, 0U, OP_1025);
+        write_u16(fixture.ports.transferred_window, 0U, kStoryVmTypedStop);
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 result.direct_audio_service_count == 1U &&
                 fixture.context.talk_data_offset == 0x12345678U &&
@@ -5286,12 +5452,12 @@ void test_jump_if_any_global_bit_set_protocol(openswd3::test::Context& test) {
     write_u16(all_clear.state.window, 4U, 0x0456U);
     write_u16(all_clear.state.window, 6U, 0xFF00U);
     write_u32(all_clear.state.window, 8U, 0x12345678U);
-    write_u16(all_clear.state.window, 12U, OP_1025);
+    write_u16(all_clear.state.window, 12U, kStoryVmTypedStop);
     const auto all_clear_result = all_clear.step();
     test.expect_true(
         all_clear_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
-            all_clear_result.opcode == OP_1025 &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            all_clear_result.opcode == kStoryVmTypedStop &&
             all_clear_result.executed_instruction_count == 2U &&
             all_clear_result.direct_audio_service_count == 0U &&
             all_clear.context.instruction_offset == 12U &&
@@ -5305,11 +5471,12 @@ void test_jump_if_any_global_bit_set_protocol(openswd3::test::Context& test) {
     prime_loaded_instruction(empty, OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET);
     write_u16(empty.state.window, 2U, 0xFF00U);
     write_u32(empty.state.window, 4U, 0x22223333U);
-    write_u16(empty.state.window, 8U, OP_1025);
+    write_u16(empty.state.window, 8U, kStoryVmTypedStop);
     const auto empty_result = empty.step();
     test.expect_true(
-        empty_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-            empty_result.opcode == OP_1025 &&
+        empty_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            empty_result.opcode == kStoryVmTypedStop &&
             empty_result.direct_audio_service_count == 0U &&
             empty.context.instruction_offset == 8U &&
             empty.state.previous_opcode == OP_24_JUMP_IF_ANY_GLOBAL_BIT_SET &&
@@ -5400,11 +5567,13 @@ void test_set_global_bit_protocol(openswd3::test::Context& test) {
         Fixture fixture;
         prime_loaded_instruction(fixture, raw_word);
         write_u16(fixture.state.window, 2U, 0x0123U);
-        write_u16(fixture.state.window, 4U, OP_1025);
+        write_u16(fixture.state.window, 4U, kStoryVmTypedStop);
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 openswd3::world_map::query_legacy_world_story_flag(
                     fixture.state, 0x0123U
@@ -5418,14 +5587,14 @@ void test_set_global_bit_protocol(openswd3::test::Context& test) {
     Fixture already_set;
     prime_loaded_instruction(already_set, OP_25_SET_GLOBAL_BIT);
     write_u16(already_set.state.window, 2U, 0x0123U);
-    write_u16(already_set.state.window, 4U, OP_1025);
+    write_u16(already_set.state.window, 4U, kStoryVmTypedStop);
     openswd3::world_map::set_legacy_world_story_flag(
         already_set.state, 0x0123U
     );
     const auto already_set_result = already_set.step();
     test.expect_true(
         already_set_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             openswd3::world_map::query_legacy_world_story_flag(
                 already_set.state, 0x0123U
             ) &&
@@ -5439,11 +5608,11 @@ void test_set_global_bit_protocol(openswd3::test::Context& test) {
     Fixture last_bit;
     prime_loaded_instruction(last_bit, OP_25_SET_GLOBAL_BIT);
     write_u16(last_bit.state.window, 2U, last_valid_bit);
-    write_u16(last_bit.state.window, 4U, OP_1025);
+    write_u16(last_bit.state.window, 4U, kStoryVmTypedStop);
     const auto last_bit_result = last_bit.step();
     test.expect_true(
         last_bit_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             openswd3::world_map::query_legacy_world_story_flag(
                 last_bit.state, last_valid_bit
             ),
@@ -5482,7 +5651,7 @@ void test_clear_global_bit_protocol(openswd3::test::Context& test) {
         Fixture fixture;
         prime_loaded_instruction(fixture, raw_word);
         write_u16(fixture.state.window, 2U, 0x0123U);
-        write_u16(fixture.state.window, 4U, OP_1025);
+        write_u16(fixture.state.window, 4U, kStoryVmTypedStop);
         openswd3::world_map::set_legacy_world_story_flag(
             fixture.state, 0x0120U
         );
@@ -5494,8 +5663,10 @@ void test_clear_global_bit_protocol(openswd3::test::Context& test) {
         );
         const auto result = fixture.step();
         test.expect_true(
-            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
-                result.opcode == OP_1025 &&
+            result.status ==
+                    LegacyWorldStoryVmStatus::
+                        script_variable_index_out_of_range &&
+                result.opcode == kStoryVmTypedStop &&
                 result.executed_instruction_count == 2U &&
                 openswd3::world_map::query_legacy_world_story_flag(
                     fixture.state, 0x0120U
@@ -5515,11 +5686,11 @@ void test_clear_global_bit_protocol(openswd3::test::Context& test) {
     Fixture already_clear;
     prime_loaded_instruction(already_clear, OP_26_CLEAR_GLOBAL_BIT);
     write_u16(already_clear.state.window, 2U, 0x0123U);
-    write_u16(already_clear.state.window, 4U, OP_1025);
+    write_u16(already_clear.state.window, 4U, kStoryVmTypedStop);
     const auto already_clear_result = already_clear.step();
     test.expect_true(
         already_clear_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             !openswd3::world_map::query_legacy_world_story_flag(
                 already_clear.state, 0x0123U
             ) &&
@@ -5533,14 +5704,14 @@ void test_clear_global_bit_protocol(openswd3::test::Context& test) {
     Fixture last_bit;
     prime_loaded_instruction(last_bit, OP_26_CLEAR_GLOBAL_BIT);
     write_u16(last_bit.state.window, 2U, last_valid_bit);
-    write_u16(last_bit.state.window, 4U, OP_1025);
+    write_u16(last_bit.state.window, 4U, kStoryVmTypedStop);
     openswd3::world_map::set_legacy_world_story_flag(
         last_bit.state, last_valid_bit
     );
     const auto last_bit_result = last_bit.step();
     test.expect_true(
         last_bit_result.status ==
-                LegacyWorldStoryVmStatus::unsupported_opcode &&
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
             !openswd3::world_map::query_legacy_world_story_flag(
                 last_bit.state, last_valid_bit
             ),

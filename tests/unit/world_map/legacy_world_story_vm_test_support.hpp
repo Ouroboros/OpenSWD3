@@ -204,7 +204,7 @@ using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_174_SET_ROLE_STATUS_BIT14;
 using openswd3::world_map::OP_1024_LATCH_COMMON_JOIN_SAME_CALL;
-using openswd3::world_map::OP_1025;
+using openswd3::world_map::OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
@@ -237,6 +237,51 @@ void write_u16(
 ) noexcept {
     bytes[offset] = static_cast<u8>(value);
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+}
+
+struct StoryVmTypedStopOpcode {
+    [[nodiscard]] constexpr operator u16() const noexcept {
+        return OP_29_SET_GLOBAL_INTEGER;
+    }
+};
+
+constexpr StoryVmTypedStopOpcode kStoryVmTypedStop{};
+
+void write_u16(
+    const std::span<u8> bytes,
+    const std::size_t offset,
+    const StoryVmTypedStopOpcode
+) noexcept {
+    write_u16(bytes, offset, static_cast<u16>(kStoryVmTypedStop));
+    if (offset + 6U > bytes.size()) {
+        return;
+    }
+
+    write_u16(bytes, offset + 2U, 0xFFFFU);
+    write_u16(bytes, offset + 4U, 0U);
+}
+
+struct StoryVmLookaheadTypedStopOpcode {
+    [[nodiscard]] constexpr operator u16() const noexcept {
+        return OP_179_ENQUEUE_FRAME_DEFORMATION;
+    }
+};
+
+constexpr StoryVmLookaheadTypedStopOpcode kStoryVmLookaheadTypedStop{};
+
+void write_u16(
+    const std::span<u8> bytes,
+    const std::size_t offset,
+    const StoryVmLookaheadTypedStopOpcode
+) noexcept {
+    write_u16(bytes, offset, static_cast<u16>(kStoryVmLookaheadTypedStop));
+    if (offset + 10U > bytes.size()) {
+        return;
+    }
+
+    write_u16(bytes, offset + 4U, 0U);
+    write_u16(bytes, offset + 6U, 0U);
+    write_u16(bytes, offset + 8U, 0U);
 }
 
 [[nodiscard]] u16
@@ -1349,7 +1394,7 @@ void prime_long_camera_move(
     write_u16(fixture.state.window, 4U, static_cast<u16>(second));
     write_u16(fixture.state.window, 6U, step_x);
     write_u16(fixture.state.window, 8U, step_y);
-    write_u16(fixture.state.window, 10U, OP_1025);
+    write_u16(fixture.state.window, 10U, kStoryVmTypedStop);
 }
 
 void prime_role_camera_move(
@@ -1363,7 +1408,7 @@ void prime_role_camera_move(
     write_u16(fixture.state.window, 2U, selector);
     write_u16(fixture.state.window, 4U, step_x);
     write_u16(fixture.state.window, 6U, step_y);
-    write_u16(fixture.state.window, 8U, OP_1025);
+    write_u16(fixture.state.window, 8U, kStoryVmTypedStop);
 }
 
 void prime_frame_color_transition(
@@ -1381,7 +1426,7 @@ void prime_frame_color_transition(
         );
     }
     write_u16(fixture.state.window, 14U, duration);
-    write_u16(fixture.state.window, 16U, OP_1025);
+    write_u16(fixture.state.window, 16U, kStoryVmTypedStop);
 }
 
 std::size_t write_dialog_instruction(

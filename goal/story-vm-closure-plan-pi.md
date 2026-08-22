@@ -366,7 +366,11 @@ special1024恢复调用期common-join latch：后续全部共同出口持续same
 handler内部audio保留；现代仅用既有dispatch guard隔离原非推进无限域。线性资产0条，Story VM
 3/3、SDL app编译、Linux core186/186与app192/192通过。已实现196/198、已验收195/198；内部workpack
 143/146，即`24 assembly_exact + 119 platform_adapted + 3 pending_audit`。
-下一行只审计`0x0042D49F`下的special opcode1025。
+special1025恢复latch清除与共同出口让出：双指针+2后清ESI/var_28，previous1025→audio一次→yield，
+不fetch后继；四alias、1024链、audio顺序与精确尾通过，线性资产0条，归assembly exact。旧测试
+停机哨兵已迁出真实1025。Story VM 3/3、SDL app编译、Linux core186/186与app192/192通过。已实现197/198、
+已验收196/198；内部workpack144/146，即`25 assembly_exact + 119 platform_adapted + 2 pending_audit`。
+下一行只审计`0x0042D1EA`下的special opcode1026。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

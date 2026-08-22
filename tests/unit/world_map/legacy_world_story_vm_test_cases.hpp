@@ -66,6 +66,9 @@ void test_wait_for_music_stream_transition_protocol(
 );
 void test_wait_for_story_video_protocol(openswd3::test::Context& test);
 void test_latch_common_join_same_call_protocol(openswd3::test::Context& test);
+void test_clear_common_join_latch_and_yield_protocol(
+    openswd3::test::Context& test
+);
 void test_start_frame_color_transition_protocol(openswd3::test::Context& test);
 void test_start_frame_color_transition_window_boundaries(
     openswd3::test::Context& test

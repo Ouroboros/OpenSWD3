@@ -232,7 +232,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_192_WAIT_MUSIC_STREAM_TRANSITION = 192U,
     OP_193_WAIT_STORY_VIDEO = 193U,
     OP_1024_LATCH_COMMON_JOIN_SAME_CALL = 1024U,
-    OP_1025 = 1025U,
+    OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD = 1025U,
 };
 
 enum class LegacyWorldStoryFileOperation : compat::u8 {

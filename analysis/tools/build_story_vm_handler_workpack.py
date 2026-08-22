@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 196
-EXPECTED_CLOSED_HANDLER_COUNT = 143
+EXPECTED_MODERN_CASE_COUNT = 197
+EXPECTED_CLOSED_HANDLER_COUNT = 144
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -760,6 +760,11 @@ CLOSURE_OVERRIDES = {
         "story-vm-common-join-latch-0042d200.md",
         "platform_adapted;unit_tested;asset_absence_verified;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;call_local_state_tested;persistent_latch_tested;common_join_tested;previous_publication_tested;same_call_tested;no_common_audio_tested;internal_audio_preserved;instruction_limit_adapted",
     ),
+    "0x0042D49F": (
+        "assembly_exact",
+        "story-vm-common-join-latch-clear-0042d49f.md",
+        "assembly_exact;unit_tested;asset_absence_verified;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;call_local_state_tested;latch_clear_tested;common_join_tested;previous_publication_tested;audio_order_tested;audio_service_tested;yield_tested;unread_successor_tested",
+    ),
 }
 
 
@@ -1003,8 +1008,8 @@ def runtime_rows(window_transfer_opcodes: list[int]) -> list[tuple[object, ...]]
             "special",
             "1025",
             "advance 2; clear continuation; yield",
-            "pending_audit",
-            "explicit special value",
+            "assembly_exact",
+            "story-vm-common-join-latch-clear-0042d49f.md",
         ),
         (
             "special_1026",

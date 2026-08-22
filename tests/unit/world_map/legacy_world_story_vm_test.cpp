@@ -57,6 +57,7 @@ int main(const int argument_count, char** arguments) {
     test_wait_for_music_stream_transition_protocol(test);
     test_wait_for_story_video_protocol(test);
     test_latch_common_join_same_call_protocol(test);
+    test_clear_common_join_latch_and_yield_protocol(test);
     test_start_frame_color_transition_protocol(test);
     test_start_frame_color_transition_window_boundaries(test);
     test_wait_for_frame_color_transition_protocol(test);

@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v407
+版本：v408
 
 最后更新：2026-08-21
 
@@ -2974,4 +2974,17 @@ B7 P0 有限收口完成。
     synthetic/real/initial-session 3/3、Linux core 186/186与app 192/192通过。
     该结构提交不改变198个opcode的实现/验收进度。
 
-下一组只审计`0x0042D49F` / special opcode1025。
+- 剧情VM P2第一百四十四组`0x0042D49F` / special opcode1025完成独立闭环。handler固定
+    双指针+2、清ESI与调用期`var_28`，再经common join发布previous1025、audio一次并yield，
+    不fetch后继。现代清除step栈内latch后复用统一common helper，未增加持久状态，归
+    `assembly_exact`。四raw alias、无latch、1024持久latch清除、audio callback顺序、后继
+    不读和`IP=0x7FFE`精确尾通过；线性资产0条/0 probes。旧测试中417处“未实现1025”标识
+    引用已迁为明确typed-stop，其中读取下一指令`+2`的文件操作链使用保留lookahead字节的
+    专用无previous typed-stop，既有IP/previous/audio断言全部保持。Story VM 3/3、SDL app
+    编译、Linux core 186/186与app 192/192通过。workpack/runtime-path双生成hash分别为
+    `85bd6d1f7549bb7877d1e4a2ba53db98e60dccfd314f6fce2d90604faba10df6`、
+    `d4ef8d464ed37b2321e6ad5a9705cd5bce10ea0b06281f247b3fd705a74e1285`。本地进度为
+    已实现197/198、已验收196/198；内部workpack144/146，即`25 assembly_exact +
+    119 platform_adapted + 2 pending_audit`。
+
+下一组只审计`0x0042D1EA` / special opcode1026。

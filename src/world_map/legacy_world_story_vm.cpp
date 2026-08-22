@@ -70,28 +70,27 @@ is_legacy_default_invalid_opcode(const u16 opcode) noexcept {
         (opcode >= 1027U && opcode <= 16382U);
 }
 
-[[nodiscard]] constexpr u32 role_status_boolean_mask(
-    const u16 opcode
-) noexcept {
+[[nodiscard]] constexpr u32
+role_status_boolean_mask(const u16 opcode) noexcept {
     switch (opcode) {
-        case OP_102_SET_ROLE_STATUS_BIT6:
-            return 0x00000040U;
-        case OP_103_SET_ROLE_STATUS_BIT5:
-            return 0x00000020U;
-        case OP_117_SET_ROLE_STATUS_BIT4:
-            return 0x00000010U;
-        case OP_136_SET_ROLE_STATUS_BIT12:
-            return 0x00001000U;
-        case OP_140_SET_ROLE_STATUS_BIT11:
-            return 0x00000800U;
-        case OP_145_SET_ROLE_STATUS_BIT13:
-            return 0x00002000U;
-        case OP_146_SET_ROLE_STATUS_BIT8:
-            return 0x00000100U;
-        case OP_174_SET_ROLE_STATUS_BIT14:
-            return 0x00004000U;
-        default:
-            return 0U;
+    case OP_102_SET_ROLE_STATUS_BIT6:
+        return 0x00000040U;
+    case OP_103_SET_ROLE_STATUS_BIT5:
+        return 0x00000020U;
+    case OP_117_SET_ROLE_STATUS_BIT4:
+        return 0x00000010U;
+    case OP_136_SET_ROLE_STATUS_BIT12:
+        return 0x00001000U;
+    case OP_140_SET_ROLE_STATUS_BIT11:
+        return 0x00000800U;
+    case OP_145_SET_ROLE_STATUS_BIT13:
+        return 0x00002000U;
+    case OP_146_SET_ROLE_STATUS_BIT8:
+        return 0x00000100U;
+    case OP_174_SET_ROLE_STATUS_BIT14:
+        return 0x00004000U;
+    default:
+        return 0U;
     }
 }
 
@@ -5384,7 +5383,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 if (clear_legacy_world_role_surface_occupancy(
                         role, runtime.role_surface
                     )
-                        .status != LegacyWorldRoleSurfaceStatus::ready ||
+                            .status != LegacyWorldRoleSurfaceStatus::ready ||
                     mark_legacy_world_role_surface_occupancy(
                         role, runtime.role_surface
                     )
@@ -5401,9 +5400,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 ports.patch_role_source(
                     LegacyMapsRolePatchRequest{
                         .guid = selector,
-                        .flags_or_mask = static_cast<u16>(
-                            enabled ? mask : 0U
-                        ),
+                        .flags_or_mask = static_cast<u16>(enabled ? mask : 0U),
                         .flags_and_mask = static_cast<u16>(
                             enabled ? 0xFFFFU : 0xFFFFU - mask
                         ),
@@ -7710,6 +7707,16 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
             common_join_same_call_latched = true;
+            if (yield_from_common_join()) {
+                return result;
+            }
+
+            continue;
+
+        case OP_1025_CLEAR_COMMON_JOIN_LATCH_AND_YIELD:
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 2U);
+            common_join_same_call_latched = false;
             if (yield_from_common_join()) {
                 return result;
             }

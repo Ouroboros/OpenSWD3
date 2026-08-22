@@ -29,7 +29,7 @@ var_28 = 1
 
 common join先发布normalized previous1024；`var_28|ESI`非零，故不调用`_AIL_serve`并在同一次解释器调用中继续fetch。1024没有operand、helper、全局状态或跨调用持久状态。
 
-`var_28`只在后续opcode1025入口`0x0042D49F`被清零，或随本次`sub_427920`返回销毁。1025仍是下一独立审计项，本工作包不继承其完成结论。
+`var_28`只在后续opcode1025入口`0x0042D49F`被清零，或随本次`sub_427920`返回销毁。1025的独立闭环见`story-vm-common-join-latch-clear-0042d49f.md`。
 
 ## 2. 后续common join
 
@@ -65,17 +65,17 @@ TALK4     1323    71    16    31
 synthetic覆盖：
 
 - 四个raw alias；
-- 1024→opcode59→unsupported1025，验证IP/previous、sound副作用和零audio；
+- 1024→opcode59→测试专用负索引typed-stop，验证IP/previous、sound副作用和零audio；
 - 两个连续opcode59共同出口，验证latch不是一次性ESI；
 - 下一次`step`恢复普通common audio，验证latch不跨调用泄漏；
 - 1024→opcode135，验证内部audio保留而common audio被抑制；
 - 1024→非推进opcode53，验证原地same-call直到既有dispatch guard；
 - `IP=0x7FFE`精确尾先提交IP=`0x8000`和previous1024，再由后继fetch返回`instruction_out_of_range`。
 
-Story VM synthetic/real/initial-session 3/3和SDL app编译通过。workpack/runtime-path双生成稳定hash分别为`856190c62941e0c0af81d89381357dda47133ef4d131abb8f42aa1ad7d9d7f98`与`244f0d55c0ccd038e9391aba2d394161673d27b002864e4a08edf858f34daf3f`。Linux完整门通过：core 186/186、app 192/192。未启动原版或OpenSWD3游戏EXE。
+Story VM synthetic/real/initial-session 3/3和SDL app编译通过。1024闭环时workpack/runtime-path双生成稳定hash分别为`856190c62941e0c0af81d89381357dda47133ef4d131abb8f42aa1ad7d9d7f98`与`244f0d55c0ccd038e9391aba2d394161673d27b002864e4a08edf858f34daf3f`。Linux完整门通过：core 186/186、app 192/192。未启动原版或OpenSWD3游戏EXE。
 
 ## 5. 双向追溯
 
 LST→C++：`0x00427B32`初始化、`0x00427B59`每fetch清ESI、`0x0042D200`双指针+2、`0x0042D208`置latch、`0x0042B0AE`发布previous/OR/分流均有直接映射。
 
-C++→LST：没有把latch存入VM持久状态，没有把它退化成一次性continue，没有抑制handler内部audio，没有让入口对齐门或opcode96 preflight经过common join，也没有提前实现1025清除语义。
+C++→LST：没有把latch存入VM持久状态，没有把它退化成一次性continue，没有抑制handler内部audio，也没有让入口对齐门或opcode96 preflight经过common join。1025清除语义保持独立handler与证据。
