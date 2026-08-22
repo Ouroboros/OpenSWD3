@@ -3270,7 +3270,32 @@ if(TARGET SDL3::SDL3)
     )
     target_link_libraries(
         openswd3_platform_legacy_sample_backend_sdl3_tests
-        PRIVATE openswd3_platform_sdl3_audio
+        PRIVATE
+            openswd3_media_ffmpeg
+            openswd3_platform_sdl3_audio
+    )
+    get_property(
+        OPENSWD3_FFMPEG_RUNTIME_FILES
+        GLOBAL PROPERTY OPENSWD3_FFMPEG_RUNTIME_FILES
+    )
+    get_property(
+        OPENSWD3_SDL_RUNTIME_FILES
+        GLOBAL PROPERTY OPENSWD3_SDL_RUNTIME_FILES
+    )
+    get_property(
+        OPENSWD3_FFMPEG_LICENSE_FILE
+        GLOBAL PROPERTY OPENSWD3_FFMPEG_LICENSE_FILE
+    )
+    add_custom_command(
+        TARGET openswd3_platform_legacy_sample_backend_sdl3_tests
+        POST_BUILD
+        COMMAND
+            ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:openswd3_media_ffmpeg>"
+            ${OPENSWD3_FFMPEG_RUNTIME_FILES}
+            ${OPENSWD3_SDL_RUNTIME_FILES}
+            "${OPENSWD3_FFMPEG_LICENSE_FILE}"
+            "$<TARGET_FILE_DIR:openswd3_platform_legacy_sample_backend_sdl3_tests>"
     )
 
     add_test(
@@ -3283,6 +3308,7 @@ if(TARGET SDL3::SDL3)
             COMMAND
                 openswd3_platform_legacy_sample_backend_sdl3_tests
                 "${PROJECT_SOURCE_DIR}/../all.snd"
+                "${PROJECT_SOURCE_DIR}/.."
         )
     endif()
 

@@ -1,8 +1,8 @@
 # B5 `audio_video` 工作包
 
-状态：核心已有限收口；最终 `libffmpeg` 后端与原版动态差分延期
+状态：核心与FFmpeg 9.0媒体后端已完成；原版Miles/Bink动态差分保留登记
 
-当前单元：无；B5 已让出执行位，最终媒体后端按用户决定在后期统一完成
+当前单元：无；B5媒体实现已完成并让出执行位
 
 ## 1. 范围与移交
 
@@ -187,4 +187,9 @@ FFmpeg、Miles、Bink 或 SDL 类型。
 12. `[x]` B5.close：73 地址收口表与总所有权表集合零差异；审计结果为 43 核心实现、
     2 资产验证实现、3 平台替代、1 外部 service 端口、23 核心已实现/后端延期、1 剧情
     边界拆分，没有未映射地址。Linux `core` 76/76、Linux/Windows `app` 80/80 CTest
-    通过。B5 让出执行位；最终 `libffmpeg` 与原版差分保留为明确后期项。
+    通过，核心层先行让出执行位。
+13. `[x]` B5.media：BtbN FFmpeg n9.0 `lgpl-shared`包已通过项目自有`openswd3_ffmpeg`
+    共享库接入。BGM/MP3经既有stream ABI解码为48 kHz stereo float并交SDL3播放；BIK/OP
+    经既有video ABI逐帧解码、定时、RGB555/565拷贝，并同步处理内嵌Bink音频。Linux/Windows
+    真实`Map_Ca12.mp3`与`firegod.bik`测试、Linux core 186/186及Linux/Windows app 192/192
+    完整门通过；主程序与媒体库共用单一动态SDL3，运行目录复制项目库、SDL3、五个FFmpeg共享库与LGPL许可。FFmpeg API未扩散到兼容核心。

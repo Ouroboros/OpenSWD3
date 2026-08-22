@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v410
+版本：v411
 
 最后更新：2026-08-22
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：FFmpeg 9.0媒体后端 · BGM/MP3与BIK/OP播放
+当前步骤：模块9 · 菜单、商店和其他特殊模式
 
 ## 0. 执行约定
 
@@ -3012,4 +3012,10 @@ B7 P0 有限收口完成。
     LLVM app192/192全部通过，未启动游戏EXE。公开进度为已实现198/198、已验收198/198；剧情VM
     追加PLAN完成并解除优先级覆盖。
 
-下一工作包：接入已锁定的FFmpeg 9.0 `lgpl-shared`预编译包，先打通BGM/MP3与BIK/OP播放后端。
+- FFmpeg 9.0媒体后端完成。BtbN n9.0 `lgpl-shared`包通过项目自有`openswd3_ffmpeg`
+    共享库接入，C API只存在于平台实现；BGM/MP3经既有stream ABI解码、重采样并交SDL3播放，
+    BIK/OP经既有video ABI逐帧解码、定时、RGB555/565拷贝并处理内嵌音频。Linux/Windows真实
+    `Map_Ca12.mp3`与`firegod.bik`测试通过，Linux core186/186及Linux/Windows app192/192完整门
+    通过；应用和测试目录均复制项目库、五个FFmpeg运行库及LGPL许可，未启动游戏EXE。
+
+下一工作包：模块9，菜单、商店和其他特殊模式。

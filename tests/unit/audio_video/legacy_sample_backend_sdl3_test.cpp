@@ -4,9 +4,12 @@
 
 #include "openswd3/audio_video/legacy_audio_output.hpp"
 #include "openswd3/audio_video/legacy_snd_archive.hpp"
+#include "openswd3/media_ffmpeg/legacy_ffmpeg_backends.hpp"
 
 #include <SDL3/SDL_hints.h>
+#include <SDL3/SDL_timer.h>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
@@ -203,6 +206,141 @@ void test_dummy_device_backend(openswd3::test::Context& test) {
     );
 }
 
+class VideoFramePorts final
+    : public openswd3::audio_video::LegacyVideoFramePorts {
+public:
+    std::span<u16> video_destination_pixels() override {
+        return pixels;
+    }
+
+    openswd3::compat::i32 video_destination_pitch_bytes() override {
+        return 640 * static_cast<openswd3::compat::i32>(sizeof(u16));
+    }
+
+    openswd3::audio_video::LegacyVideoPixelFormat
+    video_pixel_format() override {
+        return openswd3::audio_video::LegacyVideoPixelFormat::rgb565;
+    }
+
+    void report_video_copy_failure() override {
+        copy_failed = true;
+    }
+
+    bool present_video_frame() override {
+        presented = true;
+        return true;
+    }
+
+    std::vector<u16> pixels = std::vector<u16>(640U * 480U);
+    bool copy_failed{};
+    bool presented{};
+};
+
+void test_real_ffmpeg_media(
+    openswd3::test::Context& test, const std::filesystem::path& data_root
+) {
+    test.expect_true(
+        openswd3::media_ffmpeg::linked_ffmpeg_version().starts_with("n9.0"),
+        "the media shim reports its linked FFmpeg 9.0 version"
+    );
+
+    auto stream_backend =
+        openswd3::media_ffmpeg::make_legacy_stream_backend(data_root);
+    const auto stream =
+        stream_backend->open_stream(1U, "Music\\Map_Ca12.mp3", 0);
+    test.expect_true(stream != 0U, "FFmpeg opens a real legacy MP3 stream");
+    if (stream != 0U) {
+        stream_backend->set_stream_user_data(stream, 0U, 100);
+        stream_backend->set_stream_volume(stream, 96);
+        stream_backend->set_stream_loop_count(stream, 0);
+        stream_backend->start_stream(stream);
+        openswd3::compat::i32 total_milliseconds{};
+        openswd3::compat::i32 current_milliseconds{};
+        stream_backend->stream_ms_position(
+            stream, total_milliseconds, current_milliseconds
+        );
+        test.expect_true(
+            stream_backend->stream_user_data(stream, 0U) == 100 &&
+                stream_backend->stream_volume(stream) == 96 &&
+                stream_backend->stream_status(stream) == 4U &&
+                total_milliseconds >= 4'000 && total_milliseconds <= 4'050 &&
+                current_milliseconds >= 0,
+            "real MP3 playback exposes Miles-compatible state and duration"
+        );
+        stream_backend->close_stream(stream);
+    }
+
+    const auto verify_bink = [&](const std::string_view filename,
+                                 const u32 expected_frame_count,
+                                 const bool require_nonzero_pixels,
+                                 const std::string_view message) {
+        auto video_backend =
+            openswd3::media_ffmpeg::make_legacy_video_backend();
+        const auto opened = video_backend->open_video(
+            (data_root / "Video" / filename).string()
+        );
+        test.expect_true(
+            opened.disposition ==
+                    openswd3::audio_video::LegacyVideoOpenDisposition::opened &&
+                opened.handle != 0U && opened.summary.width == 640 &&
+                opened.summary.height == 480,
+            message
+        );
+        if (opened.handle == 0U) {
+            return;
+        }
+
+        test.expect_false(
+            video_backend->wait_for_video_frame(opened.handle),
+            "the first Bink frame is immediately due"
+        );
+        video_backend->decode_video_frame(opened.handle);
+        VideoFramePorts ports;
+        const openswd3::audio_video::LegacyVideoCopyRequest request{
+            .destination = ports.video_destination_pixels(),
+            .pitch_bytes = ports.video_destination_pitch_bytes(),
+            .destination_height = 480,
+            .destination_x = 0,
+            .destination_y = 0,
+            .pixel_format = ports.video_pixel_format(),
+        };
+        const auto copied =
+            video_backend->copy_video_frame(opened.handle, request);
+        const bool pixels_valid = !require_nonzero_pixels ||
+            std::ranges::any_of(ports.pixels, [](const u16 pixel) {
+                return pixel != 0U;
+            });
+        test.expect_true(
+            copied == 1 &&
+                video_backend->video_frame_number(opened.handle) == 1U &&
+                video_backend->video_frame_count(opened.handle) ==
+                    expected_frame_count &&
+                pixels_valid,
+            "the first real Bink frame decodes and copies to RGB565"
+        );
+        video_backend->service_video(opened.handle);
+        video_backend->advance_video_frame(opened.handle);
+        if (video_backend->wait_for_video_frame(opened.handle)) {
+            SDL_Delay(40U);
+        }
+        video_backend->decode_video_frame(opened.handle);
+        video_backend->service_video(opened.handle);
+        test.expect_equal(
+            video_backend->video_frame_number(opened.handle),
+            2U,
+            "the second Bink frame demuxes with embedded audio packets"
+        );
+        video_backend->close_video(opened.handle);
+    };
+
+    verify_bink(
+        "firegod.bik", 176U, true, "FFmpeg opens the short real Bink movie"
+    );
+    verify_bink(
+        "opening.bik", 7'369U, false, "FFmpeg opens the real OP Bink movie"
+    );
+}
+
 void test_real_archive_formats(
     openswd3::test::Context& test, const std::filesystem::path& archive_path
 ) {
@@ -268,8 +406,11 @@ int main(const int argument_count, char** arguments) {
     openswd3::test::Context test;
     test_decode(test);
     test_dummy_device_backend(test);
-    if (argument_count == 2) {
+    if (argument_count >= 2) {
         test_real_archive_formats(test, arguments[1]);
+    }
+    if (argument_count == 3) {
+        test_real_ffmpeg_media(test, arguments[2]);
     }
     return test.exit_code();
 }

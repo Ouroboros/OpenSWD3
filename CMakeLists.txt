@@ -85,10 +85,10 @@ if(OPENSWD3_BUILD_APP)
 
         include(FetchContent)
 
-        # Keep the fallback self-contained: no SDL runtime DLL, tests, examples,
-        # or install rules are needed for the OpenSWD3 application target.
-        set(SDL_SHARED OFF CACHE BOOL "" FORCE)
-        set(SDL_STATIC ON CACHE BOOL "" FORCE)
+        # The application and openswd3_ffmpeg must share one SDL runtime state.
+        # Build only the shared fallback and copy it beside runtime targets.
+        set(SDL_SHARED ON CACHE BOOL "" FORCE)
+        set(SDL_STATIC OFF CACHE BOOL "" FORCE)
         set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
         set(SDL_TESTS OFF CACHE BOOL "" FORCE)
         set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -102,6 +102,24 @@ if(OPENSWD3_BUILD_APP)
             GIT_PROGRESS TRUE
         )
         FetchContent_MakeAvailable(SDL3)
+    endif()
+
+    get_target_property(_openswd3_sdl_target SDL3::SDL3 ALIASED_TARGET)
+    if(
+        _openswd3_sdl_target
+        AND TARGET ${_openswd3_sdl_target}
+    )
+        get_target_property(
+            _openswd3_sdl_imported
+            ${_openswd3_sdl_target}
+            IMPORTED
+        )
+        if(NOT _openswd3_sdl_imported)
+            set_target_properties(
+                ${_openswd3_sdl_target}
+                PROPERTIES POSITION_INDEPENDENT_CODE ON
+            )
+        endif()
     endif()
 
     add_subdirectory(src/platform/sdl3)

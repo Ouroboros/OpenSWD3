@@ -1,3 +1,41 @@
+include(${PROJECT_SOURCE_DIR}/cmake/OpenSWD3FFmpeg.cmake)
+openswd3_configure_ffmpeg()
+
+add_library(
+    openswd3_media_ffmpeg
+    SHARED
+        legacy_ffmpeg_backends.cpp
+)
+target_compile_definitions(
+    openswd3_media_ffmpeg
+    PRIVATE OPENSWD3_MEDIA_FFMPEG_BUILD
+)
+target_include_directories(
+    openswd3_media_ffmpeg
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(
+    openswd3_media_ffmpeg
+    PRIVATE
+        OpenSWD3::avformat
+        OpenSWD3::avcodec
+        OpenSWD3::avutil
+        OpenSWD3::swresample
+        OpenSWD3::swscale
+        SDL3::SDL3
+        openswd3_project_options
+        openswd3_project_warnings
+)
+set_target_properties(
+    openswd3_media_ffmpeg
+    PROPERTIES
+        OUTPUT_NAME openswd3_ffmpeg
+        BUILD_RPATH "$ORIGIN;${OPENSWD3_FFMPEG_ROOT}/lib"
+        INSTALL_RPATH "$ORIGIN"
+)
+
 add_library(
     openswd3_platform_sdl3_audio
     STATIC
@@ -48,6 +86,7 @@ target_link_libraries(
     PRIVATE
         openswd3_app
         openswd3_battle
+        openswd3_media_ffmpeg
         openswd3_platform_sdl3_audio
         openswd3_platform_sdl3_world_role
         openswd3_input_time_rng
@@ -63,9 +102,38 @@ if(NOT WIN32)
     target_link_libraries(openswd3 PRIVATE Iconv::Iconv)
 endif()
 
+if(WIN32)
+    set(OPENSWD3_SDL_RUNTIME_FILES "$<TARGET_FILE:SDL3::SDL3>")
+else()
+    set(
+        OPENSWD3_SDL_RUNTIME_FILES
+        "$<TARGET_FILE:SDL3::SDL3>"
+        "$<TARGET_SONAME_FILE:SDL3::SDL3>"
+    )
+endif()
+set_property(
+    GLOBAL PROPERTY OPENSWD3_SDL_RUNTIME_FILES
+    "${OPENSWD3_SDL_RUNTIME_FILES}"
+)
+
+get_property(
+    OPENSWD3_FFMPEG_RUNTIME_FILES
+    GLOBAL PROPERTY OPENSWD3_FFMPEG_RUNTIME_FILES
+)
+get_property(
+    OPENSWD3_FFMPEG_LICENSE_FILE
+    GLOBAL PROPERTY OPENSWD3_FFMPEG_LICENSE_FILE
+)
+
 add_custom_command(
     TARGET openswd3
     POST_BUILD
+    COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different
+        ${OPENSWD3_FFMPEG_RUNTIME_FILES}
+        ${OPENSWD3_SDL_RUNTIME_FILES}
+        "${OPENSWD3_FFMPEG_LICENSE_FILE}"
+        "$<TARGET_FILE_DIR:openswd3>"
     COMMAND
         ${CMAKE_COMMAND} -E copy_directory
         "${PROJECT_SOURCE_DIR}/assets/ui/startup"

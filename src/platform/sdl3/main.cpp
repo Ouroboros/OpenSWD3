@@ -45,6 +45,7 @@
 #include "openswd3/input_time_rng/legacy_frame_clock.hpp"
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/input_time_rng/legacy_text_input.hpp"
+#include "openswd3/media_ffmpeg/legacy_ffmpeg_backends.hpp"
 #include "openswd3/rendering/legacy_bmp_writer.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_glyph_atlas.hpp"
@@ -268,55 +269,6 @@ void shutdown_sample_output(
     archive.close();
     backend.close_output();
 }
-
-class UnavailableLegacyStreamBackend final
-    : public openswd3::audio_video::LegacyStreamBackend {
-public:
-    openswd3::audio_video::LegacyStreamHandle open_stream(
-        openswd3::compat::u32, std::string_view, openswd3::compat::i32
-    ) override {
-        return 0U;
-    }
-
-    std::string_view last_error() const override {
-        return "FFmpeg media backend is not available";
-    }
-
-    void close_stream(openswd3::audio_video::LegacyStreamHandle) override {}
-    void set_stream_user_data(
-        openswd3::audio_video::LegacyStreamHandle,
-        openswd3::compat::u32,
-        openswd3::compat::i32
-    ) override {}
-    openswd3::compat::i32 stream_user_data(
-        openswd3::audio_video::LegacyStreamHandle, openswd3::compat::u32
-    ) override {
-        return 0;
-    }
-    void set_stream_volume(
-        openswd3::audio_video::LegacyStreamHandle, openswd3::compat::i32
-    ) override {}
-    openswd3::compat::i32
-    stream_volume(openswd3::audio_video::LegacyStreamHandle) override {
-        return 0;
-    }
-    void set_stream_loop_count(
-        openswd3::audio_video::LegacyStreamHandle, openswd3::compat::i32
-    ) override {}
-    void start_stream(openswd3::audio_video::LegacyStreamHandle) override {}
-    openswd3::compat::u32
-    stream_status(openswd3::audio_video::LegacyStreamHandle) override {
-        return 2U;
-    }
-    void stream_ms_position(
-        openswd3::audio_video::LegacyStreamHandle,
-        openswd3::compat::i32& total_milliseconds,
-        openswd3::compat::i32& current_milliseconds
-    ) override {
-        total_milliseconds = 0;
-        current_milliseconds = 0;
-    }
-};
 
 class UnavailableLegacySequenceBackend final
     : public openswd3::audio_video::LegacySequenceBackend {
@@ -5500,10 +5452,12 @@ int main(const int argument_count, char** arguments) {
     openswd3::audio_video::LegacySequenceManager sequence_manager(
         sequence_backend
     );
-    UnavailableLegacyStreamBackend stream_backend;
-    openswd3::audio_video::LegacyStreamManager stream_manager(stream_backend);
-    openswd3::audio_video::ImmediateCompleteLegacyVideoBackend video_backend;
-    openswd3::audio_video::LegacyVideoPlayer video_player(video_backend);
+    auto stream_backend = openswd3::media_ffmpeg::make_legacy_stream_backend(
+        data_directory.directory
+    );
+    openswd3::audio_video::LegacyStreamManager stream_manager(*stream_backend);
+    auto video_backend = openswd3::media_ffmpeg::make_legacy_video_backend();
+    openswd3::audio_video::LegacyVideoPlayer video_player(*video_backend);
     SdlLegacyAudioQueuePorts audio_queue_ports(
         sequence_manager, stream_manager
     );

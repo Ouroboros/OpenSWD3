@@ -1,6 +1,6 @@
 # FFmpeg 9.0 预编译依赖来源
 
-状态：已下载、已校验、尚未接入CMake或运行时后端。
+状态：已下载、已校验，并已接入CMake与`openswd3_ffmpeg`共享运行时后端。
 
 ## 上游
 
@@ -51,4 +51,10 @@ build/dependencies/ffmpeg/9.0/
 
 两个解压目录均包含上游`LICENSE.txt`、`include/libavcodec/avcodec.h`和对应平台的共享库。Linux二进制报告`ffmpeg version n9.0.1-6-g9d4ca21220-20260822`；验证时使用同包`lib/`作为`LD_LIBRARY_PATH`。
 
-本清单只记录已验证的预编译依赖。不得在CMake configure阶段联网下载或源码编译FFmpeg；后续后端接入必须继续隔离FFmpeg API，不得扩散到兼容核心。
+## 构建接入
+
+SDL应用配置默认按宿主平台选择上述解压目录；可用`OPENSWD3_FFMPEG_ROOT`覆盖路径。CMake只验证本地头文件、导入库和共享库，不联网下载，也不源码编译FFmpeg。缺少依赖时配置会指向本清单并明确失败。
+
+`openswd3_media_ffmpeg`目标输出项目自有`openswd3_ffmpeg`共享库。FFmpeg C API只存在于该目标的实现文件中；主程序、剧情VM及audio/video兼容核心继续只依赖`LegacyStreamBackend`与`LegacyVideoBackend`。应用与媒体库共用同一个动态SDL3运行时，避免静态嵌入两套SDL全局状态。应用和真实媒体测试的输出目录会复制项目共享库、SDL3、五个FFmpeg运行库及上游`LICENSE.txt`。
+
+本清单记录已验证的预编译依赖与集成边界。不得在CMake configure阶段联网下载或源码编译FFmpeg；后续维护必须继续隔离FFmpeg API，不得扩散到兼容核心。
