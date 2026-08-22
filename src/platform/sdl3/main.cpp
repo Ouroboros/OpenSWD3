@@ -2000,6 +2000,7 @@ public:
         openswd3::resource_io::LegacyResourceDatabases& resource_databases,
         openswd3::world_map::LegacyWorldItemListState& world_item_lists,
         std::filesystem::path data_directory,
+        std::filesystem::path launch_directory,
         std::filesystem::path world_cache_directory,
         const openswd3::rendering::LegacyPixelConversionState& pixel_conversion,
         openswd3::rendering::LegacyTextRendererRuntime& text_renderers,
@@ -2027,6 +2028,7 @@ public:
           video_player_(video_player), resource_databases_(resource_databases),
           world_item_lists_(world_item_lists),
           data_directory_(std::move(data_directory)),
+          launch_directory_(std::move(launch_directory)),
           world_cache_directory_(std::move(world_cache_directory)),
           pixel_conversion_(pixel_conversion), text_renderers_(text_renderers),
           world_action_initializer_(world_action_initializer),
@@ -3395,6 +3397,7 @@ public:
                 const openswd3::compat::u8& scene_render_flags,
                 std::vector<openswd3::compat::u16>& ani_scene_backup,
                 const std::filesystem::path& data_directory,
+                const std::filesystem::path& launch_directory,
                 openswd3::compat::u32& process_flags,
                 openswd3::compat::u32& frame_interval
             ) noexcept
@@ -3410,6 +3413,7 @@ public:
                   scene_render_flags_(scene_render_flags),
                   ani_scene_backup_(ani_scene_backup),
                   data_directory_(data_directory),
+                  launch_directory_(launch_directory),
                   process_flags_(process_flags),
                   frame_interval_(frame_interval) {}
 
@@ -3696,6 +3700,65 @@ public:
                 return ani_activity_.state().phase;
             }
 
+            void suspend_story_host_frame_execution() noexcept override {
+                // The original sets the Win32 activation gate and relies on a
+                // later activation event to resume frames. SDL focus changes
+                // intentionally keep a modern resizable window running.
+            }
+
+            [[nodiscard]] bool perform_story_file_operation(
+                const openswd3::world_map::LegacyWorldStoryFileOperation
+                    operation,
+                const openswd3::world_map::LegacyWorldStoryFileDirectory
+                    directory,
+                const std::span<const openswd3::compat::u8> filename
+            ) override {
+                std::string scripted_filename{
+                    reinterpret_cast<const char*>(filename.data()),
+                    filename.size(),
+                };
+                std::ranges::replace(scripted_filename, '\\', '/');
+                const std::filesystem::path relative_path =
+                    std::filesystem::path{scripted_filename}.relative_path();
+                if (relative_path.empty()) {
+                    return false;
+                }
+                std::filesystem::path source = data_directory_;
+                std::filesystem::path destination = launch_directory_;
+                if (directory ==
+                    openswd3::world_map::LegacyWorldStoryFileDirectory::video) {
+                    source /= "Video";
+                    destination /= "Video";
+                } else if (
+                    directory ==
+                    openswd3::world_map::LegacyWorldStoryFileDirectory::music
+                ) {
+                    source /= "Music";
+                    destination /= "Music";
+                }
+                source /= relative_path;
+                destination /= relative_path;
+                std::error_code error;
+                if (operation ==
+                    openswd3::world_map::LegacyWorldStoryFileOperation::
+                        remove) {
+                    if (std::filesystem::is_directory(source, error)) {
+                        return false;
+                    }
+                    if (error) {
+                        return false;
+                    }
+                    return std::filesystem::remove(source, error) && !error;
+                }
+                const bool copied = std::filesystem::copy_file(
+                    source,
+                    destination,
+                    std::filesystem::copy_options::overwrite_existing,
+                    error
+                );
+                return copied && !error;
+            }
+
             [[nodiscard]] bool reset_input_menu_and_save_previews() override {
                 // sub_406D30 also resets deferred B9 menu/action state and B11
                 // save previews. Preserve the VM's checked call boundary until
@@ -3734,6 +3797,7 @@ public:
             const openswd3::compat::u8& scene_render_flags_;
             std::vector<openswd3::compat::u16>& ani_scene_backup_;
             const std::filesystem::path& data_directory_;
+            const std::filesystem::path& launch_directory_;
             openswd3::compat::u32& process_flags_;
             openswd3::compat::u32& frame_interval_;
         };
@@ -3824,6 +3888,7 @@ public:
                 world_frame_state_.frame_runtime.frame.runtime_flags,
                 world_ani_scene_backup_,
                 data_directory_,
+                launch_directory_,
                 window_state_.process_flags,
                 frame_interval_,
             };
@@ -5111,6 +5176,7 @@ private:
     openswd3::resource_io::LegacyResourceDatabases& resource_databases_;
     openswd3::world_map::LegacyWorldItemListState& world_item_lists_;
     std::filesystem::path data_directory_;
+    std::filesystem::path launch_directory_;
     std::filesystem::path world_cache_directory_;
     openswd3::rendering::LegacyPixelConversionState pixel_conversion_;
     openswd3::rendering::LegacyTextRendererRuntime& text_renderers_;
@@ -5599,6 +5665,7 @@ int main(const int argument_count, char** arguments) {
         resource_databases,
         world_item_lists,
         data_directory.directory,
+        launch_directory,
         executable_directory / "cache" / "maps",
         pixel_conversion,
         text_renderers,

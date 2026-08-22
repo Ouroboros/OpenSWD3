@@ -6819,6 +6819,57 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_158_COPY_STORY_FILE:
+        case OP_159_DELETE_STORY_FILE: {
+            const std::size_t filename_begin = ip + 4U;
+            std::size_t terminator = filename_begin;
+            while (true) {
+                if (!has_bytes(state.window, terminator, 2U)) {
+                    result.status = LegacyWorldStoryVmStatus::
+                        story_filename_terminator_not_found;
+                    return result;
+                }
+                if (read_u16(state.window, terminator) == kPercentQTerminator) {
+                    break;
+                }
+                ++terminator;
+            }
+            const std::size_t next_instruction = terminator + 2U;
+            ports.suspend_story_host_frame_execution();
+            context.instruction_offset = static_cast<u16>(next_instruction);
+            if (!has_bytes(state.window, next_instruction + 2U, 2U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i16 directory_selector =
+                static_cast<i16>(read_u16(state.window, next_instruction + 2U));
+            LegacyWorldStoryFileDirectory directory =
+                LegacyWorldStoryFileDirectory::root;
+            if (directory_selector == 0) {
+                directory = LegacyWorldStoryFileDirectory::video;
+            } else if (directory_selector == 1) {
+                directory = LegacyWorldStoryFileDirectory::music;
+            }
+            std::size_t filename_end = filename_begin;
+            while (filename_end < terminator &&
+                   state.window[filename_end] != 0U) {
+                ++filename_end;
+            }
+            const LegacyWorldStoryFileOperation operation =
+                result.opcode == OP_158_COPY_STORY_FILE
+                ? LegacyWorldStoryFileOperation::copy
+                : LegacyWorldStoryFileOperation::remove;
+            static_cast<void>(ports.perform_story_file_operation(
+                operation,
+                directory,
+                std::span<const u8>{state.window}.subspan(
+                    filename_begin, filename_end - filename_begin
+                )
+            ));
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 161U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

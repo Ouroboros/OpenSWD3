@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042CA7C`（opcodes158–159）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042CBB0`（opcode160）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -20,7 +20,7 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 - 当前 C++ 接入 95 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- `0..144`、`147..152`、`155..157`及`167..168`已有人工汇编语义；其余`158..193`目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
+- `0..144`、`147..152`、`155..159`及`167..168`已有人工汇编语义；其余`160..193`目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
 - 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
@@ -257,7 +257,11 @@ Linux core186/186和app192/192通过。已实现164/198、已验收161/198；内
 23 pending_audit`。opcode157恢复map22未读X/Y特例、non22三项i16 staged写和固定+8 same-call；
 零资产以asset absence和synthetic锁定，Story VM 3/3、Linux core186/186、app192/192通过。已实现166/198、
 已验收163/198；内部workpack为124/146，即`19 assembly_exact + 105 platform_adapted + 22 pending_audit`。
-下一行只审计`0x0042CA7C`下的opcodes158–159。
+shared opcodes158/159恢复自身prefix未读、`%Q`扫描、下一指令operand目录lookahead、host-frame门、
+copy/delete双路径及文件API失败仍previous/same-call；SDL以配置data/launch roots和显式后台运行例外承接
+CD/Win32路径及激活门。两opcode零资产，以asset absence和synthetic锁定，Story VM 3/3、Linux
+core186/186及app192/192通过。已实现168/198、已验收165/198；内部workpack为125/146，即`19 assembly_exact +
+106 platform_adapted + 21 pending_audit`。下一行只审计`0x0042CBB0`下的opcode160。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

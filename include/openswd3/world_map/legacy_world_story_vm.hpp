@@ -191,12 +191,25 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_155_RELOAD_CURRENT_WORLD_SESSION = 155U,
     OP_156_RELOAD_DEFERRED_WORLD_SESSION = 156U,
     OP_157_CONFIGURE_DEFERRED_WORLD_SESSION = 157U,
+    OP_158_COPY_STORY_FILE = 158U,
+    OP_159_DELETE_STORY_FILE = 159U,
     OP_174_SET_ROLE_STATUS_BIT14 = 174U,
     OP_162_LOAD_DYNAMIC_NAME_RECORD = 162U,
     OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM = 167U,
     OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM = 168U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
     OP_1025 = 1025U,
+};
+
+enum class LegacyWorldStoryFileOperation : compat::u8 {
+    copy,
+    remove,
+};
+
+enum class LegacyWorldStoryFileDirectory : compat::u8 {
+    root,
+    video,
+    music,
 };
 
 struct LegacyWorldStoryPartyMemberResources {
@@ -396,6 +409,12 @@ public:
     [[nodiscard]] virtual bool is_story_ani_active() const noexcept = 0;
     [[nodiscard]] virtual compat::i32
     query_story_ani_phase() const noexcept = 0;
+    virtual void suspend_story_host_frame_execution() noexcept = 0;
+    [[nodiscard]] virtual bool perform_story_file_operation(
+        LegacyWorldStoryFileOperation operation,
+        LegacyWorldStoryFileDirectory directory,
+        std::span<const compat::u8> filename
+    ) = 0;
     // sub_406D30 spans the deferred special-modes and persistence owners.
     // False stops at the original cross-module call after prior global writes.
     [[nodiscard]] virtual bool reset_input_menu_and_save_previews() = 0;
@@ -419,6 +438,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     maps_payload_out_of_range,
     name_terminator_not_found,
     ani_filename_terminator_not_found,
+    story_filename_terminator_not_found,
     global_bit_index_out_of_range,
     role_not_found,
     runtime_unavailable,

@@ -18,6 +18,7 @@
 #include <list>
 #include <memory>
 #include <span>
+#include <string>
 #include <string_view>
 #include <tuple>
 #include <vector>
@@ -39,6 +40,8 @@ using openswd3::world_map::LegacyWorldItemListState;
 using openswd3::world_map::LegacyWorldItemNode;
 using openswd3::world_map::LegacyWorldRoleRecord;
 using openswd3::world_map::LegacyWorldObjectSlot;
+using openswd3::world_map::LegacyWorldStoryFileDirectory;
+using openswd3::world_map::LegacyWorldStoryFileOperation;
 using openswd3::world_map::LegacyWorldStoryVmPorts;
 using openswd3::world_map::LegacyWorldStoryVmState;
 using openswd3::world_map::LegacyWorldStoryVmStatus;
@@ -186,6 +189,8 @@ using openswd3::world_map::OP_152_WAIT_ANI_FOLLOWER_TARGET;
 using openswd3::world_map::OP_155_RELOAD_CURRENT_WORLD_SESSION;
 using openswd3::world_map::OP_156_RELOAD_DEFERRED_WORLD_SESSION;
 using openswd3::world_map::OP_157_CONFIGURE_DEFERRED_WORLD_SESSION;
+using openswd3::world_map::OP_158_COPY_STORY_FILE;
+using openswd3::world_map::OP_159_DELETE_STORY_FILE;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -489,6 +494,28 @@ public:
         return ani_phase;
     }
 
+    void suspend_story_host_frame_execution() noexcept override {
+        ++story_host_frame_suspend_count;
+        if (story_host_frame_suspend_callback) {
+            story_host_frame_suspend_callback();
+        }
+    }
+
+    [[nodiscard]] bool perform_story_file_operation(
+        const LegacyWorldStoryFileOperation operation,
+        const LegacyWorldStoryFileDirectory directory,
+        const std::span<const u8> filename
+    ) override {
+        ++story_file_operation_count;
+        last_story_file_operation = operation;
+        last_story_file_directory = directory;
+        last_story_file_name.assign(filename.begin(), filename.end());
+        if (story_file_operation_callback) {
+            story_file_operation_callback();
+        }
+        return story_file_operation_success;
+    }
+
     [[nodiscard]] bool reset_input_menu_and_save_previews() override {
         ++input_menu_reset_count;
         story_protocol_events.push_back(14U);
@@ -548,6 +575,8 @@ public:
     std::function<void()> music_transition_callback;
     std::function<void()> music_volume_callback;
     std::function<void()> input_menu_reset_callback;
+    std::function<void()> story_host_frame_suspend_callback;
+    std::function<void()> story_file_operation_callback;
     u32 framebuffer_clear_count{};
     u32 framebuffer_present_count{};
     u32 video_prepare_count{};
@@ -574,11 +603,14 @@ public:
     u32 released_role_path_index{0xFFFFFFFFU};
     u32 world_session_reload_begin_count{};
     u32 world_session_reload_count{};
+    u32 story_host_frame_suspend_count{};
+    u32 story_file_operation_count{};
     bool last_data_clear_before_read{};
     bool dialog_text_prepare_success{};
     bool item_definition_load_success{true};
     bool world_session_reload_success{true};
     bool input_menu_reset_success{true};
+    bool story_file_operation_success{true};
     bool video_prepare_success{true};
     bool ani_prepare_success{true};
     bool ani_active{};
@@ -594,6 +626,13 @@ public:
     std::vector<u8> prepared_item_description;
     std::vector<u8> last_video_filename;
     std::vector<u8> last_ani_filename;
+    std::vector<u8> last_story_file_name;
+    LegacyWorldStoryFileOperation last_story_file_operation{
+        LegacyWorldStoryFileOperation::copy
+    };
+    LegacyWorldStoryFileDirectory last_story_file_directory{
+        LegacyWorldStoryFileDirectory::root
+    };
     openswd3::asset_runtime::LegacyAniActivityStartResult ani_start_result{
         .status = openswd3::asset_runtime::LegacyAniActivityStartStatus::ready,
         .open_status = openswd3::asset_runtime::LegacyAniOpenStatus::ready,
@@ -772,6 +811,16 @@ public:
 
     [[nodiscard]] i32 query_story_ani_phase() const noexcept override {
         return 0;
+    }
+
+    void suspend_story_host_frame_execution() noexcept override {}
+
+    [[nodiscard]] bool perform_story_file_operation(
+        const LegacyWorldStoryFileOperation,
+        const LegacyWorldStoryFileDirectory,
+        const std::span<const u8>
+    ) override {
+        return true;
     }
 
     [[nodiscard]] bool reset_input_menu_and_save_previews() override {
@@ -23851,6 +23900,201 @@ void test_configure_deferred_world_session_protocol(
     );
 }
 
+void test_story_file_operations_protocol(openswd3::test::Context& test) {
+    struct Variant {
+        u16 opcode;
+        LegacyWorldStoryFileOperation operation;
+        LegacyWorldStoryFileDirectory directory;
+        u16 own_prefix;
+        u16 lookahead_directory;
+        std::string_view filename;
+    };
+    constexpr std::array<Variant, 2U> variants{
+        Variant{
+            OP_158_COPY_STORY_FILE,
+            LegacyWorldStoryFileOperation::copy,
+            LegacyWorldStoryFileDirectory::video,
+            1U,
+            0U,
+            "clip.bin",
+        },
+        Variant{
+            OP_159_DELETE_STORY_FILE,
+            LegacyWorldStoryFileOperation::remove,
+            LegacyWorldStoryFileDirectory::music,
+            0U,
+            1U,
+            "song.ogg",
+        },
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const auto& variant : variants) {
+        for (const u16 alias_mask : alias_masks) {
+            Fixture fixture;
+            fixture.state.previous_opcode = 0x66U;
+            fixture.ports.story_file_operation_success = false;
+            prime_loaded_instruction(
+                fixture, static_cast<u16>(variant.opcode | alias_mask)
+            );
+            write_u16(fixture.state.window, 2U, variant.own_prefix);
+            std::ranges::copy(
+                variant.filename, fixture.state.window.begin() + 4U
+            );
+            const std::size_t terminator = 4U + variant.filename.size();
+            fixture.state.window[terminator] = static_cast<u8>('%');
+            fixture.state.window[terminator + 1U] = static_cast<u8>('Q');
+            const std::size_t next_instruction = terminator + 2U;
+            write_u16(fixture.state.window, next_instruction, OP_1025);
+            write_u16(
+                fixture.state.window,
+                next_instruction + 2U,
+                variant.lookahead_directory
+            );
+            bool suspend_order = false;
+            fixture.ports.story_host_frame_suspend_callback = [&]() {
+                suspend_order = fixture.context.instruction_offset == 0U &&
+                    fixture.state.previous_opcode == 0x66U;
+            };
+            bool operation_order = false;
+            fixture.ports.story_file_operation_callback = [&]() {
+                operation_order =
+                    fixture.context.instruction_offset == next_instruction &&
+                    fixture.state.previous_opcode == 0x66U &&
+                    fixture.ports.story_host_frame_suspend_count == 1U;
+            };
+
+            const auto result = fixture.step();
+            const std::string actual_filename{
+                fixture.ports.last_story_file_name.begin(),
+                fixture.ports.last_story_file_name.end(),
+            };
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                    result.opcode == OP_1025 &&
+                    result.executed_instruction_count == 2U &&
+                    result.direct_audio_service_count == 0U &&
+                    fixture.ports.story_host_frame_suspend_count == 1U &&
+                    fixture.ports.story_file_operation_count == 1U &&
+                    fixture.ports.last_story_file_operation ==
+                        variant.operation &&
+                    fixture.ports.last_story_file_directory ==
+                        variant.directory &&
+                    actual_filename == variant.filename && suspend_order &&
+                    operation_order &&
+                    fixture.context.instruction_offset == next_instruction &&
+                    fixture.state.previous_opcode == variant.opcode &&
+                    fixture.ports.story_protocol_events.empty(),
+                "opcodes 158 and 159 aliases ignore their own prefix, select the directory from the next instruction operand, ignore file API failure, publish previous, and same-call"
+            );
+        }
+    }
+
+    Fixture embedded_nul;
+    embedded_nul.state.previous_opcode = 0x66U;
+    prime_loaded_instruction(embedded_nul, OP_158_COPY_STORY_FILE);
+    write_u16(embedded_nul.state.window, 2U, 0U);
+    embedded_nul.state.window[4U] = static_cast<u8>('A');
+    embedded_nul.state.window[5U] = 0U;
+    embedded_nul.state.window[6U] = static_cast<u8>('B');
+    embedded_nul.state.window[7U] = static_cast<u8>('%');
+    embedded_nul.state.window[8U] = static_cast<u8>('Q');
+    write_u16(embedded_nul.state.window, 9U, OP_1025);
+    write_u16(embedded_nul.state.window, 11U, 0xFFFFU);
+
+    const auto embedded_nul_result = embedded_nul.step();
+    test.expect_true(
+        embedded_nul_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            embedded_nul.ports.story_host_frame_suspend_count == 1U &&
+            embedded_nul.ports.story_file_operation_count == 1U &&
+            embedded_nul.ports.last_story_file_directory ==
+                LegacyWorldStoryFileDirectory::root &&
+            embedded_nul.ports.last_story_file_name ==
+                std::vector<u8>{static_cast<u8>('A')} &&
+            embedded_nul.context.instruction_offset == 9U &&
+            embedded_nul.state.previous_opcode == OP_158_COPY_STORY_FILE,
+        "opcode 158 scans through embedded NUL to percent-Q but passes only the legacy C-string prefix to the file operation"
+    );
+
+    Fixture missing_terminator;
+    missing_terminator.state.previous_opcode = 0x66U;
+    prime_loaded_instruction(missing_terminator, OP_159_DELETE_STORY_FILE);
+    write_u16(missing_terminator.state.window, 2U, 0xABCDU);
+    const auto missing_terminator_result = missing_terminator.step();
+    test.expect_true(
+        missing_terminator_result.status ==
+                LegacyWorldStoryVmStatus::story_filename_terminator_not_found &&
+            missing_terminator.ports.story_host_frame_suspend_count == 0U &&
+            missing_terminator.ports.story_file_operation_count == 0U &&
+            missing_terminator.context.instruction_offset == 0U &&
+            missing_terminator.state.previous_opcode == 0x66U,
+        "opcode 159 missing percent-Q stops before IP, previous, and file operation"
+    );
+
+    Fixture missing_lookahead;
+    missing_lookahead.context.instruction_offset = 0x7FF8U;
+    missing_lookahead.context.talk_data_offset = 0x1111U;
+    missing_lookahead.state.loaded_file_number = 1U;
+    missing_lookahead.state.loaded_data_offset = 0x1111U;
+    missing_lookahead.state.window_loaded = true;
+    missing_lookahead.state.previous_opcode = 0x66U;
+    write_u16(missing_lookahead.state.window, 0x7FF8U, OP_158_COPY_STORY_FILE);
+    write_u16(missing_lookahead.state.window, 0x7FFAU, 0xFFFFU);
+    missing_lookahead.state.window[0x7FFCU] = static_cast<u8>('%');
+    missing_lookahead.state.window[0x7FFDU] = static_cast<u8>('Q');
+
+    const auto missing_lookahead_result = missing_lookahead.step();
+    test.expect_true(
+        missing_lookahead_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_lookahead.ports.story_host_frame_suspend_count == 1U &&
+            missing_lookahead.ports.story_file_operation_count == 0U &&
+            missing_lookahead.context.instruction_offset == 0x7FFEU &&
+            missing_lookahead.state.previous_opcode == 0x66U,
+        "opcode 158 consumes percent-Q before the next-instruction directory lookahead fails"
+    );
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FF6U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(exact_tail.state.window, 0x7FF6U, OP_159_DELETE_STORY_FILE);
+    write_u16(exact_tail.state.window, 0x7FF8U, 0x1234U);
+    exact_tail.state.window[0x7FFAU] = static_cast<u8>('%');
+    exact_tail.state.window[0x7FFBU] = static_cast<u8>('Q');
+    write_u16(exact_tail.state.window, 0x7FFCU, OP_1025);
+    write_u16(exact_tail.state.window, 0x7FFEU, 2U);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            exact_tail_result.opcode == OP_1025 &&
+            exact_tail_result.executed_instruction_count == 2U &&
+            exact_tail_result.direct_audio_service_count == 0U &&
+            exact_tail.ports.story_host_frame_suspend_count == 1U &&
+            exact_tail.ports.story_file_operation_count == 1U &&
+            exact_tail.ports.last_story_file_operation ==
+                LegacyWorldStoryFileOperation::remove &&
+            exact_tail.ports.last_story_file_directory ==
+                LegacyWorldStoryFileDirectory::root &&
+            exact_tail.ports.last_story_file_name.empty() &&
+            exact_tail.context.instruction_offset == 0x7FFCU &&
+            exact_tail.state.previous_opcode == OP_159_DELETE_STORY_FILE &&
+            exact_tail.ports.story_protocol_events.empty(),
+        "opcode 159 reads its next-instruction directory selector from the final window word, performs the delete, publishes previous, and same-calls the successor"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
@@ -31205,6 +31449,7 @@ int main(const int argument_count, char** arguments) {
     test_reload_current_world_session_protocol(test);
     test_reload_deferred_world_session_protocol(test);
     test_configure_deferred_world_session_protocol(test);
+    test_story_file_operations_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);

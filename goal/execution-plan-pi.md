@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v381
+版本：v382
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042CA7C` shared handler（opcodes 158–159）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042CBB0` handler（opcode 160）
 
 ## 0. 执行约定
 
@@ -70,7 +70,7 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 - 进程入口、消息泵、单帧调度、世界/特殊模式/战斗分支和退出顶层流程已有汇编证据。
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
 - 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
-- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..144`、`147..152`、`155..157`及`167..168`；其余 opcode 与 Ani 播放语义尚未完成。
+- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..144`、`147..152`、`155..159`及`167..168`；其余 opcode 与 Ani 播放语义尚未完成。
 - 309 张地图的物理容器、40 份存档的压缩边界和战斗顶层入口已经恢复；地图内部、存档业务字段和战斗内部状态机仍待对应模块处理。
 
 ## 3. 执行方法
@@ -2710,4 +2710,15 @@ B7 P0 有限收口完成。
     已验收163/198；内部workpack124/146，即`19 assembly_exact + 105 platform_adapted +
     22 pending_audit`。
 
-下一组只审计`0x0042CA7C` / opcodes158–159。
+- 剧情VM P2第一百二十五组共享`0x0042CA7C` / opcodes158–159完成独立闭环。两路忽略
+    自身`+2` word，从`+4`扫描`%Q`文件名，并读取下一指令`+2`作为Video/Music/root类别；
+    158覆盖复制data→launch，159只删除source，文件API失败均忽略。marker后先触发host-frame门、
+    更新IP，再lookahead和文件操作，最后previous并same-call，无audio。SDL以配置data root、
+    launch directory和显式焦点后台运行例外承接CD/Win32路径、固定buffer与激活门。两opcode均
+    线性资产0记录/0 probes，以asset absence、八alias、内嵌NUL、lookahead截断、API失败和精确尾
+    锁定。Story VM 3/3、Linux core186/186及app192/192通过；workpack双生成稳定hash为
+    `877ad3234198000501c55b2a47de08c99da86766ab01b8539a3a6ee899e8b110`。未启动游戏EXE。
+    人工语义增至165行，现代显式opcode增至168；对外进度为已实现168/198、已验收165/198；
+    内部workpack125/146，即`19 assembly_exact + 106 platform_adapted + 21 pending_audit`。
+
+下一组只审计`0x0042CBB0` / opcode160。
