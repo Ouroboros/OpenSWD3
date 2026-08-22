@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v386
+版本：v387
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042CBFF` shared handler（opcodes 163–164）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042CC35` shared handler（opcodes 165–166）
 
 ## 0. 执行约定
 
@@ -70,7 +70,7 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 - 进程入口、消息泵、单帧调度、世界/特殊模式/战斗分支和退出顶层流程已有汇编证据。
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
 - 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
-- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..144`、`147..152`、`155..162`及`167..168`；其余 opcode 与 Ani 播放语义尚未完成。
+- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..144`、`147..152`、`155..164`及`167..168`；其余 opcode 与 Ani 播放语义尚未完成。
 - 309 张地图的物理容器、40 份存档的压缩边界和战斗顶层入口已经恢复；地图内部、存档业务字段和战斗内部状态机仍待对应模块处理。
 
 ## 3. 执行方法
@@ -2758,4 +2758,15 @@ B7 P0 有限收口完成。
     opcodes163–164，
     公开进度与workpack保持已实现169/198、已验收167/198及127/146。
 
-下一组只审计`0x0042CBFF` / opcodes163–164。
+- 剧情VM P2第一百二十八组`0x0042CBFF` / opcodes163–164完成独立闭环。两个opcode先把
+    map operand按i16符号扩展并与完整current logical map dword比较；163在不等时taken，164
+    在相等时taken。taken-only读取u32 target，audio一次后同文件重载IP0、发布previous并
+    same-call；not-taken不读target、不audio，固定推进8并same-call。27条真实记录/27 probes
+    全部基础raw、长度8，163/164分布3/24，四库分布7/1/14/5，所有target首opcode均为1026；
+    两种谓词代表回放通过。Story VM 3/3、Linux core186/186及app192/192完整门均通过。
+    workpack双生成稳定hash为
+    `02263faf78cebbbe41242f9da0cc75b876ed70a6c826121fad675aaa615363a2`。
+    人工语义增至169行，现代显式opcode增至171；对外进度为已实现171/198、已验收169/198；
+    内部workpack128/146，即`20 assembly_exact + 108 platform_adapted + 18 pending_audit`。
+
+下一组只审计`0x0042CC35` / opcodes165–166。

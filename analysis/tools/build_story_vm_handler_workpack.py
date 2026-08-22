@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 169
-EXPECTED_CLOSED_HANDLER_COUNT = 127
+EXPECTED_MODERN_CASE_COUNT = 171
+EXPECTED_CLOSED_HANDLER_COUNT = 128
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -679,6 +679,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-story-transfer-0042cbcc.md",
         "platform_adapted;unit_tested;real_asset_tested;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;staged_operand_tested;signed_operand_tested;previous_publication_tested;same_call_tested;audio_order_tested;load_failure_tested;window_tail_preserved",
+    ),
+    "0x0042CBFF": (
+        "platform_adapted",
+        "story-vm-current-map-conditional-reload-0042cbff.md",
+        "platform_adapted;unit_tested;real_asset_tested;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;shared_handler_all_variants_tested;shared_owner_tested;staged_operand_tested;signed_operand_tested;unread_operand_tested;inverted_predicate_tested;previous_publication_tested;same_call_tested;audio_order_tested;load_failure_tested;window_tail_preserved",
     ),
 }
 

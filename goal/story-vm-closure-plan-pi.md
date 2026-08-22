@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一shared handler `0x0042CBFF`（opcodes163–164）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一shared handler `0x0042CC35`（opcodes165–166）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -20,7 +20,7 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 - 当前 C++ 接入 95 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- `0..144`、`147..152`、`155..162`及`167..168`已有人工汇编语义；其余`163..193`目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
+- `0..144`、`147..152`、`155..164`及`167..168`已有人工汇编语义；其余opcode目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
 - 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
@@ -278,7 +278,13 @@ opcodes163–164前置审计发现共享current logical map owner及session load
 map owner、SDL无截断绑定、opcode155固定22/59/59、opcode156完整positive deferred map转发，以及
 opcode62明确低16 MAPS边界。Story VM 3/3、相关依赖8/8、Linux core186/186及app192/192
 完整门均通过；该fix不改变opcode/workpack计数。
-下一行只审计`0x0042CBFF`下的opcodes163–164。
+shared opcodes163/164恢复signed map operand与完整current map dword的反向谓词；taken-only读取
+u32 target并audio、同文件IP0重载、previous/same-call，not-taken不读target且固定+8 same-call。
+27条真实记录/27 probes全部基础raw、长度8，163/164为3/24，所有target首opcode均为1026；两种
+谓词代表回放和synthetic通过。Story VM 3/3、Linux core186/186及app192/192完整门均通过。
+已实现171/198、
+已验收169/198；内部workpack为128/146，即`20 assembly_exact + 108 platform_adapted + 18 pending_audit`。
+下一行只审计`0x0042CC35`下的opcodes165–166。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

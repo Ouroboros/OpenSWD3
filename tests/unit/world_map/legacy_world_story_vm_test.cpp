@@ -194,6 +194,8 @@ using openswd3::world_map::OP_159_DELETE_STORY_FILE;
 using openswd3::world_map::OP_160_SUPPRESS_NEXT_DIALOG_FLAG18;
 using openswd3::world_map::OP_161_TRANSFER_STORY;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
+using openswd3::world_map::OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL;
+using openswd3::world_map::OP_164_RELOAD_IF_CURRENT_MAP_EQUAL;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_174_SET_ROLE_STATUS_BIT14;
@@ -2310,6 +2312,207 @@ void test_story_transfer_protocol(openswd3::test::Context& test) {
             "opcode 161 sign-extends the story id and preserves two prior audio services at the checked load failure boundary"
         );
     }
+}
+
+void test_current_map_reload_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    constexpr std::array<u16, 2U> opcodes{
+        OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL,
+        OP_164_RELOAD_IF_CURRENT_MAP_EQUAL,
+    };
+
+    for (const u16 opcode : opcodes) {
+        for (std::size_t index = 0U; index < alias_masks.size(); ++index) {
+            Fixture fixture;
+            const i32 map_id =
+                opcode == OP_164_RELOAD_IF_CURRENT_MAP_EQUAL && index == 3U
+                ? -1
+                : 21;
+            const u32 map_bits = std::bit_cast<u32>(map_id);
+            fixture.runtime.current_logical_map_id =
+                opcode == OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL
+                ? (index == 1U ? 0x00010015U : map_bits + 1U)
+                : map_bits;
+            const u32 target = 0x12345670U + static_cast<u32>(index);
+            prime_loaded_instruction(
+                fixture, static_cast<u16>(opcode | alias_masks[index])
+            );
+            write_u16(fixture.state.window, 2U, static_cast<u16>(map_id));
+            write_u32(fixture.state.window, 4U, target);
+            fixture.state.window[300U] = 0xA5U;
+            fixture.state.previous_opcode = 0x66U;
+            write_u16(fixture.ports.transferred_window, 0U, 1026U);
+            write_u16(fixture.ports.transferred_window, 2U, OP_1025);
+
+            const auto result = fixture.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                    result.opcode == OP_1025 &&
+                    result.executed_instruction_count == 3U &&
+                    result.load_status == LegacyTalkWindowStatus::ready &&
+                    result.direct_audio_service_count == 1U &&
+                    fixture.ports.direct_audio_service_count == 1U &&
+                    fixture.ports.data_load_count == 1U &&
+                    fixture.ports.last_data_file_number == 1U &&
+                    fixture.ports.last_data_offset == target &&
+                    !fixture.ports.last_data_clear_before_read &&
+                    fixture.context.talk_data_offset == target &&
+                    fixture.context.instruction_offset == 2U &&
+                    fixture.state.loaded_file_number == 1U &&
+                    fixture.state.loaded_data_offset == target &&
+                    fixture.state.window_loaded &&
+                    fixture.state.window[300U] == 0xA5U &&
+                    fixture.state.previous_opcode == opcode &&
+                    fixture.ports.story_protocol_events ==
+                        std::vector<u32>{2U, 5U},
+                "opcodes 163 and 164 cover every raw alias, compare the signed map operand against the full current-map dword, preserve the unread window tail, and same-call the target"
+            );
+        }
+    }
+
+    struct SequentialCase {
+        u16 opcode;
+        u32 current_map_id;
+    };
+    constexpr std::array sequential_cases{
+        SequentialCase{OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL, 21U},
+        SequentialCase{OP_164_RELOAD_IF_CURRENT_MAP_EQUAL, 22U},
+    };
+    for (const auto test_case : sequential_cases) {
+        Fixture fixture;
+        fixture.runtime.current_logical_map_id = test_case.current_map_id;
+        prime_loaded_instruction(fixture, test_case.opcode);
+        write_u16(fixture.state.window, 2U, 21U);
+        write_u32(fixture.state.window, 4U, 0xDEADBEEFU);
+        write_u16(fixture.state.window, 8U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.talk_data_offset == 0x1111U &&
+                fixture.context.instruction_offset == 8U &&
+                fixture.state.previous_opcode == test_case.opcode &&
+                fixture.ports.data_load_count == 0U &&
+                fixture.ports.story_protocol_events.empty(),
+            "opcodes 163 and 164 invert the equality predicate and same-call the eight-byte sequential successor without audio"
+        );
+    }
+
+    const auto prime_tail =
+        [](Fixture& fixture, const u16 ip, const u16 opcode) {
+            fixture.context.talk_data_offset = 0x1111U;
+            fixture.context.instruction_offset = ip;
+            fixture.state.loaded_file_number = 1U;
+            fixture.state.loaded_data_offset = 0x1111U;
+            fixture.state.window_loaded = true;
+            fixture.state.previous_opcode = 0x66U;
+            write_u16(fixture.state.window, ip, opcode);
+        };
+
+    Fixture operand_truncated;
+    prime_tail(
+        operand_truncated, 0x7FFEU, OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL
+    );
+    const auto operand_truncated_result = operand_truncated.step();
+
+    Fixture target_truncated;
+    prime_tail(
+        target_truncated, 0x7FFAU, OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL
+    );
+    target_truncated.runtime.current_logical_map_id = 22U;
+    write_u16(target_truncated.state.window, 0x7FFCU, 21U);
+    write_u16(target_truncated.state.window, 0x7FFEU, 0x5678U);
+    const auto target_truncated_result = target_truncated.step();
+
+    Fixture target_unread;
+    prime_tail(target_unread, 0x7FFCU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL);
+    target_unread.runtime.current_logical_map_id = 22U;
+    write_u16(target_unread.state.window, 0x7FFEU, 21U);
+    const auto target_unread_result = target_unread.step();
+
+    Fixture exact_tail;
+    prime_tail(exact_tail, 0x7FF8U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL);
+    exact_tail.runtime.current_logical_map_id = 0xFFFFFFFFU;
+    exact_tail.state.window[300U] = 0xA5U;
+    write_u16(exact_tail.state.window, 0x7FFAU, 0xFFFFU);
+    write_u32(exact_tail.state.window, 0x7FFCU, 0x12345678U);
+    write_u16(exact_tail.ports.transferred_window, 0U, 1026U);
+    write_u16(exact_tail.ports.transferred_window, 2U, OP_1025);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        operand_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            operand_truncated_result.executed_instruction_count == 1U &&
+            operand_truncated.context.instruction_offset == 0x7FFEU &&
+            operand_truncated.state.previous_opcode == 0x66U &&
+            target_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            target_truncated_result.executed_instruction_count == 1U &&
+            target_truncated.context.instruction_offset == 0x7FFAU &&
+            target_truncated.state.previous_opcode == 0x66U &&
+            target_unread_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            target_unread_result.executed_instruction_count == 1U &&
+            target_unread.context.instruction_offset == 0x8004U &&
+            target_unread.state.previous_opcode ==
+                OP_164_RELOAD_IF_CURRENT_MAP_EQUAL &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            exact_tail_result.opcode == OP_1025 &&
+            exact_tail_result.executed_instruction_count == 3U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.context.talk_data_offset == 0x12345678U &&
+            exact_tail.context.instruction_offset == 2U &&
+            exact_tail.state.previous_opcode ==
+                OP_164_RELOAD_IF_CURRENT_MAP_EQUAL &&
+            exact_tail.state.window[300U] == 0xA5U &&
+            operand_truncated.ports.data_load_count == 0U &&
+            target_truncated.ports.data_load_count == 0U &&
+            target_unread.ports.data_load_count == 0U &&
+            exact_tail.ports.data_load_count == 1U,
+        "opcodes 163 and 164 stage operand and target reads, leave the not-taken target unread, and preserve exact-tail same-call behavior"
+    );
+
+    Fixture load_failure;
+    load_failure.runtime.current_logical_map_id = 22U;
+    prime_loaded_instruction(
+        load_failure, OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL
+    );
+    write_u16(load_failure.state.window, 2U, 21U);
+    write_u32(load_failure.state.window, 4U, 0x12345678U);
+    load_failure.state.previous_opcode = 0x66U;
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.executed_instruction_count == 1U &&
+            load_failure_result.load_status ==
+                LegacyTalkWindowStatus::data_read_failed &&
+            load_failure_result.direct_audio_service_count == 1U &&
+            load_failure.context.talk_data_offset == 0x12345678U &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL &&
+            !load_failure.state.window_loaded &&
+            load_failure.state.loaded_file_number == 1U &&
+            load_failure.state.loaded_data_offset == 0x1111U &&
+            load_failure.ports.data_load_count == 1U &&
+            load_failure.ports.story_protocol_events ==
+                std::vector<u32>{2U, 5U},
+        "opcodes 163 and 164 preserve audio, context writes, previous publication, and stale loaded ownership at the checked same-file load failure boundary"
+    );
 }
 
 void test_transfer_flags_and_terminal_cleanup(openswd3::test::Context& test) {
@@ -25065,6 +25268,153 @@ void test_real_story_transfer_record(
     );
 }
 
+void test_real_current_map_reload_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct Sample {
+        u32 file_number;
+        std::streamoff file_offset;
+        u16 opcode;
+    };
+    constexpr std::array<Sample, 27U> samples{
+        Sample{1U, 0x0000BCCDU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{1U, 0x0000BD7FU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{1U, 0x0000C761U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{1U, 0x0001BEA3U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{1U, 0x00038DDDU, OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL},
+        Sample{1U, 0x0003EDE3U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{1U, 0x0003EE5FU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{2U, 0x00031AA8U, OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL},
+        Sample{3U, 0x00002616U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x00003028U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x000030A2U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x00003122U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x00003196U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x0000320AU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x0000327EU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x00003322U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x000033C6U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x0000662CU, OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL},
+        Sample{3U, 0x000066A0U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x0001CD77U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x0001CE0DU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{3U, 0x000324DCU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{4U, 0x00026FD9U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{4U, 0x00026FE1U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{4U, 0x0002708BU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{4U, 0x000270FFU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+        Sample{4U, 0x00027173U, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL},
+    };
+    constexpr std::array<std::string_view, 4U> talk_files{
+        "TALK1.DAT",
+        "TALK2.DAT",
+        "TALK3.DAT",
+        "TALK4.DAT",
+    };
+
+    bool all_records_valid = true;
+    u32 opcode_163_count = 0U;
+    u32 opcode_164_count = 0U;
+    for (const auto sample : samples) {
+        std::ifstream input{
+            root / talk_files[sample.file_number - 1U],
+            std::ios::binary | std::ios::in,
+        };
+        std::array<u8, 8U> instruction{};
+        input.seekg(sample.file_offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        if (!input) {
+            all_records_valid = false;
+            continue;
+        }
+
+        const u32 target = read_u32(instruction, 4U);
+        std::array<u8, 2U> target_instruction{};
+        input.seekg(static_cast<std::streamoff>(target) + 0x200);
+        input.read(
+            reinterpret_cast<char*>(target_instruction.data()),
+            static_cast<std::streamsize>(target_instruction.size())
+        );
+        all_records_valid = all_records_valid && static_cast<bool>(input) &&
+            (read_u16(instruction, 0U) & 0x3FFFU) == sample.opcode &&
+            (read_u16(target_instruction, 0U) & 0x3FFFU) == 1026U;
+        opcode_163_count +=
+            sample.opcode == OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL ? 1U : 0U;
+        opcode_164_count +=
+            sample.opcode == OP_164_RELOAD_IF_CURRENT_MAP_EQUAL ? 1U : 0U;
+    }
+    test.expect_true(
+        all_records_valid && opcode_163_count == 3U && opcode_164_count == 24U,
+        "all 27 real opcode 163 and 164 records have eight readable bytes and a valid same-file target beginning with opcode 1026"
+    );
+
+    struct Replay {
+        std::streamoff file_offset;
+        u16 opcode;
+        u32 current_map_id;
+    };
+    constexpr std::array replays{
+        Replay{0x00038DDDU, OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL, 21U},
+        Replay{0x0000BCCDU, OP_164_RELOAD_IF_CURRENT_MAP_EQUAL, 98U},
+    };
+    for (const auto replay : replays) {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        std::array<u8, 8U> instruction{};
+        input.seekg(replay.file_offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        if (!input) {
+            test.expect_true(
+                false, "real opcode 163 or 164 record is readable"
+            );
+            continue;
+        }
+
+        Fixture fixture;
+        prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+        std::ranges::copy(instruction, fixture.state.window.begin());
+        fixture.runtime.current_logical_map_id = replay.current_map_id;
+        fixture.state.window[300U] = 0xA5U;
+        write_u16(fixture.ports.transferred_window, 0U, 1026U);
+        write_u16(fixture.ports.transferred_window, 2U, OP_1025);
+        const u32 target = read_u32(instruction, 4U);
+        const i32 map_id = static_cast<i16>(read_u16(instruction, 2U));
+        const bool map_matches =
+            replay.current_map_id == std::bit_cast<u32>(map_id);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            (read_u16(instruction, 0U) & 0x3FFFU) == replay.opcode &&
+                (replay.opcode == OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL
+                     ? !map_matches
+                     : map_matches) &&
+                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 3U &&
+                result.load_status == LegacyTalkWindowStatus::ready &&
+                result.direct_audio_service_count == 1U &&
+                fixture.ports.data_load_count == 1U &&
+                fixture.ports.last_data_file_number == 1U &&
+                fixture.ports.last_data_offset == target &&
+                !fixture.ports.last_data_clear_before_read &&
+                fixture.context.talk_data_offset == target &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.loaded_data_offset == target &&
+                fixture.state.window[300U] == 0xA5U &&
+                fixture.state.previous_opcode == replay.opcode &&
+                fixture.ports.story_protocol_events == std::vector<u32>{2U, 5U},
+            "real opcode 163 and 164 records take their inverted map predicates and same-call the loaded 1026 target"
+        );
+    }
+}
+
 void test_real_jump_same_file_offset_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -31750,6 +32100,7 @@ int main(const int argument_count, char** arguments) {
     test_dialog_role_overlap_avoidance(test);
     test_dialog_explicit_layout_pair(test);
     test_story_transfer_protocol(test);
+    test_current_map_reload_protocol(test);
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);
@@ -31905,6 +32256,7 @@ int main(const int argument_count, char** arguments) {
         test_real_stage_dialog_lifetime_record(test, root);
         test_real_wait_role_action_status_record(test, root);
         test_real_story_transfer_record(test, root);
+        test_real_current_map_reload_records(test, root);
         test_real_jump_same_file_offset_record(test, root);
         test_real_jump_if_role_path_unprepared_record(test, root);
         test_real_jump_if_role_path_prepared_record(test, root);

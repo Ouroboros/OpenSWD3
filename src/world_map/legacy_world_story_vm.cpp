@@ -6908,6 +6908,47 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL:
+        case OP_164_RELOAD_IF_CURRENT_MAP_EQUAL: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i32 map_id =
+                static_cast<i16>(read_u16(state.window, ip + 2U));
+            const bool map_matches =
+                runtime.current_logical_map_id == std::bit_cast<u32>(map_id);
+            const bool should_reload =
+                result.opcode == OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL
+                ? !map_matches
+                : map_matches;
+            if (!should_reload) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 8U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+            if (!has_bytes(state.window, ip, 8U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            result.status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, ip + 4U),
+                result,
+                ports
+            );
+            state.previous_opcode = result.opcode;
+            if (result.status != LegacyWorldStoryVmStatus::idle) {
+                return result;
+            }
+
+            continue;
+        }
+
         case 193U:
             if (ports.query_story_video_progress() >= 0) {
                 result.status = LegacyWorldStoryVmStatus::yielded;
