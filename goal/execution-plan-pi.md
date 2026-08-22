@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v377
+版本：v378
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042C936` handler（opcode 152）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042C95B` handler（opcode 155）
 
 ## 0. 执行约定
 
@@ -70,7 +70,7 @@ TG 消息必须格式化为多个清晰段落，禁止把全部内容塞进一�
 - 进程入口、消息泵、单帧调度、世界/特殊模式/战斗分支和退出顶层流程已有汇编证据。
 - 十个既有子系统已达到顶层 ABI 覆盖，39 项关键 ABI 合同已经人工复核；这不等于内部业务逻辑全部恢复。
 - 公共解压、主要资源容器、16 位软件像素规则、输入和时间的静态规格已经形成；唯一 glyph-mask 基准已在正确的 Windows 11 台湾繁体中文、CP950 与经典 `mingliu.ttc` 环境取得，正式跨平台 atlas 已对 157 个三字号 mask 逐字节零差异；此前错误字体环境的输出已删除。
-- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..144`、`147..151`及`167..168`；其余 opcode 与 Ani 播放语义尚未完成。
+- 剧情 VM 已建立 198 个显式 opcode 的分派和长度目录，人工语义完成 `0..144`、`147..152`及`167..168`；其余 opcode 与 Ani 播放语义尚未完成。
 - 309 张地图的物理容器、40 份存档的压缩边界和战斗顶层入口已经恢复；地图内部、存档业务字段和战斗内部状态机仍待对应模块处理。
 
 ## 3. 执行方法
@@ -2674,4 +2674,13 @@ B7 P0 有限收口完成。
     人工语义增至159行，现代显式opcode增至162；对外进度为已实现162/198、已验收159/198；
     内部workpack120/146，即`18 assembly_exact + 102 platform_adapted + 26 pending_audit`。
 
-下一组只审计`0x0042C936` / opcode152。
+- 剧情VM P2第一百二十一组`0x0042C936` / opcode152完成独立闭环。机器按currentX/targetX
+    优先于currentY/targetY短路比较；任一轴未到达时原地等待，两轴到达才+2，但三路均发布previous152、
+    audio一次并yield，完成路不same-call。复用普通世界ANI follower实际owner，缺binding在首读typed-stop。
+    线性资产0记录/0 probes，以asset absence、四alias、两级短路、等待/完成及双精确尾锁定。Story VM 3/3、
+    Linux core186/186与app192/192通过；workpack双生成稳定hash为
+    `076621f2f562364e9303d8c90993ef87a7bbb2686a585ad1ae05d017cfd76adb`。未启动游戏EXE。
+    人工语义增至160行，现代显式opcode增至163；对外进度为已实现163/198、已验收160/198；
+    内部workpack121/146，即`18 assembly_exact + 103 platform_adapted + 25 pending_audit`。
+
+下一组只审计`0x0042C95B` / opcode155。

@@ -182,6 +182,7 @@ using openswd3::world_map::OP_148_SET_STORY_FLAG_19;
 using openswd3::world_map::OP_149_CLEAR_STORY_FLAG_19;
 using openswd3::world_map::OP_150_CONFIGURE_ANI_FOLLOWER_POSITION;
 using openswd3::world_map::OP_151_CONFIGURE_ANI_FOLLOWER_TARGET;
+using openswd3::world_map::OP_152_WAIT_ANI_FOLLOWER_TARGET;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -23231,6 +23232,124 @@ void test_configure_ani_follower_target_protocol(
     );
 }
 
+void test_wait_ani_follower_target_protocol(openswd3::test::Context& test) {
+    struct TestCase {
+        u16 alias_mask;
+        i32 current_x;
+        i32 current_y;
+        i32 target_x;
+        i32 target_y;
+        bool complete;
+    };
+    constexpr std::array cases{
+        TestCase{0U, 10, 30, 20, 30, false},
+        TestCase{0x4000U, 10, 30, 10, 40, false},
+        TestCase{0x8000U, -1, 2, -1, 2, true},
+        TestCase{
+            0xC000U, 0x7FFFFFFF, -0x7FFFFFFF, 0x7FFFFFFF, -0x7FFFFFFF, true
+        },
+    };
+
+    for (const auto test_case : cases) {
+        Fixture fixture;
+        fixture.ani_follower = {
+            .current_x = test_case.current_x,
+            .current_y = test_case.current_y,
+            .target_x = test_case.target_x,
+            .target_y = test_case.target_y,
+            .velocity_x = -7,
+            .velocity_y = 8,
+        };
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_152_WAIT_ANI_FOLLOWER_TARGET | test_case.alias_mask
+            )
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        bool committed_before_audio = false;
+        fixture.ports.audio_service_callback = [&]() {
+            committed_before_audio = fixture.context.instruction_offset ==
+                    (test_case.complete ? 2U : 0U) &&
+                fixture.state.previous_opcode ==
+                    OP_152_WAIT_ANI_FOLLOWER_TARGET;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word ==
+                    static_cast<u16>(
+                        OP_152_WAIT_ANI_FOLLOWER_TARGET | test_case.alias_mask
+                    ) &&
+                result.opcode == OP_152_WAIT_ANI_FOLLOWER_TARGET &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.ani_follower.current_x == test_case.current_x &&
+                fixture.ani_follower.current_y == test_case.current_y &&
+                fixture.ani_follower.target_x == test_case.target_x &&
+                fixture.ani_follower.target_y == test_case.target_y &&
+                fixture.ani_follower.velocity_x == -7 &&
+                fixture.ani_follower.velocity_y == 8 &&
+                fixture.context.instruction_offset ==
+                    (test_case.complete ? 2U : 0U) &&
+                fixture.state.previous_opcode ==
+                    OP_152_WAIT_ANI_FOLLOWER_TARGET &&
+                committed_before_audio,
+            "opcode 152 aliases wait on x then y, preserve follower state, publish previous, service audio, and yield on both waiting and complete paths"
+        );
+    }
+
+    Fixture missing_owner;
+    prime_loaded_instruction(missing_owner, OP_152_WAIT_ANI_FOLLOWER_TARGET);
+    missing_owner.state.previous_opcode = 0x66U;
+    missing_owner.runtime.ani_follower = nullptr;
+    const auto missing_owner_result = missing_owner.step();
+    test.expect_true(
+        missing_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_owner_result.direct_audio_service_count == 0U &&
+            missing_owner.context.instruction_offset == 0U &&
+            missing_owner.state.previous_opcode == 0x66U,
+        "opcode 152 missing follower owner stops at the first state read without publishing previous or servicing audio"
+    );
+
+    for (const bool complete : {false, true}) {
+        Fixture fixture;
+        fixture.ani_follower = {
+            .current_x = 10,
+            .current_y = 20,
+            .target_x = complete ? 10 : 11,
+            .target_y = 20,
+            .velocity_x = -7,
+            .velocity_y = 8,
+        };
+        fixture.context.instruction_offset = 0x7FFEU;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        fixture.state.previous_opcode = 0x66U;
+        write_u16(
+            fixture.state.window, 0x7FFEU, OP_152_WAIT_ANI_FOLLOWER_TARGET
+        );
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_152_WAIT_ANI_FOLLOWER_TARGET &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset ==
+                    (complete ? 0x8000U : 0x7FFEU) &&
+                fixture.state.previous_opcode ==
+                    OP_152_WAIT_ANI_FOLLOWER_TARGET,
+            "opcode 152 exact-tail waiting and completion both publish previous, service audio, and yield without fetching a successor"
+        );
+    }
+}
+
 void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
@@ -30536,6 +30655,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_story_flag_19_protocol(test);
     test_configure_ani_follower_position_protocol(test);
     test_configure_ani_follower_target_protocol(test);
+    test_wait_ani_follower_target_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
