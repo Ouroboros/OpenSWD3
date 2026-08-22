@@ -149,6 +149,24 @@ void write_u32(
     return offset <= bytes.size() && count <= bytes.size() - offset;
 }
 
+class StoryCountdownFlagPorts final
+    : public rendering::LegacyCountdownFlagPorts {
+public:
+    explicit StoryCountdownFlagPorts(LegacyWorldStoryVmState& state) noexcept
+        : state_(state) {}
+
+    [[nodiscard]] bool query_internal_flag(const u32 index) noexcept override {
+        return query_legacy_world_story_flag(state_, static_cast<u16>(index));
+    }
+
+    void set_internal_flag(const u32 index) noexcept override {
+        set_legacy_world_story_flag(state_, static_cast<u16>(index));
+    }
+
+private:
+    LegacyWorldStoryVmState& state_;
+};
+
 [[nodiscard]] constexpr u32 current_file_number(
     const LegacyWorldTalkContext& context, const LegacyWorldStoryVmState& state
 ) noexcept {
@@ -6433,6 +6451,41 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 6U);
             state.previous_opcode = result.opcode;
             continue;
+
+        case OP_142_INITIALIZE_PRIMARY_COUNTDOWN: {
+            if (!has_bytes(state.window, ip, 8U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const u32 primary_transition_value =
+                read_u16(state.window, ip + 6U);
+            const u32 seconds = read_u16(state.window, ip + 4U);
+            const u32 minutes = read_u16(state.window, ip + 2U);
+            if (runtime.countdown == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            StoryCountdownFlagPorts flag_ports{state};
+            rendering::initialize_legacy_countdown(
+                *runtime.countdown,
+                flag_ports,
+                rendering::LegacyCountdownInitializationRequest{
+                    .minutes = static_cast<i32>(minutes),
+                    .seconds = static_cast<i32>(seconds),
+                    .primary_transition_value = primary_transition_value,
+                    .mode = 0,
+                }
+            );
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 8U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
 
         case 161U: {
             if (!has_bytes(state.window, ip, 4U)) {

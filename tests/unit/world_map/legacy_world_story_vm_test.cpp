@@ -172,6 +172,7 @@ using openswd3::world_map::OP_138_RELOAD_IF_ROLE_OUTSIDE_RADIUS;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
 using openswd3::world_map::OP_141_CONFIGURE_MUSIC_STREAM_TRANSITION;
+using openswd3::world_map::OP_142_INITIALIZE_PRIMARY_COUNTDOWN;
 using openswd3::world_map::OP_144;
 using openswd3::world_map::OP_145_SET_ROLE_STATUS_BIT13;
 using openswd3::world_map::OP_146_SET_ROLE_STATUS_BIT8;
@@ -22059,6 +22060,156 @@ void test_configure_music_stream_transition_protocol(
     );
 }
 
+void test_initialize_primary_countdown_protocol(openswd3::test::Context& test) {
+    struct TestCase {
+        u16 alias_mask;
+        u16 minutes;
+        u16 seconds;
+        u16 primary_transition_value;
+    };
+    constexpr std::array cases{
+        TestCase{0U, 0U, 0U, 0U},
+        TestCase{0x4000U, 5U, 0U, 728U},
+        TestCase{0x8000U, 1U, 59U, 0x8000U},
+        TestCase{0xC000U, 0xFFFFU, 0xFFFFU, 0xFFFFU},
+    };
+
+    for (const auto& test_case : cases) {
+        Fixture fixture;
+        openswd3::rendering::LegacyCountdownState countdown{
+            .primary_ticks = 0x11111111U,
+            .secondary_ticks = 0x22222222U,
+            .primary_transition_value = 0x33333333U,
+            .primary_value_004c97e8 = 0x44444444U,
+            .primary_value_004c97ec = 0x55555555U,
+            .secondary_value_004bab78 = 0x66666666U,
+            .secondary_value_004bab7c = 0x77777777U,
+        };
+        fixture.runtime.countdown = &countdown;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_142_INITIALIZE_PRIMARY_COUNTDOWN | test_case.alias_mask
+            )
+        );
+        write_u16(fixture.state.window, 2U, test_case.minutes);
+        write_u16(fixture.state.window, 4U, test_case.seconds);
+        write_u16(fixture.state.window, 6U, test_case.primary_transition_value);
+        write_u16(fixture.state.window, 8U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+        const u32 expected_ticks = 30U *
+            (60U * static_cast<u32>(test_case.minutes) +
+             static_cast<u32>(test_case.seconds));
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_142_INITIALIZE_PRIMARY_COUNTDOWN &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                countdown.primary_ticks == expected_ticks &&
+                countdown.secondary_ticks == 0x22222222U &&
+                countdown.primary_transition_value ==
+                    test_case.primary_transition_value &&
+                countdown.primary_value_004c97e8 == 0U &&
+                countdown.primary_value_004c97ec == 0U &&
+                countdown.secondary_value_004bab78 == 0x66666666U &&
+                countdown.secondary_value_004bab7c == 0x77777777U &&
+                openswd3::world_map::query_legacy_world_story_flag(
+                    fixture.state, 0x10U
+                ) &&
+                openswd3::world_map::query_legacy_world_story_flag(
+                    fixture.state, 0x12U
+                ) &&
+                fixture.context.instruction_offset == 8U &&
+                fixture.state.previous_opcode ==
+                    OP_142_INITIALIZE_PRIMARY_COUNTDOWN,
+            "opcode 142 aliases initialize the existing primary countdown owner with wrapping 30 Hz arithmetic, two flags, previous, audio maintenance, and yield"
+        );
+    }
+
+    Fixture truncated;
+    openswd3::rendering::LegacyCountdownState truncated_countdown{
+        .primary_ticks = 0x11111111U,
+        .primary_transition_value = 0x22222222U,
+        .primary_value_004c97e8 = 0x33333333U,
+        .primary_value_004c97ec = 0x44444444U,
+    };
+    truncated.runtime.countdown = &truncated_countdown;
+    truncated.context.instruction_offset = 0x7FFAU;
+    truncated.context.talk_data_offset = 0x1111U;
+    truncated.state.loaded_file_number = 1U;
+    truncated.state.loaded_data_offset = 0x1111U;
+    truncated.state.window_loaded = true;
+    truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        truncated.state.window, 0x7FFAU, OP_142_INITIALIZE_PRIMARY_COUNTDOWN
+    );
+    write_u16(truncated.state.window, 0x7FFCU, 5U);
+    write_u16(truncated.state.window, 0x7FFEU, 0U);
+    const auto truncated_result = truncated.step();
+
+    Fixture unavailable;
+    prime_loaded_instruction(unavailable, OP_142_INITIALIZE_PRIMARY_COUNTDOWN);
+    write_u16(unavailable.state.window, 2U, 5U);
+    write_u16(unavailable.state.window, 4U, 0U);
+    write_u16(unavailable.state.window, 6U, 728U);
+    unavailable.state.previous_opcode = 0x66U;
+    const auto unavailable_result = unavailable.step();
+
+    Fixture exact_tail;
+    openswd3::rendering::LegacyCountdownState exact_countdown{
+        .primary_value_004c97e8 = 1U,
+        .primary_value_004c97ec = 2U,
+    };
+    exact_tail.runtime.countdown = &exact_countdown;
+    exact_tail.context.instruction_offset = 0x7FF8U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window, 0x7FF8U, OP_142_INITIALIZE_PRIMARY_COUNTDOWN
+    );
+    write_u16(exact_tail.state.window, 0x7FFAU, 5U);
+    write_u16(exact_tail.state.window, 0x7FFCU, 0U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 1111U);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated_countdown.primary_ticks == 0x11111111U &&
+            truncated_countdown.primary_transition_value == 0x22222222U &&
+            truncated_countdown.primary_value_004c97e8 == 0x33333333U &&
+            truncated_countdown.primary_value_004c97ec == 0x44444444U &&
+            truncated.context.instruction_offset == 0x7FFAU &&
+            truncated.state.previous_opcode == 0x66U &&
+            unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            unavailable.context.instruction_offset == 0U &&
+            unavailable.state.previous_opcode == 0x66U &&
+            exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_countdown.primary_ticks == 9000U &&
+            exact_countdown.primary_transition_value == 1111U &&
+            exact_countdown.primary_value_004c97e8 == 0U &&
+            exact_countdown.primary_value_004c97ec == 0U &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                exact_tail.state, 0x10U
+            ) &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                exact_tail.state, 0x12U
+            ) &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_142_INITIALIZE_PRIMARY_COUNTDOWN,
+        "opcode 142 rejects a missing final operand before mutation, typed-stops at a missing countdown owner, and completes an exact-tail call before audio maintenance and yield"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -26730,6 +26881,71 @@ void test_real_configure_music_stream_transition_records(
     );
 }
 
+void test_real_initialize_primary_countdown_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RecordLocation {
+        std::streamoff offset;
+        u16 expected_transition_value;
+    };
+    constexpr std::array locations{
+        RecordLocation{0x000233A7, 728U},
+        RecordLocation{0x00058A88, 1111U},
+    };
+
+    bool all_records_match = true;
+    for (const auto& location : locations) {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(location.offset);
+        std::array<u8, 8U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+
+        Fixture fixture;
+        openswd3::rendering::LegacyCountdownState countdown{
+            .primary_value_004c97e8 = 1U,
+            .primary_value_004c97ec = 2U,
+        };
+        fixture.runtime.countdown = &countdown;
+        prime_loaded_instruction(fixture, OP_142_INITIALIZE_PRIMARY_COUNTDOWN);
+        std::ranges::copy(record, fixture.state.window.begin());
+        write_u16(fixture.state.window, 8U, OP_1025);
+
+        const auto result = fixture.step();
+        all_records_match = all_records_match && static_cast<bool>(input) &&
+            read_u16(record, 0U) == OP_142_INITIALIZE_PRIMARY_COUNTDOWN &&
+            read_u16(record, 2U) == 5U && read_u16(record, 4U) == 0U &&
+            read_u16(record, 6U) == location.expected_transition_value &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_142_INITIALIZE_PRIMARY_COUNTDOWN &&
+            result.executed_instruction_count == 1U &&
+            result.direct_audio_service_count == 1U &&
+            countdown.primary_ticks == 9000U &&
+            countdown.primary_transition_value ==
+                location.expected_transition_value &&
+            countdown.primary_value_004c97e8 == 0U &&
+            countdown.primary_value_004c97ec == 0U &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                                fixture.state, 0x10U
+            ) &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                                fixture.state, 0x12U
+            ) &&
+            fixture.context.instruction_offset == 8U &&
+            fixture.state.previous_opcode ==
+                OP_142_INITIALIZE_PRIMARY_COUNTDOWN;
+    }
+
+    test.expect_true(
+        all_records_match,
+        "real opcode 142 records initialize the primary countdown then service audio and yield"
+    );
+}
+
 void test_real_batch_set_role_positions_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -29121,6 +29337,7 @@ int main(const int argument_count, char** arguments) {
     test_stop_scene_music_stream_protocol(test);
     test_role_distance_reload_protocol(test);
     test_configure_music_stream_transition_protocol(test);
+    test_initialize_primary_countdown_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -29215,6 +29432,7 @@ int main(const int argument_count, char** arguments) {
         test_real_stop_scene_music_stream_records(test, root);
         test_real_role_distance_reload_records(test, root);
         test_real_configure_music_stream_transition_records(test, root);
+        test_real_initialize_primary_countdown_records(test, root);
         test_real_batch_set_role_positions_record(test, root);
         test_real_remove_dialogs_for_role_guid_records(test, root);
         test_real_wait_dialog_flag_records(test, root);

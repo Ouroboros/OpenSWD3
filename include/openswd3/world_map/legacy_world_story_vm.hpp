@@ -5,6 +5,7 @@
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
 #include "openswd3/rendering/legacy_action_renderers.hpp"
+#include "openswd3/rendering/legacy_countdown.hpp"
 #include "openswd3/rendering/legacy_frame_color.hpp"
 #include "openswd3/story_scene/legacy_dialog_runtime.hpp"
 #include "openswd3/world_map/legacy_world_collision_talk.hpp"
@@ -173,6 +174,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
     OP_141_CONFIGURE_MUSIC_STREAM_TRANSITION = 141U,
+    OP_142_INITIALIZE_PRIMARY_COUNTDOWN = 142U,
     OP_144 = 144U,
     OP_145_SET_ROLE_STATUS_BIT13 = 145U,
     OP_146_SET_ROLE_STATUS_BIT8 = 146U,
@@ -295,6 +297,7 @@ struct LegacyWorldStoryVmRuntime {
     compat::u32* high_priority_submode{};
     compat::u32* high_priority_auxiliary{};
     rendering::LegacyFrameColorTransitionState* frame_color{};
+    rendering::LegacyCountdownState* countdown{};
     LegacyWorldStoryPathRuntime* story_paths{};
     compat::u32* indexed_target_selector{};
     compat::u8* scene_render_flags{};

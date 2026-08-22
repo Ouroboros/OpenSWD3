@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 154
-EXPECTED_CLOSED_HANDLER_COUNT = 112
+EXPECTED_MODERN_CASE_COUNT = 155
+EXPECTED_CLOSED_HANDLER_COUNT = 113
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -604,6 +604,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-music-stream-transition-config-0042c6dd.md",
         "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;staged_operand_tested;partial_failure_tested;shared_owner_tested;no_audio_tested",
+    ),
+    "0x0042C732": (
+        "platform_adapted",
+        "story-vm-primary-countdown-initialize-0042c732.md",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;staged_operand_tested;wrapping_tested;shared_owner_tested;helper_reuse_tested;typed_owner_boundary_tested;audio_yield_tested",
     ),
 }
 

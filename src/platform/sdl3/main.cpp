@@ -3865,6 +3865,7 @@ public:
                 .high_priority_submode = &high_priority_submode_,
                 .high_priority_auxiliary = &high_priority_auxiliary_,
                 .frame_color = &world_frame_effects_.frame_color,
+                .countdown = &world_frame_state_.countdown,
                 .story_paths = &story_paths,
                 .indexed_target_selector =
                     &world_interaction_state_.selected_choice_index,
