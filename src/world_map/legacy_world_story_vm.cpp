@@ -2779,15 +2779,25 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
         case OP_30_ADD_GLOBAL_INTEGER:
         case OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO:
         case OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE:
-        case OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE: {
-            if (!has_bytes(state.window, ip, 6U)) {
+        case OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE:
+        case OP_181_SET_GLOBAL_INTEGER_WIDE:
+        case OP_182_ADD_GLOBAL_INTEGER_WIDE:
+        case OP_183_SUBTRACT_GLOBAL_INTEGER_WIDE_CLAMP_ZERO:
+        case OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE:
+        case OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE: {
+            const bool wide_value =
+                result.opcode >= OP_181_SET_GLOBAL_INTEGER_WIDE;
+            const std::size_t base_instruction_size = wide_value ? 8U : 6U;
+            if (!has_bytes(state.window, ip, base_instruction_size)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
             const i32 index = static_cast<i16>(read_u16(state.window, ip + 2U));
-            const i32 signed_value =
-                static_cast<i16>(read_u16(state.window, ip + 4U));
-            const u32 value_bits = static_cast<u32>(signed_value);
+            const u32 value_bits = wide_value
+                ? read_u32(state.window, ip + 4U)
+                : static_cast<u32>(static_cast<i32>(
+                      static_cast<i16>(read_u16(state.window, ip + 4U))
+                  ));
             if (index >= static_cast<i32>(state.script_variables.size())) {
                 state.previous_opcode = result.opcode;
                 ports.service_audio();
@@ -2798,15 +2808,22 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             const bool conditional =
                 result.opcode == OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE ||
-                result.opcode == OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE;
+                result.opcode == OP_33_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_LE ||
+                result.opcode ==
+                    OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE ||
+                result.opcode == OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE;
+            const std::size_t conditional_instruction_size =
+                wide_value ? 12U : 10U;
             u32 target{};
             if (conditional) {
-                if (!has_bytes(state.window, ip, 10U)) {
+                if (!has_bytes(
+                        state.window, ip, conditional_instruction_size
+                    )) {
                     result.status =
                         LegacyWorldStoryVmStatus::operand_out_of_range;
                     return result;
                 }
-                target = read_u32(state.window, ip + 6U);
+                target = read_u32(state.window, ip + (wide_value ? 8U : 6U));
             }
             if (index < 0) {
                 result.status = LegacyWorldStoryVmStatus::
@@ -2816,24 +2833,31 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             u32& variable =
                 state.script_variables[static_cast<std::size_t>(index)];
-            std::size_t instruction_size = 6U;
-            if (result.opcode == OP_29_SET_GLOBAL_INTEGER) {
+            std::size_t instruction_size = base_instruction_size;
+            if (result.opcode == OP_29_SET_GLOBAL_INTEGER ||
+                result.opcode == OP_181_SET_GLOBAL_INTEGER_WIDE) {
                 variable = value_bits;
-            } else if (result.opcode == OP_30_ADD_GLOBAL_INTEGER) {
+            } else if (
+                result.opcode == OP_30_ADD_GLOBAL_INTEGER ||
+                result.opcode == OP_182_ADD_GLOBAL_INTEGER_WIDE
+            ) {
                 variable += value_bits;
             } else if (
-                result.opcode == OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO
+                result.opcode == OP_31_SUBTRACT_GLOBAL_INTEGER_CLAMP_ZERO ||
+                result.opcode == OP_183_SUBTRACT_GLOBAL_INTEGER_WIDE_CLAMP_ZERO
             ) {
                 variable -= value_bits;
                 if ((variable & 0x80000000U) != 0U) {
                     variable = 0U;
                 }
             } else {
-                instruction_size = 10U;
-                const bool jump =
-                    result.opcode == OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE
-                    ? variable >= value_bits
-                    : variable <= value_bits;
+                instruction_size = conditional_instruction_size;
+                const bool greater_or_equal =
+                    result.opcode == OP_32_JUMP_IF_GLOBAL_INTEGER_UNSIGNED_GE ||
+                    result.opcode ==
+                        OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE;
+                const bool jump = greater_or_equal ? variable >= value_bits
+                                                   : variable <= value_bits;
                 if (jump) {
                     const auto status = load_same_file_story_window(
                         context,

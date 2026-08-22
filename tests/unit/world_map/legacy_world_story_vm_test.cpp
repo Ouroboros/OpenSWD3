@@ -215,6 +215,11 @@ using openswd3::world_map::OP_177_GATHER_PARTY_AT_PLAYER;
 using openswd3::world_map::OP_178_SET_ROLE_COLLISION_BYPASS;
 using openswd3::world_map::OP_179_ENQUEUE_FRAME_DEFORMATION;
 using openswd3::world_map::OP_180_CLEAR_FRAME_EXECUTION_GATE;
+using openswd3::world_map::OP_181_SET_GLOBAL_INTEGER_WIDE;
+using openswd3::world_map::OP_182_ADD_GLOBAL_INTEGER_WIDE;
+using openswd3::world_map::OP_183_SUBTRACT_GLOBAL_INTEGER_WIDE_CLAMP_ZERO;
+using openswd3::world_map::OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE;
+using openswd3::world_map::OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -12232,6 +12237,366 @@ void test_global_integer_protocol(openswd3::test::Context& test) {
             load_failure.state.script_variables[0] == 0U &&
             load_failure.ports.direct_audio_service_count == 1U,
         "taken numeric branch preserves loader then shared-tail failure order"
+    );
+}
+
+void test_wide_global_integer_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    const auto prime = [](Fixture& fixture,
+                          const u16 raw_word,
+                          const u16 index,
+                          const u32 value) {
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, index);
+        write_u32(fixture.state.window, 4U, value);
+    };
+
+    for (const u16 mask : alias_masks) {
+        Fixture set;
+        set.state.script_variables[0] = 0x80000001U;
+        prime(
+            set,
+            static_cast<u16>(OP_181_SET_GLOBAL_INTEGER_WIDE | mask),
+            2U,
+            0x89ABCDEFU
+        );
+        write_u16(set.state.window, 8U, OP_1025);
+        const auto result = set.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.executed_instruction_count == 2U &&
+                set.context.instruction_offset == 8U &&
+                set.state.previous_opcode == OP_181_SET_GLOBAL_INTEGER_WIDE &&
+                set.state.script_variables[0] == 0U &&
+                set.state.script_variables[2] == 0x89ABCDEFU,
+            "opcode 181 aliases assign all 32 value bits and apply the shared variable-zero clamp"
+        );
+
+        Fixture add;
+        add.state.script_variables[2] = 0xFFFFFFF0U;
+        prime(
+            add,
+            static_cast<u16>(OP_182_ADD_GLOBAL_INTEGER_WIDE | mask),
+            2U,
+            32U
+        );
+        write_u16(add.state.window, 8U, OP_1025);
+        const auto add_result = add.step();
+        test.expect_true(
+            add_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                add_result.executed_instruction_count == 2U &&
+                add.context.instruction_offset == 8U &&
+                add.state.previous_opcode == OP_182_ADD_GLOBAL_INTEGER_WIDE &&
+                add.state.script_variables[2] == 0x10U,
+            "opcode 182 aliases perform full-width u32 wrapping addition"
+        );
+
+        Fixture subtract;
+        subtract.state.script_variables[2] = 5U;
+        prime(
+            subtract,
+            static_cast<u16>(
+                OP_183_SUBTRACT_GLOBAL_INTEGER_WIDE_CLAMP_ZERO | mask
+            ),
+            2U,
+            10U
+        );
+        write_u16(subtract.state.window, 8U, OP_1025);
+        const auto subtract_result = subtract.step();
+        test.expect_true(
+            subtract_result.status ==
+                    LegacyWorldStoryVmStatus::unsupported_opcode &&
+                subtract_result.executed_instruction_count == 2U &&
+                subtract.context.instruction_offset == 8U &&
+                subtract.state.previous_opcode ==
+                    OP_183_SUBTRACT_GLOBAL_INTEGER_WIDE_CLAMP_ZERO &&
+                subtract.state.script_variables[2] == 0U,
+            "opcode 183 aliases clamp a full-width subtraction result whose sign bit is set"
+        );
+
+        Fixture ge_not_taken;
+        ge_not_taken.state.script_variables[2] = 0x7FFFFFFFU;
+        prime(
+            ge_not_taken,
+            static_cast<u16>(
+                OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE | mask
+            ),
+            2U,
+            0x80000000U
+        );
+        write_u32(ge_not_taken.state.window, 8U, 0x12345678U);
+        write_u16(ge_not_taken.state.window, 12U, OP_1025);
+        const auto ge_result = ge_not_taken.step();
+        test.expect_true(
+            ge_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                ge_result.executed_instruction_count == 2U &&
+                ge_not_taken.context.instruction_offset == 12U &&
+                ge_not_taken.state.previous_opcode ==
+                    OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE &&
+                ge_not_taken.ports.data_load_count == 0U,
+            "opcode 184 aliases use an unsigned full-width greater-or-equal comparison"
+        );
+
+        Fixture le_not_taken;
+        le_not_taken.state.script_variables[2] = 0xFFFFFFFFU;
+        prime(
+            le_not_taken,
+            static_cast<u16>(
+                OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE | mask
+            ),
+            2U,
+            0U
+        );
+        write_u32(le_not_taken.state.window, 8U, 0x12345678U);
+        write_u16(le_not_taken.state.window, 12U, OP_1025);
+        const auto le_result = le_not_taken.step();
+        test.expect_true(
+            le_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                le_result.executed_instruction_count == 2U &&
+                le_not_taken.context.instruction_offset == 12U &&
+                le_not_taken.state.previous_opcode ==
+                    OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE &&
+                le_not_taken.ports.data_load_count == 0U,
+            "opcode 185 aliases use an unsigned full-width less-or-equal comparison"
+        );
+    }
+
+    Fixture subtract_negative_bits;
+    subtract_negative_bits.state.script_variables[2] = 3U;
+    prime(
+        subtract_negative_bits,
+        OP_183_SUBTRACT_GLOBAL_INTEGER_WIDE_CLAMP_ZERO,
+        2U,
+        0xFFFFFFFBU
+    );
+    write_u16(subtract_negative_bits.state.window, 8U, OP_1025);
+    const auto subtract_negative_result = subtract_negative_bits.step();
+    test.expect_true(
+        subtract_negative_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            subtract_negative_bits.state.script_variables[2] == 8U,
+        "opcode 183 subtracts the supplied full u32 bit pattern before testing the result sign bit"
+    );
+
+    Fixture ge_taken;
+    ge_taken.state.script_variables[0] = 0x80000000U;
+    ge_taken.state.script_variables[2] = 0xFFFFFFFFU;
+    prime(
+        ge_taken,
+        OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE,
+        2U,
+        0x80000000U
+    );
+    write_u32(ge_taken.state.window, 8U, 0x2222U);
+    write_u16(ge_taken.ports.transferred_window, 0U, OP_1025);
+    const auto ge_taken_result = ge_taken.step();
+    test.expect_true(
+        ge_taken_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            ge_taken_result.executed_instruction_count == 2U &&
+            ge_taken.context.talk_data_offset == 0x2222U &&
+            ge_taken.context.instruction_offset == 0U &&
+            ge_taken.state.previous_opcode ==
+                OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE &&
+            ge_taken.state.script_variables[0] == 0U &&
+            ge_taken.ports.data_load_count == 1U &&
+            ge_taken.ports.direct_audio_service_count == 1U,
+        "opcode 184 taken reloads from its +8 target then applies the shared clamp and same-calls"
+    );
+
+    Fixture le_taken;
+    le_taken.state.script_variables[2] = 0U;
+    prime(le_taken, OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE, 2U, 0U);
+    write_u32(le_taken.state.window, 8U, 0x3333U);
+    write_u16(le_taken.ports.transferred_window, 0U, OP_1025);
+    const auto le_taken_result = le_taken.step();
+    test.expect_true(
+        le_taken_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            le_taken_result.executed_instruction_count == 2U &&
+            le_taken.context.talk_data_offset == 0x3333U &&
+            le_taken.state.previous_opcode ==
+                OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE &&
+            le_taken.ports.data_load_count == 1U &&
+            le_taken.ports.direct_audio_service_count == 1U,
+        "opcode 185 taken accepts equality, reloads and same-calls"
+    );
+
+    constexpr std::array<u16, 5U> opcodes{
+        OP_181_SET_GLOBAL_INTEGER_WIDE,
+        OP_182_ADD_GLOBAL_INTEGER_WIDE,
+        OP_183_SUBTRACT_GLOBAL_INTEGER_WIDE_CLAMP_ZERO,
+        OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE,
+        OP_185_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_LE,
+    };
+    for (const u16 opcode : opcodes) {
+        Fixture high_index;
+        high_index.context.instruction_offset = 0x7FF8U;
+        high_index.context.talk_data_offset = 0x1111U;
+        high_index.state.loaded_file_number = 1U;
+        high_index.state.loaded_data_offset = 0x1111U;
+        high_index.state.window_loaded = true;
+        high_index.state.previous_opcode = 0x55U;
+        high_index.state.script_variables[0] = 0x80000000U;
+        write_u16(high_index.state.window, 0x7FF8U, opcode);
+        write_u16(high_index.state.window, 0x7FFAU, 64U);
+        write_u32(high_index.state.window, 0x7FFCU, 0x12345678U);
+        const auto result = high_index.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == opcode &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                high_index.context.instruction_offset == 0x7FF8U &&
+                high_index.state.previous_opcode == opcode &&
+                high_index.state.script_variables[0] == 0x80000000U &&
+                high_index.ports.data_load_count == 0U,
+            "opcodes 181-185 high index reads the full value but not a conditional target, then publishes and yields without shared clamp"
+        );
+    }
+
+    Fixture negative_update;
+    negative_update.state.previous_opcode = 0x55U;
+    prime(
+        negative_update, OP_181_SET_GLOBAL_INTEGER_WIDE, 0xFFFFU, 0x12345678U
+    );
+    const auto negative_update_result = negative_update.step();
+
+    Fixture negative_branch_truncated;
+    negative_branch_truncated.context.instruction_offset = 0x7FF8U;
+    negative_branch_truncated.context.talk_data_offset = 0x1111U;
+    negative_branch_truncated.state.loaded_file_number = 1U;
+    negative_branch_truncated.state.loaded_data_offset = 0x1111U;
+    negative_branch_truncated.state.window_loaded = true;
+    write_u16(
+        negative_branch_truncated.state.window,
+        0x7FF8U,
+        OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE
+    );
+    write_u16(negative_branch_truncated.state.window, 0x7FFAU, 0xFFFFU);
+    write_u32(negative_branch_truncated.state.window, 0x7FFCU, 0U);
+    const auto negative_branch_truncated_result =
+        negative_branch_truncated.step();
+
+    Fixture negative_branch;
+    negative_branch.state.previous_opcode = 0x55U;
+    prime(
+        negative_branch,
+        OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE,
+        0xFFFFU,
+        0U
+    );
+    write_u32(negative_branch.state.window, 8U, 0x4444U);
+    const auto negative_branch_result = negative_branch.step();
+    test.expect_true(
+        negative_update_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            negative_update.context.instruction_offset == 0U &&
+            negative_update.state.previous_opcode == 0x55U &&
+            negative_update.ports.direct_audio_service_count == 0U &&
+            negative_branch_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            negative_branch_result.status ==
+                LegacyWorldStoryVmStatus::script_variable_index_out_of_range &&
+            negative_branch.context.instruction_offset == 0U &&
+            negative_branch.state.previous_opcode == 0x55U &&
+            negative_branch.ports.data_load_count == 0U,
+        "wide negative update stops at its first array write, while a conditional reads its target before the first unsafe array read"
+    );
+
+    Fixture value_truncated;
+    value_truncated.context.instruction_offset = 0x7FFAU;
+    value_truncated.context.talk_data_offset = 0x1111U;
+    value_truncated.state.loaded_file_number = 1U;
+    value_truncated.state.loaded_data_offset = 0x1111U;
+    value_truncated.state.window_loaded = true;
+    write_u16(
+        value_truncated.state.window, 0x7FFAU, OP_181_SET_GLOBAL_INTEGER_WIDE
+    );
+    write_u16(value_truncated.state.window, 0x7FFCU, 2U);
+    write_u16(value_truncated.state.window, 0x7FFEU, 0x5678U);
+    const auto value_truncated_result = value_truncated.step();
+    test.expect_true(
+        value_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            value_truncated.context.instruction_offset == 0x7FFAU,
+        "wide shared numeric entry requires all four value bytes"
+    );
+
+    Fixture exact_update;
+    exact_update.context.instruction_offset = 0x7FF8U;
+    exact_update.context.talk_data_offset = 0x1111U;
+    exact_update.state.loaded_file_number = 1U;
+    exact_update.state.loaded_data_offset = 0x1111U;
+    exact_update.state.window_loaded = true;
+    exact_update.state.previous_opcode = 0x55U;
+    write_u16(
+        exact_update.state.window, 0x7FF8U, OP_181_SET_GLOBAL_INTEGER_WIDE
+    );
+    write_u16(exact_update.state.window, 0x7FFAU, 2U);
+    write_u32(exact_update.state.window, 0x7FFCU, 0x12345678U);
+    const auto exact_update_result = exact_update.step();
+
+    Fixture exact_branch;
+    exact_branch.context.instruction_offset = 0x7FF4U;
+    exact_branch.context.talk_data_offset = 0x1111U;
+    exact_branch.state.loaded_file_number = 1U;
+    exact_branch.state.loaded_data_offset = 0x1111U;
+    exact_branch.state.window_loaded = true;
+    exact_branch.state.previous_opcode = 0x55U;
+    exact_branch.state.script_variables[2] = 0U;
+    write_u16(
+        exact_branch.state.window,
+        0x7FF4U,
+        OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE
+    );
+    write_u16(exact_branch.state.window, 0x7FF6U, 2U);
+    write_u32(exact_branch.state.window, 0x7FF8U, 1U);
+    write_u32(exact_branch.state.window, 0x7FFCU, 0x5555U);
+    const auto exact_branch_result = exact_branch.step();
+    test.expect_true(
+        exact_update_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_update.context.instruction_offset == 0x8000U &&
+            exact_update.state.previous_opcode ==
+                OP_181_SET_GLOBAL_INTEGER_WIDE &&
+            exact_update.state.script_variables[2] == 0x12345678U,
+        "wide update commits its exact-tail side effects before the same-call successor fetch fails"
+    );
+    test.expect_true(
+        exact_branch_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_branch.context.instruction_offset == 0x8000U &&
+            exact_branch.state.previous_opcode ==
+                OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE &&
+            exact_branch.ports.data_load_count == 0U,
+        "wide not-taken branch commits its exact-tail side effects before the same-call successor fetch fails"
+    );
+
+    Fixture load_failure;
+    load_failure.state.script_variables[0] = 0x80000000U;
+    load_failure.state.script_variables[2] = 1U;
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    prime(load_failure, OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE, 2U, 1U);
+    write_u32(load_failure.state.window, 8U, 0x6666U);
+    const auto load_failure_result = load_failure.step();
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.load_status ==
+                LegacyTalkWindowStatus::data_read_failed &&
+            load_failure.context.talk_data_offset == 0x6666U &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE &&
+            load_failure.state.script_variables[0] == 0U &&
+            load_failure.ports.direct_audio_service_count == 1U,
+        "wide taken branch preserves loader then shared-clamp and previous failure order"
     );
 }
 
@@ -28129,6 +28494,60 @@ void test_real_global_integer_records(
             chain_fixture.ports.data_load_count == 0U,
         "real opcode 33 to 32 to 29 chain falls through then terminates"
     );
+
+    std::ifstream wide_input{
+        root / "TALK4.DAT", std::ios::binary | std::ios::in
+    };
+    wide_input.seekg(0x00031BF1);
+    std::array<u8, 12U> wide_instruction{};
+    wide_input.read(
+        reinterpret_cast<char*>(wide_instruction.data()),
+        static_cast<std::streamsize>(wide_instruction.size())
+    );
+    const bool wide_read = static_cast<bool>(wide_input);
+
+    Fixture wide_not_taken;
+    prime_loaded_instruction(
+        wide_not_taken, OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE
+    );
+    std::ranges::copy(wide_instruction, wide_not_taken.state.window.begin());
+    write_u16(wide_not_taken.state.window, 12U, OP_1025);
+    const auto wide_not_taken_result = wide_not_taken.step();
+
+    Fixture wide_taken;
+    prime_loaded_instruction(
+        wide_taken, OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE
+    );
+    std::ranges::copy(wide_instruction, wide_taken.state.window.begin());
+    wide_taken.state.script_variables[0] = 30000000U;
+    write_u16(wide_taken.ports.transferred_window, 0U, OP_1025);
+    const auto wide_taken_result = wide_taken.step();
+    test.expect_true(
+        wide_read &&
+            read_u16(wide_instruction, 0U) ==
+                OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE &&
+            read_u16(wide_instruction, 2U) == 0U &&
+            read_u32(wide_instruction, 4U) == 30000000U &&
+            read_u32(wide_instruction, 8U) == 0x00031A59U &&
+            wide_not_taken_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            wide_not_taken_result.executed_instruction_count == 2U &&
+            wide_not_taken.context.instruction_offset == 12U &&
+            wide_not_taken.state.previous_opcode ==
+                OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE &&
+            wide_not_taken.ports.data_load_count == 0U &&
+            wide_taken_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            wide_taken_result.executed_instruction_count == 2U &&
+            wide_taken.context.talk_data_offset == 0x00031A59U &&
+            wide_taken.context.instruction_offset == 0U &&
+            wide_taken.state.previous_opcode ==
+                OP_184_JUMP_IF_GLOBAL_INTEGER_WIDE_UNSIGNED_GE &&
+            wide_taken.ports.data_load_count == 1U &&
+            wide_taken.ports.last_data_offset == 0x00031A59U &&
+            wide_taken.ports.direct_audio_service_count == 1U,
+        "real opcode 184 compares variable zero against 30000000 and takes its +8 target only at the unsigned threshold"
+    );
 }
 
 void test_real_relocate_role_and_complete_path_record(
@@ -34014,6 +34433,7 @@ int main(const int argument_count, char** arguments) {
     test_reload_world_session_protocol(test);
     test_change_role_path_id_protocol(test);
     test_global_integer_protocol(test);
+    test_wide_global_integer_protocol(test);
     test_set_bounded_script_clock_protocol(test);
     test_jump_if_byte_le_script_clock_protocol(test);
     test_jump_if_script_clock_exceeds_origin_delta_protocol(test);

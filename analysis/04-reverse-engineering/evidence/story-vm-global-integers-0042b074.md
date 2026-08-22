@@ -12,7 +12,7 @@
 
 五条正常路径都经过共享尾：若 `dword_4ACBD0[0]` 的符号位置位，就把第零项写零。主分派的 `29..31` 固定六字节，`32..33` 固定十字节；正常路径发布 previous opcode 并在同一次 VM 调用中继续。
 
-本证据只关闭主入口 `0x0042B074` 的 `29..33`。二级分派 `181..185` 从独立入口 `0x0042B070` 进入相同后半段，但值宽度、target 位置和物理长度不同，仍保留为独立 `pending_audit`，不得继承本条关闭结论。
+本证据只关闭主入口 `0x0042B074` 的 `29..33`。二级分派 `181..185` 从独立入口 `0x0042B070` 进入相同后半段，但值宽度、target位置和物理长度不同，不能继承本条关闭结论；该入口现已在 [`story-vm-wide-global-integers-0042b070.md`](story-vm-wide-global-integers-0042b070.md) 中独立闭环。
 
 ## 唯一汇编边界
 
@@ -36,7 +36,7 @@
 0042B084  jmp   short loc_42B08B
 ```
 
-因此主分派的 index 与 value/threshold 都是 `s16`。`0x0042B087` 的 `u32 [ebx+4]` 只属于尚未关闭的二级入口 `181..185`。
+因此主分派的 index 与 value/threshold 都是 `s16`。`0x0042B087` 的 `u32 [ebx+4]` 只属于二级入口 `181..185`；其独立宽值合同见对应evidence。
 
 随后唯一门控为：
 
@@ -160,4 +160,4 @@ real-asset 测试覆盖 TALK1 的 opcode 30 记录，以及上述 `33 -> 32 -> 2
 assembly_exact;unit_tested;real_asset_tested;asset_absence_verified;platform_adapted;sdl_runtime_integrated
 ```
 
-未关闭项：二级入口 `0x0042B070` 的 opcode `181..185` 必须按其 `u32` value、`+8` target、8/12 字节长度独立审计，不能复用本证据计数。
+后续状态：二级入口 `0x0042B070` 的 opcode `181..185` 已按其 `u32` value、`+8` target、8/12字节长度独立审计和关闭；其计数与证明不复用本证据。
