@@ -175,6 +175,8 @@ opcode114现已独立闭环：恢复request→双ID→既有transition同步→c
 
 115 将零扩展的 `u16` level 与 11 比较，超过 11 就强制写成 11。后面的“若小于零则置零”分支在该数据流上不可达。`sub_485850` 把 0..11 档缩放后，为 Miles stream 编号 100 调用 `AIL_set_stream_volume`；stream 不存在等错误返回全部忽略。指令推进四字节后让出。
 
+opcode115现已独立闭环：新增窄port复用实际stream manager，锁定u16零扩展、上限11、不可达负夹分支、wrapper返回忽略、previous/audio/yield及精确尾。线性资产为零记录/零probes，109处raw字样均非证明入口，以asset absence和四alias synthetic锁定。完整证据见[`story-vm-music-stream-volume-0042b7fc.md`](story-vm-music-stream-volume-0042b7fc.md)。
+
 ## opcode 118、119、120：dialog 链与角色 action
 
 118 的参数是角色 GUID selector，`FFF0` 换成当前状态块 `+0x24`。它遍历 `dword_4ACF48` dialog 链，把记录 `+0x16` 的角色 index 交给 `sub_40C060` 取 GUID，再与参数比较。每个匹配项都会：

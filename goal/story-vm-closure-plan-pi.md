@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042B7FC`（opcode115）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042B83A`（opcode116）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至135行。前91行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至135行。前92行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -167,10 +167,10 @@ opcode110零资产，opcode111的24条记录与双路径回放通过。opcode112
 记录及等待/完成双路径回放通过。opcode113只读取u16 sound id并固定消费未读padding，复用sample
 wrapper且播放结果不参与流控；线性资产零记录，以asset absence和synthetic锁定。opcode114按request、
 双stream ID、既有transition、control bit23、flags派生的分阶段顺序提交场景音乐请求，并接入实际
-stream manager；157条真实记录/159 probes及same-call合同通过；Linux core 186/186和app 192/192通过。
-已实现130/198、已验收125/198；
-内部workpack为91/146，即
-`13 assembly_exact + 78 platform_adapted + 55 pending_audit`。下一行只审计`0x0042B7FC`下的opcode115。
+stream manager；157条真实记录/159 probes及same-call合同通过。opcode115按u16零扩展后只夹上限11，
+复用实际stream100音量wrapper并忽略返回后yield；线性资产零记录/零probes，以asset absence和synthetic锁定；
+Linux core 186/186和app 192/192通过。已实现131/198、已验收126/198；内部workpack为92/146，即
+`13 assembly_exact + 79 platform_adapted + 54 pending_audit`。下一行只审计`0x0042B83A`下的opcode116。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

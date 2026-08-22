@@ -140,6 +140,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS = 112U,
     OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING = 113U,
     OP_114_STAGE_SCENE_MUSIC_STREAM_REQUEST = 114U,
+    OP_115_SET_MUSIC_STREAM_VOLUME = 115U,
     OP_117_SET_ROLE_STATUS_BIT4 = 117U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
@@ -285,6 +286,7 @@ public:
         compat::u32& current_fade_divisor,
         compat::u32 pending_fade_divisor
     ) noexcept = 0;
+    virtual void set_music_stream_volume(compat::u32 level) noexcept = 0;
     virtual void clear_story_framebuffer() noexcept = 0;
     virtual void present_story_framebuffer() noexcept = 0;
     [[nodiscard]] virtual bool prepare_story_video() noexcept = 0;

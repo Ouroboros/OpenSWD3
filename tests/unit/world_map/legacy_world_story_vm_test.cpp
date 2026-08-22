@@ -141,6 +141,7 @@ using openswd3::world_map::OP_111_RELOAD_IF_ANY_SECONDARY_ROLE_BIT30;
 using openswd3::world_map::OP_112_WAIT_PACKED_ROW_AND_ROLE_HEAD_ACTIONS;
 using openswd3::world_map::OP_113_PLAY_SOUND_EFFECT_WITH_UNREAD_PADDING;
 using openswd3::world_map::OP_114_STAGE_SCENE_MUSIC_STREAM_REQUEST;
+using openswd3::world_map::OP_115_SET_MUSIC_STREAM_VOLUME;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -347,6 +348,15 @@ public:
         }
     }
 
+    void set_music_stream_volume(const u32 level) noexcept override {
+        ++music_volume_write_count;
+        last_music_volume_level = level;
+        story_protocol_events.push_back(12U);
+        if (music_volume_callback) {
+            music_volume_callback();
+        }
+    }
+
     void clear_story_framebuffer() noexcept override {
         ++framebuffer_clear_count;
         if (framebuffer_clear_callback) {
@@ -462,6 +472,7 @@ public:
     std::function<void()> story_video_begin_callback;
     std::function<void()> audio_service_callback;
     std::function<void()> music_transition_callback;
+    std::function<void()> music_volume_callback;
     u32 framebuffer_clear_count{};
     u32 framebuffer_present_count{};
     u32 video_prepare_count{};
@@ -479,6 +490,8 @@ public:
     u32 last_music_transition_mode{};
     u32 last_music_current_fade_divisor{};
     u32 last_music_pending_fade_divisor{};
+    u32 music_volume_write_count{};
+    u32 last_music_volume_level{};
     u32 dialog_text_prepare_count{};
     u32 role_path_payload_release_count{};
     u32 released_role_path_index{0xFFFFFFFFU};
@@ -608,6 +621,8 @@ public:
             current_fade_divisor = pending_fade_divisor;
         }
     }
+
+    void set_music_stream_volume(const u32) noexcept override {}
 
     void clear_story_framebuffer() noexcept override {
         ++framebuffer_clear_count;
@@ -7209,6 +7224,116 @@ void test_stage_scene_music_stream_request_protocol(
                 OP_114_STAGE_SCENE_MUSIC_STREAM_REQUEST &&
             exact_tail.ports.music_transition_apply_count == 1U,
         "opcode 114 preserves every staged unsafe point and exact-tail effect"
+    );
+}
+
+void test_set_music_stream_volume_protocol(openswd3::test::Context& test) {
+    struct TestCase {
+        u16 raw_opcode;
+        u16 raw_level;
+        u32 expected_level;
+    };
+    constexpr std::array<TestCase, 6U> cases{{
+        {OP_115_SET_MUSIC_STREAM_VOLUME, 0U, 0U},
+        {
+            static_cast<u16>(OP_115_SET_MUSIC_STREAM_VOLUME | 0x4000U),
+            10U,
+            10U,
+        },
+        {
+            static_cast<u16>(OP_115_SET_MUSIC_STREAM_VOLUME | 0x8000U),
+            11U,
+            11U,
+        },
+        {
+            static_cast<u16>(OP_115_SET_MUSIC_STREAM_VOLUME | 0xC000U),
+            12U,
+            11U,
+        },
+        {OP_115_SET_MUSIC_STREAM_VOLUME, 0x7FFFU, 11U},
+        {OP_115_SET_MUSIC_STREAM_VOLUME, 0xFFFFU, 11U},
+    }};
+
+    for (const auto& test_case : cases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, test_case.raw_opcode);
+        write_u16(fixture.state.window, 2U, test_case.raw_level);
+        fixture.state.music_request = 0x11223344U;
+        fixture.state.current_first_stream = 0x55667788U;
+        fixture.state.previous_opcode = 0x66U;
+        bool volume_saw_precommit_state{};
+        bool audio_saw_committed_state{};
+        fixture.ports.music_volume_callback = [&]() {
+            volume_saw_precommit_state =
+                fixture.context.instruction_offset == 0U &&
+                fixture.state.previous_opcode == 0x66U &&
+                fixture.ports.direct_audio_service_count == 0U;
+        };
+        fixture.ports.audio_service_callback = [&]() {
+            audio_saw_committed_state =
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode ==
+                    OP_115_SET_MUSIC_STREAM_VOLUME &&
+                fixture.ports.music_volume_write_count == 1U;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_115_SET_MUSIC_STREAM_VOLUME &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode ==
+                    OP_115_SET_MUSIC_STREAM_VOLUME &&
+                fixture.state.music_request == 0x11223344U &&
+                fixture.state.current_first_stream == 0x55667788U &&
+                fixture.ports.music_volume_write_count == 1U &&
+                fixture.ports.last_music_volume_level ==
+                    test_case.expected_level &&
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{12U, 2U} &&
+                volume_saw_precommit_state && audio_saw_committed_state,
+            "opcode 115 aliases clamp the zero-extended level then yield"
+        );
+    }
+
+    auto prime_tail = [](Fixture& fixture, const u16 ip) {
+        prime_loaded_instruction(fixture, OP_115_SET_MUSIC_STREAM_VOLUME);
+        fixture.context.instruction_offset = ip;
+        fixture.state.previous_opcode = 0x66U;
+        write_u16(fixture.state.window, ip, OP_115_SET_MUSIC_STREAM_VOLUME);
+    };
+
+    Fixture truncated;
+    prime_tail(truncated, 0x7FFEU);
+    const auto truncated_result = truncated.step();
+
+    Fixture exact_tail;
+    prime_tail(exact_tail, 0x7FFCU);
+    write_u16(exact_tail.state.window, 0x7FFEU, 11U);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated_result.executed_instruction_count == 1U &&
+            truncated_result.direct_audio_service_count == 0U &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            truncated.state.previous_opcode == 0x66U &&
+            truncated.ports.music_volume_write_count == 0U,
+        "opcode 115 stops at its operand unsafe point"
+    );
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_115_SET_MUSIC_STREAM_VOLUME &&
+            exact_tail.ports.music_volume_write_count == 1U &&
+            exact_tail.ports.last_music_volume_level == 11U,
+        "opcode 115 commits its exact-tail volume before yielding"
     );
 }
 
@@ -23464,6 +23589,7 @@ int main(const int argument_count, char** arguments) {
     test_wait_overlay_action_lists_protocol(test);
     test_play_sound_effect_with_unread_padding_protocol(test);
     test_stage_scene_music_stream_request_protocol(test);
+    test_set_music_stream_volume_protocol(test);
     test_release_role_path_protocol(test);
     test_release_all_role_paths_protocol(test);
     test_schedule_role_paths_protocol(test);

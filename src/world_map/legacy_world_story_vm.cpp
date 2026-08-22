@@ -5053,6 +5053,23 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_115_SET_MUSIC_STREAM_VOLUME: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const u32 raw_level = read_u16(state.window, ip + 2U);
+            const u32 level = raw_level > 11U ? 11U : raw_level;
+            ports.set_music_stream_volume(level);
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
         case 120U: {
             if (!has_bytes(state.window, ip, 10U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

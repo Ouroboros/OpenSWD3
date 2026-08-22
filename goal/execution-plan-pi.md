@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v335
+版本：v336
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B7FC` handler（opcode 115）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042B83A` handler（opcode 116）
 
 ## 0. 执行约定
 
@@ -2385,4 +2385,12 @@ B7 P0 有限收口完成。
     现代显式opcode保持130；对外进度为已实现130/198、已验收125/198；内部workpack91/146，
     即`13 assembly_exact + 78 platform_adapted + 55 pending_audit`。
 
-下一组只审计`0x0042B7FC` / opcode115。
+- 剧情VM P2第九十二组`0x0042B7FC` / opcode115完成独立闭环。恢复u16音量档
+    零扩展、上限11、不可达负夹分支、stream100 wrapper返回忽略及跨帧让出合同；实际
+    LegacyStreamManager已接入窄port。线性资产零记录/零probes，109处raw字样均非证明入口，
+    以asset absence和synthetic锁定。Story VM 3/3、Linux core 186/186和app 192/192通过；
+    workpack双生成稳定hash为`0265c2a06b9dfaf4537069c25742887f05c8f59912fb073ee62dace5b0bb5c12`。
+    未启动游戏EXE。现代显式opcode增至131；对外进度为已实现131/198、已验收126/198；
+    内部workpack92/146，即`13 assembly_exact + 79 platform_adapted + 54 pending_audit`。
+
+下一组只审计`0x0042B83A` / opcode116。

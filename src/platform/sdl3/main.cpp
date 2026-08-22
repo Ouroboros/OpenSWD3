@@ -3529,6 +3529,17 @@ public:
                 );
             }
 
+            void set_music_stream_volume(
+                const openswd3::compat::u32 level
+            ) noexcept override {
+                static_cast<void>(
+                    openswd3::audio_video::set_legacy_stream_volume(
+                        stream_manager_,
+                        static_cast<openswd3::compat::i32>(level)
+                    )
+                );
+            }
+
             void clear_story_framebuffer() noexcept override {
                 std::ranges::fill(
                     framebuffer_.physical_pixels(), openswd3::compat::u16{0U}
