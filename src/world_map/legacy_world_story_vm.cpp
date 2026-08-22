@@ -7217,6 +7217,30 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             return result;
         }
 
+        case OP_178_SET_ROLE_COLLISION_BYPASS: {
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            u16 selector = read_u16(state.window, ip + 2U);
+            if (selector == 0xFFF0U) {
+                selector = static_cast<u16>(controlled_role_index);
+            }
+
+            u32 role_index{};
+            if (resolve_role_index(
+                    roles, selector, controlled_role_index, role_index
+                )) {
+                roles[role_index].flags |= 0x00040000U;
+            }
+
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 4U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 193U:
             if (ports.query_story_video_progress() >= 0) {
                 result.status = LegacyWorldStoryVmStatus::yielded;

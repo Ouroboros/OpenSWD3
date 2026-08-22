@@ -212,6 +212,7 @@ using openswd3::world_map::OP_173_SET_MODE18_TEXT;
 using openswd3::world_map::OP_175_SUSPEND_STORY_ANI;
 using openswd3::world_map::OP_176_RESUME_STORY_ANI;
 using openswd3::world_map::OP_177_GATHER_PARTY_AT_PLAYER;
+using openswd3::world_map::OP_178_SET_ROLE_COLLISION_BYPASS;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -3523,6 +3524,148 @@ void test_gather_party_at_player_protocol(openswd3::test::Context& test) {
             missing_party_count.state.previous_opcode == 0x66U &&
             missing_party_count.ports.direct_audio_service_count == 0U,
         "opcode 177 typed-stops at missing setup history after self/dialog/base writes and at missing poll party count after matching-role cleanup, without previous or audio"
+    );
+}
+
+void test_set_role_collision_bypass_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_178_SET_ROLE_COLLISION_BYPASS | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, 0x00F8U);
+        write_u16(fixture.state.window, 4U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        fixture.roles[1].flags = 0x80000001U;
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 4U &&
+                fixture.state.previous_opcode ==
+                    OP_178_SET_ROLE_COLLISION_BYPASS &&
+                fixture.roles[1].flags == 0x80040001U,
+            "opcode 178 covers every raw alias, ORs only role collision-bypass bit18, advances four, publishes normalized previous, and same-calls without audio"
+        );
+    }
+
+    Fixture idempotent;
+    prime_loaded_instruction(idempotent, OP_178_SET_ROLE_COLLISION_BYPASS);
+    write_u16(idempotent.state.window, 2U, 0x00F8U);
+    write_u16(idempotent.state.window, 4U, OP_1025);
+    idempotent.roles[1].flags = 0xA5A40001U;
+    const auto idempotent_result = idempotent.step();
+
+    Fixture missing;
+    prime_loaded_instruction(missing, OP_178_SET_ROLE_COLLISION_BYPASS);
+    write_u16(missing.state.window, 2U, 0x7777U);
+    write_u16(missing.state.window, 4U, OP_1025);
+    missing.roles[1].flags = 0x12345678U;
+    const auto missing_result = missing.step();
+
+    test.expect_true(
+        idempotent_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            idempotent.roles[1].flags == 0xA5A40001U &&
+            missing_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            missing.context.instruction_offset == 4U &&
+            missing.state.previous_opcode == OP_178_SET_ROLE_COLLISION_BYPASS &&
+            missing.roles[1].flags == 0x12345678U &&
+            missing.ports.direct_audio_service_count == 0U,
+        "opcode 178 is idempotent and silently consumes an ordinary lookup miss"
+    );
+
+    Fixture literal_fff0;
+    literal_fff0.roles[1].guid = 2U;
+    literal_fff0.roles[2].guid = 0x9999U;
+    prime_loaded_instruction(literal_fff0, OP_178_SET_ROLE_COLLISION_BYPASS);
+    write_u16(literal_fff0.state.window, 2U, 0xFFF0U);
+    write_u16(literal_fff0.state.window, 4U, OP_1025);
+    const auto literal_fff0_result = literal_fff0.step(0, 0, 2U);
+
+    Fixture controlled_fffe;
+    controlled_fffe.roles[2].guid = 0x9999U;
+    prime_loaded_instruction(controlled_fffe, OP_178_SET_ROLE_COLLISION_BYPASS);
+    write_u16(controlled_fffe.state.window, 2U, 0xFFFEU);
+    write_u16(controlled_fffe.state.window, 4U, OP_1025);
+    const auto controlled_fffe_result = controlled_fffe.step(0, 0, 2U);
+
+    test.expect_true(
+        literal_fff0_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            (literal_fff0.roles[1].flags & 0x00040000U) != 0U &&
+            (literal_fff0.roles[2].flags & 0x00040000U) == 0U &&
+            controlled_fffe_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            (controlled_fffe.roles[2].flags & 0x00040000U) != 0U,
+        "opcode 178 replaces FFF0 with the controlled index low word then performs ordinary GUID lookup, while helper-native FFFE selects the controlled role directly"
+    );
+
+    Fixture skipped_first;
+    skipped_first.roles[1].guid = 0x1234U;
+    skipped_first.roles[1].flags = 0x10000001U;
+    skipped_first.roles[2].guid = 0x1234U;
+    skipped_first.roles[2].flags = 0x80000001U;
+    prime_loaded_instruction(skipped_first, OP_178_SET_ROLE_COLLISION_BYPASS);
+    write_u16(skipped_first.state.window, 2U, 0x1234U);
+    write_u16(skipped_first.state.window, 4U, OP_1025);
+    const auto skipped_first_result = skipped_first.step();
+
+    test.expect_true(
+        skipped_first_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            skipped_first.roles[1].flags == 0x10000001U &&
+            skipped_first.roles[2].flags == 0x80040001U,
+        "opcode 178 preserves lookup bit28 filtering and modifies only the first eligible duplicate GUID"
+    );
+
+    Fixture truncated;
+    prime_loaded_instruction(truncated, OP_178_SET_ROLE_COLLISION_BYPASS);
+    truncated.context.instruction_offset = 0x7FFEU;
+    truncated.state.previous_opcode = 0x66U;
+    truncated.roles[1].flags = 0x12345678U;
+    write_u16(
+        truncated.state.window, 0x7FFEU, OP_178_SET_ROLE_COLLISION_BYPASS
+    );
+    const auto truncated_result = truncated.step();
+
+    Fixture exact_tail;
+    prime_loaded_instruction(exact_tail, OP_178_SET_ROLE_COLLISION_BYPASS);
+    exact_tail.context.instruction_offset = 0x7FFCU;
+    exact_tail.state.previous_opcode = 0x66U;
+    exact_tail.roles[1].flags = 0x80000001U;
+    write_u16(
+        exact_tail.state.window, 0x7FFCU, OP_178_SET_ROLE_COLLISION_BYPASS
+    );
+    write_u16(exact_tail.state.window, 0x7FFEU, 0x00F8U);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            truncated.context.instruction_offset == 0x7FFEU &&
+            truncated.state.previous_opcode == 0x66U &&
+            truncated.roles[1].flags == 0x12345678U &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_178_SET_ROLE_COLLISION_BYPASS &&
+            exact_tail.roles[1].flags == 0x80040001U,
+        "opcode 178 stops before lookup on a truncated selector and commits role flags, IP, and previous before an exact-tail same-call successor fetch failure"
     );
 }
 
@@ -26779,6 +26922,69 @@ void test_real_gather_party_at_player_records(
     }
 }
 
+void test_real_set_role_collision_bypass_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct Sample {
+        u32 file_number;
+        std::streamoff file_offset;
+        u16 selector;
+    };
+    constexpr std::array samples{
+        Sample{1U, 0x0003FB3DU, 0x0143U},
+        Sample{3U, 0x0001B471U, 0x0002U},
+        Sample{3U, 0x0001B485U, 0x0002U},
+        Sample{3U, 0x00033812U, 0x0397U},
+        Sample{4U, 0x00018AF1U, 0x0068U},
+        Sample{4U, 0x00018B80U, 0x0068U},
+    };
+
+    std::array<std::size_t, 4U> file_counts{};
+    bool all_records_valid = true;
+    bool all_replays_valid = true;
+    for (const auto sample : samples) {
+        std::ifstream input{
+            root / ("TALK" + std::to_string(sample.file_number) + ".DAT"),
+            std::ios::binary | std::ios::in
+        };
+        std::array<u8, 4U> instruction{};
+        input.seekg(sample.file_offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        const bool instruction_valid = static_cast<bool>(input) &&
+            read_u16(instruction, 0U) == OP_178_SET_ROLE_COLLISION_BYPASS &&
+            read_u16(instruction, 2U) == sample.selector;
+        all_records_valid = all_records_valid && instruction_valid;
+        ++file_counts[sample.file_number - 1U];
+
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_178_SET_ROLE_COLLISION_BYPASS);
+        fixture.context.instruction_offset = 0x7FFCU;
+        fixture.state.previous_opcode = 0x66U;
+        fixture.roles[1].guid = sample.selector;
+        fixture.roles[1].flags = 0x80000001U;
+        std::ranges::copy(instruction, fixture.state.window.begin() + 0x7FFCU);
+        const auto result = fixture.step();
+        all_replays_valid = all_replays_valid &&
+            result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            result.opcode == OP_178_SET_ROLE_COLLISION_BYPASS &&
+            result.executed_instruction_count == 1U &&
+            result.direct_audio_service_count == 0U &&
+            fixture.context.instruction_offset == 0x8000U &&
+            fixture.state.previous_opcode == OP_178_SET_ROLE_COLLISION_BYPASS &&
+            fixture.roles[1].flags == 0x80040001U;
+    }
+
+    test.expect_true(
+        all_records_valid && all_replays_valid && samples.size() == 6U &&
+            file_counts == std::array<std::size_t, 4U>{1U, 0U, 3U, 2U},
+        "all six real opcode 178 records preserve base raw words and locked selectors, set role collision bypass, and complete before exact-tail successor fetch failure"
+    );
+}
+
 void test_real_jump_same_file_offset_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -33472,6 +33678,7 @@ int main(const int argument_count, char** arguments) {
     test_suspend_story_ani_protocol(test);
     test_resume_story_ani_protocol(test);
     test_gather_party_at_player_protocol(test);
+    test_set_role_collision_bypass_protocol(test);
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);
@@ -33631,6 +33838,7 @@ int main(const int argument_count, char** arguments) {
         test_real_item_total_reload_records(test, root);
         test_real_mode_text_records(test, root);
         test_real_gather_party_at_player_records(test, root);
+        test_real_set_role_collision_bypass_records(test, root);
         test_real_jump_same_file_offset_record(test, root);
         test_real_jump_if_role_path_unprepared_record(test, root);
         test_real_jump_if_role_path_prepared_record(test, root);
