@@ -150,6 +150,7 @@ using openswd3::world_map::OP_120_UPDATE_ROLE_ACTION_FIELDS;
 using openswd3::world_map::OP_121_CLEAR_TEXT_CONTROL_BIT26;
 using openswd3::world_map::OP_122_CLEAR_SPEED_MODE;
 using openswd3::world_map::OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY;
+using openswd3::world_map::OP_124_CLEAR_TEXT_CONTROL_BIT25;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -18986,6 +18987,68 @@ void test_update_scene_music_table_entry_protocol(
     );
 }
 
+void test_clear_text_control_bit25_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.state.text_control_flags = 0xFFFFFFFFU;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_124_CLEAR_TEXT_CONTROL_BIT25 | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.text_control_flags == 0xFDFFFFFFU &&
+                fixture.state.previous_opcode ==
+                    OP_124_CLEAR_TEXT_CONTROL_BIT25,
+            "opcode 124 aliases clear only text-control bit 25 and continue"
+        );
+    }
+
+    Fixture already_clear;
+    already_clear.state.text_control_flags = 0xFDFFFFFFU;
+    prime_loaded_instruction(already_clear, OP_124_CLEAR_TEXT_CONTROL_BIT25);
+    write_u16(already_clear.state.window, 2U, OP_1025);
+    const auto already_clear_result = already_clear.step();
+
+    Fixture exact_tail;
+    exact_tail.state.text_control_flags = 0xFFFFFFFFU;
+    prime_loaded_instruction(exact_tail, OP_124_CLEAR_TEXT_CONTROL_BIT25);
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    write_u16(
+        exact_tail.state.window, 0x7FFEU, OP_124_CLEAR_TEXT_CONTROL_BIT25
+    );
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        already_clear_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            already_clear.state.text_control_flags == 0xFDFFFFFFU &&
+            already_clear.state.previous_opcode ==
+                OP_124_CLEAR_TEXT_CONTROL_BIT25 &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.text_control_flags == 0xFDFFFFFFU &&
+            exact_tail.state.previous_opcode == OP_124_CLEAR_TEXT_CONTROL_BIT25,
+        "opcode 124 is idempotent and commits its exact-tail clear before refetch"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -25455,6 +25518,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_text_control_bit26_protocol(test);
     test_clear_speed_mode_protocol(test);
     test_update_scene_music_table_entry_protocol(test);
+    test_clear_text_control_bit25_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);

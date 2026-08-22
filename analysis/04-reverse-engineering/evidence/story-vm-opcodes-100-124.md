@@ -96,6 +96,8 @@ opcode105现已独立闭环：只执行u32 `AND F7FFFFFF`、+2、previous105与s
 
 122 只写 `dword_4CAEB8=0`。同一全局在输入路径中由按键 `0x43`（C）在 0/1 间切换，并在文字 action 更新器中强制推进字符位置和等待状态，因此当前中性名记为“清文字快进开关”。这条指令不清任何其他文字 flag，消费两字节后同帧继续。
 
+opcode124现已独立闭环：对完整text-control u32只执行`AND FDFFFFFF`清bit25，再经共享尾+2、发布previous124并same-call。四raw alias、幂等清位、其他位保持及精确尾通过；完整线性TALK目录为0条记录/0 probes，以asset absence锁定。完整证据见[`story-vm-text-control-bit25-clear-0042bcf5.md`](story-vm-text-control-bit25-clear-0042bcf5.md)。
+
 ## opcode 106、107、112：三种等待合同
 
 106 从 `unk_4B7BD0+0xA0` 取指针。为空时直接完成；非空时零扩展 `[pointer+0x49]` 的单字节，并与 `+2` 的 `u16` 作无符号比较：
