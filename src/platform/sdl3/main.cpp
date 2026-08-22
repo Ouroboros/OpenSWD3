@@ -3862,6 +3862,7 @@ public:
                 .secondary_rng = &secondary_rng_,
                 .speed_mode = &world_player_control_state_.speed_mode,
                 .player_inventory = &world_item_lists_.player_inventory,
+                .party_item_lists = &world_item_lists_.party_item_lists,
                 .role_item_lists = &world_item_lists_.role_item_lists,
             };
             openswd3::world_map::advance_legacy_world_script_clock(

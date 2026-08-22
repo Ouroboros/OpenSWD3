@@ -158,6 +158,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_128_ADJUST_PLAYER_ITEM_QUANTITY = 128U,
     OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM = 129U,
     OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM = 130U,
+    OP_131_ADD_PARTY_ITEM_IF_ALLOWED = 131U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
@@ -263,6 +264,9 @@ struct LegacyWorldStoryVmRuntime {
     // shared dialog runtime. Opcode 122 clears the same process-level owner.
     compat::u32* speed_mode{};
     std::list<LegacyWorldItemNode>* player_inventory{};
+    std::array<
+        std::optional<LegacyWorldSentinelItemList>,
+        kLegacyPartyItemListCount>* party_item_lists{};
     const std::array<
         std::optional<LegacyWorldSentinelItemList>,
         kLegacyRoleItemListCount>* role_item_lists{};
@@ -375,6 +379,7 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     text_allocation_out_of_range,
     unsupported_packed_row_effect_operation,
     item_allocation_failed,
+    item_update_failed,
     role_allocation_failed,
     role_transfer_failed,
     role_map_update_failed,

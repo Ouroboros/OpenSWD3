@@ -1574,6 +1574,118 @@ release_legacy_world_story_role_path(
     return LegacyWorldStoryVmStatus::idle;
 }
 
+struct LegacyStoryPartyItemUpsertResult {
+    LegacyWorldStoryVmStatus status{LegacyWorldStoryVmStatus::idle};
+    LegacyWorldItemNode* item{};
+};
+
+[[nodiscard]] LegacyStoryPartyItemUpsertResult upsert_party_item(
+    std::list<LegacyWorldItemNode>& items,
+    const u16 item_id,
+    LegacyWorldStoryVmPorts& ports
+) noexcept {
+    const auto existing =
+        std::ranges::find_if(items, [item_id](const LegacyWorldItemNode& item) {
+            return item.item_id == item_id;
+        });
+    if (existing != items.end()) {
+        existing->quantity_a = static_cast<u16>(existing->quantity_a + u16{1U});
+        const i16 quantity_a = std::bit_cast<i16>(existing->quantity_a);
+        if (quantity_a > 99) {
+            existing->quantity_a = 99U;
+            existing->quantity_b = 0U;
+            return {.item = &*existing};
+        }
+
+        if (quantity_a <= 0) {
+            existing->quantity_a = 0U;
+            if (std::bit_cast<i16>(existing->quantity_b) <= 0) {
+                items.erase(existing);
+                return {};
+            }
+        }
+
+        if (item_id == kLegacyItemSentinelId) {
+            existing->quantity_a = 1U;
+            existing->quantity_b = 0U;
+        }
+
+        return {.item = &*existing};
+    }
+
+    try {
+        LegacyWorldItemNode item;
+        if (item_id == kLegacyItemSentinelId) {
+            item.definition_snapshot[0U] = kLegacyItemSentinelNameBytes[0U];
+            item.definition_snapshot[1U] = kLegacyItemSentinelNameBytes[1U];
+        } else if (!ports.load_story_item_definition(
+                       item_id, item.definition_snapshot, item.description
+                   )) {
+            return {};
+        }
+
+        item.item_id = item_id;
+        item.quantity_a = 1U;
+        items.emplace_front(std::move(item));
+    } catch (const std::bad_alloc&) {
+        return {.status = LegacyWorldStoryVmStatus::item_allocation_failed};
+    } catch (...) {
+        return {.status = LegacyWorldStoryVmStatus::item_allocation_failed};
+    }
+
+    return {.item = &items.front()};
+}
+
+void decrement_party_item(
+    std::list<LegacyWorldItemNode>& items, const u16 item_id
+) noexcept {
+    const auto decrement = [&items, item_id](const auto selected) {
+        selected->quantity_a =
+            static_cast<u16>(selected->quantity_a + u16{0xFFFFU});
+        const i16 quantity_a = std::bit_cast<i16>(selected->quantity_a);
+        if (quantity_a > 99) {
+            selected->quantity_a = 99U;
+        } else if (quantity_a <= 0) {
+            items.erase(selected);
+            return quantity_a;
+        }
+
+        if (item_id == kLegacyItemSentinelId) {
+            selected->quantity_a = 1U;
+        }
+
+        return i16{1};
+    };
+
+    const auto flagged =
+        std::ranges::find_if(items, [item_id](const LegacyWorldItemNode& item) {
+            return item.item_id == item_id &&
+                (item.definition_snapshot[0x21U] & 0x80U) != 0U;
+        });
+    if (flagged != items.end() && decrement(flagged) >= 0) {
+        return;
+    }
+
+    const auto unflagged =
+        std::ranges::find_if(items, [item_id](const LegacyWorldItemNode& item) {
+            return item.item_id == item_id &&
+                (item.definition_snapshot[0x21U] & 0x80U) == 0U;
+        });
+    if (unflagged != items.end()) {
+        static_cast<void>(decrement(unflagged));
+    }
+}
+
+[[nodiscard]] bool party_items_have_masked_item(
+    const std::list<LegacyWorldItemNode>& items, const u16 item_id
+) noexcept {
+    return std::ranges::any_of(
+        items, [item_id](const LegacyWorldItemNode& item) {
+            return (item.item_id & 0x3FFFU) == item_id;
+        }
+    );
+}
+
 [[nodiscard]] bool player_inventory_has_item(
     const std::list<LegacyWorldItemNode>& inventory, const u16 item_id
 ) noexcept {
@@ -5784,6 +5896,75 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 return result;
             }
 
+            continue;
+        }
+
+        case OP_131_ADD_PARTY_ITEM_IF_ALLOWED: {
+            if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const u16 party_index = read_u16(state.window, ip + 2U);
+            if (!has_bytes(state.window, ip + 4U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const u16 item_id = read_u16(state.window, ip + 4U);
+            if (party_index < kLegacyPartyItemListCount) {
+                if (runtime.party_item_lists == nullptr) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+
+                auto& party_list = (*runtime.party_item_lists)[party_index];
+                if (!party_list.has_value()) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::runtime_unavailable;
+                    return result;
+                }
+
+                if (!party_items_have_masked_item(party_list->nodes, item_id)) {
+                    const auto upserted =
+                        upsert_party_item(party_list->nodes, item_id, ports);
+                    if (upserted.status != LegacyWorldStoryVmStatus::idle) {
+                        result.status = upserted.status;
+                        return result;
+                    }
+
+                    if (upserted.item == nullptr) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::item_update_failed;
+                        return result;
+                    }
+
+                    upserted.item->definition_snapshot[0x21U] &= 0x7FU;
+                    const u16 restriction = static_cast<u16>(
+                        static_cast<u16>(
+                            upserted.item->definition_snapshot[0x3AU]
+                        ) |
+                        static_cast<u16>(
+                            static_cast<u16>(
+                                upserted.item->definition_snapshot[0x3BU]
+                            )
+                            << 8U
+                        )
+                    );
+                    const u16 party_mask =
+                        static_cast<u16>(0x8000U >> party_index);
+                    if ((restriction & party_mask) == 0U) {
+                        decrement_party_item(
+                            party_list->nodes, upserted.item->item_id
+                        );
+                    }
+                }
+            }
+
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
             continue;
         }
 

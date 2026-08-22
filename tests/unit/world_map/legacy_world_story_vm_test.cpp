@@ -161,6 +161,7 @@ using openswd3::world_map::OP_127_RELOAD_IF_ROLE_BASE_VARIANT_NOT_EQUAL;
 using openswd3::world_map::OP_128_ADJUST_PLAYER_ITEM_QUANTITY;
 using openswd3::world_map::OP_129_RELOAD_IF_ANY_ITEM_OWNER_HAS_ITEM;
 using openswd3::world_map::OP_130_RELOAD_IF_NO_ITEM_OWNER_HAS_ITEM;
+using openswd3::world_map::OP_131_ADD_PARTY_ITEM_IF_ALLOWED;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -908,6 +909,7 @@ struct Fixture {
         runtime.secondary_rng = &secondary_rng;
         runtime.speed_mode = &speed_mode;
         runtime.player_inventory = &player_inventory;
+        runtime.party_item_lists = &item_lists.party_item_lists;
         runtime.role_item_lists = &item_lists.role_item_lists;
         dialog_resources.frame_actions[0].action_id = 0x232DU;
         dialog_resources.caption_actions[0].action_id = 0x2337U;
@@ -20136,6 +20138,363 @@ void test_item_presence_reload_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_add_party_item_if_allowed_protocol(openswd3::test::Context& test) {
+    const auto set_restriction = [](LegacyWorldItemNode& item,
+                                    const u16 restriction) noexcept {
+        item.definition_snapshot[0x3AU] = static_cast<u8>(restriction);
+        item.definition_snapshot[0x3BU] = static_cast<u8>(restriction >> 8U);
+    };
+
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        for (u16 party_index = 0U; party_index < 4U; ++party_index) {
+            Fixture fixture;
+            const u16 restriction = static_cast<u16>(0x8000U >> party_index);
+            fixture.ports.prepared_item_definition.fill(0x22U);
+            fixture.ports.prepared_item_definition[0x21U] = 0xFFU;
+            fixture.ports.prepared_item_definition[0x3AU] =
+                static_cast<u8>(restriction);
+            fixture.ports.prepared_item_definition[0x3BU] =
+                static_cast<u8>(restriction >> 8U);
+            fixture.ports.prepared_item_description = {4U, 5U, 6U};
+            prime_loaded_instruction(
+                fixture,
+                static_cast<u16>(OP_131_ADD_PARTY_ITEM_IF_ALLOWED | alias_mask)
+            );
+            write_u16(fixture.state.window, 2U, party_index);
+            write_u16(fixture.state.window, 4U, 0x0234U);
+            write_u16(fixture.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+            write_u16(fixture.state.window, 8U, 0x0073U);
+
+            const auto result = fixture.step();
+            const auto& nodes =
+                fixture.item_lists.party_item_lists[party_index]->nodes;
+            const auto& item = nodes.front();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                    result.opcode == OP_59_PLAY_SOUND_EFFECT &&
+                    result.executed_instruction_count == 2U &&
+                    fixture.context.instruction_offset == 10U &&
+                    fixture.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
+                    nodes.size() == 1U && item.item_id == 0x0234U &&
+                    item.quantity_a == 1U && item.quantity_b == 0U &&
+                    item.definition_snapshot[0x20U] == 0x22U &&
+                    item.definition_snapshot[0x21U] == 0x7FU &&
+                    item.description == std::vector<u8>{4U, 5U, 6U} &&
+                    fixture.ports.item_definition_load_count == 1U &&
+                    fixture.ports.last_item_definition_id == 0x0234U &&
+                    fixture.ports.story_protocol_events ==
+                        std::vector<u32>{13U} &&
+                    fixture.ports.sound_effect_requests ==
+                        std::vector<u16>{0x0073U},
+                "opcode 131 aliases retain a newly loaded item only when the selected party restriction bit is set"
+            );
+        }
+    }
+
+    Fixture masked_existing;
+    auto& masked_item =
+        masked_existing.item_lists.party_item_lists[0]->nodes.emplace_back();
+    masked_item.item_id = 0xC123U;
+    masked_item.quantity_a = 5U;
+    masked_item.definition_snapshot[0x21U] = 0x80U;
+    prime_loaded_instruction(masked_existing, OP_131_ADD_PARTY_ITEM_IF_ALLOWED);
+    write_u16(masked_existing.state.window, 2U, 0U);
+    write_u16(masked_existing.state.window, 4U, 0x0123U);
+    write_u16(masked_existing.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(masked_existing.state.window, 8U, 0x0073U);
+    const auto masked_existing_result = masked_existing.step();
+
+    test.expect_true(
+        masked_existing_result.status == LegacyWorldStoryVmStatus::yielded &&
+            masked_existing.item_lists.party_item_lists[0]->nodes.size() ==
+                1U &&
+            masked_item.quantity_a == 5U &&
+            masked_item.definition_snapshot[0x21U] == 0x80U &&
+            masked_existing.ports.item_definition_load_count == 0U,
+        "opcode 131 masked prelookup skips upsert, flag clearing, and restriction checks for an existing item"
+    );
+
+    for (const u16 invalid_party_index : {u16{4U}, u16{0xFFFFU}}) {
+        Fixture fixture;
+        fixture.runtime.party_item_lists = nullptr;
+        prime_loaded_instruction(fixture, OP_131_ADD_PARTY_ITEM_IF_ALLOWED);
+        write_u16(fixture.state.window, 2U, invalid_party_index);
+        write_u16(fixture.state.window, 4U, 0x0234U);
+        write_u16(fixture.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+        write_u16(fixture.state.window, 8U, 0x0073U);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == OP_59_PLAY_SOUND_EFFECT &&
+                result.executed_instruction_count == 2U &&
+                fixture.context.instruction_offset == 10U &&
+                fixture.ports.item_definition_load_count == 0U,
+            "opcode 131 invalid party indices consume after both operands without touching the party owner"
+        );
+    }
+
+    Fixture unqualified;
+    unqualified.ports.prepared_item_definition.fill(0x22U);
+    unqualified.ports.prepared_item_definition[0x21U] = 0x80U;
+    unqualified.ports.prepared_item_definition[0x3AU] = 0U;
+    unqualified.ports.prepared_item_definition[0x3BU] = 0U;
+    prime_loaded_instruction(unqualified, OP_131_ADD_PARTY_ITEM_IF_ALLOWED);
+    write_u16(unqualified.state.window, 2U, 2U);
+    write_u16(unqualified.state.window, 4U, 0x0234U);
+    write_u16(unqualified.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(unqualified.state.window, 8U, 0x0073U);
+    const auto unqualified_result = unqualified.step();
+
+    Fixture sentinel;
+    prime_loaded_instruction(sentinel, OP_131_ADD_PARTY_ITEM_IF_ALLOWED);
+    write_u16(sentinel.state.window, 2U, 0U);
+    write_u16(
+        sentinel.state.window, 4U, openswd3::world_map::kLegacyItemSentinelId
+    );
+    write_u16(sentinel.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(sentinel.state.window, 8U, 0x0073U);
+    const auto sentinel_result = sentinel.step();
+
+    test.expect_true(
+        unqualified_result.status == LegacyWorldStoryVmStatus::yielded &&
+            unqualified.item_lists.party_item_lists[2]->nodes.empty() &&
+            unqualified.ports.item_definition_load_count == 1U &&
+            sentinel_result.status == LegacyWorldStoryVmStatus::yielded &&
+            sentinel.item_lists.party_item_lists[0]->nodes.empty() &&
+            sentinel.ports.item_definition_load_count == 0U,
+        "opcode 131 removes a just-added item whose party restriction bit is clear and preserves the FFDC no-loader path"
+    );
+
+    Fixture high_exact_allowed;
+    auto& high_allowed =
+        high_exact_allowed.item_lists.party_item_lists[1]->nodes.emplace_back();
+    high_allowed.item_id = 0xC123U;
+    high_allowed.quantity_a = 5U;
+    high_allowed.quantity_b = 7U;
+    high_allowed.definition_snapshot[0x21U] = 0x80U;
+    set_restriction(high_allowed, 0x4000U);
+    prime_loaded_instruction(
+        high_exact_allowed, OP_131_ADD_PARTY_ITEM_IF_ALLOWED
+    );
+    write_u16(high_exact_allowed.state.window, 2U, 1U);
+    write_u16(high_exact_allowed.state.window, 4U, 0xC123U);
+    write_u16(high_exact_allowed.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(high_exact_allowed.state.window, 8U, 0x0073U);
+    const auto high_exact_allowed_result = high_exact_allowed.step();
+
+    Fixture high_exact_unqualified;
+    auto& high_unqualified =
+        high_exact_unqualified.item_lists.party_item_lists[1]
+            ->nodes.emplace_back();
+    high_unqualified.item_id = 0xC124U;
+    high_unqualified.quantity_a = 5U;
+    high_unqualified.definition_snapshot[0x21U] = 0x80U;
+    prime_loaded_instruction(
+        high_exact_unqualified, OP_131_ADD_PARTY_ITEM_IF_ALLOWED
+    );
+    write_u16(high_exact_unqualified.state.window, 2U, 1U);
+    write_u16(high_exact_unqualified.state.window, 4U, 0xC124U);
+    write_u16(high_exact_unqualified.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(high_exact_unqualified.state.window, 8U, 0x0073U);
+    const auto high_exact_unqualified_result = high_exact_unqualified.step();
+
+    test.expect_true(
+        high_exact_allowed_result.status == LegacyWorldStoryVmStatus::yielded &&
+            high_allowed.quantity_a == 6U && high_allowed.quantity_b == 7U &&
+            high_allowed.definition_snapshot[0x21U] == 0U &&
+            high_exact_allowed.ports.item_definition_load_count == 0U &&
+            high_exact_unqualified_result.status ==
+                LegacyWorldStoryVmStatus::yielded &&
+            high_unqualified.quantity_a == 5U &&
+            high_unqualified.definition_snapshot[0x21U] == 0U &&
+            high_exact_unqualified.ports.item_definition_load_count == 0U,
+        "opcode 131 preserves exact high-id mode1 upsert and the unqualified add-then-decrement sequence"
+    );
+
+    Fixture flagged_duplicate;
+    auto& returned =
+        flagged_duplicate.item_lists.party_item_lists[0]->nodes.emplace_back();
+    returned.item_id = 0xC130U;
+    returned.quantity_a = 5U;
+    returned.definition_snapshot[0x21U] = 0x80U;
+    auto& later_flagged =
+        flagged_duplicate.item_lists.party_item_lists[0]->nodes.emplace_back();
+    later_flagged.item_id = 0xC130U;
+    later_flagged.quantity_a = 0U;
+    later_flagged.definition_snapshot[0x21U] = 0x80U;
+    prime_loaded_instruction(
+        flagged_duplicate, OP_131_ADD_PARTY_ITEM_IF_ALLOWED
+    );
+    write_u16(flagged_duplicate.state.window, 2U, 0U);
+    write_u16(flagged_duplicate.state.window, 4U, 0xC130U);
+    write_u16(flagged_duplicate.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(flagged_duplicate.state.window, 8U, 0x0073U);
+    const auto flagged_duplicate_result = flagged_duplicate.step();
+
+    test.expect_true(
+        flagged_duplicate_result.status == LegacyWorldStoryVmStatus::yielded &&
+            flagged_duplicate.item_lists.party_item_lists[0]->nodes.size() ==
+                1U &&
+            flagged_duplicate.item_lists.party_item_lists[0]
+                    ->nodes.front()
+                    .quantity_a == 5U &&
+            flagged_duplicate.item_lists.party_item_lists[0]
+                    ->nodes.front()
+                    .definition_snapshot[0x21U] == 0U,
+        "opcode 131 preserves sub_44D0F0's negative flagged deletion fall-through into the unflagged scan"
+    );
+
+    Fixture wrapped_keep;
+    auto& wrapping =
+        wrapped_keep.item_lists.party_item_lists[0]->nodes.emplace_back();
+    wrapping.item_id = 0xC125U;
+    wrapping.quantity_a = 0x7FFFU;
+    wrapping.quantity_b = 1U;
+    wrapping.definition_snapshot[0x21U] = 0x80U;
+    set_restriction(wrapping, 0x8000U);
+    prime_loaded_instruction(wrapped_keep, OP_131_ADD_PARTY_ITEM_IF_ALLOWED);
+    write_u16(wrapped_keep.state.window, 2U, 0U);
+    write_u16(wrapped_keep.state.window, 4U, 0xC125U);
+    write_u16(wrapped_keep.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(wrapped_keep.state.window, 8U, 0x0073U);
+    const auto wrapped_keep_result = wrapped_keep.step();
+
+    Fixture wrapped_delete;
+    auto& deleted =
+        wrapped_delete.item_lists.party_item_lists[0]->nodes.emplace_back();
+    deleted.item_id = 0xC126U;
+    deleted.quantity_a = 0xFFFFU;
+    prime_loaded_instruction(wrapped_delete, OP_131_ADD_PARTY_ITEM_IF_ALLOWED);
+    write_u16(wrapped_delete.state.window, 2U, 0U);
+    write_u16(wrapped_delete.state.window, 4U, 0xC126U);
+    const auto wrapped_delete_result = wrapped_delete.step();
+
+    Fixture clamp;
+    auto& clamped = clamp.item_lists.party_item_lists[0]->nodes.emplace_back();
+    clamped.item_id = 0xC127U;
+    clamped.quantity_a = 99U;
+    clamped.quantity_b = 8U;
+    set_restriction(clamped, 0x8000U);
+    prime_loaded_instruction(clamp, OP_131_ADD_PARTY_ITEM_IF_ALLOWED);
+    write_u16(clamp.state.window, 2U, 0U);
+    write_u16(clamp.state.window, 4U, 0xC127U);
+    write_u16(clamp.state.window, 6U, OP_59_PLAY_SOUND_EFFECT);
+    write_u16(clamp.state.window, 8U, 0x0073U);
+    const auto clamp_result = clamp.step();
+
+    test.expect_true(
+        wrapped_keep_result.status == LegacyWorldStoryVmStatus::yielded &&
+            wrapping.quantity_a == 0U && wrapping.quantity_b == 1U &&
+            wrapping.definition_snapshot[0x21U] == 0U &&
+            wrapped_delete_result.status ==
+                LegacyWorldStoryVmStatus::item_update_failed &&
+            wrapped_delete.item_lists.party_item_lists[0]->nodes.empty() &&
+            wrapped_delete.context.instruction_offset == 0U &&
+            wrapped_delete.state.previous_opcode == 0U &&
+            clamp_result.status == LegacyWorldStoryVmStatus::yielded &&
+            clamped.quantity_a == 99U && clamped.quantity_b == 0U,
+        "opcode 131 preserves mode1 i16 wrapping, null-return unsafe point, and the signed 99 clamp"
+    );
+
+    Fixture definition_failure;
+    definition_failure.ports.item_definition_load_success = false;
+    prime_loaded_instruction(
+        definition_failure, OP_131_ADD_PARTY_ITEM_IF_ALLOWED
+    );
+    write_u16(definition_failure.state.window, 2U, 0U);
+    write_u16(definition_failure.state.window, 4U, 0x0234U);
+    const auto definition_failure_result = definition_failure.step();
+
+    Fixture missing_owner;
+    missing_owner.runtime.party_item_lists = nullptr;
+    prime_loaded_instruction(missing_owner, OP_131_ADD_PARTY_ITEM_IF_ALLOWED);
+    write_u16(missing_owner.state.window, 2U, 0U);
+    write_u16(missing_owner.state.window, 4U, 0x0234U);
+    const auto missing_owner_result = missing_owner.step();
+
+    Fixture missing_root;
+    missing_root.item_lists.party_item_lists[2].reset();
+    prime_loaded_instruction(missing_root, OP_131_ADD_PARTY_ITEM_IF_ALLOWED);
+    write_u16(missing_root.state.window, 2U, 2U);
+    write_u16(missing_root.state.window, 4U, 0x0234U);
+    const auto missing_root_result = missing_root.step();
+
+    test.expect_true(
+        definition_failure_result.status ==
+                LegacyWorldStoryVmStatus::item_update_failed &&
+            definition_failure.item_lists.party_item_lists[0]->nodes.empty() &&
+            definition_failure.context.instruction_offset == 0U &&
+            definition_failure.state.previous_opcode == 0U &&
+            missing_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_root_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable,
+        "opcode 131 stops at the original add-result or selected-root unsafe point without publishing completion"
+    );
+
+    Fixture group_truncated;
+    group_truncated.context.instruction_offset = 0x7FFEU;
+    group_truncated.context.talk_data_offset = 0x1111U;
+    group_truncated.state.loaded_file_number = 1U;
+    group_truncated.state.loaded_data_offset = 0x1111U;
+    group_truncated.state.window_loaded = true;
+    write_u16(
+        group_truncated.state.window, 0x7FFEU, OP_131_ADD_PARTY_ITEM_IF_ALLOWED
+    );
+    const auto group_truncated_result = group_truncated.step();
+
+    Fixture item_truncated;
+    item_truncated.context.instruction_offset = 0x7FFCU;
+    item_truncated.context.talk_data_offset = 0x1111U;
+    item_truncated.state.loaded_file_number = 1U;
+    item_truncated.state.loaded_data_offset = 0x1111U;
+    item_truncated.state.window_loaded = true;
+    item_truncated.runtime.party_item_lists = nullptr;
+    write_u16(
+        item_truncated.state.window, 0x7FFCU, OP_131_ADD_PARTY_ITEM_IF_ALLOWED
+    );
+    write_u16(item_truncated.state.window, 0x7FFEU, 4U);
+    const auto item_truncated_result = item_truncated.step();
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.runtime.party_item_lists = nullptr;
+    write_u16(
+        exact_tail.state.window, 0x7FFAU, OP_131_ADD_PARTY_ITEM_IF_ALLOWED
+    );
+    write_u16(exact_tail.state.window, 0x7FFCU, 4U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 0x0234U);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        group_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            group_truncated.context.instruction_offset == 0x7FFEU &&
+            item_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            item_truncated.context.instruction_offset == 0x7FFCU &&
+            item_truncated.ports.item_definition_load_count == 0U &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_131_ADD_PARTY_ITEM_IF_ALLOWED,
+        "opcode 131 reads both operands before party validation and completes an invalid exact-tail record before the next fetch"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -26854,6 +27213,7 @@ int main(const int argument_count, char** arguments) {
     test_role_base_variant_reload_protocol(test);
     test_adjust_player_item_quantity_protocol(test);
     test_item_presence_reload_protocol(test);
+    test_add_party_item_if_allowed_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
