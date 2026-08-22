@@ -148,6 +148,7 @@ using openswd3::world_map::OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID;
 using openswd3::world_map::OP_119_WAIT_DIALOG_FLAG_BIT0;
 using openswd3::world_map::OP_120_UPDATE_ROLE_ACTION_FIELDS;
 using openswd3::world_map::OP_121_CLEAR_TEXT_CONTROL_BIT26;
+using openswd3::world_map::OP_122_CLEAR_SPEED_MODE;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -783,6 +784,7 @@ struct FixtureStorage {
         live_party_object_slots{};
     u32 indexed_target_selector{};
     openswd3::input_time_rng::LegacySecondaryRng secondary_rng{};
+    u32 speed_mode{};
     openswd3::world_map::LegacyWorldStoryVmRuntime runtime{};
     RecordingPorts ports{};
 };
@@ -818,6 +820,7 @@ struct Fixture {
     u32& indexed_target_selector = storage->indexed_target_selector;
     openswd3::input_time_rng::LegacySecondaryRng& secondary_rng =
         storage->secondary_rng;
+    u32& speed_mode = storage->speed_mode;
     openswd3::world_map::LegacyWorldStoryVmRuntime& runtime = storage->runtime;
     RecordingPorts& ports = storage->ports;
 
@@ -846,6 +849,7 @@ struct Fixture {
         runtime.camera = &camera;
         runtime.indexed_target_selector = &indexed_target_selector;
         runtime.secondary_rng = &secondary_rng;
+        runtime.speed_mode = &speed_mode;
         dialog_resources.frame_actions[0].action_id = 0x232DU;
         dialog_resources.caption_actions[0].action_id = 0x2337U;
     }
@@ -18572,6 +18576,73 @@ void test_clear_text_control_bit26_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_clear_speed_mode_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.speed_mode = 0x80000001U;
+        prime_loaded_instruction(
+            fixture, static_cast<u16>(OP_122_CLEAR_SPEED_MODE | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.speed_mode == 0U &&
+                fixture.state.previous_opcode == OP_122_CLEAR_SPEED_MODE,
+            "opcode 122 aliases clear the shared speed mode and continue"
+        );
+    }
+
+    Fixture already_clear;
+    prime_loaded_instruction(already_clear, OP_122_CLEAR_SPEED_MODE);
+    write_u16(already_clear.state.window, 2U, OP_1025);
+    const auto already_clear_result = already_clear.step();
+
+    Fixture unavailable;
+    unavailable.speed_mode = 1U;
+    unavailable.runtime.speed_mode = nullptr;
+    prime_loaded_instruction(unavailable, OP_122_CLEAR_SPEED_MODE);
+    const auto unavailable_result = unavailable.step();
+
+    Fixture exact_tail;
+    exact_tail.speed_mode = 1U;
+    prime_loaded_instruction(exact_tail, OP_122_CLEAR_SPEED_MODE);
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    write_u16(exact_tail.state.window, 0x7FFEU, OP_122_CLEAR_SPEED_MODE);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        already_clear_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            already_clear.speed_mode == 0U &&
+            already_clear.state.previous_opcode == OP_122_CLEAR_SPEED_MODE &&
+            unavailable_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            unavailable_result.executed_instruction_count == 1U &&
+            unavailable.context.instruction_offset == 0U &&
+            unavailable.speed_mode == 1U &&
+            unavailable.state.previous_opcode == 0U &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.speed_mode == 0U &&
+            exact_tail.state.previous_opcode == OP_122_CLEAR_SPEED_MODE,
+        "opcode 122 preserves the typed owner boundary and exact-tail order"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -22169,6 +22240,53 @@ void test_real_clear_text_control_bit26_records(
     }
 }
 
+void test_real_clear_speed_mode_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+    };
+    constexpr std::array<RealCase, 4U> cases{
+        RealCase{"TALK1.DAT", 0x00041D98},
+        RealCase{"TALK2.DAT", 0x000190F9},
+        RealCase{"TALK3.DAT", 0x000100A6},
+        RealCase{"TALK4.DAT", 0x00022045},
+    };
+
+    for (const auto& real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 2U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        Fixture fixture;
+        fixture.speed_mode = 1U;
+        prime_loaded_instruction(fixture, OP_122_CLEAR_SPEED_MODE);
+        fixture.context.instruction_offset = 0x7FFEU;
+        std::ranges::copy(record, fixture.state.window.begin() + 0x7FFEU);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read && read_u16(record, 0U) == OP_122_CLEAR_SPEED_MODE &&
+                result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 0x8000U &&
+                fixture.speed_mode == 0U &&
+                fixture.state.previous_opcode == OP_122_CLEAR_SPEED_MODE,
+            "real opcode 122 clears speed mode before exact-tail completion"
+        );
+    }
+}
+
 void test_real_wait_primary_picture_action_byte_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -24905,6 +25023,7 @@ int main(const int argument_count, char** arguments) {
     test_set_text_layout_pair_protocol(test);
     test_clear_text_control_bit27_protocol(test);
     test_clear_text_control_bit26_protocol(test);
+    test_clear_speed_mode_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -24983,6 +25102,7 @@ int main(const int argument_count, char** arguments) {
         test_real_set_text_layout_pair_records(test, root);
         test_real_clear_text_control_bit27_records(test, root);
         test_real_clear_text_control_bit26_records(test, root);
+        test_real_clear_speed_mode_records(test, root);
         test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_wait_role_action_index_records(test, root);
         test_real_step_role_list_records(test, root);

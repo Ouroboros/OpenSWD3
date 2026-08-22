@@ -3847,6 +3847,7 @@ public:
                 .current_tick =
                     frame_preparation_state_.frame_clock.sampled_milliseconds,
                 .secondary_rng = &secondary_rng_,
+                .speed_mode = &world_player_control_state_.speed_mode,
             };
             openswd3::world_map::advance_legacy_world_script_clock(
                 world_story_vm_state_

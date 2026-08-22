@@ -211,6 +211,8 @@ bit0 == 1                         -> 消费
 
 opcode121无operand，只对完整text-control u32执行`AND FBFFFFFF`清bit26，再经共享尾+2、发布previous121并same-call。815条真实记录/815 probes、四库精确尾、四alias与幂等清位通过；完整证据见[`story-vm-text-control-bit26-clear-0042bc2c.md`](story-vm-text-control-bit26-clear-0042bc2c.md)。
 
+opcode122无operand，把world/player/dialog共享的进程级速度模式完整dword清零，再经共享尾+2、发布previous122并same-call。现代VM借用SDL玩家控制实际owner；固定裸全局缺失只在原写点typed-stop。7条真实记录/7 probes、四库精确尾、四alias与共享owner通过；完整证据见[`story-vm-speed-mode-clear-0042bc3d.md`](story-vm-speed-mode-clear-0042bc3d.md)。
+
 ## opcode 123：Scene_Music 表项的非对称复制
 
 123 从 `dword_4C9A10` 的相对偏移链取得 8 字节一项、以 key 零结束的 Scene_Music 表。`+2` 为查找 key；若是 `FFF0`，只在比较时以 `ArgList` 低 16 位替代。找到匹配项后实际复制：

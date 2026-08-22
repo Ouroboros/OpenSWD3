@@ -147,6 +147,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_119_WAIT_DIALOG_FLAG_BIT0 = 119U,
     OP_120_UPDATE_ROLE_ACTION_FIELDS = 120U,
     OP_121_CLEAR_TEXT_CONTROL_BIT26 = 121U,
+    OP_122_CLEAR_SPEED_MODE = 122U,
     OP_136_SET_ROLE_STATUS_BIT12 = 136U,
     OP_139_WAIT_DIALOG_FLAG_BIT15 = 139U,
     OP_140_SET_ROLE_STATUS_BIT11 = 140U,
@@ -242,6 +243,9 @@ struct LegacyWorldStoryVmRuntime {
     compat::u32 map_height{};
     compat::u32 current_tick{};
     input_time_rng::LegacySecondaryRng* secondary_rng{};
+    // dword_4CAEB8 is shared with sub_402F80's player speed toggle and the
+    // shared dialog runtime. Opcode 122 clears the same process-level owner.
+    compat::u32* speed_mode{};
 };
 
 void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept;
