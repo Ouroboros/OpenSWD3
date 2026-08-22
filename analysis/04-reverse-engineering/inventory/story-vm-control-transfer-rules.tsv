@@ -22,8 +22,8 @@ effective_opcode	branch_kind	target_shape	target_offset	sequential_possible	sele
 161	unconditional_story_reload	s16_story_id	+2	no	sign-extended operand passed to unsigned file/slot arithmetic	0x0042CBE3	0x0042CBCC-0x0042CBFA;0x0042E480-0x0042E594
 163	conditional_same_file_reload	u32	+4	yes	signed i16 map operand differs from full current logical map dword; target read only when taken	0x0042CCDB	0x0042CBFF-0x0042CC30;0x0042E430-0x0042E47B
 164	conditional_same_file_reload	u32	+4	yes	signed i16 map operand equals full current logical map dword; target read only when taken	0x0042CCDB	0x0042CBFF-0x0042CC30;0x0042E430-0x0042E47B
-165	conditional_same_file_reload	u32	+6	yes	combined role statistic threshold predicate	0x0042CCDB	0x0042CC35-0x0042CCF2
-166	conditional_same_file_reload	u32	+6	yes	combined role statistic threshold predicate	0x0042CCDB	0x0042CC35-0x0042CCF2
+165	conditional_same_file_reload	u32	+6	yes	signed player/root quantity total nonzero and at least signed threshold; zero total always sequential	0x0042CCDB	0x0042CC35-0x0042CCF2;0x0044D650-0x0044D6A6;0x0042E430-0x0042E47B
+166	conditional_same_file_reload	u32	+6	yes	signed player/root quantity total zero or nonzero and at most signed threshold	0x0042CCDB	0x0042CC35-0x0042CCF2;0x0044D650-0x0044D6A6;0x0042E430-0x0042E47B
 167	conditional_same_file_reload	u32	+4	yes	role lookup/existence predicate refined by opcode	0x0042CCDB	0x0042BEFE-0x0042BF6D
 168	conditional_same_file_reload	u32	+4	yes	role lookup/existence predicate refined by opcode	0x0042CCDB	0x0042BEFE-0x0042BF6D
 184	conditional_same_file_reload	u32	+8	yes	32-bit global numeric >= / <= predicate	0x0042B1AB	0x0042B13D-0x0042B1E4

@@ -196,6 +196,8 @@ using openswd3::world_map::OP_161_TRANSFER_STORY;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_163_RELOAD_IF_CURRENT_MAP_NOT_EQUAL;
 using openswd3::world_map::OP_164_RELOAD_IF_CURRENT_MAP_EQUAL;
+using openswd3::world_map::OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST;
+using openswd3::world_map::OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_174_SET_ROLE_STATUS_BIT14;
@@ -2512,6 +2514,356 @@ void test_current_map_reload_protocol(openswd3::test::Context& test) {
             load_failure.ports.story_protocol_events ==
                 std::vector<u32>{2U, 5U},
         "opcodes 163 and 164 preserve audio, context writes, previous publication, and stale loaded ownership at the checked same-file load failure boundary"
+    );
+}
+
+void test_item_total_reload_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    constexpr std::array<u16, 2U> opcodes{
+        OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST,
+        OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST,
+    };
+    constexpr u16 item_id = 0x0123U;
+    constexpr u32 target = 0x12345678U;
+
+    for (const u16 opcode : opcodes) {
+        for (const u16 alias_mask : alias_masks) {
+            Fixture fixture;
+            auto& player_item = fixture.player_inventory.emplace_back();
+            player_item.item_id = 0xC123U;
+            player_item.selected_count = 0xFFFFU;
+            player_item.quantity_a = 5U;
+            player_item.quantity_b = 0xFFFEU;
+            auto& role_item = fixture.item_lists.role_item_lists[2U]->sentinel;
+            role_item.item_id = item_id;
+            role_item.selected_count = 0xFFFFU;
+            role_item.quantity_a = 4U;
+            role_item.quantity_b = 5U;
+            prime_loaded_instruction(
+                fixture, static_cast<u16>(opcode | alias_mask)
+            );
+            write_u16(fixture.state.window, 2U, item_id);
+            write_u16(fixture.state.window, 4U, 12U);
+            write_u32(fixture.state.window, 6U, target);
+            fixture.state.window[300U] = 0xA5U;
+            fixture.state.previous_opcode = 0x66U;
+            write_u16(fixture.ports.transferred_window, 0U, 1026U);
+            write_u16(fixture.ports.transferred_window, 2U, OP_1025);
+
+            const auto result = fixture.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                    result.opcode == OP_1025 &&
+                    result.executed_instruction_count == 3U &&
+                    result.load_status == LegacyTalkWindowStatus::ready &&
+                    result.direct_audio_service_count == 1U &&
+                    fixture.ports.data_load_count == 1U &&
+                    fixture.ports.last_data_file_number == 1U &&
+                    fixture.ports.last_data_offset == target &&
+                    !fixture.ports.last_data_clear_before_read &&
+                    fixture.context.talk_data_offset == target &&
+                    fixture.context.instruction_offset == 2U &&
+                    fixture.state.loaded_data_offset == target &&
+                    fixture.state.window[300U] == 0xA5U &&
+                    fixture.state.previous_opcode == opcode &&
+                    fixture.ports.story_protocol_events ==
+                        std::vector<u32>{2U, 5U},
+                "opcodes 165 and 166 cover every raw alias, sum signed player and role-root quantities, ignore selected-count fields, and take equality at both threshold boundaries"
+            );
+        }
+    }
+
+    Fixture at_least_miss;
+    auto& low_player = at_least_miss.player_inventory.emplace_back();
+    low_player.item_id = 0xC123U;
+    low_player.quantity_b = 0xFFFEU;
+    prime_loaded_instruction(
+        at_least_miss, OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST
+    );
+    write_u16(at_least_miss.state.window, 2U, item_id);
+    write_u16(at_least_miss.state.window, 4U, 0xFFFFU);
+    write_u32(at_least_miss.state.window, 6U, 0xDEADBEEFU);
+    write_u16(at_least_miss.state.window, 10U, OP_1025);
+    const auto at_least_miss_result = at_least_miss.step();
+
+    Fixture at_most_miss;
+    auto& high_player = at_most_miss.player_inventory.emplace_back();
+    high_player.item_id = 0xC123U;
+    high_player.quantity_a = 13U;
+    prime_loaded_instruction(at_most_miss, OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST);
+    write_u16(at_most_miss.state.window, 2U, item_id);
+    write_u16(at_most_miss.state.window, 4U, 12U);
+    write_u32(at_most_miss.state.window, 6U, 0xDEADBEEFU);
+    write_u16(at_most_miss.state.window, 10U, OP_1025);
+    const auto at_most_miss_result = at_most_miss.step();
+
+    test.expect_true(
+        at_least_miss_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            at_least_miss_result.executed_instruction_count == 2U &&
+            at_least_miss.context.instruction_offset == 10U &&
+            at_least_miss.state.previous_opcode ==
+                OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST &&
+            at_least_miss.ports.data_load_count == 0U &&
+            at_most_miss_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            at_most_miss_result.executed_instruction_count == 2U &&
+            at_most_miss.context.instruction_offset == 10U &&
+            at_most_miss.state.previous_opcode ==
+                OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST &&
+            at_most_miss.ports.data_load_count == 0U,
+        "opcodes 165 and 166 compare nonzero totals as signed at-least and at-most predicates and same-call the ten-byte sequential successor"
+    );
+
+    Fixture zero_at_least;
+    auto& flagged_role_root =
+        zero_at_least.item_lists.role_item_lists[0U]->sentinel;
+    flagged_role_root.item_id = 0xC123U;
+    flagged_role_root.quantity_a = 99U;
+    auto& linked_role_item =
+        zero_at_least.item_lists.role_item_lists[0U]->nodes.emplace_back();
+    linked_role_item.item_id = item_id;
+    linked_role_item.quantity_a = 99U;
+    prime_loaded_instruction(
+        zero_at_least, OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST
+    );
+    write_u16(zero_at_least.state.window, 2U, item_id);
+    write_u16(zero_at_least.state.window, 4U, 0x8000U);
+    write_u16(zero_at_least.state.window, 10U, OP_1025);
+    const auto zero_at_least_result = zero_at_least.step();
+
+    Fixture zero_at_most;
+    auto& cancelling_player = zero_at_most.player_inventory.emplace_back();
+    cancelling_player.item_id = 0xC123U;
+    cancelling_player.quantity_a = 5U;
+    cancelling_player.quantity_b = 0xFFFBU;
+    prime_loaded_instruction(zero_at_most, OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST);
+    write_u16(zero_at_most.state.window, 2U, item_id);
+    write_u16(zero_at_most.state.window, 4U, 0x8000U);
+    write_u32(zero_at_most.state.window, 6U, target);
+    write_u16(zero_at_most.ports.transferred_window, 0U, 1026U);
+    write_u16(zero_at_most.ports.transferred_window, 2U, OP_1025);
+    const auto zero_at_most_result = zero_at_most.step();
+
+    test.expect_true(
+        zero_at_least_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            zero_at_least_result.executed_instruction_count == 2U &&
+            zero_at_least.context.instruction_offset == 10U &&
+            zero_at_least.ports.data_load_count == 0U &&
+            zero_at_most_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            zero_at_most_result.executed_instruction_count == 3U &&
+            zero_at_most_result.direct_audio_service_count == 1U &&
+            zero_at_most.context.talk_data_offset == target &&
+            zero_at_most.ports.data_load_count == 1U &&
+            zero_at_most.state.previous_opcode ==
+                OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST,
+        "zero totals preserve the original opcode-165 sequential and opcode-166 reload special cases regardless of signed threshold, while role roots use exact IDs and ignore linked nodes"
+    );
+
+    Fixture selector_truncated;
+    selector_truncated.context.instruction_offset = 0x7FFEU;
+    selector_truncated.context.talk_data_offset = 0x1111U;
+    selector_truncated.state.loaded_file_number = 1U;
+    selector_truncated.state.loaded_data_offset = 0x1111U;
+    selector_truncated.state.window_loaded = true;
+    selector_truncated.state.previous_opcode = 0x66U;
+    selector_truncated.runtime.player_inventory = nullptr;
+    selector_truncated.runtime.role_item_lists = nullptr;
+    write_u16(
+        selector_truncated.state.window,
+        0x7FFEU,
+        OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST
+    );
+    const auto selector_truncated_result = selector_truncated.step();
+
+    Fixture missing_player_owner;
+    missing_player_owner.runtime.player_inventory = nullptr;
+    prime_loaded_instruction(
+        missing_player_owner, OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST
+    );
+    write_u16(missing_player_owner.state.window, 2U, item_id);
+    const auto missing_player_owner_result = missing_player_owner.step();
+
+    Fixture missing_role_owner;
+    missing_role_owner.player_inventory.emplace_back().item_id = 0xC123U;
+    missing_role_owner.runtime.role_item_lists = nullptr;
+    prime_loaded_instruction(
+        missing_role_owner, OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST
+    );
+    write_u16(missing_role_owner.state.window, 2U, item_id);
+    const auto missing_role_owner_result = missing_role_owner.step();
+
+    Fixture missing_role_root;
+    missing_role_root.item_lists.role_item_lists[0U].reset();
+    missing_role_root.item_lists.role_item_lists[1U]->sentinel.item_id =
+        item_id;
+    prime_loaded_instruction(
+        missing_role_root, OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST
+    );
+    write_u16(missing_role_root.state.window, 2U, item_id);
+    const auto missing_role_root_result = missing_role_root.step();
+
+    Fixture early_role_match;
+    auto& early_item =
+        early_role_match.item_lists.role_item_lists[0U]->sentinel;
+    early_item.item_id = item_id;
+    early_item.quantity_a = 1U;
+    early_role_match.item_lists.role_item_lists[1U].reset();
+    prime_loaded_instruction(
+        early_role_match, OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST
+    );
+    write_u16(early_role_match.state.window, 2U, item_id);
+    write_u16(early_role_match.state.window, 4U, 1U);
+    write_u32(early_role_match.state.window, 6U, target);
+    write_u16(early_role_match.ports.transferred_window, 0U, 1026U);
+    write_u16(early_role_match.ports.transferred_window, 2U, OP_1025);
+    const auto early_role_match_result = early_role_match.step();
+
+    test.expect_true(
+        selector_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            selector_truncated.state.previous_opcode == 0x66U &&
+            missing_player_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_role_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_role_root_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            early_role_match_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            early_role_match_result.executed_instruction_count == 3U &&
+            early_role_match.ports.data_load_count == 1U,
+        "opcodes 165 and 166 read the item operand before owners, query player before role roots, typed-stop at the first missing root, and return before later missing roots after a match"
+    );
+
+    Fixture threshold_truncated;
+    threshold_truncated.context.instruction_offset = 0x7FFCU;
+    threshold_truncated.context.talk_data_offset = 0x1111U;
+    threshold_truncated.state.loaded_file_number = 1U;
+    threshold_truncated.state.loaded_data_offset = 0x1111U;
+    threshold_truncated.state.window_loaded = true;
+    threshold_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        threshold_truncated.state.window,
+        0x7FFCU,
+        OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST
+    );
+    write_u16(threshold_truncated.state.window, 0x7FFEU, item_id);
+    const auto threshold_truncated_result = threshold_truncated.step();
+
+    Fixture target_truncated;
+    target_truncated.context.instruction_offset = 0x7FFAU;
+    target_truncated.context.talk_data_offset = 0x1111U;
+    target_truncated.state.loaded_file_number = 1U;
+    target_truncated.state.loaded_data_offset = 0x1111U;
+    target_truncated.state.window_loaded = true;
+    target_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        target_truncated.state.window,
+        0x7FFAU,
+        OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST
+    );
+    write_u16(target_truncated.state.window, 0x7FFCU, item_id);
+    write_u16(target_truncated.state.window, 0x7FFEU, 0x8000U);
+    const auto target_truncated_result = target_truncated.step();
+
+    Fixture target_unread;
+    target_unread.context.instruction_offset = 0x7FFAU;
+    target_unread.context.talk_data_offset = 0x1111U;
+    target_unread.state.loaded_file_number = 1U;
+    target_unread.state.loaded_data_offset = 0x1111U;
+    target_unread.state.window_loaded = true;
+    target_unread.state.previous_opcode = 0x66U;
+    write_u16(
+        target_unread.state.window,
+        0x7FFAU,
+        OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST
+    );
+    write_u16(target_unread.state.window, 0x7FFCU, item_id);
+    write_u16(target_unread.state.window, 0x7FFEU, 0x8000U);
+    const auto target_unread_result = target_unread.step();
+
+    Fixture exact_tail;
+    exact_tail.context.instruction_offset = 0x7FF6U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    exact_tail.state.window[300U] = 0xA5U;
+    write_u16(
+        exact_tail.state.window, 0x7FF6U, OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST
+    );
+    write_u16(exact_tail.state.window, 0x7FF8U, item_id);
+    write_u16(exact_tail.state.window, 0x7FFAU, 0x8000U);
+    write_u32(exact_tail.state.window, 0x7FFCU, target);
+    write_u16(exact_tail.ports.transferred_window, 0U, 1026U);
+    write_u16(exact_tail.ports.transferred_window, 2U, OP_1025);
+    const auto exact_tail_result = exact_tail.step();
+
+    test.expect_true(
+        threshold_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            threshold_truncated.context.instruction_offset == 0x7FFCU &&
+            threshold_truncated.state.previous_opcode == 0x66U &&
+            target_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            target_truncated.context.instruction_offset == 0x7FFAU &&
+            target_truncated.state.previous_opcode == 0x66U &&
+            target_unread_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            target_unread.context.instruction_offset == 0x8004U &&
+            target_unread.state.previous_opcode ==
+                OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST &&
+            exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            exact_tail_result.opcode == OP_1025 &&
+            exact_tail_result.executed_instruction_count == 3U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.context.talk_data_offset == target &&
+            exact_tail.context.instruction_offset == 2U &&
+            exact_tail.state.previous_opcode ==
+                OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST &&
+            exact_tail.state.window[300U] == 0xA5U &&
+            threshold_truncated.ports.data_load_count == 0U &&
+            target_truncated.ports.data_load_count == 0U &&
+            target_unread.ports.data_load_count == 0U &&
+            exact_tail.ports.data_load_count == 1U,
+        "opcodes 165 and 166 stage threshold and taken-only target reads, leave the zero-at-least target unread, and preserve exact-tail same-call behavior"
+    );
+
+    Fixture load_failure;
+    prime_loaded_instruction(load_failure, OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST);
+    write_u16(load_failure.state.window, 2U, item_id);
+    write_u16(load_failure.state.window, 4U, 0x8000U);
+    write_u32(load_failure.state.window, 6U, target);
+    load_failure.state.previous_opcode = 0x66U;
+    load_failure.ports.data_load_status =
+        LegacyTalkWindowStatus::data_read_failed;
+    const auto load_failure_result = load_failure.step();
+
+    test.expect_true(
+        load_failure_result.status == LegacyWorldStoryVmStatus::load_failed &&
+            load_failure_result.executed_instruction_count == 1U &&
+            load_failure_result.load_status ==
+                LegacyTalkWindowStatus::data_read_failed &&
+            load_failure_result.direct_audio_service_count == 1U &&
+            load_failure.context.talk_data_offset == target &&
+            load_failure.context.instruction_offset == 0U &&
+            load_failure.state.previous_opcode ==
+                OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST &&
+            !load_failure.state.window_loaded &&
+            load_failure.state.loaded_data_offset == 0x1111U &&
+            load_failure.ports.story_protocol_events ==
+                std::vector<u32>{2U, 5U},
+        "opcodes 165 and 166 preserve audio, context writes, previous publication, and stale loaded ownership at the checked same-file load failure boundary"
     );
 }
 
@@ -25415,6 +25767,113 @@ void test_real_current_map_reload_records(
     }
 }
 
+void test_real_item_total_reload_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct Sample {
+        std::streamoff file_offset;
+        u16 item_id;
+        u32 target;
+        u16 target_opcode;
+    };
+    constexpr std::array samples{
+        Sample{
+            0x00004F16U,
+            795U,
+            0x00004D26U,
+            OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST,
+        },
+        Sample{0x00005470U, 798U, 0x000052EFU, 1026U},
+        Sample{0x000057B5U, 798U, 0x00005662U, 1026U},
+    };
+
+    bool all_records_valid = true;
+    for (const auto sample : samples) {
+        std::ifstream input{
+            root / "TALK4.DAT", std::ios::binary | std::ios::in
+        };
+        std::array<u8, 10U> instruction{};
+        input.seekg(sample.file_offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        if (!input) {
+            all_records_valid = false;
+            continue;
+        }
+
+        std::array<u8, 2U> target_instruction{};
+        input.seekg(static_cast<std::streamoff>(sample.target) + 0x200);
+        input.read(
+            reinterpret_cast<char*>(target_instruction.data()),
+            static_cast<std::streamsize>(target_instruction.size())
+        );
+        all_records_valid = all_records_valid && static_cast<bool>(input) &&
+            (read_u16(instruction, 0U) & 0x3FFFU) ==
+                OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST &&
+            read_u16(instruction, 2U) == sample.item_id &&
+            std::bit_cast<i16>(read_u16(instruction, 4U)) == 1 &&
+            read_u32(instruction, 6U) == sample.target &&
+            (read_u16(target_instruction, 0U) & 0x3FFFU) ==
+                sample.target_opcode;
+    }
+    test.expect_true(
+        all_records_valid,
+        "all three real opcode 165 records preserve item, signed threshold, same-file target, and target-opcode bytes"
+    );
+
+    std::ifstream input{root / "TALK4.DAT", std::ios::binary | std::ios::in};
+    std::array<u8, 10U> instruction{};
+    input.seekg(0x00005470U);
+    input.read(
+        reinterpret_cast<char*>(instruction.data()),
+        static_cast<std::streamsize>(instruction.size())
+    );
+    const bool instruction_read = static_cast<bool>(input);
+
+    Fixture fixture;
+    prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+    std::ranges::copy(instruction, fixture.state.window.begin());
+    fixture.state.loaded_file_number = 4U;
+    fixture.state.loaded_data_offset = 0x00005270U;
+    fixture.context.talk_data_offset = 0x00005270U;
+    auto& player_item = fixture.player_inventory.emplace_back();
+    player_item.item_id = 0xC31EU;
+    player_item.quantity_a = 1U;
+    fixture.state.window[300U] = 0xA5U;
+    write_u16(fixture.ports.transferred_window, 0U, 1026U);
+    write_u16(fixture.ports.transferred_window, 2U, OP_1025);
+
+    const auto result = fixture.step();
+    test.expect_true(
+        instruction_read &&
+            (read_u16(instruction, 0U) & 0x3FFFU) ==
+                OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST &&
+            read_u16(instruction, 2U) == 798U &&
+            std::bit_cast<i16>(read_u16(instruction, 4U)) == 1 &&
+            read_u32(instruction, 6U) == 0x000052EFU &&
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            result.opcode == OP_1025 &&
+            result.executed_instruction_count == 3U &&
+            result.load_status == LegacyTalkWindowStatus::ready &&
+            result.direct_audio_service_count == 1U &&
+            fixture.ports.data_load_count == 1U &&
+            fixture.ports.last_data_file_number == 4U &&
+            fixture.ports.last_data_offset == 0x000052EFU &&
+            !fixture.ports.last_data_clear_before_read &&
+            fixture.context.talk_data_offset == 0x000052EFU &&
+            fixture.context.instruction_offset == 2U &&
+            fixture.state.loaded_file_number == 4U &&
+            fixture.state.loaded_data_offset == 0x000052EFU &&
+            fixture.state.window[300U] == 0xA5U &&
+            fixture.state.previous_opcode ==
+                OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST &&
+            fixture.ports.story_protocol_events == std::vector<u32>{2U, 5U},
+        "real opcode 165 item 798 takes total-one equality and same-calls its TALK4 target"
+    );
+}
+
 void test_real_jump_same_file_offset_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -32101,6 +32560,7 @@ int main(const int argument_count, char** arguments) {
     test_dialog_explicit_layout_pair(test);
     test_story_transfer_protocol(test);
     test_current_map_reload_protocol(test);
+    test_item_total_reload_protocol(test);
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);
@@ -32257,6 +32717,7 @@ int main(const int argument_count, char** arguments) {
         test_real_wait_role_action_status_record(test, root);
         test_real_story_transfer_record(test, root);
         test_real_current_map_reload_records(test, root);
+        test_real_item_total_reload_records(test, root);
         test_real_jump_same_file_offset_record(test, root);
         test_real_jump_if_role_path_unprepared_record(test, root);
         test_real_jump_if_role_path_prepared_record(test, root);

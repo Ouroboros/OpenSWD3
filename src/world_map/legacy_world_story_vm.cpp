@@ -1739,6 +1739,30 @@ void decrement_party_item(
     return existing == inventory.end() ? nullptr : &*existing;
 }
 
+struct LegacyStoryRoleRootItemLookup {
+    bool roots_available{true};
+    const LegacyWorldItemNode* item{};
+};
+
+[[nodiscard]] LegacyStoryRoleRootItemLookup find_role_item_root_exact(
+    const std::array<
+        std::optional<LegacyWorldSentinelItemList>,
+        kLegacyRoleItemListCount>& role_item_lists,
+    const u16 item_id
+) noexcept {
+    for (const auto& list : role_item_lists) {
+        if (!list.has_value()) {
+            return {.roots_available = false};
+        }
+
+        if (list->sentinel.item_id == item_id) {
+            return {.item = &list->sentinel};
+        }
+    }
+
+    return {};
+}
+
 [[nodiscard]] LegacyWorldItemNode* find_player_inventory_node_by_address(
     std::list<LegacyWorldItemNode>& inventory, const std::uintptr_t address
 ) noexcept {
@@ -6938,6 +6962,93 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 state,
                 current_file_number(context, state),
                 read_u32(state.window, ip + 4U),
+                result,
+                ports
+            );
+            state.previous_opcode = result.opcode;
+            if (result.status != LegacyWorldStoryVmStatus::idle) {
+                return result;
+            }
+
+            continue;
+        }
+
+        case OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST:
+        case OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST: {
+            if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const u16 item_id = read_u16(state.window, ip + 2U);
+            if (runtime.player_inventory == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            i32 total{};
+            const auto* const player_item = find_player_inventory_item_masked(
+                *runtime.player_inventory, item_id
+            );
+            if (player_item != nullptr) {
+                total = static_cast<i32>(
+                    std::bit_cast<i16>(player_item->quantity_b)
+                );
+                total += static_cast<i32>(
+                    std::bit_cast<i16>(player_item->quantity_a)
+                );
+            }
+
+            if (runtime.role_item_lists == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            const auto role_item =
+                find_role_item_root_exact(*runtime.role_item_lists, item_id);
+            if (!role_item.roots_available) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            if (role_item.item != nullptr) {
+                i32 combined = static_cast<i32>(
+                    std::bit_cast<i16>(role_item.item->quantity_a)
+                );
+                combined += total;
+                combined += static_cast<i32>(
+                    std::bit_cast<i16>(role_item.item->quantity_b)
+                );
+                total = combined;
+            }
+
+            if (!has_bytes(state.window, ip + 4U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const i32 threshold =
+                static_cast<i16>(read_u16(state.window, ip + 4U));
+            const bool should_reload = total == 0
+                ? result.opcode == OP_166_RELOAD_IF_ITEM_TOTAL_AT_MOST
+                : (result.opcode == OP_165_RELOAD_IF_ITEM_TOTAL_AT_LEAST
+                       ? total >= threshold
+                       : total <= threshold);
+            if (!should_reload) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 10U);
+                state.previous_opcode = result.opcode;
+                continue;
+            }
+            if (!has_bytes(state.window, ip + 6U, sizeof(u32))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            result.status = load_same_file_story_window(
+                context,
+                state,
+                current_file_number(context, state),
+                read_u32(state.window, ip + 6U),
                 result,
                 ports
             );

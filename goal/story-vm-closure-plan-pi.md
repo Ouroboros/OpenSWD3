@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一shared handler `0x0042CC35`（opcodes165–166）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一shared handler `0x0042CCF7`（opcodes170–173）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -20,7 +20,7 @@ Pi 执行框架：继承 [`execution-plan-pi.md`](execution-plan-pi.md) 顶部�
 - 当前 C++ 接入 95 个显式 opcode。
 - 当前资产静态控制流观察到 143 个 opcode，其中仍有 68 个尚未实现。
 - 另有 55 个 opcode 未在当前资产静态控制流中观察到；未观察不等于不可达或可以删除。
-- `0..144`、`147..152`、`155..164`及`167..168`已有人工汇编语义；其余opcode目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
+- `0..144`、`147..152`及`155..168`已有人工汇编语义；其余opcode目前只有分派、长度和保守 CFG，尚不能直接翻译为 C++。
 - 当前已实现的 95 个 opcode 不继承完成状态，必须随所属 handler 组重新审计和验证。
 
 ## 3. 固定决策
@@ -284,7 +284,12 @@ u32 target并audio、同文件IP0重载、previous/same-call，not-taken不读ta
 谓词代表回放和synthetic通过。Story VM 3/3、Linux core186/186及app192/192完整门均通过。
 已实现171/198、
 已验收169/198；内部workpack为128/146，即`20 assembly_exact + 108 platform_adapted + 18 pending_audit`。
-下一行只审计`0x0042CC35`下的opcodes165–166。
+shared opcodes165/166恢复玩家masked链与64个角色完整ID root的signed数量总和；非零总和
+分别按`>=`/`<=`阈值，零总和保留165固定sequential、166固定reload特例。taken-only读取target
+并同文件IP0重载，not-taken固定+10 same-call。真实资产锁定TALK4三条opcode165、零条opcode166，
+三target均有效，代表等号taken回放与synthetic通过。Story VM 3/3、Linux core186/186及app192/192完整门均通过。
+已实现173/198、已验收171/198；内部workpack为129/146，即`20 assembly_exact + 109 platform_adapted + 17 pending_audit`。
+下一行只审计`0x0042CCF7`下的opcodes170–173。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

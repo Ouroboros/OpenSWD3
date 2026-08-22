@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 171
-EXPECTED_CLOSED_HANDLER_COUNT = 128
+EXPECTED_MODERN_CASE_COUNT = 173
+EXPECTED_CLOSED_HANDLER_COUNT = 129
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -684,6 +684,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-current-map-conditional-reload-0042cbff.md",
         "platform_adapted;unit_tested;real_asset_tested;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;shared_handler_all_variants_tested;shared_owner_tested;staged_operand_tested;signed_operand_tested;unread_operand_tested;inverted_predicate_tested;previous_publication_tested;same_call_tested;audio_order_tested;load_failure_tested;window_tail_preserved",
+    ),
+    "0x0042CC35": (
+        "platform_adapted",
+        "story-vm-item-total-conditional-reload-0042cc35.md",
+        "platform_adapted;unit_tested;real_asset_tested;asset_absence_verified;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;shared_handler_all_variants_tested;shared_owner_tested;staged_operand_tested;signed_operand_tested;unread_operand_tested;zero_total_special_case_tested;masked_player_item_tested;exact_role_root_tested;first_match_tested;previous_publication_tested;same_call_tested;audio_order_tested;load_failure_tested;window_tail_preserved",
     ),
 }
 
