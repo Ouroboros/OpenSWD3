@@ -1148,7 +1148,7 @@ struct MapRoleWriteHarness {
     openswd3::asset_runtime::LegacyAniRoleParticleEffect particles;
 
     explicit MapRoleWriteHarness(
-        Fixture& source_fixture, const u16 current_map_id = 5U
+        Fixture& source_fixture, const u32 current_map_id = 5U
     )
         : fixture(source_fixture) {
         fixture.roles.reserve(16U);
@@ -12862,7 +12862,7 @@ void test_write_map_role_materialization_protocol(
     openswd3::test::Context& test
 ) {
     Fixture replaced;
-    MapRoleWriteHarness replacement{replaced};
+    MapRoleWriteHarness replacement{replaced, 0x00010005U};
     auto& old_role = replaced.roles[1];
     old_role.guid = 0x00F8U;
     old_role.world_x = 4U << 4U;
@@ -23605,6 +23605,7 @@ void test_wait_ani_follower_target_protocol(openswd3::test::Context& test) {
 }
 
 void test_reload_current_world_session_protocol(openswd3::test::Context& test) {
+    constexpr u32 kWideLogicalMapId = 0x01230015U;
     constexpr std::array<u16, 4U> alias_masks{
         0U,
         0x4000U,
@@ -23614,7 +23615,7 @@ void test_reload_current_world_session_protocol(openswd3::test::Context& test) {
 
     for (const u16 alias_mask : alias_masks) {
         Fixture fixture;
-        fixture.runtime.current_logical_map_id = 21U;
+        fixture.runtime.current_logical_map_id = kWideLogicalMapId;
         fixture.runtime.role_surface.selected_guid = 0x00F8U;
         fixture.roles[0].world_x = 0xFFFEDCBAU;
         fixture.roles[0].world_y = 0x81234567U;
@@ -23634,12 +23635,12 @@ void test_reload_current_world_session_protocol(openswd3::test::Context& test) {
             committed_before_audio =
                 fixture.state.deferred_map_tile_x == 0x0FFFEDCB &&
                 fixture.state.deferred_map_tile_y == 0x08123456 &&
-                fixture.state.deferred_map_id == 21 &&
+                fixture.state.deferred_map_id ==
+                    std::bit_cast<i32>(kWideLogicalMapId) &&
                 fixture.ports.world_session_reload_begin_count == 1U &&
                 fixture.ports.world_session_reload_count == 1U &&
-                request.logical_map_id == 21U &&
-                request.tile_x == 0x0FFFEDCBU &&
-                request.tile_y == 0x08123456U && request.action_id == 0x2345U &&
+                request.logical_map_id == 22U && request.tile_x == 59U &&
+                request.tile_y == 59U && request.action_id == 0x2345U &&
                 request.base_variant == 0U && request.variant_delta == 1U &&
                 request.selected_guid == 0x00F8U && request.load_flags == 1U &&
                 fixture.context.instruction_offset == 2U &&
@@ -23663,7 +23664,7 @@ void test_reload_current_world_session_protocol(openswd3::test::Context& test) {
                 fixture.ports.story_protocol_events ==
                     std::vector<u32>{6U, 7U, 2U} &&
                 committed_before_audio,
-            "opcode 155 aliases retain full shifted role coordinates, submit fixed reload parameters, publish previous, service audio, and yield"
+            "opcode 155 aliases retain the full logical-map dword and shifted role coordinates, submit the fixed map-22 reload, publish previous, service audio, and yield"
         );
     }
 
@@ -23764,7 +23765,7 @@ void test_reload_deferred_world_session_protocol(
         fixture.roles[0].action.action_id = 0x00012345U;
         fixture.state.deferred_map_tile_x = -2;
         fixture.state.deferred_map_tile_y = -3;
-        fixture.state.deferred_map_id = 0xFFFF;
+        fixture.state.deferred_map_id = 0x0001FFFF;
         fixture.state.previous_opcode = 0x66U;
         prime_loaded_instruction(
             fixture,
@@ -23775,7 +23776,7 @@ void test_reload_deferred_world_session_protocol(
             deferred_visible_during_reload =
                 fixture.state.deferred_map_tile_x == -2 &&
                 fixture.state.deferred_map_tile_y == -3 &&
-                fixture.state.deferred_map_id == 0xFFFF;
+                fixture.state.deferred_map_id == 0x0001FFFF;
         };
         bool cleared_before_audio = false;
         fixture.ports.audio_service_callback = [&]() {
@@ -23798,7 +23799,7 @@ void test_reload_deferred_world_session_protocol(
                 result.opcode == OP_156_RELOAD_DEFERRED_WORLD_SESSION &&
                 result.executed_instruction_count == 1U &&
                 result.direct_audio_service_count == 1U &&
-                request.logical_map_id == 0xFFFFU &&
+                request.logical_map_id == 0x0001FFFFU &&
                 request.tile_x == 0xFFFFFFFEU &&
                 request.tile_y == 0xFFFFFFFDU && request.action_id == 0x2345U &&
                 request.base_variant == 0U && request.variant_delta == 1U &&
@@ -23808,7 +23809,7 @@ void test_reload_deferred_world_session_protocol(
                 fixture.ports.story_protocol_events ==
                     std::vector<u32>{6U, 7U, 2U} &&
                 deferred_visible_during_reload && cleared_before_audio,
-            "opcode 156 aliases reload positive deferred state before clearing it, publish previous, service audio, and yield"
+            "opcode 156 aliases reload the full positive deferred map dword before clearing it, publish previous, service audio, and yield"
         );
     }
 

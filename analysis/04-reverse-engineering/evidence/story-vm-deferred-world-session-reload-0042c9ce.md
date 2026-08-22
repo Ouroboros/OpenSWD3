@@ -24,7 +24,7 @@ variant      = 1
 load_flags   = 1
 ```
 
-map/X/Y均以完整dword传入`sub_42E790`。已审计的所有deferred map producer只写sign-extended word、零或当前logical-map owner；进入本handler的正值域不超过u16，现代request的u16 map id不丢失合法值。tile X/Y保留完整i32二补码并转换为u32 request，负值不夹取或正规化。
+map/X/Y均以完整dword传入`sub_42E790`。deferred map producer可写sign-extended word、零或完整current logical-map dword，因此正值也可能超过u16。现代`LegacyWorldLoadRequest`用u32承接完整map id；MAPS描述符和角色源等u16物理字段只在各自格式边界显式截低16。tile X/Y同样保留完整i32二补码并转换为u32 request，负值不夹取或正规化。
 
 ## 2. reload与deferred清理顺序
 
@@ -66,6 +66,6 @@ TALK3.DAT       0    0    0    0
 TALK4.DAT      10    0    0    0
 ```
 
-只有上述TALK1位置被线性目录证明为opcode156入口。synthetic覆盖四raw alias、正值最大u16 map、负tile完整dword、reload期间旧值可见、成功后清理、零/负map no-op、checked reload失败及精确窗口尾；真实回放覆盖唯一线性记录。
+只有上述TALK1位置被线性目录证明为opcode156入口。synthetic覆盖四raw alias、超过u16的正map dword、负tile完整dword、reload期间旧值可见、成功后清理、零/负map no-op、checked reload失败及精确窗口尾；真实回放覆盖唯一线性记录。
 
 Story VM synthetic、real及initial-session三项通过。Linux core `186/186`、app `192/192`完整门通过。未启动原版或OpenSWD3游戏EXE。

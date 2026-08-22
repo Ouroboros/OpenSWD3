@@ -419,7 +419,8 @@ void test_real_gate_directory(
     }
 
     const auto* const descriptor = find_legacy_maps_map_descriptor(
-        decoded.database, decoded.database.initial_load.logical_map_id
+        decoded.database,
+        static_cast<u16>(decoded.database.initial_load.logical_map_id)
     );
     test.expect_true(
         descriptor != nullptr, "current initial map descriptor exists"

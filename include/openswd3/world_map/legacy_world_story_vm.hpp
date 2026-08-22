@@ -306,7 +306,7 @@ struct LegacyWorldStoryVmRuntime {
     std::array<LegacyWorldObjectSlot, kLegacyWorldPartySlotCount>*
         live_party_object_slots{};
     asset_runtime::LegacyAniRoleParticleEffect* role_particles{};
-    compat::u16 current_logical_map_id{};
+    compat::u32 current_logical_map_id{};
     std::array<compat::i16, kLegacyWorldSelectionWordCount>* selection_words{};
     LegacyWorldSelectionScrollState* selection_scroll{};
     LegacyWorldCameraRect* camera{};

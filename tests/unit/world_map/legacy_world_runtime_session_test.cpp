@@ -551,6 +551,7 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
     write_u16(wide_payload, 0x74U, 0x4000U);
     const auto wide_decoded = decode_legacy_maps_world_database(wide_payload);
     auto wide_load = wide_decoded.database.initial_load;
+    wide_load.logical_map_id = 0x00010005U;
     wide_load.tile_x = 0x0001000BU;
     wide_load.tile_y = 0x0002000CU;
     std::vector<std::string> wide_stages;
@@ -581,6 +582,7 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
     );
     test.expect_true(
         wide_result.status == LegacyWorldRuntimeSessionStatus::ready &&
+            wide_result.session.logical_map_id == 0x00010005U &&
             wide_result.session.selected_role_index == 2U &&
             wide_roles[2U].world_x == 0x001000B0U &&
             wide_roles[2U].world_y == 0x002000C0U,
@@ -595,8 +597,9 @@ void test_world_assembly_slot(openswd3::test::Context& test) {
     );
     test.expect_true(
         wide_source != wide_result.session.maps_database.role_sources.end() &&
+            wide_source->logical_map_id == 5U &&
             wide_source->tile_x == 0x000BU && wide_source->tile_y == 0x000CU,
-        "the loader writes only the low coordinate words to the MAPS source"
+        "the loader writes only the low map and coordinate words to the MAPS source"
     );
 }
 

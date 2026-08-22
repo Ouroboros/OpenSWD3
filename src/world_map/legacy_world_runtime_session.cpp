@@ -207,7 +207,8 @@ void initialize_maps_role(
                 return false;
             }
             auto& source = database.role_sources[source_index];
-            if (source.logical_map_id != request.logical_map_id) {
+            if (source.logical_map_id !=
+                static_cast<u16>(request.logical_map_id)) {
                 continue;
             }
 
@@ -404,7 +405,8 @@ LegacyWorldRuntimeSessionResult load_legacy_world_runtime_session(
     }
 
     const auto* const descriptor = find_legacy_maps_map_descriptor(
-        result.session.maps_database, request.load.logical_map_id
+        result.session.maps_database,
+        static_cast<u16>(request.load.logical_map_id)
     );
     if (descriptor == nullptr) {
         result.status =

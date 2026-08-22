@@ -162,7 +162,7 @@ struct PathCommandReadResult {
             .path_data_id = role.path_data_id,
             .flags_or_mask = static_cast<u16>(role.flags),
             .flags_and_mask = 0U,
-            .logical_map_id = target.logical_map_id,
+            .logical_map_id = static_cast<u16>(target.logical_map_id),
         }
     );
     if (status == LegacyMapsRolePatchStatus::guid_not_found) {

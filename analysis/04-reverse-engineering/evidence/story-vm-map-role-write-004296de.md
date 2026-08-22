@@ -52,14 +52,14 @@ talk_script_id   = 旧运行角色 Talk id，未命中则 FFFF
 path_data_id     = +6
 flags_or_mask    = 旧运行角色 flags 低16，未命中则 0
 flags_and_mask   = FFFF（helper sentinel，保持不改）
-logical_map_id   = +4 或当前 map
+logical_map_id   = +4 或当前 map dword 的低16位
 ```
 
 `sub_40D460` 先按 GUID 扫描 22 字节记录，逐字段跳过 `0xFFFF`；path id 被实际写入时同时把源 `path_word_index` 清零。flags 先 AND、后 OR，logical map 最后写。GUID 缺失只产生 diagnostic 并返回 0；opcode62仍推进、发布 previous 并同调用继续。
 
 ## 当前地图的临时角色物化
 
-MAPS patch 成功后，handler 比较目标 map 与当前 map。不同地图只保留 MAPS 修改；相同地图按下列顺序继续：
+MAPS patch 成功后，handler以`cmp cx,ax`比较目标map word与当前map dword的低16位；current owner的高16位不参与本handler判定。不同地图只保留MAPS修改；低16位相同则按下列顺序继续：
 
 1. `_malloc(0xD8)`，随后 `rep stosd` 清零 54 个 dword；
 2. `sub_40D560` 从刚修改的 MAPS 源复制 GUID、动作三字段、整格坐标、Talk、Path 和 flags；运行角色 path cursor 固定清零；
@@ -122,7 +122,7 @@ same-call fetch
 - GUID 缺失 diagnostic-only 路径仍推进并同调用取下一条；
 - `0xFFF0` selector、map/坐标/path 的多重继承和 action/base/variant 字段分别覆盖；
 - 旧角色 72 槽清理、flags bits14/15 清除、bit28 置位、Talk/低 flags 继承及先于动作更新的顺序；
-- 当前地图同 GUID 替换与未命中追加、空间摘链/重插、vector span 刷新；
+- current map dword高位非零但低16位相同，仍按机器执行同GUID替换或未命中追加、空间摘链/重插与vector span刷新；
 - 动作更新失败只记录不阻断；地表 bit/nibble 映射与占用写入；
 - 粒子非空槽跳过、所有空槽全填、坐标低 word、零字段和 head token 保留；
 - `+2` 后截断保留旧角色部分副作用，MAPS owner 缺失在清理后 typed-stop；

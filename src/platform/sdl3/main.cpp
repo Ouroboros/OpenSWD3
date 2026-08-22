@@ -3909,8 +3909,7 @@ public:
                 .live_party_object_slots =
                     &world_frame_state_.party_object_slots,
                 .role_particles = &world_role_particle_effect_,
-                .current_logical_map_id =
-                    static_cast<openswd3::compat::u16>(world.logical_map_id),
+                .current_logical_map_id = world.logical_map_id,
                 .selection_words = &world_selection_words_,
                 .selection_scroll = &world_frame_state_.selection_scroll,
                 .camera = &world.camera,

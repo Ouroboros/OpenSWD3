@@ -273,6 +273,11 @@ opcode161恢复signed story ID、四次audio、TALK文件/目录/窗口切换、
 记录/90 probes、89个目标ID及TALK2/3/4的87/2/1分布已锁定，全部目标首opcode为1026；真实story2037
 同调用进入TALK2并提交sound193。Story VM 3/3、Linux core186/186和app192/192通过。已实现169/198、
 已验收167/198；内部workpack为127/146，即`20 assembly_exact + 107 platform_adapted + 19 pending_audit`。
+opcodes163–164前置审计发现共享current logical map owner及session load request被错误收窄为u16，
+并暴露已提交opcode155把固定map22/tile59重载误译为current map/deferred tile。独立fix已恢复完整u32
+map owner、SDL无截断绑定、opcode155固定22/59/59、opcode156完整positive deferred map转发，以及
+opcode62明确低16 MAPS边界。Story VM 3/3、相关依赖8/8、Linux core186/186及app192/192
+完整门均通过；该fix不改变opcode/workpack计数。
 下一行只审计`0x0042CBFF`下的opcodes163–164。
 
 ### P2 · 按 handler 组逆向、实现和验证

@@ -556,12 +556,12 @@ LegacyMapsWorldLoadApplyResult apply_legacy_maps_world_load(
             auto& role = database.role_sources[source_index];
             bool changed = false;
             if (role.guid == 0U || role.guid == 10000U || role.guid == 10001U) {
-                role.logical_map_id = request.logical_map_id;
+                role.logical_map_id = static_cast<u16>(request.logical_map_id);
                 ++result.reserved_records_moved;
                 changed = true;
             }
             if (role.guid == request.selected_guid) {
-                role.logical_map_id = request.logical_map_id;
+                role.logical_map_id = static_cast<u16>(request.logical_map_id);
                 role.action_id = request.action_id;
                 role.base_variant = request.base_variant;
                 role.variant_delta = request.variant_delta;

@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v385
+版本：v386
 
 最后更新：2026-08-21
 
@@ -2748,5 +2748,14 @@ B7 P0 有限收口完成。
     `963960243d29c9674623319eff54bd274344218463faf2cf17c0323bdc8c2052`。未启动游戏EXE。
     人工语义增至167行，现代显式opcode保持169；对外进度为已实现169/198、已验收167/198；
     内部workpack127/146，即`20 assembly_exact + 107 platform_adapted + 19 pending_audit`。
+
+- opcodes163–164前置审计发现共享current logical map owner被错误收窄为u16，且已提交
+    opcode155把机器固定的map22/tile59重载误译为current map/deferred tile。已独立把runtime与
+    session load request恢复为完整u32 map，SDL取消截断；opcode155继续完整保存deferred返回信息，
+    但按LST固定重载22/59/59；opcode156完整转发正deferred map dword；opcode62在MAPS物理边界
+    显式保持current map低16继承与比较。Story VM 3/3、MAPS/preload/post-materialization/
+    runtime-session依赖8/8、Linux core186/186及app192/192完整门均通过。该fix不实现或验收
+    opcodes163–164，
+    公开进度与workpack保持已实现169/198、已验收167/198及127/146。
 
 下一组只审计`0x0042CBFF` / opcodes163–164。

@@ -1110,7 +1110,8 @@ void refresh_story_path_role_span(
     if (patch_status != LegacyMapsRolePatchStatus::ready) {
         return LegacyWorldStoryVmStatus::maps_payload_out_of_range;
     }
-    if (request.logical_map_id != runtime.current_logical_map_id) {
+    if (request.logical_map_id !=
+        static_cast<u16>(runtime.current_logical_map_id)) {
         return LegacyWorldStoryVmStatus::idle;
     }
 
@@ -3590,7 +3591,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             const u16 raw_map_id = read_u16(state.window, ip + 4U);
             const u16 logical_map_id = raw_map_id == 0xFFFFU
-                ? runtime.current_logical_map_id
+                ? static_cast<u16>(runtime.current_logical_map_id)
                 : raw_map_id;
             const u16 raw_tile_x = read_u16(state.window, ip + 8U);
             const u16 raw_tile_y = read_u16(state.window, ip + 10U);
@@ -6722,12 +6723,13 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     static_cast<i32>(selected.world_x >> 4U);
                 state.deferred_map_tile_y =
                     static_cast<i32>(selected.world_y >> 4U);
-                state.deferred_map_id = runtime.current_logical_map_id;
+                state.deferred_map_id =
+                    std::bit_cast<i32>(runtime.current_logical_map_id);
 
                 LegacyWorldLoadRequest request{
-                    .logical_map_id = runtime.current_logical_map_id,
-                    .tile_x = static_cast<u32>(state.deferred_map_tile_x),
-                    .tile_y = static_cast<u32>(state.deferred_map_tile_y),
+                    .logical_map_id = 22U,
+                    .tile_x = 59U,
+                    .tile_y = 59U,
                     .action_id = static_cast<u16>(selected.action.action_id),
                     .base_variant = 0U,
                     .variant_delta = 1U,
@@ -6757,7 +6759,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             if (state.deferred_map_id > 0) {
                 const auto& selected = roles[controlled_role_index];
                 LegacyWorldLoadRequest request{
-                    .logical_map_id = static_cast<u16>(state.deferred_map_id),
+                    .logical_map_id = std::bit_cast<u32>(state.deferred_map_id),
                     .tile_x = static_cast<u32>(state.deferred_map_tile_x),
                     .tile_y = static_cast<u32>(state.deferred_map_tile_y),
                     .action_id = static_cast<u16>(selected.action.action_id),
