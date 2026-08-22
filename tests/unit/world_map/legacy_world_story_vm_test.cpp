@@ -181,6 +181,7 @@ using openswd3::world_map::OP_147_SET_STORY_FLAG_70;
 using openswd3::world_map::OP_148_SET_STORY_FLAG_19;
 using openswd3::world_map::OP_149_CLEAR_STORY_FLAG_19;
 using openswd3::world_map::OP_150_CONFIGURE_ANI_FOLLOWER_POSITION;
+using openswd3::world_map::OP_151_CONFIGURE_ANI_FOLLOWER_TARGET;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -23020,6 +23021,216 @@ void test_configure_ani_follower_position_protocol(
     );
 }
 
+void test_configure_ani_follower_target_protocol(
+    openswd3::test::Context& test
+) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        fixture.ani_follower = {
+            .current_x = 11,
+            .current_y = 22,
+            .target_x = 33,
+            .target_y = 44,
+            .velocity_x = 55,
+            .velocity_y = 66,
+        };
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_151_CONFIGURE_ANI_FOLLOWER_TARGET | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, std::bit_cast<u16>(i16{-1}));
+        write_u16(fixture.state.window, 4U, 0x1234U);
+        write_u16(
+            fixture.state.window,
+            6U,
+            std::bit_cast<u16>(std::numeric_limits<i16>::min())
+        );
+        write_u16(
+            fixture.state.window,
+            8U,
+            std::bit_cast<u16>(std::numeric_limits<i16>::max())
+        );
+        write_u16(fixture.state.window, 10U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        bool committed_before_audio = false;
+        fixture.ports.audio_service_callback = [&]() {
+            committed_before_audio = fixture.ani_follower.current_x == 11 &&
+                fixture.ani_follower.current_y == 22 &&
+                fixture.ani_follower.target_x == -16 &&
+                fixture.ani_follower.target_y == 0x12340 &&
+                fixture.ani_follower.velocity_x ==
+                    std::numeric_limits<i16>::min() &&
+                fixture.ani_follower.velocity_y ==
+                    std::numeric_limits<i16>::max() &&
+                fixture.context.instruction_offset == 10U &&
+                fixture.state.previous_opcode ==
+                    OP_151_CONFIGURE_ANI_FOLLOWER_TARGET;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word ==
+                    static_cast<u16>(
+                        OP_151_CONFIGURE_ANI_FOLLOWER_TARGET | alias_mask
+                    ) &&
+                result.opcode == OP_151_CONFIGURE_ANI_FOLLOWER_TARGET &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.ani_follower.current_x == 11 &&
+                fixture.ani_follower.current_y == 22 &&
+                fixture.ani_follower.target_x == -16 &&
+                fixture.ani_follower.target_y == 0x12340 &&
+                fixture.ani_follower.velocity_x ==
+                    std::numeric_limits<i16>::min() &&
+                fixture.ani_follower.velocity_y ==
+                    std::numeric_limits<i16>::max() &&
+                fixture.context.instruction_offset == 10U &&
+                fixture.state.previous_opcode ==
+                    OP_151_CONFIGURE_ANI_FOLLOWER_TARGET &&
+                committed_before_audio,
+            "opcode 151 aliases scale both signed targets, sign-extend both velocities, preserve current coordinates, publish previous, service audio, and yield"
+        );
+    }
+
+    struct TruncationCase {
+        u16 instruction_offset;
+        std::size_t available_operand_count;
+    };
+    constexpr std::array truncation_cases{
+        TruncationCase{0x7FFEU, 0U},
+        TruncationCase{0x7FFCU, 1U},
+        TruncationCase{0x7FFAU, 2U},
+        TruncationCase{0x7FF8U, 3U},
+    };
+    constexpr std::array<u16, 4U> operands{
+        std::bit_cast<u16>(i16{-1}),
+        0x1234U,
+        std::bit_cast<u16>(i16{-7}),
+        std::bit_cast<u16>(i16{8}),
+    };
+
+    for (const auto truncation : truncation_cases) {
+        Fixture fixture;
+        fixture.ani_follower = {
+            .current_x = 11,
+            .current_y = 22,
+            .target_x = 33,
+            .target_y = 44,
+            .velocity_x = 55,
+            .velocity_y = 66,
+        };
+        fixture.context.instruction_offset = truncation.instruction_offset;
+        fixture.context.talk_data_offset = 0x1111U;
+        fixture.state.loaded_file_number = 1U;
+        fixture.state.loaded_data_offset = 0x1111U;
+        fixture.state.window_loaded = true;
+        write_u16(
+            fixture.state.window,
+            truncation.instruction_offset,
+            OP_151_CONFIGURE_ANI_FOLLOWER_TARGET
+        );
+        for (std::size_t index = 0U; index < truncation.available_operand_count;
+             ++index) {
+            write_u16(
+                fixture.state.window,
+                static_cast<std::size_t>(truncation.instruction_offset) + 2U +
+                    index * 2U,
+                operands[index]
+            );
+        }
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::operand_out_of_range &&
+                fixture.ani_follower.current_x == 11 &&
+                fixture.ani_follower.current_y == 22 &&
+                fixture.ani_follower.target_x ==
+                    (truncation.available_operand_count >= 1U ? -16 : 33) &&
+                fixture.ani_follower.target_y ==
+                    (truncation.available_operand_count >= 2U ? 0x12340 : 44) &&
+                fixture.ani_follower.velocity_x ==
+                    (truncation.available_operand_count >= 3U ? -7 : 55) &&
+                fixture.ani_follower.velocity_y == 66 &&
+                fixture.context.instruction_offset ==
+                    truncation.instruction_offset &&
+                fixture.state.previous_opcode == 0U,
+            "opcode 151 truncation preserves every earlier staged follower write and no later write"
+        );
+    }
+
+    Fixture missing_owner;
+    prime_loaded_instruction(
+        missing_owner, OP_151_CONFIGURE_ANI_FOLLOWER_TARGET
+    );
+    write_u16(missing_owner.state.window, 2U, 20U);
+    missing_owner.runtime.ani_follower = nullptr;
+    const auto missing_owner_result = missing_owner.step();
+    test.expect_true(
+        missing_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_owner.context.instruction_offset == 0U &&
+            missing_owner.state.previous_opcode == 0U,
+        "opcode 151 missing follower owner stops at the first global write before reading target y"
+    );
+
+    Fixture exact_tail;
+    exact_tail.ani_follower = {
+        .current_x = 11,
+        .current_y = 22,
+        .target_x = 33,
+        .target_y = 44,
+        .velocity_x = 55,
+        .velocity_y = 66,
+    };
+    exact_tail.context.instruction_offset = 0x7FF6U;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window, 0x7FF6U, OP_151_CONFIGURE_ANI_FOLLOWER_TARGET
+    );
+    write_u16(
+        exact_tail.state.window,
+        0x7FF8U,
+        std::bit_cast<u16>(std::numeric_limits<i16>::min())
+    );
+    write_u16(
+        exact_tail.state.window,
+        0x7FFAU,
+        std::bit_cast<u16>(std::numeric_limits<i16>::max())
+    );
+    write_u16(exact_tail.state.window, 0x7FFCU, std::bit_cast<u16>(i16{-1}));
+    write_u16(exact_tail.state.window, 0x7FFEU, 2U);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.opcode == OP_151_CONFIGURE_ANI_FOLLOWER_TARGET &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.ani_follower.current_x == 11 &&
+            exact_tail.ani_follower.current_y == 22 &&
+            exact_tail.ani_follower.target_x == -0x80000 &&
+            exact_tail.ani_follower.target_y == 0x7FFF0 &&
+            exact_tail.ani_follower.velocity_x == -1 &&
+            exact_tail.ani_follower.velocity_y == 2 &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_151_CONFIGURE_ANI_FOLLOWER_TARGET,
+        "opcode 151 completes all four staged follower writes before audio maintenance and yield at the exact window tail"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
@@ -30324,6 +30535,7 @@ int main(const int argument_count, char** arguments) {
     test_set_story_flag_19_protocol(test);
     test_clear_story_flag_19_protocol(test);
     test_configure_ani_follower_position_protocol(test);
+    test_configure_ani_follower_target_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
