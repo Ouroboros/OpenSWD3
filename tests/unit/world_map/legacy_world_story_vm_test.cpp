@@ -177,6 +177,7 @@ using openswd3::world_map::OP_143_DISABLE_PRIMARY_COUNTDOWN;
 using openswd3::world_map::OP_144_REQUEST_SPECIAL_MODE_4_OR_5;
 using openswd3::world_map::OP_145_SET_ROLE_STATUS_BIT13;
 using openswd3::world_map::OP_146_SET_ROLE_STATUS_BIT8;
+using openswd3::world_map::OP_147_SET_STORY_FLAG_70;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -22601,6 +22602,79 @@ void test_request_special_mode_four_or_five_protocol(
     );
 }
 
+void test_set_story_flag_70_protocol(openswd3::test::Context& test) {
+    struct TestCase {
+        u16 alias_mask;
+        bool initially_set;
+    };
+    constexpr std::array cases{
+        TestCase{0U, false},
+        TestCase{0x4000U, true},
+        TestCase{0x8000U, false},
+        TestCase{0xC000U, true},
+    };
+
+    for (const auto test_case : cases) {
+        Fixture fixture;
+        fixture.state.flags.fill(test_case.initially_set ? 0xFFU : 0U);
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_147_SET_STORY_FLAG_70 | test_case.alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        auto expected_flags = fixture.state.flags;
+        expected_flags[70U >> 3U] |= static_cast<u8>(1U << (70U & 7U));
+        bool committed_before_audio = false;
+        fixture.ports.audio_service_callback = [&]() {
+            committed_before_audio = fixture.state.flags == expected_flags &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode == OP_147_SET_STORY_FLAG_70;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word ==
+                    static_cast<u16>(
+                        OP_147_SET_STORY_FLAG_70 | test_case.alias_mask
+                    ) &&
+                result.opcode == OP_147_SET_STORY_FLAG_70 &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.state.flags == expected_flags &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode == OP_147_SET_STORY_FLAG_70 &&
+                committed_before_audio,
+            "opcode 147 aliases set only story flag 70, publish previous, service audio, and yield"
+        );
+    }
+
+    Fixture exact_tail;
+    exact_tail.state.flags.fill(0x1AU);
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    auto expected_tail_flags = exact_tail.state.flags;
+    expected_tail_flags[70U >> 3U] |= static_cast<u8>(1U << (70U & 7U));
+    write_u16(exact_tail.state.window, 0x7FFEU, OP_147_SET_STORY_FLAG_70);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.opcode == OP_147_SET_STORY_FLAG_70 &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.state.flags == expected_tail_flags &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_147_SET_STORY_FLAG_70,
+        "opcode 147 completes its fixed flag write before audio maintenance and yield at the exact window tail"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
@@ -27447,6 +27521,66 @@ void test_real_request_special_mode_four_or_five_record(
     );
 }
 
+void test_real_set_story_flag_70_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct RecordLocation {
+        const char* filename;
+        std::streamoff offset;
+    };
+    constexpr std::array locations{
+        RecordLocation{"TALK1.DAT", 0x000226C6},
+        RecordLocation{"TALK2.DAT", 0x0002E6EC},
+        RecordLocation{"TALK3.DAT", 0x0000B057},
+        RecordLocation{"TALK4.DAT", 0x00003080},
+    };
+
+    bool all_records_match = true;
+    for (const auto& location : locations) {
+        std::ifstream input{
+            root / location.filename, std::ios::binary | std::ios::in
+        };
+        input.seekg(location.offset);
+        std::array<u8, 2U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+
+        Fixture fixture;
+        prime_loaded_instruction(fixture, OP_147_SET_STORY_FLAG_70);
+        std::ranges::copy(record, fixture.state.window.begin());
+        write_u16(fixture.state.window, 2U, OP_1025);
+        openswd3::world_map::clear_legacy_world_story_flag(fixture.state, 70U);
+        openswd3::world_map::set_legacy_world_story_flag(fixture.state, 69U);
+        openswd3::world_map::set_legacy_world_story_flag(fixture.state, 71U);
+
+        const auto result = fixture.step();
+        all_records_match = all_records_match && static_cast<bool>(input) &&
+            read_u16(record, 0U) == OP_147_SET_STORY_FLAG_70 &&
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+            result.opcode == OP_147_SET_STORY_FLAG_70 &&
+            result.executed_instruction_count == 1U &&
+            result.direct_audio_service_count == 1U &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                                fixture.state, 69U
+            ) &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                                fixture.state, 70U
+            ) &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                                fixture.state, 71U
+            ) &&
+            fixture.context.instruction_offset == 2U &&
+            fixture.state.previous_opcode == OP_147_SET_STORY_FLAG_70;
+    }
+
+    test.expect_true(
+        all_records_match,
+        "real opcode 147 records set story flag 70 then service audio and yield"
+    );
+}
+
 void test_real_batch_set_role_positions_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -29841,6 +29975,7 @@ int main(const int argument_count, char** arguments) {
     test_initialize_primary_countdown_protocol(test);
     test_disable_primary_countdown_protocol(test);
     test_request_special_mode_four_or_five_protocol(test);
+    test_set_story_flag_70_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -29938,6 +30073,7 @@ int main(const int argument_count, char** arguments) {
         test_real_initialize_primary_countdown_records(test, root);
         test_real_disable_primary_countdown_records(test, root);
         test_real_request_special_mode_four_or_five_record(test, root);
+        test_real_set_story_flag_70_records(test, root);
         test_real_batch_set_role_positions_record(test, root);
         test_real_remove_dialogs_for_role_guid_records(test, root);
         test_real_wait_dialog_flag_records(test, root);
