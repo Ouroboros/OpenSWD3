@@ -7241,6 +7241,75 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
+        case OP_179_ENQUEUE_FRAME_DEFORMATION: {
+            if (!has_bytes(state.window, ip, 6U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const i32 center_y =
+                std::bit_cast<i16>(read_u16(state.window, ip + 4U));
+            const i32 center_x =
+                std::bit_cast<i16>(read_u16(state.window, ip + 2U));
+            if (!has_bytes(state.window, ip, 8U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const i32 field_radius =
+                std::bit_cast<i16>(read_u16(state.window, ip + 6U));
+            if (!has_bytes(state.window, ip, 10U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            const i32 strength =
+                std::bit_cast<i16>(read_u16(state.window, ip + 8U));
+            if (runtime.frame_deformations == nullptr ||
+                runtime.crt_rng == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+
+            std::unique_ptr<asset_runtime::LegacyDeformationNode> node;
+            try {
+                node = std::make_unique<asset_runtime::LegacyDeformationNode>(
+                    asset_runtime::LegacyDeformationConfiguration{
+                        .framebuffer_width = 640U,
+                        .framebuffer_height = 480U,
+                        .origin_x = center_x - field_radius,
+                        .origin_y = center_y - field_radius,
+                        .field_width = static_cast<u32>(field_radius * 2),
+                        .field_height = static_cast<u32>(field_radius * 2),
+                    }
+                );
+            } catch (const std::bad_alloc&) {
+                result.status = LegacyWorldStoryVmStatus::
+                    frame_deformation_allocation_failed;
+                return result;
+            } catch (const std::length_error&) {
+                result.status = LegacyWorldStoryVmStatus::
+                    frame_deformation_allocation_failed;
+                return result;
+            }
+
+            const auto injection = node->inject(
+                field_radius, field_radius, 24, strength, *runtime.crt_rng
+            );
+            if (injection.status !=
+                asset_runtime::LegacyDeformationStatus::ready) {
+                result.status = LegacyWorldStoryVmStatus::
+                    frame_deformation_injection_failed;
+                return result;
+            }
+
+            runtime.frame_deformations->push_front(std::move(node));
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 10U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
+
         case 193U:
             if (ports.query_story_video_progress() >= 0) {
                 result.status = LegacyWorldStoryVmStatus::yielded;

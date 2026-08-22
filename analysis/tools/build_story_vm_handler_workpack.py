@@ -41,8 +41,8 @@ RUNTIME_OUTPUT = INVENTORY_ROOT / "story-vm-runtime-paths.tsv"
 EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
-EXPECTED_MODERN_CASE_COUNT = 181
-EXPECTED_CLOSED_HANDLER_COUNT = 134
+EXPECTED_MODERN_CASE_COUNT = 182
+EXPECTED_CLOSED_HANDLER_COUNT = 135
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -714,6 +714,11 @@ CLOSURE_OVERRIDES = {
         "assembly_exact",
         "story-vm-role-collision-bypass-0042cf7c.md",
         "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;full_width_owner_tested;idempotence_tested;fff0_lowword_lookup_tested;fffe_controlled_tested;bit28_filter_tested;first_match_tested;missing_lookup_tested;staged_operand_tested;previous_publication_tested;same_call_tested;no_audio_tested",
+    ),
+    "0x0042CFBD": (
+        "platform_adapted",
+        "story-vm-frame-deformation-0042cfbd.md",
+        "platform_adapted;unit_tested;asset_absence_verified;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;selector_alias_tested;shared_owner_tested;signed_operand_tested;staged_operand_tested;fixed_surface_tested;fixed_injection_radius_tested;strict_radius_tested;no_rng_valid_path_tested;allocation_failure_adapted;invalid_geometry_tested;partial_failure_tested;previous_publication_tested;same_call_tested;no_audio_tested",
     ),
 }
 

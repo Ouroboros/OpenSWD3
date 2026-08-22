@@ -213,6 +213,7 @@ using openswd3::world_map::OP_175_SUSPEND_STORY_ANI;
 using openswd3::world_map::OP_176_RESUME_STORY_ANI;
 using openswd3::world_map::OP_177_GATHER_PARTY_AT_PLAYER;
 using openswd3::world_map::OP_178_SET_ROLE_COLLISION_BYPASS;
+using openswd3::world_map::OP_179_ENQUEUE_FRAME_DEFORMATION;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -980,6 +981,8 @@ struct FixtureStorage {
         live_party_object_slots{};
     u32 indexed_target_selector{};
     openswd3::input_time_rng::LegacySecondaryRng secondary_rng{};
+    openswd3::input_time_rng::LegacyCrtRng crt_rng{};
+    openswd3::asset_runtime::LegacyDeformationList frame_deformations;
     u32 speed_mode{};
     u32 special_mode_state{};
     u32 special_input_mode{};
@@ -1026,6 +1029,9 @@ struct Fixture {
     u32& indexed_target_selector = storage->indexed_target_selector;
     openswd3::input_time_rng::LegacySecondaryRng& secondary_rng =
         storage->secondary_rng;
+    openswd3::input_time_rng::LegacyCrtRng& crt_rng = storage->crt_rng;
+    openswd3::asset_runtime::LegacyDeformationList& frame_deformations =
+        storage->frame_deformations;
     u32& speed_mode = storage->speed_mode;
     u32& special_mode_state = storage->special_mode_state;
     u32& special_input_mode = storage->special_input_mode;
@@ -1065,6 +1071,8 @@ struct Fixture {
         runtime.ani_follower = &ani_follower;
         runtime.indexed_target_selector = &indexed_target_selector;
         runtime.secondary_rng = &secondary_rng;
+        runtime.frame_deformations = &frame_deformations;
+        runtime.crt_rng = &crt_rng;
         runtime.speed_mode = &speed_mode;
         runtime.special_mode_state = &special_mode_state;
         runtime.special_input_mode = &special_input_mode;
@@ -3666,6 +3674,190 @@ void test_set_role_collision_bypass_protocol(openswd3::test::Context& test) {
                 OP_178_SET_ROLE_COLLISION_BYPASS &&
             exact_tail.roles[1].flags == 0x80040001U,
         "opcode 178 stops before lookup on a truncated selector and commits role flags, IP, and previous before an exact-tail same-call successor fetch failure"
+    );
+}
+
+void test_enqueue_frame_deformation_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : alias_masks) {
+        Fixture fixture;
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_179_ENQUEUE_FRAME_DEFORMATION | alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, 100U);
+        write_u16(fixture.state.window, 4U, 200U);
+        write_u16(fixture.state.window, 6U, 30U);
+        write_u16(fixture.state.window, 8U, 5U);
+        write_u16(fixture.state.window, 10U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+
+        const auto result = fixture.step();
+        const auto* node = fixture.frame_deformations.front();
+        const auto center = std::size_t{30U + 30U * 60U};
+        const auto radius_edge = std::size_t{54U + 30U * 60U};
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 10U &&
+                fixture.state.previous_opcode ==
+                    OP_179_ENQUEUE_FRAME_DEFORMATION &&
+                fixture.frame_deformations.size() == 1U && node != nullptr &&
+                node->state().framebuffer_width == 640U &&
+                node->state().framebuffer_height == 480U &&
+                node->state().origin_x == 70 && node->state().origin_y == 170 &&
+                node->state().field_width == 60U &&
+                node->state().field_height == 60U &&
+                node->state().damping_shift == 4U &&
+                node->state().active_field_index == 0U &&
+                node->source_snapshot().size() == 640U * 480U &&
+                node->field(0U)[center] == 120 &&
+                node->field(0U)[center + 1U] == 115 &&
+                node->field(0U)[radius_edge] == 0,
+            "opcode 179 covers every raw alias, constructs and head-inserts the 640x480 deformation with signed origin and doubled field radius, injects fixed radius24 strength, then advances ten and same-calls without audio"
+        );
+    }
+
+    Fixture signed_operands;
+    prime_loaded_instruction(signed_operands, OP_179_ENQUEUE_FRAME_DEFORMATION);
+    write_u16(
+        signed_operands.state.window, 2U, std::bit_cast<u16>(i16{-32768})
+    );
+    write_u16(signed_operands.state.window, 4U, std::bit_cast<u16>(i16{32767}));
+    write_u16(signed_operands.state.window, 6U, 25U);
+    write_u16(signed_operands.state.window, 8U, std::bit_cast<u16>(i16{-3}));
+    write_u16(signed_operands.state.window, 10U, OP_1025);
+    const auto signed_result = signed_operands.step();
+    const auto* signed_node = signed_operands.frame_deformations.front();
+    const auto signed_center = std::size_t{25U + 25U * 50U};
+
+    test.expect_true(
+        signed_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            signed_node != nullptr && signed_node->state().origin_x == -32793 &&
+            signed_node->state().origin_y == 32742 &&
+            signed_node->state().field_width == 50U &&
+            signed_node->state().field_height == 50U &&
+            signed_node->field(0U)[signed_center] == -72 &&
+            signed_operands.crt_rng.state() == 1U,
+        "opcode 179 sign-extends all four operands, uses script x/y only for origin, and does not consume CRT RNG for a nonnegative field center"
+    );
+
+    Fixture missing_y;
+    prime_loaded_instruction(missing_y, OP_179_ENQUEUE_FRAME_DEFORMATION);
+    missing_y.context.instruction_offset = 0x7FFCU;
+    missing_y.state.previous_opcode = 0x66U;
+    write_u16(
+        missing_y.state.window, 0x7FFCU, OP_179_ENQUEUE_FRAME_DEFORMATION
+    );
+    write_u16(missing_y.state.window, 0x7FFEU, 100U);
+    const auto missing_y_result = missing_y.step();
+
+    Fixture missing_radius;
+    prime_loaded_instruction(missing_radius, OP_179_ENQUEUE_FRAME_DEFORMATION);
+    missing_radius.context.instruction_offset = 0x7FFAU;
+    missing_radius.state.previous_opcode = 0x66U;
+    write_u16(
+        missing_radius.state.window, 0x7FFAU, OP_179_ENQUEUE_FRAME_DEFORMATION
+    );
+    write_u16(missing_radius.state.window, 0x7FFCU, 100U);
+    write_u16(missing_radius.state.window, 0x7FFEU, 200U);
+    const auto missing_radius_result = missing_radius.step();
+
+    Fixture missing_strength;
+    prime_loaded_instruction(
+        missing_strength, OP_179_ENQUEUE_FRAME_DEFORMATION
+    );
+    missing_strength.context.instruction_offset = 0x7FF8U;
+    missing_strength.state.previous_opcode = 0x66U;
+    write_u16(
+        missing_strength.state.window, 0x7FF8U, OP_179_ENQUEUE_FRAME_DEFORMATION
+    );
+    write_u16(missing_strength.state.window, 0x7FFAU, 100U);
+    write_u16(missing_strength.state.window, 0x7FFCU, 200U);
+    write_u16(missing_strength.state.window, 0x7FFEU, 30U);
+    const auto missing_strength_result = missing_strength.step();
+
+    test.expect_true(
+        missing_y_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_y.context.instruction_offset == 0x7FFCU &&
+            missing_y.state.previous_opcode == 0x66U &&
+            missing_y.frame_deformations.empty() &&
+            missing_radius_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_radius.context.instruction_offset == 0x7FFAU &&
+            missing_radius.state.previous_opcode == 0x66U &&
+            missing_radius.frame_deformations.empty() &&
+            missing_strength_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_strength.context.instruction_offset == 0x7FF8U &&
+            missing_strength.state.previous_opcode == 0x66U &&
+            missing_strength.frame_deformations.empty(),
+        "opcode 179 preserves the machine read order y, x, radius, strength and stops before allocation on each truncated stage"
+    );
+
+    Fixture exact_tail;
+    prime_loaded_instruction(exact_tail, OP_179_ENQUEUE_FRAME_DEFORMATION);
+    exact_tail.context.instruction_offset = 0x7FF6U;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window, 0x7FF6U, OP_179_ENQUEUE_FRAME_DEFORMATION
+    );
+    write_u16(exact_tail.state.window, 0x7FF8U, 100U);
+    write_u16(exact_tail.state.window, 0x7FFAU, 200U);
+    write_u16(exact_tail.state.window, 0x7FFCU, 30U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 5U);
+    const auto exact_tail_result = exact_tail.step();
+
+    Fixture owner_missing;
+    prime_loaded_instruction(owner_missing, OP_179_ENQUEUE_FRAME_DEFORMATION);
+    write_u16(owner_missing.state.window, 2U, 100U);
+    write_u16(owner_missing.state.window, 4U, 200U);
+    write_u16(owner_missing.state.window, 6U, 30U);
+    write_u16(owner_missing.state.window, 8U, 5U);
+    owner_missing.state.previous_opcode = 0x66U;
+    owner_missing.runtime.frame_deformations = nullptr;
+    const auto owner_missing_result = owner_missing.step();
+
+    Fixture invalid_geometry;
+    prime_loaded_instruction(
+        invalid_geometry, OP_179_ENQUEUE_FRAME_DEFORMATION
+    );
+    write_u16(invalid_geometry.state.window, 2U, 100U);
+    write_u16(invalid_geometry.state.window, 4U, 200U);
+    write_u16(invalid_geometry.state.window, 6U, 0U);
+    write_u16(invalid_geometry.state.window, 8U, 5U);
+    invalid_geometry.state.previous_opcode = 0x66U;
+    const auto invalid_geometry_result = invalid_geometry.step();
+
+    test.expect_true(
+        exact_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 0U &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_179_ENQUEUE_FRAME_DEFORMATION &&
+            exact_tail.frame_deformations.size() == 1U &&
+            owner_missing_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            owner_missing.context.instruction_offset == 0U &&
+            owner_missing.state.previous_opcode == 0x66U &&
+            owner_missing.frame_deformations.empty() &&
+            invalid_geometry_result.status ==
+                LegacyWorldStoryVmStatus::frame_deformation_injection_failed &&
+            invalid_geometry.context.instruction_offset == 0U &&
+            invalid_geometry.state.previous_opcode == 0x66U &&
+            invalid_geometry.frame_deformations.empty() &&
+            invalid_geometry.crt_rng.state() == 1U,
+        "opcode 179 commits the complete node before exact-tail successor fetch failure, while missing actual owners and unsafe zero geometry typed-stop before publication, IP, previous, or RNG"
     );
 }
 
@@ -33679,6 +33871,7 @@ int main(const int argument_count, char** arguments) {
     test_resume_story_ani_protocol(test);
     test_gather_party_at_player_protocol(test);
     test_set_role_collision_bypass_protocol(test);
+    test_enqueue_frame_deformation_protocol(test);
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);

@@ -3,6 +3,8 @@
 #include "openswd3/asset_runtime/legacy_ani_activity.hpp"
 #include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
 #include "openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp"
+#include "openswd3/asset_runtime/legacy_frame_deformation.hpp"
+#include "openswd3/input_time_rng/legacy_crt_rng.hpp"
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
 #include "openswd3/rendering/legacy_action_renderers.hpp"
@@ -214,6 +216,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_176_RESUME_STORY_ANI = 176U,
     OP_177_GATHER_PARTY_AT_PLAYER = 177U,
     OP_178_SET_ROLE_COLLISION_BYPASS = 178U,
+    OP_179_ENQUEUE_FRAME_DEFORMATION = 179U,
     OP_1025 = 1025U,
 };
 
@@ -341,6 +344,8 @@ struct LegacyWorldStoryVmRuntime {
     std::list<rendering::LegacyPackedRowEffect>* packed_row_effects{};
     LegacyMovingActionList* moving_actions{};
     LegacyRoleHeadActionList* role_head_actions{};
+    asset_runtime::LegacyDeformationList* frame_deformations{};
+    input_time_rng::LegacyCrtRng* crt_rng{};
     compat::u32* battle_request_value{};
     compat::u32* special_mode_state{};
     compat::u32* special_input_mode{};
@@ -480,6 +485,8 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     moving_action_allocation_failed,
     role_head_action_allocation_failed,
     packed_row_effect_allocation_failed,
+    frame_deformation_allocation_failed,
+    frame_deformation_injection_failed,
     text_allocation_failed,
     text_allocation_terminator_not_found,
     text_allocation_out_of_range,
