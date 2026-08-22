@@ -24783,7 +24783,8 @@ void test_reset_input_menu_state_protocol(openswd3::test::Context& test) {
         fixture.high_priority_auxiliary = 0x33333333U;
         fixture.high_priority_state = 0x44444444U;
         bool reset_saw_prior_writes = false;
-        bool audio_saw_committed_ip = false;
+        bool first_audio_saw_committed_ip = false;
+        bool common_audio_saw_previous = false;
         fixture.ports.input_menu_reset_callback = [&]() {
             reset_saw_prior_writes = fixture.special_input_mode == 4U &&
                 fixture.high_priority_submode == 1U &&
@@ -24793,10 +24794,18 @@ void test_reset_input_menu_state_protocol(openswd3::test::Context& test) {
                 fixture.state.previous_opcode == 0U;
         };
         fixture.ports.audio_service_callback = [&]() {
-            audio_saw_committed_ip =
-                fixture.ports.input_menu_reset_count == 1U &&
-                fixture.context.instruction_offset == 2U &&
-                fixture.state.previous_opcode == 0U;
+            if (fixture.ports.direct_audio_service_count == 1U) {
+                first_audio_saw_committed_ip =
+                    fixture.ports.input_menu_reset_count == 1U &&
+                    fixture.context.instruction_offset == 2U &&
+                    fixture.state.previous_opcode == 0U;
+            } else if (fixture.ports.direct_audio_service_count == 2U) {
+                common_audio_saw_previous =
+                    fixture.ports.input_menu_reset_count == 1U &&
+                    fixture.context.instruction_offset == 2U &&
+                    fixture.state.previous_opcode ==
+                        OP_135_RESET_INPUT_MENU_STATE;
+            }
         };
         prime_loaded_instruction(
             fixture,
@@ -24808,7 +24817,7 @@ void test_reset_input_menu_state_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_135_RESET_INPUT_MENU_STATE &&
                 result.executed_instruction_count == 1U &&
-                result.direct_audio_service_count == 1U &&
+                result.direct_audio_service_count == 2U &&
                 fixture.context.instruction_offset == 2U &&
                 fixture.state.previous_opcode ==
                     OP_135_RESET_INPUT_MENU_STATE &&
@@ -24818,9 +24827,10 @@ void test_reset_input_menu_state_protocol(openswd3::test::Context& test) {
                 fixture.high_priority_state == 3U &&
                 fixture.ports.input_menu_reset_count == 1U &&
                 fixture.ports.story_protocol_events ==
-                    std::vector<u32>{14U, 2U} &&
-                reset_saw_prior_writes && audio_saw_committed_ip,
-            "opcode 135 aliases write four mode states, reset input/menu/save previews, commit the two-byte record, service audio, publish previous, and yield"
+                    std::vector<u32>{14U, 2U, 2U} &&
+                reset_saw_prior_writes && first_audio_saw_committed_ip &&
+                common_audio_saw_previous,
+            "opcode 135 aliases write four mode states, reset input/menu/save previews, commit the two-byte record, service handler and common audio, publish previous, and yield"
         );
     }
 
@@ -24927,7 +24937,7 @@ void test_reset_input_menu_state_protocol(openswd3::test::Context& test) {
                 std::vector<u32>{14U} &&
             exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
             exact_tail_result.executed_instruction_count == 1U &&
-            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 2U &&
             exact_tail.context.instruction_offset == 0x8000U &&
             exact_tail.state.previous_opcode == OP_135_RESET_INPUT_MENU_STATE &&
             exact_tail.special_input_mode == 4U &&

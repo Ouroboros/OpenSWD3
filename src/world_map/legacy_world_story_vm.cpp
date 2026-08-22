@@ -6483,8 +6483,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 2U);
             ports.service_audio();
             ++result.direct_audio_service_count;
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
 
         case OP_137_STOP_SCENE_MUSIC_STREAM:

@@ -359,8 +359,8 @@ opcode193恢复actual video progress的非负等待/负值完成，补齐两路p
 TALK1记录双向回放通过，归platform adapted。Story VM与audio-video依赖4/4、SDL app编译、
 Linux core186/186与app192/192完整门通过。已实现195/198、已验收194/198；
 内部workpack为142/146，即`24 assembly_exact + 118 platform_adapted + 4 pending_audit`。
-special1024预审触发独立common-join修复：25个已闭环handler组恢复`var_28|ESI==0`时的
-最终audio；85合计2次、96 common路径合计3次且CD preflight仍绕过common。Story VM 3/3、
+special1024预审触发独立common-join修复：最终26个已闭环handler组恢复`var_28|ESI==0`时的
+最终audio；85/135合计2次、96 common路径合计3次且CD preflight仍绕过common。Story VM 3/3、
 SDL app编译、Linux core186/186与app192/192通过；公开进度与workpack计数不变。
 下一行仍只审计`0x0042D200`下的special opcode1024。
 

@@ -588,7 +588,7 @@ CLOSURE_OVERRIDES = {
     "0x0042C3B0": (
         "platform_adapted",
         "story-vm-input-menu-reset-0042c3b0.md",
-        "assembly_exact;unit_tested;asset_absence_verified;platform_adapted;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;partial_failure_tested;shared_owner_tested;external_dependency_tested;typed_owner_boundary_tested",
+        "assembly_exact;unit_tested;asset_absence_verified;platform_adapted;sdl_runtime_integrated;exact_tail_tested;selector_alias_tested;partial_failure_tested;shared_owner_tested;external_dependency_tested;typed_owner_boundary_tested;audio_service_tested;side_effect_order_tested",
     ),
     "0x0042C3F7": (
         "platform_adapted",

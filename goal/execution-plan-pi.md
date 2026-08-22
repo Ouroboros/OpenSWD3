@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v403
+版本：v404
 
 最后更新：2026-08-21
 
@@ -2930,13 +2930,15 @@ B7 P0 有限收口完成。
 
 - special opcode1024预审发现并独立校正已提交handler的common join audio。机器
     `0x0042B0AE`在`var_28|ESI==0`时固定发布previous、调用`_AIL_serve`一次并返回；旧C++
-    有25个handler组/30个opcode把该路径直接写成yield，漏最终audio。新增统一
+    最终确认26个handler组/31个opcode存在漏最终audio。新增统一
     `yield_from_common_join`窄helper，只接确实到达共同出口的路径；opcode85恢复显式+common
     两次audio，opcode96成功恢复两次内部+common共三次，CD preflight仍按`0x0042D4B6`
-    一次audio且不发previous；186/187已正确两次，未误加第三次。synthetic逐handler、真实资产
-    和15/16/17/23/111/161长链累计计数已校正，Story VM 3/3、SDL app编译、Linux core
-    186/186及app 192/192通过。workpack计数不变，25行补`audio_service_tested`；双生成hash为
-    `87545fd372eb8f8ccf326bbac925b235ecaa0eb8c2c52fc88ee74a1c84d219a4`。公开进度保持
+    一次audio且不发previous；186/187已正确两次，未误加第三次。后续全入边枚举又确认opcode135
+    在`0x0042C3ED`内部audio后仍经common join，现恢复previous后第二次audio并锁定两次callback
+    顺序。synthetic逐handler、真实资产和15/16/17/23/111/161长链累计计数已校正，Story VM 3/3、
+    SDL app编译、Linux core186/186及app192/192通过。workpack计数不变，26行补
+    `audio_service_tested`；双生成hash为
+    `4b0b06c1df4bb912ea01bebf99be0799917c6c306ef14f6af09dcc5c35be935e`。公开进度保持
     已实现195/198、已验收194/198；内部workpack142/146。
 
 下一组仍只审计`0x0042D200` / special opcode1024。

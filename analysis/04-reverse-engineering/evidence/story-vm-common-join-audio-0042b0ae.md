@@ -21,7 +21,7 @@
 
 ## 2. 已提交差异与校正范围
 
-special opcode1024预审暴露旧C++把若干共同出口直接写成`yielded`，漏掉最终audio。独立LST复核确认以下25个handler组/30个opcode受影响：
+special opcode1024预审暴露旧C++把若干共同出口直接写成`yielded`，漏掉最终audio。独立LST复核最终确认以下26个handler组/31个opcode受影响：
 
 ```text
 0x0042ADB7  20,169
@@ -49,6 +49,7 @@ special opcode1024预审暴露旧C++把若干共同出口直接写成`yielded`�
 0x0042B4CA  106,154 waiting
 0x0042B50F  107 waiting
 0x0042C234  133
+0x0042C3B0  135 after one handler-internal audio
 ```
 
 现代新增单一`yield_from_common_join`窄helper，固定previous→audio→yield。只把上述确实到达共同出口的路径接入；same-call、typed-stop和handler内部audio不改。
@@ -56,13 +57,14 @@ special opcode1024预审暴露旧C++把若干共同出口直接写成`yielded`�
 两个多audio合同特别锁定：
 
 - opcode85：清屏/提交后的显式audio仍保留，video helper返回后共同出口再audio一次，成功及modern preflight拒绝均合计2次；
-- opcode96：成功路径两个显式audio后共同出口再一次，合计3次；modern `prepare_story_ani()==false`映射机器CD helper `0x0042A9C6 -> 0x0042D4B6`直接返回0，仍只1次audio且不发布previous，不被误纳入共同出口。
+- opcode96：成功路径两个显式audio后共同出口再一次，合计3次；modern `prepare_story_ani()==false`映射机器CD helper `0x0042A9C6 -> 0x0042D4B6`直接返回0，仍只1次audio且不发布previous，不被误纳入共同出口；
+- opcode135：`0x0042C3ED`的handler内部audio后仍跳common join，previous发布后再audio一次，合计2次。
 
 opcodes186-187 taken reload原实现已经是loader audio一次加共同出口audio一次；状态判断后的裸`yielded`不代表缺第三次audio，本轮明确不增加。
 
 ## 3. 验证
 
-现有synthetic逐handler锁定至少一条共同yield的`direct_audio_service_count==1`；opcode85/96锁定2/3次以及callback事件顺序；opcode96 preflight锁定1次、旧previous不变。same-call和typed-stop断言继续锁定0次。
+现有synthetic逐handler锁定至少一条共同yield的audio计数；opcode85/96/135锁定2/3/2次以及callback事件顺序；opcode96 preflight锁定1次、旧previous不变。same-call和typed-stop断言继续锁定0次。
 
 真实回放更新并锁定59、55-57、58/153、85、96、133以及以59/67为same-call后继的15/16/17/23/111/161长链累计计数。Story VM synthetic/real/initial-session 3/3通过。
 
@@ -70,4 +72,4 @@ LST→C++：逐入口确认最终jump为`loc_42B0AA/0x0042B0AE`或等价共享�
 
 C++→LST：没有给same-call完成路、typed-stop或opcode96 CD preflight增加audio；没有把内部audio误删或把186/187变成三次。
 
-SDL app编译通过；workpack双生成稳定hash为`87545fd372eb8f8ccf326bbac925b235ecaa0eb8c2c52fc88ee74a1c84d219a4`。Linux完整门通过：core 186/186、app 192/192。未启动原版或OpenSWD3游戏EXE。
+SDL app编译通过；workpack双生成稳定hash为`4b0b06c1df4bb912ea01bebf99be0799917c6c306ef14f6af09dcc5c35be935e`。Linux完整门通过：core 186/186、app 192/192。未启动原版或OpenSWD3游戏EXE。

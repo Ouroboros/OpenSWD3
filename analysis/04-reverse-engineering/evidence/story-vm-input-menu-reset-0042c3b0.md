@@ -42,19 +42,20 @@ dword_4CAEB0 = 3
 
 ```text
 IP += 2
-AIL_serve()
-previous = 135
+AIL_serve()      // handler内部
+previous = 135   // common join发布
+AIL_serve()      // common join最终service
 yield
 ```
 
-机器在调用helper后从保存槽重取物理脚本指针，再更新u16 IP；audio发生在IP提交后、common join发布previous之前。handler没有same-call continuation、分支、operand或自修改。
+机器在调用helper后从保存槽重取物理脚本指针，再更新u16 IP；第一次audio发生在IP提交后、common join发布previous之前。`var_28|ESI==0`，common join发布previous后必经`0x0042D4D7`第二次audio再返回。handler没有same-call continuation、分支、operand或自修改。
 
-完整两字节记录可位于`IP=0x7FFE`并精确结束于窗口尾：四写、helper、IP=`0x8000`、audio、previous和yield均完成，不读取后继字节。
+完整两字节记录可位于`IP=0x7FFE`并精确结束于窗口尾：四写、helper、IP=`0x8000`、第一次audio、previous、第二次audio和yield均完成，不读取后继字节。
 
 ## 4. 资产与验证
 
 完整线性TALK目录对opcode135为0条物理记录/0 probes，因此使用`asset_absence_verified`而不伪造真实回放。四文件基础raw `0x0087`字样为`14/45/14/5`；`0x4087`仅在TALK1出现1处，`0x8087/0xC087`为零。上述字样均不位于已证明的线性记录入口。
 
-synthetic覆盖四raw alias、四项完整dword覆盖、reset callback观察四写、audio callback观察已提交IP、event顺序、四个runtime binding逐项缺失、B9/B11 reset port失败保留四写，以及`IP=0x7FFE`精确尾。成功路径固定一次reset、一次audio、previous135与yield；失败路径不伪造后续副作用。
+synthetic覆盖四raw alias、四项完整dword覆盖、reset callback观察四写、两个audio callback分别观察已提交IP/未发布previous与common已发布previous、event顺序、四个runtime binding逐项缺失、B9/B11 reset port失败保留四写，以及`IP=0x7FFE`精确尾。成功路径固定一次reset、两次audio、previous135与yield；失败路径不伪造后续副作用。
 
 Story VM synthetic、real及initial-session三项通过。Linux core 186/186与app 192/192完整门以exit0通过。未启动原版或OpenSWD3游戏EXE。
