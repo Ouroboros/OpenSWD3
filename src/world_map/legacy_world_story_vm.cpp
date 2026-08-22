@@ -1857,6 +1857,10 @@ void initialize_legacy_world_story_vm(LegacyWorldStoryVmState& state) noexcept {
     state.deferred_map_tile_y = -1;
     state.deferred_map_id = 0;
     state.guid_one_action_override = 0U;
+    for (auto& text : state.mode_texts) {
+        text.allocated = false;
+    }
+
     state.world_music_request = 0U;
     state.world_music_first_stream = 0U;
     state.world_music_second_stream = 0U;
@@ -7058,6 +7062,76 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
 
             continue;
+        }
+
+        case OP_170_CLEAR_MODE17_TEXT:
+        case OP_171_SET_MODE17_TEXT:
+        case OP_172_CLEAR_MODE18_TEXT:
+        case OP_173_SET_MODE18_TEXT: {
+            const bool stores_text = (result.opcode & 1U) != 0U;
+            const std::size_t text_index =
+                result.opcode <= OP_171_SET_MODE17_TEXT ? 0U : 1U;
+            const u16 flag_index = static_cast<u16>(77U + text_index);
+            auto& text = state.mode_texts[text_index];
+            if (!stores_text) {
+                context.instruction_offset =
+                    static_cast<u16>(context.instruction_offset + 2U);
+                text.allocated = false;
+                clear_legacy_world_story_flag(state, flag_index);
+                state.previous_opcode = result.opcode;
+                ports.service_audio();
+                ++result.direct_audio_service_count;
+                result.status = LegacyWorldStoryVmStatus::yielded;
+                return result;
+            }
+
+            std::size_t terminator = ip + 2U;
+            while (true) {
+                if (!has_bytes(state.window, terminator, sizeof(u16))) {
+                    result.status = LegacyWorldStoryVmStatus::
+                        mode_text_terminator_not_found;
+                    return result;
+                }
+
+                if (read_u16(state.window, terminator) == kPercentQTerminator) {
+                    break;
+                }
+
+                ++terminator;
+            }
+
+            context.instruction_offset = static_cast<u16>(terminator + 2U);
+            text.allocated = false;
+            text.allocated = true;
+            text.bytes.fill(0U);
+            const std::size_t text_begin = ip + 2U;
+            const std::size_t text_length = terminator - text_begin;
+            std::size_t copy_length{};
+            while (copy_length < text_length &&
+                   state.window[text_begin + copy_length] != 0U) {
+                if (copy_length >= text.bytes.size()) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::mode_text_out_of_range;
+                    return result;
+                }
+
+                text.bytes[copy_length] =
+                    state.window[text_begin + copy_length];
+                ++copy_length;
+            }
+
+            if (copy_length >= text.bytes.size()) {
+                result.status =
+                    LegacyWorldStoryVmStatus::mode_text_out_of_range;
+                return result;
+            }
+
+            set_legacy_world_story_flag(state, flag_index);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
         }
 
         case 193U:

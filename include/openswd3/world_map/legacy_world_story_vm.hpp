@@ -40,6 +40,7 @@ inline constexpr std::size_t kLegacyWorldStoryShopBufferWordCount = 0x80U;
 inline constexpr std::size_t kLegacyWorldStoryShopItemCapacity =
     kLegacyWorldStoryShopBufferWordCount - 1U;
 inline constexpr std::size_t kLegacyWorldStoryPartyMemberResourceCount = 4U;
+inline constexpr std::size_t kLegacyWorldStoryModeTextSize = 0x34U;
 
 enum LegacyWorldStoryOpcode : compat::u16 {
     OP_07_CLEAR_DIALOG_CONTROL_BIT31 = 7U,
@@ -204,6 +205,10 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM = 167U,
     OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM = 168U,
     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS = 169U,
+    OP_170_CLEAR_MODE17_TEXT = 170U,
+    OP_171_SET_MODE17_TEXT = 171U,
+    OP_172_CLEAR_MODE18_TEXT = 172U,
+    OP_173_SET_MODE18_TEXT = 173U,
     OP_1025 = 1025U,
 };
 
@@ -228,6 +233,11 @@ struct LegacyWorldStoryPartyMemberResources {
     compat::u16 transient_value{};
 };
 
+struct LegacyWorldStoryModeText {
+    std::array<compat::u8, kLegacyWorldStoryModeTextSize> bytes{};
+    bool allocated{};
+};
+
 struct LegacyWorldStoryVmState {
     std::array<compat::u8, resource_io::kLegacyTalkWindowSize> window{};
     std::array<compat::u8, kLegacyWorldStoryFlagBytes> flags{};
@@ -241,6 +251,10 @@ struct LegacyWorldStoryVmState {
     // Shop mode 2 consumes the nonzero u16 ids and releases that owner on exit;
     // sub_40E0B0 does not reset it.
     std::vector<compat::u16> shop_item_ids;
+    // Opcodes 170..173 own the nullable 0x34-byte blocks at
+    // dword_4B751C/dword_4B74F4. Special modes 17/18 consume these bytes and
+    // persistence serializes the two blocks in this order.
+    std::array<LegacyWorldStoryModeText, 2U> mode_texts;
     // Opcode 134 directly updates the first three current/limit word pairs in
     // four process-level 0x38-byte party-member records, then clears +0x24.
     // The remaining record fields and persistence loading belong to B10/B11.
@@ -462,6 +476,8 @@ enum class LegacyWorldStoryVmStatus : compat::u8 {
     text_allocation_failed,
     text_allocation_terminator_not_found,
     text_allocation_out_of_range,
+    mode_text_terminator_not_found,
+    mode_text_out_of_range,
     unsupported_packed_row_effect_operation,
     item_allocation_failed,
     item_update_failed,

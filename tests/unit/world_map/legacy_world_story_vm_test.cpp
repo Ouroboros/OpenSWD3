@@ -205,6 +205,10 @@ using openswd3::world_map::OP_1025;
 using openswd3::world_map::OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION;
 using openswd3::world_map::OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE;
 using openswd3::world_map::OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS;
+using openswd3::world_map::OP_170_CLEAR_MODE17_TEXT;
+using openswd3::world_map::OP_171_SET_MODE17_TEXT;
+using openswd3::world_map::OP_172_CLEAR_MODE18_TEXT;
+using openswd3::world_map::OP_173_SET_MODE18_TEXT;
 
 void write_u16(
     const std::span<u8> bytes, const std::size_t offset, const u16 value
@@ -1968,6 +1972,10 @@ void test_reinitialization_writes_only_owned_vm_fields(
     state.dialog_anchor_left = 21U;
     state.dialog_anchor_top = 22U;
     state.next_dialog_flag18_suppression = 2U;
+    state.mode_texts[0].allocated = true;
+    state.mode_texts[0].bytes.fill(0xA5U);
+    state.mode_texts[1].allocated = true;
+    state.mode_texts[1].bytes.fill(0x5AU);
 
     openswd3::world_map::initialize_legacy_world_story_vm(state);
 
@@ -1993,6 +2001,9 @@ void test_reinitialization_writes_only_owned_vm_fields(
             state.dialog_character_delay_base == 3U &&
             state.dialog_anchor_left == 21U && state.dialog_anchor_top == 22U &&
             state.next_dialog_flag18_suppression == 2U &&
+            !state.mode_texts[0].allocated && !state.mode_texts[1].allocated &&
+            state.mode_texts[0].bytes.front() == 0xA5U &&
+            state.mode_texts[1].bytes.front() == 0x5AU &&
             state.deferred_map_tile_x == -1 &&
             state.deferred_map_tile_y == -1 && state.deferred_map_id == 0 &&
             openswd3::world_map::query_legacy_world_story_flag(state, 70U) &&
@@ -2864,6 +2875,236 @@ void test_item_total_reload_protocol(openswd3::test::Context& test) {
             load_failure.ports.story_protocol_events ==
                 std::vector<u32>{2U, 5U},
         "opcodes 165 and 166 preserve audio, context writes, previous publication, and stale loaded ownership at the checked same-file load failure boundary"
+    );
+}
+
+void test_mode_text_protocol(openswd3::test::Context& test) {
+    struct Variant {
+        u16 opcode;
+        std::size_t text_index;
+        u16 flag_index;
+        bool stores_text;
+    };
+    constexpr std::array variants{
+        Variant{OP_170_CLEAR_MODE17_TEXT, 0U, 77U, false},
+        Variant{OP_171_SET_MODE17_TEXT, 0U, 77U, true},
+        Variant{OP_172_CLEAR_MODE18_TEXT, 1U, 78U, false},
+        Variant{OP_173_SET_MODE18_TEXT, 1U, 78U, true},
+    };
+    constexpr std::array<u16, 4U> alias_masks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+
+    for (const auto variant : variants) {
+        for (const u16 alias_mask : alias_masks) {
+            Fixture fixture;
+            fixture.state.mode_texts[0].allocated = true;
+            fixture.state.mode_texts[0].bytes.fill(0x11U);
+            fixture.state.mode_texts[1].allocated = true;
+            fixture.state.mode_texts[1].bytes.fill(0x22U);
+            openswd3::world_map::set_legacy_world_story_flag(
+                fixture.state, 77U
+            );
+            openswd3::world_map::set_legacy_world_story_flag(
+                fixture.state, 78U
+            );
+            prime_loaded_instruction(
+                fixture, static_cast<u16>(variant.opcode | alias_mask)
+            );
+
+            const std::size_t successor_offset = variant.stores_text ? 7U : 2U;
+            if (variant.stores_text) {
+                openswd3::world_map::clear_legacy_world_story_flag(
+                    fixture.state, variant.flag_index
+                );
+                fixture.state.window[2U] = static_cast<u8>('A');
+                fixture.state.window[3U] = 0U;
+                fixture.state.window[4U] = static_cast<u8>('B');
+                fixture.state.window[5U] = static_cast<u8>('%');
+                fixture.state.window[6U] = static_cast<u8>('Q');
+            }
+            write_u16(fixture.state.window, successor_offset, OP_1025);
+            fixture.state.previous_opcode = 0x66U;
+
+            const auto result = fixture.step();
+            const auto& selected = fixture.state.mode_texts[variant.text_index];
+            const auto& other =
+                fixture.state.mode_texts[variant.text_index ^ 1U];
+            const auto successor = fixture.step();
+            test.expect_true(
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                    result.executed_instruction_count == 1U &&
+                    result.direct_audio_service_count == 1U &&
+                    fixture.context.instruction_offset == successor_offset &&
+                    selected.allocated == variant.stores_text &&
+                    (!variant.stores_text ||
+                     (selected.bytes[0U] == static_cast<u8>('A') &&
+                      selected.bytes[1U] == 0U && selected.bytes[2U] == 0U &&
+                      selected.bytes.back() == 0U)) &&
+                    other.allocated &&
+                    other.bytes.front() ==
+                        (variant.text_index == 0U ? 0x22U : 0x11U) &&
+                    openswd3::world_map::query_legacy_world_story_flag(
+                        fixture.state, variant.flag_index
+                    ) == variant.stores_text &&
+                    openswd3::world_map::query_legacy_world_story_flag(
+                        fixture.state, static_cast<u16>(variant.flag_index ^ 3U)
+                    ) &&
+                    fixture.state.previous_opcode == variant.opcode &&
+                    successor.status ==
+                        LegacyWorldStoryVmStatus::unsupported_opcode &&
+                    successor.opcode == OP_1025 &&
+                    successor.executed_instruction_count == 1U,
+                "opcodes 170 through 173 cover every raw alias, isolate the mode-17 and mode-18 slots, preserve lstrcpyA embedded-NUL truncation, publish previous, service audio, and yield before the successor"
+            );
+        }
+    }
+
+    Fixture empty_text;
+    prime_loaded_instruction(empty_text, OP_171_SET_MODE17_TEXT);
+    empty_text.state.window[2U] = static_cast<u8>('%');
+    empty_text.state.window[3U] = static_cast<u8>('Q');
+    const auto empty_text_result = empty_text.step();
+
+    Fixture long_after_nul;
+    prime_loaded_instruction(long_after_nul, OP_173_SET_MODE18_TEXT);
+    std::ranges::fill_n(
+        long_after_nul.state.window.begin() + 2U, 60U, static_cast<u8>('A')
+    );
+    long_after_nul.state.window[3U] = 0U;
+    long_after_nul.state.window[62U] = static_cast<u8>('%');
+    long_after_nul.state.window[63U] = static_cast<u8>('Q');
+    const auto long_after_nul_result = long_after_nul.step();
+
+    test.expect_true(
+        empty_text_result.status == LegacyWorldStoryVmStatus::yielded &&
+            empty_text.context.instruction_offset == 4U &&
+            empty_text.state.mode_texts[0].allocated &&
+            std::ranges::all_of(
+                empty_text.state.mode_texts[0].bytes,
+                [](const u8 byte) { return byte == 0U; }
+            ) &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                empty_text.state, 77U
+            ) &&
+            long_after_nul_result.status == LegacyWorldStoryVmStatus::yielded &&
+            long_after_nul.context.instruction_offset == 64U &&
+            long_after_nul.state.mode_texts[1].allocated &&
+            long_after_nul.state.mode_texts[1].bytes[0U] ==
+                static_cast<u8>('A') &&
+            std::ranges::all_of(
+                long_after_nul.state.mode_texts[1].bytes.begin() + 1U,
+                long_after_nul.state.mode_texts[1].bytes.end(),
+                [](const u8 byte) { return byte == 0U; }
+            ) &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                long_after_nul.state, 78U
+            ),
+        "odd mode-text variants accept an empty percent-Q record and scan through bytes after an embedded NUL while lstrcpyA copies only the prefix"
+    );
+
+    Fixture missing_terminator;
+    prime_loaded_instruction(missing_terminator, OP_171_SET_MODE17_TEXT);
+    missing_terminator.context.instruction_offset = 0x7FFDU;
+    missing_terminator.state.previous_opcode = 0x66U;
+    missing_terminator.state.mode_texts[0].allocated = true;
+    missing_terminator.state.mode_texts[0].bytes.fill(0xA5U);
+    openswd3::world_map::set_legacy_world_story_flag(
+        missing_terminator.state, 77U
+    );
+    write_u16(missing_terminator.state.window, 0x7FFDU, OP_171_SET_MODE17_TEXT);
+    missing_terminator.state.window[0x7FFFU] = static_cast<u8>('A');
+    const auto missing_terminator_result = missing_terminator.step();
+
+    Fixture copy_overflow;
+    prime_loaded_instruction(copy_overflow, OP_171_SET_MODE17_TEXT);
+    copy_overflow.state.previous_opcode = 0x66U;
+    copy_overflow.state.mode_texts[0].allocated = true;
+    copy_overflow.state.mode_texts[0].bytes.fill(0xCCU);
+    std::ranges::fill_n(
+        copy_overflow.state.window.begin() + 2U, 52U, static_cast<u8>('X')
+    );
+    copy_overflow.state.window[54U] = static_cast<u8>('%');
+    copy_overflow.state.window[55U] = static_cast<u8>('Q');
+    const auto copy_overflow_result = copy_overflow.step();
+
+    test.expect_true(
+        missing_terminator_result.status ==
+                LegacyWorldStoryVmStatus::mode_text_terminator_not_found &&
+            missing_terminator.context.instruction_offset == 0x7FFDU &&
+            missing_terminator.state.previous_opcode == 0x66U &&
+            missing_terminator.state.mode_texts[0].allocated &&
+            missing_terminator.state.mode_texts[0].bytes.front() == 0xA5U &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                missing_terminator.state, 77U
+            ) &&
+            missing_terminator_result.direct_audio_service_count == 0U,
+        "odd mode-text variants leave the old owner, flag, IP, previous, and audio state unchanged when the terminator read fails"
+    );
+    test.expect_true(
+        copy_overflow_result.status ==
+                LegacyWorldStoryVmStatus::mode_text_out_of_range &&
+            copy_overflow.context.instruction_offset == 56U &&
+            copy_overflow.state.previous_opcode == 0x66U &&
+            copy_overflow.state.mode_texts[0].allocated &&
+            std::ranges::all_of(
+                copy_overflow.state.mode_texts[0].bytes,
+                [](const u8 byte) { return byte == static_cast<u8>('X'); }
+            ) &&
+            !openswd3::world_map::query_legacy_world_story_flag(
+                copy_overflow.state, 77U
+            ) &&
+            copy_overflow_result.direct_audio_service_count == 0U,
+        "odd mode-text variants commit IP, replacement allocation, zero-fill, and 52 copied bytes before the lstrcpyA terminator overflow typed-stop"
+    );
+
+    Fixture clear_exact_tail;
+    prime_loaded_instruction(clear_exact_tail, OP_172_CLEAR_MODE18_TEXT);
+    clear_exact_tail.context.instruction_offset = 0x7FFEU;
+    clear_exact_tail.state.previous_opcode = 0x66U;
+    clear_exact_tail.state.mode_texts[1].allocated = true;
+    openswd3::world_map::set_legacy_world_story_flag(
+        clear_exact_tail.state, 78U
+    );
+    write_u16(clear_exact_tail.state.window, 0x7FFEU, OP_172_CLEAR_MODE18_TEXT);
+    const auto clear_exact_tail_result = clear_exact_tail.step();
+
+    Fixture set_exact_tail;
+    prime_loaded_instruction(set_exact_tail, OP_173_SET_MODE18_TEXT);
+    set_exact_tail.context.instruction_offset = 0x7FFCU;
+    set_exact_tail.state.previous_opcode = 0x66U;
+    write_u16(set_exact_tail.state.window, 0x7FFCU, OP_173_SET_MODE18_TEXT);
+    set_exact_tail.state.window[0x7FFEU] = static_cast<u8>('%');
+    set_exact_tail.state.window[0x7FFFU] = static_cast<u8>('Q');
+    const auto set_exact_tail_result = set_exact_tail.step();
+
+    test.expect_true(
+        clear_exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            clear_exact_tail_result.executed_instruction_count == 1U &&
+            clear_exact_tail_result.direct_audio_service_count == 1U &&
+            clear_exact_tail.context.instruction_offset == 0x8000U &&
+            clear_exact_tail.state.previous_opcode ==
+                OP_172_CLEAR_MODE18_TEXT &&
+            !clear_exact_tail.state.mode_texts[1].allocated &&
+            !openswd3::world_map::query_legacy_world_story_flag(
+                clear_exact_tail.state, 78U
+            ),
+        "fixed mode-text clear completes owner, flag, previous, audio, and yield at the exact window tail"
+    );
+    test.expect_true(
+        set_exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            set_exact_tail_result.executed_instruction_count == 1U &&
+            set_exact_tail_result.direct_audio_service_count == 1U &&
+            set_exact_tail.context.instruction_offset == 0x8000U &&
+            set_exact_tail.state.previous_opcode == OP_173_SET_MODE18_TEXT &&
+            set_exact_tail.state.mode_texts[1].allocated &&
+            openswd3::world_map::query_legacy_world_story_flag(
+                set_exact_tail.state, 78U
+            ),
+        "variable mode-text set completes owner, flag, previous, audio, and yield at the exact window tail"
     );
 }
 
@@ -25874,6 +26115,138 @@ void test_real_item_total_reload_records(
     );
 }
 
+void test_real_mode_text_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    struct Sample {
+        u32 file_number;
+        std::streamoff file_offset;
+        u16 opcode;
+        std::size_t length;
+    };
+    constexpr std::array samples{
+        Sample{1U, 0x000233D7U, OP_171_SET_MODE17_TEXT, 38U},
+        Sample{1U, 0x000233FDU, OP_173_SET_MODE18_TEXT, 38U},
+        Sample{1U, 0x00038FA3U, OP_170_CLEAR_MODE17_TEXT, 2U},
+        Sample{1U, 0x00038FA5U, OP_172_CLEAR_MODE18_TEXT, 2U},
+        Sample{1U, 0x00044656U, OP_171_SET_MODE17_TEXT, 30U},
+        Sample{1U, 0x00044674U, OP_173_SET_MODE18_TEXT, 30U},
+        Sample{1U, 0x00052771U, OP_172_CLEAR_MODE18_TEXT, 2U},
+        Sample{1U, 0x00052773U, OP_170_CLEAR_MODE17_TEXT, 2U},
+        Sample{2U, 0x000150EBU, OP_170_CLEAR_MODE17_TEXT, 2U},
+        Sample{2U, 0x000150EDU, OP_172_CLEAR_MODE18_TEXT, 2U},
+        Sample{2U, 0x000320F4U, OP_171_SET_MODE17_TEXT, 40U},
+        Sample{2U, 0x0003211CU, OP_173_SET_MODE18_TEXT, 40U},
+        Sample{3U, 0x00010AAEU, OP_173_SET_MODE18_TEXT, 14U},
+        Sample{3U, 0x00017BFBU, OP_170_CLEAR_MODE17_TEXT, 2U},
+        Sample{3U, 0x00027487U, OP_170_CLEAR_MODE17_TEXT, 2U},
+        Sample{3U, 0x0002D1A0U, OP_170_CLEAR_MODE17_TEXT, 2U},
+        Sample{3U, 0x0002D1B4U, OP_170_CLEAR_MODE17_TEXT, 2U},
+        Sample{4U, 0x0000510CU, OP_172_CLEAR_MODE18_TEXT, 2U},
+        Sample{4U, 0x0000510EU, OP_170_CLEAR_MODE17_TEXT, 2U},
+        Sample{4U, 0x000052F3U, OP_172_CLEAR_MODE18_TEXT, 2U},
+        Sample{4U, 0x000052F5U, OP_170_CLEAR_MODE17_TEXT, 2U},
+    };
+
+    std::array<std::size_t, 4U> opcode_counts{};
+    std::array<std::size_t, 4U> file_counts{};
+    bool all_records_valid = true;
+    for (const auto sample : samples) {
+        std::ifstream input{
+            root / ("TALK" + std::to_string(sample.file_number) + ".DAT"),
+            std::ios::binary | std::ios::in
+        };
+        std::vector<u8> instruction(sample.length);
+        input.seekg(sample.file_offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        const bool stores_text = (sample.opcode & 1U) != 0U;
+        all_records_valid = all_records_valid && static_cast<bool>(input) &&
+            (read_u16(instruction, 0U) & 0x3FFFU) == sample.opcode &&
+            (!stores_text ||
+             (sample.length >= 4U &&
+              read_u16(instruction, sample.length - 2U) == 0x5125U &&
+              sample.length - 4U <
+                  openswd3::world_map::kLegacyWorldStoryModeTextSize));
+        ++opcode_counts[sample.opcode - OP_170_CLEAR_MODE17_TEXT];
+        ++file_counts[sample.file_number - 1U];
+    }
+    test.expect_true(
+        all_records_valid && samples.size() == 21U &&
+            opcode_counts == std::array<std::size_t, 4U>{9U, 3U, 5U, 4U} &&
+            file_counts == std::array<std::size_t, 4U>{8U, 4U, 5U, 4U},
+        "all 21 real mode-text records preserve base raw words, fixed or percent-Q lengths, per-opcode counts, and TALK-file distribution"
+    );
+
+    constexpr std::array replay_indices{2U, 0U, 17U, 12U};
+    for (const std::size_t replay_index : replay_indices) {
+        const auto sample = samples[replay_index];
+        std::ifstream input{
+            root / ("TALK" + std::to_string(sample.file_number) + ".DAT"),
+            std::ios::binary | std::ios::in
+        };
+        std::vector<u8> instruction(sample.length);
+        input.seekg(sample.file_offset);
+        input.read(
+            reinterpret_cast<char*>(instruction.data()),
+            static_cast<std::streamsize>(instruction.size())
+        );
+        const bool instruction_read = static_cast<bool>(input);
+        const bool stores_text = (sample.opcode & 1U) != 0U;
+        const std::size_t text_index =
+            sample.opcode <= OP_171_SET_MODE17_TEXT ? 0U : 1U;
+        const u16 flag_index = static_cast<u16>(77U + text_index);
+
+        Fixture fixture;
+        prime_loaded_instruction(fixture, read_u16(instruction, 0U));
+        std::ranges::copy(instruction, fixture.state.window.begin());
+        fixture.state.loaded_file_number = sample.file_number;
+        fixture.state.loaded_data_offset =
+            static_cast<u32>(sample.file_offset - 0x200);
+        fixture.context.talk_data_offset =
+            static_cast<u32>(sample.file_offset - 0x200);
+        fixture.state.mode_texts[text_index].allocated = true;
+        fixture.state.mode_texts[text_index].bytes.fill(0xA5U);
+        if (stores_text) {
+            openswd3::world_map::clear_legacy_world_story_flag(
+                fixture.state, flag_index
+            );
+        } else {
+            openswd3::world_map::set_legacy_world_story_flag(
+                fixture.state, flag_index
+            );
+        }
+
+        const auto result = fixture.step();
+        const auto& text = fixture.state.mode_texts[text_index];
+        const std::size_t payload_length =
+            stores_text ? sample.length - 4U : 0U;
+        const bool payload_matches = !stores_text ||
+            (std::ranges::equal(
+                 std::span<const u8>{instruction}.subspan(2U, payload_length),
+                 std::span<const u8>{text.bytes}.first(payload_length)
+             ) &&
+             text.bytes[payload_length] == 0U);
+        test.expect_true(
+            instruction_read &&
+                (read_u16(instruction, 0U) & 0x3FFFU) == sample.opcode &&
+                result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.opcode == sample.opcode &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.context.instruction_offset == sample.length &&
+                text.allocated == stores_text && payload_matches &&
+                openswd3::world_map::query_legacy_world_story_flag(
+                    fixture.state, flag_index
+                ) == stores_text &&
+                fixture.state.previous_opcode == sample.opcode,
+            "real opcodes 170 through 173 clear or replace their selected persisted mode text, synchronize the paired flag, and yield after audio"
+        );
+    }
+}
+
 void test_real_jump_same_file_offset_record(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -29263,6 +29636,7 @@ void test_real_adjust_party_member_resources_records(
 
     Fixture restore;
     std::ranges::copy(restore_records, restore.state.window.begin());
+    write_u16(restore.state.window, 40U, OP_1025);
     restore.state.loaded_file_number = 1U;
     restore.state.loaded_data_offset = 0x000231AFU;
     restore.state.window_loaded = true;
@@ -29330,9 +29704,10 @@ void test_real_adjust_party_member_resources_records(
                 OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
             read_u16(restore_records, 30U) ==
                 OP_134_ADJUST_PARTY_MEMBER_RESOURCES &&
+            read_u16(restore_records, 40U) == OP_171_SET_MODE17_TEXT &&
             restore_result.status ==
                 LegacyWorldStoryVmStatus::unsupported_opcode &&
-            restore_result.opcode == 171U &&
+            restore_result.opcode == OP_1025 &&
             restore_result.executed_instruction_count == 5U &&
             restore.context.instruction_offset == 40U &&
             restore.state.previous_opcode ==
@@ -29358,7 +29733,7 @@ void test_real_adjust_party_member_resources_records(
             damage.ports.input_menu_reset_count == 1U &&
             read_u16(damage.state.window, 10U) ==
                 OP_144_REQUEST_SPECIAL_MODE_4_OR_5,
-        "real opcode 134 restores all four party-member resources and same-calls its rewritten opcode 144 mode-four audio-yield path"
+        "real opcode 134 restores all four party-member resources before the independently tested opcode 171 successor and same-calls its rewritten opcode 144 mode-four audio-yield path"
     );
 }
 
@@ -32561,6 +32936,7 @@ int main(const int argument_count, char** arguments) {
     test_story_transfer_protocol(test);
     test_current_map_reload_protocol(test);
     test_item_total_reload_protocol(test);
+    test_mode_text_protocol(test);
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);
@@ -32718,6 +33094,7 @@ int main(const int argument_count, char** arguments) {
         test_real_story_transfer_record(test, root);
         test_real_current_map_reload_records(test, root);
         test_real_item_total_reload_records(test, root);
+        test_real_mode_text_records(test, root);
         test_real_jump_same_file_offset_record(test, root);
         test_real_jump_if_role_path_unprepared_record(test, root);
         test_real_jump_if_role_path_prepared_record(test, root);
