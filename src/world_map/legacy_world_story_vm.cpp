@@ -6416,15 +6416,22 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 141U:
+        case OP_141_CONFIGURE_MUSIC_STREAM_TRANSITION:
+            if (!has_bytes(state.window, ip, 4U)) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+
+            state.current_first_stream = read_u16(state.window, ip + 2U);
             if (!has_bytes(state.window, ip, 6U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
-            state.current_first_stream = read_u16(state.window, ip + 2U);
+
             state.current_second_stream = read_u16(state.window, ip + 4U);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
             continue;
 
         case 161U: {
