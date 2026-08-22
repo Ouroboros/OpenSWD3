@@ -128,6 +128,15 @@ void write_u16(
     bytes[offset + 1U] = static_cast<u8>(value >> 8U);
 }
 
+void write_u32(
+    const std::span<u8> bytes, const std::size_t offset, const u32 value
+) noexcept {
+    bytes[offset] = static_cast<u8>(value);
+    bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+    bytes[offset + 2U] = static_cast<u8>(value >> 16U);
+    bytes[offset + 3U] = static_cast<u8>(value >> 24U);
+}
+
 [[nodiscard]] constexpr bool has_bytes(
     const std::span<const u8> bytes,
     const std::size_t offset,
@@ -317,6 +326,89 @@ void replace_name_prefix(
     );
     std::ranges::copy(replacement.first(replacement_size), destination.begin());
     destination.back() = 0U;
+}
+
+[[nodiscard]] LegacyWorldStoryVmStatus update_scene_music_table_entry(
+    const LegacyWorldTalkContext& context,
+    const std::span<const u8> instruction,
+    const std::size_t ip,
+    const std::span<u8> maps_payload
+) noexcept {
+    if (!has_bytes(instruction, ip + 2U, sizeof(u16))) {
+        return LegacyWorldStoryVmStatus::operand_out_of_range;
+    }
+    const u16 raw_key = read_u16(instruction, ip + 2U);
+    const u16 resolved_key =
+        raw_key == kCurrentSourceSelector ? context.source_guid : raw_key;
+
+    if (!has_bytes(maps_payload, 0x08U, sizeof(u32))) {
+        return LegacyWorldStoryVmStatus::maps_payload_out_of_range;
+    }
+    const u32 first_offset = read_u32(maps_payload, 0x08U);
+    const u32 second_field_offset = first_offset + 4U;
+    if (!has_bytes(
+            maps_payload,
+            static_cast<std::size_t>(second_field_offset),
+            sizeof(u32)
+        )) {
+        return LegacyWorldStoryVmStatus::maps_payload_out_of_range;
+    }
+    const u32 second_offset = read_u32(maps_payload, second_field_offset);
+    if (!has_bytes(
+            maps_payload, static_cast<std::size_t>(second_offset), sizeof(u32)
+        )) {
+        return LegacyWorldStoryVmStatus::maps_payload_out_of_range;
+    }
+
+    u32 entry_offset = read_u32(maps_payload, second_offset);
+    if (!has_bytes(
+            maps_payload, static_cast<std::size_t>(entry_offset), sizeof(u16)
+        )) {
+        return LegacyWorldStoryVmStatus::maps_payload_out_of_range;
+    }
+    u16 entry_key = read_u16(maps_payload, entry_offset);
+    for (;;) {
+        const std::size_t entry = static_cast<std::size_t>(entry_offset);
+        if (entry_key == 0U) {
+            if (!has_bytes(instruction, ip + 8U, sizeof(u16))) {
+                return LegacyWorldStoryVmStatus::operand_out_of_range;
+            }
+            static_cast<void>(read_u16(instruction, ip + 8U));
+            static_cast<void>(read_u16(instruction, ip + 6U));
+            static_cast<void>(read_u16(instruction, ip + 4U));
+            static_cast<void>(read_u16(instruction, ip + 2U));
+            return LegacyWorldStoryVmStatus::idle;
+        }
+        if (entry_key == resolved_key) {
+            if (!has_bytes(instruction, ip + 2U, sizeof(u32))) {
+                return LegacyWorldStoryVmStatus::operand_out_of_range;
+            }
+            const u32 raw_key_and_value = read_u32(instruction, ip + 2U);
+            if (!has_bytes(maps_payload, entry, sizeof(u32))) {
+                return LegacyWorldStoryVmStatus::maps_payload_out_of_range;
+            }
+            write_u32(maps_payload, entry, raw_key_and_value);
+
+            if (!has_bytes(instruction, ip + 6U, sizeof(u16))) {
+                return LegacyWorldStoryVmStatus::operand_out_of_range;
+            }
+            const u16 third_value = read_u16(instruction, ip + 6U);
+            if (!has_bytes(maps_payload, entry + 4U, sizeof(u16))) {
+                return LegacyWorldStoryVmStatus::maps_payload_out_of_range;
+            }
+            write_u16(maps_payload, entry + 4U, third_value);
+            return LegacyWorldStoryVmStatus::idle;
+        }
+
+        const u32 next_offset = entry_offset + 8U;
+        if (!has_bytes(
+                maps_payload, static_cast<std::size_t>(next_offset), sizeof(u16)
+            )) {
+            return LegacyWorldStoryVmStatus::maps_payload_out_of_range;
+        }
+        entry_key = read_u16(maps_payload, next_offset);
+        entry_offset = next_offset;
+    }
 }
 
 [[nodiscard]] LegacyWorldStoryVmStatus load_name_record(
@@ -5338,6 +5430,21 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 static_cast<u16>(context.instruction_offset + 2U);
             state.previous_opcode = result.opcode;
             continue;
+
+        case OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY: {
+            const LegacyWorldStoryVmStatus status =
+                update_scene_music_table_entry(
+                    context, state.window, ip, runtime.mutable_maps_payload
+                );
+            if (status != LegacyWorldStoryVmStatus::idle) {
+                result.status = status;
+                return result;
+            }
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 10U);
+            state.previous_opcode = result.opcode;
+            continue;
+        }
 
         case 141U:
             if (!has_bytes(state.window, ip, 6U)) {

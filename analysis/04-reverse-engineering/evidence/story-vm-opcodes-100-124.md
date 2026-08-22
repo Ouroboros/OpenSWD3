@@ -225,6 +225,8 @@ entry[6..7] = 保持不变
 
 因此 `+8` 在成功路径完全未读；找不到 key 时，错误诊断才读取并打印 `+2/+4/+6/+8` 四个 word。`FFF0` 也只影响查找：成功复制回表的 dword 仍以字面值 `FFF0` 开头。handler 不追加新条目，不改终止项，最后固定推进十字节。
 
+本入口现已独立闭环。现代实现借用去前`0x200`字节的可写MAPS payload，保留三层u32相对链、8字节表首匹配、raw dword先提交、`+6`后读取及success/miss不同尾读取。当前MAPS表314项；71条真实记录/71 probes全部命中，四库代表记录均在只提供前8字节时完成更新。四alias、FFF0、首匹配、staged截断及全部typed MAPS访问边界通过；完整证据见[`story-vm-scene-music-table-entry-0042bc4c.md`](story-vm-scene-music-table-entry-0042bc4c.md)。
+
 ## 1:1 还原约束
 
 - `119` 必须保留“bit0 为零等待、bit0 置位完成”的真实方向。

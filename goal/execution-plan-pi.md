@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v342
+版本：v343
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042BC4C` handler（opcode 123）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042BCF5` handler（opcode 124）
 
 ## 0. 执行约定
 
@@ -2447,4 +2447,15 @@ B7 P0 有限收口完成。
     未启动游戏EXE。现代显式opcode增至137；对外进度为已实现137/198、已验收133/198；
     内部workpack98/146，即`14 assembly_exact + 84 platform_adapted + 48 pending_audit`。
 
-下一组只审计`0x0042BC4C` / opcode123。
+- 剧情VM P2第九十九组`0x0042BC4C` / opcode123完成独立闭环。机器按三层u32相对链
+    定位8字节Scene_Music表并首匹配key；成功先把raw `+2/+4` dword写入表，再读取/写入
+    `+6`，保留尾word且完全不读`+8`。miss才按`+8/+6/+4/+2`读取诊断值。现代直接借用可写
+    MAPS payload，在原裸读写点增加typed bounds stop。当前MAPS表314项；71条真实记录/71 probes
+    全部命中，四库代表记录均从窗口`0x7FF8`只提供前8字节完成回放。四raw alias、FFF0仅匹配替换
+    但字面回写、重复key首匹配、分阶段operand/target部分提交及全部MAPS链边界通过。Story VM 3/3、
+    Linux core 186/186与app 192/192通过；workpack双生成稳定hash为
+    `e33856eabc8f6e41e6599e8316d3feb0fdc64e20965df715110115e25d3ee692`。
+    未启动游戏EXE。现代显式opcode增至138；对外进度为已实现138/198、已验收134/198；
+    内部workpack99/146，即`14 assembly_exact + 85 platform_adapted + 47 pending_audit`。
+
+下一组只审计`0x0042BCF5` / opcode124。

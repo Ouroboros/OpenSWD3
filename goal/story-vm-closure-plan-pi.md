@@ -1,6 +1,6 @@
 # 剧情 VM 完整闭环追加 PLAN
 
-状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042BC4C`（opcode123）
+状态：执行中，P0/P1 已完成，当前步骤 P2；下一handler `0x0042BCF5`（opcode124）
 
 优先级：高于 [`execution-plan-pi.md`](execution-plan-pi.md) 的当前执行队列
 
@@ -74,7 +74,7 @@ P1 已完成：dispatch 生成器已改为锁定完整 LST SHA-256 并从 LST la
 行全部从 `pending_audit` 开始，25 个共享入口、50 个现代 case label、初始125行旧语义、
 143/55 资产观察及候选端口仅作导航；`story-vm-runtime-paths.tsv` 另锁定17条默认、特殊
 值、窗口、公共 join/yield 与返回路径。P1边界提交`a24145a`已在隔离worktree补跑Windows
-LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至136行。前98行已独立
+LLVM app完整门，192/192以exit0通过且未启动游戏EXE。P2当前人工语义已随审计增至136行。前99行已独立
 关闭：默认非法与共享对话两组、opcode7/9的bit31/bit30 clear、opcode8 lifetime、opcode10/11
  action、opcode12 position、opcode13 role step、opcode14 action wait、opcode15 same-file jump、
 opcode16/17两种role-path conditional jump、opcode18/19 path release、共享opcode20/169批量path
@@ -181,9 +181,10 @@ raw MAPS patch；800条真实记录/808 probes及双路径回放、Story VM 3/3�
 app 192/192均通过。opcode121只清text-control bit26并same-call继续；815条真实记录/815 probes、
 四库精确尾、Story VM 3/3、Linux core 186/186和app 192/192通过。opcode122清零world/player/dialog
 共享的进程级速度模式并same-call继续；7条真实记录/7 probes、Story VM 3/3、Linux core 186/186和
-app 192/192通过。已实现137/198、
-已验收133/198；内部workpack为98/146，即`14 assembly_exact + 84 platform_adapted + 48 pending_audit`。
-下一行只审计`0x0042BC4C`下的opcode123。
+app 192/192通过。opcode123按三层相对链首匹配更新Scene_Music表项，成功保留未读`+8`与分阶段
+部分提交；当前MAPS表314项，71条真实记录/71 probes及Story VM 3/3通过。已实现138/198、
+已验收134/198；内部workpack为99/146，即`14 assembly_exact + 85 platform_adapted + 47 pending_audit`。
+opcode123 Linux core 186/186与app 192/192通过。下一行只审计`0x0042BCF5`下的opcode124。
 
 ### P2 · 按 handler 组逆向、实现和验证
 

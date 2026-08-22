@@ -149,6 +149,7 @@ using openswd3::world_map::OP_119_WAIT_DIALOG_FLAG_BIT0;
 using openswd3::world_map::OP_120_UPDATE_ROLE_ACTION_FIELDS;
 using openswd3::world_map::OP_121_CLEAR_TEXT_CONTROL_BIT26;
 using openswd3::world_map::OP_122_CLEAR_SPEED_MODE;
+using openswd3::world_map::OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -18643,6 +18644,348 @@ void test_clear_speed_mode_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_update_scene_music_table_entry_protocol(
+    openswd3::test::Context& test
+) {
+    using Entry = std::array<u16, 4U>;
+    const auto bind_table = [](Fixture& fixture,
+                               const std::span<const Entry> entries) {
+        constexpr u32 kFirstOffset = 0x20U;
+        constexpr u32 kSecondOffset = 0x40U;
+        constexpr u32 kTableOffset = 0x60U;
+        fixture.maps_payload.fill(0xCCU);
+        write_u32(fixture.maps_payload, 0x08U, kFirstOffset);
+        write_u32(fixture.maps_payload, kFirstOffset + 4U, kSecondOffset);
+        write_u32(fixture.maps_payload, kSecondOffset, kTableOffset);
+        std::size_t offset = kTableOffset;
+        for (const Entry& entry : entries) {
+            for (std::size_t field = 0U; field < entry.size(); ++field) {
+                write_u16(
+                    fixture.maps_payload,
+                    offset + field * sizeof(u16),
+                    entry[field]
+                );
+            }
+            offset += 8U;
+        }
+        write_u16(fixture.maps_payload, offset, 0U);
+        fixture.runtime.mutable_maps_payload = fixture.maps_payload;
+        return static_cast<std::size_t>(kTableOffset);
+    };
+    const auto write_instruction = [](Fixture& fixture,
+                                      const u16 raw_word,
+                                      const u16 key,
+                                      const u16 value,
+                                      const u16 third,
+                                      const u16 diagnostic) {
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, key);
+        write_u16(fixture.state.window, 4U, value);
+        write_u16(fixture.state.window, 6U, third);
+        write_u16(fixture.state.window, 8U, diagnostic);
+    };
+
+    constexpr std::array<Entry, 2U> kEntries{
+        Entry{0x1234U, 0x1111U, 0x2222U, 0x3333U},
+        Entry{0x4321U, 0xAAAAU, 0xBBBBU, 0xCCCCU},
+    };
+    constexpr std::array<u16, 4U> kAliasMasks{
+        0U,
+        0x4000U,
+        0x8000U,
+        0xC000U,
+    };
+    for (const u16 alias_mask : kAliasMasks) {
+        Fixture fixture;
+        const std::size_t table = bind_table(fixture, kEntries);
+        write_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY | alias_mask
+            ),
+            0x1234U,
+            0x5678U,
+            0x9ABCU,
+            0xDEF0U
+        );
+        write_u16(fixture.state.window, 10U, OP_1025);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 10U &&
+                read_u32(fixture.maps_payload, table) == 0x56781234U &&
+                read_u16(fixture.maps_payload, table + 4U) == 0x9ABCU &&
+                read_u16(fixture.maps_payload, table + 6U) == 0x3333U &&
+                fixture.state.previous_opcode ==
+                    OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY,
+            "opcode 123 aliases replace only the matched entry's first six bytes"
+        );
+    }
+
+    Fixture current_source;
+    current_source.context.source_guid = 0x1234U;
+    const std::size_t current_table = bind_table(current_source, kEntries);
+    write_instruction(
+        current_source,
+        OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY,
+        0xFFF0U,
+        0x1357U,
+        0x2468U,
+        0xAAAAU
+    );
+    write_u16(current_source.state.window, 10U, OP_1025);
+    const auto current_result = current_source.step();
+
+    constexpr std::array<Entry, 2U> kDuplicateEntries{
+        Entry{0x7777U, 1U, 2U, 3U},
+        Entry{0x7777U, 4U, 5U, 6U},
+    };
+    Fixture first_match;
+    const std::size_t duplicate_table =
+        bind_table(first_match, kDuplicateEntries);
+    write_instruction(
+        first_match,
+        OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY,
+        0x7777U,
+        0x8888U,
+        0x9999U,
+        0xAAAAU
+    );
+    write_u16(first_match.state.window, 10U, OP_1025);
+    const auto first_match_result = first_match.step();
+
+    test.expect_true(
+        current_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            read_u16(current_source.maps_payload, current_table) == 0xFFF0U &&
+            read_u16(current_source.maps_payload, current_table + 2U) ==
+                0x1357U &&
+            read_u16(current_source.maps_payload, current_table + 4U) ==
+                0x2468U &&
+            first_match_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            read_u16(first_match.maps_payload, duplicate_table + 2U) ==
+                0x8888U &&
+            read_u16(first_match.maps_payload, duplicate_table + 4U) ==
+                0x9999U &&
+            read_u16(first_match.maps_payload, duplicate_table + 10U) == 4U &&
+            read_u16(first_match.maps_payload, duplicate_table + 12U) == 5U,
+        "opcode 123 uses FFF0 only for matching and rewrites only the first match"
+    );
+
+    Fixture missing;
+    const std::size_t missing_table = bind_table(missing, kEntries);
+    write_instruction(
+        missing,
+        OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY,
+        0x9999U,
+        0x1111U,
+        0x2222U,
+        0x3333U
+    );
+    write_u16(missing.state.window, 10U, OP_1025);
+    const auto missing_result = missing.step();
+
+    Fixture selector_tail;
+    bind_table(selector_tail, kEntries);
+    prime_loaded_instruction(
+        selector_tail, OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY
+    );
+    selector_tail.context.instruction_offset = 0x7FFEU;
+    write_u16(
+        selector_tail.state.window,
+        0x7FFEU,
+        OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY
+    );
+    const auto selector_tail_result = selector_tail.step();
+
+    Fixture dword_tail;
+    const std::size_t dword_tail_table = bind_table(dword_tail, kEntries);
+    prime_loaded_instruction(dword_tail, OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY);
+    dword_tail.context.instruction_offset = 0x7FFCU;
+    write_u16(
+        dword_tail.state.window, 0x7FFCU, OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY
+    );
+    write_u16(dword_tail.state.window, 0x7FFEU, 0x1234U);
+    const auto dword_tail_result = dword_tail.step();
+
+    Fixture third_tail;
+    const std::size_t third_tail_table = bind_table(third_tail, kEntries);
+    prime_loaded_instruction(third_tail, OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY);
+    third_tail.context.instruction_offset = 0x7FFAU;
+    write_u16(
+        third_tail.state.window, 0x7FFAU, OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY
+    );
+    write_u16(third_tail.state.window, 0x7FFCU, 0x1234U);
+    write_u16(third_tail.state.window, 0x7FFEU, 0x5678U);
+    const auto third_tail_result = third_tail.step();
+
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            read_u16(missing.maps_payload, missing_table) == 0x1234U &&
+            selector_tail_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            selector_tail.context.instruction_offset == 0x7FFEU &&
+            dword_tail_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            read_u32(dword_tail.maps_payload, dword_tail_table) ==
+                0x11111234U &&
+            third_tail_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            read_u32(third_tail.maps_payload, third_tail_table) ==
+                0x56781234U &&
+            read_u16(third_tail.maps_payload, third_tail_table + 4U) == 0x2222U,
+        "opcode 123 preserves selector, dword and third-word staged access order"
+    );
+
+    Fixture unread_tail;
+    const std::size_t unread_tail_table = bind_table(unread_tail, kEntries);
+    prime_loaded_instruction(
+        unread_tail, OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY
+    );
+    unread_tail.context.instruction_offset = 0x7FF8U;
+    write_u16(
+        unread_tail.state.window, 0x7FF8U, OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY
+    );
+    write_u16(unread_tail.state.window, 0x7FFAU, 0x1234U);
+    write_u16(unread_tail.state.window, 0x7FFCU, 0x5678U);
+    write_u16(unread_tail.state.window, 0x7FFEU, 0x9ABCU);
+    const auto unread_tail_result = unread_tail.step();
+
+    Fixture missing_diagnostic_tail;
+    bind_table(missing_diagnostic_tail, kEntries);
+    prime_loaded_instruction(
+        missing_diagnostic_tail, OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY
+    );
+    missing_diagnostic_tail.context.instruction_offset = 0x7FF8U;
+    write_u16(
+        missing_diagnostic_tail.state.window,
+        0x7FF8U,
+        OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY
+    );
+    write_u16(missing_diagnostic_tail.state.window, 0x7FFAU, 0x9999U);
+    write_u16(missing_diagnostic_tail.state.window, 0x7FFCU, 0x5678U);
+    write_u16(missing_diagnostic_tail.state.window, 0x7FFEU, 0x9ABCU);
+    const auto missing_diagnostic_tail_result = missing_diagnostic_tail.step();
+
+    test.expect_true(
+        unread_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            unread_tail_result.executed_instruction_count == 1U &&
+            unread_tail.context.instruction_offset == 0x8002U &&
+            read_u32(unread_tail.maps_payload, unread_tail_table) ==
+                0x56781234U &&
+            read_u16(unread_tail.maps_payload, unread_tail_table + 4U) ==
+                0x9ABCU &&
+            unread_tail.state.previous_opcode ==
+                OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY &&
+            missing_diagnostic_tail_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_diagnostic_tail.context.instruction_offset == 0x7FF8U &&
+            missing_diagnostic_tail.state.previous_opcode == 0U,
+        "opcode 123 leaves +8 unread on success but requires it for miss diagnostics"
+    );
+
+    Fixture missing_payload;
+    write_instruction(
+        missing_payload,
+        OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY,
+        0x1234U,
+        0x5678U,
+        0x9ABCU,
+        0xDEF0U
+    );
+    const auto missing_payload_result = missing_payload.step();
+
+    Fixture dword_destination;
+    dword_destination.maps_payload.fill(0U);
+    write_u32(dword_destination.maps_payload, 0x08U, 0x20U);
+    write_u32(dword_destination.maps_payload, 0x24U, 0x40U);
+    write_u32(dword_destination.maps_payload, 0x40U, 0xFEU);
+    write_u16(dword_destination.maps_payload, 0xFEU, 0x1234U);
+    dword_destination.runtime.mutable_maps_payload =
+        dword_destination.maps_payload;
+    write_instruction(
+        dword_destination,
+        OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY,
+        0x1234U,
+        0x5678U,
+        0x9ABCU,
+        0xDEF0U
+    );
+    const auto dword_destination_result = dword_destination.step();
+
+    Fixture third_destination;
+    third_destination.maps_payload.fill(0U);
+    write_u32(third_destination.maps_payload, 0x08U, 0x20U);
+    write_u32(third_destination.maps_payload, 0x24U, 0x40U);
+    write_u32(third_destination.maps_payload, 0x40U, 0xFCU);
+    write_u16(third_destination.maps_payload, 0xFCU, 0x1234U);
+    write_u16(third_destination.maps_payload, 0xFEU, 0x1111U);
+    third_destination.runtime.mutable_maps_payload =
+        third_destination.maps_payload;
+    write_instruction(
+        third_destination,
+        OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY,
+        0x1234U,
+        0x5678U,
+        0x9ABCU,
+        0xDEF0U
+    );
+    const auto third_destination_result = third_destination.step();
+
+    u32 broken_chain_count{};
+    for (u32 variant = 0U; variant < 4U; ++variant) {
+        Fixture fixture;
+        fixture.maps_payload.fill(0U);
+        write_u32(fixture.maps_payload, 0x08U, 0x20U);
+        write_u32(fixture.maps_payload, 0x24U, 0x40U);
+        write_u32(fixture.maps_payload, 0x40U, 0x60U);
+        if (variant == 0U) {
+            write_u32(fixture.maps_payload, 0x08U, 0xFEU);
+        } else if (variant == 1U) {
+            write_u32(fixture.maps_payload, 0x24U, 0xFEU);
+        } else if (variant == 2U) {
+            write_u32(fixture.maps_payload, 0x40U, 0x100U);
+        } else {
+            write_u32(fixture.maps_payload, 0x40U, 0xF8U);
+            write_u16(fixture.maps_payload, 0xF8U, 0x9999U);
+        }
+        fixture.runtime.mutable_maps_payload = fixture.maps_payload;
+        write_instruction(
+            fixture,
+            OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY,
+            0x1234U,
+            0x5678U,
+            0x9ABCU,
+            0xDEF0U
+        );
+        const auto result = fixture.step();
+        if (result.status ==
+                LegacyWorldStoryVmStatus::maps_payload_out_of_range &&
+            fixture.context.instruction_offset == 0U &&
+            fixture.state.previous_opcode == 0U) {
+            ++broken_chain_count;
+        }
+    }
+
+    test.expect_true(
+        missing_payload_result.status ==
+                LegacyWorldStoryVmStatus::maps_payload_out_of_range &&
+            dword_destination_result.status ==
+                LegacyWorldStoryVmStatus::maps_payload_out_of_range &&
+            read_u16(dword_destination.maps_payload, 0xFEU) == 0x1234U &&
+            third_destination_result.status ==
+                LegacyWorldStoryVmStatus::maps_payload_out_of_range &&
+            read_u32(third_destination.maps_payload, 0xFCU) == 0x56781234U &&
+            broken_chain_count == 4U,
+        "opcode 123 stops at each checked MAPS chain and staged write boundary"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(
     openswd3::test::Context& test
 ) {
@@ -22287,6 +22630,93 @@ void test_real_clear_speed_mode_records(
     }
 }
 
+void test_real_update_scene_music_table_entry_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    openswd3::resource_io::LegacyResourceDatabases databases;
+    const auto initialized = databases.initialize(root);
+    const auto maps = databases.reload_maps_payload();
+    test.expect_true(
+        initialized.status ==
+                openswd3::resource_io::LegacyResourceDatabaseStatus::ready &&
+            maps.status ==
+                openswd3::resource_io::LegacyMapsPayloadStatus::ready,
+        "real opcode 123 test loads the writable MAPS payload"
+    );
+    if (initialized.status !=
+            openswd3::resource_io::LegacyResourceDatabaseStatus::ready ||
+        maps.status != openswd3::resource_io::LegacyMapsPayloadStatus::ready) {
+        return;
+    }
+    const std::vector<u8> baseline{
+        databases.maps_payload_bytes().begin(),
+        databases.maps_payload_bytes().end(),
+    };
+
+    struct RealCase {
+        const char* file;
+        std::streamoff offset;
+    };
+    constexpr std::array<RealCase, 4U> cases{
+        RealCase{"TALK1.DAT", 0x00022C77},
+        RealCase{"TALK2.DAT", 0x0001836F},
+        RealCase{"TALK3.DAT", 0x0000CD7A},
+        RealCase{"TALK4.DAT", 0x000289D1},
+    };
+
+    for (const auto& real_case : cases) {
+        std::ifstream input{
+            root / real_case.file, std::ios::binary | std::ios::in
+        };
+        input.seekg(real_case.offset);
+        std::array<u8, 10U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        const bool record_read = static_cast<bool>(input);
+
+        std::vector<u8> payload = baseline;
+        const u32 first_offset = read_u32(payload, 0x08U);
+        const u32 second_offset = read_u32(payload, first_offset + 4U);
+        std::size_t entry = read_u32(payload, second_offset);
+        const u16 key = read_u16(record, 2U);
+        while (read_u16(payload, entry) != 0U &&
+               read_u16(payload, entry) != key) {
+            entry += 8U;
+        }
+        const u16 preserved_tail = read_u16(payload, entry + 6U);
+
+        Fixture fixture;
+        fixture.runtime.mutable_maps_payload = payload;
+        prime_loaded_instruction(
+            fixture, OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY
+        );
+        fixture.context.instruction_offset = 0x7FF8U;
+        std::ranges::copy_n(
+            record.begin(), 8U, fixture.state.window.begin() + 0x7FF8U
+        );
+
+        const auto result = fixture.step();
+        test.expect_true(
+            record_read &&
+                read_u16(record, 0U) == OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY &&
+                read_u16(payload, entry) == key &&
+                result.status ==
+                    LegacyWorldStoryVmStatus::instruction_out_of_range &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 0x8002U &&
+                read_u32(payload, entry) == read_u32(record, 2U) &&
+                read_u16(payload, entry + 4U) == read_u16(record, 6U) &&
+                read_u16(payload, entry + 6U) == preserved_tail &&
+                fixture.state.previous_opcode ==
+                    OP_123_UPDATE_SCENE_MUSIC_TABLE_ENTRY,
+            "real opcode 123 updates one MAPS music entry without reading +8"
+        );
+    }
+}
+
 void test_real_wait_primary_picture_action_byte_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -25024,6 +25454,7 @@ int main(const int argument_count, char** arguments) {
     test_clear_text_control_bit27_protocol(test);
     test_clear_text_control_bit26_protocol(test);
     test_clear_speed_mode_protocol(test);
+    test_update_scene_music_table_entry_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
@@ -25103,6 +25534,7 @@ int main(const int argument_count, char** arguments) {
         test_real_clear_text_control_bit27_records(test, root);
         test_real_clear_text_control_bit26_records(test, root);
         test_real_clear_speed_mode_records(test, root);
+        test_real_update_scene_music_table_entry_records(test, root);
         test_real_wait_primary_picture_action_byte_records(test, root);
         test_real_wait_role_action_index_records(test, root);
         test_real_step_role_list_records(test, root);
