@@ -179,6 +179,7 @@ using openswd3::world_map::OP_145_SET_ROLE_STATUS_BIT13;
 using openswd3::world_map::OP_146_SET_ROLE_STATUS_BIT8;
 using openswd3::world_map::OP_147_SET_STORY_FLAG_70;
 using openswd3::world_map::OP_148_SET_STORY_FLAG_19;
+using openswd3::world_map::OP_149_CLEAR_STORY_FLAG_19;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -22749,6 +22750,81 @@ void test_set_story_flag_19_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_clear_story_flag_19_protocol(openswd3::test::Context& test) {
+    struct TestCase {
+        u16 alias_mask;
+        bool initially_set;
+    };
+    constexpr std::array cases{
+        TestCase{0U, true},
+        TestCase{0x4000U, false},
+        TestCase{0x8000U, true},
+        TestCase{0xC000U, false},
+    };
+
+    for (const auto test_case : cases) {
+        Fixture fixture;
+        fixture.state.flags.fill(test_case.initially_set ? 0xFFU : 0U);
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(OP_149_CLEAR_STORY_FLAG_19 | test_case.alias_mask)
+        );
+        write_u16(fixture.state.window, 2U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        auto expected_flags = fixture.state.flags;
+        expected_flags[19U >> 3U] &=
+            static_cast<u8>(~static_cast<u8>(1U << (19U & 7U)));
+        bool committed_before_audio = false;
+        fixture.ports.audio_service_callback = [&]() {
+            committed_before_audio = fixture.state.flags == expected_flags &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode == OP_149_CLEAR_STORY_FLAG_19;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word ==
+                    static_cast<u16>(
+                        OP_149_CLEAR_STORY_FLAG_19 | test_case.alias_mask
+                    ) &&
+                result.opcode == OP_149_CLEAR_STORY_FLAG_19 &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.state.flags == expected_flags &&
+                fixture.context.instruction_offset == 2U &&
+                fixture.state.previous_opcode == OP_149_CLEAR_STORY_FLAG_19 &&
+                committed_before_audio,
+            "opcode 149 aliases clear only story flag 19, publish previous, service audio, and yield"
+        );
+    }
+
+    Fixture exact_tail;
+    exact_tail.state.flags.fill(0xADU);
+    exact_tail.context.instruction_offset = 0x7FFEU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    auto expected_tail_flags = exact_tail.state.flags;
+    expected_tail_flags[19U >> 3U] &=
+        static_cast<u8>(~static_cast<u8>(1U << (19U & 7U)));
+    write_u16(exact_tail.state.window, 0x7FFEU, OP_149_CLEAR_STORY_FLAG_19);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.opcode == OP_149_CLEAR_STORY_FLAG_19 &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.state.flags == expected_tail_flags &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode == OP_149_CLEAR_STORY_FLAG_19,
+        "opcode 149 completes its fixed flag clear before audio maintenance and yield at the exact window tail"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
@@ -30051,6 +30127,7 @@ int main(const int argument_count, char** arguments) {
     test_request_special_mode_four_or_five_protocol(test);
     test_set_story_flag_70_protocol(test);
     test_set_story_flag_19_protocol(test);
+    test_clear_story_flag_19_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);
