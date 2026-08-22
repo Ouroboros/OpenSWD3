@@ -5872,7 +5872,7 @@ void test_jump_same_file_offset_protocol(openswd3::test::Context& test) {
                 result.opcode == OP_59_PLAY_SOUND_EFFECT &&
                 result.executed_instruction_count == 2U &&
                 result.load_status == LegacyTalkWindowStatus::ready &&
-                result.direct_audio_service_count == 1U &&
+                result.direct_audio_service_count == 2U &&
                 fixture.context.talk_data_offset == target &&
                 fixture.context.instruction_offset == 4U &&
                 fixture.state.loaded_file_number == 1U &&
@@ -5885,7 +5885,8 @@ void test_jump_same_file_offset_protocol(openswd3::test::Context& test) {
                 !fixture.ports.last_data_clear_before_read &&
                 fixture.ports.sound_effect_requests ==
                     std::vector<u16>{0x1234U} &&
-                fixture.ports.story_protocol_events == std::vector<u32>{2U, 5U},
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{2U, 5U, 2U},
             "opcode 15 aliases service audio, load, publish, and same-call fetch"
         );
     }
@@ -5986,12 +5987,13 @@ void test_jump_if_role_path_unprepared_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_59_PLAY_SOUND_EFFECT &&
                 result.executed_instruction_count == 2U &&
-                result.direct_audio_service_count == 1U &&
+                result.direct_audio_service_count == 2U &&
                 fixture.context.talk_data_offset == 0x12345678U &&
                 fixture.context.instruction_offset == 4U &&
                 fixture.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
                 fixture.ports.data_load_count == 1U &&
-                fixture.ports.story_protocol_events == std::vector<u32>{2U, 5U},
+                fixture.ports.story_protocol_events ==
+                    std::vector<u32>{2U, 5U, 2U},
             "opcode 16 aliases jump when a type-2 role path is unprepared"
         );
     }
@@ -6007,7 +6009,7 @@ void test_jump_if_role_path_unprepared_protocol(openswd3::test::Context& test) {
         no_slot_result.status == LegacyWorldStoryVmStatus::yielded &&
             no_slot_result.opcode == OP_59_PLAY_SOUND_EFFECT &&
             no_slot_result.executed_instruction_count == 2U &&
-            no_slot_result.direct_audio_service_count == 0U &&
+            no_slot_result.direct_audio_service_count == 1U &&
             no_slot.context.talk_data_offset == 0x1111U &&
             no_slot.context.instruction_offset == 12U &&
             no_slot.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
@@ -6027,7 +6029,7 @@ void test_jump_if_role_path_unprepared_protocol(openswd3::test::Context& test) {
     test.expect_true(
         prepared_result.status == LegacyWorldStoryVmStatus::yielded &&
             prepared_result.opcode == OP_59_PLAY_SOUND_EFFECT &&
-            prepared_result.direct_audio_service_count == 0U &&
+            prepared_result.direct_audio_service_count == 1U &&
             prepared.context.instruction_offset == 12U &&
             prepared.ports.data_load_count == 0U,
         "opcode 16 does not jump after the role path step is prepared"
@@ -6186,7 +6188,7 @@ void test_jump_if_role_path_prepared_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_59_PLAY_SOUND_EFFECT &&
                 result.executed_instruction_count == 2U &&
-                result.direct_audio_service_count == 1U &&
+                result.direct_audio_service_count == 2U &&
                 fixture.context.talk_data_offset == 0x12345678U &&
                 fixture.context.instruction_offset == 4U &&
                 fixture.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
@@ -6206,7 +6208,7 @@ void test_jump_if_role_path_prepared_protocol(openswd3::test::Context& test) {
     test.expect_true(
         unprepared_result.status == LegacyWorldStoryVmStatus::yielded &&
             unprepared_result.opcode == OP_59_PLAY_SOUND_EFFECT &&
-            unprepared_result.direct_audio_service_count == 0U &&
+            unprepared_result.direct_audio_service_count == 1U &&
             unprepared.context.instruction_offset == 12U &&
             unprepared.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
             unprepared.ports.data_load_count == 0U,
@@ -8799,7 +8801,7 @@ void test_wait_for_frame_color_transition_protocol(
                     fixture.context.instruction_offset == 0U &&
                     fixture.state.previous_opcode ==
                         OP_53_WAIT_FRAME_COLOR_TRANSITION &&
-                    fixture.ports.direct_audio_service_count == 0U,
+                    fixture.ports.direct_audio_service_count == 1U,
                 "opcode 53 aliases wait in place for every positive signed countdown"
             );
         }
@@ -9248,7 +9250,7 @@ void test_shared_role_spatial_group_protocol(openswd3::test::Context& test) {
                     role.spatial_next_link_32 == 0U &&
                     fixture.context.instruction_offset == 4U &&
                     fixture.state.previous_opcode == group_case.opcode &&
-                    fixture.ports.direct_audio_service_count == 0U,
+                    fixture.ports.direct_audio_service_count == 1U,
                 "opcodes 55-57 aliases move the role from its old group to the requested group"
             );
         }
@@ -9503,6 +9505,7 @@ void test_wait_for_role_action_index_threshold(openswd3::test::Context& test) {
                 result.opcode == OP_107_WAIT_ROLE_ACTION_INDEX &&
                 result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
                 waiting.context.instruction_offset == 0U &&
                 waiting.state.previous_opcode == OP_107_WAIT_ROLE_ACTION_INDEX,
             "opcode 107 aliases publish previous and wait at the inclusive item-count boundary"
@@ -11781,6 +11784,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
             scheduled.status == LegacyWorldStoryVmStatus::yielded &&
                 scheduled.opcode == OP_20_SCHEDULE_ROLE_PATHS &&
                 scheduled.executed_instruction_count == 1U &&
+                scheduled.direct_audio_service_count == 1U &&
                 fixture.context.instruction_offset == 0U &&
                 fixture.state.previous_opcode == OP_20_SCHEDULE_ROLE_PATHS &&
                 read_u16(fixture.state.window, 2U) == 0x4001U &&
@@ -11839,6 +11843,7 @@ void test_schedule_role_paths_protocol(openswd3::test::Context& test) {
             scheduled.status == LegacyWorldStoryVmStatus::yielded &&
                 scheduled.opcode == OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS &&
                 scheduled.executed_instruction_count == 1U &&
+                scheduled.direct_audio_service_count == 1U &&
                 fixture.context.instruction_offset == 0U &&
                 fixture.state.previous_opcode ==
                     OP_169_SCHEDULE_ROLE_PATHS_WITH_ACTIONS &&
@@ -15629,7 +15634,7 @@ void test_shared_picture_action_enqueue_protocol(
                     node.next_pointer_32 == 0U &&
                     fixture.context.instruction_offset == 10U &&
                     fixture.state.previous_opcode == variant.opcode &&
-                    fixture.ports.direct_audio_service_count == 0U,
+                    fixture.ports.direct_audio_service_count == 1U,
                 "opcodes 58 and 153 aliases initialize and prepend the selected picture-action list"
             );
         }
@@ -15798,8 +15803,8 @@ void test_play_sound_effect_protocol(openswd3::test::Context& test) {
                     std::vector<u16>{sound_ids[index]} &&
                 fixture.context.instruction_offset == 4U &&
                 fixture.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
-                fixture.ports.direct_audio_service_count == 0U,
-            "opcode 59 aliases submit one u16 sound request, publish previous and yield"
+                fixture.ports.direct_audio_service_count == 1U,
+            "opcode 59 aliases submit one u16 sound request, publish previous and audio-yield"
         );
     }
 
@@ -15878,6 +15883,7 @@ void test_shared_scene_render_control_protocol(openswd3::test::Context& test) {
                 result.status == LegacyWorldStoryVmStatus::yielded &&
                     result.opcode == opcode &&
                     result.executed_instruction_count == 1U &&
+                    result.direct_audio_service_count == 1U &&
                     scene_render_flags == (suspends ? 0xA5U : 0xA4U) &&
                     flags_during_clear ==
                         (suspends ? std::vector<u8>{0xA4U}
@@ -16427,6 +16433,7 @@ void test_set_selection_scroll_protocol(openswd3::test::Context& test) {
             overflow_result.opcode == OP_63_SET_SELECTION_SCROLL &&
             overflow_result.executed_instruction_count == 1U &&
             overflow_result.selection_overflow_diagnostic_count == 1U &&
+            overflow_result.direct_audio_service_count == 1U &&
             std::ranges::all_of(
                 overflow.selection_words,
                 [](const i16 value) {
@@ -16720,6 +16727,7 @@ void test_transfer_role_to_party_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_65_TRANSFER_ROLE_TO_PARTY &&
                 result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
                 result.role_transfer_status ==
                     openswd3::world_map::LegacyWorldRoleTransferStatus::ready &&
                 fixture.role_transfer_state.party_role_count == 2U &&
@@ -17036,6 +17044,7 @@ void test_update_role_map_state_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_66_UPDATE_ROLE_MAP_STATE &&
                 result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
                 result.role_map_update.status ==
                     openswd3::world_map::LegacyWorldRoleMapUpdateStatus::
                         ready &&
@@ -17427,6 +17436,7 @@ void test_frame_clock_wait_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_67_WAIT_FRAME_CLOCK &&
                 result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
                 fixture.state.wait_duration == 0x1234U &&
                 fixture.state.wait_started_at == 0xABCDEF01U &&
                 read_u16(fixture.state.window, 2U) == 0x9234U &&
@@ -17575,6 +17585,7 @@ void test_clear_role_flag_0400_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_68_CLEAR_ROLE_FLAG_0400 &&
                 result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
                 fixture.roles[1].flags == 0xA5A5FBFFU &&
                 fixture.ports.role_patch_requests.empty() &&
                 fixture.context.instruction_offset == 4U &&
@@ -17708,6 +17719,7 @@ void test_set_role_flag_0400_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_69_SET_ROLE_FLAG_0400 &&
                 result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
                 fixture.roles[1].flags == 0xA5A50401U &&
                 fixture.ports.role_patch_requests.empty() &&
                 fixture.context.instruction_offset == 4U &&
@@ -18260,6 +18272,7 @@ void test_set_role_head_sign_action(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_71_SET_ROLE_HEAD_SIGN &&
                 result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
                 fixture.roles[1].field_3c ==
                     openswd3::world_map::legacy_world_head_sign_action_token(
                         slots[index]
@@ -18355,6 +18368,7 @@ void test_set_role_head_sign_action(openswd3::test::Context& test) {
         removed.status == LegacyWorldStoryVmStatus::yielded &&
             removed.opcode == OP_72_CLEAR_ROLE_HEAD_SIGN &&
             removed.executed_instruction_count == 1U &&
+            removed.direct_audio_service_count == 1U &&
             cleared.roles[1].field_3c == 0U &&
             cleared.context.instruction_offset == 4U &&
             cleared.state.previous_opcode == OP_72_CLEAR_ROLE_HEAD_SIGN,
@@ -19529,11 +19543,11 @@ void test_begin_story_video_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_85_BEGIN_STORY_VIDEO &&
                 result.executed_instruction_count == 1U &&
-                result.direct_audio_service_count == 1U &&
-                events == std::vector<u32>{1U, 2U, 3U, 4U, 5U} &&
+                result.direct_audio_service_count == 2U &&
+                events == std::vector<u32>{1U, 2U, 3U, 4U, 5U, 3U} &&
                 exact_tail.ports.framebuffer_clear_count == 1U &&
                 exact_tail.ports.framebuffer_present_count == 1U &&
-                exact_tail.ports.direct_audio_service_count == 1U &&
+                exact_tail.ports.direct_audio_service_count == 2U &&
                 exact_tail.ports.video_prepare_count == 1U &&
                 exact_tail.ports.video_begin_count == 1U &&
                 filename == kFilename &&
@@ -19551,10 +19565,10 @@ void test_begin_story_video_protocol(openswd3::test::Context& test) {
     const auto rejected_result = rejected.step();
     test.expect_true(
         rejected_result.status == LegacyWorldStoryVmStatus::yielded &&
-            rejected_result.direct_audio_service_count == 1U &&
+            rejected_result.direct_audio_service_count == 2U &&
             rejected.ports.framebuffer_clear_count == 1U &&
             rejected.ports.framebuffer_present_count == 1U &&
-            rejected.ports.direct_audio_service_count == 1U &&
+            rejected.ports.direct_audio_service_count == 2U &&
             rejected.ports.video_prepare_count == 1U &&
             rejected.ports.video_begin_count == 0U &&
             rejected.context.instruction_offset == 0U &&
@@ -19994,6 +20008,7 @@ void test_request_battle_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_88_REQUEST_BATTLE &&
                 result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
                 packed_rows.empty() && role_heads.empty() &&
                 moving_actions.size() == 1U && battle_request == 0xFFFF8001U &&
                 exact_tail.context.instruction_offset == 0x8000U &&
@@ -20651,6 +20666,7 @@ void test_set_scene_render_bit1_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_94_SET_SCENE_RENDER_BIT1 &&
                 result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
                 scene_render_flags == 0xA7U &&
                 exact_tail.context.instruction_offset == 0x8000U &&
                 exact_tail.state.previous_opcode == OP_94_SET_SCENE_RENDER_BIT1,
@@ -20716,6 +20732,7 @@ void test_clear_scene_render_bit1_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_95_CLEAR_SCENE_RENDER_BIT1 &&
                 result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
                 scene_render_flags == 0xA5U &&
                 exact_tail.context.instruction_offset == 0x8000U &&
                 exact_tail.state.previous_opcode ==
@@ -20786,7 +20803,7 @@ void test_begin_custom_ani_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_96_BEGIN_CUSTOM_ANI &&
                 result.executed_instruction_count == 1U &&
-                result.direct_audio_service_count == 2U &&
+                result.direct_audio_service_count == 3U &&
                 fixture.context.instruction_offset == 14U &&
                 fixture.state.previous_opcode == OP_96_BEGIN_CUSTOM_ANI &&
                 fixture.ports.last_ani_frame_interval == 70U &&
@@ -20798,7 +20815,7 @@ void test_begin_custom_ani_protocol(openswd3::test::Context& test) {
                     (openswd3::asset_runtime::kLegacyAniSkipRevealFlag |
                      openswd3::asset_runtime::kLegacyAniEndingEffectFlag) &&
                 fixture.ports.story_protocol_events ==
-                    std::vector<u32>{8U, 2U, 9U, 2U, 10U},
+                    std::vector<u32>{8U, 2U, 9U, 2U, 10U, 2U},
             "opcode 96 aliases set interval, parse independent percent-star flags, service audio, start ANI, publish previous and yield"
         );
     }
@@ -20927,7 +20944,7 @@ void test_begin_custom_ani_protocol(openswd3::test::Context& test) {
     const auto owner_result = scene_owner_not_read.step();
     test.expect_true(
         owner_result.status == LegacyWorldStoryVmStatus::yielded &&
-            owner_result.direct_audio_service_count == 2U &&
+            owner_result.direct_audio_service_count == 3U &&
             scene_owner_not_read.context.instruction_offset == 12U &&
             scene_owner_not_read.state.previous_opcode ==
                 OP_96_BEGIN_CUSTOM_ANI &&
@@ -20998,6 +21015,7 @@ void test_wait_custom_ani_complete_protocol(openswd3::test::Context& test) {
             active_result.status == LegacyWorldStoryVmStatus::yielded &&
                 active_result.opcode == OP_97_WAIT_CUSTOM_ANI_COMPLETE &&
                 active_result.executed_instruction_count == 1U &&
+                active_result.direct_audio_service_count == 1U &&
                 fixture.context.instruction_offset == 0x7FFEU &&
                 fixture.state.previous_opcode ==
                     OP_97_WAIT_CUSTOM_ANI_COMPLETE &&
@@ -21067,6 +21085,7 @@ void test_consume_four_byte_noop_protocol(openswd3::test::Context& test) {
                 normal_result.raw_word == raw_word &&
                 normal_result.opcode == OP_98_CONSUME_FOUR_BYTE_NOOP &&
                 normal_result.executed_instruction_count == 1U &&
+                normal_result.direct_audio_service_count == 1U &&
                 normal.context.instruction_offset == 4U &&
                 normal.state.previous_opcode == OP_98_CONSUME_FOUR_BYTE_NOOP &&
                 scene_render_flags == 0xA7U,
@@ -21136,6 +21155,7 @@ void test_wait_custom_ani_phase_protocol(openswd3::test::Context& test) {
                 waiting_result.raw_word == raw_word &&
                 waiting_result.opcode == OP_99_WAIT_CUSTOM_ANI_PHASE &&
                 waiting_result.executed_instruction_count == 1U &&
+                waiting_result.direct_audio_service_count == 1U &&
                 waiting.context.instruction_offset == 0U &&
                 waiting.state.previous_opcode == OP_99_WAIT_CUSTOM_ANI_PHASE &&
                 waiting.ports.ani_phase_query_count == 1U,
@@ -23452,7 +23472,7 @@ void test_item_presence_reload_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_59_PLAY_SOUND_EFFECT &&
                 result.executed_instruction_count == 2U &&
-                result.direct_audio_service_count == 0U &&
+                result.direct_audio_service_count == 1U &&
                 fixture.context.instruction_offset == 12U &&
                 fixture.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
                 fixture.ports.data_load_count == 0U &&
@@ -23662,7 +23682,7 @@ void test_add_party_item_if_allowed_protocol(openswd3::test::Context& test) {
                     fixture.ports.item_definition_load_count == 1U &&
                     fixture.ports.last_item_definition_id == 0x0234U &&
                     fixture.ports.story_protocol_events ==
-                        std::vector<u32>{13U} &&
+                        std::vector<u32>{13U, 2U} &&
                     fixture.ports.sound_effect_requests ==
                         std::vector<u16>{0x0073U},
                 "opcode 131 aliases retain a newly loaded item only when the selected party restriction bit is set"
@@ -24367,7 +24387,7 @@ void test_request_shop_protocol(openswd3::test::Context& test) {
             result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.opcode == OP_133_REQUEST_SHOP &&
                 result.executed_instruction_count == 1U &&
-                result.direct_audio_service_count == 0U &&
+                result.direct_audio_service_count == 1U &&
                 fixture.context.instruction_offset == 8U &&
                 fixture.state.previous_opcode == OP_133_REQUEST_SHOP &&
                 fixture.state.shop_item_ids ==
@@ -27609,6 +27629,7 @@ void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
                         static_cast<u16>(variant.opcode | alias_mask) &&
                     waiting.opcode == variant.opcode &&
                     waiting.executed_instruction_count == 1U &&
+                    waiting.direct_audio_service_count == 1U &&
                     fixture.context.instruction_offset == 0U &&
                     fixture.state.previous_opcode == variant.opcode &&
                     scene_render_flags == 0xA7U,
@@ -28213,7 +28234,7 @@ void test_real_story_transfer_record(
             result.opcode == OP_59_PLAY_SOUND_EFFECT &&
             result.executed_instruction_count == 3U &&
             result.load_status == LegacyTalkWindowStatus::ready &&
-            result.direct_audio_service_count == 4U &&
+            result.direct_audio_service_count == 5U &&
             context.talk_data_offset == 0x00006CE9U &&
             context.instruction_offset == 6U &&
             state.loaded_file_number == 2U &&
@@ -28850,7 +28871,7 @@ void test_real_jump_same_file_offset_record(
             result.opcode == OP_59_PLAY_SOUND_EFFECT &&
             result.executed_instruction_count == 2U &&
             result.load_status == LegacyTalkWindowStatus::ready &&
-            result.direct_audio_service_count == 1U &&
+            result.direct_audio_service_count == 2U &&
             context.talk_data_offset == 0x000088CFU &&
             context.instruction_offset == 4U &&
             state.loaded_file_number == 1U &&
@@ -28924,7 +28945,7 @@ void test_real_jump_if_role_path_unprepared_record(
             result.status == LegacyWorldStoryVmStatus::yielded &&
             result.opcode == 67U && result.executed_instruction_count == 2U &&
             result.load_status == LegacyTalkWindowStatus::ready &&
-            result.direct_audio_service_count == 1U &&
+            result.direct_audio_service_count == 2U &&
             context.talk_data_offset == 0x0000F787U &&
             context.instruction_offset == 0U &&
             state.loaded_file_number == 2U &&
@@ -29358,7 +29379,7 @@ void test_real_jump_if_all_global_bits_set_record(
             result.opcode == OP_59_PLAY_SOUND_EFFECT &&
             result.executed_instruction_count == 2U &&
             result.load_status == LegacyTalkWindowStatus::ready &&
-            result.direct_audio_service_count == 1U &&
+            result.direct_audio_service_count == 2U &&
             fixture.context.talk_data_offset == 0x000088E1U &&
             fixture.context.instruction_offset == 4U &&
             fixture.state.loaded_file_number == 1U &&
@@ -30117,7 +30138,7 @@ void test_real_play_sound_effect_records(
             fixture.ports.sound_effect_requests == std::vector<u16>{1U, 656U} &&
             fixture.context.instruction_offset == 4U &&
             fixture.state.previous_opcode == OP_59_PLAY_SOUND_EFFECT &&
-            fixture.ports.direct_audio_service_count == 0U,
+            fixture.ports.direct_audio_service_count == 2U,
         "real opcode 59 records submit the minimum and maximum observed sound ids"
     );
 }
@@ -30939,18 +30960,18 @@ void test_real_begin_story_video_records(
             opening[opening.size() - 2U] == 0x25U &&
             opening[opening.size() - 1U] == 0x51U &&
             opening_result.status == LegacyWorldStoryVmStatus::yielded &&
-            opening_result.direct_audio_service_count == 1U &&
+            opening_result.direct_audio_service_count == 2U &&
             opening_filename == "OPENING.bik" && opening_ip == 0x8000U &&
             opening_previous == OP_85_BEGIN_STORY_VIDEO &&
             opening_clear == 1U && opening_present == 1U &&
-            opening_audio == 1U && opening_prepare == 1U &&
+            opening_audio == 2U && opening_prepare == 1U &&
             opening_begin == 1U &&
             read_u16(demo, 0U) == OP_85_BEGIN_STORY_VIDEO &&
             demo_result.status == LegacyWorldStoryVmStatus::yielded &&
-            demo_result.direct_audio_service_count == 1U &&
+            demo_result.direct_audio_service_count == 2U &&
             demo_filename == "Demo.mpg" && demo_ip == 0x8000U &&
             demo_previous == OP_85_BEGIN_STORY_VIDEO && demo_clear == 1U &&
-            demo_present == 1U && demo_audio == 1U && demo_prepare == 1U &&
+            demo_present == 1U && demo_audio == 2U && demo_prepare == 1U &&
             demo_begin == 1U,
         "real opcode 85 BIK and MPG records preserve raw filenames, side-effect order owners and exact-tail yield"
     );
@@ -31424,7 +31445,7 @@ void test_real_begin_custom_ani_records(
             record_read && read_u16(record, 0U) == OP_96_BEGIN_CUSTOM_ANI &&
                 result.status == LegacyWorldStoryVmStatus::yielded &&
                 result.executed_instruction_count == 1U &&
-                result.direct_audio_service_count == 2U &&
+                result.direct_audio_service_count == 3U &&
                 fixture.context.instruction_offset == 0x8000U &&
                 fixture.state.previous_opcode == OP_96_BEGIN_CUSTOM_ANI &&
                 fixture.ports.last_ani_frame_interval == 70U &&
@@ -32255,7 +32276,7 @@ void test_real_request_shop_record(
             result.status == LegacyWorldStoryVmStatus::yielded &&
             result.opcode == OP_133_REQUEST_SHOP &&
             result.executed_instruction_count == 1U &&
-            result.direct_audio_service_count == 0U &&
+            result.direct_audio_service_count == 1U &&
             fixture.context.instruction_offset == 16U &&
             fixture.state.previous_opcode == OP_133_REQUEST_SHOP &&
             fixture.state.shop_item_ids ==
@@ -32717,7 +32738,7 @@ void test_real_secondary_role_bit30_reload_record(
             sequential_result.status == LegacyWorldStoryVmStatus::yielded &&
             sequential_result.opcode == OP_67_WAIT_FRAME_CLOCK &&
             sequential_result.executed_instruction_count == 2U &&
-            sequential_result.direct_audio_service_count == 0U &&
+            sequential_result.direct_audio_service_count == 1U &&
             sequential.context.instruction_offset == 6U &&
             sequential.state.previous_opcode == OP_67_WAIT_FRAME_CLOCK &&
             reload_result.status == LegacyWorldStoryVmStatus::yielded &&
@@ -33982,7 +34003,7 @@ void test_real_shared_picture_action_enqueue_records(
             fixture.context.instruction_offset == 10U &&
             fixture.state.previous_opcode ==
                 OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION &&
-            fixture.ports.direct_audio_service_count == 0U,
+            fixture.ports.direct_audio_service_count == 3U,
         "real opcodes 58 and 153 prepend primary and secondary picture actions"
     );
 }
@@ -34049,7 +34070,7 @@ void test_real_shared_role_spatial_group_records(
                 spatial.row_heads[record.target_group][role_row] == 1U &&
                 fixture.context.instruction_offset == 4U &&
                 fixture.state.previous_opcode == record.opcode &&
-                fixture.ports.direct_audio_service_count == 0U,
+                fixture.ports.direct_audio_service_count == 1U,
             "real opcodes 55-57 move the selected role between spatial groups"
         );
     }
@@ -34140,7 +34161,7 @@ void test_real_wait_for_frame_color_transition_record(
             color.countdown == 0 && fixture.context.instruction_offset == 18U &&
             fixture.state.previous_opcode ==
                 OP_53_WAIT_FRAME_COLOR_TRANSITION &&
-            fixture.ports.direct_audio_service_count == 0U,
+            fixture.ports.direct_audio_service_count == 1U,
         "real opcode 53 waits after transition start and continues after completion"
     );
 }

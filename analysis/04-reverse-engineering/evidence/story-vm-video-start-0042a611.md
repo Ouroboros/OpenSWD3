@@ -16,9 +16,10 @@ opcode：`85`
 2. 调用primary surface入口，以flags `0x01000000`提交整个软件surface；
 3. `_AIL_serve()`；
 4. 调用`sub_484730(&script_pointer, &instruction_offset)`；
-5. 进入`loc_42B0AA`公共join，发布normalized previous85并yield。
+5. 进入`loc_42B0AA`公共join，发布normalized previous85；
+6. `var_28|ESI==0`，再调用`_AIL_serve()`一次并yield。
 
-现代顺序为`clear_story_framebuffer -> present_story_framebuffer -> service_audio -> prepare_story_video -> begin_story_video`。测试以独立callbacks固定五步顺序；成功和预检拒绝都发布previous85并yield。
+现代成功顺序为`clear_story_framebuffer -> present_story_framebuffer -> service_audio -> prepare_story_video -> begin_story_video -> common service_audio`。测试以独立callbacks固定六步顺序；成功和预检拒绝都发布previous85并以两次audio yield。
 
 ## 2. CD预检路径
 
@@ -63,6 +64,6 @@ real CTest独立回放：
 - `TALK1.DAT@0x000044FF`：`OPENING.bik`，长度15；
 - `TALK1.DAT@0x00004634`：`Demo.mpg`，长度12。
 
-两条均置于精确尾，验证raw filename、五步side-effect owner、IP=`0x8000`、previous85与yield。既有Story100继续端到端经过OPENING视频边界。synthetic还覆盖`.avi`、四alias、CD预检拒绝和缺terminator typed failure。剧情VM三项为3/3。
+两条均置于精确尾，验证raw filename、六步side-effect owner、两次audio、IP=`0x8000`、previous85与yield。既有Story100继续端到端经过OPENING视频边界。synthetic还覆盖`.avi`、四alias、CD预检拒绝和缺terminator typed failure。剧情VM三项为3/3。
 
 分类：`platform_adapted`。VM合法域清屏/提交/audio/预检/解析/begin顺序、terminator、IP、previous与yield保持；CD acquisition、固定路径、Bink wrapper和unsafe扫描由配置目录、typed backend与bounded失败替代。

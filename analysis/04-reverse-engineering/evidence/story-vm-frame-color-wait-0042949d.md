@@ -7,7 +7,7 @@
 - countdown `> 0`：IP 不变，在当前 opcode 原地让出；
 - countdown `<= 0`：IP 推进 2 字节，在同一次调用继续取下一条；
 - 两路都经过原版共同出口，发布归一化 previous opcode53；
-- handler 不修改 countdown、current、target 或 step，也不调用音频。
+- handler 不修改 countdown、current、target 或 step；正值等待路经common join调用audio一次，非正完成路same-call无audio。
 
 既有 C++ 的 signed 条件、等待和推进已经正确，但两路都绕过了共同出口的 previous 发布，且 case 仍是裸数字。修正只补齐这两个真实差异。
 
@@ -93,7 +93,7 @@ TALK1.DAT@0x000043B8
 - 四种raw高位alias和normalized previous；
 - countdown `1`、`INT32_MAX`等待；
 - countdown `0`、`-1`、`INT32_MIN`完成；
-- 等待/完成均不修改全部颜色状态且无audio；
+- 等待/完成均不修改全部颜色状态；等待audio一次，完成same-call无audio；
 - owner缺失停在首次countdown访问；
 - `0x7FFE`等待尾和完成尾；
 - `TALK1.DAT@0x000043B8`真实opcode52→53等待/完成序列。
@@ -102,7 +102,7 @@ TALK1.DAT@0x000043B8
 
 LST→C++：signed `JG`、正值不推进、非正值推进2、ESI wait/continue、共同出口previous和same-call next fetch均有直接映射。
 
-C++→LST：没有自行递减countdown、改写颜色、把负值当等待、漏发previous、提前推进等待路径、audio或额外yield。typed owner检查只隔离原版不可安全表达的空地址域。
+C++→LST：没有自行递减countdown、改写颜色、把负值当等待、漏发previous、提前推进等待路径、漏掉等待路common audio或增加完成路audio。typed owner检查只隔离原版不可安全表达的空地址域。
 
 ```text
 assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated

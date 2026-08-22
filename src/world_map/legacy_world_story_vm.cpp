@@ -2113,6 +2113,13 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
         state.window_loaded = true;
     }
 
+    const auto yield_from_common_join = [&]() noexcept {
+        state.previous_opcode = result.opcode;
+        ports.service_audio();
+        ++result.direct_audio_service_count;
+        result.status = LegacyWorldStoryVmStatus::yielded;
+    };
+
     constexpr u32 kInstructionLimit = 4096U;
     for (u32 dispatch_count = 0U; dispatch_count < kInstructionLimit;
          ++dispatch_count) {
@@ -2605,8 +2612,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     ip + 2U,
                     static_cast<u16>(count_word | 0x4000U)
                 );
-                state.previous_opcode = result.opcode;
-                result.status = LegacyWorldStoryVmStatus::yielded;
+                yield_from_common_join();
                 return result;
             }
 
@@ -2651,8 +2657,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 }
             }
             if (ready_count != count) {
-                state.previous_opcode = result.opcode;
-                result.status = LegacyWorldStoryVmStatus::yielded;
+                yield_from_common_join();
                 return result;
             }
             write_u16(state.window, ip + 2U, count);
@@ -3536,8 +3541,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 return result;
             }
             if (runtime.frame_color->countdown > 0) {
-                state.previous_opcode = result.opcode;
-                result.status = LegacyWorldStoryVmStatus::yielded;
+                yield_from_common_join();
                 return result;
             }
             context.instruction_offset =
@@ -3639,8 +3643,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 
@@ -3694,8 +3697,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             destination.splice(destination.begin(), pending);
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 10U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 
@@ -3707,8 +3709,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ports.play_sound_effect(read_u16(state.window, ip + 2U));
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
 
         case OP_60_RESUME_WORLD_SCENE_RENDERING:
@@ -3726,8 +3727,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
 
         case OP_62_WRITE_MAP_ROLE: {
@@ -3819,8 +3819,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             if (selection_count > 56U) {
                 ++result.selection_overflow_diagnostic_count;
-                state.previous_opcode = result.opcode;
-                result.status = LegacyWorldStoryVmStatus::yielded;
+                yield_from_common_join();
                 return result;
             }
             if (runtime.selection_words == nullptr) {
@@ -3949,8 +3948,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 
@@ -4061,8 +4059,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
 
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 16U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 
@@ -4078,14 +4075,12 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 write_u16(
                     state.window, ip + 2U, static_cast<u16>(operand | 0x8000U)
                 );
-                state.previous_opcode = result.opcode;
-                result.status = LegacyWorldStoryVmStatus::yielded;
+                yield_from_common_join();
                 return result;
             }
             if (runtime.current_tick - state.wait_started_at <=
                 state.wait_duration) {
-                state.previous_opcode = result.opcode;
-                result.status = LegacyWorldStoryVmStatus::yielded;
+                yield_from_common_join();
                 return result;
             }
             write_u16(
@@ -4122,8 +4117,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 
@@ -4152,8 +4146,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 
@@ -4319,8 +4312,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 6U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 
@@ -4340,8 +4332,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 
@@ -4872,8 +4863,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             ports.service_audio();
             ++result.direct_audio_service_count;
             if (!ports.prepare_story_video()) {
-                state.previous_opcode = result.opcode;
-                result.status = LegacyWorldStoryVmStatus::yielded;
+                yield_from_common_join();
                 return result;
             }
             std::size_t end{};
@@ -4887,8 +4877,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 )
             );
             context.instruction_offset = static_cast<u16>(end);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 
@@ -5014,8 +5003,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 0x80000000U;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
 
         case OP_91_LOAD_NAME_RECORD:
@@ -5111,8 +5099,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             *runtime.scene_render_flags |= 2U;
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
 
         case OP_95_CLEAR_SCENE_RENDER_BIT1:
@@ -5123,8 +5110,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             *runtime.scene_render_flags &= static_cast<u8>(~u8{2U});
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 2U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
 
         case OP_96_BEGIN_CUSTOM_ANI: {
@@ -5186,15 +5172,13 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 ),
                 ani_flags
             ));
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 
         case OP_97_WAIT_CUSTOM_ANI_COMPLETE:
             if (ports.is_story_ani_active()) {
-                state.previous_opcode = result.opcode;
-                result.status = LegacyWorldStoryVmStatus::yielded;
+                yield_from_common_join();
                 return result;
             }
             context.instruction_offset =
@@ -5206,8 +5190,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
         case OP_98_CONSUME_FOUR_BYTE_NOOP:
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 4U);
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
 
         case OP_99_WAIT_CUSTOM_ANI_PHASE: {
@@ -5219,8 +5202,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             const i32 threshold =
                 static_cast<i32>(read_u16(state.window, ip + 2U));
             if (phase <= threshold) {
-                state.previous_opcode = result.opcode;
-                result.status = LegacyWorldStoryVmStatus::yielded;
+                yield_from_common_join();
                 return result;
             }
             context.instruction_offset =
@@ -5399,8 +5381,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     actions.front().action.packed_ap_state >> 8U
                 );
                 if (wait_byte <= threshold) {
-                    state.previous_opcode = result.opcode;
-                    result.status = LegacyWorldStoryVmStatus::yielded;
+                    yield_from_common_join();
                     return result;
                 }
             }
@@ -5436,8 +5417,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                     const u16 one_based_index =
                         static_cast<u8>(packed_state >> 8U);
                     if (one_based_index < threshold) {
-                        state.previous_opcode = result.opcode;
-                        result.status = LegacyWorldStoryVmStatus::yielded;
+                        yield_from_common_join();
                         return result;
                     }
                 }
@@ -6382,8 +6362,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             context.instruction_offset = static_cast<u16>(
                 context.instruction_offset + 4U + item_count * sizeof(u16)
             );
-            state.previous_opcode = result.opcode;
-            result.status = LegacyWorldStoryVmStatus::yielded;
+            yield_from_common_join();
             return result;
         }
 

@@ -52,7 +52,7 @@ script_pointer += 4 + 2 * item_count
 instruction_ip += 4 + 2 * item_count
 ```
 
-随后恢复ESI为该dispatch轮入口保存的零，经`0x0042B0AE` common join发布normalized previous133并yield。handler没有audio service、action callback或same-call continuation。
+随后恢复ESI为该dispatch轮入口保存的零，经`0x0042B0AE` common join发布normalized previous133、调用`_AIL_serve`恰好一次并yield。handler没有其他audio service、action callback或same-call continuation。
 
 共享`dword_4B8740`已由现代frame coordinator持有；低28位模式2进入`shop_mode_2`分派。VM成功请求后世界剧情在同帧停止，下一接受帧进入商店分支。
 

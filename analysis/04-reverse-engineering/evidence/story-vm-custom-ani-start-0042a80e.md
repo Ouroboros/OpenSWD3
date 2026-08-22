@@ -27,7 +27,7 @@ filename bytes
 
 原版先尝试`<root>\Video\name`，失败时调用CD helper并可改用`<cd>\swd3\Video\name`；CD helper返回2时，记录已经消费且至少一次`AIL_serve`已发生，但直接从解释器返回0，不进入common previous join，两个临时buffer泄漏。
 
-SDL配置data root替代CD介质；`prepare_story_ani()`正常恒ready，`Video/`子目录按ASCII大小写不敏感解析脚本名。modern synthetic preflight-false路径保持：interval与记录消费完成、一次audio service、无start、previous不发布、非fatal跨帧返回。preflight成功路径在actual start前执行第二次audio service，覆盖原两次文件打开阶段两侧的最低共同`AIL_serve`顺序；原header/palette读取间的额外maintenance封装在typed backend边界。
+SDL配置data root替代CD介质；`prepare_story_ani()`正常恒ready，`Video/`子目录按ASCII大小写不敏感解析脚本名。modern synthetic preflight-false路径保持：interval与记录消费完成、一次audio service、无start、previous不发布、非fatal跨帧返回。preflight成功路径在actual start前执行第二次audio service，完成后经common join发布previous并执行第三次audio service；原header/palette读取间的额外maintenance封装在typed backend边界。
 
 ## 3. 实际 ANI backend
 
@@ -64,7 +64,7 @@ real Story VM回放：
 - `TALK1.DAT@0x000043FA`：`%*expv.ani%Q`，flags3；
 - `TALK2.DAT@0x0000D39F`：`*memory.ani%Q`，flags1。
 
-两条均置于精确窗口尾，验证interval70、两次audio、filename/flags传递、IP=`8000`、previous96和yield。synthetic另覆盖四raw alias、四prefix组合、32-byte terminator边界、missing terminator、opcode/prefix截断、preflight退出、archive-open失败，以及VM scene owner为空仍不引入机器中不存在的staged stop。
+两条均置于精确窗口尾，验证interval70、两次handler内部audio与一次common audio（合计三次）、filename/flags传递、IP=`8000`、previous96和yield。synthetic另覆盖四raw alias、四prefix组合、32-byte terminator边界、missing terminator、opcode/prefix截断、preflight退出、archive-open失败，以及VM scene owner为空仍不引入机器中不存在的staged stop。
 
 独立backend门：`asset_runtime.legacy_ani_archive`、`legacy_ani_archive_real`、`legacy_ani_activity`为3/3；real archive测试实际打开并校验`expv.Ani`和`memory.Ani`等资产。Story VM三项为3/3，linux-app integration编译通过。
 

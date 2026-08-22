@@ -17,7 +17,7 @@ opcode：`98`
 3. 保存新的物理脚本指针到 `var_50`；
 4. 进入 `0x0042B0AE` common join。
 
-fetch loop 在每次分派前把 `ESI`清零，本 handler 不修改它。common join 因而发布归一化 previous opcode 98，并按 `ESI=0` yield。它不是 same-call no-op。
+fetch loop 在每次分派前把 `ESI`清零，本 handler 不修改它。common join 因而发布归一化 previous opcode 98，并因`var_28|ESI==0`调用`_AIL_serve`恰好一次后yield。它不是 same-call no-op。
 
 名义上的 `+2 u16` payload 从未被机器读取，也没有 helper、全局状态或平台依赖。modern handler同样不检查、不解码、不使用payload，只在成功取得当前opcode后推进4、发布previous98并yield。
 

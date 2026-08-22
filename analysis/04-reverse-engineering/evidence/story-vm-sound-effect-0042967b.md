@@ -81,6 +81,7 @@ handler跳到共享4字节推进尾：
 
 - 成功提交或音频内部失败都推进4字节；
 - previous发布为normalized opcode59；
+- common join调用`_AIL_serve`恰好一次；
 - 返回`yielded`，同调用不继续下一条；
 - 从`0x7FFC`开始的完整记录可在`0x8000`完成请求、IP与previous更新后正常让出。
 
@@ -127,7 +128,7 @@ handler跳到共享4字节推进尾：
 
 LST→C++：u16声音编号、当前世界音效等级、精确缩放wrapper、返回忽略、共享+4尾、normalized previous与yield均有映射；真实平台端口接到已审计样本管理器。
 
-C++→LST：没有同调用继续、音效完成等待、返回值分支、编号符号扩展、额外音频service或漏发previous。SDL后端、资源范围检查与受检窗口边界只隔离原版Miles/裸内存无效域。
+C++→LST：没有同调用继续、音效完成等待、返回值分支、编号符号扩展、漏掉或重复common audio service、或漏发previous。SDL后端、资源范围检查与受检窗口边界只隔离原版Miles/裸内存无效域。
 
 ```text
 assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated

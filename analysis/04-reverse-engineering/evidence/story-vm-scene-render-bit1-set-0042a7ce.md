@@ -22,7 +22,7 @@ context.IP += 2
 jump common join with ESI still 0
 ```
 
-common join发布normalized previous94；因handler未把ESI置1，立即跨帧返回。它不fetch同调用下一条，无audio或callback。
+common join发布normalized previous94；因handler未把ESI置1，调用`_AIL_serve`恰好一次后跨帧返回。它不fetch同调用下一条，也没有其他callback。
 
 旧modern把94/95合并为一个numeric case，bit写和yield存在，但漏发previous。现已只拆分并修正opcode94；opcode95保持独立pending，不能继承本结论。
 

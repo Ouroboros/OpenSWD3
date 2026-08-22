@@ -123,7 +123,7 @@ CLOSURE_OVERRIDES = {
     "0x0042ADB7": (
         "platform_adapted",
         "story-vm-role-path-schedule-0042adb7.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x00428533": (
         "platform_adapted",
@@ -243,7 +243,7 @@ CLOSURE_OVERRIDES = {
     "0x0042949D": (
         "platform_adapted",
         "story-vm-frame-color-wait-0042949d.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x004294C0": (
         "platform_adapted",
@@ -253,22 +253,22 @@ CLOSURE_OVERRIDES = {
     "0x004295F3": (
         "platform_adapted",
         "story-vm-role-spatial-groups-004295f3.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x0042B1F1": (
         "platform_adapted",
         "story-vm-picture-action-enqueue-0042b1f1.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x0042967B": (
         "platform_adapted",
         "story-vm-sound-effect-0042967b.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x00429693": (
         "platform_adapted",
         "story-vm-scene-render-control-00429693.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x004296DE": (
         "platform_adapted",
@@ -278,7 +278,7 @@ CLOSURE_OVERRIDES = {
     "0x00429A1B": (
         "platform_adapted",
         "story-vm-selection-scroll-write-00429a1b.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x00429AD2": (
         "platform_adapted",
@@ -288,37 +288,37 @@ CLOSURE_OVERRIDES = {
     "0x00429AE8": (
         "platform_adapted",
         "story-vm-role-transfer-00429ae8.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x00429B14": (
         "platform_adapted",
         "story-vm-role-map-update-00429b14.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x00429B62": (
         "assembly_exact",
         "story-vm-frame-clock-wait-00429b62.md",
-        "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x00429BB5": (
         "platform_adapted",
         "story-vm-role-flag-0400-clear-00429bb5.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x00429C37": (
         "platform_adapted",
         "story-vm-role-flag-0400-set-00429c37.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x00429CBC": (
         "platform_adapted",
         "story-vm-role-head-sign-00429cbc.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x00429D0F": (
         "assembly_exact",
         "story-vm-role-head-sign-clear-00429d0f.md",
-        "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated;audio_service_tested",
     ),
     "0x00429D43": (
         "platform_adapted",
@@ -373,7 +373,7 @@ CLOSURE_OVERRIDES = {
     "0x0042A611": (
         "platform_adapted",
         "story-vm-video-start-0042a611.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;external_dependency_tested",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;external_dependency_tested;audio_service_tested",
     ),
     "0x0042A673": (
         "platform_adapted",
@@ -388,7 +388,7 @@ CLOSURE_OVERRIDES = {
     "0x0042A727": (
         "platform_adapted",
         "story-vm-battle-request-0042a727.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;staged_unsafe_order_tested;external_dependency_tested",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;staged_unsafe_order_tested;external_dependency_tested;audio_service_tested",
     ),
     "0x0042B287": (
         "platform_adapted",
@@ -408,32 +408,32 @@ CLOSURE_OVERRIDES = {
     "0x0042A7CE": (
         "platform_adapted",
         "story-vm-scene-render-bit1-set-0042a7ce.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;typed_owner_boundary_tested",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;typed_owner_boundary_tested;audio_service_tested",
     ),
     "0x0042A7EE": (
         "platform_adapted",
         "story-vm-scene-render-bit1-clear-0042a7ee.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;typed_owner_boundary_tested",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;typed_owner_boundary_tested;audio_service_tested",
     ),
     "0x0042A80E": (
         "platform_adapted",
         "story-vm-custom-ani-start-0042a80e.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;audio_service_tested",
     ),
     "0x0042AD3C": (
         "platform_adapted",
         "story-vm-custom-ani-wait-0042ad3c.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;audio_service_tested",
     ),
     "0x0042C7EA": (
         "assembly_exact",
         "story-vm-four-byte-noop-0042c7ea.md",
-        "assembly_exact;unit_tested;real_asset_tested;exact_tail_tested;unread_payload_tested",
+        "assembly_exact;unit_tested;real_asset_tested;exact_tail_tested;unread_payload_tested;audio_service_tested",
     ),
     "0x0042AD75": (
         "platform_adapted",
         "story-vm-custom-ani-phase-wait-0042ad75.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;signed_comparison_tested;staged_operand_tested",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;signed_comparison_tested;staged_operand_tested;audio_service_tested",
     ),
     "0x0042B3B0": (
         "platform_adapted",
@@ -463,12 +463,12 @@ CLOSURE_OVERRIDES = {
     "0x0042B4CA": (
         "platform_adapted",
         "story-vm-picture-action-byte-wait-0042b4ca.md",
-        "assembly_exact;unit_tested;real_asset_tested;asset_absence_verified;platform_adapted;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;staged_operand_tested;selector_alias_tested",
+        "assembly_exact;unit_tested;real_asset_tested;asset_absence_verified;platform_adapted;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;staged_operand_tested;selector_alias_tested;audio_service_tested",
     ),
     "0x0042B50F": (
         "assembly_exact",
         "story-vm-role-action-index-wait-0042b50f.md",
-        "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;staged_operand_tested;selector_alias_tested",
+        "assembly_exact;unit_tested;real_asset_tested;sdl_runtime_integrated;external_dependency_tested;exact_tail_tested;staged_operand_tested;selector_alias_tested;audio_service_tested",
     ),
     "0x0042B5F2": (
         "assembly_exact",
@@ -578,7 +578,7 @@ CLOSURE_OVERRIDES = {
     "0x0042C234": (
         "platform_adapted",
         "story-vm-shop-request-0042c234.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;staged_operand_tested;selector_alias_tested;partial_failure_tested;shared_owner_tested;external_dependency_tested;typed_owner_boundary_tested",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;staged_operand_tested;selector_alias_tested;partial_failure_tested;shared_owner_tested;external_dependency_tested;typed_owner_boundary_tested;audio_service_tested",
     ),
     "0x0042C2C6": (
         "platform_adapted",
