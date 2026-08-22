@@ -6592,6 +6592,62 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             result.status = LegacyWorldStoryVmStatus::yielded;
             return result;
 
+        case OP_150_CONFIGURE_ANI_FOLLOWER_POSITION: {
+            if (!has_bytes(state.window, ip + 2U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            i32 follower_x = std::bit_cast<i32>(
+                static_cast<u32>(static_cast<i32>(
+                    static_cast<i16>(read_u16(state.window, ip + 2U))
+                ))
+                << 4U
+            );
+            if (runtime.ani_follower == nullptr) {
+                result.status = LegacyWorldStoryVmStatus::runtime_unavailable;
+                return result;
+            }
+            auto& follower = *runtime.ani_follower;
+            follower.current_x = follower_x;
+
+            if (!has_bytes(state.window, ip + 4U, sizeof(u16))) {
+                result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
+                return result;
+            }
+            const i32 follower_y = std::bit_cast<i32>(
+                static_cast<u32>(static_cast<i32>(
+                    static_cast<i16>(read_u16(state.window, ip + 4U))
+                ))
+                << 4U
+            );
+            follower.current_y = follower_y;
+
+            if (follower_x > 0x1B0) {
+                follower_x = 0x1B0;
+                follower.current_x = follower_x;
+            } else if (follower_x < 0x0D0) {
+                follower_x = 0x0D0;
+                follower.current_x = follower_x;
+            }
+
+            if (follower_y > 0x110) {
+                follower.current_y = 0x110;
+            } else if (follower_y < 0x0D0) {
+                follower.current_y = 0x0D0;
+            }
+
+            follower.target_x = follower_x;
+            follower.velocity_x = 0;
+            follower.velocity_y = 0;
+            context.instruction_offset =
+                static_cast<u16>(context.instruction_offset + 6U);
+            state.previous_opcode = result.opcode;
+            ports.service_audio();
+            ++result.direct_audio_service_count;
+            result.status = LegacyWorldStoryVmStatus::yielded;
+            return result;
+        }
+
         case 161U: {
             if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;

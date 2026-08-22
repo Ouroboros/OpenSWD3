@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openswd3/asset_runtime/legacy_ani_activity.hpp"
+#include "openswd3/asset_runtime/legacy_ani_follower_effect.hpp"
 #include "openswd3/asset_runtime/legacy_ani_role_particle_effect.hpp"
 #include "openswd3/input_time_rng/legacy_secondary_rng.hpp"
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
@@ -182,6 +183,7 @@ enum LegacyWorldStoryOpcode : compat::u16 {
     OP_147_SET_STORY_FLAG_70 = 147U,
     OP_148_SET_STORY_FLAG_19 = 148U,
     OP_149_CLEAR_STORY_FLAG_19 = 149U,
+    OP_150_CONFIGURE_ANI_FOLLOWER_POSITION = 150U,
     OP_153_ENQUEUE_SECONDARY_PICTURE_ACTION = 153U,
     OP_154_WAIT_SECONDARY_PICTURE_ACTION_BYTE = 154U,
     OP_174_SET_ROLE_STATUS_BIT14 = 174U,
@@ -289,6 +291,7 @@ struct LegacyWorldStoryVmRuntime {
     LegacyWorldSelectionScrollState* selection_scroll{};
     LegacyWorldCameraRect* camera{};
     LegacyWorldCameraPanState* camera_pan{};
+    asset_runtime::LegacyAniFollowerState* ani_follower{};
     LegacyWorldMovementRuntimeState* movement{};
     LegacyPictureActionLists* picture_actions{};
     std::list<rendering::LegacyPackedRowEffect>* packed_row_effects{};

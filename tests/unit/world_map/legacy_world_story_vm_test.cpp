@@ -180,6 +180,7 @@ using openswd3::world_map::OP_146_SET_ROLE_STATUS_BIT8;
 using openswd3::world_map::OP_147_SET_STORY_FLAG_70;
 using openswd3::world_map::OP_148_SET_STORY_FLAG_19;
 using openswd3::world_map::OP_149_CLEAR_STORY_FLAG_19;
+using openswd3::world_map::OP_150_CONFIGURE_ANI_FOLLOWER_POSITION;
 using openswd3::world_map::OP_162_LOAD_DYNAMIC_NAME_RECORD;
 using openswd3::world_map::OP_167_RELOAD_IF_ANY_ROLE_ITEM_ROOT_HAS_ITEM;
 using openswd3::world_map::OP_168_RELOAD_IF_NO_ROLE_ITEM_ROOT_HAS_ITEM;
@@ -856,6 +857,7 @@ struct FixtureStorage {
     std::array<u8, 16U> first_name{};
     std::array<u8, 16U> second_name{};
     openswd3::world_map::LegacyWorldCameraRect camera{};
+    openswd3::asset_runtime::LegacyAniFollowerState ani_follower{};
     std::array<i16, openswd3::world_map::kLegacyWorldSelectionWordCount>
         selection_words{};
     openswd3::world_map::LegacyWorldSelectionScrollState selection_scroll{};
@@ -895,6 +897,8 @@ struct Fixture {
     std::array<u8, 16U>& first_name = storage->first_name;
     std::array<u8, 16U>& second_name = storage->second_name;
     openswd3::world_map::LegacyWorldCameraRect& camera = storage->camera;
+    openswd3::asset_runtime::LegacyAniFollowerState& ani_follower =
+        storage->ani_follower;
     std::array<i16, openswd3::world_map::kLegacyWorldSelectionWordCount>&
         selection_words = storage->selection_words;
     openswd3::world_map::LegacyWorldSelectionScrollState& selection_scroll =
@@ -944,6 +948,7 @@ struct Fixture {
         runtime.selection_words = &selection_words;
         runtime.selection_scroll = &selection_scroll;
         runtime.camera = &camera;
+        runtime.ani_follower = &ani_follower;
         runtime.indexed_target_selector = &indexed_target_selector;
         runtime.secondary_rng = &secondary_rng;
         runtime.speed_mode = &speed_mode;
@@ -22825,6 +22830,196 @@ void test_clear_story_flag_19_protocol(openswd3::test::Context& test) {
     );
 }
 
+void test_configure_ani_follower_position_protocol(
+    openswd3::test::Context& test
+) {
+    struct TestCase {
+        u16 alias_mask;
+        i16 raw_x;
+        i16 raw_y;
+        i32 expected_x;
+        i32 expected_y;
+    };
+    constexpr std::array cases{
+        TestCase{0U, 20, 15, 320, 240},
+        TestCase{0x4000U, 30, 10, 432, 208},
+        TestCase{0x8000U, 5, 30, 208, 272},
+        TestCase{0xC000U, -1, -1, 208, 208},
+    };
+
+    for (const auto test_case : cases) {
+        Fixture fixture;
+        fixture.ani_follower = {
+            .current_x = 1,
+            .current_y = 2,
+            .target_x = 3,
+            .target_y = 777,
+            .velocity_x = 4,
+            .velocity_y = 5,
+        };
+        prime_loaded_instruction(
+            fixture,
+            static_cast<u16>(
+                OP_150_CONFIGURE_ANI_FOLLOWER_POSITION | test_case.alias_mask
+            )
+        );
+        write_u16(
+            fixture.state.window, 2U, std::bit_cast<u16>(test_case.raw_x)
+        );
+        write_u16(
+            fixture.state.window, 4U, std::bit_cast<u16>(test_case.raw_y)
+        );
+        write_u16(fixture.state.window, 6U, OP_1025);
+        fixture.state.previous_opcode = 0x66U;
+        bool committed_before_audio = false;
+        fixture.ports.audio_service_callback = [&]() {
+            committed_before_audio =
+                fixture.ani_follower.current_x == test_case.expected_x &&
+                fixture.ani_follower.current_y == test_case.expected_y &&
+                fixture.ani_follower.target_x == test_case.expected_x &&
+                fixture.ani_follower.target_y == 777 &&
+                fixture.ani_follower.velocity_x == 0 &&
+                fixture.ani_follower.velocity_y == 0 &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode ==
+                    OP_150_CONFIGURE_ANI_FOLLOWER_POSITION;
+        };
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::yielded &&
+                result.raw_word ==
+                    static_cast<u16>(
+                        OP_150_CONFIGURE_ANI_FOLLOWER_POSITION |
+                        test_case.alias_mask
+                    ) &&
+                result.opcode == OP_150_CONFIGURE_ANI_FOLLOWER_POSITION &&
+                result.executed_instruction_count == 1U &&
+                result.direct_audio_service_count == 1U &&
+                fixture.ani_follower.current_x == test_case.expected_x &&
+                fixture.ani_follower.current_y == test_case.expected_y &&
+                fixture.ani_follower.target_x == test_case.expected_x &&
+                fixture.ani_follower.target_y == 777 &&
+                fixture.ani_follower.velocity_x == 0 &&
+                fixture.ani_follower.velocity_y == 0 &&
+                fixture.context.instruction_offset == 6U &&
+                fixture.state.previous_opcode ==
+                    OP_150_CONFIGURE_ANI_FOLLOWER_POSITION &&
+                committed_before_audio,
+            "opcode 150 scales and clamps both follower coordinates, preserves target y, clears both velocities, publishes previous, services audio, and yields"
+        );
+    }
+
+    Fixture missing_x;
+    missing_x.ani_follower = {
+        .current_x = 1,
+        .current_y = 2,
+        .target_x = 3,
+        .target_y = 4,
+        .velocity_x = 5,
+        .velocity_y = 6,
+    };
+    missing_x.context.instruction_offset = 0x7FFEU;
+    missing_x.context.talk_data_offset = 0x1111U;
+    missing_x.state.loaded_file_number = 1U;
+    missing_x.state.loaded_data_offset = 0x1111U;
+    missing_x.state.window_loaded = true;
+    write_u16(
+        missing_x.state.window, 0x7FFEU, OP_150_CONFIGURE_ANI_FOLLOWER_POSITION
+    );
+    const auto missing_x_result = missing_x.step();
+    test.expect_true(
+        missing_x_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_x.ani_follower.current_x == 1 &&
+            missing_x.ani_follower.current_y == 2 &&
+            missing_x.context.instruction_offset == 0x7FFEU,
+        "opcode 150 missing x stops before the first follower write"
+    );
+
+    Fixture missing_y;
+    missing_y.ani_follower = {
+        .current_x = 1,
+        .current_y = 2,
+        .target_x = 3,
+        .target_y = 4,
+        .velocity_x = 5,
+        .velocity_y = 6,
+    };
+    missing_y.context.instruction_offset = 0x7FFCU;
+    missing_y.context.talk_data_offset = 0x1111U;
+    missing_y.state.loaded_file_number = 1U;
+    missing_y.state.loaded_data_offset = 0x1111U;
+    missing_y.state.window_loaded = true;
+    write_u16(
+        missing_y.state.window, 0x7FFCU, OP_150_CONFIGURE_ANI_FOLLOWER_POSITION
+    );
+    write_u16(missing_y.state.window, 0x7FFEU, std::bit_cast<u16>(i16{30}));
+    const auto missing_y_result = missing_y.step();
+    test.expect_true(
+        missing_y_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_y.ani_follower.current_x == 480 &&
+            missing_y.ani_follower.current_y == 2 &&
+            missing_y.ani_follower.target_x == 3 &&
+            missing_y.ani_follower.target_y == 4 &&
+            missing_y.ani_follower.velocity_x == 5 &&
+            missing_y.ani_follower.velocity_y == 6 &&
+            missing_y.context.instruction_offset == 0x7FFCU,
+        "opcode 150 missing y preserves the committed unclamped x and all later state"
+    );
+
+    Fixture missing_owner;
+    prime_loaded_instruction(
+        missing_owner, OP_150_CONFIGURE_ANI_FOLLOWER_POSITION
+    );
+    write_u16(missing_owner.state.window, 2U, 20U);
+    missing_owner.runtime.ani_follower = nullptr;
+    const auto missing_owner_result = missing_owner.step();
+    test.expect_true(
+        missing_owner_result.status ==
+                LegacyWorldStoryVmStatus::runtime_unavailable &&
+            missing_owner.context.instruction_offset == 0U &&
+            missing_owner.state.previous_opcode == 0U,
+        "opcode 150 missing follower owner stops at the first global write before reading y"
+    );
+
+    Fixture exact_tail;
+    exact_tail.ani_follower.target_y = 999;
+    exact_tail.ani_follower.velocity_x = -7;
+    exact_tail.ani_follower.velocity_y = 8;
+    exact_tail.context.instruction_offset = 0x7FFAU;
+    exact_tail.context.talk_data_offset = 0x1111U;
+    exact_tail.state.loaded_file_number = 1U;
+    exact_tail.state.loaded_data_offset = 0x1111U;
+    exact_tail.state.window_loaded = true;
+    exact_tail.state.previous_opcode = 0x66U;
+    write_u16(
+        exact_tail.state.window, 0x7FFAU, OP_150_CONFIGURE_ANI_FOLLOWER_POSITION
+    );
+    write_u16(exact_tail.state.window, 0x7FFCU, 13U);
+    write_u16(exact_tail.state.window, 0x7FFEU, 17U);
+
+    const auto exact_tail_result = exact_tail.step();
+    test.expect_true(
+        exact_tail_result.status == LegacyWorldStoryVmStatus::yielded &&
+            exact_tail_result.opcode ==
+                OP_150_CONFIGURE_ANI_FOLLOWER_POSITION &&
+            exact_tail_result.executed_instruction_count == 1U &&
+            exact_tail_result.direct_audio_service_count == 1U &&
+            exact_tail.ani_follower.current_x == 208 &&
+            exact_tail.ani_follower.current_y == 272 &&
+            exact_tail.ani_follower.target_x == 208 &&
+            exact_tail.ani_follower.target_y == 999 &&
+            exact_tail.ani_follower.velocity_x == 0 &&
+            exact_tail.ani_follower.velocity_y == 0 &&
+            exact_tail.context.instruction_offset == 0x8000U &&
+            exact_tail.state.previous_opcode ==
+                OP_150_CONFIGURE_ANI_FOLLOWER_POSITION,
+        "opcode 150 completes all follower writes before audio maintenance and yield at the exact window tail"
+    );
+}
+
 void test_wait_picture_action_byte_protocol(openswd3::test::Context& test) {
     struct Variant {
         u16 opcode;
@@ -30128,6 +30323,7 @@ int main(const int argument_count, char** arguments) {
     test_set_story_flag_70_protocol(test);
     test_set_story_flag_19_protocol(test);
     test_clear_story_flag_19_protocol(test);
+    test_configure_ani_follower_position_protocol(test);
     test_wait_picture_action_byte_protocol(test);
     test_enqueue_moving_action_protocol(test);
     test_enqueue_moving_action_boundaries(test);

@@ -3850,6 +3850,7 @@ public:
                 .selection_scroll = &world_frame_state_.selection_scroll,
                 .camera = &world.camera,
                 .camera_pan = &world_frame_state_.camera_pan,
+                .ani_follower = &world_frame_effects_.follower,
                 .movement = &world_frame_state_.movement,
                 .picture_actions = &world_picture_actions_,
                 .packed_row_effects = &world_frame_effects_.packed_rows,
