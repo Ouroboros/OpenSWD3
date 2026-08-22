@@ -207,6 +207,8 @@ bit0 == 1                         -> 消费
 
 真实首图会稳定触发角色不存在分支：初始运行时角色表有 33 项但不含 GUID `123/240`，`TALK100` 在首段剧情视频边界前依次提交 `123,561,8,0` 和 `240,561,0,1` 两个 source patch，二者均以 `0x1000` 作为 OR mask，其他 mask/map 字段保持 `FFFF`。真实初始世界回归固定验证角色缺失、MAPS source 存在、两组原始操作数和继续执行结果，防止人工补齐角色的测试夹具再次掩盖此分支。
 
+本入口现已独立闭环。live路径按`+4/+6/+8`逐项读取并立即提交，后续截断保留前序写；missing路径则按`+8/+6/+4`读取raw word后提交MAPS patch。两路均发布previous120并same-call。800条真实记录/808 probes、两条live/missing回放、四alias、special selector、refresh失败及两类精确尾通过；完整证据见[`story-vm-role-action-fields-0042bab8.md`](story-vm-role-action-fields-0042bab8.md)。
+
 ## opcode 123：Scene_Music 表项的非对称复制
 
 123 从 `dword_4C9A10` 的相对偏移链取得 8 字节一项、以 key 零结束的 Scene_Music 表。`+2` 为查找 key；若是 `FFF0`，只在比较时以 `ArgList` 低 16 位替代。找到匹配项后实际复制：

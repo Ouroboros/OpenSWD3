@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v339
+版本：v340
 
 最后更新：2026-08-21
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：剧情 VM 追加 PLAN P2 · `0x0042BAB8` handler（opcode 120）
+当前步骤：剧情 VM 追加 PLAN P2 · `0x0042BC2C` handler（opcode 121）
 
 ## 0. 执行约定
 
@@ -2419,4 +2419,14 @@ B7 P0 有限收口完成。
     未启动游戏EXE。人工语义增至136行，现代显式opcode增至135；对外进度为已实现135/198、
     已验收130/198；内部workpack95/146，即`13 assembly_exact + 82 platform_adapted + 51 pending_audit`。
 
-下一组只审计`0x0042BAB8` / opcode120。
+- 剧情VM P2第九十六组`0x0042BAB8` / opcode120完成独立闭环。机器在lookup命中后按
+    `+4/+6/+8`分阶段读取并提交action/base/variant，前两项符号扩展、第三项零扩展；随后
+    清wait、refresh并置role bit12。lookup失败按`+8/+6/+4`读取raw word后提交MAPS patch。
+    修复旧case整条预验、lookup前读取全部operand及遗漏previous120三项差异。800条真实记录/
+    808 probes、live/missing双回放、四alias、特殊selector、部分提交及两类精确尾通过。
+    Story VM 3/3、Linux core 186/186及app 192/192均以exit 0通过；workpack双生成稳定hash为
+    `00e548e81c9b13245adc58ee4ded3fae5cb35c16f1ae9d3fbe2ec757b51ed58d`。
+    未启动游戏EXE。现代显式opcode保持135；对外进度为已实现135/198、已验收131/198；
+    内部workpack96/146，即`13 assembly_exact + 83 platform_adapted + 50 pending_audit`。
+
+下一组只审计`0x0042BC2C` / opcode121。

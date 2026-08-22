@@ -146,6 +146,7 @@ using openswd3::world_map::OP_116_BATCH_SET_ROLE_POSITIONS;
 using openswd3::world_map::OP_117_SET_ROLE_STATUS_BIT4;
 using openswd3::world_map::OP_118_REMOVE_DIALOGS_FOR_ROLE_GUID;
 using openswd3::world_map::OP_119_WAIT_DIALOG_FLAG_BIT0;
+using openswd3::world_map::OP_120_UPDATE_ROLE_ACTION_FIELDS;
 using openswd3::world_map::OP_136_SET_ROLE_STATUS_BIT12;
 using openswd3::world_map::OP_139_WAIT_DIALOG_FLAG_BIT15;
 using openswd3::world_map::OP_140_SET_ROLE_STATUS_BIT11;
@@ -2018,7 +2019,7 @@ void test_same_file_branch(openswd3::test::Context& test) {
 void test_role_action_operand_extension(openswd3::test::Context& test) {
     Fixture fixture;
     auto script = std::span<u8>{fixture.ports.initial_window};
-    write_u16(script, 0U, 120U);
+    write_u16(script, 0U, OP_120_UPDATE_ROLE_ACTION_FIELDS);
     write_u16(script, 2U, 0x00F8U);
     write_u16(script, 4U, 0x8000U);
     write_u16(script, 6U, 0xFFFEU);
@@ -2030,7 +2031,7 @@ void test_role_action_operand_extension(openswd3::test::Context& test) {
 
     Fixture missing;
     auto missing_script = std::span<u8>{missing.ports.initial_window};
-    write_u16(missing_script, 0U, 120U);
+    write_u16(missing_script, 0U, OP_120_UPDATE_ROLE_ACTION_FIELDS);
     write_u16(missing_script, 2U, 0x7777U);
     write_u16(missing_script, 4U, 0x8000U);
     write_u16(missing_script, 6U, 0xFFFEU);
@@ -2048,7 +2049,7 @@ void test_role_action_operand_extension(openswd3::test::Context& test) {
     preserved.roles[1].action.variant_delta = 0x10203040U;
     preserved.roles[1].action.wait_remaining = 7U;
     auto preserved_script = std::span<u8>{preserved.ports.initial_window};
-    write_u16(preserved_script, 0U, 120U);
+    write_u16(preserved_script, 0U, OP_120_UPDATE_ROLE_ACTION_FIELDS);
     write_u16(preserved_script, 2U, 0x00F8U);
     write_u16(preserved_script, 4U, 0xFFFFU);
     write_u16(preserved_script, 6U, 0xFFFFU);
@@ -2085,6 +2086,308 @@ void test_role_action_operand_extension(openswd3::test::Context& test) {
             (preserved.roles[1].flags & 0x1000U) != 0U &&
             preserved.ports.action_update_count == 2U,
         "opcode 120 preserves FFFF action operands while refreshing and " "marking the resolved role"
+    );
+}
+
+void test_update_role_action_fields_protocol(openswd3::test::Context& test) {
+    constexpr std::array<u16, 4U> raw_aliases{
+        OP_120_UPDATE_ROLE_ACTION_FIELDS,
+        static_cast<u16>(OP_120_UPDATE_ROLE_ACTION_FIELDS | 0x4000U),
+        static_cast<u16>(OP_120_UPDATE_ROLE_ACTION_FIELDS | 0x8000U),
+        static_cast<u16>(OP_120_UPDATE_ROLE_ACTION_FIELDS | 0xC000U),
+    };
+    for (const u16 raw_word : raw_aliases) {
+        Fixture fixture;
+        prime_loaded_instruction(fixture, raw_word);
+        write_u16(fixture.state.window, 2U, 0x00F8U);
+        write_u16(fixture.state.window, 4U, 0x8000U);
+        write_u16(fixture.state.window, 6U, 0x7FFFU);
+        write_u16(fixture.state.window, 8U, 0x8000U);
+        write_u16(fixture.state.window, 10U, OP_1025);
+
+        const auto result = fixture.step();
+        test.expect_true(
+            result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+                result.opcode == OP_1025 &&
+                result.executed_instruction_count == 2U &&
+                result.action_update_count == 1U &&
+                result.action_update_failure_count == 0U &&
+                result.direct_audio_service_count == 0U &&
+                fixture.context.instruction_offset == 10U &&
+                fixture.state.previous_opcode ==
+                    OP_120_UPDATE_ROLE_ACTION_FIELDS &&
+                fixture.roles[1].action.action_id == 0xFFFF8000U &&
+                fixture.roles[1].action.base_variant == 0x00007FFFU &&
+                fixture.roles[1].action.variant_delta == 0x00008000U &&
+                fixture.roles[1].action.wait_remaining == 0U &&
+                (fixture.roles[1].flags & 0x00001000U) != 0U,
+            "opcode 120 aliases update all three fields and continue"
+        );
+    }
+
+    Fixture source_lookup;
+    source_lookup.roles[1].flags = 0x10000000U;
+    source_lookup.roles[2].guid = 0x00F8U;
+    source_lookup.roles[2].flags = 0U;
+    prime_loaded_instruction(source_lookup, OP_120_UPDATE_ROLE_ACTION_FIELDS);
+    write_u16(source_lookup.state.window, 2U, 0xFFF0U);
+    write_u16(source_lookup.state.window, 4U, 1U);
+    write_u16(source_lookup.state.window, 6U, 2U);
+    write_u16(source_lookup.state.window, 8U, 3U);
+    write_u16(source_lookup.state.window, 10U, OP_1025);
+    const auto source_lookup_result = source_lookup.step();
+    test.expect_true(
+        source_lookup_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            source_lookup.roles[1].action.action_id == 0U &&
+            source_lookup.roles[2].action.action_id == 1U &&
+            source_lookup.roles[2].action.base_variant == 2U &&
+            source_lookup.roles[2].action.variant_delta == 3U &&
+            source_lookup.state.previous_opcode ==
+                OP_120_UPDATE_ROLE_ACTION_FIELDS,
+        "opcode 120 resolves FFF0 and skips matching bit28 roles"
+    );
+
+    Fixture controlled;
+    prime_loaded_instruction(controlled, OP_120_UPDATE_ROLE_ACTION_FIELDS);
+    write_u16(controlled.state.window, 2U, 0xFFFEU);
+    write_u16(controlled.state.window, 4U, 4U);
+    write_u16(controlled.state.window, 6U, 5U);
+    write_u16(controlled.state.window, 8U, 6U);
+    write_u16(controlled.state.window, 10U, OP_1025);
+    const auto controlled_result = controlled.step(0, 0, 2U);
+    test.expect_true(
+        controlled_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            controlled.roles[2].action.action_id == 4U &&
+            controlled.roles[2].action.base_variant == 5U &&
+            controlled.roles[2].action.variant_delta == 6U &&
+            controlled.state.previous_opcode ==
+                OP_120_UPDATE_ROLE_ACTION_FIELDS,
+        "opcode 120 FFFE selects the controlled role directly"
+    );
+
+    Fixture selector_truncated;
+    prime_loaded_instruction(
+        selector_truncated, OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    selector_truncated.context.instruction_offset = 0x7FFEU;
+    selector_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        selector_truncated.state.window,
+        0x7FFEU,
+        OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    const auto selector_truncated_result = selector_truncated.step();
+
+    Fixture action_truncated;
+    action_truncated.roles[1].action.action_id = 0x11111111U;
+    action_truncated.roles[1].action.wait_remaining = 7U;
+    prime_loaded_instruction(
+        action_truncated, OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    action_truncated.context.instruction_offset = 0x7FFCU;
+    action_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        action_truncated.state.window, 0x7FFCU, OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    write_u16(action_truncated.state.window, 0x7FFEU, 0x00F8U);
+    const auto action_truncated_result = action_truncated.step();
+
+    Fixture base_truncated;
+    base_truncated.roles[1].action.action_id = 0x11111111U;
+    base_truncated.roles[1].action.base_variant = 0x22222222U;
+    base_truncated.roles[1].action.wait_remaining = 7U;
+    prime_loaded_instruction(base_truncated, OP_120_UPDATE_ROLE_ACTION_FIELDS);
+    base_truncated.context.instruction_offset = 0x7FFAU;
+    base_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        base_truncated.state.window, 0x7FFAU, OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    write_u16(base_truncated.state.window, 0x7FFCU, 0x00F8U);
+    write_u16(base_truncated.state.window, 0x7FFEU, 0x8000U);
+    const auto base_truncated_result = base_truncated.step();
+
+    Fixture variant_truncated;
+    variant_truncated.roles[1].action.action_id = 0x11111111U;
+    variant_truncated.roles[1].action.base_variant = 0x22222222U;
+    variant_truncated.roles[1].action.variant_delta = 0x33333333U;
+    variant_truncated.roles[1].action.wait_remaining = 7U;
+    prime_loaded_instruction(
+        variant_truncated, OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    variant_truncated.context.instruction_offset = 0x7FF8U;
+    variant_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        variant_truncated.state.window,
+        0x7FF8U,
+        OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    write_u16(variant_truncated.state.window, 0x7FFAU, 0x00F8U);
+    write_u16(variant_truncated.state.window, 0x7FFCU, 0x8000U);
+    write_u16(variant_truncated.state.window, 0x7FFEU, 0x7FFFU);
+    const auto variant_truncated_result = variant_truncated.step();
+
+    Fixture missing_variant_truncated;
+    prime_loaded_instruction(
+        missing_variant_truncated, OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    missing_variant_truncated.context.instruction_offset = 0x7FF8U;
+    missing_variant_truncated.state.previous_opcode = 0x66U;
+    write_u16(
+        missing_variant_truncated.state.window,
+        0x7FF8U,
+        OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    write_u16(missing_variant_truncated.state.window, 0x7FFAU, 0x7777U);
+    write_u16(missing_variant_truncated.state.window, 0x7FFCU, 1U);
+    write_u16(missing_variant_truncated.state.window, 0x7FFEU, 2U);
+    const auto missing_variant_truncated_result =
+        missing_variant_truncated.step();
+
+    test.expect_true(
+        selector_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            selector_truncated.ports.action_update_count == 0U &&
+            selector_truncated.ports.role_patch_requests.empty() &&
+            selector_truncated.state.previous_opcode == 0x66U &&
+            action_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            action_truncated.roles[1].action.action_id == 0x11111111U &&
+            action_truncated.roles[1].action.wait_remaining == 7U &&
+            action_truncated.ports.action_update_count == 0U &&
+            action_truncated.state.previous_opcode == 0x66U &&
+            base_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            base_truncated.roles[1].action.action_id == 0xFFFF8000U &&
+            base_truncated.roles[1].action.base_variant == 0x22222222U &&
+            base_truncated.roles[1].action.wait_remaining == 7U &&
+            base_truncated.ports.action_update_count == 0U &&
+            base_truncated.state.previous_opcode == 0x66U &&
+            variant_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            variant_truncated.roles[1].action.action_id == 0xFFFF8000U &&
+            variant_truncated.roles[1].action.base_variant == 0x00007FFFU &&
+            variant_truncated.roles[1].action.variant_delta == 0x33333333U &&
+            variant_truncated.roles[1].action.wait_remaining == 7U &&
+            variant_truncated.ports.action_update_count == 0U &&
+            variant_truncated.state.previous_opcode == 0x66U &&
+            missing_variant_truncated_result.status ==
+                LegacyWorldStoryVmStatus::operand_out_of_range &&
+            missing_variant_truncated.ports.action_update_count == 0U &&
+            missing_variant_truncated.ports.role_patch_requests.empty() &&
+            missing_variant_truncated.state.previous_opcode == 0x66U,
+        "opcode 120 preserves each staged write before the next operand fault"
+    );
+
+    Fixture update_failure;
+    update_failure.roles[1].action.action_id = 0x11111111U;
+    update_failure.roles[1].action.base_variant = 0x22222222U;
+    update_failure.roles[1].action.variant_delta = 0x33333333U;
+    update_failure.roles[1].action.wait_remaining = 7U;
+    update_failure.roles[1].flags = 0x200U;
+    update_failure.ports.action_update_result = 0U;
+    bool callback_observed_order = false;
+    update_failure.ports.action_update_callback = [&](const auto& action,
+                                                      const u32) {
+        callback_observed_order = action.action_id == 0x11111111U &&
+            action.base_variant == 0x22222222U &&
+            action.variant_delta == 0x33333333U &&
+            action.wait_remaining == 0U &&
+            (update_failure.roles[1].flags & 0x00001000U) == 0U;
+    };
+    prime_loaded_instruction(update_failure, OP_120_UPDATE_ROLE_ACTION_FIELDS);
+    write_u16(update_failure.state.window, 2U, 0x00F8U);
+    write_u16(update_failure.state.window, 4U, 0xFFFFU);
+    write_u16(update_failure.state.window, 6U, 0xFFFFU);
+    write_u16(update_failure.state.window, 8U, 0xFFFFU);
+    write_u16(update_failure.state.window, 10U, OP_1025);
+    const auto update_failure_result = update_failure.step();
+    test.expect_true(
+        update_failure_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            update_failure_result.action_update_count == 1U &&
+            update_failure_result.action_update_failure_count == 1U &&
+            callback_observed_order &&
+            (update_failure.roles[1].flags & 0x00001000U) != 0U &&
+            update_failure.context.instruction_offset == 10U &&
+            update_failure.state.previous_opcode ==
+                OP_120_UPDATE_ROLE_ACTION_FIELDS,
+        "opcode 120 clears wait before refresh and marks flags after failure"
+    );
+
+    Fixture missing;
+    missing.context.source_guid = 0x7777U;
+    prime_loaded_instruction(missing, OP_120_UPDATE_ROLE_ACTION_FIELDS);
+    write_u16(missing.state.window, 2U, 0xFFF0U);
+    write_u16(missing.state.window, 4U, 0x8000U);
+    write_u16(missing.state.window, 6U, 0xFFFEU);
+    write_u16(missing.state.window, 8U, 0x8123U);
+    write_u16(missing.state.window, 10U, OP_1025);
+    const auto missing_result = missing.step();
+    const auto missing_patch = missing.ports.role_patch_requests.empty()
+        ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+        : missing.ports.role_patch_requests.front();
+    test.expect_true(
+        missing_result.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
+            missing_result.executed_instruction_count == 2U &&
+            missing_result.action_update_count == 0U &&
+            missing_result.direct_audio_service_count == 0U &&
+            missing.ports.role_patch_requests.size() == 1U &&
+            missing_patch.guid == 0x7777U &&
+            missing_patch.action_id == 0x8000U &&
+            missing_patch.base_variant == 0xFFFEU &&
+            missing_patch.variant_delta == 0x8123U &&
+            missing_patch.flags_or_mask == 0x1000U &&
+            missing_patch.flags_and_mask == 0xFFFFU &&
+            missing.context.instruction_offset == 10U &&
+            missing.state.previous_opcode == OP_120_UPDATE_ROLE_ACTION_FIELDS,
+        "opcode 120 missing role patch keeps raw words after FFF0 replacement"
+    );
+
+    Fixture found_tail;
+    prime_loaded_instruction(found_tail, OP_120_UPDATE_ROLE_ACTION_FIELDS);
+    found_tail.context.instruction_offset = 0x7FF6U;
+    write_u16(
+        found_tail.state.window, 0x7FF6U, OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    write_u16(found_tail.state.window, 0x7FF8U, 0x00F8U);
+    write_u16(found_tail.state.window, 0x7FFAU, 1U);
+    write_u16(found_tail.state.window, 0x7FFCU, 2U);
+    write_u16(found_tail.state.window, 0x7FFEU, 3U);
+    const auto found_tail_result = found_tail.step();
+
+    Fixture missing_tail;
+    prime_loaded_instruction(missing_tail, OP_120_UPDATE_ROLE_ACTION_FIELDS);
+    missing_tail.context.instruction_offset = 0x7FF6U;
+    write_u16(
+        missing_tail.state.window, 0x7FF6U, OP_120_UPDATE_ROLE_ACTION_FIELDS
+    );
+    write_u16(missing_tail.state.window, 0x7FF8U, 0x7777U);
+    write_u16(missing_tail.state.window, 0x7FFAU, 4U);
+    write_u16(missing_tail.state.window, 0x7FFCU, 5U);
+    write_u16(missing_tail.state.window, 0x7FFEU, 6U);
+    const auto missing_tail_result = missing_tail.step();
+
+    test.expect_true(
+        found_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            found_tail_result.executed_instruction_count == 1U &&
+            found_tail.context.instruction_offset == 0x8000U &&
+            found_tail.state.previous_opcode ==
+                OP_120_UPDATE_ROLE_ACTION_FIELDS &&
+            found_tail.roles[1].action.action_id == 1U &&
+            found_tail.roles[1].action.base_variant == 2U &&
+            found_tail.roles[1].action.variant_delta == 3U &&
+            (found_tail.roles[1].flags & 0x00001000U) != 0U &&
+            missing_tail_result.status ==
+                LegacyWorldStoryVmStatus::instruction_out_of_range &&
+            missing_tail_result.executed_instruction_count == 1U &&
+            missing_tail.context.instruction_offset == 0x8000U &&
+            missing_tail.state.previous_opcode ==
+                OP_120_UPDATE_ROLE_ACTION_FIELDS &&
+            missing_tail.ports.role_patch_requests.size() == 1U,
+        "opcode 120 commits found and missing exact tails before refetch"
     );
 }
 
@@ -22282,6 +22585,79 @@ void test_real_wait_dialog_flag_records(
     }
 }
 
+void test_real_update_role_action_fields_records(
+    openswd3::test::Context& test, const std::filesystem::path& root
+) {
+    const auto read_record = [&root](const std::streamoff offset) {
+        std::ifstream input{
+            root / "TALK1.DAT", std::ios::binary | std::ios::in
+        };
+        input.seekg(offset);
+        std::array<u8, 10U> record{};
+        input.read(
+            reinterpret_cast<char*>(record.data()),
+            static_cast<std::streamsize>(record.size())
+        );
+        return std::pair{record, static_cast<bool>(input)};
+    };
+    const auto [found_record, found_read] = read_record(0x0000465A);
+    const auto [missing_record, missing_read] = read_record(0x00004380);
+
+    Fixture found;
+    found.roles[1].guid = 0x007BU;
+    prime_loaded_instruction(found, OP_120_UPDATE_ROLE_ACTION_FIELDS);
+    std::ranges::copy(found_record, found.state.window.begin());
+    write_u16(found.state.window, found_record.size(), OP_1025);
+    const auto found_result = found.step();
+
+    Fixture missing;
+    prime_loaded_instruction(missing, OP_120_UPDATE_ROLE_ACTION_FIELDS);
+    std::ranges::copy(missing_record, missing.state.window.begin());
+    write_u16(missing.state.window, missing_record.size(), OP_1025);
+    const auto missing_result = missing.step();
+    const auto missing_patch = missing.ports.role_patch_requests.empty()
+        ? openswd3::world_map::LegacyMapsRolePatchRequest{}
+        : missing.ports.role_patch_requests.front();
+
+    test.expect_true(
+        found_read &&
+            read_u16(found_record, 0U) == OP_120_UPDATE_ROLE_ACTION_FIELDS &&
+            read_u16(found_record, 2U) == 0x007BU &&
+            read_u16(found_record, 4U) == 0x0231U &&
+            read_u16(found_record, 6U) == 0x0008U &&
+            read_u16(found_record, 8U) == 0U &&
+            found_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            found_result.opcode == OP_1025 &&
+            found_result.executed_instruction_count == 2U &&
+            found.roles[1].action.action_id == 0x0231U &&
+            found.roles[1].action.base_variant == 8U &&
+            found.roles[1].action.variant_delta == 0U &&
+            (found.roles[1].flags & 0x00001000U) != 0U &&
+            found.state.previous_opcode == OP_120_UPDATE_ROLE_ACTION_FIELDS,
+        "real opcode 120 record updates a live role action"
+    );
+    test.expect_true(
+        missing_read &&
+            read_u16(missing_record, 0U) == OP_120_UPDATE_ROLE_ACTION_FIELDS &&
+            read_u16(missing_record, 2U) == 1U &&
+            read_u16(missing_record, 4U) == 0x0062U &&
+            read_u16(missing_record, 6U) == 0xFFFFU &&
+            read_u16(missing_record, 8U) == 0xFFFFU &&
+            missing_result.status ==
+                LegacyWorldStoryVmStatus::unsupported_opcode &&
+            missing_result.opcode == OP_1025 &&
+            missing.ports.role_patch_requests.size() == 1U &&
+            missing_patch.guid == 1U && missing_patch.action_id == 0x0062U &&
+            missing_patch.base_variant == 0xFFFFU &&
+            missing_patch.variant_delta == 0xFFFFU &&
+            missing_patch.flags_or_mask == 0x1000U &&
+            missing_patch.flags_and_mask == 0xFFFFU &&
+            missing.state.previous_opcode == OP_120_UPDATE_ROLE_ACTION_FIELDS,
+        "real opcode 120 record patches a missing MAPS role source"
+    );
+}
+
 void test_real_load_name_record_records(
     openswd3::test::Context& test, const std::filesystem::path& root
 ) {
@@ -24312,6 +24688,7 @@ int main(const int argument_count, char** arguments) {
     test_transfer_flags_and_terminal_cleanup(test);
     test_same_file_branch(test);
     test_role_action_operand_extension(test);
+    test_update_role_action_fields_protocol(test);
     test_missing_role_position_patch(test);
     test_change_role_base_variant_protocol(test);
     test_change_role_variant_delta_protocol(test);
@@ -24502,6 +24879,7 @@ int main(const int argument_count, char** arguments) {
         test_real_batch_set_role_positions_record(test, root);
         test_real_remove_dialogs_for_role_guid_records(test, root);
         test_real_wait_dialog_flag_records(test, root);
+        test_real_update_role_action_fields_records(test, root);
         test_real_load_name_record_records(test, root);
         test_real_set_role_flag_8000_and_clear_one_shots_record(test, root);
         test_real_clear_role_from_scene_record(test, root);

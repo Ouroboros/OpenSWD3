@@ -42,7 +42,7 @@ EXPECTED_EXPLICIT_OPCODES = tuple(range(194)) + (1024, 1025, 1026, 16383)
 EXPECTED_HANDLER_COUNT = 146
 EXPECTED_SHARED_HANDLER_COUNT = 25
 EXPECTED_MODERN_CASE_COUNT = 135
-EXPECTED_CLOSED_HANDLER_COUNT = 95
+EXPECTED_CLOSED_HANDLER_COUNT = 96
 
 CLOSURE_OVERRIDES = {
     "0x0042D230": (
@@ -519,6 +519,11 @@ CLOSURE_OVERRIDES = {
         "platform_adapted",
         "story-vm-dialog-flag-wait-0042b9c2.md",
         "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;staged_operand_tested;selector_alias_tested;shared_handler_all_variants_tested;shared_owner_tested;typed_owner_boundary_tested",
+    ),
+    "0x0042BAB8": (
+        "platform_adapted",
+        "story-vm-role-action-fields-0042bab8.md",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;exact_tail_tested;staged_operand_tested;selector_alias_tested;partial_failure_tested;external_dependency_tested;typed_owner_boundary_tested",
     ),
 }
 

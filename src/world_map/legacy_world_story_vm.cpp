@@ -5227,8 +5227,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             continue;
         }
 
-        case 120U: {
-            if (!has_bytes(state.window, ip, 10U)) {
+        case OP_120_UPDATE_ROLE_ACTION_FIELDS: {
+            if (!has_bytes(state.window, ip, 4U)) {
                 result.status = LegacyWorldStoryVmStatus::operand_out_of_range;
                 return result;
             }
@@ -5236,29 +5236,75 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             if (selector == kCurrentSourceSelector) {
                 selector = context.source_guid;
             }
+
             u32 role_index{};
-            const u16 raw_action_id = read_u16(state.window, ip + 4U);
-            const u16 raw_base_variant = read_u16(state.window, ip + 6U);
-            const u16 variant_delta = read_u16(state.window, ip + 8U);
-            if (resolve_role_index(
+            if (resolve_legacy_world_role_selector(
                     roles, selector, controlled_role_index, role_index
                 )) {
-                auto& role = roles[role_index];
+                if (!has_bytes(state.window, ip + 4U, 2U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                const u16 raw_action_id = read_u16(state.window, ip + 4U);
                 if (raw_action_id != 0xFFFFU) {
-                    role.action.action_id =
+                    if (role_index >= roles.size()) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::role_not_found;
+                        return result;
+                    }
+                    roles[role_index].action.action_id =
                         static_cast<u32>(static_cast<i16>(raw_action_id));
                 }
+
+                if (!has_bytes(state.window, ip + 6U, 2U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                const u16 raw_base_variant = read_u16(state.window, ip + 6U);
                 if (raw_base_variant != 0xFFFFU) {
-                    role.action.base_variant =
+                    if (role_index >= roles.size()) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::role_not_found;
+                        return result;
+                    }
+                    roles[role_index].action.base_variant =
                         static_cast<u32>(static_cast<i16>(raw_base_variant));
                 }
-                if (variant_delta != 0xFFFFU) {
-                    role.action.variant_delta = variant_delta;
+
+                if (!has_bytes(state.window, ip + 8U, 2U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
                 }
+                const u16 variant_delta = read_u16(state.window, ip + 8U);
+                if (variant_delta != 0xFFFFU) {
+                    if (role_index >= roles.size()) {
+                        result.status =
+                            LegacyWorldStoryVmStatus::role_not_found;
+                        return result;
+                    }
+                    roles[role_index].action.variant_delta = variant_delta;
+                }
+
+                if (role_index >= roles.size()) {
+                    result.status = LegacyWorldStoryVmStatus::role_not_found;
+                    return result;
+                }
+                auto& role = roles[role_index];
                 role.action.wait_remaining = 0U;
                 record_action_update(result, role.action, ports);
                 role.flags |= 0x00001000U;
             } else {
+                if (!has_bytes(state.window, ip + 8U, 2U)) {
+                    result.status =
+                        LegacyWorldStoryVmStatus::operand_out_of_range;
+                    return result;
+                }
+                const u16 variant_delta = read_u16(state.window, ip + 8U);
+                const u16 raw_base_variant = read_u16(state.window, ip + 6U);
+                const u16 raw_action_id = read_u16(state.window, ip + 4U);
                 ports.patch_role_source(
                     LegacyMapsRolePatchRequest{
                         .guid = selector,
@@ -5271,6 +5317,7 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
             }
             context.instruction_offset =
                 static_cast<u16>(context.instruction_offset + 10U);
+            state.previous_opcode = result.opcode;
             continue;
         }
 
