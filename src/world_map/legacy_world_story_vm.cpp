@@ -3447,6 +3447,8 @@ LegacyWorldStoryVmResult step_legacy_world_story_vm(
                 runtime.camera_pan->step_x != 0 ||
                 runtime.camera_pan->step_y != 0) {
                 state.previous_opcode = result.opcode;
+                ports.service_audio();
+                ++result.direct_audio_service_count;
                 result.status = LegacyWorldStoryVmStatus::yielded;
                 return result;
             }

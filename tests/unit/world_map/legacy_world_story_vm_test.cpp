@@ -8040,8 +8040,9 @@ void test_wait_for_camera_move_protocol(openswd3::test::Context& test) {
                     waiting.context.instruction_offset == 0U &&
                     waiting.state.previous_opcode ==
                         OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
-                    waiting.ports.direct_audio_service_count == 0U,
-                "opcode 51 aliases wait on each camera movement field"
+                    result.direct_audio_service_count == 1U &&
+                    waiting.ports.direct_audio_service_count == 1U,
+                "opcode 51 aliases wait on each camera movement field through the common audio-yield exit"
             );
         }
 
@@ -8121,8 +8122,10 @@ void test_wait_for_camera_move_protocol(openswd3::test::Context& test) {
             waiting_tail.context.instruction_offset == 0x7FFEU &&
             waiting_tail.state.previous_opcode ==
                 OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
-            waiting_tail.camera_pan.step_y == -4,
-        "opcode 51 exact-tail wait publishes without advancing"
+            waiting_tail.camera_pan.step_y == -4 &&
+            waiting_tail_result.direct_audio_service_count == 1U &&
+            waiting_tail.ports.direct_audio_service_count == 1U,
+        "opcode 51 exact-tail wait publishes and audio-yields without advancing"
     );
 }
 
@@ -33715,10 +33718,12 @@ void test_real_wait_for_camera_move_record(
             completed.status == LegacyWorldStoryVmStatus::unsupported_opcode &&
             completed.opcode == OP_1025 &&
             completed.executed_instruction_count == 2U &&
+            waiting.direct_audio_service_count == 1U &&
+            completed.direct_audio_service_count == 0U &&
             fixture.context.instruction_offset == 2U &&
             fixture.state.previous_opcode == OP_51_WAIT_CAMERA_MOVE_COMPLETE &&
-            fixture.ports.direct_audio_service_count == 0U,
-        "real opcode 51 waits for camera motion then continues"
+            fixture.ports.direct_audio_service_count == 1U,
+        "real opcode 51 audio-yields for camera motion then continues without a second audio service"
     );
 }
 

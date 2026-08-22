@@ -233,7 +233,7 @@ CLOSURE_OVERRIDES = {
     "0x00429362": (
         "platform_adapted",
         "story-vm-camera-wait-00429362.md",
-        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated",
+        "assembly_exact;unit_tested;real_asset_tested;platform_adapted;sdl_runtime_integrated;audio_service_tested;previous_publication_tested;same_call_tested;yield_tested",
     ),
     "0x004293AC": (
         "platform_adapted",

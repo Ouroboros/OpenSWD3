@@ -342,6 +342,9 @@ i32回绕和目标宽度；field16先写低byte，再以可失败B10 LEVEL窄por
 192/192完整门全部通过。
 已实现193/198、已验收191/198；内部workpack为139/146，即
 `23 assembly_exact + 116 platform_adapted + 7 pending_audit`。
+opcode191前置复核发现opcode51等待路漏掉共同出口audio：入口ESI与首轮carry均为0，任一camera
+pan字段非零时必经`_AIL_serve`一次。现已补齐previous/audio/yield；完成路仍same-call无audio，
+Story VM 3/3、Linux core 186/186与app 192/192完整门通过；公开进度和workpack计数不变。
 下一行只审计`0x0042D170`下的opcode191。
 
 ### P2 · 按 handler 组逆向、实现和验证

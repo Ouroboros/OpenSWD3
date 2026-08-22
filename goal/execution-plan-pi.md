@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v398
+版本：v399
 
 最后更新：2026-08-21
 
@@ -2883,5 +2883,14 @@ B7 P0 有限收口完成。
     双生成稳定hash为`0850aaac5b64af4710ff9331cf6740834f210190dc911bee18c35699bfc7ae55`。
     人工语义增至191行，现代显式opcode增至193；本地进度为已实现193/198、已验收191/198；
     内部workpack139/146，即`23 assembly_exact + 116 platform_adapted + 7 pending_audit`。
+
+- opcode191前置复核发现已提交opcode51等待分支漏掉common-join audio。LST从函数入口
+    `ESI=0`、首轮fetch保存`var_28=0`，四个camera pan字段任一非零时直接到共同join；
+    `var_28 | ESI`为零，必经`0x0042D4D7 _AIL_serve`一次后yield。现已补齐等待路
+    previous→audio→yield，完成路仍保持+2、previous、same-call无audio；synthetic四字段、
+    四alias、精确尾和真实TALK1等待→完成链均已更新，Story VM 3/3通过。公开实现/验收和
+    workpack计数不变；双生成hash更新为
+    `7e09e969ec860b7e6c16d2e78df427e755c2c504041df61019eec727a8e65155`。Story VM 3/3、
+    Linux core 186/186与app 192/192完整门全部通过。
 
 下一组只审计`0x0042D170` / opcode191。
