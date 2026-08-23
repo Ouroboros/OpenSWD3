@@ -701,6 +701,7 @@ struct LegacyStandardModeRuntimeInitializationState {
     std::array<compat::u8, 0x200U> queried_status{};
     std::array<std::array<compat::u8, 0x20U>, 0x10U> long_text_slots{};
     std::array<std::array<compat::u8, 0x10U>, 0x40U> short_text_slots{};
+    std::array<compat::u8, 0x40U> entry_statuses{};
     std::array<compat::u32, 0x40U> entries{};
     compat::i32 entry_alias_index{};
     compat::i32 total_count{};
@@ -718,23 +719,63 @@ struct LegacyStandardModeRuntimeInitializationState {
     compat::i32 mode_flags{};
 };
 
-class LegacyStandardModeRuntimeInitializationPorts {
+enum class LegacyStandardModeEntryInitializationStatus : compat::u8 {
+    completed,
+    mode_index_out_of_range,
+    entry_write_out_of_range,
+    entry_terminator_out_of_range,
+    loaded_text_not_terminated,
+    loaded_text_out_of_range,
+};
+
+struct LegacyStandardModeEntryInitializationResult {
+    LegacyStandardModeEntryInitializationStatus status{
+        LegacyStandardModeEntryInitializationStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 classification_query_count{};
+    compat::u32 status_query_count{};
+    compat::u32 matched_entry_count{};
+    compat::u32 loaded_record_count{};
+    compat::u32 released_record_count{};
+};
+
+class LegacyStandardModeEntryInitializationPorts {
 public:
-    virtual ~LegacyStandardModeRuntimeInitializationPorts() = default;
+    virtual ~LegacyStandardModeEntryInitializationPorts() = default;
+    [[nodiscard]] virtual compat::i8
+    query_entry_classification(compat::u16 record_id) noexcept = 0;
+    [[nodiscard]] virtual compat::u8
+    query_entry_status(compat::u16 record_id) noexcept = 0;
     [[nodiscard]] virtual bool load_record(
         std::span<compat::u8> destination, compat::u16 record_id
     ) noexcept = 0;
     virtual void release_record(compat::u32 token) noexcept = 0;
+    virtual compat::i32 refresh_page() noexcept = 0;
+};
+
+class LegacyStandardModeRuntimeInitializationPorts
+    : public LegacyStandardModeEntryInitializationPorts {
+public:
+    ~LegacyStandardModeRuntimeInitializationPorts() override = default;
     [[nodiscard]] virtual compat::u8
     query_record(compat::u16 record_id) noexcept = 0;
-    virtual void initialize_entries(
-        std::span<compat::u32> entries, compat::i32 value
-    ) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     consume_entry(compat::u32 entry) noexcept = 0;
 };
 
+enum class LegacyStandardModeRuntimeInitializationStatus : compat::u8 {
+    completed,
+    entry_initialization_stopped,
+};
+
 struct LegacyStandardModeRuntimeInitializationResult {
+    LegacyStandardModeRuntimeInitializationStatus status{
+        LegacyStandardModeRuntimeInitializationStatus::completed
+    };
+    LegacyStandardModeEntryInitializationStatus entry_initialization_status{
+        LegacyStandardModeEntryInitializationStatus::completed
+    };
     compat::i32 legacy_return_value{};
     compat::u32 loaded_record_count{};
     compat::u32 released_record_count{};
@@ -795,6 +836,7 @@ struct LegacyStandardModeRuntimePageRetreatResult {
 
 enum class LegacyStandardModeRuntimeModeAdvanceStatus : compat::u8 {
     completed,
+    entry_initialization_stopped,
     selected_entry_out_of_range,
 };
 
@@ -802,12 +844,16 @@ struct LegacyStandardModeRuntimeModeAdvanceResult {
     LegacyStandardModeRuntimeModeAdvanceStatus status{
         LegacyStandardModeRuntimeModeAdvanceStatus::completed
     };
+    LegacyStandardModeEntryInitializationStatus entry_initialization_status{
+        LegacyStandardModeEntryInitializationStatus::completed
+    };
     compat::i32 legacy_return_value{};
 };
 
 enum class LegacyStandardModeInputDispatchStatus : compat::u8 {
     completed,
     availability_index_out_of_range,
+    entry_initialization_stopped,
     selected_entry_out_of_range,
 };
 
@@ -822,22 +868,18 @@ enum class LegacyStandardModeInputDispatchPath : compat::u8 {
     runtime_released,
 };
 
-class LegacyStandardModeInputDispatchPorts {
+class LegacyStandardModeInputDispatchPorts
+    : public LegacyStandardModeEntryInitializationPorts {
 public:
-    virtual ~LegacyStandardModeInputDispatchPorts() = default;
-    virtual void initialize_mode_entries(
-        std::span<compat::u32> entries, compat::i32 mode_index
-    ) noexcept = 0;
+    ~LegacyStandardModeInputDispatchPorts() override = default;
     virtual void rebuild_entry_alias(
         compat::i32 window_offset,
         std::span<const compat::u32> entries,
         compat::i32& entry_alias_index
     ) noexcept = 0;
-    virtual void refresh_page() noexcept = 0;
     virtual void consume_entry(compat::u32 entry) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     play_sample(compat::u16 sample_id, compat::u32 sample_handle) noexcept = 0;
-    virtual void release_record(compat::u32 token) noexcept = 0;
     [[nodiscard]] virtual compat::i32 release_runtime_storage(
         LegacyStandardModeRuntimeStorageKind kind, compat::u32 index
     ) noexcept = 0;
@@ -1103,6 +1145,14 @@ initialize_legacy_standard_mode_dialog_setup(
 query_legacy_standard_mode_availability(
     compat::i32 record_index,
     std::span<const LegacyStandardModeAvailabilityRecord> records
+) noexcept;
+
+// sub_43C9C0: rebuild the mode-filtered entry table and associated text/status.
+[[nodiscard]] LegacyStandardModeEntryInitializationResult
+initialize_legacy_standard_mode_entries(
+    compat::i32 mode_index,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeEntryInitializationPorts& ports
 ) noexcept;
 
 // sub_43C0D0: allocate/reset standard-mode runtime tables and seed action state.

@@ -27,12 +27,12 @@
 - 为16个长槽和64个短槽只写首字节NUL。
 - 先把`FC920` entry alias设为64项entry表首项（typed index 0）。
 - 把`FC974` total、`FC90C` window offset、`FC928` local cursor、`FC914` visible count与`FC910` mode index五个owner清0。
-- 以值0调用`0x0043C9C0`窄port初始化64项entry表。
+- 以mode0直接调用已关闭`0x0043C9C0`：执行signed classification与status两轮1..500扫描、文本/token生命周期，并由其清window/cursor/alias和刷新page。
 - 共享17项action表中只写record0的action ID=`0x232A`与base variant=`0x33`，record0其他字段及records1–16保持。
 - 把entry[0]传给`0x0043CEF0`消费port，保留其EAX为函数返回。
 - 最后把mode flags清0；该mov不改变返回EAX。
 
-未关闭的记录加载、状态查询、entry初始化与消费callee均由窄port隔离，不提前计入。
+已关闭entry初始化`0x0043C9C0`直接复用typed helper；未关闭的记录加载、两类数据库查询、page刷新和entry消费callee继续由共享typed port隔离，不提前计入。
 
 ## 4. 验证
 
@@ -44,8 +44,8 @@
 - token字段在成功后清0。
 - 两张512字节表的`FF/00`初始化与边界索引500。
 - 16×32与64×16槽只清首字节，其余预存字节保持。
-- entry alias写typed index 0，五个LST owner清0，entry port接收64项和值0。
+- entry alias写typed index 0，五个LST owner清0，随后C9C0的classification/status各500次查询与page刷新。
 - 共享action record0只改ID/base variant，cached字段保持，record6等其余记录保持。
-- entry[0]消费顺序、mode flags最终清0和consumer EAX返回。
+- 无匹配classification时真实entry表全0、entry[0]消费顺序、mode flags最终清0和consumer EAX返回。
 
 定向测试通过。workpack连续生成两轮均为`29/227`，SHA256均为`4d43482df73105a50a831f9da35a35f89fab5916af1d7ffae22e5e3f9ad3f940`；只新增关闭`0x0043C0D0`，`0x0043C3C0`仍为下一独立模块9单元。Linux core完整门`188/188`、Linux app完整门`194/194`通过；按阶段门禁未运行Windows BUILD。

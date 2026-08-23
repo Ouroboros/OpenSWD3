@@ -30,7 +30,7 @@ refresh_mode()
 return play_sample(0x2E, sample_handle)
 ```
 
-所以负delta先把mode减2，而正delta先保持mode不变。这是原始可观察BUG，modern原样保留；随后已关闭`0x0043C760`还会把mode回绕递增并signed钳11、初始化/消费entry并播放一次点击音，caller外置chunk再播放第二次点击音。初始mode5最终分别变为4或6。
+所以负delta先把mode减2，而正delta先保持mode不变。这是原始可观察BUG，modern原样保留；随后已关闭`0x0043C760`把mode回绕递增并signed钳11，直接调用已关闭`0x0043C9C0`按classification重建entry/text/status并清window/cursor/alias、刷新page，再执行alias/第二次refresh/真实entry0消费和一次点击音；caller外置chunk再播放第二次点击音。初始mode5最终分别变为4或6。
 
 ## 3. availability与顺序命中
 

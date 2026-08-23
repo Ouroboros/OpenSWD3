@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v460
+版本：v461
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043C9C0`
+当前步骤：模块9 · 闭环`0x0043CBD0`
 
 ## 0. 执行约定
 
@@ -3295,9 +3295,10 @@ B7 P0 有限收口完成。
     state重建`0xB0` scratch、两张`0x200`状态表、16×32与64×16字符串槽及64项entry表。严格
     执行1..500 load循环与1..500 query循环；成功load发布`+0x5E`、释放`+0xAC` token并清token。
     后续只清字符串首字节，先把entry alias写typed index 0，再清`FC974/FC90C/FC928/FC914/FC910`
-    五个owner、初始化entry、只写共享17项action表record0的`0x232A/0x33`、消费entry[0]并
-    最后清mode flags。未关闭
-    callee均由窄port隔离；定向UT锁定1000次顺序、表边界、token、未初始化字节保持、alias、
+    五个owner，直接调用已关闭C9C0执行classification/status各500次扫描、page刷新与真实entry表，
+    再只写共享17项action表record0的`0x232A/0x33`、消费entry[0]并最后清mode flags。未关闭的
+    数据库/load/release/refresh/consume callee仍由共享typed port隔离；定向UT锁定两组500次顺序、
+    表边界、token、未初始化字节保持、alias、
     action字段和EAX。workpack连续两轮稳定为`29/227`，SHA256为
     `4d43482df73105a50a831f9da35a35f89fab5916af1d7ffae22e5e3f9ad3f940`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
@@ -3348,11 +3349,13 @@ B7 P0 有限收口完成。
 
 - 模块9标准模式运行时模式推进组合器`0x0043C760`闭环。LST范围`0x0043C760..0x0043C7D0`，
     两个callsite来自`0x0043C3C0`外置chunk与`0x00446550`。mode先u32回绕递增，再signed大于11
-    才钳11；因此10→11、11→11、`INT_MAX→INT_MIN`。随后以实时mode初始化64项entry表，再执行
-    alias重建、page刷新、selected entry读取/消费和sample `0x2E`，不改flags。selected越界只在
-    原entry读取点typed-stop。`0x0043C3C0` mode caller已真实回接：负/正delta的中间值3/5经本函数
-    变为4/6，本函数内部sample后caller再无条件播放第二次sample。定向UT覆盖回绕、signed钳制、
-    初始化/消费顺序、selected越界、双sample及早退边界。workpack连续两轮稳定为`34/227`，
+    才钳11；因此10→11、11→11、`INT_MAX→INT_MIN`。随后直接调用已关闭C9C0按mode映射重建
+    entry/text/status并清window/cursor/alias、第一次刷新page，再执行alias重建、第二次page刷新、
+    entry0读取/消费和sample `0x2E`，不改flags。`INT_MAX→INT_MIN`紧接着在C9C0 mode-map读取点
+    typed-stop；合法调用不再保留旧window制造synthetic selected越界。`0x0043C3C0` mode caller已
+    真实回接：负/正delta的中间值3/5经本函数变为4/6，本函数内部sample后caller再无条件播放第二次
+    sample。定向UT覆盖回绕、signed钳制、C9C0停止传播、双refresh、真实entry0消费、双sample及
+    早退边界。workpack连续两轮稳定为`34/227`，
     SHA256为`d2053fd736fee3f30bf0b0edab19ff0f41a812ba397b7a42a91060cad38e20b7`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
@@ -3368,9 +3371,22 @@ B7 P0 有限收口完成。
     `4856353c4390b409498d64a75f8fb47c9137c4ffe1f5753ff8eb10bd39066fe6`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式entry初始化`0x0043C9C0`闭环。LST范围`0x0043C9C0..0x0043CBC6`，callsite来自
+    C0D0、C760与`0x00446420`的`0x0043C6E0`外置chunk；第一个stack参数未读。先清entries和short
+    首字节，按15项mode→classification表读取mode，再清64-byte status与total；signed i8分类精确
+    查询1..500并写entry，独立隔离第65项写入和恰好64项后的terminator越界。第二轮status严格
+    1..500；匹配entry使用一次性清零且不逐次重置的`0xB0` scratch加载文本，成功后再次读取status，
+    load成功或失败均释放并清`+0xAC` token。无NUL和长度大于15分别在原`lstrcpyA`点typed-stop。
+    正常尾部只清window/cursor/alias并返回CBD0 EAX。C0D0/C760已真实回接；`INT_MAX→INT_MIN`在
+    C9 mode-map停止，合法C760先清旧window再消费真实entry0。定向UT覆盖三entry、signed分类、
+    502次status读取、load失败、scratch/token、五类typed-stop及两个caller集成。workpack连续两轮
+    稳定为`36/227`，SHA256为
+    `6d00895fa07920a2aa3d71411fe434ce98aeacf38e907603a8e9b8b51b0719f7`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`35/227`，下一单元为`0x0043C9C0`。
+进行中，正式进度为`36/227`，下一单元为`0x0043CBD0`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043C9C0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043CBD0`，继续更新workpack、证据和完整验证门。

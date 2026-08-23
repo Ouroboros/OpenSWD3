@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <bit>
 #include <cstdint>
+#include <iterator>
 #include <new>
 
 namespace openswd3::special_modes {
@@ -816,6 +817,144 @@ LegacyStandardModeAvailabilityResult query_legacy_standard_mode_availability(
     return result;
 }
 
+LegacyStandardModeEntryInitializationResult
+initialize_legacy_standard_mode_entries(
+    const compat::i32 mode_index,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeEntryInitializationPorts& ports
+) noexcept {
+    static constexpr std::array<compat::i32, 15U> kClassificationByMode{
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        13,
+        14,
+        0,
+        0,
+        0,
+    };
+
+    LegacyStandardModeEntryInitializationResult result;
+    std::array<compat::u8, 0xB0U> scratch{};
+    state.entries.fill(0U);
+    for (auto& slot : state.short_text_slots) {
+        slot[0U] = 0U;
+    }
+
+    const compat::u32 mode_slot = std::bit_cast<compat::u32>(mode_index);
+    if (mode_slot >= kClassificationByMode.size()) {
+        result.status = LegacyStandardModeEntryInitializationStatus::
+            mode_index_out_of_range;
+        return result;
+    }
+    const compat::i32 selected_classification =
+        kClassificationByMode[mode_slot];
+    state.entry_statuses.fill(0U);
+    state.total_count = 0;
+
+    for (compat::u32 record_id = 1U; record_id <= 0x1F4U; ++record_id) {
+        const compat::i32 classification =
+            static_cast<compat::i32>(ports.query_entry_classification(
+                static_cast<compat::u16>(record_id)
+            ));
+        ++result.classification_query_count;
+        if (classification != selected_classification) {
+            continue;
+        }
+        const compat::u32 entry_index =
+            std::bit_cast<compat::u32>(state.total_count);
+        if (entry_index >= state.entries.size()) {
+            result.status = LegacyStandardModeEntryInitializationStatus::
+                entry_write_out_of_range;
+            return result;
+        }
+        state.entries[entry_index] = record_id;
+        state.short_text_slots[entry_index][0U] = 0U;
+        state.entry_statuses[entry_index] = 0U;
+        state.total_count = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(state.total_count) + 1U
+        );
+        ++result.matched_entry_count;
+    }
+
+    const compat::u32 terminator_index =
+        std::bit_cast<compat::u32>(state.total_count);
+    if (terminator_index >= state.entries.size()) {
+        result.status = LegacyStandardModeEntryInitializationStatus::
+            entry_terminator_out_of_range;
+        return result;
+    }
+    state.entries[terminator_index] = 0U;
+
+    for (compat::u32 record_id = 1U; record_id <= 0x1F4U; ++record_id) {
+        const compat::u16 narrowed_record_id =
+            static_cast<compat::u16>(record_id);
+        const compat::u8 status = ports.query_entry_status(narrowed_record_id);
+        ++result.status_query_count;
+        if (status == 0U) {
+            continue;
+        }
+        for (std::size_t entry_index = 0U; entry_index < state.entries.size();
+             ++entry_index) {
+            if (state.entries[entry_index] != record_id) {
+                continue;
+            }
+            std::span<compat::u8> destination{scratch};
+            destination = destination.subspan(0x0CU);
+            if (ports.load_record(destination, narrowed_record_id)) {
+                ++result.loaded_record_count;
+                const auto text_begin = scratch.cbegin() + 0x0C;
+                const auto text_end =
+                    std::find(text_begin, scratch.cend(), compat::u8{0U});
+                if (text_end == scratch.cend()) {
+                    result.status =
+                        LegacyStandardModeEntryInitializationStatus::
+                            loaded_text_not_terminated;
+                    return result;
+                }
+                const std::size_t text_size = static_cast<std::size_t>(
+                    std::distance(text_begin, text_end)
+                );
+                if (text_size >= state.short_text_slots[entry_index].size()) {
+                    result.status =
+                        LegacyStandardModeEntryInitializationStatus::
+                            loaded_text_out_of_range;
+                    return result;
+                }
+                std::copy(
+                    text_begin,
+                    text_end + 1,
+                    state.short_text_slots[entry_index].begin()
+                );
+                state.entry_statuses[entry_index] =
+                    ports.query_entry_status(narrowed_record_id);
+                ++result.status_query_count;
+            }
+            const compat::u32 token =
+                read_u32_le(std::span<const compat::u8>{scratch}, 0xACU);
+            ports.release_record(token);
+            scratch[0xACU] = 0U;
+            scratch[0xADU] = 0U;
+            scratch[0xAEU] = 0U;
+            scratch[0xAFU] = 0U;
+            ++result.released_record_count;
+        }
+    }
+
+    state.window_offset = 0;
+    state.local_cursor = 0;
+    state.entry_alias_index = 0;
+    result.legacy_return_value = ports.refresh_page();
+    return result;
+}
+
 LegacyStandardModeRuntimeInitializationResult
 initialize_legacy_standard_mode_runtime(
     LegacyStandardModeRuntimeInitializationState& state,
@@ -862,7 +1001,17 @@ initialize_legacy_standard_mode_runtime(
     state.local_cursor = 0;
     state.visible_count = 0;
     state.mode_index = 0;
-    ports.initialize_entries(state.entries, 0);
+    const LegacyStandardModeEntryInitializationResult entry_result =
+        initialize_legacy_standard_mode_entries(state.mode_index, state, ports);
+    result.loaded_record_count += entry_result.loaded_record_count;
+    result.released_record_count += entry_result.released_record_count;
+    result.entry_initialization_status = entry_result.status;
+    if (entry_result.status !=
+        LegacyStandardModeEntryInitializationStatus::completed) {
+        result.status = LegacyStandardModeRuntimeInitializationStatus::
+            entry_initialization_stopped;
+        return result;
+    }
     state.action_records[0U].action_id = 0x0000232AU;
     state.action_records[0U].base_variant = 0x00000033U;
     result.legacy_return_value = ports.consume_entry(state.entries[0U]);
@@ -976,7 +1125,15 @@ advance_legacy_standard_mode_runtime_mode(
     if (state.mode_index > 0x0B) {
         state.mode_index = 0x0B;
     }
-    ports.initialize_mode_entries(state.entries, state.mode_index);
+    const LegacyStandardModeEntryInitializationResult entry_result =
+        initialize_legacy_standard_mode_entries(state.mode_index, state, ports);
+    result.entry_initialization_status = entry_result.status;
+    if (entry_result.status !=
+        LegacyStandardModeEntryInitializationStatus::completed) {
+        result.status = LegacyStandardModeRuntimeModeAdvanceStatus::
+            entry_initialization_stopped;
+        return result;
+    }
     ports.rebuild_entry_alias(
         state.window_offset, state.entries, state.entry_alias_index
     );
@@ -1063,8 +1220,13 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
         result.legacy_return_value = mode_result.legacy_return_value;
         if (mode_result.status !=
             LegacyStandardModeRuntimeModeAdvanceStatus::completed) {
-            result.status = LegacyStandardModeInputDispatchStatus::
-                selected_entry_out_of_range;
+            result.status = mode_result.status ==
+                    LegacyStandardModeRuntimeModeAdvanceStatus::
+                        entry_initialization_stopped
+                ? LegacyStandardModeInputDispatchStatus::
+                      entry_initialization_stopped
+                : LegacyStandardModeInputDispatchStatus::
+                      selected_entry_out_of_range;
             return result;
         }
         result.legacy_return_value =

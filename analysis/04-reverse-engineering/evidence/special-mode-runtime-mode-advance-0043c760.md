@@ -18,17 +18,19 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`外置chunk在`0x0043
 
 随后严格：
 
-1. 以64项entry表和实时mode index调用`0x0043C9C0`初始化器。
+1. 以实时mode index直接调用已关闭`0x0043C9C0`；其按固定mode→classification映射重建entry/text/status，并清window/cursor/alias后刷新page。
 2. 用window offset、原entry base与entry alias owner调用`0x0043CC00`。
 3. 调用`0x0043CBD0`刷新page。
 4. u32回绕相加offset与cursor并读取entry，调用`0x0043CEF0`。
 5. 播放sample `0x2E`并返回sample EAX。
 
-本函数不改mode flags。未关闭的entry初始化/alias/refresh/consume/sample继续由窄port隔离。
+本函数不改mode flags。entry初始化已直接复用`0x0043C9C0`typed helper；未关闭的classification/status数据库、record load/release、alias/refresh/consume/sample继续由共享typed port隔离。
 
 ## 3. typed边界与caller回接
 
-`advance_legacy_standard_mode_runtime_mode`在原entry读取点检查64项边界；停止时保留mode推进/钳制、entry初始化、alias重建和page刷新，不执行entry消费或sample。
+`advance_legacy_standard_mode_runtime_mode`先传播C9C0的typed-stop，再在原selected entry读取点保留64项检查。C9C0正常返回后window/cursor已清0，随后才执行alias重建和第二次page刷新；停止时不伪造后续alias、refresh、entry消费或sample。
+
+这纠正了此前synthetic entry port允许任意mode并保留旧window的测试假设：`INT_MAX→INT_MIN`仍由本函数回绕产生，但紧接着在C9C0 mode映射读取点停止；旧window64也会被合法C9C0清0，后续消费真实entry0。
 
 `0x0043C3C0`第二矩形caller已真实回接。原caller先保留其特殊delta规则，再调用本函数；本函数内部播放一次sample，返回后`0x0043C7E0`无条件再播放一次sample。因此刷新路径有两次相同`0x2E`/handle调用，最终EAX来自第二次。
 
@@ -43,10 +45,10 @@ mode0负边界、mode14正边界及delta0在caller早退，不调用本函数。
 
 `special_modes.legacy_initial_menu`覆盖：
 
-- mode 10→11、11→11钳制、`INT_MAX→INT_MIN`回绕。
-- entry初始化接收实时mode，重建/刷新/消费entry2/sample顺序。
-- offset64产生selected index64，在原表读取点typed-stop。
-- `0x0043C3C0`负/正delta最终mode4/6、entry0消费和两次sample事件/参数。
+- mode 10→11、11→11钳制并映射classification14；`INT_MAX→INT_MIN`回绕后传播C9C0 mode-map typed-stop。
+- C9C0第一次refresh、alias重建、第二次refresh、真实entry0消费和sample顺序。
+- 旧offset64/cursor7由C9C0清0，后续消费entry1，不再伪造selected越界。
+- `0x0043C3C0`负/正delta最终mode4/6、C9C0双扫描与第一次refresh、真实entry1消费和两次sample事件/参数。
 - caller的mode0/14/delta0早退仍无port副作用。
 
 定向测试通过。workpack连续生成两轮均为`34/227`，SHA256均为`d2053fd736fee3f30bf0b0edab19ff0f41a812ba397b7a42a91060cad38e20b7`；只新增关闭`0x0043C760`，`0x0043C820`仍为下一独立模块9单元。Linux core完整门`188/188`、Linux app完整门`194/194`通过；按阶段门禁未运行Windows BUILD。
