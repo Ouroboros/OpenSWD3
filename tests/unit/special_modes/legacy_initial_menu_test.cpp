@@ -36,6 +36,7 @@ using openswd3::special_modes::advance_legacy_standard_mode_window_page;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
 using openswd3::special_modes::compose_legacy_standard_mode_input_status;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
+using openswd3::special_modes::count_legacy_standard_mode_forward_nodes_bounded;
 using openswd3::special_modes::draw_legacy_standard_mode_ghost;
 using openswd3::special_modes::index_legacy_standard_mode_forward_node;
 using openswd3::special_modes::initialize_legacy_initial_menu;
@@ -1173,6 +1174,89 @@ void test_standard_mode_forward_node_index(openswd3::test::Context& test) {
             cycle_head == &cycle_first && cycle_first.next == &cycle_second &&
             cycle_second.next == &cycle_first,
         "0x43B9C0 advances a finite count through cycles without cycle handling"
+    );
+}
+
+void test_standard_mode_forward_bounded_count(openswd3::test::Context& test) {
+    const LegacyStandardModeForwardNode third{};
+    const LegacyStandardModeForwardNode second{&third};
+    const LegacyStandardModeForwardNode first{&second};
+    i32 output_count = 99;
+
+    test.expect_true(
+        count_legacy_standard_mode_forward_nodes_bounded(
+            nullptr, output_count, 5
+        ) == nullptr &&
+            output_count == 0,
+        "0x43BC90 clears output count before accepting an empty chain"
+    );
+
+    for (const i32 limit : std::array<i32, 2U>{-1, 0}) {
+        output_count = 99;
+        test.expect_true(
+            count_legacy_standard_mode_forward_nodes_bounded(
+                &first, output_count, limit
+            ) == &first &&
+                output_count == 0,
+            "0x43BC90 signed non-positive limits return the head without traversal"
+        );
+    }
+
+    output_count = 99;
+    test.expect_true(
+        count_legacy_standard_mode_forward_nodes_bounded(
+            &first, output_count, 1
+        ) == &second &&
+            output_count == 1,
+        "0x43BC90 returns the current node after one bounded link"
+    );
+    output_count = 99;
+    test.expect_true(
+        count_legacy_standard_mode_forward_nodes_bounded(
+            &first, output_count, 2
+        ) == &third &&
+            output_count == 2,
+        "0x43BC90 returns the current node after two bounded links"
+    );
+    output_count = 99;
+    test.expect_true(
+        count_legacy_standard_mode_forward_nodes_bounded(
+            &first, output_count, 3
+        ) == nullptr &&
+            output_count == 3,
+        "0x43BC90 returns null when chain end and limit coincide"
+    );
+    output_count = 99;
+    test.expect_true(
+        count_legacy_standard_mode_forward_nodes_bounded(
+            &first, output_count, 4
+        ) == nullptr &&
+            output_count == 3,
+        "0x43BC90 stops at null before a larger limit"
+    );
+
+    LegacyStandardModeForwardNode cycle_first{};
+    LegacyStandardModeForwardNode cycle_second{};
+    cycle_first.next = &cycle_second;
+    cycle_second.next = &cycle_first;
+    output_count = 99;
+    test.expect_true(
+        count_legacy_standard_mode_forward_nodes_bounded(
+            &cycle_first, output_count, 5
+        ) == &cycle_second &&
+            output_count == 5 && cycle_first.next == &cycle_second &&
+            cycle_second.next == &cycle_first,
+        "0x43BC90 bounds cyclic traversal only by the signed limit"
+    );
+
+    output_count = 99;
+    test.expect_true(
+        count_legacy_standard_mode_forward_nodes_bounded(
+            &first, output_count, std::numeric_limits<i32>::max()
+        ) == nullptr &&
+            output_count == 3 && first.next == &second &&
+            second.next == &third && third.next == nullptr,
+        "0x43BC90 preserves a short chain under the maximum signed limit"
     );
 }
 
@@ -3086,6 +3170,7 @@ int main() {
     test_standard_mode_forward_node_count(test);
     test_standard_mode_forward_head_advance(test);
     test_standard_mode_forward_node_index(test);
+    test_standard_mode_forward_bounded_count(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);

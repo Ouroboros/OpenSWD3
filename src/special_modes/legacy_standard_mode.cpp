@@ -398,6 +398,21 @@ const LegacyStandardModeForwardNode* index_legacy_standard_mode_forward_node(
     return node;
 }
 
+const LegacyStandardModeForwardNode*
+count_legacy_standard_mode_forward_nodes_bounded(
+    const LegacyStandardModeForwardNode* head,
+    compat::i32& output_count,
+    const compat::i32 limit
+) noexcept {
+    output_count = 0;
+    const LegacyStandardModeForwardNode* node = head;
+    while (node != nullptr && output_count < limit) {
+        ++output_count;
+        node = node->next;
+    }
+    return node;
+}
+
 LegacyStandardModeTextResolutionResult resolve_legacy_standard_mode_shared_text(
     const compat::u16 text_index,
     const std::span<const compat::u8> maps_payload,

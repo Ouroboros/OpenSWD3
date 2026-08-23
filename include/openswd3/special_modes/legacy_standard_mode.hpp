@@ -618,6 +618,14 @@ index_legacy_standard_mode_forward_node(
     compat::i32 count, const LegacyStandardModeForwardNode* const* head
 ) noexcept;
 
+// sub_43BC90: count up to a signed limit and return the current chain node.
+[[nodiscard]] const LegacyStandardModeForwardNode*
+count_legacy_standard_mode_forward_nodes_bounded(
+    const LegacyStandardModeForwardNode* head,
+    compat::i32& output_count,
+    compat::i32 limit
+) noexcept;
+
 // sub_43B9E0: resolve one MAPS text record into the shared 128-byte buffer.
 [[nodiscard]] LegacyStandardModeTextResolutionResult
 resolve_legacy_standard_mode_shared_text(
