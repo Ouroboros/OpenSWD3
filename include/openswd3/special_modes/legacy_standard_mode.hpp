@@ -803,6 +803,30 @@ public:
     ) noexcept = 0;
 };
 
+enum class LegacyStandardModeDatabaseRetreatPath : compat::u8 {
+    ignored,
+    phase_1_forward_retreat,
+    phase_2_toggle,
+    phase_3_countdown,
+};
+
+struct LegacyStandardModeDatabaseRetreatResult {
+    LegacyStandardModeDatabaseRetreatPath path{
+        LegacyStandardModeDatabaseRetreatPath::ignored
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    bool sample_initialized{};
+};
+
+class LegacyStandardModeDatabaseRetreatPorts
+    : public LegacyStandardModeDatabaseAdvancePorts {
+public:
+    ~LegacyStandardModeDatabaseRetreatPorts() override = default;
+    [[nodiscard]] virtual bool
+    query_item_presence(compat::u16 item_id) noexcept = 0;
+};
+
 enum class LegacyStandardModeDatabaseInputStatus : compat::u8 {
     completed,
     availability_index_out_of_range,
@@ -818,11 +842,9 @@ struct LegacyStandardModeDatabaseInputResult {
 };
 
 class LegacyStandardModeDatabaseInputPorts
-    : public LegacyStandardModeDatabaseAdvancePorts {
+    : public LegacyStandardModeDatabaseRetreatPorts {
 public:
-    virtual ~LegacyStandardModeDatabaseInputPorts() = default;
-    [[nodiscard]] virtual bool
-    query_item_presence(compat::u16 item_id) noexcept = 0;
+    ~LegacyStandardModeDatabaseInputPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke(
         LegacyStandardModeDatabaseInputTarget target,
         LegacyStandardModeDatabaseInitializationState& state,
@@ -1680,6 +1702,13 @@ render_legacy_standard_mode_entry(
 advance_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseAdvancePorts& ports
+) noexcept;
+
+// sub_43DDF0: retreat one database page/cursor or phase-specific owner.
+[[nodiscard]] LegacyStandardModeDatabaseRetreatResult
+retreat_legacy_standard_mode_database(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRetreatPorts& ports
 ) noexcept;
 
 // sub_43DA30: dispatch standard-mode database mouse/button input.

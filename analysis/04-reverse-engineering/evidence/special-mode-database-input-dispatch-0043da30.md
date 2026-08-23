@@ -14,7 +14,7 @@ DA30读写D530共享owner：
 - `FCA8C/FCAAC`是交互toggle与runtime input flags。
 - `FC4F0/F4/F8/FC`是两组动态strict-X边界。
 
-未关闭callee用地址枚举port表达；已关闭DD20直接回接typed helper。port同时取得state与input引用，使DA30能保留callee后重读全局X、button和toggle的顺序。C090直接回接typed availability helper；物品`0x1BA9`查询保留最小port。
+未关闭callee用地址枚举port表达；已关闭DD20/DDF0直接回接typed helper。port同时取得state与input引用，使DA30能保留callee后重读全局X、button和toggle的顺序。C090直接回接typed availability helper；物品`0x1BA9`查询保留最小port。
 
 ## 2. phase 1
 
@@ -33,7 +33,7 @@ DA30读写D530共享owner：
 3. 重读X；落入第一组动态strict边界调用DFA0。
 4. 再重读X；落入第二组动态strict边界调用DED0并返回。
 
-原函数没有在前三个调用后返回，因此同一帧最多连续调用四个callee。UT让DDF0把X改为460，直接执行不改X的DD20后由第一动态边界调用DFA0并把X改为205，再命中第二动态边界，锁定`DDF0→DD20→DFA0→DED0`及最终EAX。availability span不足16项时只在原C090读取点typed-stop。其余路径最后重读button，低位`0x0C`调用E770。
+原函数在前三个检查后重读X。闭环DD20/DDF0自身不改鼠标X，UT不再通过伪port注入其不存在的副作用：分别以`x=80`锁定`DDF0→DFA0→DED0`，以`x=460`锁定`DD20→DFA0→DED0`；未关闭DFA0测试边界把X改为205后命中第二动态边界。availability span不足16项时只在原C090读取点typed-stop。其余路径最后重读button，低位`0x0C`调用E770。
 
 ## 3. phase 2
 
@@ -49,6 +49,6 @@ phase3/4在button低4位非零时调用E3D0；phase5同条件调用E770；其他
 
 ## 5. 验证
 
-定向UT覆盖页1..6上界、24像素索引及signed count边界、strict hover、C090 typed-stop、phase1四callee链式重读、phase2两套双调用BUG、物品查询ID、phase3/4/5和未知phase。
+定向UT覆盖页1..6上界、24像素索引及signed count边界、strict hover、C090 typed-stop、phase1两条三callee直连/重读路径、phase2两套双调用BUG、物品查询ID、phase3/4/5和未知phase。
 
 `special_modes.legacy_initial_menu`定向测试通过。workpack双生成稳定为`46/227`，SHA256均为`53c46bdf47c9719b2ee102b907d48d820ec10bbf52731ebca6de7dfb53d9c184`；下一单元为`0x0043DD20`。Linux core完整门`188/188`、Linux app完整门`194/194`通过；按阶段门禁未运行Windows BUILD。
