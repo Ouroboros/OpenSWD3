@@ -553,6 +553,21 @@ struct LegacyStandardModeWindowCursorResult {
     bool window_offset_advanced{};
 };
 
+enum class LegacyStandardModeWindowCursorAdvanceReturnKind : compat::u8 {
+    local_cursor_pointer,
+    window_offset_value,
+};
+
+struct LegacyStandardModeWindowCursorAdvanceResult {
+    LegacyStandardModeWindowCursorAdvanceReturnKind legacy_return_kind{
+        LegacyStandardModeWindowCursorAdvanceReturnKind::local_cursor_pointer
+    };
+    const compat::i32* legacy_cursor_pointer{};
+    compat::i32 legacy_return_value{};
+    bool cursor_clamped{};
+    bool window_offset_advanced{};
+};
+
 // sub_43B980: count one intrusive forward chain through its offset-zero links.
 [[nodiscard]] compat::u32 count_legacy_standard_mode_forward_nodes(
     const LegacyStandardModeForwardNode* head
@@ -592,6 +607,15 @@ compose_legacy_standard_mode_input_status(
 // sub_43BB40: clamp a local cursor and advance its window offset when possible.
 [[nodiscard]] LegacyStandardModeWindowCursorResult
 adjust_legacy_standard_mode_window_cursor(
+    compat::i32 total_count,
+    compat::i32& window_offset,
+    compat::i32& local_cursor,
+    compat::i32 visible_count
+) noexcept;
+
+// sub_43BB80: increment a local cursor, then clamp and scroll at its boundary.
+[[nodiscard]] LegacyStandardModeWindowCursorAdvanceResult
+advance_legacy_standard_mode_window_cursor(
     compat::i32 total_count,
     compat::i32& window_offset,
     compat::i32& local_cursor,
