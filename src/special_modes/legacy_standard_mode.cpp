@@ -511,6 +511,68 @@ resolve_legacy_standard_mode_window_selection(
     return result;
 }
 
+LegacyStandardModeValueGroupResult find_legacy_standard_mode_value_group(
+    const compat::i32 target, const std::span<const compat::u8> maps_payload
+) noexcept {
+    LegacyStandardModeValueGroupResult result;
+    if (!range_available(maps_payload, 0x58U, sizeof(compat::u32))) {
+        return result;
+    }
+
+    compat::u32 group_offset = read_u32_le(maps_payload, 0x58U);
+    for (;;) {
+        if (!range_available(
+                maps_payload,
+                static_cast<std::size_t>(group_offset),
+                sizeof(compat::u16)
+            )) {
+            return result;
+        }
+        if (read_u16_le(maps_payload, static_cast<std::size_t>(group_offset)) ==
+            0xFFFFU) {
+            result.status = LegacyStandardModeValueGroupStatus::not_found;
+            return result;
+        }
+
+        compat::u32 value_offset = group_offset + 6U;
+        for (;;) {
+            if (!range_available(
+                    maps_payload,
+                    static_cast<std::size_t>(value_offset),
+                    sizeof(compat::u16)
+                )) {
+                return result;
+            }
+            const compat::u16 value = read_u16_le(
+                maps_payload, static_cast<std::size_t>(value_offset)
+            );
+            if (value == 0xFFFFU) {
+                break;
+            }
+            if (static_cast<compat::i32>(value) == target) {
+                result.status = LegacyStandardModeValueGroupStatus::found;
+                result.group_offset = group_offset;
+                return result;
+            }
+            value_offset += 2U;
+        }
+
+        group_offset = value_offset + 2U;
+        if (!range_available(
+                maps_payload,
+                static_cast<std::size_t>(group_offset),
+                sizeof(compat::u16)
+            )) {
+            return result;
+        }
+        if (read_u16_le(maps_payload, static_cast<std::size_t>(group_offset)) ==
+            0xFFFFU) {
+            result.status = LegacyStandardModeValueGroupStatus::not_found;
+            return result;
+        }
+    }
+}
+
 LegacyStandardModeTextResolutionResult resolve_legacy_standard_mode_shared_text(
     const compat::u16 text_index,
     const std::span<const compat::u8> maps_payload,

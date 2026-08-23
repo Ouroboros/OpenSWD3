@@ -38,6 +38,7 @@ using openswd3::special_modes::compose_legacy_standard_mode_input_status;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes_bounded;
 using openswd3::special_modes::draw_legacy_standard_mode_ghost;
+using openswd3::special_modes::find_legacy_standard_mode_value_group;
 using openswd3::special_modes::index_legacy_standard_mode_forward_node;
 using openswd3::special_modes::initialize_legacy_initial_menu;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
@@ -97,6 +98,7 @@ using openswd3::special_modes::LegacyStandardModeTransitionState;
 using openswd3::special_modes::LegacyStandardModeTransitionText;
 using openswd3::special_modes::LegacyStandardModeTransitionTextOwner;
 using openswd3::special_modes::LegacyStandardModeTextResolutionStatus;
+using openswd3::special_modes::LegacyStandardModeValueGroupStatus;
 using openswd3::special_modes::LegacyStandardModeWindowCursorAdvanceReturnKind;
 using openswd3::special_modes::LegacyStandardModeWindowCursorRetreatReturnKind;
 using openswd3::special_modes::LegacyStandardModeWindowPageAdvancePath;
@@ -1553,6 +1555,90 @@ void test_standard_mode_window_selection(openswd3::test::Context& test) {
                     selected_node_unavailable &&
             output_head == &second && result.selection_index == 6,
         "0x43BCC0 isolates the original selected-node dereference after a valid window advance"
+    );
+}
+
+void test_standard_mode_value_group_lookup(openswd3::test::Context& test) {
+    const auto write_u16 =
+        [](auto& bytes, const std::size_t offset, const u16 value) {
+            bytes[offset] = static_cast<u8>(value);
+            bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+        };
+    const auto write_u32 =
+        [](auto& bytes, const std::size_t offset, const u32 value) {
+            bytes[offset] = static_cast<u8>(value);
+            bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+            bytes[offset + 2U] = static_cast<u8>(value >> 16U);
+            bytes[offset + 3U] = static_cast<u8>(value >> 24U);
+        };
+
+    std::array<u8, 0x80U> payload{};
+    write_u32(payload, 0x58U, 0x61U);
+    write_u16(payload, 0x61U, 0x1111U);
+    write_u16(payload, 0x67U, 3U);
+    write_u16(payload, 0x69U, 7U);
+    write_u16(payload, 0x6BU, 0xFFFFU);
+    write_u16(payload, 0x6DU, 0x2222U);
+    write_u16(payload, 0x73U, 9U);
+    write_u16(payload, 0x75U, 0xFFFFU);
+    write_u16(payload, 0x77U, 0xFFFFU);
+
+    for (const i32 target : std::array<i32, 2U>{3, 7}) {
+        const auto found =
+            find_legacy_standard_mode_value_group(target, payload);
+        test.expect_true(
+            found.status == LegacyStandardModeValueGroupStatus::found &&
+                found.group_offset == 0x61U,
+            "0x43BE40 returns the first unaligned group containing the target"
+        );
+    }
+    const auto second = find_legacy_standard_mode_value_group(9, payload);
+    test.expect_true(
+        second.status == LegacyStandardModeValueGroupStatus::found &&
+            second.group_offset == 0x6DU,
+        "0x43BE40 advances past an inner FFFF to the next group"
+    );
+
+    for (const i32 target : std::array<i32, 3U>{10, -1, 0x10000}) {
+        const auto missing =
+            find_legacy_standard_mode_value_group(target, payload);
+        test.expect_equal(
+            missing.status,
+            LegacyStandardModeValueGroupStatus::not_found,
+            "0x43BE40 compares zero-extended u16 values against the full i32 target"
+        );
+    }
+
+    auto empty = payload;
+    write_u16(empty, 0x61U, 0xFFFFU);
+    test.expect_equal(
+        find_legacy_standard_mode_value_group(3, empty).status,
+        LegacyStandardModeValueGroupStatus::not_found,
+        "0x43BE40 accepts an initial FFFF as an empty directory"
+    );
+
+    const std::array<u8, 0x5BU> short_payload{};
+    test.expect_equal(
+        find_legacy_standard_mode_value_group(3, short_payload).status,
+        LegacyStandardModeValueGroupStatus::maps_payload_out_of_range,
+        "0x43BE40 isolates a missing MAPS +0x58 directory field"
+    );
+
+    auto wrapped = payload;
+    write_u32(wrapped, 0x58U, 0xFFFFFFFEU);
+    test.expect_equal(
+        find_legacy_standard_mode_value_group(3, wrapped).status,
+        LegacyStandardModeValueGroupStatus::maps_payload_out_of_range,
+        "0x43BE40 preserves the u32 relative offset before typed range isolation"
+    );
+
+    std::array<u8, 0x70U> unterminated{};
+    write_u32(unterminated, 0x58U, 0x61U);
+    write_u16(unterminated, 0x61U, 1U);
+    test.expect_equal(
+        find_legacy_standard_mode_value_group(0x7777, unterminated).status,
+        LegacyStandardModeValueGroupStatus::maps_payload_out_of_range,
+        "0x43BE40 isolates a group list that reaches payload end without FFFF"
     );
 }
 
@@ -3613,6 +3699,7 @@ int main() {
     test_standard_mode_forward_bounded_count(test);
     test_standard_mode_window_selection(test);
     test_standard_mode_animated_panel(test);
+    test_standard_mode_value_group_lookup(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);

@@ -572,6 +572,19 @@ struct LegacyStandardModeWindowSelectionResult {
     bool missing_node_requested{};
 };
 
+enum class LegacyStandardModeValueGroupStatus : compat::u8 {
+    found,
+    not_found,
+    maps_payload_out_of_range,
+};
+
+struct LegacyStandardModeValueGroupResult {
+    LegacyStandardModeValueGroupStatus status{
+        LegacyStandardModeValueGroupStatus::maps_payload_out_of_range
+    };
+    compat::u32 group_offset{};
+};
+
 struct LegacyStandardModeInputStatusResult {
     compat::u32 flags{};
     compat::i32 legacy_return_value{};
@@ -728,6 +741,12 @@ resolve_legacy_standard_mode_window_selection(
     std::span<const compat::u8> maps_payload,
     std::span<compat::u8, kLegacyStandardModeSharedTextCapacity> destination,
     LegacyStandardModeMissingNodePorts& ports
+) noexcept;
+
+// sub_43BE40: find the MAPS value group containing one full-width target.
+[[nodiscard]] LegacyStandardModeValueGroupResult
+find_legacy_standard_mode_value_group(
+    compat::i32 target, std::span<const compat::u8> maps_payload
 ) noexcept;
 
 // sub_43B9E0: resolve one MAPS text record into the shared 128-byte buffer.
