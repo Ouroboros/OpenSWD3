@@ -44,6 +44,7 @@ using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
 using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
+using openswd3::special_modes::resolve_legacy_standard_mode_window_selection;
 using openswd3::special_modes::retreat_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::retreat_legacy_standard_mode_window_page;
 using openswd3::special_modes::initialize_legacy_standard_mode_selector;
@@ -67,6 +68,7 @@ using openswd3::special_modes::kLegacySpecialModeInitializeFlag;
 using openswd3::special_modes::LegacyLowSpecialModeInitialization;
 using openswd3::special_modes::LegacyModeThreeSixRecordInitialization;
 using openswd3::special_modes::LegacyStandardModeItemPorts;
+using openswd3::special_modes::LegacyStandardModeMissingNodePorts;
 using openswd3::special_modes::LegacyStandardModeInputCallback;
 using openswd3::special_modes::LegacyStandardModeInputPorts;
 using openswd3::special_modes::LegacyStandardModeInputState;
@@ -95,6 +97,7 @@ using openswd3::special_modes::LegacyStandardModeTextResolutionStatus;
 using openswd3::special_modes::LegacyStandardModeWindowCursorAdvanceReturnKind;
 using openswd3::special_modes::LegacyStandardModeWindowCursorRetreatReturnKind;
 using openswd3::special_modes::LegacyStandardModeWindowPageAdvancePath;
+using openswd3::special_modes::LegacyStandardModeWindowSelectionStatus;
 using openswd3::special_modes::LegacyStandardModeSelectorState;
 using openswd3::special_modes::LegacyStandardSpecialModeInitializationPorts;
 using openswd3::special_modes::LegacyStandardSpecialModePorts;
@@ -1257,6 +1260,296 @@ void test_standard_mode_forward_bounded_count(openswd3::test::Context& test) {
             output_count == 3 && first.next == &second &&
             second.next == &third && third.next == nullptr,
         "0x43BC90 preserves a short chain under the maximum signed limit"
+    );
+}
+
+void test_standard_mode_window_selection(openswd3::test::Context& test) {
+    class MissingNodePorts final : public LegacyStandardModeMissingNodePorts {
+    public:
+        explicit MissingNodePorts(
+            const LegacyStandardModeForwardNode* fallback_node = nullptr,
+            const bool mutate_head = false
+        ) noexcept
+            : fallback_node_(fallback_node), mutate_head_(mutate_head) {}
+
+        void insert_missing_node(
+            const LegacyStandardModeForwardNode** source_head,
+            const u16 text_index,
+            const i32 first_value,
+            const i32 second_value
+        ) noexcept override {
+            ++call_count;
+            received_head = source_head;
+            received_text_index = text_index;
+            received_first_value = first_value;
+            received_second_value = second_value;
+            if (mutate_head_) {
+                *source_head = fallback_node_;
+            }
+        }
+
+        const LegacyStandardModeForwardNode* fallback_node_{};
+        bool mutate_head_{};
+        const LegacyStandardModeForwardNode** received_head{};
+        u16 received_text_index{};
+        i32 received_first_value{};
+        i32 received_second_value{};
+        u32 call_count{};
+    };
+
+    const LegacyStandardModeForwardNode third{nullptr, 0xFFDCU};
+    const LegacyStandardModeForwardNode second{&third, 0xFFDCU};
+    const LegacyStandardModeForwardNode first{&second, 0xFFDCU};
+    std::array<u8, kLegacyStandardModeSharedTextCapacity> output{};
+    MissingNodePorts ports;
+
+    i32 total_count = -1;
+    i32 window_offset = 0;
+    i32 local_cursor = 0;
+    i32 visible_count = 2;
+    const LegacyStandardModeForwardNode* source_head = &first;
+    const LegacyStandardModeForwardNode* output_head = nullptr;
+    auto result = resolve_legacy_standard_mode_window_selection(
+        total_count,
+        window_offset,
+        local_cursor,
+        visible_count,
+        2,
+        &source_head,
+        &output_head,
+        {},
+        output,
+        ports
+    );
+    test.expect_true(
+        result.status == LegacyStandardModeWindowSelectionStatus::completed &&
+            total_count == 3 && window_offset == 0 && local_cursor == 0 &&
+            visible_count == 2 && source_head == &first &&
+            output_head == &first && result.selected_node == &first &&
+            result.selection_index == 0 && !result.missing_node_requested &&
+            ports.call_count == 0U && output[0U] == 0xB5U &&
+            output[1U] == 0x4CU && output[2U] == 0U,
+        "0x43BCC0 counts a live chain, preserves its first window and resolves the selected text"
+    );
+
+    output.fill(0U);
+    total_count = -1;
+    window_offset = 1;
+    local_cursor = 5;
+    visible_count = 2;
+    source_head = &first;
+    output_head = nullptr;
+    result = resolve_legacy_standard_mode_window_selection(
+        total_count,
+        window_offset,
+        local_cursor,
+        visible_count,
+        2,
+        &source_head,
+        &output_head,
+        {},
+        output,
+        ports
+    );
+    test.expect_true(
+        result.status == LegacyStandardModeWindowSelectionStatus::completed &&
+            total_count == 3 && window_offset == 1 && local_cursor == 1 &&
+            visible_count == 2 && output_head == &second &&
+            result.selection_index == 2 && result.selected_node == &third,
+        "0x43BCC0 caps an overflowing local cursor before selecting from the original head"
+    );
+
+    total_count = -1;
+    window_offset = 5;
+    local_cursor = 9;
+    visible_count = 2;
+    source_head = &first;
+    output_head = nullptr;
+    result = resolve_legacy_standard_mode_window_selection(
+        total_count,
+        window_offset,
+        local_cursor,
+        visible_count,
+        10,
+        &source_head,
+        &output_head,
+        {},
+        output,
+        ports
+    );
+    test.expect_true(
+        result.status == LegacyStandardModeWindowSelectionStatus::completed &&
+            total_count == 3 && window_offset == 2 && local_cursor == 0 &&
+            visible_count == 1 && output_head == &third &&
+            result.selection_index == 2 && result.selected_node == &third,
+        "0x43BCC0 moves an offset beyond total back to the final node"
+    );
+
+    const LegacyStandardModeForwardNode fallback{nullptr, 0xFFDCU};
+    MissingNodePorts inserting_ports{&fallback, true};
+    total_count = 99;
+    window_offset = 4;
+    local_cursor = 8;
+    visible_count = 7;
+    source_head = nullptr;
+    output_head = nullptr;
+    result = resolve_legacy_standard_mode_window_selection(
+        total_count,
+        window_offset,
+        local_cursor,
+        visible_count,
+        10,
+        &source_head,
+        &output_head,
+        {},
+        output,
+        inserting_ports
+    );
+    test.expect_true(
+        result.status == LegacyStandardModeWindowSelectionStatus::completed &&
+            result.missing_node_requested && total_count == 0 &&
+            window_offset == 0 && local_cursor == 0 && visible_count == 1 &&
+            source_head == &fallback && output_head == &fallback &&
+            result.selected_node == &fallback &&
+            inserting_ports.call_count == 1U &&
+            inserting_ports.received_head == &source_head &&
+            inserting_ports.received_text_index == 0xFFDCU &&
+            inserting_ports.received_first_value == 1 &&
+            inserting_ports.received_second_value == 0,
+        "0x43BCC0 requests the exact FFDC/1/0 fallback and does not recount after insertion"
+    );
+
+    MissingNodePorts inert_ports;
+    total_count = 99;
+    window_offset = 0;
+    local_cursor = 0;
+    visible_count = 0;
+    source_head = nullptr;
+    output_head = &first;
+    result = resolve_legacy_standard_mode_window_selection(
+        total_count,
+        window_offset,
+        local_cursor,
+        visible_count,
+        10,
+        &source_head,
+        &output_head,
+        {},
+        output,
+        inert_ports
+    );
+    test.expect_true(
+        result.status ==
+                LegacyStandardModeWindowSelectionStatus::
+                    selected_node_unavailable &&
+            result.missing_node_requested && total_count == 0 &&
+            output_head == nullptr && visible_count == 0 &&
+            inert_ports.call_count == 1U,
+        "0x43BCC0 isolates the original null selected-node dereference if insertion does not publish"
+    );
+
+    const LegacyStandardModeForwardNode invalid_text{nullptr, 0U};
+    total_count = -1;
+    window_offset = 0;
+    local_cursor = 0;
+    visible_count = 1;
+    source_head = &invalid_text;
+    output_head = nullptr;
+    output.fill(0xA5U);
+    result = resolve_legacy_standard_mode_window_selection(
+        total_count,
+        window_offset,
+        local_cursor,
+        visible_count,
+        1,
+        &source_head,
+        &output_head,
+        {},
+        output,
+        ports
+    );
+    test.expect_true(
+        result.status ==
+                LegacyStandardModeWindowSelectionStatus::
+                    text_resolution_failed &&
+            result.selected_node == &invalid_text && output.front() == 0xA5U,
+        "0x43BCC0 propagates the shared text resolver typed-stop without buffer fabrication"
+    );
+
+    total_count = -1;
+    window_offset = 1;
+    local_cursor = 0;
+    visible_count = 0;
+    source_head = &first;
+    result = resolve_legacy_standard_mode_window_selection(
+        total_count,
+        window_offset,
+        local_cursor,
+        visible_count,
+        2,
+        &source_head,
+        &source_head,
+        {},
+        output,
+        ports
+    );
+    test.expect_true(
+        result.status == LegacyStandardModeWindowSelectionStatus::completed &&
+            source_head == &second && visible_count == 2 &&
+            result.selection_index == 1 && result.selected_node == &third,
+        "0x43BCC0 preserves source/output head variable aliasing through later selection"
+    );
+
+    total_count = -1;
+    window_offset = 4;
+    local_cursor = 0;
+    visible_count = -10;
+    source_head = &first;
+    output_head = nullptr;
+    result = resolve_legacy_standard_mode_window_selection(
+        total_count,
+        window_offset,
+        local_cursor,
+        visible_count,
+        2,
+        &source_head,
+        &output_head,
+        {},
+        output,
+        ports
+    );
+    test.expect_true(
+        result.status ==
+                LegacyStandardModeWindowSelectionStatus::
+                    window_head_unavailable &&
+            output_head == nullptr,
+        "0x43BCC0 isolates the original short-chain window-head dereference"
+    );
+
+    total_count = -1;
+    window_offset = 1;
+    local_cursor = 5;
+    visible_count = -10;
+    source_head = &first;
+    output_head = nullptr;
+    result = resolve_legacy_standard_mode_window_selection(
+        total_count,
+        window_offset,
+        local_cursor,
+        visible_count,
+        2,
+        &source_head,
+        &output_head,
+        {},
+        output,
+        ports
+    );
+    test.expect_true(
+        result.status ==
+                LegacyStandardModeWindowSelectionStatus::
+                    selected_node_unavailable &&
+            output_head == &second && result.selection_index == 6,
+        "0x43BCC0 isolates the original selected-node dereference after a valid window advance"
     );
 }
 
@@ -3171,6 +3464,7 @@ int main() {
     test_standard_mode_forward_head_advance(test);
     test_standard_mode_forward_node_index(test);
     test_standard_mode_forward_bounded_count(test);
+    test_standard_mode_window_selection(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);

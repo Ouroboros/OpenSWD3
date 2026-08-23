@@ -521,6 +521,19 @@ bind_legacy_standard_mode_callbacks(
 
 struct LegacyStandardModeForwardNode {
     const LegacyStandardModeForwardNode* next{};
+    compat::u16 text_index{};
+};
+
+class LegacyStandardModeMissingNodePorts {
+public:
+    virtual ~LegacyStandardModeMissingNodePorts() = default;
+
+    virtual void insert_missing_node(
+        const LegacyStandardModeForwardNode** source_head,
+        compat::u16 text_index,
+        compat::i32 first_value,
+        compat::i32 second_value
+    ) noexcept = 0;
 };
 
 inline constexpr std::size_t kLegacyStandardModeSharedTextCapacity = 128U;
@@ -540,6 +553,23 @@ struct LegacyStandardModeTextResolutionResult {
     compat::u32 source_cursor_offset{};
     compat::i32 formatter_return{};
     bool used_missing_text{};
+};
+
+enum class LegacyStandardModeWindowSelectionStatus : compat::u8 {
+    completed,
+    window_head_unavailable,
+    selected_node_unavailable,
+    text_resolution_failed,
+};
+
+struct LegacyStandardModeWindowSelectionResult {
+    LegacyStandardModeWindowSelectionStatus status{
+        LegacyStandardModeWindowSelectionStatus::selected_node_unavailable
+    };
+    LegacyStandardModeTextResolutionResult text_resolution;
+    const LegacyStandardModeForwardNode* selected_node{};
+    compat::i32 selection_index{};
+    bool missing_node_requested{};
 };
 
 struct LegacyStandardModeInputStatusResult {
@@ -624,6 +654,21 @@ count_legacy_standard_mode_forward_nodes_bounded(
     const LegacyStandardModeForwardNode* head,
     compat::i32& output_count,
     compat::i32 limit
+) noexcept;
+
+// sub_43BCC0: normalize a list window, select one node and resolve its text.
+[[nodiscard]] LegacyStandardModeWindowSelectionResult
+resolve_legacy_standard_mode_window_selection(
+    compat::i32& total_count,
+    compat::i32& window_offset,
+    compat::i32& local_cursor,
+    compat::i32& visible_count,
+    compat::i32 visible_limit,
+    const LegacyStandardModeForwardNode** source_head,
+    const LegacyStandardModeForwardNode** output_head,
+    std::span<const compat::u8> maps_payload,
+    std::span<compat::u8, kLegacyStandardModeSharedTextCapacity> destination,
+    LegacyStandardModeMissingNodePorts& ports
 ) noexcept;
 
 // sub_43B9E0: resolve one MAPS text record into the shared 128-byte buffer.

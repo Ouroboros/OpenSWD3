@@ -413,6 +413,104 @@ count_legacy_standard_mode_forward_nodes_bounded(
     return node;
 }
 
+LegacyStandardModeWindowSelectionResult
+resolve_legacy_standard_mode_window_selection(
+    compat::i32& total_count,
+    compat::i32& window_offset,
+    compat::i32& local_cursor,
+    compat::i32& visible_count,
+    const compat::i32 visible_limit,
+    const LegacyStandardModeForwardNode** source_head,
+    const LegacyStandardModeForwardNode** output_head,
+    const std::span<const compat::u8> maps_payload,
+    const std::span<compat::u8, kLegacyStandardModeSharedTextCapacity>
+        destination,
+    LegacyStandardModeMissingNodePorts& ports
+) noexcept {
+    LegacyStandardModeWindowSelectionResult result;
+    total_count = std::bit_cast<compat::i32>(
+        count_legacy_standard_mode_forward_nodes(*source_head)
+    );
+    if (total_count == 0) {
+        ports.insert_missing_node(source_head, 0xFFDCU, 1, 0);
+        result.missing_node_requested = true;
+    }
+
+    const compat::i32 visible_end = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(visible_count) +
+        std::bit_cast<compat::u32>(window_offset)
+    );
+    if (total_count <= visible_end) {
+        if (total_count > window_offset) {
+            const compat::i32 cursor_end = std::bit_cast<compat::i32>(
+                std::bit_cast<compat::u32>(local_cursor) +
+                std::bit_cast<compat::u32>(window_offset) + 1U
+            );
+            if (total_count < cursor_end) {
+                local_cursor = std::bit_cast<compat::i32>(
+                    std::bit_cast<compat::u32>(total_count) -
+                    std::bit_cast<compat::u32>(window_offset) - 1U
+                );
+            }
+        } else {
+            window_offset = std::bit_cast<compat::i32>(
+                std::bit_cast<compat::u32>(total_count) - 1U
+            );
+            if (window_offset < 0) {
+                window_offset = 0;
+            }
+            local_cursor = 0;
+        }
+    }
+
+    *output_head = *source_head;
+    compat::i32 remaining_window_offset = window_offset;
+    if (remaining_window_offset > 0) {
+        do {
+            const LegacyStandardModeForwardNode* node = *output_head;
+            if (node == nullptr) {
+                result.status = LegacyStandardModeWindowSelectionStatus::
+                    window_head_unavailable;
+                return result;
+            }
+            *output_head = node->next;
+            --remaining_window_offset;
+        } while (remaining_window_offset != 0);
+    }
+    static_cast<void>(count_legacy_standard_mode_forward_nodes_bounded(
+        *output_head, visible_count, visible_limit
+    ));
+
+    result.selection_index = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(window_offset) +
+        std::bit_cast<compat::u32>(local_cursor)
+    );
+    const LegacyStandardModeForwardNode* selected = *source_head;
+    compat::i32 remaining = result.selection_index;
+    if (remaining > 0) {
+        do {
+            if (selected == nullptr) {
+                return result;
+            }
+            selected = selected->next;
+            --remaining;
+        } while (remaining != 0);
+    }
+    if (selected == nullptr) {
+        return result;
+    }
+
+    result.selected_node = selected;
+    result.text_resolution = resolve_legacy_standard_mode_shared_text(
+        selected->text_index, maps_payload, destination
+    );
+    result.status = result.text_resolution.status ==
+            LegacyStandardModeTextResolutionStatus::completed
+        ? LegacyStandardModeWindowSelectionStatus::completed
+        : LegacyStandardModeWindowSelectionStatus::text_resolution_failed;
+    return result;
+}
+
 LegacyStandardModeTextResolutionResult resolve_legacy_standard_mode_shared_text(
     const compat::u16 text_index,
     const std::span<const compat::u8> maps_payload,
