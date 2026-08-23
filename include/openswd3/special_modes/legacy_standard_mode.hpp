@@ -531,6 +531,8 @@ struct LegacyStandardModeForwardNode {
     compat::u16 second_value{};
     compat::u32 release_token{};
     std::string display_name{};
+    compat::u32 filter_flags{};
+    compat::u16 filter_category{};
 };
 
 class LegacyStandardModeMissingNodePorts {
@@ -2074,6 +2076,11 @@ release_legacy_standard_mode_database_forward_list(
     LegacyStandardModeDatabaseForwardReleasePorts& ports
 ) noexcept;
 
+// sub_43F7C0: test one database record against a page/category group.
+[[nodiscard]] bool is_legacy_standard_mode_database_record_selected(
+    compat::u16 category, compat::u32 flags, compat::i32 page_selection
+) noexcept;
+
 // sub_43F1E0: rebuild both database runtime records from inline metadata.
 [[nodiscard]] LegacyStandardModeDatabaseRecordRefreshResult
 refresh_legacy_standard_mode_database_runtime_records(
@@ -2090,8 +2097,7 @@ sort_legacy_standard_mode_database_forward_list(
 // sub_43F0D0: filter and sorted-splice adjustment nodes into forward output.
 [[nodiscard]] LegacyStandardModeDatabaseForwardBuildResult
 build_legacy_standard_mode_database_forward_list(
-    LegacyStandardModeDatabaseInitializationState& state,
-    LegacyStandardModeDatabaseForwardRefreshPorts& ports
+    LegacyStandardModeDatabaseInitializationState& state
 ) noexcept;
 
 // sub_43F000: rebuild the database forward list and reset its window.

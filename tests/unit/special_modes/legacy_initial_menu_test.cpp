@@ -2619,7 +2619,7 @@ void test_standard_mode_database_initialization(openswd3::test::Context& test) {
             state.current_forward_head == &first_forward &&
             state.forward_count == 3U && state.bounded_forward_count == 3 &&
             state.bounded_forward_node == nullptr &&
-            ports.forward_initialization_count == 2U &&
+            ports.forward_initialization_count == 0U &&
             ports.sample_ids == std::vector<u16>{0x136U} &&
             ports.interface_values == std::vector<u32>{0x55667788U},
         "0x43D530 preserves linked adjustment, action fields and forward-list helper order"
@@ -2942,6 +2942,9 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
         LegacyStandardModeForwardNode build_third{nullptr, 3U};
         LegacyStandardModeForwardNode build_second{&build_third, 2U};
         LegacyStandardModeForwardNode build_first{&build_second, 1U};
+        build_first.filter_flags = 0x800U;
+        build_second.filter_flags = 0x800U;
+        build_third.filter_flags = 0x800U;
         LegacyStandardModeForwardNode old_forward{nullptr, 0xFFDCU};
         refresh_state.forward_head = &old_forward;
         refresh_state.adjustment_head = &build_first;
@@ -2955,8 +2958,7 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
             refreshed.helper_call_count == 4U &&
                 !refreshed.allocated_empty_node &&
                 refreshed.legacy_return_value == nullptr &&
-                refresh_ports.events == std::vector<u8>{0U, 0U, 0U} &&
-                refresh_ports.received_page_selection == 2 &&
+                refresh_ports.events.empty() &&
                 refresh_ports.released_forward_values == std::vector<u32>{0U} &&
                 refresh_ports.released_forward_nodes ==
                     std::vector<LegacyStandardModeForwardNode*>{&old_forward} &&
@@ -2991,15 +2993,13 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
 
         LegacyStandardModeForwardNode ascending_low{nullptr, 3U};
         LegacyStandardModeForwardNode ascending_high{&ascending_low, 5U};
+        ascending_low.filter_flags = 1U;
+        ascending_high.filter_flags = 1U;
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
             ascending_state;
         ascending_state.adjustment_head = &ascending_high;
-        CyclePorts ascending_ports;
-        ascending_ports.select_all = true;
         const auto ascending = openswd3::special_modes::
-            build_legacy_standard_mode_database_forward_list(
-                ascending_state, ascending_ports
-            );
+            build_legacy_standard_mode_database_forward_list(ascending_state);
         test.expect_true(
             ascending.query_count == 2U &&
                 ascending.selected_node_count == 2U &&
@@ -3013,23 +3013,51 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
 
         LegacyStandardModeForwardNode stale_low{nullptr, 3U};
         LegacyStandardModeForwardNode stale_high{&stale_low, 5U};
+        stale_low.filter_flags = 1U;
+        stale_high.filter_flags = 1U;
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
             stale_state;
         stale_state.adjustment_head = &stale_high;
         stale_state.forward_build_sentinel = 10U;
         stale_state.forward_build_word = 99U;
-        CyclePorts stale_ports;
-        stale_ports.select_all = true;
-        static_cast<void>(openswd3::special_modes::
-                              build_legacy_standard_mode_database_forward_list(
-                                  stale_state, stale_ports
-                              ));
+        static_cast<void>(
+            openswd3::special_modes::
+                build_legacy_standard_mode_database_forward_list(stale_state)
+        );
         test.expect_true(
             stale_state.forward_head == &stale_high &&
                 stale_high.next == &stale_low && stale_low.next == nullptr &&
                 stale_state.forward_build_sentinel == 10U &&
                 stale_state.forward_build_word == 0U,
             "0x43F0D0 preserves stale FCAE4 so first-predecessor comparison can append a smaller key"
+        );
+
+        test.expect_true(
+            openswd3::special_modes::
+                    is_legacy_standard_mode_database_record_selected(
+                        9U, 0x00008001U, 0
+                    ) &&
+                openswd3::special_modes::
+                    is_legacy_standard_mode_database_record_selected(
+                        15U, 0x100U, 1
+                    ) &&
+                openswd3::special_modes::
+                    is_legacy_standard_mode_database_record_selected(
+                        19U, 0x800U, 2
+                    ) &&
+                !openswd3::special_modes::
+                    is_legacy_standard_mode_database_record_selected(
+                        10U, 1U, 0
+                    ) &&
+                !openswd3::special_modes::
+                    is_legacy_standard_mode_database_record_selected(
+                        20U, 0x800U, 2
+                    ) &&
+                !openswd3::special_modes::
+                    is_legacy_standard_mode_database_record_selected(
+                        9U, 0x20U, 0
+                    ),
+            "0x43F7C0 preserves category ranges, flag mask and page groups"
         );
 
         LegacyStandardModeForwardNode sort_five{nullptr, 5U};
@@ -4300,6 +4328,8 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         state.interaction_toggle = 0U;
         state.first_heap_token = 0x11111111U;
         state.second_heap_token = 0x22222222U;
+        state.first_inline_record[0x2CU] = 1U;
+        state.first_runtime_record[0x2CU] = 1U;
         state.forward_head = &node;
         InputPorts ports;
         ports.resolutions = {{1, 0x1111U}, {0, 0x2222U}, {1, 0x3333U}};
@@ -4319,12 +4349,12 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                 ports.materialized_texts[0U].destination ==
                     openswd3::special_modes::
                         LegacyStandardModeDatabaseTextDestination::shared &&
-                ports.materialized_texts[0U].text_index == 0x1111U &&
+                ports.materialized_texts[0U].text_index == 0U &&
                 ports.materialized_texts[0U].first_value == -1 &&
                 ports.materialized_texts[1U].destination ==
                     openswd3::special_modes::
                         LegacyStandardModeDatabaseTextDestination::alternate &&
-                ports.materialized_texts[2U].text_index == 0x3333U &&
+                ports.materialized_texts[2U].text_index == 0U &&
                 ports.materialized_texts[2U].first_value == 1 &&
                 ports.materialized_texts[2U].second_value == 2 &&
                 ports.materialized_texts[2U].increment_combined_value &&
@@ -4345,6 +4375,10 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             stopped_state;
         stopped_state.interaction_phase = 4U;
         stopped_state.window_offset = 1;
+        stopped_state.first_missing_text_index = 0xFFDCU;
+        stopped_state.second_missing_text_index = 0xFFDCU;
+        stopped_state.first_runtime_record[4U] = 0xDCU;
+        stopped_state.first_runtime_record[5U] = 0xFFU;
         InputPorts stopped_ports;
         const auto stopped = commit(stopped_state, stopped_ports);
         test.expect_true(

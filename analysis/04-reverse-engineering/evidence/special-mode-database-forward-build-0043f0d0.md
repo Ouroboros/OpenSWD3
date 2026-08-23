@@ -12,7 +12,7 @@ arg0为adjustment head owner，arg4为以forward head开头的输出owner block�
 - 命中：从adjustment链摘除，按u16 `text_index`插入forward链。
 - 插入比较严格保留原怪异条件：`current_key >= new_key`且`previous_key < new_key`才在当前位置插入；首项previous key读取未清零的输出block `+4`陈旧word。因此陈旧值较大时，小key可能被追加到大key之后。
 
-新增`forward_build_sentinel`映射`FCAE4`并保持不清，`forward_build_word`映射`FCAE8`且每次写0。F7C0保持单节点/page typed筛选边界，不提前关闭。
+新增`forward_build_sentinel`映射`FCAE4`并保持不清，`forward_build_word`映射`FCAE8`且每次写0。F7C0现直接复用已关闭纯typed谓词；单节点filter flags/category由forward node显式承载。
 
 ## F000回接与测试
 

@@ -2345,8 +2345,7 @@ release_legacy_standard_mode_database_forward_list(
 
 LegacyStandardModeDatabaseForwardBuildResult
 build_legacy_standard_mode_database_forward_list(
-    LegacyStandardModeDatabaseInitializationState& state,
-    LegacyStandardModeDatabaseForwardRefreshPorts& ports
+    LegacyStandardModeDatabaseInitializationState& state
 ) noexcept {
     LegacyStandardModeDatabaseForwardBuildResult result;
     state.forward_head = nullptr;
@@ -2354,8 +2353,9 @@ build_legacy_standard_mode_database_forward_list(
     LegacyStandardModeForwardNode* source_previous = nullptr;
     LegacyStandardModeForwardNode* source = state.adjustment_head;
     while (source != nullptr) {
-        const bool selected =
-            ports.select_database_forward_node(*source, state.page_selection);
+        const bool selected = is_legacy_standard_mode_database_record_selected(
+            source->filter_category, source->filter_flags, state.page_selection
+        );
         ++result.query_count;
         if (!selected) {
             source_previous = source;
@@ -2435,6 +2435,28 @@ sort_legacy_standard_mode_database_forward_list(
     state.forward_head = sorted_head;
     result.legacy_return_value = sorted_head;
     return result;
+}
+
+bool is_legacy_standard_mode_database_record_selected(
+    const compat::u16 category,
+    const compat::u32 flags,
+    const compat::i32 page_selection
+) noexcept {
+    if (category > 9U && (category < 15U || category > 19U)) {
+        return false;
+    }
+    const compat::u32 masked = flags & 0x0FFF7FFFU;
+    if (page_selection == 0) {
+        return masked == 1U || masked == 2U || masked == 4U || masked == 8U ||
+            masked == 0x10U || masked == 0x1000U;
+    }
+    if (page_selection == 1) {
+        return masked == 0x100U || masked == 0x200U || masked == 0x400U;
+    }
+    if (page_selection == 2) {
+        return masked == 0x800U;
+    }
+    return false;
 }
 
 LegacyStandardModeDatabaseRecordRefreshResult
@@ -2617,9 +2639,7 @@ refresh_legacy_standard_mode_database_forward_list(
         release_legacy_standard_mode_database_forward_list(state, ports)
     );
     ++result.helper_call_count;
-    static_cast<void>(
-        build_legacy_standard_mode_database_forward_list(state, ports)
-    );
+    static_cast<void>(build_legacy_standard_mode_database_forward_list(state));
     ++result.helper_call_count;
     if (state.forward_head == nullptr) {
         state.forward_head = ports.allocate_empty_database_forward_node();
@@ -3237,11 +3257,14 @@ commit_legacy_standard_mode_database_interaction(
     if (phase_index == 3U) {
         result.path = LegacyStandardModeDatabaseCommitPath::phase_4_commit;
         state.fourth_reset = 0U;
-        compat::i32 resolver_return = ports.resolve_database_record_text(
-            state.first_inline_record,
-            state.page_selection,
-            state.first_missing_text_index
-        );
+        compat::i32 resolver_return =
+            is_legacy_standard_mode_database_record_selected(
+                read_u16_le(state.first_inline_record, 0x5EU),
+                read_u32_le(state.first_inline_record, 0x2CU),
+                state.page_selection
+            )
+            ? 1
+            : 0;
         ++result.helper_call_count;
         if (state.first_missing_text_index != 0xFFDCU) {
             ports.materialize_database_text(
@@ -3264,11 +3287,13 @@ commit_legacy_standard_mode_database_interaction(
             state.first_missing_text_index = 0xFFDCU;
         }
 
-        resolver_return = ports.resolve_database_record_text(
-            state.second_inline_record,
-            state.page_selection,
-            state.second_missing_text_index
-        );
+        resolver_return = is_legacy_standard_mode_database_record_selected(
+                              read_u16_le(state.second_inline_record, 0x5EU),
+                              read_u32_le(state.second_inline_record, 0x2CU),
+                              state.page_selection
+                          )
+            ? 1
+            : 0;
         ++result.helper_call_count;
         if (state.second_missing_text_index != 0xFFDCU) {
             ports.materialize_database_text(
@@ -3295,9 +3320,13 @@ commit_legacy_standard_mode_database_interaction(
             ? std::span<compat::u8>{state.first_runtime_record}
             : std::span<compat::u8>{state.second_runtime_record};
         compat::u16 runtime_text_index = read_u16_le(runtime_record, 0x04U);
-        resolver_return = ports.resolve_database_record_text(
-            runtime_record, state.page_selection, runtime_text_index
-        );
+        resolver_return = is_legacy_standard_mode_database_record_selected(
+                              read_u16_le(runtime_record, 0x5EU),
+                              read_u32_le(runtime_record, 0x2CU),
+                              state.page_selection
+                          )
+            ? 1
+            : 0;
         ++result.helper_call_count;
         write_u16_le(runtime_record, 0x04U, runtime_text_index);
         if (runtime_text_index != 0xFFDCU) {
