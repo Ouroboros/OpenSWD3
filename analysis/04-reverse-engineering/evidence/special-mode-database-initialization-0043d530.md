@@ -4,7 +4,7 @@
 
 ## 1. LST范围与callback边界
 
-唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D530..0x0043D873`，338行。它没有direct call指令caller，而由`0x00444FC0`写入callback表后间接调用。直接callee包括已关闭B980/BC90、尚未关闭F000、record loader、interface sample owner及malloc/release owner。
+唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D530..0x0043D873`，338行。它没有direct call指令caller，而由`0x00444FC0`写入callback表后间接调用。直接callee包括已关闭F000（其内复用B980/BC90）、record loader、interface sample owner及malloc/release owner。
 
 16次malloc改为固定typed owner，避免宿主地址和分配失败差异：四个1200×i32表、scan record、两个0xB0 runtime records、四个0xF0 buffer、四个0x1B8 buffer及一个0x400 mirror表。原函数不清零0xF0/0x1B8/mirror malloc内容，typed state保留调用前字节；只写LST明确位置。
 
@@ -41,7 +41,7 @@ UT预置两个action cached字段和buffer字节，证明未被synthetic全清�
 
 ## 4. F000、forward list与sample
 
-尚未关闭F000以精确port边界表达，返回forward head。D530直接调用已关闭B980得到完整节点数，再用已关闭BC90从调用前head最多计16项并发布bounded count/current node。
+F000现直接复用closed typed helper：严格执行F080→F0D0→可选D5D0→B980→BC90，返回bounded node并发布forward/count/window/current owners；D530不再在caller重复B980/BC90。
 
 两个文本索引均写`0xFFDC`。interface sample owner固定调用sample ID `0x0136`和外部interface source value。UT用3节点链锁定count3、bounded count3、current nullptr及sample参数。
 

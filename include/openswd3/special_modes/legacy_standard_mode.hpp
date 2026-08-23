@@ -909,13 +909,31 @@ struct LegacyStandardModeDatabaseCycleResult {
     bool sample_initialized{};
 };
 
+class LegacyStandardModeDatabaseForwardRefreshPorts {
+public:
+    virtual ~LegacyStandardModeDatabaseForwardRefreshPorts() = default;
+    virtual void prepare_database_forward_lists(
+        LegacyStandardModeForwardNode*& forward_head,
+        LegacyStandardModeForwardNode*& adjustment_head
+    ) noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    build_database_forward_list(compat::i32 page_selection) noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    allocate_empty_database_forward_node() noexcept = 0;
+};
+
+struct LegacyStandardModeDatabaseForwardRefreshResult {
+    LegacyStandardModeForwardNode* legacy_return_value{};
+    compat::u32 helper_call_count{};
+    bool allocated_empty_node{};
+};
+
 class LegacyStandardModeDatabaseCyclePorts
     : public LegacyStandardModeDatabaseRetreatPorts,
-      public LegacyStandardModeMissingNodePorts {
+      public LegacyStandardModeMissingNodePorts,
+      public LegacyStandardModeDatabaseForwardRefreshPorts {
 public:
     ~LegacyStandardModeDatabaseCyclePorts() override = default;
-    [[nodiscard]] virtual LegacyStandardModeForwardNode*
-    initialize_database_forward_list() noexcept = 0;
 };
 
 enum class LegacyStandardModeDatabaseCommitStatus : compat::u8 {
@@ -1177,7 +1195,8 @@ public:
     ) noexcept = 0;
 };
 
-class LegacyStandardModeDatabaseInitializationPorts {
+class LegacyStandardModeDatabaseInitializationPorts
+    : public LegacyStandardModeDatabaseForwardRefreshPorts {
 public:
     virtual ~LegacyStandardModeDatabaseInitializationPorts() = default;
     [[nodiscard]] virtual bool load_record(
@@ -1186,8 +1205,6 @@ public:
     virtual void release_record(compat::u32 token) noexcept = 0;
     virtual void
     release_scan_storage(std::span<compat::u8> storage) noexcept = 0;
-    [[nodiscard]] virtual LegacyStandardModeForwardNode*
-    initialize_forward_list() noexcept = 0;
     virtual void initialize_interface_sample(
         compat::u16 sample_id, compat::u32 interface_source_value
     ) noexcept = 0;
@@ -1977,6 +1994,13 @@ exit_legacy_standard_mode_database_interaction(
     LegacyStandardModeDatabaseInitializationState& state,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeDatabaseExitPorts& ports
+) noexcept;
+
+// sub_43F000: rebuild the database forward list and reset its window.
+[[nodiscard]] LegacyStandardModeDatabaseForwardRefreshResult
+refresh_legacy_standard_mode_database_forward_list(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseForwardRefreshPorts& ports
 ) noexcept;
 
 // sub_43E800: draw the standard-mode database callback frame.

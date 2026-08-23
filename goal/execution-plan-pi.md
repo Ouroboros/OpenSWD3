@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v482
+版本：v483
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043F000`
+当前步骤：模块9 · 闭环`0x0043F080`
 
 ## 0. 执行约定
 
@@ -3604,9 +3604,18 @@ B7 P0 有限收口完成。
     `2515ab3d64a6961f4ae9389efd852d47b363e4e4818311b788e3de569669cffe`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库forward刷新`0x0043F000`闭环。LST范围`0x0043F000..0x0043F073`，55行，
+    caller为D530/E080/E170各一次。严格恢复F080→F0D0→空head时D5D0→B980→owner reset→BC90；
+    F080/F0D0/D5D0保持三个最小typed边界，B980/BC90直接复用已关闭helper。移除原来把F000整体
+    压成`initialize_*forward_list`的port及caller重复/遗漏owner：D530、E080、E170现直接调用F000，
+    其他函数的refresh边界不误接。独立UT覆盖旧head观察、page实参、三节点count/bounded/window/current、
+    null后fallback及helper数；既有三caller测试继续通过。workpack连续两轮稳定为`58/227`，SHA256为
+    `174d13dfe6e7583041a1df0f5e876cea5eb469ce3ac253eba3a79c92f78a76cc`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`57/227`，下一单元为`0x0043F000`。
+进行中，正式进度为`58/227`，下一单元为`0x0043F080`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043F000`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043F080`，继续更新workpack、证据和完整验证门。

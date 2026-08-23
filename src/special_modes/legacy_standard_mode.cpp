@@ -2319,6 +2319,41 @@ exit_legacy_standard_mode_database_interaction(
     return result;
 }
 
+LegacyStandardModeDatabaseForwardRefreshResult
+refresh_legacy_standard_mode_database_forward_list(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseForwardRefreshPorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseForwardRefreshResult result;
+    ports.prepare_database_forward_lists(
+        state.forward_head, state.adjustment_head
+    );
+    ++result.helper_call_count;
+    state.forward_head =
+        ports.build_database_forward_list(state.page_selection);
+    ++result.helper_call_count;
+    if (state.forward_head == nullptr) {
+        state.forward_head = ports.allocate_empty_database_forward_node();
+        ++result.helper_call_count;
+        result.allocated_empty_node = true;
+    }
+    state.forward_count = std::bit_cast<compat::u32>(
+        count_legacy_standard_mode_forward_nodes(state.forward_head)
+    );
+    ++result.helper_call_count;
+    state.window_offset = 0;
+    state.list_selection = 0;
+    state.current_forward_head = state.forward_head;
+    state.bounded_forward_node =
+        count_legacy_standard_mode_forward_nodes_bounded(
+            state.current_forward_head, state.bounded_forward_count, 0x10
+        );
+    ++result.helper_call_count;
+    result.legacy_return_value =
+        const_cast<LegacyStandardModeForwardNode*>(state.bounded_forward_node);
+    return result;
+}
+
 LegacyStandardModeDatabaseRenderResult render_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseRenderPorts& ports
@@ -3164,12 +3199,10 @@ advance_legacy_standard_mode_database_page_source(
             state.page_selection = 0;
         }
 
-        state.forward_head = ports.initialize_database_forward_list();
+        static_cast<void>(
+            refresh_legacy_standard_mode_database_forward_list(state, ports)
+        );
         ++result.helper_call_count;
-        state.current_forward_head = state.forward_head;
-        state.window_offset = 0;
-        state.list_selection = 0;
-        state.bounded_forward_count = 0x10;
         compat::i32 total_count =
             std::bit_cast<compat::i32>(state.forward_count);
         const LegacyStandardModeForwardNode* source_head = state.forward_head;
@@ -3257,12 +3290,10 @@ LegacyStandardModeDatabaseCycleResult cycle_legacy_standard_mode_database_page(
             state.page_selection = 2;
         }
 
-        state.forward_head = ports.initialize_database_forward_list();
+        static_cast<void>(
+            refresh_legacy_standard_mode_database_forward_list(state, ports)
+        );
         ++result.helper_call_count;
-        state.current_forward_head = state.forward_head;
-        state.window_offset = 0;
-        state.list_selection = 0;
-        state.bounded_forward_count = 0x10;
         compat::i32 total_count =
             std::bit_cast<compat::i32>(state.forward_count);
         const LegacyStandardModeForwardNode* source_head = state.forward_head;
@@ -3991,14 +4022,9 @@ initialize_legacy_standard_mode_database(
     state.direction_selection = 0U;
     state.page_selection = 0U;
 
-    state.forward_head = ports.initialize_forward_list();
-    state.current_forward_head = state.forward_head;
-    state.forward_count =
-        count_legacy_standard_mode_forward_nodes(state.forward_head);
-    state.bounded_forward_node =
-        count_legacy_standard_mode_forward_nodes_bounded(
-            state.current_forward_head, state.bounded_forward_count, 0x10
-        );
+    static_cast<void>(
+        refresh_legacy_standard_mode_database_forward_list(state, ports)
+    );
     state.first_missing_text_index = 0xFFDCU;
     state.second_missing_text_index = 0xFFDCU;
     ports.initialize_interface_sample(0x0136U, state.interface_source_value);

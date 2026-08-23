@@ -4,15 +4,15 @@
 
 ## 1. LST范围与直连
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E080..0x0043E16A`，109行；DA30有两个direct call点，B480另以callback地址绑定。直接callee为已关闭BCC0、尚未关闭F000/F880/F1E0、物品查询和sample。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E080..0x0043E16A`，109行；DA30有两个direct call点，B480另以callback地址绑定。直接callee为已关闭F000/BCC0、尚未关闭F880/F1E0、物品查询和sample。
 
-DA30命中E080时直接调用本helper；input ports新增F000 forward-list最小边界并继承BCC0 missing-node边界。shared-text buffer成为D530 database state的typed owner，MAPS payload由caller显式传入。
+DA30命中E080时直接调用本helper；F000现直接typed调用并在其内部保留F080/F0D0/D5D0最小边界，input ports继续继承BCC0 missing-node边界。shared-text buffer成为D530 database state的typed owner，MAPS payload由caller显式传入。
 
 ## 2. phase 1
 
 交互phase1先对页选择执行32-bit减1，signed负值回绕为2。随后：
 
-1. F000边界重建forward head。
+1. 直接调用已关闭F000重建forward head、count及window owner。
 2. window/local清0，visible预置16。
 3. 直接调用BCC0，重算完整count、current head、visible count、selected node及shared text。
 4. BCC0 typed-stop时保留上述副作用，不调用后续边界。
