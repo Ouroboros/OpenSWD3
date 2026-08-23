@@ -35,6 +35,26 @@ struct LegacyWorldInterpolationSnapshot {
     std::vector<LegacyWorldRoleRecord> roles;
 };
 
+struct LegacyWorldRoleVisualMotionTrack {
+    bool valid{};
+    compat::u16 guid{};
+    compat::i32 last_logical_x{};
+    compat::i32 last_logical_y{};
+    std::int64_t start_x_fixed{};
+    std::int64_t start_y_fixed{};
+    std::int64_t target_x_fixed{};
+    std::int64_t target_y_fixed{};
+    std::uint64_t start_time_nanoseconds{};
+    std::uint64_t duration_nanoseconds{};
+};
+
+struct LegacyWorldVisualMotionState {
+    bool valid{};
+    compat::u32 map_id{};
+    std::uint64_t display_sequence{};
+    std::vector<LegacyWorldRoleVisualMotionTrack> roles;
+};
+
 enum class LegacyWorldInterpolationStatus : compat::u8 {
     ready,
     unavailable,
@@ -59,6 +79,28 @@ interpolate_legacy_world_visual_state(
     std::uint64_t elapsed_nanoseconds,
     std::uint64_t interval_nanoseconds,
     LegacyWorldInterpolationSnapshot& output
+) noexcept;
+
+[[nodiscard]] LegacyWorldInterpolationStatus project_legacy_world_visual_state(
+    const LegacyWorldInterpolationSnapshot& older,
+    const LegacyWorldInterpolationSnapshot& previous,
+    const LegacyWorldInterpolationSnapshot& current,
+    std::uint64_t elapsed_nanoseconds,
+    std::uint64_t interval_nanoseconds,
+    LegacyWorldInterpolationSnapshot& output
+) noexcept;
+
+[[nodiscard]] LegacyWorldInterpolationStatus update_legacy_world_visual_motion(
+    LegacyWorldVisualMotionState& state,
+    const LegacyWorldInterpolationSnapshot& snapshot,
+    std::uint64_t accepted_time_nanoseconds,
+    std::uint64_t interval_nanoseconds
+) noexcept;
+
+[[nodiscard]] LegacyWorldInterpolationStatus apply_legacy_world_visual_motion(
+    LegacyWorldVisualMotionState& state,
+    std::uint64_t now_nanoseconds,
+    LegacyWorldInterpolationSnapshot& frame
 ) noexcept;
 
 [[nodiscard]] LegacyWorldInterpolationStatus apply_legacy_world_frame_residual(

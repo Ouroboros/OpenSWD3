@@ -6234,11 +6234,14 @@ private:
         if (!candidate.valid ||
             latest_presentation_site_ !=
                 openswd3::rendering::LegacyPresentationSite::steady_world) {
+            world_interpolation_older_.valid = false;
             world_interpolation_previous_.valid = false;
             world_interpolation_current_.valid = false;
+            world_visual_motion_state_ = {};
             return;
         }
 
+        world_interpolation_older_ = std::move(world_interpolation_previous_);
         world_interpolation_previous_ = std::move(world_interpolation_current_);
         world_interpolation_current_ = std::move(candidate);
         world_interpolation_current_time_nanoseconds_ =
@@ -6246,6 +6249,14 @@ private:
         world_interpolation_interval_nanoseconds_ =
             static_cast<std::uint64_t>(std::max(frame_interval_, 1U)) *
             1'000'000U;
+        if (openswd3::world_map::update_legacy_world_visual_motion(
+                world_visual_motion_state_,
+                world_interpolation_current_,
+                world_interpolation_current_time_nanoseconds_,
+                world_interpolation_interval_nanoseconds_
+            ) != openswd3::world_map::LegacyWorldInterpolationStatus::ready) {
+            world_visual_motion_state_.valid = false;
+        }
 
         if (openswd3::world_map::interpolate_legacy_world_visual_state(
                 world_interpolation_current_,
@@ -6296,11 +6307,19 @@ private:
             now_nanoseconds >= world_interpolation_current_time_nanoseconds_
             ? now_nanoseconds - world_interpolation_current_time_nanoseconds_
             : 0U;
-        if (openswd3::world_map::interpolate_legacy_world_visual_state(
+        if (openswd3::world_map::project_legacy_world_visual_state(
+                world_interpolation_older_,
                 world_interpolation_previous_,
                 world_interpolation_current_,
                 elapsed_nanoseconds,
                 world_interpolation_interval_nanoseconds_,
+                world_interpolation_display_frame_
+            ) != openswd3::world_map::LegacyWorldInterpolationStatus::ready) {
+            return restore_current_display_texture();
+        }
+        if (openswd3::world_map::apply_legacy_world_visual_motion(
+                world_visual_motion_state_,
+                now_nanoseconds,
                 world_interpolation_display_frame_
             ) != openswd3::world_map::LegacyWorldInterpolationStatus::ready) {
             return restore_current_display_texture();
@@ -6326,7 +6345,7 @@ private:
         texture_contains_world_interpolation_ = true;
         if (!world_interpolation_live_notice_logged_) {
             openswd3::diagnostics::log_info(
-                "display refresh: world camera and roles use render-only motion interpolation"
+                "display refresh: low-latency camera/player projection and action-paced temporal subpixel role motion are live"
             );
             world_interpolation_live_notice_logged_ = true;
         }
@@ -6519,6 +6538,8 @@ private:
     openswd3::rendering::LegacyRasterGeometryState
         world_interpolation_output_raster_;
     openswd3::world_map::LegacyWorldInterpolationSnapshot
+        world_interpolation_older_;
+    openswd3::world_map::LegacyWorldInterpolationSnapshot
         world_interpolation_previous_;
     openswd3::world_map::LegacyWorldInterpolationSnapshot
         world_interpolation_current_;
@@ -6526,6 +6547,8 @@ private:
         world_interpolation_current_base_frame_;
     openswd3::world_map::LegacyWorldInterpolationSnapshot
         world_interpolation_display_frame_;
+    openswd3::world_map::LegacyWorldVisualMotionState
+        world_visual_motion_state_;
     std::uint64_t accepted_frame_time_nanoseconds_{};
     std::uint64_t world_interpolation_current_time_nanoseconds_{};
     std::uint64_t world_interpolation_interval_nanoseconds_{};

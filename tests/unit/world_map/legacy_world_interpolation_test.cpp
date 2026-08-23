@@ -17,6 +17,7 @@ using openswd3::world_map::LegacyWorldFrameRuntimeState;
 using openswd3::world_map::LegacyWorldInterpolationSnapshot;
 using openswd3::world_map::LegacyWorldInterpolationStatus;
 using openswd3::world_map::LegacyWorldRoleRecord;
+using openswd3::world_map::LegacyWorldVisualMotionState;
 
 [[nodiscard]] u32 bits(const i32 value) noexcept {
     return std::bit_cast<u32>(value);
@@ -137,6 +138,128 @@ void test_motion_interpolation(openswd3::test::Context& test) {
     );
 }
 
+void test_low_latency_stable_velocity_projection(
+    openswd3::test::Context& test
+) {
+    const auto older = make_snapshot(100, -40, 120, 50, -20, 70);
+    const auto previous = make_snapshot(104, -36, 124, 54, -16, 74);
+    const auto current = make_snapshot(108, -32, 128, 58, -12, 78);
+    LegacyWorldInterpolationSnapshot output;
+
+    test.expect_equal(
+        openswd3::world_map::project_legacy_world_visual_state(
+            older, previous, current, 0U, 10U, output
+        ),
+        LegacyWorldInterpolationStatus::ready,
+        "responsive projection accepts three compatible snapshots"
+    );
+    test.expect_true(
+        output.camera_left == current.camera_left &&
+            output.camera_top == current.camera_top &&
+            output.roles[0U].world_x == current.roles[0U].world_x &&
+            output.roles[1U].world_y == previous.roles[1U].world_y,
+        "responsive camera and controlled role start current while NPC motion starts previous"
+    );
+
+    static_cast<void>(openswd3::world_map::project_legacy_world_visual_state(
+        older, previous, current, 5U, 10U, output
+    ));
+    test.expect_true(
+        output.camera_left == 110 && output.camera_top == -30 &&
+            std::bit_cast<i32>(output.roles[0U].world_x) == 130 &&
+            std::bit_cast<i32>(output.roles[0U].world_y) == 60 &&
+            std::bit_cast<i32>(output.roles[1U].world_x) == -14 &&
+            std::bit_cast<i32>(output.roles[1U].world_y) == 76,
+        "controlled motion projects while NPC motion interpolates every observed delta"
+    );
+
+    static_cast<void>(openswd3::world_map::project_legacy_world_visual_state(
+        older, previous, current, 20U, 10U, output
+    ));
+    test.expect_true(
+        output.camera_left == 112 && output.camera_top == -28 &&
+            std::bit_cast<i32>(output.roles[0U].world_x) == 132 &&
+            std::bit_cast<i32>(output.roles[1U].world_y) == 78,
+        "responsive projection clamps while NPC interpolation reaches current"
+    );
+
+    auto scripted_current = current;
+    scripted_current.roles[0U].flags |= 0x00008000U;
+    static_cast<void>(openswd3::world_map::project_legacy_world_visual_state(
+        older, previous, scripted_current, 5U, 10U, output
+    ));
+    test.expect_true(
+        std::bit_cast<i32>(output.roles[0U].world_x) == 126 &&
+            std::bit_cast<i32>(output.roles[0U].world_y) == 56,
+        "scripted path motion interpolates even when it owns the controlled role"
+    );
+
+    LegacyWorldInterpolationSnapshot missing_older;
+    static_cast<void>(openswd3::world_map::project_legacy_world_visual_state(
+        missing_older, previous, current, 5U, 10U, output
+    ));
+    test.expect_true(
+        output.camera_left == current.camera_left &&
+            output.roles[0U].world_x == current.roles[0U].world_x &&
+            std::bit_cast<i32>(output.roles[1U].world_x) == -14,
+        "NPC interpolation does not wait for stable three-frame history"
+    );
+}
+
+void test_low_latency_transition_snap(openswd3::test::Context& test) {
+    const auto stationary = make_snapshot(100, 0, 100, 0, 10, 10);
+    const auto moving = make_snapshot(104, 0, 104, 0, 14, 10);
+    LegacyWorldInterpolationSnapshot output;
+
+    static_cast<void>(openswd3::world_map::project_legacy_world_visual_state(
+        stationary, stationary, moving, 1U, 2U, output
+    ));
+    test.expect_true(
+        output.camera_left == moving.camera_left &&
+            output.roles[0U].world_x == moving.roles[0U].world_x,
+        "motion start snaps to current instead of guessing a new velocity"
+    );
+
+    static_cast<void>(openswd3::world_map::project_legacy_world_visual_state(
+        stationary, moving, moving, 1U, 2U, output
+    ));
+    test.expect_true(
+        output.camera_left == moving.camera_left &&
+            output.roles[0U].world_x == moving.roles[0U].world_x,
+        "motion stop snaps to current without visual coasting"
+    );
+
+    auto turned = make_snapshot(102, 0, 102, 0, 12, 10);
+    static_cast<void>(openswd3::world_map::project_legacy_world_visual_state(
+        stationary, moving, turned, 1U, 2U, output
+    ));
+    test.expect_true(
+        output.camera_left == turned.camera_left &&
+            output.roles[0U].world_x == turned.roles[0U].world_x,
+        "direction or speed changes snap to current without stale prediction"
+    );
+
+    auto teleported_previous = make_snapshot(500, 0, 500, 0, 10, 10);
+    auto teleported_current = make_snapshot(1000, 0, 1000, 0, 10, 10);
+    static_cast<void>(openswd3::world_map::project_legacy_world_visual_state(
+        stationary, teleported_previous, teleported_current, 1U, 2U, output
+    ));
+    test.expect_true(
+        output.camera_left == teleported_current.camera_left &&
+            output.roles[0U].world_x == teleported_current.roles[0U].world_x,
+        "large deltas remain teleport snaps in responsive mode"
+    );
+
+    turned.map_id = 8U;
+    test.expect_equal(
+        openswd3::world_map::project_legacy_world_visual_state(
+            stationary, moving, turned, 1U, 2U, output
+        ),
+        LegacyWorldInterpolationStatus::incompatible_snapshots,
+        "responsive projection rejects cross-map history"
+    );
+}
+
 void test_incompatible_and_teleport_snap(openswd3::test::Context& test) {
     const auto previous = make_snapshot(0, 0, 0, 0, 10, 10);
     auto current = make_snapshot(500, 0, 500, 0, 20, 20);
@@ -163,6 +286,126 @@ void test_incompatible_and_teleport_snap(openswd3::test::Context& test) {
         ),
         LegacyWorldInterpolationStatus::incompatible_snapshots,
         "role identity changes reject cross-scene interpolation"
+    );
+}
+
+void test_scripted_motion_spans_action_wait(openswd3::test::Context& test) {
+    auto initial = make_snapshot(0, 0, 0, 0, 0, 0);
+    LegacyWorldVisualMotionState state;
+    test.expect_equal(
+        openswd3::world_map::update_legacy_world_visual_motion(
+            state, initial, 0U, 10U
+        ),
+        LegacyWorldInterpolationStatus::ready,
+        "visual motion initializes from the first accepted world snapshot"
+    );
+
+    auto moved = initial;
+    moved.roles[1U].world_x = bits(4);
+    moved.roles[1U].action.wait_remaining = 3U;
+    static_cast<void>(openswd3::world_map::update_legacy_world_visual_motion(
+        state, moved, 10U, 10U
+    ));
+
+    LegacyWorldInterpolationSnapshot display = moved;
+    static_cast<void>(openswd3::world_map::apply_legacy_world_visual_motion(
+        state, 10U, display
+    ));
+    test.expect_equal(
+        std::bit_cast<i32>(display.roles[1U].world_x),
+        i32{0},
+        "scripted display motion starts from the prior visual position"
+    );
+
+    auto held = moved;
+    held.roles[1U].action.wait_remaining = 2U;
+    static_cast<void>(openswd3::world_map::update_legacy_world_visual_motion(
+        state, held, 20U, 10U
+    ));
+    display = held;
+    static_cast<void>(openswd3::world_map::apply_legacy_world_visual_motion(
+        state, 20U, display
+    ));
+    test.expect_equal(
+        std::bit_cast<i32>(display.roles[1U].world_x),
+        i32{1},
+        "unchanged logical snapshots keep advancing the active visual segment"
+    );
+
+    display = held;
+    static_cast<void>(openswd3::world_map::apply_legacy_world_visual_motion(
+        state, 30U, display
+    ));
+    test.expect_equal(
+        std::bit_cast<i32>(display.roles[1U].world_x),
+        i32{2},
+        "path motion reaches its midpoint across the action wait cycle"
+    );
+
+    display = held;
+    static_cast<void>(openswd3::world_map::apply_legacy_world_visual_motion(
+        state, 50U, display
+    ));
+    test.expect_equal(
+        std::bit_cast<i32>(display.roles[1U].world_x),
+        i32{4},
+        "path motion reaches the logical target when the action wait expires"
+    );
+}
+
+void test_temporal_subpixel_quantization(openswd3::test::Context& test) {
+    auto initial = make_snapshot(0, 0, 0, 0, 0, 0);
+    LegacyWorldVisualMotionState state;
+    static_cast<void>(openswd3::world_map::update_legacy_world_visual_motion(
+        state, initial, 0U, 10U
+    ));
+
+    auto moved = initial;
+    moved.roles[1U].world_x = bits(1);
+    moved.roles[1U].world_y = bits(1);
+    moved.roles[1U].action.wait_remaining = 3U;
+    static_cast<void>(openswd3::world_map::update_legacy_world_visual_motion(
+        state, moved, 10U, 10U
+    ));
+
+    u32 horizontal_upper_samples = 0U;
+    u32 vertical_upper_samples = 0U;
+    for (u32 sample = 0U; sample < 256U; ++sample) {
+        LegacyWorldInterpolationSnapshot display = moved;
+        static_cast<void>(openswd3::world_map::apply_legacy_world_visual_motion(
+            state, 30U, display
+        ));
+        if (std::bit_cast<i32>(display.roles[1U].world_x) == 1) {
+            ++horizontal_upper_samples;
+        }
+        if (std::bit_cast<i32>(display.roles[1U].world_y) == 1) {
+            ++vertical_upper_samples;
+        }
+    }
+    test.expect_equal(
+        horizontal_upper_samples,
+        u32{256U},
+        "horizontal half-pixels use monotonic nearest sampling without backtracking"
+    );
+    test.expect_equal(
+        vertical_upper_samples,
+        u32{128U},
+        "240 Hz low-discrepancy vertical sampling represents a half-pixel without changing logic"
+    );
+
+    auto teleported = moved;
+    teleported.roles[1U].world_x = bits(500);
+    static_cast<void>(openswd3::world_map::update_legacy_world_visual_motion(
+        state, teleported, 60U, 10U
+    ));
+    LegacyWorldInterpolationSnapshot display = teleported;
+    static_cast<void>(openswd3::world_map::apply_legacy_world_visual_motion(
+        state, 60U, display
+    ));
+    test.expect_equal(
+        std::bit_cast<i32>(display.roles[1U].world_x),
+        i32{500},
+        "large visual deltas remain immediate teleport snaps"
     );
 }
 
@@ -197,7 +440,11 @@ int main() {
     openswd3::test::Context test;
     test_snapshot_capture(test);
     test_motion_interpolation(test);
+    test_low_latency_stable_velocity_projection(test);
+    test_low_latency_transition_snap(test);
     test_incompatible_and_teleport_snap(test);
+    test_scripted_motion_spans_action_wait(test);
+    test_temporal_subpixel_quantization(test);
     test_residual_overlay(test);
     return test.exit_code();
 }
