@@ -26,7 +26,7 @@
 
 ## 3. 链表修正与常量owner
 
-两个0xB0 runtime records精确清零。外部adjustment单链逐节点执行16-bit `combined = first + second`；`0xFFFF+2`回绕为1。
+两个0xB0 runtime records精确清零。与forward owner共享节点类型的外部adjustment单链逐节点执行16-bit `combined = first + second`；`0xFFFF+2`回绕为1。
 
 随后只写原字段，其他action内容保持：
 

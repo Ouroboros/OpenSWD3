@@ -523,6 +523,10 @@ bind_legacy_standard_mode_callbacks(
 struct LegacyStandardModeForwardNode {
     const LegacyStandardModeForwardNode* next{};
     compat::u16 text_index{};
+    compat::u16 combined_value{};
+    compat::u16 first_value{};
+    compat::u16 second_value{};
+    compat::u32 release_token{};
 };
 
 class LegacyStandardModeMissingNodePorts {
@@ -698,14 +702,6 @@ struct LegacyStandardModeAvailabilityResult {
 inline constexpr std::size_t kLegacyStandardModeDatabaseRecordCount = 0x4B0U;
 inline constexpr std::size_t kLegacyStandardModeMirrorSourceCount = 0x7FU;
 
-struct LegacyStandardModeAdjustmentNode {
-    LegacyStandardModeAdjustmentNode* next{};
-    compat::u16 field_04{};
-    compat::u16 combined_value{};
-    compat::u16 first_value{};
-    compat::u16 second_value{};
-};
-
 struct LegacyStandardModeDatabaseInitializationState {
     std::array<compat::i32, kLegacyStandardModeDatabaseRecordCount>
         field_5e_table{};
@@ -718,7 +714,7 @@ struct LegacyStandardModeDatabaseInitializationState {
     std::array<compat::u8, 0xB0U> scan_record{};
     std::array<compat::u8, 0xB0U> first_runtime_record{};
     std::array<compat::u8, 0xB0U> second_runtime_record{};
-    LegacyStandardModeAdjustmentNode* adjustment_head{};
+    LegacyStandardModeForwardNode* adjustment_head{};
     LegacyStandardModeForwardNode* forward_head{};
     const LegacyStandardModeForwardNode* bounded_forward_node{};
     compat::u32 forward_count{};
@@ -726,6 +722,11 @@ struct LegacyStandardModeDatabaseInitializationState {
     asset_runtime::LegacyActionRecord primary_action{};
     asset_runtime::LegacyActionRecord secondary_action{};
     compat::u32 interface_source_value{};
+    compat::u32 first_heap_token{};
+    compat::u32 second_heap_token{};
+    std::array<compat::u8, 0xB0U> first_inline_record{};
+    std::array<compat::u8, 0xB0U> second_inline_record{};
+    asset_runtime::LegacyActionRecord cleanup_action{};
     compat::u32 first_reset{};
     compat::u32 second_reset{};
     compat::u32 third_reset{};
@@ -756,6 +757,47 @@ struct LegacyStandardModeDatabaseInitializationResult {
     compat::u32 released_record_count{};
     compat::u32 adjusted_node_count{};
     compat::u32 mirror_write_count{};
+};
+
+enum class LegacyStandardModeDatabaseStorageKind : compat::u8 {
+    first_runtime_record,
+    second_runtime_record,
+    field_5e_table,
+    field_60_table,
+    field_2c_table,
+    field_a7_table,
+    small_buffer_0,
+    small_buffer_1,
+    small_buffer_2,
+    small_buffer_3,
+    large_buffer_0,
+    large_buffer_1,
+    large_buffer_2,
+    large_buffer_3,
+    mirrored_values,
+};
+
+struct LegacyStandardModeDatabaseCleanupResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 optional_heap_release_count{};
+    compat::u32 runtime_token_release_count{};
+    compat::u32 remaining_forward_node_count{};
+    compat::u32 storage_release_count{};
+};
+
+class LegacyStandardModeDatabaseCleanupPorts {
+public:
+    virtual ~LegacyStandardModeDatabaseCleanupPorts() = default;
+    virtual void release_external_forward_list(
+        LegacyStandardModeForwardNode*& forward_head,
+        LegacyStandardModeForwardNode*& adjustment_head
+    ) noexcept = 0;
+    virtual void release_value(compat::u32 value) noexcept = 0;
+    virtual void
+    release_forward_node(LegacyStandardModeForwardNode* node) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 release_database_storage(
+        LegacyStandardModeDatabaseStorageKind kind
+    ) noexcept = 0;
 };
 
 class LegacyStandardModeDatabaseInitializationPorts {
@@ -1543,6 +1585,13 @@ render_legacy_standard_mode_entry(
     compat::i32 selected,
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeRuntimeRenderPorts& ports
+) noexcept;
+
+// sub_43D880: release standard-mode database runtime owners.
+[[nodiscard]] LegacyStandardModeDatabaseCleanupResult
+release_legacy_standard_mode_database(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseCleanupPorts& ports
 ) noexcept;
 
 // sub_43D530: initialize standard-mode record tables and runtime owners.

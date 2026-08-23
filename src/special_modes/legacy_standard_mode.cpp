@@ -2183,6 +2183,84 @@ LegacyStandardModeEntryRenderResult render_legacy_standard_mode_entry(
     return result;
 }
 
+LegacyStandardModeDatabaseCleanupResult release_legacy_standard_mode_database(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseCleanupPorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseCleanupResult result;
+    state.primary_action.action_id = 0x232AU;
+    state.primary_action.base_variant = 0x39U;
+    state.cleanup_action.action_id = 0x232AU;
+    state.cleanup_action.base_variant = 3U;
+    ports.release_external_forward_list(
+        state.forward_head, state.adjustment_head
+    );
+
+    if (state.first_heap_token != 0U) {
+        ports.release_value(state.first_heap_token);
+        state.first_heap_token = 0U;
+        ++result.optional_heap_release_count;
+    }
+    if (state.second_heap_token != 0U) {
+        ports.release_value(state.second_heap_token);
+        state.second_heap_token = 0U;
+        ++result.optional_heap_release_count;
+    }
+    state.first_inline_record.fill(0U);
+    state.second_inline_record.fill(0U);
+
+    const auto release_runtime_token =
+        [&](std::array<compat::u8, 0xB0U>& record) {
+            const compat::u32 token = read_u32_le(record, 0xACU);
+            if (token == 0U) {
+                return;
+            }
+            ports.release_value(token);
+            record[0xACU] = 0U;
+            record[0xADU] = 0U;
+            record[0xAEU] = 0U;
+            record[0xAFU] = 0U;
+            ++result.runtime_token_release_count;
+        };
+    release_runtime_token(state.first_runtime_record);
+    release_runtime_token(state.second_runtime_record);
+
+    while (state.forward_head != nullptr) {
+        LegacyStandardModeForwardNode* node = state.forward_head;
+        state.forward_head =
+            const_cast<LegacyStandardModeForwardNode*>(node->next);
+        ports.release_value(node->release_token);
+        ports.release_forward_node(node);
+        ++result.remaining_forward_node_count;
+    }
+
+    static constexpr std::array<LegacyStandardModeDatabaseStorageKind, 15U>
+        kStorageReleaseOrder{
+            LegacyStandardModeDatabaseStorageKind::first_runtime_record,
+            LegacyStandardModeDatabaseStorageKind::second_runtime_record,
+            LegacyStandardModeDatabaseStorageKind::field_5e_table,
+            LegacyStandardModeDatabaseStorageKind::field_60_table,
+            LegacyStandardModeDatabaseStorageKind::field_2c_table,
+            LegacyStandardModeDatabaseStorageKind::field_a7_table,
+            LegacyStandardModeDatabaseStorageKind::small_buffer_0,
+            LegacyStandardModeDatabaseStorageKind::small_buffer_1,
+            LegacyStandardModeDatabaseStorageKind::small_buffer_2,
+            LegacyStandardModeDatabaseStorageKind::small_buffer_3,
+            LegacyStandardModeDatabaseStorageKind::large_buffer_0,
+            LegacyStandardModeDatabaseStorageKind::large_buffer_1,
+            LegacyStandardModeDatabaseStorageKind::large_buffer_2,
+            LegacyStandardModeDatabaseStorageKind::large_buffer_3,
+            LegacyStandardModeDatabaseStorageKind::mirrored_values,
+        };
+    for (const LegacyStandardModeDatabaseStorageKind kind :
+         kStorageReleaseOrder) {
+        result.legacy_return_value = ports.release_database_storage(kind);
+        ++result.storage_release_count;
+    }
+    state.callback_phase = 1U;
+    return result;
+}
+
 LegacyStandardModeDatabaseInitializationResult
 initialize_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,
@@ -2225,9 +2303,9 @@ initialize_legacy_standard_mode_database(
 
     state.first_runtime_record.fill(0U);
     state.second_runtime_record.fill(0U);
-    for (LegacyStandardModeAdjustmentNode* node = state.adjustment_head;
+    for (LegacyStandardModeForwardNode* node = state.adjustment_head;
          node != nullptr;
-         node = node->next) {
+         node = const_cast<LegacyStandardModeForwardNode*>(node->next)) {
         node->combined_value = static_cast<compat::u16>(
             static_cast<compat::u32>(node->first_value) +
             static_cast<compat::u32>(node->second_value)

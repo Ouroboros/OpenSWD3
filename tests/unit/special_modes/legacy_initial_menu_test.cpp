@@ -61,6 +61,7 @@ using openswd3::special_modes::
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
 using openswd3::special_modes::rebuild_legacy_standard_mode_entry_alias;
 using openswd3::special_modes::refresh_legacy_standard_mode_page;
+using openswd3::special_modes::release_legacy_standard_mode_database;
 using openswd3::special_modes::render_legacy_standard_mode_entry;
 using openswd3::special_modes::render_legacy_standard_mode_mode_strip;
 using openswd3::special_modes::render_legacy_standard_mode_runtime;
@@ -100,7 +101,6 @@ using openswd3::special_modes::LegacyStandardModeInputState;
 using openswd3::special_modes::LegacyStandardModeAnimatedPanelPorts;
 using openswd3::special_modes::LegacyStandardModeAvailabilityRecord;
 using openswd3::special_modes::LegacyStandardModeAvailabilityStatus;
-using openswd3::special_modes::LegacyStandardModeAdjustmentNode;
 using openswd3::special_modes::LegacyStandardModeAnimatedPanelState;
 using openswd3::special_modes::LegacyStandardModeBarFrame;
 using openswd3::special_modes::LegacyStandardModeBarOutputs;
@@ -2528,11 +2528,11 @@ void test_standard_mode_database_initialization(openswd3::test::Context& test) {
         std::vector<u32> interface_values;
     };
 
-    LegacyStandardModeAdjustmentNode second_adjustment{
+    LegacyStandardModeForwardNode second_adjustment{
         .first_value = 7U,
         .second_value = 9U,
     };
-    LegacyStandardModeAdjustmentNode first_adjustment{
+    LegacyStandardModeForwardNode first_adjustment{
         .next = &second_adjustment,
         .first_value = 0xFFFFU,
         .second_value = 2U,
@@ -2656,6 +2656,173 @@ void test_standard_mode_database_initialization(openswd3::test::Context& test) {
                     [](const i32 value) { return value == 99; }
                 ),
             "0x43D530 mirror typed-stop occurs after setup and before final writes"
+        );
+    }
+}
+
+void test_standard_mode_database_cleanup(openswd3::test::Context& test) {
+    using StorageKind =
+        openswd3::special_modes::LegacyStandardModeDatabaseStorageKind;
+    class CleanupPorts final : public openswd3::special_modes::
+                                   LegacyStandardModeDatabaseCleanupPorts {
+    public:
+        void release_external_forward_list(
+            LegacyStandardModeForwardNode*& forward_head,
+            LegacyStandardModeForwardNode*& adjustment_head
+        ) noexcept override {
+            events.push_back(0U);
+            ++external_release_count;
+            observed_adjustment_head = adjustment_head;
+            if (drain_external_list) {
+                forward_head = nullptr;
+            }
+        }
+        void release_value(const u32 value) noexcept override {
+            events.push_back(1U);
+            released_values.push_back(value);
+        }
+        void release_forward_node(
+            LegacyStandardModeForwardNode* node
+        ) noexcept override {
+            events.push_back(2U);
+            released_nodes.push_back(node);
+        }
+        [[nodiscard]] i32
+        release_database_storage(const StorageKind kind) noexcept override {
+            events.push_back(3U);
+            released_storage.push_back(kind);
+            return kind == StorageKind::mirrored_values ? -321 : 0;
+        }
+
+        bool drain_external_list{};
+        u32 external_release_count{};
+        LegacyStandardModeForwardNode* observed_adjustment_head{};
+        std::vector<u8> events;
+        std::vector<u32> released_values;
+        std::vector<LegacyStandardModeForwardNode*> released_nodes;
+        std::vector<StorageKind> released_storage;
+    };
+    const auto write_token = [](auto& record, const u32 token) {
+        record[0xACU] = static_cast<u8>(token);
+        record[0xADU] = static_cast<u8>(token >> 8U);
+        record[0xAEU] = static_cast<u8>(token >> 16U);
+        record[0xAFU] = static_cast<u8>(token >> 24U);
+    };
+
+    LegacyStandardModeForwardNode adjustment{};
+    LegacyStandardModeForwardNode second{
+        .release_token = 0U,
+    };
+    LegacyStandardModeForwardNode first{
+        .next = &second,
+        .release_token = 0x33333333U,
+    };
+    openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+        state;
+    state.adjustment_head = &adjustment;
+    state.forward_head = &first;
+    state.first_heap_token = 0x11111111U;
+    state.second_heap_token = 0U;
+    state.first_inline_record.fill(0xA5U);
+    state.second_inline_record.fill(0x5AU);
+    write_token(state.first_runtime_record, 0x22222222U);
+    write_token(state.second_runtime_record, 0U);
+    state.primary_action.cached_action_id = 0xCAFEBABEU;
+    state.cleanup_action.cached_action_id = 0x0BADF00DU;
+    state.field_5e_table[0U] = 99;
+    state.small_buffers[0U][0U] = 0x66U;
+    state.mirrored_values[0U] = 77;
+    state.callback_phase = 2U;
+    CleanupPorts ports;
+
+    const auto result = release_legacy_standard_mode_database(state, ports);
+    const std::vector<StorageKind> expected_storage{
+        StorageKind::first_runtime_record,
+        StorageKind::second_runtime_record,
+        StorageKind::field_5e_table,
+        StorageKind::field_60_table,
+        StorageKind::field_2c_table,
+        StorageKind::field_a7_table,
+        StorageKind::small_buffer_0,
+        StorageKind::small_buffer_1,
+        StorageKind::small_buffer_2,
+        StorageKind::small_buffer_3,
+        StorageKind::large_buffer_0,
+        StorageKind::large_buffer_1,
+        StorageKind::large_buffer_2,
+        StorageKind::large_buffer_3,
+        StorageKind::mirrored_values,
+    };
+    test.expect_true(
+        result.legacy_return_value == -321 &&
+            result.optional_heap_release_count == 1U &&
+            result.runtime_token_release_count == 1U &&
+            result.remaining_forward_node_count == 2U &&
+            result.storage_release_count == 15U &&
+            ports.external_release_count == 1U &&
+            ports.observed_adjustment_head == &adjustment &&
+            ports.released_values ==
+                std::vector<u32>{
+                    0x11111111U,
+                    0x22222222U,
+                    0x33333333U,
+                    0U,
+                } &&
+            ports.released_nodes ==
+                std::vector<LegacyStandardModeForwardNode*>{&first, &second} &&
+            ports.released_storage == expected_storage,
+        "0x43D880 preserves F080, optional tokens, residual nodes and 15-storage release order"
+    );
+    test.expect_true(
+        state.primary_action.action_id == 0x232AU &&
+            state.primary_action.base_variant == 0x39U &&
+            state.primary_action.cached_action_id == 0xCAFEBABEU &&
+            state.cleanup_action.action_id == 0x232AU &&
+            state.cleanup_action.base_variant == 3U &&
+            state.cleanup_action.cached_action_id == 0x0BADF00DU &&
+            state.first_heap_token == 0U && state.second_heap_token == 0U &&
+            std::ranges::all_of(
+                state.first_inline_record,
+                [](const u8 value) { return value == 0U; }
+            ) &&
+            std::ranges::all_of(
+                state.second_inline_record,
+                [](const u8 value) { return value == 0U; }
+            ) &&
+            state.first_runtime_record[0xACU] == 0U &&
+            state.second_runtime_record[0xACU] == 0U &&
+            state.forward_head == nullptr && state.callback_phase == 1U &&
+            state.field_5e_table[0U] == 99 &&
+            state.small_buffers[0U][0U] == 0x66U &&
+            state.mirrored_values[0U] == 77,
+        "0x43D880 clears only owned tokens/inline records and leaves released storage bytes dangling"
+    );
+    test.expect_true(
+        ports.events.size() == 22U && ports.events.front() == 0U &&
+            ports.events[1U] == 1U && ports.events[2U] == 1U &&
+            ports.events[3U] == 1U && ports.events[4U] == 2U &&
+            ports.events[5U] == 1U && ports.events[6U] == 2U &&
+            std::ranges::all_of(
+                ports.events.begin() + 7,
+                ports.events.end(),
+                [](const u8 event) { return event == 3U; }
+            ),
+        "0x43D880 keeps exact cross-owner event order through final mirror release EAX"
+    );
+
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            drained_state;
+        drained_state.forward_head = &first;
+        CleanupPorts drained_ports;
+        drained_ports.drain_external_list = true;
+        const auto drained =
+            release_legacy_standard_mode_database(drained_state, drained_ports);
+        test.expect_true(
+            drained.remaining_forward_node_count == 0U &&
+                drained_ports.released_nodes.empty() &&
+                drained_state.forward_head == nullptr,
+            "0x43D880 observes the forward head after F080 drains it"
         );
     }
 }
@@ -6784,6 +6951,7 @@ int main() {
     test_standard_mode_page_refresh(test);
     test_standard_mode_entry_initialization(test);
     test_standard_mode_database_initialization(test);
+    test_standard_mode_database_cleanup(test);
     test_standard_mode_runtime_initialization(test);
     test_standard_mode_entry_consumption(test);
     test_standard_mode_runtime_input_dispatch(test);
