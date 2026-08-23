@@ -17,6 +17,7 @@ using openswd3::compat::i16;
 using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
+using openswd3::input_time_rng::kLegacyInputRecordCount;
 using openswd3::input_time_rng::LegacyInputRecord;
 using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
@@ -34,12 +35,16 @@ using openswd3::special_modes::LegacyInitialMenuEvent;
 using openswd3::special_modes::LegacyInitialMenuInput;
 using openswd3::special_modes::LegacyInitialMenuState;
 using openswd3::special_modes::run_legacy_initial_menu_frame;
+using openswd3::special_modes::run_legacy_standard_mode_input_dispatch;
 using openswd3::special_modes::run_legacy_standard_special_mode_frame;
 using openswd3::special_modes::kLegacySpecialModeAlternateFlag;
 using openswd3::special_modes::kLegacySpecialModeInitializeFlag;
 using openswd3::special_modes::LegacyLowSpecialModeInitialization;
 using openswd3::special_modes::LegacyModeThreeSixRecordInitialization;
 using openswd3::special_modes::LegacyStandardModeItemPorts;
+using openswd3::special_modes::LegacyStandardModeInputCallback;
+using openswd3::special_modes::LegacyStandardModeInputPorts;
+using openswd3::special_modes::LegacyStandardModeInputState;
 using openswd3::special_modes::LegacyStandardModeItemState;
 using openswd3::special_modes::LegacyStandardModeSelectorPorts;
 using openswd3::special_modes::LegacyStandardModeSelectorState;
@@ -165,6 +170,31 @@ public:
     std::array<i32, 4U> flags{};
     std::vector<u32> queried_flags;
     bool first_query_saw_exact_reset{};
+};
+
+class FakeStandardModeInputPorts final : public LegacyStandardModeInputPorts {
+public:
+    explicit FakeStandardModeInputPorts(
+        std::array<LegacyInputRecord, kLegacyInputRecordCount>& records
+    ) noexcept
+        : records_(records) {}
+
+    bool dynamic_pre_callback_present() const override {
+        return dynamic_pre_present;
+    }
+
+    void invoke(const LegacyStandardModeInputCallback callback) override {
+        callbacks.push_back(callback);
+        if (callback == LegacyStandardModeInputCallback::record_three &&
+            mutate_record_seven_after_record_three) {
+            records_[7U].held_sample_count = 9U;
+        }
+    }
+
+    std::array<LegacyInputRecord, kLegacyInputRecordCount>& records_;
+    std::vector<LegacyStandardModeInputCallback> callbacks;
+    bool dynamic_pre_present{};
+    bool mutate_record_seven_after_record_three{};
 };
 
 class FakeStandardModeSelectorPorts final
@@ -632,6 +662,96 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_input_dispatch(openswd3::test::Context& test) {
+    std::array<LegacyInputRecord, kLegacyInputRecordCount> records{};
+    const auto trigger =
+        [&records](const std::size_t index, const u32 held_sample_count) {
+            records[index].rapid_press_multiplicity = 1U;
+            records[index].held_sample_count = held_sample_count;
+        };
+    trigger(0U, 1U);
+    trigger(9U, 1U);
+    trigger(2U, 1U);
+    trigger(10U, 1U);
+    trigger(6U, 1U);
+    trigger(4U, 8U);
+    trigger(8U, 10U);
+    trigger(7U, 12U);
+    trigger(3U, 8U);
+    trigger(5U, 10U);
+    trigger(1U, 1U);
+    trigger(12U, 1U);
+
+    LegacyStandardModeInputState state;
+    FakeStandardModeInputPorts ports{records};
+    ports.dynamic_pre_present = true;
+    ports.mutate_record_seven_after_record_three = true;
+    const auto result =
+        run_legacy_standard_mode_input_dispatch(state, records, ports);
+    test.expect_true(
+        ports.callbacks ==
+                std::vector<LegacyStandardModeInputCallback>{
+                    LegacyStandardModeInputCallback::dynamic_pre,
+                    LegacyStandardModeInputCallback::primary,
+                    LegacyStandardModeInputCallback::shared_overlay,
+                    LegacyStandardModeInputCallback::shared_overlay,
+                    LegacyStandardModeInputCallback::record_two,
+                    LegacyStandardModeInputCallback::record_ten,
+                    LegacyStandardModeInputCallback::record_six,
+                    LegacyStandardModeInputCallback::record_four,
+                    LegacyStandardModeInputCallback::record_eight,
+                    LegacyStandardModeInputCallback::record_seven,
+                    LegacyStandardModeInputCallback::record_three,
+                    LegacyStandardModeInputCallback::exit,
+                } &&
+            records[7U].held_sample_count == 9U &&
+            state.shared_overlay_cooldown == 5U &&
+            result.callback_count == 12U &&
+            result.shared_overlay_callback_count == 2U &&
+            result.exit_callback_count == 1U,
+        "0x43A470 keeps all independent callback gates in address order, " "decrements a newly armed cooldown and short-circuits the exit pair"
+    );
+
+    std::array<LegacyInputRecord, kLegacyInputRecordCount> stale_records{};
+    stale_records[7U].held_sample_count = 2U;
+    stale_records[3U].rapid_press_multiplicity = 1U;
+    stale_records[3U].held_sample_count = 9U;
+    stale_records[5U].rapid_press_multiplicity = 1U;
+    stale_records[5U].held_sample_count = 10U;
+    LegacyStandardModeInputState stale_state;
+    FakeStandardModeInputPorts stale_ports{stale_records};
+    static_cast<void>(run_legacy_standard_mode_input_dispatch(
+        stale_state, stale_records, stale_ports
+    ));
+    test.expect_true(
+        stale_ports.callbacks ==
+                std::vector<LegacyStandardModeInputCallback>{
+                    LegacyStandardModeInputCallback::primary,
+                    LegacyStandardModeInputCallback::record_three,
+                    LegacyStandardModeInputCallback::record_five,
+                } &&
+            stale_state.shared_overlay_cooldown == 0U,
+        "record three and five repeat gates preserve the original stale AL " "bit from record seven instead of testing their own held counts"
+    );
+
+    std::array<LegacyInputRecord, kLegacyInputRecordCount> wrap_records{};
+    LegacyStandardModeInputState wrap_state{
+        .shared_overlay_cooldown = 0x80000000U,
+    };
+    FakeStandardModeInputPorts wrap_ports{wrap_records};
+    static_cast<void>(run_legacy_standard_mode_input_dispatch(
+        wrap_state, wrap_records, wrap_ports
+    ));
+    test.expect_true(
+        wrap_state.shared_overlay_cooldown == 0x7FFFFFFFU &&
+            wrap_ports.callbacks ==
+                std::vector<LegacyStandardModeInputCallback>{
+                    LegacyStandardModeInputCallback::primary,
+                },
+        "the cooldown uses wrapping DEC followed by the x86 sign flag clamp"
+    );
+}
+
 void test_standard_mode_item_initialization(openswd3::test::Context& test) {
     LegacyStandardModeItemState state;
     for (std::size_t index = 0U; index < state.records.size(); ++index) {
@@ -912,6 +1032,7 @@ int main() {
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
     test_standard_mode_global_initialization(test);
+    test_standard_mode_input_dispatch(test);
     test_standard_mode_item_initialization(test);
     test_standard_mode_selector_initialization(test);
     test_standard_mode_entry_and_common_order(test);

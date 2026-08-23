@@ -4801,6 +4801,29 @@ public:
         );
     }
 
+    void process_standard_mode_input() {
+        class InputPorts final
+            : public openswd3::special_modes::LegacyStandardModeInputPorts {
+        public:
+            bool dynamic_pre_callback_present() const override {
+                return false;
+            }
+
+            void invoke(
+                openswd3::special_modes::LegacyStandardModeInputCallback
+            ) override {}
+        };
+
+        InputPorts ports;
+        static_cast<void>(
+            openswd3::special_modes::run_legacy_standard_mode_input_dispatch(
+                legacy_standard_mode_state_.selector_state.input_state,
+                input_state_.records,
+                ports
+            )
+        );
+    }
+
     openswd3::app::StandardSpecialModeEvent step_initial_menu_special_mode() {
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
@@ -4942,7 +4965,9 @@ public:
 
             void update_mode_objects() override {}
 
-            void process_mode_input(openswd3::compat::u32&) override {}
+            void process_mode_input(openswd3::compat::u32&) override {
+                owner_.process_standard_mode_input();
+            }
 
             void draw_mode(openswd3::compat::u32& tagged_mode_value) override {
                 if ((tagged_mode_value &

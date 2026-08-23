@@ -27,6 +27,18 @@ constexpr compat::u16 kUnavailableItemIndex = 0xFFFFU;
 constexpr compat::u16 kFirstSharedItemIndex = 8U;
 constexpr compat::u16 kAvailableItemState = 1U;
 constexpr compat::u16 kSelectedItemState = 2U;
+constexpr std::size_t kInputRecordExitPrimary = 1U;
+constexpr std::size_t kInputRecordTwo = 2U;
+constexpr std::size_t kInputRecordStaleGateFirst = 3U;
+constexpr std::size_t kInputRecordRepeatFour = 4U;
+constexpr std::size_t kInputRecordStaleGateSecond = 5U;
+constexpr std::size_t kInputRecordRepeatSix = 6U;
+constexpr std::size_t kInputRecordRepeatSeven = 7U;
+constexpr std::size_t kInputRecordRepeatEight = 8U;
+constexpr std::size_t kInputRecordSharedOverlay = 9U;
+constexpr std::size_t kInputRecordTen = 10U;
+constexpr std::size_t kInputRecordExitSecondary = 12U;
+constexpr compat::u32 kSharedOverlayCooldownReset = 6U;
 
 constexpr std::size_t kPrimaryRecord = 0U;
 constexpr std::size_t kFlagVariantRecord = 1U;
@@ -54,7 +66,141 @@ void set_action(
     record.base_variant = base_variant;
 }
 
+[[nodiscard]] bool
+strict_press(const input_time_rng::LegacyInputRecord& record) noexcept {
+    return record.rapid_press_multiplicity != 0U &&
+        record.held_sample_count == 1U;
+}
+
+[[nodiscard]] bool
+repeat_press(const input_time_rng::LegacyInputRecord& record) noexcept {
+    return record.rapid_press_multiplicity != 0U &&
+        (record.held_sample_count == 1U ||
+         ((record.held_sample_count & 1U) == 0U &&
+          std::bit_cast<compat::i32>(record.held_sample_count) > 7));
+}
+
+[[nodiscard]] bool stale_low_bit_repeat_press(
+    const input_time_rng::LegacyInputRecord& record,
+    const compat::u8 stale_low_byte
+) noexcept {
+    return record.rapid_press_multiplicity != 0U &&
+        (record.held_sample_count == 1U ||
+         ((stale_low_byte & 1U) == 0U &&
+          std::bit_cast<compat::i32>(record.held_sample_count) > 7));
+}
+
+void invoke_input_callback(
+    LegacyStandardModeInputPorts& ports,
+    LegacyStandardModeInputResult& result,
+    const LegacyStandardModeInputCallback callback
+) {
+    ports.invoke(callback);
+    ++result.callback_count;
+}
+
 }  // namespace
+
+LegacyStandardModeInputResult run_legacy_standard_mode_input_dispatch(
+    LegacyStandardModeInputState& state,
+    std::array<
+        input_time_rng::LegacyInputRecord,
+        input_time_rng::kLegacyInputRecordCount>& input_records,
+    LegacyStandardModeInputPorts& ports
+) noexcept {
+    LegacyStandardModeInputResult result;
+    if (ports.dynamic_pre_callback_present()) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::dynamic_pre
+        );
+    }
+    invoke_input_callback(
+        ports, result, LegacyStandardModeInputCallback::primary
+    );
+
+    if (strict_press(input_records[0U])) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::shared_overlay
+        );
+        ++result.shared_overlay_callback_count;
+    }
+
+    if (state.shared_overlay_cooldown == 0U &&
+        strict_press(input_records[kInputRecordSharedOverlay])) {
+        state.shared_overlay_cooldown = kSharedOverlayCooldownReset;
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::shared_overlay
+        );
+        ++result.shared_overlay_callback_count;
+    }
+    const compat::u32 decremented_cooldown = state.shared_overlay_cooldown - 1U;
+    state.shared_overlay_cooldown =
+        std::bit_cast<compat::i32>(decremented_cooldown) < 0
+        ? 0U
+        : decremented_cooldown;
+
+    if (strict_press(input_records[kInputRecordTwo])) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::record_two
+        );
+    }
+    if (strict_press(input_records[kInputRecordTen])) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::record_ten
+        );
+    }
+    if (repeat_press(input_records[kInputRecordRepeatSix])) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::record_six
+        );
+    }
+    if (repeat_press(input_records[kInputRecordRepeatFour])) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::record_four
+        );
+    }
+    if (repeat_press(input_records[kInputRecordRepeatEight])) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::record_eight
+        );
+    }
+    if (repeat_press(input_records[kInputRecordRepeatSeven])) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::record_seven
+        );
+    }
+
+    compat::u8 stale_low_byte = static_cast<compat::u8>(
+        input_records[kInputRecordRepeatSeven].held_sample_count
+    );
+    if (stale_low_bit_repeat_press(
+            input_records[kInputRecordStaleGateFirst], stale_low_byte
+        )) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::record_three
+        );
+        stale_low_byte = static_cast<compat::u8>(
+            input_records[kInputRecordRepeatSeven].held_sample_count
+        );
+    }
+    if (stale_low_bit_repeat_press(
+            input_records[kInputRecordStaleGateSecond], stale_low_byte
+        )) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::record_five
+        );
+    }
+
+    if (strict_press(input_records[kInputRecordExitPrimary]) ||
+        strict_press(input_records[kInputRecordExitSecondary])) {
+        invoke_input_callback(
+            ports, result, LegacyStandardModeInputCallback::exit
+        );
+        ++result.exit_callback_count;
+    }
+
+    return result;
+}
 
 LegacyStandardModeItemResult initialize_legacy_standard_mode_items(
     LegacyStandardModeItemState& state,

@@ -2,6 +2,7 @@
 
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/compat/types.hpp"
+#include "openswd3/input_time_rng/legacy_input.hpp"
 
 #include <array>
 #include <cstddef>
@@ -75,8 +76,42 @@ struct LegacyStandardModeItemResult {
     compat::u32 return_value{};
 };
 
+enum class LegacyStandardModeInputCallback : compat::u8 {
+    dynamic_pre,
+    primary,
+    shared_overlay,
+    record_two,
+    record_ten,
+    record_six,
+    record_four,
+    record_eight,
+    record_seven,
+    record_three,
+    record_five,
+    exit,
+};
+
+struct LegacyStandardModeInputState {
+    compat::u32 shared_overlay_cooldown{};
+};
+
+class LegacyStandardModeInputPorts {
+public:
+    virtual ~LegacyStandardModeInputPorts() = default;
+
+    [[nodiscard]] virtual bool dynamic_pre_callback_present() const = 0;
+    virtual void invoke(LegacyStandardModeInputCallback callback) = 0;
+};
+
+struct LegacyStandardModeInputResult {
+    compat::u32 callback_count{};
+    compat::u32 shared_overlay_callback_count{};
+    compat::u32 exit_callback_count{};
+};
+
 struct LegacyStandardModeSelectorState {
     LegacyStandardModeItemState item_state{};
+    LegacyStandardModeInputState input_state{};
     compat::u16 selector{};
     compat::u16 derived_index{};
     compat::u16 item_count{};
@@ -170,6 +205,16 @@ struct LegacyStandardSpecialModeFrameResult {
 initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeState& state,
     LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
+
+// sub_43A470: dispatch standard-mode callbacks from normalized input records.
+[[nodiscard]] LegacyStandardModeInputResult
+run_legacy_standard_mode_input_dispatch(
+    LegacyStandardModeInputState& state,
+    std::array<
+        input_time_rng::LegacyInputRecord,
+        input_time_rng::kLegacyInputRecordCount>& input_records,
+    LegacyStandardModeInputPorts& ports
 ) noexcept;
 
 // sub_43A380: build four availability records from story flags 0x1E..0x21.
