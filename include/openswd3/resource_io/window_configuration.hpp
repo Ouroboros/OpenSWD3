@@ -10,6 +10,7 @@ inline constexpr int kMaximumDisplayFramesPerSecond = 1000;
 
 struct DisplayConfiguration {
     int frames_per_second{};
+    bool world_motion_interpolation{};
 
     [[nodiscard]] bool operator==(const DisplayConfiguration&) const = default;
 };
@@ -27,6 +28,7 @@ enum class DisplayConfigurationStatus {
     parse_failed,
     invalid_display_table,
     invalid_frames_per_second,
+    invalid_world_motion_interpolation,
 };
 
 enum class WindowConfigurationStatus {

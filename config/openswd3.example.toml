@@ -17,6 +17,9 @@ maximized = false
 [display]
 
 # 0 keeps presentation coupled to the original 35/70 ms game clock.
-# A positive value presents the latest completed framebuffer independently;
-# it never advances input, scripts, RNG, audio, or any other game state.
+# A positive value enables the independent display refresh clock.
 fps = 0
+
+# Opt in to interpolated world camera/role motion when fps is positive.
+# Other screens repeat the latest frame. Game state is never advanced here.
+world_motion_interpolation = false

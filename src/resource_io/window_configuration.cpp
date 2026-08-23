@@ -116,9 +116,25 @@ DisplayConfigurationLoadResult load_display_configuration(
         );
     }
 
+    bool world_motion_interpolation = false;
+    if (const toml::node* interpolation_node =
+            display->get("world_motion_interpolation");
+        interpolation_node != nullptr) {
+        const std::optional<bool> value = interpolation_node->value<bool>();
+        if (!value.has_value()) {
+            return display_load_error(
+                DisplayConfigurationStatus::invalid_world_motion_interpolation,
+                fallback
+            );
+        }
+        world_motion_interpolation = *value;
+    }
+
     return DisplayConfigurationLoadResult{
         DisplayConfigurationStatus::ready,
-        DisplayConfiguration{static_cast<int>(*frames_per_second)},
+        DisplayConfiguration{
+            static_cast<int>(*frames_per_second), world_motion_interpolation
+        },
         true,
         {},
     };
@@ -246,6 +262,9 @@ std::string_view display_configuration_status_message(
 
     case DisplayConfigurationStatus::invalid_frames_per_second:
         return "[display] fps must be an integer from 0 through 1000";
+
+    case DisplayConfigurationStatus::invalid_world_motion_interpolation:
+        return "[display] world_motion_interpolation must be a boolean";
     }
 
     return "unknown display configuration status";

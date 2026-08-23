@@ -72,7 +72,11 @@
 #include "openswd3/world_map/legacy_world_facing_talk.hpp"
 #include "openswd3/world_map/legacy_world_frame_coordinator.hpp"
 #include "openswd3/world_map/legacy_world_dialog_runtime.hpp"
+#include "openswd3/world_map/legacy_world_flagged_roles.hpp"
+#include "openswd3/world_map/legacy_world_head_sign_actions.hpp"
+#include "openswd3/world_map/legacy_world_indexed_objects.hpp"
 #include "openswd3/world_map/legacy_world_interaction.hpp"
+#include "openswd3/world_map/legacy_world_interpolation.hpp"
 #include "openswd3/world_map/legacy_world_item_lifecycle.hpp"
 #include "openswd3/world_map/legacy_world_load_progress.hpp"
 #include "openswd3/world_map/legacy_world_path_requests.hpp"
@@ -80,10 +84,12 @@
 #include "openswd3/world_map/legacy_random_encounter.hpp"
 #include "openswd3/world_map/legacy_world_player_control.hpp"
 #include "openswd3/world_map/legacy_world_role_lifecycle.hpp"
+#include "openswd3/world_map/legacy_world_roles.hpp"
 #include "openswd3/world_map/legacy_world_runtime_session.hpp"
 #include "openswd3/world_map/legacy_world_special_frame_loader.hpp"
 #include "openswd3/world_map/legacy_world_story_vm.hpp"
 #include "openswd3/world_map/legacy_world_transient_reset.hpp"
+#include "openswd3/world_map/legacy_world_builtin_colors.hpp"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
@@ -1956,6 +1962,7 @@ public:
         openswd3::rendering::LegacyFramebuffer& primary_surface,
         openswd3::compat::u32& frame_interval,
         openswd3::compat::u32 display_frames_per_second,
+        bool world_motion_interpolation_enabled,
         bool display_frame_ready,
         openswd3::app::WindowEventState& window_state,
         const openswd3::app::DisplayLifecycleState& display_state,
@@ -1989,6 +1996,9 @@ public:
         : window_(window), renderer_(renderer), texture_(texture),
           game_framebuffer_(game_framebuffer),
           primary_surface_(primary_surface), frame_interval_(frame_interval),
+          world_motion_interpolation_enabled_(
+              world_motion_interpolation_enabled
+          ),
           display_frame_ready_(display_frame_ready),
           window_state_(window_state), display_state_(display_state),
           frame_preparation_state_(frame_preparation_state),
@@ -2206,12 +2216,22 @@ public:
     }
 
     void refresh_display() override {
+        const std::uint64_t now_nanoseconds =
+            static_cast<std::uint64_t>(SDL_GetTicksNS());
         if (!running_ || display_state_.display_active == 0U ||
             texture_ == nullptr || !display_frame_ready_ ||
             !openswd3::app::try_accept_display_refresh(
-                display_refresh_clock_,
-                static_cast<std::uint64_t>(SDL_GetTicksNS())
+                display_refresh_clock_, now_nanoseconds
             )) {
+            return;
+        }
+
+        if (!prepare_world_interpolated_display_frame(now_nanoseconds)) {
+            static_cast<void>(
+                report_sdl_error("independent framebuffer upload")
+            );
+            ok_ = false;
+            running_ = false;
             return;
         }
 
@@ -4615,6 +4635,9 @@ public:
                 world_effects_,
                 world_jitter_,
             };
+        openswd3::world_map::LegacyWorldInterpolationSnapshot
+            interpolation_candidate;
+        interpolation_candidate.map_id = world_frame_state_.map_id;
         const auto result = openswd3::world_map::run_legacy_world_frame(
             game_framebuffer_,
             world_raster_,
@@ -4688,6 +4711,12 @@ public:
                                 return false;
                             }(),
                     },
+                .interpolation_snapshot = world_motion_interpolation_enabled_ &&
+                        openswd3::app::independent_display_refresh_enabled(
+                                              display_refresh_clock_
+                        )
+                    ? &interpolation_candidate
+                    : nullptr,
             },
             deferred_ports
         );
@@ -4707,6 +4736,14 @@ public:
             ok_ = false;
             running_ = false;
             return;
+        }
+        if (world_motion_interpolation_enabled_ &&
+            openswd3::app::independent_display_refresh_enabled(
+                display_refresh_clock_
+            )) {
+            commit_world_interpolation_snapshot(
+                std::move(interpolation_candidate)
+            );
         }
         if (!deferred_world_stage_notice_logged_) {
             std::string message{
@@ -5955,6 +5992,8 @@ public:
         }
 
         display_frame_ready_ = true;
+        latest_presentation_site_ = request.site;
+        texture_contains_world_interpolation_ = false;
         if (openswd3::app::independent_display_refresh_enabled(
                 display_refresh_clock_
             )) {
@@ -6002,6 +6041,295 @@ public:
     }
 
 private:
+    class WorldInterpolationExternalPorts final
+        : public openswd3::world_map::LegacyWorldRoleExternalPorts,
+          public openswd3::world_map::LegacyWorldSpatialAudioPorts {
+    public:
+        explicit WorldInterpolationExternalPorts(
+            SdlSmokeIdlePorts& owner
+        ) noexcept
+            : owner_(owner) {}
+
+        [[nodiscard]] bool query_service(
+            const openswd3::compat::u32 service_id
+        ) noexcept override {
+            return service_id <
+                openswd3::world_map::kLegacyWorldStoryFlagBytes * 8U &&
+                openswd3::world_map::query_legacy_world_story_flag(
+                       owner_.world_story_vm_state_,
+                       static_cast<openswd3::compat::u16>(service_id)
+                );
+        }
+
+        void play_positional_sample(
+            openswd3::compat::u16, openswd3::compat::i32, openswd3::compat::i32
+        ) noexcept override {}
+
+        [[nodiscard]] const openswd3::asset_runtime::LegacyActionRecord*
+        resolve_overlay_action(
+            const openswd3::compat::u32 token
+        ) noexcept override {
+            return openswd3::world_map::resolve_legacy_world_head_sign_action(
+                owner_.world_frame_state_.head_sign_actions, token
+            );
+        }
+
+        void emit_role_particles(
+            openswd3::compat::i32, openswd3::compat::i32, openswd3::compat::u16
+        ) noexcept override {}
+
+        [[nodiscard]] std::span<const openswd3::compat::u8> resolve_label_bytes(
+            const openswd3::compat::u32 token
+        ) noexcept override {
+            return openswd3::world_map::resolve_legacy_world_path_label(
+                owner_.world_path_script_state_, token
+            );
+        }
+
+        [[nodiscard]] openswd3::compat::u16
+        label_color(const openswd3::compat::u32 index) noexcept override {
+            return openswd3::world_map::legacy_world_builtin_color(
+                owner_.pixel_conversion_, index
+            );
+        }
+
+        void draw_label(
+            std::span<const openswd3::compat::u8>,
+            openswd3::compat::i32,
+            openswd3::compat::i32,
+            openswd3::compat::u16,
+            openswd3::compat::u32
+        ) noexcept override {}
+
+        void play_sample(
+            openswd3::compat::u16,
+            openswd3::compat::i32,
+            openswd3::compat::i32,
+            openswd3::compat::i32
+        ) noexcept override {}
+
+        void stop_sample(openswd3::compat::u16) noexcept override {}
+
+        void set_sample_volume(
+            openswd3::compat::u16, openswd3::compat::i32
+        ) noexcept override {}
+
+        void set_sample_pan(
+            openswd3::compat::u16, openswd3::compat::i32
+        ) noexcept override {}
+
+    private:
+        SdlSmokeIdlePorts& owner_;
+    };
+
+    [[nodiscard]] bool render_world_interpolation_base(
+        openswd3::world_map::LegacyWorldInterpolationSnapshot& frame,
+        openswd3::rendering::LegacyFramebuffer& target,
+        openswd3::rendering::LegacyRasterGeometryState& raster
+    ) {
+        if (!frame.valid || !active_world_session_.has_value()) {
+            return false;
+        }
+
+        auto& world = *active_world_session_;
+        auto& map = world.render.map_load.session;
+        if (frame.roles.size() != map.business.state.roles.size()) {
+            return false;
+        }
+
+        std::ranges::fill(target.physical_pixels(), 0U);
+        raster = target.geometry();
+        openswd3::rendering::LegacyRleRowJitterState jitter = world_jitter_;
+        const openswd3::rendering::LegacyBlitEffectState effects =
+            world_effects_;
+
+        openswd3::world_map::LegacyWorldIndexedObjectRuntimeDrawPorts
+            indexed_ports{target, raster, effects, jitter};
+        const auto indexed =
+            openswd3::world_map::draw_legacy_world_indexed_objects(
+                world.render.prepared_indexed_objects.objects,
+                openswd3::world_map::LegacyWorldIndexedObjectViewport{
+                    .left = frame.camera_left,
+                    .top = frame.camera_top,
+                    .right = frame.camera_right,
+                    .bottom = frame.camera_bottom,
+                },
+                indexed_ports
+            );
+        if (indexed.status !=
+            openswd3::world_map::LegacyWorldIndexedObjectDrawStatus::
+                completed) {
+            return false;
+        }
+
+        const auto background =
+            openswd3::world_map::render_legacy_world_background(
+                target,
+                frame.background,
+                openswd3::world_map::LegacyWorldBackgroundView{
+                    .camera_left = frame.camera_left,
+                    .camera_top = frame.camera_top,
+                }
+            );
+        if (background.status !=
+            openswd3::world_map::LegacyWorldBackgroundRenderStatus::completed) {
+            return false;
+        }
+        openswd3::rendering::set_legacy_clip_rectangle(
+            raster, 0, 0, kFrameWidth, kFrameHeight
+        );
+
+        openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
+            action_updater_, tsw_runtime_, target, raster, effects, jitter
+        };
+        const openswd3::world_map::LegacyWorldRenderCamera camera{
+            .left = frame.camera_left,
+            .top = frame.camera_top,
+        };
+        const auto flagged =
+            openswd3::world_map::draw_legacy_world_flagged_roles(
+                frame.spatial_index, frame.roles, camera, action_ports
+            );
+        if (flagged.status !=
+            openswd3::world_map::LegacyWorldFlaggedRolesStatus::completed) {
+            return false;
+        }
+
+        WorldInterpolationExternalPorts external_ports{*this};
+        openswd3::world_map::LegacyWorldRoleRenderRuntimePorts role_ports{
+            tsw_runtime_, target, raster, effects, external_ports
+        };
+        const auto roles = openswd3::world_map::draw_legacy_world_roles(
+            frame.spatial_index,
+            frame.roles,
+            openswd3::world_map::LegacyWorldRoleRenderState{
+                .camera = camera,
+                .frame_counter = frame.role_frame_counter,
+                .flash_red_offset = frame.flash_red_offset,
+                .flash_green_offset = frame.flash_green_offset,
+                .flash_blue_offset = frame.flash_blue_offset,
+                .talk_target = frame.talk_target,
+            },
+            openswd3::world_map::LegacyWorldSpatialAudioState{
+                .controlled_role_index = frame.controlled_role_index,
+                .mix_level = frame.spatial_audio_mix_level,
+                .distance_by_role = frame.distance_by_role,
+                .vertical_offset_by_role = frame.vertical_offset_by_role,
+            },
+            jitter,
+            role_ports,
+            external_ports
+        );
+        return roles.status ==
+            openswd3::world_map::LegacyWorldRolesStatus::completed;
+    }
+
+    void commit_world_interpolation_snapshot(
+        openswd3::world_map::LegacyWorldInterpolationSnapshot candidate
+    ) {
+        world_interpolation_current_base_valid_ = false;
+        if (!candidate.valid ||
+            latest_presentation_site_ !=
+                openswd3::rendering::LegacyPresentationSite::steady_world) {
+            world_interpolation_previous_.valid = false;
+            world_interpolation_current_.valid = false;
+            return;
+        }
+
+        world_interpolation_previous_ = std::move(world_interpolation_current_);
+        world_interpolation_current_ = std::move(candidate);
+        world_interpolation_current_time_nanoseconds_ =
+            static_cast<std::uint64_t>(SDL_GetTicksNS());
+        world_interpolation_interval_nanoseconds_ =
+            static_cast<std::uint64_t>(std::max(frame_interval_, 1U)) *
+            1'000'000U;
+
+        if (openswd3::world_map::interpolate_legacy_world_visual_state(
+                world_interpolation_current_,
+                world_interpolation_current_,
+                world_interpolation_interval_nanoseconds_,
+                world_interpolation_interval_nanoseconds_,
+                world_interpolation_current_base_frame_
+            ) != openswd3::world_map::LegacyWorldInterpolationStatus::ready) {
+            return;
+        }
+        if (!render_world_interpolation_base(
+                world_interpolation_current_base_frame_,
+                world_interpolation_current_base_,
+                world_interpolation_current_base_raster_
+            )) {
+            return;
+        }
+
+        std::ranges::copy(
+            primary_surface_.physical_pixels(),
+            world_interpolation_current_final_.physical_pixels().begin()
+        );
+        world_interpolation_current_base_valid_ = true;
+    }
+
+    [[nodiscard]] bool restore_current_display_texture() {
+        if (!texture_contains_world_interpolation_) {
+            return true;
+        }
+        if (!upload_framebuffer(*texture_, primary_surface_)) {
+            return false;
+        }
+        texture_contains_world_interpolation_ = false;
+        return true;
+    }
+
+    [[nodiscard]] bool prepare_world_interpolated_display_frame(
+        const std::uint64_t now_nanoseconds
+    ) {
+        if (!world_motion_interpolation_enabled_ ||
+            latest_presentation_site_ !=
+                openswd3::rendering::LegacyPresentationSite::steady_world ||
+            !world_interpolation_current_base_valid_) {
+            return restore_current_display_texture();
+        }
+
+        const std::uint64_t elapsed_nanoseconds =
+            now_nanoseconds >= world_interpolation_current_time_nanoseconds_
+            ? now_nanoseconds - world_interpolation_current_time_nanoseconds_
+            : 0U;
+        if (openswd3::world_map::interpolate_legacy_world_visual_state(
+                world_interpolation_previous_,
+                world_interpolation_current_,
+                elapsed_nanoseconds,
+                world_interpolation_interval_nanoseconds_,
+                world_interpolation_display_frame_
+            ) != openswd3::world_map::LegacyWorldInterpolationStatus::ready) {
+            return restore_current_display_texture();
+        }
+        if (!render_world_interpolation_base(
+                world_interpolation_display_frame_,
+                world_interpolation_output_,
+                world_interpolation_output_raster_
+            )) {
+            return restore_current_display_texture();
+        }
+        if (openswd3::world_map::apply_legacy_world_frame_residual(
+                world_interpolation_output_,
+                world_interpolation_current_base_,
+                world_interpolation_current_final_
+            ) != openswd3::world_map::LegacyWorldInterpolationStatus::ready) {
+            return restore_current_display_texture();
+        }
+        if (!upload_framebuffer(*texture_, world_interpolation_output_)) {
+            return false;
+        }
+
+        texture_contains_world_interpolation_ = true;
+        if (!world_interpolation_live_notice_logged_) {
+            openswd3::diagnostics::log_info(
+                "display refresh: world camera and roles use render-only motion interpolation"
+            );
+            world_interpolation_live_notice_logged_ = true;
+        }
+        return true;
+    }
+
     void synchronize_text_input() noexcept {
         const bool should_be_active =
             initial_menu_state_.name_input.has_value();
@@ -6126,7 +6454,11 @@ private:
     openswd3::rendering::LegacyFramebuffer& primary_surface_;
     openswd3::compat::u32& frame_interval_;
     openswd3::app::DisplayRefreshClockState display_refresh_clock_{};
+    std::optional<openswd3::rendering::LegacyPresentationSite>
+        latest_presentation_site_;
+    bool world_motion_interpolation_enabled_{};
     bool display_frame_ready_{};
+    bool texture_contains_world_interpolation_{};
     openswd3::app::WindowEventState& window_state_;
     const openswd3::app::DisplayLifecycleState& display_state_;
     openswd3::app::FramePreparationState& frame_preparation_state_;
@@ -6176,6 +6508,25 @@ private:
     openswd3::battle::LegacyBattleSetupState battle_setup_;
     bool battle_setup_ready_{};
     openswd3::rendering::LegacyRasterGeometryState world_raster_;
+    openswd3::rendering::LegacyFramebuffer world_interpolation_current_base_;
+    openswd3::rendering::LegacyFramebuffer world_interpolation_current_final_;
+    openswd3::rendering::LegacyFramebuffer world_interpolation_output_;
+    openswd3::rendering::LegacyRasterGeometryState
+        world_interpolation_current_base_raster_;
+    openswd3::rendering::LegacyRasterGeometryState
+        world_interpolation_output_raster_;
+    openswd3::world_map::LegacyWorldInterpolationSnapshot
+        world_interpolation_previous_;
+    openswd3::world_map::LegacyWorldInterpolationSnapshot
+        world_interpolation_current_;
+    openswd3::world_map::LegacyWorldInterpolationSnapshot
+        world_interpolation_current_base_frame_;
+    openswd3::world_map::LegacyWorldInterpolationSnapshot
+        world_interpolation_display_frame_;
+    std::uint64_t world_interpolation_current_time_nanoseconds_{};
+    std::uint64_t world_interpolation_interval_nanoseconds_{};
+    bool world_interpolation_current_base_valid_{};
+    bool world_interpolation_live_notice_logged_{};
     openswd3::rendering::LegacyBlitEffectState world_effects_;
     openswd3::rendering::LegacyRleRowJitterState world_jitter_;
     std::optional<openswd3::world_map::LegacyWorldRuntimeSession>
@@ -6380,6 +6731,8 @@ int main(const int argument_count, char** arguments) {
         openswd3::resource_io::load_display_configuration(configuration_path);
     int display_frames_per_second =
         display_config.configuration.frames_per_second;
+    const bool world_motion_interpolation_enabled =
+        display_config.configuration.world_motion_interpolation;
     if (display_config.status !=
         openswd3::resource_io::DisplayConfigurationStatus::ready) {
         std::string message{"display refresh: "};
@@ -6439,11 +6792,14 @@ int main(const int argument_count, char** arguments) {
     }
 
     if (display_frames_per_second > 0) {
-        openswd3::diagnostics::log_info(
-            std::string{"display refresh: independent "} +
-            std::to_string(display_frames_per_second) +
-            " FPS; legacy game clock remains 35/70 ms"
+        std::string message{"display refresh: independent "};
+        message.append(std::to_string(display_frames_per_second));
+        message.append(" FPS; world motion interpolation ");
+        message.append(
+            world_motion_interpolation_enabled ? "enabled" : "disabled"
         );
+        message.append("; legacy game clock remains 35/70 ms");
+        openswd3::diagnostics::log_info(message);
     } else {
         openswd3::diagnostics::log_info(
             "display refresh: coupled to the legacy game clock"
@@ -6666,6 +7022,7 @@ int main(const int argument_count, char** arguments) {
         primary_surface,
         frame_interval,
         static_cast<openswd3::compat::u32>(display_frames_per_second),
+        world_motion_interpolation_enabled,
         runtime_ready,
         window_state,
         display_state,

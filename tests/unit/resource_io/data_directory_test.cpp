@@ -372,9 +372,21 @@ void test_display_refresh_configuration(openswd3::test::Context& test) {
     );
     test.expect_true(
         sixty.status == DisplayConfigurationStatus::ready &&
-            sixty.configuration == DisplayConfiguration{60} &&
+            sixty.configuration == DisplayConfiguration{60, false} &&
             sixty.loaded_from_file,
-        "a positive display FPS enables an independent presentation clock"
+        "a positive display FPS keeps world interpolation disabled by default"
+    );
+
+    tree.write_configuration(
+        "[display]\n" "fps = 120\n" "world_motion_interpolation = true\n"
+    );
+    const auto interpolated = openswd3::resource_io::load_display_configuration(
+        tree.configuration_path(), fallback
+    );
+    test.expect_true(
+        interpolated.status == DisplayConfigurationStatus::ready &&
+            interpolated.configuration == DisplayConfiguration{120, true},
+        "world motion interpolation requires an explicit boolean opt-in"
     );
 
     std::string detail;
@@ -390,8 +402,8 @@ void test_display_refresh_configuration(openswd3::test::Context& test) {
     );
     test.expect_true(
         preserved.status == DisplayConfigurationStatus::ready &&
-            preserved.configuration == DisplayConfiguration{60},
-        "saving window placement preserves the independent display FPS"
+            preserved.configuration == DisplayConfiguration{120, true},
+        "saving window placement preserves display FPS and interpolation"
     );
 
     tree.write_configuration("[display]\n" "fps = 0\n");
@@ -425,6 +437,21 @@ void test_display_refresh_configuration(openswd3::test::Context& test) {
                 DisplayConfigurationStatus::invalid_frames_per_second &&
             invalid_fps.configuration == fallback,
         "display FPS outside the supported range is rejected"
+    );
+
+    tree.write_configuration(
+        "[display]\n" "fps = 120\n" "world_motion_interpolation = 'yes'\n"
+    );
+    const auto invalid_interpolation =
+        openswd3::resource_io::load_display_configuration(
+            tree.configuration_path(), fallback
+        );
+    test.expect_true(
+        invalid_interpolation.status ==
+                DisplayConfigurationStatus::
+                    invalid_world_motion_interpolation &&
+            invalid_interpolation.configuration == fallback,
+        "world motion interpolation rejects non-boolean values"
     );
 }
 

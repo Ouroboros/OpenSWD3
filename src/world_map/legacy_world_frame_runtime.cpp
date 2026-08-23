@@ -1,6 +1,7 @@
 #include "openswd3/world_map/legacy_world_frame_runtime.hpp"
 
 #include "openswd3/world_map/legacy_world_builtin_colors.hpp"
+#include "openswd3/world_map/legacy_world_interpolation.hpp"
 
 #include <bit>
 
@@ -534,6 +535,16 @@ LegacyWorldFrameRuntimeResult compose_legacy_world_runtime_frame(
 ) noexcept {
     LegacyWorldFrameRuntimeResult result;
     result.status = LegacyWorldFrameRuntimeStatus::completed;
+    if (ports.interpolation_snapshot != nullptr) {
+        static_cast<void>(capture_legacy_world_interpolation_snapshot(
+            *ports.interpolation_snapshot,
+            background_source,
+            spatial_index,
+            roles,
+            state
+        ));
+    }
+
     RuntimeStagePorts runtime_ports{
         framebuffer,
         raster,

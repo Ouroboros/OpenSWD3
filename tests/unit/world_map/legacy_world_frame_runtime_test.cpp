@@ -11,6 +11,7 @@
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
 #include "openswd3/world_map/legacy_world_frame_runtime.hpp"
+#include "openswd3/world_map/legacy_world_interpolation.hpp"
 
 #include <algorithm>
 #include <array>
@@ -70,6 +71,7 @@ using openswd3::world_map::LegacyWorldFrameRuntimePorts;
 using openswd3::world_map::LegacyWorldFrameRuntimeState;
 using openswd3::world_map::LegacyWorldFrameRuntimeStatus;
 using openswd3::world_map::LegacyWorldFrameStage;
+using openswd3::world_map::LegacyWorldInterpolationSnapshot;
 using openswd3::world_map::LegacyWorldRoleBlitRequest;
 using openswd3::world_map::LegacyWorldRoleExternalPorts;
 using openswd3::world_map::LegacyWorldRoleFrame;
@@ -482,6 +484,8 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context& test) {
     RecordingTimedMessageRuntimePorts timed_messages;
     openswd3::story_scene::LegacyDialogRuntimeState dialogs;
     EmptyDialogPorts dialog_ports;
+    LegacyWorldInterpolationSnapshot interpolation_snapshot;
+    interpolation_snapshot.map_id = 44U;
 
     const auto result = compose_legacy_world_runtime_frame(
         framebuffer,
@@ -515,6 +519,7 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context& test) {
             .spatial_audio = audio,
             .dialogs = &dialogs,
             .dialog_runtime = &dialog_ports,
+            .interpolation_snapshot = &interpolation_snapshot,
         }
     );
 
@@ -546,6 +551,14 @@ void test_spatial_stages_execute_in_frame_order(openswd3::test::Context& test) {
             result.world_roles.visited_roles == 2U &&
             result.world_roles.draw_count == 2U,
         "0x00412930 executes recovered spatial and action stages at real slots"
+    );
+    test.expect_true(
+        interpolation_snapshot.valid && interpolation_snapshot.map_id == 44U &&
+            interpolation_snapshot.roles.size() == roles.size() &&
+            interpolation_snapshot.roles[1U].world_x == 320U &&
+            interpolation_snapshot.roles[2U].world_x == 360U &&
+            interpolation_snapshot.distance_by_role.size() == roles.size(),
+        "runtime composition captures an owned visual snapshot before stages"
     );
     test.expect_true(
         result.composition.stage_call_count == 19U &&

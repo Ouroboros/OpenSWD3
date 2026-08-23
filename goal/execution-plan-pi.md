@@ -1,8 +1,8 @@
 # OpenSWD3 执行 GOAL
 
-版本：v432
+版本：v433
 
-最后更新：2026-08-22
+最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
@@ -3112,9 +3112,21 @@ B7 P0 有限收口完成。
 - 用户插入的内部逻辑时钟与显示刷新时钟解耦完成。`[display].fps`允许`0..1000`，默认0
     保持旧同步呈现；正整数使用独立纳秒display deadline，idle中的原视频/音频/yield/游戏帧/
     pause动作均先完成，再检查显示刷新。legacy framebuffer composition与纹理上传仍由原请求
-    驱动，额外显示帧只重复最近完成纹理；VSync无法关闭时回退旧模式。35/70ms逻辑门、输入、
-    剧情、RNG与音频状态均不由display clock访问。Linux core187/187与Linux app193/193通过；
-    按阶段门禁未运行Windows BUILD。
+    驱动；VSync无法关闭时回退旧模式。35/70ms逻辑门、输入、剧情、RNG与音频状态均不由
+    display clock访问。初始边界Linux core187/187与Linux app193/193通过；按阶段门禁未运行
+    Windows BUILD。
+
+- 用户实际验证120 FPS后要求普通世界运动真正平滑。新增
+    `[display].world_motion_interpolation`布尔开关，默认false且不强制启用；仅当该值为true且
+    `fps > 0`时，composition入口才于任何stage前复制背景、空间索引、相机、角色记录和空间
+    音频数组。独立display deadline按previous/current及原35/70ms间隔插值
+    相机和角色世界坐标，在独立framebuffer中纯重绘indexed object、背景、flagged role与普通
+    role。current纯运动底图和完整primary surface的差异作为残差覆盖，保留UI、文字、粒子和
+    其他非运动层；重绘端口不执行输入、碰撞、路径、剧情、RNG、动作更新或音频。首帧、跨地图、
+    角色身份变化、重绘失败及非普通世界presentation均回退当前完整纹理；单坐标跨度超过128像素
+    直接snap，绝不外推。用户决定当前仅采用场景级插值，原生高频逻辑模拟留待整个执行计划完成
+    后另行评估。定向UT覆盖配置开关、快照、半帧插值、钳制、传送及残差；Linux core188/188
+    与Linux app194/194完整门通过，SDL应用目标成功链接；按阶段门禁未运行Windows BUILD。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 

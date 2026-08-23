@@ -26,6 +26,7 @@ add_library(
         legacy_world_head_sign_actions.cpp
         legacy_world_indexed_objects.cpp
         legacy_world_interaction.cpp
+        legacy_world_interpolation.cpp
         legacy_world_item_lifecycle.cpp
         legacy_world_load_progress.cpp
         legacy_world_direction_adjustment.cpp

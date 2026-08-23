@@ -28,6 +28,8 @@
 
 namespace openswd3::world_map {
 
+struct LegacyWorldInterpolationSnapshot;
+
 struct LegacyWorldFrameEffectState {
     LegacyWorldFrameEffectState() noexcept;
     void initialize_action_records() noexcept;
@@ -91,6 +93,7 @@ struct LegacyWorldFrameRuntimePorts {
     story_scene::LegacyDialogRuntimeState* dialogs{};
     story_scene::LegacyDialogRuntimePorts* dialog_runtime{};
     story_scene::LegacyDialogRuntimeInput dialog_input{};
+    LegacyWorldInterpolationSnapshot* interpolation_snapshot{};
 };
 
 enum class LegacyWorldFrameRuntimeStatus : compat::u8 {
