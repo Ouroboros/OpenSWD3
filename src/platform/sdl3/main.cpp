@@ -48,6 +48,7 @@
 #include "openswd3/input_time_rng/legacy_text_input.hpp"
 #include "openswd3/media_ffmpeg/legacy_ffmpeg_backends.hpp"
 #include "openswd3/rendering/legacy_bmp_writer.hpp"
+#include "openswd3/rendering/legacy_frame_color.hpp"
 #include "openswd3/rendering/legacy_framebuffer.hpp"
 #include "openswd3/rendering/legacy_glyph_atlas.hpp"
 #include "openswd3/rendering/legacy_pixel_conversion.hpp"
@@ -63,6 +64,7 @@
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_movement_collision.hpp"
 #include "openswd3/world_map/legacy_world_collision_talk.hpp"
+#include "openswd3/world_map/legacy_world_cursor.hpp"
 #include "openswd3/world_map/legacy_world_debug_hotkeys.hpp"
 #include "openswd3/world_map/legacy_world_direction_adjustment.hpp"
 #include "openswd3/world_map/legacy_world_direction_input.hpp"
@@ -4824,6 +4826,193 @@ public:
         );
     }
 
+    void draw_standard_special_mode(
+        openswd3::compat::u32& tagged_mode_value,
+        const bool initial_menu_presented
+    ) {
+        class RenderPorts final
+            : public openswd3::special_modes::LegacyStandardModeRenderPorts {
+        public:
+            RenderPorts(
+                SdlSmokeIdlePorts& owner,
+                openswd3::compat::u32& tagged_mode_value,
+                const bool initial_menu_presented
+            ) noexcept
+                : owner_(owner), tagged_mode_value_(tagged_mode_value),
+                  initial_menu_presented_(initial_menu_presented) {}
+
+            openswd3::compat::i32
+            story_flag(const openswd3::compat::u32 flag_index) override {
+                if (flag_index >= owner_.world_story_vm_state_.flags.size()) {
+                    return 0;
+                }
+                return static_cast<openswd3::compat::i32>(
+                    owner_.world_story_vm_state_.flags[flag_index]
+                );
+            }
+
+            openswd3::compat::u32 acquire_primary_surface() override {
+                return 0U;
+            }
+
+            void prepare_primary_surface(openswd3::compat::u32) override {}
+
+            void load_action_record(
+                const openswd3::special_modes::LegacyStandardModeRenderRecord
+                    record,
+                const openswd3::compat::i32 offset,
+                openswd3::compat::u32
+            ) override {
+                openswd3::asset_runtime::LegacyActionDrawRuntimePorts ports{
+                    owner_.action_updater_,
+                    owner_.tsw_runtime_,
+                    owner_.game_framebuffer_,
+                    owner_.world_raster_,
+                    owner_.world_effects_,
+                    owner_.world_jitter_,
+                };
+                const std::size_t record_index = record ==
+                        openswd3::special_modes::
+                            LegacyStandardModeRenderRecord::primary
+                    ? 0U
+                    : 2U;
+                const auto result =
+                    openswd3::asset_runtime::update_draw_legacy_action(
+                        owner_.legacy_standard_mode_state_
+                            .initialization_records[record_index],
+                        offset,
+                        0,
+                        ports
+                    );
+                if (result.status ==
+                    openswd3::asset_runtime::LegacyActionDrawStatus::ready) {
+                    return;
+                }
+                static_cast<void>(
+                    report_error("standard special-mode action draw failed")
+                );
+            }
+
+            void invoke_post_update_callback() override {}
+
+            void prepare_mode_panel() override {}
+
+            void draw_transition(openswd3::compat::u32) override {}
+
+            void draw_secondary_surface(
+                openswd3::compat::i32,
+                openswd3::compat::i32,
+                openswd3::compat::u32
+            ) override {}
+
+            void draw_cursor() override {
+                openswd3::asset_runtime::LegacyActionDrawRuntimePorts ports{
+                    owner_.action_updater_,
+                    owner_.tsw_runtime_,
+                    owner_.game_framebuffer_,
+                    owner_.world_raster_,
+                    owner_.world_effects_,
+                    owner_.world_jitter_,
+                };
+                const auto result =
+                    openswd3::world_map::update_draw_legacy_world_cursor(
+                        owner_.world_frame_effects_.cursor,
+                        openswd3::world_map::LegacyWorldCursorFrameInput{
+                            .delete_key_pressed =
+                                openswd3::input_time_rng::read_raw_key(
+                                    owner_.keyboard_snapshot_, 0x2EU
+                                ) != 0U,
+                            .mouse_x =
+                                owner_.input_state_.current_mouse.logical_x,
+                            .mouse_y =
+                                owner_.input_state_.current_mouse.logical_y,
+                            .left_press_multiplicity =
+                                owner_.input_state_.records[15U]
+                                    .rapid_press_multiplicity,
+                            .movement_x = 0,
+                            .movement_y = 0,
+                            .talk_target = 0xFFFFU,
+                            .talk_phase = 0U,
+                        },
+                        tagged_mode_value_,
+                        ports
+                    );
+                if (result.status ==
+                    openswd3::world_map::LegacyWorldCursorStatus::completed) {
+                    return;
+                }
+                static_cast<void>(
+                    report_error("standard special-mode cursor draw failed")
+                );
+            }
+
+            void apply_frame_color(
+                openswd3::compat::u32,
+                const openswd3::compat::u32 pixel_count,
+                const openswd3::compat::u32 delta
+            ) override {
+                const auto status =
+                    openswd3::rendering::adjust_legacy_rgb_channels(
+                        owner_.game_framebuffer_
+                            .physical_pixels_with_read_guard(),
+                        std::bit_cast<openswd3::compat::i32>(pixel_count),
+                        std::bit_cast<openswd3::compat::i32>(delta),
+                        std::bit_cast<openswd3::compat::i32>(delta),
+                        std::bit_cast<openswd3::compat::i32>(delta),
+                        owner_.pixel_conversion_
+                    );
+                if (status ==
+                    openswd3::rendering::LegacyFrameColorStatus::completed) {
+                    return;
+                }
+                static_cast<void>(
+                    report_error("standard special-mode frame color failed")
+                );
+            }
+
+            void draw_common_overlay() override {}
+
+            void present_primary_surface() override {
+                if (!initial_menu_presented_) {
+                    static_cast<void>(owner_.request_presentation(
+                        openswd3::rendering::LegacyPresentationSite::
+                            steady_special_modes_1_3_4_5_6
+                    ));
+                }
+            }
+
+            openswd3::compat::u32 terminal_snapshot_x() const override {
+                return std::bit_cast<openswd3::compat::u32>(
+                    owner_.input_state_.current_mouse.logical_x
+                );
+            }
+
+            openswd3::compat::u32 terminal_snapshot_y() const override {
+                return std::bit_cast<openswd3::compat::u32>(
+                    owner_.input_state_.current_mouse.logical_y
+                );
+            }
+
+        private:
+            SdlSmokeIdlePorts& owner_;
+            openswd3::compat::u32& tagged_mode_value_;
+            bool initial_menu_presented_{};
+        };
+
+        RenderPorts ports{*this, tagged_mode_value, initial_menu_presented};
+        auto& selector_state = legacy_standard_mode_state_.selector_state;
+        static_cast<void>(
+            openswd3::special_modes::render_legacy_standard_mode_frame(
+                selector_state.render_state,
+                legacy_standard_mode_state_.frame_counter,
+                selector_state.secondary_word,
+                selector_state.derived_index,
+                tagged_mode_value,
+                ports
+            )
+        );
+    }
+
     openswd3::app::StandardSpecialModeEvent step_initial_menu_special_mode() {
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
@@ -4972,15 +5161,15 @@ public:
             }
 
             void draw_mode(openswd3::compat::u32& tagged_mode_value) override {
-                if ((tagged_mode_value &
+                const bool initial_menu =
+                    (tagged_mode_value &
                      openswd3::special_modes::kLegacySpecialModeValueMask) ==
-                    3U) {
+                    3U;
+                if (initial_menu) {
                     event_ = owner_.step_initial_menu_special_mode();
-                    return;
                 }
-                owner_.request_presentation(
-                    openswd3::rendering::LegacyPresentationSite::
-                        steady_special_modes_1_3_4_5_6
+                owner_.draw_standard_special_mode(
+                    tagged_mode_value, initial_menu
                 );
             }
 

@@ -109,9 +109,64 @@ struct LegacyStandardModeInputResult {
     compat::u32 exit_callback_count{};
 };
 
+enum class LegacyStandardModeRenderRecord : compat::u8 {
+    primary,
+    transition,
+};
+
+struct LegacyStandardModeRenderState {
+    compat::u32 transition_extent{};
+    compat::u32 captured_surface_token{};
+    compat::u32 blocking_overlay_active{};
+    compat::u32 frame_color_delta{};
+    compat::u32 cursor_frame_index{};
+    compat::u32 terminal_derived_index{};
+    compat::u32 terminal_snapshot_x{};
+    compat::u32 terminal_snapshot_y{};
+};
+
+class LegacyStandardModeRenderPorts {
+public:
+    virtual ~LegacyStandardModeRenderPorts() = default;
+
+    [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
+    [[nodiscard]] virtual compat::u32 acquire_primary_surface() = 0;
+    virtual void prepare_primary_surface(compat::u32 surface_token) = 0;
+    virtual void load_action_record(
+        LegacyStandardModeRenderRecord record,
+        compat::i32 offset,
+        compat::u32 flags
+    ) = 0;
+    virtual void invoke_post_update_callback() = 0;
+    virtual void prepare_mode_panel() = 0;
+    virtual void draw_transition(compat::u32 extent) = 0;
+    virtual void
+    draw_secondary_surface(compat::i32 x, compat::i32 y, compat::u32 flags) = 0;
+    virtual void draw_cursor() = 0;
+    virtual void apply_frame_color(
+        compat::u32 surface_token, compat::u32 pixel_count, compat::u32 delta
+    ) = 0;
+    virtual void draw_common_overlay() = 0;
+    virtual void present_primary_surface() = 0;
+    [[nodiscard]] virtual compat::u32 terminal_snapshot_x() const = 0;
+    [[nodiscard]] virtual compat::u32 terminal_snapshot_y() const = 0;
+};
+
+struct LegacyStandardModeRenderResult {
+    compat::u32 story_flag_query_count{};
+    compat::u32 action_load_count{};
+    compat::u32 callback_count{};
+    compat::u32 transition_draw_count{};
+    compat::u32 cursor_draw_count{};
+    compat::u32 presentation_count{};
+    bool returned_after_callback_clear{};
+    bool skipped_by_blocking_overlay{};
+};
+
 struct LegacyStandardModeSelectorState {
     LegacyStandardModeItemState item_state{};
     LegacyStandardModeInputState input_state{};
+    LegacyStandardModeRenderState render_state{};
     compat::u16 secondary_word{};
     compat::u16 derived_index{};
     compat::u16 item_count{};
@@ -206,6 +261,16 @@ struct LegacyStandardSpecialModeFrameResult {
 initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeState& state,
     LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
+
+// sub_43A610: compose and present one standard-mode frame.
+[[nodiscard]] LegacyStandardModeRenderResult render_legacy_standard_mode_frame(
+    LegacyStandardModeRenderState& state,
+    compat::u32 frame_counter,
+    compat::u16& secondary_word,
+    compat::u16& derived_index,
+    compat::u32& tagged_mode_value,
+    LegacyStandardModeRenderPorts& ports
 ) noexcept;
 
 // sub_43A470: dispatch standard-mode callbacks from normalized input records.

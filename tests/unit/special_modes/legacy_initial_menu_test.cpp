@@ -35,6 +35,7 @@ using openswd3::special_modes::LegacyInitialMenuEvent;
 using openswd3::special_modes::LegacyInitialMenuInput;
 using openswd3::special_modes::LegacyInitialMenuState;
 using openswd3::special_modes::run_legacy_initial_menu_frame;
+using openswd3::special_modes::render_legacy_standard_mode_frame;
 using openswd3::special_modes::run_legacy_standard_mode_input_dispatch;
 using openswd3::special_modes::run_legacy_standard_special_mode_frame;
 using openswd3::special_modes::kLegacySpecialModeAlternateFlag;
@@ -46,6 +47,9 @@ using openswd3::special_modes::LegacyStandardModeInputCallback;
 using openswd3::special_modes::LegacyStandardModeInputPorts;
 using openswd3::special_modes::LegacyStandardModeInputState;
 using openswd3::special_modes::LegacyStandardModeItemState;
+using openswd3::special_modes::LegacyStandardModeRenderPorts;
+using openswd3::special_modes::LegacyStandardModeRenderRecord;
+using openswd3::special_modes::LegacyStandardModeRenderState;
 using openswd3::special_modes::LegacyStandardModeSelectorPorts;
 using openswd3::special_modes::LegacyStandardModeSelectorState;
 using openswd3::special_modes::LegacyStandardSpecialModeInitializationPorts;
@@ -195,6 +199,124 @@ public:
     std::vector<LegacyStandardModeInputCallback> callbacks;
     bool dynamic_pre_present{};
     bool mutate_record_seven_after_record_three{};
+};
+
+struct RenderActionLoad {
+    LegacyStandardModeRenderRecord record{};
+    i32 offset{};
+    u32 flags{};
+
+    bool operator==(const RenderActionLoad&) const = default;
+};
+
+class FakeStandardModeRenderPorts final : public LegacyStandardModeRenderPorts {
+public:
+    FakeStandardModeRenderPorts(
+        LegacyStandardModeRenderState& state, u32& tagged_mode_value
+    ) noexcept
+        : state_(state), tagged_mode_value_(tagged_mode_value) {}
+
+    i32 story_flag(const u32 flag_index) override {
+        events.push_back(100U + flag_index);
+        if (flag_index == 0x49U) {
+            const auto value = flag_49_values[flag_49_read_count];
+            ++flag_49_read_count;
+            return value;
+        }
+        return flag_9_value;
+    }
+
+    u32 acquire_primary_surface() override {
+        events.push_back(1U);
+        return acquired_surface_token;
+    }
+
+    void prepare_primary_surface(const u32 surface_token) override {
+        events.push_back(2U);
+        prepared_surface_token = surface_token;
+    }
+
+    void load_action_record(
+        const LegacyStandardModeRenderRecord record,
+        const i32 offset,
+        const u32 flags
+    ) override {
+        events.push_back(3U);
+        action_loads.push_back(
+            RenderActionLoad{.record = record, .offset = offset, .flags = flags}
+        );
+    }
+
+    void invoke_post_update_callback() override {
+        events.push_back(4U);
+        if (clear_mode_during_post_update) {
+            tagged_mode_value_ = 0U;
+        }
+        if (block_during_post_update) {
+            state_.blocking_overlay_active = 1U;
+        }
+    }
+
+    void prepare_mode_panel() override {
+        events.push_back(5U);
+    }
+
+    void draw_transition(const u32 extent) override {
+        events.push_back(6U);
+        transition_extents.push_back(extent);
+    }
+
+    void
+    draw_secondary_surface(const i32 x, const i32 y, const u32 flags) override {
+        events.push_back(7U);
+        secondary_surface_request = {x, y, static_cast<i32>(flags)};
+    }
+
+    void draw_cursor() override {
+        events.push_back(8U);
+    }
+
+    void apply_frame_color(
+        const u32 surface_token, const u32 pixel_count, const u32 delta
+    ) override {
+        events.push_back(9U);
+        color_request = {surface_token, pixel_count, delta};
+    }
+
+    void draw_common_overlay() override {
+        events.push_back(10U);
+    }
+
+    void present_primary_surface() override {
+        events.push_back(11U);
+    }
+
+    u32 terminal_snapshot_x() const override {
+        events.push_back(12U);
+        return snapshot_x;
+    }
+
+    u32 terminal_snapshot_y() const override {
+        events.push_back(13U);
+        return snapshot_y;
+    }
+
+    LegacyStandardModeRenderState& state_;
+    u32& tagged_mode_value_;
+    mutable std::vector<u32> events;
+    std::vector<RenderActionLoad> action_loads;
+    std::vector<u32> transition_extents;
+    std::array<i32, 4U> flag_49_values{};
+    std::array<i32, 3U> secondary_surface_request{};
+    std::array<u32, 3U> color_request{};
+    std::size_t flag_49_read_count{};
+    u32 acquired_surface_token{0x00ABCDEFU};
+    u32 prepared_surface_token{};
+    u32 snapshot_x{0x12345678U};
+    u32 snapshot_y{0x9ABCDEF0U};
+    i32 flag_9_value{};
+    bool clear_mode_during_post_update{};
+    bool block_during_post_update{};
 };
 
 class FakeStandardModeSelectorPorts final
@@ -661,6 +783,183 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_frame_rendering(openswd3::test::Context& test) {
+    LegacyStandardModeRenderState high_state{.frame_color_delta = 3U};
+    u16 high_secondary = 0xEA60U;
+    u16 high_derived = 7U;
+    u32 high_mode = 3U;
+    FakeStandardModeRenderPorts high_ports{high_state, high_mode};
+    const auto high_result = render_legacy_standard_mode_frame(
+        high_state, 0x41U, high_secondary, high_derived, high_mode, high_ports
+    );
+    test.expect_true(
+        high_state.transition_extent == 0x190U &&
+            high_state.captured_surface_token == 0x00ABCDEFU &&
+            high_state.cursor_frame_index == 0x0DU &&
+            high_state.terminal_derived_index == 7U &&
+            high_state.terminal_snapshot_x == 0x12345678U &&
+            high_state.terminal_snapshot_y == 0x9ABCDEF0U &&
+            high_ports.prepared_surface_token == 0x00ABCDEFU &&
+            high_ports.action_loads.empty() &&
+            high_ports.color_request ==
+                std::array<u32, 3U>{0x00ABCDEFU, 0x0004B000U, 3U} &&
+            high_ports.events ==
+                std::vector<u32>{
+                    1U, 2U, 4U, 109U, 8U, 9U, 10U, 11U, 12U, 13U
+                } &&
+            high_result.story_flag_query_count == 1U &&
+            high_result.callback_count == 1U &&
+            high_result.action_load_count == 0U &&
+            high_result.transition_draw_count == 0U &&
+            high_result.cursor_draw_count == 1U &&
+            high_result.presentation_count == 1U,
+        "0x43A610 halves the entry extent and sends the high-mode direct " "tail through cursor, color, overlay, presentation and snapshots"
+    );
+
+    LegacyStandardModeRenderState low_state{.transition_extent = 100U};
+    u16 low_secondary = 1U;
+    u16 low_derived = 11U;
+    u32 low_mode = 1U;
+    FakeStandardModeRenderPorts low_ports{low_state, low_mode};
+    low_ports.flag_9_value = 1;
+    const auto low_result = render_legacy_standard_mode_frame(
+        low_state, 0x20U, low_secondary, low_derived, low_mode, low_ports
+    );
+    test.expect_true(
+        low_state.transition_extent == 50U &&
+            low_state.cursor_frame_index == 0x0DU &&
+            low_ports.action_loads ==
+                std::vector<RenderActionLoad>{
+                    RenderActionLoad{
+                        .record = LegacyStandardModeRenderRecord::primary,
+                        .offset = 230,
+                        .flags = 0U,
+                    },
+                    RenderActionLoad{
+                        .record = LegacyStandardModeRenderRecord::transition,
+                        .offset = -50,
+                        .flags = 0U,
+                    },
+                } &&
+            low_ports.transition_extents == std::vector<u32>{50U} &&
+            low_ports.secondary_surface_request ==
+                std::array<i32, 3U>{0x27C, 0x1CC, 0} &&
+            low_ports.events ==
+                std::vector<u32>{
+                    1U, 2U, 173U, 3U, 5U, 3U, 6U, 7U, 109U, 10U, 11U, 12U, 13U
+                } &&
+            low_result.story_flag_query_count == 2U &&
+            low_result.callback_count == 0U &&
+            low_result.action_load_count == 2U &&
+            low_result.transition_draw_count == 1U &&
+            low_result.cursor_draw_count == 0U &&
+            low_result.presentation_count == 1U,
+        "secondary one skips the post callback but keeps the primary load, " "normal panel transition, secondary surface and cursor flag gate"
+    );
+
+    LegacyStandardModeRenderState expanding_state;
+    u16 expanding_secondary = 2U;
+    u16 expanding_derived = 15U;
+    u32 expanding_mode = 1U;
+    FakeStandardModeRenderPorts expanding_ports{
+        expanding_state, expanding_mode
+    };
+    expanding_ports.flag_49_values = {1, 1, 1, 0};
+    expanding_ports.flag_9_value = 1;
+    const auto expanding_result = render_legacy_standard_mode_frame(
+        expanding_state,
+        0x4BU,
+        expanding_secondary,
+        expanding_derived,
+        expanding_mode,
+        expanding_ports
+    );
+    test.expect_true(
+        expanding_state.transition_extent == 2U &&
+            expanding_ports.action_loads ==
+                std::vector<RenderActionLoad>{
+                    RenderActionLoad{
+                        .record = LegacyStandardModeRenderRecord::primary,
+                        .offset = 0xB4,
+                        .flags = 0U,
+                    },
+                    RenderActionLoad{
+                        .record = LegacyStandardModeRenderRecord::transition,
+                        .offset = -1,
+                        .flags = 0U,
+                    },
+                } &&
+            expanding_ports.transition_extents == std::vector<u32>{1U} &&
+            expanding_ports.events ==
+                std::vector<u32>{
+                    173U,
+                    1U,
+                    2U,
+                    173U,
+                    3U,
+                    4U,
+                    173U,
+                    3U,
+                    6U,
+                    109U,
+                    10U,
+                    11U,
+                    12U,
+                    13U
+                } &&
+            expanding_result.story_flag_query_count == 4U &&
+            expanding_result.callback_count == 1U &&
+            expanding_result.action_load_count == 2U &&
+            expanding_result.transition_draw_count == 1U,
+        "derived fifteen with flag 0x49 equal to one keeps the initial " "extent, zeros the first offset and expands one to two"
+    );
+
+    LegacyStandardModeRenderState clear_state{
+        .terminal_derived_index = 0xAAAAU,
+        .terminal_snapshot_x = 0xBBBBU,
+        .terminal_snapshot_y = 0xCCCCU,
+    };
+    u16 clear_secondary = 0xEA60U;
+    u16 clear_derived = 7U;
+    u32 clear_mode = 3U;
+    FakeStandardModeRenderPorts clear_ports{clear_state, clear_mode};
+    clear_ports.clear_mode_during_post_update = true;
+    const auto clear_result = render_legacy_standard_mode_frame(
+        clear_state, 1U, clear_secondary, clear_derived, clear_mode, clear_ports
+    );
+    test.expect_true(
+        clear_mode == 0U && clear_result.returned_after_callback_clear &&
+            clear_state.terminal_derived_index == 0xAAAAU &&
+            clear_state.terminal_snapshot_x == 0xBBBBU &&
+            clear_state.terminal_snapshot_y == 0xCCCCU &&
+            clear_ports.events == std::vector<u32>{1U, 2U, 4U},
+        "a post-update mode clear returns before the blocking gate, render " "tail and terminal snapshots"
+    );
+
+    LegacyStandardModeRenderState blocked_state;
+    u16 blocked_secondary = 0xEA60U;
+    u16 blocked_derived = 7U;
+    u32 blocked_mode = 3U;
+    FakeStandardModeRenderPorts blocked_ports{blocked_state, blocked_mode};
+    blocked_ports.block_during_post_update = true;
+    const auto blocked_result = render_legacy_standard_mode_frame(
+        blocked_state,
+        1U,
+        blocked_secondary,
+        blocked_derived,
+        blocked_mode,
+        blocked_ports
+    );
+    test.expect_true(
+        blocked_result.skipped_by_blocking_overlay &&
+            blocked_result.presentation_count == 0U &&
+            blocked_state.cursor_frame_index == 0U &&
+            blocked_state.terminal_derived_index == 7U &&
+            blocked_ports.events == std::vector<u32>{1U, 2U, 4U, 12U, 13U},
+        "the blocking overlay skips all draw and presentation work but still " "publishes the terminal derived index and mouse snapshots"
+    );
+}
+
 void test_standard_mode_input_dispatch(openswd3::test::Context& test) {
     std::array<LegacyInputRecord, kLegacyInputRecordCount> records{};
     const auto trigger =
@@ -1043,6 +1342,7 @@ int main() {
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
     test_standard_mode_global_initialization(test);
+    test_standard_mode_frame_rendering(test);
     test_standard_mode_input_dispatch(test);
     test_standard_mode_item_initialization(test);
     test_standard_mode_selector_initialization(test);

@@ -39,6 +39,21 @@ constexpr std::size_t kInputRecordSharedOverlay = 9U;
 constexpr std::size_t kInputRecordTen = 10U;
 constexpr std::size_t kInputRecordExitSecondary = 12U;
 constexpr compat::u32 kSharedOverlayCooldownReset = 6U;
+constexpr compat::u32 kRenderEntryFrame = 0x41U;
+constexpr compat::u32 kRenderFrameThreshold = 0x4BU;
+constexpr compat::u32 kMaximumTransitionExtent = 0x320U;
+constexpr compat::u32 kPrimaryActionBaseOffset = 0xB4U;
+constexpr compat::u16 kSecondaryPanelMode = 1U;
+constexpr compat::u16 kHighModeSecondaryWord = 0xEA60U;
+constexpr compat::u16 kFlagControlledDerivedIndex = 0x0FU;
+constexpr compat::u16 kThresholdDerivedIndex = 0x0BU;
+constexpr compat::u16 kDirectDerivedIndex = 0x11U;
+constexpr compat::u16 kSecondaryThreshold = 0x01F4U;
+constexpr compat::u32 kCursorStoryFlagIndex = 9U;
+constexpr compat::u32 kCursorFrameIndex = 0x0DU;
+constexpr compat::i32 kSecondarySurfaceX = 0x027C;
+constexpr compat::i32 kSecondarySurfaceY = 0x01CC;
+constexpr compat::u32 kLogicalFramePixelCount = 0x0004B000U;
 
 constexpr std::size_t kPrimaryRecord = 0U;
 constexpr std::size_t kFlagVariantRecord = 1U;
@@ -99,7 +114,161 @@ void invoke_input_callback(
     ++result.callback_count;
 }
 
+[[nodiscard]] compat::u32
+arithmetic_shift_right_one(const compat::u32 value) noexcept {
+    return (value >> 1U) | (value & 0x80000000U);
+}
+
+[[nodiscard]] compat::i32 wrapping_negate(const compat::u32 value) noexcept {
+    return std::bit_cast<compat::i32>(0U - value);
+}
+
 }  // namespace
+
+LegacyStandardModeRenderResult render_legacy_standard_mode_frame(
+    LegacyStandardModeRenderState& state,
+    const compat::u32 frame_counter,
+    compat::u16& secondary_word,
+    compat::u16& derived_index,
+    compat::u32& tagged_mode_value,
+    LegacyStandardModeRenderPorts& ports
+) noexcept {
+    LegacyStandardModeRenderResult result;
+    if (frame_counter == kRenderEntryFrame) {
+        state.transition_extent = kMaximumTransitionExtent;
+    }
+
+    bool skip_initial_halve = false;
+    if (derived_index == kFlagControlledDerivedIndex &&
+        secondary_word > kSecondaryPanelMode) {
+        const compat::i32 story_flag = ports.story_flag(kStoryFlagIndex);
+        ++result.story_flag_query_count;
+        skip_initial_halve = story_flag == 1;
+    }
+    if (!skip_initial_halve && derived_index == kThresholdDerivedIndex &&
+        secondary_word >= kSecondaryThreshold) {
+        skip_initial_halve = true;
+    }
+    if (!skip_initial_halve) {
+        state.transition_extent =
+            arithmetic_shift_right_one(state.transition_extent);
+    }
+
+    state.captured_surface_token = ports.acquire_primary_surface();
+    ports.prepare_primary_surface(state.captured_surface_token);
+
+    if (secondary_word != kHighModeSecondaryWord) {
+        compat::u32 primary_offset = 0U;
+        if (frame_counter < kRenderFrameThreshold) {
+            primary_offset = state.transition_extent;
+        }
+        const compat::i32 story_flag = ports.story_flag(kStoryFlagIndex);
+        ++result.story_flag_query_count;
+        if (story_flag == 1 && derived_index == kFlagControlledDerivedIndex) {
+            primary_offset = 0U;
+        }
+        primary_offset += kPrimaryActionBaseOffset;
+        ports.load_action_record(
+            LegacyStandardModeRenderRecord::primary,
+            std::bit_cast<compat::i32>(primary_offset),
+            0U
+        );
+        ++result.action_load_count;
+    }
+
+    if (secondary_word != kSecondaryPanelMode) {
+        ports.invoke_post_update_callback();
+        ++result.callback_count;
+        if (tagged_mode_value == 0U) {
+            result.returned_after_callback_clear = true;
+            return result;
+        }
+    }
+
+    if (state.blocking_overlay_active != 0U) {
+        result.skipped_by_blocking_overlay = true;
+    } else {
+        const bool direct_main_tail =
+            secondary_word == kHighModeSecondaryWord ||
+            derived_index == kDirectDerivedIndex;
+        if (!direct_main_tail) {
+            bool use_expanding_transition = false;
+            if (derived_index == kFlagControlledDerivedIndex &&
+                secondary_word > kSecondaryPanelMode) {
+                const compat::i32 story_flag =
+                    ports.story_flag(kStoryFlagIndex);
+                ++result.story_flag_query_count;
+                use_expanding_transition = story_flag == 1;
+            }
+            if (!use_expanding_transition &&
+                derived_index == kThresholdDerivedIndex &&
+                secondary_word >= kSecondaryThreshold) {
+                use_expanding_transition = true;
+            }
+
+            if (use_expanding_transition) {
+                if (state.transition_extent == 0U) {
+                    state.transition_extent = 1U;
+                }
+                ports.load_action_record(
+                    LegacyStandardModeRenderRecord::transition,
+                    wrapping_negate(state.transition_extent),
+                    0U
+                );
+                ++result.action_load_count;
+                ports.draw_transition(state.transition_extent);
+                ++result.transition_draw_count;
+                const compat::u32 doubled_extent = state.transition_extent
+                    << 1U;
+                state.transition_extent =
+                    std::bit_cast<compat::i32>(doubled_extent) <=
+                        static_cast<compat::i32>(kMaximumTransitionExtent)
+                    ? doubled_extent
+                    : kMaximumTransitionExtent;
+            } else {
+                ports.prepare_mode_panel();
+                ports.load_action_record(
+                    LegacyStandardModeRenderRecord::transition,
+                    wrapping_negate(state.transition_extent),
+                    0U
+                );
+                ++result.action_load_count;
+                ports.draw_transition(state.transition_extent);
+                ++result.transition_draw_count;
+            }
+        }
+
+        if (secondary_word == kSecondaryPanelMode) {
+            ports.draw_secondary_surface(
+                kSecondarySurfaceX, kSecondarySurfaceY, 0U
+            );
+        }
+
+        state.cursor_frame_index = kCursorFrameIndex;
+        const compat::i32 cursor_flag = ports.story_flag(kCursorStoryFlagIndex);
+        ++result.story_flag_query_count;
+        if (cursor_flag == 0) {
+            ports.draw_cursor();
+            ++result.cursor_draw_count;
+        }
+
+        if (state.frame_color_delta != 0U) {
+            ports.apply_frame_color(
+                state.captured_surface_token,
+                kLogicalFramePixelCount,
+                state.frame_color_delta
+            );
+        }
+        ports.draw_common_overlay();
+        ports.present_primary_surface();
+        ++result.presentation_count;
+    }
+
+    state.terminal_derived_index = derived_index;
+    state.terminal_snapshot_x = ports.terminal_snapshot_x();
+    state.terminal_snapshot_y = ports.terminal_snapshot_y();
+    return result;
+}
 
 LegacyStandardModeInputResult run_legacy_standard_mode_input_dispatch(
     LegacyStandardModeInputState& state,

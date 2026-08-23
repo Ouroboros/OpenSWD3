@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v424
+版本：v425
 
 最后更新：2026-08-22
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 标准模式画面呈现`0x0043A610`闭环
+当前步骤：模块9 · 标准模式面板准备`0x0043A880`闭环
 
 ## 0. 执行约定
 
@@ -3073,4 +3073,10 @@ B7 P0 有限收口完成。
     `dfb6620cabbf4b2fad12886f501dc0e4c2d680babb9ac6fe3892e3e45b4d0c0f`；Linux core186/186与
     Linux app192/192通过。本单入口按阶段门禁不重复执行Windows BUILD。
 
-下一工作包：模块9标准模式画面呈现`0x0043A610`闭环。
+- 模块9标准模式画面呈现`0x0043A610`闭环。entry extent、有符号transition算术、surface建立、
+    三个动作加载点、flag49分支、callback清mode早退、blocking gate、普通/扩张路径、软件鼠标、
+    颜色调整、提交和终态快照均按LST实现。workpack两轮稳定为`6/227`，hash为
+    `a5d803139a08653d833dda9ed715afd66496b9edd37534e477e29bec3679b98b`；Linux core186/186与
+    Linux app192/192通过。本单入口按阶段门禁不重复执行Windows BUILD。
+
+下一工作包：模块9标准模式面板准备`0x0043A880`闭环。
