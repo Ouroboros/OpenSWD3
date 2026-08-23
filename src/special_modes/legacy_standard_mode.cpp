@@ -8,7 +8,7 @@ namespace {
 constexpr compat::u16 kEntrySoundId = 0x00BBU;
 constexpr compat::u32 kLowModeActionId = 0x0000232AU;
 constexpr compat::u32 kModeThreeSixChoiceActionId = 0x0000232BU;
-constexpr compat::u32 kModeSelectorResourceId = 0x0000EA60U;
+constexpr compat::u32 kHighModeSecondaryValue = 0x0000EA60U;
 constexpr compat::u32 kPostInitializeFrameCounter = 0x40U;
 constexpr compat::u32 kTransientBitOne = 0x00000002U;
 constexpr compat::u32 kStoryFlagIndex = 0x49U;
@@ -258,24 +258,24 @@ LegacyStandardModeItemResult initialize_legacy_standard_mode_items(
 
 LegacyStandardModeSelectorResult initialize_legacy_standard_mode_selector(
     LegacyStandardModeSelectorState& state,
-    const compat::i32 resource_id,
-    const compat::u32 selector,
+    const compat::i32 primary_value,
+    const compat::u32 secondary_value,
     LegacyStandardModeSelectorPorts& ports
 ) noexcept {
     LegacyStandardModeSelectorResult result;
-    const compat::i32 resource_delta = std::bit_cast<compat::i32>(
-        std::bit_cast<compat::u32>(resource_id) -
+    const compat::i32 primary_delta = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(primary_value) -
         static_cast<compat::u32>(kSelectorIndexBaseResource)
     );
     const compat::i32 derived_index =
-        resource_delta / kSelectorIndexDivisor + kSelectorIndexBias;
+        primary_delta / kSelectorIndexDivisor + kSelectorIndexBias;
 
-    state.selector = static_cast<compat::u16>(selector);
+    state.secondary_word = static_cast<compat::u16>(secondary_value);
     state.derived_index = static_cast<compat::u16>(derived_index);
     state.item_count = kSelectorItemCount;
-    state.resource_ids.fill(static_cast<compat::u16>(resource_id));
+    state.primary_words.fill(static_cast<compat::u16>(primary_value));
 
-    ports.bind_mode_callbacks(state.selector);
+    ports.bind_mode_callbacks(state.secondary_word);
     ++result.callback_bind_count;
     ports.establish_item_state(state.item_count);
     ++result.item_state_count;
@@ -437,20 +437,20 @@ LegacyStandardSpecialModeFrameResult run_legacy_standard_special_mode_frame(
                 }
             );
             ports.initialize_mode_selector(
-                entry_mode == 6U ? 3U : 0U, kModeSelectorResourceId
+                entry_mode == 6U ? 3U : 0U, kHighModeSecondaryValue
             );
             ++result.initialization_count;
         }
 
         if (entry_mode == 4U) {
             ports.reset_mode_records();
-            ports.initialize_mode_selector(1U, kModeSelectorResourceId);
+            ports.initialize_mode_selector(1U, kHighModeSecondaryValue);
             ++result.initialization_count;
         }
 
         if (entry_mode == 5U) {
             ports.reset_mode_records();
-            ports.initialize_mode_selector(2U, kModeSelectorResourceId);
+            ports.initialize_mode_selector(2U, kHighModeSecondaryValue);
             ++result.initialization_count;
         }
 

@@ -4713,8 +4713,8 @@ public:
     }
 
     void initialize_standard_mode_selector(
-        const openswd3::compat::u32 selector,
-        const openswd3::compat::u32 resource_id
+        const openswd3::compat::u32 primary_value,
+        const openswd3::compat::u32 secondary_value
     ) {
         class SelectorPorts final
             : public openswd3::special_modes::LegacyStandardModeSelectorPorts {
@@ -4794,8 +4794,8 @@ public:
         static_cast<void>(
             openswd3::special_modes::initialize_legacy_standard_mode_selector(
                 legacy_standard_mode_state_.selector_state,
-                std::bit_cast<openswd3::compat::i32>(resource_id),
-                selector,
+                std::bit_cast<openswd3::compat::i32>(primary_value),
+                secondary_value,
                 ports
             )
         );
@@ -4928,8 +4928,8 @@ public:
                     LegacyLowSpecialModeInitialization& initialization
             ) override {
                 owner_.initialize_standard_mode_selector(
-                    initialization.setup_selector,
-                    initialization.setup_resource_id
+                    initialization.setup_resource_id,
+                    initialization.setup_selector
                 );
             }
 
@@ -4947,10 +4947,12 @@ public:
             }
 
             void initialize_mode_selector(
-                const openswd3::compat::u32 selector,
-                const openswd3::compat::u32 resource_id
+                const openswd3::compat::u32 primary_value,
+                const openswd3::compat::u32 secondary_value
             ) override {
-                owner_.initialize_standard_mode_selector(selector, resource_id);
+                owner_.initialize_standard_mode_selector(
+                    primary_value, secondary_value
+                );
             }
 
             void

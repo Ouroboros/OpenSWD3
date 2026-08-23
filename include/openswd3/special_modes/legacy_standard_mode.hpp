@@ -112,10 +112,10 @@ struct LegacyStandardModeInputResult {
 struct LegacyStandardModeSelectorState {
     LegacyStandardModeItemState item_state{};
     LegacyStandardModeInputState input_state{};
-    compat::u16 selector{};
+    compat::u16 secondary_word{};
     compat::u16 derived_index{};
     compat::u16 item_count{};
-    std::array<compat::u16, 3U> resource_ids{};
+    std::array<compat::u16, 3U> primary_words{};
     compat::u32 mode_value{};
 };
 
@@ -123,7 +123,7 @@ class LegacyStandardModeSelectorPorts {
 public:
     virtual ~LegacyStandardModeSelectorPorts() = default;
 
-    virtual void bind_mode_callbacks(compat::u16 selector) = 0;
+    virtual void bind_mode_callbacks(compat::u16 secondary_word) = 0;
     virtual void establish_item_state(compat::u16 item_count) = 0;
     virtual void clear_mode_input_records() = 0;
     [[nodiscard]] virtual compat::u32 create_shared_input_token(
@@ -184,8 +184,9 @@ public:
     virtual void initialize_mode_3_or_6_records(
         const LegacyModeThreeSixRecordInitialization& initialization
     ) = 0;
-    virtual void
-    initialize_mode_selector(compat::u32 selector, compat::u32 resource_id) = 0;
+    virtual void initialize_mode_selector(
+        compat::u32 primary_value, compat::u32 secondary_value
+    ) = 0;
     virtual void play_entry_sound(compat::u16 sound_id) = 0;
     virtual void update_mode_objects() = 0;
     virtual void process_mode_input(compat::u32& tagged_mode_value) = 0;
@@ -229,8 +230,8 @@ initialize_legacy_standard_mode_items(
 [[nodiscard]] LegacyStandardModeSelectorResult
 initialize_legacy_standard_mode_selector(
     LegacyStandardModeSelectorState& state,
-    compat::i32 resource_id,
-    compat::u32 selector,
+    compat::i32 primary_value,
+    compat::u32 secondary_value,
     LegacyStandardModeSelectorPorts& ports
 ) noexcept;
 

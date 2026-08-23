@@ -207,13 +207,12 @@ public:
         input_words.fill(0xFFFFFFFFU);
     }
 
-    void bind_mode_callbacks(const u16 selector) override {
+    void bind_mode_callbacks(const u16 secondary_word) override {
         events.push_back(1U);
-        callback_selector = selector;
-        bind_saw_header = state_.selector == 2U &&
-            state_.derived_index == 0x2716U && state_.item_count == 5U &&
-            state_.resource_ids ==
-                std::array<u16, 3>{0xEA60U, 0xEA60U, 0xEA60U} &&
+        callback_secondary_word = secondary_word;
+        bind_saw_header = state_.secondary_word == 0xEA60U &&
+            state_.derived_index == 7U && state_.item_count == 5U &&
+            state_.primary_words == std::array<u16, 3>{2U, 2U, 2U} &&
             state_.mode_value == 0xDEADBEEFU;
     }
 
@@ -263,7 +262,7 @@ public:
     std::vector<u16> published_sentinels;
     std::array<u32, 3U> token_arguments{};
     u32 shared_token{0xCAFEBABEU};
-    u16 callback_selector{};
+    u16 callback_secondary_word{};
     u16 established_item_count{};
     bool bind_saw_header{};
     bool clear_saw_preceding_state{};
@@ -292,11 +291,11 @@ public:
     }
 
     void initialize_mode_selector(
-        const u32 selected, const u32 selected_resource
+        const u32 selected_primary_value, const u32 selected_secondary_value
     ) override {
         events.push_back(3U);
-        selector = selected;
-        resource_id = selected_resource;
+        primary_value = selected_primary_value;
+        secondary_value = selected_secondary_value;
     }
 
     void play_entry_sound(const u16 selected_sound) override {
@@ -325,8 +324,8 @@ public:
     std::vector<u32> events;
     LegacyLowSpecialModeInitialization low_initialization;
     LegacyModeThreeSixRecordInitialization mode_three_six_initialization;
-    u32 selector{};
-    u32 resource_id{};
+    u32 primary_value{};
+    u32 secondary_value{};
     u16 sound_id{};
     bool alternate{};
     bool clear_during_input{};
@@ -823,15 +822,14 @@ void test_standard_mode_item_initialization(openswd3::test::Context& test) {
 void test_standard_mode_selector_initialization(openswd3::test::Context& test) {
     LegacyStandardModeSelectorState state{.mode_value = 0xDEADBEEFU};
     FakeStandardModeSelectorPorts ports{state};
-    const auto result = initialize_legacy_standard_mode_selector(
-        state, 0x0000EA60, 0x00010002U, ports
-    );
+    const auto result =
+        initialize_legacy_standard_mode_selector(state, 2, 0x0001EA60U, ports);
     test.expect_true(
-        state.selector == 2U && state.derived_index == 0x2716U &&
+        state.secondary_word == 0xEA60U && state.derived_index == 7U &&
             state.item_count == 5U &&
-            state.resource_ids ==
-                std::array<u16, 3U>{0xEA60U, 0xEA60U, 0xEA60U} &&
-            state.mode_value == 0U && ports.callback_selector == 2U &&
+            state.primary_words == std::array<u16, 3U>{2U, 2U, 2U} &&
+            state.mode_value == 0U &&
+            ports.callback_secondary_word == 0xEA60U &&
             ports.established_item_count == 5U && ports.bind_saw_header &&
             ports.clear_saw_preceding_state && ports.create_saw_mode_clear &&
             ports.input_words == std::array<u32, 0x80U>{} &&
@@ -859,10 +857,22 @@ void test_standard_mode_selector_initialization(openswd3::test::Context& test) {
         signed_state, 0x17, 0xFFFF0003U, signed_ports
     ));
     test.expect_true(
-        signed_state.selector == 3U && signed_state.derived_index == 10U &&
-            signed_state.resource_ids ==
+        signed_state.secondary_word == 3U &&
+            signed_state.derived_index == 10U &&
+            signed_state.primary_words ==
                 std::array<u16, 3U>{0x17U, 0x17U, 0x17U},
-        "the x86 signed division truncates negative resource deltas toward zero"
+        "the x86 signed division truncates negative primary deltas toward zero"
+    );
+
+    LegacyStandardModeSelectorState low_state;
+    FakeStandardModeSelectorPorts low_ports{low_state};
+    static_cast<void>(
+        initialize_legacy_standard_mode_selector(low_state, 0x24, 2U, low_ports)
+    );
+    test.expect_true(
+        low_state.secondary_word == 2U && low_state.derived_index == 12U &&
+            low_state.primary_words == std::array<u16, 3U>{0x24U, 0x24U, 0x24U},
+        "the low-mode call keeps primary 0x24 and secondary two in ABI order"
     );
 }
 
@@ -916,7 +926,7 @@ void test_standard_mode_entry_and_common_order(openswd3::test::Context& test) {
         "the bit-30-clear low-mode branch uses the normal setup variant"
     );
 
-    for (const auto [mode, selector] : std::array<std::pair<u32, u32>, 4>{
+    for (const auto [mode, primary_value] : std::array<std::pair<u32, u32>, 4>{
              std::pair<u32, u32>{3U, 0U},
              std::pair<u32, u32>{4U, 1U},
              std::pair<u32, u32>{5U, 2U},
@@ -933,8 +943,9 @@ void test_standard_mode_entry_and_common_order(openswd3::test::Context& test) {
             : std::vector<u32>{2U, 3U, 5U, 6U, 7U};
         test.expect_true(
             tagged_mode == (0x20000000U | mode) &&
-                state.frame_counter == 0x41U && ports.selector == selector &&
-                ports.resource_id == 0x0000EA60U &&
+                state.frame_counter == 0x41U &&
+                ports.primary_value == primary_value &&
+                ports.secondary_value == 0x0000EA60U &&
                 (!initializes_shared_records ||
                  (ports.mode_three_six_initialization.primary_base_variant ==
                       0x4EU &&
@@ -944,7 +955,7 @@ void test_standard_mode_entry_and_common_order(openswd3::test::Context& test) {
                       std::array<u32, 4>{0x2CU, 0x2DU, 0x2EU, 0x2FU})) &&
                 ports.events == expected_events &&
                 result.initialization_count == 1U,
-            "modes 3 through 6 keep bit 29 and map to selectors zero " "through three"
+            "modes 3 through 6 keep bit 29 and map primary values zero " "through three while preserving secondary 0xEA60"
         );
     }
 }

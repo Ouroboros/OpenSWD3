@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v423
+版本：v424
 
 最后更新：2026-08-22
 
@@ -3054,11 +3054,12 @@ B7 P0 有限收口完成。
     `895ddf3dc0d11da21a3fe4e216719878e8da3901923999183aa88fa9a172c34e`；Linux core186/186、
     Linux app192/192及Windows LLVM app192/192通过。
 
-- 模块9模式选择初始化`0x0043A2A0`闭环。mode1/2普通与alternate参数族、mode3–6 selector映射、
-    低16位字段、有符号派生索引、五个callee边界、`0x200`字节输入区清零、共享token建立和
-    三owner token/sentinel顺序均按LST实现。workpack两轮稳定为`3/227`，hash为
-    `bb501b6c069983b834a14030ac584b96b326f43ea2a5f233f8b2b9a65263b001`；Linux core186/186、
-    Linux app192/192及Windows LLVM app192/192通过。
+- 模块9双参数初始化`0x0043A2A0`闭环并完成参数方向纠正。mode1/2参数为`(0x1E,1)`或
+    `(0x24,2)`，mode3–6参数为`(0..3,0xEA60)`；`word_4FC900`取secondary，三份资源word及
+    有符号派生索引取primary。五个callee边界、`0x200`字节输入区清零、共享token及三owner
+    token/sentinel顺序均按LST实现。参数修正后workpack两轮仍稳定为`5/227`，hash为
+    `dfb6620cabbf4b2fad12886f501dc0e4c2d680babb9ac6fe3892e3e45b4d0c0f`；Linux core186/186与
+    Linux app192/192重新通过，Windows BUILD留到模块9大阶段统一执行。
 
 - 模块9可用项目状态初始化`0x0043A380`闭环。4个固定剧情标志、部分重置顺序、非零可用语义、
     可用序号选择、共享索引`8..11`及`records[available_count]`的原始terminal覆盖均按LST实现。
