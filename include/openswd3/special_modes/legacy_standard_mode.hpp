@@ -527,6 +527,14 @@ struct LegacyStandardModeForwardNode {
     const LegacyStandardModeForwardNode* head
 ) noexcept;
 
+// sub_43B9A0: copy one intrusive head, then advance the destination count links.
+[[nodiscard]] const LegacyStandardModeForwardNode**
+advance_legacy_standard_mode_forward_head(
+    compat::i32 count,
+    const LegacyStandardModeForwardNode* const* source_head,
+    const LegacyStandardModeForwardNode** output_head
+) noexcept;
+
 // sub_43B080: update and draw one standard-mode ghost action.
 [[nodiscard]] LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,

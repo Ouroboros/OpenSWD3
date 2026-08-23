@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v435
+版本：v436
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 标准模式单链推进helper`0x0043B9A0`闭环
+当前步骤：模块9 · 标准模式单链索引helper`0x0043B9C0`闭环
 
 ## 0. 执行约定
 
@@ -3138,6 +3138,15 @@ B7 P0 有限收口完成。
     `6c9092652090a83464cc5b5cf491be7ed409abc52f27aa3cb3e2a69ee6615ec4`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式单链推进helper`0x0043B9A0`闭环。LST范围`0x0043B9A0..0x0043B9BD`
+    先无条件复制source head到output head；signed count小于等于0时直接返回output变量地址，正值
+    时严格沿节点偏移0推进count次。保留source/output变量别名、短链越界解引用和无null保护。
+    37个直接调用点归并为35个caller及固定/动态链owner族。typed pointer-to-pointer实现与定向UT
+    覆盖零/负count、1/2/3步推进、distinct source不变和source/output别名。workpack连续两轮稳定
+    为`13/227`，SHA256为
+    `6b2f98c7c36ca283c5f58aa0a0b028275cb3febc7f918ddb5aa24acabe8ddcd3`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
-下一工作包：模块9标准模式单链推进helper`0x0043B9A0`闭环。
+下一工作包：模块9标准模式单链索引helper`0x0043B9C0`闭环。

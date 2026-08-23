@@ -24,6 +24,7 @@ using openswd3::input_time_rng::LegacyInputRecord;
 using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
+using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
 using openswd3::special_modes::draw_legacy_standard_mode_ghost;
@@ -1052,6 +1053,65 @@ void test_standard_mode_forward_node_count(openswd3::test::Context& test) {
     test.expect_true(
         first.next == &second && second.next == &third && third.next == nullptr,
         "0x43B980 leaves the head and every traversed link unchanged"
+    );
+}
+
+void test_standard_mode_forward_head_advance(openswd3::test::Context& test) {
+    const LegacyStandardModeForwardNode third{};
+    const LegacyStandardModeForwardNode second{&third};
+    const LegacyStandardModeForwardNode first{&second};
+    const LegacyStandardModeForwardNode* source = &first;
+    const LegacyStandardModeForwardNode* output = &third;
+
+    test.expect_true(
+        advance_legacy_standard_mode_forward_head(0, &source, &output) ==
+                &output &&
+            output == &first && source == &first,
+        "0x43B9A0 count zero copies the source head and returns the output address"
+    );
+
+    output = nullptr;
+    test.expect_true(
+        advance_legacy_standard_mode_forward_head(-1, &source, &output) ==
+                &output &&
+            output == &first && source == &first,
+        "0x43B9A0 negative signed counts copy without traversing"
+    );
+
+    output = nullptr;
+    static_cast<void>(
+        advance_legacy_standard_mode_forward_head(1, &source, &output)
+    );
+    test.expect_equal(
+        output,
+        &second,
+        "0x43B9A0 advances the copied destination by one offset-zero link"
+    );
+
+    static_cast<void>(
+        advance_legacy_standard_mode_forward_head(2, &source, &output)
+    );
+    test.expect_equal(
+        output,
+        &third,
+        "0x43B9A0 restarts from source and advances the requested link count"
+    );
+
+    static_cast<void>(
+        advance_legacy_standard_mode_forward_head(3, &source, &output)
+    );
+    test.expect_true(
+        output == nullptr && source == &first && first.next == &second &&
+            second.next == &third && third.next == nullptr,
+        "0x43B9A0 can land on null without modifying a distinct source chain"
+    );
+
+    const LegacyStandardModeForwardNode* aliased = &first;
+    test.expect_true(
+        advance_legacy_standard_mode_forward_head(2, &aliased, &aliased) ==
+                &aliased &&
+            aliased == &third,
+        "0x43B9A0 preserves source/output variable aliasing"
     );
 }
 
@@ -2292,6 +2352,7 @@ int main() {
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
     test_standard_mode_forward_node_count(test);
+    test_standard_mode_forward_head_advance(test);
     test_standard_mode_callback_binding(test);
     test_standard_mode_global_initialization(test);
     test_standard_mode_ghost_draw(test);
