@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v434
+版本：v435
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 标准模式回调helper`0x0043B980`闭环
+当前步骤：模块9 · 标准模式单链推进helper`0x0043B9A0`闭环
 
 ## 0. 执行约定
 
@@ -3130,6 +3130,14 @@ B7 P0 有限收口完成。
     FPS deadline、快照、半帧插值、钳制、传送及残差；Linux core188/188
     与Linux app194/194完整门通过，SDL应用目标成功链接；按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式单链计数helper`0x0043B980`闭环。LST范围`0x0043B980..0x0043B993`
+    固定从有效head变量读取链头，只跟随节点偏移0的next，以`u32`只读计数；空链返回0，原循环链
+    不终止，不新增环检测或上限。11个直接调用点归并为10个caller及6个链owner。typed实现以
+    `LegacyStandardModeForwardNode`隔离32位裸指针宽度，定向UT覆盖空链、1/2/3节点和调用后链
+    不变。workpack连续两轮稳定为`12/227`，SHA256为
+    `6c9092652090a83464cc5b5cf491be7ed409abc52f27aa3cb3e2a69ee6615ec4`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
-下一工作包：模块9标准模式回调helper`0x0043B980`闭环。
+下一工作包：模块9标准模式单链推进helper`0x0043B9A0`闭环。

@@ -322,6 +322,18 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     return result;
 }
 
+compat::u32 count_legacy_standard_mode_forward_nodes(
+    const LegacyStandardModeForwardNode* head
+) noexcept {
+    compat::u32 count = 0U;
+    const LegacyStandardModeForwardNode* node = head;
+    while (node != nullptr) {
+        node = node->next;
+        ++count;
+    }
+    return count;
+}
+
 LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,
     asset_runtime::LegacyActionRecord& record,

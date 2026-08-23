@@ -25,6 +25,7 @@ using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
+using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
 using openswd3::special_modes::draw_legacy_standard_mode_ghost;
 using openswd3::special_modes::initialize_legacy_initial_menu;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
@@ -60,6 +61,7 @@ using openswd3::special_modes::LegacyStandardModeBarRequest;
 using openswd3::special_modes::LegacyStandardModeCallbackBindingPorts;
 using openswd3::special_modes::LegacyStandardModeCallbackGroup;
 using openswd3::special_modes::LegacyStandardModeCallbackState;
+using openswd3::special_modes::LegacyStandardModeForwardNode;
 using openswd3::special_modes::LegacyStandardModeGhostState;
 using openswd3::special_modes::LegacyStandardModeItemState;
 using openswd3::special_modes::LegacyStandardModePanelFrame;
@@ -1032,6 +1034,24 @@ void test_text_object_result_and_edited_name(openswd3::test::Context& test) {
             state.first_name[0] == 0x41U && state.first_name[1] == 0U &&
             state.name_input.has_value(),
         "text result one commits the edit and creates the second input object"
+    );
+}
+
+void test_standard_mode_forward_node_count(openswd3::test::Context& test) {
+    const LegacyStandardModeForwardNode third{};
+    const LegacyStandardModeForwardNode second{&third};
+    const LegacyStandardModeForwardNode first{&second};
+
+    test.expect_true(
+        count_legacy_standard_mode_forward_nodes(nullptr) == 0U &&
+            count_legacy_standard_mode_forward_nodes(&third) == 1U &&
+            count_legacy_standard_mode_forward_nodes(&second) == 2U &&
+            count_legacy_standard_mode_forward_nodes(&first) == 3U,
+        "0x43B980 returns the exact number of offset-zero forward links"
+    );
+    test.expect_true(
+        first.next == &second && second.next == &third && third.next == nullptr,
+        "0x43B980 leaves the head and every traversed link unchanged"
     );
 }
 
@@ -2271,6 +2291,7 @@ int main() {
     test_name_cancel_returns_to_selection(test);
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
+    test_standard_mode_forward_node_count(test);
     test_standard_mode_callback_binding(test);
     test_standard_mode_global_initialization(test);
     test_standard_mode_ghost_draw(test);

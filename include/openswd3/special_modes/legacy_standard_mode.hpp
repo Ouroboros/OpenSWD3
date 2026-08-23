@@ -518,6 +518,15 @@ bind_legacy_standard_mode_callbacks(
     LegacyStandardModeCallbackBindingPorts& ports
 ) noexcept;
 
+struct LegacyStandardModeForwardNode {
+    const LegacyStandardModeForwardNode* next{};
+};
+
+// sub_43B980: count one intrusive forward chain through its offset-zero links.
+[[nodiscard]] compat::u32 count_legacy_standard_mode_forward_nodes(
+    const LegacyStandardModeForwardNode* head
+) noexcept;
+
 // sub_43B080: update and draw one standard-mode ghost action.
 [[nodiscard]] LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,
