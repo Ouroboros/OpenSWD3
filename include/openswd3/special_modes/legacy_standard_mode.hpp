@@ -9,6 +9,8 @@
 #include <cstddef>
 #include <optional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace openswd3::special_modes {
@@ -528,6 +530,7 @@ struct LegacyStandardModeForwardNode {
     compat::u16 first_value{};
     compat::u16 second_value{};
     compat::u32 release_token{};
+    std::string display_name{};
 };
 
 class LegacyStandardModeMissingNodePorts {
@@ -751,6 +754,7 @@ struct LegacyStandardModeDatabaseInitializationState {
     compat::u32 interaction_toggle{};
     compat::u32 runtime_input_flags{};
     compat::u32 phase_3_countdown{};
+    compat::i32 animation_offset{};
     compat::u32 comparison_value{};
     compat::i32 first_dynamic_min_x{};
     compat::i32 second_dynamic_min_x{};
@@ -1031,6 +1035,77 @@ struct LegacyStandardModeDatabaseInputResult {
     compat::i32 legacy_return_value{};
     compat::u32 callback_count{};
     std::optional<LegacyStandardModeDatabaseInputTarget> last_target{};
+};
+
+enum class LegacyStandardModeDatabaseRenderText : compat::u8 {
+    item_exit_prompt,
+    first_record_detail,
+    second_record_detail,
+    common_panel_label,
+    phase_5_prompt,
+};
+
+enum class LegacyStandardModeDatabaseRenderOperationKind : compat::u8 {
+    initialize_action,
+    draw_panel,
+    draw_text,
+    draw_split_bar,
+    draw_list_marker,
+    draw_record_panel,
+    draw_resource,
+    draw_countdown,
+    complete_phase,
+};
+
+struct LegacyStandardModeDatabaseRenderOperation {
+    LegacyStandardModeDatabaseRenderOperationKind kind{};
+    std::array<compat::i32, 8U> arguments{};
+    std::string text{};
+    float first_ratio{};
+    float second_ratio{};
+
+    bool operator==(const LegacyStandardModeDatabaseRenderOperation&) const =
+        default;
+};
+
+struct LegacyStandardModeDatabaseRenderResource {
+    compat::u32 source_word{};
+    compat::u16 width{};
+    compat::u16 height{};
+};
+
+class LegacyStandardModeDatabaseRenderPorts {
+public:
+    virtual ~LegacyStandardModeDatabaseRenderPorts() = default;
+    [[nodiscard]] virtual compat::i32
+    make_color(compat::u8 red, compat::u8 green, compat::u8 blue) noexcept = 0;
+    [[nodiscard]] virtual bool
+    query_item_presence(compat::u16 item_id) noexcept = 0;
+    [[nodiscard]] virtual std::string_view
+    static_text(LegacyStandardModeDatabaseRenderText text) noexcept = 0;
+    [[nodiscard]] virtual std::string_view
+    indexed_text(compat::u16 index) noexcept = 0;
+    [[nodiscard]] virtual std::optional<
+        LegacyStandardModeDatabaseRenderResource>
+    resolve_resource(compat::u16 resource_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 execute(
+        const LegacyStandardModeDatabaseRenderOperation& operation
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeDatabaseRenderStatus : compat::u8 {
+    completed,
+    forward_node_missing,
+    resource_missing,
+};
+
+struct LegacyStandardModeDatabaseRenderResult {
+    LegacyStandardModeDatabaseRenderStatus status{
+        LegacyStandardModeDatabaseRenderStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 operation_count{};
 };
 
 class LegacyStandardModeDatabaseInputPorts
@@ -1902,6 +1977,13 @@ exit_legacy_standard_mode_database_interaction(
     LegacyStandardModeDatabaseInitializationState& state,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeDatabaseExitPorts& ports
+) noexcept;
+
+// sub_43E800: draw the standard-mode database callback frame.
+[[nodiscard]] LegacyStandardModeDatabaseRenderResult
+render_legacy_standard_mode_database(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRenderPorts& ports
 ) noexcept;
 
 // sub_43E3D0: commit or transition the database interaction phase.

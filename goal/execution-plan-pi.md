@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v481
+版本：v482
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043E800`
+当前步骤：模块9 · 闭环`0x0043F000`
 
 ## 0. 执行约定
 
@@ -3593,9 +3593,20 @@ B7 P0 有限收口完成。
     `223801a61e31fb0f348ba9ad946424aa7ac1490b0d6ddcc7ac5fcdab209aa243`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库绘制`0x0043E800`闭环。LST范围`0x0043E800..0x0043EFFE`，910行、29个
+    基本块，无direct caller并由B480及后续callback表绑定。入口双颜色及物品1BB0提示早退；phase1/5
+    精确恢复page/direction动作坐标、display双nibble衰减、AE40双比例、16项列表/marker、双inline/runtime
+    record面板、1BA9 gate、threshold资源2465/2463及139h/25Bh blit坐标。phase2/10恢复两个FA70 flags
+    与公共panel；phase3恢复signed countdown、动画offset、-35 action边界、140→141后snap200及405C0；
+    phase4按toggle选择record action；phase5按len*12居中提示。固定/索引文本、资源和未关闭callee保持
+    最小typed render port；resource缺失在原`[eax]`点typed-stop。定向UT覆盖全部phase及精确坐标/flags/
+    比例/typed-stop。workpack连续两轮稳定为`57/227`，SHA256为
+    `2515ab3d64a6961f4ae9389efd852d47b363e4e4818311b788e3de569669cffe`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`56/227`，下一单元为`0x0043E800`。
+进行中，正式进度为`57/227`，下一单元为`0x0043F000`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043E800`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043F000`，继续更新workpack、证据和完整验证门。

@@ -4374,6 +4374,293 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
     }
 }
 
+void test_standard_mode_database_render(openswd3::test::Context& test) {
+    namespace sm = openswd3::special_modes;
+    using Operation = sm::LegacyStandardModeDatabaseRenderOperation;
+    using Kind = sm::LegacyStandardModeDatabaseRenderOperationKind;
+    using Text = sm::LegacyStandardModeDatabaseRenderText;
+    using Resource = sm::LegacyStandardModeDatabaseRenderResource;
+    class RenderPorts final : public sm::LegacyStandardModeDatabaseRenderPorts {
+    public:
+        i32 make_color(u8 red, u8 green, u8 blue) noexcept override {
+            colors.push_back({red, green, blue});
+            return static_cast<i32>(red) * 10000 +
+                static_cast<i32>(green) * 100 + static_cast<i32>(blue);
+        }
+
+        bool query_item_presence(u16 item_id) noexcept override {
+            item_queries.push_back(item_id);
+            return item_id == 0x1BB0U ? exit_item : detail_item;
+        }
+
+        std::string_view static_text(Text text) noexcept override {
+            switch (text) {
+            case Text::item_exit_prompt:
+                return "EXIT";
+            case Text::first_record_detail:
+                return "FIRST";
+            case Text::second_record_detail:
+                return "SECOND";
+            case Text::common_panel_label:
+                return "COMMON";
+            case Text::phase_5_prompt:
+                return "RETURN";
+            }
+            return {};
+        }
+
+        std::string_view indexed_text(u16 index) noexcept override {
+            if (index < indexed_texts.size()) {
+                return indexed_texts[index];
+            }
+            return {};
+        }
+
+        std::optional<Resource>
+        resolve_resource(u16 resource_id) noexcept override {
+            resource_ids.push_back(resource_id);
+            if (!resources_available) {
+                return std::nullopt;
+            }
+            return Resource{
+                .source_word = static_cast<u32>(0xAB000000U | resource_id),
+                .width = 7U,
+                .height = 9U,
+            };
+        }
+
+        i32 execute(const Operation& operation) noexcept override {
+            operations.push_back(operation);
+            return 100 + static_cast<i32>(operations.size());
+        }
+
+        bool exit_item{};
+        bool detail_item{true};
+        bool resources_available{true};
+        std::array<std::string_view, 8U> indexed_texts{
+            "ZERO", "ALPHA", "BETA", "GAMMA"
+        };
+        std::vector<std::array<u8, 3U>> colors;
+        std::vector<u16> item_queries;
+        std::vector<u16> resource_ids;
+        std::vector<Operation> operations;
+    };
+    const auto render =
+        [](sm::LegacyStandardModeDatabaseInitializationState& state,
+           RenderPorts& ports) {
+            return sm::render_legacy_standard_mode_database(state, ports);
+        };
+    const auto put_u16 =
+        [](std::span<u8> bytes, std::size_t offset, u16 value) {
+            bytes[offset] = static_cast<u8>(value & 0xFFU);
+            bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+        };
+    const auto count_kind = [](const RenderPorts& ports, Kind kind) {
+        return static_cast<u32>(std::count_if(
+            ports.operations.begin(),
+            ports.operations.end(),
+            [kind](const Operation& operation) {
+                return operation.kind == kind;
+            }
+        ));
+    };
+
+    {
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        RenderPorts ports;
+        ports.exit_item = true;
+        const auto result = render(state, ports);
+        test.expect_true(
+            result.helper_call_count == 5U && result.operation_count == 2U &&
+                result.legacy_return_value == 102 &&
+                ports.operations[0].kind == Kind::draw_panel &&
+                ports.operations[0].arguments[2] == 44 &&
+                ports.operations[1].kind == Kind::draw_text &&
+                ports.operations[1].text == "EXIT",
+            "0x43E800 item 1BB0 draws the 11-pixel prompt and returns early"
+        );
+    }
+    {
+        sm::LegacyStandardModeForwardNode second{
+            nullptr, 2U, 8U, 0U, 0U, 0U, "SECOND"
+        };
+        sm::LegacyStandardModeForwardNode first{
+            &second, 1U, 7U, 0U, 0U, 0U, "FIRST"
+        };
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        state.interaction_phase = 1U;
+        state.hover_flag = 1U;
+        state.page_selection = 2;
+        state.direction_selection = 1U;
+        state.forward_count = 17U;
+        state.window_offset = 3;
+        state.bounded_forward_count = 4;
+        state.display_flags = 0x21U;
+        state.current_forward_head = &first;
+        state.list_selection = 0;
+        state.first_missing_text_index = 0xFFDCU;
+        state.second_missing_text_index = 0xFFDCU;
+        RenderPorts ports;
+        const auto result = render(state, ports);
+        const auto split = std::find_if(
+            ports.operations.begin(),
+            ports.operations.end(),
+            [](const Operation& operation) {
+                return operation.kind == Kind::draw_split_bar;
+            }
+        );
+        test.expect_true(
+            result.status ==
+                    sm::LegacyStandardModeDatabaseRenderStatus::completed &&
+                state.display_flags == 0x10U &&
+                count_kind(ports, Kind::initialize_action) == 3U &&
+                ports.operations[1].arguments[3] == 0x34 &&
+                ports.operations[2].arguments[3] == 0x1A8 &&
+                count_kind(ports, Kind::draw_text) == 2U &&
+                count_kind(ports, Kind::draw_list_marker) == 1U &&
+                split != ports.operations.end() && split->arguments[3] == 3 &&
+                split->first_ratio == 7.0F / 17.0F &&
+                split->second_ratio == 3.0F / 17.0F &&
+                ports.operations[4].text.find("FIRST") != std::string::npos,
+            "0x43E800 phase1 decays both display nibbles then renders list and marker"
+        );
+    }
+    {
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        state.interaction_phase = 1U;
+        state.first_missing_text_index = 1U;
+        state.second_missing_text_index = 2U;
+        put_u16(state.first_inline_record, 0x58U, 0x1234U);
+        put_u16(state.first_inline_record, 0x5AU, 1U);
+        put_u16(state.first_inline_record, 0x5CU, 10U);
+        put_u16(state.second_inline_record, 0x5AU, 2U);
+        put_u16(state.second_inline_record, 0x5CU, 30U);
+        std::ranges::copy(
+            std::array<u8, 4U>{'O', 'N', 'E', 0U},
+            state.first_inline_record.begin() + 8
+        );
+        std::ranges::copy(
+            std::array<u8, 4U>{'T', 'W', 'O', 0U},
+            state.second_inline_record.begin() + 8
+        );
+        put_u16(state.first_runtime_record, 4U, 1U);
+        put_u16(state.second_runtime_record, 4U, 2U);
+        put_u16(state.first_runtime_record, 0x60U, 19U);
+        put_u16(state.second_runtime_record, 0x60U, 20U);
+        RenderPorts ports;
+        const auto result = render(state, ports);
+        test.expect_true(
+            result.status ==
+                    sm::LegacyStandardModeDatabaseRenderStatus::completed &&
+                ports.resource_ids == std::vector<u16>{0x2465U, 0x2463U} &&
+                count_kind(ports, Kind::draw_resource) == 2U &&
+                std::find_if(
+                    ports.operations.begin(),
+                    ports.operations.end(),
+                    [](const Operation& operation) {
+                        return operation.kind == Kind::draw_resource;
+                    }
+                )->arguments[3] == 0x139 &&
+                count_kind(ports, Kind::draw_panel) == 2U &&
+                count_kind(ports, Kind::draw_text) == 6U,
+            "0x43E800 phase1 renders both inline/runtime records and threshold resources"
+        );
+
+        RenderPorts missing_ports;
+        missing_ports.resources_available = false;
+        const auto missing = render(state, missing_ports);
+        test.expect_true(
+            missing.status ==
+                    sm::LegacyStandardModeDatabaseRenderStatus::
+                        resource_missing &&
+                missing_ports.resource_ids == std::vector<u16>{0x2465U},
+            "0x43E800 typed-stops at the original missing resource dereference"
+        );
+    }
+    {
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        state.interaction_phase = 2U;
+        state.runtime_input_flags = 3U;
+        state.interaction_toggle = 0U;
+        RenderPorts ports;
+        const auto phase2 = render(state, ports);
+        test.expect_true(
+            phase2.legacy_return_value == 2 &&
+                count_kind(ports, Kind::draw_record_panel) == 2U &&
+                count_kind(ports, Kind::draw_panel) == 1U &&
+                count_kind(ports, Kind::draw_text) == 1U &&
+                ports.operations[0].arguments[3] == 0x1001,
+            "0x43E800 phase2 draws two flag/toggle panels and common label"
+        );
+    }
+    {
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        state.interaction_phase = 3U;
+        state.runtime_input_flags = 3U;
+        state.interaction_toggle = 1U;
+        state.phase_3_countdown = std::bit_cast<u32>(-35);
+        RenderPorts ports;
+        const auto opening = render(state, ports);
+        test.expect_true(
+            opening.legacy_return_value == -34 &&
+                state.animation_offset == -30 &&
+                state.primary_action.action_id == 0x232AU &&
+                state.primary_action.base_variant == 0x46U &&
+                count_kind(ports, Kind::draw_record_panel) == 2U,
+            "0x43E800 phase3 -35 frame draws panels, seeds action and increments"
+        );
+
+        state.phase_3_countdown = std::bit_cast<u32>(-34);
+        RenderPorts moving_ports;
+        const auto moving = render(state, moving_ports);
+        test.expect_true(
+            moving.legacy_return_value == -33 &&
+                state.animation_offset == -24 &&
+                count_kind(moving_ports, Kind::draw_countdown) == 1U,
+            "0x43E800 phase3 -34 frame computes signed animation offset"
+        );
+
+        state.phase_3_countdown = 140U;
+        RenderPorts completing_ports;
+        const auto completing = render(state, completing_ports);
+        test.expect_true(
+            completing.legacy_return_value == 102 &&
+                state.phase_3_countdown == 200U &&
+                count_kind(completing_ports, Kind::complete_phase) == 1U,
+            "0x43E800 phase3 frame141 snaps countdown200 and calls 4405C0"
+        );
+    }
+    {
+        sm::LegacyStandardModeDatabaseInitializationState state;
+        state.interaction_phase = 4U;
+        state.interaction_toggle = 1U;
+        put_u16(state.second_runtime_record, 0x5CU, 0x3456U);
+        RenderPorts ports;
+        const auto phase4 = render(state, ports);
+        test.expect_true(
+            phase4.legacy_return_value == 4 && ports.operations.size() == 1U &&
+                ports.operations[0].kind == Kind::initialize_action &&
+                ports.operations[0].arguments[0] == 0x3456,
+            "0x43E800 phase4 initializes the toggle-selected record action"
+        );
+
+        sm::LegacyStandardModeDatabaseInitializationState phase5_state;
+        phase5_state.interaction_phase = 5U;
+        phase5_state.first_missing_text_index = 0xFFDCU;
+        phase5_state.second_missing_text_index = 0xFFDCU;
+        RenderPorts phase5_ports;
+        const auto phase5 = render(phase5_state, phase5_ports);
+        test.expect_true(
+            phase5.legacy_return_value ==
+                    100 + static_cast<i32>(phase5_ports.operations.size()) &&
+                phase5_ports.operations[phase5_ports.operations.size() - 2U]
+                        .arguments[0] == 284 &&
+                phase5_ports.operations.back().text == "RETURN",
+            "0x43E800 phase5 centers the 12-pixel return prompt after common draw"
+        );
+    }
+}
+
 void test_standard_mode_database_cleanup(openswd3::test::Context& test) {
     using StorageKind =
         openswd3::special_modes::LegacyStandardModeDatabaseStorageKind;
@@ -8671,6 +8958,7 @@ int main() {
     test_standard_mode_database_page_advance(test);
     test_standard_mode_database_retreat(test);
     test_standard_mode_database_input_dispatch(test);
+    test_standard_mode_database_render(test);
     test_standard_mode_database_cleanup(test);
     test_standard_mode_runtime_initialization(test);
     test_standard_mode_entry_consumption(test);
