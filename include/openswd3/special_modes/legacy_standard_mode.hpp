@@ -8,6 +8,7 @@
 #include <array>
 #include <cstddef>
 #include <span>
+#include <vector>
 
 namespace openswd3::special_modes {
 
@@ -585,6 +586,46 @@ struct LegacyStandardModeValueGroupResult {
     compat::u32 group_offset{};
 };
 
+inline constexpr std::size_t kLegacyStandardModeFilteredRecordCapacity = 512U;
+inline constexpr std::size_t kLegacyStandardModeFilteredTextCapacity = 64U;
+
+struct LegacyStandardModeFilteredRecord {
+    compat::u32 first_value{};
+    compat::u16 second_value{};
+    std::array<compat::u8, kLegacyStandardModeFilteredTextCapacity> text{};
+    compat::u32 text_length{};
+};
+
+struct LegacyStandardModeFilteredRecordState {
+    std::vector<LegacyStandardModeFilteredRecord> records;
+};
+
+class LegacyStandardModeFilterQueryPorts {
+public:
+    virtual ~LegacyStandardModeFilterQueryPorts() = default;
+    [[nodiscard]] virtual compat::i32
+    query(compat::u32 service_id) noexcept = 0;
+};
+
+enum class LegacyStandardModeFilteredRecordStatus : compat::u8 {
+    completed,
+    maps_payload_out_of_range,
+    name_marker_not_found,
+    name_buffer_overflow,
+    condition_terminator_not_found,
+    record_capacity_overflow,
+    allocation_failed,
+};
+
+struct LegacyStandardModeFilteredRecordResult {
+    LegacyStandardModeFilteredRecordStatus status{
+        LegacyStandardModeFilteredRecordStatus::maps_payload_out_of_range
+    };
+    compat::u32 accepted_record_count{};
+    compat::u32 query_count{};
+    compat::u32 source_cursor_offset{};
+};
+
 struct LegacyStandardModeInputStatusResult {
     compat::u32 flags{};
     compat::i32 legacy_return_value{};
@@ -747,6 +788,14 @@ resolve_legacy_standard_mode_window_selection(
 [[nodiscard]] LegacyStandardModeValueGroupResult
 find_legacy_standard_mode_value_group(
     compat::i32 target, std::span<const compat::u8> maps_payload
+) noexcept;
+
+// sub_43BE90: rebuild the filtered MAPS record table from service queries.
+[[nodiscard]] LegacyStandardModeFilteredRecordResult
+build_legacy_standard_mode_filtered_records(
+    LegacyStandardModeFilteredRecordState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeFilterQueryPorts& ports
 ) noexcept;
 
 // sub_43B9E0: resolve one MAPS text record into the shared 128-byte buffer.

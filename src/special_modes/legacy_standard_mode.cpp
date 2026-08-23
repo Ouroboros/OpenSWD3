@@ -1,7 +1,9 @@
 #include "openswd3/special_modes/legacy_standard_mode.hpp"
 
+#include <algorithm>
 #include <bit>
 #include <cstdint>
+#include <new>
 
 namespace openswd3::special_modes {
 namespace {
@@ -568,6 +570,177 @@ LegacyStandardModeValueGroupResult find_legacy_standard_mode_value_group(
         if (read_u16_le(maps_payload, static_cast<std::size_t>(group_offset)) ==
             0xFFFFU) {
             result.status = LegacyStandardModeValueGroupStatus::not_found;
+            return result;
+        }
+    }
+}
+
+LegacyStandardModeFilteredRecordResult
+build_legacy_standard_mode_filtered_records(
+    LegacyStandardModeFilteredRecordState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeFilterQueryPorts& ports
+) noexcept {
+    LegacyStandardModeFilteredRecordResult result;
+    state.records.clear();
+    try {
+        state.records.reserve(kLegacyStandardModeFilteredRecordCapacity);
+    } catch (const std::bad_alloc&) {
+        result.status =
+            LegacyStandardModeFilteredRecordStatus::allocation_failed;
+        return result;
+    }
+
+    if (!range_available(maps_payload, 0x5CU, sizeof(compat::u32))) {
+        return result;
+    }
+    compat::u32 record_offset = read_u32_le(maps_payload, 0x5CU);
+    if (!range_available(
+            maps_payload,
+            static_cast<std::size_t>(record_offset),
+            sizeof(compat::u16)
+        )) {
+        return result;
+    }
+    if (read_u16_le(maps_payload, static_cast<std::size_t>(record_offset)) ==
+        0xFFFFU) {
+        result.status = LegacyStandardModeFilteredRecordStatus::completed;
+        result.source_cursor_offset = record_offset;
+        return result;
+    }
+
+    for (;;) {
+        std::array<compat::u8, kLegacyStandardModeFilteredTextCapacity> text{};
+        std::size_t text_length = 0U;
+        compat::u32 marker_offset = record_offset;
+        for (;;) {
+            if (!range_available(
+                    maps_payload,
+                    static_cast<std::size_t>(marker_offset),
+                    sizeof(compat::u16)
+                )) {
+                result.status = LegacyStandardModeFilteredRecordStatus::
+                    name_marker_not_found;
+                result.source_cursor_offset = marker_offset;
+                return result;
+            }
+            if (read_u16_le(
+                    maps_payload, static_cast<std::size_t>(marker_offset)
+                ) == 0x5125U) {
+                break;
+            }
+            if (text_length >= text.size()) {
+                result.status = LegacyStandardModeFilteredRecordStatus::
+                    name_buffer_overflow;
+                result.source_cursor_offset = marker_offset;
+                return result;
+            }
+            text[text_length] =
+                maps_payload[static_cast<std::size_t>(marker_offset)];
+            ++text_length;
+            ++marker_offset;
+        }
+
+        const compat::u32 header_offset = marker_offset + 2U;
+        if (!range_available(
+                maps_payload, static_cast<std::size_t>(header_offset), 6U
+            )) {
+            result.source_cursor_offset = header_offset;
+            return result;
+        }
+        compat::u32 condition_offset = header_offset + 6U;
+        bool accepted = false;
+        for (;;) {
+            if (!range_available(
+                    maps_payload,
+                    static_cast<std::size_t>(condition_offset),
+                    sizeof(compat::u16)
+                )) {
+                result.status = LegacyStandardModeFilteredRecordStatus::
+                    condition_terminator_not_found;
+                result.source_cursor_offset = condition_offset;
+                return result;
+            }
+            const compat::u16 condition = read_u16_le(
+                maps_payload, static_cast<std::size_t>(condition_offset)
+            );
+            if (condition == 0xFFFFU) {
+                break;
+            }
+            ++result.query_count;
+            if (ports.query(static_cast<compat::u32>(condition) + 0x1388U) ==
+                1) {
+                accepted = true;
+            }
+            condition_offset += 2U;
+        }
+
+        if (accepted) {
+            const auto terminator = std::ranges::find(text, 0U);
+            if (terminator == text.end()) {
+                result.status = LegacyStandardModeFilteredRecordStatus::
+                    name_buffer_overflow;
+                result.source_cursor_offset = marker_offset;
+                return result;
+            }
+            const std::size_t c_string_length =
+                static_cast<std::size_t>(terminator - text.begin());
+            auto stored_text = text;
+            std::fill(
+                stored_text.begin() +
+                    static_cast<std::ptrdiff_t>(c_string_length + 1U),
+                stored_text.end(),
+                0U
+            );
+            if (state.records.size() >=
+                kLegacyStandardModeFilteredRecordCapacity) {
+                result.status = LegacyStandardModeFilteredRecordStatus::
+                    record_capacity_overflow;
+                result.source_cursor_offset = record_offset;
+                return result;
+            }
+            try {
+                state.records.push_back(
+                    LegacyStandardModeFilteredRecord{
+                        .first_value = read_u32_le(
+                            maps_payload,
+                            static_cast<std::size_t>(header_offset)
+                        ),
+                        .second_value = read_u16_le(
+                            maps_payload,
+                            static_cast<std::size_t>(header_offset + 4U)
+                        ),
+                        .text = stored_text,
+                        .text_length =
+                            static_cast<compat::u32>(c_string_length),
+                    }
+                );
+            } catch (const std::bad_alloc&) {
+                result.status =
+                    LegacyStandardModeFilteredRecordStatus::allocation_failed;
+                result.accepted_record_count =
+                    static_cast<compat::u32>(state.records.size());
+                result.source_cursor_offset = record_offset;
+                return result;
+            }
+        }
+
+        record_offset = condition_offset + 2U;
+        if (!range_available(
+                maps_payload,
+                static_cast<std::size_t>(record_offset),
+                sizeof(compat::u16)
+            )) {
+            result.source_cursor_offset = record_offset;
+            return result;
+        }
+        if (read_u16_le(
+                maps_payload, static_cast<std::size_t>(record_offset)
+            ) == 0xFFFFU) {
+            result.status = LegacyStandardModeFilteredRecordStatus::completed;
+            result.accepted_record_count =
+                static_cast<compat::u32>(state.records.size());
+            result.source_cursor_offset = record_offset;
             return result;
         }
     }

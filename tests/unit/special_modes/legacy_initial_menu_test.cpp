@@ -34,6 +34,7 @@ using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
 using openswd3::special_modes::advance_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::advance_legacy_standard_mode_window_page;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
+using openswd3::special_modes::build_legacy_standard_mode_filtered_records;
 using openswd3::special_modes::compose_legacy_standard_mode_input_status;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes_bounded;
@@ -83,6 +84,10 @@ using openswd3::special_modes::LegacyStandardModeBarRequest;
 using openswd3::special_modes::LegacyStandardModeCallbackBindingPorts;
 using openswd3::special_modes::LegacyStandardModeCallbackGroup;
 using openswd3::special_modes::LegacyStandardModeCallbackState;
+using openswd3::special_modes::LegacyStandardModeFilteredRecord;
+using openswd3::special_modes::LegacyStandardModeFilteredRecordState;
+using openswd3::special_modes::LegacyStandardModeFilteredRecordStatus;
+using openswd3::special_modes::LegacyStandardModeFilterQueryPorts;
 using openswd3::special_modes::LegacyStandardModeForwardNode;
 using openswd3::special_modes::LegacyStandardModeGhostState;
 using openswd3::special_modes::LegacyStandardModeItemState;
@@ -1639,6 +1644,221 @@ void test_standard_mode_value_group_lookup(openswd3::test::Context& test) {
         find_legacy_standard_mode_value_group(0x7777, unterminated).status,
         LegacyStandardModeValueGroupStatus::maps_payload_out_of_range,
         "0x43BE40 isolates a group list that reaches payload end without FFFF"
+    );
+}
+
+void test_standard_mode_filtered_record_build(openswd3::test::Context& test) {
+    class QueryPorts final : public LegacyStandardModeFilterQueryPorts {
+    public:
+        [[nodiscard]] i32 query(const u32 service_id) noexcept override {
+            queries.push_back(service_id);
+            for (const auto& [id, value] : responses) {
+                if (id == service_id) {
+                    return value;
+                }
+            }
+            return default_response;
+        }
+
+        std::vector<std::pair<u32, i32>> responses;
+        std::vector<u32> queries;
+        i32 default_response{};
+    };
+    const auto write_u16 =
+        [](auto& bytes, const std::size_t offset, const u16 value) {
+            bytes[offset] = static_cast<u8>(value);
+            bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+        };
+    const auto write_u32 =
+        [](auto& bytes, const std::size_t offset, const u32 value) {
+            bytes[offset] = static_cast<u8>(value);
+            bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+            bytes[offset + 2U] = static_cast<u8>(value >> 16U);
+            bytes[offset + 3U] = static_cast<u8>(value >> 24U);
+        };
+
+    std::vector<u8> payload(0xA0U, 0U);
+    write_u32(payload, 0x5CU, 0x70U);
+    payload[0x70U] = 'O';
+    payload[0x71U] = 0U;
+    payload[0x72U] = 'X';
+    write_u16(payload, 0x73U, 0x5125U);
+    write_u32(payload, 0x75U, 0x11223344U);
+    write_u16(payload, 0x79U, 0x5566U);
+    write_u16(payload, 0x7BU, 1U);
+    write_u16(payload, 0x7DU, 2U);
+    write_u16(payload, 0x7FU, 0xFFFFU);
+    payload[0x81U] = 'T';
+    payload[0x82U] = 'w';
+    payload[0x83U] = 'o';
+    write_u16(payload, 0x84U, 0x5125U);
+    write_u32(payload, 0x86U, 0xAABBCCDDU);
+    write_u16(payload, 0x8AU, 0x7788U);
+    write_u16(payload, 0x8CU, 3U);
+    write_u16(payload, 0x8EU, 4U);
+    write_u16(payload, 0x90U, 0xFFFFU);
+    write_u16(payload, 0x92U, 0xFFFFU);
+
+    LegacyStandardModeFilteredRecordState state;
+    state.records.push_back(
+        LegacyStandardModeFilteredRecord{
+            .first_value = 0xDEADBEEFU,
+        }
+    );
+    QueryPorts ports;
+    ports.responses = {
+        {0x138AU, 1},
+        {0x138BU, 2},
+        {0x138CU, 1},
+    };
+    auto result =
+        build_legacy_standard_mode_filtered_records(state, payload, ports);
+    test.expect_true(
+        result.status == LegacyStandardModeFilteredRecordStatus::completed &&
+            result.accepted_record_count == 2U && result.query_count == 4U &&
+            result.source_cursor_offset == 0x92U &&
+            ports.queries ==
+                std::vector<u32>{0x1389U, 0x138AU, 0x138BU, 0x138CU} &&
+            state.records.size() == 2U,
+        "0x43BE90 releases the old table, queries every condition and keeps exact-one matches"
+    );
+    test.expect_true(
+        state.records[0U].first_value == 0x11223344U &&
+            state.records[0U].second_value == 0x5566U &&
+            state.records[0U].text_length == 1U &&
+            state.records[0U].text[0U] == 'O' &&
+            state.records[0U].text[1U] == 0U &&
+            state.records[0U].text[2U] == 0U &&
+            state.records[1U].first_value == 0xAABBCCDDU &&
+            state.records[1U].second_value == 0x7788U &&
+            state.records[1U].text_length == 3U &&
+            state.records[1U].text[0U] == 'T' &&
+            state.records[1U].text[1U] == 'w' &&
+            state.records[1U].text[2U] == 'o' &&
+            state.records[1U].text[3U] == 0U,
+        "0x43BE90 copies the six-byte header and lstrcpy-visible name prefix"
+    );
+
+    QueryPorts nonmatching_ports;
+    nonmatching_ports.default_response = 2;
+    result = build_legacy_standard_mode_filtered_records(
+        state, payload, nonmatching_ports
+    );
+    test.expect_true(
+        result.status == LegacyStandardModeFilteredRecordStatus::completed &&
+            state.records.empty() && result.query_count == 4U,
+        "0x43BE90 accepts only query return exactly one"
+    );
+
+    auto empty = payload;
+    write_u16(empty, 0x70U, 0xFFFFU);
+    state.records.push_back(LegacyStandardModeFilteredRecord{});
+    QueryPorts empty_ports;
+    result =
+        build_legacy_standard_mode_filtered_records(state, empty, empty_ports);
+    test.expect_true(
+        result.status == LegacyStandardModeFilteredRecordStatus::completed &&
+            state.records.empty() && result.query_count == 0U,
+        "0x43BE90 clears the previous table before an empty-directory return"
+    );
+
+    const std::array<u8, 0x5FU> short_payload{};
+    result = build_legacy_standard_mode_filtered_records(
+        state, short_payload, empty_ports
+    );
+    test.expect_equal(
+        result.status,
+        LegacyStandardModeFilteredRecordStatus::maps_payload_out_of_range,
+        "0x43BE90 isolates a missing MAPS +0x5C directory"
+    );
+
+    std::vector<u8> missing_marker(0x78U, 0U);
+    write_u32(missing_marker, 0x5CU, 0x70U);
+    missing_marker[0x70U] = 'A';
+    result = build_legacy_standard_mode_filtered_records(
+        state, missing_marker, empty_ports
+    );
+    test.expect_equal(
+        result.status,
+        LegacyStandardModeFilteredRecordStatus::name_marker_not_found,
+        "0x43BE90 isolates a name that reaches payload end without %Q"
+    );
+
+    std::vector<u8> missing_condition(0x82U, 0U);
+    write_u32(missing_condition, 0x5CU, 0x70U);
+    write_u16(missing_condition, 0x70U, 0x5125U);
+    write_u32(missing_condition, 0x72U, 1U);
+    write_u16(missing_condition, 0x76U, 2U);
+    result = build_legacy_standard_mode_filtered_records(
+        state, missing_condition, empty_ports
+    );
+    test.expect_equal(
+        result.status,
+        LegacyStandardModeFilteredRecordStatus::condition_terminator_not_found,
+        "0x43BE90 isolates a condition list without FFFF"
+    );
+
+    std::vector<u8> long_name(0xD0U, 0U);
+    write_u32(long_name, 0x5CU, 0x70U);
+    std::fill_n(long_name.begin() + 0x70U, 64U, static_cast<u8>('A'));
+    write_u16(long_name, 0xB0U, 0x5125U);
+    write_u32(long_name, 0xB2U, 1U);
+    write_u16(long_name, 0xB6U, 2U);
+    write_u16(long_name, 0xB8U, 1U);
+    write_u16(long_name, 0xBAU, 0xFFFFU);
+    write_u16(long_name, 0xBCU, 0xFFFFU);
+    QueryPorts reject_long;
+    result = build_legacy_standard_mode_filtered_records(
+        state, long_name, reject_long
+    );
+    test.expect_equal(
+        result.status,
+        LegacyStandardModeFilteredRecordStatus::completed,
+        "0x43BE90 does not call lstrlen for an unmatched full 64-byte name"
+    );
+    QueryPorts accept_long;
+    accept_long.default_response = 1;
+    result = build_legacy_standard_mode_filtered_records(
+        state, long_name, accept_long
+    );
+    test.expect_equal(
+        result.status,
+        LegacyStandardModeFilteredRecordStatus::name_buffer_overflow,
+        "0x43BE90 isolates the matched 64-byte name at the original lstrlen overread"
+    );
+
+    long_name.insert(long_name.begin() + 0xB0U, static_cast<u8>('A'));
+    result = build_legacy_standard_mode_filtered_records(
+        state, long_name, reject_long
+    );
+    test.expect_equal(
+        result.status,
+        LegacyStandardModeFilteredRecordStatus::name_buffer_overflow,
+        "0x43BE90 isolates the sixty-fifth byte before the original CmdLine overflow"
+    );
+
+    std::vector<u8> capacity_payload(0x70U + 513U * 12U + 2U, 0U);
+    write_u32(capacity_payload, 0x5CU, 0x70U);
+    for (std::size_t index = 0U; index < 513U; ++index) {
+        const std::size_t offset = 0x70U + index * 12U;
+        write_u16(capacity_payload, offset, 0x5125U);
+        write_u32(capacity_payload, offset + 2U, static_cast<u32>(index));
+        write_u16(capacity_payload, offset + 6U, static_cast<u16>(index));
+        write_u16(capacity_payload, offset + 8U, 0U);
+        write_u16(capacity_payload, offset + 10U, 0xFFFFU);
+    }
+    write_u16(capacity_payload, 0x70U + 513U * 12U, 0xFFFFU);
+    QueryPorts accept_all;
+    accept_all.default_response = 1;
+    result = build_legacy_standard_mode_filtered_records(
+        state, capacity_payload, accept_all
+    );
+    test.expect_true(
+        result.status ==
+                LegacyStandardModeFilteredRecordStatus::
+                    record_capacity_overflow &&
+            state.records.size() == 512U && result.query_count == 513U,
+        "0x43BE90 isolates the 513th pointer-table write beyond the original 0x800 bytes"
     );
 }
 
@@ -3700,6 +3920,7 @@ int main() {
     test_standard_mode_window_selection(test);
     test_standard_mode_animated_panel(test);
     test_standard_mode_value_group_lookup(test);
+    test_standard_mode_filtered_record_build(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);
