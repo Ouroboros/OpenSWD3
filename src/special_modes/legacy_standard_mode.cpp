@@ -933,6 +933,36 @@ retreat_legacy_standard_mode_runtime_cursor(
     return result;
 }
 
+LegacyStandardModeRuntimePageRetreatResult
+retreat_legacy_standard_mode_runtime_page(
+    const compat::u32 sample_handle,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeInputDispatchPorts& ports
+) noexcept {
+    LegacyStandardModeRuntimePageRetreatResult result;
+    static_cast<void>(retreat_legacy_standard_mode_window_page(
+        state.window_offset, state.local_cursor, 0x0F
+    ));
+    ports.rebuild_entry_alias(
+        state.window_offset, state.entries, state.entry_alias_index
+    );
+    ports.refresh_page();
+    const compat::u32 selected_index =
+        std::bit_cast<compat::u32>(state.window_offset) +
+        std::bit_cast<compat::u32>(state.local_cursor);
+    if (selected_index >= state.entries.size()) {
+        result.status = LegacyStandardModeRuntimePageRetreatStatus::
+            selected_entry_out_of_range;
+        return result;
+    }
+    ports.consume_entry(state.entries[selected_index]);
+    state.mode_flags = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(state.mode_flags) | 0x03U
+    );
+    result.legacy_return_value = ports.play_sample(0x002EU, sample_handle);
+    return result;
+}
+
 LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
     const LegacyStandardModeInputDispatchInput& input,
     const std::span<const LegacyStandardModeAvailabilityRecord>
@@ -1056,10 +1086,22 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
             }
             if (pointer_y < input.first_dynamic_upper_bound &&
                 pointer_y > input.first_dynamic_lower_bound) {
-                ports.dispatch_first_dynamic_control();
+                const LegacyStandardModeRuntimePageRetreatResult
+                    retreat_result = retreat_legacy_standard_mode_runtime_page(
+                        input.sample_handle, state, ports
+                    );
                 result.path = LegacyStandardModeInputDispatchPath::
                     first_dynamic_control_dispatched;
                 result.first_dynamic_control_dispatched = true;
+                if (retreat_result.status !=
+                    LegacyStandardModeRuntimePageRetreatStatus::completed) {
+                    result.status = LegacyStandardModeInputDispatchStatus::
+                        selected_entry_out_of_range;
+                    result.legacy_return_value =
+                        retreat_result.legacy_return_value;
+                    return result;
+                }
+                result.legacy_return_value = pointer_y;
             }
             if (pointer_y >= input.second_dynamic_upper_bound ||
                 pointer_y <= input.second_dynamic_lower_bound) {

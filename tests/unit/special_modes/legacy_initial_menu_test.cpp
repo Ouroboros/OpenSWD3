@@ -54,6 +54,7 @@ using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
 using openswd3::special_modes::resolve_legacy_standard_mode_window_selection;
 using openswd3::special_modes::retreat_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::retreat_legacy_standard_mode_runtime_cursor;
+using openswd3::special_modes::retreat_legacy_standard_mode_runtime_page;
 using openswd3::special_modes::retreat_legacy_standard_mode_window_page;
 using openswd3::special_modes::initialize_legacy_standard_mode_selector;
 using openswd3::special_modes::initialize_legacy_standard_special_modes;
@@ -112,6 +113,7 @@ using openswd3::special_modes::LegacyStandardModeRuntimeInitializationPorts;
 using openswd3::special_modes::LegacyStandardModeRuntimeInitializationState;
 using openswd3::special_modes::LegacyStandardModeRuntimeCursorAdvanceStatus;
 using openswd3::special_modes::LegacyStandardModeRuntimeCursorRetreatStatus;
+using openswd3::special_modes::LegacyStandardModeRuntimePageRetreatStatus;
 using openswd3::special_modes::LegacyStandardModeInputDispatchInput;
 using openswd3::special_modes::LegacyStandardModeInputDispatchPath;
 using openswd3::special_modes::LegacyStandardModeInputDispatchPorts;
@@ -2186,7 +2188,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
     class DispatchPorts final : public LegacyStandardModeInputDispatchPorts {
     public:
         enum class Event : u8 {
-            first_dynamic_control,
             mode_refresh,
             alias_rebuild,
             page_refresh,
@@ -2199,9 +2200,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             bool operator==(const ReleaseEvent&) const = default;
         };
 
-        void dispatch_first_dynamic_control() noexcept override {
-            events.push_back(Event::first_dynamic_control);
-        }
         void refresh_mode() noexcept override {
             events.push_back(Event::mode_refresh);
         }
@@ -2371,6 +2369,78 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyStandardModeRuntimeInitializationState state;
+        state.window_offset = 30;
+        state.local_cursor = 5;
+        state.entries[30U] = 0xABCDEF01U;
+        state.mode_flags = 0x30;
+        DispatchPorts ports;
+        const auto result = retreat_legacy_standard_mode_runtime_page(
+            0x16180339U, state, ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimePageRetreatStatus::completed &&
+                result.legacy_return_value == 222 &&
+                state.window_offset == 30 && state.local_cursor == 0 &&
+                state.entry_alias_index == 30 && state.mode_flags == 0x33 &&
+                ports.consumed_entry == 0xABCDEF01U &&
+                ports.played_sample_id == 0x2EU &&
+                ports.played_sample_handle == 0x16180339U &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                        DispatchPorts::Event::entry_consume,
+                        DispatchPorts::Event::sample_play,
+                    },
+            "0x43C670 clears a nonzero cursor then rebuilds, consumes, marks and plays"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.window_offset = 20;
+        state.local_cursor = 0;
+        state.entries[5U] = 0x10293847U;
+        DispatchPorts ports;
+        const auto result = retreat_legacy_standard_mode_runtime_page(
+            0x55667788U, state, ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimePageRetreatStatus::completed &&
+                state.window_offset == 5 && state.local_cursor == 0 &&
+                ports.consumed_entry == 0x10293847U,
+            "0x43C670 retreats a zero-cursor page by exactly fifteen"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.window_offset = 64;
+        state.local_cursor = 1;
+        state.mode_flags = 0x30;
+        DispatchPorts ports;
+        const auto result = retreat_legacy_standard_mode_runtime_page(
+            0x42424242U, state, ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimePageRetreatStatus::
+                        selected_entry_out_of_range &&
+                state.window_offset == 64 && state.local_cursor == 0 &&
+                state.entry_alias_index == 64 && state.mode_flags == 0x30 &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                    },
+            "0x43C670 typed-stops at its original selected-entry read"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
         state.visible_count = 5;
         state.entries[4U] = 0x01020304U;
         DispatchPorts ports;
@@ -2461,6 +2531,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         state.local_cursor = 14;
         state.visible_count = 15;
         state.entry_alias_index = 99;
+        state.entries[0U] = 0x55667788U;
         state.entries[13U] = 0x11223344U;
         state.entries[14U] = 0xDEADBEEFU;
         state.mode_flags = static_cast<i32>(0xABCD0001U);
@@ -2490,7 +2561,11 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 static_cast<u32>(state.mode_flags) == 0xABCD0033U &&
                 ports.alias_entry_count == 64U &&
                 ports.consumed_entries ==
-                    std::vector<u32>{0x11223344U, 0xDEADBEEFU} &&
+                    std::vector<u32>{
+                        0x11223344U,
+                        0x55667788U,
+                        0xDEADBEEFU,
+                    } &&
                 ports.played_sample_id == 0x2EU &&
                 ports.played_sample_handle == 0x87654321U &&
                 ports.events ==
@@ -2499,7 +2574,10 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                         DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
-                        DispatchPorts::Event::first_dynamic_control,
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                        DispatchPorts::Event::entry_consume,
+                        DispatchPorts::Event::sample_play,
                         DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
