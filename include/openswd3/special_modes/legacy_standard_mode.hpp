@@ -803,6 +803,22 @@ public:
     ) noexcept = 0;
 };
 
+enum class LegacyStandardModeDatabasePageAdvancePath : compat::u8 {
+    ignored,
+    phase_1_page_advance,
+    phase_2_toggle,
+    phase_3_countdown,
+};
+
+struct LegacyStandardModeDatabasePageAdvanceResult {
+    LegacyStandardModeDatabasePageAdvancePath path{
+        LegacyStandardModeDatabasePageAdvancePath::ignored
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    bool sample_initialized{};
+};
+
 enum class LegacyStandardModeDatabaseRetreatPath : compat::u8 {
     ignored,
     phase_1_forward_retreat,
@@ -1700,6 +1716,13 @@ render_legacy_standard_mode_entry(
 // sub_43DD20: advance one database page/cursor or phase-specific owner.
 [[nodiscard]] LegacyStandardModeDatabaseAdvanceResult
 advance_legacy_standard_mode_database(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseAdvancePorts& ports
+) noexcept;
+
+// sub_43DED0: advance one database page or phase-specific owner.
+[[nodiscard]] LegacyStandardModeDatabasePageAdvanceResult
+advance_legacy_standard_mode_database_page(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseAdvancePorts& ports
 ) noexcept;
