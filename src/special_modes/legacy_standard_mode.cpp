@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <iterator>
 #include <new>
+#include <string>
 
 namespace openswd3::special_modes {
 namespace {
@@ -1501,13 +1502,209 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
     return result;
 }
 
+LegacyStandardModeEntryRenderResult render_legacy_standard_mode_entry(
+    const compat::i32 absolute_index,
+    const compat::i32 row_index,
+    const compat::u32 color,
+    const compat::i32 selected,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeRuntimeRenderPorts& ports
+) noexcept {
+    LegacyStandardModeEntryRenderResult result;
+    result.legacy_return_kind =
+        LegacyStandardModeEntryRenderReturnKind::selected_value;
+    result.legacy_return_value = selected;
+    const compat::u32 entry_index = std::bit_cast<compat::u32>(absolute_index);
+    if (entry_index >= state.short_text_slots.size()) {
+        result.status =
+            LegacyStandardModeEntryRenderStatus::entry_index_out_of_range;
+        return result;
+    }
+
+    const auto text_span = [](const std::span<const compat::u8> storage,
+                              std::span<const compat::u8>& text) noexcept {
+        const auto terminator =
+            std::find(storage.begin(), storage.end(), compat::u8{0U});
+        if (terminator == storage.end()) {
+            return false;
+        }
+        text = storage.first(
+            static_cast<std::size_t>(std::distance(storage.begin(), terminator))
+        );
+        return true;
+    };
+    const auto wrapping_add = [](const compat::i32 left,
+                                 const compat::i32 right) noexcept {
+        return std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(left) + std::bit_cast<compat::u32>(right)
+        );
+    };
+    const compat::i32 row_base = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(row_index) * 0x18U
+    );
+    const auto draw_text =
+        [&](const LegacyStandardModeEntryTextOwner owner,
+            const compat::i32 x,
+            const compat::i32 y,
+            const std::span<const compat::u8> text) noexcept {
+            ports.draw_entry_text(
+                LegacyStandardModeEntryTextRequest{
+                    .owner = owner,
+                    .x = x,
+                    .y = y,
+                    .text = text,
+                    .color = color,
+                    .style = 4,
+                }
+            );
+            ++result.raw_text_draw_count;
+        };
+
+    std::span<const compat::u8> entry_text;
+    if (!text_span(state.short_text_slots[entry_index], entry_text)) {
+        result.status =
+            LegacyStandardModeEntryRenderStatus::text_not_terminated;
+        return result;
+    }
+    std::array<compat::u8, 16U> formatted_name{};
+    std::span<const compat::u8> name_text;
+    if (entry_text.empty()) {
+        static constexpr std::array<compat::u8, 8U> kUnknownName{
+            '?', '?', '?', '?', '?', '?', '?', '?'
+        };
+        std::copy(
+            kUnknownName.cbegin(), kUnknownName.cend(), formatted_name.begin()
+        );
+        name_text = std::span<const compat::u8>{formatted_name}.first(
+            kUnknownName.size()
+        );
+    } else {
+        const std::size_t padded_size =
+            std::max<std::size_t>(12U, entry_text.size());
+        std::copy(entry_text.begin(), entry_text.end(), formatted_name.begin());
+        std::fill(
+            formatted_name.begin() +
+                static_cast<std::ptrdiff_t>(entry_text.size()),
+            formatted_name.begin() + static_cast<std::ptrdiff_t>(padded_size),
+            static_cast<compat::u8>(' ')
+        );
+        name_text =
+            std::span<const compat::u8>{formatted_name}.first(padded_size);
+    }
+    draw_text(
+        LegacyStandardModeEntryTextOwner::name,
+        0x12,
+        wrapping_add(row_base, 0x5E),
+        name_text
+    );
+
+    if (!entry_text.empty()) {
+        const compat::i32 percentage =
+            static_cast<compat::i32>(
+                static_cast<compat::i8>(state.entry_statuses[entry_index])
+            ) *
+            5;
+        const std::string percentage_text = std::to_string(percentage);
+        std::array<compat::u8, 8U> formatted_percentage{};
+        const std::size_t padding =
+            percentage_text.size() < 3U ? 3U - percentage_text.size() : 0U;
+        std::fill_n(
+            formatted_percentage.begin(), padding, static_cast<compat::u8>(' ')
+        );
+        std::transform(
+            percentage_text.cbegin(),
+            percentage_text.cend(),
+            formatted_percentage.begin() + static_cast<std::ptrdiff_t>(padding),
+            [](const char value) noexcept {
+                return static_cast<compat::u8>(value);
+            }
+        );
+        const std::size_t percent_index = padding + percentage_text.size();
+        formatted_percentage[percent_index] = static_cast<compat::u8>('%');
+        draw_text(
+            LegacyStandardModeEntryTextOwner::percentage,
+            0xA8,
+            wrapping_add(row_base, 0x67),
+            std::span<const compat::u8>{formatted_percentage}.first(
+                percent_index + 1U
+            )
+        );
+    }
+
+    if (selected != 1) {
+        return result;
+    }
+
+    static constexpr std::array<compat::i32, 9U> kDetailY{
+        0x48, 0x5C, 0x70, 0x84, 0x98, 0xAC, 0xC0, 0xD4, 0xE8
+    };
+    for (std::size_t index = 0U; index < kDetailY.size(); ++index) {
+        std::span<const compat::u8> detail_text;
+        if (!text_span(state.long_text_slots[index], detail_text)) {
+            result.status =
+                LegacyStandardModeEntryRenderStatus::text_not_terminated;
+            return result;
+        }
+        draw_text(
+            LegacyStandardModeEntryTextOwner::detail,
+            0xF6,
+            kDetailY[index],
+            detail_text
+        );
+    }
+
+    result.legacy_return_kind =
+        LegacyStandardModeEntryRenderReturnKind::short_text_pointer;
+    result.legacy_text_pointer = state.short_text_slots[entry_index].data();
+    if (entry_text.empty()) {
+        return result;
+    }
+
+    static constexpr std::array<compat::i32, 3U> kOptionalX{
+        0xF6, 0x174, 0xF228
+    };
+    for (std::size_t index = 0U; index < kOptionalX.size(); ++index) {
+        const auto& slot = state.long_text_slots[index + 9U];
+        if (slot[0U] == static_cast<compat::u8>('?')) {
+            continue;
+        }
+        std::span<const compat::u8> detail_text;
+        if (!text_span(slot, detail_text)) {
+            result.status =
+                LegacyStandardModeEntryRenderStatus::text_not_terminated;
+            return result;
+        }
+        draw_text(
+            LegacyStandardModeEntryTextOwner::detail,
+            kOptionalX[index],
+            0x126,
+            detail_text
+        );
+    }
+
+    result.legacy_return_kind =
+        LegacyStandardModeEntryRenderReturnKind::formatted_text_result;
+    result.legacy_return_value = ports.draw_entry_formatted_text(
+        LegacyStandardModeEntryFormattedTextRequest{
+            .source_token = read_u32_le(
+                std::span<const compat::u8>{state.scratch_record}, 0xACU
+            ),
+            .x = 0xF2,
+            .y = 0x150,
+            .maximum_line_count = 5,
+            .maximum_width = 0x168,
+            .style = 4,
+        }
+    );
+    return result;
+}
+
 LegacyStandardModeRuntimeRenderResult render_legacy_standard_mode_runtime(
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeRuntimeRenderPorts& ports
 ) noexcept {
     LegacyStandardModeRuntimeRenderResult result;
-    const compat::u16 color =
-        static_cast<compat::u16>(ports.compose_color(0x19U, 0x17U, 0x11U));
+    const compat::u32 color = ports.compose_color(0x19U, 0x17U, 0x11U);
 
     if (state.total_count > 0x0F) {
         compat::u32 flags = std::bit_cast<compat::u32>(state.mode_flags);
@@ -1594,7 +1791,17 @@ LegacyStandardModeRuntimeRenderResult render_legacy_standard_mode_runtime(
             }
             selected = 1;
         }
-        ports.draw_entry(absolute_index, row_index, color, 0, selected);
+        const LegacyStandardModeEntryRenderResult entry_result =
+            render_legacy_standard_mode_entry(
+                absolute_index, row_index, color, selected, state, ports
+            );
+        result.entry_render_status = entry_result.status;
+        if (entry_result.status !=
+            LegacyStandardModeEntryRenderStatus::completed) {
+            result.status =
+                LegacyStandardModeRuntimeRenderStatus::entry_render_stopped;
+            return result;
+        }
         if (state.local_cursor == row_index) {
             ports.draw_selection_frame(
                 0x0E, row_y, 0xBD, 0x18, 0x14, 0x0D, 0, 5

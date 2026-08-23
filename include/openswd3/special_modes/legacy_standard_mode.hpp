@@ -918,6 +918,57 @@ enum class LegacyStandardModeRuntimeRenderStatus : compat::u8 {
     split_bar_stopped,
     entry_alias_out_of_range,
     selected_record_out_of_range,
+    entry_render_stopped,
+};
+
+enum class LegacyStandardModeEntryTextOwner : compat::u8 {
+    name,
+    percentage,
+    detail,
+};
+
+struct LegacyStandardModeEntryTextRequest {
+    LegacyStandardModeEntryTextOwner owner{
+        LegacyStandardModeEntryTextOwner::name
+    };
+    compat::i32 x{};
+    compat::i32 y{};
+    std::span<const compat::u8> text{};
+    compat::u32 color{};
+    compat::i32 style{};
+};
+
+struct LegacyStandardModeEntryFormattedTextRequest {
+    compat::u32 source_token{};
+    compat::i32 x{};
+    compat::i32 y{};
+    compat::i32 maximum_line_count{};
+    compat::i32 maximum_width{};
+    compat::i32 style{};
+};
+
+enum class LegacyStandardModeEntryRenderStatus : compat::u8 {
+    completed,
+    entry_index_out_of_range,
+    text_not_terminated,
+};
+
+enum class LegacyStandardModeEntryRenderReturnKind : compat::u8 {
+    selected_value,
+    short_text_pointer,
+    formatted_text_result,
+};
+
+struct LegacyStandardModeEntryRenderResult {
+    LegacyStandardModeEntryRenderStatus status{
+        LegacyStandardModeEntryRenderStatus::completed
+    };
+    LegacyStandardModeEntryRenderReturnKind legacy_return_kind{
+        LegacyStandardModeEntryRenderReturnKind::selected_value
+    };
+    compat::i32 legacy_return_value{};
+    const compat::u8* legacy_text_pointer{};
+    compat::u32 raw_text_draw_count{};
 };
 
 class LegacyStandardModeRuntimeRenderPorts {
@@ -939,12 +990,11 @@ public:
         compat::u32 service_id,
         compat::u32 selector
     ) noexcept = 0;
-    virtual void draw_entry(
-        compat::i32 absolute_index,
-        compat::i32 row_index,
-        compat::u16 color,
-        compat::i32 zero_value,
-        compat::i32 selected
+    virtual void draw_entry_text(
+        const LegacyStandardModeEntryTextRequest& request
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 draw_entry_formatted_text(
+        const LegacyStandardModeEntryFormattedTextRequest& request
     ) noexcept = 0;
     virtual void draw_selection_frame(
         compat::i32 x,
@@ -964,6 +1014,9 @@ struct LegacyStandardModeRuntimeRenderResult {
     };
     compat::i32 legacy_return_value{};
     compat::u8 overlay_flags{};
+    LegacyStandardModeEntryRenderStatus entry_render_status{
+        LegacyStandardModeEntryRenderStatus::completed
+    };
     compat::u32 row_count{};
     compat::u32 preview_count{};
     compat::u32 selection_frame_count{};
@@ -1219,6 +1272,17 @@ advance_legacy_standard_mode_runtime_mode(
     compat::u32 sample_handle,
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeInputDispatchPorts& ports
+) noexcept;
+
+// sub_43CC20: render one standard-mode entry and its selected detail panel.
+[[nodiscard]] LegacyStandardModeEntryRenderResult
+render_legacy_standard_mode_entry(
+    compat::i32 absolute_index,
+    compat::i32 row_index,
+    compat::u32 color,
+    compat::i32 selected,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeRuntimeRenderPorts& ports
 ) noexcept;
 
 // sub_43C820: fade controls and render the current runtime entry window.

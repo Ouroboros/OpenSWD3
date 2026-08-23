@@ -8,11 +8,11 @@
 
 函数使用共享17项action表：`0x0043C0D0`写record0，已关闭split bar `0x0043AE40`使用records6–9。typed runtime state由此前不足的单record修正为17项数组；selected preview另用`FC650`对应的独立typed action record。
 
-平台render port只隔离颜色组合、已关闭split-bar owner、frame准备、preview动作、entry绘制和已关闭矩形效果owner。列表控制流、所有owner写入与原表读取仍在本helper内。
+平台render port只隔离颜色组合、已关闭split-bar owner、frame准备、preview动作、已关闭CC20所需的raw/formatted rendering资源和已关闭矩形效果owner。列表与CC20控制流、所有owner写入及原表读取均在typed helper内。
 
 ## 2. 双nibble衰减与bar比例
 
-入口固定请求颜色`(0x19,0x17,0x11)`，后续entry绘制只使用返回值低16位。
+入口固定请求颜色`(0x19,0x17,0x11)`，并把完整u32返回值传给已关闭CC20；此前窄port截成低16位的synthetic行为已纠正。
 
 只有signed `total_count > 15`时执行衰减和bar：
 
@@ -40,7 +40,7 @@ frame准备后，从typed `entry_alias_index`对应的原64项entry base读首�
 
 1. 若row等于local cursor，按u32回绕计算`window_offset + row`。
 2. selected绝对索引先读取short text槽首字节；非零时把对应entry写入preview action ID，只写base variant=`0x44`和variant delta=0，调用service `0x1FC`/selector `0x3C`。
-3. 调用entry owner：`absolute index,row,color,0,selected`。
+3. 直接调用已关闭CC20 typed helper：`absolute index,row,完整color,selected`；caller压入但callee未读的固定0不进入typed API。
 4. selected行调用矩形效果：`(0x0E,Y,0xBD,0x18,0x14,0x0D,0,5)`。
 5. 无条件读取alias链下一项，再递增row/Y；下一项0时返回0。
 
@@ -51,6 +51,7 @@ frame准备后，从typed `entry_alias_index`对应的原64项entry base读首�
 - split-bar owner报告typed-stop时，不进入frame/list路径。
 - entry alias index负值或大于63在对应首次/next alias读取点停止。
 - selected绝对索引负值或大于63在short text和entry读取点停止。
+- CC20在entry index或即将扫描的short/long text无NUL时传播`entry_render_stopped`；不执行后续selection frame、row计数和next alias读取。
 
 停止前已经发生的颜色、bar、frame准备、前序row绘制保持；不会伪造后续preview/entry/frame。
 
@@ -62,7 +63,7 @@ frame准备后，从typed `entry_alias_index`对应的原64项entry base读首�
 - split-bar四输出发布及共享action record6可见变更。
 - alias2链两行：absolute5普通、absolute6 selected。
 - preview action ID/base variant/variant delta、cached字段保持及`0x1FC/0x3C`。
-- entry参数、selected frame Y=`0x76`、事件顺序、链终止EAX0。
+- CC20完整color、名称/百分比/selected详情请求、selected frame Y=`0x76`、事件顺序和链终止EAX0。
 - total15跳过bar并返回frame EAX，flags/动态边界保持。
 - split bar停止、首次alias越界、selected索引越界、alias63的post-row next读取越界。
 - `0x0043C3C0`动态命中改读runtime bar outputs，不再由调用参数伪造。

@@ -56,6 +56,7 @@ using openswd3::special_modes::
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
 using openswd3::special_modes::rebuild_legacy_standard_mode_entry_alias;
 using openswd3::special_modes::refresh_legacy_standard_mode_page;
+using openswd3::special_modes::render_legacy_standard_mode_entry;
 using openswd3::special_modes::render_legacy_standard_mode_runtime;
 using openswd3::special_modes::query_legacy_standard_mode_availability;
 using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
@@ -106,6 +107,11 @@ using openswd3::special_modes::LegacyStandardModeDialogSetupPorts;
 using openswd3::special_modes::LegacyStandardModeDialogSetupRecord;
 using openswd3::special_modes::LegacyStandardModeDialogSetupState;
 using openswd3::special_modes::LegacyStandardModeDialogSetupStatus;
+using openswd3::special_modes::LegacyStandardModeEntryFormattedTextRequest;
+using openswd3::special_modes::LegacyStandardModeEntryRenderReturnKind;
+using openswd3::special_modes::LegacyStandardModeEntryRenderStatus;
+using openswd3::special_modes::LegacyStandardModeEntryTextOwner;
+using openswd3::special_modes::LegacyStandardModeEntryTextRequest;
 using openswd3::special_modes::LegacyStandardModeEntryInitializationPorts;
 using openswd3::special_modes::LegacyStandardModeEntryInitializationStatus;
 using openswd3::special_modes::LegacyStandardModeFilteredRecord;
@@ -3305,13 +3311,14 @@ void test_standard_mode_runtime_render(openswd3::test::Context& test) {
             entry,
             selection_frame,
         };
-        struct EntryRequest {
-            i32 absolute_index{};
-            i32 row_index{};
-            u16 color{};
-            i32 zero_value{};
-            i32 selected{};
-            bool operator==(const EntryRequest&) const = default;
+        struct CapturedText {
+            LegacyStandardModeEntryTextOwner owner{};
+            i32 x{};
+            i32 y{};
+            std::vector<u8> text;
+            u32 color{};
+            i32 style{};
+            bool operator==(const CapturedText&) const = default;
         };
 
         [[nodiscard]] u32 compose_color(
@@ -3352,23 +3359,32 @@ void test_standard_mode_runtime_render(openswd3::test::Context& test) {
             preview_service_id = service_id;
             preview_selector = selector;
         }
-        void draw_entry(
-            const i32 absolute_index,
-            const i32 row_index,
-            const u16 color,
-            const i32 zero_value,
-            const i32 selected
+        void draw_entry_text(
+            const LegacyStandardModeEntryTextRequest& request
         ) noexcept override {
-            events.push_back(Event::entry);
-            entries.push_back(
-                EntryRequest{
-                    absolute_index,
-                    row_index,
-                    color,
-                    zero_value,
-                    selected,
+            if (request.owner == LegacyStandardModeEntryTextOwner::name) {
+                events.push_back(Event::entry);
+            }
+            text_requests.push_back(
+                CapturedText{
+                    .owner = request.owner,
+                    .x = request.x,
+                    .y = request.y,
+                    .text =
+                        std::vector<u8>{
+                            request.text.begin(), request.text.end()
+                        },
+                    .color = request.color,
+                    .style = request.style,
                 }
             );
+        }
+        [[nodiscard]] i32 draw_entry_formatted_text(
+            const LegacyStandardModeEntryFormattedTextRequest& request
+        ) noexcept override {
+            formatted_request = request;
+            ++formatted_draw_count;
+            return formatted_return_value;
         }
         void draw_selection_frame(
             const i32 x,
@@ -3400,7 +3416,10 @@ void test_standard_mode_runtime_render(openswd3::test::Context& test) {
         LegacyActionRecord preview_record{};
         u32 preview_service_id{};
         u32 preview_selector{};
-        std::vector<EntryRequest> entries;
+        std::vector<CapturedText> text_requests;
+        LegacyStandardModeEntryFormattedTextRequest formatted_request{};
+        u32 formatted_draw_count{};
+        i32 formatted_return_value{-456};
         std::array<i32, 8U> selection_frame{};
     };
 
@@ -3442,11 +3461,24 @@ void test_standard_mode_runtime_render(openswd3::test::Context& test) {
             "0x43C820 fades both nibbles and publishes exact split-bar inputs and outputs"
         );
         test.expect_true(
-            ports.entries ==
-                    std::vector{
-                        RenderPorts::EntryRequest{5, 0, 0x1234U, 0, 0},
-                        RenderPorts::EntryRequest{6, 1, 0x1234U, 0, 1},
+            ports.text_requests.size() == 15U &&
+                ports.text_requests[0U] ==
+                    RenderPorts::CapturedText{
+                        LegacyStandardModeEntryTextOwner::name,
+                        0x12,
+                        0x5E,
+                        std::vector<u8>{'?', '?', '?', '?', '?', '?', '?', '?'},
+                        0xABCD1234U,
+                        4,
                     } &&
+                ports.text_requests[1U].owner ==
+                    LegacyStandardModeEntryTextOwner::name &&
+                ports.text_requests[1U].x == 0x12 &&
+                ports.text_requests[1U].y == 0x76 &&
+                ports.text_requests[1U].text.size() == 12U &&
+                ports.text_requests[1U].text[0U] == 1U &&
+                ports.text_requests[1U].color == 0xABCD1234U &&
+                ports.formatted_draw_count == 1U &&
                 ports.preview_record.action_id == 0xDEADBEEFU &&
                 ports.preview_record.base_variant == 0x44U &&
                 ports.preview_record.variant_delta == 0 &&
@@ -3550,7 +3582,7 @@ void test_standard_mode_runtime_render(openswd3::test::Context& test) {
             result.status ==
                     LegacyStandardModeRuntimeRenderStatus::
                         selected_record_out_of_range &&
-                result.row_count == 0U && ports.entries.empty() &&
+                result.row_count == 0U && ports.text_requests.empty() &&
                 ports.events ==
                     std::vector{
                         RenderPorts::Event::color,
@@ -3571,8 +3603,160 @@ void test_standard_mode_runtime_render(openswd3::test::Context& test) {
             result.status ==
                     LegacyStandardModeRuntimeRenderStatus::
                         entry_alias_out_of_range &&
-                result.row_count == 1U && ports.entries.size() == 1U,
+                result.row_count == 1U && ports.text_requests.size() == 1U,
             "0x43C820 performs the post-row next-alias read before another y-bound check"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.local_cursor = 0;
+        state.entry_alias_index = 0;
+        state.entries[0U] = 0x12345678U;
+        state.entries[1U] = 0U;
+        state.short_text_slots[0U].fill('X');
+        RenderPorts ports;
+        const auto result = render_legacy_standard_mode_runtime(state, ports);
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeRenderStatus::
+                        entry_render_stopped &&
+                result.entry_render_status ==
+                    LegacyStandardModeEntryRenderStatus::text_not_terminated &&
+                result.preview_count == 1U && result.row_count == 0U &&
+                result.selection_frame_count == 0U &&
+                ports.text_requests.empty() &&
+                ports.events ==
+                    std::vector{
+                        RenderPorts::Event::color,
+                        RenderPorts::Event::prepare,
+                        RenderPorts::Event::preview,
+                    },
+            "0x43C820 propagates CC20 stop before selection frame, row count and next alias"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.short_text_slots[3U][0U] = 'H';
+        state.short_text_slots[3U][1U] = 'e';
+        state.short_text_slots[3U][2U] = 'r';
+        state.short_text_slots[3U][3U] = 'o';
+        state.short_text_slots[3U][4U] = 0U;
+        state.entry_statuses[3U] = 0xFEU;
+        for (std::size_t index = 0U; index < 12U; ++index) {
+            state.long_text_slots[index][0U] =
+                static_cast<u8>('A' + static_cast<int>(index));
+            state.long_text_slots[index][1U] = 0U;
+        }
+        state.long_text_slots[10U][0U] = '?';
+        state.long_text_slots[11U][0U] = 0U;
+        state.scratch_record[0xACU] = 0x44U;
+        state.scratch_record[0xADU] = 0x33U;
+        state.scratch_record[0xAEU] = 0x22U;
+        state.scratch_record[0xAFU] = 0x11U;
+        RenderPorts ports;
+        const auto result = render_legacy_standard_mode_entry(
+            3, 2, 0xAABBCCDDU, 1, state, ports
+        );
+        test.expect_true(
+            result.status == LegacyStandardModeEntryRenderStatus::completed &&
+                result.legacy_return_kind ==
+                    LegacyStandardModeEntryRenderReturnKind::
+                        formatted_text_result &&
+                result.legacy_return_value == -456 &&
+                result.raw_text_draw_count == 13U &&
+                ports.text_requests.size() == 13U &&
+                ports.text_requests[0U].text ==
+                    std::vector<u8>{
+                        'H',
+                        'e',
+                        'r',
+                        'o',
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' '
+                    } &&
+                ports.text_requests[0U].y == 0x8E &&
+                ports.text_requests[1U].text ==
+                    std::vector<u8>{'-', '1', '0', '%'} &&
+                ports.text_requests[1U].y == 0x97 &&
+                ports.text_requests[2U].x == 0xF6 &&
+                ports.text_requests[2U].y == 0x48 &&
+                ports.text_requests[11U].x == 0xF6 &&
+                ports.text_requests[11U].y == 0x126 &&
+                ports.text_requests[12U].x == 0xF228 &&
+                ports.text_requests[12U].text.empty() &&
+                ports.formatted_draw_count == 1U &&
+                ports.formatted_request.source_token == 0x11223344U &&
+                ports.formatted_request.x == 0xF2 &&
+                ports.formatted_request.y == 0x150 &&
+                ports.formatted_request.maximum_line_count == 5 &&
+                ports.formatted_request.maximum_width == 0x168 &&
+                ports.formatted_request.style == 4,
+            "0x43CC20 renders name, signed percentage, selected details and formatted token"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        RenderPorts ports;
+        const auto result = render_legacy_standard_mode_entry(
+            0, -1, 0x12345678U, 2, state, ports
+        );
+        test.expect_true(
+            result.status == LegacyStandardModeEntryRenderStatus::completed &&
+                result.legacy_return_kind ==
+                    LegacyStandardModeEntryRenderReturnKind::selected_value &&
+                result.legacy_return_value == 2 &&
+                result.raw_text_draw_count == 1U &&
+                ports.text_requests[0U].text ==
+                    std::vector<u8>{'?', '?', '?', '?', '?', '?', '?', '?'} &&
+                ports.text_requests[0U].y == 0x46 &&
+                ports.formatted_draw_count == 0U,
+            "0x43CC20 keeps wrapping row geometry and returns nonselected argument EAX"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        RenderPorts ports;
+        const auto result =
+            render_legacy_standard_mode_entry(0, 0, 1U, 1, state, ports);
+        test.expect_true(
+            result.status == LegacyStandardModeEntryRenderStatus::completed &&
+                result.legacy_return_kind ==
+                    LegacyStandardModeEntryRenderReturnKind::
+                        short_text_pointer &&
+                result.legacy_text_pointer ==
+                    state.short_text_slots[0U].data() &&
+                result.raw_text_draw_count == 10U &&
+                ports.formatted_draw_count == 0U,
+            "0x43CC20 draws nine fixed details before empty selected name returns its pointer"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        RenderPorts ports;
+        const auto invalid =
+            render_legacy_standard_mode_entry(-1, 0, 1U, 0, state, ports);
+        state.short_text_slots[0U].fill('X');
+        const auto unterminated =
+            render_legacy_standard_mode_entry(0, 0, 1U, 0, state, ports);
+        test.expect_true(
+            invalid.status ==
+                    LegacyStandardModeEntryRenderStatus::
+                        entry_index_out_of_range &&
+                unterminated.status ==
+                    LegacyStandardModeEntryRenderStatus::text_not_terminated &&
+                ports.text_requests.empty(),
+            "0x43CC20 typed-stops at entry pointer and unterminated short text reads"
         );
     }
 }
