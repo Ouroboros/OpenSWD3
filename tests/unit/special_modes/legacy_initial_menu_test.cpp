@@ -42,6 +42,7 @@ using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
 using openswd3::special_modes::build_legacy_standard_mode_filtered_records;
 using openswd3::special_modes::compose_legacy_standard_mode_input_status;
 using openswd3::special_modes::consume_legacy_standard_mode_entry;
+using openswd3::special_modes::cycle_legacy_standard_mode_database_page;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes_bounded;
 using openswd3::special_modes::draw_legacy_standard_mode_ghost;
@@ -2786,6 +2787,185 @@ void test_standard_mode_database_advance(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
+    class CyclePorts final
+        : public openswd3::special_modes::LegacyStandardModeDatabaseCyclePorts {
+    public:
+        [[nodiscard]] LegacyStandardModeForwardNode*
+        initialize_database_forward_list() noexcept override {
+            events.push_back(0U);
+            return forward_head;
+        }
+        void insert_missing_node(
+            const LegacyStandardModeForwardNode** source_head,
+            const u16 text_index,
+            const i32 first_value,
+            const i32 second_value
+        ) noexcept override {
+            events.push_back(4U);
+            ++missing_insert_count;
+            received_text_index = text_index;
+            received_first_value = first_value;
+            received_second_value = second_value;
+            if (publish_missing_node) {
+                *source_head = fallback_node;
+            }
+        }
+        void refresh_database_records(
+            openswd3::special_modes::
+                LegacyStandardModeDatabaseInitializationState& state
+        ) noexcept override {
+            events.push_back(1U);
+            state.first_inline_record[0U] = 13U;
+        }
+        void rebuild_inline_records(
+            const std::span<u8> first_record,
+            const std::span<u8> second_record,
+            openswd3::special_modes::
+                LegacyStandardModeDatabaseInitializationState&
+        ) noexcept override {
+            events.push_back(2U);
+            observed_first_byte = first_record[0U];
+            first_record[0U] = 14U;
+            second_record[0U] = 15U;
+        }
+        [[nodiscard]] i32 initialize_database_sample(
+            const u16 sample_id, const u32 interface_source_value
+        ) noexcept override {
+            events.push_back(3U);
+            sample_ids.push_back(sample_id);
+            interface_values.push_back(interface_source_value);
+            return sample_id == 0x2EU ? 85 : 95;
+        }
+        [[nodiscard]] bool
+        query_item_presence(const u16 item_id) noexcept override {
+            events.push_back(5U);
+            queried_item_ids.push_back(item_id);
+            return item_present;
+        }
+
+        bool item_present{true};
+        bool publish_missing_node{};
+        u8 observed_first_byte{};
+        u16 received_text_index{};
+        i32 received_first_value{};
+        i32 received_second_value{};
+        u32 missing_insert_count{};
+        LegacyStandardModeForwardNode* forward_head{};
+        const LegacyStandardModeForwardNode* fallback_node{};
+        std::vector<u8> events;
+        std::vector<u16> sample_ids;
+        std::vector<u16> queried_item_ids;
+        std::vector<u32> interface_values;
+    };
+
+    LegacyStandardModeForwardNode third{nullptr, 0xFFDCU};
+    LegacyStandardModeForwardNode second{&third, 0xFFDCU};
+    LegacyStandardModeForwardNode first{&second, 0xFFDCU};
+    openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+        state;
+    state.interaction_phase = 1U;
+    state.page_selection = 0;
+    state.window_offset = 99;
+    state.list_selection = 88;
+    state.bounded_forward_count = 77;
+    state.display_flags = 0xABCDU;
+    state.interface_source_value = 0x12345678U;
+    CyclePorts ports;
+    ports.forward_head = &first;
+
+    const auto phase_1 =
+        cycle_legacy_standard_mode_database_page(state, {}, ports);
+    test.expect_true(
+        phase_1.status ==
+                openswd3::special_modes::LegacyStandardModeDatabaseCycleStatus::
+                    completed &&
+            phase_1.path ==
+                openswd3::special_modes::LegacyStandardModeDatabaseCyclePath::
+                    phase_1_page_cycle &&
+            phase_1.legacy_return_value == 85 &&
+            phase_1.helper_call_count == 5U && phase_1.sample_initialized &&
+            state.page_selection == 2 && state.forward_head == &first &&
+            state.current_forward_head == &first && state.forward_count == 3U &&
+            state.window_offset == 0 && state.list_selection == 0 &&
+            state.bounded_forward_count == 3 &&
+            state.shared_text[0U] == 0xB5U && state.shared_text[1U] == 0x4CU &&
+            state.display_flags == 0xABCDU &&
+            state.first_inline_record[0U] == 14U &&
+            state.second_inline_record[0U] == 15U &&
+            ports.observed_first_byte == 13U &&
+            ports.events == std::vector<u8>{0U, 1U, 2U, 3U} &&
+            ports.sample_ids == std::vector<u16>{0x2EU} &&
+            ports.interface_values == std::vector<u32>{0x12345678U},
+        "0x43E080 phase1 wraps page, rebuilds BCC0 selection and preserves flags"
+    );
+
+    state.interaction_phase = 2U;
+    state.interaction_toggle = 1U;
+    ports.item_present = false;
+    ports.events.clear();
+    const auto missing_item =
+        cycle_legacy_standard_mode_database_page(state, {}, ports);
+    test.expect_true(
+        missing_item.path ==
+                openswd3::special_modes::LegacyStandardModeDatabaseCyclePath::
+                    phase_2_toggle &&
+            missing_item.legacy_return_value == 0 &&
+            missing_item.helper_call_count == 2U &&
+            missing_item.sample_initialized && state.interaction_toggle == 1U &&
+            ports.events == std::vector<u8>{3U, 5U} &&
+            ports.sample_ids.back() == 0x107U &&
+            ports.queried_item_ids == std::vector<u16>{0x1BA9U},
+        "0x43E080 phase2 samples nonzero toggle before item query overwrites EAX"
+    );
+    ports.item_present = true;
+    state.runtime_input_flags = 0U;
+    const auto active =
+        cycle_legacy_standard_mode_database_page(state, {}, ports);
+    test.expect_true(
+        active.legacy_return_value == 1 && state.interaction_toggle == 0U,
+        "0x43E080 phase2 clears toggle only after item and bit0 gates pass"
+    );
+
+    state.interaction_phase = 3U;
+    state.phase_3_countdown = 0U;
+    const auto phase_3 =
+        cycle_legacy_standard_mode_database_page(state, {}, ports);
+    test.expect_true(
+        phase_3.path ==
+                openswd3::special_modes::LegacyStandardModeDatabaseCyclePath::
+                    phase_3_countdown &&
+            phase_3.legacy_return_value == 0 &&
+            state.phase_3_countdown == 0xC8U,
+        "0x43E080 phase3 writes countdown 200"
+    );
+
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            stopped_state;
+        stopped_state.interaction_phase = 1U;
+        stopped_state.page_selection = 1;
+        CyclePorts stopped_ports;
+        const auto stopped = cycle_legacy_standard_mode_database_page(
+            stopped_state, {}, stopped_ports
+        );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseCycleStatus::
+                            window_selection_stopped &&
+                stopped.helper_call_count == 2U &&
+                !stopped.sample_initialized &&
+                stopped_ports.missing_insert_count == 1U &&
+                stopped_ports.received_text_index == 0xFFDCU &&
+                stopped_ports.received_first_value == 1 &&
+                stopped_ports.received_second_value == 0 &&
+                stopped_ports.events == std::vector<u8>{0U, 4U},
+            "0x43E080 typed-stops after BCC0 missing insertion fails to publish"
+        );
+    }
+}
+
 void test_standard_mode_database_page_retreat(openswd3::test::Context& test) {
     class PageRetreatPorts final : public openswd3::special_modes::
                                        LegacyStandardModeDatabaseRetreatPorts {
@@ -3191,6 +3371,21 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
     class InputPorts final
         : public openswd3::special_modes::LegacyStandardModeDatabaseInputPorts {
     public:
+        [[nodiscard]] LegacyStandardModeForwardNode*
+        initialize_database_forward_list() noexcept override {
+            return cycle_forward_head;
+        }
+        void insert_missing_node(
+            const LegacyStandardModeForwardNode** source_head,
+            const u16,
+            const i32,
+            const i32
+        ) noexcept override {
+            ++missing_insert_count;
+            if (publish_missing_node) {
+                *source_head = &cycle_node;
+            }
+        }
         void refresh_database_records(
             openswd3::special_modes::
                 LegacyStandardModeDatabaseInitializationState&
@@ -3223,6 +3418,10 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         }
 
         bool item_present{true};
+        bool publish_missing_node{};
+        u32 missing_insert_count{};
+        LegacyStandardModeForwardNode cycle_node{nullptr, 0xFFDCU};
+        LegacyStandardModeForwardNode* cycle_forward_head{&cycle_node};
         std::vector<u16> queried_item_ids;
         std::vector<u16> database_sample_ids;
         std::vector<Target> targets;
@@ -3238,7 +3437,7 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             InputPorts& ports
         ) {
             return handle_legacy_standard_mode_database_input(
-                state, input, availability, ports
+                state, input, availability, {}, ports
             );
         };
 
@@ -3250,8 +3449,11 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         InputPorts ports;
         const auto result = run(state, input, ports);
         test.expect_true(
-            state.page_selection == 6U && result.callback_count == 1U &&
-                ports.targets == std::vector<Target>{Target::address_0043E080},
+            state.page_selection == 5 && result.callback_count == 1U &&
+                result.last_target == Target::address_0043E080 &&
+                ports.targets.empty() && state.forward_count == 1U &&
+                state.shared_text[0U] == 0xB5U &&
+                ports.database_sample_ids == std::vector<u16>{0x2EU},
             "0x43DA30 phase1 maps the first unsigned rectangle to pages 1..6"
         );
     }
@@ -3339,8 +3541,9 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         state.forward_count = 17U;
         Input input{.buttons = 4U, .mouse_x = 0U, .mouse_y = 0U};
         InputPorts ports;
-        const auto missing =
-            handle_legacy_standard_mode_database_input(state, input, {}, ports);
+        const auto missing = handle_legacy_standard_mode_database_input(
+            state, input, {}, {}, ports
+        );
         test.expect_true(
             missing.status ==
                     openswd3::special_modes::
@@ -3379,30 +3582,33 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             state;
         state.interaction_phase = 2U;
         state.interaction_toggle = 1U;
+        state.runtime_input_flags = 0U;
         Input input{.buttons = 3U, .mouse_x = 100U, .mouse_y = 100U};
         InputPorts ports;
         const auto result = run(state, input, ports);
         test.expect_true(
             result.callback_count == 2U &&
+                result.last_target == Target::address_0043E3D0 &&
                 ports.targets ==
-                    std::vector<Target>{
-                        Target::address_0043E080,
-                        Target::address_0043E080,
-                    } &&
-                ports.queried_item_ids == std::vector<u16>{0x1BA9U},
-            "0x43DA30 preserves the phase2 upper-panel double-E080 bug"
+                    std::vector<Target>{Target::address_0043E3D0} &&
+                ports.database_sample_ids == std::vector<u16>{0x107U} &&
+                ports.queried_item_ids == std::vector<u16>{0x1BA9U, 0x1BA9U} &&
+                state.interaction_toggle == 0U,
+            "0x43DA30 upper panel closes E080 before toggle-selected E3D0"
         );
         state.interaction_toggle = 0U;
+        state.runtime_input_flags = 0U;
         InputPorts alternate_ports;
         const auto alternate = run(state, input, alternate_ports);
         test.expect_true(
             alternate.callback_count == 2U &&
+                alternate.last_target == Target::address_0043E3D0 &&
                 alternate_ports.targets ==
-                    std::vector<Target>{
-                        Target::address_0043E080,
-                        Target::address_0043E3D0,
-                    },
-            "0x43DA30 upper-panel bit1 selects E3D0 only after the first E080"
+                    std::vector<Target>{Target::address_0043E3D0} &&
+                alternate_ports.database_sample_ids.empty() &&
+                alternate_ports.queried_item_ids ==
+                    std::vector<u16>{0x1BA9U, 0x1BA9U},
+            "0x43DA30 upper-panel zero toggle skips E080 sample before E3D0"
         );
     }
     {
@@ -7755,6 +7961,7 @@ int main() {
     test_standard_mode_entry_initialization(test);
     test_standard_mode_database_initialization(test);
     test_standard_mode_database_advance(test);
+    test_standard_mode_database_page_cycle(test);
     test_standard_mode_database_page_retreat(test);
     test_standard_mode_database_page_advance(test);
     test_standard_mode_database_retreat(test);

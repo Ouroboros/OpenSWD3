@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v475
+版本：v476
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043E080`
+当前步骤：模块9 · 闭环`0x0043E170`
 
 ## 0. 执行约定
 
@@ -3482,8 +3482,9 @@ B7 P0 有限收口完成。
     callback间接调用。权威owner重映射确认dword FCD20是交互phase，独立于word 4FC900生命周期phase；
     FCAD8是完整forward count，FCB98是16界count。phase1保留页/列表/方向/hover矩形、C090 record15
     门控及动态strict-X边界，前三个callee后重读X，可同帧执行DDF0→DD20→DFA0→DED0。phase2保留双
-    button触发E080→E080/E3D0及E170→E170/E3D0的重复调用BUG。phase3/4/5按低4位调用E3D0/E770。
-    定向UT覆盖signed count边界、C090 typed-stop、链式X重读、双调用、物品1BA9及未知phase。workpack
+    button的E170→E170/E3D0重复调用BUG保留；E080闭环后确认上面板成功路径清toggle，真实为E080→E3D0，
+    旧double-E080假设不可达。phase3/4/5按低4位调用E3D0/E770。定向UT覆盖signed count边界、C090
+    typed-stop、链式X重读、真实toggle耦合、lower双调用、物品1BA9及未知phase。workpack
     连续两轮稳定为`46/227`，SHA256为
     `53c46bdf47c9719b2ee102b907d48d820ec10bbf52731ebca6de7dfb53d9c184`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
@@ -3528,9 +3529,20 @@ B7 P0 有限收口完成。
     `50/227`，SHA256为`a3c74b1f054f6886676e1956a6da3086df39ed202b646b1ac26210792533becb`；
     Linux core188/188与Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库页来源循环`0x0043E080`闭环。LST范围`0x0043E080..0x0043E16A`，DA30
+    有两个direct call且B480 callback间接绑定。phase1对page做32-bit减1、负值回绕2，F000重建head，
+    清window/local并预置visible16后直接调用BCC0，发布count/current/selected/shared text；BCC0失败在
+    原不安全点typed-stop，成功才F880/F1E0及sample2E，不改display flags。phase2按toggle条件sample107
+    →物品1BA9查询覆盖EAX→runtime bit0 gate→清toggle；phase3写countdown200。闭环后修正DA30旧
+    double-E080假设：外层bit0清门与E080清toggle共同保证双button真实进入E080→E3D0。定向UT覆盖
+    三节点FFDC内建文本、missing insertion typed-stop、sample/query顺序、toggle清零、phase3及DA30耦合。
+    workpack连续两轮稳定为`51/227`，SHA256为
+    `0f52bb8ee251b986257b5e984793f79cdd66fc50d5f329adfb19a40f1d94e272`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`50/227`，下一单元为`0x0043E080`。
+进行中，正式进度为`51/227`，下一单元为`0x0043E170`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043E080`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043E170`，继续更新workpack、证据和完整验证门。

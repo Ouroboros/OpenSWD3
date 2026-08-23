@@ -2253,6 +2253,102 @@ LegacyStandardModeDatabaseAdvanceResult advance_legacy_standard_mode_database(
     return result;
 }
 
+LegacyStandardModeDatabaseCycleResult cycle_legacy_standard_mode_database_page(
+    LegacyStandardModeDatabaseInitializationState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeDatabaseCyclePorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseCycleResult result;
+    compat::u32 legacy_eax = state.interaction_phase - 1U;
+    if (legacy_eax == 0U) {
+        result.path = LegacyStandardModeDatabaseCyclePath::phase_1_page_cycle;
+        state.page_selection = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(state.page_selection) - 1U
+        );
+        if (state.page_selection < 0) {
+            state.page_selection = 2;
+        }
+
+        state.forward_head = ports.initialize_database_forward_list();
+        ++result.helper_call_count;
+        state.current_forward_head = state.forward_head;
+        state.window_offset = 0;
+        state.list_selection = 0;
+        state.bounded_forward_count = 0x10;
+        compat::i32 total_count =
+            std::bit_cast<compat::i32>(state.forward_count);
+        const LegacyStandardModeForwardNode* source_head = state.forward_head;
+        const LegacyStandardModeForwardNode* output_head =
+            state.current_forward_head;
+        const LegacyStandardModeWindowSelectionResult selection =
+            resolve_legacy_standard_mode_window_selection(
+                total_count,
+                state.window_offset,
+                state.list_selection,
+                state.bounded_forward_count,
+                0x10,
+                &source_head,
+                &output_head,
+                maps_payload,
+                state.shared_text,
+                ports
+            );
+        ++result.helper_call_count;
+        state.forward_count = std::bit_cast<compat::u32>(total_count);
+        state.forward_head =
+            const_cast<LegacyStandardModeForwardNode*>(source_head);
+        state.current_forward_head = output_head;
+        if (selection.status !=
+            LegacyStandardModeWindowSelectionStatus::completed) {
+            result.status =
+                LegacyStandardModeDatabaseCycleStatus::window_selection_stopped;
+            result.legacy_return_value = 0;
+            return result;
+        }
+
+        ports.refresh_database_records(state);
+        ++result.helper_call_count;
+        ports.rebuild_inline_records(
+            state.first_inline_record, state.second_inline_record, state
+        );
+        ++result.helper_call_count;
+        result.legacy_return_value = ports.initialize_database_sample(
+            0x002EU, state.interface_source_value
+        );
+        ++result.helper_call_count;
+        result.sample_initialized = true;
+        return result;
+    }
+
+    legacy_eax -= 1U;
+    if (legacy_eax == 0U) {
+        result.path = LegacyStandardModeDatabaseCyclePath::phase_2_toggle;
+        if (state.interaction_toggle != 0U) {
+            result.legacy_return_value = ports.initialize_database_sample(
+                0x0107U, state.interface_source_value
+            );
+            ++result.helper_call_count;
+            result.sample_initialized = true;
+        }
+        const bool item_present = ports.query_item_presence(0x1BA9U);
+        ++result.helper_call_count;
+        result.legacy_return_value = item_present ? 1 : 0;
+        if (!item_present || (state.runtime_input_flags & 1U) != 0U) {
+            return result;
+        }
+        state.interaction_toggle = 0U;
+        return result;
+    }
+
+    legacy_eax -= 1U;
+    result.legacy_return_value = std::bit_cast<compat::i32>(legacy_eax);
+    if (legacy_eax == 0U) {
+        result.path = LegacyStandardModeDatabaseCyclePath::phase_3_countdown;
+        state.phase_3_countdown = 0xC8U;
+    }
+    return result;
+}
+
 LegacyStandardModeDatabasePageRetreatResult
 retreat_legacy_standard_mode_database_page(
     LegacyStandardModeDatabaseInitializationState& state,
@@ -2482,6 +2578,7 @@ handle_legacy_standard_mode_database_input(
     LegacyStandardModeDatabaseInputSnapshot& input,
     const std::span<const LegacyStandardModeAvailabilityRecord>
         availability_records,
+    const std::span<const compat::u8> maps_payload,
     LegacyStandardModeDatabaseInputPorts& ports
 ) noexcept {
     LegacyStandardModeDatabaseInputResult result;
@@ -2493,7 +2590,15 @@ handle_legacy_standard_mode_database_input(
                         ) {
         ++result.callback_count;
         result.last_target = target;
-        if (target == LegacyStandardModeDatabaseInputTarget::address_0043DD20) {
+        if (target == LegacyStandardModeDatabaseInputTarget::address_0043E080) {
+            result.legacy_return_value =
+                cycle_legacy_standard_mode_database_page(
+                    state, maps_payload, ports
+                )
+                    .legacy_return_value;
+        } else if (
+            target == LegacyStandardModeDatabaseInputTarget::address_0043DD20
+        ) {
             result.legacy_return_value =
                 advance_legacy_standard_mode_database(state, ports)
                     .legacy_return_value;

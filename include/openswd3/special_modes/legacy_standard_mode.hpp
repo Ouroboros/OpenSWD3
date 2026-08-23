@@ -731,7 +731,7 @@ struct LegacyStandardModeDatabaseInitializationState {
     asset_runtime::LegacyActionRecord cleanup_action{};
     compat::i32 window_offset{};
     compat::i32 list_selection{};
-    compat::u32 page_selection{};
+    compat::i32 page_selection{};
     compat::u32 fourth_reset{};
     compat::u32 display_flags{};
     compat::u32 interaction_phase{};
@@ -741,6 +741,7 @@ struct LegacyStandardModeDatabaseInitializationState {
     std::array<std::array<compat::u8, 0xF0U>, 4U> small_buffers{};
     std::array<std::array<compat::u8, 0x1B8U>, 4U> large_buffers{};
     std::array<compat::i32, 0x100U> mirrored_values{};
+    std::array<compat::u8, kLegacyStandardModeSharedTextCapacity> shared_text{};
     compat::u16 lifecycle_phase{};
     compat::u32 direction_selection{};
     compat::u32 hover_flag{};
@@ -859,6 +860,39 @@ public:
     query_item_presence(compat::u16 item_id) noexcept = 0;
 };
 
+enum class LegacyStandardModeDatabaseCycleStatus : compat::u8 {
+    completed,
+    window_selection_stopped,
+};
+
+enum class LegacyStandardModeDatabaseCyclePath : compat::u8 {
+    ignored,
+    phase_1_page_cycle,
+    phase_2_toggle,
+    phase_3_countdown,
+};
+
+struct LegacyStandardModeDatabaseCycleResult {
+    LegacyStandardModeDatabaseCycleStatus status{
+        LegacyStandardModeDatabaseCycleStatus::completed
+    };
+    LegacyStandardModeDatabaseCyclePath path{
+        LegacyStandardModeDatabaseCyclePath::ignored
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    bool sample_initialized{};
+};
+
+class LegacyStandardModeDatabaseCyclePorts
+    : public LegacyStandardModeDatabaseRetreatPorts,
+      public LegacyStandardModeMissingNodePorts {
+public:
+    ~LegacyStandardModeDatabaseCyclePorts() override = default;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    initialize_database_forward_list() noexcept = 0;
+};
+
 enum class LegacyStandardModeDatabaseInputStatus : compat::u8 {
     completed,
     availability_index_out_of_range,
@@ -874,7 +908,7 @@ struct LegacyStandardModeDatabaseInputResult {
 };
 
 class LegacyStandardModeDatabaseInputPorts
-    : public LegacyStandardModeDatabaseRetreatPorts {
+    : public LegacyStandardModeDatabaseCyclePorts {
 public:
     ~LegacyStandardModeDatabaseInputPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke(
@@ -1736,6 +1770,14 @@ advance_legacy_standard_mode_database(
     LegacyStandardModeDatabaseAdvancePorts& ports
 ) noexcept;
 
+// sub_43E080: cycle the database page source or phase-specific owner.
+[[nodiscard]] LegacyStandardModeDatabaseCycleResult
+cycle_legacy_standard_mode_database_page(
+    LegacyStandardModeDatabaseInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeDatabaseCyclePorts& ports
+) noexcept;
+
 // sub_43DFA0: retreat one database page or phase-specific owner.
 [[nodiscard]] LegacyStandardModeDatabasePageRetreatResult
 retreat_legacy_standard_mode_database_page(
@@ -1763,6 +1805,7 @@ handle_legacy_standard_mode_database_input(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseInputSnapshot& input,
     std::span<const LegacyStandardModeAvailabilityRecord> availability_records,
+    std::span<const compat::u8> maps_payload,
     LegacyStandardModeDatabaseInputPorts& ports
 ) noexcept;
 
