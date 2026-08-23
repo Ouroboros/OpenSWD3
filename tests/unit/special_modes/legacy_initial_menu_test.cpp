@@ -2747,10 +2747,7 @@ void test_standard_mode_database_advance(openswd3::test::Context& test) {
             state.bounded_forward_count == 16 &&
             state.bounded_forward_node == &nodes[17U] &&
             state.display_flags == 0xAB30U &&
-            state.first_inline_record[0U] == 2U &&
-            state.second_inline_record[0U] == 3U &&
-            ports.observed_first_byte == 1U &&
-            ports.events == std::vector<u8>{1U, 2U, 3U} &&
+            ports.events == std::vector<u8>{1U, 3U} &&
             ports.sample_ids == std::vector<u16>{0x2EU} &&
             ports.interface_values == std::vector<u32>{0x55667788U},
         "0x43DD20 phase1 directly composes BB80, B9A0, BC90, F880, F1E0 and sample"
@@ -2874,6 +2871,26 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
             queried_item_ids.push_back(item_id);
             return item_present;
         }
+        void release_runtime_value(u32 value) noexcept override {
+            released_runtime_values.push_back(value);
+        }
+        [[nodiscard]] std::optional<
+            openswd3::special_modes::LegacyStandardModeDatabaseRecordPair>
+        lookup_database_record_pair(u16, u16) noexcept override {
+            return record_pair;
+        }
+        [[nodiscard]] u16
+        lookup_database_relation(u8 row, u8 column) noexcept override {
+            relation_queries.emplace_back(row, column);
+            return static_cast<u16>(static_cast<u16>(row) * 16U + column);
+        }
+        [[nodiscard]] i32 load_database_runtime_text(
+            std::span<u8> destination, u32 legacy_record_key
+        ) noexcept override {
+            runtime_text_keys.push_back(legacy_record_key);
+            destination[0U] = static_cast<u8>(legacy_record_key);
+            return 300 + static_cast<i32>(runtime_text_keys.size());
+        }
 
         bool item_present{true};
         bool publish_missing_node{};
@@ -2890,6 +2907,12 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
         std::vector<u8> events;
         std::vector<u32> released_forward_values;
         std::vector<LegacyStandardModeForwardNode*> released_forward_nodes;
+        std::vector<u32> released_runtime_values;
+        std::optional<
+            openswd3::special_modes::LegacyStandardModeDatabaseRecordPair>
+            record_pair;
+        std::vector<std::pair<u8, u8>> relation_queries;
+        std::vector<u32> runtime_text_keys;
         std::vector<u16> sample_ids;
         std::vector<u16> queried_item_ids;
         std::vector<u32> interface_values;
@@ -3030,6 +3053,94 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 sort_state.forward_build_word == 0U &&
                 sort_state.forward_build_tail_word == 0U,
             "0x43F160 sorts through zeroed local sentinel and clears only FCAE8/FCAEA"
+        );
+
+        const auto set_u16 = [](auto& record, std::size_t offset, u16 value) {
+            record[offset] = static_cast<u8>(value);
+            record[offset + 1U] = static_cast<u8>(value >> 8U);
+        };
+        const auto get_u16 = [](const auto& record, std::size_t offset) {
+            return static_cast<u16>(
+                static_cast<u16>(record[offset]) |
+                static_cast<u16>(static_cast<u16>(record[offset + 1U]) << 8U)
+            );
+        };
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            pair_state;
+        pair_state.first_missing_text_index = 10U;
+        pair_state.second_missing_text_index = 20U;
+        set_u16(pair_state.first_inline_record, 2U, 1U);
+        set_u16(pair_state.second_inline_record, 2U, 1U);
+        pair_state.first_runtime_record[0xACU] = 0x11U;
+        pair_state.second_runtime_record[0xACU] = 0x22U;
+        CyclePorts pair_ports;
+        pair_ports.record_pair =
+            openswd3::special_modes::LegacyStandardModeDatabaseRecordPair{
+                111U, 222U
+            };
+        const auto paired = openswd3::special_modes::
+            refresh_legacy_standard_mode_database_runtime_records(
+                pair_state, pair_ports
+            );
+        test.expect_true(
+            paired.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseRecordRefreshPath::
+                            pair_match &&
+                paired.legacy_return_value == 1 &&
+                paired.released_token_count == 2U &&
+                pair_ports.released_runtime_values ==
+                    std::vector<u32>{0x11U, 0x22U} &&
+                get_u16(pair_state.first_runtime_record, 4U) == 111U &&
+                get_u16(pair_state.second_runtime_record, 4U) == 222U &&
+                pair_ports.runtime_text_keys.empty(),
+            "0x43F1E0 pair-table fast path releases tokens and writes fixed outputs"
+        );
+
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            fallback_state;
+        fallback_state.first_missing_text_index = 10U;
+        fallback_state.second_missing_text_index = 20U;
+        set_u16(fallback_state.first_inline_record, 2U, 1U);
+        set_u16(fallback_state.second_inline_record, 2U, 1U);
+        set_u16(fallback_state.first_inline_record, 0x5AU, 2U);
+        set_u16(fallback_state.second_inline_record, 0x5AU, 1U);
+        set_u16(fallback_state.first_inline_record, 0x5CU, 100U);
+        set_u16(fallback_state.second_inline_record, 0x5CU, 100U);
+        fallback_state.field_5e_table[101U] = 33;
+        fallback_state.field_60_table[101U] = 102;
+        fallback_state.field_2c_table[101U] = 0x800;
+        fallback_state.field_5e_table[501U] = 33;
+        fallback_state.field_60_table[501U] = 103;
+        fallback_state.field_a7_table[501U] = 1;
+        fallback_state.field_5e_table[200U] = 18;
+        fallback_state.field_60_table[200U] = 100;
+        fallback_state.field_2c_table[200U] = 0x800;
+        fallback_state.field_a7_table[200U] = 2;
+        fallback_state.field_5e_table[201U] = 18;
+        fallback_state.field_60_table[201U] = 101;
+        fallback_state.field_2c_table[201U] = 0x800;
+        CyclePorts fallback_ports;
+        const auto fallback = openswd3::special_modes::
+            refresh_legacy_standard_mode_database_runtime_records(
+                fallback_state, fallback_ports
+            );
+        test.expect_true(
+            fallback.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseRecordRefreshPath::
+                            fallback_scan &&
+                fallback.first_scan_count == 1099U &&
+                fallback.second_scan_count == 1099U &&
+                fallback.text_load_count == 2U &&
+                get_u16(fallback_state.first_runtime_record, 4U) == 101U &&
+                get_u16(fallback_state.second_runtime_record, 4U) == 201U &&
+                fallback_ports.relation_queries ==
+                    std::vector<std::pair<u8, u8>>{{2U, 1U}, {1U, 2U}} &&
+                fallback_ports.runtime_text_keys ==
+                    std::vector<u32>{0x004F0065U, 0x004F00C9U} &&
+                fallback.legacy_return_value == 302,
+            "0x43F1E0 fallback preserves parity, bit800, a7 and legacy text-key gates"
         );
     }
 
@@ -3173,7 +3284,7 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 forward_state.shared_text[0U] == 0xB5U &&
                 forward_state.shared_text[1U] == 0x4CU &&
                 forward_state.display_flags == 0x4321U &&
-                forward_ports.events == std::vector<u8>{1U, 2U, 3U} &&
+                forward_ports.events == std::vector<u8>{1U, 3U} &&
                 forward_ports.sample_ids == std::vector<u16>{0x2EU} &&
                 forward_ports.interface_values == std::vector<u32>{0x87654321U},
             "0x43E170 phase1 wraps page above two and rebuilds BCC0 selection"
@@ -3276,10 +3387,8 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
             state.bounded_forward_count == 3 &&
             state.shared_text[0U] == 0xB5U && state.shared_text[1U] == 0x4CU &&
             state.display_flags == 0xABCDU &&
-            state.first_inline_record[0U] == 14U &&
-            state.second_inline_record[0U] == 15U &&
-            ports.observed_first_byte == 13U &&
-            ports.events == std::vector<u8>{1U, 2U, 3U} &&
+            state.first_inline_record[0U] == 13U &&
+            ports.events == std::vector<u8>{1U, 3U} &&
             ports.sample_ids == std::vector<u16>{0x2EU} &&
             ports.interface_values == std::vector<u32>{0x12345678U},
         "0x43E080 phase1 wraps page, rebuilds BCC0 selection and preserves flags"
@@ -3426,10 +3535,8 @@ void test_standard_mode_database_page_retreat(openswd3::test::Context& test) {
             state.bounded_forward_count == 16 &&
             state.bounded_forward_node == &nodes[16U] &&
             state.display_flags == 0xAB03U &&
-            state.first_inline_record[0U] == 11U &&
-            state.second_inline_record[0U] == 12U &&
-            ports.observed_first_byte == 10U &&
-            ports.events == std::vector<u8>{1U, 2U, 3U} &&
+            state.first_inline_record[0U] == 10U &&
+            ports.events == std::vector<u8>{1U, 3U} &&
             ports.sample_ids == std::vector<u16>{0x2EU} &&
             ports.interface_values == std::vector<u32>{0xDDEEFF00U},
         "0x43DFA0 phase1 composes BC60 step16, B9A0, BC90 and OR03 refresh order"
@@ -3553,10 +3660,8 @@ void test_standard_mode_database_page_advance(openswd3::test::Context& test) {
             state.bounded_forward_count == 16 &&
             state.bounded_forward_node == &nodes[32U] &&
             state.display_flags == 0xAB30U &&
-            state.first_inline_record[0U] == 8U &&
-            state.second_inline_record[0U] == 9U &&
-            ports.observed_first_byte == 7U &&
-            ports.events == std::vector<u8>{1U, 2U, 3U} &&
+            state.first_inline_record[0U] == 7U &&
+            ports.events == std::vector<u8>{1U, 3U} &&
             ports.sample_ids == std::vector<u16>{0x2EU} &&
             ports.interface_values == std::vector<u32>{0x99AABBCCU},
         "0x43DED0 phase1 composes BBE0 step16, B9A0, BC90 and OR30 refresh order"
@@ -3683,10 +3788,8 @@ void test_standard_mode_database_retreat(openswd3::test::Context& test) {
             state.bounded_forward_count == 16 &&
             state.bounded_forward_node == &nodes[16U] &&
             state.display_flags == 0xAB03U &&
-            state.first_inline_record[0U] == 5U &&
-            state.second_inline_record[0U] == 6U &&
-            ports.observed_first_byte == 4U &&
-            ports.events == std::vector<u8>{1U, 2U, 3U} &&
+            state.first_inline_record[0U] == 4U &&
+            ports.events == std::vector<u8>{1U, 3U} &&
             ports.sample_ids == std::vector<u16>{0x2EU} &&
             ports.interface_values == std::vector<u32>{0x11223344U},
         "0x43DDF0 phase1 composes BBC0, B9A0, BC90 and OR03 refresh order"
@@ -3838,6 +3941,13 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             cleanup_storage_kinds.push_back(kind);
             return cleanup_storage_return_base +
                 static_cast<i32>(cleanup_storage_kinds.size());
+        }
+        [[nodiscard]] std::optional<
+            openswd3::special_modes::LegacyStandardModeDatabaseRecordPair>
+        lookup_database_record_pair(u16, u16) noexcept override {
+            ++commit_rebuild_count;
+            return openswd3::special_modes::
+                LegacyStandardModeDatabaseRecordPair{0x65U, 0x65U};
         }
         [[nodiscard]] i32 rebuild_database_inline_records(
             std::span<u8>,
@@ -4070,6 +4180,10 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
             state;
         state.interaction_phase = 1U;
+        state.first_missing_text_index = 1U;
+        state.second_missing_text_index = 2U;
+        state.first_inline_record[2U] = 1U;
+        state.second_inline_record[2U] = 1U;
         state.comparison_value = 10U;
         state.first_runtime_record[0x60U] = 25U;
         state.second_runtime_record[0x60U] = 15U;
@@ -4082,8 +4196,8 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                 prepared.helper_call_count == 5U &&
                 prepared.legacy_return_value == 100 &&
                 prepared.sample_initialized && state.interaction_phase == 2U &&
-                state.interaction_toggle == 1U &&
-                state.runtime_input_flags == 1U &&
+                state.interaction_toggle == 0U &&
+                state.runtime_input_flags == 0U &&
                 state.primary_action.action_id == 0x232AU &&
                 state.primary_action.base_variant == 0x39U &&
                 ports.queried_item_ids == std::vector<u16>{0x1BB0U, 0x1BA9U} &&
@@ -4404,6 +4518,10 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
             state;
         state.interaction_phase = 1U;
+        state.first_missing_text_index = 1U;
+        state.second_missing_text_index = 2U;
+        state.first_inline_record[2U] = 1U;
+        state.second_inline_record[2U] = 1U;
         Input hover{.mouse_x = 338U, .mouse_y = 413U};
         InputPorts hover_ports;
         const auto idle = run(state, hover, hover_ports);

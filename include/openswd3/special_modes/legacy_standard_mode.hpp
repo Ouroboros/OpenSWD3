@@ -718,6 +718,8 @@ struct LegacyStandardModeDatabaseInitializationState {
     std::array<compat::u8, 0xB0U> scan_record{};
     std::array<compat::u8, 0xB0U> first_runtime_record{};
     std::array<compat::u8, 0xB0U> second_runtime_record{};
+    compat::u32 first_runtime_record_legacy_address_high_word{0x004F0000U};
+    compat::u32 second_runtime_record_legacy_address_high_word{0x004F0000U};
     LegacyStandardModeForwardNode* adjustment_head{};
     LegacyStandardModeForwardNode* forward_head{};
     const LegacyStandardModeForwardNode* current_forward_head{};
@@ -799,7 +801,56 @@ struct LegacyStandardModeDatabaseAdvanceResult {
     bool sample_initialized{};
 };
 
-class LegacyStandardModeDatabaseAdvancePorts {
+struct LegacyStandardModeDatabaseRecordPair {
+    compat::u16 first_record_id{};
+    compat::u16 second_record_id{};
+};
+
+class LegacyStandardModeDatabaseRecordRefreshPorts {
+public:
+    virtual ~LegacyStandardModeDatabaseRecordRefreshPorts() = default;
+    virtual void release_runtime_value(compat::u32) noexcept {}
+    [[nodiscard]] virtual std::optional<LegacyStandardModeDatabaseRecordPair>
+    lookup_database_record_pair(compat::u16, compat::u16) noexcept {
+        return std::nullopt;
+    }
+    [[nodiscard]] virtual compat::u16
+    lookup_database_relation(compat::u8, compat::u8) noexcept {
+        return 0U;
+    }
+    [[nodiscard]] virtual compat::i32
+    load_database_runtime_text(std::span<compat::u8>, compat::u32) noexcept {
+        return 0;
+    }
+};
+
+enum class LegacyStandardModeDatabaseRecordRefreshStatus : compat::u8 {
+    completed,
+    category_index_out_of_range,
+};
+
+enum class LegacyStandardModeDatabaseRecordRefreshPath : compat::u8 {
+    invalid_input,
+    pair_match,
+    fallback_scan,
+};
+
+struct LegacyStandardModeDatabaseRecordRefreshResult {
+    LegacyStandardModeDatabaseRecordRefreshStatus status{
+        LegacyStandardModeDatabaseRecordRefreshStatus::completed
+    };
+    LegacyStandardModeDatabaseRecordRefreshPath path{
+        LegacyStandardModeDatabaseRecordRefreshPath::invalid_input
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 released_token_count{};
+    compat::u32 first_scan_count{};
+    compat::u32 second_scan_count{};
+    compat::u32 text_load_count{};
+};
+
+class LegacyStandardModeDatabaseAdvancePorts
+    : public LegacyStandardModeDatabaseRecordRefreshPorts {
 public:
     virtual ~LegacyStandardModeDatabaseAdvancePorts() = default;
     virtual void refresh_database_records(
@@ -2021,6 +2072,13 @@ exit_legacy_standard_mode_database_interaction(
 release_legacy_standard_mode_database_forward_list(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseForwardReleasePorts& ports
+) noexcept;
+
+// sub_43F1E0: rebuild both database runtime records from inline metadata.
+[[nodiscard]] LegacyStandardModeDatabaseRecordRefreshResult
+refresh_legacy_standard_mode_database_runtime_records(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRecordRefreshPorts& ports
 ) noexcept;
 
 // sub_43F160: sort the current database forward list by unsigned key.

@@ -2216,8 +2216,8 @@ LegacyStandardModeDatabaseAdvanceResult advance_legacy_standard_mode_database(
 
         ports.refresh_database_records(state);
         ++result.helper_call_count;
-        ports.rebuild_inline_records(
-            state.first_inline_record, state.second_inline_record, state
+        static_cast<void>(
+            refresh_legacy_standard_mode_database_runtime_records(state, ports)
         );
         ++result.helper_call_count;
         state.display_flags |= 0x30U;
@@ -2434,6 +2434,176 @@ sort_legacy_standard_mode_database_forward_list(
     state.forward_build_word = 0U;
     state.forward_head = sorted_head;
     result.legacy_return_value = sorted_head;
+    return result;
+}
+
+LegacyStandardModeDatabaseRecordRefreshResult
+refresh_legacy_standard_mode_database_runtime_records(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRecordRefreshPorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseRecordRefreshResult result;
+    const auto write_u16 = [](std::span<compat::u8> record,
+                              const std::size_t offset,
+                              const compat::u16 value) {
+        record[offset] = static_cast<compat::u8>(value);
+        record[offset + 1U] = static_cast<compat::u8>(value >> 8U);
+    };
+    const auto initialize_output = [&write_u16](
+                                       std::span<compat::u8> record,
+                                       const compat::u16 record_id
+                                   ) {
+        write_u16(record, 4U, record_id);
+        write_u16(record, 6U, 1U);
+        write_u16(record, 8U, 0U);
+        write_u16(record, 0x0AU, 0U);
+    };
+    const auto release_and_clear =
+        [&ports, &result](std::array<compat::u8, 0xB0U>& record) {
+            const compat::u32 token = read_u32_le(record, 0xACU);
+            if (token != 0U) {
+                ports.release_runtime_value(token);
+                ++result.released_token_count;
+            }
+            record.fill(0U);
+        };
+
+    release_and_clear(state.first_runtime_record);
+    release_and_clear(state.second_runtime_record);
+    write_u16(state.first_runtime_record, 4U, 0xFFDCU);
+    write_u16(state.second_runtime_record, 4U, 0xFFDCU);
+
+    const bool valid = state.first_missing_text_index != 0xFFDCU &&
+        read_u16_le(state.first_inline_record, 2U) != 0U &&
+        state.second_missing_text_index != 0xFFDCU &&
+        read_u16_le(state.second_inline_record, 2U) != 0U;
+    if (!valid) {
+        return result;
+    }
+
+    initialize_output(state.first_runtime_record, 0x0065U);
+    initialize_output(state.second_runtime_record, 0x0065U);
+    const auto pair = ports.lookup_database_record_pair(
+        state.first_missing_text_index, state.second_missing_text_index
+    );
+    if (pair.has_value()) {
+        result.path = LegacyStandardModeDatabaseRecordRefreshPath::pair_match;
+        write_u16(state.first_runtime_record, 4U, pair->first_record_id);
+        write_u16(state.second_runtime_record, 4U, pair->second_record_id);
+        result.legacy_return_value = 1;
+        return result;
+    }
+
+    result.path = LegacyStandardModeDatabaseRecordRefreshPath::fallback_scan;
+    static constexpr std::array<compat::u8, 21U> kRelationMap{
+        0U, 1U, 2U, 3U, 4U,  5U,  6U,  7U,  8U,  9U, 0U,
+        0U, 0U, 0U, 0U, 14U, 13U, 12U, 10U, 11U, 0U,
+    };
+    const compat::u16 first_category =
+        read_u16_le(state.first_inline_record, 0x5AU);
+    const compat::u16 second_category =
+        read_u16_le(state.second_inline_record, 0x5AU);
+    if (first_category >= kRelationMap.size() ||
+        second_category >= kRelationMap.size()) {
+        result.status = LegacyStandardModeDatabaseRecordRefreshStatus::
+            category_index_out_of_range;
+        return result;
+    }
+    const auto mapped = [](const compat::u16 value) {
+        return kRelationMap[value];
+    };
+    const compat::i32 average = static_cast<compat::i32>(
+        (static_cast<compat::u32>(
+             read_u16_le(state.first_inline_record, 0x5CU)
+         ) +
+         static_cast<compat::u32>(
+             read_u16_le(state.second_inline_record, 0x5CU)
+         )) /
+        2U
+    );
+    const auto choose_record = [&state](
+                                   const compat::u16 relation,
+                                   const compat::i32 target,
+                                   const bool descending,
+                                   const compat::i32 excluded_kind,
+                                   compat::u32& scan_count
+                               ) {
+        compat::u16 chosen = 0U;
+        compat::i32 best_distance = 0x7FFFFFFF;
+        for (std::size_t index = 0x65U;
+             index < kLegacyStandardModeDatabaseRecordCount;
+             ++index) {
+            ++scan_count;
+            if (state.field_5e_table[index] !=
+                static_cast<compat::i32>(relation)) {
+                continue;
+            }
+            const compat::i32 candidate = state.field_60_table[index];
+            const compat::i32 delta = candidate - target;
+            bool accepted = false;
+            compat::i32 distance = best_distance;
+            if (descending) {
+                if (delta <= 0) {
+                    distance = target - candidate;
+                    accepted = distance < best_distance;
+                }
+            } else if (delta >= 0) {
+                distance = delta;
+                accepted = distance < best_distance;
+            }
+            if (index >= 0x65U && index <= 0x1F4U &&
+                (std::bit_cast<compat::u32>(state.field_2c_table[index]) &
+                 0x800U) == 0U) {
+                accepted = false;
+            }
+            if (state.field_a7_table[index] == excluded_kind || !accepted) {
+                continue;
+            }
+            chosen = static_cast<compat::u16>(index);
+            best_distance = distance;
+        }
+        return chosen;
+    };
+
+    const compat::u16 first_relation = ports.lookup_database_relation(
+        mapped(first_category), mapped(second_category)
+    );
+    const compat::u16 first_id = choose_record(
+        first_relation,
+        average + 3,
+        (static_cast<compat::u8>(second_category) % 2U) != 0U,
+        1,
+        result.first_scan_count
+    );
+    initialize_output(
+        state.first_runtime_record, first_id == 0U ? 0x0065U : first_id
+    );
+    result.legacy_return_value = ports.load_database_runtime_text(
+        std::span<compat::u8>(state.first_runtime_record).subspan(0x0CU),
+        state.first_runtime_record_legacy_address_high_word |
+            read_u16_le(state.first_runtime_record, 4U)
+    );
+    ++result.text_load_count;
+
+    const compat::u16 second_relation = ports.lookup_database_relation(
+        mapped(second_category), mapped(first_category)
+    );
+    const compat::u16 second_id = choose_record(
+        second_relation,
+        average,
+        (static_cast<compat::u8>(first_category) % 2U) != 0U,
+        2,
+        result.second_scan_count
+    );
+    initialize_output(
+        state.second_runtime_record, second_id == 0U ? 0x0065U : second_id
+    );
+    result.legacy_return_value = ports.load_database_runtime_text(
+        std::span<compat::u8>(state.second_runtime_record).subspan(0x0CU),
+        state.second_runtime_record_legacy_address_high_word |
+            read_u16_le(state.second_runtime_record, 4U)
+    );
+    ++result.text_load_count;
     return result;
 }
 
@@ -2964,9 +3134,9 @@ commit_legacy_standard_mode_database_interaction(
             return result;
         }
 
-        result.legacy_return_value = ports.rebuild_database_inline_records(
-            state.first_inline_record, state.second_inline_record, state
-        );
+        const LegacyStandardModeDatabaseRecordRefreshResult refresh =
+            refresh_legacy_standard_mode_database_runtime_records(state, ports);
+        result.legacy_return_value = refresh.legacy_return_value;
         ++result.helper_call_count;
         if (result.legacy_return_value == 0) {
             state.interaction_phase = 5U;
@@ -3354,8 +3524,8 @@ advance_legacy_standard_mode_database_page_source(
 
         ports.refresh_database_records(state);
         ++result.helper_call_count;
-        ports.rebuild_inline_records(
-            state.first_inline_record, state.second_inline_record, state
+        static_cast<void>(
+            refresh_legacy_standard_mode_database_runtime_records(state, ports)
         );
         ++result.helper_call_count;
         result.legacy_return_value = ports.initialize_database_sample(
@@ -3446,8 +3616,8 @@ LegacyStandardModeDatabaseCycleResult cycle_legacy_standard_mode_database_page(
 
         ports.refresh_database_records(state);
         ++result.helper_call_count;
-        ports.rebuild_inline_records(
-            state.first_inline_record, state.second_inline_record, state
+        static_cast<void>(
+            refresh_legacy_standard_mode_database_runtime_records(state, ports)
         );
         ++result.helper_call_count;
         result.legacy_return_value = ports.initialize_database_sample(
@@ -3517,8 +3687,8 @@ retreat_legacy_standard_mode_database_page(
 
         ports.refresh_database_records(state);
         ++result.helper_call_count;
-        ports.rebuild_inline_records(
-            state.first_inline_record, state.second_inline_record, state
+        static_cast<void>(
+            refresh_legacy_standard_mode_database_runtime_records(state, ports)
         );
         ++result.helper_call_count;
         state.display_flags |= 3U;
@@ -3597,8 +3767,8 @@ advance_legacy_standard_mode_database_page(
 
         ports.refresh_database_records(state);
         ++result.helper_call_count;
-        ports.rebuild_inline_records(
-            state.first_inline_record, state.second_inline_record, state
+        static_cast<void>(
+            refresh_legacy_standard_mode_database_runtime_records(state, ports)
         );
         ++result.helper_call_count;
         state.display_flags |= 0x30U;
@@ -3665,8 +3835,8 @@ LegacyStandardModeDatabaseRetreatResult retreat_legacy_standard_mode_database(
 
         ports.refresh_database_records(state);
         ++result.helper_call_count;
-        ports.rebuild_inline_records(
-            state.first_inline_record, state.second_inline_record, state
+        static_cast<void>(
+            refresh_legacy_standard_mode_database_runtime_records(state, ports)
         );
         ++result.helper_call_count;
         state.display_flags |= 3U;
