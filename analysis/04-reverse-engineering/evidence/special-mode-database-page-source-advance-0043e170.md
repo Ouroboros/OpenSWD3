@@ -4,7 +4,7 @@
 
 ## 1. LST范围与边界
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E170..0x0043E243`，105行；DA30有两个direct call点，B480另以callback地址绑定。直接callee为已关闭F000/BCC0、尚未独立关闭F880/F1E0及sample。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E170..0x0043E243`，105行；DA30有两个direct call点，B480另以callback地址绑定。直接callee F000/BCC0/F880/F1E0均已关闭；sample保留平台边界。
 
 E170直接复用E080已建立的database cycle ports：F000现直接typed调用并在内部保留F080/F0D0/D5D0边界，BCC0继续保留missing-node边界、MAPS payload和state-owned shared-text buffer。DA30命中E170时直接调用typed helper，不再走通用地址port。
 

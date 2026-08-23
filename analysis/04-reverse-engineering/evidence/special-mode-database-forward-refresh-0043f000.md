@@ -20,7 +20,7 @@ F080与F0D0现直接复用已关闭typed helper；D5D0保持最小typed port，B
 原typed代码曾把F000整体压成`initialize_*forward_list`单port，并由caller重复或遗漏owner写入。本工作包删除该合并边界：
 
 - D530在动作/phase owner初始化后直接调用F000，不再重复B980/BC90。
-- E080/E170在page回绕后直接调用F000；随后以F000新count/head执行已关闭BCC0，再继续F880/F1E0边界。
+- E080/E170在page回绕后直接调用F000；随后以F000新count/head执行已关闭BCC0、F880及F1E0。
 - 其他DD20/DED0/DFA0/DDF0中的`refresh_database_records`并非F000 direct call，保持原callee边界不误接。
 
 ## 3. 测试

@@ -4,7 +4,7 @@
 
 ## 1. LST范围与caller
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DD20..0x0043DDE1`，94行；direct caller是已关闭DA30动态X矩形，B480另把地址写入callback表。直接callee为已关闭B9A0/BB80/BC90、尚未关闭F880/F1E0及sample owner。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DD20..0x0043DDE1`，94行；direct caller是已关闭DA30动态X矩形，B480另把地址写入callback表。直接callee B9A0/BB80/BC90/F880/F1E0均已关闭；sample保留平台边界。
 
 DA30不再把DD20交给通用地址port：命中`address_0043DD20`时直接调用本typed helper。通用input ports继承DD20的三个最小外部边界，因此已关闭caller保留callback计数/EAX，同时DD20主体不被平台层吞掉。
 
@@ -15,7 +15,7 @@ DA30不再把DD20交给通用地址port：命中`address_0043DD20`时直接调�
 1. BB80以完整forward count、`FCAD0` window offset、`FCBA4` local selection和`FCB98` visible count推进cursor。
 2. B9A0从共享`FCAE0` head前进window offset项，把结果发布到复用raw owner `FCD10`的typed current forward head。
 3. BC90从current head最多计16项，重写visible count；其返回节点仅保留为typed审计值，原函数不发布额外裸global。
-4. 调用F880边界。
+4. 直接调用已关闭F880 typed helper。
 5. 以first/second inline `0xB0` records调用F1E0边界。
 6. `FCAA4`只执行低字节`OR 0x30`，等价于完整u32 `|=0x30`；最后sample ID固定`0x2E`，返回其EAX。
 

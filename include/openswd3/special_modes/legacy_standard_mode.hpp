@@ -743,6 +743,7 @@ struct LegacyStandardModeDatabaseInitializationState {
     compat::i32 list_selection{};
     compat::i32 page_selection{};
     compat::u32 fourth_reset{};
+    compat::i32 record_source_combined_index{};
     compat::u32 display_flags{};
     compat::u32 interaction_phase{};
     compat::u32 scan_index{};
@@ -803,6 +804,21 @@ struct LegacyStandardModeDatabaseAdvanceResult {
     bool sample_initialized{};
 };
 
+enum class LegacyStandardModeDatabaseWindowRefreshPath : compat::u8 {
+    ignored,
+    refreshed,
+};
+
+struct LegacyStandardModeDatabaseWindowRefreshResult {
+    LegacyStandardModeDatabaseWindowRefreshPath path{
+        LegacyStandardModeDatabaseWindowRefreshPath::ignored
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    bool source_rebuilt{};
+    bool allocated_empty_node{};
+};
+
 struct LegacyStandardModeDatabaseRecordPair {
     compat::u16 first_record_id{};
     compat::u16 second_record_id{};
@@ -858,6 +874,10 @@ public:
     virtual void refresh_database_records(
         LegacyStandardModeDatabaseInitializationState& state
     ) noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    allocate_database_forward_node() noexcept {
+        return nullptr;
+    }
     virtual void rebuild_inline_records(
         std::span<compat::u8> first_record,
         std::span<compat::u8> second_record,
@@ -2079,6 +2099,13 @@ release_legacy_standard_mode_database_forward_list(
 // sub_43F7C0: test one database record against a page/category group.
 [[nodiscard]] bool is_legacy_standard_mode_database_record_selected(
     compat::u16 category, compat::u32 flags, compat::i32 page_selection
+) noexcept;
+
+// sub_43F880: rebuild, sort and normalize the active database window.
+[[nodiscard]] LegacyStandardModeDatabaseWindowRefreshResult
+refresh_legacy_standard_mode_database_window(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseAdvancePorts& ports
 ) noexcept;
 
 // sub_43F1E0: rebuild both database runtime records from inline metadata.

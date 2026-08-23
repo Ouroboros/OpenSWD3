@@ -4,9 +4,9 @@
 
 ## 1. LST范围与caller
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DED0..0x0043DF91`，94行；direct caller是已关闭DA30，B480另以callback地址绑定。直接callee为已关闭B9A0/BBE0/BC90、尚未关闭F880/F1E0及sample owner。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DED0..0x0043DF91`，94行；direct caller是已关闭DA30，B480另以callback地址绑定。直接callee B9A0/BBE0/BC90/F880/F1E0均已关闭；sample保留平台边界。
 
-DA30命中`address_0043DED0`时直接调用本helper，DED0不再出现在通用地址port事件中。它与DD20共享F880/F1E0/sample最小边界，但分页状态转移由已关闭BBE0直接执行。
+DA30命中`address_0043DED0`时直接调用本helper，DED0不再出现在通用地址port事件中。它与DD20共享已关闭F880/F1E0 typed helper及sample最小边界；分页状态转移由已关闭BBE0直接执行。
 
 ## 2. phase 1
 

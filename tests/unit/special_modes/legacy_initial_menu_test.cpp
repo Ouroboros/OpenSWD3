@@ -2824,6 +2824,11 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 ? forward_head
                 : const_cast<LegacyStandardModeForwardNode*>(fallback_node);
         }
+        [[nodiscard]] LegacyStandardModeForwardNode*
+        allocate_database_forward_node() noexcept override {
+            ++database_allocation_count;
+            return forward_head;
+        }
         void insert_missing_node(
             const LegacyStandardModeForwardNode** source_head,
             const u16 text_index,
@@ -2901,6 +2906,7 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
         i32 received_second_value{};
         u32 missing_insert_count{};
         u32 empty_allocation_count{};
+        u32 database_allocation_count{};
         i32 received_page_selection{};
         LegacyStandardModeForwardNode* forward_head{};
         const LegacyStandardModeForwardNode* fallback_node{};
@@ -2932,6 +2938,80 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
     state.interface_source_value = 0x12345678U;
     CyclePorts ports;
     ports.forward_head = &first;
+
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            window_state;
+        LegacyStandardModeForwardNode window_two{nullptr, 2U};
+        LegacyStandardModeForwardNode window_one{&window_two, 1U};
+        LegacyStandardModeForwardNode window_three{&window_one, 3U};
+        window_state.interaction_phase = 1U;
+        window_state.direction_selection = 0U;
+        window_state.window_offset = 0;
+        window_state.list_selection = 1;
+        window_state.forward_head = &window_three;
+        CyclePorts window_ports;
+        const auto refreshed = openswd3::special_modes::
+            refresh_legacy_standard_mode_database_window(
+                window_state, window_ports
+            );
+        test.expect_true(
+            refreshed.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseWindowRefreshPath::
+                            refreshed &&
+                refreshed.legacy_return_value == 1 &&
+                refreshed.helper_call_count == 6U && refreshed.source_rebuilt &&
+                !refreshed.allocated_empty_node &&
+                window_ports.events == std::vector<u8>{1U} &&
+                window_state.record_source_combined_index == 1 &&
+                window_state.forward_count == 3U &&
+                window_state.forward_head == &window_one &&
+                window_one.next == &window_two &&
+                window_two.next == &window_three &&
+                window_three.next == nullptr &&
+                window_state.current_forward_head == &window_one &&
+                window_state.bounded_forward_count == 3 &&
+                window_state.bounded_forward_node == nullptr,
+            "0x43F880 rebuilds, counts, sorts and normalizes one database window"
+        );
+
+        window_state.interaction_phase = 2U;
+        window_ports.events.clear();
+        const auto ignored = openswd3::special_modes::
+            refresh_legacy_standard_mode_database_window(
+                window_state, window_ports
+            );
+        test.expect_true(
+            ignored.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseWindowRefreshPath::ignored &&
+                ignored.legacy_return_value == 1 &&
+                ignored.helper_call_count == 0U && window_ports.events.empty(),
+            "0x43F880 returns phase minus one without helpers outside phase1"
+        );
+
+        LegacyStandardModeForwardNode allocated{nullptr, 7U};
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            allocated_state;
+        allocated_state.interaction_phase = 1U;
+        allocated_state.direction_selection = 2U;
+        CyclePorts allocated_ports;
+        allocated_ports.forward_head = &allocated;
+        const auto allocation = openswd3::special_modes::
+            refresh_legacy_standard_mode_database_window(
+                allocated_state, allocated_ports
+            );
+        test.expect_true(
+            allocation.helper_call_count == 6U && !allocation.source_rebuilt &&
+                allocation.allocated_empty_node &&
+                allocated_ports.events.empty() &&
+                allocated_ports.database_allocation_count == 1U &&
+                allocated_state.forward_head == &allocated &&
+                allocated_state.forward_count == 1U,
+            "0x43F880 skips F940 for selector values above one and allocates an empty head"
+        );
+    }
 
     {
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
@@ -3287,8 +3367,11 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
         forward_state.bounded_forward_count = 77;
         forward_state.display_flags = 0x4321U;
         forward_state.interface_source_value = 0x87654321U;
+        LegacyStandardModeForwardNode forward_third{nullptr, 0xFFDCU};
+        LegacyStandardModeForwardNode forward_second{&forward_third, 0xFFDCU};
+        LegacyStandardModeForwardNode forward_first{&forward_second, 0xFFDCU};
         CyclePorts forward_ports;
-        forward_ports.forward_head = &first;
+        forward_ports.forward_head = &forward_first;
         const auto forward = advance_legacy_standard_mode_database_page_source(
             forward_state, {}, forward_ports
         );
@@ -3303,8 +3386,8 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 forward.legacy_return_value == 85 &&
                 forward.helper_call_count == 5U && forward.sample_initialized &&
                 forward_state.page_selection == 0 &&
-                forward_state.forward_head == &first &&
-                forward_state.current_forward_head == &first &&
+                forward_state.forward_head == &forward_third &&
+                forward_state.current_forward_head == &forward_third &&
                 forward_state.forward_count == 3U &&
                 forward_state.window_offset == 0 &&
                 forward_state.list_selection == 0 &&
@@ -3409,8 +3492,8 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                     phase_1_page_cycle &&
             phase_1.legacy_return_value == 85 &&
             phase_1.helper_call_count == 5U && phase_1.sample_initialized &&
-            state.page_selection == 2 && state.forward_head == &first &&
-            state.current_forward_head == &first && state.forward_count == 3U &&
+            state.page_selection == 2 && state.forward_head == &third &&
+            state.current_forward_head == &third && state.forward_count == 3U &&
             state.window_offset == 0 && state.list_selection == 0 &&
             state.bounded_forward_count == 3 &&
             state.shared_text[0U] == 0xB5U && state.shared_text[1U] == 0x4CU &&
@@ -3908,6 +3991,11 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             return cycle_forward_head != nullptr ? cycle_forward_head
                                                  : &cycle_node;
         }
+        [[nodiscard]] LegacyStandardModeForwardNode*
+        allocate_database_forward_node() noexcept override {
+            return cycle_forward_head != nullptr ? cycle_forward_head
+                                                 : &cycle_node;
+        }
         void insert_missing_node(
             const LegacyStandardModeForwardNode** source_head,
             const u16,
@@ -3921,8 +4009,10 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         }
         void refresh_database_records(
             openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState&
-        ) noexcept override {}
+                LegacyStandardModeDatabaseInitializationState& state
+        ) noexcept override {
+            observed_refresh_list_selection = state.list_selection;
+        }
         void rebuild_inline_records(
             std::span<u8>,
             std::span<u8>,
@@ -4060,6 +4150,7 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         u32 secondary_dispatch_count{};
         u32 high_mode_runtime_count{};
         u32 cleanup_forward_node_count{};
+        i32 observed_refresh_list_selection{};
         u32 commit_rebuild_count{};
         u32 phase_1_prepare_count{};
         u32 phase_2_prepare_count{};
@@ -4439,9 +4530,11 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                 rejected_result.legacy_return_value == 15 &&
                 accepted_result.callback_count == 1U &&
                 accepted_result.last_target == Target::address_0043DDF0 &&
-                state.list_selection == 14 && accepted_ports.targets.empty() &&
+                accepted_ports.observed_refresh_list_selection == 14 &&
+                state.list_selection == 0 && state.bounded_forward_count == 1 &&
+                accepted_ports.targets.empty() &&
                 (state.display_flags & 3U) == 3U,
-            "0x43DA30 preserves the signed forward-count boundary and 24-pixel index"
+            "0x43DA30 maps the 24-pixel index before F880 normalizes its one-node fake source"
         );
     }
     {

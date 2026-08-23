@@ -4,9 +4,9 @@
 
 ## 1. LST范围与caller
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DDF0..0x0043DECA`，105行；DA30有两个direct call点，B480另以callback地址绑定。直接callee为已关闭B9A0/BBC0/BC90、尚未关闭F880/F1E0、物品查询及sample owner。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DDF0..0x0043DECA`，105行；DA30有两个direct call点，B480另以callback地址绑定。直接callee B9A0/BBC0/BC90/F880/F1E0均已关闭；物品查询及sample保留平台边界。
 
-DA30命中`address_0043DDF0`时现直接调用本helper；通用地址port不再承载DDF0。input ports继承retreat专用边界，保留物品查询和DD20/DDF0共用的F880、F1E0、sample三个最小边界。
+DA30命中`address_0043DDF0`时现直接调用本helper；通用地址port不再承载DDF0。input ports继承retreat专用边界，保留物品查询和sample边界；DD20/DDF0共用F880、F1E0现均为直接typed调用。
 
 ## 2. phase 1
 
@@ -15,7 +15,7 @@ DA30命中`address_0043DDF0`时现直接调用本helper；通用地址port不再
 1. BBC0递减`FCBA4` local selection；负值时钳0，并仅在`FCAD0` window offset正数时递减window。
 2. B9A0按window offset从共享`FCAE0` head重建`FCD10` current head。
 3. BC90从current head最多计16项并重写`FCB98` visible count。
-4. F880边界。
+4. 直接调用已关闭F880 typed helper。
 5. first/second inline `0xB0` records进入F1E0边界。
 6. display flags低字节`OR 0x03`，最后sample `0x2E`返回EAX。
 
