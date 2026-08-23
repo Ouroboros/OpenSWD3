@@ -9,8 +9,120 @@ constexpr compat::u32 kModeThreeSixChoiceActionId = 0x0000232BU;
 constexpr compat::u32 kModeSelectorResourceId = 0x0000EA60U;
 constexpr compat::u32 kPostInitializeFrameCounter = 0x40U;
 constexpr compat::u32 kTransientBitOne = 0x00000002U;
+constexpr compat::u32 kStoryFlagIndex = 0x49U;
+constexpr compat::u32 kPrimaryActionId = 0x0000232AU;
+constexpr compat::u32 kChoiceActionId = 0x0000232BU;
+constexpr compat::u32 kFinalActionId = 0x0000233BU;
+
+constexpr std::size_t kPrimaryRecord = 0U;
+constexpr std::size_t kFlagVariantRecord = 1U;
+constexpr std::size_t kGateRecord = 2U;
+constexpr std::size_t kBaseFourRecord = 3U;
+constexpr std::size_t kBaseFiveRecord = 4U;
+constexpr std::size_t kBaseSixRecord = 5U;
+constexpr std::size_t kBaseTwentyFourRecord = 6U;
+constexpr std::size_t kBaseTwentyFiveRecord = 7U;
+constexpr std::size_t kBaseTwentySixRecord = 8U;
+constexpr std::size_t kBaseTwentySevenRecord = 9U;
+constexpr std::size_t kChoiceZeroRecord = 11U;
+constexpr std::size_t kChoiceOneRecord = 12U;
+constexpr std::size_t kChoiceTwoRecord = 13U;
+constexpr std::size_t kChoiceThreeRecord = 14U;
+constexpr std::size_t kSharedBaseThreeRecord = 16U;
+constexpr std::size_t kFinalRecord = 17U;
+
+void set_action(
+    asset_runtime::LegacyActionRecord& record,
+    const compat::u32 action_id,
+    const compat::u32 base_variant
+) noexcept {
+    record.action_id = action_id;
+    record.base_variant = base_variant;
+}
 
 }  // namespace
+
+LegacyStandardSpecialModeInitializationResult
+initialize_legacy_standard_special_modes(
+    LegacyStandardSpecialModeState& state,
+    LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept {
+    LegacyStandardSpecialModeInitializationResult result;
+    state.transient_flags = 0U;
+
+    ports.install_mode_callbacks();
+    ++result.callback_installation_count;
+
+    for (auto& record : state.initialization_records) {
+        asset_runtime::initialize_legacy_action_record(record);
+        ++result.action_record_initialization_count;
+    }
+
+    set_action(
+        state.initialization_records[kPrimaryRecord], kPrimaryActionId, 0U
+    );
+    set_action(state.initialization_records[kGateRecord], kPrimaryActionId, 1U);
+    set_action(
+        state.initialization_records[kFlagVariantRecord], kPrimaryActionId, 2U
+    );
+
+    const compat::i32 story_flag = ports.story_flag(kStoryFlagIndex);
+    ++result.story_flag_query_count;
+    if (story_flag == 1) {
+        state.initialization_records[kFlagVariantRecord].base_variant = 3U;
+    }
+
+    set_action(
+        state.initialization_records[kBaseFourRecord], kPrimaryActionId, 4U
+    );
+    set_action(
+        state.initialization_records[kBaseFiveRecord], kPrimaryActionId, 5U
+    );
+    set_action(
+        state.initialization_records[kBaseSixRecord], kPrimaryActionId, 6U
+    );
+    set_action(
+        state.initialization_records[kBaseTwentyFourRecord],
+        kPrimaryActionId,
+        0x18U
+    );
+    set_action(
+        state.initialization_records[kBaseTwentyFiveRecord],
+        kPrimaryActionId,
+        0x19U
+    );
+    set_action(
+        state.initialization_records[kBaseTwentySixRecord],
+        kPrimaryActionId,
+        0x1AU
+    );
+    set_action(
+        state.initialization_records[kBaseTwentySevenRecord],
+        kPrimaryActionId,
+        0x1BU
+    );
+    set_action(
+        state.initialization_records[kChoiceZeroRecord], kChoiceActionId, 0x2CU
+    );
+    set_action(
+        state.initialization_records[kChoiceOneRecord], kChoiceActionId, 0x2DU
+    );
+    set_action(
+        state.initialization_records[kChoiceTwoRecord], kChoiceActionId, 0x2EU
+    );
+    set_action(
+        state.initialization_records[kChoiceThreeRecord], kChoiceActionId, 0x2FU
+    );
+    set_action(
+        state.initialization_records[kSharedBaseThreeRecord],
+        kPrimaryActionId,
+        3U
+    );
+    set_action(state.initialization_records[kFinalRecord], kFinalActionId, 0U);
+
+    result.return_value = kChoiceActionId;
+    return result;
+}
 
 LegacyStandardSpecialModeFrameResult run_legacy_standard_special_mode_frame(
     LegacyStandardSpecialModeState& state,

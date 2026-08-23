@@ -21,6 +21,7 @@ using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::special_modes::initialize_legacy_initial_menu;
+using openswd3::special_modes::initialize_legacy_standard_special_modes;
 using openswd3::special_modes::kLegacyInitialMenuCommitCounter;
 using openswd3::special_modes::kLegacyInitialMenuEntryCounter;
 using openswd3::special_modes::kLegacyInitialMenuExitCounter;
@@ -35,6 +36,7 @@ using openswd3::special_modes::kLegacySpecialModeAlternateFlag;
 using openswd3::special_modes::kLegacySpecialModeInitializeFlag;
 using openswd3::special_modes::LegacyLowSpecialModeInitialization;
 using openswd3::special_modes::LegacyModeThreeSixRecordInitialization;
+using openswd3::special_modes::LegacyStandardSpecialModeInitializationPorts;
 using openswd3::special_modes::LegacyStandardSpecialModePorts;
 using openswd3::special_modes::LegacyStandardSpecialModeState;
 
@@ -91,6 +93,39 @@ public:
     u32 update_count{};
     std::vector<std::pair<u16, u16>> loads;
     std::vector<DrawCall> draws;
+};
+
+class FakeStandardModeInitializationPorts final
+    : public LegacyStandardSpecialModeInitializationPorts {
+public:
+    explicit FakeStandardModeInitializationPorts(
+        LegacyStandardSpecialModeState& state
+    ) noexcept
+        : state_(state) {}
+
+    void install_mode_callbacks() override {
+        events.push_back(1U);
+    }
+
+    i32 story_flag(const u32 flag_index) override {
+        events.push_back(2U);
+        queried_flag = flag_index;
+        const auto& records = state_.initialization_records;
+        query_saw_exact_prefix = records[0U].action_id == 0x232AU &&
+            records[0U].base_variant == 0U &&
+            records[2U].action_id == 0x232AU &&
+            records[2U].base_variant == 1U &&
+            records[1U].action_id == 0x232AU &&
+            records[1U].base_variant == 2U &&
+            records[3U].action_id == 0xDEAD0003U;
+        return story_flag_value;
+    }
+
+    LegacyStandardSpecialModeState& state_;
+    std::vector<u32> events;
+    i32 story_flag_value{};
+    u32 queried_flag{};
+    bool query_saw_exact_prefix{};
 };
 
 class FakeStandardModePorts final : public LegacyStandardSpecialModePorts {
@@ -387,6 +422,104 @@ void test_text_object_result_and_edited_name(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_global_initialization(openswd3::test::Context& test) {
+    LegacyStandardSpecialModeState state{.transient_flags = 0xFFFFFFFFU};
+    for (std::size_t index = 0U; index < state.initialization_records.size();
+         ++index) {
+        auto& record = state.initialization_records[index];
+        record.action_id = 0xDEAD0000U + static_cast<u32>(index);
+        record.base_variant = 0xBEEF0000U + static_cast<u32>(index);
+        record.field_1c = 0U;
+        record.one_shot_base_variant = 0U;
+        record.one_shot_variant_delta = 0U;
+        record.wait_override = 0xFFFFU;
+        record.wait_default = 0xFFFFU;
+        record.wait_remaining = 0xFFFFU;
+        record.command_cursor = 0xFFFFU;
+        record.external_mode = 0xFFFFFFFFU;
+    }
+
+    FakeStandardModeInitializationPorts ports{state};
+    ports.story_flag_value = 1;
+    const auto result = initialize_legacy_standard_special_modes(state, ports);
+    const std::array<u32, 18U> expected_action_ids{
+        0x232AU,
+        0x232AU,
+        0x232AU,
+        0x232AU,
+        0x232AU,
+        0x232AU,
+        0x232AU,
+        0x232AU,
+        0x232AU,
+        0x232AU,
+        0xDEAD000AU,
+        0x232BU,
+        0x232BU,
+        0x232BU,
+        0x232BU,
+        0xDEAD000FU,
+        0x232AU,
+        0x233BU,
+    };
+    const std::array<u32, 18U> expected_base_variants{
+        0U,
+        3U,
+        1U,
+        4U,
+        5U,
+        6U,
+        0x18U,
+        0x19U,
+        0x1AU,
+        0x1BU,
+        0xBEEF000AU,
+        0x2CU,
+        0x2DU,
+        0x2EU,
+        0x2FU,
+        0xBEEF000FU,
+        3U,
+        0U,
+    };
+    bool records_match = true;
+    for (std::size_t index = 0U; index < state.initialization_records.size();
+         ++index) {
+        const auto& record = state.initialization_records[index];
+        records_match = records_match &&
+            record.action_id == expected_action_ids[index] &&
+            record.base_variant == expected_base_variants[index] &&
+            record.field_1c == 0xFFFFFFFFU &&
+            record.one_shot_base_variant == 0xFFFFFFFFU &&
+            record.one_shot_variant_delta == 0xFFFFFFFFU &&
+            record.wait_override == 0U && record.wait_default == 0U &&
+            record.wait_remaining == 0U && record.command_cursor == 0U &&
+            record.external_mode == 0U;
+    }
+    test.expect_true(
+        records_match && state.transient_flags == 0U &&
+            ports.events == std::vector<u32>{1U, 2U} &&
+            ports.queried_flag == 0x49U && ports.query_saw_exact_prefix &&
+            result.action_record_initialization_count == 18U &&
+            result.callback_installation_count == 1U &&
+            result.story_flag_query_count == 1U &&
+            result.return_value == 0x232BU,
+        "0x439DE0 installs callbacks, initializes eighteen records in " "address order and applies story flag 0x49 after the three-record " "prefix"
+    );
+
+    LegacyStandardSpecialModeState non_one_state;
+    FakeStandardModeInitializationPorts non_one_ports{non_one_state};
+    non_one_ports.story_flag_value = 2;
+    static_cast<void>(
+        initialize_legacy_standard_special_modes(non_one_state, non_one_ports)
+    );
+    test.expect_equal(
+        non_one_state.initialization_records[1U].base_variant,
+        2U,
+        "only a story-flag result equal to one selects variant three"
+    );
+}
+
 void test_standard_mode_entry_and_common_order(openswd3::test::Context& test) {
     LegacyStandardSpecialModeState low_state{
         .frame_counter = 999U,
@@ -552,6 +685,7 @@ int main() {
     test_name_cancel_returns_to_selection(test);
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
+    test_standard_mode_global_initialization(test);
     test_standard_mode_entry_and_common_order(test);
     test_standard_mode_exit_paths(test);
     test_real_draw_contract(test);

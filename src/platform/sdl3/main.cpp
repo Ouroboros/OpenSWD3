@@ -2019,6 +2019,7 @@ public:
         openswd3::world_map::initialize_legacy_world_story_vm(
             world_story_vm_state_
         );
+        initialize_standard_special_modes();
     }
 
     [[nodiscard]] std::list<openswd3::rendering::LegacyPackedRowEffect>&
@@ -4678,6 +4679,39 @@ public:
     void prepare_special_mode_objects(
         openswd3::app::FrameCoordinatorState&
     ) override {}
+
+    void initialize_standard_special_modes() {
+        class InitializationPorts final
+            : public openswd3::special_modes::
+                  LegacyStandardSpecialModeInitializationPorts {
+        public:
+            explicit InitializationPorts(SdlSmokeIdlePorts& owner) noexcept
+                : owner_(owner) {}
+
+            void install_mode_callbacks() override {}
+
+            openswd3::compat::i32
+            story_flag(const openswd3::compat::u32 flag_index) override {
+                if (flag_index >= owner_.world_story_vm_state_.flags.size()) {
+                    return 0;
+                }
+                return static_cast<openswd3::compat::i32>(
+                    owner_.world_story_vm_state_.flags[flag_index]
+                );
+            }
+
+        private:
+            SdlSmokeIdlePorts& owner_;
+        };
+
+        InitializationPorts ports{*this};
+        static_cast<void>(
+            openswd3::special_modes::initialize_legacy_standard_special_modes(
+                legacy_standard_mode_state_, ports
+            )
+        );
+    }
+
     openswd3::app::StandardSpecialModeEvent step_initial_menu_special_mode() {
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
@@ -4982,6 +5016,7 @@ public:
         openswd3::world_map::initialize_legacy_world_story_vm(
             world_story_vm_state_
         );
+        initialize_standard_special_modes();
         const auto progress_reset =
             openswd3::world_map::update_legacy_world_load_progress(
                 world_load_progress_,

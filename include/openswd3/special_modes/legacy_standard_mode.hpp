@@ -1,8 +1,10 @@
 #pragma once
 
+#include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/compat/types.hpp"
 
 #include <array>
+#include <cstddef>
 
 namespace openswd3::special_modes {
 
@@ -10,6 +12,8 @@ inline constexpr compat::u32 kLegacySpecialModeValueMask = 0x0FFFFFFFU;
 inline constexpr compat::u32 kLegacySpecialModeInitializeFlag = 0x80000000U;
 inline constexpr compat::u32 kLegacySpecialModeAlternateFlag = 0x40000000U;
 inline constexpr compat::u32 kLegacySpecialModePostInitializeMask = 0x3FFFFFFFU;
+inline constexpr std::size_t
+    kLegacyStandardSpecialModeInitializationRecordCount = 18U;
 
 struct LegacyLowSpecialModeInitialization {
     compat::u32 primary_action_id{};
@@ -31,12 +35,31 @@ struct LegacyModeThreeSixRecordInitialization {
 };
 
 struct LegacyStandardSpecialModeState {
+    std::array<
+        asset_runtime::LegacyActionRecord,
+        kLegacyStandardSpecialModeInitializationRecordCount>
+        initialization_records{};
     compat::u32 frame_counter{};
     compat::u32 transient_flags{};
     compat::u32 entry_zero_a{};
     compat::u32 entry_zero_b{};
     compat::u32 entry_gate{};
     compat::u32 low_mode_zero{};
+};
+
+class LegacyStandardSpecialModeInitializationPorts {
+public:
+    virtual ~LegacyStandardSpecialModeInitializationPorts() = default;
+
+    virtual void install_mode_callbacks() = 0;
+    [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
+};
+
+struct LegacyStandardSpecialModeInitializationResult {
+    compat::u32 action_record_initialization_count{};
+    compat::u32 callback_installation_count{};
+    compat::u32 story_flag_query_count{};
+    compat::u32 return_value{};
 };
 
 class LegacyStandardSpecialModePorts {
@@ -65,6 +88,13 @@ struct LegacyStandardSpecialModeFrameResult {
     compat::u32 input_count{};
     compat::u32 draw_count{};
 };
+
+// sub_439DE0: reset the shared standard-mode action records and callback state.
+[[nodiscard]] LegacyStandardSpecialModeInitializationResult
+initialize_legacy_standard_special_modes(
+    LegacyStandardSpecialModeState& state,
+    LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
 
 // sub_439FD0: common controller for standard special modes 1, 3, 4, 5 and 6.
 [[nodiscard]] LegacyStandardSpecialModeFrameResult
