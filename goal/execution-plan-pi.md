@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v467
+版本：v468
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043D470`
+当前步骤：模块9 · 闭环`0x0043D530`
 
 ## 0. 执行约定
 
@@ -3448,9 +3448,18 @@ B7 P0 有限收口完成。
     `f481edf973f9909147d6eda7a6f6e7d51369a69183f1ae1e46c0f3675ac3e538`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式mode strip `0x0043D470`闭环。LST范围`0x0043D470..0x0043D52F`，唯一caller为
+    C820。入口viewport为`10,1,206,478`；candidate按current mode±2回绕，X从6每轮加40，只绘
+    signed 0..11且非current项，资源`0x2439`/variant candidate。每次draw后重读mode并重算上界，
+    保留动态扩展BUG。循环后以最后current加载`0x243A`，固定X86/Y58绘center；最后恢复viewport
+    `0,1,640,478`并返回EAX。C820删除整函数`prepare_frame`占位并直接回接。定向UT覆盖mode0/5、
+    draw后mode5→6扩展、资源顺序、坐标、handle和load失败不恢复viewport。workpack连续两轮稳定为
+    `43/227`，SHA256为`33cc4028a439a928bb19dd5af0b63664af1eda7993a6dbac96dc03dbb49de35d`；
+    Linux core188/188与Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`42/227`，下一单元为`0x0043D470`。
+进行中，正式进度为`43/227`，下一单元为`0x0043D530`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043D470`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043D530`，继续更新workpack、证据和完整验证门。

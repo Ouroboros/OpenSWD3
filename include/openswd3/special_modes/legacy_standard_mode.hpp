@@ -706,6 +706,7 @@ struct LegacyStandardModeRuntimeInitializationState {
     std::array<std::array<compat::u8, 0x20U>, 12U> display_text_slots{};
     std::array<compat::u8, 0x20U> shared_command_text{};
     compat::u32 scratch_record_legacy_address_high_word{};
+    compat::u32 active_render_resource_handle{};
     compat::i32 entry_alias_index{};
     compat::i32 total_count{};
     compat::i32 window_offset{};
@@ -1019,6 +1020,7 @@ enum class LegacyStandardModeRuntimeRenderStatus : compat::u8 {
     split_bar_stopped,
     entry_alias_out_of_range,
     selected_record_out_of_range,
+    mode_strip_stopped,
     entry_render_stopped,
 };
 
@@ -1072,6 +1074,47 @@ struct LegacyStandardModeEntryRenderResult {
     compat::u32 raw_text_draw_count{};
 };
 
+struct LegacyStandardModeModeViewportRequest {
+    compat::i32 x{};
+    compat::i32 y{};
+    compat::i32 width{};
+    compat::i32 height{};
+    bool
+    operator==(const LegacyStandardModeModeViewportRequest&) const = default;
+};
+
+struct LegacyStandardModeModeResource {
+    compat::u32 handle{};
+    compat::u16 width{};
+    compat::u16 height{};
+};
+
+struct LegacyStandardModeModeResourceDrawRequest {
+    compat::i32 x{};
+    compat::i32 y{};
+    compat::u32 handle{};
+    compat::u16 width{};
+    compat::u16 height{};
+    compat::i32 first_zero{};
+    compat::i32 second_zero{};
+    bool operator==(const LegacyStandardModeModeResourceDrawRequest&) const =
+        default;
+};
+
+enum class LegacyStandardModeModeStripStatus : compat::u8 {
+    completed,
+    resource_load_stopped,
+};
+
+struct LegacyStandardModeModeStripResult {
+    LegacyStandardModeModeStripStatus status{
+        LegacyStandardModeModeStripStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 neighbor_draw_count{};
+    compat::u32 center_draw_count{};
+};
+
 class LegacyStandardModeRuntimeRenderPorts {
 public:
     virtual ~LegacyStandardModeRuntimeRenderPorts() = default;
@@ -1085,7 +1128,17 @@ public:
             asset_runtime::LegacyActionRecord,
             kLegacyStandardSpecialModeInitializationRecordCount>& action_records
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 prepare_frame() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 set_mode_viewport(
+        const LegacyStandardModeModeViewportRequest& request
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool load_mode_resource(
+        compat::u32 resource_id,
+        compat::i32 variant,
+        LegacyStandardModeModeResource& resource
+    ) noexcept = 0;
+    virtual void draw_mode_resource(
+        const LegacyStandardModeModeResourceDrawRequest& request
+    ) noexcept = 0;
     virtual void draw_selected_preview(
         asset_runtime::LegacyActionRecord& record,
         compat::u32 service_id,
@@ -1115,6 +1168,9 @@ struct LegacyStandardModeRuntimeRenderResult {
     };
     compat::i32 legacy_return_value{};
     compat::u8 overlay_flags{};
+    LegacyStandardModeModeStripStatus mode_strip_status{
+        LegacyStandardModeModeStripStatus::completed
+    };
     LegacyStandardModeEntryRenderStatus entry_render_status{
         LegacyStandardModeEntryRenderStatus::completed
     };
@@ -1406,6 +1462,13 @@ render_legacy_standard_mode_entry(
     compat::i32 row_index,
     compat::u32 color,
     compat::i32 selected,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeRuntimeRenderPorts& ports
+) noexcept;
+
+// sub_43D470: draw neighboring mode resources and the active center resource.
+[[nodiscard]] LegacyStandardModeModeStripResult
+render_legacy_standard_mode_mode_strip(
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeRuntimeRenderPorts& ports
 ) noexcept;

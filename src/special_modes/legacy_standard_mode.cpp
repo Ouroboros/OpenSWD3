@@ -2183,6 +2183,78 @@ LegacyStandardModeEntryRenderResult render_legacy_standard_mode_entry(
     return result;
 }
 
+LegacyStandardModeModeStripResult render_legacy_standard_mode_mode_strip(
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeRuntimeRenderPorts& ports
+) noexcept {
+    LegacyStandardModeModeStripResult result;
+    static_cast<void>(ports.set_mode_viewport(
+        LegacyStandardModeModeViewportRequest{0x0A, 1, 0xCE, 0x1DE}
+    ));
+    compat::i32 current_mode = state.mode_index;
+    compat::i32 candidate = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(current_mode) - 2U
+    );
+    compat::i32 x = 6;
+    auto upper_bound = [&]() {
+        return std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(current_mode) + 2U
+        );
+    };
+    while (candidate <= upper_bound()) {
+        if (candidate >= 0 && candidate <= 0x0B && candidate != current_mode) {
+            LegacyStandardModeModeResource resource;
+            if (!ports.load_mode_resource(0x2439U, candidate, resource)) {
+                result.status =
+                    LegacyStandardModeModeStripStatus::resource_load_stopped;
+                return result;
+            }
+            state.active_render_resource_handle = resource.handle;
+            ports.draw_mode_resource(
+                LegacyStandardModeModeResourceDrawRequest{
+                    .x = x,
+                    .y = 0x3D,
+                    .handle = resource.handle,
+                    .width = resource.width,
+                    .height = resource.height,
+                    .first_zero = 0,
+                    .second_zero = 0,
+                }
+            );
+            ++result.neighbor_draw_count;
+            current_mode = state.mode_index;
+        }
+        x = std::bit_cast<compat::i32>(std::bit_cast<compat::u32>(x) + 0x28U);
+        candidate = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(candidate) + 1U
+        );
+    }
+
+    LegacyStandardModeModeResource center_resource;
+    if (!ports.load_mode_resource(0x243AU, current_mode, center_resource)) {
+        result.status =
+            LegacyStandardModeModeStripStatus::resource_load_stopped;
+        return result;
+    }
+    state.active_render_resource_handle = center_resource.handle;
+    ports.draw_mode_resource(
+        LegacyStandardModeModeResourceDrawRequest{
+            .x = 0x56,
+            .y = 0x3A,
+            .handle = center_resource.handle,
+            .width = center_resource.width,
+            .height = center_resource.height,
+            .first_zero = 0,
+            .second_zero = 0,
+        }
+    );
+    ++result.center_draw_count;
+    result.legacy_return_value = ports.set_mode_viewport(
+        LegacyStandardModeModeViewportRequest{0, 1, 0x280, 0x1DE}
+    );
+    return result;
+}
+
 LegacyStandardModeRuntimeRenderResult render_legacy_standard_mode_runtime(
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeRuntimeRenderPorts& ports
@@ -2231,7 +2303,16 @@ LegacyStandardModeRuntimeRenderResult render_legacy_standard_mode_runtime(
         }
     }
 
-    result.legacy_return_value = ports.prepare_frame();
+    const LegacyStandardModeModeStripResult mode_strip_result =
+        render_legacy_standard_mode_mode_strip(state, ports);
+    result.mode_strip_status = mode_strip_result.status;
+    result.legacy_return_value = mode_strip_result.legacy_return_value;
+    if (mode_strip_result.status !=
+        LegacyStandardModeModeStripStatus::completed) {
+        result.status =
+            LegacyStandardModeRuntimeRenderStatus::mode_strip_stopped;
+        return result;
+    }
     const compat::u32 alias_index =
         std::bit_cast<compat::u32>(state.entry_alias_index);
     if (alias_index >= state.entries.size()) {

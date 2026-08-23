@@ -60,6 +60,7 @@ using openswd3::special_modes::prepare_legacy_standard_mode_panel;
 using openswd3::special_modes::rebuild_legacy_standard_mode_entry_alias;
 using openswd3::special_modes::refresh_legacy_standard_mode_page;
 using openswd3::special_modes::render_legacy_standard_mode_entry;
+using openswd3::special_modes::render_legacy_standard_mode_mode_strip;
 using openswd3::special_modes::render_legacy_standard_mode_runtime;
 using openswd3::special_modes::query_legacy_standard_mode_availability;
 using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
@@ -3953,9 +3954,41 @@ void test_standard_mode_runtime_render(openswd3::test::Context& test) {
             action_records[6U].base_variant = 0x66U;
             return bar_result;
         }
-        [[nodiscard]] i32 prepare_frame() noexcept override {
-            events.push_back(Event::prepare);
-            return -77;
+        [[nodiscard]] i32 set_mode_viewport(
+            const openswd3::special_modes::
+                LegacyStandardModeModeViewportRequest& request
+        ) noexcept override {
+            if (viewports.empty()) {
+                events.push_back(Event::prepare);
+            }
+            viewports.push_back(request);
+            return viewports.size() == 2U ? -77 : 123;
+        }
+        [[nodiscard]] bool load_mode_resource(
+            const u32 resource_id,
+            const i32 variant,
+            openswd3::special_modes::LegacyStandardModeModeResource& resource
+        ) noexcept override {
+            loaded_mode_resources.emplace_back(resource_id, variant);
+            if (!mode_resource_load_result) {
+                return false;
+            }
+            resource = {
+                .handle = resource_id ^ std::bit_cast<u32>(variant),
+                .width = static_cast<u16>(0x20 + variant),
+                .height = static_cast<u16>(0x30 + variant),
+            };
+            return true;
+        }
+        void draw_mode_resource(
+            const openswd3::special_modes::
+                LegacyStandardModeModeResourceDrawRequest& request
+        ) noexcept override {
+            mode_resource_draws.push_back(request);
+            if (mutate_mode_after_first_draw && mode_state != nullptr &&
+                mode_resource_draws.size() == 1U) {
+                mode_state->mode_index = 6;
+            }
         }
         void draw_selected_preview(
             LegacyActionRecord& record, const u32 service_id, const u32 selector
@@ -4016,7 +4049,17 @@ void test_standard_mode_runtime_render(openswd3::test::Context& test) {
         }
 
         bool bar_result{true};
+        bool mode_resource_load_result{true};
+        bool mutate_mode_after_first_draw{};
+        LegacyStandardModeRuntimeInitializationState* mode_state{};
         std::vector<Event> events;
+        std::vector<
+            openswd3::special_modes::LegacyStandardModeModeViewportRequest>
+            viewports;
+        std::vector<std::pair<u32, i32>> loaded_mode_resources;
+        std::vector<
+            openswd3::special_modes::LegacyStandardModeModeResourceDrawRequest>
+            mode_resource_draws;
         std::array<u8, 3U> color_inputs{};
         LegacyStandardModeBarRequest bar_request{};
         LegacyActionRecord preview_record{};
@@ -4114,6 +4157,33 @@ void test_standard_mode_runtime_render(openswd3::test::Context& test) {
                     },
             "0x43C820 preserves alias rows, selected preview record, entry draw and frame order"
         );
+        test.expect_true(
+            ports.viewports ==
+                    std::vector{
+                        openswd3::special_modes::
+                            LegacyStandardModeModeViewportRequest{
+                                0x0A, 1, 0xCE, 0x1DE
+                            },
+                        openswd3::special_modes::
+                            LegacyStandardModeModeViewportRequest{
+                                0, 1, 0x280, 0x1DE
+                            },
+                    } &&
+                ports.loaded_mode_resources ==
+                    std::vector<std::pair<u32, i32>>{
+                        {0x2439U, 1},
+                        {0x2439U, 2},
+                        {0x243AU, 0},
+                    } &&
+                ports.mode_resource_draws.size() == 3U &&
+                ports.mode_resource_draws[0U].x == 0x7E &&
+                ports.mode_resource_draws[0U].y == 0x3D &&
+                ports.mode_resource_draws[1U].x == 0xA6 &&
+                ports.mode_resource_draws[2U].x == 0x56 &&
+                ports.mode_resource_draws[2U].y == 0x3A &&
+                state.active_render_resource_handle == 0x243AU,
+            "0x43C820 calls D470 before alias rows and preserves mode-zero resource geometry"
+        );
     }
 
     {
@@ -4154,6 +4224,87 @@ void test_standard_mode_runtime_render(openswd3::test::Context& test) {
                         RenderPorts::Event::bar,
                     },
             "0x43C820 stops when the platform-adapted split-bar owner typed-stops"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.mode_index = 5;
+        RenderPorts ports;
+        const auto result =
+            render_legacy_standard_mode_mode_strip(state, ports);
+        test.expect_true(
+            result.status ==
+                    openswd3::special_modes::LegacyStandardModeModeStripStatus::
+                        completed &&
+                result.legacy_return_value == -77 &&
+                result.neighbor_draw_count == 4U &&
+                result.center_draw_count == 1U &&
+                ports.loaded_mode_resources ==
+                    std::vector<std::pair<u32, i32>>{
+                        {0x2439U, 3},
+                        {0x2439U, 4},
+                        {0x2439U, 6},
+                        {0x2439U, 7},
+                        {0x243AU, 5},
+                    } &&
+                ports.mode_resource_draws[0U].x == 6 &&
+                ports.mode_resource_draws[1U].x == 0x2E &&
+                ports.mode_resource_draws[2U].x == 0x7E &&
+                ports.mode_resource_draws[3U].x == 0xA6 &&
+                ports.mode_resource_draws[4U].x == 0x56 &&
+                state.active_render_resource_handle == (0x243AU ^ 5U),
+            "0x43D470 skips center in five candidates then draws active 243A resource"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.mode_index = 5;
+        RenderPorts ports;
+        ports.mode_state = &state;
+        ports.mutate_mode_after_first_draw = true;
+        const auto result =
+            render_legacy_standard_mode_mode_strip(state, ports);
+        test.expect_true(
+            result.neighbor_draw_count == 5U &&
+                result.center_draw_count == 1U && state.mode_index == 6 &&
+                ports.loaded_mode_resources ==
+                    std::vector<std::pair<u32, i32>>{
+                        {0x2439U, 3},
+                        {0x2439U, 4},
+                        {0x2439U, 5},
+                        {0x2439U, 7},
+                        {0x2439U, 8},
+                        {0x243AU, 6},
+                    } &&
+                ports.mode_resource_draws[2U].x == 0x56 &&
+                ports.mode_resource_draws[3U].x == 0xA6 &&
+                ports.mode_resource_draws[4U].x == 0xCE,
+            "0x43D470 rereads mode after draw and expands the signed loop bound"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        RenderPorts ports;
+        ports.mode_resource_load_result = false;
+        const auto result = render_legacy_standard_mode_runtime(state, ports);
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeRenderStatus::mode_strip_stopped &&
+                result.mode_strip_status ==
+                    openswd3::special_modes::LegacyStandardModeModeStripStatus::
+                        resource_load_stopped &&
+                result.legacy_return_value == 0 &&
+                ports.viewports.size() == 1U &&
+                ports.mode_resource_draws.empty() &&
+                ports.events ==
+                    std::vector{
+                        RenderPorts::Event::color,
+                        RenderPorts::Event::prepare,
+                    },
+            "0x43C820 propagates D470 resource stop before alias read and viewport restore"
         );
     }
 

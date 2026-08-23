@@ -8,7 +8,7 @@
 
 函数使用共享17项action表：`0x0043C0D0`写record0，已关闭split bar `0x0043AE40`使用records6–9。typed runtime state由此前不足的单record修正为17项数组；selected preview另用`FC650`对应的独立typed action record。
 
-平台render port只隔离颜色组合、已关闭split-bar owner、frame准备、preview动作、已关闭CC20所需的raw/formatted rendering资源和已关闭矩形效果owner。列表与CC20控制流、所有owner写入及原表读取均在typed helper内。
+平台render port只隔离颜色组合、已关闭split-bar owner、已关闭D470所需viewport/resource load/draw、preview动作、已关闭CC20所需的raw/formatted rendering资源和已关闭矩形效果owner。列表与D470/CC20控制流、所有owner写入及原表读取均在typed helper内。
 
 ## 2. 双nibble衰减与bar比例
 
@@ -34,7 +34,7 @@ second_ratio = float(double(wrapping_i32(window_offset + visible_count)) /
 
 ## 3. alias链与selected路径
 
-frame准备后，从typed `entry_alias_index`对应的原64项entry base读首项。首项为0时直接返回frame准备EAX。
+D470 mode strip完成后，从typed `entry_alias_index`对应的原64项entry base读首项。首项为0时直接返回D470 viewport恢复EAX。
 
 非零链最多受Y门限制：row0从Y=`0x5E`开始，每项加`0x18`，进入一轮前signed要求`Y < 0x1C6`。每轮：
 
@@ -48,12 +48,13 @@ frame准备后，从typed `entry_alias_index`对应的原64项entry base读首�
 
 ## 4. typed-stop
 
-- split-bar owner报告typed-stop时，不进入frame/list路径。
+- split-bar owner报告typed-stop时，不进入mode-strip/list路径。
+- D470 resource load停止时传播`mode_strip_stopped`，不读alias且不伪造viewport恢复。
 - entry alias index负值或大于63在对应首次/next alias读取点停止。
 - selected绝对索引负值或大于63在short text和entry读取点停止。
 - CC20在entry index或即将扫描的short/long text无NUL时传播`entry_render_stopped`；不执行后续selection frame、row计数和next alias读取。
 
-停止前已经发生的颜色、bar、frame准备、前序row绘制保持；不会伪造后续preview/entry/frame。
+停止前已经发生的颜色、bar、mode-strip资源绘制和前序row绘制保持；不会伪造后续preview/entry/frame。
 
 ## 5. 验证
 
@@ -64,7 +65,7 @@ frame准备后，从typed `entry_alias_index`对应的原64项entry base读首�
 - alias2链两行：absolute5普通、absolute6 selected。
 - preview action ID/base variant/variant delta、cached字段保持及`0x1FC/0x3C`。
 - CC20完整color、名称/百分比/selected详情请求、selected frame Y=`0x76`、事件顺序和链终止EAX0。
-- total15跳过bar并返回frame EAX，flags/动态边界保持。
+- total15跳过bar并返回D470 viewport恢复EAX，flags/动态边界保持。
 - split bar停止、首次alias越界、selected索引越界、alias63的post-row next读取越界。
 - `0x0043C3C0`动态命中改读runtime bar outputs，不再由调用参数伪造。
 - `0x0043C0D0`与cleanup只写共享action record0，其他record保持。
