@@ -1,4 +1,5 @@
 #include "openswd3/special_modes/legacy_initial_menu.hpp"
+#include "openswd3/special_modes/legacy_standard_mode.hpp"
 
 #include "test.hpp"
 
@@ -29,6 +30,13 @@ using openswd3::special_modes::LegacyInitialMenuEvent;
 using openswd3::special_modes::LegacyInitialMenuInput;
 using openswd3::special_modes::LegacyInitialMenuState;
 using openswd3::special_modes::run_legacy_initial_menu_frame;
+using openswd3::special_modes::run_legacy_standard_special_mode_frame;
+using openswd3::special_modes::kLegacySpecialModeAlternateFlag;
+using openswd3::special_modes::kLegacySpecialModeInitializeFlag;
+using openswd3::special_modes::LegacyLowSpecialModeInitialization;
+using openswd3::special_modes::LegacyModeThreeSixRecordInitialization;
+using openswd3::special_modes::LegacyStandardSpecialModePorts;
+using openswd3::special_modes::LegacyStandardSpecialModeState;
 
 struct DrawCall {
     i32 x{};
@@ -83,6 +91,69 @@ public:
     u32 update_count{};
     std::vector<std::pair<u16, u16>> loads;
     std::vector<DrawCall> draws;
+};
+
+class FakeStandardModePorts final : public LegacyStandardSpecialModePorts {
+public:
+    void initialize_low_mode(
+        const LegacyLowSpecialModeInitialization& initialization
+    ) override {
+        events.push_back(1U);
+        low_initialization = initialization;
+        alternate = initialization.install_alternate_callback;
+    }
+
+    void reset_mode_records() override {
+        events.push_back(2U);
+    }
+
+    void initialize_mode_3_or_6_records(
+        const LegacyModeThreeSixRecordInitialization& initialization
+    ) override {
+        events.push_back(8U);
+        mode_three_six_initialization = initialization;
+    }
+
+    void initialize_mode_selector(
+        const u32 selected, const u32 selected_resource
+    ) override {
+        events.push_back(3U);
+        selector = selected;
+        resource_id = selected_resource;
+    }
+
+    void play_entry_sound(const u16 selected_sound) override {
+        events.push_back(4U);
+        sound_id = selected_sound;
+    }
+
+    void update_mode_objects() override {
+        events.push_back(5U);
+    }
+
+    void process_mode_input(u32& tagged_mode_value) override {
+        events.push_back(6U);
+        if (clear_during_input) {
+            tagged_mode_value = 0U;
+        }
+    }
+
+    void draw_mode(u32& tagged_mode_value) override {
+        events.push_back(7U);
+        if (clear_during_draw) {
+            tagged_mode_value = 0U;
+        }
+    }
+
+    std::vector<u32> events;
+    LegacyLowSpecialModeInitialization low_initialization;
+    LegacyModeThreeSixRecordInitialization mode_three_six_initialization;
+    u32 selector{};
+    u32 resource_id{};
+    u16 sound_id{};
+    bool alternate{};
+    bool clear_during_input{};
+    bool clear_during_draw{};
 };
 
 [[nodiscard]] LegacyInputRecord pressed() noexcept {
@@ -316,6 +387,136 @@ void test_text_object_result_and_edited_name(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_entry_and_common_order(openswd3::test::Context& test) {
+    LegacyStandardSpecialModeState low_state{
+        .frame_counter = 999U,
+        .transient_flags = 0xFFFFFFFFU,
+        .entry_zero_a = 7U,
+        .entry_zero_b = 8U,
+        .entry_gate = 9U,
+    };
+    FakeStandardModePorts low_ports;
+    u32 low_mode =
+        kLegacySpecialModeInitializeFlag | kLegacySpecialModeAlternateFlag | 1U;
+    const auto low_result =
+        run_legacy_standard_special_mode_frame(low_state, low_mode, low_ports);
+    test.expect_true(
+        low_mode == 1U && low_state.frame_counter == 0x41U &&
+            low_state.transient_flags == 0U && low_state.entry_zero_a == 0U &&
+            low_state.entry_zero_b == 0U && low_state.entry_gate == 1U &&
+            low_ports.alternate && low_ports.sound_id == 0x00BBU &&
+            low_ports.low_initialization.primary_action_id == 0x232AU &&
+            low_ports.low_initialization.primary_base_variant == 0x34U &&
+            low_ports.low_initialization.secondary_base_variants ==
+                std::array<u32, 2>{0x1AU, 0x1BU} &&
+            low_ports.low_initialization.choice_base_variants ==
+                std::array<u32, 4>{8U, 9U, 10U, 11U} &&
+            low_ports.low_initialization.selection_word == 1U &&
+            low_ports.low_initialization.setup_resource_id == 0x24U &&
+            low_ports.low_initialization.setup_selector == 2U &&
+            low_ports.events == std::vector<u32>{1U, 4U, 5U, 6U, 7U} &&
+            low_result.effective_mode == 1U &&
+            low_result.initialization_count == 1U &&
+            low_result.update_count == 1U && low_result.input_count == 1U &&
+            low_result.draw_count == 1U,
+        "0x439FD0 consumes both entry bits after alternate low-mode setup " "and preserves update-input-draw order"
+    );
+
+    LegacyStandardSpecialModeState normal_low_state;
+    FakeStandardModePorts normal_low_ports;
+    u32 normal_low_mode = kLegacySpecialModeInitializeFlag | 2U;
+    static_cast<void>(run_legacy_standard_special_mode_frame(
+        normal_low_state, normal_low_mode, normal_low_ports
+    ));
+    test.expect_true(
+        normal_low_mode == 2U && !normal_low_ports.alternate &&
+            normal_low_ports.low_initialization.selection_word == 0U &&
+            normal_low_ports.low_initialization.setup_resource_id == 0x1EU &&
+            normal_low_ports.low_initialization.setup_selector == 1U &&
+            normal_low_ports.events == std::vector<u32>{1U, 4U, 5U, 6U, 7U},
+        "the bit-30-clear low-mode branch uses the normal setup variant"
+    );
+
+    for (const auto [mode, selector] : std::array<std::pair<u32, u32>, 4>{
+             std::pair<u32, u32>{3U, 0U},
+             std::pair<u32, u32>{4U, 1U},
+             std::pair<u32, u32>{5U, 2U},
+             std::pair<u32, u32>{6U, 3U},
+         }) {
+        LegacyStandardSpecialModeState state;
+        FakeStandardModePorts ports;
+        u32 tagged_mode = kLegacySpecialModeInitializeFlag | 0x20000000U | mode;
+        const auto result =
+            run_legacy_standard_special_mode_frame(state, tagged_mode, ports);
+        const bool initializes_shared_records = mode == 3U || mode == 6U;
+        const auto expected_events = initializes_shared_records
+            ? std::vector<u32>{2U, 8U, 3U, 5U, 6U, 7U}
+            : std::vector<u32>{2U, 3U, 5U, 6U, 7U};
+        test.expect_true(
+            tagged_mode == (0x20000000U | mode) &&
+                state.frame_counter == 0x41U && ports.selector == selector &&
+                ports.resource_id == 0x0000EA60U &&
+                (!initializes_shared_records ||
+                 (ports.mode_three_six_initialization.primary_base_variant ==
+                      0x4EU &&
+                  ports.mode_three_six_initialization.choice_action_ids ==
+                      std::array<u32, 4>{0x232BU, 0x232BU, 0x232BU, 0x232BU} &&
+                  ports.mode_three_six_initialization.choice_base_variants ==
+                      std::array<u32, 4>{0x2CU, 0x2DU, 0x2EU, 0x2FU})) &&
+                ports.events == expected_events &&
+                result.initialization_count == 1U,
+            "modes 3 through 6 keep bit 29 and map to selectors zero " "through three"
+        );
+    }
+}
+
+void test_standard_mode_exit_paths(openswd3::test::Context& test) {
+    LegacyStandardSpecialModeState input_exit_state{
+        .frame_counter = 0xFFFFFFFFU,
+        .transient_flags = 3U,
+    };
+    FakeStandardModePorts input_exit_ports;
+    input_exit_ports.clear_during_input = true;
+    u32 input_exit_mode = 3U;
+    const auto input_exit = run_legacy_standard_special_mode_frame(
+        input_exit_state, input_exit_mode, input_exit_ports
+    );
+    test.expect_true(
+        input_exit_state.frame_counter == 0U &&
+            input_exit_state.transient_flags == 1U && input_exit_mode == 0U &&
+            input_exit_ports.events == std::vector<u32>{5U, 6U} &&
+            input_exit.draw_count == 0U,
+        "an input-side mode clear skips drawing, clears transient bit one, " "and keeps u32 frame wrap"
+    );
+
+    LegacyStandardSpecialModeState draw_exit_state{.transient_flags = 3U};
+    FakeStandardModePorts draw_exit_ports;
+    draw_exit_ports.clear_during_draw = true;
+    u32 draw_exit_mode = 4U;
+    const auto draw_exit = run_legacy_standard_special_mode_frame(
+        draw_exit_state, draw_exit_mode, draw_exit_ports
+    );
+    test.expect_true(
+        draw_exit_mode == 0U && draw_exit_state.transient_flags == 1U &&
+            draw_exit_ports.events == std::vector<u32>{5U, 6U, 7U} &&
+            draw_exit.draw_count == 1U,
+        "a draw-side mode clear still records the draw and then clears " "transient bit one"
+    );
+
+    LegacyStandardSpecialModeState unsupported_state;
+    FakeStandardModePorts unsupported_ports;
+    u32 unsupported_mode = kLegacySpecialModeInitializeFlag | 0x20000000U | 7U;
+    const auto unsupported = run_legacy_standard_special_mode_frame(
+        unsupported_state, unsupported_mode, unsupported_ports
+    );
+    test.expect_true(
+        unsupported_mode == 0x20000007U &&
+            unsupported_ports.events == std::vector<u32>{5U, 6U, 7U} &&
+            unsupported.initialization_count == 0U,
+        "an out-of-switch entry still consumes the high initializer and " "runs the common frame tail"
+    );
+}
+
 void test_real_draw_contract(openswd3::test::Context& test) {
     LegacyInitialMenuState state;
     initialize_legacy_initial_menu(state);
@@ -351,6 +552,8 @@ int main() {
     test_name_cancel_returns_to_selection(test);
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
+    test_standard_mode_entry_and_common_order(test);
+    test_standard_mode_exit_paths(test);
     test_real_draw_contract(test);
     return test.exit_code();
 }

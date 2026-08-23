@@ -12,6 +12,12 @@ INVENTORY_ROOT = RESEARCH_ROOT / "04-reverse-engineering" / "inventory"
 OWNERSHIP_INPUT = INVENTORY_ROOT / "module-function-ownership.tsv"
 OUTPUT = INVENTORY_ROOT / "special-modes-function-workpack.tsv"
 EXPECTED_CANDIDATE_COUNT = 227
+CLOSURES = {
+    "0x00439FD0": (
+        "platform_adapted",
+        "evidence/special-mode-standard-dispatch-00439fd0.md",
+    ),
+}
 
 
 def address_value(value: str) -> int:
@@ -47,6 +53,9 @@ def main() -> None:
     output_rows = []
     for audit_order, row in enumerate(rows, start=1):
         address = address_value(row["address"])
+        closure_status, closure_evidence = CLOSURES.get(
+            row["address"], ("pending_audit", "")
+        )
         output_rows.append(
             (
                 audit_order,
@@ -57,8 +66,8 @@ def main() -> None:
                 row["assembly_direct_callers_address_count"],
                 row["assembly_direct_callees_address_count"],
                 row["review_status"],
-                "pending_audit",
-                "",
+                closure_status,
+                closure_evidence,
                 "ownership and call-graph fields are navigation only; close from full LST body",
             )
         )
@@ -83,7 +92,11 @@ def main() -> None:
         )
         writer.writerows(output_rows)
     print(f"wrote {OUTPUT.relative_to(RESEARCH_ROOT)} ({len(output_rows)} rows)")
-    print("closure 0/227; every candidate requires independent LST audit")
+    closed_count = sum(row[8] != "pending_audit" for row in output_rows)
+    print(
+        f"closure {closed_count}/{EXPECTED_CANDIDATE_COUNT}; "
+        "remaining candidates require independent LST audit"
+    )
 
 
 if __name__ == "__main__":

@@ -59,6 +59,7 @@
 #include "openswd3/resource_io/legacy_resource_databases.hpp"
 #include "openswd3/resource_io/window_configuration.hpp"
 #include "openswd3/special_modes/legacy_initial_menu.hpp"
+#include "openswd3/special_modes/legacy_standard_mode.hpp"
 #include "openswd3/world_map/legacy_maps_world_database.hpp"
 #include "openswd3/world_map/legacy_movement_collision.hpp"
 #include "openswd3/world_map/legacy_world_collision_talk.hpp"
@@ -4677,110 +4678,181 @@ public:
     void prepare_special_mode_objects(
         openswd3::app::FrameCoordinatorState&
     ) override {}
+    openswd3::app::StandardSpecialModeEvent step_initial_menu_special_mode() {
+        openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
+            action_updater_,
+            tsw_runtime_,
+            game_framebuffer_,
+            world_raster_,
+            world_effects_,
+            world_jitter_,
+        };
+        const auto& records = input_state_.records;
+        const auto previous_phase = initial_menu_state_.phase;
+        const auto previous_counter = initial_menu_state_.counter;
+        const auto previous_choice = initial_menu_state_.selected_choice;
+        const auto result =
+            openswd3::special_modes::run_legacy_initial_menu_frame(
+                initial_menu_state_,
+                openswd3::special_modes::LegacyInitialMenuInput{
+                    .mouse_x = input_state_.current_mouse.logical_x,
+                    .mouse_y = input_state_.current_mouse.logical_y,
+                    .mouse_button_mask = input_state_.current_mouse.button_mask,
+                    .cancel = &records[0U],
+                    .primary = &records[1U],
+                    .alternate_primary = &records[12U],
+                    .left = &records[3U],
+                    .up = &records[4U],
+                    .right = &records[5U],
+                    .down = &records[6U],
+                    .page_up = &records[7U],
+                    .page_down = &records[8U],
+                    .mouse_left = &records[15U],
+                    .mouse_right = &records[14U],
+                },
+                action_ports,
+                world_effects_
+            );
+        synchronize_text_input();
+        if (initial_menu_state_.phase != previous_phase ||
+            initial_menu_state_.selected_choice != previous_choice ||
+            (initial_menu_state_.counter != previous_counter &&
+             initial_menu_state_.counter >=
+                 openswd3::special_modes::kLegacyInitialMenuNameOneCounter)) {
+            std::string message{"initial menu state: phase="};
+            message.append(std::to_string(initial_menu_state_.phase));
+            message.append(", counter=");
+            message.append(std::to_string(initial_menu_state_.counter));
+            message.append(", choice=");
+            message.append(std::to_string(initial_menu_state_.selected_choice));
+            openswd3::diagnostics::log_info(message);
+        }
+        if (result.draw_status !=
+            openswd3::special_modes::LegacyInitialMenuDrawStatus::completed) {
+            std::string message{"initial menu draw failed: status="};
+            message.append(
+                std::to_string(static_cast<unsigned>(result.draw_status))
+            );
+            message.append(", blit_failures=");
+            message.append(std::to_string(result.blit_failure_count));
+            static_cast<void>(report_error(message));
+            ok_ = false;
+            running_ = false;
+            return openswd3::app::StandardSpecialModeEvent::none;
+        }
+        if (!draw_initial_menu_name_input()) {
+            return openswd3::app::StandardSpecialModeEvent::none;
+        }
+        if (result.event ==
+            openswd3::special_modes::LegacyInitialMenuEvent::
+                commit_new_game_004492ba) {
+            openswd3::diagnostics::log_info("initial menu committed new game");
+            return openswd3::app::StandardSpecialModeEvent::
+                commit_new_game_004492ba;
+        }
+        if (result.event ==
+            openswd3::special_modes::LegacyInitialMenuEvent::
+                commit_choice_3_00449320) {
+            openswd3::diagnostics::log_info(
+                "initial menu requested process close"
+            );
+            return openswd3::app::StandardSpecialModeEvent::
+                request_close_00449320;
+        }
+        static_cast<void>(request_presentation(
+            openswd3::rendering::LegacyPresentationSite::
+                steady_special_modes_1_3_4_5_6
+        ));
+        return openswd3::app::StandardSpecialModeEvent::none;
+    }
+
     openswd3::app::StandardSpecialModeEvent step_standard_special_mode(
         openswd3::app::FrameCoordinatorState& state
     ) override {
-        constexpr openswd3::compat::u32 kSpecialModeValueMask = 0x0FFFFFFFU;
-        if ((state.battle.special_mode_state & kSpecialModeValueMask) == 3U) {
-            openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
-                action_updater_,
-                tsw_runtime_,
-                game_framebuffer_,
-                world_raster_,
-                world_effects_,
-                world_jitter_,
+        class StandardModePorts final
+            : public openswd3::special_modes::LegacyStandardSpecialModePorts {
+        public:
+            StandardModePorts(
+                SdlSmokeIdlePorts& owner, const openswd3::compat::u32 entry_mode
+            ) noexcept
+                : owner_(owner), entry_mode_(entry_mode) {}
+
+            void initialize_low_mode(
+                const openswd3::special_modes::
+                    LegacyLowSpecialModeInitialization&
+            ) override {}
+
+            void reset_mode_records() override {}
+
+            void initialize_mode_3_or_6_records(
+                const openswd3::special_modes::
+                    LegacyModeThreeSixRecordInitialization&
+            ) override {
+                if (entry_mode_ == 3U) {
+                    openswd3::special_modes::initialize_legacy_initial_menu(
+                        owner_.initial_menu_state_
+                    );
+                }
+            }
+
+            void initialize_mode_selector(
+                openswd3::compat::u32, openswd3::compat::u32
+            ) override {}
+
+            void
+            play_entry_sound(const openswd3::compat::u16 sound_id) override {
+                static_cast<void>(openswd3::audio_video::play_legacy_sample(
+                    owner_.sample_manager_,
+                    sound_id,
+                    owner_.world_frame_state_.frame_runtime.spatial_audio
+                        .mix_level
+                ));
+            }
+
+            void update_mode_objects() override {}
+
+            void process_mode_input(openswd3::compat::u32&) override {}
+
+            void draw_mode(openswd3::compat::u32& tagged_mode_value) override {
+                if ((tagged_mode_value &
+                     openswd3::special_modes::kLegacySpecialModeValueMask) ==
+                    3U) {
+                    event_ = owner_.step_initial_menu_special_mode();
+                    return;
+                }
+                owner_.request_presentation(
+                    openswd3::rendering::LegacyPresentationSite::
+                        steady_special_modes_1_3_4_5_6
+                );
+            }
+
+            [[nodiscard]] openswd3::app::StandardSpecialModeEvent
+            event() const noexcept {
+                return event_;
+            }
+
+        private:
+            SdlSmokeIdlePorts& owner_;
+            openswd3::compat::u32 entry_mode_{};
+            openswd3::app::StandardSpecialModeEvent event_{
+                openswd3::app::StandardSpecialModeEvent::none
             };
-            const auto& records = input_state_.records;
-            const auto previous_phase = initial_menu_state_.phase;
-            const auto previous_counter = initial_menu_state_.counter;
-            const auto previous_choice = initial_menu_state_.selected_choice;
-            const auto result =
-                openswd3::special_modes::run_legacy_initial_menu_frame(
-                    initial_menu_state_,
-                    openswd3::special_modes::LegacyInitialMenuInput{
-                        .mouse_x = input_state_.current_mouse.logical_x,
-                        .mouse_y = input_state_.current_mouse.logical_y,
-                        .mouse_button_mask =
-                            input_state_.current_mouse.button_mask,
-                        .cancel = &records[0U],
-                        .primary = &records[1U],
-                        .alternate_primary = &records[12U],
-                        .left = &records[3U],
-                        .up = &records[4U],
-                        .right = &records[5U],
-                        .down = &records[6U],
-                        .page_up = &records[7U],
-                        .page_down = &records[8U],
-                        .mouse_left = &records[15U],
-                        .mouse_right = &records[14U],
-                    },
-                    action_ports,
-                    world_effects_
-                );
-            synchronize_text_input();
-            if (initial_menu_state_.phase != previous_phase ||
-                initial_menu_state_.selected_choice != previous_choice ||
-                (initial_menu_state_.counter != previous_counter &&
-                 initial_menu_state_.counter >=
-                     openswd3::special_modes::
-                         kLegacyInitialMenuNameOneCounter)) {
-                std::string message{"initial menu state: phase="};
-                message.append(std::to_string(initial_menu_state_.phase));
-                message.append(", counter=");
-                message.append(std::to_string(initial_menu_state_.counter));
-                message.append(", choice=");
-                message.append(
-                    std::to_string(initial_menu_state_.selected_choice)
-                );
-                openswd3::diagnostics::log_info(message);
-            }
-            if (result.draw_status !=
-                openswd3::special_modes::LegacyInitialMenuDrawStatus::
-                    completed) {
-                std::string message{"initial menu draw failed: status="};
-                message.append(
-                    std::to_string(static_cast<unsigned>(result.draw_status))
-                );
-                message.append(", blit_failures=");
-                message.append(std::to_string(result.blit_failure_count));
-                static_cast<void>(report_error(message));
-                ok_ = false;
-                running_ = false;
-                return openswd3::app::StandardSpecialModeEvent::none;
-            }
-            if (!draw_initial_menu_name_input()) {
-                return openswd3::app::StandardSpecialModeEvent::none;
-            }
-            if (result.event ==
-                openswd3::special_modes::LegacyInitialMenuEvent::
-                    commit_new_game_004492ba) {
-                openswd3::diagnostics::log_info(
-                    "initial menu committed new game"
-                );
-                return openswd3::app::StandardSpecialModeEvent::
-                    commit_new_game_004492ba;
-            }
-            if (result.event ==
-                openswd3::special_modes::LegacyInitialMenuEvent::
-                    commit_choice_3_00449320) {
-                openswd3::diagnostics::log_info(
-                    "initial menu requested process close"
-                );
-                return openswd3::app::StandardSpecialModeEvent::
-                    request_close_00449320;
-            }
-            static_cast<void>(request_presentation(
-                openswd3::rendering::LegacyPresentationSite::
-                    steady_special_modes_1_3_4_5_6
-            ));
-            return openswd3::app::StandardSpecialModeEvent::none;
-        }
-        request_presentation(
-            openswd3::rendering::LegacyPresentationSite::
-                steady_special_modes_1_3_4_5_6
+        };
+
+        const openswd3::compat::u32 entry_mode =
+            state.battle.special_mode_state &
+            openswd3::special_modes::kLegacySpecialModeValueMask;
+        StandardModePorts ports{*this, entry_mode};
+        static_cast<void>(
+            openswd3::special_modes::run_legacy_standard_special_mode_frame(
+                legacy_standard_mode_state_,
+                state.battle.special_mode_state,
+                ports
+            )
         );
-        return openswd3::app::StandardSpecialModeEvent::none;
+        return ports.event();
     }
+
     void step_shop_mode(openswd3::app::FrameCoordinatorState&) override {
         request_presentation(
             openswd3::rendering::LegacyPresentationSite::steady_shop_mode_2
@@ -5427,6 +5499,8 @@ private:
     openswd3::world_map::LegacyWorldDialogRuntimeState
         world_dialog_runtime_state_;
     openswd3::special_modes::LegacyInitialMenuState initial_menu_state_;
+    openswd3::special_modes::LegacyStandardSpecialModeState
+        legacy_standard_mode_state_;
     openswd3::input_time_rng::LegacyTextInputDriverState
         text_input_driver_state_{};
     SdlLegacyTextInputPorts text_input_ports_{};

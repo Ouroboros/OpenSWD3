@@ -2,6 +2,7 @@ add_library(
     openswd3_special_modes
     STATIC
         legacy_initial_menu.cpp
+        legacy_standard_mode.cpp
 )
 target_include_directories(
     openswd3_special_modes
