@@ -11,7 +11,7 @@
 - `0x0043C7E0..0x0043C7F5`：mode刷新与点击音。
 - `0x0043C800..0x0043C819`：exit counter精确500门。
 
-直接caller是`0x004455E0`。`0x0043B480`只保存函数地址，不是运行时direct call。已关闭的`0x0043BBE0`、`0x0043C090`、`0x0043C520`、`0x0043C590`与`0x0043C670`直接复用typed helper；其余未关闭callee继续由窄port隔离。
+直接caller是`0x004455E0`。`0x0043B480`只保存函数地址，不是运行时direct call。已关闭的`0x0043BBE0`、`0x0043C090`、`0x0043C520`、`0x0043C590`、`0x0043C670`与`0x0043C760`直接复用typed helper；其余未关闭callee继续由窄port隔离。
 
 ## 2. 第一与第二矩形
 
@@ -30,7 +30,7 @@ refresh_mode()
 return play_sample(0x2E, sample_handle)
 ```
 
-所以负delta把mode减2，而正delta保持mode不变但仍刷新和播放点击音。这是原始可观察BUG，modern原样保留。
+所以负delta先把mode减2，而正delta先保持mode不变。这是原始可观察BUG，modern原样保留；随后已关闭`0x0043C760`还会把mode回绕递增并signed钳11、初始化/消费entry并播放一次点击音，caller外置chunk再播放第二次点击音。初始mode5最终分别变为4或6。
 
 ## 3. availability与顺序命中
 
@@ -65,7 +65,7 @@ availability不可用时EAX为0；availability可用但X严格边界失败时EAX
 `special_modes.legacy_initial_menu`覆盖：
 
 - 第一矩形行计算、signed钳制、额外减1以及tail-dispatch `0x0043C520`后的最终cursor/entry/flags/sample EAX。
-- 第二矩形负delta减2、正delta不变、delta零、mode 0/14边界。
+- 第二矩形负delta减2/正delta不变的中间值、`0x0043C760`后的最终mode4/6、双sample，以及delta零与mode 0/14早退。
 - upper `0x0043C590`、first dynamic `0x0043C670`、翻页的三轮alias重建/page刷新/entry消费/点击音顺序，以及entry13/0/14、实时cursor与flags `0x33`。
 - bottom `0x0043C520`的cursor/entry/flags/sample副作用保持，但sample EAX被pointer Y覆盖。
 - X等于206的严格边界与路径EAX。

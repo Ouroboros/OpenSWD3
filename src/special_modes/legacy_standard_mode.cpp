@@ -963,6 +963,37 @@ retreat_legacy_standard_mode_runtime_page(
     return result;
 }
 
+LegacyStandardModeRuntimeModeAdvanceResult
+advance_legacy_standard_mode_runtime_mode(
+    const compat::u32 sample_handle,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeInputDispatchPorts& ports
+) noexcept {
+    LegacyStandardModeRuntimeModeAdvanceResult result;
+    state.mode_index = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(state.mode_index) + 1U
+    );
+    if (state.mode_index > 0x0B) {
+        state.mode_index = 0x0B;
+    }
+    ports.initialize_mode_entries(state.entries, state.mode_index);
+    ports.rebuild_entry_alias(
+        state.window_offset, state.entries, state.entry_alias_index
+    );
+    ports.refresh_page();
+    const compat::u32 selected_index =
+        std::bit_cast<compat::u32>(state.window_offset) +
+        std::bit_cast<compat::u32>(state.local_cursor);
+    if (selected_index >= state.entries.size()) {
+        result.status = LegacyStandardModeRuntimeModeAdvanceStatus::
+            selected_entry_out_of_range;
+        return result;
+    }
+    ports.consume_entry(state.entries[selected_index]);
+    result.legacy_return_value = ports.play_sample(0x002EU, sample_handle);
+    return result;
+}
+
 LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
     const LegacyStandardModeInputDispatchInput& input,
     const std::span<const LegacyStandardModeAvailabilityRecord>
@@ -1024,8 +1055,18 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
         const compat::i32 direction = delta <= 0 ? -1 : 1;
         state.mode_index =
             wrapping_sub(wrapping_add(state.mode_index, direction), 1);
-        ports.refresh_mode();
+        const LegacyStandardModeRuntimeModeAdvanceResult mode_result =
+            advance_legacy_standard_mode_runtime_mode(
+                input.sample_handle, state, ports
+            );
         result.path = LegacyStandardModeInputDispatchPath::mode_refreshed;
+        result.legacy_return_value = mode_result.legacy_return_value;
+        if (mode_result.status !=
+            LegacyStandardModeRuntimeModeAdvanceStatus::completed) {
+            result.status = LegacyStandardModeInputDispatchStatus::
+                selected_entry_out_of_range;
+            return result;
+        }
         result.legacy_return_value =
             ports.play_sample(0x002EU, input.sample_handle);
         return result;

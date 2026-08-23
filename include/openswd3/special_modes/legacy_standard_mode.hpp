@@ -792,6 +792,18 @@ struct LegacyStandardModeRuntimePageRetreatResult {
     compat::i32 legacy_return_value{};
 };
 
+enum class LegacyStandardModeRuntimeModeAdvanceStatus : compat::u8 {
+    completed,
+    selected_entry_out_of_range,
+};
+
+struct LegacyStandardModeRuntimeModeAdvanceResult {
+    LegacyStandardModeRuntimeModeAdvanceStatus status{
+        LegacyStandardModeRuntimeModeAdvanceStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+};
+
 enum class LegacyStandardModeInputDispatchStatus : compat::u8 {
     completed,
     availability_index_out_of_range,
@@ -812,7 +824,9 @@ enum class LegacyStandardModeInputDispatchPath : compat::u8 {
 class LegacyStandardModeInputDispatchPorts {
 public:
     virtual ~LegacyStandardModeInputDispatchPorts() = default;
-    virtual void refresh_mode() noexcept = 0;
+    virtual void initialize_mode_entries(
+        std::span<compat::u32> entries, compat::i32 mode_index
+    ) noexcept = 0;
     virtual void rebuild_entry_alias(
         compat::i32 window_offset,
         std::span<const compat::u32> entries,
@@ -1060,6 +1074,14 @@ retreat_legacy_standard_mode_runtime_cursor(
 // sub_43C670: retreat a runtime page, rebuild and consume its selected entry.
 [[nodiscard]] LegacyStandardModeRuntimePageRetreatResult
 retreat_legacy_standard_mode_runtime_page(
+    compat::u32 sample_handle,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeInputDispatchPorts& ports
+) noexcept;
+
+// sub_43C760: advance/clamp the mode, rebuild and consume its selected entry.
+[[nodiscard]] LegacyStandardModeRuntimeModeAdvanceResult
+advance_legacy_standard_mode_runtime_mode(
     compat::u32 sample_handle,
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeInputDispatchPorts& ports

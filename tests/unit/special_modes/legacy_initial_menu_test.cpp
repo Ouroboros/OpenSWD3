@@ -33,6 +33,7 @@ using openswd3::special_modes::adjust_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
 using openswd3::special_modes::advance_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::advance_legacy_standard_mode_runtime_cursor;
+using openswd3::special_modes::advance_legacy_standard_mode_runtime_mode;
 using openswd3::special_modes::advance_legacy_standard_mode_window_page;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
 using openswd3::special_modes::build_legacy_standard_mode_filtered_records;
@@ -114,6 +115,7 @@ using openswd3::special_modes::LegacyStandardModeRuntimeInitializationState;
 using openswd3::special_modes::LegacyStandardModeRuntimeCursorAdvanceStatus;
 using openswd3::special_modes::LegacyStandardModeRuntimeCursorRetreatStatus;
 using openswd3::special_modes::LegacyStandardModeRuntimePageRetreatStatus;
+using openswd3::special_modes::LegacyStandardModeRuntimeModeAdvanceStatus;
 using openswd3::special_modes::LegacyStandardModeInputDispatchInput;
 using openswd3::special_modes::LegacyStandardModeInputDispatchPath;
 using openswd3::special_modes::LegacyStandardModeInputDispatchPorts;
@@ -2188,7 +2190,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
     class DispatchPorts final : public LegacyStandardModeInputDispatchPorts {
     public:
         enum class Event : u8 {
-            mode_refresh,
+            mode_initialize,
             alias_rebuild,
             page_refresh,
             entry_consume,
@@ -2200,8 +2202,14 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             bool operator==(const ReleaseEvent&) const = default;
         };
 
-        void refresh_mode() noexcept override {
-            events.push_back(Event::mode_refresh);
+        void initialize_mode_entries(
+            const std::span<u32> entries, const i32 mode_index
+        ) noexcept override {
+            events.push_back(Event::mode_initialize);
+            initialized_modes.push_back(mode_index);
+            for (std::size_t index = 0; index < entries.size(); ++index) {
+                entries[index] = 0xA0000000U + static_cast<u32>(index);
+            }
         }
         void rebuild_entry_alias(
             const i32 window_offset,
@@ -2226,6 +2234,8 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             events.push_back(Event::sample_play);
             played_sample_id = sample_id;
             played_sample_handle = sample_handle;
+            played_sample_ids.push_back(sample_id);
+            played_sample_handles.push_back(sample_handle);
             return 222;
         }
         void release_record(const u32 token) noexcept override {
@@ -2245,8 +2255,11 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         std::size_t alias_entry_count{};
         u32 consumed_entry{};
         std::vector<u32> consumed_entries;
+        std::vector<i32> initialized_modes;
         u16 played_sample_id{};
         u32 played_sample_handle{};
+        std::vector<u16> played_sample_ids;
+        std::vector<u32> played_sample_handles;
     };
 
     std::array<LegacyStandardModeAvailabilityRecord, 16U> available_records{};
@@ -2439,6 +2452,72 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         );
     }
 
+    struct RuntimeModeCase {
+        i32 initial_mode{};
+        i32 expected_mode{};
+    };
+    constexpr std::array runtime_mode_cases{
+        RuntimeModeCase{10, 11},
+        RuntimeModeCase{11, 11},
+        RuntimeModeCase{
+            std::numeric_limits<i32>::max(), std::numeric_limits<i32>::min()
+        },
+    };
+    for (const auto& sample : runtime_mode_cases) {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.mode_index = sample.initial_mode;
+        state.local_cursor = 2;
+        DispatchPorts ports;
+        const auto result = advance_legacy_standard_mode_runtime_mode(
+            0x11224488U, state, ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeModeAdvanceStatus::completed &&
+                result.legacy_return_value == 222 &&
+                state.mode_index == sample.expected_mode &&
+                state.entry_alias_index == 0 &&
+                ports.initialized_modes ==
+                    std::vector<i32>{sample.expected_mode} &&
+                ports.consumed_entry == 0xA0000002U &&
+                ports.played_sample_ids == std::vector<u16>{0x2EU} &&
+                ports.played_sample_handles == std::vector<u32>{0x11224488U} &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::mode_initialize,
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                        DispatchPorts::Event::entry_consume,
+                        DispatchPorts::Event::sample_play,
+                    },
+            "0x43C760 preserves wrapped increment, signed clamp, initialize, consume and sample"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.mode_index = 0;
+        state.window_offset = 64;
+        DispatchPorts ports;
+        const auto result = advance_legacy_standard_mode_runtime_mode(
+            0x88774422U, state, ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeModeAdvanceStatus::
+                        selected_entry_out_of_range &&
+                state.mode_index == 1 && state.entry_alias_index == 64 &&
+                ports.initialized_modes == std::vector<i32>{1} &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::mode_initialize,
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                    },
+            "0x43C760 typed-stops at its original selected-entry read"
+        );
+    }
+
     {
         LegacyStandardModeRuntimeInitializationState state;
         state.visible_count = 5;
@@ -2482,8 +2561,8 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         bool refreshed{};
     };
     constexpr std::array mode_cases{
-        ModeCase{66U, 5, 3, 222, true},
-        ModeCase{126U, 5, 5, 222, true},
+        ModeCase{66U, 5, 4, 222, true},
+        ModeCase{126U, 5, 6, 222, true},
         ModeCase{66U, 0, 0, 0, false},
         ModeCase{106U, 5, 5, 5, false},
         ModeCase{126U, 14, 14, 14, false},
@@ -2504,7 +2583,11 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         const std::vector<DispatchPorts::Event> expected_events =
             sample.refreshed
             ? std::vector{
-                  DispatchPorts::Event::mode_refresh,
+                  DispatchPorts::Event::mode_initialize,
+                  DispatchPorts::Event::alias_rebuild,
+                  DispatchPorts::Event::page_refresh,
+                  DispatchPorts::Event::entry_consume,
+                  DispatchPorts::Event::sample_play,
                   DispatchPorts::Event::sample_play,
               }
             : std::vector<DispatchPorts::Event>{};
@@ -2518,9 +2601,16 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 state.mode_index == sample.expected_mode &&
                 ports.events == expected_events &&
                 (!sample.refreshed ||
-                 (ports.played_sample_id == 0x2EU &&
-                  ports.played_sample_handle == 0x12345678U)),
-            "0x43C3C0 preserves negative-delta minus two and positive-delta no-change behavior"
+                 (ports.initialized_modes ==
+                      std::vector<i32>{sample.expected_mode} &&
+                  ports.consumed_entry == 0xA0000000U &&
+                  ports.played_sample_ids == std::vector<u16>{0x2EU, 0x2EU} &&
+                  ports.played_sample_handles ==
+                      std::vector<u32>{
+                          0x12345678U,
+                          0x12345678U,
+                      })),
+            "0x43C3C0 preserves mode delta behavior then runs C760 and a second sample"
         );
     }
 
