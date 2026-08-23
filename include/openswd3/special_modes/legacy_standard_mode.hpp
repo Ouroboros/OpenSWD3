@@ -1787,6 +1787,13 @@ advance_legacy_standard_mode_database(
     LegacyStandardModeDatabaseAdvancePorts& ports
 ) noexcept;
 
+// sub_43E310: advance the direction with the primary sample owner.
+[[nodiscard]] LegacyStandardModeDatabaseDirectionCycleResult
+advance_legacy_standard_mode_database_primary_direction(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRetreatPorts& ports
+) noexcept;
+
 // sub_43E250: advance the direction or phase-specific owner.
 [[nodiscard]] LegacyStandardModeDatabaseDirectionCycleResult
 advance_legacy_standard_mode_database_direction(

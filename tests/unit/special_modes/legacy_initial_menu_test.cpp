@@ -35,6 +35,8 @@ using openswd3::special_modes::advance_legacy_standard_mode_database;
 using openswd3::special_modes::advance_legacy_standard_mode_database_page;
 using openswd3::special_modes::advance_legacy_standard_mode_database_direction;
 using openswd3::special_modes::
+    advance_legacy_standard_mode_database_primary_direction;
+using openswd3::special_modes::
     advance_legacy_standard_mode_database_page_source;
 using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
 using openswd3::special_modes::advance_legacy_standard_mode_window_cursor;
@@ -2903,14 +2905,31 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
             "0x43E250 phase1 wraps direction above one then samples 107"
         );
 
+        direction_state.direction_selection = 1U;
+        direction_ports.events.clear();
+        const auto primary_direction =
+            advance_legacy_standard_mode_database_primary_direction(
+                direction_state, direction_ports
+            );
+        test.expect_true(
+            primary_direction.legacy_return_value == 85 &&
+                primary_direction.helper_call_count == 1U &&
+                primary_direction.sample_initialized &&
+                direction_state.direction_selection == 0U &&
+                direction_ports.events == std::vector<u8>{3U} &&
+                direction_ports.sample_ids.back() == 0x2EU,
+            "0x43E310 phase1 shares direction cycle but samples primary 2E"
+        );
+
         direction_state.interaction_phase = 2U;
         direction_state.interaction_toggle = 1U;
         direction_state.runtime_input_flags = 2U;
         direction_ports.item_present = false;
         direction_ports.events.clear();
-        const auto bit_1_only = advance_legacy_standard_mode_database_direction(
-            direction_state, direction_ports
-        );
+        const auto bit_1_only =
+            advance_legacy_standard_mode_database_primary_direction(
+                direction_state, direction_ports
+            );
         test.expect_true(
             bit_1_only.path ==
                     openswd3::special_modes::
@@ -2922,7 +2941,7 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 direction_state.interaction_toggle == 1U &&
                 direction_ports.events == std::vector<u8>{5U, 3U} &&
                 direction_ports.queried_item_ids == std::vector<u16>{0x1BA9U},
-            "0x43E250 phase2 applies bit0-clear set after missing item"
+            "0x43E250/0x43E310 phase2 applies bit0-clear set after missing item"
         );
 
         direction_state.interaction_toggle = 1U;
@@ -3688,6 +3707,25 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                 state.list_selection == 14 && accepted_ports.targets.empty() &&
                 (state.display_flags & 3U) == 3U,
             "0x43DA30 preserves the signed forward-count boundary and 24-pixel index"
+        );
+    }
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            state;
+        state.interaction_phase = 1U;
+        Input input{.buttons = 1U, .mouse_x = 100U, .mouse_y = 300U};
+        InputPorts ports;
+        const auto upper = run(state, input, ports);
+        input.mouse_y = 500U;
+        const auto lower = run(state, input, ports);
+        test.expect_true(
+            upper.callback_count == 1U &&
+                upper.last_target == Target::address_0043E310 &&
+                lower.callback_count == 1U &&
+                lower.last_target == Target::address_0043E310 &&
+                ports.targets.empty() && state.direction_selection == 1U &&
+                ports.database_sample_ids == std::vector<u16>{0x2EU, 0x2EU},
+            "0x43DA30 directly closes both phase1 E310 direction rectangles"
         );
     }
     {

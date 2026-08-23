@@ -2253,10 +2253,11 @@ LegacyStandardModeDatabaseAdvanceResult advance_legacy_standard_mode_database(
     return result;
 }
 
-LegacyStandardModeDatabaseDirectionCycleResult
-advance_legacy_standard_mode_database_direction(
+static LegacyStandardModeDatabaseDirectionCycleResult
+advance_legacy_standard_mode_database_direction_impl(
     LegacyStandardModeDatabaseInitializationState& state,
-    LegacyStandardModeDatabaseRetreatPorts& ports
+    LegacyStandardModeDatabaseRetreatPorts& ports,
+    const compat::u16 phase_1_sample_id
 ) noexcept {
     LegacyStandardModeDatabaseDirectionCycleResult result;
     compat::u32 legacy_eax = state.interaction_phase - 1U;
@@ -2270,7 +2271,7 @@ advance_legacy_standard_mode_database_direction(
             state.direction_selection = 0;
         }
         result.legacy_return_value = ports.initialize_database_sample(
-            0x0107U, state.interface_source_value
+            phase_1_sample_id, state.interface_source_value
         );
         result.helper_call_count = 1U;
         result.sample_initialized = true;
@@ -2317,6 +2318,26 @@ advance_legacy_standard_mode_database_direction(
         state.phase_3_countdown = 0xC8U;
     }
     return result;
+}
+
+LegacyStandardModeDatabaseDirectionCycleResult
+advance_legacy_standard_mode_database_direction(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRetreatPorts& ports
+) noexcept {
+    return advance_legacy_standard_mode_database_direction_impl(
+        state, ports, 0x0107U
+    );
+}
+
+LegacyStandardModeDatabaseDirectionCycleResult
+advance_legacy_standard_mode_database_primary_direction(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRetreatPorts& ports
+) noexcept {
+    return advance_legacy_standard_mode_database_direction_impl(
+        state, ports, 0x002EU
+    );
 }
 
 LegacyStandardModeDatabaseCycleResult
@@ -2762,6 +2783,14 @@ handle_legacy_standard_mode_database_input(
             result.legacy_return_value =
                 advance_legacy_standard_mode_database_page_source(
                     state, maps_payload, ports
+                )
+                    .legacy_return_value;
+        } else if (
+            target == LegacyStandardModeDatabaseInputTarget::address_0043E310
+        ) {
+            result.legacy_return_value =
+                advance_legacy_standard_mode_database_primary_direction(
+                    state, ports
                 )
                     .legacy_return_value;
         } else if (

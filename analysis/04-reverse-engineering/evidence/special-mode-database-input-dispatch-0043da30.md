@@ -4,7 +4,7 @@
 
 ## 1. LST范围与owner
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DA30..0x0043DD1F`，365行；由B480 callback表间接绑定，没有direct call caller。直接callee中C090、DD20、DDF0、DED0、DFA0、E080和E170已关闭；E310/E3D0/E770与外部物品查询继续独立审计。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DA30..0x0043DD1F`，365行；由B480 callback表间接绑定，没有direct call caller。直接callee中C090、DD20、DDF0、DED0、DFA0、E080、E170和E310已关闭；E3D0/E770与外部物品查询继续独立审计。
 
 DA30读写D530共享owner：
 
@@ -24,6 +24,8 @@ DA30读写D530共享owner：
 - `x=81..463,y=3..187`：索引=`floor((x-80)/24)`；以signed比较对BC90的16界count，越界直接返回count；有效时列表选择=`index+1`并调用DDF0。
 - `x=71..336,y=255..392`：方向1并调用E310。
 - `x=71..336,y=466..602`：方向0并调用E310。
+
+E310现为直接typed调用；callee会对预写方向再加1并按0/1回绕，因此两个矩形最终分别发布方向0和1，并各sample2E。
 - `x=338..357,y=413..451`：先发布hover=1；有低2位按钮才调用E3D0。
 
 完整forward count signed大于16时调用C090查询availability record15。可用且`y=199..213`时依次检查：

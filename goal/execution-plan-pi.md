@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v478
+版本：v479
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043E310`
+当前步骤：模块9 · 闭环`0x0043E3D0`
 
 ## 0. 执行约定
 
@@ -3560,9 +3560,18 @@ B7 P0 有限收口完成。
     `e99f41464c78cb7d81fb9189765f2b210f5237edf311fa6601eb7cf1c9ba6541`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库主方向循环`0x0043E310`闭环。LST范围`0x0043E310..0x0043E3C2`，DA30
+    有两个direct call且B480 callback间接绑定。E310与E250共享typed内部实现，仅phase1 sample ID
+    参数化：direction加1、signed值大于1写0后sample2E。phase2仍严格执行toggle回绕→物品1BA9→
+    runtime低字节bit0/bit1覆盖→sample107；phase3写countdown200。DA30两个方向矩形现直接调用E310，
+    先写1/0再由callee回绕为0/1。定向UT覆盖主sample差异、共享phase2、两个矩形直连及空generic事件。
+    workpack连续两轮稳定为`54/227`，SHA256为
+    `29bf22b0a4bc9e09ac71098a6dc0c5fc8e9ccb76f18dc28a0e6a8f7d23323e69`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`53/227`，下一单元为`0x0043E310`。
+进行中，正式进度为`54/227`，下一单元为`0x0043E3D0`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043E310`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043E3D0`，继续更新workpack、证据和完整验证门。
