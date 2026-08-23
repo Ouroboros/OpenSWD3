@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v437
+版本：v438
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 标准模式共享文本解析helper`0x0043B9E0`闭环
+当前步骤：模块9 · 标准模式输入状态位组合helper`0x0043BA40`闭环
 
 ## 0. 执行约定
 
@@ -3155,6 +3155,16 @@ B7 P0 有限收口完成。
     `59848c73b0139fe2c720bdf6cce6d4ad5a8230d7e9a82d94581db525ade46783`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式共享文本解析helper`0x0043B9E0`闭环。LST范围`0x0043B9E0..0x0043BA39`
+    读取输入记录`+4` u16；`FFDC`以固定`B5 4C 00`输出CP950“無”，普通索引通过MAPS payload
+    `+0x4C`相对目录和u32回绕定位记录，再逐字节复制到首个unaligned `%Q`并追加NUL。保留
+    embedded NUL、路径相关raw EAX信息和已提交copy顺序；目录/terminator越界及128字节buffer
+    越界在原危险点typed-stop。46个直接调用点归并为38个caller。synthetic覆盖FFDC、embedded
+    NUL、u32回绕、terminator截断和buffer边界；真实`MAPS.DAT`锁定payload162417字节、目录
+    `0x1D993`及索引1的`Nullitm6  `十字节文本。workpack连续两轮稳定为`15/227`，SHA256为
+    `84d8a2d5bb81a2af2ca1d6f495be9a0aff3c2681b67cd56a9937337440fe8346`；Linux core188/188与
+    Linux app194/194完整门通过，真实测试保留`legacy_real_assets`锁，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
-下一工作包：模块9标准模式共享文本解析helper`0x0043B9E0`闭环。
+下一工作包：模块9标准模式输入状态位组合helper`0x0043BA40`闭环。

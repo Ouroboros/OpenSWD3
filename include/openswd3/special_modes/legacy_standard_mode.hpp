@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstddef>
+#include <span>
 
 namespace openswd3::special_modes {
 
@@ -522,6 +523,25 @@ struct LegacyStandardModeForwardNode {
     const LegacyStandardModeForwardNode* next{};
 };
 
+inline constexpr std::size_t kLegacyStandardModeSharedTextCapacity = 128U;
+
+enum class LegacyStandardModeTextResolutionStatus {
+    completed,
+    maps_payload_out_of_range,
+    text_terminator_not_found,
+    destination_overflow,
+};
+
+struct LegacyStandardModeTextResolutionResult {
+    LegacyStandardModeTextResolutionStatus status{
+        LegacyStandardModeTextResolutionStatus::maps_payload_out_of_range
+    };
+    compat::u32 copied_byte_count{};
+    compat::u32 source_cursor_offset{};
+    compat::i32 formatter_return{};
+    bool used_missing_text{};
+};
+
 // sub_43B980: count one intrusive forward chain through its offset-zero links.
 [[nodiscard]] compat::u32 count_legacy_standard_mode_forward_nodes(
     const LegacyStandardModeForwardNode* head
@@ -539,6 +559,14 @@ advance_legacy_standard_mode_forward_head(
 [[nodiscard]] const LegacyStandardModeForwardNode*
 index_legacy_standard_mode_forward_node(
     compat::i32 count, const LegacyStandardModeForwardNode* const* head
+) noexcept;
+
+// sub_43B9E0: resolve one MAPS text record into the shared 128-byte buffer.
+[[nodiscard]] LegacyStandardModeTextResolutionResult
+resolve_legacy_standard_mode_shared_text(
+    compat::u16 text_index,
+    std::span<const compat::u8> maps_payload,
+    std::span<compat::u8, kLegacyStandardModeSharedTextCapacity> destination
 ) noexcept;
 
 // sub_43B080: update and draw one standard-mode ghost action.

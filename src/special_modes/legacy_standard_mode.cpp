@@ -73,6 +73,37 @@ constexpr compat::u32 kTransitionSecondaryTextX = 108U;
 constexpr compat::u32 kTransitionPrimaryTextX = 92U;
 constexpr compat::u32 kTransitionFrameWidth = 640U;
 constexpr compat::u32 kPreserveCallbackTarget = 0xFFFFFFFFU;
+constexpr std::size_t kSharedTextDirectoryOffsetField = 0x4CU;
+constexpr compat::u16 kSharedTextMissingIndex = 0xFFDCU;
+constexpr compat::u16 kSharedTextTerminator = 0x5125U;
+constexpr compat::u8 kMissingTextFirstByte = 0xB5U;
+constexpr compat::u8 kMissingTextSecondByte = 0x4CU;
+
+[[nodiscard]] bool range_available(
+    const std::span<const compat::u8> bytes,
+    const std::size_t offset,
+    const std::size_t size
+) noexcept {
+    return offset <= bytes.size() && size <= bytes.size() - offset;
+}
+
+[[nodiscard]] compat::u16 read_u16_le(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
+    return static_cast<compat::u16>(bytes[offset]) |
+        static_cast<compat::u16>(
+               static_cast<compat::u16>(bytes[offset + 1U]) << 8U
+        );
+}
+
+[[nodiscard]] compat::u32 read_u32_le(
+    const std::span<const compat::u8> bytes, const std::size_t offset
+) noexcept {
+    return static_cast<compat::u32>(bytes[offset]) |
+        (static_cast<compat::u32>(bytes[offset + 1U]) << 8U) |
+        (static_cast<compat::u32>(bytes[offset + 2U]) << 16U) |
+        (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
+}
 
 constexpr std::
     array<std::array<compat::u32, kLegacyStandardModeCallbackSlotCount>, 9U>
@@ -365,6 +396,84 @@ const LegacyStandardModeForwardNode* index_legacy_standard_mode_forward_node(
         --count;
     } while (count != 0);
     return node;
+}
+
+LegacyStandardModeTextResolutionResult resolve_legacy_standard_mode_shared_text(
+    const compat::u16 text_index,
+    const std::span<const compat::u8> maps_payload,
+    const std::span<compat::u8, kLegacyStandardModeSharedTextCapacity>
+        destination
+) noexcept {
+    LegacyStandardModeTextResolutionResult result;
+    if (text_index == kSharedTextMissingIndex) {
+        destination[0U] = kMissingTextFirstByte;
+        destination[1U] = kMissingTextSecondByte;
+        destination[2U] = 0U;
+        result.status = LegacyStandardModeTextResolutionStatus::completed;
+        result.copied_byte_count = 2U;
+        result.formatter_return = 2;
+        result.used_missing_text = true;
+        return result;
+    }
+
+    if (!range_available(
+            maps_payload, kSharedTextDirectoryOffsetField, sizeof(compat::u32)
+        )) {
+        return result;
+    }
+    const compat::u32 table_offset =
+        read_u32_le(maps_payload, kSharedTextDirectoryOffsetField);
+    const compat::u32 table_entry_offset = table_offset +
+        static_cast<compat::u32>(text_index) *
+            static_cast<compat::u32>(sizeof(compat::u32));
+    if (!range_available(
+            maps_payload,
+            static_cast<std::size_t>(table_entry_offset),
+            sizeof(compat::u32)
+        )) {
+        return result;
+    }
+
+    compat::u32 source_offset =
+        read_u32_le(maps_payload, static_cast<std::size_t>(table_entry_offset));
+    std::size_t output_offset = 0U;
+    while (range_available(
+        maps_payload,
+        static_cast<std::size_t>(source_offset),
+        sizeof(compat::u16)
+    )) {
+        if (read_u16_le(
+                maps_payload, static_cast<std::size_t>(source_offset)
+            ) == kSharedTextTerminator) {
+            result.copied_byte_count = static_cast<compat::u32>(output_offset);
+            result.source_cursor_offset = source_offset;
+            if (output_offset >= destination.size()) {
+                result.status = LegacyStandardModeTextResolutionStatus::
+                    destination_overflow;
+                return result;
+            }
+            destination[output_offset] = 0U;
+            result.status = LegacyStandardModeTextResolutionStatus::completed;
+            return result;
+        }
+        if (output_offset >= destination.size()) {
+            result.status =
+                LegacyStandardModeTextResolutionStatus::destination_overflow;
+            result.copied_byte_count = static_cast<compat::u32>(output_offset);
+            result.source_cursor_offset = source_offset;
+            return result;
+        }
+        destination[output_offset] =
+            maps_payload[static_cast<std::size_t>(source_offset)];
+        ++output_offset;
+        ++source_offset;
+    }
+
+    result.status =
+        LegacyStandardModeTextResolutionStatus::text_terminator_not_found;
+    result.copied_byte_count = static_cast<compat::u32>(output_offset);
+    result.source_cursor_offset = source_offset;
+    return result;
 }
 
 LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(

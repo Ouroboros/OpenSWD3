@@ -104,6 +104,12 @@ target_link_libraries(
     openswd3_special_modes_legacy_initial_menu_tests
     PRIVATE openswd3_special_modes
 )
+if(EXISTS "${PROJECT_SOURCE_DIR}/../MAPS.DAT")
+    target_compile_definitions(
+        openswd3_special_modes_legacy_initial_menu_tests
+        PRIVATE OPENSWD3_GAME_DATA_ROOT="${PROJECT_SOURCE_DIR}/.."
+    )
+endif()
 
 add_test(
     NAME special_modes.legacy_initial_menu
@@ -3590,6 +3596,7 @@ openswd3_lock_shared_test_executable(
 # additional lock; synthetic tests and unrelated binaries remain parallel.
 set(openswd3_shared_real_asset_tests
     assets.startup_ui
+    special_modes.legacy_initial_menu
     resource_io.legacy_resource_databases_real
     rendering.legacy_image_command_stream_asset
     rendering.legacy_glyph_atlas_asset

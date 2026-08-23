@@ -3,9 +3,13 @@
 
 #include "test.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <utility>
 #include <vector>
 
@@ -31,7 +35,9 @@ using openswd3::special_modes::draw_legacy_standard_mode_ghost;
 using openswd3::special_modes::index_legacy_standard_mode_forward_node;
 using openswd3::special_modes::initialize_legacy_initial_menu;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
+using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
+using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
 using openswd3::special_modes::initialize_legacy_standard_mode_selector;
 using openswd3::special_modes::initialize_legacy_standard_special_modes;
 using openswd3::special_modes::kLegacyInitialMenuCommitCounter;
@@ -77,6 +83,7 @@ using openswd3::special_modes::LegacyStandardModeTransitionPorts;
 using openswd3::special_modes::LegacyStandardModeTransitionState;
 using openswd3::special_modes::LegacyStandardModeTransitionText;
 using openswd3::special_modes::LegacyStandardModeTransitionTextOwner;
+using openswd3::special_modes::LegacyStandardModeTextResolutionStatus;
 using openswd3::special_modes::LegacyStandardModeSelectorState;
 using openswd3::special_modes::LegacyStandardSpecialModeInitializationPorts;
 using openswd3::special_modes::LegacyStandardSpecialModePorts;
@@ -1158,6 +1165,161 @@ void test_standard_mode_forward_node_index(openswd3::test::Context& test) {
         "0x43B9C0 advances a finite count through cycles without cycle handling"
     );
 }
+
+void test_standard_mode_shared_text_resolution(openswd3::test::Context& test) {
+    const auto write_u32 =
+        [](auto& bytes, const std::size_t offset, const u32 value) {
+            bytes[offset] = static_cast<u8>(value);
+            bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+            bytes[offset + 2U] = static_cast<u8>(value >> 16U);
+            bytes[offset + 3U] = static_cast<u8>(value >> 24U);
+        };
+    std::array<u8, kLegacyStandardModeSharedTextCapacity> output{};
+    output.fill(0xA5U);
+
+    const auto missing = resolve_legacy_standard_mode_shared_text(
+        0xFFDCU, std::span<const u8>{}, output
+    );
+    test.expect_true(
+        missing.status == LegacyStandardModeTextResolutionStatus::completed &&
+            missing.used_missing_text && missing.copied_byte_count == 2U &&
+            missing.formatter_return == 2 && output[0U] == 0xB5U &&
+            output[1U] == 0x4CU && output[2U] == 0U && output[3U] == 0xA5U,
+        "0x43B9E0 FFDC writes the CP950 missing label without MAPS access"
+    );
+
+    std::array<u8, 0x100U> maps{};
+    write_u32(maps, 0x4CU, 0x60U);
+    write_u32(maps, 0x68U, 0x70U);
+    maps[0x70U] = static_cast<u8>('A');
+    maps[0x71U] = 0U;
+    maps[0x72U] = static_cast<u8>('B');
+    maps[0x73U] = static_cast<u8>('%');
+    maps[0x74U] = static_cast<u8>('Q');
+    output.fill(0xA5U);
+    const auto embedded_nul =
+        resolve_legacy_standard_mode_shared_text(2U, maps, output);
+    test.expect_true(
+        embedded_nul.status ==
+                LegacyStandardModeTextResolutionStatus::completed &&
+            !embedded_nul.used_missing_text &&
+            embedded_nul.copied_byte_count == 3U &&
+            embedded_nul.source_cursor_offset == 0x73U &&
+            embedded_nul.formatter_return == 0 && output[0U] == 'A' &&
+            output[1U] == 0U && output[2U] == 'B' && output[3U] == 0U &&
+            output[4U] == 0xA5U,
+        "0x43B9E0 copies embedded NUL bytes until the first unaligned %Q"
+    );
+
+    maps.fill(0U);
+    write_u32(maps, 0x4CU, 0xFFFC0008U);
+    write_u32(maps, 0x04U, 0x70U);
+    maps[0x70U] = static_cast<u8>('W');
+    maps[0x71U] = static_cast<u8>('%');
+    maps[0x72U] = static_cast<u8>('Q');
+    output.fill(0xA5U);
+    const auto wrapped =
+        resolve_legacy_standard_mode_shared_text(0xFFFFU, maps, output);
+    test.expect_true(
+        wrapped.status == LegacyStandardModeTextResolutionStatus::completed &&
+            wrapped.copied_byte_count == 1U &&
+            wrapped.source_cursor_offset == 0x71U && output[0U] == 'W' &&
+            output[1U] == 0U,
+        "0x43B9E0 preserves u32 directory-entry address wrapping"
+    );
+
+    std::array<u8, 0x120U> long_maps{};
+    write_u32(long_maps, 0x4CU, 0x60U);
+    write_u32(long_maps, 0x60U, 0x80U);
+    std::fill_n(
+        long_maps.begin() + 0x80U,
+        kLegacyStandardModeSharedTextCapacity,
+        static_cast<u8>('X')
+    );
+    long_maps[0x100U] = static_cast<u8>('%');
+    long_maps[0x101U] = static_cast<u8>('Q');
+    output.fill(0xA5U);
+    const auto overflow =
+        resolve_legacy_standard_mode_shared_text(0U, long_maps, output);
+    test.expect_true(
+        overflow.status ==
+                LegacyStandardModeTextResolutionStatus::destination_overflow &&
+            overflow.copied_byte_count ==
+                kLegacyStandardModeSharedTextCapacity &&
+            overflow.source_cursor_offset == 0x100U && output.front() == 'X' &&
+            output.back() == 'X',
+        "0x43B9E0 stops exactly where the original would NUL past byte 127"
+    );
+
+    std::array<u8, 0x80U> truncated{};
+    write_u32(truncated, 0x4CU, 0x60U);
+    write_u32(truncated, 0x60U, 0x7FU);
+    output.fill(0xA5U);
+    const auto unterminated =
+        resolve_legacy_standard_mode_shared_text(0U, truncated, output);
+    test.expect_true(
+        unterminated.status ==
+                LegacyStandardModeTextResolutionStatus::
+                    text_terminator_not_found &&
+            unterminated.copied_byte_count == 0U &&
+            unterminated.source_cursor_offset == 0x7FU &&
+            output.front() == 0xA5U,
+        "0x43B9E0 isolates the original out-of-range terminator read"
+    );
+
+    output.fill(0xA5U);
+    const std::array<u8, 0x4FU> short_maps{};
+    const auto missing_directory =
+        resolve_legacy_standard_mode_shared_text(0U, short_maps, output);
+    test.expect_true(
+        missing_directory.status ==
+                LegacyStandardModeTextResolutionStatus::
+                    maps_payload_out_of_range &&
+            output.front() == 0xA5U,
+        "0x43B9E0 isolates a missing MAPS +0x4C directory before writes"
+    );
+}
+
+#ifdef OPENSWD3_GAME_DATA_ROOT
+void test_standard_mode_shared_text_real_asset(openswd3::test::Context& test) {
+    const std::filesystem::path maps_path =
+        std::filesystem::path{OPENSWD3_GAME_DATA_ROOT} / "MAPS.DAT";
+    std::ifstream input{maps_path, std::ios::binary};
+    test.expect_true(input.is_open(), "0x43B9E0 real MAPS.DAT sample opens");
+    if (!input.is_open()) {
+        return;
+    }
+    const std::vector<u8> file_bytes{
+        std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{}
+    };
+    test.expect_equal(
+        file_bytes.size(),
+        std::size_t{162929U},
+        "0x43B9E0 real MAPS.DAT size remains locked"
+    );
+    if (file_bytes.size() < 0x200U) {
+        return;
+    }
+
+    const std::span<const u8> payload{
+        file_bytes.data() + 0x200U, file_bytes.size() - 0x200U
+    };
+    std::array<u8, kLegacyStandardModeSharedTextCapacity> output{};
+    output.fill(0xA5U);
+    const auto result =
+        resolve_legacy_standard_mode_shared_text(1U, payload, output);
+    constexpr std::array<u8, 11U> kExpected{
+        'N', 'u', 'l', 'l', 'i', 't', 'm', '6', ' ', ' ', 0U
+    };
+    test.expect_true(
+        result.status == LegacyStandardModeTextResolutionStatus::completed &&
+            result.copied_byte_count == 10U &&
+            result.source_cursor_offset == 0x0001F8E1U &&
+            std::equal(kExpected.begin(), kExpected.end(), output.begin()),
+        "0x43B9E0 resolves the locked MAPS index-one %Q text"
+    );
+}
+#endif
 
 void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     const auto hash_targets = [](const LegacyStandardModeCallbackState& state) {
@@ -2398,6 +2560,10 @@ int main() {
     test_standard_mode_forward_node_count(test);
     test_standard_mode_forward_head_advance(test);
     test_standard_mode_forward_node_index(test);
+    test_standard_mode_shared_text_resolution(test);
+#ifdef OPENSWD3_GAME_DATA_ROOT
+    test_standard_mode_shared_text_real_asset(test);
+#endif
     test_standard_mode_callback_binding(test);
     test_standard_mode_global_initialization(test);
     test_standard_mode_ghost_draw(test);
