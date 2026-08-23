@@ -817,6 +817,18 @@ LegacyStandardModeAvailabilityResult query_legacy_standard_mode_availability(
     return result;
 }
 
+LegacyStandardModeEntryAliasResult rebuild_legacy_standard_mode_entry_alias(
+    const compat::i32 window_offset, compat::i32& entry_alias_index
+) noexcept {
+    entry_alias_index = 0;
+    if (window_offset > 0) {
+        entry_alias_index = window_offset;
+    }
+    return LegacyStandardModeEntryAliasResult{
+        .legacy_alias_owner_pointer = &entry_alias_index,
+    };
+}
+
 LegacyStandardModePageRefreshResult refresh_legacy_standard_mode_page(
     LegacyStandardModeRuntimeInitializationState& state
 ) noexcept {
@@ -1072,9 +1084,9 @@ advance_legacy_standard_mode_runtime_cursor(
         state.local_cursor,
         state.visible_count
     ));
-    ports.rebuild_entry_alias(
-        state.window_offset, state.entries, state.entry_alias_index
-    );
+    static_cast<void>(rebuild_legacy_standard_mode_entry_alias(
+        state.window_offset, state.entry_alias_index
+    ));
     const LegacyStandardModePageRefreshResult page_result =
         refresh_legacy_standard_mode_page(state);
     if (page_result.status != LegacyStandardModePageRefreshStatus::completed) {
@@ -1108,9 +1120,9 @@ retreat_legacy_standard_mode_runtime_cursor(
     static_cast<void>(retreat_legacy_standard_mode_window_cursor(
         state.window_offset, state.local_cursor
     ));
-    ports.rebuild_entry_alias(
-        state.window_offset, state.entries, state.entry_alias_index
-    );
+    static_cast<void>(rebuild_legacy_standard_mode_entry_alias(
+        state.window_offset, state.entry_alias_index
+    ));
     const LegacyStandardModePageRefreshResult page_result =
         refresh_legacy_standard_mode_page(state);
     if (page_result.status != LegacyStandardModePageRefreshStatus::completed) {
@@ -1144,9 +1156,9 @@ retreat_legacy_standard_mode_runtime_page(
     static_cast<void>(retreat_legacy_standard_mode_window_page(
         state.window_offset, state.local_cursor, 0x0F
     ));
-    ports.rebuild_entry_alias(
-        state.window_offset, state.entries, state.entry_alias_index
-    );
+    static_cast<void>(rebuild_legacy_standard_mode_entry_alias(
+        state.window_offset, state.entry_alias_index
+    ));
     const LegacyStandardModePageRefreshResult page_result =
         refresh_legacy_standard_mode_page(state);
     if (page_result.status != LegacyStandardModePageRefreshStatus::completed) {
@@ -1192,9 +1204,9 @@ advance_legacy_standard_mode_runtime_mode(
             entry_initialization_stopped;
         return result;
     }
-    ports.rebuild_entry_alias(
-        state.window_offset, state.entries, state.entry_alias_index
-    );
+    static_cast<void>(rebuild_legacy_standard_mode_entry_alias(
+        state.window_offset, state.entry_alias_index
+    ));
     const LegacyStandardModePageRefreshResult page_result =
         refresh_legacy_standard_mode_page(state);
     if (page_result.status != LegacyStandardModePageRefreshStatus::completed) {
@@ -1407,9 +1419,9 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
                     0x0F
                 );
             result.legacy_return_value = page_result.legacy_return_value;
-            ports.rebuild_entry_alias(
-                state.window_offset, state.entries, state.entry_alias_index
-            );
+            static_cast<void>(rebuild_legacy_standard_mode_entry_alias(
+                state.window_offset, state.entry_alias_index
+            ));
             const LegacyStandardModePageRefreshResult refresh_result =
                 refresh_legacy_standard_mode_page(state);
             if (refresh_result.status !=

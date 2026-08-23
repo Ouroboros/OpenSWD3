@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v462
+版本：v463
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043CC00`
+当前步骤：模块9 · 闭环`0x0043CC20`
 
 ## 0. 执行约定
 
@@ -3397,9 +3397,18 @@ B7 P0 有限收口完成。
     `45af9d23d04ae8fe96324b1a3d52bf5c8610b0ecb97619feaea414d8c9832f3e`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式entry alias重建`0x0043CC00`闭环。LST范围`0x0043CC00..0x0043CC1C`，无callee，
+    六个caller覆盖C520/C590/C3C0 chunk/C670/`0x00446420` chunk/C760。先把entry base写入alias；
+    signed offset大于0才逐项加4，非正值保持base。EAX始终返回alias owner指针。typed index等价为
+    `offset > 0 ? offset : 0`，结果以`i32*`表达owner；正`INT_MAX`不提前钳制，真正越界留给CBD0
+    原解引用点。全部已关闭caller移除alias重建port并直接回接。定向UT覆盖`-7/0/7/INT_MAX`、
+    owner返回和既有CC00→CBD0链。workpack连续两轮稳定为`38/227`，SHA256为
+    `fd99444cb9fe7102c3218207b6361d26c7b0a1933bd04a6bcf5d68fe72ef4a5c`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`37/227`，下一单元为`0x0043CC00`。
+进行中，正式进度为`38/227`，下一单元为`0x0043CC20`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043CC00`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043CC20`，继续更新workpack、证据和完整验证门。

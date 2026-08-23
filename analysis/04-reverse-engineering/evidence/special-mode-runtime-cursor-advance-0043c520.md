@@ -24,7 +24,7 @@ LST有三个运行时callsite、两个caller：
 5. 重新读取mode flags，只对低字节OR `0x30`；等价于整个u32 OR `0x30`。
 6. 调用sample `0x2E`与当前sample handle，并返回sample调用EAX。
 
-`0x0043BB80`的指针/整数联合EAX在本函数中立即被后续载入和call覆盖，不是`0x0043C520`最终返回。page刷新已直接复用关闭的`0x0043CBD0`typed helper；未关闭的alias重建、entry消费和sample播放继续由共享窄port隔离。
+`0x0043BB80`的指针/整数联合EAX在本函数中立即被后续载入和call覆盖，不是`0x0043C520`最终返回。alias重建与page刷新已分别直接复用关闭的`0x0043CC00`、`0x0043CBD0`typed helper；未关闭的entry消费和sample播放继续由共享窄port隔离。
 
 ## 3. typed边界与caller回接
 

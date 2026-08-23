@@ -728,6 +728,10 @@ enum class LegacyStandardModeEntryInitializationStatus : compat::u8 {
     loaded_text_out_of_range,
 };
 
+struct LegacyStandardModeEntryAliasResult {
+    compat::i32* legacy_alias_owner_pointer{};
+};
+
 enum class LegacyStandardModePageRefreshStatus : compat::u8 {
     completed,
     entry_alias_out_of_range,
@@ -888,11 +892,6 @@ class LegacyStandardModeInputDispatchPorts
     : public LegacyStandardModeEntryInitializationPorts {
 public:
     ~LegacyStandardModeInputDispatchPorts() override = default;
-    virtual void rebuild_entry_alias(
-        compat::i32 window_offset,
-        std::span<const compat::u32> entries,
-        compat::i32& entry_alias_index
-    ) noexcept = 0;
     virtual void consume_entry(compat::u32 entry) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     play_sample(compat::u16 sample_id, compat::u32 sample_handle) noexcept = 0;
@@ -1161,6 +1160,12 @@ initialize_legacy_standard_mode_dialog_setup(
 query_legacy_standard_mode_availability(
     compat::i32 record_index,
     std::span<const LegacyStandardModeAvailabilityRecord> records
+) noexcept;
+
+// sub_43CC00: point the entry alias at base plus a positive signed offset.
+[[nodiscard]] LegacyStandardModeEntryAliasResult
+rebuild_legacy_standard_mode_entry_alias(
+    compat::i32 window_offset, compat::i32& entry_alias_index
 ) noexcept;
 
 // sub_43CBD0: count at most fifteen entries from the active alias pointer.

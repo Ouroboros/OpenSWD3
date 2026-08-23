@@ -54,6 +54,7 @@ using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::
     kLegacyStandardSpecialModeInitializationRecordCount;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
+using openswd3::special_modes::rebuild_legacy_standard_mode_entry_alias;
 using openswd3::special_modes::refresh_legacy_standard_mode_page;
 using openswd3::special_modes::render_legacy_standard_mode_runtime;
 using openswd3::special_modes::query_legacy_standard_mode_availability;
@@ -2062,6 +2063,30 @@ void test_standard_mode_availability(openswd3::test::Context& test) {
     }
 }
 
+void test_standard_mode_entry_alias(openswd3::test::Context& test) {
+    struct Case {
+        i32 window_offset{};
+        i32 expected_alias{};
+    };
+    constexpr std::array cases{
+        Case{-7, 0},
+        Case{0, 0},
+        Case{7, 7},
+        Case{std::numeric_limits<i32>::max(), std::numeric_limits<i32>::max()},
+    };
+    for (const auto& sample : cases) {
+        i32 entry_alias_index = 99;
+        const auto result = rebuild_legacy_standard_mode_entry_alias(
+            sample.window_offset, entry_alias_index
+        );
+        test.expect_true(
+            entry_alias_index == sample.expected_alias &&
+                result.legacy_alias_owner_pointer == &entry_alias_index,
+            "0x43CC00 writes base for nonpositive offsets or base-plus-offset and returns owner"
+        );
+    }
+}
+
 void test_standard_mode_page_refresh(openswd3::test::Context& test) {
     {
         LegacyStandardModeRuntimeInitializationState state;
@@ -2588,7 +2613,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
     class DispatchPorts final : public LegacyStandardModeInputDispatchPorts {
     public:
         enum class Event : u8 {
-            alias_rebuild,
             entry_consume,
             sample_play,
         };
@@ -2612,15 +2636,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         load_record(const std::span<u8>, const u16) noexcept override {
             ++entry_load_count;
             return false;
-        }
-        void rebuild_entry_alias(
-            const i32 window_offset,
-            const std::span<const u32> entries,
-            i32& entry_alias_index
-        ) noexcept override {
-            events.push_back(Event::alias_rebuild);
-            alias_entry_count = entries.size();
-            entry_alias_index = window_offset;
         }
         void consume_entry(const u32 entry) noexcept override {
             events.push_back(Event::entry_consume);
@@ -2651,7 +2666,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         std::vector<Event> events;
         std::vector<ReleaseEvent> releases;
         std::vector<u32> released_record_tokens;
-        std::size_t alias_entry_count{};
         u32 consumed_entry{};
         std::vector<u32> consumed_entries;
         i8 classification_value{};
@@ -2694,7 +2708,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.played_sample_handle == 0x13572468U &&
                 ports.events ==
                     std::vector{
-                        DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -2719,10 +2732,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                         selected_entry_out_of_range &&
                 state.local_cursor == 1 && state.window_offset == 63 &&
                 state.entry_alias_index == 63 && state.mode_flags == 1 &&
-                ports.events ==
-                    std::vector{
-                        DispatchPorts::Event::alias_rebuild,
-                    },
+                ports.events.empty(),
             "0x43C520 typed-stops at its original selected-entry read"
         );
     }
@@ -2748,7 +2758,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.played_sample_handle == 0x31415926U &&
                 ports.events ==
                     std::vector{
-                        DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -2771,10 +2780,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                         selected_entry_out_of_range &&
                 state.window_offset == 63 && state.local_cursor == 1 &&
                 state.entry_alias_index == 63 && state.mode_flags == 0x30 &&
-                ports.events ==
-                    std::vector{
-                        DispatchPorts::Event::alias_rebuild,
-                    },
+                ports.events.empty(),
             "0x43C590 typed-stops at its original selected-entry read"
         );
     }
@@ -2800,7 +2806,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.played_sample_handle == 0x16180339U &&
                 ports.events ==
                     std::vector{
-                        DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -2841,11 +2846,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                         page_refresh_stopped &&
                 state.window_offset == 64 && state.local_cursor == 0 &&
                 state.entry_alias_index == 64 && state.visible_count == 0 &&
-                state.mode_flags == 0x30 &&
-                ports.events ==
-                    std::vector{
-                        DispatchPorts::Event::alias_rebuild,
-                    },
+                state.mode_flags == 0x30 && ports.events.empty(),
             "0x43C670 propagates CBD0 typed-stop before its later selected-entry read"
         );
     }
@@ -2908,7 +2909,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                       std::vector<u32>{0x11224488U} &&
                   ports.events ==
                       std::vector{
-                          DispatchPorts::Event::alias_rebuild,
                           DispatchPorts::Event::entry_consume,
                           DispatchPorts::Event::sample_play,
                       })),
@@ -2934,7 +2934,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.consumed_entry == 1U &&
                 ports.events ==
                     std::vector{
-                        DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -2968,7 +2967,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.played_sample_handle == 0x10203040U &&
                 ports.events ==
                     std::vector{
-                        DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -3007,7 +3005,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         const std::vector<DispatchPorts::Event> expected_events =
             sample.refreshed
             ? std::vector{
-                  DispatchPorts::Event::alias_rebuild,
                   DispatchPorts::Event::entry_consume,
                   DispatchPorts::Event::sample_play,
                   DispatchPorts::Event::sample_play,
@@ -3073,7 +3070,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 state.window_offset == 15 && state.local_cursor == 0 &&
                 state.visible_count == 0 && state.entry_alias_index == 15 &&
                 static_cast<u32>(state.mode_flags) == 0xABCD0033U &&
-                ports.alias_entry_count == 64U &&
                 ports.consumed_entries ==
                     std::vector<u32>{
                         0x11223344U,
@@ -3084,13 +3080,10 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.played_sample_handle == 0x87654321U &&
                 ports.events ==
                     std::vector{
-                        DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
-                        DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
-                        DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -3129,7 +3122,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.consumed_entry == 0x55667788U &&
                 ports.events ==
                     std::vector{
-                        DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -3204,11 +3196,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                         selected_entry_out_of_range &&
                 result.path == LegacyStandardModeInputDispatchPath::no_action &&
                 !result.upper_control_dispatched && state.window_offset == 60 &&
-                state.mode_flags == 1 &&
-                ports.events ==
-                    std::vector{
-                        DispatchPorts::Event::alias_rebuild,
-                    },
+                state.mode_flags == 1 && ports.events.empty(),
             "0x43C3C0 typed-stops at the original selected-entry table read"
         );
     }
@@ -5650,6 +5638,7 @@ int main() {
     test_standard_mode_filtered_record_build(test);
     test_standard_mode_dialog_setup(test);
     test_standard_mode_availability(test);
+    test_standard_mode_entry_alias(test);
     test_standard_mode_page_refresh(test);
     test_standard_mode_entry_initialization(test);
     test_standard_mode_runtime_initialization(test);

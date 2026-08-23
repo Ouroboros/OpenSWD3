@@ -24,7 +24,7 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`外置chunk在`0x0043
 4. u32回绕相加offset与cursor并读取entry，调用`0x0043CEF0`。
 5. 播放sample `0x2E`并返回sample EAX。
 
-本函数不改mode flags。entry初始化与page刷新已分别直接复用`0x0043C9C0`、`0x0043CBD0`typed helper；未关闭的classification/status数据库、record load/release、alias/consume/sample继续由共享typed port隔离。
+本函数不改mode flags。entry初始化、alias重建与page刷新已分别直接复用`0x0043C9C0`、`0x0043CC00`、`0x0043CBD0`typed helper；未关闭的classification/status数据库、record load/release、consume/sample继续由共享typed port隔离。
 
 ## 3. typed边界与caller回接
 
