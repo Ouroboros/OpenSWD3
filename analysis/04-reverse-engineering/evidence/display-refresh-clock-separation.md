@@ -70,7 +70,9 @@ world_motion_interpolation = false
 
 只有配置显式启用后，`compose_legacy_world_runtime_frame`才在任何stage执行前捕获只读视觉快照。快照拥有当帧背景视图、空间索引、composition相机、完整角色记录、角色绘制计数与闪色字段，以及空间音频的两个数组副本。presentation后的玩家对齐可能改写live角色与空间链，因此插值重绘只读取快照索引，不读取post-frame后的链。捕获失败只禁用本次插值，不改变原世界帧结果。
 
-每个成功普通世界帧把旧current移动为previous，并把新快照提交为current。插值时间原点取该逻辑帧进入frame preparation前的`SDL_GetTicksNS()`，不取world composition、presentation及纯运动底图全部完成后的时间；因此原帧渲染耗时也计入35/70ms区间，不会在下一逻辑tick前残留尚未走完的插值尾段。显示deadline使用`elapsed / frame_interval`在previous与current之间计算相机和所有角色的世界坐标；比例在当前逻辑间隔处钳制，不外推。单坐标跨度超过128像素时按传送处理并直接使用current，避免跨地图或瞬移扫屏。角色数量或GUID顺序变化时整帧回退current presentation。
+每个成功普通世界帧维护older、previous和current三份快照。插值时间原点取该逻辑帧进入frame preparation前的`SDL_GetTicksNS()`，不取world composition、presentation及纯运动底图全部完成后的时间；因此原帧渲染耗时也计入35/70ms区间。镜头与不受剧情路径控制的当前角色从current立即开始显示；只有older到previous与previous到current的单坐标速度完全一致且增量不超过128像素时，才向下一逻辑tick投影，并在一个逻辑间隔处钳制。启动、停止、转向、变速、传送或历史不足均直接snap current，避免原previous到current方案固定落后一个tick的拖拉感。
+
+非受控角色以及带`0x00008000`剧情路径位的角色使用独立显示轨迹。逻辑坐标发生普通变化时，从当下已采样的16.16视觉坐标连续前往新的逻辑目标；持续时间取`(action.wait_remaining + 1) * frame_interval`并限制为最多32个逻辑tick。后续逻辑快照即使坐标保持不变，显示轨迹仍继续推进，因此原路径“移动一次、等待若干action tick”的节奏不会在第一个35ms后停住。单坐标跨度超过128像素仍按传送直接snap。X坐标使用单调就近量化，保证移动过程中不因相邻像素时域采样而回退；Y坐标使用256相位bit-reversal低差异量化，在240Hz下以相邻像素占空比分布表达分数位置。以上状态只存在于显示副本，不写回live角色或路径owner。地图、角色数量或GUID顺序变化时整帧回退current presentation并重置显示轨迹。
 
 插值不是两个framebuffer混色。SDL平台在独立显示deadline中：
 
@@ -80,7 +82,7 @@ world_motion_interpolation = false
 4. 对比current位置的纯运动底图与当帧完整primary surface。
 5. 仅把两者不同的current像素作为残差覆盖回插值底图，以保留对话、文字、光效、粒子、picture action和其他非运动层。
 
-重绘端口禁止音频、粒子和文字副作用；角色action、jitter及空间音频写入只发生在副本。TSW读取可复用资源缓存，但不推进游戏owner。该路径因此会生成真正不同坐标的世界显示子帧，同时不执行输入、碰撞、路径、剧情、RNG、动作更新或音频维护。角色动画帧仍取current逻辑状态；本阶段只解决镜头与人物位移的平滑度。previous到current的标准插值会引入一个逻辑帧的显示延迟，以换取不预测、不外推且连续的运动。
+重绘端口禁止音频、粒子和文字副作用；角色action、jitter及空间音频写入只发生在副本。TSW读取可复用资源缓存，但不推进游戏owner。该路径因此会生成真正不同坐标的世界显示子帧，同时不执行输入、碰撞、路径、剧情、RNG、动作更新或音频维护。角色动画帧仍取current逻辑状态；本阶段只改变镜头与人物位移的显示采样。标准previous到current插值仅保留为纯函数基线；SDL实际运行路径使用低延迟镜头/受控角色投影与action周期剧情/NPC轨迹的混合方案。
 
 ## 6. 验证
 
@@ -98,8 +100,11 @@ world_motion_interpolation = false
 - composition入口在任一stage前复制视觉快照。
 - 插值时间原点绑定accepted逻辑帧，而不是帧渲染完成时刻。
 - 半间隔相机与正负角色坐标插值、迟到钳制及无外推。
-- 传送坐标直接snap，普通角色坐标仍可插值。
-- 地图或角色身份不兼容时拒绝跨场景插值。
+- 稳定速度从current向下一tick投影，启停、转向、变速和历史不足snap current。
+- 非受控角色与bit15剧情路径角色不要求三帧稳定速度。
+- action wait为3时，4像素路径步长在4个逻辑tick内连续到达目标；中间保持坐标的逻辑快照不会中断轨迹。
+- 水平半像素连续256次采样均保持单调前进侧；垂直半像素在256相位中精确分布128次上侧采样。
+- 传送坐标直接snap，地图或角色身份不兼容时拒绝跨场景插值并重置轨迹。
 - current底图与完整帧的残差仅覆盖非运动像素。
 
-Linux core完整门`188/188`、Linux app完整门`194/194`通过；SDL应用目标成功链接。按用户阶段门禁，本工作包不单独执行Windows BUILD。
+Linux core完整门`188/188`、Linux app完整门`194/194`通过；Windows `cmd.exe /c build.bat app`通过`194/194`并生成Debug应用。用户在240 FPS下连续实测：action周期轨迹版相比previous/current及稳定速度版“效果好了很多”，纵向移动较平滑；移除X轴时域回退后横向明显改善。最终反馈为“虽然比原生效果差点，目前来说还能接受”，据此关闭插值观感门禁并恢复原执行计划。
