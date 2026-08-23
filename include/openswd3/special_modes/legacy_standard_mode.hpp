@@ -547,6 +547,12 @@ struct LegacyStandardModeInputStatusResult {
     compat::i32 legacy_return_value{};
 };
 
+struct LegacyStandardModeWindowCursorResult {
+    compat::i32 legacy_return_value{};
+    bool cursor_rewritten{};
+    bool window_offset_advanced{};
+};
+
 // sub_43B980: count one intrusive forward chain through its offset-zero links.
 [[nodiscard]] compat::u32 count_legacy_standard_mode_forward_nodes(
     const LegacyStandardModeForwardNode* head
@@ -581,6 +587,15 @@ compose_legacy_standard_mode_input_status(
     compat::i32 first_state,
     compat::i32 second_gate,
     compat::i32 second_state
+) noexcept;
+
+// sub_43BB40: clamp a local cursor and advance its window offset when possible.
+[[nodiscard]] LegacyStandardModeWindowCursorResult
+adjust_legacy_standard_mode_window_cursor(
+    compat::i32 total_count,
+    compat::i32& window_offset,
+    compat::i32& local_cursor,
+    compat::i32 visible_count
 ) noexcept;
 
 // sub_43B080: update and draw one standard-mode ghost action.

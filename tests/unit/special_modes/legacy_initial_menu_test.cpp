@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -28,6 +29,7 @@ using openswd3::input_time_rng::LegacyInputRecord;
 using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
+using openswd3::special_modes::adjust_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
 using openswd3::special_modes::compose_legacy_standard_mode_input_status;
@@ -1325,6 +1327,73 @@ void test_standard_mode_input_status_composition(
     }
 }
 
+void test_standard_mode_window_cursor_adjustment(
+    openswd3::test::Context& test
+) {
+    struct Case {
+        i32 total_count{};
+        i32 initial_window_offset{};
+        i32 initial_local_cursor{};
+        i32 visible_count{};
+        i32 expected_window_offset{};
+        i32 expected_local_cursor{};
+        i32 expected_return{};
+        bool expected_cursor_rewritten{};
+        bool expected_window_offset_advanced{};
+    };
+    constexpr std::array cases{
+        Case{10, 2, 1, 3, 2, 1, 1, false, false},
+        Case{10, 2, -1, 0, 2, -1, -1, false, false},
+        Case{10, 2, 0, 0, 3, 0, 3, true, true},
+        Case{10, 2, 1, 1, 3, 0, 3, true, true},
+        Case{10, 2, 5, 3, 3, 2, 3, true, true},
+        Case{5, 2, 3, 3, 2, 2, 2, true, false},
+        Case{-1, -2, 0, -1, -1, 0, -1, true, true},
+        Case{
+            0,
+            std::numeric_limits<i32>::max(),
+            1,
+            1,
+            std::numeric_limits<i32>::min(),
+            0,
+            std::numeric_limits<i32>::min(),
+            true,
+            true,
+        },
+        Case{
+            std::numeric_limits<i32>::min(),
+            std::numeric_limits<i32>::max(),
+            1,
+            1,
+            std::numeric_limits<i32>::max(),
+            0,
+            std::numeric_limits<i32>::max(),
+            true,
+            false,
+        },
+    };
+
+    for (const auto& sample : cases) {
+        i32 window_offset = sample.initial_window_offset;
+        i32 local_cursor = sample.initial_local_cursor;
+        const auto result = adjust_legacy_standard_mode_window_cursor(
+            sample.total_count,
+            window_offset,
+            local_cursor,
+            sample.visible_count
+        );
+        test.expect_true(
+            window_offset == sample.expected_window_offset &&
+                local_cursor == sample.expected_local_cursor &&
+                result.legacy_return_value == sample.expected_return &&
+                result.cursor_rewritten == sample.expected_cursor_rewritten &&
+                result.window_offset_advanced ==
+                    sample.expected_window_offset_advanced,
+            "0x43BB40 preserves signed cursor clamping, wrapped advance and legacy EAX"
+        );
+    }
+}
+
 #ifdef OPENSWD3_GAME_DATA_ROOT
 void test_standard_mode_shared_text_real_asset(openswd3::test::Context& test) {
     const std::filesystem::path maps_path =
@@ -2607,6 +2676,7 @@ int main() {
     test_standard_mode_forward_node_index(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
+    test_standard_mode_window_cursor_adjustment(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT
     test_standard_mode_shared_text_real_asset(test);
 #endif

@@ -516,6 +516,40 @@ LegacyStandardModeInputStatusResult compose_legacy_standard_mode_input_status(
     return result;
 }
 
+LegacyStandardModeWindowCursorResult adjust_legacy_standard_mode_window_cursor(
+    const compat::i32 total_count,
+    compat::i32& window_offset,
+    compat::i32& local_cursor,
+    const compat::i32 visible_count
+) noexcept {
+    LegacyStandardModeWindowCursorResult result{
+        .legacy_return_value = local_cursor,
+    };
+    if (local_cursor < visible_count) {
+        return result;
+    }
+
+    local_cursor = 0;
+    if (visible_count >= 1) {
+        local_cursor = visible_count - 1;
+    }
+    result.cursor_rewritten = true;
+
+    result.legacy_return_value = window_offset;
+    const compat::u32 wrapped_end = std::bit_cast<compat::u32>(visible_count) +
+        std::bit_cast<compat::u32>(window_offset);
+    if (std::bit_cast<compat::i32>(wrapped_end) >= total_count) {
+        return result;
+    }
+
+    window_offset = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(window_offset) + 1U
+    );
+    result.legacy_return_value = window_offset;
+    result.window_offset_advanced = true;
+    return result;
+}
+
 LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,
     asset_runtime::LegacyActionRecord& record,
