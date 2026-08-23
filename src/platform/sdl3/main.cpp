@@ -4895,7 +4895,132 @@ public:
 
             void invoke_post_update_callback() override {}
 
-            void prepare_mode_panel() override {}
+            void prepare_mode_panel() override {
+                class PanelPorts final : public openswd3::special_modes::
+                                             LegacyStandardModePanelPorts {
+                public:
+                    explicit PanelPorts(SdlSmokeIdlePorts& owner) noexcept
+                        : owner_(owner) {}
+
+                    openswd3::compat::i32 story_flag(
+                        const openswd3::compat::u32 flag_index
+                    ) override {
+                        if (flag_index >=
+                            owner_.world_story_vm_state_.flags.size()) {
+                            return 0;
+                        }
+                        return static_cast<openswd3::compat::i32>(
+                            owner_.world_story_vm_state_.flags[flag_index]
+                        );
+                    }
+
+                    void draw_ghost_action(
+                        openswd3::asset_runtime::LegacyActionRecord&,
+                        openswd3::compat::i32,
+                        openswd3::compat::i32,
+                        openswd3::compat::u32
+                    ) override {}
+
+                    void draw_terminal_action(
+                        openswd3::asset_runtime::LegacyActionRecord& record,
+                        const openswd3::compat::i32 x,
+                        const openswd3::compat::i32 y
+                    ) override {
+                        auto ports = action_ports();
+                        const auto result =
+                            openswd3::asset_runtime::update_draw_legacy_action(
+                                record, x, y, ports
+                            );
+                        if (result.status !=
+                            openswd3::asset_runtime::LegacyActionDrawStatus::
+                                ready) {
+                            static_cast<void>(report_error(
+                                "standard special-mode terminal action failed"
+                            ));
+                        }
+                    }
+
+                    bool update_terminal_action(
+                        openswd3::asset_runtime::LegacyActionRecord& record
+                    ) override {
+                        auto ports = action_ports();
+                        return ports.update_action_record(record) ==
+                            openswd3::asset_runtime::LegacyActionUpdateStatus::
+                                completed;
+                    }
+
+                    bool resolve_terminal_frame(
+                        const openswd3::asset_runtime::LegacyActionRecord&
+                            record,
+                        openswd3::special_modes::LegacyStandardModePanelFrame&
+                            frame
+                    ) override {
+                        auto ports = action_ports();
+                        openswd3::rendering::LegacyFramePiece piece;
+                        if (!ports.load_frame_piece(
+                                record.field_4a, record.field_4c, piece
+                            )) {
+                            return false;
+                        }
+                        frame.source_word = 0U;
+                        frame.width = piece.width;
+                        frame.height = piece.height;
+                        resolved_frame_ = piece;
+                        return true;
+                    }
+
+                    void draw_terminal_frame(
+                        const openswd3::special_modes::
+                            LegacyStandardModePanelFrame&,
+                        const openswd3::compat::i32 x,
+                        const openswd3::compat::i32 y,
+                        const openswd3::compat::u32 flags,
+                        const openswd3::compat::u32 opacity
+                    ) override {
+                        if (!resolved_frame_.has_value()) {
+                            return;
+                        }
+                        auto ports = action_ports();
+                        static_cast<void>(ports.draw_frame_piece(
+                            *resolved_frame_, x, y, flags, opacity
+                        ));
+                    }
+
+                private:
+                    openswd3::asset_runtime::LegacyActionDrawRuntimePorts
+                    action_ports() {
+                        return {
+                            owner_.action_updater_,
+                            owner_.tsw_runtime_,
+                            owner_.game_framebuffer_,
+                            owner_.world_raster_,
+                            owner_.world_effects_,
+                            owner_.world_jitter_,
+                        };
+                    }
+
+                    SdlSmokeIdlePorts& owner_;
+                    std::optional<openswd3::rendering::LegacyFramePiece>
+                        resolved_frame_;
+                };
+
+                PanelPorts ports{owner_};
+                auto& selector_state =
+                    owner_.legacy_standard_mode_state_.selector_state;
+                auto& records =
+                    owner_.legacy_standard_mode_state_.initialization_records;
+                static_cast<void>(
+                    openswd3::special_modes::prepare_legacy_standard_mode_panel(
+                        selector_state.render_state.panel_state,
+                        owner_.legacy_standard_mode_state_.frame_counter,
+                        selector_state.secondary_word,
+                        selector_state.derived_index,
+                        records[1U],
+                        records[15U],
+                        ports
+                    )
+                );
+            }
 
             void draw_transition(openswd3::compat::u32) override {}
 

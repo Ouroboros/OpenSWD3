@@ -109,12 +109,65 @@ struct LegacyStandardModeInputResult {
     compat::u32 exit_callback_count{};
 };
 
+struct LegacyStandardModePanelFrame {
+    compat::u32 source_word{};
+    compat::u16 width{};
+    compat::u16 height{};
+
+    bool operator==(const LegacyStandardModePanelFrame&) const = default;
+};
+
+struct LegacyStandardModePanelState {
+    compat::u32 step{};
+    compat::u32 resolved_source_word{};
+    std::array<compat::u32, 3U> signed_step_deltas{};
+};
+
+class LegacyStandardModePanelPorts {
+public:
+    virtual ~LegacyStandardModePanelPorts() = default;
+
+    [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
+    virtual void draw_ghost_action(
+        asset_runtime::LegacyActionRecord& record,
+        compat::i32 x,
+        compat::i32 y,
+        compat::u32 flags
+    ) = 0;
+    virtual void draw_terminal_action(
+        asset_runtime::LegacyActionRecord& record, compat::i32 x, compat::i32 y
+    ) = 0;
+    [[nodiscard]] virtual bool
+    update_terminal_action(asset_runtime::LegacyActionRecord& record) = 0;
+    [[nodiscard]] virtual bool resolve_terminal_frame(
+        const asset_runtime::LegacyActionRecord& record,
+        LegacyStandardModePanelFrame& frame
+    ) = 0;
+    virtual void draw_terminal_frame(
+        const LegacyStandardModePanelFrame& frame,
+        compat::i32 x,
+        compat::i32 y,
+        compat::u32 flags,
+        compat::u32 opacity
+    ) = 0;
+};
+
+struct LegacyStandardModePanelResult {
+    compat::u32 story_flag_query_count{};
+    compat::u32 ghost_draw_count{};
+    compat::u32 terminal_action_draw_count{};
+    compat::u32 terminal_frame_draw_count{};
+    bool stopped_after_update_failure{};
+    bool stopped_after_frame_failure{};
+};
+
 enum class LegacyStandardModeRenderRecord : compat::u8 {
     primary,
     transition,
 };
 
 struct LegacyStandardModeRenderState {
+    LegacyStandardModePanelState panel_state{};
     compat::u32 transition_extent{};
     compat::u32 captured_surface_token{};
     compat::u32 blocking_overlay_active{};
@@ -261,6 +314,17 @@ struct LegacyStandardSpecialModeFrameResult {
 initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeState& state,
     LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
+
+// sub_43A880: prepare and draw the standard-mode panel action.
+[[nodiscard]] LegacyStandardModePanelResult prepare_legacy_standard_mode_panel(
+    LegacyStandardModePanelState& state,
+    compat::u32 frame_counter,
+    compat::u16& secondary_word,
+    compat::u16& derived_index,
+    asset_runtime::LegacyActionRecord& ghost_record,
+    asset_runtime::LegacyActionRecord& terminal_record,
+    LegacyStandardModePanelPorts& ports
 ) noexcept;
 
 // sub_43A610: compose and present one standard-mode frame.

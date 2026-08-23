@@ -54,6 +54,16 @@ constexpr compat::u32 kCursorFrameIndex = 0x0DU;
 constexpr compat::i32 kSecondarySurfaceX = 0x027C;
 constexpr compat::i32 kSecondarySurfaceY = 0x01CC;
 constexpr compat::u32 kLogicalFramePixelCount = 0x0004B000U;
+constexpr compat::u32 kPanelMaximumStep = 0x10U;
+constexpr compat::u32 kPanelMinimumStep = 8U;
+constexpr compat::u32 kPanelDefaultSpacing = 0x50U;
+constexpr compat::u32 kPanelFlagSpacing = 0x46U;
+constexpr compat::u32 kPanelGhostVariant = 2U;
+constexpr compat::u32 kPanelFlagGhostVariant = 3U;
+constexpr compat::u32 kPanelActionId = 0x232AU;
+constexpr compat::u32 kPanelTerminalY = 0x0AU;
+constexpr compat::u32 kPanelBaseX = 0xDCU;
+constexpr compat::u32 kPanelDerivedBase = 0x0BU;
 
 constexpr std::size_t kPrimaryRecord = 0U;
 constexpr std::size_t kFlagVariantRecord = 1U;
@@ -124,6 +134,118 @@ arithmetic_shift_right_one(const compat::u32 value) noexcept {
 }
 
 }  // namespace
+
+LegacyStandardModePanelResult prepare_legacy_standard_mode_panel(
+    LegacyStandardModePanelState& state,
+    const compat::u32 frame_counter,
+    compat::u16& secondary_word,
+    compat::u16& derived_index,
+    asset_runtime::LegacyActionRecord& ghost_record,
+    asset_runtime::LegacyActionRecord& terminal_record,
+    LegacyStandardModePanelPorts& ports
+) noexcept {
+    LegacyStandardModePanelResult result;
+    compat::u32 step = frame_counter == kRenderEntryFrame ? 0U : state.step;
+    if (secondary_word == kSecondaryPanelMode) {
+        ++step;
+        state.step = step;
+        if (std::bit_cast<compat::i32>(step) >
+            static_cast<compat::i32>(kPanelMaximumStep)) {
+            state.step = kPanelMaximumStep;
+        }
+    } else {
+        --step;
+        state.step = step;
+        if (std::bit_cast<compat::i32>(step) <
+            static_cast<compat::i32>(kPanelMinimumStep)) {
+            state.step = kPanelMinimumStep;
+        }
+    }
+
+    compat::u32 spacing = kPanelDefaultSpacing;
+    const compat::i32 spacing_flag = ports.story_flag(kStoryFlagIndex);
+    ++result.story_flag_query_count;
+    if (spacing_flag == 1) {
+        spacing = kPanelFlagSpacing;
+    }
+
+    ghost_record.variant_delta = kPanelGhostVariant;
+    const compat::i32 ghost_flag = ports.story_flag(kStoryFlagIndex);
+    ++result.story_flag_query_count;
+    if (ghost_flag == 1) {
+        ghost_record.variant_delta = kPanelFlagGhostVariant;
+    }
+    ports.draw_ghost_action(ghost_record, 0, 9, state.step);
+    ++result.ghost_draw_count;
+    ghost_record.mode_flags &= 0x80000003U;
+
+    terminal_record.action_id = kPanelActionId;
+    if (state.step == kPanelMaximumStep) {
+        terminal_record.base_variant =
+            static_cast<compat::u32>(derived_index) + 5U;
+        const compat::i32 terminal_flag = ports.story_flag(kStoryFlagIndex);
+        ++result.story_flag_query_count;
+        if (terminal_flag == 1) {
+            if (terminal_record.base_variant == 0x14U) {
+                terminal_record.base_variant = 0x15U;
+            } else if (terminal_record.base_variant == 0x15U) {
+                terminal_record.base_variant = 0x14U;
+            }
+        }
+
+        const compat::u32 x_bits =
+            (static_cast<compat::u32>(derived_index) - kPanelDerivedBase) *
+                spacing +
+            kPanelBaseX;
+        ports.draw_terminal_action(
+            terminal_record,
+            std::bit_cast<compat::i32>(x_bits),
+            static_cast<compat::i32>(kPanelTerminalY)
+        );
+        ++result.terminal_action_draw_count;
+        return result;
+    }
+
+    terminal_record.base_variant =
+        static_cast<compat::u32>(derived_index) + 0x19U;
+    const compat::i32 terminal_flag = ports.story_flag(kStoryFlagIndex);
+    ++result.story_flag_query_count;
+    if (terminal_flag == 1) {
+        if (terminal_record.base_variant == 0x28U) {
+            terminal_record.base_variant = 0x29U;
+        } else if (terminal_record.base_variant == 0x29U) {
+            terminal_record.base_variant = 0x28U;
+        }
+    }
+
+    if (!ports.update_terminal_action(terminal_record)) {
+        result.stopped_after_update_failure = true;
+        return result;
+    }
+    LegacyStandardModePanelFrame frame;
+    if (!ports.resolve_terminal_frame(terminal_record, frame)) {
+        result.stopped_after_frame_failure = true;
+        return result;
+    }
+    state.resolved_source_word = frame.source_word;
+    const compat::u32 signed_step_delta = state.step - kPanelMaximumStep;
+    state.signed_step_deltas.fill(signed_step_delta);
+
+    const compat::u32 x_bits =
+        (static_cast<compat::u32>(derived_index) - kPanelDerivedBase) *
+            spacing -
+        terminal_record.draw_offset_x + kPanelBaseX;
+    const compat::u32 y_bits = kPanelTerminalY - terminal_record.draw_offset_y;
+    ports.draw_terminal_frame(
+        frame,
+        std::bit_cast<compat::i32>(x_bits),
+        std::bit_cast<compat::i32>(y_bits),
+        terminal_record.mode_flags,
+        0U
+    );
+    ++result.terminal_frame_draw_count;
+    return result;
+}
 
 LegacyStandardModeRenderResult render_legacy_standard_mode_frame(
     LegacyStandardModeRenderState& state,

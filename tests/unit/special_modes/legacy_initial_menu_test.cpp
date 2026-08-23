@@ -24,6 +24,7 @@ using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::special_modes::initialize_legacy_initial_menu;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
+using openswd3::special_modes::prepare_legacy_standard_mode_panel;
 using openswd3::special_modes::initialize_legacy_standard_mode_selector;
 using openswd3::special_modes::initialize_legacy_standard_special_modes;
 using openswd3::special_modes::kLegacyInitialMenuCommitCounter;
@@ -47,6 +48,9 @@ using openswd3::special_modes::LegacyStandardModeInputCallback;
 using openswd3::special_modes::LegacyStandardModeInputPorts;
 using openswd3::special_modes::LegacyStandardModeInputState;
 using openswd3::special_modes::LegacyStandardModeItemState;
+using openswd3::special_modes::LegacyStandardModePanelFrame;
+using openswd3::special_modes::LegacyStandardModePanelPorts;
+using openswd3::special_modes::LegacyStandardModePanelState;
 using openswd3::special_modes::LegacyStandardModeRenderPorts;
 using openswd3::special_modes::LegacyStandardModeRenderRecord;
 using openswd3::special_modes::LegacyStandardModeRenderState;
@@ -199,6 +203,100 @@ public:
     std::vector<LegacyStandardModeInputCallback> callbacks;
     bool dynamic_pre_present{};
     bool mutate_record_seven_after_record_three{};
+};
+
+struct PanelDrawRequest {
+    i32 x{};
+    i32 y{};
+    u32 flags{};
+    u32 opacity{};
+
+    bool operator==(const PanelDrawRequest&) const = default;
+};
+
+class FakeStandardModePanelPorts final : public LegacyStandardModePanelPorts {
+public:
+    explicit FakeStandardModePanelPorts(
+        LegacyStandardModePanelState& state
+    ) noexcept
+        : state_(state) {}
+
+    i32 story_flag(const u32 flag_index) override {
+        events.push_back(100U + flag_index);
+        const auto value = flag_values[flag_read_count];
+        ++flag_read_count;
+        return value;
+    }
+
+    void draw_ghost_action(
+        LegacyActionRecord& record, const i32 x, const i32 y, const u32 flags
+    ) override {
+        events.push_back(1U);
+        ghost_variant = record.variant_delta;
+        ghost_request = {x, y, flags, 0U};
+    }
+
+    void draw_terminal_action(
+        LegacyActionRecord& record, const i32 x, const i32 y
+    ) override {
+        events.push_back(2U);
+        terminal_action_id = record.action_id;
+        terminal_variant = record.base_variant;
+        terminal_action_request = {x, y, 0U, 0U};
+    }
+
+    bool update_terminal_action(LegacyActionRecord& record) override {
+        events.push_back(3U);
+        if (!update_succeeds) {
+            return false;
+        }
+        record.draw_offset_x = 5U;
+        record.draw_offset_y = 6U;
+        record.mode_flags = 0x12345678U;
+        return true;
+    }
+
+    bool resolve_terminal_frame(
+        const LegacyActionRecord&, LegacyStandardModePanelFrame& frame
+    ) override {
+        events.push_back(4U);
+        if (!frame_succeeds) {
+            return false;
+        }
+        frame = resolved_frame;
+        return true;
+    }
+
+    void draw_terminal_frame(
+        const LegacyStandardModePanelFrame& frame,
+        const i32 x,
+        const i32 y,
+        const u32 flags,
+        const u32 opacity
+    ) override {
+        events.push_back(5U);
+        drawn_frame = frame;
+        terminal_frame_request = {x, y, flags, opacity};
+    }
+
+    LegacyStandardModePanelState& state_;
+    std::array<i32, 3U> flag_values{};
+    std::vector<u32> events;
+    LegacyStandardModePanelFrame resolved_frame{
+        .source_word = 0xABCDEF01U,
+        .width = 20U,
+        .height = 30U,
+    };
+    LegacyStandardModePanelFrame drawn_frame{};
+    PanelDrawRequest ghost_request{};
+    PanelDrawRequest terminal_action_request{};
+    PanelDrawRequest terminal_frame_request{};
+    std::size_t flag_read_count{};
+    u32 ghost_variant{};
+    u32 terminal_action_id{};
+    u32 terminal_variant{};
+    bool update_succeeds{true};
+    bool frame_succeeds{true};
 };
 
 struct RenderActionLoad {
@@ -783,6 +881,110 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_panel_preparation(openswd3::test::Context& test) {
+    LegacyStandardModePanelState terminal_state{.step = 15U};
+    LegacyActionRecord terminal_ghost;
+    terminal_ghost.mode_flags = 0xFFFFFFFFU;
+    LegacyActionRecord terminal_record;
+    u16 terminal_secondary = 1U;
+    u16 terminal_derived = 15U;
+    FakeStandardModePanelPorts terminal_ports{terminal_state};
+    terminal_ports.flag_values = {1, 1, 1};
+    const auto terminal_result = prepare_legacy_standard_mode_panel(
+        terminal_state,
+        0x40U,
+        terminal_secondary,
+        terminal_derived,
+        terminal_ghost,
+        terminal_record,
+        terminal_ports
+    );
+    test.expect_true(
+        terminal_state.step == 16U && terminal_ports.ghost_variant == 3U &&
+            terminal_ports.ghost_request ==
+                PanelDrawRequest{.x = 0, .y = 9, .flags = 16U, .opacity = 0U} &&
+            terminal_ghost.mode_flags == 0x80000003U &&
+            terminal_ports.terminal_action_id == 0x232AU &&
+            terminal_ports.terminal_variant == 0x15U &&
+            terminal_ports.terminal_action_request ==
+                PanelDrawRequest{
+                    .x = 500, .y = 10, .flags = 0U, .opacity = 0U
+                } &&
+            terminal_ports.events ==
+                std::vector<u32>{173U, 173U, 1U, 173U, 2U} &&
+            terminal_result.story_flag_query_count == 3U &&
+            terminal_result.ghost_draw_count == 1U &&
+            terminal_result.terminal_action_draw_count == 1U &&
+            terminal_result.terminal_frame_draw_count == 0U,
+        "0x43A880 increments secondary one to step sixteen, masks the ghost " "flags, swaps variant twenty to twenty-one and uses spacing seventy"
+    );
+
+    LegacyStandardModePanelState frame_state{.step = 10U};
+    LegacyActionRecord frame_ghost;
+    frame_ghost.mode_flags = 0x7FFFFFFFU;
+    LegacyActionRecord frame_record;
+    u16 frame_secondary = 2U;
+    u16 frame_derived = 15U;
+    FakeStandardModePanelPorts frame_ports{frame_state};
+    frame_ports.flag_values = {0, 0, 1};
+    const auto frame_result = prepare_legacy_standard_mode_panel(
+        frame_state,
+        0x40U,
+        frame_secondary,
+        frame_derived,
+        frame_ghost,
+        frame_record,
+        frame_ports
+    );
+    test.expect_true(
+        frame_state.step == 9U && frame_ports.ghost_variant == 2U &&
+            frame_ports.ghost_request ==
+                PanelDrawRequest{.x = 0, .y = 9, .flags = 9U, .opacity = 0U} &&
+            frame_ghost.mode_flags == 3U && frame_record.action_id == 0x232AU &&
+            frame_record.base_variant == 0x29U &&
+            frame_state.resolved_source_word == 0xABCDEF01U &&
+            frame_state.signed_step_deltas ==
+                std::array<u32, 3U>{0xFFFFFFF9U, 0xFFFFFFF9U, 0xFFFFFFF9U} &&
+            frame_ports.drawn_frame == frame_ports.resolved_frame &&
+            frame_ports.terminal_frame_request ==
+                PanelDrawRequest{
+                    .x = 535,
+                    .y = 4,
+                    .flags = 0x12345678U,
+                    .opacity = 0U,
+                } &&
+            frame_ports.events ==
+                std::vector<u32>{173U, 173U, 1U, 173U, 3U, 4U, 5U} &&
+            frame_result.story_flag_query_count == 3U &&
+            frame_result.ghost_draw_count == 1U &&
+            frame_result.terminal_action_draw_count == 0U &&
+            frame_result.terminal_frame_draw_count == 1U,
+        "the nonterminal path decrements to nine, swaps forty to forty-one, " "publishes signed deltas and draws the resolved frame with live offsets"
+    );
+
+    LegacyStandardModePanelState entry_state{.step = 99U};
+    LegacyActionRecord entry_ghost;
+    LegacyActionRecord entry_record;
+    u16 entry_secondary = 2U;
+    u16 entry_derived = 7U;
+    FakeStandardModePanelPorts entry_ports{entry_state};
+    entry_ports.update_succeeds = false;
+    const auto entry_result = prepare_legacy_standard_mode_panel(
+        entry_state,
+        0x41U,
+        entry_secondary,
+        entry_derived,
+        entry_ghost,
+        entry_record,
+        entry_ports
+    );
+    test.expect_true(
+        entry_state.step == 8U && entry_result.stopped_after_update_failure &&
+            entry_ports.events == std::vector<u32>{173U, 173U, 1U, 173U, 3U},
+        "entry frame zero then DEC clamps the signed negative result to eight " "and a checked action-update failure stops before frame resolution"
+    );
+}
+
 void test_standard_mode_frame_rendering(openswd3::test::Context& test) {
     LegacyStandardModeRenderState high_state{.frame_color_delta = 3U};
     u16 high_secondary = 0xEA60U;
@@ -1342,6 +1544,7 @@ int main() {
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
     test_standard_mode_global_initialization(test);
+    test_standard_mode_panel_preparation(test);
     test_standard_mode_frame_rendering(test);
     test_standard_mode_input_dispatch(test);
     test_standard_mode_item_initialization(test);
