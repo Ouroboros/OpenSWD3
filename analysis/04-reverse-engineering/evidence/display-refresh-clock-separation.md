@@ -70,7 +70,7 @@ world_motion_interpolation = false
 
 只有配置显式启用后，`compose_legacy_world_runtime_frame`才在任何stage执行前捕获只读视觉快照。快照拥有当帧背景视图、空间索引、composition相机、完整角色记录、角色绘制计数与闪色字段，以及空间音频的两个数组副本。presentation后的玩家对齐可能改写live角色与空间链，因此插值重绘只读取快照索引，不读取post-frame后的链。捕获失败只禁用本次插值，不改变原世界帧结果。
 
-每个成功普通世界帧把旧current移动为previous，并把新快照提交为current。显示deadline使用`elapsed / frame_interval`在previous与current之间计算相机和所有角色的世界坐标；比例在当前逻辑间隔处钳制，不外推。单坐标跨度超过128像素时按传送处理并直接使用current，避免跨地图或瞬移扫屏。角色数量或GUID顺序变化时整帧回退current presentation。
+每个成功普通世界帧把旧current移动为previous，并把新快照提交为current。插值时间原点取该逻辑帧进入frame preparation前的`SDL_GetTicksNS()`，不取world composition、presentation及纯运动底图全部完成后的时间；因此原帧渲染耗时也计入35/70ms区间，不会在下一逻辑tick前残留尚未走完的插值尾段。显示deadline使用`elapsed / frame_interval`在previous与current之间计算相机和所有角色的世界坐标；比例在当前逻辑间隔处钳制，不外推。单坐标跨度超过128像素时按传送处理并直接使用current，避免跨地图或瞬移扫屏。角色数量或GUID顺序变化时整帧回退current presentation。
 
 插值不是两个framebuffer混色。SDL平台在独立显示deadline中：
 
@@ -89,12 +89,14 @@ world_motion_interpolation = false
 - 默认0关闭独立显示门。
 - 60 FPS精确deadline前拒绝、deadline接受。
 - 120 FPS迟到只接受一次，不catch up。
+- 240 FPS使用`4,166,666 ns`整数deadline。
 - 四种idle action都先完成原动作，再检查显示刷新。
 - `[display]`缺失、60、0、非法table、超范围值。
 - 世界运动插值缺省false、显式true及非法非布尔值。
 - 保存窗口配置后仍保留显示FPS和插值开关。
 - app生命周期中的游戏帧先于显示检查。
 - composition入口在任一stage前复制视觉快照。
+- 插值时间原点绑定accepted逻辑帧，而不是帧渲染完成时刻。
 - 半间隔相机与正负角色坐标插值、迟到钳制及无外推。
 - 传送坐标直接snap，普通角色坐标仍可插值。
 - 地图或角色身份不兼容时拒绝跨场景插值。

@@ -2177,6 +2177,8 @@ public:
     }
 
     void step_game_frame() override {
+        const std::uint64_t frame_candidate_time_nanoseconds =
+            static_cast<std::uint64_t>(SDL_GetTicksNS());
         frame_preparation_state_.process_flags = window_state_.process_flags;
         frame_preparation_state_.display_active = display_state_.display_active;
         frame_preparation_state_.frame_clock.frame_interval_milliseconds =
@@ -2195,6 +2197,7 @@ public:
         if (openswd3::app::run_frame_preparation(
                 frame_preparation_state_, *this
             ) == openswd3::app::FramePreparationOutcome::accepted) {
+            accepted_frame_time_nanoseconds_ = frame_candidate_time_nanoseconds;
             frame_coordinator_state_.frame_execution_gate =
                 window_state_.frame_execution_gate;
             frame_coordinator_state_.process_flags =
@@ -6239,7 +6242,7 @@ private:
         world_interpolation_previous_ = std::move(world_interpolation_current_);
         world_interpolation_current_ = std::move(candidate);
         world_interpolation_current_time_nanoseconds_ =
-            static_cast<std::uint64_t>(SDL_GetTicksNS());
+            accepted_frame_time_nanoseconds_;
         world_interpolation_interval_nanoseconds_ =
             static_cast<std::uint64_t>(std::max(frame_interval_, 1U)) *
             1'000'000U;
@@ -6523,6 +6526,7 @@ private:
         world_interpolation_current_base_frame_;
     openswd3::world_map::LegacyWorldInterpolationSnapshot
         world_interpolation_display_frame_;
+    std::uint64_t accepted_frame_time_nanoseconds_{};
     std::uint64_t world_interpolation_current_time_nanoseconds_{};
     std::uint64_t world_interpolation_interval_nanoseconds_{};
     bool world_interpolation_current_base_valid_{};

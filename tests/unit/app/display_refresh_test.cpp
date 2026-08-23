@@ -42,6 +42,24 @@ void test_independent_sixty_fps_clock(openswd3::test::Context& test) {
     );
 }
 
+void test_independent_two_hundred_forty_fps_clock(
+    openswd3::test::Context& test
+) {
+    constexpr std::uint64_t start = 500U;
+    constexpr std::uint64_t interval = 4'166'666U;
+    openswd3::app::DisplayRefreshClockState state;
+    openswd3::app::configure_display_refresh_clock(state, 240U, start);
+
+    test.expect_true(
+        state.refresh_interval_nanoseconds == interval &&
+            !openswd3::app::try_accept_display_refresh(
+                state, start + interval - 1U
+            ) &&
+            openswd3::app::try_accept_display_refresh(state, start + interval),
+        "240 FPS uses its exact integer nanosecond display deadline"
+    );
+}
+
 void test_refresh_does_not_catch_up(openswd3::test::Context& test) {
     constexpr std::uint64_t interval = 8'333'333U;
     openswd3::app::DisplayRefreshClockState state;
@@ -64,6 +82,7 @@ int main() {
     openswd3::test::Context test;
     test_legacy_coupled_mode(test);
     test_independent_sixty_fps_clock(test);
+    test_independent_two_hundred_forty_fps_clock(test);
     test_refresh_does_not_catch_up(test);
     return test.exit_code();
 }
