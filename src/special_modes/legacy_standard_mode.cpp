@@ -856,6 +856,7 @@ initialize_legacy_standard_mode_runtime(
         slot[0U] = 0U;
     }
 
+    state.entry_alias_index = 0;
     state.total_count = 0;
     state.window_offset = 0;
     state.local_cursor = 0;
@@ -866,6 +867,188 @@ initialize_legacy_standard_mode_runtime(
     state.action.base_variant = 0x00000033U;
     result.legacy_return_value = ports.consume_entry(state.entries[0U]);
     state.mode_flags = 0;
+    return result;
+}
+
+LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
+    const LegacyStandardModeInputDispatchInput& input,
+    const std::span<const LegacyStandardModeAvailabilityRecord>
+        availability_records,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeInputDispatchPorts& ports
+) noexcept {
+    const auto as_i32 = [](const compat::u32 value) noexcept {
+        return std::bit_cast<compat::i32>(value);
+    };
+    const auto wrapping_add = [](const compat::i32 left,
+                                 const compat::i32 right) noexcept {
+        return std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(left) + std::bit_cast<compat::u32>(right)
+        );
+    };
+    const auto wrapping_sub = [](const compat::i32 left,
+                                 const compat::i32 right) noexcept {
+        return std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(left) - std::bit_cast<compat::u32>(right)
+        );
+    };
+
+    LegacyStandardModeInputDispatchResult result;
+    result.legacy_return_value = as_i32(input.pointer_y);
+    if (input.pointer_y < 0x000001C6U && input.pointer_y > 0x0000005EU &&
+        input.pointer_x < 0x000000CBU && input.pointer_x > 0x00000012U &&
+        (input.input_bits & 0x03U) != 0U) {
+        compat::i32 row =
+            static_cast<compat::i32>((input.pointer_y - 0x0000005EU) / 0x18U);
+        if (row >= state.visible_count) {
+            row = wrapping_sub(state.visible_count, 1);
+        }
+        state.local_cursor = wrapping_sub(row, 1);
+        result.path = LegacyStandardModeInputDispatchPath::list_row_selected;
+        result.legacy_return_value = ports.dispatch_list_row();
+        return result;
+    }
+
+    if (input.pointer_y < 0x0000004EU && input.pointer_y > 0x0000003CU &&
+        input.pointer_x < 0x000000CEU && input.pointer_x > 0x0000000AU &&
+        (input.input_bits & 0x03U) != 0U) {
+        const compat::i32 delta =
+            (static_cast<compat::i32>(input.pointer_x) - 0x6A) / 0x14;
+        result.legacy_return_value = state.mode_index;
+        if ((delta < 0 && state.mode_index == 0) ||
+            (delta > 0 && state.mode_index == 0x0E) || delta == 0) {
+            return result;
+        }
+        const compat::i32 direction = delta <= 0 ? -1 : 1;
+        state.mode_index =
+            wrapping_sub(wrapping_add(state.mode_index, direction), 1);
+        ports.refresh_mode();
+        result.path = LegacyStandardModeInputDispatchPath::mode_refreshed;
+        result.legacy_return_value =
+            ports.play_sample(0x002EU, input.sample_handle);
+        return result;
+    }
+
+    const LegacyStandardModeAvailabilityResult availability =
+        query_legacy_standard_mode_availability(0x0F, availability_records);
+    result.legacy_return_value = availability.legacy_return_value;
+    if (availability.status !=
+        LegacyStandardModeAvailabilityStatus::completed) {
+        result.status = LegacyStandardModeInputDispatchStatus::
+            availability_index_out_of_range;
+        return result;
+    }
+
+    if (availability.available) {
+        result.legacy_return_value = as_i32(input.pointer_x);
+        if (input.pointer_x < 0x000000E0U && input.pointer_x > 0x000000CEU) {
+            const compat::i32 pointer_y = as_i32(input.pointer_y);
+            result.legacy_return_value = pointer_y;
+            if (pointer_y < 0x60 && pointer_y > 0x52) {
+                ports.dispatch_upper_control();
+                result.path = LegacyStandardModeInputDispatchPath::
+                    upper_control_dispatched;
+                result.upper_control_dispatched = true;
+            }
+            if (pointer_y < 0x1D0 && pointer_y > 0x1C4) {
+                static_cast<void>(ports.dispatch_list_row());
+                result.path = LegacyStandardModeInputDispatchPath::
+                    bottom_control_dispatched;
+                result.bottom_control_dispatched = true;
+            }
+            if (pointer_y < input.first_dynamic_upper_bound &&
+                pointer_y > input.first_dynamic_lower_bound) {
+                ports.dispatch_first_dynamic_control();
+                result.path = LegacyStandardModeInputDispatchPath::
+                    first_dynamic_control_dispatched;
+                result.first_dynamic_control_dispatched = true;
+            }
+            if (pointer_y >= input.second_dynamic_upper_bound ||
+                pointer_y <= input.second_dynamic_lower_bound) {
+                return result;
+            }
+
+            const LegacyStandardModeWindowPageAdvanceResult page_result =
+                advance_legacy_standard_mode_window_page(
+                    state.total_count,
+                    state.window_offset,
+                    state.local_cursor,
+                    state.visible_count,
+                    0x0F
+                );
+            result.legacy_return_value = page_result.legacy_return_value;
+            ports.rebuild_entry_alias(
+                state.window_offset, state.entries, state.entry_alias_index
+            );
+            ports.refresh_page();
+            const compat::u32 selected_index =
+                std::bit_cast<compat::u32>(state.local_cursor) +
+                std::bit_cast<compat::u32>(state.window_offset);
+            if (selected_index >= state.entries.size()) {
+                result.status = LegacyStandardModeInputDispatchStatus::
+                    selected_entry_out_of_range;
+                return result;
+            }
+            ports.consume_entry(state.entries[selected_index]);
+            state.mode_flags = std::bit_cast<compat::i32>(
+                std::bit_cast<compat::u32>(state.mode_flags) | 0x30U
+            );
+            result.path = LegacyStandardModeInputDispatchPath::page_advanced;
+            result.legacy_return_value =
+                ports.play_sample(0x002EU, input.sample_handle);
+            return result;
+        }
+    }
+
+    if ((input.input_bits & 0x0CU) == 0U || state.exit_counter != 0x01F4U) {
+        return result;
+    }
+
+    state.exit_counter = 2U;
+    const compat::u32 record_token =
+        read_u32_le(std::span<const compat::u8>{state.scratch_record}, 0xACU);
+    if (record_token != 0U) {
+        ports.release_record(record_token);
+        state.scratch_record[0xACU] = 0U;
+        state.scratch_record[0xADU] = 0U;
+        state.scratch_record[0xAEU] = 0U;
+        state.scratch_record[0xAFU] = 0U;
+    }
+
+    static_cast<void>(ports.release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind::scratch_record, 0U
+    ));
+    static_cast<void>(ports.release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind::loaded_status, 0U
+    ));
+    static_cast<void>(ports.release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind::queried_status, 0U
+    ));
+    static_cast<void>(ports.release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind::long_slot_table, 0U
+    ));
+    state.total_count = 0;
+    while (state.total_count < 0x10) {
+        static_cast<void>(ports.release_runtime_storage(
+            LegacyStandardModeRuntimeStorageKind::long_text_slot,
+            static_cast<compat::u32>(state.total_count)
+        ));
+        ++state.total_count;
+    }
+    state.total_count = 0;
+    while (state.total_count < 0x40) {
+        static_cast<void>(ports.release_runtime_storage(
+            LegacyStandardModeRuntimeStorageKind::short_text_slot,
+            static_cast<compat::u32>(state.total_count)
+        ));
+        ++state.total_count;
+    }
+    result.legacy_return_value = ports.release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind::entries, 0U
+    );
+    state.action.action_id = 0x0000232AU;
+    state.action.base_variant = 0x00000043U;
+    result.path = LegacyStandardModeInputDispatchPath::runtime_released;
     return result;
 }
 

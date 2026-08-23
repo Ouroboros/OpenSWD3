@@ -702,11 +702,13 @@ struct LegacyStandardModeRuntimeInitializationState {
     std::array<std::array<compat::u8, 0x20U>, 0x10U> long_text_slots{};
     std::array<std::array<compat::u8, 0x10U>, 0x40U> short_text_slots{};
     std::array<compat::u32, 0x40U> entries{};
+    compat::i32 entry_alias_index{};
     compat::i32 total_count{};
     compat::i32 window_offset{};
     compat::i32 local_cursor{};
     compat::i32 visible_count{};
     compat::i32 mode_index{};
+    compat::u16 exit_counter{};
     asset_runtime::LegacyActionRecord action{};
     compat::i32 mode_flags{};
 };
@@ -731,6 +733,79 @@ struct LegacyStandardModeRuntimeInitializationResult {
     compat::i32 legacy_return_value{};
     compat::u32 loaded_record_count{};
     compat::u32 released_record_count{};
+};
+
+enum class LegacyStandardModeRuntimeStorageKind : compat::u8 {
+    scratch_record,
+    loaded_status,
+    queried_status,
+    long_slot_table,
+    long_text_slot,
+    short_text_slot,
+    entries,
+};
+
+struct LegacyStandardModeInputDispatchInput {
+    compat::u32 pointer_x{};
+    compat::u32 pointer_y{};
+    compat::u8 input_bits{};
+    compat::i32 first_dynamic_lower_bound{};
+    compat::i32 first_dynamic_upper_bound{};
+    compat::i32 second_dynamic_lower_bound{};
+    compat::i32 second_dynamic_upper_bound{};
+    compat::u32 sample_handle{};
+};
+
+enum class LegacyStandardModeInputDispatchStatus : compat::u8 {
+    completed,
+    availability_index_out_of_range,
+    selected_entry_out_of_range,
+};
+
+enum class LegacyStandardModeInputDispatchPath : compat::u8 {
+    no_action,
+    list_row_selected,
+    mode_refreshed,
+    upper_control_dispatched,
+    bottom_control_dispatched,
+    first_dynamic_control_dispatched,
+    page_advanced,
+    runtime_released,
+};
+
+class LegacyStandardModeInputDispatchPorts {
+public:
+    virtual ~LegacyStandardModeInputDispatchPorts() = default;
+    [[nodiscard]] virtual compat::i32 dispatch_list_row() noexcept = 0;
+    virtual void dispatch_upper_control() noexcept = 0;
+    virtual void dispatch_first_dynamic_control() noexcept = 0;
+    virtual void refresh_mode() noexcept = 0;
+    virtual void rebuild_entry_alias(
+        compat::i32 window_offset,
+        std::span<const compat::u32> entries,
+        compat::i32& entry_alias_index
+    ) noexcept = 0;
+    virtual void refresh_page() noexcept = 0;
+    virtual void consume_entry(compat::u32 entry) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    play_sample(compat::u16 sample_id, compat::u32 sample_handle) noexcept = 0;
+    virtual void release_record(compat::u32 token) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind kind, compat::u32 index
+    ) noexcept = 0;
+};
+
+struct LegacyStandardModeInputDispatchResult {
+    LegacyStandardModeInputDispatchStatus status{
+        LegacyStandardModeInputDispatchStatus::completed
+    };
+    LegacyStandardModeInputDispatchPath path{
+        LegacyStandardModeInputDispatchPath::no_action
+    };
+    compat::i32 legacy_return_value{};
+    bool upper_control_dispatched{};
+    bool bottom_control_dispatched{};
+    bool first_dynamic_control_dispatched{};
 };
 
 struct LegacyStandardModeInputStatusResult {
@@ -931,6 +1006,15 @@ query_legacy_standard_mode_availability(
 initialize_legacy_standard_mode_runtime(
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeRuntimeInitializationPorts& ports
+) noexcept;
+
+// sub_43C3C0: dispatch standard-mode pointer input and release its runtime.
+[[nodiscard]] LegacyStandardModeInputDispatchResult
+dispatch_legacy_standard_mode_input(
+    const LegacyStandardModeInputDispatchInput& input,
+    std::span<const LegacyStandardModeAvailabilityRecord> availability_records,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeInputDispatchPorts& ports
 ) noexcept;
 
 // sub_43B9E0: resolve one MAPS text record into the shared 128-byte buffer.

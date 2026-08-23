@@ -45,6 +45,7 @@ using openswd3::special_modes::initialize_legacy_initial_menu;
 using openswd3::special_modes::initialize_legacy_standard_mode_dialog_setup;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::initialize_legacy_standard_mode_runtime;
+using openswd3::special_modes::dispatch_legacy_standard_mode_input;
 using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
 using openswd3::special_modes::query_legacy_standard_mode_availability;
@@ -107,6 +108,11 @@ using openswd3::special_modes::LegacyStandardModePanelState;
 using openswd3::special_modes::LegacyStandardModeRenderPorts;
 using openswd3::special_modes::LegacyStandardModeRuntimeInitializationPorts;
 using openswd3::special_modes::LegacyStandardModeRuntimeInitializationState;
+using openswd3::special_modes::LegacyStandardModeInputDispatchInput;
+using openswd3::special_modes::LegacyStandardModeInputDispatchPath;
+using openswd3::special_modes::LegacyStandardModeInputDispatchPorts;
+using openswd3::special_modes::LegacyStandardModeInputDispatchStatus;
+using openswd3::special_modes::LegacyStandardModeRuntimeStorageKind;
 using openswd3::special_modes::LegacyStandardModeRenderRecord;
 using openswd3::special_modes::LegacyStandardModeRenderState;
 using openswd3::special_modes::LegacyStandardModeSelectorPorts;
@@ -2114,11 +2120,13 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
         slot.fill(0x5AU);
     }
     state.entries.fill(0xCCCCCCCCU);
+    state.entry_alias_index = 9;
     state.total_count = 1;
     state.window_offset = 2;
     state.local_cursor = 3;
     state.visible_count = 4;
     state.mode_index = 5;
+    state.exit_counter = 500U;
     state.action.cached_action_id = 0xCAFEBABEU;
     state.mode_flags = 7;
     RuntimePorts ports;
@@ -2159,14 +2167,413 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
                     return slot[0U] == 0U && slot[1U] == 0x5AU;
                 }
             ) &&
-            state.total_count == 0 && state.window_offset == 0 &&
-            state.local_cursor == 0 && state.visible_count == 0 &&
-            state.mode_index == 0 && state.action.action_id == 0x232AU &&
+            state.entry_alias_index == 0 && state.total_count == 0 &&
+            state.window_offset == 0 && state.local_cursor == 0 &&
+            state.visible_count == 0 && state.mode_index == 0 &&
+            state.exit_counter == 500U && state.action.action_id == 0x232AU &&
             state.action.base_variant == 0x33U &&
             state.action.cached_action_id == 0xCAFEBABEU &&
             state.mode_flags == 0,
         "0x43C0D0 clears only string first bytes, resets cursors and writes exact action fields"
     );
+}
+
+void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
+    class DispatchPorts final : public LegacyStandardModeInputDispatchPorts {
+    public:
+        enum class Event : u8 {
+            list_row,
+            upper_control,
+            first_dynamic_control,
+            mode_refresh,
+            alias_rebuild,
+            page_refresh,
+            entry_consume,
+            sample_play,
+        };
+        struct ReleaseEvent {
+            LegacyStandardModeRuntimeStorageKind kind{};
+            u32 index{};
+            bool operator==(const ReleaseEvent&) const = default;
+        };
+
+        [[nodiscard]] i32 dispatch_list_row() noexcept override {
+            events.push_back(Event::list_row);
+            return 111;
+        }
+        void dispatch_upper_control() noexcept override {
+            events.push_back(Event::upper_control);
+        }
+        void dispatch_first_dynamic_control() noexcept override {
+            events.push_back(Event::first_dynamic_control);
+        }
+        void refresh_mode() noexcept override {
+            events.push_back(Event::mode_refresh);
+        }
+        void rebuild_entry_alias(
+            const i32 window_offset,
+            const std::span<const u32> entries,
+            i32& entry_alias_index
+        ) noexcept override {
+            events.push_back(Event::alias_rebuild);
+            alias_entry_count = entries.size();
+            entry_alias_index = window_offset;
+        }
+        void refresh_page() noexcept override {
+            events.push_back(Event::page_refresh);
+        }
+        void consume_entry(const u32 entry) noexcept override {
+            events.push_back(Event::entry_consume);
+            consumed_entry = entry;
+        }
+        [[nodiscard]] i32 play_sample(
+            const u16 sample_id, const u32 sample_handle
+        ) noexcept override {
+            events.push_back(Event::sample_play);
+            played_sample_id = sample_id;
+            played_sample_handle = sample_handle;
+            return 222;
+        }
+        void release_record(const u32 token) noexcept override {
+            released_record_tokens.push_back(token);
+        }
+        [[nodiscard]] i32 release_runtime_storage(
+            const LegacyStandardModeRuntimeStorageKind kind, const u32 index
+        ) noexcept override {
+            releases.push_back(ReleaseEvent{kind, index});
+            return kind == LegacyStandardModeRuntimeStorageKind::entries ? -321
+                                                                         : 0;
+        }
+
+        std::vector<Event> events;
+        std::vector<ReleaseEvent> releases;
+        std::vector<u32> released_record_tokens;
+        std::size_t alias_entry_count{};
+        u32 consumed_entry{};
+        u16 played_sample_id{};
+        u32 played_sample_handle{};
+    };
+
+    std::array<LegacyStandardModeAvailabilityRecord, 16U> available_records{};
+    available_records[15U].enabled = 1;
+    available_records[15U].state = 1;
+    const std::array<LegacyStandardModeAvailabilityRecord, 16U>
+        unavailable_records{};
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.visible_count = 5;
+        DispatchPorts ports;
+        const LegacyStandardModeInputDispatchInput input{
+            .pointer_x = 20U,
+            .pointer_y = 453U,
+            .input_bits = 1U,
+        };
+        const auto result = dispatch_legacy_standard_mode_input(
+            input, available_records, state, ports
+        );
+        test.expect_true(
+            result.status == LegacyStandardModeInputDispatchStatus::completed &&
+                result.path ==
+                    LegacyStandardModeInputDispatchPath::list_row_selected &&
+                result.legacy_return_value == 111 && state.local_cursor == 3 &&
+                ports.events == std::vector{DispatchPorts::Event::list_row},
+            "0x43C3C0 clamps the first rectangle row then applies the extra decrement"
+        );
+    }
+
+    struct ModeCase {
+        u32 pointer_x{};
+        i32 initial_mode{};
+        i32 expected_mode{};
+        i32 expected_return{};
+        bool refreshed{};
+    };
+    constexpr std::array mode_cases{
+        ModeCase{66U, 5, 3, 222, true},
+        ModeCase{126U, 5, 5, 222, true},
+        ModeCase{66U, 0, 0, 0, false},
+        ModeCase{106U, 5, 5, 5, false},
+        ModeCase{126U, 14, 14, 14, false},
+    };
+    for (const auto& sample : mode_cases) {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.mode_index = sample.initial_mode;
+        DispatchPorts ports;
+        const LegacyStandardModeInputDispatchInput input{
+            .pointer_x = sample.pointer_x,
+            .pointer_y = 61U,
+            .input_bits = 1U,
+            .sample_handle = 0x12345678U,
+        };
+        const auto result = dispatch_legacy_standard_mode_input(
+            input, available_records, state, ports
+        );
+        const std::vector<DispatchPorts::Event> expected_events =
+            sample.refreshed
+            ? std::vector{
+                  DispatchPorts::Event::mode_refresh,
+                  DispatchPorts::Event::sample_play,
+              }
+            : std::vector<DispatchPorts::Event>{};
+        test.expect_true(
+            result.status == LegacyStandardModeInputDispatchStatus::completed &&
+                result.path ==
+                    (sample.refreshed
+                         ? LegacyStandardModeInputDispatchPath::mode_refreshed
+                         : LegacyStandardModeInputDispatchPath::no_action) &&
+                result.legacy_return_value == sample.expected_return &&
+                state.mode_index == sample.expected_mode &&
+                ports.events == expected_events &&
+                (!sample.refreshed ||
+                 (ports.played_sample_id == 0x2EU &&
+                  ports.played_sample_handle == 0x12345678U)),
+            "0x43C3C0 preserves negative-delta minus two and positive-delta no-change behavior"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.total_count = 40;
+        state.window_offset = 0;
+        state.local_cursor = 14;
+        state.visible_count = 15;
+        state.entry_alias_index = 99;
+        state.entries[29U] = 0xDEADBEEFU;
+        state.mode_flags = static_cast<i32>(0xABCD0001U);
+        DispatchPorts ports;
+        const LegacyStandardModeInputDispatchInput input{
+            .pointer_x = 210U,
+            .pointer_y = 90U,
+            .first_dynamic_lower_bound = 80,
+            .first_dynamic_upper_bound = 100,
+            .second_dynamic_lower_bound = 80,
+            .second_dynamic_upper_bound = 100,
+            .sample_handle = 0x87654321U,
+        };
+        const auto result = dispatch_legacy_standard_mode_input(
+            input, available_records, state, ports
+        );
+        test.expect_true(
+            result.status == LegacyStandardModeInputDispatchStatus::completed &&
+                result.path ==
+                    LegacyStandardModeInputDispatchPath::page_advanced &&
+                result.legacy_return_value == 222 &&
+                result.upper_control_dispatched &&
+                !result.bottom_control_dispatched &&
+                result.first_dynamic_control_dispatched &&
+                state.window_offset == 15 && state.local_cursor == 14 &&
+                state.visible_count == 15 && state.entry_alias_index == 15 &&
+                static_cast<u32>(state.mode_flags) == 0xABCD0031U &&
+                ports.alias_entry_count == 64U &&
+                ports.consumed_entry == 0xDEADBEEFU &&
+                ports.played_sample_id == 0x2EU &&
+                ports.played_sample_handle == 0x87654321U &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::upper_control,
+                        DispatchPorts::Event::first_dynamic_control,
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                        DispatchPorts::Event::entry_consume,
+                        DispatchPorts::Event::sample_play,
+                    },
+            "0x43C3C0 preserves sequential upper, dynamic, page rebuild, consume and sound order"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        DispatchPorts ports;
+        const LegacyStandardModeInputDispatchInput input{
+            .pointer_x = 210U,
+            .pointer_y = 453U,
+            .first_dynamic_lower_bound = 1000,
+            .first_dynamic_upper_bound = 1001,
+            .second_dynamic_lower_bound = 1000,
+            .second_dynamic_upper_bound = 1001,
+        };
+        const auto result = dispatch_legacy_standard_mode_input(
+            input, available_records, state, ports
+        );
+        test.expect_true(
+            result.path ==
+                    LegacyStandardModeInputDispatchPath::
+                        bottom_control_dispatched &&
+                result.legacy_return_value == 453 &&
+                result.bottom_control_dispatched &&
+                ports.events == std::vector{DispatchPorts::Event::list_row},
+            "0x43C3C0 ignores the bottom handler EAX and reloads pointer Y"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        DispatchPorts ports;
+        const LegacyStandardModeInputDispatchInput input{
+            .pointer_x = 206U,
+            .pointer_y = 123U,
+        };
+        const auto result = dispatch_legacy_standard_mode_input(
+            input, available_records, state, ports
+        );
+        test.expect_true(
+            result.path == LegacyStandardModeInputDispatchPath::no_action &&
+                result.legacy_return_value == 206 && ports.events.empty(),
+            "0x43C3C0 keeps the strict x greater-than-206 gate and path EAX"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        DispatchPorts ports;
+        const LegacyStandardModeInputDispatchInput input{};
+        const auto result = dispatch_legacy_standard_mode_input(
+            input,
+            std::span<const LegacyStandardModeAvailabilityRecord>{
+                available_records
+            }
+                .first(15U),
+            state,
+            ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeInputDispatchStatus::
+                        availability_index_out_of_range &&
+                result.path == LegacyStandardModeInputDispatchPath::no_action &&
+                result.legacy_return_value == 0 && ports.events.empty(),
+            "0x43C3C0 isolates the original availability record 15 read"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.total_count = 1000;
+        state.window_offset = 45;
+        state.local_cursor = 14;
+        state.visible_count = 15;
+        state.mode_flags = 1;
+        DispatchPorts ports;
+        const LegacyStandardModeInputDispatchInput input{
+            .pointer_x = 210U,
+            .pointer_y = 90U,
+            .first_dynamic_lower_bound = 1000,
+            .first_dynamic_upper_bound = 1001,
+            .second_dynamic_lower_bound = 80,
+            .second_dynamic_upper_bound = 100,
+        };
+        const auto result = dispatch_legacy_standard_mode_input(
+            input, available_records, state, ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeInputDispatchStatus::
+                        selected_entry_out_of_range &&
+                result.path ==
+                    LegacyStandardModeInputDispatchPath::
+                        upper_control_dispatched &&
+                result.upper_control_dispatched && state.window_offset == 60 &&
+                state.mode_flags == 1 &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::upper_control,
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                    },
+            "0x43C3C0 typed-stops at the original selected-entry table read"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.exit_counter = 500U;
+        state.total_count = 123;
+        state.scratch_record[0xACU] = 0x44U;
+        state.scratch_record[0xADU] = 0x33U;
+        state.scratch_record[0xAEU] = 0x22U;
+        state.scratch_record[0xAFU] = 0x11U;
+        state.action.cached_action_id = 0xCAFEBABEU;
+        DispatchPorts ports;
+        const LegacyStandardModeInputDispatchInput input{
+            .input_bits = 0x0CU,
+        };
+        const auto result = dispatch_legacy_standard_mode_input(
+            input, unavailable_records, state, ports
+        );
+        const bool release_order_valid = ports.releases.size() == 85U &&
+            ports.releases[0U] ==
+                DispatchPorts::ReleaseEvent{
+                    LegacyStandardModeRuntimeStorageKind::scratch_record, 0U
+                } &&
+            ports.releases[1U] ==
+                DispatchPorts::ReleaseEvent{
+                    LegacyStandardModeRuntimeStorageKind::loaded_status, 0U
+                } &&
+            ports.releases[2U] ==
+                DispatchPorts::ReleaseEvent{
+                    LegacyStandardModeRuntimeStorageKind::queried_status, 0U
+                } &&
+            ports.releases[3U] ==
+                DispatchPorts::ReleaseEvent{
+                    LegacyStandardModeRuntimeStorageKind::long_slot_table, 0U
+                } &&
+            ports.releases[4U] ==
+                DispatchPorts::ReleaseEvent{
+                    LegacyStandardModeRuntimeStorageKind::long_text_slot, 0U
+                } &&
+            ports.releases[19U] ==
+                DispatchPorts::ReleaseEvent{
+                    LegacyStandardModeRuntimeStorageKind::long_text_slot, 15U
+                } &&
+            ports.releases[20U] ==
+                DispatchPorts::ReleaseEvent{
+                    LegacyStandardModeRuntimeStorageKind::short_text_slot, 0U
+                } &&
+            ports.releases[83U] ==
+                DispatchPorts::ReleaseEvent{
+                    LegacyStandardModeRuntimeStorageKind::short_text_slot, 63U
+                } &&
+            ports.releases[84U] ==
+                DispatchPorts::ReleaseEvent{
+                    LegacyStandardModeRuntimeStorageKind::entries, 0U
+                };
+        test.expect_true(
+            result.status == LegacyStandardModeInputDispatchStatus::completed &&
+                result.path ==
+                    LegacyStandardModeInputDispatchPath::runtime_released &&
+                result.legacy_return_value == -321 &&
+                state.exit_counter == 2U && state.total_count == 64 &&
+                state.scratch_record[0xACU] == 0U &&
+                state.scratch_record[0xADU] == 0U &&
+                state.scratch_record[0xAEU] == 0U &&
+                state.scratch_record[0xAFU] == 0U &&
+                state.action.action_id == 0x232AU &&
+                state.action.base_variant == 0x43U &&
+                state.action.cached_action_id == 0xCAFEBABEU &&
+                ports.released_record_tokens == std::vector<u32>{0x11223344U} &&
+                release_order_valid,
+            "0x43C3C0 preserves conditional record release, 85 storage releases and final counter 64"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.exit_counter = 499U;
+        DispatchPorts ports;
+        const LegacyStandardModeInputDispatchInput input{
+            .input_bits = 0x0CU,
+        };
+        const auto result = dispatch_legacy_standard_mode_input(
+            input, unavailable_records, state, ports
+        );
+        test.expect_true(
+            result.path == LegacyStandardModeInputDispatchPath::no_action &&
+                result.legacy_return_value == 0 && state.exit_counter == 499U &&
+                ports.releases.empty(),
+            "0x43C3C0 requires exit counter exactly 500 before cleanup"
+        );
+    }
 }
 
 void test_standard_mode_shared_text_resolution(openswd3::test::Context& test) {
@@ -4231,6 +4638,7 @@ int main() {
     test_standard_mode_dialog_setup(test);
     test_standard_mode_availability(test);
     test_standard_mode_runtime_initialization(test);
+    test_standard_mode_runtime_input_dispatch(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);

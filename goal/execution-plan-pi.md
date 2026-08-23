@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v454
+版本：v455
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043C3C0`
+当前步骤：模块9 · 闭环`0x0043C520`
 
 ## 0. 执行约定
 
@@ -3294,16 +3294,27 @@ B7 P0 有限收口完成。
 - 模块9标准模式运行时表初始化`0x0043C0D0`闭环。LST范围`0x0043C0D0..0x0043C2DC`，typed
     state重建`0xB0` scratch、两张`0x200`状态表、16×32与64×16字符串槽及64项entry表。严格
     执行1..500 load循环与1..500 query循环；成功load发布`+0x5E`、释放`+0xAC` token并清token。
-    后续只清字符串首字节、清`FC974/FC90C/FC928/FC914/FC910`五个owner、初始化entry，写action
-    `0x232A/0x33`，消费entry[0]并
-    最后清mode flags。未关闭callee均由窄port隔离；定向UT锁定1000次顺序、表边界、token、
-    未初始化字节保持、action字段和EAX。workpack连续两轮稳定为`29/227`，SHA256为
+    后续只清字符串首字节，先把entry alias写typed index 0，再清`FC974/FC90C/FC928/FC914/FC910`
+    五个owner、初始化entry、写action `0x232A/0x33`、消费entry[0]并最后清mode flags。未关闭
+    callee均由窄port隔离；定向UT锁定1000次顺序、表边界、token、未初始化字节保持、alias、
+    action字段和EAX。workpack连续两轮稳定为`29/227`，SHA256为
     `4d43482df73105a50a831f9da35a35f89fab5916af1d7ffae22e5e3f9ad3f940`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
+- 模块9标准模式运行时输入分派`0x0043C3C0`闭环。完整函数由主块与`C2F0/C600/C7E0/C800`
+    四个外置chunk组成。第一矩形按24像素行计算并保留钳制后额外减1；第二矩形保留负delta减2、
+    正delta不改mode但仍刷新/发声的原BUG。availability记录15后的upper/bottom/两段动态范围按
+    顺序独立命中；翻页严格执行step15、alias重建、page刷新、entry消费、flags低字节OR `0x30`
+    与sample `0x2E`。exit必须精确500，随后条件释放record token并按4个固定块、16 long、64 short、
+    entry表顺序释放，最终`FC974=64`、action写`0x232A/0x43`并保留末次release EAX。原表越界在
+    availability15或selected entry读取点typed-stop；其余未关闭callee继续由窄port隔离。定向UT
+    覆盖所有分支、严格边界、重叠顺序、路径EAX和85项storage释放。workpack连续两轮稳定为
+    `30/227`，SHA256为`f9dc7e93f48dba950d034372bfb2830b0cef40e93357d0c9afebc4e353c3e137`；
+    Linux core188/188与Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`29/227`，下一单元为`0x0043C3C0`。
+进行中，正式进度为`30/227`，下一单元为`0x0043C520`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043C3C0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043C520`，继续更新workpack、证据和完整验证门。
