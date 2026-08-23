@@ -52,6 +52,8 @@ Linux共享库RUNPATH优先使用`$ORIGIN`。Windows测试证明复制后的DLL�
 
 Windows真实音频设备复测进一步暴露：完整解码样本经`SDL_PutAudioStreamData()`入队后未调用`SDL_FlushAudioStream()`，因此设备侧可能保留尚未提交的输入尾部，`SDL_GetAudioStreamQueued()`在`Map_Eu08`播放结束后仍不归零，stream100不会进入Miles状态2。后端现于每次完整文件入队后显式flush；SDL3允许flush后继续入队，循环重开路径保持有效。
 
+原版没有曲内loop point合同。`0x004856C0`每次都以loop count `1`调用`0x00486730`，后者执行`AIL_open_stream(driver, filename, 0)`并把该`1`传给`AIL_set_stream_loop_count`；单次stream从文件offset零播放一次。EOF后由`0x0040CDD0`依据普通组`0x00080000`或场景组`0x00020000`重新选择音乐槽并再次打开文件，因此重复从曲首开始就是原版静态控制流。当前`Music`目录77个MP3全部没有ID3，也没有`LOOPSTART`、`LOOPEND`、`LOOPLENGTH`、`LOOPPOINT`或`SMPL`标记。
+
 ## 视频后端
 
 `make_legacy_video_backend()`创建进程内单实例句柄后端，用于Bink容器。
@@ -89,6 +91,7 @@ SDL主运行时不再实例化不可用的stream backend或立即完成型video 
 - 运行时修复后，Linux core无SDL/无FFmpeg配置保持独立并通过`186/186`。
 - 运行时修复后，Linux app完整门通过`192/192`。
 - 场景音乐循环掩码及SDL音频输入flush修复后，Windows LLVM app完整门分别通过`192/192`。
+- Windows真实设备日志中，`Map_Eu08.mp3`分别于`21:58:29.021`、`21:59:11.621`和`21:59:54.226`报告启动，相邻重开间隔为42.600秒与42.605秒；与该MP3约42.53秒的解码时长一致，证明EOF后连续循环已实际生效。
 - Linux ELF依赖从应用输出目录复制的文件中解析全部五个FFmpeg库，不存在缺失的FFmpeg依赖。
 - Linux和Windows应用/测试输出目录均包含`openswd3_ffmpeg`、共享SDL3运行库、五个FFmpeg运行库及`LICENSE.txt`。
 - ELF和PE依赖检查证明应用与`openswd3_ffmpeg`解析到同一个共享SDL3运行时实例。

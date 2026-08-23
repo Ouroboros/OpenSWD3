@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v417
+版本：v418
 
 最后更新：2026-08-22
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：FFmpeg BGM运行时修复 · Windows用户复测
+当前步骤：模块9 · 标准特殊模式入口`0x00439FD0`闭环
 
 ## 0. 执行约定
 
@@ -3027,8 +3027,7 @@ B7 P0 有限收口完成。
     协调状态覆盖，导致解码器已打开但idle永不执行`step_video()`；现改为写当前协调状态并由
     既有帧尾发布。解码后端增加明确EOF/失败终止，禁止重复呈现不可用黑帧。`firegod.bik`
     176帧和`opening.bik`7369帧均全量解码到EOF；Linux core186/186、app192/192通过。用户
-    已确认Windows实际OP播放正常；当前WSL丢失`WSLInterop`注册且无挂载权限，Windows完整门
-    仍待复跑。
+    已确认Windows实际OP播放正常；修复后Windows LLVM app192/192完整门已复跑通过。
 
 - FFmpeg BGM运行时修复完成Linux验证。原SDL主帧`update_background_music()`为空，导致MP3
     后端可独立播放但地图音乐请求从未被消费；现将剧情VM六槽音乐状态、真实MAPS地图音乐表、
@@ -3038,6 +3037,8 @@ B7 P0 有限收口完成。
     循环；现修正为只清`0x00200000`，保留场景循环位。普通组与场景组真实MP3 EOF重开均通过。
     Windows真实设备仍因完整输入入队后未`SDL_FlushAudioStream()`而不报告EOF；现为每次完整文件入队
     显式flush，使设备队列可归零并触发stream100重开。Linux core186/186、app192/192及两轮修复后
-    Windows LLVM app192/192通过。
+    Windows LLVM app192/192通过。Windows实际日志证明`Map_Eu08.mp3`以42.600秒和42.605秒间隔
+    连续重开两轮。权威LST证明原版每轮以offset零、loop count一重开stream；77个MP3均无曲内loop
+    point元数据，因此从曲首重复属于原版行为，媒体复测正式关闭。
 
-下一工作包：Windows FFmpeg BGM实际循环播放复测；通过前不恢复模块9。
+下一工作包：恢复模块9，审查并闭环标准特殊模式入口`0x00439FD0`。
