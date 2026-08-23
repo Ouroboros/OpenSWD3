@@ -44,6 +44,7 @@ using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
 using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
 using openswd3::special_modes::retreat_legacy_standard_mode_window_cursor;
+using openswd3::special_modes::retreat_legacy_standard_mode_window_page;
 using openswd3::special_modes::initialize_legacy_standard_mode_selector;
 using openswd3::special_modes::initialize_legacy_standard_special_modes;
 using openswd3::special_modes::kLegacyInitialMenuCommitCounter;
@@ -1764,6 +1765,47 @@ void test_standard_mode_window_page_advance(openswd3::test::Context& test) {
     }
 }
 
+void test_standard_mode_window_page_retreat(openswd3::test::Context& test) {
+    struct Case {
+        i32 initial_window_offset{};
+        i32 initial_local_cursor{};
+        i32 step{};
+        i32 expected_window_offset{};
+        i32 expected_local_cursor{};
+    };
+    constexpr std::array cases{
+        Case{10, 2, 3, 10, 0},
+        Case{10, -2, 3, 10, 0},
+        Case{10, 0, 3, 7, 0},
+        Case{3, 0, 3, 0, 0},
+        Case{2, 0, 3, 0, 0},
+        Case{
+            std::numeric_limits<i32>::min(),
+            0,
+            1,
+            std::numeric_limits<i32>::max(),
+            0,
+        },
+        Case{std::numeric_limits<i32>::max(), -0, -1, 0, 0},
+        Case{0, 0, std::numeric_limits<i32>::min(), 0, 0},
+        Case{-1, 0, -2, 1, 0},
+    };
+
+    for (const auto& sample : cases) {
+        i32 window_offset = sample.initial_window_offset;
+        i32 local_cursor = sample.initial_local_cursor;
+        i32* const legacy_return = retreat_legacy_standard_mode_window_page(
+            window_offset, local_cursor, sample.step
+        );
+        test.expect_true(
+            window_offset == sample.expected_window_offset &&
+                local_cursor == sample.expected_local_cursor &&
+                legacy_return == &local_cursor,
+            "0x43BC60 preserves cursor clear, wrapped step retreat, negative clamp and pointer EAX"
+        );
+    }
+}
+
 #ifdef OPENSWD3_GAME_DATA_ROOT
 void test_standard_mode_shared_text_real_asset(openswd3::test::Context& test) {
     const std::filesystem::path maps_path =
@@ -3050,6 +3092,7 @@ int main() {
     test_standard_mode_window_cursor_advance(test);
     test_standard_mode_window_cursor_retreat(test);
     test_standard_mode_window_page_advance(test);
+    test_standard_mode_window_page_retreat(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT
     test_standard_mode_shared_text_real_asset(test);
 #endif

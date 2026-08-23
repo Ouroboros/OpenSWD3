@@ -669,6 +669,11 @@ advance_legacy_standard_mode_window_page(
     compat::i32 step
 ) noexcept;
 
+// sub_43BC60: clear a local cursor or retreat its window by one step.
+[[nodiscard]] compat::i32* retreat_legacy_standard_mode_window_page(
+    compat::i32& window_offset, compat::i32& local_cursor, compat::i32 step
+) noexcept;
+
 // sub_43B080: update and draw one standard-mode ghost action.
 [[nodiscard]] LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,

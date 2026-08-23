@@ -687,6 +687,27 @@ advance_legacy_standard_mode_window_page(
     return result;
 }
 
+compat::i32* retreat_legacy_standard_mode_window_page(
+    compat::i32& window_offset,
+    compat::i32& local_cursor,
+    const compat::i32 step
+) noexcept {
+    if (local_cursor != 0) {
+        local_cursor = 0;
+        return &local_cursor;
+    }
+
+    window_offset = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(window_offset) -
+        std::bit_cast<compat::u32>(step)
+    );
+    if (window_offset < 0) {
+        local_cursor = 0;
+        window_offset = 0;
+    }
+    return &local_cursor;
+}
+
 LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,
     asset_runtime::LegacyActionRecord& record,
