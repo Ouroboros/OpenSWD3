@@ -4915,11 +4915,26 @@ public:
                     }
 
                     void draw_ghost_action(
-                        openswd3::asset_runtime::LegacyActionRecord&,
-                        openswd3::compat::i32,
-                        openswd3::compat::i32,
-                        openswd3::compat::u32
-                    ) override {}
+                        openswd3::asset_runtime::LegacyActionRecord& record,
+                        const openswd3::compat::i32 x,
+                        const openswd3::compat::i32 y,
+                        const openswd3::compat::u32 flags
+                    ) override {
+                        auto ports = action_ports();
+                        static_cast<void>(
+                            openswd3::special_modes::
+                                draw_legacy_standard_mode_ghost(
+                                    owner_.legacy_standard_mode_state_
+                                        .selector_state.render_state
+                                        .ghost_state,
+                                    record,
+                                    x,
+                                    y,
+                                    flags,
+                                    ports
+                                )
+                        );
+                    }
 
                     void draw_terminal_action(
                         openswd3::asset_runtime::LegacyActionRecord& record,
@@ -5039,11 +5054,34 @@ public:
                     }
 
                     void draw_ghost_action(
-                        openswd3::asset_runtime::LegacyActionRecord&,
-                        openswd3::compat::i32,
-                        openswd3::compat::i32,
-                        openswd3::compat::i32
-                    ) override {}
+                        openswd3::asset_runtime::LegacyActionRecord& record,
+                        const openswd3::compat::i32 x,
+                        const openswd3::compat::i32 y,
+                        const openswd3::compat::i32 stage
+                    ) override {
+                        openswd3::asset_runtime::LegacyActionDrawRuntimePorts
+                            ports{
+                                owner_.action_updater_,
+                                owner_.tsw_runtime_,
+                                owner_.game_framebuffer_,
+                                owner_.world_raster_,
+                                owner_.world_effects_,
+                                owner_.world_jitter_,
+                            };
+                        static_cast<void>(
+                            openswd3::special_modes::
+                                draw_legacy_standard_mode_ghost(
+                                    owner_.legacy_standard_mode_state_
+                                        .selector_state.render_state
+                                        .ghost_state,
+                                    record,
+                                    x,
+                                    y,
+                                    std::bit_cast<openswd3::compat::u32>(stage),
+                                    ports
+                                )
+                        );
+                    }
 
                     void draw_vertical_line(openswd3::compat::i32) override {}
 

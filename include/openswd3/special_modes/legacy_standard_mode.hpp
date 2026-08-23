@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openswd3/asset_runtime/legacy_action_draw_bridge.hpp"
 #include "openswd3/asset_runtime/legacy_action_record.hpp"
 #include "openswd3/compat/types.hpp"
 #include "openswd3/input_time_rng/legacy_input.hpp"
@@ -111,6 +112,24 @@ struct LegacyStandardModeInputResult {
     compat::u32 callback_count{};
     compat::u32 shared_overlay_callback_count{};
     compat::u32 exit_callback_count{};
+};
+
+struct LegacyStandardModeGhostState {
+    compat::u32 resolved_source_word{};
+    compat::u32 caller_value{};
+};
+
+struct LegacyStandardModeGhostResult {
+    asset_runtime::LegacyActionDrawStatus status{
+        asset_runtime::LegacyActionDrawStatus::ready
+    };
+    compat::u32 update_count{};
+    compat::u32 frame_request_count{};
+    compat::u32 draw_count{};
+    compat::u32 blit_failure_count{};
+    rendering::LegacyBlitExecutionStatus last_blit_status{
+        rendering::LegacyBlitExecutionStatus::completed
+    };
 };
 
 struct LegacyStandardModeBarRequest {
@@ -301,6 +320,7 @@ enum class LegacyStandardModeRenderRecord : compat::u8 {
 };
 
 struct LegacyStandardModeRenderState {
+    LegacyStandardModeGhostState ghost_state{};
     LegacyStandardModePanelState panel_state{};
     LegacyStandardModeTransitionState transition_state{};
     compat::u32 transition_extent{};
@@ -449,6 +469,16 @@ struct LegacyStandardSpecialModeFrameResult {
 initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeState& state,
     LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
+
+// sub_43B080: update and draw one standard-mode ghost action.
+[[nodiscard]] LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
+    LegacyStandardModeGhostState& state,
+    asset_runtime::LegacyActionRecord& record,
+    compat::i32 x,
+    compat::i32 y,
+    compat::u32 caller_value,
+    asset_runtime::LegacyActionDrawPorts& ports
 ) noexcept;
 
 // sub_43AE40: draw a split bar and its optional overlay actions.

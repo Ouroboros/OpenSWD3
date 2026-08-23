@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v428
+版本：v429
 
 最后更新：2026-08-22
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 特殊模式ghost动作绘制`0x0043B080`闭环
+当前步骤：模块9 · 特殊模式复合控件`0x0043B110`闭环
 
 ## 0. 执行约定
 
@@ -3096,4 +3096,10 @@ B7 P0 有限收口完成。
     稳定为`9/227`，hash为`51f6fa2f32795996d7688c1f84d3ff203de46092fd17e81fc623336a02bfba33`；
     Linux core186/186与Linux app192/192通过。本单入口按阶段门禁不重复执行Windows BUILD。
 
-下一工作包：模块9特殊模式ghost动作绘制`0x0043B080`闭环。
+- 模块9ghost动作绘制`0x0043B080`闭环。update失败早退、frame解析、caller值存储、
+    `(mode_flags & 0x80000017) | 0x14`、live offset坐标和opacity0均按LST实现；panel与transition
+    两个上游已接真实桥。workpack两轮稳定为`10/227`，hash为
+    `bfd4559554dfc5113b0981e1a5b372fe645c62caae16003d227199c009ba276e`；Linux core186/186与
+    Linux app192/192通过。本单入口按阶段门禁不重复执行Windows BUILD。
+
+下一工作包：模块9特殊模式复合控件`0x0043B110`闭环。

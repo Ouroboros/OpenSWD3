@@ -143,6 +143,53 @@ arithmetic_shift_right_one(const compat::u32 value) noexcept {
 
 }  // namespace
 
+LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
+    LegacyStandardModeGhostState& state,
+    asset_runtime::LegacyActionRecord& record,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::u32 caller_value,
+    asset_runtime::LegacyActionDrawPorts& ports
+) noexcept {
+    LegacyStandardModeGhostResult result;
+    ++result.update_count;
+    if (ports.update_action_record(record) !=
+        asset_runtime::LegacyActionUpdateStatus::completed) {
+        result.status =
+            asset_runtime::LegacyActionDrawStatus::action_update_failed;
+        return result;
+    }
+
+    rendering::LegacyFramePiece frame;
+    ++result.frame_request_count;
+    if (!ports.load_frame_piece(record.field_4a, record.field_4c, frame)) {
+        result.status =
+            asset_runtime::LegacyActionDrawStatus::frame_load_failed;
+        return result;
+    }
+    state.resolved_source_word = 0U;
+    state.caller_value = caller_value;
+    const compat::u32 flags = (record.mode_flags & 0x80000017U) | 0x14U;
+    const compat::i32 draw_x = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(x) - record.draw_offset_x
+    );
+    const compat::i32 draw_y = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(y) - record.draw_offset_y
+    );
+    result.last_blit_status =
+        ports.draw_frame_piece(frame, draw_x, draw_y, flags, 0U);
+    ++result.draw_count;
+    if (result.last_blit_status !=
+            rendering::LegacyBlitExecutionStatus::completed &&
+        result.last_blit_status !=
+            rendering::LegacyBlitExecutionStatus::clipped_out &&
+        result.last_blit_status !=
+            rendering::LegacyBlitExecutionStatus::opacity_disabled) {
+        ++result.blit_failure_count;
+    }
+    return result;
+}
+
 LegacyStandardModeBarResult render_legacy_standard_mode_bar(
     const LegacyStandardModeBarRequest& request,
     LegacyStandardModeBarOutputs& outputs,

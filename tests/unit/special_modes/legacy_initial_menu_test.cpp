@@ -23,6 +23,7 @@ using openswd3::input_time_rng::LegacyInputRecord;
 using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
+using openswd3::special_modes::draw_legacy_standard_mode_ghost;
 using openswd3::special_modes::initialize_legacy_initial_menu;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
@@ -54,6 +55,7 @@ using openswd3::special_modes::LegacyStandardModeBarFrame;
 using openswd3::special_modes::LegacyStandardModeBarOutputs;
 using openswd3::special_modes::LegacyStandardModeBarPorts;
 using openswd3::special_modes::LegacyStandardModeBarRequest;
+using openswd3::special_modes::LegacyStandardModeGhostState;
 using openswd3::special_modes::LegacyStandardModeItemState;
 using openswd3::special_modes::LegacyStandardModePanelFrame;
 using openswd3::special_modes::LegacyStandardModePanelPorts;
@@ -90,13 +92,16 @@ public:
         record.field_4c = static_cast<u16>(record.base_variant);
         record.draw_offset_x = 2U;
         record.draw_offset_y = 3U;
-        return LegacyActionUpdateStatus::completed;
+        return update_status;
     }
 
     [[nodiscard]] bool load_frame_piece(
         const u16 resource_id, const u16 frame_index, LegacyFramePiece& piece
     ) override {
         loads.emplace_back(resource_id, frame_index);
+        if (!frame_available) {
+            return false;
+        }
         piece.width = 16U;
         piece.height = 32U;
         return true;
@@ -117,11 +122,14 @@ public:
                 .red_offset = effects_.red_offset,
             }
         );
-        return LegacyBlitExecutionStatus::completed;
+        return draw_status;
     }
 
     LegacyBlitEffectState& effects_;
+    LegacyActionUpdateStatus update_status{LegacyActionUpdateStatus::completed};
+    LegacyBlitExecutionStatus draw_status{LegacyBlitExecutionStatus::completed};
     u32 update_count{};
+    bool frame_available{true};
     std::vector<std::pair<u16, u16>> loads;
     std::vector<DrawCall> draws;
 };
@@ -1098,6 +1106,64 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_ghost_draw(openswd3::test::Context& test) {
+    LegacyBlitEffectState effects;
+    FakeActionPorts ports{effects};
+    LegacyActionRecord record;
+    record.action_id = 0x232AU;
+    record.base_variant = 4U;
+    record.mode_flags = 0xFFFFFFFFU;
+    LegacyStandardModeGhostState state;
+    const auto result = draw_legacy_standard_mode_ghost(
+        state, record, 10, 20, 0xDEADBEEFU, ports
+    );
+    test.expect_true(
+        result.status ==
+                openswd3::asset_runtime::LegacyActionDrawStatus::ready &&
+            result.update_count == 1U && result.frame_request_count == 1U &&
+            result.draw_count == 1U && result.blit_failure_count == 0U &&
+            state.caller_value == 0xDEADBEEFU &&
+            ports.loads == std::vector<std::pair<u16, u16>>{{0x232AU, 4U}} &&
+            ports.draws.size() == 1U && ports.draws[0U].x == 8 &&
+            ports.draws[0U].y == 17 && ports.draws[0U].flags == 0x80000017U,
+        "0x43B080 stores the caller value but derives blit flags only from " "the live action mask and subtracts live draw offsets"
+    );
+
+    LegacyBlitEffectState failed_effects;
+    FakeActionPorts failed_ports{failed_effects};
+    failed_ports.update_status = LegacyActionUpdateStatus::stream_load_failed;
+    LegacyActionRecord failed_record;
+    LegacyStandardModeGhostState failed_state;
+    const auto failed = draw_legacy_standard_mode_ghost(
+        failed_state, failed_record, 1, 2, 3U, failed_ports
+    );
+    test.expect_true(
+        failed.status ==
+                openswd3::asset_runtime::LegacyActionDrawStatus::
+                    action_update_failed &&
+            failed.frame_request_count == 0U && failed.draw_count == 0U &&
+            failed_ports.loads.empty() && failed_ports.draws.empty(),
+        "an action update failure logs and returns before frame resolution"
+    );
+
+    LegacyBlitEffectState frame_effects;
+    FakeActionPorts frame_ports{frame_effects};
+    frame_ports.frame_available = false;
+    LegacyActionRecord frame_record;
+    LegacyStandardModeGhostState frame_state;
+    const auto frame_failed = draw_legacy_standard_mode_ghost(
+        frame_state, frame_record, 1, 2, 3U, frame_ports
+    );
+    test.expect_true(
+        frame_failed.status ==
+                openswd3::asset_runtime::LegacyActionDrawStatus::
+                    frame_load_failed &&
+            frame_failed.frame_request_count == 1U &&
+            frame_failed.draw_count == 0U,
+        "the modern checked frame boundary stops before the original invalid " "frame dereference"
+    );
+}
+
 void test_standard_mode_bar_rendering(openswd3::test::Context& test) {
     std::array<LegacyActionRecord, 18U> actions{};
     actions[6U].mode_flags = 0x66U;
@@ -2003,6 +2069,7 @@ int main() {
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
     test_standard_mode_global_initialization(test);
+    test_standard_mode_ghost_draw(test);
     test_standard_mode_bar_rendering(test);
     test_standard_mode_transition_rendering(test);
     test_standard_mode_panel_preparation(test);
