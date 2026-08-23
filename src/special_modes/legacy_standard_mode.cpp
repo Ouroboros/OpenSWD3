@@ -64,6 +64,13 @@ constexpr compat::u32 kPanelActionId = 0x232AU;
 constexpr compat::u32 kPanelTerminalY = 0x0AU;
 constexpr compat::u32 kPanelBaseX = 0xDCU;
 constexpr compat::u32 kPanelDerivedBase = 0x0BU;
+constexpr compat::u8 kTransitionMaximumStage = 0x10U;
+constexpr compat::u8 kTransitionMinimumStage = 6U;
+constexpr compat::u32 kTransitionTextStyle = 4U;
+constexpr compat::u32 kTransitionGhostBaseX = 100U;
+constexpr compat::u32 kTransitionSecondaryTextX = 108U;
+constexpr compat::u32 kTransitionPrimaryTextX = 92U;
+constexpr compat::u32 kTransitionFrameWidth = 640U;
 
 constexpr std::size_t kPrimaryRecord = 0U;
 constexpr std::size_t kFlagVariantRecord = 1U;
@@ -134,6 +141,159 @@ arithmetic_shift_right_one(const compat::u32 value) noexcept {
 }
 
 }  // namespace
+
+LegacyStandardModeTransitionResult render_legacy_standard_mode_transition(
+    LegacyStandardModeTransitionState& state,
+    const compat::u32 extent,
+    const compat::u16 item_count,
+    const compat::u16 secondary_word,
+    std::array<LegacyStandardModeItemRecord, 5U>& item_records,
+    std::array<
+        asset_runtime::LegacyActionRecord,
+        kLegacyStandardSpecialModeInitializationRecordCount>& action_records,
+    LegacyStandardModeTransitionPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionResult result;
+    const compat::u32 text_token = ports.create_text_token(0x1DU, 0x1BU, 0x15U);
+
+    for (std::size_t item_index = 0U; item_index < 4U; ++item_index) {
+        compat::u8 stage = state.stages[item_index];
+        if (item_count == item_index) {
+            stage = static_cast<compat::u8>(stage + 3U);
+            if (std::bit_cast<compat::i8>(stage) >
+                static_cast<compat::i8>(kTransitionMaximumStage)) {
+                stage = kTransitionMaximumStage;
+            }
+        } else {
+            stage = static_cast<compat::u8>(stage - 1U);
+            if (std::bit_cast<compat::i8>(stage) <
+                static_cast<compat::i8>(kTransitionMinimumStage)) {
+                stage = kTransitionMinimumStage;
+            }
+        }
+        if (item_count == 5U || secondary_word == kSecondaryPanelMode) {
+            stage = kTransitionMaximumStage;
+        }
+        state.stages[item_index] = stage;
+
+        auto& item = item_records[item_index];
+        if (item.source_index == kUnavailableItemIndex) {
+            continue;
+        }
+        ++result.active_item_count;
+        auto& action = action_records[11U + item_index];
+        const compat::i32 signed_stage = std::bit_cast<compat::i8>(stage);
+        const compat::u32 anchor_x = item.anchor_x;
+        const compat::u32 anchor_y = item.anchor_y;
+        const compat::u32 first_x = anchor_x - extent;
+
+        ports.draw_ghost_action(
+            action,
+            std::bit_cast<compat::i32>(first_x),
+            static_cast<compat::i32>(anchor_y),
+            signed_stage
+        );
+        ++result.ghost_draw_count;
+
+        auto& metrics = state.metrics[item_index];
+        for (std::size_t line_index = 0U; line_index < 3U; ++line_index) {
+            const compat::i32 numerator = metrics.values[line_index];
+            const compat::i32 denominator = metrics.values[3U + line_index];
+            if (denominator == 0) {
+                result.stopped_on_zero_divisor = true;
+                return result;
+            }
+            const compat::i32 line_x = (numerator * 79) / denominator + 100;
+            ports.draw_vertical_line(line_x);
+            ++result.vertical_line_count;
+
+            const std::array<std::size_t, 3U> decoration_indices{3U, 4U, 5U};
+            const std::array<compat::i32, 3U> y_offsets{-39, -17, 5};
+            ports.draw_ghost_action(
+                action_records[decoration_indices[line_index]],
+                std::bit_cast<compat::i32>(kTransitionGhostBaseX - extent),
+                std::bit_cast<compat::i32>(
+                    anchor_y + static_cast<compat::u32>(y_offsets[line_index])
+                ),
+                signed_stage
+            );
+            ++result.ghost_draw_count;
+        }
+
+        const compat::i32 label_x =
+            std::bit_cast<compat::i32>(anchor_x - extent - 0x58U);
+        ports.draw_text(
+            LegacyStandardModeTransitionTextOwner::primary,
+            LegacyStandardModeTransitionText::label,
+            label_x,
+            std::bit_cast<compat::i32>(anchor_y - 0x5EU),
+            0,
+            0,
+            text_token,
+            kTransitionTextStyle
+        );
+        ++result.text_draw_count;
+
+        const compat::i32 level_value = ports.read_level_value(
+            static_cast<compat::u32>(item_index + 1U),
+            static_cast<compat::u32>(metrics.level_count) + 1U
+        );
+        ports.draw_text(
+            LegacyStandardModeTransitionTextOwner::primary,
+            LegacyStandardModeTransitionText::level,
+            std::bit_cast<compat::i32>(kTransitionPrimaryTextX - extent),
+            std::bit_cast<compat::i32>(anchor_y - 0x4CU),
+            static_cast<compat::i32>(metrics.level_count),
+            std::bit_cast<compat::i32>(
+                static_cast<compat::u32>(level_value) -
+                static_cast<compat::u32>(metrics.level_base)
+            ),
+            text_token,
+            kTransitionTextStyle
+        );
+        ++result.text_draw_count;
+
+        constexpr std::array<LegacyStandardModeTransitionText, 3U> text_kinds{
+            LegacyStandardModeTransitionText::first_pair,
+            LegacyStandardModeTransitionText::second_pair,
+            LegacyStandardModeTransitionText::third_pair,
+        };
+        constexpr std::array<compat::u32, 3U> text_y_offsets{
+            0x34U, 0x1EU, 0x08U
+        };
+        for (std::size_t pair_index = 0U; pair_index < 3U; ++pair_index) {
+            ports.draw_text(
+                LegacyStandardModeTransitionTextOwner::secondary,
+                text_kinds[pair_index],
+                std::bit_cast<compat::i32>(kTransitionSecondaryTextX - extent),
+                std::bit_cast<compat::i32>(
+                    anchor_y - text_y_offsets[pair_index]
+                ),
+                metrics.values[pair_index],
+                metrics.values[3U + pair_index],
+                text_token,
+                kTransitionTextStyle
+            );
+            ++result.text_draw_count;
+        }
+
+        ports.draw_vertical_line(
+            static_cast<compat::i32>(kTransitionFrameWidth)
+        );
+        ++result.vertical_line_count;
+        if ((metrics.marked_flags & 0x80U) != 0U) {
+            ports.draw_marked_action(
+                action,
+                std::bit_cast<compat::i32>(first_x),
+                static_cast<compat::i32>(anchor_y),
+                0x28U
+            );
+            ++result.marked_action_draw_count;
+        }
+    }
+
+    return result;
+}
 
 LegacyStandardModePanelResult prepare_legacy_standard_mode_panel(
     LegacyStandardModePanelState& state,

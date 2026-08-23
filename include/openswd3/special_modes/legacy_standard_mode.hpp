@@ -37,7 +37,9 @@ struct LegacyModeThreeSixRecordInitialization {
 
 struct LegacyStandardModeItemRecord {
     compat::u16 source_index{};
-    std::array<compat::u8, 8U> reserved_02{};
+    std::array<compat::u8, 4U> reserved_02{};
+    compat::u16 anchor_x{};
+    compat::u16 anchor_y{};
     compat::u16 reset_word_a{};
     compat::u16 primary_state{};
     compat::u16 secondary_state{};
@@ -50,6 +52,8 @@ struct LegacyStandardModeItemRecord {
 };
 
 static_assert(sizeof(LegacyStandardModeItemRecord) == 0x1CU);
+static_assert(offsetof(LegacyStandardModeItemRecord, anchor_x) == 0x06U);
+static_assert(offsetof(LegacyStandardModeItemRecord, anchor_y) == 0x08U);
 static_assert(offsetof(LegacyStandardModeItemRecord, reset_word_a) == 0x0AU);
 static_assert(offsetof(LegacyStandardModeItemRecord, primary_state) == 0x0CU);
 static_assert(offsetof(LegacyStandardModeItemRecord, secondary_state) == 0x0EU);
@@ -107,6 +111,74 @@ struct LegacyStandardModeInputResult {
     compat::u32 callback_count{};
     compat::u32 shared_overlay_callback_count{};
     compat::u32 exit_callback_count{};
+};
+
+struct LegacyStandardModeTransitionMetrics {
+    compat::i32 level_base{};
+    std::array<compat::i16, 6U> values{};
+    compat::u8 marked_flags{};
+    compat::u8 level_count{};
+};
+
+enum class LegacyStandardModeTransitionText : compat::u8 {
+    label,
+    level,
+    first_pair,
+    second_pair,
+    third_pair,
+};
+
+enum class LegacyStandardModeTransitionTextOwner : compat::u8 {
+    primary,
+    secondary,
+};
+
+struct LegacyStandardModeTransitionState {
+    std::array<compat::u8, 4U> stages{};
+    std::array<LegacyStandardModeTransitionMetrics, 4U> metrics{};
+};
+
+class LegacyStandardModeTransitionPorts {
+public:
+    virtual ~LegacyStandardModeTransitionPorts() = default;
+
+    [[nodiscard]] virtual compat::u32 create_text_token(
+        compat::u32 first, compat::u32 second, compat::u32 third
+    ) = 0;
+    virtual void draw_ghost_action(
+        asset_runtime::LegacyActionRecord& record,
+        compat::i32 x,
+        compat::i32 y,
+        compat::i32 stage
+    ) = 0;
+    virtual void draw_vertical_line(compat::i32 x) = 0;
+    [[nodiscard]] virtual compat::i32
+    read_level_value(compat::u32 entry_index, compat::u32 count) = 0;
+    virtual void draw_text(
+        LegacyStandardModeTransitionTextOwner owner,
+        LegacyStandardModeTransitionText text,
+        compat::i32 x,
+        compat::i32 y,
+        compat::i32 first_value,
+        compat::i32 second_value,
+        compat::u32 token,
+        compat::u32 style
+    ) = 0;
+    virtual void draw_marked_action(
+        asset_runtime::LegacyActionRecord& record,
+        compat::i32 x,
+        compat::i32 y,
+        compat::u32 flags
+    ) = 0;
+};
+
+struct LegacyStandardModeTransitionResult {
+    compat::u32 active_item_count{};
+    compat::u32 ghost_draw_count{};
+    compat::u32 vertical_line_count{};
+    compat::u32 text_draw_count{};
+    compat::u32 marked_action_draw_count{};
+    bool stopped_on_zero_divisor{};
 };
 
 struct LegacyStandardModePanelFrame {
@@ -168,6 +240,7 @@ enum class LegacyStandardModeRenderRecord : compat::u8 {
 
 struct LegacyStandardModeRenderState {
     LegacyStandardModePanelState panel_state{};
+    LegacyStandardModeTransitionState transition_state{};
     compat::u32 transition_extent{};
     compat::u32 captured_surface_token{};
     compat::u32 blocking_overlay_active{};
@@ -314,6 +387,20 @@ struct LegacyStandardSpecialModeFrameResult {
 initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeState& state,
     LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
+
+// sub_43AAA0: draw the four standard-mode transition item blocks.
+[[nodiscard]] LegacyStandardModeTransitionResult
+render_legacy_standard_mode_transition(
+    LegacyStandardModeTransitionState& state,
+    compat::u32 extent,
+    compat::u16 item_count,
+    compat::u16 secondary_word,
+    std::array<LegacyStandardModeItemRecord, 5U>& item_records,
+    std::array<
+        asset_runtime::LegacyActionRecord,
+        kLegacyStandardSpecialModeInitializationRecordCount>& action_records,
+    LegacyStandardModeTransitionPorts& ports
 ) noexcept;
 
 // sub_43A880: prepare and draw the standard-mode panel action.

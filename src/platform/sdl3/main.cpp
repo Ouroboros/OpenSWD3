@@ -5022,7 +5022,94 @@ public:
                 );
             }
 
-            void draw_transition(openswd3::compat::u32) override {}
+            void draw_transition(const openswd3::compat::u32 extent) override {
+                class TransitionPorts final
+                    : public openswd3::special_modes::
+                          LegacyStandardModeTransitionPorts {
+                public:
+                    explicit TransitionPorts(SdlSmokeIdlePorts& owner) noexcept
+                        : owner_(owner) {}
+
+                    openswd3::compat::u32 create_text_token(
+                        openswd3::compat::u32,
+                        openswd3::compat::u32,
+                        openswd3::compat::u32
+                    ) override {
+                        return 0U;
+                    }
+
+                    void draw_ghost_action(
+                        openswd3::asset_runtime::LegacyActionRecord&,
+                        openswd3::compat::i32,
+                        openswd3::compat::i32,
+                        openswd3::compat::i32
+                    ) override {}
+
+                    void draw_vertical_line(openswd3::compat::i32) override {}
+
+                    openswd3::compat::i32 read_level_value(
+                        openswd3::compat::u32, openswd3::compat::u32
+                    ) override {
+                        return 0;
+                    }
+
+                    void draw_text(
+                        openswd3::special_modes::
+                            LegacyStandardModeTransitionTextOwner,
+                        openswd3::special_modes::
+                            LegacyStandardModeTransitionText,
+                        openswd3::compat::i32,
+                        openswd3::compat::i32,
+                        openswd3::compat::i32,
+                        openswd3::compat::i32,
+                        openswd3::compat::u32,
+                        openswd3::compat::u32
+                    ) override {}
+
+                    void draw_marked_action(
+                        openswd3::asset_runtime::LegacyActionRecord& record,
+                        const openswd3::compat::i32 x,
+                        const openswd3::compat::i32 y,
+                        const openswd3::compat::u32 flags
+                    ) override {
+                        openswd3::asset_runtime::LegacyActionDrawRuntimePorts
+                            ports{
+                                owner_.action_updater_,
+                                owner_.tsw_runtime_,
+                                owner_.game_framebuffer_,
+                                owner_.world_raster_,
+                                owner_.world_effects_,
+                                owner_.world_jitter_,
+                            };
+                        static_cast<void>(
+                            openswd3::asset_runtime::
+                                update_draw_legacy_action_with_flags(
+                                    record, x, y, flags, ports
+                                )
+                        );
+                    }
+
+                private:
+                    SdlSmokeIdlePorts& owner_;
+                };
+
+                TransitionPorts ports{owner_};
+                auto& selector_state =
+                    owner_.legacy_standard_mode_state_.selector_state;
+                static_cast<void>(
+                    openswd3::special_modes::
+                        render_legacy_standard_mode_transition(
+                            selector_state.render_state.transition_state,
+                            extent,
+                            selector_state.item_count,
+                            selector_state.secondary_word,
+                            selector_state.item_state.records,
+                            owner_.legacy_standard_mode_state_
+                                .initialization_records,
+                            ports
+                        )
+                );
+            }
 
             void draw_secondary_surface(
                 openswd3::compat::i32,

@@ -15,6 +15,7 @@ using openswd3::asset_runtime::LegacyActionRecord;
 using openswd3::asset_runtime::LegacyActionUpdateStatus;
 using openswd3::compat::i16;
 using openswd3::compat::i32;
+using openswd3::compat::u8;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
 using openswd3::input_time_rng::kLegacyInputRecordCount;
@@ -37,6 +38,7 @@ using openswd3::special_modes::LegacyInitialMenuInput;
 using openswd3::special_modes::LegacyInitialMenuState;
 using openswd3::special_modes::run_legacy_initial_menu_frame;
 using openswd3::special_modes::render_legacy_standard_mode_frame;
+using openswd3::special_modes::render_legacy_standard_mode_transition;
 using openswd3::special_modes::run_legacy_standard_mode_input_dispatch;
 using openswd3::special_modes::run_legacy_standard_special_mode_frame;
 using openswd3::special_modes::kLegacySpecialModeAlternateFlag;
@@ -55,6 +57,10 @@ using openswd3::special_modes::LegacyStandardModeRenderPorts;
 using openswd3::special_modes::LegacyStandardModeRenderRecord;
 using openswd3::special_modes::LegacyStandardModeRenderState;
 using openswd3::special_modes::LegacyStandardModeSelectorPorts;
+using openswd3::special_modes::LegacyStandardModeTransitionPorts;
+using openswd3::special_modes::LegacyStandardModeTransitionState;
+using openswd3::special_modes::LegacyStandardModeTransitionText;
+using openswd3::special_modes::LegacyStandardModeTransitionTextOwner;
 using openswd3::special_modes::LegacyStandardModeSelectorState;
 using openswd3::special_modes::LegacyStandardSpecialModeInitializationPorts;
 using openswd3::special_modes::LegacyStandardSpecialModePorts;
@@ -203,6 +209,110 @@ public:
     std::vector<LegacyStandardModeInputCallback> callbacks;
     bool dynamic_pre_present{};
     bool mutate_record_seven_after_record_three{};
+};
+
+struct TransitionGhostRequest {
+    std::size_t action_index{};
+    i32 x{};
+    i32 y{};
+    i32 stage{};
+
+    bool operator==(const TransitionGhostRequest&) const = default;
+};
+
+struct TransitionTextRequest {
+    LegacyStandardModeTransitionTextOwner owner{};
+    LegacyStandardModeTransitionText text{};
+    i32 x{};
+    i32 y{};
+    i32 first_value{};
+    i32 second_value{};
+    u32 token{};
+    u32 style{};
+
+    bool operator==(const TransitionTextRequest&) const = default;
+};
+
+class FakeStandardModeTransitionPorts final
+    : public LegacyStandardModeTransitionPorts {
+public:
+    explicit FakeStandardModeTransitionPorts(
+        std::array<LegacyActionRecord, 18U>& actions
+    ) noexcept
+        : actions_(actions) {}
+
+    u32 create_text_token(
+        const u32 first, const u32 second, const u32 third
+    ) override {
+        token_arguments = {first, second, third};
+        return text_token;
+    }
+
+    void draw_ghost_action(
+        LegacyActionRecord& record, const i32 x, const i32 y, const i32 stage
+    ) override {
+        ghost_requests.push_back(
+            TransitionGhostRequest{
+                .action_index =
+                    static_cast<std::size_t>(&record - actions_.data()),
+                .x = x,
+                .y = y,
+                .stage = stage,
+            }
+        );
+    }
+
+    void draw_vertical_line(const i32 x) override {
+        vertical_lines.push_back(x);
+    }
+
+    i32 read_level_value(const u32 entry_index, const u32 count) override {
+        level_request = {entry_index, count};
+        return level_value;
+    }
+
+    void draw_text(
+        const LegacyStandardModeTransitionTextOwner owner,
+        const LegacyStandardModeTransitionText text,
+        const i32 x,
+        const i32 y,
+        const i32 first_value,
+        const i32 second_value,
+        const u32 token,
+        const u32 style
+    ) override {
+        text_requests.push_back(
+            TransitionTextRequest{
+                .owner = owner,
+                .text = text,
+                .x = x,
+                .y = y,
+                .first_value = first_value,
+                .second_value = second_value,
+                .token = token,
+                .style = style,
+            }
+        );
+    }
+
+    void draw_marked_action(
+        LegacyActionRecord& record, const i32 x, const i32 y, const u32 flags
+    ) override {
+        marked_action_index =
+            static_cast<std::size_t>(&record - actions_.data());
+        marked_request = {x, y, static_cast<i32>(flags)};
+    }
+
+    std::array<LegacyActionRecord, 18U>& actions_;
+    std::array<u32, 3U> token_arguments{};
+    std::array<u32, 2U> level_request{};
+    std::array<i32, 3U> marked_request{};
+    std::vector<TransitionGhostRequest> ghost_requests;
+    std::vector<i32> vertical_lines;
+    std::vector<TransitionTextRequest> text_requests;
+    u32 text_token{0x99U};
+    i32 level_value{100};
+    std::size_t marked_action_index{static_cast<std::size_t>(-1)};
 };
 
 struct PanelDrawRequest {
@@ -881,6 +991,133 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
+    LegacyStandardModeTransitionState state;
+    state.stages = {14U, 1U, 2U, 3U};
+    state.metrics[0U].level_base = 7;
+    state.metrics[0U].values = {10, 20, 30, 5, 10, 15};
+    state.metrics[0U].marked_flags = 0x80U;
+    state.metrics[0U].level_count = 2U;
+    std::array<openswd3::special_modes::LegacyStandardModeItemRecord, 5U>
+        items{};
+    for (auto& item : items) {
+        item.source_index = 0xFFFFU;
+    }
+    items[0U].source_index = 0U;
+    items[0U].anchor_x = 200U;
+    items[0U].anchor_y = 150U;
+    std::array<LegacyActionRecord, 18U> actions{};
+    FakeStandardModeTransitionPorts ports{actions};
+    const auto result = render_legacy_standard_mode_transition(
+        state, 20U, 0U, 2U, items, actions, ports
+    );
+    test.expect_true(
+        state.stages == std::array<u8, 4U>{16U, 6U, 6U, 6U} &&
+            ports.token_arguments == std::array<u32, 3U>{0x1DU, 0x1BU, 0x15U} &&
+            ports.ghost_requests ==
+                std::vector<TransitionGhostRequest>{
+                    TransitionGhostRequest{
+                        .action_index = 11U, .x = 180, .y = 150, .stage = 16
+                    },
+                    TransitionGhostRequest{
+                        .action_index = 3U, .x = 80, .y = 111, .stage = 16
+                    },
+                    TransitionGhostRequest{
+                        .action_index = 4U, .x = 80, .y = 133, .stage = 16
+                    },
+                    TransitionGhostRequest{
+                        .action_index = 5U, .x = 80, .y = 155, .stage = 16
+                    },
+                } &&
+            ports.vertical_lines == std::vector<i32>{258, 258, 258, 640} &&
+            ports.level_request == std::array<u32, 2U>{1U, 3U} &&
+            ports.text_requests ==
+                std::vector<TransitionTextRequest>{
+                    TransitionTextRequest{
+                        .owner = LegacyStandardModeTransitionTextOwner::primary,
+                        .text = LegacyStandardModeTransitionText::label,
+                        .x = 92,
+                        .y = 56,
+                        .first_value = 0,
+                        .second_value = 0,
+                        .token = 0x99U,
+                        .style = 4U,
+                    },
+                    TransitionTextRequest{
+                        .owner = LegacyStandardModeTransitionTextOwner::primary,
+                        .text = LegacyStandardModeTransitionText::level,
+                        .x = 72,
+                        .y = 74,
+                        .first_value = 2,
+                        .second_value = 93,
+                        .token = 0x99U,
+                        .style = 4U,
+                    },
+                    TransitionTextRequest{
+                        .owner =
+                            LegacyStandardModeTransitionTextOwner::secondary,
+                        .text = LegacyStandardModeTransitionText::first_pair,
+                        .x = 88,
+                        .y = 98,
+                        .first_value = 10,
+                        .second_value = 5,
+                        .token = 0x99U,
+                        .style = 4U,
+                    },
+                    TransitionTextRequest{
+                        .owner =
+                            LegacyStandardModeTransitionTextOwner::secondary,
+                        .text = LegacyStandardModeTransitionText::second_pair,
+                        .x = 88,
+                        .y = 120,
+                        .first_value = 20,
+                        .second_value = 10,
+                        .token = 0x99U,
+                        .style = 4U,
+                    },
+                    TransitionTextRequest{
+                        .owner =
+                            LegacyStandardModeTransitionTextOwner::secondary,
+                        .text = LegacyStandardModeTransitionText::third_pair,
+                        .x = 88,
+                        .y = 142,
+                        .first_value = 30,
+                        .second_value = 15,
+                        .token = 0x99U,
+                        .style = 4U,
+                    },
+                } &&
+            ports.marked_action_index == 11U &&
+            ports.marked_request == std::array<i32, 3U>{180, 150, 0x28} &&
+            result.active_item_count == 1U && result.ghost_draw_count == 4U &&
+            result.vertical_line_count == 4U && result.text_draw_count == 5U &&
+            result.marked_action_draw_count == 1U &&
+            !result.stopped_on_zero_divisor,
+        "0x43AAA0 preserves four ghost draws, three ratio lines, five text " "blocks, the full-width line and marked action order for one item"
+    );
+
+    LegacyStandardModeTransitionState zero_state;
+    std::array<openswd3::special_modes::LegacyStandardModeItemRecord, 5U>
+        zero_items{};
+    for (auto& item : zero_items) {
+        item.source_index = 0xFFFFU;
+    }
+    zero_items[0U].source_index = 0U;
+    std::array<LegacyActionRecord, 18U> zero_actions{};
+    FakeStandardModeTransitionPorts zero_ports{zero_actions};
+    const auto zero_result = render_legacy_standard_mode_transition(
+        zero_state, 0U, 5U, 2U, zero_items, zero_actions, zero_ports
+    );
+    test.expect_true(
+        zero_state.stages == std::array<u8, 4U>{16U, 0U, 0U, 0U} &&
+            zero_result.stopped_on_zero_divisor &&
+            zero_result.active_item_count == 1U &&
+            zero_result.ghost_draw_count == 1U &&
+            zero_result.vertical_line_count == 0U,
+        "item count five forces the visited byte stage to sixteen and the " "checked zero-divisor boundary stops before later items and lines"
+    );
+}
+
 void test_standard_mode_panel_preparation(openswd3::test::Context& test) {
     LegacyStandardModePanelState terminal_state{.step = 15U};
     LegacyActionRecord terminal_ghost;
@@ -1544,6 +1781,7 @@ int main() {
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
     test_standard_mode_global_initialization(test);
+    test_standard_mode_transition_rendering(test);
     test_standard_mode_panel_preparation(test);
     test_standard_mode_frame_rendering(test);
     test_standard_mode_input_dispatch(test);
