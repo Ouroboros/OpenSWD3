@@ -39,10 +39,10 @@ UT锁定物品查询ID、query→gate→toggle→sample→清零顺序：bit0置
 
 闭环DDF0和DD20均不修改鼠标X，因此移除早期伪port通过闭环callee强改X的测试。DA30现以真实行为分别锁定：
 
-- `x=80`先直接DDF0，X仍80；第一动态边界调用未关闭DFA0后把测试X改205，再命中DED0，共3次callback。
-- `x=460`先直接DD20，X仍460；随后DFA0和DED0，共3次callback。
+- `x=80`先直接DDF0，X仍80；重叠的两组动态strict边界继续调用已关闭DFA0和DED0，共3次callback。
+- `x=460`先直接DD20，X仍460；重叠动态边界继续调用DFA0和DED0，共3次callback。
 
-这既验证caller直连，也保留DA30每次callee后重读X，而不向已关闭callee注入不存在的副作用。
+这既验证四个caller直连，也保留DA30每次callee后重读X，而不向任何已关闭callee注入不存在的副作用。
 
 ## 6. 验证
 

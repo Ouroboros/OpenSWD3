@@ -66,6 +66,7 @@ using openswd3::special_modes::rebuild_legacy_standard_mode_entry_alias;
 using openswd3::special_modes::refresh_legacy_standard_mode_page;
 using openswd3::special_modes::release_legacy_standard_mode_database;
 using openswd3::special_modes::retreat_legacy_standard_mode_database;
+using openswd3::special_modes::retreat_legacy_standard_mode_database_page;
 using openswd3::special_modes::render_legacy_standard_mode_entry;
 using openswd3::special_modes::render_legacy_standard_mode_mode_strip;
 using openswd3::special_modes::render_legacy_standard_mode_runtime;
@@ -2785,6 +2786,140 @@ void test_standard_mode_database_advance(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_database_page_retreat(openswd3::test::Context& test) {
+    class PageRetreatPorts final : public openswd3::special_modes::
+                                       LegacyStandardModeDatabaseRetreatPorts {
+    public:
+        void refresh_database_records(
+            openswd3::special_modes::
+                LegacyStandardModeDatabaseInitializationState& state
+        ) noexcept override {
+            events.push_back(1U);
+            state.first_inline_record[0U] = 10U;
+        }
+        void rebuild_inline_records(
+            const std::span<u8> first_record,
+            const std::span<u8> second_record,
+            openswd3::special_modes::
+                LegacyStandardModeDatabaseInitializationState&
+        ) noexcept override {
+            events.push_back(2U);
+            observed_first_byte = first_record[0U];
+            first_record[0U] = 11U;
+            second_record[0U] = 12U;
+        }
+        [[nodiscard]] i32 initialize_database_sample(
+            const u16 sample_id, const u32 interface_source_value
+        ) noexcept override {
+            events.push_back(3U);
+            sample_ids.push_back(sample_id);
+            interface_values.push_back(interface_source_value);
+            return sample_id == 0x2EU ? 83 : 93;
+        }
+        [[nodiscard]] bool
+        query_item_presence(const u16 item_id) noexcept override {
+            queried_item_ids.push_back(item_id);
+            return item_present;
+        }
+
+        bool item_present{true};
+        u8 observed_first_byte{};
+        std::vector<u8> events;
+        std::vector<u16> sample_ids;
+        std::vector<u16> queried_item_ids;
+        std::vector<u32> interface_values;
+    };
+
+    std::array<LegacyStandardModeForwardNode, 40U> nodes{};
+    for (std::size_t index = 0U; index + 1U < nodes.size(); ++index) {
+        nodes[index].next = &nodes[index + 1U];
+    }
+    openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+        state;
+    state.interaction_phase = 1U;
+    state.forward_head = &nodes[0U];
+    state.current_forward_head = &nodes[16U];
+    state.forward_count = 40U;
+    state.bounded_forward_count = 16;
+    state.list_selection = 0;
+    state.window_offset = 16;
+    state.display_flags = 0xAB00U;
+    state.interface_source_value = 0xDDEEFF00U;
+    PageRetreatPorts ports;
+
+    const auto phase_1 =
+        retreat_legacy_standard_mode_database_page(state, ports);
+    test.expect_true(
+        phase_1.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeDatabasePageRetreatPath::
+                        phase_1_page_retreat &&
+            phase_1.legacy_return_value == 83 &&
+            phase_1.helper_call_count == 6U && phase_1.sample_initialized &&
+            state.window_offset == 0 && state.list_selection == 0 &&
+            state.current_forward_head == &nodes[0U] &&
+            state.bounded_forward_count == 16 &&
+            state.bounded_forward_node == &nodes[16U] &&
+            state.display_flags == 0xAB03U &&
+            state.first_inline_record[0U] == 11U &&
+            state.second_inline_record[0U] == 12U &&
+            ports.observed_first_byte == 10U &&
+            ports.events == std::vector<u8>{1U, 2U, 3U} &&
+            ports.sample_ids == std::vector<u16>{0x2EU} &&
+            ports.interface_values == std::vector<u32>{0xDDEEFF00U},
+        "0x43DFA0 phase1 composes BC60 step16, B9A0, BC90 and OR03 refresh order"
+    );
+
+    state.interaction_phase = 2U;
+    state.interaction_toggle = 1U;
+    state.runtime_input_flags = 0U;
+    const auto active_phase_2 =
+        retreat_legacy_standard_mode_database_page(state, ports);
+    test.expect_true(
+        active_phase_2.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeDatabasePageRetreatPath::phase_2_toggle &&
+            active_phase_2.legacy_return_value == 93 &&
+            active_phase_2.helper_call_count == 2U &&
+            active_phase_2.sample_initialized &&
+            state.interaction_toggle == 0U &&
+            ports.queried_item_ids == std::vector<u16>{0x1BA9U} &&
+            ports.sample_ids.back() == 0x107U,
+        "0x43DFA0 phase2 queries item then samples nonzero toggle and clears it"
+    );
+    ports.item_present = false;
+    state.interaction_toggle = 9U;
+    const auto missing_item =
+        retreat_legacy_standard_mode_database_page(state, ports);
+    test.expect_true(
+        missing_item.legacy_return_value == 0 &&
+            missing_item.helper_call_count == 1U &&
+            !missing_item.sample_initialized && state.interaction_toggle == 9U,
+        "0x43DFA0 phase2 missing item preserves toggle and query EAX zero"
+    );
+
+    state.interaction_phase = 3U;
+    state.phase_3_countdown = 0U;
+    const auto phase_3 =
+        retreat_legacy_standard_mode_database_page(state, ports);
+    state.interaction_phase = 4U;
+    const auto phase_4 =
+        retreat_legacy_standard_mode_database_page(state, ports);
+    test.expect_true(
+        phase_3.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeDatabasePageRetreatPath::
+                        phase_3_countdown &&
+            phase_3.legacy_return_value == 0 &&
+            state.phase_3_countdown == 0xC8U &&
+            phase_4.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeDatabasePageRetreatPath::ignored &&
+            phase_4.legacy_return_value == 1,
+        "0x43DFA0 phase3 writes 200 while phase4 returns decremented EAX one"
+    );
+}
+
 void test_standard_mode_database_page_advance(openswd3::test::Context& test) {
     class PagePorts final : public openswd3::special_modes::
                                 LegacyStandardModeDatabaseAdvancePorts {
@@ -3081,19 +3216,13 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             const Target target,
             openswd3::special_modes::
                 LegacyStandardModeDatabaseInitializationState&,
-            Input& input
+            Input&
         ) noexcept override {
             targets.push_back(target);
-            if (mutate_chain_x) {
-                if (target == Target::address_0043DFA0) {
-                    input.mouse_x = 205U;
-                }
-            }
             return static_cast<i32>(100U + targets.size());
         }
 
         bool item_present{true};
-        bool mutate_chain_x{};
         std::vector<u16> queried_item_ids;
         std::vector<u16> database_sample_ids;
         std::vector<Target> targets;
@@ -3161,19 +3290,17 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         state.bounded_forward_count = 16;
         state.first_dynamic_min_x = 70;
         state.first_dynamic_max_x = 90;
-        state.second_dynamic_min_x = 200;
-        state.second_dynamic_max_x = 210;
+        state.second_dynamic_min_x = 70;
+        state.second_dynamic_max_x = 90;
         Input input{.mouse_x = 80U, .mouse_y = 200U};
         InputPorts ports;
-        ports.mutate_chain_x = true;
         const auto result = run(state, input, ports);
         test.expect_true(
             result.callback_count == 3U &&
                 result.last_target == Target::address_0043DED0 &&
-                ports.targets ==
-                    std::vector<Target>{Target::address_0043DFA0} &&
-                (state.display_flags & 3U) == 3U && input.mouse_x == 205U &&
-                result.legacy_return_value == 101,
+                ports.targets.empty() &&
+                (state.display_flags & 0x33U) == 0x33U &&
+                input.mouse_x == 80U && result.legacy_return_value == 100,
             "0x43DA30 directly retreats through DDF0 then rereads X for DFA0 and DED0"
         );
     }
@@ -3191,19 +3318,17 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         state.bounded_forward_count = 16;
         state.first_dynamic_min_x = 450;
         state.first_dynamic_max_x = 470;
-        state.second_dynamic_min_x = 200;
-        state.second_dynamic_max_x = 210;
+        state.second_dynamic_min_x = 450;
+        state.second_dynamic_max_x = 470;
         Input input{.mouse_x = 460U, .mouse_y = 200U};
         InputPorts ports;
-        ports.mutate_chain_x = true;
         const auto result = run(state, input, ports);
         test.expect_true(
             result.callback_count == 3U &&
                 result.last_target == Target::address_0043DED0 &&
-                ports.targets ==
-                    std::vector<Target>{Target::address_0043DFA0} &&
-                (state.display_flags & 0x30U) == 0x30U &&
-                input.mouse_x == 205U && result.legacy_return_value == 101,
+                ports.targets.empty() &&
+                (state.display_flags & 0x33U) == 0x33U &&
+                input.mouse_x == 460U && result.legacy_return_value == 100,
             "0x43DA30 directly advances through DD20 then rereads X for DFA0 and DED0"
         );
     }
@@ -7630,6 +7755,7 @@ int main() {
     test_standard_mode_entry_initialization(test);
     test_standard_mode_database_initialization(test);
     test_standard_mode_database_advance(test);
+    test_standard_mode_database_page_retreat(test);
     test_standard_mode_database_page_advance(test);
     test_standard_mode_database_retreat(test);
     test_standard_mode_database_input_dispatch(test);
