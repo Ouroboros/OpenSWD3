@@ -350,6 +350,84 @@ void test_window_size_configuration(openswd3::test::Context& test) {
     );
 }
 
+void test_display_refresh_configuration(openswd3::test::Context& test) {
+    using openswd3::resource_io::DisplayConfiguration;
+    using openswd3::resource_io::DisplayConfigurationStatus;
+    using openswd3::resource_io::WindowConfigurationStatus;
+
+    const TemporaryTree tree;
+    constexpr DisplayConfiguration fallback{0};
+    const auto missing = openswd3::resource_io::load_display_configuration(
+        tree.configuration_path(), fallback
+    );
+    test.expect_true(
+        missing.status == DisplayConfigurationStatus::ready &&
+            missing.configuration == fallback && !missing.loaded_from_file,
+        "missing display configuration keeps legacy coupled presentation"
+    );
+
+    tree.write_configuration("[display]\n" "fps = 60\n");
+    const auto sixty = openswd3::resource_io::load_display_configuration(
+        tree.configuration_path(), fallback
+    );
+    test.expect_true(
+        sixty.status == DisplayConfigurationStatus::ready &&
+            sixty.configuration == DisplayConfiguration{60} &&
+            sixty.loaded_from_file,
+        "a positive display FPS enables an independent presentation clock"
+    );
+
+    std::string detail;
+    test.expect_equal(
+        openswd3::resource_io::save_window_configuration(
+            tree.configuration_path(), {960, 720}, false, detail
+        ),
+        WindowConfigurationStatus::ready,
+        "saving window placement succeeds beside display configuration"
+    );
+    const auto preserved = openswd3::resource_io::load_display_configuration(
+        tree.configuration_path(), fallback
+    );
+    test.expect_true(
+        preserved.status == DisplayConfigurationStatus::ready &&
+            preserved.configuration == DisplayConfiguration{60},
+        "saving window placement preserves the independent display FPS"
+    );
+
+    tree.write_configuration("[display]\n" "fps = 0\n");
+    const auto coupled = openswd3::resource_io::load_display_configuration(
+        tree.configuration_path(), DisplayConfiguration{60}
+    );
+    test.expect_true(
+        coupled.status == DisplayConfigurationStatus::ready &&
+            coupled.configuration == DisplayConfiguration{0},
+        "display FPS zero explicitly selects legacy coupled presentation"
+    );
+
+    tree.write_configuration("display = 60\n");
+    const auto invalid_table =
+        openswd3::resource_io::load_display_configuration(
+            tree.configuration_path(), fallback
+        );
+    test.expect_true(
+        invalid_table.status ==
+                DisplayConfigurationStatus::invalid_display_table &&
+            invalid_table.configuration == fallback,
+        "a non-table display section is rejected"
+    );
+
+    tree.write_configuration("[display]\n" "fps = 1001\n");
+    const auto invalid_fps = openswd3::resource_io::load_display_configuration(
+        tree.configuration_path(), fallback
+    );
+    test.expect_true(
+        invalid_fps.status ==
+                DisplayConfigurationStatus::invalid_frames_per_second &&
+            invalid_fps.configuration == fallback,
+        "display FPS outside the supported range is rejected"
+    );
+}
+
 void test_legacy_existing_directory_is_selected(openswd3::test::Context& test) {
     const TemporaryTree tree;
     const CurrentDirectoryGuard directory_guard;
@@ -433,6 +511,7 @@ int main() {
     test_invalid_inputs(test);
     test_activation(test);
     test_window_size_configuration(test);
+    test_display_refresh_configuration(test);
     test_legacy_existing_directory_is_selected(test);
     test_legacy_missing_directory_is_created_without_selection(test);
     test_legacy_directory_failures_are_ignored(test);

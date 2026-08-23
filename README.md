@@ -112,7 +112,7 @@ build/linux-app/src/platform/sdl3/openswd3
 
 ### 配置文件
 
-OpenSWD3 的配置文件是 EXE 同目录的 `openswd3.toml`。可以复制 [`config/openswd3.example.toml`](config/openswd3.example.toml) 作为起点；当前配置分为游戏数据路径和宿主窗口两组：
+OpenSWD3 的配置文件是 EXE 同目录的 `openswd3.toml`。可以复制 [`config/openswd3.example.toml`](config/openswd3.example.toml) 作为起点；当前配置分为游戏数据路径、宿主窗口和显示刷新三组：
 
 ```toml
 [paths]
@@ -122,6 +122,9 @@ data_dir = 'E:\Game\swd3'
 width = 960
 height = 720
 maximized = false
+
+[display]
+fps = 0
 ```
 
 ### 游戏数据目录
@@ -147,6 +150,8 @@ openswd3.exe --data-dir "E:\Game\swd3"
 窗口正常关闭时，OpenSWD3 会把普通窗口客户区尺寸和最大化状态写入 `openswd3.toml`，并在下次启动时恢复。
 
 `width` 和 `height` 是取消最大化后恢复的普通窗口尺寸，必须为正整数；`maximized` 必须为布尔值。旧配置没有 `maximized` 时按 `false` 处理。未配置或配置无效时使用默认普通窗口大小 `960×720`，不改变 `640×480` 游戏内分辨率。
+
+`[display].fps`控制宿主显示刷新时钟，允许`0..1000`。默认值`0`保持原行为：只在内部游戏帧请求画面时呈现。正整数会按指定FPS重复呈现最近一次完成的framebuffer；内部游戏时钟仍由原版35ms门槛控制，剧情ANI仍可临时切换为70ms。额外显示刷新不采样游戏输入，不推进剧情、RNG、音频或其他游戏状态，也不生成插值帧。
 
 ### 日志
 

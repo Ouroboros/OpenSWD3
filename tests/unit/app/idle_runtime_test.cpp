@@ -12,6 +12,7 @@ enum class Call {
     yield,
     step_game_frame,
     present_pause,
+    refresh_display,
 };
 
 class RecordingPorts final : public openswd3::app::IdleRuntimePorts {
@@ -36,6 +37,10 @@ public:
         calls.push_back(Call::present_pause);
     }
 
+    void refresh_display() override {
+        calls.push_back(Call::refresh_display);
+    }
+
     std::vector<Call> calls;
 };
 
@@ -57,26 +62,26 @@ int main() {
     expect_calls(
         test,
         {1, 0x20, 0, 1},
-        {Call::step_video, Call::maintain_audio},
-        "video is followed immediately by one audio maintenance call"
+        {Call::step_video, Call::maintain_audio, Call::refresh_display},
+        "video and audio complete before the independent display check"
     );
     expect_calls(
         test,
         {1, 0x01, 0, 1},
-        {Call::yield},
-        "idle suppression performs only one yield"
+        {Call::yield, Call::refresh_display},
+        "idle suppression yields before the independent display check"
     );
     expect_calls(
         test,
         {1, 0, 0, 1},
-        {Call::step_game_frame},
-        "normal idle iteration enters one game frame"
+        {Call::step_game_frame, Call::refresh_display},
+        "a game frame completes before the independent display check"
     );
     expect_calls(
         test,
         {0, 0x20, 0, 1},
-        {Call::present_pause},
-        "paused display does not step video or maintain audio"
+        {Call::present_pause, Call::refresh_display},
+        "pause composition completes before the independent display check"
     );
     return test.exit_code();
 }

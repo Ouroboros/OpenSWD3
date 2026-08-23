@@ -7,17 +7,22 @@ void run_idle_iteration(const IdleState& state, IdleRuntimePorts& ports) {
     case IdleAction::step_video_then_audio:
         ports.step_video();
         ports.maintain_audio();
-        return;
+        break;
+
     case IdleAction::yield:
         ports.yield();
-        return;
+        break;
+
     case IdleAction::step_game_frame:
         ports.step_game_frame();
-        return;
+        break;
+
     case IdleAction::present_pause:
         ports.present_pause();
-        return;
+        break;
     }
+
+    ports.refresh_display();
 }
 
 }  // namespace openswd3::app

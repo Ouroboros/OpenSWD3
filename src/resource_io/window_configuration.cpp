@@ -13,6 +13,18 @@ namespace openswd3::resource_io {
 
 namespace {
 
+[[nodiscard]] DisplayConfigurationLoadResult display_load_error(
+    const DisplayConfigurationStatus status,
+    const DisplayConfiguration fallback,
+    std::string detail = {}
+) {
+    DisplayConfigurationLoadResult result;
+    result.status = status;
+    result.configuration = fallback;
+    result.detail = std::move(detail);
+    return result;
+}
+
 [[nodiscard]] WindowConfigurationLoadResult load_error(
     const WindowConfigurationStatus status,
     const WindowSize fallback,
@@ -30,16 +42,17 @@ namespace {
         value <= static_cast<std::int64_t>(std::numeric_limits<int>::max());
 }
 
+template <typename Status>
 [[nodiscard]] bool read_existing_document(
     const std::filesystem::path& configuration_path,
     toml::table& document,
-    WindowConfigurationStatus& status,
+    Status& status,
     std::string& detail
 ) {
     std::error_code error;
     const bool exists = std::filesystem::exists(configuration_path, error);
     if (error) {
-        status = WindowConfigurationStatus::read_failed;
+        status = Status::read_failed;
         detail = error.message();
         return false;
     }
@@ -49,7 +62,7 @@ namespace {
 
     std::ifstream input{configuration_path, std::ios::binary};
     if (!input) {
-        status = WindowConfigurationStatus::read_failed;
+        status = Status::read_failed;
         detail = configuration_path.string();
         return false;
     }
@@ -57,7 +70,7 @@ namespace {
     try {
         document = toml::parse(input, configuration_path.string());
     } catch (const toml::parse_error& parse_error) {
-        status = WindowConfigurationStatus::parse_failed;
+        status = Status::parse_failed;
         detail = std::string{parse_error.description()};
         return false;
     }
@@ -65,6 +78,51 @@ namespace {
 }
 
 }  // namespace
+
+DisplayConfigurationLoadResult load_display_configuration(
+    const std::filesystem::path& configuration_path,
+    const DisplayConfiguration fallback
+) {
+    toml::table document;
+    DisplayConfigurationStatus status = DisplayConfigurationStatus::ready;
+    std::string detail;
+    if (!read_existing_document(configuration_path, document, status, detail)) {
+        return display_load_error(status, fallback, std::move(detail));
+    }
+
+    const toml::node* display_node = document.get("display");
+    if (display_node == nullptr) {
+        return DisplayConfigurationLoadResult{
+            DisplayConfigurationStatus::ready,
+            fallback,
+            false,
+            {},
+        };
+    }
+
+    const toml::table* display = display_node->as_table();
+    if (display == nullptr) {
+        return display_load_error(
+            DisplayConfigurationStatus::invalid_display_table, fallback
+        );
+    }
+
+    const std::optional<std::int64_t> frames_per_second =
+        (*display)["fps"].value<std::int64_t>();
+    if (!frames_per_second.has_value() || *frames_per_second < 0 ||
+        *frames_per_second > kMaximumDisplayFramesPerSecond) {
+        return display_load_error(
+            DisplayConfigurationStatus::invalid_frames_per_second, fallback
+        );
+    }
+
+    return DisplayConfigurationLoadResult{
+        DisplayConfigurationStatus::ready,
+        DisplayConfiguration{static_cast<int>(*frames_per_second)},
+        true,
+        {},
+    };
+}
 
 WindowConfigurationLoadResult load_window_configuration(
     const std::filesystem::path& configuration_path, const WindowSize fallback
@@ -168,6 +226,29 @@ WindowConfigurationStatus save_window_configuration(
         return WindowConfigurationStatus::write_failed;
     }
     return WindowConfigurationStatus::ready;
+}
+
+std::string_view display_configuration_status_message(
+    const DisplayConfigurationStatus status
+) noexcept {
+    switch (status) {
+    case DisplayConfigurationStatus::ready:
+        return "ready";
+
+    case DisplayConfigurationStatus::read_failed:
+        return "cannot read openswd3.toml";
+
+    case DisplayConfigurationStatus::parse_failed:
+        return "cannot parse openswd3.toml";
+
+    case DisplayConfigurationStatus::invalid_display_table:
+        return "[display] must be a TOML table";
+
+    case DisplayConfigurationStatus::invalid_frames_per_second:
+        return "[display] fps must be an integer from 0 through 1000";
+    }
+
+    return "unknown display configuration status";
 }
 
 std::string_view window_configuration_status_message(

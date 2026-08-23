@@ -5,6 +5,7 @@ add_library(
         display_lifecycle.cpp
         battle_transition.cpp
         command_line.cpp
+        display_refresh.cpp
         frame_dispatch.cpp
         frame_preparation.cpp
         frame_runtime.cpp

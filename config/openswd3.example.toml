@@ -13,3 +13,10 @@
 width = 960
 height = 720
 maximized = false
+
+[display]
+
+# 0 keeps presentation coupled to the original 35/70 ms game clock.
+# A positive value presents the latest completed framebuffer independently;
+# it never advances input, scripts, RNG, audio, or any other game state.
+fps = 0

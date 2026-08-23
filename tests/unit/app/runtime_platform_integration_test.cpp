@@ -17,6 +17,7 @@ enum class Call {
     seed_crt,
     seed_secondary,
     game_frame,
+    display_refresh,
     shutdown,
     uninitialize_com,
     post_quit,
@@ -57,6 +58,9 @@ public:
         calls.push_back(Call::game_frame);
     }
     void present_pause() override {}
+    void refresh_display() override {
+        calls.push_back(Call::display_refresh);
+    }
 
     void release_active_video() override {}
     openswd3::compat::u32 free_disk_space_mebibytes() override {
@@ -150,6 +154,7 @@ void test_normal_lifecycle(openswd3::test::Context& test) {
         Call::read_time,
         Call::seed_secondary,
         Call::game_frame,
+        Call::display_refresh,
         Call::shutdown,
         Call::uninitialize_com,
         Call::post_quit,

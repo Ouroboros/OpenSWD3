@@ -144,6 +144,21 @@ add_test(
 )
 
 add_executable(
+    openswd3_app_display_refresh_tests
+    unit/app/display_refresh_test.cpp
+)
+target_include_directories(
+    openswd3_app_display_refresh_tests
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/support
+)
+target_link_libraries(openswd3_app_display_refresh_tests PRIVATE openswd3_app)
+
+add_test(
+    NAME app.display_refresh
+    COMMAND openswd3_app_display_refresh_tests
+)
+
+add_executable(
     openswd3_app_idle_runtime_tests
     unit/app/idle_runtime_test.cpp
 )

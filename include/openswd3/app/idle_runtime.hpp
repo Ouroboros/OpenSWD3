@@ -13,6 +13,7 @@ public:
     virtual void yield() = 0;
     virtual void step_game_frame() = 0;
     virtual void present_pause() = 0;
+    virtual void refresh_display() = 0;
 };
 
 void run_idle_iteration(const IdleState& state, IdleRuntimePorts& ports);

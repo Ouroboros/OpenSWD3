@@ -9,6 +9,7 @@
 #include "text_encoding_sdl3.hpp"
 #include "world_role_runtime_adapter.hpp"
 
+#include "openswd3/app/display_refresh.hpp"
 #include "openswd3/app/host_window_event.hpp"
 #include "openswd3/app/idle_runtime.hpp"
 #include "openswd3/app/frame_preparation.hpp"
@@ -242,23 +243,35 @@ read_binary_file(const std::filesystem::path& path) {
     return bytes;
 }
 
-[[nodiscard]] bool present_framebuffer(
-    SDL_Renderer& renderer,
+[[nodiscard]] bool upload_framebuffer(
     SDL_Texture& texture,
     const openswd3::rendering::LegacyFramebuffer& framebuffer
 ) {
     const openswd3::rendering::LegacySurfaceGeometry& geometry =
         framebuffer.geometry().surface;
     return SDL_UpdateTexture(
-               &texture,
-               nullptr,
-               framebuffer.physical_pixels().data(),
-               geometry.pitch_bytes
-           ) &&
-        SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255) &&
+        &texture,
+        nullptr,
+        framebuffer.physical_pixels().data(),
+        geometry.pitch_bytes
+    );
+}
+
+[[nodiscard]] bool
+present_uploaded_texture(SDL_Renderer& renderer, SDL_Texture& texture) {
+    return SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255) &&
         SDL_RenderClear(&renderer) &&
         SDL_RenderTexture(&renderer, &texture, nullptr, nullptr) &&
         SDL_RenderPresent(&renderer);
+}
+
+[[nodiscard]] bool present_framebuffer(
+    SDL_Renderer& renderer,
+    SDL_Texture& texture,
+    const openswd3::rendering::LegacyFramebuffer& framebuffer
+) {
+    return upload_framebuffer(texture, framebuffer) &&
+        present_uploaded_texture(renderer, texture);
 }
 
 void shutdown_sample_output(
@@ -1942,6 +1955,8 @@ public:
         openswd3::rendering::LegacyFramebuffer& game_framebuffer,
         openswd3::rendering::LegacyFramebuffer& primary_surface,
         openswd3::compat::u32& frame_interval,
+        openswd3::compat::u32 display_frames_per_second,
+        bool display_frame_ready,
         openswd3::app::WindowEventState& window_state,
         const openswd3::app::DisplayLifecycleState& display_state,
         openswd3::app::FramePreparationState& frame_preparation_state,
@@ -1974,6 +1989,7 @@ public:
         : window_(window), renderer_(renderer), texture_(texture),
           game_framebuffer_(game_framebuffer),
           primary_surface_(primary_surface), frame_interval_(frame_interval),
+          display_frame_ready_(display_frame_ready),
           window_state_(window_state), display_state_(display_state),
           frame_preparation_state_(frame_preparation_state),
           frame_coordinator_state_(frame_coordinator_state),
@@ -1994,6 +2010,12 @@ public:
           world_effects_{.pixel_conversion = pixel_conversion},
           shutdown_ports_(shutdown_ports), exit_ports_(exit_ports), ok_(ok),
           running_(running) {
+        openswd3::app::configure_display_refresh_clock(
+            display_refresh_clock_,
+            display_frames_per_second,
+            static_cast<std::uint64_t>(SDL_GetTicksNS())
+        );
+
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
             tsw_runtime_,
@@ -2181,6 +2203,25 @@ public:
         request_presentation(
             openswd3::rendering::LegacyPresentationSite::pause_overlay
         );
+    }
+
+    void refresh_display() override {
+        if (!running_ || display_state_.display_active == 0U ||
+            texture_ == nullptr || !display_frame_ready_ ||
+            !openswd3::app::try_accept_display_refresh(
+                display_refresh_clock_,
+                static_cast<std::uint64_t>(SDL_GetTicksNS())
+            )) {
+            return;
+        }
+
+        if (!present_uploaded_texture(renderer_, *texture_)) {
+            static_cast<void>(
+                report_sdl_error("independent framebuffer presentation")
+            );
+            ok_ = false;
+            running_ = false;
+        }
     }
 
     openswd3::compat::u32 read_seconds() override {
@@ -5906,12 +5947,27 @@ public:
             running_ = false;
             return false;
         }
-        if (!present_framebuffer(renderer_, *texture_, primary_surface_)) {
+        if (!upload_framebuffer(*texture_, primary_surface_)) {
+            static_cast<void>(report_sdl_error("framebuffer upload"));
+            ok_ = false;
+            running_ = false;
+            return false;
+        }
+
+        display_frame_ready_ = true;
+        if (openswd3::app::independent_display_refresh_enabled(
+                display_refresh_clock_
+            )) {
+            return true;
+        }
+
+        if (!present_uploaded_texture(renderer_, *texture_)) {
             static_cast<void>(report_sdl_error("framebuffer presentation"));
             ok_ = false;
             running_ = false;
             return false;
         }
+
         return true;
     }
 
@@ -6069,6 +6125,8 @@ private:
     openswd3::rendering::LegacyFramebuffer& game_framebuffer_;
     openswd3::rendering::LegacyFramebuffer& primary_surface_;
     openswd3::compat::u32& frame_interval_;
+    openswd3::app::DisplayRefreshClockState display_refresh_clock_{};
+    bool display_frame_ready_{};
     openswd3::app::WindowEventState& window_state_;
     const openswd3::app::DisplayLifecycleState& display_state_;
     openswd3::app::FramePreparationState& frame_preparation_state_;
@@ -6318,6 +6376,26 @@ int main(const int argument_count, char** arguments) {
         openswd3::diagnostics::log_warning(message);
     }
 
+    const openswd3::resource_io::DisplayConfigurationLoadResult display_config =
+        openswd3::resource_io::load_display_configuration(configuration_path);
+    int display_frames_per_second =
+        display_config.configuration.frames_per_second;
+    if (display_config.status !=
+        openswd3::resource_io::DisplayConfigurationStatus::ready) {
+        std::string message{"display refresh: "};
+        message.append(
+            openswd3::resource_io::display_configuration_status_message(
+                display_config.status
+            )
+        );
+        if (!display_config.detail.empty()) {
+            message.append(": ");
+            message.append(display_config.detail);
+        }
+        message.append("; using legacy coupled presentation");
+        openswd3::diagnostics::log_warning(message);
+    }
+
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         return report_sdl_error("SDL_Init");
     }
@@ -6350,6 +6428,26 @@ int main(const int argument_count, char** arguments) {
         SDL_DestroyWindow(window);
         SDL_Quit();
         return result;
+    }
+
+    if (display_frames_per_second > 0 && !SDL_SetRenderVSync(renderer, 0)) {
+        openswd3::diagnostics::log_warning(
+            std::string{"display refresh: cannot disable VSync: "} +
+            SDL_GetError() + "; using legacy coupled presentation"
+        );
+        display_frames_per_second = 0;
+    }
+
+    if (display_frames_per_second > 0) {
+        openswd3::diagnostics::log_info(
+            std::string{"display refresh: independent "} +
+            std::to_string(display_frames_per_second) +
+            " FPS; legacy game clock remains 35/70 ms"
+        );
+    } else {
+        openswd3::diagnostics::log_info(
+            "display refresh: coupled to the legacy game clock"
+        );
     }
 
     if (!SDL_SetRenderLogicalPresentation(
@@ -6567,6 +6665,8 @@ int main(const int argument_count, char** arguments) {
         framebuffer,
         primary_surface,
         frame_interval,
+        static_cast<openswd3::compat::u32>(display_frames_per_second),
+        runtime_ready,
         window_state,
         display_state,
         frame_preparation_state,
