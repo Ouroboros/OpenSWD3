@@ -621,6 +621,72 @@ retreat_legacy_standard_mode_window_cursor(
     return result;
 }
 
+LegacyStandardModeWindowPageAdvanceResult
+advance_legacy_standard_mode_window_page(
+    const compat::i32 total_count,
+    compat::i32& window_offset,
+    compat::i32& local_cursor,
+    compat::i32& visible_count,
+    const compat::i32 step
+) noexcept {
+    LegacyStandardModeWindowPageAdvanceResult result;
+    const compat::i32 last_visible = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(visible_count) - 1U
+    );
+    if (local_cursor != last_visible) {
+        local_cursor = 0;
+        result.cursor_written = true;
+        result.legacy_return_value = visible_count;
+        if (visible_count >= 1) {
+            local_cursor = visible_count - 1;
+            result.legacy_return_value = local_cursor;
+        }
+        return result;
+    }
+
+    window_offset = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(window_offset) +
+        std::bit_cast<compat::u32>(step)
+    );
+    result.window_offset_written = true;
+    const compat::i32 second_boundary = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(window_offset) +
+        std::bit_cast<compat::u32>(step)
+    );
+    if (second_boundary < total_count) {
+        result.path = LegacyStandardModeWindowPageAdvancePath::page_advanced;
+        result.legacy_return_value = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(total_count) -
+            std::bit_cast<compat::u32>(window_offset) - 1U
+        );
+        if (local_cursor > result.legacy_return_value) {
+            local_cursor = result.legacy_return_value;
+            result.cursor_written = true;
+        }
+        return result;
+    }
+
+    result.path = LegacyStandardModeWindowPageAdvancePath::final_page_rebuilt;
+    window_offset = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(total_count) -
+        std::bit_cast<compat::u32>(step)
+    );
+    if (window_offset < 0) {
+        window_offset = 0;
+    }
+    visible_count = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(total_count) -
+        std::bit_cast<compat::u32>(window_offset)
+    );
+    local_cursor = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(visible_count) - 1U
+    );
+    result.legacy_return_value = local_cursor;
+    result.cursor_written = true;
+    result.visible_count_written = true;
+    return result;
+}
+
 LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,
     asset_runtime::LegacyActionRecord& record,

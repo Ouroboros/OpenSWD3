@@ -583,6 +583,22 @@ struct LegacyStandardModeWindowCursorRetreatResult {
     bool window_offset_retreat{};
 };
 
+enum class LegacyStandardModeWindowPageAdvancePath : compat::u8 {
+    cursor_normalized,
+    page_advanced,
+    final_page_rebuilt,
+};
+
+struct LegacyStandardModeWindowPageAdvanceResult {
+    LegacyStandardModeWindowPageAdvancePath path{
+        LegacyStandardModeWindowPageAdvancePath::cursor_normalized
+    };
+    compat::i32 legacy_return_value{};
+    bool cursor_written{};
+    bool window_offset_written{};
+    bool visible_count_written{};
+};
+
 // sub_43B980: count one intrusive forward chain through its offset-zero links.
 [[nodiscard]] compat::u32 count_legacy_standard_mode_forward_nodes(
     const LegacyStandardModeForwardNode* head
@@ -641,6 +657,16 @@ advance_legacy_standard_mode_window_cursor(
 [[nodiscard]] LegacyStandardModeWindowCursorRetreatResult
 retreat_legacy_standard_mode_window_cursor(
     compat::i32& window_offset, compat::i32& local_cursor
+) noexcept;
+
+// sub_43BBE0: advance a paged window or normalize its local cursor.
+[[nodiscard]] LegacyStandardModeWindowPageAdvanceResult
+advance_legacy_standard_mode_window_page(
+    compat::i32 total_count,
+    compat::i32& window_offset,
+    compat::i32& local_cursor,
+    compat::i32& visible_count,
+    compat::i32 step
 ) noexcept;
 
 // sub_43B080: update and draw one standard-mode ghost action.

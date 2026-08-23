@@ -32,6 +32,7 @@ using openswd3::rendering::LegacyFramePiece;
 using openswd3::special_modes::adjust_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
 using openswd3::special_modes::advance_legacy_standard_mode_window_cursor;
+using openswd3::special_modes::advance_legacy_standard_mode_window_page;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
 using openswd3::special_modes::compose_legacy_standard_mode_input_status;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
@@ -91,6 +92,7 @@ using openswd3::special_modes::LegacyStandardModeTransitionTextOwner;
 using openswd3::special_modes::LegacyStandardModeTextResolutionStatus;
 using openswd3::special_modes::LegacyStandardModeWindowCursorAdvanceReturnKind;
 using openswd3::special_modes::LegacyStandardModeWindowCursorRetreatReturnKind;
+using openswd3::special_modes::LegacyStandardModeWindowPageAdvancePath;
 using openswd3::special_modes::LegacyStandardModeSelectorState;
 using openswd3::special_modes::LegacyStandardSpecialModeInitializationPorts;
 using openswd3::special_modes::LegacyStandardSpecialModePorts;
@@ -1566,6 +1568,202 @@ void test_standard_mode_window_cursor_retreat(openswd3::test::Context& test) {
     }
 }
 
+void test_standard_mode_window_page_advance(openswd3::test::Context& test) {
+    struct Case {
+        i32 total_count{};
+        i32 initial_window_offset{};
+        i32 initial_local_cursor{};
+        i32 initial_visible_count{};
+        i32 step{};
+        i32 expected_window_offset{};
+        i32 expected_local_cursor{};
+        i32 expected_visible_count{};
+        i32 expected_return{};
+        LegacyStandardModeWindowPageAdvancePath expected_path{};
+        bool expected_cursor_written{};
+        bool expected_window_offset_written{};
+        bool expected_visible_count_written{};
+    };
+    constexpr std::array cases{
+        Case{
+            100,
+            10,
+            1,
+            5,
+            5,
+            10,
+            4,
+            5,
+            4,
+            LegacyStandardModeWindowPageAdvancePath::cursor_normalized,
+            true,
+            false,
+            false,
+        },
+        Case{
+            100,
+            10,
+            5,
+            0,
+            5,
+            10,
+            0,
+            0,
+            0,
+            LegacyStandardModeWindowPageAdvancePath::cursor_normalized,
+            true,
+            false,
+            false,
+        },
+        Case{
+            100,
+            10,
+            0,
+            -2,
+            5,
+            10,
+            0,
+            -2,
+            -2,
+            LegacyStandardModeWindowPageAdvancePath::cursor_normalized,
+            true,
+            false,
+            false,
+        },
+        Case{
+            100,
+            10,
+            4,
+            5,
+            5,
+            15,
+            4,
+            5,
+            84,
+            LegacyStandardModeWindowPageAdvancePath::page_advanced,
+            false,
+            true,
+            false,
+        },
+        Case{
+            15,
+            10,
+            4,
+            5,
+            2,
+            12,
+            2,
+            5,
+            2,
+            LegacyStandardModeWindowPageAdvancePath::page_advanced,
+            true,
+            true,
+            false,
+        },
+        Case{
+            20,
+            10,
+            4,
+            5,
+            5,
+            15,
+            4,
+            5,
+            4,
+            LegacyStandardModeWindowPageAdvancePath::final_page_rebuilt,
+            true,
+            true,
+            true,
+        },
+        Case{
+            3,
+            2,
+            4,
+            5,
+            5,
+            0,
+            2,
+            3,
+            2,
+            LegacyStandardModeWindowPageAdvancePath::final_page_rebuilt,
+            true,
+            true,
+            true,
+        },
+        Case{
+            0,
+            std::numeric_limits<i32>::max(),
+            0,
+            1,
+            1,
+            std::numeric_limits<i32>::min(),
+            0,
+            1,
+            std::numeric_limits<i32>::max(),
+            LegacyStandardModeWindowPageAdvancePath::page_advanced,
+            false,
+            true,
+            false,
+        },
+        Case{
+            std::numeric_limits<i32>::min(),
+            0,
+            std::numeric_limits<i32>::max(),
+            std::numeric_limits<i32>::min(),
+            0,
+            0,
+            std::numeric_limits<i32>::max(),
+            std::numeric_limits<i32>::min(),
+            std::numeric_limits<i32>::max(),
+            LegacyStandardModeWindowPageAdvancePath::final_page_rebuilt,
+            true,
+            true,
+            true,
+        },
+        Case{
+            10,
+            5,
+            2,
+            3,
+            -2,
+            3,
+            2,
+            3,
+            6,
+            LegacyStandardModeWindowPageAdvancePath::page_advanced,
+            false,
+            true,
+            false,
+        },
+    };
+
+    for (const auto& sample : cases) {
+        i32 window_offset = sample.initial_window_offset;
+        i32 local_cursor = sample.initial_local_cursor;
+        i32 visible_count = sample.initial_visible_count;
+        const auto result = advance_legacy_standard_mode_window_page(
+            sample.total_count,
+            window_offset,
+            local_cursor,
+            visible_count,
+            sample.step
+        );
+        test.expect_true(
+            window_offset == sample.expected_window_offset &&
+                local_cursor == sample.expected_local_cursor &&
+                visible_count == sample.expected_visible_count &&
+                result.legacy_return_value == sample.expected_return &&
+                result.path == sample.expected_path &&
+                result.cursor_written == sample.expected_cursor_written &&
+                result.window_offset_written ==
+                    sample.expected_window_offset_written &&
+                result.visible_count_written ==
+                    sample.expected_visible_count_written,
+            "0x43BBE0 preserves cursor normalization, page advance, final rebuild and wrapped EAX"
+        );
+    }
+}
+
 #ifdef OPENSWD3_GAME_DATA_ROOT
 void test_standard_mode_shared_text_real_asset(openswd3::test::Context& test) {
     const std::filesystem::path maps_path =
@@ -2851,6 +3049,7 @@ int main() {
     test_standard_mode_window_cursor_adjustment(test);
     test_standard_mode_window_cursor_advance(test);
     test_standard_mode_window_cursor_retreat(test);
+    test_standard_mode_window_page_advance(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT
     test_standard_mode_shared_text_real_asset(test);
 #endif
