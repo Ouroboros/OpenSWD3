@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <charconv>
 #include <cstdint>
 #include <iterator>
 #include <new>
@@ -1017,6 +1018,227 @@ initialize_legacy_standard_mode_entries(
     return result;
 }
 
+LegacyStandardModeSelectedRecordDispatchResult
+dispatch_legacy_standard_mode_selected_record(
+    const compat::i32 absolute_index,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeEntryConsumptionPorts& ports
+) noexcept {
+    LegacyStandardModeSelectedRecordDispatchResult result;
+    static constexpr std::array<compat::u8, 4U> kUnknownFour{
+        '?', '?', '?', '?'
+    };
+    static constexpr std::array<compat::u8, 6U> kUnknownSecond{
+        '?', '?', '?', '?', 0xAFU, 0xC5U
+    };
+    static constexpr std::array<compat::u8, 12U> kUnknownRelated{
+        '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?'
+    };
+    static constexpr std::array<compat::u8, 10U> kFinalCommandText{
+        0xB1U, 0xD3U, 0xB1U, 0xB6U, ' ', ' ', '?', '?', '?', '?'
+    };
+    static constexpr std::array<std::array<compat::u8, 4U>, 6U> kLabels{{
+        {0xA5U, 0xCDU, 0xA9U, 0x52U},
+        {0xC6U, 0x46U, 0xA4U, 0x4FU},
+        {0xC5U, 0xE9U, 0xA4U, 0x4FU},
+        {0xA7U, 0xF0U, 0xC0U, 0xBBU},
+        {0xA8U, 0xBEU, 0xBFU, 0x6DU},
+        {0xB1U, 0xD3U, 0xB1U, 0xB6U},
+    }};
+    const auto copy_text = [](const std::span<compat::u8> destination,
+                              const std::span<const compat::u8> source) {
+        if (source.size() >= destination.size()) {
+            return false;
+        }
+        std::copy(source.begin(), source.end(), destination.begin());
+        destination[source.size()] = 0U;
+        return true;
+    };
+    const auto terminated_text = [](const std::span<const compat::u8> storage,
+                                    std::span<const compat::u8>& text) {
+        const auto terminator =
+            std::find(storage.begin(), storage.end(), compat::u8{0U});
+        if (terminator == storage.end()) {
+            return false;
+        }
+        text = storage.first(
+            static_cast<std::size_t>(std::distance(storage.begin(), terminator))
+        );
+        return true;
+    };
+
+    copy_text(state.display_text_slots[0U], kUnknownFour);
+    copy_text(state.display_text_slots[1U], kUnknownSecond);
+    copy_text(state.display_text_slots[2U], kUnknownFour);
+    copy_text(state.shared_command_text, kFinalCommandText);
+    const compat::u32 selected_index =
+        std::bit_cast<compat::u32>(absolute_index);
+    if (selected_index >= state.entry_statuses.size()) {
+        result.status = LegacyStandardModeSelectedRecordDispatchStatus::
+            absolute_index_out_of_range;
+        return result;
+    }
+    result.signed_status =
+        std::bit_cast<compat::i8>(state.entry_statuses[selected_index]);
+    if (result.signed_status >= 1 &&
+        !ports.copy_selected_category_name(
+            state.display_text_slots[0U], state.entries[selected_index]
+        )) {
+        result.status = LegacyStandardModeSelectedRecordDispatchStatus::
+            category_name_unavailable;
+        return result;
+    }
+    if (result.signed_status >= 2) {
+        std::array<char, 16U> digits{};
+        const compat::u32 value = read_u16_le(
+            std::span<const compat::u8>{state.scratch_record}, 0x60U
+        );
+        const auto converted =
+            std::to_chars(digits.data(), digits.data() + digits.size(), value);
+        const std::size_t size =
+            static_cast<std::size_t>(converted.ptr - digits.data());
+        const std::size_t padding = size < 4U ? 4U - size : 0U;
+        std::fill_n(state.display_text_slots[1U].begin(), padding, ' ');
+        std::copy_n(
+            reinterpret_cast<const compat::u8*>(digits.data()),
+            size,
+            state.display_text_slots[1U].begin() +
+                static_cast<std::ptrdiff_t>(padding)
+        );
+        state.display_text_slots[1U][padding + size] = 0U;
+    }
+    if (result.signed_status >= 3) {
+        std::span<const compat::u8> selected_name;
+        if (!terminated_text(
+                std::span<const compat::u8>{state.scratch_record}.subspan(
+                    0x0CU
+                ),
+                selected_name
+            )) {
+            result.status = LegacyStandardModeSelectedRecordDispatchStatus::
+                selected_name_not_terminated;
+            return result;
+        }
+        std::array<compat::u8, 0x20U> padded{};
+        const std::size_t padded_size =
+            std::max<std::size_t>(12U, selected_name.size());
+        if (padded_size >= padded.size()) {
+            result.status = LegacyStandardModeSelectedRecordDispatchStatus::
+                selected_name_out_of_range;
+            return result;
+        }
+        std::copy(selected_name.begin(), selected_name.end(), padded.begin());
+        std::fill(
+            padded.begin() + static_cast<std::ptrdiff_t>(selected_name.size()),
+            padded.begin() + static_cast<std::ptrdiff_t>(padded_size),
+            static_cast<compat::u8>(' ')
+        );
+        copy_text(
+            state.display_text_slots[2U],
+            std::span<const compat::u8>{padded}.first(padded_size)
+        );
+    }
+
+    const std::array<compat::i32, 6U> thresholds{5, 8, 10, 13, 16, 18};
+    const std::array<compat::i32, 6U> values{
+        std::bit_cast<compat::i16>(read_u16_le(
+            std::span<const compat::u8>{state.scratch_record}, 0x70U
+        )),
+        state.second_record_offset,
+        state.first_record_offset,
+        static_cast<compat::i32>(read_u16_le(
+            std::span<const compat::u8>{state.scratch_record}, 0x62U
+        )),
+        static_cast<compat::i32>(read_u16_le(
+            std::span<const compat::u8>{state.scratch_record}, 0x64U
+        )),
+        static_cast<compat::i32>(read_u16_le(
+            std::span<const compat::u8>{state.scratch_record}, 0x66U
+        )),
+    };
+    for (std::size_t index = 0U; index < 6U; ++index) {
+        ports.format_derived_text(
+            state.display_text_slots[index + 3U],
+            LegacyStandardModeDerivedTextRequest{
+                .label = kLabels[index],
+                .status = result.signed_status,
+                .threshold = thresholds[index],
+                .value = values[index],
+                .maximum = index < 3U ? 0x270F : 0x03E7,
+            }
+        );
+        ++result.derived_text_call_count;
+    }
+    for (std::size_t index = 9U; index < 12U; ++index) {
+        copy_text(state.display_text_slots[index], kUnknownRelated);
+    }
+    result.legacy_text_pointer = state.display_text_slots[11U].data();
+    if (result.signed_status < 0x13) {
+        return result;
+    }
+
+    std::array<compat::u8, 0xB0U> temporary{};
+    const std::array<compat::u16, 3U> related_ids{
+        read_u16_le(std::span<const compat::u8>{state.scratch_record}, 0x72U),
+        read_u16_le(std::span<const compat::u8>{state.scratch_record}, 0x76U),
+        read_u16_le(std::span<const compat::u8>{state.scratch_record}, 0x7AU),
+    };
+    for (std::size_t index = 0U; index < related_ids.size(); ++index) {
+        temporary.fill(0U);
+        compat::u32 loader_id = related_ids[index];
+        if (index == 2U) {
+            loader_id =
+                (state.scratch_record_legacy_address_high_word & 0xFFFF0000U) |
+                related_ids[index];
+        }
+        if (related_ids[index] != 0U) {
+            ++result.related_load_count;
+            if (ports.load_selected_record(
+                    std::span<compat::u8>{temporary}.subspan(0x0CU), loader_id
+                )) {
+                std::span<const compat::u8> related_name;
+                if (!terminated_text(
+                        std::span<const compat::u8>{temporary}.subspan(0x0CU),
+                        related_name
+                    )) {
+                    result.status =
+                        LegacyStandardModeSelectedRecordDispatchStatus::
+                            related_name_not_terminated;
+                    return result;
+                }
+                const auto different_from = [&](const std::size_t slot) {
+                    std::span<const compat::u8> existing;
+                    terminated_text(state.display_text_slots[slot], existing);
+                    return !std::ranges::equal(existing, related_name);
+                };
+                const bool unique = index == 0U ||
+                    (different_from(9U) &&
+                     (index != 2U || different_from(10U)));
+                if (unique &&
+                    !copy_text(
+                        state.display_text_slots[index + 9U], related_name
+                    )) {
+                    result.status =
+                        LegacyStandardModeSelectedRecordDispatchStatus::
+                            related_name_out_of_range;
+                    return result;
+                }
+            }
+        }
+        const compat::u32 token =
+            read_u32_le(std::span<const compat::u8>{temporary}, 0xACU);
+        ports.release_record(token);
+        ++result.related_release_count;
+    }
+    result.legacy_return_kind =
+        LegacyStandardModeSelectedRecordDispatchReturnKind::
+            temporary_release_result;
+    result.legacy_text_pointer = nullptr;
+    result.legacy_return_value =
+        ports.release_temporary_record_storage(temporary);
+    return result;
+}
+
 LegacyStandardModeEntryConsumptionResult consume_legacy_standard_mode_entry(
     const compat::u32 entry,
     LegacyStandardModeRuntimeInitializationState& state,
@@ -1087,7 +1309,14 @@ LegacyStandardModeEntryConsumptionResult consume_legacy_standard_mode_entry(
         std::bit_cast<compat::u32>(state.window_offset) +
         std::bit_cast<compat::u32>(state.local_cursor)
     );
-    result.legacy_return_value = ports.dispatch_selected_record(absolute_index);
+    const LegacyStandardModeSelectedRecordDispatchResult dispatch_result =
+        dispatch_legacy_standard_mode_selected_record(
+            absolute_index, state, ports
+        );
+    result.dispatch_status = dispatch_result.status;
+    result.legacy_return_kind = dispatch_result.legacy_return_kind;
+    result.legacy_text_pointer = dispatch_result.legacy_text_pointer;
+    result.legacy_return_value = dispatch_result.legacy_return_value;
     result.selected_record_dispatched = true;
     return result;
 }

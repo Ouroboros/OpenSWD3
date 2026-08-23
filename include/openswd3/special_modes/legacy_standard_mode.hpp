@@ -703,6 +703,9 @@ struct LegacyStandardModeRuntimeInitializationState {
     std::array<std::array<compat::u8, 0x10U>, 0x40U> short_text_slots{};
     std::array<compat::u8, 0x40U> entry_statuses{};
     std::array<compat::u32, 0x40U> entries{};
+    std::array<std::array<compat::u8, 0x20U>, 12U> display_text_slots{};
+    std::array<compat::u8, 0x20U> shared_command_text{};
+    compat::u32 scratch_record_legacy_address_high_word{};
     compat::i32 entry_alias_index{};
     compat::i32 total_count{};
     compat::i32 window_offset{};
@@ -771,6 +774,44 @@ public:
     virtual void release_record(compat::u32 token) noexcept = 0;
 };
 
+struct LegacyStandardModeDerivedTextRequest {
+    std::span<const compat::u8> label;
+    compat::i32 status{};
+    compat::i32 threshold{};
+    compat::i32 value{};
+    compat::i32 maximum{};
+};
+
+enum class LegacyStandardModeSelectedRecordDispatchStatus : compat::u8 {
+    completed,
+    absolute_index_out_of_range,
+    selected_name_not_terminated,
+    selected_name_out_of_range,
+    category_name_unavailable,
+    related_name_not_terminated,
+    related_name_out_of_range,
+};
+
+enum class LegacyStandardModeSelectedRecordDispatchReturnKind : compat::u8 {
+    display_text_pointer,
+    temporary_release_result,
+};
+
+struct LegacyStandardModeSelectedRecordDispatchResult {
+    LegacyStandardModeSelectedRecordDispatchStatus status{
+        LegacyStandardModeSelectedRecordDispatchStatus::completed
+    };
+    LegacyStandardModeSelectedRecordDispatchReturnKind legacy_return_kind{
+        LegacyStandardModeSelectedRecordDispatchReturnKind::display_text_pointer
+    };
+    const compat::u8* legacy_text_pointer{};
+    compat::i32 legacy_return_value{};
+    compat::i32 signed_status{};
+    compat::u32 derived_text_call_count{};
+    compat::u32 related_load_count{};
+    compat::u32 related_release_count{};
+};
+
 class LegacyStandardModeEntryConsumptionPorts
     : public LegacyStandardModeEntryInitializationPorts {
 public:
@@ -778,8 +819,16 @@ public:
     [[nodiscard]] virtual bool load_selected_record(
         std::span<compat::u8> destination, compat::u32 record_id
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32
-    dispatch_selected_record(compat::i32 absolute_index) noexcept = 0;
+    [[nodiscard]] virtual bool copy_selected_category_name(
+        std::span<compat::u8> destination, compat::u32 entry
+    ) noexcept = 0;
+    virtual void format_derived_text(
+        std::span<compat::u8> destination,
+        const LegacyStandardModeDerivedTextRequest& request
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 release_temporary_record_storage(
+        std::span<compat::u8> storage
+    ) noexcept = 0;
 };
 
 class LegacyStandardModeRuntimeInitializationPorts
@@ -791,6 +840,13 @@ public:
 };
 
 struct LegacyStandardModeEntryConsumptionResult {
+    LegacyStandardModeSelectedRecordDispatchStatus dispatch_status{
+        LegacyStandardModeSelectedRecordDispatchStatus::completed
+    };
+    LegacyStandardModeSelectedRecordDispatchReturnKind legacy_return_kind{
+        LegacyStandardModeSelectedRecordDispatchReturnKind::display_text_pointer
+    };
+    const compat::u8* legacy_text_pointer{};
     compat::i32 legacy_return_value{};
     compat::u32 released_record_count{};
     bool selected_record_load_attempted{};
@@ -1251,6 +1307,14 @@ initialize_legacy_standard_mode_entries(
     compat::i32 mode_index,
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeEntryInitializationPorts& ports
+) noexcept;
+
+// sub_43D050: rebuild selected-record display strings and related names.
+[[nodiscard]] LegacyStandardModeSelectedRecordDispatchResult
+dispatch_legacy_standard_mode_selected_record(
+    compat::i32 absolute_index,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeEntryConsumptionPorts& ports
 ) noexcept;
 
 // sub_43CEF0: release/reload one selected record and rebuild derived offsets.

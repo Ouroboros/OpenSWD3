@@ -51,6 +51,7 @@ using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::initialize_legacy_standard_mode_entries;
 using openswd3::special_modes::initialize_legacy_standard_mode_runtime;
 using openswd3::special_modes::dispatch_legacy_standard_mode_input;
+using openswd3::special_modes::dispatch_legacy_standard_mode_selected_record;
 using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::
     kLegacyStandardSpecialModeInitializationRecordCount;
@@ -2525,10 +2526,20 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
             return false;
         }
 
-        [[nodiscard]] i32
-        dispatch_selected_record(const i32 absolute_index) noexcept override {
+        [[nodiscard]] bool copy_selected_category_name(
+            const std::span<u8> destination, const u32
+        ) noexcept override {
+            destination[0U] = 0U;
+            return true;
+        }
+        void format_derived_text(
+            const std::span<u8>,
+            const openswd3::special_modes::LegacyStandardModeDerivedTextRequest&
+        ) noexcept override {}
+        [[nodiscard]] i32 release_temporary_record_storage(
+            const std::span<u8>
+        ) noexcept override {
             selected_dispatch_attempted = true;
-            dispatched_index = absolute_index;
             return -123;
         }
 
@@ -2545,7 +2556,6 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
         bool consume_order_valid{};
         bool selected_load_attempted{};
         bool selected_dispatch_attempted{};
-        i32 dispatched_index{};
         std::vector<u32> released_tokens;
     };
 
@@ -2652,28 +2662,90 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
         void release_record(const u32 token) noexcept override {
             released_tokens.push_back(token);
         }
+        struct DerivedRequest {
+            std::vector<u8> label;
+            i32 status{};
+            i32 threshold{};
+            i32 value{};
+            i32 maximum{};
+        };
         [[nodiscard]] bool load_selected_record(
             const std::span<u8> destination, const u32 record_id
         ) noexcept override {
             selected_record_ids.push_back(record_id);
-            std::copy(
-                selected_record_data.cbegin(),
-                selected_record_data.cend(),
-                destination.begin()
+            const auto override_record = std::ranges::find_if(
+                selected_record_overrides, [record_id](const auto& item) {
+                    return item.first == record_id;
+                }
             );
+            const auto& source =
+                override_record == selected_record_overrides.end()
+                ? selected_record_data
+                : override_record->second;
+            std::copy(source.cbegin(), source.cend(), destination.begin());
             return selected_load_result;
         }
-        [[nodiscard]] i32
-        dispatch_selected_record(const i32 absolute_index) noexcept override {
-            dispatched_indices.push_back(absolute_index);
+        [[nodiscard]] bool copy_selected_category_name(
+            const std::span<u8> destination, const u32 entry
+        ) noexcept override {
+            category_entries.push_back(entry);
+            if (!category_available ||
+                category_text.size() >= destination.size()) {
+                return false;
+            }
+            std::copy(
+                category_text.cbegin(),
+                category_text.cend(),
+                destination.begin()
+            );
+            destination[category_text.size()] = 0U;
+            return true;
+        }
+        void format_derived_text(
+            const std::span<u8> destination,
+            const openswd3::special_modes::LegacyStandardModeDerivedTextRequest&
+                request
+        ) noexcept override {
+            derived_requests.push_back(
+                DerivedRequest{
+                    .label =
+                        std::vector<u8>{
+                            request.label.begin(), request.label.end()
+                        },
+                    .status = request.status,
+                    .threshold = request.threshold,
+                    .value = request.value,
+                    .maximum = request.maximum,
+                }
+            );
+            std::copy(
+                request.label.begin(), request.label.end(), destination.begin()
+            );
+            destination[request.label.size()] = 0U;
+        }
+        [[nodiscard]] i32 release_temporary_record_storage(
+            const std::span<u8> storage
+        ) noexcept override {
+            ++temporary_release_count;
+            temporary_release_was_zero =
+                std::ranges::all_of(storage, [](const u8 value) {
+                    return value == 0U;
+                });
             return dispatch_return;
         }
 
         std::array<u8, 0xA4U> selected_record_data{};
+        std::vector<std::pair<u32, std::array<u8, 0xA4U>>>
+            selected_record_overrides;
         std::vector<u32> released_tokens;
         std::vector<u32> selected_record_ids;
-        std::vector<i32> dispatched_indices;
+        std::vector<u32> category_entries;
+        std::vector<u8> category_text;
+        std::vector<DerivedRequest> derived_requests;
         bool selected_load_result{true};
+        bool category_available{true};
+        bool temporary_release_was_zero{};
+        u32 temporary_release_count{};
         i32 dispatch_return{-777};
     };
     const auto write_record_u16 =
@@ -2703,7 +2775,6 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
                 !result.selected_record_dispatched &&
                 ports.released_tokens == std::vector<u32>{0x11223344U} &&
                 ports.selected_record_ids.empty() &&
-                ports.dispatched_indices.empty() &&
                 std::ranges::all_of(
                     state.scratch_record,
                     [](const u8 value) { return value == 0U; }
@@ -2731,15 +2802,17 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
         const auto result =
             consume_legacy_standard_mode_entry(0xA1B2C3D4U, state, ports);
         test.expect_true(
-            result.legacy_return_value == -777 &&
+            result.dispatch_status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeSelectedRecordDispatchStatus::
+                            absolute_index_out_of_range &&
+                result.legacy_return_value == 0 &&
                 result.released_record_count == 1U &&
                 result.selected_record_load_attempted &&
                 result.selected_record_loaded &&
                 result.selected_record_dispatched &&
                 ports.released_tokens == std::vector<u32>{0xAABBCCDDU} &&
                 ports.selected_record_ids == std::vector<u32>{0xA1B2C3D4U} &&
-                ports.dispatched_indices ==
-                    std::vector<i32>{std::numeric_limits<i32>::min()} &&
                 state.scratch_record[0x04U] == 0xD4U &&
                 state.scratch_record[0x05U] == 0xC3U &&
                 state.scratch_record[0x06U] == 0U &&
@@ -2761,14 +2834,156 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
         const auto result =
             consume_legacy_standard_mode_entry(9U, state, ports);
         test.expect_true(
-            result.legacy_return_value == 123 &&
+            result.dispatch_status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeSelectedRecordDispatchStatus::
+                            completed &&
+                result.legacy_return_kind ==
+                    openswd3::special_modes::
+                        LegacyStandardModeSelectedRecordDispatchReturnKind::
+                            display_text_pointer &&
+                result.legacy_text_pointer ==
+                    state.display_text_slots[11U].data() &&
+                result.legacy_return_value == 0 &&
                 result.selected_record_load_attempted &&
                 !result.selected_record_loaded &&
                 result.selected_record_dispatched &&
                 state.first_record_offset == 0 &&
-                state.second_record_offset == 0 &&
-                ports.dispatched_indices == std::vector<i32>{9},
+                state.second_record_offset == 0,
             "0x43CEF0 preserves failed-load continuation into D050 with zero offsets"
+        );
+    }
+
+    {
+        const auto make_related_record = [](const std::string_view name,
+                                            const u32 token) {
+            std::array<u8, 0xA4U> record{};
+            std::copy(name.cbegin(), name.cend(), record.begin());
+            record[name.size()] = 0U;
+            record[0xA0U] = static_cast<u8>(token);
+            record[0xA1U] = static_cast<u8>(token >> 8U);
+            record[0xA2U] = static_cast<u8>(token >> 16U);
+            record[0xA3U] = static_cast<u8>(token >> 24U);
+            return record;
+        };
+        const auto write_scratch_u16 =
+            [](auto& scratch, const std::size_t offset, const u16 value) {
+                scratch[offset] = static_cast<u8>(value);
+                scratch[offset + 1U] = static_cast<u8>(value >> 8U);
+            };
+        LegacyStandardModeRuntimeInitializationState state;
+        state.entries[2U] = 0x55667788U;
+        state.entry_statuses[2U] = 0x13U;
+        state.first_record_offset = 70;
+        state.second_record_offset = 80;
+        state.scratch_record_legacy_address_high_word = 0xABCD0000U;
+        const std::string_view selected_name{"Hero"};
+        std::copy(
+            selected_name.cbegin(),
+            selected_name.cend(),
+            state.scratch_record.begin() + 0x0C
+        );
+        state.scratch_record[0x10U] = 0U;
+        write_scratch_u16(state.scratch_record, 0x60U, 42U);
+        write_scratch_u16(state.scratch_record, 0x62U, 3U);
+        write_scratch_u16(state.scratch_record, 0x64U, 4U);
+        write_scratch_u16(state.scratch_record, 0x66U, 5U);
+        write_scratch_u16(state.scratch_record, 0x70U, 0xFFFEU);
+        write_scratch_u16(state.scratch_record, 0x72U, 0x1111U);
+        write_scratch_u16(state.scratch_record, 0x76U, 0x2222U);
+        write_scratch_u16(state.scratch_record, 0x7AU, 0x3333U);
+        ConsumptionPorts ports;
+        ports.category_text = {'C', 'A', 'T'};
+        ports.selected_record_overrides = {
+            {0x1111U, make_related_record("Alpha", 0x11111111U)},
+            {0x2222U, make_related_record("Alpha", 0x22222222U)},
+            {0xABCD3333U, make_related_record("Beta", 0x33333333U)},
+        };
+        const auto result =
+            dispatch_legacy_standard_mode_selected_record(2, state, ports);
+        const auto text = [](const auto& slot) {
+            const auto end = std::find(slot.cbegin(), slot.cend(), u8{0U});
+            return std::vector<u8>{slot.cbegin(), end};
+        };
+        test.expect_true(
+            result.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeSelectedRecordDispatchStatus::
+                            completed &&
+                result.legacy_return_kind ==
+                    openswd3::special_modes::
+                        LegacyStandardModeSelectedRecordDispatchReturnKind::
+                            temporary_release_result &&
+                result.legacy_return_value == -777 &&
+                result.signed_status == 0x13 &&
+                result.derived_text_call_count == 6U &&
+                result.related_load_count == 3U &&
+                result.related_release_count == 3U &&
+                ports.category_entries == std::vector<u32>{0x55667788U} &&
+                ports.selected_record_ids ==
+                    std::vector<u32>{0x1111U, 0x2222U, 0xABCD3333U} &&
+                ports.released_tokens ==
+                    std::vector<u32>{
+                        0x11111111U,
+                        0x22222222U,
+                        0x33333333U,
+                    } &&
+                ports.temporary_release_count == 1U &&
+                !ports.temporary_release_was_zero,
+            "0x43D050 preserves category, six D370 calls, three releases and high-word third ID"
+        );
+        test.expect_true(
+            text(state.display_text_slots[0U]) ==
+                    std::vector<u8>{'C', 'A', 'T'} &&
+                text(state.display_text_slots[1U]) ==
+                    std::vector<u8>{' ', ' ', '4', '2'} &&
+                text(state.display_text_slots[2U]) ==
+                    std::vector<u8>{
+                        'H',
+                        'e',
+                        'r',
+                        'o',
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' '
+                    } &&
+                text(state.display_text_slots[9U]) ==
+                    std::vector<u8>{'A', 'l', 'p', 'h', 'a'} &&
+                text(state.display_text_slots[10U]) ==
+                    std::vector<u8>{
+                        '?',
+                        '?',
+                        '?',
+                        '?',
+                        '?',
+                        '?',
+                        '?',
+                        '?',
+                        '?',
+                        '?',
+                        '?',
+                        '?'
+                    } &&
+                text(state.display_text_slots[11U]) ==
+                    std::vector<u8>{'B', 'e', 't', 'a'} &&
+                ports.derived_requests.size() == 6U &&
+                ports.derived_requests[0U].status == 0x13 &&
+                ports.derived_requests[0U].threshold == 5 &&
+                ports.derived_requests[0U].value == -2 &&
+                ports.derived_requests[0U].maximum == 0x270F &&
+                ports.derived_requests[1U].value == 80 &&
+                ports.derived_requests[2U].value == 70 &&
+                ports.derived_requests[3U].threshold == 13 &&
+                ports.derived_requests[3U].value == 3 &&
+                ports.derived_requests[3U].maximum == 0x3E7 &&
+                state.shared_command_text[0U] == 0xB1U &&
+                state.shared_command_text[9U] == '?',
+            "0x43D050 formats base/name, exact values and first-wins related-name deduplication"
         );
     }
 }
@@ -2814,10 +3029,19 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             );
             return selected_load_result;
         }
-        [[nodiscard]] i32
-        dispatch_selected_record(const i32 absolute_index) noexcept override {
-            dispatched_indices.push_back(absolute_index);
-            dispatched_index = absolute_index;
+        [[nodiscard]] bool copy_selected_category_name(
+            const std::span<u8> destination, const u32
+        ) noexcept override {
+            destination[0U] = 0U;
+            return true;
+        }
+        void format_derived_text(
+            const std::span<u8>,
+            const openswd3::special_modes::LegacyStandardModeDerivedTextRequest&
+        ) noexcept override {}
+        [[nodiscard]] i32 release_temporary_record_storage(
+            const std::span<u8>
+        ) noexcept override {
             return selected_dispatch_return;
         }
         [[nodiscard]] i32 play_sample(
@@ -2849,8 +3073,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         std::array<u8, 0xA4U> selected_record_data{};
         bool selected_load_result{true};
         i32 selected_dispatch_return{-456};
-        i32 dispatched_index{};
-        std::vector<i32> dispatched_indices;
         i8 classification_value{};
         u16 entry_match_count{8U};
         u32 classification_query_count{};

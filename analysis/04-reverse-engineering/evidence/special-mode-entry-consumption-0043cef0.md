@@ -6,7 +6,7 @@
 
 唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043CEF0..0x0043D04E`，154行。七个caller为`0x0043C0D0`、`0x0043C3C0`、`0x0043C520`、`0x0043C590`、`0x0043C670`、`0x0043C760`及尚未关闭的`0x00446420`。本工作包回接前六个已关闭caller；`0x00446420`仍按其独立workpack审计，不提前计数。
 
-四个直接callee中，record loader、record release和失败后的空通知属于已有资源owner；尾部`0x0043D050`是下一独立模块9单元。新typed helper保留完整CEF0控制流，port只留下精确的完整u32 selected-record loader与D050 dispatch边界；旧`consume_entry`高层占位已全部移除。
+四个直接callee中，record loader、record release和失败后的空通知属于已有资源owner；尾部`0x0043D050`现已作为下一独立模块9单元关闭。新typed helper保留完整CEF0控制流，port只留下精确的完整u32 selected-record loader；旧`consume_entry`和synthetic D050 dispatch高层占位均已移除。
 
 ## 2. 无条件release与零entry
 
@@ -46,7 +46,7 @@ loader返回后两个offset owner再次清零，然后读取scratch `+0x60`的u1
 
 ## 5. D050实参与EAX
 
-非零entry最后按u32回绕计算`window_offset + local_cursor`，以i32交给下一单元D050，并原样返回D050 EAX。`INT_MAX + 1`覆盖为`INT_MIN`，没有宿主有符号溢出。
+非零entry最后按u32回绕计算`window_offset + local_cursor`，以i32直接调用已关闭D050，并传播其status、文本owner指针/release EAX联合。`INT_MAX + 1`覆盖为`INT_MIN`，没有宿主有符号溢出。
 
 结果同时记录release次数、loader是否尝试/成功以及D050是否调用，便于测试控制流；这些诊断字段不引入额外行为。
 
