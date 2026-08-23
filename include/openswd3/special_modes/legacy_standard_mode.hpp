@@ -748,6 +748,7 @@ struct LegacyStandardModeDatabaseInitializationState {
     compat::u32 interaction_toggle{};
     compat::u32 runtime_input_flags{};
     compat::u32 phase_3_countdown{};
+    compat::u32 comparison_value{};
     compat::i32 first_dynamic_min_x{};
     compat::i32 second_dynamic_min_x{};
     compat::i32 first_dynamic_max_x{};
@@ -910,9 +911,81 @@ public:
     initialize_database_forward_list() noexcept = 0;
 };
 
+enum class LegacyStandardModeDatabaseCommitStatus : compat::u8 {
+    completed,
+    window_selection_stopped,
+};
+
+enum class LegacyStandardModeDatabaseCommitPath : compat::u8 {
+    ignored,
+    phase_1_prepare,
+    phase_1_exit,
+    phase_2_transition,
+    phase_2_rejected,
+    phase_3_countdown,
+    phase_4_commit,
+    phase_5_or_10_reset,
+};
+
+enum class LegacyStandardModeDatabaseTextDestination : compat::u8 {
+    shared,
+    alternate,
+};
+
+struct LegacyStandardModeDatabaseCommitResult {
+    LegacyStandardModeDatabaseCommitStatus status{
+        LegacyStandardModeDatabaseCommitStatus::completed
+    };
+    LegacyStandardModeDatabaseCommitPath path{
+        LegacyStandardModeDatabaseCommitPath::ignored
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 materialized_text_count{};
+    compat::u32 released_token_count{};
+    bool sample_initialized{};
+};
+
+class LegacyStandardModeDatabaseCommitPorts
+    : public LegacyStandardModeDatabaseCyclePorts {
+public:
+    ~LegacyStandardModeDatabaseCommitPorts() override = default;
+    [[nodiscard]] virtual compat::i32 invoke_database_exit(
+        LegacyStandardModeDatabaseInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 rebuild_database_inline_records(
+        std::span<compat::u8> first_record,
+        std::span<compat::u8> second_record,
+        LegacyStandardModeDatabaseInitializationState& state
+    ) noexcept = 0;
+    virtual void prepare_database_phase_1(
+        LegacyStandardModeDatabaseInitializationState& state
+    ) noexcept = 0;
+    virtual void prepare_database_phase_2(
+        LegacyStandardModeDatabaseInitializationState& state
+    ) noexcept = 0;
+    virtual void update_database_phase_3(
+        LegacyStandardModeDatabaseInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 resolve_database_record_text(
+        std::span<compat::u8> record,
+        compat::i32 page_selection,
+        compat::u16& text_index
+    ) noexcept = 0;
+    virtual void materialize_database_text(
+        LegacyStandardModeDatabaseTextDestination destination,
+        compat::u16 text_index,
+        compat::i32 first_value,
+        compat::i32 second_value,
+        bool increment_combined_value
+    ) noexcept = 0;
+    virtual void release_database_value(compat::u32 token) noexcept = 0;
+};
+
 enum class LegacyStandardModeDatabaseInputStatus : compat::u8 {
     completed,
     availability_index_out_of_range,
+    database_commit_stopped,
 };
 
 struct LegacyStandardModeDatabaseInputResult {
@@ -925,7 +998,7 @@ struct LegacyStandardModeDatabaseInputResult {
 };
 
 class LegacyStandardModeDatabaseInputPorts
-    : public LegacyStandardModeDatabaseCyclePorts {
+    : public LegacyStandardModeDatabaseCommitPorts {
 public:
     ~LegacyStandardModeDatabaseInputPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke(
@@ -1785,6 +1858,14 @@ render_legacy_standard_mode_entry(
 advance_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseAdvancePorts& ports
+) noexcept;
+
+// sub_43E3D0: commit or transition the database interaction phase.
+[[nodiscard]] LegacyStandardModeDatabaseCommitResult
+commit_legacy_standard_mode_database_interaction(
+    LegacyStandardModeDatabaseInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeDatabaseCommitPorts& ports
 ) noexcept;
 
 // sub_43E310: advance the direction with the primary sample owner.

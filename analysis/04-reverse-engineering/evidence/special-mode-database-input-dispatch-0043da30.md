@@ -4,7 +4,7 @@
 
 ## 1. LST范围与owner
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DA30..0x0043DD1F`，365行；由B480 callback表间接绑定，没有direct call caller。直接callee中C090、DD20、DDF0、DED0、DFA0、E080、E170和E310已关闭；E3D0/E770与外部物品查询继续独立审计。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DA30..0x0043DD1F`，365行；由B480 callback表间接绑定，没有direct call caller。直接callee中C090、DD20、DDF0、DED0、DFA0、E080、E170、E310和E3D0已关闭；E770与外部物品查询继续独立审计。
 
 DA30读写D530共享owner：
 
@@ -43,11 +43,11 @@ E310现为直接typed调用；callee会对预写方向再加1并按0/1回绕，�
 
 下面板矩形为`x=41..414,y=333..611`。runtime flag bit1清且button bit0置位时先调用E170。闭环E170成功路径必把toggle写1，因此随后button bit1置位时真实路径进入E3D0；旧的double-E170高层假设不可达。toggle1跳过sample，其他值先sample107。
 
-callee后会重读X/button/toggle，不缓存为高层事件。未命中时低位`0x0C`调用E770。
+callee后会重读X/button/toggle，不缓存为高层事件。E3D0现直接执行phase1–5/10提交；phase2成功路径推进phase3并sample2E，phase4 typed-stop传播为`database_commit_stopped`。未命中时低位`0x0C`调用E770。
 
 ## 4. phases 3–5与返回
 
-phase3/4在button低4位非零时调用E3D0；phase5同条件调用E770；其他phase不调用。typed结果记录callback次数、最后地址target及最后callee EAX；无callee路径保留控制流最后装入EAX的owner值。
+phase3/4在button低4位非零时直接调用E3D0；phase3执行countdown更新/sample2E，phase4执行三record文本发布、窗口重建及成功复位。phase5同条件调用E770；其他phase不调用。typed结果记录callback次数、最后地址target及最后callee EAX；无callee路径保留控制流最后装入EAX的owner值。
 
 ## 5. 验证
 

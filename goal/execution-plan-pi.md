@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v479
+版本：v480
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043E3D0`
+当前步骤：模块9 · 闭环`0x0043E770`
 
 ## 0. 执行约定
 
@@ -3569,9 +3569,22 @@ B7 P0 有限收口完成。
     `29bf22b0a4bc9e09ac71098a6dc0c5fc8e9ccb76f18dc28a0e6a8f7d23323e69`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库交互提交`0x0043E3D0`闭环。LST范围`0x0043E3D0..0x0043E741`，DA30
+    四个direct call且B480 callback间接绑定。phase1严格执行物品1BB0→E770短路、F1E0失败转phase5、
+    4404D0后重读phase加1、动作232A/39、物品1BA9与两个runtime +60差值/flags、sample2E。phase2
+    两类toggle/flag组合sample8C拒绝，其他路径phase3/countdown-40/FDE0/sample2E；phase3经4405C0
+    后小于-35写35及动作232A/46。phase4依次解析两个inline和toggle选择的runtime record，按F7C0
+    EAX选择shared/alternate destination，发布三个44D2D0节点、条件释放两个heap token，再直接执行
+    B980→B9A0→BC90→BCC0并成功复位phase1/动作232A/3B；B9A0与BCC0 typed-stop保留此前副作用且
+    不发布复位。phase5/10写phase1并保留EAX4/9。DA30直接调用并传播`database_commit_stopped`。
+    定向UT覆盖全部phase关键分支、三record materialize、token释放、12 helper、FFDC文本、两类typed-stop
+    和DA30真实phase副作用。workpack连续两轮稳定为`55/227`，SHA256为
+    `9c4abc1d3061dbb831d8b66fb43355da754fb4f0c9b0732c7c779a52006b54b6`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`54/227`，下一单元为`0x0043E3D0`。
+进行中，正式进度为`55/227`，下一单元为`0x0043E770`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043E3D0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043E770`，继续更新workpack、证据和完整验证门。
