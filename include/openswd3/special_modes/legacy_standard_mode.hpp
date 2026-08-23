@@ -113,6 +113,68 @@ struct LegacyStandardModeInputResult {
     compat::u32 exit_callback_count{};
 };
 
+struct LegacyStandardModeBarRequest {
+    compat::i32 x{};
+    compat::i32 y{};
+    compat::i32 height{};
+    compat::u8 overlay_flags{};
+    float first_ratio{};
+    float second_ratio{};
+
+    bool operator==(const LegacyStandardModeBarRequest&) const = default;
+};
+
+struct LegacyStandardModeBarOutputs {
+    compat::i32 top{};
+    compat::i32 first_split{};
+    compat::i32 second_split{};
+    compat::i32 bottom{};
+};
+
+struct LegacyStandardModeBarFrame {
+    compat::u32 source_word{};
+    compat::u16 width{};
+    compat::u16 height{};
+};
+
+class LegacyStandardModeBarPorts {
+public:
+    virtual ~LegacyStandardModeBarPorts() = default;
+
+    virtual void
+    prepare_bar_region(const LegacyStandardModeBarRequest& request) = 0;
+    virtual void fill_rectangle(
+        compat::i32 left, compat::i32 top, compat::i32 right, compat::i32 bottom
+    ) = 0;
+    [[nodiscard]] virtual bool
+    update_action(asset_runtime::LegacyActionRecord& record) = 0;
+    [[nodiscard]] virtual bool resolve_frame(
+        const asset_runtime::LegacyActionRecord& record,
+        LegacyStandardModeBarFrame& frame
+    ) = 0;
+    virtual void draw_frame(
+        const LegacyStandardModeBarFrame& frame,
+        compat::i32 x,
+        compat::i32 y,
+        compat::u32 flags,
+        compat::u32 opacity
+    ) = 0;
+    virtual void draw_action(
+        asset_runtime::LegacyActionRecord& record, compat::i32 x, compat::i32 y
+    ) = 0;
+};
+
+struct LegacyStandardModeBarResult {
+    compat::u32 update_count{};
+    compat::u32 update_failure_count{};
+    compat::u32 frame_request_count{};
+    compat::u32 frame_draw_count{};
+    compat::u32 rectangle_fill_count{};
+    compat::u32 action_draw_count{};
+    bool stopped_after_frame_failure{};
+    bool stopped_after_zero_height{};
+};
+
 struct LegacyStandardModeTransitionMetrics {
     compat::i32 level_base{};
     std::array<compat::i16, 6U> values{};
@@ -387,6 +449,16 @@ struct LegacyStandardSpecialModeFrameResult {
 initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeState& state,
     LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
+
+// sub_43AE40: draw a split bar and its optional overlay actions.
+[[nodiscard]] LegacyStandardModeBarResult render_legacy_standard_mode_bar(
+    const LegacyStandardModeBarRequest& request,
+    LegacyStandardModeBarOutputs& outputs,
+    std::array<
+        asset_runtime::LegacyActionRecord,
+        kLegacyStandardSpecialModeInitializationRecordCount>& action_records,
+    LegacyStandardModeBarPorts& ports
 ) noexcept;
 
 // sub_43AAA0: draw the four standard-mode transition item blocks.

@@ -37,6 +37,7 @@ using openswd3::special_modes::LegacyInitialMenuEvent;
 using openswd3::special_modes::LegacyInitialMenuInput;
 using openswd3::special_modes::LegacyInitialMenuState;
 using openswd3::special_modes::run_legacy_initial_menu_frame;
+using openswd3::special_modes::render_legacy_standard_mode_bar;
 using openswd3::special_modes::render_legacy_standard_mode_frame;
 using openswd3::special_modes::render_legacy_standard_mode_transition;
 using openswd3::special_modes::run_legacy_standard_mode_input_dispatch;
@@ -49,6 +50,10 @@ using openswd3::special_modes::LegacyStandardModeItemPorts;
 using openswd3::special_modes::LegacyStandardModeInputCallback;
 using openswd3::special_modes::LegacyStandardModeInputPorts;
 using openswd3::special_modes::LegacyStandardModeInputState;
+using openswd3::special_modes::LegacyStandardModeBarFrame;
+using openswd3::special_modes::LegacyStandardModeBarOutputs;
+using openswd3::special_modes::LegacyStandardModeBarPorts;
+using openswd3::special_modes::LegacyStandardModeBarRequest;
 using openswd3::special_modes::LegacyStandardModeItemState;
 using openswd3::special_modes::LegacyStandardModePanelFrame;
 using openswd3::special_modes::LegacyStandardModePanelPorts;
@@ -209,6 +214,108 @@ public:
     std::vector<LegacyStandardModeInputCallback> callbacks;
     bool dynamic_pre_present{};
     bool mutate_record_seven_after_record_three{};
+};
+
+struct BarRectangle {
+    i32 left{};
+    i32 top{};
+    i32 right{};
+    i32 bottom{};
+
+    bool operator==(const BarRectangle&) const = default;
+};
+
+struct BarDrawRequest {
+    std::size_t action_index{};
+    i32 x{};
+    i32 y{};
+    u32 flags{};
+    u32 opacity{};
+    u32 base_variant{};
+
+    bool operator==(const BarDrawRequest&) const = default;
+};
+
+class FakeStandardModeBarPorts final : public LegacyStandardModeBarPorts {
+public:
+    explicit FakeStandardModeBarPorts(
+        std::array<LegacyActionRecord, 18U>& actions
+    ) noexcept
+        : actions_(actions) {}
+
+    void
+    prepare_bar_region(const LegacyStandardModeBarRequest& request) override {
+        prepared_request = request;
+    }
+
+    void fill_rectangle(
+        const i32 left, const i32 top, const i32 right, const i32 bottom
+    ) override {
+        rectangles.push_back({left, top, right, bottom});
+    }
+
+    bool update_action(LegacyActionRecord& record) override {
+        const auto index = static_cast<std::size_t>(&record - actions_.data());
+        updated_indices.push_back(index);
+        return index != failed_update_index;
+    }
+
+    bool resolve_frame(
+        const LegacyActionRecord& record, LegacyStandardModeBarFrame& frame
+    ) override {
+        const auto index = static_cast<std::size_t>(&record - actions_.data());
+        resolved_indices.push_back(index);
+        if (index == failed_frame_index) {
+            return false;
+        }
+        frame.source_word = static_cast<u32>(0x1000U + index);
+        frame.width = 32U;
+        frame.height = index == 6U ? first_frame_height : second_frame_height;
+        return true;
+    }
+
+    void draw_frame(
+        const LegacyStandardModeBarFrame& frame,
+        const i32 x,
+        const i32 y,
+        const u32 flags,
+        const u32 opacity
+    ) override {
+        frame_draws.push_back(
+            BarDrawRequest{
+                .action_index = frame.source_word - 0x1000U,
+                .x = x,
+                .y = y,
+                .flags = flags,
+                .opacity = opacity,
+            }
+        );
+    }
+
+    void
+    draw_action(LegacyActionRecord& record, const i32 x, const i32 y) override {
+        action_draws.push_back(
+            BarDrawRequest{
+                .action_index =
+                    static_cast<std::size_t>(&record - actions_.data()),
+                .x = x,
+                .y = y,
+                .base_variant = record.base_variant,
+            }
+        );
+    }
+
+    std::array<LegacyActionRecord, 18U>& actions_;
+    LegacyStandardModeBarRequest prepared_request{};
+    std::vector<BarRectangle> rectangles;
+    std::vector<std::size_t> updated_indices;
+    std::vector<std::size_t> resolved_indices;
+    std::vector<BarDrawRequest> frame_draws;
+    std::vector<BarDrawRequest> action_draws;
+    std::size_t failed_update_index{static_cast<std::size_t>(-1)};
+    std::size_t failed_frame_index{static_cast<std::size_t>(-1)};
+    u16 first_frame_height{4U};
+    u16 second_frame_height{2U};
 };
 
 struct TransitionGhostRequest {
@@ -988,6 +1095,121 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         non_one_state.initialization_records[1U].base_variant,
         2U,
         "only a story-flag result equal to one selects variant three"
+    );
+}
+
+void test_standard_mode_bar_rendering(openswd3::test::Context& test) {
+    std::array<LegacyActionRecord, 18U> actions{};
+    actions[6U].mode_flags = 0x66U;
+    actions[7U].mode_flags = 0x77U;
+    FakeStandardModeBarPorts ports{actions};
+    ports.failed_update_index = 6U;
+    const LegacyStandardModeBarRequest request{
+        .x = 10,
+        .y = 20,
+        .height = 10,
+        .overlay_flags = 3U,
+        .first_ratio = 0.25F,
+        .second_ratio = 0.75F,
+    };
+    LegacyStandardModeBarOutputs outputs;
+    const auto result =
+        render_legacy_standard_mode_bar(request, outputs, actions, ports);
+    test.expect_true(
+        ports.prepared_request == request && outputs.top == 20 &&
+            outputs.first_split == 22 && outputs.second_split == 27 &&
+            outputs.bottom == 30 &&
+            ports.rectangles ==
+                std::vector<BarRectangle>{
+                    BarRectangle{
+                        .left = 10, .top = 20, .right = 42, .bottom = 30
+                    },
+                    BarRectangle{
+                        .left = 10, .top = 20, .right = 42, .bottom = 27
+                    },
+                    BarRectangle{
+                        .left = 0, .top = 0, .right = 640, .bottom = 480
+                    },
+                } &&
+            ports.updated_indices == std::vector<std::size_t>{6U, 7U} &&
+            ports.resolved_indices == std::vector<std::size_t>{6U, 7U} &&
+            ports.frame_draws ==
+                std::vector<BarDrawRequest>{
+                    BarDrawRequest{
+                        .action_index = 6U, .x = 10, .y = 20, .flags = 0x66U
+                    },
+                    BarDrawRequest{
+                        .action_index = 6U, .x = 10, .y = 24, .flags = 0x66U
+                    },
+                    BarDrawRequest{
+                        .action_index = 6U, .x = 10, .y = 28, .flags = 0x66U
+                    },
+                    BarDrawRequest{
+                        .action_index = 7U, .x = 13, .y = 22, .flags = 0x77U
+                    },
+                    BarDrawRequest{
+                        .action_index = 7U, .x = 13, .y = 24, .flags = 0x77U
+                    },
+                    BarDrawRequest{
+                        .action_index = 7U, .x = 13, .y = 26, .flags = 0x77U
+                    },
+                } &&
+            ports.action_draws ==
+                std::vector<BarDrawRequest>{
+                    BarDrawRequest{
+                        .action_index = 8U,
+                        .x = 10,
+                        .y = 4,
+                        .base_variant = 0x1AU
+                    },
+                    BarDrawRequest{
+                        .action_index = 9U,
+                        .x = 10,
+                        .y = 30,
+                        .base_variant = 0x1BU
+                    },
+                    BarDrawRequest{
+                        .action_index = 8U,
+                        .x = 10,
+                        .y = 4,
+                        .base_variant = 0x1EU
+                    },
+                    BarDrawRequest{
+                        .action_index = 9U,
+                        .x = 10,
+                        .y = 30,
+                        .base_variant = 0x1FU
+                    },
+                } &&
+            result.update_count == 2U && result.update_failure_count == 1U &&
+            result.frame_request_count == 2U && result.frame_draw_count == 6U &&
+            result.rectangle_fill_count == 3U &&
+            result.action_draw_count == 4U &&
+            !result.stopped_after_frame_failure &&
+            !result.stopped_after_zero_height,
+        "0x43AE40 keeps update failures nonfatal, tiles both bar spans, " "truncates float splits and draws base plus optional overlays"
+    );
+
+    std::array<LegacyActionRecord, 18U> zero_actions{};
+    FakeStandardModeBarPorts zero_ports{zero_actions};
+    zero_ports.first_frame_height = 0U;
+    LegacyStandardModeBarOutputs zero_outputs;
+    const auto zero_result = render_legacy_standard_mode_bar(
+        LegacyStandardModeBarRequest{.height = 5},
+        zero_outputs,
+        zero_actions,
+        zero_ports
+    );
+    test.expect_true(
+        zero_outputs.top == 0 && zero_outputs.bottom == 5 &&
+            zero_ports.rectangles ==
+                std::vector<BarRectangle>{
+                    BarRectangle{.left = 0, .top = 0, .right = 32, .bottom = 5}
+                } &&
+            zero_result.stopped_after_zero_height &&
+            zero_result.frame_draw_count == 0U &&
+            zero_result.rectangle_fill_count == 1U,
+        "a zero-height tile is isolated before the original infinite loop"
     );
 }
 
@@ -1781,6 +2003,7 @@ int main() {
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
     test_standard_mode_global_initialization(test);
+    test_standard_mode_bar_rendering(test);
     test_standard_mode_transition_rendering(test);
     test_standard_mode_panel_preparation(test);
     test_standard_mode_frame_rendering(test);

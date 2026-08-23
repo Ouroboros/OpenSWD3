@@ -1,6 +1,7 @@
 #include "openswd3/special_modes/legacy_standard_mode.hpp"
 
 #include <bit>
+#include <cstdint>
 
 namespace openswd3::special_modes {
 namespace {
@@ -141,6 +142,119 @@ arithmetic_shift_right_one(const compat::u32 value) noexcept {
 }
 
 }  // namespace
+
+LegacyStandardModeBarResult render_legacy_standard_mode_bar(
+    const LegacyStandardModeBarRequest& request,
+    LegacyStandardModeBarOutputs& outputs,
+    std::array<
+        asset_runtime::LegacyActionRecord,
+        kLegacyStandardSpecialModeInitializationRecordCount>& action_records,
+    LegacyStandardModeBarPorts& ports
+) noexcept {
+    LegacyStandardModeBarResult result;
+    ports.prepare_bar_region(request);
+
+    const auto wrapping_add = [](const compat::i32 left,
+                                 const compat::i32 right) {
+        return std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(left) + std::bit_cast<compat::u32>(right)
+        );
+    };
+    const auto wrapping_subtract = [](const compat::i32 left,
+                                      const compat::i32 right) {
+        return std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(left) - std::bit_cast<compat::u32>(right)
+        );
+    };
+    const auto scaled_height = [&request](const float ratio) {
+        const double product =
+            static_cast<double>(request.height) * static_cast<double>(ratio);
+        const auto truncated = static_cast<std::int64_t>(product);
+        return std::bit_cast<compat::i32>(static_cast<compat::u32>(truncated));
+    };
+
+    outputs.top = request.y;
+    outputs.bottom = wrapping_add(request.y, request.height);
+    ports.fill_rectangle(
+        request.x, request.y, wrapping_add(request.x, 0x20), outputs.bottom
+    );
+    ++result.rectangle_fill_count;
+
+    auto draw_tiled_bar = [&](asset_runtime::LegacyActionRecord& record,
+                              const compat::i32 x,
+                              compat::i32 y,
+                              const compat::i32 end_y) {
+        ++result.update_count;
+        if (!ports.update_action(record)) {
+            ++result.update_failure_count;
+        }
+        LegacyStandardModeBarFrame frame;
+        ++result.frame_request_count;
+        if (!ports.resolve_frame(record, frame)) {
+            result.stopped_after_frame_failure = true;
+            return false;
+        }
+        if (frame.height == 0U && y < end_y) {
+            result.stopped_after_zero_height = true;
+            return false;
+        }
+        while (y < end_y) {
+            ports.draw_frame(frame, x, y, record.mode_flags, 0U);
+            ++result.frame_draw_count;
+            y = wrapping_add(y, static_cast<compat::i32>(frame.height));
+        }
+        return true;
+    };
+
+    if (!draw_tiled_bar(
+            action_records[6U], request.x, request.y, outputs.bottom
+        )) {
+        return result;
+    }
+
+    outputs.first_split =
+        wrapping_add(request.y, scaled_height(request.first_ratio));
+    outputs.second_split =
+        wrapping_add(request.y, scaled_height(request.second_ratio));
+    ports.fill_rectangle(
+        request.x,
+        request.y,
+        wrapping_add(request.x, 0x20),
+        outputs.second_split
+    );
+    ++result.rectangle_fill_count;
+
+    if (!draw_tiled_bar(
+            action_records[7U],
+            wrapping_add(request.x, 3),
+            outputs.first_split,
+            outputs.second_split
+        )) {
+        return result;
+    }
+
+    ports.fill_rectangle(0, 0, 0x280, 0x1E0);
+    ++result.rectangle_fill_count;
+
+    auto draw_overlay = [&](asset_runtime::LegacyActionRecord& record,
+                            const compat::u32 base_variant,
+                            const compat::i32 y) {
+        record.base_variant = base_variant;
+        ports.draw_action(record, request.x, y);
+        ++result.action_draw_count;
+    };
+    draw_overlay(action_records[8U], 0x1AU, wrapping_subtract(request.y, 0x10));
+    draw_overlay(action_records[9U], 0x1BU, outputs.bottom);
+    if ((request.overlay_flags & 1U) != 0U) {
+        draw_overlay(
+            action_records[8U], 0x1EU, wrapping_subtract(request.y, 0x10)
+        );
+    }
+    if ((request.overlay_flags & 2U) != 0U) {
+        draw_overlay(action_records[9U], 0x1FU, outputs.bottom);
+    }
+    return result;
+}
 
 LegacyStandardModeTransitionResult render_legacy_standard_mode_transition(
     LegacyStandardModeTransitionState& state,

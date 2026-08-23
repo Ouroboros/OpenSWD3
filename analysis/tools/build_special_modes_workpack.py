@@ -13,6 +13,10 @@ OWNERSHIP_INPUT = INVENTORY_ROOT / "module-function-ownership.tsv"
 OUTPUT = INVENTORY_ROOT / "special-modes-function-workpack.tsv"
 EXPECTED_CANDIDATE_COUNT = 227
 CLOSURES = {
+    "0x0043AE40": (
+        "platform_adapted",
+        "evidence/special-mode-split-bar-0043ae40.md",
+    ),
     "0x0043AAA0": (
         "platform_adapted",
         "evidence/special-mode-transition-blocks-0043aaa0.md",
