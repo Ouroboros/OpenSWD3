@@ -32,6 +32,7 @@ using openswd3::rendering::LegacyFramePiece;
 using openswd3::special_modes::adjust_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
 using openswd3::special_modes::advance_legacy_standard_mode_window_cursor;
+using openswd3::special_modes::advance_legacy_standard_mode_runtime_cursor;
 using openswd3::special_modes::advance_legacy_standard_mode_window_page;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
 using openswd3::special_modes::build_legacy_standard_mode_filtered_records;
@@ -108,6 +109,7 @@ using openswd3::special_modes::LegacyStandardModePanelState;
 using openswd3::special_modes::LegacyStandardModeRenderPorts;
 using openswd3::special_modes::LegacyStandardModeRuntimeInitializationPorts;
 using openswd3::special_modes::LegacyStandardModeRuntimeInitializationState;
+using openswd3::special_modes::LegacyStandardModeRuntimeCursorAdvanceStatus;
 using openswd3::special_modes::LegacyStandardModeInputDispatchInput;
 using openswd3::special_modes::LegacyStandardModeInputDispatchPath;
 using openswd3::special_modes::LegacyStandardModeInputDispatchPorts;
@@ -2182,7 +2184,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
     class DispatchPorts final : public LegacyStandardModeInputDispatchPorts {
     public:
         enum class Event : u8 {
-            list_row,
             upper_control,
             first_dynamic_control,
             mode_refresh,
@@ -2197,10 +2198,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             bool operator==(const ReleaseEvent&) const = default;
         };
 
-        [[nodiscard]] i32 dispatch_list_row() noexcept override {
-            events.push_back(Event::list_row);
-            return 111;
-        }
         void dispatch_upper_control() noexcept override {
             events.push_back(Event::upper_control);
         }
@@ -2262,12 +2259,72 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyStandardModeRuntimeInitializationState state;
+        state.total_count = 10;
+        state.window_offset = 0;
+        state.local_cursor = 4;
         state.visible_count = 5;
+        state.entries[5U] = 0xA1B2C3D4U;
+        state.mode_flags = 1;
+        DispatchPorts ports;
+        const auto result = advance_legacy_standard_mode_runtime_cursor(
+            0x13572468U, state, ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeCursorAdvanceStatus::completed &&
+                result.legacy_return_value == 222 && state.window_offset == 1 &&
+                state.local_cursor == 4 && state.entry_alias_index == 1 &&
+                static_cast<u32>(state.mode_flags) == 0x31U &&
+                ports.consumed_entry == 0xA1B2C3D4U &&
+                ports.played_sample_id == 0x2EU &&
+                ports.played_sample_handle == 0x13572468U &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                        DispatchPorts::Event::entry_consume,
+                        DispatchPorts::Event::sample_play,
+                    },
+            "0x43C520 advances, rebuilds, refreshes, consumes, marks and plays in order"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.total_count = 100;
+        state.window_offset = 63;
+        state.local_cursor = 0;
+        state.visible_count = 10;
+        state.mode_flags = 1;
+        DispatchPorts ports;
+        const auto result = advance_legacy_standard_mode_runtime_cursor(
+            0x24681357U, state, ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeCursorAdvanceStatus::
+                        selected_entry_out_of_range &&
+                state.local_cursor == 1 && state.window_offset == 63 &&
+                state.entry_alias_index == 63 && state.mode_flags == 1 &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                    },
+            "0x43C520 typed-stops at its original selected-entry read"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.visible_count = 5;
+        state.entries[4U] = 0x01020304U;
         DispatchPorts ports;
         const LegacyStandardModeInputDispatchInput input{
             .pointer_x = 20U,
             .pointer_y = 453U,
             .input_bits = 1U,
+            .sample_handle = 0x10203040U,
         };
         const auto result = dispatch_legacy_standard_mode_input(
             input, available_records, state, ports
@@ -2276,9 +2333,20 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             result.status == LegacyStandardModeInputDispatchStatus::completed &&
                 result.path ==
                     LegacyStandardModeInputDispatchPath::list_row_selected &&
-                result.legacy_return_value == 111 && state.local_cursor == 3 &&
-                ports.events == std::vector{DispatchPorts::Event::list_row},
-            "0x43C3C0 clamps the first rectangle row then applies the extra decrement"
+                result.legacy_return_value == 222 && state.local_cursor == 4 &&
+                state.entry_alias_index == 0 &&
+                static_cast<u32>(state.mode_flags) == 0x30U &&
+                ports.consumed_entry == 0x01020304U &&
+                ports.played_sample_id == 0x2EU &&
+                ports.played_sample_handle == 0x10203040U &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                        DispatchPorts::Event::entry_consume,
+                        DispatchPorts::Event::sample_play,
+                    },
+            "0x43C3C0 clamps the row, applies the extra decrement and tail-dispatches 0x43C520"
         );
     }
 
@@ -2384,6 +2452,11 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
 
     {
         LegacyStandardModeRuntimeInitializationState state;
+        state.total_count = 10;
+        state.window_offset = 0;
+        state.local_cursor = 4;
+        state.visible_count = 5;
+        state.entries[5U] = 0x55667788U;
         DispatchPorts ports;
         const LegacyStandardModeInputDispatchInput input{
             .pointer_x = 210U,
@@ -2401,9 +2474,17 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                     LegacyStandardModeInputDispatchPath::
                         bottom_control_dispatched &&
                 result.legacy_return_value == 453 &&
-                result.bottom_control_dispatched &&
-                ports.events == std::vector{DispatchPorts::Event::list_row},
-            "0x43C3C0 ignores the bottom handler EAX and reloads pointer Y"
+                result.bottom_control_dispatched && state.window_offset == 1 &&
+                state.local_cursor == 4 &&
+                ports.consumed_entry == 0x55667788U &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                        DispatchPorts::Event::entry_consume,
+                        DispatchPorts::Event::sample_play,
+                    },
+            "0x43C3C0 runs 0x43C520 then reloads pointer Y over its sample EAX"
         );
     }
 

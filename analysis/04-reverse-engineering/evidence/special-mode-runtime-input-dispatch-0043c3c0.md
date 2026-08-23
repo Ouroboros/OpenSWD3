@@ -11,13 +11,13 @@
 - `0x0043C7E0..0x0043C7F5`：mode刷新与点击音。
 - `0x0043C800..0x0043C819`：exit counter精确500门。
 
-直接caller是`0x004455E0`。`0x0043B480`只保存函数地址，不是运行时direct call。workpack列出的未关闭callee继续由窄port隔离；已关闭的`0x0043BBE0`与`0x0043C090`直接复用typed helper。
+直接caller是`0x004455E0`。`0x0043B480`只保存函数地址，不是运行时direct call。已关闭的`0x0043BBE0`、`0x0043C090`与`0x0043C520`直接复用typed helper；其余未关闭callee继续由窄port隔离。
 
 ## 2. 第一与第二矩形
 
 入口把pointer Y装入EAX、pointer X装入ECX、输入位低字节装入DL。
 
-第一矩形使用全部unsigned严格边界：`94 < y < 454`、`18 < x < 203`且`input_bits & 3`。行号为`(y - 94) / 24`；若signed行号不小于visible count，则先改为`visible_count - 1`，随后无条件再减1并写local cursor，最后tail-call `0x0043C520`。这意味着钳制路径最终是`visible_count - 2`，不能“修正”为末项。
+第一矩形使用全部unsigned严格边界：`94 < y < 454`、`18 < x < 203`且`input_bits & 3`。行号为`(y - 94) / 24`；若signed行号不小于visible count，则先改为`visible_count - 1`，随后无条件再减1并写local cursor，最后tail-call `0x0043C520`。这意味着进入callee前的钳制值是`visible_count - 2`，不能“修正”为末项；已关闭callee随后再推进cursor、重建alias、刷新、消费entry、写flags并返回sample EAX。
 
 第二矩形为`60 < y < 78`、`10 < x < 206`且`input_bits & 3`。signed delta为`(x - 106) / 20`，向零截断。LST的位运算精确形成：
 
@@ -37,7 +37,7 @@ return play_sample(0x2E, sample_handle)
 若前两矩形未命中，函数查询16字节记录15。可用时先要求unsigned `206 < x < 224`；进入后Y的后续范围全部为signed严格比较，并按顺序独立执行，不是互斥else-if：
 
 1. `82 < y < 96`调用`0x0043C590`。
-2. `452 < y < 464`调用`0x0043C520`。
+2. `452 < y < 464`调用已关闭`0x0043C520`，保留其全部状态副作用后重新载入pointer Y覆盖sample EAX。
 3. `first_lower < y < first_upper`调用`0x0043C670`。
 4. `second_lower < y < second_upper`进入翻页chunk。
 
@@ -64,10 +64,10 @@ availability不可用时EAX为0；availability可用但X严格边界失败时EAX
 
 `special_modes.legacy_initial_menu`覆盖：
 
-- 第一矩形行计算、signed钳制及额外减1。
+- 第一矩形行计算、signed钳制、额外减1以及tail-dispatch `0x0043C520`后的最终cursor/entry/flags/sample EAX。
 - 第二矩形负delta减2、正delta不变、delta零、mode 0/14边界。
 - upper、first dynamic、翻页、alias重建、page刷新、entry消费和点击音的严格顺序。
-- bottom callee EAX被pointer Y覆盖。
+- bottom `0x0043C520`的cursor/entry/flags/sample副作用保持，但sample EAX被pointer Y覆盖。
 - X等于206的严格边界与路径EAX。
 - availability记录15越界typed-stop。
 - selected entry越界只在原表读取点停止，且保留此前upper/rebuild/refresh副作用。

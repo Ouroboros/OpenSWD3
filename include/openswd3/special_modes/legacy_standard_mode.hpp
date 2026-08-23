@@ -756,6 +756,18 @@ struct LegacyStandardModeInputDispatchInput {
     compat::u32 sample_handle{};
 };
 
+enum class LegacyStandardModeRuntimeCursorAdvanceStatus : compat::u8 {
+    completed,
+    selected_entry_out_of_range,
+};
+
+struct LegacyStandardModeRuntimeCursorAdvanceResult {
+    LegacyStandardModeRuntimeCursorAdvanceStatus status{
+        LegacyStandardModeRuntimeCursorAdvanceStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+};
+
 enum class LegacyStandardModeInputDispatchStatus : compat::u8 {
     completed,
     availability_index_out_of_range,
@@ -776,7 +788,6 @@ enum class LegacyStandardModeInputDispatchPath : compat::u8 {
 class LegacyStandardModeInputDispatchPorts {
 public:
     virtual ~LegacyStandardModeInputDispatchPorts() = default;
-    [[nodiscard]] virtual compat::i32 dispatch_list_row() noexcept = 0;
     virtual void dispatch_upper_control() noexcept = 0;
     virtual void dispatch_first_dynamic_control() noexcept = 0;
     virtual void refresh_mode() noexcept = 0;
@@ -1006,6 +1017,14 @@ query_legacy_standard_mode_availability(
 initialize_legacy_standard_mode_runtime(
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeRuntimeInitializationPorts& ports
+) noexcept;
+
+// sub_43C520: advance the runtime cursor, rebuild and consume its selected entry.
+[[nodiscard]] LegacyStandardModeRuntimeCursorAdvanceResult
+advance_legacy_standard_mode_runtime_cursor(
+    compat::u32 sample_handle,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeInputDispatchPorts& ports
 ) noexcept;
 
 // sub_43C3C0: dispatch standard-mode pointer input and release its runtime.

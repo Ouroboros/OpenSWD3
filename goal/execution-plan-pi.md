@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v455
+版本：v456
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043C520`
+当前步骤：模块9 · 闭环`0x0043C590`
 
 ## 0. 执行约定
 
@@ -3307,14 +3307,25 @@ B7 P0 有限收口完成。
     顺序独立命中；翻页严格执行step15、alias重建、page刷新、entry消费、flags低字节OR `0x30`
     与sample `0x2E`。exit必须精确500，随后条件释放record token并按4个固定块、16 long、64 short、
     entry表顺序释放，最终`FC974=64`、action写`0x232A/0x43`并保留末次release EAX。原表越界在
-    availability15或selected entry读取点typed-stop；其余未关闭callee继续由窄port隔离。定向UT
-    覆盖所有分支、严格边界、重叠顺序、路径EAX和85项storage释放。workpack连续两轮稳定为
-    `30/227`，SHA256为`f9dc7e93f48dba950d034372bfb2830b0cef40e93357d0c9afebc4e353c3e137`；
-    Linux core188/188与Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+    availability15或selected entry读取点typed-stop；已关闭`0x0043C520`直接复用typed helper，
+    其余未关闭callee继续由窄port隔离。定向UT覆盖所有分支、严格边界、重叠顺序、路径EAX和
+    85项storage释放。workpack连续两轮稳定为`30/227`，SHA256为
+    `f9dc7e93f48dba950d034372bfb2830b0cef40e93357d0c9afebc4e353c3e137`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
+- 模块9标准模式运行时游标推进组合器`0x0043C520`闭环。LST范围`0x0043C520..0x0043C58F`，
+    三个callsite来自`0x0043C3C0`两次与`0x00445C90`一次。先调用已关闭`0x0043BB80`，再严格
+    执行alias重建、page刷新、原entry base的`window_offset + local_cursor`读取、entry消费、
+    flags `| 0x30`和sample `0x2E`，最终返回sample EAX。selected index以u32回绕计算并只在原
+    entry读取点typed-stop。两个`0x0043C3C0`caller已真实回接：第一矩形tail路径返回sample EAX，
+    bottom路径保留全部副作用后以pointer Y覆盖EAX。定向UT覆盖正常滚动、顺序、flags、sample、
+    selected越界与caller集成。workpack连续两轮稳定为`31/227`，SHA256为
+    `3b77b39c834345e45eb3b555273d34ac609db66abcf7482273be302a39bd3e0a`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`30/227`，下一单元为`0x0043C520`。
+进行中，正式进度为`31/227`，下一单元为`0x0043C590`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043C520`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043C590`，继续更新workpack、证据和完整验证门。
