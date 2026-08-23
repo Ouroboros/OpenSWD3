@@ -4,7 +4,7 @@
 
 ## 1. LST范围与owner
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DA30..0x0043DD1F`，365行；由B480 callback表间接绑定，没有direct call caller。直接callee中C090、DD20、DDF0、DED0、DFA0、E080、E170、E310和E3D0已关闭；E770与外部物品查询继续独立审计。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DA30..0x0043DD1F`，365行；由B480 callback表间接绑定，没有direct call caller。直接callee中C090、DD20、DDF0、DED0、DFA0、E080、E170、E310、E3D0和E770已关闭；外部物品查询继续保留边界。
 
 DA30读写D530共享owner：
 
@@ -47,7 +47,7 @@ callee后会重读X/button/toggle，不缓存为高层事件。E3D0现直接执�
 
 ## 4. phases 3–5与返回
 
-phase3/4在button低4位非零时直接调用E3D0；phase3执行countdown更新/sample2E，phase4执行三record文本发布、窗口重建及成功复位。phase5同条件调用E770；其他phase不调用。typed结果记录callback次数、最后地址target及最后callee EAX；无callee路径保留控制流最后装入EAX的owner值。
+phase3/4在button低4位非零时直接调用E3D0；phase3执行countdown更新/sample2E，phase4执行三record文本发布、窗口重建及成功复位。phase5同条件直接调用已关闭E770；其他phase不调用。typed结果记录callback次数、最后地址target及最后callee EAX；无callee路径保留控制流最后装入EAX的owner值。
 
 ## 5. 验证
 

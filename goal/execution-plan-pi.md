@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v480
+版本：v481
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043E770`
+当前步骤：模块9 · 闭环`0x0043E800`
 
 ## 0. 执行约定
 
@@ -3582,9 +3582,20 @@ B7 P0 有限收口完成。
     `9c4abc1d3061dbb831d8b66fb43355da754fb4f0c9b0732c7c779a52006b54b6`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库交互退出`0x0043E770`闭环。LST范围`0x0043E770..0x0043E7DF`，DA30
+    两个direct call、E3D0一个direct call并由B480 callback间接绑定。phase1按u16减lifecycle，结果0时
+    清lifecycle-zero owner，再直接执行B480→D880，返回D880最终storage EAX；callback primary word与
+    callback state纳入typed owner，cleanup通过adapter复用D880。phase2写phase1及动作232A/3B；phase3/4
+    直接尾调E3D0并传播commit typed-stop；phase5写phase1，其他phase保留`phase-1` EAX。E3D0物品1BB0
+    短路及DA30所有E770路径均直接typed调用，不再产生generic target事件。定向UT覆盖lifecycle2→1的
+    B480 G08、lifecycle1→0清owner、15 storage cleanup、phase2/3/5/default及最终EAX。workpack连续
+    两轮稳定为`56/227`，SHA256为
+    `223801a61e31fb0f348ba9ad946424aa7ac1490b0d6ddcc7ac5fcdab209aa243`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`55/227`，下一单元为`0x0043E770`。
+进行中，正式进度为`56/227`，下一单元为`0x0043E800`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043E770`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043E800`，继续更新workpack、证据和完整验证门。

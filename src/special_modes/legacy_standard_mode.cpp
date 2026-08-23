@@ -2253,11 +2253,76 @@ LegacyStandardModeDatabaseAdvanceResult advance_legacy_standard_mode_database(
     return result;
 }
 
+LegacyStandardModeDatabaseExitResult
+exit_legacy_standard_mode_database_interaction(
+    LegacyStandardModeDatabaseInitializationState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeDatabaseExitPorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseExitResult result;
+    const compat::u32 phase_index = state.interaction_phase - 1U;
+    result.legacy_return_value = std::bit_cast<compat::i32>(phase_index);
+
+    if (phase_index == 0U) {
+        result.path = LegacyStandardModeDatabaseExitPath::phase_1_cleanup;
+        state.lifecycle_phase = static_cast<compat::u16>(
+            static_cast<compat::u32>(state.lifecycle_phase) - 1U
+        );
+        if (state.lifecycle_phase == 0U) {
+            state.lifecycle_zero_value = 0U;
+        }
+        static_cast<void>(bind_legacy_standard_mode_callbacks(
+            state.callback_state,
+            state.lifecycle_phase,
+            state.callback_primary_word,
+            ports
+        ));
+        ++result.helper_call_count;
+        const LegacyStandardModeDatabaseCleanupResult cleanup =
+            release_legacy_standard_mode_database(
+                state, ports.database_cleanup_ports()
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = cleanup.legacy_return_value;
+        return result;
+    }
+
+    if (phase_index == 1U) {
+        result.path = LegacyStandardModeDatabaseExitPath::phase_2_reset;
+        state.interaction_phase = 1U;
+        state.primary_action.action_id = 0x232AU;
+        state.primary_action.base_variant = 0x3BU;
+        return result;
+    }
+
+    if (phase_index == 2U || phase_index == 3U) {
+        result.path = LegacyStandardModeDatabaseExitPath::phase_3_or_4_commit;
+        const LegacyStandardModeDatabaseCommitResult commit =
+            commit_legacy_standard_mode_database_interaction(
+                state, maps_payload, ports
+            );
+        ++result.helper_call_count;
+        result.legacy_return_value = commit.legacy_return_value;
+        if (commit.status !=
+            LegacyStandardModeDatabaseCommitStatus::completed) {
+            result.status =
+                LegacyStandardModeDatabaseExitStatus::commit_stopped;
+        }
+        return result;
+    }
+
+    if (phase_index == 4U) {
+        result.path = LegacyStandardModeDatabaseExitPath::phase_5_reset;
+        state.interaction_phase = 1U;
+    }
+    return result;
+}
+
 LegacyStandardModeDatabaseCommitResult
 commit_legacy_standard_mode_database_interaction(
     LegacyStandardModeDatabaseInitializationState& state,
     const std::span<const compat::u8> maps_payload,
-    LegacyStandardModeDatabaseCommitPorts& ports
+    LegacyStandardModeDatabaseExitPorts& ports
 ) noexcept {
     LegacyStandardModeDatabaseCommitResult result;
     const compat::u32 phase_index = state.interaction_phase - 1U;
@@ -2270,7 +2335,11 @@ commit_legacy_standard_mode_database_interaction(
         result.legacy_return_value = exit_available ? 1 : 0;
         if (exit_available) {
             result.path = LegacyStandardModeDatabaseCommitPath::phase_1_exit;
-            result.legacy_return_value = ports.invoke_database_exit(state);
+            const LegacyStandardModeDatabaseExitResult exit =
+                exit_legacy_standard_mode_database_interaction(
+                    state, maps_payload, ports
+                );
+            result.legacy_return_value = exit.legacy_return_value;
             ++result.helper_call_count;
             return result;
         }
@@ -3043,7 +3112,20 @@ handle_legacy_standard_mode_database_input(
                         ) {
         ++result.callback_count;
         result.last_target = target;
-        if (target == LegacyStandardModeDatabaseInputTarget::address_0043E080) {
+        if (target == LegacyStandardModeDatabaseInputTarget::address_0043E770) {
+            const LegacyStandardModeDatabaseExitResult exit =
+                exit_legacy_standard_mode_database_interaction(
+                    state, maps_payload, ports
+                );
+            result.legacy_return_value = exit.legacy_return_value;
+            if (exit.status !=
+                LegacyStandardModeDatabaseExitStatus::completed) {
+                result.status = LegacyStandardModeDatabaseInputStatus::
+                    database_exit_stopped;
+            }
+        } else if (
+            target == LegacyStandardModeDatabaseInputTarget::address_0043E080
+        ) {
             result.legacy_return_value =
                 cycle_legacy_standard_mode_database_page(
                     state, maps_payload, ports

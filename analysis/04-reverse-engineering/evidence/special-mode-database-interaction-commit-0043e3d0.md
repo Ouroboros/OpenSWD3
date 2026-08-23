@@ -6,7 +6,7 @@
 
 唯一行为真值为`swd3.exe.lst`。函数范围`0x0043E3D0..0x0043E741`，425行；DA30有四个direct call点，B480另以callback地址绑定。
 
-已关闭callee B980/B9A0/BC90/BCC0直接复用typed实现。E770、F1E0、F7C0、FDE0、4404D0、4405C0、44D2D0、sample、物品查询和release继续保留最小可观察port边界，不提前计数。DA30命中E3D0时直接调用本helper并传播phase4 typed-stop。
+已关闭callee B980/B9A0/BC90/BCC0/E770直接复用typed实现。F1E0、F7C0、FDE0、4404D0、4405C0、44D2D0、sample、物品查询和release继续保留最小可观察port边界，不提前计数。DA30命中E3D0时直接调用本helper并传播phase4 typed-stop。
 
 新增/确认typed owner：
 
@@ -21,7 +21,7 @@
 
 严格顺序为：
 
-1. 查询物品`0x1BB0`；存在时立即调用E770并返回。
+1. 查询物品`0x1BB0`；存在时立即直接调用已关闭E770并返回。
 2. F1E0重建两个inline record；EAX为0时写phase5并返回0。
 3. 调用4404D0后重新读取phase并加1。
 4. primary action写`0x232A/0x39`，toggle和runtime flags清0。

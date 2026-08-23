@@ -3600,7 +3600,9 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
     using Target =
         openswd3::special_modes::LegacyStandardModeDatabaseInputTarget;
     class InputPorts final
-        : public openswd3::special_modes::LegacyStandardModeDatabaseInputPorts {
+        : public openswd3::special_modes::LegacyStandardModeDatabaseInputPorts,
+          public openswd3::special_modes::
+              LegacyStandardModeDatabaseCleanupPorts {
     public:
         struct MaterializedText {
             openswd3::special_modes::LegacyStandardModeDatabaseTextDestination
@@ -3647,13 +3649,43 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             queried_item_ids.push_back(item_id);
             return item_id == 0x1BB0U ? exit_item_present : item_present;
         }
-        [[nodiscard]] i32 invoke_database_exit(
-            openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState&
+        [[nodiscard]] i32 story_flag(const u32 flag_index) override {
+            callback_flag_indices.push_back(flag_index);
+            return callback_story_flag;
+        }
+        void initialize_secondary_dispatch() override {
+            ++secondary_dispatch_count;
+        }
+        void initialize_high_mode_runtime() override {
+            ++high_mode_runtime_count;
+        }
+        [[nodiscard]] openswd3::special_modes::
+            LegacyStandardModeDatabaseCleanupPorts&
+            database_cleanup_ports() noexcept override {
+            return *this;
+        }
+        void release_external_forward_list(
+            LegacyStandardModeForwardNode*& forward_head,
+            LegacyStandardModeForwardNode*& adjustment_head
         ) noexcept override {
-            ++exit_call_count;
-            targets.push_back(Target::address_0043E770);
-            return static_cast<i32>(100U + targets.size());
+            ++cleanup_forward_list_count;
+            forward_head = nullptr;
+            adjustment_head = nullptr;
+        }
+        void release_value(const u32 value) noexcept override {
+            cleanup_released_values.push_back(value);
+        }
+        void
+        release_forward_node(LegacyStandardModeForwardNode*) noexcept override {
+            ++cleanup_forward_node_count;
+        }
+        [[nodiscard]] i32 release_database_storage(
+            const openswd3::special_modes::LegacyStandardModeDatabaseStorageKind
+                kind
+        ) noexcept override {
+            cleanup_storage_kinds.push_back(kind);
+            return cleanup_storage_return_base +
+                static_cast<i32>(cleanup_storage_kinds.size());
         }
         [[nodiscard]] i32 rebuild_database_inline_records(
             std::span<u8>,
@@ -3728,12 +3760,17 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
 
         bool item_present{true};
         bool exit_item_present{};
+        i32 callback_story_flag{};
+        i32 cleanup_storage_return_base{200};
         bool publish_missing_node{true};
         i32 rebuild_result{1};
         bool override_phase_3_countdown{};
         u32 phase_3_countdown_value{};
         u32 missing_insert_count{};
-        u32 exit_call_count{};
+        u32 secondary_dispatch_count{};
+        u32 high_mode_runtime_count{};
+        u32 cleanup_forward_list_count{};
+        u32 cleanup_forward_node_count{};
         u32 commit_rebuild_count{};
         u32 phase_1_prepare_count{};
         u32 phase_2_prepare_count{};
@@ -3743,6 +3780,11 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         LegacyStandardModeForwardNode* cycle_forward_head{&cycle_node};
         std::vector<u16> queried_item_ids;
         std::vector<u16> database_sample_ids;
+        std::vector<u32> callback_flag_indices;
+        std::vector<u32> cleanup_released_values;
+        std::vector<
+            openswd3::special_modes::LegacyStandardModeDatabaseStorageKind>
+            cleanup_storage_kinds;
         std::vector<std::pair<i32, u16>> resolutions;
         std::vector<MaterializedText> materialized_texts;
         std::vector<u32> released_values;
@@ -3751,6 +3793,15 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
     std::vector<openswd3::special_modes::LegacyStandardModeAvailabilityRecord>
         availability(16U);
     availability[15U] = {.enabled = 1, .state = 1};
+    const auto exit =
+        [](openswd3::special_modes::
+               LegacyStandardModeDatabaseInitializationState& state,
+           InputPorts& ports) {
+            return openswd3::special_modes::
+                exit_legacy_standard_mode_database_interaction(
+                    state, {}, ports
+                );
+        };
     const auto commit =
         [](openswd3::special_modes::
                LegacyStandardModeDatabaseInitializationState& state,
@@ -3772,6 +3823,99 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             );
         };
 
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            state;
+        state.interaction_phase = 1U;
+        state.lifecycle_phase = 2U;
+        state.lifecycle_zero_value = 99U;
+        InputPorts ports;
+        const auto cleaned = exit(state, ports);
+        test.expect_true(
+            cleaned.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseExitPath::phase_1_cleanup &&
+                cleaned.helper_call_count == 2U &&
+                cleaned.legacy_return_value == 215 &&
+                state.lifecycle_phase == 1U &&
+                state.lifecycle_zero_value == 99U &&
+                ports.secondary_dispatch_count == 1U &&
+                ports.cleanup_forward_list_count == 1U &&
+                ports.cleanup_storage_kinds.size() == 15U,
+            "0x43E770 phase1 decrements lifecycle then binds B480 and tail-cleans D880"
+        );
+
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            zero_state;
+        zero_state.interaction_phase = 1U;
+        zero_state.lifecycle_phase = 1U;
+        zero_state.lifecycle_zero_value = 77U;
+        InputPorts zero_ports;
+        const auto zero = exit(zero_state, zero_ports);
+        test.expect_true(
+            zero.legacy_return_value == 215 &&
+                zero_state.lifecycle_zero_value == 0U &&
+                zero_state.lifecycle_phase == 1U,
+            "0x43E770 phase1 clears lifecycle-zero owner before D880 resets phase"
+        );
+
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            reset_state;
+        reset_state.interaction_phase = 2U;
+        const auto reset = exit(reset_state, zero_ports);
+        test.expect_true(
+            reset.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseExitPath::phase_2_reset &&
+                reset.legacy_return_value == 1 &&
+                reset_state.interaction_phase == 1U &&
+                reset_state.primary_action.action_id == 0x232AU &&
+                reset_state.primary_action.base_variant == 0x3BU,
+            "0x43E770 phase2 resets interaction and primary action"
+        );
+
+        reset_state.interaction_phase = 3U;
+        const auto delegated = exit(reset_state, zero_ports);
+        test.expect_true(
+            delegated.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseExitPath::
+                            phase_3_or_4_commit &&
+                delegated.helper_call_count == 1U &&
+                zero_ports.database_sample_ids.back() == 0x2EU,
+            "0x43E770 phase3 tail-delegates to the closed E3D0"
+        );
+
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            stopped_state;
+        stopped_state.interaction_phase = 4U;
+        stopped_state.window_offset = 1;
+        InputPorts stopped_ports;
+        const auto stopped = exit(stopped_state, stopped_ports);
+        test.expect_true(
+            stopped.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseExitStatus::commit_stopped &&
+                stopped.helper_call_count == 1U,
+            "0x43E770 phase4 propagates the closed E3D0 typed-stop"
+        );
+
+        reset_state.interaction_phase = 5U;
+        const auto phase5 = exit(reset_state, zero_ports);
+        reset_state.interaction_phase = 6U;
+        const auto phase6 = exit(reset_state, zero_ports);
+        test.expect_true(
+            phase5.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseExitPath::phase_5_reset &&
+                phase5.legacy_return_value == 4 &&
+                phase6.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseExitPath::ignored &&
+                phase6.legacy_return_value == 5,
+            "0x43E770 phase5 resets while default phases preserve switch EAX"
+        );
+    }
     {
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
             state;
@@ -3823,10 +3967,9 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                     openswd3::special_modes::
                         LegacyStandardModeDatabaseCommitPath::phase_1_exit &&
                 exited.helper_call_count == 2U &&
-                exited.legacy_return_value == 101 &&
-                exit_ports.exit_call_count == 1U &&
-                exit_ports.targets ==
-                    std::vector<Target>{Target::address_0043E770},
+                exited.legacy_return_value == 215 &&
+                exit_ports.targets.empty() &&
+                exit_ports.cleanup_storage_kinds.size() == 15U,
             "0x43E3D0 phase1 item 1BB0 delegates immediately to E770"
         );
     }
@@ -4100,7 +4243,10 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         const auto exited = run(state, input, ports);
         test.expect_true(
             exited.callback_count == 1U &&
-                ports.targets == std::vector<Target>{Target::address_0043E770},
+                exited.last_target == Target::address_0043E770 &&
+                ports.targets.empty() &&
+                ports.cleanup_storage_kinds.size() == 15U &&
+                state.lifecycle_phase == 1U,
             "0x43DA30 phase1 routes button bits 2..3 to E770 after skipped availability"
         );
     }
@@ -4205,8 +4351,8 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             phase3.callback_count == 1U && phase4.callback_count == 1U &&
                 phase5.callback_count == 1U && phase6.callback_count == 0U &&
-                ports.targets ==
-                    std::vector<Target>{Target::address_0043E770} &&
+                phase5.last_target == Target::address_0043E770 &&
+                ports.targets.empty() &&
                 ports.database_sample_ids == std::vector<u16>{0x2EU},
             "0x43DA30 phases3/4/5 dispatch low-four-bit exits and ignore other phases"
         );

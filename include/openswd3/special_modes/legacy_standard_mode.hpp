@@ -742,7 +742,10 @@ struct LegacyStandardModeDatabaseInitializationState {
     std::array<std::array<compat::u8, 0x1B8U>, 4U> large_buffers{};
     std::array<compat::i32, 0x100U> mirrored_values{};
     std::array<compat::u8, kLegacyStandardModeSharedTextCapacity> shared_text{};
+    LegacyStandardModeCallbackState callback_state{};
+    compat::u16 callback_primary_word{};
     compat::u16 lifecycle_phase{};
+    compat::u32 lifecycle_zero_value{};
     compat::u32 direction_selection{};
     compat::u32 hover_flag{};
     compat::u32 interaction_toggle{};
@@ -946,13 +949,12 @@ struct LegacyStandardModeDatabaseCommitResult {
     bool sample_initialized{};
 };
 
+class LegacyStandardModeDatabaseCleanupPorts;
+
 class LegacyStandardModeDatabaseCommitPorts
     : public LegacyStandardModeDatabaseCyclePorts {
 public:
     ~LegacyStandardModeDatabaseCommitPorts() override = default;
-    [[nodiscard]] virtual compat::i32 invoke_database_exit(
-        LegacyStandardModeDatabaseInitializationState& state
-    ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 rebuild_database_inline_records(
         std::span<compat::u8> first_record,
         std::span<compat::u8> second_record,
@@ -982,10 +984,44 @@ public:
     virtual void release_database_value(compat::u32 token) noexcept = 0;
 };
 
+enum class LegacyStandardModeDatabaseExitStatus : compat::u8 {
+    completed,
+    commit_stopped,
+};
+
+enum class LegacyStandardModeDatabaseExitPath : compat::u8 {
+    ignored,
+    phase_1_cleanup,
+    phase_2_reset,
+    phase_3_or_4_commit,
+    phase_5_reset,
+};
+
+struct LegacyStandardModeDatabaseExitResult {
+    LegacyStandardModeDatabaseExitStatus status{
+        LegacyStandardModeDatabaseExitStatus::completed
+    };
+    LegacyStandardModeDatabaseExitPath path{
+        LegacyStandardModeDatabaseExitPath::ignored
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+class LegacyStandardModeDatabaseExitPorts
+    : public LegacyStandardModeDatabaseCommitPorts,
+      public LegacyStandardModeCallbackBindingPorts {
+public:
+    ~LegacyStandardModeDatabaseExitPorts() override = default;
+    [[nodiscard]] virtual LegacyStandardModeDatabaseCleanupPorts&
+    database_cleanup_ports() noexcept = 0;
+};
+
 enum class LegacyStandardModeDatabaseInputStatus : compat::u8 {
     completed,
     availability_index_out_of_range,
     database_commit_stopped,
+    database_exit_stopped,
 };
 
 struct LegacyStandardModeDatabaseInputResult {
@@ -998,7 +1034,7 @@ struct LegacyStandardModeDatabaseInputResult {
 };
 
 class LegacyStandardModeDatabaseInputPorts
-    : public LegacyStandardModeDatabaseCommitPorts {
+    : public LegacyStandardModeDatabaseExitPorts {
 public:
     ~LegacyStandardModeDatabaseInputPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke(
@@ -1860,12 +1896,20 @@ advance_legacy_standard_mode_database(
     LegacyStandardModeDatabaseAdvancePorts& ports
 ) noexcept;
 
+// sub_43E770: exit, cleanup or delegate the database interaction phase.
+[[nodiscard]] LegacyStandardModeDatabaseExitResult
+exit_legacy_standard_mode_database_interaction(
+    LegacyStandardModeDatabaseInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeDatabaseExitPorts& ports
+) noexcept;
+
 // sub_43E3D0: commit or transition the database interaction phase.
 [[nodiscard]] LegacyStandardModeDatabaseCommitResult
 commit_legacy_standard_mode_database_interaction(
     LegacyStandardModeDatabaseInitializationState& state,
     std::span<const compat::u8> maps_payload,
-    LegacyStandardModeDatabaseCommitPorts& ports
+    LegacyStandardModeDatabaseExitPorts& ports
 ) noexcept;
 
 // sub_43E310: advance the direction with the primary sample owner.
