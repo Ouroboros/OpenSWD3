@@ -2183,6 +2183,221 @@ LegacyStandardModeEntryRenderResult render_legacy_standard_mode_entry(
     return result;
 }
 
+LegacyStandardModeDatabaseInputResult
+handle_legacy_standard_mode_database_input(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseInputSnapshot& input,
+    const std::span<const LegacyStandardModeAvailabilityRecord>
+        availability_records,
+    LegacyStandardModeDatabaseInputPorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseInputResult result;
+    result.legacy_return_value =
+        std::bit_cast<compat::i32>(state.interaction_phase);
+    state.hover_flag = 0U;
+    const auto invoke =
+        [&](const LegacyStandardModeDatabaseInputTarget target) {
+            ++result.callback_count;
+            result.last_target = target;
+            result.legacy_return_value = ports.invoke(target, state, input);
+        };
+    const auto invoke_low_button_exit = [&]() {
+        if ((input.buttons & 0x0CU) != 0U) {
+            invoke(LegacyStandardModeDatabaseInputTarget::address_0043E770);
+        }
+    };
+
+    if (state.interaction_phase == 1U) {
+        const compat::u32 low_buttons = input.buttons & 3U;
+        compat::u32 x = input.mouse_x;
+        const compat::u32 y = input.mouse_y;
+        result.legacy_return_value = std::bit_cast<compat::i32>(x);
+
+        if (low_buttons != 0U && x > 0x32U && x < 0x49U && y > 8U &&
+            y < 0x74U) {
+            state.page_selection = ((y - 8U) / 18U) + 1U;
+            invoke(LegacyStandardModeDatabaseInputTarget::address_0043E080);
+            return result;
+        }
+
+        if (low_buttons != 0U && x > 0x50U && x < 0x1D0U && y > 2U &&
+            y < 0xBCU) {
+            const compat::u32 index = (x - 0x50U) / 24U;
+            result.legacy_return_value = state.bounded_forward_count;
+            if (std::bit_cast<compat::i32>(index) >=
+                state.bounded_forward_count) {
+                return result;
+            }
+            state.list_selection = index + 1U;
+            invoke(LegacyStandardModeDatabaseInputTarget::address_0043DDF0);
+            return result;
+        }
+
+        if (low_buttons != 0U && x > 0x46U && x < 0x151U && y > 0xFEU &&
+            y < 0x189U) {
+            state.direction_selection = 1U;
+            invoke(LegacyStandardModeDatabaseInputTarget::address_0043E310);
+            return result;
+        }
+        if (low_buttons != 0U && x > 0x46U && x < 0x151U && y > 0x1D1U &&
+            y < 0x25BU) {
+            state.direction_selection = 0U;
+            invoke(LegacyStandardModeDatabaseInputTarget::address_0043E310);
+            return result;
+        }
+
+        state.hover_flag = 0U;
+        if (x > 0x151U && x < 0x166U && y > 0x19CU && y < 0x1C4U) {
+            state.hover_flag = 1U;
+            if (low_buttons != 0U) {
+                invoke(LegacyStandardModeDatabaseInputTarget::address_0043E3D0);
+                return result;
+            }
+        }
+
+        if (std::bit_cast<compat::i32>(state.forward_count) > 0x10) {
+            const LegacyStandardModeAvailabilityResult availability =
+                query_legacy_standard_mode_availability(
+                    0x0F, availability_records
+                );
+            result.legacy_return_value = availability.legacy_return_value;
+            if (availability.status !=
+                LegacyStandardModeAvailabilityStatus::completed) {
+                result.status = LegacyStandardModeDatabaseInputStatus::
+                    availability_index_out_of_range;
+                return result;
+            }
+            if (availability.available) {
+                result.legacy_return_value = std::bit_cast<compat::i32>(y);
+                if (y > 0xC6U && y < 0xD6U) {
+                    x = input.mouse_x;
+                    result.legacy_return_value = std::bit_cast<compat::i32>(x);
+                    if (x > 0x4CU && x < 0x5AU) {
+                        invoke(
+                            LegacyStandardModeDatabaseInputTarget::
+                                address_0043DDF0
+                        );
+                        x = input.mouse_x;
+                        result.legacy_return_value =
+                            std::bit_cast<compat::i32>(x);
+                    }
+                    if (x > 0x1C6U && x < 0x1D4U) {
+                        invoke(
+                            LegacyStandardModeDatabaseInputTarget::
+                                address_0043DD20
+                        );
+                        x = input.mouse_x;
+                        result.legacy_return_value =
+                            std::bit_cast<compat::i32>(x);
+                    }
+                    const compat::i32 signed_x = std::bit_cast<compat::i32>(x);
+                    if (signed_x > state.first_dynamic_min_x &&
+                        signed_x < state.first_dynamic_max_x) {
+                        invoke(
+                            LegacyStandardModeDatabaseInputTarget::
+                                address_0043DFA0
+                        );
+                        x = input.mouse_x;
+                        result.legacy_return_value =
+                            std::bit_cast<compat::i32>(x);
+                    }
+                    const compat::i32 reread_signed_x =
+                        std::bit_cast<compat::i32>(x);
+                    if (reread_signed_x > state.second_dynamic_min_x &&
+                        reread_signed_x < state.second_dynamic_max_x) {
+                        invoke(
+                            LegacyStandardModeDatabaseInputTarget::
+                                address_0043DED0
+                        );
+                        return result;
+                    }
+                }
+            }
+        }
+        invoke_low_button_exit();
+        return result;
+    }
+
+    if (state.interaction_phase == 2U) {
+        compat::u32 x = input.mouse_x;
+        result.legacy_return_value = std::bit_cast<compat::i32>(x);
+        if (x < 0x19FU && x > 0x28U) {
+            const compat::u32 y = input.mouse_y;
+            result.legacy_return_value = std::bit_cast<compat::i32>(y);
+            if (y < 0x124U && y > 0x0CU) {
+                const bool present = ports.query_item_presence(0x1BA9U);
+                result.legacy_return_value = present ? 1 : 0;
+                if (present && (state.runtime_input_flags & 1U) == 0U &&
+                    (input.buttons & 1U) != 0U) {
+                    if ((input.buttons & 1U) != 0U) {
+                        invoke(
+                            LegacyStandardModeDatabaseInputTarget::
+                                address_0043E080
+                        );
+                    }
+                    if ((input.buttons & 2U) != 0U) {
+                        if (state.interaction_toggle != 0U) {
+                            invoke(
+                                LegacyStandardModeDatabaseInputTarget::
+                                    address_0043E080
+                            );
+                        } else {
+                            invoke(
+                                LegacyStandardModeDatabaseInputTarget::
+                                    address_0043E3D0
+                            );
+                        }
+                        return result;
+                    }
+                }
+            }
+        }
+
+        x = input.mouse_x;
+        result.legacy_return_value = std::bit_cast<compat::i32>(x);
+        if (x < 0x19FU && x > 0x28U) {
+            const compat::u32 y = input.mouse_y;
+            result.legacy_return_value = std::bit_cast<compat::i32>(y);
+            if (y < 0x264U && y > 0x14CU &&
+                (state.runtime_input_flags & 2U) == 0U &&
+                (input.buttons & 1U) != 0U) {
+                if ((input.buttons & 1U) != 0U) {
+                    invoke(
+                        LegacyStandardModeDatabaseInputTarget::address_0043E170
+                    );
+                }
+                if ((input.buttons & 2U) != 0U) {
+                    if (state.interaction_toggle == 1U) {
+                        invoke(
+                            LegacyStandardModeDatabaseInputTarget::
+                                address_0043E3D0
+                        );
+                    } else {
+                        invoke(
+                            LegacyStandardModeDatabaseInputTarget::
+                                address_0043E170
+                        );
+                    }
+                    return result;
+                }
+            }
+        }
+        invoke_low_button_exit();
+        return result;
+    }
+
+    if (state.interaction_phase == 3U || state.interaction_phase == 4U) {
+        if ((input.buttons & 0x0FU) != 0U) {
+            invoke(LegacyStandardModeDatabaseInputTarget::address_0043E3D0);
+        }
+        return result;
+    }
+    if (state.interaction_phase == 5U && (input.buttons & 0x0FU) != 0U) {
+        invoke(LegacyStandardModeDatabaseInputTarget::address_0043E770);
+    }
+    return result;
+}
+
 LegacyStandardModeDatabaseCleanupResult release_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseCleanupPorts& ports
@@ -2257,7 +2472,7 @@ LegacyStandardModeDatabaseCleanupResult release_legacy_standard_mode_database(
         result.legacy_return_value = ports.release_database_storage(kind);
         ++result.storage_release_count;
     }
-    state.callback_phase = 1U;
+    state.lifecycle_phase = 1U;
     return result;
 }
 
@@ -2318,10 +2533,10 @@ initialize_legacy_standard_mode_database(
     state.secondary_action.action_id = 0x233BU;
     state.secondary_action.base_variant = 0U;
     state.first_reset = 0U;
-    state.second_reset = 0U;
-    state.enable_flag = 1U;
-    state.scan_index = 0U;
-    state.third_reset = 0U;
+    state.list_selection = 0U;
+    state.interaction_phase = 1U;
+    state.direction_selection = 0U;
+    state.page_selection = 0U;
 
     state.forward_head = ports.initialize_forward_list();
     state.forward_count =
@@ -2350,7 +2565,7 @@ initialize_legacy_standard_mode_database(
     }
     state.fourth_reset = 0U;
     state.fifth_reset = 0U;
-    state.callback_phase = 2U;
+    state.lifecycle_phase = 2U;
     return result;
 }
 

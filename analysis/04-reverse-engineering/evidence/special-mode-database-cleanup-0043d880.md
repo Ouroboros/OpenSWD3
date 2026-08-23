@@ -45,10 +45,10 @@ D880随后无条件按LST顺序release：
 4. 四个0x1B8 buffers。
 5. 0x400 mirror表。
 
-原指针owner不写0，形成悬空指针；typed arrays因此不清内容。UT预置table/buffer/mirror字节并确认release后保持。最终EAX只取mirror storage release结果，锁定为`-321`。最后callback phase由2写为u16 1。
+原指针owner不写0，形成悬空指针；typed arrays因此不清内容。UT预置table/buffer/mirror字节并确认release后保持。最终EAX只取mirror storage release结果，锁定为`-321`。最后独立的`word_4FC900`生命周期phase由2写为u16 1，不改DA30读取的dword `FCD20`。
 
 ## 6. 验证
 
-定向UT锁定F080第一事件、可选heap/runtime token条件、inline全清、残留node双release、15 storage精确枚举顺序、动作字段保持、悬空storage内容、最终EAX和phase1。
+定向UT锁定F080第一事件、可选heap/runtime token条件、inline全清、残留node双release、15 storage精确枚举顺序、动作字段保持、悬空storage内容、最终EAX和生命周期phase1。
 
 `special_modes.legacy_initial_menu`定向测试通过。workpack连续两轮稳定为`45/227`，SHA256均为`f8c52a97a3ac329afa39acee09d78e2a1863d3f6b9eef2fa179a0637381d508e`；下一独立单元为`0x0043DA30`。Linux core完整门`188/188`、Linux app完整门`194/194`通过；按阶段门禁未运行Windows BUILD。

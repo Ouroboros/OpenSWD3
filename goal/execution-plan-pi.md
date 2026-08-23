@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v470
+版本：v471
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043DA30`
+当前步骤：模块9 · 闭环`0x0043DD20`
 
 ## 0. 执行约定
 
@@ -3472,15 +3472,25 @@ B7 P0 有限收口完成。
     及callback间接调用。入口改写两action原字段后先调用尚未关闭F080；随后条件release两个heap
     token、清两个inline B0 records、条件release两个runtime `+AC` token。F080后forward残留节点
     逐个无条件release token（含0）再release node。最后固定顺序release两个runtime、四表、四F0、
-    四1B8和mirror共15类storage，返回mirror release EAX，phase写1；固定storage内容和悬空owner不清。
+    四1B8和mirror共15类storage，返回mirror release EAX，生命周期phase写1；固定storage内容和悬空owner不清。
     forward/adjustment统一typed node。定向UT覆盖F080耗尽/残留、22事件顺序、条件token、inline清零、
     15 storage、动作字段保持、悬空字节及EAX。workpack连续两轮稳定为`45/227`，SHA256为
     `f8c52a97a3ac329afa39acee09d78e2a1863d3f6b9eef2fa179a0637381d508e`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库输入分派`0x0043DA30`闭环。LST范围`0x0043DA30..0x0043DD1F`，由B480
+    callback间接调用。权威owner重映射确认dword FCD20是交互phase，独立于word 4FC900生命周期phase；
+    FCAD8是完整forward count，FCB98是16界count。phase1保留页/列表/方向/hover矩形、C090 record15
+    门控及动态strict-X边界，前三个callee后重读X，可同帧执行DDF0→DD20→DFA0→DED0。phase2保留双
+    button触发E080→E080/E3D0及E170→E170/E3D0的重复调用BUG。phase3/4/5按低4位调用E3D0/E770。
+    定向UT覆盖signed count边界、C090 typed-stop、链式X重读、双调用、物品1BA9及未知phase。workpack
+    连续两轮稳定为`46/227`，SHA256为
+    `53c46bdf47c9719b2ee102b907d48d820ec10bbf52731ebca6de7dfb53d9c184`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`45/227`，下一单元为`0x0043DA30`。
+进行中，正式进度为`46/227`，下一单元为`0x0043DD20`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043DA30`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043DD20`，继续更新workpack、证据和完整验证门。

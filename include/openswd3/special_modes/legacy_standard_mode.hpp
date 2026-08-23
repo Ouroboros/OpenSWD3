@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -728,18 +729,70 @@ struct LegacyStandardModeDatabaseInitializationState {
     std::array<compat::u8, 0xB0U> second_inline_record{};
     asset_runtime::LegacyActionRecord cleanup_action{};
     compat::u32 first_reset{};
-    compat::u32 second_reset{};
-    compat::u32 third_reset{};
+    compat::u32 list_selection{};
+    compat::u32 page_selection{};
     compat::u32 fourth_reset{};
     compat::u32 fifth_reset{};
-    compat::u32 enable_flag{};
+    compat::u32 interaction_phase{};
     compat::u32 scan_index{};
     compat::u16 first_missing_text_index{};
     compat::u16 second_missing_text_index{};
     std::array<std::array<compat::u8, 0xF0U>, 4U> small_buffers{};
     std::array<std::array<compat::u8, 0x1B8U>, 4U> large_buffers{};
     std::array<compat::i32, 0x100U> mirrored_values{};
-    compat::u16 callback_phase{};
+    compat::u16 lifecycle_phase{};
+    compat::u32 direction_selection{};
+    compat::u32 hover_flag{};
+    compat::u32 interaction_toggle{};
+    compat::u32 runtime_input_flags{};
+    compat::i32 first_dynamic_min_x{};
+    compat::i32 second_dynamic_min_x{};
+    compat::i32 first_dynamic_max_x{};
+    compat::i32 second_dynamic_max_x{};
+};
+
+struct LegacyStandardModeDatabaseInputSnapshot {
+    compat::u32 buttons{};
+    compat::u32 mouse_x{};
+    compat::u32 mouse_y{};
+};
+
+enum class LegacyStandardModeDatabaseInputTarget : compat::u8 {
+    address_0043DD20,
+    address_0043DDF0,
+    address_0043DED0,
+    address_0043DFA0,
+    address_0043E080,
+    address_0043E170,
+    address_0043E310,
+    address_0043E3D0,
+    address_0043E770,
+};
+
+enum class LegacyStandardModeDatabaseInputStatus : compat::u8 {
+    completed,
+    availability_index_out_of_range,
+};
+
+struct LegacyStandardModeDatabaseInputResult {
+    LegacyStandardModeDatabaseInputStatus status{
+        LegacyStandardModeDatabaseInputStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 callback_count{};
+    std::optional<LegacyStandardModeDatabaseInputTarget> last_target{};
+};
+
+class LegacyStandardModeDatabaseInputPorts {
+public:
+    virtual ~LegacyStandardModeDatabaseInputPorts() = default;
+    [[nodiscard]] virtual bool
+    query_item_presence(compat::u16 item_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 invoke(
+        LegacyStandardModeDatabaseInputTarget target,
+        LegacyStandardModeDatabaseInitializationState& state,
+        LegacyStandardModeDatabaseInputSnapshot& input
+    ) noexcept = 0;
 };
 
 enum class LegacyStandardModeDatabaseInitializationStatus : compat::u8 {
@@ -1585,6 +1638,15 @@ render_legacy_standard_mode_entry(
     compat::i32 selected,
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeRuntimeRenderPorts& ports
+) noexcept;
+
+// sub_43DA30: dispatch standard-mode database mouse/button input.
+[[nodiscard]] LegacyStandardModeDatabaseInputResult
+handle_legacy_standard_mode_database_input(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseInputSnapshot& input,
+    std::span<const LegacyStandardModeAvailabilityRecord> availability_records,
+    LegacyStandardModeDatabaseInputPorts& ports
 ) noexcept;
 
 // sub_43D880: release standard-mode database runtime owners.

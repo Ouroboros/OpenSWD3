@@ -32,10 +32,10 @@
 
 - primary action ID=`0x232A`、base variant=`0x3B`。
 - secondary action ID=`0x233B`、base variant=0。
-- 五个reset owner最终为0。
+- `FCAD0`写0；`FCBA4`列表选择写0；`FCD20`交互phase写1；`FCAB8`方向选择与`FCADC`页选择写0。
 - enable flag=1。
 - scan index重置0。
-- callback phase最终写u16 2。
+- mirror之后`FCAC8/FCAA4`写0，独立的`word_4FC900`生命周期phase最终写u16 2；它不与DA30读取的dword `FCD20`合并。
 
 UT预置两个action cached字段和buffer字节，证明未被synthetic全清。
 
@@ -57,7 +57,7 @@ for i = 0..126:
 
 除法为signed向零截断。i=0两次写同一center，负半值后写并胜出；indices0、1、255完全保持原malloc字节。最后EAX为`source[126] / -2`。UT以奇数1..253锁定center0、index127=-1、index2=-126、index254=126、未写位置777及EAX=-126。
 
-mirror source不足127项时在原首次越界读取点typed-stop：此前1200扫描、链表、常量、F000和sample均保留；mirror及最后两个reset/callback phase不写。独立UT锁定该顺序。
+mirror source不足127项时在原首次越界读取点typed-stop：此前1200扫描、链表、常量、F000和sample均保留；mirror、最后两个reset及`word_4FC900`生命周期phase不写。独立UT锁定该顺序。
 
 ## 6. 验证
 
