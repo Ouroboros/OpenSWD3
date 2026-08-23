@@ -13,7 +13,7 @@
 5. 写window offset0、local selection0、current head。
 6. BC90以limit16写bounded count并返回bounded node指针。
 
-F080现直接复用已关闭typed helper；F0D0、D5D0保持两个最小typed port，B980与BC90直接复用已关闭helper。F000结果区分是否分配fallback，并保留BC90指针返回联合。
+F080与F0D0现直接复用已关闭typed helper；D5D0保持最小typed port，B980与BC90直接复用已关闭helper。F000结果区分是否分配fallback，并保留BC90指针返回联合。
 
 ## 2. caller回接
 

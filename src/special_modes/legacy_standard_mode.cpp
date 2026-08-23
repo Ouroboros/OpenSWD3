@@ -2343,6 +2343,61 @@ release_legacy_standard_mode_database_forward_list(
     return result;
 }
 
+LegacyStandardModeDatabaseForwardBuildResult
+build_legacy_standard_mode_database_forward_list(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseForwardRefreshPorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseForwardBuildResult result;
+    state.forward_head = nullptr;
+    state.forward_build_word = 0U;
+    LegacyStandardModeForwardNode* source_previous = nullptr;
+    LegacyStandardModeForwardNode* source = state.adjustment_head;
+    while (source != nullptr) {
+        const bool selected =
+            ports.select_database_forward_node(*source, state.page_selection);
+        ++result.query_count;
+        if (!selected) {
+            source_previous = source;
+            source = const_cast<LegacyStandardModeForwardNode*>(source->next);
+            continue;
+        }
+
+        LegacyStandardModeForwardNode* selected_node = source;
+        LegacyStandardModeForwardNode* source_next =
+            const_cast<LegacyStandardModeForwardNode*>(source->next);
+        if (source_previous == nullptr) {
+            state.adjustment_head = source_next;
+        } else {
+            source_previous->next = source_next;
+        }
+        source = source_next;
+
+        LegacyStandardModeForwardNode* previous = nullptr;
+        LegacyStandardModeForwardNode* current = state.forward_head;
+        while (current != nullptr) {
+            const compat::u16 previous_key = previous == nullptr
+                ? state.forward_build_sentinel
+                : previous->text_index;
+            if (current->text_index >= selected_node->text_index &&
+                previous_key < selected_node->text_index) {
+                break;
+            }
+            previous = current;
+            current = const_cast<LegacyStandardModeForwardNode*>(current->next);
+        }
+        selected_node->next = current;
+        if (previous == nullptr) {
+            state.forward_head = selected_node;
+        } else {
+            previous->next = selected_node;
+        }
+        ++result.selected_node_count;
+    }
+    result.legacy_return_value = state.forward_head;
+    return result;
+}
+
 LegacyStandardModeDatabaseForwardRefreshResult
 refresh_legacy_standard_mode_database_forward_list(
     LegacyStandardModeDatabaseInitializationState& state,
@@ -2353,8 +2408,9 @@ refresh_legacy_standard_mode_database_forward_list(
         release_legacy_standard_mode_database_forward_list(state, ports)
     );
     ++result.helper_call_count;
-    state.forward_head =
-        ports.build_database_forward_list(state.page_selection);
+    static_cast<void>(
+        build_legacy_standard_mode_database_forward_list(state, ports)
+    );
     ++result.helper_call_count;
     if (state.forward_head == nullptr) {
         state.forward_head = ports.allocate_empty_database_forward_node();

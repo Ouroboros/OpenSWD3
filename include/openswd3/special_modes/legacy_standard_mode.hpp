@@ -724,6 +724,8 @@ struct LegacyStandardModeDatabaseInitializationState {
     const LegacyStandardModeForwardNode* bounded_forward_node{};
     compat::u32 forward_count{};
     compat::i32 bounded_forward_count{};
+    compat::u16 forward_build_sentinel{};
+    compat::u16 forward_build_word{};
     asset_runtime::LegacyActionRecord primary_action{};
     asset_runtime::LegacyActionRecord secondary_action{};
     compat::u32 interface_source_value{};
@@ -927,10 +929,17 @@ class LegacyStandardModeDatabaseForwardRefreshPorts
     : public LegacyStandardModeDatabaseForwardReleasePorts {
 public:
     ~LegacyStandardModeDatabaseForwardRefreshPorts() override = default;
-    [[nodiscard]] virtual LegacyStandardModeForwardNode*
-    build_database_forward_list(compat::i32 page_selection) noexcept = 0;
+    [[nodiscard]] virtual bool select_database_forward_node(
+        const LegacyStandardModeForwardNode& node, compat::i32 page_selection
+    ) noexcept = 0;
     [[nodiscard]] virtual LegacyStandardModeForwardNode*
     allocate_empty_database_forward_node() noexcept = 0;
+};
+
+struct LegacyStandardModeDatabaseForwardBuildResult {
+    LegacyStandardModeForwardNode* legacy_return_value{};
+    compat::u32 query_count{};
+    compat::u32 selected_node_count{};
 };
 
 struct LegacyStandardModeDatabaseForwardRefreshResult {
@@ -2006,6 +2015,13 @@ exit_legacy_standard_mode_database_interaction(
 release_legacy_standard_mode_database_forward_list(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseForwardReleasePorts& ports
+) noexcept;
+
+// sub_43F0D0: filter and sorted-splice adjustment nodes into forward output.
+[[nodiscard]] LegacyStandardModeDatabaseForwardBuildResult
+build_legacy_standard_mode_database_forward_list(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseForwardRefreshPorts& ports
 ) noexcept;
 
 // sub_43F000: rebuild the database forward list and reset its window.
