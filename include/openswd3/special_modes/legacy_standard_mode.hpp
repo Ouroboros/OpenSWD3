@@ -629,6 +629,65 @@ struct LegacyStandardModeWindowPageAdvanceResult {
     bool visible_count_written{};
 };
 
+struct LegacyStandardModeAnimatedPanelState {
+    compat::i32 position{};
+    compat::i32 velocity{};
+    compat::u16 frame_resource_word{};
+};
+
+struct LegacyStandardModeRectangleRequest {
+    compat::i32 x{};
+    compat::i32 y{};
+    compat::i32 width{};
+    compat::i32 height{};
+    compat::i32 red{};
+    compat::i32 green{};
+    compat::i32 blue{};
+    compat::i32 mode{};
+};
+
+struct LegacyStandardModeTiledFrameRequest {
+    compat::u32 resource_id{};
+    compat::i32 left{};
+    compat::i32 top{};
+    compat::i32 right{};
+    compat::i32 bottom{};
+    compat::i32 opacity_step{};
+    compat::u32 flags{};
+};
+
+struct LegacyStandardModeFormattedTextRequest {
+    std::span<const compat::u8> text;
+    compat::i32 x{};
+    compat::i32 y{};
+    compat::i32 maximum_line_count{};
+    compat::i32 maximum_width{};
+    compat::i32 style{};
+};
+
+class LegacyStandardModeAnimatedPanelPorts {
+public:
+    virtual ~LegacyStandardModeAnimatedPanelPorts() = default;
+
+    [[nodiscard]] virtual compat::u32 apply_rectangle_effect(
+        const LegacyStandardModeRectangleRequest& request
+    ) noexcept = 0;
+    virtual void draw_tiled_frame(
+        const LegacyStandardModeTiledFrameRequest& request
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 draw_formatted_text(
+        const LegacyStandardModeFormattedTextRequest& request
+    ) noexcept = 0;
+};
+
+struct LegacyStandardModeAnimatedPanelResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 rectangle_return_value{};
+    compat::u32 tiled_frame_resource_id{};
+    bool rendered{};
+    bool position_clamped{};
+};
+
 // sub_43B980: count one intrusive forward chain through its offset-zero links.
 [[nodiscard]] compat::u32 count_legacy_standard_mode_forward_nodes(
     const LegacyStandardModeForwardNode* head
@@ -725,6 +784,14 @@ advance_legacy_standard_mode_window_page(
 // sub_43BC60: clear a local cursor or retreat its window by one step.
 [[nodiscard]] compat::i32* retreat_legacy_standard_mode_window_page(
     compat::i32& window_offset, compat::i32& local_cursor, compat::i32 step
+) noexcept;
+
+// sub_43BD70: update and render one vertically animated standard-mode panel.
+[[nodiscard]] LegacyStandardModeAnimatedPanelResult
+render_legacy_standard_mode_animated_panel(
+    LegacyStandardModeAnimatedPanelState& state,
+    std::span<const compat::u8> text,
+    LegacyStandardModeAnimatedPanelPorts& ports
 ) noexcept;
 
 // sub_43B080: update and draw one standard-mode ghost action.

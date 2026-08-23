@@ -58,6 +58,7 @@ using openswd3::special_modes::LegacyInitialMenuEvent;
 using openswd3::special_modes::LegacyInitialMenuInput;
 using openswd3::special_modes::LegacyInitialMenuState;
 using openswd3::special_modes::run_legacy_initial_menu_frame;
+using openswd3::special_modes::render_legacy_standard_mode_animated_panel;
 using openswd3::special_modes::render_legacy_standard_mode_bar;
 using openswd3::special_modes::render_legacy_standard_mode_frame;
 using openswd3::special_modes::render_legacy_standard_mode_transition;
@@ -72,6 +73,8 @@ using openswd3::special_modes::LegacyStandardModeMissingNodePorts;
 using openswd3::special_modes::LegacyStandardModeInputCallback;
 using openswd3::special_modes::LegacyStandardModeInputPorts;
 using openswd3::special_modes::LegacyStandardModeInputState;
+using openswd3::special_modes::LegacyStandardModeAnimatedPanelPorts;
+using openswd3::special_modes::LegacyStandardModeAnimatedPanelState;
 using openswd3::special_modes::LegacyStandardModeBarFrame;
 using openswd3::special_modes::LegacyStandardModeBarOutputs;
 using openswd3::special_modes::LegacyStandardModeBarPorts;
@@ -2183,6 +2186,150 @@ void test_standard_mode_window_page_retreat(openswd3::test::Context& test) {
     }
 }
 
+void test_standard_mode_animated_panel(openswd3::test::Context& test) {
+    class PanelPorts final : public LegacyStandardModeAnimatedPanelPorts {
+    public:
+        [[nodiscard]] u32 apply_rectangle_effect(
+            const openswd3::special_modes::LegacyStandardModeRectangleRequest&
+                request
+        ) noexcept override {
+            events.push_back(1U);
+            rectangle_request = request;
+            return rectangle_return;
+        }
+
+        void draw_tiled_frame(
+            const openswd3::special_modes::LegacyStandardModeTiledFrameRequest&
+                request
+        ) noexcept override {
+            events.push_back(2U);
+            tiled_request = request;
+        }
+
+        [[nodiscard]] i32 draw_formatted_text(
+            const openswd3::special_modes::
+                LegacyStandardModeFormattedTextRequest& request
+        ) noexcept override {
+            events.push_back(3U);
+            text_x = request.x;
+            text_y = request.y;
+            maximum_line_count = request.maximum_line_count;
+            maximum_width = request.maximum_width;
+            style = request.style;
+            text.assign(request.text.begin(), request.text.end());
+            return text_return;
+        }
+
+        u32 rectangle_return{0xABCD1234U};
+        i32 text_return{-77};
+        std::vector<u32> events;
+        openswd3::special_modes::LegacyStandardModeRectangleRequest
+            rectangle_request;
+        openswd3::special_modes::LegacyStandardModeTiledFrameRequest
+            tiled_request;
+        std::vector<u8> text;
+        i32 text_x{};
+        i32 text_y{};
+        i32 maximum_line_count{};
+        i32 maximum_width{};
+        i32 style{};
+    };
+
+    constexpr std::array<u8, 4U> kText{'A', 'B', 'C', 0U};
+    PanelPorts ports;
+    LegacyStandardModeAnimatedPanelState state{
+        .position = 0x200,
+        .velocity = 0,
+        .frame_resource_word = 0x5678U,
+    };
+    auto result =
+        render_legacy_standard_mode_animated_panel(state, kText, ports);
+    test.expect_true(
+        !result.rendered && result.legacy_return_value == 0x200 &&
+            state.position == 0x200 && state.velocity == 0 &&
+            ports.events.empty(),
+        "0x43BD70 returns the current position without drawing when inactive away from top"
+    );
+
+    state.position = 0x154;
+    ports.events.clear();
+    result = render_legacy_standard_mode_animated_panel(state, kText, ports);
+    test.expect_true(
+        result.rendered && !result.position_clamped &&
+            result.legacy_return_value == -77 && state.position == 0x154 &&
+            state.velocity == 0 &&
+            ports.events == std::vector<u32>{1U, 2U, 3U} &&
+            ports.rectangle_request.x == 0xD8 &&
+            ports.rectangle_request.y == 0x14C &&
+            ports.rectangle_request.width == 0x184 &&
+            ports.rectangle_request.height == 0x92 &&
+            ports.rectangle_request.red == 0 &&
+            ports.rectangle_request.green == 0 &&
+            ports.rectangle_request.blue == 0 &&
+            ports.rectangle_request.mode == 4 &&
+            result.rectangle_return_value == 0xABCD1234U &&
+            result.tiled_frame_resource_id == 0xABCD5678U,
+        "0x43BD70 draws a stationary top panel and combines rectangle high word with frame resource"
+    );
+    test.expect_true(
+        ports.tiled_request.resource_id == 0xABCD5678U &&
+            ports.tiled_request.left == 0xDC &&
+            ports.tiled_request.top == 0x154 &&
+            ports.tiled_request.right == 0x254 &&
+            ports.tiled_request.bottom == 0x1D6 &&
+            ports.tiled_request.opacity_step == 0 &&
+            ports.tiled_request.flags == 0x80000008U &&
+            ports.text == std::vector<u8>(kText.begin(), kText.end()) &&
+            ports.text_x == 0xDC && ports.text_y == 0x154 &&
+            ports.maximum_line_count == 5 && ports.maximum_width == 0x168 &&
+            ports.style == 4,
+        "0x43BD70 preserves tiled-frame and formatted-text constants after the rectangle call"
+    );
+
+    struct MotionCase {
+        i32 position{};
+        i32 velocity{};
+        i32 expected_position{};
+        i32 expected_velocity{};
+        bool expected_clamp{};
+    };
+    constexpr std::array motion_cases{
+        MotionCase{0x180, 8, 0x17C, 4, false},
+        MotionCase{0x155, 8, 0x154, 0, true},
+        MotionCase{0x1D0, -8, 0x1D4, -4, false},
+        MotionCase{0x1DF, -8, 0x1E0, 0, true},
+        MotionCase{0x160, 1, 0x160, 0, false},
+        MotionCase{
+            std::numeric_limits<i32>::min(),
+            2,
+            std::numeric_limits<i32>::max(),
+            1,
+            false,
+        },
+        MotionCase{
+            std::numeric_limits<i32>::max(),
+            -2,
+            std::numeric_limits<i32>::min(),
+            -1,
+            false,
+        },
+    };
+    for (const auto& sample : motion_cases) {
+        state.position = sample.position;
+        state.velocity = sample.velocity;
+        ports.events.clear();
+        result =
+            render_legacy_standard_mode_animated_panel(state, kText, ports);
+        test.expect_true(
+            result.rendered && state.position == sample.expected_position &&
+                state.velocity == sample.expected_velocity &&
+                result.position_clamped == sample.expected_clamp &&
+                ports.events == std::vector<u32>{1U, 2U, 3U},
+            "0x43BD70 preserves SAR velocity, wrapped position and directional clamps"
+        );
+    }
+}
+
 #ifdef OPENSWD3_GAME_DATA_ROOT
 void test_standard_mode_shared_text_real_asset(openswd3::test::Context& test) {
     const std::filesystem::path maps_path =
@@ -3465,6 +3612,7 @@ int main() {
     test_standard_mode_forward_node_index(test);
     test_standard_mode_forward_bounded_count(test);
     test_standard_mode_window_selection(test);
+    test_standard_mode_animated_panel(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);

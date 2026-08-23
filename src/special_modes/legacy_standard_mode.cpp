@@ -821,6 +821,81 @@ compat::i32* retreat_legacy_standard_mode_window_page(
     return &local_cursor;
 }
 
+LegacyStandardModeAnimatedPanelResult
+render_legacy_standard_mode_animated_panel(
+    LegacyStandardModeAnimatedPanelState& state,
+    const std::span<const compat::u8> text,
+    LegacyStandardModeAnimatedPanelPorts& ports
+) noexcept {
+    LegacyStandardModeAnimatedPanelResult result{
+        .legacy_return_value = state.position,
+    };
+    if (state.velocity == 0 && state.position != 0x154) {
+        return result;
+    }
+
+    const compat::u32 velocity_bits =
+        std::bit_cast<compat::u32>(state.velocity);
+    state.velocity = std::bit_cast<compat::i32>(
+        (velocity_bits >> 1U) | (velocity_bits & 0x80000000U)
+    );
+    state.position = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(state.position) -
+        std::bit_cast<compat::u32>(state.velocity)
+    );
+    if (state.velocity > 0) {
+        if (state.position < 0x154) {
+            state.position = 0x154;
+            state.velocity = 0;
+            result.position_clamped = true;
+        }
+    } else if (state.position > 0x1E0) {
+        state.position = 0x1E0;
+        state.velocity = 0;
+        result.position_clamped = true;
+    }
+
+    result.rectangle_return_value = ports.apply_rectangle_effect(
+        LegacyStandardModeRectangleRequest{
+            .x = 0xD8,
+            .y = std::bit_cast<compat::i32>(
+                std::bit_cast<compat::u32>(state.position) - 8U
+            ),
+            .width = 0x184,
+            .height = std::bit_cast<compat::i32>(
+                0x1E6U - std::bit_cast<compat::u32>(state.position)
+            ),
+            .mode = 4,
+        }
+    );
+    result.tiled_frame_resource_id =
+        (result.rectangle_return_value & 0xFFFF0000U) |
+        state.frame_resource_word;
+    ports.draw_tiled_frame(
+        LegacyStandardModeTiledFrameRequest{
+            .resource_id = result.tiled_frame_resource_id,
+            .left = 0xDC,
+            .top = state.position,
+            .right = 0x254,
+            .bottom = 0x1D6,
+            .opacity_step = 0,
+            .flags = 0x80000008U,
+        }
+    );
+    result.legacy_return_value = ports.draw_formatted_text(
+        LegacyStandardModeFormattedTextRequest{
+            .text = text,
+            .x = 0xDC,
+            .y = state.position,
+            .maximum_line_count = 5,
+            .maximum_width = 0x168,
+            .style = 4,
+        }
+    );
+    result.rendered = true;
+    return result;
+}
+
 LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,
     asset_runtime::LegacyActionRecord& record,
