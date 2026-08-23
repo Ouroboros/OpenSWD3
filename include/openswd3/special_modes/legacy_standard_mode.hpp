@@ -860,6 +860,23 @@ public:
     query_item_presence(compat::u16 item_id) noexcept = 0;
 };
 
+enum class LegacyStandardModeDatabaseDirectionCyclePath : compat::u8 {
+    ignored,
+    phase_1_direction_cycle,
+    phase_2_toggle,
+    phase_3_countdown,
+};
+
+struct LegacyStandardModeDatabaseDirectionCycleResult {
+    LegacyStandardModeDatabaseDirectionCyclePath path{
+        LegacyStandardModeDatabaseDirectionCyclePath::ignored
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    bool item_queried{};
+    bool sample_initialized{};
+};
+
 enum class LegacyStandardModeDatabaseCycleStatus : compat::u8 {
     completed,
     window_selection_stopped,
@@ -1768,6 +1785,13 @@ render_legacy_standard_mode_entry(
 advance_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseAdvancePorts& ports
+) noexcept;
+
+// sub_43E250: advance the direction or phase-specific owner.
+[[nodiscard]] LegacyStandardModeDatabaseDirectionCycleResult
+advance_legacy_standard_mode_database_direction(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRetreatPorts& ports
 ) noexcept;
 
 // sub_43E170: advance the database page source or phase-specific owner.

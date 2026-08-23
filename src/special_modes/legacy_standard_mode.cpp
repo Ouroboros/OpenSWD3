@@ -2253,6 +2253,72 @@ LegacyStandardModeDatabaseAdvanceResult advance_legacy_standard_mode_database(
     return result;
 }
 
+LegacyStandardModeDatabaseDirectionCycleResult
+advance_legacy_standard_mode_database_direction(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseRetreatPorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseDirectionCycleResult result;
+    compat::u32 legacy_eax = state.interaction_phase - 1U;
+    if (legacy_eax == 0U) {
+        result.path = LegacyStandardModeDatabaseDirectionCyclePath::
+            phase_1_direction_cycle;
+        const compat::i32 next_direction =
+            std::bit_cast<compat::i32>(state.direction_selection + 1U);
+        state.direction_selection = std::bit_cast<compat::u32>(next_direction);
+        if (next_direction > 1) {
+            state.direction_selection = 0;
+        }
+        result.legacy_return_value = ports.initialize_database_sample(
+            0x0107U, state.interface_source_value
+        );
+        result.helper_call_count = 1U;
+        result.sample_initialized = true;
+        return result;
+    }
+
+    legacy_eax -= 1U;
+    if (legacy_eax == 0U) {
+        result.path =
+            LegacyStandardModeDatabaseDirectionCyclePath::phase_2_toggle;
+        const compat::i32 next_toggle =
+            std::bit_cast<compat::i32>(state.interaction_toggle + 1U);
+        state.interaction_toggle = std::bit_cast<compat::u32>(next_toggle);
+        if (next_toggle > 1) {
+            state.interaction_toggle = 0U;
+        }
+        const bool item_present = ports.query_item_presence(0x1BA9U);
+        ++result.helper_call_count;
+        result.item_queried = true;
+        if (item_present) {
+            state.interaction_toggle = 1U;
+        }
+        const compat::u8 flags =
+            static_cast<compat::u8>(state.runtime_input_flags);
+        if ((flags & 1U) == 0U) {
+            state.interaction_toggle = 1U;
+        }
+        if ((flags & 2U) == 0U) {
+            state.interaction_toggle = 0U;
+        }
+        result.legacy_return_value = ports.initialize_database_sample(
+            0x0107U, state.interface_source_value
+        );
+        ++result.helper_call_count;
+        result.sample_initialized = true;
+        return result;
+    }
+
+    legacy_eax -= 1U;
+    result.legacy_return_value = std::bit_cast<compat::i32>(legacy_eax);
+    if (legacy_eax == 0U) {
+        result.path =
+            LegacyStandardModeDatabaseDirectionCyclePath::phase_3_countdown;
+        state.phase_3_countdown = 0xC8U;
+    }
+    return result;
+}
+
 LegacyStandardModeDatabaseCycleResult
 advance_legacy_standard_mode_database_page_source(
     LegacyStandardModeDatabaseInitializationState& state,

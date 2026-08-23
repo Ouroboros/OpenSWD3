@@ -33,6 +33,7 @@ using openswd3::rendering::LegacyFramePiece;
 using openswd3::special_modes::adjust_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::advance_legacy_standard_mode_database;
 using openswd3::special_modes::advance_legacy_standard_mode_database_page;
+using openswd3::special_modes::advance_legacy_standard_mode_database_direction;
 using openswd3::special_modes::
     advance_legacy_standard_mode_database_page_source;
 using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
@@ -2875,6 +2876,94 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
     state.interface_source_value = 0x12345678U;
     CyclePorts ports;
     ports.forward_head = &first;
+
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            direction_state;
+        direction_state.interaction_phase = 1U;
+        direction_state.direction_selection = 1U;
+        direction_state.interface_source_value = 0x10203040U;
+        CyclePorts direction_ports;
+        const auto direction = advance_legacy_standard_mode_database_direction(
+            direction_state, direction_ports
+        );
+        test.expect_true(
+            direction.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseDirectionCyclePath::
+                            phase_1_direction_cycle &&
+                direction.legacy_return_value == 95 &&
+                direction.helper_call_count == 1U &&
+                direction.sample_initialized && !direction.item_queried &&
+                direction_state.direction_selection == 0U &&
+                direction_ports.events == std::vector<u8>{3U} &&
+                direction_ports.sample_ids == std::vector<u16>{0x107U} &&
+                direction_ports.interface_values ==
+                    std::vector<u32>{0x10203040U},
+            "0x43E250 phase1 wraps direction above one then samples 107"
+        );
+
+        direction_state.interaction_phase = 2U;
+        direction_state.interaction_toggle = 1U;
+        direction_state.runtime_input_flags = 2U;
+        direction_ports.item_present = false;
+        direction_ports.events.clear();
+        const auto bit_1_only = advance_legacy_standard_mode_database_direction(
+            direction_state, direction_ports
+        );
+        test.expect_true(
+            bit_1_only.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseDirectionCyclePath::
+                            phase_2_toggle &&
+                bit_1_only.legacy_return_value == 95 &&
+                bit_1_only.helper_call_count == 2U && bit_1_only.item_queried &&
+                bit_1_only.sample_initialized &&
+                direction_state.interaction_toggle == 1U &&
+                direction_ports.events == std::vector<u8>{5U, 3U} &&
+                direction_ports.queried_item_ids == std::vector<u16>{0x1BA9U},
+            "0x43E250 phase2 applies bit0-clear set after missing item"
+        );
+
+        direction_state.interaction_toggle = 1U;
+        direction_state.runtime_input_flags = 3U;
+        const auto both_bits = advance_legacy_standard_mode_database_direction(
+            direction_state, direction_ports
+        );
+        test.expect_true(
+            both_bits.legacy_return_value == 95 &&
+                direction_state.interaction_toggle == 0U,
+            "0x43E250 phase2 preserves wrapped zero when both gates are set"
+        );
+
+        direction_state.interaction_toggle = 0U;
+        direction_state.runtime_input_flags = 3U;
+        direction_ports.item_present = true;
+        const auto item = advance_legacy_standard_mode_database_direction(
+            direction_state, direction_ports
+        );
+        test.expect_true(
+            item.legacy_return_value == 95 &&
+                direction_state.interaction_toggle == 1U,
+            "0x43E250 phase2 item presence writes one before closed gates"
+        );
+
+        direction_state.interaction_phase = 3U;
+        direction_state.phase_3_countdown = 0U;
+        const auto countdown = advance_legacy_standard_mode_database_direction(
+            direction_state, direction_ports
+        );
+        test.expect_true(
+            countdown.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseDirectionCyclePath::
+                            phase_3_countdown &&
+                countdown.legacy_return_value == 0 &&
+                countdown.helper_call_count == 0U &&
+                direction_state.phase_3_countdown == 0xC8U,
+            "0x43E250 phase3 writes countdown 200 without helper calls"
+        );
+    }
 
     {
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState

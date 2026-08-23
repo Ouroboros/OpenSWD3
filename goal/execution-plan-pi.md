@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v477
+版本：v478
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043E250`
+当前步骤：模块9 · 闭环`0x0043E310`
 
 ## 0. 执行约定
 
@@ -3551,9 +3551,18 @@ B7 P0 有限收口完成。
     `78d3553aa39a50f6bdeaa493e65d0d6f1b3edcc89f56accb7ca4236e46d11185`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库方向循环`0x0043E250`闭环。LST范围`0x0043E250..0x0043E305`，无direct
+    code caller，由B480 callback地址绑定。phase1对direction做32-bit加1、signed值大于1写0，然后
+    sample107。phase2严格按toggle加1/大于1回0→物品1BA9存在写1→runtime低字节bit0清写1→同一AL
+    的bit1清写0→sample107，后写可覆盖前写；phase3写countdown200，其他phase保留DEC链EAX。
+    定向UT覆盖方向回绕、query/sample顺序、物品与四种gate组合关键分支、phase3及helper counts。
+    workpack连续两轮稳定为`53/227`，SHA256为
+    `e99f41464c78cb7d81fb9189765f2b210f5237edf311fa6601eb7cf1c9ba6541`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`52/227`，下一单元为`0x0043E250`。
+进行中，正式进度为`53/227`，下一单元为`0x0043E310`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043E250`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043E310`，继续更新workpack、证据和完整验证门。
