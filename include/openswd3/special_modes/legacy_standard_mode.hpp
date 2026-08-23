@@ -677,6 +677,24 @@ struct LegacyStandardModeDialogSetupResult {
     compat::i32 legacy_return_value{};
 };
 
+struct LegacyStandardModeAvailabilityRecord {
+    compat::i32 enabled{};
+    compat::i32 state{};
+};
+
+enum class LegacyStandardModeAvailabilityStatus : compat::u8 {
+    completed,
+    record_index_out_of_range,
+};
+
+struct LegacyStandardModeAvailabilityResult {
+    LegacyStandardModeAvailabilityStatus status{
+        LegacyStandardModeAvailabilityStatus::record_index_out_of_range
+    };
+    compat::i32 legacy_return_value{};
+    bool available{};
+};
+
 struct LegacyStandardModeInputStatusResult {
     compat::u32 flags{};
     compat::i32 legacy_return_value{};
@@ -861,6 +879,13 @@ initialize_legacy_standard_mode_dialog_setup(
     compat::u32 interface_source_value,
     LegacyStandardModeDialogSetupState& state,
     LegacyStandardModeDialogSetupPorts& ports
+) noexcept;
+
+// sub_43C090: test one 16-byte standard-mode availability record.
+[[nodiscard]] LegacyStandardModeAvailabilityResult
+query_legacy_standard_mode_availability(
+    compat::i32 record_index,
+    std::span<const LegacyStandardModeAvailabilityRecord> records
 ) noexcept;
 
 // sub_43B9E0: resolve one MAPS text record into the shared 128-byte buffer.

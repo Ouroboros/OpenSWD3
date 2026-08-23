@@ -793,6 +793,29 @@ initialize_legacy_standard_mode_dialog_setup(
     return result;
 }
 
+LegacyStandardModeAvailabilityResult query_legacy_standard_mode_availability(
+    const compat::i32 record_index,
+    const std::span<const LegacyStandardModeAvailabilityRecord> records
+) noexcept {
+    LegacyStandardModeAvailabilityResult result;
+    if (record_index < 0 ||
+        static_cast<std::size_t>(record_index) >= records.size()) {
+        return result;
+    }
+
+    const LegacyStandardModeAvailabilityRecord& record =
+        records[static_cast<std::size_t>(record_index)];
+    result.status = LegacyStandardModeAvailabilityStatus::completed;
+    if (record.enabled == 0) {
+        return result;
+    }
+    if (record.state == 1 || (record.state > 10 && (record.state & 1) == 0)) {
+        result.legacy_return_value = 1;
+        result.available = true;
+    }
+    return result;
+}
+
 LegacyStandardModeTextResolutionResult resolve_legacy_standard_mode_shared_text(
     const compat::u16 text_index,
     const std::span<const compat::u8> maps_payload,

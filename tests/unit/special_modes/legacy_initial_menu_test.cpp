@@ -46,6 +46,7 @@ using openswd3::special_modes::initialize_legacy_standard_mode_dialog_setup;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
+using openswd3::special_modes::query_legacy_standard_mode_availability;
 using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
 using openswd3::special_modes::resolve_legacy_standard_mode_window_selection;
 using openswd3::special_modes::retreat_legacy_standard_mode_window_cursor;
@@ -77,6 +78,8 @@ using openswd3::special_modes::LegacyStandardModeInputCallback;
 using openswd3::special_modes::LegacyStandardModeInputPorts;
 using openswd3::special_modes::LegacyStandardModeInputState;
 using openswd3::special_modes::LegacyStandardModeAnimatedPanelPorts;
+using openswd3::special_modes::LegacyStandardModeAvailabilityRecord;
+using openswd3::special_modes::LegacyStandardModeAvailabilityStatus;
 using openswd3::special_modes::LegacyStandardModeAnimatedPanelState;
 using openswd3::special_modes::LegacyStandardModeBarFrame;
 using openswd3::special_modes::LegacyStandardModeBarOutputs;
@@ -1978,6 +1981,56 @@ void test_standard_mode_dialog_setup(openswd3::test::Context& test) {
             state.return_state_value == preserved_state.return_state_value,
         "0x43BFC0 keeps pre-index side effects but stops before draw and state writes on invalid index"
     );
+}
+
+void test_standard_mode_availability(openswd3::test::Context& test) {
+    struct Case {
+        i32 enabled{};
+        i32 state{};
+        bool expected{};
+    };
+    constexpr std::array cases{
+        Case{0, 1, false},
+        Case{-1, 1, true},
+        Case{1, -1, false},
+        Case{1, 0, false},
+        Case{1, 2, false},
+        Case{1, 10, false},
+        Case{1, 11, false},
+        Case{1, 12, true},
+        Case{1, 13, false},
+        Case{1, std::numeric_limits<i32>::max(), false},
+        Case{1, std::numeric_limits<i32>::max() - 1, true},
+    };
+
+    for (const auto& sample : cases) {
+        const std::array records{
+            LegacyStandardModeAvailabilityRecord{
+                .enabled = sample.enabled,
+                .state = sample.state,
+            },
+        };
+        const auto result = query_legacy_standard_mode_availability(0, records);
+        test.expect_true(
+            result.status == LegacyStandardModeAvailabilityStatus::completed &&
+                result.available == sample.expected &&
+                result.legacy_return_value == (sample.expected ? 1 : 0),
+            "0x43C090 preserves enabled gate, exact state one and signed even-above-ten rule"
+        );
+    }
+
+    const std::array records{LegacyStandardModeAvailabilityRecord{1, 1}};
+    for (const i32 index : std::array<i32, 2U>{-1, 1}) {
+        const auto result =
+            query_legacy_standard_mode_availability(index, records);
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeAvailabilityStatus::
+                        record_index_out_of_range &&
+                !result.available && result.legacy_return_value == 0,
+            "0x43C090 isolates the original 16-byte table read for invalid indices"
+        );
+    }
 }
 
 void test_standard_mode_shared_text_resolution(openswd3::test::Context& test) {
@@ -4040,6 +4093,7 @@ int main() {
     test_standard_mode_value_group_lookup(test);
     test_standard_mode_filtered_record_build(test);
     test_standard_mode_dialog_setup(test);
+    test_standard_mode_availability(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);
