@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v461
+版本：v462
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043CBD0`
+当前步骤：模块9 · 闭环`0x0043CC00`
 
 ## 0. 执行约定
 
@@ -3341,8 +3341,9 @@ B7 P0 有限收口完成。
     两个callsite来自`0x0043C3C0`与`0x00446260`。先调用已关闭`0x0043BC60`，再执行alias重建、
     page刷新、selected entry读取/消费、flags低字节OR `0x03`和sample `0x2E`。非零cursor只清0，
     零cursor使offset按u32回绕减15并signed钳0；selected越界只在原entry读取点typed-stop。
-    `0x0043C3C0` first-dynamic caller已真实回接，重叠upper→dynamic→page路径锁定三轮完整链、
-    entry13/0/14、实时cursor归一化与最终flags `0x33`。定向UT覆盖两种page retreat、entry/flags/
+    `0x0043C3C0` first-dynamic caller已真实回接；CBD0关闭后，重叠upper→dynamic→page路径使用
+    实时visible1推进offset15/cursor0，三轮消费entry13/0/entry15(0)，最终visible0与flags `0x33`。
+    定向UT覆盖两种page retreat、CBD0停止传播、entry/flags/
     sample、selected越界及caller集成。workpack连续两轮稳定为`33/227`，SHA256为
     `96b94897a246543feac8c35a3ab60bf66f907f10f63a5ec78480fd2c00d75298`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
@@ -3384,9 +3385,21 @@ B7 P0 有限收口完成。
     `6d00895fa07920a2aa3d71411fe434ce98aeacf38e907603a8e9b8b51b0719f7`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式page可见项刷新`0x0043CBD0`闭环。LST范围`0x0043CBD0..0x0043CBF6`，无callee，
+    七个caller覆盖C520/C590/C3C0 chunk/C670/`0x00446420` chunk/C760/C9C0。无条件清visible0并
+    读取alias首项；非零时每轮先检查signed count15，再递增visible与entry指针、发布visible后读取
+    下一项。小于15项时返回terminator指针；至少16项时读entry15并返回其指针。typed实现用
+    `const u32*`表达EAX，不在64位宿主截断。负/超界alias在首读停止；alias63非零先写visible1再在
+    next读取停止。全部已关闭caller移除`refresh_page`port并直接回接，且在CBD0停止时不执行后续
+    selected/consume/flags/sample。真实visible纠正C3重叠路径为offset15/cursor0/entry15(0)。定向
+    UT覆盖terminator、15上限、首读/next边界、C9 tail与caller传播。workpack连续两轮稳定为
+    `37/227`，SHA256为
+    `45af9d23d04ae8fe96324b1a3d52bf5c8610b0ecb97619feaea414d8c9832f3e`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`36/227`，下一单元为`0x0043CBD0`。
+进行中，正式进度为`37/227`，下一单元为`0x0043CC00`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043CBD0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043CC00`，继续更新workpack、证据和完整验证门。

@@ -817,6 +817,44 @@ LegacyStandardModeAvailabilityResult query_legacy_standard_mode_availability(
     return result;
 }
 
+LegacyStandardModePageRefreshResult refresh_legacy_standard_mode_page(
+    LegacyStandardModeRuntimeInitializationState& state
+) noexcept {
+    LegacyStandardModePageRefreshResult result;
+    state.visible_count = 0;
+    compat::u32 entry_index =
+        std::bit_cast<compat::u32>(state.entry_alias_index);
+    if (entry_index >= state.entries.size()) {
+        result.status =
+            LegacyStandardModePageRefreshStatus::entry_alias_out_of_range;
+        return result;
+    }
+    result.legacy_entry_pointer = &state.entries[entry_index];
+    if (state.entries[entry_index] == 0U) {
+        return result;
+    }
+    for (;;) {
+        if (state.visible_count >= 0x0F) {
+            return result;
+        }
+        const compat::i32 next_visible_count = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(state.visible_count) + 1U
+        );
+        ++entry_index;
+        state.visible_count = next_visible_count;
+        if (entry_index >= state.entries.size()) {
+            result.status =
+                LegacyStandardModePageRefreshStatus::entry_alias_out_of_range;
+            result.legacy_entry_pointer = nullptr;
+            return result;
+        }
+        result.legacy_entry_pointer = &state.entries[entry_index];
+        if (state.entries[entry_index] == 0U) {
+            return result;
+        }
+    }
+}
+
 LegacyStandardModeEntryInitializationResult
 initialize_legacy_standard_mode_entries(
     const compat::i32 mode_index,
@@ -951,7 +989,9 @@ initialize_legacy_standard_mode_entries(
     state.window_offset = 0;
     state.local_cursor = 0;
     state.entry_alias_index = 0;
-    result.legacy_return_value = ports.refresh_page();
+    const LegacyStandardModePageRefreshResult page_result =
+        refresh_legacy_standard_mode_page(state);
+    result.legacy_entry_pointer = page_result.legacy_entry_pointer;
     return result;
 }
 
@@ -1035,7 +1075,13 @@ advance_legacy_standard_mode_runtime_cursor(
     ports.rebuild_entry_alias(
         state.window_offset, state.entries, state.entry_alias_index
     );
-    ports.refresh_page();
+    const LegacyStandardModePageRefreshResult page_result =
+        refresh_legacy_standard_mode_page(state);
+    if (page_result.status != LegacyStandardModePageRefreshStatus::completed) {
+        result.status =
+            LegacyStandardModeRuntimeCursorAdvanceStatus::page_refresh_stopped;
+        return result;
+    }
     const compat::u32 selected_index =
         std::bit_cast<compat::u32>(state.local_cursor) +
         std::bit_cast<compat::u32>(state.window_offset);
@@ -1065,7 +1111,13 @@ retreat_legacy_standard_mode_runtime_cursor(
     ports.rebuild_entry_alias(
         state.window_offset, state.entries, state.entry_alias_index
     );
-    ports.refresh_page();
+    const LegacyStandardModePageRefreshResult page_result =
+        refresh_legacy_standard_mode_page(state);
+    if (page_result.status != LegacyStandardModePageRefreshStatus::completed) {
+        result.status =
+            LegacyStandardModeRuntimeCursorRetreatStatus::page_refresh_stopped;
+        return result;
+    }
     const compat::u32 selected_index =
         std::bit_cast<compat::u32>(state.window_offset) +
         std::bit_cast<compat::u32>(state.local_cursor);
@@ -1095,7 +1147,13 @@ retreat_legacy_standard_mode_runtime_page(
     ports.rebuild_entry_alias(
         state.window_offset, state.entries, state.entry_alias_index
     );
-    ports.refresh_page();
+    const LegacyStandardModePageRefreshResult page_result =
+        refresh_legacy_standard_mode_page(state);
+    if (page_result.status != LegacyStandardModePageRefreshStatus::completed) {
+        result.status =
+            LegacyStandardModeRuntimePageRetreatStatus::page_refresh_stopped;
+        return result;
+    }
     const compat::u32 selected_index =
         std::bit_cast<compat::u32>(state.window_offset) +
         std::bit_cast<compat::u32>(state.local_cursor);
@@ -1137,7 +1195,13 @@ advance_legacy_standard_mode_runtime_mode(
     ports.rebuild_entry_alias(
         state.window_offset, state.entries, state.entry_alias_index
     );
-    ports.refresh_page();
+    const LegacyStandardModePageRefreshResult page_result =
+        refresh_legacy_standard_mode_page(state);
+    if (page_result.status != LegacyStandardModePageRefreshStatus::completed) {
+        result.status =
+            LegacyStandardModeRuntimeModeAdvanceStatus::page_refresh_stopped;
+        return result;
+    }
     const compat::u32 selected_index =
         std::bit_cast<compat::u32>(state.window_offset) +
         std::bit_cast<compat::u32>(state.local_cursor);
@@ -1193,8 +1257,12 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
         result.legacy_return_value = advance_result.legacy_return_value;
         if (advance_result.status !=
             LegacyStandardModeRuntimeCursorAdvanceStatus::completed) {
-            result.status = LegacyStandardModeInputDispatchStatus::
-                selected_entry_out_of_range;
+            result.status = advance_result.status ==
+                    LegacyStandardModeRuntimeCursorAdvanceStatus::
+                        page_refresh_stopped
+                ? LegacyStandardModeInputDispatchStatus::page_refresh_stopped
+                : LegacyStandardModeInputDispatchStatus::
+                      selected_entry_out_of_range;
         }
         return result;
     }
@@ -1225,6 +1293,10 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
                         entry_initialization_stopped
                 ? LegacyStandardModeInputDispatchStatus::
                       entry_initialization_stopped
+                : mode_result.status ==
+                    LegacyStandardModeRuntimeModeAdvanceStatus::
+                        page_refresh_stopped
+                ? LegacyStandardModeInputDispatchStatus::page_refresh_stopped
                 : LegacyStandardModeInputDispatchStatus::
                       selected_entry_out_of_range;
             return result;
@@ -1260,8 +1332,13 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
                 result.upper_control_dispatched = true;
                 if (retreat_result.status !=
                     LegacyStandardModeRuntimeCursorRetreatStatus::completed) {
-                    result.status = LegacyStandardModeInputDispatchStatus::
-                        selected_entry_out_of_range;
+                    result.status = retreat_result.status ==
+                            LegacyStandardModeRuntimeCursorRetreatStatus::
+                                page_refresh_stopped
+                        ? LegacyStandardModeInputDispatchStatus::
+                              page_refresh_stopped
+                        : LegacyStandardModeInputDispatchStatus::
+                              selected_entry_out_of_range;
                     result.legacy_return_value =
                         retreat_result.legacy_return_value;
                     return result;
@@ -1279,8 +1356,13 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
                 result.bottom_control_dispatched = true;
                 if (advance_result.status !=
                     LegacyStandardModeRuntimeCursorAdvanceStatus::completed) {
-                    result.status = LegacyStandardModeInputDispatchStatus::
-                        selected_entry_out_of_range;
+                    result.status = advance_result.status ==
+                            LegacyStandardModeRuntimeCursorAdvanceStatus::
+                                page_refresh_stopped
+                        ? LegacyStandardModeInputDispatchStatus::
+                              page_refresh_stopped
+                        : LegacyStandardModeInputDispatchStatus::
+                              selected_entry_out_of_range;
                     result.legacy_return_value =
                         advance_result.legacy_return_value;
                     return result;
@@ -1298,8 +1380,13 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
                 result.first_dynamic_control_dispatched = true;
                 if (retreat_result.status !=
                     LegacyStandardModeRuntimePageRetreatStatus::completed) {
-                    result.status = LegacyStandardModeInputDispatchStatus::
-                        selected_entry_out_of_range;
+                    result.status = retreat_result.status ==
+                            LegacyStandardModeRuntimePageRetreatStatus::
+                                page_refresh_stopped
+                        ? LegacyStandardModeInputDispatchStatus::
+                              page_refresh_stopped
+                        : LegacyStandardModeInputDispatchStatus::
+                              selected_entry_out_of_range;
                     result.legacy_return_value =
                         retreat_result.legacy_return_value;
                     return result;
@@ -1323,7 +1410,14 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
             ports.rebuild_entry_alias(
                 state.window_offset, state.entries, state.entry_alias_index
             );
-            ports.refresh_page();
+            const LegacyStandardModePageRefreshResult refresh_result =
+                refresh_legacy_standard_mode_page(state);
+            if (refresh_result.status !=
+                LegacyStandardModePageRefreshStatus::completed) {
+                result.status =
+                    LegacyStandardModeInputDispatchStatus::page_refresh_stopped;
+                return result;
+            }
             const compat::u32 selected_index =
                 std::bit_cast<compat::u32>(state.local_cursor) +
                 std::bit_cast<compat::u32>(state.window_offset);

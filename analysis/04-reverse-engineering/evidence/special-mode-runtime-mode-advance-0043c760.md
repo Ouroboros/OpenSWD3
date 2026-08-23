@@ -24,11 +24,11 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`外置chunk在`0x0043
 4. u32回绕相加offset与cursor并读取entry，调用`0x0043CEF0`。
 5. 播放sample `0x2E`并返回sample EAX。
 
-本函数不改mode flags。entry初始化已直接复用`0x0043C9C0`typed helper；未关闭的classification/status数据库、record load/release、alias/refresh/consume/sample继续由共享typed port隔离。
+本函数不改mode flags。entry初始化与page刷新已分别直接复用`0x0043C9C0`、`0x0043CBD0`typed helper；未关闭的classification/status数据库、record load/release、alias/consume/sample继续由共享typed port隔离。
 
 ## 3. typed边界与caller回接
 
-`advance_legacy_standard_mode_runtime_mode`先传播C9C0的typed-stop，再在原selected entry读取点保留64项检查。C9C0正常返回后window/cursor已清0，随后才执行alias重建和第二次page刷新；停止时不伪造后续alias、refresh、entry消费或sample。
+`advance_legacy_standard_mode_runtime_mode`先传播C9C0的typed-stop。C9C0正常返回后window/cursor已清0，随后执行alias重建和第二次CBD0；CBD0 alias读取停止时不进入selected。CBD0完成后才在原selected entry读取点保留64项检查；任一停止均不伪造后续entry消费或sample。
 
 这纠正了此前synthetic entry port允许任意mode并保留旧window的测试假设：`INT_MAX→INT_MIN`仍由本函数回绕产生，但紧接着在C9C0 mode映射读取点停止；旧window64也会被合法C9C0清0，后续消费真实entry0。
 

@@ -23,7 +23,7 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`在`0x0043C4EC`调用
 
 ## 3. typed边界与caller回接
 
-`retreat_legacy_standard_mode_runtime_page`复用已关闭page-retreat helper。selected index只在原entry读取点检查64项边界；typed-stop保留page retreat、alias重建与page刷新，不执行消费、flags或sample。
+`retreat_legacy_standard_mode_runtime_page`复用已关闭page-retreat helper。alias重建后直接执行已关闭CBD0并传播alias读取typed-stop；CBD0完成后selected index只在原entry读取点检查64项边界。停止保留page retreat、alias与CBD0已发布visible，不执行消费、flags或sample。
 
 `0x0043C3C0` first-dynamic caller已真实回接。重叠upper→first dynamic→page时，实时状态链为：
 
@@ -31,7 +31,7 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`在`0x0043C4EC`调用
 - first dynamic `0x0043C670`：非零cursor 13→0，消费entry0，flags保持3。
 - page chunk `0x0043BBE0`：cursor 0归一化到14，不推进offset，消费entry14，flags 3→`0x33`。
 
-三轮均执行alias重建、刷新、消费与sample；caller在前两轮后重新加载pointer Y，最后返回第三轮sample EAX。
+三轮均执行alias重建、CBD0、消费与sample；caller在前两轮后重新加载pointer Y，最后返回第三轮sample EAX。真实CBD0会改写visible：本测试entry布局使前两轮visible变1，第三轮page-advance因此推进offset15/cursor0，alias15首项0使visible0并消费entry15的0。
 
 ## 4. 验证
 
@@ -40,7 +40,7 @@ LST有两个运行时callsite、两个caller：`0x0043C3C0`在`0x0043C4EC`调用
 - 非零cursor清0且offset保持30，消费entry30。
 - 零cursor使offset 20减15到5，消费entry5。
 - flags `0x30→0x33`、sample ID/handle/EAX与固定调用顺序。
-- offset64/cursor1产生selected index64，在原表读取点typed-stop。
-- 重叠caller链三轮消费entry13、entry0、entry14及12个port事件的精确顺序。
+- offset64/cursor1在alias64的CBD0首项读取点typed-stop，早于selected读取。
+- 重叠caller链三轮消费entry13、entry0、entry15(0)，最终offset15/cursor0/visible0，以及alias/consume/sample事件顺序。
 
 定向测试通过。workpack连续生成两轮均为`33/227`，SHA256均为`96b94897a246543feac8c35a3ab60bf66f907f10f63a5ec78480fd2c00d75298`；只新增关闭`0x0043C670`，`0x0043C760`仍为下一独立模块9单元。Linux core完整门`188/188`、Linux app完整门`194/194`通过；按阶段门禁未运行Windows BUILD。

@@ -728,11 +728,23 @@ enum class LegacyStandardModeEntryInitializationStatus : compat::u8 {
     loaded_text_out_of_range,
 };
 
+enum class LegacyStandardModePageRefreshStatus : compat::u8 {
+    completed,
+    entry_alias_out_of_range,
+};
+
+struct LegacyStandardModePageRefreshResult {
+    LegacyStandardModePageRefreshStatus status{
+        LegacyStandardModePageRefreshStatus::completed
+    };
+    const compat::u32* legacy_entry_pointer{};
+};
+
 struct LegacyStandardModeEntryInitializationResult {
     LegacyStandardModeEntryInitializationStatus status{
         LegacyStandardModeEntryInitializationStatus::completed
     };
-    compat::i32 legacy_return_value{};
+    const compat::u32* legacy_entry_pointer{};
     compat::u32 classification_query_count{};
     compat::u32 status_query_count{};
     compat::u32 matched_entry_count{};
@@ -751,7 +763,6 @@ public:
         std::span<compat::u8> destination, compat::u16 record_id
     ) noexcept = 0;
     virtual void release_record(compat::u32 token) noexcept = 0;
-    virtual compat::i32 refresh_page() noexcept = 0;
 };
 
 class LegacyStandardModeRuntimeInitializationPorts
@@ -800,6 +811,7 @@ struct LegacyStandardModeInputDispatchInput {
 
 enum class LegacyStandardModeRuntimeCursorAdvanceStatus : compat::u8 {
     completed,
+    page_refresh_stopped,
     selected_entry_out_of_range,
 };
 
@@ -812,6 +824,7 @@ struct LegacyStandardModeRuntimeCursorAdvanceResult {
 
 enum class LegacyStandardModeRuntimeCursorRetreatStatus : compat::u8 {
     completed,
+    page_refresh_stopped,
     selected_entry_out_of_range,
 };
 
@@ -824,6 +837,7 @@ struct LegacyStandardModeRuntimeCursorRetreatResult {
 
 enum class LegacyStandardModeRuntimePageRetreatStatus : compat::u8 {
     completed,
+    page_refresh_stopped,
     selected_entry_out_of_range,
 };
 
@@ -837,6 +851,7 @@ struct LegacyStandardModeRuntimePageRetreatResult {
 enum class LegacyStandardModeRuntimeModeAdvanceStatus : compat::u8 {
     completed,
     entry_initialization_stopped,
+    page_refresh_stopped,
     selected_entry_out_of_range,
 };
 
@@ -854,6 +869,7 @@ enum class LegacyStandardModeInputDispatchStatus : compat::u8 {
     completed,
     availability_index_out_of_range,
     entry_initialization_stopped,
+    page_refresh_stopped,
     selected_entry_out_of_range,
 };
 
@@ -1145,6 +1161,12 @@ initialize_legacy_standard_mode_dialog_setup(
 query_legacy_standard_mode_availability(
     compat::i32 record_index,
     std::span<const LegacyStandardModeAvailabilityRecord> records
+) noexcept;
+
+// sub_43CBD0: count at most fifteen entries from the active alias pointer.
+[[nodiscard]] LegacyStandardModePageRefreshResult
+refresh_legacy_standard_mode_page(
+    LegacyStandardModeRuntimeInitializationState& state
 ) noexcept;
 
 // sub_43C9C0: rebuild the mode-filtered entry table and associated text/status.

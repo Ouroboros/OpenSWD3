@@ -54,6 +54,7 @@ using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::
     kLegacyStandardSpecialModeInitializationRecordCount;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
+using openswd3::special_modes::refresh_legacy_standard_mode_page;
 using openswd3::special_modes::render_legacy_standard_mode_runtime;
 using openswd3::special_modes::query_legacy_standard_mode_availability;
 using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
@@ -115,6 +116,7 @@ using openswd3::special_modes::LegacyStandardModeGhostState;
 using openswd3::special_modes::LegacyStandardModeItemState;
 using openswd3::special_modes::LegacyStandardModePanelFrame;
 using openswd3::special_modes::LegacyStandardModePanelPorts;
+using openswd3::special_modes::LegacyStandardModePageRefreshStatus;
 using openswd3::special_modes::LegacyStandardModePanelState;
 using openswd3::special_modes::LegacyStandardModeRenderPorts;
 using openswd3::special_modes::LegacyStandardModeRuntimeInitializationPorts;
@@ -2060,6 +2062,82 @@ void test_standard_mode_availability(openswd3::test::Context& test) {
     }
 }
 
+void test_standard_mode_page_refresh(openswd3::test::Context& test) {
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.entry_alias_index = 2;
+        state.visible_count = 99;
+        state.entries[2U] = 0x11111111U;
+        state.entries[3U] = 0x22222222U;
+        state.entries[4U] = 0U;
+        const auto result = refresh_legacy_standard_mode_page(state);
+        test.expect_true(
+            result.status == LegacyStandardModePageRefreshStatus::completed &&
+                state.visible_count == 2 &&
+                result.legacy_entry_pointer == &state.entries[4U],
+            "0x43CBD0 counts nonzero alias entries and returns the terminator pointer"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.entry_alias_index = 0;
+        for (u32 index = 0U; index <= 15U; ++index) {
+            state.entries[index] = index + 1U;
+        }
+        const auto result = refresh_legacy_standard_mode_page(state);
+        test.expect_true(
+            result.status == LegacyStandardModePageRefreshStatus::completed &&
+                state.visible_count == 15 &&
+                result.legacy_entry_pointer == &state.entries[15U],
+            "0x43CBD0 reads entry fifteen then returns its pointer at the signed count cap"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.entry_alias_index = -1;
+        state.visible_count = 7;
+        const auto result = refresh_legacy_standard_mode_page(state);
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModePageRefreshStatus::
+                        entry_alias_out_of_range &&
+                state.visible_count == 0 &&
+                result.legacy_entry_pointer == nullptr,
+            "0x43CBD0 clears visible count before typed-stopping at the first alias read"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.entry_alias_index = 63;
+        state.entries[63U] = 1U;
+        const auto result = refresh_legacy_standard_mode_page(state);
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModePageRefreshStatus::
+                        entry_alias_out_of_range &&
+                state.visible_count == 1 &&
+                result.legacy_entry_pointer == nullptr,
+            "0x43CBD0 publishes incremented visible count before the next alias read stops"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.entry_alias_index = 63;
+        state.entries[63U] = 0U;
+        const auto result = refresh_legacy_standard_mode_page(state);
+        test.expect_true(
+            result.status == LegacyStandardModePageRefreshStatus::completed &&
+                state.visible_count == 0 &&
+                result.legacy_entry_pointer == &state.entries[63U],
+            "0x43CBD0 safely returns the initial zero entry at the final table slot"
+        );
+    }
+}
+
 void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
     class EntryPorts final : public LegacyStandardModeEntryInitializationPorts {
     public:
@@ -2164,11 +2242,6 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
             released_tokens.push_back(token);
         }
 
-        [[nodiscard]] i32 refresh_page() noexcept override {
-            ++refresh_count;
-            return -909;
-        }
-
         Scenario scenario{Scenario::normal};
         std::vector<u16> classification_query_ids;
         std::vector<u16> status_query_ids;
@@ -2177,7 +2250,6 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
         std::vector<u8> load_first_bytes;
         std::vector<bool> load_token_was_zero;
         std::vector<u32> released_tokens;
-        u32 refresh_count{};
     };
 
     {
@@ -2198,7 +2270,7 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyStandardModeEntryInitializationStatus::completed &&
-                result.legacy_return_value == -909 &&
+                result.legacy_entry_pointer == &state.entries[3U] &&
                 result.classification_query_count == 500U &&
                 result.status_query_count == 502U &&
                 result.matched_entry_count == 3U &&
@@ -2224,7 +2296,7 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
                         0x55667788U,
                         0xAABBCCDDU,
                     } &&
-                ports.refresh_count == 1U,
+                state.visible_count == 3,
             "0x43C9C0 performs signed classification, status/load scans and token lifecycle"
         );
         test.expect_true(
@@ -2243,7 +2315,7 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
                 state.entry_statuses[1U] == 0U &&
                 state.entry_statuses[2U] == 0x84U && state.window_offset == 0 &&
                 state.local_cursor == 0 && state.entry_alias_index == 0 &&
-                state.visible_count == 6 && state.mode_index == 99,
+                state.visible_count == 3 && state.mode_index == 99,
             "0x43C9C0 publishes entries, copied texts, second-read statuses and exact owner resets"
         );
     }
@@ -2282,7 +2354,7 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
                 state.total_count == 7 && state.window_offset == 8 &&
                 state.local_cursor == 9 && state.entry_alias_index == 10 &&
                 ports.classification_query_ids.empty() &&
-                ports.status_query_ids.empty() && ports.refresh_count == 0U,
+                ports.status_query_ids.empty(),
             "0x43C9C0 typed-stops at mode-map read after entry/text clear but before later owners"
         );
     }
@@ -2300,7 +2372,7 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
                 result.classification_query_count == 65U &&
                 result.matched_entry_count == 64U && state.total_count == 64 &&
                 state.entries[0U] == 1U && state.entries[63U] == 64U &&
-                ports.status_query_ids.empty() && ports.refresh_count == 0U,
+                ports.status_query_ids.empty(),
             "0x43C9C0 typed-stops on the sixty-fifth matching entry write"
         );
     }
@@ -2317,8 +2389,7 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
                         entry_terminator_out_of_range &&
                 result.classification_query_count == 500U &&
                 result.matched_entry_count == 64U && state.total_count == 64 &&
-                state.entries[63U] == 64U && ports.status_query_ids.empty() &&
-                ports.refresh_count == 0U,
+                state.entries[63U] == 64U && ports.status_query_ids.empty(),
             "0x43C9C0 preserves sixty-four entries then typed-stops at terminator write"
         );
     }
@@ -2347,8 +2418,7 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
                 result.loaded_record_count == 1U &&
                 result.released_record_count == 0U && state.total_count == 1 &&
                 state.entries[0U] == 1U && state.entries[1U] == 0U &&
-                state.window_offset == 4 && ports.released_tokens.empty() &&
-                ports.refresh_count == 0U,
+                state.window_offset == 4 && ports.released_tokens.empty(),
             "0x43C9C0 typed-stops at unsafe source termination or short-slot copy before release"
         );
     }
@@ -2409,15 +2479,9 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
             return 0U;
         }
 
-        [[nodiscard]] i32 refresh_page() noexcept override {
-            entry_order_valid = entry_order_valid && phase == 1U;
-            phase = 2U;
-            return -456;
-        }
-
         [[nodiscard]] i32 consume_entry(const u32 entry) noexcept override {
-            consume_order_valid = phase == 2U;
-            phase = 3U;
+            consume_order_valid = phase == 1U;
+            phase = 2U;
             consumed_entry = entry;
             return -123;
         }
@@ -2467,7 +2531,7 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
                 LegacyStandardModeEntryInitializationStatus::completed &&
             result.legacy_return_value == -123 &&
             result.loaded_record_count == 2U &&
-            result.released_record_count == 2U && ports.phase == 3U &&
+            result.released_record_count == 2U && ports.phase == 2U &&
             ports.load_count == 500U && ports.query_count == 500U &&
             ports.classification_count == 500U &&
             ports.entry_status_count == 500U &&
@@ -2525,7 +2589,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
     public:
         enum class Event : u8 {
             alias_rebuild,
-            page_refresh,
             entry_consume,
             sample_play,
         };
@@ -2558,10 +2621,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             events.push_back(Event::alias_rebuild);
             alias_entry_count = entries.size();
             entry_alias_index = window_offset;
-        }
-        [[nodiscard]] i32 refresh_page() noexcept override {
-            events.push_back(Event::page_refresh);
-            return 111;
         }
         void consume_entry(const u32 entry) noexcept override {
             events.push_back(Event::entry_consume);
@@ -2636,7 +2695,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -2664,7 +2722,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                     },
             "0x43C520 typed-stops at its original selected-entry read"
         );
@@ -2692,7 +2749,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -2718,7 +2774,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                     },
             "0x43C590 typed-stops at its original selected-entry read"
         );
@@ -2746,7 +2801,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -2784,15 +2838,15 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         test.expect_true(
             result.status ==
                     LegacyStandardModeRuntimePageRetreatStatus::
-                        selected_entry_out_of_range &&
+                        page_refresh_stopped &&
                 state.window_offset == 64 && state.local_cursor == 0 &&
-                state.entry_alias_index == 64 && state.mode_flags == 0x30 &&
+                state.entry_alias_index == 64 && state.visible_count == 0 &&
+                state.mode_flags == 0x30 &&
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                     },
-            "0x43C670 typed-stops at its original selected-entry read"
+            "0x43C670 propagates CBD0 typed-stop before its later selected-entry read"
         );
     }
 
@@ -2854,9 +2908,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                       std::vector<u32>{0x11224488U} &&
                   ports.events ==
                       std::vector{
-                          DispatchPorts::Event::page_refresh,
                           DispatchPorts::Event::alias_rebuild,
-                          DispatchPorts::Event::page_refresh,
                           DispatchPorts::Event::entry_consume,
                           DispatchPorts::Event::sample_play,
                       })),
@@ -2882,9 +2934,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.consumed_entry == 1U &&
                 ports.events ==
                     std::vector{
-                        DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -2919,7 +2969,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -2958,9 +3007,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         const std::vector<DispatchPorts::Event> expected_events =
             sample.refreshed
             ? std::vector{
-                  DispatchPorts::Event::page_refresh,
                   DispatchPorts::Event::alias_rebuild,
-                  DispatchPorts::Event::page_refresh,
                   DispatchPorts::Event::entry_consume,
                   DispatchPorts::Event::sample_play,
                   DispatchPorts::Event::sample_play,
@@ -3023,30 +3070,27 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 result.upper_control_dispatched &&
                 !result.bottom_control_dispatched &&
                 result.first_dynamic_control_dispatched &&
-                state.window_offset == 0 && state.local_cursor == 14 &&
-                state.visible_count == 15 && state.entry_alias_index == 0 &&
+                state.window_offset == 15 && state.local_cursor == 0 &&
+                state.visible_count == 0 && state.entry_alias_index == 15 &&
                 static_cast<u32>(state.mode_flags) == 0xABCD0033U &&
                 ports.alias_entry_count == 64U &&
                 ports.consumed_entries ==
                     std::vector<u32>{
                         0x11223344U,
                         0x55667788U,
-                        0xDEADBEEFU,
+                        0U,
                     } &&
                 ports.played_sample_id == 0x2EU &&
                 ports.played_sample_handle == 0x87654321U &&
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -3086,7 +3130,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
@@ -3165,7 +3208,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 ports.events ==
                     std::vector{
                         DispatchPorts::Event::alias_rebuild,
-                        DispatchPorts::Event::page_refresh,
                     },
             "0x43C3C0 typed-stops at the original selected-entry table read"
         );
@@ -5608,6 +5650,7 @@ int main() {
     test_standard_mode_filtered_record_build(test);
     test_standard_mode_dialog_setup(test);
     test_standard_mode_availability(test);
+    test_standard_mode_page_refresh(test);
     test_standard_mode_entry_initialization(test);
     test_standard_mode_runtime_initialization(test);
     test_standard_mode_runtime_input_dispatch(test);

@@ -11,7 +11,7 @@
 - `0x0043C7E0..0x0043C7F5`：mode刷新与点击音。
 - `0x0043C800..0x0043C819`：exit counter精确500门。
 
-直接caller是`0x004455E0`。`0x0043B480`只保存函数地址，不是运行时direct call。已关闭的`0x0043BBE0`、`0x0043C090`、`0x0043C520`、`0x0043C590`、`0x0043C670`与`0x0043C760`直接复用typed helper；其余未关闭callee继续由窄port隔离。
+直接caller是`0x004455E0`。`0x0043B480`只保存函数地址，不是运行时direct call。已关闭的`0x0043BBE0`、`0x0043C090`、`0x0043C520`、`0x0043C590`、`0x0043C670`、`0x0043C760`与`0x0043CBD0`直接复用typed helper；其余未关闭callee继续由窄port隔离。
 
 ## 2. 第一与第二矩形
 
@@ -43,7 +43,7 @@ return play_sample(0x2E, sample_handle)
 
 前三个callee返回后LST都重新把pointer Y装入EAX，因此最终未翻页路径返回Y。重叠动态范围可在同一帧依次执行upper的完整`0x0043C590`链、first dynamic的完整`0x0043C670`链，再执行翻页；每段都必须消费前一段产生的实时cursor、offset与flags。
 
-翻页chunk以step 15调用`0x0043BBE0`，随后严格执行entry alias重建、page刷新、从原entry base读取`entries[window_offset + local_cursor]`、消费entry、对mode flags低字节OR `0x30`、播放sample `0x2E`。typed实现以u32回绕形成selected index，并仅在原entry读取点隔离负值或越界值。`0x0043C0D0`同时补齐LST的`FC920 = FC91C`，typed表达为`entry_alias_index = 0`。
+翻页chunk以step 15调用`0x0043BBE0`，随后严格执行entry alias重建、已关闭CBD0、从原entry base读取`entries[window_offset + local_cursor]`、消费entry、对mode flags低字节OR `0x30`、播放sample `0x2E`。typed实现先在CBD0原alias读取点隔离越界，再以u32回绕形成selected index并在原entry读取点独立隔离。`0x0043C0D0`同时补齐LST的`FC920 = FC91C`，typed表达为`entry_alias_index = 0`。
 
 availability不可用时EAX为0；availability可用但X严格边界失败时EAX保留X。availability表不足16项在原记录读取点typed-stop。
 
@@ -66,11 +66,11 @@ availability不可用时EAX为0；availability可用但X严格边界失败时EAX
 
 - 第一矩形行计算、signed钳制、额外减1以及tail-dispatch `0x0043C520`后的最终cursor/entry/flags/sample EAX。
 - 第二矩形负delta减2/正delta不变的中间值、`0x0043C760`后的最终mode4/6、双sample，以及delta零与mode 0/14早退。
-- upper `0x0043C590`、first dynamic `0x0043C670`、翻页的三轮alias重建/page刷新/entry消费/点击音顺序，以及entry13/0/14、实时cursor与flags `0x33`。
+- upper `0x0043C590`、first dynamic `0x0043C670`、翻页的三轮alias重建/CBD0/entry消费/点击音顺序；真实visible依次使第三轮推进offset15/cursor0，并消费entry13/0/entry15(0)，最终visible0与flags `0x33`。
 - bottom `0x0043C520`的cursor/entry/flags/sample副作用保持，但sample EAX被pointer Y覆盖。
 - X等于206的严格边界与路径EAX。
 - availability记录15越界typed-stop。
-- selected entry越界只在原表读取点停止，且保留此前upper/rebuild/refresh副作用。
+- CBD0 alias越界先于selected entry读取停止；selected越界仍只在其原表读取点停止，两者均保留此前已发生副作用。
 - record token、85项storage释放的种类/索引顺序、exit counter 500→2、`FC974`最终64、action字段和末次release EAX。
 - exit counter 499不释放。
 - `0x0043C0D0` entry alias写0且exit counter不被该初始化器改写。

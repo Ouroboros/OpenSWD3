@@ -24,13 +24,13 @@ LST有三个运行时callsite、两个caller：
 5. 重新读取mode flags，只对低字节OR `0x30`；等价于整个u32 OR `0x30`。
 6. 调用sample `0x2E`与当前sample handle，并返回sample调用EAX。
 
-`0x0043BB80`的指针/整数联合EAX在本函数中立即被后续载入和call覆盖，不是`0x0043C520`最终返回。未关闭的alias重建、page刷新、entry消费和sample播放由现有窄port隔离，不提前计数。
+`0x0043BB80`的指针/整数联合EAX在本函数中立即被后续载入和call覆盖，不是`0x0043C520`最终返回。page刷新已直接复用关闭的`0x0043CBD0`typed helper；未关闭的alias重建、entry消费和sample播放继续由共享窄port隔离。
 
 ## 3. typed边界与caller回接
 
 `advance_legacy_standard_mode_runtime_cursor`复用`advance_legacy_standard_mode_window_cursor`，随后严格执行重建、刷新、selected entry读取、消费、flags和sample。
 
-selected index使用u32回绕相加。负值或超出64项时只在原`[entry_base + index*4]`读取点返回`selected_entry_out_of_range`；此前cursor推进、alias重建和page刷新保持，后续消费、flags与sample不执行。
+alias重建后先调用CBD0；CBD0在alias首项/next读取点越界时传播`page_refresh_stopped`，不进入selected。CBD0完成后，selected index使用u32回绕相加；负值或超出64项时只在原`[entry_base + index*4]`读取点返回`selected_entry_out_of_range`。两种停止均保留此前副作用，不执行后续消费、flags与sample。
 
 `0x0043C3C0`的两个caller不再停在抽象`dispatch_list_row` port：
 
