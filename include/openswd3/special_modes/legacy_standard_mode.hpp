@@ -709,6 +709,8 @@ struct LegacyStandardModeRuntimeInitializationState {
     compat::i32 local_cursor{};
     compat::i32 visible_count{};
     compat::i32 mode_index{};
+    compat::i32 first_record_offset{};
+    compat::i32 second_record_offset{};
     compat::u16 exit_counter{};
     std::array<
         asset_runtime::LegacyActionRecord,
@@ -769,14 +771,31 @@ public:
     virtual void release_record(compat::u32 token) noexcept = 0;
 };
 
-class LegacyStandardModeRuntimeInitializationPorts
+class LegacyStandardModeEntryConsumptionPorts
     : public LegacyStandardModeEntryInitializationPorts {
+public:
+    ~LegacyStandardModeEntryConsumptionPorts() override = default;
+    [[nodiscard]] virtual bool load_selected_record(
+        std::span<compat::u8> destination, compat::u32 record_id
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    dispatch_selected_record(compat::i32 absolute_index) noexcept = 0;
+};
+
+class LegacyStandardModeRuntimeInitializationPorts
+    : public LegacyStandardModeEntryConsumptionPorts {
 public:
     ~LegacyStandardModeRuntimeInitializationPorts() override = default;
     [[nodiscard]] virtual compat::u8
     query_record(compat::u16 record_id) noexcept = 0;
-    [[nodiscard]] virtual compat::i32
-    consume_entry(compat::u32 entry) noexcept = 0;
+};
+
+struct LegacyStandardModeEntryConsumptionResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 released_record_count{};
+    bool selected_record_load_attempted{};
+    bool selected_record_loaded{};
+    bool selected_record_dispatched{};
 };
 
 enum class LegacyStandardModeRuntimeInitializationStatus : compat::u8 {
@@ -889,10 +908,9 @@ enum class LegacyStandardModeInputDispatchPath : compat::u8 {
 };
 
 class LegacyStandardModeInputDispatchPorts
-    : public LegacyStandardModeEntryInitializationPorts {
+    : public LegacyStandardModeEntryConsumptionPorts {
 public:
     ~LegacyStandardModeInputDispatchPorts() override = default;
-    virtual void consume_entry(compat::u32 entry) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     play_sample(compat::u16 sample_id, compat::u32 sample_handle) noexcept = 0;
     [[nodiscard]] virtual compat::i32 release_runtime_storage(
@@ -1233,6 +1251,14 @@ initialize_legacy_standard_mode_entries(
     compat::i32 mode_index,
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeEntryInitializationPorts& ports
+) noexcept;
+
+// sub_43CEF0: release/reload one selected record and rebuild derived offsets.
+[[nodiscard]] LegacyStandardModeEntryConsumptionResult
+consume_legacy_standard_mode_entry(
+    compat::u32 entry,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeEntryConsumptionPorts& ports
 ) noexcept;
 
 // sub_43C0D0: allocate/reset standard-mode runtime tables and seed action state.

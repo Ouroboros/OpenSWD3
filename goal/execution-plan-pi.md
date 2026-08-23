@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v464
+版本：v465
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043CEF0`
+当前步骤：模块9 · 闭环`0x0043D050`
 
 ## 0. 执行约定
 
@@ -3417,9 +3417,20 @@ B7 P0 有限收口完成。
     `8028d9e05900777cf5f8f89860330050bd76523189757ad63340cb66edb5eca1`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式entry消费`0x0043CEF0`闭环。LST范围`0x0043CEF0..0x0043D04E`。入口无条件
+    release scratch `+0xAC` token并清整个`0xB0` record及两个derived offset；entry为0直接返回
+    EAX0，不调用loader/D050。非零entry写low16 header，但把完整u32 ID传loader；失败仍继续。
+    按`+0x60` base与`+0x72/76/7A/86/8A`累计第二offset，按`+0x7E/82`重建第一offset；最后以
+    `window_offset+local_cursor`的u32回绕值调用尚未关闭的D050并返回其EAX。旧`consume_entry`
+    高层占位全部移除，六个已关闭caller直接回接；第七caller `0x00446420`保留独立审计。定向UT
+    覆盖release/clear、零entry、完整ID/low16 header、七开关、`INT_MAX+1`、loader失败继续及
+    C0D0/C3C0真实顺序。workpack连续两轮稳定为`40/227`，SHA256为
+    `5d0095ca98c73d02f6cf8296e51d854713f0511e34801b9832cf5911a8fb46fd`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`39/227`，下一单元为`0x0043CEF0`。
+进行中，正式进度为`40/227`，下一单元为`0x0043D050`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043CEF0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043D050`，继续更新workpack、证据和完整验证门。

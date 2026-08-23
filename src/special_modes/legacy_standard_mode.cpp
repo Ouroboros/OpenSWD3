@@ -109,6 +109,15 @@ constexpr compat::u8 kMissingTextSecondByte = 0x4CU;
         (static_cast<compat::u32>(bytes[offset + 3U]) << 24U);
 }
 
+void write_u16_le(
+    const std::span<compat::u8> bytes,
+    const std::size_t offset,
+    const compat::u16 value
+) noexcept {
+    bytes[offset] = static_cast<compat::u8>(value);
+    bytes[offset + 1U] = static_cast<compat::u8>(value >> 8U);
+}
+
 constexpr std::
     array<std::array<compat::u32, kLegacyStandardModeCallbackSlotCount>, 9U>
         kCallbackTargets{{
@@ -1008,6 +1017,81 @@ initialize_legacy_standard_mode_entries(
     return result;
 }
 
+LegacyStandardModeEntryConsumptionResult consume_legacy_standard_mode_entry(
+    const compat::u32 entry,
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeEntryConsumptionPorts& ports
+) noexcept {
+    LegacyStandardModeEntryConsumptionResult result;
+    const compat::u32 previous_token =
+        read_u32_le(std::span<const compat::u8>{state.scratch_record}, 0xACU);
+    ports.release_record(previous_token);
+    ++result.released_record_count;
+    state.scratch_record.fill(0U);
+    state.second_record_offset = 0;
+    state.first_record_offset = 0;
+    if (entry == 0U) {
+        return result;
+    }
+
+    write_u16_le(
+        std::span<compat::u8>{state.scratch_record},
+        0x04U,
+        static_cast<compat::u16>(entry)
+    );
+    write_u16_le(std::span<compat::u8>{state.scratch_record}, 0x08U, 1U);
+    write_u16_le(std::span<compat::u8>{state.scratch_record}, 0x0AU, 0U);
+    write_u16_le(std::span<compat::u8>{state.scratch_record}, 0x06U, 0U);
+    result.selected_record_load_attempted = true;
+    result.selected_record_loaded = ports.load_selected_record(
+        std::span<compat::u8>{state.scratch_record}.subspan(0x0CU), entry
+    );
+
+    compat::u32 second_offset = 0U;
+    compat::u32 first_base_offset = 0U;
+    state.first_record_offset = 0;
+    state.second_record_offset = 0;
+    const std::span<const compat::u8> scratch{state.scratch_record};
+    const compat::u32 base = read_u16_le(scratch, 0x60U);
+    if (read_u16_le(scratch, 0x72U) != 0U) {
+        second_offset = base * 2U;
+        state.second_record_offset = std::bit_cast<compat::i32>(second_offset);
+    }
+    if (read_u16_le(scratch, 0x76U) != 0U) {
+        second_offset += base * 3U;
+        state.second_record_offset = std::bit_cast<compat::i32>(second_offset);
+    }
+    if (read_u16_le(scratch, 0x7AU) != 0U) {
+        second_offset += base * 5U;
+        state.second_record_offset = std::bit_cast<compat::i32>(second_offset);
+    }
+    if (read_u16_le(scratch, 0x86U) != 0U) {
+        second_offset += base * 2U;
+        state.second_record_offset = std::bit_cast<compat::i32>(second_offset);
+    }
+    if (read_u16_le(scratch, 0x8AU) != 0U) {
+        state.second_record_offset =
+            std::bit_cast<compat::i32>(second_offset + base * 4U);
+    }
+    if (read_u16_le(scratch, 0x7EU) != 0U) {
+        first_base_offset = base * 3U;
+        state.first_record_offset =
+            std::bit_cast<compat::i32>(first_base_offset);
+    }
+    if (read_u16_le(scratch, 0x82U) != 0U) {
+        state.first_record_offset =
+            std::bit_cast<compat::i32>(first_base_offset + base * 5U);
+    }
+
+    const compat::i32 absolute_index = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(state.window_offset) +
+        std::bit_cast<compat::u32>(state.local_cursor)
+    );
+    result.legacy_return_value = ports.dispatch_selected_record(absolute_index);
+    result.selected_record_dispatched = true;
+    return result;
+}
+
 LegacyStandardModeRuntimeInitializationResult
 initialize_legacy_standard_mode_runtime(
     LegacyStandardModeRuntimeInitializationState& state,
@@ -1067,7 +1151,10 @@ initialize_legacy_standard_mode_runtime(
     }
     state.action_records[0U].action_id = 0x0000232AU;
     state.action_records[0U].base_variant = 0x00000033U;
-    result.legacy_return_value = ports.consume_entry(state.entries[0U]);
+    const LegacyStandardModeEntryConsumptionResult consumption_result =
+        consume_legacy_standard_mode_entry(state.entries[0U], state, ports);
+    result.legacy_return_value = consumption_result.legacy_return_value;
+    result.released_record_count += consumption_result.released_record_count;
     state.mode_flags = 0;
     return result;
 }
@@ -1103,7 +1190,9 @@ advance_legacy_standard_mode_runtime_cursor(
             selected_entry_out_of_range;
         return result;
     }
-    ports.consume_entry(state.entries[selected_index]);
+    static_cast<void>(consume_legacy_standard_mode_entry(
+        state.entries[selected_index], state, ports
+    ));
     state.mode_flags = std::bit_cast<compat::i32>(
         std::bit_cast<compat::u32>(state.mode_flags) | 0x30U
     );
@@ -1139,7 +1228,9 @@ retreat_legacy_standard_mode_runtime_cursor(
             selected_entry_out_of_range;
         return result;
     }
-    ports.consume_entry(state.entries[selected_index]);
+    static_cast<void>(consume_legacy_standard_mode_entry(
+        state.entries[selected_index], state, ports
+    ));
     state.mode_flags = std::bit_cast<compat::i32>(
         std::bit_cast<compat::u32>(state.mode_flags) | 0x03U
     );
@@ -1175,7 +1266,9 @@ retreat_legacy_standard_mode_runtime_page(
             selected_entry_out_of_range;
         return result;
     }
-    ports.consume_entry(state.entries[selected_index]);
+    static_cast<void>(consume_legacy_standard_mode_entry(
+        state.entries[selected_index], state, ports
+    ));
     state.mode_flags = std::bit_cast<compat::i32>(
         std::bit_cast<compat::u32>(state.mode_flags) | 0x03U
     );
@@ -1223,7 +1316,9 @@ advance_legacy_standard_mode_runtime_mode(
             selected_entry_out_of_range;
         return result;
     }
-    ports.consume_entry(state.entries[selected_index]);
+    static_cast<void>(consume_legacy_standard_mode_entry(
+        state.entries[selected_index], state, ports
+    ));
     result.legacy_return_value = ports.play_sample(0x002EU, sample_handle);
     return result;
 }
@@ -1439,7 +1534,9 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
                     selected_entry_out_of_range;
                 return result;
             }
-            ports.consume_entry(state.entries[selected_index]);
+            static_cast<void>(consume_legacy_standard_mode_entry(
+                state.entries[selected_index], state, ports
+            ));
             state.mode_flags = std::bit_cast<compat::i32>(
                 std::bit_cast<compat::u32>(state.mode_flags) | 0x30U
             );

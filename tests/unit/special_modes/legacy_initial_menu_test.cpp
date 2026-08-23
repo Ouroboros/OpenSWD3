@@ -39,6 +39,7 @@ using openswd3::special_modes::advance_legacy_standard_mode_window_page;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
 using openswd3::special_modes::build_legacy_standard_mode_filtered_records;
 using openswd3::special_modes::compose_legacy_standard_mode_input_status;
+using openswd3::special_modes::consume_legacy_standard_mode_entry;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes_bounded;
 using openswd3::special_modes::draw_legacy_standard_mode_ghost;
@@ -2481,7 +2482,13 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
         }
 
         void release_record(const u32 token) noexcept override {
-            release_order_valid = release_order_valid && phase == 0U;
+            if (phase == 0U) {
+                released_tokens.push_back(token);
+                return;
+            }
+            consume_order_valid =
+                consume_order_valid || (phase == 1U && token == 0U);
+            phase = 2U;
             released_tokens.push_back(token);
         }
 
@@ -2510,10 +2517,18 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
             return 0U;
         }
 
-        [[nodiscard]] i32 consume_entry(const u32 entry) noexcept override {
-            consume_order_valid = phase == 1U;
-            phase = 2U;
+        [[nodiscard]] bool load_selected_record(
+            const std::span<u8>, const u32 entry
+        ) noexcept override {
+            selected_load_attempted = true;
             consumed_entry = entry;
+            return false;
+        }
+
+        [[nodiscard]] i32
+        dispatch_selected_record(const i32 absolute_index) noexcept override {
+            selected_dispatch_attempted = true;
+            dispatched_index = absolute_index;
             return -123;
         }
 
@@ -2528,6 +2543,9 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
         bool query_order_valid{true};
         bool entry_order_valid{true};
         bool consume_order_valid{};
+        bool selected_load_attempted{};
+        bool selected_dispatch_attempted{};
+        i32 dispatched_index{};
         std::vector<u32> released_tokens;
     };
 
@@ -2560,15 +2578,16 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
                 LegacyStandardModeRuntimeInitializationStatus::completed &&
             result.entry_initialization_status ==
                 LegacyStandardModeEntryInitializationStatus::completed &&
-            result.legacy_return_value == -123 &&
+            result.legacy_return_value == 0 &&
             result.loaded_record_count == 2U &&
-            result.released_record_count == 2U && ports.phase == 2U &&
+            result.released_record_count == 3U && ports.phase == 2U &&
             ports.load_count == 500U && ports.query_count == 500U &&
             ports.classification_count == 500U &&
             ports.entry_status_count == 500U &&
             ports.released_tokens ==
-                std::vector<u32>{0x11223344U, 0xAABBCCDDU} &&
-            ports.consumed_entry == 0U && ports.load_order_valid &&
+                std::vector<u32>{0x11223344U, 0xAABBCCDDU, 0U} &&
+            ports.consumed_entry == 0U && !ports.selected_load_attempted &&
+            !ports.selected_dispatch_attempted && ports.load_order_valid &&
             ports.release_order_valid && ports.query_order_valid &&
             ports.entry_order_valid && ports.consume_order_valid,
         "0x43C0D0 preserves both 500-record scans, C9C0 rebuild/refresh and consume order"
@@ -2615,6 +2634,145 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
+    class ConsumptionPorts final : public openswd3::special_modes::
+                                       LegacyStandardModeEntryConsumptionPorts {
+    public:
+        [[nodiscard]] i8
+        query_entry_classification(const u16) noexcept override {
+            return 0;
+        }
+        [[nodiscard]] u8 query_entry_status(const u16) noexcept override {
+            return 0U;
+        }
+        [[nodiscard]] bool
+        load_record(const std::span<u8>, const u16) noexcept override {
+            return false;
+        }
+        void release_record(const u32 token) noexcept override {
+            released_tokens.push_back(token);
+        }
+        [[nodiscard]] bool load_selected_record(
+            const std::span<u8> destination, const u32 record_id
+        ) noexcept override {
+            selected_record_ids.push_back(record_id);
+            std::copy(
+                selected_record_data.cbegin(),
+                selected_record_data.cend(),
+                destination.begin()
+            );
+            return selected_load_result;
+        }
+        [[nodiscard]] i32
+        dispatch_selected_record(const i32 absolute_index) noexcept override {
+            dispatched_indices.push_back(absolute_index);
+            return dispatch_return;
+        }
+
+        std::array<u8, 0xA4U> selected_record_data{};
+        std::vector<u32> released_tokens;
+        std::vector<u32> selected_record_ids;
+        std::vector<i32> dispatched_indices;
+        bool selected_load_result{true};
+        i32 dispatch_return{-777};
+    };
+    const auto write_record_u16 =
+        [](auto& record, const std::size_t scratch_offset, const u16 value) {
+            const std::size_t offset = scratch_offset - 0x0CU;
+            record[offset] = static_cast<u8>(value);
+            record[offset + 1U] = static_cast<u8>(value >> 8U);
+        };
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.scratch_record.fill(0xA5U);
+        state.scratch_record[0xACU] = 0x44U;
+        state.scratch_record[0xADU] = 0x33U;
+        state.scratch_record[0xAEU] = 0x22U;
+        state.scratch_record[0xAFU] = 0x11U;
+        state.first_record_offset = 9;
+        state.second_record_offset = 11;
+        ConsumptionPorts ports;
+        const auto result =
+            consume_legacy_standard_mode_entry(0U, state, ports);
+        test.expect_true(
+            result.legacy_return_value == 0 &&
+                result.released_record_count == 1U &&
+                !result.selected_record_load_attempted &&
+                !result.selected_record_loaded &&
+                !result.selected_record_dispatched &&
+                ports.released_tokens == std::vector<u32>{0x11223344U} &&
+                ports.selected_record_ids.empty() &&
+                ports.dispatched_indices.empty() &&
+                std::ranges::all_of(
+                    state.scratch_record,
+                    [](const u8 value) { return value == 0U; }
+                ) &&
+                state.first_record_offset == 0 &&
+                state.second_record_offset == 0,
+            "0x43CEF0 always releases and clears before zero-entry EAX zero return"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.window_offset = std::numeric_limits<i32>::max();
+        state.local_cursor = 1;
+        state.scratch_record[0xACU] = 0xDDU;
+        state.scratch_record[0xADU] = 0xCCU;
+        state.scratch_record[0xAEU] = 0xBBU;
+        state.scratch_record[0xAFU] = 0xAAU;
+        ConsumptionPorts ports;
+        write_record_u16(ports.selected_record_data, 0x60U, 7U);
+        for (const std::size_t offset :
+             {0x72U, 0x76U, 0x7AU, 0x7EU, 0x82U, 0x86U, 0x8AU}) {
+            write_record_u16(ports.selected_record_data, offset, 1U);
+        }
+        const auto result =
+            consume_legacy_standard_mode_entry(0xA1B2C3D4U, state, ports);
+        test.expect_true(
+            result.legacy_return_value == -777 &&
+                result.released_record_count == 1U &&
+                result.selected_record_load_attempted &&
+                result.selected_record_loaded &&
+                result.selected_record_dispatched &&
+                ports.released_tokens == std::vector<u32>{0xAABBCCDDU} &&
+                ports.selected_record_ids == std::vector<u32>{0xA1B2C3D4U} &&
+                ports.dispatched_indices ==
+                    std::vector<i32>{std::numeric_limits<i32>::min()} &&
+                state.scratch_record[0x04U] == 0xD4U &&
+                state.scratch_record[0x05U] == 0xC3U &&
+                state.scratch_record[0x06U] == 0U &&
+                state.scratch_record[0x08U] == 1U &&
+                state.scratch_record[0x0AU] == 0U &&
+                state.first_record_offset == 56 &&
+                state.second_record_offset == 112,
+            "0x43CEF0 keeps full loader ID, low-word header, seven flags and wrapping D050 index"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.window_offset = 4;
+        state.local_cursor = 5;
+        ConsumptionPorts ports;
+        ports.selected_load_result = false;
+        ports.dispatch_return = 123;
+        const auto result =
+            consume_legacy_standard_mode_entry(9U, state, ports);
+        test.expect_true(
+            result.legacy_return_value == 123 &&
+                result.selected_record_load_attempted &&
+                !result.selected_record_loaded &&
+                result.selected_record_dispatched &&
+                state.first_record_offset == 0 &&
+                state.second_record_offset == 0 &&
+                ports.dispatched_indices == std::vector<i32>{9},
+            "0x43CEF0 preserves failed-load continuation into D050 with zero offsets"
+        );
+    }
+}
+
 void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
     class DispatchPorts final : public LegacyStandardModeInputDispatchPorts {
     public:
@@ -2643,10 +2801,24 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             ++entry_load_count;
             return false;
         }
-        void consume_entry(const u32 entry) noexcept override {
+        [[nodiscard]] bool load_selected_record(
+            const std::span<u8> destination, const u32 entry
+        ) noexcept override {
             events.push_back(Event::entry_consume);
             consumed_entries.push_back(entry);
             consumed_entry = entry;
+            std::copy(
+                selected_record_data.cbegin(),
+                selected_record_data.cend(),
+                destination.begin()
+            );
+            return selected_load_result;
+        }
+        [[nodiscard]] i32
+        dispatch_selected_record(const i32 absolute_index) noexcept override {
+            dispatched_indices.push_back(absolute_index);
+            dispatched_index = absolute_index;
+            return selected_dispatch_return;
         }
         [[nodiscard]] i32 play_sample(
             const u16 sample_id, const u32 sample_handle
@@ -2674,6 +2846,11 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         std::vector<u32> released_record_tokens;
         u32 consumed_entry{};
         std::vector<u32> consumed_entries;
+        std::array<u8, 0xA4U> selected_record_data{};
+        bool selected_load_result{true};
+        i32 selected_dispatch_return{-456};
+        i32 dispatched_index{};
+        std::vector<i32> dispatched_indices;
         i8 classification_value{};
         u16 entry_match_count{8U};
         u32 classification_query_count{};
@@ -3077,11 +3254,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 state.visible_count == 0 && state.entry_alias_index == 15 &&
                 static_cast<u32>(state.mode_flags) == 0xABCD0033U &&
                 ports.consumed_entries ==
-                    std::vector<u32>{
-                        0x11223344U,
-                        0x55667788U,
-                        0U,
-                    } &&
+                    std::vector<u32>{0x11223344U, 0x55667788U} &&
                 ports.played_sample_id == 0x2EU &&
                 ports.played_sample_handle == 0x87654321U &&
                 ports.events ==
@@ -3090,7 +3263,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                         DispatchPorts::Event::sample_play,
                         DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
-                        DispatchPorts::Event::entry_consume,
                         DispatchPorts::Event::sample_play,
                     },
             "0x43C3C0 preserves sequential upper, dynamic, page rebuild, consume and sound order"
@@ -5826,6 +5998,7 @@ int main() {
     test_standard_mode_page_refresh(test);
     test_standard_mode_entry_initialization(test);
     test_standard_mode_runtime_initialization(test);
+    test_standard_mode_entry_consumption(test);
     test_standard_mode_runtime_input_dispatch(test);
     test_standard_mode_runtime_render(test);
     test_standard_mode_shared_text_resolution(test);
