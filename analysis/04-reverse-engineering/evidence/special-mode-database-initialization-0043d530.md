@@ -32,10 +32,10 @@
 
 - primary action ID=`0x232A`、base variant=`0x3B`。
 - secondary action ID=`0x233B`、base variant=0。
-- `FCAD0`写0；`FCBA4`列表选择写0；`FCD20`交互phase写1；`FCAB8`方向选择与`FCADC`页选择写0。
+- `FCAD0` window offset写0；`FCBA4`列表选择写0；`FCD20`交互phase写1；`FCAB8`方向选择与`FCADC`页选择写0。
 - enable flag=1。
 - scan index重置0。
-- mirror之后`FCAC8/FCAA4`写0，独立的`word_4FC900`生命周期phase最终写u16 2；它不与DA30读取的dword `FCD20`合并。
+- F000后把扫描阶段复用为计数器的`FCD10`覆盖为current forward head；mirror之后`FCAC8`与`FCAA4` display flags写0，独立的`word_4FC900`生命周期phase最终写u16 2；它不与DA30读取的dword `FCD20`合并。
 
 UT预置两个action cached字段和buffer字节，证明未被synthetic全清。
 

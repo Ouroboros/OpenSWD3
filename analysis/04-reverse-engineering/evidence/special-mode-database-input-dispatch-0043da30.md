@@ -14,7 +14,7 @@ DA30读写D530共享owner：
 - `FCA8C/FCAAC`是交互toggle与runtime input flags。
 - `FC4F0/F4/F8/FC`是两组动态strict-X边界。
 
-未关闭callee用地址枚举port表达；port同时取得state与input引用，使DA30能保留callee后重读全局X、button和toggle的顺序。C090直接回接typed availability helper；物品`0x1BA9`查询保留最小port。
+未关闭callee用地址枚举port表达；已关闭DD20直接回接typed helper。port同时取得state与input引用，使DA30能保留callee后重读全局X、button和toggle的顺序。C090直接回接typed availability helper；物品`0x1BA9`查询保留最小port。
 
 ## 2. phase 1
 
@@ -33,7 +33,7 @@ DA30读写D530共享owner：
 3. 重读X；落入第一组动态strict边界调用DFA0。
 4. 再重读X；落入第二组动态strict边界调用DED0并返回。
 
-原函数没有在前三个调用后返回，因此同一帧最多连续调用四个callee。UT让每个callee依次把X改为460、105、205，锁定`DDF0→DD20→DFA0→DED0`及最终EAX。availability span不足16项时只在原C090读取点typed-stop。其余路径最后重读button，低位`0x0C`调用E770。
+原函数没有在前三个调用后返回，因此同一帧最多连续调用四个callee。UT让DDF0把X改为460，直接执行不改X的DD20后由第一动态边界调用DFA0并把X改为205，再命中第二动态边界，锁定`DDF0→DD20→DFA0→DED0`及最终EAX。availability span不足16项时只在原C090读取点typed-stop。其余路径最后重读button，低位`0x0C`调用E770。
 
 ## 3. phase 2
 

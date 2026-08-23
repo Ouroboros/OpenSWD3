@@ -717,6 +717,7 @@ struct LegacyStandardModeDatabaseInitializationState {
     std::array<compat::u8, 0xB0U> second_runtime_record{};
     LegacyStandardModeForwardNode* adjustment_head{};
     LegacyStandardModeForwardNode* forward_head{};
+    const LegacyStandardModeForwardNode* current_forward_head{};
     const LegacyStandardModeForwardNode* bounded_forward_node{};
     compat::u32 forward_count{};
     compat::i32 bounded_forward_count{};
@@ -728,11 +729,11 @@ struct LegacyStandardModeDatabaseInitializationState {
     std::array<compat::u8, 0xB0U> first_inline_record{};
     std::array<compat::u8, 0xB0U> second_inline_record{};
     asset_runtime::LegacyActionRecord cleanup_action{};
-    compat::u32 first_reset{};
-    compat::u32 list_selection{};
+    compat::i32 window_offset{};
+    compat::i32 list_selection{};
     compat::u32 page_selection{};
     compat::u32 fourth_reset{};
-    compat::u32 fifth_reset{};
+    compat::u32 display_flags{};
     compat::u32 interaction_phase{};
     compat::u32 scan_index{};
     compat::u16 first_missing_text_index{};
@@ -745,6 +746,7 @@ struct LegacyStandardModeDatabaseInitializationState {
     compat::u32 hover_flag{};
     compat::u32 interaction_toggle{};
     compat::u32 runtime_input_flags{};
+    compat::u32 phase_3_countdown{};
     compat::i32 first_dynamic_min_x{};
     compat::i32 second_dynamic_min_x{};
     compat::i32 first_dynamic_max_x{};
@@ -769,6 +771,38 @@ enum class LegacyStandardModeDatabaseInputTarget : compat::u8 {
     address_0043E770,
 };
 
+enum class LegacyStandardModeDatabaseAdvancePath : compat::u8 {
+    ignored,
+    phase_1_forward_advance,
+    phase_2_toggle,
+    phase_3_countdown,
+};
+
+struct LegacyStandardModeDatabaseAdvanceResult {
+    LegacyStandardModeDatabaseAdvancePath path{
+        LegacyStandardModeDatabaseAdvancePath::ignored
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    bool sample_initialized{};
+};
+
+class LegacyStandardModeDatabaseAdvancePorts {
+public:
+    virtual ~LegacyStandardModeDatabaseAdvancePorts() = default;
+    virtual void refresh_database_records(
+        LegacyStandardModeDatabaseInitializationState& state
+    ) noexcept = 0;
+    virtual void rebuild_inline_records(
+        std::span<compat::u8> first_record,
+        std::span<compat::u8> second_record,
+        LegacyStandardModeDatabaseInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 initialize_database_sample(
+        compat::u16 sample_id, compat::u32 interface_source_value
+    ) noexcept = 0;
+};
+
 enum class LegacyStandardModeDatabaseInputStatus : compat::u8 {
     completed,
     availability_index_out_of_range,
@@ -783,7 +817,8 @@ struct LegacyStandardModeDatabaseInputResult {
     std::optional<LegacyStandardModeDatabaseInputTarget> last_target{};
 };
 
-class LegacyStandardModeDatabaseInputPorts {
+class LegacyStandardModeDatabaseInputPorts
+    : public LegacyStandardModeDatabaseAdvancePorts {
 public:
     virtual ~LegacyStandardModeDatabaseInputPorts() = default;
     [[nodiscard]] virtual bool
@@ -1638,6 +1673,13 @@ render_legacy_standard_mode_entry(
     compat::i32 selected,
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeRuntimeRenderPorts& ports
+) noexcept;
+
+// sub_43DD20: advance one database page/cursor or phase-specific owner.
+[[nodiscard]] LegacyStandardModeDatabaseAdvanceResult
+advance_legacy_standard_mode_database(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseAdvancePorts& ports
 ) noexcept;
 
 // sub_43DA30: dispatch standard-mode database mouse/button input.

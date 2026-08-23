@@ -2183,6 +2183,76 @@ LegacyStandardModeEntryRenderResult render_legacy_standard_mode_entry(
     return result;
 }
 
+LegacyStandardModeDatabaseAdvanceResult advance_legacy_standard_mode_database(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseAdvancePorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseAdvanceResult result;
+    compat::u32 legacy_eax = state.interaction_phase - 1U;
+    if (legacy_eax == 0U) {
+        result.path =
+            LegacyStandardModeDatabaseAdvancePath::phase_1_forward_advance;
+        static_cast<void>(advance_legacy_standard_mode_window_cursor(
+            std::bit_cast<compat::i32>(state.forward_count),
+            state.window_offset,
+            state.list_selection,
+            state.bounded_forward_count
+        ));
+        ++result.helper_call_count;
+
+        const LegacyStandardModeForwardNode* source_head = state.forward_head;
+        const LegacyStandardModeForwardNode* output_head = nullptr;
+        static_cast<void>(advance_legacy_standard_mode_forward_head(
+            state.window_offset, &source_head, &output_head
+        ));
+        state.current_forward_head = output_head;
+        ++result.helper_call_count;
+        state.bounded_forward_node =
+            count_legacy_standard_mode_forward_nodes_bounded(
+                state.current_forward_head, state.bounded_forward_count, 0x10
+            );
+        ++result.helper_call_count;
+
+        ports.refresh_database_records(state);
+        ++result.helper_call_count;
+        ports.rebuild_inline_records(
+            state.first_inline_record, state.second_inline_record, state
+        );
+        ++result.helper_call_count;
+        state.display_flags |= 0x30U;
+        result.legacy_return_value = ports.initialize_database_sample(
+            0x002EU, state.interface_source_value
+        );
+        ++result.helper_call_count;
+        result.sample_initialized = true;
+        return result;
+    }
+
+    legacy_eax -= 1U;
+    if (legacy_eax == 0U) {
+        result.path = LegacyStandardModeDatabaseAdvancePath::phase_2_toggle;
+        if (state.interaction_toggle != 1U) {
+            result.legacy_return_value = ports.initialize_database_sample(
+                0x0107U, state.interface_source_value
+            );
+            ++result.helper_call_count;
+            result.sample_initialized = true;
+        }
+        if ((state.runtime_input_flags & 2U) == 0U) {
+            state.interaction_toggle = 1U;
+        }
+        return result;
+    }
+
+    legacy_eax -= 1U;
+    result.legacy_return_value = std::bit_cast<compat::i32>(legacy_eax);
+    if (legacy_eax == 0U) {
+        result.path = LegacyStandardModeDatabaseAdvancePath::phase_3_countdown;
+        state.phase_3_countdown = 0xC8U;
+    }
+    return result;
+}
+
 LegacyStandardModeDatabaseInputResult
 handle_legacy_standard_mode_database_input(
     LegacyStandardModeDatabaseInitializationState& state,
@@ -2195,12 +2265,19 @@ handle_legacy_standard_mode_database_input(
     result.legacy_return_value =
         std::bit_cast<compat::i32>(state.interaction_phase);
     state.hover_flag = 0U;
-    const auto invoke =
-        [&](const LegacyStandardModeDatabaseInputTarget target) {
-            ++result.callback_count;
-            result.last_target = target;
+    const auto invoke = [&](
+                            const LegacyStandardModeDatabaseInputTarget target
+                        ) {
+        ++result.callback_count;
+        result.last_target = target;
+        if (target == LegacyStandardModeDatabaseInputTarget::address_0043DD20) {
+            result.legacy_return_value =
+                advance_legacy_standard_mode_database(state, ports)
+                    .legacy_return_value;
+        } else {
             result.legacy_return_value = ports.invoke(target, state, input);
-        };
+        }
+    };
     const auto invoke_low_button_exit = [&]() {
         if ((input.buttons & 0x0CU) != 0U) {
             invoke(LegacyStandardModeDatabaseInputTarget::address_0043E770);
@@ -2228,7 +2305,7 @@ handle_legacy_standard_mode_database_input(
                 state.bounded_forward_count) {
                 return result;
             }
-            state.list_selection = index + 1U;
+            state.list_selection = std::bit_cast<compat::i32>(index + 1U);
             invoke(LegacyStandardModeDatabaseInputTarget::address_0043DDF0);
             return result;
         }
@@ -2532,18 +2609,19 @@ initialize_legacy_standard_mode_database(
     state.primary_action.base_variant = 0x3BU;
     state.secondary_action.action_id = 0x233BU;
     state.secondary_action.base_variant = 0U;
-    state.first_reset = 0U;
+    state.window_offset = 0;
     state.list_selection = 0U;
     state.interaction_phase = 1U;
     state.direction_selection = 0U;
     state.page_selection = 0U;
 
     state.forward_head = ports.initialize_forward_list();
+    state.current_forward_head = state.forward_head;
     state.forward_count =
         count_legacy_standard_mode_forward_nodes(state.forward_head);
     state.bounded_forward_node =
         count_legacy_standard_mode_forward_nodes_bounded(
-            state.forward_head, state.bounded_forward_count, 0x10
+            state.current_forward_head, state.bounded_forward_count, 0x10
         );
     state.first_missing_text_index = 0xFFDCU;
     state.second_missing_text_index = 0xFFDCU;
@@ -2564,7 +2642,7 @@ initialize_legacy_standard_mode_database(
         result.mirror_write_count += 2U;
     }
     state.fourth_reset = 0U;
-    state.fifth_reset = 0U;
+    state.display_flags = 0U;
     state.lifecycle_phase = 2U;
     return result;
 }

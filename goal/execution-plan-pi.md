@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v471
+版本：v472
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043DD20`
+当前步骤：模块9 · 闭环`0x0043DDF0`
 
 ## 0. 执行约定
 
@@ -3488,9 +3488,19 @@ B7 P0 有限收口完成。
     `53c46bdf47c9719b2ee102b907d48d820ec10bbf52731ebca6de7dfb53d9c184`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库向前推进`0x0043DD20`闭环。LST范围`0x0043DD20..0x0043DDE1`，由DA30
+    直接调用及B480 callback间接绑定。phase1直接复用已关闭BB80/B9A0/BC90，依次推进cursor、从共享
+    head重建FCD10 current head并重算16界count；随后仅保留F880/F1E0边界，display flags低字节OR30，
+    sample 2E返回EAX。DA30不再把DD20交给通用地址port。phase2在runtime bit1 gate前条件sample107，
+    gate清才写toggle1；phase3写countdown200，其他phase保留DEC链EAX。同步明确FCAD0 window offset、
+    FCD10扫描计数/current head复用和FCAA4 display flags。定向UT覆盖18节点链、六步顺序、records依赖、
+    flags/sample、phase2 gate、phase3及phase4 EAX。workpack连续两轮稳定为`47/227`，SHA256为
+    `680834374fe3d6063b702c7443a86df5d9e143d2a3a16648e5353fd61be0b278`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`46/227`，下一单元为`0x0043DD20`。
+进行中，正式进度为`47/227`，下一单元为`0x0043DDF0`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043DD20`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043DDF0`，继续更新workpack、证据和完整验证门。
