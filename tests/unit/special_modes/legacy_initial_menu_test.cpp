@@ -28,6 +28,7 @@ using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
 using openswd3::special_modes::draw_legacy_standard_mode_ghost;
+using openswd3::special_modes::index_legacy_standard_mode_forward_node;
 using openswd3::special_modes::initialize_legacy_initial_menu;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
@@ -1112,6 +1113,49 @@ void test_standard_mode_forward_head_advance(openswd3::test::Context& test) {
                 &aliased &&
             aliased == &third,
         "0x43B9A0 preserves source/output variable aliasing"
+    );
+}
+
+void test_standard_mode_forward_node_index(openswd3::test::Context& test) {
+    const LegacyStandardModeForwardNode third{};
+    const LegacyStandardModeForwardNode second{&third};
+    const LegacyStandardModeForwardNode first{&second};
+    const LegacyStandardModeForwardNode* head = nullptr;
+
+    test.expect_true(
+        index_legacy_standard_mode_forward_node(0, &head) == nullptr,
+        "0x43B9C0 count zero returns an empty head without traversing"
+    );
+
+    head = &first;
+    test.expect_true(
+        index_legacy_standard_mode_forward_node(-1, &head) == &first &&
+            index_legacy_standard_mode_forward_node(0, &head) == &first,
+        "0x43B9C0 signed non-positive counts return the loaded head"
+    );
+    test.expect_true(
+        index_legacy_standard_mode_forward_node(1, &head) == &second &&
+            index_legacy_standard_mode_forward_node(2, &head) == &third &&
+            index_legacy_standard_mode_forward_node(3, &head) == nullptr,
+        "0x43B9C0 follows exactly the requested number of offset-zero links"
+    );
+    test.expect_true(
+        head == &first && first.next == &second && second.next == &third &&
+            third.next == nullptr,
+        "0x43B9C0 leaves the head variable and traversed chain unchanged"
+    );
+
+    LegacyStandardModeForwardNode cycle_first{};
+    LegacyStandardModeForwardNode cycle_second{};
+    cycle_first.next = &cycle_second;
+    cycle_second.next = &cycle_first;
+    const LegacyStandardModeForwardNode* cycle_head = &cycle_first;
+    test.expect_true(
+        index_legacy_standard_mode_forward_node(5, &cycle_head) ==
+                &cycle_second &&
+            cycle_head == &cycle_first && cycle_first.next == &cycle_second &&
+            cycle_second.next == &cycle_first,
+        "0x43B9C0 advances a finite count through cycles without cycle handling"
     );
 }
 
@@ -2353,6 +2397,7 @@ int main() {
     test_text_object_result_and_edited_name(test);
     test_standard_mode_forward_node_count(test);
     test_standard_mode_forward_head_advance(test);
+    test_standard_mode_forward_node_index(test);
     test_standard_mode_callback_binding(test);
     test_standard_mode_global_initialization(test);
     test_standard_mode_ghost_draw(test);

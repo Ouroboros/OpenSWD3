@@ -535,6 +535,12 @@ advance_legacy_standard_mode_forward_head(
     const LegacyStandardModeForwardNode** output_head
 ) noexcept;
 
+// sub_43B9C0: return one node after advancing from an intrusive head variable.
+[[nodiscard]] const LegacyStandardModeForwardNode*
+index_legacy_standard_mode_forward_node(
+    compat::i32 count, const LegacyStandardModeForwardNode* const* head
+) noexcept;
+
 // sub_43B080: update and draw one standard-mode ghost action.
 [[nodiscard]] LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,

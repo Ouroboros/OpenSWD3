@@ -352,6 +352,21 @@ const LegacyStandardModeForwardNode** advance_legacy_standard_mode_forward_head(
     return output_head;
 }
 
+const LegacyStandardModeForwardNode* index_legacy_standard_mode_forward_node(
+    compat::i32 count, const LegacyStandardModeForwardNode* const* head
+) noexcept {
+    const LegacyStandardModeForwardNode* node = *head;
+    if (count <= 0) {
+        return node;
+    }
+
+    do {
+        node = node->next;
+        --count;
+    } while (count != 0);
+    return node;
+}
+
 LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,
     asset_runtime::LegacyActionRecord& record,
