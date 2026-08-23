@@ -695,6 +695,85 @@ struct LegacyStandardModeAvailabilityResult {
     bool available{};
 };
 
+inline constexpr std::size_t kLegacyStandardModeDatabaseRecordCount = 0x4B0U;
+inline constexpr std::size_t kLegacyStandardModeMirrorSourceCount = 0x7FU;
+
+struct LegacyStandardModeAdjustmentNode {
+    LegacyStandardModeAdjustmentNode* next{};
+    compat::u16 field_04{};
+    compat::u16 combined_value{};
+    compat::u16 first_value{};
+    compat::u16 second_value{};
+};
+
+struct LegacyStandardModeDatabaseInitializationState {
+    std::array<compat::i32, kLegacyStandardModeDatabaseRecordCount>
+        field_5e_table{};
+    std::array<compat::i32, kLegacyStandardModeDatabaseRecordCount>
+        field_60_table{};
+    std::array<compat::i32, kLegacyStandardModeDatabaseRecordCount>
+        field_2c_table{};
+    std::array<compat::i32, kLegacyStandardModeDatabaseRecordCount>
+        field_a7_table{};
+    std::array<compat::u8, 0xB0U> scan_record{};
+    std::array<compat::u8, 0xB0U> first_runtime_record{};
+    std::array<compat::u8, 0xB0U> second_runtime_record{};
+    LegacyStandardModeAdjustmentNode* adjustment_head{};
+    LegacyStandardModeForwardNode* forward_head{};
+    const LegacyStandardModeForwardNode* bounded_forward_node{};
+    compat::u32 forward_count{};
+    compat::i32 bounded_forward_count{};
+    asset_runtime::LegacyActionRecord primary_action{};
+    asset_runtime::LegacyActionRecord secondary_action{};
+    compat::u32 interface_source_value{};
+    compat::u32 first_reset{};
+    compat::u32 second_reset{};
+    compat::u32 third_reset{};
+    compat::u32 fourth_reset{};
+    compat::u32 fifth_reset{};
+    compat::u32 enable_flag{};
+    compat::u32 scan_index{};
+    compat::u16 first_missing_text_index{};
+    compat::u16 second_missing_text_index{};
+    std::array<std::array<compat::u8, 0xF0U>, 4U> small_buffers{};
+    std::array<std::array<compat::u8, 0x1B8U>, 4U> large_buffers{};
+    std::array<compat::i32, 0x100U> mirrored_values{};
+    compat::u16 callback_phase{};
+};
+
+enum class LegacyStandardModeDatabaseInitializationStatus : compat::u8 {
+    completed,
+    mirror_source_out_of_range,
+};
+
+struct LegacyStandardModeDatabaseInitializationResult {
+    LegacyStandardModeDatabaseInitializationStatus status{
+        LegacyStandardModeDatabaseInitializationStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 scan_count{};
+    compat::u32 loaded_record_count{};
+    compat::u32 released_record_count{};
+    compat::u32 adjusted_node_count{};
+    compat::u32 mirror_write_count{};
+};
+
+class LegacyStandardModeDatabaseInitializationPorts {
+public:
+    virtual ~LegacyStandardModeDatabaseInitializationPorts() = default;
+    [[nodiscard]] virtual bool load_record(
+        std::span<compat::u8> destination, compat::u16 record_id
+    ) noexcept = 0;
+    virtual void release_record(compat::u32 token) noexcept = 0;
+    virtual void
+    release_scan_storage(std::span<compat::u8> storage) noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    initialize_forward_list() noexcept = 0;
+    virtual void initialize_interface_sample(
+        compat::u16 sample_id, compat::u32 interface_source_value
+    ) noexcept = 0;
+};
+
 struct LegacyStandardModeRuntimeInitializationState {
     std::array<compat::u8, 0xB0U> scratch_record{};
     std::array<compat::u8, 0x200U> loaded_status{};
@@ -1464,6 +1543,14 @@ render_legacy_standard_mode_entry(
     compat::i32 selected,
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeRuntimeRenderPorts& ports
+) noexcept;
+
+// sub_43D530: initialize standard-mode record tables and runtime owners.
+[[nodiscard]] LegacyStandardModeDatabaseInitializationResult
+initialize_legacy_standard_mode_database(
+    LegacyStandardModeDatabaseInitializationState& state,
+    std::span<const compat::i32> mirror_source,
+    LegacyStandardModeDatabaseInitializationPorts& ports
 ) noexcept;
 
 // sub_43D470: draw neighboring mode resources and the active center resource.

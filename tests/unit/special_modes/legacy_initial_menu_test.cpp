@@ -47,12 +47,14 @@ using openswd3::special_modes::find_legacy_standard_mode_value_group;
 using openswd3::special_modes::format_legacy_standard_mode_derived_text;
 using openswd3::special_modes::index_legacy_standard_mode_forward_node;
 using openswd3::special_modes::initialize_legacy_initial_menu;
+using openswd3::special_modes::initialize_legacy_standard_mode_database;
 using openswd3::special_modes::initialize_legacy_standard_mode_dialog_setup;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::initialize_legacy_standard_mode_entries;
 using openswd3::special_modes::initialize_legacy_standard_mode_runtime;
 using openswd3::special_modes::dispatch_legacy_standard_mode_input;
 using openswd3::special_modes::dispatch_legacy_standard_mode_selected_record;
+using openswd3::special_modes::kLegacyStandardModeMirrorSourceCount;
 using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::
     kLegacyStandardSpecialModeInitializationRecordCount;
@@ -98,6 +100,7 @@ using openswd3::special_modes::LegacyStandardModeInputState;
 using openswd3::special_modes::LegacyStandardModeAnimatedPanelPorts;
 using openswd3::special_modes::LegacyStandardModeAvailabilityRecord;
 using openswd3::special_modes::LegacyStandardModeAvailabilityStatus;
+using openswd3::special_modes::LegacyStandardModeAdjustmentNode;
 using openswd3::special_modes::LegacyStandardModeAnimatedPanelState;
 using openswd3::special_modes::LegacyStandardModeBarFrame;
 using openswd3::special_modes::LegacyStandardModeBarOutputs;
@@ -2455,6 +2458,204 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
                 state.entries[0U] == 1U && state.entries[1U] == 0U &&
                 state.window_offset == 4 && ports.released_tokens.empty(),
             "0x43C9C0 typed-stops at unsafe source termination or short-slot copy before release"
+        );
+    }
+}
+
+void test_standard_mode_database_initialization(openswd3::test::Context& test) {
+    class DatabasePorts final
+        : public openswd3::special_modes::
+              LegacyStandardModeDatabaseInitializationPorts {
+    public:
+        [[nodiscard]] bool load_record(
+            const std::span<u8> destination, const u16 record_id
+        ) noexcept override {
+            ++load_count;
+            if (record_id != 0U && record_id != 0x04AFU) {
+                return false;
+            }
+            const auto write_u16 = [&](const std::size_t scratch_offset,
+                                       const u16 value) {
+                const std::size_t offset = scratch_offset - 0x0CU;
+                destination[offset] = static_cast<u8>(value);
+                destination[offset + 1U] = static_cast<u8>(value >> 8U);
+            };
+            const auto write_u32 = [&](const std::size_t scratch_offset,
+                                       const u32 value) {
+                const std::size_t offset = scratch_offset - 0x0CU;
+                destination[offset] = static_cast<u8>(value);
+                destination[offset + 1U] = static_cast<u8>(value >> 8U);
+                destination[offset + 2U] = static_cast<u8>(value >> 16U);
+                destination[offset + 3U] = static_cast<u8>(value >> 24U);
+            };
+            write_u16(0x5EU, record_id == 0U ? 0x1234U : 0x4321U);
+            write_u16(0x60U, record_id == 0U ? 0x5678U : 0x8765U);
+            write_u32(0x2CU, record_id == 0U ? 0x89ABCDEFU : 0x10203040U);
+            destination[0xA7U - 0x0CU] = record_id == 0U ? 0xFEU : 0x7FU;
+            write_u32(0xACU, record_id == 0U ? 0xAABBCCDDU : 0x11223344U);
+            return true;
+        }
+        void release_record(const u32 token) noexcept override {
+            released_tokens.push_back(token);
+        }
+        void
+        release_scan_storage(const std::span<u8> storage) noexcept override {
+            ++scan_storage_release_count;
+            released_scan_token = static_cast<u32>(storage[0xACU]) |
+                (static_cast<u32>(storage[0xADU]) << 8U) |
+                (static_cast<u32>(storage[0xAEU]) << 16U) |
+                (static_cast<u32>(storage[0xAFU]) << 24U);
+        }
+        [[nodiscard]] LegacyStandardModeForwardNode*
+        initialize_forward_list() noexcept override {
+            ++forward_initialization_count;
+            return forward_head;
+        }
+        void initialize_interface_sample(
+            const u16 sample_id, const u32 interface_source_value
+        ) noexcept override {
+            sample_ids.push_back(sample_id);
+            interface_values.push_back(interface_source_value);
+        }
+
+        u32 load_count{};
+        u32 scan_storage_release_count{};
+        u32 released_scan_token{};
+        u32 forward_initialization_count{};
+        LegacyStandardModeForwardNode* forward_head{};
+        std::vector<u32> released_tokens;
+        std::vector<u16> sample_ids;
+        std::vector<u32> interface_values;
+    };
+
+    LegacyStandardModeAdjustmentNode second_adjustment{
+        .first_value = 7U,
+        .second_value = 9U,
+    };
+    LegacyStandardModeAdjustmentNode first_adjustment{
+        .next = &second_adjustment,
+        .first_value = 0xFFFFU,
+        .second_value = 2U,
+    };
+    LegacyStandardModeForwardNode third_forward{};
+    LegacyStandardModeForwardNode second_forward{&third_forward};
+    LegacyStandardModeForwardNode first_forward{&second_forward};
+    openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+        state;
+    state.adjustment_head = &first_adjustment;
+    state.interface_source_value = 0x55667788U;
+    state.primary_action.cached_action_id = 0xCAFEBABEU;
+    state.secondary_action.cached_action_id = 0x0BADF00DU;
+    state.small_buffers[0U].fill(0xA5U);
+    state.large_buffers[0U].fill(0x5AU);
+    state.mirrored_values.fill(777);
+    std::array<i32, kLegacyStandardModeMirrorSourceCount> mirror_source{};
+    for (std::size_t index = 0U; index < mirror_source.size(); ++index) {
+        mirror_source[index] = static_cast<i32>(index * 2U + 1U);
+    }
+    DatabasePorts ports;
+    ports.forward_head = &first_forward;
+
+    const auto result =
+        initialize_legacy_standard_mode_database(state, mirror_source, ports);
+    test.expect_true(
+        result.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeDatabaseInitializationStatus::completed &&
+            result.legacy_return_value == -126 && result.scan_count == 0x4B0U &&
+            result.loaded_record_count == 2U &&
+            result.released_record_count == 0x4B0U &&
+            result.adjusted_node_count == 2U &&
+            result.mirror_write_count == 254U && ports.load_count == 0x4B0U &&
+            ports.released_tokens.size() == 0x4B0U &&
+            ports.released_tokens.front() == 0xAABBCCDDU &&
+            ports.released_tokens[1U] == 0U &&
+            ports.released_tokens.back() == 0x11223344U &&
+            ports.scan_storage_release_count == 1U &&
+            ports.released_scan_token == 0x11223344U,
+        "0x43D530 scans 1200 records and releases every token plus scan storage"
+    );
+    test.expect_true(
+        state.field_5e_table[0U] == 0x1234 &&
+            state.field_60_table[0U] == 0x5678 &&
+            static_cast<u32>(state.field_2c_table[0U]) == 0x89ABCDEFU &&
+            state.field_a7_table[0U] == -2 && state.field_5e_table[1U] == -1 &&
+            state.field_60_table[1U] == -1 && state.field_2c_table[1U] == -1 &&
+            state.field_a7_table[1U] == -1 &&
+            state.field_5e_table[0x4AFU] == 0x4321 &&
+            state.field_a7_table[0x4AFU] == 0x7F,
+        "0x43D530 publishes successful fields and preserves minus-one failed-record sentinels"
+    );
+    test.expect_true(
+        first_adjustment.combined_value == 1U &&
+            second_adjustment.combined_value == 16U &&
+            state.primary_action.action_id == 0x232AU &&
+            state.primary_action.base_variant == 0x3BU &&
+            state.primary_action.cached_action_id == 0xCAFEBABEU &&
+            state.secondary_action.action_id == 0x233BU &&
+            state.secondary_action.base_variant == 0U &&
+            state.secondary_action.cached_action_id == 0x0BADF00DU &&
+            state.forward_head == &first_forward && state.forward_count == 3U &&
+            state.bounded_forward_count == 3 &&
+            state.bounded_forward_node == nullptr &&
+            ports.forward_initialization_count == 1U &&
+            ports.sample_ids == std::vector<u16>{0x136U} &&
+            ports.interface_values == std::vector<u32>{0x55667788U},
+        "0x43D530 preserves linked adjustment, action fields and forward-list helper order"
+    );
+    test.expect_true(
+        state.first_missing_text_index == 0xFFDCU &&
+            state.second_missing_text_index == 0xFFDCU &&
+            state.enable_flag == 1U && state.scan_index == 0U &&
+            state.first_reset == 0U && state.second_reset == 0U &&
+            state.third_reset == 0U && state.fourth_reset == 0U &&
+            state.fifth_reset == 0U && state.callback_phase == 2U &&
+            state.small_buffers[0U][0U] == 0xA5U &&
+            state.small_buffers[0U].back() == 0xA5U &&
+            state.large_buffers[0U][0U] == 0x5AU &&
+            state.large_buffers[0U].back() == 0x5AU &&
+            state.mirrored_values[0U] == 777 &&
+            state.mirrored_values[1U] == 777 &&
+            state.mirrored_values[2U] == -126 &&
+            state.mirrored_values[0x7FU] == -1 &&
+            state.mirrored_values[0x80U] == 0 &&
+            state.mirrored_values[0x81U] == 1 &&
+            state.mirrored_values[0xFEU] == 126 &&
+            state.mirrored_values[0xFFU] == 777,
+        "0x43D530 preserves malloc bytes while writing exact mirrored half ranges and constants"
+    );
+
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            stopped_state;
+        stopped_state.interface_source_value = 9U;
+        stopped_state.fourth_reset = 11U;
+        stopped_state.fifth_reset = 12U;
+        stopped_state.callback_phase = 7U;
+        stopped_state.mirrored_values.fill(99);
+        DatabasePorts stopped_ports;
+        const std::array<i32, kLegacyStandardModeMirrorSourceCount - 1U>
+            short_source{};
+        const auto stopped = initialize_legacy_standard_mode_database(
+            stopped_state, short_source, stopped_ports
+        );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseInitializationStatus::
+                            mirror_source_out_of_range &&
+                stopped.scan_count == 0x4B0U &&
+                stopped.released_record_count == 0x4B0U &&
+                stopped_ports.sample_ids == std::vector<u16>{0x136U} &&
+                stopped_state.enable_flag == 1U &&
+                stopped_state.fourth_reset == 11U &&
+                stopped_state.fifth_reset == 12U &&
+                stopped_state.callback_phase == 7U &&
+                std::ranges::all_of(
+                    stopped_state.mirrored_values,
+                    [](const i32 value) { return value == 99; }
+                ),
+            "0x43D530 mirror typed-stop occurs after setup and before final writes"
         );
     }
 }
@@ -6582,6 +6783,7 @@ int main() {
     test_standard_mode_entry_alias(test);
     test_standard_mode_page_refresh(test);
     test_standard_mode_entry_initialization(test);
+    test_standard_mode_database_initialization(test);
     test_standard_mode_runtime_initialization(test);
     test_standard_mode_entry_consumption(test);
     test_standard_mode_runtime_input_dispatch(test);

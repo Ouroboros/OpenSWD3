@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v468
+版本：v469
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043D530`
+当前步骤：模块9 · 闭环`0x0043D880`
 
 ## 0. 执行约定
 
@@ -3457,9 +3457,20 @@ B7 P0 有限收口完成。
     `43/227`，SHA256为`33cc4028a439a928bb19dd5af0b63664af1eda7993a6dbac96dc03dbb49de35d`；
     Linux core188/188与Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库初始化`0x0043D530`闭环。LST范围`0x0043D530..0x0043D873`，由callback
+    间接调用。四个1200项表先填-1；逐ID清0xB0 record、加载、成功发布`+5E/+60/+2C/signed +A7`，
+    并无条件release `+AC` token。扫描后release storage。两个runtime record清零，adjustment链按
+    u16回绕写两字段和，随后写action常量、reset/enable、调用尚未关闭F000边界并直接复用B980/BC90。
+    两文本索引为FFDC，sample固定136。四个F0、四个1B8 buffer保留malloc未初始化字节；0x400表只按
+    127个source写`mirror[128+i]=v/2`和`mirror[128-i]=v/-2`，未写位置保持。定向UT覆盖1200扫描、
+    signed字段、链表、forward helpers、未初始化字节、镜像范围/EAX及source短缺停止顺序。workpack
+    连续两轮稳定为`44/227`，SHA256为
+    `87f11ac9fefc9d31d6e69347fb52003c4dfe4797db9df11036fbd719a6133e91`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`43/227`，下一单元为`0x0043D530`。
+进行中，正式进度为`44/227`，下一单元为`0x0043D880`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043D530`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043D880`，继续更新workpack、证据和完整验证门。

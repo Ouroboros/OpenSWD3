@@ -2183,6 +2183,99 @@ LegacyStandardModeEntryRenderResult render_legacy_standard_mode_entry(
     return result;
 }
 
+LegacyStandardModeDatabaseInitializationResult
+initialize_legacy_standard_mode_database(
+    LegacyStandardModeDatabaseInitializationState& state,
+    const std::span<const compat::i32> mirror_source,
+    LegacyStandardModeDatabaseInitializationPorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseInitializationResult result;
+    state.field_5e_table.fill(-1);
+    state.field_60_table.fill(-1);
+    state.field_2c_table.fill(-1);
+    state.field_a7_table.fill(-1);
+    state.scan_index = 0U;
+    for (compat::u32 record_id = 0U;
+         record_id < kLegacyStandardModeDatabaseRecordCount;
+         ++record_id) {
+        state.scan_record.fill(0U);
+        const bool loaded = ports.load_record(
+            std::span<compat::u8>{state.scan_record}.subspan(0x0CU),
+            static_cast<compat::u16>(record_id)
+        );
+        if (loaded) {
+            state.field_5e_table[record_id] =
+                static_cast<compat::i32>(read_u16_le(state.scan_record, 0x5EU));
+            state.field_60_table[record_id] =
+                static_cast<compat::i32>(read_u16_le(state.scan_record, 0x60U));
+            state.field_2c_table[record_id] = std::bit_cast<compat::i32>(
+                read_u32_le(state.scan_record, 0x2CU)
+            );
+            state.field_a7_table[record_id] = static_cast<compat::i32>(
+                std::bit_cast<compat::i8>(state.scan_record[0xA7U])
+            );
+            ++result.loaded_record_count;
+        }
+        ports.release_record(read_u32_le(state.scan_record, 0xACU));
+        ++result.released_record_count;
+        state.scan_index = record_id + 1U;
+    }
+    result.scan_count = state.scan_index;
+    ports.release_scan_storage(state.scan_record);
+
+    state.first_runtime_record.fill(0U);
+    state.second_runtime_record.fill(0U);
+    for (LegacyStandardModeAdjustmentNode* node = state.adjustment_head;
+         node != nullptr;
+         node = node->next) {
+        node->combined_value = static_cast<compat::u16>(
+            static_cast<compat::u32>(node->first_value) +
+            static_cast<compat::u32>(node->second_value)
+        );
+        ++result.adjusted_node_count;
+    }
+
+    state.primary_action.action_id = 0x232AU;
+    state.primary_action.base_variant = 0x3BU;
+    state.secondary_action.action_id = 0x233BU;
+    state.secondary_action.base_variant = 0U;
+    state.first_reset = 0U;
+    state.second_reset = 0U;
+    state.enable_flag = 1U;
+    state.scan_index = 0U;
+    state.third_reset = 0U;
+
+    state.forward_head = ports.initialize_forward_list();
+    state.forward_count =
+        count_legacy_standard_mode_forward_nodes(state.forward_head);
+    state.bounded_forward_node =
+        count_legacy_standard_mode_forward_nodes_bounded(
+            state.forward_head, state.bounded_forward_count, 0x10
+        );
+    state.first_missing_text_index = 0xFFDCU;
+    state.second_missing_text_index = 0xFFDCU;
+    ports.initialize_interface_sample(0x0136U, state.interface_source_value);
+
+    if (mirror_source.size() < kLegacyStandardModeMirrorSourceCount) {
+        result.status = LegacyStandardModeDatabaseInitializationStatus::
+            mirror_source_out_of_range;
+        return result;
+    }
+    for (std::size_t index = 0U; index < kLegacyStandardModeMirrorSourceCount;
+         ++index) {
+        const compat::i32 value = mirror_source[index];
+        state.mirrored_values[0x80U + index] = value / 2;
+        const compat::i32 reverse_value = value / -2;
+        state.mirrored_values[0x80U - index] = reverse_value;
+        result.legacy_return_value = reverse_value;
+        result.mirror_write_count += 2U;
+    }
+    state.fourth_reset = 0U;
+    state.fifth_reset = 0U;
+    state.callback_phase = 2U;
+    return result;
+}
+
 LegacyStandardModeModeStripResult render_legacy_standard_mode_mode_strip(
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeRuntimeRenderPorts& ports
