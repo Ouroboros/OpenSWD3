@@ -42,6 +42,7 @@ using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
 using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
+using openswd3::special_modes::retreat_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::initialize_legacy_standard_mode_selector;
 using openswd3::special_modes::initialize_legacy_standard_special_modes;
 using openswd3::special_modes::kLegacyInitialMenuCommitCounter;
@@ -89,6 +90,7 @@ using openswd3::special_modes::LegacyStandardModeTransitionText;
 using openswd3::special_modes::LegacyStandardModeTransitionTextOwner;
 using openswd3::special_modes::LegacyStandardModeTextResolutionStatus;
 using openswd3::special_modes::LegacyStandardModeWindowCursorAdvanceReturnKind;
+using openswd3::special_modes::LegacyStandardModeWindowCursorRetreatReturnKind;
 using openswd3::special_modes::LegacyStandardModeSelectorState;
 using openswd3::special_modes::LegacyStandardSpecialModeInitializationPorts;
 using openswd3::special_modes::LegacyStandardSpecialModePorts;
@@ -1486,6 +1488,84 @@ void test_standard_mode_window_cursor_advance(openswd3::test::Context& test) {
     }
 }
 
+void test_standard_mode_window_cursor_retreat(openswd3::test::Context& test) {
+    struct Case {
+        i32 initial_window_offset{};
+        i32 initial_local_cursor{};
+        i32 expected_window_offset{};
+        i32 expected_local_cursor{};
+        i32 expected_return{};
+        bool expected_pointer_return{};
+        bool expected_cursor_clamped{};
+        bool expected_window_offset_retreat{};
+    };
+    constexpr std::array cases{
+        Case{5, 2, 5, 1, 0, true, false, false},
+        Case{5, 1, 5, 0, 0, true, false, false},
+        Case{5, 0, 4, 0, 4, false, true, true},
+        Case{1, 0, 0, 0, 0, false, true, true},
+        Case{0, 0, 0, 0, 0, false, true, false},
+        Case{-1, 0, -1, 0, -1, false, true, false},
+        Case{
+            std::numeric_limits<i32>::min(),
+            0,
+            std::numeric_limits<i32>::min(),
+            0,
+            std::numeric_limits<i32>::min(),
+            false,
+            true,
+            false,
+        },
+        Case{
+            5,
+            std::numeric_limits<i32>::min(),
+            5,
+            std::numeric_limits<i32>::max(),
+            0,
+            true,
+            false,
+            false,
+        },
+        Case{
+            std::numeric_limits<i32>::max(),
+            0,
+            std::numeric_limits<i32>::max() - 1,
+            0,
+            std::numeric_limits<i32>::max() - 1,
+            false,
+            true,
+            true,
+        },
+    };
+
+    for (const auto& sample : cases) {
+        i32 window_offset = sample.initial_window_offset;
+        i32 local_cursor = sample.initial_local_cursor;
+        const auto result = retreat_legacy_standard_mode_window_cursor(
+            window_offset, local_cursor
+        );
+        const bool pointer_return = result.legacy_return_kind ==
+                LegacyStandardModeWindowCursorRetreatReturnKind::
+                    local_cursor_pointer &&
+            result.legacy_cursor_pointer == &local_cursor;
+        const bool value_return = result.legacy_return_kind ==
+                LegacyStandardModeWindowCursorRetreatReturnKind::
+                    window_offset_value &&
+            result.legacy_cursor_pointer == nullptr &&
+            result.legacy_return_value == sample.expected_return;
+        test.expect_true(
+            window_offset == sample.expected_window_offset &&
+                local_cursor == sample.expected_local_cursor &&
+                (sample.expected_pointer_return ? pointer_return
+                                                : value_return) &&
+                result.cursor_clamped == sample.expected_cursor_clamped &&
+                result.window_offset_retreat ==
+                    sample.expected_window_offset_retreat,
+            "0x43BBC0 preserves predecrement, zero clamp, offset retreat and union EAX"
+        );
+    }
+}
+
 #ifdef OPENSWD3_GAME_DATA_ROOT
 void test_standard_mode_shared_text_real_asset(openswd3::test::Context& test) {
     const std::filesystem::path maps_path =
@@ -2770,6 +2850,7 @@ int main() {
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);
     test_standard_mode_window_cursor_advance(test);
+    test_standard_mode_window_cursor_retreat(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT
     test_standard_mode_shared_text_real_asset(test);
 #endif

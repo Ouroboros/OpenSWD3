@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v442
+版本：v443
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043BBC0`
+当前步骤：模块9 · 闭环`0x0043BBE0`
 
 ## 0. 执行约定
 
@@ -3198,9 +3198,19 @@ B7 P0 有限收口完成。
     `3c78e939eb8fff41dbdf4a848fba4052917c07d4e52293b35221b390452340ed`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式窗口游标回退helper`0x0043BBC0`闭环。LST范围`0x0043BBC0..0x0043BBDE`
+    以32位回绕无条件递减local cursor；结果非负时不读取offset并返回local cursor参数地址，
+    结果为负时把cursor钳0，仅在window offset为signed正数时递减并返回最终offset。8个callsite、
+    7个caller虽均压入5项，但函数只读取offset与cursor两个指针；total、visible和立即数均未读。
+    `0x00446037`分支传播指针/整数联合EAX，modern以显式return kind隔离typed指针与i32值。
+    定向UT覆盖预减、零边界、正/零/负offset、`INT_MIN/INT_MAX`回绕和两类返回。workpack连续
+    两轮稳定为`19/227`，SHA256为
+    `1ab952b8fbe8927855dc0644a28926d30b3beaa5b54df64a2cb84c2676dea681`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`18/227`，下一单元为`0x0043BBC0`。
+进行中，正式进度为`19/227`，下一单元为`0x0043BBE0`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043BBC0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043BBE0`，继续更新workpack、证据和完整验证门。

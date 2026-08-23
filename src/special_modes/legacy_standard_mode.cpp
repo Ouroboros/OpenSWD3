@@ -591,6 +591,36 @@ advance_legacy_standard_mode_window_cursor(
     return result;
 }
 
+LegacyStandardModeWindowCursorRetreatResult
+retreat_legacy_standard_mode_window_cursor(
+    compat::i32& window_offset, compat::i32& local_cursor
+) noexcept {
+    local_cursor = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(local_cursor) - 1U
+    );
+    LegacyStandardModeWindowCursorRetreatResult result{
+        .legacy_cursor_pointer = &local_cursor,
+    };
+    if (local_cursor >= 0) {
+        return result;
+    }
+
+    local_cursor = 0;
+    result.legacy_return_kind =
+        LegacyStandardModeWindowCursorRetreatReturnKind::window_offset_value;
+    result.legacy_cursor_pointer = nullptr;
+    result.legacy_return_value = window_offset;
+    result.cursor_clamped = true;
+    if (window_offset <= 0) {
+        return result;
+    }
+
+    --window_offset;
+    result.legacy_return_value = window_offset;
+    result.window_offset_retreat = true;
+    return result;
+}
+
 LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,
     asset_runtime::LegacyActionRecord& record,

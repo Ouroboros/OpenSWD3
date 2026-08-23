@@ -568,6 +568,21 @@ struct LegacyStandardModeWindowCursorAdvanceResult {
     bool window_offset_advanced{};
 };
 
+enum class LegacyStandardModeWindowCursorRetreatReturnKind : compat::u8 {
+    local_cursor_pointer,
+    window_offset_value,
+};
+
+struct LegacyStandardModeWindowCursorRetreatResult {
+    LegacyStandardModeWindowCursorRetreatReturnKind legacy_return_kind{
+        LegacyStandardModeWindowCursorRetreatReturnKind::local_cursor_pointer
+    };
+    const compat::i32* legacy_cursor_pointer{};
+    compat::i32 legacy_return_value{};
+    bool cursor_clamped{};
+    bool window_offset_retreat{};
+};
+
 // sub_43B980: count one intrusive forward chain through its offset-zero links.
 [[nodiscard]] compat::u32 count_legacy_standard_mode_forward_nodes(
     const LegacyStandardModeForwardNode* head
@@ -620,6 +635,12 @@ advance_legacy_standard_mode_window_cursor(
     compat::i32& window_offset,
     compat::i32& local_cursor,
     compat::i32 visible_count
+) noexcept;
+
+// sub_43BBC0: decrement a local cursor, then clamp and retreat its window.
+[[nodiscard]] LegacyStandardModeWindowCursorRetreatResult
+retreat_legacy_standard_mode_window_cursor(
+    compat::i32& window_offset, compat::i32& local_cursor
 ) noexcept;
 
 // sub_43B080: update and draw one standard-mode ghost action.
