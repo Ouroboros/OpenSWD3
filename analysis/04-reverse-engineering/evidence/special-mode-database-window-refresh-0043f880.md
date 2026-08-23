@@ -2,7 +2,7 @@
 
 状态：`platform_adapted`、`unit_tested`
 
-唯一行为真值为`swd3.exe.lst`。范围`0x0043F880..0x0043F93C`，98行；六个caller为DD20、DDF0、DED0、DFA0、E080、E170。callee为已关闭B980、B9A0、BB40、BC90、F160，以及未独立关闭F940和44D5D0。
+唯一行为真值为`swd3.exe.lst`。范围`0x0043F880..0x0043F93C`，98行；六个caller为DD20、DDF0、DED0、DFA0、E080、E170。callee B980、B9A0、BB40、BC90、F160、F940均已关闭；44D5D0继续保留分配边界。
 
 ## 控制流
 
@@ -16,7 +16,7 @@
 6. BC90以16为上限写visible count和尾节点。
 7. BB40归一化local cursor/window offset，并直接传播其路径相关EAX。
 
-新增`refresh_legacy_standard_mode_database_window`结果合同，记录ignored/refreshed路径、helper数、F940调用和空head分配。F940仍由收窄后的`refresh_database_records` port承载，不提前计数；44D5D0由独立分配port承载。FCAB8复用既有`direction_selection` owner，与E250/E310及E800保持同一真值，没有新增平行状态。
+新增`refresh_legacy_standard_mode_database_window`结果合同，记录ignored/refreshed路径、helper数、F940调用和空head分配。F940现直接接收32位环绕绝对索引并传播typed-stop；44D5D0由独立分配port承载。FCAB8复用既有`direction_selection` owner，与E250/E310及E800保持同一真值，没有新增平行状态。
 
 六caller均已从collapsed port调用改为直接typed helper调用；随后仍按原顺序执行F1E0及sample。UT覆盖phase非1早退、source0重建、source>1跳过、空head分配、完整count/sort/window链和BB40返回；既有page及DA30用例修正为观察F160相同key反转和F880后续归一化。
 

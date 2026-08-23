@@ -2439,6 +2439,119 @@ sort_legacy_standard_mode_database_forward_list(
     return result;
 }
 
+LegacyStandardModeDatabaseInlineRefreshResult
+refresh_legacy_standard_mode_database_inline_record(
+    LegacyStandardModeDatabaseInitializationState& state,
+    const bool use_second_inline_record,
+    const compat::i32 absolute_index,
+    LegacyStandardModeDatabaseAdvancePorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseInlineRefreshResult result;
+    const LegacyStandardModeForwardNode* selected = state.forward_head;
+    ++result.helper_call_count;
+    if (absolute_index > 0) {
+        compat::i32 remaining = absolute_index;
+        while (remaining != 0) {
+            if (selected == nullptr) {
+                result.status = LegacyStandardModeDatabaseInlineRefreshStatus::
+                    selected_node_missing;
+                return result;
+            }
+            selected = selected->next;
+            --remaining;
+        }
+    }
+    if (selected == nullptr) {
+        result.status = LegacyStandardModeDatabaseInlineRefreshStatus::
+            selected_node_missing;
+        return result;
+    }
+
+    auto& inline_record = use_second_inline_record ? state.second_inline_record
+                                                   : state.first_inline_record;
+    compat::u16& inline_id = use_second_inline_record
+        ? state.second_missing_text_index
+        : state.first_missing_text_index;
+    result.previous_record_id = read_u16_le(inline_record, 4U);
+    inline_id = result.previous_record_id;
+    const bool previous_selected =
+        is_legacy_standard_mode_database_record_selected(
+            read_u16_le(inline_record, 0x5EU),
+            read_u32_le(inline_record, 0x2CU),
+            state.page_selection
+        );
+    ++result.helper_call_count;
+
+    const auto write_u32 = [](std::span<compat::u8> bytes,
+                              const std::size_t offset,
+                              const compat::u32 value) {
+        bytes[offset] = static_cast<compat::u8>(value);
+        bytes[offset + 1U] = static_cast<compat::u8>(value >> 8U);
+        bytes[offset + 2U] = static_cast<compat::u8>(value >> 16U);
+        bytes[offset + 3U] = static_cast<compat::u8>(value >> 24U);
+    };
+    const compat::u32 previous_token = read_u32_le(inline_record, 0xACU);
+    ports.release_database_inline_value(previous_token);
+    ++result.helper_call_count;
+
+    LegacyStandardModeForwardNode* selected_mutable =
+        const_cast<LegacyStandardModeForwardNode*>(selected);
+    if (selected->combined_value != 0U) {
+        inline_record = selected->record_bytes;
+        write_u16_le(inline_record, 2U, selected->record_enabled);
+        write_u16_le(inline_record, 4U, selected->text_index);
+        write_u16_le(inline_record, 6U, selected->combined_value);
+        write_u16_le(inline_record, 8U, selected->first_value);
+        write_u16_le(inline_record, 0x0AU, selected->second_value);
+        write_u32(inline_record, 0x2CU, selected->filter_flags);
+        write_u16_le(inline_record, 0x5EU, selected->filter_category);
+        write_u16_le(inline_record, 0x60U, selected->filter_value);
+        inline_record[0xA7U] = std::bit_cast<compat::u8>(selected->filter_type);
+        write_u32(inline_record, 0xACU, 0U);
+        if (selected->text_index != 0xFFDCU) {
+            write_u32(
+                inline_record,
+                0xACU,
+                ports.clone_database_inline_value(selected->release_token)
+            );
+            ++result.helper_call_count;
+        }
+        write_u16_le(inline_record, 8U, 0U);
+        write_u16_le(inline_record, 0x0AU, 0U);
+        write_u16_le(inline_record, 6U, 1U);
+        selected_mutable->combined_value =
+            static_cast<compat::u16>(selected_mutable->combined_value - 1U);
+        inline_id = selected->text_index;
+        result.selected_record_copied = true;
+    } else {
+        write_u32(inline_record, 0xACU, 0U);
+        write_u16_le(inline_record, 4U, 0xFFDCU);
+        write_u16_le(inline_record, 8U, 0U);
+        write_u16_le(inline_record, 0x0AU, 0U);
+        write_u16_le(inline_record, 6U, 1U);
+        inline_id = 0xFFDCU;
+    }
+    result.legacy_return_value = selected_mutable;
+
+    if (result.previous_record_id != 0xFFDCU) {
+        LegacyStandardModeForwardNode* recycled =
+            ports.recycle_database_inline_record(
+                state, previous_selected, result.previous_record_id
+            );
+        ++result.helper_call_count;
+        if (recycled == nullptr) {
+            result.status = LegacyStandardModeDatabaseInlineRefreshStatus::
+                recycled_node_missing;
+            return result;
+        }
+        recycled->combined_value =
+            static_cast<compat::u16>(recycled->combined_value + 1U);
+        result.legacy_return_value = recycled;
+        result.previous_record_recycled = true;
+    }
+    return result;
+}
+
 LegacyStandardModeDatabaseWindowRefreshResult
 refresh_legacy_standard_mode_database_window(
     LegacyStandardModeDatabaseInitializationState& state,
@@ -2453,13 +2566,21 @@ refresh_legacy_standard_mode_database_window(
 
     result.path = LegacyStandardModeDatabaseWindowRefreshPath::refreshed;
     if (state.direction_selection <= 1U) {
-        state.record_source_combined_index = std::bit_cast<compat::i32>(
+        const compat::i32 absolute_index = std::bit_cast<compat::i32>(
             std::bit_cast<compat::u32>(state.window_offset) +
             std::bit_cast<compat::u32>(state.list_selection)
         );
-        ports.refresh_database_records(state);
+        const LegacyStandardModeDatabaseInlineRefreshResult inline_result =
+            refresh_legacy_standard_mode_database_inline_record(
+                state, state.direction_selection == 1U, absolute_index, ports
+            );
         ++result.helper_call_count;
         result.source_rebuilt = true;
+        if (inline_result.status !=
+            LegacyStandardModeDatabaseInlineRefreshStatus::completed) {
+            result.status = inline_result.status;
+            return result;
+        }
     }
     if (state.forward_head == nullptr) {
         state.forward_head = ports.allocate_database_forward_node();

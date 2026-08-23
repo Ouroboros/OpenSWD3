@@ -2685,13 +2685,6 @@ void test_standard_mode_database_advance(openswd3::test::Context& test) {
     class AdvancePorts final : public openswd3::special_modes::
                                    LegacyStandardModeDatabaseAdvancePorts {
     public:
-        void refresh_database_records(
-            openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState& state
-        ) noexcept override {
-            events.push_back(1U);
-            state.first_inline_record[0U] = 1U;
-        }
         void rebuild_inline_records(
             const std::span<u8> first_record,
             const std::span<u8> second_record,
@@ -2747,7 +2740,7 @@ void test_standard_mode_database_advance(openswd3::test::Context& test) {
             state.bounded_forward_count == 16 &&
             state.bounded_forward_node == &nodes[17U] &&
             state.display_flags == 0xAB30U &&
-            ports.events == std::vector<u8>{1U, 3U} &&
+            ports.events == std::vector<u8>{3U} &&
             ports.sample_ids == std::vector<u16>{0x2EU} &&
             ports.interface_values == std::vector<u32>{0x55667788U},
         "0x43DD20 phase1 directly composes BB80, B9A0, BC90, F880, F1E0 and sample"
@@ -2844,13 +2837,6 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 *source_head = fallback_node;
             }
         }
-        void refresh_database_records(
-            openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState& state
-        ) noexcept override {
-            events.push_back(1U);
-            state.first_inline_record[0U] = 13U;
-        }
         void rebuild_inline_records(
             const std::span<u8> first_record,
             const std::span<u8> second_record,
@@ -2878,6 +2864,25 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
         }
         void release_runtime_value(u32 value) noexcept override {
             released_runtime_values.push_back(value);
+        }
+        void release_database_inline_value(u32 value) noexcept override {
+            released_inline_values.push_back(value);
+        }
+        [[nodiscard]] u32
+        clone_database_inline_value(u32 source_value) noexcept override {
+            cloned_inline_values.push_back(source_value);
+            return source_value + inline_clone_delta;
+        }
+        [[nodiscard]] LegacyStandardModeForwardNode*
+        recycle_database_inline_record(
+            openswd3::special_modes::
+                LegacyStandardModeDatabaseInitializationState&,
+            bool active_pool,
+            u16 record_id
+        ) noexcept override {
+            recycled_active_pools.push_back(active_pool);
+            recycled_record_ids.push_back(record_id);
+            return recycled_node;
         }
         [[nodiscard]] std::optional<
             openswd3::special_modes::LegacyStandardModeDatabaseRecordPair>
@@ -2907,13 +2912,19 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
         u32 missing_insert_count{};
         u32 empty_allocation_count{};
         u32 database_allocation_count{};
+        u32 inline_clone_delta{0x100U};
         i32 received_page_selection{};
         LegacyStandardModeForwardNode* forward_head{};
+        LegacyStandardModeForwardNode* recycled_node{};
         const LegacyStandardModeForwardNode* fallback_node{};
         std::vector<u8> events;
         std::vector<u32> released_forward_values;
         std::vector<LegacyStandardModeForwardNode*> released_forward_nodes;
         std::vector<u32> released_runtime_values;
+        std::vector<u32> released_inline_values;
+        std::vector<u32> cloned_inline_values;
+        std::vector<bool> recycled_active_pools;
+        std::vector<u16> recycled_record_ids;
         std::optional<
             openswd3::special_modes::LegacyStandardModeDatabaseRecordPair>
             record_pair;
@@ -2940,6 +2951,116 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
     ports.forward_head = &first;
 
     {
+        const auto write_u16 =
+            [](std::array<u8, 0xB0U>& record, std::size_t offset, u16 value) {
+                record[offset] = static_cast<u8>(value);
+                record[offset + 1U] = static_cast<u8>(value >> 8U);
+            };
+        const auto write_u32 =
+            [](std::array<u8, 0xB0U>& record, std::size_t offset, u32 value) {
+                record[offset] = static_cast<u8>(value);
+                record[offset + 1U] = static_cast<u8>(value >> 8U);
+                record[offset + 2U] = static_cast<u8>(value >> 16U);
+                record[offset + 3U] = static_cast<u8>(value >> 24U);
+            };
+
+        LegacyStandardModeForwardNode selected{nullptr, 0x0123U};
+        selected.combined_value = 2U;
+        selected.first_value = 9U;
+        selected.second_value = 10U;
+        selected.release_token = 0x111U;
+        selected.filter_flags = 1U;
+        selected.filter_category = 9U;
+        selected.filter_value = 55U;
+        selected.filter_type = -2;
+        selected.record_enabled = 1U;
+        selected.record_bytes[0U] = 0xAAU;
+        LegacyStandardModeForwardNode leading{&selected, 0x0065U};
+        LegacyStandardModeForwardNode recycled{nullptr, 0x0222U};
+        recycled.combined_value = 5U;
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            inline_state;
+        inline_state.forward_head = &leading;
+        inline_state.page_selection = 0;
+        inline_state.first_missing_text_index = 0x0222U;
+        write_u16(inline_state.first_inline_record, 4U, 0x0222U);
+        write_u32(inline_state.first_inline_record, 0x2CU, 0x100U);
+        write_u32(inline_state.first_inline_record, 0xACU, 0x333U);
+        CyclePorts inline_ports;
+        inline_ports.recycled_node = &recycled;
+        const auto copied = openswd3::special_modes::
+            refresh_legacy_standard_mode_database_inline_record(
+                inline_state, false, 1, inline_ports
+            );
+        test.expect_true(
+            copied.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseInlineRefreshStatus::
+                            completed &&
+                copied.legacy_return_value == &recycled &&
+                copied.previous_record_id == 0x0222U &&
+                copied.helper_call_count == 5U &&
+                copied.selected_record_copied &&
+                copied.previous_record_recycled &&
+                inline_state.first_inline_record[0U] == 0xAAU &&
+                inline_state.first_missing_text_index == 0x0123U &&
+                inline_state.first_inline_record[4U] == 0x23U &&
+                inline_state.first_inline_record[5U] == 0x01U &&
+                inline_state.first_inline_record[6U] == 1U &&
+                inline_state.first_inline_record[8U] == 0U &&
+                inline_state.first_inline_record[0x0AU] == 0U &&
+                inline_state.first_inline_record[0xACU] == 0x11U &&
+                inline_state.first_inline_record[0xADU] == 0x02U &&
+                selected.combined_value == 1U &&
+                recycled.combined_value == 6U &&
+                inline_ports.released_inline_values ==
+                    std::vector<u32>{0x333U} &&
+                inline_ports.cloned_inline_values == std::vector<u32>{0x111U} &&
+                inline_ports.recycled_active_pools ==
+                    std::vector<bool>{false} &&
+                inline_ports.recycled_record_ids == std::vector<u16>{0x0222U},
+            "0x43F940 copies the indexed record, clones its token and recycles the previous ID"
+        );
+
+        inline_state.second_missing_text_index = 0xFFDCU;
+        inline_state.second_inline_record[1U] = 0xBBU;
+        write_u32(inline_state.second_inline_record, 0xACU, 0x444U);
+        const auto empty = openswd3::special_modes::
+            refresh_legacy_standard_mode_database_inline_record(
+                inline_state, true, 0, inline_ports
+            );
+        test.expect_true(
+            empty.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseInlineRefreshStatus::
+                            completed &&
+                !empty.selected_record_copied &&
+                !empty.previous_record_recycled &&
+                empty.helper_call_count == 3U &&
+                inline_state.second_inline_record[1U] == 0xBBU &&
+                inline_state.second_missing_text_index == 0xFFDCU &&
+                inline_state.second_inline_record[4U] == 0xDCU &&
+                inline_state.second_inline_record[5U] == 0xFFU &&
+                inline_state.second_inline_record[6U] == 1U &&
+                inline_ports.released_inline_values.back() == 0x444U,
+            "0x43F940 zero-reference path preserves unrelated bytes and resets the inline header"
+        );
+
+        const auto stopped = openswd3::special_modes::
+            refresh_legacy_standard_mode_database_inline_record(
+                inline_state, false, 3, inline_ports
+            );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseInlineRefreshStatus::
+                            selected_node_missing &&
+                stopped.helper_call_count == 1U,
+            "0x43F940 typed-stops at the original B9A0 null-link read"
+        );
+    }
+
+    {
         openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
             window_state;
         LegacyStandardModeForwardNode window_two{nullptr, 2U};
@@ -2963,8 +3084,7 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 refreshed.legacy_return_value == 1 &&
                 refreshed.helper_call_count == 6U && refreshed.source_rebuilt &&
                 !refreshed.allocated_empty_node &&
-                window_ports.events == std::vector<u8>{1U} &&
-                window_state.record_source_combined_index == 1 &&
+                window_ports.events.empty() &&
                 window_state.forward_count == 3U &&
                 window_state.forward_head == &window_one &&
                 window_one.next == &window_two &&
@@ -3395,7 +3515,7 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 forward_state.shared_text[0U] == 0xB5U &&
                 forward_state.shared_text[1U] == 0x4CU &&
                 forward_state.display_flags == 0x4321U &&
-                forward_ports.events == std::vector<u8>{1U, 3U} &&
+                forward_ports.events == std::vector<u8>{3U} &&
                 forward_ports.sample_ids == std::vector<u16>{0x2EU} &&
                 forward_ports.interface_values == std::vector<u32>{0x87654321U},
             "0x43E170 phase1 wraps page above two and rebuilds BCC0 selection"
@@ -3498,8 +3618,8 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
             state.bounded_forward_count == 3 &&
             state.shared_text[0U] == 0xB5U && state.shared_text[1U] == 0x4CU &&
             state.display_flags == 0xABCDU &&
-            state.first_inline_record[0U] == 13U &&
-            ports.events == std::vector<u8>{1U, 3U} &&
+            state.first_inline_record[0U] == 0U &&
+            ports.events == std::vector<u8>{3U} &&
             ports.sample_ids == std::vector<u16>{0x2EU} &&
             ports.interface_values == std::vector<u32>{0x12345678U},
         "0x43E080 phase1 wraps page, rebuilds BCC0 selection and preserves flags"
@@ -3575,13 +3695,6 @@ void test_standard_mode_database_page_retreat(openswd3::test::Context& test) {
     class PageRetreatPorts final : public openswd3::special_modes::
                                        LegacyStandardModeDatabaseRetreatPorts {
     public:
-        void refresh_database_records(
-            openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState& state
-        ) noexcept override {
-            events.push_back(1U);
-            state.first_inline_record[0U] = 10U;
-        }
         void rebuild_inline_records(
             const std::span<u8> first_record,
             const std::span<u8> second_record,
@@ -3646,8 +3759,8 @@ void test_standard_mode_database_page_retreat(openswd3::test::Context& test) {
             state.bounded_forward_count == 16 &&
             state.bounded_forward_node == &nodes[16U] &&
             state.display_flags == 0xAB03U &&
-            state.first_inline_record[0U] == 10U &&
-            ports.events == std::vector<u8>{1U, 3U} &&
+            state.first_inline_record[0U] == 0U &&
+            ports.events == std::vector<u8>{3U} &&
             ports.sample_ids == std::vector<u16>{0x2EU} &&
             ports.interface_values == std::vector<u32>{0xDDEEFF00U},
         "0x43DFA0 phase1 composes BC60 step16, B9A0, BC90 and OR03 refresh order"
@@ -3707,13 +3820,6 @@ void test_standard_mode_database_page_advance(openswd3::test::Context& test) {
     class PagePorts final : public openswd3::special_modes::
                                 LegacyStandardModeDatabaseAdvancePorts {
     public:
-        void refresh_database_records(
-            openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState& state
-        ) noexcept override {
-            events.push_back(1U);
-            state.first_inline_record[0U] = 7U;
-        }
         void rebuild_inline_records(
             const std::span<u8> first_record,
             const std::span<u8> second_record,
@@ -3771,8 +3877,8 @@ void test_standard_mode_database_page_advance(openswd3::test::Context& test) {
             state.bounded_forward_count == 16 &&
             state.bounded_forward_node == &nodes[32U] &&
             state.display_flags == 0xAB30U &&
-            state.first_inline_record[0U] == 7U &&
-            ports.events == std::vector<u8>{1U, 3U} &&
+            state.first_inline_record[0U] == 0U &&
+            ports.events == std::vector<u8>{3U} &&
             ports.sample_ids == std::vector<u16>{0x2EU} &&
             ports.interface_values == std::vector<u32>{0x99AABBCCU},
         "0x43DED0 phase1 composes BBE0 step16, B9A0, BC90 and OR30 refresh order"
@@ -3830,13 +3936,6 @@ void test_standard_mode_database_retreat(openswd3::test::Context& test) {
     class RetreatPorts final : public openswd3::special_modes::
                                    LegacyStandardModeDatabaseRetreatPorts {
     public:
-        void refresh_database_records(
-            openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState& state
-        ) noexcept override {
-            events.push_back(1U);
-            state.first_inline_record[0U] = 4U;
-        }
         void rebuild_inline_records(
             const std::span<u8> first_record,
             const std::span<u8> second_record,
@@ -3899,8 +3998,8 @@ void test_standard_mode_database_retreat(openswd3::test::Context& test) {
             state.bounded_forward_count == 16 &&
             state.bounded_forward_node == &nodes[16U] &&
             state.display_flags == 0xAB03U &&
-            state.first_inline_record[0U] == 4U &&
-            ports.events == std::vector<u8>{1U, 3U} &&
+            state.first_inline_record[0U] == 0U &&
+            ports.events == std::vector<u8>{3U} &&
             ports.sample_ids == std::vector<u16>{0x2EU} &&
             ports.interface_values == std::vector<u32>{0x11223344U},
         "0x43DDF0 phase1 composes BBC0, B9A0, BC90 and OR03 refresh order"
@@ -4006,12 +4105,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             if (publish_missing_node) {
                 *source_head = &cycle_node;
             }
-        }
-        void refresh_database_records(
-            openswd3::special_modes::
-                LegacyStandardModeDatabaseInitializationState& state
-        ) noexcept override {
-            observed_refresh_list_selection = state.list_selection;
         }
         void rebuild_inline_records(
             std::span<u8>,
@@ -4150,7 +4243,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         u32 secondary_dispatch_count{};
         u32 high_mode_runtime_count{};
         u32 cleanup_forward_node_count{};
-        i32 observed_refresh_list_selection{};
         u32 commit_rebuild_count{};
         u32 phase_1_prepare_count{};
         u32 phase_2_prepare_count{};
@@ -4419,6 +4511,8 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         state.interaction_toggle = 0U;
         state.first_heap_token = 0x11111111U;
         state.second_heap_token = 0x22222222U;
+        state.first_missing_text_index = 0U;
+        state.second_missing_text_index = 0U;
         state.first_inline_record[0x2CU] = 1U;
         state.first_runtime_record[0x2CU] = 1U;
         state.forward_head = &node;
@@ -4530,11 +4624,11 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                 rejected_result.legacy_return_value == 15 &&
                 accepted_result.callback_count == 1U &&
                 accepted_result.last_target == Target::address_0043DDF0 &&
-                accepted_ports.observed_refresh_list_selection == 14 &&
-                state.list_selection == 0 && state.bounded_forward_count == 1 &&
+                state.list_selection == 14 &&
+                state.bounded_forward_count == 0 &&
                 accepted_ports.targets.empty() &&
                 (state.display_flags & 3U) == 3U,
-            "0x43DA30 maps the 24-pixel index before F880 normalizes its one-node fake source"
+            "0x43DA30 preserves the 24-pixel index until F940 typed-stops on the empty fake source"
         );
     }
     {

@@ -533,6 +533,10 @@ struct LegacyStandardModeForwardNode {
     std::string display_name{};
     compat::u32 filter_flags{};
     compat::u16 filter_category{};
+    compat::u16 filter_value{};
+    compat::i8 filter_type{};
+    compat::u16 record_enabled{};
+    std::array<compat::u8, 0xB0U> record_bytes{};
 };
 
 class LegacyStandardModeMissingNodePorts {
@@ -736,19 +740,28 @@ struct LegacyStandardModeDatabaseInitializationState {
     compat::u32 interface_source_value{};
     compat::u32 first_heap_token{};
     compat::u32 second_heap_token{};
-    std::array<compat::u8, 0xB0U> first_inline_record{};
-    std::array<compat::u8, 0xB0U> second_inline_record{};
+    std::array<compat::u8, 0xB0U> first_inline_record = [] {
+        std::array<compat::u8, 0xB0U> record{};
+        record[4U] = 0xDCU;
+        record[5U] = 0xFFU;
+        return record;
+    }();
+    std::array<compat::u8, 0xB0U> second_inline_record = [] {
+        std::array<compat::u8, 0xB0U> record{};
+        record[4U] = 0xDCU;
+        record[5U] = 0xFFU;
+        return record;
+    }();
     asset_runtime::LegacyActionRecord cleanup_action{};
     compat::i32 window_offset{};
     compat::i32 list_selection{};
     compat::i32 page_selection{};
     compat::u32 fourth_reset{};
-    compat::i32 record_source_combined_index{};
     compat::u32 display_flags{};
     compat::u32 interaction_phase{};
     compat::u32 scan_index{};
-    compat::u16 first_missing_text_index{};
-    compat::u16 second_missing_text_index{};
+    compat::u16 first_missing_text_index{0xFFDCU};
+    compat::u16 second_missing_text_index{0xFFDCU};
     std::array<std::array<compat::u8, 0xF0U>, 4U> small_buffers{};
     std::array<std::array<compat::u8, 0x1B8U>, 4U> large_buffers{};
     std::array<compat::i32, 0x100U> mirrored_values{};
@@ -804,12 +817,32 @@ struct LegacyStandardModeDatabaseAdvanceResult {
     bool sample_initialized{};
 };
 
+enum class LegacyStandardModeDatabaseInlineRefreshStatus : compat::u8 {
+    completed,
+    selected_node_missing,
+    recycled_node_missing,
+};
+
+struct LegacyStandardModeDatabaseInlineRefreshResult {
+    LegacyStandardModeDatabaseInlineRefreshStatus status{
+        LegacyStandardModeDatabaseInlineRefreshStatus::completed
+    };
+    LegacyStandardModeForwardNode* legacy_return_value{};
+    compat::u16 previous_record_id{0xFFDCU};
+    compat::u32 helper_call_count{};
+    bool selected_record_copied{};
+    bool previous_record_recycled{};
+};
+
 enum class LegacyStandardModeDatabaseWindowRefreshPath : compat::u8 {
     ignored,
     refreshed,
 };
 
 struct LegacyStandardModeDatabaseWindowRefreshResult {
+    LegacyStandardModeDatabaseInlineRefreshStatus status{
+        LegacyStandardModeDatabaseInlineRefreshStatus::completed
+    };
     LegacyStandardModeDatabaseWindowRefreshPath path{
         LegacyStandardModeDatabaseWindowRefreshPath::ignored
     };
@@ -871,9 +904,17 @@ class LegacyStandardModeDatabaseAdvancePorts
     : public LegacyStandardModeDatabaseRecordRefreshPorts {
 public:
     virtual ~LegacyStandardModeDatabaseAdvancePorts() = default;
-    virtual void refresh_database_records(
-        LegacyStandardModeDatabaseInitializationState& state
-    ) noexcept = 0;
+    virtual void release_database_inline_value(compat::u32) noexcept {}
+    [[nodiscard]] virtual compat::u32
+    clone_database_inline_value(compat::u32 source_value) noexcept {
+        return source_value;
+    }
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    recycle_database_inline_record(
+        LegacyStandardModeDatabaseInitializationState&, bool, compat::u16
+    ) noexcept {
+        return nullptr;
+    }
     [[nodiscard]] virtual LegacyStandardModeForwardNode*
     allocate_database_forward_node() noexcept {
         return nullptr;
@@ -2099,6 +2140,15 @@ release_legacy_standard_mode_database_forward_list(
 // sub_43F7C0: test one database record against a page/category group.
 [[nodiscard]] bool is_legacy_standard_mode_database_record_selected(
     compat::u16 category, compat::u32 flags, compat::i32 page_selection
+) noexcept;
+
+// sub_43F940: replace one inline record from the indexed forward node.
+[[nodiscard]] LegacyStandardModeDatabaseInlineRefreshResult
+refresh_legacy_standard_mode_database_inline_record(
+    LegacyStandardModeDatabaseInitializationState& state,
+    bool use_second_inline_record,
+    compat::i32 absolute_index,
+    LegacyStandardModeDatabaseAdvancePorts& ports
 ) noexcept;
 
 // sub_43F880: rebuild, sort and normalize the active database window.
