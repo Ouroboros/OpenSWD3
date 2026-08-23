@@ -542,6 +542,11 @@ struct LegacyStandardModeTextResolutionResult {
     bool used_missing_text{};
 };
 
+struct LegacyStandardModeInputStatusResult {
+    compat::u32 flags{};
+    compat::i32 legacy_return_value{};
+};
+
 // sub_43B980: count one intrusive forward chain through its offset-zero links.
 [[nodiscard]] compat::u32 count_legacy_standard_mode_forward_nodes(
     const LegacyStandardModeForwardNode* head
@@ -567,6 +572,15 @@ resolve_legacy_standard_mode_shared_text(
     compat::u16 text_index,
     std::span<const compat::u8> maps_payload,
     std::span<compat::u8, kLegacyStandardModeSharedTextCapacity> destination
+) noexcept;
+
+// sub_43BA40: compose two gated signed input states into one shared flag word.
+[[nodiscard]] LegacyStandardModeInputStatusResult
+compose_legacy_standard_mode_input_status(
+    compat::i32 first_gate,
+    compat::i32 first_state,
+    compat::i32 second_gate,
+    compat::i32 second_state
 ) noexcept;
 
 // sub_43B080: update and draw one standard-mode ghost action.

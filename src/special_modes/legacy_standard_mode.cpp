@@ -476,6 +476,46 @@ LegacyStandardModeTextResolutionResult resolve_legacy_standard_mode_shared_text(
     return result;
 }
 
+LegacyStandardModeInputStatusResult compose_legacy_standard_mode_input_status(
+    const compat::i32 first_gate,
+    const compat::i32 first_state,
+    const compat::i32 second_gate,
+    const compat::i32 second_state
+) noexcept {
+    LegacyStandardModeInputStatusResult result;
+    compat::i32 legacy_return_value = first_gate;
+    if (legacy_return_value == 1) {
+        legacy_return_value = first_state;
+        if (legacy_return_value == 1) {
+            result.flags = 1U;
+        } else if (legacy_return_value > 1) {
+            result.flags = 2U;
+        }
+    }
+
+    if (second_gate != 1) {
+        result.legacy_return_value = legacy_return_value;
+        return result;
+    }
+
+    legacy_return_value = second_state;
+    if (legacy_return_value == 1) {
+        result.flags = (result.flags & 0xFFFFFF00U) |
+            static_cast<compat::u32>(
+                           static_cast<compat::u8>(result.flags) | 4U
+            );
+        legacy_return_value = std::bit_cast<compat::i32>(result.flags);
+    } else if (legacy_return_value > 1) {
+        result.flags = (result.flags & 0xFFFFFF00U) |
+            static_cast<compat::u32>(
+                           static_cast<compat::u8>(result.flags) | 8U
+            );
+        legacy_return_value = std::bit_cast<compat::i32>(result.flags);
+    }
+    result.legacy_return_value = legacy_return_value;
+    return result;
+}
+
 LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,
     asset_runtime::LegacyActionRecord& record,

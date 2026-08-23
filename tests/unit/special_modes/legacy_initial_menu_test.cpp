@@ -30,6 +30,7 @@ using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
 using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
+using openswd3::special_modes::compose_legacy_standard_mode_input_status;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
 using openswd3::special_modes::draw_legacy_standard_mode_ghost;
 using openswd3::special_modes::index_legacy_standard_mode_forward_node;
@@ -1278,6 +1279,50 @@ void test_standard_mode_shared_text_resolution(openswd3::test::Context& test) {
             output.front() == 0xA5U,
         "0x43B9E0 isolates a missing MAPS +0x4C directory before writes"
     );
+}
+
+void test_standard_mode_input_status_composition(
+    openswd3::test::Context& test
+) {
+    struct Case {
+        i32 first_gate{};
+        i32 first_state{};
+        i32 second_gate{};
+        i32 second_state{};
+        u32 expected_flags{};
+        i32 expected_return{};
+    };
+    constexpr std::array cases{
+        Case{1, 0, 1, 0, 0U, 0},
+        Case{1, 0, 1, 1, 4U, 4},
+        Case{1, 0, 1, 2, 8U, 8},
+        Case{1, 1, 1, 0, 1U, 0},
+        Case{1, 1, 1, 1, 5U, 5},
+        Case{1, 1, 1, 2, 9U, 9},
+        Case{1, 2, 1, 0, 2U, 0},
+        Case{1, 2, 1, 1, 6U, 6},
+        Case{1, 2, 1, 2, 10U, 10},
+        Case{0, 99, 0, 99, 0U, 0},
+        Case{7, 99, 0, 99, 0U, 7},
+        Case{1, 7, 0, 99, 2U, 7},
+        Case{1, -1, 0, 99, 0U, -1},
+        Case{1, 2, 7, 99, 2U, 2},
+        Case{1, 2, 1, -1, 2U, -1},
+    };
+
+    for (const auto& sample : cases) {
+        const auto result = compose_legacy_standard_mode_input_status(
+            sample.first_gate,
+            sample.first_state,
+            sample.second_gate,
+            sample.second_state
+        );
+        test.expect_true(
+            result.flags == sample.expected_flags &&
+                result.legacy_return_value == sample.expected_return,
+            "0x43BA40 preserves both gated signed tri-states and legacy EAX"
+        );
+    }
 }
 
 #ifdef OPENSWD3_GAME_DATA_ROOT
@@ -2561,6 +2606,7 @@ int main() {
     test_standard_mode_forward_head_advance(test);
     test_standard_mode_forward_node_index(test);
     test_standard_mode_shared_text_resolution(test);
+    test_standard_mode_input_status_composition(test);
 #ifdef OPENSWD3_GAME_DATA_ROOT
     test_standard_mode_shared_text_real_asset(test);
 #endif
