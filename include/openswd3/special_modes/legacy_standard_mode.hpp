@@ -909,13 +909,24 @@ struct LegacyStandardModeDatabaseCycleResult {
     bool sample_initialized{};
 };
 
-class LegacyStandardModeDatabaseForwardRefreshPorts {
+class LegacyStandardModeDatabaseForwardReleasePorts {
 public:
-    virtual ~LegacyStandardModeDatabaseForwardRefreshPorts() = default;
-    virtual void prepare_database_forward_lists(
-        LegacyStandardModeForwardNode*& forward_head,
-        LegacyStandardModeForwardNode*& adjustment_head
-    ) noexcept = 0;
+    virtual ~LegacyStandardModeDatabaseForwardReleasePorts() = default;
+    virtual void release_value(compat::u32 value) noexcept = 0;
+    virtual void
+    release_forward_node(LegacyStandardModeForwardNode* node) noexcept = 0;
+};
+
+struct LegacyStandardModeDatabaseForwardReleaseResult {
+    compat::u32 recycled_node_count{};
+    compat::u32 released_value_count{};
+    compat::u32 released_node_count{};
+};
+
+class LegacyStandardModeDatabaseForwardRefreshPorts
+    : public LegacyStandardModeDatabaseForwardReleasePorts {
+public:
+    ~LegacyStandardModeDatabaseForwardRefreshPorts() override = default;
     [[nodiscard]] virtual LegacyStandardModeForwardNode*
     build_database_forward_list(compat::i32 page_selection) noexcept = 0;
     [[nodiscard]] virtual LegacyStandardModeForwardNode*
@@ -1180,16 +1191,10 @@ struct LegacyStandardModeDatabaseCleanupResult {
     compat::u32 storage_release_count{};
 };
 
-class LegacyStandardModeDatabaseCleanupPorts {
+class LegacyStandardModeDatabaseCleanupPorts
+    : public LegacyStandardModeDatabaseForwardReleasePorts {
 public:
-    virtual ~LegacyStandardModeDatabaseCleanupPorts() = default;
-    virtual void release_external_forward_list(
-        LegacyStandardModeForwardNode*& forward_head,
-        LegacyStandardModeForwardNode*& adjustment_head
-    ) noexcept = 0;
-    virtual void release_value(compat::u32 value) noexcept = 0;
-    virtual void
-    release_forward_node(LegacyStandardModeForwardNode* node) noexcept = 0;
+    ~LegacyStandardModeDatabaseCleanupPorts() override = default;
     [[nodiscard]] virtual compat::i32 release_database_storage(
         LegacyStandardModeDatabaseStorageKind kind
     ) noexcept = 0;
@@ -1994,6 +1999,13 @@ exit_legacy_standard_mode_database_interaction(
     LegacyStandardModeDatabaseInitializationState& state,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeDatabaseExitPorts& ports
+) noexcept;
+
+// sub_43F080: drain the database forward list into recycle/free paths.
+[[nodiscard]] LegacyStandardModeDatabaseForwardReleaseResult
+release_legacy_standard_mode_database_forward_list(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseForwardReleasePorts& ports
 ) noexcept;
 
 // sub_43F000: rebuild the database forward list and reset its window.

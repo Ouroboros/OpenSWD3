@@ -2517,9 +2517,10 @@ void test_standard_mode_database_initialization(openswd3::test::Context& test) {
                 (static_cast<u32>(storage[0xAEU]) << 16U) |
                 (static_cast<u32>(storage[0xAFU]) << 24U);
         }
-        void prepare_database_forward_lists(
-            LegacyStandardModeForwardNode*&, LegacyStandardModeForwardNode*&
-        ) noexcept override {}
+        void release_value(u32) noexcept override {}
+        void
+        release_forward_node(LegacyStandardModeForwardNode*) noexcept override {
+        }
         [[nodiscard]] LegacyStandardModeForwardNode*
         build_database_forward_list(i32) noexcept override {
             ++forward_initialization_count;
@@ -2803,16 +2804,17 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
     class CyclePorts final
         : public openswd3::special_modes::LegacyStandardModeDatabaseCyclePorts {
     public:
-        void prepare_database_forward_lists(
-            LegacyStandardModeForwardNode*& prepared_forward_head,
-            LegacyStandardModeForwardNode*& prepared_adjustment_head
+        void release_value(u32 value) noexcept override {
+            released_forward_values.push_back(value);
+        }
+        void release_forward_node(
+            LegacyStandardModeForwardNode* node
         ) noexcept override {
-            events.push_back(0U);
-            observed_prepared_forward_head = prepared_forward_head;
-            observed_prepared_adjustment_head = prepared_adjustment_head;
+            released_forward_nodes.push_back(node);
         }
         [[nodiscard]] LegacyStandardModeForwardNode*
         build_database_forward_list(i32 page_selection) noexcept override {
+            events.push_back(0U);
             received_page_selection = page_selection;
             return forward_head;
         }
@@ -2878,11 +2880,11 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
         u32 missing_insert_count{};
         u32 empty_allocation_count{};
         i32 received_page_selection{};
-        LegacyStandardModeForwardNode* observed_prepared_forward_head{};
-        LegacyStandardModeForwardNode* observed_prepared_adjustment_head{};
         LegacyStandardModeForwardNode* forward_head{};
         const LegacyStandardModeForwardNode* fallback_node{};
         std::vector<u8> events;
+        std::vector<u32> released_forward_values;
+        std::vector<LegacyStandardModeForwardNode*> released_forward_nodes;
         std::vector<u16> sample_ids;
         std::vector<u16> queried_item_ids;
         std::vector<u32> interface_values;
@@ -2923,8 +2925,10 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 refreshed.legacy_return_value == nullptr &&
                 refresh_ports.events == std::vector<u8>{0U} &&
                 refresh_ports.received_page_selection == 2 &&
-                refresh_ports.observed_prepared_forward_head == &third &&
-                refresh_ports.observed_prepared_adjustment_head == &second &&
+                refresh_ports.released_forward_values == std::vector<u32>{0U} &&
+                refresh_ports.released_forward_nodes ==
+                    std::vector<LegacyStandardModeForwardNode*>{&third} &&
+                refresh_state.adjustment_head == &second &&
                 refresh_state.forward_head == &first &&
                 refresh_state.current_forward_head == &first &&
                 refresh_state.forward_count == 3U &&
@@ -3688,9 +3692,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             bool increment_combined_value{};
         };
 
-        void prepare_database_forward_lists(
-            LegacyStandardModeForwardNode*&, LegacyStandardModeForwardNode*&
-        ) noexcept override {}
         [[nodiscard]] LegacyStandardModeForwardNode*
         build_database_forward_list(i32) noexcept override {
             return cycle_forward_head;
@@ -3745,14 +3746,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             LegacyStandardModeDatabaseCleanupPorts&
             database_cleanup_ports() noexcept override {
             return *this;
-        }
-        void release_external_forward_list(
-            LegacyStandardModeForwardNode*& forward_head,
-            LegacyStandardModeForwardNode*& adjustment_head
-        ) noexcept override {
-            ++cleanup_forward_list_count;
-            forward_head = nullptr;
-            adjustment_head = nullptr;
         }
         void release_value(const u32 value) noexcept override {
             cleanup_released_values.push_back(value);
@@ -3851,7 +3844,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         u32 missing_insert_count{};
         u32 secondary_dispatch_count{};
         u32 high_mode_runtime_count{};
-        u32 cleanup_forward_list_count{};
         u32 cleanup_forward_node_count{};
         u32 commit_rebuild_count{};
         u32 phase_1_prepare_count{};
@@ -3922,7 +3914,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                 state.lifecycle_phase == 1U &&
                 state.lifecycle_zero_value == 99U &&
                 ports.secondary_dispatch_count == 1U &&
-                ports.cleanup_forward_list_count == 1U &&
                 ports.cleanup_storage_kinds.size() == 15U,
             "0x43E770 phase1 decrements lifecycle then binds B480 and tail-cleans D880"
         );
@@ -4749,17 +4740,6 @@ void test_standard_mode_database_cleanup(openswd3::test::Context& test) {
     class CleanupPorts final : public openswd3::special_modes::
                                    LegacyStandardModeDatabaseCleanupPorts {
     public:
-        void release_external_forward_list(
-            LegacyStandardModeForwardNode*& forward_head,
-            LegacyStandardModeForwardNode*& adjustment_head
-        ) noexcept override {
-            events.push_back(0U);
-            ++external_release_count;
-            observed_adjustment_head = adjustment_head;
-            if (drain_external_list) {
-                forward_head = nullptr;
-            }
-        }
         void release_value(const u32 value) noexcept override {
             events.push_back(1U);
             released_values.push_back(value);
@@ -4777,9 +4757,6 @@ void test_standard_mode_database_cleanup(openswd3::test::Context& test) {
             return kind == StorageKind::mirrored_values ? -321 : 0;
         }
 
-        bool drain_external_list{};
-        u32 external_release_count{};
-        LegacyStandardModeForwardNode* observed_adjustment_head{};
         std::vector<u8> events;
         std::vector<u32> released_values;
         std::vector<LegacyStandardModeForwardNode*> released_nodes;
@@ -4794,6 +4771,7 @@ void test_standard_mode_database_cleanup(openswd3::test::Context& test) {
 
     LegacyStandardModeForwardNode adjustment{};
     LegacyStandardModeForwardNode second{
+        .text_index = 0xFFDCU,
         .release_token = 0U,
     };
     LegacyStandardModeForwardNode first{
@@ -4840,19 +4818,13 @@ void test_standard_mode_database_cleanup(openswd3::test::Context& test) {
         result.legacy_return_value == -321 &&
             result.optional_heap_release_count == 1U &&
             result.runtime_token_release_count == 1U &&
-            result.remaining_forward_node_count == 2U &&
+            result.remaining_forward_node_count == 0U &&
             result.storage_release_count == 15U &&
-            ports.external_release_count == 1U &&
-            ports.observed_adjustment_head == &adjustment &&
+            state.adjustment_head == &first && first.next == &adjustment &&
             ports.released_values ==
-                std::vector<u32>{
-                    0x11111111U,
-                    0x22222222U,
-                    0x33333333U,
-                    0U,
-                } &&
+                std::vector<u32>{0U, 0x11111111U, 0x22222222U} &&
             ports.released_nodes ==
-                std::vector<LegacyStandardModeForwardNode*>{&first, &second} &&
+                std::vector<LegacyStandardModeForwardNode*>{&second} &&
             ports.released_storage == expected_storage,
         "0x43D880 preserves F080, optional tokens, residual nodes and 15-storage release order"
     );
@@ -4881,12 +4853,11 @@ void test_standard_mode_database_cleanup(openswd3::test::Context& test) {
         "0x43D880 clears only owned tokens/inline records and leaves released storage bytes dangling"
     );
     test.expect_true(
-        ports.events.size() == 22U && ports.events.front() == 0U &&
-            ports.events[1U] == 1U && ports.events[2U] == 1U &&
-            ports.events[3U] == 1U && ports.events[4U] == 2U &&
-            ports.events[5U] == 1U && ports.events[6U] == 2U &&
+        ports.events.size() == 19U && ports.events[0U] == 1U &&
+            ports.events[1U] == 2U && ports.events[2U] == 1U &&
+            ports.events[3U] == 1U &&
             std::ranges::all_of(
-                ports.events.begin() + 7,
+                ports.events.begin() + 4,
                 ports.events.end(),
                 [](const u8 event) { return event == 3U; }
             ),
@@ -4898,7 +4869,6 @@ void test_standard_mode_database_cleanup(openswd3::test::Context& test) {
             drained_state;
         drained_state.forward_head = &first;
         CleanupPorts drained_ports;
-        drained_ports.drain_external_list = true;
         const auto drained =
             release_legacy_standard_mode_database(drained_state, drained_ports);
         test.expect_true(

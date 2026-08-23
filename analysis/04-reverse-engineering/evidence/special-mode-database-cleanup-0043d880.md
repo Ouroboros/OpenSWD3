@@ -4,7 +4,7 @@
 
 ## 1. LST范围与callback边界
 
-唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D880..0x0043DA2E`，195行。direct code caller是`0x0043E770`尾跳转；`0x00444FC0`另以callback地址绑定。直接callee为尚未关闭F080一次和release owner的21个静态调用点。
+唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D880..0x0043DA2E`，195行。direct code caller是`0x0043E770`尾跳转；`0x00444FC0`另以callback地址绑定。直接callee为已关闭F080一次和release owner的21个静态调用点。
 
 本helper与已关闭D530共享全部typed owner。F080保留精确port边界，可同时改写forward head和adjustment head；release边界区分u32 token、forward node storage及15类固定database storage。清理顺序、条件、悬空storage内容与最终EAX均在helper内。
 

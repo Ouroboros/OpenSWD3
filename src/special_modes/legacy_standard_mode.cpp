@@ -2319,14 +2319,38 @@ exit_legacy_standard_mode_database_interaction(
     return result;
 }
 
+LegacyStandardModeDatabaseForwardReleaseResult
+release_legacy_standard_mode_database_forward_list(
+    LegacyStandardModeDatabaseInitializationState& state,
+    LegacyStandardModeDatabaseForwardReleasePorts& ports
+) noexcept {
+    LegacyStandardModeDatabaseForwardReleaseResult result;
+    while (state.forward_head != nullptr) {
+        LegacyStandardModeForwardNode* node = state.forward_head;
+        state.forward_head =
+            const_cast<LegacyStandardModeForwardNode*>(node->next);
+        if (node->text_index != 0xFFDCU) {
+            node->next = state.adjustment_head;
+            state.adjustment_head = node;
+            ++result.recycled_node_count;
+            continue;
+        }
+        ports.release_value(node->release_token);
+        ++result.released_value_count;
+        ports.release_forward_node(node);
+        ++result.released_node_count;
+    }
+    return result;
+}
+
 LegacyStandardModeDatabaseForwardRefreshResult
 refresh_legacy_standard_mode_database_forward_list(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseForwardRefreshPorts& ports
 ) noexcept {
     LegacyStandardModeDatabaseForwardRefreshResult result;
-    ports.prepare_database_forward_lists(
-        state.forward_head, state.adjustment_head
+    static_cast<void>(
+        release_legacy_standard_mode_database_forward_list(state, ports)
     );
     ++result.helper_call_count;
     state.forward_head =
@@ -3891,8 +3915,8 @@ LegacyStandardModeDatabaseCleanupResult release_legacy_standard_mode_database(
     state.primary_action.base_variant = 0x39U;
     state.cleanup_action.action_id = 0x232AU;
     state.cleanup_action.base_variant = 3U;
-    ports.release_external_forward_list(
-        state.forward_head, state.adjustment_head
+    static_cast<void>(
+        release_legacy_standard_mode_database_forward_list(state, ports)
     );
 
     if (state.first_heap_token != 0U) {
