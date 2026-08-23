@@ -2398,6 +2398,45 @@ build_legacy_standard_mode_database_forward_list(
     return result;
 }
 
+LegacyStandardModeDatabaseForwardSortResult
+sort_legacy_standard_mode_database_forward_list(
+    LegacyStandardModeDatabaseInitializationState& state
+) noexcept {
+    LegacyStandardModeDatabaseForwardSortResult result;
+    LegacyStandardModeForwardNode* sorted_head = nullptr;
+    while (state.forward_head != nullptr) {
+        LegacyStandardModeForwardNode* node = state.forward_head;
+        state.forward_head =
+            const_cast<LegacyStandardModeForwardNode*>(node->next);
+        node->next = nullptr;
+
+        LegacyStandardModeForwardNode* previous = nullptr;
+        LegacyStandardModeForwardNode* current = sorted_head;
+        while (current != nullptr) {
+            const compat::u16 previous_key =
+                previous == nullptr ? 0U : previous->text_index;
+            if (current->text_index >= node->text_index &&
+                previous_key < node->text_index) {
+                break;
+            }
+            previous = current;
+            current = const_cast<LegacyStandardModeForwardNode*>(current->next);
+        }
+        node->next = current;
+        if (previous == nullptr) {
+            sorted_head = node;
+        } else {
+            previous->next = node;
+        }
+        ++result.sorted_node_count;
+    }
+    state.forward_build_tail_word = 0U;
+    state.forward_build_word = 0U;
+    state.forward_head = sorted_head;
+    result.legacy_return_value = sorted_head;
+    return result;
+}
+
 LegacyStandardModeDatabaseForwardRefreshResult
 refresh_legacy_standard_mode_database_forward_list(
     LegacyStandardModeDatabaseInitializationState& state,

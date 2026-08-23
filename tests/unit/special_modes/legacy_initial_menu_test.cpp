@@ -3008,6 +3008,29 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
                 stale_state.forward_build_word == 0U,
             "0x43F0D0 preserves stale FCAE4 so first-predecessor comparison can append a smaller key"
         );
+
+        LegacyStandardModeForwardNode sort_five{nullptr, 5U};
+        LegacyStandardModeForwardNode sort_one{&sort_five, 1U};
+        LegacyStandardModeForwardNode sort_three{&sort_one, 3U};
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            sort_state;
+        sort_state.forward_head = &sort_three;
+        sort_state.forward_build_sentinel = 77U;
+        sort_state.forward_build_word = 88U;
+        sort_state.forward_build_tail_word = 99U;
+        const auto sorted = openswd3::special_modes::
+            sort_legacy_standard_mode_database_forward_list(sort_state);
+        test.expect_true(
+            sorted.sorted_node_count == 3U &&
+                sorted.legacy_return_value == &sort_one &&
+                sort_state.forward_head == &sort_one &&
+                sort_one.next == &sort_three && sort_three.next == &sort_five &&
+                sort_five.next == nullptr &&
+                sort_state.forward_build_sentinel == 77U &&
+                sort_state.forward_build_word == 0U &&
+                sort_state.forward_build_tail_word == 0U,
+            "0x43F160 sorts through zeroed local sentinel and clears only FCAE8/FCAEA"
+        );
     }
 
     {

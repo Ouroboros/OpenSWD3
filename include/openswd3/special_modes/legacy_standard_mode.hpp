@@ -726,6 +726,7 @@ struct LegacyStandardModeDatabaseInitializationState {
     compat::i32 bounded_forward_count{};
     compat::u16 forward_build_sentinel{};
     compat::u16 forward_build_word{};
+    compat::u16 forward_build_tail_word{};
     asset_runtime::LegacyActionRecord primary_action{};
     asset_runtime::LegacyActionRecord secondary_action{};
     compat::u32 interface_source_value{};
@@ -940,6 +941,11 @@ struct LegacyStandardModeDatabaseForwardBuildResult {
     LegacyStandardModeForwardNode* legacy_return_value{};
     compat::u32 query_count{};
     compat::u32 selected_node_count{};
+};
+
+struct LegacyStandardModeDatabaseForwardSortResult {
+    LegacyStandardModeForwardNode* legacy_return_value{};
+    compat::u32 sorted_node_count{};
 };
 
 struct LegacyStandardModeDatabaseForwardRefreshResult {
@@ -2015,6 +2021,12 @@ exit_legacy_standard_mode_database_interaction(
 release_legacy_standard_mode_database_forward_list(
     LegacyStandardModeDatabaseInitializationState& state,
     LegacyStandardModeDatabaseForwardReleasePorts& ports
+) noexcept;
+
+// sub_43F160: sort the current database forward list by unsigned key.
+[[nodiscard]] LegacyStandardModeDatabaseForwardSortResult
+sort_legacy_standard_mode_database_forward_list(
+    LegacyStandardModeDatabaseInitializationState& state
 ) noexcept;
 
 // sub_43F0D0: filter and sorted-splice adjustment nodes into forward output.
