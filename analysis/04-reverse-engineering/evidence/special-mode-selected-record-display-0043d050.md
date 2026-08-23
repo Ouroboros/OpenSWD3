@@ -6,7 +6,7 @@
 
 唯一行为真值为`swd3.exe.lst`。函数物理范围为`0x0043D050..0x0043D36B`，365行，唯一caller是已关闭`0x0043CEF0`。直接callee为六次下一单元`0x0043D370`、三次record loader、一次临时`0xB0`分配及四次release。
 
-C0D0表明`dword_4FC934..dword_4FC960`是12个连续文本owner，每个精确分配`0x20`字节。typed state据此新增12×32字节`display_text_slots`。平台port只隔离category资源解析、尚未关闭的D370、已有record loader/release和临时storage release；D050全部控制流、固定字节、格式化输入、去重及返回联合均在helper内。
+C0D0表明`dword_4FC934..dword_4FC960`是12个连续文本owner，每个精确分配`0x20`字节。typed state据此新增12×32字节`display_text_slots`。平台port只隔离category资源解析、D370所需RNG、已有record loader/release和临时storage release；D050全部控制流、固定字节、格式化输入、去重及返回联合均在helper内。D370现已独立关闭并由六处直接调用。
 
 ## 2. 固定文本与status门
 
@@ -40,7 +40,7 @@ slot  label bytes       threshold  value                         maximum
 8     B1 D3 B1 B6       18         u16 scratch+0x66              0x03E7
 ```
 
-port请求精确携带label span、signed status、threshold、value和maximum；D370仍是下一独立workpack，不在本单元提前计数。
+请求精确携带label span、signed status、threshold、value和maximum；现直接调用已关闭D370，失败时传播`derived_text_stopped`并保留此前输出。
 
 ## 4. related名称加载与去重
 

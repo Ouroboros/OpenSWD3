@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v466
+版本：v467
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043D370`
+当前步骤：模块9 · 闭环`0x0043D470`
 
 ## 0. 执行约定
 
@@ -3438,9 +3438,19 @@ B7 P0 有限收口完成。
     `41/227`，SHA256为`13f61f90e5d60664520c11df18d26ad5d47a972710b477d3b7f8318d6de6e92f`；
     Linux core188/188与Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式derived text `0x0043D370`闭环。LST范围`0x0043D370..0x0043D46F`，六个caller
+    均来自D050，唯一callee为RNG。入口先发布`%4s  `；delta按`threshold-status`回绕。delta≤0用
+    immediate CP950模板和signed `%4d`；delta1/2按value选择10/100/1000 scale，计算
+    `rng(scale/(3-delta))-upper/2+value`并钳到0..maximum，分别使用两套CP950模板；delta≥3追加
+    ` ???`并返回destination owner指针。返回联合区分formatter长度与指针。D050删除整函数port并
+    直接调用六次，传播typed-stop。定向UT覆盖delta0/1/2/4、RNG上界、居中、钳制、exact字节和EAX。
+    workpack连续两轮稳定为`42/227`，SHA256为
+    `f481edf973f9909147d6eda7a6f6e7d51369a69183f1ae1e46c0f3675ac3e538`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`41/227`，下一单元为`0x0043D370`。
+进行中，正式进度为`42/227`，下一单元为`0x0043D470`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043D370`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043D470`，继续更新workpack、证据和完整验证门。

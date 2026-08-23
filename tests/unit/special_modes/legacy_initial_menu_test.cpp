@@ -44,6 +44,7 @@ using openswd3::special_modes::count_legacy_standard_mode_forward_nodes;
 using openswd3::special_modes::count_legacy_standard_mode_forward_nodes_bounded;
 using openswd3::special_modes::draw_legacy_standard_mode_ghost;
 using openswd3::special_modes::find_legacy_standard_mode_value_group;
+using openswd3::special_modes::format_legacy_standard_mode_derived_text;
 using openswd3::special_modes::index_legacy_standard_mode_forward_node;
 using openswd3::special_modes::initialize_legacy_initial_menu;
 using openswd3::special_modes::initialize_legacy_standard_mode_dialog_setup;
@@ -2532,10 +2533,9 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
             destination[0U] = 0U;
             return true;
         }
-        void format_derived_text(
-            const std::span<u8>,
-            const openswd3::special_modes::LegacyStandardModeDerivedTextRequest&
-        ) noexcept override {}
+        [[nodiscard]] i32 generate_derived_random(const i32) noexcept override {
+            return 0;
+        }
         [[nodiscard]] i32 release_temporary_record_storage(
             const std::span<u8>
         ) noexcept override {
@@ -2662,13 +2662,6 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
         void release_record(const u32 token) noexcept override {
             released_tokens.push_back(token);
         }
-        struct DerivedRequest {
-            std::vector<u8> label;
-            i32 status{};
-            i32 threshold{};
-            i32 value{};
-            i32 maximum{};
-        };
         [[nodiscard]] bool load_selected_record(
             const std::span<u8> destination, const u32 record_id
         ) noexcept override {
@@ -2701,27 +2694,10 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
             destination[category_text.size()] = 0U;
             return true;
         }
-        void format_derived_text(
-            const std::span<u8> destination,
-            const openswd3::special_modes::LegacyStandardModeDerivedTextRequest&
-                request
-        ) noexcept override {
-            derived_requests.push_back(
-                DerivedRequest{
-                    .label =
-                        std::vector<u8>{
-                            request.label.begin(), request.label.end()
-                        },
-                    .status = request.status,
-                    .threshold = request.threshold,
-                    .value = request.value,
-                    .maximum = request.maximum,
-                }
-            );
-            std::copy(
-                request.label.begin(), request.label.end(), destination.begin()
-            );
-            destination[request.label.size()] = 0U;
+        [[nodiscard]] i32
+        generate_derived_random(const i32 upper_bound) noexcept override {
+            random_upper_bounds.push_back(upper_bound);
+            return random_values.empty() ? 0 : random_values.front();
         }
         [[nodiscard]] i32 release_temporary_record_storage(
             const std::span<u8> storage
@@ -2741,7 +2717,8 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
         std::vector<u32> selected_record_ids;
         std::vector<u32> category_entries;
         std::vector<u8> category_text;
-        std::vector<DerivedRequest> derived_requests;
+        std::vector<i32> random_upper_bounds;
+        std::vector<i32> random_values;
         bool selected_load_result{true};
         bool category_available{true};
         bool temporary_release_was_zero{};
@@ -2971,19 +2948,255 @@ void test_standard_mode_entry_consumption(openswd3::test::Context& test) {
                     } &&
                 text(state.display_text_slots[11U]) ==
                     std::vector<u8>{'B', 'e', 't', 'a'} &&
-                ports.derived_requests.size() == 6U &&
-                ports.derived_requests[0U].status == 0x13 &&
-                ports.derived_requests[0U].threshold == 5 &&
-                ports.derived_requests[0U].value == -2 &&
-                ports.derived_requests[0U].maximum == 0x270F &&
-                ports.derived_requests[1U].value == 80 &&
-                ports.derived_requests[2U].value == 70 &&
-                ports.derived_requests[3U].threshold == 13 &&
-                ports.derived_requests[3U].value == 3 &&
-                ports.derived_requests[3U].maximum == 0x3E7 &&
+                text(state.display_text_slots[3U]) ==
+                    std::vector<u8>{
+                        0xA5U,
+                        0xCDU,
+                        0xA9U,
+                        0x52U,
+                        ' ',
+                        0xACU,
+                        0x4FU,
+                        ' ',
+                        ' ',
+                        ' ',
+                        '-',
+                        '2'
+                    } &&
+                text(state.display_text_slots[4U]) ==
+                    std::vector<u8>{
+                        0xC6U,
+                        0x46U,
+                        0xA4U,
+                        0x4FU,
+                        ' ',
+                        0xACU,
+                        0x4FU,
+                        ' ',
+                        ' ',
+                        ' ',
+                        '8',
+                        '0'
+                    } &&
+                text(state.display_text_slots[5U]) ==
+                    std::vector<u8>{
+                        0xC5U,
+                        0xE9U,
+                        0xA4U,
+                        0x4FU,
+                        ' ',
+                        0xACU,
+                        0x4FU,
+                        ' ',
+                        ' ',
+                        ' ',
+                        '7',
+                        '0'
+                    } &&
+                text(state.display_text_slots[6U]) ==
+                    std::vector<u8>{
+                        0xA7U,
+                        0xF0U,
+                        0xC0U,
+                        0xBBU,
+                        ' ',
+                        0xACU,
+                        0x4FU,
+                        ' ',
+                        ' ',
+                        ' ',
+                        ' ',
+                        '3'
+                    } &&
+                ports.random_upper_bounds.empty() &&
                 state.shared_command_text[0U] == 0xB1U &&
                 state.shared_command_text[9U] == '?',
             "0x43D050 formats base/name, exact values and first-wins related-name deduplication"
+        );
+    }
+
+    {
+        const std::array<u8, 4U> label{'L', 'A', 'B', 'L'};
+        const auto text = [](const auto& slot) {
+            const auto end = std::find(slot.cbegin(), slot.cend(), u8{0U});
+            return std::vector<u8>{slot.cbegin(), end};
+        };
+        std::array<u8, 0x20U> destination{};
+        ConsumptionPorts ports;
+        const auto immediate = format_legacy_standard_mode_derived_text(
+            destination,
+            {.label = label,
+             .status = 5,
+             .threshold = 5,
+             .value = -12,
+             .maximum = 0x270F},
+            ports
+        );
+        test.expect_true(
+            immediate.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDerivedTextStatus::completed &&
+                immediate.legacy_return_kind ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDerivedTextReturnKind::
+                            formatter_result &&
+                immediate.legacy_return_value == 12 && immediate.delta == 0 &&
+                !immediate.random_called && immediate.published_value == -12 &&
+                text(destination) ==
+                    std::vector<u8>{
+                        'L',
+                        'A',
+                        'B',
+                        'L',
+                        ' ',
+                        0xACU,
+                        0x4FU,
+                        ' ',
+                        ' ',
+                        '-',
+                        '1',
+                        '2'
+                    },
+            "0x43D370 delta-at-most-zero writes the exact immediate-value format"
+        );
+
+        destination.fill(0U);
+        ports.random_values = {4};
+        const auto delta_one = format_legacy_standard_mode_derived_text(
+            destination,
+            {.label = label,
+             .status = 4,
+             .threshold = 5,
+             .value = 100,
+             .maximum = 999},
+            ports
+        );
+        test.expect_true(
+            delta_one.legacy_return_value == 16 && delta_one.delta == 1 &&
+                delta_one.random_called && delta_one.random_upper_bound == 5 &&
+                delta_one.published_value == 102 &&
+                ports.random_upper_bounds == std::vector<i32>{5} &&
+                text(destination) ==
+                    std::vector<u8>{
+                        'L',
+                        'A',
+                        'B',
+                        'L',
+                        ' ',
+                        0xA4U,
+                        0x6AU,
+                        0xB7U,
+                        0xA7U,
+                        0xACU,
+                        0x4FU,
+                        ' ',
+                        ' ',
+                        '1',
+                        '0',
+                        '2'
+                    },
+            "0x43D370 delta-one uses scale ten, centered RNG and first CP950 template"
+        );
+
+        destination.fill(0U);
+        ports.random_upper_bounds.clear();
+        ports.random_values = {0};
+        const auto delta_two = format_legacy_standard_mode_derived_text(
+            destination,
+            {.label = label,
+             .status = 3,
+             .threshold = 5,
+             .value = 101,
+             .maximum = 50},
+            ports
+        );
+        test.expect_true(
+            delta_two.delta == 2 && delta_two.random_upper_bound == 100 &&
+                delta_two.published_value == 50 &&
+                ports.random_upper_bounds == std::vector<i32>{100} &&
+                text(destination) ==
+                    std::vector<u8>{
+                        'L',
+                        'A',
+                        'B',
+                        'L',
+                        ' ',
+                        0xA6U,
+                        0xFCU,
+                        0xA5U,
+                        0x47U,
+                        0xACU,
+                        0x4FU,
+                        ' ',
+                        ' ',
+                        ' ',
+                        '5',
+                        '0'
+                    },
+            "0x43D370 delta-two selects scale one hundred and clamps to maximum"
+        );
+
+        destination.fill(0U);
+        ports.random_upper_bounds.clear();
+        ports.random_values = {500};
+        const auto scale_thousand = format_legacy_standard_mode_derived_text(
+            destination,
+            {.label = label,
+             .status = 4,
+             .threshold = 5,
+             .value = 1001,
+             .maximum = 2000},
+            ports
+        );
+        test.expect_true(
+            scale_thousand.random_upper_bound == 500 &&
+                scale_thousand.published_value == 1251 &&
+                ports.random_upper_bounds == std::vector<i32>{500},
+            "0x43D370 value above one thousand selects scale one thousand"
+        );
+
+        destination.fill(0U);
+        ports.random_upper_bounds.clear();
+        ports.random_values = {0};
+        const auto clamped_zero = format_legacy_standard_mode_derived_text(
+            destination,
+            {.label = label,
+             .status = 4,
+             .threshold = 5,
+             .value = -100,
+             .maximum = 999},
+            ports
+        );
+        test.expect_true(
+            clamped_zero.random_upper_bound == 5 &&
+                clamped_zero.published_value == 0,
+            "0x43D370 clamps a negative centered random result to zero"
+        );
+
+        destination.fill(0U);
+        ports.random_upper_bounds.clear();
+        const auto unknown = format_legacy_standard_mode_derived_text(
+            destination,
+            {.label = label,
+             .status = 1,
+             .threshold = 5,
+             .value = 7,
+             .maximum = 1001},
+            ports
+        );
+        test.expect_true(
+            unknown.legacy_return_kind ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDerivedTextReturnKind::
+                            destination_pointer &&
+                unknown.legacy_text_pointer == destination.data() &&
+                unknown.legacy_return_value == 0 && unknown.delta == 4 &&
+                !unknown.random_called && ports.random_upper_bounds.empty() &&
+                text(destination) ==
+                    std::vector<u8>{
+                        'L', 'A', 'B', 'L', ' ', ' ', ' ', '?', '?', '?'
+                    },
+            "0x43D370 delta-at-least-three returns destination after exact unknown suffix"
         );
     }
 }
@@ -3035,10 +3248,9 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             destination[0U] = 0U;
             return true;
         }
-        void format_derived_text(
-            const std::span<u8>,
-            const openswd3::special_modes::LegacyStandardModeDerivedTextRequest&
-        ) noexcept override {}
+        [[nodiscard]] i32 generate_derived_random(const i32) noexcept override {
+            return 0;
+        }
         [[nodiscard]] i32 release_temporary_record_storage(
             const std::span<u8>
         ) noexcept override {

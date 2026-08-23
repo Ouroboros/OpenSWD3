@@ -782,12 +782,38 @@ struct LegacyStandardModeDerivedTextRequest {
     compat::i32 maximum{};
 };
 
+enum class LegacyStandardModeDerivedTextStatus : compat::u8 {
+    completed,
+    destination_out_of_range,
+};
+
+enum class LegacyStandardModeDerivedTextReturnKind : compat::u8 {
+    formatter_result,
+    destination_pointer,
+};
+
+struct LegacyStandardModeDerivedTextResult {
+    LegacyStandardModeDerivedTextStatus status{
+        LegacyStandardModeDerivedTextStatus::completed
+    };
+    LegacyStandardModeDerivedTextReturnKind legacy_return_kind{
+        LegacyStandardModeDerivedTextReturnKind::formatter_result
+    };
+    const compat::u8* legacy_text_pointer{};
+    compat::i32 legacy_return_value{};
+    compat::i32 delta{};
+    compat::i32 random_upper_bound{};
+    compat::i32 published_value{};
+    bool random_called{};
+};
+
 enum class LegacyStandardModeSelectedRecordDispatchStatus : compat::u8 {
     completed,
     absolute_index_out_of_range,
     selected_name_not_terminated,
     selected_name_out_of_range,
     category_name_unavailable,
+    derived_text_stopped,
     related_name_not_terminated,
     related_name_out_of_range,
 };
@@ -807,6 +833,9 @@ struct LegacyStandardModeSelectedRecordDispatchResult {
     const compat::u8* legacy_text_pointer{};
     compat::i32 legacy_return_value{};
     compat::i32 signed_status{};
+    LegacyStandardModeDerivedTextStatus derived_text_status{
+        LegacyStandardModeDerivedTextStatus::completed
+    };
     compat::u32 derived_text_call_count{};
     compat::u32 related_load_count{};
     compat::u32 related_release_count{};
@@ -822,10 +851,8 @@ public:
     [[nodiscard]] virtual bool copy_selected_category_name(
         std::span<compat::u8> destination, compat::u32 entry
     ) noexcept = 0;
-    virtual void format_derived_text(
-        std::span<compat::u8> destination,
-        const LegacyStandardModeDerivedTextRequest& request
-    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    generate_derived_random(compat::i32 upper_bound) noexcept = 0;
     [[nodiscard]] virtual compat::i32 release_temporary_record_storage(
         std::span<compat::u8> storage
     ) noexcept = 0;
@@ -1307,6 +1334,14 @@ initialize_legacy_standard_mode_entries(
     compat::i32 mode_index,
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeEntryInitializationPorts& ports
+) noexcept;
+
+// sub_43D370: format one threshold-relative standard-mode display value.
+[[nodiscard]] LegacyStandardModeDerivedTextResult
+format_legacy_standard_mode_derived_text(
+    std::span<compat::u8> destination,
+    const LegacyStandardModeDerivedTextRequest& request,
+    LegacyStandardModeEntryConsumptionPorts& ports
 ) noexcept;
 
 // sub_43D050: rebuild selected-record display strings and related names.

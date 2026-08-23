@@ -1018,6 +1018,155 @@ initialize_legacy_standard_mode_entries(
     return result;
 }
 
+LegacyStandardModeDerivedTextResult format_legacy_standard_mode_derived_text(
+    const std::span<compat::u8> destination,
+    const LegacyStandardModeDerivedTextRequest& request,
+    LegacyStandardModeEntryConsumptionPorts& ports
+) noexcept {
+    LegacyStandardModeDerivedTextResult result;
+    const auto append_integer = [](std::array<compat::u8, 64U>& output,
+                                   std::size_t& size,
+                                   const compat::i32 value,
+                                   const std::size_t minimum_width) {
+        std::array<char, 16U> digits{};
+        const auto converted =
+            std::to_chars(digits.data(), digits.data() + digits.size(), value);
+        const std::size_t digit_count =
+            static_cast<std::size_t>(converted.ptr - digits.data());
+        const std::size_t padding =
+            digit_count < minimum_width ? minimum_width - digit_count : 0U;
+        std::fill_n(
+            output.begin() + static_cast<std::ptrdiff_t>(size), padding, ' '
+        );
+        size += padding;
+        std::copy_n(
+            reinterpret_cast<const compat::u8*>(digits.data()),
+            digit_count,
+            output.begin() + static_cast<std::ptrdiff_t>(size)
+        );
+        size += digit_count;
+    };
+    const auto publish = [&](const std::span<const compat::u8> text) {
+        if (text.size() >= destination.size()) {
+            result.status =
+                LegacyStandardModeDerivedTextStatus::destination_out_of_range;
+            return false;
+        }
+        std::copy(text.begin(), text.end(), destination.begin());
+        destination[text.size()] = 0U;
+        result.legacy_return_value = static_cast<compat::i32>(text.size());
+        return true;
+    };
+    const auto build_prefix = [&]() {
+        std::array<compat::u8, 64U> output{};
+        std::size_t size = 0U;
+        const std::size_t padding =
+            request.label.size() < 4U ? 4U - request.label.size() : 0U;
+        std::fill_n(output.begin(), padding, ' ');
+        size += padding;
+        std::copy(
+            request.label.begin(),
+            request.label.end(),
+            output.begin() + static_cast<std::ptrdiff_t>(size)
+        );
+        size += request.label.size();
+        output[size++] = ' ';
+        return std::pair{output, size};
+    };
+
+    auto [output, size] = build_prefix();
+    output[size++] = ' ';
+    if (!publish(std::span<const compat::u8>{output}.first(size))) {
+        return result;
+    }
+    result.delta = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(request.threshold) -
+        std::bit_cast<compat::u32>(request.status)
+    );
+    result.published_value = request.value;
+    if (result.delta <= 0) {
+        size = 0U;
+        std::copy(request.label.begin(), request.label.end(), output.begin());
+        size += request.label.size();
+        output[size++] = ' ';
+        output[size++] = 0xACU;
+        output[size++] = 0x4FU;
+        output[size++] = ' ';
+        append_integer(output, size, request.value, 4U);
+        static_cast<void>(
+            publish(std::span<const compat::u8>{output}.first(size))
+        );
+        return result;
+    }
+    if (result.delta >= 3) {
+        auto [unknown_output, unknown_size] = build_prefix();
+        unknown_output[unknown_size++] = ' ';
+        unknown_output[unknown_size++] = ' ';
+        unknown_output[unknown_size++] = '?';
+        unknown_output[unknown_size++] = '?';
+        unknown_output[unknown_size++] = '?';
+        if (!publish(
+                std::span<const compat::u8>{unknown_output}.first(unknown_size)
+            )) {
+            return result;
+        }
+        if (request.maximum > 0x3E8) {
+            destination[7U] = '?';
+        }
+        result.legacy_return_kind =
+            LegacyStandardModeDerivedTextReturnKind::destination_pointer;
+        result.legacy_text_pointer = destination.data();
+        result.legacy_return_value = 0;
+        return result;
+    }
+
+    compat::i32 scale = 10;
+    if (request.value > 0x64) {
+        scale = 0x64;
+    }
+    if (request.value > 0x3E8) {
+        scale = 0x3E8;
+    }
+    const compat::i32 divisor = 3 - result.delta;
+    result.random_upper_bound = scale / divisor;
+    result.random_called = true;
+    const compat::i32 random_value =
+        ports.generate_derived_random(result.random_upper_bound);
+    compat::i32 published = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(random_value) -
+        std::bit_cast<compat::u32>(result.random_upper_bound / 2) +
+        std::bit_cast<compat::u32>(request.value)
+    );
+    if (published < 0) {
+        published = 0;
+    }
+    if (published > request.maximum) {
+        published = request.maximum;
+    }
+    result.published_value = published;
+
+    auto [random_output, random_size] = build_prefix();
+    static constexpr std::array<compat::u8, 6U> kDeltaOneText{
+        0xA4U, 0x6AU, 0xB7U, 0xA7U, 0xACU, 0x4FU
+    };
+    static constexpr std::array<compat::u8, 6U> kDeltaTwoText{
+        0xA6U, 0xFCU, 0xA5U, 0x47U, 0xACU, 0x4FU
+    };
+    const auto& middle = result.delta == 1 ? kDeltaOneText : kDeltaTwoText;
+    std::copy(
+        middle.begin(),
+        middle.end(),
+        random_output.begin() + static_cast<std::ptrdiff_t>(random_size)
+    );
+    random_size += middle.size();
+    random_output[random_size++] = ' ';
+    append_integer(random_output, random_size, published, 4U);
+    static_cast<void>(
+        publish(std::span<const compat::u8>{random_output}.first(random_size))
+    );
+    return result;
+}
+
 LegacyStandardModeSelectedRecordDispatchResult
 dispatch_legacy_standard_mode_selected_record(
     const compat::i32 absolute_index,
@@ -1157,16 +1306,25 @@ dispatch_legacy_standard_mode_selected_record(
         )),
     };
     for (std::size_t index = 0U; index < 6U; ++index) {
-        ports.format_derived_text(
-            state.display_text_slots[index + 3U],
-            LegacyStandardModeDerivedTextRequest{
-                .label = kLabels[index],
-                .status = result.signed_status,
-                .threshold = thresholds[index],
-                .value = values[index],
-                .maximum = index < 3U ? 0x270F : 0x03E7,
-            }
-        );
+        const LegacyStandardModeDerivedTextResult derived_result =
+            format_legacy_standard_mode_derived_text(
+                state.display_text_slots[index + 3U],
+                LegacyStandardModeDerivedTextRequest{
+                    .label = kLabels[index],
+                    .status = result.signed_status,
+                    .threshold = thresholds[index],
+                    .value = values[index],
+                    .maximum = index < 3U ? 0x270F : 0x03E7,
+                },
+                ports
+            );
+        result.derived_text_status = derived_result.status;
+        if (derived_result.status !=
+            LegacyStandardModeDerivedTextStatus::completed) {
+            result.status = LegacyStandardModeSelectedRecordDispatchStatus::
+                derived_text_stopped;
+            return result;
+        }
         ++result.derived_text_call_count;
     }
     for (std::size_t index = 9U; index < 12U; ++index) {
