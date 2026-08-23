@@ -4724,7 +4724,47 @@ public:
             explicit SelectorPorts(SdlSmokeIdlePorts& owner) noexcept
                 : owner_(owner) {}
 
-            void bind_mode_callbacks(openswd3::compat::u16) override {}
+            void bind_mode_callbacks(
+                const openswd3::compat::u16 secondary_word
+            ) override {
+                class BindingPorts final
+                    : public openswd3::special_modes::
+                          LegacyStandardModeCallbackBindingPorts {
+                public:
+                    explicit BindingPorts(SdlSmokeIdlePorts& owner) noexcept
+                        : owner_(owner) {}
+
+                    openswd3::compat::i32 story_flag(
+                        const openswd3::compat::u32 flag_index
+                    ) override {
+                        if (flag_index >=
+                            owner_.world_story_vm_state_.flags.size()) {
+                            return 0;
+                        }
+                        return static_cast<openswd3::compat::i32>(
+                            owner_.world_story_vm_state_.flags[flag_index]
+                        );
+                    }
+
+                    void initialize_secondary_dispatch() override {}
+
+                    void initialize_high_mode_runtime() override {}
+
+                private:
+                    SdlSmokeIdlePorts& owner_;
+                };
+
+                BindingPorts ports{owner_};
+                auto& selector_state =
+                    owner_.legacy_standard_mode_state_.selector_state;
+                static_cast<void>(openswd3::special_modes::
+                                      bind_legacy_standard_mode_callbacks(
+                                          selector_state.callback_state,
+                                          secondary_word,
+                                          selector_state.primary_words[0U],
+                                          ports
+                                      ));
+            }
 
             void establish_item_state(
                 const openswd3::compat::u16 selected_available_index
@@ -4807,16 +4847,28 @@ public:
         class InputPorts final
             : public openswd3::special_modes::LegacyStandardModeInputPorts {
         public:
+            explicit InputPorts(
+                const openswd3::special_modes::LegacyStandardModeCallbackState&
+                    callbacks
+            ) noexcept
+                : callbacks_(callbacks) {}
+
             bool dynamic_pre_callback_present() const override {
-                return false;
+                return callbacks_.targets[0U] != 0U;
             }
 
             void invoke(
                 openswd3::special_modes::LegacyStandardModeInputCallback
             ) override {}
+
+        private:
+            const openswd3::special_modes::LegacyStandardModeCallbackState&
+                callbacks_;
         };
 
-        InputPorts ports;
+        InputPorts ports{
+            legacy_standard_mode_state_.selector_state.callback_state
+        };
         static_cast<void>(
             openswd3::special_modes::run_legacy_standard_mode_input_dispatch(
                 legacy_standard_mode_state_.selector_state.input_state,

@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -23,6 +24,7 @@ using openswd3::input_time_rng::LegacyInputRecord;
 using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
+using openswd3::special_modes::bind_legacy_standard_mode_callbacks;
 using openswd3::special_modes::draw_legacy_standard_mode_ghost;
 using openswd3::special_modes::initialize_legacy_initial_menu;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
@@ -55,6 +57,9 @@ using openswd3::special_modes::LegacyStandardModeBarFrame;
 using openswd3::special_modes::LegacyStandardModeBarOutputs;
 using openswd3::special_modes::LegacyStandardModeBarPorts;
 using openswd3::special_modes::LegacyStandardModeBarRequest;
+using openswd3::special_modes::LegacyStandardModeCallbackBindingPorts;
+using openswd3::special_modes::LegacyStandardModeCallbackGroup;
+using openswd3::special_modes::LegacyStandardModeCallbackState;
 using openswd3::special_modes::LegacyStandardModeGhostState;
 using openswd3::special_modes::LegacyStandardModeItemState;
 using openswd3::special_modes::LegacyStandardModePanelFrame;
@@ -165,6 +170,28 @@ public:
     i32 story_flag_value{};
     u32 queried_flag{};
     bool query_saw_exact_prefix{};
+};
+
+class FakeStandardModeCallbackBindingPorts final
+    : public LegacyStandardModeCallbackBindingPorts {
+public:
+    i32 story_flag(const u32 flag_index) override {
+        events.push_back(1U);
+        queried_flag = flag_index;
+        return flag_value;
+    }
+
+    void initialize_secondary_dispatch() override {
+        events.push_back(2U);
+    }
+
+    void initialize_high_mode_runtime() override {
+        events.push_back(3U);
+    }
+
+    std::vector<u32> events;
+    i32 flag_value{};
+    u32 queried_flag{};
 };
 
 class FakeStandardModeItemPorts final : public LegacyStandardModeItemPorts {
@@ -1005,6 +1032,182 @@ void test_text_object_result_and_edited_name(openswd3::test::Context& test) {
             state.first_name[0] == 0x41U && state.first_name[1] == 0U &&
             state.name_input.has_value(),
         "text result one commits the edit and creates the second input object"
+    );
+}
+
+void test_standard_mode_callback_binding(openswd3::test::Context& test) {
+    const auto hash_targets = [](const LegacyStandardModeCallbackState& state) {
+        std::uint64_t hash = 1469598103934665603ULL;
+        for (const u32 target : state.targets) {
+            for (u32 shift = 0U; shift < 32U; shift += 8U) {
+                hash ^= static_cast<u8>(target >> shift);
+                hash *= 1099511628211ULL;
+            }
+        }
+        return hash;
+    };
+    struct Case {
+        u16 secondary{};
+        u16 primary{};
+        i32 flag{};
+        LegacyStandardModeCallbackGroup group{};
+        u32 writes{};
+        u32 helper_event{};
+        u32 flag_queries{};
+        std::uint64_t hash{};
+    };
+    const std::array cases{
+        Case{
+            2U,
+            0x1EU,
+            0,
+            LegacyStandardModeCallbackGroup::g01,
+            12U,
+            0U,
+            0U,
+            0x1651C09D96CCAFC6ULL
+        },
+        Case{
+            2U,
+            0x24U,
+            0,
+            LegacyStandardModeCallbackGroup::g02,
+            12U,
+            0U,
+            0U,
+            0x2537939092C7074CULL
+        },
+        Case{
+            2U,
+            0x2AU,
+            0,
+            LegacyStandardModeCallbackGroup::g03,
+            12U,
+            0U,
+            0U,
+            0x8B5305A068B916C0ULL
+        },
+        Case{
+            2U,
+            0x30U,
+            0,
+            LegacyStandardModeCallbackGroup::g04,
+            11U,
+            0U,
+            0U,
+            0x9B2B749DEB19D91DULL
+        },
+        Case{
+            2U,
+            0x36U,
+            0,
+            LegacyStandardModeCallbackGroup::g05,
+            11U,
+            0U,
+            1U,
+            0x2873911C4FC312F0ULL
+        },
+        Case{
+            2U,
+            0x36U,
+            1,
+            LegacyStandardModeCallbackGroup::g06,
+            12U,
+            0U,
+            1U,
+            0x4B3AE2F14F37C244ULL
+        },
+        Case{
+            2U,
+            0x42U,
+            0,
+            LegacyStandardModeCallbackGroup::g07,
+            11U,
+            0U,
+            0U,
+            0x7B18789ED58A8EE2ULL
+        },
+        Case{
+            1U,
+            0U,
+            0,
+            LegacyStandardModeCallbackGroup::g08,
+            13U,
+            2U,
+            0U,
+            0xC6EEC535A23EBF31ULL
+        },
+        Case{
+            0xEA60U,
+            0U,
+            0,
+            LegacyStandardModeCallbackGroup::g09,
+            13U,
+            3U,
+            0U,
+            0xD64C5415CFE4543FULL
+        },
+        Case{
+            2U,
+            0x3CU,
+            1,
+            LegacyStandardModeCallbackGroup::g05,
+            11U,
+            0U,
+            1U,
+            0x2873911C4FC312F0ULL
+        },
+        Case{
+            2U,
+            0x3CU,
+            0,
+            LegacyStandardModeCallbackGroup::g06,
+            12U,
+            0U,
+            1U,
+            0x4B3AE2F14F37C244ULL
+        },
+    };
+
+    for (const auto& item : cases) {
+        LegacyStandardModeCallbackState state;
+        state.targets.fill(0xDEADBEEFU);
+        FakeStandardModeCallbackBindingPorts ports;
+        ports.flag_value = item.flag;
+        const auto result = bind_legacy_standard_mode_callbacks(
+            state, item.secondary, item.primary, ports
+        );
+        const auto expected_events = item.helper_event != 0U
+            ? std::vector<u32>{item.helper_event}
+            : (item.flag_queries != 0U ? std::vector<u32>{1U}
+                                       : std::vector<u32>{});
+        test.expect_true(
+            result.group == item.group &&
+                result.slot_write_count == item.writes &&
+                result.helper_call_count ==
+                    (item.helper_event != 0U ? 1U : 0U) &&
+                result.story_flag_query_count == item.flag_queries &&
+                ports.events == expected_events &&
+                (item.flag_queries == 0U || ports.queried_flag == 0x49U) &&
+                hash_targets(state) == item.hash,
+            "0x43B480 selects the exact group and complete thirteen-slot " "target matrix while preserving omitted slots"
+        );
+    }
+
+    LegacyStandardModeCallbackState invalid_state;
+    invalid_state.targets.fill(0xDEADBEEFU);
+    const std::uint64_t invalid_hash = hash_targets(invalid_state);
+    FakeStandardModeCallbackBindingPorts invalid_ports;
+    const auto invalid = bind_legacy_standard_mode_callbacks(
+        invalid_state, 3U, 0x1234U, invalid_ports
+    );
+    test.expect_true(
+        invalid.group == LegacyStandardModeCallbackGroup::none &&
+            invalid.slot_write_count == 0U && invalid.helper_call_count == 0U &&
+            invalid.story_flag_query_count == 0U &&
+            invalid_ports.events.empty() &&
+            hash_targets(invalid_state) == invalid_hash,
+        "an unmatched selector returns without touching any callback slot"
     );
 }
 
@@ -2068,6 +2271,7 @@ int main() {
     test_name_cancel_returns_to_selection(test);
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
+    test_standard_mode_callback_binding(test);
     test_standard_mode_global_initialization(test);
     test_standard_mode_ghost_draw(test);
     test_standard_mode_bar_rendering(test);

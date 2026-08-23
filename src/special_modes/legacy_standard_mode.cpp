@@ -72,6 +72,129 @@ constexpr compat::u32 kTransitionGhostBaseX = 100U;
 constexpr compat::u32 kTransitionSecondaryTextX = 108U;
 constexpr compat::u32 kTransitionPrimaryTextX = 92U;
 constexpr compat::u32 kTransitionFrameWidth = 640U;
+constexpr compat::u32 kPreserveCallbackTarget = 0xFFFFFFFFU;
+
+constexpr std::
+    array<std::array<compat::u32, kLegacyStandardModeCallbackSlotCount>, 9U>
+        kCallbackTargets{{
+            {kPreserveCallbackTarget,
+             0x004455E0U,
+             0x00446FE0U,
+             0x00446680U,
+             0x004466A0U,
+             0x00445C90U,
+             0x00445E90U,
+             0x00446090U,
+             0x00446260U,
+             0x00446420U,
+             0x00446550U,
+             0x00446700U,
+             0x00447100U},
+            {kPreserveCallbackTarget,
+             0x004407F0U,
+             0x00441590U,
+             0x00441060U,
+             0x0044A240U,
+             0x00440B20U,
+             0x00440C20U,
+             0x00440D20U,
+             0x00440E10U,
+             0x00440F00U,
+             0x00440FB0U,
+             0x00441160U,
+             0x00441680U},
+            {kPreserveCallbackTarget,
+             0x00442F40U,
+             0x004441A0U,
+             0x00443A60U,
+             0x00443B70U,
+             0x00443450U,
+             0x00443570U,
+             0x00443670U,
+             0x004437C0U,
+             0x004438E0U,
+             0x004439A0U,
+             0x00443BD0U,
+             0x004442B0U},
+            {kPreserveCallbackTarget,
+             0x0044A050U,
+             0x0044A250U,
+             0x0044A0D0U,
+             kPreserveCallbackTarget,
+             0x0044A0D0U,
+             0x0044A160U,
+             0x0044A240U,
+             0x0044A240U,
+             0x0044A1D0U,
+             0x0044A0D0U,
+             0x0044A240U,
+             0x0044A280U},
+            {kPreserveCallbackTarget,
+             0x0044B070U,
+             0x0044C0E0U,
+             0x0044A240U,
+             kPreserveCallbackTarget,
+             0x0044B560U,
+             0x0044B6E0U,
+             0x0044B840U,
+             0x0044B930U,
+             0x0044BA20U,
+             0x0044BBD0U,
+             0x0044BDA0U,
+             0x0044C160U},
+            {kPreserveCallbackTarget,
+             0x0043DA30U,
+             0x0043E770U,
+             0x0043E250U,
+             0x0043E310U,
+             0x0043DD20U,
+             0x0043DDF0U,
+             0x0043DED0U,
+             0x0043DFA0U,
+             0x0043E080U,
+             0x0043E170U,
+             0x0043E3D0U,
+             0x0043E800U},
+            {kPreserveCallbackTarget,
+             0x0043C3C0U,
+             0x0043C800U,
+             0x0043C7E0U,
+             kPreserveCallbackTarget,
+             0x0043C520U,
+             0x0043C590U,
+             0x0043C600U,
+             0x0043C670U,
+             0x0043C6E0U,
+             0x0043C760U,
+             0x0044A240U,
+             0x0043C820U},
+            {0x004450E0U,
+             0x0044A240U,
+             0x004453F0U,
+             0x0044A240U,
+             0x0044A240U,
+             0x0044A240U,
+             0x0044A240U,
+             0x0044A240U,
+             0x0044A240U,
+             0x00445210U,
+             0x004452B0U,
+             0x00445360U,
+             0x00445420U},
+            {0U,
+             0x00448840U,
+             0x00449050U,
+             0x0044A240U,
+             0x00448EB0U,
+             0x00448BB0U,
+             0x00448C00U,
+             0x00448C40U,
+             0x00448C70U,
+             0x00448CA0U,
+             0x00448DA0U,
+             0x00448EE0U,
+             0x004490C0U},
+        }};
 
 constexpr std::size_t kPrimaryRecord = 0U;
 constexpr std::size_t kFlagVariantRecord = 1U;
@@ -142,6 +265,62 @@ arithmetic_shift_right_one(const compat::u32 value) noexcept {
 }
 
 }  // namespace
+
+LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
+    LegacyStandardModeCallbackState& state,
+    const compat::u16 secondary_word,
+    const compat::u16 primary_word,
+    LegacyStandardModeCallbackBindingPorts& ports
+) noexcept {
+    LegacyStandardModeCallbackBindingResult result;
+    std::size_t group_index = kCallbackTargets.size();
+
+    if (secondary_word == 2U) {
+        if (primary_word >= 0x1EU && primary_word <= 0x20U) {
+            group_index = 0U;
+        } else if (primary_word >= 0x24U && primary_word <= 0x29U) {
+            group_index = 1U;
+        } else if (primary_word >= 0x2AU && primary_word <= 0x2EU) {
+            group_index = 2U;
+        } else if (primary_word >= 0x30U && primary_word <= 0x34U) {
+            group_index = 3U;
+        } else if (primary_word >= 0x36U && primary_word <= 0x3AU) {
+            const compat::i32 flag = ports.story_flag(kStoryFlagIndex);
+            ++result.story_flag_query_count;
+            group_index = flag == 0 ? 4U : 5U;
+        } else if (primary_word >= 0x3CU && primary_word <= 0x3EU) {
+            const compat::i32 flag = ports.story_flag(kStoryFlagIndex);
+            ++result.story_flag_query_count;
+            group_index = flag != 0 ? 4U : 5U;
+        } else if (primary_word >= 0x42U && primary_word <= 0x47U) {
+            group_index = 6U;
+        }
+    } else if (secondary_word == 1U) {
+        ports.initialize_secondary_dispatch();
+        ++result.helper_call_count;
+        group_index = 7U;
+    } else if (secondary_word == kHighModeSecondaryWord) {
+        ports.initialize_high_mode_runtime();
+        ++result.helper_call_count;
+        group_index = 8U;
+    }
+
+    if (group_index == kCallbackTargets.size()) {
+        return result;
+    }
+    result.group =
+        static_cast<LegacyStandardModeCallbackGroup>(group_index + 1U);
+    for (std::size_t slot = 0U; slot < kLegacyStandardModeCallbackSlotCount;
+         ++slot) {
+        const compat::u32 target = kCallbackTargets[group_index][slot];
+        if (target == kPreserveCallbackTarget) {
+            continue;
+        }
+        state.targets[slot] = target;
+        ++result.slot_write_count;
+    }
+    return result;
+}
 
 LegacyStandardModeGhostResult draw_legacy_standard_mode_ghost(
     LegacyStandardModeGhostState& state,

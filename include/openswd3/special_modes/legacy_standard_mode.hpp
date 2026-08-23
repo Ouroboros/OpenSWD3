@@ -81,6 +81,43 @@ struct LegacyStandardModeItemResult {
     compat::u32 return_value{};
 };
 
+inline constexpr std::size_t kLegacyStandardModeCallbackSlotCount = 13U;
+
+struct LegacyStandardModeCallbackState {
+    std::array<compat::u32, kLegacyStandardModeCallbackSlotCount> targets{};
+};
+
+enum class LegacyStandardModeCallbackGroup : compat::u8 {
+    none,
+    g01,
+    g02,
+    g03,
+    g04,
+    g05,
+    g06,
+    g07,
+    g08,
+    g09,
+};
+
+class LegacyStandardModeCallbackBindingPorts {
+public:
+    virtual ~LegacyStandardModeCallbackBindingPorts() = default;
+
+    [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
+    virtual void initialize_secondary_dispatch() = 0;
+    virtual void initialize_high_mode_runtime() = 0;
+};
+
+struct LegacyStandardModeCallbackBindingResult {
+    LegacyStandardModeCallbackGroup group{
+        LegacyStandardModeCallbackGroup::none
+    };
+    compat::u32 story_flag_query_count{};
+    compat::u32 slot_write_count{};
+    compat::u32 helper_call_count{};
+};
+
 enum class LegacyStandardModeInputCallback : compat::u8 {
     dynamic_pre,
     primary,
@@ -372,6 +409,7 @@ struct LegacyStandardModeRenderResult {
 };
 
 struct LegacyStandardModeSelectorState {
+    LegacyStandardModeCallbackState callback_state{};
     LegacyStandardModeItemState item_state{};
     LegacyStandardModeInputState input_state{};
     LegacyStandardModeRenderState render_state{};
@@ -469,6 +507,15 @@ struct LegacyStandardSpecialModeFrameResult {
 initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeState& state,
     LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
+
+// sub_43B480: bind one of nine standard-mode callback configurations.
+[[nodiscard]] LegacyStandardModeCallbackBindingResult
+bind_legacy_standard_mode_callbacks(
+    LegacyStandardModeCallbackState& state,
+    compat::u16 secondary_word,
+    compat::u16 primary_word,
+    LegacyStandardModeCallbackBindingPorts& ports
 ) noexcept;
 
 // sub_43B080: update and draw one standard-mode ghost action.
