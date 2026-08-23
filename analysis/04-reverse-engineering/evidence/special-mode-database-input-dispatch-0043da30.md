@@ -4,7 +4,7 @@
 
 ## 1. LST范围与owner
 
-唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DA30..0x0043DD1F`，365行；由B480 callback表间接绑定，没有direct call caller。直接callee中C090、DD20、DDF0、DED0、DFA0和E080已关闭；E170/E310/E3D0/E770与外部物品查询继续独立审计。
+唯一行为真值为`swd3.exe.lst`。函数范围`0x0043DA30..0x0043DD1F`，365行；由B480 callback表间接绑定，没有direct call caller。直接callee中C090、DD20、DDF0、DED0、DFA0、E080和E170已关闭；E310/E3D0/E770与外部物品查询继续独立审计。
 
 DA30读写D530共享owner：
 
@@ -39,7 +39,7 @@ DA30读写D530共享owner：
 
 上面板矩形为`x=41..414,y=13..291`。物品`0x1BA9`存在、runtime flag bit0清且button bit0置位时先调用E080。闭环E080成功路径会再次查询物品并清toggle，因此随后独立检查button bit1时真实路径进入E3D0；旧的double-E080高层假设不可达。toggle1仅使E080先sample107，toggle0则跳过sample。
 
-下面板矩形为`x=41..414,y=333..611`。runtime flag bit1清且button bit0置位时先调用E170；随后button bit1置位时，toggle等于1调用E3D0，否则再次调用E170。UT锁定`E170→E3D0`和`E170→E170`。
+下面板矩形为`x=41..414,y=333..611`。runtime flag bit1清且button bit0置位时先调用E170。闭环E170成功路径必把toggle写1，因此随后button bit1置位时真实路径进入E3D0；旧的double-E170高层假设不可达。toggle1跳过sample，其他值先sample107。
 
 callee后会重读X/button/toggle，不缓存为高层事件。未命中时低位`0x0C`调用E770。
 
@@ -49,6 +49,6 @@ phase3/4在button低4位非零时调用E3D0；phase5同条件调用E770；其他
 
 ## 5. 验证
 
-定向UT覆盖页1..6上界、24像素索引及signed count边界、strict hover、C090 typed-stop、phase1两条三callee直连/重读路径、phase2 E080真实toggle耦合与lower-panel双调用、物品查询ID、phase3/4/5和未知phase。
+定向UT覆盖页1..6上界、24像素索引及signed count边界、strict hover、C090 typed-stop、phase1两条三callee直连/重读路径、phase2 E080/E170真实toggle耦合、物品查询ID、phase3/4/5和未知phase。
 
 `special_modes.legacy_initial_menu`定向测试通过。workpack双生成稳定为`46/227`，SHA256均为`53c46bdf47c9719b2ee102b907d48d820ec10bbf52731ebca6de7dfb53d9c184`；下一单元为`0x0043DD20`。Linux core完整门`188/188`、Linux app完整门`194/194`通过；按阶段门禁未运行Windows BUILD。

@@ -1770,6 +1770,14 @@ advance_legacy_standard_mode_database(
     LegacyStandardModeDatabaseAdvancePorts& ports
 ) noexcept;
 
+// sub_43E170: advance the database page source or phase-specific owner.
+[[nodiscard]] LegacyStandardModeDatabaseCycleResult
+advance_legacy_standard_mode_database_page_source(
+    LegacyStandardModeDatabaseInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeDatabaseCyclePorts& ports
+) noexcept;
+
 // sub_43E080: cycle the database page source or phase-specific owner.
 [[nodiscard]] LegacyStandardModeDatabaseCycleResult
 cycle_legacy_standard_mode_database_page(

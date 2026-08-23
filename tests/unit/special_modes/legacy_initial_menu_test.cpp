@@ -33,6 +33,8 @@ using openswd3::rendering::LegacyFramePiece;
 using openswd3::special_modes::adjust_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::advance_legacy_standard_mode_database;
 using openswd3::special_modes::advance_legacy_standard_mode_database_page;
+using openswd3::special_modes::
+    advance_legacy_standard_mode_database_page_source;
 using openswd3::special_modes::advance_legacy_standard_mode_forward_head;
 using openswd3::special_modes::advance_legacy_standard_mode_window_cursor;
 using openswd3::special_modes::advance_legacy_standard_mode_runtime_cursor;
@@ -2874,6 +2876,127 @@ void test_standard_mode_database_page_cycle(openswd3::test::Context& test) {
     CyclePorts ports;
     ports.forward_head = &first;
 
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            forward_state;
+        forward_state.interaction_phase = 1U;
+        forward_state.page_selection = 2;
+        forward_state.window_offset = 99;
+        forward_state.list_selection = 88;
+        forward_state.bounded_forward_count = 77;
+        forward_state.display_flags = 0x4321U;
+        forward_state.interface_source_value = 0x87654321U;
+        CyclePorts forward_ports;
+        forward_ports.forward_head = &first;
+        const auto forward = advance_legacy_standard_mode_database_page_source(
+            forward_state, {}, forward_ports
+        );
+        test.expect_true(
+            forward.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseCycleStatus::completed &&
+                forward.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseCyclePath::
+                            phase_1_page_cycle &&
+                forward.legacy_return_value == 85 &&
+                forward.helper_call_count == 5U && forward.sample_initialized &&
+                forward_state.page_selection == 0 &&
+                forward_state.forward_head == &first &&
+                forward_state.current_forward_head == &first &&
+                forward_state.forward_count == 3U &&
+                forward_state.window_offset == 0 &&
+                forward_state.list_selection == 0 &&
+                forward_state.bounded_forward_count == 3 &&
+                forward_state.shared_text[0U] == 0xB5U &&
+                forward_state.shared_text[1U] == 0x4CU &&
+                forward_state.display_flags == 0x4321U &&
+                forward_ports.events == std::vector<u8>{0U, 1U, 2U, 3U} &&
+                forward_ports.sample_ids == std::vector<u16>{0x2EU} &&
+                forward_ports.interface_values == std::vector<u32>{0x87654321U},
+            "0x43E170 phase1 wraps page above two and rebuilds BCC0 selection"
+        );
+
+        forward_state.interaction_phase = 2U;
+        forward_state.interaction_toggle = 2U;
+        forward_state.runtime_input_flags = 0U;
+        forward_ports.events.clear();
+        const auto toggle = advance_legacy_standard_mode_database_page_source(
+            forward_state, {}, forward_ports
+        );
+        test.expect_true(
+            toggle.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseCyclePath::phase_2_toggle &&
+                toggle.legacy_return_value == 95 &&
+                toggle.helper_call_count == 1U && toggle.sample_initialized &&
+                forward_state.interaction_toggle == 1U &&
+                forward_ports.events == std::vector<u8>{3U} &&
+                forward_ports.sample_ids.back() == 0x107U,
+            "0x43E170 phase2 samples non-one toggle then writes one"
+        );
+        forward_state.interaction_toggle = 2U;
+        forward_state.runtime_input_flags = 2U;
+        const auto gated = advance_legacy_standard_mode_database_page_source(
+            forward_state, {}, forward_ports
+        );
+        test.expect_true(
+            gated.legacy_return_value == 95 &&
+                forward_state.interaction_toggle == 2U,
+            "0x43E170 phase2 bit1 gate preserves non-one toggle after sample"
+        );
+        forward_state.interaction_toggle = 1U;
+        forward_state.runtime_input_flags = 0U;
+        const std::size_t sample_count = forward_ports.sample_ids.size();
+        const auto already_one =
+            advance_legacy_standard_mode_database_page_source(
+                forward_state, {}, forward_ports
+            );
+        test.expect_true(
+            already_one.legacy_return_value == 1 &&
+                already_one.helper_call_count == 0U &&
+                !already_one.sample_initialized &&
+                forward_ports.sample_ids.size() == sample_count,
+            "0x43E170 phase2 toggle one skips sample and preserves EAX one"
+        );
+
+        forward_state.interaction_phase = 3U;
+        forward_state.phase_3_countdown = 0U;
+        const auto countdown =
+            advance_legacy_standard_mode_database_page_source(
+                forward_state, {}, forward_ports
+            );
+        test.expect_true(
+            countdown.path ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseCyclePath::
+                            phase_3_countdown &&
+                countdown.legacy_return_value == 0 &&
+                forward_state.phase_3_countdown == 0xC8U,
+            "0x43E170 phase3 writes countdown 200"
+        );
+    }
+    {
+        openswd3::special_modes::LegacyStandardModeDatabaseInitializationState
+            stopped_state;
+        stopped_state.interaction_phase = 1U;
+        CyclePorts stopped_ports;
+        const auto stopped = advance_legacy_standard_mode_database_page_source(
+            stopped_state, {}, stopped_ports
+        );
+        test.expect_true(
+            stopped.status ==
+                    openswd3::special_modes::
+                        LegacyStandardModeDatabaseCycleStatus::
+                            window_selection_stopped &&
+                stopped.helper_call_count == 2U &&
+                !stopped.sample_initialized &&
+                stopped_ports.missing_insert_count == 1U &&
+                stopped_ports.events == std::vector<u8>{0U, 4U},
+            "0x43E170 typed-stops when BCC0 fallback does not publish"
+        );
+    }
+
     const auto phase_1 =
         cycle_legacy_standard_mode_database_page(state, {}, ports);
     test.expect_true(
@@ -3621,25 +3744,26 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         const auto result = run(state, input, ports);
         test.expect_true(
             result.callback_count == 2U &&
+                result.last_target == Target::address_0043E3D0 &&
                 ports.targets ==
-                    std::vector<Target>{
-                        Target::address_0043E170,
-                        Target::address_0043E3D0,
-                    } &&
+                    std::vector<Target>{Target::address_0043E3D0} &&
+                ports.database_sample_ids.empty() &&
                 ports.queried_item_ids.empty(),
-            "0x43DA30 phase2 lower panel dispatches E170 then toggle-selected E3D0"
+            "0x43DA30 lower panel closes toggle-one E170 before E3D0"
         );
         state.interaction_toggle = 2U;
+        state.runtime_input_flags = 0U;
         InputPorts repeated_ports;
         const auto repeated = run(state, input, repeated_ports);
         test.expect_true(
             repeated.callback_count == 2U &&
+                repeated.last_target == Target::address_0043E3D0 &&
                 repeated_ports.targets ==
-                    std::vector<Target>{
-                        Target::address_0043E170,
-                        Target::address_0043E170,
-                    },
-            "0x43DA30 lower-panel non-one toggle repeats E170 bug-for-bug"
+                    std::vector<Target>{Target::address_0043E3D0} &&
+                repeated_ports.database_sample_ids ==
+                    std::vector<u16>{0x107U} &&
+                state.interaction_toggle == 1U,
+            "0x43DA30 lower-panel closes non-one E170 before E3D0"
         );
     }
     {

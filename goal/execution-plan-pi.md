@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v476
+版本：v477
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043E170`
+当前步骤：模块9 · 闭环`0x0043E250`
 
 ## 0. 执行约定
 
@@ -3481,10 +3481,10 @@ B7 P0 有限收口完成。
 - 模块9标准模式数据库输入分派`0x0043DA30`闭环。LST范围`0x0043DA30..0x0043DD1F`，由B480
     callback间接调用。权威owner重映射确认dword FCD20是交互phase，独立于word 4FC900生命周期phase；
     FCAD8是完整forward count，FCB98是16界count。phase1保留页/列表/方向/hover矩形、C090 record15
-    门控及动态strict-X边界，前三个callee后重读X，可同帧执行DDF0→DD20→DFA0→DED0。phase2保留双
-    button的E170→E170/E3D0重复调用BUG保留；E080闭环后确认上面板成功路径清toggle，真实为E080→E3D0，
-    旧double-E080假设不可达。phase3/4/5按低4位调用E3D0/E770。定向UT覆盖signed count边界、C090
-    typed-stop、链式X重读、真实toggle耦合、lower双调用、物品1BA9及未知phase。workpack
+    门控及动态strict-X边界，前三个callee后重读X，可同帧执行DDF0→DD20→DFA0→DED0。E080/E170闭环
+    后确认上/下面板成功路径分别清toggle0/写toggle1，双button真实均进入E3D0，旧double-E080/E170
+    假设不可达。phase3/4/5按低4位调用E3D0/E770。定向UT覆盖signed count边界、C090 typed-stop、
+    链式X重读、真实toggle耦合、物品1BA9及未知phase。workpack
     连续两轮稳定为`46/227`，SHA256为
     `53c46bdf47c9719b2ee102b907d48d820ec10bbf52731ebca6de7dfb53d9c184`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
@@ -3540,9 +3540,20 @@ B7 P0 有限收口完成。
     `0f52bb8ee251b986257b5e984793f79cdd66fc50d5f329adfb19a40f1d94e272`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式数据库页来源正向循环`0x0043E170`闭环。LST范围`0x0043E170..0x0043E243`，DA30
+    有两个direct call且B480 callback间接绑定。phase1对page做32-bit加1、signed值大于2写0，F000
+    重建head，清window/local并预置visible16后直接调用BCC0，发布count/current/selected/shared text；
+    BCC0失败在原不安全点typed-stop，成功才F880/F1E0及sample2E，不改display flags。phase2中toggle1
+    跳过sample并保留EAX1，其他值sample107覆盖EAX；runtime bit1清才写toggle1。phase3写countdown200。
+    闭环后确认DA30 lower-panel外层bit1清门保证E170成功写toggle1，双button真实为E170→E3D0，旧
+    double-E170假设不可达。定向UT覆盖三节点FFDC内建文本、missing insertion typed-stop、toggle/sample/
+    gate、phase3及DA30耦合。workpack连续两轮稳定为`52/227`，SHA256为
+    `78d3553aa39a50f6bdeaa493e65d0d6f1b3edcc89f56accb7ca4236e46d11185`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`51/227`，下一单元为`0x0043E170`。
+进行中，正式进度为`52/227`，下一单元为`0x0043E250`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043E170`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043E250`，继续更新workpack、证据和完整验证门。
