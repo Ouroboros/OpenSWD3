@@ -34,7 +34,41 @@ struct LegacyModeThreeSixRecordInitialization {
     std::array<compat::u32, 4> choice_base_variants{};
 };
 
+struct LegacyStandardModeSelectorState {
+    compat::u16 selector{};
+    compat::u16 derived_index{};
+    compat::u16 item_count{};
+    std::array<compat::u16, 3U> resource_ids{};
+    compat::u32 mode_value{};
+};
+
+class LegacyStandardModeSelectorPorts {
+public:
+    virtual ~LegacyStandardModeSelectorPorts() = default;
+
+    virtual void bind_mode_callbacks(compat::u16 selector) = 0;
+    virtual void establish_item_state(compat::u16 item_count) = 0;
+    virtual void clear_mode_input_records() = 0;
+    [[nodiscard]] virtual compat::u32 create_shared_input_token(
+        compat::u32 first, compat::u32 second, compat::u32 third
+    ) = 0;
+    virtual void
+    publish_input_token(std::size_t owner_index, compat::u32 token) = 0;
+    [[nodiscard]] virtual compat::i16
+    publish_input_sentinel(std::size_t owner_index, compat::u16 sentinel) = 0;
+};
+
+struct LegacyStandardModeSelectorResult {
+    compat::u32 callback_bind_count{};
+    compat::u32 item_state_count{};
+    compat::u32 input_clear_count{};
+    compat::u32 token_publish_count{};
+    compat::u32 sentinel_publish_count{};
+    compat::i16 return_value{};
+};
+
 struct LegacyStandardSpecialModeState {
+    LegacyStandardModeSelectorState selector_state{};
     std::array<
         asset_runtime::LegacyActionRecord,
         kLegacyStandardSpecialModeInitializationRecordCount>
@@ -94,6 +128,15 @@ struct LegacyStandardSpecialModeFrameResult {
 initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeState& state,
     LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
+
+// sub_43A2A0: initialize shared selector and input state for a standard mode.
+[[nodiscard]] LegacyStandardModeSelectorResult
+initialize_legacy_standard_mode_selector(
+    LegacyStandardModeSelectorState& state,
+    compat::i32 resource_id,
+    compat::u32 selector,
+    LegacyStandardModeSelectorPorts& ports
 ) noexcept;
 
 // sub_439FD0: common controller for standard special modes 1, 3, 4, 5 and 6.

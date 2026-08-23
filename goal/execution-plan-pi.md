@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v420
+版本：v421
 
 最后更新：2026-08-22
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 模式选择初始化`0x0043A2A0`闭环
+当前步骤：模块9 · 可用项目状态初始化`0x0043A380`闭环
 
 ## 0. 执行约定
 
@@ -3054,4 +3054,10 @@ B7 P0 有限收口完成。
     `895ddf3dc0d11da21a3fe4e216719878e8da3901923999183aa88fa9a172c34e`；Linux core186/186、
     Linux app192/192及Windows LLVM app192/192通过。
 
-下一工作包：模块9模式选择初始化`0x0043A2A0`闭环。
+- 模块9模式选择初始化`0x0043A2A0`闭环。mode1/2普通与alternate参数族、mode3–6 selector映射、
+    低16位字段、有符号派生索引、五个callee边界、`0x200`字节输入区清零、共享token建立和
+    三owner token/sentinel顺序均按LST实现。workpack两轮稳定为`3/227`，hash为
+    `bb501b6c069983b834a14030ac584b96b326f43ea2a5f233f8b2b9a65263b001`；Linux core186/186、
+    Linux app192/192及Windows LLVM app192/192通过。
+
+下一工作包：模块9可用项目状态初始化`0x0043A380`闭环。

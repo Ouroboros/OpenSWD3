@@ -1,5 +1,7 @@
 #include "openswd3/special_modes/legacy_standard_mode.hpp"
 
+#include <bit>
+
 namespace openswd3::special_modes {
 namespace {
 
@@ -13,6 +15,12 @@ constexpr compat::u32 kStoryFlagIndex = 0x49U;
 constexpr compat::u32 kPrimaryActionId = 0x0000232AU;
 constexpr compat::u32 kChoiceActionId = 0x0000232BU;
 constexpr compat::u32 kFinalActionId = 0x0000233BU;
+constexpr compat::i32 kSelectorIndexBaseResource = 0x1E;
+constexpr compat::i32 kSelectorIndexDivisor = 6;
+constexpr compat::i32 kSelectorIndexBias = 0x0B;
+constexpr compat::u16 kSelectorItemCount = 5U;
+constexpr compat::u16 kInputSentinel = 0xFFFEU;
+constexpr std::size_t kInputOwnerCount = 3U;
 
 constexpr std::size_t kPrimaryRecord = 0U;
 constexpr std::size_t kFlagVariantRecord = 1U;
@@ -41,6 +49,50 @@ void set_action(
 }
 
 }  // namespace
+
+LegacyStandardModeSelectorResult initialize_legacy_standard_mode_selector(
+    LegacyStandardModeSelectorState& state,
+    const compat::i32 resource_id,
+    const compat::u32 selector,
+    LegacyStandardModeSelectorPorts& ports
+) noexcept {
+    LegacyStandardModeSelectorResult result;
+    const compat::i32 resource_delta = std::bit_cast<compat::i32>(
+        std::bit_cast<compat::u32>(resource_id) -
+        static_cast<compat::u32>(kSelectorIndexBaseResource)
+    );
+    const compat::i32 derived_index =
+        resource_delta / kSelectorIndexDivisor + kSelectorIndexBias;
+
+    state.selector = static_cast<compat::u16>(selector);
+    state.derived_index = static_cast<compat::u16>(derived_index);
+    state.item_count = kSelectorItemCount;
+    state.resource_ids.fill(static_cast<compat::u16>(resource_id));
+
+    ports.bind_mode_callbacks(state.selector);
+    ++result.callback_bind_count;
+    ports.establish_item_state(state.item_count);
+    ++result.item_state_count;
+
+    ports.clear_mode_input_records();
+    ++result.input_clear_count;
+    state.mode_value = 0U;
+
+    const compat::u32 token = ports.create_shared_input_token(6U, 4U, 3U);
+    for (std::size_t owner_index = 0U; owner_index < kInputOwnerCount;
+         ++owner_index) {
+        ports.publish_input_token(owner_index, token);
+        ++result.token_publish_count;
+    }
+    for (std::size_t owner_index = 0U; owner_index < kInputOwnerCount;
+         ++owner_index) {
+        result.return_value =
+            ports.publish_input_sentinel(owner_index, kInputSentinel);
+        ++result.sentinel_publish_count;
+    }
+
+    return result;
+}
 
 LegacyStandardSpecialModeInitializationResult
 initialize_legacy_standard_special_modes(

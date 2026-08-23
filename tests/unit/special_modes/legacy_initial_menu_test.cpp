@@ -13,6 +13,7 @@ namespace {
 using openswd3::asset_runtime::LegacyActionDrawPorts;
 using openswd3::asset_runtime::LegacyActionRecord;
 using openswd3::asset_runtime::LegacyActionUpdateStatus;
+using openswd3::compat::i16;
 using openswd3::compat::i32;
 using openswd3::compat::u16;
 using openswd3::compat::u32;
@@ -21,6 +22,7 @@ using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::special_modes::initialize_legacy_initial_menu;
+using openswd3::special_modes::initialize_legacy_standard_mode_selector;
 using openswd3::special_modes::initialize_legacy_standard_special_modes;
 using openswd3::special_modes::kLegacyInitialMenuCommitCounter;
 using openswd3::special_modes::kLegacyInitialMenuEntryCounter;
@@ -36,6 +38,8 @@ using openswd3::special_modes::kLegacySpecialModeAlternateFlag;
 using openswd3::special_modes::kLegacySpecialModeInitializeFlag;
 using openswd3::special_modes::LegacyLowSpecialModeInitialization;
 using openswd3::special_modes::LegacyModeThreeSixRecordInitialization;
+using openswd3::special_modes::LegacyStandardModeSelectorPorts;
+using openswd3::special_modes::LegacyStandardModeSelectorState;
 using openswd3::special_modes::LegacyStandardSpecialModeInitializationPorts;
 using openswd3::special_modes::LegacyStandardSpecialModePorts;
 using openswd3::special_modes::LegacyStandardSpecialModeState;
@@ -126,6 +130,79 @@ public:
     i32 story_flag_value{};
     u32 queried_flag{};
     bool query_saw_exact_prefix{};
+};
+
+class FakeStandardModeSelectorPorts final
+    : public LegacyStandardModeSelectorPorts {
+public:
+    explicit FakeStandardModeSelectorPorts(
+        LegacyStandardModeSelectorState& state
+    ) noexcept
+        : state_(state) {
+        input_words.fill(0xFFFFFFFFU);
+    }
+
+    void bind_mode_callbacks(const u16 selector) override {
+        events.push_back(1U);
+        callback_selector = selector;
+        bind_saw_header = state_.selector == 2U &&
+            state_.derived_index == 0x2716U && state_.item_count == 5U &&
+            state_.resource_ids ==
+                std::array<u16, 3>{0xEA60U, 0xEA60U, 0xEA60U} &&
+            state_.mode_value == 0xDEADBEEFU;
+    }
+
+    void establish_item_state(const u16 item_count) override {
+        events.push_back(2U);
+        established_item_count = item_count;
+    }
+
+    void clear_mode_input_records() override {
+        events.push_back(3U);
+        clear_saw_preceding_state = state_.mode_value == 0xDEADBEEFU;
+        input_words.fill(0U);
+    }
+
+    u32 create_shared_input_token(
+        const u32 first, const u32 second, const u32 third
+    ) override {
+        events.push_back(4U);
+        token_arguments = {first, second, third};
+        create_saw_mode_clear = state_.mode_value == 0U;
+        return shared_token;
+    }
+
+    void publish_input_token(
+        const std::size_t owner_index, const u32 token
+    ) override {
+        events.push_back(static_cast<u32>(10U + owner_index));
+        token_owners.push_back(owner_index);
+        published_tokens.push_back(token);
+    }
+
+    i16 publish_input_sentinel(
+        const std::size_t owner_index, const u16 sentinel
+    ) override {
+        events.push_back(static_cast<u32>(20U + owner_index));
+        sentinel_owners.push_back(owner_index);
+        published_sentinels.push_back(sentinel);
+        return static_cast<i16>(0x120U + owner_index);
+    }
+
+    LegacyStandardModeSelectorState& state_;
+    std::array<u32, 0x80U> input_words{};
+    std::vector<u32> events;
+    std::vector<std::size_t> token_owners;
+    std::vector<std::size_t> sentinel_owners;
+    std::vector<u32> published_tokens;
+    std::vector<u16> published_sentinels;
+    std::array<u32, 3U> token_arguments{};
+    u32 shared_token{0xCAFEBABEU};
+    u16 callback_selector{};
+    u16 established_item_count{};
+    bool bind_saw_header{};
+    bool clear_saw_preceding_state{};
+    bool create_saw_mode_clear{};
 };
 
 class FakeStandardModePorts final : public LegacyStandardSpecialModePorts {
@@ -520,6 +597,52 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_selector_initialization(openswd3::test::Context& test) {
+    LegacyStandardModeSelectorState state{.mode_value = 0xDEADBEEFU};
+    FakeStandardModeSelectorPorts ports{state};
+    const auto result = initialize_legacy_standard_mode_selector(
+        state, 0x0000EA60, 0x00010002U, ports
+    );
+    test.expect_true(
+        state.selector == 2U && state.derived_index == 0x2716U &&
+            state.item_count == 5U &&
+            state.resource_ids ==
+                std::array<u16, 3U>{0xEA60U, 0xEA60U, 0xEA60U} &&
+            state.mode_value == 0U && ports.callback_selector == 2U &&
+            ports.established_item_count == 5U && ports.bind_saw_header &&
+            ports.clear_saw_preceding_state && ports.create_saw_mode_clear &&
+            ports.input_words == std::array<u32, 0x80U>{} &&
+            ports.token_arguments == std::array<u32, 3U>{6U, 4U, 3U} &&
+            ports.token_owners == std::vector<std::size_t>{0U, 1U, 2U} &&
+            ports.published_tokens ==
+                std::vector<u32>{0xCAFEBABEU, 0xCAFEBABEU, 0xCAFEBABEU} &&
+            ports.sentinel_owners == std::vector<std::size_t>{0U, 1U, 2U} &&
+            ports.published_sentinels ==
+                std::vector<u16>{0xFFFEU, 0xFFFEU, 0xFFFEU} &&
+            ports.events ==
+                std::vector<u32>{
+                    1U, 2U, 3U, 4U, 10U, 11U, 12U, 20U, 21U, 22U
+                } &&
+            result.callback_bind_count == 1U && result.item_state_count == 1U &&
+            result.input_clear_count == 1U &&
+            result.token_publish_count == 3U &&
+            result.sentinel_publish_count == 3U && result.return_value == 0x122,
+        "0x43A2A0 preserves the selector header, 0x200-byte input clear " "and three-owner token then sentinel order"
+    );
+
+    LegacyStandardModeSelectorState signed_state;
+    FakeStandardModeSelectorPorts signed_ports{signed_state};
+    static_cast<void>(initialize_legacy_standard_mode_selector(
+        signed_state, 0x17, 0xFFFF0003U, signed_ports
+    ));
+    test.expect_true(
+        signed_state.selector == 3U && signed_state.derived_index == 10U &&
+            signed_state.resource_ids ==
+                std::array<u16, 3U>{0x17U, 0x17U, 0x17U},
+        "the x86 signed division truncates negative resource deltas toward zero"
+    );
+}
+
 void test_standard_mode_entry_and_common_order(openswd3::test::Context& test) {
     LegacyStandardSpecialModeState low_state{
         .frame_counter = 999U,
@@ -686,6 +809,7 @@ int main() {
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
     test_standard_mode_global_initialization(test);
+    test_standard_mode_selector_initialization(test);
     test_standard_mode_entry_and_common_order(test);
     test_standard_mode_exit_paths(test);
     test_real_draw_contract(test);

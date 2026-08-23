@@ -4712,6 +4712,60 @@ public:
         );
     }
 
+    void initialize_standard_mode_selector(
+        const openswd3::compat::u32 selector,
+        const openswd3::compat::u32 resource_id
+    ) {
+        class SelectorPorts final
+            : public openswd3::special_modes::LegacyStandardModeSelectorPorts {
+        public:
+            explicit SelectorPorts(SdlSmokeIdlePorts& owner) noexcept
+                : owner_(owner) {}
+
+            void bind_mode_callbacks(openswd3::compat::u16) override {}
+
+            void establish_item_state(openswd3::compat::u16) override {}
+
+            void clear_mode_input_records() override {
+                std::fill(
+                    owner_.input_state_.records.begin(),
+                    owner_.input_state_.records.end(),
+                    openswd3::input_time_rng::LegacyInputRecord{}
+                );
+            }
+
+            openswd3::compat::u32 create_shared_input_token(
+                openswd3::compat::u32,
+                openswd3::compat::u32,
+                openswd3::compat::u32
+            ) override {
+                return 0U;
+            }
+
+            void
+            publish_input_token(std::size_t, openswd3::compat::u32) override {}
+
+            openswd3::compat::i16 publish_input_sentinel(
+                std::size_t, openswd3::compat::u16
+            ) override {
+                return 0;
+            }
+
+        private:
+            SdlSmokeIdlePorts& owner_;
+        };
+
+        SelectorPorts ports{*this};
+        static_cast<void>(
+            openswd3::special_modes::initialize_legacy_standard_mode_selector(
+                legacy_standard_mode_state_.selector_state,
+                std::bit_cast<openswd3::compat::i32>(resource_id),
+                selector,
+                ports
+            )
+        );
+    }
+
     openswd3::app::StandardSpecialModeEvent step_initial_menu_special_mode() {
         openswd3::asset_runtime::LegacyActionDrawRuntimePorts action_ports{
             action_updater_,
@@ -4813,8 +4867,13 @@ public:
 
             void initialize_low_mode(
                 const openswd3::special_modes::
-                    LegacyLowSpecialModeInitialization&
-            ) override {}
+                    LegacyLowSpecialModeInitialization& initialization
+            ) override {
+                owner_.initialize_standard_mode_selector(
+                    initialization.setup_selector,
+                    initialization.setup_resource_id
+                );
+            }
 
             void reset_mode_records() override {}
 
@@ -4830,8 +4889,11 @@ public:
             }
 
             void initialize_mode_selector(
-                openswd3::compat::u32, openswd3::compat::u32
-            ) override {}
+                const openswd3::compat::u32 selector,
+                const openswd3::compat::u32 resource_id
+            ) override {
+                owner_.initialize_standard_mode_selector(selector, resource_id);
+            }
 
             void
             play_entry_sound(const openswd3::compat::u16 sound_id) override {
