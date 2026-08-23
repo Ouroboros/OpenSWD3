@@ -695,6 +695,45 @@ struct LegacyStandardModeAvailabilityResult {
     bool available{};
 };
 
+struct LegacyStandardModeRuntimeInitializationState {
+    std::array<compat::u8, 0xB0U> scratch_record{};
+    std::array<compat::u8, 0x200U> loaded_status{};
+    std::array<compat::u8, 0x200U> queried_status{};
+    std::array<std::array<compat::u8, 0x20U>, 0x10U> long_text_slots{};
+    std::array<std::array<compat::u8, 0x10U>, 0x40U> short_text_slots{};
+    std::array<compat::u32, 0x40U> entries{};
+    compat::i32 total_count{};
+    compat::i32 window_offset{};
+    compat::i32 local_cursor{};
+    compat::i32 visible_count{};
+    compat::i32 entry_count{};
+    compat::i32 auxiliary_count{};
+    asset_runtime::LegacyActionRecord action{};
+    compat::i32 mode_flags{};
+};
+
+class LegacyStandardModeRuntimeInitializationPorts {
+public:
+    virtual ~LegacyStandardModeRuntimeInitializationPorts() = default;
+    [[nodiscard]] virtual bool load_record(
+        std::span<compat::u8> destination, compat::u16 record_id
+    ) noexcept = 0;
+    virtual void release_record(compat::u32 token) noexcept = 0;
+    [[nodiscard]] virtual compat::u8
+    query_record(compat::u16 record_id) noexcept = 0;
+    virtual void initialize_entries(
+        std::span<compat::u32> entries, compat::i32 value
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    consume_entry(compat::u32 entry) noexcept = 0;
+};
+
+struct LegacyStandardModeRuntimeInitializationResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 loaded_record_count{};
+    compat::u32 released_record_count{};
+};
+
 struct LegacyStandardModeInputStatusResult {
     compat::u32 flags{};
     compat::i32 legacy_return_value{};
@@ -886,6 +925,13 @@ initialize_legacy_standard_mode_dialog_setup(
 query_legacy_standard_mode_availability(
     compat::i32 record_index,
     std::span<const LegacyStandardModeAvailabilityRecord> records
+) noexcept;
+
+// sub_43C0D0: allocate/reset standard-mode runtime tables and seed action state.
+[[nodiscard]] LegacyStandardModeRuntimeInitializationResult
+initialize_legacy_standard_mode_runtime(
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeRuntimeInitializationPorts& ports
 ) noexcept;
 
 // sub_43B9E0: resolve one MAPS text record into the shared 128-byte buffer.

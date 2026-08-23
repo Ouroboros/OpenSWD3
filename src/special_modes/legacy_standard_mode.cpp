@@ -816,6 +816,60 @@ LegacyStandardModeAvailabilityResult query_legacy_standard_mode_availability(
     return result;
 }
 
+LegacyStandardModeRuntimeInitializationResult
+initialize_legacy_standard_mode_runtime(
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeRuntimeInitializationPorts& ports
+) noexcept {
+    LegacyStandardModeRuntimeInitializationResult result;
+    state.loaded_status.fill(0xFFU);
+    for (compat::u32 record_id = 1U; record_id <= 0x1F4U; ++record_id) {
+        state.scratch_record.fill(0U);
+        std::span<compat::u8> destination{state.scratch_record};
+        destination = destination.subspan(0x0CU);
+        if (ports.load_record(
+                destination, static_cast<compat::u16>(record_id)
+            )) {
+            state.loaded_status[record_id] = state.scratch_record[0x5EU];
+            const compat::u32 token = read_u32_le(
+                std::span<const compat::u8>{state.scratch_record}, 0xACU
+            );
+            ports.release_record(token);
+            state.scratch_record[0xACU] = 0U;
+            state.scratch_record[0xADU] = 0U;
+            state.scratch_record[0xAEU] = 0U;
+            state.scratch_record[0xAFU] = 0U;
+            ++result.loaded_record_count;
+            ++result.released_record_count;
+        }
+    }
+
+    state.queried_status.fill(0U);
+    for (compat::u32 record_id = 1U; record_id <= 0x1F4U; ++record_id) {
+        state.queried_status[record_id] =
+            ports.query_record(static_cast<compat::u16>(record_id));
+    }
+    for (auto& slot : state.long_text_slots) {
+        slot[0U] = 0U;
+    }
+    for (auto& slot : state.short_text_slots) {
+        slot[0U] = 0U;
+    }
+
+    state.total_count = 0;
+    state.window_offset = 0;
+    state.local_cursor = 0;
+    state.visible_count = 0;
+    state.entry_count = 0;
+    state.auxiliary_count = 0;
+    ports.initialize_entries(state.entries, 0);
+    state.action.action_id = 0x0000232AU;
+    state.action.base_variant = 0x00000033U;
+    result.legacy_return_value = ports.consume_entry(state.entries[0U]);
+    state.mode_flags = 0;
+    return result;
+}
+
 LegacyStandardModeTextResolutionResult resolve_legacy_standard_mode_shared_text(
     const compat::u16 text_index,
     const std::span<const compat::u8> maps_payload,

@@ -44,6 +44,7 @@ using openswd3::special_modes::index_legacy_standard_mode_forward_node;
 using openswd3::special_modes::initialize_legacy_initial_menu;
 using openswd3::special_modes::initialize_legacy_standard_mode_dialog_setup;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
+using openswd3::special_modes::initialize_legacy_standard_mode_runtime;
 using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
 using openswd3::special_modes::query_legacy_standard_mode_availability;
@@ -104,6 +105,8 @@ using openswd3::special_modes::LegacyStandardModePanelFrame;
 using openswd3::special_modes::LegacyStandardModePanelPorts;
 using openswd3::special_modes::LegacyStandardModePanelState;
 using openswd3::special_modes::LegacyStandardModeRenderPorts;
+using openswd3::special_modes::LegacyStandardModeRuntimeInitializationPorts;
+using openswd3::special_modes::LegacyStandardModeRuntimeInitializationState;
 using openswd3::special_modes::LegacyStandardModeRenderRecord;
 using openswd3::special_modes::LegacyStandardModeRenderState;
 using openswd3::special_modes::LegacyStandardModeSelectorPorts;
@@ -2031,6 +2034,141 @@ void test_standard_mode_availability(openswd3::test::Context& test) {
             "0x43C090 isolates the original 16-byte table read for invalid indices"
         );
     }
+}
+
+void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
+    class RuntimePorts final
+        : public LegacyStandardModeRuntimeInitializationPorts {
+    public:
+        [[nodiscard]] bool load_record(
+            const std::span<u8> destination, const u16 record_id
+        ) noexcept override {
+            load_order_valid = load_order_valid && phase == 0U &&
+                destination.size() == 0xA4U &&
+                std::ranges::all_of(destination, [](const u8 value) {
+                                   return value == 0U;
+                               });
+            ++load_count;
+            if (record_id != 1U && record_id != 500U) {
+                return false;
+            }
+            destination[0x52U] = static_cast<u8>(record_id);
+            const u32 token = record_id == 1U ? 0x11223344U : 0xAABBCCDDU;
+            destination[0xA0U] = static_cast<u8>(token);
+            destination[0xA1U] = static_cast<u8>(token >> 8U);
+            destination[0xA2U] = static_cast<u8>(token >> 16U);
+            destination[0xA3U] = static_cast<u8>(token >> 24U);
+            return true;
+        }
+
+        void release_record(const u32 token) noexcept override {
+            release_order_valid = release_order_valid && phase == 0U;
+            released_tokens.push_back(token);
+        }
+
+        [[nodiscard]] u8 query_record(const u16 record_id) noexcept override {
+            if (query_count == 0U) {
+                phase = 1U;
+            }
+            query_order_valid = query_order_valid && phase == 1U;
+            ++query_count;
+            return static_cast<u8>(record_id);
+        }
+
+        void initialize_entries(
+            const std::span<u32> entries, const i32 value
+        ) noexcept override {
+            entry_order_valid =
+                phase == 1U && value == 0 && entries.size() == 0x40U;
+            phase = 2U;
+            std::ranges::fill(entries, static_cast<u32>(value));
+            entries[0U] = 0xDEADBEEFU;
+        }
+
+        [[nodiscard]] i32 consume_entry(const u32 entry) noexcept override {
+            consume_order_valid = phase == 2U;
+            phase = 3U;
+            consumed_entry = entry;
+            return -123;
+        }
+
+        u32 phase{};
+        u32 load_count{};
+        u32 query_count{};
+        u32 consumed_entry{};
+        bool load_order_valid{true};
+        bool release_order_valid{true};
+        bool query_order_valid{true};
+        bool entry_order_valid{};
+        bool consume_order_valid{};
+        std::vector<u32> released_tokens;
+    };
+
+    LegacyStandardModeRuntimeInitializationState state;
+    state.loaded_status.fill(0x11U);
+    state.queried_status.fill(0x22U);
+    for (auto& slot : state.long_text_slots) {
+        slot.fill(0xA5U);
+    }
+    for (auto& slot : state.short_text_slots) {
+        slot.fill(0x5AU);
+    }
+    state.entries.fill(0xCCCCCCCCU);
+    state.total_count = 1;
+    state.window_offset = 2;
+    state.local_cursor = 3;
+    state.visible_count = 4;
+    state.entry_count = 5;
+    state.auxiliary_count = 6;
+    state.action.cached_action_id = 0xCAFEBABEU;
+    state.mode_flags = 7;
+    RuntimePorts ports;
+
+    const auto result = initialize_legacy_standard_mode_runtime(state, ports);
+    test.expect_true(
+        result.legacy_return_value == -123 &&
+            result.loaded_record_count == 2U &&
+            result.released_record_count == 2U && ports.phase == 3U &&
+            ports.load_count == 500U && ports.query_count == 500U &&
+            ports.released_tokens ==
+                std::vector<u32>{0x11223344U, 0xAABBCCDDU} &&
+            ports.consumed_entry == 0xDEADBEEFU && ports.load_order_valid &&
+            ports.release_order_valid && ports.query_order_valid &&
+            ports.entry_order_valid && ports.consume_order_valid,
+        "0x43C0D0 preserves 500-load, release, 500-query, entry-init and consume order"
+    );
+    test.expect_true(
+        state.loaded_status[0U] == 0xFFU && state.loaded_status[1U] == 1U &&
+            state.loaded_status[2U] == 0xFFU &&
+            state.loaded_status[500U] == 0xF4U &&
+            state.queried_status[0U] == 0U && state.queried_status[1U] == 1U &&
+            state.queried_status[500U] == 0xF4U &&
+            state.scratch_record[0xACU] == 0U &&
+            state.scratch_record[0xADU] == 0U &&
+            state.scratch_record[0xAEU] == 0U &&
+            state.scratch_record[0xAFU] == 0U,
+        "0x43C0D0 preserves status-table initialization and successful record fields"
+    );
+    test.expect_true(
+        std::ranges::all_of(
+            state.long_text_slots,
+            [](const auto& slot) { return slot[0U] == 0U && slot[1U] == 0xA5U; }
+        ) &&
+            std::ranges::all_of(
+                state.short_text_slots,
+                [](const auto& slot) {
+                    return slot[0U] == 0U && slot[1U] == 0x5AU;
+                }
+            ) &&
+            state.total_count == 0 && state.window_offset == 0 &&
+            state.local_cursor == 0 && state.visible_count == 0 &&
+            state.entry_count == 0 && state.auxiliary_count == 0 &&
+            state.action.action_id == 0x232AU &&
+            state.action.base_variant == 0x33U &&
+            state.action.cached_action_id == 0xCAFEBABEU &&
+            state.mode_flags == 0,
+        "0x43C0D0 clears only string first bytes, resets cursors and writes exact action fields"
+    );
 }
 
 void test_standard_mode_shared_text_resolution(openswd3::test::Context& test) {
@@ -4094,6 +4232,7 @@ int main() {
     test_standard_mode_filtered_record_build(test);
     test_standard_mode_dialog_setup(test);
     test_standard_mode_availability(test);
+    test_standard_mode_runtime_initialization(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);
