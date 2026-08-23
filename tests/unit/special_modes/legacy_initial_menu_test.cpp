@@ -53,6 +53,7 @@ using openswd3::special_modes::query_legacy_standard_mode_availability;
 using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
 using openswd3::special_modes::resolve_legacy_standard_mode_window_selection;
 using openswd3::special_modes::retreat_legacy_standard_mode_window_cursor;
+using openswd3::special_modes::retreat_legacy_standard_mode_runtime_cursor;
 using openswd3::special_modes::retreat_legacy_standard_mode_window_page;
 using openswd3::special_modes::initialize_legacy_standard_mode_selector;
 using openswd3::special_modes::initialize_legacy_standard_special_modes;
@@ -110,6 +111,7 @@ using openswd3::special_modes::LegacyStandardModeRenderPorts;
 using openswd3::special_modes::LegacyStandardModeRuntimeInitializationPorts;
 using openswd3::special_modes::LegacyStandardModeRuntimeInitializationState;
 using openswd3::special_modes::LegacyStandardModeRuntimeCursorAdvanceStatus;
+using openswd3::special_modes::LegacyStandardModeRuntimeCursorRetreatStatus;
 using openswd3::special_modes::LegacyStandardModeInputDispatchInput;
 using openswd3::special_modes::LegacyStandardModeInputDispatchPath;
 using openswd3::special_modes::LegacyStandardModeInputDispatchPorts;
@@ -2184,7 +2186,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
     class DispatchPorts final : public LegacyStandardModeInputDispatchPorts {
     public:
         enum class Event : u8 {
-            upper_control,
             first_dynamic_control,
             mode_refresh,
             alias_rebuild,
@@ -2198,9 +2199,6 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             bool operator==(const ReleaseEvent&) const = default;
         };
 
-        void dispatch_upper_control() noexcept override {
-            events.push_back(Event::upper_control);
-        }
         void dispatch_first_dynamic_control() noexcept override {
             events.push_back(Event::first_dynamic_control);
         }
@@ -2221,6 +2219,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         }
         void consume_entry(const u32 entry) noexcept override {
             events.push_back(Event::entry_consume);
+            consumed_entries.push_back(entry);
             consumed_entry = entry;
         }
         [[nodiscard]] i32 play_sample(
@@ -2247,6 +2246,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         std::vector<u32> released_record_tokens;
         std::size_t alias_entry_count{};
         u32 consumed_entry{};
+        std::vector<u32> consumed_entries;
         u16 played_sample_id{};
         u32 played_sample_handle{};
     };
@@ -2312,6 +2312,60 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                         DispatchPorts::Event::page_refresh,
                     },
             "0x43C520 typed-stops at its original selected-entry read"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.window_offset = 2;
+        state.local_cursor = 0;
+        state.entries[1U] = 0x0A0B0C0DU;
+        state.mode_flags = static_cast<i32>(0xABCD0030U);
+        DispatchPorts ports;
+        const auto result = retreat_legacy_standard_mode_runtime_cursor(
+            0x31415926U, state, ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeCursorRetreatStatus::completed &&
+                result.legacy_return_value == 222 && state.window_offset == 1 &&
+                state.local_cursor == 0 && state.entry_alias_index == 1 &&
+                static_cast<u32>(state.mode_flags) == 0xABCD0033U &&
+                ports.consumed_entry == 0x0A0B0C0DU &&
+                ports.played_sample_id == 0x2EU &&
+                ports.played_sample_handle == 0x31415926U &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                        DispatchPorts::Event::entry_consume,
+                        DispatchPorts::Event::sample_play,
+                    },
+            "0x43C590 retreats, rebuilds, refreshes, consumes, marks and plays in order"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.window_offset = 63;
+        state.local_cursor = 2;
+        state.mode_flags = 0x30;
+        DispatchPorts ports;
+        const auto result = retreat_legacy_standard_mode_runtime_cursor(
+            0x27182818U, state, ports
+        );
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeCursorRetreatStatus::
+                        selected_entry_out_of_range &&
+                state.window_offset == 63 && state.local_cursor == 1 &&
+                state.entry_alias_index == 63 && state.mode_flags == 0x30 &&
+                ports.events ==
+                    std::vector{
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                    },
+            "0x43C590 typed-stops at its original selected-entry read"
         );
     }
 
@@ -2407,7 +2461,8 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         state.local_cursor = 14;
         state.visible_count = 15;
         state.entry_alias_index = 99;
-        state.entries[29U] = 0xDEADBEEFU;
+        state.entries[13U] = 0x11223344U;
+        state.entries[14U] = 0xDEADBEEFU;
         state.mode_flags = static_cast<i32>(0xABCD0001U);
         DispatchPorts ports;
         const LegacyStandardModeInputDispatchInput input{
@@ -2430,16 +2485,20 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 result.upper_control_dispatched &&
                 !result.bottom_control_dispatched &&
                 result.first_dynamic_control_dispatched &&
-                state.window_offset == 15 && state.local_cursor == 14 &&
-                state.visible_count == 15 && state.entry_alias_index == 15 &&
-                static_cast<u32>(state.mode_flags) == 0xABCD0031U &&
+                state.window_offset == 0 && state.local_cursor == 14 &&
+                state.visible_count == 15 && state.entry_alias_index == 0 &&
+                static_cast<u32>(state.mode_flags) == 0xABCD0033U &&
                 ports.alias_entry_count == 64U &&
-                ports.consumed_entry == 0xDEADBEEFU &&
+                ports.consumed_entries ==
+                    std::vector<u32>{0x11223344U, 0xDEADBEEFU} &&
                 ports.played_sample_id == 0x2EU &&
                 ports.played_sample_handle == 0x87654321U &&
                 ports.events ==
                     std::vector{
-                        DispatchPorts::Event::upper_control,
+                        DispatchPorts::Event::alias_rebuild,
+                        DispatchPorts::Event::page_refresh,
+                        DispatchPorts::Event::entry_consume,
+                        DispatchPorts::Event::sample_play,
                         DispatchPorts::Event::first_dynamic_control,
                         DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::page_refresh,
@@ -2538,7 +2597,7 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         DispatchPorts ports;
         const LegacyStandardModeInputDispatchInput input{
             .pointer_x = 210U,
-            .pointer_y = 90U,
+            .pointer_y = 99U,
             .first_dynamic_lower_bound = 1000,
             .first_dynamic_upper_bound = 1001,
             .second_dynamic_lower_bound = 80,
@@ -2551,14 +2610,11 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
             result.status ==
                     LegacyStandardModeInputDispatchStatus::
                         selected_entry_out_of_range &&
-                result.path ==
-                    LegacyStandardModeInputDispatchPath::
-                        upper_control_dispatched &&
-                result.upper_control_dispatched && state.window_offset == 60 &&
+                result.path == LegacyStandardModeInputDispatchPath::no_action &&
+                !result.upper_control_dispatched && state.window_offset == 60 &&
                 state.mode_flags == 1 &&
                 ports.events ==
                     std::vector{
-                        DispatchPorts::Event::upper_control,
                         DispatchPorts::Event::alias_rebuild,
                         DispatchPorts::Event::page_refresh,
                     },

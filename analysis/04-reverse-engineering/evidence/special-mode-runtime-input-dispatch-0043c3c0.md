@@ -11,7 +11,7 @@
 - `0x0043C7E0..0x0043C7F5`：mode刷新与点击音。
 - `0x0043C800..0x0043C819`：exit counter精确500门。
 
-直接caller是`0x004455E0`。`0x0043B480`只保存函数地址，不是运行时direct call。已关闭的`0x0043BBE0`、`0x0043C090`与`0x0043C520`直接复用typed helper；其余未关闭callee继续由窄port隔离。
+直接caller是`0x004455E0`。`0x0043B480`只保存函数地址，不是运行时direct call。已关闭的`0x0043BBE0`、`0x0043C090`、`0x0043C520`与`0x0043C590`直接复用typed helper；其余未关闭callee继续由窄port隔离。
 
 ## 2. 第一与第二矩形
 
@@ -36,12 +36,12 @@ return play_sample(0x2E, sample_handle)
 
 若前两矩形未命中，函数查询16字节记录15。可用时先要求unsigned `206 < x < 224`；进入后Y的后续范围全部为signed严格比较，并按顺序独立执行，不是互斥else-if：
 
-1. `82 < y < 96`调用`0x0043C590`。
+1. `82 < y < 96`调用已关闭`0x0043C590`，保留后退、alias重建、刷新、entry消费、flags OR `0x03`和sample副作用后重新载入pointer Y。
 2. `452 < y < 464`调用已关闭`0x0043C520`，保留其全部状态副作用后重新载入pointer Y覆盖sample EAX。
 3. `first_lower < y < first_upper`调用`0x0043C670`。
 4. `second_lower < y < second_upper`进入翻页chunk。
 
-前三个callee返回后LST都重新把pointer Y装入EAX，因此最终未翻页路径返回Y。重叠动态范围可在同一帧先执行upper/first dynamic，再执行翻页。
+前三个callee返回后LST都重新把pointer Y装入EAX，因此最终未翻页路径返回Y。重叠动态范围可在同一帧依次执行upper的完整`0x0043C590`链、first dynamic，再执行翻页；upper已改变cursor和flags，后续page必须消费这些实时值。
 
 翻页chunk以step 15调用`0x0043BBE0`，随后严格执行entry alias重建、page刷新、从原entry base读取`entries[window_offset + local_cursor]`、消费entry、对mode flags低字节OR `0x30`、播放sample `0x2E`。typed实现以u32回绕形成selected index，并仅在原entry读取点隔离负值或越界值。`0x0043C0D0`同时补齐LST的`FC920 = FC91C`，typed表达为`entry_alias_index = 0`。
 
@@ -66,7 +66,7 @@ availability不可用时EAX为0；availability可用但X严格边界失败时EAX
 
 - 第一矩形行计算、signed钳制、额外减1以及tail-dispatch `0x0043C520`后的最终cursor/entry/flags/sample EAX。
 - 第二矩形负delta减2、正delta不变、delta零、mode 0/14边界。
-- upper、first dynamic、翻页、alias重建、page刷新、entry消费和点击音的严格顺序。
+- upper `0x0043C590`、first dynamic、翻页的两轮alias重建/page刷新/entry消费/点击音顺序，以及实时cursor与flags `0x33`。
 - bottom `0x0043C520`的cursor/entry/flags/sample副作用保持，但sample EAX被pointer Y覆盖。
 - X等于206的严格边界与路径EAX。
 - availability记录15越界typed-stop。
