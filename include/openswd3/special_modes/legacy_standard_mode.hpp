@@ -706,8 +706,7 @@ struct LegacyStandardModeRuntimeInitializationState {
     compat::i32 window_offset{};
     compat::i32 local_cursor{};
     compat::i32 visible_count{};
-    compat::i32 entry_count{};
-    compat::i32 auxiliary_count{};
+    compat::i32 mode_index{};
     asset_runtime::LegacyActionRecord action{};
     compat::i32 mode_flags{};
 };

@@ -2118,8 +2118,7 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
     state.window_offset = 2;
     state.local_cursor = 3;
     state.visible_count = 4;
-    state.entry_count = 5;
-    state.auxiliary_count = 6;
+    state.mode_index = 5;
     state.action.cached_action_id = 0xCAFEBABEU;
     state.mode_flags = 7;
     RuntimePorts ports;
@@ -2162,8 +2161,7 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
             ) &&
             state.total_count == 0 && state.window_offset == 0 &&
             state.local_cursor == 0 && state.visible_count == 0 &&
-            state.entry_count == 0 && state.auxiliary_count == 0 &&
-            state.action.action_id == 0x232AU &&
+            state.mode_index == 0 && state.action.action_id == 0x232AU &&
             state.action.base_variant == 0x33U &&
             state.action.cached_action_id == 0xCAFEBABEU &&
             state.mode_flags == 0,

@@ -860,8 +860,7 @@ initialize_legacy_standard_mode_runtime(
     state.window_offset = 0;
     state.local_cursor = 0;
     state.visible_count = 0;
-    state.entry_count = 0;
-    state.auxiliary_count = 0;
+    state.mode_index = 0;
     ports.initialize_entries(state.entries, 0);
     state.action.action_id = 0x0000232AU;
     state.action.base_variant = 0x00000033U;

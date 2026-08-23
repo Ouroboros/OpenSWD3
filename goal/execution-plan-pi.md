@@ -1,6 +1,6 @@
 # OpenSWD3 执行 GOAL
 
-版本：v453
+版本：v454
 
 最后更新：2026-08-23
 
@@ -3294,7 +3294,8 @@ B7 P0 有限收口完成。
 - 模块9标准模式运行时表初始化`0x0043C0D0`闭环。LST范围`0x0043C0D0..0x0043C2DC`，typed
     state重建`0xB0` scratch、两张`0x200`状态表、16×32与64×16字符串槽及64项entry表。严格
     执行1..500 load循环与1..500 query循环；成功load发布`+0x5E`、释放`+0xAC` token并清token。
-    后续只清字符串首字节、清六个owner、初始化entry，写action `0x232A/0x33`，消费entry[0]并
+    后续只清字符串首字节、清`FC974/FC90C/FC928/FC914/FC910`五个owner、初始化entry，写action
+    `0x232A/0x33`，消费entry[0]并
     最后清mode flags。未关闭callee均由窄port隔离；定向UT锁定1000次顺序、表边界、token、
     未初始化字节保持、action字段和EAX。workpack连续两轮稳定为`29/227`，SHA256为
     `4d43482df73105a50a831f9da35a35f89fab5916af1d7ffae22e5e3f9ad3f940`；Linux core188/188与
