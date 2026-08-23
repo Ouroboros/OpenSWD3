@@ -626,6 +626,57 @@ struct LegacyStandardModeFilteredRecordResult {
     compat::u32 source_cursor_offset{};
 };
 
+struct LegacyStandardModeDialogSetupRecord {
+    compat::u32 draw_value{};
+    compat::u32 first_state_value{};
+    compat::u32 return_state_value{};
+    compat::u32 third_state_value{};
+};
+
+struct LegacyStandardModeDialogSetupState {
+    std::array<compat::u8, 128U> marker_bytes{};
+    compat::u16 input_word{};
+    compat::u32 zero_dword{};
+    compat::u16 zero_word{};
+    compat::u32 packed_low_word{};
+    compat::u32 first_state_value{};
+    compat::u32 return_state_value{};
+    compat::u32 third_state_value{};
+};
+
+struct LegacyStandardModeDialogDrawRequest {
+    compat::i32 first{};
+    compat::i32 second{};
+    compat::i32 third{};
+    compat::u32 record_value{};
+    compat::i32 zero{};
+    compat::i32 first_flag{};
+    compat::i32 second_flag{};
+};
+
+class LegacyStandardModeDialogSetupPorts {
+public:
+    virtual ~LegacyStandardModeDialogSetupPorts() = default;
+    virtual void clear_surface(compat::u32 byte_count) noexcept = 0;
+    virtual void configure_interface(
+        compat::u32 service_id, compat::u32 source_value
+    ) noexcept = 0;
+    virtual void
+    draw(const LegacyStandardModeDialogDrawRequest& request) noexcept = 0;
+};
+
+enum class LegacyStandardModeDialogSetupStatus : compat::u8 {
+    completed,
+    record_index_out_of_range,
+};
+
+struct LegacyStandardModeDialogSetupResult {
+    LegacyStandardModeDialogSetupStatus status{
+        LegacyStandardModeDialogSetupStatus::record_index_out_of_range
+    };
+    compat::i32 legacy_return_value{};
+};
+
 struct LegacyStandardModeInputStatusResult {
     compat::u32 flags{};
     compat::i32 legacy_return_value{};
@@ -796,6 +847,20 @@ build_legacy_standard_mode_filtered_records(
     LegacyStandardModeFilteredRecordState& state,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeFilterQueryPorts& ports
+) noexcept;
+
+// sub_43BFC0: clear the surface and initialize one dialog/setup record.
+[[nodiscard]] LegacyStandardModeDialogSetupResult
+initialize_legacy_standard_mode_dialog_setup(
+    compat::i32 first,
+    compat::i32 second,
+    compat::i32 third,
+    compat::u16 input_word,
+    compat::u32 current_record_index,
+    std::span<const LegacyStandardModeDialogSetupRecord> records,
+    compat::u32 interface_source_value,
+    LegacyStandardModeDialogSetupState& state,
+    LegacyStandardModeDialogSetupPorts& ports
 ) noexcept;
 
 // sub_43B9E0: resolve one MAPS text record into the shared 128-byte buffer.

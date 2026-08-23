@@ -42,6 +42,7 @@ using openswd3::special_modes::draw_legacy_standard_mode_ghost;
 using openswd3::special_modes::find_legacy_standard_mode_value_group;
 using openswd3::special_modes::index_legacy_standard_mode_forward_node;
 using openswd3::special_modes::initialize_legacy_initial_menu;
+using openswd3::special_modes::initialize_legacy_standard_mode_dialog_setup;
 using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
@@ -84,6 +85,11 @@ using openswd3::special_modes::LegacyStandardModeBarRequest;
 using openswd3::special_modes::LegacyStandardModeCallbackBindingPorts;
 using openswd3::special_modes::LegacyStandardModeCallbackGroup;
 using openswd3::special_modes::LegacyStandardModeCallbackState;
+using openswd3::special_modes::LegacyStandardModeDialogDrawRequest;
+using openswd3::special_modes::LegacyStandardModeDialogSetupPorts;
+using openswd3::special_modes::LegacyStandardModeDialogSetupRecord;
+using openswd3::special_modes::LegacyStandardModeDialogSetupState;
+using openswd3::special_modes::LegacyStandardModeDialogSetupStatus;
 using openswd3::special_modes::LegacyStandardModeFilteredRecord;
 using openswd3::special_modes::LegacyStandardModeFilteredRecordState;
 using openswd3::special_modes::LegacyStandardModeFilteredRecordStatus;
@@ -1859,6 +1865,118 @@ void test_standard_mode_filtered_record_build(openswd3::test::Context& test) {
                     record_capacity_overflow &&
             state.records.size() == 512U && result.query_count == 513U,
         "0x43BE90 isolates the 513th pointer-table write beyond the original 0x800 bytes"
+    );
+}
+
+void test_standard_mode_dialog_setup(openswd3::test::Context& test) {
+    class SetupPorts final : public LegacyStandardModeDialogSetupPorts {
+    public:
+        void clear_surface(const u32 byte_count) noexcept override {
+            events.push_back(1U);
+            clear_byte_count = byte_count;
+        }
+
+        void configure_interface(
+            const u32 service_id, const u32 source_value
+        ) noexcept override {
+            events.push_back(2U);
+            configured_service_id = service_id;
+            configured_source_value = source_value;
+        }
+
+        void draw(
+            const LegacyStandardModeDialogDrawRequest& request
+        ) noexcept override {
+            events.push_back(3U);
+            draw_request = request;
+        }
+
+        std::vector<u32> events;
+        u32 clear_byte_count{};
+        u32 configured_service_id{};
+        u32 configured_source_value{};
+        LegacyStandardModeDialogDrawRequest draw_request;
+    };
+
+    constexpr std::array records{
+        LegacyStandardModeDialogSetupRecord{
+            .draw_value = 0x10U,
+            .first_state_value = 0x11U,
+            .return_state_value = 0x12U,
+            .third_state_value = 0x13U,
+        },
+        LegacyStandardModeDialogSetupRecord{
+            .draw_value = 0xA0B0C0D0U,
+            .first_state_value = 0x01020304U,
+            .return_state_value = 0x80000005U,
+            .third_state_value = 0xAABBCCDDU,
+        },
+    };
+    LegacyStandardModeDialogSetupState state{
+        .input_word = 0x1111U,
+        .zero_dword = 0x22222222U,
+        .zero_word = 0x3333U,
+        .packed_low_word = 0xABCD9876U,
+        .first_state_value = 0x44444444U,
+        .return_state_value = 0x55555555U,
+        .third_state_value = 0x66666666U,
+    };
+    state.marker_bytes.fill(0x22U);
+    SetupPorts ports;
+    const auto result = initialize_legacy_standard_mode_dialog_setup(
+        -1,
+        2,
+        std::numeric_limits<i32>::min(),
+        0xBEEFU,
+        1U,
+        records,
+        0x12345678U,
+        state,
+        ports
+    );
+    test.expect_true(
+        result.status == LegacyStandardModeDialogSetupStatus::completed &&
+            result.legacy_return_value == std::bit_cast<i32>(0x80000005U) &&
+            ports.events == std::vector<u32>{1U, 2U, 3U} &&
+            ports.clear_byte_count == 0x96000U &&
+            ports.configured_service_id == 0x2711U &&
+            ports.configured_source_value == 0x12345678U,
+        "0x43BFC0 preserves clear, interface and draw order with fixed service constants"
+    );
+    test.expect_true(
+        ports.draw_request.first == -1 && ports.draw_request.second == 2 &&
+            ports.draw_request.third == std::numeric_limits<i32>::min() &&
+            ports.draw_request.record_value == 0xA0B0C0D0U &&
+            ports.draw_request.zero == 0 &&
+            ports.draw_request.first_flag == 1 &&
+            ports.draw_request.second_flag == 1 &&
+            std::ranges::all_of(
+                state.marker_bytes,
+                [](const u8 value) { return value == 0xCFU; }
+            ) &&
+            state.input_word == 0xBEEFU && state.zero_dword == 0U &&
+            state.zero_word == 0U && state.packed_low_word == 0xABCD0001U &&
+            state.first_state_value == 0x01020304U &&
+            state.return_state_value == 0x80000005U &&
+            state.third_state_value == 0xAABBCCDDU,
+        "0x43BFC0 preserves draw arguments, CF fill, half-word writes and record-field publication"
+    );
+
+    const auto preserved_state = state;
+    SetupPorts invalid_ports;
+    const auto invalid = initialize_legacy_standard_mode_dialog_setup(
+        1, 2, 3, 4U, 99U, records, 5U, state, invalid_ports
+    );
+    test.expect_true(
+        invalid.status ==
+                LegacyStandardModeDialogSetupStatus::
+                    record_index_out_of_range &&
+            invalid_ports.events == std::vector<u32>{1U, 2U} &&
+            state.marker_bytes == preserved_state.marker_bytes &&
+            state.input_word == preserved_state.input_word &&
+            state.packed_low_word == preserved_state.packed_low_word &&
+            state.return_state_value == preserved_state.return_state_value,
+        "0x43BFC0 keeps pre-index side effects but stops before draw and state writes on invalid index"
     );
 }
 
@@ -3921,6 +4039,7 @@ int main() {
     test_standard_mode_animated_panel(test);
     test_standard_mode_value_group_lookup(test);
     test_standard_mode_filtered_record_build(test);
+    test_standard_mode_dialog_setup(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);

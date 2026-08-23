@@ -746,6 +746,53 @@ build_legacy_standard_mode_filtered_records(
     }
 }
 
+LegacyStandardModeDialogSetupResult
+initialize_legacy_standard_mode_dialog_setup(
+    const compat::i32 first,
+    const compat::i32 second,
+    const compat::i32 third,
+    const compat::u16 input_word,
+    const compat::u32 current_record_index,
+    const std::span<const LegacyStandardModeDialogSetupRecord> records,
+    const compat::u32 interface_source_value,
+    LegacyStandardModeDialogSetupState& state,
+    LegacyStandardModeDialogSetupPorts& ports
+) noexcept {
+    LegacyStandardModeDialogSetupResult result;
+    ports.clear_surface(0x00096000U);
+    ports.configure_interface(0x00002711U, interface_source_value);
+    if (current_record_index >= records.size()) {
+        return result;
+    }
+
+    const LegacyStandardModeDialogSetupRecord& record =
+        records[current_record_index];
+    ports.draw(
+        LegacyStandardModeDialogDrawRequest{
+            .first = first,
+            .second = second,
+            .third = third,
+            .record_value = record.draw_value,
+            .zero = 0,
+            .first_flag = 1,
+            .second_flag = 1,
+        }
+    );
+    state.marker_bytes.fill(0xCFU);
+    state.input_word = input_word;
+    state.zero_dword = 0U;
+    state.zero_word = 0U;
+    state.packed_low_word = (state.packed_low_word & 0xFFFF0000U) | 1U;
+    state.third_state_value = record.third_state_value;
+    state.first_state_value = record.first_state_value;
+    state.return_state_value = record.return_state_value;
+
+    result.status = LegacyStandardModeDialogSetupStatus::completed;
+    result.legacy_return_value =
+        std::bit_cast<compat::i32>(record.return_state_value);
+    return result;
+}
+
 LegacyStandardModeTextResolutionResult resolve_legacy_standard_mode_shared_text(
     const compat::u16 text_index,
     const std::span<const compat::u8> maps_payload,
