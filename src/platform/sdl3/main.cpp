@@ -4724,7 +4724,42 @@ public:
 
             void bind_mode_callbacks(openswd3::compat::u16) override {}
 
-            void establish_item_state(openswd3::compat::u16) override {}
+            void establish_item_state(
+                const openswd3::compat::u16 selected_available_index
+            ) override {
+                class ItemPorts final : public openswd3::special_modes::
+                                            LegacyStandardModeItemPorts {
+                public:
+                    explicit ItemPorts(SdlSmokeIdlePorts& owner) noexcept
+                        : owner_(owner) {}
+
+                    openswd3::compat::i32 story_flag(
+                        const openswd3::compat::u32 flag_index
+                    ) override {
+                        if (flag_index >=
+                            owner_.world_story_vm_state_.flags.size()) {
+                            return 0;
+                        }
+                        return static_cast<openswd3::compat::i32>(
+                            owner_.world_story_vm_state_.flags[flag_index]
+                        );
+                    }
+
+                private:
+                    SdlSmokeIdlePorts& owner_;
+                };
+
+                ItemPorts ports{owner_};
+                static_cast<void>(openswd3::special_modes::
+                                      initialize_legacy_standard_mode_items(
+                                          owner_.legacy_standard_mode_state_
+                                              .selector_state.item_state,
+                                          static_cast<openswd3::compat::i32>(
+                                              selected_available_index
+                                          ),
+                                          ports
+                                      ));
+            }
 
             void clear_mode_input_records() override {
                 std::fill(

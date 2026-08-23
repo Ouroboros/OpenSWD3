@@ -22,6 +22,7 @@ using openswd3::rendering::LegacyBlitEffectState;
 using openswd3::rendering::LegacyBlitExecutionStatus;
 using openswd3::rendering::LegacyFramePiece;
 using openswd3::special_modes::initialize_legacy_initial_menu;
+using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::initialize_legacy_standard_mode_selector;
 using openswd3::special_modes::initialize_legacy_standard_special_modes;
 using openswd3::special_modes::kLegacyInitialMenuCommitCounter;
@@ -38,6 +39,8 @@ using openswd3::special_modes::kLegacySpecialModeAlternateFlag;
 using openswd3::special_modes::kLegacySpecialModeInitializeFlag;
 using openswd3::special_modes::LegacyLowSpecialModeInitialization;
 using openswd3::special_modes::LegacyModeThreeSixRecordInitialization;
+using openswd3::special_modes::LegacyStandardModeItemPorts;
+using openswd3::special_modes::LegacyStandardModeItemState;
 using openswd3::special_modes::LegacyStandardModeSelectorPorts;
 using openswd3::special_modes::LegacyStandardModeSelectorState;
 using openswd3::special_modes::LegacyStandardSpecialModeInitializationPorts;
@@ -130,6 +133,38 @@ public:
     i32 story_flag_value{};
     u32 queried_flag{};
     bool query_saw_exact_prefix{};
+};
+
+class FakeStandardModeItemPorts final : public LegacyStandardModeItemPorts {
+public:
+    explicit FakeStandardModeItemPorts(
+        LegacyStandardModeItemState& state
+    ) noexcept
+        : state_(state) {}
+
+    i32 story_flag(const u32 flag_index) override {
+        queried_flags.push_back(flag_index);
+        if (queried_flags.size() == 1U) {
+            first_query_saw_exact_reset =
+                state_.records[0U].source_index == 0xFFFFU &&
+                state_.records[1U].source_index == 0U &&
+                state_.records[2U].source_index == 0U &&
+                state_.records[3U].source_index == 0U &&
+                state_.records[4U].source_index == 0xFFFFU;
+            for (std::size_t index = 0U; index < 4U; ++index) {
+                const auto& record = state_.records[index];
+                first_query_saw_exact_reset = first_query_saw_exact_reset &&
+                    record.reset_word_a == 0U && record.primary_state == 0U &&
+                    record.secondary_state == 0U;
+            }
+        }
+        return flags[flag_index - 0x1EU];
+    }
+
+    LegacyStandardModeItemState& state_;
+    std::array<i32, 4U> flags{};
+    std::vector<u32> queried_flags;
+    bool first_query_saw_exact_reset{};
 };
 
 class FakeStandardModeSelectorPorts final
@@ -597,6 +632,74 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 }
 
+void test_standard_mode_item_initialization(openswd3::test::Context& test) {
+    LegacyStandardModeItemState state;
+    for (std::size_t index = 0U; index < state.records.size(); ++index) {
+        auto& record = state.records[index];
+        record.source_index = static_cast<u16>(0x100U + index);
+        record.reset_word_a = static_cast<u16>(0x200U + index);
+        record.primary_state = static_cast<u16>(0x300U + index);
+        record.secondary_state = static_cast<u16>(0x400U + index);
+        record.terminal_source = static_cast<u16>(0x500U + index);
+        record.shared_index_12 = static_cast<u16>(0x600U + index);
+        record.shared_index_16 = static_cast<u16>(0x700U + index);
+        record.shared_index_1a = static_cast<u16>(0x800U + index);
+    }
+    FakeStandardModeItemPorts ports{state};
+    ports.flags = {1, 0, 2, -3};
+    const auto result = initialize_legacy_standard_mode_items(state, 1, ports);
+    test.expect_true(
+        ports.queried_flags == std::vector<u32>{0x1EU, 0x1FU, 0x20U, 0x21U} &&
+            ports.first_query_saw_exact_reset &&
+            state.records[0U].source_index == 0U &&
+            state.records[0U].primary_state == 1U &&
+            state.records[0U].secondary_state == 1U &&
+            state.records[0U].shared_index_12 == 8U &&
+            state.records[0U].shared_index_16 == 8U &&
+            state.records[0U].shared_index_1a == 8U &&
+            state.records[1U].source_index == 0xFFFFU &&
+            state.records[1U].primary_state == 0U &&
+            state.records[1U].secondary_state == 0U &&
+            state.records[1U].shared_index_12 == 0x601U &&
+            state.records[2U].source_index == 2U &&
+            state.records[2U].primary_state == 2U &&
+            state.records[2U].secondary_state == 2U &&
+            state.records[2U].shared_index_12 == 9U &&
+            state.records[3U].source_index == 3U &&
+            state.records[3U].primary_state == 0x503U &&
+            state.records[3U].secondary_state == 1U &&
+            state.records[3U].shared_index_12 == 10U &&
+            state.records[4U].source_index == 0xFFFFU &&
+            state.records[4U].primary_state == 0x304U &&
+            result.story_flag_query_count == 4U &&
+            result.available_item_count == 3U &&
+            result.terminal_record_index == 3U && result.return_value == 0x503U,
+        "0x43A380 scans four flags, selects by available rank and copies " "the terminal field over record[available_count].primary_state"
+    );
+
+    LegacyStandardModeItemState caller_state;
+    for (std::size_t index = 0U; index < caller_state.records.size(); ++index) {
+        caller_state.records[index].terminal_source =
+            static_cast<u16>(0x900U + index);
+    }
+    FakeStandardModeItemPorts caller_ports{caller_state};
+    caller_ports.flags = {1, 1, 1, 1};
+    const auto caller_result =
+        initialize_legacy_standard_mode_items(caller_state, 5, caller_ports);
+    test.expect_true(
+        caller_state.records[0U].primary_state == 1U &&
+            caller_state.records[1U].primary_state == 1U &&
+            caller_state.records[2U].primary_state == 1U &&
+            caller_state.records[3U].primary_state == 1U &&
+            caller_state.records[4U].source_index == 0xFFFFU &&
+            caller_state.records[4U].primary_state == 0x904U &&
+            caller_result.available_item_count == 4U &&
+            caller_result.terminal_record_index == 4U &&
+            caller_result.return_value == 0x904U,
+        "the real caller value five leaves all four available records " "unselected and applies the terminal copy to record four"
+    );
+}
+
 void test_standard_mode_selector_initialization(openswd3::test::Context& test) {
     LegacyStandardModeSelectorState state{.mode_value = 0xDEADBEEFU};
     FakeStandardModeSelectorPorts ports{state};
@@ -809,6 +912,7 @@ int main() {
     test_name_mouse_accept_uses_recovered_axes(test);
     test_text_object_result_and_edited_name(test);
     test_standard_mode_global_initialization(test);
+    test_standard_mode_item_initialization(test);
     test_standard_mode_selector_initialization(test);
     test_standard_mode_entry_and_common_order(test);
     test_standard_mode_exit_paths(test);

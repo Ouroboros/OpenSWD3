@@ -34,7 +34,49 @@ struct LegacyModeThreeSixRecordInitialization {
     std::array<compat::u32, 4> choice_base_variants{};
 };
 
+struct LegacyStandardModeItemRecord {
+    compat::u16 source_index{};
+    std::array<compat::u8, 8U> reserved_02{};
+    compat::u16 reset_word_a{};
+    compat::u16 primary_state{};
+    compat::u16 secondary_state{};
+    compat::u16 terminal_source{};
+    compat::u16 shared_index_12{};
+    compat::u16 reserved_14{};
+    compat::u16 shared_index_16{};
+    compat::u16 reserved_18{};
+    compat::u16 shared_index_1a{};
+};
+
+static_assert(sizeof(LegacyStandardModeItemRecord) == 0x1CU);
+static_assert(offsetof(LegacyStandardModeItemRecord, reset_word_a) == 0x0AU);
+static_assert(offsetof(LegacyStandardModeItemRecord, primary_state) == 0x0CU);
+static_assert(offsetof(LegacyStandardModeItemRecord, secondary_state) == 0x0EU);
+static_assert(offsetof(LegacyStandardModeItemRecord, terminal_source) == 0x10U);
+static_assert(offsetof(LegacyStandardModeItemRecord, shared_index_12) == 0x12U);
+static_assert(offsetof(LegacyStandardModeItemRecord, shared_index_16) == 0x16U);
+static_assert(offsetof(LegacyStandardModeItemRecord, shared_index_1a) == 0x1AU);
+
+struct LegacyStandardModeItemState {
+    std::array<LegacyStandardModeItemRecord, 5U> records{};
+};
+
+class LegacyStandardModeItemPorts {
+public:
+    virtual ~LegacyStandardModeItemPorts() = default;
+
+    [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
+};
+
+struct LegacyStandardModeItemResult {
+    compat::u32 story_flag_query_count{};
+    compat::u32 available_item_count{};
+    compat::u32 terminal_record_index{};
+    compat::u32 return_value{};
+};
+
 struct LegacyStandardModeSelectorState {
+    LegacyStandardModeItemState item_state{};
     compat::u16 selector{};
     compat::u16 derived_index{};
     compat::u16 item_count{};
@@ -128,6 +170,14 @@ struct LegacyStandardSpecialModeFrameResult {
 initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeState& state,
     LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
+
+// sub_43A380: build four availability records from story flags 0x1E..0x21.
+[[nodiscard]] LegacyStandardModeItemResult
+initialize_legacy_standard_mode_items(
+    LegacyStandardModeItemState& state,
+    compat::i32 selected_available_index,
+    LegacyStandardModeItemPorts& ports
 ) noexcept;
 
 // sub_43A2A0: initialize shared selector and input state for a standard mode.

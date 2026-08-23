@@ -21,6 +21,12 @@ constexpr compat::i32 kSelectorIndexBias = 0x0B;
 constexpr compat::u16 kSelectorItemCount = 5U;
 constexpr compat::u16 kInputSentinel = 0xFFFEU;
 constexpr std::size_t kInputOwnerCount = 3U;
+constexpr std::size_t kStandardModeItemCount = 4U;
+constexpr compat::u32 kStandardModeFirstItemFlag = 0x1EU;
+constexpr compat::u16 kUnavailableItemIndex = 0xFFFFU;
+constexpr compat::u16 kFirstSharedItemIndex = 8U;
+constexpr compat::u16 kAvailableItemState = 1U;
+constexpr compat::u16 kSelectedItemState = 2U;
 
 constexpr std::size_t kPrimaryRecord = 0U;
 constexpr std::size_t kFlagVariantRecord = 1U;
@@ -49,6 +55,60 @@ void set_action(
 }
 
 }  // namespace
+
+LegacyStandardModeItemResult initialize_legacy_standard_mode_items(
+    LegacyStandardModeItemState& state,
+    const compat::i32 selected_available_index,
+    LegacyStandardModeItemPorts& ports
+) noexcept {
+    LegacyStandardModeItemResult result;
+    for (std::size_t item_index = 0U; item_index < kStandardModeItemCount;
+         ++item_index) {
+        auto& record = state.records[item_index];
+        record.source_index = 0U;
+        record.reset_word_a = 0U;
+        record.primary_state = 0U;
+        record.secondary_state = 0U;
+    }
+    state.records[kStandardModeItemCount].source_index = kUnavailableItemIndex;
+
+    compat::u32 available_count = 0U;
+    for (std::size_t item_index = 0U; item_index < kStandardModeItemCount;
+         ++item_index) {
+        auto& record = state.records[item_index];
+        record.source_index = kUnavailableItemIndex;
+        const compat::i32 available = ports.story_flag(
+            kStandardModeFirstItemFlag + static_cast<compat::u32>(item_index)
+        );
+        ++result.story_flag_query_count;
+        if (available == 0) {
+            continue;
+        }
+
+        const compat::u16 shared_index = static_cast<compat::u16>(
+            available_count + static_cast<compat::u32>(kFirstSharedItemIndex)
+        );
+        record.source_index = static_cast<compat::u16>(item_index);
+        record.shared_index_12 = shared_index;
+        record.shared_index_16 = shared_index;
+        record.shared_index_1a = shared_index;
+        const compat::u16 item_state =
+            static_cast<compat::i32>(available_count) ==
+                selected_available_index
+            ? kSelectedItemState
+            : kAvailableItemState;
+        record.primary_state = item_state;
+        record.secondary_state = item_state;
+        ++available_count;
+    }
+
+    result.available_item_count = available_count;
+    result.terminal_record_index = available_count;
+    auto& terminal_record = state.records[available_count];
+    terminal_record.primary_state = terminal_record.terminal_source;
+    result.return_value = terminal_record.terminal_source;
+    return result;
+}
 
 LegacyStandardModeSelectorResult initialize_legacy_standard_mode_selector(
     LegacyStandardModeSelectorState& state,
