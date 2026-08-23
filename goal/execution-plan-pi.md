@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v459
+版本：v460
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x0043C820`
+当前步骤：模块9 · 闭环`0x0043C9C0`
 
 ## 0. 执行约定
 
@@ -3295,7 +3295,8 @@ B7 P0 有限收口完成。
     state重建`0xB0` scratch、两张`0x200`状态表、16×32与64×16字符串槽及64项entry表。严格
     执行1..500 load循环与1..500 query循环；成功load发布`+0x5E`、释放`+0xAC` token并清token。
     后续只清字符串首字节，先把entry alias写typed index 0，再清`FC974/FC90C/FC928/FC914/FC910`
-    五个owner、初始化entry、写action `0x232A/0x33`、消费entry[0]并最后清mode flags。未关闭
+    五个owner、初始化entry、只写共享17项action表record0的`0x232A/0x33`、消费entry[0]并
+    最后清mode flags。未关闭
     callee均由窄port隔离；定向UT锁定1000次顺序、表边界、token、未初始化字节保持、alias、
     action字段和EAX。workpack连续两轮稳定为`29/227`，SHA256为
     `4d43482df73105a50a831f9da35a35f89fab5916af1d7ffae22e5e3f9ad3f940`；Linux core188/188与
@@ -3303,8 +3304,9 @@ B7 P0 有限收口完成。
 
 - 模块9标准模式运行时输入分派`0x0043C3C0`闭环。完整函数由主块与`C2F0/C600/C7E0/C800`
     四个外置chunk组成。第一矩形按24像素行计算并保留钳制后额外减1；第二矩形保留负delta减2、
-    正delta不改mode但仍刷新/发声的原BUG。availability记录15后的upper/bottom/两段动态范围按
-    顺序独立命中；翻页严格执行step15、alias重建、page刷新、entry消费、flags低字节OR `0x30`
+    正delta不改mode但仍刷新/发声的原BUG。availability记录15后的upper/bottom使用固定范围，
+    两段动态范围读取runtime state中由`0x0043C820`发布的split-bar边界，四段按顺序独立命中；
+    翻页严格执行step15、alias重建、page刷新、entry消费、flags低字节OR `0x30`
     与sample `0x2E`。exit必须精确500，随后条件释放record token并按4个固定块、16 long、64 short、
     entry表顺序释放，最终`FC974=64`、action写`0x232A/0x43`并保留末次release EAX。原表越界在
     availability15或selected entry读取点typed-stop；已关闭`0x0043C520`、`0x0043C590`、
@@ -3354,9 +3356,21 @@ B7 P0 有限收口完成。
     SHA256为`d2053fd736fee3f30bf0b0edab19ff0f41a812ba397b7a42a91060cad38e20b7`；Linux core188/188与
     Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
 
+- 模块9标准模式运行时列表渲染`0x0043C820`闭环。LST范围`0x0043C820..0x0043C9B5`，运行时
+    caller仅`0x00447100`。signed total大于15时独立衰减flags两个nibble并形成overlay位，按x87
+    signed比例向已关闭split-bar owner发布`0xCE/0x62/0x15E`几何与四个动态边界。alias链从typed
+    index迭代，selected行读取short text与entry，写独立preview action `entry/0x44/variant0`，再按
+    `0x1FC/0x3C`绘制；每行调用entry owner，selected行调用已关闭矩形效果。无条件post-row next
+    alias读取与Y=`0x1C6`上限顺序保持。runtime state修正为共享17项action表；C0D0/cleanup只写
+    record0，split bar使用records6–9。C3C0动态判断改读本函数发布的state边界。定向UT覆盖nibble、
+    float、两行链、preview/frame、total15跳过、bar停止和三类原表typed-stop。workpack连续两轮
+    稳定为`35/227`，SHA256为
+    `4856353c4390b409498d64a75f8fb47c9137c4ffe1f5753ff8eb10bd39066fe6`；Linux core188/188与
+    Linux app194/194完整门通过，按阶段门禁未运行Windows BUILD。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`34/227`，下一单元为`0x0043C820`。
+进行中，正式进度为`35/227`，下一单元为`0x0043C9C0`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x0043C820`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x0043C9C0`，继续更新workpack、证据和完整验证门。

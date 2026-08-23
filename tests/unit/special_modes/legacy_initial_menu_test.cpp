@@ -49,7 +49,10 @@ using openswd3::special_modes::initialize_legacy_standard_mode_items;
 using openswd3::special_modes::initialize_legacy_standard_mode_runtime;
 using openswd3::special_modes::dispatch_legacy_standard_mode_input;
 using openswd3::special_modes::kLegacyStandardModeSharedTextCapacity;
+using openswd3::special_modes::
+    kLegacyStandardSpecialModeInitializationRecordCount;
 using openswd3::special_modes::prepare_legacy_standard_mode_panel;
+using openswd3::special_modes::render_legacy_standard_mode_runtime;
 using openswd3::special_modes::query_legacy_standard_mode_availability;
 using openswd3::special_modes::resolve_legacy_standard_mode_shared_text;
 using openswd3::special_modes::resolve_legacy_standard_mode_window_selection;
@@ -112,6 +115,8 @@ using openswd3::special_modes::LegacyStandardModePanelState;
 using openswd3::special_modes::LegacyStandardModeRenderPorts;
 using openswd3::special_modes::LegacyStandardModeRuntimeInitializationPorts;
 using openswd3::special_modes::LegacyStandardModeRuntimeInitializationState;
+using openswd3::special_modes::LegacyStandardModeRuntimeRenderPorts;
+using openswd3::special_modes::LegacyStandardModeRuntimeRenderStatus;
 using openswd3::special_modes::LegacyStandardModeRuntimeCursorAdvanceStatus;
 using openswd3::special_modes::LegacyStandardModeRuntimeCursorRetreatStatus;
 using openswd3::special_modes::LegacyStandardModeRuntimePageRetreatStatus;
@@ -2135,7 +2140,8 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
     state.visible_count = 4;
     state.mode_index = 5;
     state.exit_counter = 500U;
-    state.action.cached_action_id = 0xCAFEBABEU;
+    state.action_records[0U].cached_action_id = 0xCAFEBABEU;
+    state.action_records[6U].action_id = 0x12345678U;
     state.mode_flags = 7;
     RuntimePorts ports;
 
@@ -2178,9 +2184,11 @@ void test_standard_mode_runtime_initialization(openswd3::test::Context& test) {
             state.entry_alias_index == 0 && state.total_count == 0 &&
             state.window_offset == 0 && state.local_cursor == 0 &&
             state.visible_count == 0 && state.mode_index == 0 &&
-            state.exit_counter == 500U && state.action.action_id == 0x232AU &&
-            state.action.base_variant == 0x33U &&
-            state.action.cached_action_id == 0xCAFEBABEU &&
+            state.exit_counter == 500U &&
+            state.action_records[0U].action_id == 0x232AU &&
+            state.action_records[0U].base_variant == 0x33U &&
+            state.action_records[0U].cached_action_id == 0xCAFEBABEU &&
+            state.action_records[6U].action_id == 0x12345678U &&
             state.mode_flags == 0,
         "0x43C0D0 clears only string first bytes, resets cursors and writes exact action fields"
     );
@@ -2625,14 +2633,16 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         state.entries[13U] = 0x11223344U;
         state.entries[14U] = 0xDEADBEEFU;
         state.mode_flags = static_cast<i32>(0xABCD0001U);
+        state.dynamic_bar_outputs = {
+            .top = 80,
+            .first_split = 100,
+            .second_split = 80,
+            .bottom = 100,
+        };
         DispatchPorts ports;
         const LegacyStandardModeInputDispatchInput input{
             .pointer_x = 210U,
             .pointer_y = 90U,
-            .first_dynamic_lower_bound = 80,
-            .first_dynamic_upper_bound = 100,
-            .second_dynamic_lower_bound = 80,
-            .second_dynamic_upper_bound = 100,
             .sample_handle = 0x87654321U,
         };
         const auto result = dispatch_legacy_standard_mode_input(
@@ -2684,14 +2694,16 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         state.local_cursor = 4;
         state.visible_count = 5;
         state.entries[5U] = 0x55667788U;
+        state.dynamic_bar_outputs = {
+            .top = 1000,
+            .first_split = 1001,
+            .second_split = 1000,
+            .bottom = 1001,
+        };
         DispatchPorts ports;
         const LegacyStandardModeInputDispatchInput input{
             .pointer_x = 210U,
             .pointer_y = 453U,
-            .first_dynamic_lower_bound = 1000,
-            .first_dynamic_upper_bound = 1001,
-            .second_dynamic_lower_bound = 1000,
-            .second_dynamic_upper_bound = 1001,
         };
         const auto result = dispatch_legacy_standard_mode_input(
             input, available_records, state, ports
@@ -2762,14 +2774,16 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         state.local_cursor = 14;
         state.visible_count = 15;
         state.mode_flags = 1;
+        state.dynamic_bar_outputs = {
+            .top = 1000,
+            .first_split = 1001,
+            .second_split = 80,
+            .bottom = 100,
+        };
         DispatchPorts ports;
         const LegacyStandardModeInputDispatchInput input{
             .pointer_x = 210U,
             .pointer_y = 99U,
-            .first_dynamic_lower_bound = 1000,
-            .first_dynamic_upper_bound = 1001,
-            .second_dynamic_lower_bound = 80,
-            .second_dynamic_upper_bound = 100,
         };
         const auto result = dispatch_legacy_standard_mode_input(
             input, available_records, state, ports
@@ -2798,7 +2812,8 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
         state.scratch_record[0xADU] = 0x33U;
         state.scratch_record[0xAEU] = 0x22U;
         state.scratch_record[0xAFU] = 0x11U;
-        state.action.cached_action_id = 0xCAFEBABEU;
+        state.action_records[0U].cached_action_id = 0xCAFEBABEU;
+        state.action_records[6U].action_id = 0x12345678U;
         DispatchPorts ports;
         const LegacyStandardModeInputDispatchInput input{
             .input_bits = 0x0CU,
@@ -2853,9 +2868,10 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 state.scratch_record[0xADU] == 0U &&
                 state.scratch_record[0xAEU] == 0U &&
                 state.scratch_record[0xAFU] == 0U &&
-                state.action.action_id == 0x232AU &&
-                state.action.base_variant == 0x43U &&
-                state.action.cached_action_id == 0xCAFEBABEU &&
+                state.action_records[0U].action_id == 0x232AU &&
+                state.action_records[0U].base_variant == 0x43U &&
+                state.action_records[0U].cached_action_id == 0xCAFEBABEU &&
+                state.action_records[6U].action_id == 0x12345678U &&
                 ports.released_record_tokens == std::vector<u32>{0x11223344U} &&
                 release_order_valid,
             "0x43C3C0 preserves conditional record release, 85 storage releases and final counter 64"
@@ -2877,6 +2893,289 @@ void test_standard_mode_runtime_input_dispatch(openswd3::test::Context& test) {
                 result.legacy_return_value == 0 && state.exit_counter == 499U &&
                 ports.releases.empty(),
             "0x43C3C0 requires exit counter exactly 500 before cleanup"
+        );
+    }
+}
+
+void test_standard_mode_runtime_render(openswd3::test::Context& test) {
+    class RenderPorts final : public LegacyStandardModeRuntimeRenderPorts {
+    public:
+        enum class Event : u8 {
+            color,
+            bar,
+            prepare,
+            preview,
+            entry,
+            selection_frame,
+        };
+        struct EntryRequest {
+            i32 absolute_index{};
+            i32 row_index{};
+            u16 color{};
+            i32 zero_value{};
+            i32 selected{};
+            bool operator==(const EntryRequest&) const = default;
+        };
+
+        [[nodiscard]] u32 compose_color(
+            const u8 red, const u8 green, const u8 blue
+        ) noexcept override {
+            events.push_back(Event::color);
+            color_inputs = {red, green, blue};
+            return 0xABCD1234U;
+        }
+        [[nodiscard]] bool draw_split_bar(
+            const LegacyStandardModeBarRequest& request,
+            LegacyStandardModeBarOutputs& outputs,
+            std::array<
+                LegacyActionRecord,
+                kLegacyStandardSpecialModeInitializationRecordCount>&
+                action_records
+        ) noexcept override {
+            events.push_back(Event::bar);
+            bar_request = request;
+            outputs = {
+                .top = 98,
+                .first_split = 150,
+                .second_split = 300,
+                .bottom = 448,
+            };
+            action_records[6U].base_variant = 0x66U;
+            return bar_result;
+        }
+        [[nodiscard]] i32 prepare_frame() noexcept override {
+            events.push_back(Event::prepare);
+            return -77;
+        }
+        void draw_selected_preview(
+            LegacyActionRecord& record, const u32 service_id, const u32 selector
+        ) noexcept override {
+            events.push_back(Event::preview);
+            preview_record = record;
+            preview_service_id = service_id;
+            preview_selector = selector;
+        }
+        void draw_entry(
+            const i32 absolute_index,
+            const i32 row_index,
+            const u16 color,
+            const i32 zero_value,
+            const i32 selected
+        ) noexcept override {
+            events.push_back(Event::entry);
+            entries.push_back(
+                EntryRequest{
+                    absolute_index,
+                    row_index,
+                    color,
+                    zero_value,
+                    selected,
+                }
+            );
+        }
+        void draw_selection_frame(
+            const i32 x,
+            const i32 y,
+            const i32 width,
+            const i32 height,
+            const i32 first_parameter,
+            const i32 second_parameter,
+            const i32 mode,
+            const i32 lane
+        ) noexcept override {
+            events.push_back(Event::selection_frame);
+            selection_frame = {
+                x,
+                y,
+                width,
+                height,
+                first_parameter,
+                second_parameter,
+                mode,
+                lane,
+            };
+        }
+
+        bool bar_result{true};
+        std::vector<Event> events;
+        std::array<u8, 3U> color_inputs{};
+        LegacyStandardModeBarRequest bar_request{};
+        LegacyActionRecord preview_record{};
+        u32 preview_service_id{};
+        u32 preview_selector{};
+        std::vector<EntryRequest> entries;
+        std::array<i32, 8U> selection_frame{};
+    };
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.total_count = 30;
+        state.window_offset = 5;
+        state.local_cursor = 1;
+        state.visible_count = 10;
+        state.entry_alias_index = 2;
+        state.entries[2U] = 0x11111111U;
+        state.entries[3U] = 0x22222222U;
+        state.entries[4U] = 0U;
+        state.entries[6U] = 0xDEADBEEFU;
+        state.short_text_slots[6U][0U] = 1U;
+        state.selected_preview_action.cached_action_id = 0xCAFEBABEU;
+        state.mode_flags = 0x0000A5B6;
+        RenderPorts ports;
+        const auto result = render_legacy_standard_mode_runtime(state, ports);
+        test.expect_true(
+            result.status == LegacyStandardModeRuntimeRenderStatus::completed &&
+                result.legacy_return_value == 0 && result.overlay_flags == 3U &&
+                result.row_count == 2U && result.preview_count == 1U &&
+                result.selection_frame_count == 1U &&
+                state.mode_flags == 0x0000A5A5 &&
+                state.dynamic_bar_outputs.top == 98 &&
+                state.dynamic_bar_outputs.first_split == 150 &&
+                state.dynamic_bar_outputs.second_split == 300 &&
+                state.dynamic_bar_outputs.bottom == 448 &&
+                state.action_records[6U].base_variant == 0x66U &&
+                ports.color_inputs == std::array<u8, 3U>{0x19U, 0x17U, 0x11U} &&
+                ports.bar_request.x == 0xCE && ports.bar_request.y == 0x62 &&
+                ports.bar_request.height == 0x15E &&
+                ports.bar_request.overlay_flags == 3U &&
+                ports.bar_request.first_ratio ==
+                    static_cast<float>(5.0 / 30.0) &&
+                ports.bar_request.second_ratio ==
+                    static_cast<float>(15.0 / 30.0),
+            "0x43C820 fades both nibbles and publishes exact split-bar inputs and outputs"
+        );
+        test.expect_true(
+            ports.entries ==
+                    std::vector{
+                        RenderPorts::EntryRequest{5, 0, 0x1234U, 0, 0},
+                        RenderPorts::EntryRequest{6, 1, 0x1234U, 0, 1},
+                    } &&
+                ports.preview_record.action_id == 0xDEADBEEFU &&
+                ports.preview_record.base_variant == 0x44U &&
+                ports.preview_record.variant_delta == 0 &&
+                ports.preview_record.cached_action_id == 0xCAFEBABEU &&
+                ports.preview_service_id == 0x1FCU &&
+                ports.preview_selector == 0x3CU &&
+                ports.selection_frame ==
+                    std::array<i32, 8U>{
+                        0x0E,
+                        0x76,
+                        0xBD,
+                        0x18,
+                        0x14,
+                        0x0D,
+                        0,
+                        5,
+                    } &&
+                ports.events ==
+                    std::vector{
+                        RenderPorts::Event::color,
+                        RenderPorts::Event::bar,
+                        RenderPorts::Event::prepare,
+                        RenderPorts::Event::entry,
+                        RenderPorts::Event::preview,
+                        RenderPorts::Event::entry,
+                        RenderPorts::Event::selection_frame,
+                    },
+            "0x43C820 preserves alias rows, selected preview record, entry draw and frame order"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.total_count = 15;
+        state.entry_alias_index = 0;
+        state.entries[0U] = 0U;
+        state.mode_flags = 0x12345678;
+        state.dynamic_bar_outputs = {1, 2, 3, 4};
+        RenderPorts ports;
+        const auto result = render_legacy_standard_mode_runtime(state, ports);
+        test.expect_true(
+            result.status == LegacyStandardModeRuntimeRenderStatus::completed &&
+                result.legacy_return_value == -77 && result.row_count == 0U &&
+                state.mode_flags == 0x12345678 &&
+                state.dynamic_bar_outputs.top == 1 &&
+                ports.events ==
+                    std::vector{
+                        RenderPorts::Event::color,
+                        RenderPorts::Event::prepare,
+                    },
+            "0x43C820 skips fade and split bar when signed total is at most fifteen"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.total_count = 16;
+        RenderPorts ports;
+        ports.bar_result = false;
+        const auto result = render_legacy_standard_mode_runtime(state, ports);
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeRenderStatus::split_bar_stopped &&
+                ports.events ==
+                    std::vector{
+                        RenderPorts::Event::color,
+                        RenderPorts::Event::bar,
+                    },
+            "0x43C820 stops when the platform-adapted split-bar owner typed-stops"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.entry_alias_index = -1;
+        RenderPorts ports;
+        const auto result = render_legacy_standard_mode_runtime(state, ports);
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeRenderStatus::
+                        entry_alias_out_of_range &&
+                result.legacy_return_value == -77 &&
+                ports.events ==
+                    std::vector{
+                        RenderPorts::Event::color,
+                        RenderPorts::Event::prepare,
+                    },
+            "0x43C820 typed-stops at the first alias entry read"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.window_offset = 64;
+        state.local_cursor = 0;
+        state.entry_alias_index = 0;
+        state.entries[0U] = 1U;
+        RenderPorts ports;
+        const auto result = render_legacy_standard_mode_runtime(state, ports);
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeRenderStatus::
+                        selected_record_out_of_range &&
+                result.row_count == 0U && ports.entries.empty() &&
+                ports.events ==
+                    std::vector{
+                        RenderPorts::Event::color,
+                        RenderPorts::Event::prepare,
+                    },
+            "0x43C820 typed-stops at the selected text and entry record read"
+        );
+    }
+
+    {
+        LegacyStandardModeRuntimeInitializationState state;
+        state.local_cursor = 99;
+        state.entry_alias_index = 63;
+        state.entries[63U] = 1U;
+        RenderPorts ports;
+        const auto result = render_legacy_standard_mode_runtime(state, ports);
+        test.expect_true(
+            result.status ==
+                    LegacyStandardModeRuntimeRenderStatus::
+                        entry_alias_out_of_range &&
+                result.row_count == 1U && ports.entries.size() == 1U,
+            "0x43C820 performs the post-row next-alias read before another y-bound check"
         );
     }
 }
@@ -4944,6 +5243,7 @@ int main() {
     test_standard_mode_availability(test);
     test_standard_mode_runtime_initialization(test);
     test_standard_mode_runtime_input_dispatch(test);
+    test_standard_mode_runtime_render(test);
     test_standard_mode_shared_text_resolution(test);
     test_standard_mode_input_status_composition(test);
     test_standard_mode_window_cursor_adjustment(test);

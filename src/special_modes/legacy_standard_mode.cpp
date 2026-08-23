@@ -863,8 +863,8 @@ initialize_legacy_standard_mode_runtime(
     state.visible_count = 0;
     state.mode_index = 0;
     ports.initialize_entries(state.entries, 0);
-    state.action.action_id = 0x0000232AU;
-    state.action.base_variant = 0x00000033U;
+    state.action_records[0U].action_id = 0x0000232AU;
+    state.action_records[0U].base_variant = 0x00000033U;
     result.legacy_return_value = ports.consume_entry(state.entries[0U]);
     state.mode_flags = 0;
     return result;
@@ -1125,8 +1125,8 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
                 }
                 result.legacy_return_value = pointer_y;
             }
-            if (pointer_y < input.first_dynamic_upper_bound &&
-                pointer_y > input.first_dynamic_lower_bound) {
+            if (pointer_y < state.dynamic_bar_outputs.first_split &&
+                pointer_y > state.dynamic_bar_outputs.top) {
                 const LegacyStandardModeRuntimePageRetreatResult
                     retreat_result = retreat_legacy_standard_mode_runtime_page(
                         input.sample_handle, state, ports
@@ -1144,8 +1144,8 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
                 }
                 result.legacy_return_value = pointer_y;
             }
-            if (pointer_y >= input.second_dynamic_upper_bound ||
-                pointer_y <= input.second_dynamic_lower_bound) {
+            if (pointer_y >= state.dynamic_bar_outputs.bottom ||
+                pointer_y <= state.dynamic_bar_outputs.second_split) {
                 return result;
             }
 
@@ -1227,10 +1227,132 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
     result.legacy_return_value = ports.release_runtime_storage(
         LegacyStandardModeRuntimeStorageKind::entries, 0U
     );
-    state.action.action_id = 0x0000232AU;
-    state.action.base_variant = 0x00000043U;
+    state.action_records[0U].action_id = 0x0000232AU;
+    state.action_records[0U].base_variant = 0x00000043U;
     result.path = LegacyStandardModeInputDispatchPath::runtime_released;
     return result;
+}
+
+LegacyStandardModeRuntimeRenderResult render_legacy_standard_mode_runtime(
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeRuntimeRenderPorts& ports
+) noexcept {
+    LegacyStandardModeRuntimeRenderResult result;
+    const compat::u16 color =
+        static_cast<compat::u16>(ports.compose_color(0x19U, 0x17U, 0x11U));
+
+    if (state.total_count > 0x0F) {
+        compat::u32 flags = std::bit_cast<compat::u32>(state.mode_flags);
+        if ((flags & 0x0FU) != 0U) {
+            flags = (flags & ~0x0FU) | ((flags & 0x0FU) - 1U);
+            result.overlay_flags |= 0x01U;
+        }
+        if ((flags & 0xF0U) != 0U) {
+            flags = (flags & ~0xF0U) | ((flags & 0xF0U) - 0x10U);
+            result.overlay_flags |= 0x02U;
+        }
+        state.mode_flags = std::bit_cast<compat::i32>(flags);
+
+        const compat::i32 second_numerator = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(state.window_offset) +
+            std::bit_cast<compat::u32>(state.visible_count)
+        );
+        const float first_ratio = static_cast<float>(
+            static_cast<double>(state.window_offset) /
+            static_cast<double>(state.total_count)
+        );
+        const float second_ratio = static_cast<float>(
+            static_cast<double>(second_numerator) /
+            static_cast<double>(state.total_count)
+        );
+        const LegacyStandardModeBarRequest request{
+            .x = 0xCE,
+            .y = 0x62,
+            .height = 0x15E,
+            .overlay_flags = result.overlay_flags,
+            .first_ratio = first_ratio,
+            .second_ratio = second_ratio,
+        };
+        if (!ports.draw_split_bar(
+                request, state.dynamic_bar_outputs, state.action_records
+            )) {
+            result.status =
+                LegacyStandardModeRuntimeRenderStatus::split_bar_stopped;
+            return result;
+        }
+    }
+
+    result.legacy_return_value = ports.prepare_frame();
+    const compat::u32 alias_index =
+        std::bit_cast<compat::u32>(state.entry_alias_index);
+    if (alias_index >= state.entries.size()) {
+        result.status =
+            LegacyStandardModeRuntimeRenderStatus::entry_alias_out_of_range;
+        return result;
+    }
+    compat::u32 current_alias_index = alias_index;
+    if (state.entries[current_alias_index] == 0U) {
+        return result;
+    }
+
+    compat::i32 row_index = 0;
+    compat::i32 row_y = 0x5E;
+    for (;;) {
+        if (row_y >= 0x1C6) {
+            return result;
+        }
+        compat::i32 selected = 0;
+        const compat::i32 absolute_index = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(state.window_offset) +
+            std::bit_cast<compat::u32>(row_index)
+        );
+        if (state.local_cursor == row_index) {
+            const compat::u32 selected_index =
+                std::bit_cast<compat::u32>(absolute_index);
+            if (selected_index >= state.entries.size()) {
+                result.status = LegacyStandardModeRuntimeRenderStatus::
+                    selected_record_out_of_range;
+                return result;
+            }
+            if (state.short_text_slots[selected_index][0U] != 0U) {
+                state.selected_preview_action.action_id =
+                    state.entries[selected_index];
+                state.selected_preview_action.base_variant = 0x44U;
+                state.selected_preview_action.variant_delta = 0;
+                ports.draw_selected_preview(
+                    state.selected_preview_action, 0x01FCU, 0x003CU
+                );
+                ++result.preview_count;
+            }
+            selected = 1;
+        }
+        ports.draw_entry(absolute_index, row_index, color, 0, selected);
+        if (state.local_cursor == row_index) {
+            ports.draw_selection_frame(
+                0x0E, row_y, 0xBD, 0x18, 0x14, 0x0D, 0, 5
+            );
+            ++result.selection_frame_count;
+        }
+        ++result.row_count;
+
+        ++current_alias_index;
+        if (current_alias_index >= state.entries.size()) {
+            result.status =
+                LegacyStandardModeRuntimeRenderStatus::entry_alias_out_of_range;
+            return result;
+        }
+        result.legacy_return_value =
+            std::bit_cast<compat::i32>(state.entries[current_alias_index]);
+        row_index = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(row_index) + 1U
+        );
+        row_y = std::bit_cast<compat::i32>(
+            std::bit_cast<compat::u32>(row_y) + 0x18U
+        );
+        if (result.legacy_return_value == 0) {
+            return result;
+        }
+    }
 }
 
 LegacyStandardModeTextResolutionResult resolve_legacy_standard_mode_shared_text(

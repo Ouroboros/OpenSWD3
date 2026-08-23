@@ -709,7 +709,12 @@ struct LegacyStandardModeRuntimeInitializationState {
     compat::i32 visible_count{};
     compat::i32 mode_index{};
     compat::u16 exit_counter{};
-    asset_runtime::LegacyActionRecord action{};
+    std::array<
+        asset_runtime::LegacyActionRecord,
+        kLegacyStandardSpecialModeInitializationRecordCount>
+        action_records{};
+    asset_runtime::LegacyActionRecord selected_preview_action{};
+    LegacyStandardModeBarOutputs dynamic_bar_outputs{};
     compat::i32 mode_flags{};
 };
 
@@ -749,10 +754,6 @@ struct LegacyStandardModeInputDispatchInput {
     compat::u32 pointer_x{};
     compat::u32 pointer_y{};
     compat::u8 input_bits{};
-    compat::i32 first_dynamic_lower_bound{};
-    compat::i32 first_dynamic_upper_bound{};
-    compat::i32 second_dynamic_lower_bound{};
-    compat::i32 second_dynamic_upper_bound{};
     compat::u32 sample_handle{};
 };
 
@@ -853,6 +854,62 @@ struct LegacyStandardModeInputDispatchResult {
     bool upper_control_dispatched{};
     bool bottom_control_dispatched{};
     bool first_dynamic_control_dispatched{};
+};
+
+enum class LegacyStandardModeRuntimeRenderStatus : compat::u8 {
+    completed,
+    split_bar_stopped,
+    entry_alias_out_of_range,
+    selected_record_out_of_range,
+};
+
+class LegacyStandardModeRuntimeRenderPorts {
+public:
+    virtual ~LegacyStandardModeRuntimeRenderPorts() = default;
+    [[nodiscard]] virtual compat::u32 compose_color(
+        compat::u8 red, compat::u8 green, compat::u8 blue
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool draw_split_bar(
+        const LegacyStandardModeBarRequest& request,
+        LegacyStandardModeBarOutputs& outputs,
+        std::array<
+            asset_runtime::LegacyActionRecord,
+            kLegacyStandardSpecialModeInitializationRecordCount>& action_records
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 prepare_frame() noexcept = 0;
+    virtual void draw_selected_preview(
+        asset_runtime::LegacyActionRecord& record,
+        compat::u32 service_id,
+        compat::u32 selector
+    ) noexcept = 0;
+    virtual void draw_entry(
+        compat::i32 absolute_index,
+        compat::i32 row_index,
+        compat::u16 color,
+        compat::i32 zero_value,
+        compat::i32 selected
+    ) noexcept = 0;
+    virtual void draw_selection_frame(
+        compat::i32 x,
+        compat::i32 y,
+        compat::i32 width,
+        compat::i32 height,
+        compat::i32 first_parameter,
+        compat::i32 second_parameter,
+        compat::i32 mode,
+        compat::i32 lane
+    ) noexcept = 0;
+};
+
+struct LegacyStandardModeRuntimeRenderResult {
+    LegacyStandardModeRuntimeRenderStatus status{
+        LegacyStandardModeRuntimeRenderStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u8 overlay_flags{};
+    compat::u32 row_count{};
+    compat::u32 preview_count{};
+    compat::u32 selection_frame_count{};
 };
 
 struct LegacyStandardModeInputStatusResult {
@@ -1085,6 +1142,13 @@ advance_legacy_standard_mode_runtime_mode(
     compat::u32 sample_handle,
     LegacyStandardModeRuntimeInitializationState& state,
     LegacyStandardModeInputDispatchPorts& ports
+) noexcept;
+
+// sub_43C820: fade controls and render the current runtime entry window.
+[[nodiscard]] LegacyStandardModeRuntimeRenderResult
+render_legacy_standard_mode_runtime(
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeRuntimeRenderPorts& ports
 ) noexcept;
 
 // sub_43C3C0: dispatch standard-mode pointer input and release its runtime.

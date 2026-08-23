@@ -34,7 +34,7 @@ return play_sample(0x2E, sample_handle)
 
 ## 3. availability与顺序命中
 
-若前两矩形未命中，函数查询16字节记录15。可用时先要求unsigned `206 < x < 224`；进入后Y的后续范围全部为signed严格比较，并按顺序独立执行，不是互斥else-if：
+若前两矩形未命中，函数查询16字节记录15。可用时先要求unsigned `206 < x < 224`；进入后Y的后续范围全部为signed严格比较，并按顺序独立执行，不是互斥else-if。两组动态边界直接读取已关闭`0x0043C820`发布到runtime state的split-bar四输出，不再作为调用参数伪造：
 
 1. `82 < y < 96`调用已关闭`0x0043C590`，保留后退、alias重建、刷新、entry消费、flags OR `0x03`和sample副作用后重新载入pointer Y。
 2. `452 < y < 464`调用已关闭`0x0043C520`，保留其全部状态副作用后重新载入pointer Y覆盖sample EAX。
