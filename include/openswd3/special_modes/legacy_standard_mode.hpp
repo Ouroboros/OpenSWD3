@@ -372,6 +372,20 @@ struct LegacyStandardModeCatalogState {
     std::array<compat::u32, 8U> secondary_owners{};
     compat::u32 shared_value{};
     compat::u32 published_shared_value{};
+    compat::u8 message_tail{};
+    compat::u8 message_sample_owner{};
+    compat::u8 message_font{};
+    compat::u8 message_value{};
+};
+
+struct LegacyStandardModeCatalogMessage {
+    compat::u8 sample_owner{};
+    compat::u8 font{};
+    compat::u8 value{};
+    compat::u32 capacity{};
+    compat::i32 service_result{};
+    compat::u8 shared_value{};
+    compat::u8 tail{};
 };
 
 class LegacyStandardModeCatalogPorts {
@@ -381,6 +395,14 @@ public:
     allocate_catalog_buffer(compat::u32 size) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     query_catalog_item_presence(compat::u32 item_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    release_catalog_buffer(LegacyStandardModeCatalogState& state) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 query_catalog_service(
+        compat::u32 service_id, LegacyStandardModeCatalogState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 format_catalog_message(
+        const LegacyStandardModeCatalogMessage& message
+    ) noexcept = 0;
 };
 
 enum class LegacyStandardModeCatalogStatus : compat::u8 {
@@ -400,6 +422,11 @@ struct LegacyStandardModeCatalogResult {
 
 [[nodiscard]] LegacyStandardModeCatalogResult
 initialize_legacy_standard_mode_catalog(
+    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeCatalogResult
+release_legacy_standard_mode_catalog(
     LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
 ) noexcept;
 

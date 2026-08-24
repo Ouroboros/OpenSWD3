@@ -510,6 +510,36 @@ public:
         }
         return 0;
     }
+    i32 release_catalog_buffer(
+        openswd3::special_modes::LegacyStandardModeCatalogState& state
+    ) noexcept override {
+        events.push_back(1U);
+        released_owners.push_back(state.list_owner);
+        state.message_tail = 0xAAU;
+        state.shared_value = (state.shared_value & 0xFFFFFF00U) | 0xBBU;
+        return release_return;
+    }
+    i32 query_catalog_service(
+        const u32 service_id,
+        openswd3::special_modes::LegacyStandardModeCatalogState& state
+    ) noexcept override {
+        events.push_back(2U);
+        queried_service_ids.push_back(service_id);
+        query_saw_cleared_owner = state.list_owner == 0U;
+        state.message_tail = 0xCCU;
+        state.shared_value = (state.shared_value & 0xFFFFFF00U) | 0xDDU;
+        state.message_sample_owner = 0x55U;
+        state.message_font = 0x66U;
+        state.message_value = 0x77U;
+        return service_return;
+    }
+    i32 format_catalog_message(
+        const openswd3::special_modes::LegacyStandardModeCatalogMessage& message
+    ) noexcept override {
+        events.push_back(3U);
+        messages.push_back(message);
+        return format_return;
+    }
 
     u32 allocation_return{0x1234U};
     std::vector<u32> allocation_sizes;
@@ -517,6 +547,15 @@ public:
     std::vector<u32> exact_present_ids;
     u32 non_exact_present_id{};
     std::vector<u32> queried_item_ids;
+    std::vector<u32> events;
+    std::vector<u32> released_owners;
+    i32 release_return{-11};
+    std::vector<u32> queried_service_ids;
+    bool query_saw_cleared_owner{};
+    i32 service_return{0x12345678};
+    std::vector<openswd3::special_modes::LegacyStandardModeCatalogMessage>
+        messages;
+    i32 format_return{-77};
 };
 
 class FakeTransitionPairPorts final
@@ -15139,6 +15178,45 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             catalog_capacity_stop.helper_call_count == 130U &&
             catalog_capacity_stop.queried_item_count == 129U,
         "0x44AF30 stops at the original memset or 129th matched write while preserving prior initialization, queries, and entries"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_release_state;
+    catalog_release_state.list_owner = 0x4321U;
+    catalog_release_state.entries[0U] = 0x123U;
+    catalog_release_state.entry_count = 1U;
+    catalog_release_state.message_tail = 0x10U;
+    catalog_release_state.shared_value = 0xAABBCC20U;
+    catalog_release_state.message_sample_owner = 1U;
+    catalog_release_state.message_font = 2U;
+    catalog_release_state.message_value = 3U;
+    FakeStandardModeCatalogPorts catalog_release_ports;
+    const auto catalog_release =
+        openswd3::special_modes::release_legacy_standard_mode_catalog(
+            catalog_release_state, catalog_release_ports
+        );
+    const auto& catalog_message = catalog_release_ports.messages[0U];
+    test.expect_true(
+        catalog_release_ports.events == std::vector<u32>{1U, 2U, 3U} &&
+            catalog_release_ports.released_owners ==
+                std::vector<u32>{0x4321U} &&
+            catalog_release_state.list_owner == 0U &&
+            catalog_release_ports.query_saw_cleared_owner &&
+            catalog_release_ports.queried_service_ids ==
+                std::vector<u32>{0x48U} &&
+            catalog_message.sample_owner == 0x55U &&
+            catalog_message.font == 0x66U && catalog_message.value == 0x77U &&
+            catalog_message.capacity == 0x64U &&
+            catalog_message.service_result == 0x12345678 &&
+            catalog_message.shared_value == 0xBBU &&
+            catalog_message.tail == 0xAAU &&
+            catalog_release_state.message_tail == 0xCCU &&
+            static_cast<u8>(catalog_release_state.shared_value) == 0xDDU &&
+            catalog_release_state.entries[0U] == 0x123U &&
+            catalog_release_state.entry_count == 1U &&
+            catalog_release.legacy_return_value == -77 &&
+            catalog_release.helper_call_count == 3U,
+        "0x44B010 snapshots tail and shared bytes after release, clears the owner before service query, then rereads three message bytes"
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionPairState

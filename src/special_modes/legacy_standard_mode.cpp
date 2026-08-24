@@ -391,6 +391,32 @@ LegacyStandardModeCatalogResult initialize_legacy_standard_mode_catalog(
     return result;
 }
 
+LegacyStandardModeCatalogResult release_legacy_standard_mode_catalog(
+    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+) noexcept {
+    LegacyStandardModeCatalogResult result;
+    static_cast<void>(ports.release_catalog_buffer(state));
+    ++result.helper_call_count;
+    const compat::u8 tail_snapshot = state.message_tail;
+    const compat::u8 shared_snapshot =
+        static_cast<compat::u8>(state.shared_value);
+    state.list_owner = 0U;
+    const compat::i32 service_result =
+        ports.query_catalog_service(0x48U, state);
+    ++result.helper_call_count;
+    LegacyStandardModeCatalogMessage message;
+    message.sample_owner = state.message_sample_owner;
+    message.font = state.message_font;
+    message.value = state.message_value;
+    message.capacity = 0x64U;
+    message.service_result = service_result;
+    message.shared_value = shared_snapshot;
+    message.tail = tail_snapshot;
+    result.legacy_return_value = ports.format_catalog_message(message);
+    ++result.helper_call_count;
+    return result;
+}
+
 LegacyStandardModeTransitionPairRebuildResult
 rebuild_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
