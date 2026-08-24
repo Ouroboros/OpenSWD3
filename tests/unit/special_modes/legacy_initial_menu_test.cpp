@@ -2928,6 +2928,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             const u16 command_id, const u32 sample_owner
         ) noexcept override {
             samples.push_back({command_id, sample_owner});
+            if (sample_state != nullptr && sample_final_zero.has_value()) {
+                sample_state->final_zero = *sample_final_zero;
+            }
             return sample_return;
         }
 
@@ -2955,6 +2958,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         bool cycle_party_changes_state{true};
         bool visible_count_refresh_available{true};
         i32 sample_return{77};
+        sm::LegacyStandardModeEquipmentInitializationState* sample_state{};
+        std::optional<u32> sample_final_zero{};
         std::vector<sm::LegacyStandardModeEquipmentInputTarget> targets;
         std::vector<u16> item_ids;
         std::vector<std::array<u32, 2U>> samples;
@@ -3430,6 +3435,110 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 page_retreat_state.hover_selection == 0U &&
                 page_retreat_state.final_zero == 0xABCD0301U,
             "0x4437C0 mode2 selects lowest party and mode15 retreats an eight-item page"
+        );
+
+        sm::LegacyStandardModeEquipmentInitializationState column_state;
+        column_state.mode_enabled = 1U;
+        column_state.visible_record_count = 3U;
+        column_state.local_selection = 0U;
+        column_state.record_head = page_records.data();
+        column_state.sample_owner = 0xCAFEU;
+        column_state.final_zero = 9U;
+        EquipmentInputPorts column_ports;
+        column_ports.sample_state = &column_state;
+        column_ports.sample_final_zero = 0xDEADU;
+        const auto column_even =
+            sm::toggle_legacy_standard_mode_equipment_column(
+                column_state, {}, column_ports
+            );
+        const bool column_even_values = column_state.local_selection == 1U &&
+            column_state.shared_text[0] == 0xB5U &&
+            column_state.final_zero == 3U;
+        column_state.local_selection = 2U;
+        const auto column_clamped =
+            sm::toggle_legacy_standard_mode_equipment_column(
+                column_state, {}, column_ports
+            );
+        test.expect_true(
+            column_even.status ==
+                    sm::LegacyStandardModeEquipmentColumnToggleStatus::
+                        completed &&
+                column_even.legacy_return_value == 77 &&
+                column_even.helper_call_count == 3U && column_even_values &&
+                column_clamped.status ==
+                    sm::LegacyStandardModeEquipmentColumnToggleStatus::
+                        completed &&
+                column_state.local_selection == 2U &&
+                column_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{
+                        {0x2EU, 0xCAFEU}, {0x2EU, 0xCAFEU}
+                    },
+            "0x4438E0 toggles column parity, clamps at visible end and writes 3 after sample"
+        );
+
+        column_state = {};
+        column_state.mode_enabled = 1U;
+        column_state.visible_record_count = 1U;
+        column_state.local_selection = 1U;
+        EquipmentInputPorts column_stop_ports;
+        const auto column_missing =
+            sm::toggle_legacy_standard_mode_equipment_column(
+                column_state, {}, column_stop_ports
+            );
+        column_state.record_head = &advance_invalid_text;
+        column_state.final_zero = 9U;
+        const auto column_text_stopped =
+            sm::toggle_legacy_standard_mode_equipment_column(
+                column_state, {}, column_stop_ports
+            );
+        test.expect_true(
+            column_missing.status ==
+                    sm::LegacyStandardModeEquipmentColumnToggleStatus::
+                        selected_record_missing &&
+                column_missing.helper_call_count == 1U &&
+                column_text_stopped.status ==
+                    sm::LegacyStandardModeEquipmentColumnToggleStatus::
+                        shared_text_stopped &&
+                column_text_stopped.helper_call_count == 2U &&
+                column_state.final_zero == 9U &&
+                column_stop_ports.samples.empty(),
+            "0x4438E0 typed-stops at B9C0/B9E0 before sample and final3"
+        );
+
+        column_state = {};
+        column_state.mode_enabled = 2U;
+        column_state.party_markers = {0xFFFFU, 1U, 2U, 3U};
+        const auto column_party =
+            sm::toggle_legacy_standard_mode_equipment_column(
+                column_state, {}, column_ports
+            );
+        const u32 column_party_selection = column_state.selected_party_action;
+        column_state.party_markers.fill(0xFFFFU);
+        const auto column_party_stopped =
+            sm::toggle_legacy_standard_mode_equipment_column(
+                column_state, {}, column_ports
+            );
+        column_state = {};
+        column_state.mode_enabled = 0x0FU;
+        column_state.special_window_offset = 4U;
+        column_state.hover_selection = 3U;
+        column_state.final_zero = 0xABCD0001U;
+        const auto special_column =
+            sm::toggle_legacy_standard_mode_equipment_column(
+                column_state, {}, column_ports
+            );
+        test.expect_true(
+            column_party_selection == 1U &&
+                column_party.legacy_return_value == 1 &&
+                column_party_stopped.status ==
+                    sm::LegacyStandardModeEquipmentColumnToggleStatus::
+                        party_search_stopped &&
+                special_column.legacy_return_value ==
+                    std::bit_cast<i32>(0xABCD0301U) &&
+                column_state.special_window_offset == 4U &&
+                column_state.hover_selection == 2U &&
+                column_state.final_zero == 0xABCD0301U,
+            "0x4438E0 mode2 selects lowest party and mode15 retreats hover cursor"
         );
 
         sm::LegacyStandardModeEquipmentInitializationState equipment;

@@ -785,6 +785,28 @@ retreat_legacy_standard_mode_equipment_page(
     LegacyStandardModeEquipmentPageAdvancePorts& ports
 ) noexcept;
 
+enum class LegacyStandardModeEquipmentColumnToggleStatus : compat::u8 {
+    completed,
+    selected_record_missing,
+    shared_text_stopped,
+    party_search_stopped,
+};
+
+struct LegacyStandardModeEquipmentColumnToggleResult {
+    LegacyStandardModeEquipmentColumnToggleStatus status{
+        LegacyStandardModeEquipmentColumnToggleStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentColumnToggleResult
+toggle_legacy_standard_mode_equipment_column(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentAdvancePorts& ports
+) noexcept;
+
 class LegacyStandardModeEquipmentInputPorts
     : public LegacyStandardModeEquipmentPageAdvancePorts {
 public:
