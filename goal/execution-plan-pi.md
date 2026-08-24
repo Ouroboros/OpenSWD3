@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v575
+版本：v576
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 审计`0x00448DA0`
+当前步骤：模块9 · 审计`0x00448EB0`
 
 ## 0. 执行约定
 
@@ -3757,10 +3757,11 @@ B7 P0 有限收口完成。
 - 模块9转场选择末项`0x00448C40`恢复完成。progress1直接把四段selector写3，progress5把六行selector写5，两者返回0；其他progress保留`progress-5`残值。定向UT与独立ASan通过。workpack稳定为`147/227`，SHA256为`bebadb4475657d285dc134879b3c8f9617b026c6e8a83d697e763b4c19388aa9`。
 - 模块9转场选择首项`0x00448C70`恢复完成。progress1直接把四段selector写0，progress5把六行selector写0，两者返回0；其他progress保留`progress-5`残值。定向UT与独立ASan通过。workpack稳定为`148/227`，SHA256为`0422067bb10d9f0a05570a31a01465f2b2595b66a037d1eb491c862a88a2bd71`。
 - 模块9转场设置向前调整`0x00448CA0`恢复完成。progress1保留selector负值残值；progress5按六行分别减少样本、surface、间距、禁用服务、增加source或减少auxiliary，保留各分支夹前低字节。定向UT与独立ASan通过。workpack稳定为`149/227`，SHA256为`b38bb387117364cb5ebbe56eddadfb45c81c56a5458698473242b0b35eb113c9`。
+- 模块9转场设置向后调整`0x00448DA0`恢复完成。progress1保留selector越界残值；progress5按六行分别增加样本、surface、间距、启用服务、减少source或增加auxiliary，并保留surface超过11时夹10及各分支夹前低字节。定向UT与独立ASan通过。workpack稳定为`150/227`，SHA256为`2dffdcef45c81e43e6207e5a2a77676adb0215f294a680e14c7e8a99eb57e303`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`149/227`，下一单元为`0x00448DA0`。
+进行中，正式进度为`150/227`，下一单元为`0x00448EB0`。
 
-下一工作包：按LST唯一真值审计并恢复模块9 `0x00448DA0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值审计并恢复模块9 `0x00448EB0`，继续更新workpack、证据和完整验证门。

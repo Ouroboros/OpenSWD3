@@ -15123,6 +15123,67 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448CA0 retreats the active setting while preserving clamped low-byte residuals"
     );
 
+    std::array<
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState,
+        6U>
+        advance_setting_states{};
+    std::array<FakeTransitionVisualPorts, 6U> advance_setting_ports{};
+    std::array<
+        openswd3::special_modes::LegacyStandardModeTransitionInteractionResult,
+        6U>
+        advance_setting_results{};
+    for (std::size_t index = 0U; index < advance_setting_states.size();
+         ++index) {
+        auto& state = advance_setting_states[index];
+        state.progress = 5U;
+        state.velocity = static_cast<i32>(index);
+        state.sample_index = 0x0BU;
+        state.settings_surface_index = 0x0BU;
+        state.settings_spacing = 0x8CU;
+        state.settings_auxiliary = 0x0BU;
+        advance_setting_results[index] = openswd3::special_modes::
+            advance_legacy_standard_mode_transition_setting(
+                state, advance_setting_ports[index]
+            );
+    }
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        advance_setting_one_state;
+    advance_setting_one_state.progress = 1U;
+    advance_setting_one_state.enabled = 3U;
+    FakeTransitionVisualPorts advance_setting_one_ports;
+    const auto advance_setting_one = openswd3::special_modes::
+        advance_legacy_standard_mode_transition_setting(
+            advance_setting_one_state, advance_setting_one_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        advance_setting_other_state;
+    advance_setting_other_state.progress = 6U;
+    FakeTransitionVisualPorts advance_setting_other_ports;
+    const auto advance_setting_other = openswd3::special_modes::
+        advance_legacy_standard_mode_transition_setting(
+            advance_setting_other_state, advance_setting_other_ports
+        );
+    test.expect_true(
+        advance_setting_states[0U].sample_index == 0x0BU &&
+            advance_setting_ports[0U].settings_calls ==
+                std::vector<std::array<u32, 2U>>{{0x2EU, 0x0BU}} &&
+            advance_setting_states[1U].settings_surface_index == 0x0AU &&
+            advance_setting_ports[1U].settings_calls ==
+                std::vector<std::array<u32, 2U>>{{0x100U, 0x0AU}} &&
+            advance_setting_states[2U].settings_spacing == 0x8CU &&
+            advance_setting_results[2U].legacy_return_value == 0xB4U &&
+            advance_setting_ports[3U].settings_calls ==
+                std::vector<std::array<u32, 2U>>{{0x201U, 0x48U}} &&
+            advance_setting_states[4U].settings_source_surface == 0U &&
+            advance_setting_results[4U].legacy_return_value == 0U &&
+            advance_setting_states[5U].settings_auxiliary == 0x0BU &&
+            advance_setting_results[5U].legacy_return_value == 0x0CU &&
+            advance_setting_one_state.enabled == 3U &&
+            advance_setting_one.legacy_return_value == 4U &&
+            advance_setting_other.legacy_return_value == 1U,
+        "0x448DA0 advances the active setting while preserving original asymmetric clamps"
+    );
+
     for (const auto& item : cases) {
         LegacyStandardModeCallbackState state;
         state.targets.fill(0xDEADBEEFU);
