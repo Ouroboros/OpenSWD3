@@ -15740,19 +15740,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                     LegacyStandardModeGroupEightMainInputPath::
                         control_dispatched &&
             primary_controls_ports.events ==
-                std::vector{
-                    GroupEightMainInputPorts::Event::first_dynamic,
-                    GroupEightMainInputPorts::Event::second_dynamic,
-                } &&
+                std::vector{GroupEightMainInputPorts::Event::first_dynamic} &&
             secondary_controls.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::
                         control_dispatched &&
             secondary_controls_ports.events ==
-                std::vector{
-                    GroupEightMainInputPorts::Event::first_dynamic,
-                    GroupEightMainInputPorts::Event::second_dynamic,
-                },
+                std::vector{GroupEightMainInputPorts::Event::first_dynamic},
         "0x4455E0 rereads pointer Y after every primary and secondary control callback"
     );
 
@@ -16267,6 +16261,116 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                         runtime_cursor_retreated &&
             runtime_retreated.helper_call_count == 1U,
         "0x445E90 directly delegates modes at least 500 to 0x43C590"
+    );
+
+    std::array<LegacyStandardModeForwardNode, 15U> page_nodes{};
+    for (std::size_t index = 0U; index + 1U < page_nodes.size(); ++index) {
+        page_nodes[index].next = &page_nodes[index + 1U];
+    }
+    page_nodes[14U].text_index = 0xFFDCU;
+    GroupEightState page_advance_state;
+    page_advance_state.interaction_mode = 2U;
+    page_advance_state.selection_x = 30U;
+    page_advance_state.record_head = page_nodes.data();
+    page_advance_state.pre_initialization_zeroes[4U] = 15U;
+    page_advance_state.local_record_count = 13;
+    page_advance_state.local_selection = 12U;
+    page_advance_state.transition_flags = 0x44000003U;
+    GroupEightMainInputPorts page_advance_ports;
+    const auto page_advanced =
+        openswd3::special_modes::advance_legacy_standard_mode_group_eight_page(
+            page_advance_state,
+            0x13579BDFU,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            page_advance_ports
+        );
+    test.expect_true(
+        page_advanced.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageAdvanceStatus::completed &&
+            page_advanced.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageAdvancePath::
+                        record_page_advanced &&
+            page_advanced.helper_call_count == 6U &&
+            page_advance_state.list_offset == 2U &&
+            page_advance_state.local_selection == 12U &&
+            page_advance_state.visible_record_head == &page_nodes[2U] &&
+            page_advance_state.local_record_count == 13 &&
+            page_advance_state.transition_flags == 0x44000033U &&
+            page_advance_state.published_local_selection == 12U &&
+            page_advance_state.shared_text[0U] == 0xB5U &&
+            page_advance_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x13579BDFU}},
+        "0x446090 rebuilds the mode2 final page and selects its last record"
+    );
+
+    GroupEightState page_item_state;
+    page_item_state.interaction_mode = 3U;
+    GroupEightMainInputPorts page_item_ports;
+    const auto page_item =
+        openswd3::special_modes::advance_legacy_standard_mode_group_eight_page(
+            page_item_state,
+            0x2468ACE0U,
+            std::array<u16, 4U>{1U, 2U, 0xFFFFU, 4U},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            page_item_ports
+        );
+    GroupEightState page_fixed_state;
+    page_fixed_state.interaction_mode = 10U;
+    page_fixed_state.outer_row_count = 0;
+    page_fixed_state.selection_x = 55U;
+    GroupEightMainInputPorts page_fixed_ports;
+    const auto page_outer =
+        openswd3::special_modes::advance_legacy_standard_mode_group_eight_page(
+            page_fixed_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            page_fixed_ports
+        );
+    page_fixed_state.interaction_mode = 15U;
+    page_fixed_state.special_control_count = 10;
+    page_fixed_state.secondary_row_count = 8;
+    page_fixed_state.secondary_row_selection = 7;
+    page_fixed_state.transition_flags = 0x660003AAU;
+    const auto page_secondary =
+        openswd3::special_modes::advance_legacy_standard_mode_group_eight_page(
+            page_fixed_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            page_fixed_ports
+        );
+    test.expect_true(
+        page_item.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageAdvancePath::
+                        available_item_last &&
+            page_item_state.record_zero == 3U &&
+            page_item_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x2468ACE0U}} &&
+            page_outer.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageAdvancePath::
+                        outer_row_last &&
+            page_fixed_state.selected_outer_row == 0xFFFFFFFFU &&
+            page_secondary.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightPageAdvancePath::
+                        secondary_page_advanced &&
+            page_fixed_state.transition_flags == 0x660033AAU &&
+            page_fixed_state.published_selection_x == 55U,
+        "0x446090 selects the last party slot, preserves count-minus-one and pages by eight"
     );
 
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
