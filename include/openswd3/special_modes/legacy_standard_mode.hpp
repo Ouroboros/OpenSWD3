@@ -676,6 +676,13 @@ sort_legacy_standard_mode_equipment_records(
     compat::u32 filter_index
 ) noexcept;
 
+struct LegacyStandardModeEquipmentInitializationState;
+
+[[nodiscard]] const LegacyStandardModeForwardNode*
+refresh_legacy_standard_mode_equipment_visible_count(
+    LegacyStandardModeEquipmentInitializationState& state
+) noexcept;
+
 struct LegacyStandardModeEquipmentInitializationState {
     compat::u32 party_selector{};
     compat::u16 text_resource_word{};
@@ -888,18 +895,11 @@ retreat_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentAdvancePorts& ports
 ) noexcept;
 
-class LegacyStandardModeEquipmentPageAdvancePorts
-    : public LegacyStandardModeEquipmentAdvancePorts {
-public:
-    ~LegacyStandardModeEquipmentPageAdvancePorts() override = default;
-    [[nodiscard]] virtual bool refresh_equipment_visible_count(
-        LegacyStandardModeEquipmentInitializationState& state
-    ) noexcept = 0;
-};
+using LegacyStandardModeEquipmentPageAdvancePorts =
+    LegacyStandardModeEquipmentAdvancePorts;
 
 enum class LegacyStandardModeEquipmentPageAdvanceStatus : compat::u8 {
     completed,
-    visible_count_refresh_stopped,
     selected_record_missing,
     shared_text_stopped,
     party_search_stopped,

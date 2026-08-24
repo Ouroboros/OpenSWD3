@@ -438,6 +438,19 @@ sort_legacy_standard_mode_equipment_records(
     return result;
 }
 
+const LegacyStandardModeForwardNode*
+refresh_legacy_standard_mode_equipment_visible_count(
+    LegacyStandardModeEquipmentInitializationState& state
+) noexcept {
+    const LegacyStandardModeForwardNode* current = state.visible_record_head;
+    state.visible_record_count = 0U;
+    while (current != nullptr && state.visible_record_count < 0x18U) {
+        ++state.visible_record_count;
+        current = current->next;
+    }
+    return current;
+}
+
 LegacyStandardModeEquipmentInitializationResult
 initialize_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,
@@ -1842,11 +1855,9 @@ retreat_legacy_standard_mode_equipment_page(
             &state.visible_record_head
         ));
         ++result.helper_call_count;
-        if (!ports.refresh_equipment_visible_count(state)) {
-            result.status = LegacyStandardModeEquipmentPageRetreatStatus::
-                visible_count_refresh_stopped;
-            return result;
-        }
+        static_cast<void>(
+            refresh_legacy_standard_mode_equipment_visible_count(state)
+        );
         ++result.helper_call_count;
         if (offset_nonnegative) {
             state.local_selection &= 1U;
@@ -1958,11 +1969,9 @@ advance_legacy_standard_mode_equipment_page(
                 &state.visible_record_head
             ));
             ++result.helper_call_count;
-            if (!ports.refresh_equipment_visible_count(state)) {
-                result.status = LegacyStandardModeEquipmentPageAdvanceStatus::
-                    visible_count_refresh_stopped;
-                return result;
-            }
+            static_cast<void>(
+                refresh_legacy_standard_mode_equipment_visible_count(state)
+            );
             ++result.helper_call_count;
             selected = state.local_selection;
             if (std::bit_cast<compat::i32>(state.local_selection) >=
@@ -2365,8 +2374,6 @@ handle_legacy_standard_mode_equipment_input(
         switch (retreated.status) {
         case LegacyStandardModeEquipmentPageRetreatStatus::completed:
             break;
-        case LegacyStandardModeEquipmentPageRetreatStatus::
-            visible_count_refresh_stopped:
         case LegacyStandardModeEquipmentPageRetreatStatus::party_search_stopped:
             result.status =
                 LegacyStandardModeEquipmentInputStatus::party_mapping_stopped;
@@ -2394,8 +2401,6 @@ handle_legacy_standard_mode_equipment_input(
         switch (advanced.status) {
         case LegacyStandardModeEquipmentPageAdvanceStatus::completed:
             break;
-        case LegacyStandardModeEquipmentPageAdvanceStatus::
-            visible_count_refresh_stopped:
         case LegacyStandardModeEquipmentPageAdvanceStatus::party_search_stopped:
             result.status =
                 LegacyStandardModeEquipmentInputStatus::party_mapping_stopped;

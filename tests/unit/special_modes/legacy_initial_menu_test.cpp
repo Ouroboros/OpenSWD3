@@ -2999,6 +2999,44 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 empty_destination.cleared_word == 0U,
             "0x444DB0 empty source returns before reading the filter table"
         );
+
+        std::array<sm::LegacyStandardModeForwardNode, 30U> visible_nodes{};
+        for (std::size_t index = 0U; index + 1U < visible_nodes.size();
+             ++index) {
+            visible_nodes[index].next = &visible_nodes[index + 1U];
+        }
+        sm::LegacyStandardModeEquipmentInitializationState visible_state;
+        visible_state.visible_record_head = visible_nodes.data();
+        visible_state.visible_record_count = 99U;
+        const auto* bounded_tail =
+            sm::refresh_legacy_standard_mode_equipment_visible_count(
+                visible_state
+            );
+        test.expect_true(
+            visible_state.visible_record_count == 24U &&
+                bounded_tail == &visible_nodes[24U],
+            "0x444E50 counts at most 24 visible records and returns the tail"
+        );
+
+        visible_nodes[1U].next = nullptr;
+        visible_state.visible_record_count = 99U;
+        const auto* short_tail =
+            sm::refresh_legacy_standard_mode_equipment_visible_count(
+                visible_state
+            );
+        const u32 short_count = visible_state.visible_record_count;
+        visible_state.visible_record_head = nullptr;
+        visible_state.visible_record_count = 99U;
+        const auto* empty_tail =
+            sm::refresh_legacy_standard_mode_equipment_visible_count(
+                visible_state
+            );
+        test.expect_true(
+            short_tail == nullptr && short_count == 2U &&
+                empty_tail == nullptr &&
+                visible_state.visible_record_count == 0U,
+            "0x444E50 returns null for short/empty chains and clears stale count"
+        );
     }
 
     class EquipmentRenderPorts final
@@ -3363,23 +3401,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return sample_return;
         }
 
-        bool refresh_equipment_visible_count(
-            sm::LegacyStandardModeEquipmentInitializationState& state
-        ) noexcept override {
-            if (!visible_count_refresh_available) {
-                return false;
-            }
-            u32 count = 0U;
-            const sm::LegacyStandardModeForwardNode* node =
-                state.visible_record_head;
-            while (node != nullptr && count < 0x18U) {
-                ++count;
-                node = node->next;
-            }
-            state.visible_record_count = count;
-            return true;
-        }
-
         bool cleanup_equipment_party_cycle(
             sm::LegacyStandardModeEquipmentInitializationState& state
         ) noexcept override {
@@ -3510,7 +3531,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             overlay_rewrite{};
         std::optional<u32> overlay_mode_enabled{};
         bool cycle_party_changes_state{true};
-        bool visible_count_refresh_available{true};
         bool party_cycle_cleanup_available{true};
         bool party_cycle_action_count_available{true};
         bool party_cycle_record_list_available{true};
@@ -3841,30 +3861,12 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             page_state.visible_record_head == &page_records[24U] &&
             page_state.visible_record_count == 2U &&
             page_state.local_selection == 0U;
-        page_state = {};
-        page_state.mode_enabled = 1U;
-        page_state.visible_record_count = 24U;
-        page_state.total_record_count = 26U;
-        page_state.local_selection = 22U;
-        page_state.record_head = page_records.data();
-        EquipmentInputPorts page_refresh_stop_ports;
-        page_refresh_stop_ports.visible_count_refresh_available = false;
-        const auto page_refresh_stopped =
-            sm::advance_legacy_standard_mode_equipment_page(
-                page_state, {}, page_refresh_stop_ports
-            );
         test.expect_true(
             rebuilt_page.status ==
                     sm::LegacyStandardModeEquipmentPageAdvanceStatus::
                         completed &&
-                rebuilt_page.helper_call_count == 2U && rebuilt_page_values &&
-                page_refresh_stopped.status ==
-                    sm::LegacyStandardModeEquipmentPageAdvanceStatus::
-                        visible_count_refresh_stopped &&
-                page_refresh_stopped.helper_call_count == 1U &&
-                page_state.list_offset == 24U &&
-                page_state.visible_record_head == &page_records[24U],
-            "0x443670 advances 24 records, refreshes the page and preserves refresh-stop prefix"
+                rebuilt_page.helper_call_count == 2U && rebuilt_page_values,
+            "0x443670 advances 24 records and directly refreshes the bounded page"
         );
 
         page_state = {};
@@ -3946,17 +3948,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         page_retreat_state = {};
         page_retreat_state.mode_enabled = 1U;
-        page_retreat_state.list_offset = 24U;
-        page_retreat_state.local_selection = 1U;
-        page_retreat_state.record_head = page_records.data();
-        EquipmentInputPorts retreat_refresh_stop_ports;
-        retreat_refresh_stop_ports.visible_count_refresh_available = false;
-        const auto retreat_refresh_stopped =
-            sm::retreat_legacy_standard_mode_equipment_page(
-                page_retreat_state, {}, retreat_refresh_stop_ports
-            );
-        page_retreat_state = {};
-        page_retreat_state.mode_enabled = 1U;
         page_retreat_state.local_selection = 0U;
         EquipmentInputPorts retreat_missing_ports;
         const auto retreat_page_missing =
@@ -3970,11 +3961,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 page_retreat_state, {}, retreat_missing_ports
             );
         test.expect_true(
-            retreat_refresh_stopped.status ==
-                    sm::LegacyStandardModeEquipmentPageRetreatStatus::
-                        visible_count_refresh_stopped &&
-                retreat_refresh_stopped.helper_call_count == 1U &&
-                page_retreat_state.list_offset == 0U &&
+            page_retreat_state.list_offset == 0U &&
                 retreat_page_missing.status ==
                     sm::LegacyStandardModeEquipmentPageRetreatStatus::
                         selected_record_missing &&
