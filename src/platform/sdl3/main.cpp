@@ -4825,10 +4825,66 @@ public:
                         );
                     }
 
-                    void initialize_high_mode_runtime() override {}
+                    openswd3::special_modes::
+                        LegacyStandardModeTransitionVisualState&
+                        transition_visual_state() noexcept override {
+                        return owner_.standard_mode_transition_visual_state_;
+                    }
+                    openswd3::special_modes::
+                        LegacyStandardModeTransitionVisualPorts&
+                        transition_visual_ports() noexcept override {
+                        return transition_ports_;
+                    }
 
                 private:
                     SdlSmokeIdlePorts& owner_;
+
+                    class TransitionPorts final
+                        : public openswd3::special_modes::
+                              LegacyStandardModeTransitionVisualPorts {
+                    public:
+                        explicit TransitionPorts(
+                            SdlSmokeIdlePorts& owner
+                        ) noexcept
+                            : owner_(owner) {}
+                        bool capture_framebuffer(
+                            const std::span<openswd3::compat::u8> destination
+                        ) noexcept override {
+                            const auto pixels =
+                                owner_.game_framebuffer_.physical_pixels();
+                            const auto bytes = std::as_bytes(pixels);
+                            if (bytes.size() < destination.size()) {
+                                return false;
+                            }
+                            memcpy(
+                                destination.data(),
+                                bytes.data(),
+                                destination.size()
+                            );
+                            return true;
+                        }
+                        void initialize_mode_three() noexcept override {}
+                        openswd3::compat::i32
+                        probe_mode_zero() noexcept override {
+                            return 0;
+                        }
+                        void prepare_mode_zero() noexcept override {}
+                        void format_mode_zero_command(
+                            openswd3::compat::i32
+                        ) noexcept override {}
+                        void apply_mode_zero_command() noexcept override {}
+                        openswd3::compat::i32
+                        activate_mode_zero_surface() noexcept override {
+                            return 0;
+                        }
+                        openswd3::compat::u32
+                        current_surface_token() noexcept override {
+                            return 0U;
+                        }
+
+                    private:
+                        SdlSmokeIdlePorts& owner_;
+                    } transition_ports_{owner_};
                 };
 
                 BindingPorts ports{owner_};
@@ -6583,6 +6639,8 @@ private:
     openswd3::special_modes::LegacyInitialMenuState initial_menu_state_;
     openswd3::special_modes::LegacyStandardSpecialModeState
         legacy_standard_mode_state_;
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        standard_mode_transition_visual_state_;
     openswd3::input_time_rng::LegacyTextInputDriverState
         text_input_driver_state_{};
     SdlLegacyTextInputPorts text_input_ports_{};

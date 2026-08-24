@@ -114,15 +114,75 @@ public:
     [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
 };
 
+inline constexpr std::size_t kLegacyStandardModeTransitionSnapshotSize =
+    0x96000U;
+
+struct LegacyStandardModeTransitionVisualState {
+    compat::u16 mode{};
+    std::array<compat::i32, 4U> bounds{};
+    compat::u32 enabled{};
+    compat::i32 velocity{};
+    compat::u32 progress{};
+    std::vector<compat::u8> framebuffer_snapshot;
+    compat::u32 shared_owner{};
+    compat::u32 trailing_zero_one{};
+    compat::u32 trailing_zero_two{};
+    compat::u32 source_surface_token{};
+};
+
+class LegacyStandardModeTransitionVisualPorts {
+public:
+    virtual ~LegacyStandardModeTransitionVisualPorts() = default;
+    [[nodiscard]] virtual bool
+    capture_framebuffer(std::span<compat::u8> destination) noexcept = 0;
+    virtual void initialize_mode_three() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 probe_mode_zero() noexcept = 0;
+    virtual void prepare_mode_zero() noexcept = 0;
+    virtual void format_mode_zero_command(compat::i32 command) noexcept = 0;
+    virtual void apply_mode_zero_command() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 activate_mode_zero_surface() noexcept = 0;
+    [[nodiscard]] virtual compat::u32 current_surface_token() noexcept = 0;
+};
+
+enum class LegacyStandardModeTransitionVisualStatus : compat::u8 {
+    completed,
+    snapshot_allocation_stopped,
+};
+
+struct LegacyStandardModeTransitionVisualResult {
+    LegacyStandardModeTransitionVisualStatus status{
+        LegacyStandardModeTransitionVisualStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeTransitionVisualResult
+initialize_legacy_standard_mode_transition_visual(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept;
+
 class LegacyStandardModeCallbackBindingPorts
     : public virtual LegacyStandardModeStoryFlagPorts {
 public:
     ~LegacyStandardModeCallbackBindingPorts() override = default;
 
-    virtual void initialize_high_mode_runtime() = 0;
+    [[nodiscard]] virtual LegacyStandardModeTransitionVisualState&
+    transition_visual_state() noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeTransitionVisualPorts&
+    transition_visual_ports() noexcept = 0;
+};
+
+enum class LegacyStandardModeCallbackBindingStatus : compat::u8 {
+    completed,
+    transition_visual_stopped,
 };
 
 struct LegacyStandardModeCallbackBindingResult {
+    LegacyStandardModeCallbackBindingStatus status{
+        LegacyStandardModeCallbackBindingStatus::completed
+    };
     LegacyStandardModeCallbackGroup group{
         LegacyStandardModeCallbackGroup::none
     };
@@ -130,6 +190,7 @@ struct LegacyStandardModeCallbackBindingResult {
     compat::u32 story_flag_query_count{};
     compat::u32 slot_write_count{};
     compat::u32 helper_call_count{};
+    compat::u8 transition_visual_status{};
 };
 
 enum class LegacyStandardModeInputCallback : compat::u8 {
@@ -2441,7 +2502,6 @@ public:
     special_world_transition_runtime() noexcept = 0;
     [[nodiscard]] virtual LegacyStandardModeSpecialWorldTransitionPorts&
     special_world_transition_ports() noexcept = 0;
-    void initialize_high_mode_runtime() noexcept override = 0;
     virtual void request_special_battle(
         const LegacyStandardModeForwardNode& record
     ) noexcept = 0;
@@ -2471,6 +2531,7 @@ enum class LegacyStandardModeGroupEightInteractionCommitStatus : compat::u8 {
     dialog_setup_stopped,
     filtered_record_out_of_range,
     equipment_payload_stopped,
+    transition_visual_stopped,
 };
 
 enum class LegacyStandardModeGroupEightInteractionCommitPath : compat::u8 {

@@ -270,6 +270,50 @@ public:
     std::vector<bool> prefix_snapshots;
 };
 
+class FakeTransitionVisualPorts final
+    : public openswd3::special_modes::LegacyStandardModeTransitionVisualPorts {
+public:
+    bool
+    capture_framebuffer(const std::span<u8> destination) noexcept override {
+        ++capture_count;
+        std::fill(destination.begin(), destination.end(), snapshot_value);
+        return capture_available;
+    }
+    void initialize_mode_three() noexcept override {
+        ++mode_three_count;
+    }
+    i32 probe_mode_zero() noexcept override {
+        ++probe_count;
+        return probe_return;
+    }
+    void prepare_mode_zero() noexcept override {
+        events.push_back(1U);
+    }
+    void format_mode_zero_command(const i32 command) noexcept override {
+        events.push_back(static_cast<u32>(command));
+    }
+    void apply_mode_zero_command() noexcept override {
+        events.push_back(2U);
+    }
+    i32 activate_mode_zero_surface() noexcept override {
+        events.push_back(3U);
+        return activate_return;
+    }
+    u32 current_surface_token() noexcept override {
+        return surface_token;
+    }
+
+    bool capture_available{true};
+    u8 snapshot_value{0x5AU};
+    i32 probe_return{};
+    i32 activate_return{77};
+    u32 surface_token{0x1234U};
+    u32 capture_count{};
+    u32 mode_three_count{};
+    u32 probe_count{};
+    std::vector<u32> events;
+};
+
 class FakeStandardModeCallbackBindingPorts final
     : public LegacyStandardModeCallbackBindingPorts {
 public:
@@ -279,10 +323,19 @@ public:
         return flag_value;
     }
 
-    void initialize_high_mode_runtime() override {
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState&
+    transition_visual_state() noexcept override {
         events.push_back(3U);
+        return visual_state;
+    }
+    openswd3::special_modes::LegacyStandardModeTransitionVisualPorts&
+    transition_visual_ports() noexcept override {
+        return visual_ports;
     }
 
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        visual_state;
+    FakeTransitionVisualPorts visual_ports;
     std::vector<u32> events;
     i32 flag_value{};
     u32 queried_flag{};
@@ -3530,8 +3583,14 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return callback_story_flag_value;
         }
 
-        void initialize_high_mode_runtime() override {
+        sm::LegacyStandardModeTransitionVisualState&
+        transition_visual_state() noexcept override {
             ++high_mode_initializations;
+            return transition_visual_state_value;
+        }
+        sm::LegacyStandardModeTransitionVisualPorts&
+        transition_visual_ports() noexcept override {
+            return transition_visual_ports_value;
         }
 
         i32 release_equipment_filtered_records(
@@ -3612,6 +3671,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         i32 released_filtered_records_return{-8};
         i32 callback_story_flag_value{};
         u32 high_mode_initializations{};
+        sm::LegacyStandardModeTransitionVisualState
+            transition_visual_state_value;
+        FakeTransitionVisualPorts transition_visual_ports_value;
         u32 cleared_surface_bytes{};
         std::array<u32, 2U> dialog_interface{};
         sm::LegacyStandardModeDialogDrawRequest dialog_draw{};
@@ -10041,8 +10103,14 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             callback_flag_indices.push_back(flag_index);
             return callback_story_flag;
         }
-        void initialize_high_mode_runtime() override {
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState&
+        transition_visual_state() noexcept override {
             ++high_mode_runtime_count;
+            return transition_visual_state_value;
+        }
+        openswd3::special_modes::LegacyStandardModeTransitionVisualPorts&
+        transition_visual_ports() noexcept override {
+            return transition_visual_ports_value;
         }
         [[nodiscard]] openswd3::special_modes::
             LegacyStandardModeDatabaseCleanupPorts&
@@ -10151,6 +10219,9 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         i32 rebuild_result{1};
         u32 missing_insert_count{};
         u32 high_mode_runtime_count{};
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState
+            transition_visual_state_value;
+        FakeTransitionVisualPorts transition_visual_ports_value;
         u32 cleanup_forward_node_count{};
         u32 commit_rebuild_count{};
         std::size_t missing_original_surface_index{
@@ -14651,6 +14722,84 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         },
     };
 
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        transition_one_state;
+    transition_one_state.mode = 1U;
+    FakeTransitionVisualPorts transition_one_ports;
+    const auto transition_one = openswd3::special_modes::
+        initialize_legacy_standard_mode_transition_visual(
+            transition_one_state, transition_one_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        transition_two_state;
+    transition_two_state.mode = 2U;
+    FakeTransitionVisualPorts transition_two_ports;
+    const auto transition_two = openswd3::special_modes::
+        initialize_legacy_standard_mode_transition_visual(
+            transition_two_state, transition_two_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        transition_three_state;
+    transition_three_state.mode = 3U;
+    FakeTransitionVisualPorts transition_three_ports;
+    const auto transition_three = openswd3::special_modes::
+        initialize_legacy_standard_mode_transition_visual(
+            transition_three_state, transition_three_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        transition_zero_state;
+    FakeTransitionVisualPorts transition_zero_ports;
+    transition_zero_ports.probe_return = 1;
+    const auto transition_zero = openswd3::special_modes::
+        initialize_legacy_standard_mode_transition_visual(
+            transition_zero_state, transition_zero_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        transition_stop_state;
+    transition_stop_state.mode = 1U;
+    FakeTransitionVisualPorts transition_stop_ports;
+    transition_stop_ports.capture_available = false;
+    const auto transition_stopped = openswd3::special_modes::
+        initialize_legacy_standard_mode_transition_visual(
+            transition_stop_state, transition_stop_ports
+        );
+    test.expect_true(
+        transition_one.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionVisualStatus::completed &&
+            transition_one_state.bounds ==
+                std::array<i32, 4U>{-16, -16, -16, -16} &&
+            transition_one_state.progress == 100U &&
+            transition_one_state.velocity == -120 &&
+            transition_one_state.framebuffer_snapshot.size() == 0x96000U &&
+            transition_one_state.framebuffer_snapshot.front() == 0x5AU &&
+            transition_one_state.source_surface_token == 0x1234U &&
+            transition_two.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionVisualStatus::completed &&
+            transition_two_state.framebuffer_snapshot.size() == 0x96000U,
+        "0x448700 initializes modes one and two with the exact framebuffer snapshot and motion owners"
+    );
+    test.expect_true(
+        transition_three.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionVisualStatus::completed &&
+            transition_three_state.progress == 1U &&
+            transition_three_state.enabled == 1U &&
+            transition_three_ports.mode_three_count == 1U &&
+            transition_zero.legacy_return_value == 77 &&
+            transition_zero_ports.probe_count == 1U &&
+            transition_zero_ports.events == std::vector<u32>{1U, 10U, 2U, 3U} &&
+            transition_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionVisualStatus::
+                        snapshot_allocation_stopped &&
+            transition_stop_state.progress == 100U &&
+            transition_stop_state.velocity == -120 &&
+            transition_stop_state.framebuffer_snapshot.empty(),
+        "0x448700 initializes mode three, preserves the mode-zero call chain and stops at snapshot capture"
+    );
+
     for (const auto& item : cases) {
         LegacyStandardModeCallbackState state;
         state.targets.fill(0xDEADBEEFU);
@@ -14667,7 +14816,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             result.group == item.group &&
                 result.slot_write_count == item.writes &&
                 result.helper_call_count ==
-                    (item.helper_event != 0U ? 1U : 0U) &&
+                    (item.helper_event == 3U
+                         ? 2U
+                         : (item.helper_event != 0U ? 1U : 0U)) &&
                 result.story_flag_query_count == item.flag_queries &&
                 ports.events == expected_events &&
                 (item.flag_queries == 0U || ports.queried_flag == 0x49U) &&
@@ -14675,6 +14826,29 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             "0x43B480 selects the exact group and complete thirteen-slot " "target matrix while preserving omitted slots"
         );
     }
+
+    LegacyStandardModeCallbackState transition_binding_stop_state;
+    transition_binding_stop_state.targets.fill(0xDEADBEEFU);
+    FakeStandardModeCallbackBindingPorts transition_binding_stop_ports;
+    transition_binding_stop_ports.visual_state.mode = 1U;
+    transition_binding_stop_ports.visual_ports.capture_available = false;
+    const auto transition_binding_stopped = bind_legacy_standard_mode_callbacks(
+        transition_binding_stop_state,
+        0xEA60U,
+        0U,
+        transition_binding_stop_ports
+    );
+    test.expect_true(
+        transition_binding_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeCallbackBindingStatus::
+                        transition_visual_stopped &&
+            transition_binding_stopped.group ==
+                LegacyStandardModeCallbackGroup::none &&
+            transition_binding_stopped.slot_write_count == 0U &&
+            transition_binding_stop_ports.visual_state.progress == 100U,
+        "0x43B480 preserves the 448700 snapshot stop prefix and skips callback installation"
+    );
 
     LegacyStandardModeCallbackState invalid_state;
     invalid_state.targets.fill(0xDEADBEEFU);
@@ -14890,10 +15064,19 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 : std::nullopt;
         }
 
-        void initialize_high_mode_runtime() override {
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState&
+        transition_visual_state() noexcept override {
             events.push_back(6U);
+            return transition_visual_state_value;
+        }
+        openswd3::special_modes::LegacyStandardModeTransitionVisualPorts&
+        transition_visual_ports() noexcept override {
+            return transition_visual_ports_value;
         }
 
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState
+            transition_visual_state_value;
+        FakeTransitionVisualPorts transition_visual_ports_value;
         std::vector<i32> flag_results;
         bool callback_available{true};
         bool initialization_callback_available{true};
@@ -15335,8 +15518,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             ++world_transition_count;
             return world_transition_return;
         }
-        void initialize_high_mode_runtime() noexcept override {
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState&
+        transition_visual_state() noexcept override {
             ++high_runtime_initialization_count;
+            return transition_visual_state_value;
+        }
+        openswd3::special_modes::LegacyStandardModeTransitionVisualPorts&
+        transition_visual_ports() noexcept override {
+            return transition_visual_ports_value;
         }
         void request_special_battle(
             const LegacyStandardModeForwardNode& record
@@ -15394,6 +15583,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         u32 inventory_clone_count{};
         u32 world_transition_count{};
         u32 high_runtime_initialization_count{};
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState
+            transition_visual_state_value;
+        FakeTransitionVisualPorts transition_visual_ports_value;
         std::vector<u32> story_flag_queries;
         std::vector<u32> filter_queries;
         std::vector<LegacyStandardModeDialogDrawRequest> dialog_draws;

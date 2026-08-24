@@ -340,6 +340,56 @@ initialize_group_eight_selection_records(
 
 }  // namespace
 
+LegacyStandardModeTransitionVisualResult
+initialize_legacy_standard_mode_transition_visual(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionVisualResult result;
+    state.bounds.fill(-16);
+    state.enabled = 0U;
+    state.velocity = -6;
+    state.progress = 0U;
+    state.framebuffer_snapshot.clear();
+
+    if (state.mode == 1U || state.mode == 2U) {
+        state.progress = 100U;
+        state.velocity = -120;
+        state.framebuffer_snapshot.resize(
+            kLegacyStandardModeTransitionSnapshotSize
+        );
+        if (!ports.capture_framebuffer(state.framebuffer_snapshot)) {
+            state.framebuffer_snapshot.clear();
+            result.status = LegacyStandardModeTransitionVisualStatus::
+                snapshot_allocation_stopped;
+            return result;
+        }
+        ++result.helper_call_count;
+    }
+    if (state.mode == 3U) {
+        state.progress = 1U;
+        state.enabled = 1U;
+        ports.initialize_mode_three();
+        ++result.helper_call_count;
+    }
+    state.shared_owner = 0U;
+    if (state.mode == 0U) {
+        result.legacy_return_value = ports.probe_mode_zero();
+        ++result.helper_call_count;
+        if (result.legacy_return_value != 0) {
+            ports.prepare_mode_zero();
+            ports.format_mode_zero_command(10);
+            ports.apply_mode_zero_command();
+            result.legacy_return_value = ports.activate_mode_zero_surface();
+            result.helper_call_count += 4U;
+        }
+    }
+    state.trailing_zero_one = 0U;
+    state.trailing_zero_two = 0U;
+    state.source_surface_token = ports.current_surface_token();
+    return result;
+}
+
 LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     LegacyStandardModeCallbackState& state,
     const compat::u16 secondary_word,
@@ -381,8 +431,20 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
         result.story_flag_query_count += callbacks.story_flag_query_count;
         group_index = 7U;
     } else if (secondary_word == kHighModeSecondaryWord) {
-        ports.initialize_high_mode_runtime();
-        ++result.helper_call_count;
+        const LegacyStandardModeTransitionVisualResult visual =
+            initialize_legacy_standard_mode_transition_visual(
+                ports.transition_visual_state(), ports.transition_visual_ports()
+            );
+        result.legacy_return_value = visual.legacy_return_value;
+        result.helper_call_count += visual.helper_call_count + 1U;
+        result.transition_visual_status =
+            static_cast<compat::u8>(visual.status);
+        if (visual.status !=
+            LegacyStandardModeTransitionVisualStatus::completed) {
+            result.status = LegacyStandardModeCallbackBindingStatus::
+                transition_visual_stopped;
+            return result;
+        }
         group_index = 8U;
     }
 
@@ -15269,8 +15331,20 @@ commit_legacy_standard_mode_group_eight_interaction(
         }
         if (item_id == 0x0318U) {
             state.interaction_mode = 0x01F4U;
-            commit_ports.initialize_high_mode_runtime();
-            ++result.helper_call_count;
+            const LegacyStandardModeTransitionVisualResult visual =
+                initialize_legacy_standard_mode_transition_visual(
+                    commit_ports.transition_visual_state(),
+                    commit_ports.transition_visual_ports()
+                );
+            result.legacy_return_value = visual.legacy_return_value;
+            result.helper_call_count += visual.helper_call_count + 1U;
+            if (visual.status !=
+                LegacyStandardModeTransitionVisualStatus::completed) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        transition_visual_stopped;
+                return result;
+            }
             result.path =
                 LegacyStandardModeGroupEightInteractionCommitPath::runtime_noop;
             return result;
