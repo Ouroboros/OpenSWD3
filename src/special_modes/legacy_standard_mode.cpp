@@ -619,6 +619,124 @@ advance_legacy_standard_mode_equipment_column(
     return result;
 }
 
+LegacyStandardModeEquipmentPartyCycleResult
+cycle_legacy_standard_mode_equipment_party(
+    LegacyStandardModeEquipmentInitializationState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentPartyCyclePorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentPartyCycleResult result;
+    if (state.mode_enabled != 1U) {
+        return result;
+    }
+    if (!ports.cleanup_equipment_party_cycle(state)) {
+        result.status =
+            LegacyStandardModeEquipmentPartyCycleStatus::cleanup_stopped;
+        return result;
+    }
+    ++result.helper_call_count;
+
+    const compat::u16 first_party = static_cast<compat::u16>(
+        (static_cast<compat::u16>(state.party_selector) + 1U) & 3U
+    );
+    compat::u16 party = first_party;
+    state.party_selector = (state.party_selector & 0xFFFF0000U) | first_party;
+    for (compat::u32 checked = 0U;; ++checked) {
+        if (state.party_markers[party] != 0xFFFFU) {
+            if (checked != 0U) {
+                state.party_selector =
+                    (state.party_selector & 0xFFFF0000U) | party;
+            }
+            break;
+        }
+        if (checked + 1U >= state.party_markers.size()) {
+            result.status = LegacyStandardModeEquipmentPartyCycleStatus::
+                party_search_stopped;
+            return result;
+        }
+        party = static_cast<compat::u16>((party + 1U) & 3U);
+    }
+
+    if (!ports.initialize_equipment_party_cycle_action_count(state)) {
+        result.status =
+            LegacyStandardModeEquipmentPartyCycleStatus::action_count_stopped;
+        return result;
+    }
+    ++result.helper_call_count;
+    if (!ports.initialize_equipment_party_cycle_record_list(state)) {
+        result.status =
+            LegacyStandardModeEquipmentPartyCycleStatus::record_list_stopped;
+        return result;
+    }
+    ++result.helper_call_count;
+
+    compat::i32 list_offset = std::bit_cast<compat::i32>(state.list_offset);
+    compat::i32 local_selection =
+        std::bit_cast<compat::i32>(state.local_selection);
+    static_cast<void>(adjust_legacy_standard_mode_window_cursor(
+        std::bit_cast<compat::i32>(state.total_record_count),
+        list_offset,
+        local_selection,
+        std::bit_cast<compat::i32>(state.visible_record_count)
+    ));
+    ++result.helper_call_count;
+    state.list_offset = std::bit_cast<compat::u32>(list_offset);
+    state.local_selection = std::bit_cast<compat::u32>(local_selection);
+
+    const LegacyStandardModeForwardNode* const record_head = state.record_head;
+    static_cast<void>(advance_legacy_standard_mode_forward_head(
+        list_offset, &record_head, &state.visible_record_head
+    ));
+    ++result.helper_call_count;
+    compat::i32 visible_count{};
+    static_cast<void>(count_legacy_standard_mode_forward_nodes_bounded(
+        state.visible_record_head, visible_count, 0x18
+    ));
+    ++result.helper_call_count;
+    state.visible_record_count = std::bit_cast<compat::u32>(visible_count);
+
+    const LegacyStandardModeForwardNode* const selected_record =
+        index_legacy_standard_mode_forward_node(
+            std::bit_cast<compat::i32>(
+                state.list_offset + state.local_selection
+            ),
+            &record_head
+        );
+    ++result.helper_call_count;
+    if (selected_record == nullptr) {
+        result.status = LegacyStandardModeEquipmentPartyCycleStatus::
+            selected_record_missing;
+        return result;
+    }
+    const LegacyStandardModeTextResolutionResult text =
+        resolve_legacy_standard_mode_shared_text(
+            selected_record->text_index, maps_payload, state.shared_text
+        );
+    ++result.helper_call_count;
+    if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
+        result.status =
+            LegacyStandardModeEquipmentPartyCycleStatus::shared_text_stopped;
+        return result;
+    }
+
+    const std::optional<compat::i32> finalized =
+        ports.finalize_equipment_party_cycle_action_count(
+            state.selected_party_action
+        );
+    ++result.helper_call_count;
+    if (!finalized.has_value()) {
+        result.status =
+            LegacyStandardModeEquipmentPartyCycleStatus::finalization_stopped;
+        return result;
+    }
+    state.published_action_count = *finalized;
+    static_cast<void>(
+        ports.execute_equipment_sample_command(0x0107U, state.sample_owner)
+    );
+    ++result.helper_call_count;
+    return result;
+}
+
 LegacyStandardModeEquipmentPageRetreatResult
 retreat_legacy_standard_mode_equipment_page(
     LegacyStandardModeEquipmentInitializationState& state,
@@ -1187,6 +1305,36 @@ handle_legacy_standard_mode_equipment_input(
             break;
         }
     };
+    const auto cycle_party = [&]() {
+        result.last_target =
+            LegacyStandardModeEquipmentInputTarget::cycle_party;
+        ++result.callback_count;
+        const LegacyStandardModeEquipmentPartyCycleResult cycled =
+            cycle_legacy_standard_mode_equipment_party(
+                state, maps_payload, ports
+            );
+        switch (cycled.status) {
+        case LegacyStandardModeEquipmentPartyCycleStatus::completed:
+            break;
+        case LegacyStandardModeEquipmentPartyCycleStatus::
+            selected_record_missing:
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::selected_record_missing;
+            break;
+        case LegacyStandardModeEquipmentPartyCycleStatus::shared_text_stopped:
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::shared_text_stopped;
+            break;
+        case LegacyStandardModeEquipmentPartyCycleStatus::cleanup_stopped:
+        case LegacyStandardModeEquipmentPartyCycleStatus::party_search_stopped:
+        case LegacyStandardModeEquipmentPartyCycleStatus::action_count_stopped:
+        case LegacyStandardModeEquipmentPartyCycleStatus::record_list_stopped:
+        case LegacyStandardModeEquipmentPartyCycleStatus::finalization_stopped:
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::party_cycle_stopped;
+            break;
+        }
+    };
     const auto query_item = [&](const compat::u16 item_id) {
         ++result.callback_count;
         const compat::i32 value = ports.query_equipment_item_presence(item_id);
@@ -1442,7 +1590,11 @@ handle_legacy_standard_mode_equipment_input(
                         party_cycle_stopped;
                     return result;
                 }
-                invoke(LegacyStandardModeEquipmentInputTarget::cycle_party);
+                cycle_party();
+                if (result.status !=
+                    LegacyStandardModeEquipmentInputStatus::completed) {
+                    return result;
+                }
                 result.legacy_return_value =
                     static_cast<compat::u16>(state.party_selector);
             }

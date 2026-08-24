@@ -819,8 +819,52 @@ advance_legacy_standard_mode_equipment_column(
     LegacyStandardModeEquipmentAdvancePorts& ports
 ) noexcept;
 
-class LegacyStandardModeEquipmentInputPorts
+class LegacyStandardModeEquipmentPartyCyclePorts
     : public LegacyStandardModeEquipmentPageAdvancePorts {
+public:
+    ~LegacyStandardModeEquipmentPartyCyclePorts() override = default;
+    [[nodiscard]] virtual bool cleanup_equipment_party_cycle(
+        LegacyStandardModeEquipmentInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool initialize_equipment_party_cycle_action_count(
+        LegacyStandardModeEquipmentInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool initialize_equipment_party_cycle_record_list(
+        LegacyStandardModeEquipmentInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    finalize_equipment_party_cycle_action_count(
+        compat::u32 selected_party_action
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeEquipmentPartyCycleStatus : compat::u8 {
+    completed,
+    cleanup_stopped,
+    party_search_stopped,
+    action_count_stopped,
+    record_list_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+    finalization_stopped,
+};
+
+struct LegacyStandardModeEquipmentPartyCycleResult {
+    LegacyStandardModeEquipmentPartyCycleStatus status{
+        LegacyStandardModeEquipmentPartyCycleStatus::completed
+    };
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentPartyCycleResult
+cycle_legacy_standard_mode_equipment_party(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentPartyCyclePorts& ports
+) noexcept;
+
+class LegacyStandardModeEquipmentInputPorts
+    : public LegacyStandardModeEquipmentPartyCyclePorts {
 public:
     ~LegacyStandardModeEquipmentInputPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke_equipment_input(

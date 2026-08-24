@@ -2927,6 +2927,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         i32 execute_equipment_sample_command(
             const u16 command_id, const u32 sample_owner
         ) noexcept override {
+            cycle_events.push_back(5U);
             samples.push_back({command_id, sample_owner});
             if (sample_state != nullptr && sample_final_zero.has_value()) {
                 sample_state->final_zero = *sample_final_zero;
@@ -2951,18 +2952,58 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return true;
         }
 
+        bool cleanup_equipment_party_cycle(
+            sm::LegacyStandardModeEquipmentInitializationState& state
+        ) noexcept override {
+            cycle_events.push_back(1U);
+            party_selector_before_cycle = state.party_selector;
+            return party_cycle_cleanup_available;
+        }
+
+        bool initialize_equipment_party_cycle_action_count(
+            sm::LegacyStandardModeEquipmentInitializationState&
+        ) noexcept override {
+            cycle_events.push_back(2U);
+            return party_cycle_action_count_available;
+        }
+
+        bool initialize_equipment_party_cycle_record_list(
+            sm::LegacyStandardModeEquipmentInitializationState& state
+        ) noexcept override {
+            cycle_events.push_back(3U);
+            if (!cycle_party_changes_state) {
+                state.party_selector = party_selector_before_cycle;
+            }
+            return party_cycle_record_list_available;
+        }
+
+        std::optional<i32> finalize_equipment_party_cycle_action_count(
+            const u32 selected_party_action
+        ) noexcept override {
+            cycle_events.push_back(4U);
+            finalized_party_actions.push_back(selected_party_action);
+            return party_cycle_finalized_action_count;
+        }
+
         std::array<i32, 64U> item_presence{};
         std::optional<sm::LegacyStandardModeEquipmentInputSnapshot>
             overlay_rewrite{};
         std::optional<u32> overlay_mode_enabled{};
         bool cycle_party_changes_state{true};
         bool visible_count_refresh_available{true};
+        bool party_cycle_cleanup_available{true};
+        bool party_cycle_action_count_available{true};
+        bool party_cycle_record_list_available{true};
         i32 sample_return{77};
+        u32 party_selector_before_cycle{};
+        std::optional<i32> party_cycle_finalized_action_count{17};
         sm::LegacyStandardModeEquipmentInitializationState* sample_state{};
         std::optional<u32> sample_final_zero{};
         std::vector<sm::LegacyStandardModeEquipmentInputTarget> targets;
         std::vector<u16> item_ids;
         std::vector<std::array<u32, 2U>> samples;
+        std::vector<u32> cycle_events;
+        std::vector<u32> finalized_party_actions;
     };
     {
         using EquipmentTarget = sm::LegacyStandardModeEquipmentInputTarget;
@@ -3650,6 +3691,148 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x4439A0 mode2 selects highest party and mode15 advances hover cursor"
         );
 
+        sm::LegacyStandardModeEquipmentInitializationState party_cycle_state;
+        party_cycle_state.mode_enabled = 1U;
+        party_cycle_state.party_selector = 0xABCD0000U;
+        party_cycle_state.party_markers = {0xFFFFU, 0xFFFFU, 1U, 0xFFFFU};
+        party_cycle_state.total_record_count = 3U;
+        party_cycle_state.visible_record_count = 3U;
+        party_cycle_state.record_head = &advance_first;
+        party_cycle_state.selected_party_action = 2U;
+        party_cycle_state.published_action_count = 9;
+        party_cycle_state.sample_owner = 0xCA11U;
+        EquipmentInputPorts party_cycle_ports;
+        const auto party_cycled =
+            sm::cycle_legacy_standard_mode_equipment_party(
+                party_cycle_state, {}, party_cycle_ports
+            );
+        party_cycle_state.mode_enabled = 2U;
+        const auto party_cycle_bypassed =
+            sm::cycle_legacy_standard_mode_equipment_party(
+                party_cycle_state, {}, party_cycle_ports
+            );
+        test.expect_true(
+            party_cycled.status ==
+                    sm::LegacyStandardModeEquipmentPartyCycleStatus::
+                        completed &&
+                party_cycled.helper_call_count == 10U &&
+                party_cycle_state.party_selector == 0xABCD0002U &&
+                party_cycle_state.visible_record_head == &advance_first &&
+                party_cycle_state.visible_record_count == 3U &&
+                party_cycle_state.shared_text[0] == 0xB5U &&
+                party_cycle_state.published_action_count == 17 &&
+                party_cycle_ports.finalized_party_actions ==
+                    std::vector<u32>{2U} &&
+                party_cycle_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{{0x107U, 0xCA11U}} &&
+                party_cycle_ports.cycle_events ==
+                    std::vector<u32>{1U, 2U, 3U, 4U, 5U} &&
+                party_cycle_bypassed.helper_call_count == 0U,
+            "0x443A60 cycles to the next valid party then rebuilds list, text and action count"
+        );
+
+        party_cycle_state = {};
+        party_cycle_state.mode_enabled = 1U;
+        party_cycle_state.party_selector = 0xABCD0000U;
+        party_cycle_state.party_markers.fill(0xFFFFU);
+        EquipmentInputPorts party_cycle_empty_ports;
+        const auto party_cycle_empty =
+            sm::cycle_legacy_standard_mode_equipment_party(
+                party_cycle_state, {}, party_cycle_empty_ports
+            );
+        const u32 party_cycle_empty_selector = party_cycle_state.party_selector;
+        party_cycle_state.party_markers.fill(1U);
+        party_cycle_state.party_selector = 0U;
+        EquipmentInputPorts party_cycle_cleanup_stop_ports;
+        party_cycle_cleanup_stop_ports.party_cycle_cleanup_available = false;
+        const auto party_cycle_cleanup_stopped =
+            sm::cycle_legacy_standard_mode_equipment_party(
+                party_cycle_state, {}, party_cycle_cleanup_stop_ports
+            );
+        EquipmentInputPorts party_cycle_action_stop_ports;
+        party_cycle_action_stop_ports.party_cycle_action_count_available =
+            false;
+        const auto party_cycle_action_stopped =
+            sm::cycle_legacy_standard_mode_equipment_party(
+                party_cycle_state, {}, party_cycle_action_stop_ports
+            );
+        test.expect_true(
+            party_cycle_empty.status ==
+                    sm::LegacyStandardModeEquipmentPartyCycleStatus::
+                        party_search_stopped &&
+                party_cycle_empty.helper_call_count == 1U &&
+                party_cycle_empty_selector == 0xABCD0001U &&
+                party_cycle_cleanup_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPartyCycleStatus::
+                        cleanup_stopped &&
+                party_cycle_cleanup_stopped.helper_call_count == 0U &&
+                party_cycle_action_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPartyCycleStatus::
+                        action_count_stopped &&
+                party_cycle_action_stopped.helper_call_count == 1U,
+            "0x443A60 preserves first-candidate and cleanup/action-count stop prefixes"
+        );
+
+        party_cycle_state = {};
+        party_cycle_state.mode_enabled = 1U;
+        party_cycle_state.party_markers.fill(1U);
+        EquipmentInputPorts party_cycle_record_stop_ports;
+        party_cycle_record_stop_ports.party_cycle_record_list_available = false;
+        const auto party_cycle_record_stopped =
+            sm::cycle_legacy_standard_mode_equipment_party(
+                party_cycle_state, {}, party_cycle_record_stop_ports
+            );
+        EquipmentInputPorts party_cycle_missing_ports;
+        const auto party_cycle_missing =
+            sm::cycle_legacy_standard_mode_equipment_party(
+                party_cycle_state, {}, party_cycle_missing_ports
+            );
+        party_cycle_state.record_head = &advance_invalid_text;
+        EquipmentInputPorts party_cycle_text_stop_ports;
+        const auto party_cycle_text_stopped =
+            sm::cycle_legacy_standard_mode_equipment_party(
+                party_cycle_state, {}, party_cycle_text_stop_ports
+            );
+        test.expect_true(
+            party_cycle_record_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPartyCycleStatus::
+                        record_list_stopped &&
+                party_cycle_record_stopped.helper_call_count == 2U &&
+                party_cycle_missing.status ==
+                    sm::LegacyStandardModeEquipmentPartyCycleStatus::
+                        selected_record_missing &&
+                party_cycle_missing.helper_call_count == 7U &&
+                party_cycle_text_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPartyCycleStatus::
+                        shared_text_stopped &&
+                party_cycle_text_stopped.helper_call_count == 8U,
+            "0x443A60 preserves record-list, B9C0 and B9E0 stop prefixes"
+        );
+
+        party_cycle_state = {};
+        party_cycle_state.mode_enabled = 1U;
+        party_cycle_state.party_markers.fill(1U);
+        party_cycle_state.record_head = &advance_first;
+        party_cycle_state.total_record_count = 3U;
+        party_cycle_state.visible_record_count = 3U;
+        party_cycle_state.published_action_count = 9;
+        EquipmentInputPorts party_cycle_finalize_stop_ports;
+        party_cycle_finalize_stop_ports.party_cycle_finalized_action_count =
+            std::nullopt;
+        const auto party_cycle_finalize_stopped =
+            sm::cycle_legacy_standard_mode_equipment_party(
+                party_cycle_state, {}, party_cycle_finalize_stop_ports
+            );
+        test.expect_true(
+            party_cycle_finalize_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPartyCycleStatus::
+                        finalization_stopped &&
+                party_cycle_finalize_stopped.helper_call_count == 9U &&
+                party_cycle_state.published_action_count == 9 &&
+                party_cycle_finalize_stop_ports.samples.empty(),
+            "0x443A60 finalization stop preserves published action count before sample107"
+        );
+
         sm::LegacyStandardModeEquipmentInitializationState equipment;
         equipment.mode_enabled = 0x11U;
         equipment.first_render_zero = 7U;
@@ -3980,6 +4163,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         equipment = {};
         equipment.mode_enabled = 1U;
         equipment.party_selector = 0xABCD0000U;
+        equipment.party_markers.fill(1U);
+        equipment.record_head = &advance_first;
+        equipment.total_record_count = 3U;
+        equipment.visible_record_count = 3U;
         input = {};
         input.buttons = 1U;
         input.cursor_y = 0xE7U;
@@ -3993,10 +4180,19 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         test.expect_true(
             party_switched.callback_count == 4U &&
                 equipment.party_selector == 0xABCD0002U &&
-                party_ports.targets ==
-                    std::vector<EquipmentTarget>{
-                        EquipmentTarget::cycle_party,
-                        EquipmentTarget::cycle_party,
+                party_ports.targets.empty() &&
+                party_ports.cycle_events ==
+                    std::vector<u32>{
+                        1U,
+                        2U,
+                        3U,
+                        4U,
+                        5U,
+                        1U,
+                        2U,
+                        3U,
+                        4U,
+                        5U,
                     },
             "0x442F40 cycles parties until the clicked available party matches"
         );
@@ -4012,7 +4208,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             cycle_stopped.status ==
                     sm::LegacyStandardModeEquipmentInputStatus::
                         party_cycle_stopped &&
-                cycle_stop_ports.targets.size() == 4U,
+                cycle_stop_ports.targets.empty() &&
+                cycle_stop_ports.cycle_events.size() == 20U,
             "0x442F40 isolates a non-progressing party cycle after four attempts"
         );
 
