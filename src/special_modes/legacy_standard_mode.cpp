@@ -4434,6 +4434,63 @@ advance_legacy_standard_mode_runtime_mode(
     return result;
 }
 
+LegacyStandardModeRuntimeCleanupResult cleanup_legacy_standard_mode_runtime(
+    LegacyStandardModeRuntimeInitializationState& state,
+    LegacyStandardModeInputDispatchPorts& ports
+) noexcept {
+    LegacyStandardModeRuntimeCleanupResult result;
+    state.exit_counter = 2U;
+    const compat::u32 record_token =
+        read_u32_le(std::span<const compat::u8>{state.scratch_record}, 0xACU);
+    if (record_token != 0U) {
+        ports.release_record(record_token);
+        ++result.helper_call_count;
+        state.scratch_record[0xACU] = 0U;
+        state.scratch_record[0xADU] = 0U;
+        state.scratch_record[0xAEU] = 0U;
+        state.scratch_record[0xAFU] = 0U;
+    }
+
+    static_cast<void>(ports.release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind::scratch_record, 0U
+    ));
+    static_cast<void>(ports.release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind::loaded_status, 0U
+    ));
+    static_cast<void>(ports.release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind::queried_status, 0U
+    ));
+    static_cast<void>(ports.release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind::long_slot_table, 0U
+    ));
+    result.helper_call_count += 4U;
+    state.total_count = 0;
+    while (state.total_count < 0x10) {
+        static_cast<void>(ports.release_runtime_storage(
+            LegacyStandardModeRuntimeStorageKind::long_text_slot,
+            static_cast<compat::u32>(state.total_count)
+        ));
+        ++state.total_count;
+        ++result.helper_call_count;
+    }
+    state.total_count = 0;
+    while (state.total_count < 0x40) {
+        static_cast<void>(ports.release_runtime_storage(
+            LegacyStandardModeRuntimeStorageKind::short_text_slot,
+            static_cast<compat::u32>(state.total_count)
+        ));
+        ++state.total_count;
+        ++result.helper_call_count;
+    }
+    result.legacy_return_value = ports.release_runtime_storage(
+        LegacyStandardModeRuntimeStorageKind::entries, 0U
+    );
+    ++result.helper_call_count;
+    state.action_records[0U].action_id = 0x0000232AU;
+    state.action_records[0U].base_variant = 0x00000043U;
+    return result;
+}
+
 LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
     const LegacyStandardModeInputDispatchInput& input,
     const std::span<const LegacyStandardModeAvailabilityRecord>
@@ -4662,50 +4719,9 @@ LegacyStandardModeInputDispatchResult dispatch_legacy_standard_mode_input(
         return result;
     }
 
-    state.exit_counter = 2U;
-    const compat::u32 record_token =
-        read_u32_le(std::span<const compat::u8>{state.scratch_record}, 0xACU);
-    if (record_token != 0U) {
-        ports.release_record(record_token);
-        state.scratch_record[0xACU] = 0U;
-        state.scratch_record[0xADU] = 0U;
-        state.scratch_record[0xAEU] = 0U;
-        state.scratch_record[0xAFU] = 0U;
-    }
-
-    static_cast<void>(ports.release_runtime_storage(
-        LegacyStandardModeRuntimeStorageKind::scratch_record, 0U
-    ));
-    static_cast<void>(ports.release_runtime_storage(
-        LegacyStandardModeRuntimeStorageKind::loaded_status, 0U
-    ));
-    static_cast<void>(ports.release_runtime_storage(
-        LegacyStandardModeRuntimeStorageKind::queried_status, 0U
-    ));
-    static_cast<void>(ports.release_runtime_storage(
-        LegacyStandardModeRuntimeStorageKind::long_slot_table, 0U
-    ));
-    state.total_count = 0;
-    while (state.total_count < 0x10) {
-        static_cast<void>(ports.release_runtime_storage(
-            LegacyStandardModeRuntimeStorageKind::long_text_slot,
-            static_cast<compat::u32>(state.total_count)
-        ));
-        ++state.total_count;
-    }
-    state.total_count = 0;
-    while (state.total_count < 0x40) {
-        static_cast<void>(ports.release_runtime_storage(
-            LegacyStandardModeRuntimeStorageKind::short_text_slot,
-            static_cast<compat::u32>(state.total_count)
-        ));
-        ++state.total_count;
-    }
-    result.legacy_return_value = ports.release_runtime_storage(
-        LegacyStandardModeRuntimeStorageKind::entries, 0U
-    );
-    state.action_records[0U].action_id = 0x0000232AU;
-    state.action_records[0U].base_variant = 0x00000043U;
+    const LegacyStandardModeRuntimeCleanupResult cleanup =
+        cleanup_legacy_standard_mode_runtime(state, ports);
+    result.legacy_return_value = cleanup.legacy_return_value;
     result.path = LegacyStandardModeInputDispatchPath::runtime_released;
     return result;
 }
@@ -12231,6 +12247,8 @@ handle_legacy_standard_mode_group_eight_main_input(
                 state,
                 input.sample_handle,
                 maps_payload,
+                runtime_state,
+                runtime_ports,
                 ports,
                 commit_runtime,
                 commit_ports
@@ -12241,6 +12259,30 @@ handle_legacy_standard_mode_group_eight_main_input(
             LegacyStandardModeGroupEightInteractionCommitStatus::completed) {
             result.status =
                 LegacyStandardModeGroupEightMainInputStatus::commit_stopped;
+            return false;
+        }
+        return true;
+    };
+    const auto exit_current = [&]() noexcept {
+        LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime =
+            ports.commit_runtime();
+        LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports =
+            ports.commit_ports();
+        const LegacyStandardModeGroupEightInteractionExitResult exit =
+            exit_legacy_standard_mode_group_eight_interaction(
+                state,
+                runtime_state,
+                runtime_ports,
+                ports,
+                commit_runtime,
+                commit_ports
+            );
+        result.legacy_return_value = exit.legacy_return_value;
+        result.helper_call_count += exit.helper_call_count + 1U;
+        if (exit.status !=
+            LegacyStandardModeGroupEightInteractionExitStatus::completed) {
+            result.status =
+                LegacyStandardModeGroupEightMainInputStatus::exit_stopped;
             return false;
         }
         return true;
@@ -12306,8 +12348,9 @@ handle_legacy_standard_mode_group_eight_main_input(
         if ((flags & 4U) == 0U) {
             goto common_input;
         }
-        result.legacy_return_value = ports.exit_interaction(input, state);
-        ++result.helper_call_count;
+        if (!exit_current()) {
+            return result;
+        }
         mode = state.interaction_mode;
         flags = input.input_flags;
     }
@@ -12331,8 +12374,9 @@ handle_legacy_standard_mode_group_eight_main_input(
         if ((flags & 4U) == 0U) {
             goto common_input;
         }
-        result.legacy_return_value = ports.exit_interaction(input, state);
-        ++result.helper_call_count;
+        if (!exit_current()) {
+            return result;
+        }
         mode = state.interaction_mode;
         flags = input.input_flags;
     }
@@ -12355,9 +12399,9 @@ handle_legacy_standard_mode_group_eight_main_input(
                 return result;
             }
             if ((flags & 0x0CU) != 0U) {
-                result.legacy_return_value =
-                    ports.exit_interaction(input, state);
-                ++result.helper_call_count;
+                if (!exit_current()) {
+                    return result;
+                }
                 result.path = LegacyStandardModeGroupEightMainInputPath::
                     interaction_exited;
                 return result;
@@ -12502,8 +12546,9 @@ common_input:
             return result;
         }
         if ((flags & 0x0CU) != 0U) {
-            result.legacy_return_value = ports.exit_interaction(input, state);
-            ++result.helper_call_count;
+            if (!exit_current()) {
+                return result;
+            }
             result.path =
                 LegacyStandardModeGroupEightMainInputPath::interaction_exited;
             return result;
@@ -12889,8 +12934,9 @@ common_input:
     }
 
     if ((input.input_flags & 4U) != 0U) {
-        result.legacy_return_value = ports.exit_interaction(input, state);
-        ++result.helper_call_count;
+        if (!exit_current()) {
+            return result;
+        }
         result.path =
             LegacyStandardModeGroupEightMainInputPath::interaction_exited;
     } else {
@@ -14019,11 +14065,113 @@ cycle_legacy_standard_mode_selection_or_advance_runtime(
     return result;
 }
 
+LegacyStandardModeGroupEightInteractionExitResult
+exit_legacy_standard_mode_group_eight_interaction(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports,
+    LegacyStandardModeGroupEightMainInputPorts& ports,
+    LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime,
+    LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports
+) noexcept {
+    LegacyStandardModeGroupEightInteractionExitResult result;
+    if (state.interaction_mode >= 0x01F4U) {
+        if (state.interaction_mode != 0x01F4U) {
+            result.path = LegacyStandardModeGroupEightInteractionExitPath::
+                high_mode_ignored;
+            return result;
+        }
+        state.interaction_mode = 2U;
+        const LegacyStandardModeRuntimeCleanupResult cleanup =
+            cleanup_legacy_standard_mode_runtime(runtime_state, runtime_ports);
+        result.legacy_return_value = cleanup.legacy_return_value;
+        result.helper_call_count = cleanup.helper_call_count + 1U;
+        result.path =
+            LegacyStandardModeGroupEightInteractionExitPath::runtime_cleaned;
+        return result;
+    }
+
+    state.interaction_mode =
+        static_cast<compat::u16>(state.interaction_mode - 1U);
+    result.legacy_return_value = state.interaction_mode;
+    switch (state.interaction_mode) {
+    case 3U:
+        state.interaction_mode = 2U;
+        state.pre_initialization_zeroes[2U] = 0xFFFFFF00U;
+        result.path =
+            LegacyStandardModeGroupEightInteractionExitPath::phase_reset;
+        return result;
+    case 1U: {
+        const LegacyStandardModeGroupEightCleanupResult cleanup =
+            cleanup_legacy_standard_mode_group_eight(state, ports);
+        ++result.helper_call_count;
+        result.legacy_return_value = cleanup.legacy_return_value;
+        if (cleanup.status !=
+            LegacyStandardModeGroupEightCleanupStatus::completed) {
+            result.status = LegacyStandardModeGroupEightInteractionExitStatus::
+                record_cleanup_stopped;
+            return result;
+        }
+        const LegacyStandardModeCallbackBindingResult binding =
+            bind_legacy_standard_mode_callbacks(
+                state.callback_state,
+                state.interaction_mode,
+                state.selection_x,
+                commit_ports
+            );
+        ++result.helper_call_count;
+        result.helper_call_count += binding.helper_call_count;
+        result.story_flag_query_count = binding.story_flag_query_count;
+        result.legacy_return_value = binding.legacy_return_value;
+        state.exit_layout_owner = 0x34U;
+        result.path =
+            LegacyStandardModeGroupEightInteractionExitPath::callbacks_rebound;
+        return result;
+    }
+    case 4U:
+        state.selected_action = 1U;
+        state.interaction_mode = 2U;
+        result.path =
+            LegacyStandardModeGroupEightInteractionExitPath::phase_reset;
+        return result;
+    case 9U:
+    case 16U:
+    case 17U:
+        state.interaction_mode = 2U;
+        result.path =
+            LegacyStandardModeGroupEightInteractionExitPath::phase_reset;
+        return result;
+    case 10U:
+        result.path = LegacyStandardModeGroupEightInteractionExitPath::
+            phase_predecremented;
+        return result;
+    case 14U:
+        state.secondary_window_offset = static_cast<compat::i32>(
+            commit_runtime.filtered_records.records.size()
+        );
+        commit_runtime.filtered_records.records.clear();
+        state.special_control_count = 0;
+        state.interaction_mode = 2U;
+        result.path = LegacyStandardModeGroupEightInteractionExitPath::
+            filtered_records_released;
+        return result;
+    default:
+        state.published_selection_x = state.selection_x;
+        result.legacy_return_value =
+            static_cast<compat::i32>(state.published_selection_x);
+        result.path = LegacyStandardModeGroupEightInteractionExitPath::
+            phase_predecremented;
+        return result;
+    }
+}
+
 LegacyStandardModeGroupEightInteractionCommitResult
 commit_legacy_standard_mode_group_eight_interaction(
     LegacyStandardModeGroupEightState& state,
     const compat::u32 sample_handle,
     const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports,
     LegacyStandardModeGroupEightMainInputPorts& ports,
     LegacyStandardModeGroupEightInteractionCommitRuntime& runtime,
     LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports
@@ -14406,13 +14554,29 @@ commit_legacy_standard_mode_group_eight_interaction(
         }
         return result;
     }
-    case 4U:
-        result.legacy_return_value =
-            commit_ports.exit_current_interaction(state);
-        ++result.helper_call_count;
+    case 4U: {
+        const LegacyStandardModeGroupEightInteractionExitResult exit =
+            exit_legacy_standard_mode_group_eight_interaction(
+                state,
+                runtime_state,
+                runtime_ports,
+                ports,
+                runtime,
+                commit_ports
+            );
+        result.legacy_return_value = exit.legacy_return_value;
+        result.helper_call_count += exit.helper_call_count + 1U;
+        if (exit.status !=
+            LegacyStandardModeGroupEightInteractionExitStatus::completed) {
+            result.status =
+                LegacyStandardModeGroupEightInteractionCommitStatus::
+                    record_cleanup_stopped;
+            return result;
+        }
         result.path = LegacyStandardModeGroupEightInteractionCommitPath::
             interaction_exited;
         return result;
+    }
     case 5U:
         if (state.selected_action == 0U) {
             const LegacyStandardModeForwardNode* const record =
@@ -14480,9 +14644,24 @@ commit_legacy_standard_mode_group_eight_interaction(
         ++result.helper_call_count;
         state.interaction_mode = 2U;
         if (state.mode_ten_available == 0) {
-            result.legacy_return_value =
-                commit_ports.exit_current_interaction(state);
-            ++result.helper_call_count;
+            const LegacyStandardModeGroupEightInteractionExitResult exit =
+                exit_legacy_standard_mode_group_eight_interaction(
+                    state,
+                    runtime_state,
+                    runtime_ports,
+                    ports,
+                    runtime,
+                    commit_ports
+                );
+            result.legacy_return_value = exit.legacy_return_value;
+            result.helper_call_count += exit.helper_call_count + 1U;
+            if (exit.status !=
+                LegacyStandardModeGroupEightInteractionExitStatus::completed) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        record_cleanup_stopped;
+                return result;
+            }
             state.global_mode_owner = 0U;
         }
         result.path = LegacyStandardModeGroupEightInteractionCommitPath::

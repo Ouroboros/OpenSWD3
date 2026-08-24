@@ -14981,6 +14981,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 *source_head = missing_node;
             }
         }
+        i32 story_flag(const u32 story_flag_id) override {
+            story_flag_queries.push_back(story_flag_id);
+            return story_flag_return;
+        }
         i32 query(const u32 service_id) noexcept override {
             filter_queries.push_back(service_id);
             return filter_query_return;
@@ -15058,14 +15062,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             ++resource_finalize_count;
             return resource_finalize_result;
         }
-        i32 exit_current_interaction(
-            openswd3::special_modes::LegacyStandardModeGroupEightState&
-        ) noexcept override {
-            ++exit_count;
-            return exit_return;
-        }
 
         const LegacyStandardModeForwardNode* missing_node{};
+        i32 story_flag_return{};
         i32 filter_query_return{};
         i32 inventory_mutation_return{1};
         std::optional<i32> inventory_span;
@@ -15075,14 +15074,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         i32 resource_load_return{};
         u32 resource_flag{1U};
         bool resource_finalize_result{true};
-        i32 exit_return{444};
         u32 cleared_bytes{};
         std::pair<u32, u32> configured_interface{};
         u32 inventory_root_release_count{};
         u32 world_transition_count{};
         u32 high_runtime_initialization_count{};
         u32 resource_finalize_count{};
-        u32 exit_count{};
+        std::vector<u32> story_flag_queries;
         std::vector<u32> filter_queries;
         std::vector<LegacyStandardModeDialogDrawRequest> dialog_draws;
         std::vector<std::array<i32, 3U>> inventory_mutations;
@@ -15148,15 +15146,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         openswd3::special_modes::
             LegacyStandardModeGroupEightInteractionCommitPorts&
             commit_ports() noexcept override {
-            events.push_back(Event::commit);
             return commit_port_state;
-        }
-        i32 exit_interaction(
-            openswd3::special_modes::
-                LegacyStandardModeGroupEightMainInputSnapshot& input,
-            openswd3::special_modes::LegacyStandardModeGroupEightState& state
-        ) override {
-            return record(Event::exit, input, state);
         }
         i32 query_item_presence(const u16 item_id) override {
             events.push_back(Event::presence);
@@ -15216,7 +15206,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         bool load_record(std::span<u8>, const u16) noexcept override {
             return false;
         }
-        void release_record(const u32) noexcept override {}
+        void release_record(const u32 token) noexcept override {
+            released_record_tokens.push_back(token);
+        }
         bool load_selected_record(std::span<u8>, const u32) noexcept override {
             return false;
         }
@@ -15239,12 +15231,17 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             return sample_return;
         }
         i32 release_runtime_storage(
-            const LegacyStandardModeRuntimeStorageKind, const u32
+            const LegacyStandardModeRuntimeStorageKind kind, const u32 index
         ) noexcept override {
-            return 0;
+            released_runtime_storage.emplace_back(kind, index);
+            return runtime_release_return;
         }
 
         i32 sample_return{333};
+        i32 runtime_release_return{555};
+        std::vector<u32> released_record_tokens;
+        std::vector<std::pair<LegacyStandardModeRuntimeStorageKind, u32>>
+            released_runtime_storage;
         std::vector<std::pair<u16, u32>> played_samples;
     };
 
@@ -15556,8 +15553,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                     LegacyStandardModeGroupEightMainInputPath::
                         outer_row_committed &&
             outer_commit_state.selected_outer_row == 1U &&
-            outer_commit_ports.events ==
-                std::vector{GroupEightMainInputPorts::Event::commit},
+            outer_commit_ports.events.empty(),
         "0x4455E0 maps the mode10 row before immediate commit"
     );
     test.expect_true(
@@ -15678,7 +15674,6 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             special_choice_state.published_selection_x == 31U &&
             special_choice_ports.events ==
                 std::vector{
-                    GroupEightMainInputPorts::Event::commit,
                     GroupEightMainInputPorts::Event::sample,
                     GroupEightMainInputPorts::Event::sample,
                 } &&
@@ -15830,8 +15825,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::
                         interaction_exited &&
-            mode_three_exit_ports.events ==
-                std::vector{GroupEightMainInputPorts::Event::exit},
+            mode_three_exit_ports.events.empty() &&
+            mode_three_exit_state.interaction_mode == 2U,
         "0x4455E0 maps available rows and typed-stops only after the full item domain"
     );
 
@@ -15954,9 +15949,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             unavailable_exit_ports
         );
+    GroupEightState availability_stop_state;
     const auto availability_stopped = openswd3::special_modes::
         handle_legacy_standard_mode_group_eight_main_input(
-            unavailable_exit_state,
+            availability_stop_state,
             unavailable_exit_input,
             {},
             group_main_runtime,
@@ -15974,8 +15970,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::
                         secondary_row_committed &&
-            secondary_row_ports.events ==
-                std::vector{GroupEightMainInputPorts::Event::commit} &&
+            secondary_row_ports.events.empty() &&
             unavailable_exited.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::
@@ -16974,6 +16969,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_world_state,
             0x11112222U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_world_ports,
             commit_world_ports.commit_runtime_state,
             commit_world_ports.commit_port_state
@@ -16992,6 +16989,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_high_state,
             0U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_high_ports,
             commit_high_ports.commit_runtime_state,
             commit_high_ports.commit_port_state
@@ -17033,6 +17032,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_locked_state,
             0x33334444U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_locked_ports,
             commit_locked_ports.commit_runtime_state,
             commit_locked_ports.commit_port_state
@@ -17054,6 +17055,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_count_state,
             0U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_count_ports,
             commit_count_ports.commit_runtime_state,
             commit_count_ports.commit_port_state
@@ -17093,6 +17096,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_equipment_state,
             0U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_equipment_ports,
             commit_equipment_ports.commit_runtime_state,
             commit_equipment_ports.commit_port_state
@@ -17110,6 +17115,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_mode_three_state,
             0x55556666U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_equipment_ports,
             commit_equipment_ports.commit_runtime_state,
             commit_equipment_ports.commit_port_state
@@ -17145,6 +17152,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_exit_state,
             0U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_exit_ports,
             commit_exit_ports.commit_runtime_state,
             commit_exit_ports.commit_port_state
@@ -17159,6 +17168,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_resource_state,
             0U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_resource_ports,
             commit_resource_ports.commit_runtime_state,
             commit_resource_ports.commit_port_state
@@ -17168,6 +17179,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_resource_state,
             0U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_resource_ports,
             commit_resource_ports.commit_runtime_state,
             commit_resource_ports.commit_port_state
@@ -17177,7 +17190,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightInteractionCommitPath::
                         interaction_exited &&
-            commit_exited.legacy_return_value == 444 &&
+            commit_exited.legacy_return_value == 3 &&
+            commit_exit_state.interaction_mode == 2U &&
+            commit_exit_state.pre_initialization_zeroes[2U] == 0xFFFFFF00U &&
             commit_resource_loaded.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightInteractionCommitPath::
@@ -17188,8 +17203,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightInteractionCommitPath::
                         mode_eleven_finished &&
-            commit_resource_state.interaction_mode == 2U &&
-            commit_resource_ports.commit_port_state.exit_count == 1U,
+            commit_resource_state.interaction_mode == 1U &&
+            commit_resource_state.exit_layout_owner == 0x34U,
         "0x446700 delegates mode4 and preserves mode10-to-11 resource phases"
     );
 
@@ -17212,6 +17227,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_dialog_state,
             0U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_dialog_ports,
             commit_dialog_ports.commit_runtime_state,
             commit_dialog_ports.commit_port_state
@@ -17223,6 +17240,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_phase_state,
             0U,
             {},
+            group_main_runtime,
+            group_main_runtime_ports,
             commit_dialog_ports,
             commit_dialog_ports.commit_runtime_state,
             commit_dialog_ports.commit_port_state
@@ -17248,6 +17267,222 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                     LegacyStandardModeGroupEightInteractionCommitPath::
                         phase_reset,
         "0x446700 commits filtered dialog records and resets terminal phases"
+    );
+
+    GroupEightState runtime_exit_state;
+    runtime_exit_state.interaction_mode = 500U;
+    LegacyStandardModeRuntimeInitializationState runtime_exit_runtime;
+    runtime_exit_runtime.exit_counter = 500U;
+    runtime_exit_runtime.scratch_record[0xACU] = 0x78U;
+    runtime_exit_runtime.scratch_record[0xADU] = 0x56U;
+    runtime_exit_runtime.scratch_record[0xAEU] = 0x34U;
+    runtime_exit_runtime.scratch_record[0xAFU] = 0x12U;
+    GroupEightRuntimeInputPorts runtime_exit_runtime_ports;
+    GroupEightMainInputPorts runtime_exit_ports;
+    const auto runtime_exited = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            runtime_exit_state,
+            runtime_exit_runtime,
+            runtime_exit_runtime_ports,
+            runtime_exit_ports,
+            runtime_exit_ports.commit_runtime_state,
+            runtime_exit_ports.commit_port_state
+        );
+    GroupEightState ignored_high_exit_state;
+    ignored_high_exit_state.interaction_mode = 501U;
+    const auto ignored_high_exit = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            ignored_high_exit_state,
+            runtime_exit_runtime,
+            runtime_exit_runtime_ports,
+            runtime_exit_ports,
+            runtime_exit_ports.commit_runtime_state,
+            runtime_exit_ports.commit_port_state
+        );
+    test.expect_true(
+        runtime_exited.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionExitPath::
+                        runtime_cleaned &&
+            runtime_exited.legacy_return_value == 555 &&
+            runtime_exit_state.interaction_mode == 2U &&
+            runtime_exit_runtime.exit_counter == 2U &&
+            runtime_exit_runtime_ports.released_record_tokens ==
+                std::vector<u32>{0x12345678U} &&
+            runtime_exit_runtime_ports.released_runtime_storage.size() == 85U &&
+            runtime_exit_runtime.action_records[0U].action_id == 0x232AU &&
+            runtime_exit_runtime.action_records[0U].base_variant == 0x43U &&
+            ignored_high_exit.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionExitPath::
+                        high_mode_ignored &&
+            ignored_high_exit_state.interaction_mode == 501U,
+        "0x446FE0 includes the C800/C2F0 cleanup only for exact mode500"
+    );
+
+    LegacyStandardModeRuntimeInitializationState low_exit_runtime;
+    GroupEightRuntimeInputPorts low_exit_runtime_ports;
+    GroupEightMainInputPorts low_exit_ports;
+    GroupEightState callback_exit_state;
+    callback_exit_state.interaction_mode = 2U;
+    callback_exit_state.selection_x = 30U;
+    callback_exit_state.workspace_token = 0xAAU;
+    const auto callback_exit = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            callback_exit_state,
+            low_exit_runtime,
+            low_exit_runtime_ports,
+            low_exit_ports,
+            low_exit_ports.commit_runtime_state,
+            low_exit_ports.commit_port_state
+        );
+    GroupEightState mode_four_exit_state;
+    mode_four_exit_state.interaction_mode = 4U;
+    const auto mode_four_exit = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            mode_four_exit_state,
+            low_exit_runtime,
+            low_exit_runtime_ports,
+            low_exit_ports,
+            low_exit_ports.commit_runtime_state,
+            low_exit_ports.commit_port_state
+        );
+    GroupEightState mode_five_exit_state;
+    mode_five_exit_state.interaction_mode = 5U;
+    const auto mode_five_exit = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            mode_five_exit_state,
+            low_exit_runtime,
+            low_exit_runtime_ports,
+            low_exit_ports,
+            low_exit_ports.commit_runtime_state,
+            low_exit_ports.commit_port_state
+        );
+    test.expect_true(
+        callback_exit.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionExitPath::
+                        callbacks_rebound &&
+            callback_exit_state.interaction_mode == 1U &&
+            callback_exit_state.exit_layout_owner == 0x34U &&
+            low_exit_ports.commit_port_state.story_flag_queries ==
+                std::vector<u32>{0x49U} &&
+            mode_four_exit.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionExitPath::
+                        phase_reset &&
+            mode_four_exit_state.interaction_mode == 2U &&
+            mode_four_exit_state.pre_initialization_zeroes[2U] == 0xFFFFFF00U &&
+            mode_five_exit.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionExitPath::
+                        phase_reset &&
+            mode_five_exit_state.interaction_mode == 2U &&
+            mode_five_exit_state.selected_action == 1U,
+        "0x446FE0 rebinds mode2 and preserves mode4/mode5 exit side effects"
+    );
+
+    GroupEightState mode_ten_exit_state;
+    mode_ten_exit_state.interaction_mode = 10U;
+    const auto mode_ten_exit = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            mode_ten_exit_state,
+            low_exit_runtime,
+            low_exit_runtime_ports,
+            low_exit_ports,
+            low_exit_ports.commit_runtime_state,
+            low_exit_ports.commit_port_state
+        );
+    GroupEightState mode_eleven_exit_state;
+    mode_eleven_exit_state.interaction_mode = 11U;
+    const auto mode_eleven_exit = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            mode_eleven_exit_state,
+            low_exit_runtime,
+            low_exit_runtime_ports,
+            low_exit_ports,
+            low_exit_ports.commit_runtime_state,
+            low_exit_ports.commit_port_state
+        );
+    GroupEightState mode_fifteen_exit_state;
+    mode_fifteen_exit_state.interaction_mode = 15U;
+    low_exit_ports.commit_runtime_state.filtered_records.records.resize(3U);
+    const auto mode_fifteen_exit = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            mode_fifteen_exit_state,
+            low_exit_runtime,
+            low_exit_runtime_ports,
+            low_exit_ports,
+            low_exit_ports.commit_runtime_state,
+            low_exit_ports.commit_port_state
+        );
+    GroupEightState mode_seventeen_exit_state;
+    mode_seventeen_exit_state.interaction_mode = 17U;
+    const auto mode_seventeen_exit = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            mode_seventeen_exit_state,
+            low_exit_runtime,
+            low_exit_runtime_ports,
+            low_exit_ports,
+            low_exit_ports.commit_runtime_state,
+            low_exit_ports.commit_port_state
+        );
+    GroupEightState mode_eighteen_exit_state;
+    mode_eighteen_exit_state.interaction_mode = 18U;
+    const auto mode_eighteen_exit = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            mode_eighteen_exit_state,
+            low_exit_runtime,
+            low_exit_runtime_ports,
+            low_exit_ports,
+            low_exit_ports.commit_runtime_state,
+            low_exit_ports.commit_port_state
+        );
+    GroupEightState default_exit_state;
+    default_exit_state.interaction_mode = 3U;
+    default_exit_state.selection_x = 0x1234U;
+    const auto default_exit = openswd3::special_modes::
+        exit_legacy_standard_mode_group_eight_interaction(
+            default_exit_state,
+            low_exit_runtime,
+            low_exit_runtime_ports,
+            low_exit_ports,
+            low_exit_ports.commit_runtime_state,
+            low_exit_ports.commit_port_state
+        );
+    test.expect_true(
+        mode_ten_exit_state.interaction_mode == 2U &&
+            mode_ten_exit.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionExitPath::
+                        phase_reset &&
+            mode_eleven_exit_state.interaction_mode == 10U &&
+            mode_eleven_exit.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionExitPath::
+                        phase_predecremented &&
+            mode_fifteen_exit.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionExitPath::
+                        filtered_records_released &&
+            mode_fifteen_exit_state.interaction_mode == 2U &&
+            mode_fifteen_exit_state.secondary_window_offset == 3 &&
+            low_exit_ports.commit_runtime_state.filtered_records.records
+                .empty() &&
+            mode_seventeen_exit.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionExitPath::
+                        phase_reset &&
+            mode_seventeen_exit_state.interaction_mode == 2U &&
+            mode_eighteen_exit.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionExitPath::
+                        phase_reset &&
+            mode_eighteen_exit_state.interaction_mode == 2U &&
+            default_exit_state.interaction_mode == 2U &&
+            default_exit_state.published_selection_x == 0x1234U &&
+            default_exit.legacy_return_value == 0x1234,
+        "0x446FE0 preserves mode10/11/15/17 and default predecrement behavior"
     );
 
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
