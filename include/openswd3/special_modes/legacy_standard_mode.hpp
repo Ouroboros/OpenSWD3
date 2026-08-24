@@ -807,6 +807,18 @@ toggle_legacy_standard_mode_equipment_column(
     LegacyStandardModeEquipmentAdvancePorts& ports
 ) noexcept;
 
+using LegacyStandardModeEquipmentColumnAdvanceStatus =
+    LegacyStandardModeEquipmentColumnToggleStatus;
+using LegacyStandardModeEquipmentColumnAdvanceResult =
+    LegacyStandardModeEquipmentColumnToggleResult;
+
+[[nodiscard]] LegacyStandardModeEquipmentColumnAdvanceResult
+advance_legacy_standard_mode_equipment_column(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentAdvancePorts& ports
+) noexcept;
+
 class LegacyStandardModeEquipmentInputPorts
     : public LegacyStandardModeEquipmentPageAdvancePorts {
 public:

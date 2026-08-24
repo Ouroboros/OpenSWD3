@@ -3541,6 +3541,115 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x4438E0 mode2 selects lowest party and mode15 retreats hover cursor"
         );
 
+        sm::LegacyStandardModeEquipmentInitializationState column_advance_state;
+        column_advance_state.mode_enabled = 1U;
+        column_advance_state.visible_record_count = 3U;
+        column_advance_state.local_selection = 0U;
+        column_advance_state.record_head = page_records.data();
+        column_advance_state.sample_owner = 0xBEEFU;
+        column_advance_state.final_zero = 9U;
+        EquipmentInputPorts column_advance_ports;
+        column_advance_ports.sample_state = &column_advance_state;
+        column_advance_ports.sample_final_zero = 0xDEADU;
+        const auto column_advanced =
+            sm::advance_legacy_standard_mode_equipment_column(
+                column_advance_state, {}, column_advance_ports
+            );
+        const bool column_advanced_values =
+            column_advance_state.local_selection == 1U &&
+            column_advance_state.shared_text[0] == 0xB5U &&
+            column_advance_state.final_zero == 0x30U;
+        column_advance_state.local_selection = 2U;
+        const auto column_advance_clamped =
+            sm::advance_legacy_standard_mode_equipment_column(
+                column_advance_state, {}, column_advance_ports
+            );
+        test.expect_true(
+            column_advanced.status ==
+                    sm::LegacyStandardModeEquipmentColumnAdvanceStatus::
+                        completed &&
+                column_advanced.legacy_return_value == 77 &&
+                column_advanced.helper_call_count == 3U &&
+                column_advanced_values &&
+                column_advance_clamped.status ==
+                    sm::LegacyStandardModeEquipmentColumnAdvanceStatus::
+                        completed &&
+                column_advance_state.local_selection == 2U &&
+                column_advance_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{
+                        {0x2EU, 0xBEEFU}, {0x2EU, 0xBEEFU}
+                    },
+            "0x4439A0 toggles columns, clamps the final item and writes 30 after sample"
+        );
+
+        column_advance_state = {};
+        column_advance_state.mode_enabled = 1U;
+        column_advance_state.visible_record_count = 1U;
+        column_advance_state.local_selection = 1U;
+        EquipmentInputPorts column_advance_stop_ports;
+        const auto column_advance_missing =
+            sm::advance_legacy_standard_mode_equipment_column(
+                column_advance_state, {}, column_advance_stop_ports
+            );
+        column_advance_state.record_head = &advance_invalid_text;
+        column_advance_state.final_zero = 9U;
+        const auto column_advance_text_stopped =
+            sm::advance_legacy_standard_mode_equipment_column(
+                column_advance_state, {}, column_advance_stop_ports
+            );
+        test.expect_true(
+            column_advance_missing.status ==
+                    sm::LegacyStandardModeEquipmentColumnAdvanceStatus::
+                        selected_record_missing &&
+                column_advance_missing.helper_call_count == 1U &&
+                column_advance_text_stopped.status ==
+                    sm::LegacyStandardModeEquipmentColumnAdvanceStatus::
+                        shared_text_stopped &&
+                column_advance_text_stopped.helper_call_count == 2U &&
+                column_advance_state.final_zero == 9U &&
+                column_advance_stop_ports.samples.empty(),
+            "0x4439A0 typed-stops at B9C0/B9E0 before sample and final30"
+        );
+
+        column_advance_state = {};
+        column_advance_state.mode_enabled = 2U;
+        column_advance_state.party_markers = {1U, 2U, 3U, 0xFFFFU};
+        const auto column_advance_party =
+            sm::advance_legacy_standard_mode_equipment_column(
+                column_advance_state, {}, column_advance_ports
+            );
+        const u32 column_advance_party_selection =
+            column_advance_state.selected_party_action;
+        column_advance_state.party_markers.fill(0xFFFFU);
+        const auto column_advance_party_stopped =
+            sm::advance_legacy_standard_mode_equipment_column(
+                column_advance_state, {}, column_advance_ports
+            );
+        column_advance_state = {};
+        column_advance_state.mode_enabled = 0x0FU;
+        column_advance_state.special_record_count = 20U;
+        column_advance_state.special_window_offset = 0U;
+        column_advance_state.hover_selection = 0U;
+        column_advance_state.hover_record_count = 8U;
+        column_advance_state.final_zero = 0xABCD0001U;
+        const auto special_column_advanced =
+            sm::advance_legacy_standard_mode_equipment_column(
+                column_advance_state, {}, column_advance_ports
+            );
+        test.expect_true(
+            column_advance_party_selection == 2U &&
+                column_advance_party.legacy_return_value == 2 &&
+                column_advance_party_stopped.status ==
+                    sm::LegacyStandardModeEquipmentColumnAdvanceStatus::
+                        party_search_stopped &&
+                special_column_advanced.legacy_return_value ==
+                    std::bit_cast<i32>(0xABCD3001U) &&
+                column_advance_state.special_window_offset == 0U &&
+                column_advance_state.hover_selection == 1U &&
+                column_advance_state.final_zero == 0xABCD3001U,
+            "0x4439A0 mode2 selects highest party and mode15 advances hover cursor"
+        );
+
         sm::LegacyStandardModeEquipmentInitializationState equipment;
         equipment.mode_enabled = 0x11U;
         equipment.first_render_zero = 7U;

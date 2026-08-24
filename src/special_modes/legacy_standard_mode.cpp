@@ -530,6 +530,95 @@ toggle_legacy_standard_mode_equipment_column(
     return result;
 }
 
+LegacyStandardModeEquipmentColumnAdvanceResult
+advance_legacy_standard_mode_equipment_column(
+    LegacyStandardModeEquipmentInitializationState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentAdvancePorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentColumnAdvanceResult result;
+    const compat::u32 mode = state.mode_enabled;
+    result.legacy_return_value = std::bit_cast<compat::i32>(mode - 0x0FU);
+    if (mode == 1U) {
+        compat::u32 local_selection = state.local_selection;
+        if ((local_selection & 1U) == 0U) {
+            ++local_selection;
+        } else {
+            --local_selection;
+        }
+        state.local_selection = local_selection;
+        if (std::bit_cast<compat::i32>(local_selection) >=
+            std::bit_cast<compat::i32>(state.visible_record_count)) {
+            state.local_selection = state.visible_record_count - 1U;
+        }
+        const LegacyStandardModeForwardNode* const record_head =
+            state.record_head;
+        const LegacyStandardModeForwardNode* const selected_record =
+            index_legacy_standard_mode_forward_node(
+                std::bit_cast<compat::i32>(
+                    state.list_offset + state.local_selection
+                ),
+                &record_head
+            );
+        ++result.helper_call_count;
+        if (selected_record == nullptr) {
+            result.status = LegacyStandardModeEquipmentColumnAdvanceStatus::
+                selected_record_missing;
+            return result;
+        }
+        const LegacyStandardModeTextResolutionResult text =
+            resolve_legacy_standard_mode_shared_text(
+                selected_record->text_index, maps_payload, state.shared_text
+            );
+        ++result.helper_call_count;
+        if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
+            result.status = LegacyStandardModeEquipmentColumnAdvanceStatus::
+                shared_text_stopped;
+            return result;
+        }
+        result.legacy_return_value =
+            ports.execute_equipment_sample_command(0x002EU, state.sample_owner);
+        ++result.helper_call_count;
+        state.final_zero = 0x30U;
+        return result;
+    }
+    if (mode == 2U) {
+        for (compat::u32 checked = 0U; checked < state.party_markers.size();
+             ++checked) {
+            const compat::u32 party =
+                static_cast<compat::u32>(state.party_markers.size() - 1U) -
+                checked;
+            result.legacy_return_value = std::bit_cast<compat::i32>(party);
+            if (state.party_markers[party] != 0xFFFFU) {
+                state.selected_party_action = party;
+                return result;
+            }
+        }
+        result.status = LegacyStandardModeEquipmentColumnAdvanceStatus::
+            party_search_stopped;
+        return result;
+    }
+    if (mode == 0x0FU) {
+        compat::i32 window_offset =
+            std::bit_cast<compat::i32>(state.special_window_offset);
+        compat::i32 local_cursor =
+            std::bit_cast<compat::i32>(state.hover_selection);
+        static_cast<void>(advance_legacy_standard_mode_window_cursor(
+            std::bit_cast<compat::i32>(state.special_record_count),
+            window_offset,
+            local_cursor,
+            std::bit_cast<compat::i32>(state.hover_record_count)
+        ));
+        ++result.helper_call_count;
+        state.special_window_offset = std::bit_cast<compat::u32>(window_offset);
+        state.hover_selection = std::bit_cast<compat::u32>(local_cursor);
+        state.final_zero |= 0x3000U;
+        result.legacy_return_value =
+            std::bit_cast<compat::i32>(state.final_zero);
+    }
+    return result;
+}
+
 LegacyStandardModeEquipmentPageRetreatResult
 retreat_legacy_standard_mode_equipment_page(
     LegacyStandardModeEquipmentInitializationState& state,
