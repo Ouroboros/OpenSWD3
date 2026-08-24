@@ -530,6 +530,27 @@ public:
         callback_modes.push_back(mode);
         return callback_return;
     }
+    i32 execute_transition_pair_render_command(
+        const openswd3::special_modes::
+            LegacyStandardModeTransitionPairRenderCommand& command
+    ) noexcept override {
+        render_commands.push_back(command);
+        using CommandType = openswd3::special_modes::
+            LegacyStandardModeTransitionPairRenderCommandType;
+        if (command.type == CommandType::calculate_color) {
+            const i32 value = color_returns[color_count];
+            ++color_count;
+            return value;
+        }
+        if (command.type == CommandType::draw_panel) {
+            ++panel_count;
+            return panel_return;
+        }
+        if (command.type == CommandType::calculate_value) {
+            return calculated_value;
+        }
+        return render_default_return;
+    }
 
     std::array<u32, 2U> allocation_returns{0x1111U, 0x2222U};
     std::vector<u32> allocation_sizes;
@@ -547,6 +568,17 @@ public:
     i32 sample_return{0x5678};
     std::vector<u32> callback_modes;
     i32 callback_return{0x1234};
+    std::vector<
+        openswd3::special_modes::LegacyStandardModeTransitionPairRenderCommand>
+        render_commands;
+    std::array<i32, 5U> color_returns{
+        0x12345678, 0x01020304, 0x11112222, 0x33334444, 0x55556666
+    };
+    std::size_t color_count{};
+    u32 panel_count{};
+    i32 panel_return{std::bit_cast<i32>(0x89ABCDEFU)};
+    i32 calculated_value{0x2468};
+    i32 render_default_return{0x7A7A};
 };
 
 class FakeStandardModeCallbackBindingPorts final
@@ -15149,6 +15181,124 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             transition_pair_commit_wrap.legacy_return_value == 0x1234 &&
             transition_pair_commit_wrap.helper_call_count == 2U,
         "0x44A250 releases the pair before u16 stage decrement, clears the active owner only at zero, and dispatches the zero-extended stage"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionPairState
+        transition_pair_render_state;
+    transition_pair_render_state.mode_word = 2U;
+    transition_pair_render_state.render_palette = 0x1357U;
+    transition_pair_render_state.render_surface = 0xCAFEBABEU;
+    transition_pair_render_state.third_frame_register_snapshot = 0x24680000U;
+    transition_pair_render_state.first_record_available = true;
+    transition_pair_render_state.second_record_available = true;
+    transition_pair_render_state.first_record.values = {10U, 20U, 30U, 40U};
+    transition_pair_render_state.first_record.bonuses = {1U, 2U};
+    transition_pair_render_state.first_record.level = 5U;
+    transition_pair_render_state.first_record.modifiers = {
+        0, 1, -1, -9, -10, -11, 127, -128, 5
+    };
+    transition_pair_render_state.second_record.values = {1U, 0xFFFFU, 2U, 3U};
+    transition_pair_render_state.render_modes[2U].primary_value = 0x10203040U;
+    transition_pair_render_state.render_modes[2U].attributes = {
+        100U, 200U, 300U, 400U
+    };
+    FakeTransitionPairPorts transition_pair_render_ports;
+    const auto transition_pair_render =
+        openswd3::special_modes::render_legacy_standard_mode_transition_pair(
+            transition_pair_render_state, transition_pair_render_ports
+        );
+    using PairRenderCommandType = openswd3::special_modes::
+        LegacyStandardModeTransitionPairRenderCommandType;
+    using PairRenderText =
+        openswd3::special_modes::LegacyStandardModeTransitionPairRenderText;
+    const auto& pair_render_commands =
+        transition_pair_render_ports.render_commands;
+    test.expect_true(
+        transition_pair_render.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairRenderStatus::completed &&
+            transition_pair_render.command_count == 75U &&
+            transition_pair_render.helper_call_count == 75U &&
+            transition_pair_render.legacy_return_value == 0x7A7A &&
+            pair_render_commands.size() == 75U &&
+            pair_render_commands[5U].type ==
+                PairRenderCommandType::draw_tiled_frame &&
+            pair_render_commands[5U].arguments[0U] == 0x1357 &&
+            pair_render_commands[6U].text == PairRenderText::mode_name &&
+            static_cast<u32>(pair_render_commands[8U].arguments[0U]) ==
+                0x89AB1357U &&
+            pair_render_commands[10U].arguments[0U] == 0x24681357 &&
+            pair_render_commands[11U].arguments[0U] == 0x232A &&
+            pair_render_commands[11U].arguments[1U] == 0x2D &&
+            pair_render_commands[13U].arguments[2U] == 0x212 &&
+            pair_render_commands[14U].text == PairRenderText::decimal &&
+            pair_render_commands[14U].arguments[0U] == 11 &&
+            pair_render_commands[22U].type ==
+                PairRenderCommandType::calculate_value &&
+            pair_render_commands[22U].arguments[0U] == 3 &&
+            pair_render_commands[22U].arguments[1U] == 6 &&
+            pair_render_commands[32U].text == PairRenderText::attribute_zero &&
+            pair_render_commands[33U].type ==
+                PairRenderCommandType::draw_overlay_value &&
+            pair_render_commands[36U].arguments[0U] == -1 &&
+            pair_render_commands[43U].text == PairRenderText::mode_summary &&
+            pair_render_commands[44U].type ==
+                PairRenderCommandType::append_text &&
+            pair_render_commands[56U].text == PairRenderText::modifier_zero &&
+            pair_render_commands[57U].arguments[5U] == 0x5678 &&
+            pair_render_commands[59U].arguments[5U] == 0x4444 &&
+            pair_render_commands[61U].arguments[5U] == 0x2222 &&
+            pair_render_commands[65U].arguments[4U] == 0 &&
+            pair_render_commands[65U].arguments[5U] == 0x6666 &&
+            pair_render_commands[71U].arguments[4U] == 118 &&
+            pair_render_commands[73U].arguments[2U] == 0x13F &&
+            pair_render_commands[73U].arguments[3U] == 0x1A5 &&
+            pair_render_commands[74U].type ==
+                PairRenderCommandType::draw_final_panel,
+        "0x44A280 preserves all 75 runtime calls, register snapshots, signed overlays, and four modifier formats"
+    );
+
+    auto transition_pair_render_bad_mode_state = transition_pair_render_state;
+    transition_pair_render_bad_mode_state.mode_word = 4U;
+    FakeTransitionPairPorts transition_pair_render_bad_mode_ports;
+    const auto transition_pair_render_bad_mode =
+        openswd3::special_modes::render_legacy_standard_mode_transition_pair(
+            transition_pair_render_bad_mode_state,
+            transition_pair_render_bad_mode_ports
+        );
+    auto transition_pair_render_no_first_state = transition_pair_render_state;
+    transition_pair_render_no_first_state.first_record_available = false;
+    FakeTransitionPairPorts transition_pair_render_no_first_ports;
+    const auto transition_pair_render_no_first =
+        openswd3::special_modes::render_legacy_standard_mode_transition_pair(
+            transition_pair_render_no_first_state,
+            transition_pair_render_no_first_ports
+        );
+    auto transition_pair_render_no_second_state = transition_pair_render_state;
+    transition_pair_render_no_second_state.second_record_available = false;
+    FakeTransitionPairPorts transition_pair_render_no_second_ports;
+    const auto transition_pair_render_no_second =
+        openswd3::special_modes::render_legacy_standard_mode_transition_pair(
+            transition_pair_render_no_second_state,
+            transition_pair_render_no_second_ports
+        );
+    test.expect_true(
+        transition_pair_render_bad_mode.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairRenderStatus::
+                        mode_out_of_range_stopped &&
+            transition_pair_render_bad_mode.command_count == 6U &&
+            transition_pair_render_no_first.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairRenderStatus::
+                        first_record_unavailable_stopped &&
+            transition_pair_render_no_first.command_count == 14U &&
+            transition_pair_render_no_second.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairRenderStatus::
+                        second_record_unavailable_stopped &&
+            transition_pair_render_no_second.command_count == 33U,
+        "0x44A280 stops only at the original mode and paired-record read points after preserving prior commands"
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionPairState

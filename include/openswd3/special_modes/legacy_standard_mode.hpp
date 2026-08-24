@@ -324,6 +324,70 @@ confirm_legacy_standard_mode_transition(
     LegacyStandardModeTransitionVisualPorts& ports
 ) noexcept;
 
+struct LegacyStandardModeTransitionPairRecord {
+    std::array<compat::u16, 4U> values{};
+    std::array<compat::u16, 2U> bonuses{};
+    compat::u8 level{};
+    std::array<compat::i8, 9U> modifiers{};
+};
+
+struct LegacyStandardModeTransitionPairRenderModeRecord {
+    compat::u32 primary_value{};
+    std::array<compat::u16, 4U> attributes{};
+};
+
+enum class LegacyStandardModeTransitionPairRenderCommandType : compat::u8 {
+    calculate_color,
+    draw_tiled_frame,
+    draw_text,
+    draw_panel,
+    draw_action,
+    format_text,
+    calculate_value,
+    draw_overlay_value,
+    append_text,
+    draw_final_panel,
+};
+
+enum class LegacyStandardModeTransitionPairRenderText : compat::u8 {
+    none,
+    mode_name,
+    decimal,
+    decimal_wide,
+    level,
+    value_label,
+    calculated_label,
+    attribute_zero,
+    attribute_one,
+    attribute_two,
+    attribute_three,
+    mode_summary,
+    static_zero,
+    static_one,
+    static_two,
+    static_three,
+    static_four,
+    static_five,
+    static_six,
+    static_seven,
+    static_eight,
+    static_nine,
+    modifier_zero,
+    modifier_positive,
+    modifier_small_negative,
+    modifier_large_negative,
+};
+
+struct LegacyStandardModeTransitionPairRenderCommand {
+    LegacyStandardModeTransitionPairRenderCommandType type{
+        LegacyStandardModeTransitionPairRenderCommandType::calculate_color
+    };
+    LegacyStandardModeTransitionPairRenderText text{
+        LegacyStandardModeTransitionPairRenderText::none
+    };
+    std::array<compat::i32, 10U> arguments{};
+};
+
 struct LegacyStandardModeTransitionPairState {
     compat::u32 mode_word{};
     compat::u32 first_owner{};
@@ -335,6 +399,15 @@ struct LegacyStandardModeTransitionPairState {
     std::array<compat::u16, 4U> mode_records{};
     compat::u32 sample_owner{};
     compat::u32 active_owner{};
+    compat::u16 render_palette{};
+    compat::u32 render_surface{};
+    compat::u32 third_frame_register_snapshot{};
+    bool first_record_available{};
+    bool second_record_available{};
+    LegacyStandardModeTransitionPairRecord first_record;
+    LegacyStandardModeTransitionPairRecord second_record;
+    std::array<LegacyStandardModeTransitionPairRenderModeRecord, 4U>
+        render_modes{};
 };
 
 class LegacyStandardModeTransitionPairPorts {
@@ -354,12 +427,31 @@ public:
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     dispatch_transition_pair_callback(compat::u32 mode) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 execute_transition_pair_render_command(
+        const LegacyStandardModeTransitionPairRenderCommand& command
+    ) noexcept = 0;
 };
 
 enum class LegacyStandardModeTransitionPairStatus : compat::u8 {
     completed,
     cycle_domain_stopped,
     unavailable_mode_domain_stopped,
+};
+
+enum class LegacyStandardModeTransitionPairRenderStatus : compat::u8 {
+    completed,
+    mode_out_of_range_stopped,
+    first_record_unavailable_stopped,
+    second_record_unavailable_stopped,
+};
+
+struct LegacyStandardModeTransitionPairRenderResult {
+    LegacyStandardModeTransitionPairRenderStatus status{
+        LegacyStandardModeTransitionPairRenderStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 command_count{};
 };
 
 struct LegacyStandardModeTransitionPairResult {
@@ -409,6 +501,12 @@ retreat_wrapped_legacy_standard_mode_transition_pair(
 
 [[nodiscard]] LegacyStandardModeTransitionPairResult
 commit_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeTransitionPairRenderResult
+render_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
     LegacyStandardModeTransitionPairPorts& ports
 ) noexcept;

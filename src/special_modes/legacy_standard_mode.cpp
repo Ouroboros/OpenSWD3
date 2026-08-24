@@ -351,7 +351,9 @@ initialize_legacy_standard_mode_transition_pair(
         state.mode_word &= 0xFFFF0000U;
     }
     state.first_owner = ports.allocate_transition_pair_buffer(0x38U);
+    state.first_record_available = state.first_owner != 0U;
     state.second_owner = ports.allocate_transition_pair_buffer(0x38U);
+    state.second_record_available = state.second_owner != 0U;
     result.helper_call_count = 2U;
     result.legacy_return_value = ports.dispatch_transition_pair(state);
     ++result.helper_call_count;
@@ -366,8 +368,10 @@ release_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairResult result;
     result.legacy_return_value =
         ports.release_transition_pair_buffer(state.first_owner);
+    state.first_record_available = false;
     result.legacy_return_value =
         ports.release_transition_pair_buffer(state.second_owner);
+    state.second_record_available = false;
     result.helper_call_count = 2U;
     return result;
 }
@@ -461,6 +465,354 @@ commit_legacy_standard_mode_transition_pair(
     result.legacy_return_value =
         ports.dispatch_transition_pair_callback(state.interaction_mode);
     ++result.helper_call_count;
+    return result;
+}
+
+LegacyStandardModeTransitionPairRenderResult
+render_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionPairRenderResult result;
+    const auto emit =
+        [&result, &ports](
+            const LegacyStandardModeTransitionPairRenderCommandType type,
+            const LegacyStandardModeTransitionPairRenderText text,
+            const std::initializer_list<compat::i32> arguments
+        ) {
+            LegacyStandardModeTransitionPairRenderCommand command;
+            command.type = type;
+            command.text = text;
+            std::copy(
+                arguments.begin(), arguments.end(), command.arguments.begin()
+            );
+            result.legacy_return_value =
+                ports.execute_transition_pair_render_command(command);
+            ++result.helper_call_count;
+            ++result.command_count;
+            return result.legacy_return_value;
+        };
+    const auto emit_simple =
+        [&emit](
+            const auto type, const std::initializer_list<compat::i32> arguments
+        ) {
+            return emit(
+                type,
+                LegacyStandardModeTransitionPairRenderText::none,
+                arguments
+            );
+        };
+    const compat::i32 render_surface =
+        std::bit_cast<compat::i32>(state.render_surface);
+    const compat::i32 packed_effect = std::bit_cast<compat::i32>(0x80000008U);
+
+    const compat::i32 primary_color = emit_simple(
+        LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+        {0x19, 0x17, 0x11}
+    );
+    const compat::u16 zero_color = static_cast<compat::u16>(primary_color);
+    static_cast<void>(emit_simple(
+        LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+        {0x0D, 0x0D, 9}
+    ));
+    const compat::u16 small_negative_color =
+        static_cast<compat::u16>(emit_simple(
+            LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+            {2, 0x0E, 0x1D}
+        ));
+    const compat::u16 positive_color = static_cast<compat::u16>(emit_simple(
+        LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+        {0x1C, 2, 2}
+    ));
+    const compat::u16 large_negative_color =
+        static_cast<compat::u16>(emit_simple(
+            LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+            {2, 0x1C, 0x0D}
+        ));
+    emit_simple(
+        LegacyStandardModeTransitionPairRenderCommandType::draw_tiled_frame,
+        {state.render_palette, 0xD0, 0x3C, 0x13C, 0x50, 0, packed_effect}
+    );
+
+    const compat::u16 mode = static_cast<compat::u16>(state.mode_word);
+    if (mode >= state.render_modes.size()) {
+        result.status = LegacyStandardModeTransitionPairRenderStatus::
+            mode_out_of_range_stopped;
+        return result;
+    }
+    emit(
+        LegacyStandardModeTransitionPairRenderCommandType::draw_text,
+        LegacyStandardModeTransitionPairRenderText::mode_name,
+        {0, render_surface, 0xD4, 0x3D, mode, primary_color, 4}
+    );
+    const compat::i32 first_panel_result = emit_simple(
+        LegacyStandardModeTransitionPairRenderCommandType::draw_panel,
+        {0xC8, 0x60, 0xB4, 0x16E, 0, 0, 0, 2}
+    );
+    const compat::u32 second_frame_register =
+        (std::bit_cast<compat::u32>(first_panel_result) & 0xFFFF0000U) |
+        state.render_palette;
+    emit_simple(
+        LegacyStandardModeTransitionPairRenderCommandType::draw_tiled_frame,
+        {std::bit_cast<compat::i32>(second_frame_register),
+         0xD0,
+         0x68,
+         0x174,
+         0x1C8,
+         0,
+         packed_effect}
+    );
+    static_cast<void>(emit_simple(
+        LegacyStandardModeTransitionPairRenderCommandType::draw_panel,
+        {0x186, 0x60, 0xEC, 0x140, 0, 0, 0, 2}
+    ));
+    const compat::u32 third_frame_register =
+        (state.third_frame_register_snapshot & 0xFFFF0000U) |
+        state.render_palette;
+    emit_simple(
+        LegacyStandardModeTransitionPairRenderCommandType::draw_tiled_frame,
+        {std::bit_cast<compat::i32>(third_frame_register),
+         0x18E,
+         0x68,
+         0x26A,
+         0x19A,
+         0,
+         packed_effect}
+    );
+    for (compat::i32 variant = 0x2D; variant <= 0x2F; ++variant) {
+        emit_simple(
+            LegacyStandardModeTransitionPairRenderCommandType::draw_action,
+            {0x232A, variant, 0x14A + 0x64 * (variant - 0x2D), 0x3E}
+        );
+    }
+
+    if (!state.first_record_available) {
+        result.status = LegacyStandardModeTransitionPairRenderStatus::
+            first_record_unavailable_stopped;
+        return result;
+    }
+    const auto format_and_draw =
+        [&emit, render_surface, primary_color](
+            const LegacyStandardModeTransitionPairRenderText text,
+            const compat::i32 value,
+            const compat::i32 font,
+            const compat::i32 x,
+            const compat::i32 y
+        ) {
+            emit(
+                LegacyStandardModeTransitionPairRenderCommandType::format_text,
+                text,
+                {value}
+            );
+            emit(
+                LegacyStandardModeTransitionPairRenderCommandType::draw_text,
+                text,
+                {font, render_surface, x, y, value, primary_color, 4}
+            );
+        };
+    format_and_draw(
+        LegacyStandardModeTransitionPairRenderText::decimal,
+        state.first_record.values[0U] + state.first_record.bonuses[0U],
+        1,
+        0x17C,
+        0x3E
+    );
+    format_and_draw(
+        LegacyStandardModeTransitionPairRenderText::decimal,
+        state.first_record.values[1U] + state.first_record.bonuses[1U],
+        1,
+        0x1E0,
+        0x3E
+    );
+    format_and_draw(
+        LegacyStandardModeTransitionPairRenderText::decimal,
+        state.first_record.values[3U],
+        1,
+        0x244,
+        0x3E
+    );
+    format_and_draw(
+        LegacyStandardModeTransitionPairRenderText::level,
+        state.first_record.level,
+        1,
+        0xB4,
+        0x6A
+    );
+    const compat::i32 calculated_value = emit_simple(
+        LegacyStandardModeTransitionPairRenderCommandType::calculate_value,
+        {static_cast<compat::i32>(mode) + 1,
+         static_cast<compat::i32>(state.first_record.level) + 1}
+    );
+    format_and_draw(
+        LegacyStandardModeTransitionPairRenderText::value_label,
+        0,
+        1,
+        0xB4,
+        0x83
+    );
+    format_and_draw(
+        LegacyStandardModeTransitionPairRenderText::decimal_wide,
+        std::bit_cast<compat::i32>(state.render_modes[mode].primary_value),
+        0,
+        0x117,
+        0x88
+    );
+    format_and_draw(
+        LegacyStandardModeTransitionPairRenderText::calculated_label,
+        0,
+        1,
+        0xB4,
+        0x9C
+    );
+    format_and_draw(
+        LegacyStandardModeTransitionPairRenderText::decimal_wide,
+        calculated_value,
+        0,
+        0x117,
+        0xA1
+    );
+    static constexpr std::array<LegacyStandardModeTransitionPairRenderText, 4U>
+        kAttributeText{
+            LegacyStandardModeTransitionPairRenderText::attribute_zero,
+            LegacyStandardModeTransitionPairRenderText::attribute_one,
+            LegacyStandardModeTransitionPairRenderText::attribute_two,
+            LegacyStandardModeTransitionPairRenderText::attribute_three,
+        };
+    static constexpr std::array<compat::i32, 4U> kAttributeY{
+        0xB5, 0xCE, 0xE7, 0x100
+    };
+    static constexpr std::array<compat::i32, 4U> kOverlayY{
+        0xBC, 0xD5, 0xEE, 0x107
+    };
+    format_and_draw(
+        kAttributeText[0U],
+        state.render_modes[mode].attributes[0U],
+        1,
+        0xB4,
+        kAttributeY[0U]
+    );
+
+    if (!state.second_record_available) {
+        result.status = LegacyStandardModeTransitionPairRenderStatus::
+            second_record_unavailable_stopped;
+        return result;
+    }
+    for (std::size_t index = 0U; index < kAttributeText.size(); ++index) {
+        if (index != 0U) {
+            format_and_draw(
+                kAttributeText[index],
+                state.render_modes[mode].attributes[index],
+                1,
+                0xB4,
+                kAttributeY[index]
+            );
+        }
+        if (state.second_record.values[index] != 0U) {
+            emit_simple(
+                LegacyStandardModeTransitionPairRenderCommandType::
+                    draw_overlay_value,
+                {std::bit_cast<compat::i16>(state.second_record.values[index]),
+                 0x117,
+                 kOverlayY[index],
+                 state.first_record.values[index]}
+            );
+        }
+    }
+    emit(
+        LegacyStandardModeTransitionPairRenderCommandType::format_text,
+        LegacyStandardModeTransitionPairRenderText::mode_summary,
+        {mode}
+    );
+    emit(
+        LegacyStandardModeTransitionPairRenderCommandType::append_text,
+        LegacyStandardModeTransitionPairRenderText::mode_summary,
+        {mode}
+    );
+    emit(
+        LegacyStandardModeTransitionPairRenderCommandType::draw_text,
+        LegacyStandardModeTransitionPairRenderText::mode_summary,
+        {1, render_surface, 0xB4, 0x132, mode, primary_color, 4}
+    );
+
+    static constexpr std::array<LegacyStandardModeTransitionPairRenderText, 10U>
+        kStaticText{
+            LegacyStandardModeTransitionPairRenderText::static_zero,
+            LegacyStandardModeTransitionPairRenderText::static_one,
+            LegacyStandardModeTransitionPairRenderText::static_two,
+            LegacyStandardModeTransitionPairRenderText::static_three,
+            LegacyStandardModeTransitionPairRenderText::static_four,
+            LegacyStandardModeTransitionPairRenderText::static_five,
+            LegacyStandardModeTransitionPairRenderText::static_six,
+            LegacyStandardModeTransitionPairRenderText::static_seven,
+            LegacyStandardModeTransitionPairRenderText::static_eight,
+            LegacyStandardModeTransitionPairRenderText::static_nine,
+        };
+    static constexpr std::array<compat::i32, 10U> kStaticX{
+        0xD2, 0xD2, 0xD2, 0xD2, 0xD2, 0xD2, 0x127, 0x127, 0x127, 0x127
+    };
+    static constexpr std::array<compat::i32, 10U> kStaticY{
+        0x150, 0x164, 0x178, 0x18C, 0x1A0, 0x1B4, 0x164, 0x178, 0x18C, 0x1A0
+    };
+    for (std::size_t index = 0U; index < kStaticText.size(); ++index) {
+        emit(
+            LegacyStandardModeTransitionPairRenderCommandType::draw_text,
+            kStaticText[index],
+            {0,
+             render_surface,
+             kStaticX[index],
+             kStaticY[index],
+             0,
+             primary_color,
+             4}
+        );
+    }
+
+    for (std::size_t index = 0U; index < state.first_record.modifiers.size();
+         ++index) {
+        const compat::i32 modifier = state.first_record.modifiers[index];
+        LegacyStandardModeTransitionPairRenderText text =
+            LegacyStandardModeTransitionPairRenderText::modifier_zero;
+        compat::i32 displayed_value = 0;
+        compat::u16 color = zero_color;
+        if (modifier == 0) {
+            // The zero format and color were selected before this loop.
+        } else if (modifier > 0) {
+            text =
+                LegacyStandardModeTransitionPairRenderText::modifier_positive;
+            displayed_value = modifier;
+            color = positive_color;
+        } else if (modifier > -10) {
+            text = LegacyStandardModeTransitionPairRenderText::
+                modifier_small_negative;
+            displayed_value = -modifier;
+            color = small_negative_color;
+        } else {
+            text = LegacyStandardModeTransitionPairRenderText::
+                modifier_large_negative;
+            displayed_value = -10 - modifier;
+            color = large_negative_color;
+        }
+        emit(
+            LegacyStandardModeTransitionPairRenderCommandType::format_text,
+            text,
+            {displayed_value}
+        );
+        emit(
+            LegacyStandardModeTransitionPairRenderCommandType::draw_text,
+            text,
+            {2,
+             render_surface,
+             static_cast<compat::i32>(0xEAU + 0x55U * (index / 5U)),
+             static_cast<compat::i32>(0x169U + 0x14U * (index % 5U)),
+             displayed_value,
+             color,
+             4}
+        );
+    }
+    emit_simple(
+        LegacyStandardModeTransitionPairRenderCommandType::draw_final_panel,
+        {0x18E, 0x66, 0, 0xA4, 0x14}
+    );
     return result;
 }
 
