@@ -2598,7 +2598,7 @@ public:
                 }
                 if (!failure_logged_) {
                     std::string message{
-                        "legacy BGM catalog lookup failed: id="
+                        "legacy BGM system_menu lookup failed: id="
                     };
                     message.append(std::to_string(music_id));
                     openswd3::diagnostics::log_error(message);
@@ -4825,14 +4825,12 @@ public:
                         );
                     }
 
-                    openswd3::special_modes::
-                        LegacyStandardModeTransitionVisualState&
-                        transition_visual_state() noexcept override {
-                        return owner_.standard_mode_transition_visual_state_;
+                    openswd3::special_modes::LegacyTitleMenuState&
+                    title_menu_state() noexcept override {
+                        return owner_.title_menu_state_;
                     }
-                    openswd3::special_modes::
-                        LegacyStandardModeTransitionVisualPorts&
-                        transition_visual_ports() noexcept override {
+                    openswd3::special_modes::LegacyTitleMenuPorts&
+                    title_menu_ports() noexcept override {
                         return transition_ports_;
                     }
 
@@ -4840,8 +4838,7 @@ public:
                     SdlSmokeIdlePorts& owner_;
 
                     class TransitionPorts final
-                        : public openswd3::special_modes::
-                              LegacyStandardModeTransitionVisualPorts {
+                        : public openswd3::special_modes::LegacyTitleMenuPorts {
                     public:
                         explicit TransitionPorts(
                             SdlSmokeIdlePorts& owner
@@ -4923,7 +4920,7 @@ public:
                         ) noexcept override {
                             return 0;
                         }
-                        openswd3::compat::i32 format_transition_settings(
+                        openswd3::compat::i32 format_game_settings(
                             openswd3::compat::u32,
                             openswd3::compat::u32,
                             openswd3::compat::u32,
@@ -4934,26 +4931,26 @@ public:
                         ) noexcept override {
                             return 0;
                         }
-                        openswd3::compat::i32 prepare_transition_panel(
+                        openswd3::compat::i32 prepare_title_menu_panel(
                             const openswd3::special_modes::
-                                LegacyStandardModeTransitionPanelRecord&
+                                LegacyTitleMenuSlidingPanelRecord&
                         ) noexcept override {
                             return 1;
                         }
-                        openswd3::compat::i32 report_transition_panel_error(
+                        openswd3::compat::i32 report_title_menu_panel_error(
                             const openswd3::special_modes::
-                                LegacyStandardModeTransitionPanelRecord&
+                                LegacyTitleMenuSlidingPanelRecord&
                         ) noexcept override {
                             return 0;
                         }
                         openswd3::special_modes::
-                            LegacyStandardModeTransitionPanelSurface
-                            resolve_transition_panel_surface(
+                            LegacyTitleMenuSlidingPanelSurface
+                            resolve_title_menu_panel_surface(
                                 openswd3::compat::u16, openswd3::compat::u16
                             ) noexcept override {
                             return {};
                         }
-                        openswd3::compat::i32 draw_transition_panel_surface(
+                        openswd3::compat::i32 draw_title_menu_panel_surface(
                             openswd3::compat::i32,
                             openswd3::compat::i32,
                             openswd3::compat::u16,
@@ -4963,12 +4960,12 @@ public:
                         ) noexcept override {
                             return 0;
                         }
-                        openswd3::compat::i32 execute_transition_command(
+                        openswd3::compat::i32 execute_title_menu_render_command(
                             const openswd3::special_modes::
-                                LegacyStandardModeTransitionCommand& command
+                                LegacyTitleMenuRenderCommand& command
                         ) noexcept override {
                             using CommandType = openswd3::special_modes::
-                                LegacyStandardModeTransitionCommandType;
+                                LegacyTitleMenuRenderCommandType;
                             if (command.type ==
                                 CommandType::clear_framebuffer) {
                                 std::ranges::fill(
@@ -4981,8 +4978,7 @@ public:
                                 return 0;
                             }
                             const auto& snapshot =
-                                owner_.standard_mode_transition_visual_state_
-                                    .framebuffer_snapshot;
+                                owner_.title_menu_state_.framebuffer_snapshot;
                             const auto pixels =
                                 owner_.game_framebuffer_.physical_pixels();
                             const auto bytes = std::as_writable_bytes(pixels);
@@ -4999,8 +4995,8 @@ public:
                             return 0U;
                         }
                         void release_transition_world() noexcept override {}
-                        void refresh_transition_runtime() noexcept override {}
-                        void present_transition_runtime() noexcept override {}
+                        void refresh_title_menu_frame() noexcept override {}
+                        void present_title_menu_frame() noexcept override {}
                         bool mode_one_asset_ready() noexcept override {
                             return false;
                         }
@@ -5380,7 +5376,7 @@ public:
             void draw_transition(const openswd3::compat::u32 extent) override {
                 class TransitionPorts final
                     : public openswd3::special_modes::
-                          LegacyStandardModeTransitionPorts {
+                          LegacyGameMenuEntryAnimationPorts {
                 public:
                     explicit TransitionPorts(SdlSmokeIdlePorts& owner) noexcept
                         : owner_(owner) {}
@@ -5432,10 +5428,8 @@ public:
                     }
 
                     void draw_text(
-                        openswd3::special_modes::
-                            LegacyStandardModeTransitionTextOwner,
-                        openswd3::special_modes::
-                            LegacyStandardModeTransitionText,
+                        openswd3::special_modes::LegacyGameMenuEntryTextOwner,
+                        openswd3::special_modes::LegacyGameMenuEntryText,
                         openswd3::compat::i32,
                         openswd3::compat::i32,
                         openswd3::compat::i32,
@@ -5476,7 +5470,7 @@ public:
                     owner_.legacy_standard_mode_state_.selector_state;
                 static_cast<void>(
                     openswd3::special_modes::
-                        render_legacy_standard_mode_transition(
+                        render_legacy_game_menu_entry_animation(
                             selector_state.render_state.transition_state,
                             extent,
                             selector_state.item_count,
@@ -6794,8 +6788,7 @@ private:
     openswd3::special_modes::LegacyInitialMenuState initial_menu_state_;
     openswd3::special_modes::LegacyStandardSpecialModeState
         legacy_standard_mode_state_;
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        standard_mode_transition_visual_state_;
+    openswd3::special_modes::LegacyTitleMenuState title_menu_state_;
     openswd3::input_time_rng::LegacyTextInputDriverState
         text_input_driver_state_{};
     SdlLegacyTextInputPorts text_input_ports_{};

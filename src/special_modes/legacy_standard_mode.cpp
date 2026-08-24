@@ -315,9 +315,8 @@ arithmetic_shift_right_one(const compat::u32 value) noexcept {
 
 namespace {
 
-LegacyStandardModeRecordCleanupResult cleanup_group_eight_selection_records(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightCleanupPorts& ports
+LegacyStandardModeRecordCleanupResult cleanup_game_menu_selection_records(
+    LegacyGameMenuState& state, LegacyGameMenuCleanupPorts& ports
 ) noexcept {
     return cleanup_legacy_standard_mode_selection_records(
         state.record_head, ports.selection_record_cleanup_ports()
@@ -325,9 +324,8 @@ LegacyStandardModeRecordCleanupResult cleanup_group_eight_selection_records(
 }
 
 LegacyStandardModeRecordInitializationResult
-initialize_group_eight_selection_records(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightInitializationPorts& ports
+initialize_game_menu_selection_records(
+    LegacyGameMenuState& state, LegacyGameMenuInitializationPorts& ports
 ) noexcept {
     return initialize_legacy_standard_mode_selection_records(
         ports.selection_record_source(),
@@ -341,32 +339,33 @@ initialize_group_eight_selection_records(
 
 }  // namespace
 
-LegacyStandardModeCatalogResult initialize_legacy_standard_mode_catalog(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+LegacySystemMenuResult initialize_legacy_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeCatalogResult result;
+    LegacySystemMenuResult result;
     state.mode_word = (state.mode_word & 0xFFFF0000U) | 5U;
     state.primary_owners[0U] = 0U;
     state.primary_owners[1U] = 0U;
     state.primary_owners[2U] = 0U;
-    state.list_owner = ports.allocate_catalog_buffer(0x100U);
+    state.list_owner = ports.allocate_system_menu_buffer(0x100U);
     ++result.helper_call_count;
     if (state.list_owner == 0U) {
-        result.status = LegacyStandardModeCatalogStatus::allocation_stopped;
+        result.status = LegacySystemMenuStatus::allocation_stopped;
         return result;
     }
     state.entries.fill(0U);
     state.entry_count = 0U;
 
     for (compat::u32 item_id = 0xE75U; item_id < 0xFA0U; ++item_id) {
-        const compat::i32 presence = ports.query_catalog_item_presence(item_id);
+        const compat::i32 presence =
+            ports.query_system_menu_item_presence(item_id);
         ++result.helper_call_count;
         ++result.queried_item_count;
         if (presence != 1) {
             continue;
         }
         if (state.entry_count >= state.entries.size()) {
-            result.status = LegacyStandardModeCatalogStatus::capacity_stopped;
+            result.status = LegacySystemMenuStatus::capacity_stopped;
             return result;
         }
         state.entries[state.entry_count] =
@@ -391,19 +390,19 @@ LegacyStandardModeCatalogResult initialize_legacy_standard_mode_catalog(
     return result;
 }
 
-LegacyStandardModeCatalogResult release_legacy_standard_mode_catalog(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+LegacySystemMenuResult release_legacy_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeCatalogResult result;
-    static_cast<void>(ports.release_catalog_buffer(state));
+    LegacySystemMenuResult result;
+    static_cast<void>(ports.release_system_menu_buffer(state));
     ++result.helper_call_count;
     const compat::u32 tail_snapshot = state.message_tail;
     const compat::u32 shared_snapshot = state.shared_value;
     state.list_owner = 0U;
     const compat::i32 service_result =
-        ports.query_catalog_service(0x48U, state);
+        ports.query_system_menu_service(0x48U, state);
     ++result.helper_call_count;
-    LegacyStandardModeCatalogMessage message;
+    LegacySystemMenuMessage message;
     message.sample_owner = state.message_sample_owner;
     message.font = state.message_font;
     message.value = state.message_value;
@@ -411,23 +410,23 @@ LegacyStandardModeCatalogResult release_legacy_standard_mode_catalog(
     message.service_result = service_result;
     message.shared_value = shared_snapshot;
     message.tail = tail_snapshot;
-    result.legacy_return_value = ports.format_catalog_message(message);
+    result.legacy_return_value = ports.format_system_menu_message(message);
     ++result.helper_call_count;
     return result;
 }
 
-LegacyStandardModeCatalogInputResult page_down_legacy_standard_mode_system_menu(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+LegacySystemMenuInputResult page_down_legacy_standard_mode_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeCatalogInputResult result;
+    LegacySystemMenuInputResult result;
     const auto set_legacy = [&result](const compat::u32 value) {
         result.legacy_return_value = std::bit_cast<compat::i32>(value);
     };
     const auto play_sample = [&result, &ports, &state]() {
-        result.command = LegacyStandardModeCatalogInputCommand::play_sample;
+        result.command = LegacySystemMenuInputCommand::play_sample;
         ++result.helper_call_count;
-        result.legacy_return_value = ports.execute_catalog_input_command(
-            LegacyStandardModeCatalogInputCommand::play_sample,
+        result.legacy_return_value = ports.execute_system_menu_input_command(
+            LegacySystemMenuInputCommand::play_sample,
             state.message_sample_owner,
             state
         );
@@ -447,7 +446,7 @@ LegacyStandardModeCatalogInputResult page_down_legacy_standard_mode_system_menu(
         return result;
     case 1U:
         if (state.interaction_page == 2U) {
-            return advance_legacy_standard_mode_catalog_selection(state, ports);
+            return advance_legacy_system_menu_selection(state, ports);
         }
         if (state.interaction_page == 3U) {
             state.selected_row = 6U;
@@ -479,22 +478,21 @@ LegacyStandardModeCatalogInputResult page_down_legacy_standard_mode_system_menu(
     }
 }
 
-LegacyStandardModeCatalogInputResult
-retreat_legacy_standard_mode_catalog_selection(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+LegacySystemMenuInputResult retreat_legacy_system_menu_selection(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeCatalogInputResult result;
+    LegacySystemMenuInputResult result;
     const auto set_legacy = [&result](const compat::u32 value) {
         result.legacy_return_value = std::bit_cast<compat::i32>(value);
     };
     const auto call = [&result, &ports, &state](
-                          const LegacyStandardModeCatalogInputCommand command,
+                          const LegacySystemMenuInputCommand command,
                           const compat::u32 argument = 0U
                       ) {
         result.command = command;
         ++result.helper_call_count;
         result.legacy_return_value =
-            ports.execute_catalog_input_command(command, argument, state);
+            ports.execute_system_menu_input_command(command, argument, state);
     };
     if (state.input_locked != 0U) {
         set_legacy(state.input_locked);
@@ -509,7 +507,7 @@ retreat_legacy_standard_mode_catalog_selection(
         set_legacy(next);
         if (std::bit_cast<compat::i32>(next) >= 0) {
             call(
-                LegacyStandardModeCatalogInputCommand::play_sample,
+                LegacySystemMenuInputCommand::play_sample,
                 state.message_sample_owner
             );
         } else {
@@ -519,19 +517,21 @@ retreat_legacy_standard_mode_catalog_selection(
     }
     case 1U:
         if (state.interaction_page == 2U) {
-            const compat::u32 previous_start = state.catalog_page_start - 5U;
-            state.catalog_page_start = previous_start;
+            const compat::u32 previous_start =
+                state.system_menu_page_start - 5U;
+            state.system_menu_page_start = previous_start;
             set_legacy(previous_start);
             if (std::bit_cast<compat::i32>(previous_start) < 0) {
-                state.catalog_scroll_index = 0U;
-                state.catalog_page_start = 0U;
+                state.system_menu_scroll_index = 0U;
+                state.system_menu_page_start = 0U;
             }
-            call(LegacyStandardModeCatalogInputCommand::rebuild_page);
-            call(LegacyStandardModeCatalogInputCommand::count_visible);
-            state.catalog_cursor_flags =
-                (state.catalog_cursor_flags & 0xFFFFFF00U) |
-                (static_cast<compat::u8>(state.catalog_cursor_flags) | 0x03U);
-            set_legacy(state.catalog_cursor_flags);
+            call(LegacySystemMenuInputCommand::rebuild_page);
+            call(LegacySystemMenuInputCommand::count_visible);
+            state.system_menu_cursor_flags =
+                (state.system_menu_cursor_flags & 0xFFFFFF00U) |
+                (static_cast<compat::u8>(state.system_menu_cursor_flags) |
+                 0x03U);
+            set_legacy(state.system_menu_cursor_flags);
             return result;
         }
         if (state.interaction_page == 3U) {
@@ -541,7 +541,7 @@ retreat_legacy_standard_mode_catalog_selection(
                 state.selected_row = 0U;
             }
             call(
-                LegacyStandardModeCatalogInputCommand::play_sample,
+                LegacySystemMenuInputCommand::play_sample,
                 state.message_sample_owner
             );
             return result;
@@ -554,7 +554,7 @@ retreat_legacy_standard_mode_catalog_selection(
                 state.selected_row = 0U;
             }
             call(
-                LegacyStandardModeCatalogInputCommand::play_sample,
+                LegacySystemMenuInputCommand::play_sample,
                 state.message_sample_owner
             );
         }
@@ -576,7 +576,7 @@ retreat_legacy_standard_mode_catalog_selection(
             state.selected_entry = 0x12U;
         }
         call(
-            LegacyStandardModeCatalogInputCommand::play_sample,
+            LegacySystemMenuInputCommand::play_sample,
             state.message_sample_owner
         );
         return result;
@@ -586,22 +586,21 @@ retreat_legacy_standard_mode_catalog_selection(
     }
 }
 
-LegacyStandardModeCatalogInputResult
-advance_legacy_standard_mode_catalog_selection(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+LegacySystemMenuInputResult advance_legacy_system_menu_selection(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeCatalogInputResult result;
+    LegacySystemMenuInputResult result;
     const auto set_legacy = [&result](const compat::u32 value) {
         result.legacy_return_value = std::bit_cast<compat::i32>(value);
     };
     const auto call = [&result, &ports, &state](
-                          const LegacyStandardModeCatalogInputCommand command,
+                          const LegacySystemMenuInputCommand command,
                           const compat::u32 argument = 0U
                       ) {
         result.command = command;
         ++result.helper_call_count;
         result.legacy_return_value =
-            ports.execute_catalog_input_command(command, argument, state);
+            ports.execute_system_menu_input_command(command, argument, state);
     };
     if (state.input_locked != 0U) {
         set_legacy(state.input_locked);
@@ -616,7 +615,7 @@ advance_legacy_standard_mode_catalog_selection(
         set_legacy(next);
         if (std::bit_cast<compat::i32>(next) <= 4) {
             call(
-                LegacyStandardModeCatalogInputCommand::play_sample,
+                LegacySystemMenuInputCommand::play_sample,
                 state.message_sample_owner
             );
         } else {
@@ -626,31 +625,32 @@ advance_legacy_standard_mode_catalog_selection(
     }
     case 1U:
         if (state.interaction_page == 2U) {
-            const compat::u32 next_start = state.catalog_page_start + 5U;
-            state.catalog_page_start = next_start;
+            const compat::u32 next_start = state.system_menu_page_start + 5U;
+            state.system_menu_page_start = next_start;
             set_legacy(next_start);
             if (std::bit_cast<compat::i32>(next_start) <
                 std::bit_cast<compat::i32>(state.entry_count)) {
-                call(LegacyStandardModeCatalogInputCommand::rebuild_page);
-                call(LegacyStandardModeCatalogInputCommand::count_visible);
+                call(LegacySystemMenuInputCommand::rebuild_page);
+                call(LegacySystemMenuInputCommand::count_visible);
                 const compat::u32 last_visible =
-                    state.catalog_visible_count - 1U;
+                    state.system_menu_visible_count - 1U;
                 set_legacy(last_visible);
-                if (std::bit_cast<compat::i32>(state.catalog_scroll_index) >
+                if (std::bit_cast<compat::i32>(state.system_menu_scroll_index) >
                     std::bit_cast<compat::i32>(last_visible)) {
-                    state.catalog_scroll_index = last_visible;
+                    state.system_menu_scroll_index = last_visible;
                 }
             } else {
-                state.catalog_page_start = next_start - 5U;
+                state.system_menu_page_start = next_start - 5U;
                 const compat::u32 last_visible =
-                    state.catalog_visible_count - 1U;
+                    state.system_menu_visible_count - 1U;
                 set_legacy(last_visible);
-                state.catalog_scroll_index = last_visible;
+                state.system_menu_scroll_index = last_visible;
             }
-            state.catalog_cursor_flags =
-                (state.catalog_cursor_flags & 0xFFFFFF00U) |
-                (static_cast<compat::u8>(state.catalog_cursor_flags) | 0x30U);
-            set_legacy(state.catalog_cursor_flags);
+            state.system_menu_cursor_flags =
+                (state.system_menu_cursor_flags & 0xFFFFFF00U) |
+                (static_cast<compat::u8>(state.system_menu_cursor_flags) |
+                 0x30U);
+            set_legacy(state.system_menu_cursor_flags);
             return result;
         }
         if (state.interaction_page == 3U) {
@@ -660,7 +660,7 @@ advance_legacy_standard_mode_catalog_selection(
                 state.selected_row = 6U;
             }
             call(
-                LegacyStandardModeCatalogInputCommand::play_sample,
+                LegacySystemMenuInputCommand::play_sample,
                 state.message_sample_owner
             );
             return result;
@@ -673,7 +673,7 @@ advance_legacy_standard_mode_catalog_selection(
                 state.selected_row = 1U;
             }
             call(
-                LegacyStandardModeCatalogInputCommand::play_sample,
+                LegacySystemMenuInputCommand::play_sample,
                 state.message_sample_owner
             );
         }
@@ -695,7 +695,7 @@ advance_legacy_standard_mode_catalog_selection(
             state.selected_entry = 0U;
         }
         call(
-            LegacyStandardModeCatalogInputCommand::play_sample,
+            LegacySystemMenuInputCommand::play_sample,
             state.message_sample_owner
         );
         return result;
@@ -705,21 +705,21 @@ advance_legacy_standard_mode_catalog_selection(
     }
 }
 
-LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+LegacySystemMenuInputResult update_legacy_system_menu_input(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeCatalogInputResult result;
+    LegacySystemMenuInputResult result;
     const auto set_legacy = [&result](const compat::u32 value) {
         result.legacy_return_value = std::bit_cast<compat::i32>(value);
     };
     const auto call = [&result, &ports, &state](
-                          const LegacyStandardModeCatalogInputCommand command,
+                          const LegacySystemMenuInputCommand command,
                           const compat::u32 argument = 0U
                       ) {
         result.command = command;
         ++result.helper_call_count;
         result.legacy_return_value =
-            ports.execute_catalog_input_command(command, argument, state);
+            ports.execute_system_menu_input_command(command, argument, state);
     };
     if (state.input_locked != 0U) {
         set_legacy(state.input_locked);
@@ -727,7 +727,7 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
     }
 
     const compat::i32 input_status =
-        ports.query_catalog_input_status(0x0FU, state);
+        ports.query_system_menu_input_status(0x0FU, state);
     ++result.helper_call_count;
     const compat::u32 pointer_x = state.pointer_x;
     const compat::u32 pointer_y = state.pointer_y;
@@ -742,16 +742,16 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
         std::bit_cast<compat::i32>(state.entry_count) > 5 &&
         pointer_y < 0x274U && pointer_y > 0x264U) {
         if (signed_x < 0x82 && signed_x > 0x74) {
-            const LegacyStandardModeCatalogInputResult retreat =
-                retreat_legacy_standard_mode_catalog_selection(state, ports);
+            const LegacySystemMenuInputResult retreat =
+                retreat_legacy_system_menu_selection(state, ports);
             result.helper_call_count += retreat.helper_call_count;
             result.legacy_return_value = retreat.legacy_return_value;
             result.command = retreat.command;
             return result;
         }
         if (signed_x < 0x1CE && signed_x > 0x1C0) {
-            const LegacyStandardModeCatalogInputResult advance =
-                advance_legacy_standard_mode_catalog_selection(state, ports);
+            const LegacySystemMenuInputResult advance =
+                advance_legacy_system_menu_selection(state, ports);
             result.helper_call_count += advance.helper_call_count;
             result.legacy_return_value = advance.legacy_return_value;
             result.command = advance.command;
@@ -759,12 +759,12 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
         }
         if (signed_x < state.upper_dynamic_right &&
             signed_x > state.upper_dynamic_left) {
-            call(LegacyStandardModeCatalogInputCommand::upper_dynamic_hover);
+            call(LegacySystemMenuInputCommand::upper_dynamic_hover);
             return result;
         }
         if (signed_x < state.lower_dynamic_right &&
             signed_x > state.lower_dynamic_left) {
-            const LegacyStandardModeCatalogInputResult page_down =
+            const LegacySystemMenuInputResult page_down =
                 page_down_legacy_standard_mode_system_menu(state, ports);
             result.helper_call_count += page_down.helper_call_count;
             result.legacy_return_value = page_down.legacy_return_value;
@@ -776,16 +776,14 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
     const compat::u8 input_flags = static_cast<compat::u8>(state.input_flags);
     if ((input_flags & 0x0CU) != 0U) {
         if (interaction_mode == 7U) {
-            call(
-                LegacyStandardModeCatalogInputCommand::open_mode_fourteen, 0x0EU
-            );
+            call(LegacySystemMenuInputCommand::open_mode_fourteen, 0x0EU);
         }
-        call(LegacyStandardModeCatalogInputCommand::exit);
+        call(LegacySystemMenuInputCommand::exit);
         return result;
     }
     if (interaction_mode == 10U) {
         if ((input_flags & 0x0FU) != 0U) {
-            call(LegacyStandardModeCatalogInputCommand::commit);
+            call(LegacySystemMenuInputCommand::commit);
         }
         return result;
     }
@@ -799,7 +797,7 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
                     static_cast<std::uint64_t>(0xCCCCCCCDU) * operand;
                 set_legacy(static_cast<compat::u32>(product));
                 state.selected_entry = static_cast<compat::u32>(product >> 36U);
-                call(LegacyStandardModeCatalogInputCommand::commit);
+                call(LegacySystemMenuInputCommand::commit);
             }
             return result;
         }
@@ -810,7 +808,7 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
                 pointer_x < 0x1D4U && pointer_x > 0x1BCU) {
                 state.selected_entry = selection;
                 if ((input_flags & 0x03U) != 0U) {
-                    call(LegacyStandardModeCatalogInputCommand::commit);
+                    call(LegacySystemMenuInputCommand::commit);
                 }
                 return true;
             }
@@ -830,9 +828,9 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
             static_cast<std::uint64_t>(0x88888889U) * operand;
         state.interaction_mode = 0U;
         state.interaction_page = static_cast<compat::u32>(product >> 37U);
-        call(LegacyStandardModeCatalogInputCommand::commit);
+        call(LegacySystemMenuInputCommand::commit);
         call(
-            LegacyStandardModeCatalogInputCommand::play_sample,
+            LegacySystemMenuInputCommand::play_sample,
             state.message_sample_owner
         );
         return result;
@@ -858,13 +856,13 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
             state.interaction_page = 4U;
             state.selected_row = static_cast<compat::u32>(product >> 35U);
             if ((input_flags & 0x01U) != 0U) {
-                call(LegacyStandardModeCatalogInputCommand::commit);
+                call(LegacySystemMenuInputCommand::commit);
             }
             return result;
         }
 
-        set_legacy(state.catalog_available);
-        if (state.catalog_available == 0U || pointer_y >= 0x1FCU) {
+        set_legacy(state.system_menu_available);
+        if (state.system_menu_available == 0U || pointer_y >= 0x1FCU) {
             return result;
         }
         compat::i32 row = 0;
@@ -887,7 +885,7 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
                     clamp_row(0x0B);
                     state.message_sample_owner = static_cast<compat::u32>(row);
                     call(
-                        LegacyStandardModeCatalogInputCommand::play_sample,
+                        LegacySystemMenuInputCommand::play_sample,
                         static_cast<compat::u32>(row)
                     );
                 }
@@ -899,7 +897,7 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
                     clamp_row(0x0B);
                     state.message_font = static_cast<compat::u32>(row);
                     call(
-                        LegacyStandardModeCatalogInputCommand::apply_font,
+                        LegacySystemMenuInputCommand::apply_font,
                         static_cast<compat::u32>(row)
                     );
                 }
@@ -917,15 +915,9 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
             if (pointer_x < 0x101U && pointer_x > 0xE2U) {
                 state.selected_row = 3U;
                 if (row >= 0) {
-                    call(
-                        LegacyStandardModeCatalogInputCommand::remove_service,
-                        0x48U
-                    );
+                    call(LegacySystemMenuInputCommand::remove_service, 0x48U);
                     if (row != 0) {
-                        call(
-                            LegacyStandardModeCatalogInputCommand::add_service,
-                            0x48U
-                        );
+                        call(LegacySystemMenuInputCommand::add_service, 0x48U);
                     }
                 }
                 return result;
@@ -954,7 +946,7 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
         }
         if (pointer_y > 0x5EU && pointer_x < 0x161U && pointer_x > 0x142U) {
             state.selected_row = 6U;
-            call(LegacyStandardModeCatalogInputCommand::commit);
+            call(LegacySystemMenuInputCommand::commit);
         }
         return result;
     }
@@ -971,20 +963,18 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
         set_legacy(static_cast<compat::u32>(product));
         state.detail_selection = static_cast<compat::u32>(product >> 36U);
         if ((input_flags & 0x01U) != 0U) {
-            call(LegacyStandardModeCatalogInputCommand::commit);
+            call(LegacySystemMenuInputCommand::commit);
         }
     }
     return result;
 }
 
-LegacyStandardModeTransitionPairRebuildResult
-rebuild_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+LegacyCharacterAttributesRebuildResult rebuild_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionPairRebuildResult result;
+    LegacyCharacterAttributesRebuildResult result;
     if (!state.second_record_available) {
-        result.status = LegacyStandardModeTransitionPairRebuildStatus::
+        result.status = LegacyCharacterAttributesRebuildStatus::
             second_record_unavailable_stopped;
         return result;
     }
@@ -992,12 +982,12 @@ rebuild_legacy_standard_mode_transition_pair(
 
     const compat::u16 mode = static_cast<compat::u16>(state.mode_word);
     if (mode >= state.render_modes.size()) {
-        result.status = LegacyStandardModeTransitionPairRebuildStatus::
-            mode_out_of_range_stopped;
+        result.status =
+            LegacyCharacterAttributesRebuildStatus::mode_out_of_range_stopped;
         return result;
     }
     if (!state.first_record_available) {
-        result.status = LegacyStandardModeTransitionPairRebuildStatus::
+        result.status = LegacyCharacterAttributesRebuildStatus::
             first_record_unavailable_stopped;
         return result;
     }
@@ -1016,7 +1006,7 @@ rebuild_legacy_standard_mode_transition_pair(
     state.first_record.bonuses = {};
 
     for (const auto& contribution : state.contributions[mode]) {
-        ports.accumulate_transition_pair_record(state, contribution);
+        ports.accumulate_character_attributes_record(state, contribution);
         ++result.helper_call_count;
         ++result.contribution_count;
     }
@@ -1049,7 +1039,7 @@ rebuild_legacy_standard_mode_transition_pair(
         const auto& contribution =
             state.contributions[mode][contribution_index];
         if (!contribution.available) {
-            result.status = LegacyStandardModeTransitionPairRebuildStatus::
+            result.status = LegacyCharacterAttributesRebuildStatus::
                 contribution_unavailable_stopped;
             return result;
         }
@@ -1065,7 +1055,7 @@ rebuild_legacy_standard_mode_transition_pair(
         const auto& contribution =
             state.contributions[mode][contribution_index];
         if (!contribution.available) {
-            result.status = LegacyStandardModeTransitionPairRebuildStatus::
+            result.status = LegacyCharacterAttributesRebuildStatus::
                 contribution_unavailable_stopped;
             return result;
         }
@@ -1073,10 +1063,10 @@ rebuild_legacy_standard_mode_transition_pair(
             continue;
         }
         const auto scale =
-            ports.query_transition_pair_scale(contribution.lookup_key);
+            ports.query_character_attributes_scale(contribution.lookup_key);
         ++result.helper_call_count;
         if (scale.divisor == 0U) {
-            result.status = LegacyStandardModeTransitionPairRebuildStatus::
+            result.status = LegacyCharacterAttributesRebuildStatus::
                 scale_divisor_zero_stopped;
             return result;
         }
@@ -1104,53 +1094,45 @@ rebuild_legacy_standard_mode_transition_pair(
     return result;
 }
 
-LegacyStandardModeTransitionPairResult
-initialize_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+LegacyCharacterAttributesResult initialize_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionPairResult result;
+    LegacyCharacterAttributesResult result;
     if (static_cast<compat::u16>(state.mode_word) == 5U) {
         state.mode_word &= 0xFFFF0000U;
     }
-    state.first_owner = ports.allocate_transition_pair_buffer(0x38U);
+    state.first_owner = ports.allocate_character_attributes_buffer(0x38U);
     state.first_record_available = state.first_owner != 0U;
-    state.second_owner = ports.allocate_transition_pair_buffer(0x38U);
+    state.second_owner = ports.allocate_character_attributes_buffer(0x38U);
     state.second_record_available = state.second_owner != 0U;
     result.helper_call_count = 2U;
-    const auto rebuild =
-        rebuild_legacy_standard_mode_transition_pair(state, ports);
+    const auto rebuild = rebuild_legacy_character_attributes(state, ports);
     result.legacy_return_value = rebuild.legacy_return_value;
     ++result.helper_call_count;
-    if (rebuild.status !=
-        LegacyStandardModeTransitionPairRebuildStatus::completed) {
-        result.status = LegacyStandardModeTransitionPairStatus::rebuild_stopped;
+    if (rebuild.status != LegacyCharacterAttributesRebuildStatus::completed) {
+        result.status = LegacyCharacterAttributesStatus::rebuild_stopped;
     }
     return result;
 }
 
-LegacyStandardModeTransitionPairResult
-release_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+LegacyCharacterAttributesResult release_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionPairResult result;
+    LegacyCharacterAttributesResult result;
     result.legacy_return_value =
-        ports.release_transition_pair_buffer(state.first_owner);
+        ports.release_character_attributes_buffer(state.first_owner);
     state.first_record_available = false;
     result.legacy_return_value =
-        ports.release_transition_pair_buffer(state.second_owner);
+        ports.release_character_attributes_buffer(state.second_owner);
     state.second_record_available = false;
     result.helper_call_count = 2U;
     return result;
 }
 
-LegacyStandardModeTransitionPairResult
-advance_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+LegacyCharacterAttributesResult advance_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionPairResult result;
+    LegacyCharacterAttributesResult result;
     constexpr compat::u32 kModeDomainSize = 4U;
     const compat::u16 first_mode = static_cast<compat::u16>(
         (static_cast<compat::u16>(state.mode_word) + 1U) % kModeDomainSize
@@ -1163,16 +1145,17 @@ advance_legacy_standard_mode_transition_pair(
             state.mode_word = (state.mode_word & 0xFFFF0000U) | candidate;
             result.target_mode = candidate;
             const auto rebuild =
-                rebuild_legacy_standard_mode_transition_pair(state, ports);
+                rebuild_legacy_character_attributes(state, ports);
             ++result.helper_call_count;
             if (rebuild.status !=
-                LegacyStandardModeTransitionPairRebuildStatus::completed) {
+                LegacyCharacterAttributesRebuildStatus::completed) {
                 result.status =
-                    LegacyStandardModeTransitionPairStatus::rebuild_stopped;
+                    LegacyCharacterAttributesStatus::rebuild_stopped;
                 return result;
             }
-            result.legacy_return_value =
-                ports.play_transition_pair_sample(0x107U, state.sample_owner);
+            result.legacy_return_value = ports.play_character_attributes_sample(
+                0x107U, state.sample_owner
+            );
             ++result.helper_call_count;
             return result;
         }
@@ -1181,17 +1164,15 @@ advance_legacy_standard_mode_transition_pair(
     }
 
     result.status =
-        LegacyStandardModeTransitionPairStatus::unavailable_mode_domain_stopped;
+        LegacyCharacterAttributesStatus::unavailable_mode_domain_stopped;
     result.target_mode = candidate;
     return result;
 }
 
-LegacyStandardModeTransitionPairResult
-retreat_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+LegacyCharacterAttributesResult retreat_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionPairResult result;
+    LegacyCharacterAttributesResult result;
     constexpr compat::u32 kModeDomainSize = 4U;
     compat::u16 candidate = static_cast<compat::u16>(state.mode_word);
     for (compat::u32 checked = 0U; checked < kModeDomainSize; ++checked) {
@@ -1202,43 +1183,38 @@ retreat_legacy_standard_mode_transition_pair(
             state.mode_word = (state.mode_word & 0xFFFF0000U) | candidate;
             result.target_mode = candidate;
             const auto rebuild =
-                rebuild_legacy_standard_mode_transition_pair(state, ports);
+                rebuild_legacy_character_attributes(state, ports);
             ++result.helper_call_count;
             if (rebuild.status !=
-                LegacyStandardModeTransitionPairRebuildStatus::completed) {
+                LegacyCharacterAttributesRebuildStatus::completed) {
                 result.status =
-                    LegacyStandardModeTransitionPairStatus::rebuild_stopped;
+                    LegacyCharacterAttributesStatus::rebuild_stopped;
                 return result;
             }
-            result.legacy_return_value =
-                ports.play_transition_pair_sample(0x107U, state.sample_owner);
+            result.legacy_return_value = ports.play_character_attributes_sample(
+                0x107U, state.sample_owner
+            );
             ++result.helper_call_count;
             return result;
         }
     }
     result.status =
-        LegacyStandardModeTransitionPairStatus::unavailable_mode_domain_stopped;
+        LegacyCharacterAttributesStatus::unavailable_mode_domain_stopped;
     result.target_mode = candidate;
     return result;
 }
 
-LegacyStandardModeTransitionPairResult
-retreat_wrapped_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+LegacyCharacterAttributesResult retreat_wrapped_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept {
-    return retreat_legacy_standard_mode_transition_pair(state, ports);
+    return retreat_legacy_character_attributes(state, ports);
 }
 
-LegacyStandardModeTransitionPairResult
-commit_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+LegacyCharacterAttributesResult commit_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionPairResult result;
-    static_cast<void>(
-        release_legacy_standard_mode_transition_pair(state, ports)
-    );
+    LegacyCharacterAttributesResult result;
+    static_cast<void>(release_legacy_character_attributes(state, ports));
     ++result.helper_call_count;
     state.interaction_mode =
         static_cast<compat::u16>(state.interaction_mode - 1U);
@@ -1246,51 +1222,49 @@ commit_legacy_standard_mode_transition_pair(
         state.active_owner = 0U;
     }
     result.legacy_return_value =
-        ports.dispatch_transition_pair_callback(state.interaction_mode);
+        ports.dispatch_character_attributes_callback(state.interaction_mode);
     ++result.helper_call_count;
     return result;
 }
 
-LegacyStandardModeTransitionPairOverlayResult
-draw_legacy_standard_mode_transition_pair_overlay(
+LegacyCharacterAttributesOverlayResult draw_legacy_character_attributes_overlay(
     const compat::i32 value,
     const compat::i32 x,
     const compat::i32 y,
     const compat::i32 threshold,
-    const LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+    const LegacyCharacterAttributesState& state,
+    LegacyCharacterAttributesPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionPairOverlayResult result;
+    LegacyCharacterAttributesOverlayResult result;
     if (value == 0) {
         return result;
     }
-    const auto emit =
-        [&result, &ports](
-            const LegacyStandardModeTransitionPairRenderCommandType type,
-            const LegacyStandardModeTransitionPairRenderText text,
-            const std::initializer_list<compat::i32> arguments
-        ) {
-            LegacyStandardModeTransitionPairRenderCommand command;
-            command.type = type;
-            command.text = text;
-            std::copy(
-                arguments.begin(), arguments.end(), command.arguments.begin()
-            );
-            result.legacy_return_value =
-                ports.execute_transition_pair_render_command(command);
-            ++result.helper_call_count;
-            ++result.command_count;
-            return result.legacy_return_value;
-        };
+    const auto emit = [&result, &ports](
+                          const LegacyCharacterAttributesRenderCommandType type,
+                          const LegacyCharacterAttributesRenderText text,
+                          const std::initializer_list<compat::i32> arguments
+                      ) {
+        LegacyCharacterAttributesRenderCommand command;
+        command.type = type;
+        command.text = text;
+        std::copy(
+            arguments.begin(), arguments.end(), command.arguments.begin()
+        );
+        result.legacy_return_value =
+            ports.execute_character_attributes_render_command(command);
+        ++result.helper_call_count;
+        ++result.command_count;
+        return result.legacy_return_value;
+    };
     compat::i32 color = emit(
-        LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
-        LegacyStandardModeTransitionPairRenderText::none,
+        LegacyCharacterAttributesRenderCommandType::calculate_color,
+        LegacyCharacterAttributesRenderText::none,
         {0x1F, 0x1F, 0x1F}
     );
     if (value < 0) {
         color = emit(
-            LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
-            LegacyStandardModeTransitionPairRenderText::none,
+            LegacyCharacterAttributesRenderCommandType::calculate_color,
+            LegacyCharacterAttributesRenderText::none,
             {0x1A, 0, 0}
         );
     }
@@ -1310,13 +1284,13 @@ draw_legacy_standard_mode_transition_pair_overlay(
         std::bit_cast<compat::i32>((value_bits ^ sign_mask) - sign_mask);
     const compat::i32 sign = value > 0 ? 0x2B : 0x2D;
     emit(
-        LegacyStandardModeTransitionPairRenderCommandType::format_text,
-        LegacyStandardModeTransitionPairRenderText::overlay_value,
+        LegacyCharacterAttributesRenderCommandType::format_text,
+        LegacyCharacterAttributesRenderText::overlay_value,
         {sign, magnitude}
     );
     emit(
-        LegacyStandardModeTransitionPairRenderCommandType::draw_text,
-        LegacyStandardModeTransitionPairRenderText::overlay_value,
+        LegacyCharacterAttributesRenderCommandType::draw_text,
+        LegacyCharacterAttributesRenderText::overlay_value,
         {2,
          std::bit_cast<compat::i32>(state.render_surface),
          offset + x + 4,
@@ -1329,38 +1303,33 @@ draw_legacy_standard_mode_transition_pair_overlay(
     return result;
 }
 
-LegacyStandardModeTransitionPairRenderResult
-render_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+LegacyCharacterAttributesRenderResult render_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionPairRenderResult result;
-    const auto emit =
-        [&result, &ports](
-            const LegacyStandardModeTransitionPairRenderCommandType type,
-            const LegacyStandardModeTransitionPairRenderText text,
-            const std::initializer_list<compat::i32> arguments
-        ) {
-            LegacyStandardModeTransitionPairRenderCommand command;
-            command.type = type;
-            command.text = text;
-            std::copy(
-                arguments.begin(), arguments.end(), command.arguments.begin()
-            );
-            result.legacy_return_value =
-                ports.execute_transition_pair_render_command(command);
-            ++result.helper_call_count;
-            ++result.command_count;
-            return result.legacy_return_value;
-        };
+    LegacyCharacterAttributesRenderResult result;
+    const auto emit = [&result, &ports](
+                          const LegacyCharacterAttributesRenderCommandType type,
+                          const LegacyCharacterAttributesRenderText text,
+                          const std::initializer_list<compat::i32> arguments
+                      ) {
+        LegacyCharacterAttributesRenderCommand command;
+        command.type = type;
+        command.text = text;
+        std::copy(
+            arguments.begin(), arguments.end(), command.arguments.begin()
+        );
+        result.legacy_return_value =
+            ports.execute_character_attributes_render_command(command);
+        ++result.helper_call_count;
+        ++result.command_count;
+        return result.legacy_return_value;
+    };
     const auto emit_simple =
         [&emit](
             const auto type, const std::initializer_list<compat::i32> arguments
         ) {
             return emit(
-                type,
-                LegacyStandardModeTransitionPairRenderText::none,
-                arguments
+                type, LegacyCharacterAttributesRenderText::none, arguments
             );
         };
     const compat::i32 render_surface =
@@ -1368,53 +1337,53 @@ render_legacy_standard_mode_transition_pair(
     const compat::i32 packed_effect = std::bit_cast<compat::i32>(0x80000008U);
 
     const compat::i32 primary_color = emit_simple(
-        LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+        LegacyCharacterAttributesRenderCommandType::calculate_color,
         {0x19, 0x17, 0x11}
     );
     const compat::u16 zero_color = static_cast<compat::u16>(primary_color);
     static_cast<void>(emit_simple(
-        LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+        LegacyCharacterAttributesRenderCommandType::calculate_color,
         {0x0D, 0x0D, 9}
     ));
     const compat::u16 small_negative_color =
         static_cast<compat::u16>(emit_simple(
-            LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+            LegacyCharacterAttributesRenderCommandType::calculate_color,
             {2, 0x0E, 0x1D}
         ));
     const compat::u16 positive_color = static_cast<compat::u16>(emit_simple(
-        LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+        LegacyCharacterAttributesRenderCommandType::calculate_color,
         {0x1C, 2, 2}
     ));
     const compat::u16 large_negative_color =
         static_cast<compat::u16>(emit_simple(
-            LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+            LegacyCharacterAttributesRenderCommandType::calculate_color,
             {2, 0x1C, 0x0D}
         ));
     emit_simple(
-        LegacyStandardModeTransitionPairRenderCommandType::draw_tiled_frame,
+        LegacyCharacterAttributesRenderCommandType::draw_tiled_frame,
         {state.render_palette, 0xD0, 0x3C, 0x13C, 0x50, 0, packed_effect}
     );
 
     const compat::u16 mode = static_cast<compat::u16>(state.mode_word);
     if (mode >= state.render_modes.size()) {
-        result.status = LegacyStandardModeTransitionPairRenderStatus::
-            mode_out_of_range_stopped;
+        result.status =
+            LegacyCharacterAttributesRenderStatus::mode_out_of_range_stopped;
         return result;
     }
     emit(
-        LegacyStandardModeTransitionPairRenderCommandType::draw_text,
-        LegacyStandardModeTransitionPairRenderText::mode_name,
+        LegacyCharacterAttributesRenderCommandType::draw_text,
+        LegacyCharacterAttributesRenderText::mode_name,
         {0, render_surface, 0xD4, 0x3D, mode, primary_color, 4}
     );
     const compat::i32 first_panel_result = emit_simple(
-        LegacyStandardModeTransitionPairRenderCommandType::draw_panel,
+        LegacyCharacterAttributesRenderCommandType::draw_panel,
         {0xC8, 0x60, 0xB4, 0x16E, 0, 0, 0, 2}
     );
     const compat::u32 second_frame_register =
         (std::bit_cast<compat::u32>(first_panel_result) & 0xFFFF0000U) |
         state.render_palette;
     emit_simple(
-        LegacyStandardModeTransitionPairRenderCommandType::draw_tiled_frame,
+        LegacyCharacterAttributesRenderCommandType::draw_tiled_frame,
         {std::bit_cast<compat::i32>(second_frame_register),
          0xD0,
          0x68,
@@ -1424,14 +1393,14 @@ render_legacy_standard_mode_transition_pair(
          packed_effect}
     );
     static_cast<void>(emit_simple(
-        LegacyStandardModeTransitionPairRenderCommandType::draw_panel,
+        LegacyCharacterAttributesRenderCommandType::draw_panel,
         {0x186, 0x60, 0xEC, 0x140, 0, 0, 0, 2}
     ));
     const compat::u32 third_frame_register =
         (state.third_frame_register_snapshot & 0xFFFF0000U) |
         state.render_palette;
     emit_simple(
-        LegacyStandardModeTransitionPairRenderCommandType::draw_tiled_frame,
+        LegacyCharacterAttributesRenderCommandType::draw_tiled_frame,
         {std::bit_cast<compat::i32>(third_frame_register),
          0x18E,
          0x68,
@@ -1442,102 +1411,94 @@ render_legacy_standard_mode_transition_pair(
     );
     for (compat::i32 variant = 0x2D; variant <= 0x2F; ++variant) {
         emit_simple(
-            LegacyStandardModeTransitionPairRenderCommandType::draw_action,
+            LegacyCharacterAttributesRenderCommandType::draw_action,
             {0x232A, variant, 0x14A + 0x64 * (variant - 0x2D), 0x3E}
         );
     }
 
     if (!state.first_record_available) {
-        result.status = LegacyStandardModeTransitionPairRenderStatus::
+        result.status = LegacyCharacterAttributesRenderStatus::
             first_record_unavailable_stopped;
         return result;
     }
     const auto format_and_draw =
         [&emit, render_surface, primary_color](
-            const LegacyStandardModeTransitionPairRenderText text,
+            const LegacyCharacterAttributesRenderText text,
             const compat::i32 value,
             const compat::i32 font,
             const compat::i32 x,
             const compat::i32 y
         ) {
             emit(
-                LegacyStandardModeTransitionPairRenderCommandType::format_text,
+                LegacyCharacterAttributesRenderCommandType::format_text,
                 text,
                 {value}
             );
             emit(
-                LegacyStandardModeTransitionPairRenderCommandType::draw_text,
+                LegacyCharacterAttributesRenderCommandType::draw_text,
                 text,
                 {font, render_surface, x, y, value, primary_color, 4}
             );
         };
     format_and_draw(
-        LegacyStandardModeTransitionPairRenderText::decimal,
+        LegacyCharacterAttributesRenderText::decimal,
         state.first_record.values[0U] + state.first_record.bonuses[0U],
         1,
         0x17C,
         0x3E
     );
     format_and_draw(
-        LegacyStandardModeTransitionPairRenderText::decimal,
+        LegacyCharacterAttributesRenderText::decimal,
         state.first_record.values[1U] + state.first_record.bonuses[1U],
         1,
         0x1E0,
         0x3E
     );
     format_and_draw(
-        LegacyStandardModeTransitionPairRenderText::decimal,
+        LegacyCharacterAttributesRenderText::decimal,
         state.first_record.values[3U],
         1,
         0x244,
         0x3E
     );
     format_and_draw(
-        LegacyStandardModeTransitionPairRenderText::level,
+        LegacyCharacterAttributesRenderText::level,
         state.first_record.level,
         1,
         0xB4,
         0x6A
     );
     const compat::i32 calculated_value = emit_simple(
-        LegacyStandardModeTransitionPairRenderCommandType::calculate_value,
+        LegacyCharacterAttributesRenderCommandType::calculate_value,
         {static_cast<compat::i32>(mode) + 1,
          static_cast<compat::i32>(state.first_record.level) + 1}
     );
     format_and_draw(
-        LegacyStandardModeTransitionPairRenderText::value_label,
-        0,
-        1,
-        0xB4,
-        0x83
+        LegacyCharacterAttributesRenderText::value_label, 0, 1, 0xB4, 0x83
     );
     format_and_draw(
-        LegacyStandardModeTransitionPairRenderText::decimal_wide,
+        LegacyCharacterAttributesRenderText::decimal_wide,
         std::bit_cast<compat::i32>(state.render_modes[mode].primary_value),
         0,
         0x117,
         0x88
     );
     format_and_draw(
-        LegacyStandardModeTransitionPairRenderText::calculated_label,
-        0,
-        1,
-        0xB4,
-        0x9C
+        LegacyCharacterAttributesRenderText::calculated_label, 0, 1, 0xB4, 0x9C
     );
     format_and_draw(
-        LegacyStandardModeTransitionPairRenderText::decimal_wide,
+        LegacyCharacterAttributesRenderText::decimal_wide,
         calculated_value,
         0,
         0x117,
         0xA1
     );
-    static constexpr std::array<LegacyStandardModeTransitionPairRenderText, 4U>
+    static constexpr std::array<LegacyCharacterAttributesRenderText, 4U>
         kAttributeText{
-            LegacyStandardModeTransitionPairRenderText::attribute_zero,
-            LegacyStandardModeTransitionPairRenderText::attribute_one,
-            LegacyStandardModeTransitionPairRenderText::attribute_two,
-            LegacyStandardModeTransitionPairRenderText::attribute_three,
+            LegacyCharacterAttributesRenderText::attribute_zero,
+            LegacyCharacterAttributesRenderText::attribute_one,
+            LegacyCharacterAttributesRenderText::attribute_two,
+            LegacyCharacterAttributesRenderText::attribute_three,
         };
     static constexpr std::array<compat::i32, 4U> kAttributeY{
         0xB5, 0xCE, 0xE7, 0x100
@@ -1554,7 +1515,7 @@ render_legacy_standard_mode_transition_pair(
     );
 
     if (!state.second_record_available) {
-        result.status = LegacyStandardModeTransitionPairRenderStatus::
+        result.status = LegacyCharacterAttributesRenderStatus::
             second_record_unavailable_stopped;
         return result;
     }
@@ -1569,50 +1530,47 @@ render_legacy_standard_mode_transition_pair(
             );
         }
         if (state.second_record.values[index] != 0U) {
-            const auto overlay =
-                draw_legacy_standard_mode_transition_pair_overlay(
-                    std::bit_cast<compat::i16>(
-                        state.second_record.values[index]
-                    ),
-                    0x117,
-                    kOverlayY[index],
-                    state.first_record.values[index],
-                    state,
-                    ports
-                );
+            const auto overlay = draw_legacy_character_attributes_overlay(
+                std::bit_cast<compat::i16>(state.second_record.values[index]),
+                0x117,
+                kOverlayY[index],
+                state.first_record.values[index],
+                state,
+                ports
+            );
             result.legacy_return_value = overlay.legacy_return_value;
             result.command_count += overlay.command_count;
             result.helper_call_count += overlay.helper_call_count + 1U;
         }
     }
     emit(
-        LegacyStandardModeTransitionPairRenderCommandType::format_text,
-        LegacyStandardModeTransitionPairRenderText::mode_summary,
+        LegacyCharacterAttributesRenderCommandType::format_text,
+        LegacyCharacterAttributesRenderText::mode_summary,
         {mode}
     );
     emit(
-        LegacyStandardModeTransitionPairRenderCommandType::append_text,
-        LegacyStandardModeTransitionPairRenderText::mode_summary,
+        LegacyCharacterAttributesRenderCommandType::append_text,
+        LegacyCharacterAttributesRenderText::mode_summary,
         {mode}
     );
     emit(
-        LegacyStandardModeTransitionPairRenderCommandType::draw_text,
-        LegacyStandardModeTransitionPairRenderText::mode_summary,
+        LegacyCharacterAttributesRenderCommandType::draw_text,
+        LegacyCharacterAttributesRenderText::mode_summary,
         {1, render_surface, 0xB4, 0x132, mode, primary_color, 4}
     );
 
-    static constexpr std::array<LegacyStandardModeTransitionPairRenderText, 10U>
+    static constexpr std::array<LegacyCharacterAttributesRenderText, 10U>
         kStaticText{
-            LegacyStandardModeTransitionPairRenderText::static_zero,
-            LegacyStandardModeTransitionPairRenderText::static_one,
-            LegacyStandardModeTransitionPairRenderText::static_two,
-            LegacyStandardModeTransitionPairRenderText::static_three,
-            LegacyStandardModeTransitionPairRenderText::static_four,
-            LegacyStandardModeTransitionPairRenderText::static_five,
-            LegacyStandardModeTransitionPairRenderText::static_six,
-            LegacyStandardModeTransitionPairRenderText::static_seven,
-            LegacyStandardModeTransitionPairRenderText::static_eight,
-            LegacyStandardModeTransitionPairRenderText::static_nine,
+            LegacyCharacterAttributesRenderText::static_zero,
+            LegacyCharacterAttributesRenderText::static_one,
+            LegacyCharacterAttributesRenderText::static_two,
+            LegacyCharacterAttributesRenderText::static_three,
+            LegacyCharacterAttributesRenderText::static_four,
+            LegacyCharacterAttributesRenderText::static_five,
+            LegacyCharacterAttributesRenderText::static_six,
+            LegacyCharacterAttributesRenderText::static_seven,
+            LegacyCharacterAttributesRenderText::static_eight,
+            LegacyCharacterAttributesRenderText::static_nine,
         };
     static constexpr std::array<compat::i32, 10U> kStaticX{
         0xD2, 0xD2, 0xD2, 0xD2, 0xD2, 0xD2, 0x127, 0x127, 0x127, 0x127
@@ -1622,7 +1580,7 @@ render_legacy_standard_mode_transition_pair(
     };
     for (std::size_t index = 0U; index < kStaticText.size(); ++index) {
         emit(
-            LegacyStandardModeTransitionPairRenderCommandType::draw_text,
+            LegacyCharacterAttributesRenderCommandType::draw_text,
             kStaticText[index],
             {0,
              render_surface,
@@ -1637,35 +1595,32 @@ render_legacy_standard_mode_transition_pair(
     for (std::size_t index = 0U; index < state.first_record.modifiers.size();
          ++index) {
         const compat::i32 modifier = state.first_record.modifiers[index];
-        LegacyStandardModeTransitionPairRenderText text =
-            LegacyStandardModeTransitionPairRenderText::modifier_zero;
+        LegacyCharacterAttributesRenderText text =
+            LegacyCharacterAttributesRenderText::modifier_zero;
         compat::i32 displayed_value = 0;
         compat::u16 color = zero_color;
         if (modifier == 0) {
             // The zero format and color were selected before this loop.
         } else if (modifier > 0) {
-            text =
-                LegacyStandardModeTransitionPairRenderText::modifier_positive;
+            text = LegacyCharacterAttributesRenderText::modifier_positive;
             displayed_value = modifier;
             color = positive_color;
         } else if (modifier > -10) {
-            text = LegacyStandardModeTransitionPairRenderText::
-                modifier_small_negative;
+            text = LegacyCharacterAttributesRenderText::modifier_small_negative;
             displayed_value = -modifier;
             color = small_negative_color;
         } else {
-            text = LegacyStandardModeTransitionPairRenderText::
-                modifier_large_negative;
+            text = LegacyCharacterAttributesRenderText::modifier_large_negative;
             displayed_value = -10 - modifier;
             color = large_negative_color;
         }
         emit(
-            LegacyStandardModeTransitionPairRenderCommandType::format_text,
+            LegacyCharacterAttributesRenderCommandType::format_text,
             text,
             {displayed_value}
         );
         emit(
-            LegacyStandardModeTransitionPairRenderCommandType::draw_text,
+            LegacyCharacterAttributesRenderCommandType::draw_text,
             text,
             {2,
              render_surface,
@@ -1677,18 +1632,16 @@ render_legacy_standard_mode_transition_pair(
         );
     }
     emit_simple(
-        LegacyStandardModeTransitionPairRenderCommandType::draw_final_panel,
+        LegacyCharacterAttributesRenderCommandType::draw_final_panel,
         {0x18E, 0x66, 0, 0xA4, 0x14}
     );
     return result;
 }
 
-LegacyStandardModeTransitionPairResult
-update_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+LegacyCharacterAttributesResult update_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionPairResult result;
+    LegacyCharacterAttributesResult result;
     const compat::u8 input_snapshot = state.input_flags;
     result.legacy_return_value = input_snapshot;
     if ((input_snapshot & 0x03U) != 0U && state.interaction_mode == 2U) {
@@ -1697,7 +1650,7 @@ update_legacy_standard_mode_transition_pair(
             state.pointer_y < 0xBCU && state.pointer_y > 4U) {
             result.target_mode = (state.pointer_x - 0x0AU) / 0x6EU;
             result.legacy_return_value =
-                ports.query_transition_pair_item_presence(
+                ports.query_character_attributes_item_presence(
                     result.target_mode + 0x1EU
                 );
             ++result.helper_call_count;
@@ -1709,11 +1662,11 @@ update_legacy_standard_mode_transition_pair(
             for (compat::u32 checked = 0U; checked < kModeDomainSize;
                  ++checked) {
                 const auto advance =
-                    advance_legacy_standard_mode_transition_pair(state, ports);
+                    advance_legacy_character_attributes(state, ports);
                 result.legacy_return_value = advance.legacy_return_value;
                 ++result.helper_call_count;
                 if (advance.status !=
-                    LegacyStandardModeTransitionPairStatus::completed) {
+                    LegacyCharacterAttributesStatus::completed) {
                     result.status = advance.status;
                     return result;
                 }
@@ -1722,8 +1675,8 @@ update_legacy_standard_mode_transition_pair(
                     break;
                 }
                 if (checked + 1U == kModeDomainSize) {
-                    result.status = LegacyStandardModeTransitionPairStatus::
-                        cycle_domain_stopped;
+                    result.status =
+                        LegacyCharacterAttributesStatus::cycle_domain_stopped;
                     return result;
                 }
             }
@@ -1731,8 +1684,7 @@ update_legacy_standard_mode_transition_pair(
     }
 
     if ((state.input_flags & 0x04U) != 0U) {
-        const auto commit =
-            commit_legacy_standard_mode_transition_pair(state, ports);
+        const auto commit = commit_legacy_character_attributes(state, ports);
         result.legacy_return_value = commit.legacy_return_value;
         ++result.helper_call_count;
     }
@@ -1741,12 +1693,10 @@ update_legacy_standard_mode_transition_pair(
     return result;
 }
 
-LegacyStandardModeTransitionConfirmationResult
-confirm_legacy_standard_mode_transition(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+LegacyTitleMenuConfirmationResult confirm_legacy_title_menu_selection(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionConfirmationResult result;
+    LegacyTitleMenuConfirmationResult result;
     result.legacy_return_value = static_cast<compat::i32>(state.progress) - 1;
     if (state.progress != 1U) {
         return result;
@@ -1768,8 +1718,8 @@ confirm_legacy_standard_mode_transition(
         try {
             state.mode_one_overlay_storage.resize(0x20U);
         } catch (const std::bad_alloc&) {
-            result.status = LegacyStandardModeTransitionConfirmationStatus::
-                overlay_allocation_stopped;
+            result.status =
+                LegacyTitleMenuConfirmationStatus::overlay_allocation_stopped;
             return result;
         }
         ++state.velocity;
@@ -1778,8 +1728,7 @@ confirm_legacy_standard_mode_transition(
         ++result.helper_call_count;
         state.mode_one_overlay_owner =
             static_cast<compat::u32>(result.legacy_return_value);
-        result.path =
-            LegacyStandardModeTransitionConfirmationPath::overlay_started;
+        result.path = LegacyTitleMenuConfirmationPath::overlay_started;
         return result;
     }
 
@@ -1791,8 +1740,7 @@ confirm_legacy_standard_mode_transition(
         state.velocity = 0;
         state.mode_one_action_id = 0x232AU;
         state.mode_one_action_variant = 0x22U;
-        result.path =
-            LegacyStandardModeTransitionConfirmationPath::settings_opened;
+        result.path = LegacyTitleMenuConfirmationPath::settings_opened;
         return result;
     }
 
@@ -1802,18 +1750,15 @@ confirm_legacy_standard_mode_transition(
         ports.start_mode_one_command(0x10U, 0x19U);
         result.legacy_return_value = ports.finalize_mode_one_command();
         result.helper_call_count += 2U;
-        result.path =
-            LegacyStandardModeTransitionConfirmationPath::command_dispatched;
+        result.path = LegacyTitleMenuConfirmationPath::command_dispatched;
     }
     return result;
 }
 
-LegacyStandardModeTransitionVisualResult
-initialize_legacy_standard_mode_transition_visual(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+LegacyTitleMenuResult initialize_legacy_title_menu(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionVisualResult result;
+    LegacyTitleMenuResult result;
     state.bounds.fill(-16);
     state.enabled = 0U;
     state.velocity = -6;
@@ -1828,8 +1773,7 @@ initialize_legacy_standard_mode_transition_visual(
         );
         if (!ports.capture_framebuffer(state.framebuffer_snapshot)) {
             state.framebuffer_snapshot.clear();
-            result.status = LegacyStandardModeTransitionVisualStatus::
-                snapshot_allocation_stopped;
+            result.status = LegacyTitleMenuStatus::snapshot_allocation_stopped;
             return result;
         }
         ++result.helper_call_count;
@@ -1837,14 +1781,13 @@ initialize_legacy_standard_mode_transition_visual(
     if (state.mode == 3U) {
         state.progress = 1U;
         state.enabled = 1U;
-        const LegacyStandardModeTransitionConfirmationResult confirmation =
-            confirm_legacy_standard_mode_transition(state, ports);
+        const LegacyTitleMenuConfirmationResult confirmation =
+            confirm_legacy_title_menu_selection(state, ports);
         result.legacy_return_value = confirmation.legacy_return_value;
         result.helper_call_count += confirmation.helper_call_count + 1U;
         if (confirmation.status !=
-            LegacyStandardModeTransitionConfirmationStatus::completed) {
-            result.status =
-                LegacyStandardModeTransitionVisualStatus::confirmation_stopped;
+            LegacyTitleMenuConfirmationStatus::completed) {
+            result.status = LegacyTitleMenuStatus::confirmation_stopped;
             return result;
         }
     }
@@ -1866,12 +1809,10 @@ initialize_legacy_standard_mode_transition_visual(
     return result;
 }
 
-LegacyStandardModeTransitionInteractionResult
-update_legacy_standard_mode_transition_interaction(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+LegacyTitleMenuInputResult update_legacy_title_menu_input(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionInteractionResult result;
+    LegacyTitleMenuInputResult result;
     result.legacy_return_value = static_cast<compat::u8>(state.progress);
     const auto inside = [](const compat::u32 value,
                            const compat::u32 lower,
@@ -1885,15 +1826,14 @@ update_legacy_standard_mode_transition_interaction(
                 inside(state.pointer_y, 0x101U, 0x112U) &&
                 inside(state.pointer_x, 0x162U, 0x198U)) {
                 state.selection_result = 1U;
-                result.path = LegacyStandardModeTransitionInteractionPath::
-                    mode_two_first_selected;
+                result.path = LegacyTitleMenuInputPath::mode_two_first_selected;
                 result.legacy_return_value = 1U;
             } else if (
                 state.secondary_state == 1U && state.secondary_gate == 1U
             ) {
                 state.selection_result = 2U;
-                result.path = LegacyStandardModeTransitionInteractionPath::
-                    mode_two_second_selected;
+                result.path =
+                    LegacyTitleMenuInputPath::mode_two_second_selected;
                 result.legacy_return_value = 2U;
             }
         }
@@ -1911,13 +1851,11 @@ update_legacy_standard_mode_transition_interaction(
                 return;
             }
             state.enabled = selection;
-            result.path = LegacyStandardModeTransitionInteractionPath::
-                mode_one_selection_changed;
+            result.path = LegacyTitleMenuInputPath::mode_one_selection_changed;
             result.legacy_return_value = static_cast<compat::u8>(selection);
             if ((state.input_flags & 3U) != 0U) {
-                const LegacyStandardModeTransitionConfirmationResult
-                    confirmation =
-                        confirm_legacy_standard_mode_transition(state, ports);
+                const LegacyTitleMenuConfirmationResult confirmation =
+                    confirm_legacy_title_menu_selection(state, ports);
                 result.legacy_return_value =
                     static_cast<compat::u8>(confirmation.legacy_return_value);
                 result.helper_call_count += confirmation.helper_call_count + 1U;
@@ -1947,8 +1885,7 @@ update_legacy_standard_mode_transition_interaction(
                 );
                 ++result.helper_call_count;
             }
-            result.path = LegacyStandardModeTransitionInteractionPath::
-                setting_sample_changed;
+            result.path = LegacyTitleMenuInputPath::setting_sample_changed;
             return result;
         }
         if (inside(state.pointer_y, 0x110U, 0x12FU)) {
@@ -1961,8 +1898,7 @@ update_legacy_standard_mode_transition_interaction(
                 );
                 ++result.helper_call_count;
             }
-            result.path = LegacyStandardModeTransitionInteractionPath::
-                setting_surface_changed;
+            result.path = LegacyTitleMenuInputPath::setting_surface_changed;
             return result;
         }
         if (inside(state.pointer_y, 0x130U, 0x14FU)) {
@@ -1973,8 +1909,7 @@ update_legacy_standard_mode_transition_interaction(
                 result.legacy_return_value =
                     static_cast<compat::u8>(5U * column);
             }
-            result.path = LegacyStandardModeTransitionInteractionPath::
-                setting_spacing_changed;
+            result.path = LegacyTitleMenuInputPath::setting_spacing_changed;
             return result;
         }
         if (inside(state.pointer_y, 0x150U, 0x16FU)) {
@@ -1991,8 +1926,7 @@ update_legacy_standard_mode_transition_interaction(
                     ++result.helper_call_count;
                 }
             }
-            result.path = LegacyStandardModeTransitionInteractionPath::
-                setting_toggle_changed;
+            result.path = LegacyTitleMenuInputPath::setting_toggle_changed;
             return result;
         }
         if (inside(state.pointer_y, 0x170U, 0x18FU)) {
@@ -2005,8 +1939,7 @@ update_legacy_standard_mode_transition_interaction(
                 result.legacy_return_value =
                     static_cast<compat::u8>(4U - column);
             }
-            result.path = LegacyStandardModeTransitionInteractionPath::
-                setting_source_changed;
+            result.path = LegacyTitleMenuInputPath::setting_source_changed;
             return result;
         }
         if (inside(state.pointer_y, 0x190U, 0x1AFU)) {
@@ -2014,27 +1947,24 @@ update_legacy_standard_mode_transition_interaction(
             if (valid_column) {
                 state.settings_auxiliary = std::min(column, 0x0BU);
             }
-            result.path = LegacyStandardModeTransitionInteractionPath::
-                setting_auxiliary_changed;
+            result.path = LegacyTitleMenuInputPath::setting_auxiliary_changed;
             return result;
         }
     }
     result.legacy_return_value = static_cast<compat::u8>(state.secondary_gate);
     if (state.secondary_gate != 0U) {
-        const LegacyStandardModeTransitionSettingsCommitResult commit =
-            commit_legacy_standard_mode_transition_settings(state, ports);
+        const LegacyGameSettingsCommitResult commit =
+            commit_legacy_game_settings(state, ports);
         result.legacy_return_value =
             static_cast<compat::u8>(commit.legacy_return_value);
         result.helper_call_count += commit.helper_call_count + 1U;
-        result.path = LegacyStandardModeTransitionInteractionPath::
-            settings_exit_requested;
+        result.path = LegacyTitleMenuInputPath::settings_exit_requested;
     }
     return result;
 }
 
-compat::i32 advance_legacy_standard_mode_transition_selection(
-    LegacyStandardModeTransitionVisualState& state
-) noexcept {
+compat::i32
+advance_legacy_title_menu_selection(LegacyTitleMenuState& state) noexcept {
     if (state.progress == 1U) {
         const compat::i32 residual = static_cast<compat::i32>(++state.enabled);
         if (state.enabled > 3U) {
@@ -2053,9 +1983,8 @@ compat::i32 advance_legacy_standard_mode_transition_selection(
     return advanced_residual;
 }
 
-compat::i32 retreat_legacy_standard_mode_transition_selection(
-    LegacyStandardModeTransitionVisualState& state
-) noexcept {
+compat::i32
+retreat_legacy_title_menu_selection(LegacyTitleMenuState& state) noexcept {
     if (state.progress == 1U) {
         const compat::i32 residual =
             std::bit_cast<compat::i32>(state.enabled) - 1;
@@ -2077,9 +2006,8 @@ compat::i32 retreat_legacy_standard_mode_transition_selection(
     return retreated_residual;
 }
 
-compat::i32 select_legacy_standard_mode_transition_last(
-    LegacyStandardModeTransitionVisualState& state
-) noexcept {
+compat::i32
+select_legacy_title_menu_last(LegacyTitleMenuState& state) noexcept {
     if (state.progress == 1U) {
         state.enabled = 3U;
         return 0;
@@ -2091,9 +2019,8 @@ compat::i32 select_legacy_standard_mode_transition_last(
     return residual;
 }
 
-compat::i32 select_legacy_standard_mode_transition_first(
-    LegacyStandardModeTransitionVisualState& state
-) noexcept {
+compat::i32
+select_legacy_title_menu_first(LegacyTitleMenuState& state) noexcept {
     if (state.progress == 1U) {
         state.enabled = 0U;
         return 0;
@@ -2105,12 +2032,10 @@ compat::i32 select_legacy_standard_mode_transition_first(
     return residual;
 }
 
-LegacyStandardModeTransitionInteractionResult
-retreat_legacy_standard_mode_transition_setting(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+LegacyTitleMenuInputResult decrease_legacy_game_setting(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionInteractionResult result;
+    LegacyTitleMenuInputResult result;
     if (state.progress == 1U) {
         const compat::i32 residual =
             std::bit_cast<compat::i32>(state.enabled) - 1;
@@ -2119,8 +2044,7 @@ retreat_legacy_standard_mode_transition_setting(
             state.enabled = 0U;
         }
         result.legacy_return_value = static_cast<compat::u8>(residual);
-        result.path = LegacyStandardModeTransitionInteractionPath::
-            mode_one_selection_changed;
+        result.path = LegacyTitleMenuInputPath::mode_one_selection_changed;
         return result;
     }
     const compat::i32 progress_residual =
@@ -2142,8 +2066,7 @@ retreat_legacy_standard_mode_transition_setting(
             ports.play_settings_sample(0x2EU, static_cast<compat::u32>(value))
         );
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeTransitionInteractionPath::setting_sample_changed;
+        result.path = LegacyTitleMenuInputPath::setting_sample_changed;
         break;
     }
     case 1: {
@@ -2158,8 +2081,7 @@ retreat_legacy_standard_mode_transition_setting(
             ports.activate_settings_surface(static_cast<compat::u32>(value))
         );
         ++result.helper_call_count;
-        result.path = LegacyStandardModeTransitionInteractionPath::
-            setting_surface_changed;
+        result.path = LegacyTitleMenuInputPath::setting_surface_changed;
         break;
     }
     case 2: {
@@ -2170,16 +2092,14 @@ retreat_legacy_standard_mode_transition_setting(
             state.settings_spacing = 0x3CU;
         }
         result.legacy_return_value = static_cast<compat::u8>(residual);
-        result.path = LegacyStandardModeTransitionInteractionPath::
-            setting_spacing_changed;
+        result.path = LegacyTitleMenuInputPath::setting_spacing_changed;
         break;
     }
     case 3:
         result.legacy_return_value =
             static_cast<compat::u8>(ports.disable_settings_service(0x48U));
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeTransitionInteractionPath::setting_toggle_changed;
+        result.path = LegacyTitleMenuInputPath::setting_toggle_changed;
         break;
     case 4: {
         compat::i32 value =
@@ -2190,8 +2110,7 @@ retreat_legacy_standard_mode_transition_setting(
         state.settings_source_surface = static_cast<compat::u32>(value);
         state.source_surface_token = static_cast<compat::u32>(value);
         result.legacy_return_value = static_cast<compat::u8>(value);
-        result.path =
-            LegacyStandardModeTransitionInteractionPath::setting_source_changed;
+        result.path = LegacyTitleMenuInputPath::setting_source_changed;
         break;
     }
     case 5: {
@@ -2202,8 +2121,7 @@ retreat_legacy_standard_mode_transition_setting(
             state.settings_auxiliary = 0U;
         }
         result.legacy_return_value = static_cast<compat::u8>(residual);
-        result.path = LegacyStandardModeTransitionInteractionPath::
-            setting_auxiliary_changed;
+        result.path = LegacyTitleMenuInputPath::setting_auxiliary_changed;
         break;
     }
     default:
@@ -2212,12 +2130,10 @@ retreat_legacy_standard_mode_transition_setting(
     return result;
 }
 
-LegacyStandardModeTransitionInteractionResult
-advance_legacy_standard_mode_transition_setting(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+LegacyTitleMenuInputResult increase_legacy_game_setting(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionInteractionResult result;
+    LegacyTitleMenuInputResult result;
     if (state.progress == 1U) {
         const compat::i32 residual =
             std::bit_cast<compat::i32>(state.enabled) + 1;
@@ -2226,8 +2142,7 @@ advance_legacy_standard_mode_transition_setting(
             state.enabled = 3U;
         }
         result.legacy_return_value = static_cast<compat::u8>(residual);
-        result.path = LegacyStandardModeTransitionInteractionPath::
-            mode_one_selection_changed;
+        result.path = LegacyTitleMenuInputPath::mode_one_selection_changed;
         return result;
     }
     const compat::i32 progress_residual =
@@ -2249,8 +2164,7 @@ advance_legacy_standard_mode_transition_setting(
             ports.play_settings_sample(0x2EU, static_cast<compat::u32>(value))
         );
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeTransitionInteractionPath::setting_sample_changed;
+        result.path = LegacyTitleMenuInputPath::setting_sample_changed;
         break;
     }
     case 1: {
@@ -2265,8 +2179,7 @@ advance_legacy_standard_mode_transition_setting(
             ports.activate_settings_surface(static_cast<compat::u32>(value))
         );
         ++result.helper_call_count;
-        result.path = LegacyStandardModeTransitionInteractionPath::
-            setting_surface_changed;
+        result.path = LegacyTitleMenuInputPath::setting_surface_changed;
         break;
     }
     case 2: {
@@ -2277,16 +2190,14 @@ advance_legacy_standard_mode_transition_setting(
             state.settings_spacing = 0x8CU;
         }
         result.legacy_return_value = static_cast<compat::u8>(residual);
-        result.path = LegacyStandardModeTransitionInteractionPath::
-            setting_spacing_changed;
+        result.path = LegacyTitleMenuInputPath::setting_spacing_changed;
         break;
     }
     case 3:
         result.legacy_return_value =
             static_cast<compat::u8>(ports.enable_settings_service(0x48U));
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeTransitionInteractionPath::setting_toggle_changed;
+        result.path = LegacyTitleMenuInputPath::setting_toggle_changed;
         break;
     case 4: {
         compat::i32 value =
@@ -2297,8 +2208,7 @@ advance_legacy_standard_mode_transition_setting(
         state.settings_source_surface = static_cast<compat::u32>(value);
         state.source_surface_token = static_cast<compat::u32>(value);
         result.legacy_return_value = static_cast<compat::u8>(value);
-        result.path =
-            LegacyStandardModeTransitionInteractionPath::setting_source_changed;
+        result.path = LegacyTitleMenuInputPath::setting_source_changed;
         break;
     }
     case 5: {
@@ -2309,8 +2219,7 @@ advance_legacy_standard_mode_transition_setting(
             state.settings_auxiliary = 0x0BU;
         }
         result.legacy_return_value = static_cast<compat::u8>(residual);
-        result.path = LegacyStandardModeTransitionInteractionPath::
-            setting_auxiliary_changed;
+        result.path = LegacyTitleMenuInputPath::setting_auxiliary_changed;
         break;
     }
     default:
@@ -2319,8 +2228,8 @@ advance_legacy_standard_mode_transition_setting(
     return result;
 }
 
-compat::i32 advance_legacy_standard_mode_transition_mode_one_selection(
-    LegacyStandardModeTransitionVisualState& state
+compat::i32 advance_legacy_title_menu_secondary_selection(
+    LegacyTitleMenuState& state
 ) noexcept {
     const compat::i32 progress_residual =
         static_cast<compat::i32>(state.progress) - 1;
@@ -2335,12 +2244,10 @@ compat::i32 advance_legacy_standard_mode_transition_mode_one_selection(
     return residual;
 }
 
-LegacyStandardModeTransitionSettingsCommitResult
-commit_legacy_standard_mode_transition_settings(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+LegacyGameSettingsCommitResult commit_legacy_game_settings(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionSettingsCommitResult result;
+    LegacyGameSettingsCommitResult result;
     result.legacy_return_value = static_cast<compat::i32>(state.progress) - 1;
     if (state.progress == 1U) {
         state.enabled = 3U;
@@ -2355,7 +2262,7 @@ commit_legacy_standard_mode_transition_settings(
     const compat::i32 service_enabled =
         static_cast<compat::u8>(ports.query_settings_service(0x48U));
     ++result.helper_call_count;
-    result.legacy_return_value = ports.format_transition_settings(
+    result.legacy_return_value = ports.format_game_settings(
         state.sample_index,
         state.settings_surface_index,
         state.settings_spacing,
@@ -2368,13 +2275,12 @@ commit_legacy_standard_mode_transition_settings(
     return result;
 }
 
-LegacyStandardModeTransitionSettingsProfileResult
-prepare_legacy_standard_mode_transition_settings_profile(
-    LegacyStandardModeTransitionSettingsProfileState& profile,
+LegacyGameSettingsProfileResult prepare_legacy_game_settings_profile(
+    LegacyGameSettingsProfileState& profile,
     const std::span<const compat::u8> primary_text,
     const std::span<const compat::u8> secondary_text
 ) noexcept {
-    LegacyStandardModeTransitionSettingsProfileResult result;
+    LegacyGameSettingsProfileResult result;
     const auto compare = [](const std::span<const compat::u8> text,
                             const std::initializer_list<compat::u8> expected) {
         std::size_t index = 0U;
@@ -2497,28 +2403,27 @@ prepare_legacy_standard_mode_transition_settings_profile(
     return result;
 }
 
-LegacyStandardModeTransitionPanelDrawResult
-draw_legacy_standard_mode_transition_panel(
-    LegacyStandardModeTransitionPanelDrawState& draw_state,
-    const LegacyStandardModeTransitionPanelRecord& record,
+LegacyTitleMenuSlidingPanelDrawResult draw_legacy_title_menu_sliding_panel(
+    LegacyTitleMenuSlidingPanelDrawState& draw_state,
+    const LegacyTitleMenuSlidingPanelRecord& record,
     const compat::i32 x,
     const compat::i32 y,
     const compat::i32 offset,
-    LegacyStandardModeTransitionVisualPorts& ports
+    LegacyTitleMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionPanelDrawResult result;
-    const compat::i32 prepared = ports.prepare_transition_panel(record);
+    LegacyTitleMenuSlidingPanelDrawResult result;
+    const compat::i32 prepared = ports.prepare_title_menu_panel(record);
     ++result.helper_call_count;
     if (prepared == 0) {
         result.legacy_return_value =
-            ports.report_transition_panel_error(record);
+            ports.report_title_menu_panel_error(record);
         ++result.helper_call_count;
         result.preparation_failed = true;
         return result;
     }
 
-    const LegacyStandardModeTransitionPanelSurface surface =
-        ports.resolve_transition_panel_surface(
+    const LegacyTitleMenuSlidingPanelSurface surface =
+        ports.resolve_title_menu_panel_surface(
             record.surface_group, record.surface_index
         );
     ++result.helper_call_count;
@@ -2527,7 +2432,7 @@ draw_legacy_standard_mode_transition_panel(
     draw_state.alpha_blue = -25 - offset;
     draw_state.surface_token = surface.token;
     const auto draw = [&](const compat::i32 draw_x) {
-        result.legacy_return_value = ports.draw_transition_panel_surface(
+        result.legacy_return_value = ports.draw_title_menu_panel_surface(
             draw_x - record.origin_x,
             y - record.origin_y,
             surface.width,
@@ -2557,21 +2462,20 @@ draw_legacy_standard_mode_transition_panel(
     return result;
 }
 
-LegacyStandardModeTransitionFrameResult
-run_legacy_standard_mode_transition_frame(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+LegacyTitleMenuFrameResult render_legacy_title_menu_frame(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionFrameResult result;
-    const auto emit = [&](const LegacyStandardModeTransitionCommandType type,
+    LegacyTitleMenuFrameResult result;
+    const auto emit = [&](const LegacyTitleMenuRenderCommandType type,
                           const std::initializer_list<compat::i32> arguments) {
-        LegacyStandardModeTransitionCommand command;
+        LegacyTitleMenuRenderCommand command;
         command.type = type;
         std::copy(
             arguments.begin(), arguments.end(), command.arguments.begin()
         );
-        result.legacy_return_value =
-            static_cast<compat::u8>(ports.execute_transition_command(command));
+        result.legacy_return_value = static_cast<compat::u8>(
+            ports.execute_title_menu_render_command(command)
+        );
         ++result.command_count;
         ++result.helper_call_count;
     };
@@ -2581,10 +2485,10 @@ run_legacy_standard_mode_transition_frame(
     };
 
     if (state.progress <= 2U) {
-        emit(LegacyStandardModeTransitionCommandType::draw_action, {0, 0, 0});
+        emit(LegacyTitleMenuRenderCommandType::draw_action, {0, 0, 0});
         if (state.enabled >= state.bounds.size()) {
-            result.status = LegacyStandardModeTransitionFrameStatus::
-                selector_out_of_range_stopped;
+            result.status =
+                LegacyTitleMenuFrameStatus::selector_out_of_range_stopped;
             return result;
         }
         state.bounds[state.enabled] -= 4;
@@ -2601,8 +2505,8 @@ run_legacy_standard_mode_transition_frame(
             0xD2, 0x107, 0x140, 0x179
         };
         for (std::size_t index = 0U; index < state.bounds.size(); ++index) {
-            const LegacyStandardModeTransitionPanelDrawResult panel =
-                draw_legacy_standard_mode_transition_panel(
+            const LegacyTitleMenuSlidingPanelDrawResult panel =
+                draw_legacy_title_menu_sliding_panel(
                     state.panel_draw_state,
                     state.slide_panels[index],
                     0x7D,
@@ -2622,7 +2526,7 @@ run_legacy_standard_mode_transition_frame(
                 return finish();
             }
             emit(
-                LegacyStandardModeTransitionCommandType::fade_framebuffer,
+                LegacyTitleMenuRenderCommandType::fade_framebuffer,
                 {5 * state.velocity, 5 * state.velocity, 5 * state.velocity}
             );
         }
@@ -2634,7 +2538,7 @@ run_legacy_standard_mode_transition_frame(
             if (state.velocity <= 0x68) {
                 const compat::i32 fade = 8 * (0x64 - state.velocity);
                 emit(
-                    LegacyStandardModeTransitionCommandType::fade_framebuffer,
+                    LegacyTitleMenuRenderCommandType::fade_framebuffer,
                     {fade, fade, fade}
                 );
             } else {
@@ -2645,7 +2549,7 @@ run_legacy_standard_mode_transition_frame(
                     state.runtime_secondary = 1U;
                     state.runtime_tertiary = 1U;
                     state.runtime_quaternary = 3U;
-                    ports.refresh_transition_runtime();
+                    ports.refresh_title_menu_frame();
                     ++result.helper_call_count;
                     break;
                 case 1:
@@ -2654,9 +2558,7 @@ run_legacy_standard_mode_transition_frame(
                     ++result.helper_call_count;
                     state.progress = 5U;
                     emit(
-                        LegacyStandardModeTransitionCommandType::
-                            clear_framebuffer,
-                        {}
+                        LegacyTitleMenuRenderCommandType::clear_framebuffer, {}
                     );
                     ports.release_transition_world();
                     ++result.helper_call_count;
@@ -2664,15 +2566,13 @@ run_legacy_standard_mode_transition_frame(
                     state.runtime_primary = 0U;
                     state.runtime_secondary = 1U;
                     state.runtime_tertiary = 1U;
-                    ports.refresh_transition_runtime();
-                    static_cast<void>(
-                        prepare_legacy_standard_mode_transition_settings_profile(
-                            state.settings_profile,
-                            state.mode_one_text,
-                            state.mode_one_secondary_text
-                        )
-                    );
-                    ports.present_transition_runtime();
+                    ports.refresh_title_menu_frame();
+                    static_cast<void>(prepare_legacy_game_settings_profile(
+                        state.settings_profile,
+                        state.mode_one_text,
+                        state.mode_one_secondary_text
+                    ));
+                    ports.present_title_menu_frame();
                     result.helper_call_count += 3U;
                     break;
                 case 2:
@@ -2686,10 +2586,7 @@ run_legacy_standard_mode_transition_frame(
                 default:
                     break;
                 }
-                emit(
-                    LegacyStandardModeTransitionCommandType::clear_framebuffer,
-                    {}
-                );
+                emit(LegacyTitleMenuRenderCommandType::clear_framebuffer, {});
             }
         } else {
             const bool asset_ready = ports.mode_one_asset_ready();
@@ -2741,7 +2638,7 @@ run_legacy_standard_mode_transition_frame(
             ports.update_mode_one_overlay(state.mode_one_overlay_owner);
             ++result.helper_call_count;
             emit(
-                LegacyStandardModeTransitionCommandType::draw_action,
+                LegacyTitleMenuRenderCommandType::draw_action,
                 {static_cast<compat::i32>(state.mode_one_feature_enabled),
                  static_cast<compat::i32>(state.mode_one_feature_variant),
                  0xDC,
@@ -2762,7 +2659,7 @@ run_legacy_standard_mode_transition_frame(
                 if (offset < 0 ||
                     static_cast<std::size_t>(offset + 0x10) >
                         state.mode_one_overlay_storage.size()) {
-                    result.status = LegacyStandardModeTransitionFrameStatus::
+                    result.status = LegacyTitleMenuFrameStatus::
                         overlay_storage_unavailable_stopped;
                     return result;
                 }
@@ -2788,9 +2685,8 @@ run_legacy_standard_mode_transition_frame(
                 }
                 if (state.velocity == 0x64) {
                     if (state.mode_one_overlay_storage.size() < 0x20U) {
-                        result.status =
-                            LegacyStandardModeTransitionFrameStatus::
-                                overlay_storage_unavailable_stopped;
+                        result.status = LegacyTitleMenuFrameStatus::
+                            overlay_storage_unavailable_stopped;
                         return result;
                     }
                     std::copy_n(
@@ -2819,7 +2715,7 @@ run_legacy_standard_mode_transition_frame(
 
     if (state.progress == 5U) {
         emit(
-            LegacyStandardModeTransitionCommandType::draw_settings_frame,
+            LegacyTitleMenuRenderCommandType::draw_settings_frame,
             {0x98, 0xEC, 0x190, 0xC0, 4}
         );
         static constexpr std::array<std::array<compat::i32, 2U>, 6U> kLabels{
@@ -2832,7 +2728,7 @@ run_legacy_standard_mode_transition_frame(
         };
         for (std::size_t row = 0U; row < kLabels.size(); ++row) {
             emit(
-                LegacyStandardModeTransitionCommandType::draw_settings_label,
+                LegacyTitleMenuRenderCommandType::draw_settings_label,
                 {static_cast<compat::i32>(row),
                  kLabels[row][0],
                  kLabels[row][1]}
@@ -2842,7 +2738,7 @@ run_legacy_standard_mode_transition_frame(
             const compat::i32 x =
                 0x100 + 0x10 * static_cast<compat::i32>(column);
             emit(
-                LegacyStandardModeTransitionCommandType::draw_settings_cell,
+                LegacyTitleMenuRenderCommandType::draw_settings_cell,
                 {0,
                  static_cast<compat::i32>(column),
                  x,
@@ -2850,7 +2746,7 @@ run_legacy_standard_mode_transition_frame(
                  column <= state.sample_index ? 0x23 : 0x22}
             );
             emit(
-                LegacyStandardModeTransitionCommandType::draw_settings_cell,
+                LegacyTitleMenuRenderCommandType::draw_settings_cell,
                 {1,
                  static_cast<compat::i32>(column),
                  x,
@@ -2861,7 +2757,7 @@ run_legacy_standard_mode_transition_frame(
         for (compat::u32 column = 0U; column < 3U; ++column) {
             const compat::u32 value = 0x3CU + 0x28U * column;
             emit(
-                LegacyStandardModeTransitionCommandType::draw_settings_cell,
+                LegacyTitleMenuRenderCommandType::draw_settings_cell,
                 {2,
                  static_cast<compat::i32>(column),
                  0x100 + 0x10 * static_cast<compat::i32>(column),
@@ -2870,8 +2766,7 @@ run_legacy_standard_mode_transition_frame(
             );
             if (value == state.settings_spacing) {
                 emit(
-                    LegacyStandardModeTransitionCommandType::
-                        draw_settings_value,
+                    LegacyTitleMenuRenderCommandType::draw_settings_value,
                     {2, static_cast<compat::i32>(value), 0x168, 0x136}
                 );
             }
@@ -2881,7 +2776,7 @@ run_legacy_standard_mode_transition_frame(
                 static_cast<compat::u8>(ports.query_settings_service(0x48U));
             ++result.helper_call_count;
             emit(
-                LegacyStandardModeTransitionCommandType::draw_settings_cell,
+                LegacyTitleMenuRenderCommandType::draw_settings_cell,
                 {3,
                  static_cast<compat::i32>(column),
                  0x100 + 0x10 * static_cast<compat::i32>(column),
@@ -2893,12 +2788,12 @@ run_legacy_standard_mode_transition_frame(
             static_cast<compat::u8>(ports.query_settings_service(0x48U));
         ++result.helper_call_count;
         emit(
-            LegacyStandardModeTransitionCommandType::draw_settings_value,
+            LegacyTitleMenuRenderCommandType::draw_settings_value,
             {3, service, 0x168, 0x156}
         );
         for (compat::u32 column = 0U; column < 5U; ++column) {
             emit(
-                LegacyStandardModeTransitionCommandType::draw_settings_cell,
+                LegacyTitleMenuRenderCommandType::draw_settings_cell,
                 {4,
                  static_cast<compat::i32>(column),
                  0x140 - 0x10 * static_cast<compat::i32>(column),
@@ -2907,7 +2802,7 @@ run_legacy_standard_mode_transition_frame(
             );
         }
         emit(
-            LegacyStandardModeTransitionCommandType::draw_settings_value,
+            LegacyTitleMenuRenderCommandType::draw_settings_value,
             {4,
              static_cast<compat::i32>(state.settings_source_surface),
              0x168,
@@ -2926,7 +2821,7 @@ run_legacy_standard_mode_transition_frame(
         }
         for (compat::u32 column = 0U; column < 12U; ++column) {
             emit(
-                LegacyStandardModeTransitionCommandType::draw_settings_cell,
+                LegacyTitleMenuRenderCommandType::draw_settings_cell,
                 {5,
                  static_cast<compat::i32>(column),
                  0x100 + 0x10 * static_cast<compat::i32>(column),
@@ -2935,7 +2830,7 @@ run_legacy_standard_mode_transition_frame(
             );
         }
         emit(
-            LegacyStandardModeTransitionCommandType::draw_settings_cursor,
+            LegacyTitleMenuRenderCommandType::draw_settings_cursor,
             {0x93, 0x20 * state.velocity + 0xEC, 0x19A, 0x20, 0x14, 0x0D, 0, 5}
         );
     }
@@ -2947,14 +2842,11 @@ run_legacy_standard_mode_transition_frame(
         if (state.velocity == -120) {
             if (state.framebuffer_snapshot.size() !=
                 kLegacyStandardModeTransitionSnapshotSize) {
-                result.status = LegacyStandardModeTransitionFrameStatus::
-                    snapshot_unavailable_stopped;
+                result.status =
+                    LegacyTitleMenuFrameStatus::snapshot_unavailable_stopped;
                 return result;
             }
-            emit(
-                LegacyStandardModeTransitionCommandType::blit_snapshot,
-                {1, 0x4B000}
-            );
+            emit(LegacyTitleMenuRenderCommandType::blit_snapshot, {1, 0x4B000});
         }
         if (state.velocity >= -120 && state.velocity < -90) {
             state.transition_effect_offset = state.velocity + 90;
@@ -2964,23 +2856,20 @@ run_legacy_standard_mode_transition_frame(
             state.transition_effect_offset = 3 * (-10 - state.velocity);
         }
         emit(
-            LegacyStandardModeTransitionCommandType::draw_action,
+            LegacyTitleMenuRenderCommandType::draw_action,
             {0x232A, 0x44, state.transition_effect_offset, 0}
         );
     } else if (state.mode == 2U) {
         if (state.framebuffer_snapshot.size() !=
             kLegacyStandardModeTransitionSnapshotSize) {
-            result.status = LegacyStandardModeTransitionFrameStatus::
-                snapshot_unavailable_stopped;
+            result.status =
+                LegacyTitleMenuFrameStatus::snapshot_unavailable_stopped;
             return result;
         }
-        emit(
-            LegacyStandardModeTransitionCommandType::blit_snapshot, {2, 0x4B000}
-        );
+        emit(LegacyTitleMenuRenderCommandType::blit_snapshot, {2, 0x4B000});
         if (state.velocity % 3 == 0) {
             emit(
-                LegacyStandardModeTransitionCommandType::fade_framebuffer,
-                {-1, -1, -1}
+                LegacyTitleMenuRenderCommandType::fade_framebuffer, {-1, -1, -1}
             );
         }
     }
@@ -2995,7 +2884,7 @@ run_legacy_standard_mode_transition_frame(
     state.runtime_quaternary = 0U;
     state.runtime_input_owner = 0U;
     state.framebuffer_snapshot.clear();
-    emit(LegacyStandardModeTransitionCommandType::clear_framebuffer, {});
+    emit(LegacyTitleMenuRenderCommandType::clear_framebuffer, {});
     result.legacy_return_value = 0U;
     return result;
 }
@@ -3041,18 +2930,15 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
         result.story_flag_query_count += callbacks.story_flag_query_count;
         group_index = 7U;
     } else if (secondary_word == kHighModeSecondaryWord) {
-        const LegacyStandardModeTransitionVisualResult visual =
-            initialize_legacy_standard_mode_transition_visual(
-                ports.transition_visual_state(), ports.transition_visual_ports()
-            );
+        const LegacyTitleMenuResult visual = initialize_legacy_title_menu(
+            ports.title_menu_state(), ports.title_menu_ports()
+        );
         result.legacy_return_value = visual.legacy_return_value;
         result.helper_call_count += visual.helper_call_count + 1U;
-        result.transition_visual_status =
-            static_cast<compat::u8>(visual.status);
-        if (visual.status !=
-            LegacyStandardModeTransitionVisualStatus::completed) {
-            result.status = LegacyStandardModeCallbackBindingStatus::
-                transition_visual_stopped;
+        result.title_menu_status = static_cast<compat::u8>(visual.status);
+        if (visual.status != LegacyTitleMenuStatus::completed) {
+            result.status =
+                LegacyStandardModeCallbackBindingStatus::title_menu_stopped;
             return result;
         }
         group_index = 8U;
@@ -3173,7 +3059,7 @@ rebuild_legacy_standard_mode_selection_records(
 LegacyStandardModeRecordInitializationResult
 initialize_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode*& source_head,
-    LegacyStandardModeGroupEightState& state,
+    LegacyGameMenuState& state,
     const std::span<const compat::u32> mode_masks,
     const compat::u32 mode_three_mask,
     const compat::u32 mode_six_mask,
@@ -3411,8 +3297,8 @@ LegacyStandardModeResourceCommitResult commit_legacy_standard_mode_resource(
 
 LegacyStandardModeSpecialWorldTransitionResult
 prepare_legacy_standard_mode_special_world_transition(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightCleanupPorts& cleanup_ports,
+    LegacyGameMenuState& state,
+    LegacyGameMenuCleanupPorts& cleanup_ports,
     LegacyStandardModeSpecialWorldTransitionRuntime& runtime,
     LegacyStandardModeSpecialWorldTransitionPorts& ports
 ) noexcept {
@@ -3423,7 +3309,7 @@ prepare_legacy_standard_mode_special_world_transition(
         ports.clone_selection_record_root(state.record_head);
     ++result.helper_call_count;
     const LegacyStandardModeRecordCleanupResult cleaned =
-        cleanup_group_eight_selection_records(state, cleanup_ports);
+        cleanup_game_menu_selection_records(state, cleanup_ports);
     ++result.helper_call_count;
     if (cleaned.status != LegacyStandardModeRecordCleanupStatus::completed) {
         result.status = LegacyStandardModeSpecialWorldTransitionStatus::
@@ -3444,7 +3330,7 @@ LegacyStandardModeSpecialWorldReturnResult
 restore_legacy_standard_mode_special_world_transition(
     const compat::i32 consume_transition_item,
     const std::span<const compat::u8> maps_payload,
-    LegacyStandardModeGroupEightState& state,
+    LegacyGameMenuState& state,
     LegacyStandardModeSpecialWorldTransitionRuntime& runtime,
     LegacyStandardModeSpecialWorldReturnPorts& ports
 ) noexcept {
@@ -14526,8 +14412,8 @@ LegacyStandardModeBarResult render_legacy_standard_mode_bar(
     return result;
 }
 
-LegacyStandardModeTransitionResult render_legacy_standard_mode_transition(
-    LegacyStandardModeTransitionState& state,
+LegacyGameMenuEntryAnimationResult render_legacy_game_menu_entry_animation(
+    LegacyGameMenuEntryAnimationState& state,
     const compat::u32 extent,
     const compat::u16 item_count,
     const compat::u16 secondary_word,
@@ -14535,9 +14421,9 @@ LegacyStandardModeTransitionResult render_legacy_standard_mode_transition(
     std::array<
         asset_runtime::LegacyActionRecord,
         kLegacyStandardSpecialModeInitializationRecordCount>& action_records,
-    LegacyStandardModeTransitionPorts& ports
+    LegacyGameMenuEntryAnimationPorts& ports
 ) noexcept {
-    LegacyStandardModeTransitionResult result;
+    LegacyGameMenuEntryAnimationResult result;
     const compat::u32 text_token = ports.create_text_token(0x1DU, 0x1BU, 0x15U);
 
     for (std::size_t item_index = 0U; item_index < 4U; ++item_index) {
@@ -14607,8 +14493,8 @@ LegacyStandardModeTransitionResult render_legacy_standard_mode_transition(
         const compat::i32 label_x =
             std::bit_cast<compat::i32>(anchor_x - extent - 0x58U);
         ports.draw_text(
-            LegacyStandardModeTransitionTextOwner::primary,
-            LegacyStandardModeTransitionText::label,
+            LegacyGameMenuEntryTextOwner::primary,
+            LegacyGameMenuEntryText::label,
             label_x,
             std::bit_cast<compat::i32>(anchor_y - 0x5EU),
             0,
@@ -14623,8 +14509,8 @@ LegacyStandardModeTransitionResult render_legacy_standard_mode_transition(
             static_cast<compat::u32>(metrics.level_count) + 1U
         );
         ports.draw_text(
-            LegacyStandardModeTransitionTextOwner::primary,
-            LegacyStandardModeTransitionText::level,
+            LegacyGameMenuEntryTextOwner::primary,
+            LegacyGameMenuEntryText::level,
             std::bit_cast<compat::i32>(kTransitionPrimaryTextX - extent),
             std::bit_cast<compat::i32>(anchor_y - 0x4CU),
             static_cast<compat::i32>(metrics.level_count),
@@ -14637,17 +14523,17 @@ LegacyStandardModeTransitionResult render_legacy_standard_mode_transition(
         );
         ++result.text_draw_count;
 
-        constexpr std::array<LegacyStandardModeTransitionText, 3U> text_kinds{
-            LegacyStandardModeTransitionText::first_pair,
-            LegacyStandardModeTransitionText::second_pair,
-            LegacyStandardModeTransitionText::third_pair,
+        constexpr std::array<LegacyGameMenuEntryText, 3U> text_kinds{
+            LegacyGameMenuEntryText::first_pair,
+            LegacyGameMenuEntryText::second_pair,
+            LegacyGameMenuEntryText::third_pair,
         };
         constexpr std::array<compat::u32, 3U> text_y_offsets{
             0x34U, 0x1EU, 0x08U
         };
         for (std::size_t pair_index = 0U; pair_index < 3U; ++pair_index) {
             ports.draw_text(
-                LegacyStandardModeTransitionTextOwner::secondary,
+                LegacyGameMenuEntryTextOwner::secondary,
                 text_kinds[pair_index],
                 std::bit_cast<compat::i32>(kTransitionSecondaryTextX - extent),
                 std::bit_cast<compat::i32>(
@@ -15269,13 +15155,12 @@ initialize_legacy_standard_special_modes(
     return result;
 }
 
-LegacyStandardModeGroupEightInitializationResult
-initialize_legacy_standard_mode_group_eight_first_selection(
-    LegacyStandardModeGroupEightState& state,
+LegacyGameMenuInitializationResult initialize_legacy_game_menu_first_selection(
+    LegacyGameMenuState& state,
     const std::span<const compat::u8> maps_payload,
-    LegacyStandardModeGroupEightInitializationPorts& ports
+    LegacyGameMenuInitializationPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightInitializationResult result;
+    LegacyGameMenuInitializationResult result;
     state.selected_entry_index = state.entry_count - 1U;
     state.initialization_word = 5U;
     asset_runtime::initialize_legacy_action_record(state.primary_action);
@@ -15287,12 +15172,12 @@ initialize_legacy_standard_mode_group_eight_first_selection(
     state.list_offset = 0U;
     state.local_selection = 0U;
     const LegacyStandardModeRecordInitializationResult initialized =
-        initialize_group_eight_selection_records(state, ports);
+        initialize_game_menu_selection_records(state, ports);
     result.helper_call_count += initialized.helper_call_count + 1U;
     if (initialized.status !=
         LegacyStandardModeRecordInitializationStatus::completed) {
-        result.status = LegacyStandardModeGroupEightInitializationStatus::
-            record_initialization_stopped;
+        result.status =
+            LegacyGameMenuInitializationStatus::record_initialization_stopped;
         return result;
     }
 
@@ -15314,8 +15199,8 @@ initialize_legacy_standard_mode_group_eight_first_selection(
         );
     ++result.helper_call_count;
     if (selected_record == nullptr) {
-        result.status = LegacyStandardModeGroupEightInitializationStatus::
-            selected_record_missing;
+        result.status =
+            LegacyGameMenuInitializationStatus::selected_record_missing;
         return result;
     }
     const LegacyStandardModeTextResolutionResult text =
@@ -15324,8 +15209,7 @@ initialize_legacy_standard_mode_group_eight_first_selection(
         );
     ++result.helper_call_count;
     if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
-        result.status = LegacyStandardModeGroupEightInitializationStatus::
-            shared_text_stopped;
+        result.status = LegacyGameMenuInitializationStatus::shared_text_stopped;
         return result;
     }
 
@@ -15341,18 +15225,15 @@ initialize_legacy_standard_mode_group_eight_first_selection(
     return result;
 }
 
-LegacyStandardModeGroupEightCleanupResult
-cleanup_legacy_standard_mode_group_eight(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightCleanupPorts& ports
+LegacyGameMenuCleanupResult cleanup_legacy_game_menu(
+    LegacyGameMenuState& state, LegacyGameMenuCleanupPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightCleanupResult result;
+    LegacyGameMenuCleanupResult result;
     const LegacyStandardModeRecordCleanupResult records =
-        cleanup_group_eight_selection_records(state, ports);
+        cleanup_game_menu_selection_records(state, ports);
     ++result.helper_call_count;
     if (records.status != LegacyStandardModeRecordCleanupStatus::completed) {
-        result.status =
-            LegacyStandardModeGroupEightCleanupStatus::record_cleanup_stopped;
+        result.status = LegacyGameMenuCleanupStatus::record_cleanup_stopped;
         return result;
     }
     state.pre_initialization_zeroes[0U] = 0U;
@@ -15366,16 +15247,15 @@ cleanup_legacy_standard_mode_group_eight(
     return result;
 }
 
-LegacyStandardModeGroupEightMainInputResult
-handle_legacy_standard_mode_group_eight_main_input(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightMainInputSnapshot& input,
+LegacyGameMenuMainInputResult handle_legacy_game_menu_main_input(
+    LegacyGameMenuState& state,
+    LegacyGameMenuMainInputSnapshot& input,
     const std::span<const LegacyStandardModeAvailabilityRecord>
         availability_records,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
     const std::span<const compat::u8> maps_payload,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept {
     const auto as_i32 = [](const compat::u32 value) noexcept {
         return std::bit_cast<compat::i32>(value);
@@ -15386,15 +15266,15 @@ handle_legacy_standard_mode_group_eight_main_input(
         const compat::i32 signed_value = as_i32(value);
         return signed_value > lower && signed_value < upper;
     };
-    LegacyStandardModeGroupEightMainInputResult result;
+    LegacyGameMenuMainInputResult result;
     result.legacy_return_value = as_i32(input.pointer_y);
     const auto commit_current = [&]() noexcept {
-        LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime =
+        LegacyGameMenuInteractionCommitRuntime& commit_runtime =
             ports.commit_runtime();
-        LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports =
+        LegacyGameMenuInteractionCommitPorts& commit_ports =
             ports.commit_ports();
-        const LegacyStandardModeGroupEightInteractionCommitResult commit =
-            commit_legacy_standard_mode_group_eight_interaction(
+        const LegacyGameMenuInteractionCommitResult commit =
+            commit_legacy_game_menu_interaction(
                 state,
                 input.sample_handle,
                 maps_payload,
@@ -15406,21 +15286,19 @@ handle_legacy_standard_mode_group_eight_main_input(
             );
         result.legacy_return_value = commit.legacy_return_value;
         result.helper_call_count += commit.helper_call_count + 1U;
-        if (commit.status !=
-            LegacyStandardModeGroupEightInteractionCommitStatus::completed) {
-            result.status =
-                LegacyStandardModeGroupEightMainInputStatus::commit_stopped;
+        if (commit.status != LegacyGameMenuInteractionCommitStatus::completed) {
+            result.status = LegacyGameMenuMainInputStatus::commit_stopped;
             return false;
         }
         return true;
     };
     const auto exit_current = [&]() noexcept {
-        LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime =
+        LegacyGameMenuInteractionCommitRuntime& commit_runtime =
             ports.commit_runtime();
-        LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports =
+        LegacyGameMenuInteractionCommitPorts& commit_ports =
             ports.commit_ports();
-        const LegacyStandardModeGroupEightInteractionExitResult exit =
-            exit_legacy_standard_mode_group_eight_interaction(
+        const LegacyGameMenuInteractionExitResult exit =
+            exit_legacy_game_menu_interaction(
                 state,
                 runtime_state,
                 runtime_ports,
@@ -15430,10 +15308,8 @@ handle_legacy_standard_mode_group_eight_main_input(
             );
         result.legacy_return_value = exit.legacy_return_value;
         result.helper_call_count += exit.helper_call_count + 1U;
-        if (exit.status !=
-            LegacyStandardModeGroupEightInteractionExitStatus::completed) {
-            result.status =
-                LegacyStandardModeGroupEightMainInputStatus::exit_stopped;
+        if (exit.status != LegacyGameMenuInteractionExitStatus::completed) {
+            result.status = LegacyGameMenuMainInputStatus::exit_stopped;
             return false;
         }
         return true;
@@ -15454,15 +15330,14 @@ handle_legacy_standard_mode_group_eight_main_input(
                 runtime_ports
             );
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeGroupEightMainInputPath::runtime_input_dispatched;
+        result.path = LegacyGameMenuMainInputPath::runtime_input_dispatched;
         result.runtime_input_status =
             static_cast<compat::u8>(runtime_result.status);
         result.legacy_return_value = runtime_result.legacy_return_value;
         if (runtime_result.status !=
             LegacyStandardModeInputDispatchStatus::completed) {
-            result.status = LegacyStandardModeGroupEightMainInputStatus::
-                runtime_input_stopped;
+            result.status =
+                LegacyGameMenuMainInputStatus::runtime_input_stopped;
         }
         return result;
     }
@@ -15471,8 +15346,7 @@ handle_legacy_standard_mode_group_eight_main_input(
     state.input_consumed = 0U;
     if ((mode == 0x11U || mode == 0x12U) && (flags & 0x0FU) != 0U) {
         state.interaction_mode = 2U;
-        result.path =
-            LegacyStandardModeGroupEightMainInputPath::transition_normalized;
+        result.path = LegacyGameMenuMainInputPath::transition_normalized;
         result.legacy_return_value = 0;
         return result;
     }
@@ -15490,8 +15364,8 @@ handle_legacy_standard_mode_group_eight_main_input(
                     if (!commit_current()) {
                         return result;
                     }
-                    result.path = LegacyStandardModeGroupEightMainInputPath::
-                        outer_row_committed;
+                    result.path =
+                        LegacyGameMenuMainInputPath::outer_row_committed;
                     return result;
                 }
             }
@@ -15517,8 +15391,7 @@ handle_legacy_standard_mode_group_eight_main_input(
                 if (!commit_current()) {
                     return result;
                 }
-                result.path =
-                    LegacyStandardModeGroupEightMainInputPath::column_committed;
+                result.path = LegacyGameMenuMainInputPath::column_committed;
                 return result;
             }
         }
@@ -15545,16 +15418,14 @@ handle_legacy_standard_mode_group_eight_main_input(
                 if (!commit_current()) {
                     return result;
                 }
-                result.path =
-                    LegacyStandardModeGroupEightMainInputPath::action_committed;
+                result.path = LegacyGameMenuMainInputPath::action_committed;
                 return result;
             }
             if ((flags & 0x0CU) != 0U) {
                 if (!exit_current()) {
                     return result;
                 }
-                result.path = LegacyStandardModeGroupEightMainInputPath::
-                    interaction_exited;
+                result.path = LegacyGameMenuMainInputPath::interaction_exited;
                 return result;
             }
         }
@@ -15566,8 +15437,7 @@ handle_legacy_standard_mode_group_eight_main_input(
                 result.legacy_return_value =
                     ports.dispatch_overlay_action(input, state);
                 ++result.helper_call_count;
-                result.path = LegacyStandardModeGroupEightMainInputPath::
-                    overlay_dispatched;
+                result.path = LegacyGameMenuMainInputPath::overlay_dispatched;
                 mode = state.interaction_mode;
                 flags = input.input_flags;
             }
@@ -15588,14 +15458,14 @@ handle_legacy_standard_mode_group_eight_main_input(
                         ports.play_sample(0x2DU, input.sample_handle);
                     ++result.helper_call_count;
                     state.published_selection_x = 0x1FU;
-                    result.path = LegacyStandardModeGroupEightMainInputPath::
-                        primary_choice_committed;
+                    result.path =
+                        LegacyGameMenuMainInputPath::primary_choice_committed;
                 } else {
                     state.selection_x = 0x1EU;
                     result.legacy_return_value =
                         static_cast<compat::i32>(offset / 60U);
-                    result.path = LegacyStandardModeGroupEightMainInputPath::
-                        primary_choice_changed;
+                    result.path =
+                        LegacyGameMenuMainInputPath::primary_choice_changed;
                 }
                 return result;
             }
@@ -15607,15 +15477,15 @@ handle_legacy_standard_mode_group_eight_main_input(
                     result.legacy_return_value =
                         ports.play_sample(0x2EU, input.sample_handle);
                     ++result.helper_call_count;
-                    result.path = LegacyStandardModeGroupEightMainInputPath::
-                        primary_choice_changed;
+                    result.path =
+                        LegacyGameMenuMainInputPath::primary_choice_changed;
                 }
             } else {
                 state.published_selection_x = state.selection_x;
                 result.legacy_return_value =
                     static_cast<compat::i32>(state.selection_x);
-                result.path = LegacyStandardModeGroupEightMainInputPath::
-                    primary_choice_changed;
+                result.path =
+                    LegacyGameMenuMainInputPath::primary_choice_changed;
             }
             return result;
         }
@@ -15628,8 +15498,8 @@ common_input:
         const compat::u32 offset = input.pointer_x - 0xD8U;
         if (state.pre_initialization_zeroes[0U] != (offset >> 5U)) {
             state.pre_initialization_zeroes[0U] = offset / 33U + 1U;
-            const LegacyStandardModeGroupEightModeRetreatResult retreat =
-                retreat_legacy_standard_mode_group_eight_mode(
+            const LegacyGameMenuModeRetreatResult retreat =
+                retreat_legacy_game_menu_mode(
                     state,
                     input.sample_handle,
                     maps_payload,
@@ -15639,14 +15509,12 @@ common_input:
                 );
             result.legacy_return_value = retreat.legacy_return_value;
             result.helper_call_count += retreat.helper_call_count + 1U;
-            if (retreat.status !=
-                LegacyStandardModeGroupEightModeRetreatStatus::completed) {
-                result.status = LegacyStandardModeGroupEightMainInputStatus::
-                    mode_retreat_stopped;
+            if (retreat.status != LegacyGameMenuModeRetreatStatus::completed) {
+                result.status =
+                    LegacyGameMenuMainInputStatus::mode_retreat_stopped;
                 return result;
             }
-            result.path =
-                LegacyStandardModeGroupEightMainInputPath::hover_changed;
+            result.path = LegacyGameMenuMainInputPath::hover_changed;
             return result;
         }
     }
@@ -15671,9 +15539,8 @@ common_input:
                     ++available_index;
                     ++item_id;
                     if (item_id > 0x21U) {
-                        result.status =
-                            LegacyStandardModeGroupEightMainInputStatus::
-                                presence_scan_stopped;
+                        result.status = LegacyGameMenuMainInputStatus::
+                            presence_scan_stopped;
                         return result;
                     }
                     result.legacy_return_value =
@@ -15683,8 +15550,8 @@ common_input:
             }
             if (state.record_zero != available_index) {
                 state.record_zero = available_index;
-                result.path = LegacyStandardModeGroupEightMainInputPath::
-                    available_item_changed;
+                result.path =
+                    LegacyGameMenuMainInputPath::available_item_changed;
                 result.legacy_return_value =
                     static_cast<compat::i32>(available_index);
                 return result;
@@ -15692,16 +15559,14 @@ common_input:
             if (!commit_current()) {
                 return result;
             }
-            result.path = LegacyStandardModeGroupEightMainInputPath::
-                available_item_committed;
+            result.path = LegacyGameMenuMainInputPath::available_item_committed;
             return result;
         }
         if ((flags & 0x0CU) != 0U) {
             if (!exit_current()) {
                 return result;
             }
-            result.path =
-                LegacyStandardModeGroupEightMainInputPath::interaction_exited;
+            result.path = LegacyGameMenuMainInputPath::interaction_exited;
             return result;
         }
     }
@@ -15722,9 +15587,8 @@ common_input:
                     const LegacyStandardModeForwardNode* probe = record_head;
                     for (compat::i32 index = 0; index < record_index; ++index) {
                         if (probe == nullptr) {
-                            result.status =
-                                LegacyStandardModeGroupEightMainInputStatus::
-                                    selected_record_missing;
+                            result.status = LegacyGameMenuMainInputStatus::
+                                selected_record_missing;
                             return result;
                         }
                         probe = probe->next;
@@ -15735,9 +15599,8 @@ common_input:
                         );
                     ++result.helper_call_count;
                     if (selected_record == nullptr) {
-                        result.status =
-                            LegacyStandardModeGroupEightMainInputStatus::
-                                selected_record_missing;
+                        result.status = LegacyGameMenuMainInputStatus::
+                            selected_record_missing;
                         return result;
                     }
                     const LegacyStandardModeTextResolutionResult text =
@@ -15750,15 +15613,13 @@ common_input:
                     if (text.status !=
                         LegacyStandardModeTextResolutionStatus::completed) {
                         result.status =
-                            LegacyStandardModeGroupEightMainInputStatus::
-                                shared_text_stopped;
+                            LegacyGameMenuMainInputStatus::shared_text_stopped;
                         return result;
                     }
                     result.legacy_return_value =
                         ports.play_sample(0x2EU, input.sample_handle);
                     ++result.helper_call_count;
-                    result.path = LegacyStandardModeGroupEightMainInputPath::
-                        record_changed;
+                    result.path = LegacyGameMenuMainInputPath::record_changed;
                 }
                 return result;
             }
@@ -15767,8 +15628,7 @@ common_input:
             if (!commit_current()) {
                 return result;
             }
-            result.path =
-                LegacyStandardModeGroupEightMainInputPath::record_committed;
+            result.path = LegacyGameMenuMainInputPath::record_committed;
             return result;
         }
     }
@@ -15779,8 +15639,8 @@ common_input:
     result.legacy_return_value = availability.legacy_return_value;
     if (availability.status !=
         LegacyStandardModeAvailabilityStatus::completed) {
-        result.status = LegacyStandardModeGroupEightMainInputStatus::
-            availability_index_out_of_range;
+        result.status =
+            LegacyGameMenuMainInputStatus::availability_index_out_of_range;
         return result;
     }
 
@@ -15792,12 +15652,11 @@ common_input:
         const auto dispatch_primary_control =
             [&](const compat::i32 lower,
                 const compat::i32 upper,
-                const LegacyStandardModeGroupEightMainControl control) {
+                const LegacyGameMenuMainControl control) {
                 if (pointer_y > lower && pointer_y < upper) {
-                    if (control ==
-                        LegacyStandardModeGroupEightMainControl::upper) {
-                        const LegacyStandardModeGroupEightRetreatResult retreat =
-                            retreat_legacy_standard_mode_group_eight_control(
+                    if (control == LegacyGameMenuMainControl::upper) {
+                        const LegacyGameMenuRetreatResult retreat =
+                            retreat_legacy_game_menu_control(
                                 state,
                                 input.sample_handle,
                                 state.party_markers,
@@ -15811,20 +15670,15 @@ common_input:
                         result.helper_call_count +=
                             retreat.helper_call_count + 1U;
                         if (retreat.status !=
-                            LegacyStandardModeGroupEightRetreatStatus::
-                                completed) {
-                            result.status =
-                                LegacyStandardModeGroupEightMainInputStatus::
-                                    retreat_control_stopped;
+                            LegacyGameMenuRetreatStatus::completed) {
+                            result.status = LegacyGameMenuMainInputStatus::
+                                retreat_control_stopped;
                             advance_stopped = true;
                             return;
                         }
-                    } else if (
-                        control ==
-                        LegacyStandardModeGroupEightMainControl::lower
-                    ) {
-                        const LegacyStandardModeGroupEightAdvanceResult advance =
-                            advance_legacy_standard_mode_group_eight_control(
+                    } else if (control == LegacyGameMenuMainControl::lower) {
+                        const LegacyGameMenuAdvanceResult advance =
+                            advance_legacy_game_menu_control(
                                 state,
                                 input.sample_handle,
                                 state.party_markers,
@@ -15838,74 +15692,63 @@ common_input:
                         result.helper_call_count +=
                             advance.helper_call_count + 1U;
                         if (advance.status !=
-                            LegacyStandardModeGroupEightAdvanceStatus::
-                                completed) {
-                            result.status =
-                                LegacyStandardModeGroupEightMainInputStatus::
-                                    advance_control_stopped;
+                            LegacyGameMenuAdvanceStatus::completed) {
+                            result.status = LegacyGameMenuMainInputStatus::
+                                advance_control_stopped;
                             advance_stopped = true;
                             return;
                         }
                     } else if (
-                        control ==
-                        LegacyStandardModeGroupEightMainControl::second_dynamic
+                        control == LegacyGameMenuMainControl::second_dynamic
                     ) {
-                        const LegacyStandardModeGroupEightPageAdvanceResult
-                            page =
-                                advance_legacy_standard_mode_group_eight_page(
-                                    state,
-                                    input.sample_handle,
-                                    state.party_markers,
-                                    maps_payload,
-                                    runtime_state,
-                                    runtime_ports,
-                                    ports
-                                );
+                        const LegacyGameMenuPageAdvanceResult page =
+                            advance_legacy_game_menu_page(
+                                state,
+                                input.sample_handle,
+                                state.party_markers,
+                                maps_payload,
+                                runtime_state,
+                                runtime_ports,
+                                ports
+                            );
                         result.legacy_return_value = page.legacy_return_value;
                         result.helper_call_count += page.helper_call_count + 1U;
                         if (page.status !=
-                            LegacyStandardModeGroupEightPageAdvanceStatus::
-                                completed) {
-                            result.status =
-                                LegacyStandardModeGroupEightMainInputStatus::
-                                    page_advance_control_stopped;
+                            LegacyGameMenuPageAdvanceStatus::completed) {
+                            result.status = LegacyGameMenuMainInputStatus::
+                                page_advance_control_stopped;
                             advance_stopped = true;
                             return;
                         }
                     } else {
-                        const LegacyStandardModeGroupEightPageRetreatResult
-                            page =
-                                retreat_legacy_standard_mode_group_eight_page(
-                                    state,
-                                    input.sample_handle,
-                                    state.party_markers,
-                                    maps_payload,
-                                    runtime_state,
-                                    runtime_ports,
-                                    ports
-                                );
+                        const LegacyGameMenuPageRetreatResult page =
+                            retreat_legacy_game_menu_page(
+                                state,
+                                input.sample_handle,
+                                state.party_markers,
+                                maps_payload,
+                                runtime_state,
+                                runtime_ports,
+                                ports
+                            );
                         result.legacy_return_value = page.legacy_return_value;
                         result.helper_call_count += page.helper_call_count + 1U;
                         if (page.status !=
-                            LegacyStandardModeGroupEightPageRetreatStatus::
-                                completed) {
-                            result.status =
-                                LegacyStandardModeGroupEightMainInputStatus::
-                                    page_retreat_control_stopped;
+                            LegacyGameMenuPageRetreatStatus::completed) {
+                            result.status = LegacyGameMenuMainInputStatus::
+                                page_retreat_control_stopped;
                             advance_stopped = true;
                             return;
                         }
                     }
-                    result.path = LegacyStandardModeGroupEightMainInputPath::
-                        control_dispatched;
+                    result.path =
+                        LegacyGameMenuMainInputPath::control_dispatched;
                     pointer_y = as_i32(input.pointer_y);
                 }
             };
+        dispatch_primary_control(0x78, 0x88, LegacyGameMenuMainControl::upper);
         dispatch_primary_control(
-            0x78, 0x88, LegacyStandardModeGroupEightMainControl::upper
-        );
-        dispatch_primary_control(
-            0x1A6, 0x1B6, LegacyStandardModeGroupEightMainControl::lower
+            0x1A6, 0x1B6, LegacyGameMenuMainControl::lower
         );
         if (advance_stopped) {
             return result;
@@ -15913,12 +15756,12 @@ common_input:
         dispatch_primary_control(
             state.primary_control_one_y_min,
             state.primary_control_one_y_max,
-            LegacyStandardModeGroupEightMainControl::first_dynamic
+            LegacyGameMenuMainControl::first_dynamic
         );
         dispatch_primary_control(
             state.primary_control_two_y_min,
             state.primary_control_two_y_max,
-            LegacyStandardModeGroupEightMainControl::second_dynamic
+            LegacyGameMenuMainControl::second_dynamic
         );
         if (advance_stopped) {
             return result;
@@ -15931,67 +15774,14 @@ common_input:
         if (state.special_control_count > 8 && pointer_x < 0x236U &&
             pointer_x > 0x228U) {
             bool advance_stopped = false;
-            const auto dispatch_secondary_control = [&](const compat::i32 lower,
-                                                        const compat::i32 upper,
-                                                        const LegacyStandardModeGroupEightMainControl
-                                                            control) {
-                if (pointer_y > lower && pointer_y < upper) {
-                    if (control ==
-                        LegacyStandardModeGroupEightMainControl::upper) {
-                        const LegacyStandardModeGroupEightRetreatResult retreat =
-                            retreat_legacy_standard_mode_group_eight_control(
-                                state,
-                                input.sample_handle,
-                                state.party_markers,
-                                maps_payload,
-                                runtime_state,
-                                runtime_ports,
-                                ports
-                            );
-                        result.legacy_return_value =
-                            retreat.legacy_return_value;
-                        result.helper_call_count +=
-                            retreat.helper_call_count + 1U;
-                        if (retreat.status !=
-                            LegacyStandardModeGroupEightRetreatStatus::
-                                completed) {
-                            result.status =
-                                LegacyStandardModeGroupEightMainInputStatus::
-                                    retreat_control_stopped;
-                            advance_stopped = true;
-                            return;
-                        }
-                    } else if (
-                        control ==
-                        LegacyStandardModeGroupEightMainControl::lower
-                    ) {
-                        const LegacyStandardModeGroupEightAdvanceResult advance =
-                            advance_legacy_standard_mode_group_eight_control(
-                                state,
-                                input.sample_handle,
-                                state.party_markers,
-                                maps_payload,
-                                runtime_state,
-                                runtime_ports,
-                                ports
-                            );
-                        result.legacy_return_value =
-                            advance.legacy_return_value;
-                        result.helper_call_count +=
-                            advance.helper_call_count + 1U;
-                        if (advance.status !=
-                            LegacyStandardModeGroupEightAdvanceStatus::
-                                completed) {
-                            result.status =
-                                LegacyStandardModeGroupEightMainInputStatus::
-                                    advance_control_stopped;
-                            advance_stopped = true;
-                            return;
-                        }
-                    } else {
-                        const LegacyStandardModeGroupEightPageRetreatResult
-                            page =
-                                retreat_legacy_standard_mode_group_eight_page(
+            const auto dispatch_secondary_control =
+                [&](const compat::i32 lower,
+                    const compat::i32 upper,
+                    const LegacyGameMenuMainControl control) {
+                    if (pointer_y > lower && pointer_y < upper) {
+                        if (control == LegacyGameMenuMainControl::upper) {
+                            const LegacyGameMenuRetreatResult retreat =
+                                retreat_legacy_game_menu_control(
                                     state,
                                     input.sample_handle,
                                     state.party_markers,
@@ -16000,28 +15790,74 @@ common_input:
                                     runtime_ports,
                                     ports
                                 );
-                        result.legacy_return_value = page.legacy_return_value;
-                        result.helper_call_count += page.helper_call_count + 1U;
-                        if (page.status !=
-                            LegacyStandardModeGroupEightPageRetreatStatus::
-                                completed) {
-                            result.status =
-                                LegacyStandardModeGroupEightMainInputStatus::
+                            result.legacy_return_value =
+                                retreat.legacy_return_value;
+                            result.helper_call_count +=
+                                retreat.helper_call_count + 1U;
+                            if (retreat.status !=
+                                LegacyGameMenuRetreatStatus::completed) {
+                                result.status = LegacyGameMenuMainInputStatus::
+                                    retreat_control_stopped;
+                                advance_stopped = true;
+                                return;
+                            }
+                        } else if (
+                            control == LegacyGameMenuMainControl::lower
+                        ) {
+                            const LegacyGameMenuAdvanceResult advance =
+                                advance_legacy_game_menu_control(
+                                    state,
+                                    input.sample_handle,
+                                    state.party_markers,
+                                    maps_payload,
+                                    runtime_state,
+                                    runtime_ports,
+                                    ports
+                                );
+                            result.legacy_return_value =
+                                advance.legacy_return_value;
+                            result.helper_call_count +=
+                                advance.helper_call_count + 1U;
+                            if (advance.status !=
+                                LegacyGameMenuAdvanceStatus::completed) {
+                                result.status = LegacyGameMenuMainInputStatus::
+                                    advance_control_stopped;
+                                advance_stopped = true;
+                                return;
+                            }
+                        } else {
+                            const LegacyGameMenuPageRetreatResult page =
+                                retreat_legacy_game_menu_page(
+                                    state,
+                                    input.sample_handle,
+                                    state.party_markers,
+                                    maps_payload,
+                                    runtime_state,
+                                    runtime_ports,
+                                    ports
+                                );
+                            result.legacy_return_value =
+                                page.legacy_return_value;
+                            result.helper_call_count +=
+                                page.helper_call_count + 1U;
+                            if (page.status !=
+                                LegacyGameMenuPageRetreatStatus::completed) {
+                                result.status = LegacyGameMenuMainInputStatus::
                                     page_retreat_control_stopped;
-                            advance_stopped = true;
-                            return;
+                                advance_stopped = true;
+                                return;
+                            }
                         }
+                        result.path =
+                            LegacyGameMenuMainInputPath::control_dispatched;
+                        pointer_y = as_i32(input.pointer_y);
                     }
-                    result.path = LegacyStandardModeGroupEightMainInputPath::
-                        control_dispatched;
-                    pointer_y = as_i32(input.pointer_y);
-                }
-            };
+                };
             dispatch_secondary_control(
-                0xC2, 0xD0, LegacyStandardModeGroupEightMainControl::upper
+                0xC2, 0xD0, LegacyGameMenuMainControl::upper
             );
             dispatch_secondary_control(
-                0x18A, 0x198, LegacyStandardModeGroupEightMainControl::lower
+                0x18A, 0x198, LegacyGameMenuMainControl::lower
             );
             if (advance_stopped) {
                 return result;
@@ -16029,12 +15865,12 @@ common_input:
             dispatch_secondary_control(
                 state.secondary_control_one_y_min,
                 state.secondary_control_one_y_max,
-                LegacyStandardModeGroupEightMainControl::first_dynamic
+                LegacyGameMenuMainControl::first_dynamic
             );
             if (pointer_y > state.secondary_control_two_y_min &&
                 pointer_y < state.secondary_control_two_y_max) {
-                const LegacyStandardModeGroupEightPageAdvanceResult page =
-                    advance_legacy_standard_mode_group_eight_page(
+                const LegacyGameMenuPageAdvanceResult page =
+                    advance_legacy_game_menu_page(
                         state,
                         input.sample_handle,
                         state.party_markers,
@@ -16045,15 +15881,12 @@ common_input:
                     );
                 result.legacy_return_value = page.legacy_return_value;
                 result.helper_call_count += page.helper_call_count + 1U;
-                if (page.status !=
-                    LegacyStandardModeGroupEightPageAdvanceStatus::completed) {
-                    result.status =
-                        LegacyStandardModeGroupEightMainInputStatus::
-                            page_advance_control_stopped;
+                if (page.status != LegacyGameMenuPageAdvanceStatus::completed) {
+                    result.status = LegacyGameMenuMainInputStatus::
+                        page_advance_control_stopped;
                     return result;
                 }
-                result.path = LegacyStandardModeGroupEightMainInputPath::
-                    control_dispatched;
+                result.path = LegacyGameMenuMainInputPath::control_dispatched;
                 return result;
             }
         } else if (
@@ -16070,15 +15903,15 @@ common_input:
                     if (!commit_current()) {
                         return result;
                     }
-                    result.path = LegacyStandardModeGroupEightMainInputPath::
-                        secondary_row_committed;
+                    result.path =
+                        LegacyGameMenuMainInputPath::secondary_row_committed;
                     return result;
                 }
             } else if ((input.input_flags & 3U) != 0U) {
                 state.secondary_row_selection = row;
                 result.legacy_return_value = row;
-                result.path = LegacyStandardModeGroupEightMainInputPath::
-                    secondary_row_changed;
+                result.path =
+                    LegacyGameMenuMainInputPath::secondary_row_changed;
                 return result;
             }
         }
@@ -16088,25 +15921,23 @@ common_input:
         if (!exit_current()) {
             return result;
         }
-        result.path =
-            LegacyStandardModeGroupEightMainInputPath::interaction_exited;
+        result.path = LegacyGameMenuMainInputPath::interaction_exited;
     } else {
         result.legacy_return_value = as_i32(input.pointer_y);
     }
     return result;
 }
 
-LegacyStandardModeGroupEightAdvanceResult
-advance_legacy_standard_mode_group_eight_control(
-    LegacyStandardModeGroupEightState& state,
+LegacyGameMenuAdvanceResult advance_legacy_game_menu_control(
+    LegacyGameMenuState& state,
     const compat::u32 sample_handle,
     const std::span<const compat::u16> party_markers,
     const std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightAdvanceResult result;
+    LegacyGameMenuAdvanceResult result;
     if (state.interaction_mode >= 0x01F4U) {
         const LegacyStandardModeRuntimeCursorAdvanceResult runtime_result =
             advance_legacy_standard_mode_runtime_cursor(
@@ -16116,12 +15947,10 @@ advance_legacy_standard_mode_group_eight_control(
         result.runtime_cursor_status =
             static_cast<compat::u8>(runtime_result.status);
         result.legacy_return_value = runtime_result.legacy_return_value;
-        result.path =
-            LegacyStandardModeGroupEightAdvancePath::runtime_cursor_advanced;
+        result.path = LegacyGameMenuAdvancePath::runtime_cursor_advanced;
         if (runtime_result.status !=
             LegacyStandardModeRuntimeCursorAdvanceStatus::completed) {
-            result.status = LegacyStandardModeGroupEightAdvanceStatus::
-                runtime_cursor_stopped;
+            result.status = LegacyGameMenuAdvanceStatus::runtime_cursor_stopped;
         }
         return result;
     }
@@ -16155,8 +15984,8 @@ advance_legacy_standard_mode_group_eight_control(
         const LegacyStandardModeForwardNode* probe = source_head;
         for (compat::i32 index = 0; index < advance_count; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupEightAdvanceStatus::
-                    visible_chain_stopped;
+                result.status =
+                    LegacyGameMenuAdvanceStatus::visible_chain_stopped;
                 return result;
             }
             probe = probe->next;
@@ -16181,8 +16010,8 @@ advance_legacy_standard_mode_group_eight_control(
         probe = state.record_head;
         for (compat::i32 index = 0; index < selected_index; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupEightAdvanceStatus::
-                    selected_record_missing;
+                result.status =
+                    LegacyGameMenuAdvanceStatus::selected_record_missing;
                 return result;
             }
             probe = probe->next;
@@ -16195,8 +16024,8 @@ advance_legacy_standard_mode_group_eight_control(
             );
         ++result.helper_call_count;
         if (selected_record == nullptr) {
-            result.status = LegacyStandardModeGroupEightAdvanceStatus::
-                selected_record_missing;
+            result.status =
+                LegacyGameMenuAdvanceStatus::selected_record_missing;
             return result;
         }
         const LegacyStandardModeTextResolutionResult text =
@@ -16205,12 +16034,10 @@ advance_legacy_standard_mode_group_eight_control(
             );
         ++result.helper_call_count;
         if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
-            result.status =
-                LegacyStandardModeGroupEightAdvanceStatus::shared_text_stopped;
+            result.status = LegacyGameMenuAdvanceStatus::shared_text_stopped;
             return result;
         }
-        result.path =
-            LegacyStandardModeGroupEightAdvancePath::record_window_advanced;
+        result.path = LegacyGameMenuAdvancePath::record_window_advanced;
         break;
     }
     case 3U: {
@@ -16222,8 +16049,8 @@ advance_legacy_standard_mode_group_eight_control(
                 next = 0U;
             }
             if (next >= party_markers.size()) {
-                result.status = LegacyStandardModeGroupEightAdvanceStatus::
-                    party_cycle_stopped;
+                result.status =
+                    LegacyGameMenuAdvanceStatus::party_cycle_stopped;
                 return result;
             }
             if (party_markers[next] != 0xFFFFU) {
@@ -16232,21 +16059,19 @@ advance_legacy_standard_mode_group_eight_control(
             }
         }
         if (!found) {
-            result.status =
-                LegacyStandardModeGroupEightAdvanceStatus::party_cycle_stopped;
+            result.status = LegacyGameMenuAdvanceStatus::party_cycle_stopped;
             return result;
         }
         state.record_zero = next;
         result.legacy_return_value = ports.play_sample(0x2EU, sample_handle);
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeGroupEightAdvancePath::available_item_advanced;
+        result.path = LegacyGameMenuAdvancePath::available_item_advanced;
         break;
     }
     case 5U:
         state.selected_action = 1U;
         result.legacy_return_value = 1;
-        result.path = LegacyStandardModeGroupEightAdvancePath::action_advanced;
+        result.path = LegacyGameMenuAdvancePath::action_advanced;
         break;
     case 0x0AU: {
         ++state.selected_outer_row;
@@ -16257,14 +16082,13 @@ advance_legacy_standard_mode_group_eight_control(
         }
         result.legacy_return_value =
             std::bit_cast<compat::i32>(state.selected_outer_row);
-        result.path =
-            LegacyStandardModeGroupEightAdvancePath::outer_row_advanced;
+        result.path = LegacyGameMenuAdvancePath::outer_row_advanced;
         break;
     }
     case 0x0BU:
         state.selected_column = 1U;
         result.legacy_return_value = 1;
-        result.path = LegacyStandardModeGroupEightAdvancePath::column_advanced;
+        result.path = LegacyGameMenuAdvancePath::column_advanced;
         break;
     case 0x0FU: {
         const LegacyStandardModeWindowCursorAdvanceResult window_result =
@@ -16277,8 +16101,7 @@ advance_legacy_standard_mode_group_eight_control(
         ++result.helper_call_count;
         result.legacy_return_value = window_result.legacy_return_value;
         state.transition_flags |= 0x3000U;
-        result.path =
-            LegacyStandardModeGroupEightAdvancePath::secondary_window_advanced;
+        result.path = LegacyGameMenuAdvancePath::secondary_window_advanced;
         break;
     }
     default:
@@ -16290,17 +16113,16 @@ advance_legacy_standard_mode_group_eight_control(
     return result;
 }
 
-LegacyStandardModeGroupEightRetreatResult
-retreat_legacy_standard_mode_group_eight_control(
-    LegacyStandardModeGroupEightState& state,
+LegacyGameMenuRetreatResult retreat_legacy_game_menu_control(
+    LegacyGameMenuState& state,
     const compat::u32 sample_handle,
     const std::span<const compat::u16> party_markers,
     const std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightRetreatResult result;
+    LegacyGameMenuRetreatResult result;
     if (state.interaction_mode >= 0x01F4U) {
         const LegacyStandardModeRuntimeCursorRetreatResult runtime_result =
             retreat_legacy_standard_mode_runtime_cursor(
@@ -16310,12 +16132,10 @@ retreat_legacy_standard_mode_group_eight_control(
         result.runtime_cursor_status =
             static_cast<compat::u8>(runtime_result.status);
         result.legacy_return_value = runtime_result.legacy_return_value;
-        result.path =
-            LegacyStandardModeGroupEightRetreatPath::runtime_cursor_retreated;
+        result.path = LegacyGameMenuRetreatPath::runtime_cursor_retreated;
         if (runtime_result.status !=
             LegacyStandardModeRuntimeCursorRetreatStatus::completed) {
-            result.status = LegacyStandardModeGroupEightRetreatStatus::
-                runtime_cursor_stopped;
+            result.status = LegacyGameMenuRetreatStatus::runtime_cursor_stopped;
         }
         return result;
     }
@@ -16346,8 +16166,8 @@ retreat_legacy_standard_mode_group_eight_control(
         const LegacyStandardModeForwardNode* probe = source_head;
         for (compat::i32 index = 0; index < advance_count; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupEightRetreatStatus::
-                    visible_chain_stopped;
+                result.status =
+                    LegacyGameMenuRetreatStatus::visible_chain_stopped;
                 return result;
             }
             probe = probe->next;
@@ -16372,8 +16192,8 @@ retreat_legacy_standard_mode_group_eight_control(
         probe = state.record_head;
         for (compat::i32 index = 0; index < selected_index; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupEightRetreatStatus::
-                    selected_record_missing;
+                result.status =
+                    LegacyGameMenuRetreatStatus::selected_record_missing;
                 return result;
             }
             probe = probe->next;
@@ -16386,8 +16206,8 @@ retreat_legacy_standard_mode_group_eight_control(
             );
         ++result.helper_call_count;
         if (selected_record == nullptr) {
-            result.status = LegacyStandardModeGroupEightRetreatStatus::
-                selected_record_missing;
+            result.status =
+                LegacyGameMenuRetreatStatus::selected_record_missing;
             return result;
         }
         const LegacyStandardModeTextResolutionResult text =
@@ -16396,12 +16216,10 @@ retreat_legacy_standard_mode_group_eight_control(
             );
         ++result.helper_call_count;
         if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
-            result.status =
-                LegacyStandardModeGroupEightRetreatStatus::shared_text_stopped;
+            result.status = LegacyGameMenuRetreatStatus::shared_text_stopped;
             return result;
         }
-        result.path =
-            LegacyStandardModeGroupEightRetreatPath::record_window_retreated;
+        result.path = LegacyGameMenuRetreatPath::record_window_retreated;
         break;
     }
     case 3U: {
@@ -16414,8 +16232,8 @@ retreat_legacy_standard_mode_group_eight_control(
                 --previous;
             }
             if (previous >= party_markers.size()) {
-                result.status = LegacyStandardModeGroupEightRetreatStatus::
-                    party_cycle_stopped;
+                result.status =
+                    LegacyGameMenuRetreatStatus::party_cycle_stopped;
                 return result;
             }
             if (party_markers[previous] != 0xFFFFU) {
@@ -16424,21 +16242,19 @@ retreat_legacy_standard_mode_group_eight_control(
             }
         }
         if (!found) {
-            result.status =
-                LegacyStandardModeGroupEightRetreatStatus::party_cycle_stopped;
+            result.status = LegacyGameMenuRetreatStatus::party_cycle_stopped;
             return result;
         }
         state.record_zero = previous;
         result.legacy_return_value = ports.play_sample(0x2EU, sample_handle);
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeGroupEightRetreatPath::available_item_retreated;
+        result.path = LegacyGameMenuRetreatPath::available_item_retreated;
         break;
     }
     case 5U:
         state.selected_action = 0U;
         result.legacy_return_value = 0;
-        result.path = LegacyStandardModeGroupEightRetreatPath::action_retreated;
+        result.path = LegacyGameMenuRetreatPath::action_retreated;
         break;
     case 0x0AU:
         --state.selected_outer_row;
@@ -16447,13 +16263,12 @@ retreat_legacy_standard_mode_group_eight_control(
         }
         result.legacy_return_value =
             std::bit_cast<compat::i32>(state.selected_outer_row);
-        result.path =
-            LegacyStandardModeGroupEightRetreatPath::outer_row_retreated;
+        result.path = LegacyGameMenuRetreatPath::outer_row_retreated;
         break;
     case 0x0BU:
         state.selected_column = 0U;
         result.legacy_return_value = 0;
-        result.path = LegacyStandardModeGroupEightRetreatPath::column_retreated;
+        result.path = LegacyGameMenuRetreatPath::column_retreated;
         break;
     case 0x0FU: {
         const LegacyStandardModeWindowCursorRetreatResult window_result =
@@ -16463,8 +16278,7 @@ retreat_legacy_standard_mode_group_eight_control(
         ++result.helper_call_count;
         result.legacy_return_value = window_result.legacy_return_value;
         state.transition_flags |= 0x0300U;
-        result.path =
-            LegacyStandardModeGroupEightRetreatPath::secondary_window_retreated;
+        result.path = LegacyGameMenuRetreatPath::secondary_window_retreated;
         break;
     }
     default:
@@ -16476,17 +16290,16 @@ retreat_legacy_standard_mode_group_eight_control(
     return result;
 }
 
-LegacyStandardModeGroupEightPageAdvanceResult
-advance_legacy_standard_mode_group_eight_page(
-    LegacyStandardModeGroupEightState& state,
+LegacyGameMenuPageAdvanceResult advance_legacy_game_menu_page(
+    LegacyGameMenuState& state,
     const compat::u32 sample_handle,
     const std::span<const compat::u16> party_markers,
     const std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightPageAdvanceResult result;
+    LegacyGameMenuPageAdvanceResult result;
     if (state.interaction_mode >= 0x01F4U) {
         const LegacyStandardModeWindowPageAdvanceResult page =
             advance_legacy_standard_mode_window_page(
@@ -16506,8 +16319,8 @@ advance_legacy_standard_mode_group_eight_page(
             refresh_legacy_standard_mode_page(runtime_state);
         ++result.helper_call_count;
         if (refresh.status != LegacyStandardModePageRefreshStatus::completed) {
-            result.status = LegacyStandardModeGroupEightPageAdvanceStatus::
-                page_refresh_stopped;
+            result.status =
+                LegacyGameMenuPageAdvanceStatus::page_refresh_stopped;
             return result;
         }
         const compat::i32 selected =
@@ -16515,8 +16328,8 @@ advance_legacy_standard_mode_group_eight_page(
         if (selected < 0 ||
             static_cast<std::size_t>(selected) >=
                 runtime_state.entries.size()) {
-            result.status = LegacyStandardModeGroupEightPageAdvanceStatus::
-                runtime_entry_out_of_range;
+            result.status =
+                LegacyGameMenuPageAdvanceStatus::runtime_entry_out_of_range;
             return result;
         }
         const LegacyStandardModeEntryConsumptionResult consumption =
@@ -16529,15 +16342,14 @@ advance_legacy_standard_mode_group_eight_page(
         result.legacy_return_value = consumption.legacy_return_value;
         if (consumption.dispatch_status !=
             LegacyStandardModeSelectedRecordDispatchStatus::completed) {
-            result.status = LegacyStandardModeGroupEightPageAdvanceStatus::
-                entry_consumption_stopped;
+            result.status =
+                LegacyGameMenuPageAdvanceStatus::entry_consumption_stopped;
             return result;
         }
         runtime_state.mode_flags |= 0x30;
         result.legacy_return_value = ports.play_sample(0x2EU, sample_handle);
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeGroupEightPageAdvancePath::runtime_page_advanced;
+        result.path = LegacyGameMenuPageAdvancePath::runtime_page_advanced;
         return result;
     }
 
@@ -16572,8 +16384,8 @@ advance_legacy_standard_mode_group_eight_page(
         const LegacyStandardModeForwardNode* probe = source_head;
         for (compat::i32 index = 0; index < advance_count; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupEightPageAdvanceStatus::
-                    visible_chain_stopped;
+                result.status =
+                    LegacyGameMenuPageAdvanceStatus::visible_chain_stopped;
                 return result;
             }
             probe = probe->next;
@@ -16598,8 +16410,8 @@ advance_legacy_standard_mode_group_eight_page(
         probe = state.record_head;
         for (compat::i32 index = 0; index < selected_index; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupEightPageAdvanceStatus::
-                    selected_record_missing;
+                result.status =
+                    LegacyGameMenuPageAdvanceStatus::selected_record_missing;
                 return result;
             }
             probe = probe->next;
@@ -16612,8 +16424,8 @@ advance_legacy_standard_mode_group_eight_page(
             );
         ++result.helper_call_count;
         if (selected_record == nullptr) {
-            result.status = LegacyStandardModeGroupEightPageAdvanceStatus::
-                selected_record_missing;
+            result.status =
+                LegacyGameMenuPageAdvanceStatus::selected_record_missing;
             return result;
         }
         const LegacyStandardModeTextResolutionResult text =
@@ -16622,12 +16434,11 @@ advance_legacy_standard_mode_group_eight_page(
             );
         ++result.helper_call_count;
         if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
-            result.status = LegacyStandardModeGroupEightPageAdvanceStatus::
-                shared_text_stopped;
+            result.status =
+                LegacyGameMenuPageAdvanceStatus::shared_text_stopped;
             return result;
         }
-        result.path =
-            LegacyStandardModeGroupEightPageAdvancePath::record_page_advanced;
+        result.path = LegacyGameMenuPageAdvancePath::record_page_advanced;
         break;
     }
     case 3U: {
@@ -16636,8 +16447,8 @@ advance_legacy_standard_mode_group_eight_page(
         for (compat::u32 checked = 0U; checked < 4U; ++checked) {
             --selected;
             if (selected >= party_markers.size()) {
-                result.status = LegacyStandardModeGroupEightPageAdvanceStatus::
-                    party_cycle_stopped;
+                result.status =
+                    LegacyGameMenuPageAdvanceStatus::party_cycle_stopped;
                 return result;
             }
             if (party_markers[selected] != 0xFFFFU) {
@@ -16646,33 +16457,31 @@ advance_legacy_standard_mode_group_eight_page(
             }
         }
         if (!found) {
-            result.status = LegacyStandardModeGroupEightPageAdvanceStatus::
-                party_cycle_stopped;
+            result.status =
+                LegacyGameMenuPageAdvanceStatus::party_cycle_stopped;
             return result;
         }
         state.record_zero = selected;
         result.legacy_return_value = ports.play_sample(0x2EU, sample_handle);
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeGroupEightPageAdvancePath::available_item_last;
+        result.path = LegacyGameMenuPageAdvancePath::available_item_last;
         break;
     }
     case 5U:
         state.selected_action = 1U;
         result.legacy_return_value = 1;
-        result.path = LegacyStandardModeGroupEightPageAdvancePath::action_last;
+        result.path = LegacyGameMenuPageAdvancePath::action_last;
         break;
     case 0x0AU:
         state.selected_outer_row =
             std::bit_cast<compat::u32>(state.outer_row_count - 1);
         result.legacy_return_value = state.outer_row_count - 1;
-        result.path =
-            LegacyStandardModeGroupEightPageAdvancePath::outer_row_last;
+        result.path = LegacyGameMenuPageAdvancePath::outer_row_last;
         break;
     case 0x0BU:
         state.selected_column = 1U;
         result.legacy_return_value = 1;
-        result.path = LegacyStandardModeGroupEightPageAdvancePath::column_last;
+        result.path = LegacyGameMenuPageAdvancePath::column_last;
         break;
     case 0x0FU: {
         const LegacyStandardModeWindowPageAdvanceResult page =
@@ -16686,8 +16495,7 @@ advance_legacy_standard_mode_group_eight_page(
         ++result.helper_call_count;
         result.legacy_return_value = page.legacy_return_value;
         state.transition_flags |= 0x3000U;
-        result.path = LegacyStandardModeGroupEightPageAdvancePath::
-            secondary_page_advanced;
+        result.path = LegacyGameMenuPageAdvancePath::secondary_page_advanced;
         break;
     }
     default:
@@ -16699,17 +16507,16 @@ advance_legacy_standard_mode_group_eight_page(
     return result;
 }
 
-LegacyStandardModeGroupEightPageRetreatResult
-retreat_legacy_standard_mode_group_eight_page(
-    LegacyStandardModeGroupEightState& state,
+LegacyGameMenuPageRetreatResult retreat_legacy_game_menu_page(
+    LegacyGameMenuState& state,
     const compat::u32 sample_handle,
     const std::span<const compat::u16> party_markers,
     const std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightPageRetreatResult result;
+    LegacyGameMenuPageRetreatResult result;
     if (state.interaction_mode >= 0x01F4U) {
         const LegacyStandardModeRuntimePageRetreatResult runtime_result =
             retreat_legacy_standard_mode_runtime_page(
@@ -16719,12 +16526,11 @@ retreat_legacy_standard_mode_group_eight_page(
         result.runtime_page_status =
             static_cast<compat::u8>(runtime_result.status);
         result.legacy_return_value = runtime_result.legacy_return_value;
-        result.path =
-            LegacyStandardModeGroupEightPageRetreatPath::runtime_page_retreated;
+        result.path = LegacyGameMenuPageRetreatPath::runtime_page_retreated;
         if (runtime_result.status !=
             LegacyStandardModeRuntimePageRetreatStatus::completed) {
-            result.status = LegacyStandardModeGroupEightPageRetreatStatus::
-                runtime_page_stopped;
+            result.status =
+                LegacyGameMenuPageRetreatStatus::runtime_page_stopped;
         }
         return result;
     }
@@ -16749,8 +16555,8 @@ retreat_legacy_standard_mode_group_eight_page(
         const LegacyStandardModeForwardNode* probe = source_head;
         for (compat::i32 index = 0; index < window_offset; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupEightPageRetreatStatus::
-                    visible_chain_stopped;
+                result.status =
+                    LegacyGameMenuPageRetreatStatus::visible_chain_stopped;
                 return result;
             }
             probe = probe->next;
@@ -16775,8 +16581,8 @@ retreat_legacy_standard_mode_group_eight_page(
         probe = state.record_head;
         for (compat::i32 index = 0; index < selected_index; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupEightPageRetreatStatus::
-                    selected_record_missing;
+                result.status =
+                    LegacyGameMenuPageRetreatStatus::selected_record_missing;
                 return result;
             }
             probe = probe->next;
@@ -16789,8 +16595,8 @@ retreat_legacy_standard_mode_group_eight_page(
             );
         ++result.helper_call_count;
         if (selected_record == nullptr) {
-            result.status = LegacyStandardModeGroupEightPageRetreatStatus::
-                selected_record_missing;
+            result.status =
+                LegacyGameMenuPageRetreatStatus::selected_record_missing;
             return result;
         }
         const LegacyStandardModeTextResolutionResult text =
@@ -16799,12 +16605,11 @@ retreat_legacy_standard_mode_group_eight_page(
             );
         ++result.helper_call_count;
         if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
-            result.status = LegacyStandardModeGroupEightPageRetreatStatus::
-                shared_text_stopped;
+            result.status =
+                LegacyGameMenuPageRetreatStatus::shared_text_stopped;
             return result;
         }
-        result.path =
-            LegacyStandardModeGroupEightPageRetreatPath::record_page_retreated;
+        result.path = LegacyGameMenuPageRetreatPath::record_page_retreated;
         break;
     }
     case 3U: {
@@ -16812,8 +16617,8 @@ retreat_legacy_standard_mode_group_eight_page(
         compat::u32 selected = 0U;
         for (; selected < 4U; ++selected) {
             if (selected >= party_markers.size()) {
-                result.status = LegacyStandardModeGroupEightPageRetreatStatus::
-                    party_cycle_stopped;
+                result.status =
+                    LegacyGameMenuPageRetreatStatus::party_cycle_stopped;
                 return result;
             }
             if (party_markers[selected] != 0xFFFFU) {
@@ -16822,29 +16627,27 @@ retreat_legacy_standard_mode_group_eight_page(
             }
         }
         if (!found) {
-            result.status = LegacyStandardModeGroupEightPageRetreatStatus::
-                party_cycle_stopped;
+            result.status =
+                LegacyGameMenuPageRetreatStatus::party_cycle_stopped;
             return result;
         }
         state.record_zero = selected;
         result.legacy_return_value = ports.play_sample(0x2EU, sample_handle);
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeGroupEightPageRetreatPath::available_item_first;
+        result.path = LegacyGameMenuPageRetreatPath::available_item_first;
         break;
     }
     case 5U:
         state.selected_action = 0U;
-        result.path = LegacyStandardModeGroupEightPageRetreatPath::action_first;
+        result.path = LegacyGameMenuPageRetreatPath::action_first;
         break;
     case 0x0AU:
         state.selected_outer_row = 0U;
-        result.path =
-            LegacyStandardModeGroupEightPageRetreatPath::outer_row_first;
+        result.path = LegacyGameMenuPageRetreatPath::outer_row_first;
         break;
     case 0x0BU:
         state.selected_column = 0U;
-        result.path = LegacyStandardModeGroupEightPageRetreatPath::column_first;
+        result.path = LegacyGameMenuPageRetreatPath::column_first;
         break;
     case 0x0FU:
         static_cast<void>(retreat_legacy_standard_mode_window_page(
@@ -16852,8 +16655,7 @@ retreat_legacy_standard_mode_group_eight_page(
         ));
         ++result.helper_call_count;
         state.transition_flags |= 0x0300U;
-        result.path = LegacyStandardModeGroupEightPageRetreatPath::
-            secondary_page_retreated;
+        result.path = LegacyGameMenuPageRetreatPath::secondary_page_retreated;
         break;
     default:
         break;
@@ -16864,16 +16666,15 @@ retreat_legacy_standard_mode_group_eight_page(
     return result;
 }
 
-LegacyStandardModeGroupEightModeRetreatResult
-retreat_legacy_standard_mode_group_eight_mode(
-    LegacyStandardModeGroupEightState& state,
+LegacyGameMenuModeRetreatResult retreat_legacy_game_menu_mode(
+    LegacyGameMenuState& state,
     const compat::u32 sample_handle,
     const std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightModeRetreatResult result;
+    LegacyGameMenuModeRetreatResult result;
     if (state.interaction_mode >= 0x01F4U) {
         --runtime_state.mode_index;
         if (runtime_state.mode_index < 0) {
@@ -16886,8 +16687,8 @@ retreat_legacy_standard_mode_group_eight_mode(
         ++result.helper_call_count;
         if (initialization.status !=
             LegacyStandardModeEntryInitializationStatus::completed) {
-            result.status = LegacyStandardModeGroupEightModeRetreatStatus::
-                entry_initialization_stopped;
+            result.status =
+                LegacyGameMenuModeRetreatStatus::entry_initialization_stopped;
             return result;
         }
         static_cast<void>(rebuild_legacy_standard_mode_entry_alias(
@@ -16898,8 +16699,8 @@ retreat_legacy_standard_mode_group_eight_mode(
             refresh_legacy_standard_mode_page(runtime_state);
         ++result.helper_call_count;
         if (refresh.status != LegacyStandardModePageRefreshStatus::completed) {
-            result.status = LegacyStandardModeGroupEightModeRetreatStatus::
-                page_refresh_stopped;
+            result.status =
+                LegacyGameMenuModeRetreatStatus::page_refresh_stopped;
             return result;
         }
         const compat::i32 selected =
@@ -16907,8 +16708,8 @@ retreat_legacy_standard_mode_group_eight_mode(
         if (selected < 0 ||
             static_cast<std::size_t>(selected) >=
                 runtime_state.entries.size()) {
-            result.status = LegacyStandardModeGroupEightModeRetreatStatus::
-                runtime_entry_out_of_range;
+            result.status =
+                LegacyGameMenuModeRetreatStatus::runtime_entry_out_of_range;
             return result;
         }
         const LegacyStandardModeEntryConsumptionResult consumption =
@@ -16921,8 +16722,8 @@ retreat_legacy_standard_mode_group_eight_mode(
         result.legacy_return_value = consumption.legacy_return_value;
         if (consumption.dispatch_status !=
             LegacyStandardModeSelectedRecordDispatchStatus::completed) {
-            result.status = LegacyStandardModeGroupEightModeRetreatStatus::
-                entry_consumption_stopped;
+            result.status =
+                LegacyGameMenuModeRetreatStatus::entry_consumption_stopped;
             return result;
         }
         result.legacy_return_value = ports.play_sample(0x2EU, sample_handle);
@@ -16939,12 +16740,12 @@ retreat_legacy_standard_mode_group_eight_mode(
         state.viewport_extent = 0x01E0U;
         state.pre_initialization_zeroes[2U] = 0U;
         const LegacyStandardModeRecordCleanupResult records =
-            cleanup_group_eight_selection_records(state, ports);
+            cleanup_game_menu_selection_records(state, ports);
         ++result.helper_call_count;
         if (records.status !=
             LegacyStandardModeRecordCleanupStatus::completed) {
-            result.status = LegacyStandardModeGroupEightModeRetreatStatus::
-                record_cleanup_stopped;
+            result.status =
+                LegacyGameMenuModeRetreatStatus::record_cleanup_stopped;
             return result;
         }
         const compat::u32 old_hover = state.pre_initialization_zeroes[0U];
@@ -16953,12 +16754,12 @@ retreat_legacy_standard_mode_group_eight_mode(
             state.pre_initialization_zeroes[0U] = 6U;
         }
         const LegacyStandardModeRecordInitializationResult initialized =
-            initialize_group_eight_selection_records(state, ports);
+            initialize_game_menu_selection_records(state, ports);
         result.helper_call_count += initialized.helper_call_count + 1U;
         if (initialized.status !=
             LegacyStandardModeRecordInitializationStatus::completed) {
-            result.status = LegacyStandardModeGroupEightModeRetreatStatus::
-                record_initialization_stopped;
+            result.status =
+                LegacyGameMenuModeRetreatStatus::record_initialization_stopped;
             return result;
         }
         result.legacy_return_value = ports.play_sample(0x2EU, sample_handle);
@@ -16969,8 +16770,8 @@ retreat_legacy_standard_mode_group_eight_mode(
         const LegacyStandardModeForwardNode* probe = state.record_head;
         for (compat::i32 index = 0; index < selected_index; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupEightModeRetreatStatus::
-                    selected_record_missing;
+                result.status =
+                    LegacyGameMenuModeRetreatStatus::selected_record_missing;
                 return result;
             }
             probe = probe->next;
@@ -16983,8 +16784,8 @@ retreat_legacy_standard_mode_group_eight_mode(
             );
         ++result.helper_call_count;
         if (selected_record == nullptr) {
-            result.status = LegacyStandardModeGroupEightModeRetreatStatus::
-                selected_record_missing;
+            result.status =
+                LegacyGameMenuModeRetreatStatus::selected_record_missing;
             return result;
         }
         const LegacyStandardModeTextResolutionResult text =
@@ -16993,8 +16794,8 @@ retreat_legacy_standard_mode_group_eight_mode(
             );
         ++result.helper_call_count;
         if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
-            result.status = LegacyStandardModeGroupEightModeRetreatStatus::
-                shared_text_stopped;
+            result.status =
+                LegacyGameMenuModeRetreatStatus::shared_text_stopped;
             return result;
         }
     } else {
@@ -17027,16 +16828,15 @@ retreat_legacy_standard_mode_group_eight_mode(
     return result;
 }
 
-LegacyStandardModeGroupEightModeAdvanceResult
-advance_legacy_standard_mode_group_eight_mode(
-    LegacyStandardModeGroupEightState& state,
+LegacyGameMenuModeAdvanceResult advance_legacy_game_menu_mode(
+    LegacyGameMenuState& state,
     const compat::u32 sample_handle,
     const std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightModeAdvanceResult result;
+    LegacyGameMenuModeAdvanceResult result;
     if (state.interaction_mode >= 0x01F4U) {
         const LegacyStandardModeRuntimeModeAdvanceResult runtime_result =
             advance_legacy_standard_mode_runtime_mode(
@@ -17048,8 +16848,8 @@ advance_legacy_standard_mode_group_eight_mode(
         result.legacy_return_value = runtime_result.legacy_return_value;
         if (runtime_result.status !=
             LegacyStandardModeRuntimeModeAdvanceStatus::completed) {
-            result.status = LegacyStandardModeGroupEightModeAdvanceStatus::
-                runtime_mode_stopped;
+            result.status =
+                LegacyGameMenuModeAdvanceStatus::runtime_mode_stopped;
         }
         return result;
     }
@@ -17063,12 +16863,12 @@ advance_legacy_standard_mode_group_eight_mode(
         state.viewport_extent = 0x01E0U;
         state.pre_initialization_zeroes[2U] = 0U;
         const LegacyStandardModeRecordCleanupResult records =
-            cleanup_group_eight_selection_records(state, ports);
+            cleanup_game_menu_selection_records(state, ports);
         ++result.helper_call_count;
         if (records.status !=
             LegacyStandardModeRecordCleanupStatus::completed) {
-            result.status = LegacyStandardModeGroupEightModeAdvanceStatus::
-                record_cleanup_stopped;
+            result.status =
+                LegacyGameMenuModeAdvanceStatus::record_cleanup_stopped;
             return result;
         }
         ++state.pre_initialization_zeroes[0U];
@@ -17076,12 +16876,12 @@ advance_legacy_standard_mode_group_eight_mode(
             state.pre_initialization_zeroes[0U] = 0U;
         }
         const LegacyStandardModeRecordInitializationResult initialized =
-            initialize_group_eight_selection_records(state, ports);
+            initialize_game_menu_selection_records(state, ports);
         result.helper_call_count += initialized.helper_call_count + 1U;
         if (initialized.status !=
             LegacyStandardModeRecordInitializationStatus::completed) {
-            result.status = LegacyStandardModeGroupEightModeAdvanceStatus::
-                record_initialization_stopped;
+            result.status =
+                LegacyGameMenuModeAdvanceStatus::record_initialization_stopped;
             return result;
         }
         result.legacy_return_value = ports.play_sample(0x2EU, sample_handle);
@@ -17092,8 +16892,8 @@ advance_legacy_standard_mode_group_eight_mode(
         const LegacyStandardModeForwardNode* probe = state.record_head;
         for (compat::i32 index = 0; index < selected_index; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupEightModeAdvanceStatus::
-                    selected_record_missing;
+                result.status =
+                    LegacyGameMenuModeAdvanceStatus::selected_record_missing;
                 return result;
             }
             probe = probe->next;
@@ -17106,8 +16906,8 @@ advance_legacy_standard_mode_group_eight_mode(
             );
         ++result.helper_call_count;
         if (selected_record == nullptr) {
-            result.status = LegacyStandardModeGroupEightModeAdvanceStatus::
-                selected_record_missing;
+            result.status =
+                LegacyGameMenuModeAdvanceStatus::selected_record_missing;
             return result;
         }
         const LegacyStandardModeTextResolutionResult text =
@@ -17116,8 +16916,8 @@ advance_legacy_standard_mode_group_eight_mode(
             );
         ++result.helper_call_count;
         if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
-            result.status = LegacyStandardModeGroupEightModeAdvanceStatus::
-                shared_text_stopped;
+            result.status =
+                LegacyGameMenuModeAdvanceStatus::shared_text_stopped;
             return result;
         }
     } else {
@@ -17160,7 +16960,7 @@ advance_legacy_standard_mode_group_eight_mode(
 
 LegacyStandardModeSelectionPublishResult
 publish_legacy_standard_mode_selection_or_advance_runtime(
-    LegacyStandardModeGroupEightState& state,
+    LegacyGameMenuState& state,
     const compat::u32 sample_handle,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports
@@ -17194,7 +16994,7 @@ publish_legacy_standard_mode_selection_or_advance_runtime(
 
 LegacyStandardModeSelectionPublishResult
 cycle_legacy_standard_mode_selection_or_advance_runtime(
-    LegacyStandardModeGroupEightState& state,
+    LegacyGameMenuState& state,
     const compat::u32 sample_handle,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports
@@ -17228,13 +17028,13 @@ cycle_legacy_standard_mode_selection_or_advance_runtime(
     return result;
 }
 
-LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
-    LegacyStandardModeGroupEightState& state,
+LegacyGameMenuPageRenderResult render_legacy_game_menu_page(
+    LegacyGameMenuState& state,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
-    LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime,
-    LegacyStandardModeGroupOneRenderPorts& ports
+    LegacyGameMenuInteractionCommitRuntime& commit_runtime,
+    LegacyGameMenuPageRenderPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupOneRenderResult result;
+    LegacyGameMenuPageRenderResult result;
     if (state.render_blocked != 0) {
         result.legacy_return_value = state.render_blocked;
         return result;
@@ -17255,17 +17055,17 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
         if (runtime.status !=
             LegacyStandardModeRuntimeRenderStatus::completed) {
             result.status =
-                LegacyStandardModeGroupOneRenderStatus::runtime_render_stopped;
+                LegacyGameMenuPageRenderStatus::runtime_render_stopped;
         }
         return result;
     }
 
-    const auto execute = [&](const LegacyStandardModeGroupOneRenderOperation op,
+    const auto execute = [&](const LegacyGameMenuPageRenderOperation op,
                              const std::array<compat::i32, 8U>& values,
                              const compat::u32 color,
                              std::string text = {}) noexcept {
         const std::optional<compat::i32> rendered = ports.execute(
-            LegacyStandardModeGroupOneRenderRequest{
+            LegacyGameMenuPageRenderRequest{
                 .operation = op,
                 .values = values,
                 .color = color,
@@ -17274,8 +17074,8 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
         );
         ++result.render_operation_count;
         if (!rendered.has_value()) {
-            result.status = LegacyStandardModeGroupOneRenderStatus::
-                render_operation_stopped;
+            result.status =
+                LegacyGameMenuPageRenderStatus::render_operation_stopped;
             return false;
         }
         result.legacy_return_value = *rendered;
@@ -17299,8 +17099,8 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
         const LegacyStandardModeForwardNode* probe = state.record_head;
         for (compat::i32 index = 0; index < offset; ++index) {
             if (probe == nullptr) {
-                result.status = LegacyStandardModeGroupOneRenderStatus::
-                    selected_record_missing;
+                result.status =
+                    LegacyGameMenuPageRenderStatus::selected_record_missing;
                 return result;
             }
             probe = probe->next;
@@ -17322,7 +17122,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
     }
 
     if (!execute(
-            LegacyStandardModeGroupOneRenderOperation::prepare_surface,
+            LegacyGameMenuPageRenderOperation::prepare_surface,
             values(),
             primary_color
         )) {
@@ -17333,7 +17133,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
     const compat::i32 progress = std::min(raw_progress, 5);
     if (raw_progress < 5) {
         if (!execute(
-                LegacyStandardModeGroupOneRenderOperation::draw_progress,
+                LegacyGameMenuPageRenderOperation::draw_progress,
                 values(raw_progress, progress, 0xD0, 0x74, 0x110, 0x136),
                 primary_color
             )) {
@@ -17341,7 +17141,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
         }
     }
     if (!execute(
-            LegacyStandardModeGroupOneRenderOperation::draw_progress,
+            LegacyGameMenuPageRenderOperation::draw_progress,
             values(progress, 0xB0, 0xD8, 0x1E0),
             alternate_color
         )) {
@@ -17359,7 +17159,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
             selected = -1;
         }
         if (!execute(
-                LegacyStandardModeGroupOneRenderOperation::draw_choice,
+                LegacyGameMenuPageRenderOperation::draw_choice,
                 values(choice, selected, choice * 0x3C + 0xE0, 0x3E),
                 color
             )) {
@@ -17376,12 +17176,12 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
     }
 
     if (!execute(
-            LegacyStandardModeGroupOneRenderOperation::draw_action,
+            LegacyGameMenuPageRenderOperation::draw_action,
             values(0x232A, 7, 0xD4, 0x64),
             primary_color
         ) ||
         !execute(
-            LegacyStandardModeGroupOneRenderOperation::draw_action,
+            LegacyGameMenuPageRenderOperation::draw_action,
             values(
                 0x232A,
                 static_cast<compat::i32>(state.pre_initialization_zeroes[0U]) +
@@ -17400,7 +17200,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
     for (compat::u32 index = 0U; index < state.visible_record_count; ++index) {
         if (row == nullptr) {
             result.status =
-                LegacyStandardModeGroupOneRenderStatus::selected_record_missing;
+                LegacyGameMenuPageRenderStatus::selected_record_missing;
             return result;
         }
         const bool selected =
@@ -17413,7 +17213,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
             ? static_cast<compat::i32>(row->second_value)
             : static_cast<compat::i32>(row->first_value);
         if (!execute(
-                LegacyStandardModeGroupOneRenderOperation::draw_list_row,
+                LegacyGameMenuPageRenderOperation::draw_list_row,
                 values(
                     static_cast<compat::i32>(index),
                     selected ? -1 : 0,
@@ -17427,7 +17227,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
         }
         if (selected &&
             !execute(
-                LegacyStandardModeGroupOneRenderOperation::draw_selected_marker,
+                LegacyGameMenuPageRenderOperation::draw_selected_marker,
                 values(static_cast<compat::i32>(index), state.interaction_mode),
                 primary_color
             )) {
@@ -17451,7 +17251,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
         state.transition_flags = transition;
         if (state.local_record_count > 0x0D &&
             !execute(
-                LegacyStandardModeGroupOneRenderOperation::draw_scrollbar,
+                LegacyGameMenuPageRenderOperation::draw_scrollbar,
                 values(
                     std::bit_cast<compat::i32>(state.list_offset),
                     std::bit_cast<compat::i32>(state.visible_record_count),
@@ -17475,8 +17275,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
                 continue;
             }
             if (!execute(
-                    LegacyStandardModeGroupOneRenderOperation::
-                        draw_mode_three_slot,
+                    LegacyGameMenuPageRenderOperation::draw_mode_three_slot,
                     values(
                         static_cast<compat::i32>(slot),
                         slot == state.record_zero ? -1 : 0,
@@ -17491,7 +17290,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
     }
     if (state.interaction_mode == 5U &&
         !execute(
-            LegacyStandardModeGroupOneRenderOperation::draw_mode_five_panel,
+            LegacyGameMenuPageRenderOperation::draw_mode_five_panel,
             values(
                 static_cast<compat::i32>(state.local_selection),
                 static_cast<compat::i32>(state.selected_action)
@@ -17507,7 +17306,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
     for (compat::i32 index = 0; index < selected_index; ++index) {
         if (selected_probe == nullptr) {
             result.status =
-                LegacyStandardModeGroupOneRenderStatus::selected_record_missing;
+                LegacyGameMenuPageRenderStatus::selected_record_missing;
             return result;
         }
         selected_probe = selected_probe->next;
@@ -17518,13 +17317,12 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
         index_legacy_standard_mode_forward_node(selected_index, &selected_head);
     ++result.helper_call_count;
     if (selected_record == nullptr) {
-        result.status =
-            LegacyStandardModeGroupOneRenderStatus::selected_record_missing;
+        result.status = LegacyGameMenuPageRenderStatus::selected_record_missing;
         return result;
     }
     if (selected_record->text_index != 0xFFDCU &&
         !execute(
-            LegacyStandardModeGroupOneRenderOperation::draw_animated_record,
+            LegacyGameMenuPageRenderOperation::draw_animated_record,
             values(selected_record->text_index),
             primary_color,
             selected_record->animated_text
@@ -17542,8 +17340,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
                 continue;
             }
             if (!execute(
-                    LegacyStandardModeGroupOneRenderOperation::
-                        draw_mode_ten_row,
+                    LegacyGameMenuPageRenderOperation::draw_mode_ten_row,
                     values(
                         row_index,
                         row_index ==
@@ -17562,8 +17359,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
         }
         if (state.interaction_mode == 0x0BU &&
             !execute(
-                LegacyStandardModeGroupOneRenderOperation::
-                    draw_mode_eleven_panel,
+                LegacyGameMenuPageRenderOperation::draw_mode_eleven_panel,
                 values(
                     std::bit_cast<compat::i32>(state.selected_outer_row),
                     state.mode_ten_available,
@@ -17589,8 +17385,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
                 commit_runtime.filtered_records
                     .records[static_cast<std::size_t>(absolute)];
             if (!execute(
-                    LegacyStandardModeGroupOneRenderOperation::
-                        draw_mode_fifteen_row,
+                    LegacyGameMenuPageRenderOperation::draw_mode_fifteen_row,
                     values(
                         row_index,
                         row_index == state.secondary_row_selection ? -1 : 0
@@ -17617,7 +17412,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
                 effect |= 2U;
             }
             if (!execute(
-                    LegacyStandardModeGroupOneRenderOperation::draw_scrollbar,
+                    LegacyGameMenuPageRenderOperation::draw_scrollbar,
                     values(
                         state.secondary_window_offset,
                         state.secondary_row_count,
@@ -17636,8 +17431,7 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
             ports.terminal_rows(state.interaction_mode);
         for (std::size_t row_index = 0U; row_index < rows.size(); ++row_index) {
             if (!execute(
-                    LegacyStandardModeGroupOneRenderOperation::
-                        draw_terminal_row,
+                    LegacyGameMenuPageRenderOperation::draw_terminal_row,
                     values(static_cast<compat::i32>(row_index)),
                     primary_color,
                     rows[row_index]
@@ -17654,20 +17448,18 @@ LegacyStandardModeGroupOneRenderResult render_legacy_standard_mode_group_one(
     return result;
 }
 
-LegacyStandardModeGroupEightInteractionExitResult
-exit_legacy_standard_mode_group_eight_interaction(
-    LegacyStandardModeGroupEightState& state,
+LegacyGameMenuInteractionExitResult exit_legacy_game_menu_interaction(
+    LegacyGameMenuState& state,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports,
-    LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime,
-    LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports
+    LegacyGameMenuMainInputPorts& ports,
+    LegacyGameMenuInteractionCommitRuntime& commit_runtime,
+    LegacyGameMenuInteractionCommitPorts& commit_ports
 ) noexcept {
-    LegacyStandardModeGroupEightInteractionExitResult result;
+    LegacyGameMenuInteractionExitResult result;
     if (state.interaction_mode >= 0x01F4U) {
         if (state.interaction_mode != 0x01F4U) {
-            result.path = LegacyStandardModeGroupEightInteractionExitPath::
-                high_mode_ignored;
+            result.path = LegacyGameMenuInteractionExitPath::high_mode_ignored;
             return result;
         }
         state.interaction_mode = 2U;
@@ -17675,8 +17467,7 @@ exit_legacy_standard_mode_group_eight_interaction(
             cleanup_legacy_standard_mode_runtime(runtime_state, runtime_ports);
         result.legacy_return_value = cleanup.legacy_return_value;
         result.helper_call_count = cleanup.helper_call_count + 1U;
-        result.path =
-            LegacyStandardModeGroupEightInteractionExitPath::runtime_cleaned;
+        result.path = LegacyGameMenuInteractionExitPath::runtime_cleaned;
         return result;
     }
 
@@ -17687,18 +17478,16 @@ exit_legacy_standard_mode_group_eight_interaction(
     case 3U:
         state.interaction_mode = 2U;
         state.pre_initialization_zeroes[2U] = 0xFFFFFF00U;
-        result.path =
-            LegacyStandardModeGroupEightInteractionExitPath::phase_reset;
+        result.path = LegacyGameMenuInteractionExitPath::phase_reset;
         return result;
     case 1U: {
-        const LegacyStandardModeGroupEightCleanupResult cleanup =
-            cleanup_legacy_standard_mode_group_eight(state, ports);
+        const LegacyGameMenuCleanupResult cleanup =
+            cleanup_legacy_game_menu(state, ports);
         ++result.helper_call_count;
         result.legacy_return_value = cleanup.legacy_return_value;
-        if (cleanup.status !=
-            LegacyStandardModeGroupEightCleanupStatus::completed) {
-            result.status = LegacyStandardModeGroupEightInteractionExitStatus::
-                record_cleanup_stopped;
+        if (cleanup.status != LegacyGameMenuCleanupStatus::completed) {
+            result.status =
+                LegacyGameMenuInteractionExitStatus::record_cleanup_stopped;
             return result;
         }
         const LegacyStandardModeCallbackBindingResult binding =
@@ -17713,26 +17502,22 @@ exit_legacy_standard_mode_group_eight_interaction(
         result.story_flag_query_count = binding.story_flag_query_count;
         result.legacy_return_value = binding.legacy_return_value;
         state.exit_layout_owner = 0x34U;
-        result.path =
-            LegacyStandardModeGroupEightInteractionExitPath::callbacks_rebound;
+        result.path = LegacyGameMenuInteractionExitPath::callbacks_rebound;
         return result;
     }
     case 4U:
         state.selected_action = 1U;
         state.interaction_mode = 2U;
-        result.path =
-            LegacyStandardModeGroupEightInteractionExitPath::phase_reset;
+        result.path = LegacyGameMenuInteractionExitPath::phase_reset;
         return result;
     case 9U:
     case 16U:
     case 17U:
         state.interaction_mode = 2U;
-        result.path =
-            LegacyStandardModeGroupEightInteractionExitPath::phase_reset;
+        result.path = LegacyGameMenuInteractionExitPath::phase_reset;
         return result;
     case 10U:
-        result.path = LegacyStandardModeGroupEightInteractionExitPath::
-            phase_predecremented;
+        result.path = LegacyGameMenuInteractionExitPath::phase_predecremented;
         return result;
     case 14U:
         state.secondary_window_offset = static_cast<compat::i32>(
@@ -17741,34 +17526,31 @@ exit_legacy_standard_mode_group_eight_interaction(
         commit_runtime.filtered_records.records.clear();
         state.special_control_count = 0;
         state.interaction_mode = 2U;
-        result.path = LegacyStandardModeGroupEightInteractionExitPath::
-            filtered_records_released;
+        result.path =
+            LegacyGameMenuInteractionExitPath::filtered_records_released;
         return result;
     default:
         state.published_selection_x = state.selection_x;
         result.legacy_return_value =
             static_cast<compat::i32>(state.published_selection_x);
-        result.path = LegacyStandardModeGroupEightInteractionExitPath::
-            phase_predecremented;
+        result.path = LegacyGameMenuInteractionExitPath::phase_predecremented;
         return result;
     }
 }
 
-LegacyStandardModeGroupEightInteractionCommitResult
-commit_legacy_standard_mode_group_eight_interaction(
-    LegacyStandardModeGroupEightState& state,
+LegacyGameMenuInteractionCommitResult commit_legacy_game_menu_interaction(
+    LegacyGameMenuState& state,
     const compat::u32 sample_handle,
     const std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports,
-    LegacyStandardModeGroupEightInteractionCommitRuntime& runtime,
-    LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports
+    LegacyGameMenuMainInputPorts& ports,
+    LegacyGameMenuInteractionCommitRuntime& runtime,
+    LegacyGameMenuInteractionCommitPorts& commit_ports
 ) noexcept {
-    LegacyStandardModeGroupEightInteractionCommitResult result;
+    LegacyGameMenuInteractionCommitResult result;
     if (state.interaction_mode >= 0x01F4U) {
-        result.path =
-            LegacyStandardModeGroupEightInteractionCommitPath::runtime_noop;
+        result.path = LegacyGameMenuInteractionCommitPath::runtime_noop;
         return result;
     }
 
@@ -17822,8 +17604,7 @@ commit_legacy_standard_mode_group_eight_interaction(
         if (refresh.status !=
             LegacyStandardModeWindowSelectionStatus::completed) {
             result.status =
-                LegacyStandardModeGroupEightInteractionCommitStatus::
-                    window_refresh_stopped;
+                LegacyGameMenuInteractionCommitStatus::window_refresh_stopped;
             return false;
         }
         return true;
@@ -17840,8 +17621,8 @@ commit_legacy_standard_mode_group_eight_interaction(
     };
     const auto finish_mode_two_refresh = [&]() noexcept {
         if (refresh_window()) {
-            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
-                mode_two_refreshed;
+            result.path =
+                LegacyGameMenuInteractionCommitPath::mode_two_refreshed;
         }
     };
 
@@ -17855,9 +17636,8 @@ commit_legacy_standard_mode_group_eight_interaction(
             record = selected_record();
             ++result.helper_call_count;
             if (record == nullptr) {
-                result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        selected_record_missing;
+                result.status = LegacyGameMenuInteractionCommitStatus::
+                    selected_record_missing;
                 return result;
             }
             if (record->text_index >= 0xFFDCU) {
@@ -17866,13 +17646,12 @@ commit_legacy_standard_mode_group_eight_interaction(
         }
         if (state.selection_x == 0x1FU) {
             const LegacyStandardModeRecordCleanupResult records =
-                cleanup_group_eight_selection_records(state, ports);
+                cleanup_game_menu_selection_records(state, ports);
             ++result.helper_call_count;
             if (records.status !=
                 LegacyStandardModeRecordCleanupStatus::completed) {
-                result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        record_cleanup_stopped;
+                result.status = LegacyGameMenuInteractionCommitStatus::
+                    record_cleanup_stopped;
                 return result;
             }
             commit_ports.release_inventory_root();
@@ -17880,13 +17659,12 @@ commit_legacy_standard_mode_group_eight_interaction(
             state.selection_x = 0x1EU;
             play(0x2DU);
             const LegacyStandardModeRecordInitializationResult initialized =
-                initialize_group_eight_selection_records(state, ports);
+                initialize_game_menu_selection_records(state, ports);
             result.helper_call_count += initialized.helper_call_count + 1U;
             if (initialized.status !=
                 LegacyStandardModeRecordInitializationStatus::completed) {
-                result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        record_initialization_stopped;
+                result.status = LegacyGameMenuInteractionCommitStatus::
+                    record_initialization_stopped;
                 return result;
             }
             finish_mode_two_refresh();
@@ -17926,37 +17704,31 @@ commit_legacy_standard_mode_group_eight_interaction(
             result.helper_call_count += prepared.helper_call_count + 1U;
             if (prepared.status !=
                 LegacyStandardModeSpecialWorldTransitionStatus::completed) {
-                result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        record_cleanup_stopped;
+                result.status = LegacyGameMenuInteractionCommitStatus::
+                    record_cleanup_stopped;
                 return result;
             }
             transition_ports.publish_special_world_transition(5U, 1U, 0U, 3U);
             result.legacy_return_value =
                 transition_ports.dispatch_special_world_transition();
             ++result.helper_call_count;
-            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
-                world_transition_requested;
+            result.path =
+                LegacyGameMenuInteractionCommitPath::world_transition_requested;
             return result;
         }
         if (item_id == 0x0318U) {
             state.interaction_mode = 0x01F4U;
-            const LegacyStandardModeTransitionVisualResult visual =
-                initialize_legacy_standard_mode_transition_visual(
-                    commit_ports.transition_visual_state(),
-                    commit_ports.transition_visual_ports()
-                );
+            const LegacyTitleMenuResult visual = initialize_legacy_title_menu(
+                commit_ports.title_menu_state(), commit_ports.title_menu_ports()
+            );
             result.legacy_return_value = visual.legacy_return_value;
             result.helper_call_count += visual.helper_call_count + 1U;
-            if (visual.status !=
-                LegacyStandardModeTransitionVisualStatus::completed) {
+            if (visual.status != LegacyTitleMenuStatus::completed) {
                 result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        transition_visual_stopped;
+                    LegacyGameMenuInteractionCommitStatus::title_menu_stopped;
                 return result;
             }
-            result.path =
-                LegacyStandardModeGroupEightInteractionCommitPath::runtime_noop;
+            result.path = LegacyGameMenuInteractionCommitPath::runtime_noop;
             return result;
         }
         if (item_id == 0x02B9U) {
@@ -17965,9 +17737,7 @@ commit_legacy_standard_mode_group_eight_interaction(
             if (present != 0 || runtime.special_unlock_owner != 1) {
                 state.interaction_mode = 0x11U;
                 play(0x8CU);
-                result.path =
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        phase_reset;
+                result.path = LegacyGameMenuInteractionCommitPath::phase_reset;
                 return result;
             }
             state.interaction_mode = 0x0FU;
@@ -17978,9 +17748,8 @@ commit_legacy_standard_mode_group_eight_interaction(
             ++result.helper_call_count;
             if (filtered.status !=
                 LegacyStandardModeFilteredRecordStatus::completed) {
-                result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        filtered_records_stopped;
+                result.status = LegacyGameMenuInteractionCommitStatus::
+                    filtered_records_stopped;
                 return result;
             }
             state.secondary_window_offset = 0;
@@ -17990,8 +17759,7 @@ commit_legacy_standard_mode_group_eight_interaction(
             );
             state.secondary_row_count =
                 std::min(state.special_control_count, 8);
-            result.path =
-                LegacyStandardModeGroupEightInteractionCommitPath::phase_reset;
+            result.path = LegacyGameMenuInteractionCommitPath::phase_reset;
             return result;
         }
         if (item_id == 0x02B8U || item_id == 0x02BAU) {
@@ -18000,9 +17768,7 @@ commit_legacy_standard_mode_group_eight_interaction(
             if (present != 0) {
                 state.interaction_mode = 0x12U;
                 play(0x8CU);
-                result.path =
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        phase_reset;
+                result.path = LegacyGameMenuInteractionCommitPath::phase_reset;
                 return result;
             }
             const LegacyStandardModeValueGroupResult group =
@@ -18013,23 +17779,19 @@ commit_legacy_standard_mode_group_eight_interaction(
             if (group.status ==
                 LegacyStandardModeValueGroupStatus::maps_payload_out_of_range) {
                 result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        value_group_stopped;
+                    LegacyGameMenuInteractionCommitStatus::value_group_stopped;
                 return result;
             }
             if (group.status == LegacyStandardModeValueGroupStatus::not_found) {
                 state.interaction_mode = 0x12U;
                 play(0x8CU);
-                result.path =
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        phase_reset;
+                result.path = LegacyGameMenuInteractionCommitPath::phase_reset;
                 return result;
             }
             if (group.group_offset > maps_payload.size() ||
                 maps_payload.size() - group.group_offset < 6U) {
-                result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        value_group_record_out_of_range;
+                result.status = LegacyGameMenuInteractionCommitStatus::
+                    value_group_record_out_of_range;
                 return result;
             }
             remove_inventory(item_id);
@@ -18052,24 +17814,20 @@ commit_legacy_standard_mode_group_eight_interaction(
             if (dialog.status !=
                 LegacyStandardModeDialogSetupStatus::completed) {
                 result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        dialog_setup_stopped;
+                    LegacyGameMenuInteractionCommitStatus::dialog_setup_stopped;
                 return result;
             }
-            const LegacyStandardModeGroupEightCleanupResult cleanup =
-                cleanup_legacy_standard_mode_group_eight(state, ports);
+            const LegacyGameMenuCleanupResult cleanup =
+                cleanup_legacy_game_menu(state, ports);
             ++result.helper_call_count;
             result.legacy_return_value = cleanup.legacy_return_value;
-            if (cleanup.status !=
-                LegacyStandardModeGroupEightCleanupStatus::completed) {
-                result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        record_cleanup_stopped;
+            if (cleanup.status != LegacyGameMenuCleanupStatus::completed) {
+                result.status = LegacyGameMenuInteractionCommitStatus::
+                    record_cleanup_stopped;
                 return result;
             }
             state.global_mode_owner = 0U;
-            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
-                dialog_committed;
+            result.path = LegacyGameMenuInteractionCommitPath::dialog_committed;
             return result;
         }
         if (item_id == 0x0301U) {
@@ -18084,8 +17842,7 @@ commit_legacy_standard_mode_group_eight_interaction(
                 state.outer_row_count += *inventory_span;
             }
             state.interaction_mode = 0x0AU;
-            result.path =
-                LegacyStandardModeGroupEightInteractionCommitPath::phase_reset;
+            result.path = LegacyGameMenuInteractionCommitPath::phase_reset;
             return result;
         }
         if (item_id == 0x02DBU) {
@@ -18097,20 +17854,17 @@ commit_legacy_standard_mode_group_eight_interaction(
             }
             commit_ports.request_special_battle(*record);
             ++result.helper_call_count;
-            const LegacyStandardModeGroupEightCleanupResult cleanup =
-                cleanup_legacy_standard_mode_group_eight(state, ports);
+            const LegacyGameMenuCleanupResult cleanup =
+                cleanup_legacy_game_menu(state, ports);
             ++result.helper_call_count;
             result.legacy_return_value = cleanup.legacy_return_value;
-            if (cleanup.status !=
-                LegacyStandardModeGroupEightCleanupStatus::completed) {
-                result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        record_cleanup_stopped;
+            if (cleanup.status != LegacyGameMenuCleanupStatus::completed) {
+                result.status = LegacyGameMenuInteractionCommitStatus::
+                    record_cleanup_stopped;
                 return result;
             }
             state.global_mode_owner = 0U;
-            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
-                battle_requested;
+            result.path = LegacyGameMenuInteractionCommitPath::battle_requested;
             return result;
         }
 
@@ -18145,8 +17899,7 @@ commit_legacy_standard_mode_group_eight_interaction(
         ++result.helper_call_count;
         if (record == nullptr) {
             result.status =
-                LegacyStandardModeGroupEightInteractionCommitStatus::
-                    selected_record_missing;
+                LegacyGameMenuInteractionCommitStatus::selected_record_missing;
             return result;
         }
         if (state.selection_x == 0x1EU) {
@@ -18174,14 +17927,14 @@ commit_legacy_standard_mode_group_eight_interaction(
             }
         }
         if (refresh_window()) {
-            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
-                mode_three_refreshed;
+            result.path =
+                LegacyGameMenuInteractionCommitPath::mode_three_refreshed;
         }
         return result;
     }
     case 4U: {
-        const LegacyStandardModeGroupEightInteractionExitResult exit =
-            exit_legacy_standard_mode_group_eight_interaction(
+        const LegacyGameMenuInteractionExitResult exit =
+            exit_legacy_game_menu_interaction(
                 state,
                 runtime_state,
                 runtime_ports,
@@ -18191,15 +17944,12 @@ commit_legacy_standard_mode_group_eight_interaction(
             );
         result.legacy_return_value = exit.legacy_return_value;
         result.helper_call_count += exit.helper_call_count + 1U;
-        if (exit.status !=
-            LegacyStandardModeGroupEightInteractionExitStatus::completed) {
+        if (exit.status != LegacyGameMenuInteractionExitStatus::completed) {
             result.status =
-                LegacyStandardModeGroupEightInteractionCommitStatus::
-                    record_cleanup_stopped;
+                LegacyGameMenuInteractionCommitStatus::record_cleanup_stopped;
             return result;
         }
-        result.path = LegacyStandardModeGroupEightInteractionCommitPath::
-            interaction_exited;
+        result.path = LegacyGameMenuInteractionCommitPath::interaction_exited;
         return result;
     }
     case 5U:
@@ -18208,9 +17958,8 @@ commit_legacy_standard_mode_group_eight_interaction(
                 selected_record();
             ++result.helper_call_count;
             if (record == nullptr) {
-                result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        selected_record_missing;
+                result.status = LegacyGameMenuInteractionCommitStatus::
+                    selected_record_missing;
                 return result;
             }
             if (record->text_index != 0xFFDCU) {
@@ -18222,8 +17971,7 @@ commit_legacy_standard_mode_group_eight_interaction(
             }
         }
         state.interaction_mode = 2U;
-        result.path = LegacyStandardModeGroupEightInteractionCommitPath::
-            mode_five_finished;
+        result.path = LegacyGameMenuInteractionCommitPath::mode_five_finished;
         return result;
     case 0x0AU: {
         runtime.temporary_resource_token =
@@ -18239,8 +17987,7 @@ commit_legacy_standard_mode_group_eight_interaction(
                 runtime.temporary_resource_token
             );
             ++result.helper_call_count;
-            result.path = LegacyStandardModeGroupEightInteractionCommitPath::
-                mode_ten_failed;
+            result.path = LegacyGameMenuInteractionCommitPath::mode_ten_failed;
             return result;
         }
         state.mode_ten_available =
@@ -18253,8 +18000,7 @@ commit_legacy_standard_mode_group_eight_interaction(
         state.selected_column = 0U;
         commit_ports.release_mode_resource(runtime.temporary_resource_token);
         ++result.helper_call_count;
-        result.path =
-            LegacyStandardModeGroupEightInteractionCommitPath::mode_ten_loaded;
+        result.path = LegacyGameMenuInteractionCommitPath::mode_ten_loaded;
         return result;
     }
     case 0x0BU: {
@@ -18276,8 +18022,8 @@ commit_legacy_standard_mode_group_eight_interaction(
         }
         state.interaction_mode = 2U;
         if (state.mode_ten_available == 0) {
-            const LegacyStandardModeGroupEightInteractionExitResult exit =
-                exit_legacy_standard_mode_group_eight_interaction(
+            const LegacyGameMenuInteractionExitResult exit =
+                exit_legacy_game_menu_interaction(
                     state,
                     runtime_state,
                     runtime_ports,
@@ -18287,17 +18033,14 @@ commit_legacy_standard_mode_group_eight_interaction(
                 );
             result.legacy_return_value = exit.legacy_return_value;
             result.helper_call_count += exit.helper_call_count + 1U;
-            if (exit.status !=
-                LegacyStandardModeGroupEightInteractionExitStatus::completed) {
-                result.status =
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        record_cleanup_stopped;
+            if (exit.status != LegacyGameMenuInteractionExitStatus::completed) {
+                result.status = LegacyGameMenuInteractionCommitStatus::
+                    record_cleanup_stopped;
                 return result;
             }
             state.global_mode_owner = 0U;
         }
-        result.path = LegacyStandardModeGroupEightInteractionCommitPath::
-            mode_eleven_finished;
+        result.path = LegacyGameMenuInteractionCommitPath::mode_eleven_finished;
         return result;
     }
     case 0x0FU: {
@@ -18307,9 +18050,8 @@ commit_legacy_standard_mode_group_eight_interaction(
         if (selected < 0 ||
             static_cast<std::size_t>(selected) >=
                 runtime.filtered_records.records.size()) {
-            result.status =
-                LegacyStandardModeGroupEightInteractionCommitStatus::
-                    filtered_record_out_of_range;
+            result.status = LegacyGameMenuInteractionCommitStatus::
+                filtered_record_out_of_range;
             return result;
         }
         const LegacyStandardModeFilteredRecord& record =
@@ -18331,47 +18073,40 @@ commit_legacy_standard_mode_group_eight_interaction(
         result.legacy_return_value = dialog.legacy_return_value;
         if (dialog.status != LegacyStandardModeDialogSetupStatus::completed) {
             result.status =
-                LegacyStandardModeGroupEightInteractionCommitStatus::
-                    dialog_setup_stopped;
+                LegacyGameMenuInteractionCommitStatus::dialog_setup_stopped;
             return result;
         }
         state.secondary_window_offset =
             static_cast<compat::i32>(runtime.filtered_records.records.size());
         runtime.filtered_records.records.clear();
         state.special_control_count = 0;
-        const LegacyStandardModeGroupEightCleanupResult cleanup =
-            cleanup_legacy_standard_mode_group_eight(state, ports);
+        const LegacyGameMenuCleanupResult cleanup =
+            cleanup_legacy_game_menu(state, ports);
         ++result.helper_call_count;
         result.legacy_return_value = cleanup.legacy_return_value;
-        if (cleanup.status !=
-            LegacyStandardModeGroupEightCleanupStatus::completed) {
+        if (cleanup.status != LegacyGameMenuCleanupStatus::completed) {
             result.status =
-                LegacyStandardModeGroupEightInteractionCommitStatus::
-                    record_cleanup_stopped;
+                LegacyGameMenuInteractionCommitStatus::record_cleanup_stopped;
             return result;
         }
         state.global_mode_owner = 0U;
-        result.path =
-            LegacyStandardModeGroupEightInteractionCommitPath::dialog_committed;
+        result.path = LegacyGameMenuInteractionCommitPath::dialog_committed;
         return result;
     }
     case 0x11U:
     case 0x12U:
         state.interaction_mode = 2U;
-        result.path =
-            LegacyStandardModeGroupEightInteractionCommitPath::phase_reset;
+        result.path = LegacyGameMenuInteractionCommitPath::phase_reset;
         return result;
     default:
         return result;
     }
 }
 
-LegacyStandardModeGroupEightSelectionRetreatResult
-retreat_legacy_standard_mode_group_eight_selection(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightSelectionPorts& ports
+LegacyGameMenuSelectionRetreatResult retreat_legacy_game_menu_selection(
+    LegacyGameMenuState& state, LegacyGameMenuSelectionPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightSelectionRetreatResult result;
+    LegacyGameMenuSelectionRetreatResult result;
     compat::u16 selection = static_cast<compat::u16>(state.selection - 1U);
     state.selection = selection;
     if (selection <= 0x0AU) {
@@ -18402,12 +18137,10 @@ retreat_legacy_standard_mode_group_eight_selection(
     return result;
 }
 
-LegacyStandardModeGroupEightSelectionAdvanceResult
-advance_legacy_standard_mode_group_eight_selection(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightSelectionPorts& ports
+LegacyGameMenuSelectionAdvanceResult advance_legacy_game_menu_selection(
+    LegacyGameMenuState& state, LegacyGameMenuSelectionPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightSelectionAdvanceResult result;
+    LegacyGameMenuSelectionAdvanceResult result;
     const compat::i32 limit_flag = ports.story_flag(0x49U);
     ++result.story_flag_query_count;
     const compat::u16 limit = limit_flag == 1 ? 0x10U : 0x0FU;
@@ -18442,12 +18175,10 @@ advance_legacy_standard_mode_group_eight_selection(
     return result;
 }
 
-LegacyStandardModeGroupEightCommitResult
-commit_legacy_standard_mode_group_eight_selection(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightCommitPorts& ports
+LegacyGameMenuCommitResult commit_legacy_game_menu_selection(
+    LegacyGameMenuState& state, LegacyGameMenuCommitPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightCommitResult result;
+    LegacyGameMenuCommitResult result;
     const compat::u16 selection = state.selection;
     state.lifecycle = 2U;
     if (selection != 0x11U) {
@@ -18473,23 +18204,22 @@ commit_legacy_standard_mode_group_eight_selection(
     result.story_flag_query_count += binding.story_flag_query_count;
     result.legacy_return_value = static_cast<compat::i32>(selection);
     if (selection < 0x0BU || selection > 0x11U) {
-        result.status =
-            LegacyStandardModeGroupEightCommitStatus::selection_out_of_range;
+        result.status = LegacyGameMenuCommitStatus::selection_out_of_range;
         return result;
     }
     const compat::u32 target =
         state.callback_state.initialization_callbacks[selection - 0x0BU];
     if (target == 0U) {
-        result.status = LegacyStandardModeGroupEightCommitStatus::
-            initialization_callback_missing;
+        result.status =
+            LegacyGameMenuCommitStatus::initialization_callback_missing;
         return result;
     }
     const std::optional<compat::i32> initialized =
         ports.invoke_initialization_callback(selection, target, state);
     ++result.helper_call_count;
     if (!initialized.has_value()) {
-        result.status = LegacyStandardModeGroupEightCommitStatus::
-            initialization_callback_missing;
+        result.status =
+            LegacyGameMenuCommitStatus::initialization_callback_missing;
         return result;
     }
     result.legacy_return_value =
@@ -18498,40 +18228,35 @@ commit_legacy_standard_mode_group_eight_selection(
     return result;
 }
 
-LegacyStandardModeGroupEightDrawResult
-draw_legacy_standard_mode_group_eight_selection(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightDrawPorts& ports
+LegacyGameMenuDrawResult draw_legacy_game_menu_selection(
+    LegacyGameMenuState& state, LegacyGameMenuDrawPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightDrawResult result;
+    LegacyGameMenuDrawResult result;
     const compat::u16 selection = state.selection;
     result.legacy_return_value = static_cast<compat::i32>(selection);
     if (selection < 0x0BU || selection > 0x11U) {
-        result.status =
-            LegacyStandardModeGroupEightDrawStatus::selection_out_of_range;
+        result.status = LegacyGameMenuDrawStatus::selection_out_of_range;
         return result;
     }
     const compat::u32 target =
         state.callback_state.draw_callbacks[selection - 0x0BU];
     if (target == 0U) {
-        result.status =
-            LegacyStandardModeGroupEightDrawStatus::draw_callback_missing;
+        result.status = LegacyGameMenuDrawStatus::draw_callback_missing;
         return result;
     }
     if (target == 0x00447100U) {
-        const LegacyStandardModeGroupOneRenderResult rendered =
-            render_legacy_standard_mode_group_one(
+        const LegacyGameMenuPageRenderResult rendered =
+            render_legacy_game_menu_page(
                 state,
-                ports.group_one_runtime_state(),
-                ports.group_one_commit_runtime(),
-                ports.group_one_render_ports()
+                ports.game_menu_page_runtime_state(),
+                ports.game_menu_page_commit_runtime(),
+                ports.game_menu_page_render_ports()
             );
         ++result.helper_call_count;
         result.legacy_return_value = rendered.legacy_return_value;
-        if (rendered.status !=
-            LegacyStandardModeGroupOneRenderStatus::completed) {
-            result.status = LegacyStandardModeGroupEightDrawStatus::
-                group_one_render_stopped;
+        if (rendered.status != LegacyGameMenuPageRenderStatus::completed) {
+            result.status =
+                LegacyGameMenuDrawStatus::game_menu_page_render_stopped;
         }
         return result;
     }
@@ -18539,19 +18264,17 @@ draw_legacy_standard_mode_group_eight_selection(
         ports.invoke_draw_callback(selection, target, state);
     ++result.helper_call_count;
     if (!drawn.has_value()) {
-        result.status =
-            LegacyStandardModeGroupEightDrawStatus::draw_callback_missing;
+        result.status = LegacyGameMenuDrawStatus::draw_callback_missing;
         return result;
     }
     result.legacy_return_value = *drawn;
     return result;
 }
 
-LegacyStandardModeGroupEightExitResult exit_legacy_standard_mode_group_eight(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeCallbackBindingPorts& ports
+LegacyGameMenuExitResult exit_legacy_game_menu(
+    LegacyGameMenuState& state, LegacyStandardModeCallbackBindingPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightExitResult result;
+    LegacyGameMenuExitResult result;
     state.lifecycle = static_cast<compat::u16>(state.lifecycle - 1U);
     if (state.lifecycle == 0U) {
         state.tagged_mode_value = 0U;
@@ -18568,13 +18291,12 @@ LegacyStandardModeGroupEightExitResult exit_legacy_standard_mode_group_eight(
     return result;
 }
 
-LegacyStandardModeGroupEightInputResult
-handle_legacy_standard_mode_group_eight_input(
-    LegacyStandardModeGroupEightState& state,
-    const LegacyStandardModeGroupEightInputSnapshot& input,
-    LegacyStandardModeGroupEightInputPorts& ports
+LegacyGameMenuInputResult handle_legacy_game_menu_input(
+    LegacyGameMenuState& state,
+    const LegacyGameMenuInputSnapshot& input,
+    LegacyGameMenuInputPorts& ports
 ) noexcept {
-    LegacyStandardModeGroupEightInputResult result;
+    LegacyGameMenuInputResult result;
     compat::u32 grid_index = (input.cursor_x - 0xDCU) >> 3U;
     compat::u32 upper_x = 0x258U;
     compat::i32 quotient = static_cast<compat::i32>(grid_index / 10U);
@@ -18613,36 +18335,34 @@ handle_legacy_standard_mode_group_eight_input(
                 ports.invoke_selection_callback(state.selection, state);
             ++result.helper_call_count;
             if (!callback.has_value()) {
-                result.status = LegacyStandardModeGroupEightInputStatus::
-                    selection_callback_missing;
+                result.status =
+                    LegacyGameMenuInputStatus::selection_callback_missing;
                 return result;
             }
         }
 
         state.selection = static_cast<compat::u16>(quotient + 0x0C);
         result.selection_rewritten = true;
-        const LegacyStandardModeGroupEightSelectionRetreatResult retreated =
-            retreat_legacy_standard_mode_group_eight_selection(state, ports);
+        const LegacyGameMenuSelectionRetreatResult retreated =
+            retreat_legacy_game_menu_selection(state, ports);
         ++result.helper_call_count;
         result.story_flag_query_count += retreated.story_flag_query_count;
-        const LegacyStandardModeGroupEightCommitResult committed =
-            commit_legacy_standard_mode_group_eight_selection(state, ports);
+        const LegacyGameMenuCommitResult committed =
+            commit_legacy_game_menu_selection(state, ports);
         ++result.helper_call_count;
         result.story_flag_query_count += committed.story_flag_query_count;
         result.legacy_return_value =
             static_cast<compat::i16>(committed.legacy_return_value);
-        if (committed.status !=
-            LegacyStandardModeGroupEightCommitStatus::completed) {
-            result.status =
-                LegacyStandardModeGroupEightInputStatus::commit_stopped;
+        if (committed.status != LegacyGameMenuCommitStatus::completed) {
+            result.status = LegacyGameMenuInputStatus::commit_stopped;
         }
         return result;
     }
 
     if ((input.buttons & 0x0CU) != 0U && state.lifecycle == 1U) {
         state.fallback_constant = 0x0CU;
-        const LegacyStandardModeGroupEightExitResult exited =
-            exit_legacy_standard_mode_group_eight(state, ports);
+        const LegacyGameMenuExitResult exited =
+            exit_legacy_game_menu(state, ports);
         result.legacy_return_value = exited.legacy_return_value;
         result.story_flag_query_count += exited.story_flag_query_count;
         ++result.helper_call_count;

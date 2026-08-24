@@ -99,7 +99,7 @@ using openswd3::special_modes::run_legacy_initial_menu_frame;
 using openswd3::special_modes::render_legacy_standard_mode_animated_panel;
 using openswd3::special_modes::render_legacy_standard_mode_bar;
 using openswd3::special_modes::render_legacy_standard_mode_frame;
-using openswd3::special_modes::render_legacy_standard_mode_transition;
+using openswd3::special_modes::render_legacy_game_menu_entry_animation;
 using openswd3::special_modes::run_legacy_standard_mode_input_dispatch;
 using openswd3::special_modes::run_legacy_standard_special_mode_frame;
 using openswd3::special_modes::kLegacySpecialModeAlternateFlag;
@@ -163,10 +163,10 @@ using openswd3::special_modes::LegacyStandardModeRuntimeStorageKind;
 using openswd3::special_modes::LegacyStandardModeRenderRecord;
 using openswd3::special_modes::LegacyStandardModeRenderState;
 using openswd3::special_modes::LegacyStandardModeSelectorPorts;
-using openswd3::special_modes::LegacyStandardModeTransitionPorts;
-using openswd3::special_modes::LegacyStandardModeTransitionState;
-using openswd3::special_modes::LegacyStandardModeTransitionText;
-using openswd3::special_modes::LegacyStandardModeTransitionTextOwner;
+using openswd3::special_modes::LegacyGameMenuEntryAnimationPorts;
+using openswd3::special_modes::LegacyGameMenuEntryAnimationState;
+using openswd3::special_modes::LegacyGameMenuEntryText;
+using openswd3::special_modes::LegacyGameMenuEntryTextOwner;
 using openswd3::special_modes::LegacyStandardModeTextResolutionStatus;
 using openswd3::special_modes::LegacyStandardModeValueGroupStatus;
 using openswd3::special_modes::LegacyStandardModeWindowCursorAdvanceReturnKind;
@@ -270,8 +270,8 @@ public:
     std::vector<bool> prefix_snapshots;
 };
 
-class FakeTransitionVisualPorts final
-    : public openswd3::special_modes::LegacyStandardModeTransitionVisualPorts {
+class FakeTitleMenuPorts final
+    : public openswd3::special_modes::LegacyTitleMenuPorts {
 public:
     bool
     capture_framebuffer(const std::span<u8> destination) noexcept override {
@@ -340,7 +340,7 @@ public:
         settings_calls.push_back({0x300U, service_id});
         return settings_service_return;
     }
-    i32 format_transition_settings(
+    i32 format_game_settings(
         const u32 sample_index,
         const u32 surface_index,
         const u32 spacing,
@@ -360,32 +360,30 @@ public:
         );
         return settings_return;
     }
-    i32 prepare_transition_panel(
-        const openswd3::special_modes::LegacyStandardModeTransitionPanelRecord&
-            record
+    i32 prepare_title_menu_panel(
+        const openswd3::special_modes::LegacyTitleMenuSlidingPanelRecord& record
     ) noexcept override {
         panel_events.push_back(
             {0, static_cast<i32>(record.action_id), 0, 0, 0, 0}
         );
         return panel_prepare_return;
     }
-    i32 report_transition_panel_error(
-        const openswd3::special_modes::LegacyStandardModeTransitionPanelRecord&
-            record
+    i32 report_title_menu_panel_error(
+        const openswd3::special_modes::LegacyTitleMenuSlidingPanelRecord& record
     ) noexcept override {
         panel_events.push_back(
             {1, static_cast<i32>(record.action_id), 0, 0, 0, 0}
         );
         return panel_error_return;
     }
-    openswd3::special_modes::LegacyStandardModeTransitionPanelSurface
-    resolve_transition_panel_surface(
+    openswd3::special_modes::LegacyTitleMenuSlidingPanelSurface
+    resolve_title_menu_panel_surface(
         const u16 group, const u16 index
     ) noexcept override {
         panel_events.push_back({2, group, index, 0, 0, 0});
         return panel_surface;
     }
-    i32 draw_transition_panel_surface(
+    i32 draw_title_menu_panel_surface(
         const i32 x,
         const i32 y,
         const u16 width,
@@ -403,9 +401,8 @@ public:
         );
         return panel_draw_return;
     }
-    i32 execute_transition_command(
-        const openswd3::special_modes::LegacyStandardModeTransitionCommand&
-            command
+    i32 execute_title_menu_render_command(
+        const openswd3::special_modes::LegacyTitleMenuRenderCommand& command
     ) noexcept override {
         transition_commands.push_back(command);
         return transition_command_return;
@@ -417,10 +414,10 @@ public:
     void release_transition_world() noexcept override {
         transition_lifecycle.push_back(2U);
     }
-    void refresh_transition_runtime() noexcept override {
+    void refresh_title_menu_frame() noexcept override {
         transition_lifecycle.push_back(3U);
     }
-    void present_transition_runtime() noexcept override {
+    void present_title_menu_frame() noexcept override {
         transition_lifecycle.push_back(5U);
     }
     bool mode_one_asset_ready() noexcept override {
@@ -476,8 +473,9 @@ public:
     u32 source_text_length{5U};
     u32 transition_time{0x12345678U};
     u32 surface_token{0x1234U};
-    openswd3::special_modes::LegacyStandardModeTransitionPanelSurface
-        panel_surface{0x99U, 20U, 10U};
+    openswd3::special_modes::LegacyTitleMenuSlidingPanelSurface panel_surface{
+        0x99U, 20U, 10U
+    };
     u32 capture_count{};
     u32 probe_count{};
     std::vector<u32> events;
@@ -486,18 +484,18 @@ public:
     std::vector<std::array<u32, 3U>> mode_one_calls;
     std::vector<u32> transition_lifecycle;
     std::vector<std::array<i32, 6U>> panel_events;
-    std::vector<openswd3::special_modes::LegacyStandardModeTransitionCommand>
+    std::vector<openswd3::special_modes::LegacyTitleMenuRenderCommand>
         transition_commands;
 };
 
-class FakeStandardModeCatalogPorts final
-    : public openswd3::special_modes::LegacyStandardModeCatalogPorts {
+class FakeSystemMenuPorts final
+    : public openswd3::special_modes::LegacySystemMenuPorts {
 public:
-    u32 allocate_catalog_buffer(const u32 size) noexcept override {
+    u32 allocate_system_menu_buffer(const u32 size) noexcept override {
         allocation_sizes.push_back(size);
         return allocation_return;
     }
-    i32 query_catalog_item_presence(const u32 item_id) noexcept override {
+    i32 query_system_menu_item_presence(const u32 item_id) noexcept override {
         queried_item_ids.push_back(item_id);
         if (all_present ||
             std::find(
@@ -510,8 +508,8 @@ public:
         }
         return 0;
     }
-    i32 release_catalog_buffer(
-        openswd3::special_modes::LegacyStandardModeCatalogState& state
+    i32 release_system_menu_buffer(
+        openswd3::special_modes::LegacySystemMenuState& state
     ) noexcept override {
         events.push_back(1U);
         released_owners.push_back(state.list_owner);
@@ -519,9 +517,9 @@ public:
         state.shared_value = 0xAABBCCDDU;
         return release_return;
     }
-    i32 query_catalog_service(
+    i32 query_system_menu_service(
         const u32 service_id,
-        openswd3::special_modes::LegacyStandardModeCatalogState& state
+        openswd3::special_modes::LegacySystemMenuState& state
     ) noexcept override {
         events.push_back(2U);
         queried_service_ids.push_back(service_id);
@@ -533,16 +531,15 @@ public:
         state.message_value = 0x90A0B0C0U;
         return service_return;
     }
-    i32 format_catalog_message(
-        const openswd3::special_modes::LegacyStandardModeCatalogMessage& message
+    i32 format_system_menu_message(
+        const openswd3::special_modes::LegacySystemMenuMessage& message
     ) noexcept override {
         events.push_back(3U);
         messages.push_back(message);
         return format_return;
     }
-    i32 query_catalog_input_status(
-        const u32 mask,
-        openswd3::special_modes::LegacyStandardModeCatalogState& state
+    i32 query_system_menu_input_status(
+        const u32 mask, openswd3::special_modes::LegacySystemMenuState& state
     ) noexcept override {
         queried_input_masks.push_back(mask);
         if (mutate_input_snapshot) {
@@ -554,24 +551,22 @@ public:
         }
         return input_status_return;
     }
-    i32 execute_catalog_input_command(
-        const openswd3::special_modes::LegacyStandardModeCatalogInputCommand
-            command,
+    i32 execute_system_menu_input_command(
+        const openswd3::special_modes::LegacySystemMenuInputCommand command,
         const u32 argument,
-        openswd3::special_modes::LegacyStandardModeCatalogState& state
+        openswd3::special_modes::LegacySystemMenuState& state
     ) noexcept override {
         input_commands.emplace_back(command, argument);
         if (command ==
-                openswd3::special_modes::LegacyStandardModeCatalogInputCommand::
-                    commit &&
+                openswd3::special_modes::LegacySystemMenuInputCommand::commit &&
             mutate_sample_after_commit) {
             state.message_sample_owner = sample_after_commit;
         }
         if (command ==
-                openswd3::special_modes::LegacyStandardModeCatalogInputCommand::
+                openswd3::special_modes::LegacySystemMenuInputCommand::
                     count_visible &&
             mutate_visible_after_count) {
-            state.catalog_visible_count = visible_after_count;
+            state.system_menu_visible_count = visible_after_count;
         }
         return command_return_base + static_cast<i32>(command);
     }
@@ -588,8 +583,7 @@ public:
     std::vector<u32> queried_service_ids;
     bool query_saw_cleared_owner{};
     i32 service_return{0x12345678};
-    std::vector<openswd3::special_modes::LegacyStandardModeCatalogMessage>
-        messages;
+    std::vector<openswd3::special_modes::LegacySystemMenuMessage> messages;
     i32 format_return{-77};
     std::vector<u32> queried_input_masks;
     bool mutate_input_snapshot{};
@@ -599,9 +593,8 @@ public:
     u32 mutated_interaction_page{};
     u32 mutated_input_flags{};
     i32 input_status_return{};
-    std::vector<std::pair<
-        openswd3::special_modes::LegacyStandardModeCatalogInputCommand,
-        u32>>
+    std::vector<
+        std::pair<openswd3::special_modes::LegacySystemMenuInputCommand, u32>>
         input_commands;
     bool mutate_sample_after_commit{};
     u32 sample_after_commit{};
@@ -610,19 +603,19 @@ public:
     i32 command_return_base{1000};
 };
 
-class FakeTransitionPairPorts final
-    : public openswd3::special_modes::LegacyStandardModeTransitionPairPorts {
+class FakeCharacterAttributesPorts final
+    : public openswd3::special_modes::LegacyCharacterAttributesPorts {
 public:
-    u32 allocate_transition_pair_buffer(const u32 size) noexcept override {
+    u32 allocate_character_attributes_buffer(const u32 size) noexcept override {
         allocation_sizes.push_back(size);
         const u32 value = allocation_returns[allocation_count];
         ++allocation_count;
         return value;
     }
-    void accumulate_transition_pair_record(
-        openswd3::special_modes::LegacyStandardModeTransitionPairState& state,
-        const openswd3::special_modes::
-            LegacyStandardModeTransitionPairContribution& contribution
+    void accumulate_character_attributes_record(
+        openswd3::special_modes::LegacyCharacterAttributesState& state,
+        const openswd3::special_modes::LegacyCharacterAttributesContribution&
+            contribution
     ) noexcept override {
         accumulated_owners.push_back(contribution.owner);
         if ((accumulate_count % 16U) == 0U) {
@@ -634,23 +627,24 @@ public:
             state.input_flags = *rebuild_input_flags;
         }
     }
-    openswd3::special_modes::LegacyStandardModeTransitionPairScale
-    query_transition_pair_scale(const u16 lookup_key) noexcept override {
+    openswd3::special_modes::LegacyCharacterAttributesScale
+    query_character_attributes_scale(const u16 lookup_key) noexcept override {
         queried_scale_keys.push_back(lookup_key);
         const auto value = scale_returns[scale_count];
         ++scale_count;
         return value;
     }
-    i32 release_transition_pair_buffer(const u32 owner) noexcept override {
+    i32 release_character_attributes_buffer(const u32 owner) noexcept override {
         released_owners.push_back(owner);
         return release_base + static_cast<i32>(released_owners.size());
     }
-    i32
-    query_transition_pair_item_presence(const u32 item_id) noexcept override {
+    i32 query_character_attributes_item_presence(
+        const u32 item_id
+    ) noexcept override {
         queried_item_ids.push_back(item_id);
         return presence_return;
     }
-    i32 play_transition_pair_sample(
+    i32 play_character_attributes_sample(
         const u32 sample_id, const u32 sample_owner
     ) noexcept override {
         played_sample_ids.push_back(sample_id);
@@ -658,17 +652,18 @@ public:
         events.push_back(2U);
         return sample_return;
     }
-    i32 dispatch_transition_pair_callback(const u32 mode) noexcept override {
+    i32
+    dispatch_character_attributes_callback(const u32 mode) noexcept override {
         callback_modes.push_back(mode);
         return callback_return;
     }
-    i32 execute_transition_pair_render_command(
-        const openswd3::special_modes::
-            LegacyStandardModeTransitionPairRenderCommand& command
+    i32 execute_character_attributes_render_command(
+        const openswd3::special_modes::LegacyCharacterAttributesRenderCommand&
+            command
     ) noexcept override {
         render_commands.push_back(command);
-        using CommandType = openswd3::special_modes::
-            LegacyStandardModeTransitionPairRenderCommandType;
+        using CommandType =
+            openswd3::special_modes::LegacyCharacterAttributesRenderCommandType;
         if (command.type == CommandType::calculate_color) {
             const i32 value = color_returns[color_count];
             ++color_count;
@@ -689,12 +684,9 @@ public:
     std::size_t allocation_count{};
     u32 accumulate_count{};
     std::vector<u32> accumulated_owners;
-    openswd3::special_modes::LegacyStandardModeTransitionPairRecord
-        aggregate_record;
+    openswd3::special_modes::LegacyCharacterAttributesRecord aggregate_record;
     std::optional<u8> rebuild_input_flags;
-    std::array<
-        openswd3::special_modes::LegacyStandardModeTransitionPairScale,
-        2U>
+    std::array<openswd3::special_modes::LegacyCharacterAttributesScale, 2U>
         scale_returns{{{10U, 2U}, {10U, 2U}}};
     std::vector<u16> queried_scale_keys;
     std::size_t scale_count{};
@@ -708,8 +700,7 @@ public:
     i32 sample_return{0x5678};
     std::vector<u32> callback_modes;
     i32 callback_return{0x1234};
-    std::vector<
-        openswd3::special_modes::LegacyStandardModeTransitionPairRenderCommand>
+    std::vector<openswd3::special_modes::LegacyCharacterAttributesRenderCommand>
         render_commands;
     std::array<i32, 10U> color_returns{
         0x12345678,
@@ -739,19 +730,18 @@ public:
         return flag_value;
     }
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState&
-    transition_visual_state() noexcept override {
+    openswd3::special_modes::LegacyTitleMenuState&
+    title_menu_state() noexcept override {
         events.push_back(3U);
         return visual_state;
     }
-    openswd3::special_modes::LegacyStandardModeTransitionVisualPorts&
-    transition_visual_ports() noexcept override {
+    openswd3::special_modes::LegacyTitleMenuPorts&
+    title_menu_ports() noexcept override {
         return visual_ports;
     }
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        visual_state;
-    FakeTransitionVisualPorts visual_ports;
+    openswd3::special_modes::LegacyTitleMenuState visual_state;
+    FakeTitleMenuPorts visual_ports;
     std::vector<u32> events;
     i32 flag_value{};
     u32 queried_flag{};
@@ -926,8 +916,8 @@ struct TransitionGhostRequest {
 };
 
 struct TransitionTextRequest {
-    LegacyStandardModeTransitionTextOwner owner{};
-    LegacyStandardModeTransitionText text{};
+    LegacyGameMenuEntryTextOwner owner{};
+    LegacyGameMenuEntryText text{};
     i32 x{};
     i32 y{};
     i32 first_value{};
@@ -939,7 +929,7 @@ struct TransitionTextRequest {
 };
 
 class FakeStandardModeTransitionPorts final
-    : public LegacyStandardModeTransitionPorts {
+    : public LegacyGameMenuEntryAnimationPorts {
 public:
     explicit FakeStandardModeTransitionPorts(
         std::array<LegacyActionRecord, 18U>& actions
@@ -977,8 +967,8 @@ public:
     }
 
     void draw_text(
-        const LegacyStandardModeTransitionTextOwner owner,
-        const LegacyStandardModeTransitionText text,
+        const LegacyGameMenuEntryTextOwner owner,
+        const LegacyGameMenuEntryText text,
         const i32 x,
         const i32 y,
         const i32 first_value,
@@ -3999,14 +3989,12 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return callback_story_flag_value;
         }
 
-        sm::LegacyStandardModeTransitionVisualState&
-        transition_visual_state() noexcept override {
+        sm::LegacyTitleMenuState& title_menu_state() noexcept override {
             ++high_mode_initializations;
-            return transition_visual_state_value;
+            return title_menu_state_value;
         }
-        sm::LegacyStandardModeTransitionVisualPorts&
-        transition_visual_ports() noexcept override {
-            return transition_visual_ports_value;
+        sm::LegacyTitleMenuPorts& title_menu_ports() noexcept override {
+            return title_menu_ports_value;
         }
 
         i32 release_equipment_filtered_records(
@@ -4087,9 +4075,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         i32 released_filtered_records_return{-8};
         i32 callback_story_flag_value{};
         u32 high_mode_initializations{};
-        sm::LegacyStandardModeTransitionVisualState
-            transition_visual_state_value;
-        FakeTransitionVisualPorts transition_visual_ports_value;
+        sm::LegacyTitleMenuState title_menu_state_value;
+        FakeTitleMenuPorts title_menu_ports_value;
         u32 cleared_surface_bytes{};
         std::array<u32, 2U> dialog_interface{};
         sm::LegacyStandardModeDialogDrawRequest dialog_draw{};
@@ -10519,14 +10506,14 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             callback_flag_indices.push_back(flag_index);
             return callback_story_flag;
         }
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState&
-        transition_visual_state() noexcept override {
+        openswd3::special_modes::LegacyTitleMenuState&
+        title_menu_state() noexcept override {
             ++high_mode_runtime_count;
-            return transition_visual_state_value;
+            return title_menu_state_value;
         }
-        openswd3::special_modes::LegacyStandardModeTransitionVisualPorts&
-        transition_visual_ports() noexcept override {
-            return transition_visual_ports_value;
+        openswd3::special_modes::LegacyTitleMenuPorts&
+        title_menu_ports() noexcept override {
+            return title_menu_ports_value;
         }
         [[nodiscard]] openswd3::special_modes::
             LegacyStandardModeDatabaseCleanupPorts&
@@ -10635,9 +10622,8 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         i32 rebuild_result{1};
         u32 missing_insert_count{};
         u32 high_mode_runtime_count{};
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState
-            transition_visual_state_value;
-        FakeTransitionVisualPorts transition_visual_ports_value;
+        openswd3::special_modes::LegacyTitleMenuState title_menu_state_value;
+        FakeTitleMenuPorts title_menu_ports_value;
         u32 cleanup_forward_node_count{};
         u32 commit_rebuild_count{};
         std::size_t missing_original_surface_index{
@@ -15138,163 +15124,163 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         },
     };
 
-    openswd3::special_modes::LegacyStandardModeCatalogState catalog_state;
-    catalog_state.mode_word = 0xABCD1234U;
-    catalog_state.primary_owners.fill(0x11111111U);
-    catalog_state.secondary_owners.fill(0x22222222U);
-    catalog_state.entries.fill(0xFFFFU);
-    catalog_state.entry_count = 99U;
-    catalog_state.shared_value = 0x89ABCDEFU;
-    catalog_state.published_shared_value = 0x33333333U;
-    FakeStandardModeCatalogPorts catalog_ports;
-    catalog_ports.exact_present_ids = {0xE75U, 0xE77U, 0xF9FU};
-    catalog_ports.non_exact_present_id = 0xE76U;
-    const auto catalog_result =
-        openswd3::special_modes::initialize_legacy_standard_mode_catalog(
-            catalog_state, catalog_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_state;
+    system_menu_state.mode_word = 0xABCD1234U;
+    system_menu_state.primary_owners.fill(0x11111111U);
+    system_menu_state.secondary_owners.fill(0x22222222U);
+    system_menu_state.entries.fill(0xFFFFU);
+    system_menu_state.entry_count = 99U;
+    system_menu_state.shared_value = 0x89ABCDEFU;
+    system_menu_state.published_shared_value = 0x33333333U;
+    FakeSystemMenuPorts system_menu_ports;
+    system_menu_ports.exact_present_ids = {0xE75U, 0xE77U, 0xF9FU};
+    system_menu_ports.non_exact_present_id = 0xE76U;
+    const auto system_menu_result =
+        openswd3::special_modes::initialize_legacy_system_menu(
+            system_menu_state, system_menu_ports
         );
     test.expect_true(
-        catalog_result.status ==
-                openswd3::special_modes::LegacyStandardModeCatalogStatus::
-                    completed &&
-            catalog_state.mode_word == 0xABCD0005U &&
-            catalog_state.list_owner == 0x1234U &&
-            catalog_state.entry_count == 3U &&
-            catalog_state.entries[0U] == 1U &&
-            catalog_state.entries[1U] == 3U &&
-            catalog_state.entries[2U] == 0x12BU &&
-            catalog_ports.queried_item_ids.size() == 299U &&
-            catalog_ports.queried_item_ids.front() == 0xE75U &&
-            catalog_ports.queried_item_ids.back() == 0xF9FU &&
+        system_menu_result.status ==
+                openswd3::special_modes::LegacySystemMenuStatus::completed &&
+            system_menu_state.mode_word == 0xABCD0005U &&
+            system_menu_state.list_owner == 0x1234U &&
+            system_menu_state.entry_count == 3U &&
+            system_menu_state.entries[0U] == 1U &&
+            system_menu_state.entries[1U] == 3U &&
+            system_menu_state.entries[2U] == 0x12BU &&
+            system_menu_ports.queried_item_ids.size() == 299U &&
+            system_menu_ports.queried_item_ids.front() == 0xE75U &&
+            system_menu_ports.queried_item_ids.back() == 0xF9FU &&
             std::all_of(
-                catalog_state.primary_owners.begin(),
-                catalog_state.primary_owners.end(),
+                system_menu_state.primary_owners.begin(),
+                system_menu_state.primary_owners.end(),
                 [](const u32 value) { return value == 0U; }
             ) &&
             std::all_of(
-                catalog_state.secondary_owners.begin(),
-                catalog_state.secondary_owners.end(),
+                system_menu_state.secondary_owners.begin(),
+                system_menu_state.secondary_owners.end(),
                 [](const u32 value) { return value == 0U; }
             ) &&
-            catalog_state.published_shared_value == 0x89ABCDEFU &&
-            static_cast<u32>(catalog_result.legacy_return_value) ==
+            system_menu_state.published_shared_value == 0x89ABCDEFU &&
+            static_cast<u32>(system_menu_result.legacy_return_value) ==
                 0x89ABCDEFU &&
-            catalog_result.helper_call_count == 300U &&
-            catalog_result.queried_item_count == 299U,
-        "0x44AF30 scans all 299 catalog ids, accepts only exact presence one, stores one-based ids, and publishes the shared value after resets"
+            system_menu_result.helper_call_count == 300U &&
+            system_menu_result.queried_item_count == 299U,
+        "0x44AF30 scans all 299 system_menu ids, accepts only exact presence one, stores one-based ids, and publishes the shared value after resets"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_allocation_stop_state;
-    catalog_allocation_stop_state.mode_word = 0x12340009U;
-    catalog_allocation_stop_state.primary_owners.fill(0xAAAAAAAAU);
-    catalog_allocation_stop_state.entries[0U] = 0x7777U;
-    catalog_allocation_stop_state.entry_count = 99U;
-    FakeStandardModeCatalogPorts catalog_allocation_stop_ports;
-    catalog_allocation_stop_ports.allocation_return = 0U;
-    const auto catalog_allocation_stop =
-        openswd3::special_modes::initialize_legacy_standard_mode_catalog(
-            catalog_allocation_stop_state, catalog_allocation_stop_ports
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_allocation_stop_state;
+    system_menu_allocation_stop_state.mode_word = 0x12340009U;
+    system_menu_allocation_stop_state.primary_owners.fill(0xAAAAAAAAU);
+    system_menu_allocation_stop_state.entries[0U] = 0x7777U;
+    system_menu_allocation_stop_state.entry_count = 99U;
+    FakeSystemMenuPorts system_menu_allocation_stop_ports;
+    system_menu_allocation_stop_ports.allocation_return = 0U;
+    const auto system_menu_allocation_stop =
+        openswd3::special_modes::initialize_legacy_system_menu(
+            system_menu_allocation_stop_state, system_menu_allocation_stop_ports
         );
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_capacity_stop_state;
-    catalog_capacity_stop_state.primary_owners.fill(0xAAAAAAAAU);
-    catalog_capacity_stop_state.secondary_owners.fill(0xBBBBBBBBU);
-    FakeStandardModeCatalogPorts catalog_capacity_stop_ports;
-    catalog_capacity_stop_ports.all_present = true;
-    const auto catalog_capacity_stop =
-        openswd3::special_modes::initialize_legacy_standard_mode_catalog(
-            catalog_capacity_stop_state, catalog_capacity_stop_ports
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_capacity_stop_state;
+    system_menu_capacity_stop_state.primary_owners.fill(0xAAAAAAAAU);
+    system_menu_capacity_stop_state.secondary_owners.fill(0xBBBBBBBBU);
+    FakeSystemMenuPorts system_menu_capacity_stop_ports;
+    system_menu_capacity_stop_ports.all_present = true;
+    const auto system_menu_capacity_stop =
+        openswd3::special_modes::initialize_legacy_system_menu(
+            system_menu_capacity_stop_state, system_menu_capacity_stop_ports
         );
     test.expect_true(
-        catalog_allocation_stop.status ==
-                openswd3::special_modes::LegacyStandardModeCatalogStatus::
+        system_menu_allocation_stop.status ==
+                openswd3::special_modes::LegacySystemMenuStatus::
                     allocation_stopped &&
-            catalog_allocation_stop_state.mode_word == 0x12340005U &&
-            catalog_allocation_stop_state.primary_owners[0U] == 0U &&
-            catalog_allocation_stop_state.primary_owners[1U] == 0U &&
-            catalog_allocation_stop_state.primary_owners[2U] == 0U &&
-            catalog_allocation_stop_state.primary_owners[3U] == 0xAAAAAAAAU &&
-            catalog_allocation_stop_state.entries[0U] == 0x7777U &&
-            catalog_allocation_stop_state.entry_count == 99U &&
-            catalog_allocation_stop.helper_call_count == 1U &&
-            catalog_capacity_stop.status ==
-                openswd3::special_modes::LegacyStandardModeCatalogStatus::
+            system_menu_allocation_stop_state.mode_word == 0x12340005U &&
+            system_menu_allocation_stop_state.primary_owners[0U] == 0U &&
+            system_menu_allocation_stop_state.primary_owners[1U] == 0U &&
+            system_menu_allocation_stop_state.primary_owners[2U] == 0U &&
+            system_menu_allocation_stop_state.primary_owners[3U] ==
+                0xAAAAAAAAU &&
+            system_menu_allocation_stop_state.entries[0U] == 0x7777U &&
+            system_menu_allocation_stop_state.entry_count == 99U &&
+            system_menu_allocation_stop.helper_call_count == 1U &&
+            system_menu_capacity_stop.status ==
+                openswd3::special_modes::LegacySystemMenuStatus::
                     capacity_stopped &&
-            catalog_capacity_stop_state.entry_count == 128U &&
-            catalog_capacity_stop_state.entries.front() == 1U &&
-            catalog_capacity_stop_state.entries.back() == 128U &&
-            catalog_capacity_stop_ports.queried_item_ids.size() == 129U &&
-            catalog_capacity_stop_ports.queried_item_ids.back() == 0xEF5U &&
-            catalog_capacity_stop_state.secondary_owners[0U] == 0xBBBBBBBBU &&
-            catalog_capacity_stop.helper_call_count == 130U &&
-            catalog_capacity_stop.queried_item_count == 129U,
+            system_menu_capacity_stop_state.entry_count == 128U &&
+            system_menu_capacity_stop_state.entries.front() == 1U &&
+            system_menu_capacity_stop_state.entries.back() == 128U &&
+            system_menu_capacity_stop_ports.queried_item_ids.size() == 129U &&
+            system_menu_capacity_stop_ports.queried_item_ids.back() == 0xEF5U &&
+            system_menu_capacity_stop_state.secondary_owners[0U] ==
+                0xBBBBBBBBU &&
+            system_menu_capacity_stop.helper_call_count == 130U &&
+            system_menu_capacity_stop.queried_item_count == 129U,
         "0x44AF30 stops at the original memset or 129th matched write while preserving prior initialization, queries, and entries"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_release_state;
-    catalog_release_state.list_owner = 0x4321U;
-    catalog_release_state.entries[0U] = 0x123U;
-    catalog_release_state.entry_count = 1U;
-    catalog_release_state.message_tail = 0x10U;
-    catalog_release_state.shared_value = 0xAABBCC20U;
-    catalog_release_state.message_sample_owner = 1U;
-    catalog_release_state.message_font = 2U;
-    catalog_release_state.message_value = 3U;
-    FakeStandardModeCatalogPorts catalog_release_ports;
-    const auto catalog_release =
-        openswd3::special_modes::release_legacy_standard_mode_catalog(
-            catalog_release_state, catalog_release_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_release_state;
+    system_menu_release_state.list_owner = 0x4321U;
+    system_menu_release_state.entries[0U] = 0x123U;
+    system_menu_release_state.entry_count = 1U;
+    system_menu_release_state.message_tail = 0x10U;
+    system_menu_release_state.shared_value = 0xAABBCC20U;
+    system_menu_release_state.message_sample_owner = 1U;
+    system_menu_release_state.message_font = 2U;
+    system_menu_release_state.message_value = 3U;
+    FakeSystemMenuPorts system_menu_release_ports;
+    const auto system_menu_release =
+        openswd3::special_modes::release_legacy_system_menu(
+            system_menu_release_state, system_menu_release_ports
         );
-    const auto& catalog_message = catalog_release_ports.messages[0U];
+    const auto& system_menu_message = system_menu_release_ports.messages[0U];
     test.expect_true(
-        catalog_release_ports.events == std::vector<u32>{1U, 2U, 3U} &&
-            catalog_release_ports.released_owners ==
+        system_menu_release_ports.events == std::vector<u32>{1U, 2U, 3U} &&
+            system_menu_release_ports.released_owners ==
                 std::vector<u32>{0x4321U} &&
-            catalog_release_state.list_owner == 0U &&
-            catalog_release_ports.query_saw_cleared_owner &&
-            catalog_release_ports.queried_service_ids ==
+            system_menu_release_state.list_owner == 0U &&
+            system_menu_release_ports.query_saw_cleared_owner &&
+            system_menu_release_ports.queried_service_ids ==
                 std::vector<u32>{0x48U} &&
-            catalog_message.sample_owner == 0x10203040U &&
-            catalog_message.font == 0x50607080U &&
-            catalog_message.value == 0x90A0B0C0U &&
-            catalog_message.capacity == 0x64U &&
-            catalog_message.service_result == 0x12345678 &&
-            catalog_message.shared_value == 0xAABBCCDDU &&
-            catalog_message.tail == 0x11223344U &&
-            catalog_release_state.message_tail == 0x55667788U &&
-            catalog_release_state.shared_value == 0x99AABBCCU &&
-            catalog_release_state.entries[0U] == 0x123U &&
-            catalog_release_state.entry_count == 1U &&
-            catalog_release.legacy_return_value == -77 &&
-            catalog_release.helper_call_count == 3U,
+            system_menu_message.sample_owner == 0x10203040U &&
+            system_menu_message.font == 0x50607080U &&
+            system_menu_message.value == 0x90A0B0C0U &&
+            system_menu_message.capacity == 0x64U &&
+            system_menu_message.service_result == 0x12345678 &&
+            system_menu_message.shared_value == 0xAABBCCDDU &&
+            system_menu_message.tail == 0x11223344U &&
+            system_menu_release_state.message_tail == 0x55667788U &&
+            system_menu_release_state.shared_value == 0x99AABBCCU &&
+            system_menu_release_state.entries[0U] == 0x123U &&
+            system_menu_release_state.entry_count == 1U &&
+            system_menu_release.legacy_return_value == -77 &&
+            system_menu_release.helper_call_count == 3U,
         "0x44B010 snapshots full tail and shared dwords after release, clears the owner before service query, then rereads three message dwords"
     );
 
-    using CatalogCommand =
-        openswd3::special_modes::LegacyStandardModeCatalogInputCommand;
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_input_locked_state;
-    catalog_input_locked_state.input_locked = 0x89ABCDEFU;
-    FakeStandardModeCatalogPorts catalog_input_locked_ports;
-    const auto catalog_input_locked =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_input_locked_state, catalog_input_locked_ports
+    using SystemMenuCommand =
+        openswd3::special_modes::LegacySystemMenuInputCommand;
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_input_locked_state;
+    system_menu_input_locked_state.input_locked = 0x89ABCDEFU;
+    FakeSystemMenuPorts system_menu_input_locked_ports;
+    const auto system_menu_input_locked =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_input_locked_state, system_menu_input_locked_ports
         );
     test.expect_true(
-        catalog_input_locked.legacy_return_value ==
+        system_menu_input_locked.legacy_return_value ==
                 std::bit_cast<i32>(0x89ABCDEFU) &&
-            catalog_input_locked.helper_call_count == 0U &&
-            catalog_input_locked_ports.queried_input_masks.empty(),
+            system_menu_input_locked.helper_call_count == 0U &&
+            system_menu_input_locked_ports.queried_input_masks.empty(),
         "0x44B070 returns the full lock owner residual before querying input"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState last_page_state;
+    openswd3::special_modes::LegacySystemMenuState last_page_state;
     last_page_state.interaction_mode = 0U;
     last_page_state.interaction_page = 2U;
     last_page_state.message_sample_owner = 0x12345678U;
-    FakeStandardModeCatalogPorts last_page_ports;
+    FakeSystemMenuPorts last_page_ports;
     static_cast<void>(
         openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
             last_page_state, last_page_ports
@@ -15303,38 +15289,38 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         last_page_state.interaction_page == 4U &&
             last_page_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::play_sample, 0x12345678U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 0x12345678U}
                 },
         "0x44B840 moves mode zero to page four and only plays the sample when the page changes"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState last_window_state;
+    openswd3::special_modes::LegacySystemMenuState last_window_state;
     last_window_state.interaction_mode = 1U;
     last_window_state.interaction_page = 2U;
     last_window_state.entry_count = 6U;
-    last_window_state.catalog_visible_count = 2U;
-    FakeStandardModeCatalogPorts last_window_ports;
+    last_window_state.system_menu_visible_count = 2U;
+    FakeSystemMenuPorts last_window_ports;
     const auto last_window =
         openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
             last_window_state, last_window_ports
         );
     test.expect_true(
-        last_window_state.catalog_page_start == 5U &&
+        last_window_state.system_menu_page_start == 5U &&
             last_window_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::rebuild_page, 0U},
-                    {CatalogCommand::count_visible, 0U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::rebuild_page, 0U},
+                    {SystemMenuCommand::count_visible, 0U}
                 } &&
             last_window.helper_call_count == 2U,
         "0x44B840 tail-dispatches mode-one page two through the closed forward helper"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState last_rows_state;
+    openswd3::special_modes::LegacySystemMenuState last_rows_state;
     last_rows_state.interaction_mode = 1U;
     last_rows_state.interaction_page = 4U;
     last_rows_state.message_sample_owner = 7U;
-    FakeStandardModeCatalogPorts last_rows_ports;
+    FakeSystemMenuPorts last_rows_ports;
     static_cast<void>(
         openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
             last_rows_state, last_rows_ports
@@ -15343,16 +15329,16 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         last_rows_state.selected_row == 2U &&
             last_rows_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::play_sample, 7U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 7U}
                 },
         "0x44B840 preserves the original mode-one page-four terminal row value two"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState last_detail_state;
+    openswd3::special_modes::LegacySystemMenuState last_detail_state;
     last_detail_state.interaction_mode = 2U;
     last_detail_state.interaction_page = 4U;
-    FakeStandardModeCatalogPorts last_detail_ports;
+    FakeSystemMenuPorts last_detail_ports;
     const auto last_detail =
         openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
             last_detail_state, last_detail_ports
@@ -15363,10 +15349,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44B840 preserves the negative detail decrement EAX before clamping to zero"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState last_entry_state;
+    openswd3::special_modes::LegacySystemMenuState last_entry_state;
     last_entry_state.interaction_mode = 5U;
     last_entry_state.message_sample_owner = 9U;
-    FakeStandardModeCatalogPorts last_entry_ports;
+    FakeSystemMenuPorts last_entry_ports;
     static_cast<void>(
         openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
             last_entry_state, last_entry_ports
@@ -15375,18 +15361,18 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         last_entry_state.selected_entry == 0x0FU &&
             last_entry_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::play_sample, 9U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 9U}
                 },
         "0x44B840 selects fixed mode-five entry fifteen before its sample"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState retreat_page_state;
+    openswd3::special_modes::LegacySystemMenuState retreat_page_state;
     retreat_page_state.interaction_mode = 0U;
     retreat_page_state.interaction_page = 0U;
-    FakeStandardModeCatalogPorts retreat_page_ports;
+    FakeSystemMenuPorts retreat_page_ports;
     const auto retreat_page =
-        openswd3::special_modes::retreat_legacy_standard_mode_catalog_selection(
+        openswd3::special_modes::retreat_legacy_system_menu_selection(
             retreat_page_state, retreat_page_ports
         );
     test.expect_true(
@@ -15396,58 +15382,56 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44B6E0 preserves negative page EAX before clamping to zero"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        retreat_window_state;
+    openswd3::special_modes::LegacySystemMenuState retreat_window_state;
     retreat_window_state.interaction_mode = 1U;
     retreat_window_state.interaction_page = 2U;
-    retreat_window_state.catalog_page_start = 3U;
-    retreat_window_state.catalog_scroll_index = 9U;
-    retreat_window_state.catalog_cursor_flags = 0xAABBCC10U;
-    FakeStandardModeCatalogPorts retreat_window_ports;
+    retreat_window_state.system_menu_page_start = 3U;
+    retreat_window_state.system_menu_scroll_index = 9U;
+    retreat_window_state.system_menu_cursor_flags = 0xAABBCC10U;
+    FakeSystemMenuPorts retreat_window_ports;
     const auto retreat_window =
-        openswd3::special_modes::retreat_legacy_standard_mode_catalog_selection(
+        openswd3::special_modes::retreat_legacy_system_menu_selection(
             retreat_window_state, retreat_window_ports
         );
     test.expect_true(
-        retreat_window_state.catalog_page_start == 0U &&
-            retreat_window_state.catalog_scroll_index == 0U &&
-            retreat_window_state.catalog_cursor_flags == 0xAABBCC13U &&
+        retreat_window_state.system_menu_page_start == 0U &&
+            retreat_window_state.system_menu_scroll_index == 0U &&
+            retreat_window_state.system_menu_cursor_flags == 0xAABBCC13U &&
             retreat_window_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::rebuild_page, 0U},
-                    {CatalogCommand::count_visible, 0U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::rebuild_page, 0U},
+                    {SystemMenuCommand::count_visible, 0U}
                 } &&
             retreat_window.helper_call_count == 2U,
         "0x44B6E0 resets negative page start and scroll before rebuilding and ORs only AL"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState retreat_row_state;
+    openswd3::special_modes::LegacySystemMenuState retreat_row_state;
     retreat_row_state.interaction_mode = 1U;
     retreat_row_state.interaction_page = 4U;
     retreat_row_state.selected_row = 0U;
     retreat_row_state.message_sample_owner = 0x12345678U;
-    FakeStandardModeCatalogPorts retreat_row_ports;
+    FakeSystemMenuPorts retreat_row_ports;
     static_cast<void>(
-        openswd3::special_modes::retreat_legacy_standard_mode_catalog_selection(
+        openswd3::special_modes::retreat_legacy_system_menu_selection(
             retreat_row_state, retreat_row_ports
         )
     );
     test.expect_true(
         retreat_row_state.selected_row == 0U &&
             retreat_row_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::play_sample, 0x12345678U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 0x12345678U}
                 },
         "0x44B6E0 clamps page-four rows on signed less-than-or-equal zero and still plays the sample"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        retreat_detail_state;
+    openswd3::special_modes::LegacySystemMenuState retreat_detail_state;
     retreat_detail_state.interaction_mode = 2U;
     retreat_detail_state.interaction_page = 4U;
-    FakeStandardModeCatalogPorts retreat_detail_ports;
+    FakeSystemMenuPorts retreat_detail_ports;
     const auto retreat_detail =
-        openswd3::special_modes::retreat_legacy_standard_mode_catalog_selection(
+        openswd3::special_modes::retreat_legacy_system_menu_selection(
             retreat_detail_state, retreat_detail_ports
         );
     test.expect_true(
@@ -15456,99 +15440,97 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44B6E0 preserves negative detail EAX before clamping to zero"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState retreat_entry_state;
+    openswd3::special_modes::LegacySystemMenuState retreat_entry_state;
     retreat_entry_state.interaction_mode = 5U;
     retreat_entry_state.message_sample_owner = 7U;
-    FakeStandardModeCatalogPorts retreat_entry_ports;
+    FakeSystemMenuPorts retreat_entry_ports;
     static_cast<void>(
-        openswd3::special_modes::retreat_legacy_standard_mode_catalog_selection(
+        openswd3::special_modes::retreat_legacy_system_menu_selection(
             retreat_entry_state, retreat_entry_ports
         )
     );
     test.expect_true(
         retreat_entry_state.selected_entry == 0x12U &&
             retreat_entry_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::play_sample, 7U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 7U}
                 },
         "0x44B6E0 wraps the nineteen-entry selector backward before its sample"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        advance_window_state;
+    openswd3::special_modes::LegacySystemMenuState advance_window_state;
     advance_window_state.interaction_mode = 1U;
     advance_window_state.interaction_page = 2U;
     advance_window_state.entry_count = 10U;
-    advance_window_state.catalog_scroll_index = 9U;
-    advance_window_state.catalog_cursor_flags = 0xAABBCC01U;
-    FakeStandardModeCatalogPorts advance_window_ports;
+    advance_window_state.system_menu_scroll_index = 9U;
+    advance_window_state.system_menu_cursor_flags = 0xAABBCC01U;
+    FakeSystemMenuPorts advance_window_ports;
     advance_window_ports.mutate_visible_after_count = true;
     advance_window_ports.visible_after_count = 3U;
     const auto advance_window =
-        openswd3::special_modes::advance_legacy_standard_mode_catalog_selection(
+        openswd3::special_modes::advance_legacy_system_menu_selection(
             advance_window_state, advance_window_ports
         );
     test.expect_true(
-        advance_window_state.catalog_page_start == 5U &&
-            advance_window_state.catalog_scroll_index == 2U &&
-            advance_window_state.catalog_cursor_flags == 0xAABBCC31U &&
+        advance_window_state.system_menu_page_start == 5U &&
+            advance_window_state.system_menu_scroll_index == 2U &&
+            advance_window_state.system_menu_cursor_flags == 0xAABBCC31U &&
             advance_window_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::rebuild_page, 0U},
-                    {CatalogCommand::count_visible, 0U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::rebuild_page, 0U},
+                    {SystemMenuCommand::count_visible, 0U}
                 } &&
             advance_window.legacy_return_value ==
                 std::bit_cast<i32>(0xAABBCC31U),
         "0x44B560 rebuilds the next window, rereads visible count, clamps scroll, and ORs only AL"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState advance_end_state;
+    openswd3::special_modes::LegacySystemMenuState advance_end_state;
     advance_end_state.interaction_mode = 1U;
     advance_end_state.interaction_page = 2U;
     advance_end_state.entry_count = 5U;
-    advance_end_state.catalog_visible_count = 0U;
-    advance_end_state.catalog_cursor_flags = 0x1200U;
-    FakeStandardModeCatalogPorts advance_end_ports;
+    advance_end_state.system_menu_visible_count = 0U;
+    advance_end_state.system_menu_cursor_flags = 0x1200U;
+    FakeSystemMenuPorts advance_end_ports;
     const auto advance_end =
-        openswd3::special_modes::advance_legacy_standard_mode_catalog_selection(
+        openswd3::special_modes::advance_legacy_system_menu_selection(
             advance_end_state, advance_end_ports
         );
     test.expect_true(
-        advance_end_state.catalog_page_start == 0U &&
-            advance_end_state.catalog_scroll_index == 0xFFFFFFFFU &&
-            advance_end_state.catalog_cursor_flags == 0x1230U &&
+        advance_end_state.system_menu_page_start == 0U &&
+            advance_end_state.system_menu_scroll_index == 0xFFFFFFFFU &&
+            advance_end_state.system_menu_cursor_flags == 0x1230U &&
             advance_end.helper_call_count == 0U,
         "0x44B560 rolls back an exhausted page and preserves visible-count underflow"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState advance_row_state;
+    openswd3::special_modes::LegacySystemMenuState advance_row_state;
     advance_row_state.interaction_mode = 1U;
     advance_row_state.interaction_page = 3U;
     advance_row_state.selected_row = 6U;
     advance_row_state.message_sample_owner = 0x12345678U;
-    FakeStandardModeCatalogPorts advance_row_ports;
+    FakeSystemMenuPorts advance_row_ports;
     const auto advance_row =
-        openswd3::special_modes::advance_legacy_standard_mode_catalog_selection(
+        openswd3::special_modes::advance_legacy_system_menu_selection(
             advance_row_state, advance_row_ports
         );
     test.expect_true(
         advance_row_state.selected_row == 6U &&
             advance_row_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::play_sample, 0x12345678U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 0x12345678U}
                 } &&
             advance_row.helper_call_count == 1U,
         "0x44B560 clamps page-three rows and passes the full sample owner"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        advance_detail_state;
+    openswd3::special_modes::LegacySystemMenuState advance_detail_state;
     advance_detail_state.interaction_mode = 2U;
     advance_detail_state.interaction_page = 4U;
     advance_detail_state.detail_selection = 1U;
-    FakeStandardModeCatalogPorts advance_detail_ports;
+    FakeSystemMenuPorts advance_detail_ports;
     const auto advance_detail =
-        openswd3::special_modes::advance_legacy_standard_mode_catalog_selection(
+        openswd3::special_modes::advance_legacy_system_menu_selection(
             advance_detail_state, advance_detail_ports
         );
     test.expect_true(
@@ -15557,828 +15539,849 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44B560 preserves the pre-clamp detail increment EAX"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState advance_entry_state;
+    openswd3::special_modes::LegacySystemMenuState advance_entry_state;
     advance_entry_state.interaction_mode = 5U;
     advance_entry_state.selected_entry = 0x12U;
     advance_entry_state.message_sample_owner = 7U;
-    FakeStandardModeCatalogPorts advance_entry_ports;
+    FakeSystemMenuPorts advance_entry_ports;
     static_cast<void>(
-        openswd3::special_modes::advance_legacy_standard_mode_catalog_selection(
+        openswd3::special_modes::advance_legacy_system_menu_selection(
             advance_entry_state, advance_entry_ports
         )
     );
     test.expect_true(
         advance_entry_state.selected_entry == 0U &&
             advance_entry_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::play_sample, 7U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 7U}
                 },
         "0x44B560 wraps the nineteen-entry selector before its sample"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState catalog_hover_state;
-    catalog_hover_state.entry_count = 6U;
-    FakeStandardModeCatalogPorts catalog_hover_ports;
-    catalog_hover_ports.input_status_return = 1;
-    catalog_hover_ports.mutate_input_snapshot = true;
-    catalog_hover_ports.mutated_pointer_x = 0x75U;
-    catalog_hover_ports.mutated_pointer_y = 0x265U;
-    catalog_hover_ports.mutated_interaction_mode = 1U;
-    catalog_hover_ports.mutated_interaction_page = 2U;
-    const auto catalog_hover =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_hover_state, catalog_hover_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_hover_state;
+    system_menu_hover_state.entry_count = 6U;
+    FakeSystemMenuPorts system_menu_hover_ports;
+    system_menu_hover_ports.input_status_return = 1;
+    system_menu_hover_ports.mutate_input_snapshot = true;
+    system_menu_hover_ports.mutated_pointer_x = 0x75U;
+    system_menu_hover_ports.mutated_pointer_y = 0x265U;
+    system_menu_hover_ports.mutated_interaction_mode = 1U;
+    system_menu_hover_ports.mutated_interaction_page = 2U;
+    const auto system_menu_hover =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_hover_state, system_menu_hover_ports
         );
     test.expect_true(
-        catalog_hover_ports.queried_input_masks == std::vector<u32>{0x0FU} &&
-            catalog_hover_state.catalog_page_start == 0U &&
-            catalog_hover_state.catalog_scroll_index == 0U &&
-            catalog_hover_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::rebuild_page, 0U},
-                    {CatalogCommand::count_visible, 0U}
+        system_menu_hover_ports.queried_input_masks ==
+                std::vector<u32>{0x0FU} &&
+            system_menu_hover_state.system_menu_page_start == 0U &&
+            system_menu_hover_state.system_menu_scroll_index == 0U &&
+            system_menu_hover_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::rebuild_page, 0U},
+                    {SystemMenuCommand::count_visible, 0U}
                 } &&
-            catalog_hover.helper_call_count == 3U,
+            system_menu_hover.helper_call_count == 3U,
         "0x44B070 rereads pointer, mode, and page after the input-status callback before directly routing upper hover to 0x44B6E0"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState lower_hover_state;
+    openswd3::special_modes::LegacySystemMenuState lower_hover_state;
     lower_hover_state.entry_count = 6U;
     lower_hover_state.pointer_x = 0x1C1U;
     lower_hover_state.pointer_y = 0x265U;
     lower_hover_state.interaction_mode = 1U;
     lower_hover_state.interaction_page = 2U;
-    lower_hover_state.catalog_visible_count = 2U;
-    FakeStandardModeCatalogPorts lower_hover_ports;
+    lower_hover_state.system_menu_visible_count = 2U;
+    FakeSystemMenuPorts lower_hover_ports;
     lower_hover_ports.input_status_return = 1;
     const auto lower_hover =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+        openswd3::special_modes::update_legacy_system_menu_input(
             lower_hover_state, lower_hover_ports
         );
     test.expect_true(
-        lower_hover_state.catalog_page_start == 5U &&
+        lower_hover_state.system_menu_page_start == 5U &&
             lower_hover_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::rebuild_page, 0U},
-                    {CatalogCommand::count_visible, 0U}
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::rebuild_page, 0U},
+                    {SystemMenuCommand::count_visible, 0U}
                 } &&
             lower_hover.helper_call_count == 3U,
         "0x44B070 directly reuses 0x44B560 for the lower hover window"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_dynamic_hover_state;
-    catalog_dynamic_hover_state.entry_count = 6U;
-    catalog_dynamic_hover_state.pointer_x = std::bit_cast<u32>(-5);
-    catalog_dynamic_hover_state.pointer_y = 0x265U;
-    catalog_dynamic_hover_state.interaction_mode = 2U;
-    catalog_dynamic_hover_state.interaction_page = 2U;
-    catalog_dynamic_hover_state.upper_dynamic_left = -10;
-    catalog_dynamic_hover_state.upper_dynamic_right = 0;
-    FakeStandardModeCatalogPorts catalog_dynamic_hover_ports;
-    catalog_dynamic_hover_ports.input_status_return = 1;
-    const auto catalog_dynamic_hover =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_dynamic_hover_state, catalog_dynamic_hover_ports
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_dynamic_hover_state;
+    system_menu_dynamic_hover_state.entry_count = 6U;
+    system_menu_dynamic_hover_state.pointer_x = std::bit_cast<u32>(-5);
+    system_menu_dynamic_hover_state.pointer_y = 0x265U;
+    system_menu_dynamic_hover_state.interaction_mode = 2U;
+    system_menu_dynamic_hover_state.interaction_page = 2U;
+    system_menu_dynamic_hover_state.upper_dynamic_left = -10;
+    system_menu_dynamic_hover_state.upper_dynamic_right = 0;
+    FakeSystemMenuPorts system_menu_dynamic_hover_ports;
+    system_menu_dynamic_hover_ports.input_status_return = 1;
+    const auto system_menu_dynamic_hover =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_dynamic_hover_state, system_menu_dynamic_hover_ports
         );
     test.expect_true(
-        catalog_dynamic_hover_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::upper_dynamic_hover, 0U}
+        system_menu_dynamic_hover_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::upper_dynamic_hover, 0U}
                 } &&
-            catalog_dynamic_hover.helper_call_count == 2U,
+            system_menu_dynamic_hover.helper_call_count == 2U,
         "0x44B070 keeps the two dynamic hover bounds as signed comparisons"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_lower_dynamic_state;
-    catalog_lower_dynamic_state.entry_count = 6U;
-    catalog_lower_dynamic_state.pointer_x = 205U;
-    catalog_lower_dynamic_state.pointer_y = 0x265U;
-    catalog_lower_dynamic_state.interaction_mode = 1U;
-    catalog_lower_dynamic_state.interaction_page = 2U;
-    catalog_lower_dynamic_state.lower_dynamic_left = 200;
-    catalog_lower_dynamic_state.lower_dynamic_right = 210;
-    catalog_lower_dynamic_state.message_sample_owner = 0xAA55U;
-    FakeStandardModeCatalogPorts catalog_lower_dynamic_ports;
-    catalog_lower_dynamic_ports.input_status_return = 1;
-    const auto catalog_lower_dynamic =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_lower_dynamic_state, catalog_lower_dynamic_ports
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_lower_dynamic_state;
+    system_menu_lower_dynamic_state.entry_count = 6U;
+    system_menu_lower_dynamic_state.pointer_x = 205U;
+    system_menu_lower_dynamic_state.pointer_y = 0x265U;
+    system_menu_lower_dynamic_state.interaction_mode = 1U;
+    system_menu_lower_dynamic_state.interaction_page = 2U;
+    system_menu_lower_dynamic_state.lower_dynamic_left = 200;
+    system_menu_lower_dynamic_state.lower_dynamic_right = 210;
+    system_menu_lower_dynamic_state.message_sample_owner = 0xAA55U;
+    FakeSystemMenuPorts system_menu_lower_dynamic_ports;
+    system_menu_lower_dynamic_ports.input_status_return = 1;
+    const auto system_menu_lower_dynamic =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_lower_dynamic_state, system_menu_lower_dynamic_ports
         );
     test.expect_true(
-        catalog_lower_dynamic_state.catalog_page_start == 5U &&
-            catalog_lower_dynamic_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::rebuild_page, 0U},
-                    {CatalogCommand::count_visible, 0U}
+        system_menu_lower_dynamic_state.system_menu_page_start == 5U &&
+            system_menu_lower_dynamic_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::rebuild_page, 0U},
+                    {SystemMenuCommand::count_visible, 0U}
                 } &&
-            catalog_lower_dynamic.helper_call_count == 3U,
+            system_menu_lower_dynamic.helper_call_count == 3U,
         "0x44B070 directly reuses 0x44B840 for the lower dynamic hover window"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState catalog_exit_state;
-    catalog_exit_state.interaction_mode = 7U;
-    catalog_exit_state.interaction_page = 9U;
-    catalog_exit_state.input_flags = 0x0CU;
-    FakeStandardModeCatalogPorts catalog_exit_ports;
-    const auto catalog_exit =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_exit_state, catalog_exit_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_exit_state;
+    system_menu_exit_state.interaction_mode = 7U;
+    system_menu_exit_state.interaction_page = 9U;
+    system_menu_exit_state.input_flags = 0x0CU;
+    FakeSystemMenuPorts system_menu_exit_ports;
+    const auto system_menu_exit =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_exit_state, system_menu_exit_ports
         );
     test.expect_true(
-        catalog_exit_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::open_mode_fourteen, 0x0EU},
-                    {CatalogCommand::exit, 0U}
+        system_menu_exit_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::open_mode_fourteen, 0x0EU},
+                    {SystemMenuCommand::exit, 0U}
                 } &&
-            catalog_exit.helper_call_count == 3U &&
-            catalog_exit.legacy_return_value ==
-                1000 + static_cast<i32>(CatalogCommand::exit),
+            system_menu_exit.helper_call_count == 3U &&
+            system_menu_exit.legacy_return_value ==
+                1000 + static_cast<i32>(SystemMenuCommand::exit),
         "0x44B070 opens mode fourteen before the shared exit when mode seven receives bits two or three"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_mode_five_state;
-    catalog_mode_five_state.pointer_x = 0x90U;
-    catalog_mode_five_state.pointer_y = 0x143U;
-    catalog_mode_five_state.interaction_mode = 5U;
-    catalog_mode_five_state.interaction_page = 8U;
-    catalog_mode_five_state.input_flags = 3U;
-    FakeStandardModeCatalogPorts catalog_mode_five_ports;
-    const auto catalog_mode_five =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_mode_five_state, catalog_mode_five_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_mode_five_state;
+    system_menu_mode_five_state.pointer_x = 0x90U;
+    system_menu_mode_five_state.pointer_y = 0x143U;
+    system_menu_mode_five_state.interaction_mode = 5U;
+    system_menu_mode_five_state.interaction_page = 8U;
+    system_menu_mode_five_state.input_flags = 3U;
+    FakeSystemMenuPorts system_menu_mode_five_ports;
+    const auto system_menu_mode_five =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_mode_five_state, system_menu_mode_five_ports
         );
     test.expect_true(
-        catalog_mode_five_state.selected_entry == 2U &&
-            catalog_mode_five_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::commit, 0U}
+        system_menu_mode_five_state.selected_entry == 2U &&
+            system_menu_mode_five_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::commit, 0U}
                 } &&
-            catalog_mode_five.helper_call_count == 2U,
+            system_menu_mode_five.helper_call_count == 2U,
         "0x44B070 maps the mode-five horizontal strip with the unsigned divide-by-twenty sequence"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_fixed_selection_state;
-    catalog_fixed_selection_state.pointer_x = 0x1BDU;
-    catalog_fixed_selection_state.pointer_y = 0x18AU;
-    catalog_fixed_selection_state.interaction_mode = 5U;
-    catalog_fixed_selection_state.interaction_page = 6U;
-    FakeStandardModeCatalogPorts catalog_fixed_selection_ports;
-    const auto catalog_fixed_selection =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_fixed_selection_state, catalog_fixed_selection_ports
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_fixed_selection_state;
+    system_menu_fixed_selection_state.pointer_x = 0x1BDU;
+    system_menu_fixed_selection_state.pointer_y = 0x18AU;
+    system_menu_fixed_selection_state.interaction_mode = 5U;
+    system_menu_fixed_selection_state.interaction_page = 6U;
+    FakeSystemMenuPorts system_menu_fixed_selection_ports;
+    const auto system_menu_fixed_selection =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_fixed_selection_state, system_menu_fixed_selection_ports
         );
     test.expect_true(
-        catalog_fixed_selection_state.selected_entry == 0x10U &&
-            catalog_fixed_selection.helper_call_count == 1U &&
-            catalog_fixed_selection.legacy_return_value == 6 &&
-            catalog_fixed_selection_ports.input_commands.empty(),
+        system_menu_fixed_selection_state.selected_entry == 0x10U &&
+            system_menu_fixed_selection.helper_call_count == 1U &&
+            system_menu_fixed_selection.legacy_return_value == 6 &&
+            system_menu_fixed_selection_ports.input_commands.empty(),
         "0x44B070 writes fixed mode-five entries before checking the low two input bits"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_navigation_state;
-    catalog_navigation_state.pointer_x = 0x3BU;
-    catalog_navigation_state.pointer_y = 0x14CU;
-    catalog_navigation_state.interaction_page = 7U;
-    catalog_navigation_state.input_flags = 3U;
-    catalog_navigation_state.message_sample_owner = 2U;
-    FakeStandardModeCatalogPorts catalog_navigation_ports;
-    catalog_navigation_ports.mutate_sample_after_commit = true;
-    catalog_navigation_ports.sample_after_commit = 9U;
-    const auto catalog_navigation =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_navigation_state, catalog_navigation_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_navigation_state;
+    system_menu_navigation_state.pointer_x = 0x3BU;
+    system_menu_navigation_state.pointer_y = 0x14CU;
+    system_menu_navigation_state.interaction_page = 7U;
+    system_menu_navigation_state.input_flags = 3U;
+    system_menu_navigation_state.message_sample_owner = 2U;
+    FakeSystemMenuPorts system_menu_navigation_ports;
+    system_menu_navigation_ports.mutate_sample_after_commit = true;
+    system_menu_navigation_ports.sample_after_commit = 9U;
+    const auto system_menu_navigation =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_navigation_state, system_menu_navigation_ports
         );
     test.expect_true(
-        catalog_navigation_state.interaction_mode == 0U &&
-            catalog_navigation_state.interaction_page == 2U &&
-            catalog_navigation_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::commit, 0U},
-                    {CatalogCommand::play_sample, 9U}
+        system_menu_navigation_state.interaction_mode == 0U &&
+            system_menu_navigation_state.interaction_page == 2U &&
+            system_menu_navigation_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::commit, 0U},
+                    {SystemMenuCommand::play_sample, 9U}
                 } &&
-            catalog_navigation.helper_call_count == 3U,
+            system_menu_navigation.helper_call_count == 3U,
         "0x44B070 publishes the navigation page before commit and rereads the sample owner afterward"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_page_four_state;
-    catalog_page_four_state.pointer_x = 0x9CU - 1U;
-    catalog_page_four_state.pointer_y = 0x1DDU;
-    catalog_page_four_state.interaction_mode = 1U;
-    catalog_page_four_state.interaction_page = 4U;
-    FakeStandardModeCatalogPorts catalog_page_four_ports;
-    const auto catalog_page_four =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_page_four_state, catalog_page_four_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_page_four_state;
+    system_menu_page_four_state.pointer_x = 0x9CU - 1U;
+    system_menu_page_four_state.pointer_y = 0x1DDU;
+    system_menu_page_four_state.interaction_mode = 1U;
+    system_menu_page_four_state.interaction_page = 4U;
+    FakeSystemMenuPorts system_menu_page_four_ports;
+    const auto system_menu_page_four =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_page_four_state, system_menu_page_four_ports
         );
     test.expect_true(
-        catalog_page_four_state.selected_row == 1U &&
-            catalog_page_four.helper_call_count == 1U &&
-            catalog_page_four_ports.input_commands.empty(),
+        system_menu_page_four_state.selected_row == 1U &&
+            system_menu_page_four.helper_call_count == 1U &&
+            system_menu_page_four_ports.input_commands.empty(),
         "0x44B070 updates the mode-one page-four row even when the confirm bit is clear"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_page_residual_state;
-    catalog_page_residual_state.interaction_mode = 1U;
-    catalog_page_residual_state.interaction_page = 4U;
-    FakeStandardModeCatalogPorts catalog_page_residual_ports;
-    const auto catalog_page_four_miss =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_page_residual_state, catalog_page_residual_ports
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_page_residual_state;
+    system_menu_page_residual_state.interaction_mode = 1U;
+    system_menu_page_residual_state.interaction_page = 4U;
+    FakeSystemMenuPorts system_menu_page_residual_ports;
+    const auto system_menu_page_four_miss =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_page_residual_state, system_menu_page_residual_ports
         );
-    catalog_page_residual_state.interaction_page = 5U;
-    const auto catalog_page_five =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_page_residual_state, catalog_page_residual_ports
+    system_menu_page_residual_state.interaction_page = 5U;
+    const auto system_menu_page_five =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_page_residual_state, system_menu_page_residual_ports
         );
     test.expect_true(
-        catalog_page_four_miss.legacy_return_value == 0 &&
-            catalog_page_five.legacy_return_value == 1,
+        system_menu_page_four_miss.legacy_return_value == 0 &&
+            system_menu_page_five.legacy_return_value == 1,
         "0x44B070 preserves the two-step page-minus-three then decrement EAX residual"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_negative_row_state;
-    catalog_negative_row_state.pointer_x = 0x83U;
-    catalog_negative_row_state.pointer_y = 0xD7U;
-    catalog_negative_row_state.interaction_mode = 1U;
-    catalog_negative_row_state.interaction_page = 3U;
-    catalog_negative_row_state.catalog_available = 1U;
-    catalog_negative_row_state.message_sample_owner = 7U;
-    FakeStandardModeCatalogPorts catalog_negative_row_ports;
-    const auto catalog_negative_row =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_negative_row_state, catalog_negative_row_ports
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_negative_row_state;
+    system_menu_negative_row_state.pointer_x = 0x83U;
+    system_menu_negative_row_state.pointer_y = 0xD7U;
+    system_menu_negative_row_state.interaction_mode = 1U;
+    system_menu_negative_row_state.interaction_page = 3U;
+    system_menu_negative_row_state.system_menu_available = 1U;
+    system_menu_negative_row_state.message_sample_owner = 7U;
+    FakeSystemMenuPorts system_menu_negative_row_ports;
+    const auto system_menu_negative_row =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_negative_row_state, system_menu_negative_row_ports
         );
     test.expect_true(
-        catalog_negative_row_state.selected_row == 0U &&
-            catalog_negative_row_state.message_sample_owner == 7U &&
-            catalog_negative_row.helper_call_count == 1U &&
-            catalog_negative_row.legacy_return_value == -87,
+        system_menu_negative_row_state.selected_row == 0U &&
+            system_menu_negative_row_state.message_sample_owner == 7U &&
+            system_menu_negative_row.helper_call_count == 1U &&
+            system_menu_negative_row.legacy_return_value == -87,
         "0x44B070 writes the selected settings row before stopping on a negative truncating quotient"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_value_row_state;
-    catalog_value_row_state.pointer_x = 0xC3U;
-    catalog_value_row_state.pointer_y = 0x1DDU;
-    catalog_value_row_state.interaction_mode = 1U;
-    catalog_value_row_state.interaction_page = 3U;
-    catalog_value_row_state.catalog_available = 1U;
-    FakeStandardModeCatalogPorts catalog_value_row_ports;
-    const auto catalog_value_row =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_value_row_state, catalog_value_row_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_value_row_state;
+    system_menu_value_row_state.pointer_x = 0xC3U;
+    system_menu_value_row_state.pointer_y = 0x1DDU;
+    system_menu_value_row_state.interaction_mode = 1U;
+    system_menu_value_row_state.interaction_page = 3U;
+    system_menu_value_row_state.system_menu_available = 1U;
+    FakeSystemMenuPorts system_menu_value_row_ports;
+    const auto system_menu_value_row =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_value_row_state, system_menu_value_row_ports
         );
     test.expect_true(
-        catalog_value_row_state.selected_row == 2U &&
-            catalog_value_row_state.message_value == 0x8CU &&
-            catalog_value_row.helper_call_count == 1U,
+        system_menu_value_row_state.selected_row == 2U &&
+            system_menu_value_row_state.message_value == 0x8CU &&
+            system_menu_value_row.helper_call_count == 1U,
         "0x44B070 clamps settings row two to two before applying the forty-step value"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_service_row_state;
-    catalog_service_row_state.pointer_x = 0xE3U;
-    catalog_service_row_state.pointer_y = 0x14DU;
-    catalog_service_row_state.interaction_mode = 1U;
-    catalog_service_row_state.interaction_page = 3U;
-    catalog_service_row_state.catalog_available = 1U;
-    FakeStandardModeCatalogPorts catalog_service_row_ports;
-    const auto catalog_service_row =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_service_row_state, catalog_service_row_ports
+    openswd3::special_modes::LegacySystemMenuState
+        system_menu_service_row_state;
+    system_menu_service_row_state.pointer_x = 0xE3U;
+    system_menu_service_row_state.pointer_y = 0x14DU;
+    system_menu_service_row_state.interaction_mode = 1U;
+    system_menu_service_row_state.interaction_page = 3U;
+    system_menu_service_row_state.system_menu_available = 1U;
+    FakeSystemMenuPorts system_menu_service_row_ports;
+    const auto system_menu_service_row =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_service_row_state, system_menu_service_row_ports
         );
     test.expect_true(
-        catalog_service_row_state.selected_row == 3U &&
-            catalog_service_row_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::remove_service, 0x48U},
-                    {CatalogCommand::add_service, 0x48U}
+        system_menu_service_row_state.selected_row == 3U &&
+            system_menu_service_row_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::remove_service, 0x48U},
+                    {SystemMenuCommand::add_service, 0x48U}
                 } &&
-            catalog_service_row.helper_call_count == 3U,
+            system_menu_service_row.helper_call_count == 3U,
         "0x44B070 removes service forty-eight and only re-adds it for a nonzero row"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_shared_row_state;
-    catalog_shared_row_state.pointer_x = 0x103U;
-    catalog_shared_row_state.pointer_y = 0x16DU;
-    catalog_shared_row_state.interaction_mode = 1U;
-    catalog_shared_row_state.interaction_page = 3U;
-    catalog_shared_row_state.catalog_available = 1U;
-    FakeStandardModeCatalogPorts catalog_shared_row_ports;
-    const auto catalog_shared_row =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_shared_row_state, catalog_shared_row_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_shared_row_state;
+    system_menu_shared_row_state.pointer_x = 0x103U;
+    system_menu_shared_row_state.pointer_y = 0x16DU;
+    system_menu_shared_row_state.interaction_mode = 1U;
+    system_menu_shared_row_state.interaction_page = 3U;
+    system_menu_shared_row_state.system_menu_available = 1U;
+    FakeSystemMenuPorts system_menu_shared_row_ports;
+    const auto system_menu_shared_row =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_shared_row_state, system_menu_shared_row_ports
         );
     test.expect_true(
-        catalog_shared_row_state.selected_row == 4U &&
-            catalog_shared_row_state.shared_value == 1U &&
-            catalog_shared_row_state.published_row_value == 1U &&
-            catalog_shared_row.legacy_return_value == 1,
+        system_menu_shared_row_state.selected_row == 4U &&
+            system_menu_shared_row_state.shared_value == 1U &&
+            system_menu_shared_row_state.published_row_value == 1U &&
+            system_menu_shared_row.legacy_return_value == 1,
         "0x44B070 reverses and publishes the clamped zero-through-four settings row"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_fallback_state;
-    catalog_fallback_state.pointer_x = 0x143U;
-    catalog_fallback_state.pointer_y = 0x5FU;
-    catalog_fallback_state.interaction_mode = 1U;
-    catalog_fallback_state.interaction_page = 3U;
-    catalog_fallback_state.catalog_available = 1U;
-    FakeStandardModeCatalogPorts catalog_fallback_ports;
-    const auto catalog_fallback =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_fallback_state, catalog_fallback_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_fallback_state;
+    system_menu_fallback_state.pointer_x = 0x143U;
+    system_menu_fallback_state.pointer_y = 0x5FU;
+    system_menu_fallback_state.interaction_mode = 1U;
+    system_menu_fallback_state.interaction_page = 3U;
+    system_menu_fallback_state.system_menu_available = 1U;
+    FakeSystemMenuPorts system_menu_fallback_ports;
+    const auto system_menu_fallback =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_fallback_state, system_menu_fallback_ports
         );
     test.expect_true(
-        catalog_fallback_state.selected_row == 6U &&
-            catalog_fallback_ports.input_commands ==
-                std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::commit, 0U}
+        system_menu_fallback_state.selected_row == 6U &&
+            system_menu_fallback_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::commit, 0U}
                 } &&
-            catalog_fallback.helper_call_count == 2U,
+            system_menu_fallback.helper_call_count == 2U,
         "0x44B070 routes the low settings fallback directly to row six without an input-bit gate"
     );
 
-    openswd3::special_modes::LegacyStandardModeCatalogState
-        catalog_detail_state;
-    catalog_detail_state.pointer_x = 0xE1U;
-    catalog_detail_state.pointer_y = 0x267U - 1U;
-    catalog_detail_state.interaction_mode = 2U;
-    catalog_detail_state.interaction_page = 3U;
-    FakeStandardModeCatalogPorts catalog_detail_ports;
-    const auto catalog_detail =
-        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
-            catalog_detail_state, catalog_detail_ports
+    openswd3::special_modes::LegacySystemMenuState system_menu_detail_state;
+    system_menu_detail_state.pointer_x = 0xE1U;
+    system_menu_detail_state.pointer_y = 0x267U - 1U;
+    system_menu_detail_state.interaction_mode = 2U;
+    system_menu_detail_state.interaction_page = 3U;
+    FakeSystemMenuPorts system_menu_detail_ports;
+    const auto system_menu_detail =
+        openswd3::special_modes::update_legacy_system_menu_input(
+            system_menu_detail_state, system_menu_detail_ports
         );
     test.expect_true(
-        catalog_detail_state.detail_selection == 1U &&
-            catalog_detail.helper_call_count == 1U &&
-            catalog_detail_ports.input_commands.empty(),
+        system_menu_detail_state.detail_selection == 1U &&
+            system_menu_detail.helper_call_count == 1U &&
+            system_menu_detail_ports.input_commands.empty(),
         "0x44B070 updates the mode-two detail selection before checking the confirm bit"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_state;
-    transition_pair_state.mode_word = 0xABCD0005U;
-    FakeTransitionPairPorts transition_pair_ports;
-    transition_pair_ports.allocation_returns = {0x1111U, 0U};
-    const auto transition_pair = openswd3::special_modes::
-        initialize_legacy_standard_mode_transition_pair(
-            transition_pair_state, transition_pair_ports
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_state;
+    character_attributes_state.mode_word = 0xABCD0005U;
+    FakeCharacterAttributesPorts character_attributes_ports;
+    character_attributes_ports.allocation_returns = {0x1111U, 0U};
+    const auto character_attributes =
+        openswd3::special_modes::initialize_legacy_character_attributes(
+            character_attributes_state, character_attributes_ports
         );
-    const auto transition_pair_release =
-        openswd3::special_modes::release_legacy_standard_mode_transition_pair(
-            transition_pair_state, transition_pair_ports
+    const auto character_attributes_release =
+        openswd3::special_modes::release_legacy_character_attributes(
+            character_attributes_state, character_attributes_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_other_state;
-    transition_pair_other_state.mode_word = 0xABCD0006U;
-    FakeTransitionPairPorts transition_pair_other_ports;
-    const auto transition_pair_other = openswd3::special_modes::
-        initialize_legacy_standard_mode_transition_pair(
-            transition_pair_other_state, transition_pair_other_ports
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_other_state;
+    character_attributes_other_state.mode_word = 0xABCD0006U;
+    FakeCharacterAttributesPorts character_attributes_other_ports;
+    const auto character_attributes_other =
+        openswd3::special_modes::initialize_legacy_character_attributes(
+            character_attributes_other_state, character_attributes_other_ports
         );
     test.expect_true(
-        transition_pair_state.mode_word == 0xABCD0000U &&
-            transition_pair_state.first_owner == 0x1111U &&
-            transition_pair_state.second_owner == 0U &&
-            transition_pair_ports.allocation_sizes ==
+        character_attributes_state.mode_word == 0xABCD0000U &&
+            character_attributes_state.first_owner == 0x1111U &&
+            character_attributes_state.second_owner == 0U &&
+            character_attributes_ports.allocation_sizes ==
                 std::vector<u32>{0x38U, 0x38U} &&
-            transition_pair_ports.accumulate_count == 0U &&
-            transition_pair.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairStatus::rebuild_stopped &&
-            transition_pair.legacy_return_value == 0 &&
-            transition_pair.helper_call_count == 3U &&
-            transition_pair_ports.released_owners ==
+            character_attributes_ports.accumulate_count == 0U &&
+            character_attributes.status ==
+                openswd3::special_modes::LegacyCharacterAttributesStatus::
+                    rebuild_stopped &&
+            character_attributes.legacy_return_value == 0 &&
+            character_attributes.helper_call_count == 3U &&
+            character_attributes_ports.released_owners ==
                 std::vector<u32>{0x1111U, 0U} &&
-            transition_pair_release.legacy_return_value == 32 &&
-            transition_pair_release.helper_call_count == 2U &&
-            transition_pair_state.first_owner == 0x1111U &&
-            transition_pair_state.second_owner == 0U &&
-            transition_pair_other_state.mode_word == 0xABCD0006U &&
-            transition_pair_other.helper_call_count == 3U,
+            character_attributes_release.legacy_return_value == 32 &&
+            character_attributes_release.helper_call_count == 2U &&
+            character_attributes_state.first_owner == 0x1111U &&
+            character_attributes_state.second_owner == 0U &&
+            character_attributes_other_state.mode_word == 0xABCD0006U &&
+            character_attributes_other.helper_call_count == 3U,
         "0x449FF0 clears only low mode five and dispatches after both ordered allocations including null"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_rebuild_state;
-    transition_pair_rebuild_state.mode_word = 1U;
-    transition_pair_rebuild_state.first_record_available = true;
-    transition_pair_rebuild_state.second_record_available = true;
-    auto& transition_pair_rebuild_base =
-        transition_pair_rebuild_state.render_modes[1U];
-    transition_pair_rebuild_base.primary_value = 0x10203040U;
-    transition_pair_rebuild_base.leading_values = {1U, 2U, 3U, 4U, 5U, 6U};
-    transition_pair_rebuild_base.attributes = {10U, 11U, 12U, 13U};
-    transition_pair_rebuild_base.trailing_values = {20U, 21U, 22U, 23U};
-    transition_pair_rebuild_base.reserved_values = {30U, 31U, 32U};
-    transition_pair_rebuild_base.bonuses = {99U, 98U};
-    transition_pair_rebuild_base.reserved_2a = 33U;
-    transition_pair_rebuild_base.level = 9U;
-    transition_pair_rebuild_base.modifiers = {1, 2, 3, 4, 5, 6, 7, 8, 9};
-    transition_pair_rebuild_base.trailing_36 = 0x4444U;
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_rebuild_state;
+    character_attributes_rebuild_state.mode_word = 1U;
+    character_attributes_rebuild_state.first_record_available = true;
+    character_attributes_rebuild_state.second_record_available = true;
+    auto& character_attributes_rebuild_base =
+        character_attributes_rebuild_state.render_modes[1U];
+    character_attributes_rebuild_base.primary_value = 0x10203040U;
+    character_attributes_rebuild_base.leading_values = {1U, 2U, 3U, 4U, 5U, 6U};
+    character_attributes_rebuild_base.attributes = {10U, 11U, 12U, 13U};
+    character_attributes_rebuild_base.trailing_values = {20U, 21U, 22U, 23U};
+    character_attributes_rebuild_base.reserved_values = {30U, 31U, 32U};
+    character_attributes_rebuild_base.bonuses = {99U, 98U};
+    character_attributes_rebuild_base.reserved_2a = 33U;
+    character_attributes_rebuild_base.level = 9U;
+    character_attributes_rebuild_base.modifiers = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    character_attributes_rebuild_base.trailing_36 = 0x4444U;
     for (std::size_t index = 0U;
-         index < transition_pair_rebuild_state.contributions[1U].size();
+         index < character_attributes_rebuild_state.contributions[1U].size();
          ++index) {
         auto& contribution =
-            transition_pair_rebuild_state.contributions[1U][index];
+            character_attributes_rebuild_state.contributions[1U][index];
         contribution.owner = static_cast<u32>(0x1000U + index);
         if (index < 7U) {
             contribution.modifiers.fill(1);
         }
     }
-    auto& transition_pair_scaled_contribution =
-        transition_pair_rebuild_state.contributions[1U][7U];
-    transition_pair_scaled_contribution.kind = 0x33U;
-    transition_pair_scaled_contribution.lookup_key = 77U;
-    transition_pair_scaled_contribution.modifiers = {
+    auto& character_attributes_scaled_contribution =
+        character_attributes_rebuild_state.contributions[1U][7U];
+    character_attributes_scaled_contribution.kind = 0x33U;
+    character_attributes_scaled_contribution.lookup_key = 77U;
+    character_attributes_scaled_contribution.modifiers = {
         1, -1, -128, 0, 0, 0, 0, 0, 0
     };
-    FakeTransitionPairPorts transition_pair_rebuild_ports;
-    transition_pair_rebuild_ports.aggregate_record.leading_values = {
+    FakeCharacterAttributesPorts character_attributes_rebuild_ports;
+    character_attributes_rebuild_ports.aggregate_record.leading_values = {
         100U, 101U, 102U, 103U, 104U, 105U
     };
-    transition_pair_rebuild_ports.aggregate_record.values = {
+    character_attributes_rebuild_ports.aggregate_record.values = {
         1000U, 1001U, 1002U, 1003U
     };
-    transition_pair_rebuild_ports.aggregate_record.trailing_values = {
+    character_attributes_rebuild_ports.aggregate_record.trailing_values = {
         200U, 201U, 202U, 203U
     };
-    transition_pair_rebuild_ports.aggregate_record.bonuses = {7U, 8U};
-    transition_pair_rebuild_ports.scale_returns[0U] = {10U, 10U};
-    const auto transition_pair_rebuild =
-        openswd3::special_modes::rebuild_legacy_standard_mode_transition_pair(
-            transition_pair_rebuild_state, transition_pair_rebuild_ports
+    character_attributes_rebuild_ports.aggregate_record.bonuses = {7U, 8U};
+    character_attributes_rebuild_ports.scale_returns[0U] = {10U, 10U};
+    const auto character_attributes_rebuild =
+        openswd3::special_modes::rebuild_legacy_character_attributes(
+            character_attributes_rebuild_state,
+            character_attributes_rebuild_ports
         );
     test.expect_true(
-        transition_pair_rebuild.status ==
+        character_attributes_rebuild.status ==
                 openswd3::special_modes::
-                    LegacyStandardModeTransitionPairRebuildStatus::completed &&
-            transition_pair_rebuild.legacy_return_value == 9 &&
-            transition_pair_rebuild.helper_call_count == 17U &&
-            transition_pair_rebuild.contribution_count == 16U &&
-            transition_pair_rebuild_ports.accumulate_count == 16U &&
-            transition_pair_rebuild_ports.accumulated_owners.front() ==
+                    LegacyCharacterAttributesRebuildStatus::completed &&
+            character_attributes_rebuild.legacy_return_value == 9 &&
+            character_attributes_rebuild.helper_call_count == 17U &&
+            character_attributes_rebuild.contribution_count == 16U &&
+            character_attributes_rebuild_ports.accumulate_count == 16U &&
+            character_attributes_rebuild_ports.accumulated_owners.front() ==
                 0x1000U &&
-            transition_pair_rebuild_ports.accumulated_owners.back() ==
+            character_attributes_rebuild_ports.accumulated_owners.back() ==
                 0x100FU &&
-            transition_pair_rebuild_ports.queried_scale_keys ==
+            character_attributes_rebuild_ports.queried_scale_keys ==
                 std::vector<u16>{77U} &&
-            transition_pair_rebuild_state.first_record.primary_value ==
+            character_attributes_rebuild_state.first_record.primary_value ==
                 0x10203040U &&
-            transition_pair_rebuild_state.first_record.leading_values[0U] ==
-                101U &&
-            transition_pair_rebuild_state.first_record.values[0U] == 1010U &&
-            transition_pair_rebuild_state.first_record.trailing_values[0U] ==
-                220U &&
-            transition_pair_rebuild_state.first_record.reserved_values[0U] ==
-                30U &&
-            transition_pair_rebuild_state.first_record.bonuses ==
+            character_attributes_rebuild_state.first_record
+                    .leading_values[0U] == 101U &&
+            character_attributes_rebuild_state.first_record.values[0U] ==
+                1010U &&
+            character_attributes_rebuild_state.first_record
+                    .trailing_values[0U] == 220U &&
+            character_attributes_rebuild_state.first_record
+                    .reserved_values[0U] == 30U &&
+            character_attributes_rebuild_state.first_record.bonuses ==
                 std::array<u16, 2U>{7U, 8U} &&
-            transition_pair_rebuild_state.first_record.level == 9U &&
-            transition_pair_rebuild_state.first_record.modifiers[0U] == 7 &&
-            transition_pair_rebuild_state.first_record.modifiers[1U] == 8 &&
-            transition_pair_rebuild_state.first_record.modifiers[2U] == -118 &&
-            transition_pair_rebuild_state.first_record.modifiers[3U] == 11 &&
-            transition_pair_rebuild_state.first_record.trailing_36 == 0x4444U,
+            character_attributes_rebuild_state.first_record.level == 9U &&
+            character_attributes_rebuild_state.first_record.modifiers[0U] ==
+                7 &&
+            character_attributes_rebuild_state.first_record.modifiers[1U] ==
+                8 &&
+            character_attributes_rebuild_state.first_record.modifiers[2U] ==
+                -118 &&
+            character_attributes_rebuild_state.first_record.modifiers[3U] ==
+                11 &&
+            character_attributes_rebuild_state.first_record.trailing_36 ==
+                0x4444U,
         "0x44AB00 copies the 56-byte base, aggregates sixteen records, adds sixteen u16 fields, and applies seven direct plus type-33 scaled modifier groups"
     );
 
-    auto transition_pair_rebuild_unavailable_state =
-        transition_pair_rebuild_state;
-    transition_pair_rebuild_unavailable_state.contributions[1U][3U].available =
-        false;
-    FakeTransitionPairPorts transition_pair_rebuild_unavailable_ports;
-    const auto transition_pair_rebuild_unavailable =
-        openswd3::special_modes::rebuild_legacy_standard_mode_transition_pair(
-            transition_pair_rebuild_unavailable_state,
-            transition_pair_rebuild_unavailable_ports
+    auto character_attributes_rebuild_unavailable_state =
+        character_attributes_rebuild_state;
+    character_attributes_rebuild_unavailable_state.contributions[1U][3U]
+        .available = false;
+    FakeCharacterAttributesPorts character_attributes_rebuild_unavailable_ports;
+    const auto character_attributes_rebuild_unavailable =
+        openswd3::special_modes::rebuild_legacy_character_attributes(
+            character_attributes_rebuild_unavailable_state,
+            character_attributes_rebuild_unavailable_ports
         );
-    auto transition_pair_rebuild_zero_state = transition_pair_rebuild_state;
-    transition_pair_rebuild_zero_state.contributions[1U][7U].kind = 0x33U;
-    FakeTransitionPairPorts transition_pair_rebuild_zero_ports;
-    transition_pair_rebuild_zero_ports.scale_returns[0U] = {0U, 10U};
-    const auto transition_pair_rebuild_zero =
-        openswd3::special_modes::rebuild_legacy_standard_mode_transition_pair(
-            transition_pair_rebuild_zero_state,
-            transition_pair_rebuild_zero_ports
+    auto character_attributes_rebuild_zero_state =
+        character_attributes_rebuild_state;
+    character_attributes_rebuild_zero_state.contributions[1U][7U].kind = 0x33U;
+    FakeCharacterAttributesPorts character_attributes_rebuild_zero_ports;
+    character_attributes_rebuild_zero_ports.scale_returns[0U] = {0U, 10U};
+    const auto character_attributes_rebuild_zero =
+        openswd3::special_modes::rebuild_legacy_character_attributes(
+            character_attributes_rebuild_zero_state,
+            character_attributes_rebuild_zero_ports
         );
-    auto transition_pair_rebuild_bad_mode_state = transition_pair_rebuild_state;
-    transition_pair_rebuild_bad_mode_state.mode_word = 4U;
-    transition_pair_rebuild_bad_mode_state.second_record.primary_value =
+    auto character_attributes_rebuild_bad_mode_state =
+        character_attributes_rebuild_state;
+    character_attributes_rebuild_bad_mode_state.mode_word = 4U;
+    character_attributes_rebuild_bad_mode_state.second_record.primary_value =
         0xFFFFFFFFU;
-    FakeTransitionPairPorts transition_pair_rebuild_bad_mode_ports;
-    const auto transition_pair_rebuild_bad_mode =
-        openswd3::special_modes::rebuild_legacy_standard_mode_transition_pair(
-            transition_pair_rebuild_bad_mode_state,
-            transition_pair_rebuild_bad_mode_ports
+    FakeCharacterAttributesPorts character_attributes_rebuild_bad_mode_ports;
+    const auto character_attributes_rebuild_bad_mode =
+        openswd3::special_modes::rebuild_legacy_character_attributes(
+            character_attributes_rebuild_bad_mode_state,
+            character_attributes_rebuild_bad_mode_ports
         );
-    auto transition_pair_rebuild_no_second_state =
-        transition_pair_rebuild_state;
-    transition_pair_rebuild_no_second_state.second_record_available = false;
-    transition_pair_rebuild_no_second_state.second_record.primary_value =
+    auto character_attributes_rebuild_no_second_state =
+        character_attributes_rebuild_state;
+    character_attributes_rebuild_no_second_state.second_record_available =
+        false;
+    character_attributes_rebuild_no_second_state.second_record.primary_value =
         0xAABBCCDDU;
-    FakeTransitionPairPorts transition_pair_rebuild_no_second_ports;
-    const auto transition_pair_rebuild_no_second =
-        openswd3::special_modes::rebuild_legacy_standard_mode_transition_pair(
-            transition_pair_rebuild_no_second_state,
-            transition_pair_rebuild_no_second_ports
+    FakeCharacterAttributesPorts character_attributes_rebuild_no_second_ports;
+    const auto character_attributes_rebuild_no_second =
+        openswd3::special_modes::rebuild_legacy_character_attributes(
+            character_attributes_rebuild_no_second_state,
+            character_attributes_rebuild_no_second_ports
         );
     test.expect_true(
-        transition_pair_rebuild_unavailable.status ==
+        character_attributes_rebuild_unavailable.status ==
                 openswd3::special_modes::
-                    LegacyStandardModeTransitionPairRebuildStatus::
+                    LegacyCharacterAttributesRebuildStatus::
                         contribution_unavailable_stopped &&
-            transition_pair_rebuild_unavailable.helper_call_count == 16U &&
-            transition_pair_rebuild_unavailable_state.first_record
+            character_attributes_rebuild_unavailable.helper_call_count == 16U &&
+            character_attributes_rebuild_unavailable_state.first_record
                     .modifiers[0U] == 4 &&
-            transition_pair_rebuild_zero.status ==
+            character_attributes_rebuild_zero.status ==
                 openswd3::special_modes::
-                    LegacyStandardModeTransitionPairRebuildStatus::
+                    LegacyCharacterAttributesRebuildStatus::
                         scale_divisor_zero_stopped &&
-            transition_pair_rebuild_zero.helper_call_count == 17U &&
-            transition_pair_rebuild_bad_mode.status ==
+            character_attributes_rebuild_zero.helper_call_count == 17U &&
+            character_attributes_rebuild_bad_mode.status ==
                 openswd3::special_modes::
-                    LegacyStandardModeTransitionPairRebuildStatus::
+                    LegacyCharacterAttributesRebuildStatus::
                         mode_out_of_range_stopped &&
-            transition_pair_rebuild_bad_mode_state.second_record
+            character_attributes_rebuild_bad_mode_state.second_record
                     .primary_value == 0U &&
-            transition_pair_rebuild_no_second.status ==
+            character_attributes_rebuild_no_second.status ==
                 openswd3::special_modes::
-                    LegacyStandardModeTransitionPairRebuildStatus::
+                    LegacyCharacterAttributesRebuildStatus::
                         second_record_unavailable_stopped &&
-            transition_pair_rebuild_no_second_state.second_record
+            character_attributes_rebuild_no_second_state.second_record
                     .primary_value == 0xAABBCCDDU,
         "0x44AB00 stops only after the original clear, contribution read, or divisor read while preserving prior side effects"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_advance_state;
-    transition_pair_advance_state.mode_word = 0xABCD0003U;
-    transition_pair_advance_state.mode_records = {
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_advance_state;
+    character_attributes_advance_state.mode_word = 0xABCD0003U;
+    character_attributes_advance_state.mode_records = {
         0xFFFFU, 0xFFFFU, 7U, 0xFFFFU
     };
-    transition_pair_advance_state.sample_owner = 0x7777U;
-    transition_pair_advance_state.first_record_available = true;
-    transition_pair_advance_state.second_record_available = true;
-    FakeTransitionPairPorts transition_pair_advance_ports;
-    const auto transition_pair_advance =
-        openswd3::special_modes::advance_legacy_standard_mode_transition_pair(
-            transition_pair_advance_state, transition_pair_advance_ports
+    character_attributes_advance_state.sample_owner = 0x7777U;
+    character_attributes_advance_state.first_record_available = true;
+    character_attributes_advance_state.second_record_available = true;
+    FakeCharacterAttributesPorts character_attributes_advance_ports;
+    const auto character_attributes_advance =
+        openswd3::special_modes::advance_legacy_character_attributes(
+            character_attributes_advance_state,
+            character_attributes_advance_ports
         );
-    auto transition_pair_exhausted_state = transition_pair_advance_state;
-    transition_pair_exhausted_state.mode_word = 0xABCD0003U;
-    transition_pair_exhausted_state.mode_records.fill(0xFFFFU);
-    FakeTransitionPairPorts transition_pair_exhausted_ports;
-    const auto transition_pair_exhausted =
-        openswd3::special_modes::advance_legacy_standard_mode_transition_pair(
-            transition_pair_exhausted_state, transition_pair_exhausted_ports
+    auto character_attributes_exhausted_state =
+        character_attributes_advance_state;
+    character_attributes_exhausted_state.mode_word = 0xABCD0003U;
+    character_attributes_exhausted_state.mode_records.fill(0xFFFFU);
+    FakeCharacterAttributesPorts character_attributes_exhausted_ports;
+    const auto character_attributes_exhausted =
+        openswd3::special_modes::advance_legacy_character_attributes(
+            character_attributes_exhausted_state,
+            character_attributes_exhausted_ports
         );
     test.expect_true(
-        transition_pair_advance.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairStatus::completed &&
-            transition_pair_advance_state.mode_word == 0xABCD0002U &&
-            transition_pair_advance.target_mode == 2U &&
-            transition_pair_advance_ports.events == std::vector<u32>{1U, 2U} &&
-            transition_pair_advance_ports.played_sample_ids ==
+        character_attributes_advance.status ==
+                openswd3::special_modes::LegacyCharacterAttributesStatus::
+                    completed &&
+            character_attributes_advance_state.mode_word == 0xABCD0002U &&
+            character_attributes_advance.target_mode == 2U &&
+            character_attributes_advance_ports.events ==
+                std::vector<u32>{1U, 2U} &&
+            character_attributes_advance_ports.played_sample_ids ==
                 std::vector<u32>{0x107U} &&
-            transition_pair_advance_ports.played_sample_owners ==
+            character_attributes_advance_ports.played_sample_owners ==
                 std::vector<u32>{0x7777U} &&
-            transition_pair_advance.legacy_return_value == 0x5678 &&
-            transition_pair_advance.helper_call_count == 2U &&
-            transition_pair_exhausted.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairStatus::
-                        unavailable_mode_domain_stopped &&
-            transition_pair_exhausted_state.mode_word == 0xABCD0000U &&
-            transition_pair_exhausted_ports.events.empty() &&
-            transition_pair_exhausted.helper_call_count == 0U,
+            character_attributes_advance.legacy_return_value == 0x5678 &&
+            character_attributes_advance.helper_call_count == 2U &&
+            character_attributes_exhausted.status ==
+                openswd3::special_modes::LegacyCharacterAttributesStatus::
+                    unavailable_mode_domain_stopped &&
+            character_attributes_exhausted_state.mode_word == 0xABCD0000U &&
+            character_attributes_exhausted_ports.events.empty() &&
+            character_attributes_exhausted.helper_call_count == 0U,
         "0x44A0D0 advances through four slots, skips FFFF, rebuilds before sample, and stops after a fully unavailable domain"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_retreat_state;
-    transition_pair_retreat_state.mode_word = 0xABCD0000U;
-    transition_pair_retreat_state.mode_records = {
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_retreat_state;
+    character_attributes_retreat_state.mode_word = 0xABCD0000U;
+    character_attributes_retreat_state.mode_records = {
         0xFFFFU, 0xFFFFU, 7U, 0xFFFFU
     };
-    transition_pair_retreat_state.sample_owner = 0x8888U;
-    transition_pair_retreat_state.first_record_available = true;
-    transition_pair_retreat_state.second_record_available = true;
-    FakeTransitionPairPorts transition_pair_retreat_ports;
-    const auto transition_pair_retreat =
-        openswd3::special_modes::retreat_legacy_standard_mode_transition_pair(
-            transition_pair_retreat_state, transition_pair_retreat_ports
+    character_attributes_retreat_state.sample_owner = 0x8888U;
+    character_attributes_retreat_state.first_record_available = true;
+    character_attributes_retreat_state.second_record_available = true;
+    FakeCharacterAttributesPorts character_attributes_retreat_ports;
+    const auto character_attributes_retreat =
+        openswd3::special_modes::retreat_legacy_character_attributes(
+            character_attributes_retreat_state,
+            character_attributes_retreat_ports
         );
-    auto transition_pair_retreat_exhausted_state =
-        transition_pair_retreat_state;
-    transition_pair_retreat_exhausted_state.mode_word = 0xABCD0000U;
-    transition_pair_retreat_exhausted_state.mode_records.fill(0xFFFFU);
-    FakeTransitionPairPorts transition_pair_retreat_exhausted_ports;
-    const auto transition_pair_retreat_exhausted =
-        openswd3::special_modes::retreat_legacy_standard_mode_transition_pair(
-            transition_pair_retreat_exhausted_state,
-            transition_pair_retreat_exhausted_ports
+    auto character_attributes_retreat_exhausted_state =
+        character_attributes_retreat_state;
+    character_attributes_retreat_exhausted_state.mode_word = 0xABCD0000U;
+    character_attributes_retreat_exhausted_state.mode_records.fill(0xFFFFU);
+    FakeCharacterAttributesPorts character_attributes_retreat_exhausted_ports;
+    const auto character_attributes_retreat_exhausted =
+        openswd3::special_modes::retreat_legacy_character_attributes(
+            character_attributes_retreat_exhausted_state,
+            character_attributes_retreat_exhausted_ports
         );
     test.expect_true(
-        transition_pair_retreat.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairStatus::completed &&
-            transition_pair_retreat_state.mode_word == 0xABCD0002U &&
-            transition_pair_retreat.target_mode == 2U &&
-            transition_pair_retreat_ports.events == std::vector<u32>{1U, 2U} &&
-            transition_pair_retreat_ports.played_sample_ids ==
+        character_attributes_retreat.status ==
+                openswd3::special_modes::LegacyCharacterAttributesStatus::
+                    completed &&
+            character_attributes_retreat_state.mode_word == 0xABCD0002U &&
+            character_attributes_retreat.target_mode == 2U &&
+            character_attributes_retreat_ports.events ==
+                std::vector<u32>{1U, 2U} &&
+            character_attributes_retreat_ports.played_sample_ids ==
                 std::vector<u32>{0x107U} &&
-            transition_pair_retreat_ports.played_sample_owners ==
+            character_attributes_retreat_ports.played_sample_owners ==
                 std::vector<u32>{0x8888U} &&
-            transition_pair_retreat.legacy_return_value == 0x5678 &&
-            transition_pair_retreat.helper_call_count == 2U &&
-            transition_pair_retreat_exhausted.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairStatus::
-                        unavailable_mode_domain_stopped &&
-            transition_pair_retreat_exhausted_state.mode_word == 0xABCD0000U &&
-            transition_pair_retreat_exhausted_ports.events.empty() &&
-            transition_pair_retreat_exhausted.helper_call_count == 0U,
+            character_attributes_retreat.legacy_return_value == 0x5678 &&
+            character_attributes_retreat.helper_call_count == 2U &&
+            character_attributes_retreat_exhausted.status ==
+                openswd3::special_modes::LegacyCharacterAttributesStatus::
+                    unavailable_mode_domain_stopped &&
+            character_attributes_retreat_exhausted_state.mode_word ==
+                0xABCD0000U &&
+            character_attributes_retreat_exhausted_ports.events.empty() &&
+            character_attributes_retreat_exhausted.helper_call_count == 0U,
         "0x44A160 retreats through four slots, preserves the impossible wrap comparison behavior, and leaves mode unchanged when all slots are unavailable"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_wrapped_retreat_state;
-    transition_pair_wrapped_retreat_state.mode_word = 0xABCD0000U;
-    transition_pair_wrapped_retreat_state.mode_records = {
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_wrapped_retreat_state;
+    character_attributes_wrapped_retreat_state.mode_word = 0xABCD0000U;
+    character_attributes_wrapped_retreat_state.mode_records = {
         0xFFFFU, 0xFFFFU, 7U, 0xFFFFU
     };
-    transition_pair_wrapped_retreat_state.sample_owner = 0x9999U;
-    transition_pair_wrapped_retreat_state.first_record_available = true;
-    transition_pair_wrapped_retreat_state.second_record_available = true;
-    FakeTransitionPairPorts transition_pair_wrapped_retreat_ports;
-    const auto transition_pair_wrapped_retreat = openswd3::special_modes::
-        retreat_wrapped_legacy_standard_mode_transition_pair(
-            transition_pair_wrapped_retreat_state,
-            transition_pair_wrapped_retreat_ports
+    character_attributes_wrapped_retreat_state.sample_owner = 0x9999U;
+    character_attributes_wrapped_retreat_state.first_record_available = true;
+    character_attributes_wrapped_retreat_state.second_record_available = true;
+    FakeCharacterAttributesPorts character_attributes_wrapped_retreat_ports;
+    const auto character_attributes_wrapped_retreat =
+        openswd3::special_modes::retreat_wrapped_legacy_character_attributes(
+            character_attributes_wrapped_retreat_state,
+            character_attributes_wrapped_retreat_ports
         );
     test.expect_true(
-        transition_pair_wrapped_retreat.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairStatus::completed &&
-            transition_pair_wrapped_retreat_state.mode_word == 0xABCD0002U &&
-            transition_pair_wrapped_retreat.target_mode == 2U &&
-            transition_pair_wrapped_retreat_ports.events ==
+        character_attributes_wrapped_retreat.status ==
+                openswd3::special_modes::LegacyCharacterAttributesStatus::
+                    completed &&
+            character_attributes_wrapped_retreat_state.mode_word ==
+                0xABCD0002U &&
+            character_attributes_wrapped_retreat.target_mode == 2U &&
+            character_attributes_wrapped_retreat_ports.events ==
                 std::vector<u32>{1U, 2U} &&
-            transition_pair_wrapped_retreat_ports.played_sample_owners ==
+            character_attributes_wrapped_retreat_ports.played_sample_owners ==
                 std::vector<u32>{0x9999U} &&
-            transition_pair_wrapped_retreat.legacy_return_value == 0x5678 &&
-            transition_pair_wrapped_retreat.helper_call_count == 2U,
+            character_attributes_wrapped_retreat.legacy_return_value ==
+                0x5678 &&
+            character_attributes_wrapped_retreat.helper_call_count == 2U,
         "0x44A1D0 preserves the correct FFFF wrap comparison through the behaviorally equivalent low-two-bit retreat entry"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_commit_state;
-    transition_pair_commit_state.first_owner = 0x11U;
-    transition_pair_commit_state.second_owner = 0x22U;
-    transition_pair_commit_state.interaction_mode = 1U;
-    transition_pair_commit_state.active_owner = 0x3333U;
-    FakeTransitionPairPorts transition_pair_commit_ports;
-    const auto transition_pair_commit =
-        openswd3::special_modes::commit_legacy_standard_mode_transition_pair(
-            transition_pair_commit_state, transition_pair_commit_ports
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_commit_state;
+    character_attributes_commit_state.first_owner = 0x11U;
+    character_attributes_commit_state.second_owner = 0x22U;
+    character_attributes_commit_state.interaction_mode = 1U;
+    character_attributes_commit_state.active_owner = 0x3333U;
+    FakeCharacterAttributesPorts character_attributes_commit_ports;
+    const auto character_attributes_commit =
+        openswd3::special_modes::commit_legacy_character_attributes(
+            character_attributes_commit_state, character_attributes_commit_ports
         );
-    auto transition_pair_commit_wrap_state = transition_pair_commit_state;
-    transition_pair_commit_wrap_state.interaction_mode = 0U;
-    transition_pair_commit_wrap_state.active_owner = 0x4444U;
-    FakeTransitionPairPorts transition_pair_commit_wrap_ports;
-    const auto transition_pair_commit_wrap =
-        openswd3::special_modes::commit_legacy_standard_mode_transition_pair(
-            transition_pair_commit_wrap_state, transition_pair_commit_wrap_ports
+    auto character_attributes_commit_wrap_state =
+        character_attributes_commit_state;
+    character_attributes_commit_wrap_state.interaction_mode = 0U;
+    character_attributes_commit_wrap_state.active_owner = 0x4444U;
+    FakeCharacterAttributesPorts character_attributes_commit_wrap_ports;
+    const auto character_attributes_commit_wrap =
+        openswd3::special_modes::commit_legacy_character_attributes(
+            character_attributes_commit_wrap_state,
+            character_attributes_commit_wrap_ports
         );
     test.expect_true(
-        transition_pair_commit_ports.released_owners ==
+        character_attributes_commit_ports.released_owners ==
                 std::vector<u32>{0x11U, 0x22U} &&
-            transition_pair_commit_state.interaction_mode == 0U &&
-            transition_pair_commit_state.active_owner == 0U &&
-            transition_pair_commit_ports.callback_modes ==
+            character_attributes_commit_state.interaction_mode == 0U &&
+            character_attributes_commit_state.active_owner == 0U &&
+            character_attributes_commit_ports.callback_modes ==
                 std::vector<u32>{0U} &&
-            transition_pair_commit.legacy_return_value == 0x1234 &&
-            transition_pair_commit.helper_call_count == 2U &&
-            transition_pair_commit_wrap_state.interaction_mode == 0xFFFFU &&
-            transition_pair_commit_wrap_state.active_owner == 0x4444U &&
-            transition_pair_commit_wrap_ports.callback_modes ==
+            character_attributes_commit.legacy_return_value == 0x1234 &&
+            character_attributes_commit.helper_call_count == 2U &&
+            character_attributes_commit_wrap_state.interaction_mode ==
+                0xFFFFU &&
+            character_attributes_commit_wrap_state.active_owner == 0x4444U &&
+            character_attributes_commit_wrap_ports.callback_modes ==
                 std::vector<u32>{0xFFFFU} &&
-            transition_pair_commit_wrap.legacy_return_value == 0x1234 &&
-            transition_pair_commit_wrap.helper_call_count == 2U,
+            character_attributes_commit_wrap.legacy_return_value == 0x1234 &&
+            character_attributes_commit_wrap.helper_call_count == 2U,
         "0x44A250 releases the pair before u16 stage decrement, clears the active owner only at zero, and dispatches the zero-extended stage"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_overlay_state;
-    transition_pair_overlay_state.render_surface = 0xCAFEBABEU;
-    FakeTransitionPairPorts transition_pair_overlay_positive_ports;
-    const auto transition_pair_overlay_positive = openswd3::special_modes::
-        draw_legacy_standard_mode_transition_pair_overlay(
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_overlay_state;
+    character_attributes_overlay_state.render_surface = 0xCAFEBABEU;
+    FakeCharacterAttributesPorts character_attributes_overlay_positive_ports;
+    const auto character_attributes_overlay_positive =
+        openswd3::special_modes::draw_legacy_character_attributes_overlay(
             5,
             100,
             200,
             1000,
-            transition_pair_overlay_state,
-            transition_pair_overlay_positive_ports
+            character_attributes_overlay_state,
+            character_attributes_overlay_positive_ports
         );
-    FakeTransitionPairPorts transition_pair_overlay_negative_ports;
-    const auto transition_pair_overlay_negative = openswd3::special_modes::
-        draw_legacy_standard_mode_transition_pair_overlay(
+    FakeCharacterAttributesPorts character_attributes_overlay_negative_ports;
+    const auto character_attributes_overlay_negative =
+        openswd3::special_modes::draw_legacy_character_attributes_overlay(
             std::numeric_limits<i32>::min(),
             10,
             20,
             0,
-            transition_pair_overlay_state,
-            transition_pair_overlay_negative_ports
+            character_attributes_overlay_state,
+            character_attributes_overlay_negative_ports
         );
-    FakeTransitionPairPorts transition_pair_overlay_zero_ports;
-    const auto transition_pair_overlay_zero = openswd3::special_modes::
-        draw_legacy_standard_mode_transition_pair_overlay(
+    FakeCharacterAttributesPorts character_attributes_overlay_zero_ports;
+    const auto character_attributes_overlay_zero =
+        openswd3::special_modes::draw_legacy_character_attributes_overlay(
             0,
             1,
             2,
             3,
-            transition_pair_overlay_state,
-            transition_pair_overlay_zero_ports
+            character_attributes_overlay_state,
+            character_attributes_overlay_zero_ports
         );
     test.expect_true(
-        transition_pair_overlay_positive.command_count == 3U &&
-            transition_pair_overlay_positive.helper_call_count == 3U &&
-            transition_pair_overlay_positive.legacy_return_value == 0x7A7A &&
-            transition_pair_overlay_positive_ports.render_commands[1U]
+        character_attributes_overlay_positive.command_count == 3U &&
+            character_attributes_overlay_positive.helper_call_count == 3U &&
+            character_attributes_overlay_positive.legacy_return_value ==
+                0x7A7A &&
+            character_attributes_overlay_positive_ports.render_commands[1U]
                     .arguments[0U] == 0x2B &&
-            transition_pair_overlay_positive_ports.render_commands[1U]
+            character_attributes_overlay_positive_ports.render_commands[1U]
                     .arguments[1U] == 5 &&
-            transition_pair_overlay_positive_ports.render_commands[2U]
+            character_attributes_overlay_positive_ports.render_commands[2U]
                     .arguments[2U] == 148 &&
-            transition_pair_overlay_positive_ports.render_commands[2U]
+            character_attributes_overlay_positive_ports.render_commands[2U]
                     .arguments[6U] == 0x12345678 &&
-            transition_pair_overlay_negative.command_count == 4U &&
-            transition_pair_overlay_negative.helper_call_count == 4U &&
-            transition_pair_overlay_negative_ports.render_commands[2U]
+            character_attributes_overlay_negative.command_count == 4U &&
+            character_attributes_overlay_negative.helper_call_count == 4U &&
+            character_attributes_overlay_negative_ports.render_commands[2U]
                     .arguments[0U] == 0x2D &&
-            transition_pair_overlay_negative_ports.render_commands[2U]
+            character_attributes_overlay_negative_ports.render_commands[2U]
                     .arguments[1U] == std::numeric_limits<i32>::min() &&
-            transition_pair_overlay_negative_ports.render_commands[3U]
+            character_attributes_overlay_negative_ports.render_commands[3U]
                     .arguments[2U] == 14 &&
-            transition_pair_overlay_negative_ports.render_commands[3U]
+            character_attributes_overlay_negative_ports.render_commands[3U]
                     .arguments[6U] == 0x01020304 &&
-            transition_pair_overlay_zero.command_count == 0U &&
-            transition_pair_overlay_zero.helper_call_count == 0U &&
-            transition_pair_overlay_zero_ports.render_commands.empty(),
+            character_attributes_overlay_zero.command_count == 0U &&
+            character_attributes_overlay_zero.helper_call_count == 0U &&
+            character_attributes_overlay_zero_ports.render_commands.empty(),
         "0x44AE70 skips zero, selects signed colors, preserves INT_MIN abs32, and applies threshold spacing"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_render_state;
-    transition_pair_render_state.mode_word = 2U;
-    transition_pair_render_state.render_palette = 0x1357U;
-    transition_pair_render_state.render_surface = 0xCAFEBABEU;
-    transition_pair_render_state.third_frame_register_snapshot = 0x24680000U;
-    transition_pair_render_state.first_record_available = true;
-    transition_pair_render_state.second_record_available = true;
-    transition_pair_render_state.first_record.values = {10U, 20U, 30U, 40U};
-    transition_pair_render_state.first_record.bonuses = {1U, 2U};
-    transition_pair_render_state.first_record.level = 5U;
-    transition_pair_render_state.first_record.modifiers = {
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_render_state;
+    character_attributes_render_state.mode_word = 2U;
+    character_attributes_render_state.render_palette = 0x1357U;
+    character_attributes_render_state.render_surface = 0xCAFEBABEU;
+    character_attributes_render_state.third_frame_register_snapshot =
+        0x24680000U;
+    character_attributes_render_state.first_record_available = true;
+    character_attributes_render_state.second_record_available = true;
+    character_attributes_render_state.first_record.values = {
+        10U, 20U, 30U, 40U
+    };
+    character_attributes_render_state.first_record.bonuses = {1U, 2U};
+    character_attributes_render_state.first_record.level = 5U;
+    character_attributes_render_state.first_record.modifiers = {
         0, 1, -1, -9, -10, -11, 127, -128, 5
     };
-    transition_pair_render_state.second_record.values = {1U, 0xFFFFU, 2U, 3U};
-    transition_pair_render_state.render_modes[2U].primary_value = 0x10203040U;
-    transition_pair_render_state.render_modes[2U].attributes = {
+    character_attributes_render_state.second_record.values = {
+        1U, 0xFFFFU, 2U, 3U
+    };
+    character_attributes_render_state.render_modes[2U].primary_value =
+        0x10203040U;
+    character_attributes_render_state.render_modes[2U].attributes = {
         100U, 200U, 300U, 400U
     };
-    FakeTransitionPairPorts transition_pair_render_ports;
-    const auto transition_pair_render =
-        openswd3::special_modes::render_legacy_standard_mode_transition_pair(
-            transition_pair_render_state, transition_pair_render_ports
+    FakeCharacterAttributesPorts character_attributes_render_ports;
+    const auto character_attributes_render =
+        openswd3::special_modes::render_legacy_character_attributes(
+            character_attributes_render_state, character_attributes_render_ports
         );
-    using PairRenderCommandType = openswd3::special_modes::
-        LegacyStandardModeTransitionPairRenderCommandType;
+    using PairRenderCommandType =
+        openswd3::special_modes::LegacyCharacterAttributesRenderCommandType;
     using PairRenderText =
-        openswd3::special_modes::LegacyStandardModeTransitionPairRenderText;
+        openswd3::special_modes::LegacyCharacterAttributesRenderText;
     const auto& pair_render_commands =
-        transition_pair_render_ports.render_commands;
+        character_attributes_render_ports.render_commands;
     test.expect_true(
-        transition_pair_render.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairRenderStatus::completed &&
-            transition_pair_render.command_count == 84U &&
-            transition_pair_render.helper_call_count == 88U &&
-            transition_pair_render.legacy_return_value == 0x7A7A &&
+        character_attributes_render.status ==
+                openswd3::special_modes::LegacyCharacterAttributesRenderStatus::
+                    completed &&
+            character_attributes_render.command_count == 84U &&
+            character_attributes_render.helper_call_count == 88U &&
+            character_attributes_render.legacy_return_value == 0x7A7A &&
             pair_render_commands.size() == 84U &&
             pair_render_commands[5U].type ==
                 PairRenderCommandType::draw_tiled_frame &&
@@ -16422,217 +16425,217 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44A280 preserves all 75 direct calls plus closed overlay callees, register snapshots, signed overlays, and four modifier formats"
     );
 
-    auto transition_pair_render_bad_mode_state = transition_pair_render_state;
-    transition_pair_render_bad_mode_state.mode_word = 4U;
-    FakeTransitionPairPorts transition_pair_render_bad_mode_ports;
-    const auto transition_pair_render_bad_mode =
-        openswd3::special_modes::render_legacy_standard_mode_transition_pair(
-            transition_pair_render_bad_mode_state,
-            transition_pair_render_bad_mode_ports
+    auto character_attributes_render_bad_mode_state =
+        character_attributes_render_state;
+    character_attributes_render_bad_mode_state.mode_word = 4U;
+    FakeCharacterAttributesPorts character_attributes_render_bad_mode_ports;
+    const auto character_attributes_render_bad_mode =
+        openswd3::special_modes::render_legacy_character_attributes(
+            character_attributes_render_bad_mode_state,
+            character_attributes_render_bad_mode_ports
         );
-    auto transition_pair_render_no_first_state = transition_pair_render_state;
-    transition_pair_render_no_first_state.first_record_available = false;
-    FakeTransitionPairPorts transition_pair_render_no_first_ports;
-    const auto transition_pair_render_no_first =
-        openswd3::special_modes::render_legacy_standard_mode_transition_pair(
-            transition_pair_render_no_first_state,
-            transition_pair_render_no_first_ports
+    auto character_attributes_render_no_first_state =
+        character_attributes_render_state;
+    character_attributes_render_no_first_state.first_record_available = false;
+    FakeCharacterAttributesPorts character_attributes_render_no_first_ports;
+    const auto character_attributes_render_no_first =
+        openswd3::special_modes::render_legacy_character_attributes(
+            character_attributes_render_no_first_state,
+            character_attributes_render_no_first_ports
         );
-    auto transition_pair_render_no_second_state = transition_pair_render_state;
-    transition_pair_render_no_second_state.second_record_available = false;
-    FakeTransitionPairPorts transition_pair_render_no_second_ports;
-    const auto transition_pair_render_no_second =
-        openswd3::special_modes::render_legacy_standard_mode_transition_pair(
-            transition_pair_render_no_second_state,
-            transition_pair_render_no_second_ports
+    auto character_attributes_render_no_second_state =
+        character_attributes_render_state;
+    character_attributes_render_no_second_state.second_record_available = false;
+    FakeCharacterAttributesPorts character_attributes_render_no_second_ports;
+    const auto character_attributes_render_no_second =
+        openswd3::special_modes::render_legacy_character_attributes(
+            character_attributes_render_no_second_state,
+            character_attributes_render_no_second_ports
         );
     test.expect_true(
-        transition_pair_render_bad_mode.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairRenderStatus::
-                        mode_out_of_range_stopped &&
-            transition_pair_render_bad_mode.command_count == 6U &&
-            transition_pair_render_no_first.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairRenderStatus::
-                        first_record_unavailable_stopped &&
-            transition_pair_render_no_first.command_count == 14U &&
-            transition_pair_render_no_second.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairRenderStatus::
-                        second_record_unavailable_stopped &&
-            transition_pair_render_no_second.command_count == 33U,
+        character_attributes_render_bad_mode.status ==
+                openswd3::special_modes::LegacyCharacterAttributesRenderStatus::
+                    mode_out_of_range_stopped &&
+            character_attributes_render_bad_mode.command_count == 6U &&
+            character_attributes_render_no_first.status ==
+                openswd3::special_modes::LegacyCharacterAttributesRenderStatus::
+                    first_record_unavailable_stopped &&
+            character_attributes_render_no_first.command_count == 14U &&
+            character_attributes_render_no_second.status ==
+                openswd3::special_modes::LegacyCharacterAttributesRenderStatus::
+                    second_record_unavailable_stopped &&
+            character_attributes_render_no_second.command_count == 33U,
         "0x44A280 stops only at the original mode and paired-record read points after preserving prior commands"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_update_state;
-    transition_pair_update_state.mode_word = 0xABCD0000U;
-    transition_pair_update_state.input_flags = 0x03U;
-    transition_pair_update_state.interaction_mode = 2U;
-    transition_pair_update_state.pointer_x = 0x79U;
-    transition_pair_update_state.pointer_y = 5U;
-    transition_pair_update_state.first_record_available = true;
-    transition_pair_update_state.second_record_available = true;
-    FakeTransitionPairPorts transition_pair_update_ports;
-    transition_pair_update_ports.rebuild_input_flags = 0x04U;
-    const auto transition_pair_update =
-        openswd3::special_modes::update_legacy_standard_mode_transition_pair(
-            transition_pair_update_state, transition_pair_update_ports
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_update_state;
+    character_attributes_update_state.mode_word = 0xABCD0000U;
+    character_attributes_update_state.input_flags = 0x03U;
+    character_attributes_update_state.interaction_mode = 2U;
+    character_attributes_update_state.pointer_x = 0x79U;
+    character_attributes_update_state.pointer_y = 5U;
+    character_attributes_update_state.first_record_available = true;
+    character_attributes_update_state.second_record_available = true;
+    FakeCharacterAttributesPorts character_attributes_update_ports;
+    character_attributes_update_ports.rebuild_input_flags = 0x04U;
+    const auto character_attributes_update =
+        openswd3::special_modes::update_legacy_character_attributes(
+            character_attributes_update_state, character_attributes_update_ports
         );
 
-    auto transition_pair_missing_state = transition_pair_update_state;
-    transition_pair_missing_state.input_flags = 0x07U;
-    transition_pair_missing_state.interaction_mode = 2U;
-    FakeTransitionPairPorts transition_pair_missing_ports;
-    transition_pair_missing_ports.presence_return = 0;
-    const auto transition_pair_missing =
-        openswd3::special_modes::update_legacy_standard_mode_transition_pair(
-            transition_pair_missing_state, transition_pair_missing_ports
+    auto character_attributes_missing_state = character_attributes_update_state;
+    character_attributes_missing_state.input_flags = 0x07U;
+    character_attributes_missing_state.interaction_mode = 2U;
+    FakeCharacterAttributesPorts character_attributes_missing_ports;
+    character_attributes_missing_ports.presence_return = 0;
+    const auto character_attributes_missing =
+        openswd3::special_modes::update_legacy_character_attributes(
+            character_attributes_missing_state,
+            character_attributes_missing_ports
         );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_direct_commit_state;
-    transition_pair_direct_commit_state.input_flags = 0x04U;
-    transition_pair_direct_commit_state.interaction_mode = 2U;
-    transition_pair_direct_commit_state.pointer_x = 0x0AU;
-    transition_pair_direct_commit_state.pointer_y = 5U;
-    FakeTransitionPairPorts transition_pair_direct_commit_ports;
-    const auto transition_pair_direct_commit =
-        openswd3::special_modes::update_legacy_standard_mode_transition_pair(
-            transition_pair_direct_commit_state,
-            transition_pair_direct_commit_ports
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_direct_commit_state;
+    character_attributes_direct_commit_state.input_flags = 0x04U;
+    character_attributes_direct_commit_state.interaction_mode = 2U;
+    character_attributes_direct_commit_state.pointer_x = 0x0AU;
+    character_attributes_direct_commit_state.pointer_y = 5U;
+    FakeCharacterAttributesPorts character_attributes_direct_commit_ports;
+    const auto character_attributes_direct_commit =
+        openswd3::special_modes::update_legacy_character_attributes(
+            character_attributes_direct_commit_state,
+            character_attributes_direct_commit_ports
         );
 
-    auto transition_pair_x_residual_state = transition_pair_direct_commit_state;
-    transition_pair_x_residual_state.input_flags = 0x01U;
-    transition_pair_x_residual_state.interaction_mode = 2U;
-    FakeTransitionPairPorts transition_pair_x_residual_ports;
-    const auto transition_pair_x_residual =
-        openswd3::special_modes::update_legacy_standard_mode_transition_pair(
-            transition_pair_x_residual_state, transition_pair_x_residual_ports
+    auto character_attributes_x_residual_state =
+        character_attributes_direct_commit_state;
+    character_attributes_x_residual_state.input_flags = 0x01U;
+    character_attributes_x_residual_state.interaction_mode = 2U;
+    FakeCharacterAttributesPorts character_attributes_x_residual_ports;
+    const auto character_attributes_x_residual =
+        openswd3::special_modes::update_legacy_character_attributes(
+            character_attributes_x_residual_state,
+            character_attributes_x_residual_ports
         );
-    auto transition_pair_y_residual_state = transition_pair_update_state;
-    transition_pair_y_residual_state.input_flags = 0x01U;
-    transition_pair_y_residual_state.interaction_mode = 2U;
-    transition_pair_y_residual_state.pointer_y = 4U;
-    FakeTransitionPairPorts transition_pair_y_residual_ports;
-    const auto transition_pair_y_residual =
-        openswd3::special_modes::update_legacy_standard_mode_transition_pair(
-            transition_pair_y_residual_state, transition_pair_y_residual_ports
-        );
-
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_unreachable_state;
-    transition_pair_unreachable_state.input_flags = 0x05U;
-    transition_pair_unreachable_state.interaction_mode = 2U;
-    transition_pair_unreachable_state.pointer_x = 0x1C3U;
-    transition_pair_unreachable_state.pointer_y = 5U;
-    transition_pair_unreachable_state.first_record_available = true;
-    transition_pair_unreachable_state.second_record_available = true;
-    FakeTransitionPairPorts transition_pair_unreachable_ports;
-    const auto transition_pair_unreachable =
-        openswd3::special_modes::update_legacy_standard_mode_transition_pair(
-            transition_pair_unreachable_state, transition_pair_unreachable_ports
+    auto character_attributes_y_residual_state =
+        character_attributes_update_state;
+    character_attributes_y_residual_state.input_flags = 0x01U;
+    character_attributes_y_residual_state.interaction_mode = 2U;
+    character_attributes_y_residual_state.pointer_y = 4U;
+    FakeCharacterAttributesPorts character_attributes_y_residual_ports;
+    const auto character_attributes_y_residual =
+        openswd3::special_modes::update_legacy_character_attributes(
+            character_attributes_y_residual_state,
+            character_attributes_y_residual_ports
         );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPairState
-        transition_pair_do_while_state;
-    transition_pair_do_while_state.mode_word = 1U;
-    transition_pair_do_while_state.input_flags = 0x01U;
-    transition_pair_do_while_state.interaction_mode = 2U;
-    transition_pair_do_while_state.pointer_x = 0x79U;
-    transition_pair_do_while_state.pointer_y = 5U;
-    transition_pair_do_while_state.first_record_available = true;
-    transition_pair_do_while_state.second_record_available = true;
-    FakeTransitionPairPorts transition_pair_do_while_ports;
-    const auto transition_pair_do_while =
-        openswd3::special_modes::update_legacy_standard_mode_transition_pair(
-            transition_pair_do_while_state, transition_pair_do_while_ports
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_unreachable_state;
+    character_attributes_unreachable_state.input_flags = 0x05U;
+    character_attributes_unreachable_state.interaction_mode = 2U;
+    character_attributes_unreachable_state.pointer_x = 0x1C3U;
+    character_attributes_unreachable_state.pointer_y = 5U;
+    character_attributes_unreachable_state.first_record_available = true;
+    character_attributes_unreachable_state.second_record_available = true;
+    FakeCharacterAttributesPorts character_attributes_unreachable_ports;
+    const auto character_attributes_unreachable =
+        openswd3::special_modes::update_legacy_character_attributes(
+            character_attributes_unreachable_state,
+            character_attributes_unreachable_ports
+        );
+
+    openswd3::special_modes::LegacyCharacterAttributesState
+        character_attributes_do_while_state;
+    character_attributes_do_while_state.mode_word = 1U;
+    character_attributes_do_while_state.input_flags = 0x01U;
+    character_attributes_do_while_state.interaction_mode = 2U;
+    character_attributes_do_while_state.pointer_x = 0x79U;
+    character_attributes_do_while_state.pointer_y = 5U;
+    character_attributes_do_while_state.first_record_available = true;
+    character_attributes_do_while_state.second_record_available = true;
+    FakeCharacterAttributesPorts character_attributes_do_while_ports;
+    const auto character_attributes_do_while =
+        openswd3::special_modes::update_legacy_character_attributes(
+            character_attributes_do_while_state,
+            character_attributes_do_while_ports
         );
 
     test.expect_true(
-        transition_pair_update_ports.queried_item_ids ==
+        character_attributes_update_ports.queried_item_ids ==
                 std::vector<u32>{31U} &&
-            transition_pair_update_ports.accumulate_count == 16U &&
-            transition_pair_update_ports.played_sample_ids ==
+            character_attributes_update_ports.accumulate_count == 16U &&
+            character_attributes_update_ports.played_sample_ids ==
                 std::vector<u32>{0x107U} &&
-            transition_pair_update_ports.callback_modes ==
+            character_attributes_update_ports.callback_modes ==
                 std::vector<u32>{1U} &&
-            transition_pair_update_state.mode_word == 0xABCD0001U &&
-            transition_pair_update.legacy_return_value == 0x34 &&
-            transition_pair_update.helper_call_count == 3U &&
-            transition_pair_missing.legacy_return_value == 0 &&
-            transition_pair_missing.helper_call_count == 1U &&
-            transition_pair_missing_ports.callback_modes.empty() &&
-            transition_pair_direct_commit_ports.queried_item_ids.empty() &&
-            transition_pair_direct_commit_ports.callback_modes ==
+            character_attributes_update_state.mode_word == 0xABCD0001U &&
+            character_attributes_update.legacy_return_value == 0x34 &&
+            character_attributes_update.helper_call_count == 3U &&
+            character_attributes_missing.legacy_return_value == 0 &&
+            character_attributes_missing.helper_call_count == 1U &&
+            character_attributes_missing_ports.callback_modes.empty() &&
+            character_attributes_direct_commit_ports.queried_item_ids.empty() &&
+            character_attributes_direct_commit_ports.callback_modes ==
                 std::vector<u32>{1U} &&
-            transition_pair_direct_commit.helper_call_count == 1U &&
-            transition_pair_x_residual.legacy_return_value == 0x0A &&
-            transition_pair_x_residual.helper_call_count == 0U &&
-            transition_pair_y_residual.legacy_return_value == 0x79 &&
-            transition_pair_y_residual.helper_call_count == 0U &&
-            transition_pair_unreachable.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairStatus::
-                        cycle_domain_stopped &&
-            transition_pair_unreachable.target_mode == 4U &&
-            transition_pair_unreachable_ports.accumulate_count == 64U &&
-            transition_pair_unreachable_ports.callback_modes.empty() &&
-            transition_pair_do_while.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionPairStatus::completed &&
-            transition_pair_do_while_ports.accumulate_count == 64U &&
-            transition_pair_do_while.helper_call_count == 5U,
+            character_attributes_direct_commit.helper_call_count == 1U &&
+            character_attributes_x_residual.legacy_return_value == 0x0A &&
+            character_attributes_x_residual.helper_call_count == 0U &&
+            character_attributes_y_residual.legacy_return_value == 0x79 &&
+            character_attributes_y_residual.helper_call_count == 0U &&
+            character_attributes_unreachable.status ==
+                openswd3::special_modes::LegacyCharacterAttributesStatus::
+                    cycle_domain_stopped &&
+            character_attributes_unreachable.target_mode == 4U &&
+            character_attributes_unreachable_ports.accumulate_count == 64U &&
+            character_attributes_unreachable_ports.callback_modes.empty() &&
+            character_attributes_do_while.status ==
+                openswd3::special_modes::LegacyCharacterAttributesStatus::
+                    completed &&
+            character_attributes_do_while_ports.accumulate_count == 64U &&
+            character_attributes_do_while.helper_call_count == 5U,
         "0x44A050 dispatches the unsigned grid, rereads flags after cycling, and stops only after the full four-mode domain"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        transition_one_state;
+    openswd3::special_modes::LegacyTitleMenuState transition_one_state;
     transition_one_state.mode = 1U;
-    FakeTransitionVisualPorts transition_one_ports;
-    const auto transition_one = openswd3::special_modes::
-        initialize_legacy_standard_mode_transition_visual(
+    FakeTitleMenuPorts transition_one_ports;
+    const auto transition_one =
+        openswd3::special_modes::initialize_legacy_title_menu(
             transition_one_state, transition_one_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        transition_two_state;
+    openswd3::special_modes::LegacyTitleMenuState transition_two_state;
     transition_two_state.mode = 2U;
-    FakeTransitionVisualPorts transition_two_ports;
-    const auto transition_two = openswd3::special_modes::
-        initialize_legacy_standard_mode_transition_visual(
+    FakeTitleMenuPorts transition_two_ports;
+    const auto transition_two =
+        openswd3::special_modes::initialize_legacy_title_menu(
             transition_two_state, transition_two_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        transition_three_state;
+    openswd3::special_modes::LegacyTitleMenuState transition_three_state;
     transition_three_state.mode = 3U;
-    FakeTransitionVisualPorts transition_three_ports;
-    const auto transition_three = openswd3::special_modes::
-        initialize_legacy_standard_mode_transition_visual(
+    FakeTitleMenuPorts transition_three_ports;
+    const auto transition_three =
+        openswd3::special_modes::initialize_legacy_title_menu(
             transition_three_state, transition_three_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        transition_zero_state;
-    FakeTransitionVisualPorts transition_zero_ports;
+    openswd3::special_modes::LegacyTitleMenuState transition_zero_state;
+    FakeTitleMenuPorts transition_zero_ports;
     transition_zero_ports.probe_return = 1;
-    const auto transition_zero = openswd3::special_modes::
-        initialize_legacy_standard_mode_transition_visual(
+    const auto transition_zero =
+        openswd3::special_modes::initialize_legacy_title_menu(
             transition_zero_state, transition_zero_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        transition_stop_state;
+    openswd3::special_modes::LegacyTitleMenuState transition_stop_state;
     transition_stop_state.mode = 1U;
-    FakeTransitionVisualPorts transition_stop_ports;
+    FakeTitleMenuPorts transition_stop_ports;
     transition_stop_ports.capture_available = false;
-    const auto transition_stopped = openswd3::special_modes::
-        initialize_legacy_standard_mode_transition_visual(
+    const auto transition_stopped =
+        openswd3::special_modes::initialize_legacy_title_menu(
             transition_stop_state, transition_stop_ports
         );
     test.expect_true(
         transition_one.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionVisualStatus::completed &&
+                openswd3::special_modes::LegacyTitleMenuStatus::completed &&
             transition_one_state.bounds ==
                 std::array<i32, 4U>{-16, -16, -16, -16} &&
             transition_one_state.progress == 100U &&
@@ -16641,15 +16644,13 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             transition_one_state.framebuffer_snapshot.front() == 0x5AU &&
             transition_one_state.source_surface_token == 0x1234U &&
             transition_two.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionVisualStatus::completed &&
+                openswd3::special_modes::LegacyTitleMenuStatus::completed &&
             transition_two_state.framebuffer_snapshot.size() == 0x96000U,
         "0x448700 initializes modes one and two with the exact framebuffer snapshot and motion owners"
     );
     test.expect_true(
         transition_three.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionVisualStatus::completed &&
+                openswd3::special_modes::LegacyTitleMenuStatus::completed &&
             transition_three_state.progress == 2U &&
             transition_three_state.enabled == 1U &&
             transition_three_state.velocity == 0x62 &&
@@ -16663,49 +16664,45 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             transition_zero_ports.probe_count == 1U &&
             transition_zero_ports.events == std::vector<u32>{1U, 10U, 2U, 3U} &&
             transition_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionVisualStatus::
-                        snapshot_allocation_stopped &&
+                openswd3::special_modes::LegacyTitleMenuStatus::
+                    snapshot_allocation_stopped &&
             transition_stop_state.progress == 100U &&
             transition_stop_state.velocity == -120 &&
             transition_stop_state.framebuffer_snapshot.empty(),
         "0x448700 initializes mode three, preserves the mode-zero call chain and stops at snapshot capture"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        interaction_two_state;
+    openswd3::special_modes::LegacyTitleMenuState interaction_two_state;
     interaction_two_state.progress = 2U;
     interaction_two_state.velocity = 97;
     interaction_two_state.primary_gate = 1U;
     interaction_two_state.primary_state = 1U;
     interaction_two_state.pointer_x = 0x170U;
     interaction_two_state.pointer_y = 0x108U;
-    FakeTransitionVisualPorts interaction_two_ports;
-    const auto interaction_two = openswd3::special_modes::
-        update_legacy_standard_mode_transition_interaction(
+    FakeTitleMenuPorts interaction_two_ports;
+    const auto interaction_two =
+        openswd3::special_modes::update_legacy_title_menu_input(
             interaction_two_state, interaction_two_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+    openswd3::special_modes::LegacyTitleMenuState
         interaction_two_fallback_state;
     interaction_two_fallback_state.progress = 2U;
     interaction_two_fallback_state.velocity = 97;
     interaction_two_fallback_state.secondary_gate = 1U;
     interaction_two_fallback_state.secondary_state = 1U;
-    FakeTransitionVisualPorts interaction_two_fallback_ports;
-    const auto interaction_two_fallback = openswd3::special_modes::
-        update_legacy_standard_mode_transition_interaction(
+    FakeTitleMenuPorts interaction_two_fallback_ports;
+    const auto interaction_two_fallback =
+        openswd3::special_modes::update_legacy_title_menu_input(
             interaction_two_fallback_state, interaction_two_fallback_ports
         );
     test.expect_true(
         interaction_two.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionInteractionPath::
-                        mode_two_first_selected &&
+                openswd3::special_modes::LegacyTitleMenuInputPath::
+                    mode_two_first_selected &&
             interaction_two_state.selection_result == 1U &&
             interaction_two_fallback.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionInteractionPath::
-                        mode_two_second_selected &&
+                openswd3::special_modes::LegacyTitleMenuInputPath::
+                    mode_two_second_selected &&
             interaction_two_fallback_state.selection_result == 2U,
         "0x448840 selects the strict mode-two rectangle before the paired fallback"
     );
@@ -16713,19 +16710,21 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     std::array<u32, 4U> mode_one_selections{};
     const std::array<u32, 4U> mode_one_y{0xD3U, 0x108U, 0x141U, 0x17AU};
     for (std::size_t index = 0U; index < mode_one_y.size(); ++index) {
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState state;
+        openswd3::special_modes::LegacyTitleMenuState state;
         state.progress = 1U;
         state.pointer_x = 0x80U;
         state.pointer_y = mode_one_y[index];
         state.input_flags = 3U;
-        FakeTransitionVisualPorts ports;
-        const auto interaction = openswd3::special_modes::
-            update_legacy_standard_mode_transition_interaction(state, ports);
+        FakeTitleMenuPorts ports;
+        const auto interaction =
+            openswd3::special_modes::update_legacy_title_menu_input(
+                state, ports
+            );
         mode_one_selections[index] = state.enabled;
         test.expect_true(
             interaction.confirmation_status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionConfirmationStatus::completed,
+                openswd3::special_modes::LegacyTitleMenuConfirmationStatus::
+                    completed,
             "0x448840 directly dispatches every strict mode-one selection through 0x448EE0"
         );
     }
@@ -16734,20 +16733,16 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448840 maps the four mode-one bands without closing their strict edges"
     );
 
-    std::array<
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState,
-        4U>
+    std::array<openswd3::special_modes::LegacyTitleMenuState, 4U>
         confirmation_states{};
-    std::array<FakeTransitionVisualPorts, 4U> confirmation_ports{};
-    std::array<
-        openswd3::special_modes::LegacyStandardModeTransitionConfirmationResult,
-        4U>
+    std::array<FakeTitleMenuPorts, 4U> confirmation_ports{};
+    std::array<openswd3::special_modes::LegacyTitleMenuConfirmationResult, 4U>
         confirmations{};
     for (std::size_t index = 0U; index < confirmation_states.size(); ++index) {
         confirmation_states[index].progress = 1U;
         confirmation_states[index].enabled = static_cast<u32>(index);
         confirmations[index] =
-            openswd3::special_modes::confirm_legacy_standard_mode_transition(
+            openswd3::special_modes::confirm_legacy_title_menu_selection(
                 confirmation_states[index], confirmation_ports[index]
             );
     }
@@ -16756,9 +16751,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             confirmation_states[0U].velocity == 0x64 &&
             confirmations[0U].legacy_return_value == -3 &&
             confirmations[1U].path ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionConfirmationPath::
-                        overlay_started &&
+                openswd3::special_modes::LegacyTitleMenuConfirmationPath::
+                    overlay_started &&
             confirmation_states[1U].velocity == 0x62 &&
             confirmation_states[1U].mode_one_feature_enabled == 1U &&
             confirmation_states[1U].mode_one_feature_variant == 0x46U &&
@@ -16769,9 +16763,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             confirmation_ports[1U].mode_one_calls ==
                 std::vector<std::array<u32, 3U>>{{8U, 0x12CU, 0xE6U}} &&
             confirmations[2U].path ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionConfirmationPath::
-                        settings_opened &&
+                openswd3::special_modes::LegacyTitleMenuConfirmationPath::
+                    settings_opened &&
             confirmation_states[2U].progress == 5U &&
             confirmation_states[2U].velocity == 0 &&
             confirmation_states[2U].mode_one_action_id == 0x232AU &&
@@ -16779,9 +16772,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             confirmation_ports[2U].mode_one_calls ==
                 std::vector<std::array<u32, 3U>>{{0x100U, 0U, 0U}} &&
             confirmations[3U].path ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionConfirmationPath::
-                        command_dispatched &&
+                openswd3::special_modes::LegacyTitleMenuConfirmationPath::
+                    command_dispatched &&
             confirmation_ports[3U].mode_one_calls ==
                 std::vector<std::array<u32, 3U>>{
                     {0x200U, 0x10U, 0x19U}, {0x201U, 0U, 0U}
@@ -16796,15 +16788,16 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         0xF1U, 0x111U, 0x131U, 0x151U, 0x171U, 0x191U
     };
     for (std::size_t index = 0U; index < setting_y.size(); ++index) {
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState state;
+        openswd3::special_modes::LegacyTitleMenuState state;
         state.progress = 5U;
         state.primary_gate = 1U;
         state.pointer_x = 0x150U;
         state.pointer_y = setting_y[index];
-        FakeTransitionVisualPorts ports;
+        FakeTitleMenuPorts ports;
         static_cast<void>(
-            openswd3::special_modes::
-                update_legacy_standard_mode_transition_interaction(state, ports)
+            openswd3::special_modes::update_legacy_title_menu_input(
+                state, ports
+            )
         );
         setting_velocities[index] = state.velocity;
         setting_values[index] = index == 0U
@@ -16824,8 +16817,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             );
         }
     }
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        settings_exit_state;
+    openswd3::special_modes::LegacyTitleMenuState settings_exit_state;
     settings_exit_state.progress = 5U;
     settings_exit_state.secondary_gate = 1U;
     settings_exit_state.sample_index = 1U;
@@ -16833,18 +16825,17 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     settings_exit_state.settings_spacing = 3U;
     settings_exit_state.settings_source_surface = 4U;
     settings_exit_state.settings_auxiliary = 5U;
-    FakeTransitionVisualPorts settings_exit_ports;
-    const auto settings_exit = openswd3::special_modes::
-        update_legacy_standard_mode_transition_interaction(
+    FakeTitleMenuPorts settings_exit_ports;
+    const auto settings_exit =
+        openswd3::special_modes::update_legacy_title_menu_input(
             settings_exit_state, settings_exit_ports
         );
     test.expect_true(
         setting_velocities == std::array<i32, 6U>{0, 1, 2, 3, 4, 5} &&
             setting_values == std::array<u32, 6U>{5U, 5U, 0x8CU, 0U, 0U, 5U} &&
             settings_exit.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionInteractionPath::
-                        settings_exit_requested &&
+                openswd3::special_modes::LegacyTitleMenuInputPath::
+                    settings_exit_requested &&
             settings_exit_state.progress == 1U &&
             settings_exit.legacy_return_value == 88U &&
             settings_exit_ports.settings_calls ==
@@ -16856,20 +16847,18 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448840 applies all six settings rows and directly commits outside activation through 0x449050"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        settings_commit_one_state;
+    openswd3::special_modes::LegacyTitleMenuState settings_commit_one_state;
     settings_commit_one_state.progress = 1U;
-    FakeTransitionVisualPorts settings_commit_one_ports;
-    const auto settings_commit_one = openswd3::special_modes::
-        commit_legacy_standard_mode_transition_settings(
+    FakeTitleMenuPorts settings_commit_one_ports;
+    const auto settings_commit_one =
+        openswd3::special_modes::commit_legacy_game_settings(
             settings_commit_one_state, settings_commit_one_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        settings_commit_other_state;
+    openswd3::special_modes::LegacyTitleMenuState settings_commit_other_state;
     settings_commit_other_state.progress = 2U;
-    FakeTransitionVisualPorts settings_commit_other_ports;
-    const auto settings_commit_other = openswd3::special_modes::
-        commit_legacy_standard_mode_transition_settings(
+    FakeTitleMenuPorts settings_commit_other_ports;
+    const auto settings_commit_other =
+        openswd3::special_modes::commit_legacy_game_settings(
             settings_commit_other_state, settings_commit_other_ports
         );
     test.expect_true(
@@ -16882,7 +16871,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
 
     using TransitionCommandType =
-        openswd3::special_modes::LegacyStandardModeTransitionCommandType;
+        openswd3::special_modes::LegacyTitleMenuRenderCommandType;
     const auto set_profile_text = [](auto& destination,
                                      const std::initializer_list<u8> bytes) {
         destination.fill(0U);
@@ -16895,62 +16884,52 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         std::array<u8, 0x10U> secondary_text{};
         set_profile_text(primary_text, primary);
         set_profile_text(secondary_text, secondary);
-        return openswd3::special_modes::
-            prepare_legacy_standard_mode_transition_settings_profile(
-                profile, primary_text, secondary_text
-            );
+        return openswd3::special_modes::prepare_legacy_game_settings_profile(
+            profile, primary_text, secondary_text
+        );
     };
-    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
-        profile_he_jiang;
+    openswd3::special_modes::LegacyGameSettingsProfileState profile_he_jiang;
     const auto profile_he_jiang_result = prepare_profile(
         {0xA6U, 0xF3U, 0xB5U, 0x4DU},
         {0xA6U, 0xBFU, 0xA6U, 0x70U, 0xACU, 0xF5U},
         profile_he_jiang
     );
-    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
-        profile_yang_wen;
+    openswd3::special_modes::LegacyGameSettingsProfileState profile_yang_wen;
     const auto profile_yang_wen_result = prepare_profile(
         {0xB7U, 0xA8U, 0xA9U, 0x5BU, 0xBAU, 0xD3U},
         {0xAFU, 0xBEU, 0xC0U, 0x41U},
         profile_yang_wen
     );
-    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
-        profile_gu_zhen;
+    openswd3::special_modes::LegacyGameSettingsProfileState profile_gu_zhen;
     const auto profile_gu_zhen_result = prepare_profile(
         {0xA5U, 0x6AU, 0xA4U, 0xEBU, 0xB8U, 0x74U},
         {0xAFU, 0x75U, 0xB9U, 0xDAU},
         profile_gu_zhen
     );
-    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
-        profile_fu_hong;
+    openswd3::special_modes::LegacyGameSettingsProfileState profile_fu_hong;
     const auto profile_fu_hong_result = prepare_profile(
         {0xBBU, 0xB2U, 0xA4U, 0x6CU, 0xB9U, 0xFDU},
         {0xACU, 0xF5U, 0xACU, 0xC0U, 0xB7U, 0xE4U},
         profile_fu_hong
     );
-    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
-        profile_zhu_xiao;
+    openswd3::special_modes::LegacyGameSettingsProfileState profile_zhu_xiao;
     const auto profile_zhu_xiao_result = prepare_profile(
         {0xC5U, 0xB1U, 0xA5U, 0xDBU, 0xA4U, 0x6CU},
         {0xA4U, 0x70U, 0xADU, 0xC5U},
         profile_zhu_xiao
     );
-    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
-        profile_le;
+    openswd3::special_modes::LegacyGameSettingsProfileState profile_le;
     const auto profile_le_result =
         prepare_profile({0xBCU, 0xD6U, 0xBCU, 0xD6U}, {}, profile_le);
-    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
-        profile_da;
+    openswd3::special_modes::LegacyGameSettingsProfileState profile_da;
     const auto profile_da_result =
         prepare_profile({0xA4U, 0x6AU, 0xA6U, 0xCCU}, {}, profile_da);
-    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
-        profile_ning;
+    openswd3::special_modes::LegacyGameSettingsProfileState profile_ning;
     profile_ning.primary_words.fill(20U);
     const auto profile_ning_result = prepare_profile(
         {0xB9U, 0xE7U, 0xAAU, 0xF6U, 0xA6U, 0xDAU}, {}, profile_ning
     );
-    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
-        profile_yan;
+    openswd3::special_modes::LegacyGameSettingsProfileState profile_yan;
     profile_yan.primary_words.fill(9U);
     const auto profile_yan_result = prepare_profile(
         {0xBFU, 0x50U, 0xA8U, 0xAAU, 0xC1U, 0xF8U}, {}, profile_yan
@@ -17024,24 +17003,23 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x449D80 preserves unsigned word subtraction and the three explicit zero writes"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionPanelRecord
-        panel_record;
+    openswd3::special_modes::LegacyTitleMenuSlidingPanelRecord panel_record;
     panel_record.action_id = 11U;
     panel_record.origin_x = 10;
     panel_record.origin_y = 20;
     panel_record.surface_group = 3U;
     panel_record.surface_index = 4U;
-    openswd3::special_modes::LegacyStandardModeTransitionPanelDrawState
+    openswd3::special_modes::LegacyTitleMenuSlidingPanelDrawState
         panel_draw_state;
-    FakeTransitionVisualPorts panel_ports;
+    FakeTitleMenuPorts panel_ports;
     const auto panel_draw =
-        openswd3::special_modes::draw_legacy_standard_mode_transition_panel(
+        openswd3::special_modes::draw_legacy_title_menu_sliding_panel(
             panel_draw_state, panel_record, 0x7D, 0xD2, -16, panel_ports
         );
-    FakeTransitionVisualPorts panel_failure_ports;
+    FakeTitleMenuPorts panel_failure_ports;
     panel_failure_ports.panel_prepare_return = 0;
     const auto panel_failure =
-        openswd3::special_modes::draw_legacy_standard_mode_transition_panel(
+        openswd3::special_modes::draw_legacy_title_menu_sliding_panel(
             panel_draw_state, panel_record, 0x7D, 0xD2, -12, panel_failure_ports
         );
     test.expect_true(
@@ -17072,21 +17050,20 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x449C30 reports preparation failure without resolving or drawing a surface"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        frame_intro_state;
+    openswd3::special_modes::LegacyTitleMenuState frame_intro_state;
     frame_intro_state.progress = 0U;
     frame_intro_state.enabled = 0U;
     frame_intro_state.velocity = -6;
     frame_intro_state.bounds.fill(-16);
-    FakeTransitionVisualPorts frame_intro_ports;
+    FakeTitleMenuPorts frame_intro_ports;
     const auto frame_intro =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_intro_state, frame_intro_ports
         );
     test.expect_true(
         frame_intro.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionFrameStatus::completed &&
+                openswd3::special_modes::LegacyTitleMenuFrameStatus::
+                    completed &&
             frame_intro_state.bounds ==
                 std::array<i32, 4U>{-18, -14, -14, -14} &&
             frame_intro_state.velocity == -5 &&
@@ -17100,38 +17077,34 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x4490C0 moves the selected intro panel before the four shared panels and negative fade"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        frame_invalid_state;
+    openswd3::special_modes::LegacyTitleMenuState frame_invalid_state;
     frame_invalid_state.progress = 0U;
     frame_invalid_state.enabled = 4U;
     frame_invalid_state.bounds.fill(-16);
-    FakeTransitionVisualPorts frame_invalid_ports;
+    FakeTitleMenuPorts frame_invalid_ports;
     const auto frame_invalid =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_invalid_state, frame_invalid_ports
         );
     test.expect_true(
         frame_invalid.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionFrameStatus::
-                        selector_out_of_range_stopped &&
+                openswd3::special_modes::LegacyTitleMenuFrameStatus::
+                    selector_out_of_range_stopped &&
             frame_invalid.command_count == 1U,
         "0x4490C0 stops exactly at the original dynamic selector access after the first draw"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        frame_choice_zero_state;
+    openswd3::special_modes::LegacyTitleMenuState frame_choice_zero_state;
     frame_choice_zero_state.progress = 2U;
     frame_choice_zero_state.velocity = 0x68;
     frame_choice_zero_state.enabled = 0U;
     frame_choice_zero_state.bounds.fill(-12);
-    FakeTransitionVisualPorts frame_choice_zero_ports;
+    FakeTitleMenuPorts frame_choice_zero_ports;
     const auto frame_choice_zero =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_choice_zero_state, frame_choice_zero_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        frame_choice_one_state;
+    openswd3::special_modes::LegacyTitleMenuState frame_choice_one_state;
     frame_choice_one_state.progress = 2U;
     frame_choice_one_state.velocity = 0x68;
     frame_choice_one_state.enabled = 1U;
@@ -17143,9 +17116,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         frame_choice_one_state.mode_one_secondary_text,
         {0xA6U, 0xBFU, 0xA6U, 0x70U, 0xACU, 0xF5U}
     );
-    FakeTransitionVisualPorts frame_choice_one_ports;
+    FakeTitleMenuPorts frame_choice_one_ports;
     const auto frame_choice_one =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_choice_one_state, frame_choice_one_ports
         );
     test.expect_true(
@@ -17185,31 +17158,30 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     static_cast<void>(frame_choice_zero);
     static_cast<void>(frame_choice_one);
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        frame_overlay_state;
+    openswd3::special_modes::LegacyTitleMenuState frame_overlay_state;
     frame_overlay_state.progress = 2U;
     frame_overlay_state.velocity = 0x62;
     frame_overlay_state.bounds.fill(-12);
     frame_overlay_state.mode_one_overlay_owner = 7U;
     frame_overlay_state.mode_one_overlay_storage.resize(0x20U);
-    FakeTransitionVisualPorts frame_overlay_first_ports;
+    FakeTitleMenuPorts frame_overlay_first_ports;
     frame_overlay_first_ports.overlay_poll_result = 1;
     const auto frame_overlay_first =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_overlay_state, frame_overlay_first_ports
         );
     const u32 frame_overlay_first_owner =
         frame_overlay_state.mode_one_overlay_owner;
-    FakeTransitionVisualPorts frame_overlay_second_ports;
+    FakeTitleMenuPorts frame_overlay_second_ports;
     frame_overlay_second_ports.overlay_poll_result = 1;
     const auto frame_overlay_second =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_overlay_state, frame_overlay_second_ports
         );
     test.expect_true(
         frame_overlay_first.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionFrameStatus::completed &&
+                openswd3::special_modes::LegacyTitleMenuFrameStatus::
+                    completed &&
             frame_overlay_first.legacy_return_value == 0x78U &&
             frame_overlay_first_owner == 0x5678U &&
             frame_overlay_state.velocity == 0x64 &&
@@ -17228,31 +17200,28 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x4490C0 commits two overlay text blocks, preserves the full owner and enables service 50"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        frame_overlay_stop_state;
+    openswd3::special_modes::LegacyTitleMenuState frame_overlay_stop_state;
     frame_overlay_stop_state.progress = 2U;
     frame_overlay_stop_state.velocity = 0x62;
     frame_overlay_stop_state.bounds.fill(-12);
     frame_overlay_stop_state.mode_one_overlay_owner = 7U;
-    FakeTransitionVisualPorts frame_overlay_stop_ports;
+    FakeTitleMenuPorts frame_overlay_stop_ports;
     frame_overlay_stop_ports.overlay_poll_result = 1;
     const auto frame_overlay_stop =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_overlay_stop_state, frame_overlay_stop_ports
         );
     test.expect_true(
         frame_overlay_stop.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionFrameStatus::
-                        overlay_storage_unavailable_stopped &&
+                openswd3::special_modes::LegacyTitleMenuFrameStatus::
+                    overlay_storage_unavailable_stopped &&
             frame_overlay_stop_state.mode_one_text.front() == 0xD0U &&
             frame_overlay_stop_state.mode_one_overlay_owner == 7U &&
             frame_overlay_stop_ports.transition_lifecycle.back() == 7U,
         "0x4490C0 stops at the original overlay storage write after preserving prior overlay side effects"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        frame_settings_state;
+    openswd3::special_modes::LegacyTitleMenuState frame_settings_state;
     frame_settings_state.progress = 5U;
     frame_settings_state.velocity = 4;
     frame_settings_state.sample_index = 5U;
@@ -17261,9 +17230,9 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     frame_settings_state.settings_source_surface = 2U;
     frame_settings_state.settings_auxiliary = 7U;
     frame_settings_state.shared_owner = 3U;
-    FakeTransitionVisualPorts frame_settings_ports;
+    FakeTitleMenuPorts frame_settings_ports;
     const auto frame_settings =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_settings_state, frame_settings_ports
         );
     test.expect_true(
@@ -17282,36 +17251,33 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x4490C0 renders the six settings rows in 57 immediate commands and advances source text timing"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        frame_snapshot_one_state;
+    openswd3::special_modes::LegacyTitleMenuState frame_snapshot_one_state;
     frame_snapshot_one_state.mode = 1U;
     frame_snapshot_one_state.progress = 0x64U;
     frame_snapshot_one_state.velocity = -120;
     frame_snapshot_one_state.framebuffer_snapshot.resize(0x96000U);
-    FakeTransitionVisualPorts frame_snapshot_one_ports;
+    FakeTitleMenuPorts frame_snapshot_one_ports;
     const auto frame_snapshot_one =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_snapshot_one_state, frame_snapshot_one_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        frame_snapshot_two_state;
+    openswd3::special_modes::LegacyTitleMenuState frame_snapshot_two_state;
     frame_snapshot_two_state.mode = 2U;
     frame_snapshot_two_state.progress = 0x64U;
     frame_snapshot_two_state.velocity = -1;
     frame_snapshot_two_state.framebuffer_snapshot.resize(0x96000U);
-    FakeTransitionVisualPorts frame_snapshot_two_ports;
+    FakeTitleMenuPorts frame_snapshot_two_ports;
     const auto frame_snapshot_two =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_snapshot_two_state, frame_snapshot_two_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        frame_snapshot_stop_state;
+    openswd3::special_modes::LegacyTitleMenuState frame_snapshot_stop_state;
     frame_snapshot_stop_state.mode = 1U;
     frame_snapshot_stop_state.progress = 0x64U;
     frame_snapshot_stop_state.velocity = -120;
-    FakeTransitionVisualPorts frame_snapshot_stop_ports;
+    FakeTitleMenuPorts frame_snapshot_stop_ports;
     const auto frame_snapshot_stop =
-        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+        openswd3::special_modes::render_legacy_title_menu_frame(
             frame_snapshot_stop_state, frame_snapshot_stop_ports
         );
     test.expect_true(
@@ -17323,33 +17289,29 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             frame_snapshot_two_state.runtime_status == 0x80000003U &&
             frame_snapshot_two.command_count == 2U &&
             frame_snapshot_stop.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeTransitionFrameStatus::
-                        snapshot_unavailable_stopped,
+                openswd3::special_modes::LegacyTitleMenuFrameStatus::
+                    snapshot_unavailable_stopped,
         "0x4490C0 preserves both snapshot fade modes and stops at the original missing snapshot read"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        advance_transition_one;
+    openswd3::special_modes::LegacyTitleMenuState advance_transition_one;
     advance_transition_one.progress = 1U;
     advance_transition_one.enabled = 3U;
-    const i32 advance_transition_one_residual = openswd3::special_modes::
-        advance_legacy_standard_mode_transition_selection(
+    const i32 advance_transition_one_residual =
+        openswd3::special_modes::advance_legacy_title_menu_selection(
             advance_transition_one
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        advance_transition_five;
+    openswd3::special_modes::LegacyTitleMenuState advance_transition_five;
     advance_transition_five.progress = 5U;
     advance_transition_five.velocity = 5;
-    const i32 advance_transition_five_residual = openswd3::special_modes::
-        advance_legacy_standard_mode_transition_selection(
+    const i32 advance_transition_five_residual =
+        openswd3::special_modes::advance_legacy_title_menu_selection(
             advance_transition_five
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        advance_transition_other;
+    openswd3::special_modes::LegacyTitleMenuState advance_transition_other;
     advance_transition_other.progress = 3U;
-    const i32 advance_transition_other_residual = openswd3::special_modes::
-        advance_legacy_standard_mode_transition_selection(
+    const i32 advance_transition_other_residual =
+        openswd3::special_modes::advance_legacy_title_menu_selection(
             advance_transition_other
         );
     test.expect_true(
@@ -17361,25 +17323,22 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448BB0 clamps both selectors while preserving the pre-clamp and unrelated EAX residuals"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        retreat_transition_one;
+    openswd3::special_modes::LegacyTitleMenuState retreat_transition_one;
     retreat_transition_one.progress = 1U;
-    const i32 retreat_transition_one_residual = openswd3::special_modes::
-        retreat_legacy_standard_mode_transition_selection(
+    const i32 retreat_transition_one_residual =
+        openswd3::special_modes::retreat_legacy_title_menu_selection(
             retreat_transition_one
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        retreat_transition_five;
+    openswd3::special_modes::LegacyTitleMenuState retreat_transition_five;
     retreat_transition_five.progress = 5U;
-    const i32 retreat_transition_five_residual = openswd3::special_modes::
-        retreat_legacy_standard_mode_transition_selection(
+    const i32 retreat_transition_five_residual =
+        openswd3::special_modes::retreat_legacy_title_menu_selection(
             retreat_transition_five
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        retreat_transition_other;
+    openswd3::special_modes::LegacyTitleMenuState retreat_transition_other;
     retreat_transition_other.progress = 2U;
-    const i32 retreat_transition_other_residual = openswd3::special_modes::
-        retreat_legacy_standard_mode_transition_selection(
+    const i32 retreat_transition_other_residual =
+        openswd3::special_modes::retreat_legacy_title_menu_selection(
             retreat_transition_other
         );
     test.expect_true(
@@ -17391,25 +17350,22 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448C00 clamps both selectors at zero while preserving negative and unrelated EAX residuals"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        last_transition_one;
+    openswd3::special_modes::LegacyTitleMenuState last_transition_one;
     last_transition_one.progress = 1U;
     const i32 last_transition_one_residual =
-        openswd3::special_modes::select_legacy_standard_mode_transition_last(
+        openswd3::special_modes::select_legacy_title_menu_last(
             last_transition_one
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        last_transition_five;
+    openswd3::special_modes::LegacyTitleMenuState last_transition_five;
     last_transition_five.progress = 5U;
     const i32 last_transition_five_residual =
-        openswd3::special_modes::select_legacy_standard_mode_transition_last(
+        openswd3::special_modes::select_legacy_title_menu_last(
             last_transition_five
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        last_transition_other;
+    openswd3::special_modes::LegacyTitleMenuState last_transition_other;
     last_transition_other.progress = 4U;
     const i32 last_transition_other_residual =
-        openswd3::special_modes::select_legacy_standard_mode_transition_last(
+        openswd3::special_modes::select_legacy_title_menu_last(
             last_transition_other
         );
     test.expect_true(
@@ -17421,27 +17377,24 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448C40 selects each final entry and preserves the unrelated progress residual"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        first_transition_one;
+    openswd3::special_modes::LegacyTitleMenuState first_transition_one;
     first_transition_one.progress = 1U;
     first_transition_one.enabled = 3U;
     const i32 first_transition_one_residual =
-        openswd3::special_modes::select_legacy_standard_mode_transition_first(
+        openswd3::special_modes::select_legacy_title_menu_first(
             first_transition_one
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        first_transition_five;
+    openswd3::special_modes::LegacyTitleMenuState first_transition_five;
     first_transition_five.progress = 5U;
     first_transition_five.velocity = 5;
     const i32 first_transition_five_residual =
-        openswd3::special_modes::select_legacy_standard_mode_transition_first(
+        openswd3::special_modes::select_legacy_title_menu_first(
             first_transition_five
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        first_transition_other;
+    openswd3::special_modes::LegacyTitleMenuState first_transition_other;
     first_transition_other.progress = 6U;
     const i32 first_transition_other_residual =
-        openswd3::special_modes::select_legacy_standard_mode_transition_first(
+        openswd3::special_modes::select_legacy_title_menu_first(
             first_transition_other
         );
     test.expect_true(
@@ -17453,14 +17406,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448C70 selects each first entry and preserves the unrelated progress residual"
     );
 
-    std::array<
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState,
-        6U>
+    std::array<openswd3::special_modes::LegacyTitleMenuState, 6U>
         retreat_setting_states{};
-    std::array<FakeTransitionVisualPorts, 6U> retreat_setting_ports{};
-    std::array<
-        openswd3::special_modes::LegacyStandardModeTransitionInteractionResult,
-        6U>
+    std::array<FakeTitleMenuPorts, 6U> retreat_setting_ports{};
+    std::array<openswd3::special_modes::LegacyTitleMenuInputResult, 6U>
         retreat_setting_results{};
     for (std::size_t index = 0U; index < retreat_setting_states.size();
          ++index) {
@@ -17469,25 +17418,23 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         state.velocity = static_cast<i32>(index);
         state.settings_spacing = 0x3CU;
         state.settings_source_surface = 4U;
-        retreat_setting_results[index] = openswd3::special_modes::
-            retreat_legacy_standard_mode_transition_setting(
+        retreat_setting_results[index] =
+            openswd3::special_modes::decrease_legacy_game_setting(
                 state, retreat_setting_ports[index]
             );
     }
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        retreat_setting_one_state;
+    openswd3::special_modes::LegacyTitleMenuState retreat_setting_one_state;
     retreat_setting_one_state.progress = 1U;
-    FakeTransitionVisualPorts retreat_setting_one_ports;
-    const auto retreat_setting_one = openswd3::special_modes::
-        retreat_legacy_standard_mode_transition_setting(
+    FakeTitleMenuPorts retreat_setting_one_ports;
+    const auto retreat_setting_one =
+        openswd3::special_modes::decrease_legacy_game_setting(
             retreat_setting_one_state, retreat_setting_one_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        retreat_setting_other_state;
+    openswd3::special_modes::LegacyTitleMenuState retreat_setting_other_state;
     retreat_setting_other_state.progress = 2U;
-    FakeTransitionVisualPorts retreat_setting_other_ports;
-    const auto retreat_setting_other = openswd3::special_modes::
-        retreat_legacy_standard_mode_transition_setting(
+    FakeTitleMenuPorts retreat_setting_other_ports;
+    const auto retreat_setting_other =
+        openswd3::special_modes::decrease_legacy_game_setting(
             retreat_setting_other_state, retreat_setting_other_ports
         );
     test.expect_true(
@@ -17511,14 +17458,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448CA0 retreats the active setting while preserving clamped low-byte residuals"
     );
 
-    std::array<
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState,
-        6U>
+    std::array<openswd3::special_modes::LegacyTitleMenuState, 6U>
         advance_setting_states{};
-    std::array<FakeTransitionVisualPorts, 6U> advance_setting_ports{};
-    std::array<
-        openswd3::special_modes::LegacyStandardModeTransitionInteractionResult,
-        6U>
+    std::array<FakeTitleMenuPorts, 6U> advance_setting_ports{};
+    std::array<openswd3::special_modes::LegacyTitleMenuInputResult, 6U>
         advance_setting_results{};
     for (std::size_t index = 0U; index < advance_setting_states.size();
          ++index) {
@@ -17529,26 +17472,24 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         state.settings_surface_index = 0x0BU;
         state.settings_spacing = 0x8CU;
         state.settings_auxiliary = 0x0BU;
-        advance_setting_results[index] = openswd3::special_modes::
-            advance_legacy_standard_mode_transition_setting(
+        advance_setting_results[index] =
+            openswd3::special_modes::increase_legacy_game_setting(
                 state, advance_setting_ports[index]
             );
     }
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        advance_setting_one_state;
+    openswd3::special_modes::LegacyTitleMenuState advance_setting_one_state;
     advance_setting_one_state.progress = 1U;
     advance_setting_one_state.enabled = 3U;
-    FakeTransitionVisualPorts advance_setting_one_ports;
-    const auto advance_setting_one = openswd3::special_modes::
-        advance_legacy_standard_mode_transition_setting(
+    FakeTitleMenuPorts advance_setting_one_ports;
+    const auto advance_setting_one =
+        openswd3::special_modes::increase_legacy_game_setting(
             advance_setting_one_state, advance_setting_one_ports
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        advance_setting_other_state;
+    openswd3::special_modes::LegacyTitleMenuState advance_setting_other_state;
     advance_setting_other_state.progress = 6U;
-    FakeTransitionVisualPorts advance_setting_other_ports;
-    const auto advance_setting_other = openswd3::special_modes::
-        advance_legacy_standard_mode_transition_setting(
+    FakeTitleMenuPorts advance_setting_other_ports;
+    const auto advance_setting_other =
+        openswd3::special_modes::increase_legacy_game_setting(
             advance_setting_other_state, advance_setting_other_ports
         );
     test.expect_true(
@@ -17572,20 +17513,18 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448DA0 advances the active setting while preserving original asymmetric clamps"
     );
 
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        mode_one_advance_state;
+    openswd3::special_modes::LegacyTitleMenuState mode_one_advance_state;
     mode_one_advance_state.progress = 1U;
     mode_one_advance_state.enabled = 3U;
-    const i32 mode_one_advance_residual = openswd3::special_modes::
-        advance_legacy_standard_mode_transition_mode_one_selection(
+    const i32 mode_one_advance_residual =
+        openswd3::special_modes::advance_legacy_title_menu_secondary_selection(
             mode_one_advance_state
         );
-    openswd3::special_modes::LegacyStandardModeTransitionVisualState
-        mode_one_advance_other_state;
+    openswd3::special_modes::LegacyTitleMenuState mode_one_advance_other_state;
     mode_one_advance_other_state.progress = 5U;
     mode_one_advance_other_state.enabled = 2U;
-    const i32 mode_one_advance_other_residual = openswd3::special_modes::
-        advance_legacy_standard_mode_transition_mode_one_selection(
+    const i32 mode_one_advance_other_residual =
+        openswd3::special_modes::advance_legacy_title_menu_secondary_selection(
             mode_one_advance_other_state
         );
     test.expect_true(
@@ -17638,7 +17577,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         transition_binding_stopped.status ==
                 openswd3::special_modes::
                     LegacyStandardModeCallbackBindingStatus::
-                        transition_visual_stopped &&
+                        title_menu_stopped &&
             transition_binding_stopped.group ==
                 LegacyStandardModeCallbackGroup::none &&
             transition_binding_stopped.slot_write_count == 0U &&
@@ -17820,9 +17759,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x444FC0 returns raw flag result and keeps default pairs unless it equals one"
     );
 
-    class GroupEightInputPorts final
-        : public openswd3::special_modes::
-              LegacyStandardModeGroupEightInputPorts {
+    class GameMenuInputPorts final
+        : public openswd3::special_modes::LegacyGameMenuInputPorts {
     public:
         i32 story_flag(const u32 flag_index) override {
             events.push_back(1U);
@@ -17832,8 +17770,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         }
 
         std::optional<i32> invoke_selection_callback(
-            const u16 selection,
-            openswd3::special_modes::LegacyStandardModeGroupEightState&
+            const u16 selection, openswd3::special_modes::LegacyGameMenuState&
         ) override {
             events.push_back(2U);
             callback_selections.push_back(selection);
@@ -17851,7 +17788,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::optional<i32> invoke_initialization_callback(
             const u16 selection,
             const u32 target,
-            openswd3::special_modes::LegacyStandardModeGroupEightState&
+            openswd3::special_modes::LegacyGameMenuState&
         ) override {
             events.push_back(4U);
             initialization_callbacks.push_back({selection, target});
@@ -17860,19 +17797,18 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 : std::nullopt;
         }
 
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState&
-        transition_visual_state() noexcept override {
+        openswd3::special_modes::LegacyTitleMenuState&
+        title_menu_state() noexcept override {
             events.push_back(6U);
-            return transition_visual_state_value;
+            return title_menu_state_value;
         }
-        openswd3::special_modes::LegacyStandardModeTransitionVisualPorts&
-        transition_visual_ports() noexcept override {
-            return transition_visual_ports_value;
+        openswd3::special_modes::LegacyTitleMenuPorts&
+        title_menu_ports() noexcept override {
+            return title_menu_ports_value;
         }
 
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState
-            transition_visual_state_value;
-        FakeTransitionVisualPorts transition_visual_ports_value;
+        openswd3::special_modes::LegacyTitleMenuState title_menu_state_value;
+        FakeTitleMenuPorts title_menu_ports_value;
         std::vector<i32> flag_results;
         bool callback_available{true};
         bool initialization_callback_available{true};
@@ -17884,9 +17820,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<std::array<u32, 2U>> initialization_callbacks;
     };
 
-    class GroupEightInitializationPorts final
-        : public openswd3::special_modes::
-              LegacyStandardModeGroupEightInitializationPorts,
+    class GameMenuInitializationPorts final
+        : public openswd3::special_modes::LegacyGameMenuInitializationPorts,
           public openswd3::special_modes::
               LegacyStandardModeRecordInitializationPorts {
     public:
@@ -17964,9 +17899,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<u32> events;
     };
 
-    class GroupEightCleanupPorts final
-        : public openswd3::special_modes::
-              LegacyStandardModeGroupEightCleanupPorts,
+    class GameMenuCleanupPorts final
+        : public openswd3::special_modes::LegacyGameMenuCleanupPorts,
           public openswd3::special_modes::LegacyStandardModeRecordCleanupPorts {
     public:
         openswd3::special_modes::LegacyStandardModeRecordCleanupPorts&
@@ -18216,9 +18150,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<std::array<u32, 4U>> refreshed_actions;
     };
 
-    class GroupEightCommitPorts final
-        : public openswd3::special_modes::
-              LegacyStandardModeGroupEightInteractionCommitPorts,
+    class GameMenuCommitPorts final
+        : public openswd3::special_modes::LegacyGameMenuInteractionCommitPorts,
           public openswd3::special_modes::
               LegacyStandardModeSpecialWorldTransitionPorts {
     public:
@@ -18314,14 +18247,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             ++world_transition_count;
             return world_transition_return;
         }
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState&
-        transition_visual_state() noexcept override {
+        openswd3::special_modes::LegacyTitleMenuState&
+        title_menu_state() noexcept override {
             ++high_runtime_initialization_count;
-            return transition_visual_state_value;
+            return title_menu_state_value;
         }
-        openswd3::special_modes::LegacyStandardModeTransitionVisualPorts&
-        transition_visual_ports() noexcept override {
-            return transition_visual_ports_value;
+        openswd3::special_modes::LegacyTitleMenuPorts&
+        title_menu_ports() noexcept override {
+            return title_menu_ports_value;
         }
         void request_special_battle(
             const LegacyStandardModeForwardNode& record
@@ -18379,9 +18312,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         u32 inventory_clone_count{};
         u32 world_transition_count{};
         u32 high_runtime_initialization_count{};
-        openswd3::special_modes::LegacyStandardModeTransitionVisualState
-            transition_visual_state_value;
-        FakeTransitionVisualPorts transition_visual_ports_value;
+        openswd3::special_modes::LegacyTitleMenuState title_menu_state_value;
+        FakeTitleMenuPorts title_menu_ports_value;
         std::vector<u32> story_flag_queries;
         std::vector<u32> filter_queries;
         std::vector<LegacyStandardModeDialogDrawRequest> dialog_draws;
@@ -18399,9 +18331,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<u32> released_resources;
     };
 
-    class GroupEightMainInputPorts final
-        : public openswd3::special_modes::
-              LegacyStandardModeGroupEightMainInputPorts {
+    class GameMenuMainInputPorts final
+        : public openswd3::special_modes::LegacyGameMenuMainInputPorts {
     public:
         LegacyStandardModeForwardNode*&
         selection_record_source() noexcept override {
@@ -18452,20 +18383,17 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         };
 
         i32 dispatch_overlay_action(
-            openswd3::special_modes::
-                LegacyStandardModeGroupEightMainInputSnapshot& input,
-            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+            openswd3::special_modes::LegacyGameMenuMainInputSnapshot& input,
+            openswd3::special_modes::LegacyGameMenuState& state
         ) override {
             return record(Event::overlay, input, state);
         }
-        openswd3::special_modes::
-            LegacyStandardModeGroupEightInteractionCommitRuntime&
-            commit_runtime() noexcept override {
+        openswd3::special_modes::LegacyGameMenuInteractionCommitRuntime&
+        commit_runtime() noexcept override {
             return commit_runtime_state;
         }
-        openswd3::special_modes::
-            LegacyStandardModeGroupEightInteractionCommitPorts&
-            commit_ports() noexcept override {
+        openswd3::special_modes::LegacyGameMenuInteractionCommitPorts&
+        commit_ports() noexcept override {
             return commit_port_state;
         }
         i32 query_item_presence(const u16 item_id) override {
@@ -18481,9 +18409,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
         i32 record(
             const Event event,
-            openswd3::special_modes::
-                LegacyStandardModeGroupEightMainInputSnapshot& input,
-            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+            openswd3::special_modes::LegacyGameMenuMainInputSnapshot& input,
+            openswd3::special_modes::LegacyGameMenuState& state
         ) {
             events.push_back(event);
             if (mutation) {
@@ -18492,10 +18419,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             return callback_return_base + static_cast<i32>(event);
         }
 
-        openswd3::special_modes::
-            LegacyStandardModeGroupEightInteractionCommitRuntime
-                commit_runtime_state;
-        GroupEightCommitPorts commit_port_state;
+        openswd3::special_modes::LegacyGameMenuInteractionCommitRuntime
+            commit_runtime_state;
+        GameMenuCommitPorts commit_port_state;
         RecordClonePorts record_initialization_ports;
         LegacyStandardModeForwardNode* initial_record_head{};
         LegacyStandardModeForwardNode* record_source{};
@@ -18507,9 +18433,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         i32 sample_return{222};
         std::function<void(
             Event,
-            openswd3::special_modes::
-                LegacyStandardModeGroupEightMainInputSnapshot&,
-            openswd3::special_modes::LegacyStandardModeGroupEightState&
+            openswd3::special_modes::LegacyGameMenuMainInputSnapshot&,
+            openswd3::special_modes::LegacyGameMenuState&
         )>
             mutation;
         std::vector<Event> events;
@@ -18517,7 +18442,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<std::pair<u16, u32>> played_samples;
     };
 
-    class GroupEightRuntimeInputPorts final
+    class GameMenuRuntimeInputPorts final
         : public LegacyStandardModeInputDispatchPorts {
     public:
         i8 query_entry_classification(const u16) noexcept override {
@@ -18568,8 +18493,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<std::pair<u16, u32>> played_samples;
     };
 
-    class GroupOneRenderPorts final
-        : public openswd3::special_modes::LegacyStandardModeGroupOneRenderPorts,
+    class GameMenuPageRenderPorts final
+        : public openswd3::special_modes::LegacyGameMenuPageRenderPorts,
           public LegacyStandardModeRuntimeRenderPorts {
     public:
         u32 compose_color(
@@ -18584,8 +18509,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             return transition_available;
         }
         std::optional<i32> execute(
-            const openswd3::special_modes::
-                LegacyStandardModeGroupOneRenderRequest& request
+            const openswd3::special_modes::LegacyGameMenuPageRenderRequest&
+                request
         ) noexcept override {
             requests.push_back(request);
             return render_available ? std::optional<i32>{render_return}
@@ -18661,52 +18586,47 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         u32 transition_query_count{};
         std::array<std::string, 3U> terminal_texts{"A", "B", "C"};
         std::vector<std::array<u8, 3U>> colors;
-        std::vector<
-            openswd3::special_modes::LegacyStandardModeGroupOneRenderRequest>
+        std::vector<openswd3::special_modes::LegacyGameMenuPageRenderRequest>
             requests;
         std::vector<u32> loaded_rows;
         std::vector<u16> requested_terminal_modes;
     };
 
-    class GroupEightDrawPorts final
-        : public openswd3::special_modes::
-              LegacyStandardModeGroupEightDrawPorts {
+    class GameMenuDrawPorts final
+        : public openswd3::special_modes::LegacyGameMenuDrawPorts {
     public:
         LegacyStandardModeRuntimeInitializationState&
-        group_one_runtime_state() noexcept override {
+        game_menu_page_runtime_state() noexcept override {
             return runtime_state;
         }
-        openswd3::special_modes::
-            LegacyStandardModeGroupEightInteractionCommitRuntime&
-            group_one_commit_runtime() noexcept override {
+        openswd3::special_modes::LegacyGameMenuInteractionCommitRuntime&
+        game_menu_page_commit_runtime() noexcept override {
             return commit_runtime;
         }
-        openswd3::special_modes::LegacyStandardModeGroupOneRenderPorts&
-        group_one_render_ports() noexcept override {
+        openswd3::special_modes::LegacyGameMenuPageRenderPorts&
+        game_menu_page_render_ports() noexcept override {
             return render_ports;
         }
         std::optional<i32> invoke_draw_callback(
             const u16 selection,
             const u32 target,
-            openswd3::special_modes::LegacyStandardModeGroupEightState&
+            openswd3::special_modes::LegacyGameMenuState&
         ) override {
             calls.push_back({selection, target});
             return available ? std::optional<i32>{return_value} : std::nullopt;
         }
 
         LegacyStandardModeRuntimeInitializationState runtime_state;
-        openswd3::special_modes::
-            LegacyStandardModeGroupEightInteractionCommitRuntime commit_runtime;
-        GroupOneRenderPorts render_ports;
+        openswd3::special_modes::LegacyGameMenuInteractionCommitRuntime
+            commit_runtime;
+        GameMenuPageRenderPorts render_ports;
         bool available{true};
         i32 return_value{0x12345678};
         std::vector<std::array<u32, 2U>> calls;
     };
 
-    using GroupEightState =
-        openswd3::special_modes::LegacyStandardModeGroupEightState;
-    using GroupEightInput =
-        openswd3::special_modes::LegacyStandardModeGroupEightInputSnapshot;
+    using GameMenuState = openswd3::special_modes::LegacyGameMenuState;
+    using GameMenuInput = openswd3::special_modes::LegacyGameMenuInputSnapshot;
     LegacyStandardModeForwardNode clone_source_two;
     LegacyStandardModeForwardNode clone_source_one;
     LegacyStandardModeForwardNode clone_source_zero;
@@ -18789,7 +18709,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 
     LegacyStandardModeForwardNode* initialization_source = &clone_source_zero;
-    GroupEightState record_initialization_state;
+    GameMenuState record_initialization_state;
     record_initialization_state.pre_initialization_zeroes[0U] = 3U;
     RecordClonePorts record_initialization_ports;
     const auto records_initialized = openswd3::special_modes::
@@ -18802,7 +18722,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             record_initialization_ports
         );
     LegacyStandardModeForwardNode* empty_initialization_source = nullptr;
-    GroupEightState empty_initialization_state;
+    GameMenuState empty_initialization_state;
     RecordClonePorts empty_initialization_ports;
     const auto empty_records_initialized = openswd3::special_modes::
         initialize_legacy_standard_mode_selection_records(
@@ -18974,7 +18894,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     return_runtime.inventory_clone_token = 0xAABBU;
     return_runtime.selection_clone_head = &return_record;
     return_runtime.active_inventory_root_token = 0xCCDDU;
-    GroupEightState return_state;
+    GameMenuState return_state;
     SpecialWorldReturnPorts return_ports;
     const auto world_returned = openswd3::special_modes::
         restore_legacy_standard_mode_special_world_transition(
@@ -19002,18 +18922,18 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
     LegacyStandardModeForwardNode first_selection_record;
     first_selection_record.text_index = 0xFFDCU;
-    GroupEightState first_selection_state;
+    GameMenuState first_selection_state;
     first_selection_state.entry_count = 5U;
     first_selection_state.selection_x = 99U;
     first_selection_state.pre_initialization_zeroes.fill(0xFFFFFFFFU);
     first_selection_state.post_initialization_zeroes.fill(0xFFFFFFFFU);
     first_selection_state.layout_zeroes.fill(0xFFFFFFFFU);
-    GroupEightInitializationPorts first_selection_ports;
+    GameMenuInitializationPorts first_selection_ports;
     first_selection_ports.record_head = &first_selection_record;
     first_selection_ports.item_presence[0x1EU] = 1;
     first_selection_ports.item_presence[0x20U] = -2;
-    const auto first_selection = openswd3::special_modes::
-        initialize_legacy_standard_mode_group_eight_first_selection(
+    const auto first_selection =
+        openswd3::special_modes::initialize_legacy_game_menu_first_selection(
             first_selection_state, {}, first_selection_ports
         );
     const bool first_pre_zeroed = std::all_of(
@@ -19033,9 +18953,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
     test.expect_true(
         first_selection.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInitializationStatus::
-                        completed &&
+                openswd3::special_modes::LegacyGameMenuInitializationStatus::
+                    completed &&
             first_selection.legacy_return_value == 0xABCDEF01U &&
             first_selection.helper_call_count == 11U &&
             first_selection_state.selected_entry_index == 4U &&
@@ -19060,35 +18979,34 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x445430 initializes the first G08 action, availability, text and workspace"
     );
 
-    GroupEightState first_stop_state;
+    GameMenuState first_stop_state;
     first_stop_state.entry_count = 2U;
     first_stop_state.workspace_token = 9U;
-    GroupEightInitializationPorts first_stop_ports;
+    GameMenuInitializationPorts first_stop_ports;
     first_stop_ports.record_initialization_available = false;
-    const auto first_stopped = openswd3::special_modes::
-        initialize_legacy_standard_mode_group_eight_first_selection(
+    const auto first_stopped =
+        openswd3::special_modes::initialize_legacy_game_menu_first_selection(
             first_stop_state, {}, first_stop_ports
         );
-    GroupEightState first_missing_state;
-    GroupEightInitializationPorts first_missing_ports;
-    const auto first_missing = openswd3::special_modes::
-        initialize_legacy_standard_mode_group_eight_first_selection(
+    GameMenuState first_missing_state;
+    GameMenuInitializationPorts first_missing_ports;
+    const auto first_missing =
+        openswd3::special_modes::initialize_legacy_game_menu_first_selection(
             first_missing_state, {}, first_missing_ports
         );
     LegacyStandardModeForwardNode invalid_first_record;
     invalid_first_record.text_index = 0U;
-    GroupEightState first_text_state;
-    GroupEightInitializationPorts first_text_ports;
+    GameMenuState first_text_state;
+    GameMenuInitializationPorts first_text_ports;
     first_text_ports.record_head = &invalid_first_record;
-    const auto first_text_stopped = openswd3::special_modes::
-        initialize_legacy_standard_mode_group_eight_first_selection(
+    const auto first_text_stopped =
+        openswd3::special_modes::initialize_legacy_game_menu_first_selection(
             first_text_state, {}, first_text_ports
         );
     test.expect_true(
         first_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInitializationStatus::
-                        record_initialization_stopped &&
+                openswd3::special_modes::LegacyGameMenuInitializationStatus::
+                    record_initialization_stopped &&
             first_stopped.helper_call_count == 4U &&
             first_stop_state.selected_entry_index == 1U &&
             first_stop_state.workspace_token == 9U,
@@ -19096,9 +19014,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
     test.expect_true(
         first_missing.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInitializationStatus::
-                        completed &&
+                openswd3::special_modes::LegacyGameMenuInitializationStatus::
+                    completed &&
             first_missing.helper_call_count == 12U &&
             first_missing_state.record_head != nullptr &&
             first_missing_state.record_head->text_index == 0xFFDCU,
@@ -19106,28 +19023,26 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
     test.expect_true(
         first_text_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInitializationStatus::
-                        shared_text_stopped &&
+                openswd3::special_modes::LegacyGameMenuInitializationStatus::
+                    shared_text_stopped &&
             first_text_stopped.helper_call_count == 10U,
         "0x445430 preserves the shared text stop prefix after 448230"
     );
 
-    GroupEightState cleanup_state;
+    GameMenuState cleanup_state;
     cleanup_state.pre_initialization_zeroes.fill(9U);
     cleanup_state.pre_initialization_zeroes[2U] = 7U;
     cleanup_state.list_offset = 8U;
     cleanup_state.local_selection = 6U;
     cleanup_state.workspace_token = 0xABCDEF01U;
-    GroupEightCleanupPorts cleanup_ports;
-    const auto cleaned =
-        openswd3::special_modes::cleanup_legacy_standard_mode_group_eight(
-            cleanup_state, cleanup_ports
-        );
+    GameMenuCleanupPorts cleanup_ports;
+    const auto cleaned = openswd3::special_modes::cleanup_legacy_game_menu(
+        cleanup_state, cleanup_ports
+    );
     test.expect_true(
         cleaned.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightCleanupStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuCleanupStatus::
+                    completed &&
             cleaned.legacy_return_value == -5 &&
             cleaned.helper_call_count == 2U &&
             cleanup_state.pre_initialization_zeroes[0U] == 0U &&
@@ -19146,23 +19061,22 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
     LegacyStandardModeForwardNode cleanup_group_stop_record;
     cleanup_group_stop_record.text_index = 0xFFDCU;
-    GroupEightState cleanup_stop_state;
+    GameMenuState cleanup_stop_state;
     cleanup_stop_state.record_head = &cleanup_group_stop_record;
     cleanup_stop_state.pre_initialization_zeroes.fill(9U);
     cleanup_stop_state.list_offset = 8U;
     cleanup_stop_state.local_selection = 6U;
     cleanup_stop_state.workspace_token = 0x1234U;
-    GroupEightCleanupPorts cleanup_stop_ports;
+    GameMenuCleanupPorts cleanup_stop_ports;
     cleanup_stop_ports.cleanup_available = false;
     const auto cleanup_stopped =
-        openswd3::special_modes::cleanup_legacy_standard_mode_group_eight(
+        openswd3::special_modes::cleanup_legacy_game_menu(
             cleanup_stop_state, cleanup_stop_ports
         );
     test.expect_true(
         cleanup_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightCleanupStatus::
-                        record_cleanup_stopped &&
+                openswd3::special_modes::LegacyGameMenuCleanupStatus::
+                    record_cleanup_stopped &&
             cleanup_stopped.helper_call_count == 1U &&
             cleanup_stop_state.pre_initialization_zeroes[0U] == 9U &&
             cleanup_stop_state.list_offset == 8U &&
@@ -19177,15 +19091,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     group_main_availability[15U].enabled = 1;
     group_main_availability[15U].state = 1;
     LegacyStandardModeRuntimeInitializationState group_main_runtime;
-    GroupEightRuntimeInputPorts group_main_runtime_ports;
+    GameMenuRuntimeInputPorts group_main_runtime_ports;
 
-    GroupEightState runtime_dispatch_state;
+    GameMenuState runtime_dispatch_state;
     runtime_dispatch_state.interaction_mode = 500U;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot
         runtime_dispatch_input{.pointer_x = 1U, .pointer_y = 2U};
-    GroupEightMainInputPorts runtime_dispatch_ports;
-    const auto runtime_dispatched = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    GameMenuMainInputPorts runtime_dispatch_ports;
+    const auto runtime_dispatched =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             runtime_dispatch_state,
             runtime_dispatch_input,
             group_main_availability,
@@ -19194,13 +19108,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             runtime_dispatch_ports
         );
-    GroupEightState normalize_state;
+    GameMenuState normalize_state;
     normalize_state.interaction_mode = 17U;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
-        normalize_input{.input_flags = 8U};
-    GroupEightMainInputPorts normalize_ports;
-    const auto normalized = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot normalize_input{
+        .input_flags = 8U
+    };
+    GameMenuMainInputPorts normalize_ports;
+    const auto normalized =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             normalize_state,
             normalize_input,
             group_main_availability,
@@ -19211,33 +19126,30 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         runtime_dispatched.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuMainInputStatus::
+                    completed &&
             runtime_dispatched.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        runtime_input_dispatched &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    runtime_input_dispatched &&
             runtime_dispatched.helper_call_count == 1U &&
             normalized.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        transition_normalized &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    transition_normalized &&
             normalize_state.input_consumed == 0U &&
             normalize_state.interaction_mode == 2U &&
             normalize_ports.events.empty(),
         "0x4455E0 delegates modes at least 500 and normalizes active modes17/18"
     );
 
-    GroupEightState outer_commit_state;
+    GameMenuState outer_commit_state;
     outer_commit_state.interaction_mode = 10U;
     outer_commit_state.outer_row_count = 3;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
-        outer_commit_input{
-            .pointer_x = 400U, .pointer_y = 159U, .input_flags = 1U
-        };
-    GroupEightMainInputPorts outer_commit_ports;
-    const auto outer_committed = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot outer_commit_input{
+        .pointer_x = 400U, .pointer_y = 159U, .input_flags = 1U
+    };
+    GameMenuMainInputPorts outer_commit_ports;
+    const auto outer_committed =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             outer_commit_state,
             outer_commit_input,
             group_main_availability,
@@ -19246,16 +19158,16 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             outer_commit_ports
         );
-    GroupEightState column_commit_state;
+    GameMenuState column_commit_state;
     column_commit_state.interaction_mode = 11U;
     column_commit_state.selected_outer_row = 1U;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot
         column_commit_input{
             .pointer_x = 500U, .pointer_y = 220U, .input_flags = 1U
         };
-    GroupEightMainInputPorts column_commit_ports;
-    const auto column_committed = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    GameMenuMainInputPorts column_commit_ports;
+    const auto column_committed =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             column_commit_state,
             column_commit_input,
             group_main_availability,
@@ -19270,17 +19182,17 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     action_commit_record_zero.next = &action_commit_record_one;
     action_commit_record_one.next = &action_commit_record_two;
     action_commit_record_two.text_index = 0xFFDCU;
-    GroupEightState action_commit_state;
+    GameMenuState action_commit_state;
     action_commit_state.interaction_mode = 5U;
     action_commit_state.record_head = &action_commit_record_zero;
     action_commit_state.local_selection = 2U;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot
         action_commit_input{
             .pointer_x = 450U, .pointer_y = 240U, .input_flags = 1U
         };
-    GroupEightMainInputPorts action_commit_ports;
-    const auto action_committed = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    GameMenuMainInputPorts action_commit_ports;
+    const auto action_committed =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             action_commit_state,
             action_commit_input,
             group_main_availability,
@@ -19291,52 +19203,48 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         outer_committed.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        outer_row_committed &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    outer_row_committed &&
             outer_commit_state.selected_outer_row == 1U &&
             outer_commit_ports.events.empty(),
         "0x4455E0 maps the mode10 row before immediate commit"
     );
     test.expect_true(
         column_committed.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        column_committed &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    column_committed &&
             column_commit_state.selected_column == 0U,
         "0x4455E0 maps the mode11 column before immediate commit"
     );
     test.expect_true(
         action_committed.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        action_committed &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    action_committed &&
             action_commit_state.selected_action == 0U,
         "0x4455E0 maps the mode5 action before immediate commit"
     );
 
-    GroupEightState overlay_state;
+    GameMenuState overlay_state;
     overlay_state.interaction_mode = 2U;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
-        overlay_input{
-            .pointer_x = 550U,
-            .pointer_y = 470U,
-            .input_flags = 1U,
-            .sample_handle = 0x1234U,
-        };
-    GroupEightMainInputPorts overlay_ports;
-    overlay_ports.mutation = [](const GroupEightMainInputPorts::Event event,
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot overlay_input{
+        .pointer_x = 550U,
+        .pointer_y = 470U,
+        .input_flags = 1U,
+        .sample_handle = 0x1234U,
+    };
+    GameMenuMainInputPorts overlay_ports;
+    overlay_ports.mutation = [](const GameMenuMainInputPorts::Event event,
                                 auto& input,
                                 auto& state) {
-        if (event == GroupEightMainInputPorts::Event::overlay) {
+        if (event == GameMenuMainInputPorts::Event::overlay) {
             state.interaction_mode = 2U;
             input.pointer_x = 220U;
             input.pointer_y = 70U;
             input.input_flags = 1U;
         }
     };
-    const auto overlay_dispatched = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    const auto overlay_dispatched =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             overlay_state,
             overlay_input,
             group_main_availability,
@@ -19347,16 +19255,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         overlay_dispatched.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        primary_choice_changed &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    primary_choice_changed &&
             overlay_dispatched.helper_call_count == 2U &&
             overlay_state.input_consumed == 0xFFFFFFFFU &&
             overlay_state.selection_x == 30U &&
             overlay_ports.events ==
                 std::vector{
-                    GroupEightMainInputPorts::Event::overlay,
-                    GroupEightMainInputPorts::Event::sample,
+                    GameMenuMainInputPorts::Event::overlay,
+                    GameMenuMainInputPorts::Event::sample,
                 } &&
             overlay_ports.played_samples ==
                 std::vector<std::pair<u16, u32>>{{0x2EU, 0x1234U}},
@@ -19365,21 +19272,21 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
     LegacyStandardModeForwardNode special_choice_record;
     special_choice_record.text_index = 0xFFDCU;
-    GroupEightState special_choice_state;
+    GameMenuState special_choice_state;
     special_choice_state.interaction_mode = 2U;
     special_choice_state.record_head = &special_choice_record;
     special_choice_state.local_record_count = 1;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot
         special_choice_input{
             .pointer_x = 280U,
             .pointer_y = 70U,
             .input_flags = 1U,
             .sample_handle = 0x5678U,
         };
-    GroupEightMainInputPorts special_choice_ports;
+    GameMenuMainInputPorts special_choice_ports;
     special_choice_ports.initial_record_head = &special_choice_record;
-    const auto special_choice = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    const auto special_choice =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             special_choice_state,
             special_choice_input,
             group_main_availability,
@@ -19390,15 +19297,16 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     LegacyStandardModeForwardNode hover_record;
     hover_record.text_index = 0xFFDCU;
-    GroupEightState hover_state;
+    GameMenuState hover_state;
     hover_state.interaction_mode = 2U;
     hover_state.record_head = &hover_record;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
-        hover_input{.pointer_x = 250U, .pointer_y = 100U, .input_flags = 1U};
-    GroupEightMainInputPorts hover_ports;
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot hover_input{
+        .pointer_x = 250U, .pointer_y = 100U, .input_flags = 1U
+    };
+    GameMenuMainInputPorts hover_ports;
     hover_ports.initial_record_head = &hover_record;
-    const auto hover_changed = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    const auto hover_changed =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             hover_state,
             hover_input,
             group_main_availability,
@@ -19409,15 +19317,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         special_choice.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        primary_choice_committed &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    primary_choice_committed &&
             special_choice_state.selection_x == 30U &&
             special_choice_state.published_selection_x == 31U &&
             special_choice_ports.events ==
                 std::vector{
-                    GroupEightMainInputPorts::Event::sample,
-                    GroupEightMainInputPorts::Event::sample,
+                    GameMenuMainInputPorts::Event::sample,
+                    GameMenuMainInputPorts::Event::sample,
                 } &&
             special_choice_ports.played_samples ==
                 std::vector<std::pair<u16, u32>>{
@@ -19425,12 +19332,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                     {0x2DU, 0x5678U},
                 } &&
             hover_changed.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::hover_changed &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    hover_changed &&
             hover_state.pre_initialization_zeroes[0U] == 1U &&
             hover_state.shared_text[0U] == 0xB5U &&
             hover_ports.events ==
-                std::vector{GroupEightMainInputPorts::Event::sample},
+                std::vector{GameMenuMainInputPorts::Event::sample},
         "0x4455E0 preserves the special primary choice and mismatched hover formulas"
     );
 
@@ -19438,20 +19345,20 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     LegacyStandardModeForwardNode row_one;
     row_zero.next = &row_one;
     row_one.text_index = 0xFFDCU;
-    GroupEightState record_change_state;
+    GameMenuState record_change_state;
     record_change_state.interaction_mode = 2U;
     record_change_state.record_head = &row_zero;
     record_change_state.local_record_count = 3;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot
         record_change_input{
             .pointer_x = 220U,
             .pointer_y = 153U,
             .input_flags = 1U,
             .sample_handle = 0x9ABCU,
         };
-    GroupEightMainInputPorts record_change_ports;
-    const auto record_changed = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    GameMenuMainInputPorts record_change_ports;
+    const auto record_changed =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             record_change_state,
             record_change_input,
             group_main_availability,
@@ -19460,13 +19367,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             record_change_ports
         );
-    GroupEightState missing_record_state;
+    GameMenuState missing_record_state;
     missing_record_state.interaction_mode = 2U;
     missing_record_state.local_record_count = 3;
     auto missing_record_input = record_change_input;
-    GroupEightMainInputPorts missing_record_ports;
-    const auto missing_record = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    GameMenuMainInputPorts missing_record_ports;
+    const auto missing_record =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             missing_record_state,
             missing_record_input,
             group_main_availability,
@@ -19477,36 +19384,35 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         record_changed.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::record_changed &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    record_changed &&
             record_changed.helper_call_count == 3U &&
             record_change_state.local_selection == 1U &&
             record_change_state.shared_text[0U] == 0xB5U &&
             record_change_ports.played_samples ==
                 std::vector<std::pair<u16, u32>>{{0x2EU, 0x9ABCU}} &&
             missing_record.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputStatus::
-                        selected_record_missing &&
+                openswd3::special_modes::LegacyGameMenuMainInputStatus::
+                    selected_record_missing &&
             missing_record.helper_call_count == 0U &&
             missing_record_state.local_selection == 1U,
         "0x4455E0 changes rows through B9C0/B9E0 and stops at the exact missing read"
     );
 
-    GroupEightState available_item_state;
+    GameMenuState available_item_state;
     available_item_state.interaction_mode = 3U;
     available_item_state.selected_column = 100U;
     available_item_state.available_action_count = 4U;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot
         available_item_input{
             .pointer_x = 500U, .pointer_y = 145U, .input_flags = 1U
         };
-    GroupEightMainInputPorts available_item_ports;
+    GameMenuMainInputPorts available_item_ports;
     available_item_ports.item_presence[31U] = 0;
     available_item_ports.item_presence[32U] = 1;
     available_item_ports.item_presence[33U] = 1;
-    const auto available_item_changed = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    const auto available_item_changed =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             available_item_state,
             available_item_input,
             group_main_availability,
@@ -19515,15 +19421,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             available_item_ports
         );
-    GroupEightState presence_stop_state;
+    GameMenuState presence_stop_state;
     presence_stop_state.interaction_mode = 3U;
     presence_stop_state.selected_column = 100U;
     presence_stop_state.available_action_count = 4U;
     auto presence_stop_input = available_item_input;
     presence_stop_input.pointer_y = 123U;
-    GroupEightMainInputPorts presence_stop_ports;
-    const auto presence_stopped = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    GameMenuMainInputPorts presence_stop_ports;
+    const auto presence_stopped =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             presence_stop_state,
             presence_stop_input,
             group_main_availability,
@@ -19532,15 +19438,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             presence_stop_ports
         );
-    GroupEightState mode_three_exit_state;
+    GameMenuState mode_three_exit_state;
     mode_three_exit_state.interaction_mode = 3U;
     mode_three_exit_state.selected_column = 100U;
     mode_three_exit_state.available_action_count = 4U;
     auto mode_three_exit_input = presence_stop_input;
     mode_three_exit_input.input_flags = 4U;
-    GroupEightMainInputPorts mode_three_exit_ports;
-    const auto mode_three_exited = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    GameMenuMainInputPorts mode_three_exit_ports;
+    const auto mode_three_exited =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             mode_three_exit_state,
             mode_three_exit_input,
             {},
@@ -19551,28 +19457,25 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         available_item_changed.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        available_item_changed &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    available_item_changed &&
             available_item_state.record_zero == 3U &&
             available_item_ports.queried_item_ids ==
                 std::vector<u16>{31U, 32U, 33U} &&
             presence_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputStatus::
-                        presence_scan_stopped &&
+                openswd3::special_modes::LegacyGameMenuMainInputStatus::
+                    presence_scan_stopped &&
             presence_stop_ports.queried_item_ids ==
                 std::vector<u16>{31U, 32U, 33U} &&
             mode_three_exited.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        interaction_exited &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    interaction_exited &&
             mode_three_exit_ports.events.empty() &&
             mode_three_exit_state.interaction_mode == 2U,
         "0x4455E0 maps available rows and typed-stops only after the full item domain"
     );
 
-    GroupEightState primary_controls_state;
+    GameMenuState primary_controls_state;
     primary_controls_state.interaction_mode = 2U;
     primary_controls_state.pre_initialization_zeroes[4U] = 14U;
     primary_controls_state.selection_x = 31U;
@@ -19580,19 +19483,19 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     primary_controls_state.primary_control_one_y_max = 130;
     primary_controls_state.primary_control_two_y_min = 130;
     primary_controls_state.primary_control_two_y_max = 150;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot
         primary_controls_input{
             .pointer_x = 490U, .pointer_y = 125U, .input_flags = 0U
         };
-    GroupEightMainInputPorts primary_controls_ports;
+    GameMenuMainInputPorts primary_controls_ports;
     primary_controls_ports.mutation =
-        [](const GroupEightMainInputPorts::Event event, auto& input, auto&) {
-            if (event == GroupEightMainInputPorts::Event::first_dynamic) {
+        [](const GameMenuMainInputPorts::Event event, auto& input, auto&) {
+            if (event == GameMenuMainInputPorts::Event::first_dynamic) {
                 input.pointer_y = 140U;
             }
         };
-    const auto primary_controls = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    const auto primary_controls =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             primary_controls_state,
             primary_controls_input,
             group_main_availability,
@@ -19601,26 +19504,26 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             primary_controls_ports
         );
-    GroupEightState secondary_controls_state;
+    GameMenuState secondary_controls_state;
     secondary_controls_state.interaction_mode = 15U;
     secondary_controls_state.special_control_count = 9;
     secondary_controls_state.secondary_control_one_y_min = 210;
     secondary_controls_state.secondary_control_one_y_max = 230;
     secondary_controls_state.secondary_control_two_y_min = 230;
     secondary_controls_state.secondary_control_two_y_max = 250;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot
         secondary_controls_input{
             .pointer_x = 555U, .pointer_y = 220U, .input_flags = 0U
         };
-    GroupEightMainInputPorts secondary_controls_ports;
+    GameMenuMainInputPorts secondary_controls_ports;
     secondary_controls_ports.mutation =
-        [](const GroupEightMainInputPorts::Event event, auto& input, auto&) {
-            if (event == GroupEightMainInputPorts::Event::first_dynamic) {
+        [](const GameMenuMainInputPorts::Event event, auto& input, auto&) {
+            if (event == GameMenuMainInputPorts::Event::first_dynamic) {
                 input.pointer_y = 240U;
             }
         };
-    const auto secondary_controls = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    const auto secondary_controls =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             secondary_controls_state,
             secondary_controls_input,
             group_main_availability,
@@ -19631,33 +19534,31 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         primary_controls.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        control_dispatched &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    control_dispatched &&
             primary_controls_ports.events.empty() &&
             secondary_controls.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        control_dispatched &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    control_dispatched &&
             secondary_controls_ports.events.empty(),
         "0x4455E0 routes all four directional controls through closed typed helpers"
     );
 
-    GroupEightState secondary_row_state;
+    GameMenuState secondary_row_state;
     secondary_row_state.interaction_mode = 15U;
     secondary_row_state.special_control_count = 8;
     secondary_row_state.secondary_row_count = 5;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot
         secondary_row_input{
             .pointer_x = 500U, .pointer_y = 250U, .input_flags = 1U
         };
-    GroupEightMainInputPorts secondary_row_ports;
+    GameMenuMainInputPorts secondary_row_ports;
     secondary_row_ports.commit_runtime_state.filtered_records.records.resize(
         3U
     );
     secondary_row_ports.commit_runtime_state.dialog_records.resize(1U);
-    const auto secondary_row_changed = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    const auto secondary_row_changed =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             secondary_row_state,
             secondary_row_input,
             group_main_availability,
@@ -19667,8 +19568,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             secondary_row_ports
         );
     secondary_row_input.input_flags = 2U;
-    const auto secondary_row_committed = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    const auto secondary_row_committed =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             secondary_row_state,
             secondary_row_input,
             group_main_availability,
@@ -19677,12 +19578,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             secondary_row_ports
         );
-    GroupEightState unavailable_exit_state;
-    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+    GameMenuState unavailable_exit_state;
+    openswd3::special_modes::LegacyGameMenuMainInputSnapshot
         unavailable_exit_input{.input_flags = 4U};
-    GroupEightMainInputPorts unavailable_exit_ports;
-    const auto unavailable_exited = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    GameMenuMainInputPorts unavailable_exit_ports;
+    const auto unavailable_exited =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             unavailable_exit_state,
             unavailable_exit_input,
             std::array<LegacyStandardModeAvailabilityRecord, 16U>{},
@@ -19691,9 +19592,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             {},
             unavailable_exit_ports
         );
-    GroupEightState availability_stop_state;
-    const auto availability_stopped = openswd3::special_modes::
-        handle_legacy_standard_mode_group_eight_main_input(
+    GameMenuState availability_stop_state;
+    const auto availability_stopped =
+        openswd3::special_modes::handle_legacy_game_menu_main_input(
             availability_stop_state,
             unavailable_exit_input,
             {},
@@ -19704,23 +19605,19 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         secondary_row_changed.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        secondary_row_changed &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    secondary_row_changed &&
             secondary_row_state.secondary_row_selection == 2 &&
             secondary_row_committed.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        secondary_row_committed &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    secondary_row_committed &&
             secondary_row_ports.events.empty() &&
             unavailable_exited.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputPath::
-                        interaction_exited &&
+                openswd3::special_modes::LegacyGameMenuMainInputPath::
+                    interaction_exited &&
             availability_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightMainInputStatus::
-                        availability_index_out_of_range,
+                openswd3::special_modes::LegacyGameMenuMainInputStatus::
+                    availability_index_out_of_range,
         "0x4455E0 clamps mode15 rows and preserves availability-before-exit ordering"
     );
 
@@ -19730,7 +19627,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     advance_row_zero.next = &advance_row_one;
     advance_row_one.next = &advance_row_two;
     advance_row_one.text_index = 0xFFDCU;
-    GroupEightState record_advance_state;
+    GameMenuState record_advance_state;
     record_advance_state.interaction_mode = 2U;
     record_advance_state.selection_x = 30U;
     record_advance_state.record_head = &advance_row_zero;
@@ -19738,9 +19635,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     record_advance_state.pre_initialization_zeroes[4U] = 3U;
     record_advance_state.local_record_count = 2;
     record_advance_state.transition_flags = 0xABCD0000U;
-    GroupEightMainInputPorts record_advance_ports;
-    const auto record_advanced = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts record_advance_ports;
+    const auto record_advanced =
+        openswd3::special_modes::advance_legacy_game_menu_control(
             record_advance_state,
             0x10203040U,
             {},
@@ -19751,12 +19648,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         record_advanced.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvanceStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuAdvanceStatus::
+                    completed &&
             record_advanced.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvancePath::
-                        record_window_advanced &&
+                openswd3::special_modes::LegacyGameMenuAdvancePath::
+                    record_window_advanced &&
             record_advanced.helper_call_count == 6U &&
             record_advance_state.viewport_extent == 480U &&
             record_advance_state.pre_initialization_zeroes[2U] == 0U &&
@@ -19774,13 +19670,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x445C90 advances the mode2 window, visible chain, text and low transition byte"
     );
 
-    GroupEightState skip_record_advance_state;
+    GameMenuState skip_record_advance_state;
     skip_record_advance_state.interaction_mode = 2U;
     skip_record_advance_state.selection_x = 31U;
     skip_record_advance_state.viewport_extent = 7U;
-    GroupEightMainInputPorts skip_record_advance_ports;
-    const auto record_advance_skipped = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts skip_record_advance_ports;
+    const auto record_advance_skipped =
+        openswd3::special_modes::advance_legacy_game_menu_control(
             skip_record_advance_state,
             0U,
             {},
@@ -19789,15 +19685,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             group_main_runtime_ports,
             skip_record_advance_ports
         );
-    GroupEightState missing_advance_state;
+    GameMenuState missing_advance_state;
     missing_advance_state.interaction_mode = 2U;
     missing_advance_state.selection_x = 30U;
     missing_advance_state.pre_initialization_zeroes[4U] = 3U;
     missing_advance_state.local_record_count = 1;
     missing_advance_state.list_offset = 1U;
-    GroupEightMainInputPorts missing_advance_ports;
-    const auto missing_advance = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts missing_advance_ports;
+    const auto missing_advance =
+        openswd3::special_modes::advance_legacy_game_menu_control(
             missing_advance_state,
             0U,
             {},
@@ -19808,28 +19704,26 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         record_advance_skipped.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvancePath::no_action &&
+                openswd3::special_modes::LegacyGameMenuAdvancePath::no_action &&
             record_advance_skipped.helper_call_count == 0U &&
             skip_record_advance_state.viewport_extent == 7U &&
             skip_record_advance_state.published_selection_x == 31U &&
             missing_advance.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvanceStatus::
-                        visible_chain_stopped &&
+                openswd3::special_modes::LegacyGameMenuAdvanceStatus::
+                    visible_chain_stopped &&
             missing_advance.helper_call_count == 1U &&
             missing_advance_state.viewport_extent == 480U,
         "0x445C90 skips selection31 and stops after window mutation at a short visible chain"
     );
 
-    GroupEightState item_advance_state;
+    GameMenuState item_advance_state;
     item_advance_state.interaction_mode = 3U;
     item_advance_state.selection_x = 30U;
     item_advance_state.record_zero = 0U;
-    GroupEightMainInputPorts item_advance_ports;
+    GameMenuMainInputPorts item_advance_ports;
     const std::array<u16, 4U> party_markers{0xFFFFU, 0xFFFFU, 7U, 0xFFFFU};
-    const auto item_advanced = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_control(
+    const auto item_advanced =
+        openswd3::special_modes::advance_legacy_game_menu_control(
             item_advance_state,
             0x55667788U,
             party_markers,
@@ -19838,12 +19732,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             group_main_runtime_ports,
             item_advance_ports
         );
-    GroupEightState item_stop_state;
+    GameMenuState item_stop_state;
     item_stop_state.interaction_mode = 3U;
     item_stop_state.record_zero = 2U;
-    GroupEightMainInputPorts item_stop_ports;
-    const auto item_advance_stopped = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts item_stop_ports;
+    const auto item_advance_stopped =
+        openswd3::special_modes::advance_legacy_game_menu_control(
             item_stop_state,
             0U,
             std::array<u16, 4U>{0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU},
@@ -19854,28 +19748,26 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         item_advanced.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvancePath::
-                        available_item_advanced &&
+                openswd3::special_modes::LegacyGameMenuAdvancePath::
+                    available_item_advanced &&
             item_advance_state.record_zero == 2U &&
             item_advance_state.published_selection_x == 30U &&
             item_advance_ports.played_samples ==
                 std::vector<std::pair<u16, u32>>{{0x2EU, 0x55667788U}} &&
             item_advance_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvanceStatus::
-                        party_cycle_stopped &&
+                openswd3::special_modes::LegacyGameMenuAdvanceStatus::
+                    party_cycle_stopped &&
             item_stop_state.record_zero == 2U &&
             item_stop_ports.played_samples.empty(),
         "0x445C90 cycles four party slots and typed-stops after the complete FFFF domain"
     );
 
-    GroupEightState fixed_advance_state;
+    GameMenuState fixed_advance_state;
     fixed_advance_state.interaction_mode = 5U;
     fixed_advance_state.selection_x = 44U;
-    GroupEightMainInputPorts fixed_advance_ports;
-    const auto action_advanced = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts fixed_advance_ports;
+    const auto action_advanced =
+        openswd3::special_modes::advance_legacy_game_menu_control(
             fixed_advance_state,
             0U,
             {},
@@ -19887,8 +19779,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     fixed_advance_state.interaction_mode = 10U;
     fixed_advance_state.outer_row_count = 2;
     fixed_advance_state.selected_outer_row = 1U;
-    const auto outer_advanced = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_control(
+    const auto outer_advanced =
+        openswd3::special_modes::advance_legacy_game_menu_control(
             fixed_advance_state,
             0U,
             {},
@@ -19898,8 +19790,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             fixed_advance_ports
         );
     fixed_advance_state.interaction_mode = 11U;
-    const auto column_advanced = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_control(
+    const auto column_advanced =
+        openswd3::special_modes::advance_legacy_game_menu_control(
             fixed_advance_state,
             0U,
             {},
@@ -19913,8 +19805,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     fixed_advance_state.secondary_row_count = 2;
     fixed_advance_state.secondary_row_selection = 1;
     fixed_advance_state.transition_flags = 0x550000AAU;
-    const auto secondary_advanced = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_control(
+    const auto secondary_advanced =
+        openswd3::special_modes::advance_legacy_game_menu_control(
             fixed_advance_state,
             0U,
             {},
@@ -19925,34 +19817,32 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         action_advanced.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvancePath::action_advanced &&
+                openswd3::special_modes::LegacyGameMenuAdvancePath::
+                    action_advanced &&
             fixed_advance_state.selected_action == 1U &&
             outer_advanced.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvancePath::
-                        outer_row_advanced &&
+                openswd3::special_modes::LegacyGameMenuAdvancePath::
+                    outer_row_advanced &&
             fixed_advance_state.selected_outer_row == 1U &&
             column_advanced.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvancePath::column_advanced &&
+                openswd3::special_modes::LegacyGameMenuAdvancePath::
+                    column_advanced &&
             fixed_advance_state.selected_column == 1U &&
             secondary_advanced.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvancePath::
-                        secondary_window_advanced &&
+                openswd3::special_modes::LegacyGameMenuAdvancePath::
+                    secondary_window_advanced &&
             secondary_advanced.helper_call_count == 1U &&
             fixed_advance_state.transition_flags == 0x550030AAU &&
             fixed_advance_state.published_selection_x == 44U,
         "0x445C90 applies mode5/10/11 constants and mode15 high transition byte"
     );
 
-    GroupEightState runtime_advance_state;
+    GameMenuState runtime_advance_state;
     runtime_advance_state.interaction_mode = 500U;
     LegacyStandardModeRuntimeInitializationState runtime_advance_runtime;
-    GroupEightMainInputPorts runtime_advance_ports;
-    const auto runtime_advanced = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts runtime_advance_ports;
+    const auto runtime_advanced =
+        openswd3::special_modes::advance_legacy_game_menu_control(
             runtime_advance_state,
             0U,
             {},
@@ -19963,9 +19853,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         runtime_advanced.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightAdvancePath::
-                        runtime_cursor_advanced &&
+                openswd3::special_modes::LegacyGameMenuAdvancePath::
+                    runtime_cursor_advanced &&
             runtime_advanced.helper_call_count == 1U,
         "0x445C90 directly delegates modes at least 500 to 0x43C520"
     );
@@ -19976,7 +19865,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     retreat_row_zero.next = &retreat_row_one;
     retreat_row_one.next = &retreat_row_two;
     retreat_row_one.text_index = 0xFFDCU;
-    GroupEightState record_retreat_state;
+    GameMenuState record_retreat_state;
     record_retreat_state.interaction_mode = 2U;
     record_retreat_state.selection_x = 30U;
     record_retreat_state.record_head = &retreat_row_zero;
@@ -19984,9 +19873,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     record_retreat_state.local_selection = 1U;
     record_retreat_state.local_record_count = 2;
     record_retreat_state.transition_flags = 0xABCD0030U;
-    GroupEightMainInputPorts record_retreat_ports;
-    const auto record_retreated = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts record_retreat_ports;
+    const auto record_retreated =
+        openswd3::special_modes::retreat_legacy_game_menu_control(
             record_retreat_state,
             0x90ABCDEFU,
             {},
@@ -19997,12 +19886,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         record_retreated.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightRetreatStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuRetreatStatus::
+                    completed &&
             record_retreated.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightRetreatPath::
-                        record_window_retreated &&
+                openswd3::special_modes::LegacyGameMenuRetreatPath::
+                    record_window_retreated &&
             record_retreated.helper_call_count == 6U &&
             record_retreat_state.viewport_extent == 480U &&
             record_retreat_state.list_offset == 1U &&
@@ -20017,12 +19905,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x445E90 retreats the mode2 window, chain, text and low transition bits"
     );
 
-    GroupEightState item_retreat_state;
+    GameMenuState item_retreat_state;
     item_retreat_state.interaction_mode = 3U;
     item_retreat_state.record_zero = 0U;
-    GroupEightMainInputPorts item_retreat_ports;
-    const auto item_retreated = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts item_retreat_ports;
+    const auto item_retreated =
+        openswd3::special_modes::retreat_legacy_game_menu_control(
             item_retreat_state,
             0xCAFEBABEU,
             std::array<u16, 4U>{0xFFFFU, 8U, 0xFFFFU, 7U},
@@ -20031,12 +19919,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             group_main_runtime_ports,
             item_retreat_ports
         );
-    GroupEightState item_retreat_stop_state;
+    GameMenuState item_retreat_stop_state;
     item_retreat_stop_state.interaction_mode = 3U;
     item_retreat_stop_state.record_zero = 1U;
-    GroupEightMainInputPorts item_retreat_stop_ports;
-    const auto item_retreat_stopped = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts item_retreat_stop_ports;
+    const auto item_retreat_stopped =
+        openswd3::special_modes::retreat_legacy_game_menu_control(
             item_retreat_stop_state,
             0U,
             std::array<u16, 4U>{0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU},
@@ -20047,27 +19935,25 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         item_retreated.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightRetreatPath::
-                        available_item_retreated &&
+                openswd3::special_modes::LegacyGameMenuRetreatPath::
+                    available_item_retreated &&
             item_retreat_state.record_zero == 3U &&
             item_retreat_ports.played_samples ==
                 std::vector<std::pair<u16, u32>>{{0x2EU, 0xCAFEBABEU}} &&
             item_retreat_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightRetreatStatus::
-                        party_cycle_stopped &&
+                openswd3::special_modes::LegacyGameMenuRetreatStatus::
+                    party_cycle_stopped &&
             item_retreat_stop_state.record_zero == 1U,
         "0x445E90 cycles backward and stops after all four FFFF markers"
     );
 
-    GroupEightState fixed_retreat_state;
+    GameMenuState fixed_retreat_state;
     fixed_retreat_state.interaction_mode = 5U;
     fixed_retreat_state.selection_x = 44U;
     fixed_retreat_state.selected_action = 1U;
-    GroupEightMainInputPorts fixed_retreat_ports;
-    const auto action_retreated = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts fixed_retreat_ports;
+    const auto action_retreated =
+        openswd3::special_modes::retreat_legacy_game_menu_control(
             fixed_retreat_state,
             0U,
             {},
@@ -20078,8 +19964,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     fixed_retreat_state.interaction_mode = 10U;
     fixed_retreat_state.selected_outer_row = 0U;
-    const auto outer_retreated = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_control(
+    const auto outer_retreated =
+        openswd3::special_modes::retreat_legacy_game_menu_control(
             fixed_retreat_state,
             0U,
             {},
@@ -20090,8 +19976,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     fixed_retreat_state.interaction_mode = 11U;
     fixed_retreat_state.selected_column = 1U;
-    const auto column_retreated = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_control(
+    const auto column_retreated =
+        openswd3::special_modes::retreat_legacy_game_menu_control(
             fixed_retreat_state,
             0U,
             {},
@@ -20104,8 +19990,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     fixed_retreat_state.secondary_window_offset = 1;
     fixed_retreat_state.secondary_row_selection = 0;
     fixed_retreat_state.transition_flags = 0x550030AAU;
-    const auto secondary_retreated = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_control(
+    const auto secondary_retreated =
+        openswd3::special_modes::retreat_legacy_game_menu_control(
             fixed_retreat_state,
             0U,
             {},
@@ -20116,33 +20002,31 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         action_retreated.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightRetreatPath::action_retreated &&
+                openswd3::special_modes::LegacyGameMenuRetreatPath::
+                    action_retreated &&
             fixed_retreat_state.selected_action == 0U &&
             outer_retreated.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightRetreatPath::
-                        outer_row_retreated &&
+                openswd3::special_modes::LegacyGameMenuRetreatPath::
+                    outer_row_retreated &&
             fixed_retreat_state.selected_outer_row == 0U &&
             column_retreated.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightRetreatPath::column_retreated &&
+                openswd3::special_modes::LegacyGameMenuRetreatPath::
+                    column_retreated &&
             fixed_retreat_state.selected_column == 0U &&
             secondary_retreated.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightRetreatPath::
-                        secondary_window_retreated &&
+                openswd3::special_modes::LegacyGameMenuRetreatPath::
+                    secondary_window_retreated &&
             fixed_retreat_state.transition_flags == 0x550033AAU &&
             fixed_retreat_state.published_selection_x == 44U,
         "0x445E90 applies mode5/10/11 zeroes and mode15 high transition bits"
     );
 
-    GroupEightState runtime_retreat_state;
+    GameMenuState runtime_retreat_state;
     runtime_retreat_state.interaction_mode = 500U;
     LegacyStandardModeRuntimeInitializationState runtime_retreat_runtime;
-    GroupEightMainInputPorts runtime_retreat_ports;
-    const auto runtime_retreated = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_control(
+    GameMenuMainInputPorts runtime_retreat_ports;
+    const auto runtime_retreated =
+        openswd3::special_modes::retreat_legacy_game_menu_control(
             runtime_retreat_state,
             0U,
             {},
@@ -20153,9 +20037,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         runtime_retreated.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightRetreatPath::
-                        runtime_cursor_retreated &&
+                openswd3::special_modes::LegacyGameMenuRetreatPath::
+                    runtime_cursor_retreated &&
             runtime_retreated.helper_call_count == 1U,
         "0x445E90 directly delegates modes at least 500 to 0x43C590"
     );
@@ -20165,7 +20048,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         page_nodes[index].next = &page_nodes[index + 1U];
     }
     page_nodes[14U].text_index = 0xFFDCU;
-    GroupEightState page_advance_state;
+    GameMenuState page_advance_state;
     page_advance_state.interaction_mode = 2U;
     page_advance_state.selection_x = 30U;
     page_advance_state.record_head = page_nodes.data();
@@ -20173,9 +20056,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     page_advance_state.local_record_count = 13;
     page_advance_state.local_selection = 12U;
     page_advance_state.transition_flags = 0x44000003U;
-    GroupEightMainInputPorts page_advance_ports;
+    GameMenuMainInputPorts page_advance_ports;
     const auto page_advanced =
-        openswd3::special_modes::advance_legacy_standard_mode_group_eight_page(
+        openswd3::special_modes::advance_legacy_game_menu_page(
             page_advance_state,
             0x13579BDFU,
             {},
@@ -20186,12 +20069,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         page_advanced.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageAdvanceStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuPageAdvanceStatus::
+                    completed &&
             page_advanced.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageAdvancePath::
-                        record_page_advanced &&
+                openswd3::special_modes::LegacyGameMenuPageAdvancePath::
+                    record_page_advanced &&
             page_advanced.helper_call_count == 6U &&
             page_advance_state.list_offset == 2U &&
             page_advance_state.local_selection == 12U &&
@@ -20205,11 +20087,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x446090 rebuilds the mode2 final page and selects its last record"
     );
 
-    GroupEightState page_item_state;
+    GameMenuState page_item_state;
     page_item_state.interaction_mode = 3U;
-    GroupEightMainInputPorts page_item_ports;
+    GameMenuMainInputPorts page_item_ports;
     const auto page_item =
-        openswd3::special_modes::advance_legacy_standard_mode_group_eight_page(
+        openswd3::special_modes::advance_legacy_game_menu_page(
             page_item_state,
             0x2468ACE0U,
             std::array<u16, 4U>{1U, 2U, 0xFFFFU, 4U},
@@ -20218,13 +20100,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             group_main_runtime_ports,
             page_item_ports
         );
-    GroupEightState page_fixed_state;
+    GameMenuState page_fixed_state;
     page_fixed_state.interaction_mode = 10U;
     page_fixed_state.outer_row_count = 0;
     page_fixed_state.selection_x = 55U;
-    GroupEightMainInputPorts page_fixed_ports;
+    GameMenuMainInputPorts page_fixed_ports;
     const auto page_outer =
-        openswd3::special_modes::advance_legacy_standard_mode_group_eight_page(
+        openswd3::special_modes::advance_legacy_game_menu_page(
             page_fixed_state,
             0U,
             {},
@@ -20239,7 +20121,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     page_fixed_state.secondary_row_selection = 7;
     page_fixed_state.transition_flags = 0x660003AAU;
     const auto page_secondary =
-        openswd3::special_modes::advance_legacy_standard_mode_group_eight_page(
+        openswd3::special_modes::advance_legacy_game_menu_page(
             page_fixed_state,
             0U,
             {},
@@ -20250,21 +20132,18 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         page_item.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageAdvancePath::
-                        available_item_last &&
+                openswd3::special_modes::LegacyGameMenuPageAdvancePath::
+                    available_item_last &&
             page_item_state.record_zero == 3U &&
             page_item_ports.played_samples ==
                 std::vector<std::pair<u16, u32>>{{0x2EU, 0x2468ACE0U}} &&
             page_outer.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageAdvancePath::
-                        outer_row_last &&
+                openswd3::special_modes::LegacyGameMenuPageAdvancePath::
+                    outer_row_last &&
             page_fixed_state.selected_outer_row == 0xFFFFFFFFU &&
             page_secondary.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageAdvancePath::
-                        secondary_page_advanced &&
+                openswd3::special_modes::LegacyGameMenuPageAdvancePath::
+                    secondary_page_advanced &&
             page_fixed_state.transition_flags == 0x660033AAU &&
             page_fixed_state.published_selection_x == 55U,
         "0x446090 selects the last party slot, preserves count-minus-one and pages by eight"
@@ -20276,16 +20155,16 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         retreat_page_nodes[index].next = &retreat_page_nodes[index + 1U];
     }
     retreat_page_nodes[0U].text_index = 0xFFDCU;
-    GroupEightState page_retreat_state;
+    GameMenuState page_retreat_state;
     page_retreat_state.interaction_mode = 2U;
     page_retreat_state.selection_x = 30U;
     page_retreat_state.record_head = retreat_page_nodes.data();
     page_retreat_state.list_offset = 13U;
     page_retreat_state.local_selection = 0U;
     page_retreat_state.transition_flags = 0x77000030U;
-    GroupEightMainInputPorts page_retreat_ports;
+    GameMenuMainInputPorts page_retreat_ports;
     const auto page_retreated =
-        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_page(
+        openswd3::special_modes::retreat_legacy_game_menu_page(
             page_retreat_state,
             0x89ABCDEFU,
             {},
@@ -20296,12 +20175,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         page_retreated.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageRetreatStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuPageRetreatStatus::
+                    completed &&
             page_retreated.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageRetreatPath::
-                        record_page_retreated &&
+                openswd3::special_modes::LegacyGameMenuPageRetreatPath::
+                    record_page_retreated &&
             page_retreated.helper_call_count == 6U &&
             page_retreat_state.list_offset == 0U &&
             page_retreat_state.local_selection == 0U &&
@@ -20315,12 +20193,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x446260 retreats the mode2 page by thirteen and rebuilds its first text"
     );
 
-    GroupEightState first_page_state;
+    GameMenuState first_page_state;
     first_page_state.interaction_mode = 3U;
     first_page_state.selection_x = 66U;
-    GroupEightMainInputPorts first_page_ports;
+    GameMenuMainInputPorts first_page_ports;
     const auto first_item =
-        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_page(
+        openswd3::special_modes::retreat_legacy_game_menu_page(
             first_page_state,
             0x76543210U,
             std::array<u16, 4U>{0xFFFFU, 9U, 10U, 11U},
@@ -20332,7 +20210,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     first_page_state.interaction_mode = 10U;
     first_page_state.selected_outer_row = 9U;
     const auto first_outer =
-        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_page(
+        openswd3::special_modes::retreat_legacy_game_menu_page(
             first_page_state,
             0U,
             {},
@@ -20346,7 +20224,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     first_page_state.secondary_row_selection = 0;
     first_page_state.transition_flags = 0x880030AAU;
     const auto first_secondary =
-        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_page(
+        openswd3::special_modes::retreat_legacy_game_menu_page(
             first_page_state,
             0U,
             {},
@@ -20357,33 +20235,30 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         first_item.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageRetreatPath::
-                        available_item_first &&
+                openswd3::special_modes::LegacyGameMenuPageRetreatPath::
+                    available_item_first &&
             first_page_state.record_zero == 1U &&
             first_page_ports.played_samples ==
                 std::vector<std::pair<u16, u32>>{{0x2EU, 0x76543210U}} &&
             first_outer.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageRetreatPath::
-                        outer_row_first &&
+                openswd3::special_modes::LegacyGameMenuPageRetreatPath::
+                    outer_row_first &&
             first_page_state.selected_outer_row == 0U &&
             first_secondary.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageRetreatPath::
-                        secondary_page_retreated &&
+                openswd3::special_modes::LegacyGameMenuPageRetreatPath::
+                    secondary_page_retreated &&
             first_page_state.secondary_window_offset == 0 &&
             first_page_state.transition_flags == 0x880033AAU &&
             first_page_state.published_selection_x == 66U,
         "0x446260 selects first values and retreats the secondary page by eight"
     );
 
-    GroupEightState runtime_page_retreat_state;
+    GameMenuState runtime_page_retreat_state;
     runtime_page_retreat_state.interaction_mode = 500U;
     LegacyStandardModeRuntimeInitializationState runtime_page_retreat_runtime;
-    GroupEightMainInputPorts runtime_page_retreat_ports;
+    GameMenuMainInputPorts runtime_page_retreat_ports;
     const auto runtime_page_retreated =
-        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_page(
+        openswd3::special_modes::retreat_legacy_game_menu_page(
             runtime_page_retreat_state,
             0U,
             {},
@@ -20394,25 +20269,24 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         runtime_page_retreated.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightPageRetreatPath::
-                        runtime_page_retreated &&
+                openswd3::special_modes::LegacyGameMenuPageRetreatPath::
+                    runtime_page_retreated &&
             runtime_page_retreated.helper_call_count == 1U,
         "0x446260 directly delegates modes at least 500 to 0x43C670"
     );
 
     LegacyStandardModeForwardNode mode_retreat_record;
     mode_retreat_record.text_index = 0xFFDCU;
-    GroupEightState mode_retreat_state;
+    GameMenuState mode_retreat_state;
     mode_retreat_state.interaction_mode = 2U;
     mode_retreat_state.selection_x = 30U;
     mode_retreat_state.record_head = &mode_retreat_record;
     mode_retreat_state.pre_initialization_zeroes[0U] = 0U;
     mode_retreat_state.pre_initialization_zeroes[2U] = 9U;
-    GroupEightMainInputPorts mode_retreat_ports;
+    GameMenuMainInputPorts mode_retreat_ports;
     mode_retreat_ports.initial_record_head = &mode_retreat_record;
     const auto mode_retreated =
-        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_mode(
+        openswd3::special_modes::retreat_legacy_game_menu_mode(
             mode_retreat_state,
             0x31415926U,
             {},
@@ -20422,14 +20296,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     LegacyStandardModeForwardNode mode_cleanup_stop_record;
     mode_cleanup_stop_record.text_index = 0xFFDCU;
-    GroupEightState mode_cleanup_stop_state;
+    GameMenuState mode_cleanup_stop_state;
     mode_cleanup_stop_state.interaction_mode = 2U;
     mode_cleanup_stop_state.record_head = &mode_cleanup_stop_record;
     mode_cleanup_stop_state.pre_initialization_zeroes[0U] = 4U;
-    GroupEightMainInputPorts mode_cleanup_stop_ports;
+    GameMenuMainInputPorts mode_cleanup_stop_ports;
     mode_cleanup_stop_ports.record_cleanup_available = false;
     const auto mode_cleanup_stopped =
-        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_mode(
+        openswd3::special_modes::retreat_legacy_game_menu_mode(
             mode_cleanup_stop_state,
             0U,
             {},
@@ -20439,8 +20313,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         mode_retreated.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightModeRetreatStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuModeRetreatStatus::
+                    completed &&
             mode_retreated.helper_call_count == 7U &&
             mode_retreat_state.viewport_extent == 480U &&
             mode_retreat_state.pre_initialization_zeroes[0U] == 6U &&
@@ -20450,20 +20324,19 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             mode_retreat_ports.played_samples ==
                 std::vector<std::pair<u16, u32>>{{0x2EU, 0x31415926U}} &&
             mode_cleanup_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightModeRetreatStatus::
-                        record_cleanup_stopped &&
+                openswd3::special_modes::LegacyGameMenuModeRetreatStatus::
+                    record_cleanup_stopped &&
             mode_cleanup_stop_state.pre_initialization_zeroes[0U] == 4U,
         "0x446420 wraps category zero to six and preserves the cleanup stop prefix"
     );
 
-    GroupEightState fixed_mode_retreat_state;
+    GameMenuState fixed_mode_retreat_state;
     fixed_mode_retreat_state.interaction_mode = 10U;
     fixed_mode_retreat_state.selected_outer_row = 0U;
     fixed_mode_retreat_state.selection_x = 77U;
-    GroupEightMainInputPorts fixed_mode_retreat_ports;
+    GameMenuMainInputPorts fixed_mode_retreat_ports;
     const auto fixed_mode_retreated =
-        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_mode(
+        openswd3::special_modes::retreat_legacy_game_menu_mode(
             fixed_mode_retreat_state,
             0U,
             {},
@@ -20475,7 +20348,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     fixed_mode_retreat_state.secondary_window_offset = 1;
     fixed_mode_retreat_state.secondary_row_selection = 0;
     const auto secondary_mode_retreated =
-        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_mode(
+        openswd3::special_modes::retreat_legacy_game_menu_mode(
             fixed_mode_retreat_state,
             0U,
             {},
@@ -20485,8 +20358,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         fixed_mode_retreated.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightModeRetreatStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuModeRetreatStatus::
+                    completed &&
             fixed_mode_retreat_state.selected_outer_row == 0U &&
             secondary_mode_retreated.helper_call_count == 1U &&
             fixed_mode_retreat_state.secondary_window_offset == 0 &&
@@ -20495,13 +20368,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x446420 clamps mode10 and uses cursor retreat for mode15"
     );
 
-    GroupEightState runtime_mode_retreat_state;
+    GameMenuState runtime_mode_retreat_state;
     runtime_mode_retreat_state.interaction_mode = 500U;
     LegacyStandardModeRuntimeInitializationState runtime_mode_retreat_runtime;
     runtime_mode_retreat_runtime.mode_index = 0;
-    GroupEightMainInputPorts runtime_mode_retreat_ports;
+    GameMenuMainInputPorts runtime_mode_retreat_ports;
     const auto runtime_mode_retreated =
-        openswd3::special_modes::retreat_legacy_standard_mode_group_eight_mode(
+        openswd3::special_modes::retreat_legacy_game_menu_mode(
             runtime_mode_retreat_state,
             0U,
             {},
@@ -20517,16 +20390,16 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
     LegacyStandardModeForwardNode mode_advance_record;
     mode_advance_record.text_index = 0xFFDCU;
-    GroupEightState mode_advance_state;
+    GameMenuState mode_advance_state;
     mode_advance_state.interaction_mode = 2U;
     mode_advance_state.selection_x = 30U;
     mode_advance_state.record_head = &mode_advance_record;
     mode_advance_state.pre_initialization_zeroes[0U] = 6U;
     mode_advance_state.pre_initialization_zeroes[2U] = 9U;
-    GroupEightMainInputPorts mode_advance_ports;
+    GameMenuMainInputPorts mode_advance_ports;
     mode_advance_ports.initial_record_head = &mode_advance_record;
     const auto mode_advanced =
-        openswd3::special_modes::advance_legacy_standard_mode_group_eight_mode(
+        openswd3::special_modes::advance_legacy_game_menu_mode(
             mode_advance_state,
             0x27182818U,
             {},
@@ -20536,8 +20409,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         mode_advanced.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightModeAdvanceStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuModeAdvanceStatus::
+                    completed &&
             mode_advanced.helper_call_count == 7U &&
             mode_advance_state.viewport_extent == 480U &&
             mode_advance_state.pre_initialization_zeroes[0U] == 0U &&
@@ -20549,13 +20422,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x446550 wraps category six to zero and rebuilds its selected text"
     );
 
-    GroupEightState fixed_mode_advance_state;
+    GameMenuState fixed_mode_advance_state;
     fixed_mode_advance_state.interaction_mode = 10U;
     fixed_mode_advance_state.outer_row_count = 0;
     fixed_mode_advance_state.selection_x = 88U;
-    GroupEightMainInputPorts fixed_mode_advance_ports;
+    GameMenuMainInputPorts fixed_mode_advance_ports;
     const auto fixed_mode_advanced =
-        openswd3::special_modes::advance_legacy_standard_mode_group_eight_mode(
+        openswd3::special_modes::advance_legacy_game_menu_mode(
             fixed_mode_advance_state,
             0U,
             {},
@@ -20568,7 +20441,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     fixed_mode_advance_state.secondary_row_count = 2;
     fixed_mode_advance_state.secondary_row_selection = 1;
     const auto secondary_mode_advanced =
-        openswd3::special_modes::advance_legacy_standard_mode_group_eight_mode(
+        openswd3::special_modes::advance_legacy_game_menu_mode(
             fixed_mode_advance_state,
             0U,
             {},
@@ -20576,12 +20449,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             group_main_runtime_ports,
             fixed_mode_advance_ports
         );
-    GroupEightState runtime_mode_advance_state;
+    GameMenuState runtime_mode_advance_state;
     runtime_mode_advance_state.interaction_mode = 500U;
     LegacyStandardModeRuntimeInitializationState runtime_mode_advance_runtime;
-    GroupEightMainInputPorts runtime_mode_advance_ports;
+    GameMenuMainInputPorts runtime_mode_advance_ports;
     const auto runtime_mode_advanced =
-        openswd3::special_modes::advance_legacy_standard_mode_group_eight_mode(
+        openswd3::special_modes::advance_legacy_game_menu_mode(
             runtime_mode_advance_state,
             0U,
             {},
@@ -20591,8 +20464,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         fixed_mode_advanced.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightModeAdvanceStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuModeAdvanceStatus::
+                    completed &&
             fixed_mode_advance_state.selected_outer_row == 0xFFFFFFFFU &&
             secondary_mode_advanced.helper_call_count == 1U &&
             fixed_mode_advance_state.published_selection_x == 88U &&
@@ -20600,11 +20473,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x446550 preserves count-minus-one, advances mode15 and delegates to C760"
     );
 
-    GroupEightState selection_publish_state;
+    GameMenuState selection_publish_state;
     selection_publish_state.interaction_mode = 2U;
     selection_publish_state.selection_x = 0x1234U;
     LegacyStandardModeRuntimeInitializationState selection_publish_runtime;
-    GroupEightRuntimeInputPorts selection_publish_ports;
+    GameMenuRuntimeInputPorts selection_publish_ports;
     const auto selection_published = openswd3::special_modes::
         publish_legacy_standard_mode_selection_or_advance_runtime(
             selection_publish_state,
@@ -20612,10 +20485,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             selection_publish_runtime,
             selection_publish_ports
         );
-    GroupEightState high_selection_publish_state;
+    GameMenuState high_selection_publish_state;
     high_selection_publish_state.interaction_mode = 500U;
     LegacyStandardModeRuntimeInitializationState high_selection_publish_runtime;
-    GroupEightRuntimeInputPorts high_selection_publish_ports;
+    GameMenuRuntimeInputPorts high_selection_publish_ports;
     const auto high_selection_published = openswd3::special_modes::
         publish_legacy_standard_mode_selection_or_advance_runtime(
             high_selection_publish_state,
@@ -20644,11 +20517,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x446680 publishes low-mode selection and preserves the high-mode double sample"
     );
 
-    GroupEightState selection_cycle_state;
+    GameMenuState selection_cycle_state;
     selection_cycle_state.interaction_mode = 2U;
     selection_cycle_state.selection_x = 0x20U;
     LegacyStandardModeRuntimeInitializationState selection_cycle_runtime;
-    GroupEightRuntimeInputPorts selection_cycle_ports;
+    GameMenuRuntimeInputPorts selection_cycle_ports;
     const auto selection_cycled = openswd3::special_modes::
         cycle_legacy_standard_mode_selection_or_advance_runtime(
             selection_cycle_state,
@@ -20656,10 +20529,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             selection_cycle_runtime,
             selection_cycle_ports
         );
-    GroupEightState inert_selection_cycle_state;
+    GameMenuState inert_selection_cycle_state;
     inert_selection_cycle_state.interaction_mode = 5U;
     inert_selection_cycle_state.selection_x = 0x3456U;
-    GroupEightRuntimeInputPorts inert_selection_cycle_ports;
+    GameMenuRuntimeInputPorts inert_selection_cycle_ports;
     const auto inert_selection_cycled = openswd3::special_modes::
         cycle_legacy_standard_mode_selection_or_advance_runtime(
             inert_selection_cycle_state,
@@ -20667,10 +20540,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             selection_cycle_runtime,
             inert_selection_cycle_ports
         );
-    GroupEightState high_selection_cycle_state;
+    GameMenuState high_selection_cycle_state;
     high_selection_cycle_state.interaction_mode = 500U;
     LegacyStandardModeRuntimeInitializationState high_selection_cycle_runtime;
-    GroupEightRuntimeInputPorts high_selection_cycle_ports;
+    GameMenuRuntimeInputPorts high_selection_cycle_ports;
     const auto high_selection_cycled = openswd3::special_modes::
         cycle_legacy_standard_mode_selection_or_advance_runtime(
             high_selection_cycle_state,
@@ -20703,14 +20576,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     LegacyStandardModeForwardNode commit_world_record;
     commit_world_record.text_index = 0x02D9U;
     commit_world_record.equipment_type_flags = 6U;
-    GroupEightState commit_world_state;
+    GameMenuState commit_world_state;
     commit_world_state.interaction_mode = 2U;
     commit_world_state.selection_x = 30U;
     commit_world_state.record_head = &commit_world_record;
     commit_world_state.local_record_count = 1;
-    GroupEightMainInputPorts commit_world_ports;
-    const auto commit_world = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    GameMenuMainInputPorts commit_world_ports;
+    const auto commit_world =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_world_state,
             0x11112222U,
             {},
@@ -20723,14 +20596,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     LegacyStandardModeForwardNode commit_high_record;
     commit_high_record.text_index = 0x0318U;
     commit_high_record.equipment_type_flags = 6U;
-    GroupEightState commit_high_state;
+    GameMenuState commit_high_state;
     commit_high_state.interaction_mode = 2U;
     commit_high_state.selection_x = 30U;
     commit_high_state.record_head = &commit_high_record;
     commit_high_state.local_record_count = 1;
-    GroupEightMainInputPorts commit_high_ports;
-    const auto commit_high = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    GameMenuMainInputPorts commit_high_ports;
+    const auto commit_high =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_high_state,
             0U,
             {},
@@ -20742,13 +20615,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         commit_world.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        completed &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitStatus::
+                    completed &&
             commit_world.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        world_transition_requested &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitPath::
+                    world_transition_requested &&
             commit_world_ports.commit_port_state.removed_actions.empty() &&
             commit_world_state.record_head == nullptr &&
             commit_world.legacy_return_value == 333 &&
@@ -20768,9 +20639,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 } &&
             commit_world_ports.commit_port_state.world_transition_count == 2U &&
             commit_high.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        runtime_noop &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitPath::
+                    runtime_noop &&
             commit_high_state.interaction_mode == 500U &&
             commit_high_ports.commit_port_state
                     .high_runtime_initialization_count == 1U,
@@ -20780,15 +20650,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     LegacyStandardModeForwardNode commit_world_stop_record;
     commit_world_stop_record.text_index = 0x02D9U;
     commit_world_stop_record.equipment_type_flags = 6U;
-    GroupEightState commit_world_stop_state;
+    GameMenuState commit_world_stop_state;
     commit_world_stop_state.interaction_mode = 2U;
     commit_world_stop_state.selection_x = 30U;
     commit_world_stop_state.record_head = &commit_world_stop_record;
     commit_world_stop_state.local_record_count = 1;
-    GroupEightMainInputPorts commit_world_stop_ports;
+    GameMenuMainInputPorts commit_world_stop_ports;
     commit_world_stop_ports.record_cleanup_available = false;
-    const auto commit_world_stopped = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    const auto commit_world_stopped =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_world_stop_state,
             0U,
             {},
@@ -20800,9 +20670,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         commit_world_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        record_cleanup_stopped &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitStatus::
+                    record_cleanup_stopped &&
             commit_world_stop_state.record_head == nullptr &&
             commit_world_stop_ports.commit_port_state.inventory_clone_count ==
                 1U &&
@@ -20818,15 +20687,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     LegacyStandardModeForwardNode commit_locked_record;
     commit_locked_record.text_index = 0x02B9U;
     commit_locked_record.equipment_type_flags = 6U;
-    GroupEightState commit_locked_state;
+    GameMenuState commit_locked_state;
     commit_locked_state.interaction_mode = 2U;
     commit_locked_state.selection_x = 30U;
     commit_locked_state.record_head = &commit_locked_record;
     commit_locked_state.local_record_count = 1;
-    GroupEightMainInputPorts commit_locked_ports;
+    GameMenuMainInputPorts commit_locked_ports;
     commit_locked_ports.item_presence[0x4DU] = 1;
-    const auto commit_locked = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    const auto commit_locked =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_locked_state,
             0x33334444U,
             {},
@@ -20841,15 +20710,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     commit_count_record.equipment_type_flags = 6U;
     commit_count_record.first_value = 2U;
     commit_count_record.second_value = 3U;
-    GroupEightState commit_count_state;
+    GameMenuState commit_count_state;
     commit_count_state.interaction_mode = 2U;
     commit_count_state.selection_x = 30U;
     commit_count_state.record_head = &commit_count_record;
     commit_count_state.local_record_count = 1;
-    GroupEightMainInputPorts commit_count_ports;
+    GameMenuMainInputPorts commit_count_ports;
     commit_count_ports.commit_port_state.inventory_span = 4;
-    const auto commit_count = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    const auto commit_count =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_count_state,
             0U,
             {},
@@ -20861,16 +20730,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         commit_locked.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        phase_reset &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitPath::
+                    phase_reset &&
             commit_locked_state.interaction_mode == 17U &&
             commit_locked_ports.played_samples ==
                 std::vector<std::pair<u16, u32>>{{0x8CU, 0x33334444U}} &&
             commit_count.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        completed &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitStatus::
+                    completed &&
             commit_count_state.interaction_mode == 10U &&
             commit_count_state.selected_outer_row == 0U &&
             commit_count_state.outer_row_count == 9,
@@ -20881,16 +20748,16 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     commit_equipment_record.text_index = 0x0100U;
     commit_equipment_record.equipment_type_flags = 6U;
     commit_equipment_record.equipment_action_id = 0x77U;
-    GroupEightState commit_equipment_state;
+    GameMenuState commit_equipment_state;
     commit_equipment_state.interaction_mode = 2U;
     commit_equipment_state.selection_x = 30U;
     commit_equipment_state.record_head = &commit_equipment_record;
     commit_equipment_state.local_record_count = 1;
-    GroupEightMainInputPorts commit_equipment_ports;
+    GameMenuMainInputPorts commit_equipment_ports;
     commit_equipment_ports.item_presence[0x1EU] = 1;
     commit_equipment_ports.item_presence[0x20U] = 1;
-    const auto commit_equipment = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    const auto commit_equipment =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_equipment_state,
             0U,
             {},
@@ -20900,7 +20767,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_equipment_ports.commit_runtime_state,
             commit_equipment_ports.commit_port_state
         );
-    GroupEightState commit_mode_three_state;
+    GameMenuState commit_mode_three_state;
     commit_mode_three_state.interaction_mode = 3U;
     commit_mode_three_state.selection_x = 30U;
     commit_mode_three_state.record_head = &commit_equipment_record;
@@ -20908,8 +20775,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     commit_mode_three_state.local_record_count = 1;
     commit_equipment_record.filter_flags = 0U;
     commit_equipment_ports.commit_port_state.inventory_mutation_return = 0;
-    const auto commit_mode_three = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    const auto commit_mode_three =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_mode_three_state,
             0x55556666U,
             {},
@@ -20921,9 +20788,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         commit_equipment.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        window_refresh_stopped &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitStatus::
+                    window_refresh_stopped &&
             commit_equipment_ports.commit_port_state.loaded_action_ids ==
                 std::vector<u16>{0x77U} &&
             commit_equipment_ports.commit_port_state.copied_slots ==
@@ -20931,9 +20797,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_equipment_ports.commit_port_state.inventory_mutations[0] ==
                 std::array<i32, 3U>{0x100, -1, 0} &&
             commit_mode_three.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        window_refresh_stopped &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitStatus::
+                    window_refresh_stopped &&
             commit_mode_three_state.interaction_mode == 2U &&
             commit_equipment_ports.commit_port_state.copied_slots.back() ==
                 3U &&
@@ -20942,11 +20807,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x446700 preserves equipment side effects before the window typed stop"
     );
 
-    GroupEightState commit_exit_state;
+    GameMenuState commit_exit_state;
     commit_exit_state.interaction_mode = 4U;
-    GroupEightMainInputPorts commit_exit_ports;
-    const auto commit_exited = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    GameMenuMainInputPorts commit_exit_ports;
+    const auto commit_exited =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_exit_state,
             0U,
             {},
@@ -20956,13 +20821,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_exit_ports.commit_runtime_state,
             commit_exit_ports.commit_port_state
         );
-    GroupEightState commit_resource_state;
+    GameMenuState commit_resource_state;
     commit_resource_state.interaction_mode = 10U;
     commit_resource_state.selected_outer_row = 2U;
-    GroupEightMainInputPorts commit_resource_ports;
+    GameMenuMainInputPorts commit_resource_ports;
     commit_resource_ports.commit_port_state.resource_flag = 0U;
-    const auto commit_resource_loaded = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    const auto commit_resource_loaded =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_resource_state,
             0U,
             {},
@@ -20972,8 +20837,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_resource_ports.commit_runtime_state,
             commit_resource_ports.commit_port_state
         );
-    const auto commit_resource_finished = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    const auto commit_resource_finished =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_resource_state,
             0U,
             {},
@@ -20985,33 +20850,30 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         commit_exited.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        interaction_exited &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitPath::
+                    interaction_exited &&
             commit_exited.legacy_return_value == 3 &&
             commit_exit_state.interaction_mode == 2U &&
             commit_exit_state.pre_initialization_zeroes[2U] == 0xFFFFFF00U &&
             commit_resource_loaded.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        mode_ten_loaded &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitPath::
+                    mode_ten_loaded &&
             commit_resource_ports.commit_port_state.loaded_resources ==
                 std::vector<std::pair<u32, u32>>{{0xCAFEU, 0x49U}} &&
             commit_resource_finished.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        mode_eleven_finished &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitPath::
+                    mode_eleven_finished &&
             commit_resource_state.interaction_mode == 1U &&
             commit_resource_state.exit_layout_owner == 0x34U,
         "0x446700 delegates mode4 and preserves mode10-to-11 resource phases"
     );
 
-    GroupEightState commit_dialog_state;
+    GameMenuState commit_dialog_state;
     commit_dialog_state.interaction_mode = 15U;
     commit_dialog_state.secondary_window_offset = 0;
     commit_dialog_state.secondary_row_selection = 1;
     commit_dialog_state.global_mode_owner = 9U;
-    GroupEightMainInputPorts commit_dialog_ports;
+    GameMenuMainInputPorts commit_dialog_ports;
     commit_dialog_ports.commit_runtime_state.filtered_records.records.resize(
         2U
     );
@@ -21020,8 +20882,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     commit_dialog_ports.commit_runtime_state.filtered_records.records[1U]
         .second_value = 3U;
     commit_dialog_ports.commit_runtime_state.dialog_records.resize(1U);
-    const auto commit_dialog = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    const auto commit_dialog =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_dialog_state,
             0U,
             {},
@@ -21031,10 +20893,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_dialog_ports.commit_runtime_state,
             commit_dialog_ports.commit_port_state
         );
-    GroupEightState commit_phase_state;
+    GameMenuState commit_phase_state;
     commit_phase_state.interaction_mode = 17U;
-    const auto commit_phase = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_interaction(
+    const auto commit_phase =
+        openswd3::special_modes::commit_legacy_game_menu_interaction(
             commit_phase_state,
             0U,
             {},
@@ -21046,13 +20908,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         commit_dialog.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitStatus::
-                        completed &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitStatus::
+                    completed &&
             commit_dialog.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        dialog_committed &&
+                openswd3::special_modes::LegacyGameMenuInteractionCommitPath::
+                    dialog_committed &&
             commit_dialog_state.secondary_window_offset == 2 &&
             commit_dialog_state.special_control_count == 0 &&
             commit_dialog_state.global_mode_owner == 0U &&
@@ -21061,13 +20921,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_dialog_ports.commit_port_state.cleared_bytes == 0x96000U &&
             commit_phase_state.interaction_mode == 2U &&
             commit_phase.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionCommitPath::
-                        phase_reset,
+                openswd3::special_modes::LegacyGameMenuInteractionCommitPath::
+                    phase_reset,
         "0x446700 commits filtered dialog records and resets terminal phases"
     );
 
-    GroupEightState runtime_exit_state;
+    GameMenuState runtime_exit_state;
     runtime_exit_state.interaction_mode = 500U;
     LegacyStandardModeRuntimeInitializationState runtime_exit_runtime;
     runtime_exit_runtime.exit_counter = 500U;
@@ -21075,10 +20934,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     runtime_exit_runtime.scratch_record[0xADU] = 0x56U;
     runtime_exit_runtime.scratch_record[0xAEU] = 0x34U;
     runtime_exit_runtime.scratch_record[0xAFU] = 0x12U;
-    GroupEightRuntimeInputPorts runtime_exit_runtime_ports;
-    GroupEightMainInputPorts runtime_exit_ports;
-    const auto runtime_exited = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    GameMenuRuntimeInputPorts runtime_exit_runtime_ports;
+    GameMenuMainInputPorts runtime_exit_ports;
+    const auto runtime_exited =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             runtime_exit_state,
             runtime_exit_runtime,
             runtime_exit_runtime_ports,
@@ -21086,10 +20945,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             runtime_exit_ports.commit_runtime_state,
             runtime_exit_ports.commit_port_state
         );
-    GroupEightState ignored_high_exit_state;
+    GameMenuState ignored_high_exit_state;
     ignored_high_exit_state.interaction_mode = 501U;
-    const auto ignored_high_exit = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    const auto ignored_high_exit =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             ignored_high_exit_state,
             runtime_exit_runtime,
             runtime_exit_runtime_ports,
@@ -21099,9 +20958,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         runtime_exited.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionExitPath::
-                        runtime_cleaned &&
+                openswd3::special_modes::LegacyGameMenuInteractionExitPath::
+                    runtime_cleaned &&
             runtime_exited.legacy_return_value == 555 &&
             runtime_exit_state.interaction_mode == 2U &&
             runtime_exit_runtime.exit_counter == 2U &&
@@ -21111,22 +20969,21 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             runtime_exit_runtime.action_records[0U].action_id == 0x232AU &&
             runtime_exit_runtime.action_records[0U].base_variant == 0x43U &&
             ignored_high_exit.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionExitPath::
-                        high_mode_ignored &&
+                openswd3::special_modes::LegacyGameMenuInteractionExitPath::
+                    high_mode_ignored &&
             ignored_high_exit_state.interaction_mode == 501U,
         "0x446FE0 includes the C800/C2F0 cleanup only for exact mode500"
     );
 
     LegacyStandardModeRuntimeInitializationState low_exit_runtime;
-    GroupEightRuntimeInputPorts low_exit_runtime_ports;
-    GroupEightMainInputPorts low_exit_ports;
-    GroupEightState callback_exit_state;
+    GameMenuRuntimeInputPorts low_exit_runtime_ports;
+    GameMenuMainInputPorts low_exit_ports;
+    GameMenuState callback_exit_state;
     callback_exit_state.interaction_mode = 2U;
     callback_exit_state.selection_x = 30U;
     callback_exit_state.workspace_token = 0xAAU;
-    const auto callback_exit = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    const auto callback_exit =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             callback_exit_state,
             low_exit_runtime,
             low_exit_runtime_ports,
@@ -21134,10 +20991,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             low_exit_ports.commit_runtime_state,
             low_exit_ports.commit_port_state
         );
-    GroupEightState mode_four_exit_state;
+    GameMenuState mode_four_exit_state;
     mode_four_exit_state.interaction_mode = 4U;
-    const auto mode_four_exit = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    const auto mode_four_exit =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             mode_four_exit_state,
             low_exit_runtime,
             low_exit_runtime_ports,
@@ -21145,10 +21002,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             low_exit_ports.commit_runtime_state,
             low_exit_ports.commit_port_state
         );
-    GroupEightState mode_five_exit_state;
+    GameMenuState mode_five_exit_state;
     mode_five_exit_state.interaction_mode = 5U;
-    const auto mode_five_exit = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    const auto mode_five_exit =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             mode_five_exit_state,
             low_exit_runtime,
             low_exit_runtime_ports,
@@ -21158,32 +21015,29 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         );
     test.expect_true(
         callback_exit.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionExitPath::
-                        callbacks_rebound &&
+                openswd3::special_modes::LegacyGameMenuInteractionExitPath::
+                    callbacks_rebound &&
             callback_exit_state.interaction_mode == 1U &&
             callback_exit_state.exit_layout_owner == 0x34U &&
             low_exit_ports.commit_port_state.story_flag_queries ==
                 std::vector<u32>{0x49U} &&
             mode_four_exit.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionExitPath::
-                        phase_reset &&
+                openswd3::special_modes::LegacyGameMenuInteractionExitPath::
+                    phase_reset &&
             mode_four_exit_state.interaction_mode == 2U &&
             mode_four_exit_state.pre_initialization_zeroes[2U] == 0xFFFFFF00U &&
             mode_five_exit.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionExitPath::
-                        phase_reset &&
+                openswd3::special_modes::LegacyGameMenuInteractionExitPath::
+                    phase_reset &&
             mode_five_exit_state.interaction_mode == 2U &&
             mode_five_exit_state.selected_action == 1U,
         "0x446FE0 rebinds mode2 and preserves mode4/mode5 exit side effects"
     );
 
-    GroupEightState mode_ten_exit_state;
+    GameMenuState mode_ten_exit_state;
     mode_ten_exit_state.interaction_mode = 10U;
-    const auto mode_ten_exit = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    const auto mode_ten_exit =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             mode_ten_exit_state,
             low_exit_runtime,
             low_exit_runtime_ports,
@@ -21191,10 +21045,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             low_exit_ports.commit_runtime_state,
             low_exit_ports.commit_port_state
         );
-    GroupEightState mode_eleven_exit_state;
+    GameMenuState mode_eleven_exit_state;
     mode_eleven_exit_state.interaction_mode = 11U;
-    const auto mode_eleven_exit = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    const auto mode_eleven_exit =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             mode_eleven_exit_state,
             low_exit_runtime,
             low_exit_runtime_ports,
@@ -21202,11 +21056,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             low_exit_ports.commit_runtime_state,
             low_exit_ports.commit_port_state
         );
-    GroupEightState mode_fifteen_exit_state;
+    GameMenuState mode_fifteen_exit_state;
     mode_fifteen_exit_state.interaction_mode = 15U;
     low_exit_ports.commit_runtime_state.filtered_records.records.resize(3U);
-    const auto mode_fifteen_exit = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    const auto mode_fifteen_exit =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             mode_fifteen_exit_state,
             low_exit_runtime,
             low_exit_runtime_ports,
@@ -21214,10 +21068,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             low_exit_ports.commit_runtime_state,
             low_exit_ports.commit_port_state
         );
-    GroupEightState mode_seventeen_exit_state;
+    GameMenuState mode_seventeen_exit_state;
     mode_seventeen_exit_state.interaction_mode = 17U;
-    const auto mode_seventeen_exit = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    const auto mode_seventeen_exit =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             mode_seventeen_exit_state,
             low_exit_runtime,
             low_exit_runtime_ports,
@@ -21225,10 +21079,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             low_exit_ports.commit_runtime_state,
             low_exit_ports.commit_port_state
         );
-    GroupEightState mode_eighteen_exit_state;
+    GameMenuState mode_eighteen_exit_state;
     mode_eighteen_exit_state.interaction_mode = 18U;
-    const auto mode_eighteen_exit = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    const auto mode_eighteen_exit =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             mode_eighteen_exit_state,
             low_exit_runtime,
             low_exit_runtime_ports,
@@ -21236,11 +21090,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             low_exit_ports.commit_runtime_state,
             low_exit_ports.commit_port_state
         );
-    GroupEightState default_exit_state;
+    GameMenuState default_exit_state;
     default_exit_state.interaction_mode = 3U;
     default_exit_state.selection_x = 0x1234U;
-    const auto default_exit = openswd3::special_modes::
-        exit_legacy_standard_mode_group_eight_interaction(
+    const auto default_exit =
+        openswd3::special_modes::exit_legacy_game_menu_interaction(
             default_exit_state,
             low_exit_runtime,
             low_exit_runtime_ports,
@@ -21251,31 +21105,26 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     test.expect_true(
         mode_ten_exit_state.interaction_mode == 2U &&
             mode_ten_exit.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionExitPath::
-                        phase_reset &&
+                openswd3::special_modes::LegacyGameMenuInteractionExitPath::
+                    phase_reset &&
             mode_eleven_exit_state.interaction_mode == 10U &&
             mode_eleven_exit.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionExitPath::
-                        phase_predecremented &&
+                openswd3::special_modes::LegacyGameMenuInteractionExitPath::
+                    phase_predecremented &&
             mode_fifteen_exit.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionExitPath::
-                        filtered_records_released &&
+                openswd3::special_modes::LegacyGameMenuInteractionExitPath::
+                    filtered_records_released &&
             mode_fifteen_exit_state.interaction_mode == 2U &&
             mode_fifteen_exit_state.secondary_window_offset == 3 &&
             low_exit_ports.commit_runtime_state.filtered_records.records
                 .empty() &&
             mode_seventeen_exit.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionExitPath::
-                        phase_reset &&
+                openswd3::special_modes::LegacyGameMenuInteractionExitPath::
+                    phase_reset &&
             mode_seventeen_exit_state.interaction_mode == 2U &&
             mode_eighteen_exit.path ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInteractionExitPath::
-                        phase_reset &&
+                openswd3::special_modes::LegacyGameMenuInteractionExitPath::
+                    phase_reset &&
             mode_eighteen_exit_state.interaction_mode == 2U &&
             default_exit_state.interaction_mode == 2U &&
             default_exit_state.published_selection_x == 0x1234U &&
@@ -21294,91 +21143,90 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     render_row_one.text_index = 0xFFDCU;
     render_row_one.display_name = "row1";
     render_row_two.text_index = 0xFFDCU;
-    GroupEightState group_one_render_state;
-    group_one_render_state.interaction_mode = 2U;
-    group_one_render_state.selection_x = 30U;
-    group_one_render_state.published_selection_x = 31U;
-    group_one_render_state.layout_mode = 0x0BU;
-    group_one_render_state.record_head = &render_row_zero;
-    group_one_render_state.visible_record_head = &render_row_zero;
-    group_one_render_state.visible_record_count = 2U;
-    group_one_render_state.local_selection = 1U;
-    group_one_render_state.local_record_count = 14;
-    group_one_render_state.render_progress_value = 9;
-    group_one_render_state.render_progress_origin = 5;
-    group_one_render_state.transition_flags = 0x1122U;
-    LegacyStandardModeRuntimeInitializationState group_one_render_runtime;
-    openswd3::special_modes::
-        LegacyStandardModeGroupEightInteractionCommitRuntime
-            group_one_render_commit_runtime;
-    GroupOneRenderPorts group_one_render_ports;
-    const auto group_one_rendered =
-        openswd3::special_modes::render_legacy_standard_mode_group_one(
-            group_one_render_state,
-            group_one_render_runtime,
-            group_one_render_commit_runtime,
-            group_one_render_ports
+    GameMenuState game_menu_page_render_state;
+    game_menu_page_render_state.interaction_mode = 2U;
+    game_menu_page_render_state.selection_x = 30U;
+    game_menu_page_render_state.published_selection_x = 31U;
+    game_menu_page_render_state.layout_mode = 0x0BU;
+    game_menu_page_render_state.record_head = &render_row_zero;
+    game_menu_page_render_state.visible_record_head = &render_row_zero;
+    game_menu_page_render_state.visible_record_count = 2U;
+    game_menu_page_render_state.local_selection = 1U;
+    game_menu_page_render_state.local_record_count = 14;
+    game_menu_page_render_state.render_progress_value = 9;
+    game_menu_page_render_state.render_progress_origin = 5;
+    game_menu_page_render_state.transition_flags = 0x1122U;
+    LegacyStandardModeRuntimeInitializationState game_menu_page_render_runtime;
+    openswd3::special_modes::LegacyGameMenuInteractionCommitRuntime
+        game_menu_page_render_commit_runtime;
+    GameMenuPageRenderPorts game_menu_page_render_ports;
+    const auto game_menu_page_rendered =
+        openswd3::special_modes::render_legacy_game_menu_page(
+            game_menu_page_render_state,
+            game_menu_page_render_runtime,
+            game_menu_page_render_commit_runtime,
+            game_menu_page_render_ports
         );
-    const auto count_group_one_operation = [&](const auto operation) {
+    const auto count_game_menu_page_operation = [&](const auto operation) {
         return static_cast<u32>(std::count_if(
-            group_one_render_ports.requests.begin(),
-            group_one_render_ports.requests.end(),
+            game_menu_page_render_ports.requests.begin(),
+            game_menu_page_render_ports.requests.end(),
             [&](const auto& request) { return request.operation == operation; }
         ));
     };
     test.expect_true(
-        group_one_rendered.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupOneRenderStatus::completed &&
-            group_one_rendered.legacy_return_value == 4 &&
-            group_one_rendered.color_compose_count == 3U &&
-            group_one_render_state.published_selection_x == 35U &&
-            group_one_render_state.transition_flags == 0x1111U &&
-            group_one_render_state.exit_layout_owner == 0x43U &&
-            count_group_one_operation(
-                openswd3::special_modes::
-                    LegacyStandardModeGroupOneRenderOperation::draw_list_row
+        game_menu_page_rendered.status ==
+                openswd3::special_modes::LegacyGameMenuPageRenderStatus::
+                    completed &&
+            game_menu_page_rendered.legacy_return_value == 4 &&
+            game_menu_page_rendered.color_compose_count == 3U &&
+            game_menu_page_render_state.published_selection_x == 35U &&
+            game_menu_page_render_state.transition_flags == 0x1111U &&
+            game_menu_page_render_state.exit_layout_owner == 0x43U &&
+            count_game_menu_page_operation(
+                openswd3::special_modes::LegacyGameMenuPageRenderOperation::
+                    draw_list_row
             ) == 2U &&
-            count_group_one_operation(
-                openswd3::special_modes::
-                    LegacyStandardModeGroupOneRenderOperation::draw_scrollbar
+            count_game_menu_page_operation(
+                openswd3::special_modes::LegacyGameMenuPageRenderOperation::
+                    draw_scrollbar
             ) == 1U,
         "0x447100 preserves progress, choice cycling, rows and low-nibble scrolling"
     );
 
-    GroupEightState mode_three_render_state;
+    GameMenuState mode_three_render_state;
     mode_three_render_state.interaction_mode = 3U;
     mode_three_render_state.selection_x = 30U;
     mode_three_render_state.record_head = &render_row_zero;
     mode_three_render_state.party_markers = {1U, 0xFFFFU, 2U, 3U};
     mode_three_render_state.record_zero = 2U;
     mode_three_render_state.local_selection = 2U;
-    GroupOneRenderPorts mode_three_render_ports;
+    GameMenuPageRenderPorts mode_three_render_ports;
     const auto mode_three_rendered =
-        openswd3::special_modes::render_legacy_standard_mode_group_one(
+        openswd3::special_modes::render_legacy_game_menu_page(
             mode_three_render_state,
-            group_one_render_runtime,
-            group_one_render_commit_runtime,
+            game_menu_page_render_runtime,
+            game_menu_page_render_commit_runtime,
             mode_three_render_ports
         );
-    GroupEightState mode_ten_render_state;
+    GameMenuState mode_ten_render_state;
     mode_ten_render_state.interaction_mode = 11U;
     mode_ten_render_state.record_head = &render_row_one;
     mode_ten_render_state.outer_row_count = 3;
     mode_ten_render_state.selected_outer_row = 1U;
     mode_ten_render_state.selected_column = 1U;
-    GroupOneRenderPorts mode_ten_render_ports;
+    GameMenuPageRenderPorts mode_ten_render_ports;
     const auto mode_ten_rendered =
-        openswd3::special_modes::render_legacy_standard_mode_group_one(
+        openswd3::special_modes::render_legacy_game_menu_page(
             mode_ten_render_state,
-            group_one_render_runtime,
-            group_one_render_commit_runtime,
+            game_menu_page_render_runtime,
+            game_menu_page_render_commit_runtime,
             mode_ten_render_ports
         );
     test.expect_true(
         mode_three_rendered.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupOneRenderStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuPageRenderStatus::
+                    completed &&
             mode_three_render_state.selected_column == 182U &&
             std::count_if(
                 mode_three_render_ports.requests.begin(),
@@ -21386,94 +21234,93 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 [](const auto& request) {
                     return request.operation ==
                         openswd3::special_modes::
-                            LegacyStandardModeGroupOneRenderOperation::
+                            LegacyGameMenuPageRenderOperation::
                                 draw_mode_three_slot;
                 }
             ) == 3 &&
             mode_ten_rendered.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupOneRenderStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuPageRenderStatus::
+                    completed &&
             mode_ten_render_ports.loaded_rows ==
                 std::vector<u32>{0x47U, 0x48U, 0x49U},
         "0x447100 renders mode3 slots and mode10/11 resource rows"
     );
 
-    GroupEightState mode_fifteen_render_state;
+    GameMenuState mode_fifteen_render_state;
     mode_fifteen_render_state.interaction_mode = 15U;
     mode_fifteen_render_state.record_head = &render_row_one;
     mode_fifteen_render_state.secondary_row_count = 2;
     mode_fifteen_render_state.special_control_count = 3;
     mode_fifteen_render_state.transition_flags = 0x2200U;
-    openswd3::special_modes::
-        LegacyStandardModeGroupEightInteractionCommitRuntime
-            mode_fifteen_render_runtime;
+    openswd3::special_modes::LegacyGameMenuInteractionCommitRuntime
+        mode_fifteen_render_runtime;
     mode_fifteen_render_runtime.filtered_records.records.resize(2U);
     mode_fifteen_render_runtime.filtered_records.records[0U].text[0U] = 'A';
     mode_fifteen_render_runtime.filtered_records.records[0U].text_length = 1U;
     mode_fifteen_render_runtime.filtered_records.records[1U].text[0U] = 'B';
     mode_fifteen_render_runtime.filtered_records.records[1U].text_length = 1U;
-    GroupOneRenderPorts mode_fifteen_render_ports;
+    GameMenuPageRenderPorts mode_fifteen_render_ports;
     const auto mode_fifteen_rendered =
-        openswd3::special_modes::render_legacy_standard_mode_group_one(
+        openswd3::special_modes::render_legacy_game_menu_page(
             mode_fifteen_render_state,
-            group_one_render_runtime,
+            game_menu_page_render_runtime,
             mode_fifteen_render_runtime,
             mode_fifteen_render_ports
         );
-    GroupEightState terminal_render_state;
+    GameMenuState terminal_render_state;
     terminal_render_state.interaction_mode = 17U;
     terminal_render_state.record_head = &render_row_one;
-    GroupOneRenderPorts terminal_render_ports;
+    GameMenuPageRenderPorts terminal_render_ports;
     const auto terminal_rendered =
-        openswd3::special_modes::render_legacy_standard_mode_group_one(
+        openswd3::special_modes::render_legacy_game_menu_page(
             terminal_render_state,
-            group_one_render_runtime,
-            group_one_render_commit_runtime,
+            game_menu_page_render_runtime,
+            game_menu_page_render_commit_runtime,
             terminal_render_ports
         );
     test.expect_true(
         mode_fifteen_rendered.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupOneRenderStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuPageRenderStatus::
+                    completed &&
             mode_fifteen_render_state.transition_flags == 0x1100U &&
             terminal_rendered.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupOneRenderStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuPageRenderStatus::
+                    completed &&
             terminal_render_ports.requested_terminal_modes ==
                 std::vector<u16>{17U},
         "0x447100 renders filtered rows, high-nibble scrolling and terminal text"
     );
 
-    GroupEightState high_group_one_render_state;
-    high_group_one_render_state.interaction_mode = 500U;
-    LegacyStandardModeRuntimeInitializationState high_group_one_render_runtime;
-    GroupOneRenderPorts high_group_one_render_ports;
-    const auto high_group_one_rendered =
-        openswd3::special_modes::render_legacy_standard_mode_group_one(
-            high_group_one_render_state,
-            high_group_one_render_runtime,
-            group_one_render_commit_runtime,
-            high_group_one_render_ports
+    GameMenuState high_game_menu_page_render_state;
+    high_game_menu_page_render_state.interaction_mode = 500U;
+    LegacyStandardModeRuntimeInitializationState
+        high_game_menu_page_render_runtime;
+    GameMenuPageRenderPorts high_game_menu_page_render_ports;
+    const auto high_game_menu_page_rendered =
+        openswd3::special_modes::render_legacy_game_menu_page(
+            high_game_menu_page_render_state,
+            high_game_menu_page_render_runtime,
+            game_menu_page_render_commit_runtime,
+            high_game_menu_page_render_ports
         );
     test.expect_true(
-        high_group_one_rendered.helper_call_count == 1U &&
-            high_group_one_render_ports.colors.size() >= 4U &&
-            high_group_one_render_ports.requests.empty(),
+        high_game_menu_page_rendered.helper_call_count == 1U &&
+            high_game_menu_page_render_ports.colors.size() >= 4U &&
+            high_game_menu_page_render_ports.requests.empty(),
         "0x447100 delegates high modes directly to the closed C820 renderer"
     );
 
-    GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
+    GameMenuState group_state{.selection = 4U, .lifecycle = 2U};
     group_state.callback_state.initialization_callbacks.fill(0x00445430U);
-    GroupEightInputPorts group_ports;
+    GameMenuInputPorts group_ports;
     group_ports.flag_results = {0, 2};
     const auto group_selected =
-        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
-            group_state, GroupEightInput{476U, 20U, 1U}, group_ports
+        openswd3::special_modes::handle_legacy_game_menu_input(
+            group_state, GameMenuInput{476U, 20U, 1U}, group_ports
         );
     test.expect_true(
         group_selected.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInputStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuInputStatus::completed &&
             group_selected.legacy_return_value == 88 &&
             group_selected.story_flag_query_count == 4U &&
             group_selected.helper_call_count == 3U &&
@@ -21493,19 +21340,19 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 
     group_state = {.selection = 15U, .lifecycle = 2U};
-    GroupEightInputPorts special_block_ports;
+    GameMenuInputPorts special_block_ports;
     special_block_ports.flag_results = {1, 1};
     const auto special_blocked =
-        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
-            group_state, GroupEightInput{409U, 20U, 1U}, special_block_ports
+        openswd3::special_modes::handle_legacy_game_menu_input(
+            group_state, GameMenuInput{409U, 20U, 1U}, special_block_ports
         );
     group_state = {.selection = 15U, .lifecycle = 1U};
     group_state.callback_state.initialization_callbacks.fill(0x00445430U);
-    GroupEightInputPorts special_commit_ports;
+    GameMenuInputPorts special_commit_ports;
     special_commit_ports.flag_results = {1, 1};
     const auto special_committed =
-        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
-            group_state, GroupEightInput{409U, 20U, 1U}, special_commit_ports
+        openswd3::special_modes::handle_legacy_game_menu_input(
+            group_state, GameMenuInput{409U, 20U, 1U}, special_commit_ports
         );
     test.expect_true(
         special_blocked.legacy_return_value == 15 &&
@@ -21522,19 +21369,18 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 
     group_state = {.lifecycle = 1U, .tagged_mode_value = 9U};
-    GroupEightInputPorts fallback_ports;
+    GameMenuInputPorts fallback_ports;
     fallback_ports.flag_results = {0};
     const auto fallback =
-        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
-            group_state, GroupEightInput{476U, 5U, 0x0CU}, fallback_ports
+        openswd3::special_modes::handle_legacy_game_menu_input(
+            group_state, GameMenuInput{476U, 5U, 0x0CU}, fallback_ports
         );
-    GroupEightState outer_state;
-    GroupEightInputPorts outer_ports;
+    GameMenuState outer_state;
+    GameMenuInputPorts outer_ports;
     outer_ports.flag_results = {-3};
-    const auto outer =
-        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
-            outer_state, GroupEightInput{220U, 99U, 0x0CU}, outer_ports
-        );
+    const auto outer = openswd3::special_modes::handle_legacy_game_menu_input(
+        outer_state, GameMenuInput{220U, 99U, 0x0CU}, outer_ports
+    );
     test.expect_true(
         fallback.legacy_return_value == 0 && fallback.helper_call_count == 1U &&
             group_state.fallback_constant == 12U &&
@@ -21546,18 +21392,17 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
 
     group_state = {.selection = 6U, .lifecycle = 2U};
-    GroupEightInputPorts callback_stop_ports;
+    GameMenuInputPorts callback_stop_ports;
     callback_stop_ports.flag_results = {0, 0};
     callback_stop_ports.callback_available = false;
     const auto callback_stopped =
-        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
-            group_state, GroupEightInput{476U, 20U, 1U}, callback_stop_ports
+        openswd3::special_modes::handle_legacy_game_menu_input(
+            group_state, GameMenuInput{476U, 20U, 1U}, callback_stop_ports
         );
     test.expect_true(
         callback_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightInputStatus::
-                        selection_callback_missing &&
+                openswd3::special_modes::LegacyGameMenuInputStatus::
+                    selection_callback_missing &&
             callback_stopped.legacy_return_value == 6 &&
             callback_stopped.helper_call_count == 1U &&
             !callback_stopped.selection_rewritten &&
@@ -21565,11 +21410,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x4450E0 typed-stops at the dynamic callback table after both flag queries"
     );
 
-    GroupEightState retreat_state{.selection = 11U, .sample_owner = 0xC0U};
-    GroupEightInputPorts retreat_ports;
+    GameMenuState retreat_state{.selection = 11U, .sample_owner = 0xC0U};
+    GameMenuInputPorts retreat_ports;
     retreat_ports.flag_results = {0};
-    const auto retreated = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_selection(
+    const auto retreated =
+        openswd3::special_modes::retreat_legacy_game_menu_selection(
             retreat_state, retreat_ports
         );
     test.expect_true(
@@ -21585,25 +21430,25 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x445210 decrements, clamps to11, publishes both coordinates and confirms"
     );
 
-    GroupEightState swap_first_state{.selection = 16U};
-    GroupEightInputPorts swap_first_ports;
+    GameMenuState swap_first_state{.selection = 16U};
+    GameMenuInputPorts swap_first_ports;
     swap_first_ports.flag_results = {1};
-    const auto swap_first = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_selection(
+    const auto swap_first =
+        openswd3::special_modes::retreat_legacy_game_menu_selection(
             swap_first_state, swap_first_ports
         );
-    GroupEightState swap_second_state{.selection = 17U};
-    GroupEightInputPorts swap_second_ports;
+    GameMenuState swap_second_state{.selection = 17U};
+    GameMenuInputPorts swap_second_ports;
     swap_second_ports.flag_results = {1};
-    const auto swap_second = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_selection(
+    const auto swap_second =
+        openswd3::special_modes::retreat_legacy_game_menu_selection(
             swap_second_state, swap_second_ports
         );
-    GroupEightState exact_flag_state{.selection = 16U};
-    GroupEightInputPorts exact_flag_ports;
+    GameMenuState exact_flag_state{.selection = 16U};
+    GameMenuInputPorts exact_flag_ports;
     exact_flag_ports.flag_results = {2};
-    const auto exact_flag = openswd3::special_modes::
-        retreat_legacy_standard_mode_group_eight_selection(
+    const auto exact_flag =
+        openswd3::special_modes::retreat_legacy_game_menu_selection(
             exact_flag_state, exact_flag_ports
         );
     test.expect_true(
@@ -21616,20 +21461,20 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x445210 swaps only visual indices56/57 and only when flag49 equals one"
     );
 
-    GroupEightState advance_default_state{
+    GameMenuState advance_default_state{
         .selection = 15U, .sample_owner = 0xD0U
     };
-    GroupEightInputPorts advance_default_ports;
+    GameMenuInputPorts advance_default_ports;
     advance_default_ports.flag_results = {0, 0};
-    const auto advanced_default = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_selection(
+    const auto advanced_default =
+        openswd3::special_modes::advance_legacy_game_menu_selection(
             advance_default_state, advance_default_ports
         );
-    GroupEightState advance_flag_state{.selection = 15U};
-    GroupEightInputPorts advance_flag_ports;
+    GameMenuState advance_flag_state{.selection = 15U};
+    GameMenuInputPorts advance_flag_ports;
     advance_flag_ports.flag_results = {1, 1};
-    const auto advanced_flag = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_selection(
+    const auto advanced_flag =
+        openswd3::special_modes::advance_legacy_game_menu_selection(
             advance_flag_state, advance_flag_ports
         );
     test.expect_true(
@@ -21649,18 +21494,18 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x4452B0 uses upper15 normally, upper16 only for flag1, then confirms"
     );
 
-    GroupEightState advance_exact_state{.selection = 14U};
-    GroupEightInputPorts advance_exact_ports;
+    GameMenuState advance_exact_state{.selection = 14U};
+    GameMenuInputPorts advance_exact_ports;
     advance_exact_ports.flag_results = {2, 1};
-    const auto advanced_exact = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_selection(
+    const auto advanced_exact =
+        openswd3::special_modes::advance_legacy_game_menu_selection(
             advance_exact_state, advance_exact_ports
         );
-    GroupEightState advance_wrap_state{.selection = 0xFFFFU};
-    GroupEightInputPorts advance_wrap_ports;
+    GameMenuState advance_wrap_state{.selection = 0xFFFFU};
+    GameMenuInputPorts advance_wrap_ports;
     advance_wrap_ports.flag_results = {1, 0};
-    const auto advanced_wrap = openswd3::special_modes::
-        advance_legacy_standard_mode_group_eight_selection(
+    const auto advanced_wrap =
+        openswd3::special_modes::advance_legacy_game_menu_selection(
             advance_wrap_state, advance_wrap_ports
         );
     test.expect_true(
@@ -21673,20 +21518,20 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x4452B0 keeps exact flag comparisons and u16 increment wrap behavior"
     );
 
-    GroupEightState commit_state{
+    GameMenuState commit_state{
         .selection = 15U, .selection_x = 54U, .sample_owner = 0xE0U
     };
     commit_state.callback_state.initialization_callbacks[4U] = 0x0044AF30U;
-    GroupEightInputPorts commit_ports;
+    GameMenuInputPorts commit_ports;
     commit_ports.flag_results = {1, 0};
-    const auto committed = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_selection(
+    const auto committed =
+        openswd3::special_modes::commit_legacy_game_menu_selection(
             commit_state, commit_ports
         );
     test.expect_true(
         committed.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightCommitStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuCommitStatus::
+                    completed &&
             committed.legacy_return_value == 88 &&
             committed.story_flag_query_count == 2U &&
             committed.helper_call_count == 3U &&
@@ -21701,22 +21546,22 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x445360 sets lifecycle2, rebinds from coordinate54, initializes and confirms"
     );
 
-    GroupEightState terminal_commit_state{
+    GameMenuState terminal_commit_state{
         .selection = 17U,
         .selection_x = 66U,
         .visual_index = 9U,
     };
     terminal_commit_state.callback_state.initialization_callbacks[6U] =
         0x0043C0D0U;
-    GroupEightInputPorts terminal_commit_ports;
-    const auto terminal_committed = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_selection(
+    GameMenuInputPorts terminal_commit_ports;
+    const auto terminal_committed =
+        openswd3::special_modes::commit_legacy_game_menu_selection(
             terminal_commit_state, terminal_commit_ports
         );
     test.expect_true(
         terminal_committed.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightCommitStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuCommitStatus::
+                    completed &&
             terminal_committed.story_flag_query_count == 0U &&
             terminal_commit_state.visual_index == 9U &&
             terminal_commit_state.callback_state.targets[1U] == 0x0043C3C0U &&
@@ -21724,42 +21569,39 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x445360 selection17 preserves visual state while using group7 callbacks"
     );
 
-    GroupEightState commit_range_state{.selection = 10U};
-    GroupEightInputPorts commit_range_ports;
-    const auto commit_range_stopped = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_selection(
+    GameMenuState commit_range_state{.selection = 10U};
+    GameMenuInputPorts commit_range_ports;
+    const auto commit_range_stopped =
+        openswd3::special_modes::commit_legacy_game_menu_selection(
             commit_range_state, commit_range_ports
         );
-    GroupEightState commit_missing_state{.selection = 11U, .selection_x = 30U};
-    GroupEightInputPorts commit_missing_ports;
-    const auto commit_missing = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_selection(
+    GameMenuState commit_missing_state{.selection = 11U, .selection_x = 30U};
+    GameMenuInputPorts commit_missing_ports;
+    const auto commit_missing =
+        openswd3::special_modes::commit_legacy_game_menu_selection(
             commit_missing_state, commit_missing_ports
         );
     commit_missing_state.callback_state.initialization_callbacks[0U] =
         0x00445430U;
-    GroupEightInputPorts commit_callback_stop_ports;
+    GameMenuInputPorts commit_callback_stop_ports;
     commit_callback_stop_ports.initialization_callback_available = false;
-    const auto commit_callback_stopped = openswd3::special_modes::
-        commit_legacy_standard_mode_group_eight_selection(
+    const auto commit_callback_stopped =
+        openswd3::special_modes::commit_legacy_game_menu_selection(
             commit_missing_state, commit_callback_stop_ports
         );
     test.expect_true(
         commit_range_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightCommitStatus::
-                        selection_out_of_range &&
+                openswd3::special_modes::LegacyGameMenuCommitStatus::
+                    selection_out_of_range &&
             commit_range_stopped.helper_call_count == 1U &&
             commit_range_state.lifecycle == 2U &&
             commit_missing.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightCommitStatus::
-                        initialization_callback_missing &&
+                openswd3::special_modes::LegacyGameMenuCommitStatus::
+                    initialization_callback_missing &&
             commit_missing.helper_call_count == 1U &&
             commit_callback_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightCommitStatus::
-                        initialization_callback_missing &&
+                openswd3::special_modes::LegacyGameMenuCommitStatus::
+                    initialization_callback_missing &&
             commit_callback_stopped.helper_call_count == 2U &&
             commit_callback_stop_ports.sample_commands.empty(),
         "0x445360 typed-stops at the indexed initialization table after rebind"
@@ -21767,87 +21609,81 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
     LegacyStandardModeForwardNode draw_record;
     draw_record.text_index = 0xFFDCU;
-    GroupEightState draw_state{.selection = 11U};
+    GameMenuState draw_state{.selection = 11U};
     draw_state.callback_state.draw_callbacks[0U] = 0x00447100U;
     draw_state.record_head = &draw_record;
-    GroupEightDrawPorts draw_ports;
-    const auto drawn = openswd3::special_modes::
-        draw_legacy_standard_mode_group_eight_selection(draw_state, draw_ports);
-    GroupEightState draw_range_state{.selection = 10U};
-    GroupEightDrawPorts draw_range_ports;
-    const auto draw_range_stopped = openswd3::special_modes::
-        draw_legacy_standard_mode_group_eight_selection(
+    GameMenuDrawPorts draw_ports;
+    const auto drawn = openswd3::special_modes::draw_legacy_game_menu_selection(
+        draw_state, draw_ports
+    );
+    GameMenuState draw_range_state{.selection = 10U};
+    GameMenuDrawPorts draw_range_ports;
+    const auto draw_range_stopped =
+        openswd3::special_modes::draw_legacy_game_menu_selection(
             draw_range_state, draw_range_ports
         );
-    GroupEightState draw_missing_state{.selection = 17U};
-    GroupEightDrawPorts draw_missing_ports;
-    const auto draw_missing = openswd3::special_modes::
-        draw_legacy_standard_mode_group_eight_selection(
+    GameMenuState draw_missing_state{.selection = 17U};
+    GameMenuDrawPorts draw_missing_ports;
+    const auto draw_missing =
+        openswd3::special_modes::draw_legacy_game_menu_selection(
             draw_missing_state, draw_missing_ports
         );
     draw_missing_state.callback_state.draw_callbacks[6U] = 0x0043C820U;
-    GroupEightDrawPorts draw_callback_stop_ports;
+    GameMenuDrawPorts draw_callback_stop_ports;
     draw_callback_stop_ports.available = false;
-    const auto draw_callback_stopped = openswd3::special_modes::
-        draw_legacy_standard_mode_group_eight_selection(
+    const auto draw_callback_stopped =
+        openswd3::special_modes::draw_legacy_game_menu_selection(
             draw_missing_state, draw_callback_stop_ports
         );
     test.expect_true(
         drawn.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightDrawStatus::completed &&
+                openswd3::special_modes::LegacyGameMenuDrawStatus::completed &&
             drawn.legacy_return_value == 0 && drawn.helper_call_count == 1U &&
             draw_ports.calls.empty() &&
             !draw_ports.render_ports.requests.empty() &&
             draw_range_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightDrawStatus::
-                        selection_out_of_range &&
+                openswd3::special_modes::LegacyGameMenuDrawStatus::
+                    selection_out_of_range &&
             draw_range_stopped.legacy_return_value == 10 &&
             draw_range_ports.calls.empty() &&
             draw_missing.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightDrawStatus::
-                        draw_callback_missing &&
+                openswd3::special_modes::LegacyGameMenuDrawStatus::
+                    draw_callback_missing &&
             draw_missing.helper_call_count == 0U &&
             draw_callback_stopped.status ==
-                openswd3::special_modes::
-                    LegacyStandardModeGroupEightDrawStatus::
-                        draw_callback_missing &&
+                openswd3::special_modes::LegacyGameMenuDrawStatus::
+                    draw_callback_missing &&
             draw_callback_stopped.helper_call_count == 1U,
         "0x445420 tail-dispatches selections11..17 and stops at the exact table read"
     );
 
-    GroupEightState exit_zero_state{
+    GameMenuState exit_zero_state{
         .lifecycle = 1U,
         .selection_x = 30U,
         .tagged_mode_value = 9U,
     };
-    GroupEightInputPorts exit_zero_ports;
-    const auto exited_zero =
-        openswd3::special_modes::exit_legacy_standard_mode_group_eight(
-            exit_zero_state, exit_zero_ports
-        );
-    GroupEightState exit_g08_state{
+    GameMenuInputPorts exit_zero_ports;
+    const auto exited_zero = openswd3::special_modes::exit_legacy_game_menu(
+        exit_zero_state, exit_zero_ports
+    );
+    GameMenuState exit_g08_state{
         .lifecycle = 2U,
         .selection_x = 30U,
         .tagged_mode_value = 9U,
     };
-    GroupEightInputPorts exit_g08_ports;
+    GameMenuInputPorts exit_g08_ports;
     exit_g08_ports.flag_results = {-7};
-    const auto exited_g08 =
-        openswd3::special_modes::exit_legacy_standard_mode_group_eight(
-            exit_g08_state, exit_g08_ports
-        );
-    GroupEightState exit_wrap_state{
+    const auto exited_g08 = openswd3::special_modes::exit_legacy_game_menu(
+        exit_g08_state, exit_g08_ports
+    );
+    GameMenuState exit_wrap_state{
         .lifecycle = 0U,
         .tagged_mode_value = 9U,
     };
-    GroupEightInputPorts exit_wrap_ports;
-    const auto exited_wrap =
-        openswd3::special_modes::exit_legacy_standard_mode_group_eight(
-            exit_wrap_state, exit_wrap_ports
-        );
+    GameMenuInputPorts exit_wrap_ports;
+    const auto exited_wrap = openswd3::special_modes::exit_legacy_game_menu(
+        exit_wrap_state, exit_wrap_ports
+    );
     test.expect_true(
         exited_zero.legacy_return_value == 0 &&
             exited_zero.helper_call_count == 1U &&
@@ -22043,7 +21879,7 @@ void test_standard_mode_bar_rendering(openswd3::test::Context& test) {
 }
 
 void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
-    LegacyStandardModeTransitionState state;
+    LegacyGameMenuEntryAnimationState state;
     state.stages = {14U, 1U, 2U, 3U};
     state.metrics[0U].level_base = 7;
     state.metrics[0U].values = {10, 20, 30, 5, 10, 15};
@@ -22059,7 +21895,7 @@ void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
     items[0U].anchor_y = 150U;
     std::array<LegacyActionRecord, 18U> actions{};
     FakeStandardModeTransitionPorts ports{actions};
-    const auto result = render_legacy_standard_mode_transition(
+    const auto result = render_legacy_game_menu_entry_animation(
         state, 20U, 0U, 2U, items, actions, ports
     );
     test.expect_true(
@@ -22085,8 +21921,8 @@ void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
             ports.text_requests ==
                 std::vector<TransitionTextRequest>{
                     TransitionTextRequest{
-                        .owner = LegacyStandardModeTransitionTextOwner::primary,
-                        .text = LegacyStandardModeTransitionText::label,
+                        .owner = LegacyGameMenuEntryTextOwner::primary,
+                        .text = LegacyGameMenuEntryText::label,
                         .x = 92,
                         .y = 56,
                         .first_value = 0,
@@ -22095,8 +21931,8 @@ void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
                         .style = 4U,
                     },
                     TransitionTextRequest{
-                        .owner = LegacyStandardModeTransitionTextOwner::primary,
-                        .text = LegacyStandardModeTransitionText::level,
+                        .owner = LegacyGameMenuEntryTextOwner::primary,
+                        .text = LegacyGameMenuEntryText::level,
                         .x = 72,
                         .y = 74,
                         .first_value = 2,
@@ -22105,9 +21941,8 @@ void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
                         .style = 4U,
                     },
                     TransitionTextRequest{
-                        .owner =
-                            LegacyStandardModeTransitionTextOwner::secondary,
-                        .text = LegacyStandardModeTransitionText::first_pair,
+                        .owner = LegacyGameMenuEntryTextOwner::secondary,
+                        .text = LegacyGameMenuEntryText::first_pair,
                         .x = 88,
                         .y = 98,
                         .first_value = 10,
@@ -22116,9 +21951,8 @@ void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
                         .style = 4U,
                     },
                     TransitionTextRequest{
-                        .owner =
-                            LegacyStandardModeTransitionTextOwner::secondary,
-                        .text = LegacyStandardModeTransitionText::second_pair,
+                        .owner = LegacyGameMenuEntryTextOwner::secondary,
+                        .text = LegacyGameMenuEntryText::second_pair,
                         .x = 88,
                         .y = 120,
                         .first_value = 20,
@@ -22127,9 +21961,8 @@ void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
                         .style = 4U,
                     },
                     TransitionTextRequest{
-                        .owner =
-                            LegacyStandardModeTransitionTextOwner::secondary,
-                        .text = LegacyStandardModeTransitionText::third_pair,
+                        .owner = LegacyGameMenuEntryTextOwner::secondary,
+                        .text = LegacyGameMenuEntryText::third_pair,
                         .x = 88,
                         .y = 142,
                         .first_value = 30,
@@ -22147,7 +21980,7 @@ void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
         "0x43AAA0 preserves four ghost draws, three ratio lines, five text " "blocks, the full-width line and marked action order for one item"
     );
 
-    LegacyStandardModeTransitionState zero_state;
+    LegacyGameMenuEntryAnimationState zero_state;
     std::array<openswd3::special_modes::LegacyStandardModeItemRecord, 5U>
         zero_items{};
     for (auto& item : zero_items) {
@@ -22156,7 +21989,7 @@ void test_standard_mode_transition_rendering(openswd3::test::Context& test) {
     zero_items[0U].source_index = 0U;
     std::array<LegacyActionRecord, 18U> zero_actions{};
     FakeStandardModeTransitionPorts zero_ports{zero_actions};
-    const auto zero_result = render_legacy_standard_mode_transition(
+    const auto zero_result = render_legacy_game_menu_entry_animation(
         zero_state, 0U, 5U, 2U, zero_items, zero_actions, zero_ports
     );
     test.expect_true(

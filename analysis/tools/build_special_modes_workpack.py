@@ -19,119 +19,119 @@ CLOSURES = {
     ),
     "0x0044B6E0": (
         "platform_adapted",
-        "evidence/special-mode-catalog-selection-retreat-0044b6e0.md",
+        "evidence/system-menu-left-arrow-0044b6e0.md",
     ),
     "0x0044B560": (
         "platform_adapted",
-        "evidence/special-mode-catalog-selection-advance-0044b560.md",
+        "evidence/system-menu-right-arrow-0044b560.md",
     ),
     "0x0044B070": (
         "platform_adapted",
-        "evidence/special-mode-catalog-input-dispatch-0044b070.md",
+        "evidence/system-menu-input-0044b070.md",
     ),
     "0x0044B010": (
         "platform_adapted",
-        "evidence/special-mode-catalog-release-message-0044b010.md",
+        "evidence/system-menu-add-item-list-close-0044b010.md",
     ),
     "0x0044AF30": (
         "platform_adapted",
-        "evidence/special-mode-catalog-initialization-0044af30.md",
+        "evidence/system-menu-add-item-list-open-0044af30.md",
     ),
     "0x0044AE70": (
         "platform_adapted",
-        "evidence/special-mode-transition-pair-overlay-value-0044ae70.md",
+        "evidence/character-attributes-difference-color-0044ae70.md",
     ),
     "0x0044AB00": (
         "platform_adapted",
-        "evidence/special-mode-transition-pair-rebuild-0044ab00.md",
+        "evidence/character-attributes-recalculate-0044ab00.md",
     ),
     "0x0044A280": (
         "platform_adapted",
-        "evidence/special-mode-transition-pair-render-0044a280.md",
+        "evidence/character-attributes-render-0044a280.md",
     ),
     "0x0044A250": (
         "platform_adapted",
-        "evidence/special-mode-transition-pair-commit-0044a250.md",
+        "evidence/character-attributes-close-0044a250.md",
     ),
     "0x0044A1D0": (
         "platform_adapted",
-        "evidence/special-mode-transition-pair-explicit-wrap-retreat-0044a1d0.md",
+        "evidence/character-attributes-left-wrap-0044a1d0.md",
     ),
     "0x0044A160": (
         "platform_adapted",
-        "evidence/special-mode-transition-pair-mode-retreat-0044a160.md",
+        "evidence/character-attributes-previous-member-0044a160.md",
     ),
     "0x0044A0D0": (
         "platform_adapted",
-        "evidence/special-mode-transition-pair-mode-advance-0044a0d0.md",
+        "evidence/character-attributes-next-member-0044a0d0.md",
     ),
     "0x0044A050": (
         "platform_adapted",
-        "evidence/special-mode-transition-pair-input-0044a050.md",
+        "evidence/character-attributes-input-0044a050.md",
     ),
     "0x0044A030": (
         "platform_adapted",
-        "evidence/special-mode-transition-pair-release-0044a030.md",
+        "evidence/character-attributes-close-records-0044a030.md",
     ),
     "0x00449FF0": (
         "platform_adapted",
-        "evidence/special-mode-transition-pair-initialization-00449ff0.md",
+        "evidence/character-attributes-open-00449ff0.md",
     ),
     "0x00449D80": (
         "assembly_exact",
-        "evidence/special-mode-transition-settings-profile-00449d80.md",
+        "evidence/game-settings-character-profile-00449d80.md",
     ),
     "0x00449C30": (
         "platform_adapted",
-        "evidence/special-mode-transition-panel-alpha-00449c30.md",
+        "evidence/title-menu-sliding-panels-00449c30.md",
     ),
     "0x004490C0": (
         "platform_adapted",
-        "evidence/special-mode-transition-frame-004490c0.md",
+        "evidence/title-menu-frame-render-004490c0.md",
     ),
     "0x00449050": (
         "platform_adapted",
-        "evidence/special-mode-transition-settings-commit-00449050.md",
+        "evidence/game-settings-save-00449050.md",
     ),
     "0x00448EE0": (
         "platform_adapted",
-        "evidence/special-mode-transition-confirmation-00448ee0.md",
+        "evidence/title-menu-confirm-00448ee0.md",
     ),
     "0x00448EB0": (
         "assembly_exact",
-        "evidence/special-mode-transition-mode-one-selection-advance-00448eb0.md",
+        "evidence/load-progress-next-item-00448eb0.md",
     ),
     "0x00448DA0": (
         "platform_adapted",
-        "evidence/special-mode-transition-setting-advance-00448da0.md",
+        "evidence/game-settings-increase-00448da0.md",
     ),
     "0x00448CA0": (
         "platform_adapted",
-        "evidence/special-mode-transition-setting-retreat-00448ca0.md",
+        "evidence/game-settings-decrease-00448ca0.md",
     ),
     "0x00448C70": (
         "assembly_exact",
-        "evidence/special-mode-transition-selection-first-00448c70.md",
+        "evidence/title-menu-first-item-00448c70.md",
     ),
     "0x00448C40": (
         "assembly_exact",
-        "evidence/special-mode-transition-selection-last-00448c40.md",
+        "evidence/title-menu-last-item-00448c40.md",
     ),
     "0x00448C00": (
         "assembly_exact",
-        "evidence/special-mode-transition-selection-retreat-00448c00.md",
+        "evidence/title-menu-previous-item-00448c00.md",
     ),
     "0x00448BB0": (
         "assembly_exact",
-        "evidence/special-mode-transition-selection-advance-00448bb0.md",
+        "evidence/title-menu-next-item-00448bb0.md",
     ),
     "0x00448840": (
         "platform_adapted",
-        "evidence/special-mode-transition-interaction-00448840.md",
+        "evidence/title-menu-input-00448840.md",
     ),
     "0x00448700": (
         "platform_adapted",
-        "evidence/special-mode-transition-visual-initialization-00448700.md",
+        "evidence/title-menu-animation-open-00448700.md",
     ),
     "0x00448650": (
         "platform_adapted",
@@ -159,7 +159,7 @@ CLOSURES = {
     ),
     "0x00447100": (
         "platform_adapted",
-        "evidence/special-mode-group-one-render-00447100.md",
+        "evidence/game-menu-current-page-render-00447100.md",
     ),
     "0x00446FE0": (
         "platform_adapted",
@@ -179,63 +179,63 @@ CLOSURES = {
     ),
     "0x00446550": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-mode-advance-00446550.md",
+        "evidence/game-menu-next-category-00446550.md",
     ),
     "0x00446420": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-mode-retreat-00446420.md",
+        "evidence/game-menu-previous-category-00446420.md",
     ),
     "0x00446260": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-page-retreat-00446260.md",
+        "evidence/game-menu-previous-page-00446260.md",
     ),
     "0x00446090": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-page-advance-00446090.md",
+        "evidence/game-menu-next-page-00446090.md",
     ),
     "0x00445E90": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-retreat-control-00445e90.md",
+        "evidence/game-menu-up-control-00445e90.md",
     ),
     "0x00445C90": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-advance-control-00445c90.md",
+        "evidence/game-menu-down-control-00445c90.md",
     ),
     "0x004455E0": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-main-input-004455e0.md",
+        "evidence/game-menu-page-input-004455e0.md",
     ),
     "0x004455A0": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-shared-cleanup-004455a0.md",
+        "evidence/game-menu-list-close-004455a0.md",
     ),
     "0x00445430": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-first-selection-initialization-00445430.md",
+        "evidence/game-menu-first-list-open-00445430.md",
     ),
     "0x00445420": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-draw-dispatch-00445420.md",
+        "evidence/game-menu-page-draw-00445420.md",
     ),
     "0x004453F0": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-exit-004453f0.md",
+        "evidence/game-menu-close-004453f0.md",
     ),
     "0x00445360": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-selection-commit-00445360.md",
+        "evidence/game-menu-confirm-selection-00445360.md",
     ),
     "0x004452B0": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-selection-advance-004452b0.md",
+        "evidence/game-menu-next-item-004452b0.md",
     ),
     "0x00445210": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-selection-retreat-00445210.md",
+        "evidence/game-menu-previous-item-00445210.md",
     ),
     "0x004450E0": (
         "platform_adapted",
-        "evidence/special-mode-group-eight-input-004450e0.md",
+        "evidence/game-menu-input-004450e0.md",
     ),
     "0x00444FC0": (
         "assembly_exact",
@@ -671,7 +671,7 @@ CLOSURES = {
     ),
     "0x0043AAA0": (
         "platform_adapted",
-        "evidence/special-mode-transition-blocks-0043aaa0.md",
+        "evidence/game-menu-four-entry-animation-0043aaa0.md",
     ),
     "0x0043A880": (
         "platform_adapted",

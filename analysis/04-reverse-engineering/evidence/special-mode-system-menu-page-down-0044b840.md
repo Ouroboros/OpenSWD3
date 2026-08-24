@@ -15,4 +15,4 @@
 
 44B070的下一页按钮已删除未说明职责的回调并直接调用本typed helper；mode 1/page 2继续通过44B560重建下一页。UT覆盖页签4、列表翻页、page 4固定行2、detail负残值、mode 5固定项15、完整sample owner及caller直连。
 
-workpack双生成稳定为`172/227`，SHA256均为`5be3e6df4aef19a64c6283115e9a1795bdf451b87a66894ada7ff4d5acc82f5b`；下一单元`0x0044B930`。Linux完整门结果见最终验证；按阶段门禁不运行Windows BUILD。
+workpack双生成稳定为`172/227`，SHA256均为`032e5ba05d2157456072fdbf9fe76bade9093b104d6910f5e7cef535e31cdc63`；下一单元`0x0044B930`。Linux完整门结果见最终验证；按阶段门禁不运行Windows BUILD。

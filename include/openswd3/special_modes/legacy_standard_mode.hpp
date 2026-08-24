@@ -117,7 +117,7 @@ public:
 inline constexpr std::size_t kLegacyStandardModeTransitionSnapshotSize =
     0x96000U;
 
-struct LegacyStandardModeTransitionPanelRecord {
+struct LegacyTitleMenuSlidingPanelRecord {
     compat::u32 action_id{};
     compat::u32 secondary_id{};
     compat::i32 origin_x{};
@@ -127,20 +127,20 @@ struct LegacyStandardModeTransitionPanelRecord {
     compat::u16 surface_index{};
 };
 
-struct LegacyStandardModeTransitionPanelSurface {
+struct LegacyTitleMenuSlidingPanelSurface {
     compat::u32 token{};
     compat::u16 width{};
     compat::u16 height{};
 };
 
-struct LegacyStandardModeTransitionPanelDrawState {
+struct LegacyTitleMenuSlidingPanelDrawState {
     compat::i32 alpha_red{};
     compat::i32 alpha_green{};
     compat::i32 alpha_blue{};
     compat::u32 surface_token{};
 };
 
-struct LegacyStandardModeTransitionSettingsProfileState {
+struct LegacyGameSettingsProfileState {
     std::array<compat::u16, 10U> primary_words{};
     std::array<compat::u8, 9U> primary_fill{};
     std::array<compat::u16, 9U> secondary_words{};
@@ -148,11 +148,11 @@ struct LegacyStandardModeTransitionSettingsProfileState {
     compat::u32 refresh_delay{};
 };
 
-struct LegacyStandardModeTransitionVisualState {
+struct LegacyTitleMenuState {
     compat::u16 mode{};
     std::array<compat::i32, 4U> bounds{};
-    std::array<LegacyStandardModeTransitionPanelRecord, 4U> slide_panels{};
-    LegacyStandardModeTransitionPanelDrawState panel_draw_state;
+    std::array<LegacyTitleMenuSlidingPanelRecord, 4U> slide_panels{};
+    LegacyTitleMenuSlidingPanelDrawState panel_draw_state;
     compat::u32 enabled{};
     compat::i32 velocity{};
     compat::u32 progress{};
@@ -194,10 +194,10 @@ struct LegacyStandardModeTransitionVisualState {
     compat::u32 transition_timestamp{};
     std::array<compat::u8, 0x40U> mode_one_text{};
     std::array<compat::u8, 0x10U> mode_one_secondary_text{};
-    LegacyStandardModeTransitionSettingsProfileState settings_profile;
+    LegacyGameSettingsProfileState settings_profile;
 };
 
-enum class LegacyStandardModeTransitionCommandType : compat::u8 {
+enum class LegacyTitleMenuRenderCommandType : compat::u8 {
     draw_action,
     fade_framebuffer,
     clear_framebuffer,
@@ -209,16 +209,16 @@ enum class LegacyStandardModeTransitionCommandType : compat::u8 {
     blit_snapshot,
 };
 
-struct LegacyStandardModeTransitionCommand {
-    LegacyStandardModeTransitionCommandType type{
-        LegacyStandardModeTransitionCommandType::draw_action
+struct LegacyTitleMenuRenderCommand {
+    LegacyTitleMenuRenderCommandType type{
+        LegacyTitleMenuRenderCommandType::draw_action
     };
     std::array<compat::i32, 8U> arguments{};
 };
 
-class LegacyStandardModeTransitionVisualPorts {
+class LegacyTitleMenuPorts {
 public:
-    virtual ~LegacyStandardModeTransitionVisualPorts() = default;
+    virtual ~LegacyTitleMenuPorts() = default;
     [[nodiscard]] virtual bool
     capture_framebuffer(std::span<compat::u8> destination) noexcept = 0;
     [[nodiscard]] virtual compat::i32 release_mode_one_record() noexcept = 0;
@@ -245,7 +245,7 @@ public:
     enable_settings_service(compat::u32 service_id) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     query_settings_service(compat::u32 service_id) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 format_transition_settings(
+    [[nodiscard]] virtual compat::i32 format_game_settings(
         compat::u32 sample_index,
         compat::u32 surface_index,
         compat::u32 spacing,
@@ -254,17 +254,17 @@ public:
         compat::u32 source_surface,
         compat::u32 auxiliary
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 prepare_transition_panel(
-        const LegacyStandardModeTransitionPanelRecord& record
+    [[nodiscard]] virtual compat::i32 prepare_title_menu_panel(
+        const LegacyTitleMenuSlidingPanelRecord& record
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 report_transition_panel_error(
-        const LegacyStandardModeTransitionPanelRecord& record
+    [[nodiscard]] virtual compat::i32 report_title_menu_panel_error(
+        const LegacyTitleMenuSlidingPanelRecord& record
     ) noexcept = 0;
-    [[nodiscard]] virtual LegacyStandardModeTransitionPanelSurface
-    resolve_transition_panel_surface(
+    [[nodiscard]] virtual LegacyTitleMenuSlidingPanelSurface
+    resolve_title_menu_panel_surface(
         compat::u16 surface_group, compat::u16 surface_index
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 draw_transition_panel_surface(
+    [[nodiscard]] virtual compat::i32 draw_title_menu_panel_surface(
         compat::i32 x,
         compat::i32 y,
         compat::u16 width,
@@ -272,13 +272,13 @@ public:
         compat::u32 effect,
         compat::u32 flags
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 execute_transition_command(
-        const LegacyStandardModeTransitionCommand& command
+    [[nodiscard]] virtual compat::i32 execute_title_menu_render_command(
+        const LegacyTitleMenuRenderCommand& command
     ) noexcept = 0;
     [[nodiscard]] virtual compat::u32 current_transition_time() noexcept = 0;
     virtual void release_transition_world() noexcept = 0;
-    virtual void refresh_transition_runtime() noexcept = 0;
-    virtual void present_transition_runtime() noexcept = 0;
+    virtual void refresh_title_menu_frame() noexcept = 0;
+    virtual void present_title_menu_frame() noexcept = 0;
     [[nodiscard]] virtual bool mode_one_asset_ready() noexcept = 0;
     [[nodiscard]] virtual compat::i32
     query_mode_one_overlay_choice(compat::u32 count) noexcept = 0;
@@ -295,36 +295,35 @@ public:
     settings_source_text_length(compat::u32 source_surface) noexcept = 0;
 };
 
-enum class LegacyStandardModeTransitionConfirmationStatus : compat::u8 {
+enum class LegacyTitleMenuConfirmationStatus : compat::u8 {
     completed,
     overlay_allocation_stopped,
 };
 
-enum class LegacyStandardModeTransitionConfirmationPath : compat::u8 {
+enum class LegacyTitleMenuConfirmationPath : compat::u8 {
     no_action,
     overlay_started,
     settings_opened,
     command_dispatched,
 };
 
-struct LegacyStandardModeTransitionConfirmationResult {
-    LegacyStandardModeTransitionConfirmationStatus status{
-        LegacyStandardModeTransitionConfirmationStatus::completed
+struct LegacyTitleMenuConfirmationResult {
+    LegacyTitleMenuConfirmationStatus status{
+        LegacyTitleMenuConfirmationStatus::completed
     };
-    LegacyStandardModeTransitionConfirmationPath path{
-        LegacyStandardModeTransitionConfirmationPath::no_action
+    LegacyTitleMenuConfirmationPath path{
+        LegacyTitleMenuConfirmationPath::no_action
     };
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeTransitionConfirmationResult
-confirm_legacy_standard_mode_transition(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+[[nodiscard]] LegacyTitleMenuConfirmationResult
+confirm_legacy_title_menu_selection(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept;
 
-struct LegacyStandardModeTransitionPairRecord {
+struct LegacyCharacterAttributesRecord {
     compat::u32 primary_value{};
     std::array<compat::u16, 6U> leading_values{};
     std::array<compat::u16, 4U> values{};
@@ -337,7 +336,7 @@ struct LegacyStandardModeTransitionPairRecord {
     compat::u16 trailing_36{};
 };
 
-struct LegacyStandardModeTransitionPairRenderModeRecord {
+struct LegacyCharacterAttributesRenderModeRecord {
     compat::u32 primary_value{};
     std::array<compat::u16, 6U> leading_values{};
     std::array<compat::u16, 4U> attributes{};
@@ -350,7 +349,7 @@ struct LegacyStandardModeTransitionPairRenderModeRecord {
     compat::u16 trailing_36{};
 };
 
-struct LegacyStandardModeTransitionPairContribution {
+struct LegacyCharacterAttributesContribution {
     bool available{true};
     compat::u32 owner{};
     compat::u16 lookup_key{};
@@ -358,12 +357,12 @@ struct LegacyStandardModeTransitionPairContribution {
     std::array<compat::i8, 9U> modifiers{};
 };
 
-struct LegacyStandardModeTransitionPairScale {
+struct LegacyCharacterAttributesScale {
     compat::u16 divisor{};
     compat::u16 value{};
 };
 
-struct LegacyStandardModeCatalogState {
+struct LegacySystemMenuState {
     compat::u32 mode_word{};
     std::array<compat::u32, 6U> primary_owners{};
     compat::u32 list_owner{};
@@ -390,15 +389,15 @@ struct LegacyStandardModeCatalogState {
     compat::i32 upper_dynamic_right{};
     compat::i32 lower_dynamic_left{};
     compat::i32 lower_dynamic_right{};
-    compat::u32 catalog_available{};
-    compat::u32 catalog_page_start{};
-    compat::u32 catalog_window_context{};
-    compat::u32 catalog_visible_count{};
-    compat::u32 catalog_scroll_index{};
-    compat::u32 catalog_cursor_flags{};
+    compat::u32 system_menu_available{};
+    compat::u32 system_menu_page_start{};
+    compat::u32 system_menu_window_context{};
+    compat::u32 system_menu_visible_count{};
+    compat::u32 system_menu_scroll_index{};
+    compat::u32 system_menu_cursor_flags{};
 };
 
-enum class LegacyStandardModeCatalogInputCommand : compat::u8 {
+enum class LegacySystemMenuInputCommand : compat::u8 {
     upper_dynamic_hover,
     open_mode_fourteen,
     exit,
@@ -411,7 +410,7 @@ enum class LegacyStandardModeCatalogInputCommand : compat::u8 {
     count_visible,
 };
 
-struct LegacyStandardModeCatalogMessage {
+struct LegacySystemMenuMessage {
     compat::u32 sample_owner{};
     compat::u32 font{};
     compat::u32 value{};
@@ -421,83 +420,76 @@ struct LegacyStandardModeCatalogMessage {
     compat::u32 tail{};
 };
 
-class LegacyStandardModeCatalogPorts {
+class LegacySystemMenuPorts {
 public:
-    virtual ~LegacyStandardModeCatalogPorts() = default;
+    virtual ~LegacySystemMenuPorts() = default;
     [[nodiscard]] virtual compat::u32
-    allocate_catalog_buffer(compat::u32 size) noexcept = 0;
+    allocate_system_menu_buffer(compat::u32 size) noexcept = 0;
     [[nodiscard]] virtual compat::i32
-    query_catalog_item_presence(compat::u32 item_id) noexcept = 0;
+    query_system_menu_item_presence(compat::u32 item_id) noexcept = 0;
     [[nodiscard]] virtual compat::i32
-    release_catalog_buffer(LegacyStandardModeCatalogState& state) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 query_catalog_service(
-        compat::u32 service_id, LegacyStandardModeCatalogState& state
+    release_system_menu_buffer(LegacySystemMenuState& state) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 query_system_menu_service(
+        compat::u32 service_id, LegacySystemMenuState& state
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 format_catalog_message(
-        const LegacyStandardModeCatalogMessage& message
+    [[nodiscard]] virtual compat::i32 format_system_menu_message(
+        const LegacySystemMenuMessage& message
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 query_catalog_input_status(
-        compat::u32 mask, LegacyStandardModeCatalogState& state
+    [[nodiscard]] virtual compat::i32 query_system_menu_input_status(
+        compat::u32 mask, LegacySystemMenuState& state
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 execute_catalog_input_command(
-        LegacyStandardModeCatalogInputCommand command,
+    [[nodiscard]] virtual compat::i32 execute_system_menu_input_command(
+        LegacySystemMenuInputCommand command,
         compat::u32 argument,
-        LegacyStandardModeCatalogState& state
+        LegacySystemMenuState& state
     ) noexcept = 0;
 };
 
-enum class LegacyStandardModeCatalogStatus : compat::u8 {
+enum class LegacySystemMenuStatus : compat::u8 {
     completed,
     allocation_stopped,
     capacity_stopped,
 };
 
-struct LegacyStandardModeCatalogResult {
-    LegacyStandardModeCatalogStatus status{
-        LegacyStandardModeCatalogStatus::completed
-    };
+struct LegacySystemMenuResult {
+    LegacySystemMenuStatus status{LegacySystemMenuStatus::completed};
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
     compat::u32 queried_item_count{};
 };
 
-[[nodiscard]] LegacyStandardModeCatalogResult
-initialize_legacy_standard_mode_catalog(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+[[nodiscard]] LegacySystemMenuResult initialize_legacy_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeCatalogResult
-release_legacy_standard_mode_catalog(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+[[nodiscard]] LegacySystemMenuResult release_legacy_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept;
 
-struct LegacyStandardModeCatalogInputResult {
+struct LegacySystemMenuInputResult {
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
-    std::optional<LegacyStandardModeCatalogInputCommand> command;
+    std::optional<LegacySystemMenuInputCommand> command;
 };
 
-[[nodiscard]] LegacyStandardModeCatalogInputResult
+[[nodiscard]] LegacySystemMenuInputResult
 page_down_legacy_standard_mode_system_menu(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeCatalogInputResult
-retreat_legacy_standard_mode_catalog_selection(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+[[nodiscard]] LegacySystemMenuInputResult retreat_legacy_system_menu_selection(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeCatalogInputResult
-advance_legacy_standard_mode_catalog_selection(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+[[nodiscard]] LegacySystemMenuInputResult advance_legacy_system_menu_selection(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeCatalogInputResult
-update_legacy_standard_mode_catalog_input(
-    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+[[nodiscard]] LegacySystemMenuInputResult update_legacy_system_menu_input(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept;
 
-enum class LegacyStandardModeTransitionPairRenderCommandType : compat::u8 {
+enum class LegacyCharacterAttributesRenderCommandType : compat::u8 {
     calculate_color,
     draw_tiled_frame,
     draw_text,
@@ -509,7 +501,7 @@ enum class LegacyStandardModeTransitionPairRenderCommandType : compat::u8 {
     draw_final_panel,
 };
 
-enum class LegacyStandardModeTransitionPairRenderText : compat::u8 {
+enum class LegacyCharacterAttributesRenderText : compat::u8 {
     none,
     mode_name,
     decimal,
@@ -539,17 +531,17 @@ enum class LegacyStandardModeTransitionPairRenderText : compat::u8 {
     overlay_value,
 };
 
-struct LegacyStandardModeTransitionPairRenderCommand {
-    LegacyStandardModeTransitionPairRenderCommandType type{
-        LegacyStandardModeTransitionPairRenderCommandType::calculate_color
+struct LegacyCharacterAttributesRenderCommand {
+    LegacyCharacterAttributesRenderCommandType type{
+        LegacyCharacterAttributesRenderCommandType::calculate_color
     };
-    LegacyStandardModeTransitionPairRenderText text{
-        LegacyStandardModeTransitionPairRenderText::none
+    LegacyCharacterAttributesRenderText text{
+        LegacyCharacterAttributesRenderText::none
     };
     std::array<compat::i32, 10U> arguments{};
 };
 
-struct LegacyStandardModeTransitionPairState {
+struct LegacyCharacterAttributesState {
     compat::u32 mode_word{};
     compat::u32 first_owner{};
     compat::u32 second_owner{};
@@ -565,48 +557,47 @@ struct LegacyStandardModeTransitionPairState {
     compat::u32 third_frame_register_snapshot{};
     bool first_record_available{};
     bool second_record_available{};
-    LegacyStandardModeTransitionPairRecord first_record;
-    LegacyStandardModeTransitionPairRecord second_record;
-    std::array<LegacyStandardModeTransitionPairRenderModeRecord, 4U>
-        render_modes{};
-    std::
-        array<std::array<LegacyStandardModeTransitionPairContribution, 16U>, 4U>
-            contributions{};
+    LegacyCharacterAttributesRecord first_record;
+    LegacyCharacterAttributesRecord second_record;
+    std::array<LegacyCharacterAttributesRenderModeRecord, 4U> render_modes{};
+    std::array<std::array<LegacyCharacterAttributesContribution, 16U>, 4U>
+        contributions{};
 };
 
-class LegacyStandardModeTransitionPairPorts {
+class LegacyCharacterAttributesPorts {
 public:
-    virtual ~LegacyStandardModeTransitionPairPorts() = default;
+    virtual ~LegacyCharacterAttributesPorts() = default;
     [[nodiscard]] virtual compat::u32
-    allocate_transition_pair_buffer(compat::u32 size) noexcept = 0;
-    virtual void accumulate_transition_pair_record(
-        LegacyStandardModeTransitionPairState& state,
-        const LegacyStandardModeTransitionPairContribution& contribution
+    allocate_character_attributes_buffer(compat::u32 size) noexcept = 0;
+    virtual void accumulate_character_attributes_record(
+        LegacyCharacterAttributesState& state,
+        const LegacyCharacterAttributesContribution& contribution
     ) noexcept = 0;
-    [[nodiscard]] virtual LegacyStandardModeTransitionPairScale
-    query_transition_pair_scale(compat::u16 lookup_key) noexcept = 0;
+    [[nodiscard]] virtual LegacyCharacterAttributesScale
+    query_character_attributes_scale(compat::u16 lookup_key) noexcept = 0;
     [[nodiscard]] virtual compat::i32
-    release_transition_pair_buffer(compat::u32 owner) noexcept = 0;
+    release_character_attributes_buffer(compat::u32 owner) noexcept = 0;
     [[nodiscard]] virtual compat::i32
-    query_transition_pair_item_presence(compat::u32 item_id) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 play_transition_pair_sample(
+    query_character_attributes_item_presence(compat::u32 item_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 play_character_attributes_sample(
         compat::u32 sample_id, compat::u32 sample_owner
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32
-    dispatch_transition_pair_callback(compat::u32 mode) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 execute_transition_pair_render_command(
-        const LegacyStandardModeTransitionPairRenderCommand& command
+    dispatch_character_attributes_callback(compat::u32 mode) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    execute_character_attributes_render_command(
+        const LegacyCharacterAttributesRenderCommand& command
     ) noexcept = 0;
 };
 
-enum class LegacyStandardModeTransitionPairStatus : compat::u8 {
+enum class LegacyCharacterAttributesStatus : compat::u8 {
     completed,
     cycle_domain_stopped,
     unavailable_mode_domain_stopped,
     rebuild_stopped,
 };
 
-enum class LegacyStandardModeTransitionPairRebuildStatus : compat::u8 {
+enum class LegacyCharacterAttributesRebuildStatus : compat::u8 {
     completed,
     mode_out_of_range_stopped,
     first_record_unavailable_stopped,
@@ -615,131 +606,118 @@ enum class LegacyStandardModeTransitionPairRebuildStatus : compat::u8 {
     scale_divisor_zero_stopped,
 };
 
-struct LegacyStandardModeTransitionPairRebuildResult {
-    LegacyStandardModeTransitionPairRebuildStatus status{
-        LegacyStandardModeTransitionPairRebuildStatus::completed
+struct LegacyCharacterAttributesRebuildResult {
+    LegacyCharacterAttributesRebuildStatus status{
+        LegacyCharacterAttributesRebuildStatus::completed
     };
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
     compat::u32 contribution_count{};
 };
 
-enum class LegacyStandardModeTransitionPairRenderStatus : compat::u8 {
+enum class LegacyCharacterAttributesRenderStatus : compat::u8 {
     completed,
     mode_out_of_range_stopped,
     first_record_unavailable_stopped,
     second_record_unavailable_stopped,
 };
 
-struct LegacyStandardModeTransitionPairOverlayResult {
+struct LegacyCharacterAttributesOverlayResult {
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
     compat::u32 command_count{};
 };
 
-struct LegacyStandardModeTransitionPairRenderResult {
-    LegacyStandardModeTransitionPairRenderStatus status{
-        LegacyStandardModeTransitionPairRenderStatus::completed
+struct LegacyCharacterAttributesRenderResult {
+    LegacyCharacterAttributesRenderStatus status{
+        LegacyCharacterAttributesRenderStatus::completed
     };
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
     compat::u32 command_count{};
 };
 
-struct LegacyStandardModeTransitionPairResult {
-    LegacyStandardModeTransitionPairStatus status{
-        LegacyStandardModeTransitionPairStatus::completed
+struct LegacyCharacterAttributesResult {
+    LegacyCharacterAttributesStatus status{
+        LegacyCharacterAttributesStatus::completed
     };
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
     compat::u32 target_mode{};
 };
 
-[[nodiscard]] LegacyStandardModeTransitionPairResult
-initialize_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+[[nodiscard]] LegacyCharacterAttributesResult
+initialize_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeTransitionPairResult
-release_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+[[nodiscard]] LegacyCharacterAttributesResult
+release_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeTransitionPairResult
-update_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+[[nodiscard]] LegacyCharacterAttributesResult
+update_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeTransitionPairResult
-advance_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+[[nodiscard]] LegacyCharacterAttributesResult
+advance_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeTransitionPairResult
-retreat_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+[[nodiscard]] LegacyCharacterAttributesResult
+retreat_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeTransitionPairResult
-retreat_wrapped_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+[[nodiscard]] LegacyCharacterAttributesResult
+retreat_wrapped_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeTransitionPairResult
-commit_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+[[nodiscard]] LegacyCharacterAttributesResult
+commit_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeTransitionPairRenderResult
-render_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+[[nodiscard]] LegacyCharacterAttributesRenderResult
+render_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeTransitionPairOverlayResult
-draw_legacy_standard_mode_transition_pair_overlay(
+[[nodiscard]] LegacyCharacterAttributesOverlayResult
+draw_legacy_character_attributes_overlay(
     compat::i32 value,
     compat::i32 x,
     compat::i32 y,
     compat::i32 threshold,
-    const LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+    const LegacyCharacterAttributesState& state,
+    LegacyCharacterAttributesPorts& ports
 ) noexcept;
 
-[[nodiscard]] LegacyStandardModeTransitionPairRebuildResult
-rebuild_legacy_standard_mode_transition_pair(
-    LegacyStandardModeTransitionPairState& state,
-    LegacyStandardModeTransitionPairPorts& ports
+[[nodiscard]] LegacyCharacterAttributesRebuildResult
+rebuild_legacy_character_attributes(
+    LegacyCharacterAttributesState& state, LegacyCharacterAttributesPorts& ports
 ) noexcept;
 
-enum class LegacyStandardModeTransitionVisualStatus : compat::u8 {
+enum class LegacyTitleMenuStatus : compat::u8 {
     completed,
     snapshot_allocation_stopped,
     confirmation_stopped,
 };
 
-struct LegacyStandardModeTransitionVisualResult {
-    LegacyStandardModeTransitionVisualStatus status{
-        LegacyStandardModeTransitionVisualStatus::completed
-    };
+struct LegacyTitleMenuResult {
+    LegacyTitleMenuStatus status{LegacyTitleMenuStatus::completed};
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeTransitionVisualResult
-initialize_legacy_standard_mode_transition_visual(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+[[nodiscard]] LegacyTitleMenuResult initialize_legacy_title_menu(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept;
 
-enum class LegacyStandardModeTransitionInteractionPath : compat::u8 {
+enum class LegacyTitleMenuInputPath : compat::u8 {
     no_action,
     mode_two_first_selected,
     mode_two_second_selected,
@@ -753,116 +731,97 @@ enum class LegacyStandardModeTransitionInteractionPath : compat::u8 {
     settings_exit_requested,
 };
 
-struct LegacyStandardModeTransitionInteractionResult {
-    LegacyStandardModeTransitionConfirmationStatus confirmation_status{
-        LegacyStandardModeTransitionConfirmationStatus::completed
+struct LegacyTitleMenuInputResult {
+    LegacyTitleMenuConfirmationStatus confirmation_status{
+        LegacyTitleMenuConfirmationStatus::completed
     };
-    LegacyStandardModeTransitionInteractionPath path{
-        LegacyStandardModeTransitionInteractionPath::no_action
-    };
+    LegacyTitleMenuInputPath path{LegacyTitleMenuInputPath::no_action};
     compat::u8 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeTransitionInteractionResult
-update_legacy_standard_mode_transition_interaction(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
-) noexcept;
-
-[[nodiscard]] compat::i32 advance_legacy_standard_mode_transition_selection(
-    LegacyStandardModeTransitionVisualState& state
-) noexcept;
-
-[[nodiscard]] compat::i32 retreat_legacy_standard_mode_transition_selection(
-    LegacyStandardModeTransitionVisualState& state
-) noexcept;
-
-[[nodiscard]] compat::i32 select_legacy_standard_mode_transition_last(
-    LegacyStandardModeTransitionVisualState& state
-) noexcept;
-
-[[nodiscard]] compat::i32 select_legacy_standard_mode_transition_first(
-    LegacyStandardModeTransitionVisualState& state
-) noexcept;
-
-[[nodiscard]] LegacyStandardModeTransitionInteractionResult
-retreat_legacy_standard_mode_transition_setting(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
-) noexcept;
-
-[[nodiscard]] LegacyStandardModeTransitionInteractionResult
-advance_legacy_standard_mode_transition_setting(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+[[nodiscard]] LegacyTitleMenuInputResult update_legacy_title_menu_input(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept;
 
 [[nodiscard]] compat::i32
-advance_legacy_standard_mode_transition_mode_one_selection(
-    LegacyStandardModeTransitionVisualState& state
+advance_legacy_title_menu_selection(LegacyTitleMenuState& state) noexcept;
+
+[[nodiscard]] compat::i32
+retreat_legacy_title_menu_selection(LegacyTitleMenuState& state) noexcept;
+
+[[nodiscard]] compat::i32
+select_legacy_title_menu_last(LegacyTitleMenuState& state) noexcept;
+
+[[nodiscard]] compat::i32
+select_legacy_title_menu_first(LegacyTitleMenuState& state) noexcept;
+
+[[nodiscard]] LegacyTitleMenuInputResult decrease_legacy_game_setting(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept;
 
-struct LegacyStandardModeTransitionSettingsCommitResult {
+[[nodiscard]] LegacyTitleMenuInputResult increase_legacy_game_setting(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
+) noexcept;
+
+[[nodiscard]] compat::i32 advance_legacy_title_menu_secondary_selection(
+    LegacyTitleMenuState& state
+) noexcept;
+
+struct LegacyGameSettingsCommitResult {
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeTransitionSettingsCommitResult
-commit_legacy_standard_mode_transition_settings(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+[[nodiscard]] LegacyGameSettingsCommitResult commit_legacy_game_settings(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept;
 
-struct LegacyStandardModeTransitionSettingsProfileResult {
+struct LegacyGameSettingsProfileResult {
     compat::i32 legacy_return_value{};
     compat::u32 match_count{};
 };
 
-[[nodiscard]] LegacyStandardModeTransitionSettingsProfileResult
-prepare_legacy_standard_mode_transition_settings_profile(
-    LegacyStandardModeTransitionSettingsProfileState& profile,
+[[nodiscard]] LegacyGameSettingsProfileResult
+prepare_legacy_game_settings_profile(
+    LegacyGameSettingsProfileState& profile,
     std::span<const compat::u8> primary_text,
     std::span<const compat::u8> secondary_text
 ) noexcept;
 
-struct LegacyStandardModeTransitionPanelDrawResult {
+struct LegacyTitleMenuSlidingPanelDrawResult {
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
     compat::u32 draw_call_count{};
     bool preparation_failed{};
 };
 
-[[nodiscard]] LegacyStandardModeTransitionPanelDrawResult
-draw_legacy_standard_mode_transition_panel(
-    LegacyStandardModeTransitionPanelDrawState& draw_state,
-    const LegacyStandardModeTransitionPanelRecord& record,
+[[nodiscard]] LegacyTitleMenuSlidingPanelDrawResult
+draw_legacy_title_menu_sliding_panel(
+    LegacyTitleMenuSlidingPanelDrawState& draw_state,
+    const LegacyTitleMenuSlidingPanelRecord& record,
     compat::i32 x,
     compat::i32 y,
     compat::i32 offset,
-    LegacyStandardModeTransitionVisualPorts& ports
+    LegacyTitleMenuPorts& ports
 ) noexcept;
 
-enum class LegacyStandardModeTransitionFrameStatus : compat::u8 {
+enum class LegacyTitleMenuFrameStatus : compat::u8 {
     completed,
     selector_out_of_range_stopped,
     overlay_storage_unavailable_stopped,
     snapshot_unavailable_stopped,
 };
 
-struct LegacyStandardModeTransitionFrameResult {
-    LegacyStandardModeTransitionFrameStatus status{
-        LegacyStandardModeTransitionFrameStatus::completed
-    };
+struct LegacyTitleMenuFrameResult {
+    LegacyTitleMenuFrameStatus status{LegacyTitleMenuFrameStatus::completed};
     compat::u8 legacy_return_value{};
     compat::u32 helper_call_count{};
     compat::u32 command_count{};
 };
 
-[[nodiscard]] LegacyStandardModeTransitionFrameResult
-run_legacy_standard_mode_transition_frame(
-    LegacyStandardModeTransitionVisualState& state,
-    LegacyStandardModeTransitionVisualPorts& ports
+[[nodiscard]] LegacyTitleMenuFrameResult render_legacy_title_menu_frame(
+    LegacyTitleMenuState& state, LegacyTitleMenuPorts& ports
 ) noexcept;
 
 class LegacyStandardModeCallbackBindingPorts
@@ -870,15 +829,13 @@ class LegacyStandardModeCallbackBindingPorts
 public:
     ~LegacyStandardModeCallbackBindingPorts() override = default;
 
-    [[nodiscard]] virtual LegacyStandardModeTransitionVisualState&
-    transition_visual_state() noexcept = 0;
-    [[nodiscard]] virtual LegacyStandardModeTransitionVisualPorts&
-    transition_visual_ports() noexcept = 0;
+    [[nodiscard]] virtual LegacyTitleMenuState& title_menu_state() noexcept = 0;
+    [[nodiscard]] virtual LegacyTitleMenuPorts& title_menu_ports() noexcept = 0;
 };
 
 enum class LegacyStandardModeCallbackBindingStatus : compat::u8 {
     completed,
-    transition_visual_stopped,
+    title_menu_stopped,
 };
 
 struct LegacyStandardModeCallbackBindingResult {
@@ -892,7 +849,7 @@ struct LegacyStandardModeCallbackBindingResult {
     compat::u32 story_flag_query_count{};
     compat::u32 slot_write_count{};
     compat::u32 helper_call_count{};
-    compat::u8 transition_visual_status{};
+    compat::u8 title_menu_status{};
 };
 
 enum class LegacyStandardModeInputCallback : compat::u8 {
@@ -1008,14 +965,14 @@ struct LegacyStandardModeBarResult {
     bool stopped_after_zero_height{};
 };
 
-struct LegacyStandardModeTransitionMetrics {
+struct LegacyGameMenuEntryAnimationMetrics {
     compat::i32 level_base{};
     std::array<compat::i16, 6U> values{};
     compat::u8 marked_flags{};
     compat::u8 level_count{};
 };
 
-enum class LegacyStandardModeTransitionText : compat::u8 {
+enum class LegacyGameMenuEntryText : compat::u8 {
     label,
     level,
     first_pair,
@@ -1023,19 +980,19 @@ enum class LegacyStandardModeTransitionText : compat::u8 {
     third_pair,
 };
 
-enum class LegacyStandardModeTransitionTextOwner : compat::u8 {
+enum class LegacyGameMenuEntryTextOwner : compat::u8 {
     primary,
     secondary,
 };
 
-struct LegacyStandardModeTransitionState {
+struct LegacyGameMenuEntryAnimationState {
     std::array<compat::u8, 4U> stages{};
-    std::array<LegacyStandardModeTransitionMetrics, 4U> metrics{};
+    std::array<LegacyGameMenuEntryAnimationMetrics, 4U> metrics{};
 };
 
-class LegacyStandardModeTransitionPorts {
+class LegacyGameMenuEntryAnimationPorts {
 public:
-    virtual ~LegacyStandardModeTransitionPorts() = default;
+    virtual ~LegacyGameMenuEntryAnimationPorts() = default;
 
     [[nodiscard]] virtual compat::u32 create_text_token(
         compat::u32 first, compat::u32 second, compat::u32 third
@@ -1050,8 +1007,8 @@ public:
     [[nodiscard]] virtual compat::i32
     read_level_value(compat::u32 entry_index, compat::u32 count) = 0;
     virtual void draw_text(
-        LegacyStandardModeTransitionTextOwner owner,
-        LegacyStandardModeTransitionText text,
+        LegacyGameMenuEntryTextOwner owner,
+        LegacyGameMenuEntryText text,
         compat::i32 x,
         compat::i32 y,
         compat::i32 first_value,
@@ -1067,7 +1024,7 @@ public:
     ) = 0;
 };
 
-struct LegacyStandardModeTransitionResult {
+struct LegacyGameMenuEntryAnimationResult {
     compat::u32 active_item_count{};
     compat::u32 ghost_draw_count{};
     compat::u32 vertical_line_count{};
@@ -1136,7 +1093,7 @@ enum class LegacyStandardModeRenderRecord : compat::u8 {
 struct LegacyStandardModeRenderState {
     LegacyStandardModeGhostState ghost_state{};
     LegacyStandardModePanelState panel_state{};
-    LegacyStandardModeTransitionState transition_state{};
+    LegacyGameMenuEntryAnimationState transition_state{};
     compat::u32 transition_extent{};
     compat::u32 captured_surface_token{};
     compat::u32 blocking_overlay_active{};
@@ -1281,7 +1238,7 @@ public:
     virtual void draw_mode(compat::u32& tagged_mode_value) = 0;
 };
 
-struct LegacyStandardModeGroupEightInputSnapshot {
+struct LegacyGameMenuInputSnapshot {
     compat::u32 cursor_x{};
     compat::u32 cursor_y{};
     compat::u8 buttons{};
@@ -1290,14 +1247,14 @@ struct LegacyStandardModeGroupEightInputSnapshot {
 struct LegacyStandardModeForwardNode;
 struct LegacyStandardModeAvailabilityRecord;
 struct LegacyStandardModeRuntimeInitializationState;
-struct LegacyStandardModeGroupEightInteractionCommitRuntime;
-class LegacyStandardModeGroupEightInteractionCommitPorts;
-class LegacyStandardModeGroupOneRenderPorts;
+struct LegacyGameMenuInteractionCommitRuntime;
+class LegacyGameMenuInteractionCommitPorts;
+class LegacyGameMenuPageRenderPorts;
 class LegacyStandardModeRecordInitializationPorts;
 class LegacyStandardModeInputDispatchPorts;
 class LegacyStandardModeRuntimeRenderPorts;
 
-struct LegacyStandardModeGroupEightState {
+struct LegacyGameMenuState {
     compat::u16 selection{};
     compat::u16 lifecycle{};
     compat::u16 selection_x{};
@@ -1358,9 +1315,9 @@ struct LegacyStandardModeGroupEightState {
     std::array<compat::u16, 14U> visible_row_labels{};
 };
 
-class LegacyStandardModeGroupEightInitializationPorts {
+class LegacyGameMenuInitializationPorts {
 public:
-    virtual ~LegacyStandardModeGroupEightInitializationPorts() = default;
+    virtual ~LegacyGameMenuInitializationPorts() = default;
     [[nodiscard]] virtual LegacyStandardModeForwardNode*&
     selection_record_source() noexcept = 0;
     [[nodiscard]] virtual std::span<const compat::u32>
@@ -1374,83 +1331,77 @@ public:
     [[nodiscard]] virtual compat::u32 allocate_workspace(std::size_t size) = 0;
 };
 
-enum class LegacyStandardModeGroupEightInitializationStatus : compat::u8 {
+enum class LegacyGameMenuInitializationStatus : compat::u8 {
     completed,
     record_initialization_stopped,
     selected_record_missing,
     shared_text_stopped,
 };
 
-struct LegacyStandardModeGroupEightInitializationResult {
-    LegacyStandardModeGroupEightInitializationStatus status{
-        LegacyStandardModeGroupEightInitializationStatus::completed
+struct LegacyGameMenuInitializationResult {
+    LegacyGameMenuInitializationStatus status{
+        LegacyGameMenuInitializationStatus::completed
     };
     compat::u32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightInitializationResult
-initialize_legacy_standard_mode_group_eight_first_selection(
-    LegacyStandardModeGroupEightState& state,
+[[nodiscard]] LegacyGameMenuInitializationResult
+initialize_legacy_game_menu_first_selection(
+    LegacyGameMenuState& state,
     std::span<const compat::u8> maps_payload,
-    LegacyStandardModeGroupEightInitializationPorts& ports
+    LegacyGameMenuInitializationPorts& ports
 ) noexcept;
 
 class LegacyStandardModeRecordCleanupPorts;
 
-class LegacyStandardModeGroupEightCleanupPorts {
+class LegacyGameMenuCleanupPorts {
 public:
-    virtual ~LegacyStandardModeGroupEightCleanupPorts() = default;
+    virtual ~LegacyGameMenuCleanupPorts() = default;
     [[nodiscard]] virtual LegacyStandardModeRecordCleanupPorts&
     selection_record_cleanup_ports() noexcept = 0;
     [[nodiscard]] virtual compat::i32 release_workspace(compat::u32 token) = 0;
 };
 
-enum class LegacyStandardModeGroupEightCleanupStatus : compat::u8 {
+enum class LegacyGameMenuCleanupStatus : compat::u8 {
     completed,
     record_cleanup_stopped,
 };
 
-struct LegacyStandardModeGroupEightCleanupResult {
-    LegacyStandardModeGroupEightCleanupStatus status{
-        LegacyStandardModeGroupEightCleanupStatus::completed
-    };
+struct LegacyGameMenuCleanupResult {
+    LegacyGameMenuCleanupStatus status{LegacyGameMenuCleanupStatus::completed};
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightCleanupResult
-cleanup_legacy_standard_mode_group_eight(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightCleanupPorts& ports
+[[nodiscard]] LegacyGameMenuCleanupResult cleanup_legacy_game_menu(
+    LegacyGameMenuState& state, LegacyGameMenuCleanupPorts& ports
 ) noexcept;
 
-struct LegacyStandardModeGroupEightMainInputSnapshot {
+struct LegacyGameMenuMainInputSnapshot {
     compat::u32 pointer_x{};
     compat::u32 pointer_y{};
     compat::u32 input_flags{};
     compat::u32 sample_handle{};
 };
 
-enum class LegacyStandardModeGroupEightMainControl : compat::u8 {
+enum class LegacyGameMenuMainControl : compat::u8 {
     upper,
     lower,
     first_dynamic,
     second_dynamic,
 };
 
-class LegacyStandardModeGroupEightMainInputPorts
-    : public LegacyStandardModeGroupEightInitializationPorts,
-      public LegacyStandardModeGroupEightCleanupPorts {
+class LegacyGameMenuMainInputPorts : public LegacyGameMenuInitializationPorts,
+                                     public LegacyGameMenuCleanupPorts {
 public:
-    virtual ~LegacyStandardModeGroupEightMainInputPorts() = default;
+    virtual ~LegacyGameMenuMainInputPorts() = default;
     [[nodiscard]] virtual compat::i32 dispatch_overlay_action(
-        LegacyStandardModeGroupEightMainInputSnapshot& input,
-        LegacyStandardModeGroupEightState& state
+        LegacyGameMenuMainInputSnapshot& input, LegacyGameMenuState& state
     ) = 0;
-    [[nodiscard]] virtual LegacyStandardModeGroupEightInteractionCommitRuntime&
+    [[nodiscard]] virtual LegacyGameMenuInteractionCommitRuntime&
     commit_runtime() noexcept = 0;
-    [[nodiscard]] virtual LegacyStandardModeGroupEightInteractionCommitPorts&
+    [[nodiscard]] virtual LegacyGameMenuInteractionCommitPorts&
     commit_ports() noexcept = 0;
     [[nodiscard]] virtual compat::i32
     query_item_presence(compat::u16 item_id) = 0;
@@ -1458,7 +1409,7 @@ public:
     play_sample(compat::u16 sample_id, compat::u32 sample_handle) = 0;
 };
 
-enum class LegacyStandardModeGroupEightMainInputStatus : compat::u8 {
+enum class LegacyGameMenuMainInputStatus : compat::u8 {
     completed,
     runtime_input_stopped,
     availability_index_out_of_range,
@@ -1474,7 +1425,7 @@ enum class LegacyStandardModeGroupEightMainInputStatus : compat::u8 {
     exit_stopped,
 };
 
-enum class LegacyStandardModeGroupEightMainInputPath : compat::u8 {
+enum class LegacyGameMenuMainInputPath : compat::u8 {
     no_action,
     runtime_input_dispatched,
     transition_normalized,
@@ -1495,30 +1446,27 @@ enum class LegacyStandardModeGroupEightMainInputPath : compat::u8 {
     interaction_exited,
 };
 
-struct LegacyStandardModeGroupEightMainInputResult {
-    LegacyStandardModeGroupEightMainInputStatus status{
-        LegacyStandardModeGroupEightMainInputStatus::completed
+struct LegacyGameMenuMainInputResult {
+    LegacyGameMenuMainInputStatus status{
+        LegacyGameMenuMainInputStatus::completed
     };
-    LegacyStandardModeGroupEightMainInputPath path{
-        LegacyStandardModeGroupEightMainInputPath::no_action
-    };
+    LegacyGameMenuMainInputPath path{LegacyGameMenuMainInputPath::no_action};
     compat::u8 runtime_input_status{};
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightMainInputResult
-handle_legacy_standard_mode_group_eight_main_input(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightMainInputSnapshot& input,
+[[nodiscard]] LegacyGameMenuMainInputResult handle_legacy_game_menu_main_input(
+    LegacyGameMenuState& state,
+    LegacyGameMenuMainInputSnapshot& input,
     std::span<const LegacyStandardModeAvailabilityRecord> availability_records,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
     std::span<const compat::u8> maps_payload,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept;
 
-enum class LegacyStandardModeGroupEightAdvanceStatus : compat::u8 {
+enum class LegacyGameMenuAdvanceStatus : compat::u8 {
     completed,
     runtime_cursor_stopped,
     visible_chain_stopped,
@@ -1527,7 +1475,7 @@ enum class LegacyStandardModeGroupEightAdvanceStatus : compat::u8 {
     party_cycle_stopped,
 };
 
-enum class LegacyStandardModeGroupEightAdvancePath : compat::u8 {
+enum class LegacyGameMenuAdvancePath : compat::u8 {
     no_action,
     runtime_cursor_advanced,
     record_window_advanced,
@@ -1538,30 +1486,25 @@ enum class LegacyStandardModeGroupEightAdvancePath : compat::u8 {
     secondary_window_advanced,
 };
 
-struct LegacyStandardModeGroupEightAdvanceResult {
-    LegacyStandardModeGroupEightAdvanceStatus status{
-        LegacyStandardModeGroupEightAdvanceStatus::completed
-    };
-    LegacyStandardModeGroupEightAdvancePath path{
-        LegacyStandardModeGroupEightAdvancePath::no_action
-    };
+struct LegacyGameMenuAdvanceResult {
+    LegacyGameMenuAdvanceStatus status{LegacyGameMenuAdvanceStatus::completed};
+    LegacyGameMenuAdvancePath path{LegacyGameMenuAdvancePath::no_action};
     compat::u8 runtime_cursor_status{};
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightAdvanceResult
-advance_legacy_standard_mode_group_eight_control(
-    LegacyStandardModeGroupEightState& state,
+[[nodiscard]] LegacyGameMenuAdvanceResult advance_legacy_game_menu_control(
+    LegacyGameMenuState& state,
     compat::u32 sample_handle,
     std::span<const compat::u16> party_markers,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept;
 
-enum class LegacyStandardModeGroupEightRetreatStatus : compat::u8 {
+enum class LegacyGameMenuRetreatStatus : compat::u8 {
     completed,
     runtime_cursor_stopped,
     visible_chain_stopped,
@@ -1570,7 +1513,7 @@ enum class LegacyStandardModeGroupEightRetreatStatus : compat::u8 {
     party_cycle_stopped,
 };
 
-enum class LegacyStandardModeGroupEightRetreatPath : compat::u8 {
+enum class LegacyGameMenuRetreatPath : compat::u8 {
     no_action,
     runtime_cursor_retreated,
     record_window_retreated,
@@ -1581,30 +1524,25 @@ enum class LegacyStandardModeGroupEightRetreatPath : compat::u8 {
     secondary_window_retreated,
 };
 
-struct LegacyStandardModeGroupEightRetreatResult {
-    LegacyStandardModeGroupEightRetreatStatus status{
-        LegacyStandardModeGroupEightRetreatStatus::completed
-    };
-    LegacyStandardModeGroupEightRetreatPath path{
-        LegacyStandardModeGroupEightRetreatPath::no_action
-    };
+struct LegacyGameMenuRetreatResult {
+    LegacyGameMenuRetreatStatus status{LegacyGameMenuRetreatStatus::completed};
+    LegacyGameMenuRetreatPath path{LegacyGameMenuRetreatPath::no_action};
     compat::u8 runtime_cursor_status{};
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightRetreatResult
-retreat_legacy_standard_mode_group_eight_control(
-    LegacyStandardModeGroupEightState& state,
+[[nodiscard]] LegacyGameMenuRetreatResult retreat_legacy_game_menu_control(
+    LegacyGameMenuState& state,
     compat::u32 sample_handle,
     std::span<const compat::u16> party_markers,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept;
 
-enum class LegacyStandardModeGroupEightPageAdvanceStatus : compat::u8 {
+enum class LegacyGameMenuPageAdvanceStatus : compat::u8 {
     completed,
     page_refresh_stopped,
     runtime_entry_out_of_range,
@@ -1615,7 +1553,7 @@ enum class LegacyStandardModeGroupEightPageAdvanceStatus : compat::u8 {
     party_cycle_stopped,
 };
 
-enum class LegacyStandardModeGroupEightPageAdvancePath : compat::u8 {
+enum class LegacyGameMenuPageAdvancePath : compat::u8 {
     no_action,
     runtime_page_advanced,
     record_page_advanced,
@@ -1626,29 +1564,28 @@ enum class LegacyStandardModeGroupEightPageAdvancePath : compat::u8 {
     secondary_page_advanced,
 };
 
-struct LegacyStandardModeGroupEightPageAdvanceResult {
-    LegacyStandardModeGroupEightPageAdvanceStatus status{
-        LegacyStandardModeGroupEightPageAdvanceStatus::completed
+struct LegacyGameMenuPageAdvanceResult {
+    LegacyGameMenuPageAdvanceStatus status{
+        LegacyGameMenuPageAdvanceStatus::completed
     };
-    LegacyStandardModeGroupEightPageAdvancePath path{
-        LegacyStandardModeGroupEightPageAdvancePath::no_action
+    LegacyGameMenuPageAdvancePath path{
+        LegacyGameMenuPageAdvancePath::no_action
     };
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightPageAdvanceResult
-advance_legacy_standard_mode_group_eight_page(
-    LegacyStandardModeGroupEightState& state,
+[[nodiscard]] LegacyGameMenuPageAdvanceResult advance_legacy_game_menu_page(
+    LegacyGameMenuState& state,
     compat::u32 sample_handle,
     std::span<const compat::u16> party_markers,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept;
 
-enum class LegacyStandardModeGroupEightPageRetreatStatus : compat::u8 {
+enum class LegacyGameMenuPageRetreatStatus : compat::u8 {
     completed,
     runtime_page_stopped,
     visible_chain_stopped,
@@ -1657,7 +1594,7 @@ enum class LegacyStandardModeGroupEightPageRetreatStatus : compat::u8 {
     party_cycle_stopped,
 };
 
-enum class LegacyStandardModeGroupEightPageRetreatPath : compat::u8 {
+enum class LegacyGameMenuPageRetreatPath : compat::u8 {
     no_action,
     runtime_page_retreated,
     record_page_retreated,
@@ -1668,30 +1605,29 @@ enum class LegacyStandardModeGroupEightPageRetreatPath : compat::u8 {
     secondary_page_retreated,
 };
 
-struct LegacyStandardModeGroupEightPageRetreatResult {
-    LegacyStandardModeGroupEightPageRetreatStatus status{
-        LegacyStandardModeGroupEightPageRetreatStatus::completed
+struct LegacyGameMenuPageRetreatResult {
+    LegacyGameMenuPageRetreatStatus status{
+        LegacyGameMenuPageRetreatStatus::completed
     };
-    LegacyStandardModeGroupEightPageRetreatPath path{
-        LegacyStandardModeGroupEightPageRetreatPath::no_action
+    LegacyGameMenuPageRetreatPath path{
+        LegacyGameMenuPageRetreatPath::no_action
     };
     compat::u8 runtime_page_status{};
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightPageRetreatResult
-retreat_legacy_standard_mode_group_eight_page(
-    LegacyStandardModeGroupEightState& state,
+[[nodiscard]] LegacyGameMenuPageRetreatResult retreat_legacy_game_menu_page(
+    LegacyGameMenuState& state,
     compat::u32 sample_handle,
     std::span<const compat::u16> party_markers,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept;
 
-enum class LegacyStandardModeGroupEightModeRetreatStatus : compat::u8 {
+enum class LegacyGameMenuModeRetreatStatus : compat::u8 {
     completed,
     record_cleanup_stopped,
     record_initialization_stopped,
@@ -1703,25 +1639,24 @@ enum class LegacyStandardModeGroupEightModeRetreatStatus : compat::u8 {
     entry_consumption_stopped,
 };
 
-struct LegacyStandardModeGroupEightModeRetreatResult {
-    LegacyStandardModeGroupEightModeRetreatStatus status{
-        LegacyStandardModeGroupEightModeRetreatStatus::completed
+struct LegacyGameMenuModeRetreatResult {
+    LegacyGameMenuModeRetreatStatus status{
+        LegacyGameMenuModeRetreatStatus::completed
     };
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightModeRetreatResult
-retreat_legacy_standard_mode_group_eight_mode(
-    LegacyStandardModeGroupEightState& state,
+[[nodiscard]] LegacyGameMenuModeRetreatResult retreat_legacy_game_menu_mode(
+    LegacyGameMenuState& state,
     compat::u32 sample_handle,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept;
 
-enum class LegacyStandardModeGroupEightModeAdvanceStatus : compat::u8 {
+enum class LegacyGameMenuModeAdvanceStatus : compat::u8 {
     completed,
     runtime_mode_stopped,
     record_cleanup_stopped,
@@ -1730,23 +1665,22 @@ enum class LegacyStandardModeGroupEightModeAdvanceStatus : compat::u8 {
     shared_text_stopped,
 };
 
-struct LegacyStandardModeGroupEightModeAdvanceResult {
-    LegacyStandardModeGroupEightModeAdvanceStatus status{
-        LegacyStandardModeGroupEightModeAdvanceStatus::completed
+struct LegacyGameMenuModeAdvanceResult {
+    LegacyGameMenuModeAdvanceStatus status{
+        LegacyGameMenuModeAdvanceStatus::completed
     };
     compat::u8 runtime_mode_status{};
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightModeAdvanceResult
-advance_legacy_standard_mode_group_eight_mode(
-    LegacyStandardModeGroupEightState& state,
+[[nodiscard]] LegacyGameMenuModeAdvanceResult advance_legacy_game_menu_mode(
+    LegacyGameMenuState& state,
     compat::u32 sample_handle,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports
+    LegacyGameMenuMainInputPorts& ports
 ) noexcept;
 
 enum class LegacyStandardModeSelectionPublishStatus : compat::u8 {
@@ -1765,7 +1699,7 @@ struct LegacyStandardModeSelectionPublishResult {
 
 [[nodiscard]] LegacyStandardModeSelectionPublishResult
 publish_legacy_standard_mode_selection_or_advance_runtime(
-    LegacyStandardModeGroupEightState& state,
+    LegacyGameMenuState& state,
     compat::u32 sample_handle,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports
@@ -1773,22 +1707,22 @@ publish_legacy_standard_mode_selection_or_advance_runtime(
 
 [[nodiscard]] LegacyStandardModeSelectionPublishResult
 cycle_legacy_standard_mode_selection_or_advance_runtime(
-    LegacyStandardModeGroupEightState& state,
+    LegacyGameMenuState& state,
     compat::u32 sample_handle,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports
 ) noexcept;
 
-class LegacyStandardModeGroupEightSelectionPorts
+class LegacyGameMenuSelectionPorts
     : public virtual LegacyStandardModeStoryFlagPorts {
 public:
-    ~LegacyStandardModeGroupEightSelectionPorts() override = default;
+    ~LegacyGameMenuSelectionPorts() override = default;
     [[nodiscard]] virtual compat::i32 execute_sample_command(
         compat::u16 command_id, compat::u32 sample_owner
     ) = 0;
 };
 
-struct LegacyStandardModeGroupEightSelectionRetreatResult {
+struct LegacyGameMenuSelectionRetreatResult {
     compat::i32 legacy_return_value{};
     compat::u32 story_flag_query_count{};
     compat::u32 sample_command_count{};
@@ -1796,136 +1730,116 @@ struct LegacyStandardModeGroupEightSelectionRetreatResult {
     bool visual_index_swapped{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightSelectionRetreatResult
-retreat_legacy_standard_mode_group_eight_selection(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightSelectionPorts& ports
+[[nodiscard]] LegacyGameMenuSelectionRetreatResult
+retreat_legacy_game_menu_selection(
+    LegacyGameMenuState& state, LegacyGameMenuSelectionPorts& ports
 ) noexcept;
 
-using LegacyStandardModeGroupEightSelectionAdvanceResult =
-    LegacyStandardModeGroupEightSelectionRetreatResult;
+using LegacyGameMenuSelectionAdvanceResult =
+    LegacyGameMenuSelectionRetreatResult;
 
-[[nodiscard]] LegacyStandardModeGroupEightSelectionAdvanceResult
-advance_legacy_standard_mode_group_eight_selection(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightSelectionPorts& ports
+[[nodiscard]] LegacyGameMenuSelectionAdvanceResult
+advance_legacy_game_menu_selection(
+    LegacyGameMenuState& state, LegacyGameMenuSelectionPorts& ports
 ) noexcept;
 
-class LegacyStandardModeGroupEightCommitPorts
-    : public virtual LegacyStandardModeGroupEightSelectionPorts,
+class LegacyGameMenuCommitPorts
+    : public virtual LegacyGameMenuSelectionPorts,
       public virtual LegacyStandardModeCallbackBindingPorts {
 public:
-    ~LegacyStandardModeGroupEightCommitPorts() override = default;
+    ~LegacyGameMenuCommitPorts() override = default;
     [[nodiscard]] virtual std::optional<compat::i32>
     invoke_initialization_callback(
-        compat::u16 selection,
-        compat::u32 target,
-        LegacyStandardModeGroupEightState& state
+        compat::u16 selection, compat::u32 target, LegacyGameMenuState& state
     ) = 0;
 };
 
-enum class LegacyStandardModeGroupEightCommitStatus : compat::u8 {
+enum class LegacyGameMenuCommitStatus : compat::u8 {
     completed,
     selection_out_of_range,
     initialization_callback_missing,
 };
 
-struct LegacyStandardModeGroupEightCommitResult {
-    LegacyStandardModeGroupEightCommitStatus status{
-        LegacyStandardModeGroupEightCommitStatus::completed
-    };
+struct LegacyGameMenuCommitResult {
+    LegacyGameMenuCommitStatus status{LegacyGameMenuCommitStatus::completed};
     compat::i32 legacy_return_value{};
     compat::u32 story_flag_query_count{};
     compat::u32 helper_call_count{};
     bool visual_index_swapped{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightCommitResult
-commit_legacy_standard_mode_group_eight_selection(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightCommitPorts& ports
+[[nodiscard]] LegacyGameMenuCommitResult commit_legacy_game_menu_selection(
+    LegacyGameMenuState& state, LegacyGameMenuCommitPorts& ports
 ) noexcept;
 
-class LegacyStandardModeGroupEightDrawPorts {
+class LegacyGameMenuDrawPorts {
 public:
-    virtual ~LegacyStandardModeGroupEightDrawPorts() = default;
+    virtual ~LegacyGameMenuDrawPorts() = default;
     [[nodiscard]] virtual LegacyStandardModeRuntimeInitializationState&
-    group_one_runtime_state() noexcept = 0;
-    [[nodiscard]] virtual LegacyStandardModeGroupEightInteractionCommitRuntime&
-    group_one_commit_runtime() noexcept = 0;
-    [[nodiscard]] virtual LegacyStandardModeGroupOneRenderPorts&
-    group_one_render_ports() noexcept = 0;
+    game_menu_page_runtime_state() noexcept = 0;
+    [[nodiscard]] virtual LegacyGameMenuInteractionCommitRuntime&
+    game_menu_page_commit_runtime() noexcept = 0;
+    [[nodiscard]] virtual LegacyGameMenuPageRenderPorts&
+    game_menu_page_render_ports() noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32> invoke_draw_callback(
-        compat::u16 selection,
-        compat::u32 target,
-        LegacyStandardModeGroupEightState& state
+        compat::u16 selection, compat::u32 target, LegacyGameMenuState& state
     ) = 0;
 };
 
-enum class LegacyStandardModeGroupEightDrawStatus : compat::u8 {
+enum class LegacyGameMenuDrawStatus : compat::u8 {
     completed,
     selection_out_of_range,
     draw_callback_missing,
-    group_one_render_stopped,
+    game_menu_page_render_stopped,
 };
 
-struct LegacyStandardModeGroupEightDrawResult {
-    LegacyStandardModeGroupEightDrawStatus status{
-        LegacyStandardModeGroupEightDrawStatus::completed
-    };
+struct LegacyGameMenuDrawResult {
+    LegacyGameMenuDrawStatus status{LegacyGameMenuDrawStatus::completed};
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightDrawResult
-draw_legacy_standard_mode_group_eight_selection(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightDrawPorts& ports
+[[nodiscard]] LegacyGameMenuDrawResult draw_legacy_game_menu_selection(
+    LegacyGameMenuState& state, LegacyGameMenuDrawPorts& ports
 ) noexcept;
 
-struct LegacyStandardModeGroupEightExitResult {
+struct LegacyGameMenuExitResult {
     compat::i16 legacy_return_value{};
     compat::u32 story_flag_query_count{};
     compat::u32 helper_call_count{};
     bool tagged_mode_cleared{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightExitResult
-exit_legacy_standard_mode_group_eight(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeCallbackBindingPorts& ports
+[[nodiscard]] LegacyGameMenuExitResult exit_legacy_game_menu(
+    LegacyGameMenuState& state, LegacyStandardModeCallbackBindingPorts& ports
 ) noexcept;
 
-class LegacyStandardModeGroupEightInputPorts
-    : public virtual LegacyStandardModeGroupEightCommitPorts {
+class LegacyGameMenuInputPorts : public virtual LegacyGameMenuCommitPorts {
 public:
-    ~LegacyStandardModeGroupEightInputPorts() override = default;
+    ~LegacyGameMenuInputPorts() override = default;
     [[nodiscard]] virtual std::optional<compat::i32> invoke_selection_callback(
-        compat::u16 selection, LegacyStandardModeGroupEightState& state
+        compat::u16 selection, LegacyGameMenuState& state
     ) = 0;
 };
 
-enum class LegacyStandardModeGroupEightInputStatus : compat::u8 {
+enum class LegacyGameMenuInputStatus : compat::u8 {
     completed,
     selection_callback_missing,
     commit_stopped,
 };
 
-struct LegacyStandardModeGroupEightInputResult {
-    LegacyStandardModeGroupEightInputStatus status{
-        LegacyStandardModeGroupEightInputStatus::completed
-    };
+struct LegacyGameMenuInputResult {
+    LegacyGameMenuInputStatus status{LegacyGameMenuInputStatus::completed};
     compat::i16 legacy_return_value{};
     compat::u32 story_flag_query_count{};
     compat::u32 helper_call_count{};
     bool selection_rewritten{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightInputResult
-handle_legacy_standard_mode_group_eight_input(
-    LegacyStandardModeGroupEightState& state,
-    const LegacyStandardModeGroupEightInputSnapshot& input,
-    LegacyStandardModeGroupEightInputPorts& ports
+[[nodiscard]] LegacyGameMenuInputResult handle_legacy_game_menu_input(
+    LegacyGameMenuState& state,
+    const LegacyGameMenuInputSnapshot& input,
+    LegacyGameMenuInputPorts& ports
 ) noexcept;
 
 struct LegacyStandardSpecialModeFrameResult {
@@ -2178,7 +2092,7 @@ struct LegacyStandardModeRecordInitializationResult {
 [[nodiscard]] LegacyStandardModeRecordInitializationResult
 initialize_legacy_standard_mode_selection_records(
     LegacyStandardModeForwardNode*& source_head,
-    LegacyStandardModeGroupEightState& state,
+    LegacyGameMenuState& state,
     std::span<const compat::u32> mode_masks,
     compat::u32 mode_three_mask,
     compat::u32 mode_six_mask,
@@ -2946,7 +2860,7 @@ struct LegacyStandardModeWindowSelectionResult {
     bool missing_node_requested{};
 };
 
-struct LegacyStandardModeGroupEightInteractionCommitRuntime {
+struct LegacyGameMenuInteractionCommitRuntime {
     LegacyStandardModeFilteredRecordState filtered_records;
     LegacyStandardModeDialogSetupState dialog_setup;
     std::vector<LegacyStandardModeDialogSetupRecord> dialog_records;
@@ -2957,7 +2871,7 @@ struct LegacyStandardModeGroupEightInteractionCommitRuntime {
     compat::u32 temporary_resource_token{};
 };
 
-enum class LegacyStandardModeGroupOneRenderOperation : compat::u8 {
+enum class LegacyGameMenuPageRenderOperation : compat::u8 {
     prepare_surface,
     draw_progress,
     draw_choice,
@@ -2974,25 +2888,24 @@ enum class LegacyStandardModeGroupOneRenderOperation : compat::u8 {
     draw_terminal_row,
 };
 
-struct LegacyStandardModeGroupOneRenderRequest {
-    LegacyStandardModeGroupOneRenderOperation operation{
-        LegacyStandardModeGroupOneRenderOperation::prepare_surface
+struct LegacyGameMenuPageRenderRequest {
+    LegacyGameMenuPageRenderOperation operation{
+        LegacyGameMenuPageRenderOperation::prepare_surface
     };
     std::array<compat::i32, 8U> values{};
     compat::u32 color{};
     std::string text;
 };
 
-class LegacyStandardModeGroupOneRenderPorts {
+class LegacyGameMenuPageRenderPorts {
 public:
-    virtual ~LegacyStandardModeGroupOneRenderPorts() = default;
+    virtual ~LegacyGameMenuPageRenderPorts() = default;
     [[nodiscard]] virtual compat::u32 compose_color(
         compat::u8 red, compat::u8 green, compat::u8 blue
     ) noexcept = 0;
     [[nodiscard]] virtual bool transition_gate() noexcept = 0;
-    [[nodiscard]] virtual std::optional<compat::i32> execute(
-        const LegacyStandardModeGroupOneRenderRequest& request
-    ) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    execute(const LegacyGameMenuPageRenderRequest& request) noexcept = 0;
     [[nodiscard]] virtual std::optional<std::pair<std::string, bool>>
     load_mode_row(compat::u32 resource_id) noexcept = 0;
     [[nodiscard]] virtual std::span<const std::string>
@@ -3001,16 +2914,16 @@ public:
     runtime_render_ports() noexcept = 0;
 };
 
-enum class LegacyStandardModeGroupOneRenderStatus : compat::u8 {
+enum class LegacyGameMenuPageRenderStatus : compat::u8 {
     completed,
     runtime_render_stopped,
     selected_record_missing,
     render_operation_stopped,
 };
 
-struct LegacyStandardModeGroupOneRenderResult {
-    LegacyStandardModeGroupOneRenderStatus status{
-        LegacyStandardModeGroupOneRenderStatus::completed
+struct LegacyGameMenuPageRenderResult {
+    LegacyGameMenuPageRenderStatus status{
+        LegacyGameMenuPageRenderStatus::completed
     };
     compat::i32 legacy_return_value{};
     compat::u32 color_compose_count{};
@@ -3018,12 +2931,11 @@ struct LegacyStandardModeGroupOneRenderResult {
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupOneRenderResult
-render_legacy_standard_mode_group_one(
-    LegacyStandardModeGroupEightState& state,
+[[nodiscard]] LegacyGameMenuPageRenderResult render_legacy_game_menu_page(
+    LegacyGameMenuState& state,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
-    LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime,
-    LegacyStandardModeGroupOneRenderPorts& ports
+    LegacyGameMenuInteractionCommitRuntime& commit_runtime,
+    LegacyGameMenuPageRenderPorts& ports
 ) noexcept;
 
 inline constexpr std::size_t kLegacyStandardModeResourceRecordSize = 0xD8U;
@@ -3166,26 +3078,26 @@ struct LegacyStandardModeSpecialWorldReturnResult {
 restore_legacy_standard_mode_special_world_transition(
     compat::i32 consume_transition_item,
     std::span<const compat::u8> maps_payload,
-    LegacyStandardModeGroupEightState& state,
+    LegacyGameMenuState& state,
     LegacyStandardModeSpecialWorldTransitionRuntime& runtime,
     LegacyStandardModeSpecialWorldReturnPorts& ports
 ) noexcept;
 
 [[nodiscard]] LegacyStandardModeSpecialWorldTransitionResult
 prepare_legacy_standard_mode_special_world_transition(
-    LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightCleanupPorts& cleanup_ports,
+    LegacyGameMenuState& state,
+    LegacyGameMenuCleanupPorts& cleanup_ports,
     LegacyStandardModeSpecialWorldTransitionRuntime& runtime,
     LegacyStandardModeSpecialWorldTransitionPorts& ports
 ) noexcept;
 
-class LegacyStandardModeGroupEightInteractionCommitPorts
+class LegacyGameMenuInteractionCommitPorts
     : public LegacyStandardModeMissingNodePorts,
       public LegacyStandardModeFilterQueryPorts,
       public LegacyStandardModeDialogSetupPorts,
       public LegacyStandardModeCallbackBindingPorts {
 public:
-    ~LegacyStandardModeGroupEightInteractionCommitPorts() override = default;
+    ~LegacyGameMenuInteractionCommitPorts() override = default;
 
     [[nodiscard]] virtual compat::i32 mutate_inventory(
         compat::u16 item_id, compat::i32 delta, compat::i32 mode
@@ -3221,7 +3133,7 @@ public:
     mode_resource_trailing_value() noexcept = 0;
 };
 
-enum class LegacyStandardModeGroupEightInteractionCommitStatus : compat::u8 {
+enum class LegacyGameMenuInteractionCommitStatus : compat::u8 {
     completed,
     selected_record_missing,
     record_cleanup_stopped,
@@ -3233,10 +3145,10 @@ enum class LegacyStandardModeGroupEightInteractionCommitStatus : compat::u8 {
     dialog_setup_stopped,
     filtered_record_out_of_range,
     equipment_payload_stopped,
-    transition_visual_stopped,
+    title_menu_stopped,
 };
 
-enum class LegacyStandardModeGroupEightInteractionCommitPath : compat::u8 {
+enum class LegacyGameMenuInteractionCommitPath : compat::u8 {
     no_action,
     runtime_noop,
     mode_two_refreshed,
@@ -3252,35 +3164,35 @@ enum class LegacyStandardModeGroupEightInteractionCommitPath : compat::u8 {
     battle_requested,
 };
 
-struct LegacyStandardModeGroupEightInteractionCommitResult {
-    LegacyStandardModeGroupEightInteractionCommitStatus status{
-        LegacyStandardModeGroupEightInteractionCommitStatus::completed
+struct LegacyGameMenuInteractionCommitResult {
+    LegacyGameMenuInteractionCommitStatus status{
+        LegacyGameMenuInteractionCommitStatus::completed
     };
-    LegacyStandardModeGroupEightInteractionCommitPath path{
-        LegacyStandardModeGroupEightInteractionCommitPath::no_action
+    LegacyGameMenuInteractionCommitPath path{
+        LegacyGameMenuInteractionCommitPath::no_action
     };
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightInteractionCommitResult
-commit_legacy_standard_mode_group_eight_interaction(
-    LegacyStandardModeGroupEightState& state,
+[[nodiscard]] LegacyGameMenuInteractionCommitResult
+commit_legacy_game_menu_interaction(
+    LegacyGameMenuState& state,
     compat::u32 sample_handle,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports,
-    LegacyStandardModeGroupEightInteractionCommitRuntime& runtime,
-    LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports
+    LegacyGameMenuMainInputPorts& ports,
+    LegacyGameMenuInteractionCommitRuntime& runtime,
+    LegacyGameMenuInteractionCommitPorts& commit_ports
 ) noexcept;
 
-enum class LegacyStandardModeGroupEightInteractionExitStatus : compat::u8 {
+enum class LegacyGameMenuInteractionExitStatus : compat::u8 {
     completed,
     record_cleanup_stopped,
 };
 
-enum class LegacyStandardModeGroupEightInteractionExitPath : compat::u8 {
+enum class LegacyGameMenuInteractionExitPath : compat::u8 {
     no_action,
     high_mode_ignored,
     runtime_cleaned,
@@ -3290,26 +3202,26 @@ enum class LegacyStandardModeGroupEightInteractionExitPath : compat::u8 {
     phase_reset,
 };
 
-struct LegacyStandardModeGroupEightInteractionExitResult {
-    LegacyStandardModeGroupEightInteractionExitStatus status{
-        LegacyStandardModeGroupEightInteractionExitStatus::completed
+struct LegacyGameMenuInteractionExitResult {
+    LegacyGameMenuInteractionExitStatus status{
+        LegacyGameMenuInteractionExitStatus::completed
     };
-    LegacyStandardModeGroupEightInteractionExitPath path{
-        LegacyStandardModeGroupEightInteractionExitPath::no_action
+    LegacyGameMenuInteractionExitPath path{
+        LegacyGameMenuInteractionExitPath::no_action
     };
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
     compat::u32 story_flag_query_count{};
 };
 
-[[nodiscard]] LegacyStandardModeGroupEightInteractionExitResult
-exit_legacy_standard_mode_group_eight_interaction(
-    LegacyStandardModeGroupEightState& state,
+[[nodiscard]] LegacyGameMenuInteractionExitResult
+exit_legacy_game_menu_interaction(
+    LegacyGameMenuState& state,
     LegacyStandardModeRuntimeInitializationState& runtime_state,
     LegacyStandardModeInputDispatchPorts& runtime_ports,
-    LegacyStandardModeGroupEightMainInputPorts& ports,
-    LegacyStandardModeGroupEightInteractionCommitRuntime& commit_runtime,
-    LegacyStandardModeGroupEightInteractionCommitPorts& commit_ports
+    LegacyGameMenuMainInputPorts& ports,
+    LegacyGameMenuInteractionCommitRuntime& commit_runtime,
+    LegacyGameMenuInteractionCommitPorts& commit_ports
 ) noexcept;
 
 struct LegacyStandardModeAvailabilityRecord {
@@ -5817,9 +5729,9 @@ render_legacy_standard_mode_animated_panel(
 ) noexcept;
 
 // sub_43AAA0: draw the four standard-mode transition item blocks.
-[[nodiscard]] LegacyStandardModeTransitionResult
-render_legacy_standard_mode_transition(
-    LegacyStandardModeTransitionState& state,
+[[nodiscard]] LegacyGameMenuEntryAnimationResult
+render_legacy_game_menu_entry_animation(
+    LegacyGameMenuEntryAnimationState& state,
     compat::u32 extent,
     compat::u16 item_count,
     compat::u16 secondary_word,
@@ -5827,7 +5739,7 @@ render_legacy_standard_mode_transition(
     std::array<
         asset_runtime::LegacyActionRecord,
         kLegacyStandardSpecialModeInitializationRecordCount>& action_records,
-    LegacyStandardModeTransitionPorts& ports
+    LegacyGameMenuEntryAnimationPorts& ports
 ) noexcept;
 
 // sub_43A880: prepare and draw the standard-mode panel action.
