@@ -2928,6 +2928,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             const u16 command_id, const u32 sample_owner
         ) noexcept override {
             cycle_events.push_back(5U);
+            list_kind_events.push_back(3U);
             samples.push_back({command_id, sample_owner});
             if (sample_state != nullptr && sample_final_zero.has_value()) {
                 sample_state->final_zero = *sample_final_zero;
@@ -2985,6 +2986,20 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return party_cycle_finalized_action_count;
         }
 
+        bool cleanup_equipment_list_kind_cycle(
+            sm::LegacyStandardModeEquipmentInitializationState&
+        ) noexcept override {
+            list_kind_events.push_back(1U);
+            return list_kind_cleanup_available;
+        }
+
+        bool initialize_equipment_list_kind_cycle_record_list(
+            sm::LegacyStandardModeEquipmentInitializationState&
+        ) noexcept override {
+            list_kind_events.push_back(2U);
+            return list_kind_record_list_available;
+        }
+
         std::array<i32, 64U> item_presence{};
         std::optional<sm::LegacyStandardModeEquipmentInputSnapshot>
             overlay_rewrite{};
@@ -2994,6 +3009,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         bool party_cycle_cleanup_available{true};
         bool party_cycle_action_count_available{true};
         bool party_cycle_record_list_available{true};
+        bool list_kind_cleanup_available{true};
+        bool list_kind_record_list_available{true};
         i32 sample_return{77};
         u32 party_selector_before_cycle{};
         std::optional<i32> party_cycle_finalized_action_count{17};
@@ -3003,6 +3020,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::vector<u16> item_ids;
         std::vector<std::array<u32, 2U>> samples;
         std::vector<u32> cycle_events;
+        std::vector<u32> list_kind_events;
         std::vector<u32> finalized_party_actions;
     };
     {
@@ -3691,6 +3709,100 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x4439A0 mode2 selects highest party and mode15 advances hover cursor"
         );
 
+        sm::LegacyStandardModeEquipmentInitializationState list_kind_state;
+        list_kind_state.mode_enabled = 1U;
+        list_kind_state.list_kind = 2U;
+        list_kind_state.record_head = &advance_first;
+        list_kind_state.sample_owner = 0x1A57U;
+        EquipmentInputPorts list_kind_ports;
+        const auto list_kind_cycled =
+            sm::cycle_legacy_standard_mode_equipment_list_kind(
+                list_kind_state, {}, list_kind_ports
+            );
+        const bool list_kind_wrapped = list_kind_state.list_kind == 0U &&
+            list_kind_state.shared_text[0] == 0xB5U;
+        list_kind_state.list_kind = 3U;
+        const auto list_kind_above_range =
+            sm::cycle_legacy_standard_mode_equipment_list_kind(
+                list_kind_state, {}, list_kind_ports
+            );
+        list_kind_state.mode_enabled = 2U;
+        const auto list_kind_bypassed =
+            sm::cycle_legacy_standard_mode_equipment_list_kind(
+                list_kind_state, {}, list_kind_ports
+            );
+        test.expect_true(
+            list_kind_cycled.status ==
+                    sm::LegacyStandardModeEquipmentListKindCycleStatus::
+                        completed &&
+                list_kind_cycled.legacy_return_value == 77 &&
+                list_kind_cycled.helper_call_count == 5U && list_kind_wrapped &&
+                list_kind_above_range.status ==
+                    sm::LegacyStandardModeEquipmentListKindCycleStatus::
+                        completed &&
+                list_kind_state.list_kind == 4U &&
+                list_kind_bypassed.legacy_return_value == 1 &&
+                list_kind_bypassed.helper_call_count == 0U,
+            "0x443B70 wraps exact kind3, preserves higher values and returns mode residual"
+        );
+        test.expect_true(
+            list_kind_ports.list_kind_events ==
+                    std::vector<u32>{1U, 2U, 3U, 1U, 2U, 3U} &&
+                list_kind_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{
+                        {0x2EU, 0x1A57U}, {0x2EU, 0x1A57U}
+                    },
+            "0x443B70 rebuilds record text before sample46 on each mode1 cycle"
+        );
+
+        list_kind_state = {};
+        list_kind_state.mode_enabled = 1U;
+        list_kind_state.list_kind = 1U;
+        EquipmentInputPorts list_kind_cleanup_stop_ports;
+        list_kind_cleanup_stop_ports.list_kind_cleanup_available = false;
+        const auto list_kind_cleanup_stopped =
+            sm::cycle_legacy_standard_mode_equipment_list_kind(
+                list_kind_state, {}, list_kind_cleanup_stop_ports
+            );
+        const u32 list_kind_after_cleanup_stop = list_kind_state.list_kind;
+        EquipmentInputPorts list_kind_record_stop_ports;
+        list_kind_record_stop_ports.list_kind_record_list_available = false;
+        const auto list_kind_record_stopped =
+            sm::cycle_legacy_standard_mode_equipment_list_kind(
+                list_kind_state, {}, list_kind_record_stop_ports
+            );
+        EquipmentInputPorts list_kind_missing_ports;
+        const auto list_kind_missing =
+            sm::cycle_legacy_standard_mode_equipment_list_kind(
+                list_kind_state, {}, list_kind_missing_ports
+            );
+        list_kind_state.record_head = &advance_invalid_text;
+        EquipmentInputPorts list_kind_text_stop_ports;
+        const auto list_kind_text_stopped =
+            sm::cycle_legacy_standard_mode_equipment_list_kind(
+                list_kind_state, {}, list_kind_text_stop_ports
+            );
+        test.expect_true(
+            list_kind_cleanup_stopped.status ==
+                    sm::LegacyStandardModeEquipmentListKindCycleStatus::
+                        cleanup_stopped &&
+                list_kind_cleanup_stopped.helper_call_count == 0U &&
+                list_kind_after_cleanup_stop == 1U &&
+                list_kind_record_stopped.status ==
+                    sm::LegacyStandardModeEquipmentListKindCycleStatus::
+                        record_list_stopped &&
+                list_kind_record_stopped.helper_call_count == 1U &&
+                list_kind_missing.status ==
+                    sm::LegacyStandardModeEquipmentListKindCycleStatus::
+                        selected_record_missing &&
+                list_kind_missing.helper_call_count == 3U &&
+                list_kind_text_stopped.status ==
+                    sm::LegacyStandardModeEquipmentListKindCycleStatus::
+                        shared_text_stopped &&
+                list_kind_text_stopped.helper_call_count == 4U,
+            "0x443B70 preserves cleanup, record-list, B9C0 and B9E0 stop prefixes"
+        );
+
         sm::LegacyStandardModeEquipmentInitializationState party_cycle_state;
         party_cycle_state.mode_enabled = 1U;
         party_cycle_state.party_selector = 0xABCD0000U;
@@ -3884,6 +3996,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         equipment = {};
         equipment.mode_enabled = 1U;
         equipment.selected_party_action = 0U;
+        equipment.record_head = &advance_first;
         input = {};
         input.buttons = 1U;
         input.cursor_x = 0x217U;
@@ -3899,14 +4012,13 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
         test.expect_true(
             equipment.first_render_zero == 0xFFFFFFFFU &&
-                equipment.list_kind == 0xFFFFFFFFU &&
-                overlay.callback_count == 4U &&
+                equipment.list_kind == 0U && overlay.callback_count == 4U &&
                 overlay_ports.item_ids == std::vector<u16>{0x15U, 0x16U} &&
                 overlay_ports.targets ==
                     std::vector<EquipmentTarget>{
                         EquipmentTarget::show_overlay,
-                        EquipmentTarget::cycle_list_kind,
-                    },
+                    } &&
+                overlay_ports.list_kind_events == std::vector<u32>{1U, 2U, 3U},
             "0x442F40 reloads mutable buttons and coordinates after overlay then cycles kind"
         );
         equipment = {};

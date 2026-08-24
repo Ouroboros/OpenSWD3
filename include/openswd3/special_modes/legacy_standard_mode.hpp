@@ -674,6 +674,7 @@ enum class LegacyStandardModeEquipmentInputStatus : compat::u8 {
     availability_index_out_of_range,
     selected_record_missing,
     shared_text_stopped,
+    list_kind_cycle_stopped,
     party_mapping_stopped,
     party_cycle_stopped,
 };
@@ -863,8 +864,43 @@ cycle_legacy_standard_mode_equipment_party(
     LegacyStandardModeEquipmentPartyCyclePorts& ports
 ) noexcept;
 
-class LegacyStandardModeEquipmentInputPorts
+class LegacyStandardModeEquipmentListKindCyclePorts
     : public LegacyStandardModeEquipmentPartyCyclePorts {
+public:
+    ~LegacyStandardModeEquipmentListKindCyclePorts() override = default;
+    [[nodiscard]] virtual bool cleanup_equipment_list_kind_cycle(
+        LegacyStandardModeEquipmentInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool initialize_equipment_list_kind_cycle_record_list(
+        LegacyStandardModeEquipmentInitializationState& state
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeEquipmentListKindCycleStatus : compat::u8 {
+    completed,
+    cleanup_stopped,
+    record_list_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+};
+
+struct LegacyStandardModeEquipmentListKindCycleResult {
+    LegacyStandardModeEquipmentListKindCycleStatus status{
+        LegacyStandardModeEquipmentListKindCycleStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentListKindCycleResult
+cycle_legacy_standard_mode_equipment_list_kind(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentListKindCyclePorts& ports
+) noexcept;
+
+class LegacyStandardModeEquipmentInputPorts
+    : public LegacyStandardModeEquipmentListKindCyclePorts {
 public:
     ~LegacyStandardModeEquipmentInputPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke_equipment_input(

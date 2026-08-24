@@ -619,6 +619,65 @@ advance_legacy_standard_mode_equipment_column(
     return result;
 }
 
+LegacyStandardModeEquipmentListKindCycleResult
+cycle_legacy_standard_mode_equipment_list_kind(
+    LegacyStandardModeEquipmentInitializationState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentListKindCyclePorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentListKindCycleResult result;
+    result.legacy_return_value =
+        std::bit_cast<compat::i32>(state.mode_enabled - 1U);
+    if (state.mode_enabled != 1U) {
+        return result;
+    }
+    if (!ports.cleanup_equipment_list_kind_cycle(state)) {
+        result.status =
+            LegacyStandardModeEquipmentListKindCycleStatus::cleanup_stopped;
+        return result;
+    }
+    ++result.helper_call_count;
+    ++state.list_kind;
+    if (state.list_kind == 3U) {
+        state.list_kind = 0U;
+    }
+    if (!ports.initialize_equipment_list_kind_cycle_record_list(state)) {
+        result.status =
+            LegacyStandardModeEquipmentListKindCycleStatus::record_list_stopped;
+        return result;
+    }
+    ++result.helper_call_count;
+
+    const LegacyStandardModeForwardNode* const record_head = state.record_head;
+    const LegacyStandardModeForwardNode* const selected_record =
+        index_legacy_standard_mode_forward_node(
+            std::bit_cast<compat::i32>(
+                state.list_offset + state.local_selection
+            ),
+            &record_head
+        );
+    ++result.helper_call_count;
+    if (selected_record == nullptr) {
+        result.status = LegacyStandardModeEquipmentListKindCycleStatus::
+            selected_record_missing;
+        return result;
+    }
+    const LegacyStandardModeTextResolutionResult text =
+        resolve_legacy_standard_mode_shared_text(
+            selected_record->text_index, maps_payload, state.shared_text
+        );
+    ++result.helper_call_count;
+    if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
+        result.status =
+            LegacyStandardModeEquipmentListKindCycleStatus::shared_text_stopped;
+        return result;
+    }
+    result.legacy_return_value =
+        ports.execute_equipment_sample_command(0x002EU, state.sample_owner);
+    ++result.helper_call_count;
+    return result;
+}
+
 LegacyStandardModeEquipmentPartyCycleResult
 cycle_legacy_standard_mode_equipment_party(
     LegacyStandardModeEquipmentInitializationState& state,
@@ -1305,6 +1364,36 @@ handle_legacy_standard_mode_equipment_input(
             break;
         }
     };
+    const auto cycle_list_kind = [&]() {
+        result.last_target =
+            LegacyStandardModeEquipmentInputTarget::cycle_list_kind;
+        ++result.callback_count;
+        const LegacyStandardModeEquipmentListKindCycleResult cycled =
+            cycle_legacy_standard_mode_equipment_list_kind(
+                state, maps_payload, ports
+            );
+        result.legacy_return_value = cycled.legacy_return_value;
+        switch (cycled.status) {
+        case LegacyStandardModeEquipmentListKindCycleStatus::completed:
+            break;
+        case LegacyStandardModeEquipmentListKindCycleStatus::
+            selected_record_missing:
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::selected_record_missing;
+            break;
+        case LegacyStandardModeEquipmentListKindCycleStatus::
+            shared_text_stopped:
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::shared_text_stopped;
+            break;
+        case LegacyStandardModeEquipmentListKindCycleStatus::cleanup_stopped:
+        case LegacyStandardModeEquipmentListKindCycleStatus::
+            record_list_stopped:
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::list_kind_cycle_stopped;
+            break;
+        }
+    };
     const auto cycle_party = [&]() {
         result.last_target =
             LegacyStandardModeEquipmentInputTarget::cycle_party;
@@ -1389,9 +1478,7 @@ handle_legacy_standard_mode_equipment_input(
                 }
                 if (list_kind < available_count) {
                     state.list_kind = list_kind - 1U;
-                    invoke(
-                        LegacyStandardModeEquipmentInputTarget::cycle_list_kind
-                    );
+                    cycle_list_kind();
                 }
                 return result;
             }
