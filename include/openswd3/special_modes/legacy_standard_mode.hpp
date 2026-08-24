@@ -796,6 +796,67 @@ struct LegacyStandardModeDatabaseInitializationState {
     compat::i32 second_dynamic_max_x{};
 };
 
+inline constexpr std::size_t kLegacyStandardModeGuardianRecordCount = 7U * 16U;
+
+struct LegacyStandardModeGuardianInitializationState {
+    std::array<compat::u8, 0xB0U> scratch_record{};
+    std::array<compat::u8, kLegacyStandardModeSharedTextCapacity> shared_text{};
+    compat::u32 party_selector{};
+    compat::u32 interface_source_value{};
+    compat::u32 copied_interface_source_value{};
+    compat::u32 first_work_storage_token{};
+    compat::u32 second_work_storage_token{};
+    compat::u32 attribute_cache_token{};
+    std::array<compat::u8, 0x190U> attribute_cache{};
+    compat::u32 primary_accumulator{};
+    compat::u32 secondary_accumulator{};
+    compat::u32 first_total{};
+    compat::u32 second_total{};
+    compat::u32 selection_index{};
+    compat::u32 first_selection_value{};
+    compat::u32 second_selection_value{};
+    LegacyStandardModeForwardNode* record_head{};
+    compat::u32 action_scratch_id{};
+    compat::u32 panel_offset{};
+    compat::u32 render_zero{};
+    compat::u32 first_scroll_value{};
+    compat::u32 second_scroll_value{};
+    compat::u32 viewport_extent{};
+    compat::i32 previous_selection{};
+    compat::u32 panel_x{};
+    compat::u32 panel_y{};
+    bool uses_alternate_record_list{};
+};
+
+enum class LegacyStandardModeGuardianInitializationStatus : compat::u8 {
+    completed,
+    attribute_cache_allocation_failed,
+    record_index_out_of_range,
+    shared_text_stopped,
+};
+
+struct LegacyStandardModeGuardianInitializationResult {
+    LegacyStandardModeGuardianInitializationStatus status{
+        LegacyStandardModeGuardianInitializationStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 allocation_count{};
+};
+
+class LegacyStandardModeGuardianInitializationPorts {
+public:
+    virtual ~LegacyStandardModeGuardianInitializationPorts() = default;
+    [[nodiscard]] virtual compat::u32
+    allocate_guardian_storage(std::size_t size) noexcept = 0;
+    virtual void prepare_guardian_record_list(
+        LegacyStandardModeGuardianInitializationState& state
+    ) noexcept = 0;
+    virtual void prepare_guardian_attribute_cache(
+        LegacyStandardModeGuardianInitializationState& state
+    ) noexcept = 0;
+};
+
 struct LegacyStandardModeDatabaseInputSnapshot {
     compat::u32 buttons{};
     compat::u32 mouse_x{};
@@ -2402,6 +2463,14 @@ release_legacy_standard_mode_database(
 ) noexcept;
 
 // sub_43D530: initialize standard-mode record tables and runtime owners.
+[[nodiscard]] LegacyStandardModeGuardianInitializationResult
+initialize_legacy_standard_mode_guardian_system(
+    LegacyStandardModeGuardianInitializationState& state,
+    std::span<const std::array<compat::u8, 0xB0U>> guardian_records,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianInitializationPorts& ports
+) noexcept;
+
 [[nodiscard]] LegacyStandardModeDatabaseInitializationResult
 initialize_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,

@@ -5035,6 +5035,89 @@ LegacyStandardModeDatabaseCleanupResult release_legacy_standard_mode_database(
     return result;
 }
 
+LegacyStandardModeGuardianInitializationResult
+initialize_legacy_standard_mode_guardian_system(
+    LegacyStandardModeGuardianInitializationState& state,
+    const std::span<const std::array<compat::u8, 0xB0U>> guardian_records,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianInitializationPorts& ports
+) noexcept {
+    LegacyStandardModeGuardianInitializationResult result;
+    state.scratch_record.fill(0U);
+    state.uses_alternate_record_list = true;
+    if (static_cast<compat::u16>(state.party_selector) == 5U) {
+        state.party_selector &= 0xFFFF0000U;
+    }
+    state.copied_interface_source_value = state.interface_source_value;
+    state.first_work_storage_token = ports.allocate_guardian_storage(0x38U);
+    ++result.helper_call_count;
+    ++result.allocation_count;
+    state.second_work_storage_token = ports.allocate_guardian_storage(0x38U);
+    ++result.helper_call_count;
+    ++result.allocation_count;
+
+    state.primary_accumulator = 0U;
+    state.secondary_accumulator = 0U;
+    state.first_total = 0U;
+    state.second_total = 0U;
+    state.selection_index = 0U;
+    state.first_selection_value = 0U;
+    state.second_selection_value = 0U;
+    state.record_head = nullptr;
+    ports.prepare_guardian_record_list(state);
+    ++result.helper_call_count;
+
+    state.action_scratch_id = 0U;
+    state.panel_offset = 0U;
+    state.attribute_cache_token =
+        ports.allocate_guardian_storage(state.attribute_cache.size());
+    ++result.helper_call_count;
+    ++result.allocation_count;
+    result.legacy_return_value =
+        std::bit_cast<compat::i32>(state.attribute_cache_token);
+    if (state.attribute_cache_token == 0U) {
+        result.status = LegacyStandardModeGuardianInitializationStatus::
+            attribute_cache_allocation_failed;
+        return result;
+    }
+    state.attribute_cache.fill(0U);
+    ports.prepare_guardian_attribute_cache(state);
+    ++result.helper_call_count;
+
+    const compat::u16 party_index =
+        static_cast<compat::u16>(state.party_selector);
+    const std::uint64_t record_index =
+        static_cast<std::uint64_t>(party_index) * 16U + state.selection_index;
+    if (record_index >= guardian_records.size()) {
+        result.status = LegacyStandardModeGuardianInitializationStatus::
+            record_index_out_of_range;
+        return result;
+    }
+    const compat::u16 text_index = read_u16_le(
+        guardian_records[static_cast<std::size_t>(record_index)], 4U
+    );
+    const LegacyStandardModeTextResolutionResult text =
+        resolve_legacy_standard_mode_shared_text(
+            text_index, maps_payload, state.shared_text
+        );
+    ++result.helper_call_count;
+    result.legacy_return_value = text.formatter_return;
+    if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
+        result.status =
+            LegacyStandardModeGuardianInitializationStatus::shared_text_stopped;
+        return result;
+    }
+
+    state.render_zero = 0U;
+    state.first_scroll_value = 0U;
+    state.second_scroll_value = 0U;
+    state.viewport_extent = 0x1E0U;
+    state.previous_selection = -1;
+    state.panel_x = 0x1E8U;
+    state.panel_y = 0x78U;
+    return result;
+}
+
 LegacyStandardModeDatabaseInitializationResult
 initialize_legacy_standard_mode_database(
     LegacyStandardModeDatabaseInitializationState& state,

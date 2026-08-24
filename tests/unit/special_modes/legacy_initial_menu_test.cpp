@@ -2473,6 +2473,147 @@ void test_standard_mode_entry_initialization(openswd3::test::Context& test) {
     }
 }
 
+void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
+    namespace sm = openswd3::special_modes;
+    class GuardianPorts final
+        : public sm::LegacyStandardModeGuardianInitializationPorts {
+    public:
+        u32
+        allocate_guardian_storage(const std::size_t size) noexcept override {
+            events.push_back(static_cast<u32>(size));
+            if (allocation_index < allocation_results.size()) {
+                return allocation_results[allocation_index++];
+            }
+            return 0U;
+        }
+
+        void prepare_guardian_record_list(
+            sm::LegacyStandardModeGuardianInitializationState& state
+        ) noexcept override {
+            events.push_back(1U);
+            ++list_prepare_count;
+            state.selection_index = selected_index;
+            state.record_head = &node;
+        }
+
+        void prepare_guardian_attribute_cache(
+            sm::LegacyStandardModeGuardianInitializationState& state
+        ) noexcept override {
+            events.push_back(2U);
+            ++attribute_prepare_count;
+            state.attribute_cache[0U] = 0x5AU;
+            state.first_total = 77U;
+        }
+
+        std::array<u32, 3U> allocation_results{0x11U, 0x22U, 0x33U};
+        std::size_t allocation_index{};
+        u32 selected_index{3U};
+        u32 list_prepare_count{};
+        u32 attribute_prepare_count{};
+        sm::LegacyStandardModeForwardNode node{};
+        std::vector<u32> events;
+    };
+
+    std::
+        array<std::array<u8, 0xB0U>, sm::kLegacyStandardModeGuardianRecordCount>
+            records{};
+    records[3U][4U] = 0xDCU;
+    records[3U][5U] = 0xFFU;
+    sm::LegacyStandardModeGuardianInitializationState state;
+    state.scratch_record.fill(0xA5U);
+    state.attribute_cache.fill(0xCCU);
+    state.party_selector = 0xABCD0005U;
+    state.interface_source_value = 0x12345678U;
+    state.primary_accumulator = 9U;
+    state.viewport_extent = 9U;
+    GuardianPorts ports;
+    const auto initialized =
+        sm::initialize_legacy_standard_mode_guardian_system(
+            state, records, {}, ports
+        );
+    test.expect_true(
+        initialized.status ==
+                sm::LegacyStandardModeGuardianInitializationStatus::completed &&
+            initialized.legacy_return_value == 2 &&
+            initialized.helper_call_count == 6U &&
+            initialized.allocation_count == 3U &&
+            state.party_selector == 0xABCD0000U &&
+            state.copied_interface_source_value == 0x12345678U &&
+            state.first_work_storage_token == 0x11U &&
+            state.second_work_storage_token == 0x22U &&
+            state.attribute_cache_token == 0x33U &&
+            std::ranges::all_of(
+                state.scratch_record, [](const u8 value) { return value == 0U; }
+            ) &&
+            state.attribute_cache[0U] == 0x5AU &&
+            state.attribute_cache[1U] == 0U && state.selection_index == 3U &&
+            state.record_head == &ports.node && state.first_total == 77U &&
+            state.action_scratch_id == 0U && state.panel_offset == 0U &&
+            state.render_zero == 0U && state.first_scroll_value == 0U &&
+            state.second_scroll_value == 0U &&
+            state.viewport_extent == 0x1E0U && state.previous_selection == -1 &&
+            state.panel_x == 0x1E8U && state.panel_y == 0x78U &&
+            state.uses_alternate_record_list &&
+            ports.events == std::vector<u32>{0x38U, 0x38U, 1U, 0x190U, 2U},
+        "0x440630 initializes guardian owners and publishes selected missing text in exact order"
+    );
+
+    sm::LegacyStandardModeGuardianInitializationState allocation_failed_state;
+    allocation_failed_state.attribute_cache.fill(0xA5U);
+    allocation_failed_state.viewport_extent = 9U;
+    GuardianPorts allocation_failed_ports;
+    allocation_failed_ports.allocation_results = {1U, 2U, 0U};
+    const auto allocation_failed =
+        sm::initialize_legacy_standard_mode_guardian_system(
+            allocation_failed_state, records, {}, allocation_failed_ports
+        );
+    test.expect_true(
+        allocation_failed.status ==
+                sm::LegacyStandardModeGuardianInitializationStatus::
+                    attribute_cache_allocation_failed &&
+            allocation_failed.legacy_return_value == 0 &&
+            allocation_failed.helper_call_count == 4U &&
+            allocation_failed_ports.attribute_prepare_count == 0U &&
+            allocation_failed_state.attribute_cache[0U] == 0xA5U &&
+            allocation_failed_state.viewport_extent == 9U,
+        "0x440630 typed-stops at the immediate memset after third allocation failure"
+    );
+
+    sm::LegacyStandardModeGuardianInitializationState range_state;
+    range_state.viewport_extent = 8U;
+    GuardianPorts range_ports;
+    range_ports.selected_index = 200U;
+    const auto range_stopped =
+        sm::initialize_legacy_standard_mode_guardian_system(
+            range_state, records, {}, range_ports
+        );
+    test.expect_true(
+        range_stopped.status ==
+                sm::LegacyStandardModeGuardianInitializationStatus::
+                    record_index_out_of_range &&
+            range_stopped.helper_call_count == 5U &&
+            range_ports.attribute_prepare_count == 1U &&
+            range_state.viewport_extent == 8U,
+        "0x440630 typed-stops at the 7x16 guardian record pointer read"
+    );
+
+    records[3U][4U] = 0U;
+    records[3U][5U] = 0U;
+    sm::LegacyStandardModeGuardianInitializationState text_state;
+    GuardianPorts text_ports;
+    const auto text_stopped =
+        sm::initialize_legacy_standard_mode_guardian_system(
+            text_state, records, {}, text_ports
+        );
+    test.expect_true(
+        text_stopped.status ==
+                sm::LegacyStandardModeGuardianInitializationStatus::
+                    shared_text_stopped &&
+            text_stopped.helper_call_count == 6U,
+        "0x440630 propagates B9E0 typed-stop before final viewport constants"
+    );
+}
+
 void test_standard_mode_database_initialization(openswd3::test::Context& test) {
     class DatabasePorts final
         : public openswd3::special_modes::
@@ -9856,6 +9997,7 @@ int main() {
     test_standard_mode_entry_alias(test);
     test_standard_mode_page_refresh(test);
     test_standard_mode_entry_initialization(test);
+    test_standard_mode_guardian_initialization(test);
     test_standard_mode_database_initialization(test);
     test_standard_mode_database_advance(test);
     test_standard_mode_database_page_cycle(test);
