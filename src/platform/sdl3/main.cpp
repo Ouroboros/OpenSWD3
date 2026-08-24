@@ -4771,8 +4771,6 @@ public:
             explicit InitializationPorts(SdlSmokeIdlePorts& owner) noexcept
                 : owner_(owner) {}
 
-            void install_mode_callbacks() override {}
-
             openswd3::compat::i32
             story_flag(const openswd3::compat::u32 flag_index) override {
                 if (flag_index >= owner_.world_story_vm_state_.flags.size()) {

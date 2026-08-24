@@ -462,15 +462,29 @@ struct LegacyStandardSpecialModeState {
     compat::u32 entry_zero_b{};
     compat::u32 entry_gate{};
     compat::u32 low_mode_zero{};
+    std::array<compat::u32, 7U> draw_callbacks{};
+    std::array<compat::u32, 7U> initialization_callbacks{};
+    std::array<compat::u32, 7U> cleanup_callbacks{};
 };
 
 class LegacyStandardSpecialModeInitializationPorts {
 public:
     virtual ~LegacyStandardSpecialModeInitializationPorts() = default;
 
-    virtual void install_mode_callbacks() = 0;
     [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
 };
+
+struct LegacyStandardSpecialModeCallbackInstallationResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 callback_write_count{};
+    compat::u32 story_flag_query_count{};
+};
+
+[[nodiscard]] LegacyStandardSpecialModeCallbackInstallationResult
+install_legacy_standard_special_mode_callbacks(
+    LegacyStandardSpecialModeState& state,
+    LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept;
 
 struct LegacyStandardSpecialModeInitializationResult {
     compat::u32 action_record_initialization_count{};

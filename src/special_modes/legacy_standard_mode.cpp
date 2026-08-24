@@ -11966,6 +11966,54 @@ LegacyStandardModeSelectorResult initialize_legacy_standard_mode_selector(
     return result;
 }
 
+LegacyStandardSpecialModeCallbackInstallationResult
+install_legacy_standard_special_mode_callbacks(
+    LegacyStandardSpecialModeState& state,
+    LegacyStandardSpecialModeInitializationPorts& ports
+) noexcept {
+    LegacyStandardSpecialModeCallbackInstallationResult result;
+    state.draw_callbacks = {
+        0x00447100U,
+        0x00441680U,
+        0x004442B0U,
+        0x0044A280U,
+        0x0044C160U,
+        0x0043E800U,
+        0x0043C820U,
+    };
+    state.initialization_callbacks = {
+        0x00445430U,
+        0x00440630U,
+        0x00442E40U,
+        0x00449FF0U,
+        0x0044AF30U,
+        0x0043D530U,
+        0x0043C0D0U,
+    };
+    state.cleanup_callbacks = {
+        0x004455A0U,
+        0x00440750U,
+        0x00442F10U,
+        0x0044A030U,
+        0x0044B010U,
+        0x0043D880U,
+        0x0043C2F0U,
+    };
+    result.callback_write_count = 21U;
+    result.legacy_return_value = ports.story_flag(0x49U);
+    ++result.story_flag_query_count;
+    if (result.legacy_return_value == 1) {
+        std::swap(state.draw_callbacks[4U], state.draw_callbacks[5U]);
+        std::swap(
+            state.initialization_callbacks[4U],
+            state.initialization_callbacks[5U]
+        );
+        std::swap(state.cleanup_callbacks[4U], state.cleanup_callbacks[5U]);
+        result.callback_write_count += 6U;
+    }
+    return result;
+}
+
 LegacyStandardSpecialModeInitializationResult
 initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeState& state,
@@ -11974,8 +12022,10 @@ initialize_legacy_standard_special_modes(
     LegacyStandardSpecialModeInitializationResult result;
     state.transient_flags = 0U;
 
-    ports.install_mode_callbacks();
+    const LegacyStandardSpecialModeCallbackInstallationResult callbacks =
+        install_legacy_standard_special_mode_callbacks(state, ports);
     ++result.callback_installation_count;
+    result.story_flag_query_count += callbacks.story_flag_query_count;
 
     for (auto& record : state.initialization_records) {
         asset_runtime::initialize_legacy_action_record(record);

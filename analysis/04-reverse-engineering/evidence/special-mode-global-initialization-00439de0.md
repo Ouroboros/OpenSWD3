@@ -13,7 +13,7 @@
 
 ## 2. 固定调用与18个Act记录
 
-函数先清`[0x004FBED8]`，再调用待独立关闭的`0x00444FC0`安装模式回调，之后按地址顺序对18个`0x98`字节Act记录调用`0x0040DC00`：
+函数先清`[0x004FBED8]`，再直接调用已关闭的`0x00444FC0`安装三张7槽模式回调表并完成第一次flag49查询，之后按地址顺序对18个`0x98`字节Act记录调用`0x0040DC00`：
 
 ```text
 0x004FB970  0x004FC790  0x004FC840  0x004FB810
@@ -41,15 +41,15 @@
 - 记录17：action `0x233B`，base variant `0`。
 - 记录10与15只有`0x0040DC00`的部分重置，不覆盖原动作键。
 
-现代端口只隔离`0x00444FC0`回调安装和剧情标志查询；Act字段写入、查询位置和字面比较均由兼容核心直接保持。SDL在进程启动和新游戏MAPS重载两处、且都在剧情VM初始化之后调用该typed owner。回调安装callee仍为`pending_audit`，SDL当前不伪造其未关闭效果。
+现代端口只隔离剧情标志查询；FC0三表写入、Act字段写入、两次查询位置和字面比较均由兼容核心直接保持。SDL在进程启动和新游戏MAPS重载两处、且都在剧情VM初始化之后调用该typed owner。
 
 ## 4. 验证
 
 `special_modes.legacy_initial_menu`覆盖：
 
-- callback安装先于18个Act初始化，剧情标志查询位于前三个动作键提交之后。
+- FC0 callback表安装和第一次flag49查询先于18个Act初始化；第二次查询位于前三个动作键提交之后。
 - 18个记录的部分重置字段、16个固定动作键和两个保留动作键。
 - 剧情标志结果`1`选择variant `3`，结果`2`保持variant `2`。
 - 共享退出位清零、调用计数和机器尾返回值`0x232B`。
 
-Linux core定向与完整门、Linux app完整门和Windows LLVM app完整门通过后，workpack只新增关闭`0x00439DE0`。workpack连续两轮生成均为`2/227`，SHA256均为`895ddf3dc0d11da21a3fe4e216719878e8da3901923999183aa88fa9a172c34e`。`0x00444FC0`及其回调子图保持`pending_audit`。
+Linux core定向与完整门、Linux app完整门和Windows LLVM app完整门通过后，workpack只新增关闭`0x00439DE0`。workpack连续两轮生成均为`2/227`，SHA256均为`895ddf3dc0d11da21a3fe4e216719878e8da3901923999183aa88fa9a172c34e`。后续FC0工作包已直接回收该callee；其独立证据记录三表21项写入与flag1六项交换。

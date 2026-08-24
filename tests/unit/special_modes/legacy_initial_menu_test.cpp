@@ -245,10 +245,6 @@ public:
     ) noexcept
         : state_(state) {}
 
-    void install_mode_callbacks() override {
-        events.push_back(1U);
-    }
-
     i32 story_flag(const u32 flag_index) override {
         events.push_back(2U);
         queried_flag = flag_index;
@@ -260,6 +256,7 @@ public:
             records[1U].action_id == 0x232AU &&
             records[1U].base_variant == 2U &&
             records[3U].action_id == 0xDEAD0003U;
+        prefix_snapshots.push_back(query_saw_exact_prefix);
         return story_flag_value;
     }
 
@@ -268,6 +265,7 @@ public:
     i32 story_flag_value{};
     u32 queried_flag{};
     bool query_saw_exact_prefix{};
+    std::vector<bool> prefix_snapshots;
 };
 
 class FakeStandardModeCallbackBindingPorts final
@@ -14779,13 +14777,45 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             record.wait_remaining == 0U && record.command_cursor == 0U &&
             record.external_mode == 0U;
     }
+    const std::array<u32, 7U> expected_draw_callbacks{
+        0x00447100U,
+        0x00441680U,
+        0x004442B0U,
+        0x0044A280U,
+        0x0043E800U,
+        0x0044C160U,
+        0x0043C820U,
+    };
+    const std::array<u32, 7U> expected_initialization_callbacks{
+        0x00445430U,
+        0x00440630U,
+        0x00442E40U,
+        0x00449FF0U,
+        0x0043D530U,
+        0x0044AF30U,
+        0x0043C0D0U,
+    };
+    const std::array<u32, 7U> expected_cleanup_callbacks{
+        0x004455A0U,
+        0x00440750U,
+        0x00442F10U,
+        0x0044A030U,
+        0x0043D880U,
+        0x0044B010U,
+        0x0043C2F0U,
+    };
     test.expect_true(
         records_match && state.transient_flags == 0U &&
-            ports.events == std::vector<u32>{1U, 2U} &&
+            state.draw_callbacks == expected_draw_callbacks &&
+            state.initialization_callbacks ==
+                expected_initialization_callbacks &&
+            state.cleanup_callbacks == expected_cleanup_callbacks &&
+            ports.events == std::vector<u32>{2U, 2U} &&
             ports.queried_flag == 0x49U && ports.query_saw_exact_prefix &&
+            ports.prefix_snapshots == std::vector<bool>{false, true} &&
             result.action_record_initialization_count == 18U &&
             result.callback_installation_count == 1U &&
-            result.story_flag_query_count == 1U &&
+            result.story_flag_query_count == 2U &&
             result.return_value == 0x232BU,
         "0x439DE0 installs callbacks, initializes eighteen records in " "address order and applies story flag 0x49 after the three-record " "prefix"
     );
@@ -14796,10 +14826,30 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     static_cast<void>(
         initialize_legacy_standard_special_modes(non_one_state, non_one_ports)
     );
-    test.expect_equal(
-        non_one_state.initialization_records[1U].base_variant,
-        2U,
-        "only a story-flag result equal to one selects variant three"
+    test.expect_true(
+        non_one_state.initialization_records[1U].base_variant == 2U &&
+            non_one_state.draw_callbacks[4U] == 0x0044C160U &&
+            non_one_state.draw_callbacks[5U] == 0x0043E800U &&
+            non_one_state.initialization_callbacks[4U] == 0x0044AF30U &&
+            non_one_state.initialization_callbacks[5U] == 0x0043D530U &&
+            non_one_state.cleanup_callbacks[4U] == 0x0044B010U &&
+            non_one_state.cleanup_callbacks[5U] == 0x0043D880U,
+        "only a story-flag result equal to one swaps variants and callback pairs"
+    );
+
+    LegacyStandardSpecialModeState direct_state;
+    FakeStandardModeInitializationPorts direct_ports{direct_state};
+    direct_ports.story_flag_value = -7;
+    const auto installed =
+        openswd3::special_modes::install_legacy_standard_special_mode_callbacks(
+            direct_state, direct_ports
+        );
+    test.expect_true(
+        installed.legacy_return_value == -7 &&
+            installed.callback_write_count == 21U &&
+            installed.story_flag_query_count == 1U &&
+            direct_ports.events == std::vector<u32>{2U},
+        "0x444FC0 returns raw flag result and keeps default pairs unless it equals one"
     );
 }
 
