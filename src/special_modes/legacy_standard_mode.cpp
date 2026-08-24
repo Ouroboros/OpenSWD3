@@ -415,6 +415,64 @@ LegacySystemMenuResult release_legacy_system_menu(
     return result;
 }
 
+LegacySystemMenuInputResult page_up_legacy_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept {
+    LegacySystemMenuInputResult result;
+    const auto set_legacy = [&result](const compat::u32 value) {
+        result.legacy_return_value = std::bit_cast<compat::i32>(value);
+    };
+    const auto play_sample = [&result, &ports, &state]() {
+        result.command = LegacySystemMenuInputCommand::play_sample;
+        ++result.helper_call_count;
+        result.legacy_return_value = ports.execute_system_menu_input_command(
+            LegacySystemMenuInputCommand::play_sample,
+            state.message_sample_owner,
+            state
+        );
+    };
+    if (state.input_locked != 0U) {
+        set_legacy(state.input_locked);
+        return result;
+    }
+    const compat::u32 mode = state.interaction_mode;
+    set_legacy(mode);
+    switch (mode) {
+    case 0U:
+        if (state.interaction_page != 0U) {
+            play_sample();
+        }
+        state.interaction_page = 0U;
+        return result;
+    case 1U:
+        if (state.interaction_page == 2U) {
+            return retreat_legacy_system_menu_selection(state, ports);
+        }
+        set_legacy(state.interaction_page - 4U);
+        if (state.interaction_page == 3U || state.interaction_page == 4U) {
+            state.selected_row = 0U;
+            play_sample();
+        }
+        return result;
+    case 2U:
+        if (state.interaction_page == 4U) {
+            const compat::u32 next = state.detail_selection + 1U;
+            state.detail_selection = next;
+            set_legacy(next);
+            if (std::bit_cast<compat::i32>(next) >= 2) {
+                state.detail_selection = 1U;
+            }
+        }
+        return result;
+    case 5U:
+        state.selected_entry = 0U;
+        play_sample();
+        return result;
+    default:
+        return result;
+    }
+}
+
 LegacySystemMenuInputResult page_down_legacy_system_menu(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {
@@ -759,7 +817,11 @@ LegacySystemMenuInputResult update_legacy_system_menu_input(
         }
         if (signed_x < state.upper_dynamic_right &&
             signed_x > state.upper_dynamic_left) {
-            call(LegacySystemMenuInputCommand::upper_dynamic_hover);
+            const LegacySystemMenuInputResult page_up =
+                page_up_legacy_system_menu(state, ports);
+            result.helper_call_count += page_up.helper_call_count;
+            result.legacy_return_value = page_up.legacy_return_value;
+            result.command = page_up.command;
             return result;
         }
         if (signed_x < state.lower_dynamic_right &&

@@ -398,7 +398,6 @@ struct LegacySystemMenuState {
 };
 
 enum class LegacySystemMenuInputCommand : compat::u8 {
-    upper_dynamic_hover,
     open_mode_fourteen,
     exit,
     commit,
@@ -471,6 +470,10 @@ struct LegacySystemMenuInputResult {
     compat::u32 helper_call_count{};
     std::optional<LegacySystemMenuInputCommand> command;
 };
+
+[[nodiscard]] LegacySystemMenuInputResult page_up_legacy_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept;
 
 [[nodiscard]] LegacySystemMenuInputResult page_down_legacy_system_menu(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports

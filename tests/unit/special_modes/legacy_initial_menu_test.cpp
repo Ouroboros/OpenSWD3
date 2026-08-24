@@ -15361,6 +15361,126 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44B840 selects fixed mode-five entry fifteen before its sample"
     );
 
+    openswd3::special_modes::LegacySystemMenuState page_up_locked_state;
+    page_up_locked_state.input_locked = 0x89ABCDEFU;
+    page_up_locked_state.interaction_page = 3U;
+    FakeSystemMenuPorts page_up_locked_ports;
+    const auto page_up_locked =
+        openswd3::special_modes::page_up_legacy_system_menu(
+            page_up_locked_state, page_up_locked_ports
+        );
+    test.expect_true(
+        page_up_locked.legacy_return_value == std::bit_cast<i32>(0x89ABCDEFU) &&
+            page_up_locked_state.interaction_page == 3U &&
+            page_up_locked_ports.input_commands.empty(),
+        "0x44B930 returns the full lock residual without changing the page or playing a sample"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState first_page_state;
+    first_page_state.interaction_mode = 0U;
+    first_page_state.interaction_page = 2U;
+    first_page_state.message_sample_owner = 0x10203040U;
+    FakeSystemMenuPorts first_page_ports;
+    static_cast<void>(openswd3::special_modes::page_up_legacy_system_menu(
+        first_page_state, first_page_ports
+    ));
+    test.expect_true(
+        first_page_state.interaction_page == 0U &&
+            first_page_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 0x10203040U}
+                },
+        "0x44B930 moves mode zero to page zero and only plays the sample when the page changes"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState first_window_state;
+    first_window_state.interaction_mode = 1U;
+    first_window_state.interaction_page = 2U;
+    first_window_state.system_menu_page_start = 3U;
+    first_window_state.system_menu_scroll_index = 9U;
+    first_window_state.system_menu_cursor_flags = 0xAABBCC10U;
+    FakeSystemMenuPorts first_window_ports;
+    const auto first_window =
+        openswd3::special_modes::page_up_legacy_system_menu(
+            first_window_state, first_window_ports
+        );
+    test.expect_true(
+        first_window_state.system_menu_page_start == 0U &&
+            first_window_state.system_menu_scroll_index == 0U &&
+            first_window_state.system_menu_cursor_flags == 0xAABBCC13U &&
+            first_window_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::rebuild_page, 0U},
+                    {SystemMenuCommand::count_visible, 0U}
+                } &&
+            first_window.helper_call_count == 2U,
+        "0x44B930 tail-dispatches mode-one page two through the closed backward helper"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState first_rows_state;
+    first_rows_state.interaction_mode = 1U;
+    first_rows_state.interaction_page = 3U;
+    first_rows_state.selected_row = 5U;
+    first_rows_state.message_sample_owner = 7U;
+    FakeSystemMenuPorts first_rows_ports;
+    static_cast<void>(openswd3::special_modes::page_up_legacy_system_menu(
+        first_rows_state, first_rows_ports
+    ));
+    openswd3::special_modes::LegacySystemMenuState first_page_four_row_state;
+    first_page_four_row_state.interaction_mode = 1U;
+    first_page_four_row_state.interaction_page = 4U;
+    first_page_four_row_state.selected_row = 2U;
+    first_page_four_row_state.message_sample_owner = 8U;
+    FakeSystemMenuPorts first_page_four_row_ports;
+    static_cast<void>(openswd3::special_modes::page_up_legacy_system_menu(
+        first_page_four_row_state, first_page_four_row_ports
+    ));
+    test.expect_true(
+        first_rows_state.selected_row == 0U &&
+            first_rows_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 7U}
+                } &&
+            first_page_four_row_state.selected_row == 0U &&
+            first_page_four_row_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 8U}
+                },
+        "0x44B930 selects the first row on mode-one pages three and four"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState first_detail_state;
+    first_detail_state.interaction_mode = 2U;
+    first_detail_state.interaction_page = 4U;
+    first_detail_state.detail_selection = 1U;
+    FakeSystemMenuPorts first_detail_ports;
+    const auto first_detail =
+        openswd3::special_modes::page_up_legacy_system_menu(
+            first_detail_state, first_detail_ports
+        );
+    test.expect_true(
+        first_detail_state.detail_selection == 1U &&
+            first_detail.legacy_return_value == 2,
+        "0x44B930 preserves the detail increment EAX before clamping values two and above to one"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState first_entry_state;
+    first_entry_state.interaction_mode = 5U;
+    first_entry_state.selected_entry = 18U;
+    first_entry_state.message_sample_owner = 9U;
+    FakeSystemMenuPorts first_entry_ports;
+    static_cast<void>(openswd3::special_modes::page_up_legacy_system_menu(
+        first_entry_state, first_entry_ports
+    ));
+    test.expect_true(
+        first_entry_state.selected_entry == 0U &&
+            first_entry_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 9U}
+                },
+        "0x44B930 selects fixed mode-five entry zero before its sample"
+    );
+
     openswd3::special_modes::LegacySystemMenuState retreat_page_state;
     retreat_page_state.interaction_mode = 0U;
     retreat_page_state.interaction_page = 0U;
@@ -15608,8 +15728,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     system_menu_dynamic_hover_state.entry_count = 6U;
     system_menu_dynamic_hover_state.pointer_x = std::bit_cast<u32>(-5);
     system_menu_dynamic_hover_state.pointer_y = 0x265U;
-    system_menu_dynamic_hover_state.interaction_mode = 2U;
+    system_menu_dynamic_hover_state.interaction_mode = 1U;
     system_menu_dynamic_hover_state.interaction_page = 2U;
+    system_menu_dynamic_hover_state.system_menu_page_start = 3U;
+    system_menu_dynamic_hover_state.system_menu_scroll_index = 9U;
+    system_menu_dynamic_hover_state.system_menu_cursor_flags = 0xAABBCC10U;
     system_menu_dynamic_hover_state.upper_dynamic_left = -10;
     system_menu_dynamic_hover_state.upper_dynamic_right = 0;
     FakeSystemMenuPorts system_menu_dynamic_hover_ports;
@@ -15619,12 +15742,17 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             system_menu_dynamic_hover_state, system_menu_dynamic_hover_ports
         );
     test.expect_true(
-        system_menu_dynamic_hover_ports.input_commands ==
+        system_menu_dynamic_hover_state.system_menu_page_start == 0U &&
+            system_menu_dynamic_hover_state.system_menu_scroll_index == 0U &&
+            system_menu_dynamic_hover_state.system_menu_cursor_flags ==
+                0xAABBCC13U &&
+            system_menu_dynamic_hover_ports.input_commands ==
                 std::vector<std::pair<SystemMenuCommand, u32>>{
-                    {SystemMenuCommand::upper_dynamic_hover, 0U}
+                    {SystemMenuCommand::rebuild_page, 0U},
+                    {SystemMenuCommand::count_visible, 0U}
                 } &&
-            system_menu_dynamic_hover.helper_call_count == 2U,
-        "0x44B070 keeps the two dynamic hover bounds as signed comparisons"
+            system_menu_dynamic_hover.helper_call_count == 3U,
+        "0x44B070 keeps the upper dynamic bounds signed and directly reuses the page-up helper"
     );
 
     openswd3::special_modes::LegacySystemMenuState
