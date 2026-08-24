@@ -14941,6 +14941,38 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448840 applies all six settings rows and routes outside activation to exit"
     );
 
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        advance_transition_one;
+    advance_transition_one.progress = 1U;
+    advance_transition_one.enabled = 3U;
+    const i32 advance_transition_one_residual = openswd3::special_modes::
+        advance_legacy_standard_mode_transition_selection(
+            advance_transition_one
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        advance_transition_five;
+    advance_transition_five.progress = 5U;
+    advance_transition_five.velocity = 5;
+    const i32 advance_transition_five_residual = openswd3::special_modes::
+        advance_legacy_standard_mode_transition_selection(
+            advance_transition_five
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        advance_transition_other;
+    advance_transition_other.progress = 3U;
+    const i32 advance_transition_other_residual = openswd3::special_modes::
+        advance_legacy_standard_mode_transition_selection(
+            advance_transition_other
+        );
+    test.expect_true(
+        advance_transition_one.enabled == 3U &&
+            advance_transition_one_residual == 4 &&
+            advance_transition_five.velocity == 4 &&
+            advance_transition_five_residual == 6 &&
+            advance_transition_other_residual == -2,
+        "0x448BB0 clamps both selectors while preserving the pre-clamp and unrelated EAX residuals"
+    );
+
     for (const auto& item : cases) {
         LegacyStandardModeCallbackState state;
         state.targets.fill(0xDEADBEEFU);

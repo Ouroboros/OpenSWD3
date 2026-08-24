@@ -548,6 +548,27 @@ update_legacy_standard_mode_transition_interaction(
     return result;
 }
 
+compat::i32 advance_legacy_standard_mode_transition_selection(
+    LegacyStandardModeTransitionVisualState& state
+) noexcept {
+    if (state.progress == 1U) {
+        const compat::i32 residual = static_cast<compat::i32>(++state.enabled);
+        if (state.enabled > 3U) {
+            state.enabled = 3U;
+        }
+        return residual;
+    }
+    const compat::i32 residual = static_cast<compat::i32>(state.progress) - 5;
+    if (state.progress != 5U) {
+        return residual;
+    }
+    const compat::i32 advanced_residual = ++state.velocity;
+    if (state.velocity > 5) {
+        state.velocity = 4;
+    }
+    return advanced_residual;
+}
+
 LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     LegacyStandardModeCallbackState& state,
     const compat::u16 secondary_word,
