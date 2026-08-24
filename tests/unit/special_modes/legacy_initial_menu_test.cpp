@@ -2753,25 +2753,14 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return workspace_token;
         }
 
-        std::optional<i32> finalize_equipment_action_count(
-            const u32 selected_party_action
-        ) noexcept override {
-            events.push_back(4U);
-            finalization_argument = selected_party_action;
-            return finalization_available ? std::optional<i32>{3}
-                                          : std::nullopt;
-        }
-
         const sm::LegacyStandardModeForwardNode* record_head{};
         sm::LegacyStandardModeForwardNode source_root;
         sm::LegacyStandardModeForwardNode missing_record;
         bool record_list_available{true};
         bool missing_record_available{true};
         std::array<i32, 256U> item_presence{};
-        bool finalization_available{true};
         u32 workspace_token{0x12345678U};
         std::size_t allocation_size{};
-        u32 finalization_argument{};
         u32 missing_record_allocations{};
         u32 released_missing_records{};
         std::vector<u16> item_ids;
@@ -2917,6 +2906,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 action_count_ports.item_ids == std::vector<u16>{0x19U, 0x1AU},
             "0x444F60 resets count3, queries selector-derived pairs and counts nonzero"
         );
+        test.expect_true(
+            sm::finalize_legacy_standard_mode_equipment_action_count() == 3,
+            "0x444FB0 returns constant3 without reading state or invoking ports"
+        );
 
         sm::LegacyStandardModeForwardNode second_equipment_record;
         second_equipment_record.text_index = 0xFFDCU;
@@ -2966,9 +2959,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 equipment.published_action_count == 3 &&
                 equipment.global_mode == 0x45U &&
                 equipment_ports.allocation_size == 0x28U &&
-                equipment_ports.finalization_argument == 0U &&
                 equipment_ports.item_ids == std::vector<u16>{0x15U, 0x16U} &&
-                equipment_ports.events == std::vector<u32>{1U, 2U, 2U, 3U, 4U},
+                equipment_ports.events == std::vector<u32>{1U, 2U, 2U, 3U},
             "0x442E40 publishes equipment workspace, action count and global mode"
         );
 
@@ -2997,16 +2989,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             sm::initialize_legacy_standard_mode_equipment(
                 text_stop_state, {}, text_stop_ports
             );
-        sm::LegacyStandardModeEquipmentInitializationState finalize_stop_state;
-        finalize_stop_state.final_zero = 9U;
-        finalize_stop_state.global_mode = 10U;
-        EquipmentInitializationPorts finalize_stop_ports;
-        finalize_stop_ports.record_head = &first_equipment_record;
-        finalize_stop_ports.finalization_available = false;
-        const auto finalization_stopped =
-            sm::initialize_legacy_standard_mode_equipment(
-                finalize_stop_state, {}, finalize_stop_ports
-            );
         test.expect_true(
             record_stopped.status ==
                     sm::LegacyStandardModeEquipmentInitializationStatus::
@@ -3019,14 +3001,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 equipment_text_stopped.status ==
                     sm::LegacyStandardModeEquipmentInitializationStatus::
                         shared_text_stopped &&
-                text_stop_state.first_render_zero == 7U &&
-                finalization_stopped.status ==
-                    sm::LegacyStandardModeEquipmentInitializationStatus::
-                        finalization_stopped &&
-                finalize_stop_state.workspace_token == 0x12345678U &&
-                finalize_stop_state.final_zero == 9U &&
-                finalize_stop_state.global_mode == 10U,
-            "0x442E40 typed-stops after exact callee, count, text and allocation prefixes"
+                text_stop_state.first_render_zero == 7U,
+            "0x442E40 typed-stops after record-list and text prefixes"
         );
     }
 
@@ -3553,14 +3529,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             released_missing_equipment_records.push_back(record.text_index);
         }
 
-        std::optional<i32> finalize_equipment_party_cycle_action_count(
-            const u32 selected_party_action
-        ) noexcept override {
-            cycle_events.push_back(4U);
-            finalized_party_actions.push_back(selected_party_action);
-            return party_cycle_finalized_action_count;
-        }
-
         i32 story_flag(const u32 flag_index) override {
             callback_story_flags.push_back(flag_index);
             return callback_story_flag_value;
@@ -3642,7 +3610,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         u32 record_source_queries{};
         sm::LegacyStandardModeForwardNode record_list_source_root;
         sm::LegacyStandardModeForwardNode missing_equipment_record;
-        std::optional<i32> party_cycle_finalized_action_count{17};
         std::optional<sm::LegacyStandardModeEquipmentActionLoadResult>
             equipment_action_load{
                 sm::LegacyStandardModeEquipmentActionLoadResult{1, 1U}
@@ -3664,7 +3631,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::vector<std::array<u32, 2U>> samples;
         std::vector<u32> cycle_events;
         std::vector<u32> list_kind_events;
-        std::vector<u32> finalized_party_actions;
         std::vector<u32> commit_query_ids;
         std::vector<u32> dialog_events;
         std::vector<u16> loaded_action_ids;
@@ -5024,12 +4990,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     &party_cycle_ports.missing_equipment_record &&
                 party_cycle_state.visible_record_count == 1U &&
                 party_cycle_state.shared_text[0] == 0xB5U &&
-                party_cycle_state.published_action_count == 17 &&
-                party_cycle_ports.finalized_party_actions ==
-                    std::vector<u32>{2U} &&
+                party_cycle_state.published_action_count == 3 &&
                 party_cycle_ports.samples ==
                     std::vector<std::array<u32, 2U>>{{0x107U, 0xCA11U}} &&
-                party_cycle_ports.cycle_events == std::vector<u32>{4U, 5U} &&
+                party_cycle_ports.cycle_events == std::vector<u32>{5U} &&
                 party_cycle_ports.released_missing_equipment_records ==
                     std::vector<u16>{0xFFDCU, 0xFFDCU, 0xFFDCU} &&
                 party_cycle_bypassed.helper_call_count == 0U,
@@ -5102,30 +5066,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                         shared_text_stopped &&
                 party_cycle_text_stopped.helper_call_count == 8U,
             "0x443A60 preserves record-list and B9E0 stop prefixes"
-        );
-
-        party_cycle_state = {};
-        party_cycle_state.mode_enabled = 1U;
-        party_cycle_state.party_markers.fill(1U);
-        party_cycle_state.record_head = &advance_first;
-        party_cycle_state.total_record_count = 3U;
-        party_cycle_state.visible_record_count = 3U;
-        party_cycle_state.published_action_count = 9;
-        EquipmentInputPorts party_cycle_finalize_stop_ports;
-        party_cycle_finalize_stop_ports.party_cycle_finalized_action_count =
-            std::nullopt;
-        const auto party_cycle_finalize_stopped =
-            sm::cycle_legacy_standard_mode_equipment_party(
-                party_cycle_state, {}, party_cycle_finalize_stop_ports
-            );
-        test.expect_true(
-            party_cycle_finalize_stopped.status ==
-                    sm::LegacyStandardModeEquipmentPartyCycleStatus::
-                        finalization_stopped &&
-                party_cycle_finalize_stopped.helper_call_count == 9U &&
-                party_cycle_state.published_action_count == 3 &&
-                party_cycle_finalize_stop_ports.samples.empty(),
-            "0x443A60 finalization stop preserves the preceding 444F60 count before sample107"
         );
 
         sm::LegacyStandardModeEquipmentInitializationState equipment;
@@ -5492,7 +5432,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             party_switched.callback_count == 4U &&
                 equipment.party_selector == 0xABCD0002U &&
                 party_ports.targets.empty() &&
-                party_ports.cycle_events == std::vector<u32>{4U, 5U, 4U, 5U},
+                party_ports.cycle_events == std::vector<u32>{5U, 5U},
             "0x442F40 cycles parties until the clicked available party matches"
         );
         equipment = {};

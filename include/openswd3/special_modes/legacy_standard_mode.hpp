@@ -818,18 +818,16 @@ public:
     ~LegacyStandardModeEquipmentInitializationPorts() override = default;
     [[nodiscard]] virtual compat::u32
     allocate_equipment_workspace(std::size_t size) noexcept = 0;
-    [[nodiscard]] virtual std::optional<compat::i32>
-    finalize_equipment_action_count(
-        compat::u32 selected_party_action
-    ) noexcept = 0;
 };
+
+[[nodiscard]] compat::i32
+finalize_legacy_standard_mode_equipment_action_count() noexcept;
 
 enum class LegacyStandardModeEquipmentInitializationStatus : compat::u8 {
     completed,
     record_list_stopped,
     selected_record_missing,
     shared_text_stopped,
-    finalization_stopped,
 };
 
 struct LegacyStandardModeEquipmentInitializationResult {
@@ -1047,10 +1045,6 @@ class LegacyStandardModeEquipmentPartyCyclePorts
       public virtual LegacyStandardModeEquipmentActionCountPorts {
 public:
     ~LegacyStandardModeEquipmentPartyCyclePorts() override = default;
-    [[nodiscard]] virtual std::optional<compat::i32>
-    finalize_equipment_party_cycle_action_count(
-        compat::u32 selected_party_action
-    ) noexcept = 0;
 };
 
 enum class LegacyStandardModeEquipmentPartyCycleStatus : compat::u8 {
@@ -1060,7 +1054,6 @@ enum class LegacyStandardModeEquipmentPartyCycleStatus : compat::u8 {
     record_list_stopped,
     selected_record_missing,
     shared_text_stopped,
-    finalization_stopped,
 };
 
 struct LegacyStandardModeEquipmentPartyCycleResult {

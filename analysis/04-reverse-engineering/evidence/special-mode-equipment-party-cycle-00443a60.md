@@ -2,16 +2,16 @@
 
 状态：`platform_adapted`、`unit_tested`
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00443A60..0x00443B6B`，127行，无FUNCTION CHUNK。code caller为F40一处，3B480另绑定为动作callback；F40现已直接回收。BB40、B9A0、BC90、B9C0、B9E0、444E80、444F00与444F60已关闭并直接复用；444FB0继续保持最窄typed端口，sample107保留平台端口。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00443A60..0x00443B6B`，127行，无FUNCTION CHUNK。code caller为F40一处，3B480另绑定为动作callback；F40现已直接回收。BB40、B9A0、BC90、B9C0、B9E0、444E80、444F00、444F60与444FB0已关闭并直接复用；sample107保留平台端口。
 
 函数仅在mode1执行；其他mode不读写状态。进入后先直接调用444F00回收记录，再把party selector low16加1并按四槽取模，保留high16。首个候选立即写入selector；若marker为FFFF，则继续循环候选，找到后才再次写selector。四项全FFFF时原函数无限扫描，modern完成四项原始域读取后typed-stop，并保留首个候选写入。
 
 选定party后严格按LST顺序调用444F60，再直接调用444E80；后者重建total、offset、local、visible与record head，后续全部重读。随后直接调用BB40规范窗口，B9A0定位visible head，BC90最多计24项，B9C0按`offset+local`选中记录，B9E0发布共享文本。
 
-成功后以selected party action调用444FB0；返回值先发布到动作数owner，再播放sample107。444F00在party池边界停止或FB0不可用时在各原call site停止；B9C0 null与B9E0失败保留此前party与列表重建副作用。444FB0停止时旧发布动作数保持，且不播放sample。
+成功后直接调用无参数444FB0取得常量3；返回值先发布到动作数owner，再播放sample107。444F00在party池边界停止时在原call site停止；B9C0 null与B9E0失败保留此前party与列表重建副作用。444FB0停止时旧发布动作数保持，且不播放sample。
 
 F40点击party区域的循环caller已直接调用本helper。helper完成后重读selector；444F60只写动作数，不改selector。callback不再经过通用cycle_party opaque端口。
 
-UT覆盖跳过FFFF到下一有效party、high16保留、F60派生ID与动作数前缀、完整重建/text/action/sample顺序、非mode1无操作、全FFFF、444FB0停止、B9C0/B9E0停止，以及F40循环到目标party。
+UT覆盖跳过FFFF到下一有效party、high16保留、F60派生ID与动作数前缀、FB0常量3、完整重建/text/action/sample顺序、非mode1无操作、全FFFF、B9C0/B9E0停止，以及F40循环到目标party。
 
 workpack双生成稳定为`105/227`，SHA256均为`7f49a7a41eb38a3559ab9ba4ad3ccec742c8be72ecf58fa8293d2851c980a88d`；下一单元`0x00443B70`。Linux完整门结果见最终验证；按阶段门禁不运行Windows BUILD。

@@ -580,6 +580,10 @@ initialize_legacy_standard_mode_equipment_action_count(
     return result;
 }
 
+compat::i32 finalize_legacy_standard_mode_equipment_action_count() noexcept {
+    return 3;
+}
+
 LegacyStandardModeEquipmentInitializationResult
 initialize_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,
@@ -641,18 +645,13 @@ initialize_legacy_standard_mode_equipment(
     state.viewport_extent = 0x01E0U;
     state.workspace_token = ports.allocate_equipment_workspace(0x28U);
     ++result.helper_call_count;
-    const std::optional<compat::i32> finalized =
-        ports.finalize_equipment_action_count(state.selected_party_action);
+    const compat::i32 finalized =
+        finalize_legacy_standard_mode_equipment_action_count();
     ++result.helper_call_count;
-    if (!finalized.has_value()) {
-        result.status = LegacyStandardModeEquipmentInitializationStatus::
-            finalization_stopped;
-        return result;
-    }
     state.final_zero = 0U;
-    state.published_action_count = *finalized;
+    state.published_action_count = finalized;
     state.global_mode = 0x45U;
-    result.legacy_return_value = *finalized;
+    result.legacy_return_value = finalized;
     return result;
 }
 
@@ -1946,17 +1945,10 @@ cycle_legacy_standard_mode_equipment_party(
         return result;
     }
 
-    const std::optional<compat::i32> finalized =
-        ports.finalize_equipment_party_cycle_action_count(
-            state.selected_party_action
-        );
+    const compat::i32 finalized =
+        finalize_legacy_standard_mode_equipment_action_count();
     ++result.helper_call_count;
-    if (!finalized.has_value()) {
-        result.status =
-            LegacyStandardModeEquipmentPartyCycleStatus::finalization_stopped;
-        return result;
-    }
-    state.published_action_count = *finalized;
+    state.published_action_count = finalized;
     static_cast<void>(
         ports.execute_equipment_sample_command(0x0107U, state.sample_owner)
     );
@@ -2609,7 +2601,6 @@ handle_legacy_standard_mode_equipment_input(
         case LegacyStandardModeEquipmentPartyCycleStatus::cleanup_stopped:
         case LegacyStandardModeEquipmentPartyCycleStatus::party_search_stopped:
         case LegacyStandardModeEquipmentPartyCycleStatus::record_list_stopped:
-        case LegacyStandardModeEquipmentPartyCycleStatus::finalization_stopped:
             result.status =
                 LegacyStandardModeEquipmentInputStatus::party_cycle_stopped;
             break;
