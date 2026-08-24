@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v596
+版本：v597
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 审计`0x0044B6E0`
+当前步骤：模块9 · 审计`0x0044B840`
 
 ## 0. 执行约定
 
@@ -3778,10 +3778,11 @@ B7 P0 有限收口完成。
 - 模块9特殊项目目录释放与消息`0x0044B010`恢复完成。按释放后读取完整tail/shared dword、清owner、服务查询、查询后读取三个完整dword的顺序构造九参消息，保留完整service EAX并透传格式化返回；entries/count不清。定向UT与独立ASan通过。workpack稳定为`168/227`，SHA256为`fbe027c0e5a0b1b0d7db9fe5f13745722401fadef54409c4e3f78786792a2d3b`。
 - 模块9特殊项目目录输入分派`0x0044B070`恢复完成。保留查询后坐标snapshot、signed动态边界、unsigned网格、一次性flags、mode5固定选择、page4与六行设置、mode2详情选择及x86乘法残值；提交后重读sample owner。同步按LST纠正44B010完整dword消息参数。定向UT与独立ASan通过。workpack稳定为`169/227`，SHA256为`86898f80f1e1d8212afa3c6ead89c826f58b06e9e1e3b09bf35b335b8ebe92d4`。
 - 模块9特殊项目目录选择前进`0x0044B560`恢复完成。按mode恢复page、窗口、六行设置、detail和19项selector前进；保留signed夹值、末页回滚、visible count下溢、cursor flags仅AL OR 30及夹值前EAX。44B070下方hover已直连typed helper。定向UT与独立ASan通过。workpack稳定为`170/227`，SHA256为`f7761bf509f6e49cb6d7fc159c98a00d638f6ee0fae1be3d4af74f966959fe01`。
+- 模块9特殊项目目录选择后退`0x0044B6E0`恢复完成。按mode恢复page、窗口、设置行、detail和19项selector后退；保留负值夹前EAX、负窗口归零重建、cursor flags仅AL OR 03及行`<=0`夹值。44B070上方hover已直连typed helper。定向UT与独立ASan通过。workpack稳定为`171/227`，SHA256为`ab7b05db92e94b956e8603e8a70bff4260ee7b64e04572bc1e5509eee5e8d867`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`170/227`，下一单元为`0x0044B6E0`。
+进行中，正式进度为`171/227`，下一单元为`0x0044B840`。
 
-下一工作包：按LST唯一真值审计并恢复模块9 `0x0044B6E0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值审计并恢复模块9 `0x0044B840`，继续更新workpack、证据和完整验证门。

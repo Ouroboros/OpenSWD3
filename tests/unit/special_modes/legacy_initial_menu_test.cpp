@@ -15290,6 +15290,99 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44B070 returns the full lock owner residual before querying input"
     );
 
+    openswd3::special_modes::LegacyStandardModeCatalogState retreat_page_state;
+    retreat_page_state.interaction_mode = 0U;
+    retreat_page_state.interaction_page = 0U;
+    FakeStandardModeCatalogPorts retreat_page_ports;
+    const auto retreat_page =
+        openswd3::special_modes::retreat_legacy_standard_mode_catalog_selection(
+            retreat_page_state, retreat_page_ports
+        );
+    test.expect_true(
+        retreat_page_state.interaction_page == 0U &&
+            retreat_page.legacy_return_value == -1 &&
+            retreat_page_ports.input_commands.empty(),
+        "0x44B6E0 preserves negative page EAX before clamping to zero"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        retreat_window_state;
+    retreat_window_state.interaction_mode = 1U;
+    retreat_window_state.interaction_page = 2U;
+    retreat_window_state.catalog_page_start = 3U;
+    retreat_window_state.catalog_scroll_index = 9U;
+    retreat_window_state.catalog_cursor_flags = 0xAABBCC10U;
+    FakeStandardModeCatalogPorts retreat_window_ports;
+    const auto retreat_window =
+        openswd3::special_modes::retreat_legacy_standard_mode_catalog_selection(
+            retreat_window_state, retreat_window_ports
+        );
+    test.expect_true(
+        retreat_window_state.catalog_page_start == 0U &&
+            retreat_window_state.catalog_scroll_index == 0U &&
+            retreat_window_state.catalog_cursor_flags == 0xAABBCC13U &&
+            retreat_window_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::rebuild_page, 0U},
+                    {CatalogCommand::count_visible, 0U}
+                } &&
+            retreat_window.helper_call_count == 2U,
+        "0x44B6E0 resets negative page start and scroll before rebuilding and ORs only AL"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState retreat_row_state;
+    retreat_row_state.interaction_mode = 1U;
+    retreat_row_state.interaction_page = 4U;
+    retreat_row_state.selected_row = 0U;
+    retreat_row_state.message_sample_owner = 0x12345678U;
+    FakeStandardModeCatalogPorts retreat_row_ports;
+    static_cast<void>(
+        openswd3::special_modes::retreat_legacy_standard_mode_catalog_selection(
+            retreat_row_state, retreat_row_ports
+        )
+    );
+    test.expect_true(
+        retreat_row_state.selected_row == 0U &&
+            retreat_row_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::play_sample, 0x12345678U}
+                },
+        "0x44B6E0 clamps page-four rows on signed less-than-or-equal zero and still plays the sample"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        retreat_detail_state;
+    retreat_detail_state.interaction_mode = 2U;
+    retreat_detail_state.interaction_page = 4U;
+    FakeStandardModeCatalogPorts retreat_detail_ports;
+    const auto retreat_detail =
+        openswd3::special_modes::retreat_legacy_standard_mode_catalog_selection(
+            retreat_detail_state, retreat_detail_ports
+        );
+    test.expect_true(
+        retreat_detail_state.detail_selection == 0U &&
+            retreat_detail.legacy_return_value == -1,
+        "0x44B6E0 preserves negative detail EAX before clamping to zero"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState retreat_entry_state;
+    retreat_entry_state.interaction_mode = 5U;
+    retreat_entry_state.message_sample_owner = 7U;
+    FakeStandardModeCatalogPorts retreat_entry_ports;
+    static_cast<void>(
+        openswd3::special_modes::retreat_legacy_standard_mode_catalog_selection(
+            retreat_entry_state, retreat_entry_ports
+        )
+    );
+    test.expect_true(
+        retreat_entry_state.selected_entry == 0x12U &&
+            retreat_entry_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::play_sample, 7U}
+                },
+        "0x44B6E0 wraps the nineteen-entry selector backward before its sample"
+    );
+
     openswd3::special_modes::LegacyStandardModeCatalogState
         advance_window_state;
     advance_window_state.interaction_mode = 1U;
@@ -15407,12 +15500,15 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     test.expect_true(
         catalog_hover_ports.queried_input_masks == std::vector<u32>{0x0FU} &&
+            catalog_hover_state.catalog_page_start == 0U &&
+            catalog_hover_state.catalog_scroll_index == 0U &&
             catalog_hover_ports.input_commands ==
                 std::vector<std::pair<CatalogCommand, u32>>{
-                    {CatalogCommand::upper_hover, 0U}
+                    {CatalogCommand::rebuild_page, 0U},
+                    {CatalogCommand::count_visible, 0U}
                 } &&
-            catalog_hover.helper_call_count == 2U,
-        "0x44B070 rereads pointer, mode, and page after the input-status callback before routing hover"
+            catalog_hover.helper_call_count == 3U,
+        "0x44B070 rereads pointer, mode, and page after the input-status callback before directly routing upper hover to 0x44B6E0"
     );
 
     openswd3::special_modes::LegacyStandardModeCatalogState lower_hover_state;

@@ -417,6 +417,113 @@ LegacyStandardModeCatalogResult release_legacy_standard_mode_catalog(
 }
 
 LegacyStandardModeCatalogInputResult
+retreat_legacy_standard_mode_catalog_selection(
+    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+) noexcept {
+    LegacyStandardModeCatalogInputResult result;
+    const auto set_legacy = [&result](const compat::u32 value) {
+        result.legacy_return_value = std::bit_cast<compat::i32>(value);
+    };
+    const auto call = [&result, &ports, &state](
+                          const LegacyStandardModeCatalogInputCommand command,
+                          const compat::u32 argument = 0U
+                      ) {
+        result.command = command;
+        ++result.helper_call_count;
+        result.legacy_return_value =
+            ports.execute_catalog_input_command(command, argument, state);
+    };
+    if (state.input_locked != 0U) {
+        set_legacy(state.input_locked);
+        return result;
+    }
+    const compat::u32 mode = state.interaction_mode;
+    set_legacy(mode);
+    switch (mode) {
+    case 0U: {
+        const compat::u32 next = state.interaction_page - 1U;
+        state.interaction_page = next;
+        set_legacy(next);
+        if (std::bit_cast<compat::i32>(next) >= 0) {
+            call(
+                LegacyStandardModeCatalogInputCommand::play_sample,
+                state.message_sample_owner
+            );
+        } else {
+            state.interaction_page = 0U;
+        }
+        return result;
+    }
+    case 1U:
+        if (state.interaction_page == 2U) {
+            const compat::u32 previous_start = state.catalog_page_start - 5U;
+            state.catalog_page_start = previous_start;
+            set_legacy(previous_start);
+            if (std::bit_cast<compat::i32>(previous_start) < 0) {
+                state.catalog_scroll_index = 0U;
+                state.catalog_page_start = 0U;
+            }
+            call(LegacyStandardModeCatalogInputCommand::rebuild_page);
+            call(LegacyStandardModeCatalogInputCommand::count_visible);
+            state.catalog_cursor_flags =
+                (state.catalog_cursor_flags & 0xFFFFFF00U) |
+                (static_cast<compat::u8>(state.catalog_cursor_flags) | 0x03U);
+            set_legacy(state.catalog_cursor_flags);
+            return result;
+        }
+        if (state.interaction_page == 3U) {
+            const compat::u32 next = state.selected_row - 1U;
+            state.selected_row = next;
+            if (std::bit_cast<compat::i32>(next) <= 0) {
+                state.selected_row = 0U;
+            }
+            call(
+                LegacyStandardModeCatalogInputCommand::play_sample,
+                state.message_sample_owner
+            );
+            return result;
+        }
+        set_legacy(state.interaction_page - 4U);
+        if (state.interaction_page == 4U) {
+            const compat::u32 next = state.selected_row - 1U;
+            state.selected_row = next;
+            if (std::bit_cast<compat::i32>(next) <= 0) {
+                state.selected_row = 0U;
+            }
+            call(
+                LegacyStandardModeCatalogInputCommand::play_sample,
+                state.message_sample_owner
+            );
+        }
+        return result;
+    case 2U:
+        if (state.interaction_page == 4U) {
+            const compat::u32 next = state.detail_selection - 1U;
+            state.detail_selection = next;
+            set_legacy(next);
+            if (std::bit_cast<compat::i32>(next) < 0) {
+                state.detail_selection = 0U;
+            }
+        }
+        return result;
+    case 5U: {
+        const compat::u32 next = state.selected_entry - 1U;
+        state.selected_entry = next;
+        if (std::bit_cast<compat::i32>(next) < 0) {
+            state.selected_entry = 0x12U;
+        }
+        call(
+            LegacyStandardModeCatalogInputCommand::play_sample,
+            state.message_sample_owner
+        );
+        return result;
+    }
+    default:
+        return result;
+    }
+}
+
+LegacyStandardModeCatalogInputResult
 advance_legacy_standard_mode_catalog_selection(
     LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
 ) noexcept {
@@ -572,7 +679,11 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
         std::bit_cast<compat::i32>(state.entry_count) > 5 &&
         pointer_y < 0x274U && pointer_y > 0x264U) {
         if (signed_x < 0x82 && signed_x > 0x74) {
-            call(LegacyStandardModeCatalogInputCommand::upper_hover);
+            const LegacyStandardModeCatalogInputResult retreat =
+                retreat_legacy_standard_mode_catalog_selection(state, ports);
+            result.helper_call_count += retreat.helper_call_count;
+            result.legacy_return_value = retreat.legacy_return_value;
+            result.command = retreat.command;
             return result;
         }
         if (signed_x < 0x1CE && signed_x > 0x1C0) {
