@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v521
+版本：v522
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x00442F10`
+当前步骤：模块9 · 闭环`0x00442F40`
 
 ## 0. 执行约定
 
@@ -3678,10 +3678,11 @@ B7 P0 有限收口完成。
 - 模块9护驾属性附加摘要`0x00442CA0`闭环。恢复三个FFFFFFFF sentinel、slot0单值、slot7/8 low/high pair、slot9/10 bonus及各自返回残值；三种null seed按原写序typed-stop。429B0最后summary端口已回收，四个直接callee全部闭环。定向UT通过。workpack稳定为`94/227`，SHA256为`96e7419ffa744049ceb039aa5f5acc76ac1bfce2fe9d18f32d90bf4cc47f3491`。
 - 模块9护驾记录交换属性调整`0x00442D70`闭环。恢复scratch双清零、旧记录三项扣除、新记录三项加回、u16回绕及party*0x70返回；41160直接复用party-record resolver与D70，剩余边界缩窄为存储交换。定向UT通过。workpack稳定为`95/227`，SHA256为`847a94e44959f73b54235f020b8d4897874a82108b8b045b6a60a6ee38ec664b`。
 - 模块9装备物品模式初始化`0x00442E40`闭环。恢复party low16归零、固定字段、四party计数、B9C0/B9E0直接列表文本、0x28 workspace及最终动作数/global mode发布；三个未闭业务callee保留窄端口。定向UT通过。workpack稳定为`96/227`，SHA256为`0a0021e19a076bd684ef5063f2f9207fa8f84db8850c1fe18b9d0047fc25828c`。
+- 模块9装备物品模式清理`0x00442F10`闭环。恢复444F00后token重读、mode清零、workspace释放EAX与global mode54；不擅自清已释放token。定向UT通过。workpack稳定为`97/227`，SHA256为`e266c74f86647b581c7b4110f4068d2509cb265fce7b5ce2202612c69f6bc573`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`96/227`，下一单元为`0x00442F10`。
+进行中，正式进度为`97/227`，下一单元为`0x00442F40`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x00442F10`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x00442F40`，继续更新workpack、证据和完整验证门。

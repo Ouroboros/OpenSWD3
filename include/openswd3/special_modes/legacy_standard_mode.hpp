@@ -603,6 +603,35 @@ initialize_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationPorts& ports
 ) noexcept;
 
+class LegacyStandardModeEquipmentCleanupPorts {
+public:
+    virtual ~LegacyStandardModeEquipmentCleanupPorts() = default;
+    [[nodiscard]] virtual bool cleanup_equipment_record_list(
+        LegacyStandardModeEquipmentInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    release_equipment_workspace(compat::u32 token) noexcept = 0;
+};
+
+enum class LegacyStandardModeEquipmentCleanupStatus : compat::u8 {
+    completed,
+    record_list_stopped,
+};
+
+struct LegacyStandardModeEquipmentCleanupResult {
+    LegacyStandardModeEquipmentCleanupStatus status{
+        LegacyStandardModeEquipmentCleanupStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentCleanupResult
+cleanup_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentCleanupPorts& ports
+) noexcept;
+
 struct LegacyStandardModeGuardianFilterDestination {
     LegacyStandardModeForwardNode* head{};
     compat::u16 sort_key{};

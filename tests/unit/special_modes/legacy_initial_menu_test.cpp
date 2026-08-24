@@ -2889,6 +2889,74 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
     }
 
+    class EquipmentCleanupPorts final
+        : public sm::LegacyStandardModeEquipmentCleanupPorts {
+    public:
+        bool cleanup_equipment_record_list(
+            sm::LegacyStandardModeEquipmentInitializationState& state
+        ) noexcept override {
+            events.push_back(1U);
+            state.workspace_token = token_after_cleanup;
+            return record_list_available;
+        }
+
+        i32 release_equipment_workspace(const u32 token) noexcept override {
+            events.push_back(2U);
+            released_token = token;
+            return release_return;
+        }
+
+        bool record_list_available{true};
+        u32 token_after_cleanup{0xAABBCCDDU};
+        u32 released_token{};
+        i32 release_return{-7};
+        std::vector<u32> events;
+    };
+    {
+        sm::LegacyStandardModeEquipmentInitializationState equipment;
+        equipment.mode_enabled = 1U;
+        equipment.workspace_token = 0x11111111U;
+        equipment.global_mode = 0x45U;
+        EquipmentCleanupPorts cleanup_ports;
+        const auto cleaned = sm::cleanup_legacy_standard_mode_equipment(
+            equipment, cleanup_ports
+        );
+        test.expect_true(
+            cleaned.status ==
+                    sm::LegacyStandardModeEquipmentCleanupStatus::completed &&
+                cleaned.legacy_return_value == -7 &&
+                cleaned.helper_call_count == 2U &&
+                equipment.mode_enabled == 0U &&
+                equipment.workspace_token == 0xAABBCCDDU &&
+                equipment.global_mode == 0x36U &&
+                cleanup_ports.released_token == 0xAABBCCDDU &&
+                cleanup_ports.events == std::vector<u32>{1U, 2U},
+            "0x442F10 cleans the list, rereads workspace, releases it and publishes mode54"
+        );
+
+        sm::LegacyStandardModeEquipmentInitializationState stopped_equipment;
+        stopped_equipment.mode_enabled = 1U;
+        stopped_equipment.workspace_token = 0x1234U;
+        stopped_equipment.global_mode = 0x45U;
+        EquipmentCleanupPorts stopped_cleanup_ports;
+        stopped_cleanup_ports.record_list_available = false;
+        const auto cleanup_stopped = sm::cleanup_legacy_standard_mode_equipment(
+            stopped_equipment, stopped_cleanup_ports
+        );
+        test.expect_true(
+            cleanup_stopped.status ==
+                    sm::LegacyStandardModeEquipmentCleanupStatus::
+                        record_list_stopped &&
+                cleanup_stopped.helper_call_count == 0U &&
+                stopped_equipment.mode_enabled == 1U &&
+                stopped_equipment.workspace_token == 0xAABBCCDDU &&
+                stopped_equipment.global_mode == 0x45U &&
+                stopped_cleanup_ports.released_token == 0U &&
+                stopped_cleanup_ports.events == std::vector<u32>{1U},
+            "0x442F10 list cleanup typed-stop preserves its callback mutation and later fields"
+        );
+    }
+
     class SelectionPorts final
         : public sm::LegacyStandardModeGuardianCommitPorts {
     public:

@@ -443,6 +443,26 @@ initialize_legacy_standard_mode_equipment(
     return result;
 }
 
+LegacyStandardModeEquipmentCleanupResult cleanup_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentCleanupPorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentCleanupResult result;
+    if (!ports.cleanup_equipment_record_list(state)) {
+        result.status =
+            LegacyStandardModeEquipmentCleanupStatus::record_list_stopped;
+        return result;
+    }
+    ++result.helper_call_count;
+    const compat::u32 workspace_token = state.workspace_token;
+    state.mode_enabled = 0U;
+    result.legacy_return_value =
+        ports.release_equipment_workspace(workspace_token);
+    ++result.helper_call_count;
+    state.global_mode = 0x36U;
+    return result;
+}
+
 LegacyStandardModeGuardianFilterResult
 filter_legacy_standard_mode_guardian_records(
     LegacyStandardModeForwardNode*& source_head,
