@@ -23,7 +23,7 @@
 
 循环后调用442BC0等价收尾边界并返回其EAX。seed全程为`const LegacyStandardModeForwardNode*`，不退化为整数。
 
-44D6E0与442BC0仍分别由name merge和party finalization窄端口表达。模板、destination、record/name、merge和finalize在原读取/调用点typed-stop，保留此前scratch、destination clear与成功合并。
+442BC0后续已独立关闭并由B10直接调用；44D6E0仍由name merge窄端口表达。模板、destination、record/name与merge在原读取/调用点typed-stop，BC0目标越界则保留此前scratch、destination clear与成功合并。
 
 429B0原`combine_guardian_selected_attributes`opaque端口已删除。其第六步直接调用B10；B10停止映射为`selected_combination_stopped`。同时移除了旧fixture伪造的`list_offset=77`副作用；LST无该写，40630初始化现在保持list offset为0。
 

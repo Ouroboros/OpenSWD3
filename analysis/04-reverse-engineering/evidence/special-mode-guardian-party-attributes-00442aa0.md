@@ -14,7 +14,7 @@
 
 模板索引使用当前selected party，而16项名称使用函数输入party，二者不得混淆。modern state以固定scratch/cache数组和destination offset替代裸pointer。
 
-44D6E0与442BC0尚未独立关闭，分别以`merge_guardian_attribute_record_name`和`finalize_guardian_party_attribute_record`窄端口保留。record table只暴露typed name，不向业务层传递`record+0x0C`裸地址。
+442BC0后续已独立关闭并由AA0直接调用；44D6E0仍以`merge_guardian_attribute_record_name`窄端口保留。record table只暴露typed name，不向业务层传递`record+0x0C`裸地址。
 
 ## typed-stop
 

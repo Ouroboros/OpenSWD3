@@ -2525,19 +2525,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return true;
         }
 
-        std::optional<i32> finalize_guardian_party_attribute_record(
-            sm::LegacyStandardModeGuardianInitializationState& state,
-            const std::size_t destination_offset
-        ) noexcept override {
-            std::copy_n(
-                state.scratch_record.begin(),
-                0x38U,
-                state.attribute_cache.begin() +
-                    static_cast<std::ptrdiff_t>(destination_offset)
-            );
-            return 2;
-        }
-
         std::optional<const sm::LegacyStandardModeForwardNode*>
         resolve_guardian_party_attribute_record(
             sm::LegacyStandardModeGuardianInitializationState&,
@@ -2617,7 +2604,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 ),
                 [](const u8 value) { return value == 0U; }
             ) &&
-            state.attribute_cache[0U] == 0x5AU &&
+            state.attribute_cache[0U] == 0U &&
             state.attribute_cache[1U] == 0U && state.guardian_slot == 0U &&
             state.record_head == &ports.missing_node &&
             state.total_record_count == 1U &&
@@ -2774,15 +2761,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 static_cast<std::size_t>(party_attribute_failure_record + 1U);
         }
 
-        std::optional<i32> finalize_guardian_party_attribute_record(
-            sm::LegacyStandardModeGuardianInitializationState&,
-            const std::size_t destination_offset
-        ) noexcept override {
-            party_attribute_finalize_offsets.push_back(destination_offset);
-            return cache_failure_stage != 6 ? std::optional<i32>{200}
-                                            : std::nullopt;
-        }
-
         std::optional<const sm::LegacyStandardModeForwardNode*>
         resolve_guardian_party_attribute_record(
             sm::LegacyStandardModeGuardianInitializationState&,
@@ -2885,7 +2863,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::vector<u32> exchange_slots;
         std::vector<std::pair<u16, u16>> attribute_name_requests;
         std::vector<std::string> merged_attribute_names;
-        std::vector<std::size_t> party_attribute_finalize_offsets;
         std::vector<std::array<i32, 5U>> cache_steps;
         std::vector<sm::LegacyStandardModeGuardianSelectionTarget> targets;
         std::vector<std::array<u32, 2U>> commands;
@@ -2937,7 +2914,70 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         sm::LegacyStandardModeGuardianInitializationState party_state;
         party_state.party_selector = 3U;
+        party_state.attribute_cache_token = 0x1000U;
         party_state.scratch_record.fill(0xA5U);
+        constexpr std::array<std::size_t, 17U> finalize_source_offsets{
+            0x04U,
+            0x06U,
+            0x08U,
+            0x0AU,
+            0x0CU,
+            0x0EU,
+            0x10U,
+            0x12U,
+            0x14U,
+            0x16U,
+            0x18U,
+            0x1AU,
+            0x1CU,
+            0x1EU,
+            0x20U,
+            0x26U,
+            0x28U,
+        };
+        for (std::size_t index = 0U; index < finalize_source_offsets.size();
+             ++index) {
+            const i16 value = index == 0U
+                ? static_cast<i16>(-1)
+                : (index == 1U ? std::numeric_limits<i16>::min()
+                               : static_cast<i16>(index));
+            const u16 raw = std::bit_cast<u16>(value);
+            party_state.scratch_record[finalize_source_offsets[index]] =
+                static_cast<u8>(raw & 0xFFU);
+            party_state.scratch_record[finalize_source_offsets[index] + 1U] =
+                static_cast<u8>(raw >> 8U);
+        }
+        const auto finalized =
+            sm::finalize_legacy_standard_mode_guardian_party_attributes(
+                party_state, 0x50U
+            );
+        const auto cache_dword = [&party_state](const std::size_t offset) {
+            return static_cast<u32>(party_state.attribute_cache[offset]) |
+                (static_cast<u32>(party_state.attribute_cache[offset + 1U])
+                 << 8U) |
+                (static_cast<u32>(party_state.attribute_cache[offset + 2U])
+                 << 16U) |
+                (static_cast<u32>(party_state.attribute_cache[offset + 3U])
+                 << 24U);
+        };
+        const auto finalize_range =
+            sm::finalize_legacy_standard_mode_guardian_party_attributes(
+                party_state, 0x180U
+            );
+        test.expect_true(
+            finalized.status ==
+                    sm::LegacyStandardModeGuardianPartyFinalizeStatus::
+                        completed &&
+                finalized.legacy_return_value == 0x1050 &&
+                cache_dword(0x50U) == 0xFFFFFFFFU &&
+                cache_dword(0x54U) == 0xFFFF8000U && cache_dword(0x58U) == 2U &&
+                cache_dword(0x90U) == 16U &&
+                finalize_range.status ==
+                    sm::LegacyStandardModeGuardianPartyFinalizeStatus::
+                        destination_out_of_range,
+            "0x442BC0 sign-extends seventeen scratch words and returns the destination token"
+        );
+
         SelectionPorts party_ports;
         const auto party =
             sm::populate_legacy_standard_mode_guardian_party_attributes(
@@ -2947,7 +2987,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             party.status ==
                     sm::LegacyStandardModeGuardianPartyAttributeStatus::
                         completed &&
-                party.legacy_return_value == 200 &&
+                party.legacy_return_value == 0x1050 &&
                 party.helper_call_count == 17U &&
                 party.merged_record_count == 16U &&
                 party_state.scratch_record[0U] == 0x43U &&
@@ -2959,14 +2999,12 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     std::pair<u16, u16>{2U, 15U} &&
                 party_ports.merged_attribute_names.size() == 16U &&
                 party_ports.merged_attribute_names.front() == "P2R0" &&
-                party_ports.merged_attribute_names.back() == "P2R15" &&
-                party_ports.party_attribute_finalize_offsets ==
-                    std::vector<std::size_t>{0x50U},
+                party_ports.merged_attribute_names.back() == "P2R15",
             "0x442AA0 copies the selected-party template, merges sixteen names and finalizes destination"
         );
 
         constexpr std::
-            array<sm::LegacyStandardModeGuardianPartyAttributeStatus, 4U>
+            array<sm::LegacyStandardModeGuardianPartyAttributeStatus, 3U>
                 party_stop_statuses{
                     sm::LegacyStandardModeGuardianPartyAttributeStatus::
                         template_out_of_range,
@@ -2974,12 +3012,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                         guardian_record_out_of_range,
                     sm::LegacyStandardModeGuardianPartyAttributeStatus::
                         name_merge_stopped,
-                    sm::LegacyStandardModeGuardianPartyAttributeStatus::
-                        party_finalization_stopped,
                 };
-        constexpr std::array<i32, 4U> party_stop_stages{0, 4, 5, 6};
-        constexpr std::array<u32, 4U> party_stop_helpers{0U, 5U, 4U, 17U};
-        constexpr std::array<u32, 4U> party_stop_merges{0U, 5U, 3U, 16U};
+        constexpr std::array<i32, 3U> party_stop_stages{0, 4, 5};
+        constexpr std::array<u32, 3U> party_stop_helpers{0U, 5U, 4U};
+        constexpr std::array<u32, 3U> party_stop_merges{0U, 5U, 3U};
         bool party_stops_match = true;
         for (std::size_t index = 0U; index < party_stop_stages.size();
              ++index) {
@@ -2995,14 +3031,19 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             party_stops_match = party_stops_match &&
                 stopped.status == party_stop_statuses[index] &&
                 stopped.helper_call_count == party_stop_helpers[index] &&
-                stopped.merged_record_count == party_stop_merges[index] &&
-                (index == 3U
-                     ? stopped_ports.party_attribute_finalize_offsets.size() ==
-                         1U
-                     : stopped_ports.party_attribute_finalize_offsets.empty());
+                stopped.merged_record_count == party_stop_merges[index];
         }
+        const auto party_destination_stopped =
+            sm::populate_legacy_standard_mode_guardian_party_attributes(
+                party_state, 2U, 0x180U, party_ports
+            );
         test.expect_true(
-            party_stops_match,
+            party_stops_match &&
+                party_destination_stopped.status ==
+                    sm::LegacyStandardModeGuardianPartyAttributeStatus::
+                        party_finalization_stopped &&
+                party_destination_stopped.helper_call_count == 17U &&
+                party_destination_stopped.merged_record_count == 16U,
             "0x442AA0 preserves prior template and merge effects at every typed stop"
         );
 
@@ -3023,7 +3064,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             selected.status ==
                     sm::LegacyStandardModeGuardianSelectedAttributeStatus::
                         completed &&
-                selected.legacy_return_value == 200 &&
+                selected.legacy_return_value == 0x1140 &&
                 selected.helper_call_count == 17U &&
                 selected.merged_record_count == 16U &&
                 party_state.scratch_record[0U] == 0x43U &&
@@ -3039,9 +3080,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     std::pair<u16, u16>{1U, 3U}
                 ) == selected_ports.attribute_name_requests.end() &&
                 selected_ports.merged_attribute_names.size() == 16U &&
-                selected_ports.merged_attribute_names[3U] == "SEED" &&
-                selected_ports.party_attribute_finalize_offsets ==
-                    std::vector<std::size_t>{0x140U},
+                selected_ports.merged_attribute_names[3U] == "SEED",
             "0x442B10 clears destination and replaces the selected party name with typed seed"
         );
 
@@ -3076,7 +3115,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
 
         constexpr std::
-            array<sm::LegacyStandardModeGuardianSelectedAttributeStatus, 4U>
+            array<sm::LegacyStandardModeGuardianSelectedAttributeStatus, 3U>
                 selected_stop_statuses{
                     sm::LegacyStandardModeGuardianSelectedAttributeStatus::
                         template_out_of_range,
@@ -3084,12 +3123,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                         guardian_record_out_of_range,
                     sm::LegacyStandardModeGuardianSelectedAttributeStatus::
                         name_merge_stopped,
-                    sm::LegacyStandardModeGuardianSelectedAttributeStatus::
-                        selected_finalization_stopped,
                 };
-        constexpr std::array<i32, 4U> selected_stop_stages{0, 4, 5, 6};
-        constexpr std::array<u32, 4U> selected_stop_helpers{0U, 5U, 4U, 17U};
-        constexpr std::array<u32, 4U> selected_stop_merges{0U, 5U, 3U, 16U};
+        constexpr std::array<i32, 3U> selected_stop_stages{0, 4, 5};
+        constexpr std::array<u32, 3U> selected_stop_helpers{0U, 5U, 4U};
+        constexpr std::array<u32, 3U> selected_stop_merges{0U, 5U, 3U};
         bool selected_stops_match = true;
         for (std::size_t index = 0U; index < selected_stop_stages.size();
              ++index) {
@@ -4822,14 +4859,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             const std::string_view
         ) noexcept override {
             return cache_steps_available;
-        }
-
-        std::optional<i32> finalize_guardian_party_attribute_record(
-            sm::LegacyStandardModeGuardianInitializationState&,
-            const std::size_t
-        ) noexcept override {
-            return cache_steps_available ? std::optional<i32>{200}
-                                         : std::nullopt;
         }
 
         std::optional<const sm::LegacyStandardModeForwardNode*>

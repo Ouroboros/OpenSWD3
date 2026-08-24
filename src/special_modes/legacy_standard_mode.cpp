@@ -5220,6 +5220,60 @@ LegacyStandardModeDatabaseCleanupResult release_legacy_standard_mode_database(
     return result;
 }
 
+LegacyStandardModeGuardianPartyFinalizeResult
+finalize_legacy_standard_mode_guardian_party_attributes(
+    LegacyStandardModeGuardianInitializationState& state,
+    const std::size_t destination_offset
+) noexcept {
+    LegacyStandardModeGuardianPartyFinalizeResult result;
+    constexpr std::array<std::size_t, 17U> kSourceOffsets{
+        0x04U,
+        0x06U,
+        0x08U,
+        0x0AU,
+        0x0CU,
+        0x0EU,
+        0x10U,
+        0x12U,
+        0x14U,
+        0x16U,
+        0x18U,
+        0x1AU,
+        0x1CU,
+        0x1EU,
+        0x20U,
+        0x26U,
+        0x28U,
+    };
+    constexpr std::size_t kDestinationSize = kSourceOffsets.size() * 4U;
+    if (destination_offset + kDestinationSize > state.attribute_cache.size()) {
+        result.status = LegacyStandardModeGuardianPartyFinalizeStatus::
+            destination_out_of_range;
+        return result;
+    }
+    for (std::size_t index = 0U; index < kSourceOffsets.size(); ++index) {
+        const compat::i32 value =
+            static_cast<compat::i32>(std::bit_cast<compat::i16>(
+                read_u16_le(state.scratch_record, kSourceOffsets[index])
+            ));
+        const compat::u32 raw = std::bit_cast<compat::u32>(value);
+        const std::size_t output_offset = destination_offset + index * 4U;
+        state.attribute_cache[output_offset] =
+            static_cast<compat::u8>(raw & 0xFFU);
+        state.attribute_cache[output_offset + 1U] =
+            static_cast<compat::u8>((raw >> 8U) & 0xFFU);
+        state.attribute_cache[output_offset + 2U] =
+            static_cast<compat::u8>((raw >> 16U) & 0xFFU);
+        state.attribute_cache[output_offset + 3U] =
+            static_cast<compat::u8>((raw >> 24U) & 0xFFU);
+    }
+    result.legacy_return_value = std::bit_cast<compat::i32>(
+        state.attribute_cache_token +
+        static_cast<compat::u32>(destination_offset)
+    );
+    return result;
+}
+
 LegacyStandardModeGuardianPartyAttributeResult
 populate_legacy_standard_mode_guardian_party_attributes(
     LegacyStandardModeGuardianInitializationState& state,
@@ -5261,16 +5315,17 @@ populate_legacy_standard_mode_guardian_party_attributes(
         ++result.merged_record_count;
     }
     ++result.helper_call_count;
-    const std::optional<compat::i32> finalized =
-        ports.finalize_guardian_party_attribute_record(
+    const LegacyStandardModeGuardianPartyFinalizeResult finalized =
+        finalize_legacy_standard_mode_guardian_party_attributes(
             state, destination_offset
         );
-    if (!finalized.has_value()) {
+    if (finalized.status !=
+        LegacyStandardModeGuardianPartyFinalizeStatus::completed) {
         result.status = LegacyStandardModeGuardianPartyAttributeStatus::
             party_finalization_stopped;
         return result;
     }
-    result.legacy_return_value = *finalized;
+    result.legacy_return_value = finalized.legacy_return_value;
     return result;
 }
 
@@ -5340,16 +5395,17 @@ combine_legacy_standard_mode_guardian_selected_attributes(
         ++result.merged_record_count;
     }
     ++result.helper_call_count;
-    const std::optional<compat::i32> finalized =
-        ports.finalize_guardian_party_attribute_record(
+    const LegacyStandardModeGuardianPartyFinalizeResult finalized =
+        finalize_legacy_standard_mode_guardian_party_attributes(
             state, destination_offset
         );
-    if (!finalized.has_value()) {
+    if (finalized.status !=
+        LegacyStandardModeGuardianPartyFinalizeStatus::completed) {
         result.status = LegacyStandardModeGuardianSelectedAttributeStatus::
             selected_finalization_stopped;
         return result;
     }
-    result.legacy_return_value = *finalized;
+    result.legacy_return_value = finalized.legacy_return_value;
     return result;
 }
 

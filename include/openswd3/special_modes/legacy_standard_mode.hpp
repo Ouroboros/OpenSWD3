@@ -608,11 +608,6 @@ public:
         LegacyStandardModeGuardianInitializationState& state,
         std::string_view record_name
     ) noexcept = 0;
-    [[nodiscard]] virtual std::optional<compat::i32>
-    finalize_guardian_party_attribute_record(
-        LegacyStandardModeGuardianInitializationState& state,
-        std::size_t destination_offset
-    ) noexcept = 0;
     [[nodiscard]] virtual std::optional<const LegacyStandardModeForwardNode*>
     resolve_guardian_party_attribute_record(
         LegacyStandardModeGuardianInitializationState& state,
@@ -2940,6 +2935,24 @@ commit_legacy_standard_mode_guardian_interaction(
     std::span<const compat::u32> guardian_text_indices,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianCommitPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeGuardianPartyFinalizeStatus : compat::u8 {
+    completed,
+    destination_out_of_range,
+};
+
+struct LegacyStandardModeGuardianPartyFinalizeResult {
+    LegacyStandardModeGuardianPartyFinalizeStatus status{
+        LegacyStandardModeGuardianPartyFinalizeStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+};
+
+[[nodiscard]] LegacyStandardModeGuardianPartyFinalizeResult
+finalize_legacy_standard_mode_guardian_party_attributes(
+    LegacyStandardModeGuardianInitializationState& state,
+    std::size_t destination_offset
 ) noexcept;
 
 enum class LegacyStandardModeGuardianPartyAttributeStatus : compat::u8 {
