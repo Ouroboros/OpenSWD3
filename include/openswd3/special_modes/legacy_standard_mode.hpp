@@ -2571,6 +2571,14 @@ retreat_legacy_standard_mode_guardian_selection(
     LegacyStandardModeGuardianSelectionPorts& ports
 ) noexcept;
 
+[[nodiscard]] LegacyStandardModeGuardianSelectionResult
+advance_legacy_standard_mode_guardian_page(
+    LegacyStandardModeGuardianInitializationState& state,
+    std::span<const compat::u32> guardian_text_indices,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianSelectionPorts& ports
+) noexcept;
+
 [[nodiscard]] LegacyStandardModeGuardianInputResult
 handle_legacy_standard_mode_guardian_input(
     LegacyStandardModeGuardianInitializationState& state,

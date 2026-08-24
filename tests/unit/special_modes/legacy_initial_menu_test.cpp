@@ -2686,6 +2686,20 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x440C20 mode0 wraps negative slot to10 without changing flags"
         );
 
+        guardian.guardian_slot = 3U;
+        guardian.party_selector = 0U;
+        SelectionPorts page_slot_ports;
+        const auto page_slot = sm::advance_legacy_standard_mode_guardian_page(
+            guardian, records, {}, page_slot_ports
+        );
+        test.expect_true(
+            page_slot.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                page_slot.legacy_return_value == 77 &&
+                guardian.guardian_slot == 10U && guardian.mode_flags == 0x80U,
+            "0x440D20 mode0 writes slot10 directly without changing flags"
+        );
+
         guardian.guardian_slot = 10U;
         guardian.party_selector = 2U;
         SelectionPorts stopped_ports;
@@ -2708,7 +2722,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             nodes[index].next = &nodes[index + 1U];
             nodes[index].text_index = 0x1111U;
         }
-        nodes.back().text_index = 0x2222U;
+        nodes.back().text_index = 0xFFDCU;
         nodes[0U].text_index = 0xFFDCU;
         nodes[10U].text_index = 0xFFDCU;
         sm::LegacyStandardModeGuardianInitializationState guardian;
@@ -2763,6 +2777,29 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 guardian.visible_record_count == 10U &&
                 guardian.mode_flags == 0x103U,
             "0x440C20 mode1 retreats the window and ORs only low-byte flags3"
+        );
+
+        guardian.interaction_mode = 1U;
+        guardian.total_record_count = 12U;
+        guardian.visible_record_count = 10U;
+        guardian.list_offset = 0U;
+        guardian.local_selection = 9U;
+        guardian.record_head = &nodes[0U];
+        guardian.mode_flags = 0x200U;
+        SelectionPorts page_ports;
+        const auto page = sm::advance_legacy_standard_mode_guardian_page(
+            guardian, {}, {}, page_ports
+        );
+        test.expect_true(
+            page.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                page.legacy_return_value == 0x230 &&
+                page.helper_call_count == 7U && guardian.list_offset == 2U &&
+                guardian.local_selection == 9U &&
+                guardian.visible_record_head == &nodes[2U] &&
+                guardian.visible_record_count == 10U &&
+                guardian.mode_flags == 0x230U,
+            "0x440D20 mode1 rebuilds the final page and ORs flags30"
         );
 
         guardian.total_record_count = 20U;
@@ -2967,12 +3004,18 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
     }
     {
-        sm::LegacyStandardModeForwardNode shortcut_node{nullptr, 0xFFDCU};
+        std::array<sm::LegacyStandardModeForwardNode, 11U> shortcut_nodes{};
+        for (std::size_t index = 0U; index + 1U < shortcut_nodes.size();
+             ++index) {
+            shortcut_nodes[index].next = &shortcut_nodes[index + 1U];
+            shortcut_nodes[index].text_index = 0xFFDCU;
+        }
+        shortcut_nodes.back().text_index = 0xFFDCU;
         sm::LegacyStandardModeGuardianInitializationState guardian;
         guardian.interaction_mode = 1U;
         guardian.total_record_count = 11U;
         guardian.local_selection = 1U;
-        guardian.record_head = &shortcut_node;
+        guardian.record_head = &shortcut_nodes[0U];
         guardian.panel_x = 0x1E8U;
         guardian.panel_y = 0x78U;
         sm::LegacyStandardModeGuardianInputSnapshot snapshot{
@@ -2991,6 +3034,25 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                         SelectionTarget::refresh_attribute_cache
                     },
             "0x4407F0 availability shortcut directly reuses 0x440C20"
+        );
+
+        guardian.interaction_mode = 1U;
+        guardian.total_record_count = 11U;
+        guardian.visible_record_count = 10U;
+        guardian.local_selection = 9U;
+        guardian.list_offset = 0U;
+        guardian.mode_flags = 0U;
+        guardian.second_dynamic_min_y = 200;
+        guardian.second_dynamic_max_y = 220;
+        snapshot = {.cursor_y = 210U, .cursor_x = 620U};
+        InputPorts page_ports;
+        const auto page = input(guardian, snapshot, page_ports);
+        test.expect_true(
+            page.status ==
+                    sm::LegacyStandardModeGuardianInputStatus::completed &&
+                page.last_target == Target::select_second_dynamic &&
+                page.legacy_return_value == 0x30 && page_ports.targets.empty(),
+            "0x4407F0 second dynamic band directly reuses 0x440D20"
         );
 
         guardian.interaction_mode = 2U;
