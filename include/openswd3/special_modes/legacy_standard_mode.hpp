@@ -832,6 +832,12 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::i32 hover_flag{};
     compat::u32 mode_flags{};
     compat::u32 sample_owner{};
+    compat::u32 transition_value{};
+    compat::u32 transition_countdown{};
+    compat::u32 transition_reset_first{};
+    compat::u32 transition_reset_second{};
+    compat::u32 deferred_interaction_mode{};
+    compat::u32 published_transition_value{};
     bool uses_alternate_record_list{};
 };
 
@@ -901,6 +907,7 @@ enum class LegacyStandardModeGuardianSelectionStatus : compat::u8 {
     guardian_record_out_of_range,
     party_table_out_of_range,
     party_cycle_stopped,
+    guardian_exchange_stopped,
     shared_text_stopped,
 };
 
@@ -925,8 +932,19 @@ public:
     ) noexcept = 0;
 };
 
-class LegacyStandardModeGuardianInputPorts
+class LegacyStandardModeGuardianInteractionPorts
     : public LegacyStandardModeGuardianSelectionPorts {
+public:
+    ~LegacyStandardModeGuardianInteractionPorts() override = default;
+    [[nodiscard]] virtual bool exchange_guardian_record(
+        LegacyStandardModeGuardianInitializationState& state,
+        const LegacyStandardModeForwardNode& selected_node,
+        compat::u32 guardian_slot
+    ) noexcept = 0;
+};
+
+class LegacyStandardModeGuardianInputPorts
+    : public LegacyStandardModeGuardianInteractionPorts {
 public:
     virtual ~LegacyStandardModeGuardianInputPorts() = default;
     [[nodiscard]] virtual compat::i32 invoke_guardian_input(
@@ -2612,6 +2630,14 @@ cycle_legacy_standard_mode_guardian_party(
     std::span<const compat::u32> guardian_text_indices,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianSelectionPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeGuardianSelectionResult
+switch_legacy_standard_mode_guardian_interaction(
+    LegacyStandardModeGuardianInitializationState& state,
+    std::span<const compat::u32> guardian_text_indices,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianInteractionPorts& ports
 ) noexcept;
 
 [[nodiscard]] LegacyStandardModeGuardianInputResult

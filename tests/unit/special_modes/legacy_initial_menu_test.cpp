@@ -2614,7 +2614,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     );
 
     class SelectionPorts final
-        : public sm::LegacyStandardModeGuardianSelectionPorts {
+        : public sm::LegacyStandardModeGuardianInteractionPorts {
     public:
         i32 invoke_guardian_selection(
             const sm::LegacyStandardModeGuardianSelectionTarget target,
@@ -2631,7 +2631,18 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return sample_return;
         }
 
+        bool exchange_guardian_record(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            const sm::LegacyStandardModeForwardNode&,
+            const u32 guardian_slot
+        ) noexcept override {
+            exchange_slots.push_back(guardian_slot);
+            return exchange_result;
+        }
+
+        bool exchange_result{true};
         i32 sample_return{77};
+        std::vector<u32> exchange_slots;
         std::vector<sm::LegacyStandardModeGuardianSelectionTarget> targets;
         std::vector<std::array<u32, 2U>> commands;
     };
@@ -2977,6 +2988,89 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     }
 
     {
+        sm::LegacyStandardModeForwardNode node{nullptr, 0xFFDCU};
+        std::array<u32, 2U> texts{0xFFDCU, 0xFFDCU};
+        sm::LegacyStandardModeGuardianInitializationState guardian;
+        guardian.record_head = &node;
+        SelectionPorts interaction_ports;
+        const auto entered =
+            sm::switch_legacy_standard_mode_guardian_interaction(
+                guardian, texts, {}, interaction_ports
+            );
+        test.expect_true(
+            entered.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                guardian.interaction_mode == 1U &&
+                entered.helper_call_count == 3U &&
+                entered.last_target == SelectionTarget::refresh_attribute_cache,
+            "0x441160 mode0 increments mode before selected text and refresh"
+        );
+
+        guardian.interaction_mode = 1U;
+        guardian.guardian_slot = 0U;
+        SelectionPorts sentinel_ports;
+        const auto sentinel =
+            sm::switch_legacy_standard_mode_guardian_interaction(
+                guardian, texts, {}, sentinel_ports
+            );
+        test.expect_true(
+            guardian.interaction_mode == 15U &&
+                sentinel.legacy_return_value == 77 &&
+                sentinel.helper_call_count == 2U &&
+                sentinel_ports.commands ==
+                    std::vector<std::array<u32, 2U>>{{0x8CU, 0U}},
+            "0x441160 mode1 slot0 sentinel enters mode15 and plays sample140"
+        );
+
+        guardian.interaction_mode = 1U;
+        guardian.guardian_slot = 1U;
+        SelectionPorts exchange_ports;
+        const auto exchanged =
+            sm::switch_legacy_standard_mode_guardian_interaction(
+                guardian, texts, {}, exchange_ports
+            );
+        test.expect_true(
+            exchanged.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                exchanged.legacy_return_value == 77 &&
+                exchanged.helper_call_count == 9U &&
+                guardian.interaction_mode == 0U &&
+                exchange_ports.exchange_slots == std::vector<u32>{1U} &&
+                exchange_ports.commands ==
+                    std::vector<std::array<u32, 2U>>{{0x2EU, 0U}},
+            "0x441160 mode1 exchanges, rebuilds the list and returns sample46"
+        );
+
+        guardian = {};
+        guardian.interaction_mode = 5U;
+        guardian.transition_value = 0x12345678U;
+        guardian.deferred_interaction_mode = 9U;
+        SelectionPorts lifecycle_ports;
+        const auto lifecycle =
+            sm::switch_legacy_standard_mode_guardian_interaction(
+                guardian, texts, {}, lifecycle_ports
+            );
+        test.expect_true(
+            lifecycle.legacy_return_value == std::bit_cast<i32>(0x12345678U) &&
+                guardian.transition_countdown == 0x1E0U &&
+                guardian.transition_value == 0U &&
+                guardian.interaction_mode == 9U &&
+                guardian.published_transition_value == 0x12345678U,
+            "0x441160 mode5 publishes the transition value and restores deferred mode"
+        );
+
+        guardian.interaction_mode = 15U;
+        const auto resumed =
+            sm::switch_legacy_standard_mode_guardian_interaction(
+                guardian, texts, {}, lifecycle_ports
+            );
+        test.expect_true(
+            resumed.legacy_return_value == 15 &&
+                guardian.interaction_mode == 1U,
+            "0x441160 mode15 resumes mode1 while returning entry mode15"
+        );
+    }
+    {
         std::array<u16, 4U> markers{0xFFFFU, 0xFFFFU, 0U, 0xFFFFU};
         std::array<u32, 33U> texts{};
         texts[32U] = 0xFFDCU;
@@ -3057,12 +3151,23 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return 250;
         }
 
+        bool exchange_guardian_record(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            const sm::LegacyStandardModeForwardNode&,
+            const u32 guardian_slot
+        ) noexcept override {
+            exchange_slots.push_back(guardian_slot);
+            return exchange_result;
+        }
+
         bool query_guardian_item_presence(const u16 item_id) noexcept override {
             item_ids.push_back(item_id);
             return item_present;
         }
 
+        bool exchange_result{true};
         bool item_present{true};
+        std::vector<u32> exchange_slots;
         std::optional<u32> interaction_mode_after_commit{};
         std::vector<sm::LegacyStandardModeGuardianInputTarget> targets;
         std::vector<sm::LegacyStandardModeGuardianSelectionTarget>
@@ -3103,10 +3208,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         InputPorts input_ports;
         const auto result = input(guardian, snapshot, input_ports);
         test.expect_true(
-            result.legacy_return_value == 101 && result.callback_count == 1U &&
-                input_ports.targets == std::vector<Target>{Target::interact} &&
-                input_ports.registers[0U] == std::array<i32, 2U>{7, 9},
-            "0x4407F0 mode15 forwards any low-nibble input with entry registers"
+            result.legacy_return_value == 15 && result.callback_count == 1U &&
+                guardian.interaction_mode == 1U &&
+                result.last_target == Target::interact &&
+                input_ports.targets.empty(),
+            "0x4407F0 mode15 directly resumes 0x441160"
         );
 
         guardian.interaction_mode = 5U;
