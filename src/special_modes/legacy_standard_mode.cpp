@@ -5922,6 +5922,175 @@ switch_legacy_standard_mode_guardian_interaction(
 }
 
 LegacyStandardModeGuardianRenderResult
+render_legacy_standard_mode_guardian_slot_panel(
+    LegacyStandardModeGuardianInitializationState& state,
+    const std::span<const LegacyStandardModeForwardNode> guardian_records,
+    const compat::u32 panel_x,
+    const compat::u32 panel_y,
+    const compat::u32 panel_shift,
+    const compat::u32 panel_width,
+    const compat::u32 selected_slot,
+    LegacyStandardModeGuardianRenderPorts& ports
+) noexcept {
+    LegacyStandardModeGuardianRenderResult result;
+    const compat::i32 primary_color =
+        ports.make_guardian_color(0x19U, 0x17U, 0x11U);
+    ++result.color_count;
+    const auto execute =
+        [&ports, &result](LegacyStandardModeGuardianRenderRequest request) {
+            ++result.operation_count;
+            result.legacy_return_value = ports.execute_guardian_render(request);
+            return result.legacy_return_value;
+        };
+    constexpr std::array<LegacyStandardModeGuardianRenderText, 11U> kPrefixes{
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_zero,
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_one,
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_two,
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_three,
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_four,
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_five,
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_six,
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_seven,
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_eight,
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_nine,
+        LegacyStandardModeGuardianRenderText::guardian_slot_prefix_ten,
+    };
+    const std::uint64_t party_base =
+        static_cast<std::uint64_t>(
+            static_cast<compat::u16>(state.party_selector)
+        ) *
+        16U;
+    compat::u32 row_y = panel_y + 4U;
+    const compat::i32 signed_mode =
+        std::bit_cast<compat::i32>(state.interaction_mode);
+    for (compat::u32 slot = 0U; slot <= 0x0AU; ++slot) {
+        const std::uint64_t record_index = party_base + slot;
+        if (record_index >= guardian_records.size()) {
+            result.status = LegacyStandardModeGuardianRenderStatus::
+                guardian_record_out_of_range;
+            return result;
+        }
+        const LegacyStandardModeForwardNode& record =
+            guardian_records[static_cast<std::size_t>(record_index)];
+        const bool selected = selected_slot == slot;
+        compat::u32 selected_x_bias = 0U;
+        compat::i32 row_color = primary_color;
+        if (selected) {
+            selected_x_bias = 0xFFFFFFFFU;
+            if (state.interaction_mode == 0U && record.text_index != 0xFFDCU) {
+                state.guardian_slot_action_id = 0x232AU;
+                state.guardian_slot_action_variant = 0x20U;
+                static_cast<void>(execute(
+                    LegacyStandardModeGuardianRenderRequest{
+                        .operation = LegacyStandardModeGuardianRenderOperation::
+                            draw_guardian_slot_action,
+                        .values = {
+                            0x232A,
+                            0x20,
+                            std::bit_cast<compat::i32>(
+                                std::bit_cast<compat::u32>(
+                                    state.list_action_offset
+                                ) +
+                                0x21CU
+                            ),
+                            std::bit_cast<compat::i32>(
+                                std::bit_cast<compat::u32>(
+                                    state.list_action_offset
+                                ) +
+                                0x1D4U
+                            ),
+                        },
+                    }
+                ));
+            }
+        }
+        if (signed_mode > 0) {
+            row_color = ports.adjust_guardian_color(row_color, 1, -4, -4, -4);
+        }
+        std::array<char, 256U> text{};
+        static_cast<void>(std::snprintf(
+            text.data(),
+            text.size(),
+            "%-7s%-12s",
+            std::string(ports.guardian_text(kPrefixes[slot])).c_str(),
+            record.display_name.c_str()
+        ));
+        static_cast<void>(execute(
+            LegacyStandardModeGuardianRenderRequest{
+                .operation =
+                    LegacyStandardModeGuardianRenderOperation::draw_text,
+                .values =
+                    {
+                        std::bit_cast<compat::i32>(
+                            selected_x_bias - panel_shift + panel_x + 5U
+                        ),
+                        std::bit_cast<compat::i32>(row_y + 2U),
+                        4,
+                    },
+                .color = row_color,
+                .text = text.data(),
+            }
+        ));
+        ++result.row_count;
+        if (selected) {
+            static_cast<void>(execute(
+                LegacyStandardModeGuardianRenderRequest{
+                    .operation = LegacyStandardModeGuardianRenderOperation::
+                        draw_guardian_slot_selection,
+                    .values = {
+                        std::bit_cast<compat::i32>(panel_x - panel_shift - 5U),
+                        std::bit_cast<compat::i32>(row_y),
+                        std::bit_cast<compat::i32>(panel_width - 0x16U),
+                        0x18,
+                        0x14,
+                        0x0D,
+                        0,
+                        5,
+                    },
+                }
+            ));
+        }
+        row_y += 0x1CU;
+    }
+
+    state.guardian_category_action_id = 0x232AU;
+    state.guardian_category_action_variant = 0x0DU;
+    state.guardian_category_action_frame_word =
+        static_cast<compat::u16>(execute(
+            LegacyStandardModeGuardianRenderRequest{
+                .operation = LegacyStandardModeGuardianRenderOperation::
+                    prepare_guardian_category_action,
+                .values = {0x232A, 0x0D},
+            }
+        ));
+    constexpr std::array<compat::i32, 8U> kCategories{3, 0, 1, 6, 4, 7, 5, 2};
+    constexpr std::array<compat::u32, 8U> kCategoryYOffsets{
+        6U, 0x22U, 0x3EU, 0x5AU, 0x76U, 0x92U, 0xCAU, 0x102U
+    };
+    const compat::i32 category_x =
+        std::bit_cast<compat::i32>(panel_x - panel_shift + 0x38U);
+    for (std::size_t index = 0U; index < kCategories.size(); ++index) {
+        static_cast<void>(execute(
+            LegacyStandardModeGuardianRenderRequest{
+                .operation = LegacyStandardModeGuardianRenderOperation::
+                    draw_guardian_category_icon,
+                .values = {
+                    state.guardian_category_action_frame_word,
+                    kCategories[index],
+                    category_x,
+                    std::bit_cast<compat::i32>(
+                        panel_y + kCategoryYOffsets[index]
+                    ),
+                },
+            }
+        ));
+    }
+    state.guardian_category_action_id = 0U;
+    state.guardian_category_action_variant = 0x44U;
+    return result;
+}
+
+LegacyStandardModeGuardianRenderResult
 render_legacy_standard_mode_guardian_attributes(
     LegacyStandardModeGuardianInitializationState& state,
     const compat::u32 guardian_slot,
@@ -6347,14 +6516,26 @@ render_legacy_standard_mode_guardian_system(
          0},
         0x80000008U
     )));
-    static_cast<void>(execute(make_request(
-        LegacyStandardModeGuardianRenderOperation::draw_guardian_slot_panel,
-        {0xD0,
-         0x68,
-         std::bit_cast<compat::i32>(state.panel_offset),
-         0xFC,
-         std::bit_cast<compat::i32>(state.guardian_slot)}
-    )));
+    const LegacyStandardModeGuardianRenderResult slot_panel =
+        render_legacy_standard_mode_guardian_slot_panel(
+            state,
+            guardian_records,
+            0xD0U,
+            0x68U,
+            state.panel_offset,
+            0xFCU,
+            state.guardian_slot,
+            ports
+        );
+    result.legacy_return_value = slot_panel.legacy_return_value;
+    result.color_count += slot_panel.color_count;
+    result.operation_count += slot_panel.operation_count;
+    result.row_count += slot_panel.row_count;
+    if (slot_panel.status !=
+        LegacyStandardModeGuardianRenderStatus::completed) {
+        result.status = slot_panel.status;
+        return result;
+    }
 
     const std::uint64_t party_record_index =
         static_cast<std::uint64_t>(

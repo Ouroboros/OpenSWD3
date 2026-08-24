@@ -2985,6 +2985,39 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             case sm::LegacyStandardModeGuardianRenderText::
                 attribute_slot_nine_ten:
                 return "BONUS";
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_zero:
+                return "S0";
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_one:
+                return "S1";
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_two:
+                return "S2";
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_three:
+                return "S3";
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_four:
+                return "S4";
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_five:
+                return "S5";
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_six:
+                return {};
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_seven:
+                return "S7";
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_eight:
+                return {};
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_nine:
+                return "S9";
+            case sm::LegacyStandardModeGuardianRenderText::
+                guardian_slot_prefix_ten:
+                return {};
             }
             return {};
         }
@@ -3104,6 +3137,134 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     using SelectionTarget = sm::LegacyStandardModeGuardianSelectionTarget;
     using GuardianRenderOperation =
         sm::LegacyStandardModeGuardianRenderOperation;
+    {
+        std::array<sm::LegacyStandardModeForwardNode, 16U> slot_records{};
+        for (std::size_t index = 0U; index < 11U; ++index) {
+            slot_records[index].text_index = static_cast<u16>(index + 1U);
+            slot_records[index].display_name = "R" + std::to_string(index);
+        }
+        sm::LegacyStandardModeGuardianInitializationState slot_state;
+        slot_state.list_action_offset = 100U;
+        GuardianRenderPorts slot_ports;
+        const auto panel = sm::render_legacy_standard_mode_guardian_slot_panel(
+            slot_state, slot_records, 0xD0U, 0x68U, 8U, 0xFCU, 2U, slot_ports
+        );
+        const auto slot_action = std::find_if(
+            slot_ports.requests.begin(),
+            slot_ports.requests.end(),
+            [](const auto& request) {
+                return request.operation ==
+                    GuardianRenderOperation::draw_guardian_slot_action;
+            }
+        );
+        const auto selection = std::find_if(
+            slot_ports.requests.begin(),
+            slot_ports.requests.end(),
+            [](const auto& request) {
+                return request.operation ==
+                    GuardianRenderOperation::draw_guardian_slot_selection;
+            }
+        );
+        const auto prepare = std::find_if(
+            slot_ports.requests.begin(),
+            slot_ports.requests.end(),
+            [](const auto& request) {
+                return request.operation ==
+                    GuardianRenderOperation::prepare_guardian_category_action;
+            }
+        );
+        std::vector<i32> category_ids;
+        std::vector<i32> category_y;
+        for (const auto& request : slot_ports.requests) {
+            if (request.operation ==
+                GuardianRenderOperation::draw_guardian_category_icon) {
+                category_ids.push_back(request.values[1U]);
+                category_y.push_back(request.values[3U]);
+            }
+        }
+        test.expect_true(
+            panel.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::completed &&
+                panel.color_count == 1U && panel.operation_count == 22U &&
+                panel.row_count == 11U &&
+                slot_ports.colors ==
+                    std::vector<std::array<u8, 3U>>{{0x19U, 0x17U, 0x11U}} &&
+                slot_ports.adjustments.empty() &&
+                slot_action != slot_ports.requests.end() &&
+                slot_action->values[0U] == 0x232A &&
+                slot_action->values[1U] == 0x20 &&
+                slot_action->values[2U] == 0x280 &&
+                slot_action->values[3U] == 0x238 &&
+                selection != slot_ports.requests.end() &&
+                selection->values ==
+                    std::array<i32, 8U>{
+                        0xC3, 0xA4, 0xE6, 0x18, 0x14, 0x0D, 0, 5
+                    } &&
+                slot_ports.requests[0U].text.find("S0") == 0U &&
+                slot_ports.requests[0U].text.ends_with("R0          ") &&
+                slot_ports.requests[3U].values[0U] == 0xCC &&
+                slot_ports.requests[3U].values[1U] == 0xA6 &&
+                slot_ports.requests[3U].text.find("S2") == 0U &&
+                prepare != slot_ports.requests.end() &&
+                prepare->values[0U] == 0x232A && prepare->values[1U] == 0x0D &&
+                category_ids == std::vector<i32>{3, 0, 1, 6, 4, 7, 5, 2} &&
+                category_y ==
+                    std::vector<i32>{
+                        0x6E, 0x8A, 0xA6, 0xC2, 0xDE, 0xFA, 0x132, 0x16A
+                    } &&
+                slot_state.guardian_slot_action_id == 0x232AU &&
+                slot_state.guardian_slot_action_variant == 0x20U &&
+                slot_state.guardian_category_action_id == 0U &&
+                slot_state.guardian_category_action_variant == 0x44U &&
+                slot_state.guardian_category_action_frame_word == 1014U,
+            "0x4425C0 renders eleven names, selected action/frame and eight ordered categories"
+        );
+
+        slot_state = {};
+        slot_state.interaction_mode = 5U;
+        slot_records[2U].text_index = 0xFFDCU;
+        GuardianRenderPorts dimmed_ports;
+        const auto dimmed = sm::render_legacy_standard_mode_guardian_slot_panel(
+            slot_state, slot_records, 0xD0U, 0x68U, 8U, 0xFCU, 2U, dimmed_ports
+        );
+        test.expect_true(
+            dimmed.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::completed &&
+                dimmed.operation_count == 21U &&
+                dimmed_ports.adjustments.size() == 11U &&
+                std::none_of(
+                    dimmed_ports.requests.begin(),
+                    dimmed_ports.requests.end(),
+                    [](const auto& request) {
+                        return request.operation ==
+                            GuardianRenderOperation::draw_guardian_slot_action;
+                    }
+                ),
+            "0x4425C0 positive mode dims every row and suppresses the mode0 selected action"
+        );
+
+        GuardianRenderPorts range_ports;
+        const auto range = sm::render_legacy_standard_mode_guardian_slot_panel(
+            slot_state,
+            std::span<const sm::LegacyStandardModeForwardNode>(
+                slot_records.data(), 10U
+            ),
+            0xD0U,
+            0x68U,
+            8U,
+            0xFCU,
+            2U,
+            range_ports
+        );
+        test.expect_true(
+            range.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::
+                        guardian_record_out_of_range &&
+                range.color_count == 1U && range.operation_count == 11U &&
+                range.row_count == 10U,
+            "0x4425C0 typed-stops on the eleventh party-record pointer after prior row effects"
+        );
+    }
     {
         sm::LegacyStandardModeGuardianInitializationState attribute_state;
         attribute_state.panel_offset = 100U;
@@ -3266,8 +3427,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             late_stopped.status ==
                     sm::LegacyStandardModeGuardianRenderStatus::
                         guardian_record_out_of_range &&
-                late_stopped.operation_count == 11U,
-            "0x441680 preserves eleven panel calls before the unconditional party-record read"
+                late_stopped.color_count == 5U &&
+                late_stopped.operation_count == 10U,
+            "0x441680 preserves ten prior operations before the nested 0x4425C0 record read"
         );
     }
     {
@@ -3289,8 +3451,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         test.expect_true(
             rendered.status ==
                     sm::LegacyStandardModeGuardianRenderStatus::completed &&
-                rendered.color_count == 5U && rendered.operation_count == 21U &&
-                !rendered.transition_triggered &&
+                rendered.color_count == 6U && rendered.operation_count == 41U &&
+                rendered.row_count == 11U && !rendered.transition_triggered &&
                 render_state.selected_record == &render_records[0U] &&
                 render_state.panel_offset == 0xC8U &&
                 render_state.panel_x == 0x1E8U &&
@@ -3300,9 +3462,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 render_ports.requests[0U].operation ==
                     GuardianRenderOperation::update_primary_action &&
                 render_ports.requests[3U].values[2U] == 0x2DA &&
-                render_ports.requests[13U].operation ==
+                render_ports.requests[33U].operation ==
                     GuardianRenderOperation::draw_text &&
-                render_ports.requests[13U].text == "NO LIST" &&
+                render_ports.requests[33U].text == "NO LIST" &&
                 render_ports.requests.back().operation ==
                     GuardianRenderOperation::draw_text &&
                 render_ports.requests.back().text.find("RATE") == 0U,
@@ -3403,7 +3565,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         test.expect_true(
             rendered.status ==
                     sm::LegacyStandardModeGuardianRenderStatus::completed &&
-                rendered.row_count == 2U && rendered.bar_count == 2U &&
+                rendered.row_count == 13U && rendered.bar_count == 2U &&
                 render_state.panel_offset == 8U &&
                 render_state.scroll_overlay_flags == 0x10U &&
                 render_ports.bar_requests.size() == 2U &&
@@ -3422,7 +3584,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 named_row->text.ends_with(" 5") &&
                 render_ports.attribute_values ==
                     std::vector<i8>{-4, -3, -2, -1, 0, 1, 2, 3, 4} &&
-                render_ports.adjustments.empty(),
+                render_ports.adjustments.size() == 11U,
             "0x441680 renders the visible chain, selected action, both bars and nine attributes"
         );
     }

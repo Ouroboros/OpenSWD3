@@ -923,6 +923,11 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::u32 selected_action_frame{};
     compat::u32 selected_action_resource{};
     compat::u32 selected_action_zero{};
+    compat::u32 guardian_slot_action_id{};
+    compat::u32 guardian_slot_action_variant{};
+    compat::u32 guardian_category_action_id{};
+    compat::u32 guardian_category_action_variant{};
+    compat::u16 guardian_category_action_frame_word{};
     LegacyStandardModeForwardNode* guardian_filter_source_head{};
     compat::u16 guardian_filter_destination_sort_key{};
     compat::u16 guardian_filter_destination_reserved{};
@@ -1065,6 +1070,17 @@ enum class LegacyStandardModeGuardianRenderText : compat::u8 {
     attribute_slot_zero,
     attribute_slot_seven_eight,
     attribute_slot_nine_ten,
+    guardian_slot_prefix_zero,
+    guardian_slot_prefix_one,
+    guardian_slot_prefix_two,
+    guardian_slot_prefix_three,
+    guardian_slot_prefix_four,
+    guardian_slot_prefix_five,
+    guardian_slot_prefix_six,
+    guardian_slot_prefix_seven,
+    guardian_slot_prefix_eight,
+    guardian_slot_prefix_nine,
+    guardian_slot_prefix_ten,
 };
 
 enum class LegacyStandardModeGuardianRenderOperation : compat::u8 {
@@ -1079,6 +1095,10 @@ enum class LegacyStandardModeGuardianRenderOperation : compat::u8 {
     draw_selected_record_action,
     refresh_attribute_cache,
     draw_attribute_icon,
+    draw_guardian_slot_action,
+    draw_guardian_slot_selection,
+    prepare_guardian_category_action,
+    draw_guardian_category_icon,
 };
 
 struct LegacyStandardModeGuardianAttributeIconResource {
@@ -2880,6 +2900,18 @@ commit_legacy_standard_mode_guardian_interaction(
     std::span<const compat::u32> guardian_text_indices,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianCommitPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeGuardianRenderResult
+render_legacy_standard_mode_guardian_slot_panel(
+    LegacyStandardModeGuardianInitializationState& state,
+    std::span<const LegacyStandardModeForwardNode> guardian_records,
+    compat::u32 panel_x,
+    compat::u32 panel_y,
+    compat::u32 panel_shift,
+    compat::u32 panel_width,
+    compat::u32 selected_slot,
+    LegacyStandardModeGuardianRenderPorts& ports
 ) noexcept;
 
 [[nodiscard]] LegacyStandardModeGuardianRenderResult
