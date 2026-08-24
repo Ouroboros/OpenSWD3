@@ -4934,6 +4934,82 @@ public:
                         ) noexcept override {
                             return 0;
                         }
+                        openswd3::compat::i32 execute_transition_command(
+                            const openswd3::special_modes::
+                                LegacyStandardModeTransitionCommand& command
+                        ) noexcept override {
+                            using CommandType = openswd3::special_modes::
+                                LegacyStandardModeTransitionCommandType;
+                            if (command.type ==
+                                CommandType::clear_framebuffer) {
+                                std::ranges::fill(
+                                    owner_.game_framebuffer_.physical_pixels(),
+                                    0U
+                                );
+                                return 0;
+                            }
+                            if (command.type != CommandType::blit_snapshot) {
+                                return 0;
+                            }
+                            const auto& snapshot =
+                                owner_.standard_mode_transition_visual_state_
+                                    .framebuffer_snapshot;
+                            const auto pixels =
+                                owner_.game_framebuffer_.physical_pixels();
+                            const auto bytes = std::as_writable_bytes(pixels);
+                            if (snapshot.size() > bytes.size()) {
+                                return 0;
+                            }
+                            memcpy(
+                                bytes.data(), snapshot.data(), snapshot.size()
+                            );
+                            return 0;
+                        }
+                        openswd3::compat::u32
+                        current_transition_time() noexcept override {
+                            return 0U;
+                        }
+                        void release_transition_world() noexcept override {}
+                        void refresh_transition_runtime() noexcept override {}
+                        void
+                        prepare_transition_settings_runtime() noexcept override {
+                        }
+                        void present_transition_runtime() noexcept override {}
+                        bool mode_one_asset_ready() noexcept override {
+                            return false;
+                        }
+                        openswd3::compat::i32 query_mode_one_overlay_choice(
+                            openswd3::compat::u32
+                        ) noexcept override {
+                            return 0;
+                        }
+                        void update_mode_one_overlay(
+                            openswd3::compat::u32
+                        ) noexcept override {}
+                        openswd3::compat::i32 poll_mode_one_overlay(
+                            openswd3::compat::u32
+                        ) noexcept override {
+                            return 0;
+                        }
+                        void copy_mode_one_default_text(
+                            const std::span<openswd3::compat::u8> destination
+                        ) noexcept override {
+                            std::ranges::fill(destination, 0U);
+                        }
+                        void copy_mode_one_overlay_text(
+                            openswd3::compat::u32,
+                            const std::span<openswd3::compat::u8> destination
+                        ) noexcept override {
+                            std::ranges::fill(destination, 0U);
+                        }
+                        void release_mode_one_overlay(
+                            openswd3::compat::u32
+                        ) noexcept override {}
+                        openswd3::compat::u32 settings_source_text_length(
+                            openswd3::compat::u32
+                        ) noexcept override {
+                            return 1U;
+                        }
 
                     private:
                         SdlSmokeIdlePorts& owner_;

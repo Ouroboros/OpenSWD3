@@ -149,6 +149,37 @@ struct LegacyStandardModeTransitionVisualState {
     compat::u32 mode_one_action_variant{};
     std::vector<compat::u8> mode_one_overlay_storage;
     compat::u32 mode_one_overlay_owner{};
+    compat::u32 mode_one_result_latch{};
+    compat::i32 transition_effect_offset{};
+    compat::u32 runtime_status{};
+    compat::u32 runtime_primary{};
+    compat::u32 runtime_secondary{};
+    compat::u32 runtime_tertiary{};
+    compat::u32 runtime_quaternary{};
+    compat::u32 runtime_input_owner{};
+    compat::u32 runtime_command_flags{};
+    compat::u32 transition_timestamp{};
+    std::array<compat::u8, 0x40U> mode_one_text{};
+};
+
+enum class LegacyStandardModeTransitionCommandType : compat::u8 {
+    draw_action,
+    draw_slide_panel,
+    fade_framebuffer,
+    clear_framebuffer,
+    draw_settings_frame,
+    draw_settings_label,
+    draw_settings_cell,
+    draw_settings_value,
+    draw_settings_cursor,
+    blit_snapshot,
+};
+
+struct LegacyStandardModeTransitionCommand {
+    LegacyStandardModeTransitionCommandType type{
+        LegacyStandardModeTransitionCommandType::draw_action
+    };
+    std::array<compat::i32, 8U> arguments{};
 };
 
 class LegacyStandardModeTransitionVisualPorts {
@@ -189,6 +220,28 @@ public:
         compat::u32 source_surface,
         compat::u32 auxiliary
     ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 execute_transition_command(
+        const LegacyStandardModeTransitionCommand& command
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::u32 current_transition_time() noexcept = 0;
+    virtual void release_transition_world() noexcept = 0;
+    virtual void refresh_transition_runtime() noexcept = 0;
+    virtual void prepare_transition_settings_runtime() noexcept = 0;
+    virtual void present_transition_runtime() noexcept = 0;
+    [[nodiscard]] virtual bool mode_one_asset_ready() noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    query_mode_one_overlay_choice(compat::u32 count) noexcept = 0;
+    virtual void update_mode_one_overlay(compat::u32 owner) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    poll_mode_one_overlay(compat::u32 owner) noexcept = 0;
+    virtual void
+    copy_mode_one_default_text(std::span<compat::u8> destination) noexcept = 0;
+    virtual void copy_mode_one_overlay_text(
+        compat::u32 owner, std::span<compat::u8> destination
+    ) noexcept = 0;
+    virtual void release_mode_one_overlay(compat::u32 owner) noexcept = 0;
+    [[nodiscard]] virtual compat::u32
+    settings_source_text_length(compat::u32 source_surface) noexcept = 0;
 };
 
 enum class LegacyStandardModeTransitionConfirmationStatus : compat::u8 {
@@ -311,6 +364,28 @@ struct LegacyStandardModeTransitionSettingsCommitResult {
 
 [[nodiscard]] LegacyStandardModeTransitionSettingsCommitResult
 commit_legacy_standard_mode_transition_settings(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeTransitionFrameStatus : compat::u8 {
+    completed,
+    selector_out_of_range_stopped,
+    overlay_storage_unavailable_stopped,
+    snapshot_unavailable_stopped,
+};
+
+struct LegacyStandardModeTransitionFrameResult {
+    LegacyStandardModeTransitionFrameStatus status{
+        LegacyStandardModeTransitionFrameStatus::completed
+    };
+    compat::u8 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 command_count{};
+};
+
+[[nodiscard]] LegacyStandardModeTransitionFrameResult
+run_legacy_standard_mode_transition_frame(
     LegacyStandardModeTransitionVisualState& state,
     LegacyStandardModeTransitionVisualPorts& ports
 ) noexcept;

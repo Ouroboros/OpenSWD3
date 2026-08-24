@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v579
+版本：v580
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 审计`0x004490C0`
+当前步骤：模块9 · 审计`0x00449C30`
 
 ## 0. 执行约定
 
@@ -3761,10 +3761,11 @@ B7 P0 有限收口完成。
 - 模块9转场四段选择后移`0x00448EB0`恢复完成。仅progress1预增selector，超过3时owner夹3但返回夹前残值；其他progress返回`progress-1`且不修改owner。定向UT与独立ASan通过。workpack稳定为`151/227`，SHA256为`43ceabff8cc5c4e47553a51f13fced5327e55f272c2a501e986f263e33ddd777`。
 - 模块9转场确认分派`0x00448EE0`恢复完成，纳入498310外部chunk。progress1先发布progress2/velocity100，再按四段选择分派无动作、overlay构造、设置阶段或命令提交；48700与48840直接caller已回收。定向UT与独立ASan通过。workpack稳定为`152/227`，SHA256为`812c008c4f8af6f8cafc2129d234e33c3f864abe1d7caae455c04db384ea80d5`。
 - 模块9转场设置提交`0x00449050`恢复完成。progress1定位四段末项；progress5先回progress1，再查询服务48并按sample、surface、spacing、100、服务低字节、source、auxiliary格式化；48840退出caller已直连。定向UT与独立ASan通过。workpack稳定为`153/227`，SHA256为`613beb69656ff2f14626ef6cde3b82465661b1c905282336835c0d2bbcad36e5`。
+- 模块9转场帧协调`0x004490C0`恢复完成，纳入498330外部chunk。四阶段状态机恢复入场滑动、确认overlay生命周期、57条设置即时命令及两类snapshot淡出；动态selector、overlay storage和snapshot均只在原读取点typed-stop。定向UT与独立ASan通过。workpack稳定为`154/227`，SHA256为`9ac033eb0df2f8d7b62933ef2f101218faac2e8c344220123944cd0aeed1e588`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`153/227`，下一单元为`0x004490C0`。
+进行中，正式进度为`154/227`，下一单元为`0x00449C30`。
 
-下一工作包：按LST唯一真值审计并恢复模块9 `0x004490C0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值审计并恢复模块9 `0x00449C30`，继续更新workpack、证据和完整验证门。

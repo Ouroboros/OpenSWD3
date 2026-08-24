@@ -360,6 +360,63 @@ public:
         );
         return settings_return;
     }
+    i32 execute_transition_command(
+        const openswd3::special_modes::LegacyStandardModeTransitionCommand&
+            command
+    ) noexcept override {
+        transition_commands.push_back(command);
+        return transition_command_return;
+    }
+    u32 current_transition_time() noexcept override {
+        transition_lifecycle.push_back(1U);
+        return transition_time;
+    }
+    void release_transition_world() noexcept override {
+        transition_lifecycle.push_back(2U);
+    }
+    void refresh_transition_runtime() noexcept override {
+        transition_lifecycle.push_back(3U);
+    }
+    void prepare_transition_settings_runtime() noexcept override {
+        transition_lifecycle.push_back(4U);
+    }
+    void present_transition_runtime() noexcept override {
+        transition_lifecycle.push_back(5U);
+    }
+    bool mode_one_asset_ready() noexcept override {
+        transition_lifecycle.push_back(6U);
+        return asset_ready;
+    }
+    i32 query_mode_one_overlay_choice(const u32 count) noexcept override {
+        transition_lifecycle.push_back(0x100U + count);
+        return overlay_choice;
+    }
+    void update_mode_one_overlay(const u32 owner) noexcept override {
+        transition_lifecycle.push_back(0x200U + owner);
+    }
+    i32 poll_mode_one_overlay(const u32 owner) noexcept override {
+        transition_lifecycle.push_back(0x300U + owner);
+        return overlay_poll_result;
+    }
+    void copy_mode_one_default_text(
+        const std::span<u8> destination
+    ) noexcept override {
+        std::fill(destination.begin(), destination.end(), 0xD0U);
+        transition_lifecycle.push_back(7U);
+    }
+    void copy_mode_one_overlay_text(
+        const u32 owner, const std::span<u8> destination
+    ) noexcept override {
+        std::fill(destination.begin(), destination.end(), overlay_text_value);
+        transition_lifecycle.push_back(0x400U + owner);
+    }
+    void release_mode_one_overlay(const u32 owner) noexcept override {
+        transition_lifecycle.push_back(0x500U + owner);
+    }
+    u32 settings_source_text_length(const u32 source) noexcept override {
+        transition_lifecycle.push_back(0x600U + source);
+        return source_text_length;
+    }
 
     bool capture_available{true};
     u8 snapshot_value{0x5AU};
@@ -368,6 +425,13 @@ public:
     i32 settings_return{88};
     i32 settings_service_return{0x101};
     i32 mode_one_return{0x5678};
+    i32 overlay_choice{};
+    i32 overlay_poll_result{};
+    i32 transition_command_return{};
+    bool asset_ready{};
+    u8 overlay_text_value{0xA0U};
+    u32 source_text_length{5U};
+    u32 transition_time{0x12345678U};
     u32 surface_token{0x1234U};
     u32 capture_count{};
     u32 probe_count{};
@@ -375,6 +439,9 @@ public:
     std::vector<std::array<u32, 2U>> settings_calls;
     std::vector<std::array<u32, 7U>> settings_commit_calls;
     std::vector<std::array<u32, 3U>> mode_one_calls;
+    std::vector<u32> transition_lifecycle;
+    std::vector<openswd3::special_modes::LegacyStandardModeTransitionCommand>
+        transition_commands;
 };
 
 class FakeStandardModeCallbackBindingPorts final
@@ -15076,6 +15143,253 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             settings_commit_other.legacy_return_value == -3 &&
             settings_commit_other.helper_call_count == 0U,
         "0x449050 selects the last mode-one entry and preserves unrelated progress residuals"
+    );
+
+    using TransitionCommandType =
+        openswd3::special_modes::LegacyStandardModeTransitionCommandType;
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        frame_intro_state;
+    frame_intro_state.progress = 0U;
+    frame_intro_state.enabled = 0U;
+    frame_intro_state.velocity = -6;
+    frame_intro_state.bounds.fill(-16);
+    FakeTransitionVisualPorts frame_intro_ports;
+    const auto frame_intro =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_intro_state, frame_intro_ports
+        );
+    test.expect_true(
+        frame_intro.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionFrameStatus::completed &&
+            frame_intro_state.bounds ==
+                std::array<i32, 4U>{-18, -14, -14, -14} &&
+            frame_intro_state.velocity == -5 &&
+            frame_intro.command_count == 6U &&
+            frame_intro_ports.transition_commands.front().type ==
+                TransitionCommandType::draw_action &&
+            frame_intro_ports.transition_commands.back().type ==
+                TransitionCommandType::fade_framebuffer &&
+            frame_intro_ports.transition_commands.back().arguments[0U] == -25,
+        "0x4490C0 moves the selected intro panel before the four shared panels and negative fade"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        frame_invalid_state;
+    frame_invalid_state.progress = 0U;
+    frame_invalid_state.enabled = 4U;
+    frame_invalid_state.bounds.fill(-16);
+    FakeTransitionVisualPorts frame_invalid_ports;
+    const auto frame_invalid =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_invalid_state, frame_invalid_ports
+        );
+    test.expect_true(
+        frame_invalid.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionFrameStatus::
+                        selector_out_of_range_stopped &&
+            frame_invalid.command_count == 1U,
+        "0x4490C0 stops exactly at the original dynamic selector access after the first draw"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        frame_choice_zero_state;
+    frame_choice_zero_state.progress = 2U;
+    frame_choice_zero_state.velocity = 0x68;
+    frame_choice_zero_state.enabled = 0U;
+    frame_choice_zero_state.bounds.fill(-12);
+    FakeTransitionVisualPorts frame_choice_zero_ports;
+    const auto frame_choice_zero =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_choice_zero_state, frame_choice_zero_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        frame_choice_one_state;
+    frame_choice_one_state.progress = 2U;
+    frame_choice_one_state.velocity = 0x68;
+    frame_choice_one_state.enabled = 1U;
+    frame_choice_one_state.bounds.fill(-12);
+    FakeTransitionVisualPorts frame_choice_one_ports;
+    const auto frame_choice_one =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_choice_one_state, frame_choice_one_ports
+        );
+    test.expect_true(
+        frame_choice_zero_state.runtime_primary == 3U &&
+            frame_choice_zero_state.runtime_secondary == 1U &&
+            frame_choice_zero_state.runtime_tertiary == 1U &&
+            frame_choice_zero_state.runtime_quaternary == 3U,
+        "0x4490C0 publishes the exact first choice runtime owners"
+    );
+    test.expect_true(
+        frame_choice_zero_ports.transition_lifecycle == std::vector<u32>{3U},
+        "0x4490C0 refreshes the first choice runtime once"
+    );
+    test.expect_true(
+        frame_choice_one_state.progress == 5U &&
+            frame_choice_one_state.transition_timestamp == 0x12345678U &&
+            frame_choice_one_state.runtime_primary == 0U,
+        "0x4490C0 publishes the settings choice stage and timestamp"
+    );
+    test.expect_true(
+        frame_choice_one_ports.transition_lifecycle ==
+                std::vector<u32>{1U, 2U, 3U, 4U, 5U, 0x600U} &&
+            std::count_if(
+                frame_choice_one_ports.transition_commands.begin(),
+                frame_choice_one_ports.transition_commands.end(),
+                [](const auto& command) {
+                    return command.type ==
+                        TransitionCommandType::clear_framebuffer;
+                }
+            ) == 2,
+        "0x4490C0 preserves the settings lifecycle and double framebuffer clear"
+    );
+    static_cast<void>(frame_choice_zero);
+    static_cast<void>(frame_choice_one);
+
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        frame_overlay_state;
+    frame_overlay_state.progress = 2U;
+    frame_overlay_state.velocity = 0x62;
+    frame_overlay_state.bounds.fill(-12);
+    frame_overlay_state.mode_one_overlay_owner = 7U;
+    frame_overlay_state.mode_one_overlay_storage.resize(0x20U);
+    FakeTransitionVisualPorts frame_overlay_first_ports;
+    frame_overlay_first_ports.overlay_poll_result = 1;
+    const auto frame_overlay_first =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_overlay_state, frame_overlay_first_ports
+        );
+    const u32 frame_overlay_first_owner =
+        frame_overlay_state.mode_one_overlay_owner;
+    FakeTransitionVisualPorts frame_overlay_second_ports;
+    frame_overlay_second_ports.overlay_poll_result = 1;
+    const auto frame_overlay_second =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_overlay_state, frame_overlay_second_ports
+        );
+    test.expect_true(
+        frame_overlay_first.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionFrameStatus::completed &&
+            frame_overlay_first.legacy_return_value == 0x78U &&
+            frame_overlay_first_owner == 0x5678U &&
+            frame_overlay_state.velocity == 0x64 &&
+            frame_overlay_state.mode_one_overlay_owner == 0U &&
+            frame_overlay_state.mode_one_feature_enabled == 2U &&
+            frame_overlay_state.mode_one_feature_variant == 0x46U &&
+            frame_overlay_state.mode_one_overlay_storage.empty() &&
+            std::all_of(
+                frame_overlay_state.mode_one_text.begin(),
+                frame_overlay_state.mode_one_text.begin() + 0x20,
+                [](const u8 value) { return value == 0xA0U; }
+            ) &&
+            frame_overlay_second.legacy_return_value == 89U &&
+            frame_overlay_second_ports.settings_calls ==
+                std::vector<std::array<u32, 2U>>{{0x201U, 0x50U}},
+        "0x4490C0 commits two overlay text blocks, preserves the full owner and enables service 50"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        frame_overlay_stop_state;
+    frame_overlay_stop_state.progress = 2U;
+    frame_overlay_stop_state.velocity = 0x62;
+    frame_overlay_stop_state.bounds.fill(-12);
+    frame_overlay_stop_state.mode_one_overlay_owner = 7U;
+    FakeTransitionVisualPorts frame_overlay_stop_ports;
+    frame_overlay_stop_ports.overlay_poll_result = 1;
+    const auto frame_overlay_stop =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_overlay_stop_state, frame_overlay_stop_ports
+        );
+    test.expect_true(
+        frame_overlay_stop.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionFrameStatus::
+                        overlay_storage_unavailable_stopped &&
+            frame_overlay_stop_state.mode_one_text.front() == 0xD0U &&
+            frame_overlay_stop_state.mode_one_overlay_owner == 7U &&
+            frame_overlay_stop_ports.transition_lifecycle.back() == 7U,
+        "0x4490C0 stops at the original overlay storage write after preserving prior overlay side effects"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        frame_settings_state;
+    frame_settings_state.progress = 5U;
+    frame_settings_state.velocity = 4;
+    frame_settings_state.sample_index = 5U;
+    frame_settings_state.settings_surface_index = 6U;
+    frame_settings_state.settings_spacing = 0x64U;
+    frame_settings_state.settings_source_surface = 2U;
+    frame_settings_state.settings_auxiliary = 7U;
+    frame_settings_state.shared_owner = 3U;
+    FakeTransitionVisualPorts frame_settings_ports;
+    const auto frame_settings =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_settings_state, frame_settings_ports
+        );
+    test.expect_true(
+        frame_settings.command_count == 57U &&
+            frame_settings.helper_call_count == 61U &&
+            frame_settings_state.trailing_zero_one == 7U &&
+            frame_settings_state.trailing_zero_two == 1U &&
+            frame_settings_ports.settings_calls ==
+                std::vector<std::array<u32, 2U>>{
+                    {0x300U, 0x48U}, {0x300U, 0x48U}, {0x300U, 0x48U}
+                } &&
+            frame_settings_ports.transition_commands.front().type ==
+                TransitionCommandType::draw_settings_frame &&
+            frame_settings_ports.transition_commands.back().type ==
+                TransitionCommandType::draw_settings_cursor,
+        "0x4490C0 renders the six settings rows in 57 immediate commands and advances source text timing"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        frame_snapshot_one_state;
+    frame_snapshot_one_state.mode = 1U;
+    frame_snapshot_one_state.progress = 0x64U;
+    frame_snapshot_one_state.velocity = -120;
+    frame_snapshot_one_state.framebuffer_snapshot.resize(0x96000U);
+    FakeTransitionVisualPorts frame_snapshot_one_ports;
+    const auto frame_snapshot_one =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_snapshot_one_state, frame_snapshot_one_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        frame_snapshot_two_state;
+    frame_snapshot_two_state.mode = 2U;
+    frame_snapshot_two_state.progress = 0x64U;
+    frame_snapshot_two_state.velocity = -1;
+    frame_snapshot_two_state.framebuffer_snapshot.resize(0x96000U);
+    FakeTransitionVisualPorts frame_snapshot_two_ports;
+    const auto frame_snapshot_two =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_snapshot_two_state, frame_snapshot_two_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        frame_snapshot_stop_state;
+    frame_snapshot_stop_state.mode = 1U;
+    frame_snapshot_stop_state.progress = 0x64U;
+    frame_snapshot_stop_state.velocity = -120;
+    FakeTransitionVisualPorts frame_snapshot_stop_ports;
+    const auto frame_snapshot_stop =
+        openswd3::special_modes::run_legacy_standard_mode_transition_frame(
+            frame_snapshot_stop_state, frame_snapshot_stop_ports
+        );
+    test.expect_true(
+        frame_snapshot_one_state.velocity == -119 &&
+            frame_snapshot_one_state.transition_effect_offset == -30 &&
+            frame_snapshot_one.command_count == 2U &&
+            frame_snapshot_two_state.velocity == 0 &&
+            frame_snapshot_two_state.framebuffer_snapshot.empty() &&
+            frame_snapshot_two_state.runtime_status == 0x80000003U &&
+            frame_snapshot_two.command_count == 2U &&
+            frame_snapshot_stop.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionFrameStatus::
+                        snapshot_unavailable_stopped,
+        "0x4490C0 preserves both snapshot fade modes and stops at the original missing snapshot read"
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionVisualState
