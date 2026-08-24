@@ -591,8 +591,17 @@ public:
     std::vector<
         openswd3::special_modes::LegacyStandardModeTransitionPairRenderCommand>
         render_commands;
-    std::array<i32, 5U> color_returns{
-        0x12345678, 0x01020304, 0x11112222, 0x33334444, 0x55556666
+    std::array<i32, 10U> color_returns{
+        0x12345678,
+        0x01020304,
+        0x11112222,
+        0x33334444,
+        0x55556666,
+        0x66667777,
+        0x77778888,
+        0x11113333,
+        0x22224444,
+        0x33335555,
     };
     std::size_t color_count{};
     u32 panel_count{};
@@ -15365,6 +15374,67 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionPairState
+        transition_pair_overlay_state;
+    transition_pair_overlay_state.render_surface = 0xCAFEBABEU;
+    FakeTransitionPairPorts transition_pair_overlay_positive_ports;
+    const auto transition_pair_overlay_positive = openswd3::special_modes::
+        draw_legacy_standard_mode_transition_pair_overlay(
+            5,
+            100,
+            200,
+            1000,
+            transition_pair_overlay_state,
+            transition_pair_overlay_positive_ports
+        );
+    FakeTransitionPairPorts transition_pair_overlay_negative_ports;
+    const auto transition_pair_overlay_negative = openswd3::special_modes::
+        draw_legacy_standard_mode_transition_pair_overlay(
+            std::numeric_limits<i32>::min(),
+            10,
+            20,
+            0,
+            transition_pair_overlay_state,
+            transition_pair_overlay_negative_ports
+        );
+    FakeTransitionPairPorts transition_pair_overlay_zero_ports;
+    const auto transition_pair_overlay_zero = openswd3::special_modes::
+        draw_legacy_standard_mode_transition_pair_overlay(
+            0,
+            1,
+            2,
+            3,
+            transition_pair_overlay_state,
+            transition_pair_overlay_zero_ports
+        );
+    test.expect_true(
+        transition_pair_overlay_positive.command_count == 3U &&
+            transition_pair_overlay_positive.helper_call_count == 3U &&
+            transition_pair_overlay_positive.legacy_return_value == 0x7A7A &&
+            transition_pair_overlay_positive_ports.render_commands[1U]
+                    .arguments[0U] == 0x2B &&
+            transition_pair_overlay_positive_ports.render_commands[1U]
+                    .arguments[1U] == 5 &&
+            transition_pair_overlay_positive_ports.render_commands[2U]
+                    .arguments[2U] == 148 &&
+            transition_pair_overlay_positive_ports.render_commands[2U]
+                    .arguments[6U] == 0x12345678 &&
+            transition_pair_overlay_negative.command_count == 4U &&
+            transition_pair_overlay_negative.helper_call_count == 4U &&
+            transition_pair_overlay_negative_ports.render_commands[2U]
+                    .arguments[0U] == 0x2D &&
+            transition_pair_overlay_negative_ports.render_commands[2U]
+                    .arguments[1U] == std::numeric_limits<i32>::min() &&
+            transition_pair_overlay_negative_ports.render_commands[3U]
+                    .arguments[2U] == 14 &&
+            transition_pair_overlay_negative_ports.render_commands[3U]
+                    .arguments[6U] == 0x01020304 &&
+            transition_pair_overlay_zero.command_count == 0U &&
+            transition_pair_overlay_zero.helper_call_count == 0U &&
+            transition_pair_overlay_zero_ports.render_commands.empty(),
+        "0x44AE70 skips zero, selects signed colors, preserves INT_MIN abs32, and applies threshold spacing"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionPairState
         transition_pair_render_state;
     transition_pair_render_state.mode_word = 2U;
     transition_pair_render_state.render_palette = 0x1357U;
@@ -15398,10 +15468,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         transition_pair_render.status ==
                 openswd3::special_modes::
                     LegacyStandardModeTransitionPairRenderStatus::completed &&
-            transition_pair_render.command_count == 75U &&
-            transition_pair_render.helper_call_count == 75U &&
+            transition_pair_render.command_count == 84U &&
+            transition_pair_render.helper_call_count == 88U &&
             transition_pair_render.legacy_return_value == 0x7A7A &&
-            pair_render_commands.size() == 75U &&
+            pair_render_commands.size() == 84U &&
             pair_render_commands[5U].type ==
                 PairRenderCommandType::draw_tiled_frame &&
             pair_render_commands[5U].arguments[0U] == 0x1357 &&
@@ -15420,23 +15490,28 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             pair_render_commands[22U].arguments[1U] == 6 &&
             pair_render_commands[32U].text == PairRenderText::attribute_zero &&
             pair_render_commands[33U].type ==
-                PairRenderCommandType::draw_overlay_value &&
-            pair_render_commands[36U].arguments[0U] == -1 &&
-            pair_render_commands[43U].text == PairRenderText::mode_summary &&
-            pair_render_commands[44U].type ==
+                PairRenderCommandType::calculate_color &&
+            pair_render_commands[35U].text == PairRenderText::overlay_value &&
+            pair_render_commands[39U].type ==
+                PairRenderCommandType::calculate_color &&
+            pair_render_commands[40U].arguments[0U] == 0x2D &&
+            pair_render_commands[40U].arguments[1U] == 1 &&
+            pair_render_commands[41U].arguments[6U] == 0x11113333 &&
+            pair_render_commands[52U].text == PairRenderText::mode_summary &&
+            pair_render_commands[53U].type ==
                 PairRenderCommandType::append_text &&
-            pair_render_commands[56U].text == PairRenderText::modifier_zero &&
-            pair_render_commands[57U].arguments[5U] == 0x5678 &&
-            pair_render_commands[59U].arguments[5U] == 0x4444 &&
-            pair_render_commands[61U].arguments[5U] == 0x2222 &&
-            pair_render_commands[65U].arguments[4U] == 0 &&
-            pair_render_commands[65U].arguments[5U] == 0x6666 &&
-            pair_render_commands[71U].arguments[4U] == 118 &&
-            pair_render_commands[73U].arguments[2U] == 0x13F &&
-            pair_render_commands[73U].arguments[3U] == 0x1A5 &&
-            pair_render_commands[74U].type ==
+            pair_render_commands[65U].text == PairRenderText::modifier_zero &&
+            pair_render_commands[66U].arguments[5U] == 0x5678 &&
+            pair_render_commands[68U].arguments[5U] == 0x4444 &&
+            pair_render_commands[70U].arguments[5U] == 0x2222 &&
+            pair_render_commands[74U].arguments[4U] == 0 &&
+            pair_render_commands[74U].arguments[5U] == 0x6666 &&
+            pair_render_commands[80U].arguments[4U] == 118 &&
+            pair_render_commands[82U].arguments[2U] == 0x13F &&
+            pair_render_commands[82U].arguments[3U] == 0x1A5 &&
+            pair_render_commands[83U].type ==
                 PairRenderCommandType::draw_final_panel,
-        "0x44A280 preserves all 75 runtime calls, register snapshots, signed overlays, and four modifier formats"
+        "0x44A280 preserves all 75 direct calls plus closed overlay callees, register snapshots, signed overlays, and four modifier formats"
     );
 
     auto transition_pair_render_bad_mode_state = transition_pair_render_state;

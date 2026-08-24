@@ -371,7 +371,6 @@ enum class LegacyStandardModeTransitionPairRenderCommandType : compat::u8 {
     draw_action,
     format_text,
     calculate_value,
-    draw_overlay_value,
     append_text,
     draw_final_panel,
 };
@@ -403,6 +402,7 @@ enum class LegacyStandardModeTransitionPairRenderText : compat::u8 {
     modifier_positive,
     modifier_small_negative,
     modifier_large_negative,
+    overlay_value,
 };
 
 struct LegacyStandardModeTransitionPairRenderCommand {
@@ -497,6 +497,12 @@ enum class LegacyStandardModeTransitionPairRenderStatus : compat::u8 {
     second_record_unavailable_stopped,
 };
 
+struct LegacyStandardModeTransitionPairOverlayResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 command_count{};
+};
+
 struct LegacyStandardModeTransitionPairRenderResult {
     LegacyStandardModeTransitionPairRenderStatus status{
         LegacyStandardModeTransitionPairRenderStatus::completed
@@ -560,6 +566,16 @@ commit_legacy_standard_mode_transition_pair(
 [[nodiscard]] LegacyStandardModeTransitionPairRenderResult
 render_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeTransitionPairOverlayResult
+draw_legacy_standard_mode_transition_pair_overlay(
+    compat::i32 value,
+    compat::i32 x,
+    compat::i32 y,
+    compat::i32 threshold,
+    const LegacyStandardModeTransitionPairState& state,
     LegacyStandardModeTransitionPairPorts& ports
 ) noexcept;
 

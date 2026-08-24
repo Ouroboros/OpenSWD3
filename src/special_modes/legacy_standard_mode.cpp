@@ -615,6 +615,84 @@ commit_legacy_standard_mode_transition_pair(
     return result;
 }
 
+LegacyStandardModeTransitionPairOverlayResult
+draw_legacy_standard_mode_transition_pair_overlay(
+    const compat::i32 value,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::i32 threshold,
+    const LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionPairOverlayResult result;
+    if (value == 0) {
+        return result;
+    }
+    const auto emit =
+        [&result, &ports](
+            const LegacyStandardModeTransitionPairRenderCommandType type,
+            const LegacyStandardModeTransitionPairRenderText text,
+            const std::initializer_list<compat::i32> arguments
+        ) {
+            LegacyStandardModeTransitionPairRenderCommand command;
+            command.type = type;
+            command.text = text;
+            std::copy(
+                arguments.begin(), arguments.end(), command.arguments.begin()
+            );
+            result.legacy_return_value =
+                ports.execute_transition_pair_render_command(command);
+            ++result.helper_call_count;
+            ++result.command_count;
+            return result.legacy_return_value;
+        };
+    compat::i32 color = emit(
+        LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+        LegacyStandardModeTransitionPairRenderText::none,
+        {0x1F, 0x1F, 0x1F}
+    );
+    if (value < 0) {
+        color = emit(
+            LegacyStandardModeTransitionPairRenderCommandType::calculate_color,
+            LegacyStandardModeTransitionPairRenderText::none,
+            {0x1A, 0, 0}
+        );
+    }
+    compat::i32 offset = 0;
+    if (threshold >= 1000) {
+        offset = 0x2C;
+    } else if (threshold >= 100) {
+        offset = 0x21;
+    } else if (threshold >= 10) {
+        offset = 0x16;
+    } else if (threshold >= 1) {
+        offset = 0x0B;
+    }
+    const compat::u32 value_bits = std::bit_cast<compat::u32>(value);
+    const compat::u32 sign_mask = 0U - (value_bits >> 31U);
+    const compat::i32 magnitude =
+        std::bit_cast<compat::i32>((value_bits ^ sign_mask) - sign_mask);
+    const compat::i32 sign = value > 0 ? 0x2B : 0x2D;
+    emit(
+        LegacyStandardModeTransitionPairRenderCommandType::format_text,
+        LegacyStandardModeTransitionPairRenderText::overlay_value,
+        {sign, magnitude}
+    );
+    emit(
+        LegacyStandardModeTransitionPairRenderCommandType::draw_text,
+        LegacyStandardModeTransitionPairRenderText::overlay_value,
+        {2,
+         std::bit_cast<compat::i32>(state.render_surface),
+         offset + x + 4,
+         y,
+         sign,
+         magnitude,
+         color,
+         4}
+    );
+    return result;
+}
+
 LegacyStandardModeTransitionPairRenderResult
 render_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
@@ -855,14 +933,20 @@ render_legacy_standard_mode_transition_pair(
             );
         }
         if (state.second_record.values[index] != 0U) {
-            emit_simple(
-                LegacyStandardModeTransitionPairRenderCommandType::
-                    draw_overlay_value,
-                {std::bit_cast<compat::i16>(state.second_record.values[index]),
-                 0x117,
-                 kOverlayY[index],
-                 state.first_record.values[index]}
-            );
+            const auto overlay =
+                draw_legacy_standard_mode_transition_pair_overlay(
+                    std::bit_cast<compat::i16>(
+                        state.second_record.values[index]
+                    ),
+                    0x117,
+                    kOverlayY[index],
+                    state.first_record.values[index],
+                    state,
+                    ports
+                );
+            result.legacy_return_value = overlay.legacy_return_value;
+            result.command_count += overlay.command_count;
+            result.helper_call_count += overlay.helper_call_count + 1U;
         }
     }
     emit(

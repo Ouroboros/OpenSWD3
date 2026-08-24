@@ -4,7 +4,7 @@
 
 唯一行为真值为`swd3.exe.lst`。物理范围`0x0044A280..0x0044AAEA`，945行、62个物理callsite，无FUNCTION CHUNK。由43B480与444FC0安装为callback。
 
-函数以typed即时命令流逐次表达颜色计算、三块边框、两块面板、三项动作、格式化文本、属性覆盖、模式摘要、十项静态标签、九格修正与末面板。物理循环内有4个互斥格式callsite和1个draw callsite；九次循环每次实际执行一次格式与一次draw。mode 0..3且四项覆盖值均非零时，运行路径共75次调用，command count与helper count均为75，最终透传4425C0返回。
+函数以typed即时命令流逐次表达颜色计算、三块边框、两块面板、三项动作、格式化文本、属性覆盖、模式摘要、十项静态标签、九格修正与末面板。物理循环内有4个互斥格式callsite和1个draw callsite；九次循环每次实际执行一次格式与一次draw。mode 0..3且四项覆盖值均非零时，44A280直接路径共75次调用。44AE70关闭后，含一项负覆盖的当前expanded命令为84条，helper count按四次直接调用加nested helper为88，最终透传4425C0返回。
 
 关键寄存器和记录语义：
 
@@ -19,6 +19,6 @@
 
 裸边界只在原始读取点停止：mode越界发生在前6次调用之后、first record不可用发生在前14次调用之后、second record不可用发生在前33次调用之后。此前命令和寄存器副作用均保留。初始化以分配结果发布record availability；释放时token仍保留，但typed availability在对应释放点失效。
 
-UT覆盖完整75命令的关键索引、三组frame寄存器、动作参数、数值计算、signed overlay、四类modifier颜色与显示值、末格坐标及最终返回；另分别验证三种typed-stop的6/14/33命令边界。
+UT覆盖75次直接调用对应的84条expanded命令关键索引、三组frame寄存器、动作参数、数值计算、signed overlay、四类modifier颜色与显示值、末格坐标及最终返回；另分别验证三种typed-stop的6/14/33命令边界。
 
 workpack双生成稳定为`164/227`，SHA256均为`2c46ea8ef6d8d74a3aa664c1dc760237bee1bd22a45470f83e39193fc5f29a81`；下一单元`0x0044AB00`。Linux完整门结果见最终验证；按阶段门禁不运行Windows BUILD。
