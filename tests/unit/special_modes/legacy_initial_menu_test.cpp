@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <utility>
@@ -14966,6 +14967,156 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<u32> events;
     };
 
+    class GroupEightMainInputPorts final
+        : public openswd3::special_modes::
+              LegacyStandardModeGroupEightMainInputPorts {
+    public:
+        enum class Event : u8 {
+            overlay,
+            commit,
+            exit,
+            hover,
+            upper,
+            lower,
+            first_dynamic,
+            second_dynamic,
+            presence,
+            sample,
+        };
+
+        i32 dispatch_overlay_action(
+            openswd3::special_modes::
+                LegacyStandardModeGroupEightMainInputSnapshot& input,
+            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+        ) override {
+            return record(Event::overlay, input, state);
+        }
+        i32 commit_selection(
+            openswd3::special_modes::
+                LegacyStandardModeGroupEightMainInputSnapshot& input,
+            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+        ) override {
+            return record(Event::commit, input, state);
+        }
+        i32 exit_interaction(
+            openswd3::special_modes::
+                LegacyStandardModeGroupEightMainInputSnapshot& input,
+            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+        ) override {
+            return record(Event::exit, input, state);
+        }
+        i32 refresh_hover(
+            openswd3::special_modes::
+                LegacyStandardModeGroupEightMainInputSnapshot& input,
+            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+        ) override {
+            return record(Event::hover, input, state);
+        }
+        i32 dispatch_control(
+            const openswd3::special_modes::
+                LegacyStandardModeGroupEightMainControl control,
+            openswd3::special_modes::
+                LegacyStandardModeGroupEightMainInputSnapshot& input,
+            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+        ) override {
+            Event event = Event::upper;
+            switch (control) {
+            case openswd3::special_modes::
+                LegacyStandardModeGroupEightMainControl::upper:
+                event = Event::upper;
+                break;
+            case openswd3::special_modes::
+                LegacyStandardModeGroupEightMainControl::lower:
+                event = Event::lower;
+                break;
+            case openswd3::special_modes::
+                LegacyStandardModeGroupEightMainControl::first_dynamic:
+                event = Event::first_dynamic;
+                break;
+            case openswd3::special_modes::
+                LegacyStandardModeGroupEightMainControl::second_dynamic:
+                event = Event::second_dynamic;
+                break;
+            }
+            return record(event, input, state);
+        }
+        i32 query_item_presence(const u16 item_id) override {
+            events.push_back(Event::presence);
+            queried_item_ids.push_back(item_id);
+            return item_id < item_presence.size() ? item_presence[item_id] : 0;
+        }
+        i32 play_sample(const u16 sample_id, const u32 sample_handle) override {
+            events.push_back(Event::sample);
+            played_samples.emplace_back(sample_id, sample_handle);
+            return sample_return;
+        }
+
+        i32 record(
+            const Event event,
+            openswd3::special_modes::
+                LegacyStandardModeGroupEightMainInputSnapshot& input,
+            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+        ) {
+            events.push_back(event);
+            if (mutation) {
+                mutation(event, input, state);
+            }
+            return callback_return_base + static_cast<i32>(event);
+        }
+
+        std::array<i32, 64U> item_presence{};
+        i32 callback_return_base{100};
+        i32 sample_return{222};
+        std::function<void(
+            Event,
+            openswd3::special_modes::
+                LegacyStandardModeGroupEightMainInputSnapshot&,
+            openswd3::special_modes::LegacyStandardModeGroupEightState&
+        )>
+            mutation;
+        std::vector<Event> events;
+        std::vector<u16> queried_item_ids;
+        std::vector<std::pair<u16, u32>> played_samples;
+    };
+
+    class GroupEightRuntimeInputPorts final
+        : public LegacyStandardModeInputDispatchPorts {
+    public:
+        i8 query_entry_classification(const u16) noexcept override {
+            return 0x7F;
+        }
+        u8 query_entry_status(const u16) noexcept override {
+            return 0U;
+        }
+        bool load_record(std::span<u8>, const u16) noexcept override {
+            return false;
+        }
+        void release_record(const u32) noexcept override {}
+        bool load_selected_record(std::span<u8>, const u32) noexcept override {
+            return false;
+        }
+        bool copy_selected_category_name(
+            const std::span<u8> destination, const u32
+        ) noexcept override {
+            destination[0U] = 0U;
+            return true;
+        }
+        i32 generate_derived_random(const i32) noexcept override {
+            return 0;
+        }
+        i32 release_temporary_record_storage(std::span<u8>) noexcept override {
+            return 0;
+        }
+        i32 play_sample(const u16, const u32) noexcept override {
+            return 0;
+        }
+        i32 release_runtime_storage(
+            const LegacyStandardModeRuntimeStorageKind, const u32
+        ) noexcept override {
+            return 0;
+        }
+    };
+
     class GroupEightDrawPorts final
         : public openswd3::special_modes::
               LegacyStandardModeGroupEightDrawPorts {
@@ -15149,6 +15300,528 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             cleanup_stop_state.record_zero == 88U &&
             cleanup_stop_ports.released_tokens.empty(),
         "0x4455A0 record cleanup stop preserves callee mutation and skips later clears"
+    );
+
+    std::array<LegacyStandardModeAvailabilityRecord, 16U>
+        group_main_availability{};
+    group_main_availability[15U].enabled = 1;
+    group_main_availability[15U].state = 1;
+    LegacyStandardModeRuntimeInitializationState group_main_runtime;
+    GroupEightRuntimeInputPorts group_main_runtime_ports;
+
+    GroupEightState runtime_dispatch_state;
+    runtime_dispatch_state.interaction_mode = 500U;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        runtime_dispatch_input{.pointer_x = 1U, .pointer_y = 2U};
+    GroupEightMainInputPorts runtime_dispatch_ports;
+    const auto runtime_dispatched = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            runtime_dispatch_state,
+            runtime_dispatch_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            runtime_dispatch_ports
+        );
+    GroupEightState normalize_state;
+    normalize_state.interaction_mode = 17U;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        normalize_input{.input_flags = 8U};
+    GroupEightMainInputPorts normalize_ports;
+    const auto normalized = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            normalize_state,
+            normalize_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            normalize_ports
+        );
+    test.expect_true(
+        runtime_dispatched.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputStatus::completed &&
+            runtime_dispatched.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        runtime_input_dispatched &&
+            runtime_dispatched.helper_call_count == 1U &&
+            normalized.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        transition_normalized &&
+            normalize_state.input_consumed == 0U &&
+            normalize_state.interaction_mode == 2U &&
+            normalize_ports.events.empty(),
+        "0x4455E0 delegates modes at least 500 and normalizes active modes17/18"
+    );
+
+    GroupEightState outer_commit_state;
+    outer_commit_state.interaction_mode = 10U;
+    outer_commit_state.outer_row_count = 3;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        outer_commit_input{
+            .pointer_x = 400U, .pointer_y = 159U, .input_flags = 1U
+        };
+    GroupEightMainInputPorts outer_commit_ports;
+    const auto outer_committed = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            outer_commit_state,
+            outer_commit_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            outer_commit_ports
+        );
+    GroupEightState column_commit_state;
+    column_commit_state.interaction_mode = 11U;
+    column_commit_state.selected_outer_row = 1U;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        column_commit_input{
+            .pointer_x = 500U, .pointer_y = 220U, .input_flags = 1U
+        };
+    GroupEightMainInputPorts column_commit_ports;
+    const auto column_committed = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            column_commit_state,
+            column_commit_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            column_commit_ports
+        );
+    GroupEightState action_commit_state;
+    action_commit_state.interaction_mode = 5U;
+    action_commit_state.local_selection = 2U;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        action_commit_input{
+            .pointer_x = 450U, .pointer_y = 240U, .input_flags = 1U
+        };
+    GroupEightMainInputPorts action_commit_ports;
+    const auto action_committed = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            action_commit_state,
+            action_commit_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            action_commit_ports
+        );
+    test.expect_true(
+        outer_committed.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        outer_row_committed &&
+            outer_commit_state.selected_outer_row == 1U &&
+            outer_commit_ports.events ==
+                std::vector{GroupEightMainInputPorts::Event::commit} &&
+            column_committed.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        column_committed &&
+            column_commit_state.selected_column == 0U &&
+            action_committed.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        action_committed &&
+            action_commit_state.selected_action == 0U,
+        "0x4455E0 maps modes10, 11 and 5 rectangles before immediate commit"
+    );
+
+    GroupEightState overlay_state;
+    overlay_state.interaction_mode = 2U;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        overlay_input{
+            .pointer_x = 550U,
+            .pointer_y = 470U,
+            .input_flags = 1U,
+            .sample_handle = 0x1234U,
+        };
+    GroupEightMainInputPorts overlay_ports;
+    overlay_ports.mutation = [](const GroupEightMainInputPorts::Event event,
+                                auto& input,
+                                auto& state) {
+        if (event == GroupEightMainInputPorts::Event::overlay) {
+            state.interaction_mode = 2U;
+            input.pointer_x = 220U;
+            input.pointer_y = 70U;
+            input.input_flags = 1U;
+        }
+    };
+    const auto overlay_dispatched = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            overlay_state,
+            overlay_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            overlay_ports
+        );
+    test.expect_true(
+        overlay_dispatched.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        primary_choice_changed &&
+            overlay_dispatched.helper_call_count == 2U &&
+            overlay_state.input_consumed == 0xFFFFFFFFU &&
+            overlay_state.selection_x == 30U &&
+            overlay_ports.events ==
+                std::vector{
+                    GroupEightMainInputPorts::Event::overlay,
+                    GroupEightMainInputPorts::Event::sample,
+                } &&
+            overlay_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x1234U}},
+        "0x4455E0 reloads pointer, flags and mode after the overlay callback"
+    );
+
+    GroupEightState special_choice_state;
+    special_choice_state.interaction_mode = 2U;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        special_choice_input{
+            .pointer_x = 280U,
+            .pointer_y = 70U,
+            .input_flags = 1U,
+            .sample_handle = 0x5678U,
+        };
+    GroupEightMainInputPorts special_choice_ports;
+    const auto special_choice = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            special_choice_state,
+            special_choice_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            special_choice_ports
+        );
+    GroupEightState hover_state;
+    hover_state.interaction_mode = 2U;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        hover_input{.pointer_x = 250U, .pointer_y = 100U, .input_flags = 1U};
+    GroupEightMainInputPorts hover_ports;
+    const auto hover_changed = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            hover_state,
+            hover_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            hover_ports
+        );
+    test.expect_true(
+        special_choice.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        primary_choice_committed &&
+            special_choice_state.selection_x == 30U &&
+            special_choice_state.published_selection_x == 31U &&
+            special_choice_ports.events ==
+                std::vector{
+                    GroupEightMainInputPorts::Event::commit,
+                    GroupEightMainInputPorts::Event::sample,
+                } &&
+            special_choice_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2DU, 0x5678U}} &&
+            hover_changed.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::hover_changed &&
+            hover_state.pre_initialization_zeroes[0U] == 2U &&
+            hover_ports.events ==
+                std::vector{GroupEightMainInputPorts::Event::hover},
+        "0x4455E0 preserves the special primary choice and mismatched hover formulas"
+    );
+
+    LegacyStandardModeForwardNode row_zero;
+    LegacyStandardModeForwardNode row_one;
+    row_zero.next = &row_one;
+    row_one.text_index = 0xFFDCU;
+    GroupEightState record_change_state;
+    record_change_state.interaction_mode = 2U;
+    record_change_state.record_head = &row_zero;
+    record_change_state.local_record_count = 3;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        record_change_input{
+            .pointer_x = 220U,
+            .pointer_y = 153U,
+            .input_flags = 1U,
+            .sample_handle = 0x9ABCU,
+        };
+    GroupEightMainInputPorts record_change_ports;
+    const auto record_changed = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            record_change_state,
+            record_change_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            record_change_ports
+        );
+    GroupEightState missing_record_state;
+    missing_record_state.interaction_mode = 2U;
+    missing_record_state.local_record_count = 3;
+    auto missing_record_input = record_change_input;
+    GroupEightMainInputPorts missing_record_ports;
+    const auto missing_record = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            missing_record_state,
+            missing_record_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            missing_record_ports
+        );
+    test.expect_true(
+        record_changed.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::record_changed &&
+            record_changed.helper_call_count == 3U &&
+            record_change_state.local_selection == 1U &&
+            record_change_state.shared_text[0U] == 0xB5U &&
+            record_change_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x9ABCU}} &&
+            missing_record.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputStatus::
+                        selected_record_missing &&
+            missing_record.helper_call_count == 0U &&
+            missing_record_state.local_selection == 1U,
+        "0x4455E0 changes rows through B9C0/B9E0 and stops at the exact missing read"
+    );
+
+    GroupEightState available_item_state;
+    available_item_state.interaction_mode = 3U;
+    available_item_state.selected_column = 100U;
+    available_item_state.available_action_count = 4U;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        available_item_input{
+            .pointer_x = 500U, .pointer_y = 145U, .input_flags = 1U
+        };
+    GroupEightMainInputPorts available_item_ports;
+    available_item_ports.item_presence[31U] = 0;
+    available_item_ports.item_presence[32U] = 1;
+    available_item_ports.item_presence[33U] = 1;
+    const auto available_item_changed = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            available_item_state,
+            available_item_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            available_item_ports
+        );
+    GroupEightState presence_stop_state;
+    presence_stop_state.interaction_mode = 3U;
+    presence_stop_state.selected_column = 100U;
+    presence_stop_state.available_action_count = 4U;
+    auto presence_stop_input = available_item_input;
+    presence_stop_input.pointer_y = 123U;
+    GroupEightMainInputPorts presence_stop_ports;
+    const auto presence_stopped = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            presence_stop_state,
+            presence_stop_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            presence_stop_ports
+        );
+    GroupEightState mode_three_exit_state;
+    mode_three_exit_state.interaction_mode = 3U;
+    mode_three_exit_state.selected_column = 100U;
+    mode_three_exit_state.available_action_count = 4U;
+    auto mode_three_exit_input = presence_stop_input;
+    mode_three_exit_input.input_flags = 4U;
+    GroupEightMainInputPorts mode_three_exit_ports;
+    const auto mode_three_exited = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            mode_three_exit_state,
+            mode_three_exit_input,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            mode_three_exit_ports
+        );
+    test.expect_true(
+        available_item_changed.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        available_item_changed &&
+            available_item_state.record_zero == 3U &&
+            available_item_ports.queried_item_ids ==
+                std::vector<u16>{31U, 32U, 33U} &&
+            presence_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputStatus::
+                        presence_scan_stopped &&
+            presence_stop_ports.queried_item_ids ==
+                std::vector<u16>{31U, 32U, 33U} &&
+            mode_three_exited.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        interaction_exited &&
+            mode_three_exit_ports.events ==
+                std::vector{GroupEightMainInputPorts::Event::exit},
+        "0x4455E0 maps available rows and typed-stops only after the full item domain"
+    );
+
+    GroupEightState primary_controls_state;
+    primary_controls_state.interaction_mode = 2U;
+    primary_controls_state.pre_initialization_zeroes[4U] = 14U;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        primary_controls_input{
+            .pointer_x = 490U, .pointer_y = 125U, .input_flags = 0U
+        };
+    GroupEightMainInputPorts primary_controls_ports;
+    primary_controls_ports.mutation =
+        [](const GroupEightMainInputPorts::Event event, auto& input, auto&) {
+            if (event == GroupEightMainInputPorts::Event::upper) {
+                input.pointer_y = 430U;
+            }
+        };
+    const auto primary_controls = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            primary_controls_state,
+            primary_controls_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            primary_controls_ports
+        );
+    GroupEightState secondary_controls_state;
+    secondary_controls_state.interaction_mode = 15U;
+    secondary_controls_state.special_control_count = 9;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        secondary_controls_input{
+            .pointer_x = 555U, .pointer_y = 200U, .input_flags = 0U
+        };
+    GroupEightMainInputPorts secondary_controls_ports;
+    secondary_controls_ports.mutation =
+        [](const GroupEightMainInputPorts::Event event, auto& input, auto&) {
+            if (event == GroupEightMainInputPorts::Event::upper) {
+                input.pointer_y = 400U;
+            }
+        };
+    const auto secondary_controls = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            secondary_controls_state,
+            secondary_controls_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            secondary_controls_ports
+        );
+    test.expect_true(
+        primary_controls.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        control_dispatched &&
+            primary_controls_ports.events ==
+                std::vector{
+                    GroupEightMainInputPorts::Event::upper,
+                    GroupEightMainInputPorts::Event::lower,
+                } &&
+            secondary_controls.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        control_dispatched &&
+            secondary_controls_ports.events ==
+                std::vector{
+                    GroupEightMainInputPorts::Event::upper,
+                    GroupEightMainInputPorts::Event::lower,
+                },
+        "0x4455E0 rereads pointer Y after every primary and secondary control callback"
+    );
+
+    GroupEightState secondary_row_state;
+    secondary_row_state.interaction_mode = 15U;
+    secondary_row_state.special_control_count = 8;
+    secondary_row_state.secondary_row_count = 5;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        secondary_row_input{
+            .pointer_x = 500U, .pointer_y = 250U, .input_flags = 1U
+        };
+    GroupEightMainInputPorts secondary_row_ports;
+    const auto secondary_row_changed = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            secondary_row_state,
+            secondary_row_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            secondary_row_ports
+        );
+    secondary_row_input.input_flags = 2U;
+    const auto secondary_row_committed = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            secondary_row_state,
+            secondary_row_input,
+            group_main_availability,
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            secondary_row_ports
+        );
+    GroupEightState unavailable_exit_state;
+    openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
+        unavailable_exit_input{.input_flags = 4U};
+    GroupEightMainInputPorts unavailable_exit_ports;
+    const auto unavailable_exited = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            unavailable_exit_state,
+            unavailable_exit_input,
+            std::array<LegacyStandardModeAvailabilityRecord, 16U>{},
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            unavailable_exit_ports
+        );
+    const auto availability_stopped = openswd3::special_modes::
+        handle_legacy_standard_mode_group_eight_main_input(
+            unavailable_exit_state,
+            unavailable_exit_input,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            {},
+            unavailable_exit_ports
+        );
+    test.expect_true(
+        secondary_row_changed.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        secondary_row_changed &&
+            secondary_row_state.secondary_row_selection == 2 &&
+            secondary_row_committed.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        secondary_row_committed &&
+            secondary_row_ports.events ==
+                std::vector{GroupEightMainInputPorts::Event::commit} &&
+            unavailable_exited.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputPath::
+                        interaction_exited &&
+            availability_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightMainInputStatus::
+                        availability_index_out_of_range,
+        "0x4455E0 clamps mode15 rows and preserves availability-before-exit ordering"
     );
 
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};

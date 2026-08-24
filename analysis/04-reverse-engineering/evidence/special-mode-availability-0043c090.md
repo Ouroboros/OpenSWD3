@@ -6,7 +6,7 @@
 
 唯一行为真值为`swd3.exe.lst`。函数物理范围是`0x0043C090..0x0043C0C8`，下一入口为`0x0043C0D0`；本函数无callee。LST有12个callsite、7个caller：`0x004070A0`六次，以及`0x0043C3C0`、`0x0043DA30`、`0x004407F0`、`0x00442F40`、`0x004455E0`和`0x0044B070`各一次。
 
-函数以参数乘16定位记录，只读取offset0 enabled dword与offset12 state dword。modern以typed record span表达，不读取中间8字节。
+函数以参数乘16定位记录，只读取offset0 enabled dword与offset12 state dword。modern以typed record span表达，不读取中间8字节。455E0现已关闭，公共fallback直接查询索引15，并在原记录读取点传播typed-stop。
 
 ## 2. 判断顺序
 

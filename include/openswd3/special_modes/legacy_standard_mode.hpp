@@ -525,6 +525,9 @@ struct LegacyStandardModeGroupEightInputSnapshot {
 };
 
 struct LegacyStandardModeForwardNode;
+struct LegacyStandardModeAvailabilityRecord;
+struct LegacyStandardModeRuntimeInitializationState;
+class LegacyStandardModeInputDispatchPorts;
 
 struct LegacyStandardModeGroupEightState {
     compat::u16 selection{};
@@ -554,6 +557,24 @@ struct LegacyStandardModeGroupEightState {
     std::array<compat::u32, 5U> pre_initialization_zeroes{};
     std::array<compat::u32, 2U> post_initialization_zeroes{};
     std::array<compat::u32, 6U> layout_zeroes{};
+    compat::u16 interaction_mode{};
+    compat::u32 input_consumed{};
+    compat::i32 outer_row_count{};
+    compat::u32 selected_outer_row{};
+    compat::u32 selected_column{};
+    compat::u32 selected_action{};
+    compat::i32 local_record_count{};
+    compat::i32 special_control_count{};
+    compat::i32 secondary_row_count{};
+    compat::i32 secondary_row_selection{};
+    compat::i32 primary_control_one_y_min{};
+    compat::i32 primary_control_one_y_max{};
+    compat::i32 primary_control_two_y_min{};
+    compat::i32 primary_control_two_y_max{};
+    compat::i32 secondary_control_one_y_min{};
+    compat::i32 secondary_control_one_y_max{};
+    compat::i32 secondary_control_two_y_min{};
+    compat::i32 secondary_control_two_y_max{};
 };
 
 class LegacyStandardModeGroupEightInitializationPorts {
@@ -613,6 +634,103 @@ struct LegacyStandardModeGroupEightCleanupResult {
 cleanup_legacy_standard_mode_group_eight(
     LegacyStandardModeGroupEightState& state,
     LegacyStandardModeGroupEightCleanupPorts& ports
+) noexcept;
+
+struct LegacyStandardModeGroupEightMainInputSnapshot {
+    compat::u32 pointer_x{};
+    compat::u32 pointer_y{};
+    compat::u32 input_flags{};
+    compat::u32 sample_handle{};
+};
+
+enum class LegacyStandardModeGroupEightMainControl : compat::u8 {
+    upper,
+    lower,
+    first_dynamic,
+    second_dynamic,
+};
+
+class LegacyStandardModeGroupEightMainInputPorts {
+public:
+    virtual ~LegacyStandardModeGroupEightMainInputPorts() = default;
+    [[nodiscard]] virtual compat::i32 dispatch_overlay_action(
+        LegacyStandardModeGroupEightMainInputSnapshot& input,
+        LegacyStandardModeGroupEightState& state
+    ) = 0;
+    [[nodiscard]] virtual compat::i32 commit_selection(
+        LegacyStandardModeGroupEightMainInputSnapshot& input,
+        LegacyStandardModeGroupEightState& state
+    ) = 0;
+    [[nodiscard]] virtual compat::i32 exit_interaction(
+        LegacyStandardModeGroupEightMainInputSnapshot& input,
+        LegacyStandardModeGroupEightState& state
+    ) = 0;
+    [[nodiscard]] virtual compat::i32 refresh_hover(
+        LegacyStandardModeGroupEightMainInputSnapshot& input,
+        LegacyStandardModeGroupEightState& state
+    ) = 0;
+    [[nodiscard]] virtual compat::i32 dispatch_control(
+        LegacyStandardModeGroupEightMainControl control,
+        LegacyStandardModeGroupEightMainInputSnapshot& input,
+        LegacyStandardModeGroupEightState& state
+    ) = 0;
+    [[nodiscard]] virtual compat::i32
+    query_item_presence(compat::u16 item_id) = 0;
+    [[nodiscard]] virtual compat::i32
+    play_sample(compat::u16 sample_id, compat::u32 sample_handle) = 0;
+};
+
+enum class LegacyStandardModeGroupEightMainInputStatus : compat::u8 {
+    completed,
+    runtime_input_stopped,
+    availability_index_out_of_range,
+    selected_record_missing,
+    shared_text_stopped,
+    presence_scan_stopped,
+};
+
+enum class LegacyStandardModeGroupEightMainInputPath : compat::u8 {
+    no_action,
+    runtime_input_dispatched,
+    transition_normalized,
+    outer_row_committed,
+    column_committed,
+    action_committed,
+    overlay_dispatched,
+    primary_choice_committed,
+    primary_choice_changed,
+    hover_changed,
+    record_changed,
+    record_committed,
+    available_item_changed,
+    available_item_committed,
+    control_dispatched,
+    secondary_row_changed,
+    secondary_row_committed,
+    interaction_exited,
+};
+
+struct LegacyStandardModeGroupEightMainInputResult {
+    LegacyStandardModeGroupEightMainInputStatus status{
+        LegacyStandardModeGroupEightMainInputStatus::completed
+    };
+    LegacyStandardModeGroupEightMainInputPath path{
+        LegacyStandardModeGroupEightMainInputPath::no_action
+    };
+    compat::u8 runtime_input_status{};
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightMainInputResult
+handle_legacy_standard_mode_group_eight_main_input(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightMainInputSnapshot& input,
+    std::span<const LegacyStandardModeAvailabilityRecord> availability_records,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGroupEightMainInputPorts& ports
 ) noexcept;
 
 class LegacyStandardModeGroupEightSelectionPorts
