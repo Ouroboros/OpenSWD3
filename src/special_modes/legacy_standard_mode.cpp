@@ -415,6 +415,144 @@ LegacySystemMenuResult release_legacy_system_menu(
     return result;
 }
 
+LegacySystemMenuInputResult move_down_legacy_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept {
+    LegacySystemMenuInputResult result;
+    const auto set_legacy = [&result](const compat::u32 value) {
+        result.legacy_return_value = std::bit_cast<compat::i32>(value);
+    };
+    const auto call = [&result, &ports, &state](
+                          const LegacySystemMenuInputCommand command,
+                          const compat::u32 argument
+                      ) {
+        result.command = command;
+        ++result.helper_call_count;
+        result.legacy_return_value =
+            ports.execute_system_menu_input_command(command, argument, state);
+    };
+    if (state.input_locked != 0U) {
+        set_legacy(state.input_locked);
+        return result;
+    }
+    const compat::u32 mode = state.interaction_mode;
+    set_legacy(mode);
+    switch (mode) {
+    case 0U: {
+        const compat::u32 next = state.interaction_page + 1U;
+        state.interaction_page = next;
+        set_legacy(next);
+        if (std::bit_cast<compat::i32>(next) > 4) {
+            state.interaction_page = 4U;
+            return result;
+        }
+        call(
+            LegacySystemMenuInputCommand::play_sample, state.sound_effect_index
+        );
+        return result;
+    }
+    case 1U:
+        if (state.interaction_page == 2U) {
+            return advance_legacy_system_menu_selection(state, ports);
+        }
+        if (state.interaction_page == 3U) {
+            set_legacy(state.selected_row);
+            switch (state.selected_row) {
+            case 0U: {
+                const compat::u32 next = state.sound_effect_index + 1U;
+                state.sound_effect_index = next;
+                if (std::bit_cast<compat::i32>(next) > 0x0B) {
+                    state.sound_effect_index = 0x0BU;
+                }
+                call(
+                    LegacySystemMenuInputCommand::play_sample,
+                    state.sound_effect_index
+                );
+                return result;
+            }
+            case 1U: {
+                const compat::u32 next = state.music_index + 1U;
+                state.music_index = next;
+                if (std::bit_cast<compat::i32>(next) > 0x0B) {
+                    state.music_index = 0x0BU;
+                }
+                call(
+                    LegacySystemMenuInputCommand::apply_music, state.music_index
+                );
+                return result;
+            }
+            case 2U: {
+                const compat::u32 next = state.replacement_spacing + 0x28U;
+                state.replacement_spacing = next;
+                set_legacy(next);
+                if (std::bit_cast<compat::i32>(next) >= 0x8C) {
+                    state.replacement_spacing = 0x8CU;
+                }
+                return result;
+            }
+            case 3U:
+                call(LegacySystemMenuInputCommand::enable_map_effect, 0x48U);
+                return result;
+            case 4U: {
+                const compat::u32 next = state.text_speed_index - 1U;
+                state.text_speed_index = next;
+                set_legacy(next);
+                if (std::bit_cast<compat::i32>(next) < 0) {
+                    state.text_speed_index = 0U;
+                }
+                state.applied_text_speed_index = state.text_speed_index;
+                return result;
+            }
+            case 5U: {
+                const compat::u32 next = state.battle_speed_index + 1U;
+                state.battle_speed_index = next;
+                set_legacy(next);
+                if (std::bit_cast<compat::i32>(next) > 0x0B) {
+                    state.battle_speed_index = 0x0BU;
+                }
+                return result;
+            }
+            default:
+                return result;
+            }
+        }
+        set_legacy(state.interaction_page - 4U);
+        if (state.interaction_page == 4U) {
+            const compat::u32 next = state.selected_row + 1U;
+            state.selected_row = next;
+            set_legacy(next);
+            if (std::bit_cast<compat::i32>(next) >= 2) {
+                state.selected_row = 1U;
+            }
+        }
+        return result;
+    case 2U:
+        if (state.interaction_page == 4U) {
+            const compat::u32 next = state.detail_selection + 1U;
+            state.detail_selection = next;
+            set_legacy(next);
+            if (std::bit_cast<compat::i32>(next) >= 2) {
+                state.detail_selection = 1U;
+            }
+        }
+        return result;
+    case 5U: {
+        const compat::u32 next = state.selected_entry + 1U;
+        state.selected_entry = next;
+        set_legacy(next);
+        if (std::bit_cast<compat::i32>(next) >= 0x13) {
+            state.selected_entry = 0U;
+        }
+        call(
+            LegacySystemMenuInputCommand::play_sample, state.sound_effect_index
+        );
+        return result;
+    }
+    default:
+        return result;
+    }
+}
+
 LegacySystemMenuInputResult move_up_legacy_system_menu(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept {

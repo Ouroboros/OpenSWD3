@@ -15683,6 +15683,206 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44BA20 wraps the first fixed item to eighteen before playing the sample"
     );
 
+    openswd3::special_modes::LegacySystemMenuState move_down_locked_state;
+    move_down_locked_state.input_locked = 0x76543210U;
+    move_down_locked_state.interaction_page = 2U;
+    FakeSystemMenuPorts move_down_locked_ports;
+    const auto move_down_locked =
+        openswd3::special_modes::move_down_legacy_system_menu(
+            move_down_locked_state, move_down_locked_ports
+        );
+    test.expect_true(
+        move_down_locked.legacy_return_value ==
+                std::bit_cast<i32>(0x76543210U) &&
+            move_down_locked_state.interaction_page == 2U &&
+            move_down_locked_ports.input_commands.empty(),
+        "0x44BBD0 returns the full input lock without changing system-menu state"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_page_state;
+    move_down_page_state.interaction_mode = 0U;
+    move_down_page_state.interaction_page = 4U;
+    FakeSystemMenuPorts move_down_page_ports;
+    const auto move_down_page =
+        openswd3::special_modes::move_down_legacy_system_menu(
+            move_down_page_state, move_down_page_ports
+        );
+    test.expect_true(
+        move_down_page_state.interaction_page == 4U &&
+            move_down_page.legacy_return_value == 5 &&
+            move_down_page_ports.input_commands.empty(),
+        "0x44BBD0 preserves the value five when clamping the last page to four"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_window_state;
+    move_down_window_state.interaction_mode = 1U;
+    move_down_window_state.interaction_page = 2U;
+    move_down_window_state.entry_count = 6U;
+    move_down_window_state.system_menu_visible_count = 2U;
+    FakeSystemMenuPorts move_down_window_ports;
+    const auto move_down_window =
+        openswd3::special_modes::move_down_legacy_system_menu(
+            move_down_window_state, move_down_window_ports
+        );
+    test.expect_true(
+        move_down_window_state.system_menu_page_start == 5U &&
+            move_down_window_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::rebuild_page, 0U},
+                    {SystemMenuCommand::count_visible, 0U}
+                } &&
+            move_down_window.helper_call_count == 2U,
+        "0x44BBD0 reuses the closed next-page helper for mode-one page two"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_sound_state;
+    move_down_sound_state.interaction_mode = 1U;
+    move_down_sound_state.interaction_page = 3U;
+    move_down_sound_state.selected_row = 0U;
+    move_down_sound_state.sound_effect_index = 0x0BU;
+    FakeSystemMenuPorts move_down_sound_ports;
+    static_cast<void>(openswd3::special_modes::move_down_legacy_system_menu(
+        move_down_sound_state, move_down_sound_ports
+    ));
+    test.expect_true(
+        move_down_sound_state.sound_effect_index == 0x0BU &&
+            move_down_sound_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 0x0BU}
+                },
+        "0x44BBD0 clamps the sound-effect index to eleven before previewing it"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_music_state;
+    move_down_music_state.interaction_mode = 1U;
+    move_down_music_state.interaction_page = 3U;
+    move_down_music_state.selected_row = 1U;
+    move_down_music_state.music_index = 0x0BU;
+    FakeSystemMenuPorts move_down_music_ports;
+    static_cast<void>(openswd3::special_modes::move_down_legacy_system_menu(
+        move_down_music_state, move_down_music_ports
+    ));
+    test.expect_true(
+        move_down_music_state.music_index == 0x0BU &&
+            move_down_music_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::apply_music, 0x0BU}
+                },
+        "0x44BBD0 clamps the music index to eleven before applying it"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_spacing_state;
+    move_down_spacing_state.interaction_mode = 1U;
+    move_down_spacing_state.interaction_page = 3U;
+    move_down_spacing_state.selected_row = 2U;
+    move_down_spacing_state.replacement_spacing = 0x78U;
+    FakeSystemMenuPorts move_down_spacing_ports;
+    const auto move_down_spacing =
+        openswd3::special_modes::move_down_legacy_system_menu(
+            move_down_spacing_state, move_down_spacing_ports
+        );
+    test.expect_true(
+        move_down_spacing_state.replacement_spacing == 0x8CU &&
+            move_down_spacing.legacy_return_value == 0xA0,
+        "0x44BBD0 preserves the pre-clamp spacing result before writing the maximum one-forty"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_map_state;
+    move_down_map_state.interaction_mode = 1U;
+    move_down_map_state.interaction_page = 3U;
+    move_down_map_state.selected_row = 3U;
+    FakeSystemMenuPorts move_down_map_ports;
+    static_cast<void>(openswd3::special_modes::move_down_legacy_system_menu(
+        move_down_map_state, move_down_map_ports
+    ));
+    test.expect_true(
+        move_down_map_ports.input_commands ==
+            std::vector<std::pair<SystemMenuCommand, u32>>{
+                {SystemMenuCommand::enable_map_effect, 0x48U}
+            },
+        "0x44BBD0 enables map effects through service forty-eight"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_text_state;
+    move_down_text_state.interaction_mode = 1U;
+    move_down_text_state.interaction_page = 3U;
+    move_down_text_state.selected_row = 4U;
+    move_down_text_state.text_speed_index = 0U;
+    FakeSystemMenuPorts move_down_text_ports;
+    const auto move_down_text =
+        openswd3::special_modes::move_down_legacy_system_menu(
+            move_down_text_state, move_down_text_ports
+        );
+    test.expect_true(
+        move_down_text_state.text_speed_index == 0U &&
+            move_down_text_state.applied_text_speed_index == 0U &&
+            move_down_text.legacy_return_value == -1,
+        "0x44BBD0 preserves the negative inverted text-speed result before publishing zero"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_battle_state;
+    move_down_battle_state.interaction_mode = 1U;
+    move_down_battle_state.interaction_page = 3U;
+    move_down_battle_state.selected_row = 5U;
+    move_down_battle_state.battle_speed_index = 0x0BU;
+    FakeSystemMenuPorts move_down_battle_ports;
+    const auto move_down_battle =
+        openswd3::special_modes::move_down_legacy_system_menu(
+            move_down_battle_state, move_down_battle_ports
+        );
+    test.expect_true(
+        move_down_battle_state.battle_speed_index == 0x0BU &&
+            move_down_battle.legacy_return_value == 0x0C,
+        "0x44BBD0 preserves the value twelve before clamping battle speed to eleven"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_row_state;
+    move_down_row_state.interaction_mode = 1U;
+    move_down_row_state.interaction_page = 4U;
+    move_down_row_state.selected_row = 1U;
+    FakeSystemMenuPorts move_down_row_ports;
+    const auto move_down_row =
+        openswd3::special_modes::move_down_legacy_system_menu(
+            move_down_row_state, move_down_row_ports
+        );
+    test.expect_true(
+        move_down_row_state.selected_row == 1U &&
+            move_down_row.legacy_return_value == 2,
+        "0x44BBD0 preserves the value two before clamping page-four rows to one"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_detail_state;
+    move_down_detail_state.interaction_mode = 2U;
+    move_down_detail_state.interaction_page = 4U;
+    move_down_detail_state.detail_selection = 1U;
+    FakeSystemMenuPorts move_down_detail_ports;
+    const auto move_down_detail =
+        openswd3::special_modes::move_down_legacy_system_menu(
+            move_down_detail_state, move_down_detail_ports
+        );
+    test.expect_true(
+        move_down_detail_state.detail_selection == 1U &&
+            move_down_detail.legacy_return_value == 2,
+        "0x44BBD0 preserves the value two before clamping detail selection to one"
+    );
+
+    openswd3::special_modes::LegacySystemMenuState move_down_entry_state;
+    move_down_entry_state.interaction_mode = 5U;
+    move_down_entry_state.selected_entry = 0x12U;
+    move_down_entry_state.sound_effect_index = 7U;
+    FakeSystemMenuPorts move_down_entry_ports;
+    static_cast<void>(openswd3::special_modes::move_down_legacy_system_menu(
+        move_down_entry_state, move_down_entry_ports
+    ));
+    test.expect_true(
+        move_down_entry_state.selected_entry == 0U &&
+            move_down_entry_ports.input_commands ==
+                std::vector<std::pair<SystemMenuCommand, u32>>{
+                    {SystemMenuCommand::play_sample, 7U}
+                },
+        "0x44BBD0 wraps fixed item eighteen to zero before playing the sample"
+    );
+
     openswd3::special_modes::LegacySystemMenuState retreat_page_state;
     retreat_page_state.interaction_mode = 0U;
     retreat_page_state.interaction_page = 0U;

@@ -471,6 +471,10 @@ struct LegacySystemMenuInputResult {
     std::optional<LegacySystemMenuInputCommand> command;
 };
 
+[[nodiscard]] LegacySystemMenuInputResult move_down_legacy_system_menu(
+    LegacySystemMenuState& state, LegacySystemMenuPorts& ports
+) noexcept;
+
 [[nodiscard]] LegacySystemMenuInputResult move_up_legacy_system_menu(
     LegacySystemMenuState& state, LegacySystemMenuPorts& ports
 ) noexcept;
