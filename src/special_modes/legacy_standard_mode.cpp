@@ -5274,6 +5274,85 @@ populate_legacy_standard_mode_guardian_party_attributes(
     return result;
 }
 
+LegacyStandardModeGuardianSelectedAttributeResult
+combine_legacy_standard_mode_guardian_selected_attributes(
+    LegacyStandardModeGuardianInitializationState& state,
+    const compat::u16 party_index,
+    const compat::u32 guardian_slot,
+    const LegacyStandardModeForwardNode* const seed,
+    const std::size_t destination_offset,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
+) noexcept {
+    LegacyStandardModeGuardianSelectedAttributeResult result;
+    const std::optional<std::array<compat::u8, 0x38U>> attribute_template =
+        ports.resolve_guardian_attribute_template(
+            static_cast<compat::u16>(state.party_selector)
+        );
+    if (!attribute_template.has_value()) {
+        result.status = LegacyStandardModeGuardianSelectedAttributeStatus::
+            template_out_of_range;
+        return result;
+    }
+    std::copy(
+        attribute_template->begin(),
+        attribute_template->end(),
+        state.scratch_record.begin()
+    );
+    state.scratch_record[0x26U] = 0U;
+    state.scratch_record[0x27U] = 0U;
+    state.scratch_record[0x28U] = 0U;
+    state.scratch_record[0x29U] = 0U;
+    if (destination_offset + 0x50U > state.attribute_cache.size()) {
+        result.status = LegacyStandardModeGuardianSelectedAttributeStatus::
+            destination_out_of_range;
+        return result;
+    }
+    std::fill_n(
+        state.attribute_cache.begin() +
+            static_cast<std::ptrdiff_t>(destination_offset),
+        0x50U,
+        0U
+    );
+    for (compat::u16 record_index = 0U; record_index < 0x10U; ++record_index) {
+        std::optional<std::string> record_name;
+        if (record_index == guardian_slot) {
+            if (seed == nullptr) {
+                continue;
+            }
+            record_name = seed->display_name;
+        } else {
+            record_name = ports.resolve_guardian_attribute_record_name(
+                party_index, record_index
+            );
+            if (!record_name.has_value()) {
+                result.status =
+                    LegacyStandardModeGuardianSelectedAttributeStatus::
+                        guardian_record_out_of_range;
+                return result;
+            }
+        }
+        ++result.helper_call_count;
+        if (!ports.merge_guardian_attribute_record_name(state, *record_name)) {
+            result.status = LegacyStandardModeGuardianSelectedAttributeStatus::
+                name_merge_stopped;
+            return result;
+        }
+        ++result.merged_record_count;
+    }
+    ++result.helper_call_count;
+    const std::optional<compat::i32> finalized =
+        ports.finalize_guardian_party_attribute_record(
+            state, destination_offset
+        );
+    if (!finalized.has_value()) {
+        result.status = LegacyStandardModeGuardianSelectedAttributeStatus::
+            selected_finalization_stopped;
+        return result;
+    }
+    result.legacy_return_value = *finalized;
+    return result;
+}
+
 LegacyStandardModeGuardianAttributeSeedResult
 select_legacy_standard_mode_guardian_attribute_seed(
     LegacyStandardModeGuardianInitializationState& state,
@@ -5340,13 +5419,18 @@ refresh_legacy_standard_mode_guardian_attribute_cache(
         return result;
     }
     ++result.helper_call_count;
-    if (!ports.combine_guardian_selected_attributes(
+    const LegacyStandardModeGuardianSelectedAttributeResult selected =
+        combine_legacy_standard_mode_guardian_selected_attributes(
             state,
             static_cast<compat::u16>(state.party_selector),
             state.guardian_slot,
             seed.seed,
-            0x140U
-        )) {
+            0x140U,
+            ports
+        );
+    result.legacy_return_value = selected.legacy_return_value;
+    if (selected.status !=
+        LegacyStandardModeGuardianSelectedAttributeStatus::completed) {
         result.status = LegacyStandardModeGuardianAttributeCacheStatus::
             selected_combination_stopped;
         return result;

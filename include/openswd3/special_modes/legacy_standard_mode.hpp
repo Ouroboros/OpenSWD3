@@ -619,13 +619,6 @@ public:
         compat::u16 party_index,
         compat::u32 guardian_slot
     ) noexcept = 0;
-    [[nodiscard]] virtual bool combine_guardian_selected_attributes(
-        LegacyStandardModeGuardianInitializationState& state,
-        compat::u16 party_index,
-        compat::u32 guardian_slot,
-        const LegacyStandardModeForwardNode* seed,
-        std::size_t destination_offset
-    ) noexcept = 0;
     [[nodiscard]] virtual std::optional<compat::i32>
     finalize_guardian_attribute_summary(
         LegacyStandardModeGuardianInitializationState& state,
@@ -2970,6 +2963,34 @@ struct LegacyStandardModeGuardianPartyAttributeResult {
 populate_legacy_standard_mode_guardian_party_attributes(
     LegacyStandardModeGuardianInitializationState& state,
     compat::u16 party_index,
+    std::size_t destination_offset,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
+) noexcept;
+
+enum class LegacyStandardModeGuardianSelectedAttributeStatus : compat::u8 {
+    completed,
+    template_out_of_range,
+    destination_out_of_range,
+    guardian_record_out_of_range,
+    name_merge_stopped,
+    selected_finalization_stopped,
+};
+
+struct LegacyStandardModeGuardianSelectedAttributeResult {
+    LegacyStandardModeGuardianSelectedAttributeStatus status{
+        LegacyStandardModeGuardianSelectedAttributeStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 merged_record_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGuardianSelectedAttributeResult
+combine_legacy_standard_mode_guardian_selected_attributes(
+    LegacyStandardModeGuardianInitializationState& state,
+    compat::u16 party_index,
+    compat::u32 guardian_slot,
+    const LegacyStandardModeForwardNode* seed,
     std::size_t destination_offset,
     LegacyStandardModeGuardianAttributeCachePorts& ports
 ) noexcept;
