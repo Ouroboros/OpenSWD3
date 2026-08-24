@@ -2,7 +2,7 @@
 
 状态：`platform_adapted`、`unit_tested`
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00448020..0x0044822D`，276行、9个call，无FUNCTION CHUNK。唯一code caller为`0x00448230`，该caller尚未关闭，暂不回收。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00448020..0x0044822D`，276行、9个call，无FUNCTION CHUNK。唯一code caller`0x00448230`现已关闭并直接调用本typed helper。
 
 函数先清目标链，再逐个从inventory source链深拷贝176字节记录及名称。modern通过`LegacyStandardModeRecordClonePorts`表达原malloc/free生命周期；typed `LegacyStandardModeForwardNode`复制string实现同一深拷贝，不共享源名称owner。分配失败在原clone分配点typed-stop，保留此前目标链与源字段副作用。
 

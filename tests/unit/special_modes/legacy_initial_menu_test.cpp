@@ -14907,18 +14907,59 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
     class GroupEightInitializationPorts final
         : public openswd3::special_modes::
-              LegacyStandardModeGroupEightInitializationPorts {
+              LegacyStandardModeGroupEightInitializationPorts,
+          public openswd3::special_modes::
+              LegacyStandardModeRecordInitializationPorts {
     public:
-        bool initialize_selection_records(
-            openswd3::special_modes::LegacyStandardModeGroupEightState& state
-        ) override {
-            events.push_back(1U);
-            if (!record_initialization_available) {
-                return false;
-            }
-            state.record_head = record_head;
-            return true;
+        LegacyStandardModeForwardNode*&
+        selection_record_source() noexcept override {
+            return record_head;
         }
+        std::span<const u32> selection_mode_masks() noexcept override {
+            return mode_masks;
+        }
+        u32 selection_mode_three_mask() noexcept override {
+            return 1U;
+        }
+        u32 selection_mode_six_mask() noexcept override {
+            return 2U;
+        }
+        openswd3::special_modes::LegacyStandardModeRecordInitializationPorts&
+        selection_record_initialization_ports() noexcept override {
+            events.push_back(1U);
+            return *this;
+        }
+        LegacyStandardModeForwardNode* clone_record(
+            const LegacyStandardModeForwardNode& source
+        ) noexcept override {
+            if (!record_initialization_available) {
+                return nullptr;
+            }
+            cloned_records.push_back(
+                std::make_unique<LegacyStandardModeForwardNode>(source)
+            );
+            return cloned_records.back().get();
+        }
+        void release_record(LegacyStandardModeForwardNode&) noexcept override {}
+        i32 debug_query(const u32) noexcept override {
+            return 0;
+        }
+        void report_zero_filter_record(const u16, const u32) noexcept override {
+        }
+        LegacyStandardModeForwardNode*
+        create_missing_record() noexcept override {
+            if (!record_initialization_available) {
+                return nullptr;
+            }
+            cloned_records.push_back(
+                std::make_unique<LegacyStandardModeForwardNode>()
+            );
+            cloned_records.back()->text_index = 0xFFDCU;
+            return cloned_records.back().get();
+        }
+        void release_source_record(
+            LegacyStandardModeForwardNode&
+        ) noexcept override {}
 
         i32 query_item_presence(const u16 item_id) override {
             events.push_back(2U);
@@ -14934,6 +14975,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
         LegacyStandardModeForwardNode* record_head{};
         bool record_initialization_available{true};
+        std::array<u32, 7U> mode_masks{0U, 1U, 2U, 4U, 8U, 16U, 32U};
+        std::vector<std::unique_ptr<LegacyStandardModeForwardNode>>
+            cloned_records;
         std::array<i32, 64U> item_presence{};
         u32 workspace_token{0xABCDEF01U};
         std::size_t allocation_size{};
@@ -14969,7 +15013,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     };
 
     class RecordClonePorts final
-        : public openswd3::special_modes::LegacyStandardModeRecordClonePorts {
+        : public openswd3::special_modes::
+              LegacyStandardModeRecordInitializationPorts {
     public:
         LegacyStandardModeForwardNode* clone_record(
             const LegacyStandardModeForwardNode& source
@@ -14996,11 +15041,29 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         ) noexcept override {
             reports.push_back({text_index, filter_flags});
         }
+        LegacyStandardModeForwardNode*
+        create_missing_record() noexcept override {
+            if (!missing_allocation_available) {
+                return nullptr;
+            }
+            records.push_back(
+                std::make_unique<LegacyStandardModeForwardNode>()
+            );
+            records.back()->text_index = 0xFFDCU;
+            return records.back().get();
+        }
+        void release_source_record(
+            LegacyStandardModeForwardNode& record
+        ) noexcept override {
+            released_sources.push_back(&record);
+        }
 
         bool allocation_available{true};
+        bool missing_allocation_available{true};
         i32 debug_return{1};
         std::vector<std::unique_ptr<LegacyStandardModeForwardNode>> records;
         std::vector<LegacyStandardModeForwardNode*> released;
+        std::vector<LegacyStandardModeForwardNode*> released_sources;
         std::vector<u32> debug_queries;
         std::vector<std::pair<u16, u32>> reports;
     };
@@ -15136,13 +15199,27 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         : public openswd3::special_modes::
               LegacyStandardModeGroupEightMainInputPorts {
     public:
-        bool initialize_selection_records(
-            openswd3::special_modes::LegacyStandardModeGroupEightState& state
-        ) override {
-            if (initial_record_head != nullptr) {
-                state.record_head = initial_record_head;
+        LegacyStandardModeForwardNode*&
+        selection_record_source() noexcept override {
+            if (record_source == nullptr && initial_record_head != nullptr) {
+                record_source = initial_record_head;
             }
-            return record_initialization_available;
+            return record_source;
+        }
+        std::span<const u32> selection_mode_masks() noexcept override {
+            return mode_masks;
+        }
+        u32 selection_mode_three_mask() noexcept override {
+            return 1U;
+        }
+        u32 selection_mode_six_mask() noexcept override {
+            return 2U;
+        }
+        openswd3::special_modes::LegacyStandardModeRecordInitializationPorts&
+        selection_record_initialization_ports() noexcept override {
+            record_initialization_ports.allocation_available =
+                record_initialization_available;
+            return record_initialization_ports;
         }
         u32 allocate_workspace(const std::size_t) override {
             return 0U;
@@ -15214,7 +15291,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             LegacyStandardModeGroupEightInteractionCommitRuntime
                 commit_runtime_state;
         GroupEightCommitPorts commit_port_state;
+        RecordClonePorts record_initialization_ports;
         LegacyStandardModeForwardNode* initial_record_head{};
+        LegacyStandardModeForwardNode* record_source{};
+        std::array<u32, 7U> mode_masks{0U, 1U, 2U, 4U, 8U, 16U, 32U};
         bool record_initialization_available{true};
         bool record_cleanup_available{true};
         std::array<i32, 512U> item_presence{};
@@ -15503,6 +15583,53 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x448020 clones, filters, clears source fields and preserves its insertion order"
     );
 
+    LegacyStandardModeForwardNode* initialization_source = &clone_source_zero;
+    GroupEightState record_initialization_state;
+    record_initialization_state.pre_initialization_zeroes[0U] = 3U;
+    RecordClonePorts record_initialization_ports;
+    const auto records_initialized = openswd3::special_modes::
+        initialize_legacy_standard_mode_selection_records(
+            initialization_source,
+            record_initialization_state,
+            clone_masks,
+            1U,
+            2U,
+            record_initialization_ports
+        );
+    LegacyStandardModeForwardNode* empty_initialization_source = nullptr;
+    GroupEightState empty_initialization_state;
+    RecordClonePorts empty_initialization_ports;
+    const auto empty_records_initialized = openswd3::special_modes::
+        initialize_legacy_standard_mode_selection_records(
+            empty_initialization_source,
+            empty_initialization_state,
+            clone_masks,
+            1U,
+            2U,
+            empty_initialization_ports
+        );
+    test.expect_true(
+        records_initialized.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeRecordInitializationStatus::completed &&
+            records_initialized.total_count == 1U &&
+            records_initialized.visible_count == 1U &&
+            records_initialized.released_source_count == 2U &&
+            initialization_source == &clone_source_zero &&
+            clone_source_zero.next == nullptr &&
+            record_initialization_state.record_head != nullptr &&
+            record_initialization_state.record_head->text_index == 10U &&
+            record_initialization_state.local_record_count == 1 &&
+            record_initialization_state.visible_record_count == 1U &&
+            record_initialization_state.visible_row_labels[0U] == 100U &&
+            record_initialization_state.visible_row_labels[1U] == 0U &&
+            empty_records_initialized.total_count == 1U &&
+            empty_initialization_state.record_head->text_index == 0xFFDCU &&
+            empty_initialization_state.visible_row_labels[0U] == 100U &&
+            empty_initialization_state.visible_row_labels[1U] == 0U,
+        "0x448230 reuses 448020, drains empty sources and initializes thirteen rows"
+    );
+
     LegacyStandardModeForwardNode first_selection_record;
     first_selection_record.text_index = 0xFFDCU;
     GroupEightState first_selection_state;
@@ -15540,7 +15667,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                     LegacyStandardModeGroupEightInitializationStatus::
                         completed &&
             first_selection.legacy_return_value == 0xABCDEF01U &&
-            first_selection.helper_call_count == 9U &&
+            first_selection.helper_call_count == 11U &&
             first_selection_state.selected_entry_index == 4U &&
             first_selection_state.initialization_word == 5U &&
             first_selection_state.primary_action.action_id == 0x232AU &&
@@ -15592,20 +15719,28 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightInitializationStatus::
                         record_initialization_stopped &&
-            first_stopped.helper_call_count == 1U &&
+            first_stopped.helper_call_count == 4U &&
             first_stop_state.selected_entry_index == 1U &&
-            first_stop_state.workspace_token == 9U &&
-            first_missing.status ==
+            first_stop_state.workspace_token == 9U,
+        "0x445430 preserves the record initialization stop prefix"
+    );
+    test.expect_true(
+        first_missing.status ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightInitializationStatus::
-                        selected_record_missing &&
-            first_missing.helper_call_count == 7U &&
-            first_text_stopped.status ==
+                        completed &&
+            first_missing.helper_call_count == 12U &&
+            first_missing_state.record_head != nullptr &&
+            first_missing_state.record_head->text_index == 0xFFDCU,
+        "0x445430 now directly receives the 448230 missing record"
+    );
+    test.expect_true(
+        first_text_stopped.status ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightInitializationStatus::
                         shared_text_stopped &&
-            first_text_stopped.helper_call_count == 8U,
-        "0x445430 preserves exact record initialization, selection and text stop prefixes"
+            first_text_stopped.helper_call_count == 10U,
+        "0x445430 preserves the shared text stop prefix after 448230"
     );
 
     GroupEightState cleanup_state;
@@ -16932,7 +17067,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         mode_retreated.status ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightModeRetreatStatus::completed &&
-            mode_retreated.helper_call_count == 5U &&
+            mode_retreated.helper_call_count == 7U &&
             mode_retreat_state.viewport_extent == 480U &&
             mode_retreat_state.pre_initialization_zeroes[0U] == 6U &&
             mode_retreat_state.pre_initialization_zeroes[2U] == 0U &&
@@ -17029,7 +17164,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         mode_advanced.status ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightModeAdvanceStatus::completed &&
-            mode_advanced.helper_call_count == 5U &&
+            mode_advanced.helper_call_count == 7U &&
             mode_advance_state.viewport_extent == 480U &&
             mode_advance_state.pre_initialization_zeroes[0U] == 0U &&
             mode_advance_state.pre_initialization_zeroes[2U] == 0U &&

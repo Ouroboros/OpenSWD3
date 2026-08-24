@@ -530,6 +530,7 @@ struct LegacyStandardModeRuntimeInitializationState;
 struct LegacyStandardModeGroupEightInteractionCommitRuntime;
 class LegacyStandardModeGroupEightInteractionCommitPorts;
 class LegacyStandardModeGroupOneRenderPorts;
+class LegacyStandardModeRecordInitializationPorts;
 class LegacyStandardModeInputDispatchPorts;
 class LegacyStandardModeRuntimeRenderPorts;
 
@@ -591,13 +592,20 @@ struct LegacyStandardModeGroupEightState {
     compat::i32 render_blocked{};
     compat::i32 render_progress_value{};
     compat::i32 render_progress_origin{};
+    std::array<compat::u16, 14U> visible_row_labels{};
 };
 
 class LegacyStandardModeGroupEightInitializationPorts {
 public:
     virtual ~LegacyStandardModeGroupEightInitializationPorts() = default;
-    [[nodiscard]] virtual bool
-    initialize_selection_records(LegacyStandardModeGroupEightState& state) = 0;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*&
+    selection_record_source() noexcept = 0;
+    [[nodiscard]] virtual std::span<const compat::u32>
+    selection_mode_masks() noexcept = 0;
+    [[nodiscard]] virtual compat::u32 selection_mode_three_mask() noexcept = 0;
+    [[nodiscard]] virtual compat::u32 selection_mode_six_mask() noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeRecordInitializationPorts&
+    selection_record_initialization_ports() noexcept = 0;
     [[nodiscard]] virtual compat::i32
     query_item_presence(compat::u16 item_id) = 0;
     [[nodiscard]] virtual compat::u32 allocate_workspace(std::size_t size) = 0;
@@ -1343,6 +1351,42 @@ rebuild_legacy_standard_mode_selection_records(
     compat::u32 mode_three_mask,
     compat::u32 mode_six_mask,
     LegacyStandardModeRecordClonePorts& ports
+) noexcept;
+
+class LegacyStandardModeRecordInitializationPorts
+    : public LegacyStandardModeRecordClonePorts {
+public:
+    ~LegacyStandardModeRecordInitializationPorts() override = default;
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    create_missing_record() noexcept = 0;
+    virtual void
+    release_source_record(LegacyStandardModeForwardNode& record) noexcept = 0;
+};
+
+enum class LegacyStandardModeRecordInitializationStatus : compat::u8 {
+    completed,
+    clone_stopped,
+    missing_record_allocation_stopped,
+};
+
+struct LegacyStandardModeRecordInitializationResult {
+    LegacyStandardModeRecordInitializationStatus status{
+        LegacyStandardModeRecordInitializationStatus::completed
+    };
+    compat::u32 total_count{};
+    compat::u32 visible_count{};
+    compat::u32 released_source_count{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeRecordInitializationResult
+initialize_legacy_standard_mode_selection_records(
+    LegacyStandardModeForwardNode*& source_head,
+    LegacyStandardModeGroupEightState& state,
+    std::span<const compat::u32> mode_masks,
+    compat::u32 mode_three_mask,
+    compat::u32 mode_six_mask,
+    LegacyStandardModeRecordInitializationPorts& ports
 ) noexcept;
 
 struct LegacyStandardModeEquipmentSortedRecordState {
