@@ -341,6 +341,23 @@ initialize_group_eight_selection_records(
 
 }  // namespace
 
+LegacyStandardModeTransitionPairResult
+initialize_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionPairResult result;
+    if (static_cast<compat::u16>(state.mode_word) == 5U) {
+        state.mode_word &= 0xFFFF0000U;
+    }
+    state.first_owner = ports.allocate_transition_pair_buffer(0x38U);
+    state.second_owner = ports.allocate_transition_pair_buffer(0x38U);
+    result.helper_call_count = 2U;
+    result.legacy_return_value = ports.dispatch_transition_pair();
+    ++result.helper_call_count;
+    return result;
+}
+
 LegacyStandardModeTransitionConfirmationResult
 confirm_legacy_standard_mode_transition(
     LegacyStandardModeTransitionVisualState& state,

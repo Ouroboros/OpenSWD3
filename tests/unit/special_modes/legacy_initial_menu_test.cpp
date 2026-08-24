@@ -490,6 +490,27 @@ public:
         transition_commands;
 };
 
+class FakeTransitionPairPorts final
+    : public openswd3::special_modes::LegacyStandardModeTransitionPairPorts {
+public:
+    u32 allocate_transition_pair_buffer(const u32 size) noexcept override {
+        allocation_sizes.push_back(size);
+        const u32 value = allocation_returns[allocation_count];
+        ++allocation_count;
+        return value;
+    }
+    i32 dispatch_transition_pair() noexcept override {
+        ++dispatch_count;
+        return dispatch_return;
+    }
+
+    std::array<u32, 2U> allocation_returns{0x1111U, 0x2222U};
+    std::vector<u32> allocation_sizes;
+    std::size_t allocation_count{};
+    u32 dispatch_count{};
+    i32 dispatch_return{77};
+};
+
 class FakeStandardModeCallbackBindingPorts final
     : public LegacyStandardModeCallbackBindingPorts {
 public:
@@ -14897,6 +14918,37 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             0x4B3AE2F14F37C244ULL
         },
     };
+
+    openswd3::special_modes::LegacyStandardModeTransitionPairState
+        transition_pair_state;
+    transition_pair_state.mode_word = 0xABCD0005U;
+    FakeTransitionPairPorts transition_pair_ports;
+    transition_pair_ports.allocation_returns = {0x1111U, 0U};
+    const auto transition_pair = openswd3::special_modes::
+        initialize_legacy_standard_mode_transition_pair(
+            transition_pair_state, transition_pair_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionPairState
+        transition_pair_other_state;
+    transition_pair_other_state.mode_word = 0xABCD0006U;
+    FakeTransitionPairPorts transition_pair_other_ports;
+    const auto transition_pair_other = openswd3::special_modes::
+        initialize_legacy_standard_mode_transition_pair(
+            transition_pair_other_state, transition_pair_other_ports
+        );
+    test.expect_true(
+        transition_pair_state.mode_word == 0xABCD0000U &&
+            transition_pair_state.first_owner == 0x1111U &&
+            transition_pair_state.second_owner == 0U &&
+            transition_pair_ports.allocation_sizes ==
+                std::vector<u32>{0x38U, 0x38U} &&
+            transition_pair_ports.dispatch_count == 1U &&
+            transition_pair.legacy_return_value == 77 &&
+            transition_pair.helper_call_count == 3U &&
+            transition_pair_other_state.mode_word == 0xABCD0006U &&
+            transition_pair_other.helper_call_count == 3U,
+        "0x449FF0 clears only low mode five and dispatches after both ordered allocations including null"
+    );
 
     openswd3::special_modes::LegacyStandardModeTransitionVisualState
         transition_one_state;

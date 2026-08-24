@@ -324,6 +324,31 @@ confirm_legacy_standard_mode_transition(
     LegacyStandardModeTransitionVisualPorts& ports
 ) noexcept;
 
+struct LegacyStandardModeTransitionPairState {
+    compat::u32 mode_word{};
+    compat::u32 first_owner{};
+    compat::u32 second_owner{};
+};
+
+class LegacyStandardModeTransitionPairPorts {
+public:
+    virtual ~LegacyStandardModeTransitionPairPorts() = default;
+    [[nodiscard]] virtual compat::u32
+    allocate_transition_pair_buffer(compat::u32 size) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 dispatch_transition_pair() noexcept = 0;
+};
+
+struct LegacyStandardModeTransitionPairResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeTransitionPairResult
+initialize_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeTransitionVisualStatus : compat::u8 {
     completed,
     snapshot_allocation_stopped,
