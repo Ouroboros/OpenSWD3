@@ -614,12 +614,12 @@ public:
         compat::u16 party_index,
         compat::u32 guardian_slot
     ) noexcept = 0;
-    [[nodiscard]] virtual std::optional<compat::i32>
-    finalize_guardian_attribute_summary(
-        LegacyStandardModeGuardianInitializationState& state,
-        const LegacyStandardModeForwardNode* seed,
-        std::size_t destination_offset
-    ) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::u16>
+    query_guardian_slot_zero_attribute(compat::u16 text_index) noexcept = 0;
+    [[nodiscard]] virtual std::optional<std::pair<compat::u16, compat::u16>>
+    query_guardian_slot_pair_attributes(compat::u16 text_index) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::u16>
+    query_guardian_slot_bonus_attribute(compat::u16 text_index) noexcept = 0;
 };
 
 class LegacyStandardModeGuardianListRefreshPorts
@@ -3023,6 +3023,28 @@ struct LegacyStandardModeGuardianAttributeSeedResult {
 [[nodiscard]] LegacyStandardModeGuardianAttributeSeedResult
 select_legacy_standard_mode_guardian_attribute_seed(
     LegacyStandardModeGuardianInitializationState& state,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
+) noexcept;
+
+enum class LegacyStandardModeGuardianAttributeSummaryStatus : compat::u8 {
+    completed,
+    destination_out_of_range,
+    seed_missing,
+    query_stopped,
+};
+
+struct LegacyStandardModeGuardianAttributeSummaryResult {
+    LegacyStandardModeGuardianAttributeSummaryStatus status{
+        LegacyStandardModeGuardianAttributeSummaryStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+};
+
+[[nodiscard]] LegacyStandardModeGuardianAttributeSummaryResult
+finalize_legacy_standard_mode_guardian_attribute_summary(
+    LegacyStandardModeGuardianInitializationState& state,
+    const LegacyStandardModeForwardNode* seed,
+    std::size_t destination_offset,
     LegacyStandardModeGuardianAttributeCachePorts& ports
 ) noexcept;
 

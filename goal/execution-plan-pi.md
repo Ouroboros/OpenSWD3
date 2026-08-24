@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v518
+版本：v519
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x00442CA0`
+当前步骤：模块9 · 闭环`0x00442D70`
 
 ## 0. 执行约定
 
@@ -3675,10 +3675,11 @@ B7 P0 有限收口完成。
 - 模块9护驾单party属性填充`0x00442AA0`闭环。恢复selected-party 0x38模板复制、输入party十六record名称顺序合并及442BC0收尾；模板、record、merge、finalize均在原点typed-stop。429B0四处opaque population边界已回收。定向UT通过。workpack稳定为`91/227`，SHA256为`3301ecc91d53f1c850507952ddc3412a8a80eb7093989074a8f4df7a5fc03cfb`。
 - 模块9护驾选中记录属性合并`0x00442B10`闭环。恢复模板、scratch两个u16清零、0x50目标清零、十六slot循环、seed替换/null跳过及442BC0收尾；移除旧fixture伪造的list offset写。429B0 selected combine边界已回收。定向UT通过。workpack稳定为`92/227`，SHA256为`57be1888cf62f087fcd7387123fa0ea9598b367c0397dc436ae2dfcd431bcde6`。
 - 模块9护驾party属性字段展开`0x00442BC0`闭环。恢复17个scratch signed i16到cache signed i32的精确offset映射及token+offset返回；AA0/B10两处finalization端口直接回收，并修正旧fixture原样复制scratch的错误假设。定向UT通过。workpack稳定为`93/227`，SHA256为`18dd9c9ff2e4f471f3a6e6be9c07a360502a45973fc33209efc94a0fa39e3fd0`。
+- 模块9护驾属性附加摘要`0x00442CA0`闭环。恢复三个FFFFFFFF sentinel、slot0单值、slot7/8 low/high pair、slot9/10 bonus及各自返回残值；三种null seed按原写序typed-stop。429B0最后summary端口已回收，四个直接callee全部闭环。定向UT通过。workpack稳定为`94/227`，SHA256为`96e7419ffa744049ceb039aa5f5acc76ac1bfce2fe9d18f32d90bf4cc47f3491`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`93/227`，下一单元为`0x00442CA0`。
+进行中，正式进度为`94/227`，下一单元为`0x00442D70`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x00442CA0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x00442D70`，继续更新workpack、证据和完整验证门。

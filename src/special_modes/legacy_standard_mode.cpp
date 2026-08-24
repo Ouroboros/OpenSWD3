@@ -5443,6 +5443,100 @@ select_legacy_standard_mode_guardian_attribute_seed(
     return result;
 }
 
+LegacyStandardModeGuardianAttributeSummaryResult
+finalize_legacy_standard_mode_guardian_attribute_summary(
+    LegacyStandardModeGuardianInitializationState& state,
+    const LegacyStandardModeForwardNode* const seed,
+    const std::size_t destination_offset,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
+) noexcept {
+    LegacyStandardModeGuardianAttributeSummaryResult result;
+    if (destination_offset + 0x50U > state.attribute_cache.size()) {
+        result.status = LegacyStandardModeGuardianAttributeSummaryStatus::
+            destination_out_of_range;
+        return result;
+    }
+    const auto write_dword = [&state, destination_offset](
+                                 const std::size_t relative_offset,
+                                 const compat::u32 value
+                             ) {
+        const std::size_t offset = destination_offset + relative_offset;
+        state.attribute_cache[offset] = static_cast<compat::u8>(value & 0xFFU);
+        state.attribute_cache[offset + 1U] =
+            static_cast<compat::u8>((value >> 8U) & 0xFFU);
+        state.attribute_cache[offset + 2U] =
+            static_cast<compat::u8>((value >> 16U) & 0xFFU);
+        state.attribute_cache[offset + 3U] =
+            static_cast<compat::u8>((value >> 24U) & 0xFFU);
+    };
+    write_dword(0x44U, 0xFFFFFFFFU);
+    const compat::u32 guardian_slot = state.guardian_slot;
+    if (guardian_slot == 0U) {
+        if (seed == nullptr) {
+            result.status =
+                LegacyStandardModeGuardianAttributeSummaryStatus::seed_missing;
+            return result;
+        }
+        if (seed->text_index != 0xFFDCU) {
+            const std::optional<compat::u16> value =
+                ports.query_guardian_slot_zero_attribute(seed->text_index);
+            if (!value.has_value()) {
+                result.status =
+                    LegacyStandardModeGuardianAttributeSummaryStatus::
+                        query_stopped;
+                return result;
+            }
+            write_dword(0x44U, *value);
+        }
+    }
+    write_dword(0x48U, 0xFFFFFFFFU);
+    if (guardian_slot == 7U || guardian_slot == 8U) {
+        if (seed == nullptr) {
+            result.status =
+                LegacyStandardModeGuardianAttributeSummaryStatus::seed_missing;
+            return result;
+        }
+        if (seed->text_index != 0xFFDCU) {
+            const std::optional<std::pair<compat::u16, compat::u16>> values =
+                ports.query_guardian_slot_pair_attributes(seed->text_index);
+            if (!values.has_value()) {
+                result.status =
+                    LegacyStandardModeGuardianAttributeSummaryStatus::
+                        query_stopped;
+                return result;
+            }
+            write_dword(
+                0x48U,
+                static_cast<compat::u32>(values->first) |
+                    (static_cast<compat::u32>(values->second) << 16U)
+            );
+        }
+    }
+    write_dword(0x4CU, 0xFFFFFFFFU);
+    result.legacy_return_value = std::bit_cast<compat::i32>(guardian_slot);
+    if (guardian_slot == 9U || guardian_slot == 0x0AU) {
+        if (seed == nullptr) {
+            result.status =
+                LegacyStandardModeGuardianAttributeSummaryStatus::seed_missing;
+            return result;
+        }
+        result.legacy_return_value = seed->text_index;
+        if (seed->text_index != 0xFFDCU) {
+            const std::optional<compat::u16> value =
+                ports.query_guardian_slot_bonus_attribute(seed->text_index);
+            if (!value.has_value()) {
+                result.status =
+                    LegacyStandardModeGuardianAttributeSummaryStatus::
+                        query_stopped;
+                return result;
+            }
+            result.legacy_return_value = *value;
+            write_dword(0x4CU, *value);
+        }
+    }
+    return result;
+}
+
 LegacyStandardModeGuardianAttributeCacheResult
 refresh_legacy_standard_mode_guardian_attribute_cache(
     LegacyStandardModeGuardianInitializationState& state,
@@ -5492,14 +5586,17 @@ refresh_legacy_standard_mode_guardian_attribute_cache(
         return result;
     }
     ++result.helper_call_count;
-    const std::optional<compat::i32> finalized =
-        ports.finalize_guardian_attribute_summary(state, seed.seed, 0x140U);
-    if (!finalized.has_value()) {
+    const LegacyStandardModeGuardianAttributeSummaryResult finalized =
+        finalize_legacy_standard_mode_guardian_attribute_summary(
+            state, seed.seed, 0x140U, ports
+        );
+    if (finalized.status !=
+        LegacyStandardModeGuardianAttributeSummaryStatus::completed) {
         result.status = LegacyStandardModeGuardianAttributeCacheStatus::
             summary_finalization_stopped;
         return result;
     }
-    result.legacy_return_value = *finalized;
+    result.legacy_return_value = finalized.legacy_return_value;
     return result;
 }
 
