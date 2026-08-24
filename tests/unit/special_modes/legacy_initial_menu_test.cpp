@@ -15209,7 +15209,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
     class GroupEightCommitPorts final
         : public openswd3::special_modes::
-              LegacyStandardModeGroupEightInteractionCommitPorts {
+              LegacyStandardModeGroupEightInteractionCommitPorts,
+          public openswd3::special_modes::
+              LegacyStandardModeSpecialWorldTransitionPorts {
     public:
         void insert_missing_node(
             const LegacyStandardModeForwardNode** source_head,
@@ -15271,8 +15273,35 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         void release_inventory_root() noexcept override {
             ++inventory_root_release_count;
         }
-        void request_special_world_transition() noexcept override {
+        openswd3::special_modes::
+            LegacyStandardModeSpecialWorldTransitionRuntime&
+            special_world_transition_runtime() noexcept override {
+            return world_transition_runtime;
+        }
+        openswd3::special_modes::LegacyStandardModeSpecialWorldTransitionPorts&
+        special_world_transition_ports() noexcept override {
+            return *this;
+        }
+        u32 clone_inventory_record_root() noexcept override {
+            ++inventory_clone_count;
+            return inventory_clone_token;
+        }
+        u32 clone_selection_record_root(
+            const LegacyStandardModeForwardNode* head
+        ) noexcept override {
+            cloned_selection_heads.push_back(head);
+            return selection_clone_token;
+        }
+        void publish_special_world_transition(
+            const u32 mode, const u32 enabled, const u32 zero, const u32 layout
+        ) noexcept override {
+            published_world_transitions.push_back(
+                {mode, enabled, zero, layout}
+            );
+        }
+        i32 dispatch_special_world_transition() noexcept override {
             ++world_transition_count;
+            return world_transition_return;
         }
         void initialize_high_mode_runtime() noexcept override {
             ++high_runtime_initialization_count;
@@ -15325,6 +15354,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         u32 cleared_bytes{};
         std::pair<u32, u32> configured_interface{};
         u32 inventory_root_release_count{};
+        openswd3::special_modes::LegacyStandardModeSpecialWorldTransitionRuntime
+            world_transition_runtime;
+        u32 inventory_clone_token{0x1111U};
+        u32 selection_clone_token{0x2222U};
+        i32 world_transition_return{333};
+        u32 inventory_clone_count{};
         u32 world_transition_count{};
         u32 high_runtime_initialization_count{};
         std::vector<u32> story_flag_queries;
@@ -15336,6 +15371,9 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<u32> copied_slots;
         std::vector<u16> removed_actions;
         std::vector<const LegacyStandardModeForwardNode*> battle_records;
+        std::vector<const LegacyStandardModeForwardNode*>
+            cloned_selection_heads;
+        std::vector<std::array<u32, 4U>> published_world_transitions;
         std::vector<std::size_t> allocated_resource_sizes;
         std::vector<std::pair<u32, u32>> loaded_resources;
         std::vector<u32> released_resources;
@@ -17658,9 +17696,24 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightInteractionCommitPath::
                         world_transition_requested &&
-            commit_world_ports.commit_port_state.removed_actions ==
-                std::vector<u16>{0x02D9U} &&
-            commit_world_ports.commit_port_state.world_transition_count == 1U &&
+            commit_world_ports.commit_port_state.removed_actions.empty() &&
+            commit_world_state.record_head == nullptr &&
+            commit_world.legacy_return_value == 333 &&
+            commit_world_ports.commit_port_state.inventory_clone_count == 1U &&
+            commit_world_ports.commit_port_state.cloned_selection_heads ==
+                std::vector<const LegacyStandardModeForwardNode*>{
+                    &commit_world_record
+                } &&
+            commit_world_ports.commit_port_state.world_transition_runtime
+                    .inventory_clone_token == 0x1111U &&
+            commit_world_ports.commit_port_state.world_transition_runtime
+                    .selection_clone_token == 0x2222U &&
+            commit_world_ports.commit_port_state.published_world_transitions ==
+                std::vector<std::array<u32, 4U>>{
+                    {5U, 1U, 0U, 3U},
+                    {5U, 1U, 0U, 3U},
+                } &&
+            commit_world_ports.commit_port_state.world_transition_count == 2U &&
             commit_high.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightInteractionCommitPath::
@@ -17669,6 +17722,44 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_high_ports.commit_port_state
                     .high_runtime_initialization_count == 1U,
         "0x446700 routes the 2D9 world transition and 318 high runtime entry"
+    );
+
+    LegacyStandardModeForwardNode commit_world_stop_record;
+    commit_world_stop_record.text_index = 0x02D9U;
+    commit_world_stop_record.equipment_type_flags = 6U;
+    GroupEightState commit_world_stop_state;
+    commit_world_stop_state.interaction_mode = 2U;
+    commit_world_stop_state.selection_x = 30U;
+    commit_world_stop_state.record_head = &commit_world_stop_record;
+    commit_world_stop_state.local_record_count = 1;
+    GroupEightMainInputPorts commit_world_stop_ports;
+    commit_world_stop_ports.record_cleanup_available = false;
+    const auto commit_world_stopped = openswd3::special_modes::
+        commit_legacy_standard_mode_group_eight_interaction(
+            commit_world_stop_state,
+            0U,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            commit_world_stop_ports,
+            commit_world_stop_ports.commit_runtime_state,
+            commit_world_stop_ports.commit_port_state
+        );
+    test.expect_true(
+        commit_world_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        record_cleanup_stopped &&
+            commit_world_stop_state.record_head == nullptr &&
+            commit_world_stop_ports.commit_port_state.inventory_clone_count ==
+                1U &&
+            commit_world_stop_ports.commit_port_state.world_transition_runtime
+                    .selection_clone_token == 0x2222U &&
+            commit_world_stop_ports.commit_port_state
+                .published_world_transitions.empty() &&
+            commit_world_stop_ports.commit_port_state.world_transition_count ==
+                0U,
+        "0x4485F0 preserves both clones and the popped cleanup prefix before stopping"
     );
 
     LegacyStandardModeForwardNode commit_locked_record;

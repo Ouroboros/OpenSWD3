@@ -737,6 +737,37 @@ LegacyStandardModeResourceCommitResult commit_legacy_standard_mode_resource(
     return result;
 }
 
+LegacyStandardModeSpecialWorldTransitionResult
+prepare_legacy_standard_mode_special_world_transition(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightCleanupPorts& cleanup_ports,
+    LegacyStandardModeSpecialWorldTransitionRuntime& runtime,
+    LegacyStandardModeSpecialWorldTransitionPorts& ports
+) noexcept {
+    LegacyStandardModeSpecialWorldTransitionResult result;
+    runtime.inventory_clone_token = ports.clone_inventory_record_root();
+    ++result.helper_call_count;
+    runtime.selection_clone_token =
+        ports.clone_selection_record_root(state.record_head);
+    ++result.helper_call_count;
+    const LegacyStandardModeRecordCleanupResult cleaned =
+        cleanup_group_eight_selection_records(state, cleanup_ports);
+    ++result.helper_call_count;
+    if (cleaned.status != LegacyStandardModeRecordCleanupStatus::completed) {
+        result.status = LegacyStandardModeSpecialWorldTransitionStatus::
+            record_cleanup_stopped;
+        return result;
+    }
+    runtime.transition_mode = 5U;
+    runtime.transition_enabled = 1U;
+    runtime.transition_zero = 0U;
+    runtime.transition_layout = 3U;
+    ports.publish_special_world_transition(5U, 1U, 0U, 3U);
+    result.legacy_return_value = ports.dispatch_special_world_transition();
+    ++result.helper_call_count;
+    return result;
+}
+
 LegacyStandardModeEquipmentRecordSortResult
 sort_legacy_standard_mode_equipment_records(
     LegacyStandardModeForwardNode& source_root,
@@ -15129,9 +15160,27 @@ commit_legacy_standard_mode_group_eight_interaction(
         }
         const compat::u16 item_id = record->text_index;
         if (item_id == 0x02D9U) {
-            commit_ports.remove_owned_action(item_id);
-            ++result.helper_call_count;
-            commit_ports.request_special_world_transition();
+            LegacyStandardModeSpecialWorldTransitionPorts& transition_ports =
+                commit_ports.special_world_transition_ports();
+            const LegacyStandardModeSpecialWorldTransitionResult prepared =
+                prepare_legacy_standard_mode_special_world_transition(
+                    state,
+                    ports,
+                    commit_ports.special_world_transition_runtime(),
+                    transition_ports
+                );
+            result.legacy_return_value = prepared.legacy_return_value;
+            result.helper_call_count += prepared.helper_call_count + 1U;
+            if (prepared.status !=
+                LegacyStandardModeSpecialWorldTransitionStatus::completed) {
+                result.status =
+                    LegacyStandardModeGroupEightInteractionCommitStatus::
+                        record_cleanup_stopped;
+                return result;
+            }
+            transition_ports.publish_special_world_transition(5U, 1U, 0U, 3U);
+            result.legacy_return_value =
+                transition_ports.dispatch_special_world_transition();
             ++result.helper_call_count;
             result.path = LegacyStandardModeGroupEightInteractionCommitPath::
                 world_transition_requested;

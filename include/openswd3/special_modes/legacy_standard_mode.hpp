@@ -2330,6 +2330,54 @@ commit_legacy_standard_mode_resource(
     LegacyStandardModeResourceCommitPorts& ports
 ) noexcept;
 
+struct LegacyStandardModeSpecialWorldTransitionRuntime {
+    compat::u32 inventory_clone_token{};
+    compat::u32 selection_clone_token{};
+    compat::u32 transition_mode{};
+    compat::u32 transition_enabled{};
+    compat::u32 transition_zero{};
+    compat::u32 transition_layout{};
+};
+
+class LegacyStandardModeSpecialWorldTransitionPorts {
+public:
+    virtual ~LegacyStandardModeSpecialWorldTransitionPorts() = default;
+    [[nodiscard]] virtual compat::u32
+    clone_inventory_record_root() noexcept = 0;
+    [[nodiscard]] virtual compat::u32 clone_selection_record_root(
+        const LegacyStandardModeForwardNode* head
+    ) noexcept = 0;
+    virtual void publish_special_world_transition(
+        compat::u32 mode,
+        compat::u32 enabled,
+        compat::u32 zero,
+        compat::u32 layout
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    dispatch_special_world_transition() noexcept = 0;
+};
+
+enum class LegacyStandardModeSpecialWorldTransitionStatus : compat::u8 {
+    completed,
+    record_cleanup_stopped,
+};
+
+struct LegacyStandardModeSpecialWorldTransitionResult {
+    LegacyStandardModeSpecialWorldTransitionStatus status{
+        LegacyStandardModeSpecialWorldTransitionStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeSpecialWorldTransitionResult
+prepare_legacy_standard_mode_special_world_transition(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightCleanupPorts& cleanup_ports,
+    LegacyStandardModeSpecialWorldTransitionRuntime& runtime,
+    LegacyStandardModeSpecialWorldTransitionPorts& ports
+) noexcept;
+
 class LegacyStandardModeGroupEightInteractionCommitPorts
     : public LegacyStandardModeMissingNodePorts,
       public LegacyStandardModeFilterQueryPorts,
@@ -2351,7 +2399,10 @@ public:
     ) noexcept = 0;
     virtual void remove_owned_action(compat::u16 action_id) noexcept = 0;
     virtual void release_inventory_root() noexcept = 0;
-    virtual void request_special_world_transition() noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeSpecialWorldTransitionRuntime&
+    special_world_transition_runtime() noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeSpecialWorldTransitionPorts&
+    special_world_transition_ports() noexcept = 0;
     void initialize_high_mode_runtime() noexcept override = 0;
     virtual void request_special_battle(
         const LegacyStandardModeForwardNode& record
