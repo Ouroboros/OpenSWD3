@@ -633,11 +633,13 @@ initialize_legacy_standard_mode_group_eight_first_selection(
     LegacyStandardModeGroupEightInitializationPorts& ports
 ) noexcept;
 
+class LegacyStandardModeRecordCleanupPorts;
+
 class LegacyStandardModeGroupEightCleanupPorts {
 public:
     virtual ~LegacyStandardModeGroupEightCleanupPorts() = default;
-    [[nodiscard]] virtual bool
-    cleanup_selection_records(LegacyStandardModeGroupEightState& state) = 0;
+    [[nodiscard]] virtual LegacyStandardModeRecordCleanupPorts&
+    selection_record_cleanup_ports() noexcept = 0;
     [[nodiscard]] virtual compat::i32 release_workspace(compat::u32 token) = 0;
 };
 
@@ -1351,6 +1353,37 @@ rebuild_legacy_standard_mode_selection_records(
     compat::u32 mode_three_mask,
     compat::u32 mode_six_mask,
     LegacyStandardModeRecordClonePorts& ports
+) noexcept;
+
+class LegacyStandardModeRecordCleanupPorts {
+public:
+    virtual ~LegacyStandardModeRecordCleanupPorts() = default;
+    [[nodiscard]] virtual compat::i32 restore_inventory(
+        compat::u16 text_index, compat::i32 quantity, compat::i32 mode
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool release_selection_record(
+        LegacyStandardModeForwardNode& record
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeRecordCleanupStatus : compat::u8 {
+    completed,
+    record_release_stopped,
+};
+
+struct LegacyStandardModeRecordCleanupResult {
+    LegacyStandardModeRecordCleanupStatus status{
+        LegacyStandardModeRecordCleanupStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 inventory_restore_count{};
+    compat::u32 record_release_count{};
+};
+
+[[nodiscard]] LegacyStandardModeRecordCleanupResult
+cleanup_legacy_standard_mode_selection_records(
+    LegacyStandardModeForwardNode*& head,
+    LegacyStandardModeRecordCleanupPorts& ports
 ) noexcept;
 
 class LegacyStandardModeRecordInitializationPorts

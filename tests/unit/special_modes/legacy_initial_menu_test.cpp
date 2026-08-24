@@ -14987,15 +14987,24 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
 
     class GroupEightCleanupPorts final
         : public openswd3::special_modes::
-              LegacyStandardModeGroupEightCleanupPorts {
+              LegacyStandardModeGroupEightCleanupPorts,
+          public openswd3::special_modes::LegacyStandardModeRecordCleanupPorts {
     public:
-        bool cleanup_selection_records(
-            openswd3::special_modes::LegacyStandardModeGroupEightState& state
-        ) override {
+        openswd3::special_modes::LegacyStandardModeRecordCleanupPorts&
+        selection_record_cleanup_ports() noexcept override {
             events.push_back(1U);
-            if (record_zero_after_call.has_value()) {
-                state.record_zero = *record_zero_after_call;
-            }
+            return *this;
+        }
+        i32 restore_inventory(
+            const u16 text_index, const i32 quantity, const i32 mode
+        ) noexcept override {
+            restored.push_back({text_index, quantity, mode});
+            return 0;
+        }
+        bool release_selection_record(
+            LegacyStandardModeForwardNode& record
+        ) noexcept override {
+            released_records.push_back(&record);
             return cleanup_available;
         }
 
@@ -15009,12 +15018,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::optional<u32> record_zero_after_call;
         i32 release_return{-5};
         std::vector<u32> released_tokens;
+        std::vector<LegacyStandardModeForwardNode*> released_records;
+        std::vector<std::array<i32, 3U>> restored;
         std::vector<u32> events;
     };
 
     class RecordClonePorts final
         : public openswd3::special_modes::
-              LegacyStandardModeRecordInitializationPorts {
+              LegacyStandardModeRecordInitializationPorts,
+          public openswd3::special_modes::LegacyStandardModeRecordCleanupPorts {
     public:
         LegacyStandardModeForwardNode* clone_record(
             const LegacyStandardModeForwardNode& source
@@ -15057,13 +15069,28 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         ) noexcept override {
             released_sources.push_back(&record);
         }
+        i32 restore_inventory(
+            const u16 text_index, const i32 quantity, const i32 mode
+        ) noexcept override {
+            restored_inventory.push_back({text_index, quantity, mode});
+            return 0;
+        }
+        bool release_selection_record(
+            LegacyStandardModeForwardNode& record
+        ) noexcept override {
+            released_selection_records.push_back(&record);
+            return selection_release_available;
+        }
 
         bool allocation_available{true};
         bool missing_allocation_available{true};
+        bool selection_release_available{true};
         i32 debug_return{1};
         std::vector<std::unique_ptr<LegacyStandardModeForwardNode>> records;
         std::vector<LegacyStandardModeForwardNode*> released;
         std::vector<LegacyStandardModeForwardNode*> released_sources;
+        std::vector<LegacyStandardModeForwardNode*> released_selection_records;
+        std::vector<std::array<i32, 3U>> restored_inventory;
         std::vector<u32> debug_queries;
         std::vector<std::pair<u16, u32>> reports;
     };
@@ -15224,10 +15251,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         u32 allocate_workspace(const std::size_t) override {
             return 0U;
         }
-        bool cleanup_selection_records(
-            openswd3::special_modes::LegacyStandardModeGroupEightState&
-        ) override {
-            return record_cleanup_available;
+        openswd3::special_modes::LegacyStandardModeRecordCleanupPorts&
+        selection_record_cleanup_ports() noexcept override {
+            record_initialization_ports.selection_release_available =
+                record_cleanup_available;
+            return record_initialization_ports;
         }
         i32 release_workspace(const u32) override {
             return 0;
@@ -15630,6 +15658,57 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x448230 reuses 448020, drains empty sources and initializes thirteen rows"
     );
 
+    LegacyStandardModeForwardNode cleanup_record_two;
+    LegacyStandardModeForwardNode cleanup_record_one;
+    LegacyStandardModeForwardNode cleanup_record_zero;
+    cleanup_record_zero.next = &cleanup_record_one;
+    cleanup_record_one.next = &cleanup_record_two;
+    cleanup_record_zero.text_index = 0x100U;
+    cleanup_record_zero.first_value = 2U;
+    cleanup_record_zero.second_value = 3U;
+    cleanup_record_one.text_index = 0xFFDCU;
+    cleanup_record_one.first_value = 9U;
+    cleanup_record_two.text_index = 0x101U;
+    cleanup_record_two.first_value = 0xFFFFU;
+    cleanup_record_two.second_value = 1U;
+    LegacyStandardModeForwardNode* cleanup_record_head = &cleanup_record_zero;
+    RecordClonePorts selection_cleanup_ports;
+    const auto selection_records_cleaned =
+        openswd3::special_modes::cleanup_legacy_standard_mode_selection_records(
+            cleanup_record_head, selection_cleanup_ports
+        );
+    LegacyStandardModeForwardNode cleanup_stop_record;
+    cleanup_stop_record.text_index = 0x102U;
+    cleanup_stop_record.first_value = 1U;
+    LegacyStandardModeForwardNode* cleanup_stop_head = &cleanup_stop_record;
+    RecordClonePorts selection_cleanup_stop_ports;
+    selection_cleanup_stop_ports.selection_release_available = false;
+    const auto selection_cleanup_stopped =
+        openswd3::special_modes::cleanup_legacy_standard_mode_selection_records(
+            cleanup_stop_head, selection_cleanup_stop_ports
+        );
+    test.expect_true(
+        selection_records_cleaned.status ==
+                openswd3::special_modes::LegacyStandardModeRecordCleanupStatus::
+                    completed &&
+            cleanup_record_head == nullptr &&
+            selection_records_cleaned.inventory_restore_count == 3U &&
+            selection_records_cleaned.record_release_count == 3U &&
+            selection_cleanup_ports.restored_inventory ==
+                std::vector<std::array<i32, 3U>>{
+                    {0x100, 2, 1},
+                    {0x100, 3, 2},
+                    {0x101, 1, 2},
+                } &&
+            selection_cleanup_stopped.status ==
+                openswd3::special_modes::LegacyStandardModeRecordCleanupStatus::
+                    record_release_stopped &&
+            cleanup_stop_head == nullptr &&
+            selection_cleanup_stopped.inventory_restore_count == 1U &&
+            selection_cleanup_stopped.record_release_count == 0U,
+        "0x4482E0 restores signed-positive quantities and stops after pop on release failure"
+    );
+
     LegacyStandardModeForwardNode first_selection_record;
     first_selection_record.text_index = 0xFFDCU;
     GroupEightState first_selection_state;
@@ -15750,7 +15829,6 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     cleanup_state.local_selection = 6U;
     cleanup_state.workspace_token = 0xABCDEF01U;
     GroupEightCleanupPorts cleanup_ports;
-    cleanup_ports.record_zero_after_call = 77U;
     const auto cleaned =
         openswd3::special_modes::cleanup_legacy_standard_mode_group_eight(
             cleanup_state, cleanup_ports
@@ -15768,21 +15846,23 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             cleanup_state.pre_initialization_zeroes[4U] == 0U &&
             cleanup_state.list_offset == 0U &&
             cleanup_state.local_selection == 0U &&
-            cleanup_state.record_zero == 77U &&
+            cleanup_state.record_zero == 0U &&
             cleanup_state.workspace_token == 0xABCDEF01U &&
             cleanup_ports.released_tokens == std::vector<u32>{0xABCDEF01U} &&
             cleanup_ports.events == std::vector<u32>{1U, 2U},
         "0x4455A0 cleans records, clears the exact six owners and releases workspace"
     );
 
+    LegacyStandardModeForwardNode cleanup_group_stop_record;
+    cleanup_group_stop_record.text_index = 0xFFDCU;
     GroupEightState cleanup_stop_state;
+    cleanup_stop_state.record_head = &cleanup_group_stop_record;
     cleanup_stop_state.pre_initialization_zeroes.fill(9U);
     cleanup_stop_state.list_offset = 8U;
     cleanup_stop_state.local_selection = 6U;
     cleanup_stop_state.workspace_token = 0x1234U;
     GroupEightCleanupPorts cleanup_stop_ports;
     cleanup_stop_ports.cleanup_available = false;
-    cleanup_stop_ports.record_zero_after_call = 88U;
     const auto cleanup_stopped =
         openswd3::special_modes::cleanup_legacy_standard_mode_group_eight(
             cleanup_stop_state, cleanup_stop_ports
@@ -15792,11 +15872,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightCleanupStatus::
                         record_cleanup_stopped &&
-            cleanup_stopped.helper_call_count == 0U &&
+            cleanup_stopped.helper_call_count == 1U &&
             cleanup_stop_state.pre_initialization_zeroes[0U] == 9U &&
             cleanup_stop_state.list_offset == 8U &&
             cleanup_stop_state.local_selection == 6U &&
-            cleanup_stop_state.record_zero == 88U &&
+            cleanup_stop_state.record_zero == 0U &&
             cleanup_stop_ports.released_tokens.empty(),
         "0x4455A0 record cleanup stop preserves callee mutation and skips later clears"
     );
@@ -17049,8 +17129,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             group_main_runtime_ports,
             mode_retreat_ports
         );
+    LegacyStandardModeForwardNode mode_cleanup_stop_record;
+    mode_cleanup_stop_record.text_index = 0xFFDCU;
     GroupEightState mode_cleanup_stop_state;
     mode_cleanup_stop_state.interaction_mode = 2U;
+    mode_cleanup_stop_state.record_head = &mode_cleanup_stop_record;
     mode_cleanup_stop_state.pre_initialization_zeroes[0U] = 4U;
     GroupEightMainInputPorts mode_cleanup_stop_ports;
     mode_cleanup_stop_ports.record_cleanup_available = false;

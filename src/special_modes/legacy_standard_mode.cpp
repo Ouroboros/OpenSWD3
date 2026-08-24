@@ -314,6 +314,15 @@ arithmetic_shift_right_one(const compat::u32 value) noexcept {
 
 namespace {
 
+LegacyStandardModeRecordCleanupResult cleanup_group_eight_selection_records(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightCleanupPorts& ports
+) noexcept {
+    return cleanup_legacy_standard_mode_selection_records(
+        state.record_head, ports.selection_record_cleanup_ports()
+    );
+}
+
 LegacyStandardModeRecordInitializationResult
 initialize_group_eight_selection_records(
     LegacyStandardModeGroupEightState& state,
@@ -566,6 +575,43 @@ initialize_legacy_standard_mode_selection_records(
     }
     state.visible_record_count = result.visible_count;
     state.visible_row_labels[result.visible_count] = 0U;
+    return result;
+}
+
+LegacyStandardModeRecordCleanupResult
+cleanup_legacy_standard_mode_selection_records(
+    LegacyStandardModeForwardNode*& head,
+    LegacyStandardModeRecordCleanupPorts& ports
+) noexcept {
+    LegacyStandardModeRecordCleanupResult result;
+    while (head != nullptr) {
+        LegacyStandardModeForwardNode* const current = head;
+        head = const_cast<LegacyStandardModeForwardNode*>(current->next);
+        if (current->text_index != 0xFFDCU) {
+            const compat::i32 first_quantity =
+                static_cast<compat::i16>(current->first_value);
+            if (first_quantity > 0) {
+                result.legacy_return_value = ports.restore_inventory(
+                    current->text_index, first_quantity, 1
+                );
+                ++result.inventory_restore_count;
+            }
+            const compat::i32 second_quantity =
+                static_cast<compat::i16>(current->second_value);
+            if (second_quantity > 0) {
+                result.legacy_return_value = ports.restore_inventory(
+                    current->text_index, second_quantity, 2
+                );
+                ++result.inventory_restore_count;
+            }
+        }
+        if (!ports.release_selection_record(*current)) {
+            result.status =
+                LegacyStandardModeRecordCleanupStatus::record_release_stopped;
+            return result;
+        }
+        ++result.record_release_count;
+    }
     return result;
 }
 
@@ -12395,12 +12441,14 @@ cleanup_legacy_standard_mode_group_eight(
     LegacyStandardModeGroupEightCleanupPorts& ports
 ) noexcept {
     LegacyStandardModeGroupEightCleanupResult result;
-    if (!ports.cleanup_selection_records(state)) {
+    const LegacyStandardModeRecordCleanupResult records =
+        cleanup_group_eight_selection_records(state, ports);
+    ++result.helper_call_count;
+    if (records.status != LegacyStandardModeRecordCleanupStatus::completed) {
         result.status =
             LegacyStandardModeGroupEightCleanupStatus::record_cleanup_stopped;
         return result;
     }
-    ++result.helper_call_count;
     state.pre_initialization_zeroes[0U] = 0U;
     state.pre_initialization_zeroes[1U] = 0U;
     state.pre_initialization_zeroes[3U] = 0U;
@@ -13984,12 +14032,15 @@ retreat_legacy_standard_mode_group_eight_mode(
         }
         state.viewport_extent = 0x01E0U;
         state.pre_initialization_zeroes[2U] = 0U;
-        if (!ports.cleanup_selection_records(state)) {
+        const LegacyStandardModeRecordCleanupResult records =
+            cleanup_group_eight_selection_records(state, ports);
+        ++result.helper_call_count;
+        if (records.status !=
+            LegacyStandardModeRecordCleanupStatus::completed) {
             result.status = LegacyStandardModeGroupEightModeRetreatStatus::
                 record_cleanup_stopped;
             return result;
         }
-        ++result.helper_call_count;
         const compat::u32 old_hover = state.pre_initialization_zeroes[0U];
         state.pre_initialization_zeroes[0U] = old_hover - 1U;
         if (old_hover == 0U) {
@@ -14105,12 +14156,15 @@ advance_legacy_standard_mode_group_eight_mode(
         }
         state.viewport_extent = 0x01E0U;
         state.pre_initialization_zeroes[2U] = 0U;
-        if (!ports.cleanup_selection_records(state)) {
+        const LegacyStandardModeRecordCleanupResult records =
+            cleanup_group_eight_selection_records(state, ports);
+        ++result.helper_call_count;
+        if (records.status !=
+            LegacyStandardModeRecordCleanupStatus::completed) {
             result.status = LegacyStandardModeGroupEightModeAdvanceStatus::
                 record_cleanup_stopped;
             return result;
         }
-        ++result.helper_call_count;
         ++state.pre_initialization_zeroes[0U];
         if (state.pre_initialization_zeroes[0U] == 7U) {
             state.pre_initialization_zeroes[0U] = 0U;
@@ -14905,13 +14959,16 @@ commit_legacy_standard_mode_group_eight_interaction(
             }
         }
         if (state.selection_x == 0x1FU) {
-            if (!ports.cleanup_selection_records(state)) {
+            const LegacyStandardModeRecordCleanupResult records =
+                cleanup_group_eight_selection_records(state, ports);
+            ++result.helper_call_count;
+            if (records.status !=
+                LegacyStandardModeRecordCleanupStatus::completed) {
                 result.status =
                     LegacyStandardModeGroupEightInteractionCommitStatus::
                         record_cleanup_stopped;
                 return result;
             }
-            ++result.helper_call_count;
             commit_ports.release_inventory_root();
             ++result.helper_call_count;
             state.selection_x = 0x1EU;
