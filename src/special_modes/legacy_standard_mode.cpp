@@ -615,6 +615,128 @@ cleanup_legacy_standard_mode_selection_records(
     return result;
 }
 
+LegacyStandardModeResourceCommitResult commit_legacy_standard_mode_resource(
+    const compat::u32 selected_row,
+    const compat::u32 source_index,
+    const compat::i16 trailing_value,
+    LegacyStandardModeResourceCommitPorts& ports
+) noexcept {
+    const auto read_u16 = [](const LegacyStandardModeResourceRecord& record,
+                             const std::size_t offset) noexcept {
+        return static_cast<compat::u16>(
+            static_cast<compat::u16>(record.bytes[offset]) |
+            (static_cast<compat::u16>(record.bytes[offset + 1U]) << 8U)
+        );
+    };
+    const auto read_u32 = [](const LegacyStandardModeResourceRecord& record,
+                             const std::size_t offset) noexcept {
+        return static_cast<compat::u32>(record.bytes[offset]) |
+            (static_cast<compat::u32>(record.bytes[offset + 1U]) << 8U) |
+            (static_cast<compat::u32>(record.bytes[offset + 2U]) << 16U) |
+            (static_cast<compat::u32>(record.bytes[offset + 3U]) << 24U);
+    };
+    const auto write_u32 = [](LegacyStandardModeResourceRecord& record,
+                              const std::size_t offset,
+                              const compat::u32 value) noexcept {
+        for (std::size_t index = 0U; index < 4U; ++index) {
+            record.bytes[offset + index] = static_cast<compat::u8>(
+                value >> static_cast<compat::u32>(index * 8U)
+            );
+        }
+    };
+
+    LegacyStandardModeResourceCommitResult result;
+    LegacyStandardModeResourceRecord temporary;
+    ++result.helper_call_count;
+    ports.initialize_temporary_record(temporary);
+    ++result.helper_call_count;
+    ports.load_temporary_record(temporary, selected_row + 0x47U);
+    ++result.helper_call_count;
+    const bool existing_resource = read_u32(temporary, 0x48U) != 0U;
+    write_u32(temporary, 0x40U, 0x232BU);
+    write_u32(
+        temporary, 0x04U, ports.source_flags_04(source_index) & 0xFFFFFFF0U
+    );
+    write_u32(
+        temporary, 0x08U, ports.source_flags_08(source_index) & 0xFFFFFFF0U
+    );
+    write_u32(temporary, 0x10U, read_u32(temporary, 0x10U) | 0x00008000U);
+
+    if (existing_resource) {
+        write_u32(temporary, 0x48U, 0U);
+        write_u32(temporary, 0x74U, 0U);
+        ports.configure_temporary_action(
+            temporary,
+            LegacyStandardModeResourceActionRequest{
+                read_u16(temporary, 0x24U),
+                read_u16(temporary, 0x40U),
+                read_u16(temporary, 0x48U),
+                read_u16(temporary, 0x74U),
+                1000U,
+            }
+        );
+        ++result.helper_call_count;
+        auto& records = ports.world_records();
+        for (std::size_t index = 1U; index < records.size(); ++index) {
+            if (read_u16(records[index], 0x24U) != read_u16(temporary, 0x24U)) {
+                continue;
+            }
+            write_u32(
+                records[index], 0x10U, read_u32(records[index], 0x10U) & 0x3FFFU
+            );
+            ports.release_world_record_action(records[index]);
+            ++result.helper_call_count;
+            const compat::u32 flags =
+                read_u32(records[index], 0x10U) | 0x10000000U;
+            write_u32(records[index], 0x10U, flags);
+            ports.refresh_world_record_action(
+                read_u16(records[index], 0x24U), flags & 3U, 0U, 1U
+            );
+            ++result.helper_call_count;
+            ++result.matching_record_count;
+        }
+        ++result.helper_call_count;
+        return result;
+    }
+
+    write_u32(temporary, 0x48U, selected_row * 4U + 4U);
+    write_u32(temporary, 0x74U, ports.source_mode(source_index) & 3U);
+    ports.configure_temporary_action(
+        temporary,
+        LegacyStandardModeResourceActionRequest{
+            read_u16(temporary, 0x24U),
+            read_u16(temporary, 0x40U),
+            read_u16(temporary, 0x48U),
+            read_u16(temporary, 0x74U),
+            static_cast<compat::u16>(trailing_value),
+        }
+    );
+    ports.finalize_temporary_record(temporary);
+    result.helper_call_count += 2U;
+    auto& records = ports.world_records();
+    std::size_t destination = records.size();
+    for (std::size_t index = 1U; index < records.size(); ++index) {
+        if (read_u16(records[index], 0x24U) == read_u16(temporary, 0x24U)) {
+            destination = index;
+            break;
+        }
+    }
+    if (destination == records.size()) {
+        records.push_back(temporary);
+        result.appended = true;
+    } else {
+        records[destination] = temporary;
+    }
+    ports.initialize_world_record(
+        records[destination], read_u32(records[destination], 0x10U) & 3U
+    );
+    ++result.helper_call_count;
+    result.legacy_return_value = 1;
+    result.matching_record_count = 1U;
+    ++result.helper_call_count;
+    return result;
+}
+
 LegacyStandardModeEquipmentRecordSortResult
 sort_legacy_standard_mode_equipment_records(
     LegacyStandardModeForwardNode& source_root,
@@ -15321,16 +15443,23 @@ commit_legacy_standard_mode_group_eight_interaction(
             LegacyStandardModeGroupEightInteractionCommitPath::mode_ten_loaded;
         return result;
     }
-    case 0x0BU:
+    case 0x0BU: {
         state.interaction_mode = 0x0AU;
         if (state.selected_column != 0U) {
             return result;
         }
-        if (!commit_ports.finalize_mode_resource()) {
-            ++result.helper_call_count;
+        const LegacyStandardModeResourceCommitResult resource =
+            commit_legacy_standard_mode_resource(
+                state.selected_outer_row,
+                commit_ports.mode_resource_source_index(),
+                commit_ports.mode_resource_trailing_value(),
+                commit_ports.mode_resource_commit_ports()
+            );
+        result.legacy_return_value = resource.legacy_return_value;
+        result.helper_call_count += resource.helper_call_count + 1U;
+        if (resource.legacy_return_value == 0) {
             return result;
         }
-        ++result.helper_call_count;
         state.interaction_mode = 2U;
         if (state.mode_ten_available == 0) {
             const LegacyStandardModeGroupEightInteractionExitResult exit =
@@ -15356,6 +15485,7 @@ commit_legacy_standard_mode_group_eight_interaction(
         result.path = LegacyStandardModeGroupEightInteractionCommitPath::
             mode_eleven_finished;
         return result;
+    }
     case 0x0FU: {
         remove_inventory(0x02B9U);
         const compat::i32 selected =

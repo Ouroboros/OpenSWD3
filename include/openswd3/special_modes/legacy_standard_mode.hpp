@@ -2263,6 +2263,73 @@ render_legacy_standard_mode_group_one(
     LegacyStandardModeGroupOneRenderPorts& ports
 ) noexcept;
 
+inline constexpr std::size_t kLegacyStandardModeResourceRecordSize = 0xD8U;
+
+struct LegacyStandardModeResourceRecord {
+    std::array<compat::u8, kLegacyStandardModeResourceRecordSize> bytes{};
+};
+
+struct LegacyStandardModeResourceActionRequest {
+    compat::u16 action_id{};
+    compat::u16 value_40{};
+    compat::u16 value_48{};
+    compat::u16 value_74{};
+    compat::u16 trailing_value{};
+};
+
+class LegacyStandardModeResourceCommitPorts {
+public:
+    virtual ~LegacyStandardModeResourceCommitPorts() = default;
+    virtual void initialize_temporary_record(
+        LegacyStandardModeResourceRecord& record
+    ) noexcept = 0;
+    virtual void load_temporary_record(
+        LegacyStandardModeResourceRecord& record, compat::u32 resource_id
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::u32
+    source_flags_04(compat::u32 source_index) noexcept = 0;
+    [[nodiscard]] virtual compat::u32
+    source_flags_08(compat::u32 source_index) noexcept = 0;
+    [[nodiscard]] virtual compat::u32
+    source_mode(compat::u32 source_index) noexcept = 0;
+    virtual void configure_temporary_action(
+        LegacyStandardModeResourceRecord& record,
+        const LegacyStandardModeResourceActionRequest& request
+    ) noexcept = 0;
+    virtual void finalize_temporary_record(
+        LegacyStandardModeResourceRecord& record
+    ) noexcept = 0;
+    [[nodiscard]] virtual std::vector<LegacyStandardModeResourceRecord>&
+    world_records() noexcept = 0;
+    virtual void initialize_world_record(
+        LegacyStandardModeResourceRecord& record, compat::u32 mode
+    ) noexcept = 0;
+    virtual void release_world_record_action(
+        LegacyStandardModeResourceRecord& record
+    ) noexcept = 0;
+    virtual void refresh_world_record_action(
+        compat::u16 action_id,
+        compat::u32 mode,
+        compat::u32 reserved,
+        compat::u32 enabled
+    ) noexcept = 0;
+};
+
+struct LegacyStandardModeResourceCommitResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 matching_record_count{};
+    bool appended{};
+};
+
+[[nodiscard]] LegacyStandardModeResourceCommitResult
+commit_legacy_standard_mode_resource(
+    compat::u32 selected_row,
+    compat::u32 source_index,
+    compat::i16 trailing_value,
+    LegacyStandardModeResourceCommitPorts& ports
+) noexcept;
+
 class LegacyStandardModeGroupEightInteractionCommitPorts
     : public LegacyStandardModeMissingNodePorts,
       public LegacyStandardModeFilterQueryPorts,
@@ -2296,7 +2363,11 @@ public:
     [[nodiscard]] virtual compat::u32
     mode_resource_flag(compat::u32 token) noexcept = 0;
     virtual void release_mode_resource(compat::u32 token) noexcept = 0;
-    [[nodiscard]] virtual bool finalize_mode_resource() noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeResourceCommitPorts&
+    mode_resource_commit_ports() noexcept = 0;
+    [[nodiscard]] virtual compat::u32 mode_resource_source_index() noexcept = 0;
+    [[nodiscard]] virtual compat::i16
+    mode_resource_trailing_value() noexcept = 0;
 };
 
 enum class LegacyStandardModeGroupEightInteractionCommitStatus : compat::u8 {

@@ -15095,6 +15095,118 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<std::pair<u16, u32>> reports;
     };
 
+    class ModeResourceCommitPorts final
+        : public openswd3::special_modes::
+              LegacyStandardModeResourceCommitPorts {
+    public:
+        static void write_u16(
+            openswd3::special_modes::LegacyStandardModeResourceRecord& record,
+            const std::size_t offset,
+            const u16 value
+        ) noexcept {
+            record.bytes[offset] = static_cast<u8>(value);
+            record.bytes[offset + 1U] = static_cast<u8>(value >> 8U);
+        }
+        static u32 read_u32(
+            const openswd3::special_modes::LegacyStandardModeResourceRecord&
+                record,
+            const std::size_t offset
+        ) noexcept {
+            return static_cast<u32>(record.bytes[offset]) |
+                (static_cast<u32>(record.bytes[offset + 1U]) << 8U) |
+                (static_cast<u32>(record.bytes[offset + 2U]) << 16U) |
+                (static_cast<u32>(record.bytes[offset + 3U]) << 24U);
+        }
+        static void write_u32(
+            openswd3::special_modes::LegacyStandardModeResourceRecord& record,
+            const std::size_t offset,
+            const u32 value
+        ) noexcept {
+            for (std::size_t index = 0U; index < 4U; ++index) {
+                record.bytes[offset + index] =
+                    static_cast<u8>(value >> static_cast<u32>(index * 8U));
+            }
+        }
+        void initialize_temporary_record(
+            openswd3::special_modes::LegacyStandardModeResourceRecord&
+        ) noexcept override {
+            ++temporary_initialization_count;
+        }
+        void load_temporary_record(
+            openswd3::special_modes::LegacyStandardModeResourceRecord& record,
+            const u32 resource_id
+        ) noexcept override {
+            loaded_resource_ids.push_back(resource_id);
+            write_u32(record, 0x48U, loaded_flag);
+            write_u16(record, 0x24U, loaded_action_id);
+        }
+        u32 source_flags_04(const u32) noexcept override {
+            return flags_04;
+        }
+        u32 source_flags_08(const u32) noexcept override {
+            return flags_08;
+        }
+        u32 source_mode(const u32) noexcept override {
+            return source_mode_value;
+        }
+        void configure_temporary_action(
+            openswd3::special_modes::LegacyStandardModeResourceRecord&,
+            const openswd3::special_modes::
+                LegacyStandardModeResourceActionRequest& request
+        ) noexcept override {
+            action_requests.push_back(request);
+        }
+        void finalize_temporary_record(
+            openswd3::special_modes::LegacyStandardModeResourceRecord&
+        ) noexcept override {
+            ++temporary_finalization_count;
+        }
+        std::vector<openswd3::special_modes::LegacyStandardModeResourceRecord>&
+        world_records() noexcept override {
+            return records;
+        }
+        void initialize_world_record(
+            openswd3::special_modes::LegacyStandardModeResourceRecord& record,
+            const u32 mode
+        ) noexcept override {
+            initialized_world_records.push_back({&record, mode});
+        }
+        void release_world_record_action(
+            openswd3::special_modes::LegacyStandardModeResourceRecord& record
+        ) noexcept override {
+            released_world_records.push_back(&record);
+        }
+        void refresh_world_record_action(
+            const u16 action_id,
+            const u32 mode,
+            const u32 reserved,
+            const u32 enabled
+        ) noexcept override {
+            refreshed_actions.push_back({action_id, mode, reserved, enabled});
+        }
+
+        u32 loaded_flag{};
+        u16 loaded_action_id{0x234U};
+        u32 flags_04{0x1234567FU};
+        u32 flags_08{0x89ABCDEFU};
+        u32 source_mode_value{3U};
+        u32 temporary_initialization_count{};
+        u32 temporary_finalization_count{};
+        std::vector<u32> loaded_resource_ids;
+        std::vector<
+            openswd3::special_modes::LegacyStandardModeResourceActionRequest>
+            action_requests;
+        std::vector<openswd3::special_modes::LegacyStandardModeResourceRecord>
+            records{1U};
+        std::vector<std::pair<
+            openswd3::special_modes::LegacyStandardModeResourceRecord*,
+            u32>>
+            initialized_world_records;
+        std::vector<openswd3::special_modes::LegacyStandardModeResourceRecord*>
+            released_world_records;
+        std::vector<std::array<u32, 4U>> refreshed_actions;
+    };
+
     class GroupEightCommitPorts final
         : public openswd3::special_modes::
               LegacyStandardModeGroupEightInteractionCommitPorts {
@@ -15186,9 +15298,15 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         void release_mode_resource(const u32 token) noexcept override {
             released_resources.push_back(token);
         }
-        bool finalize_mode_resource() noexcept override {
-            ++resource_finalize_count;
-            return resource_finalize_result;
+        openswd3::special_modes::LegacyStandardModeResourceCommitPorts&
+        mode_resource_commit_ports() noexcept override {
+            return resource_commit_ports;
+        }
+        u32 mode_resource_source_index() noexcept override {
+            return resource_source_index;
+        }
+        i16 mode_resource_trailing_value() noexcept override {
+            return resource_trailing_value;
         }
 
         const LegacyStandardModeForwardNode* missing_node{};
@@ -15201,13 +15319,14 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         u32 resource_token{0xCAFEU};
         i32 resource_load_return{};
         u32 resource_flag{1U};
-        bool resource_finalize_result{true};
+        u32 resource_source_index{2U};
+        i16 resource_trailing_value{77};
+        ModeResourceCommitPorts resource_commit_ports;
         u32 cleared_bytes{};
         std::pair<u32, u32> configured_interface{};
         u32 inventory_root_release_count{};
         u32 world_transition_count{};
         u32 high_runtime_initialization_count{};
-        u32 resource_finalize_count{};
         std::vector<u32> story_flag_queries;
         std::vector<u32> filter_queries;
         std::vector<LegacyStandardModeDialogDrawRequest> dialog_draws;
@@ -15707,6 +15826,87 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             selection_cleanup_stopped.inventory_restore_count == 1U &&
             selection_cleanup_stopped.record_release_count == 0U,
         "0x4482E0 restores signed-positive quantities and stops after pop on release failure"
+    );
+
+    ModeResourceCommitPorts existing_resource_ports;
+    existing_resource_ports.loaded_flag = 1U;
+    existing_resource_ports.records.resize(3U);
+    ModeResourceCommitPorts::write_u16(
+        existing_resource_ports.records[1U], 0x24U, 0x234U
+    );
+    ModeResourceCommitPorts::write_u32(
+        existing_resource_ports.records[1U], 0x10U, 0xFFFFC003U
+    );
+    ModeResourceCommitPorts::write_u16(
+        existing_resource_ports.records[2U], 0x24U, 0x235U
+    );
+    const auto existing_resource =
+        openswd3::special_modes::commit_legacy_standard_mode_resource(
+            5U, 2U, 77, existing_resource_ports
+        );
+    ModeResourceCommitPorts new_resource_ports;
+    const auto new_resource =
+        openswd3::special_modes::commit_legacy_standard_mode_resource(
+            6U, 2U, 77, new_resource_ports
+        );
+    ModeResourceCommitPorts overwrite_resource_ports;
+    overwrite_resource_ports.records.resize(2U);
+    ModeResourceCommitPorts::write_u16(
+        overwrite_resource_ports.records[1U], 0x24U, 0x234U
+    );
+    const auto overwritten_resource =
+        openswd3::special_modes::commit_legacy_standard_mode_resource(
+            7U, 2U, -3, overwrite_resource_ports
+        );
+    test.expect_true(
+        existing_resource.legacy_return_value == 0 &&
+            existing_resource.matching_record_count == 1U &&
+            !existing_resource.appended &&
+            existing_resource_ports.loaded_resource_ids ==
+                std::vector<u32>{0x4CU} &&
+            existing_resource_ports.action_requests.size() == 1U &&
+            existing_resource_ports.action_requests[0U].action_id == 0x234U &&
+            existing_resource_ports.action_requests[0U].value_40 == 0x232BU &&
+            existing_resource_ports.action_requests[0U].value_48 == 0U &&
+            existing_resource_ports.action_requests[0U].value_74 == 0U &&
+            existing_resource_ports.action_requests[0U].trailing_value ==
+                1000U &&
+            existing_resource_ports.temporary_finalization_count == 0U &&
+            existing_resource_ports.released_world_records ==
+                std::vector<
+                    openswd3::special_modes::LegacyStandardModeResourceRecord*>{
+                    &existing_resource_ports.records[1U]
+                } &&
+            existing_resource_ports.refreshed_actions ==
+                std::vector<std::array<u32, 4U>>{{0x234U, 3U, 0U, 1U}} &&
+            ModeResourceCommitPorts::read_u32(
+                existing_resource_ports.records[1U], 0x10U
+            ) == 0x10000003U,
+        "0x448360 reconfigures an existing resource and refreshes every matching world record"
+    );
+    test.expect_true(
+        new_resource.legacy_return_value == 1 && new_resource.appended &&
+            new_resource.matching_record_count == 1U &&
+            new_resource_ports.records.size() == 2U &&
+            new_resource_ports.loaded_resource_ids == std::vector<u32>{0x4DU} &&
+            new_resource_ports.temporary_finalization_count == 1U &&
+            new_resource_ports.action_requests.size() == 1U &&
+            new_resource_ports.action_requests[0U].value_48 == 28U &&
+            new_resource_ports.action_requests[0U].value_74 == 3U &&
+            new_resource_ports.action_requests[0U].trailing_value == 77U &&
+            ModeResourceCommitPorts::read_u32(
+                new_resource_ports.records[1U], 0x04U
+            ) == 0x12345670U &&
+            ModeResourceCommitPorts::read_u32(
+                new_resource_ports.records[1U], 0x08U
+            ) == 0x89ABCDE0U &&
+            overwritten_resource.legacy_return_value == 1 &&
+            !overwritten_resource.appended &&
+            overwrite_resource_ports.records.size() == 2U &&
+            overwrite_resource_ports.action_requests[0U].value_48 == 32U &&
+            overwrite_resource_ports.action_requests[0U].trailing_value ==
+                0xFFFDU,
+        "0x448360 appends a new resource or overwrites the first matching world slot"
     );
 
     LegacyStandardModeForwardNode first_selection_record;
