@@ -341,6 +341,56 @@ initialize_group_eight_selection_records(
 
 }  // namespace
 
+LegacyStandardModeCatalogResult initialize_legacy_standard_mode_catalog(
+    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+) noexcept {
+    LegacyStandardModeCatalogResult result;
+    state.mode_word = (state.mode_word & 0xFFFF0000U) | 5U;
+    state.primary_owners[0U] = 0U;
+    state.primary_owners[1U] = 0U;
+    state.primary_owners[2U] = 0U;
+    state.list_owner = ports.allocate_catalog_buffer(0x100U);
+    ++result.helper_call_count;
+    if (state.list_owner == 0U) {
+        result.status = LegacyStandardModeCatalogStatus::allocation_stopped;
+        return result;
+    }
+    state.entries.fill(0U);
+    state.entry_count = 0U;
+
+    for (compat::u32 item_id = 0xE75U; item_id < 0xFA0U; ++item_id) {
+        const compat::i32 presence = ports.query_catalog_item_presence(item_id);
+        ++result.helper_call_count;
+        ++result.queried_item_count;
+        if (presence != 1) {
+            continue;
+        }
+        if (state.entry_count >= state.entries.size()) {
+            result.status = LegacyStandardModeCatalogStatus::capacity_stopped;
+            return result;
+        }
+        state.entries[state.entry_count] =
+            static_cast<compat::u16>(item_id - 0xE74U);
+        ++state.entry_count;
+    }
+
+    const compat::u32 shared_snapshot = state.shared_value;
+    state.secondary_owners[0U] = 0U;
+    state.secondary_owners[1U] = 0U;
+    state.secondary_owners[2U] = 0U;
+    state.secondary_owners[3U] = 0U;
+    state.secondary_owners[4U] = 0U;
+    state.secondary_owners[5U] = 0U;
+    state.primary_owners[3U] = 0U;
+    state.primary_owners[4U] = 0U;
+    state.primary_owners[5U] = 0U;
+    state.published_shared_value = shared_snapshot;
+    state.secondary_owners[6U] = 0U;
+    state.secondary_owners[7U] = 0U;
+    result.legacy_return_value = std::bit_cast<compat::i32>(shared_snapshot);
+    return result;
+}
+
 LegacyStandardModeTransitionPairRebuildResult
 rebuild_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,

@@ -363,6 +363,46 @@ struct LegacyStandardModeTransitionPairScale {
     compat::u16 value{};
 };
 
+struct LegacyStandardModeCatalogState {
+    compat::u32 mode_word{};
+    std::array<compat::u32, 6U> primary_owners{};
+    compat::u32 list_owner{};
+    std::array<compat::u16, 128U> entries{};
+    compat::u32 entry_count{};
+    std::array<compat::u32, 8U> secondary_owners{};
+    compat::u32 shared_value{};
+    compat::u32 published_shared_value{};
+};
+
+class LegacyStandardModeCatalogPorts {
+public:
+    virtual ~LegacyStandardModeCatalogPorts() = default;
+    [[nodiscard]] virtual compat::u32
+    allocate_catalog_buffer(compat::u32 size) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    query_catalog_item_presence(compat::u32 item_id) noexcept = 0;
+};
+
+enum class LegacyStandardModeCatalogStatus : compat::u8 {
+    completed,
+    allocation_stopped,
+    capacity_stopped,
+};
+
+struct LegacyStandardModeCatalogResult {
+    LegacyStandardModeCatalogStatus status{
+        LegacyStandardModeCatalogStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 queried_item_count{};
+};
+
+[[nodiscard]] LegacyStandardModeCatalogResult
+initialize_legacy_standard_mode_catalog(
+    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeTransitionPairRenderCommandType : compat::u8 {
     calculate_color,
     draw_tiled_frame,

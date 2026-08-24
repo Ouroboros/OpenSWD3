@@ -490,6 +490,35 @@ public:
         transition_commands;
 };
 
+class FakeStandardModeCatalogPorts final
+    : public openswd3::special_modes::LegacyStandardModeCatalogPorts {
+public:
+    u32 allocate_catalog_buffer(const u32 size) noexcept override {
+        allocation_sizes.push_back(size);
+        return allocation_return;
+    }
+    i32 query_catalog_item_presence(const u32 item_id) noexcept override {
+        queried_item_ids.push_back(item_id);
+        if (all_present ||
+            std::find(
+                exact_present_ids.begin(), exact_present_ids.end(), item_id
+            ) != exact_present_ids.end()) {
+            return 1;
+        }
+        if (item_id == non_exact_present_id) {
+            return 2;
+        }
+        return 0;
+    }
+
+    u32 allocation_return{0x1234U};
+    std::vector<u32> allocation_sizes;
+    bool all_present{};
+    std::vector<u32> exact_present_ids;
+    u32 non_exact_present_id{};
+    std::vector<u32> queried_item_ids;
+};
+
 class FakeTransitionPairPorts final
     : public openswd3::special_modes::LegacyStandardModeTransitionPairPorts {
 public:
@@ -15017,6 +15046,100 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             0x4B3AE2F14F37C244ULL
         },
     };
+
+    openswd3::special_modes::LegacyStandardModeCatalogState catalog_state;
+    catalog_state.mode_word = 0xABCD1234U;
+    catalog_state.primary_owners.fill(0x11111111U);
+    catalog_state.secondary_owners.fill(0x22222222U);
+    catalog_state.entries.fill(0xFFFFU);
+    catalog_state.entry_count = 99U;
+    catalog_state.shared_value = 0x89ABCDEFU;
+    catalog_state.published_shared_value = 0x33333333U;
+    FakeStandardModeCatalogPorts catalog_ports;
+    catalog_ports.exact_present_ids = {0xE75U, 0xE77U, 0xF9FU};
+    catalog_ports.non_exact_present_id = 0xE76U;
+    const auto catalog_result =
+        openswd3::special_modes::initialize_legacy_standard_mode_catalog(
+            catalog_state, catalog_ports
+        );
+    test.expect_true(
+        catalog_result.status ==
+                openswd3::special_modes::LegacyStandardModeCatalogStatus::
+                    completed &&
+            catalog_state.mode_word == 0xABCD0005U &&
+            catalog_state.list_owner == 0x1234U &&
+            catalog_state.entry_count == 3U &&
+            catalog_state.entries[0U] == 1U &&
+            catalog_state.entries[1U] == 3U &&
+            catalog_state.entries[2U] == 0x12BU &&
+            catalog_ports.queried_item_ids.size() == 299U &&
+            catalog_ports.queried_item_ids.front() == 0xE75U &&
+            catalog_ports.queried_item_ids.back() == 0xF9FU &&
+            std::all_of(
+                catalog_state.primary_owners.begin(),
+                catalog_state.primary_owners.end(),
+                [](const u32 value) { return value == 0U; }
+            ) &&
+            std::all_of(
+                catalog_state.secondary_owners.begin(),
+                catalog_state.secondary_owners.end(),
+                [](const u32 value) { return value == 0U; }
+            ) &&
+            catalog_state.published_shared_value == 0x89ABCDEFU &&
+            static_cast<u32>(catalog_result.legacy_return_value) ==
+                0x89ABCDEFU &&
+            catalog_result.helper_call_count == 300U &&
+            catalog_result.queried_item_count == 299U,
+        "0x44AF30 scans all 299 catalog ids, accepts only exact presence one, stores one-based ids, and publishes the shared value after resets"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_allocation_stop_state;
+    catalog_allocation_stop_state.mode_word = 0x12340009U;
+    catalog_allocation_stop_state.primary_owners.fill(0xAAAAAAAAU);
+    catalog_allocation_stop_state.entries[0U] = 0x7777U;
+    catalog_allocation_stop_state.entry_count = 99U;
+    FakeStandardModeCatalogPorts catalog_allocation_stop_ports;
+    catalog_allocation_stop_ports.allocation_return = 0U;
+    const auto catalog_allocation_stop =
+        openswd3::special_modes::initialize_legacy_standard_mode_catalog(
+            catalog_allocation_stop_state, catalog_allocation_stop_ports
+        );
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_capacity_stop_state;
+    catalog_capacity_stop_state.primary_owners.fill(0xAAAAAAAAU);
+    catalog_capacity_stop_state.secondary_owners.fill(0xBBBBBBBBU);
+    FakeStandardModeCatalogPorts catalog_capacity_stop_ports;
+    catalog_capacity_stop_ports.all_present = true;
+    const auto catalog_capacity_stop =
+        openswd3::special_modes::initialize_legacy_standard_mode_catalog(
+            catalog_capacity_stop_state, catalog_capacity_stop_ports
+        );
+    test.expect_true(
+        catalog_allocation_stop.status ==
+                openswd3::special_modes::LegacyStandardModeCatalogStatus::
+                    allocation_stopped &&
+            catalog_allocation_stop_state.mode_word == 0x12340005U &&
+            catalog_allocation_stop_state.primary_owners[0U] == 0U &&
+            catalog_allocation_stop_state.primary_owners[1U] == 0U &&
+            catalog_allocation_stop_state.primary_owners[2U] == 0U &&
+            catalog_allocation_stop_state.primary_owners[3U] == 0xAAAAAAAAU &&
+            catalog_allocation_stop_state.entries[0U] == 0x7777U &&
+            catalog_allocation_stop_state.entry_count == 99U &&
+            catalog_allocation_stop.helper_call_count == 1U &&
+            catalog_capacity_stop.status ==
+                openswd3::special_modes::LegacyStandardModeCatalogStatus::
+                    capacity_stopped &&
+            catalog_capacity_stop_state.entry_count == 128U &&
+            catalog_capacity_stop_state.entries.front() == 1U &&
+            catalog_capacity_stop_state.entries.back() == 128U &&
+            catalog_capacity_stop_ports.queried_item_ids.size() == 129U &&
+            catalog_capacity_stop_ports.queried_item_ids.back() == 0xEF5U &&
+            catalog_capacity_stop_state.secondary_owners[0U] == 0xBBBBBBBBU &&
+            catalog_capacity_stop.helper_call_count == 130U &&
+            catalog_capacity_stop.queried_item_count == 129U,
+        "0x44AF30 stops at the original memset or 129th matched write while preserving prior initialization, queries, and entries"
+    );
 
     openswd3::special_modes::LegacyStandardModeTransitionPairState
         transition_pair_state;
