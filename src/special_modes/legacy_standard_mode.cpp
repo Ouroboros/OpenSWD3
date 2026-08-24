@@ -443,6 +443,147 @@ initialize_legacy_standard_mode_equipment(
     return result;
 }
 
+LegacyStandardModeEquipmentPageAdvanceResult
+advance_legacy_standard_mode_equipment_page(
+    LegacyStandardModeEquipmentInitializationState& state,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentPageAdvancePorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentPageAdvanceResult result;
+    const compat::u32 mode = state.mode_enabled;
+    result.legacy_return_value = std::bit_cast<compat::i32>(mode - 0x0FU);
+    if (mode == 1U) {
+        const compat::u32 even_adjustment =
+            (state.visible_record_count & 1U) == 0U ? 1U : 0U;
+        const compat::u32 row_end =
+            state.visible_record_count - even_adjustment;
+        compat::u32 selected = row_end - 1U;
+        if (std::bit_cast<compat::i32>(state.local_selection) <
+            std::bit_cast<compat::i32>(selected)) {
+            const compat::u32 parity = state.local_selection & 1U;
+            state.local_selection = parity + selected;
+            result.legacy_return_value =
+                std::bit_cast<compat::i32>(state.local_selection);
+            if (std::bit_cast<compat::i32>(state.local_selection) >=
+                std::bit_cast<compat::i32>(state.visible_record_count)) {
+                state.local_selection = parity + selected - 2U;
+                result.legacy_return_value =
+                    std::bit_cast<compat::i32>(state.local_selection);
+            }
+            return result;
+        }
+
+        const compat::u32 previous_offset = state.list_offset;
+        state.list_offset += 0x18U;
+        compat::u32 selected_offset = state.list_offset;
+        if (std::bit_cast<compat::i32>(state.list_offset) >=
+            std::bit_cast<compat::i32>(state.total_record_count)) {
+            state.local_selection = selected;
+            state.list_offset = previous_offset;
+            selected_offset = previous_offset;
+        } else {
+            const LegacyStandardModeForwardNode* const record_head =
+                state.record_head;
+            static_cast<void>(advance_legacy_standard_mode_forward_head(
+                std::bit_cast<compat::i32>(state.list_offset),
+                &record_head,
+                &state.visible_record_head
+            ));
+            ++result.helper_call_count;
+            if (!ports.refresh_equipment_visible_count(state)) {
+                result.status = LegacyStandardModeEquipmentPageAdvanceStatus::
+                    visible_count_refresh_stopped;
+                return result;
+            }
+            ++result.helper_call_count;
+            selected = state.local_selection;
+            if (std::bit_cast<compat::i32>(state.local_selection) >=
+                std::bit_cast<compat::i32>(state.visible_record_count)) {
+                const compat::u32 parity = state.local_selection & 1U;
+                const compat::u32 new_even_adjustment =
+                    (state.visible_record_count & 1U) == 0U ? 1U : 0U;
+                state.local_selection = parity - new_even_adjustment +
+                    state.visible_record_count - 1U;
+                result.legacy_return_value =
+                    std::bit_cast<compat::i32>(state.local_selection);
+                if (std::bit_cast<compat::i32>(state.local_selection) >=
+                    std::bit_cast<compat::i32>(state.visible_record_count)) {
+                    state.local_selection -= 2U;
+                    result.legacy_return_value =
+                        std::bit_cast<compat::i32>(state.local_selection);
+                }
+                return result;
+            }
+        }
+
+        const compat::i32 selected_index =
+            std::bit_cast<compat::i32>(selected + selected_offset);
+        const LegacyStandardModeForwardNode* const record_head =
+            state.record_head;
+        const LegacyStandardModeForwardNode* const selected_record =
+            index_legacy_standard_mode_forward_node(
+                selected_index, &record_head
+            );
+        ++result.helper_call_count;
+        if (selected_record == nullptr) {
+            result.status = LegacyStandardModeEquipmentPageAdvanceStatus::
+                selected_record_missing;
+            return result;
+        }
+        const LegacyStandardModeTextResolutionResult text =
+            resolve_legacy_standard_mode_shared_text(
+                selected_record->text_index, maps_payload, state.shared_text
+            );
+        ++result.helper_call_count;
+        if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
+            result.status = LegacyStandardModeEquipmentPageAdvanceStatus::
+                shared_text_stopped;
+            return result;
+        }
+        result.legacy_return_value =
+            ports.execute_equipment_sample_command(0x002EU, state.sample_owner);
+        ++result.helper_call_count;
+        state.final_zero = 0x30U;
+        return result;
+    }
+    if (mode == 2U) {
+        for (compat::i32 party = 3; party >= 0; --party) {
+            result.legacy_return_value = party;
+            if (state.party_markers[static_cast<std::size_t>(party)] !=
+                0xFFFFU) {
+                state.selected_party_action = static_cast<compat::u32>(party);
+                return result;
+            }
+        }
+        result.status =
+            LegacyStandardModeEquipmentPageAdvanceStatus::party_search_stopped;
+        return result;
+    }
+    if (mode == 0x0FU) {
+        compat::i32 window_offset =
+            std::bit_cast<compat::i32>(state.special_window_offset);
+        compat::i32 local_cursor =
+            std::bit_cast<compat::i32>(state.hover_selection);
+        compat::i32 visible_count =
+            std::bit_cast<compat::i32>(state.hover_record_count);
+        static_cast<void>(advance_legacy_standard_mode_window_page(
+            std::bit_cast<compat::i32>(state.special_record_count),
+            window_offset,
+            local_cursor,
+            visible_count,
+            8
+        ));
+        ++result.helper_call_count;
+        state.special_window_offset = std::bit_cast<compat::u32>(window_offset);
+        state.hover_selection = std::bit_cast<compat::u32>(local_cursor);
+        state.hover_record_count = std::bit_cast<compat::u32>(visible_count);
+        state.final_zero |= 0x3000U;
+        result.legacy_return_value =
+            std::bit_cast<compat::i32>(state.final_zero);
+    }
+    return result;
+}
+
 LegacyStandardModeEquipmentRetreatResult retreat_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,
     const std::span<const compat::u8> maps_payload,
@@ -712,6 +853,35 @@ handle_legacy_standard_mode_equipment_input(
             break;
         }
     };
+    const auto advance_page = [&]() {
+        result.last_target =
+            LegacyStandardModeEquipmentInputTarget::advance_page;
+        ++result.callback_count;
+        const LegacyStandardModeEquipmentPageAdvanceResult advanced =
+            advance_legacy_standard_mode_equipment_page(
+                state, maps_payload, ports
+            );
+        result.legacy_return_value = advanced.legacy_return_value;
+        switch (advanced.status) {
+        case LegacyStandardModeEquipmentPageAdvanceStatus::completed:
+            break;
+        case LegacyStandardModeEquipmentPageAdvanceStatus::
+            visible_count_refresh_stopped:
+        case LegacyStandardModeEquipmentPageAdvanceStatus::party_search_stopped:
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::party_mapping_stopped;
+            break;
+        case LegacyStandardModeEquipmentPageAdvanceStatus::
+            selected_record_missing:
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::selected_record_missing;
+            break;
+        case LegacyStandardModeEquipmentPageAdvanceStatus::shared_text_stopped:
+            result.status =
+                LegacyStandardModeEquipmentInputStatus::shared_text_stopped;
+            break;
+        }
+    };
     const auto query_item = [&](const compat::u16 item_id) {
         ++result.callback_count;
         const compat::i32 value = ports.query_equipment_item_presence(item_id);
@@ -859,7 +1029,7 @@ handle_legacy_standard_mode_equipment_input(
                 std::bit_cast<compat::i32>(input.cursor_y) <
                     state.second_dynamic_max_y
             ) {
-                invoke(LegacyStandardModeEquipmentInputTarget::advance_page);
+                advance_page();
             }
             return result;
         }
@@ -889,9 +1059,7 @@ handle_legacy_standard_mode_equipment_input(
                     std::bit_cast<compat::i32>(input.cursor_y) <
                         state.special_second_dynamic_max_y
                 ) {
-                    invoke(
-                        LegacyStandardModeEquipmentInputTarget::advance_page
-                    );
+                    advance_page();
                 }
                 return result;
             }

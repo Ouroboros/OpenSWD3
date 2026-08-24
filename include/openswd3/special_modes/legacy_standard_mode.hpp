@@ -735,8 +735,40 @@ retreat_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentAdvancePorts& ports
 ) noexcept;
 
-class LegacyStandardModeEquipmentInputPorts
+class LegacyStandardModeEquipmentPageAdvancePorts
     : public LegacyStandardModeEquipmentAdvancePorts {
+public:
+    ~LegacyStandardModeEquipmentPageAdvancePorts() override = default;
+    [[nodiscard]] virtual bool refresh_equipment_visible_count(
+        LegacyStandardModeEquipmentInitializationState& state
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeEquipmentPageAdvanceStatus : compat::u8 {
+    completed,
+    visible_count_refresh_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+    party_search_stopped,
+};
+
+struct LegacyStandardModeEquipmentPageAdvanceResult {
+    LegacyStandardModeEquipmentPageAdvanceStatus status{
+        LegacyStandardModeEquipmentPageAdvanceStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentPageAdvanceResult
+advance_legacy_standard_mode_equipment_page(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentPageAdvancePorts& ports
+) noexcept;
+
+class LegacyStandardModeEquipmentInputPorts
+    : public LegacyStandardModeEquipmentPageAdvancePorts {
 public:
     ~LegacyStandardModeEquipmentInputPorts() override = default;
     [[nodiscard]] virtual compat::i32 invoke_equipment_input(

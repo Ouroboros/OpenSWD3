@@ -2931,11 +2931,29 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return sample_return;
         }
 
+        bool refresh_equipment_visible_count(
+            sm::LegacyStandardModeEquipmentInitializationState& state
+        ) noexcept override {
+            if (!visible_count_refresh_available) {
+                return false;
+            }
+            u32 count = 0U;
+            const sm::LegacyStandardModeForwardNode* node =
+                state.visible_record_head;
+            while (node != nullptr && count < 0x18U) {
+                ++count;
+                node = node->next;
+            }
+            state.visible_record_count = count;
+            return true;
+        }
+
         std::array<i32, 64U> item_presence{};
         std::optional<sm::LegacyStandardModeEquipmentInputSnapshot>
             overlay_rewrite{};
         std::optional<u32> overlay_mode_enabled{};
         bool cycle_party_changes_state{true};
+        bool visible_count_refresh_available{true};
         i32 sample_return{77};
         std::vector<sm::LegacyStandardModeEquipmentInputTarget> targets;
         std::vector<u16> item_ids;
@@ -3141,6 +3159,157 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 retreat_state.hover_selection == 0U &&
                 retreat_state.final_zero == 0xABCD0301U,
             "0x443570 mode2 wraps backward and mode15 retreats the special window"
+        );
+
+        sm::LegacyStandardModeEquipmentInitializationState page_state;
+        page_state.mode_enabled = 1U;
+        page_state.visible_record_count = 24U;
+        page_state.local_selection = 0U;
+        EquipmentInputPorts page_ports;
+        const auto normalized_page =
+            sm::advance_legacy_standard_mode_equipment_page(
+                page_state, {}, page_ports
+            );
+        page_state = {};
+        page_state.mode_enabled = 1U;
+        page_state.visible_record_count = 3U;
+        page_state.total_record_count = 3U;
+        page_state.local_selection = 2U;
+        page_state.record_head = &advance_first;
+        page_state.sample_owner = 0xFACEU;
+        const auto final_page = sm::advance_legacy_standard_mode_equipment_page(
+            page_state, {}, page_ports
+        );
+        test.expect_true(
+            normalized_page.status ==
+                    sm::LegacyStandardModeEquipmentPageAdvanceStatus::
+                        completed &&
+                normalized_page.legacy_return_value == 22 &&
+                normalized_page.helper_call_count == 0U &&
+                final_page.status ==
+                    sm::LegacyStandardModeEquipmentPageAdvanceStatus::
+                        completed &&
+                final_page.legacy_return_value == 77 &&
+                final_page.helper_call_count == 3U &&
+                page_state.list_offset == 0U &&
+                page_state.local_selection == 2U &&
+                page_state.shared_text[0] == 0xB5U &&
+                page_state.final_zero == 0x30U &&
+                page_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{{0x2EU, 0xFACEU}},
+            "0x443670 normalizes within a page then rebuilds final-page text and sample"
+        );
+        page_state = {};
+        page_state.mode_enabled = 1U;
+        page_state.visible_record_count = 1U;
+        page_state.total_record_count = 1U;
+        page_state.local_selection = 0U;
+        const auto page_missing =
+            sm::advance_legacy_standard_mode_equipment_page(
+                page_state, {}, page_ports
+            );
+        page_state.record_head = &advance_invalid_text;
+        page_state.final_zero = 9U;
+        const auto page_text_stopped =
+            sm::advance_legacy_standard_mode_equipment_page(
+                page_state, {}, page_ports
+            );
+        test.expect_true(
+            page_missing.status ==
+                    sm::LegacyStandardModeEquipmentPageAdvanceStatus::
+                        selected_record_missing &&
+                page_missing.helper_call_count == 1U &&
+                page_text_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPageAdvanceStatus::
+                        shared_text_stopped &&
+                page_text_stopped.helper_call_count == 2U &&
+                page_state.final_zero == 9U,
+            "0x443670 final-page typed-stops at B9C0/B9E0 before sample and final30"
+        );
+
+        std::array<sm::LegacyStandardModeForwardNode, 26U> page_records{};
+        for (std::size_t index = 0U; index + 1U < page_records.size();
+             ++index) {
+            page_records[index].next = &page_records[index + 1U];
+            page_records[index].text_index = 0xFFDCU;
+        }
+        page_records.back().text_index = 0xFFDCU;
+        page_state = {};
+        page_state.mode_enabled = 1U;
+        page_state.visible_record_count = 24U;
+        page_state.total_record_count = 26U;
+        page_state.local_selection = 22U;
+        page_state.record_head = page_records.data();
+        EquipmentInputPorts rebuilt_page_ports;
+        const auto rebuilt_page =
+            sm::advance_legacy_standard_mode_equipment_page(
+                page_state, {}, rebuilt_page_ports
+            );
+        const bool rebuilt_page_values = page_state.list_offset == 24U &&
+            page_state.visible_record_head == &page_records[24U] &&
+            page_state.visible_record_count == 2U &&
+            page_state.local_selection == 0U;
+        page_state = {};
+        page_state.mode_enabled = 1U;
+        page_state.visible_record_count = 24U;
+        page_state.total_record_count = 26U;
+        page_state.local_selection = 22U;
+        page_state.record_head = page_records.data();
+        EquipmentInputPorts page_refresh_stop_ports;
+        page_refresh_stop_ports.visible_count_refresh_available = false;
+        const auto page_refresh_stopped =
+            sm::advance_legacy_standard_mode_equipment_page(
+                page_state, {}, page_refresh_stop_ports
+            );
+        test.expect_true(
+            rebuilt_page.status ==
+                    sm::LegacyStandardModeEquipmentPageAdvanceStatus::
+                        completed &&
+                rebuilt_page.helper_call_count == 2U && rebuilt_page_values &&
+                page_refresh_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPageAdvanceStatus::
+                        visible_count_refresh_stopped &&
+                page_refresh_stopped.helper_call_count == 1U &&
+                page_state.list_offset == 24U &&
+                page_state.visible_record_head == &page_records[24U],
+            "0x443670 advances 24 records, refreshes the page and preserves refresh-stop prefix"
+        );
+
+        page_state = {};
+        page_state.mode_enabled = 2U;
+        page_state.party_markers = {0xFFFFU, 1U, 2U, 0xFFFFU};
+        const auto page_party = sm::advance_legacy_standard_mode_equipment_page(
+            page_state, {}, page_ports
+        );
+        const u32 page_party_selection = page_state.selected_party_action;
+        page_state.party_markers.fill(0xFFFFU);
+        const auto page_party_stopped =
+            sm::advance_legacy_standard_mode_equipment_page(
+                page_state, {}, page_ports
+            );
+        page_state = {};
+        page_state.mode_enabled = 0x0FU;
+        page_state.special_record_count = 20U;
+        page_state.special_window_offset = 0U;
+        page_state.hover_selection = 7U;
+        page_state.hover_record_count = 8U;
+        page_state.final_zero = 0xABCD0001U;
+        const auto special_page =
+            sm::advance_legacy_standard_mode_equipment_page(
+                page_state, {}, page_ports
+            );
+        test.expect_true(
+            page_party_selection == 2U && page_party.legacy_return_value == 2 &&
+                page_party_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPageAdvanceStatus::
+                        party_search_stopped &&
+                special_page.legacy_return_value ==
+                    std::bit_cast<i32>(0xABCD3001U) &&
+                page_state.special_window_offset == 8U &&
+                page_state.hover_selection == 7U &&
+                page_state.hover_record_count == 8U &&
+                page_state.final_zero == 0xABCD3001U,
+            "0x443670 mode2 selects highest party and mode15 advances an eight-item page"
         );
 
         sm::LegacyStandardModeEquipmentInitializationState equipment;
