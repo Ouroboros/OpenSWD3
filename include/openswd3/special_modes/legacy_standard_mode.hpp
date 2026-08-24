@@ -126,6 +126,7 @@ struct LegacyStandardModeCallbackBindingResult {
     LegacyStandardModeCallbackGroup group{
         LegacyStandardModeCallbackGroup::none
     };
+    compat::i32 legacy_return_value{};
     compat::u32 story_flag_query_count{};
     compat::u32 slot_write_count{};
     compat::u32 helper_call_count{};
@@ -602,6 +603,19 @@ commit_legacy_standard_mode_group_eight_selection(
     LegacyStandardModeGroupEightCommitPorts& ports
 ) noexcept;
 
+struct LegacyStandardModeGroupEightExitResult {
+    compat::i16 legacy_return_value{};
+    compat::u32 story_flag_query_count{};
+    compat::u32 helper_call_count{};
+    bool tagged_mode_cleared{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightExitResult
+exit_legacy_standard_mode_group_eight(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeCallbackBindingPorts& ports
+) noexcept;
+
 class LegacyStandardModeGroupEightInputPorts
     : public virtual LegacyStandardModeGroupEightCommitPorts {
 public:
@@ -609,8 +623,6 @@ public:
     [[nodiscard]] virtual std::optional<compat::i32> invoke_selection_callback(
         compat::u16 selection, LegacyStandardModeGroupEightState& state
     ) = 0;
-    [[nodiscard]] virtual compat::i32
-    exit_mode(LegacyStandardModeGroupEightState& state) = 0;
 };
 
 enum class LegacyStandardModeGroupEightInputStatus : compat::u8 {

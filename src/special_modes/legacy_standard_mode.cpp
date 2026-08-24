@@ -319,9 +319,11 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     LegacyStandardModeCallbackBindingPorts& ports
 ) noexcept {
     LegacyStandardModeCallbackBindingResult result;
+    result.legacy_return_value = static_cast<compat::i32>(secondary_word);
     std::size_t group_index = kCallbackTargets.size();
 
     if (secondary_word == 2U) {
+        result.legacy_return_value = static_cast<compat::i32>(primary_word);
         if (primary_word >= 0x1EU && primary_word <= 0x20U) {
             group_index = 0U;
         } else if (primary_word >= 0x24U && primary_word <= 0x29U) {
@@ -333,10 +335,12 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
         } else if (primary_word >= 0x36U && primary_word <= 0x3AU) {
             const compat::i32 flag = ports.story_flag(kStoryFlagIndex);
             ++result.story_flag_query_count;
+            result.legacy_return_value = flag;
             group_index = flag == 0 ? 4U : 5U;
         } else if (primary_word >= 0x3CU && primary_word <= 0x3EU) {
             const compat::i32 flag = ports.story_flag(kStoryFlagIndex);
             ++result.story_flag_query_count;
+            result.legacy_return_value = flag;
             group_index = flag != 0 ? 4U : 5U;
         } else if (primary_word >= 0x42U && primary_word <= 0x47U) {
             group_index = 6U;
@@ -345,6 +349,7 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
         const LegacyStandardSpecialModeCallbackInstallationResult callbacks =
             install_legacy_standard_special_mode_callbacks(state, ports);
         ++result.helper_call_count;
+        result.legacy_return_value = callbacks.legacy_return_value;
         result.story_flag_query_count += callbacks.story_flag_query_count;
         group_index = 7U;
     } else if (secondary_word == kHighModeSecondaryWord) {
@@ -12234,6 +12239,27 @@ commit_legacy_standard_mode_group_eight_selection(
     return result;
 }
 
+LegacyStandardModeGroupEightExitResult exit_legacy_standard_mode_group_eight(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeCallbackBindingPorts& ports
+) noexcept {
+    LegacyStandardModeGroupEightExitResult result;
+    state.lifecycle = static_cast<compat::u16>(state.lifecycle - 1U);
+    if (state.lifecycle == 0U) {
+        state.tagged_mode_value = 0U;
+        result.tagged_mode_cleared = true;
+    }
+    const LegacyStandardModeCallbackBindingResult binding =
+        bind_legacy_standard_mode_callbacks(
+            state.callback_state, state.lifecycle, state.selection_x, ports
+        );
+    ++result.helper_call_count;
+    result.story_flag_query_count = binding.story_flag_query_count;
+    result.legacy_return_value =
+        static_cast<compat::i16>(binding.legacy_return_value);
+    return result;
+}
+
 LegacyStandardModeGroupEightInputResult
 handle_legacy_standard_mode_group_eight_input(
     LegacyStandardModeGroupEightState& state,
@@ -12307,8 +12333,10 @@ handle_legacy_standard_mode_group_eight_input(
 
     if ((input.buttons & 0x0CU) != 0U && state.lifecycle == 1U) {
         state.fallback_constant = 0x0CU;
-        result.legacy_return_value =
-            static_cast<compat::i16>(ports.exit_mode(state));
+        const LegacyStandardModeGroupEightExitResult exited =
+            exit_legacy_standard_mode_group_eight(state, ports);
+        result.legacy_return_value = exited.legacy_return_value;
+        result.story_flag_query_count += exited.story_flag_query_count;
         ++result.helper_call_count;
     }
     return result;

@@ -8,7 +8,7 @@
 
 主命中还要求y在`10<y<42`、buttons bit0、余数`0<r<8`。命中后第二次查询flag49，再以旧selection覆盖低16位残值。若第二次结果精确等于1且selection15，只有lifecycle1继续，其他lifecycle立即返回；其余情况仅在lifecycle非1时按旧selection调用动态表。动态表解析失败只在原间接call点typed-stop，保留双查询、旧selection残值和全部此前状态。
 
-继续路径把selection写为`grid/10+12`，再直接调用已关闭的45210完成预减、坐标与画面索引发布，随后直接调用已关闭的45360完成阶段切换、主回调重绑、二级初始化与确认音效，最终返回45360低16位。主命中失败时，若buttons任一bit2/3且lifecycle1，则先写fallback constant12，再调用453F0端口；否则返回当前残值。453F0退出callee仍保留最窄typed端口，后续闭环时直接回收。
+继续路径把selection写为`grid/10+12`，再直接调用已关闭的45210完成预减、坐标与画面索引发布，随后直接调用已关闭的45360完成阶段切换、主回调重绑、二级初始化与确认音效，最终返回45360低16位。主命中失败时，若buttons任一bit2/3且lifecycle1，则先写fallback constant12，再调用453F0端口；否则返回当前残值。453F0已直接回收：button12 fallback先写constant12，再预减lifecycle、按零值清特殊模式请求，并以新阶段重绑回调。
 
 UT覆盖默认动态callback顺序、flag1的7像素网格、selection15在两种lifecycle下的精确特例、button12 fallback及写前副作用、外横域flag残值、动态表缺失typed-stop、双入口查询、45210嵌套查询及selection重写顺序。
 

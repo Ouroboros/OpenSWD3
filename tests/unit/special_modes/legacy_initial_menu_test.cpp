@@ -14892,19 +14892,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             events.push_back(6U);
         }
 
-        i32 exit_mode(
-            openswd3::special_modes::LegacyStandardModeGroupEightState& state
-        ) override {
-            events.push_back(5U);
-            state.tagged_mode_value = 0U;
-            return exit_return;
-        }
-
         std::vector<i32> flag_results;
         bool callback_available{true};
         bool initialization_callback_available{true};
         i32 commit_return{0x3456};
-        i32 exit_return{-9};
         std::vector<u32> events;
         std::vector<u32> queried_flags;
         std::vector<u16> callback_selections;
@@ -14990,11 +14981,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             outer_state, GroupEightInput{220U, 99U, 0x0CU}, outer_ports
         );
     test.expect_true(
-        fallback.legacy_return_value == -9 &&
-            fallback.helper_call_count == 1U &&
+        fallback.legacy_return_value == 0 && fallback.helper_call_count == 1U &&
             group_state.fallback_constant == 12U &&
             group_state.tagged_mode_value == 0U &&
-            fallback_ports.events == std::vector<u32>{1U, 5U} &&
+            fallback_ports.events == std::vector<u32>{1U} &&
             outer.legacy_return_value == -3 &&
             outer.story_flag_query_count == 1U && outer.helper_call_count == 0U,
         "0x4450E0 preserves outer residuals and runs the button12 lifecycle1 fallback"
@@ -15218,6 +15208,56 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_callback_stopped.helper_call_count == 2U &&
             commit_callback_stop_ports.sample_commands.empty(),
         "0x445360 typed-stops at the indexed initialization table after rebind"
+    );
+
+    GroupEightState exit_zero_state{
+        .lifecycle = 1U,
+        .selection_x = 30U,
+        .tagged_mode_value = 9U,
+    };
+    GroupEightInputPorts exit_zero_ports;
+    const auto exited_zero =
+        openswd3::special_modes::exit_legacy_standard_mode_group_eight(
+            exit_zero_state, exit_zero_ports
+        );
+    GroupEightState exit_g08_state{
+        .lifecycle = 2U,
+        .selection_x = 30U,
+        .tagged_mode_value = 9U,
+    };
+    GroupEightInputPorts exit_g08_ports;
+    exit_g08_ports.flag_results = {-7};
+    const auto exited_g08 =
+        openswd3::special_modes::exit_legacy_standard_mode_group_eight(
+            exit_g08_state, exit_g08_ports
+        );
+    GroupEightState exit_wrap_state{
+        .lifecycle = 0U,
+        .tagged_mode_value = 9U,
+    };
+    GroupEightInputPorts exit_wrap_ports;
+    const auto exited_wrap =
+        openswd3::special_modes::exit_legacy_standard_mode_group_eight(
+            exit_wrap_state, exit_wrap_ports
+        );
+    test.expect_true(
+        exited_zero.legacy_return_value == 0 &&
+            exited_zero.helper_call_count == 1U &&
+            exited_zero.story_flag_query_count == 0U &&
+            exited_zero.tagged_mode_cleared &&
+            exit_zero_state.lifecycle == 0U &&
+            exit_zero_state.tagged_mode_value == 0U &&
+            exited_g08.legacy_return_value == -7 &&
+            exited_g08.story_flag_query_count == 1U &&
+            !exited_g08.tagged_mode_cleared && exit_g08_state.lifecycle == 1U &&
+            exit_g08_state.tagged_mode_value == 9U &&
+            exit_g08_state.callback_state.targets[0U] == 0x004450E0U &&
+            exit_g08_state.callback_state.draw_callbacks[0U] == 0x00447100U &&
+            exit_g08_ports.events == std::vector<u32>{1U} &&
+            exited_wrap.legacy_return_value == -1 &&
+            exit_wrap_state.lifecycle == 0xFFFFU &&
+            exit_wrap_state.tagged_mode_value == 9U,
+        "0x4453F0 predecrements lifecycle, clears mode only at zero and returns B480 residual"
     );
 }
 
