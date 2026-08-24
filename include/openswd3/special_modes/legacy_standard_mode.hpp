@@ -717,6 +717,24 @@ advance_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentAdvancePorts& ports
 ) noexcept;
 
+using LegacyStandardModeEquipmentRetreatStatus =
+    LegacyStandardModeEquipmentAdvanceStatus;
+
+struct LegacyStandardModeEquipmentRetreatResult {
+    LegacyStandardModeEquipmentRetreatStatus status{
+        LegacyStandardModeEquipmentRetreatStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentRetreatResult
+retreat_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentAdvancePorts& ports
+) noexcept;
+
 class LegacyStandardModeEquipmentInputPorts
     : public LegacyStandardModeEquipmentAdvancePorts {
 public:

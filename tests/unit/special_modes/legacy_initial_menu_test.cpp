@@ -3053,6 +3053,96 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x443450 mode2 skips FFFF parties and mode15 advances the eight-row window"
         );
 
+        sm::LegacyStandardModeEquipmentInitializationState retreat_state;
+        retreat_state.mode_enabled = 1U;
+        retreat_state.list_offset = 2U;
+        retreat_state.local_selection = 0U;
+        retreat_state.record_head = &advance_first;
+        retreat_state.sample_owner = 0xBEEFU;
+        EquipmentInputPorts retreat_ports;
+        const auto retreated = sm::retreat_legacy_standard_mode_equipment(
+            retreat_state, {}, retreat_ports
+        );
+        test.expect_true(
+            retreated.status ==
+                    sm::LegacyStandardModeEquipmentRetreatStatus::completed &&
+                retreated.legacy_return_value == 77 &&
+                retreated.helper_call_count == 5U &&
+                retreat_state.list_offset == 0U &&
+                retreat_state.local_selection == 0U &&
+                retreat_state.visible_record_count == 3U &&
+                retreat_state.visible_record_head == &advance_first &&
+                retreat_state.shared_text[0] == 0xB5U &&
+                retreat_state.final_zero == 3U &&
+                retreat_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{{0x2EU, 0xBEEFU}},
+            "0x443570 mode1 restores negative local, retreats positive offset and publishes text"
+        );
+
+        retreat_state = {};
+        retreat_state.mode_enabled = 1U;
+        retreat_state.visible_record_count = 3U;
+        const auto retreat_missing = sm::retreat_legacy_standard_mode_equipment(
+            retreat_state, {}, retreat_ports
+        );
+        retreat_state = {};
+        retreat_state.mode_enabled = 1U;
+        retreat_state.record_head = &advance_invalid_text;
+        retreat_state.final_zero = 9U;
+        const auto retreat_text_stopped =
+            sm::retreat_legacy_standard_mode_equipment(
+                retreat_state, {}, retreat_ports
+            );
+        test.expect_true(
+            retreat_missing.status ==
+                    sm::LegacyStandardModeEquipmentRetreatStatus::
+                        selected_record_missing &&
+                retreat_missing.helper_call_count == 3U &&
+                retreat_text_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRetreatStatus::
+                        shared_text_stopped &&
+                retreat_text_stopped.helper_call_count == 4U &&
+                retreat_state.final_zero == 9U,
+            "0x443570 typed-stops at B9C0/B9E0 after retreat list side effects"
+        );
+
+        retreat_state = {};
+        retreat_state.mode_enabled = 2U;
+        retreat_state.selected_party_action = 0U;
+        retreat_state.party_markers = {0xFFFFU, 1U, 0xFFFFU, 3U};
+        const auto retreated_party = sm::retreat_legacy_standard_mode_equipment(
+            retreat_state, {}, retreat_ports
+        );
+        const u32 retreated_party_selection =
+            retreat_state.selected_party_action;
+        retreat_state.party_markers.fill(0xFFFFU);
+        const auto retreat_party_stopped =
+            sm::retreat_legacy_standard_mode_equipment(
+                retreat_state, {}, retreat_ports
+            );
+        retreat_state = {};
+        retreat_state.mode_enabled = 0x0FU;
+        retreat_state.special_window_offset = 1U;
+        retreat_state.hover_selection = 0U;
+        retreat_state.final_zero = 0xABCD0001U;
+        const auto retreated_special =
+            sm::retreat_legacy_standard_mode_equipment(
+                retreat_state, {}, retreat_ports
+            );
+        test.expect_true(
+            retreated_party_selection == 3U &&
+                retreated_party.legacy_return_value == 3 &&
+                retreat_party_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRetreatStatus::
+                        party_cycle_stopped &&
+                retreated_special.legacy_return_value ==
+                    std::bit_cast<i32>(0xABCD0301U) &&
+                retreat_state.special_window_offset == 0U &&
+                retreat_state.hover_selection == 0U &&
+                retreat_state.final_zero == 0xABCD0301U,
+            "0x443570 mode2 wraps backward and mode15 retreats the special window"
+        );
+
         sm::LegacyStandardModeEquipmentInitializationState equipment;
         equipment.mode_enabled = 0x11U;
         equipment.first_render_zero = 7U;
