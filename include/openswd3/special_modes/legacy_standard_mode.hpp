@@ -537,6 +537,7 @@ struct LegacyStandardModeForwardNode {
     compat::i8 filter_type{};
     compat::u16 record_enabled{};
     std::array<compat::u8, 0xB0U> record_bytes{};
+    std::string animated_text{};
 };
 
 class LegacyStandardModeMissingNodePorts {
@@ -847,6 +848,22 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::u32 global_mode_value{};
     compat::u16 lifecycle_phase{};
     compat::u16 global_control_flags{};
+    compat::u16 frame_resource_word{};
+    compat::u32 frame_counter{};
+    compat::u32 published_frame_counter{};
+    compat::u32 scroll_overlay_flags{};
+    compat::i32 list_action_offset{};
+    compat::u32 primary_action_id{};
+    compat::u32 primary_action_variant{};
+    compat::u32 primary_action_zero{};
+    compat::u32 selected_action_id{};
+    compat::u32 selected_action_variant{};
+    compat::u32 selected_action_frame{};
+    compat::u32 selected_action_resource{};
+    compat::u32 selected_action_zero{};
+    const LegacyStandardModeForwardNode* selected_record{};
+    LegacyStandardModeBarOutputs first_scroll_bar_outputs{};
+    LegacyStandardModeBarOutputs second_scroll_bar_outputs{};
     bool uses_alternate_record_list{};
 };
 
@@ -960,6 +977,87 @@ public:
     bind_guardian_callbacks(compat::u16 lifecycle_phase) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     release_guardian_storage(compat::u32 token) noexcept = 0;
+};
+
+enum class LegacyStandardModeGuardianRenderText : compat::u8 {
+    empty_record,
+    empty_list,
+    party_label,
+    guardian_label,
+    mode_15_prompt,
+};
+
+enum class LegacyStandardModeGuardianRenderOperation : compat::u8 {
+    update_primary_action,
+    draw_primary_action,
+    draw_frame,
+    draw_text,
+    draw_tiled_frame,
+    draw_split_panel,
+    draw_guardian_slot_panel,
+    set_text_color,
+    draw_selected_record_action,
+    refresh_attribute_cache,
+};
+
+struct LegacyStandardModeGuardianRenderRequest {
+    LegacyStandardModeGuardianRenderOperation operation{};
+    std::array<compat::i32, 8U> values{};
+    compat::u32 flags{};
+    compat::i32 color{};
+    std::string text{};
+
+    bool
+    operator==(const LegacyStandardModeGuardianRenderRequest&) const = default;
+};
+
+enum class LegacyStandardModeGuardianRenderStatus : compat::u8 {
+    completed,
+    guardian_record_out_of_range,
+    selected_node_missing,
+    visible_chain_stopped,
+    animated_panel_stopped,
+};
+
+struct LegacyStandardModeGuardianRenderResult {
+    LegacyStandardModeGuardianRenderStatus status{
+        LegacyStandardModeGuardianRenderStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 color_count{};
+    compat::u32 operation_count{};
+    compat::u32 row_count{};
+    compat::u32 bar_count{};
+    bool transition_triggered{};
+};
+
+class LegacyStandardModeAnimatedPanelPorts;
+
+class LegacyStandardModeGuardianRenderPorts {
+public:
+    virtual ~LegacyStandardModeGuardianRenderPorts() = default;
+    [[nodiscard]] virtual LegacyStandardModeBarPorts&
+    guardian_bar_ports() noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeAnimatedPanelPorts&
+    guardian_animated_panel_ports() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 make_guardian_color(
+        compat::u8 red, compat::u8 green, compat::u8 blue
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool guardian_transition_ready() noexcept = 0;
+    [[nodiscard]] virtual std::string_view
+    guardian_text(LegacyStandardModeGuardianRenderText text) noexcept = 0;
+    [[nodiscard]] virtual std::string
+    guardian_attribute_text(compat::i8 value) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 execute_guardian_render(
+        const LegacyStandardModeGuardianRenderRequest& request
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 adjust_guardian_color(
+        compat::i32 color,
+        compat::i32 mode,
+        compat::i32 red_delta,
+        compat::i32 green_delta,
+        compat::i32 blue_delta
+    ) noexcept = 0;
 };
 
 class LegacyStandardModeGuardianInputPorts
@@ -2666,6 +2764,16 @@ commit_legacy_standard_mode_guardian_interaction(
     std::span<const compat::u32> guardian_text_indices,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianCommitPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeGuardianRenderResult
+render_legacy_standard_mode_guardian_system(
+    LegacyStandardModeGuardianInitializationState& state,
+    std::span<const LegacyStandardModeForwardNode> guardian_records,
+    std::array<
+        asset_runtime::LegacyActionRecord,
+        kLegacyStandardSpecialModeInitializationRecordCount>& action_records,
+    LegacyStandardModeGuardianRenderPorts& ports
 ) noexcept;
 
 [[nodiscard]] LegacyStandardModeGuardianInputResult

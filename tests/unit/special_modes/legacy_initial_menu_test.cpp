@@ -2658,7 +2658,376 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::vector<sm::LegacyStandardModeGuardianSelectionTarget> targets;
         std::vector<std::array<u32, 2U>> commands;
     };
+    class GuardianRenderPorts final
+        : public sm::LegacyStandardModeGuardianRenderPorts,
+          public sm::LegacyStandardModeBarPorts,
+          public sm::LegacyStandardModeAnimatedPanelPorts {
+    public:
+        sm::LegacyStandardModeBarPorts& guardian_bar_ports() noexcept override {
+            return *this;
+        }
+
+        sm::LegacyStandardModeAnimatedPanelPorts&
+        guardian_animated_panel_ports() noexcept override {
+            return *this;
+        }
+
+        i32 make_guardian_color(u8 red, u8 green, u8 blue) noexcept override {
+            colors.push_back({red, green, blue});
+            return static_cast<i32>(red) * 10000 +
+                static_cast<i32>(green) * 100 + static_cast<i32>(blue);
+        }
+
+        bool guardian_transition_ready() noexcept override {
+            return transition_ready;
+        }
+
+        std::string_view guardian_text(
+            const sm::LegacyStandardModeGuardianRenderText text
+        ) noexcept override {
+            switch (text) {
+            case sm::LegacyStandardModeGuardianRenderText::empty_record:
+                return "EMPTY";
+            case sm::LegacyStandardModeGuardianRenderText::empty_list:
+                return "NO LIST";
+            case sm::LegacyStandardModeGuardianRenderText::party_label:
+                return "PARTY";
+            case sm::LegacyStandardModeGuardianRenderText::guardian_label:
+                return "GUARDIAN";
+            case sm::LegacyStandardModeGuardianRenderText::mode_15_prompt:
+                return "RETURN";
+            }
+            return {};
+        }
+
+        std::string guardian_attribute_text(const i8 value) noexcept override {
+            attribute_values.push_back(value);
+            return "A" + std::to_string(value);
+        }
+
+        i32 execute_guardian_render(
+            const sm::LegacyStandardModeGuardianRenderRequest& request
+        ) noexcept override {
+            requests.push_back(request);
+            return 1000 + static_cast<i32>(requests.size());
+        }
+
+        i32 adjust_guardian_color(
+            const i32 color,
+            const i32 mode,
+            const i32 red_delta,
+            const i32 green_delta,
+            const i32 blue_delta
+        ) noexcept override {
+            adjustments.push_back(
+                {color, mode, red_delta, green_delta, blue_delta}
+            );
+            return color - 40;
+        }
+
+        void prepare_bar_region(
+            const sm::LegacyStandardModeBarRequest& request
+        ) override {
+            bar_requests.push_back(request);
+        }
+
+        void fill_rectangle(i32 left, i32 top, i32 right, i32 bottom) override {
+            rectangles.push_back({left, top, right, bottom});
+        }
+
+        bool update_action(LegacyActionRecord&) override {
+            ++bar_updates;
+            return true;
+        }
+
+        bool resolve_frame(
+            const LegacyActionRecord&, sm::LegacyStandardModeBarFrame& frame
+        ) override {
+            frame = {.source_word = 7U, .width = 3U, .height = 0x20U};
+            return true;
+        }
+
+        void draw_frame(
+            const sm::LegacyStandardModeBarFrame&, i32, i32, u32, u32
+        ) override {
+            ++bar_frame_draws;
+        }
+
+        void draw_action(LegacyActionRecord&, i32, i32) override {
+            ++bar_action_draws;
+        }
+
+        u32 apply_rectangle_effect(
+            const sm::LegacyStandardModeRectangleRequest& request
+        ) noexcept override {
+            animated_rectangles.push_back(request);
+            return 0xABCD0000U;
+        }
+
+        void draw_tiled_frame(
+            const sm::LegacyStandardModeTiledFrameRequest& request
+        ) noexcept override {
+            animated_frames.push_back(request);
+        }
+
+        i32 draw_formatted_text(
+            const sm::LegacyStandardModeFormattedTextRequest& request
+        ) noexcept override {
+            animated_texts.emplace_back(
+                reinterpret_cast<const char*>(request.text.data()),
+                request.text.size()
+            );
+            return animated_text_return;
+        }
+
+        bool transition_ready{};
+        i32 animated_text_return{888};
+        u32 bar_updates{};
+        u32 bar_frame_draws{};
+        u32 bar_action_draws{};
+        std::vector<std::array<u8, 3U>> colors;
+        std::vector<std::array<i32, 5U>> adjustments;
+        std::vector<i8> attribute_values;
+        std::vector<sm::LegacyStandardModeGuardianRenderRequest> requests;
+        std::vector<sm::LegacyStandardModeBarRequest> bar_requests;
+        std::vector<std::array<i32, 4U>> rectangles;
+        std::vector<sm::LegacyStandardModeRectangleRequest> animated_rectangles;
+        std::vector<sm::LegacyStandardModeTiledFrameRequest> animated_frames;
+        std::vector<std::string> animated_texts;
+    };
     using SelectionTarget = sm::LegacyStandardModeGuardianSelectionTarget;
+    using GuardianRenderOperation =
+        sm::LegacyStandardModeGuardianRenderOperation;
+    {
+        std::array<sm::LegacyStandardModeForwardNode, 1U> render_records{};
+        std::array<
+            LegacyActionRecord,
+            sm::kLegacyStandardSpecialModeInitializationRecordCount>
+            actions{};
+        sm::LegacyStandardModeGuardianInitializationState render_state;
+        render_state.party_selector = 1U;
+        GuardianRenderPorts render_ports;
+        render_ports.transition_ready = true;
+        const auto stopped = sm::render_legacy_standard_mode_guardian_system(
+            render_state, render_records, actions, render_ports
+        );
+        test.expect_true(
+            stopped.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::
+                        guardian_record_out_of_range &&
+                stopped.color_count == 4U && stopped.operation_count == 0U &&
+                render_state.deferred_interaction_mode == 0U,
+            "0x441680 typed-stops at the mode0 party-record pointer read"
+        );
+
+        render_state = {};
+        render_state.interaction_mode = 15U;
+        GuardianRenderPorts late_ports;
+        const auto late_stopped =
+            sm::render_legacy_standard_mode_guardian_system(
+                render_state, {}, actions, late_ports
+            );
+        test.expect_true(
+            late_stopped.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::
+                        guardian_record_out_of_range &&
+                late_stopped.operation_count == 11U,
+            "0x441680 preserves eleven panel calls before the unconditional party-record read"
+        );
+    }
+    {
+        std::array<sm::LegacyStandardModeForwardNode, 16U> render_records{};
+        render_records[0U].text_index = 0xFFDCU;
+        std::array<
+            LegacyActionRecord,
+            sm::kLegacyStandardSpecialModeInitializationRecordCount>
+            actions{};
+        sm::LegacyStandardModeGuardianInitializationState render_state;
+        render_state.record_head = nullptr;
+        render_state.frame_counter = 9U;
+        render_state.published_frame_counter = 9U;
+        GuardianRenderPorts render_ports;
+        render_ports.transition_ready = true;
+        const auto rendered = sm::render_legacy_standard_mode_guardian_system(
+            render_state, render_records, actions, render_ports
+        );
+        test.expect_true(
+            rendered.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::completed &&
+                rendered.color_count == 4U && rendered.operation_count == 15U &&
+                !rendered.transition_triggered &&
+                render_state.selected_record == &render_records[0U] &&
+                render_state.panel_offset == 0xC8U &&
+                render_state.panel_x == 0x1E8U &&
+                render_state.primary_action_id == 0x232AU &&
+                render_state.primary_action_variant == 0x2FU &&
+                render_state.primary_action_zero == 0U &&
+                render_ports.requests[0U].operation ==
+                    GuardianRenderOperation::update_primary_action &&
+                render_ports.requests[3U].values[2U] == 0x2DA &&
+                render_ports.requests[13U].operation ==
+                    GuardianRenderOperation::draw_text &&
+                render_ports.requests[13U].text == "NO LIST" &&
+                render_ports.requests.back().operation ==
+                    GuardianRenderOperation::refresh_attribute_cache,
+            "0x441680 resets matching-frame geometry and emits the exact basic panel sequence"
+        );
+
+        render_records[0U].text_index = 7U;
+        render_state = {};
+        render_state.sample_owner = 0x12345678U;
+        GuardianRenderPorts transition_ports;
+        transition_ports.transition_ready = true;
+        const auto transitioned =
+            sm::render_legacy_standard_mode_guardian_system(
+                render_state, render_records, actions, transition_ports
+            );
+        test.expect_true(
+            transitioned.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::completed &&
+                transitioned.transition_triggered &&
+                render_state.interaction_mode == 5U &&
+                render_state.transition_reset_second == 0U &&
+                render_state.transition_value == 0x12345678U &&
+                render_state.sample_owner == 0U,
+            "0x441680 transfers sample owner into the mode5 animated transition"
+        );
+
+        render_state = {};
+        render_state.interaction_mode = 1U;
+        GuardianRenderPorts empty_selection_ports;
+        empty_selection_ports.transition_ready = true;
+        const auto empty_selection =
+            sm::render_legacy_standard_mode_guardian_system(
+                render_state, render_records, actions, empty_selection_ports
+            );
+        test.expect_true(
+            empty_selection.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::completed &&
+                render_state.selected_record == nullptr &&
+                !empty_selection.transition_triggered,
+            "0x441680 mode1 preserves the null-selected check without an early typed-stop"
+        );
+    }
+    {
+        std::array<sm::LegacyStandardModeForwardNode, 16U> render_records{};
+        render_records[0U].text_index = 1U;
+        sm::LegacyStandardModeForwardNode second;
+        second.text_index = 5U;
+        second.display_name = "NODE";
+        second.record_bytes[8U] = 2U;
+        second.record_bytes[0x0AU] = 3U;
+        second.record_bytes[0x5CU] = 9U;
+        for (std::size_t index = 0U; index < 9U; ++index) {
+            second.record_bytes[0x9EU + index] =
+                static_cast<u8>(static_cast<i8>(static_cast<i32>(index) - 4));
+        }
+        sm::LegacyStandardModeForwardNode first;
+        first.next = &second;
+        first.text_index = 0xFFDCU;
+        std::array<
+            LegacyActionRecord,
+            sm::kLegacyStandardSpecialModeInitializationRecordCount>
+            actions{};
+        sm::LegacyStandardModeGuardianInitializationState render_state;
+        render_state.interaction_mode = 1U;
+        render_state.panel_offset = 0x10U;
+        render_state.panel_x = 0x1E8U;
+        render_state.panel_y = 0x78U;
+        render_state.frame_counter = 1U;
+        render_state.published_frame_counter = 2U;
+        render_state.record_head = &first;
+        render_state.visible_record_head = &first;
+        render_state.visible_record_count = 2U;
+        render_state.total_record_count = 12U;
+        render_state.list_offset = 3U;
+        render_state.local_selection = 1U;
+        render_state.scroll_overlay_flags = 0x21U;
+        GuardianRenderPorts render_ports;
+        const auto rendered = sm::render_legacy_standard_mode_guardian_system(
+            render_state, render_records, actions, render_ports
+        );
+        const auto selected_action = std::find_if(
+            render_ports.requests.begin(),
+            render_ports.requests.end(),
+            [](const auto& request) {
+                return request.operation ==
+                    GuardianRenderOperation::draw_selected_record_action;
+            }
+        );
+        const auto named_row = std::find_if(
+            render_ports.requests.begin(),
+            render_ports.requests.end(),
+            [](const auto& request) {
+                return request.operation ==
+                    GuardianRenderOperation::draw_text &&
+                    request.text.find("NODE") != std::string::npos;
+            }
+        );
+        test.expect_true(
+            rendered.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::completed &&
+                rendered.row_count == 2U && rendered.bar_count == 2U &&
+                render_state.panel_offset == 8U &&
+                render_state.scroll_overlay_flags == 0x10U &&
+                render_ports.bar_requests.size() == 2U &&
+                render_ports.bar_requests[0U].x == 0x26AU &&
+                render_ports.bar_requests[0U].overlay_flags == 3U &&
+                render_ports.bar_requests[0U].first_ratio == 0.25F &&
+                render_ports.bar_requests[1U].overlay_flags == 0U &&
+                selected_action != render_ports.requests.end() &&
+                selected_action->values[4U] == 9 &&
+                render_state.selected_action_id == 0x232AU &&
+                render_state.selected_action_variant == 0x20U &&
+                render_state.selected_action_frame == 0x44U &&
+                render_state.selected_action_resource == 9U &&
+                render_state.selected_action_zero == 0U &&
+                named_row != render_ports.requests.end() &&
+                named_row->text.ends_with(" 5") &&
+                render_ports.attribute_values ==
+                    std::vector<i8>{-4, -3, -2, -1, 0, 1, 2, 3, 4} &&
+                render_ports.adjustments.empty(),
+            "0x441680 renders the visible chain, selected action, both bars and nine attributes"
+        );
+    }
+    {
+        sm::LegacyStandardModeForwardNode selected;
+        selected.animated_text = "PANEL";
+        std::array<sm::LegacyStandardModeForwardNode, 16U> render_records{};
+        render_records[0U].text_index = 0xFFDCU;
+        std::array<
+            LegacyActionRecord,
+            sm::kLegacyStandardSpecialModeInitializationRecordCount>
+            actions{};
+        sm::LegacyStandardModeGuardianInitializationState render_state;
+        render_state.interaction_mode = 15U;
+        render_state.frame_counter = 1U;
+        render_state.published_frame_counter = 2U;
+        render_state.selected_record = &selected;
+        render_state.transition_countdown = 0x154U;
+        render_state.record_head = nullptr;
+        GuardianRenderPorts render_ports;
+        const auto rendered = sm::render_legacy_standard_mode_guardian_system(
+            render_state, render_records, actions, render_ports
+        );
+        test.expect_true(
+            rendered.status ==
+                    sm::LegacyStandardModeGuardianRenderStatus::completed &&
+                render_ports.animated_rectangles.size() == 1U &&
+                render_ports.animated_frames.size() == 1U &&
+                render_ports.animated_texts ==
+                    std::vector<std::string>{"PANEL"} &&
+                render_ports.requests[render_ports.requests.size() - 2U]
+                        .operation ==
+                    GuardianRenderOperation::draw_tiled_frame &&
+                render_ports.requests.back().operation ==
+                    GuardianRenderOperation::draw_text &&
+                render_ports.requests.back().text == "RETURN" &&
+                rendered.legacy_return_value ==
+                    1000 + static_cast<i32>(render_ports.requests.size()),
+            "0x441680 directly reuses 43BD70 then preserves the mode15 frame/text tail"
+        );
+    }
     {
         std::array<u32, 32U> records{};
         records[0U] = 0xFFDCU;
