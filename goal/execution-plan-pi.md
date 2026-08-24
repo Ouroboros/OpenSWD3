@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v577
+版本：v578
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 审计`0x00448EE0`
+当前步骤：模块9 · 审计`0x00449050`
 
 ## 0. 执行约定
 
@@ -3759,10 +3759,11 @@ B7 P0 有限收口完成。
 - 模块9转场设置向前调整`0x00448CA0`恢复完成。progress1保留selector负值残值；progress5按六行分别减少样本、surface、间距、禁用服务、增加source或减少auxiliary，保留各分支夹前低字节。定向UT与独立ASan通过。workpack稳定为`149/227`，SHA256为`b38bb387117364cb5ebbe56eddadfb45c81c56a5458698473242b0b35eb113c9`。
 - 模块9转场设置向后调整`0x00448DA0`恢复完成。progress1保留selector越界残值；progress5按六行分别增加样本、surface、间距、启用服务、减少source或增加auxiliary，并保留surface超过11时夹10及各分支夹前低字节。定向UT与独立ASan通过。workpack稳定为`150/227`，SHA256为`2dffdcef45c81e43e6207e5a2a77676adb0215f294a680e14c7e8a99eb57e303`。
 - 模块9转场四段选择后移`0x00448EB0`恢复完成。仅progress1预增selector，超过3时owner夹3但返回夹前残值；其他progress返回`progress-1`且不修改owner。定向UT与独立ASan通过。workpack稳定为`151/227`，SHA256为`43ceabff8cc5c4e47553a51f13fced5327e55f272c2a501e986f263e33ddd777`。
+- 模块9转场确认分派`0x00448EE0`恢复完成，纳入498310外部chunk。progress1先发布progress2/velocity100，再按四段选择分派无动作、overlay构造、设置阶段或命令提交；48700与48840直接caller已回收。定向UT与独立ASan通过。workpack稳定为`152/227`，SHA256为`812c008c4f8af6f8cafc2129d234e33c3f864abe1d7caae455c04db384ea80d5`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`151/227`，下一单元为`0x00448EE0`。
+进行中，正式进度为`152/227`，下一单元为`0x00449050`。
 
-下一工作包：按LST唯一真值审计并恢复模块9 `0x00448EE0`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值审计并恢复模块9 `0x00449050`，继续更新workpack、证据和完整验证门。

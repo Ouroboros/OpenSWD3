@@ -340,6 +340,73 @@ initialize_group_eight_selection_records(
 
 }  // namespace
 
+LegacyStandardModeTransitionConfirmationResult
+confirm_legacy_standard_mode_transition(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionConfirmationResult result;
+    result.legacy_return_value = static_cast<compat::i32>(state.progress) - 1;
+    if (state.progress != 1U) {
+        return result;
+    }
+
+    state.velocity = 0x64;
+    state.progress = 2U;
+    compat::i32 selector_residual =
+        std::bit_cast<compat::i32>(state.enabled) - 1;
+    if (selector_residual == 0) {
+        state.velocity = 0x61;
+        result.legacy_return_value = ports.disable_settings_service(0x50U);
+        ++result.helper_call_count;
+        state.mode_one_feature_enabled = 1U;
+        state.mode_one_feature_variant = 0x46U;
+        state.mode_one_feature_phase = 0U;
+        state.mode_one_secondary_owner = 0U;
+        state.mode_one_overlay_storage.clear();
+        try {
+            state.mode_one_overlay_storage.resize(0x20U);
+        } catch (const std::bad_alloc&) {
+            result.status = LegacyStandardModeTransitionConfirmationStatus::
+                overlay_allocation_stopped;
+            return result;
+        }
+        ++state.velocity;
+        result.legacy_return_value =
+            ports.construct_mode_one_overlay(8U, 0x12CU, 0xE6U);
+        ++result.helper_call_count;
+        state.mode_one_overlay_owner =
+            static_cast<compat::u32>(result.legacy_return_value);
+        result.path =
+            LegacyStandardModeTransitionConfirmationPath::overlay_started;
+        return result;
+    }
+
+    --selector_residual;
+    if (selector_residual == 0) {
+        result.legacy_return_value = ports.release_mode_one_record();
+        ++result.helper_call_count;
+        state.progress = 5U;
+        state.velocity = 0;
+        state.mode_one_action_id = 0x232AU;
+        state.mode_one_action_variant = 0x22U;
+        result.path =
+            LegacyStandardModeTransitionConfirmationPath::settings_opened;
+        return result;
+    }
+
+    --selector_residual;
+    result.legacy_return_value = selector_residual;
+    if (selector_residual == 0) {
+        ports.start_mode_one_command(0x10U, 0x19U);
+        result.legacy_return_value = ports.finalize_mode_one_command();
+        result.helper_call_count += 2U;
+        result.path =
+            LegacyStandardModeTransitionConfirmationPath::command_dispatched;
+    }
+    return result;
+}
+
 LegacyStandardModeTransitionVisualResult
 initialize_legacy_standard_mode_transition_visual(
     LegacyStandardModeTransitionVisualState& state,
@@ -369,8 +436,16 @@ initialize_legacy_standard_mode_transition_visual(
     if (state.mode == 3U) {
         state.progress = 1U;
         state.enabled = 1U;
-        ports.initialize_mode_three();
-        ++result.helper_call_count;
+        const LegacyStandardModeTransitionConfirmationResult confirmation =
+            confirm_legacy_standard_mode_transition(state, ports);
+        result.legacy_return_value = confirmation.legacy_return_value;
+        result.helper_call_count += confirmation.helper_call_count + 1U;
+        if (confirmation.status !=
+            LegacyStandardModeTransitionConfirmationStatus::completed) {
+            result.status =
+                LegacyStandardModeTransitionVisualStatus::confirmation_stopped;
+            return result;
+        }
     }
     state.shared_owner = 0U;
     if (state.mode == 0U) {
@@ -425,23 +500,29 @@ update_legacy_standard_mode_transition_interaction(
     }
 
     if (state.progress == 1U) {
-        const auto update_selection =
-            [&](const compat::u32 lower,
-                const compat::u32 upper,
-                const compat::u32 selection) noexcept {
-                if (!inside(state.pointer_y, lower, upper) ||
-                    !inside(state.pointer_x, 0x6EU, 0x104U)) {
-                    return;
-                }
-                state.enabled = selection;
-                result.path = LegacyStandardModeTransitionInteractionPath::
-                    mode_one_selection_changed;
-                result.legacy_return_value = static_cast<compat::u8>(selection);
-                if ((state.input_flags & 3U) != 0U) {
-                    ports.initialize_mode_three();
-                    ++result.helper_call_count;
-                }
-            };
+        const auto update_selection = [&](
+                                          const compat::u32 lower,
+                                          const compat::u32 upper,
+                                          const compat::u32 selection
+                                      ) noexcept {
+            if (!inside(state.pointer_y, lower, upper) ||
+                !inside(state.pointer_x, 0x6EU, 0x104U)) {
+                return;
+            }
+            state.enabled = selection;
+            result.path = LegacyStandardModeTransitionInteractionPath::
+                mode_one_selection_changed;
+            result.legacy_return_value = static_cast<compat::u8>(selection);
+            if ((state.input_flags & 3U) != 0U) {
+                const LegacyStandardModeTransitionConfirmationResult
+                    confirmation =
+                        confirm_legacy_standard_mode_transition(state, ports);
+                result.legacy_return_value =
+                    static_cast<compat::u8>(confirmation.legacy_return_value);
+                result.helper_call_count += confirmation.helper_call_count + 1U;
+                result.confirmation_status = confirmation.status;
+            }
+        };
         update_selection(0xD2U, 0xE8U, 0U);
         update_selection(0x107U, 0x11DU, 1U);
         update_selection(0x140U, 0x156U, 2U);

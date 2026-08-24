@@ -4863,7 +4863,24 @@ public:
                             );
                             return true;
                         }
-                        void initialize_mode_three() noexcept override {}
+                        openswd3::compat::i32
+                        release_mode_one_record() noexcept override {
+                            return 0;
+                        }
+                        openswd3::compat::i32 construct_mode_one_overlay(
+                            openswd3::compat::u32,
+                            openswd3::compat::u32,
+                            openswd3::compat::u32
+                        ) noexcept override {
+                            return 0;
+                        }
+                        void start_mode_one_command(
+                            openswd3::compat::u32, openswd3::compat::u32
+                        ) noexcept override {}
+                        openswd3::compat::i32
+                        finalize_mode_one_command() noexcept override {
+                            return 0;
+                        }
                         openswd3::compat::i32
                         probe_mode_zero() noexcept override {
                             return 0;

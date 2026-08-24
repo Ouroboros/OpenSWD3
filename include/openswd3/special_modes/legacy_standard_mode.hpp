@@ -141,6 +141,14 @@ struct LegacyStandardModeTransitionVisualState {
     compat::u32 settings_spacing{};
     compat::u32 settings_source_surface{};
     compat::u32 settings_auxiliary{};
+    compat::u32 mode_one_feature_enabled{};
+    compat::u32 mode_one_feature_variant{};
+    compat::u32 mode_one_feature_phase{};
+    compat::u32 mode_one_secondary_owner{};
+    compat::u32 mode_one_action_id{};
+    compat::u32 mode_one_action_variant{};
+    std::vector<compat::u8> mode_one_overlay_storage;
+    compat::u32 mode_one_overlay_owner{};
 };
 
 class LegacyStandardModeTransitionVisualPorts {
@@ -148,7 +156,14 @@ public:
     virtual ~LegacyStandardModeTransitionVisualPorts() = default;
     [[nodiscard]] virtual bool
     capture_framebuffer(std::span<compat::u8> destination) noexcept = 0;
-    virtual void initialize_mode_three() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 release_mode_one_record() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 construct_mode_one_overlay(
+        compat::u32 kind, compat::u32 x, compat::u32 y
+    ) noexcept = 0;
+    virtual void start_mode_one_command(
+        compat::u32 command, compat::u32 argument
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 finalize_mode_one_command() noexcept = 0;
     [[nodiscard]] virtual compat::i32 probe_mode_zero() noexcept = 0;
     virtual void prepare_mode_zero() noexcept = 0;
     virtual void format_mode_zero_command(compat::i32 command) noexcept = 0;
@@ -166,9 +181,39 @@ public:
     [[nodiscard]] virtual compat::i32 exit_transition_settings() noexcept = 0;
 };
 
+enum class LegacyStandardModeTransitionConfirmationStatus : compat::u8 {
+    completed,
+    overlay_allocation_stopped,
+};
+
+enum class LegacyStandardModeTransitionConfirmationPath : compat::u8 {
+    no_action,
+    overlay_started,
+    settings_opened,
+    command_dispatched,
+};
+
+struct LegacyStandardModeTransitionConfirmationResult {
+    LegacyStandardModeTransitionConfirmationStatus status{
+        LegacyStandardModeTransitionConfirmationStatus::completed
+    };
+    LegacyStandardModeTransitionConfirmationPath path{
+        LegacyStandardModeTransitionConfirmationPath::no_action
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeTransitionConfirmationResult
+confirm_legacy_standard_mode_transition(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeTransitionVisualStatus : compat::u8 {
     completed,
     snapshot_allocation_stopped,
+    confirmation_stopped,
 };
 
 struct LegacyStandardModeTransitionVisualResult {
@@ -200,6 +245,9 @@ enum class LegacyStandardModeTransitionInteractionPath : compat::u8 {
 };
 
 struct LegacyStandardModeTransitionInteractionResult {
+    LegacyStandardModeTransitionConfirmationStatus confirmation_status{
+        LegacyStandardModeTransitionConfirmationStatus::completed
+    };
     LegacyStandardModeTransitionInteractionPath path{
         LegacyStandardModeTransitionInteractionPath::no_action
     };

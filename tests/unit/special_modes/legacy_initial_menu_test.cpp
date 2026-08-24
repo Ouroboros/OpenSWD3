@@ -279,8 +279,24 @@ public:
         std::fill(destination.begin(), destination.end(), snapshot_value);
         return capture_available;
     }
-    void initialize_mode_three() noexcept override {
-        ++mode_three_count;
+    i32 release_mode_one_record() noexcept override {
+        mode_one_calls.push_back({0x100U, 0U, 0U});
+        return mode_one_return;
+    }
+    i32 construct_mode_one_overlay(
+        const u32 kind, const u32 x, const u32 y
+    ) noexcept override {
+        mode_one_calls.push_back({kind, x, y});
+        return mode_one_return;
+    }
+    void start_mode_one_command(
+        const u32 command, const u32 argument
+    ) noexcept override {
+        mode_one_calls.push_back({0x200U, command, argument});
+    }
+    i32 finalize_mode_one_command() noexcept override {
+        mode_one_calls.push_back({0x201U, 0U, 0U});
+        return mode_one_return;
     }
     i32 probe_mode_zero() noexcept override {
         ++probe_count;
@@ -330,12 +346,13 @@ public:
     i32 probe_return{};
     i32 activate_return{77};
     i32 settings_return{88};
+    i32 mode_one_return{0x5678};
     u32 surface_token{0x1234U};
     u32 capture_count{};
-    u32 mode_three_count{};
     u32 probe_count{};
     std::vector<u32> events;
     std::vector<std::array<u32, 2U>> settings_calls;
+    std::vector<std::array<u32, 3U>> mode_one_calls;
 };
 
 class FakeStandardModeCallbackBindingPorts final
@@ -14808,9 +14825,15 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         transition_three.status ==
                 openswd3::special_modes::
                     LegacyStandardModeTransitionVisualStatus::completed &&
-            transition_three_state.progress == 1U &&
+            transition_three_state.progress == 2U &&
             transition_three_state.enabled == 1U &&
-            transition_three_ports.mode_three_count == 1U &&
+            transition_three_state.velocity == 0x62 &&
+            transition_three_state.mode_one_overlay_storage.size() == 0x20U &&
+            transition_three_state.mode_one_overlay_owner == 0x5678U &&
+            transition_three_ports.settings_calls ==
+                std::vector<std::array<u32, 2U>>{{0x200U, 0x50U}} &&
+            transition_three_ports.mode_one_calls ==
+                std::vector<std::array<u32, 3U>>{{8U, 0x12CU, 0xE6U}} &&
             transition_zero.legacy_return_value == 77 &&
             transition_zero_ports.probe_count == 1U &&
             transition_zero_ports.events == std::vector<u32>{1U, 10U, 2U, 3U} &&
@@ -14871,19 +14894,75 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         state.pointer_y = mode_one_y[index];
         state.input_flags = 3U;
         FakeTransitionVisualPorts ports;
-        static_cast<void>(
-            openswd3::special_modes::
-                update_legacy_standard_mode_transition_interaction(state, ports)
-        );
+        const auto interaction = openswd3::special_modes::
+            update_legacy_standard_mode_transition_interaction(state, ports);
         mode_one_selections[index] = state.enabled;
         test.expect_true(
-            ports.mode_three_count == 1U,
-            "0x448840 invokes the mode-one refresh for every strict selection band"
+            interaction.confirmation_status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionConfirmationStatus::completed,
+            "0x448840 directly dispatches every strict mode-one selection through 0x448EE0"
         );
     }
     test.expect_true(
         mode_one_selections == std::array<u32, 4U>{0U, 1U, 2U, 3U},
         "0x448840 maps the four mode-one bands without closing their strict edges"
+    );
+
+    std::array<
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState,
+        4U>
+        confirmation_states{};
+    std::array<FakeTransitionVisualPorts, 4U> confirmation_ports{};
+    std::array<
+        openswd3::special_modes::LegacyStandardModeTransitionConfirmationResult,
+        4U>
+        confirmations{};
+    for (std::size_t index = 0U; index < confirmation_states.size(); ++index) {
+        confirmation_states[index].progress = 1U;
+        confirmation_states[index].enabled = static_cast<u32>(index);
+        confirmations[index] =
+            openswd3::special_modes::confirm_legacy_standard_mode_transition(
+                confirmation_states[index], confirmation_ports[index]
+            );
+    }
+    test.expect_true(
+        confirmation_states[0U].progress == 2U &&
+            confirmation_states[0U].velocity == 0x64 &&
+            confirmations[0U].legacy_return_value == -3 &&
+            confirmations[1U].path ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionConfirmationPath::
+                        overlay_started &&
+            confirmation_states[1U].velocity == 0x62 &&
+            confirmation_states[1U].mode_one_feature_enabled == 1U &&
+            confirmation_states[1U].mode_one_feature_variant == 0x46U &&
+            confirmation_states[1U].mode_one_overlay_storage.size() == 0x20U &&
+            confirmation_states[1U].mode_one_overlay_owner == 0x5678U &&
+            confirmation_ports[1U].settings_calls ==
+                std::vector<std::array<u32, 2U>>{{0x200U, 0x50U}} &&
+            confirmation_ports[1U].mode_one_calls ==
+                std::vector<std::array<u32, 3U>>{{8U, 0x12CU, 0xE6U}} &&
+            confirmations[2U].path ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionConfirmationPath::
+                        settings_opened &&
+            confirmation_states[2U].progress == 5U &&
+            confirmation_states[2U].velocity == 0 &&
+            confirmation_states[2U].mode_one_action_id == 0x232AU &&
+            confirmation_states[2U].mode_one_action_variant == 0x22U &&
+            confirmation_ports[2U].mode_one_calls ==
+                std::vector<std::array<u32, 3U>>{{0x100U, 0U, 0U}} &&
+            confirmations[3U].path ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionConfirmationPath::
+                        command_dispatched &&
+            confirmation_ports[3U].mode_one_calls ==
+                std::vector<std::array<u32, 3U>>{
+                    {0x200U, 0x10U, 0x19U}, {0x201U, 0U, 0U}
+                } &&
+            confirmations[3U].legacy_return_value == 0x5678,
+        "0x448EE0 publishes progress two before dispatching all four mode-one confirmation branches"
     );
 
     std::array<i32, 6U> setting_velocities{};
