@@ -4881,6 +4881,30 @@ public:
                         current_surface_token() noexcept override {
                             return 0U;
                         }
+                        openswd3::compat::i32 play_settings_sample(
+                            openswd3::compat::u32, openswd3::compat::u32
+                        ) noexcept override {
+                            return 0;
+                        }
+                        openswd3::compat::i32 activate_settings_surface(
+                            openswd3::compat::u32
+                        ) noexcept override {
+                            return 0;
+                        }
+                        openswd3::compat::i32 disable_settings_service(
+                            openswd3::compat::u32
+                        ) noexcept override {
+                            return 0;
+                        }
+                        openswd3::compat::i32 enable_settings_service(
+                            openswd3::compat::u32
+                        ) noexcept override {
+                            return 0;
+                        }
+                        openswd3::compat::i32
+                        exit_transition_settings() noexcept override {
+                            return 0;
+                        }
 
                     private:
                         SdlSmokeIdlePorts& owner_;

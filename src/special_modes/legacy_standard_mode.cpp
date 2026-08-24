@@ -390,6 +390,164 @@ initialize_legacy_standard_mode_transition_visual(
     return result;
 }
 
+LegacyStandardModeTransitionInteractionResult
+update_legacy_standard_mode_transition_interaction(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionInteractionResult result;
+    result.legacy_return_value = static_cast<compat::u8>(state.progress);
+    const auto inside = [](const compat::u32 value,
+                           const compat::u32 lower,
+                           const compat::u32 upper) noexcept {
+        return value > lower && value < upper;
+    };
+
+    if (state.progress == 2U) {
+        if (state.velocity >= 97) {
+            if (state.primary_state == 1U && state.primary_gate == 1U &&
+                inside(state.pointer_y, 0x101U, 0x112U) &&
+                inside(state.pointer_x, 0x162U, 0x198U)) {
+                state.selection_result = 1U;
+                result.path = LegacyStandardModeTransitionInteractionPath::
+                    mode_two_first_selected;
+                result.legacy_return_value = 1U;
+            } else if (
+                state.secondary_state == 1U && state.secondary_gate == 1U
+            ) {
+                state.selection_result = 2U;
+                result.path = LegacyStandardModeTransitionInteractionPath::
+                    mode_two_second_selected;
+                result.legacy_return_value = 2U;
+            }
+        }
+        return result;
+    }
+
+    if (state.progress == 1U) {
+        const auto update_selection =
+            [&](const compat::u32 lower,
+                const compat::u32 upper,
+                const compat::u32 selection) noexcept {
+                if (!inside(state.pointer_y, lower, upper) ||
+                    !inside(state.pointer_x, 0x6EU, 0x104U)) {
+                    return;
+                }
+                state.enabled = selection;
+                result.path = LegacyStandardModeTransitionInteractionPath::
+                    mode_one_selection_changed;
+                result.legacy_return_value = static_cast<compat::u8>(selection);
+                if ((state.input_flags & 3U) != 0U) {
+                    ports.initialize_mode_three();
+                    ++result.helper_call_count;
+                }
+            };
+        update_selection(0xD2U, 0xE8U, 0U);
+        update_selection(0x107U, 0x11DU, 1U);
+        update_selection(0x140U, 0x156U, 2U);
+        update_selection(0x179U, 0x18FU, 3U);
+        return result;
+    }
+
+    if (state.progress != 5U) {
+        return result;
+    }
+    if (state.primary_gate != 0U && inside(state.pointer_x, 0xA8U, 0x1C0U)) {
+        compat::u32 column = (state.pointer_x - 0x100U) >> 4U;
+        const bool valid_column = (column & 0xFFFF0000U) == 0U;
+        if (inside(state.pointer_y, 0xF0U, 0x10FU)) {
+            state.velocity = 0;
+            if (valid_column) {
+                column = std::min(column, 0x0BU);
+                state.sample_index = column;
+                result.legacy_return_value = static_cast<compat::u8>(
+                    ports.play_settings_sample(0x2EU, column)
+                );
+                ++result.helper_call_count;
+            }
+            result.path = LegacyStandardModeTransitionInteractionPath::
+                setting_sample_changed;
+            return result;
+        }
+        if (inside(state.pointer_y, 0x110U, 0x12FU)) {
+            state.velocity = 1;
+            if (valid_column) {
+                column = std::min(column, 0x0BU);
+                state.settings_surface_index = column;
+                result.legacy_return_value = static_cast<compat::u8>(
+                    ports.activate_settings_surface(column)
+                );
+                ++result.helper_call_count;
+            }
+            result.path = LegacyStandardModeTransitionInteractionPath::
+                setting_surface_changed;
+            return result;
+        }
+        if (inside(state.pointer_y, 0x130U, 0x14FU)) {
+            state.velocity = 2;
+            if (valid_column) {
+                column = std::min(column, 2U);
+                state.settings_spacing = 0x28U * column + 0x3CU;
+                result.legacy_return_value =
+                    static_cast<compat::u8>(5U * column);
+            }
+            result.path = LegacyStandardModeTransitionInteractionPath::
+                setting_spacing_changed;
+            return result;
+        }
+        if (inside(state.pointer_y, 0x150U, 0x16FU)) {
+            state.velocity = 3;
+            if (valid_column) {
+                result.legacy_return_value = static_cast<compat::u8>(
+                    ports.disable_settings_service(0x48U)
+                );
+                ++result.helper_call_count;
+                if (column != 0U) {
+                    result.legacy_return_value = static_cast<compat::u8>(
+                        ports.enable_settings_service(0x48U)
+                    );
+                    ++result.helper_call_count;
+                }
+            }
+            result.path = LegacyStandardModeTransitionInteractionPath::
+                setting_toggle_changed;
+            return result;
+        }
+        if (inside(state.pointer_y, 0x170U, 0x18FU)) {
+            state.velocity = 4;
+            result.legacy_return_value = 4U;
+            if (valid_column) {
+                column = std::min(column, 4U);
+                state.settings_source_surface = 4U - column;
+                state.source_surface_token = 4U - column;
+                result.legacy_return_value =
+                    static_cast<compat::u8>(4U - column);
+            }
+            result.path = LegacyStandardModeTransitionInteractionPath::
+                setting_source_changed;
+            return result;
+        }
+        if (inside(state.pointer_y, 0x190U, 0x1AFU)) {
+            state.velocity = 5;
+            if (valid_column) {
+                state.settings_auxiliary = std::min(column, 0x0BU);
+            }
+            result.path = LegacyStandardModeTransitionInteractionPath::
+                setting_auxiliary_changed;
+            return result;
+        }
+    }
+    result.legacy_return_value = static_cast<compat::u8>(state.secondary_gate);
+    if (state.secondary_gate != 0U) {
+        result.legacy_return_value =
+            static_cast<compat::u8>(ports.exit_transition_settings());
+        ++result.helper_call_count;
+        result.path = LegacyStandardModeTransitionInteractionPath::
+            settings_exit_requested;
+    }
+    return result;
+}
+
 LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     LegacyStandardModeCallbackState& state,
     const compat::u16 secondary_word,

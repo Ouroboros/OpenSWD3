@@ -302,16 +302,40 @@ public:
     u32 current_surface_token() noexcept override {
         return surface_token;
     }
+    i32 play_settings_sample(
+        const u32 sample_id, const u32 index
+    ) noexcept override {
+        settings_calls.push_back({sample_id, index});
+        return settings_return;
+    }
+    i32 activate_settings_surface(const u32 index) noexcept override {
+        settings_calls.push_back({0x100U, index});
+        return settings_return;
+    }
+    i32 disable_settings_service(const u32 service_id) noexcept override {
+        settings_calls.push_back({0x200U, service_id});
+        return settings_return;
+    }
+    i32 enable_settings_service(const u32 service_id) noexcept override {
+        settings_calls.push_back({0x201U, service_id});
+        return settings_return + 1;
+    }
+    i32 exit_transition_settings() noexcept override {
+        settings_calls.push_back({0x300U, 0U});
+        return settings_return;
+    }
 
     bool capture_available{true};
     u8 snapshot_value{0x5AU};
     i32 probe_return{};
     i32 activate_return{77};
+    i32 settings_return{88};
     u32 surface_token{0x1234U};
     u32 capture_count{};
     u32 mode_three_count{};
     u32 probe_count{};
     std::vector<u32> events;
+    std::vector<std::array<u32, 2U>> settings_calls;
 };
 
 class FakeStandardModeCallbackBindingPorts final
@@ -14798,6 +14822,123 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             transition_stop_state.velocity == -120 &&
             transition_stop_state.framebuffer_snapshot.empty(),
         "0x448700 initializes mode three, preserves the mode-zero call chain and stops at snapshot capture"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        interaction_two_state;
+    interaction_two_state.progress = 2U;
+    interaction_two_state.velocity = 97;
+    interaction_two_state.primary_gate = 1U;
+    interaction_two_state.primary_state = 1U;
+    interaction_two_state.pointer_x = 0x170U;
+    interaction_two_state.pointer_y = 0x108U;
+    FakeTransitionVisualPorts interaction_two_ports;
+    const auto interaction_two = openswd3::special_modes::
+        update_legacy_standard_mode_transition_interaction(
+            interaction_two_state, interaction_two_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        interaction_two_fallback_state;
+    interaction_two_fallback_state.progress = 2U;
+    interaction_two_fallback_state.velocity = 97;
+    interaction_two_fallback_state.secondary_gate = 1U;
+    interaction_two_fallback_state.secondary_state = 1U;
+    FakeTransitionVisualPorts interaction_two_fallback_ports;
+    const auto interaction_two_fallback = openswd3::special_modes::
+        update_legacy_standard_mode_transition_interaction(
+            interaction_two_fallback_state, interaction_two_fallback_ports
+        );
+    test.expect_true(
+        interaction_two.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionInteractionPath::
+                        mode_two_first_selected &&
+            interaction_two_state.selection_result == 1U &&
+            interaction_two_fallback.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionInteractionPath::
+                        mode_two_second_selected &&
+            interaction_two_fallback_state.selection_result == 2U,
+        "0x448840 selects the strict mode-two rectangle before the paired fallback"
+    );
+
+    std::array<u32, 4U> mode_one_selections{};
+    const std::array<u32, 4U> mode_one_y{0xD3U, 0x108U, 0x141U, 0x17AU};
+    for (std::size_t index = 0U; index < mode_one_y.size(); ++index) {
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState state;
+        state.progress = 1U;
+        state.pointer_x = 0x80U;
+        state.pointer_y = mode_one_y[index];
+        state.input_flags = 3U;
+        FakeTransitionVisualPorts ports;
+        static_cast<void>(
+            openswd3::special_modes::
+                update_legacy_standard_mode_transition_interaction(state, ports)
+        );
+        mode_one_selections[index] = state.enabled;
+        test.expect_true(
+            ports.mode_three_count == 1U,
+            "0x448840 invokes the mode-one refresh for every strict selection band"
+        );
+    }
+    test.expect_true(
+        mode_one_selections == std::array<u32, 4U>{0U, 1U, 2U, 3U},
+        "0x448840 maps the four mode-one bands without closing their strict edges"
+    );
+
+    std::array<i32, 6U> setting_velocities{};
+    std::array<u32, 6U> setting_values{};
+    const std::array<u32, 6U> setting_y{
+        0xF1U, 0x111U, 0x131U, 0x151U, 0x171U, 0x191U
+    };
+    for (std::size_t index = 0U; index < setting_y.size(); ++index) {
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState state;
+        state.progress = 5U;
+        state.primary_gate = 1U;
+        state.pointer_x = 0x150U;
+        state.pointer_y = setting_y[index];
+        FakeTransitionVisualPorts ports;
+        static_cast<void>(
+            openswd3::special_modes::
+                update_legacy_standard_mode_transition_interaction(state, ports)
+        );
+        setting_velocities[index] = state.velocity;
+        setting_values[index] = index == 0U
+            ? state.sample_index
+            : (index == 1U
+                   ? state.settings_surface_index
+                   : (index == 2U ? state.settings_spacing
+                                  : (index == 4U ? state.settings_source_surface
+                                                 : state.settings_auxiliary)));
+        if (index == 3U) {
+            test.expect_true(
+                ports.settings_calls ==
+                    std::vector<std::array<u32, 2U>>{
+                        {0x200U, 0x48U}, {0x201U, 0x48U}
+                    },
+                "0x448840 disables then conditionally re-enables service 48"
+            );
+        }
+    }
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        settings_exit_state;
+    settings_exit_state.progress = 5U;
+    settings_exit_state.secondary_gate = 1U;
+    FakeTransitionVisualPorts settings_exit_ports;
+    const auto settings_exit = openswd3::special_modes::
+        update_legacy_standard_mode_transition_interaction(
+            settings_exit_state, settings_exit_ports
+        );
+    test.expect_true(
+        setting_velocities == std::array<i32, 6U>{0, 1, 2, 3, 4, 5} &&
+            setting_values == std::array<u32, 6U>{5U, 5U, 0x8CU, 0U, 0U, 5U} &&
+            settings_exit.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionInteractionPath::
+                        settings_exit_requested &&
+            settings_exit_ports.settings_calls ==
+                std::vector<std::array<u32, 2U>>{{0x300U, 0U}},
+        "0x448840 applies all six settings rows and routes outside activation to exit"
     );
 
     for (const auto& item : cases) {

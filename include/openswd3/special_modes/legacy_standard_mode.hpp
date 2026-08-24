@@ -128,6 +128,19 @@ struct LegacyStandardModeTransitionVisualState {
     compat::u32 trailing_zero_one{};
     compat::u32 trailing_zero_two{};
     compat::u32 source_surface_token{};
+    compat::u32 pointer_x{};
+    compat::u32 pointer_y{};
+    compat::u32 input_flags{};
+    compat::u32 primary_gate{};
+    compat::u32 primary_state{};
+    compat::u32 secondary_gate{};
+    compat::u32 secondary_state{};
+    compat::u32 selection_result{};
+    compat::u32 sample_index{};
+    compat::u32 settings_surface_index{};
+    compat::u32 settings_spacing{};
+    compat::u32 settings_source_surface{};
+    compat::u32 settings_auxiliary{};
 };
 
 class LegacyStandardModeTransitionVisualPorts {
@@ -142,6 +155,15 @@ public:
     virtual void apply_mode_zero_command() noexcept = 0;
     [[nodiscard]] virtual compat::i32 activate_mode_zero_surface() noexcept = 0;
     [[nodiscard]] virtual compat::u32 current_surface_token() noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    play_settings_sample(compat::u32 sample_id, compat::u32 index) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    activate_settings_surface(compat::u32 index) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    disable_settings_service(compat::u32 service_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    enable_settings_service(compat::u32 service_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 exit_transition_settings() noexcept = 0;
 };
 
 enum class LegacyStandardModeTransitionVisualStatus : compat::u8 {
@@ -159,6 +181,34 @@ struct LegacyStandardModeTransitionVisualResult {
 
 [[nodiscard]] LegacyStandardModeTransitionVisualResult
 initialize_legacy_standard_mode_transition_visual(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeTransitionInteractionPath : compat::u8 {
+    no_action,
+    mode_two_first_selected,
+    mode_two_second_selected,
+    mode_one_selection_changed,
+    setting_sample_changed,
+    setting_surface_changed,
+    setting_spacing_changed,
+    setting_toggle_changed,
+    setting_source_changed,
+    setting_auxiliary_changed,
+    settings_exit_requested,
+};
+
+struct LegacyStandardModeTransitionInteractionResult {
+    LegacyStandardModeTransitionInteractionPath path{
+        LegacyStandardModeTransitionInteractionPath::no_action
+    };
+    compat::u8 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeTransitionInteractionResult
+update_legacy_standard_mode_transition_interaction(
     LegacyStandardModeTransitionVisualState& state,
     LegacyStandardModeTransitionVisualPorts& ports
 ) noexcept;
