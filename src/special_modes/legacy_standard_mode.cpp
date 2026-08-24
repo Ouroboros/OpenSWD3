@@ -619,6 +619,578 @@ advance_legacy_standard_mode_equipment_column(
     return result;
 }
 
+LegacyStandardModeEquipmentRenderResult render_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::array<
+        asset_runtime::LegacyActionRecord,
+        kLegacyStandardSpecialModeInitializationRecordCount>& action_records,
+    LegacyStandardModeEquipmentRenderPorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentRenderResult result;
+    const auto emit = [&](const LegacyStandardModeEquipmentRenderOperation op,
+                          const std::array<compat::i32, 8U> values = {},
+                          const compat::u32 flags = 0U,
+                          const compat::i32 color = 0,
+                          const std::string& text = {}) {
+        LegacyStandardModeEquipmentRenderRequest request;
+        request.operation = op;
+        request.values = values;
+        request.flags = flags;
+        request.color = color;
+        request.text = text;
+        result.legacy_return_value = ports.execute_equipment_render(request);
+        ++result.operation_count;
+    };
+    const compat::i32 normal_color =
+        ports.make_equipment_color(0x19U, 0x17U, 0x11U);
+    const compat::i32 type_zero_color =
+        ports.make_equipment_color(0x0DU, 0x0DU, 9U);
+    const compat::i32 type_one_color =
+        ports.make_equipment_color(0x18U, 0x0AU, 0x0BU);
+
+    if (state.mode_enabled == 1U && ports.equipment_transition_ready()) {
+        const LegacyStandardModeForwardNode* source_head = state.record_head;
+        const LegacyStandardModeForwardNode* transition_record = nullptr;
+        static_cast<void>(advance_legacy_standard_mode_forward_head(
+            std::bit_cast<compat::i32>(
+                state.list_offset + state.local_selection
+            ),
+            &source_head,
+            &transition_record
+        ));
+        if (transition_record != nullptr &&
+            transition_record->text_index != 0xFFDCU) {
+            state.second_render_zero = 0x80;
+            state.mode_enabled = 5U;
+            result.transition_triggered = true;
+        }
+    }
+
+    emit(LegacyStandardModeEquipmentRenderOperation::prepare_surface);
+    emit(
+        LegacyStandardModeEquipmentRenderOperation::draw_frame,
+        {0xD0,
+         0x36,
+         static_cast<compat::i32>(
+             0x3CU * std::bit_cast<compat::u32>(state.published_action_count) +
+             0x10U
+         ),
+         0x1E,
+         0x10,
+         0x10,
+         0x6C,
+         2}
+    );
+    emit(
+        LegacyStandardModeEquipmentRenderOperation::draw_tiled_frame,
+        {state.frame_source_word,
+         0xD8,
+         0x3E,
+         static_cast<compat::i32>(
+             0x3CU * std::bit_cast<compat::u32>(state.published_action_count) +
+             0xD8U
+         ),
+         0x50,
+         0,
+         static_cast<compat::i32>(0x80000008U),
+         0}
+    );
+    emit(
+        LegacyStandardModeEquipmentRenderOperation::draw_frame,
+        {0xD0, 0x1B5, 0x190, 0x24, 0, 0, 0, 2}
+    );
+    emit(
+        LegacyStandardModeEquipmentRenderOperation::draw_tiled_frame,
+        {state.frame_source_word,
+         0xD8,
+         0x1BD,
+         0x258,
+         0x1D1,
+         0,
+         static_cast<compat::i32>(0x80000008U),
+         0}
+    );
+    for (compat::u32 tab = 0U; tab < 3U; ++tab) {
+        const bool selected = state.list_kind == tab;
+        const compat::i32 tab_color = selected
+            ? normal_color
+            : ports.adjust_equipment_color(normal_color, 1, -4, -4, -4);
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_text,
+            {static_cast<compat::i32>(
+                 0xE0U + 0x3CU * tab - (selected ? 1U : 0U)
+             ),
+             selected ? 0x3D : 0x3E,
+             static_cast<compat::i32>(tab),
+             4,
+             0,
+             0,
+             0,
+             0},
+            selected ? 1U : 0U,
+            tab_color,
+            "equipment-tab"
+        );
+    }
+
+    const LegacyStandardModeForwardNode* selected_record = nullptr;
+    const LegacyStandardModeForwardNode* node = state.visible_record_head;
+    if (state.record_head == nullptr) {
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_text,
+            {0xD8, 0x70, 0, 4, 0, 0, 0, 0},
+            0U,
+            0xFFFF,
+            "equipment-empty"
+        );
+    } else {
+        for (compat::u32 row = 0U; row < state.visible_record_count; ++row) {
+            if (node == nullptr) {
+                result.status = LegacyStandardModeEquipmentRenderStatus::
+                    visible_chain_stopped;
+                return result;
+            }
+            compat::i32 color = normal_color;
+            const bool selected = row == state.local_selection;
+            if (selected) {
+                selected_record = node;
+            }
+            const compat::u8 type =
+                static_cast<compat::u8>(node->equipment_type_flags & 0x0FU);
+            const compat::i32 selected_shift =
+                selected && type != 0U && type != 1U ? 1 : 0;
+            if (type == 1U) {
+                color = type_one_color;
+            } else if (type == 0U) {
+                color = type_zero_color;
+            }
+            if (state.mode_enabled > 1U) {
+                color = ports.adjust_equipment_color(color, 1, -4, -4, -4);
+            }
+            char name[128]{};
+            std::snprintf(
+                name, sizeof(name), "%-14s", node->display_name.c_str()
+            );
+            const compat::i32 column = static_cast<compat::i32>(row & 1U);
+            const compat::i32 row_y = 0x19 * static_cast<compat::i32>(row / 2U);
+            emit(
+                LegacyStandardModeEquipmentRenderOperation::draw_text,
+                {0xF0 + 0xC6 * column - selected_shift,
+                 0x72 + row_y - selected_shift,
+                 static_cast<compat::i32>(row),
+                 4,
+                 0,
+                 0,
+                 0,
+                 0},
+                selected ? 1U : 0U,
+                color,
+                name
+            );
+            if (state.list_kind <= 1U &&
+                (node->equipment_cost_flags & 0xC000U) != 0U) {
+                char cost[32]{};
+                if (static_cast<compat::i16>(node->equipment_cost_flags) < 0) {
+                    std::snprintf(
+                        cost,
+                        sizeof(cost),
+                        "%3u",
+                        node->equipment_cost_flags & 0x7FFFU
+                    );
+                }
+                if ((node->equipment_cost_flags & 0x4000U) != 0U) {
+                    std::snprintf(
+                        cost,
+                        sizeof(cost),
+                        "%3u",
+                        node->equipment_cost_flags & 0x3FFFU
+                    );
+                }
+                emit(
+                    LegacyStandardModeEquipmentRenderOperation::draw_text,
+                    {0x178 + 0xC6 * column - selected_shift,
+                     0x78 + row_y - selected_shift,
+                     static_cast<compat::i32>(row),
+                     4,
+                     0,
+                     0,
+                     0,
+                     0},
+                    selected ? 1U : 0U,
+                    color,
+                    cost
+                );
+            }
+            emit(
+                LegacyStandardModeEquipmentRenderOperation::draw_item_tile,
+                {0x232A,
+                 static_cast<compat::i32>(state.first_render_zero + 0x21CU),
+                 static_cast<compat::i32>(state.first_render_zero + 0x1D4U),
+                 static_cast<compat::i32>(row),
+                 0,
+                 0,
+                 0,
+                 0}
+            );
+            if (state.list_kind <= 1U && node->text_index != 0xFFDCU) {
+                compat::u16 variant = 0U;
+                if (!ports.load_equipment_render_action(
+                        node->equipment_action_id, variant
+                    )) {
+                    result.status = LegacyStandardModeEquipmentRenderStatus::
+                        action_load_stopped;
+                    return result;
+                }
+                constexpr std::array<compat::i32, 12U> kVariants{
+                    8, 1, 2, 3, 4, -1, 5, 6, 7, -1, 9, 10
+                };
+                if (variant >= kVariants.size()) {
+                    result.status = LegacyStandardModeEquipmentRenderStatus::
+                        action_load_stopped;
+                    return result;
+                }
+                const compat::i32 mapped = kVariants[variant] - 1;
+                if (mapped >= 0) {
+                    emit(
+                        LegacyStandardModeEquipmentRenderOperation::
+                            draw_record_action,
+                        {static_cast<compat::i32>(node->equipment_action_id),
+                         mapped,
+                         0xDB + 0xC8 * column - selected_shift,
+                         0x73 + row_y - selected_shift,
+                         static_cast<compat::i32>(row),
+                         0,
+                         0,
+                         0},
+                        selected ? 1U : 0U
+                    );
+                }
+            }
+            if (selected && state.mode_enabled == 1U) {
+                emit(
+                    LegacyStandardModeEquipmentRenderOperation::draw_selection,
+                    {0xD3 + 0xC5 * column,
+                     0x70 + row_y,
+                     0xC5,
+                     0x18,
+                     0x14,
+                     0x0D,
+                     0,
+                     5}
+                );
+            }
+            ++result.row_count;
+            node = node->next;
+        }
+    }
+
+    if (state.total_record_count > 0x18U) {
+        compat::u8 overlay = 0U;
+        if ((state.final_zero & 0x0FU) != 0U) {
+            state.final_zero =
+                (state.final_zero & ~0x0FU) | ((state.final_zero & 0x0FU) - 1U);
+            overlay = 1U;
+        }
+        if ((state.final_zero & 0xF0U) != 0U) {
+            state.final_zero -= 0x10U;
+            overlay = static_cast<compat::u8>(overlay | 2U);
+        }
+        LegacyStandardModeBarOutputs outputs;
+        const LegacyStandardModeBarRequest request{
+            0x264,
+            0x7A,
+            0x118,
+            overlay,
+            static_cast<float>(
+                static_cast<double>(state.list_offset) /
+                static_cast<double>(state.total_record_count)
+            ),
+            static_cast<float>(
+                static_cast<double>(
+                    state.list_offset + state.visible_record_count
+                ) /
+                static_cast<double>(state.total_record_count)
+            ),
+        };
+        static_cast<void>(render_legacy_standard_mode_bar(
+            request, outputs, action_records, ports.equipment_bar_ports()
+        ));
+        state.first_dynamic_min_y = outputs.top;
+        state.first_dynamic_max_y = outputs.first_split;
+        state.second_dynamic_min_y = outputs.second_split;
+        state.second_dynamic_max_y = outputs.bottom;
+        ++result.bar_count;
+    }
+
+    if (state.mode_enabled == 2U) {
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_frame,
+            {0x154,
+             0xD0,
+             0x74,
+             static_cast<compat::i32>(0x19U * state.active_party_count + 0x0CU),
+             0xC0,
+             0x40,
+             0x40,
+             4}
+        );
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_tiled_frame,
+            {state.frame_source_word,
+             0x15C,
+             0xD8,
+             0x1C4,
+             static_cast<compat::i32>(0x19U * state.active_party_count + 0xD8U),
+             0,
+             static_cast<compat::i32>(0x80000008U),
+             0}
+        );
+        compat::i32 y = 0;
+        for (compat::u32 party = 0U; party < state.party_markers.size();
+             ++party) {
+            if (state.party_markers[party] == 0xFFFFU) {
+                continue;
+            }
+            const bool selected = party == state.selected_party_action;
+            const compat::i32 party_color = ports.make_equipment_color(
+                selected ? 0x19U : 0x15U,
+                selected ? 0x13U : 0x0FU,
+                selected ? 0x0CU : 8U
+            );
+            emit(
+                LegacyStandardModeEquipmentRenderOperation::draw_text,
+                {0x160 - (selected ? 1 : 0),
+                 0xDC + y - (selected ? 1 : 0),
+                 static_cast<compat::i32>(party),
+                 4,
+                 0,
+                 0,
+                 0,
+                 0},
+                selected ? 1U : 0U,
+                party_color,
+                "equipment-party"
+            );
+            if (selected) {
+                emit(
+                    LegacyStandardModeEquipmentRenderOperation::draw_selection,
+                    {0x157, 0xDA + y, 0x72, 0x14, 0x14, 0x0D, 0, 5}
+                );
+            }
+            y += 0x19;
+        }
+    }
+
+    if (selected_record != nullptr && selected_record->text_index != 0xFFDCU) {
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_rectangle,
+            {0xD4, 0x1BD, 0x188, 0x1E, 0, 0, 0, 0}
+        );
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_text,
+            {0xDA, 0x1C0, 0, 4, 0, 0, 0, 0},
+            0U,
+            normal_color,
+            std::string(
+                reinterpret_cast<const char*>(state.shared_text.data()),
+                std::find(
+                    reinterpret_cast<const char*>(state.shared_text.data()),
+                    reinterpret_cast<const char*>(state.shared_text.data()) +
+                        state.shared_text.size(),
+                    '\0'
+                )
+            )
+        );
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_rectangle,
+            {0, 0, 0x280, 0x1E0, 0, 0, 0, 0}
+        );
+    }
+
+    if (state.mode_enabled == 0x0FU) {
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_split_panel,
+            {0x190, 0xC4, 0xA2, 0xD0, 4, 0, 0, 4}
+        );
+        for (compat::u32 row = 0U; row < state.hover_record_count; ++row) {
+            const compat::u32 index = state.special_window_offset + row;
+            if (index >= state.special_record_count) {
+                break;
+            }
+            if (index >= state.filtered_records.records.size()) {
+                result.status = LegacyStandardModeEquipmentRenderStatus::
+                    visible_chain_stopped;
+                return result;
+            }
+            const auto& record = state.filtered_records.records[index];
+            const auto* begin =
+                reinterpret_cast<const char*>(record.text.data());
+            const std::string text(
+                begin, std::find(begin, begin + record.text.size(), '\0')
+            );
+            emit(
+                LegacyStandardModeEquipmentRenderOperation::draw_text,
+                {0x190,
+                 static_cast<compat::i32>(0xC4U + 0x19U * row),
+                 static_cast<compat::i32>(index),
+                 4,
+                 0,
+                 0,
+                 0,
+                 0},
+                0U,
+                normal_color,
+                text
+            );
+            if (row == state.hover_selection) {
+                emit(
+                    LegacyStandardModeEquipmentRenderOperation::draw_selection,
+                    {0x18B,
+                     static_cast<compat::i32>(0xC2U + 0x19U * row),
+                     0xAC,
+                     0x18,
+                     0x14,
+                     0x0D,
+                     0,
+                     5}
+                );
+            }
+        }
+        if (state.special_record_count > state.hover_record_count) {
+            compat::u8 overlay = 0U;
+            if ((state.final_zero & 0x0F00U) != 0U) {
+                state.final_zero -= 0x0100U;
+                overlay = 1U;
+            }
+            if ((state.final_zero & 0xF000U) != 0U) {
+                state.final_zero -= 0x1000U;
+                overlay = static_cast<compat::u8>(overlay | 2U);
+            }
+            LegacyStandardModeBarOutputs outputs;
+            const LegacyStandardModeBarRequest request{
+                0x226,
+                0xD0,
+                0xB8,
+                overlay,
+                static_cast<float>(
+                    static_cast<double>(state.special_window_offset) /
+                    static_cast<double>(state.special_record_count)
+                ),
+                static_cast<float>(
+                    static_cast<double>(
+                        state.special_window_offset + state.hover_record_count
+                    ) /
+                    static_cast<double>(state.special_record_count)
+                ),
+            };
+            static_cast<void>(render_legacy_standard_mode_bar(
+                request, outputs, action_records, ports.equipment_bar_ports()
+            ));
+            state.special_first_dynamic_min_y = outputs.top;
+            state.special_first_dynamic_max_y = outputs.first_split;
+            state.special_second_dynamic_min_y = outputs.second_split;
+            state.special_second_dynamic_max_y = outputs.bottom;
+            ++result.bar_count;
+        }
+    }
+
+    if (state.mode_enabled == 0x11U || state.mode_enabled == 0x12U) {
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_split_panel,
+            {0x12C, 0xF0, 0xB0, 0x48, 4, 0, 0, 0}
+        );
+        const bool fallback = state.dialog_setup_records.empty();
+        if (!fallback && state.dialog_setup_records.size() < 3U) {
+            result.status =
+                LegacyStandardModeEquipmentRenderStatus::dialog_record_missing;
+            return result;
+        }
+        for (compat::u32 row = 0U; row < 3U; ++row) {
+            std::array<compat::i32, 8U> values{
+                0x12C,
+                static_cast<compat::i32>(0xF0U + 0x18U * row),
+                static_cast<compat::i32>(row),
+                4,
+                0,
+                0,
+                0,
+                0
+            };
+            if (!fallback) {
+                const auto& record = state.dialog_setup_records[row];
+                values[4] = std::bit_cast<compat::i32>(record.draw_value);
+                values[5] =
+                    std::bit_cast<compat::i32>(record.first_state_value);
+                values[6] =
+                    std::bit_cast<compat::i32>(record.return_state_value);
+                values[7] =
+                    std::bit_cast<compat::i32>(record.third_state_value);
+            }
+            emit(
+                LegacyStandardModeEquipmentRenderOperation::draw_dialog_record,
+                values,
+                fallback ? 1U : 0U,
+                normal_color,
+                fallback ? "equipment-dialog-fallback" : std::string{}
+            );
+        }
+    }
+
+    result.legacy_return_value =
+        std::bit_cast<compat::i32>(state.viewport_extent);
+    if (state.second_render_zero != 0 || state.viewport_extent == 0x168U) {
+        state.second_render_zero >>= 1;
+        compat::i32 viewport =
+            std::bit_cast<compat::i32>(state.viewport_extent);
+        viewport -= state.second_render_zero;
+        if (state.second_render_zero <= 0) {
+            if (viewport > 0x1E0) {
+                viewport = 0x1E0;
+                state.second_render_zero = 0;
+            }
+        } else if (viewport < 0x168) {
+            viewport = 0x168;
+            state.second_render_zero = 0;
+        }
+        state.viewport_extent = std::bit_cast<compat::u32>(viewport);
+        const LegacyStandardModeForwardNode* animated =
+            index_legacy_standard_mode_forward_node(
+                std::bit_cast<compat::i32>(
+                    state.list_offset + state.local_selection
+                ),
+                &state.record_head
+            );
+        if (animated == nullptr) {
+            result.status = LegacyStandardModeEquipmentRenderStatus::
+                animated_record_missing;
+            return result;
+        }
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_frame,
+            {0xD4, viewport - 8, 0x188, 0x1E6 - viewport, 0x10, 0x10, 0x6C, 4}
+        );
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_tiled_frame,
+            {state.frame_source_word,
+             0xDC,
+             viewport,
+             0x254,
+             0x1D6,
+             0,
+             static_cast<compat::i32>(0x80000008U),
+             0}
+        );
+        emit(
+            LegacyStandardModeEquipmentRenderOperation::draw_animated_record,
+            {0xDC, viewport, 5, 0x168, 0, 0, 0, 0},
+            0U,
+            0,
+            animated->animated_text
+        );
+    }
+    return result;
+}
+
 LegacyStandardModeEquipmentExitResult exit_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,
     LegacyStandardModeEquipmentExitPorts& ports
@@ -657,7 +1229,7 @@ LegacyStandardModeEquipmentExitResult exit_legacy_standard_mode_equipment(
     }
     if (mode == 5U) {
         state.mode_enabled = 1U;
-        state.panel_motion = -0x80;
+        state.second_render_zero = -0x80;
         return result;
     }
     if (mode == 0x0FU) {
@@ -688,7 +1260,7 @@ LegacyStandardModeEquipmentCommitResult commit_legacy_standard_mode_equipment(
     result.legacy_return_value = std::bit_cast<compat::i32>(mode - 1U);
     if (mode == 5U) {
         state.mode_enabled = 1U;
-        state.panel_motion = -0x80;
+        state.second_render_zero = -0x80;
         return result;
     }
     if (mode == 0x11U || mode == 0x12U) {

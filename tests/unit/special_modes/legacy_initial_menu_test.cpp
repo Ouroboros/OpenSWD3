@@ -2889,6 +2889,321 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
     }
 
+    class EquipmentRenderPorts final
+        : public sm::LegacyStandardModeEquipmentRenderPorts {
+    public:
+        explicit EquipmentRenderPorts(
+            std::array<LegacyActionRecord, 18U>& actions
+        ) noexcept
+            : bar_ports(actions) {}
+
+        bool equipment_transition_ready() noexcept override {
+            ++transition_queries;
+            return transition_ready;
+        }
+
+        i32 make_equipment_color(
+            const u8 red, const u8 green, const u8 blue
+        ) noexcept override {
+            const i32 color = static_cast<i32>(
+                (static_cast<u32>(red) << 16U) |
+                (static_cast<u32>(green) << 8U) | static_cast<u32>(blue)
+            );
+            colors.push_back(color);
+            return color;
+        }
+
+        i32 adjust_equipment_color(
+            const i32 color,
+            const i32 mode,
+            const i32 red_delta,
+            const i32 green_delta,
+            const i32 blue_delta
+        ) noexcept override {
+            adjustments.push_back(
+                {color, mode, red_delta, green_delta, blue_delta}
+            );
+            return color - 1;
+        }
+
+        bool load_equipment_render_action(
+            const u16 action_id, u16& variant_index
+        ) noexcept override {
+            loaded_actions.push_back(action_id);
+            if (failed_action.has_value() && *failed_action == action_id) {
+                return false;
+            }
+            variant_index = render_variant;
+            return true;
+        }
+
+        i32 execute_equipment_render(
+            const sm::LegacyStandardModeEquipmentRenderRequest& request
+        ) noexcept override {
+            requests.push_back(request);
+            return 7000 + static_cast<i32>(requests.size());
+        }
+
+        sm::LegacyStandardModeBarPorts&
+        equipment_bar_ports() noexcept override {
+            return bar_ports;
+        }
+
+        FakeStandardModeBarPorts bar_ports;
+        bool transition_ready{};
+        u16 render_variant{1U};
+        std::optional<u16> failed_action;
+        u32 transition_queries{};
+        std::vector<i32> colors;
+        std::vector<std::array<i32, 5U>> adjustments;
+        std::vector<u16> loaded_actions;
+        std::vector<sm::LegacyStandardModeEquipmentRenderRequest> requests;
+    };
+
+    {
+        std::array<LegacyActionRecord, 18U> actions{};
+        sm::LegacyStandardModeForwardNode record;
+        record.text_index = 0x120U;
+        record.display_name = "Long Sword";
+        record.equipment_type_flags = 2U;
+        record.equipment_action_id = 0x345U;
+        record.equipment_cost_flags = 0xC007U;
+        record.animated_text = "animated-sword";
+        sm::LegacyStandardModeEquipmentInitializationState state;
+        state.mode_enabled = 1U;
+        state.record_head = &record;
+        state.visible_record_head = &record;
+        state.visible_record_count = 1U;
+        state.total_record_count = 25U;
+        state.list_offset = 1U;
+        state.local_selection = 0U;
+        state.final_zero = 0x21U;
+        state.viewport_extent = 0x1E0U;
+        state.frame_source_word = 0x7788U;
+        EquipmentRenderPorts ports(actions);
+        const auto rendered =
+            sm::render_legacy_standard_mode_equipment(state, actions, ports);
+        const auto cost = std::find_if(
+            ports.requests.begin(),
+            ports.requests.end(),
+            [](const auto& request) {
+                return request.operation ==
+                    sm::LegacyStandardModeEquipmentRenderOperation::draw_text &&
+                    request.text == "  7";
+            }
+        );
+        const auto action = std::find_if(
+            ports.requests.begin(),
+            ports.requests.end(),
+            [](const auto& request) {
+                return request.operation ==
+                    sm::LegacyStandardModeEquipmentRenderOperation::
+                        draw_record_action;
+            }
+        );
+        test.expect_true(
+            rendered.status ==
+                    sm::LegacyStandardModeEquipmentRenderStatus::completed &&
+                rendered.row_count == 1U && rendered.bar_count == 1U &&
+                !rendered.transition_triggered && state.final_zero == 0x10U &&
+                ports.transition_queries == 1U &&
+                ports.loaded_actions == std::vector<u16>{0x345U} &&
+                ports.adjustments.size() == 2U &&
+                cost != ports.requests.end() &&
+                action != ports.requests.end() && action->values[1] == 0 &&
+                ports.bar_ports.prepared_request ==
+                    sm::LegacyStandardModeBarRequest{
+                        0x264,
+                        0x7A,
+                        0x118,
+                        3U,
+                        1.0F / 25.0F,
+                        2.0F / 25.0F,
+                    },
+            "0x4442B0 renders selected equipment, cost, action and low-byte scrollbar"
+        );
+
+        state = {};
+        state.mode_enabled = 1U;
+        state.record_head = &record;
+        state.visible_record_head = &record;
+        state.visible_record_count = 1U;
+        state.viewport_extent = 0x1E0U;
+        EquipmentRenderPorts transition_ports(actions);
+        transition_ports.transition_ready = true;
+        const auto transitioned = sm::render_legacy_standard_mode_equipment(
+            state, actions, transition_ports
+        );
+        test.expect_true(
+            transitioned.status ==
+                    sm::LegacyStandardModeEquipmentRenderStatus::completed &&
+                transitioned.transition_triggered && state.mode_enabled == 5U &&
+                state.second_render_zero == 0x40 &&
+                state.viewport_extent == 0x1A0U &&
+                transition_ports.requests.back().operation ==
+                    sm::LegacyStandardModeEquipmentRenderOperation::
+                        draw_animated_record &&
+                transition_ports.requests.back().text == "animated-sword",
+            "0x4442B0 mode1 readiness starts mode5 and renders the animated panel"
+        );
+
+        state = {};
+        state.mode_enabled = 1U;
+        state.second_render_zero = 2;
+        state.viewport_extent = 0x1E0U;
+        EquipmentRenderPorts missing_animation_ports(actions);
+        const auto missing_animation =
+            sm::render_legacy_standard_mode_equipment(
+                state, actions, missing_animation_ports
+            );
+        test.expect_true(
+            missing_animation.status ==
+                    sm::LegacyStandardModeEquipmentRenderStatus::
+                        animated_record_missing &&
+                state.second_render_zero == 1 &&
+                state.viewport_extent == 0x1DFU,
+            "0x4442B0 animated-node typed-stop preserves motion and viewport prefix"
+        );
+
+        sm::LegacyStandardModeForwardNode action_stop_record = record;
+        action_stop_record.equipment_action_id = 0x456U;
+        state = {};
+        state.mode_enabled = 1U;
+        state.record_head = &action_stop_record;
+        state.visible_record_head = &action_stop_record;
+        state.visible_record_count = 1U;
+        state.viewport_extent = 0x1E0U;
+        EquipmentRenderPorts action_stop_ports(actions);
+        action_stop_ports.failed_action = 0x456U;
+        const auto action_stopped = sm::render_legacy_standard_mode_equipment(
+            state, actions, action_stop_ports
+        );
+        test.expect_true(
+            action_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRenderStatus::
+                        action_load_stopped &&
+                !action_stop_ports.requests.empty() &&
+                action_stop_ports.requests.back().operation ==
+                    sm::LegacyStandardModeEquipmentRenderOperation::
+                        draw_item_tile,
+            "0x4442B0 action typed-stop occurs after name, cost and item-tile draws"
+        );
+
+        state = {};
+        state.mode_enabled = 1U;
+        state.record_head = &record;
+        state.visible_record_count = 1U;
+        state.viewport_extent = 0x1E0U;
+        EquipmentRenderPorts visible_stop_ports(actions);
+        const auto visible_stopped = sm::render_legacy_standard_mode_equipment(
+            state, actions, visible_stop_ports
+        );
+        test.expect_true(
+            visible_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRenderStatus::
+                        visible_chain_stopped &&
+                visible_stop_ports.loaded_actions.empty(),
+            "0x4442B0 visible-chain typed-stop occurs at the first window-node read"
+        );
+
+        state.visible_record_head = &record;
+        EquipmentRenderPorts variant_stop_ports(actions);
+        variant_stop_ports.render_variant = 12U;
+        const auto variant_stopped = sm::render_legacy_standard_mode_equipment(
+            state, actions, variant_stop_ports
+        );
+        test.expect_true(
+            variant_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRenderStatus::
+                        action_load_stopped &&
+                variant_stop_ports.requests.back().operation ==
+                    sm::LegacyStandardModeEquipmentRenderOperation::
+                        draw_item_tile,
+            "0x4442B0 variant-table typed-stop preserves all prior row draws"
+        );
+
+        state = {};
+        state.mode_enabled = 0x0FU;
+        state.special_record_count = 3U;
+        state.special_window_offset = 1U;
+        state.hover_record_count = 1U;
+        state.hover_selection = 0U;
+        state.final_zero = 0x1100U;
+        state.viewport_extent = 0x1E0U;
+        state.filtered_records.records.resize(3U);
+        const std::string filtered_text = "filtered-row";
+        std::copy(
+            filtered_text.begin(),
+            filtered_text.end(),
+            state.filtered_records.records[1U].text.begin()
+        );
+        EquipmentRenderPorts filtered_ports(actions);
+        const auto filtered = sm::render_legacy_standard_mode_equipment(
+            state, actions, filtered_ports
+        );
+        const auto filtered_row = std::find_if(
+            filtered_ports.requests.begin(),
+            filtered_ports.requests.end(),
+            [](const auto& request) { return request.text == "filtered-row"; }
+        );
+        test.expect_true(
+            filtered.status ==
+                    sm::LegacyStandardModeEquipmentRenderStatus::completed &&
+                filtered.bar_count == 1U && state.final_zero == 0U &&
+                filtered_row != filtered_ports.requests.end() &&
+                filtered_ports.bar_ports.prepared_request ==
+                    sm::LegacyStandardModeBarRequest{
+                        0x226,
+                        0xD0,
+                        0xB8,
+                        3U,
+                        1.0F / 3.0F,
+                        2.0F / 3.0F,
+                    },
+            "0x4442B0 mode15 renders filtered selection and high-byte scrollbar"
+        );
+
+        state = {};
+        state.mode_enabled = 0x11U;
+        state.viewport_extent = 0x1E0U;
+        state.dialog_setup_records.resize(2U);
+        EquipmentRenderPorts dialog_stop_ports(actions);
+        const auto dialog_stopped = sm::render_legacy_standard_mode_equipment(
+            state, actions, dialog_stop_ports
+        );
+        test.expect_true(
+            dialog_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRenderStatus::
+                        dialog_record_missing &&
+                dialog_stop_ports.requests.back().operation ==
+                    sm::LegacyStandardModeEquipmentRenderOperation::
+                        draw_split_panel,
+            "0x4442B0 dialog typed-stop follows the panel draw"
+        );
+
+        state.dialog_setup_records.clear();
+        EquipmentRenderPorts fallback_ports(actions);
+        const auto fallback = sm::render_legacy_standard_mode_equipment(
+            state, actions, fallback_ports
+        );
+        const auto fallback_count = std::count_if(
+            fallback_ports.requests.begin(),
+            fallback_ports.requests.end(),
+            [](const auto& request) {
+                return request.operation ==
+                    sm::LegacyStandardModeEquipmentRenderOperation::
+                        draw_dialog_record &&
+                    request.flags == 1U;
+            }
+        );
+        test.expect_true(
+            fallback.status ==
+                    sm::LegacyStandardModeEquipmentRenderStatus::completed &&
+                fallback_count == 3,
+            "0x4442B0 mode17/18 builds and releases the three-row fallback dialog"
+        );
+    }
+
     class EquipmentInputPorts final
         : public sm::LegacyStandardModeEquipmentInputPorts {
     public:
@@ -3911,7 +4226,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         commit_record.equipment_cost_flags = 0x8001U;
         sm::LegacyStandardModeEquipmentInitializationState commit_state;
         commit_state.mode_enabled = 5U;
-        commit_state.panel_motion = 9;
+        commit_state.second_render_zero = 9;
         EquipmentInputPorts commit_mode_ports;
         const auto commit_mode5 = sm::commit_legacy_standard_mode_equipment(
             commit_state, {}, commit_mode_ports
@@ -3928,7 +4243,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             commit_mode5.status ==
                     sm::LegacyStandardModeEquipmentCommitStatus::completed &&
                 commit_mode5.legacy_return_value == 4 &&
-                commit_state.panel_motion == -0x80 &&
+                commit_state.second_render_zero == -0x80 &&
                 commit_mode17.legacy_return_value == 16 &&
                 commit_default.legacy_return_value == 2 &&
                 commit_state.mode_enabled == 3U &&
@@ -4431,7 +4746,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             exit_state, exit_other_ports
         );
         exit_state.mode_enabled = 5U;
-        exit_state.panel_motion = 9;
+        exit_state.second_render_zero = 9;
         const auto exit_mode5 = sm::exit_legacy_standard_mode_equipment(
             exit_state, exit_other_ports
         );
@@ -4448,7 +4763,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 exit_state.transition_word == 0xFFFFU &&
                 exit_state.selected_party_action == 0U &&
                 exit_mode5.legacy_return_value == 4 &&
-                exit_state.panel_motion == -0x80 &&
+                exit_state.second_render_zero == -0x80 &&
                 exit_mode17.legacy_return_value == 16 &&
                 exit_default.legacy_return_value == 2 &&
                 exit_state.mode_enabled == 3U,

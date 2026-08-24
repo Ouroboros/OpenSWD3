@@ -666,7 +666,7 @@ struct LegacyStandardModeEquipmentInitializationState {
     std::array<compat::u16, 4U> party_secondary_resources{};
     std::array<compat::u8, 128U> shared_text{};
     compat::u32 first_render_zero{};
-    compat::u32 second_render_zero{};
+    compat::i32 second_render_zero{};
     compat::u32 viewport_extent{};
     compat::u32 workspace_token{};
     compat::u32 final_zero{};
@@ -686,7 +686,7 @@ struct LegacyStandardModeEquipmentInitializationState {
     compat::i32 filtered_source_enabled{};
     compat::u16 transition_word{};
     compat::i32 interaction_block{};
-    compat::i32 panel_motion{};
+    compat::u16 frame_source_word{};
     LegacyStandardModeCallbackState callback_state{};
     const LegacyStandardModeForwardNode* visible_record_head{};
     compat::i32 first_dynamic_min_y{};
@@ -1098,6 +1098,85 @@ struct LegacyStandardModeEquipmentExitResult {
 exit_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,
     LegacyStandardModeEquipmentExitPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeEquipmentRenderOperation : compat::u8 {
+    prepare_surface,
+    draw_frame,
+    draw_tiled_frame,
+    draw_text,
+    draw_item_tile,
+    draw_record_action,
+    draw_selection,
+    draw_rectangle,
+    draw_split_panel,
+    draw_dialog_record,
+    draw_animated_record,
+};
+
+struct LegacyStandardModeEquipmentRenderRequest {
+    LegacyStandardModeEquipmentRenderOperation operation{};
+    std::array<compat::i32, 8U> values{};
+    compat::u32 flags{};
+    compat::i32 color{};
+    std::string text{};
+
+    bool
+    operator==(const LegacyStandardModeEquipmentRenderRequest&) const = default;
+};
+
+class LegacyStandardModeEquipmentRenderPorts {
+public:
+    virtual ~LegacyStandardModeEquipmentRenderPorts() = default;
+    [[nodiscard]] virtual bool equipment_transition_ready() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 make_equipment_color(
+        compat::u8 red, compat::u8 green, compat::u8 blue
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 adjust_equipment_color(
+        compat::i32 color,
+        compat::i32 mode,
+        compat::i32 red_delta,
+        compat::i32 green_delta,
+        compat::i32 blue_delta
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool load_equipment_render_action(
+        compat::u16 action_id, compat::u16& variant_index
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 execute_equipment_render(
+        const LegacyStandardModeEquipmentRenderRequest& request
+    ) noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeBarPorts&
+    equipment_bar_ports() noexcept = 0;
+};
+
+enum class LegacyStandardModeEquipmentRenderStatus : compat::u8 {
+    completed,
+    selected_record_missing,
+    visible_chain_stopped,
+    action_load_stopped,
+    animated_record_missing,
+    split_bar_stopped,
+    dialog_record_missing,
+};
+
+struct LegacyStandardModeEquipmentRenderResult {
+    LegacyStandardModeEquipmentRenderStatus status{
+        LegacyStandardModeEquipmentRenderStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 operation_count{};
+    compat::u32 row_count{};
+    compat::u32 bar_count{};
+    bool transition_triggered{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentRenderResult
+render_legacy_standard_mode_equipment(
+    LegacyStandardModeEquipmentInitializationState& state,
+    std::array<
+        asset_runtime::LegacyActionRecord,
+        kLegacyStandardSpecialModeInitializationRecordCount>& action_records,
+    LegacyStandardModeEquipmentRenderPorts& ports
 ) noexcept;
 
 class LegacyStandardModeEquipmentInputPorts
