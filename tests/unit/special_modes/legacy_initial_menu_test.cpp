@@ -2638,6 +2638,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     using SelectionTarget = sm::LegacyStandardModeGuardianSelectionTarget;
     {
         std::array<u32, 32U> records{};
+        records[0U] = 0xFFDCU;
         records[16U] = 0xFFDCU;
         sm::LegacyStandardModeGuardianInitializationState guardian;
         guardian.interaction_mode = 0U;
@@ -2700,6 +2701,21 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x440D20 mode0 writes slot10 directly without changing flags"
         );
 
+        guardian.guardian_slot = 7U;
+        guardian.party_selector = 0U;
+        SelectionPorts retreat_page_slot_ports;
+        const auto retreat_page_slot =
+            sm::retreat_legacy_standard_mode_guardian_page(
+                guardian, records, {}, retreat_page_slot_ports
+            );
+        test.expect_true(
+            retreat_page_slot.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                retreat_page_slot.legacy_return_value == 77 &&
+                guardian.guardian_slot == 0U && guardian.mode_flags == 0x80U,
+            "0x440E10 mode0 writes slot0 directly without changing flags"
+        );
+
         guardian.guardian_slot = 10U;
         guardian.party_selector = 2U;
         SelectionPorts stopped_ports;
@@ -2724,6 +2740,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         }
         nodes.back().text_index = 0xFFDCU;
         nodes[0U].text_index = 0xFFDCU;
+        nodes[2U].text_index = 0xFFDCU;
         nodes[10U].text_index = 0xFFDCU;
         sm::LegacyStandardModeGuardianInitializationState guardian;
         guardian.interaction_mode = 1U;
@@ -2800,6 +2817,29 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 guardian.visible_record_count == 10U &&
                 guardian.mode_flags == 0x230U,
             "0x440D20 mode1 rebuilds the final page and ORs flags30"
+        );
+
+        guardian.interaction_mode = 1U;
+        guardian.total_record_count = 12U;
+        guardian.visible_record_count = 10U;
+        guardian.list_offset = 2U;
+        guardian.local_selection = 9U;
+        guardian.record_head = &nodes[0U];
+        guardian.mode_flags = 0x100U;
+        SelectionPorts retreat_page_ports;
+        const auto retreat_page =
+            sm::retreat_legacy_standard_mode_guardian_page(
+                guardian, {}, {}, retreat_page_ports
+            );
+        test.expect_true(
+            retreat_page.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                retreat_page.legacy_return_value == 0x103 &&
+                retreat_page.helper_call_count == 7U &&
+                guardian.list_offset == 2U && guardian.local_selection == 0U &&
+                guardian.visible_record_head == &nodes[2U] &&
+                guardian.mode_flags == 0x103U,
+            "0x440E10 mode1 clears nonzero local cursor and ORs flags3"
         );
 
         guardian.total_record_count = 20U;
@@ -3053,6 +3093,23 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 page.last_target == Target::select_second_dynamic &&
                 page.legacy_return_value == 0x30 && page_ports.targets.empty(),
             "0x4407F0 second dynamic band directly reuses 0x440D20"
+        );
+
+        guardian.interaction_mode = 1U;
+        guardian.first_dynamic_min_y = 230;
+        guardian.first_dynamic_max_y = 250;
+        guardian.second_dynamic_min_y = 0;
+        guardian.second_dynamic_max_y = 0;
+        snapshot = {.cursor_y = 240U, .cursor_x = 620U};
+        InputPorts retreat_page_ports;
+        const auto retreat_page = input(guardian, snapshot, retreat_page_ports);
+        test.expect_true(
+            retreat_page.status ==
+                    sm::LegacyStandardModeGuardianInputStatus::completed &&
+                retreat_page.last_target == Target::select_first_dynamic &&
+                retreat_page.legacy_return_value == 0x33 &&
+                retreat_page_ports.targets.empty(),
+            "0x4407F0 first dynamic band directly reuses 0x440E10"
         );
 
         guardian.interaction_mode = 2U;

@@ -5039,6 +5039,7 @@ enum class LegacyStandardModeGuardianSelectionMove : compat::u8 {
     next,
     previous,
     page_next,
+    page_previous,
 };
 
 static LegacyStandardModeGuardianSelectionResult
@@ -5085,8 +5086,10 @@ move_legacy_standard_mode_guardian_selection(
             if (std::bit_cast<compat::i32>(state.guardian_slot) < 0) {
                 state.guardian_slot = 0x0AU;
             }
-        } else {
+        } else if (move == LegacyStandardModeGuardianSelectionMove::page_next) {
             state.guardian_slot = 0x0AU;
+        } else {
+            state.guardian_slot = 0U;
         }
         invoke(
             LegacyStandardModeGuardianSelectionTarget::refresh_guardian_record
@@ -5141,13 +5144,17 @@ move_legacy_standard_mode_guardian_selection(
         static_cast<void>(retreat_legacy_standard_mode_window_cursor(
             list_offset, local_selection
         ));
-    } else {
+    } else if (move == LegacyStandardModeGuardianSelectionMove::page_next) {
         compat::i32 visible_count =
             std::bit_cast<compat::i32>(state.visible_record_count);
         static_cast<void>(advance_legacy_standard_mode_window_page(
             total_count, list_offset, local_selection, visible_count, 0x0A
         ));
         state.visible_record_count = std::bit_cast<compat::u32>(visible_count);
+    } else {
+        static_cast<void>(retreat_legacy_standard_mode_window_page(
+            list_offset, local_selection, 0x0A
+        ));
     }
     ++result.helper_call_count;
     state.list_offset = std::bit_cast<compat::u32>(list_offset);
@@ -5204,9 +5211,10 @@ move_legacy_standard_mode_guardian_selection(
     result.legacy_return_value =
         ports.execute_guardian_sample_command(0x2EU, state.sample_owner);
     ++result.helper_call_count;
-    state.mode_flags |=
-        move == LegacyStandardModeGuardianSelectionMove::previous ? 0x03U
-                                                                  : 0x30U;
+    state.mode_flags |= move == LegacyStandardModeGuardianSelectionMove::next ||
+            move == LegacyStandardModeGuardianSelectionMove::page_next
+        ? 0x30U
+        : 0x03U;
     result.legacy_return_value = std::bit_cast<compat::i32>(state.mode_flags);
     return result;
 }
@@ -5256,6 +5264,22 @@ advance_legacy_standard_mode_guardian_page(
         maps_payload,
         ports,
         LegacyStandardModeGuardianSelectionMove::page_next
+    );
+}
+
+LegacyStandardModeGuardianSelectionResult
+retreat_legacy_standard_mode_guardian_page(
+    LegacyStandardModeGuardianInitializationState& state,
+    const std::span<const compat::u32> guardian_text_indices,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianSelectionPorts& ports
+) noexcept {
+    return move_legacy_standard_mode_guardian_selection(
+        state,
+        guardian_text_indices,
+        maps_payload,
+        ports,
+        LegacyStandardModeGuardianSelectionMove::page_previous
     );
 }
 
@@ -5326,6 +5350,24 @@ handle_legacy_standard_mode_guardian_input(
             ++result.callback_count;
             result.last_target =
                 LegacyStandardModeGuardianInputTarget::select_second_dynamic;
+            if (selection.status !=
+                LegacyStandardModeGuardianSelectionStatus::completed) {
+                result.status = LegacyStandardModeGuardianInputStatus::
+                    guardian_selection_stopped;
+                return false;
+            }
+            return true;
+        };
+    const auto retreat_guardian_page =
+        [&state, &guardian_text_indices, &maps_payload, &ports, &result]() {
+            const LegacyStandardModeGuardianSelectionResult selection =
+                retreat_legacy_standard_mode_guardian_page(
+                    state, guardian_text_indices, maps_payload, ports
+                );
+            result.legacy_return_value = selection.legacy_return_value;
+            ++result.callback_count;
+            result.last_target =
+                LegacyStandardModeGuardianInputTarget::select_first_dynamic;
             if (selection.status !=
                 LegacyStandardModeGuardianSelectionStatus::completed) {
                 result.status = LegacyStandardModeGuardianInputStatus::
@@ -5492,9 +5534,7 @@ handle_legacy_standard_mode_guardian_input(
             const compat::i32 y = std::bit_cast<compat::i32>(input.cursor_y);
             if (y < state.first_dynamic_max_y &&
                 y > state.first_dynamic_min_y) {
-                static_cast<void>(invoke(
-                    LegacyStandardModeGuardianInputTarget::select_first_dynamic
-                ));
+                static_cast<void>(retreat_guardian_page());
                 return result;
             }
             if (y < state.second_dynamic_max_y &&
