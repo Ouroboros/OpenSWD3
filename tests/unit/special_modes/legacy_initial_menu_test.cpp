@@ -16741,6 +16741,62 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x446680 publishes low-mode selection and preserves the high-mode double sample"
     );
 
+    GroupEightState selection_cycle_state;
+    selection_cycle_state.interaction_mode = 2U;
+    selection_cycle_state.selection_x = 0x20U;
+    LegacyStandardModeRuntimeInitializationState selection_cycle_runtime;
+    GroupEightRuntimeInputPorts selection_cycle_ports;
+    const auto selection_cycled = openswd3::special_modes::
+        cycle_legacy_standard_mode_selection_or_advance_runtime(
+            selection_cycle_state,
+            0xA0B0C0D0U,
+            selection_cycle_runtime,
+            selection_cycle_ports
+        );
+    GroupEightState inert_selection_cycle_state;
+    inert_selection_cycle_state.interaction_mode = 5U;
+    inert_selection_cycle_state.selection_x = 0x3456U;
+    GroupEightRuntimeInputPorts inert_selection_cycle_ports;
+    const auto inert_selection_cycled = openswd3::special_modes::
+        cycle_legacy_standard_mode_selection_or_advance_runtime(
+            inert_selection_cycle_state,
+            0U,
+            selection_cycle_runtime,
+            inert_selection_cycle_ports
+        );
+    GroupEightState high_selection_cycle_state;
+    high_selection_cycle_state.interaction_mode = 500U;
+    LegacyStandardModeRuntimeInitializationState high_selection_cycle_runtime;
+    GroupEightRuntimeInputPorts high_selection_cycle_ports;
+    const auto high_selection_cycled = openswd3::special_modes::
+        cycle_legacy_standard_mode_selection_or_advance_runtime(
+            high_selection_cycle_state,
+            0xDEADBEEFU,
+            high_selection_cycle_runtime,
+            high_selection_cycle_ports
+        );
+    test.expect_true(
+        selection_cycled.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeSelectionPublishStatus::completed &&
+            selection_cycled.helper_call_count == 2U &&
+            selection_cycle_state.selection_x == 0x1EU &&
+            selection_cycle_state.published_selection_x == 0x1EU &&
+            selection_cycled.legacy_return_value == 0x1E &&
+            selection_cycle_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0xA0B0C0D0U}} &&
+            inert_selection_cycled.helper_call_count == 1U &&
+            inert_selection_cycle_state.published_selection_x == 0x3456U &&
+            inert_selection_cycle_ports.played_samples.empty() &&
+            high_selection_cycled.helper_call_count == 3U &&
+            high_selection_cycle_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{
+                    {0x2EU, 0xDEADBEEFU},
+                    {0x2EU, 0xDEADBEEFU},
+                },
+        "0x4466A0 cycles 30..32 only in mode2 and reuses the high-mode double sample"
+    );
+
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
     group_state.callback_state.initialization_callbacks.fill(0x00445430U);
     GroupEightInputPorts group_ports;

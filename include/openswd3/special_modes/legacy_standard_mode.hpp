@@ -989,6 +989,14 @@ publish_legacy_standard_mode_selection_or_advance_runtime(
     LegacyStandardModeInputDispatchPorts& runtime_ports
 ) noexcept;
 
+[[nodiscard]] LegacyStandardModeSelectionPublishResult
+cycle_legacy_standard_mode_selection_or_advance_runtime(
+    LegacyStandardModeGroupEightState& state,
+    compat::u32 sample_handle,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports
+) noexcept;
+
 class LegacyStandardModeGroupEightSelectionPorts
     : public virtual LegacyStandardModeStoryFlagPorts {
 public:
