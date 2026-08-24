@@ -744,6 +744,9 @@ public:
     equipment_record_source_root(compat::u16 party_index) noexcept = 0;
     [[nodiscard]] virtual LegacyStandardModeForwardNode*
     create_missing_equipment_record() noexcept = 0;
+    virtual void release_missing_equipment_record(
+        LegacyStandardModeForwardNode& record
+    ) noexcept = 0;
 };
 
 enum class LegacyStandardModeEquipmentRecordListStatus : compat::u8 {
@@ -765,6 +768,27 @@ struct LegacyStandardModeEquipmentRecordListResult {
 
 [[nodiscard]] LegacyStandardModeEquipmentRecordListResult
 rebuild_legacy_standard_mode_equipment_record_list(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentRecordListPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeEquipmentRecordListCleanupStatus : compat::u8 {
+    completed,
+    party_selector_out_of_range,
+    source_root_missing,
+};
+
+struct LegacyStandardModeEquipmentRecordListCleanupResult {
+    LegacyStandardModeEquipmentRecordListCleanupStatus status{
+        LegacyStandardModeEquipmentRecordListCleanupStatus::completed
+    };
+    LegacyStandardModeForwardNode* detached_record{};
+    compat::u32 returned_record_count{};
+    compat::u32 released_missing_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentRecordListCleanupResult
+cleanup_legacy_standard_mode_equipment_record_list(
     LegacyStandardModeEquipmentInitializationState& state,
     LegacyStandardModeEquipmentRecordListPorts& ports
 ) noexcept;
@@ -808,12 +832,10 @@ initialize_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationPorts& ports
 ) noexcept;
 
-class LegacyStandardModeEquipmentCleanupPorts {
+class LegacyStandardModeEquipmentCleanupPorts
+    : public virtual LegacyStandardModeEquipmentRecordListPorts {
 public:
-    virtual ~LegacyStandardModeEquipmentCleanupPorts() = default;
-    [[nodiscard]] virtual bool cleanup_equipment_record_list(
-        LegacyStandardModeEquipmentInitializationState& state
-    ) noexcept = 0;
+    ~LegacyStandardModeEquipmentCleanupPorts() override = default;
     [[nodiscard]] virtual compat::i32
     release_equipment_workspace(compat::u32 token) noexcept = 0;
 };
@@ -1009,9 +1031,6 @@ class LegacyStandardModeEquipmentPartyCyclePorts
     : public LegacyStandardModeEquipmentPageAdvancePorts {
 public:
     ~LegacyStandardModeEquipmentPartyCyclePorts() override = default;
-    [[nodiscard]] virtual bool cleanup_equipment_party_cycle(
-        LegacyStandardModeEquipmentInitializationState& state
-    ) noexcept = 0;
     [[nodiscard]] virtual bool initialize_equipment_party_cycle_action_count(
         LegacyStandardModeEquipmentInitializationState& state
     ) noexcept = 0;
@@ -1050,9 +1069,6 @@ class LegacyStandardModeEquipmentListKindCyclePorts
     : public LegacyStandardModeEquipmentPartyCyclePorts {
 public:
     ~LegacyStandardModeEquipmentListKindCyclePorts() override = default;
-    [[nodiscard]] virtual bool cleanup_equipment_list_kind_cycle(
-        LegacyStandardModeEquipmentInitializationState& state
-    ) noexcept = 0;
 };
 
 enum class LegacyStandardModeEquipmentListKindCycleStatus : compat::u8 {

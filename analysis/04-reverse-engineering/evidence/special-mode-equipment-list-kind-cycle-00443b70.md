@@ -2,11 +2,11 @@
 
 状态：`platform_adapted`、`unit_tested`
 
-唯一行为真值为`swd3.exe.lst`。物理范围`0x00443B70..0x00443BCB`，51行，无FUNCTION CHUNK。code caller为F40一处，3B480另绑定为动作callback；F40现已直接回收。B9C0、B9E0与444E80已关闭并直接复用；444F00保持最窄typed端口，sample46保留平台端口。
+唯一行为真值为`swd3.exe.lst`。物理范围`0x00443B70..0x00443BCB`，51行，无FUNCTION CHUNK。code caller为F40一处，3B480另绑定为动作callback；F40现已直接回收。B9C0、B9E0、444E80与444F00已关闭并直接复用；sample46保留平台端口。
 
-入口先计算`mode-1`作为legacy EAX；只有mode1继续。成功路径先调用444F00等价清理，再按u32递增list kind；仅当递增结果精确等于3时写0，原值3递增为4时不做额外范围修复。随后直接调用444E80记录列表重建，callee重建record head并清offset/local，后续全部重读。
+入口先计算`mode-1`作为legacy EAX；只有mode1继续。成功路径先直接调用444F00回收记录，再按u32递增list kind；仅当递增结果精确等于3时写0，原值3递增为4时不做额外范围修复。随后直接调用444E80记录列表重建，callee重建record head并清offset/local，后续全部重读。
 
-以`offset+local`直接调用B9C0，再调用B9E0发布共享文本；最后播放sample46并返回callee EAX。444F00不可用或444E80在party池/filter表/缺省分配边界停止时，保留各原call site前缀；B9E0失败保留已提交的list kind及列表重建副作用，不播放sample。
+以`offset+local`直接调用B9C0，再调用B9E0发布共享文本；最后播放sample46并返回callee EAX。444F00在party池边界停止或444E80在party池/filter表/缺省分配边界停止时，保留各原call site前缀；B9E0失败保留已提交的list kind及列表重建副作用，不播放sample。
 
 F40在overlay返回后重读input snapshot和mode，再计算目标类别并先写`target-1`；对应caller已直接调用本helper，使原递增得到目标类别并传播sample返回值。通用list-kind callback边界已移除；typed-stop状态直接返回F40。
 

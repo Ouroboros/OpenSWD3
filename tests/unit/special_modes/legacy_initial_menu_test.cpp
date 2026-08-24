@@ -2734,6 +2734,12 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return missing_record_available ? &missing_record : nullptr;
         }
 
+        void release_missing_equipment_record(
+            sm::LegacyStandardModeForwardNode&
+        ) noexcept override {
+            ++released_missing_records;
+        }
+
         bool initialize_equipment_action_count(
             sm::LegacyStandardModeEquipmentInitializationState& state
         ) noexcept override {
@@ -2770,6 +2776,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::size_t allocation_size{};
         u32 finalization_argument{};
         u32 missing_record_allocations{};
+        u32 released_missing_records{};
         std::vector<u32> events;
     };
     {
@@ -3530,24 +3537,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         sm::LegacyStandardModeForwardNode*
         equipment_record_source_root(const u16) noexcept override {
-            if (record_list_context == 1U) {
-                cycle_events.push_back(3U);
-                if (!cycle_party_changes_state &&
-                    record_list_state != nullptr) {
-                    record_list_state->party_selector =
-                        party_selector_before_cycle;
-                }
-                if (!party_cycle_record_list_available) {
-                    return nullptr;
-                }
-            } else if (record_list_context == 2U) {
-                list_kind_events.push_back(2U);
-                if (!list_kind_record_list_available) {
-                    return nullptr;
-                }
-            }
-            record_list_source_root.next = record_list_source_head;
-            return &record_list_source_root;
+            ++record_source_queries;
+            return record_source_available ? &record_list_source_root : nullptr;
         }
 
         sm::LegacyStandardModeForwardNode*
@@ -3558,21 +3549,19 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 : nullptr;
         }
 
-        bool cleanup_equipment_party_cycle(
-            sm::LegacyStandardModeEquipmentInitializationState& state
+        void release_missing_equipment_record(
+            sm::LegacyStandardModeForwardNode& record
         ) noexcept override {
-            cycle_events.push_back(1U);
-            party_selector_before_cycle = state.party_selector;
-            record_list_context = 1U;
-            record_list_state = &state;
-            record_list_source_head = state.record_head;
-            return party_cycle_cleanup_available;
+            released_missing_equipment_records.push_back(record.text_index);
         }
 
         bool initialize_equipment_party_cycle_action_count(
-            sm::LegacyStandardModeEquipmentInitializationState&
+            sm::LegacyStandardModeEquipmentInitializationState& state
         ) noexcept override {
             cycle_events.push_back(2U);
+            if (!cycle_party_changes_state) {
+                state.party_selector = party_selector_before_cycle;
+            }
             return party_cycle_action_count_available;
         }
 
@@ -3634,13 +3623,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             dialog_draw = request;
         }
 
-        bool cleanup_equipment_record_list(
-            sm::LegacyStandardModeEquipmentInitializationState&
-        ) noexcept override {
-            ++commit_cleanup_calls;
-            return commit_cleanup_available;
-        }
-
         i32 release_equipment_workspace(const u32 token) noexcept override {
             released_workspace_tokens.push_back(token);
             return released_workspace_return;
@@ -3662,32 +3644,17 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return equipment_record_copy_available;
         }
 
-        bool cleanup_equipment_list_kind_cycle(
-            sm::LegacyStandardModeEquipmentInitializationState& state
-        ) noexcept override {
-            list_kind_events.push_back(1U);
-            record_list_context = 2U;
-            record_list_state = &state;
-            record_list_source_head = state.record_head;
-            return list_kind_cleanup_available;
-        }
-
         std::array<i32, 64U> item_presence{};
         std::optional<sm::LegacyStandardModeEquipmentInputSnapshot>
             overlay_rewrite{};
         std::optional<u32> overlay_mode_enabled{};
         bool cycle_party_changes_state{true};
-        bool party_cycle_cleanup_available{true};
         bool party_cycle_action_count_available{true};
-        bool party_cycle_record_list_available{true};
-        bool list_kind_cleanup_available{true};
-        bool list_kind_record_list_available{true};
+        bool record_source_available{true};
         bool missing_equipment_record_available{true};
         i32 sample_return{77};
         u32 party_selector_before_cycle{};
-        u32 record_list_context{};
-        sm::LegacyStandardModeEquipmentInitializationState* record_list_state{};
-        const sm::LegacyStandardModeForwardNode* record_list_source_head{};
+        u32 record_source_queries{};
         sm::LegacyStandardModeForwardNode record_list_source_root;
         sm::LegacyStandardModeForwardNode missing_equipment_record;
         std::optional<i32> party_cycle_finalized_action_count{17};
@@ -3696,12 +3663,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 sm::LegacyStandardModeEquipmentActionLoadResult{1, 1U}
             };
         std::vector<std::pair<u32, i32>> commit_query_values;
-        bool commit_cleanup_available{true};
         bool equipment_record_copy_available{true};
         i32 released_workspace_return{-7};
         i32 released_filtered_records_return{-8};
         i32 callback_story_flag_value{};
-        u32 commit_cleanup_calls{};
         u32 secondary_dispatch_initializations{};
         u32 high_mode_initializations{};
         u32 cleared_surface_bytes{};
@@ -3720,6 +3685,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::vector<u16> loaded_action_ids;
         std::vector<std::array<u32, 2U>> copied_party_records;
         std::vector<u32> released_workspace_tokens;
+        std::vector<u16> released_missing_equipment_records;
         std::vector<u32> released_filtered_record_counts;
         std::vector<u32> callback_story_flags;
     };
@@ -4413,8 +4379,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x443B70 wraps exact kind3, preserves higher values and returns mode residual"
         );
         test.expect_true(
-            list_kind_ports.list_kind_events ==
-                    std::vector<u32>{1U, 2U, 3U, 1U, 2U, 3U} &&
+            list_kind_ports.list_kind_events == std::vector<u32>{3U, 3U} &&
                 list_kind_ports.samples ==
                     std::vector<std::array<u32, 2U>>{
                         {0x2EU, 0x1A57U}, {0x2EU, 0x1A57U}
@@ -4426,14 +4391,15 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         list_kind_state.mode_enabled = 1U;
         list_kind_state.list_kind = 1U;
         EquipmentInputPorts list_kind_cleanup_stop_ports;
-        list_kind_cleanup_stop_ports.list_kind_cleanup_available = false;
+        list_kind_state.record_head = &advance_invalid_text;
+        list_kind_cleanup_stop_ports.record_source_available = false;
         const auto list_kind_cleanup_stopped =
             sm::cycle_legacy_standard_mode_equipment_list_kind(
                 list_kind_state, {}, list_kind_cleanup_stop_ports
             );
         const u32 list_kind_after_cleanup_stop = list_kind_state.list_kind;
         EquipmentInputPorts list_kind_record_stop_ports;
-        list_kind_record_stop_ports.list_kind_record_list_available = false;
+        list_kind_record_stop_ports.record_source_available = false;
         const auto list_kind_record_stopped =
             sm::cycle_legacy_standard_mode_equipment_list_kind(
                 list_kind_state, {}, list_kind_record_stop_ports
@@ -4453,7 +4419,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             list_kind_cleanup_stopped.status ==
                     sm::LegacyStandardModeEquipmentListKindCycleStatus::
                         cleanup_stopped &&
-                list_kind_cleanup_stopped.helper_call_count == 0U &&
+                list_kind_cleanup_stopped.helper_call_count == 1U &&
                 list_kind_after_cleanup_stop == 1U &&
                 list_kind_record_stopped.status ==
                     sm::LegacyStandardModeEquipmentListKindCycleStatus::
@@ -4927,7 +4893,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             sm::LegacyStandardModeDialogSetupRecord{}
         );
         EquipmentInputPorts commit_cleanup_stop_ports;
-        commit_cleanup_stop_ports.commit_cleanup_available = false;
+        commit_cleanup_stop_ports.record_source_available = false;
         const auto commit_cleanup_stopped =
             sm::commit_legacy_standard_mode_equipment(
                 commit_state, commit_group_payload, commit_cleanup_stop_ports
@@ -4972,7 +4938,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         exit_state.transition_word = 1U;
         exit_state.interaction_block = 9;
         EquipmentInputPorts exit_cleanup_stop_ports;
-        exit_cleanup_stop_ports.commit_cleanup_available = false;
+        exit_state.record_head = &commit_record;
+        exit_cleanup_stop_ports.record_source_available = false;
         const auto exit_cleanup_stopped =
             sm::exit_legacy_standard_mode_equipment(
                 exit_state, exit_cleanup_stop_ports
@@ -5068,8 +5035,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                         completed &&
                 party_cycled.helper_call_count == 10U &&
                 party_cycle_state.party_selector == 0xABCD0002U &&
-                party_cycle_state.visible_record_head == &advance_third &&
-                party_cycle_state.visible_record_count == 3U &&
+                party_cycle_state.visible_record_head ==
+                    &party_cycle_ports.missing_equipment_record &&
+                party_cycle_state.visible_record_count == 1U &&
                 party_cycle_state.shared_text[0] == 0xB5U &&
                 party_cycle_state.published_action_count == 17 &&
                 party_cycle_ports.finalized_party_actions ==
@@ -5077,7 +5045,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 party_cycle_ports.samples ==
                     std::vector<std::array<u32, 2U>>{{0x107U, 0xCA11U}} &&
                 party_cycle_ports.cycle_events ==
-                    std::vector<u32>{1U, 2U, 3U, 4U, 5U} &&
+                    std::vector<u32>{2U, 4U, 5U} &&
+                party_cycle_ports.released_missing_equipment_records ==
+                    std::vector<u16>{0xFFDCU, 0xFFDCU, 0xFFDCU} &&
                 party_cycle_bypassed.helper_call_count == 0U,
             "0x443A60 cycles to the next valid party then rebuilds list, text and action count"
         );
@@ -5095,7 +5065,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         party_cycle_state.party_markers.fill(1U);
         party_cycle_state.party_selector = 0U;
         EquipmentInputPorts party_cycle_cleanup_stop_ports;
-        party_cycle_cleanup_stop_ports.party_cycle_cleanup_available = false;
+        party_cycle_state.record_head = &advance_invalid_text;
+        party_cycle_cleanup_stop_ports.record_source_available = false;
         const auto party_cycle_cleanup_stopped =
             sm::cycle_legacy_standard_mode_equipment_party(
                 party_cycle_state, {}, party_cycle_cleanup_stop_ports
@@ -5116,7 +5087,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 party_cycle_cleanup_stopped.status ==
                     sm::LegacyStandardModeEquipmentPartyCycleStatus::
                         cleanup_stopped &&
-                party_cycle_cleanup_stopped.helper_call_count == 0U &&
+                party_cycle_cleanup_stopped.helper_call_count == 1U &&
                 party_cycle_action_stopped.status ==
                     sm::LegacyStandardModeEquipmentPartyCycleStatus::
                         action_count_stopped &&
@@ -5128,7 +5099,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         party_cycle_state.mode_enabled = 1U;
         party_cycle_state.party_markers.fill(1U);
         EquipmentInputPorts party_cycle_record_stop_ports;
-        party_cycle_record_stop_ports.party_cycle_record_list_available = false;
+        party_cycle_record_stop_ports.record_source_available = false;
         const auto party_cycle_record_stopped =
             sm::cycle_legacy_standard_mode_equipment_party(
                 party_cycle_state, {}, party_cycle_record_stop_ports
@@ -5251,7 +5222,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     std::vector<EquipmentTarget>{
                         EquipmentTarget::show_overlay,
                     } &&
-                overlay_ports.list_kind_events == std::vector<u32>{1U, 2U, 3U},
+                overlay_ports.list_kind_events == std::vector<u32>{3U},
             "0x442F40 reloads mutable buttons and coordinates after overlay then cycles kind"
         );
         equipment = {};
@@ -5549,18 +5520,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 equipment.party_selector == 0xABCD0002U &&
                 party_ports.targets.empty() &&
                 party_ports.cycle_events ==
-                    std::vector<u32>{
-                        1U,
-                        2U,
-                        3U,
-                        4U,
-                        5U,
-                        1U,
-                        2U,
-                        3U,
-                        4U,
-                        5U,
-                    },
+                    std::vector<u32>{2U, 4U, 5U, 2U, 4U, 5U},
             "0x442F40 cycles parties until the clicked available party matches"
         );
         equipment.party_selector = 0U;
@@ -5576,7 +5536,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     sm::LegacyStandardModeEquipmentInputStatus::
                         party_cycle_stopped &&
                 cycle_stop_ports.targets.empty() &&
-                cycle_stop_ports.cycle_events.size() == 20U,
+                cycle_stop_ports.cycle_events.size() == 12U,
             "0x442F40 isolates a non-progressing party cycle after four attempts"
         );
 
@@ -5598,12 +5558,22 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     class EquipmentCleanupPorts final
         : public sm::LegacyStandardModeEquipmentCleanupPorts {
     public:
-        bool cleanup_equipment_record_list(
-            sm::LegacyStandardModeEquipmentInitializationState& state
-        ) noexcept override {
+        sm::LegacyStandardModeForwardNode*
+        equipment_record_source_root(const u16) noexcept override {
             events.push_back(1U);
-            state.workspace_token = token_after_cleanup;
-            return record_list_available;
+            return source_root_available ? &source_root : nullptr;
+        }
+
+        sm::LegacyStandardModeForwardNode*
+        create_missing_equipment_record() noexcept override {
+            return nullptr;
+        }
+
+        void release_missing_equipment_record(
+            sm::LegacyStandardModeForwardNode& record
+        ) noexcept override {
+            events.push_back(3U);
+            released_missing_records.push_back(record.text_index);
         }
 
         i32 release_equipment_workspace(const u32 token) noexcept override {
@@ -5612,13 +5582,84 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return release_return;
         }
 
-        bool record_list_available{true};
-        u32 token_after_cleanup{0xAABBCCDDU};
+        bool source_root_available{true};
+        sm::LegacyStandardModeForwardNode source_root;
         u32 released_token{};
         i32 release_return{-7};
+        std::vector<u16> released_missing_records;
         std::vector<u32> events;
     };
     {
+        sm::LegacyStandardModeForwardNode pool_existing;
+        pool_existing.text_index = 99U;
+        sm::LegacyStandardModeForwardNode normal_second;
+        normal_second.text_index = 20U;
+        sm::LegacyStandardModeForwardNode normal_first;
+        normal_first.text_index = 10U;
+        normal_first.next = &normal_second;
+        sm::LegacyStandardModeForwardNode missing;
+        missing.text_index = 0xFFDCU;
+        missing.next = &normal_first;
+        sm::LegacyStandardModeEquipmentInitializationState list_state;
+        list_state.record_head = &missing;
+        EquipmentCleanupPorts list_ports;
+        list_ports.source_root.next = &pool_existing;
+        const auto returned =
+            sm::cleanup_legacy_standard_mode_equipment_record_list(
+                list_state, list_ports
+            );
+        test.expect_true(
+            returned.status ==
+                    sm::LegacyStandardModeEquipmentRecordListCleanupStatus::
+                        completed &&
+                returned.returned_record_count == 2U &&
+                returned.released_missing_count == 1U &&
+                returned.detached_record == nullptr &&
+                list_state.record_head == nullptr &&
+                list_ports.source_root.next == &normal_second &&
+                normal_second.next == &normal_first &&
+                normal_first.next == &pool_existing &&
+                list_ports.released_missing_records ==
+                    std::vector<u16>{0xFFDCU} &&
+                list_ports.events == std::vector<u32>{3U, 1U, 1U},
+            "0x444F00 releases FFDC and prepends ordinary records to the party pool"
+        );
+
+        sm::LegacyStandardModeForwardNode detached;
+        detached.text_index = 1U;
+        sm::LegacyStandardModeForwardNode remaining;
+        remaining.text_index = 2U;
+        detached.next = &remaining;
+        list_state = {};
+        list_state.party_selector = 4U;
+        list_state.record_head = &detached;
+        EquipmentCleanupPorts selector_stop_ports;
+        const auto selector_stopped =
+            sm::cleanup_legacy_standard_mode_equipment_record_list(
+                list_state, selector_stop_ports
+            );
+        list_state = {};
+        list_state.record_head = &detached;
+        EquipmentCleanupPorts source_stop_ports;
+        source_stop_ports.source_root_available = false;
+        const auto source_stopped =
+            sm::cleanup_legacy_standard_mode_equipment_record_list(
+                list_state, source_stop_ports
+            );
+        test.expect_true(
+            selector_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRecordListCleanupStatus::
+                        party_selector_out_of_range &&
+                selector_stopped.detached_record == &detached &&
+                list_state.record_head == &remaining &&
+                source_stopped.status ==
+                    sm::LegacyStandardModeEquipmentRecordListCleanupStatus::
+                        source_root_missing &&
+                source_stopped.detached_record == &detached &&
+                detached.next == &remaining,
+            "0x444F00 typed-stops after popping but before rewriting a detached record"
+        );
+
         sm::LegacyStandardModeEquipmentInitializationState equipment;
         equipment.mode_enabled = 1U;
         equipment.workspace_token = 0x11111111U;
@@ -5633,10 +5674,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 cleaned.legacy_return_value == -7 &&
                 cleaned.helper_call_count == 2U &&
                 equipment.mode_enabled == 0U &&
-                equipment.workspace_token == 0xAABBCCDDU &&
+                equipment.workspace_token == 0x11111111U &&
                 equipment.global_mode == 0x36U &&
-                cleanup_ports.released_token == 0xAABBCCDDU &&
-                cleanup_ports.events == std::vector<u32>{1U, 2U},
+                cleanup_ports.released_token == 0x11111111U &&
+                cleanup_ports.events == std::vector<u32>{2U},
             "0x442F10 cleans the list, rereads workspace, releases it and publishes mode54"
         );
 
@@ -5645,7 +5686,10 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         stopped_equipment.workspace_token = 0x1234U;
         stopped_equipment.global_mode = 0x45U;
         EquipmentCleanupPorts stopped_cleanup_ports;
-        stopped_cleanup_ports.record_list_available = false;
+        sm::LegacyStandardModeForwardNode stopped_record;
+        stopped_record.text_index = 1U;
+        stopped_equipment.record_head = &stopped_record;
+        stopped_cleanup_ports.source_root_available = false;
         const auto cleanup_stopped = sm::cleanup_legacy_standard_mode_equipment(
             stopped_equipment, stopped_cleanup_ports
         );
@@ -5653,9 +5697,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             cleanup_stopped.status ==
                     sm::LegacyStandardModeEquipmentCleanupStatus::
                         record_list_stopped &&
-                cleanup_stopped.helper_call_count == 0U &&
+                cleanup_stopped.helper_call_count == 1U &&
                 stopped_equipment.mode_enabled == 1U &&
-                stopped_equipment.workspace_token == 0xAABBCCDDU &&
+                stopped_equipment.workspace_token == 0x1234U &&
                 stopped_equipment.global_mode == 0x45U &&
                 stopped_cleanup_ports.released_token == 0U &&
                 stopped_cleanup_ports.events == std::vector<u32>{1U},

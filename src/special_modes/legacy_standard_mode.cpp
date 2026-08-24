@@ -515,6 +515,44 @@ rebuild_legacy_standard_mode_equipment_record_list(
     return result;
 }
 
+LegacyStandardModeEquipmentRecordListCleanupResult
+cleanup_legacy_standard_mode_equipment_record_list(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentRecordListPorts& ports
+) noexcept {
+    LegacyStandardModeEquipmentRecordListCleanupResult result;
+    while (state.record_head != nullptr) {
+        LegacyStandardModeForwardNode* current =
+            const_cast<LegacyStandardModeForwardNode*>(state.record_head);
+        state.record_head = current->next;
+        if (current->text_index == 0xFFDCU) {
+            ports.release_missing_equipment_record(*current);
+            ++result.released_missing_count;
+            continue;
+        }
+        const compat::u16 party_index =
+            static_cast<compat::u16>(state.party_selector);
+        if (party_index >= 4U) {
+            result.status = LegacyStandardModeEquipmentRecordListCleanupStatus::
+                party_selector_out_of_range;
+            result.detached_record = current;
+            return result;
+        }
+        LegacyStandardModeForwardNode* source_root =
+            ports.equipment_record_source_root(party_index);
+        if (source_root == nullptr) {
+            result.status = LegacyStandardModeEquipmentRecordListCleanupStatus::
+                source_root_missing;
+            result.detached_record = current;
+            return result;
+        }
+        current->next = source_root->next;
+        source_root->next = current;
+        ++result.returned_record_count;
+    }
+    return result;
+}
+
 LegacyStandardModeEquipmentInitializationResult
 initialize_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,
@@ -1726,12 +1764,15 @@ cycle_legacy_standard_mode_equipment_list_kind(
     if (state.mode_enabled != 1U) {
         return result;
     }
-    if (!ports.cleanup_equipment_list_kind_cycle(state)) {
+    const LegacyStandardModeEquipmentRecordListCleanupResult cleanup =
+        cleanup_legacy_standard_mode_equipment_record_list(state, ports);
+    ++result.helper_call_count;
+    if (cleanup.status !=
+        LegacyStandardModeEquipmentRecordListCleanupStatus::completed) {
         result.status =
             LegacyStandardModeEquipmentListKindCycleStatus::cleanup_stopped;
         return result;
     }
-    ++result.helper_call_count;
     ++state.list_kind;
     if (state.list_kind == 3U) {
         state.list_kind = 0U;
@@ -1786,12 +1827,15 @@ cycle_legacy_standard_mode_equipment_party(
     if (state.mode_enabled != 1U) {
         return result;
     }
-    if (!ports.cleanup_equipment_party_cycle(state)) {
+    const LegacyStandardModeEquipmentRecordListCleanupResult cleanup =
+        cleanup_legacy_standard_mode_equipment_record_list(state, ports);
+    ++result.helper_call_count;
+    if (cleanup.status !=
+        LegacyStandardModeEquipmentRecordListCleanupStatus::completed) {
         result.status =
             LegacyStandardModeEquipmentPartyCycleStatus::cleanup_stopped;
         return result;
     }
-    ++result.helper_call_count;
 
     const compat::u16 first_party = static_cast<compat::u16>(
         (static_cast<compat::u16>(state.party_selector) + 1U) & 3U
@@ -2824,12 +2868,15 @@ LegacyStandardModeEquipmentCleanupResult cleanup_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentCleanupPorts& ports
 ) noexcept {
     LegacyStandardModeEquipmentCleanupResult result;
-    if (!ports.cleanup_equipment_record_list(state)) {
+    const LegacyStandardModeEquipmentRecordListCleanupResult record_list =
+        cleanup_legacy_standard_mode_equipment_record_list(state, ports);
+    ++result.helper_call_count;
+    if (record_list.status !=
+        LegacyStandardModeEquipmentRecordListCleanupStatus::completed) {
         result.status =
             LegacyStandardModeEquipmentCleanupStatus::record_list_stopped;
         return result;
     }
-    ++result.helper_call_count;
     const compat::u32 workspace_token = state.workspace_token;
     state.mode_enabled = 0U;
     result.legacy_return_value =
