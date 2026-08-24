@@ -2631,13 +2631,25 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return sample_return;
         }
 
-        bool exchange_guardian_record(
+        bool prepare_guardian_record_exchange(
             sm::LegacyStandardModeGuardianInitializationState&,
             const sm::LegacyStandardModeForwardNode&,
-            const u32 guardian_slot
+            const u32 guardian_slot,
+            sm::LegacyStandardModeGuardianFilterContext& filter_context
         ) noexcept override {
             exchange_slots.push_back(guardian_slot);
+            filter_context.filter_requested = filter_requested;
+            filter_context.source_head = filter_source_head;
+            filter_context.destination.sort_key = filter_sort_key;
             return exchange_result;
+        }
+
+        bool complete_guardian_record_exchange(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            sm::LegacyStandardModeGuardianFilterContext& filter_context
+        ) noexcept override {
+            completed_filter_head = filter_context.destination.head;
+            return complete_exchange_result;
         }
 
         void
@@ -2651,6 +2663,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         }
 
         bool exchange_result{true};
+        bool complete_exchange_result{true};
+        bool filter_requested{};
+        u16 filter_sort_key{};
+        sm::LegacyStandardModeForwardNode* filter_source_head{};
+        sm::LegacyStandardModeForwardNode* completed_filter_head{};
         i32 sample_return{77};
         std::vector<u16> bound_phases;
         std::vector<u32> released_tokens;
@@ -2658,6 +2675,89 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::vector<sm::LegacyStandardModeGuardianSelectionTarget> targets;
         std::vector<std::array<u32, 2U>> commands;
     };
+    {
+        sm::LegacyStandardModeForwardNode duplicate{nullptr, 5U};
+        duplicate.filter_flags = 3U;
+        duplicate.filter_category = 2U;
+        sm::LegacyStandardModeForwardNode low{&duplicate, 2U};
+        low.filter_flags = 3U;
+        low.filter_category = 2U;
+        sm::LegacyStandardModeForwardNode kept{&low, 4U};
+        kept.filter_flags = 1U;
+        kept.filter_category = 2U;
+        sm::LegacyStandardModeForwardNode first{&kept, 5U};
+        first.filter_flags = 3U;
+        first.filter_category = 2U;
+        sm::LegacyStandardModeForwardNode* source = &first;
+        sm::LegacyStandardModeGuardianFilterDestination destination{
+            .sort_key = 0U, .reserved = 0x7777U, .reset_word = 0x8888U
+        };
+        const std::array<u32, 1U> masks{3U};
+        const std::array<u16, 1U> party_masks{2U};
+        const auto filtered = sm::filter_legacy_standard_mode_guardian_records(
+            source, destination, 0U, 0U, masks, party_masks
+        );
+        test.expect_true(
+            filtered.status ==
+                    sm::LegacyStandardModeGuardianFilterStatus::completed &&
+                filtered.legacy_return_value == 3 &&
+                filtered.visited_count == 4U && filtered.moved_count == 3U &&
+                source == &kept && kept.next == nullptr &&
+                destination.head == &low && low.next == &duplicate &&
+                duplicate.next == &first && first.next == nullptr &&
+                destination.sort_key == 0U && destination.reserved == 0x7777U &&
+                destination.reset_word == 0U,
+            "0x441F70 unlinks matches and inserts duplicate keys before existing equals"
+        );
+
+        sm::LegacyStandardModeForwardNode bit15;
+        bit15.filter_flags = 0x8000U;
+        bit15.filter_category = 2U;
+        source = &bit15;
+        destination = {.sort_key = 0U, .reset_word = 7U};
+        const std::array<u32, 1U> bit15_mask{0x8000U};
+        const auto bit15_filtered =
+            sm::filter_legacy_standard_mode_guardian_records(
+                source, destination, 0U, 0U, bit15_mask, party_masks
+            );
+        test.expect_true(
+            bit15_filtered.moved_count == 0U && source == &bit15 &&
+                destination.head == nullptr && destination.reset_word == 0U,
+            "0x441F70 preserves the original BYTE1 bit15-clear filter bug"
+        );
+
+        source = &bit15;
+        destination = {.head = &first, .reset_word = 9U};
+        const auto mask_stopped =
+            sm::filter_legacy_standard_mode_guardian_records(
+                source, destination, 1U, 0U, bit15_mask, party_masks
+            );
+        test.expect_true(
+            mask_stopped.status ==
+                    sm::LegacyStandardModeGuardianFilterStatus::
+                        filter_index_out_of_range &&
+                source == &bit15 && destination.head == nullptr &&
+                destination.reset_word == 0U,
+            "0x441F70 clears destination before the filter-table typed-stop"
+        );
+
+        bit15.filter_flags = 0x8000U;
+        source = &bit15;
+        destination = {};
+        const std::array<u32, 1U> zero_mask{0U};
+        const auto party_stopped =
+            sm::filter_legacy_standard_mode_guardian_records(
+                source, destination, 0U, 1U, zero_mask, party_masks
+            );
+        test.expect_true(
+            party_stopped.status ==
+                    sm::LegacyStandardModeGuardianFilterStatus::
+                        party_index_out_of_range &&
+                source == &bit15,
+            "0x441F70 reaches the party-table typed-stop only after flag match"
+        );
+    }
+
     class GuardianRenderPorts final
         : public sm::LegacyStandardModeGuardianRenderPorts,
           public sm::LegacyStandardModeBarPorts,
@@ -3502,7 +3602,17 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         guardian.interaction_mode = 1U;
         guardian.guardian_slot = 1U;
+        sm::LegacyStandardModeForwardNode filter_second{nullptr, 2U};
+        filter_second.filter_flags = 3U;
+        filter_second.filter_category = 2U;
+        sm::LegacyStandardModeForwardNode filter_first{&filter_second, 5U};
+        filter_first.filter_flags = 3U;
+        filter_first.filter_category = 2U;
+        guardian.guardian_filter_masks = {0U, 3U};
+        guardian.guardian_party_filter_masks = {2U};
         SelectionPorts exchange_ports;
+        exchange_ports.filter_requested = true;
+        exchange_ports.filter_source_head = &filter_first;
         const auto exchanged =
             sm::switch_legacy_standard_mode_guardian_interaction(
                 guardian, texts, {}, exchange_ports
@@ -3511,8 +3621,11 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             exchanged.status ==
                     sm::LegacyStandardModeGuardianSelectionStatus::completed &&
                 exchanged.legacy_return_value == 77 &&
-                exchanged.helper_call_count == 9U &&
+                exchanged.helper_call_count == 11U &&
                 guardian.interaction_mode == 0U &&
+                guardian.record_head == &filter_second &&
+                filter_second.next == &filter_first &&
+                exchange_ports.completed_filter_head == &filter_second &&
                 exchange_ports.exchange_slots == std::vector<u32>{1U} &&
                 exchange_ports.commands ==
                     std::vector<std::array<u32, 2U>>{{0x2EU, 0U}},
@@ -3629,13 +3742,21 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return 250;
         }
 
-        bool exchange_guardian_record(
+        bool prepare_guardian_record_exchange(
             sm::LegacyStandardModeGuardianInitializationState&,
             const sm::LegacyStandardModeForwardNode&,
-            const u32 guardian_slot
+            const u32 guardian_slot,
+            sm::LegacyStandardModeGuardianFilterContext&
         ) noexcept override {
             exchange_slots.push_back(guardian_slot);
             return exchange_result;
+        }
+
+        bool complete_guardian_record_exchange(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            sm::LegacyStandardModeGuardianFilterContext&
+        ) noexcept override {
+            return complete_exchange_result;
         }
 
         void
@@ -3654,6 +3775,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         }
 
         bool exchange_result{true};
+        bool complete_exchange_result{true};
         bool item_present{true};
         std::vector<u32> exchange_slots;
         std::vector<u16> bound_phases;

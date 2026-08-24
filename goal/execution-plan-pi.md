@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v507
+版本：v508
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 闭环`0x00441F70`
+当前步骤：模块9 · 闭环`0x00442050`
 
 ## 0. 执行约定
 
@@ -3661,9 +3661,11 @@ B7 P0 有限收口完成。
 
 - 模块9护驾系统主渲染`0x00441680`闭环。1014行、42个call全部纳入；恢复transition选择、frame几何、三action、双frame、链表逐行、selected action、双43AE40 bar、9项属性、43BD70动画和mode15尾。共享action残值显式保留；已关闭bar/animated helper直接复用；早晚记录读取与链link按原位置typed-stop。定向UT通过。workpack稳定为`82/227`，SHA256为`4256a1b9fc26acf4efe945262d64b27f8c1d28379a5bb310c42fb22b3f2b1bf8`。
 
+- 模块9护驾记录链筛选与排序`0x00441F70`闭环。恢复destination入口清零、flags mask后bit15清除BUG、party mask门、source原地拆链及offset4双条件升序/重复key前插。动态表只在原读取点typed-stop。41160交换边界拆为prepare/complete，中间直接复用本helper。定向UT通过。workpack稳定为`83/227`，SHA256为`8d969954138bb5093fab7fee97b07da9d248ef2265e12b5f94072370f7547e7a`。
+
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`82/227`，下一单元为`0x00441F70`。
+进行中，正式进度为`83/227`，下一单元为`0x00442050`。
 
-下一工作包：按LST唯一真值闭环模块9 `0x00441F70`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值闭环模块9 `0x00442050`，继续更新workpack、证据和完整验证门。

@@ -368,6 +368,80 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     return result;
 }
 
+LegacyStandardModeGuardianFilterResult
+filter_legacy_standard_mode_guardian_records(
+    LegacyStandardModeForwardNode*& source_head,
+    LegacyStandardModeGuardianFilterDestination& destination,
+    const compat::u32 filter_index,
+    const compat::u16 party_index,
+    const std::span<const compat::u32> filter_masks,
+    const std::span<const compat::u16> party_masks
+) noexcept {
+    LegacyStandardModeGuardianFilterResult result;
+    destination.head = nullptr;
+    destination.reset_word = 0U;
+
+    LegacyStandardModeForwardNode* previous_source = nullptr;
+    LegacyStandardModeForwardNode* current = source_head;
+    while (current != nullptr) {
+        if (filter_index >= filter_masks.size()) {
+            result.status = LegacyStandardModeGuardianFilterStatus::
+                filter_index_out_of_range;
+            return result;
+        }
+        const compat::u32 filter_mask = filter_masks[filter_index];
+        result.legacy_return_value = std::bit_cast<compat::i32>(filter_mask);
+        compat::u32 matched_flags = current->filter_flags & filter_mask;
+        matched_flags &= ~0x00008000U;
+        bool matches = matched_flags == filter_mask;
+        if (matches) {
+            if (party_index >= party_masks.size()) {
+                result.status = LegacyStandardModeGuardianFilterStatus::
+                    party_index_out_of_range;
+                return result;
+            }
+            matches =
+                (current->filter_category & party_masks[party_index]) != 0U;
+        }
+        ++result.visited_count;
+        if (!matches) {
+            previous_source = current;
+            current = const_cast<LegacyStandardModeForwardNode*>(current->next);
+            continue;
+        }
+
+        LegacyStandardModeForwardNode* const moved = current;
+        current = const_cast<LegacyStandardModeForwardNode*>(current->next);
+        if (previous_source == nullptr) {
+            source_head = current;
+        } else {
+            previous_source->next = current;
+        }
+
+        LegacyStandardModeForwardNode* previous_destination = nullptr;
+        LegacyStandardModeForwardNode* scan = destination.head;
+        while (scan != nullptr) {
+            const compat::u16 previous_key = previous_destination == nullptr
+                ? destination.sort_key
+                : previous_destination->text_index;
+            if (scan->text_index >= moved->text_index &&
+                previous_key < moved->text_index) {
+                break;
+            }
+            previous_destination = scan;
+            scan = const_cast<LegacyStandardModeForwardNode*>(scan->next);
+        }
+        moved->next = scan;
+        if (previous_destination == nullptr) {
+            destination.head = moved;
+        } else {
+            previous_destination->next = moved;
+        }
+        ++result.moved_count;
+    }
+    return result;
+}
+
 compat::u32 count_legacy_standard_mode_forward_nodes(
     const LegacyStandardModeForwardNode* head
 ) noexcept {
@@ -5589,9 +5663,35 @@ switch_legacy_standard_mode_guardian_interaction(
         ++result.helper_call_count;
         return result;
     }
-    if (!ports.exchange_guardian_record(
-            state, *selected_node, state.guardian_slot
+    LegacyStandardModeGuardianFilterContext filter_context;
+    if (!ports.prepare_guardian_record_exchange(
+            state, *selected_node, state.guardian_slot, filter_context
         )) {
+        result.status = LegacyStandardModeGuardianSelectionStatus::
+            guardian_exchange_stopped;
+        return result;
+    }
+    ++result.helper_call_count;
+    if (filter_context.filter_requested) {
+        const LegacyStandardModeGuardianFilterResult filtered =
+            filter_legacy_standard_mode_guardian_records(
+                filter_context.source_head,
+                filter_context.destination,
+                state.guardian_slot,
+                static_cast<compat::u16>(state.party_selector),
+                state.guardian_filter_masks,
+                state.guardian_party_filter_masks
+            );
+        ++result.helper_call_count;
+        if (filtered.status !=
+            LegacyStandardModeGuardianFilterStatus::completed) {
+            result.status = LegacyStandardModeGuardianSelectionStatus::
+                guardian_exchange_stopped;
+            return result;
+        }
+        state.record_head = filter_context.destination.head;
+    }
+    if (!ports.complete_guardian_record_exchange(state, filter_context)) {
         result.status = LegacyStandardModeGuardianSelectionStatus::
             guardian_exchange_stopped;
         return result;

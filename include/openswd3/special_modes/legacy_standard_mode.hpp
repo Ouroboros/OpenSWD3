@@ -540,6 +540,34 @@ struct LegacyStandardModeForwardNode {
     std::string animated_text{};
 };
 
+struct LegacyStandardModeGuardianFilterDestination {
+    LegacyStandardModeForwardNode* head{};
+    compat::u16 sort_key{};
+    compat::u16 reserved{};
+    compat::u16 reset_word{};
+};
+
+struct LegacyStandardModeGuardianFilterContext {
+    bool filter_requested{};
+    LegacyStandardModeForwardNode* source_head{};
+    LegacyStandardModeGuardianFilterDestination destination{};
+};
+
+enum class LegacyStandardModeGuardianFilterStatus : compat::u8 {
+    completed,
+    filter_index_out_of_range,
+    party_index_out_of_range,
+};
+
+struct LegacyStandardModeGuardianFilterResult {
+    LegacyStandardModeGuardianFilterStatus status{
+        LegacyStandardModeGuardianFilterStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 visited_count{};
+    compat::u32 moved_count{};
+};
+
 class LegacyStandardModeMissingNodePorts {
 public:
     virtual ~LegacyStandardModeMissingNodePorts() = default;
@@ -861,6 +889,8 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::u32 selected_action_frame{};
     compat::u32 selected_action_resource{};
     compat::u32 selected_action_zero{};
+    std::vector<compat::u32> guardian_filter_masks;
+    std::vector<compat::u16> guardian_party_filter_masks;
     const LegacyStandardModeForwardNode* selected_record{};
     LegacyStandardModeBarOutputs first_scroll_bar_outputs{};
     LegacyStandardModeBarOutputs second_scroll_bar_outputs{};
@@ -962,10 +992,15 @@ class LegacyStandardModeGuardianInteractionPorts
     : public LegacyStandardModeGuardianSelectionPorts {
 public:
     ~LegacyStandardModeGuardianInteractionPorts() override = default;
-    [[nodiscard]] virtual bool exchange_guardian_record(
+    [[nodiscard]] virtual bool prepare_guardian_record_exchange(
         LegacyStandardModeGuardianInitializationState& state,
         const LegacyStandardModeForwardNode& selected_node,
-        compat::u32 guardian_slot
+        compat::u32 guardian_slot,
+        LegacyStandardModeGuardianFilterContext& filter_context
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool complete_guardian_record_exchange(
+        LegacyStandardModeGuardianInitializationState& state,
+        LegacyStandardModeGuardianFilterContext& filter_context
     ) noexcept = 0;
 };
 
@@ -2331,6 +2366,17 @@ struct LegacyStandardModeAnimatedPanelResult {
     bool rendered{};
     bool position_clamped{};
 };
+
+// sub_441F70: move matching nodes into a destination chain sorted by offset4.
+[[nodiscard]] LegacyStandardModeGuardianFilterResult
+filter_legacy_standard_mode_guardian_records(
+    LegacyStandardModeForwardNode*& source_head,
+    LegacyStandardModeGuardianFilterDestination& destination,
+    compat::u32 filter_index,
+    compat::u16 party_index,
+    std::span<const compat::u32> filter_masks,
+    std::span<const compat::u16> party_masks
+) noexcept;
 
 // sub_43B980: count one intrusive forward chain through its offset-zero links.
 [[nodiscard]] compat::u32 count_legacy_standard_mode_forward_nodes(
