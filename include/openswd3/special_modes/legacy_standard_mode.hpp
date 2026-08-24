@@ -524,6 +524,8 @@ struct LegacyStandardModeGroupEightInputSnapshot {
     compat::u8 buttons{};
 };
 
+struct LegacyStandardModeForwardNode;
+
 struct LegacyStandardModeGroupEightState {
     compat::u16 selection{};
     compat::u16 lifecycle{};
@@ -534,7 +536,56 @@ struct LegacyStandardModeGroupEightState {
     compat::u32 tagged_mode_value{};
     compat::u32 fallback_constant{};
     LegacyStandardModeCallbackState callback_state{};
+    compat::u32 entry_count{};
+    compat::u32 selected_entry_index{};
+    compat::u16 initialization_word{};
+    asset_runtime::LegacyActionRecord primary_action{};
+    compat::u32 viewport_extent{};
+    LegacyStandardModeForwardNode* record_head{};
+    compat::u32 list_offset{};
+    compat::u32 local_selection{};
+    compat::u32 available_action_count{};
+    std::array<compat::u8, 128U> shared_text{};
+    compat::u32 layout_width{};
+    compat::u32 layout_mode{};
+    compat::u32 published_selection_x{};
+    compat::u32 workspace_token{};
+    std::array<compat::u32, 6U> pre_initialization_zeroes{};
+    std::array<compat::u32, 2U> post_initialization_zeroes{};
+    std::array<compat::u32, 6U> layout_zeroes{};
 };
+
+class LegacyStandardModeGroupEightInitializationPorts {
+public:
+    virtual ~LegacyStandardModeGroupEightInitializationPorts() = default;
+    [[nodiscard]] virtual bool
+    initialize_selection_records(LegacyStandardModeGroupEightState& state) = 0;
+    [[nodiscard]] virtual compat::i32
+    query_item_presence(compat::u16 item_id) = 0;
+    [[nodiscard]] virtual compat::u32 allocate_workspace(std::size_t size) = 0;
+};
+
+enum class LegacyStandardModeGroupEightInitializationStatus : compat::u8 {
+    completed,
+    record_initialization_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+};
+
+struct LegacyStandardModeGroupEightInitializationResult {
+    LegacyStandardModeGroupEightInitializationStatus status{
+        LegacyStandardModeGroupEightInitializationStatus::completed
+    };
+    compat::u32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightInitializationResult
+initialize_legacy_standard_mode_group_eight_first_selection(
+    LegacyStandardModeGroupEightState& state,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGroupEightInitializationPorts& ports
+) noexcept;
 
 class LegacyStandardModeGroupEightSelectionPorts
     : public virtual LegacyStandardModeStoryFlagPorts {

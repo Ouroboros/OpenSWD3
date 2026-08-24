@@ -14903,6 +14903,42 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<std::array<u32, 2U>> initialization_callbacks;
     };
 
+    class GroupEightInitializationPorts final
+        : public openswd3::special_modes::
+              LegacyStandardModeGroupEightInitializationPorts {
+    public:
+        bool initialize_selection_records(
+            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+        ) override {
+            events.push_back(1U);
+            if (!record_initialization_available) {
+                return false;
+            }
+            state.record_head = record_head;
+            return true;
+        }
+
+        i32 query_item_presence(const u16 item_id) override {
+            events.push_back(2U);
+            item_ids.push_back(item_id);
+            return item_id < item_presence.size() ? item_presence[item_id] : 0;
+        }
+
+        u32 allocate_workspace(const std::size_t size) override {
+            events.push_back(3U);
+            allocation_size = size;
+            return workspace_token;
+        }
+
+        LegacyStandardModeForwardNode* record_head{};
+        bool record_initialization_available{true};
+        std::array<i32, 64U> item_presence{};
+        u32 workspace_token{0xABCDEF01U};
+        std::size_t allocation_size{};
+        std::vector<u16> item_ids;
+        std::vector<u32> events;
+    };
+
     class GroupEightDrawPorts final
         : public openswd3::special_modes::
               LegacyStandardModeGroupEightDrawPorts {
@@ -14925,6 +14961,111 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         openswd3::special_modes::LegacyStandardModeGroupEightState;
     using GroupEightInput =
         openswd3::special_modes::LegacyStandardModeGroupEightInputSnapshot;
+    LegacyStandardModeForwardNode first_selection_record;
+    first_selection_record.text_index = 0xFFDCU;
+    GroupEightState first_selection_state;
+    first_selection_state.entry_count = 5U;
+    first_selection_state.selection_x = 99U;
+    first_selection_state.pre_initialization_zeroes.fill(0xFFFFFFFFU);
+    first_selection_state.post_initialization_zeroes.fill(0xFFFFFFFFU);
+    first_selection_state.layout_zeroes.fill(0xFFFFFFFFU);
+    GroupEightInitializationPorts first_selection_ports;
+    first_selection_ports.record_head = &first_selection_record;
+    first_selection_ports.item_presence[0x1EU] = 1;
+    first_selection_ports.item_presence[0x20U] = -2;
+    const auto first_selection = openswd3::special_modes::
+        initialize_legacy_standard_mode_group_eight_first_selection(
+            first_selection_state, {}, first_selection_ports
+        );
+    const bool first_pre_zeroed = std::all_of(
+        first_selection_state.pre_initialization_zeroes.begin(),
+        first_selection_state.pre_initialization_zeroes.end(),
+        [](const u32 value) { return value == 0U; }
+    );
+    const bool first_post_zeroed = std::all_of(
+        first_selection_state.post_initialization_zeroes.begin(),
+        first_selection_state.post_initialization_zeroes.end(),
+        [](const u32 value) { return value == 0U; }
+    );
+    const bool first_layout_zeroed = std::all_of(
+        first_selection_state.layout_zeroes.begin(),
+        first_selection_state.layout_zeroes.end(),
+        [](const u32 value) { return value == 0U; }
+    );
+    test.expect_true(
+        first_selection.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInitializationStatus::
+                        completed &&
+            first_selection.legacy_return_value == 0xABCDEF01U &&
+            first_selection.helper_call_count == 9U &&
+            first_selection_state.selected_entry_index == 4U &&
+            first_selection_state.initialization_word == 5U &&
+            first_selection_state.primary_action.action_id == 0x232AU &&
+            first_selection_state.primary_action.base_variant == 7U &&
+            first_selection_state.selection_x == 30U &&
+            first_selection_state.viewport_extent == 480U &&
+            first_selection_state.available_action_count == 2U &&
+            first_selection_state.shared_text[0U] == 0xB5U &&
+            first_selection_state.shared_text[1U] == 0x4CU &&
+            first_selection_state.layout_width == 96U &&
+            first_selection_state.layout_mode == 2U &&
+            first_selection_state.published_selection_x == 30U &&
+            first_selection_state.workspace_token == 0xABCDEF01U &&
+            first_pre_zeroed && first_post_zeroed && first_layout_zeroed &&
+            first_selection_ports.item_ids ==
+                std::vector<u16>{0x1EU, 0x1FU, 0x20U, 0x21U} &&
+            first_selection_ports.allocation_size == 0x28U &&
+            first_selection_ports.events ==
+                std::vector<u32>{1U, 2U, 2U, 2U, 2U, 3U},
+        "0x445430 initializes the first G08 action, availability, text and workspace"
+    );
+
+    GroupEightState first_stop_state;
+    first_stop_state.entry_count = 2U;
+    first_stop_state.workspace_token = 9U;
+    GroupEightInitializationPorts first_stop_ports;
+    first_stop_ports.record_initialization_available = false;
+    const auto first_stopped = openswd3::special_modes::
+        initialize_legacy_standard_mode_group_eight_first_selection(
+            first_stop_state, {}, first_stop_ports
+        );
+    GroupEightState first_missing_state;
+    GroupEightInitializationPorts first_missing_ports;
+    const auto first_missing = openswd3::special_modes::
+        initialize_legacy_standard_mode_group_eight_first_selection(
+            first_missing_state, {}, first_missing_ports
+        );
+    LegacyStandardModeForwardNode invalid_first_record;
+    invalid_first_record.text_index = 0U;
+    GroupEightState first_text_state;
+    GroupEightInitializationPorts first_text_ports;
+    first_text_ports.record_head = &invalid_first_record;
+    const auto first_text_stopped = openswd3::special_modes::
+        initialize_legacy_standard_mode_group_eight_first_selection(
+            first_text_state, {}, first_text_ports
+        );
+    test.expect_true(
+        first_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInitializationStatus::
+                        record_initialization_stopped &&
+            first_stopped.helper_call_count == 1U &&
+            first_stop_state.selected_entry_index == 1U &&
+            first_stop_state.workspace_token == 9U &&
+            first_missing.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInitializationStatus::
+                        selected_record_missing &&
+            first_missing.helper_call_count == 7U &&
+            first_text_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInitializationStatus::
+                        shared_text_stopped &&
+            first_text_stopped.helper_call_count == 8U,
+        "0x445430 preserves exact record initialization, selection and text stop prefixes"
+    );
+
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
     group_state.callback_state.initialization_callbacks.fill(0x00445430U);
     GroupEightInputPorts group_ports;
