@@ -12105,7 +12105,7 @@ initialize_legacy_standard_special_modes(
 LegacyStandardModeGroupEightSelectionRetreatResult
 retreat_legacy_standard_mode_group_eight_selection(
     LegacyStandardModeGroupEightState& state,
-    LegacyStandardModeGroupEightSelectionRetreatPorts& ports
+    LegacyStandardModeGroupEightSelectionPorts& ports
 ) noexcept {
     LegacyStandardModeGroupEightSelectionRetreatResult result;
     compat::u16 selection = static_cast<compat::u16>(state.selection - 1U);
@@ -12124,6 +12124,46 @@ retreat_legacy_standard_mode_group_eight_selection(
     const compat::i32 flag = ports.story_flag(0x49U);
     ++result.story_flag_query_count;
     if (flag == 1) {
+        if (state.visual_index == 0x38U) {
+            state.visual_index = 0x39U;
+            result.visual_index_swapped = true;
+        } else if (state.visual_index == 0x39U) {
+            state.visual_index = 0x38U;
+            result.visual_index_swapped = true;
+        }
+    }
+    result.legacy_return_value =
+        ports.execute_sample_command(0x008BU, state.sample_owner);
+    ++result.sample_command_count;
+    return result;
+}
+
+LegacyStandardModeGroupEightSelectionAdvanceResult
+advance_legacy_standard_mode_group_eight_selection(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightSelectionPorts& ports
+) noexcept {
+    LegacyStandardModeGroupEightSelectionAdvanceResult result;
+    const compat::i32 limit_flag = ports.story_flag(0x49U);
+    ++result.story_flag_query_count;
+    const compat::u16 limit = limit_flag == 1 ? 0x10U : 0x0FU;
+
+    compat::u16 selection = static_cast<compat::u16>(state.selection + 1U);
+    state.selection = selection;
+    if (selection > limit) {
+        selection = limit;
+        state.selection = selection;
+        result.clamped = true;
+    }
+    const compat::u16 selection_x =
+        static_cast<compat::u16>(selection * 6U - 0x24U);
+    state.selection_x = selection_x;
+    state.selection_x_mirror = selection_x;
+    state.visual_index = static_cast<compat::u32>(selection) + 0x29U;
+
+    const compat::i32 swap_flag = ports.story_flag(0x49U);
+    ++result.story_flag_query_count;
+    if (swap_flag == 1) {
         if (state.visual_index == 0x38U) {
             state.visual_index = 0x39U;
             result.visual_index_swapped = true;

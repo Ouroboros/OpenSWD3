@@ -15053,6 +15053,63 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             exact_flag_state.visual_index == 56U,
         "0x445210 swaps only visual indices56/57 and only when flag49 equals one"
     );
+
+    GroupEightState advance_default_state{
+        .selection = 15U, .sample_owner = 0xD0U
+    };
+    GroupEightInputPorts advance_default_ports;
+    advance_default_ports.flag_results = {0, 0};
+    const auto advanced_default = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_selection(
+            advance_default_state, advance_default_ports
+        );
+    GroupEightState advance_flag_state{.selection = 15U};
+    GroupEightInputPorts advance_flag_ports;
+    advance_flag_ports.flag_results = {1, 1};
+    const auto advanced_flag = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_selection(
+            advance_flag_state, advance_flag_ports
+        );
+    test.expect_true(
+        advanced_default.story_flag_query_count == 2U &&
+            advanced_default.sample_command_count == 1U &&
+            advanced_default.clamped &&
+            !advanced_default.visual_index_swapped &&
+            advance_default_state.selection == 15U &&
+            advance_default_state.selection_x == 54U &&
+            advance_default_state.visual_index == 56U &&
+            advance_default_ports.sample_commands ==
+                std::vector<std::array<u32, 2U>>{{0x8BU, 0xD0U}} &&
+            !advanced_flag.clamped && advanced_flag.visual_index_swapped &&
+            advance_flag_state.selection == 16U &&
+            advance_flag_state.selection_x == 60U &&
+            advance_flag_state.visual_index == 56U,
+        "0x4452B0 uses upper15 normally, upper16 only for flag1, then confirms"
+    );
+
+    GroupEightState advance_exact_state{.selection = 14U};
+    GroupEightInputPorts advance_exact_ports;
+    advance_exact_ports.flag_results = {2, 1};
+    const auto advanced_exact = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_selection(
+            advance_exact_state, advance_exact_ports
+        );
+    GroupEightState advance_wrap_state{.selection = 0xFFFFU};
+    GroupEightInputPorts advance_wrap_ports;
+    advance_wrap_ports.flag_results = {1, 0};
+    const auto advanced_wrap = openswd3::special_modes::
+        advance_legacy_standard_mode_group_eight_selection(
+            advance_wrap_state, advance_wrap_ports
+        );
+    test.expect_true(
+        !advanced_exact.clamped && advanced_exact.visual_index_swapped &&
+            advance_exact_state.selection == 15U &&
+            advance_exact_state.visual_index == 57U && !advanced_wrap.clamped &&
+            advance_wrap_state.selection == 0U &&
+            advance_wrap_state.selection_x == 0xFFDCU &&
+            advance_wrap_state.visual_index == 41U,
+        "0x4452B0 keeps exact flag comparisons and u16 increment wrap behavior"
+    );
 }
 
 void test_standard_mode_ghost_draw(openswd3::test::Context& test) {
