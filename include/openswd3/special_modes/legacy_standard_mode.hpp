@@ -548,6 +548,8 @@ struct LegacyStandardModeEquipmentInitializationState {
     compat::u32 list_kind{};
     compat::u32 action_count{};
     compat::u32 active_party_count{};
+    compat::u32 visible_record_count{};
+    compat::u32 total_record_count{};
     compat::u32 list_offset{};
     compat::u32 local_selection{};
     const LegacyStandardModeForwardNode* record_head{};
@@ -560,6 +562,18 @@ struct LegacyStandardModeEquipmentInitializationState {
     compat::u32 final_zero{};
     compat::i32 published_action_count{};
     compat::u32 global_mode{};
+    compat::u32 sample_owner{};
+    compat::u32 hover_selection{};
+    compat::u32 hover_record_count{};
+    compat::u32 special_record_count{};
+    compat::i32 first_dynamic_min_y{};
+    compat::i32 first_dynamic_max_y{};
+    compat::i32 second_dynamic_min_y{};
+    compat::i32 second_dynamic_max_y{};
+    compat::i32 special_first_dynamic_min_y{};
+    compat::i32 special_first_dynamic_max_y{};
+    compat::i32 special_second_dynamic_min_y{};
+    compat::i32 special_second_dynamic_max_y{};
 };
 
 class LegacyStandardModeEquipmentInitializationPorts {
@@ -631,6 +645,60 @@ cleanup_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,
     LegacyStandardModeEquipmentCleanupPorts& ports
 ) noexcept;
+
+struct LegacyStandardModeEquipmentInputSnapshot {
+    compat::u32 buttons{};
+    compat::u32 cursor_y{};
+    compat::u32 cursor_x{};
+    compat::u16 cursor_mode{};
+    compat::u32 register_eax{};
+};
+
+enum class LegacyStandardModeEquipmentInputTarget : compat::u8 {
+    commit_action,
+    show_overlay,
+    cycle_list_kind,
+    retreat_selection,
+    advance_selection,
+    retreat_page,
+    advance_page,
+    cycle_party,
+    exit_mode,
+    play_confirm,
+};
+
+enum class LegacyStandardModeEquipmentInputStatus : compat::u8 {
+    completed,
+    availability_index_out_of_range,
+    selected_record_missing,
+    shared_text_stopped,
+    party_mapping_stopped,
+    party_cycle_stopped,
+};
+
+struct LegacyStandardModeEquipmentInputResult {
+    LegacyStandardModeEquipmentInputStatus status{
+        LegacyStandardModeEquipmentInputStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 callback_count{};
+    std::optional<LegacyStandardModeEquipmentInputTarget> last_target{};
+};
+
+class LegacyStandardModeEquipmentInputPorts {
+public:
+    virtual ~LegacyStandardModeEquipmentInputPorts() = default;
+    [[nodiscard]] virtual compat::i32 invoke_equipment_input(
+        LegacyStandardModeEquipmentInputTarget target,
+        LegacyStandardModeEquipmentInitializationState& state,
+        LegacyStandardModeEquipmentInputSnapshot& input
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    query_equipment_item_presence(compat::u16 item_id) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 execute_equipment_sample_command(
+        compat::u16 command_id, compat::u32 sample_owner
+    ) noexcept = 0;
+};
 
 struct LegacyStandardModeGuardianFilterDestination {
     LegacyStandardModeForwardNode* head{};
@@ -894,6 +962,15 @@ struct LegacyStandardModeAvailabilityResult {
     compat::i32 legacy_return_value{};
     bool available{};
 };
+
+[[nodiscard]] LegacyStandardModeEquipmentInputResult
+handle_legacy_standard_mode_equipment_input(
+    LegacyStandardModeEquipmentInitializationState& state,
+    LegacyStandardModeEquipmentInputSnapshot& input,
+    std::span<const LegacyStandardModeAvailabilityRecord> availability_records,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeEquipmentInputPorts& ports
+) noexcept;
 
 inline constexpr std::size_t kLegacyStandardModeDatabaseRecordCount = 0x4B0U;
 inline constexpr std::size_t kLegacyStandardModeMirrorSourceCount = 0x7FU;

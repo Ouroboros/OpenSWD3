@@ -2889,6 +2889,442 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
     }
 
+    class EquipmentInputPorts final
+        : public sm::LegacyStandardModeEquipmentInputPorts {
+    public:
+        i32 invoke_equipment_input(
+            const sm::LegacyStandardModeEquipmentInputTarget target,
+            sm::LegacyStandardModeEquipmentInitializationState& state,
+            sm::LegacyStandardModeEquipmentInputSnapshot& input
+        ) noexcept override {
+            targets.push_back(target);
+            if (target ==
+                sm::LegacyStandardModeEquipmentInputTarget::show_overlay) {
+                if (overlay_rewrite.has_value()) {
+                    input = *overlay_rewrite;
+                }
+                if (overlay_mode_enabled.has_value()) {
+                    state.mode_enabled = *overlay_mode_enabled;
+                }
+            }
+            if (target ==
+                    sm::LegacyStandardModeEquipmentInputTarget::cycle_party &&
+                cycle_party_changes_state) {
+                const u16 next = static_cast<u16>(
+                    (static_cast<u16>(state.party_selector) + 1U) & 3U
+                );
+                state.party_selector =
+                    (state.party_selector & 0xFFFF0000U) | next;
+            }
+            return 1000 + static_cast<i32>(target);
+        }
+
+        i32 query_equipment_item_presence(const u16 item_id) noexcept override {
+            item_ids.push_back(item_id);
+            return item_id < item_presence.size() ? item_presence[item_id] : 0;
+        }
+
+        i32 execute_equipment_sample_command(
+            const u16 command_id, const u32 sample_owner
+        ) noexcept override {
+            samples.push_back({command_id, sample_owner});
+            return sample_return;
+        }
+
+        std::array<i32, 64U> item_presence{};
+        std::optional<sm::LegacyStandardModeEquipmentInputSnapshot>
+            overlay_rewrite{};
+        std::optional<u32> overlay_mode_enabled{};
+        bool cycle_party_changes_state{true};
+        i32 sample_return{77};
+        std::vector<sm::LegacyStandardModeEquipmentInputTarget> targets;
+        std::vector<u16> item_ids;
+        std::vector<std::array<u32, 2U>> samples;
+    };
+    {
+        using EquipmentTarget = sm::LegacyStandardModeEquipmentInputTarget;
+        std::array<sm::LegacyStandardModeAvailabilityRecord, 16U>
+            unavailable_records{};
+        auto available_records = unavailable_records;
+        available_records[15U] = {1, 1};
+
+        sm::LegacyStandardModeEquipmentInitializationState equipment;
+        equipment.mode_enabled = 0x11U;
+        equipment.first_render_zero = 7U;
+        sm::LegacyStandardModeEquipmentInputSnapshot input;
+        input.buttons = 1U;
+        EquipmentInputPorts early_ports;
+        const auto early = sm::handle_legacy_standard_mode_equipment_input(
+            equipment, input, {}, {}, early_ports
+        );
+        test.expect_true(
+            early.status ==
+                    sm::LegacyStandardModeEquipmentInputStatus::completed &&
+                equipment.first_render_zero == 0U &&
+                early.callback_count == 1U &&
+                early.last_target == EquipmentTarget::commit_action &&
+                early_ports.targets ==
+                    std::vector<EquipmentTarget>{
+                        EquipmentTarget::commit_action
+                    },
+            "0x442F40 mode17/18 buttons1/4 commit immediately after entry reset"
+        );
+
+        equipment = {};
+        equipment.hover_selection = 3U;
+        input = {};
+        input.buttons = 1U;
+        input.cursor_mode = 0x0FU;
+        input.cursor_x = 0x191U;
+        input.cursor_y = 0xC5U + 0x19U;
+        EquipmentInputPorts hover_ports;
+        const auto hover = sm::handle_legacy_standard_mode_equipment_input(
+            equipment, input, {}, {}, hover_ports
+        );
+        input.buttons = 2U;
+        const auto hover_commit =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, {}, {}, hover_ports
+            );
+        test.expect_true(
+            equipment.hover_selection == 1U && hover.callback_count == 0U &&
+                hover_commit.last_target == EquipmentTarget::commit_action &&
+                hover_ports.targets ==
+                    std::vector<EquipmentTarget>{
+                        EquipmentTarget::commit_action
+                    },
+            "0x442F40 cursor-mode15 changes a row then commits the repeated row"
+        );
+
+        equipment = {};
+        equipment.mode_enabled = 1U;
+        equipment.selected_party_action = 0U;
+        input = {};
+        input.buttons = 1U;
+        input.cursor_x = 0x217U;
+        input.cursor_y = 0x1D1U;
+        EquipmentInputPorts overlay_ports;
+        overlay_ports.item_presence[0x15U] = 1;
+        overlay_ports.overlay_rewrite =
+            sm::LegacyStandardModeEquipmentInputSnapshot{
+                1U, 0x3BU, 0xD5U, 0U, 0U
+            };
+        const auto overlay = sm::handle_legacy_standard_mode_equipment_input(
+            equipment, input, {}, {}, overlay_ports
+        );
+        test.expect_true(
+            equipment.first_render_zero == 0xFFFFFFFFU &&
+                equipment.list_kind == 0xFFFFFFFFU &&
+                overlay.callback_count == 4U &&
+                overlay_ports.item_ids == std::vector<u16>{0x15U, 0x16U} &&
+                overlay_ports.targets ==
+                    std::vector<EquipmentTarget>{
+                        EquipmentTarget::show_overlay,
+                        EquipmentTarget::cycle_list_kind,
+                    },
+            "0x442F40 reloads mutable buttons and coordinates after overlay then cycles kind"
+        );
+        equipment = {};
+        equipment.mode_enabled = 1U;
+        input = {};
+        input.buttons = 1U;
+        input.cursor_x = 0x217U;
+        input.cursor_y = 0x1D1U;
+        EquipmentInputPorts overlay_mode_ports;
+        overlay_mode_ports.overlay_rewrite =
+            sm::LegacyStandardModeEquipmentInputSnapshot{
+                1U, 0x73U, 0xD5U, 0U, 0U
+            };
+        overlay_mode_ports.overlay_mode_enabled = 2U;
+        const auto overlay_mode =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, unavailable_records, {}, overlay_mode_ports
+            );
+        test.expect_true(
+            overlay_mode.status ==
+                    sm::LegacyStandardModeEquipmentInputStatus::completed &&
+                equipment.mode_enabled == 2U &&
+                equipment.local_selection == 0U &&
+                overlay_mode_ports.samples.empty() &&
+                overlay_mode_ports.targets ==
+                    std::vector<EquipmentTarget>{EquipmentTarget::show_overlay},
+            "0x442F40 reloads mode after overlay and skips the stale mode1 grid path"
+        );
+
+        sm::LegacyStandardModeForwardNode equipment_record;
+        equipment_record.text_index = 0xFFDCU;
+        equipment = {};
+        equipment.mode_enabled = 1U;
+        equipment.visible_record_count = 1U;
+        equipment.local_selection = 1U;
+        equipment.record_head = &equipment_record;
+        equipment.sample_owner = 0xCAFEBABEU;
+        input = {};
+        input.buttons = 1U;
+        input.cursor_y = 0x73U;
+        input.cursor_x = 0xD5U;
+        EquipmentInputPorts selection_ports;
+        const auto selected = sm::handle_legacy_standard_mode_equipment_input(
+            equipment, input, {}, {}, selection_ports
+        );
+        input.buttons = 2U;
+        const auto selected_commit =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, {}, {}, selection_ports
+            );
+        test.expect_true(
+            equipment.local_selection == 0U &&
+                equipment.shared_text[0] == 0xB5U &&
+                selected.callback_count == 3U &&
+                selected.last_target == EquipmentTarget::play_confirm &&
+                selection_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{{0x2EU, 0xCAFEBABEU}} &&
+                selected_commit.last_target == EquipmentTarget::commit_action,
+            "0x442F40 grid selection directly reuses B9C0/B9E0 then commits repetition"
+        );
+        equipment = {};
+        equipment.mode_enabled = 1U;
+        equipment.visible_record_count = 1U;
+        equipment.local_selection = 1U;
+        input.buttons = 1U;
+        EquipmentInputPorts missing_record_ports;
+        const auto missing_record =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, {}, {}, missing_record_ports
+            );
+        sm::LegacyStandardModeForwardNode invalid_equipment_record;
+        invalid_equipment_record.text_index = 0U;
+        equipment.record_head = &invalid_equipment_record;
+        equipment.local_selection = 1U;
+        EquipmentInputPorts stopped_text_ports;
+        const auto stopped_text =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, {}, {}, stopped_text_ports
+            );
+        test.expect_true(
+            missing_record.status ==
+                    sm::LegacyStandardModeEquipmentInputStatus::
+                        selected_record_missing &&
+                missing_record.callback_count == 1U &&
+                stopped_text.status ==
+                    sm::LegacyStandardModeEquipmentInputStatus::
+                        shared_text_stopped &&
+                stopped_text.callback_count == 2U &&
+                stopped_text_ports.samples.empty(),
+            "0x442F40 grid typed-stops at the closed B9C0 and B9E0 boundaries"
+        );
+
+        equipment = {};
+        equipment.mode_enabled = 1U;
+        input = {};
+        EquipmentInputPorts unavailable_ports;
+        const auto availability_missing =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, {}, {}, unavailable_ports
+            );
+        test.expect_true(
+            availability_missing.status ==
+                    sm::LegacyStandardModeEquipmentInputStatus::
+                        availability_index_out_of_range &&
+                availability_missing.callback_count == 1U,
+            "0x442F40 propagates the closed C090 availability typed-stop"
+        );
+
+        const std::array<std::pair<u32, EquipmentTarget>, 4U> scroll_cases{{
+            {0x6BU, EquipmentTarget::retreat_selection},
+            {0x195U, EquipmentTarget::advance_selection},
+            {0x101U, EquipmentTarget::retreat_page},
+            {0x121U, EquipmentTarget::advance_page},
+        }};
+        bool scroll_match = true;
+        for (const auto& [cursor_y, target] : scroll_cases) {
+            equipment = {};
+            equipment.mode_enabled = 1U;
+            equipment.total_record_count = 25U;
+            equipment.first_dynamic_min_y = 0x100;
+            equipment.first_dynamic_max_y = 0x110;
+            equipment.second_dynamic_min_y = 0x120;
+            equipment.second_dynamic_max_y = 0x130;
+            input = {};
+            input.cursor_x = 0x265U;
+            input.cursor_y = cursor_y;
+            EquipmentInputPorts scroll_ports;
+            const auto scrolled =
+                sm::handle_legacy_standard_mode_equipment_input(
+                    equipment, input, available_records, {}, scroll_ports
+                );
+            scroll_match = scroll_match && scrolled.callback_count == 2U &&
+                scrolled.last_target == target &&
+                scroll_ports.targets == std::vector<EquipmentTarget>{target};
+        }
+        test.expect_true(
+            scroll_match,
+            "0x442F40 dispatches all four mode1 scrollbar rectangles"
+        );
+
+        equipment = {};
+        equipment.mode_enabled = 0x0FU;
+        equipment.hover_selection = 0U;
+        equipment.hover_record_count = 3U;
+        input = {};
+        input.buttons = 1U;
+        input.cursor_x = 0x191U;
+        input.cursor_y = 0xDEU;
+        EquipmentInputPorts special_ports;
+        const auto special_row =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, available_records, {}, special_ports
+            );
+        input.buttons = 2U;
+        const auto special_commit =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, available_records, {}, special_ports
+            );
+        test.expect_true(
+            special_row.callback_count == 1U &&
+                equipment.hover_selection == 1U &&
+                special_commit.callback_count == 2U &&
+                special_commit.last_target == EquipmentTarget::commit_action,
+            "0x442F40 mode15 changes and commits the bounded special row"
+        );
+        const std::array<std::pair<u32, EquipmentTarget>, 4U>
+            special_scroll_cases{{
+                {0xC3U, EquipmentTarget::retreat_selection},
+                {0x18BU, EquipmentTarget::advance_selection},
+                {0x151U, EquipmentTarget::retreat_page},
+                {0x171U, EquipmentTarget::advance_page},
+            }};
+        bool special_scroll_match = true;
+        for (const auto& [cursor_y, target] : special_scroll_cases) {
+            equipment = {};
+            equipment.mode_enabled = 0x0FU;
+            equipment.special_record_count = 9U;
+            equipment.special_first_dynamic_min_y = 0x150;
+            equipment.special_first_dynamic_max_y = 0x160;
+            equipment.special_second_dynamic_min_y = 0x170;
+            equipment.special_second_dynamic_max_y = 0x180;
+            input = {};
+            input.cursor_x = 0x229U;
+            input.cursor_y = cursor_y;
+            EquipmentInputPorts scroll_ports;
+            const auto scrolled =
+                sm::handle_legacy_standard_mode_equipment_input(
+                    equipment, input, available_records, {}, scroll_ports
+                );
+            special_scroll_match = special_scroll_match &&
+                scrolled.callback_count == 2U && scrolled.last_target == target;
+        }
+        test.expect_true(
+            special_scroll_match,
+            "0x442F40 dispatches all four mode15 scrollbar rectangles"
+        );
+
+        equipment = {};
+        equipment.mode_enabled = 2U;
+        equipment.active_party_count = 3U;
+        equipment.selected_party_action = 0U;
+        input = {};
+        input.buttons = 1U;
+        input.cursor_y = 0x109U;
+        input.cursor_x = 0x159U;
+        EquipmentInputPorts mapping_ports;
+        mapping_ports.item_presence[0x1FU] = 1;
+        mapping_ports.item_presence[0x21U] = 1;
+        const auto mapped = sm::handle_legacy_standard_mode_equipment_input(
+            equipment, input, unavailable_records, {}, mapping_ports
+        );
+        test.expect_true(
+            mapped.status ==
+                    sm::LegacyStandardModeEquipmentInputStatus::completed &&
+                mapped.callback_count == 4U &&
+                equipment.selected_party_action == 3U &&
+                mapping_ports.item_ids == std::vector<u16>{0x1FU, 0x20U, 0x21U},
+            "0x442F40 mode2 maps the clicked visible row across present parties"
+        );
+        equipment.active_party_count = 1U;
+        equipment.selected_party_action = 0U;
+        input.cursor_y = 0xD8U;
+        EquipmentInputPorts mapping_commit_ports;
+        const auto mapping_commit =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, unavailable_records, {}, mapping_commit_ports
+            );
+        test.expect_true(
+            mapping_commit.callback_count == 2U &&
+                mapping_commit.last_target == EquipmentTarget::commit_action &&
+                equipment.selected_party_action == 0U,
+            "0x442F40 mode2 repeated party row commits before rewriting selection"
+        );
+        input.cursor_y = 0x109U;
+        equipment.selected_party_action = 0U;
+        equipment.active_party_count = 3U;
+        EquipmentInputPorts mapping_stop_ports;
+        mapping_stop_ports.item_presence[0x1FU] = 1;
+        const auto mapping_stopped =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, unavailable_records, {}, mapping_stop_ports
+            );
+        test.expect_true(
+            mapping_stopped.status ==
+                    sm::LegacyStandardModeEquipmentInputStatus::
+                        party_mapping_stopped &&
+                equipment.selected_party_action == 0U,
+            "0x442F40 mode2 typed-stops when visible-party mapping cannot finish"
+        );
+
+        equipment = {};
+        equipment.mode_enabled = 1U;
+        equipment.party_selector = 0xABCD0000U;
+        input = {};
+        input.buttons = 1U;
+        input.cursor_y = 0xE7U;
+        input.cursor_x = 5U;
+        EquipmentInputPorts party_ports;
+        party_ports.item_presence[0x20U] = 1;
+        const auto party_switched =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, unavailable_records, {}, party_ports
+            );
+        test.expect_true(
+            party_switched.callback_count == 4U &&
+                equipment.party_selector == 0xABCD0002U &&
+                party_ports.targets ==
+                    std::vector<EquipmentTarget>{
+                        EquipmentTarget::cycle_party,
+                        EquipmentTarget::cycle_party,
+                    },
+            "0x442F40 cycles parties until the clicked available party matches"
+        );
+        equipment.party_selector = 0U;
+        EquipmentInputPorts cycle_stop_ports;
+        cycle_stop_ports.item_presence[0x20U] = 1;
+        cycle_stop_ports.cycle_party_changes_state = false;
+        const auto cycle_stopped =
+            sm::handle_legacy_standard_mode_equipment_input(
+                equipment, input, unavailable_records, {}, cycle_stop_ports
+            );
+        test.expect_true(
+            cycle_stopped.status ==
+                    sm::LegacyStandardModeEquipmentInputStatus::
+                        party_cycle_stopped &&
+                cycle_stop_ports.targets.size() == 4U,
+            "0x442F40 isolates a non-progressing party cycle after four attempts"
+        );
+
+        equipment = {};
+        input = {};
+        input.buttons = 4U;
+        EquipmentInputPorts exit_ports;
+        const auto exited = sm::handle_legacy_standard_mode_equipment_input(
+            equipment, input, unavailable_records, {}, exit_ports
+        );
+        test.expect_true(
+            exited.callback_count == 2U &&
+                exited.last_target == EquipmentTarget::exit_mode,
+            "0x442F40 buttons4 exits after availability fallback"
+        );
+    }
+
     class EquipmentCleanupPorts final
         : public sm::LegacyStandardModeEquipmentCleanupPorts {
     public:
