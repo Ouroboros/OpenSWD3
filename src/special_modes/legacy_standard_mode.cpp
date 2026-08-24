@@ -13922,6 +13922,40 @@ advance_legacy_standard_mode_group_eight_mode(
     return result;
 }
 
+LegacyStandardModeSelectionPublishResult
+publish_legacy_standard_mode_selection_or_advance_runtime(
+    LegacyStandardModeGroupEightState& state,
+    const compat::u32 sample_handle,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports
+) noexcept {
+    LegacyStandardModeSelectionPublishResult result;
+    if (state.interaction_mode >= 0x01F4U) {
+        const LegacyStandardModeRuntimeModeAdvanceResult runtime_result =
+            advance_legacy_standard_mode_runtime_mode(
+                sample_handle, runtime_state, runtime_ports
+            );
+        ++result.helper_call_count;
+        result.runtime_mode_status =
+            static_cast<compat::u8>(runtime_result.status);
+        result.legacy_return_value = runtime_result.legacy_return_value;
+        if (runtime_result.status !=
+            LegacyStandardModeRuntimeModeAdvanceStatus::completed) {
+            result.status =
+                LegacyStandardModeSelectionPublishStatus::runtime_mode_stopped;
+            return result;
+        }
+        result.legacy_return_value =
+            runtime_ports.play_sample(0x2EU, sample_handle);
+        ++result.helper_call_count;
+        return result;
+    }
+    state.published_selection_x = state.selection_x;
+    result.legacy_return_value =
+        static_cast<compat::i32>(state.published_selection_x);
+    return result;
+}
+
 LegacyStandardModeGroupEightSelectionRetreatResult
 retreat_legacy_standard_mode_group_eight_selection(
     LegacyStandardModeGroupEightState& state,

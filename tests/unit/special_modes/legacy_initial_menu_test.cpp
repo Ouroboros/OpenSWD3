@@ -15095,14 +15095,20 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         i32 release_temporary_record_storage(std::span<u8>) noexcept override {
             return 0;
         }
-        i32 play_sample(const u16, const u32) noexcept override {
-            return 0;
+        i32 play_sample(
+            const u16 sample_id, const u32 sample_handle
+        ) noexcept override {
+            played_samples.emplace_back(sample_id, sample_handle);
+            return sample_return;
         }
         i32 release_runtime_storage(
             const LegacyStandardModeRuntimeStorageKind, const u32
         ) noexcept override {
             return 0;
         }
+
+        i32 sample_return{333};
+        std::vector<std::pair<u16, u32>> played_samples;
     };
 
     class GroupEightDrawPorts final
@@ -16689,6 +16695,50 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             fixed_mode_advance_state.published_selection_x == 88U &&
             runtime_mode_advanced.helper_call_count == 1U,
         "0x446550 preserves count-minus-one, advances mode15 and delegates to C760"
+    );
+
+    GroupEightState selection_publish_state;
+    selection_publish_state.interaction_mode = 2U;
+    selection_publish_state.selection_x = 0x1234U;
+    LegacyStandardModeRuntimeInitializationState selection_publish_runtime;
+    GroupEightRuntimeInputPorts selection_publish_ports;
+    const auto selection_published = openswd3::special_modes::
+        publish_legacy_standard_mode_selection_or_advance_runtime(
+            selection_publish_state,
+            0x10203040U,
+            selection_publish_runtime,
+            selection_publish_ports
+        );
+    GroupEightState high_selection_publish_state;
+    high_selection_publish_state.interaction_mode = 500U;
+    LegacyStandardModeRuntimeInitializationState high_selection_publish_runtime;
+    GroupEightRuntimeInputPorts high_selection_publish_ports;
+    const auto high_selection_published = openswd3::special_modes::
+        publish_legacy_standard_mode_selection_or_advance_runtime(
+            high_selection_publish_state,
+            0x50607080U,
+            high_selection_publish_runtime,
+            high_selection_publish_ports
+        );
+    test.expect_true(
+        selection_published.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeSelectionPublishStatus::completed &&
+            selection_published.helper_call_count == 0U &&
+            selection_published.legacy_return_value == 0x1234 &&
+            selection_publish_state.published_selection_x == 0x1234U &&
+            selection_publish_ports.played_samples.empty() &&
+            high_selection_published.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeSelectionPublishStatus::completed &&
+            high_selection_published.helper_call_count == 2U &&
+            high_selection_published.legacy_return_value == 333 &&
+            high_selection_publish_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{
+                    {0x2EU, 0x50607080U},
+                    {0x2EU, 0x50607080U},
+                },
+        "0x446680 publishes low-mode selection and preserves the high-mode double sample"
     );
 
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};

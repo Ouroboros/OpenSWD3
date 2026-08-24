@@ -967,6 +967,28 @@ advance_legacy_standard_mode_group_eight_mode(
     LegacyStandardModeGroupEightMainInputPorts& ports
 ) noexcept;
 
+enum class LegacyStandardModeSelectionPublishStatus : compat::u8 {
+    completed,
+    runtime_mode_stopped,
+};
+
+struct LegacyStandardModeSelectionPublishResult {
+    LegacyStandardModeSelectionPublishStatus status{
+        LegacyStandardModeSelectionPublishStatus::completed
+    };
+    compat::u8 runtime_mode_status{};
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeSelectionPublishResult
+publish_legacy_standard_mode_selection_or_advance_runtime(
+    LegacyStandardModeGroupEightState& state,
+    compat::u32 sample_handle,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports
+) noexcept;
+
 class LegacyStandardModeGroupEightSelectionPorts
     : public virtual LegacyStandardModeStoryFlagPorts {
 public:
