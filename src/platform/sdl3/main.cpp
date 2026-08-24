@@ -4934,6 +4934,35 @@ public:
                         ) noexcept override {
                             return 0;
                         }
+                        openswd3::compat::i32 prepare_transition_panel(
+                            const openswd3::special_modes::
+                                LegacyStandardModeTransitionPanelRecord&
+                        ) noexcept override {
+                            return 1;
+                        }
+                        openswd3::compat::i32 report_transition_panel_error(
+                            const openswd3::special_modes::
+                                LegacyStandardModeTransitionPanelRecord&
+                        ) noexcept override {
+                            return 0;
+                        }
+                        openswd3::special_modes::
+                            LegacyStandardModeTransitionPanelSurface
+                            resolve_transition_panel_surface(
+                                openswd3::compat::u16, openswd3::compat::u16
+                            ) noexcept override {
+                            return {};
+                        }
+                        openswd3::compat::i32 draw_transition_panel_surface(
+                            openswd3::compat::i32,
+                            openswd3::compat::i32,
+                            openswd3::compat::u16,
+                            openswd3::compat::u16,
+                            openswd3::compat::u32,
+                            openswd3::compat::u32
+                        ) noexcept override {
+                            return 0;
+                        }
                         openswd3::compat::i32 execute_transition_command(
                             const openswd3::special_modes::
                                 LegacyStandardModeTransitionCommand& command

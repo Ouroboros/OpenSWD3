@@ -968,6 +968,66 @@ commit_legacy_standard_mode_transition_settings(
     return result;
 }
 
+LegacyStandardModeTransitionPanelDrawResult
+draw_legacy_standard_mode_transition_panel(
+    LegacyStandardModeTransitionPanelDrawState& draw_state,
+    const LegacyStandardModeTransitionPanelRecord& record,
+    const compat::i32 x,
+    const compat::i32 y,
+    const compat::i32 offset,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionPanelDrawResult result;
+    const compat::i32 prepared = ports.prepare_transition_panel(record);
+    ++result.helper_call_count;
+    if (prepared == 0) {
+        result.legacy_return_value =
+            ports.report_transition_panel_error(record);
+        ++result.helper_call_count;
+        result.preparation_failed = true;
+        return result;
+    }
+
+    const LegacyStandardModeTransitionPanelSurface surface =
+        ports.resolve_transition_panel_surface(
+            record.surface_group, record.surface_index
+        );
+    ++result.helper_call_count;
+    draw_state.alpha_red = -25 - offset;
+    draw_state.alpha_green = -25 - offset;
+    draw_state.alpha_blue = -25 - offset;
+    draw_state.surface_token = surface.token;
+    const auto draw = [&](const compat::i32 draw_x) {
+        result.legacy_return_value = ports.draw_transition_panel_surface(
+            draw_x - record.origin_x,
+            y - record.origin_y,
+            surface.width,
+            surface.height,
+            4U,
+            0U
+        );
+        ++result.helper_call_count;
+        ++result.draw_call_count;
+    };
+    draw(x);
+
+    compat::i32 alpha = offset;
+    compat::i32 displacement = -12 - offset;
+    while (alpha < -12) {
+        draw_state.alpha_red = alpha;
+        draw_state.alpha_green = alpha;
+        draw_state.alpha_blue = alpha;
+        draw(x + displacement);
+        draw_state.alpha_red = alpha;
+        draw_state.alpha_green = alpha;
+        draw_state.alpha_blue = alpha;
+        draw(x - displacement / 2);
+        ++alpha;
+        --displacement;
+    }
+    return result;
+}
+
 LegacyStandardModeTransitionFrameResult
 run_legacy_standard_mode_transition_frame(
     LegacyStandardModeTransitionVisualState& state,
@@ -1012,13 +1072,18 @@ run_legacy_standard_mode_transition_frame(
             0xD2, 0x107, 0x140, 0x179
         };
         for (std::size_t index = 0U; index < state.bounds.size(); ++index) {
-            emit(
-                LegacyStandardModeTransitionCommandType::draw_slide_panel,
-                {static_cast<compat::i32>(index),
-                 0x7D,
-                 kPanelY[index],
-                 state.bounds[index]}
-            );
+            const LegacyStandardModeTransitionPanelDrawResult panel =
+                draw_legacy_standard_mode_transition_panel(
+                    state.panel_draw_state,
+                    state.slide_panels[index],
+                    0x7D,
+                    kPanelY[index],
+                    state.bounds[index],
+                    ports
+                );
+            result.legacy_return_value =
+                static_cast<compat::u8>(panel.legacy_return_value);
+            result.helper_call_count += panel.helper_call_count + 1U;
         }
         if (state.velocity < 0) {
             ++state.velocity;

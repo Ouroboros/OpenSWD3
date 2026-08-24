@@ -117,9 +117,34 @@ public:
 inline constexpr std::size_t kLegacyStandardModeTransitionSnapshotSize =
     0x96000U;
 
+struct LegacyStandardModeTransitionPanelRecord {
+    compat::u32 action_id{};
+    compat::u32 secondary_id{};
+    compat::i32 origin_x{};
+    compat::i32 origin_y{};
+    compat::u32 error_field{};
+    compat::u16 surface_group{};
+    compat::u16 surface_index{};
+};
+
+struct LegacyStandardModeTransitionPanelSurface {
+    compat::u32 token{};
+    compat::u16 width{};
+    compat::u16 height{};
+};
+
+struct LegacyStandardModeTransitionPanelDrawState {
+    compat::i32 alpha_red{};
+    compat::i32 alpha_green{};
+    compat::i32 alpha_blue{};
+    compat::u32 surface_token{};
+};
+
 struct LegacyStandardModeTransitionVisualState {
     compat::u16 mode{};
     std::array<compat::i32, 4U> bounds{};
+    std::array<LegacyStandardModeTransitionPanelRecord, 4U> slide_panels{};
+    LegacyStandardModeTransitionPanelDrawState panel_draw_state;
     compat::u32 enabled{};
     compat::i32 velocity{};
     compat::u32 progress{};
@@ -164,7 +189,6 @@ struct LegacyStandardModeTransitionVisualState {
 
 enum class LegacyStandardModeTransitionCommandType : compat::u8 {
     draw_action,
-    draw_slide_panel,
     fade_framebuffer,
     clear_framebuffer,
     draw_settings_frame,
@@ -219,6 +243,24 @@ public:
         compat::i32 service_enabled,
         compat::u32 source_surface,
         compat::u32 auxiliary
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 prepare_transition_panel(
+        const LegacyStandardModeTransitionPanelRecord& record
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 report_transition_panel_error(
+        const LegacyStandardModeTransitionPanelRecord& record
+    ) noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeTransitionPanelSurface
+    resolve_transition_panel_surface(
+        compat::u16 surface_group, compat::u16 surface_index
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 draw_transition_panel_surface(
+        compat::i32 x,
+        compat::i32 y,
+        compat::u16 width,
+        compat::u16 height,
+        compat::u32 effect,
+        compat::u32 flags
     ) noexcept = 0;
     [[nodiscard]] virtual compat::i32 execute_transition_command(
         const LegacyStandardModeTransitionCommand& command
@@ -365,6 +407,23 @@ struct LegacyStandardModeTransitionSettingsCommitResult {
 [[nodiscard]] LegacyStandardModeTransitionSettingsCommitResult
 commit_legacy_standard_mode_transition_settings(
     LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept;
+
+struct LegacyStandardModeTransitionPanelDrawResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 draw_call_count{};
+    bool preparation_failed{};
+};
+
+[[nodiscard]] LegacyStandardModeTransitionPanelDrawResult
+draw_legacy_standard_mode_transition_panel(
+    LegacyStandardModeTransitionPanelDrawState& draw_state,
+    const LegacyStandardModeTransitionPanelRecord& record,
+    compat::i32 x,
+    compat::i32 y,
+    compat::i32 offset,
     LegacyStandardModeTransitionVisualPorts& ports
 ) noexcept;
 

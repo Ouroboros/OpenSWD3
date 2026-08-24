@@ -360,6 +360,49 @@ public:
         );
         return settings_return;
     }
+    i32 prepare_transition_panel(
+        const openswd3::special_modes::LegacyStandardModeTransitionPanelRecord&
+            record
+    ) noexcept override {
+        panel_events.push_back(
+            {0, static_cast<i32>(record.action_id), 0, 0, 0, 0}
+        );
+        return panel_prepare_return;
+    }
+    i32 report_transition_panel_error(
+        const openswd3::special_modes::LegacyStandardModeTransitionPanelRecord&
+            record
+    ) noexcept override {
+        panel_events.push_back(
+            {1, static_cast<i32>(record.action_id), 0, 0, 0, 0}
+        );
+        return panel_error_return;
+    }
+    openswd3::special_modes::LegacyStandardModeTransitionPanelSurface
+    resolve_transition_panel_surface(
+        const u16 group, const u16 index
+    ) noexcept override {
+        panel_events.push_back({2, group, index, 0, 0, 0});
+        return panel_surface;
+    }
+    i32 draw_transition_panel_surface(
+        const i32 x,
+        const i32 y,
+        const u16 width,
+        const u16 height,
+        const u32 effect,
+        const u32 flags
+    ) noexcept override {
+        panel_events.push_back(
+            {3,
+             x,
+             y,
+             static_cast<i32>(width),
+             static_cast<i32>(height),
+             static_cast<i32>((effect << 16U) | flags)}
+        );
+        return panel_draw_return;
+    }
     i32 execute_transition_command(
         const openswd3::special_modes::LegacyStandardModeTransitionCommand&
             command
@@ -428,11 +471,16 @@ public:
     i32 overlay_choice{};
     i32 overlay_poll_result{};
     i32 transition_command_return{};
+    i32 panel_prepare_return{1};
+    i32 panel_error_return{17};
+    i32 panel_draw_return{23};
     bool asset_ready{};
     u8 overlay_text_value{0xA0U};
     u32 source_text_length{5U};
     u32 transition_time{0x12345678U};
     u32 surface_token{0x1234U};
+    openswd3::special_modes::LegacyStandardModeTransitionPanelSurface
+        panel_surface{0x99U, 20U, 10U};
     u32 capture_count{};
     u32 probe_count{};
     std::vector<u32> events;
@@ -440,6 +488,7 @@ public:
     std::vector<std::array<u32, 7U>> settings_commit_calls;
     std::vector<std::array<u32, 3U>> mode_one_calls;
     std::vector<u32> transition_lifecycle;
+    std::vector<std::array<i32, 6U>> panel_events;
     std::vector<openswd3::special_modes::LegacyStandardModeTransitionCommand>
         transition_commands;
 };
@@ -15147,6 +15196,55 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
 
     using TransitionCommandType =
         openswd3::special_modes::LegacyStandardModeTransitionCommandType;
+
+    openswd3::special_modes::LegacyStandardModeTransitionPanelRecord
+        panel_record;
+    panel_record.action_id = 11U;
+    panel_record.origin_x = 10;
+    panel_record.origin_y = 20;
+    panel_record.surface_group = 3U;
+    panel_record.surface_index = 4U;
+    openswd3::special_modes::LegacyStandardModeTransitionPanelDrawState
+        panel_draw_state;
+    FakeTransitionVisualPorts panel_ports;
+    const auto panel_draw =
+        openswd3::special_modes::draw_legacy_standard_mode_transition_panel(
+            panel_draw_state, panel_record, 0x7D, 0xD2, -16, panel_ports
+        );
+    FakeTransitionVisualPorts panel_failure_ports;
+    panel_failure_ports.panel_prepare_return = 0;
+    const auto panel_failure =
+        openswd3::special_modes::draw_legacy_standard_mode_transition_panel(
+            panel_draw_state, panel_record, 0x7D, 0xD2, -12, panel_failure_ports
+        );
+    test.expect_true(
+        panel_draw.draw_call_count == 9U &&
+            panel_draw.helper_call_count == 11U &&
+            panel_draw.legacy_return_value == 23 &&
+            panel_draw_state.alpha_red == -13 &&
+            panel_draw_state.alpha_green == -13 &&
+            panel_draw_state.alpha_blue == -13 &&
+            panel_draw_state.surface_token == 0x99U &&
+            panel_ports.panel_events.front() ==
+                std::array<i32, 6U>{0, 11, 0, 0, 0, 0} &&
+            panel_ports.panel_events[2U] ==
+                std::array<i32, 6U>{3, 115, 190, 20, 10, 0x40000} &&
+            panel_ports.panel_events.back() ==
+                std::array<i32, 6U>{3, 115, 190, 20, 10, 0x40000},
+        "0x449C30 draws the initial panel and two signed-position trails for every alpha step"
+    );
+    test.expect_true(
+        panel_failure.preparation_failed &&
+            panel_failure.draw_call_count == 0U &&
+            panel_failure.helper_call_count == 2U &&
+            panel_failure.legacy_return_value == 17 &&
+            panel_failure_ports.panel_events ==
+                std::vector<std::array<i32, 6U>>{
+                    {0, 11, 0, 0, 0, 0}, {1, 11, 0, 0, 0, 0}
+                },
+        "0x449C30 reports preparation failure without resolving or drawing a surface"
+    );
+
     openswd3::special_modes::LegacyStandardModeTransitionVisualState
         frame_intro_state;
     frame_intro_state.progress = 0U;
@@ -15165,7 +15263,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             frame_intro_state.bounds ==
                 std::array<i32, 4U>{-18, -14, -14, -14} &&
             frame_intro_state.velocity == -5 &&
-            frame_intro.command_count == 6U &&
+            frame_intro.command_count == 2U &&
+            frame_intro_ports.panel_events.size() == 36U &&
             frame_intro_ports.transition_commands.front().type ==
                 TransitionCommandType::draw_action &&
             frame_intro_ports.transition_commands.back().type ==
