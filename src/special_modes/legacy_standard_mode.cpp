@@ -12102,6 +12102,42 @@ initialize_legacy_standard_special_modes(
     return result;
 }
 
+LegacyStandardModeGroupEightSelectionRetreatResult
+retreat_legacy_standard_mode_group_eight_selection(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightSelectionRetreatPorts& ports
+) noexcept {
+    LegacyStandardModeGroupEightSelectionRetreatResult result;
+    compat::u16 selection = static_cast<compat::u16>(state.selection - 1U);
+    state.selection = selection;
+    if (selection <= 0x0AU) {
+        selection = 0x0BU;
+        state.selection = selection;
+        result.clamped = true;
+    }
+    const compat::u16 selection_x =
+        static_cast<compat::u16>(selection * 6U - 0x24U);
+    state.selection_x = selection_x;
+    state.selection_x_mirror = selection_x;
+    state.visual_index = static_cast<compat::u32>(selection) + 0x29U;
+
+    const compat::i32 flag = ports.story_flag(0x49U);
+    ++result.story_flag_query_count;
+    if (flag == 1) {
+        if (state.visual_index == 0x38U) {
+            state.visual_index = 0x39U;
+            result.visual_index_swapped = true;
+        } else if (state.visual_index == 0x39U) {
+            state.visual_index = 0x38U;
+            result.visual_index_swapped = true;
+        }
+    }
+    result.legacy_return_value =
+        ports.execute_sample_command(0x008BU, state.sample_owner);
+    ++result.sample_command_count;
+    return result;
+}
+
 LegacyStandardModeGroupEightInputResult
 handle_legacy_standard_mode_group_eight_input(
     LegacyStandardModeGroupEightState& state,
@@ -12155,8 +12191,10 @@ handle_legacy_standard_mode_group_eight_input(
 
         state.selection = static_cast<compat::u16>(quotient + 0x0C);
         result.selection_rewritten = true;
-        static_cast<void>(ports.retreat_selection(state));
+        const LegacyStandardModeGroupEightSelectionRetreatResult retreated =
+            retreat_legacy_standard_mode_group_eight_selection(state, ports);
         ++result.helper_call_count;
+        result.story_flag_query_count += retreated.story_flag_query_count;
         result.legacy_return_value =
             static_cast<compat::i16>(ports.commit_selection(state));
         ++result.helper_call_count;

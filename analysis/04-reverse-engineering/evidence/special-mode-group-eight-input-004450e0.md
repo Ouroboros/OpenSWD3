@@ -8,8 +8,8 @@
 
 主命中还要求y在`10<y<42`、buttons bit0、余数`0<r<8`。命中后第二次查询flag49，再以旧selection覆盖低16位残值。若第二次结果精确等于1且selection15，只有lifecycle1继续，其他lifecycle立即返回；其余情况仅在lifecycle非1时按旧selection调用动态表。动态表解析失败只在原间接call点typed-stop，保留双查询、旧selection残值和全部此前状态。
 
-继续路径把selection写为`grid/10+12`，再依次调用尚未关闭的45210和45360最窄typed端口，最终返回45360低16位。主命中失败时，若buttons任一bit2/3且lifecycle1，则先写fallback constant12，再调用453F0端口；否则返回当前残值。三个固定callee的接口允许其修改共享state，后续函数闭环时直接回收。
+继续路径把selection写为`grid/10+12`，再直接调用已关闭的45210完成预减、坐标与画面索引发布，随后调用尚未关闭的45360最窄typed提交端口，最终返回45360低16位。主命中失败时，若buttons任一bit2/3且lifecycle1，则先写fallback constant12，再调用453F0端口；否则返回当前残值。45360与453F0两个固定callee接口允许其修改共享state，后续函数闭环时直接回收。
 
-UT覆盖默认动态callback顺序、flag1的7像素网格、selection15在两种lifecycle下的精确特例、button12 fallback及写前副作用、外横域flag残值、动态表缺失typed-stop、两次flag49查询和selection重写顺序。
+UT覆盖默认动态callback顺序、flag1的7像素网格、selection15在两种lifecycle下的精确特例、button12 fallback及写前副作用、外横域flag残值、动态表缺失typed-stop、双入口查询、45210嵌套查询及selection重写顺序。
 
 workpack双生成稳定为`117/227`，SHA256均为`2b769e56b0024ad1b76f846024a9b850de5ec54a1984bb95100b9e71b9043365`；下一单元`0x00445210`。Linux完整门结果见最终验证；按阶段门禁不运行Windows BUILD。

@@ -14868,10 +14868,11 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             return callback_available ? std::optional<i32>{77} : std::nullopt;
         }
 
-        i32 retreat_selection(
-            openswd3::special_modes::LegacyStandardModeGroupEightState&
+        i32 execute_sample_command(
+            const u16 command_id, const u32 sample_owner
         ) override {
             events.push_back(3U);
+            sample_commands.push_back({command_id, sample_owner});
             return 88;
         }
 
@@ -14897,6 +14898,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<u32> events;
         std::vector<u32> queried_flags;
         std::vector<u16> callback_selections;
+        std::vector<std::array<u32, 2U>> sample_commands;
     };
 
     using GroupEightState =
@@ -14915,13 +14917,17 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightInputStatus::completed &&
             group_selected.legacy_return_value == 0x3456 &&
-            group_selected.story_flag_query_count == 2U &&
+            group_selected.story_flag_query_count == 3U &&
             group_selected.helper_call_count == 3U &&
             group_selected.selection_rewritten &&
-            group_state.selection == 15U &&
-            group_ports.queried_flags == std::vector<u32>{0x49U, 0x49U} &&
+            group_state.selection == 14U && group_state.selection_x == 48U &&
+            group_state.visual_index == 55U &&
+            group_ports.queried_flags ==
+                std::vector<u32>{0x49U, 0x49U, 0x49U} &&
             group_ports.callback_selections == std::vector<u16>{4U} &&
-            group_ports.events == std::vector<u32>{1U, 1U, 2U, 3U, 4U},
+            group_ports.sample_commands ==
+                std::vector<std::array<u32, 2U>>{{0x8BU, 0U}} &&
+            group_ports.events == std::vector<u32>{1U, 1U, 2U, 1U, 3U, 4U},
         "0x4450E0 dispatches the prior selection then rewrites and commits the grid cell"
     );
 
@@ -14945,9 +14951,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             !special_blocked.selection_rewritten &&
             special_block_ports.events == std::vector<u32>{1U, 1U} &&
             special_committed.helper_call_count == 2U &&
+            special_committed.story_flag_query_count == 3U &&
             special_committed.selection_rewritten &&
-            group_state.selection == 14U &&
-            special_commit_ports.events == std::vector<u32>{1U, 1U, 3U, 4U},
+            group_state.selection == 13U &&
+            special_commit_ports.events == std::vector<u32>{1U, 1U, 1U, 3U, 4U},
         "0x4450E0 applies the flag1 selection15 lifecycle exception exactly"
     );
 
@@ -14994,6 +15001,57 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             !callback_stopped.selection_rewritten &&
             group_state.selection == 6U,
         "0x4450E0 typed-stops at the dynamic callback table after both flag queries"
+    );
+
+    GroupEightState retreat_state{.selection = 11U, .sample_owner = 0xC0U};
+    GroupEightInputPorts retreat_ports;
+    retreat_ports.flag_results = {0};
+    const auto retreated = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_selection(
+            retreat_state, retreat_ports
+        );
+    test.expect_true(
+        retreated.legacy_return_value == 88 &&
+            retreated.story_flag_query_count == 1U &&
+            retreated.sample_command_count == 1U && retreated.clamped &&
+            !retreated.visual_index_swapped && retreat_state.selection == 11U &&
+            retreat_state.selection_x == 30U &&
+            retreat_state.selection_x_mirror == 30U &&
+            retreat_state.visual_index == 52U &&
+            retreat_ports.sample_commands ==
+                std::vector<std::array<u32, 2U>>{{0x8BU, 0xC0U}},
+        "0x445210 decrements, clamps to11, publishes both coordinates and confirms"
+    );
+
+    GroupEightState swap_first_state{.selection = 16U};
+    GroupEightInputPorts swap_first_ports;
+    swap_first_ports.flag_results = {1};
+    const auto swap_first = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_selection(
+            swap_first_state, swap_first_ports
+        );
+    GroupEightState swap_second_state{.selection = 17U};
+    GroupEightInputPorts swap_second_ports;
+    swap_second_ports.flag_results = {1};
+    const auto swap_second = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_selection(
+            swap_second_state, swap_second_ports
+        );
+    GroupEightState exact_flag_state{.selection = 16U};
+    GroupEightInputPorts exact_flag_ports;
+    exact_flag_ports.flag_results = {2};
+    const auto exact_flag = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_selection(
+            exact_flag_state, exact_flag_ports
+        );
+    test.expect_true(
+        swap_first.visual_index_swapped &&
+            swap_first_state.visual_index == 57U &&
+            swap_second.visual_index_swapped &&
+            swap_second_state.visual_index == 56U &&
+            !exact_flag.visual_index_swapped &&
+            exact_flag_state.visual_index == 56U,
+        "0x445210 swaps only visual indices56/57 and only when flag49 equals one"
     );
 }
 

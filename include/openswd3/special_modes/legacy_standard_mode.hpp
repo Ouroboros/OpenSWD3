@@ -526,19 +526,44 @@ struct LegacyStandardModeGroupEightInputSnapshot {
 struct LegacyStandardModeGroupEightState {
     compat::u16 selection{};
     compat::u16 lifecycle{};
+    compat::u16 selection_x{};
+    compat::u16 selection_x_mirror{};
+    compat::u32 visual_index{};
+    compat::u32 sample_owner{};
     compat::u32 tagged_mode_value{};
     compat::u32 fallback_constant{};
 };
 
-class LegacyStandardModeGroupEightInputPorts {
+class LegacyStandardModeGroupEightSelectionRetreatPorts
+    : public virtual LegacyStandardModeStoryFlagPorts {
 public:
-    virtual ~LegacyStandardModeGroupEightInputPorts() = default;
-    [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
+    ~LegacyStandardModeGroupEightSelectionRetreatPorts() override = default;
+    [[nodiscard]] virtual compat::i32 execute_sample_command(
+        compat::u16 command_id, compat::u32 sample_owner
+    ) = 0;
+};
+
+struct LegacyStandardModeGroupEightSelectionRetreatResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 story_flag_query_count{};
+    compat::u32 sample_command_count{};
+    bool clamped{};
+    bool visual_index_swapped{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightSelectionRetreatResult
+retreat_legacy_standard_mode_group_eight_selection(
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeGroupEightSelectionRetreatPorts& ports
+) noexcept;
+
+class LegacyStandardModeGroupEightInputPorts
+    : public virtual LegacyStandardModeGroupEightSelectionRetreatPorts {
+public:
+    ~LegacyStandardModeGroupEightInputPorts() override = default;
     [[nodiscard]] virtual std::optional<compat::i32> invoke_selection_callback(
         compat::u16 selection, LegacyStandardModeGroupEightState& state
     ) = 0;
-    [[nodiscard]] virtual compat::i32
-    retreat_selection(LegacyStandardModeGroupEightState& state) = 0;
     [[nodiscard]] virtual compat::i32
     commit_selection(LegacyStandardModeGroupEightState& state) = 0;
     [[nodiscard]] virtual compat::i32
