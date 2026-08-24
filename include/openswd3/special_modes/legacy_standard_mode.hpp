@@ -899,6 +899,8 @@ enum class LegacyStandardModeGuardianSelectionStatus : compat::u8 {
     visible_head_missing,
     selected_node_missing,
     guardian_record_out_of_range,
+    party_table_out_of_range,
+    party_cycle_stopped,
     shared_text_stopped,
 };
 
@@ -2603,11 +2605,21 @@ advance_legacy_standard_mode_guardian_and_repeat_refresh(
     LegacyStandardModeGuardianSelectionPorts& ports
 ) noexcept;
 
+[[nodiscard]] LegacyStandardModeGuardianSelectionResult
+cycle_legacy_standard_mode_guardian_party(
+    LegacyStandardModeGuardianInitializationState& state,
+    std::span<const compat::u16> guardian_party_markers,
+    std::span<const compat::u32> guardian_text_indices,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianSelectionPorts& ports
+) noexcept;
+
 [[nodiscard]] LegacyStandardModeGuardianInputResult
 handle_legacy_standard_mode_guardian_input(
     LegacyStandardModeGuardianInitializationState& state,
     LegacyStandardModeGuardianInputSnapshot& input,
     std::span<const LegacyStandardModeAvailabilityRecord> availability_records,
+    std::span<const compat::u16> guardian_party_markers,
     std::span<const compat::u32> guardian_text_indices,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianInputPorts& ports

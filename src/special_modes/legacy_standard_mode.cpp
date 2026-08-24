@@ -5373,12 +5373,144 @@ advance_legacy_standard_mode_guardian_and_repeat_refresh(
     );
 }
 
+LegacyStandardModeGuardianSelectionResult
+cycle_legacy_standard_mode_guardian_party(
+    LegacyStandardModeGuardianInitializationState& state,
+    const std::span<const compat::u16> guardian_party_markers,
+    const std::span<const compat::u32> guardian_text_indices,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianSelectionPorts& ports
+) noexcept {
+    LegacyStandardModeGuardianSelectionResult result;
+    result.legacy_return_value =
+        std::bit_cast<compat::i32>(state.interaction_mode);
+    if (state.interaction_mode != 0U) {
+        return result;
+    }
+
+    compat::u16 candidate = static_cast<compat::u16>(
+        (static_cast<compat::u16>(state.party_selector) + 1U) & 3U
+    );
+    state.party_selector = (state.party_selector & 0xFFFF0000U) | candidate;
+    compat::u32 checked = 0U;
+    while (true) {
+        if (candidate >= guardian_party_markers.size()) {
+            result.status = LegacyStandardModeGuardianSelectionStatus::
+                party_table_out_of_range;
+            return result;
+        }
+        ++checked;
+        if (guardian_party_markers[candidate] != 0xFFFFU) {
+            if (checked != 1U) {
+                state.party_selector =
+                    (state.party_selector & 0xFFFF0000U) | candidate;
+            }
+            break;
+        }
+        if (checked >= 4U) {
+            result.status =
+                LegacyStandardModeGuardianSelectionStatus::party_cycle_stopped;
+            return result;
+        }
+        candidate = static_cast<compat::u16>((candidate + 1U) & 3U);
+    }
+
+    result.legacy_return_value = ports.invoke_guardian_selection(
+        LegacyStandardModeGuardianSelectionTarget::begin_slot_cycle, state
+    );
+    ++result.helper_call_count;
+    result.last_target =
+        LegacyStandardModeGuardianSelectionTarget::begin_slot_cycle;
+    result.legacy_return_value = ports.invoke_guardian_selection(
+        LegacyStandardModeGuardianSelectionTarget::refresh_guardian_record,
+        state
+    );
+    ++result.helper_call_count;
+    result.last_target =
+        LegacyStandardModeGuardianSelectionTarget::refresh_guardian_record;
+
+    compat::i32 total_count =
+        std::bit_cast<compat::i32>(state.total_record_count);
+    compat::i32 list_offset = std::bit_cast<compat::i32>(state.list_offset);
+    compat::i32 local_selection =
+        std::bit_cast<compat::i32>(state.local_selection);
+    static_cast<void>(adjust_legacy_standard_mode_window_cursor(
+        total_count, list_offset, local_selection, 0x0A
+    ));
+    ++result.helper_call_count;
+    state.list_offset = std::bit_cast<compat::u32>(list_offset);
+    state.local_selection = std::bit_cast<compat::u32>(local_selection);
+
+    const LegacyStandardModeForwardNode* traversal = state.record_head;
+    compat::i32 remaining = list_offset;
+    while (remaining > 0) {
+        if (traversal == nullptr) {
+            result.status =
+                LegacyStandardModeGuardianSelectionStatus::visible_head_missing;
+            return result;
+        }
+        traversal = traversal->next;
+        --remaining;
+    }
+    const LegacyStandardModeForwardNode* source_head = state.record_head;
+    const LegacyStandardModeForwardNode* visible_head = nullptr;
+    static_cast<void>(advance_legacy_standard_mode_forward_head(
+        list_offset, &source_head, &visible_head
+    ));
+    ++result.helper_call_count;
+    state.visible_record_head = visible_head;
+    compat::i32 visible_count = 0;
+    static_cast<void>(count_legacy_standard_mode_forward_nodes_bounded(
+        visible_head, visible_count, 0x0A
+    ));
+    ++result.helper_call_count;
+    state.visible_record_count = std::bit_cast<compat::u32>(visible_count);
+
+    const std::uint64_t text_index =
+        static_cast<std::uint64_t>(
+            static_cast<compat::u16>(state.party_selector)
+        ) * 16U +
+        state.guardian_slot;
+    if (text_index >= guardian_text_indices.size()) {
+        result.status = LegacyStandardModeGuardianSelectionStatus::
+            guardian_record_out_of_range;
+        return result;
+    }
+    const LegacyStandardModeTextResolutionResult text =
+        resolve_legacy_standard_mode_shared_text(
+            static_cast<compat::u16>(
+                guardian_text_indices[static_cast<std::size_t>(text_index)]
+            ),
+            maps_payload,
+            state.shared_text
+        );
+    ++result.helper_call_count;
+    result.legacy_return_value = text.formatter_return;
+    if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
+        result.status =
+            LegacyStandardModeGuardianSelectionStatus::shared_text_stopped;
+        return result;
+    }
+    result.legacy_return_value = ports.invoke_guardian_selection(
+        LegacyStandardModeGuardianSelectionTarget::refresh_attribute_cache,
+        state
+    );
+    ++result.helper_call_count;
+    result.last_target =
+        LegacyStandardModeGuardianSelectionTarget::refresh_attribute_cache;
+    result.legacy_return_value =
+        ports.execute_guardian_sample_command(0x0107U, state.sample_owner);
+    ++result.helper_call_count;
+    return result;
+}
+
 LegacyStandardModeGuardianInputResult
 handle_legacy_standard_mode_guardian_input(
     LegacyStandardModeGuardianInitializationState& state,
     LegacyStandardModeGuardianInputSnapshot& input,
     const std::span<const LegacyStandardModeAvailabilityRecord>
         availability_records,
+    const std::span<const compat::u16> guardian_party_markers,
     const std::span<const compat::u32> guardian_text_indices,
     const std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianInputPorts& ports
@@ -5466,6 +5598,32 @@ handle_legacy_standard_mode_guardian_input(
             }
             return true;
         };
+    const auto cycle_guardian_party = [&state,
+                                       &guardian_party_markers,
+                                       &guardian_text_indices,
+                                       &maps_payload,
+                                       &ports,
+                                       &result]() {
+        const LegacyStandardModeGuardianSelectionResult selection =
+            cycle_legacy_standard_mode_guardian_party(
+                state,
+                guardian_party_markers,
+                guardian_text_indices,
+                maps_payload,
+                ports
+            );
+        result.legacy_return_value = selection.legacy_return_value;
+        ++result.callback_count;
+        result.last_target =
+            LegacyStandardModeGuardianInputTarget::switch_party;
+        if (selection.status !=
+            LegacyStandardModeGuardianSelectionStatus::completed) {
+            result.status = LegacyStandardModeGuardianInputStatus::
+                guardian_selection_stopped;
+            return false;
+        }
+        return true;
+    };
     const auto reload_coordinates = [&input]() {
         input.register_first = std::bit_cast<compat::i32>(input.cursor_y);
         input.register_second = std::bit_cast<compat::i32>(input.cursor_x);
@@ -5668,9 +5826,7 @@ handle_legacy_standard_mode_guardian_input(
             if (item_present) {
                 state.party_selector = (state.party_selector & 0xFFFF0000U) |
                     static_cast<compat::u16>(party_index - 1U);
-                static_cast<void>(
-                    invoke(LegacyStandardModeGuardianInputTarget::switch_party)
-                );
+                static_cast<void>(cycle_guardian_party());
             }
             return result;
         }

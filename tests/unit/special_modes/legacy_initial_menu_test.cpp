@@ -2976,6 +2976,54 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
     }
 
+    {
+        std::array<u16, 4U> markers{0xFFFFU, 0xFFFFU, 0U, 0xFFFFU};
+        std::array<u32, 33U> texts{};
+        texts[32U] = 0xFFDCU;
+        sm::LegacyStandardModeGuardianInitializationState guardian;
+        guardian.party_selector = 0xABCD0000U;
+        guardian.sample_owner = 0x1234U;
+        SelectionPorts cycle_ports;
+        const auto cycled = sm::cycle_legacy_standard_mode_guardian_party(
+            guardian, markers, texts, {}, cycle_ports
+        );
+        test.expect_true(
+            cycled.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                cycled.legacy_return_value == 77 &&
+                cycled.helper_call_count == 8U &&
+                guardian.party_selector == 0xABCD0002U &&
+                cycle_ports.commands ==
+                    std::vector<std::array<u32, 2U>>{{0x107U, 0x1234U}},
+            "0x441060 skips FFFF parties, preserves high16 and plays sample263"
+        );
+
+        markers.fill(0xFFFFU);
+        guardian.party_selector = 0xABCD0000U;
+        SelectionPorts stopped_ports;
+        const auto stopped = sm::cycle_legacy_standard_mode_guardian_party(
+            guardian, markers, texts, {}, stopped_ports
+        );
+        test.expect_true(
+            stopped.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::
+                        party_cycle_stopped &&
+                guardian.party_selector == 0xABCD0001U &&
+                stopped.helper_call_count == 0U,
+            "0x441060 typed-stops after one full unavailable-party cycle"
+        );
+
+        guardian.interaction_mode = 3U;
+        SelectionPorts ignored_ports;
+        const auto ignored = sm::cycle_legacy_standard_mode_guardian_party(
+            guardian, markers, texts, {}, ignored_ports
+        );
+        test.expect_true(
+            ignored.legacy_return_value == 3 && ignored.helper_call_count == 0U,
+            "0x441060 returns interaction mode unchanged outside mode0"
+        );
+    }
+
     class InputPorts final : public sm::LegacyStandardModeGuardianInputPorts {
     public:
         i32 invoke_guardian_input(
@@ -3031,6 +3079,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             sm::LegacyStandardModeGuardianInitializationState& guardian,
             sm::LegacyStandardModeGuardianInputSnapshot& snapshot,
             InputPorts& input_ports,
+            const std::span<const u16> guardian_party_markers = {},
             const std::span<const u32> guardian_text_indices = {},
             const std::span<const u8> maps = {}
         ) {
@@ -3038,6 +3087,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 guardian,
                 snapshot,
                 availability,
+                guardian_party_markers,
                 guardian_text_indices,
                 maps,
                 input_ports
@@ -3078,7 +3128,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         InputPorts input_ports;
         input_ports.interaction_mode_after_commit = 0U;
         const auto result =
-            input(guardian, snapshot, input_ports, guardian_text_indices);
+            input(guardian, snapshot, input_ports, {}, guardian_text_indices);
         test.expect_true(
             result.status ==
                     sm::LegacyStandardModeGuardianInputStatus::completed &&
@@ -3213,14 +3263,18 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         guardian.interaction_mode = 0U;
         guardian.party_selector = 0xABCD0004U;
         snapshot = {.buttons = 1U, .cursor_y = 120U, .cursor_x = 100U};
+        std::array<u16, 4U> party_markers{};
+        std::array<u32, 17U> party_texts{};
+        party_texts[16U] = 0xFFDCU;
         InputPorts party_ports;
-        const auto party = input(guardian, snapshot, party_ports);
+        const auto party =
+            input(guardian, snapshot, party_ports, party_markers, party_texts);
         test.expect_true(
             party.last_target == Target::switch_party,
             "0x4407F0 party rectangle dispatches the party switch callback"
         );
         test.expect_true(
-            guardian.party_selector == 0xABCD0000U,
+            guardian.party_selector == 0xABCD0001U,
             "0x4407F0 party switch preserves selector high16"
         );
         test.expect_true(
@@ -3242,7 +3296,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         sm::LegacyStandardModeGuardianInputSnapshot snapshot{};
         InputPorts input_ports;
         const auto stopped = sm::handle_legacy_standard_mode_guardian_input(
-            guardian, snapshot, {}, {}, {}, input_ports
+            guardian, snapshot, {}, {}, {}, {}, input_ports
         );
         test.expect_true(
             stopped.status ==
