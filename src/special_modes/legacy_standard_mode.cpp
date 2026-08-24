@@ -358,6 +358,20 @@ initialize_legacy_standard_mode_transition_pair(
     return result;
 }
 
+LegacyStandardModeTransitionPairResult
+release_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionPairResult result;
+    result.legacy_return_value =
+        ports.release_transition_pair_buffer(state.first_owner);
+    result.legacy_return_value =
+        ports.release_transition_pair_buffer(state.second_owner);
+    result.helper_call_count = 2U;
+    return result;
+}
+
 LegacyStandardModeTransitionConfirmationResult
 confirm_legacy_standard_mode_transition(
     LegacyStandardModeTransitionVisualState& state,

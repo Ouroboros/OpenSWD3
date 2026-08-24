@@ -336,6 +336,8 @@ public:
     [[nodiscard]] virtual compat::u32
     allocate_transition_pair_buffer(compat::u32 size) noexcept = 0;
     [[nodiscard]] virtual compat::i32 dispatch_transition_pair() noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    release_transition_pair_buffer(compat::u32 owner) noexcept = 0;
 };
 
 struct LegacyStandardModeTransitionPairResult {
@@ -345,6 +347,12 @@ struct LegacyStandardModeTransitionPairResult {
 
 [[nodiscard]] LegacyStandardModeTransitionPairResult
 initialize_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeTransitionPairResult
+release_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
     LegacyStandardModeTransitionPairPorts& ports
 ) noexcept;

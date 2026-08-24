@@ -503,12 +503,18 @@ public:
         ++dispatch_count;
         return dispatch_return;
     }
+    i32 release_transition_pair_buffer(const u32 owner) noexcept override {
+        released_owners.push_back(owner);
+        return release_base + static_cast<i32>(released_owners.size());
+    }
 
     std::array<u32, 2U> allocation_returns{0x1111U, 0x2222U};
     std::vector<u32> allocation_sizes;
     std::size_t allocation_count{};
     u32 dispatch_count{};
     i32 dispatch_return{77};
+    i32 release_base{30};
+    std::vector<u32> released_owners;
 };
 
 class FakeStandardModeCallbackBindingPorts final
@@ -14928,6 +14934,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         initialize_legacy_standard_mode_transition_pair(
             transition_pair_state, transition_pair_ports
         );
+    const auto transition_pair_release =
+        openswd3::special_modes::release_legacy_standard_mode_transition_pair(
+            transition_pair_state, transition_pair_ports
+        );
     openswd3::special_modes::LegacyStandardModeTransitionPairState
         transition_pair_other_state;
     transition_pair_other_state.mode_word = 0xABCD0006U;
@@ -14945,6 +14955,12 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             transition_pair_ports.dispatch_count == 1U &&
             transition_pair.legacy_return_value == 77 &&
             transition_pair.helper_call_count == 3U &&
+            transition_pair_ports.released_owners ==
+                std::vector<u32>{0x1111U, 0U} &&
+            transition_pair_release.legacy_return_value == 32 &&
+            transition_pair_release.helper_call_count == 2U &&
+            transition_pair_state.first_owner == 0x1111U &&
+            transition_pair_state.second_owner == 0U &&
             transition_pair_other_state.mode_word == 0xABCD0006U &&
             transition_pair_other.helper_call_count == 3U,
         "0x449FF0 clears only low mode five and dispatches after both ordered allocations including null"
