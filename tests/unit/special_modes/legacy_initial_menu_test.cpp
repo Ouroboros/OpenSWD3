@@ -15033,6 +15033,38 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448C40 selects each final entry and preserves the unrelated progress residual"
     );
 
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        first_transition_one;
+    first_transition_one.progress = 1U;
+    first_transition_one.enabled = 3U;
+    const i32 first_transition_one_residual =
+        openswd3::special_modes::select_legacy_standard_mode_transition_first(
+            first_transition_one
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        first_transition_five;
+    first_transition_five.progress = 5U;
+    first_transition_five.velocity = 5;
+    const i32 first_transition_five_residual =
+        openswd3::special_modes::select_legacy_standard_mode_transition_first(
+            first_transition_five
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        first_transition_other;
+    first_transition_other.progress = 6U;
+    const i32 first_transition_other_residual =
+        openswd3::special_modes::select_legacy_standard_mode_transition_first(
+            first_transition_other
+        );
+    test.expect_true(
+        first_transition_one.enabled == 0U &&
+            first_transition_one_residual == 0 &&
+            first_transition_five.velocity == 0 &&
+            first_transition_five_residual == 0 &&
+            first_transition_other_residual == 1,
+        "0x448C70 selects each first entry and preserves the unrelated progress residual"
+    );
+
     for (const auto& item : cases) {
         LegacyStandardModeCallbackState state;
         state.targets.fill(0xDEADBEEFU);

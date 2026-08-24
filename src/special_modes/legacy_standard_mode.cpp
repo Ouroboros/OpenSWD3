@@ -607,6 +607,20 @@ compat::i32 select_legacy_standard_mode_transition_last(
     return residual;
 }
 
+compat::i32 select_legacy_standard_mode_transition_first(
+    LegacyStandardModeTransitionVisualState& state
+) noexcept {
+    if (state.progress == 1U) {
+        state.enabled = 0U;
+        return 0;
+    }
+    const compat::i32 residual = static_cast<compat::i32>(state.progress) - 5;
+    if (state.progress == 5U) {
+        state.velocity = 0;
+    }
+    return residual;
+}
+
 LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     LegacyStandardModeCallbackState& state,
     const compat::u16 secondary_word,
