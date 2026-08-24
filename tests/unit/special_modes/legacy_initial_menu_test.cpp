@@ -2494,6 +2494,12 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return &missing_node;
         }
 
+        void release_missing_guardian_record(
+            sm::LegacyStandardModeForwardNode& node
+        ) noexcept override {
+            released_missing_nodes.push_back(&node);
+        }
+
         void prepare_guardian_attribute_cache(
             sm::LegacyStandardModeGuardianInitializationState& state
         ) noexcept override {
@@ -2508,6 +2514,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         u32 missing_create_count{};
         u32 attribute_prepare_count{};
         sm::LegacyStandardModeForwardNode missing_node{nullptr, 0xFFDCU};
+        std::vector<sm::LegacyStandardModeForwardNode*> released_missing_nodes;
         std::vector<u32> events;
     };
 
@@ -2637,6 +2644,12 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return missing_available ? &missing_node : nullptr;
         }
 
+        void release_missing_guardian_record(
+            sm::LegacyStandardModeForwardNode& node
+        ) noexcept override {
+            released_missing_nodes.push_back(&node);
+        }
+
         bool prepare_guardian_record_exchange(
             sm::LegacyStandardModeGuardianInitializationState&,
             const sm::LegacyStandardModeForwardNode&,
@@ -2676,6 +2689,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         sm::LegacyStandardModeForwardNode* filter_source_head{};
         sm::LegacyStandardModeForwardNode* completed_filter_head{};
         sm::LegacyStandardModeForwardNode missing_node{nullptr, 0xFFDCU};
+        std::vector<sm::LegacyStandardModeForwardNode*> released_missing_nodes;
         i32 sample_return{77};
         std::vector<u16> bound_phases;
         std::vector<u32> released_tokens;
@@ -2881,6 +2895,41 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 sm::LegacyStandardModeGuardianListRefreshStatus::
                     missing_node_allocation_failed,
             "0x442050 isolates a null 44D5D0 result at the original next write"
+        );
+    }
+
+    {
+        sm::LegacyStandardModeForwardNode returned_tail{nullptr, 9U};
+        sm::LegacyStandardModeForwardNode returned_head{nullptr, 7U};
+        sm::LegacyStandardModeForwardNode missing{&returned_tail, 0xFFDCU};
+        returned_head.next = &missing;
+        sm::LegacyStandardModeForwardNode existing{nullptr, 3U};
+        sm::LegacyStandardModeGuardianInitializationState drain_state;
+        drain_state.record_head = &returned_head;
+        drain_state.guardian_filter_source_head = &existing;
+        SelectionPorts drain_ports;
+        const auto drained =
+            sm::drain_legacy_standard_mode_guardian_record_list(
+                drain_state, drain_ports
+            );
+        test.expect_true(
+            drained.legacy_return_node == nullptr &&
+                drained.returned_count == 2U && drained.released_count == 1U &&
+                drain_state.record_head == nullptr &&
+                drain_state.guardian_filter_source_head == &returned_tail &&
+                returned_tail.next == &returned_head &&
+                returned_head.next == &existing &&
+                drain_ports.released_missing_nodes ==
+                    std::vector<sm::LegacyStandardModeForwardNode*>{&missing},
+            "0x4420F0 returns ordinary nodes to the source head and releases missing nodes"
+        );
+        const auto empty = sm::drain_legacy_standard_mode_guardian_record_list(
+            drain_state, drain_ports
+        );
+        test.expect_true(
+            empty.returned_count == 0U && empty.released_count == 0U &&
+                drain_ports.released_missing_nodes.size() == 1U,
+            "0x4420F0 empty head returns zero without touching either owner"
         );
     }
 
@@ -3279,7 +3328,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 guardian.mode_flags == 0x80U &&
                 selection_ports.targets ==
                     std::vector<SelectionTarget>{
-                        SelectionTarget::begin_slot_cycle,
                         SelectionTarget::refresh_attribute_cache,
                     } &&
                 selection_ports.commands ==
@@ -3600,6 +3648,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             sm::LegacyStandardModeGuardianRecordFlags{11U, 12U},
         };
         std::array<u32, 1U> texts{0xFFDCU};
+        sm::LegacyStandardModeForwardNode stale_record{nullptr, 7U};
         sm::LegacyStandardModeGuardianInitializationState guardian;
         guardian.lifecycle_phase = 1U;
         guardian.global_control_flags = 1U;
@@ -3607,8 +3656,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         guardian.second_work_storage_token = 22U;
         guardian.list_storage_token = 33U;
         guardian.visible_record_count = 9U;
-        guardian.record_head =
-            reinterpret_cast<sm::LegacyStandardModeForwardNode*>(0x1U);
+        guardian.record_head = &stale_record;
         guardian.transition_value = 44U;
         SelectionPorts cleanup_ports;
         const auto cleaned =
@@ -3628,11 +3676,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 guardian.list_storage_token == 0U &&
                 guardian.transition_value == 0U &&
                 cleanup_ports.bound_phases == std::vector<u16>{0U} &&
-                cleanup_ports.targets ==
-                    std::vector<SelectionTarget>{
-                        SelectionTarget::begin_slot_cycle,
-                        SelectionTarget::begin_slot_cycle,
-                    } &&
+                cleanup_ports.targets.empty() &&
                 cleanup_ports.released_tokens ==
                     std::vector<u32>{11U, 22U, 33U} &&
                 std::all_of(
@@ -3872,6 +3916,12 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return &missing_node;
         }
 
+        void release_missing_guardian_record(
+            sm::LegacyStandardModeForwardNode& node
+        ) noexcept override {
+            released_missing_nodes.push_back(&node);
+        }
+
         bool prepare_guardian_record_exchange(
             sm::LegacyStandardModeGuardianInitializationState&,
             const sm::LegacyStandardModeForwardNode&,
@@ -3908,6 +3958,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         bool complete_exchange_result{true};
         bool item_present{true};
         sm::LegacyStandardModeForwardNode missing_node{nullptr, 0xFFDCU};
+        std::vector<sm::LegacyStandardModeForwardNode*> released_missing_nodes;
         std::vector<u32> exchange_slots;
         std::vector<u16> bound_phases;
         std::vector<u32> released_tokens;
@@ -3991,7 +4042,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 input_ports.selection_targets ==
                     std::vector<SelectionTarget>{
                         SelectionTarget::refresh_attribute_cache,
-                        SelectionTarget::begin_slot_cycle,
                         SelectionTarget::refresh_attribute_cache,
                     },
             "0x4407F0 guardian-slot rectangle commits then directly reuses 0x440B20"

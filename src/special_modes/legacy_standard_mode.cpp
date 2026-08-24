@@ -442,6 +442,29 @@ filter_legacy_standard_mode_guardian_records(
     return result;
 }
 
+LegacyStandardModeGuardianListDrainResult
+drain_legacy_standard_mode_guardian_record_list(
+    LegacyStandardModeGuardianInitializationState& state,
+    LegacyStandardModeGuardianListRefreshPorts& ports
+) noexcept {
+    LegacyStandardModeGuardianListDrainResult result;
+    while (state.record_head != nullptr) {
+        LegacyStandardModeForwardNode* const node = state.record_head;
+        state.record_head =
+            const_cast<LegacyStandardModeForwardNode*>(node->next);
+        if (node->text_index == 0xFFDCU) {
+            ports.release_missing_guardian_record(*node);
+            ++result.released_count;
+        } else {
+            node->next = state.guardian_filter_source_head;
+            state.guardian_filter_source_head = node;
+            ++result.returned_count;
+        }
+    }
+    result.legacy_return_node = state.record_head;
+    return result;
+}
+
 LegacyStandardModeGuardianListRefreshResult
 refresh_legacy_standard_mode_guardian_record_list(
     LegacyStandardModeGuardianInitializationState& state,
@@ -5237,7 +5260,13 @@ move_legacy_standard_mode_guardian_selection(
     };
     const compat::u32 mode = state.interaction_mode;
     if (mode == 0U) {
-        invoke(LegacyStandardModeGuardianSelectionTarget::begin_slot_cycle);
+        static_cast<void>(
+            drain_legacy_standard_mode_guardian_record_list(state, ports)
+        );
+        result.legacy_return_value = 0;
+        ++result.helper_call_count;
+        result.last_target =
+            LegacyStandardModeGuardianSelectionTarget::begin_slot_cycle;
         if (move == LegacyStandardModeGuardianSelectionMove::next) {
             state.guardian_slot += 1U;
             if (std::bit_cast<compat::i32>(state.guardian_slot) >= 0x0B) {
@@ -5592,9 +5621,10 @@ cycle_legacy_standard_mode_guardian_party(
         candidate = static_cast<compat::u16>((candidate + 1U) & 3U);
     }
 
-    result.legacy_return_value = ports.invoke_guardian_selection(
-        LegacyStandardModeGuardianSelectionTarget::begin_slot_cycle, state
+    static_cast<void>(
+        drain_legacy_standard_mode_guardian_record_list(state, ports)
     );
+    result.legacy_return_value = 0;
     ++result.helper_call_count;
     result.last_target =
         LegacyStandardModeGuardianSelectionTarget::begin_slot_cycle;
@@ -6441,15 +6471,17 @@ commit_legacy_standard_mode_guardian_interaction(
         }
         ports.bind_guardian_callbacks(state.lifecycle_phase);
         ++result.helper_call_count;
-        result.legacy_return_value = ports.invoke_guardian_selection(
-            LegacyStandardModeGuardianSelectionTarget::begin_slot_cycle, state
+        static_cast<void>(
+            drain_legacy_standard_mode_guardian_record_list(state, ports)
         );
+        result.legacy_return_value = 0;
         ++result.helper_call_count;
         result.last_target =
             LegacyStandardModeGuardianSelectionTarget::begin_slot_cycle;
-        result.legacy_return_value = ports.invoke_guardian_selection(
-            LegacyStandardModeGuardianSelectionTarget::begin_slot_cycle, state
+        static_cast<void>(
+            drain_legacy_standard_mode_guardian_record_list(state, ports)
         );
+        result.legacy_return_value = 0;
         ++result.helper_call_count;
 
         const compat::u32 first_token = state.first_work_storage_token;

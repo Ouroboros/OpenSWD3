@@ -585,11 +585,20 @@ struct LegacyStandardModeGuardianListRefreshResult {
     bool missing_node_appended{};
 };
 
+struct LegacyStandardModeGuardianListDrainResult {
+    const LegacyStandardModeForwardNode* legacy_return_node{};
+    compat::u32 returned_count{};
+    compat::u32 released_count{};
+};
+
 class LegacyStandardModeGuardianListRefreshPorts {
 public:
     virtual ~LegacyStandardModeGuardianListRefreshPorts() = default;
     [[nodiscard]] virtual LegacyStandardModeForwardNode*
     create_missing_guardian_record() noexcept = 0;
+    virtual void release_missing_guardian_record(
+        LegacyStandardModeForwardNode& node
+    ) noexcept = 0;
 };
 
 class LegacyStandardModeMissingNodePorts {
@@ -2393,6 +2402,13 @@ struct LegacyStandardModeAnimatedPanelResult {
     bool rendered{};
     bool position_clamped{};
 };
+
+// sub_4420F0: drain record_head, returning ordinary nodes and releasing missing.
+[[nodiscard]] LegacyStandardModeGuardianListDrainResult
+drain_legacy_standard_mode_guardian_record_list(
+    LegacyStandardModeGuardianInitializationState& state,
+    LegacyStandardModeGuardianListRefreshPorts& ports
+) noexcept;
 
 // sub_442050 (+ chunk 442020): rebuild the filtered guardian window.
 [[nodiscard]] LegacyStandardModeGuardianListRefreshResult
