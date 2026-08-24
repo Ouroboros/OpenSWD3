@@ -342,8 +342,10 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
             group_index = 6U;
         }
     } else if (secondary_word == 1U) {
-        ports.initialize_secondary_dispatch();
+        const LegacyStandardSpecialModeCallbackInstallationResult callbacks =
+            install_legacy_standard_special_mode_callbacks(state, ports);
         ++result.helper_call_count;
+        result.story_flag_query_count += callbacks.story_flag_query_count;
         group_index = 7U;
     } else if (secondary_word == kHighModeSecondaryWord) {
         ports.initialize_high_mode_runtime();
@@ -11968,8 +11970,8 @@ LegacyStandardModeSelectorResult initialize_legacy_standard_mode_selector(
 
 LegacyStandardSpecialModeCallbackInstallationResult
 install_legacy_standard_special_mode_callbacks(
-    LegacyStandardSpecialModeState& state,
-    LegacyStandardSpecialModeInitializationPorts& ports
+    LegacyStandardModeCallbackState& state,
+    LegacyStandardModeStoryFlagPorts& ports
 ) noexcept {
     LegacyStandardSpecialModeCallbackInstallationResult result;
     state.draw_callbacks = {
@@ -12023,7 +12025,9 @@ initialize_legacy_standard_special_modes(
     state.transient_flags = 0U;
 
     const LegacyStandardSpecialModeCallbackInstallationResult callbacks =
-        install_legacy_standard_special_mode_callbacks(state, ports);
+        install_legacy_standard_special_mode_callbacks(
+            state.selector_state.callback_state, ports
+        );
     ++result.callback_installation_count;
     result.story_flag_query_count += callbacks.story_flag_query_count;
 
@@ -12095,6 +12099,76 @@ initialize_legacy_standard_special_modes(
     set_action(state.initialization_records[kFinalRecord], kFinalActionId, 0U);
 
     result.return_value = kChoiceActionId;
+    return result;
+}
+
+LegacyStandardModeGroupEightInputResult
+handle_legacy_standard_mode_group_eight_input(
+    LegacyStandardModeGroupEightState& state,
+    const LegacyStandardModeGroupEightInputSnapshot& input,
+    LegacyStandardModeGroupEightInputPorts& ports
+) noexcept {
+    LegacyStandardModeGroupEightInputResult result;
+    compat::u32 grid_index = (input.cursor_x - 0xDCU) >> 3U;
+    compat::u32 upper_x = 0x258U;
+    compat::i32 quotient = static_cast<compat::i32>(grid_index / 10U);
+    compat::i32 remainder = static_cast<compat::i32>(grid_index % 10U);
+
+    const compat::i32 first_flag = ports.story_flag(0x49U);
+    ++result.story_flag_query_count;
+    result.legacy_return_value = static_cast<compat::i16>(first_flag);
+    if (first_flag == 1) {
+        upper_x = 0x276U;
+        grid_index = (input.cursor_x - 0xDCU) / 7U;
+        quotient = static_cast<compat::i32>(grid_index / 10U);
+        remainder = static_cast<compat::i32>(grid_index % 10U);
+    }
+
+    if (input.cursor_x <= 0xDCU || input.cursor_x >= upper_x) {
+        return result;
+    }
+    result.legacy_return_value = static_cast<compat::i16>(input.cursor_y);
+
+    const bool primary_hit = static_cast<compat::i32>(input.cursor_x) > 0xDC &&
+        input.cursor_y < 0x2AU && input.cursor_y > 0x0AU &&
+        (input.buttons & 1U) != 0U && remainder > 0 && remainder < 8;
+    if (primary_hit) {
+        const compat::i32 second_flag = ports.story_flag(0x49U);
+        ++result.story_flag_query_count;
+        result.legacy_return_value = static_cast<compat::i16>(state.selection);
+        const bool special_selection =
+            second_flag == 1 && state.selection == 0x0FU;
+        if (special_selection) {
+            if (state.lifecycle != 1U) {
+                return result;
+            }
+        } else if (state.lifecycle != 1U) {
+            const std::optional<compat::i32> callback =
+                ports.invoke_selection_callback(state.selection, state);
+            ++result.helper_call_count;
+            if (!callback.has_value()) {
+                result.status = LegacyStandardModeGroupEightInputStatus::
+                    selection_callback_missing;
+                return result;
+            }
+        }
+
+        state.selection = static_cast<compat::u16>(quotient + 0x0C);
+        result.selection_rewritten = true;
+        static_cast<void>(ports.retreat_selection(state));
+        ++result.helper_call_count;
+        result.legacy_return_value =
+            static_cast<compat::i16>(ports.commit_selection(state));
+        ++result.helper_call_count;
+        return result;
+    }
+
+    if ((input.buttons & 0x0CU) != 0U && state.lifecycle == 1U) {
+        state.fallback_constant = 0x0CU;
+        result.legacy_return_value =
+            static_cast<compat::i16>(ports.exit_mode(state));
+        ++result.helper_call_count;
+    }
     return result;
 }
 

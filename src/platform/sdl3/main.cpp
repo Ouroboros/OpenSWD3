@@ -4825,8 +4825,6 @@ public:
                         );
                     }
 
-                    void initialize_secondary_dispatch() override {}
-
                     void initialize_high_mode_runtime() override {}
 
                 private:

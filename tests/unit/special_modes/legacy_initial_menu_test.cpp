@@ -277,10 +277,6 @@ public:
         return flag_value;
     }
 
-    void initialize_secondary_dispatch() override {
-        events.push_back(2U);
-    }
-
     void initialize_high_mode_runtime() override {
         events.push_back(3U);
     }
@@ -3532,10 +3528,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return callback_story_flag_value;
         }
 
-        void initialize_secondary_dispatch() override {
-            ++secondary_dispatch_initializations;
-        }
-
         void initialize_high_mode_runtime() override {
             ++high_mode_initializations;
         }
@@ -3617,7 +3609,6 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         i32 released_workspace_return{-7};
         i32 released_filtered_records_return{-8};
         i32 callback_story_flag_value{};
-        u32 secondary_dispatch_initializations{};
         u32 high_mode_initializations{};
         u32 cleared_surface_bytes{};
         std::array<u32, 2U> dialog_interface{};
@@ -4876,7 +4867,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 exit_state.interaction_block == 9 &&
                 exit_state.mode_enabled == 0U &&
                 exit_state.global_mode == 0x36U &&
-                exit_mode1_ports.secondary_dispatch_initializations == 1U &&
+                exit_mode1_ports.callback_story_flags ==
+                    std::vector<u32>{0x49U} &&
                 exit_mode1_ports.released_workspace_tokens ==
                     std::vector<u32>{0x9988U},
             "0x4441A0 mode1 decrements transition, rebinds callbacks and cleans mode"
@@ -10047,9 +10039,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
             callback_flag_indices.push_back(flag_index);
             return callback_story_flag;
         }
-        void initialize_secondary_dispatch() override {
-            ++secondary_dispatch_count;
-        }
         void initialize_high_mode_runtime() override {
             ++high_mode_runtime_count;
         }
@@ -10159,7 +10148,6 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
         bool publish_missing_node{true};
         i32 rebuild_result{1};
         u32 missing_insert_count{};
-        u32 secondary_dispatch_count{};
         u32 high_mode_runtime_count{};
         u32 cleanup_forward_node_count{};
         u32 commit_rebuild_count{};
@@ -10234,7 +10222,7 @@ void test_standard_mode_database_input_dispatch(openswd3::test::Context& test) {
                 cleaned.legacy_return_value == 215 &&
                 state.lifecycle_phase == 1U &&
                 state.lifecycle_zero_value == 99U &&
-                ports.secondary_dispatch_count == 1U &&
+                ports.callback_flag_indices == std::vector<u32>{0x49U} &&
                 ports.cleanup_storage_kinds.size() == 15U,
             "0x43E770 phase1 decrements lifecycle then binds B480 and tail-cleans D880"
         );
@@ -14625,8 +14613,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             0,
             LegacyStandardModeCallbackGroup::g08,
             13U,
-            2U,
-            0U,
+            1U,
+            1U,
             0xC6EEC535A23EBF31ULL
         },
         Case{
@@ -14806,10 +14794,12 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     };
     test.expect_true(
         records_match && state.transient_flags == 0U &&
-            state.draw_callbacks == expected_draw_callbacks &&
-            state.initialization_callbacks ==
+            state.selector_state.callback_state.draw_callbacks ==
+                expected_draw_callbacks &&
+            state.selector_state.callback_state.initialization_callbacks ==
                 expected_initialization_callbacks &&
-            state.cleanup_callbacks == expected_cleanup_callbacks &&
+            state.selector_state.callback_state.cleanup_callbacks ==
+                expected_cleanup_callbacks &&
             ports.events == std::vector<u32>{2U, 2U} &&
             ports.queried_flag == 0x49U && ports.query_saw_exact_prefix &&
             ports.prefix_snapshots == std::vector<bool>{false, true} &&
@@ -14828,12 +14818,18 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     );
     test.expect_true(
         non_one_state.initialization_records[1U].base_variant == 2U &&
-            non_one_state.draw_callbacks[4U] == 0x0044C160U &&
-            non_one_state.draw_callbacks[5U] == 0x0043E800U &&
-            non_one_state.initialization_callbacks[4U] == 0x0044AF30U &&
-            non_one_state.initialization_callbacks[5U] == 0x0043D530U &&
-            non_one_state.cleanup_callbacks[4U] == 0x0044B010U &&
-            non_one_state.cleanup_callbacks[5U] == 0x0043D880U,
+            non_one_state.selector_state.callback_state.draw_callbacks[4U] ==
+                0x0044C160U &&
+            non_one_state.selector_state.callback_state.draw_callbacks[5U] ==
+                0x0043E800U &&
+            non_one_state.selector_state.callback_state
+                    .initialization_callbacks[4U] == 0x0044AF30U &&
+            non_one_state.selector_state.callback_state
+                    .initialization_callbacks[5U] == 0x0043D530U &&
+            non_one_state.selector_state.callback_state.cleanup_callbacks[4U] ==
+                0x0044B010U &&
+            non_one_state.selector_state.callback_state.cleanup_callbacks[5U] ==
+                0x0043D880U,
         "only a story-flag result equal to one swaps variants and callback pairs"
     );
 
@@ -14842,7 +14838,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     direct_ports.story_flag_value = -7;
     const auto installed =
         openswd3::special_modes::install_legacy_standard_special_mode_callbacks(
-            direct_state, direct_ports
+            direct_state.selector_state.callback_state, direct_ports
         );
     test.expect_true(
         installed.legacy_return_value == -7 &&
@@ -14850,6 +14846,154 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             installed.story_flag_query_count == 1U &&
             direct_ports.events == std::vector<u32>{2U},
         "0x444FC0 returns raw flag result and keeps default pairs unless it equals one"
+    );
+
+    class GroupEightInputPorts final
+        : public openswd3::special_modes::
+              LegacyStandardModeGroupEightInputPorts {
+    public:
+        i32 story_flag(const u32 flag_index) override {
+            events.push_back(1U);
+            queried_flags.push_back(flag_index);
+            const std::size_t index = queried_flags.size() - 1U;
+            return index < flag_results.size() ? flag_results[index] : 0;
+        }
+
+        std::optional<i32> invoke_selection_callback(
+            const u16 selection,
+            openswd3::special_modes::LegacyStandardModeGroupEightState&
+        ) override {
+            events.push_back(2U);
+            callback_selections.push_back(selection);
+            return callback_available ? std::optional<i32>{77} : std::nullopt;
+        }
+
+        i32 retreat_selection(
+            openswd3::special_modes::LegacyStandardModeGroupEightState&
+        ) override {
+            events.push_back(3U);
+            return 88;
+        }
+
+        i32 commit_selection(
+            openswd3::special_modes::LegacyStandardModeGroupEightState&
+        ) override {
+            events.push_back(4U);
+            return commit_return;
+        }
+
+        i32 exit_mode(
+            openswd3::special_modes::LegacyStandardModeGroupEightState& state
+        ) override {
+            events.push_back(5U);
+            state.tagged_mode_value = 0U;
+            return exit_return;
+        }
+
+        std::vector<i32> flag_results;
+        bool callback_available{true};
+        i32 commit_return{0x3456};
+        i32 exit_return{-9};
+        std::vector<u32> events;
+        std::vector<u32> queried_flags;
+        std::vector<u16> callback_selections;
+    };
+
+    using GroupEightState =
+        openswd3::special_modes::LegacyStandardModeGroupEightState;
+    using GroupEightInput =
+        openswd3::special_modes::LegacyStandardModeGroupEightInputSnapshot;
+    GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
+    GroupEightInputPorts group_ports;
+    group_ports.flag_results = {0, 2};
+    const auto group_selected =
+        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
+            group_state, GroupEightInput{476U, 20U, 1U}, group_ports
+        );
+    test.expect_true(
+        group_selected.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInputStatus::completed &&
+            group_selected.legacy_return_value == 0x3456 &&
+            group_selected.story_flag_query_count == 2U &&
+            group_selected.helper_call_count == 3U &&
+            group_selected.selection_rewritten &&
+            group_state.selection == 15U &&
+            group_ports.queried_flags == std::vector<u32>{0x49U, 0x49U} &&
+            group_ports.callback_selections == std::vector<u16>{4U} &&
+            group_ports.events == std::vector<u32>{1U, 1U, 2U, 3U, 4U},
+        "0x4450E0 dispatches the prior selection then rewrites and commits the grid cell"
+    );
+
+    group_state = {.selection = 15U, .lifecycle = 2U};
+    GroupEightInputPorts special_block_ports;
+    special_block_ports.flag_results = {1, 1};
+    const auto special_blocked =
+        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
+            group_state, GroupEightInput{409U, 20U, 1U}, special_block_ports
+        );
+    group_state = {.selection = 15U, .lifecycle = 1U};
+    GroupEightInputPorts special_commit_ports;
+    special_commit_ports.flag_results = {1, 1};
+    const auto special_committed =
+        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
+            group_state, GroupEightInput{409U, 20U, 1U}, special_commit_ports
+        );
+    test.expect_true(
+        special_blocked.legacy_return_value == 15 &&
+            special_blocked.helper_call_count == 0U &&
+            !special_blocked.selection_rewritten &&
+            special_block_ports.events == std::vector<u32>{1U, 1U} &&
+            special_committed.helper_call_count == 2U &&
+            special_committed.selection_rewritten &&
+            group_state.selection == 14U &&
+            special_commit_ports.events == std::vector<u32>{1U, 1U, 3U, 4U},
+        "0x4450E0 applies the flag1 selection15 lifecycle exception exactly"
+    );
+
+    group_state = {.lifecycle = 1U, .tagged_mode_value = 9U};
+    GroupEightInputPorts fallback_ports;
+    fallback_ports.flag_results = {0};
+    const auto fallback =
+        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
+            group_state, GroupEightInput{476U, 5U, 0x0CU}, fallback_ports
+        );
+    GroupEightState outer_state;
+    GroupEightInputPorts outer_ports;
+    outer_ports.flag_results = {-3};
+    const auto outer =
+        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
+            outer_state, GroupEightInput{220U, 99U, 0x0CU}, outer_ports
+        );
+    test.expect_true(
+        fallback.legacy_return_value == -9 &&
+            fallback.helper_call_count == 1U &&
+            group_state.fallback_constant == 12U &&
+            group_state.tagged_mode_value == 0U &&
+            fallback_ports.events == std::vector<u32>{1U, 5U} &&
+            outer.legacy_return_value == -3 &&
+            outer.story_flag_query_count == 1U && outer.helper_call_count == 0U,
+        "0x4450E0 preserves outer residuals and runs the button12 lifecycle1 fallback"
+    );
+
+    group_state = {.selection = 6U, .lifecycle = 2U};
+    GroupEightInputPorts callback_stop_ports;
+    callback_stop_ports.flag_results = {0, 0};
+    callback_stop_ports.callback_available = false;
+    const auto callback_stopped =
+        openswd3::special_modes::handle_legacy_standard_mode_group_eight_input(
+            group_state, GroupEightInput{476U, 20U, 1U}, callback_stop_ports
+        );
+    test.expect_true(
+        callback_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightInputStatus::
+                        selection_callback_missing &&
+            callback_stopped.legacy_return_value == 6 &&
+            callback_stopped.helper_call_count == 1U &&
+            !callback_stopped.selection_rewritten &&
+            group_state.selection == 6U,
+        "0x4450E0 typed-stops at the dynamic callback table after both flag queries"
     );
 }
 

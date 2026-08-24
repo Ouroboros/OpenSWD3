@@ -90,6 +90,9 @@ inline constexpr std::size_t kLegacyStandardModeCallbackSlotCount = 13U;
 
 struct LegacyStandardModeCallbackState {
     std::array<compat::u32, kLegacyStandardModeCallbackSlotCount> targets{};
+    std::array<compat::u32, 7U> draw_callbacks{};
+    std::array<compat::u32, 7U> initialization_callbacks{};
+    std::array<compat::u32, 7U> cleanup_callbacks{};
 };
 
 enum class LegacyStandardModeCallbackGroup : compat::u8 {
@@ -105,12 +108,17 @@ enum class LegacyStandardModeCallbackGroup : compat::u8 {
     g09,
 };
 
-class LegacyStandardModeCallbackBindingPorts {
+class LegacyStandardModeStoryFlagPorts {
 public:
-    virtual ~LegacyStandardModeCallbackBindingPorts() = default;
-
+    virtual ~LegacyStandardModeStoryFlagPorts() = default;
     [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
-    virtual void initialize_secondary_dispatch() = 0;
+};
+
+class LegacyStandardModeCallbackBindingPorts
+    : public virtual LegacyStandardModeStoryFlagPorts {
+public:
+    ~LegacyStandardModeCallbackBindingPorts() override = default;
+
     virtual void initialize_high_mode_runtime() = 0;
 };
 
@@ -462,16 +470,12 @@ struct LegacyStandardSpecialModeState {
     compat::u32 entry_zero_b{};
     compat::u32 entry_gate{};
     compat::u32 low_mode_zero{};
-    std::array<compat::u32, 7U> draw_callbacks{};
-    std::array<compat::u32, 7U> initialization_callbacks{};
-    std::array<compat::u32, 7U> cleanup_callbacks{};
 };
 
-class LegacyStandardSpecialModeInitializationPorts {
+class LegacyStandardSpecialModeInitializationPorts
+    : public virtual LegacyStandardModeStoryFlagPorts {
 public:
-    virtual ~LegacyStandardSpecialModeInitializationPorts() = default;
-
-    [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
+    ~LegacyStandardSpecialModeInitializationPorts() override = default;
 };
 
 struct LegacyStandardSpecialModeCallbackInstallationResult {
@@ -482,8 +486,8 @@ struct LegacyStandardSpecialModeCallbackInstallationResult {
 
 [[nodiscard]] LegacyStandardSpecialModeCallbackInstallationResult
 install_legacy_standard_special_mode_callbacks(
-    LegacyStandardSpecialModeState& state,
-    LegacyStandardSpecialModeInitializationPorts& ports
+    LegacyStandardModeCallbackState& state,
+    LegacyStandardModeStoryFlagPorts& ports
 ) noexcept;
 
 struct LegacyStandardSpecialModeInitializationResult {
@@ -512,6 +516,56 @@ public:
     virtual void process_mode_input(compat::u32& tagged_mode_value) = 0;
     virtual void draw_mode(compat::u32& tagged_mode_value) = 0;
 };
+
+struct LegacyStandardModeGroupEightInputSnapshot {
+    compat::u32 cursor_x{};
+    compat::u32 cursor_y{};
+    compat::u8 buttons{};
+};
+
+struct LegacyStandardModeGroupEightState {
+    compat::u16 selection{};
+    compat::u16 lifecycle{};
+    compat::u32 tagged_mode_value{};
+    compat::u32 fallback_constant{};
+};
+
+class LegacyStandardModeGroupEightInputPorts {
+public:
+    virtual ~LegacyStandardModeGroupEightInputPorts() = default;
+    [[nodiscard]] virtual compat::i32 story_flag(compat::u32 flag_index) = 0;
+    [[nodiscard]] virtual std::optional<compat::i32> invoke_selection_callback(
+        compat::u16 selection, LegacyStandardModeGroupEightState& state
+    ) = 0;
+    [[nodiscard]] virtual compat::i32
+    retreat_selection(LegacyStandardModeGroupEightState& state) = 0;
+    [[nodiscard]] virtual compat::i32
+    commit_selection(LegacyStandardModeGroupEightState& state) = 0;
+    [[nodiscard]] virtual compat::i32
+    exit_mode(LegacyStandardModeGroupEightState& state) = 0;
+};
+
+enum class LegacyStandardModeGroupEightInputStatus : compat::u8 {
+    completed,
+    selection_callback_missing,
+};
+
+struct LegacyStandardModeGroupEightInputResult {
+    LegacyStandardModeGroupEightInputStatus status{
+        LegacyStandardModeGroupEightInputStatus::completed
+    };
+    compat::i16 legacy_return_value{};
+    compat::u32 story_flag_query_count{};
+    compat::u32 helper_call_count{};
+    bool selection_rewritten{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightInputResult
+handle_legacy_standard_mode_group_eight_input(
+    LegacyStandardModeGroupEightState& state,
+    const LegacyStandardModeGroupEightInputSnapshot& input,
+    LegacyStandardModeGroupEightInputPorts& ports
+) noexcept;
 
 struct LegacyStandardSpecialModeFrameResult {
     compat::u32 effective_mode{};
