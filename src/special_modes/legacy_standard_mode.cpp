@@ -5283,17 +5283,21 @@ retreat_legacy_standard_mode_guardian_page(
     );
 }
 
-LegacyStandardModeGuardianSelectionResult
-retreat_legacy_standard_mode_guardian_and_repeat_refresh(
+static LegacyStandardModeGuardianSelectionResult
+move_legacy_standard_mode_guardian_and_repeat_refresh(
     LegacyStandardModeGuardianInitializationState& state,
     const std::span<const compat::u32> guardian_text_indices,
     const std::span<const compat::u8> maps_payload,
-    LegacyStandardModeGuardianSelectionPorts& ports
+    LegacyStandardModeGuardianSelectionPorts& ports,
+    const bool forward
 ) noexcept {
-    LegacyStandardModeGuardianSelectionResult result =
-        retreat_legacy_standard_mode_guardian_selection(
-            state, guardian_text_indices, maps_payload, ports
-        );
+    LegacyStandardModeGuardianSelectionResult result = forward
+        ? advance_legacy_standard_mode_guardian_selection(
+              state, guardian_text_indices, maps_payload, ports
+          )
+        : retreat_legacy_standard_mode_guardian_selection(
+              state, guardian_text_indices, maps_payload, ports
+          );
     if (result.status != LegacyStandardModeGuardianSelectionStatus::completed ||
         state.interaction_mode != 1U) {
         return result;
@@ -5343,6 +5347,30 @@ retreat_legacy_standard_mode_guardian_and_repeat_refresh(
         ports.execute_guardian_sample_command(0x2EU, state.sample_owner);
     ++result.helper_call_count;
     return result;
+}
+
+LegacyStandardModeGuardianSelectionResult
+retreat_legacy_standard_mode_guardian_and_repeat_refresh(
+    LegacyStandardModeGuardianInitializationState& state,
+    const std::span<const compat::u32> guardian_text_indices,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianSelectionPorts& ports
+) noexcept {
+    return move_legacy_standard_mode_guardian_and_repeat_refresh(
+        state, guardian_text_indices, maps_payload, ports, false
+    );
+}
+
+LegacyStandardModeGuardianSelectionResult
+advance_legacy_standard_mode_guardian_and_repeat_refresh(
+    LegacyStandardModeGuardianInitializationState& state,
+    const std::span<const compat::u32> guardian_text_indices,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianSelectionPorts& ports
+) noexcept {
+    return move_legacy_standard_mode_guardian_and_repeat_refresh(
+        state, guardian_text_indices, maps_payload, ports, true
+    );
 }
 
 LegacyStandardModeGuardianInputResult

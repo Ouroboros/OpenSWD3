@@ -2701,6 +2701,22 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x440D20 mode0 writes slot10 directly without changing flags"
         );
 
+        guardian.guardian_slot = 10U;
+        guardian.party_selector = 0U;
+        SelectionPorts advance_repeat_mode0_ports;
+        const auto advance_repeat_mode0 =
+            sm::advance_legacy_standard_mode_guardian_and_repeat_refresh(
+                guardian, records, {}, advance_repeat_mode0_ports
+            );
+        test.expect_true(
+            advance_repeat_mode0.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                advance_repeat_mode0.helper_call_count == 5U &&
+                guardian.guardian_slot == 0U &&
+                advance_repeat_mode0_ports.commands.size() == 1U,
+            "0x440FB0 mode0 preserves the B20 single-refresh path"
+        );
+
         guardian.guardian_slot = 0U;
         guardian.party_selector = 0U;
         SelectionPorts repeat_mode0_ports;
@@ -2756,6 +2772,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         }
         nodes.back().text_index = 0xFFDCU;
         nodes[0U].text_index = 0xFFDCU;
+        nodes[1U].text_index = 0xFFDCU;
         nodes[2U].text_index = 0xFFDCU;
         nodes[10U].text_index = 0xFFDCU;
         sm::LegacyStandardModeGuardianInitializationState guardian;
@@ -2860,6 +2877,34 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                     } &&
                 repeat_ports.commands.size() == 2U,
             "0x440F00 mode1 runs C20 then repeats text, refresh and sample"
+        );
+
+        guardian.interaction_mode = 1U;
+        guardian.total_record_count = 12U;
+        guardian.visible_record_count = 10U;
+        guardian.list_offset = 0U;
+        guardian.local_selection = 0U;
+        guardian.record_head = &nodes[0U];
+        guardian.mode_flags = 0U;
+        SelectionPorts advance_repeat_ports;
+        const auto advance_repeated =
+            sm::advance_legacy_standard_mode_guardian_and_repeat_refresh(
+                guardian, {}, {}, advance_repeat_ports
+            );
+        test.expect_true(
+            advance_repeated.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::completed &&
+                advance_repeated.legacy_return_value == 77 &&
+                advance_repeated.helper_call_count == 11U &&
+                guardian.local_selection == 1U &&
+                guardian.mode_flags == 0x30U &&
+                advance_repeat_ports.targets ==
+                    std::vector<SelectionTarget>{
+                        SelectionTarget::refresh_attribute_cache,
+                        SelectionTarget::refresh_attribute_cache,
+                    } &&
+                advance_repeat_ports.commands.size() == 2U,
+            "0x440FB0 mode1 runs B20 then repeats text, refresh and sample"
         );
 
         guardian.interaction_mode = 1U;
