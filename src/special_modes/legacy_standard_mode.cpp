@@ -747,7 +747,7 @@ prepare_legacy_standard_mode_special_world_transition(
     LegacyStandardModeSpecialWorldTransitionResult result;
     runtime.inventory_clone_token = ports.clone_inventory_record_root();
     ++result.helper_call_count;
-    runtime.selection_clone_token =
+    runtime.selection_clone_head =
         ports.clone_selection_record_root(state.record_head);
     ++result.helper_call_count;
     const LegacyStandardModeRecordCleanupResult cleaned =
@@ -765,6 +765,87 @@ prepare_legacy_standard_mode_special_world_transition(
     ports.publish_special_world_transition(5U, 1U, 0U, 3U);
     result.legacy_return_value = ports.dispatch_special_world_transition();
     ++result.helper_call_count;
+    return result;
+}
+
+LegacyStandardModeSpecialWorldReturnResult
+restore_legacy_standard_mode_special_world_transition(
+    const compat::i32 consume_transition_item,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeSpecialWorldTransitionRuntime& runtime,
+    LegacyStandardModeSpecialWorldReturnPorts& ports
+) noexcept {
+    LegacyStandardModeSpecialWorldReturnResult result;
+    runtime.return_mode_owner = 0x43U;
+    ports.release_active_inventory_root();
+    ++result.helper_call_count;
+    runtime.active_inventory_root_token = runtime.inventory_clone_token;
+    state.record_head = runtime.selection_clone_head;
+    runtime.inventory_clone_token = 0U;
+    runtime.selection_clone_head = nullptr;
+
+    compat::i32 total_count = state.local_record_count;
+    compat::i32 window_offset = std::bit_cast<compat::i32>(state.list_offset);
+    compat::i32 local_cursor =
+        std::bit_cast<compat::i32>(state.local_selection);
+    compat::i32 visible_count =
+        std::bit_cast<compat::i32>(state.visible_record_count);
+    const LegacyStandardModeForwardNode* source_head = state.record_head;
+    const LegacyStandardModeForwardNode* output_head =
+        state.visible_record_head;
+    const LegacyStandardModeWindowSelectionResult window =
+        resolve_legacy_standard_mode_window_selection(
+            total_count,
+            window_offset,
+            local_cursor,
+            visible_count,
+            0x0D,
+            &source_head,
+            &output_head,
+            maps_payload,
+            state.shared_text,
+            ports
+        );
+    ++result.helper_call_count;
+    state.local_record_count = total_count;
+    state.list_offset = std::bit_cast<compat::u32>(window_offset);
+    state.local_selection = std::bit_cast<compat::u32>(local_cursor);
+    state.visible_record_count = std::bit_cast<compat::u32>(visible_count);
+    state.record_head = const_cast<LegacyStandardModeForwardNode*>(source_head);
+    state.visible_record_head = output_head;
+    if (window.status != LegacyStandardModeWindowSelectionStatus::completed) {
+        result.status = LegacyStandardModeSpecialWorldReturnStatus::
+            window_selection_stopped;
+        return result;
+    }
+
+    const LegacyStandardModeForwardNode* const selected =
+        index_legacy_standard_mode_forward_node(
+            window_offset + local_cursor, &source_head
+        );
+    ++result.helper_call_count;
+    if (selected == nullptr) {
+        result.status =
+            LegacyStandardModeSpecialWorldReturnStatus::selected_record_missing;
+        return result;
+    }
+    const LegacyStandardModeTextResolutionResult text =
+        resolve_legacy_standard_mode_shared_text(
+            selected->text_index, maps_payload, state.shared_text
+        );
+    ++result.helper_call_count;
+    if (text.status != LegacyStandardModeTextResolutionStatus::completed) {
+        result.status =
+            LegacyStandardModeSpecialWorldReturnStatus::shared_text_stopped;
+        return result;
+    }
+    result.legacy_return_value = consume_transition_item;
+    if (consume_transition_item == 1) {
+        result.legacy_return_value = ports.mutate_inventory(0x02D9U, -1, 0);
+        ++result.helper_call_count;
+        result.inventory_consumed = true;
+    }
     return result;
 }
 

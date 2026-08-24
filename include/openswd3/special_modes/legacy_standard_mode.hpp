@@ -2332,7 +2332,9 @@ commit_legacy_standard_mode_resource(
 
 struct LegacyStandardModeSpecialWorldTransitionRuntime {
     compat::u32 inventory_clone_token{};
-    compat::u32 selection_clone_token{};
+    LegacyStandardModeForwardNode* selection_clone_head{};
+    compat::u32 active_inventory_root_token{};
+    compat::u32 return_mode_owner{};
     compat::u32 transition_mode{};
     compat::u32 transition_enabled{};
     compat::u32 transition_zero{};
@@ -2344,7 +2346,8 @@ public:
     virtual ~LegacyStandardModeSpecialWorldTransitionPorts() = default;
     [[nodiscard]] virtual compat::u32
     clone_inventory_record_root() noexcept = 0;
-    [[nodiscard]] virtual compat::u32 clone_selection_record_root(
+    [[nodiscard]] virtual LegacyStandardModeForwardNode*
+    clone_selection_record_root(
         const LegacyStandardModeForwardNode* head
     ) noexcept = 0;
     virtual void publish_special_world_transition(
@@ -2369,6 +2372,41 @@ struct LegacyStandardModeSpecialWorldTransitionResult {
     compat::i32 legacy_return_value{};
     compat::u32 helper_call_count{};
 };
+
+class LegacyStandardModeSpecialWorldReturnPorts
+    : public LegacyStandardModeMissingNodePorts {
+public:
+    ~LegacyStandardModeSpecialWorldReturnPorts() override = default;
+    virtual void release_active_inventory_root() noexcept = 0;
+    [[nodiscard]] virtual compat::i32 mutate_inventory(
+        compat::u16 item_id, compat::i32 delta, compat::i32 mode
+    ) noexcept = 0;
+};
+
+enum class LegacyStandardModeSpecialWorldReturnStatus : compat::u8 {
+    completed,
+    window_selection_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+};
+
+struct LegacyStandardModeSpecialWorldReturnResult {
+    LegacyStandardModeSpecialWorldReturnStatus status{
+        LegacyStandardModeSpecialWorldReturnStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    bool inventory_consumed{};
+};
+
+[[nodiscard]] LegacyStandardModeSpecialWorldReturnResult
+restore_legacy_standard_mode_special_world_transition(
+    compat::i32 consume_transition_item,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGroupEightState& state,
+    LegacyStandardModeSpecialWorldTransitionRuntime& runtime,
+    LegacyStandardModeSpecialWorldReturnPorts& ports
+) noexcept;
 
 [[nodiscard]] LegacyStandardModeSpecialWorldTransitionResult
 prepare_legacy_standard_mode_special_world_transition(

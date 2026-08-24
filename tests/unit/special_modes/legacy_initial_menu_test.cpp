@@ -15095,6 +15095,36 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         std::vector<std::pair<u16, u32>> reports;
     };
 
+    class SpecialWorldReturnPorts final
+        : public openswd3::special_modes::
+              LegacyStandardModeSpecialWorldReturnPorts {
+    public:
+        void insert_missing_node(
+            const LegacyStandardModeForwardNode** source_head,
+            const u16,
+            const i32,
+            const i32
+        ) noexcept override {
+            if (*source_head == nullptr) {
+                *source_head = missing_node;
+            }
+        }
+        void release_active_inventory_root() noexcept override {
+            ++release_count;
+        }
+        i32 mutate_inventory(
+            const u16 item_id, const i32 delta, const i32 mode
+        ) noexcept override {
+            mutations.push_back({item_id, delta, mode});
+            return mutation_return;
+        }
+
+        const LegacyStandardModeForwardNode* missing_node{};
+        i32 mutation_return{444};
+        u32 release_count{};
+        std::vector<std::array<i32, 3U>> mutations;
+    };
+
     class ModeResourceCommitPorts final
         : public openswd3::special_modes::
               LegacyStandardModeResourceCommitPorts {
@@ -15286,11 +15316,13 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             ++inventory_clone_count;
             return inventory_clone_token;
         }
-        u32 clone_selection_record_root(
+        LegacyStandardModeForwardNode* clone_selection_record_root(
             const LegacyStandardModeForwardNode* head
         ) noexcept override {
             cloned_selection_heads.push_back(head);
-            return selection_clone_token;
+            return selection_clone_head != nullptr
+                ? selection_clone_head
+                : const_cast<LegacyStandardModeForwardNode*>(head);
         }
         void publish_special_world_transition(
             const u32 mode, const u32 enabled, const u32 zero, const u32 layout
@@ -15357,7 +15389,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         openswd3::special_modes::LegacyStandardModeSpecialWorldTransitionRuntime
             world_transition_runtime;
         u32 inventory_clone_token{0x1111U};
-        u32 selection_clone_token{0x2222U};
+        LegacyStandardModeForwardNode* selection_clone_head{};
         i32 world_transition_return{333};
         u32 inventory_clone_count{};
         u32 world_transition_count{};
@@ -15945,6 +15977,39 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             overwrite_resource_ports.action_requests[0U].trailing_value ==
                 0xFFFDU,
         "0x448360 appends a new resource or overwrites the first matching world slot"
+    );
+
+    LegacyStandardModeForwardNode return_record;
+    return_record.text_index = 0xFFDCU;
+    openswd3::special_modes::LegacyStandardModeSpecialWorldTransitionRuntime
+        return_runtime;
+    return_runtime.inventory_clone_token = 0xAABBU;
+    return_runtime.selection_clone_head = &return_record;
+    return_runtime.active_inventory_root_token = 0xCCDDU;
+    GroupEightState return_state;
+    SpecialWorldReturnPorts return_ports;
+    const auto world_returned = openswd3::special_modes::
+        restore_legacy_standard_mode_special_world_transition(
+            1, {}, return_state, return_runtime, return_ports
+        );
+    test.expect_true(
+        world_returned.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeSpecialWorldReturnStatus::completed &&
+            world_returned.legacy_return_value == 444 &&
+            world_returned.inventory_consumed &&
+            return_ports.release_count == 1U &&
+            return_runtime.return_mode_owner == 0x43U &&
+            return_runtime.active_inventory_root_token == 0xAABBU &&
+            return_runtime.inventory_clone_token == 0U &&
+            return_runtime.selection_clone_head == nullptr &&
+            return_state.record_head == &return_record &&
+            return_state.visible_record_head == &return_record &&
+            return_state.local_record_count == 1 &&
+            return_state.visible_record_count == 1U &&
+            return_ports.mutations ==
+                std::vector<std::array<i32, 3U>>{{0x02D9, -1, 0}},
+        "0x448650 swaps both clones back, rebuilds the thirteen-row window and consumes 2D9 only for argument one"
     );
 
     LegacyStandardModeForwardNode first_selection_record;
@@ -17707,7 +17772,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_world_ports.commit_port_state.world_transition_runtime
                     .inventory_clone_token == 0x1111U &&
             commit_world_ports.commit_port_state.world_transition_runtime
-                    .selection_clone_token == 0x2222U &&
+                    .selection_clone_head == &commit_world_record &&
             commit_world_ports.commit_port_state.published_world_transitions ==
                 std::vector<std::array<u32, 4U>>{
                     {5U, 1U, 0U, 3U},
@@ -17754,7 +17819,7 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
             commit_world_stop_ports.commit_port_state.inventory_clone_count ==
                 1U &&
             commit_world_stop_ports.commit_port_state.world_transition_runtime
-                    .selection_clone_token == 0x2222U &&
+                    .selection_clone_head == &commit_world_stop_record &&
             commit_world_stop_ports.commit_port_state
                 .published_world_transitions.empty() &&
             commit_world_stop_ports.commit_port_state.world_transition_count ==
