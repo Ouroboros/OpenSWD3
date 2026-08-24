@@ -15184,6 +15184,30 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448DA0 advances the active setting while preserving original asymmetric clamps"
     );
 
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        mode_one_advance_state;
+    mode_one_advance_state.progress = 1U;
+    mode_one_advance_state.enabled = 3U;
+    const i32 mode_one_advance_residual = openswd3::special_modes::
+        advance_legacy_standard_mode_transition_mode_one_selection(
+            mode_one_advance_state
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        mode_one_advance_other_state;
+    mode_one_advance_other_state.progress = 5U;
+    mode_one_advance_other_state.enabled = 2U;
+    const i32 mode_one_advance_other_residual = openswd3::special_modes::
+        advance_legacy_standard_mode_transition_mode_one_selection(
+            mode_one_advance_other_state
+        );
+    test.expect_true(
+        mode_one_advance_state.enabled == 3U &&
+            mode_one_advance_residual == 4 &&
+            mode_one_advance_other_state.enabled == 2U &&
+            mode_one_advance_other_residual == 4,
+        "0x448EB0 advances only the mode-one selector and preserves the pre-clamp residual"
+    );
+
     for (const auto& item : cases) {
         LegacyStandardModeCallbackState state;
         state.targets.fill(0xDEADBEEFU);
