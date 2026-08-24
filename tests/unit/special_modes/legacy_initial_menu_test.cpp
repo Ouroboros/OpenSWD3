@@ -526,11 +526,9 @@ public:
         events.push_back(2U);
         return sample_return;
     }
-    i32 commit_transition_pair(
-        openswd3::special_modes::LegacyStandardModeTransitionPairState&
-    ) noexcept override {
-        ++commit_count;
-        return commit_return;
+    i32 dispatch_transition_pair_callback(const u32 mode) noexcept override {
+        callback_modes.push_back(mode);
+        return callback_return;
     }
 
     std::array<u32, 2U> allocation_returns{0x1111U, 0x2222U};
@@ -547,8 +545,8 @@ public:
     std::vector<u32> played_sample_owners;
     std::vector<u32> events;
     i32 sample_return{0x5678};
-    u32 commit_count{};
-    i32 commit_return{0x1234};
+    std::vector<u32> callback_modes;
+    i32 callback_return{0x1234};
 };
 
 class FakeStandardModeCallbackBindingPorts final
@@ -15117,6 +15115,43 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionPairState
+        transition_pair_commit_state;
+    transition_pair_commit_state.first_owner = 0x11U;
+    transition_pair_commit_state.second_owner = 0x22U;
+    transition_pair_commit_state.interaction_mode = 1U;
+    transition_pair_commit_state.active_owner = 0x3333U;
+    FakeTransitionPairPorts transition_pair_commit_ports;
+    const auto transition_pair_commit =
+        openswd3::special_modes::commit_legacy_standard_mode_transition_pair(
+            transition_pair_commit_state, transition_pair_commit_ports
+        );
+    auto transition_pair_commit_wrap_state = transition_pair_commit_state;
+    transition_pair_commit_wrap_state.interaction_mode = 0U;
+    transition_pair_commit_wrap_state.active_owner = 0x4444U;
+    FakeTransitionPairPorts transition_pair_commit_wrap_ports;
+    const auto transition_pair_commit_wrap =
+        openswd3::special_modes::commit_legacy_standard_mode_transition_pair(
+            transition_pair_commit_wrap_state, transition_pair_commit_wrap_ports
+        );
+    test.expect_true(
+        transition_pair_commit_ports.released_owners ==
+                std::vector<u32>{0x11U, 0x22U} &&
+            transition_pair_commit_state.interaction_mode == 0U &&
+            transition_pair_commit_state.active_owner == 0U &&
+            transition_pair_commit_ports.callback_modes ==
+                std::vector<u32>{0U} &&
+            transition_pair_commit.legacy_return_value == 0x1234 &&
+            transition_pair_commit.helper_call_count == 2U &&
+            transition_pair_commit_wrap_state.interaction_mode == 0xFFFFU &&
+            transition_pair_commit_wrap_state.active_owner == 0x4444U &&
+            transition_pair_commit_wrap_ports.callback_modes ==
+                std::vector<u32>{0xFFFFU} &&
+            transition_pair_commit_wrap.legacy_return_value == 0x1234 &&
+            transition_pair_commit_wrap.helper_call_count == 2U,
+        "0x44A250 releases the pair before u16 stage decrement, clears the active owner only at zero, and dispatches the zero-extended stage"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionPairState
         transition_pair_update_state;
     transition_pair_update_state.mode_word = 0xABCD0000U;
     transition_pair_update_state.input_flags = 0x03U;
@@ -15132,6 +15167,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
 
     auto transition_pair_missing_state = transition_pair_update_state;
     transition_pair_missing_state.input_flags = 0x07U;
+    transition_pair_missing_state.interaction_mode = 2U;
     FakeTransitionPairPorts transition_pair_missing_ports;
     transition_pair_missing_ports.presence_return = 0;
     const auto transition_pair_missing =
@@ -15154,6 +15190,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
 
     auto transition_pair_x_residual_state = transition_pair_direct_commit_state;
     transition_pair_x_residual_state.input_flags = 0x01U;
+    transition_pair_x_residual_state.interaction_mode = 2U;
     FakeTransitionPairPorts transition_pair_x_residual_ports;
     const auto transition_pair_x_residual =
         openswd3::special_modes::update_legacy_standard_mode_transition_pair(
@@ -15161,6 +15198,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         );
     auto transition_pair_y_residual_state = transition_pair_update_state;
     transition_pair_y_residual_state.input_flags = 0x01U;
+    transition_pair_y_residual_state.interaction_mode = 2U;
     transition_pair_y_residual_state.pointer_y = 4U;
     FakeTransitionPairPorts transition_pair_y_residual_ports;
     const auto transition_pair_y_residual =
@@ -15199,15 +15237,17 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             transition_pair_update_ports.dispatch_count == 1U &&
             transition_pair_update_ports.played_sample_ids ==
                 std::vector<u32>{0x107U} &&
-            transition_pair_update_ports.commit_count == 1U &&
+            transition_pair_update_ports.callback_modes ==
+                std::vector<u32>{1U} &&
             transition_pair_update_state.mode_word == 0xABCD0001U &&
             transition_pair_update.legacy_return_value == 0x34 &&
             transition_pair_update.helper_call_count == 3U &&
             transition_pair_missing.legacy_return_value == 0 &&
             transition_pair_missing.helper_call_count == 1U &&
-            transition_pair_missing_ports.commit_count == 0U &&
+            transition_pair_missing_ports.callback_modes.empty() &&
             transition_pair_direct_commit_ports.queried_item_ids.empty() &&
-            transition_pair_direct_commit_ports.commit_count == 1U &&
+            transition_pair_direct_commit_ports.callback_modes ==
+                std::vector<u32>{1U} &&
             transition_pair_direct_commit.helper_call_count == 1U &&
             transition_pair_x_residual.legacy_return_value == 0x0A &&
             transition_pair_x_residual.helper_call_count == 0U &&
@@ -15219,7 +15259,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                         cycle_domain_stopped &&
             transition_pair_unreachable.target_mode == 4U &&
             transition_pair_unreachable_ports.dispatch_count == 4U &&
-            transition_pair_unreachable_ports.commit_count == 0U &&
+            transition_pair_unreachable_ports.callback_modes.empty() &&
             transition_pair_do_while.status ==
                 openswd3::special_modes::
                     LegacyStandardModeTransitionPairStatus::completed &&

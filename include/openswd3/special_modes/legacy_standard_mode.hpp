@@ -334,6 +334,7 @@ struct LegacyStandardModeTransitionPairState {
     compat::u32 pointer_y{};
     std::array<compat::u16, 4U> mode_records{};
     compat::u32 sample_owner{};
+    compat::u32 active_owner{};
 };
 
 class LegacyStandardModeTransitionPairPorts {
@@ -351,9 +352,8 @@ public:
     [[nodiscard]] virtual compat::i32 play_transition_pair_sample(
         compat::u32 sample_id, compat::u32 sample_owner
     ) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 commit_transition_pair(
-        LegacyStandardModeTransitionPairState& state
-    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32
+    dispatch_transition_pair_callback(compat::u32 mode) noexcept = 0;
 };
 
 enum class LegacyStandardModeTransitionPairStatus : compat::u8 {
@@ -403,6 +403,12 @@ retreat_legacy_standard_mode_transition_pair(
 
 [[nodiscard]] LegacyStandardModeTransitionPairResult
 retreat_wrapped_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeTransitionPairResult
+commit_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
     LegacyStandardModeTransitionPairPorts& ports
 ) noexcept;

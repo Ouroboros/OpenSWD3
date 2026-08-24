@@ -444,6 +444,27 @@ retreat_wrapped_legacy_standard_mode_transition_pair(
 }
 
 LegacyStandardModeTransitionPairResult
+commit_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionPairResult result;
+    static_cast<void>(
+        release_legacy_standard_mode_transition_pair(state, ports)
+    );
+    ++result.helper_call_count;
+    state.interaction_mode =
+        static_cast<compat::u16>(state.interaction_mode - 1U);
+    if (state.interaction_mode == 0U) {
+        state.active_owner = 0U;
+    }
+    result.legacy_return_value =
+        ports.dispatch_transition_pair_callback(state.interaction_mode);
+    ++result.helper_call_count;
+    return result;
+}
+
+LegacyStandardModeTransitionPairResult
 update_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
     LegacyStandardModeTransitionPairPorts& ports
@@ -491,7 +512,9 @@ update_legacy_standard_mode_transition_pair(
     }
 
     if ((state.input_flags & 0x04U) != 0U) {
-        result.legacy_return_value = ports.commit_transition_pair(state);
+        const auto commit =
+            commit_legacy_standard_mode_transition_pair(state, ports);
+        result.legacy_return_value = commit.legacy_return_value;
         ++result.helper_call_count;
     }
     result.legacy_return_value =
