@@ -341,6 +341,133 @@ initialize_group_eight_selection_records(
 
 }  // namespace
 
+LegacyStandardModeTransitionPairRebuildResult
+rebuild_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionPairRebuildResult result;
+    if (!state.second_record_available) {
+        result.status = LegacyStandardModeTransitionPairRebuildStatus::
+            second_record_unavailable_stopped;
+        return result;
+    }
+    state.second_record = {};
+
+    const compat::u16 mode = static_cast<compat::u16>(state.mode_word);
+    if (mode >= state.render_modes.size()) {
+        result.status = LegacyStandardModeTransitionPairRebuildStatus::
+            mode_out_of_range_stopped;
+        return result;
+    }
+    if (!state.first_record_available) {
+        result.status = LegacyStandardModeTransitionPairRebuildStatus::
+            first_record_unavailable_stopped;
+        return result;
+    }
+
+    const auto& base = state.render_modes[mode];
+    state.first_record.primary_value = base.primary_value;
+    state.first_record.leading_values = base.leading_values;
+    state.first_record.values = base.attributes;
+    state.first_record.trailing_values = base.trailing_values;
+    state.first_record.reserved_values = base.reserved_values;
+    state.first_record.bonuses = base.bonuses;
+    state.first_record.reserved_2a = base.reserved_2a;
+    state.first_record.level = base.level;
+    state.first_record.modifiers = base.modifiers;
+    state.first_record.trailing_36 = base.trailing_36;
+    state.first_record.bonuses = {};
+
+    for (const auto& contribution : state.contributions[mode]) {
+        ports.accumulate_transition_pair_record(state, contribution);
+        ++result.helper_call_count;
+        ++result.contribution_count;
+    }
+    const auto add_words = [](auto& destination, const auto& source) {
+        for (std::size_t index = 0U; index < destination.size(); ++index) {
+            destination[index] =
+                static_cast<compat::u16>(destination[index] + source[index]);
+        }
+    };
+    add_words(
+        state.first_record.leading_values, state.second_record.leading_values
+    );
+    add_words(state.first_record.values, state.second_record.values);
+    add_words(
+        state.first_record.trailing_values, state.second_record.trailing_values
+    );
+    add_words(state.first_record.bonuses, state.second_record.bonuses);
+
+    const auto add_modifier =
+        [&state](const std::size_t index, const compat::i32 delta) {
+            compat::u8 bits =
+                std::bit_cast<compat::u8>(state.first_record.modifiers[index]);
+            bits =
+                static_cast<compat::u8>(bits + static_cast<compat::u8>(delta));
+            state.first_record.modifiers[index] =
+                std::bit_cast<compat::i8>(bits);
+        };
+    for (std::size_t contribution_index = 0U; contribution_index < 7U;
+         ++contribution_index) {
+        const auto& contribution =
+            state.contributions[mode][contribution_index];
+        if (!contribution.available) {
+            result.status = LegacyStandardModeTransitionPairRebuildStatus::
+                contribution_unavailable_stopped;
+            return result;
+        }
+        for (std::size_t index = 0U;
+             index < state.first_record.modifiers.size();
+             ++index) {
+            add_modifier(index, contribution.modifiers[index]);
+        }
+    }
+
+    for (std::size_t contribution_index = 7U; contribution_index < 9U;
+         ++contribution_index) {
+        const auto& contribution =
+            state.contributions[mode][contribution_index];
+        if (!contribution.available) {
+            result.status = LegacyStandardModeTransitionPairRebuildStatus::
+                contribution_unavailable_stopped;
+            return result;
+        }
+        if (contribution.kind != 0x33U) {
+            continue;
+        }
+        const auto scale =
+            ports.query_transition_pair_scale(contribution.lookup_key);
+        ++result.helper_call_count;
+        if (scale.divisor == 0U) {
+            result.status = LegacyStandardModeTransitionPairRebuildStatus::
+                scale_divisor_zero_stopped;
+            return result;
+        }
+        const compat::i32 factor =
+            ((-1000 * static_cast<compat::i32>(scale.value)) /
+             static_cast<compat::i32>(scale.divisor)) /
+            100;
+        for (std::size_t index = 0U;
+             index < state.first_record.modifiers.size();
+             ++index) {
+            const compat::i8 source = contribution.modifiers[index];
+            if (source == 0) {
+                continue;
+            }
+            compat::u8 magnitude_bits = std::bit_cast<compat::u8>(source);
+            if (source < 0) {
+                magnitude_bits = static_cast<compat::u8>(0U - magnitude_bits);
+            }
+            const compat::i32 magnitude =
+                std::bit_cast<compat::i8>(magnitude_bits);
+            add_modifier(index, (factor * magnitude) / 10);
+        }
+    }
+    result.legacy_return_value = 9;
+    return result;
+}
+
 LegacyStandardModeTransitionPairResult
 initialize_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
@@ -355,8 +482,14 @@ initialize_legacy_standard_mode_transition_pair(
     state.second_owner = ports.allocate_transition_pair_buffer(0x38U);
     state.second_record_available = state.second_owner != 0U;
     result.helper_call_count = 2U;
-    result.legacy_return_value = ports.dispatch_transition_pair(state);
+    const auto rebuild =
+        rebuild_legacy_standard_mode_transition_pair(state, ports);
+    result.legacy_return_value = rebuild.legacy_return_value;
     ++result.helper_call_count;
+    if (rebuild.status !=
+        LegacyStandardModeTransitionPairRebuildStatus::completed) {
+        result.status = LegacyStandardModeTransitionPairStatus::rebuild_stopped;
+    }
     return result;
 }
 
@@ -393,8 +526,15 @@ advance_legacy_standard_mode_transition_pair(
         if (state.mode_records[candidate] != 0xFFFFU) {
             state.mode_word = (state.mode_word & 0xFFFF0000U) | candidate;
             result.target_mode = candidate;
-            static_cast<void>(ports.dispatch_transition_pair(state));
+            const auto rebuild =
+                rebuild_legacy_standard_mode_transition_pair(state, ports);
             ++result.helper_call_count;
+            if (rebuild.status !=
+                LegacyStandardModeTransitionPairRebuildStatus::completed) {
+                result.status =
+                    LegacyStandardModeTransitionPairStatus::rebuild_stopped;
+                return result;
+            }
             result.legacy_return_value =
                 ports.play_transition_pair_sample(0x107U, state.sample_owner);
             ++result.helper_call_count;
@@ -425,8 +565,15 @@ retreat_legacy_standard_mode_transition_pair(
         if (state.mode_records[candidate] != 0xFFFFU) {
             state.mode_word = (state.mode_word & 0xFFFF0000U) | candidate;
             result.target_mode = candidate;
-            static_cast<void>(ports.dispatch_transition_pair(state));
+            const auto rebuild =
+                rebuild_legacy_standard_mode_transition_pair(state, ports);
             ++result.helper_call_count;
+            if (rebuild.status !=
+                LegacyStandardModeTransitionPairRebuildStatus::completed) {
+                result.status =
+                    LegacyStandardModeTransitionPairStatus::rebuild_stopped;
+                return result;
+            }
             result.legacy_return_value =
                 ports.play_transition_pair_sample(0x107U, state.sample_owner);
             ++result.helper_call_count;

@@ -499,15 +499,27 @@ public:
         ++allocation_count;
         return value;
     }
-    i32 dispatch_transition_pair(
-        openswd3::special_modes::LegacyStandardModeTransitionPairState& state
+    void accumulate_transition_pair_record(
+        openswd3::special_modes::LegacyStandardModeTransitionPairState& state,
+        const openswd3::special_modes::
+            LegacyStandardModeTransitionPairContribution& contribution
     ) noexcept override {
-        ++dispatch_count;
-        if (dispatch_input_flags.has_value()) {
-            state.input_flags = *dispatch_input_flags;
+        accumulated_owners.push_back(contribution.owner);
+        if ((accumulate_count % 16U) == 0U) {
+            state.second_record = aggregate_record;
+            events.push_back(1U);
         }
-        events.push_back(1U);
-        return dispatch_return;
+        ++accumulate_count;
+        if (rebuild_input_flags.has_value()) {
+            state.input_flags = *rebuild_input_flags;
+        }
+    }
+    openswd3::special_modes::LegacyStandardModeTransitionPairScale
+    query_transition_pair_scale(const u16 lookup_key) noexcept override {
+        queried_scale_keys.push_back(lookup_key);
+        const auto value = scale_returns[scale_count];
+        ++scale_count;
+        return value;
     }
     i32 release_transition_pair_buffer(const u32 owner) noexcept override {
         released_owners.push_back(owner);
@@ -555,13 +567,21 @@ public:
     std::array<u32, 2U> allocation_returns{0x1111U, 0x2222U};
     std::vector<u32> allocation_sizes;
     std::size_t allocation_count{};
-    u32 dispatch_count{};
-    i32 dispatch_return{77};
+    u32 accumulate_count{};
+    std::vector<u32> accumulated_owners;
+    openswd3::special_modes::LegacyStandardModeTransitionPairRecord
+        aggregate_record;
+    std::optional<u8> rebuild_input_flags;
+    std::array<
+        openswd3::special_modes::LegacyStandardModeTransitionPairScale,
+        2U>
+        scale_returns{{{10U, 2U}, {10U, 2U}}};
+    std::vector<u16> queried_scale_keys;
+    std::size_t scale_count{};
     i32 release_base{30};
     std::vector<u32> released_owners;
     i32 presence_return{1};
     std::vector<u32> queried_item_ids;
-    std::optional<u8> dispatch_input_flags;
     std::vector<u32> played_sample_ids;
     std::vector<u32> played_sample_owners;
     std::vector<u32> events;
@@ -15016,8 +15036,11 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
             transition_pair_state.second_owner == 0U &&
             transition_pair_ports.allocation_sizes ==
                 std::vector<u32>{0x38U, 0x38U} &&
-            transition_pair_ports.dispatch_count == 1U &&
-            transition_pair.legacy_return_value == 77 &&
+            transition_pair_ports.accumulate_count == 0U &&
+            transition_pair.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairStatus::rebuild_stopped &&
+            transition_pair.legacy_return_value == 0 &&
             transition_pair.helper_call_count == 3U &&
             transition_pair_ports.released_owners ==
                 std::vector<u32>{0x1111U, 0U} &&
@@ -15031,12 +15054,166 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionPairState
+        transition_pair_rebuild_state;
+    transition_pair_rebuild_state.mode_word = 1U;
+    transition_pair_rebuild_state.first_record_available = true;
+    transition_pair_rebuild_state.second_record_available = true;
+    auto& transition_pair_rebuild_base =
+        transition_pair_rebuild_state.render_modes[1U];
+    transition_pair_rebuild_base.primary_value = 0x10203040U;
+    transition_pair_rebuild_base.leading_values = {1U, 2U, 3U, 4U, 5U, 6U};
+    transition_pair_rebuild_base.attributes = {10U, 11U, 12U, 13U};
+    transition_pair_rebuild_base.trailing_values = {20U, 21U, 22U, 23U};
+    transition_pair_rebuild_base.reserved_values = {30U, 31U, 32U};
+    transition_pair_rebuild_base.bonuses = {99U, 98U};
+    transition_pair_rebuild_base.reserved_2a = 33U;
+    transition_pair_rebuild_base.level = 9U;
+    transition_pair_rebuild_base.modifiers = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    transition_pair_rebuild_base.trailing_36 = 0x4444U;
+    for (std::size_t index = 0U;
+         index < transition_pair_rebuild_state.contributions[1U].size();
+         ++index) {
+        auto& contribution =
+            transition_pair_rebuild_state.contributions[1U][index];
+        contribution.owner = static_cast<u32>(0x1000U + index);
+        if (index < 7U) {
+            contribution.modifiers.fill(1);
+        }
+    }
+    auto& transition_pair_scaled_contribution =
+        transition_pair_rebuild_state.contributions[1U][7U];
+    transition_pair_scaled_contribution.kind = 0x33U;
+    transition_pair_scaled_contribution.lookup_key = 77U;
+    transition_pair_scaled_contribution.modifiers = {
+        1, -1, -128, 0, 0, 0, 0, 0, 0
+    };
+    FakeTransitionPairPorts transition_pair_rebuild_ports;
+    transition_pair_rebuild_ports.aggregate_record.leading_values = {
+        100U, 101U, 102U, 103U, 104U, 105U
+    };
+    transition_pair_rebuild_ports.aggregate_record.values = {
+        1000U, 1001U, 1002U, 1003U
+    };
+    transition_pair_rebuild_ports.aggregate_record.trailing_values = {
+        200U, 201U, 202U, 203U
+    };
+    transition_pair_rebuild_ports.aggregate_record.bonuses = {7U, 8U};
+    transition_pair_rebuild_ports.scale_returns[0U] = {10U, 10U};
+    const auto transition_pair_rebuild =
+        openswd3::special_modes::rebuild_legacy_standard_mode_transition_pair(
+            transition_pair_rebuild_state, transition_pair_rebuild_ports
+        );
+    test.expect_true(
+        transition_pair_rebuild.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairRebuildStatus::completed &&
+            transition_pair_rebuild.legacy_return_value == 9 &&
+            transition_pair_rebuild.helper_call_count == 17U &&
+            transition_pair_rebuild.contribution_count == 16U &&
+            transition_pair_rebuild_ports.accumulate_count == 16U &&
+            transition_pair_rebuild_ports.accumulated_owners.front() ==
+                0x1000U &&
+            transition_pair_rebuild_ports.accumulated_owners.back() ==
+                0x100FU &&
+            transition_pair_rebuild_ports.queried_scale_keys ==
+                std::vector<u16>{77U} &&
+            transition_pair_rebuild_state.first_record.primary_value ==
+                0x10203040U &&
+            transition_pair_rebuild_state.first_record.leading_values[0U] ==
+                101U &&
+            transition_pair_rebuild_state.first_record.values[0U] == 1010U &&
+            transition_pair_rebuild_state.first_record.trailing_values[0U] ==
+                220U &&
+            transition_pair_rebuild_state.first_record.reserved_values[0U] ==
+                30U &&
+            transition_pair_rebuild_state.first_record.bonuses ==
+                std::array<u16, 2U>{7U, 8U} &&
+            transition_pair_rebuild_state.first_record.level == 9U &&
+            transition_pair_rebuild_state.first_record.modifiers[0U] == 7 &&
+            transition_pair_rebuild_state.first_record.modifiers[1U] == 8 &&
+            transition_pair_rebuild_state.first_record.modifiers[2U] == -118 &&
+            transition_pair_rebuild_state.first_record.modifiers[3U] == 11 &&
+            transition_pair_rebuild_state.first_record.trailing_36 == 0x4444U,
+        "0x44AB00 copies the 56-byte base, aggregates sixteen records, adds sixteen u16 fields, and applies seven direct plus type-33 scaled modifier groups"
+    );
+
+    auto transition_pair_rebuild_unavailable_state =
+        transition_pair_rebuild_state;
+    transition_pair_rebuild_unavailable_state.contributions[1U][3U].available =
+        false;
+    FakeTransitionPairPorts transition_pair_rebuild_unavailable_ports;
+    const auto transition_pair_rebuild_unavailable =
+        openswd3::special_modes::rebuild_legacy_standard_mode_transition_pair(
+            transition_pair_rebuild_unavailable_state,
+            transition_pair_rebuild_unavailable_ports
+        );
+    auto transition_pair_rebuild_zero_state = transition_pair_rebuild_state;
+    transition_pair_rebuild_zero_state.contributions[1U][7U].kind = 0x33U;
+    FakeTransitionPairPorts transition_pair_rebuild_zero_ports;
+    transition_pair_rebuild_zero_ports.scale_returns[0U] = {0U, 10U};
+    const auto transition_pair_rebuild_zero =
+        openswd3::special_modes::rebuild_legacy_standard_mode_transition_pair(
+            transition_pair_rebuild_zero_state,
+            transition_pair_rebuild_zero_ports
+        );
+    auto transition_pair_rebuild_bad_mode_state = transition_pair_rebuild_state;
+    transition_pair_rebuild_bad_mode_state.mode_word = 4U;
+    transition_pair_rebuild_bad_mode_state.second_record.primary_value =
+        0xFFFFFFFFU;
+    FakeTransitionPairPorts transition_pair_rebuild_bad_mode_ports;
+    const auto transition_pair_rebuild_bad_mode =
+        openswd3::special_modes::rebuild_legacy_standard_mode_transition_pair(
+            transition_pair_rebuild_bad_mode_state,
+            transition_pair_rebuild_bad_mode_ports
+        );
+    auto transition_pair_rebuild_no_second_state =
+        transition_pair_rebuild_state;
+    transition_pair_rebuild_no_second_state.second_record_available = false;
+    transition_pair_rebuild_no_second_state.second_record.primary_value =
+        0xAABBCCDDU;
+    FakeTransitionPairPorts transition_pair_rebuild_no_second_ports;
+    const auto transition_pair_rebuild_no_second =
+        openswd3::special_modes::rebuild_legacy_standard_mode_transition_pair(
+            transition_pair_rebuild_no_second_state,
+            transition_pair_rebuild_no_second_ports
+        );
+    test.expect_true(
+        transition_pair_rebuild_unavailable.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairRebuildStatus::
+                        contribution_unavailable_stopped &&
+            transition_pair_rebuild_unavailable.helper_call_count == 16U &&
+            transition_pair_rebuild_unavailable_state.first_record
+                    .modifiers[0U] == 4 &&
+            transition_pair_rebuild_zero.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairRebuildStatus::
+                        scale_divisor_zero_stopped &&
+            transition_pair_rebuild_zero.helper_call_count == 17U &&
+            transition_pair_rebuild_bad_mode.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairRebuildStatus::
+                        mode_out_of_range_stopped &&
+            transition_pair_rebuild_bad_mode_state.second_record
+                    .primary_value == 0U &&
+            transition_pair_rebuild_no_second.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairRebuildStatus::
+                        second_record_unavailable_stopped &&
+            transition_pair_rebuild_no_second_state.second_record
+                    .primary_value == 0xAABBCCDDU,
+        "0x44AB00 stops only after the original clear, contribution read, or divisor read while preserving prior side effects"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionPairState
         transition_pair_advance_state;
     transition_pair_advance_state.mode_word = 0xABCD0003U;
     transition_pair_advance_state.mode_records = {
         0xFFFFU, 0xFFFFU, 7U, 0xFFFFU
     };
     transition_pair_advance_state.sample_owner = 0x7777U;
+    transition_pair_advance_state.first_record_available = true;
+    transition_pair_advance_state.second_record_available = true;
     FakeTransitionPairPorts transition_pair_advance_ports;
     const auto transition_pair_advance =
         openswd3::special_modes::advance_legacy_standard_mode_transition_pair(
@@ -15080,6 +15257,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         0xFFFFU, 0xFFFFU, 7U, 0xFFFFU
     };
     transition_pair_retreat_state.sample_owner = 0x8888U;
+    transition_pair_retreat_state.first_record_available = true;
+    transition_pair_retreat_state.second_record_available = true;
     FakeTransitionPairPorts transition_pair_retreat_ports;
     const auto transition_pair_retreat =
         openswd3::special_modes::retreat_legacy_standard_mode_transition_pair(
@@ -15125,6 +15304,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         0xFFFFU, 0xFFFFU, 7U, 0xFFFFU
     };
     transition_pair_wrapped_retreat_state.sample_owner = 0x9999U;
+    transition_pair_wrapped_retreat_state.first_record_available = true;
+    transition_pair_wrapped_retreat_state.second_record_available = true;
     FakeTransitionPairPorts transition_pair_wrapped_retreat_ports;
     const auto transition_pair_wrapped_retreat = openswd3::special_modes::
         retreat_wrapped_legacy_standard_mode_transition_pair(
@@ -15308,8 +15489,10 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     transition_pair_update_state.interaction_mode = 2U;
     transition_pair_update_state.pointer_x = 0x79U;
     transition_pair_update_state.pointer_y = 5U;
+    transition_pair_update_state.first_record_available = true;
+    transition_pair_update_state.second_record_available = true;
     FakeTransitionPairPorts transition_pair_update_ports;
-    transition_pair_update_ports.dispatch_input_flags = 0x04U;
+    transition_pair_update_ports.rebuild_input_flags = 0x04U;
     const auto transition_pair_update =
         openswd3::special_modes::update_legacy_standard_mode_transition_pair(
             transition_pair_update_state, transition_pair_update_ports
@@ -15362,6 +15545,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     transition_pair_unreachable_state.interaction_mode = 2U;
     transition_pair_unreachable_state.pointer_x = 0x1C3U;
     transition_pair_unreachable_state.pointer_y = 5U;
+    transition_pair_unreachable_state.first_record_available = true;
+    transition_pair_unreachable_state.second_record_available = true;
     FakeTransitionPairPorts transition_pair_unreachable_ports;
     const auto transition_pair_unreachable =
         openswd3::special_modes::update_legacy_standard_mode_transition_pair(
@@ -15375,6 +15560,8 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     transition_pair_do_while_state.interaction_mode = 2U;
     transition_pair_do_while_state.pointer_x = 0x79U;
     transition_pair_do_while_state.pointer_y = 5U;
+    transition_pair_do_while_state.first_record_available = true;
+    transition_pair_do_while_state.second_record_available = true;
     FakeTransitionPairPorts transition_pair_do_while_ports;
     const auto transition_pair_do_while =
         openswd3::special_modes::update_legacy_standard_mode_transition_pair(
@@ -15384,7 +15571,7 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         transition_pair_update_ports.queried_item_ids ==
                 std::vector<u32>{31U} &&
-            transition_pair_update_ports.dispatch_count == 1U &&
+            transition_pair_update_ports.accumulate_count == 16U &&
             transition_pair_update_ports.played_sample_ids ==
                 std::vector<u32>{0x107U} &&
             transition_pair_update_ports.callback_modes ==
@@ -15408,12 +15595,12 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                     LegacyStandardModeTransitionPairStatus::
                         cycle_domain_stopped &&
             transition_pair_unreachable.target_mode == 4U &&
-            transition_pair_unreachable_ports.dispatch_count == 4U &&
+            transition_pair_unreachable_ports.accumulate_count == 64U &&
             transition_pair_unreachable_ports.callback_modes.empty() &&
             transition_pair_do_while.status ==
                 openswd3::special_modes::
                     LegacyStandardModeTransitionPairStatus::completed &&
-            transition_pair_do_while_ports.dispatch_count == 4U &&
+            transition_pair_do_while_ports.accumulate_count == 64U &&
             transition_pair_do_while.helper_call_count == 5U,
         "0x44A050 dispatches the unsigned grid, rereads flags after cycling, and stops only after the full four-mode domain"
     );

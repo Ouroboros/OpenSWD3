@@ -325,15 +325,42 @@ confirm_legacy_standard_mode_transition(
 ) noexcept;
 
 struct LegacyStandardModeTransitionPairRecord {
+    compat::u32 primary_value{};
+    std::array<compat::u16, 6U> leading_values{};
     std::array<compat::u16, 4U> values{};
+    std::array<compat::u16, 4U> trailing_values{};
+    std::array<compat::u16, 3U> reserved_values{};
     std::array<compat::u16, 2U> bonuses{};
+    compat::u16 reserved_2a{};
     compat::u8 level{};
     std::array<compat::i8, 9U> modifiers{};
+    compat::u16 trailing_36{};
 };
 
 struct LegacyStandardModeTransitionPairRenderModeRecord {
     compat::u32 primary_value{};
+    std::array<compat::u16, 6U> leading_values{};
     std::array<compat::u16, 4U> attributes{};
+    std::array<compat::u16, 4U> trailing_values{};
+    std::array<compat::u16, 3U> reserved_values{};
+    std::array<compat::u16, 2U> bonuses{};
+    compat::u16 reserved_2a{};
+    compat::u8 level{};
+    std::array<compat::i8, 9U> modifiers{};
+    compat::u16 trailing_36{};
+};
+
+struct LegacyStandardModeTransitionPairContribution {
+    bool available{true};
+    compat::u32 owner{};
+    compat::u16 lookup_key{};
+    compat::u16 kind{};
+    std::array<compat::i8, 9U> modifiers{};
+};
+
+struct LegacyStandardModeTransitionPairScale {
+    compat::u16 divisor{};
+    compat::u16 value{};
 };
 
 enum class LegacyStandardModeTransitionPairRenderCommandType : compat::u8 {
@@ -408,6 +435,9 @@ struct LegacyStandardModeTransitionPairState {
     LegacyStandardModeTransitionPairRecord second_record;
     std::array<LegacyStandardModeTransitionPairRenderModeRecord, 4U>
         render_modes{};
+    std::
+        array<std::array<LegacyStandardModeTransitionPairContribution, 16U>, 4U>
+            contributions{};
 };
 
 class LegacyStandardModeTransitionPairPorts {
@@ -415,9 +445,12 @@ public:
     virtual ~LegacyStandardModeTransitionPairPorts() = default;
     [[nodiscard]] virtual compat::u32
     allocate_transition_pair_buffer(compat::u32 size) noexcept = 0;
-    [[nodiscard]] virtual compat::i32 dispatch_transition_pair(
-        LegacyStandardModeTransitionPairState& state
+    virtual void accumulate_transition_pair_record(
+        LegacyStandardModeTransitionPairState& state,
+        const LegacyStandardModeTransitionPairContribution& contribution
     ) noexcept = 0;
+    [[nodiscard]] virtual LegacyStandardModeTransitionPairScale
+    query_transition_pair_scale(compat::u16 lookup_key) noexcept = 0;
     [[nodiscard]] virtual compat::i32
     release_transition_pair_buffer(compat::u32 owner) noexcept = 0;
     [[nodiscard]] virtual compat::i32
@@ -436,6 +469,25 @@ enum class LegacyStandardModeTransitionPairStatus : compat::u8 {
     completed,
     cycle_domain_stopped,
     unavailable_mode_domain_stopped,
+    rebuild_stopped,
+};
+
+enum class LegacyStandardModeTransitionPairRebuildStatus : compat::u8 {
+    completed,
+    mode_out_of_range_stopped,
+    first_record_unavailable_stopped,
+    second_record_unavailable_stopped,
+    contribution_unavailable_stopped,
+    scale_divisor_zero_stopped,
+};
+
+struct LegacyStandardModeTransitionPairRebuildResult {
+    LegacyStandardModeTransitionPairRebuildStatus status{
+        LegacyStandardModeTransitionPairRebuildStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    compat::u32 contribution_count{};
 };
 
 enum class LegacyStandardModeTransitionPairRenderStatus : compat::u8 {
@@ -507,6 +559,12 @@ commit_legacy_standard_mode_transition_pair(
 
 [[nodiscard]] LegacyStandardModeTransitionPairRenderResult
 render_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept;
+
+[[nodiscard]] LegacyStandardModeTransitionPairRebuildResult
+rebuild_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
     LegacyStandardModeTransitionPairPorts& ports
 ) noexcept;
