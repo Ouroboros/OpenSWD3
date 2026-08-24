@@ -416,6 +416,69 @@ LegacyStandardModeCatalogResult release_legacy_standard_mode_catalog(
     return result;
 }
 
+LegacyStandardModeCatalogInputResult page_down_legacy_standard_mode_system_menu(
+    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+) noexcept {
+    LegacyStandardModeCatalogInputResult result;
+    const auto set_legacy = [&result](const compat::u32 value) {
+        result.legacy_return_value = std::bit_cast<compat::i32>(value);
+    };
+    const auto play_sample = [&result, &ports, &state]() {
+        result.command = LegacyStandardModeCatalogInputCommand::play_sample;
+        ++result.helper_call_count;
+        result.legacy_return_value = ports.execute_catalog_input_command(
+            LegacyStandardModeCatalogInputCommand::play_sample,
+            state.message_sample_owner,
+            state
+        );
+    };
+    if (state.input_locked != 0U) {
+        set_legacy(state.input_locked);
+        return result;
+    }
+    const compat::u32 mode = state.interaction_mode;
+    set_legacy(mode);
+    switch (mode) {
+    case 0U:
+        if (state.interaction_page != 4U) {
+            play_sample();
+        }
+        state.interaction_page = 4U;
+        return result;
+    case 1U:
+        if (state.interaction_page == 2U) {
+            return advance_legacy_standard_mode_catalog_selection(state, ports);
+        }
+        if (state.interaction_page == 3U) {
+            state.selected_row = 6U;
+            play_sample();
+            return result;
+        }
+        set_legacy(state.interaction_page - 4U);
+        if (state.interaction_page == 4U) {
+            state.selected_row = 2U;
+            play_sample();
+        }
+        return result;
+    case 2U:
+        if (state.interaction_page == 4U) {
+            const compat::u32 next = state.detail_selection - 1U;
+            state.detail_selection = next;
+            set_legacy(next);
+            if (std::bit_cast<compat::i32>(next) < 0) {
+                state.detail_selection = 0U;
+            }
+        }
+        return result;
+    case 5U:
+        state.selected_entry = 0x0FU;
+        play_sample();
+        return result;
+    default:
+        return result;
+    }
+}
+
 LegacyStandardModeCatalogInputResult
 retreat_legacy_standard_mode_catalog_selection(
     LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
@@ -701,7 +764,11 @@ LegacyStandardModeCatalogInputResult update_legacy_standard_mode_catalog_input(
         }
         if (signed_x < state.lower_dynamic_right &&
             signed_x > state.lower_dynamic_left) {
-            call(LegacyStandardModeCatalogInputCommand::lower_dynamic_hover);
+            const LegacyStandardModeCatalogInputResult page_down =
+                page_down_legacy_standard_mode_system_menu(state, ports);
+            result.helper_call_count += page_down.helper_call_count;
+            result.legacy_return_value = page_down.legacy_return_value;
+            result.command = page_down.command;
             return result;
         }
     }

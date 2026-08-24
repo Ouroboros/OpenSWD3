@@ -400,7 +400,6 @@ struct LegacyStandardModeCatalogState {
 
 enum class LegacyStandardModeCatalogInputCommand : compat::u8 {
     upper_dynamic_hover,
-    lower_dynamic_hover,
     open_mode_fourteen,
     exit,
     commit,
@@ -477,6 +476,11 @@ struct LegacyStandardModeCatalogInputResult {
     compat::u32 helper_call_count{};
     std::optional<LegacyStandardModeCatalogInputCommand> command;
 };
+
+[[nodiscard]] LegacyStandardModeCatalogInputResult
+page_down_legacy_standard_mode_system_menu(
+    LegacyStandardModeCatalogState& state, LegacyStandardModeCatalogPorts& ports
+) noexcept;
 
 [[nodiscard]] LegacyStandardModeCatalogInputResult
 retreat_legacy_standard_mode_catalog_selection(

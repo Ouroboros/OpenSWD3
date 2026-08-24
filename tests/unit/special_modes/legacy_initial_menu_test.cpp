@@ -15290,6 +15290,97 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x44B070 returns the full lock owner residual before querying input"
     );
 
+    openswd3::special_modes::LegacyStandardModeCatalogState last_page_state;
+    last_page_state.interaction_mode = 0U;
+    last_page_state.interaction_page = 2U;
+    last_page_state.message_sample_owner = 0x12345678U;
+    FakeStandardModeCatalogPorts last_page_ports;
+    static_cast<void>(
+        openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
+            last_page_state, last_page_ports
+        )
+    );
+    test.expect_true(
+        last_page_state.interaction_page == 4U &&
+            last_page_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::play_sample, 0x12345678U}
+                },
+        "0x44B840 moves mode zero to page four and only plays the sample when the page changes"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState last_window_state;
+    last_window_state.interaction_mode = 1U;
+    last_window_state.interaction_page = 2U;
+    last_window_state.entry_count = 6U;
+    last_window_state.catalog_visible_count = 2U;
+    FakeStandardModeCatalogPorts last_window_ports;
+    const auto last_window =
+        openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
+            last_window_state, last_window_ports
+        );
+    test.expect_true(
+        last_window_state.catalog_page_start == 5U &&
+            last_window_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::rebuild_page, 0U},
+                    {CatalogCommand::count_visible, 0U}
+                } &&
+            last_window.helper_call_count == 2U,
+        "0x44B840 tail-dispatches mode-one page two through the closed forward helper"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState last_rows_state;
+    last_rows_state.interaction_mode = 1U;
+    last_rows_state.interaction_page = 4U;
+    last_rows_state.message_sample_owner = 7U;
+    FakeStandardModeCatalogPorts last_rows_ports;
+    static_cast<void>(
+        openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
+            last_rows_state, last_rows_ports
+        )
+    );
+    test.expect_true(
+        last_rows_state.selected_row == 2U &&
+            last_rows_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::play_sample, 7U}
+                },
+        "0x44B840 preserves the original mode-one page-four terminal row value two"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState last_detail_state;
+    last_detail_state.interaction_mode = 2U;
+    last_detail_state.interaction_page = 4U;
+    FakeStandardModeCatalogPorts last_detail_ports;
+    const auto last_detail =
+        openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
+            last_detail_state, last_detail_ports
+        );
+    test.expect_true(
+        last_detail_state.detail_selection == 0U &&
+            last_detail.legacy_return_value == -1,
+        "0x44B840 preserves the negative detail decrement EAX before clamping to zero"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState last_entry_state;
+    last_entry_state.interaction_mode = 5U;
+    last_entry_state.message_sample_owner = 9U;
+    FakeStandardModeCatalogPorts last_entry_ports;
+    static_cast<void>(
+        openswd3::special_modes::page_down_legacy_standard_mode_system_menu(
+            last_entry_state, last_entry_ports
+        )
+    );
+    test.expect_true(
+        last_entry_state.selected_entry == 0x0FU &&
+            last_entry_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::play_sample, 9U}
+                },
+        "0x44B840 selects fixed mode-five entry fifteen before its sample"
+    );
+
     openswd3::special_modes::LegacyStandardModeCatalogState retreat_page_state;
     retreat_page_state.interaction_mode = 0U;
     retreat_page_state.interaction_page = 0U;
@@ -15557,6 +15648,33 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
                 } &&
             catalog_dynamic_hover.helper_call_count == 2U,
         "0x44B070 keeps the two dynamic hover bounds as signed comparisons"
+    );
+
+    openswd3::special_modes::LegacyStandardModeCatalogState
+        catalog_lower_dynamic_state;
+    catalog_lower_dynamic_state.entry_count = 6U;
+    catalog_lower_dynamic_state.pointer_x = 205U;
+    catalog_lower_dynamic_state.pointer_y = 0x265U;
+    catalog_lower_dynamic_state.interaction_mode = 1U;
+    catalog_lower_dynamic_state.interaction_page = 2U;
+    catalog_lower_dynamic_state.lower_dynamic_left = 200;
+    catalog_lower_dynamic_state.lower_dynamic_right = 210;
+    catalog_lower_dynamic_state.message_sample_owner = 0xAA55U;
+    FakeStandardModeCatalogPorts catalog_lower_dynamic_ports;
+    catalog_lower_dynamic_ports.input_status_return = 1;
+    const auto catalog_lower_dynamic =
+        openswd3::special_modes::update_legacy_standard_mode_catalog_input(
+            catalog_lower_dynamic_state, catalog_lower_dynamic_ports
+        );
+    test.expect_true(
+        catalog_lower_dynamic_state.catalog_page_start == 5U &&
+            catalog_lower_dynamic_ports.input_commands ==
+                std::vector<std::pair<CatalogCommand, u32>>{
+                    {CatalogCommand::rebuild_page, 0U},
+                    {CatalogCommand::count_visible, 0U}
+                } &&
+            catalog_lower_dynamic.helper_call_count == 3U,
+        "0x44B070 directly reuses 0x44B840 for the lower dynamic hover window"
     );
 
     openswd3::special_modes::LegacyStandardModeCatalogState catalog_exit_state;
