@@ -814,7 +814,7 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::u32 total_record_count{};
     compat::u32 guardian_slot{};
     compat::u32 interaction_mode{};
-    compat::u32 secondary_mode_value{};
+    const LegacyStandardModeForwardNode* visible_record_head{};
     LegacyStandardModeForwardNode* record_head{};
     compat::u32 action_scratch_id{};
     compat::u32 panel_offset{};
@@ -830,6 +830,8 @@ struct LegacyStandardModeGuardianInitializationState {
     compat::i32 second_dynamic_min_y{};
     compat::i32 second_dynamic_max_y{};
     compat::i32 hover_flag{};
+    compat::u32 mode_flags{};
+    compat::u32 sample_owner{};
     bool uses_alternate_record_list{};
 };
 
@@ -874,6 +876,7 @@ enum class LegacyStandardModeGuardianInputStatus : compat::u8 {
     availability_index_out_of_range,
     selected_node_missing,
     shared_text_stopped,
+    guardian_selection_stopped,
 };
 
 struct LegacyStandardModeGuardianInputResult {
@@ -885,7 +888,43 @@ struct LegacyStandardModeGuardianInputResult {
     std::optional<LegacyStandardModeGuardianInputTarget> last_target{};
 };
 
-class LegacyStandardModeGuardianInputPorts {
+enum class LegacyStandardModeGuardianSelectionTarget : compat::u8 {
+    begin_slot_cycle,
+    refresh_guardian_record,
+    refresh_attribute_cache,
+};
+
+enum class LegacyStandardModeGuardianSelectionStatus : compat::u8 {
+    completed,
+    visible_head_missing,
+    selected_node_missing,
+    guardian_record_out_of_range,
+    shared_text_stopped,
+};
+
+struct LegacyStandardModeGuardianSelectionResult {
+    LegacyStandardModeGuardianSelectionStatus status{
+        LegacyStandardModeGuardianSelectionStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+    std::optional<LegacyStandardModeGuardianSelectionTarget> last_target{};
+};
+
+class LegacyStandardModeGuardianSelectionPorts {
+public:
+    virtual ~LegacyStandardModeGuardianSelectionPorts() = default;
+    [[nodiscard]] virtual compat::i32 invoke_guardian_selection(
+        LegacyStandardModeGuardianSelectionTarget target,
+        LegacyStandardModeGuardianInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual compat::i32 execute_guardian_sample_command(
+        compat::u16 command_id, compat::u32 sample_owner
+    ) noexcept = 0;
+};
+
+class LegacyStandardModeGuardianInputPorts
+    : public LegacyStandardModeGuardianSelectionPorts {
 public:
     virtual ~LegacyStandardModeGuardianInputPorts() = default;
     [[nodiscard]] virtual compat::i32 invoke_guardian_input(
@@ -2516,11 +2555,20 @@ release_legacy_standard_mode_database(
 ) noexcept;
 
 // sub_43D530: initialize standard-mode record tables and runtime owners.
+[[nodiscard]] LegacyStandardModeGuardianSelectionResult
+advance_legacy_standard_mode_guardian_selection(
+    LegacyStandardModeGuardianInitializationState& state,
+    std::span<const compat::u32> guardian_text_indices,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianSelectionPorts& ports
+) noexcept;
+
 [[nodiscard]] LegacyStandardModeGuardianInputResult
 handle_legacy_standard_mode_guardian_input(
     LegacyStandardModeGuardianInitializationState& state,
     LegacyStandardModeGuardianInputSnapshot& input,
     std::span<const LegacyStandardModeAvailabilityRecord> availability_records,
+    std::span<const compat::u32> guardian_text_indices,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianInputPorts& ports
 ) noexcept;

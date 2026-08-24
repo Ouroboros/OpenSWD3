@@ -4,7 +4,7 @@
 
 唯一行为真值为`swd3.exe.lst`。完整函数范围`0x004407F0..0x00440B18`，405行；39FD0与B480把本函数地址写入共享输入callback。callee为40DC50、437300、B9C0、B9E0、C090、440B20/440C20/440D20/440E10、441060/441160/441590及4429B0。
 
-新增`LegacyStandardModeGuardianInputSnapshot`承载buttons、原版纵向坐标4A9928、横向坐标4A9924及fastcall ECX/EDX。所有未闭环callee通过一个可变typed invoke边界表达；每次callee后只在LST明确位置重读state/input，不假设callee不改全局。
+新增`LegacyStandardModeGuardianInputSnapshot`承载buttons、原版纵向坐标4A9928、横向坐标4A9924及fastcall ECX/EDX。440B20闭环后，三处caller均直接复用typed selection helper；其余未闭环callee通过可变typed invoke边界表达。每次callee后只在LST明确位置重读state/input，不假设callee不改全局。
 
 ## 区域优先级
 
