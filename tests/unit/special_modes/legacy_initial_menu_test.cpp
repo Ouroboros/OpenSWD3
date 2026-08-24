@@ -2889,6 +2889,118 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         );
     }
 
+    {
+        sm::LegacyStandardModeForwardNode source_root;
+        sm::LegacyStandardModeForwardNode skipped_first;
+        sm::LegacyStandardModeForwardNode matched_twenty;
+        sm::LegacyStandardModeForwardNode matched_zero;
+        sm::LegacyStandardModeForwardNode matched_equal;
+        sm::LegacyStandardModeForwardNode skipped_last;
+        skipped_first.text_index = 30U;
+        skipped_first.filter_category = 0x77U;
+        matched_twenty.text_index = 20U;
+        matched_twenty.filter_category = 0x1CU;
+        matched_zero.text_index = 10U;
+        matched_zero.filter_category = 0U;
+        matched_equal.text_index = 20U;
+        matched_equal.filter_category = 0x1CU;
+        skipped_last.text_index = 40U;
+        skipped_last.filter_category = 0x1BU;
+        source_root.next = &skipped_first;
+        skipped_first.next = &matched_twenty;
+        matched_twenty.next = &matched_zero;
+        matched_zero.next = &matched_equal;
+        matched_equal.next = &skipped_last;
+        sm::LegacyStandardModeEquipmentSortedRecordState destination;
+        destination.sentinel_text_index = 0U;
+        destination.cleared_word = 0xFFFFU;
+        const auto sorted = sm::sort_legacy_standard_mode_equipment_records(
+            source_root, destination, 0U
+        );
+        test.expect_true(
+            sorted.status ==
+                    sm::LegacyStandardModeEquipmentRecordSortStatus::
+                        completed &&
+                sorted.extracted_count == 3U && sorted.skipped_count == 2U &&
+                !sorted.returned_pointer &&
+                sorted.legacy_return_word == 0x1BU &&
+                source_root.next == &skipped_first &&
+                skipped_first.next == &skipped_last &&
+                skipped_last.next == nullptr &&
+                destination.head == &matched_zero &&
+                matched_zero.next == &matched_equal &&
+                matched_equal.next == &matched_twenty &&
+                matched_twenty.next == nullptr &&
+                destination.sentinel_text_index == 0U &&
+                destination.cleared_word == 0U,
+            "0x444DB0 extracts matching/zero categories and sorts by text index"
+        );
+
+        sm::LegacyStandardModeForwardNode sentinel_root;
+        sm::LegacyStandardModeForwardNode sentinel_twenty;
+        sm::LegacyStandardModeForwardNode sentinel_ten;
+        sentinel_twenty.text_index = 20U;
+        sentinel_twenty.filter_category = 0x1CU;
+        sentinel_ten.text_index = 10U;
+        sentinel_ten.filter_category = 0x1CU;
+        sentinel_root.next = &sentinel_twenty;
+        sentinel_twenty.next = &sentinel_ten;
+        sm::LegacyStandardModeEquipmentSortedRecordState sentinel_destination;
+        sentinel_destination.sentinel_text_index = 30U;
+        const auto sentinel_sorted =
+            sm::sort_legacy_standard_mode_equipment_records(
+                sentinel_root, sentinel_destination, 0U
+            );
+        test.expect_true(
+            sentinel_sorted.returned_pointer &&
+                sentinel_sorted.legacy_return_node == nullptr &&
+                sentinel_destination.head == &sentinel_twenty &&
+                sentinel_twenty.next == &sentinel_ten,
+            "0x444DB0 preserves the destination-sentinel comparison bug"
+        );
+
+        sm::LegacyStandardModeForwardNode out_of_range_root;
+        sm::LegacyStandardModeForwardNode out_of_range_node;
+        out_of_range_node.filter_category = 0x1CU;
+        out_of_range_root.next = &out_of_range_node;
+        sm::LegacyStandardModeEquipmentSortedRecordState out_of_range_dest;
+        out_of_range_dest.head = &matched_zero;
+        out_of_range_dest.sentinel_text_index = 9U;
+        out_of_range_dest.cleared_word = 7U;
+        const auto out_of_range =
+            sm::sort_legacy_standard_mode_equipment_records(
+                out_of_range_root, out_of_range_dest, 5U
+            );
+        test.expect_true(
+            out_of_range.status ==
+                    sm::LegacyStandardModeEquipmentRecordSortStatus::
+                        filter_index_out_of_range &&
+                out_of_range_root.next == &out_of_range_node &&
+                out_of_range_dest.head == nullptr &&
+                out_of_range_dest.sentinel_text_index == 9U &&
+                out_of_range_dest.cleared_word == 0U,
+            "0x444DB0 filter-table typed-stop preserves the output-clear prefix"
+        );
+
+        sm::LegacyStandardModeForwardNode empty_root;
+        sm::LegacyStandardModeEquipmentSortedRecordState empty_destination;
+        empty_destination.head = &matched_zero;
+        empty_destination.cleared_word = 8U;
+        const auto empty = sm::sort_legacy_standard_mode_equipment_records(
+            empty_root, empty_destination, 99U
+        );
+        test.expect_true(
+            empty.status ==
+                    sm::LegacyStandardModeEquipmentRecordSortStatus::
+                        completed &&
+                empty.returned_pointer &&
+                empty.legacy_return_node == &empty_root &&
+                empty_destination.head == nullptr &&
+                empty_destination.cleared_word == 0U,
+            "0x444DB0 empty source returns before reading the filter table"
+        );
+    }
+
     class EquipmentRenderPorts final
         : public sm::LegacyStandardModeEquipmentRenderPorts {
     public:

@@ -368,6 +368,76 @@ LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     return result;
 }
 
+LegacyStandardModeEquipmentRecordSortResult
+sort_legacy_standard_mode_equipment_records(
+    LegacyStandardModeForwardNode& source_root,
+    LegacyStandardModeEquipmentSortedRecordState& destination,
+    const compat::u32 filter_index
+) noexcept {
+    LegacyStandardModeEquipmentRecordSortResult result;
+    destination.head = nullptr;
+    destination.cleared_word = 0U;
+    const LegacyStandardModeForwardNode** source_link = &source_root.next;
+    LegacyStandardModeForwardNode* current =
+        const_cast<LegacyStandardModeForwardNode*>(source_root.next);
+    if (current == nullptr) {
+        result.legacy_return_node = &source_root;
+        result.returned_pointer = true;
+        return result;
+    }
+    constexpr std::array<compat::u16, 5U> kFilterValues{
+        0x001CU, 0x001BU, 0x001FU, 0x001DU, 0x001EU
+    };
+    if (filter_index >= kFilterValues.size()) {
+        result.status = LegacyStandardModeEquipmentRecordSortStatus::
+            filter_index_out_of_range;
+        return result;
+    }
+    const compat::u16 target = kFilterValues[filter_index];
+    while (current != nullptr) {
+        const compat::u16 category = current->filter_category;
+        result.legacy_return_word = category;
+        result.returned_pointer = false;
+        if (category != target && category != 0U) {
+            source_link = &current->next;
+            current = const_cast<LegacyStandardModeForwardNode*>(current->next);
+            ++result.skipped_count;
+            continue;
+        }
+
+        const LegacyStandardModeForwardNode** destination_link =
+            &destination.head;
+        LegacyStandardModeForwardNode* predecessor = nullptr;
+        LegacyStandardModeForwardNode* scan =
+            const_cast<LegacyStandardModeForwardNode*>(destination.head);
+        if (scan != nullptr) {
+            const compat::u16 text_index = current->text_index;
+            while (scan != nullptr) {
+                const compat::u16 predecessor_text = predecessor == nullptr
+                    ? destination.sentinel_text_index
+                    : predecessor->text_index;
+                if (scan->text_index >= text_index &&
+                    predecessor_text < text_index) {
+                    break;
+                }
+                predecessor = scan;
+                destination_link = &scan->next;
+                scan = const_cast<LegacyStandardModeForwardNode*>(scan->next);
+            }
+        }
+
+        LegacyStandardModeForwardNode* extracted = current;
+        *source_link = current->next;
+        current = const_cast<LegacyStandardModeForwardNode*>(current->next);
+        extracted->next = *destination_link;
+        *destination_link = extracted;
+        result.legacy_return_node = scan;
+        result.returned_pointer = true;
+        ++result.extracted_count;
+    }
+    return result;
+}
+
 LegacyStandardModeEquipmentInitializationResult
 initialize_legacy_standard_mode_equipment(
     LegacyStandardModeEquipmentInitializationState& state,

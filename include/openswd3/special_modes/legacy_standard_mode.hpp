@@ -647,6 +647,35 @@ struct LegacyStandardModeForwardNode {
     std::string animated_text{};
 };
 
+struct LegacyStandardModeEquipmentSortedRecordState {
+    const LegacyStandardModeForwardNode* head{};
+    compat::u16 sentinel_text_index{};
+    compat::u16 cleared_word{};
+};
+
+enum class LegacyStandardModeEquipmentRecordSortStatus : compat::u8 {
+    completed,
+    filter_index_out_of_range,
+};
+
+struct LegacyStandardModeEquipmentRecordSortResult {
+    LegacyStandardModeEquipmentRecordSortStatus status{
+        LegacyStandardModeEquipmentRecordSortStatus::completed
+    };
+    const LegacyStandardModeForwardNode* legacy_return_node{};
+    compat::u16 legacy_return_word{};
+    bool returned_pointer{};
+    compat::u32 extracted_count{};
+    compat::u32 skipped_count{};
+};
+
+[[nodiscard]] LegacyStandardModeEquipmentRecordSortResult
+sort_legacy_standard_mode_equipment_records(
+    LegacyStandardModeForwardNode& source_root,
+    LegacyStandardModeEquipmentSortedRecordState& destination,
+    compat::u32 filter_index
+) noexcept;
+
 struct LegacyStandardModeEquipmentInitializationState {
     compat::u32 party_selector{};
     compat::u16 text_resource_word{};
