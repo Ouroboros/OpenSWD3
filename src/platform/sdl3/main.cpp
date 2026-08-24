@@ -5000,9 +5000,6 @@ public:
                         }
                         void release_transition_world() noexcept override {}
                         void refresh_transition_runtime() noexcept override {}
-                        void
-                        prepare_transition_settings_runtime() noexcept override {
-                        }
                         void present_transition_runtime() noexcept override {}
                         bool mode_one_asset_ready() noexcept override {
                             return false;

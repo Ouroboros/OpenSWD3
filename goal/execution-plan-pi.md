@@ -1,12 +1,12 @@
 # OpenSWD3 执行 GOAL
 
-版本：v581
+版本：v582
 
 最后更新：2026-08-23
 
 当前阶段：B · 按模块逆向、实现与验证
 
-当前步骤：模块9 · 审计`0x00449D80`
+当前步骤：模块9 · 审计`0x00449FF0`
 
 ## 0. 执行约定
 
@@ -3763,10 +3763,11 @@ B7 P0 有限收口完成。
 - 模块9转场设置提交`0x00449050`恢复完成。progress1定位四段末项；progress5先回progress1，再查询服务48并按sample、surface、spacing、100、服务低字节、source、auxiliary格式化；48840退出caller已直连。定向UT与独立ASan通过。workpack稳定为`153/227`，SHA256为`613beb69656ff2f14626ef6cde3b82465661b1c905282336835c0d2bbcad36e5`。
 - 模块9转场帧协调`0x004490C0`恢复完成，纳入498330外部chunk。四阶段状态机恢复入场滑动、确认overlay生命周期、57条设置即时命令及两类snapshot淡出；动态selector、overlay storage和snapshot均只在原读取点typed-stop。定向UT与独立ASan通过。workpack稳定为`154/227`，SHA256为`9ac033eb0df2f8d7b62933ef2f101218faac2e8c344220123944cd0aeed1e588`。
 - 模块9转场滑动面板透明绘制`0x00449C30`恢复完成。准备成功后解析surface，先以`-25-offset`绘制主体，再对每级负alpha按左右轨迹各绘一次并保留signed除2；失败仅报告record字段。490C0四处caller已直连。定向UT与独立ASan通过。workpack稳定为`155/227`，SHA256为`4a1742e43775eef15646f13974d0156c389fd32f07f82d9e10dd3679d98a39bd`。
+- 模块9转场设置角色条件`0x00449D80`恢复完成。按原Big5字节顺序执行九个主字符串和五个副字符串条件，恢复两组u16/fill字段、refresh delay及小倩命中返回5；490C0设置caller已直连。定向UT与独立ASan通过。workpack稳定为`156/227`，SHA256为`5b5c54fe0fef3475178862b440d70077b3dd9b13e93af5a7b938c3220bf0bf4a`。
 
 `0x0043B110`已归属并关闭于B4 `rendering`，不在模块9的227项workpack中，不重复计数。
 
 世界运动插值已按用户实际观感完成多轮迭代并获“目前来说还能接受”的明确验收。模块9保持
-进行中，正式进度为`155/227`，下一单元为`0x00449D80`。
+进行中，正式进度为`156/227`，下一单元为`0x00449FF0`。
 
-下一工作包：按LST唯一真值审计并恢复模块9 `0x00449D80`，继续更新workpack、证据和完整验证门。
+下一工作包：按LST唯一真值审计并恢复模块9 `0x00449FF0`，继续更新workpack、证据和完整验证门。

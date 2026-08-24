@@ -420,9 +420,6 @@ public:
     void refresh_transition_runtime() noexcept override {
         transition_lifecycle.push_back(3U);
     }
-    void prepare_transition_settings_runtime() noexcept override {
-        transition_lifecycle.push_back(4U);
-    }
     void present_transition_runtime() noexcept override {
         transition_lifecycle.push_back(5U);
     }
@@ -15196,6 +15193,146 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
 
     using TransitionCommandType =
         openswd3::special_modes::LegacyStandardModeTransitionCommandType;
+    const auto set_profile_text = [](auto& destination,
+                                     const std::initializer_list<u8> bytes) {
+        destination.fill(0U);
+        std::copy(bytes.begin(), bytes.end(), destination.begin());
+    };
+    const auto prepare_profile = [&](const std::initializer_list<u8> primary,
+                                     const std::initializer_list<u8> secondary,
+                                     auto& profile) {
+        std::array<u8, 0x40U> primary_text{};
+        std::array<u8, 0x10U> secondary_text{};
+        set_profile_text(primary_text, primary);
+        set_profile_text(secondary_text, secondary);
+        return openswd3::special_modes::
+            prepare_legacy_standard_mode_transition_settings_profile(
+                profile, primary_text, secondary_text
+            );
+    };
+    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
+        profile_he_jiang;
+    const auto profile_he_jiang_result = prepare_profile(
+        {0xA6U, 0xF3U, 0xB5U, 0x4DU},
+        {0xA6U, 0xBFU, 0xA6U, 0x70U, 0xACU, 0xF5U},
+        profile_he_jiang
+    );
+    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
+        profile_yang_wen;
+    const auto profile_yang_wen_result = prepare_profile(
+        {0xB7U, 0xA8U, 0xA9U, 0x5BU, 0xBAU, 0xD3U},
+        {0xAFU, 0xBEU, 0xC0U, 0x41U},
+        profile_yang_wen
+    );
+    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
+        profile_gu_zhen;
+    const auto profile_gu_zhen_result = prepare_profile(
+        {0xA5U, 0x6AU, 0xA4U, 0xEBU, 0xB8U, 0x74U},
+        {0xAFU, 0x75U, 0xB9U, 0xDAU},
+        profile_gu_zhen
+    );
+    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
+        profile_fu_hong;
+    const auto profile_fu_hong_result = prepare_profile(
+        {0xBBU, 0xB2U, 0xA4U, 0x6CU, 0xB9U, 0xFDU},
+        {0xACU, 0xF5U, 0xACU, 0xC0U, 0xB7U, 0xE4U},
+        profile_fu_hong
+    );
+    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
+        profile_zhu_xiao;
+    const auto profile_zhu_xiao_result = prepare_profile(
+        {0xC5U, 0xB1U, 0xA5U, 0xDBU, 0xA4U, 0x6CU},
+        {0xA4U, 0x70U, 0xADU, 0xC5U},
+        profile_zhu_xiao
+    );
+    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
+        profile_le;
+    const auto profile_le_result =
+        prepare_profile({0xBCU, 0xD6U, 0xBCU, 0xD6U}, {}, profile_le);
+    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
+        profile_da;
+    const auto profile_da_result =
+        prepare_profile({0xA4U, 0x6AU, 0xA6U, 0xCCU}, {}, profile_da);
+    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
+        profile_ning;
+    profile_ning.primary_words.fill(20U);
+    const auto profile_ning_result = prepare_profile(
+        {0xB9U, 0xE7U, 0xAAU, 0xF6U, 0xA6U, 0xDAU}, {}, profile_ning
+    );
+    openswd3::special_modes::LegacyStandardModeTransitionSettingsProfileState
+        profile_yan;
+    profile_yan.primary_words.fill(9U);
+    const auto profile_yan_result = prepare_profile(
+        {0xBFU, 0x50U, 0xA8U, 0xAAU, 0xC1U, 0xF8U}, {}, profile_yan
+    );
+    test.expect_true(
+        profile_he_jiang_result.match_count == 2U &&
+            std::all_of(
+                profile_he_jiang.primary_words.begin() + 6,
+                profile_he_jiang.primary_words.end(),
+                [](const u16 value) { return value == 0x19U; }
+            ) &&
+            profile_he_jiang.secondary_words[8U] == 0x64U &&
+            profile_he_jiang.secondary_words[1U] == 0x12CU &&
+            profile_he_jiang.secondary_words[4U] == 0x12CU &&
+            profile_yang_wen_result.match_count == 2U &&
+            profile_yang_wen.primary_words[6U] == 0x32U &&
+            profile_yang_wen.primary_words[0U] == 0xC8U &&
+            std::all_of(
+                profile_yang_wen.secondary_fill.begin(),
+                profile_yang_wen.secondary_fill.end(),
+                [](const u8 value) { return value == 0xF9U; }
+            ),
+        "0x449D80 applies independent primary and secondary profile matches in source order"
+    );
+    test.expect_true(
+        profile_gu_zhen_result.match_count == 2U &&
+            std::all_of(
+                profile_gu_zhen.primary_fill.begin(),
+                profile_gu_zhen.primary_fill.end(),
+                [](const u8 value) { return value == 0xFBU; }
+            ) &&
+            profile_gu_zhen.secondary_words[7U] == 0x64U &&
+            profile_gu_zhen.secondary_words[2U] == 0x12CU &&
+            profile_fu_hong_result.match_count == 2U &&
+            profile_fu_hong.primary_words[6U] == 0x1EU &&
+            profile_fu_hong.primary_words[9U] == 0x1EU &&
+            profile_fu_hong.secondary_words[6U] == 0x32U &&
+            profile_fu_hong.secondary_words[0U] == 0xC8U,
+        "0x449D80 restores both packed fill groups and four-word profile groups"
+    );
+    test.expect_true(
+        profile_zhu_xiao_result.match_count == 2U &&
+            profile_zhu_xiao_result.legacy_return_value == 5 &&
+            profile_zhu_xiao.primary_words[7U] == 0x64U &&
+            profile_zhu_xiao.primary_words[2U] == 0x12CU &&
+            profile_zhu_xiao.secondary_words[8U] == 5U &&
+            profile_zhu_xiao.secondary_words[1U] == 5U &&
+            profile_le_result.match_count == 1U &&
+            profile_le.primary_words[8U] == 0x46U &&
+            profile_le.primary_words[1U] == 0xFAU &&
+            profile_da_result.match_count == 1U &&
+            profile_da.primary_words[8U] == 0x64U &&
+            std::all_of(
+                profile_da.primary_fill.begin(),
+                profile_da.primary_fill.end(),
+                [](const u8 value) { return value == 0x02U; }
+            ),
+        "0x449D80 preserves the final five return and primary word plus fill updates"
+    );
+    test.expect_true(
+        profile_ning_result.match_count == 1U &&
+            profile_ning.primary_words[6U] == 10U &&
+            profile_ning.primary_words[7U] == 15U &&
+            profile_ning.primary_words[8U] == 15U &&
+            profile_ning.primary_words[9U] == 15U &&
+            profile_ning.refresh_delay == 0x1F4U &&
+            profile_yan_result.match_count == 1U &&
+            profile_yan.primary_words[7U] == 0U &&
+            profile_yan.primary_words[2U] == 0U &&
+            profile_yan.primary_words[5U] == 0U,
+        "0x449D80 preserves unsigned word subtraction and the three explicit zero writes"
+    );
 
     openswd3::special_modes::LegacyStandardModeTransitionPanelRecord
         panel_record;
@@ -15309,6 +15446,13 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     frame_choice_one_state.velocity = 0x68;
     frame_choice_one_state.enabled = 1U;
     frame_choice_one_state.bounds.fill(-12);
+    set_profile_text(
+        frame_choice_one_state.mode_one_text, {0xA6U, 0xF3U, 0xB5U, 0x4DU}
+    );
+    set_profile_text(
+        frame_choice_one_state.mode_one_secondary_text,
+        {0xA6U, 0xBFU, 0xA6U, 0x70U, 0xACU, 0xF5U}
+    );
     FakeTransitionVisualPorts frame_choice_one_ports;
     const auto frame_choice_one =
         openswd3::special_modes::run_legacy_standard_mode_transition_frame(
@@ -15328,12 +15472,16 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     test.expect_true(
         frame_choice_one_state.progress == 5U &&
             frame_choice_one_state.transition_timestamp == 0x12345678U &&
-            frame_choice_one_state.runtime_primary == 0U,
+            frame_choice_one_state.runtime_primary == 0U &&
+            frame_choice_one_state.settings_profile.primary_words[6U] ==
+                0x19U &&
+            frame_choice_one_state.settings_profile.secondary_words[8U] ==
+                0x64U,
         "0x4490C0 publishes the settings choice stage and timestamp"
     );
     test.expect_true(
         frame_choice_one_ports.transition_lifecycle ==
-                std::vector<u32>{1U, 2U, 3U, 4U, 5U, 0x600U} &&
+                std::vector<u32>{1U, 2U, 3U, 5U, 0x600U} &&
             std::count_if(
                 frame_choice_one_ports.transition_commands.begin(),
                 frame_choice_one_ports.transition_commands.end(),

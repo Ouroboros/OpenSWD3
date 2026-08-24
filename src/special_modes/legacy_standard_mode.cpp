@@ -968,6 +968,135 @@ commit_legacy_standard_mode_transition_settings(
     return result;
 }
 
+LegacyStandardModeTransitionSettingsProfileResult
+prepare_legacy_standard_mode_transition_settings_profile(
+    LegacyStandardModeTransitionSettingsProfileState& profile,
+    const std::span<const compat::u8> primary_text,
+    const std::span<const compat::u8> secondary_text
+) noexcept {
+    LegacyStandardModeTransitionSettingsProfileResult result;
+    const auto compare = [](const std::span<const compat::u8> text,
+                            const std::initializer_list<compat::u8> expected) {
+        std::size_t index = 0U;
+        while (index < text.size() && text[index] != 0U &&
+               index < expected.size()) {
+            const compat::u8 right =
+                *(expected.begin() + static_cast<std::ptrdiff_t>(index));
+            if (text[index] < right) {
+                return -1;
+            }
+            if (text[index] > right) {
+                return 1;
+            }
+            ++index;
+        }
+        const bool text_ended = index >= text.size() || text[index] == 0U;
+        const bool expected_ended = index == expected.size();
+        if (text_ended == expected_ended) {
+            return 0;
+        }
+        return text_ended ? -1 : 1;
+    };
+    const auto primary_matches = [&](
+                                     const std::initializer_list<compat::u8> v
+                                 ) { return compare(primary_text, v) == 0; };
+    const auto secondary_matches =
+        [&](const std::initializer_list<compat::u8> v) {
+            return compare(secondary_text, v) == 0;
+        };
+    const auto matched = [&](const bool value) {
+        if (value) {
+            ++result.match_count;
+        }
+        return value;
+    };
+
+    if (matched(primary_matches({0xA6U, 0xF3U, 0xB5U, 0x4DU}))) {
+        std::fill(
+            profile.primary_words.begin() + 6,
+            profile.primary_words.end(),
+            0x19U
+        );
+    }
+    if (matched(
+            secondary_matches({0xA6U, 0xBFU, 0xA6U, 0x70U, 0xACU, 0xF5U})
+        )) {
+        profile.secondary_words[8U] = 0x64U;
+        profile.secondary_words[1U] = 0x12CU;
+        profile.secondary_words[4U] = 0x12CU;
+    }
+    if (matched(primary_matches({0xB7U, 0xA8U, 0xA9U, 0x5BU, 0xBAU, 0xD3U}))) {
+        profile.primary_words[6U] = 0x32U;
+        profile.primary_words[0U] = 0xC8U;
+        profile.primary_words[3U] = 0xC8U;
+    }
+    if (matched(primary_matches({0xA5U, 0x6AU, 0xA4U, 0xEBU, 0xB8U, 0x74U}))) {
+        profile.primary_fill.fill(0xFBU);
+    }
+    if (matched(primary_matches({0xBBU, 0xB2U, 0xA4U, 0x6CU, 0xB9U, 0xFDU}))) {
+        std::fill(
+            profile.primary_words.begin() + 6,
+            profile.primary_words.end(),
+            0x1EU
+        );
+    }
+    if (matched(secondary_matches({0xAFU, 0xBEU, 0xC0U, 0x41U}))) {
+        profile.secondary_fill.fill(0xF9U);
+    }
+    if (matched(primary_matches({0xC5U, 0xB1U, 0xA5U, 0xDBU, 0xA4U, 0x6CU}))) {
+        profile.primary_words[7U] = 0x64U;
+        profile.primary_words[2U] = 0x12CU;
+        profile.primary_words[5U] = 0x12CU;
+    }
+    if (matched(primary_matches({0xBCU, 0xD6U, 0xBCU, 0xD6U}))) {
+        profile.primary_words[8U] = 0x46U;
+        profile.primary_words[1U] = 0xFAU;
+        profile.primary_words[4U] = 0xFAU;
+    }
+    if (matched(primary_matches({0xA4U, 0x6AU, 0xA6U, 0xCCU}))) {
+        profile.primary_words[8U] = 0x64U;
+        profile.primary_fill.fill(0x02U);
+    }
+    if (matched(secondary_matches({0xAFU, 0x75U, 0xB9U, 0xDAU}))) {
+        profile.secondary_words[7U] = 0x64U;
+        profile.secondary_words[2U] = 0x12CU;
+        profile.secondary_words[5U] = 0x12CU;
+    }
+    if (matched(
+            secondary_matches({0xACU, 0xF5U, 0xACU, 0xC0U, 0xB7U, 0xE4U})
+        )) {
+        profile.secondary_words[6U] = 0x32U;
+        profile.secondary_words[0U] = 0xC8U;
+        profile.secondary_words[3U] = 0xC8U;
+    }
+    if (matched(primary_matches({0xB9U, 0xE7U, 0xAAU, 0xF6U, 0xA6U, 0xDAU}))) {
+        profile.primary_words[7U] =
+            static_cast<compat::u16>(profile.primary_words[7U] - 5U);
+        profile.primary_words[8U] =
+            static_cast<compat::u16>(profile.primary_words[8U] - 5U);
+        profile.primary_words[9U] =
+            static_cast<compat::u16>(profile.primary_words[9U] - 5U);
+        profile.primary_words[6U] =
+            static_cast<compat::u16>(profile.primary_words[6U] - 10U);
+        profile.refresh_delay = 0x1F4U;
+    }
+    if (matched(primary_matches({0xBFU, 0x50U, 0xA8U, 0xAAU, 0xC1U, 0xF8U}))) {
+        profile.primary_words[7U] = 0U;
+        profile.primary_words[2U] = 0U;
+        profile.primary_words[5U] = 0U;
+    }
+    result.legacy_return_value =
+        compare(secondary_text, {0xA4U, 0x70U, 0xADU, 0xC5U});
+    if (result.legacy_return_value == 0) {
+        ++result.match_count;
+        profile.secondary_words[8U] = 5U;
+        profile.secondary_words[1U] = 5U;
+        profile.secondary_words[4U] = 5U;
+        result.legacy_return_value = 5;
+    }
+    return result;
+}
+
 LegacyStandardModeTransitionPanelDrawResult
 draw_legacy_standard_mode_transition_panel(
     LegacyStandardModeTransitionPanelDrawState& draw_state,
@@ -1136,7 +1265,13 @@ run_legacy_standard_mode_transition_frame(
                     state.runtime_secondary = 1U;
                     state.runtime_tertiary = 1U;
                     ports.refresh_transition_runtime();
-                    ports.prepare_transition_settings_runtime();
+                    static_cast<void>(
+                        prepare_legacy_standard_mode_transition_settings_profile(
+                            state.settings_profile,
+                            state.mode_one_text,
+                            state.mode_one_secondary_text
+                        )
+                    );
                     ports.present_transition_runtime();
                     result.helper_call_count += 3U;
                     break;

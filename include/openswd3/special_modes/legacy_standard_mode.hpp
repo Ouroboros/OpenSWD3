@@ -140,6 +140,14 @@ struct LegacyStandardModeTransitionPanelDrawState {
     compat::u32 surface_token{};
 };
 
+struct LegacyStandardModeTransitionSettingsProfileState {
+    std::array<compat::u16, 10U> primary_words{};
+    std::array<compat::u8, 9U> primary_fill{};
+    std::array<compat::u16, 9U> secondary_words{};
+    std::array<compat::u8, 9U> secondary_fill{};
+    compat::u32 refresh_delay{};
+};
+
 struct LegacyStandardModeTransitionVisualState {
     compat::u16 mode{};
     std::array<compat::i32, 4U> bounds{};
@@ -185,6 +193,8 @@ struct LegacyStandardModeTransitionVisualState {
     compat::u32 runtime_command_flags{};
     compat::u32 transition_timestamp{};
     std::array<compat::u8, 0x40U> mode_one_text{};
+    std::array<compat::u8, 0x10U> mode_one_secondary_text{};
+    LegacyStandardModeTransitionSettingsProfileState settings_profile;
 };
 
 enum class LegacyStandardModeTransitionCommandType : compat::u8 {
@@ -268,7 +278,6 @@ public:
     [[nodiscard]] virtual compat::u32 current_transition_time() noexcept = 0;
     virtual void release_transition_world() noexcept = 0;
     virtual void refresh_transition_runtime() noexcept = 0;
-    virtual void prepare_transition_settings_runtime() noexcept = 0;
     virtual void present_transition_runtime() noexcept = 0;
     [[nodiscard]] virtual bool mode_one_asset_ready() noexcept = 0;
     [[nodiscard]] virtual compat::i32
@@ -408,6 +417,18 @@ struct LegacyStandardModeTransitionSettingsCommitResult {
 commit_legacy_standard_mode_transition_settings(
     LegacyStandardModeTransitionVisualState& state,
     LegacyStandardModeTransitionVisualPorts& ports
+) noexcept;
+
+struct LegacyStandardModeTransitionSettingsProfileResult {
+    compat::i32 legacy_return_value{};
+    compat::u32 match_count{};
+};
+
+[[nodiscard]] LegacyStandardModeTransitionSettingsProfileResult
+prepare_legacy_standard_mode_transition_settings_profile(
+    LegacyStandardModeTransitionSettingsProfileState& profile,
+    std::span<const compat::u8> primary_text,
+    std::span<const compat::u8> secondary_text
 ) noexcept;
 
 struct LegacyStandardModeTransitionPanelDrawResult {
