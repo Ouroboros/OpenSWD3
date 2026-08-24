@@ -15681,6 +15681,10 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     primary_controls_state.interaction_mode = 2U;
     primary_controls_state.pre_initialization_zeroes[4U] = 14U;
     primary_controls_state.selection_x = 31U;
+    primary_controls_state.primary_control_one_y_min = 120;
+    primary_controls_state.primary_control_one_y_max = 130;
+    primary_controls_state.primary_control_two_y_min = 130;
+    primary_controls_state.primary_control_two_y_max = 150;
     openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
         primary_controls_input{
             .pointer_x = 490U, .pointer_y = 125U, .input_flags = 0U
@@ -15688,8 +15692,8 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     GroupEightMainInputPorts primary_controls_ports;
     primary_controls_ports.mutation =
         [](const GroupEightMainInputPorts::Event event, auto& input, auto&) {
-            if (event == GroupEightMainInputPorts::Event::upper) {
-                input.pointer_y = 430U;
+            if (event == GroupEightMainInputPorts::Event::first_dynamic) {
+                input.pointer_y = 140U;
             }
         };
     const auto primary_controls = openswd3::special_modes::
@@ -15705,15 +15709,19 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
     GroupEightState secondary_controls_state;
     secondary_controls_state.interaction_mode = 15U;
     secondary_controls_state.special_control_count = 9;
+    secondary_controls_state.secondary_control_one_y_min = 210;
+    secondary_controls_state.secondary_control_one_y_max = 230;
+    secondary_controls_state.secondary_control_two_y_min = 230;
+    secondary_controls_state.secondary_control_two_y_max = 250;
     openswd3::special_modes::LegacyStandardModeGroupEightMainInputSnapshot
         secondary_controls_input{
-            .pointer_x = 555U, .pointer_y = 200U, .input_flags = 0U
+            .pointer_x = 555U, .pointer_y = 220U, .input_flags = 0U
         };
     GroupEightMainInputPorts secondary_controls_ports;
     secondary_controls_ports.mutation =
         [](const GroupEightMainInputPorts::Event event, auto& input, auto&) {
-            if (event == GroupEightMainInputPorts::Event::upper) {
-                input.pointer_y = 400U;
+            if (event == GroupEightMainInputPorts::Event::first_dynamic) {
+                input.pointer_y = 240U;
             }
         };
     const auto secondary_controls = openswd3::special_modes::
@@ -15732,13 +15740,19 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                     LegacyStandardModeGroupEightMainInputPath::
                         control_dispatched &&
             primary_controls_ports.events ==
-                std::vector{GroupEightMainInputPorts::Event::upper} &&
+                std::vector{
+                    GroupEightMainInputPorts::Event::first_dynamic,
+                    GroupEightMainInputPorts::Event::second_dynamic,
+                } &&
             secondary_controls.path ==
                 openswd3::special_modes::
                     LegacyStandardModeGroupEightMainInputPath::
                         control_dispatched &&
             secondary_controls_ports.events ==
-                std::vector{GroupEightMainInputPorts::Event::upper},
+                std::vector{
+                    GroupEightMainInputPorts::Event::first_dynamic,
+                    GroupEightMainInputPorts::Event::second_dynamic,
+                },
         "0x4455E0 rereads pointer Y after every primary and secondary control callback"
     );
 
@@ -16063,6 +16077,196 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
                         runtime_cursor_advanced &&
             runtime_advanced.helper_call_count == 1U,
         "0x445C90 directly delegates modes at least 500 to 0x43C520"
+    );
+
+    LegacyStandardModeForwardNode retreat_row_zero;
+    LegacyStandardModeForwardNode retreat_row_one;
+    LegacyStandardModeForwardNode retreat_row_two;
+    retreat_row_zero.next = &retreat_row_one;
+    retreat_row_one.next = &retreat_row_two;
+    retreat_row_one.text_index = 0xFFDCU;
+    GroupEightState record_retreat_state;
+    record_retreat_state.interaction_mode = 2U;
+    record_retreat_state.selection_x = 30U;
+    record_retreat_state.record_head = &retreat_row_zero;
+    record_retreat_state.list_offset = 1U;
+    record_retreat_state.local_selection = 1U;
+    record_retreat_state.local_record_count = 2;
+    record_retreat_state.transition_flags = 0xABCD0030U;
+    GroupEightMainInputPorts record_retreat_ports;
+    const auto record_retreated = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_control(
+            record_retreat_state,
+            0x90ABCDEFU,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            record_retreat_ports
+        );
+    test.expect_true(
+        record_retreated.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightRetreatStatus::completed &&
+            record_retreated.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightRetreatPath::
+                        record_window_retreated &&
+            record_retreated.helper_call_count == 6U &&
+            record_retreat_state.viewport_extent == 480U &&
+            record_retreat_state.list_offset == 1U &&
+            record_retreat_state.local_selection == 0U &&
+            record_retreat_state.visible_record_head == &retreat_row_one &&
+            record_retreat_state.local_record_count == 2 &&
+            record_retreat_state.transition_flags == 0xABCD0033U &&
+            record_retreat_state.published_local_selection == 0U &&
+            record_retreat_state.shared_text[0U] == 0xB5U &&
+            record_retreat_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x90ABCDEFU}},
+        "0x445E90 retreats the mode2 window, chain, text and low transition bits"
+    );
+
+    GroupEightState item_retreat_state;
+    item_retreat_state.interaction_mode = 3U;
+    item_retreat_state.record_zero = 0U;
+    GroupEightMainInputPorts item_retreat_ports;
+    const auto item_retreated = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_control(
+            item_retreat_state,
+            0xCAFEBABEU,
+            std::array<u16, 4U>{0xFFFFU, 8U, 0xFFFFU, 7U},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            item_retreat_ports
+        );
+    GroupEightState item_retreat_stop_state;
+    item_retreat_stop_state.interaction_mode = 3U;
+    item_retreat_stop_state.record_zero = 1U;
+    GroupEightMainInputPorts item_retreat_stop_ports;
+    const auto item_retreat_stopped = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_control(
+            item_retreat_stop_state,
+            0U,
+            std::array<u16, 4U>{0xFFFFU, 0xFFFFU, 0xFFFFU, 0xFFFFU},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            item_retreat_stop_ports
+        );
+    test.expect_true(
+        item_retreated.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightRetreatPath::
+                        available_item_retreated &&
+            item_retreat_state.record_zero == 3U &&
+            item_retreat_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0xCAFEBABEU}} &&
+            item_retreat_stopped.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightRetreatStatus::
+                        party_cycle_stopped &&
+            item_retreat_stop_state.record_zero == 1U,
+        "0x445E90 cycles backward and stops after all four FFFF markers"
+    );
+
+    GroupEightState fixed_retreat_state;
+    fixed_retreat_state.interaction_mode = 5U;
+    fixed_retreat_state.selection_x = 44U;
+    fixed_retreat_state.selected_action = 1U;
+    GroupEightMainInputPorts fixed_retreat_ports;
+    const auto action_retreated = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_control(
+            fixed_retreat_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_retreat_ports
+        );
+    fixed_retreat_state.interaction_mode = 10U;
+    fixed_retreat_state.selected_outer_row = 0U;
+    const auto outer_retreated = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_control(
+            fixed_retreat_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_retreat_ports
+        );
+    fixed_retreat_state.interaction_mode = 11U;
+    fixed_retreat_state.selected_column = 1U;
+    const auto column_retreated = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_control(
+            fixed_retreat_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_retreat_ports
+        );
+    fixed_retreat_state.interaction_mode = 15U;
+    fixed_retreat_state.secondary_window_offset = 1;
+    fixed_retreat_state.secondary_row_selection = 0;
+    fixed_retreat_state.transition_flags = 0x550030AAU;
+    const auto secondary_retreated = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_control(
+            fixed_retreat_state,
+            0U,
+            {},
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_retreat_ports
+        );
+    test.expect_true(
+        action_retreated.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightRetreatPath::action_retreated &&
+            fixed_retreat_state.selected_action == 0U &&
+            outer_retreated.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightRetreatPath::
+                        outer_row_retreated &&
+            fixed_retreat_state.selected_outer_row == 0U &&
+            column_retreated.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightRetreatPath::column_retreated &&
+            fixed_retreat_state.selected_column == 0U &&
+            secondary_retreated.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightRetreatPath::
+                        secondary_window_retreated &&
+            fixed_retreat_state.transition_flags == 0x550033AAU &&
+            fixed_retreat_state.published_selection_x == 44U,
+        "0x445E90 applies mode5/10/11 zeroes and mode15 high transition bits"
+    );
+
+    GroupEightState runtime_retreat_state;
+    runtime_retreat_state.interaction_mode = 500U;
+    LegacyStandardModeRuntimeInitializationState runtime_retreat_runtime;
+    GroupEightMainInputPorts runtime_retreat_ports;
+    const auto runtime_retreated = openswd3::special_modes::
+        retreat_legacy_standard_mode_group_eight_control(
+            runtime_retreat_state,
+            0U,
+            {},
+            {},
+            runtime_retreat_runtime,
+            group_main_runtime_ports,
+            runtime_retreat_ports
+        );
+    test.expect_true(
+        runtime_retreated.path ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightRetreatPath::
+                        runtime_cursor_retreated &&
+            runtime_retreated.helper_call_count == 1U,
+        "0x445E90 directly delegates modes at least 500 to 0x43C590"
     );
 
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};

@@ -693,6 +693,7 @@ enum class LegacyStandardModeGroupEightMainInputStatus : compat::u8 {
     shared_text_stopped,
     presence_scan_stopped,
     advance_control_stopped,
+    retreat_control_stopped,
 };
 
 enum class LegacyStandardModeGroupEightMainInputPath : compat::u8 {
@@ -773,6 +774,49 @@ struct LegacyStandardModeGroupEightAdvanceResult {
 
 [[nodiscard]] LegacyStandardModeGroupEightAdvanceResult
 advance_legacy_standard_mode_group_eight_control(
+    LegacyStandardModeGroupEightState& state,
+    compat::u32 sample_handle,
+    std::span<const compat::u16> party_markers,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports,
+    LegacyStandardModeGroupEightMainInputPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeGroupEightRetreatStatus : compat::u8 {
+    completed,
+    runtime_cursor_stopped,
+    visible_chain_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+    party_cycle_stopped,
+};
+
+enum class LegacyStandardModeGroupEightRetreatPath : compat::u8 {
+    no_action,
+    runtime_cursor_retreated,
+    record_window_retreated,
+    available_item_retreated,
+    action_retreated,
+    outer_row_retreated,
+    column_retreated,
+    secondary_window_retreated,
+};
+
+struct LegacyStandardModeGroupEightRetreatResult {
+    LegacyStandardModeGroupEightRetreatStatus status{
+        LegacyStandardModeGroupEightRetreatStatus::completed
+    };
+    LegacyStandardModeGroupEightRetreatPath path{
+        LegacyStandardModeGroupEightRetreatPath::no_action
+    };
+    compat::u8 runtime_cursor_status{};
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightRetreatResult
+retreat_legacy_standard_mode_group_eight_control(
     LegacyStandardModeGroupEightState& state,
     compat::u32 sample_handle,
     std::span<const compat::u16> party_markers,
