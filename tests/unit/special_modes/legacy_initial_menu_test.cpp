@@ -2492,7 +2492,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         ) noexcept override {
             events.push_back(1U);
             ++list_prepare_count;
-            state.selection_index = selected_index;
+            state.guardian_slot = selected_index;
             state.record_head = &node;
         }
 
@@ -2502,7 +2502,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             events.push_back(2U);
             ++attribute_prepare_count;
             state.attribute_cache[0U] = 0x5AU;
-            state.first_total = 77U;
+            state.list_offset = 77U;
         }
 
         std::array<u32, 3U> allocation_results{0x11U, 0x22U, 0x33U};
@@ -2524,7 +2524,7 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
     state.attribute_cache.fill(0xCCU);
     state.party_selector = 0xABCD0005U;
     state.interface_source_value = 0x12345678U;
-    state.primary_accumulator = 9U;
+    state.visible_record_count = 9U;
     state.viewport_extent = 9U;
     GuardianPorts ports;
     const auto initialized =
@@ -2546,8 +2546,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 state.scratch_record, [](const u8 value) { return value == 0U; }
             ) &&
             state.attribute_cache[0U] == 0x5AU &&
-            state.attribute_cache[1U] == 0U && state.selection_index == 3U &&
-            state.record_head == &ports.node && state.first_total == 77U &&
+            state.attribute_cache[1U] == 0U && state.guardian_slot == 3U &&
+            state.record_head == &ports.node && state.list_offset == 77U &&
             state.action_scratch_id == 0U && state.panel_offset == 0U &&
             state.render_zero == 0U && state.first_scroll_value == 0U &&
             state.second_scroll_value == 0U &&
@@ -2612,6 +2612,189 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             text_stopped.helper_call_count == 6U,
         "0x440630 propagates B9E0 typed-stop before final viewport constants"
     );
+
+    class InputPorts final : public sm::LegacyStandardModeGuardianInputPorts {
+    public:
+        i32 invoke_guardian_input(
+            const sm::LegacyStandardModeGuardianInputTarget target,
+            sm::LegacyStandardModeGuardianInitializationState&,
+            sm::LegacyStandardModeGuardianInputSnapshot& input
+        ) noexcept override {
+            targets.push_back(target);
+            registers.push_back({input.register_first, input.register_second});
+            return 100 + static_cast<i32>(targets.size());
+        }
+
+        bool query_guardian_item_presence(const u16 item_id) noexcept override {
+            item_ids.push_back(item_id);
+            return item_present;
+        }
+
+        bool item_present{true};
+        std::vector<sm::LegacyStandardModeGuardianInputTarget> targets;
+        std::vector<std::array<i32, 2U>> registers;
+        std::vector<u16> item_ids;
+    };
+    using Target = sm::LegacyStandardModeGuardianInputTarget;
+    std::array<sm::LegacyStandardModeAvailabilityRecord, 16U> availability{};
+    availability[15U] = {.enabled = 1, .state = 1};
+    const auto input =
+        [&availability](
+            sm::LegacyStandardModeGuardianInitializationState& guardian,
+            sm::LegacyStandardModeGuardianInputSnapshot& snapshot,
+            InputPorts& input_ports,
+            const std::span<const u8> maps = {}
+        ) {
+            return sm::handle_legacy_standard_mode_guardian_input(
+                guardian, snapshot, availability, maps, input_ports
+            );
+        };
+
+    {
+        sm::LegacyStandardModeGuardianInitializationState guardian;
+        guardian.interaction_mode = 15U;
+        sm::LegacyStandardModeGuardianInputSnapshot snapshot{
+            .buttons = 1U, .register_first = 7, .register_second = 9
+        };
+        InputPorts input_ports;
+        const auto result = input(guardian, snapshot, input_ports);
+        test.expect_true(
+            result.legacy_return_value == 101 && result.callback_count == 1U &&
+                input_ports.targets == std::vector<Target>{Target::interact} &&
+                input_ports.registers[0U] == std::array<i32, 2U>{7, 9},
+            "0x4407F0 mode15 forwards any low-nibble input with entry registers"
+        );
+
+        guardian.interaction_mode = 5U;
+        snapshot.buttons = 4U;
+        InputPorts mode5_ports;
+        const auto mode5 = input(guardian, snapshot, mode5_ports);
+        test.expect_true(
+            mode5.last_target == Target::commit_interaction,
+            "0x4407F0 mode5 skips all regions and only accepts button4"
+        );
+    }
+    {
+        sm::LegacyStandardModeGuardianInitializationState guardian;
+        guardian.interaction_mode = 1U;
+        sm::LegacyStandardModeGuardianInputSnapshot snapshot{
+            .buttons = 1U, .cursor_y = 133U, .cursor_x = 250U
+        };
+        InputPorts input_ports;
+        const auto result = input(guardian, snapshot, input_ports);
+        test.expect_true(
+            result.legacy_return_value == 102 && guardian.guardian_slot == 0U &&
+                input_ports.targets ==
+                    std::vector<Target>{
+                        Target::commit_interaction,
+                        Target::select_guardian_slot,
+                    } &&
+                input_ports.registers[1U][0U] == 0,
+            "0x4407F0 guardian-slot rectangle commits mode1 then selects row-1"
+        );
+    }
+    {
+        sm::LegacyStandardModeForwardNode second{nullptr, 0xFFDCU};
+        sm::LegacyStandardModeForwardNode first{&second, 0x1111U};
+        sm::LegacyStandardModeGuardianInitializationState guardian;
+        guardian.interaction_mode = 2U;
+        guardian.panel_y = 120U;
+        guardian.panel_x = 488U;
+        guardian.visible_record_count = 3U;
+        guardian.record_head = &first;
+        sm::LegacyStandardModeGuardianInputSnapshot snapshot{
+            .buttons = 1U, .cursor_y = 129U, .cursor_x = 500U
+        };
+        InputPorts input_ports;
+        const auto result = input(guardian, snapshot, input_ports);
+        test.expect_true(
+            result.status ==
+                    sm::LegacyStandardModeGuardianInputStatus::completed &&
+                guardian.local_selection == 1U &&
+                guardian.shared_text[2U] == 0U &&
+                result.last_target == Target::refresh_attribute_cache &&
+                input_ports.targets.size() == 1U,
+            "0x4407F0 list row change resolves B9C0/B9E0 then refreshes attributes"
+        );
+
+        guardian.record_head = nullptr;
+        guardian.local_selection = 0U;
+        InputPorts missing_ports;
+        const auto missing = input(guardian, snapshot, missing_ports);
+        test.expect_true(
+            missing.status ==
+                sm::LegacyStandardModeGuardianInputStatus::
+                    selected_node_missing,
+            "0x4407F0 typed-stops at the selected guardian node read"
+        );
+    }
+    {
+        sm::LegacyStandardModeGuardianInitializationState guardian;
+        guardian.interaction_mode = 1U;
+        guardian.total_record_count = 11U;
+        guardian.panel_x = 0x1E8U;
+        guardian.panel_y = 0x78U;
+        sm::LegacyStandardModeGuardianInputSnapshot snapshot{
+            .cursor_y = 110U, .cursor_x = 620U
+        };
+        InputPorts input_ports;
+        const auto shortcut = input(guardian, snapshot, input_ports);
+        test.expect_true(
+            shortcut.last_target == Target::cycle_left,
+            "0x4407F0 availability shortcut dispatches the strict 103..115 band"
+        );
+
+        guardian.interaction_mode = 2U;
+        snapshot = {.buttons = 1U, .cursor_y = 470U, .cursor_x = 550U};
+        InputPorts confirm_ports;
+        const auto confirm = input(guardian, snapshot, confirm_ports);
+        test.expect_true(
+            guardian.hover_flag == -1 &&
+                confirm.last_target == Target::play_confirm,
+            "0x4407F0 confirm hotspot publishes hover before click sound"
+        );
+
+        guardian.interaction_mode = 0U;
+        guardian.party_selector = 0xABCD0004U;
+        snapshot = {.buttons = 1U, .cursor_y = 120U, .cursor_x = 100U};
+        InputPorts party_ports;
+        const auto party = input(guardian, snapshot, party_ports);
+        test.expect_true(
+            party.last_target == Target::switch_party,
+            "0x4407F0 party rectangle dispatches the party switch callback"
+        );
+        test.expect_true(
+            guardian.party_selector == 0xABCD0000U,
+            "0x4407F0 party switch preserves selector high16"
+        );
+        test.expect_true(
+            party_ports.item_ids == std::vector<u16>{31U},
+            "0x4407F0 party rectangle queries item30+row"
+        );
+
+        guardian.interaction_mode = 2U;
+        snapshot = {.buttons = 4U, .cursor_y = 0U, .cursor_x = 0U};
+        InputPorts tail_ports;
+        const auto tail = input(guardian, snapshot, tail_ports);
+        test.expect_true(
+            tail.last_target == Target::commit_interaction,
+            "0x4407F0 button4 tail gate commits outside all rectangles"
+        );
+    }
+    {
+        sm::LegacyStandardModeGuardianInitializationState guardian;
+        sm::LegacyStandardModeGuardianInputSnapshot snapshot{};
+        InputPorts input_ports;
+        const auto stopped = sm::handle_legacy_standard_mode_guardian_input(
+            guardian, snapshot, {}, {}, input_ports
+        );
+        test.expect_true(
+            stopped.status ==
+                sm::LegacyStandardModeGuardianInputStatus::
+                    availability_index_out_of_range,
+            "0x4407F0 propagates the closed C090 availability typed-stop"
+        );
+    }
 }
 
 void test_standard_mode_database_initialization(openswd3::test::Context& test) {

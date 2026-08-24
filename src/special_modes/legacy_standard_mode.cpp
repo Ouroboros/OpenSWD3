@@ -5035,6 +5035,258 @@ LegacyStandardModeDatabaseCleanupResult release_legacy_standard_mode_database(
     return result;
 }
 
+LegacyStandardModeGuardianInputResult
+handle_legacy_standard_mode_guardian_input(
+    LegacyStandardModeGuardianInitializationState& state,
+    LegacyStandardModeGuardianInputSnapshot& input,
+    const std::span<const LegacyStandardModeAvailabilityRecord>
+        availability_records,
+    const std::span<const compat::u8> maps_payload,
+    LegacyStandardModeGuardianInputPorts& ports
+) noexcept {
+    LegacyStandardModeGuardianInputResult result;
+    result.legacy_return_value = std::bit_cast<compat::i32>(input.buttons);
+    const auto invoke = [&state, &input, &ports, &result](
+                            const LegacyStandardModeGuardianInputTarget target
+                        ) {
+        result.legacy_return_value =
+            ports.invoke_guardian_input(target, state, input);
+        ++result.callback_count;
+        result.last_target = target;
+        return result.legacy_return_value;
+    };
+    const auto reload_coordinates = [&input]() {
+        input.register_first = std::bit_cast<compat::i32>(input.cursor_y);
+        input.register_second = std::bit_cast<compat::i32>(input.cursor_x);
+    };
+    const auto multiply_high = [](const compat::u32 value,
+                                  const compat::u32 multiplier) {
+        return static_cast<compat::u32>(
+            (static_cast<std::uint64_t>(value) * multiplier) >> 32U
+        );
+    };
+
+    compat::u32 mode = state.interaction_mode;
+    if (mode == 0x0FU) {
+        if ((input.buttons & 0x0FU) != 0U) {
+            static_cast<void>(
+                invoke(LegacyStandardModeGuardianInputTarget::interact)
+            );
+            return result;
+        }
+    } else if (mode == 5U) {
+        if ((input.buttons & 4U) != 0U) {
+            static_cast<void>(invoke(
+                LegacyStandardModeGuardianInputTarget::commit_interaction
+            ));
+        }
+        return result;
+    }
+
+    reload_coordinates();
+    if ((input.buttons & 3U) != 0U && input.cursor_y < 0x19CU &&
+        input.cursor_y > 0x68U && input.cursor_x < 0x1B2U &&
+        input.cursor_x > 0xC8U) {
+        const compat::u32 relative = input.cursor_y - 0x68U;
+        const compat::u32 row = relative / 0x1CU;
+        const compat::u32 high = multiply_high(relative, 0x24924925U);
+        if (mode == 1U) {
+            static_cast<void>(invoke(
+                LegacyStandardModeGuardianInputTarget::commit_interaction
+            ));
+            state.guardian_slot = row - 1U;
+            input.register_first =
+                std::bit_cast<compat::i32>(state.guardian_slot);
+            input.register_second = std::bit_cast<compat::i32>(high);
+            static_cast<void>(invoke(
+                LegacyStandardModeGuardianInputTarget::select_guardian_slot
+            ));
+            return result;
+        }
+        result.legacy_return_value =
+            std::bit_cast<compat::i32>(state.guardian_slot);
+        if (state.guardian_slot != row) {
+            state.guardian_slot = row - 1U;
+            input.register_first =
+                std::bit_cast<compat::i32>(state.guardian_slot);
+            input.register_second = std::bit_cast<compat::i32>(high);
+            static_cast<void>(invoke(
+                LegacyStandardModeGuardianInputTarget::select_guardian_slot
+            ));
+        }
+        return result;
+    }
+
+    const compat::i32 cursor_y = std::bit_cast<compat::i32>(input.cursor_y);
+    const compat::i32 cursor_x = std::bit_cast<compat::i32>(input.cursor_x);
+    const compat::i32 panel_y = std::bit_cast<compat::i32>(state.panel_y);
+    const compat::i32 panel_x = std::bit_cast<compat::i32>(state.panel_x);
+    if ((input.buttons & 3U) != 0U && cursor_y < panel_y + 0xD0 &&
+        cursor_y > panel_y - 0x0C && cursor_x < 0x25C &&
+        cursor_x > panel_x - 0x22) {
+        const compat::u32 relative = input.cursor_y - state.panel_y + 0x0CU;
+        const compat::u32 row = relative / 0x15U;
+        const compat::u32 high = multiply_high(relative, 0x86186187U);
+        mode = state.interaction_mode;
+        if (mode == 0U) {
+            static_cast<void>(
+                invoke(LegacyStandardModeGuardianInputTarget::interact)
+            );
+            const compat::u32 refreshed_relative =
+                input.cursor_y - state.panel_y + 0x0CU;
+            const compat::u32 refreshed_row = refreshed_relative / 0x15U;
+            if (refreshed_row < state.visible_record_count) {
+                state.local_selection = refreshed_row;
+            }
+        } else if (row == state.local_selection) {
+            input.register_first = std::bit_cast<compat::i32>(row);
+            input.register_second = std::bit_cast<compat::i32>(high);
+            static_cast<void>(
+                invoke(LegacyStandardModeGuardianInputTarget::interact)
+            );
+        } else {
+            compat::u32 selected = state.local_selection;
+            if (row < state.visible_record_count) {
+                selected = row;
+                state.local_selection = row;
+            }
+            compat::i32 count =
+                std::bit_cast<compat::i32>(state.list_offset + selected);
+            const LegacyStandardModeForwardNode* node = state.record_head;
+            while (count > 0) {
+                if (node == nullptr) {
+                    result.status = LegacyStandardModeGuardianInputStatus::
+                        selected_node_missing;
+                    return result;
+                }
+                node = node->next;
+                --count;
+            }
+            if (node == nullptr) {
+                result.status = LegacyStandardModeGuardianInputStatus::
+                    selected_node_missing;
+                return result;
+            }
+            const LegacyStandardModeTextResolutionResult text =
+                resolve_legacy_standard_mode_shared_text(
+                    node->text_index, maps_payload, state.shared_text
+                );
+            result.legacy_return_value = text.formatter_return;
+            if (text.status !=
+                LegacyStandardModeTextResolutionStatus::completed) {
+                result.status =
+                    LegacyStandardModeGuardianInputStatus::shared_text_stopped;
+                return result;
+            }
+        }
+        if (state.interaction_mode != 0x0FU) {
+            static_cast<void>(invoke(
+                LegacyStandardModeGuardianInputTarget::refresh_attribute_cache
+            ));
+        }
+        return result;
+    }
+
+    const LegacyStandardModeAvailabilityResult availability =
+        query_legacy_standard_mode_availability(0x0F, availability_records);
+    if (availability.status !=
+        LegacyStandardModeAvailabilityStatus::completed) {
+        result.status = LegacyStandardModeGuardianInputStatus::
+            availability_index_out_of_range;
+        return result;
+    }
+    reload_coordinates();
+    mode = state.interaction_mode;
+    if (availability.available && state.total_record_count > 0x0AU &&
+        input.cursor_x < 0x272U && input.cursor_x > 0x262U) {
+        if (mode == 0U) {
+            static_cast<void>(
+                invoke(LegacyStandardModeGuardianInputTarget::interact)
+            );
+            return result;
+        }
+        if (mode == 1U) {
+            if (input.cursor_y < 0x74U && input.cursor_y > 0x66U) {
+                static_cast<void>(
+                    invoke(LegacyStandardModeGuardianInputTarget::cycle_left)
+                );
+                return result;
+            }
+            if (input.cursor_y < 0x140U && input.cursor_y > 0x130U) {
+                static_cast<void>(invoke(
+                    LegacyStandardModeGuardianInputTarget::select_guardian_slot
+                ));
+                return result;
+            }
+            const compat::i32 y = std::bit_cast<compat::i32>(input.cursor_y);
+            if (y < state.first_dynamic_max_y &&
+                y > state.first_dynamic_min_y) {
+                static_cast<void>(invoke(
+                    LegacyStandardModeGuardianInputTarget::select_first_dynamic
+                ));
+                return result;
+            }
+            if (y < state.second_dynamic_max_y &&
+                y > state.second_dynamic_min_y) {
+                static_cast<void>(invoke(
+                    LegacyStandardModeGuardianInputTarget::select_second_dynamic
+                ));
+                return result;
+            }
+        }
+    }
+
+    state.hover_flag = 0;
+    if (input.cursor_y < 0x1E0U && input.cursor_y > 0x1D0U &&
+        input.cursor_x < 0x260U && input.cursor_x > 0x216U) {
+        state.hover_flag = -1;
+        if ((input.buttons & 3U) != 0U) {
+            static_cast<void>(
+                invoke(LegacyStandardModeGuardianInputTarget::play_confirm)
+            );
+            mode = state.interaction_mode;
+            reload_coordinates();
+        }
+    }
+
+    if ((input.buttons & 3U) != 0U && input.cursor_y < 0x1D4U &&
+        input.cursor_y > 0x0AU && input.cursor_x < 0xBCU &&
+        input.cursor_x > 4U) {
+        if (mode == 1U) {
+            static_cast<void>(invoke(
+                LegacyStandardModeGuardianInputTarget::commit_interaction
+            ));
+            mode = state.interaction_mode;
+            input.register_first = std::bit_cast<compat::i32>(input.cursor_y);
+        }
+        if (mode == 0U) {
+            const compat::u32 party_index = (input.cursor_y - 0x0AU) / 0x6EU;
+            const bool item_present = ports.query_guardian_item_presence(
+                static_cast<compat::u16>(party_index + 0x1EU)
+            );
+            ++result.callback_count;
+            result.legacy_return_value = item_present ? 1 : 0;
+            if (item_present) {
+                state.party_selector = (state.party_selector & 0xFFFF0000U) |
+                    static_cast<compat::u16>(party_index - 1U);
+                static_cast<void>(
+                    invoke(LegacyStandardModeGuardianInputTarget::switch_party)
+                );
+            }
+            return result;
+        }
+        return result;
+    }
+
+    result.legacy_return_value = std::bit_cast<compat::i32>(input.buttons);
+    if ((input.buttons & 4U) != 0U) {
+        static_cast<void>(
+            invoke(LegacyStandardModeGuardianInputTarget::commit_interaction)
+        );
+    }
+    return result;
+}
+
 LegacyStandardModeGuardianInitializationResult
 initialize_legacy_standard_mode_guardian_system(
     LegacyStandardModeGuardianInitializationState& state,
@@ -5056,13 +5308,13 @@ initialize_legacy_standard_mode_guardian_system(
     ++result.helper_call_count;
     ++result.allocation_count;
 
-    state.primary_accumulator = 0U;
-    state.secondary_accumulator = 0U;
-    state.first_total = 0U;
-    state.second_total = 0U;
-    state.selection_index = 0U;
-    state.first_selection_value = 0U;
-    state.second_selection_value = 0U;
+    state.visible_record_count = 0U;
+    state.local_selection = 0U;
+    state.list_offset = 0U;
+    state.total_record_count = 0U;
+    state.guardian_slot = 0U;
+    state.interaction_mode = 0U;
+    state.secondary_mode_value = 0U;
     state.record_head = nullptr;
     ports.prepare_guardian_record_list(state);
     ++result.helper_call_count;
@@ -5087,7 +5339,7 @@ initialize_legacy_standard_mode_guardian_system(
     const compat::u16 party_index =
         static_cast<compat::u16>(state.party_selector);
     const std::uint64_t record_index =
-        static_cast<std::uint64_t>(party_index) * 16U + state.selection_index;
+        static_cast<std::uint64_t>(party_index) * 16U + state.guardian_slot;
     if (record_index >= guardian_records.size()) {
         result.status = LegacyStandardModeGuardianInitializationStatus::
             record_index_out_of_range;
