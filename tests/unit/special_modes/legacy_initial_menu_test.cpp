@@ -3312,6 +3312,126 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             "0x443670 mode2 selects highest party and mode15 advances an eight-item page"
         );
 
+        sm::LegacyStandardModeEquipmentInitializationState page_retreat_state;
+        page_retreat_state.mode_enabled = 1U;
+        page_retreat_state.local_selection = 5U;
+        EquipmentInputPorts page_retreat_ports;
+        const auto normalized_retreat_page =
+            sm::retreat_legacy_standard_mode_equipment_page(
+                page_retreat_state, {}, page_retreat_ports
+            );
+        page_retreat_state = {};
+        page_retreat_state.mode_enabled = 1U;
+        page_retreat_state.list_offset = 24U;
+        page_retreat_state.local_selection = 1U;
+        page_retreat_state.record_head = page_records.data();
+        page_retreat_state.sample_owner = 0xF00DU;
+        const auto retreated_page =
+            sm::retreat_legacy_standard_mode_equipment_page(
+                page_retreat_state, {}, page_retreat_ports
+            );
+        test.expect_true(
+            normalized_retreat_page.status ==
+                    sm::LegacyStandardModeEquipmentPageRetreatStatus::
+                        completed &&
+                normalized_retreat_page.legacy_return_value == 1 &&
+                normalized_retreat_page.helper_call_count == 0U &&
+                retreated_page.status ==
+                    sm::LegacyStandardModeEquipmentPageRetreatStatus::
+                        completed &&
+                retreated_page.legacy_return_value == 77 &&
+                retreated_page.helper_call_count == 5U &&
+                page_retreat_state.list_offset == 0U &&
+                page_retreat_state.local_selection == 1U &&
+                page_retreat_state.visible_record_head == page_records.data() &&
+                page_retreat_state.visible_record_count == 24U &&
+                page_retreat_state.shared_text[0] == 0xB5U &&
+                page_retreat_state.final_zero == 3U &&
+                page_retreat_ports.samples ==
+                    std::vector<std::array<u32, 2U>>{{0x2EU, 0xF00DU}},
+            "0x4437C0 normalizes a column or retreats 24 records then publishes text"
+        );
+
+        page_retreat_state = {};
+        page_retreat_state.mode_enabled = 1U;
+        page_retreat_state.list_offset = 24U;
+        page_retreat_state.local_selection = 1U;
+        page_retreat_state.record_head = page_records.data();
+        EquipmentInputPorts retreat_refresh_stop_ports;
+        retreat_refresh_stop_ports.visible_count_refresh_available = false;
+        const auto retreat_refresh_stopped =
+            sm::retreat_legacy_standard_mode_equipment_page(
+                page_retreat_state, {}, retreat_refresh_stop_ports
+            );
+        page_retreat_state = {};
+        page_retreat_state.mode_enabled = 1U;
+        page_retreat_state.local_selection = 0U;
+        EquipmentInputPorts retreat_missing_ports;
+        const auto retreat_page_missing =
+            sm::retreat_legacy_standard_mode_equipment_page(
+                page_retreat_state, {}, retreat_missing_ports
+            );
+        page_retreat_state.record_head = &advance_invalid_text;
+        page_retreat_state.final_zero = 9U;
+        const auto retreat_page_text_stopped =
+            sm::retreat_legacy_standard_mode_equipment_page(
+                page_retreat_state, {}, retreat_missing_ports
+            );
+        test.expect_true(
+            retreat_refresh_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPageRetreatStatus::
+                        visible_count_refresh_stopped &&
+                retreat_refresh_stopped.helper_call_count == 1U &&
+                page_retreat_state.list_offset == 0U &&
+                retreat_page_missing.status ==
+                    sm::LegacyStandardModeEquipmentPageRetreatStatus::
+                        selected_record_missing &&
+                retreat_page_missing.helper_call_count == 3U &&
+                retreat_page_text_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPageRetreatStatus::
+                        shared_text_stopped &&
+                retreat_page_text_stopped.helper_call_count == 4U &&
+                page_retreat_state.final_zero == 9U,
+            "0x4437C0 preserves refresh, B9C0 and B9E0 typed-stop prefixes"
+        );
+
+        page_retreat_state = {};
+        page_retreat_state.mode_enabled = 2U;
+        page_retreat_state.party_markers = {0xFFFFU, 1U, 2U, 3U};
+        const auto retreat_page_party =
+            sm::retreat_legacy_standard_mode_equipment_page(
+                page_retreat_state, {}, page_retreat_ports
+            );
+        const u32 retreat_page_party_selection =
+            page_retreat_state.selected_party_action;
+        page_retreat_state.party_markers.fill(0xFFFFU);
+        const auto retreat_page_party_stopped =
+            sm::retreat_legacy_standard_mode_equipment_page(
+                page_retreat_state, {}, page_retreat_ports
+            );
+        page_retreat_state = {};
+        page_retreat_state.mode_enabled = 0x0FU;
+        page_retreat_state.special_window_offset = 8U;
+        page_retreat_state.hover_selection = 0U;
+        page_retreat_state.final_zero = 0xABCD0001U;
+        const auto special_page_retreated =
+            sm::retreat_legacy_standard_mode_equipment_page(
+                page_retreat_state, {}, page_retreat_ports
+            );
+        test.expect_true(
+            retreat_page_party_selection == 1U &&
+                retreat_page_party.legacy_return_value == 1 &&
+                retreat_page_party_stopped.status ==
+                    sm::LegacyStandardModeEquipmentPageRetreatStatus::
+                        party_search_stopped &&
+                special_page_retreated.legacy_return_value ==
+                    std::bit_cast<i32>(0xABCD0301U) &&
+                page_retreat_state.special_window_offset == 0U &&
+                page_retreat_state.hover_selection == 0U &&
+                page_retreat_state.final_zero == 0xABCD0301U,
+            "0x4437C0 mode2 selects lowest party and mode15 retreats an eight-item page"
+        );
+
         sm::LegacyStandardModeEquipmentInitializationState equipment;
         equipment.mode_enabled = 0x11U;
         equipment.first_render_zero = 7U;
