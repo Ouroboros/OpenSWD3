@@ -939,6 +939,34 @@ retreat_legacy_standard_mode_group_eight_mode(
     LegacyStandardModeGroupEightMainInputPorts& ports
 ) noexcept;
 
+enum class LegacyStandardModeGroupEightModeAdvanceStatus : compat::u8 {
+    completed,
+    runtime_mode_stopped,
+    record_cleanup_stopped,
+    record_initialization_stopped,
+    selected_record_missing,
+    shared_text_stopped,
+};
+
+struct LegacyStandardModeGroupEightModeAdvanceResult {
+    LegacyStandardModeGroupEightModeAdvanceStatus status{
+        LegacyStandardModeGroupEightModeAdvanceStatus::completed
+    };
+    compat::u8 runtime_mode_status{};
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGroupEightModeAdvanceResult
+advance_legacy_standard_mode_group_eight_mode(
+    LegacyStandardModeGroupEightState& state,
+    compat::u32 sample_handle,
+    std::span<const compat::u8> maps_payload,
+    LegacyStandardModeRuntimeInitializationState& runtime_state,
+    LegacyStandardModeInputDispatchPorts& runtime_ports,
+    LegacyStandardModeGroupEightMainInputPorts& ports
+) noexcept;
+
 class LegacyStandardModeGroupEightSelectionPorts
     : public virtual LegacyStandardModeStoryFlagPorts {
 public:

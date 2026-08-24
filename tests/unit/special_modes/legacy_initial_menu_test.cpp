@@ -16606,6 +16606,91 @@ void test_standard_mode_global_initialization(openswd3::test::Context& test) {
         "0x446420 predecrements, clamps and rebuilds high runtime modes"
     );
 
+    LegacyStandardModeForwardNode mode_advance_record;
+    mode_advance_record.text_index = 0xFFDCU;
+    GroupEightState mode_advance_state;
+    mode_advance_state.interaction_mode = 2U;
+    mode_advance_state.selection_x = 30U;
+    mode_advance_state.record_head = &mode_advance_record;
+    mode_advance_state.pre_initialization_zeroes[0U] = 6U;
+    mode_advance_state.pre_initialization_zeroes[2U] = 9U;
+    GroupEightMainInputPorts mode_advance_ports;
+    mode_advance_ports.initial_record_head = &mode_advance_record;
+    const auto mode_advanced =
+        openswd3::special_modes::advance_legacy_standard_mode_group_eight_mode(
+            mode_advance_state,
+            0x27182818U,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            mode_advance_ports
+        );
+    test.expect_true(
+        mode_advanced.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightModeAdvanceStatus::completed &&
+            mode_advanced.helper_call_count == 5U &&
+            mode_advance_state.viewport_extent == 480U &&
+            mode_advance_state.pre_initialization_zeroes[0U] == 0U &&
+            mode_advance_state.pre_initialization_zeroes[2U] == 0U &&
+            mode_advance_state.shared_text[0U] == 0xB5U &&
+            mode_advance_state.published_selection_x == 30U &&
+            mode_advance_ports.played_samples ==
+                std::vector<std::pair<u16, u32>>{{0x2EU, 0x27182818U}},
+        "0x446550 wraps category six to zero and rebuilds its selected text"
+    );
+
+    GroupEightState fixed_mode_advance_state;
+    fixed_mode_advance_state.interaction_mode = 10U;
+    fixed_mode_advance_state.outer_row_count = 0;
+    fixed_mode_advance_state.selection_x = 88U;
+    GroupEightMainInputPorts fixed_mode_advance_ports;
+    const auto fixed_mode_advanced =
+        openswd3::special_modes::advance_legacy_standard_mode_group_eight_mode(
+            fixed_mode_advance_state,
+            0U,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_mode_advance_ports
+        );
+    fixed_mode_advance_state.interaction_mode = 15U;
+    fixed_mode_advance_state.special_control_count = 4;
+    fixed_mode_advance_state.secondary_row_count = 2;
+    fixed_mode_advance_state.secondary_row_selection = 1;
+    const auto secondary_mode_advanced =
+        openswd3::special_modes::advance_legacy_standard_mode_group_eight_mode(
+            fixed_mode_advance_state,
+            0U,
+            {},
+            group_main_runtime,
+            group_main_runtime_ports,
+            fixed_mode_advance_ports
+        );
+    GroupEightState runtime_mode_advance_state;
+    runtime_mode_advance_state.interaction_mode = 500U;
+    LegacyStandardModeRuntimeInitializationState runtime_mode_advance_runtime;
+    GroupEightMainInputPorts runtime_mode_advance_ports;
+    const auto runtime_mode_advanced =
+        openswd3::special_modes::advance_legacy_standard_mode_group_eight_mode(
+            runtime_mode_advance_state,
+            0U,
+            {},
+            runtime_mode_advance_runtime,
+            group_main_runtime_ports,
+            runtime_mode_advance_ports
+        );
+    test.expect_true(
+        fixed_mode_advanced.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeGroupEightModeAdvanceStatus::completed &&
+            fixed_mode_advance_state.selected_outer_row == 0xFFFFFFFFU &&
+            secondary_mode_advanced.helper_call_count == 1U &&
+            fixed_mode_advance_state.published_selection_x == 88U &&
+            runtime_mode_advanced.helper_call_count == 1U,
+        "0x446550 preserves count-minus-one, advances mode15 and delegates to C760"
+    );
+
     GroupEightState group_state{.selection = 4U, .lifecycle = 2U};
     group_state.callback_state.initialization_callbacks.fill(0x00445430U);
     GroupEightInputPorts group_ports;
