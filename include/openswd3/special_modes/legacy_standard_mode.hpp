@@ -591,9 +591,39 @@ struct LegacyStandardModeGuardianListDrainResult {
     compat::u32 released_count{};
 };
 
-class LegacyStandardModeGuardianListRefreshPorts {
+struct LegacyStandardModeGuardianInitializationState;
+
+class LegacyStandardModeGuardianAttributeCachePorts {
 public:
-    virtual ~LegacyStandardModeGuardianListRefreshPorts() = default;
+    virtual ~LegacyStandardModeGuardianAttributeCachePorts() = default;
+    [[nodiscard]] virtual bool populate_guardian_party_attributes(
+        LegacyStandardModeGuardianInitializationState& state,
+        compat::u16 party_index,
+        std::size_t destination_offset
+    ) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    prepare_guardian_attribute_seed(
+        LegacyStandardModeGuardianInitializationState& state
+    ) noexcept = 0;
+    [[nodiscard]] virtual bool combine_guardian_selected_attributes(
+        LegacyStandardModeGuardianInitializationState& state,
+        compat::u16 party_index,
+        compat::u32 guardian_slot,
+        compat::i32 seed,
+        std::size_t destination_offset
+    ) noexcept = 0;
+    [[nodiscard]] virtual std::optional<compat::i32>
+    finalize_guardian_attribute_summary(
+        LegacyStandardModeGuardianInitializationState& state,
+        compat::i32 seed,
+        std::size_t destination_offset
+    ) noexcept = 0;
+};
+
+class LegacyStandardModeGuardianListRefreshPorts
+    : public LegacyStandardModeGuardianAttributeCachePorts {
+public:
+    ~LegacyStandardModeGuardianListRefreshPorts() override = default;
     [[nodiscard]] virtual LegacyStandardModeForwardNode*
     create_missing_guardian_record() noexcept = 0;
     virtual void release_missing_guardian_record(
@@ -945,6 +975,7 @@ enum class LegacyStandardModeGuardianInitializationStatus : compat::u8 {
     attribute_cache_allocation_failed,
     record_index_out_of_range,
     shared_text_stopped,
+    attribute_cache_stopped,
 };
 
 struct LegacyStandardModeGuardianInitializationResult {
@@ -982,6 +1013,7 @@ enum class LegacyStandardModeGuardianInputStatus : compat::u8 {
     selected_node_missing,
     shared_text_stopped,
     guardian_selection_stopped,
+    attribute_cache_stopped,
 };
 
 struct LegacyStandardModeGuardianInputResult {
@@ -1008,6 +1040,7 @@ enum class LegacyStandardModeGuardianSelectionStatus : compat::u8 {
     party_cycle_stopped,
     guardian_exchange_stopped,
     shared_text_stopped,
+    attribute_cache_stopped,
 };
 
 struct LegacyStandardModeGuardianSelectionResult {
@@ -1093,7 +1126,6 @@ enum class LegacyStandardModeGuardianRenderOperation : compat::u8 {
     draw_guardian_slot_panel,
     set_text_color,
     draw_selected_record_action,
-    refresh_attribute_cache,
     draw_attribute_icon,
     draw_guardian_slot_action,
     draw_guardian_slot_selection,
@@ -1195,9 +1227,6 @@ public:
     ~LegacyStandardModeGuardianInitializationPorts() override = default;
     [[nodiscard]] virtual compat::u32
     allocate_guardian_storage(std::size_t size) noexcept = 0;
-    virtual void prepare_guardian_attribute_cache(
-        LegacyStandardModeGuardianInitializationState& state
-    ) noexcept = 0;
 };
 
 struct LegacyStandardModeDatabaseInputSnapshot {
@@ -2904,6 +2933,28 @@ commit_legacy_standard_mode_guardian_interaction(
     std::span<const compat::u32> guardian_text_indices,
     std::span<const compat::u8> maps_payload,
     LegacyStandardModeGuardianCommitPorts& ports
+) noexcept;
+
+enum class LegacyStandardModeGuardianAttributeCacheStatus : compat::u8 {
+    completed,
+    party_population_stopped,
+    seed_preparation_stopped,
+    selected_combination_stopped,
+    summary_finalization_stopped,
+};
+
+struct LegacyStandardModeGuardianAttributeCacheResult {
+    LegacyStandardModeGuardianAttributeCacheStatus status{
+        LegacyStandardModeGuardianAttributeCacheStatus::completed
+    };
+    compat::i32 legacy_return_value{};
+    compat::u32 helper_call_count{};
+};
+
+[[nodiscard]] LegacyStandardModeGuardianAttributeCacheResult
+refresh_legacy_standard_mode_guardian_attribute_cache(
+    LegacyStandardModeGuardianInitializationState& state,
+    LegacyStandardModeGuardianAttributeCachePorts& ports
 ) noexcept;
 
 [[nodiscard]] LegacyStandardModeGuardianRenderResult

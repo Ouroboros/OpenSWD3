@@ -2500,21 +2500,66 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             released_missing_nodes.push_back(&node);
         }
 
-        void prepare_guardian_attribute_cache(
-            sm::LegacyStandardModeGuardianInitializationState& state
+        bool populate_guardian_party_attributes(
+            sm::LegacyStandardModeGuardianInitializationState& state,
+            const u16 party_index,
+            const std::size_t destination_offset
         ) noexcept override {
-            events.push_back(2U);
+            events.push_back(0x100U + party_index);
+            if (party_index == 0U) {
+                state.attribute_cache[destination_offset] = 0x5AU;
+            }
+            return true;
+        }
+
+        std::optional<i32> prepare_guardian_attribute_seed(
+            sm::LegacyStandardModeGuardianInitializationState&
+        ) noexcept override {
+            events.push_back(0x200U);
             ++attribute_prepare_count;
-            state.attribute_cache[0U] = 0x5AU;
+            return cache_seed_available ? std::optional<i32>{1} : std::nullopt;
+        }
+
+        bool combine_guardian_selected_attributes(
+            sm::LegacyStandardModeGuardianInitializationState& state,
+            const u16 party_index,
+            const u32 guardian_slot,
+            const i32 seed,
+            const std::size_t destination_offset
+        ) noexcept override {
+            events.push_back(0x300U);
+            cache_combine_arguments = {
+                party_index,
+                guardian_slot,
+                static_cast<u32>(seed),
+                static_cast<u32>(destination_offset),
+            };
             state.list_offset = 77U;
+            return true;
+        }
+
+        std::optional<i32> finalize_guardian_attribute_summary(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            const i32 seed,
+            const std::size_t destination_offset
+        ) noexcept override {
+            events.push_back(0x400U);
+            cache_finalize_arguments = {
+                static_cast<u32>(seed),
+                static_cast<u32>(destination_offset),
+            };
+            return 2;
         }
 
         std::array<u32, 3U> allocation_results{0x11U, 0x22U, 0x33U};
         std::size_t allocation_index{};
         u32 missing_create_count{};
         u32 attribute_prepare_count{};
+        bool cache_seed_available{true};
         sm::LegacyStandardModeForwardNode missing_node{nullptr, 0xFFDCU};
         std::vector<sm::LegacyStandardModeForwardNode*> released_missing_nodes;
+        std::array<u32, 4U> cache_combine_arguments{};
+        std::array<u32, 2U> cache_finalize_arguments{};
         std::vector<u32> events;
     };
 
@@ -2560,7 +2605,23 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             state.viewport_extent == 0x1E0U && state.previous_selection == -1 &&
             state.panel_x == 0x1E8U && state.panel_y == 0x78U &&
             state.uses_alternate_record_list &&
-            ports.events == std::vector<u32>{0x38U, 0x38U, 1U, 0x190U, 2U},
+            ports.events ==
+                std::vector<u32>{
+                    0x38U,
+                    0x38U,
+                    1U,
+                    0x190U,
+                    0x100U,
+                    0x101U,
+                    0x102U,
+                    0x103U,
+                    0x200U,
+                    0x300U,
+                    0x400U
+                } &&
+            ports.cache_combine_arguments ==
+                std::array<u32, 4U>{0U, 0U, 1U, 0x140U} &&
+            ports.cache_finalize_arguments == std::array<u32, 2U>{1U, 0x140U},
         "0x440630 initializes guardian owners and publishes selected missing text in exact order"
     );
 
@@ -2583,6 +2644,25 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             allocation_failed_state.attribute_cache[0U] == 0xA5U &&
             allocation_failed_state.viewport_extent == 9U,
         "0x440630 typed-stops at the immediate memset after third allocation failure"
+    );
+
+    sm::LegacyStandardModeGuardianInitializationState cache_failed_state;
+    cache_failed_state.viewport_extent = 9U;
+    GuardianPorts cache_failed_ports;
+    cache_failed_ports.cache_seed_available = false;
+    const auto cache_failed =
+        sm::initialize_legacy_standard_mode_guardian_system(
+            cache_failed_state, records, {}, cache_failed_ports
+        );
+    test.expect_true(
+        cache_failed.status ==
+                sm::LegacyStandardModeGuardianInitializationStatus::
+                    attribute_cache_stopped &&
+            cache_failed.helper_call_count == 5U &&
+            cache_failed_ports.attribute_prepare_count == 1U &&
+            cache_failed_ports.events.back() == 0x200U &&
+            cache_failed_state.viewport_extent == 9U,
+        "0x440630 propagates the 0x4429B0 seed stop before selected text and viewport publication"
     );
 
     sm::LegacyStandardModeGuardianInitializationState range_state;
@@ -2630,6 +2710,58 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         ) noexcept override {
             targets.push_back(target);
             return 10 + static_cast<i32>(targets.size());
+        }
+
+        bool populate_guardian_party_attributes(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            const u16 party_index,
+            const std::size_t destination_offset
+        ) noexcept override {
+            cache_steps.push_back(
+                {0, party_index, static_cast<i32>(destination_offset)}
+            );
+            return cache_steps_available &&
+                !(cache_failure_stage == 0 &&
+                  party_index == cache_failure_party);
+        }
+
+        std::optional<i32> prepare_guardian_attribute_seed(
+            sm::LegacyStandardModeGuardianInitializationState&
+        ) noexcept override {
+            cache_steps.push_back({1, 0, 0});
+            return cache_steps_available && cache_failure_stage != 1
+                ? std::optional<i32>{300}
+                : std::nullopt;
+        }
+
+        bool combine_guardian_selected_attributes(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            const u16 party_index,
+            const u32 guardian_slot,
+            const i32 seed,
+            const std::size_t destination_offset
+        ) noexcept override {
+            cache_steps.push_back(
+                {2,
+                 party_index,
+                 static_cast<i32>(guardian_slot),
+                 seed,
+                 static_cast<i32>(destination_offset)}
+            );
+            return cache_steps_available && cache_failure_stage != 2;
+        }
+
+        std::optional<i32> finalize_guardian_attribute_summary(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            const i32 seed,
+            const std::size_t destination_offset
+        ) noexcept override {
+            cache_steps.push_back(
+                {3, 0, seed, static_cast<i32>(destination_offset)}
+            );
+            return cache_steps_available && cache_failure_stage != 3
+                ? std::optional<i32>{400}
+                : std::nullopt;
         }
 
         i32 execute_guardian_sample_command(
@@ -2683,6 +2815,9 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         bool exchange_result{true};
         bool complete_exchange_result{true};
+        bool cache_steps_available{true};
+        i32 cache_failure_stage{-1};
+        u16 cache_failure_party{};
         bool filter_requested{};
         bool missing_available{true};
         u16 filter_sort_key{};
@@ -2694,9 +2829,94 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
         std::vector<u16> bound_phases;
         std::vector<u32> released_tokens;
         std::vector<u32> exchange_slots;
+        std::vector<std::array<i32, 5U>> cache_steps;
         std::vector<sm::LegacyStandardModeGuardianSelectionTarget> targets;
         std::vector<std::array<u32, 2U>> commands;
     };
+    {
+        sm::LegacyStandardModeGuardianInitializationState cache_state;
+        cache_state.party_selector = 0xABCD0002U;
+        cache_state.guardian_slot = 9U;
+        SelectionPorts cache_ports;
+        const auto cache =
+            sm::refresh_legacy_standard_mode_guardian_attribute_cache(
+                cache_state, cache_ports
+            );
+        test.expect_true(
+            cache.status ==
+                    sm::LegacyStandardModeGuardianAttributeCacheStatus::
+                        completed &&
+                cache.legacy_return_value == 400 &&
+                cache.helper_call_count == 7U &&
+                cache_ports.cache_steps ==
+                    std::vector<std::array<i32, 5U>>{
+                        {0, 0, 0, 0, 0},
+                        {0, 1, 0x50, 0, 0},
+                        {0, 2, 0xA0, 0, 0},
+                        {0, 3, 0xF0, 0, 0},
+                        {1, 0, 0, 0, 0},
+                        {2, 2, 9, 300, 0x140},
+                        {3, 0, 300, 0x140, 0},
+                    },
+            "0x4429B0 populates four 0x50 records then seeds, combines and finalizes 0x140"
+        );
+
+        constexpr std::
+            array<sm::LegacyStandardModeGuardianAttributeCacheStatus, 4U>
+                stopped_statuses{
+                    sm::LegacyStandardModeGuardianAttributeCacheStatus::
+                        party_population_stopped,
+                    sm::LegacyStandardModeGuardianAttributeCacheStatus::
+                        seed_preparation_stopped,
+                    sm::LegacyStandardModeGuardianAttributeCacheStatus::
+                        selected_combination_stopped,
+                    sm::LegacyStandardModeGuardianAttributeCacheStatus::
+                        summary_finalization_stopped,
+                };
+        constexpr std::array<u32, 4U> stopped_counts{3U, 5U, 6U, 7U};
+        bool all_stops_match = true;
+        for (i32 stage = 0; stage < 4; ++stage) {
+            SelectionPorts stopped_ports;
+            stopped_ports.cache_failure_stage = stage;
+            stopped_ports.cache_failure_party = 2U;
+            const auto stopped =
+                sm::refresh_legacy_standard_mode_guardian_attribute_cache(
+                    cache_state, stopped_ports
+                );
+            all_stops_match = all_stops_match &&
+                stopped.status ==
+                    stopped_statuses[static_cast<std::size_t>(stage)] &&
+                stopped.helper_call_count ==
+                    stopped_counts[static_cast<std::size_t>(stage)] &&
+                stopped_ports.cache_steps.size() ==
+                    stopped_counts[static_cast<std::size_t>(stage)];
+        }
+        test.expect_true(
+            all_stops_match,
+            "0x4429B0 stops after the exact prior effects of each pending callee boundary"
+        );
+
+        std::array<u32, 16U> records{};
+        records.fill(0xFFDCU);
+        sm::LegacyStandardModeGuardianInitializationState owner_state;
+        SelectionPorts owner_ports;
+        owner_ports.cache_failure_stage = 1;
+        const auto owner_stopped =
+            sm::advance_legacy_standard_mode_guardian_selection(
+                owner_state, records, {}, owner_ports
+            );
+        test.expect_true(
+            owner_stopped.status ==
+                    sm::LegacyStandardModeGuardianSelectionStatus::
+                        attribute_cache_stopped &&
+                owner_stopped.last_target ==
+                    sm::LegacyStandardModeGuardianSelectionTarget::
+                        refresh_attribute_cache &&
+                owner_ports.cache_steps.size() == 5U &&
+                owner_ports.targets.empty() && owner_ports.commands.empty(),
+            "closed selection callers propagate 0x4429B0 stop without invoking the former callback"
+        );
+    }
     {
         sm::LegacyStandardModeForwardNode duplicate{nullptr, 5U};
         duplicate.filter_flags = 3U;
@@ -3731,10 +3951,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 guardian.guardian_slot == 0U &&
                 guardian.shared_text[2U] == 0U &&
                 guardian.mode_flags == 0x80U &&
-                selection_ports.targets ==
-                    std::vector<SelectionTarget>{
-                        SelectionTarget::refresh_attribute_cache,
-                    } &&
+                selection_ports.targets.empty() &&
+                selection_ports.cache_steps.size() == 7U &&
                 selection_ports.commands ==
                     std::vector<std::array<u32, 2U>>{{0x2EU, 0x12345678U}},
             "0x440B20 mode0 wraps slot11, publishes its record and plays command46"
@@ -3867,10 +4085,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 guardian.visible_record_count == 10U &&
                 guardian.shared_text[2U] == 0U &&
                 guardian.mode_flags == 0x130U &&
-                selection_ports.targets ==
-                    std::vector<SelectionTarget>{
-                        SelectionTarget::refresh_attribute_cache
-                    } &&
+                selection_ports.targets.empty() &&
+                selection_ports.cache_steps.size() == 7U &&
                 selection_ports.commands ==
                     std::vector<std::array<u32, 2U>>{{0x2EU, 0xCAFEBABEU}},
             "0x440B20 mode1 advances the window, text, refresh, sample and low-byte flags"
@@ -3940,11 +4156,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 repeated.legacy_return_value == 77 &&
                 repeated.helper_call_count == 11U &&
                 guardian.local_selection == 0U && guardian.mode_flags == 3U &&
-                repeat_ports.targets ==
-                    std::vector<SelectionTarget>{
-                        SelectionTarget::refresh_attribute_cache,
-                        SelectionTarget::refresh_attribute_cache,
-                    } &&
+                repeat_ports.targets.empty() &&
+                repeat_ports.cache_steps.size() == 14U &&
                 repeat_ports.commands.size() == 2U,
             "0x440F00 mode1 runs C20 then repeats text, refresh and sample"
         );
@@ -3968,11 +4181,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 advance_repeated.helper_call_count == 11U &&
                 guardian.local_selection == 1U &&
                 guardian.mode_flags == 0x30U &&
-                advance_repeat_ports.targets ==
-                    std::vector<SelectionTarget>{
-                        SelectionTarget::refresh_attribute_cache,
-                        SelectionTarget::refresh_attribute_cache,
-                    } &&
+                advance_repeat_ports.targets.empty() &&
+                advance_repeat_ports.cache_steps.size() == 14U &&
                 advance_repeat_ports.commands.size() == 2U,
             "0x440FB0 mode1 runs B20 then repeats text, refresh and sample"
         );
@@ -4309,6 +4519,54 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
             return 200 + static_cast<i32>(selection_targets.size());
         }
 
+        bool populate_guardian_party_attributes(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            const u16 party_index,
+            const std::size_t destination_offset
+        ) noexcept override {
+            cache_steps.push_back(
+                {0, party_index, static_cast<i32>(destination_offset)}
+            );
+            return cache_steps_available;
+        }
+
+        std::optional<i32> prepare_guardian_attribute_seed(
+            sm::LegacyStandardModeGuardianInitializationState&
+        ) noexcept override {
+            cache_steps.push_back({1, 0, 0});
+            return cache_steps_available ? std::optional<i32>{300}
+                                         : std::nullopt;
+        }
+
+        bool combine_guardian_selected_attributes(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            const u16 party_index,
+            const u32 guardian_slot,
+            const i32 seed,
+            const std::size_t destination_offset
+        ) noexcept override {
+            cache_steps.push_back(
+                {2,
+                 party_index,
+                 static_cast<i32>(guardian_slot),
+                 seed,
+                 static_cast<i32>(destination_offset)}
+            );
+            return cache_steps_available;
+        }
+
+        std::optional<i32> finalize_guardian_attribute_summary(
+            sm::LegacyStandardModeGuardianInitializationState&,
+            const i32 seed,
+            const std::size_t destination_offset
+        ) noexcept override {
+            cache_steps.push_back(
+                {3, 0, seed, static_cast<i32>(destination_offset)}
+            );
+            return cache_steps_available ? std::optional<i32>{400}
+                                         : std::nullopt;
+        }
+
         i32 execute_guardian_sample_command(
             const u16 command_id, const u32 sample_owner
         ) noexcept override {
@@ -4361,12 +4619,14 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
 
         bool exchange_result{true};
         bool complete_exchange_result{true};
+        bool cache_steps_available{true};
         bool item_present{true};
         sm::LegacyStandardModeForwardNode missing_node{nullptr, 0xFFDCU};
         std::vector<sm::LegacyStandardModeForwardNode*> released_missing_nodes;
         std::vector<u32> exchange_slots;
         std::vector<u16> bound_phases;
         std::vector<u32> released_tokens;
+        std::vector<std::array<i32, 5U>> cache_steps;
         std::optional<u32> interaction_mode_after_commit{};
         std::vector<sm::LegacyStandardModeGuardianInputTarget> targets;
         std::vector<sm::LegacyStandardModeGuardianSelectionTarget>
@@ -4444,11 +4704,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 result.callback_count == 2U && guardian.guardian_slot == 1U &&
                 result.last_target == Target::select_guardian_slot &&
                 input_ports.targets.empty() &&
-                input_ports.selection_targets ==
-                    std::vector<SelectionTarget>{
-                        SelectionTarget::refresh_attribute_cache,
-                        SelectionTarget::refresh_attribute_cache,
-                    },
+                input_ports.selection_targets.empty() &&
+                input_ports.cache_steps.size() == 14U,
             "0x4407F0 guardian-slot rectangle commits then directly reuses 0x440B20"
         );
     }
@@ -4472,8 +4729,24 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 guardian.local_selection == 1U &&
                 guardian.shared_text[2U] == 0U &&
                 result.last_target == Target::refresh_attribute_cache &&
-                input_ports.targets.size() == 1U,
+                input_ports.targets.empty() &&
+                input_ports.cache_steps.size() == 7U,
             "0x4407F0 list row change resolves B9C0/B9E0 then refreshes attributes"
+        );
+
+        guardian.local_selection = 0U;
+        InputPorts cache_stopped_ports;
+        cache_stopped_ports.cache_steps_available = false;
+        const auto cache_stopped =
+            input(guardian, snapshot, cache_stopped_ports);
+        test.expect_true(
+            cache_stopped.status ==
+                    sm::LegacyStandardModeGuardianInputStatus::
+                        attribute_cache_stopped &&
+                cache_stopped.last_target == Target::refresh_attribute_cache &&
+                cache_stopped_ports.cache_steps.size() == 1U &&
+                cache_stopped_ports.targets.empty(),
+            "0x4407F0 propagates the direct 0x4429B0 stop before any former input callback"
         );
 
         guardian.record_head = nullptr;
@@ -4513,10 +4786,8 @@ void test_standard_mode_guardian_initialization(openswd3::test::Context& test) {
                 shortcut.last_target == Target::cycle_left &&
                 shortcut.legacy_return_value == 3 &&
                 input_ports.targets.empty() &&
-                input_ports.selection_targets ==
-                    std::vector<SelectionTarget>{
-                        SelectionTarget::refresh_attribute_cache
-                    },
+                input_ports.selection_targets.empty() &&
+                input_ports.cache_steps.size() == 7U,
             "0x4407F0 availability shortcut directly reuses 0x440C20"
         );
 
