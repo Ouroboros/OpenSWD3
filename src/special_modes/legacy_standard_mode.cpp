@@ -621,6 +621,113 @@ compat::i32 select_legacy_standard_mode_transition_first(
     return residual;
 }
 
+LegacyStandardModeTransitionInteractionResult
+retreat_legacy_standard_mode_transition_setting(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept {
+    LegacyStandardModeTransitionInteractionResult result;
+    if (state.progress == 1U) {
+        const compat::i32 residual =
+            std::bit_cast<compat::i32>(state.enabled) - 1;
+        state.enabled = std::bit_cast<compat::u32>(residual);
+        if (residual < 0) {
+            state.enabled = 0U;
+        }
+        result.legacy_return_value = static_cast<compat::u8>(residual);
+        result.path = LegacyStandardModeTransitionInteractionPath::
+            mode_one_selection_changed;
+        return result;
+    }
+    const compat::i32 progress_residual =
+        static_cast<compat::i32>(state.progress) - 5;
+    result.legacy_return_value = static_cast<compat::u8>(progress_residual);
+    if (state.progress != 5U) {
+        return result;
+    }
+    result.legacy_return_value = static_cast<compat::u8>(state.velocity);
+    switch (state.velocity) {
+    case 0: {
+        compat::i32 value = std::bit_cast<compat::i32>(state.sample_index) - 1;
+        state.sample_index = std::bit_cast<compat::u32>(value);
+        if (value <= 0) {
+            value = 0;
+            state.sample_index = 0U;
+        }
+        result.legacy_return_value = static_cast<compat::u8>(
+            ports.play_settings_sample(0x2EU, static_cast<compat::u32>(value))
+        );
+        ++result.helper_call_count;
+        result.path =
+            LegacyStandardModeTransitionInteractionPath::setting_sample_changed;
+        break;
+    }
+    case 1: {
+        compat::i32 value =
+            std::bit_cast<compat::i32>(state.settings_surface_index) - 1;
+        state.settings_surface_index = std::bit_cast<compat::u32>(value);
+        if (value <= 0) {
+            value = 0;
+            state.settings_surface_index = 0U;
+        }
+        result.legacy_return_value = static_cast<compat::u8>(
+            ports.activate_settings_surface(static_cast<compat::u32>(value))
+        );
+        ++result.helper_call_count;
+        result.path = LegacyStandardModeTransitionInteractionPath::
+            setting_surface_changed;
+        break;
+    }
+    case 2: {
+        const compat::i32 residual =
+            std::bit_cast<compat::i32>(state.settings_spacing) - 0x28;
+        state.settings_spacing = std::bit_cast<compat::u32>(residual);
+        if (residual <= 0x3C) {
+            state.settings_spacing = 0x3CU;
+        }
+        result.legacy_return_value = static_cast<compat::u8>(residual);
+        result.path = LegacyStandardModeTransitionInteractionPath::
+            setting_spacing_changed;
+        break;
+    }
+    case 3:
+        result.legacy_return_value =
+            static_cast<compat::u8>(ports.disable_settings_service(0x48U));
+        ++result.helper_call_count;
+        result.path =
+            LegacyStandardModeTransitionInteractionPath::setting_toggle_changed;
+        break;
+    case 4: {
+        compat::i32 value =
+            std::bit_cast<compat::i32>(state.settings_source_surface) + 1;
+        if (value > 4) {
+            value = 4;
+        }
+        state.settings_source_surface = static_cast<compat::u32>(value);
+        state.source_surface_token = static_cast<compat::u32>(value);
+        result.legacy_return_value = static_cast<compat::u8>(value);
+        result.path =
+            LegacyStandardModeTransitionInteractionPath::setting_source_changed;
+        break;
+    }
+    case 5: {
+        const compat::i32 residual =
+            std::bit_cast<compat::i32>(state.settings_auxiliary) - 1;
+        state.settings_auxiliary = std::bit_cast<compat::u32>(residual);
+        if (residual < 0) {
+            state.settings_auxiliary = 0U;
+        }
+        result.legacy_return_value = static_cast<compat::u8>(residual);
+        result.path = LegacyStandardModeTransitionInteractionPath::
+            setting_auxiliary_changed;
+        break;
+    }
+    default:
+        break;
+    }
+    return result;
+}
+
 LegacyStandardModeCallbackBindingResult bind_legacy_standard_mode_callbacks(
     LegacyStandardModeCallbackState& state,
     const compat::u16 secondary_word,

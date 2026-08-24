@@ -229,6 +229,12 @@ update_legacy_standard_mode_transition_interaction(
     LegacyStandardModeTransitionVisualState& state
 ) noexcept;
 
+[[nodiscard]] LegacyStandardModeTransitionInteractionResult
+retreat_legacy_standard_mode_transition_setting(
+    LegacyStandardModeTransitionVisualState& state,
+    LegacyStandardModeTransitionVisualPorts& ports
+) noexcept;
+
 class LegacyStandardModeCallbackBindingPorts
     : public virtual LegacyStandardModeStoryFlagPorts {
 public:

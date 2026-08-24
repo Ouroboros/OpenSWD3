@@ -15065,6 +15065,64 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
         "0x448C70 selects each first entry and preserves the unrelated progress residual"
     );
 
+    std::array<
+        openswd3::special_modes::LegacyStandardModeTransitionVisualState,
+        6U>
+        retreat_setting_states{};
+    std::array<FakeTransitionVisualPorts, 6U> retreat_setting_ports{};
+    std::array<
+        openswd3::special_modes::LegacyStandardModeTransitionInteractionResult,
+        6U>
+        retreat_setting_results{};
+    for (std::size_t index = 0U; index < retreat_setting_states.size();
+         ++index) {
+        auto& state = retreat_setting_states[index];
+        state.progress = 5U;
+        state.velocity = static_cast<i32>(index);
+        state.settings_spacing = 0x3CU;
+        state.settings_source_surface = 4U;
+        retreat_setting_results[index] = openswd3::special_modes::
+            retreat_legacy_standard_mode_transition_setting(
+                state, retreat_setting_ports[index]
+            );
+    }
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        retreat_setting_one_state;
+    retreat_setting_one_state.progress = 1U;
+    FakeTransitionVisualPorts retreat_setting_one_ports;
+    const auto retreat_setting_one = openswd3::special_modes::
+        retreat_legacy_standard_mode_transition_setting(
+            retreat_setting_one_state, retreat_setting_one_ports
+        );
+    openswd3::special_modes::LegacyStandardModeTransitionVisualState
+        retreat_setting_other_state;
+    retreat_setting_other_state.progress = 2U;
+    FakeTransitionVisualPorts retreat_setting_other_ports;
+    const auto retreat_setting_other = openswd3::special_modes::
+        retreat_legacy_standard_mode_transition_setting(
+            retreat_setting_other_state, retreat_setting_other_ports
+        );
+    test.expect_true(
+        retreat_setting_states[0U].sample_index == 0U &&
+            retreat_setting_ports[0U].settings_calls ==
+                std::vector<std::array<u32, 2U>>{{0x2EU, 0U}} &&
+            retreat_setting_states[1U].settings_surface_index == 0U &&
+            retreat_setting_ports[1U].settings_calls ==
+                std::vector<std::array<u32, 2U>>{{0x100U, 0U}} &&
+            retreat_setting_states[2U].settings_spacing == 0x3CU &&
+            retreat_setting_results[2U].legacy_return_value == 0x14U &&
+            retreat_setting_ports[3U].settings_calls ==
+                std::vector<std::array<u32, 2U>>{{0x200U, 0x48U}} &&
+            retreat_setting_states[4U].settings_source_surface == 4U &&
+            retreat_setting_results[4U].legacy_return_value == 4U &&
+            retreat_setting_states[5U].settings_auxiliary == 0U &&
+            retreat_setting_results[5U].legacy_return_value == 0xFFU &&
+            retreat_setting_one_state.enabled == 0U &&
+            retreat_setting_one.legacy_return_value == 0xFFU &&
+            retreat_setting_other.legacy_return_value == 0xFDU,
+        "0x448CA0 retreats the active setting while preserving clamped low-byte residuals"
+    );
+
     for (const auto& item : cases) {
         LegacyStandardModeCallbackState state;
         state.targets.fill(0xDEADBEEFU);
