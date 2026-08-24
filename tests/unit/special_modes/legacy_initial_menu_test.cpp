@@ -15089,6 +15089,34 @@ void test_standard_mode_callback_binding(openswd3::test::Context& test) {
     );
 
     openswd3::special_modes::LegacyStandardModeTransitionPairState
+        transition_pair_wrapped_retreat_state;
+    transition_pair_wrapped_retreat_state.mode_word = 0xABCD0000U;
+    transition_pair_wrapped_retreat_state.mode_records = {
+        0xFFFFU, 0xFFFFU, 7U, 0xFFFFU
+    };
+    transition_pair_wrapped_retreat_state.sample_owner = 0x9999U;
+    FakeTransitionPairPorts transition_pair_wrapped_retreat_ports;
+    const auto transition_pair_wrapped_retreat = openswd3::special_modes::
+        retreat_wrapped_legacy_standard_mode_transition_pair(
+            transition_pair_wrapped_retreat_state,
+            transition_pair_wrapped_retreat_ports
+        );
+    test.expect_true(
+        transition_pair_wrapped_retreat.status ==
+                openswd3::special_modes::
+                    LegacyStandardModeTransitionPairStatus::completed &&
+            transition_pair_wrapped_retreat_state.mode_word == 0xABCD0002U &&
+            transition_pair_wrapped_retreat.target_mode == 2U &&
+            transition_pair_wrapped_retreat_ports.events ==
+                std::vector<u32>{1U, 2U} &&
+            transition_pair_wrapped_retreat_ports.played_sample_owners ==
+                std::vector<u32>{0x9999U} &&
+            transition_pair_wrapped_retreat.legacy_return_value == 0x5678 &&
+            transition_pair_wrapped_retreat.helper_call_count == 2U,
+        "0x44A1D0 preserves the correct FFFF wrap comparison through the behaviorally equivalent low-two-bit retreat entry"
+    );
+
+    openswd3::special_modes::LegacyStandardModeTransitionPairState
         transition_pair_update_state;
     transition_pair_update_state.mode_word = 0xABCD0000U;
     transition_pair_update_state.input_flags = 0x03U;

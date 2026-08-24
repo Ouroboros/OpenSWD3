@@ -401,6 +401,12 @@ retreat_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairPorts& ports
 ) noexcept;
 
+[[nodiscard]] LegacyStandardModeTransitionPairResult
+retreat_wrapped_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept;
+
 enum class LegacyStandardModeTransitionVisualStatus : compat::u8 {
     completed,
     snapshot_allocation_stopped,

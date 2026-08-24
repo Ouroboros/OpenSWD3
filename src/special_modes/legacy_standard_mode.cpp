@@ -436,6 +436,14 @@ retreat_legacy_standard_mode_transition_pair(
 }
 
 LegacyStandardModeTransitionPairResult
+retreat_wrapped_legacy_standard_mode_transition_pair(
+    LegacyStandardModeTransitionPairState& state,
+    LegacyStandardModeTransitionPairPorts& ports
+) noexcept {
+    return retreat_legacy_standard_mode_transition_pair(state, ports);
+}
+
+LegacyStandardModeTransitionPairResult
 update_legacy_standard_mode_transition_pair(
     LegacyStandardModeTransitionPairState& state,
     LegacyStandardModeTransitionPairPorts& ports
